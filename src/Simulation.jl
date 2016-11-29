@@ -1,5 +1,7 @@
 module Simulation
 
-# package code goes here
+include("Ecosystem.jl")
+export Ecosystem, Habitat, Location, MatrixLandscape
+export get_landscape
 
 end # module
