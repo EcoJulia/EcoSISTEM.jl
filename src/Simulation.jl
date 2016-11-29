@@ -1,7 +1,6 @@
 module Simulation
 
 include("Ecosystem.jl")
-export Ecosystem, Habitat, Location, MatrixLandscape
-export get_landscape
+export Ecosystem, Habitats, StringTraits, MatrixLandscape
 
 end # module
