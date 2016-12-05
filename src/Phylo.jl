@@ -1,12 +1,8 @@
 
 %Load packages
 using PhyloTrees
-#using Bio.Phylo
 using Plots
-#using TikzGraphs
-#using LightGraphs
 using Distributions
-#using DataFrames
 #Pkg.update()
 
 
