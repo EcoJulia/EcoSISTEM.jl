@@ -32,3 +32,15 @@ function populate(species::Int64, individuals::Int64, habitat::Habitats)
   end
   MatrixLandscape(P, habitat)
 end
+
+function SR(ecosystem::Ecosystem, individuals::Int64)
+  sz=size(ecosystem.partition.abundances,2,3)
+  ms=mapslices(sum, ecosystem.partition.abundances*individuals, 1)
+  reshape(ms, sz)
+end
+function SR(ecosystem::Habitats)
+ sz=size(ecosystem.partition.abundances,2,3)
+ ms=mapslices(sum, ecosystem.partition.abundances, 1)
+ reshape(ms, sz)
+end
+
