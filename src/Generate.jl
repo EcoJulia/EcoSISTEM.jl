@@ -16,8 +16,7 @@ end
 
 mat=ones(10, 10)
 
-dims=size(mat)
-squares=dims[1]*dims[2]
+
 function populate(species::Int64, individuals::Int64, habitat::Habitats)
   dim=size(habitat.matrix)
   P=zeros(Int64,species,dim[1],dim[2])
