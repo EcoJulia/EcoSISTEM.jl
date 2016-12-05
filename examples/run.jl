@@ -16,7 +16,11 @@ sb = subdiv(β(eco), 3)
 m = metadiv(β(eco), 3)
 
 
+# Create a simple habitat matrix
 mat=ones(10, 10)
+# Populate habitat with 10,000 individuals from 50 species
 LS=populate(50, 10000, Habitats(mat))
+# Create ecosystem from habitat, making every species distinct and
+# having the same trait
 eco=Ecosystem(LS,Species(), StringTraits(repmat(["A"],50)))
 
