@@ -18,17 +18,20 @@ end
 
 dims=size(mat)
 squares=dims[1]*dims[2]
-
-P=zeros(Int64,50,10,10)
-abun_vec=rand(Multinomial(1000, 50))
-for i in eachindex(abun_vec)
-  abun=abun_vec[i]
-    while abun>0
-    x=rand(1:10)
-    y=rand(1:10)
-    P[i,x,y]=P[i,x,y]+1
-    abun=abun-1
+function populate(species::Int64, individuals::Int64, habitat::Habitats)
+  dim=size(habitat.matrix)
+  P=zeros(Int64,species,dim[1],dim[2])
+  abun_vec=rand(Multinomial(individuals, species))
+  for i in eachindex(abun_vec)
+    abun=abun_vec[i]
+      while abun>0
+      x=rand(1:dim[1])
+      y=rand(1:dim[1])
+      P[i,x,y]=P[i,x,y]+1
+      abun=abun-1
+    end
   end
+  MatrixLandscape(P, habitat)
 end
 part=MatrixLandscape(P, Habitats(mat))
 
