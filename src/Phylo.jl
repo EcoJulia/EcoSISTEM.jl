@@ -8,10 +8,7 @@ using Distributions
 
 #Function to create random tree with set number of tips
 function jtree(n::Int64, dist::Distribution = Uniform(0,n))
-  #Function to add branch of random length
-  function f(sou,var, dist)
-    addbranch!(tree1, sou, var, rand(dist))
-  end
+
   #Create tree and set initial two branches
   tree1 = Tree{String, Void}(); addnodes!(tree1, 2*n-1)
   map(target->addbranch!(tree1, 1, target, rand(dist)),2:3)
