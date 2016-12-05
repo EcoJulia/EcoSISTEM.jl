@@ -19,12 +19,6 @@ m = metadiv(β(eco), 3)
 mat=ones(10, 10)
 LS=populate(50, 10000, Habitats(mat))
 eco=Ecosystem(LS,Species(), StringTraits(repmat(["A"],50)))
-Plots.heatmap(SR(eco, 10000))
-using Gadfly
-spy(LS.abundances[1, :, :])
-
-using Plots
-matshow(LS.abundances[1, :, :])
 
 Plots.heatmap(LS.abundances[6, :, :])
 @recipe
