@@ -1,5 +1,4 @@
 using Distributions
-using DataFrames
 
 function jmulti(n::Int64, p::AbstractArray)
   rand(Multinomial(n, p))
