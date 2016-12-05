@@ -26,6 +26,10 @@ eco=Ecosystem(LS,Species(), StringTraits(repmat(["A"],50)))
 # Create grid of species richness
 sr=SR(eco, 10000)
 
-# Plot 
+# Plot
 heatmap(LS.abundances[1, :, :])
 heatmap(sr)
+
+# Investigate alpha Diversity
+alpha_bar=subdiv(ᾱ(eco),0)
+heatmap(alpha_bar)
