@@ -1,20 +1,21 @@
 using Distributions
 using DataFrames
-function neighbours(x, y, dim)
 
-function create_habitat(dims::Tuple, corr, prop)
-  mat=zeros(10, 10)
-  rand!(mat,[0 1])
-
-end
-
-mat=ones(10, 10)
 function jmulti(n::Int64, p::AbstractArray)
   rand(Multinomial(n, p))
 end
 function jmulti(n::Int64, p::Real)
   rand(Multinomial(n, repmat([p], n)))
 end
+
+function neighbours(x, y, dim)
+
+function create_habitat(dims::Tuple, corr, prop)
+  mat=zeros(10, 10)
+  rand!(mat,[0 1])
+end
+
+mat=ones(10, 10)
 
 dims=size(mat)
 squares=dims[1]*dims[2]
