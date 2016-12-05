@@ -2,7 +2,9 @@ using Diversity
 using Diversity.AbstractPartition
 using Diversity.AbstractMetacommunity
 using Diversity.psmatch
+
 abstract AbstractHabitat
+
 type Habitats <: AbstractHabitat
   matrix::Matrix{Float64}
 end
