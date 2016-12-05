@@ -33,9 +33,3 @@ function populate(species::Int64, individuals::Int64, habitat::Habitats)
   end
   MatrixLandscape(P, habitat)
 end
-part=MatrixLandscape(P, Habitats(mat))
-
-
-using Gadfly
-
-display(plot(P, Geom.bar))
