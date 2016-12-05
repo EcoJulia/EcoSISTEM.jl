@@ -20,5 +20,3 @@ mat=ones(10, 10)
 LS=populate(50, 10000, Habitats(mat))
 eco=Ecosystem(LS,Species(), StringTraits(repmat(["A"],50)))
 
-Plots.heatmap(LS.abundances[6, :, :])
-@recipe
