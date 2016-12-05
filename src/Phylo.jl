@@ -13,7 +13,8 @@ function jtree(n::Int64, dist::Distribution = Uniform(0,n))
     addbranch!(tree1, sou, var, rand(dist))
   end
   #Create tree and set initial two branches
-tree1 = Tree(2*n-1); map(target->addbranch!(tree1, 1, target, rand(dist)),2:3)
+  tree1 = Tree{String, Void}(); addnodes!(tree1, 2*n-1)
+  map(target->addbranch!(tree1, 1, target, rand(dist)),2:3)
   if n>2
   nodes=3
   #Run through randomly choosing the next node to split
