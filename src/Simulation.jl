@@ -5,4 +5,7 @@ export Ecosystem, Habitats, StringTraits, MatrixLandscape
 
 include("Diversity_funcs.jl")
 
+include("Generate.jl")
+export populate, SR
+
 end # module
