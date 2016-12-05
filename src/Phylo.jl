@@ -26,7 +26,7 @@ function jtree(n::Int64, dist::Distribution = Uniform(0,n))
       # Split into two
       nodes=nodes+2
       # Make new branches random length
-      map(f,[n1,n1],(nodes-1):(nodes), [dist,dist])
+      map(var-> addbranch!(tree1,n1, var, rand(dist)),(nodes-1):(nodes))
       # Remove nodes already split
       deleteat!(i, findin(i,n1))
       # Add newly created tips into the mix
