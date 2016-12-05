@@ -14,7 +14,6 @@ function create_habitat(dims::Tuple, corr, prop)
   rand!(mat,[0 1])
 end
 
-mat=ones(10, 10)
 
 
 function populate(species::Int64, individuals::Int64, habitat::Habitats)
@@ -44,3 +43,15 @@ function SR(ecosystem::Habitats)
  reshape(ms, sz)
 end
 
+mat=ones(10, 10)
+LS=populate(50, 10000, Habitats(mat))
+eco=Ecosystem(LS,Species(), StringTraits(repmat(["A"],50)))
+Plots.heatmap(SR(eco, 10000))
+using Gadfly
+spy(LS.abundances[1, :, :])
+
+using Plots
+matshow(LS.abundances[1, :, :])
+
+Plots.heatmap(LS.abundances[6, :, :])
+@recipe
