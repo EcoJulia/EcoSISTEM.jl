@@ -1,7 +1,6 @@
 using Simulation
 using Diversity
-using Diversity.β
-
+using Diversity.ShortNames
 # Create a partition
 part=MatrixLandscape(reshape([1, 2, 3, 4, 5, 6, 7, 8], (2, 2, 2)), Habitats([1 2; 3 4]))
 
@@ -14,3 +13,4 @@ getordinariness!(eco)
 b = β(eco)
 
 sb = subdiv(β(eco), 3)
+m = metadiv(β(eco), 3)
