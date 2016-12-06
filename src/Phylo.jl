@@ -229,6 +229,8 @@ tree
 end
 trait_tree=assign_trait(tree,switch_rate, traits)
 
+function get_traits(tree::Tree)
+  map(a->getlabel(tree.nodes[a]), 1:length(tree.nodes))
 end
 
 
