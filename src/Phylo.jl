@@ -217,19 +217,18 @@ setlabel!(tree.nodes[1], sample(traits))
     # Find trait of last node
     sel_pair=pairs[j,:]
     labels=map(a->haslabel(tree.nodes[a]), sel_pair)
-      if sum(labels)<2
-        last_node=maximum(sel_pair[labels])
-        last_label=getlabel(tree.nodes[last_node])
-        if num_switches==0
-          set_node=minimum(sel_pair[!labels])
-          setlabel!(tree.nodes[set_node],last_label)
-        else
-          while num_switches>0
+
+      last_node=maximum(sel_pair[labels])
+      last_label=getlabel(tree.nodes[last_node])
+      if num_switches==0
+        set_node=minimum(sel_pair[!labels])
+        setlabel!(tree.nodes[set_node],last_label)
+      else
+        while num_switches>0
           set_node=minimum(sel_pair[!labels])
           setlabel!(tree.nodes[set_node],sample(traits[traits.!=last_label]))
           last_label=getlabel(tree.nodes[set_node])
           num_switches=num_switches-1
-          end
         end
       end
     end
