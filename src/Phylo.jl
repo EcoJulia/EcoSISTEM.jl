@@ -70,7 +70,7 @@ function pair(vec)
   # Calc number of pairs
   npairs=length(vec)-1
   # Create empty array
-  newvec=Array{Any}(npairs,2)
+  newvec=Array{Int64}(npairs,2)
   # Split into pairs
   for i in collect(1:npairs)
     newvec[i,:]=vec[i:(i+1)]
