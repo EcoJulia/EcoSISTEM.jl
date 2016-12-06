@@ -176,6 +176,8 @@ end
 tree=jcoal(3, 10)
 Plots.plot(tree)
 switch_rate=0.5
+traits=["A","B"]
+
 function assign_trait(tree, switch_rate::Real, traits)
   # Calculate all branch paths
 paths=root_to_tips(tree)
