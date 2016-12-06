@@ -184,30 +184,50 @@ paths_mat=sou_tar(tree, true)
 nodes_mat=node_find(tree)
 nodes_mat=hcat(nodes_mat, zeros(size(nodes_mat,1)))
 # Assign first node a trait randomly
-nodes_mat[1,4]=sample(traits)
-for i in (1:length(paths))
-choosepath=paths[i]
-# Split path into pairs of nodes
-pairs=pair(choosepath)
-# Find the row each pair of nodes corresponds to
-rows=find_rows(paths_mat,pairs[:,1],pairs[:,2])
-# Calculate how long the path is already
-len=sum(paths_mat[rows,3])
-# Check if any of the nodes have already been assigned?
+setlabel!(tree.nodes[1], sample(traits))
+  for i in (1:length(paths))
+  choosepath=paths[i]
+  # Split path into pairs of nodes
+  pairs=pair(choosepath)
+  # Find the row each pair of nodes corresponds to
+  rows=find_rows(paths_mat,pairs[:,1],pairs[:,2])
+  # Calculate how long the path is already
+  len=sum(paths_mat[rows,3])
 
-# Calculate time to next switch
-sumtimes=Array{Vector{Float64}}(length(paths))
-times=Array{Float64}(0)
-while(sum(times)<len)
-time_switch= jexp(switch_rate*len)
-append!(times,time_switch)
+  # Calculate time to next switch
+  sumtimes=Array{Vector{Float64}}(length(paths))
+  times=Array{Float64}(0)
+  while(sum(times)<len)
+  time_switch= jexp(switch_rate*len)
+  append!(times,time_switch)
+  end
+  cum_times=cumsum(times)
+    for j in 1:size(pairs,1)
+    num_switches= sum(cum_times.<paths_mat[rows[j],3])
+    # Find trait of last node
+    sel_pair=pairs[j,:]
+    labels=map(a->haslabel(tree.nodes[a]), sel_pair)
+      if sum(labels)<2
+        last_node=maximum(sel_pair[labels])
+        last_label=getlabel(tree.nodes[last_node])
+        if num_switches==0
+          set_node=minimum(sel_pair[!labels])
+          setlabel!(tree.nodes[set_node],last_label)
+        else
+          while num_switches>0
+          set_node=minimum(sel_pair[!labels])
+          setlabel!(tree.nodes[set_node],sample(traits[traits.!=last_label]))
+          last_label=getlabel(tree.nodes[set_node])
+          num_switches=num_switches-1
+          end
+        end
+      end
+    end
+  end
+# Return tree
+tree
 end
-cum_times=cumsum(times)
-for j in eachindex(pairs)
-num_switches= sum(cum_times.<len)
-# Find trait of last node
-
-sample(traits, num_switches)
+trait_tree=assign_trait(tree,switch_rate, traits)
 
 end
 
