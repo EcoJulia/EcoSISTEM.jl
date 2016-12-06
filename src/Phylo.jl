@@ -1,11 +1,5 @@
-
-%Load packages
 using PhyloTrees
-using Plots
-using Distributions
-#Pkg.update()
-
-
+#using Simulation
 #Function to create random tree with set number of tips
 function jtree(n::Int64, dist::Distribution = Uniform(0,n))
 
@@ -67,13 +61,13 @@ function pair(vec)
 end
 
 # Function to find if a node is a leaf
-function isleaf(tree, node)
-  length(tree.nodes[node].out)==0
-end
+#function isleaf(tree, node)
+#  length(tree.nodes[node].out)==0
+#end
 # Function to find if a node is a root
-function isroot(tree, node)
-  length(tree.nodes[node].in)==0
-end
+#function isroot(tree, node)
+#  length(tree.nodes[node].in)==0
+#end
 
 # Function to find which row source and target node are in
 function find_row(mat, sou, tar)
@@ -215,8 +209,5 @@ function BM(T::Real,σ²::Float64, start::Float64, lab::String="")
 x = jnorm(0, sqrt(σ²),length(t) - 1)
 ## now compute their cumulative sum
 x = cumsum(append!([start], x))
-Plots.plot(t, x, ylims=collect(extrema(x)).*[0.9,1.1], label=lab)
+#Plots.plot(t, x, ylims=collect(extrema(x)).*[0.9,1.1], label=lab)
 end
-BM(100.0,0.01,10.0)
-
-function continuous_trait(tree::Tree, σ²::Float64, start::Float64)

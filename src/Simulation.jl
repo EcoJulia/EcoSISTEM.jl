@@ -8,10 +8,10 @@ include("Diversity_funcs.jl")
 include("Generate.jl")
 export populate, SR
 
-include("Phylo.jl")
-export jtree, jcoal, assign_trait
-
 include("Dist.jl")
-export jexp, jpois, jbinom, junif, jdir, jnorm
+export jnorm, jexp, jpois, jbinom, junif, jdir
 
-end # module
+include("Phylo.jl")
+export jtree, jcoal, assign_trait, get_traits
+
+end
