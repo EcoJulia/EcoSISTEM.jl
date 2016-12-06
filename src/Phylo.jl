@@ -233,10 +233,6 @@ function get_traits(tree::Tree)
 end
 
 
-# Return trait matrix
-nodes_mat
-
-end
 
 tree=jcoal(3,10)
 traits=assign_trait(tree, 0.9, [1,2])
