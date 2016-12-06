@@ -242,6 +242,9 @@ end
 tree=jcoal(3,10)
 traits=assign_trait(tree, 0.9, [1,2])
 Plots.plot(tree,markershape=:circle, markercolor=hcat(traits[:,4]...))
+Plots.plot(tree,markershape=:circle,
+markercolor= [:blue,false],
+markerstrokecolor=[:black,false, :red])
 
 function discrete_trait(tree, switch_rate::Real, traits)
   # Calculate all branch paths
