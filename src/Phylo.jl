@@ -173,10 +173,7 @@ end
 function jbinom(n::Int64, p::Real)
   rand(Binomial(n,p), n)
 end
-tree=jcoal(3, 10)
-Plots.plot(tree)
-switch_rate=0.5
-traits=["A","B"]
+
 
 function assign_trait(tree, switch_rate::Real, traits)
   # Calculate all branch paths
@@ -237,8 +234,12 @@ setlabel!(tree.nodes[1], sample(traits))
 # Return tree
 tree
 end
+tree=jcoal(3, 10)
+Plots.plot(tree)
+switch_rate=0.5
+traits=["A","B"]
 trait_tree=assign_trait(tree,switch_rate, traits)
-
+get_traits(trait_tree)
 function get_traits(tree::Tree)
   map(a->getlabel(tree.nodes[a]), 1:length(tree.nodes))
 end
