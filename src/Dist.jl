@@ -1,3 +1,4 @@
+using Distributions
 
 function jexp(theta, n::Int64=1)
   rand(Exponential(theta), n)
