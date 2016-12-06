@@ -182,9 +182,6 @@ function assign_trait(tree, switch_rate::Real, traits)
   # Calculate all branch paths
 paths=root_to_tips(tree)
 paths_mat=sou_tar(tree, true)
-# Calculate all nodes
-nodes_mat=node_find(tree)
-nodes_mat=hcat(nodes_mat, zeros(size(nodes_mat,1)))
 # Assign first node a trait randomly
 setlabel!(tree.nodes[1], sample(traits))
   for i in (1:length(paths))
