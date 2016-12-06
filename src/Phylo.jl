@@ -33,10 +33,6 @@ function jtree(n::Int64, dist::Distribution = Uniform(0,n))
 # Return tree
 tree1
 end
-randtree=jtree(17, Exponential(0.1))
-Plots.plot(randtree)
-
-
 
 # Function to produce a matrix of all source and target nodes within a tree
 function sou_tar(tree, len::Bool)
@@ -140,9 +136,6 @@ function jcoal(n::Int64, len::Real)
   # Return ultrametric tree
   tree2
 end
-coaltree=jcoal(14, 5)
-Plots.plot(coaltree)
-
 
 
 function assign_trait(tree, switch_rate::Real, traits)
@@ -151,7 +144,6 @@ function assign_trait(tree, switch_rate::Real, traits)
   !all(check) || error("Some nodes already assigned traits")
   # Calculate all branch paths
   paths = root_to_tips(tree)
-
   # Assign first node a trait randomly
   setlabel!(tree.nodes[1], sample(traits))
   # Loop through all paths
@@ -207,24 +199,12 @@ function assign_trait(tree, switch_rate::Real, traits)
 # Return tree
 tree
 end
-tree=jcoal(3, 10)
-Plots.plot(tree)
-switch_rate=0.5
-traits=["A","B"]
-trait_tree=assign_trait(tree,switch_rate, traits)
-get_traits(trait_tree)
+
 
 function get_traits(tree::Tree)
   map(a->getlabel(tree.nodes[a]), 1:length(tree.nodes))
 end
 
-
-
-tree=jcoal(3,10)
-traits=assign_trait(tree, 0.9, [1,2])
-Plots.plot(tree,markershape=:circle,
-markercolor= [:blue,false],
-markerstrokecolor=[:black,false, :red])
 
 
 
@@ -240,7 +220,3 @@ end
 BM(100.0,0.01,10.0)
 
 function continuous_trait(tree::Tree, σ²::Float64, start::Float64)
-
-
-Plots.plot(jcoal(10, 10000))
-cont_trait(tree)

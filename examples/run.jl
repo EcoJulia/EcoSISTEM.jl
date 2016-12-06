@@ -33,3 +33,21 @@ heatmap(sr)
 # Investigate alpha Diversity
 alpha_bar=subdiv(ᾱ(eco),0)
 heatmap(alpha_bar)
+
+randtree=jtree(17, Exponential(0.1))
+Plots.plot(randtree)
+
+coaltree=jcoal(14, 5)
+Plots.plot(coaltree)
+
+tree=jcoal(3, 10)
+Plots.plot(tree)
+switch_rate=0.5
+traits=["A","B"]
+trait_tree=assign_trait(tree,switch_rate, traits)
+get_traits(trait_tree)
+
+
+Plots.plot(tree,markershape=:circle,
+markercolor= [:blue,false],
+markerstrokecolor=[:black,false, :red])
