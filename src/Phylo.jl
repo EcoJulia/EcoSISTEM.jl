@@ -158,18 +158,6 @@ function jpois(gamma, n::Int64=1)
   rand(Poisson(gamma), n)
 end
 
-function node_find(tree)
-  # Create an empty array
-  path=Array{Any}(length(tree.nodes),3)
-  # Run through each branch
-  for x in 1:length(tree.nodes)
-    # Get in and out nodes of branch
-    path[x,1]=x
-    path[x,2]=map(a->a.source, tree.branches[tree.nodes[x].in])
-    path[x,3]= map(a->a.target, tree.branches[tree.nodes[x].out])
-  end
-  path
-end
 function jbinom(n::Int64, p::Real)
   rand(Binomial(n,p), n)
 end
@@ -256,39 +244,6 @@ Plots.plot(tree,markershape=:circle,
 markercolor= [:blue,false],
 markerstrokecolor=[:black,false, :red])
 
-function discrete_trait(tree, switch_rate::Real, traits)
-  # Calculate all branch paths
-paths=root_to_tips(tree)
-paths_mat=sou_tar(tree, true)
-# Calculate all nodes
-nodes_mat=node_find(tree)
-nodes_mat=hcat(nodes_mat, zeros(size(nodes_mat,1)))
-# Assign first node a trait randomly
-nodes_mat[1,4]=sample(traits)
-# Then loop through the rest of the paths until all filled in
-for i in collect(1:length(paths))
-  # Calculate rate based on branch length
-  rate= switch_rate*paths_mat[i,3]
-  # Calculate time to next switch
-  time_switch= jexp(rate)
-  # Find parent node trait
-  ind=indexin([nodes_mat[i-1,4]], traits)
-# If time to switch larger than distance between nodes, switch to another trait
-
-  if time_switch[1]>paths_mat[i-1,3]
-    nodes_mat[i,4]=sample(deleteat!(traits,ind))
-    append!(traits,[nodes_mat[nodes_mat[i,2],4][1]])
-  else
-    # else stay the same as parent node
-    nodes_mat[i,4]=nodes_mat[nodes_mat[i,2],4][1]
-  end
-
-end
-
-# Return trait matrix
-nodes_mat
-
-end
 
 function jnorm(μ,σ,n::Int=1)
   rand(Normal(μ,σ),n)
@@ -309,5 +264,3 @@ function continuous_trait(tree::Tree, σ²::Float64, start::Float64)
 
 Plots.plot(jcoal(10, 10000))
 cont_trait(tree)
-
-landscape(n.traits::Int64, dim::Real,size::Real)
