@@ -36,15 +36,7 @@ end
 randtree=jtree(17, Exponential(0.1))
 Plots.plot(randtree)
 
-# Function to sample randomly from the Uniform distribution
-function junif(a,b)
-  rand(Uniform(a,b))
-end
 
-# Function to sample randomly from the Dirichlet distribution
-function jdir(k,a)
-  rand(Dirichlet(k,a))
-end
 
 # Function to produce a matrix of all source and target nodes within a tree
 function sou_tar(tree, len::Bool)
@@ -151,16 +143,6 @@ end
 coaltree=jcoal(14, 5)
 Plots.plot(coaltree)
 
-function jexp(theta, n::Int64=1)
-  rand(Exponential(theta), n)
-end
-function jpois(gamma, n::Int64=1)
-  rand(Poisson(gamma), n)
-end
-
-function jbinom(n::Int64, p::Real)
-  rand(Binomial(n,p), n)
-end
 
 
 function assign_trait(tree, switch_rate::Real, traits)
@@ -245,9 +227,7 @@ markercolor= [:blue,false],
 markerstrokecolor=[:black,false, :red])
 
 
-function jnorm(μ,σ,n::Int=1)
-  rand(Normal(μ,σ),n)
-end
+
 
 function BM(T::Real,σ²::Float64, start::Float64, lab::String="")
   t = 0:T  # time
