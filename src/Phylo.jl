@@ -181,7 +181,6 @@ traits=["A","B"]
 function assign_trait(tree, switch_rate::Real, traits)
   # Calculate all branch paths
 paths=root_to_tips(tree)
-paths_mat=sou_tar(tree, true)
 
 # Assign first node a trait randomly
 setlabel!(tree.nodes[1], sample(traits))
@@ -198,11 +197,11 @@ setlabel!(tree.nodes[1], sample(traits))
       assigned=vcat(assigned...)
       pairs=pairs[!assigned,:]
     end
-  # Find the row each pair of nodes corresponds to
-  rows=find_rows(paths_mat,pairs[:,1],pairs[:,2])
-  # Calculate how long the path is already
 
-  len=sum(paths_mat[rows,3])
+  # Calculate how long the path is already
+  path=mapslices(a-> branchpath(tree, a[1], a[2]), pairs, 2)
+  len=sum(map(a->get(tree.branches[a].length), path))
+
 
   # Calculate time to next switch
   sumtimes=Array{Vector{Float64}}(length(paths))
@@ -213,7 +212,9 @@ setlabel!(tree.nodes[1], sample(traits))
   end
   cum_times=cumsum(times)
     for j in 1:size(pairs,1)
-    num_switches= sum(cum_times.<paths_mat[rows[j],3])
+    branch_path=branchpath(tree, pairs[j,:][1], pairs[j,:][2])
+    branch_len=get(tree.branches[branch_path[1]].length)
+    num_switches= sum(cum_times.<branch_len)
     # Find trait of last node
     sel_pair=pairs[j,:]
     labels=map(a->haslabel(tree.nodes[a]), sel_pair)
