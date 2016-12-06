@@ -182,15 +182,26 @@ function assign_trait(tree, switch_rate::Real, traits)
   # Calculate all branch paths
 paths=root_to_tips(tree)
 paths_mat=sou_tar(tree, true)
+
 # Assign first node a trait randomly
 setlabel!(tree.nodes[1], sample(traits))
+# Loop through all paths
   for i in (1:length(paths))
+    # Choose first path
   choosepath=paths[i]
   # Split path into pairs of nodes
   pairs=pair(choosepath)
+  # Test if any branches have been assigned already
+    if size(pairs,1)>1
+      test_assigned=map(a->haslabel(tree.nodes[a]), pairs)
+      assigned=mapslices(sum, test_assigned, 1).==2
+      assigned=vcat(assigned...)
+      pairs=pairs[!assigned,:]
+    end
   # Find the row each pair of nodes corresponds to
   rows=find_rows(paths_mat,pairs[:,1],pairs[:,2])
   # Calculate how long the path is already
+
   len=sum(paths_mat[rows,3])
 
   # Calculate time to next switch
