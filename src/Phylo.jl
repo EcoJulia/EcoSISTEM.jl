@@ -136,8 +136,9 @@ function assign_trait(tree, switch_rate::Real, traits)
   # Check if tree already assigned
   check = map(a->haslabel(tree.nodes[a]), 1:length(tree.nodes))
   !all(check) || error("Some nodes already assigned traits")
-  # Calculate all branch paths
-  paths = root_to_tips(tree)
+  # Calculate all branch paths from root to tips
+  tips=findleaves(tree)
+  paths = map(i-> reverse(nodepath(tree, i)), tips)
   # Assign first node a trait randomly
   setlabel!(tree.nodes[1], sample(traits))
   # Loop through all paths
