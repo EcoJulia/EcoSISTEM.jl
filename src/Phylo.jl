@@ -4,7 +4,7 @@ using PhyloTrees
 function jtree(n::Int64, dist::Distribution = Uniform(0,n))
 
   #Create tree and set initial two branches
-  tree1 = Tree{String, Void}(); addnodes!(tree1, 2*n-1)
+  tree1 = Tree{String, Vector}(); addnodes!(tree1, 2*n-1)
   map(target->addbranch!(tree1, 1, target, rand(dist)),2:3)
   if n>2
   nodes=3
@@ -170,7 +170,9 @@ function assign_trait(tree, switch_rate::Real, traits)
     for j in 1 : size(pairs, 1)
     branch_path = branchpath(tree, pairs[j,:][1], pairs[j,:][2])
     branch_len = get(tree.branches[branch_path[1]].length)
+    tree.branches[branch_path[1]].data = cum_times[cum_times .< branch_len]
     num_switches = sum(cum_times .< branch_len)
+
     # Find trait of last node
     sel_pair = pairs[j, :]
     labels = map(a -> haslabel(tree.nodes[a]), sel_pair)
