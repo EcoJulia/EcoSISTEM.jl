@@ -132,7 +132,7 @@ function jcoal(n::Int64, len::Real)
 end
 
 
-function assign_trait(tree, switch_rate::Real, traits)
+function assign_traits!(tree::Tree, switch_rate::Real, traits::Vector)
   # Check if tree already assigned
   check = map(a->haslabel(tree.nodes[a]), 1:length(tree.nodes))
   !all(check) || error("Some nodes already assigned traits")
@@ -214,7 +214,7 @@ function assign_trait(tree, switch_rate::Real, traits)
     end
   end
 # Return tree
-tree
+#tree
 end
 
 
