@@ -52,25 +52,15 @@ tree=trait_tree
 
 tree_x, tree_y=treeplot(tree)[1],treeplot(tree)[2]
 
-num_traits=replace(trt, "A", "red")
+
 trt=map(i->replace(trt[i], "A", "red"),1:5)
 trt=map(i->replace(trt[i], "B", "blue"),1:5)
 for i in 1:length(tree_x)
-  
-plot!(tree_x[i], tree_y[i],
-markershape=:circle,
-markercolor=[:blue,false, :red],
-markerstrokecolor=[:black, false, :black],
-linecolor=:black)
-
-plot!(tree_x[2], tree_y[2],
-markershape=:circle,
-markercolor=[:red, false, :red],
-markerstrokecolor=[:black, false, :black],
-linecolor=:black)
-
-plot!(tree_x[3], tree_y[3],
-markershape=:circle,
-markercolor=[:red, false, :red],
-markerstrokecolor=[:black, false, :black],
-linecolor=:black)
+  colnode1=tree.branches[i].source
+  colnode2=tree.branches[i].target
+  plot!(tree_x[i], tree_y[i],
+  markershape=:circle,
+  markercolor=[trt[colnode2],false, trt[colnode1]],
+  markerstrokecolor=[:black, false, :black],
+  linecolor=:black)
+end
