@@ -201,7 +201,9 @@ function get_traits(tree::Tree)
   map(a->getlabel(tree.nodes[a]), 1:length(tree.nodes))
 end
 
-
+function get_times(tree::Tree)
+  map(a->get(tree.branches[a]), 1:length(tree.branches))
+end
 
 
 
