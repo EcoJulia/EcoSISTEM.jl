@@ -53,8 +53,9 @@ tree=trait_tree
 tree_x, tree_y=treeplot(tree)[1],treeplot(tree)[2]
 
 
-trt=map(i->replace(trt[i], "A", "red"),1:5)
-trt=map(i->replace(trt[i], "B", "blue"),1:5)
+trt=map(i->replace(trt[i], "A", "red"),1:length(trt))
+trt=map(i->replace(trt[i], "B", "blue"),1:length(trt))
+trt=map(i->replace(trt[i], "C", "green"),1:length(trt))
 for i in 1:length(tree_x)
   colnode1=tree.branches[i].source
   colnode2=tree.branches[i].target
