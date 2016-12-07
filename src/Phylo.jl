@@ -183,26 +183,28 @@ function assign_trait(tree, switch_rate::Real, traits)
       branch_path = branchpath(tree, sel_pair[1], sel_pair[2])
       # Calculate the length of the branch
       branch_len = get(tree.branches[branch_path[1]].length)
-      #
+      # If previous branches have been assigned then need to add previous branch lengths to switch times
       prev_branch_len = 0.0
       if prev_assign
         prev_path=branchpath(tree, sel_pair[1])
         prev_branch_len=sum(map(i-> get(tree.branches[i].length), prev_path))
       end
-
+      # Assign switch times as branch data
       tree.branches[branch_path[1]].data = cum_times[cum_times .< branch_len] + prev_branch_len
+      # Calculate switch times
       num_switches = sum(cum_times .< branch_len)
 
-    # Find trait of last node
+      # Find trait of last node
+      labels = map(a -> haslabel(tree.nodes[a]), sel_pair)
+      last_node = maximum(sel_pair[labels])
+      last_label = getlabel(tree.nodes[last_node])
 
-    labels = map(a -> haslabel(tree.nodes[a]), sel_pair)
-
-    last_node = maximum(sel_pair[labels])
-    last_label = getlabel(tree.nodes[last_node])
+      # If there are no switches, give same trait as previous node
       if num_switches == 0
         set_node = minimum(sel_pair[!labels])
         setlabel!(tree.nodes[set_node], last_label)
       else
+      # Else loop through for the required number of switches, sampling from list of traits  
         while num_switches > 0
           set_node = minimum(sel_pair[!labels])
           setlabel!(tree.nodes[set_node], sample(traits[traits .!= last_label]))
