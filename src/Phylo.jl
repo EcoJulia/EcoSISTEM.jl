@@ -146,12 +146,15 @@ function assign_trait(tree, switch_rate::Real, traits)
     choosepath = paths[i]
     # Split path into pairs of nodes
     pairs = pair(choosepath)
+    prev_assign=false
     # Test if any branches have been assigned already
     if size(pairs, 1) > 1
       test_assigned = map(a -> haslabel(tree.nodes[a]), pairs)
       assigned = mapslices(sum, test_assigned, 1) .== 2
       assigned = vcat(assigned...)
+      # If they have been assigned, remove from node pairs
       pairs = pairs[!assigned, :]
+      prev_assign=true
     end
 
   # Calculate how long the path is already
@@ -162,19 +165,35 @@ function assign_trait(tree, switch_rate::Real, traits)
   # Calculate time to next switch
   sumtimes = Array{Vector{Float64}}(length(paths))
   times = Array{Float64}(0)
+  # Draw switch times from exponential distribution
+  # Stop when they are larger than the length of the path
   while(sum(times) < len)
   time_switch = jexp(switch_rate*len)
   append!(times, time_switch)
   end
+  # Sum up the event times cumulatively
   cum_times = cumsum(times)
+
+  # Run through the branches for the path, assigning a trait
     for j in 1 : size(pairs, 1)
-    branch_path = branchpath(tree, pairs[j,:][1], pairs[j,:][2])
-    branch_len = get(tree.branches[branch_path[1]].length)
-    tree.branches[branch_path[1]].data = cum_times[cum_times .< branch_len]
-    num_switches = sum(cum_times .< branch_len)
+
+      sel_pair = pairs[j, :]
+      #Get the branch the node pairs are found on
+      branch_path = branchpath(tree, sel_pair[1], sel_pair[2])
+      # Calculate the length of the branch
+      branch_len = get(tree.branches[branch_path[1]].length)
+      #
+      prev_branch_len = 0.0
+      if prev_assign
+        prev_path=branchpath(tree, sel_pair[1])
+        prev_branch_len=sum(map(i-> get(tree.branches[i].length), prev_path))
+      end
+
+      tree.branches[branch_path[1]].data = cum_times[cum_times .< branch_len] + prev_branch_len
+      num_switches = sum(cum_times .< branch_len)
 
     # Find trait of last node
-    sel_pair = pairs[j, :]
+
     labels = map(a -> haslabel(tree.nodes[a]), sel_pair)
 
     last_node = maximum(sel_pair[labels])
