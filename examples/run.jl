@@ -44,10 +44,10 @@ Plots.plot(randtree)
 coaltree=jcoal(14, 5)
 Plots.plot(coaltree)
 
-tree=jcoal(3, 10)
+tree=jcoal(17, 100)
 Plots.plot(tree)
 switch_rate=0.5
-traits=["A","B"]
+traits=["A","B", "C"]
 trait_tree=assign_trait(tree,switch_rate, traits)
 get_traits(trait_tree)
 get_times(trait_tree)
