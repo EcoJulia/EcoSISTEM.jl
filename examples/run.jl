@@ -50,7 +50,7 @@ switch_rate=0.5
 traits=["A","B"]
 trait_tree=assign_trait(tree,switch_rate, traits)
 get_traits(trait_tree)
-
+get_times(trait_tree)
 
 Plots.plot(tree,markershape=:circle,
 markercolor= [:blue,false],
