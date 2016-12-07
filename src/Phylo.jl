@@ -147,15 +147,14 @@ function assign_trait(tree, switch_rate::Real, traits)
     choosepath = paths[i]
     # Split path into pairs of nodes
     pairs = pair(choosepath)
-    prev_assign=false
+    assigned=false
     # Test if any branches have been assigned already
     if size(pairs, 1) > 1
       test_assigned = map(a -> haslabel(tree.nodes[a]), pairs)
-      assigned = mapslices(sum, test_assigned, 1) .== 2
+      assigned = mapslices(sum, test_assigned, 2) .== 2
       assigned = vcat(assigned...)
       # If they have been assigned, remove from node pairs
       pairs = pairs[!assigned, :]
-      prev_assign=true
     end
 
   # Calculate how long the path is already
@@ -185,7 +184,7 @@ function assign_trait(tree, switch_rate::Real, traits)
       branch_len = get(tree.branches[branch_path[1]].length)
       # If previous branches have been assigned then need to add previous branch lengths to switch times
       prev_branch_len = 0.0
-      if prev_assign
+      if any(assigned)
         prev_path=branchpath(tree, sel_pair[1])
         prev_branch_len=sum(map(i-> get(tree.branches[i].length), prev_path))
       end
@@ -204,7 +203,7 @@ function assign_trait(tree, switch_rate::Real, traits)
         set_node = minimum(sel_pair[!labels])
         setlabel!(tree.nodes[set_node], last_label)
       else
-      # Else loop through for the required number of switches, sampling from list of traits  
+      # Else loop through for the required number of switches, sampling from list of traits
         while num_switches > 0
           set_node = minimum(sel_pair[!labels])
           setlabel!(tree.nodes[set_node], sample(traits[traits .!= last_label]))
