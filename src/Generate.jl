@@ -66,3 +66,16 @@ function populate(species::Int64, individuals::Int64, habitat::Niches, traits::V
   end
   MatrixLandscape(P, habitat)
 end
+function get_neighbours(mat::Matrix, y::Int64, x::Int64, chess::Int64=4)
+  dims=size(mat)
+  if chess==4
+    neighbour_vec=[x y-1; x y+1; x-1 y; x+1 y]
+  elseif chess==8
+    neighbour_vec=[x y-1; x y+1; x-1 y; x+1 y; x-1 y-1; x-1 y+1; x+1 y-1; x+1 y+1]
+  else
+    error("Can only calculate neighbours in 4 or 8 directions")
+  end
+  remove=vcat(mapslices(all, [neighbour_vec.>=1 neighbour_vec[:,1].<=dims[1] neighbour_vec[:,2].<=dims[2]], 2)...)
+  neighbour_vec=neighbour_vec[remove,:]
+  neighbour_vec
+end
