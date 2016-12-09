@@ -79,3 +79,34 @@ function get_neighbours(mat::Matrix, y::Int64, x::Int64, chess::Int64=4)
   neighbour_vec=neighbour_vec[remove,:]
   neighbour_vec
 end
+function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64, timestep::Real)
+  abun=map(i->sum(eco.partition.abundances[i,:,:]), 1:size(eco.partition.abundances,1))
+  dims=size(eco.partition.abundances)[2:3]
+  spp=size(eco.partition.abundances,1)
+  birthrate=birth*timestep
+  deathrate=death*timestep
+  moverate=move*timestep
+  for x in 1:dims[1]
+    for y in 1:dims[2]
+      square=eco.partition.abundances[:,x, y]
+      for j in 1:spp
+        if eco.traits.traits[j]!=eco.partition.habitat.matrix[x,y]
+          birthrate=birthrate*0.8
+          deathrate=deathrate
+        end
+        births= jbinom(1,j, birthrate)[1]
+        deaths= jbinom(1,j, deathrate)[1]
+        moves=jbinom(1, j, moverate)[1]
+
+        neighbours=get_neighbours(eco.partition.habitat.matrix,y, x, 4)
+        while moves > 0
+          choose=sample(1:size(neighbours,1))
+          destination=neighbours[choose,:]
+          eco.partition.abundances[j, destination[1], destination[2]]=eco.partition.abundances[j, destination[1], destination[2]] + 1
+          moves = moves - 1
+        end
+        eco.partition.abundances[j,x, y]= eco.partition.abundances[j,x, y] + births - deaths - moves
+      end
+    end
+  end
+end
