@@ -1,4 +1,5 @@
 using Distributions
+using StatsBase
 
 function jmulti(n::Int64, p::AbstractArray)
   rand(Multinomial(n, p))
@@ -48,6 +49,20 @@ function create_habitat(dim, types, prop)
   sample(types, WeightVec(prop), dim)
 end
 
+using StatsBase
+species=50; individuals=10000; mat=ones(10, 10)
+mat=create_habitat((10,10), ["A","B"], [0.2,0.8])
+tree=jcoal(50, 100)
+assign_traits!(tree, 0.5, ["A","B"])
+sp_trt=get_traits(tree, true)
+pop=populate(species, individuals, Niches(mat), sp_trt)
+eco=Ecosystem(pop,Species(), StringTraits(sp_trt))
+sr=SR(eco, 10000)
+@rput sr
+R"image(sr)"
+using Plots
+Plots.heatmap(sr)
+
 function populate(species::Int64, individuals::Int64, habitat::Niches, traits::Vector)
   dim=size(habitat.matrix)
   P=zeros(Int64,species,dim[1],dim[2])
@@ -66,6 +81,8 @@ function populate(species::Int64, individuals::Int64, habitat::Niches, traits::V
   end
   MatrixLandscape(P, habitat)
 end
+
+eco=Ecosystem(pop,Species(), StringTraits(sp_trt))
 function get_neighbours(mat::Matrix, y::Int64, x::Int64, chess::Int64=4)
   dims=size(mat)
   if chess==4
@@ -110,3 +127,13 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
     end
   end
 end
+using Plots
+pop=populate(species, individuals, Niches(mat), sp_trt)
+eco=Ecosystem(pop,Species(), StringTraits(sp_trt))
+before=SR(eco, 100000)
+@rput before
+R"image(before)"
+update!(eco, 0.9, 0.6,0.5, 1)
+after=SR(eco, 100000)
+@rput after
+R"image(after)"
