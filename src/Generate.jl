@@ -7,13 +7,12 @@ function jmulti(n::Int64, p::Real)
   rand(Multinomial(n, repmat([p], n)))
 end
 
-function neighbours(x, y, dim)
-end
 
-function create_habitat(dims::Tuple, corr, prop)
-  mat=zeros(10, 10)
-  rand!(mat,[0 1])
-end
+
+#function create_habitat(dims::Tuple, corr, prop)
+#  mat=zeros(10, 10)
+#  rand!(mat,[0 1])
+#end
 
 
 
