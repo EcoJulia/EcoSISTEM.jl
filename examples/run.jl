@@ -68,13 +68,15 @@ sp_trt=get_traits(tree, true)
 # Create ecosystem
 pop=populate(species, individuals, Niches(mat), sp_trt)
 eco=Ecosystem(pop,Species(), StringTraits(sp_trt))
+
 # Check species richness before
 before=SR(eco, 100000)
+@rlibrary("fields")
 @rput before
-R"image(before)"
+R"image.plot(before)"
 # Update by one timestep
 update!(eco, 0.9, 0.6,0.5, 1)
 # Check species richness after
 after=SR(eco, 100000)
 @rput after
-R"image(after)"
+R"image.plot(after)"
