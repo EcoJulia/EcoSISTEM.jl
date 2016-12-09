@@ -218,8 +218,13 @@ function assign_traits!(tree::Tree, switch_rate::Real, traits::Vector)
 end
 
 
-function get_traits(tree::Tree)
-  map(a->getlabel(tree.nodes[a]), 1:length(tree.nodes))
+function get_traits(tree::Tree, tips::Bool=false)
+  if tips
+    tipnodes= findleaves(tree)
+    map(a->getlabel(tree.nodes[a]), 1:length(tree.nodes))[tipnodes]
+  else
+    map(a->getlabel(tree.nodes[a]), 1:length(tree.nodes))
+  end
 end
 
 function get_times(tree::Tree)
