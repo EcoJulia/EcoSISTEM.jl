@@ -55,3 +55,26 @@ get_times(trait_tree)
 Plots.plot(tree,markershape=:circle,
 markercolor= [:blue,false],
 markerstrokecolor=[:black,false, :red])
+
+
+using StatsBase
+# Set up Habitat
+species=50; individuals=10000; mat=ones(10, 10)
+mat=create_habitat((10,10), ["A","B"], [0.2,0.8])
+# Set up tree
+tree=jcoal(50, 100)
+assign_traits!(tree, 0.5, ["A","B"])
+sp_trt=get_traits(tree, true)
+# Create ecosystem
+pop=populate(species, individuals, Niches(mat), sp_trt)
+eco=Ecosystem(pop,Species(), StringTraits(sp_trt))
+# Check species richness before
+before=SR(eco, 100000)
+@rput before
+R"image(before)"
+# Update by one timestep
+update!(eco, 0.9, 0.6,0.5, 1)
+# Check species richness after
+after=SR(eco, 100000)
+@rput after
+R"image(after)"
