@@ -1,12 +1,3 @@
-
-
-
-#function create_habitat(dims::Tuple, corr, prop)
-#  mat=zeros(10, 10)
-#  rand!(mat,[0 1])
-#end
-
-
 # Function to randomly populate a habitat matrix
 function populate(species::Int64, individuals::Int64, habitat::Habitats)
   # Calculate size of habitat
