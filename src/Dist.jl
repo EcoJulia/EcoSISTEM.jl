@@ -7,8 +7,8 @@ function jpois(gamma, n::Int64=1)
   rand(Poisson(gamma), n)
 end
 
-function jbinom(n::Int64, p::Real)
-  rand(Binomial(n,p), n)
+function jbinom(n::Int64, size::Int64, p::Real)
+  rand(Binomial(size,p), n)
 end
 
 # Function to sample randomly from the Uniform distribution
