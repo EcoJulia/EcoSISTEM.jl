@@ -43,3 +43,8 @@ function SR(ecosystem::AbstractHabitat)
  ms=mapslices(sum, ecosystem.partition.abundances, 1)
  reshape(ms, sz)
 end
+
+function create_habitat(dim, types, prop)
+  sample(types, WeightVec(prop), dim)
+end
+
