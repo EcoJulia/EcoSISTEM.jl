@@ -1,12 +1,3 @@
-using Distributions
-using StatsBase
-
-function jmulti(n::Int64, p::AbstractArray)
-  rand(Multinomial(n, p))
-end
-function jmulti(n::Int64, p::Real)
-  rand(Multinomial(n, repmat([p], n)))
-end
 
 
 

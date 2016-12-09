@@ -11,6 +11,14 @@ function jbinom(n::Int64, size::Int64, p::Real)
   rand(Binomial(size,p), n)
 end
 
+function jmulti(n::Int64, p::AbstractArray)
+  rand(Multinomial(n, p))
+end
+function jmulti(n::Int64, p::Real)
+  rand(Multinomial(n, repmat([p], n)))
+end
+
+
 # Function to sample randomly from the Uniform distribution
 function junif(a,b)
   rand(Uniform(a,b))
