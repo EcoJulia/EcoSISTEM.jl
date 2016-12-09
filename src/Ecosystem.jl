@@ -8,6 +8,9 @@ abstract AbstractHabitat
 type Habitats <: AbstractHabitat
   matrix::Matrix{Float64}
 end
+type Niches <: AbstractHabitat
+  matrix::Matrix{String}
+end
 
 abstract AbstractStructuredPartition{A, H <: AbstractHabitat} <:
  AbstractPartition{Float64, A}
@@ -23,7 +26,7 @@ function MatrixLandscape{A, H}(abundances::A, habitats::H)
   length(dima) == 3 || error("Abundances must be three dimensional!")
   ((dima[2] == dimh[1]) && (dima[3] == dimh[2])) ||
    error("Dimension mismatch between abundances and habitats")
-  relative = abundances / sum(abundances)
+  relative = abundances #/ sum(abundances)
   MatrixLandscape{typeof(relative), H}(relative, habitats)
 end
 
