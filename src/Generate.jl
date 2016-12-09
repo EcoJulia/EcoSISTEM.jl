@@ -48,3 +48,21 @@ function create_habitat(dim, types, prop)
   sample(types, WeightVec(prop), dim)
 end
 
+function populate(species::Int64, individuals::Int64, habitat::Niches, traits::Vector)
+  dim=size(habitat.matrix)
+  P=zeros(Int64,species,dim[1],dim[2])
+  abun_vec=rand(Multinomial(individuals, species))
+  for i in eachindex(abun_vec)
+    abun=abun_vec[i]
+    pref=traits[i]
+    wv= Vector{Float64}(100)
+    wv[find(reshape(habitat.matrix, (100,1)).==pref)]= 0.9
+    wv[find(reshape(habitat.matrix, (100,1)).!=pref)]= 0.1
+      while abun>0
+      pos=sample(1:(dim[1]*dim[2]), weights(wv))
+      P[i,pos]=P[i,pos]+1
+      abun=abun-1
+    end
+  end
+  MatrixLandscape(P, habitat)
+end
