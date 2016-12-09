@@ -107,13 +107,17 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
     for y in 1:dims[2]
       square=eco.partition.abundances[:,x, y]
       for j in 1:spp
-        if eco.traits.traits[j]!=eco.partition.habitat.matrix[x,y]
+        if square[j] == 0
+          birthrate = 0
+          deathrate = 0
+          moverate = 0
+        elseif eco.traits.traits[j]!=eco.partition.habitat.matrix[x,y]
           birthrate=birthrate*0.8
           deathrate=deathrate
         end
-        births= jbinom(1,j, birthrate)[1]
-        deaths= jbinom(1,j, deathrate)[1]
-        moves=jbinom(1, j, moverate)[1]
+        births= jbinom(1,square[j], birthrate)[1]
+        deaths= jbinom(1,square[j], deathrate)[1]
+        moves=jbinom(1, square[j], moverate)[1]
 
         neighbours=get_neighbours(eco.partition.habitat.matrix,y, x, 4)
         while moves > 0
