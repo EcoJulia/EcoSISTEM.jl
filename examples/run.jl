@@ -58,6 +58,7 @@ markerstrokecolor=[:black,false, :red])
 
 
 using StatsBase
+using RCall
 # Set up Habitat
 species=50; individuals=10000; mat=ones(10, 10)
 mat=create_habitat((10,10), ["A","B"], [0.2,0.8])
