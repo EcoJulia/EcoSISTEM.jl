@@ -61,7 +61,7 @@ using StatsBase
 using RCall
 # Set up Habitat
 species=50; individuals=10000; mat=ones(10, 10)
-mat=create_habitat((10,10), ["A","B"], [0.2,0.8])
+mat=create_habitat((10,10), ["A","B"], [0.4,0.6])
 # Set up tree
 tree=jcoal(50, 100)
 assign_traits!(tree, 0.5, ["A","B"])
@@ -76,8 +76,29 @@ before=SR(eco, 100000)
 @rput before
 R"image.plot(before)"
 # Update by one timestep
-update!(eco, 0.9, 0.6,0.5, 1)
+update!(eco, 0.9, 0.6,0.5, 0.1)
 # Check species richness after
 after=SR(eco, 100000)
 @rput after
 R"image.plot(after)"
+
+# Try with a skewed distribution
+pop=populate(species, individuals, Niches(mat), sp_trt, Multinomial(individuals, rand(Dirichlet(50,1))))
+eco=Ecosystem(pop,Species(), StringTraits(sp_trt))
+
+hab= Array{Int64}(10,10)
+hab[mat.=="A"]=1
+hab[mat.=="B"]=2
+@rput hab
+
+# Check species richness before
+before=SR(eco)
+@rlibrary("fields")
+@rput before
+R"par(mfrow=c(1,2));image.plot(before);image(hab, legend = F)"
+# Update by one timestep
+update!(eco, 0.4, 0.6, 0.01, 1)
+# Check species richness after
+after=SR(eco)
+@rput after
+R"par(mfrow=c(1,2));image.plot(after);image(hab, legend = F)"
