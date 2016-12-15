@@ -99,11 +99,6 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
   dims=size(eco.partition.abundances)[2:3]
   spp=size(eco.partition.abundances,1)
 
-  # Calculate effective rates
-  birthrate=birth*timestep
-  deathrate=death*timestep
-  moverate=move*timestep
-
   # Loop through grid squares
   for x in 1:dims[1]
     for y in 1:dims[2]
@@ -112,16 +107,23 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
 
       # Loop through species in chosen square
       for j in 1:spp
+        # Calculate effective rates
+        birthrate=birth*timestep
+        deathrate=death*timestep
+        moverate=move*timestep
+
+        # If traits are same as habitat type then give birth "boost"
+        if eco.traits.traits[j]!=eco.partition.habitat.matrix[x,y]
+          birthrate=birthrate*0.5
+          deathrate=deathrate
+        end
         # If zero abundance then go extinct
         if square[j] == 0
           birthrate = 0
           deathrate = 0
           moverate = 0
-        # If traits are same as habitat type then give birth "boost"
-        elseif eco.traits.traits[j]!=eco.partition.habitat.matrix[x,y]
-          birthrate=birthrate*0.8
-          deathrate=deathrate
         end
+
         # Throw error if rates exceed 1
         birthrate<=1 && deathrate<=1 && moverate<=1 || error("rates larger than one in binomial draw")
 
@@ -129,6 +131,7 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
         births= jbinom(1,square[j], birthrate)[1]
         deaths= jbinom(1,square[j], deathrate)[1]
         moves=jbinom(1, square[j], moverate)[1]
+
 
         # Find neighbours of grid square
         neighbours=get_neighbours(eco.partition.habitat.matrix,y, x, 8)
