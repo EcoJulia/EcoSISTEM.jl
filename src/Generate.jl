@@ -1,11 +1,11 @@
 # Function to randomly populate a habitat matrix
-function populate(species::Int64, individuals::Int64, habitat::Habitats)
+function populate(species::Int64, individuals::Int64, habitat::Habitats, dist::Distribution= Multinomial(individuals,species))
   # Calculate size of habitat
   dim=size(habitat.matrix)
   # Create empty population matrix of correct dimensions
   P=zeros(Int64,species,dim[1],dim[2])
   # Randomly choose abundances for each species from Multinomial
-  abun_vec=rand(Multinomial(individuals, species))
+  abun_vec=rand(dist)
   # Loop through species
   for i in eachindex(abun_vec)
     # Get abundance of species
@@ -40,13 +40,13 @@ end
 
 
 # Function to populate a Niche habitat
-function populate(species::Int64, individuals::Int64, habitat::Niches, traits::Vector)
+function populate(species::Int64, individuals::Int64, habitat::Niches, traits::Vector, dist::Distribution= Multinomial(individuals,species))
   # Calculate size of habitat
   dim=size(habitat.matrix)
   # Create empty population matrix of correct dimensions
   P=zeros(Int64,species,dim[1],dim[2])
   # Randomly choose abundances for each species from Multinomial
-  abun_vec=rand(Multinomial(individuals, species))
+  abun_vec=rand(dist)
   # Loop through species
   for i in eachindex(abun_vec)
     # Get abundance of species
