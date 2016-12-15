@@ -25,16 +25,10 @@ function populate(species::Int64, individuals::Int64, habitat::Habitats)
 end
 
 # Function to calculate species richness from an Ecosystem object
-function SR(ecosystem::Ecosystem, individuals::Int64)
+function SR(ecosystem::Ecosystem)
   sz=size(ecosystem.partition.abundances,2,3)
-  ms=mapslices(sum, ecosystem.partition.abundances, 1)#*individuals
+  ms=map(x-> sum(ecosystem.partition.abundances[:,x].>0), 1:(sz[1]*sz[2]))#*individuals
   reshape(ms, sz)
-end
-# Function to calculate species richness from an AbstractHabitat object
-function SR(ecosystem::AbstractHabitat)
- sz=size(ecosystem.partition.abundances,2,3)
- ms=mapslices(sum, ecosystem.partition.abundances, 1)
- reshape(ms, sz)
 end
 
 # Function to create a habitat from a discrete set of types
