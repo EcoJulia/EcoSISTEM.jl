@@ -12,22 +12,32 @@ type Niches <: AbstractHabitat
   matrix::Matrix{String}
 end
 
-abstract AbstractStructuredPartition{A, H <: AbstractHabitat} <:
- AbstractPartition{Float64, A}
+abstract AbstractBudget
 
-type MatrixLandscape{A, H} <: AbstractStructuredPartition{A, H}
-  abundances::A
-  habitat::H
+type Budget <: AbstractBudget
+  matrix::Matrix{Float64}
 end
 
-function MatrixLandscape{A, H}(abundances::A, habitats::H)
+abstract AbstractStructuredPartition{A, H <: AbstractHabitat, B<: AbstractBudget} <:
+ AbstractPartition{Float64, A}
+
+type MatrixLandscape{A, H, B} <: AbstractStructuredPartition{A, H, B}
+  abundances::A
+  habitat::H
+  budget::B
+end
+
+function MatrixLandscape{A, H, B}(abundances::A, habitats::H, budget::B)
   dima = size(abundances)
   dimh = size(habitats.matrix)
+  dimb = size(budget.matrix)
   length(dima) == 3 || error("Abundances must be three dimensional!")
   ((dima[2] == dimh[1]) && (dima[3] == dimh[2])) ||
    error("Dimension mismatch between abundances and habitats")
+  ((dimh[1] == dimb[1]) && (dimh[2] == dimb[2])) ||
+   error("Dimension mismatch between budgets and habitats")
   relative = abundances #/ sum(abundances)
-  MatrixLandscape{typeof(relative), H}(relative, habitats)
+  MatrixLandscape{typeof(relative), H, B}(relative, habitats, budget)
 end
 
 abstract AbstractTraits
@@ -35,21 +45,29 @@ abstract AbstractTraits
 type StringTraits <: AbstractTraits
   traits::Vector{String}
 end
+abstract AbstractEnergy
+
+type RealEnergy <: AbstractEnergy
+  energy::Vector{Real}
+end
 
 
-abstract AbstractEcosystem{A, Part <: AbstractStructuredPartition, Sim, T <: AbstractTraits} <:
+abstract AbstractEcosystem{A, Part <: AbstractStructuredPartition, Sim, T <: AbstractTraits, E <: AbstractEnergy} <:
  AbstractMetacommunity{Float64, A, Part, Sim}
-type Ecosystem{A, Part, Sim, T} <: AbstractEcosystem{A, Part, Sim, T}
+type Ecosystem{A, Part, Sim, T, E} <: AbstractEcosystem{A, Part, Sim, T, E}
   partition::Part
   similarity::Sim
   ordinariness::Nullable{A}
   traits::T
+  energy::E
 end
 
-function Ecosystem{Part, Sim, T}(partition::Part, similarity::Sim, traits::T)
+function Ecosystem{Part, Sim, T, E}(partition::Part, similarity::Sim, traits::T, energy::E)
   psmatch(partition, similarity) || error("Type mismatch between partition and similarity")
   size(partition.abundances, 1) == length(traits.traits) ||
    error("Type mismatch between partition and traits")
+  size(partition.abundances, 1) == length(energy.energy) ||
+   error("Type mismatch between partition and energy")
   A = typeof(partition.abundances)
-  Ecosystem{A, Part, Sim, T}(partition, similarity, Nullable{A}(),traits)
+  Ecosystem{A, Part, Sim, T, E}(partition, similarity, Nullable{A}(), traits, energy)
 end
