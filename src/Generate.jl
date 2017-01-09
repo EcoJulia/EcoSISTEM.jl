@@ -196,10 +196,9 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
         if deathrate > 1 deathrate = 1 end
         if moverate > 1 moverate = 1 end
         # If traits are same as habitat type then give birth "boost"
-        #if eco.traits.traits[j] != eco.partition.habitat.matrix[x, y]
-        #  birthrate = birthrate * 0.5
-        #  deathrate = deathrate
-        #end
+        if eco.traits.traits[j] != eco.partition.habitat.matrix[x, y]
+          birthrate = birthrate * 0.5
+        end
 
         # If zero abundance then go extinct
         if square[j] == 0
