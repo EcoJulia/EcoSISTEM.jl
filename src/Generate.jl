@@ -181,14 +181,20 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
       for j in randomise
         E = eco.energy.energy[j]
         # Alter birthrate by density in current pop
-        density=1-sum(square) * E / K
-        if density < 0 density = 0 end
+        birth_density=1-sum(square) * E / K
+        death_density=1+sum(square) * E / K
+        move_density=1+sum(square) * E / K
+        if birth_density < 0 birth_density = 0 end
+        if death_density < 0 death_density = 0 end
+        if move_density < 0 move_density = 0 end
 
         # Calculate effective rates
-        birthrate = birth * timestep * density
-        deathrate = death * timestep
-        moverate = move * timestep
+        birthrate = birth * timestep * birth_density
+        deathrate = death * timestep * death_density
+        moverate = move * timestep * move_density
 
+        if deathrate > 1 deathrate = 1 end
+        if moverate > 1 moverate = 1 end
         # If traits are same as habitat type then give birth "boost"
         #if eco.traits.traits[j] != eco.partition.habitat.matrix[x, y]
         #  birthrate = birthrate * 0.5
