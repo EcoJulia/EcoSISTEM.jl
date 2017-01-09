@@ -93,13 +93,13 @@ hab[mat.=="B"]=2
 @rput hab
 R"image(hab, legend = F)"
 
-species=10; individuals=10000
+species=10; individuals=50000
 # Set up tree
 tree=jcoal(species, 100)
 assign_traits!(tree, 0.2, ["A","B"])
 sp_trt=get_traits(tree, true)
 budg= Array{Float64}(50,50)
-fill!(budg, 10)
+fill!(budg, 100)
 energy=repmat([1], species)
 # Try with a skewed distribution
 pop=populate(species, individuals, Niches(mat), sp_trt, Budget(budg),
@@ -107,16 +107,16 @@ pop=populate(species, individuals, Niches(mat), sp_trt, Budget(budg),
 eco=Ecosystem(pop,Species(), StringTraits(sp_trt), RealEnergy(energy))
 maximum(mapslices(sum,eco.partition.abundances,1))
 # Set up initial conditions
-birth = 0.6
-death = 0.5
-move = 0.1
+birth = 0.4
+death = 0.4
+move = 0.5
 timestep = 1
 # Check species richness before
 before=SR(eco)
 @rlibrary("fields")
 @rlibrary("grDevices")
 @rput before
-R"par(mfrow=c(1,2));image.plot(before,col=rainbow(20), breaks=seq(0,20,1));image(hab, legend = F)"
+R"par(mfrow=c(1,2));image.plot(before,col=rainbow(50)[1:20], breaks=seq(0,20,1));image(hab, legend = F)"
 R"pdf(file='Before_steady.pdf', paper='a4r',onefile=T,width=11.69,height=6)"
 R"par(mfrow=c(1,2));image.plot(before,col=rainbow(20), breaks=seq(0,20,1));image(hab, legend = F)"
 R"dev.off()"
@@ -127,9 +127,12 @@ update!(eco, birth, death, move, timestep)
 # Check species richness after
 after=SR(eco)
 @rput after
+R"par(mfrow=c(1,2));image.plot(before,col=rainbow(50)[1:20], breaks=seq(0,20,1));image(hab, legend = F)"
+maximum(mapslices(sum,eco.partition.abundances,1))
 @rput i
 #R"par(mfrow=c(1,2));image.plot(after,col=rainbow(20), breaks=seq(0,50,1));image(hab, legend = F)"
-R"pdf(file=paste('After_steady', i+20, '.pdf', sep=''), paper='a4r',onefile=T,width=11.69,height=6)"
+R"pdf(file=paste('After_steady', i, '.pdf', sep=''), paper='a4r',onefile=T,width=11.69,height=6)"
 R"par(mfrow=c(1,2));print(image.plot(after,col=rainbow(20), breaks=seq(0,20,1)));image(hab, legend = F)"
 R"dev.off()"
 end
+R"par(mfrow=c(1,2));image.plot(before,col=rainbow(20), breaks=seq(0,20,1));image(hab, legend = F)"
