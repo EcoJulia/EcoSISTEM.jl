@@ -241,3 +241,10 @@ x = jnorm(0, sqrt(σ²),length(t) - 1)
 x = cumsum(append!([start], x))
 #Plots.plot(t, x, ylims=collect(extrema(x)).*[0.9,1.1], label=lab)
 end
+
+function assign_traits_cont!(tree::Tree, start::Float64, σ²:: Float64)
+  # Start out with branches 1 & 2
+  len=map(x-> get(tree.branches[x].length), 1:2)
+  traits=map(x->endof(BM(x, 0.5, 2.0)), len)
+  
+end
