@@ -178,8 +178,12 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
       # Loop through species in chosen square
       for j in 1:spp
         E = eco.energy.energy[j]
+        # Alter birthrate by density in current pop
+        density=1-sum(square) * E / K
+        if density < 0 density = 0 end
+
         # Calculate effective rates
-        birthrate = birth * timestep * (1 - sum(square) * E / K)
+        birthrate = birth * timestep * density
         deathrate = death * timestep
         moverate = move * timestep
 
