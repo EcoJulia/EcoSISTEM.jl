@@ -175,8 +175,10 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
 
       square = eco.partition.abundances[:,x, y]
       K = eco.partition.budget.matrix[x, y]
+      randomise=collect(1:spp)
+      randomise=randomise[randperm(length(randomise))]
       # Loop through species in chosen square
-      for j in 1:spp
+      for j in randomise
         E = eco.energy.energy[j]
         # Alter birthrate by density in current pop
         density=1-sum(square) * E / K
