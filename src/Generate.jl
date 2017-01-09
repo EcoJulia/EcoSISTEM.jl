@@ -154,37 +154,41 @@ function get_neighbours(mat::Matrix, y::Int64, x::Int64, chess::Int64=4)
     error("Can only calculate neighbours in 4 or 8 directions")
   end
   # Remove answers outside of the dimensions of the matrix
-  remove=vcat(mapslices(all, [neighbour_vec.>=1 neighbour_vec[:,1].<=dims[1] neighbour_vec[:,2].<=dims[2]], 2)...)
+  remove=vcat(mapslices(all, [neighbour_vec.>=1 neighbour_vec[:,1].<=
+    dims[1] neighbour_vec[:,2].<=dims[2]], 2)...)
   neighbour_vec=neighbour_vec[remove,:]
   neighbour_vec
 end
 
 # Function to update a Ecosystem after one timestep- stochastic birth, death and movement
-function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64, timestep::Real)
+function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
+   timestep::Real)
   # Calculate abundance in overall grid (to be implemented later?)
   #abun=map(i->sum(eco.partition.abundances[i,:,:]), 1:size(eco.partition.abundances,1))
   # Calculate dimenions of habitat and number of species
-  dims=size(eco.partition.abundances)[2:3]
-  spp=size(eco.partition.abundances,1)
+  dims = size(eco.partition.abundances)[2:3]
+  spp = size(eco.partition.abundances,1)
 
   # Loop through grid squares
   for x in 1:dims[1]
     for y in 1:dims[2]
 
-      square=eco.partition.abundances[:,x, y]
-
+      square = eco.partition.abundances[:,x, y]
+      K = eco.partition.budget.matrix[x, y]
       # Loop through species in chosen square
       for j in 1:spp
+        E = eco.energy.energy[j]
         # Calculate effective rates
-        birthrate=birth*timestep
-        deathrate=death*timestep
-        moverate=move*timestep
+        birthrate = birth * timestep * (1 - sum(square) * E / K)
+        deathrate = death * timestep
+        moverate = move * timestep
 
         # If traits are same as habitat type then give birth "boost"
-        if eco.traits.traits[j]!=eco.partition.habitat.matrix[x,y]
-          birthrate=birthrate*0.5
-          deathrate=deathrate
-        end
+        #if eco.traits.traits[j] != eco.partition.habitat.matrix[x, y]
+        #  birthrate = birthrate * 0.5
+        #  deathrate = deathrate
+        #end
+
         # If zero abundance then go extinct
         if square[j] == 0
           birthrate = 0
@@ -193,27 +197,37 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
         end
 
         # Throw error if rates exceed 1
-        birthrate<=1 && deathrate<=1 && moverate<=1 || error("rates larger than one in binomial draw")
+        birthrate <= 1 && deathrate <= 1 && moverate <= 1 ||
+          error("rates larger than one in binomial draw")
 
         # Calculate births, deaths and movements
-        births= jbinom(1,square[j], birthrate)[1]
-        deaths= jbinom(1,square[j], deathrate)[1]
-        moves=jbinom(1, square[j], moverate)[1]
-
+        births = jbinom(1, square[j], birthrate)[1]
+        deaths = jbinom(1, square[j], deathrate)[1]
+        moves = jbinom(1, square[j], moverate)[1]
 
         # Find neighbours of grid square
-        neighbours=get_neighbours(eco.partition.habitat.matrix,y, x, 8)
+        neighbours = get_neighbours(eco.partition.habitat.matrix, y, x, 8)
         # Loop through number of movements
         while moves > 0
-          # Randomly sample one of the neighbours
-          choose=sample(1:size(neighbours,1))
-          destination=neighbours[choose,:]
-          # Add one to this neighbour
-          eco.partition.abundances[j, destination[1], destination[2]]=eco.partition.abundances[j, destination[1], destination[2]] + 1
+
+          abun=map((x, y) -> eco.partition.abundances[:, neighbours[x, 1],
+                                                    neighbours[y, 2]],
+                                                    1:size(neighbours, 1), 1:size(neighbours, 1))
+          if all(map(sum, abun) .> K)
+            deaths = deaths + 1
+          else
+            # Randomly sample one of the neighbours
+            choose = sample(1:size(neighbours[map(sum, abun) .<K , :],1))
+            destination=neighbours[choose, :]
+            # Add one to this neighbour
+            eco.partition.abundances[j, destination[1], destination[2]] =
+              eco.partition.abundances[j, destination[1], destination[2]] + 1
+          end
           moves = moves - 1
         end
         # Update population
-        eco.partition.abundances[j,x, y]= eco.partition.abundances[j,x, y] + births - deaths - moves
+        eco.partition.abundances[j,x, y] = eco.partition.abundances[j,x, y] +
+          births - deaths - moves
       end
     end
   end
