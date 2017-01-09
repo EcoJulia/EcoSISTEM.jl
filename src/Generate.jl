@@ -225,7 +225,7 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
           abun=map((x, y) -> eco.partition.abundances[:, neighbours[x, 1],
                                                     neighbours[y, 2]],
                                                     1:size(neighbours, 1), 1:size(neighbours, 1))
-          if all(map(sum, abun) .> K)
+          if all(map(sum, abun) .>= K)
             deaths = deaths + 1
           else
             # Randomly sample one of the neighbours
