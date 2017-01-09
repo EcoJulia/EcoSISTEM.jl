@@ -40,16 +40,77 @@ function create_habitat(dim, types, prop)
   sample(types, WeightVec(prop), dim)
 end
 
+# Function to create a habitat from a discrete set of types according to the
+# Saura-Martinez-Millan algorithm (2000)
+function random_habitat(dim::Tuple, types, p::Real, A::Vector)
+  length(A)==length(types)|| error("There must be an area proportion for each type")
+  wv=weights(A)
+  M=zeros(dim)
+  # Percolation step
+  for i in 1:(dim[1]*dim[2])
+    if junif(0, 1) < p
+      M[i]=1
+    end
+  end
+  # Select clusters and assign types
+  count=1
+  for x in 1:dim[1]
+    for y in 1:dim[2]
+      if M[x,y]==1.0
 
+        neighbours=get_neighbours(M, y, x)
+        cluster=vcat(mapslices(x->M[x[1],x[2]].==1, neighbours, 2)...)
+        already=vcat(mapslices(x->M[x[1],x[2]].>1, neighbours, 2)...)
+          if any(already)
+            neighbours=neighbours[already,:]
+            M[x,y]=M[neighbours[1,1],neighbours[1,2]]
+          else
+            count=count+1
+            neighbours=neighbours[cluster,:]
+            M[x,y]=count
+            map(i->M[neighbours[i,1],neighbours[i,2]]=count, 1:size(neighbours,1))
+          end
+      end
+    end
+  end
+  T=Array{String}(dim)
+  map(x->T[M.==x]=sample(types, wv), 1:maximum(M))
+  # Fill in undefined squares with most frequent neighbour
+  for x in 1:dim[1]
+    for y in 1:dim[2]
+      if M[x,y]==0
+
+        neighbours=get_neighbours(T, y, x, 8)
+        already=vcat(mapslices(x->isdefined(T,x[1],x[2]), neighbours, 2)...)
+          if any(already)
+            neighbours=neighbours[already,:]
+
+            neighbour_traits=map(i->T[neighbours[i,1],neighbours[i,2]],
+             1:size(neighbours,1))
+            ind=indmax(map(x->sum(neighbour_traits.==x), types))
+            T[x,y]= types[ind]
+          else
+            T[x,y]=sample(T[M.>1])
+          end
+      end
+    end
+  end
+  T
+end
 
 # Function to populate a Niche habitat
-function populate(species::Int64, individuals::Int64, habitat::Niches, traits::Vector, dist::Distribution= Multinomial(individuals,species))
+function populate(species::Int64, individuals::Int64, habitat::Niches,
+  traits::Vector, budget::Budget,
+  dist::Distribution= Multinomial(individuals,species))
   # Calculate size of habitat
   dim=size(habitat.matrix)
+  grid=collect(1:dim[1]*dim[2])
   # Create empty population matrix of correct dimensions
   P=zeros(Int64,species,dim[1],dim[2])
   # Randomly choose abundances for each species from Multinomial
   abun_vec=rand(dist)
+  # Set up copy of budget
+  b=copy(budget.matrix)
   # Loop through species
   for i in eachindex(abun_vec)
     # Get abundance of species
@@ -57,20 +118,24 @@ function populate(species::Int64, individuals::Int64, habitat::Niches, traits::V
     # Get species trait
     pref=traits[i]
     # Calculate weighting, giving preference to squares that match with trait
-    wv= Vector{Float64}(100)
-    wv[find(reshape(habitat.matrix, (100,1)).==pref)]= 0.9
-    wv[find(reshape(habitat.matrix, (100,1)).!=pref)]= 0.1
+    wv= Vector{Float64}(grid)
+    wv[find(reshape(habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.9
+    wv[find(reshape(habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.1
     # Loop through individuals
       while abun>0
+        zs=findin(b[grid], 0)
+        deleteat!(grid, zs)
+        deleteat!(wv, zs)
         # Randomly choose position on grid (weighted)
-      pos=sample(1:(dim[1]*dim[2]), weights(wv))
+      pos=sample(grid, weights(wv))
       # Add individual to this location
       P[i,pos]=P[i,pos]+1
       abun=abun-1
+      b[pos]=b[pos]-1
     end
   end
   # Create MatrixLandscape from P matrix and habitat
-  MatrixLandscape(P, habitat)
+  MatrixLandscape(P, habitat, budget)
 end
 
 
