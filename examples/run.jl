@@ -60,8 +60,9 @@ markerstrokecolor=[:black,false, :red])
 using StatsBase
 using RCall
 # Set up Habitat
-species=50; individuals=10000; mat=ones(10, 10)
+species=50; individuals=10000
 mat=create_habitat((10,10), ["A","B"], [0.4,0.6])
+
 # Set up tree
 tree=jcoal(50, 100)
 assign_traits!(tree, 0.5, ["A","B"])
@@ -82,23 +83,53 @@ after=SR(eco, 100000)
 @rput after
 R"image.plot(after)"
 
-# Try with a skewed distribution
-pop=populate(species, individuals, Niches(mat), sp_trt, Multinomial(individuals, rand(Dirichlet(50,1))))
-eco=Ecosystem(pop,Species(), StringTraits(sp_trt))
 
-hab= Array{Int64}(10,10)
+
+# p= amount of fragmentation, A = expected proportion of habitat
+mat=random_habitat((50,50), ["A","B"], 0.5, [0.5,0.5])
+hab= Array{Int64}(50,50)
 hab[mat.=="A"]=1
 hab[mat.=="B"]=2
 @rput hab
+R"image(hab, legend = F)"
 
+species=10; individuals=10000
+# Set up tree
+tree=jcoal(species, 100)
+assign_traits!(tree, 0.2, ["A","B"])
+sp_trt=get_traits(tree, true)
+budg= Array{Float64}(50,50)
+fill!(budg, 10)
+energy=repmat([1], species)
+# Try with a skewed distribution
+pop=populate(species, individuals, Niches(mat), sp_trt, Budget(budg),
+  Multinomial(individuals, rand(Dirichlet(species,1))))
+eco=Ecosystem(pop,Species(), StringTraits(sp_trt), RealEnergy(energy))
+maximum(mapslices(sum,eco.partition.abundances,1))
+# Set up initial conditions
+birth = 0.6
+death = 0.5
+move = 0.1
+timestep = 1
 # Check species richness before
 before=SR(eco)
 @rlibrary("fields")
+@rlibrary("grDevices")
 @rput before
-R"par(mfrow=c(1,2));image.plot(before);image(hab, legend = F)"
+R"par(mfrow=c(1,2));image.plot(before,col=rainbow(20), breaks=seq(0,20,1));image(hab, legend = F)"
+R"pdf(file='Before_steady.pdf', paper='a4r',onefile=T,width=11.69,height=6)"
+R"par(mfrow=c(1,2));image.plot(before,col=rainbow(20), breaks=seq(0,20,1));image(hab, legend = F)"
+R"dev.off()"
+for i in 1:10
+
 # Update by one timestep
-update!(eco, 0.4, 0.6, 0.01, 1)
+update!(eco, birth, death, move, timestep)
 # Check species richness after
 after=SR(eco)
 @rput after
-R"par(mfrow=c(1,2));image.plot(after);image(hab, legend = F)"
+@rput i
+#R"par(mfrow=c(1,2));image.plot(after,col=rainbow(20), breaks=seq(0,50,1));image(hab, legend = F)"
+R"pdf(file=paste('After_steady', i+20, '.pdf', sep=''), paper='a4r',onefile=T,width=11.69,height=6)"
+R"par(mfrow=c(1,2));print(image.plot(after,col=rainbow(20), breaks=seq(0,20,1)));image(hab, legend = F)"
+R"dev.off()"
+end
