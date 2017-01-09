@@ -1,5 +1,8 @@
+using StatsBase
+
 # Function to randomly populate a habitat matrix
-function populate(species::Int64, individuals::Int64, habitat::Habitats, dist::Distribution= Multinomial(individuals,species))
+function populate(species::Int64, individuals::Int64, habitat::Habitats,
+   dist::Distribution= Multinomial(individuals,species))
   # Calculate size of habitat
   dim=size(habitat.matrix)
   # Create empty population matrix of correct dimensions
