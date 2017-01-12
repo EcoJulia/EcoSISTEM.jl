@@ -106,7 +106,7 @@ function populate(species::Int64, individuals::Int64, habitat::Niches,
   dim=size(habitat.matrix)
   grid=collect(1:dim[1]*dim[2])
   # Create empty population matrix of correct dimensions
-  P=zeros(Int64,species,dim[1],dim[2])
+  P=zeros(Float64,species,dim[1],dim[2])
   # Randomly choose abundances for each species from Multinomial
   abun_vec=rand(dist)
   # Set up copy of budget
@@ -133,6 +133,9 @@ function populate(species::Int64, individuals::Int64, habitat::Niches,
       abun=abun-1
       b[pos]=b[pos]-1
     end
+    #sum_abun=mapslices(sum, P, 1)[1,:,:]
+    #@rput(sum_abun)
+    #R"par(mfrow=c(1,2));image.plot(sum_abun,col=rainbow(50)[1:20], breaks=seq(0,20,1));image(hab, legend = F)"
   end
   # Create MatrixLandscape from P matrix and habitat
   MatrixLandscape(P, habitat, budget)
@@ -212,9 +215,9 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
           error("rates larger than one in binomial draw")
 
         # Calculate births, deaths and movements
-        births = jbinom(1, square[j], birthrate)[1]
-        deaths = jbinom(1, square[j], deathrate)[1]
-        moves = jbinom(1, square[j], moverate)[1]
+        births = jbinom(1, square[j], tnorm(birthrate, 1e-3)[1])[1]
+        deaths = jbinom(1, square[j], tnorm(deathrate, 1e-3)[1])[1]
+        moves = jbinom(1, square[j], tnorm(moverate, 1e-3)[1])[1]
 
         # Find neighbours of grid square
         neighbours = get_neighbours(eco.partition.habitat.matrix, y, x, 8)
