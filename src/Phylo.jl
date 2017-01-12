@@ -1,10 +1,10 @@
 using PhyloTrees
 #using Simulation
 #Function to create random tree with set number of tips
-function jtree(n::Int64, dist::Distribution = Uniform(0,n))
+function jtree(n::Int64, T::Type=String,dist::Distribution = Uniform(0,n))
 
   #Create tree and set initial two branches
-  tree1 = Tree{String, Vector}(); addnodes!(tree1, 2*n-1)
+  tree1 = Tree{T, Vector}(); addnodes!(tree1, 2*n-1)
   map(target->addbranch!(tree1, 1, target, rand(dist)),2:3)
   if n>2
   nodes=3
@@ -91,9 +91,9 @@ function root_to_tips(tree)
   map(nodepath,repmat([tree],endof(tips)), repmat(root,endof(tips)), tips)
 end
 # Function to create a random ultrametric tree
-function jcoal(n::Int64, len::Real)
+function jcoal(n::Int64, len::Real, T::Type=String)
   # Create random tree
-  tree2=jtree(n)
+  tree2=jtree(n, T)
   # Find tips of tree
   tips=findtips(tree2)
   # Find paths of each tip from root
