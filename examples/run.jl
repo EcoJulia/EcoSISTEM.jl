@@ -106,6 +106,23 @@ pop=populate(species, individuals, Niches(mat), sp_trt, Budget(budg),
   Multinomial(individuals, rand(Dirichlet(species,1))))
 eco=Ecosystem(pop,Species(), StringTraits(sp_trt), RealEnergy(energy))
 maximum(mapslices(sum,eco.partition.abundances,1))
+
+a = subdiv(ᾱ(eco), 2)
+@rput a
+R"par(mfrow=c(1,2));image.plot(a,col=heat.colors(100), breaks=seq(0,max(a), length.out=101));image(hab, legend = F)"
+
+p = subdiv(ρ̄(eco), 1)
+@rput p
+R"par(mfrow=c(1,2));image.plot(p,col=heat.colors(100), breaks=seq(0,max(p), length.out=101));image(hab, legend = F)"
+
+b = subdiv(β(eco), 1)
+@rput b
+R"par(mfrow=c(1,2));image.plot(b,col=heat.colors(100), breaks=seq(0,max(b), length.out=101));image(hab, legend = F)"
+
+g = subdiv(γ(eco), 1)
+@rput g
+R"par(mfrow=c(1,2));image.plot(b,col=heat.colors(100), breaks=seq(0,max(g), length.out=101));image(hab, legend = F)"
+
 # Set up initial conditions
 birth = 0.4
 death = 0.4
