@@ -242,9 +242,34 @@ x = cumsum(append!([start], x))
 #Plots.plot(t, x, ylims=collect(extrema(x)).*[0.9,1.1], label=lab)
 end
 
-function assign_traits_cont!(tree::Tree, start::Float64, σ²:: Float64)
+tree=jcoal(5, 10, Real)
+function assign_traits!(tree::Tree, start::Float64, σ²:: Float64)
+  check = map(a->!isnull(tree.nodes[a].data), 1:length(tree.nodes))
+  !all(check) || error("Some nodes already assigned traits")
   # Start out with branches 1 & 2
-  len=map(x-> get(tree.branches[x].length), 1:2)
-  traits=map(x->endof(BM(x, 0.5, 2.0)), len)
-  
+  len = map(x-> tree.branches[x].length, 1:2)
+  traits = map(x->BM(x, σ², start)[end], len)
+  #loop through nodes
+  for i in eachindex(tree.nodes)
+    if isroot(tree.nodes[i])
+      tree.nodes[i].data = start
+    else
+      pnt = parentnode(tree,i)
+      srt = get(tree.nodes[pnt].data)
+      path = branchpath(tree, pnt, i)[1]
+      ln = tree.branches[path].length
+      tree.nodes[i].data = BM(ln, σ², srt)[end]
+    end
+  end
+  tree
 end
+function get_data(tree::Tree, tips::Bool=false)
+  if tips
+    tipnodes= findleaves(tree)
+    map(a->get(tree.nodes[a].data), 1:length(tree.nodes))[tipnodes]
+  else
+    map(a->get(tree.nodes[a].data), 1:length(tree.nodes))
+  end
+end
+assign_traits!(tree, 2.0, 0.5)
+get_data(tree)
