@@ -1,7 +1,7 @@
 using PhyloTrees
 #using Simulation
 #Function to create random tree with set number of tips
-function jtree(n::Int64, T::Type=String,dist::Distribution = Uniform(0,n))
+function jtree(n::Int64, T::Type = String, dist::Distribution = Uniform(0,n))
 
   #Create tree and set initial two branches
   tree1 = Tree{T, Vector}(); addnodes!(tree1, 2*n-1)
@@ -159,7 +159,7 @@ function assign_traits!(tree::Tree, switch_rate::Real, traits::Vector)
 
   # Calculate how long the path is already
   path = mapslices(a -> branchpath(tree, a[1], a[2]), pairs, 2)
-  len = sum(map(a -> get(tree.branches[a].length), path))
+  len = sum(map(a -> tree.branches[a].length, path))
 
 
   # Calculate time to next switch
@@ -181,12 +181,12 @@ function assign_traits!(tree::Tree, switch_rate::Real, traits::Vector)
       #Get the branch the node pairs are found on
       branch_path = branchpath(tree, sel_pair[1], sel_pair[2])
       # Calculate the length of the branch
-      branch_len = get(tree.branches[branch_path[1]].length)
+      branch_len = tree.branches[branch_path[1]].length
       # If previous branches have been assigned then need to add previous branch lengths to switch times
       prev_branch_len = 0.0
       if any(assigned)
         prev_path=branchpath(tree, sel_pair[1])
-        prev_branch_len=sum(map(i-> get(tree.branches[i].length), prev_path))
+        prev_branch_len=sum(map(i-> tree.branches[i].length, prev_path))
       end
       # Assign switch times as branch data
       tree.branches[branch_path[1]].data = cum_times[cum_times .< branch_len] + prev_branch_len
