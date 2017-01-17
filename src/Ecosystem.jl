@@ -58,6 +58,7 @@ end
 
 abstract AbstractEcosystem{A, Part <: AbstractStructuredPartition, Sim, T <: AbstractTraits, E <: AbstractEnergy} <:
  AbstractMetacommunity{Float64, A, Part, Sim}
+
 type Ecosystem{A, Part, Sim, T, E} <: AbstractEcosystem{A, Part, Sim, T, E}
   partition::Part
   similarity::Sim
@@ -74,4 +75,15 @@ function Ecosystem{Part, Sim, T, E}(partition::Part, similarity::Sim, traits::T,
    error("Type mismatch between partition and energy")
   A = typeof(partition.abundances)
   Ecosystem{A, Part, Sim, T, E}(partition, similarity, Nullable{A}(), traits, energy)
+end
+
+
+abstract AbstractSpeciesList{A, N, B, T <: AbstractTraits, Sim, E<: AbstractEnergy}
+
+type SpeciesList{A, N, B, T, Sim, E} <: AbstractSpeciesList{A, N, B, T, Sim, E}
+  traits::T
+  similarity::Sim
+  abun::Vector{A}
+  energy::E
+  phylo::Tree{N,B}
 end
