@@ -107,3 +107,10 @@ sppl = SpeciesList(2, 2, Multinomial(10, 2), Multinomial(100, 2))
 type TraitRelationship
   matrix::Matrix{Real}
 end
+abstract AbstractAbiotic{S<:AbstractSpeciesList, H<: AbstractHabitat, R<: TraitRelationship}
+
+type AbioticEnv{S, H, R} <: AbstractAbiotic{S, H, R}
+  spplist::S
+  habitat::H
+  relationship::R
+end
