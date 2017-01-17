@@ -84,7 +84,8 @@ after=SR(eco, 100000)
 R"image.plot(after)"
 
 
-
+using StatsBase
+using RCall
 # p= amount of fragmentation, A = expected proportion of habitat
 mat=random_habitat((50,50), ["A","B"], 0.5, [0.5,0.5])
 hab= Array{Int64}(50,50)
@@ -107,6 +108,7 @@ pop=populate(species, individuals, Niches(mat), sp_trt, Budget(budg),
 eco=Ecosystem(pop,Species(), StringTraits(sp_trt), RealEnergy(energy))
 maximum(mapslices(sum,eco.partition.abundances,1))
 
+@rlibrary("fields")
 a = subdiv(ᾱ(eco), 2)
 @rput a
 R"par(mfrow=c(1,2));image.plot(a,col=heat.colors(100), breaks=seq(0,max(a), length.out=101));image(hab, legend = F)"
@@ -129,7 +131,7 @@ death = 0.4
 move = 0.5
 timestep = 1
 # Check species richness before
-before=SR(eco)
+before=subdiv(ᾱ(eco), 2)
 @rlibrary("fields")
 @rlibrary("grDevices")
 @rput before
@@ -142,7 +144,7 @@ for i in 1:10
 # Update by one timestep
 update!(eco, birth, death, move, timestep)
 # Check species richness after
-after=SR(eco)
+after=subdiv(ᾱ(eco), 2)
 @rput after
 R"par(mfrow=c(1,2));image.plot(before,col=rainbow(50)[1:20], breaks=seq(0,20,1));image(hab, legend = F)"
 maximum(mapslices(sum,eco.partition.abundances,1))
