@@ -114,3 +114,11 @@ type AbioticEnv{S, H, R} <: AbstractAbiotic{S, H, R}
   habitat::H
   relationship::R
 end
+function AbioticEnv(NumberNiches::Int64, dimension::Tuple, spplist::AbstractSpeciesList)
+  niches = map(string, 1:NumberNiches)
+  hab = random_habitat(dimension, niches, 0.5, [0.5,0.5])
+  rel = eye(length(spplist.traits.traits), NumberNiches)
+  AbioticEnv(spplist, Niches(hab), TraitRelationship(rel))
+end
+abenv = AbioticEnv(2, (2,2), sppl)
+
