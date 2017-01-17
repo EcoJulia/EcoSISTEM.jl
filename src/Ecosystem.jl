@@ -45,6 +45,10 @@ abstract AbstractTraits
 type StringTraits <: AbstractTraits
   traits::Vector{String}
 end
+type RealTraits <: AbstractTraits
+  traits::Vector{Real}
+end
+
 abstract AbstractEnergy
 
 type RealEnergy <: AbstractEnergy
