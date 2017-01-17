@@ -87,3 +87,19 @@ type SpeciesList{A, N, B, T, Sim, E} <: AbstractSpeciesList{A, N, B, T, Sim, E}
   energy::E
   phylo::Tree{N,B}
 end
+function SpeciesList{T, Sim, E}(traits::T, similarity::Sim, abun, energy::E, phylo)
+  SpeciesList{A, N, B, T, Sim, E}(traits, similarity, abun, energy, phylo)
+end
+
+function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
+                      abun_dist::Distribution, energy_dist::Distribution)
+  tree = jcoal(NumberSpecies, 100)
+  trts = map(string, 1:NumberTraits)
+  assign_traits!(tree, 0.2, trts)
+  sp_trt = get_traits(tree, true)
+  similarity = eye(NumberSpecies)
+  abun = rand(abun_dist)
+  energy = rand(energy_dist)
+  SpeciesList(StringTraits(sp_trt), similarity, abun, RealEnergy(energy), tree)
+end
+sppl = SpeciesList(2, 2, Multinomial(10, 2), Multinomial(100, 2))
