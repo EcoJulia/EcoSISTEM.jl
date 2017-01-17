@@ -59,6 +59,11 @@ function random_habitat(dim::Tuple, types, p::Real, A::Vector)
       if M[x,y]==1.0
 
         neighbours=get_neighbours(M, y, x)
+        # If no neighbours, sample from clusters randomly
+        if isempty(neighbours)
+          count=count+1
+          M[x,y]=count
+        else
         cluster=vcat(mapslices(x->M[x[1],x[2]].==1, neighbours, 2)...)
         already=vcat(mapslices(x->M[x[1],x[2]].>1, neighbours, 2)...)
           if any(already)
@@ -70,6 +75,7 @@ function random_habitat(dim::Tuple, types, p::Real, A::Vector)
             M[x,y]=count
             map(i->M[neighbours[i,1],neighbours[i,2]]=count, 1:size(neighbours,1))
           end
+        end
       end
     end
   end
@@ -81,7 +87,12 @@ function random_habitat(dim::Tuple, types, p::Real, A::Vector)
       if M[x,y]==0
 
         neighbours=get_neighbours(T, y, x, 8)
+        # If no neighbours, sample from traits randomly
+        if isempty(neighbours)
+          T[x,y]=sample(types, wv)
+        else
         already=vcat(mapslices(x->isdefined(T,x[1],x[2]), neighbours, 2)...)
+        # If any already assigned then sample from most frequent neighbour traits
           if any(already)
             neighbours=neighbours[already,:]
 
@@ -89,9 +100,15 @@ function random_habitat(dim::Tuple, types, p::Real, A::Vector)
              1:size(neighbours,1))
             ind=indmax(map(x->sum(neighbour_traits.==x), types))
             T[x,y]= types[ind]
+          # If none are assigned in entire grid already,
+          # sample randomly from traits
+        elseif all(M.<=1)
+            T[x,y]=sample(types, wv)
+          # If some are assigned in grid, sample from these
           else
             T[x,y]=sample(T[M.>1])
           end
+        end
       end
     end
   end
@@ -215,9 +232,9 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
           error("rates larger than one in binomial draw")
 
         # Calculate births, deaths and movements
-        births = jbinom(1, square[j], tnorm(birthrate, 1e-3)[1])[1]
-        deaths = jbinom(1, square[j], tnorm(deathrate, 1e-3)[1])[1]
-        moves = jbinom(1, square[j], tnorm(moverate, 1e-3)[1])[1]
+        births = jbinom(1, Int(square[j]), tnorm(birthrate, 1e-3)[1])[1]
+        deaths = jbinom(1, Int(square[j]), tnorm(deathrate, 1e-3)[1])[1]
+        moves = jbinom(1, Int(square[j]), tnorm(moverate, 1e-3)[1])[1]
 
         # Find neighbours of grid square
         neighbours = get_neighbours(eco.partition.habitat.matrix, y, x, 8)
