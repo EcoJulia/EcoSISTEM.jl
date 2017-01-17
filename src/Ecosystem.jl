@@ -103,3 +103,7 @@ function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
   SpeciesList(StringTraits(sp_trt), similarity, abun, RealEnergy(energy), tree)
 end
 sppl = SpeciesList(2, 2, Multinomial(10, 2), Multinomial(100, 2))
+
+type TraitRelationship
+  matrix::Matrix{Real}
+end
