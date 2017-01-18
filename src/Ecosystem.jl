@@ -140,3 +140,28 @@ function MatrixLandscape(abenv::AbstractAbiotic, spplist::AbstractSpeciesList)
   MatrixLandscape(abundances, abenv, spplist)
 end
 
+
+abstract AbstractEcosystem{A, Part <: AbstractStructuredPartition,
+          S <: AbstractSpeciesList, AB <: AbstractAbiotic} <:
+                AbstractMetacommunity{Float64, A, Part}
+
+type Ecosystem{A, Part, S, AB} <: AbstractEcosystem{A, Part, S, AB}
+  partition::Part
+  ordinariness::Nullable{A}
+  ssplist::S
+  abenv::AB
+end
+
+function Ecosystem(ml::MatrixLandscape)
+  species = length(ml.spplist.abun)
+  populate!(ml)
+  spplist = ml.spplist
+  abenv = ml.abenv
+  A = typeof(ml.abundances)
+  Ecosystem(ml, Nullable{A}(), spplist, abenv)
+end
+
+sppl = SpeciesList(2, 2, Multinomial(10, 2), Multinomial(100, 2))
+abenv = AbioticEnv(2, (2,2), sppl)
+ml = MatrixLandscape(abenv, sppl)
+Ecosystem(ml)
