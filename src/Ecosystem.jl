@@ -3,6 +3,8 @@ using Diversity.AbstractPartition
 using Diversity.AbstractMetacommunity
 using Diversity.psmatch
 
+
+## Habitat types
 abstract AbstractHabitat
 
 type Habitats <: AbstractHabitat
@@ -12,12 +14,14 @@ type Niches <: AbstractHabitat
   matrix::Matrix{String}
 end
 
+# Env budget types
 abstract AbstractBudget
 
 type Budget <: AbstractBudget
   matrix::Matrix{Float64}
 end
 
+# Species trait types
 abstract AbstractTraits
 
 type StringTraits <: AbstractTraits
@@ -27,12 +31,18 @@ type RealTraits <: AbstractTraits
   traits::Vector{Real}
 end
 
+type TraitRelationship
+  matrix::Matrix{Real}
+end
+
+# Species energy types
 abstract AbstractEnergy
 
 type RealEnergy <: AbstractEnergy
   energy::Vector{Real}
 end
 
+# Species list type - all info on species
 abstract AbstractSpeciesList{A, N, B, T <: AbstractTraits, Sim, E<: AbstractEnergy}
 
 type SpeciesList{A, N, B, T, Sim, E} <: AbstractSpeciesList{A, N, B, T, Sim, E}
@@ -42,6 +52,7 @@ type SpeciesList{A, N, B, T, Sim, E} <: AbstractSpeciesList{A, N, B, T, Sim, E}
   energy::E
   phylo::Tree{N,B}
 end
+
 function SpeciesList{T, Sim, E}(traits::T, similarity::Sim, abun, energy::E, phylo)
   SpeciesList{A, N, B, T, Sim, E}(traits, similarity, abun, energy, phylo)
 end
@@ -58,10 +69,9 @@ function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
   SpeciesList(StringTraits(sp_trt), similarity, abun, RealEnergy(energy), tree)
 end
 
-type TraitRelationship
-  matrix::Matrix{Real}
-end
 
+# Abiotic environment types- all info about habitat and relationship to species
+# traits
 abstract AbstractAbiotic{H<: AbstractHabitat, R<: TraitRelationship, B<:AbstractBudget}
 
 type AbioticEnv{H, R, B} <: AbstractAbiotic{H, R, B}
@@ -79,8 +89,8 @@ function AbioticEnv(NumberNiches::Int64, dimension::Tuple,
   AbioticEnv(Niches(hab), TraitRelationship(rel), Budget(bud))
 end
 
-abstract AbstractStructuredPartition{A, AB <: AbstractAbiotic,
-                S<: AbstractSpeciesList} <: AbstractPartition{Float64, A}
+# Matrix Landscape types - houses abundances (initially empty)
+abstract AbstractStructuredPartition{A} <: AbstractPartition{Float64, A}
 
 type MatrixLandscape{A} <: AbstractStructuredPartition{A}
   abundances::A
@@ -93,6 +103,7 @@ function MatrixLandscape(abenv::AbstractAbiotic, spplist::AbstractSpeciesList)
   MatrixLandscape(abundances)
 end
 
+# Ecosystem type - holds all information and populates ML
 abstract AbstractEcosystem{A, Part <: AbstractStructuredPartition,
           S <: AbstractSpeciesList, AB <: AbstractAbiotic} <:
                 AbstractMetacommunity{Float64, A, Part}
