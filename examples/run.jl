@@ -155,3 +155,11 @@ R"par(mfrow=c(1,2));print(image.plot(after,col=rainbow(20), breaks=seq(0,20,1)))
 R"dev.off()"
 end
 R"par(mfrow=c(1,2));image.plot(before,col=rainbow(20), breaks=seq(0,20,1));image(hab, legend = F)"
+
+
+
+## Run new system of set up
+
+sppl = SpeciesList(2, 2, Multinomial(10, 2), Multinomial(100, 2))
+abenv = AbioticEnv(2, (2,2), sppl)
+Ecosystem(sppl, abenv)
