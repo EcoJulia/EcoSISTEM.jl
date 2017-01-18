@@ -266,22 +266,23 @@ end
 
 
 # Alternative populate function
-function populate!(ml::AbstractStructuredPartition)
+function populate!(ml::AbstractStructuredPartition, spplist::AbstractSpeciesList,
+                   abenv::AbstractAbiotic)
   # Calculate size of habitat
-  dim=size(ml.abenv.habitat.matrix)
+  dim=size(abenv.habitat.matrix)
   grid=collect(1:dim[1]*dim[2])
   # Set up copy of budget
-  b=copy(ml.abenv.budget.matrix)
+  b=copy(abenv.budget.matrix)
   # Loop through species
-  for i in eachindex(abun_vec)
+  for i in eachindex(spplist.abun)
     # Get abundance of species
-    abun=ml.spplist.abun[i]
+    abun=spplist.abun[i]
     # Get species trait
-    pref=ml.spplist.traits.traits[i]
+    pref=spplist.traits.traits[i]
     # Calculate weighting, giving preference to squares that match with trait
     wv= Vector{Float64}(grid)
-    wv[find(reshape(ml.abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.9
-    wv[find(reshape(ml.abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.1
+    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.9
+    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.1
     # Loop through individuals
       while abun>0
         zs=findin(b[grid], 0)
