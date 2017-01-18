@@ -102,23 +102,25 @@ function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
   energy = rand(energy_dist)
   SpeciesList(StringTraits(sp_trt), similarity, abun, RealEnergy(energy), tree)
 end
-sppl = SpeciesList(2, 2, Multinomial(10, 2), Multinomial(100, 2))
 
 type TraitRelationship
   matrix::Matrix{Real}
 end
-abstract AbstractAbiotic{S<:AbstractSpeciesList, H<: AbstractHabitat, R<: TraitRelationship}
 
-type AbioticEnv{S, H, R} <: AbstractAbiotic{S, H, R}
-  spplist::S
+abstract AbstractAbiotic{H<: AbstractHabitat, R<: TraitRelationship, B<:AbstractBudget}
+
+type AbioticEnv{H, R, B} <: AbstractAbiotic{H, R, B}
   habitat::H
   relationship::R
+  budget::B
 end
-function AbioticEnv(NumberNiches::Int64, dimension::Tuple, spplist::AbstractSpeciesList)
+function AbioticEnv(NumberNiches::Int64, dimension::Tuple,
+                    spplist::AbstractSpeciesList)
   niches = map(string, 1:NumberNiches)
   hab = random_habitat(dimension, niches, 0.5, [0.5,0.5])
   rel = eye(length(spplist.traits.traits), NumberNiches)
-  AbioticEnv(spplist, Niches(hab), TraitRelationship(rel))
+  bud = zeros(dimension)
+  fill!(bud, 100)
+  AbioticEnv(Niches(hab), TraitRelationship(rel), Budget(bud))
 end
-abenv = AbioticEnv(2, (2,2), sppl)
 
