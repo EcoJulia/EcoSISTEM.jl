@@ -82,19 +82,16 @@ end
 abstract AbstractStructuredPartition{A, AB <: AbstractAbiotic,
                 S<: AbstractSpeciesList} <: AbstractPartition{Float64, A}
 
-type MatrixLandscape{A, AB, S} <: AbstractStructuredPartition{A, AB, S}
+type MatrixLandscape{A} <: AbstractStructuredPartition{A}
   abundances::A
-  abenv::AB
-  spplist::S
 end
 
 
 function MatrixLandscape(abenv::AbstractAbiotic, spplist::AbstractSpeciesList)
   abundances=zeros(size(abenv.habitat.matrix,1),size(abenv.habitat.matrix,2),
              length(spplist.abun))
-  MatrixLandscape(abundances, abenv, spplist)
+  MatrixLandscape(abundances)
 end
-
 
 abstract AbstractEcosystem{A, Part <: AbstractStructuredPartition,
           S <: AbstractSpeciesList, AB <: AbstractAbiotic} <:
@@ -107,16 +104,10 @@ type Ecosystem{A, Part, S, AB} <: AbstractEcosystem{A, Part, S, AB}
   abenv::AB
 end
 
-function Ecosystem(ml::MatrixLandscape)
-  species = length(ml.spplist.abun)
-  populate!(ml)
-  spplist = ml.spplist
-  abenv = ml.abenv
+function Ecosystem(spplist::AbstractSpeciesList, abenv::AbstractAbiotic)
+  ml = MatrixLandscape(abenv, spplist)
+  species = length(spplist.abun)
+  populate!(ml, spplist, abenv)
   A = typeof(ml.abundances)
   Ecosystem(ml, Nullable{A}(), spplist, abenv)
 end
-
-sppl = SpeciesList(2, 2, Multinomial(10, 2), Multinomial(100, 2))
-abenv = AbioticEnv(2, (2,2), sppl)
-ml = MatrixLandscape(abenv, sppl)
-Ecosystem(ml)
