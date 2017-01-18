@@ -124,3 +124,19 @@ function AbioticEnv(NumberNiches::Int64, dimension::Tuple,
   AbioticEnv(Niches(hab), TraitRelationship(rel), Budget(bud))
 end
 
+abstract AbstractStructuredPartition{A, AB <: AbstractAbiotic,
+                S<: AbstractSpeciesList} <: AbstractPartition{Float64, A}
+
+type MatrixLandscape{A, AB, S} <: AbstractStructuredPartition{A, AB, S}
+  abundances::A
+  abenv::AB
+  spplist::S
+end
+
+
+function MatrixLandscape(abenv::AbstractAbiotic, spplist::AbstractSpeciesList)
+  abundances=zeros(size(abenv.habitat.matrix,1),size(abenv.habitat.matrix,2),
+             length(spplist.abun))
+  MatrixLandscape(abundances, abenv, spplist)
+end
+
