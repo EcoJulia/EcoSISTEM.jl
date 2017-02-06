@@ -264,14 +264,14 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
         moves = jbinom(1, Int(square[j]), moverate)[1]
 
         # Find neighbours of grid square
-        neighbours = get_neighbours(eco.partition.habitat.matrix, y, x, 8)
+        neighbours = get_neighbours(eco.abenv.habitat.matrix, y, x, 8)
         # Loop through number of movements
         while moves > 0
 
-          abun=map((x, y) -> eco.partition.abundances[:, neighbours[x, 1],
-                                                    neighbours[y, 2]],
-                                                    1:size(neighbours, 1), 1:size(neighbours, 1))
-          if all(map(sum, abun) .>= K)
+          abun=map(a -> eco.partition.abundances[:, neighbours[a, 1],
+                                                    neighbours[a, 2]],
+                                                    1:size(neighbours, 1))
+          if all(map(i->sum(abun[i].* ϵ̄), 1:length(abun)) .>= K)
             deaths = deaths + 1
           else
             # Randomly sample one of the neighbours
