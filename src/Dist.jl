@@ -12,7 +12,7 @@ end
 
 # Function to sample randomly from the Binomial distribution
 function jbinom(n::Int64, size::Int64, p::Real)
-  rand(Binomial(size,p), n)
+  rand(Binomial(size, p), n)
 end
 
 # Function to sample randomly from the Multinomial distribution
@@ -41,4 +41,8 @@ end
 
 function tnorm(μ, σ, l = 0, u = 1, n::Int = 1)
   rand(Truncated(Normal(μ, σ), l, u), n)
+end
+
+function jgamma(shape, scale)
+  rand(Gamma(shape, scale))
 end
