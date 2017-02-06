@@ -186,9 +186,15 @@ end
 
 # Function to update a Ecosystem after one timestep- stochastic birth, death and movement
 function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
-   timestep::Real)
+   l::Float64, s::Float64, timestep::Real)
+
+   # For now keep l>s
+   l > s || error("l must be greater than s")
+   l >= 0 && s >= 0 || error("l and s must be greater than zero")
+
   # Calculate abundance in overall grid (to be implemented later?)
   #abun=map(i->sum(eco.partition.abundances[i,:,:]), 1:size(eco.partition.abundances,1))
+
   # Calculate dimenions of habitat and number of species
   dims = size(eco.partition.abundances)[2:3]
   spp = size(eco.partition.abundances,1)
