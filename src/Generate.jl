@@ -211,12 +211,20 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
       for j in randomise
         E = eco.energy.energy[j]
         # Alter birthrate by density in current pop
-        birth_density=1-sum(square) * E / K
-        death_density=1+sum(square) * E / K
-        move_density=1+sum(square) * E / K
-        if birth_density < 0 birth_density = 0 end
-        if death_density < 0 death_density = 0 end
-        if move_density < 0 move_density = 0 end
+      if (K-E) < ϵ̄[j]
+        birth_energy = 0
+      else
+        birth_energy = (ϵ̄[j])^(-l-s) * K / E
+      end
+        death_energy = (ϵ̄[j])^(-l+s) * E / K
+        move_energy = E / K
+
+        # Simple case
+
+
+        #EF = K - E
+        # Near zero when E=K -> 1/ϵ̄
+        #prob_birth = tnorm(birth, ϵ̄[j]^(-l)*EF)
 
         # Calculate effective rates
         birthrate = birth * timestep * birth_density
