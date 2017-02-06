@@ -2,7 +2,7 @@ using Diversity
 using Diversity.AbstractPartition
 using Diversity.AbstractMetacommunity
 using Diversity.psmatch
-
+using Diversity.AbstractSimilarity
 
 ## Habitat types
 abstract AbstractHabitat
@@ -43,30 +43,40 @@ type RealEnergy <: AbstractEnergy
 end
 
 # Species list type - all info on species
-abstract AbstractSpeciesList{A, N, B, T <: AbstractTraits, Sim, E<: AbstractEnergy}
 
-type SpeciesList{A, N, B, T, Sim, E} <: AbstractSpeciesList{A, N, B, T, Sim, E}
+type SpeciesList{FP, M <: AbstractMatrix, A <: AbstractVector, N<: Any, B <: Any,
+                             T <: AbstractTraits, E<: AbstractEnergy} <:
+                             AbstractSimilarity{FP, M}
+  similarity::M
   traits::T
-  similarity::Sim
-  abun::Vector{A}
+  abun::A
   energy::E
   phylo::Tree{N,B}
 end
 
-function SpeciesList{T, Sim, E}(traits::T, similarity::Sim, abun, energy::E, phylo)
-  SpeciesList{A, N, B, T, Sim, E}(traits, similarity, abun, energy, phylo)
+function SpeciesList{FP <: AbstractFloat, A <: AbstractVector, N <: Any, B <: Any,
+          T <: AbstractTraits, E<: AbstractEnergy}(similarity::AbstractMatrix{FP},
+          traits::T, abun::A, energy::E, phylo::Tree{N,B})
+  SpeciesList{FP, typeof(similarity), A, N, B, T, E}(similarity, traits, abun,
+                                                     energy, tree)
 end
-
 function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
-                      abun_dist::Distribution, energy_dist::Distribution)
+                      abun_dist::Distribution, energy::AbstractVector)
+  # error out when abun dist and NumberSpecies are not the same (same for energy dist)
   tree = jcoal(NumberSpecies, 100)
   trts = map(string, 1:NumberTraits)
   assign_traits!(tree, 0.2, trts)
   sp_trt = get_traits(tree, true)
   similarity = eye(NumberSpecies)
   abun = rand(abun_dist)
-  energy = rand(energy_dist)
-  SpeciesList(StringTraits(sp_trt), similarity, abun, RealEnergy(energy), tree)
+  length(abun)==NumberSpecies || throw(DimensionMismatch("Abundance vector
+                                        doesn't match number species"))
+  length(energy)==NumberSpecies || throw(DimensionMismatch("Energy vector
+                                        doesn't match number species"))
+  size(similarity)==(NumberSpecies,NumberSpecies) || throw(DimensionMismatch("
+                              Similarity matrix doesn't match number species"))
+  SpeciesList(similarity, StringTraits(sp_trt), abun,
+                            RealEnergy(energy), tree)
 end
 
 
