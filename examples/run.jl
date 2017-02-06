@@ -292,3 +292,70 @@ pop2=abun[:,:,2]
   plot(ener[,2], type='l', ylab='Energy 2', xlab='Time');
   dev.off()
 "
+
+  ## FOUR SQUARES
+  using RCall
+  ## Run new system of set up
+  numSpecies=3
+  numTraits=2
+  numNiches=2
+  energy_vec = [2, 3, 5]
+  sppl = SpeciesList(numSpecies, numTraits, Multinomial(5000, numSpecies),
+                     energy_vec)
+  abenv = MatrixAbioticEnv(numNiches, (2,2), 50000)
+
+  eco = Ecosystem(sppl, abenv)
+
+  birth = 0.4
+  death = 0.4
+  move = 0.01
+  timestep = 0.1
+
+  gridSize= 4
+
+  times=1000
+  abun = zeros(times+1, numSpecies, gridSize)
+  for g in 1:gridSize
+  abun[1,:, g] = eco.partition.abundances[:, g]
+  end
+
+  for i in 1:times
+    for j in 1:gridSize
+    update!(eco, birth, death, move, 1.0, 0.0, timestep)
+    abun[i+1, :, j] = eco.partition.abundances[: , j]
+    end
+  end
+  #54000
+ pop1=abun[:,:,1]
+ pop2=abun[:,:,2]
+ pop3=abun[:,:,3]
+ pop4=abun[:,:,4]
+  @rput pop1
+  @rput pop2
+  @rput pop3
+  @rput pop4
+  R"
+   ymax1=max(pop1);ymax2=max(pop2);  ymax3=max(pop3);ymax4=max(pop4);
+   par(xaxs='i',yaxs='i', mfrow=c(2,2));
+   plot(pop1[,1], type='l', ylim=c(0, ymax1), ylab='Population 1', xlab='Time');
+   for (i in 1:ncol(pop1)){
+   lines(pop1[,i], col=i)};
+   legend('topright', legend=1:ncol(pop1), col=1:ncol(pop1), pch=20);
+   plot(pop2[,1], type='l', ylim=c(0, ymax2), ylab='Population 2', xlab='Time');
+   for (i in 1:ncol(pop2)){
+   lines(pop2[,i], col=i)};
+   legend('topright', legend=1:ncol(pop2), col=1:ncol(pop2), pch=20);
+   plot(pop3[,1], type='l', ylim=c(0, ymax3), ylab='Population 3', xlab='Time');
+   for (i in 1:ncol(pop3)){
+   lines(pop3[,i], col=i)};
+   legend('topright', legend=1:ncol(pop3), col=1:ncol(pop3), pch=20);
+   plot(pop4[,1], type='l', ylim=c(0, ymax4), ylab='Population 4', xlab='Time');
+   for (i in 1:ncol(pop4)){
+   lines(pop4[,i], col=i)};
+   legend('topright', legend=1:ncol(pop4), col=1:ncol(pop4), pch=20);
+
+"
+
+
+#pdf('Four populations with migration & traits.pdf', paper='a4', onefile=T,width=8,height=10);
+#   dev.off()
