@@ -203,13 +203,22 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
   for x in 1:dims[1]
     for y in 1:dims[2]
 
-      square = eco.partition.abundances[:,x, y]
-      K = eco.partition.budget.matrix[x, y]
+      # Get the overall energy budget of that square
+      K = eco.abenv.budget.matrix[x, y]
       randomise=collect(1:spp)
       randomise=randomise[randperm(length(randomise))]
       # Loop through species in chosen square
       for j in randomise
-        E = eco.energy.energy[j]
+
+        # Get abundances of square we are interested in
+        square = eco.partition.abundances[:,x, y]
+
+        if square[j] <= 0
+          eco.partition.abundances[j,x, y] = 0
+        else
+        # Get energy budgets of species in square
+        ϵ̄ = eco.spplist.energy.energy
+        E = sum(square .* ϵ̄)
         # Alter birthrate by density in current pop
       if (K-E) < ϵ̄[j]
         birth_energy = 0
