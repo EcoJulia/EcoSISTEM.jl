@@ -290,10 +290,11 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
     end
   end
 end
+end
 
 
 # Alternative populate function
-function populate!(ml::AbstractStructuredPartition, spplist::AbstractSpeciesList,
+function populate!(ml::AbstractStructuredPartition, spplist::SpeciesList,
                    abenv::AbstractAbiotic)
   # Calculate size of habitat
   dim=size(abenv.habitat.matrix)
@@ -308,8 +309,8 @@ function populate!(ml::AbstractStructuredPartition, spplist::AbstractSpeciesList
     pref=spplist.traits.traits[i]
     # Calculate weighting, giving preference to squares that match with trait
     wv= Vector{Float64}(grid)
-    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.9
-    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.1
+    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.8
+    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.2
     # Loop through individuals
       while abun>0
         zs=findin(b[grid], 0)
