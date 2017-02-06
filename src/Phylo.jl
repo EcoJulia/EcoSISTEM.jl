@@ -2,9 +2,13 @@ using PhyloTrees
 #using Simulation
 #Function to create random tree with set number of tips
 function jtree(n::Int64, T::Type = String, dist::Distribution = Uniform(0,n))
-
   #Create tree and set initial two branches
   tree1 = Tree{T, Vector}(); addnodes!(tree1, 2*n-1)
+  # If only one branch
+  if n==1
+    addnodes!(tree1, 1)
+    addbranch!(tree1, 1, 2, rand(dist))
+  else
   map(target->addbranch!(tree1, 1, target, rand(dist)),2:3)
   if n>2
   nodes=3
@@ -24,6 +28,7 @@ function jtree(n::Int64, T::Type = String, dist::Distribution = Uniform(0,n))
       append!(i,collect((nodes-1):nodes))
     end
   end
+end
 # Return tree
 tree1
 end
@@ -94,6 +99,10 @@ end
 function jcoal(n::Int64, len::Real, T::Type=String)
   # Create random tree
   tree2=jtree(n, T)
+
+  if n == 1
+    tree2.branches[1].length = len
+  else
   # Find tips of tree
   tips=findtips(tree2)
   # Find paths of each tip from root
@@ -127,6 +136,7 @@ function jcoal(n::Int64, len::Real, T::Type=String)
   for j in collect(1:size(paths_mat,1))
       tree2.branches[j].length=paths_mat[j,3]
   end
+end
   # Return ultrametric tree
   tree2
 end
