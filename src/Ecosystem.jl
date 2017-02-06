@@ -105,9 +105,9 @@ type MatrixLandscape{A} <: AbstractStructuredPartition{A}
 end
 
 
-function MatrixLandscape(abenv::AbstractAbiotic, spplist::AbstractSpeciesList)
-  abundances=zeros(size(abenv.habitat.matrix,1),size(abenv.habitat.matrix,2),
-             length(spplist.abun))
+function MatrixLandscape(abenv::AbstractAbiotic, spplist::SpeciesList)
+  abundances=zeros(length(spplist.abun),size(abenv.habitat.matrix,1),
+                   size(abenv.habitat.matrix,2))
   MatrixLandscape(abundances)
 end
 
