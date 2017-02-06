@@ -113,20 +113,24 @@ end
 
 # Ecosystem type - holds all information and populates ML
 abstract AbstractEcosystem{A, Part <: AbstractStructuredPartition,
-          S <: AbstractSpeciesList, AB <: AbstractAbiotic} <:
-                AbstractMetacommunity{Float64, A, Part}
+          S <: SpeciesList, AB <: AbstractAbiotic, R<: TraitRelationship
+          } <: AbstractMetacommunity{Float64, A, Part}
 
-type Ecosystem{A, Part, S, AB} <: AbstractEcosystem{A, Part, S, AB}
+type Ecosystem{A, Part, S, AB, R} <: AbstractEcosystem{A, Part, S, AB, R}
   partition::Part
   ordinariness::Nullable{A}
-  ssplist::S
+  spplist::S
   abenv::AB
+  relationship::R
 end
 
-function Ecosystem(spplist::AbstractSpeciesList, abenv::AbstractAbiotic)
+function Ecosystem(spplist::SpeciesList, abenv::AbstractAbiotic)
   ml = MatrixLandscape(abenv, spplist)
   species = length(spplist.abun)
   populate!(ml, spplist, abenv)
   A = typeof(ml.abundances)
-  Ecosystem(ml, Nullable{A}(), spplist, abenv)
+  rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
+  Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel))
 end
+
+# Abstract species list subclass of abstract similarity
