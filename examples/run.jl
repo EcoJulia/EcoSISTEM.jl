@@ -238,6 +238,57 @@ R"pdf('One pop with energy cap.pdf', paper='a4r', onefile=T,width=10,height=8);
 "
 ## For presentation, start with simple case where everything uses up 1 unit of energy
 
-sppl = SpeciesList(2, 2, Multinomial(10, 2), Multinomial(100, 2))
-abenv = AbioticEnv(2, (2,2), sppl)
-Ecosystem(sppl, abenv)
+ ## TWO SQUARES
+ using RCall
+ ## Run new system of set up
+ numSpecies=3
+ numTraits=2
+ numNiches=2
+ energy_vec = [2, 3, 5]
+ sppl = SpeciesList(numSpecies, numTraits, Multinomial(5000, numSpecies),
+                    energy_vec)
+ abenv = MatrixAbioticEnv(numNiches, (2,1), 50000)
+
+ eco = Ecosystem(sppl, abenv)
+
+ birth = 0.4
+ death = 0.4
+ move = 0.0
+ timestep = 0.1
+
+ gridSize= 2
+
+ times=5000
+ abun = zeros(times+1, numSpecies, gridSize); ener = zeros(times+1, gridSize)
+ abun[1,:, 1] = eco.partition.abundances[:, 1]
+ abun[1,:, 2] = eco.partition.abundances[:, 2]
+ ener[1, 1] = sum(eco.partition.abundances[:,1] .* eco.spplist.energy.energy)
+ ener[1, 2] = sum(eco.partition.abundances[:,2] .* eco.spplist.energy.energy)
+
+ for i in 1:times
+ update!(eco, birth, death, move, 1.0, 0.0, timestep)
+ abun[i+1, :, 1] = eco.partition.abundances[: , 1]
+ abun[i+1, :, 2] = eco.partition.abundances[: , 2]
+ ener[i+1, 1] = sum(eco.partition.abundances[: , 1] .* eco.spplist.energy.energy)
+ ener[i+1, 2] = sum(eco.partition.abundances[: , 2] .* eco.spplist.energy.energy)
+ end
+ #54000
+pop1=abun[:,:,1]
+pop2=abun[:,:,2]
+ @rput pop1
+ @rput pop2
+ @rput ener
+ R"pdf('Two pop.pdf', paper='a4r', onefile=T,width=10,height=8);
+ ymax1=max(pop1);ymax2=max(pop2); par(xaxs='i',yaxs='i', mfrow=c(2,2));
+  plot(pop1[,1], type='l', ylim=c(0, ymax1), ylab='Population 1', xlab='Time');
+  for (i in 1:ncol(pop1)){
+  lines(pop1[,i], col=i)};
+  legend('topright', legend=1:ncol(pop1), col=1:ncol(pop1), pch=20);
+  plot(pop2[,1], type='l', ylim=c(0, ymax2), ylab='Population 2', xlab='Time');
+  for (i in 1:ncol(pop2)){
+  lines(pop2[,i], col=i)};
+  legend('topright', legend=1:ncol(pop2), col=1:ncol(pop2), pch=20);
+  plot(ener[,1], type='l', ylab='Energy 1', xlab='Time');
+  plot(ener[,2], type='l', ylab='Energy 2', xlab='Time');
+  dev.off()
+"
