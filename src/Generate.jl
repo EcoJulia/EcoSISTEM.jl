@@ -236,16 +236,16 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
         #prob_birth = tnorm(birth, ϵ̄[j]^(-l)*EF)
 
         # Calculate effective rates
-        birthrate = birth * timestep * birth_density
-        deathrate = death * timestep * death_density
-        moverate = move * timestep * move_density
+        birthrate = birth * timestep * birth_energy
+        deathrate = death * timestep * death_energy
+        moverate = move * timestep * move_energy
 
         if deathrate > 1 deathrate = 1 end
         if moverate > 1 moverate = 1 end
         # If traits are same as habitat type then give birth "boost"
-        if eco.traits.traits[j] != eco.partition.habitat.matrix[x, y]
-          birthrate = birthrate * 0.5
-        end
+        #if eco.spplist.traits.traits[j] != eco.abenv.habitat.matrix[x, y]
+        #  birthrate = birthrate * 0.8
+        #end
 
         # If zero abundance then go extinct
         if square[j] == 0
