@@ -257,11 +257,11 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
         # Throw error if rates exceed 1
         birthrate <= 1 && deathrate <= 1 && moverate <= 1 ||
           error("rates larger than one in binomial draw")
-
+#tnorm(birthrate, 1e-3)[1]
         # Calculate births, deaths and movements
-        births = jbinom(1, Int(square[j]), tnorm(birthrate, 1e-3)[1])[1]
-        deaths = jbinom(1, Int(square[j]), tnorm(deathrate, 1e-3)[1])[1]
-        moves = jbinom(1, Int(square[j]), tnorm(moverate, 1e-3)[1])[1]
+        births = jbinom(1, Int(square[j]), birthrate)[1]
+        deaths = jbinom(1, Int(square[j]), deathrate)[1]
+        moves = jbinom(1, Int(square[j]), moverate)[1]
 
         # Find neighbours of grid square
         neighbours = get_neighbours(eco.partition.habitat.matrix, y, x, 8)
