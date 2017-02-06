@@ -107,7 +107,7 @@ energy=repmat([1], species)
 # Try with a skewed distribution
 pop=populate(species, individuals, Niches(mat), sp_trt, Budget(budg),
   Multinomial(individuals, rand(Dirichlet(species,1))))
-eco=Ecosystem(pop,Species(), StringTraits(sp_trt), RealEnergy(energy))
+eco=Ecosystem(pop, Species(), StringTraits(sp_trt), RealEnergy(energy))
 maximum(mapslices(sum,eco.partition.abundances,1))
 
 @rlibrary("fields")
