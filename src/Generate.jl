@@ -46,6 +46,9 @@ function random_habitat(dim::Tuple, types, p::Real, A::Vector)
   length(A)==length(types)|| error("There must be an area proportion for each type")
   wv=weights(A)
   M=zeros(dim)
+  if any(map(x-> dim[x]<=2, 1:2))
+    T=sample(types,(dim))
+  else
   # Percolation step
   for i in 1:(dim[1]*dim[2])
     if junif(0, 1) < p
@@ -112,6 +115,7 @@ function random_habitat(dim::Tuple, types, p::Real, A::Vector)
       end
     end
   end
+end
   T
 end
 
