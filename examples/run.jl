@@ -92,7 +92,9 @@ hab= Array{Int64}(50,50)
 hab[mat.=="A"]=1
 hab[mat.=="B"]=2
 @rput hab
-R"image(hab, legend = F)"
+R"pdf('hab_example.pdf', paper='a4')
+image(hab, legend = F, axes=F);
+dev.off()"
 
 species=10; individuals=50000
 # Set up tree
