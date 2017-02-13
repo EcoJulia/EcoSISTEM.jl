@@ -316,3 +316,81 @@ function populate!(ml::AbstractStructuredPartition, spplist::SpeciesList,
     end
   end
 end
+
+function run_sim(eco::Ecosystem, params::AbstractVector, times::Int64, reps::Int64)
+
+  birth = param[1]
+  death = param[2]
+  move = param[3]
+  timestep = param[4]
+  l = param[5]
+  s = param[6]
+
+  numSpecies = size(eco.spplist.abun, 1)
+  gridSize = size(eco.abenv.habitat.matrix, 1) *  size(eco.abenv.habitat.matrix, 2)
+  abun = zeros(times+1, numSpecies, gridSize, reps); ener = zeros(times+1, gridSize, reps)
+  for j in 1:reps
+    eco_rep = copy_eco(eco)
+
+    for k in 1:gridSize
+      abun[1,:, k,  j] = eco_rep.partition.abundances[:, 1]
+      ener[1, k,  j] = sum(eco_rep.spplist.abun .* eco_rep.spplist.energy.energy)
+    end
+
+    for i in 1:times
+        update!(eco_rep, birth, death, move, l, s, timestep)
+        for g in 1:gridSize
+          abun[i+1, :,g, j] = eco_rep.partition.abundances[: , g]
+          ener[i+1, g, j] = sum(eco_rep.partition.abundances[: , g] .* eco_rep.spplist.energy.energy)
+        end
+    end
+    map
+  end
+  mean_abun = mapslices(mean, abun, 4)
+  sd_abun = mapslices(std, abun, 4)
+  mean_ener = mapslices(mean, ener, 3)
+  sd_ener = mapslices(std, ener, 3)
+  [abun, mean_abun, sd_abun, mean_ener, sd_ener]
+end
+
+function run_sim(numSpecies::Int64, numTraits::Int64,dist::Distribution,energy_vec,
+  numNiches::Int64, grid, K,
+   params::AbstractVector,
+   times::Int64, reps::Int64)
+
+  birth = param[1]
+  death = param[2]
+  move = param[3]
+  timestep = param[4]
+  l = param[5]
+  s = param[6]
+
+  gridSize = grid[1] *  grid[2]
+  abun = zeros(times+1, numSpecies, gridSize, reps); ener = zeros(times+1, gridSize, reps)
+
+  for j in 1:reps
+    sppl = SpeciesList(numSpecies, numTraits, dist,
+                       energy_vec)
+    abenv = MatrixAbioticEnv(numNiches, grid, K)
+    eco = Ecosystem(sppl, abenv)
+
+    for k in 1:gridSize
+      abun[1,:, k,  j] = eco.partition.abundances[:, 1]
+      ener[1, k,  j] = sum(eco.spplist.abun .* eco.spplist.energy.energy)
+    end
+
+    for i in 1:times
+        update!(eco, birth, death, move, l, s, timestep)
+        for g in 1:gridSize
+          abun[i+1, :,g, j] = eco.partition.abundances[: , g]
+          ener[i+1, g, j] = sum(eco.partition.abundances[: , g] .* eco.spplist.energy.energy)
+        end
+    end
+    map
+  end
+  mean_abun = mapslices(mean, abun, 4)
+  sd_abun = mapslices(std, abun, 4)
+  mean_ener = mapslices(mean, ener, 3)
+  sd_ener = mapslices(std, ener, 3)
+  [abun, mean_abun, sd_abun, mean_ener, sd_ener]
+end
