@@ -158,204 +158,260 @@ R"dev.off()"
 end
 R"par(mfrow=c(1,2));image.plot(before,col=rainbow(20), breaks=seq(0,20,1));image(hab, legend = F)"
 
-#Simplest case - everything has same energy
-numSpecies=3
-numTraits=2
-numNiches=2
-energy_vec = [2, 3, 5]
-sppl = SpeciesList(numSpecies, numTraits, Multinomial(5000, numSpecies),
-                   energy_vec)
-abenv = MatrixAbioticEnv(numNiches, (1,1), 50000)
-eco = Ecosystem(sppl, abenv)
-
-birth = 0.4
-death = 0.4
-move = 0.0
-timestep = 0.1
-
-times=1000
-abun = zeros(times+1, numSpecies); ener = zeros(times+1)
-abun[1,:] = eco.partition.abundances[:, 1]
-ener[1] = sum(eco.spplist.abun .* eco.spplist.energy.energy)
-
-for i in 1:times
-update!(eco, birth, death, move, 1.0, 0.0, timestep)
-abun[i+1, :] = eco.partition.abundances[: , 1]
-ener[i+1] = sum(eco.partition.abundances[: , 1] .* eco.spplist.energy.energy)
-end
-#54000
-abun=abun[1:1000,:];ener=ener[1:1000]
-@rput abun
-@rput ener
-R"
- ymax=max(abun)+2000; par(xaxs='i',yaxs='i', mfrow=c(1,2));
- plot(abun[,1], type='l', ylim=c(0, ymax), ylab='Abundance', xlab='Time');
- for (i in 1:ncol(abun)){
- lines(abun[,i], col=i)};
- legend('topright', legend=1:ncol(abun), col=1:ncol(abun), pch=20);
- plot(ener, type='l', ylim=c(0, max(ener)+8000), ylab='Energy', xlab='Time')
-"
-
-
+## Investigate multiple runs for single population with two species
 using RCall
-## Run new system of set up
-numSpecies=3
+numSpecies=2
 numTraits=2
 numNiches=2
-energy_vec = [2, 3, 5]
-sppl = SpeciesList(numSpecies, numTraits, Multinomial(5000, numSpecies),
+
+# Set up how much energy each species consumes
+energy_vec = [2, 2]
+
+# Set probabilities
+birth = 0.6
+death = 0.6
+move = 0.0
+l = 1.0
+s = 0.01
+timestep = 1
+
+# Collect model parameters together (in this order!!)
+param = [birth, death, move, timestep, l, s]
+
+# Create ecosystem
+#sppl = SpeciesList(numSpecies, numTraits,
+#                   energy_vec)
+#abenv = MatrixAbioticEnv(numNiches, (1,1), 1000)
+#eco = Ecosystem(sppl, abenv)
+
+# Run simulations 100 times
+ab = run_sim(numSpecies, numTraits, Multinomial(50, numSpecies), energy_vec,
+  numNiches, (1,1), 500,
+  param, 1000, 1)
+
+# Calculate mean and confidence limits
+mean = ab[2][:, :, 1]
+uc = ab[2][:, :, 1] + ab[3][:, :, 1]
+lc = ab[2][:, :, 1] - ab[3][:, :, 1]
+
+meanE = ab[4][:, :, 1]
+ucE = ab[4][:, :, 1] + ab[5][:, :, 1]
+lcE = ab[4][:, :, 1] - ab[5][:, :, 1]
+
+# Input results to R
+@rput mean;@rput meanE
+@rput uc;@rput ucE
+@rput lc;@rput lcE
+@rput energy_vec; @rput numSpecies
+
+# Plot in R
+R"library(scales); par(mfcol=c(1,numSpecies), xaxs='i', yaxs='i');
+row=1:nrow(meanE)
+  for (j in 1:ncol(mean)){
+    if (j==1) plot_fun=plot else plot_fun=lines
+      plot_fun(row,mean[,j],
+           ylab = list('Abundance',cex=1.4), xlab = list('Time',cex=1.4), type='l',
+           col=j,
+           ylim=c(0, max(uc)+50), cex.axis=1.2, cex.main=1.4);
+      polygon(c(row,rev(row)),
+              c(lc[,j],rev(uc[,j])),
+              col=alpha(j, 0.3), border =F);
+      legend('topright', legend= paste('Species', 1:numSpecies, 'energy=', energy_vec),
+      pch=20, col=1:2)
+    }
+    plot(row,meanE,
+                 ylab = list('Energy', cex=1.4), xlab = list('Time', cex=1.4), type='l',
+                 col='black',
+                 ylim=c(0, max(ucE)), cex.axis=1.2);
+    polygon(c(row,rev(row)),
+                    c(lcE,rev(ucE)),
+                    col=alpha('black', 0.3), border =F)"
+
+R"library(scales); par(mfcol=c(1,numSpecies), xaxs='i', yaxs='i');
+row=1:ncol(mean)
+for (j in 1:nrow(mean)){
+  if (j==1) plot_fun=plot else plot_fun=lines
+plot_fun(row, mean[,j],
+     ylab = list('Abundance',cex=1.4), xlab = list('Time',cex=1.4), type='l',
+     col=j,
+     ylim=c(0, max(mean)+50), cex.axis=1.2, cex.main=1.4)
+     }
+     plot(row,meanE,
+                 ylab = list('Energy', cex=1.4), xlab = list('Time', cex=1.4), type='l',
+                 col='black',
+                 ylim=c(0, max(meanE)), cex.axis=1.2)"
+
+R"library(scales); par(mfcol=c(1,numSpecies+1), xaxs='i', yaxs='i');
+row=1:nrow(meanE)
+  for (j in 1:ncol(mean)){
+      plot(row,mean[,j],
+           ylab = list('Abundance',cex=1.4), xlab = list('Time',cex=1.4), type='l',
+           col=j, main=paste('Species', j, ', energy=', energy_vec[j]),
+           ylim=c(0, max(uc[,j])), cex.axis=1.2, cex.main=1.4);
+      polygon(c(row,rev(row)),
+              c(lc[,j],rev(uc[,j])),
+              col=alpha(j, 0.3), border =F);
+    }
+    plot(row,meanE,
+                 ylab = list('Energy', cex=1.4), xlab = list('Time', cex=1.4), type='l',
+                 col='black',
+                 ylim=c(0, max(ucE)), cex.axis=1.2);
+    polygon(c(row,rev(row)),
+                    c(lcE,rev(ucE)),
+                    col=alpha('black', 0.3), border =F)"
+
+
+## Run simulation on larger grid : 2 by 2
+using RCall
+numSpecies=2
+numTraits=2
+numNiches=2
+
+# Set up how much energy each species consumes
+energy_vec = [2, 4]
+
+# Set probabilities
+birth = 0.6
+death = 0.6
+move = 0.1
+l = 1.0
+s = 0.0
+timestep = 1
+
+# Collect model parameters together (in this order!!)
+param = [birth, death, move, timestep, l, s]
+
+# Create ecosystem
+#sppl = SpeciesList(numSpecies, numTraits, Multinomial(50, numSpecies),
+#                   energy_vec)
+#abenv = MatrixAbioticEnv(numNiches, (2,2), 500)
+#start=zeros(100, 2)
+#for j in 1:100
+#  eco = Ecosystem(sppl, abenv)
+#  start[j, :]=eco.spplist.abun
+#end
+
+#eco = Ecosystem(sppl, abenv)
+
+# Run simulations 100 times
+#ab = run_sim(eco, param, 1000, 100)
+ab = run_sim(numSpecies, numTraits, Multinomial(50, numSpecies), energy_vec,
+  numNiches, (2,2), 500,
+  param, 1000, 200)
+
+# Calculate mean and confidence limits
+mean = ab[2][:, :, :, 1]
+uc = ab[2][:, :, :, 1] + ab[3][:, :, :, 1]
+lc = ab[2][:, :, :, 1] - ab[3][:, :, :, 1]
+
+meanE = ab[4][:, :, 1]
+ucE = ab[4][:, :, 1] + ab[5][:, :, 1]
+lcE = ab[4][:, :, 1] - ab[5][:, :, 1]
+
+gridSize = 4
+
+# Input results to R
+@rput mean;@rput meanE
+@rput uc;@rput ucE
+@rput lc;@rput lcE
+@rput energy_vec; @rput gridSize
+
+# Plot in R
+R"library(scales); par(mfcol=c(2,gridSize), xaxs='i', yaxs='i');
+rows = 1:dim(mean)[1]
+cols = 1:dim(mean)[2]
+for (i in 1:dim(mean)[3]){
+  for (j in cols){
+    if(j ==1) plot_fun=plot else plot_fun=lines
+      plot_fun(rows,mean[,j,i],
+           ylab = list('Abundance', cex=1.4), xlab = list('Time', 1.4), type='l',
+           col=j, main=paste('Population', i),
+           ylim=c(0, max(uc[,j,])+50), cex.axis=1.2, cex.main=1.4);
+      polygon(c(rows,rev(rows)),
+              c(lc[,j,i],rev(uc[,j,i])),
+              col=alpha(j, 0.3), border =F)
+      legend('topright', legend= paste('Species', cols, ', energy=', energy_vec[cols]), col=cols, pch=20)
+              }
+              }
+for (k in 1:dim(mean)[3]){
+    plot(rows,meanE[,k],
+                 ylab = list('Energy', cex=1.4), xlab = list('Time', cex=1.4), type='l',
+                 col='black',
+                 ylim=c(0, max(ucE[,k])), main = paste('Population', k), cex.axis=1.2, cex.main=1.4);
+    polygon(c(rows,rev(rows)),
+                    c(lcE[,k],rev(ucE[,k])),
+                    col=alpha('black', 0.3), border =F)}
+"
+
+## Run simulation on larger grid : 3 by 3
+using RCall
+numSpecies=2
+numTraits=2
+numNiches=2
+
+# Set up how much energy each species consumes
+energy_vec = [2, 3]
+
+# Set probabilities
+birth = 0.6
+death = 0.6
+move = 0.1
+l = 1.0
+s = 0.1
+timestep = 1
+
+# Collect model parameters together (in this order!!)
+param = [birth, death, move, timestep, l, s]
+
+# Create ecosystem
+sppl = SpeciesList(numSpecies, numTraits, Multinomial(500, numSpecies),
                    energy_vec)
-abenv = MatrixAbioticEnv(numNiches, (1,1), 50000)
+abenv = MatrixAbioticEnv(numNiches, (3,3), 100000)
 eco = Ecosystem(sppl, abenv)
 
-birth = 0.4
-death = 0.4
-move = 0.0
-timestep = 0.1
+# Run simulations 100 times
+ab = run_sim(eco, param, 1000, 10)
 
-times=5000
-abun = zeros(times+1, numSpecies); ener = zeros(times+1)
-abun[1,:] = eco.partition.abundances[:, 1]
-ener[1] = sum(eco.spplist.abun .* eco.spplist.energy.energy)
+# Calculate mean and confidence limits
+mean = ab[2][:, :, :, 1]
+uc = ab[2][:, :, :, 1] + ab[3][:, :, :, 1]
+lc = ab[2][:, :, :, 1] - ab[3][:, :, :, 1]
 
-for i in 1:times
-update!(eco, birth, death, move, 1.0, 0.0, timestep)
-abun[i+1, :] = eco.partition.abundances[: , 1]
-ener[i+1] = sum(eco.partition.abundances[: , 1] .* eco.spplist.energy.energy)
-end
-#54000
+meanE = ab[4][:, :, 1]
+ucE = ab[4][:, :, 1] + ab[5][:, :, 1]
+lcE = ab[4][:, :, 1] - ab[5][:, :, 1]
 
-@rput abun
-@rput ener
-R"pdf('One pop with energy cap.pdf', paper='a4r', onefile=T,width=10,height=8);
- ymax=max(abun)+2000; par(xaxs='i',yaxs='i', mfrow=c(1,2));
- plot(abun[,1], type='l', ylim=c(0, ymax), ylab='Abundance', xlab='Time');
- for (i in 1:ncol(abun)){
- lines(abun[,i], col=i)};
- legend('topright', legend=1:ncol(abun), col=1:ncol(abun), pch=20);
- plot(ener, type='l', ylim=c(0, max(ener)), ylab='Energy', xlab='Time');
- dev.off()
+gridSize = [size(eco.abenv.habitat.matrix,1), size(eco.abenv.habitat.matrix,2)]
+
+# Input results to R
+@rput mean;@rput meanE
+@rput uc;@rput ucE
+@rput lc;@rput lcE
+@rput energy_vec; @rput gridSize
+
+# Plot in R
+R"library(scales); par(mfcol=c(gridSize[1], gridSize[1]*2), xaxs='i', yaxs='i');
+rows = 1:dim(mean)[1]
+cols = 1:dim(mean)[2]
+for (i in 1:dim(mean)[3]){
+  for (j in cols){
+    if(j ==1) plot_fun=plot else plot_fun=lines
+      plot_fun(rows,mean[,j,i],
+           ylab = 'Abundance', xlab = 'Time', type='l',
+           col=j, main=paste('Population', i),
+           ylim=c(0, max(uc[,j,])));
+      polygon(c(rows,rev(rows)),
+              c(lc[,j,i],rev(uc[,j,i])),
+              col=alpha(j, 0.3), border =F)
+      legend('topright', legend= paste('Species', cols, ', energy=', energy_vec[cols]), col=cols, pch=20)
+              }
+              }
+for (k in 1:dim(mean)[3]){
+    plot(rows,meanE[,k],
+                 ylab = 'Energy', xlab = 'Time', type='l',
+                 col='black',
+                 ylim=c(0, max(ucE[,k])), main = paste('Population', k));
+    polygon(c(rows,rev(rows)),
+                    c(lcE[,k],rev(ucE[,k])),
+                    col=alpha('black', 0.3), border =F)}
 "
-## For presentation, start with simple case where everything uses up 1 unit of energy
-
- ## TWO SQUARES
- using RCall
- ## Run new system of set up
- numSpecies=3
- numTraits=2
- numNiches=2
- energy_vec = [2, 3, 5]
- sppl = SpeciesList(numSpecies, numTraits, Multinomial(5000, numSpecies),
-                    energy_vec)
- abenv = MatrixAbioticEnv(numNiches, (2,1), 50000)
-
- eco = Ecosystem(sppl, abenv)
-
- birth = 0.4
- death = 0.4
- move = 0.0
- timestep = 0.1
-
- gridSize= 2
-
- times=5000
- abun = zeros(times+1, numSpecies, gridSize); ener = zeros(times+1, gridSize)
- abun[1,:, 1] = eco.partition.abundances[:, 1]
- abun[1,:, 2] = eco.partition.abundances[:, 2]
- ener[1, 1] = sum(eco.partition.abundances[:,1] .* eco.spplist.energy.energy)
- ener[1, 2] = sum(eco.partition.abundances[:,2] .* eco.spplist.energy.energy)
-
- for i in 1:times
- update!(eco, birth, death, move, 1.0, 0.0, timestep)
- abun[i+1, :, 1] = eco.partition.abundances[: , 1]
- abun[i+1, :, 2] = eco.partition.abundances[: , 2]
- ener[i+1, 1] = sum(eco.partition.abundances[: , 1] .* eco.spplist.energy.energy)
- ener[i+1, 2] = sum(eco.partition.abundances[: , 2] .* eco.spplist.energy.energy)
- end
- #54000
-pop1=abun[:,:,1]
-pop2=abun[:,:,2]
- @rput pop1
- @rput pop2
- @rput ener
- R"pdf('Two pop.pdf', paper='a4r', onefile=T,width=10,height=8);
- ymax1=max(pop1);ymax2=max(pop2); par(xaxs='i',yaxs='i', mfrow=c(2,2));
-  plot(pop1[,1], type='l', ylim=c(0, ymax1), ylab='Population 1', xlab='Time');
-  for (i in 1:ncol(pop1)){
-  lines(pop1[,i], col=i)};
-  legend('topright', legend=1:ncol(pop1), col=1:ncol(pop1), pch=20);
-  plot(pop2[,1], type='l', ylim=c(0, ymax2), ylab='Population 2', xlab='Time');
-  for (i in 1:ncol(pop2)){
-  lines(pop2[,i], col=i)};
-  legend('topright', legend=1:ncol(pop2), col=1:ncol(pop2), pch=20);
-  plot(ener[,1], type='l', ylab='Energy 1', xlab='Time');
-  plot(ener[,2], type='l', ylab='Energy 2', xlab='Time');
-  dev.off()
-"
-
-  ## FOUR SQUARES
-  using RCall
-  ## Run new system of set up
-  numSpecies=3
-  numTraits=2
-  numNiches=2
-  energy_vec = [2, 3, 5]
-  sppl = SpeciesList(numSpecies, numTraits, Multinomial(5000, numSpecies),
-                     energy_vec)
-  abenv = MatrixAbioticEnv(numNiches, (2,2), 50000)
-
-  eco = Ecosystem(sppl, abenv)
-
-  birth = 0.4
-  death = 0.4
-  move = 0.01
-  timestep = 0.1
-
-  gridSize= 4
-
-  times=1000
-  abun = zeros(times+1, numSpecies, gridSize)
-  for g in 1:gridSize
-  abun[1,:, g] = eco.partition.abundances[:, g]
-  end
-
-  for i in 1:times
-    for j in 1:gridSize
-    update!(eco, birth, death, move, 1.0, 0.0, timestep)
-    abun[i+1, :, j] = eco.partition.abundances[: , j]
-    end
-  end
-  #54000
- pop1=abun[:,:,1]
- pop2=abun[:,:,2]
- pop3=abun[:,:,3]
- pop4=abun[:,:,4]
-  @rput pop1
-  @rput pop2
-  @rput pop3
-  @rput pop4
-  R"
-   ymax1=max(pop1);ymax2=max(pop2);  ymax3=max(pop3);ymax4=max(pop4);
-   par(xaxs='i',yaxs='i', mfrow=c(2,2));
-   plot(pop1[,1], type='l', ylim=c(0, ymax1), ylab='Population 1', xlab='Time');
-   for (i in 1:ncol(pop1)){
-   lines(pop1[,i], col=i)};
-   legend('topright', legend=1:ncol(pop1), col=1:ncol(pop1), pch=20);
-   plot(pop2[,1], type='l', ylim=c(0, ymax2), ylab='Population 2', xlab='Time');
-   for (i in 1:ncol(pop2)){
-   lines(pop2[,i], col=i)};
-   legend('topright', legend=1:ncol(pop2), col=1:ncol(pop2), pch=20);
-   plot(pop3[,1], type='l', ylim=c(0, ymax3), ylab='Population 3', xlab='Time');
-   for (i in 1:ncol(pop3)){
-   lines(pop3[,i], col=i)};
-   legend('topright', legend=1:ncol(pop3), col=1:ncol(pop3), pch=20);
-   plot(pop4[,1], type='l', ylim=c(0, ymax4), ylab='Population 4', xlab='Time');
-   for (i in 1:ncol(pop4)){
-   lines(pop4[,i], col=i)};
-   legend('topright', legend=1:ncol(pop4), col=1:ncol(pop4), pch=20);
-
-"
-
-
-#pdf('Four populations with migration & traits.pdf', paper='a4', onefile=T,width=8,height=10);
-#   dev.off()
