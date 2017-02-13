@@ -254,6 +254,17 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
         births = jbinom(1, Int(square[j]), probs[1])[1]
         deaths = jbinom(1, Int(square[j]), probs[2])[1]
 
+        # Update population
+        eco.partition.abundances[j,x, y] = eco.partition.abundances[j,x, y] +
+          births - deaths
+
+        # Then calculate movements
+        square[j] = eco.partition.abundances[j,x, y]
+        moves = jbinom(1, Int(square[j]), probs[3])[1]
+
+        # Update population
+        eco.partition.abundances[j,x, y] = eco.partition.abundances[j,x, y] - moves
+
         # Find neighbours of grid square
         neighbours = get_neighbours(eco.abenv.habitat.matrix, y, x, 8)
         # Randomly sample one of the neighbours
@@ -263,18 +274,14 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
             destination=neighbours[k, :]
             # Add one to this neighbour
             eco.partition.abundances[j, destination[1], destination[2]] =
-              eco.partition.abundances[j, destination[1], destination[2]] + 1
-          end
-          moves = moves - 1
+              eco.partition.abundances[j, destination[1], destination[2]] + tab[k]
         end
-        # Update population
-        eco.partition.abundances[j,x, y] = eco.partition.abundances[j,x, y] +
-          births - deaths - moves
+      end
       end
     end
   end
 end
-end
+
 
 
 # Alternative populate function
