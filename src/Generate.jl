@@ -300,8 +300,8 @@ function populate!(ml::AbstractStructuredPartition, spplist::SpeciesList,
     pref=spplist.traits.traits[i]
     # Calculate weighting, giving preference to squares that match with trait
     wv= Vector{Float64}(grid)
-    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.8
-    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.2
+    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.5
+    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.5
     # Loop through individuals
       while abun>0
         zs=findin(b[grid], 0)
