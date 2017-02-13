@@ -87,14 +87,14 @@ R"image.plot(after)"
 using StatsBase
 using RCall
 # p= amount of fragmentation, A = expected proportion of habitat
-mat=random_habitat((50,50), ["A","B"], 0.5, [0.5,0.5])
-hab= Array{Int64}(50,50)
+mat=random_habitat((100,100), ["A","B"], 0.5, [0.5,0.5])
+hab= Array{Int64}(100,100)
 hab[mat.=="A"]=1
 hab[mat.=="B"]=2
 @rput hab
-R"pdf('hab_example.pdf', paper='a4')
+R"
 image(hab, legend = F, axes=F);
-dev.off()"
+"
 
 species=10; individuals=50000
 # Set up tree
