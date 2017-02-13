@@ -237,19 +237,22 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
 
         # If zero abundance then go extinct
         if square[j] == 0
-          birthrate = 0
-          deathrate = 0
-          moverate = 0
+          birthprob = 0
+          deathprob = 0
+          moveprob = 0
         end
 
         # Throw error if rates exceed 1
-        birthrate <= 1 && deathrate <= 1 && moverate <= 1 ||
-          error("rates larger than one in binomial draw")
-#tnorm(birthrate, 1e-3)[1]
-        # Calculate births, deaths and movements
-        births = jbinom(1, Int(square[j]), birthrate)[1]
-        deaths = jbinom(1, Int(square[j]), deathrate)[1]
-        moves = jbinom(1, Int(square[j]), moverate)[1]
+        #birthprob <= 1 && deathprob <= 1 && moveprob <= 1 ||
+        #  error("rates larger than one in binomial draw")
+
+
+        # Put probabilities into 0 - 1
+        probs = map(prob -> 1-exp(-prob), [birthprob, deathprob, moveprob])
+
+        # Calculate how many births and deaths
+        births = jbinom(1, Int(square[j]), probs[1])[1]
+        deaths = jbinom(1, Int(square[j]), probs[2])[1]
 
         # Find neighbours of grid square
         neighbours = get_neighbours(eco.abenv.habitat.matrix, y, x, 8)
