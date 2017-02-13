@@ -133,4 +133,17 @@ function Ecosystem(spplist::SpeciesList, abenv::AbstractAbiotic)
   Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel))
 end
 
+function copy_eco(eco::Ecosystem)
+  spplist = eco.spplist
+  abenv = eco.abenv
+  ml= MatrixLandscape(abenv, spplist)
+  ml.abundances = copy(eco.partition.abundances)
+  A = typeof(ml.abundances)
+  rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
+  Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel))
+end
 # Abstract species list subclass of abstract similarity
+
+tree = jcoal(2, 100)
+trts = map(string, 1:2)
+assign_traits!(tree, 0.2, trts)
