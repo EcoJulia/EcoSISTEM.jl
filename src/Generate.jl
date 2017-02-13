@@ -219,29 +219,17 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
         # Get energy budgets of species in square
         ϵ̄ = eco.spplist.energy.energy
         E = sum(square .* ϵ̄)
-        # Alter birthrate by density in current pop
-      if (K-E) < ϵ̄[j]
-        birth_energy = 0
-      else
+
+        # Alter rates by energy available in current pop & own requirements
         birth_energy = (ϵ̄[j])^(-l-s) * K / E
-      end
         death_energy = (ϵ̄[j])^(-l+s) * E / K
-        move_energy = E / K
-
-        # Simple case
-
-
-        #EF = K - E
-        # Near zero when E=K -> 1/ϵ̄
-        #prob_birth = tnorm(birth, ϵ̄[j]^(-l)*EF)
+        move_energy = 1
 
         # Calculate effective rates
-        birthrate = birth * timestep * birth_energy
-        deathrate = death * timestep * death_energy
-        moverate = move * timestep * move_energy
+        birthprob = birth * timestep * birth_energy
+        deathprob = death * timestep * death_energy
+        moveprob = move * timestep * move_energy
 
-        if deathrate > 1 deathrate = 1 end
-        if moverate > 1 moverate = 1 end
         # If traits are same as habitat type then give birth "boost"
         #if eco.spplist.traits.traits[j] != eco.abenv.habitat.matrix[x, y]
         #  birthrate = birthrate * 0.8
