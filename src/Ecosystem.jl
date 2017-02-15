@@ -64,12 +64,16 @@ end
 
 function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
                       abun_dist::Distribution, energy::AbstractVector)
-
+  # Create tree
   tree = jcoal(NumberSpecies, 100)
+  # Create traits and assign to tips
   trts = map(string, 1:NumberTraits)
   assign_traits!(tree, 0.5, trts)
+  # Get traits from tree
   sp_trt = get_traits(tree, true)
+  # Create similarity matrix (for now identity)
   similarity = eye(NumberSpecies)
+  # Draw random set of abundances from distribution
   abun = rand(abun_dist)
   # error out when abun dist and NumberSpecies are not the same (same for energy dist)
   length(abun)==NumberSpecies || throw(DimensionMismatch("Abundance vector
@@ -78,10 +82,10 @@ function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
                                         doesn't match number species"))
   size(similarity)==(NumberSpecies,NumberSpecies) || throw(DimensionMismatch("
                               Similarity matrix doesn't match number species"))
+
   SpeciesList(similarity, StringTraits(sp_trt), abun,RealEnergy(energy), tree)
 end
-# Class of Tree traits eventually, but for now just pass in a fully annotated tree.
-sppl = SpeciesList(2, 2, Multinomial(50, 2), [2,3])
+
 
 # Abiotic environment types- all info about habitat and relationship to species
 # traits
@@ -93,10 +97,14 @@ type MatrixAbioticEnv{H, B} <: AbstractAbiotic{H, B}
 end
 
 function MatrixAbioticEnv(NumberNiches::Int64, dimension::Tuple, maxBud::Real)
+  # Create niches
   niches = map(string, 1:NumberNiches)
+  # Create niche-like environment
   hab = random_habitat(dimension, niches, 0.5, repmat([0.5], NumberNiches))
+  # Create empty budget and for now fill with one value
   bud = zeros(dimension)
   fill!(bud, maxBud)
+
   MatrixAbioticEnv(Niches(hab), Budget(bud))
 end
 
@@ -108,6 +116,8 @@ type MatrixLandscape{A} <: AbstractStructuredPartition{A}
 end
 
 function MatrixLandscape(abenv::AbstractAbiotic, spplist::SpeciesList)
+  # Create an array of zero abundances according to the size of the habitat
+  # and the number of species
   abundances=zeros(length(spplist.abun),size(abenv.habitat.matrix,1),
                    size(abenv.habitat.matrix,2))
   MatrixLandscape(abundances)
@@ -127,27 +137,29 @@ type Ecosystem{A, Part, S, AB, R} <: AbstractEcosystem{A, Part, S, AB, R}
 end
 
 function Ecosystem(spplist::SpeciesList, abenv::AbstractAbiotic)
+  # Create matrix landscape of zero abundances
   ml = MatrixLandscape(abenv, spplist)
+  # Populate this matrix with species abundances
   species = length(spplist.abun)
   populate!(ml, spplist, abenv)
+  # For now create an identity matrix for the species relationships
   A = typeof(ml.abundances)
   rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
+
   Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel))
 end
 
+# Function to copy an Ecosystem type for modification - similar to array copy
 function copy_eco(eco::Ecosystem)
+  # Collects species list and abiotic environment
   spplist = eco.spplist
   abenv = eco.abenv
+  # Create new ML with abundances from ecosystem
   ml= MatrixLandscape(abenv, spplist)
   ml.abundances = copy(eco.partition.abundances)
+  # Create relationships same as before
   A = typeof(ml.abundances)
   rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
+  # Create a new ecosystem with the same components
   Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel))
 end
-
-
-# Abstract species list subclass of abstract similarity
-
-#tree = jcoal(2, 100)
-#trts = map(string, 1:2)
-#assign_traits!(tree, 0.2, trts)
