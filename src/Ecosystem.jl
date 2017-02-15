@@ -7,9 +7,13 @@ using Diversity.AbstractSimilarity
 ## Habitat types
 abstract AbstractHabitat
 
+
+# Habitats : matrix of float values
 type Habitats <: AbstractHabitat
   matrix::Matrix{Float64}
 end
+
+# Niches : matrix of string values
 type Niches <: AbstractHabitat
   matrix::Matrix{String}
 end
@@ -104,7 +108,6 @@ type MatrixLandscape{A} <: AbstractStructuredPartition{A}
   abundances::A
 end
 
-
 function MatrixLandscape(abenv::AbstractAbiotic, spplist::SpeciesList)
   abundances=zeros(length(spplist.abun),size(abenv.habitat.matrix,1),
                    size(abenv.habitat.matrix,2))
@@ -142,8 +145,10 @@ function copy_eco(eco::Ecosystem)
   rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
   Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel))
 end
+
+
 # Abstract species list subclass of abstract similarity
 
-tree = jcoal(2, 100)
-trts = map(string, 1:2)
-assign_traits!(tree, 0.2, trts)
+#tree = jcoal(2, 100)
+#trts = map(string, 1:2)
+#assign_traits!(tree, 0.2, trts)
