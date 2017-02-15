@@ -47,42 +47,41 @@ type RealEnergy <: AbstractEnergy
 end
 
 # Species list type - all info on species
-
-type SpeciesList{FP, M <: AbstractMatrix, A <: AbstractVector, N<: Any, B <: Any,
-                             T <: AbstractTraits, E<: AbstractEnergy} <:
+type SpeciesList{FP, M <: AbstractMatrix, T <: AbstractTraits, A <: AbstractVector,
+                 E<: AbstractEnergy, TR <: Tree} <:
                              AbstractSimilarity{FP, M}
   similarity::M
   traits::T
   abun::A
   energy::E
-  phylo::Tree{N,B}
+  phylo::TR
 end
 
-function SpeciesList{FP <: AbstractFloat, A <: AbstractVector, N <: Any, B <: Any,
-          T <: AbstractTraits, E<: AbstractEnergy}(similarity::AbstractMatrix{FP},
-          traits::T, abun::A, energy::E, phylo::Tree{N,B})
-  SpeciesList{FP, typeof(similarity), A, N, B, T, E}(similarity, traits, abun,
-                                                     energy, tree)
+function SpeciesList{FP <: AbstractFloat}(M::AbstractMatrix{FP}, T::AbstractTraits,
+                      A::AbstractVector, E::AbstractEnergy, TR::Tree)
+  SpeciesList{FP, typeof(M), typeof(T), typeof(A), typeof(E), typeof(TR)}(M, T, A, E, TR)
 end
+
 function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
                       abun_dist::Distribution, energy::AbstractVector)
-  # error out when abun dist and NumberSpecies are not the same (same for energy dist)
+
   tree = jcoal(NumberSpecies, 100)
   trts = map(string, 1:NumberTraits)
-  assign_traits!(tree, 0.2, trts)
+  assign_traits!(tree, 0.5, trts)
   sp_trt = get_traits(tree, true)
   similarity = eye(NumberSpecies)
   abun = rand(abun_dist)
+  # error out when abun dist and NumberSpecies are not the same (same for energy dist)
   length(abun)==NumberSpecies || throw(DimensionMismatch("Abundance vector
                                         doesn't match number species"))
   length(energy)==NumberSpecies || throw(DimensionMismatch("Energy vector
                                         doesn't match number species"))
   size(similarity)==(NumberSpecies,NumberSpecies) || throw(DimensionMismatch("
                               Similarity matrix doesn't match number species"))
-  SpeciesList(similarity, StringTraits(sp_trt), abun,
-                            RealEnergy(energy), tree)
+  SpeciesList(similarity, StringTraits(sp_trt), abun,RealEnergy(energy), tree)
 end
 # Class of Tree traits eventually, but for now just pass in a fully annotated tree.
+sppl = SpeciesList(2, 2, Multinomial(50, 2), [2,3])
 
 # Abiotic environment types- all info about habitat and relationship to species
 # traits
