@@ -253,6 +253,7 @@ x = cumsum(append!([start], x))
 end
 
 tree=jcoal(5, 10, Real)
+
 function assign_traits!(tree::Tree, start::Float64, σ²:: Float64)
   check = map(a->!isnull(tree.nodes[a].data), 1:length(tree.nodes))
   !all(check) || error("Some nodes already assigned traits")

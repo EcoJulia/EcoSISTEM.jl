@@ -228,8 +228,8 @@ row=1:nrow(meanE)
                     col=alpha('black', 0.3), border =F)"
 
 R"library(scales); par(mfcol=c(1,numSpecies), xaxs='i', yaxs='i');
-row=1:ncol(mean)
-for (j in 1:nrow(mean)){
+row=1:nrow(mean)
+for (j in 1:ncol(mean)){
   if (j==1) plot_fun=plot else plot_fun=lines
 plot_fun(row, mean[,j],
      ylab = list('Abundance',cex=1.4), xlab = list('Time',cex=1.4), type='l',
