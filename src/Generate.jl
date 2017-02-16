@@ -78,6 +78,11 @@ function percolate!(M::AbstractMatrix, p::Real)
   T=Array{String}(dim)
   map(x->T[M.==x]=sample(types, wv), 1:maximum(M))
   # Fill in undefined squares with most frequent neighbour
+end
+
+function fill_in!(T, M, wv)
+  dim = size(M)
+  # Loop through grid of clusters
   for x in 1:dim[1]
     for y in 1:dim[2]
       if M[x,y]==0
