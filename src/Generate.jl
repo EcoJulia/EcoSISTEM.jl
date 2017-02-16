@@ -110,6 +110,34 @@ function percolate!(M::AbstractMatrix, p::Real)
   end
 end
   T
+
+ function random_habitat(dim::Tuple, types, p::Real, A::Vector)
+  # Check that the proportion of coverage for each type matches the number
+  # of types and that they add up to 1
+  length(A)==length(types) || error("There must be an area proportion for each type")
+  sum(A)==1 || error("Proportion of habitats must add up to 1")
+  # Create weighting from proportion habitats
+  wv=weights(A)
+
+  # Create an empty grid of the right dimension
+  M=zeros(dim)
+
+  # If the dimensions are too small for the algorithm, just use a weighted sample
+  if any(map(x-> dim[x]<=2, 1:2))
+    T = create_habitat(dim, types, A)
+  else
+    # Percolation step
+    percolate!(M, p)
+    # Select clusters and assign types
+    identify_clusters!(M)
+    # Create a string grid of the same dimensions
+    T=Array{String}(dim)
+    # Fill in T with clusters already created
+    map(x->T[M.==x]=sample(types, wv), 1:maximum(M))
+    # Fill in undefined squares with most frequent neighbour
+    fill_in!(T, M, wv)
+    T
+  end
 end
 
 # Function to populate a Niche habitat
