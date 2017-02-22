@@ -302,7 +302,7 @@ end
 
 # Alternative populate function
 function populate!(ml::AbstractStructuredPartition, spplist::SpeciesList,
-                   abenv::AbstractAbiotic)
+                   abenv::AbstractAbiotic, traits::Bool)
   # Calculate size of habitat
   dim=size(abenv.habitat.matrix)
   grid=collect(1:dim[1]*dim[2])
@@ -324,7 +324,7 @@ function populate!(ml::AbstractStructuredPartition, spplist::SpeciesList,
         deleteat!(grid, zs)
         deleteat!(wv, zs)
         # Randomly choose position on grid (weighted)
-      pos=sample(grid, weights(wv))
+        if traits pos=sample(grid, weights(wv)) else pos=sample(grid) end
       # Add individual to this location
       ml.abundances[i,pos]=ml.abundances[i,pos]+1
       abun=abun-1

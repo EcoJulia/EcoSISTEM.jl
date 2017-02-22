@@ -136,12 +136,14 @@ type Ecosystem{A, Part, S, AB, R} <: AbstractEcosystem{A, Part, S, AB, R}
   relationship::R
 end
 
-function Ecosystem(spplist::SpeciesList, abenv::AbstractAbiotic)
+function Ecosystem(spplist::SpeciesList, abenv::AbstractAbiotic, traits::Bool)
+  sum(spplist.abun.*spplist.energy.energy)<= sum(abenv.budget.matrix) ||
+  error("Environment does not have enough energy to support species")
   # Create matrix landscape of zero abundances
   ml = MatrixLandscape(abenv, spplist)
   # Populate this matrix with species abundances
   species = length(spplist.abun)
-  populate!(ml, spplist, abenv)
+  populate!(ml, spplist, abenv, traits)
   # For now create an identity matrix for the species relationships
   A = typeof(ml.abundances)
   rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
