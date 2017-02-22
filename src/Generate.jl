@@ -55,12 +55,6 @@ function percolate!(M::AbstractMatrix, p::Real)
       if M[x,y]==1.0
 
         neighbours=get_neighbours(M, y, x)
-        # If no neighbours, sample from clusters randomly
-        if isempty(neighbours)
-          count=count+1
-          M[x,y]=count
-        else
-        cluster=vcat(mapslices(x->M[x[1],x[2]].==1, neighbours, 2)...)
         already=vcat(mapslices(x->M[x[1],x[2]].>1, neighbours, 2)...)
           if any(already)
             neighbours=neighbours[already,:]
@@ -88,10 +82,6 @@ function fill_in!(T, M, wv)
       if M[x,y]==0
 
         neighbours=get_neighbours(T, y, x, 8)
-        # If no neighbours, sample from traits randomly
-        if isempty(neighbours)
-          T[x,y]=sample(types, wv)
-        else
         already=vcat(mapslices(x->isdefined(T,x[1],x[2]), neighbours, 2)...)
         # If any already assigned then sample from most frequent neighbour traits
           if any(already)
