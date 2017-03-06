@@ -522,7 +522,7 @@ function run_sim(eco, params::AbstractVector, times::Int64, reps::Int64)
 end
 
 function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
-   times::Int64, reps::Int64, birth_move::Bool)
+   times::Int64, burnin::Int64, interval::Int64, reps::Int64, birth_move::Bool)
 
   birth = param[1]
   death = param[2]
@@ -530,7 +530,7 @@ function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
   timestep = param[4]
   l = param[5]
   s = param[6]
-  time_seq = collect(500:10:times)
+  time_seq = collect(burnin:interval:times)
   gridSize = grid[1] *  grid[2]
   abun = zeros(length(time_seq)+1, numSpecies, reps, gridSize); ener = zeros(length(time_seq)+1, reps)
 
