@@ -60,10 +60,10 @@ timestep = 1
 param = [birth, death, move, timestep, l, s]
 
 # Create ecosystem
-#sppl = SpeciesList(numSpecies, numTraits,
-#                   energy_vec)
-#abenv = MatrixAbioticEnv(numNiches, (1,1), 1000)
-#eco = Ecosystem(sppl, abenv)
+sppl = SpeciesList(numSpecies, numTraits,
+                  energy_vec)
+abenv = MatrixAbioticEnv(numNiches, (1,1), 1000)
+eco = Ecosystem(sppl, abenv)
 
 # Run simulations 100 times
 ab = run_sim(numSpecies, numTraits, Multinomial(50, numSpecies), energy_vec,
@@ -163,22 +163,14 @@ timestep = 1
 param = [birth, death, move, timestep, l, s]
 
 # Create ecosystem
-#sppl = SpeciesList(numSpecies, numTraits, Multinomial(50, numSpecies),
-#                   energy_vec)
-#abenv = MatrixAbioticEnv(numNiches, (2,2), 500)
-#start=zeros(100, 2)
-#for j in 1:100
-#  eco = Ecosystem(sppl, abenv)
-#  start[j, :]=eco.spplist.abun
-#end
+sppl = SpeciesList(numSpecies, numTraits, Multinomial(50, numSpecies),
+                  energy_vec)
+abenv = MatrixAbioticEnv(numNiches, (2,2), 500)
 
-#eco = Ecosystem(sppl, abenv)
+eco = Ecosystem(sppl, abenv)
 
 # Run simulations 100 times
-#ab = run_sim(eco, param, 1000, 100)
-ab = run_sim(numSpecies, numTraits, Multinomial(50, numSpecies), energy_vec,
-  numNiches, (2,2), 500,
-  param, 1000, 200)
+ab = run_sim(eco, param, 1000, 200)
 
 # Calculate mean and confidence limits
 mean = ab[2][:, :, :, 1]
@@ -248,16 +240,18 @@ param = [birth, death, move, timestep, l, s]
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(500, numSpecies),
                    energy_vec)
 abenv = MatrixAbioticEnv(numNiches, (3,3), 100000)
-eco = Ecosystem(sppl, abenv)
+eco = Ecosystem(sppl, abenv, false)
 
 # Run simulations 100 times
 ab = run_sim(eco, param, 1000, 10)
 
 # Calculate mean and confidence limits
+# For abundance:
 mean = ab[2][:, :, :, 1]
 uc = ab[2][:, :, :, 1] + ab[3][:, :, :, 1]
 lc = ab[2][:, :, :, 1] - ab[3][:, :, :, 1]
 
+# For energy:
 meanE = ab[4][:, :, 1]
 ucE = ab[4][:, :, 1] + ab[5][:, :, 1]
 lcE = ab[4][:, :, 1] - ab[5][:, :, 1]
