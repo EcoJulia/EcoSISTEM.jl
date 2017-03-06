@@ -448,6 +448,40 @@ function populate!(ml::AbstractStructuredPartition, spplist::SpeciesList,
   end
 end
 
+# add in draw from multinomial
+function populate!(eco::Ecosystem, traits::Bool)
+  # Calculate size of habitat
+  eco.partition.abundances = zeros(size(eco.partition.abundances))
+  dim=size(eco.abenv.habitat.matrix)
+  grid=collect(1:dim[1]*dim[2])
+  # Set up copy of budget
+  b=copy(eco.abenv.budget.matrix)
+  # Loop through species
+  eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
+  for i in eachindex(eco.spplist.abun)
+    # Get abundance of species
+    abun=eco.spplist.abun[i]
+    # Get species trait
+    pref=eco.spplist.traits.traits[i]
+    # Calculate weighting, giving preference to squares that match with trait
+    wv= Vector{Float64}(grid)
+    wv[find(reshape(eco.abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.5
+    wv[find(reshape(eco.abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.5
+    # Loop through individuals
+      while abun>0
+        zs=findin(b[grid], 0)
+        deleteat!(grid, zs)
+        deleteat!(wv, zs)
+        # Randomly choose position on grid (weighted)
+        if traits pos=sample(grid, weights(wv)) else pos=sample(grid) end
+      # Add individual to this location
+      eco.partition.abundances[i,pos]=eco.partition.abundances[i,pos]+1
+      abun=abun-1
+      b[pos]=b[pos]-1
+    end
+  end
+end
+
 function run_sim(eco::Ecosystem, params::AbstractVector, times::Int64, reps::Int64)
 
   birth = param[1]
