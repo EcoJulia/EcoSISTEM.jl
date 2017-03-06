@@ -86,7 +86,7 @@ function identify_clusters!(M::AbstractMatrix)
   end
 end
 
-function fill_in!(T, M, wv)
+function fill_in!(T, M, types, wv)
   dim = size(M)
   # Loop through grid of clusters
   for x in 1:dim[1]
@@ -144,7 +144,7 @@ end
     # Fill in T with clusters already created
     map(x->T[M.==x]=sample(types, wv), 1:maximum(M))
     # Fill in undefined squares with most frequent neighbour
-    fill_in!(T, M, wv)
+    fill_in!(T, M, types, wv)
     T
   end
 end
