@@ -232,6 +232,7 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
   # Calculate dimenions of habitat and number of species
   dims = size(eco.partition.abundances)[2:3]
   spp = size(eco.partition.abundances,1)
+  net_migration = zeros(size(eco.partition.abundances))
 
   # Loop through grid squares
   for x in 1:dims[1]
@@ -282,39 +283,39 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
 
 
         # Put probabilities into 0 - 1
-        probs = map(prob -> 1-exp(-prob), [birthprob, deathprob, moveprob])
+        probs = map(prob -> 1-exp(-prob), [birthprob, deathprob])
 
         # Calculate how many births and deaths
         births = jbinom(1, Int(square[j]), probs[1])[1]
         deaths = jbinom(1, Int(square[j]), probs[2])[1]
 
         # Update population
-        eco.partition.abundances[j,x, y] = eco.partition.abundances[j,x, y] +
+        eco.partition.abundances[j, x, y] = eco.partition.abundances[j, x, y] +
           births - deaths
 
         # Then calculate movements
-        square[j] = eco.partition.abundances[j,x, y]
-        moves = jbinom(1, Int(square[j]), probs[3])[1]
+        square[j] = eco.partition.abundances[j, x, y]
+        moves = jbinom(1, Int(square[j]), moveprob)[1]
 
         # Update population
-        eco.partition.abundances[j,x, y] = eco.partition.abundances[j,x, y] - moves
+        net_migration[j, x, y] = net_migration[j, x, y] - moves
         if (moves>0)
         # Find neighbours of grid square
-          neighbours = get_neighbours(eco.abenv.habitat.matrix, y, x, 8)
-          # Randomly sample one of the neighbours
-          choose = sample(1:size(neighbours, 1), moves)
-          tab = countmap(choose)
-          for k in unique(choose)
-              destination=neighbours[k, :]
-              # Add one to this neighbour
-              eco.partition.abundances[j, destination[1], destination[2]] =
-                eco.partition.abundances[j, destination[1], destination[2]] + tab[k]
+          neighbours = get_neighbours(eco.abenv.habitat.matrix, x, y)
+        # Randomly sample one of the neighbours
+          choose = rand(Multinomial(moves, size(neighbours, 1)))
+         for k in eachindex(choose)
+              destination = neighbours[k, :]
+          # Add one to this neighbour
+             net_migration[j, destination[1], destination[2]] =
+                net_migration[j, destination[1], destination[2]] + choose[k]
             end
-          end
+         end
         end
       end
     end
   end
+  eco.partition.abundances = eco.partition.abundances .+ net_migration
 end
 
 
