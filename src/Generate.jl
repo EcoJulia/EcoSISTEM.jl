@@ -560,10 +560,8 @@ function run_sim(numSpecies::Int64, numTraits::Int64,dist::Distribution,energy_v
   [abun, mean_abun, sd_abun, mean_ener, sd_ener]
 end
 
-function run_sim_spatial(numSpecies::Int64, numTraits::Int64,dist::Distribution,energy_vec,
-  numNiches::Int64, grid, K,
-   params::AbstractVector,
-   times::Int64, reps::Int64)
+function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
+   times::Int64, reps::Int64, birth_move::Bool)
 
   birth = param[1]
   death = param[2]
@@ -574,31 +572,51 @@ function run_sim_spatial(numSpecies::Int64, numTraits::Int64,dist::Distribution,
   time_seq = collect(500:10:times)
   gridSize = grid[1] *  grid[2]
   abun = zeros(length(time_seq)+1, numSpecies, reps, gridSize); ener = zeros(length(time_seq)+1, reps)
-  #abun_ratio = zeros(length(time_seq)+1, numSpecies, reps)
+
+  if birth_move
+    update_fun=update_birth_move!
+  else
+    update_fun=update!
+  end
 
   for j in 1:reps
-    sppl = SpeciesList(numSpecies, numTraits, dist,
-                       energy_vec)
-    abenv = MatrixAbioticEnv(numNiches, grid, K)
-    eco = Ecosystem(sppl, abenv, false)
+    populate!(eco, false)
 
     abun[1, :, j, :] = eco.partition.abundances[:, :]
-    #abun_ratio[1, :, j] = eco.partition.abundances[: , 1]./
-    #              mapslices(sum,eco.partition.abundances,2)[:,1,1]
-    #ener[1, j] = sum(eco.partition.abundances[:, 1] .* eco.spplist.energy.energy)
     counting = 1
     for i in 1:times
-        update!(eco, birth, death, move, l, s, timestep)
+        update_fun(eco, birth, death, move, l, s, timestep); #print(eco.partition.abundances)
         if any(i.==time_seq)
             counting = counting+1
-
-            #abun_ratio[counting, :, j] = eco.partition.abundances[: , 1]./
-            #              mapslices(sum,eco.partition.abundances,2)[:,1,1]
             abun[counting, :, j, :] = eco.partition.abundances[: , :]
-            #ener[counting, j] = sum(eco.partition.abundances[: , 1] .* eco.spplist.energy.energy)
-        end
+      end
     end
   end
-  #abun_ratio[isnan(abun_ratio)]=0.0
-  abun#, abun_ratio, ener]
+  abun
+end
+
+function run_sim_grid(eco::Ecosystem, params::AbstractVector,
+   times::Int64, birth_move::Bool)
+
+  birth = param[1]
+  death = param[2]
+  move = param[3]
+  timestep = param[4]
+  l = param[5]
+  s = param[6]
+
+  abun = zeros(times+1, numSpecies, grid[1], grid[2])
+
+  if birth_move
+    update_fun=update_birth_move!
+  else
+    update_fun=update!
+  end
+
+    abun[1, :, :, :] = eco.partition.abundances
+    for i in 1:times
+        update_fun(eco, birth, death, move, l, s, timestep); #print(eco.partition.abundances)
+        abun[i+1, :, :, :] = eco.partition.abundances
+    end
+  abun
 end
