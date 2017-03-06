@@ -555,29 +555,3 @@ function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
   end
   abun
 end
-
-function run_sim_grid(eco::Ecosystem, params::AbstractVector,
-   times::Int64, birth_move::Bool)
-
-  birth = param[1]
-  death = param[2]
-  move = param[3]
-  timestep = param[4]
-  l = param[5]
-  s = param[6]
-
-  abun = zeros(times+1, numSpecies, grid[1], grid[2])
-
-  if birth_move
-    update_fun=update_birth_move!
-  else
-    update_fun=update!
-  end
-
-    abun[1, :, :, :] = eco.partition.abundances
-    for i in 1:times
-        update_fun(eco, birth, death, move, l, s, timestep); #print(eco.partition.abundances)
-        abun[i+1, :, :, :] = eco.partition.abundances
-    end
-  abun
-end
