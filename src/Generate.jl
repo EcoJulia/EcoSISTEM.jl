@@ -194,15 +194,19 @@ end
 
 
 # Function to get the neighbours of a grid square in a matrix in 4 or 8 directions
-function get_neighbours(mat::Matrix, y::Int64, x::Int64, chess::Int64=4)
+function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
   # Calculate dimensions
   dims=size(mat)
+  x_coord <= dims[1] && y_coord <= dims[2] || error("Coordinates outside grid")
   # Include 4 directions
   if chess==4
-    neighbour_vec=[x y-1; x y+1; x-1 y; x+1 y]
+    neighbour_vec=[x_coord y_coord-1; x_coord y_coord+1; x_coord-1 y_coord;
+     x_coord+1 y_coord]
   # Include 8 directions
   elseif chess==8
-    neighbour_vec=[x y-1; x y+1; x-1 y; x+1 y; x-1 y-1; x-1 y+1; x+1 y-1; x+1 y+1]
+    neighbour_vec=[x_coord y_coord-1; x_coord y_coord+1; x_coord-1 y_coord;
+     x_coord+1 y_coord; x_coord-1 y_coord-1; x_coord-1 y_coord+1;
+      x_coord+1 y_coord-1; x_coord+1 y_coord+1]
   else
     # Give error if other number chosen than 4 or 8
     error("Can only calculate neighbours in 4 or 8 directions")
