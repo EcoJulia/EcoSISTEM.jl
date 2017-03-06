@@ -415,3 +415,219 @@ for (k in 1:dim(mean)[3]){
                     c(lcE[,k],rev(ucE[,k])),
                     col=alpha('black', 0.3), border =F)}
 "
+
+## Run simulation on 2 by 1 grid - investigate spatial distributions
+using RCall
+numSpecies=16
+numTraits=2
+numNiches=2
+
+# Set up how much energy each species consumes
+energy_vec = collect(2:17)
+
+# Set probabilities
+birth = 0.6
+death = 0.6
+move = 0.02
+l = 1.0
+s = 0.0
+timestep = 1
+
+# Collect model parameters together (in this order!!)
+param = [birth, death, move, timestep, l, s]
+
+grid = (2,1)
+totalK = 1000
+individuals=100
+
+# Create ecosystem
+sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
+                   energy_vec)
+abenv = MatrixAbioticEnv(numNiches, grid, totalK)
+eco = Ecosystem(sppl, abenv, false)
+#print(eco.partition.abundances)
+
+# Run simulations 100 times
+ab = run_sim_spatial(eco, param, 1000, 100, true)
+
+
+print(mapslices(sum, ab, [1,3]))
+
+sum_abun = reshape(mapslices(sum, ab[:,1,:,:], 3)[:,:,1], (5200))
+abun_vec = reshape(ab[:,1,:,1], (5200))./sum_abun
+@rput abun_vec
+@rput sum_abun
+R"plot(density(abun_vec[sum_abun>0]))"
+
+tot = convert(Array{Int64,3}, ab[:,1,:,:])
+total = mapslices(sum, tot , 3)[:,:,1]
+species1 = tot[:,:,1]
+expected_dist = zeros(Float64, (length(total), maximum(total)+1))
+for i in 1:length(total)
+  expected_dist[i, 1:(total[i]+1)] = repmat([1/(total[i]+1)], total[i]+1)
+end
+expected = mapslices(sum, expected_dist, 1)
+
+actual = [sum(species1.==0)]
+append!(actual, counts(species1, maximum(species1)))
+actual = convert(Array{Float64,1}, actual)
+expected = expected[1:length(actual)]
+
+
+@rput expected
+@rput actual
+KL = kldivergence(actual, expected); @rput KL
+R"plot(1:length(expected),expected, type='l',
+        main = paste('Divergence =', round(KL, 2)), xlab='Abundance',
+        ylab='Frequency', ylim=c(0, max(c(expected, actual))))
+        abline(h=max(expected), col=1, cex=0.5, lty=3)
+lines(actual, col=2)
+legend('topright', legend=c('Expected', 'Observed'), col=1:2, pch='-');
+abline(h=max(actual), col=2, cex=0.5, lty=3)"
+
+
+count_tot = species1[total.==10]
+@rput count_tot
+R"hist(count_tot, breaks=c(-0.5:10.5), main=' ', xlab='Abundance')"
+# Stop here - try for all data combined and diff values of m
+
+
+
+tot = convert(Array{Int64,4}, ab)
+total = mapslices(sum, tot, 4)[:,:,:,1]
+# Remove where total =0/1 because we know what the outcome should be
+grid1 = tot[:,:,:,1]
+grid1 = grid1[total.>0]
+total = total[total.>0]
+
+# Calculate the expected distribution if things were evenly distributed over space
+expected_dist = zeros(Float64, (length(total), maximum(total)+1))
+for i in 1:length(total)
+  expected_dist[i, 1:(total[i]+1)] = repmat([1/(total[i]+1)], total[i]+1)
+end
+expected = mapslices(sum, expected_dist, 1)
+
+# Find the actual counts of the species
+actual = counts(grid1+1, maximum(grid1+1))
+actual = convert(Array{Float64,1}, actual)
+# Trim expected values so they are the same length as the actaul
+expected = expected[1:length(actual)]
+
+
+@rput expected
+@rput actual
+@rput numSpecies; @rput move
+# Calculate Kullback-Leibler divergence
+KL = kldivergence(actual, expected); @rput KL
+R"par(mfrow=c(1,1));plot(1:length(expected),expected, type='l',
+        main = paste('Divergence =', round(KL, 2)), xlab='Abundance',
+        ylab='Frequency', ylim=c(0, max(c(expected, actual))))
+        abline(h=max(expected), col=1, cex=0.5, lty=3)
+lines(actual, col=2)
+legend('topright', legend=c('Expected', 'Observed'), col=1:2, pch='-');
+abline(h=max(actual), col=2, cex=0.5, lty=3)"
+
+count_tot = grid1[total.==10]
+@rput count_tot
+R"hist(count_tot, breaks=c(-0.5:10.5), main=' ', xlab='Abundance')"
+
+
+
+using RCall
+numSpecies=8
+numTraits=2
+numNiches=2
+
+# Set up how much energy each species consumes
+energy_vec = repmat([2], numSpecies)
+
+# Set probabilities
+birth = 0.6
+death = 0.6
+move = 0.05
+l = 1.0
+s = 0.0
+timestep = 1
+
+# Collect model parameters together (in this order!!)
+param = [birth, death, move, timestep, l, s]
+
+grid = (5,5)
+totalK = 1000
+individuals=100
+
+# Create ecosystem
+sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
+                   energy_vec)
+abenv = MatrixAbioticEnv(numNiches, grid, totalK)
+eco = Ecosystem(sppl, abenv, false)
+#print(eco.partition.abundances)
+
+# Run simulations 100 times
+abun = run_sim_grid(eco, param, 1000, false)
+
+@rput abun
+R" par(mfrow=c(5,5), mar=c(2, 2, 2, 2))
+for (i in 1:5){
+  for (j in 1:5){
+    for (k in 1:8){
+      if (k==1) plot_fun=plot else plot_fun=lines
+        plot_fun(1:101, abun[ ,k, i, j], col=k, xlab='Abundance', ylab='Time', type='l',
+        ylim=c(0, max(abun)))
+      }
+    }
+  }"
+
+sumover=mapslices(sum, map(x->x.>0, ab), 2)
+vec=reshape(sumover,(1,5200))
+mean(vec)
+var(vec)
+
+# Calculate mean and confidence limits
+abun = ab[1]
+abun_ratio = ab[2]
+abun_ratio[isnan(abun_ratio)]=0.0
+ener = ab[3]
+
+
+meanA = mapslices(mean, abun_ratio[2:42,:,:], 3)[:,:,1]
+uc = meanA + mapslices(std, abun_ratio[2:42,:,:], 3)[:,:,1]
+lc = meanA - mapslices(std, abun_ratio[2:42,:,:], 3)[:,:,1]
+#uc = mapslices(maximum, abun_ratio[2:42,:,:], 3)[:,:,1]
+#lc = mapslices(minimum, abun_ratio[2:42,:,:], 3)[:,:,1]
+meanE = mapslices(mean, ener[2:42,:], 2)[:,1]
+gridSize = [size(eco.abenv.habitat.matrix,1), size(eco.abenv.habitat.matrix,2)]
+
+# Input results to R
+@rput meanA; @rput meanE
+@rput uc; @rput lc
+@rput gridSize; @rput energy_vec
+
+# Plot in R
+R"library(scales); par(mfcol=c(gridSize[2]*2, gridSize[1]*2), xaxs='i', yaxs='i');
+rows = 1:dim(meanA)[1]
+cols = 1:dim(meanA)[2]
+for (j in 9:16){
+  plot_fun=plot
+    plot_fun(rows,meanA[,j],
+         ylab = 'Relative abundance', xlab = 'Time', type='l',
+         col=j,
+         ylim=c(0, 1));
+    polygon(c(rows,rev(rows)),
+            c(lc[,j],rev(uc[,j])),
+            col=alpha(j, 0.3), border =F)
+    legend('topright', legend= paste('Species', cols[j], ', energy=', energy_vec[cols[j]]), col=cols[j], pch=20)
+            }
+"
+
+@rput abun_ratio
+@rput gridSize
+R"par(xaxs='i', yaxs='i');
+rows = 1:dim(abun_ratio)[1]
+for (j in 1:dim(abun_ratio)[3]){
+  if(j == 1) plot_fun = plot else plot_fun = lines
+    plot_fun(rows, abun_ratio[,2,j],
+         ylab = 'Relative abundance', xlab = 'Time', type='l',
+         ylim=c(0, 1))
+         }
+"
