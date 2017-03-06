@@ -32,7 +32,7 @@ abenv = MatrixAbioticEnv(numNiches, grid, totalK)
 eco = Ecosystem(sppl, abenv, false)
 
 # Run simulations 100 times
-ab = run_sim_spatial(eco, param, 1000, 100, true)
+ab = run_sim_spatial(eco, param, 1000, 500, 10, 100, true)
 
 
 ## Look at species 1
