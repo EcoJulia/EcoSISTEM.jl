@@ -1,4 +1,5 @@
 using StatsBase
+using ProgressMeter
 
 # Function to randomly populate a habitat matrix
 function populate(species::Int64, individuals::Int64, habitat::Habitats,
@@ -540,7 +541,7 @@ function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
     update_fun=update!
   end
 
-  for j in 1:reps
+  @showprogress 1 "Computing..." for j in 1:reps
     populate!(eco, false)
 
     abun[1, :, j, :] = eco.partition.abundances[:, :]
