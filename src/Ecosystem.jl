@@ -3,6 +3,7 @@ using Diversity.AbstractPartition
 using Diversity.AbstractMetacommunity
 using Diversity.psmatch
 using Diversity.AbstractSimilarity
+using Cubature
 
 ## Habitat types
 abstract AbstractHabitat
@@ -231,3 +232,64 @@ function symmetric_grid(grid::Array{Real, 2})
    grid
  end
 
+
+function lookup(squareSize::Real, maxGridSize::Int64, dispersalSD::Real,
+                pThresh::Float64)
+  lookup_tab = Array{Real, 2}(1, 3)
+   function disperse(r::AbstractArray)
+     1/(pi* dispersalSD^2)*exp(-((r[3]-r[1])^2+(r[4]-r[2])^2)/(dispersalSD^2))
+   end
+    k=0; m=0; count = 0
+    while (k<= maxGridSize && m <=maxGridSize)
+      count= count + 1
+      calc_prob = pcubature(disperse, [0, 0, k*squareSize, m*squareSize],
+                          [squareSize, squareSize, (k+1)*squareSize, (m+1)*squareSize])[1]
+      if m == 0 && calc_prob < pThresh
+        break
+      end
+        if count == 1
+           lookup_tab[1, :] = hcat(Int64(k), Int64(m) , calc_prob)
+           k = k + 1
+        else
+          if (calc_prob > pThresh && m <= k)
+            lookup_tab = vcat(lookup_tab, hcat(Int64(k), Int64(m) , calc_prob))
+            m = m + 1
+          else m = 0; k = k + 1
+          end
+        end
+    end
+
+    isdefined(lookup_tab) || error("probability threshold too high")
+    lookup_tab = symmetric_grid(lookup_tab)
+    lookup_tab[:,1:2] = map(Int64,lookup_tab[:,1:2])
+    #lookup_tab[:, 3] = lookup_tab[:, 3]/sum(lookup_tab[:, 3])
+    lookup_tab
+end
+
+#eg = expandgrid(1:dims[1], 1:dims[2])
+#eg = hcat(eg...)'
+#A = eg.== x & eg.== y
+#keep = find(!map( (a,b)-> a==x && b==y, eg[:,1], eg[:,2]))
+#eg = eg[keep,:]
+#eg
+
+#a = eco.spplist.movement.move_var[spp]
+# Calculate pdf at points in lookup table
+
+#coords = map((x, y) -> [(x-0.5, y-0.5), (x+0.5, y+0.5)], eco.lookup[:, 2], eco.lookup[:, 3])
+#coords = hcat(coords...)
+#probs = map((x, y) -> hcubature(disperse, x, y)[1], coords[1,:], coords[2,:])
+
+# Normalise distribution
+#eco.lookup[:, 1] = probs/sum(probs)
+
+#points = rand(Uniform(-1,1), 100)
+#n = map(x -> Normal(x, 0.5), points)
+#m = map(y -> pdf(y, collect(minimum(grd):.1:maximum(grd))), n)
+#dist = mapslices(sum, m , 1)
+#len = size(grd, 1)
+#num = reverse(collect(1:round(len/2, RoundUp)))
+#append!(num, collect(1:round(len/2, RoundDown)))
+#dist = pdf(Normal(1, 0.8), num)
+#@rput dist
+#R"plot(1:49,dist, type='l')"
