@@ -48,24 +48,37 @@ type RealEnergy <: AbstractEnergy
   energy::Vector{Real}
 end
 
+abstract AbstractMovement
+
+type GaussianMovement <: AbstractMovement
+  var::Vector{Real}
+  thresh::Float64
+end
+
+function GaussianMovement(move_var, numSpecies, pThresh)
+  GaussianMovement(repmat([move_var], numSpecies), pThresh)
+end
+
 # Species list type - all info on species
 type SpeciesList{FP, M <: AbstractMatrix, T <: AbstractTraits, A <: AbstractVector,
-                 E<: AbstractEnergy, TR <: Tree} <:
+                 E<: AbstractEnergy, TR <: Tree, MO <: AbstractMovement} <:
                              AbstractSimilarity{FP, M}
   similarity::M
   traits::T
   abun::A
   energy::E
   phylo::TR
+  movement::MO
 end
 
 function SpeciesList{FP <: AbstractFloat}(M::AbstractMatrix{FP}, T::AbstractTraits,
-                      A::AbstractVector, E::AbstractEnergy, TR::Tree)
-  SpeciesList{FP, typeof(M), typeof(T), typeof(A), typeof(E), typeof(TR)}(M, T, A, E, TR)
+                      A::AbstractVector, E::AbstractEnergy, TR::Tree, MO::AbstractMovement)
+  SpeciesList{FP, typeof(M), typeof(T), typeof(A), typeof(E), typeof(TR), typeof(MO)}(M, T, A, E, TR, MO)
 end
 
 function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
-                      abun_dist::Distribution, energy::AbstractVector)
+                      abun_dist::Distribution, energy::AbstractVector,
+                      movement::GaussianMovement)
   # Create tree
   tree = jcoal(NumberSpecies, 100)
   # Create traits and assign to tips
@@ -85,7 +98,7 @@ function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
   size(similarity)==(NumberSpecies,NumberSpecies) || throw(DimensionMismatch("
                               Similarity matrix doesn't match number species"))
 
-  SpeciesList(similarity, StringTraits(sp_trt), abun,RealEnergy(energy), tree)
+  SpeciesList(similarity, StringTraits(sp_trt), abun, RealEnergy(energy), tree, movement)
 end
 
 
