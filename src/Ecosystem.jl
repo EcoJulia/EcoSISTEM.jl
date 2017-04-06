@@ -182,3 +182,32 @@ function copy_eco(eco::Ecosystem)
   # Create a new ecosystem with the same components
   Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel), lookup)
 end
+
+# Function like expand.grid in R - given variables it will create every combination in a grid
+function expandgrid(args...)
+    if length(args) == 0
+        error("Nothing to expand")
+    elseif length(args) == 1
+        return args[1]
+    else
+        rest = expandgrid(args[2:end]...)
+        ret  = Any[]
+        for i in args[1]
+            for r in rest
+                push!(ret, vcat(i,r))
+            end
+        end
+        return ret
+    end
+end
+
+# Get grid of possible moves for abiotic environment
+function get_grid(abenv)
+  dims = size(abenv.habitat.matrix)
+  combs = collect(-dims[1]:dims[2])
+  eg = expandgrid(combs, combs)
+  eg = hcat(eg...)'
+  #sums = mapslices(sum, abs(eg), 2)
+  #order = sortperm(sums[:,1])
+  #eg[order, :]
+end
