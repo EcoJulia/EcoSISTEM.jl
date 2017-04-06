@@ -87,12 +87,13 @@ end
 function findtips(tree)
   findin(map(isleaf,repmat([tree],length(tree.nodes)),collect(1:length(tree.nodes))), true)
 end
-function findroot(tree)
+import PhyloTrees.findroot
+function find_root(tree)
   findin(map(isroot,repmat([tree],length(tree.nodes)),collect(1:length(tree.nodes))), true)
 end
 function root_to_tips(tree)
   tips=findtips(tree)
-  root=findroot(tree)
+  root=find_root(tree)
   map(nodepath,repmat([tree],endof(tips)), repmat(root,endof(tips)), tips)
 end
 # Function to create a random ultrametric tree
