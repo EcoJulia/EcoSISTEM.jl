@@ -316,9 +316,10 @@ totalK = 1000
 individuals=100
 
 # Create ecosystem
+movement = GaussianMovement(0.1, numSpecies)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
-                   energy_vec)
-abenv = MatrixAbioticEnv(numNiches, grid, totalK)
+                   energy_vec, movement)
+abenv = MatrixAbioticEnv(numNiches, grid, totalK, 1)
 eco = Ecosystem(sppl, abenv, false)
 
 # Run simulation grid
@@ -330,7 +331,7 @@ R" par(mfrow=c(5,5), mar=c(2, 2, 2, 2))
 for (i in 1:25){
     for (k in 1:8){
       if (k==1) plot_fun=plot else plot_fun=lines
-        plot_fun(0:101, abun[ , k, 1, i], col=k, xlab='Abundance', ylab='Time', type='l',
+        plot_fun(0:100, abun[ , k, 1, i], col=k, xlab='Abundance', ylab='Time', type='l',
         ylim=c(0, max(abun)))
       }
   }"
