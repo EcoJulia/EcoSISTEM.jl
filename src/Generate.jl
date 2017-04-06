@@ -302,6 +302,31 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
   end
   eco.partition.abundances = eco.partition.abundances .+ net_migration
 end
+
+
+function move!(x::Int64, y::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 3})
+
+  # Draw moves from Multinomial dist
+  table = eco.lookup[spp] .+ [x y 0]
+  maxGrid = maximum(size(eco.abenv.habitat.matrix))
+  # Can't go over maximum dimension
+  lower  = find(mapslices(x->all(x.>0), table, 2))
+  upper = find(mapslices(x->all(x.<= maxGrid), table, 2))
+  valid = intersect(lower, upper)
+  table = table[valid, :]
+  table[:, 3] = table[:, 3]/sum(table[:, 3])
+
+  moves = rand(Multinomial(Int64(eco.partition.abundances[spp, x, y]),
+          Vector{Float64}(table[:, 3])))
+  # Add moves to lookup table
+  table = hcat(table, moves)
+  # Lose moves from current grid square
+  grd[spp, x, y] = grd[spp, x, y] - sum(moves)
+  # Map moves to location in grid
+  map(x -> grd[spp, table[x, 1], table[x, 2]] = grd[spp,
+  table[x, 1], table[x, 2]] + moves[x], 1:size(table,1))
+end
+
 function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
    l::Float64, s::Float64, timestep::Real)
 
