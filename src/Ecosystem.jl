@@ -119,8 +119,7 @@ function MatrixAbioticEnv(NumberNiches::Int64, dimension::Tuple, maxBud::Real, s
   # Create empty budget and for now fill with one value
   bud = zeros(dimension)
   fill!(bud, maxBud)
-
-  MatrixAbioticEnv(Niches(hab), Budget(bud))
+  MatrixAbioticEnv(Niches(hab, size), Budget(bud))
 end
 
 # Matrix Landscape types - houses abundances (initially empty)
