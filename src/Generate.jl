@@ -259,12 +259,10 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
         # Alter rates by energy available in current pop & own requirements
         birth_energy = (ϵ̄[j])^(-l-s) * K / E
         death_energy = (ϵ̄[j])^(-l+s) * E / K
-        move_energy = 1
 
         # Calculate effective rates
         birthprob = birth * timestep * birth_energy
         deathprob = death * timestep * death_energy
-        moveprob = move * timestep * move_energy
 
         # If traits are same as habitat type then give birth "boost"
         #if eco.spplist.traits.traits[j] != eco.abenv.habitat.matrix[x, y]
@@ -275,7 +273,6 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
         if square[j] == 0
           birthprob = 0
           deathprob = 0
-          moveprob = 0
         end
 
         # Throw error if rates exceed 1
@@ -296,22 +293,9 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
 
         # Then calculate movements
         square[j] = eco.partition.abundances[j, x, y]
-        moves = jbinom(1, Int(square[j]), moveprob)[1]
 
-        # Update population
-        net_migration[j, x, y] = net_migration[j, x, y] - moves
-        if (moves>0)
-        # Find neighbours of grid square
-          neighbours = get_neighbours(eco.abenv.habitat.matrix, x, y)
-        # Randomly sample one of the neighbours
-          choose = rand(Multinomial(moves, size(neighbours, 1)))
-         for k in eachindex(choose)
-              destination = neighbours[k, :]
-          # Add one to this neighbour
-             net_migration[j, destination[1], destination[2]] =
-                net_migration[j, destination[1], destination[2]] + choose[k]
-            end
-         end
+        # Perform gaussian movement
+        move!(x, y, j, eco, net_migration)
         end
       end
     end
