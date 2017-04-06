@@ -401,27 +401,29 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64, mov
         eco.partition.abundances[j, x, y] = eco.partition.abundances[j, x, y] +
           births - deaths
 
-        moves = jbinom(1, Int(births), moveprob)[1]
+        #eco.
+
+        #moves = jbinom(1, Int(births), moveprob)[1]
 
         # Update population
-        net_migration[j, x, y] = net_migration[j, x, y] - moves
-        if (moves>0)
+        #net_migration[j, x, y] = net_migration[j, x, y] - moves
+        #if (moves>0)
         # Find neighbours of grid square
-          neighbours = get_neighbours(eco.abenv.habitat.matrix, x, y)
+        #  neighbours = get_neighbours(eco.abenv.habitat.matrix, x, y)
         # Randomly sample one of the neighbours
-          choose = rand(Multinomial(moves, size(neighbours, 1)))
-         for k in eachindex(choose)
-              destination = neighbours[k, :]
-          # Add one to this neighbour
-             net_migration[j, destination[1], destination[2]] =
-                net_migration[j, destination[1], destination[2]] + choose[k]
-            end
-         end
+        #  choose = rand(Multinomial(moves, size(neighbours, 1)))
+        # for k in eachindex(choose)
+        #      destination = neighbours[k, :]
+        #  # Add one to this neighbour
+        #     net_migration[j, destination[1], destination[2]] =
+        #        net_migration[j, destination[1], destination[2]] + choose[k]
+        #    end
+        # end
         end
       end
     end
   end
-  eco.partition.abundances = eco.partition.abundances .+ net_migration
+  #eco.partition.abundances = eco.partition.abundances .+ net_migration
 end
 
 
