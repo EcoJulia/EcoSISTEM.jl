@@ -544,7 +544,7 @@ function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
   s = param[6]
   time_seq = collect(burnin:interval:times)
   gridSize = grid[1] *  grid[2]
-  abun = zeros(length(time_seq)+1, numSpecies, reps, gridSize); ener = zeros(length(time_seq)+1, reps)
+  abun = zeros(length(time_seq), numSpecies, reps, gridSize); ener = zeros(length(time_seq)+1, reps)
 
   if birth_move
     update_fun=update_birth_move!
