@@ -211,3 +211,23 @@ function get_grid(abenv)
   #order = sortperm(sums[:,1])
   #eg[order, :]
 end
+function symmetric_grid(grid::Array{Real, 2})
+   for x in 1:size(grid,1)
+     if grid[x, 1] != grid[x, 2]
+       grid = vcat(grid, hcat(grid[x, 2], grid[x, 1] , grid[x, 3]))
+     end
+   end
+   for x in 1:size(grid,1)
+     if (grid[x, 1] > 0)
+       grid = vcat(grid, hcat(-grid[x, 1], grid[x, 2] , grid[x, 3]))
+     end
+     if (grid[x, 2] > 0)
+       grid = vcat(grid, hcat(grid[x, 1], -grid[x, 2] , grid[x, 3]))
+     end
+     if (grid[x, 1] > 0 && grid[x, 2] > 0)
+       grid = vcat(grid, hcat(-grid[x, 1], -grid[x, 2] , grid[x, 3]))
+     end
+   end
+   grid
+ end
+
