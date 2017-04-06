@@ -139,15 +139,16 @@ end
 
 # Ecosystem type - holds all information and populates ML
 abstract AbstractEcosystem{A, Part <: AbstractStructuredPartition,
-          S <: SpeciesList, AB <: AbstractAbiotic, R<: TraitRelationship
-          } <: AbstractMetacommunity{Float64, A, Part}
+          S <: SpeciesList, AB <: AbstractAbiotic, R<: TraitRelationship,
+          L <: AbstractArray} <: AbstractMetacommunity{Float64, A, Part}
 
-type Ecosystem{A, Part, S, AB, R} <: AbstractEcosystem{A, Part, S, AB, R}
+type Ecosystem{A, Part, S, AB, R, L} <: AbstractEcosystem{A, Part, S, AB, R, L}
   partition::Part
   ordinariness::Nullable{A}
   spplist::S
   abenv::AB
   relationship::R
+  lookup::L
 end
 
 function Ecosystem(spplist::SpeciesList, abenv::AbstractAbiotic, traits::Bool)
@@ -161,8 +162,9 @@ function Ecosystem(spplist::SpeciesList, abenv::AbstractAbiotic, traits::Bool)
   # For now create an identity matrix for the species relationships
   A = typeof(ml.abundances)
   rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
-
-  Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel))
+  lookup_tab = map(x -> lookup(abenv.habitat.size, maximum(size(abenv.habitat.matrix)),
+   x, sppl.movement.thresh), sppl.movement.var)
+  Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel), lookup_tab)
 end
 
 # Function to copy an Ecosystem type for modification - similar to array copy
@@ -176,6 +178,7 @@ function copy_eco(eco::Ecosystem)
   # Create relationships same as before
   A = typeof(ml.abundances)
   rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
+  lookup_tab = eco.lookup
   # Create a new ecosystem with the same components
-  Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel))
+  Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel), lookup)
 end
