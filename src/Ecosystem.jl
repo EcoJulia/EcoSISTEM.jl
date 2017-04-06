@@ -111,7 +111,7 @@ type MatrixAbioticEnv{H, B} <: AbstractAbiotic{H, B}
   budget::B
 end
 
-function MatrixAbioticEnv(NumberNiches::Int64, dimension::Tuple, maxBud::Real)
+function MatrixAbioticEnv(NumberNiches::Int64, dimension::Tuple, maxBud::Real, size::Real)
   # Create niches
   niches = map(string, 1:NumberNiches)
   # Create niche-like environment
