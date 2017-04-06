@@ -203,12 +203,12 @@ R"hist(count_tot, breaks=c(-0.5:10.5), main=' ', xlab='Abundance')"
 using RCall
 
 # Set up initial parameters for ecosystem
-numSpecies=16
+numSpecies=8
 numTraits=2
 numNiches=2
 
 # Set up how much energy each species consumes
-energy_vec = collect(2:17)
+energy_vec = collect(2:9)
 
 # Set probabilities
 birth = 0.6
@@ -226,13 +226,14 @@ totalK = 1000
 individuals=100
 
 # Create ecosystem
+movement = GaussianMovement(move, 0.4, numSpecies)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
-                   energy_vec)
+                   energy_vec, movement)
 abenv = MatrixAbioticEnv(numNiches, grid, totalK)
 eco = Ecosystem(sppl, abenv, false)
 
 # Run simulations 100 times
-ab = run_sim_spatial(eco, param, 1000, 500, 10, 100, false)
+ab = run_sim_spatial(eco, param, 1000, 500, 10, 10, false)
 
 ## Perform same analysis for ALL SPECIES
 tot = convert(Array{Int64,4}, ab)
