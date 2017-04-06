@@ -11,11 +11,13 @@ abstract AbstractHabitat
 # Habitats : matrix of float values
 type Habitats <: AbstractHabitat
   matrix::Matrix{Float64}
+  size::Real
 end
 
 # Niches : matrix of string values
 type Niches <: AbstractHabitat
   matrix::Matrix{String}
+  size::Real
 end
 
 # Env budget types
