@@ -51,13 +51,12 @@ energy_vec = [2, 2]
 # Set probabilities
 birth = 0.6
 death = 0.6
-move = 0.0
 l = 1.0
 s = 0.01
 timestep = 1
 
 # Collect model parameters together (in this order!!)
-param = [birth, death, move, timestep, l, s]
+param = [birth, death, timestep, l, s]
 
 # Create ecosystem
 sppl = SpeciesList(numSpecies, numTraits,
@@ -154,13 +153,12 @@ energy_vec = [2, 4]
 # Set probabilities
 birth = 0.6
 death = 0.6
-move = 0.1
 l = 1.0
 s = 0.0
 timestep = 1
 
 # Collect model parameters together (in this order!!)
-param = [birth, death, move, timestep, l, s]
+param = [birth, death, timestep, l, s]
 
 # Create ecosystem
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(50, numSpecies),
@@ -228,13 +226,12 @@ energy_vec = [2, 3]
 # Set probabilities
 birth = 0.6
 death = 0.6
-move = 0.1
 l = 1.0
 s = 0.1
 timestep = 1
 
 # Collect model parameters together (in this order!!)
-param = [birth, death, move, timestep, l, s]
+param = [birth, death, timestep, l, s]
 
 # Create ecosystem
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(500, numSpecies),
@@ -303,13 +300,12 @@ energy_vec = repmat([2], numSpecies)
 # Set probabilities
 birth = 0.6
 death = 0.6
-move = 0.05
 l = 1.0
 s = 0.0
 timestep = 1
 
 # Collect model parameters together (in this order!!)
-param = [birth, death, move, timestep, l, s]
+param = [birth, death, timestep, l, s]
 
 grid = (5,5)
 totalK = 1000

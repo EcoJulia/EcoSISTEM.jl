@@ -220,7 +220,7 @@ function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int6
 end
 
 # Function to update a Ecosystem after one timestep- stochastic birth, death and movement
-function update!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
+function update!(eco::Ecosystem,  birth::Float64, death::Float64,
    l::Float64, s::Float64, timestep::Real)
 
    # For now keep l>s

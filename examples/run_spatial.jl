@@ -13,13 +13,12 @@ energy_vec = collect(2:17)
 # Set probabilities
 birth = 0.6
 death = 0.6
-move = 0.02
 l = 1.0
 s = 0.0
 timestep = 1
 
 # Collect model parameters together (in this order!!)
-param = [birth, death, move, timestep, l, s]
+param = [birth, death, timestep, l, s]
 
 grid = (2,1)
 totalK = 1000
@@ -133,13 +132,12 @@ energy_vec = collect(2:9)
 # Set probabilities
 birth = 0.6
 death = 0.6
-move = 0.1
 l = 1.0
 s = 0.0
 timestep = 1
 
 # Collect model parameters together (in this order!!)
-param = [birth, death, move, timestep, l, s]
+param = [birth, death, timestep, l, s]
 
 grid = (5,5)
 totalK = 1000
@@ -213,23 +211,22 @@ energy_vec = collect(2:9)
 # Set probabilities
 birth = 0.6
 death = 0.6
-move = 0.05
 l = 1.0
 s = 0.0
 timestep = 1
 
 # Collect model parameters together (in this order!!)
-param = [birth, death, move, timestep, l, s]
+param = [birth, death, timestep, l, s]
 
 grid = (2,2)
 totalK = 1000
 individuals=100
 
 # Create ecosystem
-movement = GaussianMovement(move, 0.4, numSpecies)
+movement = GaussianMovement(0.4, numSpecies, 10e-5)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement)
-abenv = MatrixAbioticEnv(numNiches, grid, totalK)
+abenv = MatrixAbioticEnv(numNiches, grid, totalK, 1)
 eco = Ecosystem(sppl, abenv, false)
 
 # Run simulations 100 times

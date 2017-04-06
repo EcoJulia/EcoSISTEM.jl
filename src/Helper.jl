@@ -4,10 +4,9 @@ function run_sim(eco, params::AbstractVector, times::Int64, reps::Int64)
 
   birth = param[1]
   death = param[2]
-  move = param[3]
-  timestep = param[4]
-  l = param[5]
-  s = param[6]
+  timestep = param[3]
+  l = param[4]
+  s = param[5]
 
   gridSize = grid[1] *  grid[2]
   abun = zeros(times+1, numSpecies, gridSize, reps); ener = zeros(times+1, gridSize, reps)
@@ -42,13 +41,12 @@ function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
 
   birth = param[1]
   death = param[2]
-  move = param[3]
-  timestep = param[4]
-  l = param[5]
-  s = param[6]
+  timestep = param[3]
+  l = param[4]
+  s = param[5]
   time_seq = collect(burnin:interval:times)
   gridSize = grid[1] *  grid[2]
-  abun = zeros(length(time_seq), numSpecies, reps, gridSize); ener = zeros(length(time_seq)+1, reps)
+  abun = zeros(length(time_seq)+1, numSpecies, reps, gridSize); ener = zeros(length(time_seq)+1, reps)
 
   if birth_move
     update_fun=update_birth_move!
