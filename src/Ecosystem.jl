@@ -237,13 +237,14 @@ function lookup(squareSize::Real, maxGridSize::Int64, dispersalSD::Real,
                 pThresh::Float64)
   lookup_tab = Array{Real, 2}(1, 3)
    function disperse(r::AbstractArray)
-     1/(pi* dispersalSD^2)*exp(-((r[3]-r[1])^2+(r[4]-r[2])^2)/(dispersalSD^2))
+     1/(π * dispersalSD^2)*exp(-((r[3]-r[1])^2+(r[4]-r[2])^2)/(dispersalSD^2))
    end
     k=0; m=0; count = 0
     while (k<= maxGridSize && m <=maxGridSize)
       count= count + 1
       calc_prob = pcubature(disperse, [0, 0, k*squareSize, m*squareSize],
-                          [squareSize, squareSize, (k+1)*squareSize, (m+1)*squareSize])[1]
+      [squareSize, squareSize, (k+1)*squareSize, (m+1)*squareSize])[1] /
+       squareSize^2
       if m == 0 && calc_prob < pThresh
         break
       end
@@ -262,7 +263,8 @@ function lookup(squareSize::Real, maxGridSize::Int64, dispersalSD::Real,
     isdefined(lookup_tab) || error("probability threshold too high")
     lookup_tab = symmetric_grid(lookup_tab)
     lookup_tab[:,1:2] = map(Int64,lookup_tab[:,1:2])
-    #lookup_tab[:, 3] = lookup_tab[:, 3]/sum(lookup_tab[:, 3])
+    info(sum(lookup_tab[:, 3]))
+    lookup_tab[:, 3] = lookup_tab[:, 3]/sum(lookup_tab[:, 3])
     lookup_tab
 end
 
