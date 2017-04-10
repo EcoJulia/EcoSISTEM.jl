@@ -45,7 +45,7 @@ function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
   l = param[4]
   s = param[5]
   time_seq = collect(burnin:interval:times)
-  gridSize = grid[1] *  grid[2]
+  gridSize = length(eco.abenv.habitat.matrix)
   abun = zeros(length(time_seq)+1, numSpecies, reps, gridSize); ener = zeros(length(time_seq)+1, reps)
 
   if birth_move
@@ -60,7 +60,7 @@ function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
     abun[1, :, j, :] = eco.partition.abundances[:, :]
     counting = 1
     for i in 1:times
-        update_fun(eco, birth, death, move, l, s, timestep); #print(eco.partition.abundances)
+        update_fun(eco, birth, death, l, s, timestep); #print(eco.partition.abundances)
         if any(i.==time_seq)
             counting = counting+1
             abun[counting, :, j, :] = eco.partition.abundances[: , :]
