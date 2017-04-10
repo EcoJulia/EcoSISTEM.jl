@@ -321,16 +321,7 @@ eco = Ecosystem(sppl, abenv, false)
 # Run simulation grid
 abun = run_sim_spatial(eco, param, 100, 0, 1, 1, false)
 
-# Plot
-@rput abun
-R" par(mfrow=c(5,5), mar=c(2, 2, 2, 2))
-for (i in 1:25){
-    for (k in 1:8){
-      if (k==1) plot_fun=plot else plot_fun=lines
-        plot_fun(0:100, abun[ , k, 1, i], col=k, xlab='Abundance', ylab='Time', type='l',
-        ylim=c(0, max(abun)))
-      }
-  }"
+plot_abun(abun, numSpecies, grid[1])
 
 
   ## Run simulation over a grid and plot

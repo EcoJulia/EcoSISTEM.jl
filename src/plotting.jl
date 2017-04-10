@@ -14,7 +14,22 @@ function plot_move(eco::Ecosystem, x::Int64, y::Int64, spp::Int64)
     A[table[i, 1], table[i, 2]] = table[i, 3]
   end
   @rput A
-  R"library(fields);
+  R"par(mfrow=c(1,1));library(fields);
   A[A==0]=NA
   image.plot(A)"
 end
+
+function plot_abun(abun::AbstractArray, numSpecies::Int64, gridSize::Int64)
+  # Plot
+  @rput abun
+  @rput numSpecies
+  @rput gridSize
+  R" par(mfrow=c(gridSize,gridSize), mar=c(2, 2, 2, 2))
+  for (i in 1:gridSize^2){
+      for (k in 1:numSpecies){
+        if (k==1) plot_fun=plot else plot_fun=lines
+          plot_fun(0:100, abun[, k, 1, i], col=k, xlab='Abundance', ylab='Time', type='l',
+          ylim=c(0, max(abun)))
+        }
+    }"
+  end
