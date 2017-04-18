@@ -216,20 +216,44 @@ function MatrixLandscape(abenv::AbstractAbiotic, spplist::SpeciesList)
 end
 
 # Ecosystem type - holds all information and populates ML
-abstract AbstractEcosystem{A, Part <: AbstractStructuredPartition,
-          S <: SpeciesList, AB <: AbstractAbiotic, R<: TraitRelationship,
-          L <: AbstractArray} <: AbstractMetacommunity{Float64, A, Part}
+#abstract AbstractEcosystem{A, Sim <: SpeciesList, Part <: AbstractPartition,
+#          Rel<: TraitRelationship,Look <: AbstractArray} <:
+#          AbstractMetacommunity{FP, A, Sim, Part}
 
-type Ecosystem{A, Part, S, AB, R, L} <: AbstractEcosystem{A, Part, S, AB, R, L}
-  partition::Part
+type Ecosystem{FP, A, Sim <: SpeciesList, Part <: AbstractAbiotic,
+   Rel <: TraitRelationship, Look <:AbstractArray} <:
+   AbstractMetacommunity{AbstractFloat, A, Sim, Part}
+  abundances::A
+  spplist::Sim
+  abenv::Part
   ordinariness::Nullable{A}
-  spplist::S
-  abenv::AB
-  relationship::R
-  lookup::L
+  relationship::Rel
+  lookup::Look
 end
+#function Ecosystem{FP <: AbstractFloat,
+#  Sim <: AbstractTypes,
+#  Part <: AbstractPartition}(abundances::AbstractArray{FP}, spplist:: Sim,
+#  abenv::Part)
+#  A = typeof(ml.abundances)
+#    Ecosystem(abundances, spplist, abenv, Nullable{A}())
+#end
 
-function Ecosystem(spplist::SpeciesList, abenv::AbstractAbiotic, traits::Bool)
+
+#function Ecosystem(abundances::AbstractArray,
+#  spplist::SpeciesList,
+#  abenv::MatrixAbioticEnv)
+#  size(abundances, 1) == length(spplist.abun)|| error("Dimension mismatch between
+#  abundances and number of species")
+#   Ecosystem{AbstractFloat, typeof(abundances), SpeciesList, AbstractAbiotic}(abundances, spplist, abenv,
+#    Nullable{typeof(abundances)}())
+#end
+
+#Ecosystem(ml.abundances, spplist, abenv)
+
+
+function Ecosystem(spplist::SpeciesList, abenv::MatrixAbioticEnv, traits::Bool)
+
+  # Check there is enough energy to support number of individuals at set up
   sum(spplist.abun.*spplist.energy.energy)<= sum(abenv.budget.matrix) ||
   error("Environment does not have enough energy to support species")
   # Create matrix landscape of zero abundances
@@ -238,11 +262,32 @@ function Ecosystem(spplist::SpeciesList, abenv::AbstractAbiotic, traits::Bool)
   species = length(spplist.abun)
   populate!(ml, spplist, abenv, traits)
   # For now create an identity matrix for the species relationships
-  A = typeof(ml.abundances)
   rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
+  # Create lookup table of all moves and their probabilities
   lookup_tab = map(x -> lookup(abenv.habitat.size, maximum(size(abenv.habitat.matrix)),
-   x, sppl.movement.thresh), sppl.movement.var)
-  Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel), lookup_tab)
+   x, spplist.movement.thresh), spplist.movement.var)
+   A = typeof(ml.abundances)
+  Ecosystem{AbstractFloat, A, SpeciesList, AbstractAbiotic,
+  TraitRelationship, typeof(lookup_tab)}(ml.abundances, spplist, abenv, Nullable{A}(), TraitRelationship(rel),
+   lookup_tab)
+end
+
+function getabundance(eco::Ecosystem)
+  return reshape(eco.abundances,
+   counttypes(eco.spplist), countsubcommunities(eco.abenv))
+end
+function getpartition(eco::Ecosystem)
+  return eco.abenv
+end
+function gettypes(eco::Ecosystem)
+    return eco.spplist
+end
+
+function getordinariness!(eco::Ecosystem)
+    if isnull(eco.ordinariness)
+        eco.ordinariness = getordinariness(eco.spplist, getabundance(eco))
+    end
+    get(eco.ordinariness)
 end
 
 # Function to copy an Ecosystem type for modification - similar to array copy
