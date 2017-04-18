@@ -308,15 +308,17 @@ function move!(x::Int64, y::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float6
 
   # Draw moves from Multinomial dist
   table = eco.lookup[spp] .+ [x y 0]
-  maxGrid = maximum(size(eco.abenv.habitat.matrix))
+  maxX = size(eco.abenv.habitat.matrix, 1)
+  maxY = size(eco.abenv.habitat.matrix, 2)
   # Can't go over maximum dimension
-  lower  = find(mapslices(x->all(x.>0), table, 2))
-  upper = find(mapslices(x->all(x.<= maxGrid), table, 2))
-  valid = intersect(lower, upper)
+  lower  = find(mapslices(x->all(x.> 0), table, 2))
+  upperX = find(map(x-> (x.<= maxX), table[:,1]))
+  upperY = find(map(x-> (x.<= maxY), table[:,2]))
+  valid = intersect(lower, upperX, upperY)
   table = table[valid, :]
   table[:, 3] = table[:, 3]/sum(table[:, 3])
 
-  moves = rand(Multinomial(Int64(eco.partition.abundances[spp, x, y]),
+  moves = rand(Multinomial(Int64(eco.abundances[spp, x, y]),
           Vector{Float64}(table[:, 3])))
   # Add moves to lookup table
   table = hcat(table, moves)
