@@ -33,3 +33,23 @@ function plot_abun(abun::AbstractArray, numSpecies::Int64, gridSize::Int64)
         }
     }"
   end
+function plot_divergence(expected::Vector{Float64}, actual::Vector{Float64})
+  @rput expected
+  @rput actual
+  KL = kldivergence(actual, expected); @rput KL
+  R"par(mfrow=c(1,1))
+    plot(1:length(expected),expected, type='l',
+          main = paste('Divergence =', round(KL, 2)), xlab='Abundance',
+          ylab='Frequency', ylim=c(0, max(c(expected, actual))))
+  abline(h=max(expected), col=1, cex=0.5, lty=3)
+  lines(actual, col=2)
+  abline(h=max(actual), col=2, cex=0.5, lty=3)
+  legend('topright', legend=c('Expected', 'Observed'), col=1:2, pch='-')"
+  info("Divergence = ",KL)
+end
+
+function plot_divergence(combined::Array{Array{Float64, 1}, 1})
+  expected = combined[1]
+  actual = combined[2]
+  plot_divergence(expected, actual)
+end
