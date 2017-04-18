@@ -16,15 +16,15 @@ function run_sim(eco, params::AbstractVector, times::Int64, reps::Int64)
     populate!(eco, false)
 
     for k in 1:gridSize
-      abun[1,:, k,  j] = eco.partition.abundances[:, 1]
+      abun[1,:, k,  j] = eco.abundances[:, 1]
       ener[1, k,  j] = sum(eco.spplist.abun .* eco.spplist.energy.energy)
     end
 
     for i in 1:times
         update!(eco, birth, death, move, l, s, timestep)
         for g in 1:gridSize
-          abun[i+1, :,g, j] = eco.partition.abundances[: , g]
-          ener[i+1, g, j] = sum(eco.partition.abundances[: , g] .* eco.spplist.energy.energy)
+          abun[i+1, :,g, j] = eco.abundances[: , g]
+          ener[i+1, g, j] = sum(eco.abundances[: , g] .* eco.spplist.energy.energy)
         end
     end
     map
@@ -36,7 +36,7 @@ function run_sim(eco, params::AbstractVector, times::Int64, reps::Int64)
   [abun, mean_abun, sd_abun, mean_ener, sd_ener]
 end
 
-function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
+function run_sim_spatial(eco::Ecosystem, param::AbstractVector,
    times::Int64, burnin::Int64, interval::Int64, reps::Int64, birth_move::Bool)
 
   birth = param[1]
@@ -44,9 +44,11 @@ function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
   timestep = param[3]
   l = param[4]
   s = param[5]
+  numSpecies = length(eco.spplist.abun)
   time_seq = collect(burnin:interval:times)
   gridSize = length(eco.abenv.habitat.matrix)
-  abun = zeros(length(time_seq)+1, numSpecies, reps, gridSize); ener = zeros(length(time_seq)+1, reps)
+  abun = zeros(length(time_seq)+1, numSpecies, reps, gridSize);
+  ener = zeros(length(time_seq)+1, reps)
 
   if birth_move
     update_fun=update_birth_move!
@@ -57,13 +59,13 @@ function run_sim_spatial(eco::Ecosystem, params::AbstractVector,
   @showprogress 1 "Computing..." for j in 1:reps
     populate!(eco, false)
 
-    abun[1, :, j, :] = eco.partition.abundances[:, :]
+    abun[1, :, j, :] = eco.abundances[:, :]
     counting = 1
     for i in 1:times
-        update_fun(eco, birth, death, l, s, timestep); #print(eco.partition.abundances)
+        update_fun(eco, birth, death, l, s, timestep); #print(eco.abundances)
         if any(i.==time_seq)
             counting = counting+1
-            abun[counting, :, j, :] = eco.partition.abundances[: , :]
+            abun[counting, :, j, :] = eco.abundances
       end
     end
   end
