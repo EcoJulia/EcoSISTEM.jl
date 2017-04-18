@@ -173,11 +173,12 @@ end
 
 # Abiotic environment types- all info about habitat and relationship to species
 # traits
-abstract AbstractAbiotic{H<: AbstractHabitat, B<:AbstractBudget}
+abstract AbstractAbiotic{H <: AbstractHabitat, B <:AbstractBudget} <: AbstractPartition
 
 type MatrixAbioticEnv{H, B} <: AbstractAbiotic{H, B}
   habitat::H
   budget::B
+  names::Vector{String}
 end
 
 function MatrixAbioticEnv(NumberNiches::Int64, dimension::Tuple, maxBud::Real, size::Real)
@@ -188,11 +189,17 @@ function MatrixAbioticEnv(NumberNiches::Int64, dimension::Tuple, maxBud::Real, s
   # Create empty budget and for now fill with one value
   bud = zeros(dimension)
   fill!(bud, maxBud)
-  MatrixAbioticEnv(Niches(hab, size), Budget(bud))
+  names = map(x -> "$x", 1:(dimension[1]*dimension[2]))
+  MatrixAbioticEnv(Niches(hab, size), Budget(bud), names)
 end
 
-# Matrix Landscape types - houses abundances (initially empty)
-abstract AbstractStructuredPartition{A} <: AbstractPartition{Float64, A}
+function countsubcommunities(mae::MatrixAbioticEnv)
+  return length(mae.habitat.matrix)
+end
+
+function getnames(mae::MatrixAbioticEnv)
+    return mae.names
+end
 
 type MatrixLandscape{A} <: AbstractStructuredPartition{A}
   abundances::A
