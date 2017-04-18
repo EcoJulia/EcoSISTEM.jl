@@ -285,13 +285,12 @@ for (k in 1:dim(mean)[3]){
 "
 
 ## Run simulation over a grid and plot
-using RCall
 numSpecies=4
 numTraits=2
 numNiches=2
 
 # Set up how much energy each species consumes
-energy_vec = repmat([2], numSpecies)
+energy_vec = RealEnergy(repmat([2], numSpecies))
 
 # Set probabilities
 birth = 0.6
@@ -304,65 +303,18 @@ timestep = 1
 param = [birth, death, timestep, l, s]
 
 grid = (5,5)
+gridSize = 1
 totalK = 1000
 individuals=100
 
 # Create ecosystem
 movement = GaussianMovement(0.2, numSpecies, 10e-4)
-sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
+spplist = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement)
-abenv = MatrixAbioticEnv(numNiches, grid, totalK, 1)
-eco = Ecosystem(sppl, abenv, false)
+abenv = MatrixAbioticEnv(numNiches, grid, totalK, gridSize)
+eco = Ecosystem(spplist, abenv, false)
 plot_move(eco, 2, 2, 1)
 # Run simulation grid
 abun = run_sim_spatial(eco, param, 100, 1, 1, 1, false)
 
 plot_abun(abun, numSpecies, grid[1])
-
-
-  ## Run simulation over a grid and plot
-  using RCall
-  numSpecies=4
-  numTraits=2
-  numNiches=2
-
-  # Set up how much energy each species consumes
-  energy_vec = repmat([2], numSpecies)
-
-  # Set probabilities
-  birth = 0.6
-  death = 0.6
-  move = 0.5
-  l = 1.0
-  s = 0.0
-  timestep = 1
-
-  # Collect model parameters together (in this order!!)
-  param = [birth, death, move, timestep, l, s]
-
-  grid = (10,10)
-  totalK = 1000
-  individuals=100
-
-  # Create ecosystem
-  movement = GaussianMovement(1, numSpecies, 10e-4)
-  sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
-                     energy_vec, movement)
-  abenv = MatrixAbioticEnv(numNiches, grid, totalK, 0.5)
-  eco = Ecosystem(sppl, abenv, false)
-
-  plot_move(eco, 5, 5, 1)
-
-  # Run simulation grid
-  abun = run_sim_spatial(eco, param, 100, 1, 1, 1, false)
-
-  # Plot
-  @rput abun
-  R" par(mfrow=c(2,2), mar=c(2, 2, 2, 2))
-  for (i in 1:100){
-      for (k in 1:4){
-        if (k==1) plot_fun=plot else plot_fun=lines
-          plot_fun(0:101, abun[ , k, 1, i], col=k, xlab='Abundance', ylab='Time', type='l',
-          ylim=c(0, max(abun)))
-        }
-    }"
