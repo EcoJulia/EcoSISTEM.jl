@@ -253,7 +253,7 @@ x = cumsum(append!([start], x))
 #Plots.plot(t, x, ylims=collect(extrema(x)).*[0.9,1.1], label=lab)
 end
 
-tree=jcoal(5, 10, Real)
+#tree=jcoal(5, 10, Real)
 
 function assign_traits!(tree::Tree, start::Float64, σ²:: Float64)
   check = map(a->!isnull(tree.nodes[a].data), 1:length(tree.nodes))
@@ -283,5 +283,5 @@ function get_data(tree::Tree, tips::Bool=false)
     map(a->get(tree.nodes[a].data), 1:length(tree.nodes))
   end
 end
-assign_traits!(tree, 2.0, 0.5)
-get_data(tree)
+#assign_traits!(tree, 2.0, 0.5)
+#get_data(tree)
