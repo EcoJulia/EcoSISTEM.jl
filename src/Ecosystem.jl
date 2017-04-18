@@ -329,10 +329,13 @@ function symmetric_grid(grid::Array{Real, 2})
 
 function lookup(squareSize::Real, maxGridSize::Int64, dispersalSD::Real,
                 pThresh::Float64)
+  # Create empty array
   lookup_tab = Array{Real, 2}(1, 3)
+  # Define gaussian kernel function
    function disperse(r::AbstractArray)
      1/(π * dispersalSD^2)*exp(-((r[3]-r[1])^2+(r[4]-r[2])^2)/(dispersalSD^2))
    end
+   # Loop through directions until probability is below threshold
     k=0; m=0; count = 0
     while (k<= maxGridSize && m <=maxGridSize)
       count= count + 1
@@ -353,12 +356,16 @@ function lookup(squareSize::Real, maxGridSize::Int64, dispersalSD::Real,
           end
         end
     end
-
+    # If no probabilities can be calculated, threshold is too high
     isdefined(lookup_tab) || error("probability threshold too high")
+    # Find all other directions
     lookup_tab = symmetric_grid(lookup_tab)
+    # Turn first two columns into integers
     lookup_tab[:,1:2] = map(Int64,lookup_tab[:,1:2])
-    info(sum(lookup_tab[:, 3]))
+    #info(sum(lookup_tab[:, 3]))
+    # Normalise
     lookup_tab[:, 3] = lookup_tab[:, 3]/sum(lookup_tab[:, 3])
     lookup_tab
 end
 
+# I am normalising twice here, is this right?
