@@ -228,12 +228,12 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
    l >= 0 && s >= 0 || error("l and s must be greater than zero")
 
   # Calculate abundance in overall grid (to be implemented later?)
-  #abun=map(i->sum(eco.partition.abundances[i,:,:]), 1:size(eco.partition.abundances,1))
+  #abun=map(i->sum(eco.abundances[i,:,:]), 1:size(eco.abundances,1))
 
   # Calculate dimenions of habitat and number of species
-  dims = size(eco.partition.abundances)[2:3]
-  spp = size(eco.partition.abundances,1)
-  net_migration = zeros(size(eco.partition.abundances))
+  dims = size(eco.abundances)[2:3]
+  spp = size(eco.abundances,1)
+  net_migration = zeros(size(eco.abundances))
 
   # Loop through grid squares
   for x in 1:dims[1]
@@ -247,10 +247,10 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
       for j in randomise
 
         # Get abundances of square we are interested in
-        square = eco.partition.abundances[:,x, y]
+        square = eco.abundances[:,x, y]
 
         if square[j] <= 0
-          eco.partition.abundances[j,x, y] = 0
+          eco.abundances[j,x, y] = 0
         else
         # Get energy budgets of species in square
         ϵ̄ = eco.spplist.energy.energy
@@ -288,11 +288,11 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
         deaths = jbinom(1, Int(square[j]), probs[2])[1]
 
         # Update population
-        eco.partition.abundances[j, x, y] = eco.partition.abundances[j, x, y] +
+        eco.abundances[j, x, y] = eco.abundances[j, x, y] +
           births - deaths
 
         # Then calculate movements
-        square[j] = eco.partition.abundances[j, x, y]
+        square[j] = eco.abundances[j, x, y]
 
         # Perform gaussian movement
         move!(x, y, j, eco, net_migration)
@@ -300,7 +300,7 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
       end
     end
   end
-  eco.partition.abundances = eco.partition.abundances .+ net_migration
+  eco.abundances = eco.abundances .+ net_migration
 end
 
 
@@ -335,12 +335,12 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64, mov
    l >= 0 && s >= 0 || error("l and s must be greater than zero")
 
   # Calculate abundance in overall grid (to be implemented later?)
-  #abun=map(i->sum(eco.partition.abundances[i,:,:]), 1:size(eco.partition.abundances,1))
+  #abun=map(i->sum(eco.abundances[i,:,:]), 1:size(eco.abundances,1))
 
   # Calculate dimenions of habitat and number of species
-  dims = size(eco.partition.abundances)[2:3]
-  spp = size(eco.partition.abundances,1)
-  net_migration = zeros(size(eco.partition.abundances))
+  dims = size(eco.abundances)[2:3]
+  spp = size(eco.abundances,1)
+  net_migration = zeros(size(eco.abundances))
 
   # Loop through grid squares
   for x in 1:dims[1]
@@ -354,10 +354,10 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64, mov
       for j in randomise
 
         # Get abundances of square we are interested in
-        square = eco.partition.abundances[:,x, y]
+        square = eco.abundances[:,x, y]
 
         if square[j] <= 0
-          eco.partition.abundances[j,x, y] = 0
+          eco.abundances[j,x, y] = 0
         else
         # Get energy budgets of species in square
         ϵ̄ = eco.spplist.energy.energy
@@ -398,7 +398,7 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64, mov
         deaths = jbinom(1, Int(square[j]), probs[2])[1]
 
         # Update population
-        eco.partition.abundances[j, x, y] = eco.partition.abundances[j, x, y] +
+        eco.abundances[j, x, y] = eco.abundances[j, x, y] +
           births - deaths
 
         #eco.
@@ -423,12 +423,12 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64, mov
       end
     end
   end
-  #eco.partition.abundances = eco.partition.abundances .+ net_migration
+  #eco.abundances = eco.abundances .+ net_migration
 end
 
 
 # Alternative populate function
-function populate!(ml::AbstractStructuredPartition, spplist::SpeciesList,
+function populate!(ml::MatrixLandscape, spplist::SpeciesList,
                    abenv::AbstractAbiotic, traits::Bool)
   # Calculate size of habitat
   dim=size(abenv.habitat.matrix)
@@ -463,7 +463,7 @@ end
 # add in draw from multinomial
 function populate!(eco::Ecosystem, traits::Bool)
   # Calculate size of habitat
-  eco.partition.abundances = zeros(size(eco.partition.abundances))
+  eco.abundances = zeros(size(eco.abundances))
   dim=size(eco.abenv.habitat.matrix)
   grid=collect(1:dim[1]*dim[2])
   # Set up copy of budget
@@ -487,7 +487,7 @@ function populate!(eco::Ecosystem, traits::Bool)
         # Randomly choose position on grid (weighted)
         if traits pos=sample(grid, weights(wv)) else pos=sample(grid) end
       # Add individual to this location
-      eco.partition.abundances[i,pos]=eco.partition.abundances[i,pos]+1
+      eco.abundances[i,pos]=eco.abundances[i,pos]+1
       abun=abun-1
       b[pos]=b[pos]-1
     end
