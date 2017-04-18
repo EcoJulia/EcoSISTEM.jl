@@ -306,34 +306,6 @@ function copy_eco(eco::Ecosystem)
   Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel), lookup)
 end
 
-# Function like expand.grid in R - given variables it will create every combination in a grid
-function expandgrid(args...)
-    if length(args) == 0
-        error("Nothing to expand")
-    elseif length(args) == 1
-        return args[1]
-    else
-        rest = expandgrid(args[2:end]...)
-        ret  = Any[]
-        for i in args[1]
-            for r in rest
-                push!(ret, vcat(i,r))
-            end
-        end
-        return ret
-    end
-end
-
-# Get grid of possible moves for abiotic environment
-function get_grid(abenv)
-  dims = size(abenv.habitat.matrix)
-  combs = collect(-dims[1]:dims[2])
-  eg = expandgrid(combs, combs)
-  eg = hcat(eg...)'
-  #sums = mapslices(sum, abs(eg), 2)
-  #order = sortperm(sums[:,1])
-  #eg[order, :]
-end
 function symmetric_grid(grid::Array{Real, 2})
    for x in 1:size(grid,1)
      if grid[x, 1] != grid[x, 2]
@@ -390,30 +362,3 @@ function lookup(squareSize::Real, maxGridSize::Int64, dispersalSD::Real,
     lookup_tab
 end
 
-#eg = expandgrid(1:dims[1], 1:dims[2])
-#eg = hcat(eg...)'
-#A = eg.== x & eg.== y
-#keep = find(!map( (a,b)-> a==x && b==y, eg[:,1], eg[:,2]))
-#eg = eg[keep,:]
-#eg
-
-#a = eco.spplist.movement.move_var[spp]
-# Calculate pdf at points in lookup table
-
-#coords = map((x, y) -> [(x-0.5, y-0.5), (x+0.5, y+0.5)], eco.lookup[:, 2], eco.lookup[:, 3])
-#coords = hcat(coords...)
-#probs = map((x, y) -> hcubature(disperse, x, y)[1], coords[1,:], coords[2,:])
-
-# Normalise distribution
-#eco.lookup[:, 1] = probs/sum(probs)
-
-#points = rand(Uniform(-1,1), 100)
-#n = map(x -> Normal(x, 0.5), points)
-#m = map(y -> pdf(y, collect(minimum(grd):.1:maximum(grd))), n)
-#dist = mapslices(sum, m , 1)
-#len = size(grd, 1)
-#num = reverse(collect(1:round(len/2, RoundUp)))
-#append!(num, collect(1:round(len/2, RoundDown)))
-#dist = pdf(Normal(1, 0.8), num)
-#@rput dist
-#R"plot(1:49,dist, type='l')"
