@@ -1,9 +1,11 @@
 using Diversity
-using Diversity.AbstractPartition
-using Diversity.AbstractMetacommunity
-using Diversity.psmatch
-using Diversity.AbstractSimilarity
 using Cubature
+
+import Diversity.getabundance, Diversity.getpartition, Diversity.gettypes
+import Diversity.getordinariness!, Diversity.countsubcommunities
+import Diversity.getnames
+import Diversity.counttypes, Diversity.getnames
+import Diversity.getordinariness, Diversity.getsimilarity
 
 ## Habitat types
 abstract AbstractHabitat
