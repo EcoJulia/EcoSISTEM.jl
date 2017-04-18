@@ -1,17 +1,23 @@
 module Simulation
 
-include("Ecosystem.jl")
-export Ecosystem, Habitats, StringTraits, MatrixLandscape
-
-include("Diversity_funcs.jl")
-
-include("Generate.jl")
-export populate, SR, create_habitat
-
 include("Dist.jl")
-export jnorm, jexp, jpois, jbinom, junif, jdir
+export jnorm, jexp, jpois, jbinom, junif, jdir, jmulti
 
 include("Phylo.jl")
 export jtree, jcoal, assign_traits!, get_traits
+
+include("Ecosystem.jl")
+export Ecosystem, Habitats, Niches, StringTraits, RealTraits,
+RealEnergy, GaussianMovement, SpeciesList, MatrixAbioticEnv,  MatrixLandscape,
+Ecosystem, copy_eco
+
+include("Generate.jl")
+export populate!, random_habitat, update!, update_birth_move!
+
+include("Helper.jl")
+export run_sim, run_sim_spatial, expected_counts
+
+include("plotting.jl")
+export plot_move, plot_abun, plot_divergence
 
 end

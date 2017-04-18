@@ -1,6 +1,13 @@
 ## Code for running model on spatial grid
-## Run simulation on 2 by 1 grid - investigate spatial distributions
+
+# Include simulation functions
+using Simulation
 using RCall
+using Distributions
+using StatsBase
+using Diversity
+
+## Run simulation on 2 by 1 grid - investigate spatial distributions
 
 # Set up initial parameters for ecosystem
 numSpecies=16
