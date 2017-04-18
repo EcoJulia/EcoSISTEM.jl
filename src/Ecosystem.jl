@@ -201,7 +201,9 @@ function getnames(mae::MatrixAbioticEnv)
     return mae.names
 end
 
-type MatrixLandscape{A} <: AbstractStructuredPartition{A}
+
+# Matrix Landscape types - houses abundances (initially empty)
+type MatrixLandscape{A <: AbstractArray} <: AbstractArray
   abundances::A
 end
 
