@@ -63,46 +63,112 @@ function GaussianMovement(move_var, numSpecies, pThresh)
 end
 
 # Species list type - all info on species
-type SpeciesList{FP, M <: AbstractMatrix, T <: AbstractTraits, A <: AbstractVector,
+type SpeciesList{FP <: AbstractFloat, M <: AbstractMatrix, T <: AbstractTraits,
                  E<: AbstractEnergy, TR <: Tree, MO <: AbstractMovement} <:
-                             AbstractSimilarity{FP, M}
+                             AbstractTypes
   similarity::M
+  names::Vector{String}
   traits::T
-  abun::A
+  abun::Vector{Int64}
   energy::E
   phylo::TR
   movement::MO
 end
 
-function SpeciesList{FP <: AbstractFloat}(M::AbstractMatrix{FP}, T::AbstractTraits,
-                      A::AbstractVector, E::AbstractEnergy, TR::Tree, MO::AbstractMovement)
-  SpeciesList{FP, typeof(M), typeof(T), typeof(A), typeof(E), typeof(TR), typeof(MO)}(M, T, A, E, TR, MO)
+function SpeciesList{FP <: AbstractFloat, T <: AbstractTraits,
+    E<: AbstractEnergy, TR <: Tree, MO <: AbstractMovement}(similarity::AbstractMatrix{FP},
+    names:: Vector{String}, traits::T, abun::Vector{Int64}, energy::E, phylo::TR,
+    movement::MO)
+    # Assign names
+    names = map(x -> "$x", 1:size(similarity, 1))
+
+    # Check similarity is square matrix
+    size(similarity, 1) == size(similarity, 2) ||
+    throw(DimensionMismatch("Similarity matrix is not square"))
+
+    # Check dimensions of abundance and similarity match
+    length(abun) == size(similarity, 1) ||
+    throw(DimensionMismatch("Similarity matrix does not match abundances"))
+
+    # Check similarity is bounded between 0 and 1
+    minimum(similarity) ≥ 0 || throw(DomainError())
+    maximum(similarity) ≤ 1 || warn("Similarity matrix has values above 1")
+    SpeciesList{FP, typeof(similarity), T, E, TR, MO}(similarity, names, traits, abun, energy, phylo, movement)
 end
 
-function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
-                      abun_dist::Distribution, energy::AbstractVector,
-                      movement::GaussianMovement)
-  # Create tree
-  tree = jcoal(NumberSpecies, 100)
-  # Create traits and assign to tips
-  trts = map(string, 1:NumberTraits)
-  assign_traits!(tree, 0.5, trts)
-  # Get traits from tree
-  sp_trt = get_traits(tree, true)
-  # Create similarity matrix (for now identity)
-  similarity = eye(NumberSpecies)
-  # Draw random set of abundances from distribution
-  abun = rand(abun_dist)
-  # error out when abun dist and NumberSpecies are not the same (same for energy dist)
-  length(abun)==NumberSpecies || throw(DimensionMismatch("Abundance vector
-                                        doesn't match number species"))
-  length(energy)==NumberSpecies || throw(DimensionMismatch("Energy vector
-                                        doesn't match number species"))
-  size(similarity)==(NumberSpecies,NumberSpecies) || throw(DimensionMismatch("
-                              Similarity matrix doesn't match number species"))
+function SpeciesList{E<: AbstractEnergy,
+    MO <: AbstractMovement}(NumberSpecies::Int64,
+    NumberTraits::Int64, abun_dist::Distribution, energy::E,
+    movement::MO)
 
-  SpeciesList(similarity, StringTraits(sp_trt), abun, RealEnergy(energy), tree, movement)
+    # Create tree
+    tree = jcoal(NumberSpecies, 100)
+    # Create traits and assign to tips
+    trts = map(string, 1:NumberTraits)
+    assign_traits!(tree, 0.5, trts)
+    # Get traits from tree
+    sp_trt = StringTraits(get_traits(tree, true))
+    # Create similarity matrix (for now identity)
+    similarity = eye(NumberSpecies)
+    names = map(x -> "$x", 1:size(similarity, 1))
+    # Draw random set of abundances from distribution
+    abun = rand(abun_dist)
+    # error out when abun dist and NumberSpecies are not the same (same for energy dist)
+    length(abun)==NumberSpecies || throw(DimensionMismatch("Abundance vector
+                                          doesn't match number species"))
+    length(energy.energy)==NumberSpecies || throw(DimensionMismatch("Energy vector
+                                          doesn't match number species"))
+    size(similarity)==(NumberSpecies,NumberSpecies) || throw(DimensionMismatch("
+                                Similarity matrix doesn't match number species"))
+
+  SpeciesList(similarity, names, sp_trt, abun, energy, tree, movement)
 end
+
+function counttypes(sl::SpeciesList)
+    return size(sl.similarity, 1)
+end
+
+function getsimilarity(sl::SpeciesList)
+    return sl.similarity
+end
+
+function floattypes{FP, M}(::SpeciesList{FP, M})
+    return Set([FP])
+end
+
+function getnames(sl::SpeciesList)
+    return sl.names
+end
+
+function getordinariness(sl::SpeciesList, a::AbstractArray)
+    getsimilarity(sl) * a
+end
+
+
+#function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
+#                      abun_dist::Distribution, energy::AbstractVector,
+#                      movement::GaussianMovement)
+#  # Create tree
+#  tree = jcoal(NumberSpecies, 100)
+#  # Create traits and assign to tips
+#  trts = map(string, 1:NumberTraits)
+#  assign_traits!(tree, 0.5, trts)
+#  # Get traits from tree
+#  sp_trt = get_traits(tree, true)
+#  # Create similarity matrix (for now identity)
+#  similarity = eye(NumberSpecies)
+#  # Draw random set of abundances from distribution
+#  abun = rand(abun_dist)
+#  # error out when abun dist and NumberSpecies are not the same (same for energy dist)
+#  length(abun)==NumberSpecies || throw(DimensionMismatch("Abundance vector
+#                                        doesn't match number species"))
+#  length(energy)==NumberSpecies || throw(DimensionMismatch("Energy vector
+#                                        doesn't match number species"))
+#  size(similarity)==(NumberSpecies,NumberSpecies) || throw(DimensionMismatch("
+#                              Similarity matrix doesn't match number species"))
+#
+#  SpeciesList(similarity, StringTraits(sp_trt), abun, RealEnergy(energy), tree, movement)
+#end
 
 
 # Abiotic environment types- all info about habitat and relationship to species
