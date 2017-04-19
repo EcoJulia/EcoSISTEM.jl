@@ -53,21 +53,16 @@ tree = jtree(5)
 plot(tree)
 
 # Function to produce a matrix of all source and target nodes within a tree
-function sou_tar(tree, len::Bool)
+function sou_tar(tree::AbstractTree, len::Bool)
   # Create an empty array
-  path=Array{Real}(length(tree.branches),3)
+  path=Array{String}(length(tree.branches),2)
   # Run through each branch
-  for x in 1:length(tree.branches)
-    # Get source and target nodes of branch
-    path[x,[1,2]]=[tree.branches[x].source,tree.branches[x].target]
+  map(x -> path[x, :] = [tree.branches[x].source, tree.branches[x].target], 1:size(path, 1))
+  path = hcat(path, repmat([0.0], size(path, 1)))
     # Set length
     if len
       # Get length from tree
-      path[x,3]=tree.branches[x].length.value
-    else
-      # Create blank
-    path[x,3]=0
-  end
+      map(x -> path[x, 3] = tree.branches[x].length, 1:size(path, 1))
   end
   path
 end
@@ -76,7 +71,7 @@ function pair(vec)
   # Calc number of pairs
   npairs=length(vec)-1
   # Create empty array
-  newvec=Array{Int64}(npairs,2)
+  newvec=Array{String}(npairs,2)
   # Split into pairs
   for i in collect(1:npairs)
     newvec[i,:]=vec[i:(i+1)]
@@ -103,17 +98,17 @@ function find_rows(mat, sour, targ)
   hcat(map(find_row, repmat([mat], length(sour)), sour, targ)...)
 end
 # Function to find tip nodes of tree
-function findtips(tree)
-  findin(map(isleaf,repmat([tree],length(tree.nodes)),collect(1:length(tree.nodes))), true)
-end
-import PhyloTrees.findroot
-function find_root(tree)
-  findin(map(isroot,repmat([tree],length(tree.nodes)),collect(1:length(tree.nodes))), true)
-end
+#function findtips(tree)
+#  findin(map(isleaf,repmat([tree],length(tree.nodes)),collect(1:length(tree.nodes))), true)
+#end
+#import PhyloTrees.findroot
+#function find_root(tree)
+#  findin(map(isroot,repmat([tree],length(tree.nodes)),collect(1:length(tree.nodes))), true)
+#end
 function root_to_tips(tree)
-  tips=findtips(tree)
-  root=find_root(tree)
-  map(nodepath,repmat([tree],endof(tips)), repmat(root,endof(tips)), tips)
+  tips=findleaves(tree)
+  root=findroots(tree)[1]
+  map(nodepath,repmat([tree],endof(tips)), repmat([root],endof(tips)), tips)
 end
 # Function to create a random ultrametric tree
 function jcoal(n::Int64, len::Real, T::Type=String)
@@ -124,7 +119,7 @@ function jcoal(n::Int64, len::Real, T::Type=String)
     tree2.branches[1].length = len
   else
   # Find tips of tree
-  tips=findtips(tree2)
+  tips=findleaves(tree2)
   # Find paths of each tip from root
   paths=root_to_tips(tree2)
   # Create array of source and target nodes
