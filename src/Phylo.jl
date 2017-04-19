@@ -1,37 +1,56 @@
 using PhyloTrees
+using Distributions
+using Plots
 #using Simulation
 #Function to create random tree with set number of tips
 function jtree(n::Int64, T::Type = String, dist::Distribution = Uniform(0,n))
-  #Create tree and set initial two branches
-  tree1 = Tree{T, Vector}(); addnodes!(tree1, 2*n-1)
+  #Create tree
+  tree1 = NodeTree(n, nodetype = Vector{T})
   # If only one branch
-  if n==1
-    addnodes!(tree1, 1)
-    addbranch!(tree1, 1, 2, rand(dist))
+  leaf_names = getleafnames(tree1)
+  inner_names = addnodes!(tree1, n-1)
+  if n == 1
+    error("More species needed")
+  elseif n==2
+    map(x -> addbranch!(tree1, inner_names[1], x, rand(dist)), leaf_names)
   else
-  map(target->addbranch!(tree1, 1, target, rand(dist)),2:3)
-  if n>2
-  nodes=3
-  #Run through randomly choosing the next node to split
-  i=collect(2:3)
-  # Run until reaches max number of nodes
-    while nodes<(2*n-1)
-      #Choose random node
-      n1=rand(i)
-      # Split into two
-      nodes=nodes+2
-      # Make new branches random length
-      map(var-> addbranch!(tree1,n1, var, rand(dist)),(nodes-1):(nodes))
-      # Remove nodes already split
-      deleteat!(i, findin(i,n1))
-      # Add newly created tips into the mix
-      append!(i,collect((nodes-1):nodes))
+    inner_names_copy = copy(inner_names)
+    choose_node = inner_names[1]
+    avail_nodes = inner_names
+    # Set up internal structure
+    # Connect all internal nodes together
+    while !isempty(avail_nodes)
+      deleteat!(inner_names, find(inner_names .== choose_node))
+
+      if length(avail_nodes) > 1
+        howmany = rand(1:2)
+      else
+        howmany = 1
+      end
+
+      targets = sample(avail_nodes, howmany, replace = false)
+      map(x -> addbranch!(tree1, choose_node, x, rand(dist)), targets)
+
+      avail_nodes = inner_names[map(x -> indegree(tree1, x) < 1, inner_names)]
+      choose_node = rand(targets, 1)[1]
+    end
+
+    # Add on leaf nodes
+    count = 0
+    while !isempty(leaf_names) && count <= length(inner_names_copy)
+      count = count + 1
+      if outdegree(tree1, inner_names_copy[count]) < 2
+        targets = sample(leaf_names, 2 - outdegree(tree1, inner_names_copy[count]),
+                            replace = false)
+        map(x -> addbranch!(tree1, inner_names_copy[count], x, rand(dist)), targets)
+        deleteat!(leaf_names, findin(leaf_names, targets))
+      end
     end
   end
+  tree1
 end
-# Return tree
-tree1
-end
+tree = jtree(5)
+plot(tree)
 
 # Function to produce a matrix of all source and target nodes within a tree
 function sou_tar(tree, len::Bool)
