@@ -155,17 +155,26 @@ end
   # Return ultrametric tree
   tree2
 end
+function hasnoderecord(tree::AbstractTree, node::String)
+  return !isempty(getnoderecord(tree, node))
+end
+function hasnoderecords(tree::AbstractTree, nodes::Vector{String})
+  map(x -> hasnoderecord(tree, x), nodes)
+end
+function findall(tree::AbstractTree)
+  return vcat(keys(tree.nodes)...)
+end
 
 
-function assign_traits!(tree::Tree, switch_rate::Real, traits::Vector)
+function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
   # Check if tree already assigned
-  check = map(a->haslabel(tree.nodes[a]), 1:length(tree.nodes))
+  check = map(a->hasnoderecord(tree, a), keys(tree.nodes))
   !all(check) || error("Some nodes already assigned traits")
   # Calculate all branch paths from root to tips
   tips=findleaves(tree)
   paths = map(i-> reverse(nodepath(tree, i)), tips)
   # Assign first node a trait randomly
-  setlabel!(tree.nodes[1], sample(traits))
+  setnoderecord!(tree, "Node 1", [sample(traits)])
   # Loop through all paths
   for i in (1 : length(paths))
     # Choose first path
@@ -175,8 +184,8 @@ function assign_traits!(tree::Tree, switch_rate::Real, traits::Vector)
     assigned=false
     # Test if any branches have been assigned already
     if size(pairs, 1) > 1
-      test_assigned = map(a -> haslabel(tree.nodes[a]), pairs)
-      assigned = mapslices(sum, test_assigned, 2) .== 2
+      test_assigned = mapslices(a -> hasnoderecords(tree, a), pairs, 1)
+      assigned = mapslices(all, test_assigned, 2)
       assigned = vcat(assigned...)
       # If they have been assigned, remove from node pairs
       pairs = pairs[!assigned, :]
@@ -214,47 +223,46 @@ function assign_traits!(tree::Tree, switch_rate::Real, traits::Vector)
         prev_branch_len=sum(map(i-> tree.branches[i].length, prev_path))
       end
       # Assign switch times as branch data
-      tree.branches[branch_path[1]].data = cum_times[cum_times .< branch_len] + prev_branch_len
+      #tree.branches[branch_path[1]].data = cum_times[cum_times .< branch_len] + prev_branch_len
       # Calculate switch times
       num_switches = sum(cum_times .< branch_len)
 
       # Find trait of last node
-      labels = map(a -> haslabel(tree.nodes[a]), sel_pair)
+      labels = map(a -> hasnoderecord(tree, a), sel_pair)
       last_node = maximum(sel_pair[labels])
-      last_label = getlabel(tree.nodes[last_node])
+      last_label = getnoderecord(tree, last_node)
 
       # If there are no switches, give same trait as previous node
       if num_switches == 0
         set_node = minimum(sel_pair[!labels])
-        setlabel!(tree.nodes[set_node], last_label)
+        setnoderecord!(tree, set_node, last_label)
       else
       # Else loop through for the required number of switches, sampling from list of traits
         while num_switches > 0
           set_node = minimum(sel_pair[!labels])
-          setlabel!(tree.nodes[set_node], sample(traits[traits .!= last_label]))
-          last_label = getlabel(tree.nodes[set_node])
+          setnoderecord!(tree, set_node, [sample(traits[traits .!= last_label])])
+          last_label = getnoderecord(tree, set_node)
           num_switches = num_switches - 1
         end
       end
     end
   end
-# Return tree
-#tree
 end
 
 
-function get_traits(tree::Tree, tips::Bool=false)
+function get_traits(tree::NodeTree, tips::Bool=true)
   if tips
     tipnodes= findleaves(tree)
-    map(a->getlabel(tree.nodes[a]), 1:length(tree.nodes))[tipnodes]
+    return hcat(map(a->getnoderecord(tree, a)[1], tipnodes), tipnodes)
   else
-    map(a->getlabel(tree.nodes[a]), 1:length(tree.nodes))
+    allnodes= findall(tree)
+    return hcat(map(a->getnoderecord(tree, a)[1], allnodes), allnodes)
   end
 end
 
-function get_times(tree::Tree)
-  map(a->get(tree.branches[a]), 1:length(tree.branches))
-end
+#function get_times(tree::Tree)
+#  map(a->get(tree.branches[a]), 1:length(tree.branches))
+#end
 
 
 
@@ -267,35 +275,36 @@ x = cumsum(append!([start], x))
 #Plots.plot(t, x, ylims=collect(extrema(x)).*[0.9,1.1], label=lab)
 end
 
-#tree=jcoal(5, 10, Real)
 
-function assign_traits!(tree::Tree, start::Float64, σ²:: Float64)
-  check = map(a->!isnull(tree.nodes[a].data), 1:length(tree.nodes))
+
+tree = jcoal(5, 10, Float64)
+
+
+function assign_traits!(tree::NodeTree, start::Float64, σ²:: Float64)
+  check = map(a->hasnoderecord(tree, a), findall(tree))
   !all(check) || error("Some nodes already assigned traits")
   # Start out with branches 1 & 2
   len = map(x-> tree.branches[x].length, 1:2)
   traits = map(x->BM(x, σ², start)[end], len)
-  #loop through nodes
-  for i in eachindex(tree.nodes)
-    if isroot(tree.nodes[i])
-      tree.nodes[i].data = start
+  # Find all names of nodes
+  names =  findall(tree)
+  # Sort by distance from root
+  dist = map(x -> distance(tree, "Node 1", x), names)
+  names = names[sortperm(dist)]
+  # Loop through nodes in order of appearance
+  for i in names
+    if isroot(tree, i)
+      setnoderecord!(tree, i, [start])
     else
-      pnt = parentnode(tree,i)
-      srt = get(tree.nodes[pnt].data)
+      pnt = parentnode(tree, i)
+      srt = getnoderecord(tree, pnt)[1]
       path = branchpath(tree, pnt, i)[1]
       ln = tree.branches[path].length
-      tree.nodes[i].data = BM(ln, σ², srt)[end]
+      setnoderecord!(tree, i, [BM(ln, σ², srt[1])[end]])
+
     end
   end
   tree
 end
-function get_data(tree::Tree, tips::Bool=false)
-  if tips
-    tipnodes= findleaves(tree)
-    map(a->get(tree.nodes[a].data), 1:length(tree.nodes))[tipnodes]
-  else
-    map(a->get(tree.nodes[a].data), 1:length(tree.nodes))
-  end
-end
-#assign_traits!(tree, 2.0, 0.5)
-#get_data(tree)
+
+assign_traits!(tree, 2.0, 0.1)
