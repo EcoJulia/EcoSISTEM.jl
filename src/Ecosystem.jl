@@ -199,10 +199,11 @@ end
 
 
 # Matrix Landscape types - houses abundances (initially empty)
-type GridLandscape{FP <: AbstractFloat} <: AbstractArray
+type GridLandscape{FP <: AbstractFloat}
   matrix::Matrix{FP}
   grid::Array{FP, 3}
 end
+
 
 function GridLandscape(abenv::AbstractAbiotic, spplist::SpeciesList)
   # Create an array of zero abundances according to the size of the habitat
@@ -211,7 +212,7 @@ function GridLandscape(abenv::AbstractAbiotic, spplist::SpeciesList)
                    size(abenv.habitat.matrix,2))
   dim = (length(spplist.abun),size(abenv.habitat.matrix,1),
                    size(abenv.habitat.matrix,2))
-  GridLandscape{AbstractFloat}(mat, reshape(mat, dim))
+  GridLandscape(mat, reshape(mat, dim))
 end
 
 # Ecosystem type - holds all information and populates ML
@@ -219,10 +220,10 @@ end
 #          Rel<: TraitRelationship,Look <: AbstractArray} <:
 #          AbstractMetacommunity{FP, A, Sim, Part}
 
-type Ecosystem{FP, A <: GridLandscape, Sim <: SpeciesList, Part <: AbstractAbiotic,
-   Rel <: TraitRelationship, Look <:AbstractArray} <:
+type Ecosystem{FP, A, Sim <: SpeciesList, Part <: AbstractAbiotic,
+   Rel <: TraitRelationship, Look <:AbstractArray, G <: GridLandscape} <:
    AbstractMetacommunity{AbstractFloat, A, Sim, Part}
-  abundances::A
+  abundances::G
   spplist::Sim
   abenv::Part
   ordinariness::Nullable{A}
@@ -260,12 +261,13 @@ function Ecosystem(spplist::SpeciesList, abenv::MatrixAbioticEnv, traits::Bool)
   # Populate this matrix with species abundances
   populate!(ml, spplist, abenv, traits)
   # For now create an identity matrix for the species relationships
-  rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
+  rel = eye(length(spplist.traits.traits))
   # Create lookup table of all moves and their probabilities
   lookup_tab = map(x -> lookup(abenv.habitat.size, maximum(size(abenv.habitat.matrix)),
    x, spplist.movement.thresh), spplist.movement.var)
-  Ecosystem{AbstractFloat, GridLandscape, SpeciesList, AbstractAbiotic,
-  TraitRelationship, typeof(lookup_tab)}(ml, spplist, abenv, Nullable{A}(), TraitRelationship(rel),
+   A = typeof(ml.matrix)
+  Ecosystem{AbstractFloat, A, SpeciesList, AbstractAbiotic,
+  TraitRelationship, typeof(lookup_tab), GridLandscape}(ml, spplist, abenv, Nullable{A}(), TraitRelationship(rel),
    lookup_tab)
 end
 

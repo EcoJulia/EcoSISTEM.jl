@@ -9,7 +9,7 @@ export jtree, jcoal, assign_traits!, get_traits
 include("Ecosystem.jl")
 export Ecosystem, Habitats, Niches, StringTraits, RealTraits,
 RealEnergy, GaussianMovement, SpeciesList, MatrixAbioticEnv,  MatrixLandscape,
-Ecosystem, copy_eco
+Ecosystem, copy_eco, GridLandscape
 
 include("Generate.jl")
 export populate!, random_habitat, update!, update_birth_move!
