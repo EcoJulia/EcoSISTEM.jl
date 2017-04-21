@@ -24,8 +24,8 @@ function populate(species::Int64, individuals::Int64, habitat::Habitats,
       abun=abun-1
     end
   end
-  # Create MatrixLandscape from P matrix and habitat
-  MatrixLandscape(P, habitat)
+  # Create GridLandscape from P matrix and habitat
+  GridLandscape(P, habitat)
 end
 
 # Function to calculate species richness from an Ecosystem object
@@ -189,8 +189,8 @@ function populate(species::Int64, individuals::Int64, habitat::Niches,
     #@rput(sum_abun)
     #R"par(mfrow=c(1,2));image.plot(sum_abun,col=rainbow(50)[1:20], breaks=seq(0,20,1));image(hab, legend = F)"
   end
-  # Create MatrixLandscape from P matrix and habitat
-  MatrixLandscape(P, habitat, budget)
+  # Create GridLandscape from P matrix and habitat
+  GridLandscape(P, habitat, budget)
 end
 
 
@@ -430,7 +430,7 @@ end
 
 
 # Alternative populate function
-function populate!(ml::MatrixLandscape, spplist::SpeciesList,
+function populate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AbstractAbiotic, traits::Bool)
   # Calculate size of habitat
   dim=size(abenv.habitat.matrix)
@@ -455,7 +455,7 @@ function populate!(ml::MatrixLandscape, spplist::SpeciesList,
         # Randomly choose position on grid (weighted)
         if traits pos=sample(grid, weights(wv)) else pos=sample(grid) end
       # Add individual to this location
-      ml.abundances[i,pos]=ml.abundances[i,pos]+1
+      ml.grid[i,pos]=ml.grid[i,pos]+1
       abun=abun-1
       b[pos]=b[pos]-1
     end

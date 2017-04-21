@@ -203,16 +203,19 @@ end
 
 
 # Matrix Landscape types - houses abundances (initially empty)
-type MatrixLandscape{A <: AbstractArray} <: AbstractArray
-  abundances::A
+type GridLandscape{FP <: AbstractFloat} <: AbstractArray
+  matrix::Matrix{FP}
+  grid::Array{FP, 3}
 end
 
-function MatrixLandscape(abenv::AbstractAbiotic, spplist::SpeciesList)
+function GridLandscape(abenv::AbstractAbiotic, spplist::SpeciesList)
   # Create an array of zero abundances according to the size of the habitat
   # and the number of species
-  abundances=zeros(length(spplist.abun),size(abenv.habitat.matrix,1),
+  mat = zeros(length(spplist.abun),size(abenv.habitat.matrix,1)*
                    size(abenv.habitat.matrix,2))
-  MatrixLandscape(abundances)
+  dim = (length(spplist.abun),size(abenv.habitat.matrix,1),
+                   size(abenv.habitat.matrix,2))
+  GridLandscape{AbstractFloat}(mat, reshape(mat, dim))
 end
 
 # Ecosystem type - holds all information and populates ML
@@ -220,7 +223,7 @@ end
 #          Rel<: TraitRelationship,Look <: AbstractArray} <:
 #          AbstractMetacommunity{FP, A, Sim, Part}
 
-type Ecosystem{FP, A, Sim <: SpeciesList, Part <: AbstractAbiotic,
+type Ecosystem{FP, A <: GridLandscape, Sim <: SpeciesList, Part <: AbstractAbiotic,
    Rel <: TraitRelationship, Look <:AbstractArray} <:
    AbstractMetacommunity{AbstractFloat, A, Sim, Part}
   abundances::A
@@ -257,18 +260,16 @@ function Ecosystem(spplist::SpeciesList, abenv::MatrixAbioticEnv, traits::Bool)
   sum(spplist.abun.*spplist.energy.energy)<= sum(abenv.budget.matrix) ||
   error("Environment does not have enough energy to support species")
   # Create matrix landscape of zero abundances
-  ml = MatrixLandscape(abenv, spplist)
+  ml = GridLandscape(abenv, spplist)
   # Populate this matrix with species abundances
-  species = length(spplist.abun)
   populate!(ml, spplist, abenv, traits)
   # For now create an identity matrix for the species relationships
   rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
   # Create lookup table of all moves and their probabilities
   lookup_tab = map(x -> lookup(abenv.habitat.size, maximum(size(abenv.habitat.matrix)),
    x, spplist.movement.thresh), spplist.movement.var)
-   A = typeof(ml.abundances)
-  Ecosystem{AbstractFloat, A, SpeciesList, AbstractAbiotic,
-  TraitRelationship, typeof(lookup_tab)}(ml.abundances, spplist, abenv, Nullable{A}(), TraitRelationship(rel),
+  Ecosystem{AbstractFloat, GridLandscape, SpeciesList, AbstractAbiotic,
+  TraitRelationship, typeof(lookup_tab)}(ml, spplist, abenv, Nullable{A}(), TraitRelationship(rel),
    lookup_tab)
 end
 
