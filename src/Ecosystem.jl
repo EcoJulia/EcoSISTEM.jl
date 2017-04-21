@@ -64,7 +64,7 @@ end
 
 # Species list type - all info on species
 type SpeciesList{FP <: AbstractFloat, M <: AbstractMatrix, T <: AbstractTraits,
-                 E<: AbstractEnergy, TR <: Tree, MO <: AbstractMovement} <:
+                 E<: AbstractEnergy, TR <: AbstractTree, MO <: AbstractMovement} <:
                              AbstractTypes
   similarity::M
   names::Vector{String}
@@ -76,7 +76,7 @@ type SpeciesList{FP <: AbstractFloat, M <: AbstractMatrix, T <: AbstractTraits,
 end
 
 function SpeciesList{FP <: AbstractFloat, T <: AbstractTraits,
-    E<: AbstractEnergy, TR <: Tree, MO <: AbstractMovement}(similarity::AbstractMatrix{FP},
+    E<: AbstractEnergy, TR <: AbstractTree, MO <: AbstractMovement}(similarity::AbstractMatrix{FP},
     names:: Vector{String}, traits::T, abun::Vector{Int64}, energy::E, phylo::TR,
     movement::MO)
     # Assign names
@@ -101,16 +101,16 @@ function SpeciesList{E<: AbstractEnergy,
     NumberTraits::Int64, abun_dist::Distribution, energy::E,
     movement::MO)
 
+    names = map(x -> "$x", 1:NumberSpecies)
     # Create tree
-    tree = jcoal(NumberSpecies, 100)
+    tree = jcoal(names, 100)
     # Create traits and assign to tips
     trts = map(string, 1:NumberTraits)
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    sp_trt = StringTraits(get_traits(tree, true))
+    sp_trt = StringTraits(get_traits(tree, names, true)[:,1])
     # Create similarity matrix (for now identity)
     similarity = eye(NumberSpecies)
-    names = map(x -> "$x", 1:size(similarity, 1))
     # Draw random set of abundances from distribution
     abun = rand(abun_dist)
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
