@@ -157,21 +157,21 @@ end
   # Return ultrametric tree
   tree2
 end
-function hasnoderecord(tree::AbstractTree, node::String)
-  return !isempty(getnoderecord(tree, node))
+function isnoderecordempty(tree::AbstractTree, node::String)
+  return isempty(getnoderecord(tree, node))
 end
-function hasnoderecords(tree::AbstractTree, nodes::Vector{String})
-  map(x -> hasnoderecord(tree, x), nodes)
+function arenoderecordsempty(tree::AbstractTree, nodes::Vector{String})
+  map(nodelist -> isnoderecordempty(tree, nodelist), nodes)
 end
 function findall(tree::AbstractTree)
-  return vcat(keys(tree.nodes)...)
+  return collect(keys(getnodes(tree)))
 end
 
 
 function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
   # Check if tree already assigned
-  check = map(a->hasnoderecord(tree, a), keys(tree.nodes))
-  !all(check) || error("Some nodes already assigned traits")
+  check = arenoderecordsempty(tree, findall(tree))
+  all(check) || error("Some nodes already assigned traits")
   # Calculate all branch paths from root to tips
   tips=findleaves(tree)
   paths = map(i-> reverse(nodepath(tree, i)), tips)
@@ -186,7 +186,7 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
     assigned=false
     # Test if any branches have been assigned already
     if size(pairs, 1) > 1
-      test_assigned = mapslices(a -> hasnoderecords(tree, a), pairs, 1)
+      test_assigned = !mapslices(a -> arenoderecordsempty(tree, a), pairs, 1)
       assigned = mapslices(all, test_assigned, 2)
       assigned = vcat(assigned...)
       # If they have been assigned, remove from node pairs
