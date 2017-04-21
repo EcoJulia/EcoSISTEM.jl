@@ -176,7 +176,7 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
   tips=findleaves(tree)
   paths = map(i-> reverse(nodepath(tree, i)), tips)
   # Assign first node a trait randomly
-  setnoderecord!(tree, "Node 1", [sample(traits)])
+  setnoderecord!(tree, findroots(tree)[1], [sample(traits)])
   # Loop through all paths
   for i in (1 : length(paths))
     # Choose first path
@@ -230,9 +230,9 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
       num_switches = sum(cum_times .< branch_len)
 
       # Find trait of last node
-      labels = map(a -> hasnoderecord(tree, a), sel_pair)
-      last_node = maximum(sel_pair[labels])
-      last_label = getnoderecord(tree, last_node)
+      labels = !arenoderecordsempty(tree, sel_pair)
+      last_node = sel_pair[labels]
+      last_label = getnoderecord(tree, last_node[1])
 
       # If there are no switches, give same trait as previous node
       if num_switches == 0
@@ -279,19 +279,17 @@ end
 
 
 
-tree = jcoal(5, 10, Float64)
-
 
 function assign_traits!(tree::NodeTree, start::Float64, σ²:: Float64)
-  check = map(a->hasnoderecord(tree, a), findall(tree))
-  !all(check) || error("Some nodes already assigned traits")
+  check = arenoderecordsempty(tree, findall(tree))
+  all(check) || error("Some nodes already assigned traits")
   # Start out with branches 1 & 2
   len = map(x-> tree.branches[x].length, 1:2)
   traits = map(x->BM(x, σ², start)[end], len)
   # Find all names of nodes
   names =  findall(tree)
   # Sort by distance from root
-  dist = map(x -> distance(tree, "Node 1", x), names)
+  dist = map(x -> distance(tree, findroots(tree)[1], x), names)
   names = names[sortperm(dist)]
   # Loop through nodes in order of appearance
   for i in names
