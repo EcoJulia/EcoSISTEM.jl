@@ -1,11 +1,7 @@
 using Diversity
 using Cubature
 
-import Diversity.getabundance, Diversity.getpartition, Diversity.gettypes
-import Diversity.getordinariness!, Diversity.countsubcommunities
-import Diversity.getnames
-import Diversity.counttypes, Diversity.getnames
-import Diversity.getordinariness, Diversity.getsimilarity
+importall Diversity.API
 
 ## Habitat types
 abstract AbstractHabitat
@@ -124,23 +120,23 @@ function SpeciesList{E<: AbstractEnergy,
   SpeciesList(similarity, names, sp_trt, abun, energy, tree, movement)
 end
 
-function counttypes(sl::SpeciesList)
+function _counttypes(sl::SpeciesList)
     return size(sl.similarity, 1)
 end
 
-function getsimilarity(sl::SpeciesList)
+function _getsimilarity(sl::SpeciesList)
     return sl.similarity
 end
 
-function floattypes{FP, M}(::SpeciesList{FP, M})
+function _floattypes{FP, M}(::SpeciesList{FP, M})
     return Set([FP])
 end
 
-function getnames(sl::SpeciesList)
+function _getnames(sl::SpeciesList)
     return sl.names
 end
 
-function getordinariness(sl::SpeciesList, a::AbstractArray)
+function _calcordinariness(sl::SpeciesList, a::AbstractArray)
     getsimilarity(sl) * a
 end
 
@@ -193,11 +189,11 @@ function MatrixAbioticEnv(NumberNiches::Int64, dimension::Tuple, maxBud::Real, s
   MatrixAbioticEnv(Niches(hab, size), Budget(bud), names)
 end
 
-function countsubcommunities(mae::MatrixAbioticEnv)
+function _countsubcommunities(mae::MatrixAbioticEnv)
   return length(mae.habitat.matrix)
 end
 
-function getnames(mae::MatrixAbioticEnv)
+function _getnames(mae::MatrixAbioticEnv)
     return mae.names
 end
 
@@ -273,20 +269,19 @@ function Ecosystem(spplist::SpeciesList, abenv::MatrixAbioticEnv, traits::Bool)
    lookup_tab)
 end
 
-function getabundance(eco::Ecosystem)
-  return reshape(eco.abundances,
-   counttypes(eco.spplist), countsubcommunities(eco.abenv))
+function _getabundance(eco::Ecosystem)
+  return eco.abundances.matrix
 end
-function getpartition(eco::Ecosystem)
+function _getpartition(eco::Ecosystem)
   return eco.abenv
 end
-function gettypes(eco::Ecosystem)
+function _gettypes(eco::Ecosystem)
     return eco.spplist
 end
 
-function getordinariness!(eco::Ecosystem)
+function _calcordinariness!(eco::Ecosystem)
     if isnull(eco.ordinariness)
-        eco.ordinariness = getordinariness(eco.spplist, getabundance(eco))
+        eco.ordinariness = calcordinariness(eco.spplist, getabundance(eco))
     end
     get(eco.ordinariness)
 end
