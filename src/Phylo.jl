@@ -252,14 +252,17 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
 end
 
 
-function get_traits(tree::NodeTree, tips::Bool=true)
+function get_traits(tree::NodeTree, SpeciesNames::Vector{String},
+   tips::Bool=true)
+   check = !arenoderecordsempty(tree, findall(tree))
+   all(check) || error("All node records empty")
   if tips
-    tipnodes= findleaves(tree)
-    return hcat(map(a->getnoderecord(tree, a)[1], tipnodes), tipnodes)
+    nodes = findleaves(tree)
   else
-    allnodes= findall(tree)
-    return hcat(map(a->getnoderecord(tree, a)[1], allnodes), allnodes)
+    nodes = findall(tree)
   end
+  records = hcat(map(a->getnoderecord(tree, a)[1], nodes), nodes)
+  return sortrows(records, by=x-> x[2])
 end
 
 #function get_times(tree::Tree)
@@ -306,5 +309,6 @@ function assign_traits!(tree::NodeTree, start::Float64, σ²:: Float64)
   end
   tree
 end
-
-assign_traits!(tree, 2.0, 0.1)
+#tree2 = jcoal(5, 10, Float64)
+#assign_traits!(tree2, 2.0, 0.1)
+#get_traits(tree2)
