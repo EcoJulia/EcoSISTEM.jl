@@ -1,17 +1,19 @@
 using PhyloTrees
 using Distributions
-using Plots
+#using Plots
 #using Simulation
 #Function to create random tree with set number of tips
-function jtree(n::Int64, T::Type = String, dist::Distribution = Uniform(0,n))
+function jtree(SpeciesNames::Vector{String}, T::Type = String,
+  dist::Distribution = Uniform(0, length(SpeciesNames)))
   #Create tree
-  tree1 = NodeTree(n, nodetype = Vector{T})
+  tree1 = NodeTree(SpeciesNames, nodetype = Vector{T})
+  n = length(SpeciesNames)
   # If only one branch
   leaf_names = getleafnames(tree1)
   inner_names = addnodes!(tree1, n-1)
   if n == 1
     error("More species needed")
-  elseif n==2
+  elseif n == 2
     map(x -> addbranch!(tree1, inner_names[1], x, rand(dist)), leaf_names)
   else
     inner_names_copy = copy(inner_names)
@@ -49,8 +51,8 @@ function jtree(n::Int64, T::Type = String, dist::Distribution = Uniform(0,n))
   end
   tree1
 end
-tree = jtree(5)
-plot(tree)
+#tree = jtree(5)
+#plot(tree)
 
 # Function to produce a matrix of all source and target nodes within a tree
 function sou_tar(tree::AbstractTree, len::Bool)
@@ -111,10 +113,10 @@ function root_to_tips(tree)
   map(nodepath,repmat([tree],endof(tips)), repmat([root],endof(tips)), tips)
 end
 # Function to create a random ultrametric tree
-function jcoal(n::Int64, len::Real, T::Type=String)
+function jcoal(SpeciesNames::Vector{String}, len::Real, T::Type=String)
   # Create random tree
-  tree2=jtree(n, T)
-
+  tree2=jtree(SpeciesNames, T)
+  n = length(SpeciesNames)
   if n == 1
     tree2.branches[1].length = len
   else
