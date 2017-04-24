@@ -475,7 +475,7 @@ end
 # add in draw from multinomial
 function populate!(eco::Ecosystem, traits::Bool)
   # Calculate size of habitat
-  eco.abundances = zeros(size(eco.abundances))
+  eco.abundances = GridLandscape(eco.abenv, eco.spplist)
   dim=size(eco.abenv.habitat.matrix)
   grid=collect(1:dim[1]*dim[2])
   # Set up copy of budget
@@ -488,18 +488,25 @@ function populate!(eco::Ecosystem, traits::Bool)
     # Get species trait
     pref=eco.spplist.traits.traits[i]
     # Calculate weighting, giving preference to squares that match with trait
+    if traits
     wv= Vector{Float64}(grid)
     wv[find(reshape(eco.abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.5
     wv[find(reshape(eco.abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.5
+    end
     # Loop through individuals
       while abun>0
         zs=findin(b[grid], 0)
         deleteat!(grid, zs)
-        deleteat!(wv, zs)
+
         # Randomly choose position on grid (weighted)
-        if traits pos=sample(grid, weights(wv)) else pos=sample(grid) end
+        if traits
+          deleteat!(wv, zs)
+          pos=sample(grid, weights(wv))
+        else
+          pos=sample(grid)
+        end
       # Add individual to this location
-      eco.abundances[i,pos]=eco.abundances[i,pos]+1
+      eco.abundances.grid[i,pos]=eco.abundances.grid[i,pos]+1
       abun=abun-1
       b[pos]=b[pos]-1
     end
