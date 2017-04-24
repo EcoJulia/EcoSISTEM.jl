@@ -231,26 +231,25 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
   #abun=map(i->sum(eco.abundances[i,:,:]), 1:size(eco.abundances,1))
 
   # Calculate dimenions of habitat and number of species
-  dims = size(eco.abundances)[2:3]
-  spp = size(eco.abundances,1)
-  net_migration = zeros(size(eco.abundances))
+  dims = length(eco.abenv.habitat.matrix)
+  spp = size(eco.abundances.grid,1)
+  net_migration = zeros(size(eco.abundances.matrix))
 
   # Loop through grid squares
-  for x in 1:dims[1]
-    for y in 1:dims[2]
+  for i in 1:dims
 
       # Get the overall energy budget of that square
-      K = eco.abenv.budget.matrix[x, y]
+      K = eco.abenv.budget.matrix[i]
       randomise=collect(1:spp)
       randomise=randomise[randperm(length(randomise))]
       # Loop through species in chosen square
       for j in randomise
 
         # Get abundances of square we are interested in
-        square = eco.abundances[:,x, y]
+        square = eco.abundances.matrix[:, i]
 
         if square[j] <= 0
-          eco.abundances[j,x, y] = 0
+          eco.abundances.matrix[j, i] = 0
         else
         # Get energy budgets of species in square
         ϵ̄ = eco.spplist.energy.energy
