@@ -1,11 +1,11 @@
 ## Code for running model on spatial grid
 
 # Include simulation functions
+using Diversity
 using Simulation
 using RCall
 using Distributions
 using StatsBase
-using Diversity
 
 ## Run simulation on 2 by 1 grid - investigate spatial distributions
 
@@ -27,25 +27,25 @@ timestep = 1
 # Collect model parameters together (in this order!!)
 param = [birth, death, timestep, l, s]
 
-grid = (2,1)
+grid = (2, 1)
 gridSize = 1
 totalK = 1000
 individuals=100
 
 # Create ecosystem
-movement = GaussianMovement(0.2, numSpecies, 10e-4)
+movement = GaussianMovement(0.8, numSpecies, 10e-4)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement)
 abenv = MatrixAbioticEnv(numNiches, grid, totalK, gridSize)
 eco = Ecosystem(sppl, abenv, false)
-times = 1000; burnin = 500; interval = 10; reps = 100; birth_move = false
+times = 1000; burnin = 500; interval = 10; reps = 10; birth_move = false
 # Run simulations 100 times
 ab = run_sim_spatial(eco, param, times, burnin, interval, reps, birth_move)
 
 
 ## Look at species 1
 # Convert the abundances to Integers for species 1
-tot = convert(Array{Int64,3}, ab[:,1,:,:])
+tot = convert(Array{Int64,3}, ab[:, 1, :, :])
 
 comp = expected_counts(tot, 1)
 

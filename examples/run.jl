@@ -309,10 +309,10 @@ individuals=100
 
 # Create ecosystem
 movement = GaussianMovement(0.2, numSpecies, 10e-4)
-spplist = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
+sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement)
 abenv = MatrixAbioticEnv(numNiches, grid, totalK, gridSize)
-eco = Ecosystem(spplist, abenv, false)
+eco = Ecosystem(sppl, abenv, false)
 plot_move(eco, 2, 2, 1)
 # Run simulation grid
 abun = run_sim_spatial(eco, param, 100, 1, 1, 1, false)

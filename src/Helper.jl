@@ -16,15 +16,15 @@ function run_sim(eco, params::AbstractVector, times::Int64, reps::Int64)
     populate!(eco, false)
 
     for k in 1:gridSize
-      abun[1,:, k,  j] = eco.abundances[:, 1]
+      abun[1,:, k,  j] = eco.abundances.matrix[:, 1]
       ener[1, k,  j] = sum(eco.spplist.abun .* eco.spplist.energy.energy)
     end
 
     for i in 1:times
         update!(eco, birth, death, move, l, s, timestep)
         for g in 1:gridSize
-          abun[i+1, :,g, j] = eco.abundances[: , g]
-          ener[i+1, g, j] = sum(eco.abundances[: , g] .* eco.spplist.energy.energy)
+          abun[i+1, :, g, j] = eco.abundances.matrix[: , g]
+          ener[i+1, g, j] = sum(eco.abundances.matrix[: , g] .* eco.spplist.energy.energy)
         end
     end
     map
@@ -59,13 +59,13 @@ function run_sim_spatial(eco::Ecosystem, param::AbstractVector,
   @showprogress 1 "Computing..." for j in 1:reps
     populate!(eco, false)
 
-    abun[1, :, j, :] = eco.abundances[:, :]
+    abun[1, :, j, :] = eco.abundances.matrix
     counting = 1
     for i in 1:times
         update_fun(eco, birth, death, l, s, timestep); #print(eco.abundances)
         if any(i.==time_seq)
             counting = counting+1
-            abun[counting, :, j, :] = eco.abundances
+            abun[counting, :, j, :] = eco.abundances.matrix
       end
     end
   end
