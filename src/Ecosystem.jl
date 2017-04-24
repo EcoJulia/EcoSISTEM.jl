@@ -124,7 +124,7 @@ function _counttypes(sl::SpeciesList)
     return size(sl.similarity, 1)
 end
 
-function _getsimilarity(sl::SpeciesList)
+function _calcsimilarity(sl::SpeciesList)
     return sl.similarity
 end
 
@@ -137,7 +137,7 @@ function _getnames(sl::SpeciesList)
 end
 
 function _calcordinariness(sl::SpeciesList, a::AbstractArray)
-    getsimilarity(sl) * a
+    _calcsimilarity(sl) * a
 end
 
 
@@ -274,6 +274,9 @@ end
 function _getabundance(eco::Ecosystem)
   return eco.abundances.matrix
 end
+function _getmetaabundance(eco::Ecosystem)
+  return eco.abundances.matrix
+end
 function _getpartition(eco::Ecosystem)
   return eco.abenv
 end
@@ -281,9 +284,9 @@ function _gettypes(eco::Ecosystem)
     return eco.spplist
 end
 
-function _calcordinariness!(eco::Ecosystem)
+function _getordinariness!(eco::Ecosystem)
     if isnull(eco.ordinariness)
-        eco.ordinariness = calcordinariness(eco.spplist, getabundance(eco))
+        eco.ordinariness = _calcordinariness(_gettypes(eco), _getabundance(eco))
     end
     get(eco.ordinariness)
 end
