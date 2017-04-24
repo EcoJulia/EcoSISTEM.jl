@@ -287,24 +287,35 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
         deaths = jbinom(1, Int(square[j]), probs[2])[1]
 
         # Update population
-        eco.abundances[j, x, y] = eco.abundances[j, x, y] +
+        eco.abundances.matrix[j, i] = eco.abundances.matrix[j, i] +
           births - deaths
 
-        # Then calculate movements
-        square[j] = eco.abundances[j, x, y]
-
         # Perform gaussian movement
-        move!(x, y, j, eco, net_migration)
-        end
+        move!(i, j, eco, net_migration)
       end
     end
   end
-  eco.abundances = eco.abundances .+ net_migration
+  #eco.abundances.matrix = eco.abundances.matrix .+ net_migration
+  map(x-> eco.abundances.matrix[:, x] = eco.abundances.matrix[:, x] +
+  net_migration[:, x], 1:size(eco.abundances.matrix, 2))
+end
+
+function convert_coords(i::Int64, width::Int64)
+  i = i - 1
+  x = (i % width) + 1
+  y = div(i, width)  + 1
+  return (x, y)
+end
+function convert_coords(x::Int64, y::Int64, width::Int64)
+  x = x - 1 ; y = y - 1
+  i = x + width * y
+  return i + 1
 end
 
 
-function move!(x::Int64, y::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 3})
-
+function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
+  width = size(eco.abenv.habitat.matrix, 1)
+  (x, y) = convert_coords(i, width)
   # Draw moves from Multinomial dist
   table = eco.lookup[spp] .+ [x y 0]
   maxX = size(eco.abenv.habitat.matrix, 1)
@@ -317,15 +328,15 @@ function move!(x::Int64, y::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float6
   table = table[valid, :]
   table[:, 3] = table[:, 3]/sum(table[:, 3])
 
-  moves = rand(Multinomial(Int64(eco.abundances[spp, x, y]),
+  moves = rand(Multinomial(Int64(eco.abundances.matrix[spp, i]),
           Vector{Float64}(table[:, 3])))
   # Add moves to lookup table
   table = hcat(table, moves)
   # Lose moves from current grid square
-  grd[spp, x, y] = grd[spp, x, y] - sum(moves)
+  grd[spp, i] = grd[spp, i] - sum(moves)
   # Map moves to location in grid
-  map(x -> grd[spp, table[x, 1], table[x, 2]] = grd[spp,
-  table[x, 1], table[x, 2]] + moves[x], 1:size(table,1))
+  map(x -> grd[spp, convert_coords(table[x, 1], table[x, 2], width)] = grd[spp,
+  convert_coords(table[x, 1], table[x, 2], width)] + moves[x], 1:size(table,1))
 end
 
 function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
