@@ -274,7 +274,8 @@ function convert_coords(x::Int64, y::Int64, width::Int64)
 end
 
 
-function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
+function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2},
+                births::Nullable{Int64} = Nullable{Int64}())
   width = size(eco.abenv.habitat.matrix, 1)
   (x, y) = convert_coords(i, width)
   # Draw moves from Multinomial dist
@@ -289,7 +290,13 @@ function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
   table = table[valid, :]
   table[:, 3] = table[:, 3]/sum(table[:, 3])
 
-  moves = rand(Multinomial(Int64(eco.abundances.matrix[spp, i]),
+  if isnull(births)
+    abun = Int64(eco.abundances.matrix[spp, i])
+  else
+    abun = births
+  end
+
+  moves = rand(Multinomial(abun,
           Vector{Float64}(table[:, 3])))
   # Add moves to lookup table
   table = hcat(table, moves)
