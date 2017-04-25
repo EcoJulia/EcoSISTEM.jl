@@ -1,45 +1,6 @@
 using StatsBase
 using ProgressMeter
 
-# Function to randomly populate a habitat matrix
-function populate(species::Int64, individuals::Int64, habitat::Habitats,
-   dist::Distribution= Multinomial(individuals,species))
-  # Calculate size of habitat
-  dim=size(habitat.matrix)
-  # Create empty population matrix of correct dimensions
-  P=zeros(Int64,species,dim[1],dim[2])
-  # Randomly choose abundances for each species from Multinomial
-  abun_vec=rand(dist)
-  # Loop through species
-  for i in eachindex(abun_vec)
-    # Get abundance of species
-    abun=abun_vec[i]
-      # Loop through individuals
-      while abun>0
-      # Randomly choose position on grid
-      x=rand(1:dim[1])
-      y=rand(1:dim[1])
-      # Add individual to this location
-      P[i,x,y]=P[i,x,y]+1
-      abun=abun-1
-    end
-  end
-  # Create GridLandscape from P matrix and habitat
-  GridLandscape(P, habitat)
-end
-
-# Function to calculate species richness from an Ecosystem object
-function SR(ecosystem::Ecosystem)
-  sz=size(ecosystem.partition.abundances,2,3)
-  ms=map(x-> sum(ecosystem.partition.abundances[:,x].>0), 1:(sz[1]*sz[2]))#*individuals
-  reshape(ms, sz)
-end
-
-# Function to create a habitat from a discrete set of types
-function create_habitat(dim, types, prop)
-  # Weighted sample from the types in the correct dimension
-  sample(types, WeightVec(prop), dim)
-end
 
 # Function to create a habitat from a discrete set of types according to the
 # Saura-Martinez-Millan algorithm (2000)
