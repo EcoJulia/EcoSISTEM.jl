@@ -336,26 +336,25 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
   #abun=map(i->sum(eco.abundances[i,:,:]), 1:size(eco.abundances,1))
 
   # Calculate dimenions of habitat and number of species
-  dims = size(eco.abundances)[2:3]
-  spp = size(eco.abundances,1)
-  net_migration = zeros(size(eco.abundances))
+  dims = length(eco.abenv.habitat.matrix)
+  spp = size(eco.abundances.matrix, 1)
+  net_migration = zeros(size(eco.abundances.matrix))
 
   # Loop through grid squares
-  for x in 1:dims[1]
-    for y in 1:dims[2]
+  for i in 1:dims
 
       # Get the overall energy budget of that square
-      K = eco.abenv.budget.matrix[x, y]
+      K = eco.abenv.budget.matrix[i]
       randomise=collect(1:spp)
       randomise=randomise[randperm(length(randomise))]
       # Loop through species in chosen square
       for j in randomise
 
         # Get abundances of square we are interested in
-        square = eco.abundances[:,x, y]
+        square = eco.abundances.matrix[:, i]
 
         if square[j] <= 0
-          eco.abundances[j,x, y] = 0
+          eco.abundances.matrix[j, i] = 0
         else
         # Get energy budgets of species in square
         ϵ̄ = eco.spplist.energy.energy
@@ -364,17 +363,11 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
         # Alter rates by energy available in current pop & own requirements
         birth_energy = (ϵ̄[j])^(-l-s) * K / E
         death_energy = (ϵ̄[j])^(-l+s) * E / K
-        move_energy = 1
 
         # Calculate effective rates
         birthprob = birth * timestep * birth_energy
         deathprob = death * timestep * death_energy
-        moveprob = move * timestep * move_energy
 
-        # If traits are same as habitat type then give birth "boost"
-        #if eco.spplist.traits.traits[j] != eco.abenv.habitat.matrix[x, y]
-        #  birthrate = birthrate * 0.8
-        #end
 
         # If zero abundance then go extinct
         if square[j] == 0
@@ -382,11 +375,6 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
           deathprob = 0
           moveprob = 0
         end
-
-        # Throw error if rates exceed 1
-        #birthprob <= 1 && deathprob <= 1 && moveprob <= 1 ||
-        #  error("rates larger than one in binomial draw")
-
 
         # Put probabilities into 0 - 1
         probs = map(prob -> 1-exp(-prob), [birthprob, deathprob])
@@ -396,32 +384,18 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
         deaths = jbinom(1, Int(square[j]), probs[2])[1]
 
         # Update population
-        eco.abundances[j, x, y] = eco.abundances[j, x, y] +
+        eco.abundances.matrix[j, i] = eco.abundances.matrix[j, i] +
           births - deaths
 
-        #eco.
-
-        #moves = jbinom(1, Int(births), moveprob)[1]
-
-        # Update population
-        #net_migration[j, x, y] = net_migration[j, x, y] - moves
-        #if (moves>0)
-        # Find neighbours of grid square
-        #  neighbours = get_neighbours(eco.abenv.habitat.matrix, x, y)
-        # Randomly sample one of the neighbours
-        #  choose = rand(Multinomial(moves, size(neighbours, 1)))
-        # for k in eachindex(choose)
-        #      destination = neighbours[k, :]
-        #  # Add one to this neighbour
-        #     net_migration[j, destination[1], destination[2]] =
-        #        net_migration[j, destination[1], destination[2]] + choose[k]
-        #    end
-        # end
-        end
+        # Perform gaussian movement
+        move!(i, j, eco, net_migration, births)
       end
     end
   end
+  # Update abundances with moves all at once
   #eco.abundances = eco.abundances .+ net_migration
+  map(x-> eco.abundances.matrix[:, x] = eco.abundances.matrix[:, x] +
+  net_migration[:, x], 1:size(eco.abundances.matrix, 2))
 end
 
 
