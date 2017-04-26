@@ -38,37 +38,31 @@ sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement)
 abenv = MatrixAbioticEnv(numNiches, grid, totalK, gridSize)
 eco = Ecosystem(sppl, abenv, false)
-times = 1000; burnin = 500; interval = 10; reps = 10; birth_move = false
+times = 1000; burnin = 500; interval = 10; reps = 100; birth_move = false
 # Run simulations 100 times
 ab = run_sim_spatial(eco, param, times, burnin, interval, reps, birth_move)
 
 
 ## Look at species 1
 # Convert the abundances to Integers for species 1
-tot = convert(Array{Int64,3}, ab[:, 1, :, :])
 
-comp = expected_counts(tot, 1)
+comp = expected_counts(ab, 1, 1)
 
 plot_divergence(comp)
 
 
 # Count how many of each abundance there are when the total is 10
 # Is the distribution even?
-count_tot = grid1[total.==10]
-@rput count_tot
-R"hist(count_tot, breaks=c(-0.5:10.5), main=' ', xlab='Abundance')"
+freq_hist(ab, 1, 10, 1)
 # Stop here - try for all data combined and diff values of m
 
 
 ## Perform same analysis for ALL SPECIES
-tot = convert(Array{Int64,4}, ab)
-comp = expected_counts(tot, 1)
+comp = expected_counts(ab, 1)
 plot_divergence(comp)
 
 # Count how many of each abundance there were with 10 in total
-count_tot = grid1[total.==10]
-@rput count_tot
-R"hist(count_tot, breaks=c(-0.5:10.5), main=' ', xlab='Abundance')"
+freq_hist(ab, 1, 10)
 
 
 ## Run simulation on 5 by 5 grid - investigate spatial distributions
