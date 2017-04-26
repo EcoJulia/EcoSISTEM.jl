@@ -53,3 +53,29 @@ function plot_divergence(combined::Array{Array{Float64, 1}, 1})
   actual = combined[2]
   plot_divergence(expected, actual)
 end
+
+function freq_hist(grd::Array{Float64, 4}, sq::Int64, num::Int64)
+  total = mapslices(sum, grd , length(size(grd)))
+  grd = grd[:, :, :, sq]
+  _freq_hist(total, grd, num)
+end
+
+function freq_hist(grd::Array{Float64, 3}, sq::Int64, num::Int64)
+  total = mapslices(sum, grd , length(size(grd)))
+  grd = grd[:, :, sq]
+  _freq_hist(total, grd, num)
+end
+
+function freq_hist(grd::Array{Float64}, sq::Int64, num::Int64, spp::Int64)
+  spp_grd = grd[:, spp, :, :]
+  freq_hist(spp_grd, sq, num)
+end
+
+function _freq_hist(total::Array{Float64}, grd::Array{Float64}, num::Int64)
+  grd = grd[reshape(total, size(grd)).>0]
+  total = total[total.>0]
+  count_tot = grd[total.== num]
+  @rput count_tot
+  @rput num
+  R"hist(count_tot, breaks=c(-0.5:(num+0.5)), main=' ', xlab='Abundance')"
+end
