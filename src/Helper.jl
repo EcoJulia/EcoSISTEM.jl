@@ -72,12 +72,23 @@ function run_sim_spatial(eco::Ecosystem, param::AbstractVector,
   abun
 end
 
-function expected_counts(grd::Array{Int64, 3}, sq::Int64)
-
+function expected_counts(grd::Array{Float64, 3}, sq::Int64)
+  grd = convert(Array{Int64}, grd)
   total = mapslices(sum, grd , length(size(grd)))[:, :,  1]
   grd = grd[:, :, sq]
+  _expected_counts(total, grd, sq)
+end
 
-  grd = grd[total.>0]
+
+function expected_counts(grd::Array{Float64, 4}, sq::Int64)
+  grd = convert(Array{Int64}, grd)
+  total = mapslices(sum, grd , length(size(grd)))[:, :, :,  1]
+  grd = grd[:, :, :, sq]
+  _expected_counts(total, grd, sq)
+end
+
+function _expected_counts(total::Array{Int64}, grd::Array{Int64}, sq::Int64)
+  grd = grd[reshape(total, size(grd)).>0]
   total = total[total.>0]
 
   actual = counts(grd+1, maximum(grd+1))
@@ -96,26 +107,8 @@ function expected_counts(grd::Array{Int64, 3}, sq::Int64)
   return [expected, actual]
 end
 
-function expected_counts(grd::Array{Int64, 4}, sq::Int64)
 
-  total = mapslices(sum, grd , length(size(grd)))[:, :, :,  1]
-  grd = grd[:, :, :, sq]
-
-  grd = grd[total.>0]
-  total = total[total.>0]
-
-  actual = counts(grd+1, maximum(grd+1))
-  actual = convert(Array{Float64,1}, actual)
-
-  # Calculate
-  expected_dist = zeros(Float64, (length(total), maximum(total)+1))
-  for i in 1:length(total)
-    expected_dist[i, 1:(total[i]+1)] = repmat([1/(total[i]+1)], total[i]+1)
-  end
-  expected = mapslices(sum, expected_dist, 1)
-
-  # Cut expected values to length of actual
-  expected = expected[1:length(actual)]
-
-  return [expected, actual]
+function expected_counts(grd::Array{Float64}, sq::Int64, spp::Int64)
+  spp_grd = grd[:, spp, :, :]
+  expected_counts(spp_grd, sq)
 end
