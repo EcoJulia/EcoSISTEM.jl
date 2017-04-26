@@ -12,12 +12,12 @@ RealEnergy, GaussianMovement, SpeciesList, MatrixAbioticEnv,  MatrixLandscape,
 Ecosystem, copy_eco, GridLandscape
 
 include("Generate.jl")
-export populate!, random_habitat, update!, update_birth_move!
+export populate!, repopulate!, random_habitat, update!, update_birth_move!
 
 include("Helper.jl")
 export run_sim, run_sim_spatial, expected_counts
 
 include("plotting.jl")
-export plot_move, plot_abun, plot_divergence
+export plot_move, plot_abun, plot_divergence, freq_hist
 
 end
