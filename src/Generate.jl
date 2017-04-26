@@ -278,9 +278,7 @@ function convert_coords(x::Int64, y::Int64, width::Int64)
   return i + 1
 end
 
-
-function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2},
-                births::Nullable{Int64} = Nullable{Int64}())
+function calc_lookup_moves(i::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
   width = size(eco.abenv.habitat.matrix, 1)
   (x, y) = convert_coords(i, width)
   # Draw moves from Multinomial dist
@@ -295,24 +293,39 @@ function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2},
   table = table[valid, :]
   table[:, 3] = table[:, 3]/sum(table[:, 3])
 
-  if isnull(births)
-    abun = Int64(eco.abundances.matrix[spp, i])
-  else
-    abun = births
-  end
-
   moves = rand(Multinomial(abun,
           Vector{Float64}(table[:, 3])))
   # Add moves to lookup table
   table = hcat(table, moves)
+  table
+end
+
+function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
+  width = size(eco.abenv.habitat.matrix, 1)
+  full_abun = Int64(eco.abundances.matrix[spp, i])
+  table = calc_lookup_moves(i, spp, eco, full_abun)
   # Lose moves from current grid square
+  moves = table[:, 4]
   grd[spp, i] = grd[spp, i] - sum(moves)
   # Map moves to location in grid
   map(x -> grd[spp, convert_coords(table[x, 1], table[x, 2], width)] = grd[spp,
   convert_coords(table[x, 1], table[x, 2], width)] + moves[x], 1:size(table,1))
 end
 
-function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64, move::Float64,
+
+function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2},
+                births::Int64)
+  width = size(eco.abenv.habitat.matrix, 1)
+  table = calc_lookup_moves(i, spp, eco, births)
+  # Lose moves from current grid square
+  moves = table[:, 4]
+  grd[spp, i] = grd[spp, i] - sum(moves)
+  # Map moves to location in grid
+  map(x -> grd[spp, convert_coords(table[x, 1], table[x, 2], width)] = grd[spp,
+  convert_coords(table[x, 1], table[x, 2], width)] + moves[x], 1:size(table,1))
+end
+
+function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
    l::Float64, s::Float64, timestep::Real)
 
    # For now keep l>s
