@@ -13,7 +13,7 @@ function run_sim(eco, params::AbstractVector, times::Int64, reps::Int64)
 
   for j in 1:reps
 
-    populate!(eco, false)
+    repopulate!(eco, false)
 
     for k in 1:gridSize
       abun[1,:, k,  j] = eco.abundances.matrix[:, 1]
@@ -57,7 +57,7 @@ function run_sim_spatial(eco::Ecosystem, param::AbstractVector,
   end
 
   @showprogress 1 "Computing..." for j in 1:reps
-    populate!(eco, false)
+    repopulate!(eco, false)
 
     abun[1, :, j, :] = eco.abundances.matrix
     counting = 1
