@@ -1,6 +1,11 @@
 using StatsBase
 using ProgressMeter
 
+# Function to create a habitat from a discrete set of types
+function create_habitat(dim, types, prop)
+  # Weighted sample from the types in the correct dimension
+  sample(types, WeightVec(prop), dim)
+end
 
 # Function to create a habitat from a discrete set of types according to the
 # Saura-Martinez-Millan algorithm (2000)
