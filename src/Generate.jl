@@ -403,8 +403,9 @@ end
 function populate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AbstractAbiotic, traits::Bool)
   # Calculate size of habitat
-  dim=size(abenv.habitat.matrix)
-  grid=collect(1:dim[1]*dim[2])
+  dim = size(abenv.habitat.matrix)
+  len = dim[1]*dim[2]
+  grid = collect(1:len)
   # Set up copy of budget
   b=copy(abenv.budget.matrix)
   # Loop through species
@@ -415,8 +416,8 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
     pref=spplist.traits.traits[i]
     # Calculate weighting, giving preference to squares that match with trait
     wv= Vector{Float64}(grid)
-    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.5
-    wv[find(reshape(abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.5
+    wv[find(reshape(abenv.habitat.matrix, (len,1))[grid].==pref)]= 0.5
+    wv[find(reshape(abenv.habitat.matrix, (len,1))[grid].!=pref)]= 0.5
     # Loop through individuals
       while abun>0
         zs=findin(b[grid], 0)
@@ -437,7 +438,8 @@ function populate!(eco::Ecosystem, traits::Bool)
   # Calculate size of habitat
   eco.abundances = GridLandscape(eco.abenv, eco.spplist)
   dim=size(eco.abenv.habitat.matrix)
-  grid=collect(1:dim[1]*dim[2])
+  len = dim[1]*dim[2]
+  grid=collect(1:len)
   # Set up copy of budget
   b=copy(eco.abenv.budget.matrix)
   # Loop through species
@@ -450,8 +452,8 @@ function populate!(eco::Ecosystem, traits::Bool)
     # Calculate weighting, giving preference to squares that match with trait
     if traits
     wv= Vector{Float64}(grid)
-    wv[find(reshape(eco.abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.5
-    wv[find(reshape(eco.abenv.habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.5
+    wv[find(reshape(eco.abenv.habitat.matrix, (len, 1))[grid].==pref)]= 0.5
+    wv[find(reshape(eco.abenv.habitat.matrix, (len, 1))[grid].!=pref)]= 0.5
     end
     # Loop through individuals
       while abun>0
