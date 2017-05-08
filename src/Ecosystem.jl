@@ -1,5 +1,6 @@
 using Diversity
 using Cubature
+using DataFrames
 
 importall Diversity.API
 
@@ -307,21 +308,21 @@ function copy_eco(eco::Ecosystem)
   Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel), lookup)
 end
 
-function symmetric_grid(grid::Array{Real, 2})
-   for x in 1:size(grid,1)
+function symmetric_grid(grid::DataFrame)
+   for x in 1:nrow(grid)
      if grid[x, 1] != grid[x, 2]
-       grid = vcat(grid, hcat(grid[x, 2], grid[x, 1] , grid[x, 3]))
+       push!(grid, hcat(grid[x, 2], grid[x, 1] , grid[x, 3]))
      end
    end
-   for x in 1:size(grid,1)
+   for x in 1:nrow(grid)
      if (grid[x, 1] > 0)
-       grid = vcat(grid, hcat(-grid[x, 1], grid[x, 2] , grid[x, 3]))
+       push!(grid, hcat(-grid[x, 1], grid[x, 2] , grid[x, 3]))
      end
      if (grid[x, 2] > 0)
-       grid = vcat(grid, hcat(grid[x, 1], -grid[x, 2] , grid[x, 3]))
+       push!(grid, hcat(grid[x, 1], -grid[x, 2] , grid[x, 3]))
      end
      if (grid[x, 1] > 0 && grid[x, 2] > 0)
-       grid = vcat(grid, hcat(-grid[x, 1], -grid[x, 2] , grid[x, 3]))
+       push!(grid, hcat(-grid[x, 1], -grid[x, 2] , grid[x, 3]))
      end
    end
    grid
@@ -331,7 +332,7 @@ function symmetric_grid(grid::Array{Real, 2})
 function lookup(squareSize::Real, maxGridSize::Int64, dispersalSD::Real,
                 pThresh::Float64)
   # Create empty array
-  lookup_tab = Array{Real, 2}(1, 3)
+  lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
   # Define gaussian kernel function
    function disperse(r::AbstractArray)
      1/(π * dispersalSD^2)*exp(-((r[3]-r[1])^2+(r[4]-r[2])^2)/(dispersalSD^2))
@@ -341,31 +342,29 @@ function lookup(squareSize::Real, maxGridSize::Int64, dispersalSD::Real,
     while (k<= maxGridSize && m <=maxGridSize)
       count= count + 1
       calc_prob = pcubature(disperse, [0, 0, k*squareSize, m*squareSize],
-      [squareSize, squareSize, (k+1)*squareSize, (m+1)*squareSize])[1] /
-       squareSize^2
+      [squareSize, squareSize, (k+1)*squareSize, (m+1)*squareSize],
+       maxevals= 1000000)[1] / squareSize^2
       if m == 0 && calc_prob < pThresh
         break
       end
         if count == 1
-           lookup_tab[1, :] = hcat(Int64(k), Int64(m) , calc_prob)
+          push!(lookup_tab, [k m calc_prob])
            k = k + 1
         else
           if (calc_prob > pThresh && m <= k)
-            lookup_tab = vcat(lookup_tab, hcat(Int64(k), Int64(m) , calc_prob))
+            push!(lookup_tab, [k m calc_prob])
             m = m + 1
           else m = 0; k = k + 1
           end
         end
     end
     # If no probabilities can be calculated, threshold is too high
-    isdefined(lookup_tab) || error("probability threshold too high")
+    nrow(lookup_tab) != 0 || error("probability threshold too high")
     # Find all other directions
     lookup_tab = symmetric_grid(lookup_tab)
-    # Turn first two columns into integers
-    lookup_tab[:,1:2] = map(Int64,lookup_tab[:,1:2])
     #info(sum(lookup_tab[:, 3]))
     # Normalise
-    lookup_tab[:, 3] = lookup_tab[:, 3]/sum(lookup_tab[:, 3])
+    lookup_tab[:Prob] = lookup_tab[:Prob]/sum(lookup_tab[:Prob])
     lookup_tab
 end
 

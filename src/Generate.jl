@@ -261,9 +261,7 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
       end
     end
   end
-  #eco.abundances.matrix = eco.abundances.matrix .+ net_migration
-  map(x-> eco.abundances.matrix[:, x] = eco.abundances.matrix[:, x] +
-  net_migration[:, x], 1:size(eco.abundances.matrix, 2))
+  eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
 end
 
 function convert_coords(i::Int64, width::Int64)
@@ -282,21 +280,22 @@ function calc_lookup_moves(i::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
   width = size(eco.abenv.habitat.matrix, 1)
   (x, y) = convert_coords(i, width)
   # Draw moves from Multinomial dist
-  table = eco.lookup[spp] .+ [x y 0]
+  table = copy(eco.lookup[spp])
+  table[:X] += x; table[:Y] += y
   maxX = size(eco.abenv.habitat.matrix, 1)
   maxY = size(eco.abenv.habitat.matrix, 2)
   # Can't go over maximum dimension
-  lower  = find(mapslices(x->all(x.> 0), table, 2))
+  lower  = find(mapslices(x->all(x.> 0), Array(table), 2))
   upperX = find(map(x-> (x.<= maxX), table[:,1]))
   upperY = find(map(x-> (x.<= maxY), table[:,2]))
   valid = intersect(lower, upperX, upperY)
   table = table[valid, :]
-  table[:, 3] = table[:, 3]/sum(table[:, 3])
+  table[:Prob] = table[:Prob]/sum(table[:Prob])
 
   moves = rand(Multinomial(abun,
-          Vector{Float64}(table[:, 3])))
+          Vector{Float64}(table[:Prob])))
   # Add moves to lookup table
-  table = hcat(table, moves)
+  table[:Moves] = moves
   table
 end
 
@@ -305,11 +304,10 @@ function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
   full_abun = Int64(eco.abundances.matrix[spp, i])
   table = calc_lookup_moves(i, spp, eco, full_abun)
   # Lose moves from current grid square
-  moves = table[:, 4]
-  grd[spp, i] = grd[spp, i] - sum(moves)
+  grd[spp, i] = grd[spp, i] - sum(table[:Moves])
   # Map moves to location in grid
-  map(x -> grd[spp, convert_coords(table[x, 1], table[x, 2], width)] = grd[spp,
-  convert_coords(table[x, 1], table[x, 2], width)] + moves[x], 1:size(table,1))
+  map(x -> grd[spp, convert_coords(table[x, :X], table[x, :Y], width)] = grd[spp,
+  convert_coords(table[x, :X], table[x, :Y], width)] + table[x, :Moves], 1:nrow(table))
 end
 
 
@@ -318,11 +316,10 @@ function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2},
   width = size(eco.abenv.habitat.matrix, 1)
   table = calc_lookup_moves(i, spp, eco, births)
   # Lose moves from current grid square
-  moves = table[:, 4]
-  grd[spp, i] = grd[spp, i] - sum(moves)
+  grd[spp, i] = grd[spp, i] - sum(table[:Moves])
   # Map moves to location in grid
-  map(x -> grd[spp, convert_coords(table[x, 1], table[x, 2], width)] = grd[spp,
-  convert_coords(table[x, 1], table[x, 2], width)] + moves[x], 1:size(table,1))
+  map(x -> grd[spp, convert_coords(table[x, :X], table[x, :Y], width)] = grd[spp,
+  convert_coords(table[x, :X], table[x, :Y], width)] + table[x, :Moves], 1:nrow(table))
 end
 
 function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
@@ -393,9 +390,7 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
     end
   end
   # Update abundances with moves all at once
-  #eco.abundances = eco.abundances .+ net_migration
-  map(x-> eco.abundances.matrix[:, x] = eco.abundances.matrix[:, x] +
-  net_migration[:, x], 1:size(eco.abundances.matrix, 2))
+  eco.abundances .= eco.abundances .+ net_migration
 end
 
 
