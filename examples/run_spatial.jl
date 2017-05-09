@@ -33,7 +33,7 @@ totalK = 1000
 individuals=100
 
 # Create ecosystem
-movement = GaussianMovement(0.02, numSpecies, 10e-4)
+movement = GaussianMovement(0.2, numSpecies, 10e-4)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement)
 abenv = MatrixAbioticEnv(numNiches, grid, totalK, gridSize)

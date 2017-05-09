@@ -87,7 +87,7 @@ function fill_in!(T, M, types, wv)
   end
 end
 
- function random_habitat(dim::Tuple, types, p::Real, A::Vector)
+function random_habitat(dim::Tuple, types, p::Real, A::Vector)
   # Check that the proportion of coverage for each type matches the number
   # of types and that they add up to 1
   length(A)==length(types) || error("There must be an area proportion for each type")
@@ -112,8 +112,8 @@ end
     map(x->T[M.==x]=sample(types, wv), 1:maximum(M))
     # Fill in undefined squares with most frequent neighbour
     fill_in!(T, M, types, wv)
-    T
   end
+  T
 end
 
 # Function to populate a Niche habitat

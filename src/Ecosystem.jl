@@ -142,31 +142,6 @@ function _calcordinariness(sl::SpeciesList, a::AbstractArray)
 end
 
 
-#function SpeciesList(NumberSpecies::Int64, NumberTraits::Int64,
-#                      abun_dist::Distribution, energy::AbstractVector,
-#                      movement::GaussianMovement)
-#  # Create tree
-#  tree = jcoal(NumberSpecies, 100)
-#  # Create traits and assign to tips
-#  trts = map(string, 1:NumberTraits)
-#  assign_traits!(tree, 0.5, trts)
-#  # Get traits from tree
-#  sp_trt = get_traits(tree, true)
-#  # Create similarity matrix (for now identity)
-#  similarity = eye(NumberSpecies)
-#  # Draw random set of abundances from distribution
-#  abun = rand(abun_dist)
-#  # error out when abun dist and NumberSpecies are not the same (same for energy dist)
-#  length(abun)==NumberSpecies || throw(DimensionMismatch("Abundance vector
-#                                        doesn't match number species"))
-#  length(energy)==NumberSpecies || throw(DimensionMismatch("Energy vector
-#                                        doesn't match number species"))
-#  size(similarity)==(NumberSpecies,NumberSpecies) || throw(DimensionMismatch("
-#                              Similarity matrix doesn't match number species"))
-#
-#  SpeciesList(similarity, StringTraits(sp_trt), abun, RealEnergy(energy), tree, movement)
-#end
-
 
 # Abiotic environment types- all info about habitat and relationship to species
 # traits
@@ -216,10 +191,6 @@ function GridLandscape(abenv::AbstractAbiotic, spplist::SpeciesList)
   GridLandscape(mat, reshape(mat, dim))
 end
 
-# Ecosystem type - holds all information and populates ML
-#abstract AbstractEcosystem{A, Sim <: SpeciesList, Part <: AbstractPartition,
-#          Rel<: TraitRelationship,Look <: AbstractArray} <:
-#          AbstractMetacommunity{FP, A, Sim, Part}
 
 type Ecosystem{FP, A, Sim <: SpeciesList, Part <: AbstractAbiotic,
    Rel <: TraitRelationship, Look <:AbstractArray, G <: GridLandscape} <:
@@ -231,25 +202,6 @@ type Ecosystem{FP, A, Sim <: SpeciesList, Part <: AbstractAbiotic,
   relationship::Rel
   lookup::Look
 end
-#function Ecosystem{FP <: AbstractFloat,
-#  Sim <: AbstractTypes,
-#  Part <: AbstractPartition}(abundances::AbstractArray{FP}, spplist:: Sim,
-#  abenv::Part)
-#  A = typeof(ml.abundances)
-#    Ecosystem(abundances, spplist, abenv, Nullable{A}())
-#end
-
-
-#function Ecosystem(abundances::AbstractArray,
-#  spplist::SpeciesList,
-#  abenv::MatrixAbioticEnv)
-#  size(abundances, 1) == length(spplist.abun)|| error("Dimension mismatch between
-#  abundances and number of species")
-#   Ecosystem{AbstractFloat, typeof(abundances), SpeciesList, AbstractAbiotic}(abundances, spplist, abenv,
-#    Nullable{typeof(abundances)}())
-#end
-
-#Ecosystem(ml.abundances, spplist, abenv)
 
 
 function Ecosystem(spplist::SpeciesList, abenv::MatrixAbioticEnv, traits::Bool)
@@ -329,7 +281,7 @@ function symmetric_grid(grid::DataFrame)
  end
 
 
-function lookup(squareSize::Real, maxGridSize::Int64, dispersalSD::Real,
+function lookup(squareSize::Float64, maxGridSize::Int64, dispersalSD::Float64,
                 pThresh::Float64)
   # Create empty array
   lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
@@ -367,5 +319,3 @@ function lookup(squareSize::Real, maxGridSize::Int64, dispersalSD::Real,
     lookup_tab[:Prob] = lookup_tab[:Prob]/sum(lookup_tab[:Prob])
     lookup_tab
 end
-
-# I am normalising twice here, is this right?
