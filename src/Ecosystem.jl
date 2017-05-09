@@ -7,24 +7,6 @@ importall Diversity.API
 
 
 
-# Species trait types
-abstract AbstractTraits
-
-type StringTraits <: AbstractTraits
-  traits::Vector{String}
-end
-type RealTraits <: AbstractTraits
-  traits::Vector{Real}
-end
-
-# Species energy types
-abstract AbstractEnergy
-
-type RealEnergy <: AbstractEnergy
-  energy::Vector{Real}
-end
-
-
 # Species list type - all info on species
 type SpeciesList{FP <: AbstractFloat, M <: AbstractMatrix, T <: AbstractTraits,
                  E<: AbstractEnergy, TR <: AbstractTree, MO <: AbstractMovement} <:
