@@ -429,7 +429,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
 end
 
 function repopulate!(eco::Ecosystem, traits::Bool)
-  eco.abundances = GridLandscape(eco.abenv, eco.spplist)
+  eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
   eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
   populate!(eco.abundances, eco.spplist, eco.abenv, traits)
 end

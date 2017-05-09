@@ -170,22 +170,6 @@ function _getnames(mae::MatrixAbioticEnv)
 end
 
 
-# Matrix Landscape types - houses abundances (initially empty)
-type GridLandscape{FP <: AbstractFloat}
-  matrix::Matrix{FP}
-  grid::Array{FP, 3}
-end
-
-
-function GridLandscape(abenv::AbstractAbiotic, spplist::SpeciesList)
-  # Create an array of zero abundances according to the size of the habitat
-  # and the number of species
-  mat = zeros(length(spplist.abun),size(abenv.habitat.matrix,1)*
-                   size(abenv.habitat.matrix,2))
-  dim = (length(spplist.abun),size(abenv.habitat.matrix,1),
-                   size(abenv.habitat.matrix,2))
-  GridLandscape(mat, reshape(mat, dim))
-end
 
 
 type Ecosystem{FP, A, Sim <: SpeciesList, Part <: AbstractAbiotic,
@@ -206,7 +190,7 @@ function Ecosystem(spplist::SpeciesList, abenv::MatrixAbioticEnv, traits::Bool)
   sum(spplist.abun.*spplist.energy.energy)<= sum(abenv.budget.matrix) ||
   error("Environment does not have enough energy to support species")
   # Create matrix landscape of zero abundances
-  ml = GridLandscape(abenv, spplist)
+  ml = emptygridlandscape(abenv, spplist)
   # Populate this matrix with species abundances
   populate!(ml, spplist, abenv, traits)
   # For now create an identity matrix for the species relationships

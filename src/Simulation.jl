@@ -8,6 +8,9 @@ export jtree, jcoal, assign_traits!, get_traits
 
 include("TraitRelationship.jl")
 
+include("Landscape.jl")
+export GridLandscape
+
 include("Ecosystem.jl")
 export Ecosystem, Habitats, Niches, StringTraits, RealTraits,
 RealEnergy, GaussianMovement, SpeciesList, MatrixAbioticEnv,  MatrixLandscape,
