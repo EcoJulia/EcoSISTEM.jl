@@ -27,7 +27,7 @@ type GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
       error("Habitat and budget must have same dimensions")
     countsubcommunities(habitat) == length(names) ||
       error("Number of subcommunities must match subcommunity names")
-    return new(habitat, budget, names)
+    return new{H, B}(habitat, budget, names)
   end
 end
 """
@@ -50,7 +50,7 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
   bud = zeros(dimension)
   fill!(bud, maxbud)
 
-  return GridAbioticEnv(hab, SimpleBudget(bud))
+  return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, SimpleBudget(bud))
 end
 
 function _countsubcommunities(gae::GridAbioticEnv)
