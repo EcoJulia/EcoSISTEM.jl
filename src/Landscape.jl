@@ -10,8 +10,8 @@ type GridLandscape
   matrix::Matrix{Float64}
   grid::Array{Float64, 3}
 
-  function GridLandscape(abun::Matrix{Float64}, dim::Tuple)
-    return new(abun, reshape(abun, dim))
+  function GridLandscape(abun::Matrix{Float64}, dimension::Tuple)
+    return new(abun, reshape(abun, dimension))
   end
 end
 
@@ -24,6 +24,6 @@ SpeciesList.
 function emptygridlandscape(gae::GridAbioticEnv, spplist::SpeciesList)
   mat = zeros(counttypes(spplist),countsubcommunities(gae))
 
-  dim = (counttypes(spplist), size(gae.habitat.matrix)...)
-  return GridLandscape(mat, dim)
+  dimension = (counttypes(spplist), size(gae.habitat.matrix)...)
+  return GridLandscape(mat, dimension)
 end

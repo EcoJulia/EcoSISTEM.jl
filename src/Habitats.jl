@@ -7,6 +7,10 @@ Abstract supertype for all habitat types
 """
 abstract AbstractHabitat
 
+function countsubcommunities(ah::AbstractHabitat)
+  return _countsubcommunities(ah)
+end
+
 """
     Habitats <: AbstractHabitat
 
@@ -17,6 +21,9 @@ type Habitats <: AbstractHabitat
   size::Float64
 end
 
+function _countsubcommunities(hab::Habitats)
+  return length(hab.matrix)
+end
 """
     Niches <: AbstractHabitat
 
@@ -27,6 +34,9 @@ type Niches <: AbstractHabitat
   size::Float64
 end
 
+function _countsubcommunities(niches::Niches)
+  return length(niches.matrix)
+end
 
 # Function to create a habitat from a discrete set of types according to the
 # Saura-Martinez-Millan algorithm (2000)
@@ -40,12 +50,12 @@ end
 
 # Function to create clusters from percolated grid
 function _identify_clusters!(M::AbstractMatrix)
-  dim=size(M)
+  dimension=size(M)
   # Begin cluster count
   count=1
   # Loop through each grid square in M
-  for x in 1:dim[1]
-    for y in 1:dim[2]
+  for x in 1:dimension[1]
+    for y in 1:dimension[2]
 
       # If square is marked as 1, then apply cluster finding algorithm
       if M[x,y]==1.0
@@ -75,10 +85,10 @@ function _identify_clusters!(M::AbstractMatrix)
 end
 
 function _fill_in!(T, M, types, wv)
-  dim = size(M)
+  dimension = size(M)
   # Loop through grid of clusters
-  for x in 1:dim[1]
-    for y in 1:dim[2]
+  for x in 1:dimension[1]
+    for y in 1:dimension[2]
       # If square is zero then it is yet to be assigned
       if M[x,y]==0
         # Find neighbours of square on string grid
@@ -108,13 +118,13 @@ function _fill_in!(T, M, types, wv)
   end
 end
 """
-    randomniches(dim::Tuple, types::Vector{String}, clumpiness::Float64, weights::Vector)
+    randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float64, weights::Vector)
 
-Function to create a `Niches` habitat of dimension `dim`, made up of sampled
+Function to create a `Niches` habitat of dimension `dimension`, made up of sampled
 string types, `types`, that have a weighting, `weights` and clumpiness parameter,
 `clumpiness`.
 """
-function randomniches(dim::Tuple, types::Vector{String}, clumpiness::Float64,
+function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float64,
   weights::Vector, gridsquaresize::Float64)
   # Check that the proportion of coverage for each type matches the number
   # of types and that they add up to 1
@@ -124,23 +134,23 @@ function randomniches(dim::Tuple, types::Vector{String}, clumpiness::Float64,
   wv=weights(weights)
 
   # Create an empty grid of the right dimension
-  M=zeros(dim)
+  M=zeros(dimension)
 
   # If the dimensions are too small for the algorithm, just use a weighted sample
-  if dim[1] <= 2 || dim[2] <= 2
-    T = sample(types, weights(weights), dim)
+  if dimension[1] <= 2 || dimension[2] <= 2
+    T = sample(types, weights(weights), dimension)
   else
     # Percolation step
     _percolate!(M, clumpiness)
     # Select clusters and assign types
     _identify_clusters!(M)
     # Create a string grid of the same dimensions
-    T = Array{String}(dim)
+    T = Array{String}(dimension)
     # Fill in T with clusters already created
     map(x -> T[M.==x]=sample(types, wv), 1:maximum(M))
     # Fill in undefined squares with most frequent neighbour
     _fill_in!(T, M, types, wv)
   end
-  
+
   return Niches(T, gridsquaresize)
 end
