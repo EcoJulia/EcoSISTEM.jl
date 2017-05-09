@@ -5,37 +5,33 @@ using Unitful
 
 importall Diversity.API
 
-
-type Ecosystem{FP, A, Sim <: SpeciesList, Part <: AbstractAbiotic,
-   Rel <: TraitRelationship, Look <:AbstractArray, G <: GridLandscape} <:
-   AbstractMetacommunity{AbstractFloat, A, Sim, Part}
-  abundances::G
-  spplist::Sim
+type Ecosystem{Part <: AbstractAbiotic} <:
+   AbstractMetacommunity{Float64, Matrix{Float64}, SpeciesList, Part}
+  abundances::GridLandscape
+  spplist::SpeciesList
   abenv::Part
-  ordinariness::Nullable{A}
-  relationship::Rel
-  lookup::Look
+  ordinariness::Nullable{Matrix{Float64}}
+  relationship::TraitRelationship
+  lookup::Vector{DataFrame}
 end
 
-
-function Ecosystem(spplist::SpeciesList, abenv::MatrixAbioticEnv, traits::Bool)
+function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits::Bool)
 
   # Check there is enough energy to support number of individuals at set up
-  sum(spplist.abun.*spplist.energy.energy)<= sum(abenv.budget.matrix) ||
+  sum(spplist.abun .* spplist.energy.energy) <= sum(abenv.budget.matrix) ||
   error("Environment does not have enough energy to support species")
   # Create matrix landscape of zero abundances
   ml = emptygridlandscape(abenv, spplist)
   # Populate this matrix with species abundances
   populate!(ml, spplist, abenv, traits)
   # For now create an identity matrix for the species relationships
-  rel = eye(length(spplist.traits.traits))
+  rel = eye(length(spplist.traits.trait))
   # Create lookup table of all moves and their probabilities
   lookup_tab = map(x -> lookup(abenv.habitat.size, maximum(size(abenv.habitat.matrix)),
    x, spplist.movement.thresh), spplist.movement.var)
-   A = typeof(ml.matrix)
-  Ecosystem{AbstractFloat, A, SpeciesList, AbstractAbiotic,
-  TraitRelationship, typeof(lookup_tab), GridLandscape}(ml, spplist, abenv, Nullable{A}(), TraitRelationship(rel),
-   lookup_tab)
+
+  Ecosystem{AbstractAbiotic}(ml, spplist, abenv, Nullable{Matrix{Float64}}(),
+                             TraitRelationship(rel), lookup_tab)
 end
 
 function _getabundance(eco::Ecosystem)
@@ -53,25 +49,9 @@ end
 
 function _getordinariness!(eco::Ecosystem)
     if isnull(eco.ordinariness)
-        eco.ordinariness = _calcordinariness(_gettypes(eco), _getabundance(eco))
+        eco.ordinariness = _calcordinariness(eco.spplist, eco.abenv)
     end
     get(eco.ordinariness)
-end
-
-# Function to copy an Ecosystem type for modification - similar to array copy
-function copy_eco(eco::Ecosystem)
-  # Collects species list and abiotic environment
-  spplist = eco.spplist
-  abenv = eco.abenv
-  # Create new ML with abundances from ecosystem
-  ml= MatrixLandscape(abenv, spplist)
-  ml.abundances = copy(eco.partition.abundances)
-  # Create relationships same as before
-  A = typeof(ml.abundances)
-  rel = eye(length(spplist.traits.traits), size(abenv.habitat.matrix,3))
-  lookup_tab = eco.lookup
-  # Create a new ecosystem with the same components
-  Ecosystem(ml, Nullable{A}(), spplist, abenv, TraitRelationship(rel), lookup)
 end
 
 function symmetric_grid(grid::DataFrame)
@@ -94,7 +74,6 @@ function symmetric_grid(grid::DataFrame)
    grid
  end
 
-
 function lookup(squareSize::Float64, maxGridSize::Int64, dispersalSD::Float64,
                 pThresh::Float64)
   # Create empty array
@@ -105,7 +84,7 @@ function lookup(squareSize::Float64, maxGridSize::Int64, dispersalSD::Float64,
    end
    # Loop through directions until probability is below threshold
     k=0; m=0; count = 0
-    while (k<= maxGridSize && m <=maxGridSize)
+    while (k <= maxGridSize && m <= maxGridSize)
       count= count + 1
       calc_prob = pcubature(disperse, [0, 0, k*squareSize, m*squareSize],
       [squareSize, squareSize, (k+1)*squareSize, (m+1)*squareSize],

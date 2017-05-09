@@ -30,9 +30,7 @@ include("Landscape.jl")
 export GridLandscape
 
 include("Ecosystem.jl")
-export Ecosystem, Habitats, Niches, StringTraits, RealTraits,
-RealEnergy, GaussianMovement, SpeciesList, MatrixAbioticEnv,  MatrixLandscape,
-Ecosystem, copy_eco, GridLandscape
+export Ecosystem
 
 include("Generate.jl")
 export populate!, repopulate!, randomniches, update!, update_birth_move!
