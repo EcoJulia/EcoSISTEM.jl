@@ -5,20 +5,6 @@ using Unitful
 
 importall Diversity.API
 
-## Habitat types
-abstract AbstractHabitat
-
-# Habitats : matrix of float values
-type Habitats <: AbstractHabitat
-  matrix::Matrix{Float64}
-  size::Float64
-end
-
-# Niches : matrix of string values
-type Niches <: AbstractHabitat
-  matrix::Matrix{String}
-  size::Float64
-end
 
 # Env budget types
 abstract AbstractBudget

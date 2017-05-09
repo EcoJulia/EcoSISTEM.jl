@@ -8,6 +8,8 @@ export jtree, jcoal, assign_traits!, get_traits
 
 include("TraitRelationship.jl")
 
+include("Habitat.jl")
+export Habitats, Niches
 include("Landscape.jl")
 export GridLandscape
 
