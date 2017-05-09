@@ -23,6 +23,9 @@ export GaussianMovement
 include("Traits.jl")
 export BasicTrait
 
+include("SpeciesList.jl")
+export SpeciesList
+
 include("Landscape.jl")
 export GridLandscape
 
