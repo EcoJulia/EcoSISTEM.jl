@@ -1,4 +1,6 @@
 using StatsBase
+import Diversity.API._countsubcommunities
+import Diversity.countsubcommunities
 
 """
     AbstractHabitat
@@ -131,14 +133,14 @@ function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float
   length(weights)==length(types) || error("There must be an area proportion for each type")
   sum(weights)==1 || error("Proportion of habitats must add up to 1")
   # Create weighting from proportion habitats
-  wv=weights(weights)
+  wv = WeightVec(weights)
 
   # Create an empty grid of the right dimension
-  M=zeros(dimension)
+  M = zeros(dimension)
 
   # If the dimensions are too small for the algorithm, just use a weighted sample
   if dimension[1] <= 2 || dimension[2] <= 2
-    T = sample(types, weights(weights), dimension)
+    T = sample(types, WeightVec(weights), dimension)
   else
     # Percolation step
     _percolate!(M, clumpiness)

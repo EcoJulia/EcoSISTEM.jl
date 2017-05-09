@@ -116,7 +116,7 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
         deathprob = death * timestep * death_energy
 
         # If traits are same as habitat type then give birth "boost"
-        #if eco.spplist.traits.traits[j] != eco.abenv.habitat.matrix[x, y]
+        #if eco.spplist.traits.trait[j] != eco.abenv.habitat.matrix[x, y]
         #  birthrate = birthrate * 0.8
         #end
 
@@ -294,7 +294,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
     # Get abundance of species
     abun=spplist.abun[i]
     # Get species trait
-    pref=spplist.traits.traits[i]
+    pref=spplist.traits.trait[i]
     # Calculate weighting, giving preference to squares that match with trait
     wv= Vector{Float64}(grid)
     wv[find(reshape(abenv.habitat.matrix, (len,1))[grid].==pref)]= 0.5
