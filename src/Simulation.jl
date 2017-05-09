@@ -11,6 +11,9 @@ include("TraitRelationship.jl")
 include("Habitat.jl")
 export Habitats, Niches
 
+include("Energy.jl")
+export SimpleRequirement
+
 include("AbioticEnv.jl")
 export GridAbioticEnv
 

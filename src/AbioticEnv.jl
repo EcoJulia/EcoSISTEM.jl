@@ -1,32 +1,6 @@
 using Diversity
 importall Diversity.API
 
-
-"""
-    AbstractBudget
-
-Abstract supertype for all budget types
-"""
-abstract AbstractBudget{Requirement}
-
-function countsubcommunities(ab::AbstractBudget)
-  return _countsubcommunities(ab)
-end
-
-"""
-    SimpleBudget <: AbstractBudget{Float64}
-
-This budget type has a matrix of floats, representing the energy budget of each
-subcommunity in the abiotic environment.
-"""
-type SimpleBudget <: AbstractBudget{Float64}
-  matrix::Matrix{Float64}
-end
-
-function _countsubcommunities(bud::SimpleBudget)
-  return length(bud.matrix)
-end
-
 """
     AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
 
