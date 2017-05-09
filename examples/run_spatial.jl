@@ -36,7 +36,7 @@ individuals=100
 movement = GaussianMovement(0.2, numSpecies, 10e-4)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement)
-abenv = MatrixAbioticEnv(numNiches, grid, totalK, gridSize)
+abenv = simplenicheAE(numNiches, grid, totalK, gridSize)
 eco = Ecosystem(sppl, abenv, false)
 times = 1000; burnin = 500; interval = 10; reps = 100; birth_move = false
 # Run simulations 100 times
@@ -93,7 +93,7 @@ individuals=100
 # Create ecosystem
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec)
-abenv = MatrixAbioticEnv(numNiches, grid, totalK)
+abenv = simplenicheAE(numNiches, grid, totalK)
 eco = Ecosystem(sppl, abenv, false)
 
 # Run simulations 100 times
@@ -175,7 +175,7 @@ individuals=100
 movement = GaussianMovement(0.4, numSpecies, 10e-5)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement)
-abenv = MatrixAbioticEnv(numNiches, grid, totalK, 1)
+abenv = simplenicheAE(numNiches, grid, totalK, 1)
 eco = Ecosystem(sppl, abenv, false)
 
 # Run simulations 100 times

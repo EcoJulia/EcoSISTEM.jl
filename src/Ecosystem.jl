@@ -6,12 +6,6 @@ using Unitful
 importall Diversity.API
 
 
-# Env budget types
-abstract AbstractBudget
-
-type Budget <: AbstractBudget
-  matrix::Matrix{Float64}
-end
 
 # Species trait types
 abstract AbstractTraits
@@ -122,40 +116,6 @@ end
 function _calcordinariness(sl::SpeciesList, a::AbstractArray)
     _calcsimilarity(sl) * a
 end
-
-
-
-# Abiotic environment types- all info about habitat and relationship to species
-# traits
-abstract AbstractAbiotic{H <: AbstractHabitat, B <:AbstractBudget} <: AbstractPartition
-
-type MatrixAbioticEnv{H, B} <: AbstractAbiotic{H, B}
-  habitat::H
-  budget::B
-  names::Vector{String}
-end
-
-function MatrixAbioticEnv(NumberNiches::Int64, dimension::Tuple, maxBud::Real, size::Real)
-  # Create niches
-  niches = map(string, 1:NumberNiches)
-  # Create niche-like environment
-  hab = random_habitat(dimension, niches, 0.5, repmat([0.5], NumberNiches))
-  # Create empty budget and for now fill with one value
-  bud = zeros(dimension)
-  fill!(bud, maxBud)
-  names = map(x -> "$x", 1:(dimension[1]*dimension[2]))
-  MatrixAbioticEnv(Niches(hab, size), Budget(bud), names)
-end
-
-function _countsubcommunities(mae::MatrixAbioticEnv)
-  return length(mae.habitat.matrix)
-end
-
-function _getnames(mae::MatrixAbioticEnv)
-    return mae.names
-end
-
-
 
 
 type Ecosystem{FP, A, Sim <: SpeciesList, Part <: AbstractAbiotic,

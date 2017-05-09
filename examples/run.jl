@@ -57,7 +57,7 @@ param = [birth, death, timestep, l, s]
 # Create ecosystem
 sppl = SpeciesList(numSpecies, numTraits,
                   energy_vec)
-abenv = MatrixAbioticEnv(numNiches, (1,1), 1000)
+abenv = simplenicheAE(numNiches, (1,1), 1000)
 eco = Ecosystem(sppl, abenv)
 
 # Run simulations 100 times
@@ -159,7 +159,7 @@ param = [birth, death, timestep, l, s]
 # Create ecosystem
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(50, numSpecies),
                   energy_vec)
-abenv = MatrixAbioticEnv(numNiches, (2,2), 500)
+abenv = simplenicheAE(numNiches, (2,2), 500)
 
 eco = Ecosystem(sppl, abenv)
 
@@ -232,7 +232,7 @@ param = [birth, death, timestep, l, s]
 # Create ecosystem
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(500, numSpecies),
                    energy_vec)
-abenv = MatrixAbioticEnv(numNiches, (3,3), 100000)
+abenv = simplenicheAE(numNiches, (3,3), 100000)
 eco = Ecosystem(sppl, abenv, false)
 
 # Run simulations 100 times
@@ -311,7 +311,7 @@ individuals=100
 movement = GaussianMovement(0.2, numSpecies, 10e-4)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement)
-abenv = MatrixAbioticEnv(numNiches, grid, totalK, gridSize)
+abenv = simplenicheAE(numNiches, grid, totalK, gridSize)
 eco = Ecosystem(sppl, abenv, false)
 plot_move(eco, 2, 2, 1)
 # Run simulation grid

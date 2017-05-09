@@ -10,6 +10,10 @@ include("TraitRelationship.jl")
 
 include("Habitat.jl")
 export Habitats, Niches
+
+include("AbioticEnv.jl")
+export GridAbioticEnv
+
 include("Landscape.jl")
 export GridLandscape
 
