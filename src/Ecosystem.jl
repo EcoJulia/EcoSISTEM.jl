@@ -1,23 +1,23 @@
 using Diversity
 using Cubature
 using DataFrames
+using Unitful
 
 importall Diversity.API
 
 ## Habitat types
 abstract AbstractHabitat
 
-
 # Habitats : matrix of float values
 type Habitats <: AbstractHabitat
   matrix::Matrix{Float64}
-  size::Real
+  size::Float64
 end
 
 # Niches : matrix of string values
 type Niches <: AbstractHabitat
   matrix::Matrix{String}
-  size::Real
+  size::Float64
 end
 
 # Env budget types
