@@ -15,7 +15,7 @@ numTraits=2
 numNiches=2
 
 # Set up how much energy each species consumes
-energy_vec = RealEnergy(collect(2:9))
+energy_vec = SimpleRequirement(collect(2:9))
 
 # Set probabilities
 birth = 0.6
@@ -28,8 +28,8 @@ timestep = 1
 param = [birth, death, timestep, l, s]
 
 grid = (2, 1)
-gridSize = 1
-totalK = 1000
+gridSize = 1.0
+totalK = 1000.0
 individuals=100
 
 # Create ecosystem
@@ -38,7 +38,7 @@ sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement)
 abenv = simplenicheAE(numNiches, grid, totalK, gridSize)
 eco = Ecosystem(sppl, abenv, false)
-times = 1000; burnin = 500; interval = 10; reps = 100; birth_move = false
+times = 1000; burnin = 500; interval = 10; reps = 10; birth_move = false
 # Run simulations 100 times
 ab = run_sim_spatial(eco, param, times, burnin, interval, reps, birth_move)
 

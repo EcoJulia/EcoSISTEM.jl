@@ -7,7 +7,7 @@ using Distributions
 part=MatrixLandscape(reshape([1, 2, 3, 4, 5, 6, 7, 8], (2, 2, 2)), Habitats([1 2; 3 4]))
 
 # Create an ecosystem
-eco=Ecosystem(part, Species(), StringTraits(["A", "B"]))
+eco=Ecosystem(part, Species(), BasicTrait(["A", "B"]))
 
 # Calculate ordinariness of ecosystem
 getordinariness!(eco)
@@ -23,7 +23,7 @@ mat=ones(10, 10)
 LS=populate(50, 10000, Habitats(mat))
 # Create ecosystem from habitat, making every species distinct and
 # having the same trait
-eco=Ecosystem(LS,Species(), StringTraits(repmat(["A"],50)))
+eco=Ecosystem(LS,Species(), BasicTrait(repmat(["A"],50)))
 # Create grid of species richness
 sr=SR(eco, 10000)
 
@@ -96,7 +96,7 @@ row=1:nrow(meanE)
       pch=20, col=1:2)
     }
     plot(row,meanE,
-                 ylab = list('Energy', cex=1.4), xlab = list('Time', cex=1.4), type='l',
+                 ylab = list('Requirement', cex=1.4), xlab = list('Time', cex=1.4), type='l',
                  col='black',
                  ylim=c(0, max(ucE)), cex.axis=1.2);
     polygon(c(row,rev(row)),
@@ -113,7 +113,7 @@ plot_fun(row, mean[,j],
      ylim=c(0, max(mean)+50), cex.axis=1.2, cex.main=1.4)
      }
      plot(row,meanE,
-                 ylab = list('Energy', cex=1.4), xlab = list('Time', cex=1.4), type='l',
+                 ylab = list('Requirement', cex=1.4), xlab = list('Time', cex=1.4), type='l',
                  col='black',
                  ylim=c(0, max(meanE)), cex.axis=1.2)"
 
@@ -129,7 +129,7 @@ row=1:nrow(meanE)
               col=alpha(j, 0.3), border =F);
     }
     plot(row,meanE,
-                 ylab = list('Energy', cex=1.4), xlab = list('Time', cex=1.4), type='l',
+                 ylab = list('Requirement', cex=1.4), xlab = list('Time', cex=1.4), type='l',
                  col='black',
                  ylim=c(0, max(ucE)), cex.axis=1.2);
     polygon(c(row,rev(row)),
@@ -202,7 +202,7 @@ for (i in 1:dim(mean)[3]){
               }
 for (k in 1:dim(mean)[3]){
     plot(rows,meanE[,k],
-                 ylab = list('Energy', cex=1.4), xlab = list('Time', cex=1.4), type='l',
+                 ylab = list('Requirement', cex=1.4), xlab = list('Time', cex=1.4), type='l',
                  col='black',
                  ylim=c(0, max(ucE[,k])), main = paste('Population', k), cex.axis=1.2, cex.main=1.4);
     polygon(c(rows,rev(rows)),
@@ -276,7 +276,7 @@ for (i in 1:dim(mean)[3]){
               }
 for (k in 1:dim(mean)[3]){
     plot(rows,meanE[,k],
-                 ylab = 'Energy', xlab = 'Time', type='l',
+                 ylab = 'Requirement', xlab = 'Time', type='l',
                  col='black',
                  ylim=c(0, max(ucE[,k])), main = paste('Population', k));
     polygon(c(rows,rev(rows)),
@@ -290,7 +290,7 @@ numTraits=2
 numNiches=2
 
 # Set up how much energy each species consumes
-energy_vec = RealEnergy(repmat([2], numSpecies))
+energy_vec = SimpleRequirement(repmat([2], numSpecies))
 
 # Set probabilities
 birth = 0.6
