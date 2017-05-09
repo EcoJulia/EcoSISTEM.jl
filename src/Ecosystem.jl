@@ -24,16 +24,6 @@ type RealEnergy <: AbstractEnergy
   energy::Vector{Real}
 end
 
-abstract AbstractMovement
-
-type GaussianMovement <: AbstractMovement
-  var::Vector{Real}
-  thresh::Float64
-end
-
-function GaussianMovement(move_var, numSpecies, pThresh)
-  GaussianMovement(repmat([move_var], numSpecies), pThresh)
-end
 
 # Species list type - all info on species
 type SpeciesList{FP <: AbstractFloat, M <: AbstractMatrix, T <: AbstractTraits,

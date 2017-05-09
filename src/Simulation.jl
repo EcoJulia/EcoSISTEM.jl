@@ -14,6 +14,9 @@ export Habitats, Niches
 include("AbioticEnv.jl")
 export GridAbioticEnv
 
+include("Movement.jl")
+export GaussianMovement
+
 include("Landscape.jl")
 export GridLandscape
 
