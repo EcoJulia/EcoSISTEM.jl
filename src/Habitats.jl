@@ -5,18 +5,18 @@ using StatsBase
 
 Abstract supertype for all habitat types
 """
-abstract AbstractHabitat
+abstract AbstractHabitat{H}
 
 function countsubcommunities(ah::AbstractHabitat)
   return _countsubcommunities(ah)
 end
 
 """
-    Habitats <: AbstractHabitat
+    Habitats <: AbstractHabitat{Float64}
 
 This habitat subtype has a matrix of floats and a float grid square size
 """
-type Habitats <: AbstractHabitat
+type Habitats <: AbstractHabitat{Float64}
   matrix::Matrix{Float64}
   size::Float64
 end
@@ -25,11 +25,11 @@ function _countsubcommunities(hab::Habitats)
   return length(hab.matrix)
 end
 """
-    Niches <: AbstractHabitat
+    Niches <: AbstractHabitat{String}
 
 This habitat subtype has a matrix of strings and a float grid square size
 """
-type Niches <: AbstractHabitat
+type Niches <: AbstractHabitat{String}
   matrix::Matrix{String}
   size::Float64
 end

@@ -20,6 +20,9 @@ export GridAbioticEnv
 include("Movement.jl")
 export GaussianMovement
 
+include("Traits.jl")
+export BasicTrait
+
 include("Landscape.jl")
 export GridLandscape
 
