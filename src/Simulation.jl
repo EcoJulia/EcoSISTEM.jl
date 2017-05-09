@@ -8,14 +8,14 @@ export jtree, jcoal, assign_traits!, get_traits
 
 include("TraitRelationship.jl")
 
-include("Habitat.jl")
+include("Habitats.jl")
 export Habitats, Niches
 
 include("Energy.jl")
 export SimpleRequirement
 
 include("AbioticEnv.jl")
-export GridAbioticEnv
+export GridAbioticEnv, simplenicheAE
 
 include("Movement.jl")
 export GaussianMovement
