@@ -26,7 +26,7 @@ RealEnergy, GaussianMovement, SpeciesList, MatrixAbioticEnv,  MatrixLandscape,
 Ecosystem, copy_eco, GridLandscape
 
 include("Generate.jl")
-export populate!, repopulate!, random_habitat, update!, update_birth_move!
+export populate!, repopulate!, randomniches, update!, update_birth_move!
 
 include("Helper.jl")
 export run_sim, run_sim_spatial, expected_counts

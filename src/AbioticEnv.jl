@@ -7,33 +7,34 @@ importall Diversity.API
 
 Abstract supertype for all budget types
 """
-abstract AbstractBudget
+abstract AbstractBudget{Requirement}
 
 function countsubcommunities(ab::AbstractBudget)
   return _countsubcommunities(ab)
 end
 
 """
-    Budget <: AbstractBudget
+    SimpleBudget <: AbstractBudget{Float64}
 
 This budget type has a matrix of floats, representing the energy budget of each
 subcommunity in the abiotic environment.
 """
-type Budget <: AbstractBudget
+type SimpleBudget <: AbstractBudget{Float64}
   matrix::Matrix{Float64}
 end
 
-function _countsubcommunities(bud::Budget)
+function _countsubcommunities(bud::SimpleBudget)
   return length(bud.matrix)
 end
 
 """
-    AbstractAbiotic{H <: AbstractHabitat, B <:AbstractBudget} <: AbstractPartition
+    AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
 
 Abstract supertype for all abiotic environment types and a subtype of
 AbstractPartition
 """
-abstract AbstractAbiotic{H <: AbstractHabitat, B <:AbstractBudget} <: AbstractPartition
+abstract AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
+
 """
     GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
 
@@ -59,10 +60,10 @@ end
     simplenicheAE(numniches::Int64, dimension::Tuple,
                         maxBud::Float64, gridsquaresize::Float64)
 
-Function to create a simple `Niches`, `Budget` type abiotic environment. Given a
+Function to create a simple `Niches`, `SimpleBudget` type abiotic environment. Given a
 number of niche types `numniches`, it creates a `Niches` environment with
 dimensions `dimension` and a grid squaresize `gridsquaresize`. It also creates a
-`Budget` type filled with the maximum budget value `maxbud`.
+`SimpleBudget` type filled with the maximum budget value `maxbud`.
 """
 function simplenicheAE(numniches::Int64, dimension::Tuple,
                         maxbud::Float64, gridsquaresize::Float64)
@@ -75,7 +76,7 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
   bud = zeros(dimension)
   fill!(bud, maxbud)
 
-  return GridAbioticEnv(hab, Budget(bud))
+  return GridAbioticEnv(hab, SimpleBudget(bud))
 end
 
 function _countsubcommunities(gae::GridAbioticEnv)

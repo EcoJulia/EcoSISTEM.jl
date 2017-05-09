@@ -4,7 +4,7 @@ using ProgressMeter
 
 # Function to populate a Niche habitat
 function populate(species::Int64, individuals::Int64, habitat::Niches,
-  traits::Vector, budget::Budget,
+  traits::Vector, budget::SimpleBudget,
   dist::Distribution= Multinomial(individuals,species))
   # Calculate size of habitat
   dim=size(habitat.matrix)
