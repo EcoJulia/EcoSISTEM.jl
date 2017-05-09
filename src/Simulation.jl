@@ -6,6 +6,8 @@ export jnorm, jexp, jpois, jbinom, junif, jdir, jmulti
 include("Phylo.jl")
 export jtree, jcoal, assign_traits!, get_traits
 
+include("TraitRelationship.jl")
+
 include("Ecosystem.jl")
 export Ecosystem, Habitats, Niches, StringTraits, RealTraits,
 RealEnergy, GaussianMovement, SpeciesList, MatrixAbioticEnv,  MatrixLandscape,

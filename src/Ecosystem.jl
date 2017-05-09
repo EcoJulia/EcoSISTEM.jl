@@ -37,10 +37,6 @@ type RealTraits <: AbstractTraits
   traits::Vector{Real}
 end
 
-type TraitRelationship
-  matrix::Matrix{Real}
-end
-
 # Species energy types
 abstract AbstractEnergy
 
