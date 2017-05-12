@@ -1,3 +1,5 @@
+import Base.eltype
+
 """
     AbstractRequirement{Energy}
 
@@ -5,6 +7,11 @@ Abstract supertype for all species energy requirement types, parameterised by
 the type(s) of energy required `Energy`.
 """
 abstract AbstractRequirement{Energy}
+
+function eltype{Energy}(::AbstractRequirement{Energy})
+  return Energy
+end
+
 """
     SimpleRequirement <: AbstractRequirement{Float64}
 
@@ -20,6 +27,10 @@ end
 Abstract supertype for all budget types
 """
 abstract AbstractBudget{Requirement}
+
+function eltype{Energy}(::AbstractBudget{Energy})
+  return Energy
+end
 
 function countsubcommunities(ab::AbstractBudget)
   return _countsubcommunities(ab)
