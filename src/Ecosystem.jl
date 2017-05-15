@@ -109,7 +109,7 @@ Function to generate lookup tables, which hold information on the probability
 of moving to neighbouring squares.
 """
 function genlookups(hab::AbstractHabitat, mov::GaussianMovement)
-  relsize = mov.var / hab.size
+  relsize =  hab.size ./ mov.var
   m = maximum(size(hab.matrix))
   p = mov.thresh
   map(r -> _lookup(r, m, p, _gaussian_disperse), relsize)
