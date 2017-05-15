@@ -18,14 +18,14 @@ function run_sim(eco, params::AbstractVector, times::Int64, reps::Int64)
 
     for k in 1:gridSize
       abun[1,:, k,  j] = eco.abundances.matrix[:, 1]
-      ener[1, k,  j] = sum(eco.spplist.abun .* eco.spplist.energy.energy)
+      ener[1, k,  j] = sum(eco.spplist.abun .* eco.spplist.requirement.energy)
     end
 
     for i in 1:times
         update!(eco, birth, death, move, l, s, timestep)
         for g in 1:gridSize
           abun[i+1, :, g, j] = eco.abundances.matrix[: , g]
-          ener[i+1, g, j] = sum(eco.abundances.matrix[: , g] .* eco.spplist.energy.energy)
+          ener[i+1, g, j] = sum(eco.abundances.matrix[: , g] .* eco.spplist.requirement.energy)
         end
     end
     map

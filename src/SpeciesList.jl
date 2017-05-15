@@ -1,19 +1,19 @@
 # Species list type - all info on species
 type SpeciesList{T <: AbstractTraits,
-                 E <: AbstractRequirement, TR <: AbstractTree,
+                 R <: AbstractRequirement, TR <: AbstractTree,
                  MO <: AbstractMovement} <: AbstractTypes
   similarity::Matrix{Float64}
   names::Vector{String}
   traits::T
   abun::Vector{Int64}
-  energy::E
+  requirement::R
   phylo::TR
   movement::MO
 
-  function (::Type{SpeciesList{T, E, TR, MO}}){T <: AbstractTraits,
-                   E <: AbstractRequirement, TR <: AbstractTree,
+  function (::Type{SpeciesList{T, R, TR, MO}}){T <: AbstractTraits,
+                   R <: AbstractRequirement, TR <: AbstractTree,
                    MO <: AbstractMovement}(similarity::Matrix{Float64},
-      names:: Vector{String}, traits::T, abun::Vector{Int64}, energy::E, phylo::TR,
+      names:: Vector{String}, traits::T, abun::Vector{Int64}, req::R, phylo::TR,
       movement::MO)
       # Assign names
       names = map(x -> "$x", 1:size(similarity, 1))
@@ -29,13 +29,13 @@ type SpeciesList{T <: AbstractTraits,
       # Check similarity is bounded between 0 and 1
       minimum(similarity) ≥ 0 || throw(DomainError())
       maximum(similarity) ≤ 1 || warn("Similarity matrix has values above 1")
-      new{T, E, TR, MO}(similarity, names, traits, abun, energy, phylo, movement)
+      new{T, R, TR, MO}(similarity, names, traits, abun, req, phylo, movement)
   end
 end
 
-function SpeciesList{E <: AbstractRequirement,
+function SpeciesList{R <: AbstractRequirement,
     MO <: AbstractMovement}(numspecies::Int64,
-    numtraits::Int64, abun_dist::Distribution, energy::E,
+    numtraits::Int64, abun_dist::Distribution, req::R,
     movement::MO)
 
     names = map(x -> "$x", 1:numspecies)
@@ -53,14 +53,14 @@ function SpeciesList{E <: AbstractRequirement,
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
     length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
                                           doesn't match number species"))
-    length(energy.energy)==numspecies || throw(DimensionMismatch("Requirement vector
+    length(req.energy)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
     size(similarity)==(numspecies, numspecies) || throw(DimensionMismatch("
                                 Similarity matrix doesn't match number species"))
 
-  SpeciesList{typeof(sp_trt), typeof(energy),
+  SpeciesList{typeof(sp_trt), typeof(req),
               typeof(tree), typeof(movement)}(similarity, names,
-                                              sp_trt, abun, energy,
+                                              sp_trt, abun, req,
                                               tree, movement)
 end
 

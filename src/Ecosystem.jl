@@ -42,7 +42,7 @@ assigned locations based on their trait preferences.
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits::Bool)
 
   # Check there is enough energy to support number of individuals at set up
-  sum(spplist.abun .* spplist.energy.energy) <= sum(abenv.budget.matrix) ||
+  sum(spplist.abun .* spplist.requirement.energy) <= sum(abenv.budget.matrix) ||
   error("Environment does not have enough energy to support species")
   # Create matrix landscape of zero abundances
   ml = emptygridlandscape(abenv, spplist)

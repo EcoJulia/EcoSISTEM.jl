@@ -104,7 +104,7 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
           eco.abundances.matrix[j, i] = 0
         else
         # Get energy budgets of species in square
-        ϵ̄ = eco.spplist.energy.energy
+        ϵ̄ = eco.spplist.requirement.energy
         E = sum(square .* ϵ̄)
 
         # Alter rates by energy available in current pop & own requirements
@@ -240,7 +240,7 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
           eco.abundances.matrix[j, i] = 0
         else
         # Get energy budgets of species in square
-        ϵ̄ = eco.spplist.energy.energy
+        ϵ̄ = eco.spplist.requirement.energy
         E = sum(square .* ϵ̄)
 
         # Alter rates by energy available in current pop & own requirements
