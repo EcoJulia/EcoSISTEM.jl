@@ -23,6 +23,14 @@ type Ecosystem{Part <: AbstractAbiotic} <:
   ordinariness::Nullable{Matrix{Float64}}
   relationship::TraitRelationship
   lookup::Vector{DataFrame}
+
+  function (::Type{Ecosystem{Part}}){Part <: AbstractAbiotic}(abundances::GridLandscape,
+    spplist::SpeciesList, abenv::Part, ordinariness::Nullable{Matrix{Float64}},
+    relationship::TraitRelationship, lookup::Vector{DataFrame})
+    eltype(abenv.budget) == eltype(spplist.requirement) ||
+      error("Environment and species energy not of the same type")
+    new{Part}(abundances, spplist, abenv, ordinariness, relationship, lookup)
+  end
 end
 """
     Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits::Bool)

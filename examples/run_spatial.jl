@@ -42,7 +42,6 @@ times = 1000; burnin = 500; interval = 10; reps = 10; birth_move = false
 # Run simulations 100 times
 ab = run_sim_spatial(eco, param, times, burnin, interval, reps, birth_move)
 
-
 ## Look at species 1
 # Convert the abundances to Integers for species 1
 
