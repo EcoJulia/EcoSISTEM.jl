@@ -1,4 +1,10 @@
-# Species list type - all info on species
+
+"""
+    SpeciesList{T <: AbstractTraits, R <: AbstractRequirement,
+                 MO <: AbstractMovement} <: AbstractTypes
+Species list houses all species-specific information including trait information,
+phylogenetic relationships, requirement for energy and movement types.
+"""
 type SpeciesList{T <: AbstractTraits,
                  R <: AbstractRequirement, TR <: AbstractTree,
                  MO <: AbstractMovement} <: AbstractTypes
@@ -33,6 +39,15 @@ type SpeciesList{T <: AbstractTraits,
   end
 end
 
+"""
+    SpeciesList{R <: AbstractRequirement,
+      MO <: AbstractMovement}(numspecies::Int64,
+      numtraits::Int64, abun_dist::Distribution, req::R,
+      movement::MO)
+Function to create a SpeciesList given a number of species, the number of traits
+they possess, their abundances, requirement from the environment and their
+movement kernel.
+"""
 function SpeciesList{R <: AbstractRequirement,
     MO <: AbstractMovement}(numspecies::Int64,
     numtraits::Int64, abun_dist::Distribution, req::R,
