@@ -35,9 +35,11 @@ individuals=100
 # Create ecosystem
 movement = GaussianMovement(0.2, numSpecies, 10e-4)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
-                   energy_vec, movement)
+                   energy_vec, movement, UniqueTypes(numSpecies))
 abenv = simplenicheAE(numNiches, grid, totalK, gridSize)
 eco = Ecosystem(sppl, abenv, false)
+plotdiv(norm_sub_alpha, eco, vcat(collect(0:5), Inf))
+
 times = 1000; burnin = 500; interval = 10; reps = 10; birth_move = false
 # Run simulations 100 times
 ab = run_sim_spatial(eco, param, times, burnin, interval, reps, birth_move)
