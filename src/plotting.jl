@@ -79,3 +79,10 @@ function _freq_hist(total::Array{Float64}, grd::Array{Float64}, num::Int64)
   @rput num
   R"hist(count_tot, breaks=c(-0.5:(num+0.5)), main=' ', xlab='Abundance')"
 end
+
+function plotdiv(divfun::Function, eco::Ecosystem, qs)
+  datf = divfun(eco, qs)
+  @rput datf
+  R"library(ggplot2); library(cowplot)
+  ggplot(datf, aes(x = q, y = diversity, col = partition_name)) + geom_line()"
+end
