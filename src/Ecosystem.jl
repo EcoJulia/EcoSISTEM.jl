@@ -72,7 +72,7 @@ end
 
 function _getordinariness!(eco::Ecosystem)
     if isnull(eco.ordinariness)
-        eco.ordinariness = _calcordinariness(eco.spplist, eco.abenv)
+        eco.ordinariness = _calcordinariness(eco.spplist, getabundance(eco))
     end
     get(eco.ordinariness)
 end
