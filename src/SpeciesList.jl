@@ -23,20 +23,6 @@ type SpeciesList{T <: AbstractTraits,
                    P <: AbstractTypes}(names:: Vector{String},
       traits::T, abun::Vector{Int64}, req::R,
       phylo::P, movement::MO)
-      # Assign names
-      #names = map(x -> "$x", 1:size(phylo.Zmatrix, 1))
-
-      # Check similarity is square matrix
-    #size(phylo.Zmatrix, 1) == size(phylo.Zmatrix, 2) ||
-      #throw(DimensionMismatch("Similarity matrix is not square"))
-
-      # Check dimensions of abundance and similarity match
-      #length(abun) == size(phylo.Zmatrix, 1) ||
-      #throw(DimensionMismatch("Similarity matrix does not match abundances"))
-
-      # Check similarity is bounded between 0 and 1
-      #minimum(phylo.Zmatrix) ≥ 0 || throw(DomainError())
-      #maximum(phylo.Zmatrix) ≤ 1 || warn("Similarity matrix has values above 1")
       new{T, R, MO, P}(names, traits, abun, req, phylo, movement)
   end
   function (::Type{SpeciesList{T, R, MO, P}}){T <: AbstractTraits,
@@ -49,6 +35,19 @@ type SpeciesList{T <: AbstractTraits,
       names = map(x -> "$x", 1:size(phylo.Zmatrix, 1))
       new{T, R, MO, P}(names, traits, abun, req, phylo, movement)
   end
+
+      # Check similarity is square matrix
+      #size(phylo.Zmatrix, 1) == size(phylo.Zmatrix, 2) ||
+      #throw(DimensionMismatch("Similarity matrix is not square"))
+
+      # Check dimensions of abundance and similarity match
+      #length(abun) == size(phylo.Zmatrix, 1) ||
+      #throw(DimensionMismatch("Similarity matrix does not match abundances"))
+
+      # Check similarity is bounded between 0 and 1
+      #minimum(phylo.Zmatrix) ≥ 0 || throw(DomainError())
+      #maximum(phylo.Zmatrix) ≤ 1 || warn("Similarity matrix has values above 1")
+      #new{T, R, MO}(names, traits, abun, req, phylo, movement)
 end
 """
     SpeciesList{R <: AbstractRequirement,
@@ -92,7 +91,7 @@ end
       movement::MO, phy::P)
 Function to create a SpeciesList given a number of species, the number of traits
 they possess, their abundances, requirement from the environment and their
-movement kernel and any type of AbstractTypes. 
+movement kernel and any type of AbstractTypes.
 """
 function SpeciesList{R <: AbstractRequirement,
     MO <: AbstractMovement, P <: AbstractTypes}(numspecies::Int64,
