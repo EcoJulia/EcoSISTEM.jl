@@ -3,6 +3,13 @@ using Cubature
 using DataFrames
 using Unitful
 
+function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
+    realm = _calcabundance(sim, m)
+    return typematch(realm, sim, part) &&
+    _counttypes(sim) == size(realm, 1) &&
+    _countsubcommunities(part) == size(realm, 2)
+end
+
 importall Diversity.API
 """
     Ecosystem{Part <: AbstractAbiotic} <:
@@ -29,6 +36,8 @@ type Ecosystem{Part <: AbstractAbiotic} <:
     relationship::TraitRelationship, lookup::Vector{DataFrame})
     eltype(abenv.budget) == eltype(spplist.requirement) ||
       error("Environment and species energy not of the same type")
+    _mcmatch(abundances.matrix, spplist, abenv) ||
+      error("Dimension mismatch")
     new{Part}(abundances, spplist, abenv, ordinariness, relationship, lookup)
   end
 end
