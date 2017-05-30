@@ -1,6 +1,27 @@
 using Diversity.Phylogenetics
 import Diversity.getnames
 """
+    simmatch(sim::AbstractTypes)
+
+Checks for size and value incompatibility in similarity objects
+"""
+function simmatch end
+
+function _simmatch(sim::Phylogeny)
+  # Check similarity is square matrix
+  size(sim.Zmatrix, 1) == size(sim.Zmatrix, 2) ||
+    throw(DimensionMismatch("Similarity matrix is not square"))
+
+  # Check similarity is bounded between 0 and 1
+  minimum(sim.Zmatrix) ≥ 0 || throw(DomainError())
+  maximum(sim.Zmatrix) ≤ 1 || warn("Similarity matrix has values above 1")
+end
+
+function _simmatch(sim::UniqueTypes)
+  length(getnames(sim)) == counttypes(sim) ||
+    throw(DimensionMismatch("Names do not match number of types"))
+end
+"""
     SpeciesList{T <: AbstractTraits, R <: AbstractRequirement,
                  MO <: AbstractMovement} <: AbstractTypes
 Species list houses all species-specific information including trait information,
@@ -23,6 +44,8 @@ type SpeciesList{T <: AbstractTraits,
                    P <: AbstractTypes}(names:: Vector{String},
       traits::T, abun::Vector{Int64}, req::R,
       phylo::P, movement::MO)
+      # Check dimensions
+      _simmatch(phylo)
       new{T, R, MO, P}(names, traits, abun, req, phylo, movement)
   end
   function (::Type{SpeciesList{T, R, MO, P}}){T <: AbstractTraits,
@@ -31,23 +54,12 @@ type SpeciesList{T <: AbstractTraits,
                    P <: AbstractTypes}(
       traits::T, abun::Vector{Int64}, req::R,
       phylo::P, movement::MO)
+      # Check dimensions
+      _simmatch(phylo)
       # Assign names
-      names = map(x -> "$x", 1:size(phylo.Zmatrix, 1))
+      names = map(x -> "$x", 1:length(abun))
       new{T, R, MO, P}(names, traits, abun, req, phylo, movement)
   end
-
-      # Check similarity is square matrix
-      #size(phylo.Zmatrix, 1) == size(phylo.Zmatrix, 2) ||
-      #throw(DimensionMismatch("Similarity matrix is not square"))
-
-      # Check dimensions of abundance and similarity match
-      #length(abun) == size(phylo.Zmatrix, 1) ||
-      #throw(DimensionMismatch("Similarity matrix does not match abundances"))
-
-      # Check similarity is bounded between 0 and 1
-      #minimum(phylo.Zmatrix) ≥ 0 || throw(DomainError())
-      #maximum(phylo.Zmatrix) ≤ 1 || warn("Similarity matrix has values above 1")
-      #new{T, R, MO}(names, traits, abun, req, phylo, movement)
 end
 """
     SpeciesList{R <: AbstractRequirement,
@@ -116,6 +128,10 @@ function SpeciesList{R <: AbstractRequirement,
   SpeciesList{typeof(sp_trt), typeof(req),
               typeof(movement), typeof(phy)}(names, sp_trt, abun, req,
                                               phy, movement)
+end
+
+function _simmatch(sim::SpeciesList)
+  _simmatch(sim.phylo)
 end
 
 function _calcsimilarity(ut::UniqueTypes)
