@@ -67,10 +67,16 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits::Bool)
 end
 
 function _getabundance(eco::Ecosystem)
-  return eco.abundances.matrix
+  ab = eco.abundances.matrix
+  if sum(ab) ≈ one(eltype(ab))
+    return ab
+  else
+    relab = ab / sum(ab)
+    return relab
+  end
 end
 function _getmetaabundance(eco::Ecosystem)
-  return eco.abundances.matrix
+  return sumoversubcommunities(eco, _getabundance(eco))
 end
 function _getpartition(eco::Ecosystem)
   return eco.abenv
