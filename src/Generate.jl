@@ -1,52 +1,11 @@
 using StatsBase
 using ProgressMeter
 
+"""
+    get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
 
-# Function to populate a Niche habitat
-function populate(species::Int64, individuals::Int64, habitat::Niches,
-  traits::Vector, budget::SimpleBudget,
-  dist::Distribution= Multinomial(individuals,species))
-  # Calculate size of habitat
-  dim=size(habitat.matrix)
-  grid=collect(1:dim[1]*dim[2])
-  # Create empty population matrix of correct dimensions
-  P=zeros(Float64,species,dim[1],dim[2])
-  # Randomly choose abundances for each species from Multinomial
-  abun_vec=rand(dist)
-  # Set up copy of budget
-  b=copy(budget.matrix)
-  # Loop through species
-  for i in eachindex(abun_vec)
-    # Get abundance of species
-    abun=abun_vec[i]
-    # Get species trait
-    pref=traits[i]
-    # Calculate weighting, giving preference to squares that match with trait
-    wv= Vector{Float64}(grid)
-    wv[find(reshape(habitat.matrix, (dim[1]*dim[2],1))[grid].==pref)]= 0.9
-    wv[find(reshape(habitat.matrix, (dim[1]*dim[2],1))[grid].!=pref)]= 0.1
-    # Loop through individuals
-      while abun>0
-        zs=findin(b[grid], 0)
-        deleteat!(grid, zs)
-        deleteat!(wv, zs)
-        # Randomly choose position on grid (weighted)
-      pos=sample(grid, weights(wv))
-      # Add individual to this location
-      P[i,pos]=P[i,pos]+1
-      abun=abun-1
-      b[pos]=b[pos]-1
-    end
-    #sum_abun=mapslices(sum, P, 1)[1,:,:]
-    #@rput(sum_abun)
-    #R"par(mfrow=c(1,2));image.plot(sum_abun,col=rainbow(50)[1:20], breaks=seq(0,20,1));image(hab, legend = F)"
-  end
-  # Create GridLandscape from P matrix and habitat
-  GridLandscape(P, habitat, budget)
-end
-
-
-# Function to get the neighbours of a grid square in a matrix in 4 or 8 directions
+Function to get the neighbours of a grid square in a matrix in 4 or 8 directions
+"""
 function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
   # Calculate dimensions
   dims=size(mat)
@@ -70,8 +29,14 @@ function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int6
   neighbour_vec=neighbour_vec[remove,:]
   neighbour_vec
 end
-
-# Function to update a Ecosystem after one timestep- stochastic birth, death and movement
+"""
+    update!(eco::Ecosystem,  birth::Float64, death::Float64,
+       l::Float64, s::Float64, timestep::Real)
+Function to update a Ecosystem after one timestep. It takes in parameters of
+birth, death rates and longevity of species (l & s) to generate the abundances
+of the species stochastically. Movement takes place across the landscape via
+movement rates defined in the ecosystem.
+"""
 function update!(eco::Ecosystem,  birth::Float64, death::Float64,
    l::Float64, s::Float64, timestep::Real)
 
@@ -150,64 +115,14 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
   eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
 end
 
-function convert_coords(i::Int64, width::Int64)
-  i = i - 1
-  x = (i % width) + 1
-  y = div(i, width)  + 1
-  return (x, y)
-end
-function convert_coords(x::Int64, y::Int64, width::Int64)
-  x = x - 1 ; y = y - 1
-  i = x + width * y
-  return i + 1
-end
-
-function calc_lookup_moves(i::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
-  width = size(eco.abenv.habitat.matrix, 1)
-  (x, y) = convert_coords(i, width)
-  # Draw moves from Multinomial dist
-  table = copy(eco.lookup[spp])
-  table[:X] += x; table[:Y] += y
-  maxX = size(eco.abenv.habitat.matrix, 1)
-  maxY = size(eco.abenv.habitat.matrix, 2)
-  # Can't go over maximum dimension
-  lower  = find(mapslices(x->all(x.> 0), Array(table), 2))
-  upperX = find(map(x-> (x.<= maxX), table[:,1]))
-  upperY = find(map(x-> (x.<= maxY), table[:,2]))
-  valid = intersect(lower, upperX, upperY)
-  table = table[valid, :]
-  table[:Prob] = table[:Prob]/sum(table[:Prob])
-
-  moves = rand(Multinomial(abun,
-          Vector{Float64}(table[:Prob])))
-  # Add moves to lookup table
-  table[:Moves] = moves
-  table
-end
-
-function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
-  width = size(eco.abenv.habitat.matrix, 1)
-  full_abun = Int64(eco.abundances.matrix[spp, i])
-  table = calc_lookup_moves(i, spp, eco, full_abun)
-  # Lose moves from current grid square
-  grd[spp, i] = grd[spp, i] - sum(table[:Moves])
-  # Map moves to location in grid
-  map(x -> grd[spp, convert_coords(table[x, :X], table[x, :Y], width)] = grd[spp,
-  convert_coords(table[x, :X], table[x, :Y], width)] + table[x, :Moves], 1:nrow(table))
-end
-
-
-function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2},
-                births::Int64)
-  width = size(eco.abenv.habitat.matrix, 1)
-  table = calc_lookup_moves(i, spp, eco, births)
-  # Lose moves from current grid square
-  grd[spp, i] = grd[spp, i] - sum(table[:Moves])
-  # Map moves to location in grid
-  map(x -> grd[spp, convert_coords(table[x, :X], table[x, :Y], width)] = grd[spp,
-  convert_coords(table[x, :X], table[x, :Y], width)] + table[x, :Moves], 1:nrow(table))
-end
-
+"""
+    update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
+       l::Float64, s::Float64, timestep::Real)
+Function to update a Ecosystem after one timestep. It takes in parameters of
+birth, death rates and longevity of species (l & s) to generate the abundances
+of the species stochastically. Movement takes place across the landscape via
+movement rates defined in the ecosystem.
+"""
 function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
    l::Float64, s::Float64, timestep::Real)
 
@@ -279,8 +194,81 @@ function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
   eco.abundances .= eco.abundances .+ net_migration
 end
 
+function convert_coords(i::Int64, width::Int64)
+  i = i - 1
+  x = (i % width) + 1
+  y = div(i, width)  + 1
+  return (x, y)
+end
+function convert_coords(x::Int64, y::Int64, width::Int64)
+  x = x - 1 ; y = y - 1
+  i = x + width * y
+  return i + 1
+end
 
-# Alternative populate function
+function calc_lookup_moves(i::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
+  width = size(eco.abenv.habitat.matrix, 1)
+  (x, y) = convert_coords(i, width)
+  # Draw moves from Multinomial dist
+  table = copy(eco.lookup[spp])
+  table[:X] += x; table[:Y] += y
+  maxX = size(eco.abenv.habitat.matrix, 1)
+  maxY = size(eco.abenv.habitat.matrix, 2)
+  # Can't go over maximum dimension
+  lower  = find(mapslices(x->all(x.> 0), Array(table), 2))
+  upperX = find(map(x-> (x.<= maxX), table[:,1]))
+  upperY = find(map(x-> (x.<= maxY), table[:,2]))
+  valid = intersect(lower, upperX, upperY)
+  table = table[valid, :]
+  table[:Prob] = table[:Prob]/sum(table[:Prob])
+
+  moves = rand(Multinomial(abun,
+          Vector{Float64}(table[:Prob])))
+  # Add moves to lookup table
+  table[:Moves] = moves
+  table
+end
+"""
+    move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
+
+Function to calculate the movement of species `spp` from a given position in the
+landscape `i`, using the lookup table found in the Ecosystem and updating the
+movement patterns on a grid, `grd`. Optionally, a number of births can be
+provided, so that movement only takes place as part of the birth process, instead
+of the entire population
+"""
+function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
+  width = size(eco.abenv.habitat.matrix, 1)
+  full_abun = Int64(eco.abundances.matrix[spp, i])
+  table = calc_lookup_moves(i, spp, eco, full_abun)
+  # Lose moves from current grid square
+  grd[spp, i] = grd[spp, i] - sum(table[:Moves])
+  # Map moves to location in grid
+  map(x -> grd[spp, convert_coords(table[x, :X], table[x, :Y], width)] = grd[spp,
+  convert_coords(table[x, :X], table[x, :Y], width)] + table[x, :Moves], 1:nrow(table))
+end
+
+
+function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2},
+                births::Int64)
+  width = size(eco.abenv.habitat.matrix, 1)
+  table = calc_lookup_moves(i, spp, eco, births)
+  # Lose moves from current grid square
+  grd[spp, i] = grd[spp, i] - sum(table[:Moves])
+  # Map moves to location in grid
+  map(x -> grd[spp, convert_coords(table[x, :X], table[x, :Y], width)] = grd[spp,
+  convert_coords(table[x, :X], table[x, :Y], width)] + table[x, :Moves], 1:nrow(table))
+end
+
+
+
+"""
+    populate!(ml::GridLandscape, spplist::SpeciesList,
+                   abenv::AbstractAbiotic, traits::Bool)
+
+Function to populate a grid landscape given the abundances found in species list
+and whether or not to include traits.
+"""
 function populate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AbstractAbiotic, traits::Bool)
   # Calculate size of habitat
@@ -313,7 +301,11 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
     end
   end
 end
-
+"""
+    repopulate!(eco::Ecosystem, traits::Bool)
+Function to repopulate an ecosystem `eco`, with option for including trait
+preferences.
+"""
 function repopulate!(eco::Ecosystem, traits::Bool)
   eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
   eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))

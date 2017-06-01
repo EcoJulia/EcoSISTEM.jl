@@ -1,6 +1,7 @@
 using RCall
+
 function plot_move(eco::Ecosystem, x::Int64, y::Int64, spp::Int64)
-  table = eco.lookup[spp] .+ [x y 0]
+  table = Array(eco.lookup[spp]) .+ [x y 0]
   maxGrid = maximum(size(eco.abenv.habitat.matrix))
   # Can't go over maximum dimension
   lower  = find(mapslices(x->all(x.>0), table, 2))

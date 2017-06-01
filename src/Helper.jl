@@ -1,42 +1,15 @@
 using ProgressMeter
 
-function run_sim(eco, params::AbstractVector, times::Int64, reps::Int64)
+"""
+run_sim_spatial(eco::Ecosystem, param::AbstractVector,
+   times::Int64, burnin::Int64, interval::Int64, reps::Int64, birth_move::Bool)
 
-  birth = param[1]
-  death = param[2]
-  timestep = param[3]
-  l = param[4]
-  s = param[5]
-
-  gridSize = grid[1] *  grid[2]
-  abun = zeros(times+1, numSpecies, gridSize, reps);
-  ener = zeros(times+1, gridSize, reps)
-
-  for j in 1:reps
-
-    repopulate!(eco, false)
-
-    for k in 1:gridSize
-      abun[1,:, k,  j] = eco.abundances.matrix[:, 1]
-      ener[1, k,  j] = sum(eco.spplist.abun .* eco.spplist.requirement.energy)
-    end
-
-    for i in 1:times
-        update!(eco, birth, death, move, l, s, timestep)
-        for g in 1:gridSize
-          abun[i+1, :, g, j] = eco.abundances.matrix[: , g]
-          ener[i+1, g, j] = sum(eco.abundances.matrix[: , g] .* eco.spplist.requirement.energy)
-        end
-    end
-    map
-  end
-  mean_abun = mapslices(mean, abun, 4)
-  sd_abun = mapslices(std, abun, 4)
-  mean_ener = mapslices(mean, ener, 3)
-  sd_ener = mapslices(std, ener, 3)
-  [abun, mean_abun, sd_abun, mean_ener, sd_ener]
-end
-
+Function to run an ecosystem, `eco`, through a simulation for a set of parameters,
+`param`, specified number of times, `times` and certain number of repetitions,
+`reps`, with a burnin period, `burnin`, time interval for abundances to be recorded,
+`interval`. There is also the option to run migration over all abundances or only
+those in the birth pulse, `birth_move`.
+"""
 function run_sim_spatial(eco::Ecosystem, param::AbstractVector,
    times::Int64, burnin::Int64, interval::Int64, reps::Int64, birth_move::Bool)
 
@@ -95,7 +68,6 @@ function _expected_counts(total::Array{Int64}, grd::Array{Int64}, sq::Int64)
   actual = counts(grd+1, maximum(grd+1))
   actual = convert(Array{Float64,1}, actual)
 
-  # Calculate
   expected_dist = zeros(Float64, (length(total), maximum(total)+1))
   for i in 1:length(total)
     expected_dist[i, 1:(total[i]+1)] = repmat([1/(total[i]+1)], total[i]+1)
