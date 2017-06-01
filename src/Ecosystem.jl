@@ -6,8 +6,8 @@ using Unitful
 function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
     realm = _calcabundance(sim, m)
     return typematch(realm, sim, part) &&
-    _counttypes(sim) == size(realm, 1) &&
-    _countsubcommunities(part) == size(realm, 2)
+    counttypes(sim) == size(realm, 1) &&
+    countsubcommunities(part) == size(realm, 2)
 end
 
 importall Diversity.API
