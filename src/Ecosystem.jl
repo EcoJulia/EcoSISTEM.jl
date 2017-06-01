@@ -67,15 +67,11 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits::Bool)
                            TraitRelationship(rel), lookup_tab)
 end
 
-function _getabundance(eco::Ecosystem)
-  ab = eco.abundances.matrix
-  if sum(ab) ≈ one(eltype(ab))
-    return ab
-  else
-    relab = ab / sum(ab)
-    return relab
-  end
+function _getabundance(eco::Ecosystem, input::Bool)
+  relab = eco.abundances.matrix / sum(eco.abundances.matrix)
+    return input ? relab : calcabundance(eco.spplist, relab)
 end
+
 function _getmetaabundance(eco::Ecosystem)
   return sumoversubcommunities(eco, _getabundance(eco))
 end
@@ -88,7 +84,7 @@ end
 
 function _getordinariness!(eco::Ecosystem)
     if isnull(eco.ordinariness)
-        eco.ordinariness = _calcordinariness(eco.spplist, getabundance(eco))
+        eco.ordinariness = calcordinariness(eco.spplist, getabundance(eco, true))
     end
     get(eco.ordinariness)
 end

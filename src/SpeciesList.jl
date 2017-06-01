@@ -1,5 +1,6 @@
 using Diversity.Phylogenetics
-import Diversity.getnames
+importall Diversity.API
+
 """
     simmatch(sim::AbstractTypes)
 
@@ -134,24 +135,24 @@ function _simmatch(sim::SpeciesList)
   _simmatch(sim.phylo)
 end
 
-function _calcsimilarity(ut::UniqueTypes)
-  return eye(ut.num)
+#function _calcsimilarity(ut::UniqueTypes)
+#  return eye(ut.num)
+#end
+
+#function _calcsimilarity(ph::Phylogeny)
+# return ph.Zmatrix
+#end
+
+function _getnames(sl::SpeciesList, input::Bool)
+    return _getnames(sl.phylo, input)
 end
 
-function _calcsimilarity(ph::Phylogeny)
-return ph.Zmatrix
+function _counttypes(sl::SpeciesList, input::Bool)
+    return _counttypes(sl.phylo, input)
 end
 
-function _getnames(sl::SpeciesList)
-    return getnames(sl.phylo)
-end
-
-function _counttypes(sl::SpeciesList)
-    return length(getnames(sl))
-end
-
-function _calcsimilarity(sl::SpeciesList)
-    return _calcsimilarity(sl.phylo)
+function _calcsimilarity(sl::SpeciesList, a::AbstractArray)
+    return _calcsimilarity(sl.phylo, a)
 end
 
 function _floattypes(::SpeciesList)
@@ -159,5 +160,9 @@ function _floattypes(::SpeciesList)
 end
 
 function _calcordinariness(sl::SpeciesList, a::AbstractArray)
-    _calcsimilarity(sl) * a
+    _calcordinariness(sl.phylo, a)
+end
+
+function _calcabundance(sl::SpeciesList, a::AbstractArray)
+  return _calcabundance(sl.phylo, a)
 end

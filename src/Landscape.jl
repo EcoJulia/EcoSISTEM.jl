@@ -22,8 +22,8 @@ Function to create an empty GridLandscape given a GridAbioticEnv and a
 SpeciesList.
 """
 function emptygridlandscape(gae::GridAbioticEnv, spplist::SpeciesList)
-  mat = zeros(counttypes(spplist),countsubcommunities(gae))
+  mat = zeros(counttypes(spplist, true), countsubcommunities(gae))
 
-  dimension = (counttypes(spplist), size(gae.habitat.matrix)...)
+  dimension = (counttypes(spplist, true), size(gae.habitat.matrix)...)
   return GridLandscape(mat, dimension)
 end
