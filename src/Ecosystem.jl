@@ -22,23 +22,24 @@ as well as properties such as trait information, `spplist`, and movement types,
 and available resources,`abenv`. Finally, there is a slot for the relationship
 between the environment and the characteristics of the species, `relationship`.
 """
-type Ecosystem{Part <: AbstractAbiotic} <:
-   AbstractMetacommunity{Float64, Matrix{Float64}, SpeciesList, Part}
+type Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList} <:
+   AbstractMetacommunity{Float64, Matrix{Float64}, SL, Part}
   abundances::GridLandscape
-  spplist::SpeciesList
+  spplist::SL
   abenv::Part
   ordinariness::Nullable{Matrix{Float64}}
   relationship::TraitRelationship
   lookup::Vector{DataFrame}
 
-  function (::Type{Ecosystem{Part}}){Part <: AbstractAbiotic}(abundances::GridLandscape,
-    spplist::SpeciesList, abenv::Part, ordinariness::Nullable{Matrix{Float64}},
+  function (::Type{Ecosystem{Part, SL}}){Part <: AbstractAbiotic,
+    SL <: SpeciesList}(abundances::GridLandscape,
+    spplist::SL, abenv::Part, ordinariness::Nullable{Matrix{Float64}},
     relationship::TraitRelationship, lookup::Vector{DataFrame})
     eltype(abenv.budget) == eltype(spplist.requirement) ||
       error("Environment and species energy not of the same type")
     _mcmatch(abundances.matrix, spplist, abenv) ||
       error("Dimension mismatch")
-    new{Part}(abundances, spplist, abenv, ordinariness, relationship, lookup)
+    new{Part, SL}(abundances, spplist, abenv, ordinariness, relationship, lookup)
   end
 end
 """
@@ -62,7 +63,7 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits::Bool)
   # Create lookup table of all moves and their probabilities
   lookup_tab = genlookups(abenv.habitat, spplist.movement)
 
-  Ecosystem{typeof(abenv)}(ml, spplist, abenv, Nullable{Matrix{Float64}}(),
+  Ecosystem{typeof(abenv), typeof(spplist)}(ml, spplist, abenv, Nullable{Matrix{Float64}}(),
                            TraitRelationship(rel), lookup_tab)
 end
 
