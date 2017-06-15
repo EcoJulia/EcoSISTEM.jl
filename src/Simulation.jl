@@ -18,7 +18,7 @@ include("AbioticEnv.jl")
 export GridAbioticEnv, simplenicheAE
 
 include("Movement.jl")
-export GaussianMovement
+export GaussianKernel, BirthOnlyMovement, AlwaysMovement, getkernel
 
 include("Traits.jl")
 export BasicTrait
@@ -39,6 +39,6 @@ include("Helper.jl")
 export run_sim, run_sim_spatial, expected_counts
 
 include("plotting.jl")
-export plot_move, plot_abun, plot_divergence, freq_hist
+export plot_move, plot_abun, plot_divergence, freq_hist, plotdiv
 
 end

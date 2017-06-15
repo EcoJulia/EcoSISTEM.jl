@@ -61,7 +61,7 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits::Bool)
   # For now create an identity matrix for the species relationships
   rel = eye(length(spplist.traits.trait))
   # Create lookup table of all moves and their probabilities
-  lookup_tab = genlookups(abenv.habitat, spplist.movement)
+  lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
 
   Ecosystem{typeof(abenv), typeof(spplist)}(ml, spplist, abenv, Nullable{Matrix{Float64}}(),
                            TraitRelationship(rel), lookup_tab)
@@ -120,7 +120,7 @@ end
 Function to generate lookup tables, which hold information on the probability
 of moving to neighbouring squares.
 """
-function genlookups(hab::AbstractHabitat, mov::GaussianMovement)
+function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
   relsize =  hab.size ./ mov.var
   m = maximum(size(hab.matrix))
   p = mov.thresh
