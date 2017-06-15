@@ -6,6 +6,7 @@ using Simulation
 using RCall
 using Distributions
 using StatsBase
+using ProgressMeter
 
 ## Run simulation on 2 by 1 grid - investigate spatial distributions
 
@@ -22,10 +23,10 @@ birth = 0.6
 death = 0.6
 l = 1.0
 s = 0.0
-timestep = 1
+timestep = 1.0
 
 # Collect model parameters together (in this order!!)
-param = [birth, death, timestep, l, s]
+param = EqualPop(birth, death, l, s)
 
 grid = (2, 1)
 gridSize = 1.0
@@ -33,16 +34,31 @@ totalK = 1000.0
 individuals=100
 
 # Create ecosystem
-movement = GaussianMovement(0.2, numSpecies, 10e-4)
+kernel = GaussianKernel(0.2, numSpecies, 10e-4)
+movement = AlwaysMovement(kernel)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
-                   energy_vec, movement)#, UniqueTypes(numSpecies))
+                   energy_vec, movement, param)#, UniqueTypes(numSpecies))
 abenv = simplenicheAE(numNiches, grid, totalK, gridSize)
 eco = Ecosystem(sppl, abenv, false)
-plotdiv(norm_sub_alpha, eco, vcat(collect(0:5), Inf))
 
-times = 1000; burnin = 500; interval = 10; reps = 10; birth_move = false
-# Run simulations 100 times
-ab = run_sim_spatial(eco, param, times, burnin, interval, reps, birth_move)
+plotdiv(norm_sub_alpha, eco, collect(0:10))
+
+
+times = 1000; burnin = 500; interval = 10; reps = 10
+lensim = length(0:interval:times)
+
+# Run simulations 10 times
+storage = generate_storage(eco, lensim, reps)
+
+@showprogress 1 "Computing..." for j in 1:reps
+  if (j != 1) repopulate!(eco, false) end
+  thisstore = slice(storage, :, :, :, j)
+  simulate!(eco, burnin, interval, timestep)
+  simulate_record!(thisstore, eco, times, interval, timestep)
+end
+
+
+ab = run_sim_spatial(eco, param, times, burnin, interval, reps)
 
 ## Look at species 1
 # Convert the abundances to Integers for species 1

@@ -29,7 +29,7 @@ function plot_abun(abun::AbstractArray, numSpecies::Int64, gridSize::Int64)
   for (i in 1:gridSize^2){
       for (k in 1:numSpecies){
         if (k==1) plot_fun=plot else plot_fun=lines
-          plot_fun(0:100, abun[, k, 1, i], col=k, xlab='Abundance', ylab='Time', type='l',
+          plot_fun(0:100, abun[k, i, , 1], col=k, xlab='Abundance', ylab='Time', type='l',
           ylim=c(0, max(abun)))
         }
     }"
