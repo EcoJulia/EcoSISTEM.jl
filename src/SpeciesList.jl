@@ -23,58 +23,63 @@ function _simmatch(sim::UniqueTypes)
     throw(DimensionMismatch("Names do not match number of types"))
 end
 """
-    SpeciesList{T <: AbstractTraits, R <: AbstractRequirement,
-                 MO <: AbstractMovement} <: AbstractTypes
+    SpeciesList{TR <: AbstractTraits, R <: AbstractRequirement,
+                MO <: AbstractMovement, T <: AbstractTypes,
+                P <: AbstractParams} <: AbstractTypes
 Species list houses all species-specific information including trait information,
 phylogenetic relationships, requirement for energy and movement types.
 """
-type SpeciesList{T <: AbstractTraits,
+type SpeciesList{TR <: AbstractTraits,
                  R <: AbstractRequirement,
                  MO <: AbstractMovement,
-                 P <: AbstractTypes} <: AbstractTypes
+                 T <: AbstractTypes,
+                 P <: AbstractParams} <: AbstractTypes
   names::Vector{String}
-  traits::T
+  traits::TR
   abun::Vector{Int64}
   requirement::R
-  phylo::P
+  types::T
   movement::MO
+  params::P
 
-  function (::Type{SpeciesList{T, R, MO, P}}){T <: AbstractTraits,
+  function (::Type{SpeciesList{TR, R, MO, T, P}}){TR <: AbstractTraits,
                    R <: AbstractRequirement,
                    MO <: AbstractMovement,
-                   P <: AbstractTypes}(names:: Vector{String},
-      traits::T, abun::Vector{Int64}, req::R,
-      phylo::P, movement::MO)
+                   T <: AbstractTypes,
+                   P <: AbstractParams}(names:: Vector{String},
+      traits::TR, abun::Vector{Int64}, req::R,
+      types::T, movement::MO, params::P)
       # Check dimensions
-      _simmatch(phylo)
-      new{T, R, MO, P}(names, traits, abun, req, phylo, movement)
+      _simmatch(types)
+      new{TR, R, MO, T, P}(names, traits, abun, req, types, movement, params)
   end
-  function (::Type{SpeciesList{T, R, MO, P}}){T <: AbstractTraits,
+  function (::Type{SpeciesList{TR, R, MO, T, P}}){TR <: AbstractTraits,
                    R <: AbstractRequirement,
                    MO <: AbstractMovement,
-                   P <: AbstractTypes}(
-      traits::T, abun::Vector{Int64}, req::R,
-      phylo::P, movement::MO)
+                   T <: AbstractTypes,
+                   P <: AbstractParams}(
+      traits::TR, abun::Vector{Int64}, req::R,
+      types::T, movement::MO, params::P)
       # Check dimensions
-      _simmatch(phylo)
+      _simmatch(types)
       # Assign names
       names = map(x -> "$x", 1:length(abun))
-      new{T, R, MO, P}(names, traits, abun, req, phylo, movement)
+      new{TR, R, MO, T, P}(names, traits, abun, req, types, movement, params)
   end
 end
 """
     SpeciesList{R <: AbstractRequirement,
-      MO <: AbstractMovement}(numspecies::Int64,
+      MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,
       numtraits::Int64, abun_dist::Distribution, req::R,
-      movement::MO)
+      movement::MO, params::P)
 Function to create a SpeciesList given a number of species, the number of traits
 they possess, their abundances, requirement from the environment and their
 movement kernel.
 """
 function SpeciesList{R <: AbstractRequirement,
-    MO <: AbstractMovement}(numspecies::Int64,
+    MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,
     numtraits::Int64, abun_dist::Distribution, req::R,
-    movement::MO)
+    movement::MO, params::P)
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
@@ -94,22 +99,31 @@ function SpeciesList{R <: AbstractRequirement,
     length(req.energy)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
   SpeciesList{typeof(sp_trt), typeof(req),
-              typeof(movement), typeof(phy)}(names, sp_trt, abun, req,
-                                              phy, movement)
+              typeof(movement), typeof(phy),typeof(params)}(names, sp_trt, abun,
+              req, phy, movement, params)
+end
+
+function SpeciesList{R <: AbstractRequirement,
+    MO <: AbstractMovement}(numspecies::Int64,
+    numtraits::Int64, abun_dist::Distribution, req::R,
+    movement::MO, params::EqualPop)
+
+    equal_params = equalpop(params, numspecies)
+    return SpeciesList(numspecies, numtraits, abun_dist, req, movement, equal_params)
 end
 """
-    SpeciesList{R <: AbstractRequirement,
-      MO <: AbstractMovement, P <: AbstractTypes}(numspecies::Int64,
+    SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
+      T <: AbstractTypes, P <: AbstractParams}(numspecies::Int64,
       numtraits::Int64, abun_dist::Distribution, req::R,
-      movement::MO, phy::P)
+      movement::MO, phy::T, params::P)
 Function to create a SpeciesList given a number of species, the number of traits
 they possess, their abundances, requirement from the environment and their
 movement kernel and any type of AbstractTypes.
 """
-function SpeciesList{R <: AbstractRequirement,
-    MO <: AbstractMovement, P <: AbstractTypes}(numspecies::Int64,
+function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
+    T <: AbstractTypes, P <: AbstractParams}(numspecies::Int64,
     numtraits::Int64, abun_dist::Distribution, req::R,
-    movement::MO, phy::P)
+    movement::MO, phy::T, params::P)
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
@@ -127,12 +141,21 @@ function SpeciesList{R <: AbstractRequirement,
     length(req.energy)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
   SpeciesList{typeof(sp_trt), typeof(req),
-              typeof(movement), typeof(phy)}(names, sp_trt, abun, req,
-                                              phy, movement)
+              typeof(movement), typeof(phy), typeof(params)}(names, sp_trt, abun,
+               req, phy, movement, params)
+end
+
+function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
+    T <: AbstractTypes}(numspecies::Int64,
+    numtraits::Int64, abun_dist::Distribution, req::R,
+    movement::MO, phy::T, params::EqualPop)
+
+    equal_params = equalpop(params, numspecies)
+    return SpeciesList(numspecies, numtraits, abun_dist, req, movement, phy, equal_params)
 end
 
 function _simmatch(sim::SpeciesList)
-  _simmatch(sim.phylo)
+  _simmatch(sim.types)
 end
 
 #function _calcsimilarity(ut::UniqueTypes)
@@ -144,15 +167,15 @@ end
 #end
 
 function _getnames(sl::SpeciesList, input::Bool)
-    return _getnames(sl.phylo, input)
+    return _getnames(sl.types, input)
 end
 
 function _counttypes(sl::SpeciesList, input::Bool)
-    return _counttypes(sl.phylo, input)
+    return _counttypes(sl.types, input)
 end
 
 function _calcsimilarity(sl::SpeciesList, a::AbstractArray)
-    return _calcsimilarity(sl.phylo, a)
+    return _calcsimilarity(sl.types, a)
 end
 
 function _floattypes(::SpeciesList)
@@ -160,9 +183,9 @@ function _floattypes(::SpeciesList)
 end
 
 function _calcordinariness(sl::SpeciesList, a::AbstractArray)
-    _calcordinariness(sl.phylo, a)
+    _calcordinariness(sl.types, a)
 end
 
 function _calcabundance(sl::SpeciesList, a::AbstractArray)
-  return _calcabundance(sl.phylo, a)
+  return _calcabundance(sl.types, a)
 end
