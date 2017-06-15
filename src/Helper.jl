@@ -1,4 +1,3 @@
-using ProgressMeter
 
 """
 run_sim_spatial(eco::Ecosystem, param::AbstractVector,
@@ -10,40 +9,32 @@ Function to run an ecosystem, `eco`, through a simulation for a set of parameter
 `interval`. There is also the option to run migration over all abundances or only
 those in the birth pulse, `birth_move`.
 """
-function run_sim_spatial(eco::Ecosystem, param::AbstractVector,
-   times::Int64, burnin::Int64, interval::Int64, reps::Int64, birth_move::Bool)
-
-  birth = param[1]
-  death = param[2]
-  timestep = param[3]
-  l = param[4]
-  s = param[5]
-  numSpecies = length(eco.spplist.abun)
-  time_seq = collect(burnin:interval:times)
-  gridSize = length(eco.abenv.habitat.matrix)
-  abun = zeros(length(time_seq)+1, numSpecies, reps, gridSize);
-  #ener = zeros(length(time_seq)+1, reps)
-
-  if birth_move
-    update_fun=update_birth_move!
-  else
-    update_fun=update!
+function simulate!(eco::Ecosystem, times::Int64,
+  interval::Int64, timestep::Float64)
+  for i in 1:times
+    update!(eco, timestep)
   end
+end
 
-  @showprogress 1 "Computing..." for j in 1:reps
-    repopulate!(eco, false)
+function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
+  numSpecies = length(eco.spplist.abun)
+  gridSize = length(eco.abenv.habitat.matrix)
+  abun = zeros(numSpecies, gridSize, times, reps)
+end
 
-    abun[1, :, j, :] = eco.abundances.matrix
-    counting = 1
-    for i in 1:times
-        update_fun(eco, birth, death, l, s, timestep);
-        if any(i.==time_seq)
-            counting = counting+1
-            abun[counting, :, j, :] = eco.abundances.matrix
-      end
+function simulate_record!(storage::AbstractArray, eco::Ecosystem, times::Int64,
+  interval::Int64, timestep::Float64)
+  time_seq = 0:interval:times
+  storage[:, :, 1] = eco.abundances.matrix
+  counting = 1
+  for i in 1:times
+    update!(eco, timestep);
+    if any(i.==time_seq)
+      counting = counting + 1
+      storage[:, :, counting] = eco.abundances.matrix
     end
   end
-  abun
+  storage
 end
 
 function expected_counts(grd::Array{Float64, 3}, sq::Int64)

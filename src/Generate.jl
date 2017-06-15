@@ -37,12 +37,7 @@ birth, death rates and longevity of species (l & s) to generate the abundances
 of the species stochastically. Movement takes place across the landscape via
 movement rates defined in the ecosystem.
 """
-function update!(eco::Ecosystem,  birth::Float64, death::Float64,
-   l::Float64, s::Float64, timestep::Real)
-
-   # For now keep l>s
-   l > s || error("l must be greater than s")
-   l >= 0 && s >= 0 || error("l and s must be greater than zero")
+function update!(eco::Ecosystem, timestep::Float64)
 
   # Calculate abundance in overall grid (to be implemented later?)
   #abun=map(i->sum(eco.abundances[i,:,:]), 1:size(eco.abundances,1))
@@ -51,7 +46,7 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
   dims = length(eco.abenv.habitat.matrix)
   spp = size(eco.abundances.grid,1)
   net_migration = zeros(size(eco.abundances.matrix))
-
+  params = eco.spplist.params
   # Loop through grid squares
   for i in 1:dims
 
@@ -73,12 +68,12 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
         E = sum(square .* ϵ̄)
 
         # Alter rates by energy available in current pop & own requirements
-        birth_energy = (ϵ̄[j])^(-l-s) * K / E
-        death_energy = (ϵ̄[j])^(-l+s) * E / K
+        birth_energy = (ϵ̄[j])^(-params.l - params.s) * K / E
+        death_energy = (ϵ̄[j])^(-params.l + params.s) * E / K
 
         # Calculate effective rates
-        birthprob = birth * timestep * birth_energy
-        deathprob = death * timestep * death_energy
+        birthprob = params.birth[j] * timestep * birth_energy
+        deathprob = params.death[j] * timestep * death_energy
 
         # If traits are same as habitat type then give birth "boost"
         #if eco.spplist.traits.trait[j] != eco.abenv.habitat.matrix[x, y]
@@ -97,7 +92,7 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
 
 
         # Put probabilities into 0 - 1
-        probs = map(prob -> 1-exp(-prob), [birthprob, deathprob])
+        probs = map(prob -> 1 - exp(-prob), [birthprob, deathprob])
 
         # Calculate how many births and deaths
         births = jbinom(1, Int(square[j]), probs[1])[1]
@@ -108,90 +103,11 @@ function update!(eco::Ecosystem,  birth::Float64, death::Float64,
           births - deaths
 
         # Perform gaussian movement
-        move!(i, j, eco, net_migration)
+        move!(eco, eco.spplist.movement, i, j, net_migration, births)
       end
     end
   end
   eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
-end
-
-"""
-    update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
-       l::Float64, s::Float64, timestep::Real)
-Function to update a Ecosystem after one timestep. It takes in parameters of
-birth, death rates and longevity of species (l & s) to generate the abundances
-of the species stochastically. Movement takes place across the landscape via
-movement rates defined in the ecosystem.
-"""
-function update_birth_move!(eco::Ecosystem,  birth::Float64, death::Float64,
-   l::Float64, s::Float64, timestep::Real)
-
-   # For now keep l>s
-   l > s || error("l must be greater than s")
-   l >= 0 && s >= 0 || error("l and s must be greater than zero")
-
-  # Calculate abundance in overall grid (to be implemented later?)
-  #abun=map(i->sum(eco.abundances[i,:,:]), 1:size(eco.abundances,1))
-
-  # Calculate dimenions of habitat and number of species
-  dims = length(eco.abenv.habitat.matrix)
-  spp = size(eco.abundances.matrix, 1)
-  net_migration = zeros(size(eco.abundances.matrix))
-
-  # Loop through grid squares
-  for i in 1:dims
-
-      # Get the overall energy budget of that square
-      K = eco.abenv.budget.matrix[i]
-      randomise=collect(1:spp)
-      randomise=randomise[randperm(length(randomise))]
-      # Loop through species in chosen square
-      for j in randomise
-
-        # Get abundances of square we are interested in
-        square = eco.abundances.matrix[:, i]
-
-        if square[j] <= 0
-          eco.abundances.matrix[j, i] = 0
-        else
-        # Get energy budgets of species in square
-        ϵ̄ = eco.spplist.requirement.energy
-        E = sum(square .* ϵ̄)
-
-        # Alter rates by energy available in current pop & own requirements
-        birth_energy = (ϵ̄[j])^(-l-s) * K / E
-        death_energy = (ϵ̄[j])^(-l+s) * E / K
-
-        # Calculate effective rates
-        birthprob = birth * timestep * birth_energy
-        deathprob = death * timestep * death_energy
-
-
-        # If zero abundance then go extinct
-        if square[j] == 0
-          birthprob = 0
-          deathprob = 0
-          moveprob = 0
-        end
-
-        # Put probabilities into 0 - 1
-        probs = map(prob -> 1-exp(-prob), [birthprob, deathprob])
-
-        # Calculate how many births and deaths
-        births = jbinom(1, Int(square[j]), probs[1])[1]
-        deaths = jbinom(1, Int(square[j]), probs[2])[1]
-
-        # Update population
-        eco.abundances.matrix[j, i] = eco.abundances.matrix[j, i] +
-          births - deaths
-
-        # Perform gaussian movement
-        move!(i, j, eco, net_migration, births)
-      end
-    end
-  end
-  # Update abundances with moves all at once
-  eco.abundances .= eco.abundances .+ net_migration
 end
 
 function convert_coords(i::Int64, width::Int64)
@@ -215,9 +131,9 @@ function calc_lookup_moves(i::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
   maxX = size(eco.abenv.habitat.matrix, 1)
   maxY = size(eco.abenv.habitat.matrix, 2)
   # Can't go over maximum dimension
-  lower  = find(mapslices(x->all(x.> 0), Array(table), 2))
-  upperX = find(map(x-> (x.<= maxX), table[:,1]))
-  upperY = find(map(x-> (x.<= maxY), table[:,2]))
+  lower  = find(mapslices(x -> all(x .> 0), Array(table), 2))
+  upperX = find(map(x -> (x .<= maxX), table[:,1]))
+  upperY = find(map(x -> (x .<= maxY), table[:,2]))
   valid = intersect(lower, upperX, upperY)
   table = table[valid, :]
   table[:Prob] = table[:Prob]/sum(table[:Prob])
@@ -237,7 +153,7 @@ movement patterns on a grid, `grd`. Optionally, a number of births can be
 provided, so that movement only takes place as part of the birth process, instead
 of the entire population
 """
-function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
+function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64, grd::Array{Float64, 2}, ::Int64)
   width = size(eco.abenv.habitat.matrix, 1)
   full_abun = Int64(eco.abundances.matrix[spp, i])
   table = calc_lookup_moves(i, spp, eco, full_abun)
@@ -249,7 +165,7 @@ function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
 end
 
 
-function move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2},
+function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64, grd::Array{Float64, 2},
                 births::Int64)
   width = size(eco.abenv.habitat.matrix, 1)
   table = calc_lookup_moves(i, spp, eco, births)

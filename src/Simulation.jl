@@ -23,6 +23,9 @@ export GaussianKernel, BirthOnlyMovement, AlwaysMovement, getkernel
 include("Traits.jl")
 export BasicTrait
 
+include("Demographics.jl")
+export PopGrowth, EqualPop
+
 include("SpeciesList.jl")
 export SpeciesList
 
@@ -36,9 +39,10 @@ include("Generate.jl")
 export populate!, repopulate!, randomniches, update!, update_birth_move!
 
 include("Helper.jl")
-export run_sim, run_sim_spatial, expected_counts
+export simulate!, simulate_record!, expected_counts, generate_storage
 
 include("plotting.jl")
 export plot_move, plot_abun, plot_divergence, freq_hist, plotdiv
+
 
 end
