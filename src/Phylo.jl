@@ -1,7 +1,10 @@
-using PhyloTrees
+using Phylo
 using Distributions
 #using Plots
 #using Simulation
+#NodeIterator(tree, isleaf)
+# NodeIterator(tree, isroot)
+
 #Function to create random tree with set number of tips
 function jtree(SpeciesNames::Vector{String}, T::Type = String,
   dist::Distribution = Uniform(0, length(SpeciesNames)))
@@ -108,9 +111,8 @@ end
 #  findin(map(isroot,repmat([tree],length(tree.nodes)),collect(1:length(tree.nodes))), true)
 #end
 function root_to_tips(tree)
-  tips=findleaves(tree)
-  root=findroots(tree)[1]
-  map(nodepath,repmat([tree],endof(tips)), repmat([root],endof(tips)), tips)
+  tips = collect(NodeNameIterator(tree, isleaf))
+  map(nodehistory, repmat([tree], endof(tips)), tips)
 end
 # Function to create a random ultrametric tree
 function jcoal(SpeciesNames::Vector{String}, len::Real, T::Type=String)
@@ -121,7 +123,7 @@ function jcoal(SpeciesNames::Vector{String}, len::Real, T::Type=String)
     tree2.branches[1].length = len
   else
   # Find tips of tree
-  tips=findleaves(tree2)
+  tips=NodeIterator(tree2, isleaf)
   # Find paths of each tip from root
   paths=root_to_tips(tree2)
   # Create array of source and target nodes
@@ -173,10 +175,10 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
   check = arenoderecordsempty(tree, findall(tree))
   all(check) || error("Some nodes already assigned traits")
   # Calculate all branch paths from root to tips
-  tips=findleaves(tree)
-  paths = map(i-> reverse(nodepath(tree, i)), tips)
+  tips = NodeNameIterator(tree, isleaf)
+  paths = map(i-> reverse(nodehistory(tree, i)), tips)
   # Assign first node a trait randomly
-  setnoderecord!(tree, findroots(tree)[1], [sample(traits)])
+  setnoderecord!(tree, first(NodeIterator(tree, isroot)), [sample(traits)])
   # Loop through all paths
   for i in (1 : length(paths))
     # Choose first path
@@ -194,7 +196,7 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
     end
 
   # Calculate how long the path is already
-  path = mapslices(a -> branchpath(tree, a[1], a[2]), pairs, 2)
+  path = mapslices(a -> get(branchroute(tree, a[1], a[2])), pairs, 2)
   len = sum(map(a -> tree.branches[a].length, path))
 
 
@@ -215,13 +217,13 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
 
       sel_pair = pairs[j, :]
       #Get the branch the node pairs are found on
-      branch_path = branchpath(tree, sel_pair[1], sel_pair[2])
+      branch_path = get(branchroute(tree, sel_pair[1], sel_pair[2]))
       # Calculate the length of the branch
       branch_len = tree.branches[branch_path[1]].length
       # If previous branches have been assigned then need to add previous branch lengths to switch times
       prev_branch_len = 0.0
       if any(assigned)
-        prev_path=branchpath(tree, sel_pair[1])
+        prev_path=branchhistory(tree, sel_pair[1])
         prev_branch_len=sum(map(i-> tree.branches[i].length, prev_path))
       end
       # Assign switch times as branch data
@@ -257,7 +259,7 @@ function get_traits(tree::NodeTree, SpeciesNames::Vector{String},
    check = !arenoderecordsempty(tree, findall(tree))
    all(check) || error("All node records empty")
   if tips
-    nodes = findleaves(tree)
+    nodes = NodeIterator(tree, isleaf)
   else
     nodes = findall(tree)
   end
@@ -292,7 +294,7 @@ function assign_traits!(tree::NodeTree, start::Float64, σ²:: Float64)
   # Find all names of nodes
   names =  findall(tree)
   # Sort by distance from root
-  dist = map(x -> distance(tree, findroots(tree)[1], x), names)
+  dist = map(x -> distance(tree, NodeIterator(tree, isroot)[1], x), names)
   names = names[sortperm(dist)]
   # Loop through nodes in order of appearance
   for i in names
@@ -301,7 +303,7 @@ function assign_traits!(tree::NodeTree, start::Float64, σ²:: Float64)
     else
       pnt = parentnode(tree, i)
       srt = getnoderecord(tree, pnt)[1]
-      path = branchpath(tree, pnt, i)[1]
+      path = get(branchroute(tree, pnt, i))[1]
       ln = tree.branches[path].length
       setnoderecord!(tree, i, [BM(ln, σ², srt[1])[end]])
 
