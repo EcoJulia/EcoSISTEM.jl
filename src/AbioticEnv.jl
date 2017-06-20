@@ -7,7 +7,8 @@ importall Diversity.API
 Abstract supertype for all abiotic environment types and a subtype of
 AbstractPartition
 """
-abstract AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
+abstract type AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <:
+   AbstractPartition end
 
 """
     GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
@@ -15,7 +16,7 @@ abstract AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractP
 This abiotic environment type holds a habitat and budget, as well as a string
 of subcommunity names.
 """
-type GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
+mutable struct GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
   habitat::H
   budget::B
   names::Vector{String}

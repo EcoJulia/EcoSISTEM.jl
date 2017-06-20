@@ -3,10 +3,10 @@
 
 Abstract supertype of movements
 """
-abstract AbstractMovement
+abstract type AbstractMovement end
 
 
-abstract AbstractKernel
+abstract type AbstractKernel end
 
 """
     GaussianKernel <: AbstractKernel
@@ -15,7 +15,7 @@ GaussianMovement holds parameters for a gaussian movement kernel; a vector of
 dispersal variances per species, `var`, and a threshold, `thresh`, beyond which
 dispersal cannot take place.
 """
-type GaussianKernel <: AbstractKernel
+mutable struct GaussianKernel <: AbstractKernel
   var::Vector{Float64}
   thresh::Float64
 end
@@ -25,11 +25,11 @@ function GaussianKernel(dispersalvar::Float64, numspecies::Int64,
   GaussianKernel(repmat([dispersalvar], numspecies), pthresh)
 end
 
-type BirthOnlyMovement{K <: AbstractKernel} <: AbstractMovement
+mutable struct BirthOnlyMovement{K <: AbstractKernel} <: AbstractMovement
   kernel::K
 end
 
-type AlwaysMovement{K <: AbstractKernel} <: AbstractMovement
+mutable struct AlwaysMovement{K <: AbstractKernel} <: AbstractMovement
   kernel::K
 end
 

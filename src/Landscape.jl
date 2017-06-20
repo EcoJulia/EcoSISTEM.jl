@@ -6,7 +6,7 @@ dimensions (for computational efficiency in simulations) and 3 dimensions (to
 represent species, their abundances and position in the grid).
 
 """
-type GridLandscape
+mutable struct GridLandscape
   matrix::Matrix{Float64}
   grid::Array{Float64, 3}
 

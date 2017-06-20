@@ -22,7 +22,7 @@ as well as properties such as trait information, `spplist`, and movement types,
 and available resources,`abenv`. Finally, there is a slot for the relationship
 between the environment and the characteristics of the species, `relationship`.
 """
-type Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList} <:
+mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList} <:
    AbstractMetacommunity{Float64, Matrix{Float64}, SL, Part}
   abundances::GridLandscape
   spplist::SL
@@ -31,10 +31,11 @@ type Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList} <:
   relationship::TraitRelationship
   lookup::Vector{DataFrame}
 
-  function (::Type{Ecosystem{Part, SL}}){Part <: AbstractAbiotic,
-    SL <: SpeciesList}(abundances::GridLandscape,
+  function Ecosystem{Part, SL}(abundances::GridLandscape,
     spplist::SL, abenv::Part, ordinariness::Nullable{Matrix{Float64}},
-    relationship::TraitRelationship, lookup::Vector{DataFrame})
+    relationship::TraitRelationship, lookup::Vector{DataFrame}) where {Part <:
+     AbstractAbiotic,
+    SL <: SpeciesList}
     eltype(abenv.budget) == eltype(spplist.requirement) ||
       error("Environment and species energy not of the same type")
     _mcmatch(abundances.matrix, spplist, abenv) ||

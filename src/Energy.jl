@@ -6,7 +6,7 @@ import Base.eltype
 Abstract supertype for all species energy requirement types, parameterised by
 the type(s) of energy required `Energy`.
 """
-abstract AbstractRequirement{Energy}
+abstract type AbstractRequirement{Energy} end
 
 function eltype{Energy}(::AbstractRequirement{Energy})
   return Energy
@@ -17,7 +17,7 @@ end
 
 A simple energy requirement is a single float for each species.
 """
-type SimpleRequirement <: AbstractRequirement{Float64}
+mutable struct SimpleRequirement <: AbstractRequirement{Float64}
   energy::Vector{Float64}
 end
 
@@ -26,7 +26,7 @@ end
 
 Abstract supertype for all budget types
 """
-abstract AbstractBudget{Requirement}
+abstract type AbstractBudget{Requirement} end
 
 function eltype{Energy}(::AbstractBudget{Energy})
   return Energy
@@ -42,7 +42,7 @@ end
 This budget type has a matrix of floats, representing the energy budget of each
 subcommunity in the abiotic environment.
 """
-type SimpleBudget <: AbstractBudget{Float64}
+mutable struct SimpleBudget <: AbstractBudget{Float64}
   matrix::Matrix{Float64}
 end
 

@@ -8,7 +8,7 @@ Checks for size and value incompatibility in similarity objects
 """
 function simmatch end
 
-function _simmatch(sim::Phylogeny)
+function _simmatch(sim::PhyloTypes)
   # Check similarity is square matrix
   size(sim.Zmatrix, 1) == size(sim.Zmatrix, 2) ||
     throw(DimensionMismatch("Similarity matrix is not square"))
@@ -29,7 +29,7 @@ end
 Species list houses all species-specific information including trait information,
 phylogenetic relationships, requirement for energy and movement types.
 """
-type SpeciesList{TR <: AbstractTraits,
+mutable struct SpeciesList{TR <: AbstractTraits,
                  R <: AbstractRequirement,
                  MO <: AbstractMovement,
                  T <: AbstractTypes,
@@ -42,24 +42,24 @@ type SpeciesList{TR <: AbstractTraits,
   movement::MO
   params::P
 
-  function (::Type{SpeciesList{TR, R, MO, T, P}}){TR <: AbstractTraits,
-                   R <: AbstractRequirement,
-                   MO <: AbstractMovement,
-                   T <: AbstractTypes,
-                   P <: AbstractParams}(names:: Vector{String},
+  function SpeciesList{TR, R, MO, T, P}(names:: Vector{String},
       traits::TR, abun::Vector{Int64}, req::R,
-      types::T, movement::MO, params::P)
+      types::T, movement::MO, params::P) where {TR <: AbstractTraits,
+                       R <: AbstractRequirement,
+                       MO <: AbstractMovement,
+                       T <: AbstractTypes,
+                       P <: AbstractParams}
       # Check dimensions
       _simmatch(types)
       new{TR, R, MO, T, P}(names, traits, abun, req, types, movement, params)
   end
-  function (::Type{SpeciesList{TR, R, MO, T, P}}){TR <: AbstractTraits,
-                   R <: AbstractRequirement,
-                   MO <: AbstractMovement,
-                   T <: AbstractTypes,
-                   P <: AbstractParams}(
+  function SpeciesList{TR, R, MO, T, P}(
       traits::TR, abun::Vector{Int64}, req::R,
-      types::T, movement::MO, params::P)
+      types::T, movement::MO, params::P) where {TR <: AbstractTraits,
+                       R <: AbstractRequirement,
+                       MO <: AbstractMovement,
+                       T <: AbstractTypes,
+                       P <: AbstractParams}
       # Check dimensions
       _simmatch(types)
       # Assign names
@@ -83,14 +83,14 @@ function SpeciesList{R <: AbstractRequirement,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = jcoal(names, 100)
+    tree = jcoal(names, 100.0)
     # Create traits and assign to tips
     trts = map(string, 1:numtraits)
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
     sp_trt = BasicTrait(get_traits(tree, names, true)[:,1])
     # Create similarity matrix (for now identity)
-    phy = Phylogeny(tree)
+    phy = PhyloTypes(tree)
     # Draw random set of abundances from distribution
     abun = rand(abun_dist)
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
@@ -127,7 +127,7 @@ function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = jcoal(names, 100)
+    tree = jcoal(names, 100.0)
     # Create traits and assign to tips
     trts = map(string, 1:numtraits)
     assign_traits!(tree, 0.5, trts)
@@ -162,7 +162,7 @@ end
 #  return eye(ut.num)
 #end
 
-#function _calcsimilarity(ph::Phylogeny)
+#function _calcsimilarity(ph::PhyloTypes)
 # return ph.Zmatrix
 #end
 

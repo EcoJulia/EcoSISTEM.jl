@@ -7,7 +7,7 @@ import Diversity.countsubcommunities
 
 Abstract supertype for all habitat types
 """
-abstract AbstractHabitat{H}
+abstract type AbstractHabitat{H} end
 
 function countsubcommunities(ah::AbstractHabitat)
   return _countsubcommunities(ah)
@@ -18,7 +18,7 @@ end
 
 This habitat subtype has a matrix of floats and a float grid square size
 """
-type Habitats <: AbstractHabitat{Float64}
+mutable struct Habitats <: AbstractHabitat{Float64}
   matrix::Matrix{Float64}
   size::Float64
 end
@@ -31,7 +31,7 @@ end
 
 This habitat subtype has a matrix of strings and a float grid square size
 """
-type Niches <: AbstractHabitat{String}
+mutable struct Niches <: AbstractHabitat{String}
   matrix::Matrix{String}
   size::Float64
 end
@@ -133,14 +133,14 @@ function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float
   length(weights)==length(types) || error("There must be an area proportion for each type")
   sum(weights)==1 || error("Proportion of habitats must add up to 1")
   # Create weighting from proportion habitats
-  wv = WeightVec(weights)
+  wv = Weights(weights)
 
   # Create an empty grid of the right dimension
   M = zeros(dimension)
 
   # If the dimensions are too small for the algorithm, just use a weighted sample
   if dimension[1] <= 2 || dimension[2] <= 2
-    T = sample(types, WeightVec(weights), dimension)
+    T = sample(types, Weights(weights), dimension)
   else
     # Percolation step
     _percolate!(M, clumpiness)
