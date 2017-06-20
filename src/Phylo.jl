@@ -9,7 +9,7 @@ using Distributions
 function jtree(SpeciesNames::Vector{String}, T::Type = String,
   dist::Distribution = Uniform(0, length(SpeciesNames)))
   #Create tree
-  tree1 = NodeTree(SpeciesNames, nodetype = Vector{T})
+  tree1 = BinaryTree(SpeciesNames, nodetype = Vector{T})
   n = length(SpeciesNames)
   # If only one branch
   leaf_names = getleafnames(tree1)
@@ -96,7 +96,7 @@ end
 # Function to find which row source and target node are in
 function find_row(mat, sou, tar)
   row=map(==, mat[:,1:2], repmat([sou tar],size(mat,1)))
-  findin(row[:,1]&row[:,2], true)
+  findin(row[:,1] .& row[:,2], true)
 end
 # Function to find which row source and target nodes are in
 function find_rows(mat, sour, targ)
@@ -112,10 +112,11 @@ end
 #end
 function root_to_tips(tree)
   tips = collect(NodeNameIterator(tree, isleaf))
-  map(nodehistory, repmat([tree], endof(tips)), tips)
+  paths = map(nodehistory, repmat([tree], endof(tips)), tips)
+  map(reverse, paths)
 end
 # Function to create a random ultrametric tree
-function jcoal(SpeciesNames::Vector{String}, len::Real, T::Type=String)
+function jcoal(SpeciesNames::Vector{String}, len::Float64, T::Type=String)
   # Create random tree
   tree2=jtree(SpeciesNames, T)
   n = length(SpeciesNames)
@@ -159,6 +160,7 @@ end
   # Return ultrametric tree
   tree2
 end
+
 function isnoderecordempty(tree::AbstractTree, node::String)
   return isempty(getnoderecord(tree, node))
 end
@@ -170,7 +172,7 @@ function findall(tree::AbstractTree)
 end
 
 
-function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
+function assign_traits!(tree::BinaryTree, switch_rate::Real, traits::Vector)
   # Check if tree already assigned
   check = arenoderecordsempty(tree, findall(tree))
   all(check) || error("Some nodes already assigned traits")
@@ -178,7 +180,7 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
   tips = NodeNameIterator(tree, isleaf)
   paths = map(i-> reverse(nodehistory(tree, i)), tips)
   # Assign first node a trait randomly
-  setnoderecord!(tree, first(NodeIterator(tree, isroot)), [sample(traits)])
+  setnoderecord!(tree, first(NodeNameIterator(tree, isroot)), [sample(traits)])
   # Loop through all paths
   for i in (1 : length(paths))
     # Choose first path
@@ -188,11 +190,11 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
     assigned=false
     # Test if any branches have been assigned already
     if size(pairs, 1) > 1
-      test_assigned = !mapslices(a -> arenoderecordsempty(tree, a), pairs, 1)
+      test_assigned = .!mapslices(a -> arenoderecordsempty(tree, a), pairs, 1)
       assigned = mapslices(all, test_assigned, 2)
       assigned = vcat(assigned...)
       # If they have been assigned, remove from node pairs
-      pairs = pairs[!assigned, :]
+      pairs = pairs[.!assigned, :]
     end
 
   # Calculate how long the path is already
@@ -209,6 +211,7 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
   time_switch = jexp(switch_rate*len)
   append!(times, time_switch)
   end
+
   # Sum up the event times cumulatively
   cum_times = cumsum(times)
 
@@ -232,18 +235,18 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
       num_switches = sum(cum_times .< branch_len)
 
       # Find trait of last node
-      labels = !arenoderecordsempty(tree, sel_pair)
+      labels = .!arenoderecordsempty(tree, sel_pair)
       last_node = sel_pair[labels]
       last_label = getnoderecord(tree, last_node[1])
 
       # If there are no switches, give same trait as previous node
       if num_switches == 0
-        set_node = minimum(sel_pair[!labels])
+        set_node = minimum(sel_pair[.!labels])
         setnoderecord!(tree, set_node, last_label)
       else
       # Else loop through for the required number of switches, sampling from list of traits
         while num_switches > 0
-          set_node = minimum(sel_pair[!labels])
+          set_node = minimum(sel_pair[.!labels])
           setnoderecord!(tree, set_node, [sample(traits[traits .!= last_label])])
           last_label = getnoderecord(tree, set_node)
           num_switches = num_switches - 1
@@ -254,16 +257,16 @@ function assign_traits!(tree::NodeTree, switch_rate::Real, traits::Vector)
 end
 
 
-function get_traits(tree::NodeTree, SpeciesNames::Vector{String},
+function get_traits(tree::BinaryTree, SpeciesNames::Vector{String},
    tips::Bool=true)
-   check = !arenoderecordsempty(tree, findall(tree))
+   check = .!arenoderecordsempty(tree, findall(tree))
    all(check) || error("All node records empty")
   if tips
-    nodes = NodeIterator(tree, isleaf)
+    nodes = NodeNameIterator(tree, isleaf)
   else
     nodes = findall(tree)
   end
-  records = hcat(map(a->getnoderecord(tree, a)[1], nodes), nodes)
+  records = hcat(map(a->getnoderecord(tree, a)[1], nodes), collect(nodes))
   return sortrows(records, by=x-> x[2])
 end
 
@@ -285,7 +288,7 @@ end
 
 
 
-function assign_traits!(tree::NodeTree, start::Float64, σ²:: Float64)
+function assign_traits!(tree::BinaryTree, start::Float64, σ²:: Float64)
   check = arenoderecordsempty(tree, findall(tree))
   all(check) || error("Some nodes already assigned traits")
   # Start out with branches 1 & 2
@@ -294,7 +297,8 @@ function assign_traits!(tree::NodeTree, start::Float64, σ²:: Float64)
   # Find all names of nodes
   names =  findall(tree)
   # Sort by distance from root
-  dist = map(x -> distance(tree, NodeIterator(tree, isroot)[1], x), names)
+  dist = map(x -> distance(tree, first(collect(NodeNameIterator(tree, isroot))),
+   x), names)
   names = names[sortperm(dist)]
   # Loop through nodes in order of appearance
   for i in names

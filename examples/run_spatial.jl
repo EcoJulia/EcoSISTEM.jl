@@ -7,6 +7,7 @@ using RCall
 using Distributions
 using StatsBase
 using ProgressMeter
+using DataStructures
 
 ## Run simulation on 2 by 1 grid - investigate spatial distributions
 
