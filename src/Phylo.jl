@@ -1,15 +1,18 @@
 using Phylo
 using Distributions
-#using Plots
-#using Simulation
-#NodeIterator(tree, isleaf)
-# NodeIterator(tree, isroot)
+using DataFrames
 
-#Function to create random tree with set number of tips
+"""
+    jtree(SpeciesNames::Vector{String}, T::Type = String,
+    dist::Distribution = Uniform(0, length(SpeciesNames)))
+
+Function to create a random non-ultrametric phylogenetic tree, with branch
+lengths drawn from a distribution, `dist`, and node information of type, `T`.
+"""
 function jtree(SpeciesNames::Vector{String}, T::Type = String,
   dist::Distribution = Uniform(0, length(SpeciesNames)))
   #Create tree
-  tree1 = BinaryTree(SpeciesNames, nodetype = Vector{T})
+  tree1 = BinaryTree{LeafInfo, Vector{T}}(SpeciesNames)
   n = length(SpeciesNames)
   # If only one branch
   leaf_names = getleafnames(tree1)
@@ -60,14 +63,18 @@ end
 # Function to produce a matrix of all source and target nodes within a tree
 function sou_tar(tree::AbstractTree, len::Bool)
   # Create an empty array
-  path=Array{String}(length(tree.branches),2)
+  branches = sort(getbranchnames(tree))
   # Run through each branch
-  map(x -> path[x, :] = [tree.branches[x].source, tree.branches[x].target], 1:size(path, 1))
+  path =  map(branches) do brn
+  getsource(tree, brn), gettarget(tree, brn)
+end
   path = hcat(path, repmat([0.0], size(path, 1)))
     # Set length
     if len
       # Get length from tree
-      map(x -> path[x, 3] = tree.branches[x].length, 1:size(path, 1))
+      path[:, 2] = map(branches) do brn
+        getlength(tree, brn)
+      end
   end
   path
 end
@@ -84,38 +91,32 @@ function pair(vec)
   newvec
 end
 
-# Function to find if a node is a leaf
-#function isleaf(tree, node)
-#  length(tree.nodes[node].out)==0
-#end
-# Function to find if a node is a root
-#function isroot(tree, node)
-#  length(tree.nodes[node].in)==0
-#end
-
 # Function to find which row source and target node are in
 function find_row(mat, sou, tar)
-  row=map(==, mat[:,1:2], repmat([sou tar],size(mat,1)))
-  findin(row[:,1] .& row[:,2], true)
+  find(map(mat[:,1]) do check
+    (sou, tar) == check
+  end)
 end
 # Function to find which row source and target nodes are in
 function find_rows(mat, sour, targ)
-  hcat(map(find_row, repmat([mat], length(sour)), sour, targ)...)
+  vcat(map(sour, targ) do sour, targ
+    find_row(mat, sour, targ)
+  end...)
 end
-# Function to find tip nodes of tree
-#function findtips(tree)
-#  findin(map(isleaf,repmat([tree],length(tree.nodes)),collect(1:length(tree.nodes))), true)
-#end
-#import PhyloTrees.findroot
-#function find_root(tree)
-#  findin(map(isroot,repmat([tree],length(tree.nodes)),collect(1:length(tree.nodes))), true)
-#end
+
 function root_to_tips(tree)
   tips = collect(NodeNameIterator(tree, isleaf))
-  paths = map(nodehistory, repmat([tree], endof(tips)), tips)
-  map(reverse, paths)
+  paths = map(tips) do tps
+    reverse(nodehistory(tree, tps))
+  end
+  paths
 end
-# Function to create a random ultrametric tree
+"""
+    jcoal(SpeciesNames::Vector{String}, len::Float64, T::Type = String)
+
+Function to create a random ultrametric phylogenetic tree, with branches
+of length `len`, and node information of type, `T`.
+"""
 function jcoal(SpeciesNames::Vector{String}, len::Float64, T::Type=String)
   # Create random tree
   tree2=jtree(SpeciesNames, T)
@@ -140,141 +141,122 @@ function jcoal(SpeciesNames::Vector{String}, len::Float64, T::Type=String)
     # Split path into pairs of nodes
     pairs=pair(choosepath)
     # Find the row each pair of nodes corresponds to
-    rows=find_rows(paths_mat,pairs[:,1],pairs[:,2])
+    rows=find_rows(paths_mat, pairs[:,1], pairs[:,2])
     # Calculate how long the path is already
-    length_left=sum(paths_mat[rows,3])
+    length_left=sum(paths_mat[rows, 2])
     # Remove rows that have already been assigned a length
-    rows=rows[map(==,vcat(paths_mat[rows, 3]...),repmat([0],length(rows)))]
+    rows=rows[paths_mat[rows, 2] .== 0]
     # Calculate branch lengths from Dirichlet distribution
     pathlength=jdir(length(rows),1)*(len-length_left)
     # Assign branch lengths to matrix
-    paths_mat[rows,3]=pathlength
+    paths_mat[rows,2]=pathlength
     # Remove completed path
-    deleteat!(paths,maxpath[2])
+    deleteat!(paths, maxpath[2])
   end
   # Loop through and assign new branch lengths to tree
   for j in collect(1:size(paths_mat,1))
-      tree2.branches[j].length=paths_mat[j,3]
+      tree2.branches[j].length=paths_mat[j, 2]
   end
 end
   # Return ultrametric tree
   tree2
 end
 
-function isnoderecordempty(tree::AbstractTree, node::String)
-  return isempty(getnoderecord(tree, node))
-end
+
+
 function arenoderecordsempty(tree::AbstractTree, nodes::Vector{String})
-  map(nodelist -> isnoderecordempty(tree, nodelist), nodes)
-end
-function findall(tree::AbstractTree)
-  return collect(keys(getnodes(tree)))
+  map(nodes) do nod
+  isempty(getnoderecord(tree, nod))
+  end
 end
 
+"""
+    assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
+    traits::Vector{Vector{String}})
 
-function assign_traits!(tree::BinaryTree, switch_rate::Real, traits::Vector)
+Function to evolve categorical functional traits through a phylogenetic tree
+with a specific switching rate.
+
+"""
+
+function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
+          traits::Vector{Vector{String}})
   # Check if tree already assigned
-  check = arenoderecordsempty(tree, findall(tree))
+  check = arenoderecordsempty(tree, getnodenames(tree))
   all(check) || error("Some nodes already assigned traits")
   # Calculate all branch paths from root to tips
   tips = NodeNameIterator(tree, isleaf)
-  paths = map(i-> reverse(nodehistory(tree, i)), tips)
+  root = first(NodeNameIterator(tree, isroot))
+
+  paths = root_to_tips(tree)
   # Assign first node a trait randomly
-  setnoderecord!(tree, first(NodeNameIterator(tree, isroot)), [sample(traits)])
+  setnoderecord!(tree, root, map(sample, traits))
   # Loop through all paths
-  for i in (1 : length(paths))
-    # Choose first path
-    choosepath = paths[i]
+  for i in paths
     # Split path into pairs of nodes
-    pairs = pair(choosepath)
-    assigned=false
+    pairs = pair(i)
     # Test if any branches have been assigned already
-    if size(pairs, 1) > 1
-      test_assigned = .!mapslices(a -> arenoderecordsempty(tree, a), pairs, 1)
-      assigned = mapslices(all, test_assigned, 2)
-      assigned = vcat(assigned...)
-      # If they have been assigned, remove from node pairs
-      pairs = pairs[.!assigned, :]
-    end
+    unassigned = arenoderecordsempty(tree, i[i .!= root])
+    pairs = pairs[unassigned, :]
 
-  # Calculate how long the path is already
-  path = mapslices(a -> get(branchroute(tree, a[1], a[2])), pairs, 2)
-  len = sum(map(a -> tree.branches[a].length, path))
-
-
-  # Calculate time to next switch
-  sumtimes = Array{Vector{Float64}}(length(paths))
-  times = Array{Float64}(0)
-  # Draw switch times from exponential distribution
-  # Stop when they are larger than the length of the path
-  while(sum(times) < len)
-  time_switch = jexp(switch_rate*len)
-  append!(times, time_switch)
-  end
-
-  # Sum up the event times cumulatively
-  cum_times = cumsum(times)
-
-  # Run through the branches for the path, assigning a trait
-    for j in 1 : size(pairs, 1)
-
-      sel_pair = pairs[j, :]
-      #Get the branch the node pairs are found on
-      branch_path = get(branchroute(tree, sel_pair[1], sel_pair[2]))
-      # Calculate the length of the branch
-      branch_len = tree.branches[branch_path[1]].length
-      # If previous branches have been assigned then need to add previous branch lengths to switch times
-      prev_branch_len = 0.0
-      if any(assigned)
-        prev_path=branchhistory(tree, sel_pair[1])
-        prev_branch_len=sum(map(i-> tree.branches[i].length, prev_path))
+    # Calculate how long the path is already
+    len = distance(tree, first(pairs), last(pairs))
+    # Calculate time to next switch
+    # Draw switch times from exponential distribution
+    # Stop when they are larger than the length of the path
+    alltimes = map(switch_rate) do swt
+      times = Array{Float64}(0)
+        while(sum(times) < len)
+          time_switch = jexp(swt*len)
+          append!(times, time_switch)
+        end
+        times
       end
-      # Assign switch times as branch data
-      #tree.branches[branch_path[1]].data = cum_times[cum_times .< branch_len] + prev_branch_len
+
+    # Sum up the event times cumulatively
+    cum_times = map(cumsum, alltimes)
+
+    # Run through the branches for the path, assigning a trait
+    for j in 1 : size(pairs, 1)
+      sel_pair = pairs[j, :]
+      # Calculate the length of the branch
+      branch_len = distance(tree, first(sel_pair), last(sel_pair))
+
       # Calculate switch times
-      num_switches = sum(cum_times .< branch_len)
+      num_switches =
+        map(cum_times) do cum
+          sum(cum .< branch_len)
+        end
 
       # Find trait of last node
-      labels = .!arenoderecordsempty(tree, sel_pair)
-      last_node = sel_pair[labels]
-      last_label = getnoderecord(tree, last_node[1])
+      last_label = getnoderecord(tree, first(sel_pair))
 
-      # If there are no switches, give same trait as previous node
-      if num_switches == 0
-        set_node = minimum(sel_pair[.!labels])
-        setnoderecord!(tree, set_node, last_label)
-      else
-      # Else loop through for the required number of switches, sampling from list of traits
-        while num_switches > 0
-          set_node = minimum(sel_pair[.!labels])
-          setnoderecord!(tree, set_node, [sample(traits[traits .!= last_label])])
-          last_label = getnoderecord(tree, set_node)
-          num_switches = num_switches - 1
+      map(num_switches) do number
+        # If there are no switches, give same trait as previous node
+        if number == 0
+          set_node = last(sel_pair)
+          setnoderecord!(tree, set_node, last_label)
+        else
+          # Else loop through for the required number of switches, sampling from list of traits
+          while number > 0
+            set_node = last(sel_pair)
+            newtrait = map(traits) do trt
+                        sample(trt[trt .!= last_label])
+                       end
+            setnoderecord!(tree, set_node, newtrait)
+            last_label = getnoderecord(tree, set_node)
+            number = number - 1
+          end
         end
       end
     end
   end
 end
 
-
-function get_traits(tree::BinaryTree, SpeciesNames::Vector{String},
-   tips::Bool=true)
-   check = .!arenoderecordsempty(tree, findall(tree))
-   all(check) || error("All node records empty")
-  if tips
-    nodes = NodeNameIterator(tree, isleaf)
-  else
-    nodes = findall(tree)
-  end
-  records = hcat(map(a->getnoderecord(tree, a)[1], nodes), collect(nodes))
-  return sortrows(records, by=x-> x[2])
+function assign_traits!(tree::BinaryTree, switch_rate::Float64,
+  traits::Vector{String})
+    assign_traits!(tree, [switch_rate], [traits])
 end
-
-#function get_times(tree::Tree)
-#  map(a->get(tree.branches[a]), 1:length(tree.branches))
-#end
-
-
 
 function BM(T::Real,σ²::Float64, start::Float64, lab::String="")
   t = 0:T  # time
@@ -285,36 +267,80 @@ x = cumsum(append!([start], x))
 #Plots.plot(t, x, ylims=collect(extrema(x)).*[0.9,1.1], label=lab)
 end
 
+"""
+    assign_traits!(tree::BinaryTree, start::Vector{Float64},
+      σ²::Vector{Float64})
 
+Function to evolve continuous functional traits through a phylogenetic tree
+through Brownian motion, with a starting value, `start`, and rate, `σ²`.
 
+"""
+function assign_traits!(tree::BinaryTree, start::Vector{Float64},
+  σ²::Vector{Float64})
 
-function assign_traits!(tree::BinaryTree, start::Float64, σ²:: Float64)
-  check = arenoderecordsempty(tree, findall(tree))
-  all(check) || error("Some nodes already assigned traits")
-  # Start out with branches 1 & 2
-  len = map(x-> tree.branches[x].length, 1:2)
-  traits = map(x->BM(x, σ², start)[end], len)
+  check = arenoderecordsempty(tree, getnodenames(tree))
+  all(check) || warn("Some nodes already assigned traits")
+
+  length(start) == length(σ²) || error("Start values and variance must have
+  same number of traits")
   # Find all names of nodes
-  names =  findall(tree)
+  names =  getnodenames(tree)
   # Sort by distance from root
-  dist = map(x -> distance(tree, first(collect(NodeNameIterator(tree, isroot))),
-   x), names)
+  root = first(collect(NodeNameIterator(tree, isroot)))
+  dist = map(names) do node
+          distance(tree, root, node)
+         end
   names = names[sortperm(dist)]
   # Loop through nodes in order of appearance
   for i in names
     if isroot(tree, i)
-      setnoderecord!(tree, i, [start])
+      setnoderecord!(tree, i, start)
     else
-      pnt = parentnode(tree, i)
-      srt = getnoderecord(tree, pnt)[1]
-      path = get(branchroute(tree, pnt, i))[1]
-      ln = tree.branches[path].length
-      setnoderecord!(tree, i, [BM(ln, σ², srt[1])[end]])
+      pnt = getparent(tree, i)
+      srt = getnoderecord(tree, pnt)
+      path = first(get(branchroute(tree, pnt, i)))
+      ln = getlength(getbranch(tree, path))
+
+      newtrait = map(srt, σ²) do start, sig
+                  last(BM(ln, sig, start))
+                 end
+      setnoderecord!(tree, i, newtrait)
 
     end
   end
-  tree
 end
-#tree2 = jcoal(5, 10, Float64)
-#assign_traits!(tree2, 2.0, 0.1)
-#get_traits(tree2)
+
+function assign_traits!(tree::BinaryTree, start::Float64,
+  σ²::Float64)
+  assign_traits!(tree, [start], [σ²])
+end
+
+"""
+    get_traits(tree::BinaryTree, tips::Bool=true)
+
+Function to retrieve functional traits assigned to a phylogenetic tree, either
+just tips or all nodes.
+
+"""
+
+function get_traits(tree::BinaryTree, tips::Bool=true)
+   check = .!arenoderecordsempty(tree, getnodenames(tree))
+   all(check) || error("All node records empty")
+  if tips
+    nodes = collect(NodeNameIterator(tree, isleaf))
+  else
+    nodes = getnodenames(tree)
+  end
+  records = map(nodes) do nod
+             getnoderecord(tree, nod)
+            end
+  df = DataFrame(records)
+  names!(df, map(Symbol,nodes))
+  return df
+end
+
+
+
+#tree = jcoal(["1","2","3"], 10.0, Float64)
+#assign_traits!(tree, [2.0, 3.0], [0.1, 0.5])
+#get_traits(tree, ["1","2","3"])

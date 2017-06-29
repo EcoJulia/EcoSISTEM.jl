@@ -58,6 +58,15 @@ function _countsubcommunities(gae::GridAbioticEnv)
   return countsubcommunities(gae.habitat)
 end
 
-function _getnames(gae::GridAbioticEnv)
+function _getsubcommunitynames(gae::GridAbioticEnv)
     return gae.names
+end
+
+function tempgradAE(min::Float64, max::Float64, dimension::Tuple{Int64, Int64},
+                        maxbud::Float64, gridsquaresize::Float64, rate::Float64)
+  hab = tempgrad(min, max, gridsquaresize, dimension, rate)
+  bud = zeros(dimension)
+  fill!(bud, maxbud)
+
+  return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, SimpleBudget(bud))
 end

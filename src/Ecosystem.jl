@@ -44,13 +44,14 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList} <:
   end
 end
 """
-    Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits::Bool)
+    Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits)
 
 Function to create an ecosystem given a species list and an abiotic environment.
 When the landscape is populated, there is the option for the individuals to be
 assigned locations based on their trait preferences.
 """
-function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits::Bool)
+function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
+   rel::TraitRelationship)
 
   # Check there is enough energy to support number of individuals at set up
   sum(spplist.abun .* spplist.requirement.energy) <= sum(abenv.budget.matrix) ||
@@ -58,14 +59,12 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits::Bool)
   # Create matrix landscape of zero abundances
   ml = emptygridlandscape(abenv, spplist)
   # Populate this matrix with species abundances
-  populate!(ml, spplist, abenv, traits)
-  # For now create an identity matrix for the species relationships
-  rel = eye(length(spplist.traits.trait))
+  populate!(ml, spplist, abenv)
   # Create lookup table of all moves and their probabilities
   lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
 
-  Ecosystem{typeof(abenv), typeof(spplist)}(ml, spplist, abenv, Nullable{Matrix{Float64}}(),
-                           TraitRelationship(rel), lookup_tab)
+  Ecosystem{typeof(abenv), typeof(spplist)}(ml, spplist, abenv,
+  Nullable{Matrix{Float64}}(), rel, lookup_tab)
 end
 
 function _getabundance(eco::Ecosystem, input::Bool)
@@ -88,6 +87,22 @@ function _getordinariness!(eco::Ecosystem)
         eco.ordinariness = calcordinariness(eco.spplist, getabundance(eco, true))
     end
     get(eco.ordinariness)
+end
+
+function gettraitrel(eco::Ecosystem)
+  return eco.relationship
+end
+function gethabitat(eco::Ecosystem)
+  return eco.abenv.habitat
+end
+
+function gethabitat(eco::Ecosystem, pos::Int64)
+  x, y = convert_coords(pos, size(gethabitat(eco).matrix, 1))
+  return gethabitat(eco).matrix[x, y]
+end
+
+function getenvtype(eco::Ecosystem)
+  return typeof(eco.abenv.habitat)
 end
 
 function _symmetric_grid(grid::DataFrame)

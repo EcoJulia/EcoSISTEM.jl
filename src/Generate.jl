@@ -39,14 +39,12 @@ movement rates defined in the ecosystem.
 """
 function update!(eco::Ecosystem, timestep::Float64)
 
-  # Calculate abundance in overall grid (to be implemented later?)
-  #abun=map(i->sum(eco.abundances[i,:,:]), 1:size(eco.abundances,1))
-
   # Calculate dimenions of habitat and number of species
   dims = length(eco.abenv.habitat.matrix)
   spp = size(eco.abundances.grid,1)
   net_migration = zeros(size(eco.abundances.matrix))
   params = eco.spplist.params
+
   # Loop through grid squares
   for i in 1:dims
 
@@ -54,19 +52,24 @@ function update!(eco::Ecosystem, timestep::Float64)
       K = eco.abenv.budget.matrix[i]
       randomise=collect(1:spp)
       randomise=randomise[randperm(length(randomise))]
+      # Get abundances of square we are interested in
+      currentabun = eco.abundances.matrix[:, i]
+
+      # Get energy budgets of species in square
+      ϵ̄ = eco.spplist.requirement.energy
+      E = sum(currentabun .* ϵ̄)
+      # Traits
+      ϵ̄ = map(ϵ̄, 1:spp) do epsilon, k
+        epsilon/TraitFun(eco, i, k)
+      end
+
       # Loop through species in chosen square
       for j in randomise
-
-        # Get abundances of square we are interested in
-        square = eco.abundances.matrix[:, i]
-
-        if square[j] <= 0
+        if currentabun[j] <= 0
           eco.abundances.matrix[j, i] = 0
         else
-        # Get energy budgets of species in square
-        ϵ̄ = eco.spplist.requirement.energy
-        E = sum(square .* ϵ̄)
 
+        #params.s = 1 - exp(-params.s / TraitFun(eco, i, j))
         # Alter rates by energy available in current pop & own requirements
         birth_energy = (ϵ̄[j])^(-params.l - params.s) * K / E
         death_energy = (ϵ̄[j])^(-params.l + params.s) * E / K
@@ -74,29 +77,17 @@ function update!(eco::Ecosystem, timestep::Float64)
         # Calculate effective rates
         birthprob = params.birth[j] * timestep * birth_energy
         deathprob = params.death[j] * timestep * death_energy
-
-        # If traits are same as habitat type then give birth "boost"
-        #if eco.spplist.traits.trait[j] != eco.abenv.habitat.matrix[x, y]
-        #  birthrate = birthrate * 0.8
-        #end
-
-        # If zero abundance then go extinct
-        if square[j] == 0
+      # If zero abundance then go extinct
+        if currentabun[j] == 0
           birthprob = 0
           deathprob = 0
         end
-
-        # Throw error if rates exceed 1
-        #birthprob <= 1 && deathprob <= 1 && moveprob <= 1 ||
-        #  error("rates larger than one in binomial draw")
-
-
         # Put probabilities into 0 - 1
         probs = map(prob -> 1 - exp(-prob), [birthprob, deathprob])
 
         # Calculate how many births and deaths
-        births = jbinom(1, Int(square[j]), probs[1])[1]
-        deaths = jbinom(1, Int(square[j]), probs[2])[1]
+        births = jbinom(1, Int(currentabun[j]), probs[1])[1]
+        deaths = jbinom(1, Int(currentabun[j]), probs[2])[1]
 
         # Update population
         eco.abundances.matrix[j, i] = eco.abundances.matrix[j, i] +
@@ -108,6 +99,7 @@ function update!(eco::Ecosystem, timestep::Float64)
     end
   end
   eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
+  getchangefun(eco)(eco)
 end
 
 function convert_coords(i::Int64, width::Int64)
@@ -186,34 +178,27 @@ Function to populate a grid landscape given the abundances found in species list
 and whether or not to include traits.
 """
 function populate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::AbstractAbiotic, traits::Bool)
+                   abenv::AbstractAbiotic)
   # Calculate size of habitat
   dim = size(abenv.habitat.matrix)
-  len = dim[1]*dim[2]
+  len = dim[1] * dim[2]
   grid = collect(1:len)
   # Set up copy of budget
-  b=copy(abenv.budget.matrix)
+  b = copy(abenv.budget.matrix)
   # Loop through species
   for i in eachindex(spplist.abun)
     # Get abundance of species
-    abun=spplist.abun[i]
-    # Get species trait
-    pref=spplist.traits.trait[i]
-    # Calculate weighting, giving preference to squares that match with trait
-    wv= Vector{Float64}(grid)
-    wv[find(reshape(abenv.habitat.matrix, (len,1))[grid].==pref)]= 0.5
-    wv[find(reshape(abenv.habitat.matrix, (len,1))[grid].!=pref)]= 0.5
+    abun = spplist.abun[i]
     # Loop through individuals
       while abun>0
-        zs=findin(b[grid], 0)
+        zs = findin(reshape(b, size(grid)), 0)
         deleteat!(grid, zs)
-        deleteat!(wv, zs)
         # Randomly choose position on grid (weighted)
-        if traits pos=sample(grid, weights(wv)) else pos=sample(grid) end
+        pos = sample(grid)
       # Add individual to this location
-      ml.grid[i,pos]=ml.grid[i,pos]+1
-      abun=abun-1
-      b[pos]=b[pos]-1
+      ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
+      abun = abun .- 1
+      b[pos] = b[pos] .- 1
     end
   end
 end
@@ -222,8 +207,8 @@ end
 Function to repopulate an ecosystem `eco`, with option for including trait
 preferences.
 """
-function repopulate!(eco::Ecosystem, traits::Bool)
+function repopulate!(eco::Ecosystem)
   eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
   eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
-  populate!(eco.abundances, eco.spplist, eco.abenv, traits)
+  populate!(eco.abundances, eco.spplist, eco.abenv)
 end

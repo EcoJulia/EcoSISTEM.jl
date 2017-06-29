@@ -81,9 +81,21 @@ function _freq_hist(total::Array{Float64}, grd::Array{Float64}, num::Int64)
   R"hist(count_tot, breaks=c(-0.5:(num+0.5)), main=' ', xlab='Abundance')"
 end
 
-function plotdiv(divfun::Function, eco::Ecosystem, qs)
+function plotdiv(divfun::Function, eco::Ecosystem, qs::Array{Real})
   datf = divfun(eco, qs)
   @rput datf
   R"library(ggplot2); library(cowplot)
   ggplot(datf, aes(x = q, y = diversity, col = partition_name)) + geom_line()"
+end
+
+
+function plotdiv(divfun::Function, eco::Ecosystem, qs::Real)
+  datf = divfun(eco, qs)
+  size(datf, 1) == length(eco.abenv.habitat.matrix) ||
+    error("Metacommunity measures cannot be plotted as grid")
+  im = reshape(datf[:diversity], size(eco.abenv.habitat.matrix))
+  @rput im
+  R"par(mfrow=c(1,1));library(fields);
+  im[im==0]=NA
+  image.plot(im)"
 end

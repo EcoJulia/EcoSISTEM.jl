@@ -19,7 +19,7 @@ function _simmatch(sim::PhyloTypes)
 end
 
 function _simmatch(sim::UniqueTypes)
-  length(getnames(sim)) == counttypes(sim) ||
+  length(gettypenames(sim)) == counttypes(sim) ||
     throw(DimensionMismatch("Names do not match number of types"))
 end
 """
@@ -88,7 +88,7 @@ function SpeciesList{R <: AbstractRequirement,
     trts = map(string, 1:numtraits)
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    sp_trt = BasicTrait(get_traits(tree, names, true)[:,1])
+    sp_trt = BasicTrait(Array(get_traits(tree, true)))
     # Create similarity matrix (for now identity)
     phy = PhyloTypes(tree)
     # Draw random set of abundances from distribution
@@ -132,7 +132,7 @@ function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
     trts = map(string, 1:numtraits)
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    sp_trt = BasicTrait(get_traits(tree, names, true)[:,1])
+    sp_trt = BasicTrait(Array(get_traits(tree, true)[:,1]))
     # Draw random set of abundances from distribution
     abun = rand(abun_dist)
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
@@ -154,6 +154,35 @@ function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
     return SpeciesList(numspecies, numtraits, abun_dist, req, movement, phy, equal_params)
 end
 
+function SpeciesList{TR<: AbstractTraits, R <: AbstractRequirement,
+    MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,
+    traits::TR, abun_dist::Distribution, req::R,
+    movement::MO, params::P)
+
+    names = map(x -> "$x", 1:numspecies)
+    # Create similarity matrix (for now identity)
+    ty = UniqueTypes(numspecies)
+    # Draw random set of abundances from distribution
+    abun = rand(abun_dist)
+    # error out when abun dist and NumberSpecies are not the same (same for energy dist)
+    length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
+                                          doesn't match number species"))
+    length(req.energy)==numspecies || throw(DimensionMismatch("Requirement vector
+                                          doesn't match number species"))
+  SpeciesList{typeof(traits), typeof(req),
+              typeof(movement), typeof(ty),typeof(params)}(names, traits, abun,
+              req, ty, movement, params)
+end
+function SpeciesList{TR<: AbstractTraits, R <: AbstractRequirement,
+    MO <: AbstractMovement}(numspecies::Int64,
+    traits::TR, abun_dist::Distribution, req::R,
+    movement::MO, params::EqualPop)
+
+    equal_params = equalpop(params, numspecies)
+    return SpeciesList(numspecies, traits, abun_dist, req, movement, equal_params)
+end
+
+
 function _simmatch(sim::SpeciesList)
   _simmatch(sim.types)
 end
@@ -166,8 +195,8 @@ end
 # return ph.Zmatrix
 #end
 
-function _getnames(sl::SpeciesList, input::Bool)
-    return _getnames(sl.types, input)
+function _gettypenames(sl::SpeciesList, input::Bool)
+    return _gettypenames(sl.types, input)
 end
 
 function _counttypes(sl::SpeciesList, input::Bool)

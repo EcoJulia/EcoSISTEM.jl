@@ -11,5 +11,10 @@ Basic trait type that holds information on a single trait for each species, of a
 type `T`.
 """
 mutable struct BasicTrait{T} <: AbstractTraits{T}
-  trait::Vector{T}
+  trait::Array{T, 1}
+end
+
+mutable struct TempTrait{T <: AbstractFloat} <: AbstractTraits{T}
+  mean::Array{T, 1}
+  var::Array{T, 1}
 end

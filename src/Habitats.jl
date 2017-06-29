@@ -18,14 +18,21 @@ end
 
 This habitat subtype has a matrix of floats and a float grid square size
 """
-mutable struct Habitats <: AbstractHabitat{Float64}
+mutable struct HabitatUpdate
+  changefun::Function
+  rate::Float64
+end
+
+mutable struct Habitats{E <: Envtype} <: AbstractHabitat{Float64}
   matrix::Matrix{Float64}
   size::Float64
+  change::HabitatUpdate
 end
 
 function _countsubcommunities(hab::Habitats)
   return length(hab.matrix)
 end
+
 """
     Niches <: AbstractHabitat{String}
 
@@ -155,4 +162,16 @@ function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float
   end
 
   return Niches(T, gridsquaresize)
+end
+
+function tempgrad(min::Float64, max::Float64, size::Float64,
+  dim::Tuple{Int64, Int64}, rate::Float64)
+  M = zeros(dim)
+  total = dim[1]
+  temp_range = collect(linspace(min, max, total))
+  map(1:total) do seq
+    M[seq, :] = temp_range[seq]
+  end
+
+  Habitats{Temp}(M, size, HabitatUpdate(TempChange, rate))
 end

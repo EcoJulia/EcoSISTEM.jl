@@ -38,7 +38,7 @@ individuals=100
 kernel = GaussianKernel(0.2, numSpecies, 10e-4)
 movement = AlwaysMovement(kernel)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
-                   energy_vec, movement, param)#, UniqueTypes(numSpecies))
+                   energy_vec, movement, param)
 abenv = simplenicheAE(numNiches, grid, totalK, gridSize)
 eco = Ecosystem(sppl, abenv, false)
 
