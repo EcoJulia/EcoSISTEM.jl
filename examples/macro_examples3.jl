@@ -1,6 +1,3 @@
-## Code for running model on spatial grid
-#addprocs(5)
-# Include simulation functions
 using Diversity
 using Simulation
 using RCall
@@ -11,7 +8,6 @@ using DataStructures
 #using ArrayViews
 using DataFrames
 using JLD
-using BenchmarkTools
 ## Run simulation on 2 by 1 grid - investigate spatial distributions
 function runsim(times::Int64)
   # Set up initial parameters for ecosystem
@@ -32,7 +28,7 @@ function runsim(times::Int64)
   # Collect model parameters together (in this order!!)
   param = EqualPop(birth, death, l, s)
 
-  minT = 0.0
+  minT = -10.0
   maxT = 10.0
 
   grid = (20, 20)
@@ -71,34 +67,35 @@ function runsim(times::Int64)
   # Run simulations 10 times
   storage_steady = generate_storage(eco, lensteady, reps);
   storage_change = generate_storage(eco, lensim, reps);
-  #storage_newsteady = generate_storage(eco, lensim, reps);
+  storage_newsteady = generate_storage(eco, lensteady, reps);
   for j in 1:reps
     if (j != 1) repopulate!(eco) end
-    simulate!(eco, burnin, interval, timestep);
-    thisstoresteady = view(storage_steady, :, :, :, j);
-    simulate_record!(thisstoresteady, eco, steady_state, interval, timestep);
-    eco.abenv.habitat.change.rate = 0.01
-    thisstorechange = view(storage_change, :, :, :, j)
-    simulate_record!(thisstorechange, eco, times, interval, timestep)
-    #eco.abenv.habitat.change.rate = 0.0
-    #thisstorenewsteady = view(storage_newsteady, :, :, :, j)
-    #simulate_record!(thisstorenewsteady, eco, steady_state, interval, timestep)
+      simulate!(eco, burnin, interval, timestep);
+      thisstoresteady = view(storage_steady, :, :, :, j);
+      simulate_record!(thisstoresteady, eco, steady_state, interval, timestep);
+      eco.abenv.habitat.change.rate = 0.01
+      thisstorechange = view(storage_change, :, :, :, j)
+      simulate_record!(thisstorechange, eco, times, interval, timestep)
+      eco.abenv.habitat.change.rate = 0.0
+      thisstorenewsteady = view(storage_newsteady, :, :, :, j)
+      simulate_record!(thisstorenewsteady, eco, steady_state, interval, timestep)
   end
-  save("macrorun_smaller.jld", "storage_change", storage_change,
-  "storage_steady", storage_steady)
+  save("macrorun_2steady.jld", "storage_change", storage_change,
+  "storage_steady", storage_steady, "storage_newsteady", storage_newsteady)
 end
 
-runsim(1200)
+runsim(1000)
 
 ## New plots
-storage_steady = load("macrorun_smaller.jld", "storage_steady")
-storage_change = load("macrorun_smaller.jld", "storage_change")
-storage = cat(3, storage_steady, storage_change)
+storage_steady = load("macrorun_2steady.jld", "storage_steady")
+storage_change = load("macrorun_2steady.jld", "storage_change")
+storage_newsteady = load("macrorun_2steady.jld", "storage_newsteady")
+storage = cat(3, storage_steady, storage_change, storage_newsteady)
 
 """
 SPATIAL ALPHA PLOT
 """
-divtimes = collect(1:10:1301)
+divtimes = collect(1:10:1201)
 alphas = zeros(400, 11, length(divtimes))
 for i in 1:length(divtimes)
   met = Metacommunity(storage[:,:,divtimes[i],1], UniqueTypes(numSpecies))
@@ -113,7 +110,7 @@ hab =eco.abenv.habitat.matrix
 for i in 1:length(divtimes)
   @rput i
 R"library(fields);par(mfrow=c(1,1))
-jpeg(paste('plots/newrun/alphaq2_smaller', i, '.jpg'), quality=100)
+jpeg(paste('plots/newrun/alphaq2_2steady', i, '.jpg'), quality=100)
 im = alphas[ , , 2, i]
 im[is.na(im)] = 0
 image.plot(1:20, 1:20, t(im),col=magma(30), breaks = c(0:30),
@@ -127,7 +124,7 @@ SPATIAL GAMMA PLOT
 """
 gammas = zeros(400, 11, length(divtimes))
 for i in 1:length(divtimes)
-  met = Metacommunity(storage[:,:,divtimes[i],1], UniqueTypes(numSpecies))
+  met = Metacommunity(storage[:,:,divtimes[i],1], eco.spplist.types)
   gammas[:,:,i] = sub_gamma(met, 0:10)[:diversity]
 end
 gammas = reshape(gammas, 20, 20, 11, length(divtimes))
@@ -136,7 +133,7 @@ temps = unique(eco.abenv.habitat.matrix)
 for i in 1:length(divtimes)
   @rput i
 R"library(fields);par(mfrow=c(1,1))
-jpeg(paste('plots/newrun/gammaq2_smaller', i, '.jpg'), quality=100)
+jpeg(paste('plots/newrun/gammaq2_2steady', i, '.jpg'), quality=100)
 im = gammas[ , , 2, i]
 im[is.na(im)] = 0
 image.plot(1:20, 1:20, t(im),col=magma(80), breaks = c(0:80),
@@ -150,42 +147,20 @@ TEMPORAL BETA PLOT
 """
 tempbetas = zeros(11, 400)
 for sub in 1:400
-  if sum(storage[:, sub, divtimes[11:131], 1])== 0.0
+  if sum(storage[:, sub, divtimes[11:111], 1])== 0.0
     tempbetas[:, sub] = repmat([0.0], 11)
   else
-    met = Metacommunity(storage[:, sub, divtimes[11:131], 1], UniqueTypes(numSpecies))
-    tempbetas[:, sub] = raw_meta_beta(met, 0:10)[:diversity]
+    met = Metacommunity(storage[:, sub, divtimes[11:111], 1], UniqueTypes(numSpecies))
+    tempbetas[:, sub] = norm_meta_beta(met, 0:10)[:diversity]
   end
 end
 tempbetas = reshape(tempbetas, 11, 20, 20)
 @rput tempbetas;
 R"library(fields);par(mfrow=c(1,1))
-jpeg('plots/newrun/rawtempbetaq1_smaller.jpg', quality=100)
-im = tempbetas[1 , , ]
+jpeg('plots/newrun/tempbetaq2_2steady.jpg', quality=100)
+im = tempbetas[ 2 , , ]
 im[im==0] = 1.0
-image.plot(1:20, 1:20, t(im),col=magma(20), breaks = seq(0,0.05,length.out=21),
-xlab='', ylab='')
-dev.off()
-"
-"""
-TEMPORAL GAMMA PLOT
-"""
-tempgammas = zeros(11, 400)
-for sub in 1:400
-  if sum(storage[:, sub, divtimes[11:131], 1])== 0.0
-    tempgammas[:, sub] = repmat([0.0], 11)
-  else
-    met = Metacommunity(storage[:, sub, divtimes[11:131], 1], UniqueTypes(numSpecies))
-    tempgammas[:, sub] = meta_gamma(met, 0:10)[:diversity]
-  end
-end
-tempgammas = reshape(tempgammas, 11, 20, 20)
-@rput tempgammas;
-R"library(fields);par(mfrow=c(1,1))
-jpeg('plots/newrun/tempgammaq1_smaller.jpg', quality=100)
-im = tempgammas[1 , , ]
-im[im==0] = 1.0
-image.plot(1:20, 1:20, t(im),col=magma(35), breaks = c(0:35),
+image.plot(1:20, 1:20, t(im),col=magma(20), breaks = seq(0.99,2,length.out=21),
 xlab='', ylab='')
 dev.off()
 "
@@ -209,38 +184,4 @@ for i in 1:1203
     dev.off()"
   end
   TempChange(eco)
-end
-"""
-SEPARATE INTO TEMPERATURE CLASSES
-"""
-
-cold = find(temps[:OrigValueStr] .<= 3)
-warmer = find(temps[:OrigValueStr] .>= 4)
-
-divtimes = collect(1:10:1301)
-alphascold = zeros(400, 11, length(divtimes)); alphaswarm = zeros(400, 11, length(divtimes))
-for i in 1:length(divtimes)
-  metcold = Metacommunity(storage[cold, :, divtimes[i], 1], UniqueTypes(length(cold)))
-  metwarm = Metacommunity(storage[warmer, :, divtimes[i], 1], UniqueTypes(length(warmer)))
-  alphascold[:,:,i] = norm_sub_alpha(metcold, 0:10)[:diversity]
-  alphaswarm[:,:,i] = norm_sub_alpha(metwarm, 0:10)[:diversity]
-end
-alphascold = reshape(alphascold, 20, 20, 11, length(divtimes))
-alphaswarm = reshape(alphaswarm, 20, 20, 11, length(divtimes))
-
-@rput alphaswarm; @rput alphascold
-for i in 1:length(divtimes)
-  @rput i
-R"library(viridis);library(fields);
-jpeg(paste('plots/newrun/alphasq1_warm_cold_smaller', i, '.jpg'), quality=100,
-width = 1000)
-par(mfrow=c(1,2), mar=c(4,3,4,5))
-imc = alphascold[ , , 1, i]; imw = alphaswarm[ , , 1, i]
-imc[is.na(imc)] = 0; imw[is.na(imw)] = 0
-image.plot(1:20, 1:20, t(imc),col=magma(25), breaks = c(0:25),
-xlab='', ylab='', main = list('Cold preference', cex=1.4));
-image.plot(1:20, 1:20, t(imw),col=magma(25), breaks = c(0:25),
-xlab='', ylab='', main = list('Warm preference', cex=1.4));
-dev.off()
-"
 end
