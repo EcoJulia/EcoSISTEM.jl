@@ -58,7 +58,7 @@ function update!(eco::Ecosystem, timestep::Float64)
       ϵ̄ = eco.spplist.requirement.energy
       E = sum(currentabun .* ϵ̄)
       # Traits
-      ϵ̄ = map(ϵ̄, 1:spp) do epsilon, k
+      ϵ̄real = map(ϵ̄, 1:spp) do epsilon, k
         epsilon/TraitFun(eco, i, k)
       end
 
@@ -70,8 +70,8 @@ function update!(eco::Ecosystem, timestep::Float64)
 
         #params.s = 1 - exp(-params.s / TraitFun(eco, i, j))
         # Alter rates by energy available in current pop & own requirements
-        birth_energy = (ϵ̄[j])^(-params.l - params.s) * K / E
-        death_energy = (ϵ̄[j])^(-params.l + params.s) * E / K
+        birth_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^-params.s * min(K / E, 1)
+        death_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^params.s * E / K
 
         # Calculate effective rates
         birthprob = params.birth[j] * timestep * birth_energy
