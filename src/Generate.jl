@@ -117,27 +117,20 @@ end
 function calc_lookup_moves(i::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
   width = size(eco.abenv.habitat.matrix, 1)
   (x, y) = convert_coords(i, width)
-  # Draw moves from Multinomial dist
-  table = copy(eco.lookup[spp])
-  table[:X] += x; table[:Y] += y
-  maxX = size(eco.abenv.habitat.matrix, 1)
-  maxY = size(eco.abenv.habitat.matrix, 2)
-  # Can't go over maximum dimension
-  lower  = find(mapslices(x -> all(x .> 0), Array(table), 2))
-  upperX = find(map(x -> (x .<= maxX), table[:,1]))
-  upperY = find(map(x -> (x .<= maxY), table[:,2]))
-  valid = intersect(lower, upperX, upperY)
-  table = table[valid, :]
-  table[:Prob] = table[:Prob]/sum(table[:Prob])
 
-  moves = rand(Multinomial(abun,
-          Vector{Float64}(table[:Prob])))
-  # Add moves to lookup table
-  table[:Moves] = moves
-  table
+  lookup = eco.lookup[spp]
+  maxX = size(eco.abenv.habitat.matrix, 1) - x
+  maxY = size(eco.abenv.habitat.matrix, 2) - y
+  # Can't go over maximum dimension
+  valid = find((lookup.x .> -x) .& (lookup.y .> -y) .&
+   (lookup.x .<= maxX) .& (lookup.y .<= maxY))
+  probs = lookup.p[valid]
+  probs ./= sum(probs)
+  moves = rand(Multinomial(abun, probs))
+  return hcat(((lookup.x[valid] .+ x), (lookup.y[valid] .+ y), moves)...)
 end
 """
-    move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Float64, 2})
+    move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Int64, 2})
 
 Function to calculate the movement of species `spp` from a given position in the
 landscape `i`, using the lookup table found in the Ecosystem and updating the
@@ -145,27 +138,33 @@ movement patterns on a grid, `grd`. Optionally, a number of births can be
 provided, so that movement only takes place as part of the birth process, instead
 of the entire population
 """
-function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64, grd::Array{Float64, 2}, ::Int64)
+function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64,
+  grd::Array{Int64, 2}, ::Int64)
+
   width = size(eco.abenv.habitat.matrix, 1)
   full_abun = Int64(eco.abundances.matrix[spp, i])
   table = calc_lookup_moves(i, spp, eco, full_abun)
   # Lose moves from current grid square
-  grd[spp, i] = grd[spp, i] - sum(table[:Moves])
+  grd[spp, i] = grd[spp, i] - sum(table[:, 3])
   # Map moves to location in grid
-  map(x -> grd[spp, convert_coords(table[x, :X], table[x, :Y], width)] = grd[spp,
-  convert_coords(table[x, :X], table[x, :Y], width)] + table[x, :Moves], 1:nrow(table))
+  locs = map(row -> convert_coords(table[row, 1], table[row, 2], width),
+   1:size(table, 1))
+  grd[spp, locs] .= grd[spp, locs] .+ table[:, 3]
+  return eco
 end
 
 
-function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64, grd::Array{Float64, 2},
+function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64, grd::Array{Int64, 2},
                 births::Int64)
   width = size(eco.abenv.habitat.matrix, 1)
   table = calc_lookup_moves(i, spp, eco, births)
   # Lose moves from current grid square
-  grd[spp, i] = grd[spp, i] - sum(table[:Moves])
+  grd[spp, i] = grd[spp, i] - sum(table[:, 3])
   # Map moves to location in grid
-  map(x -> grd[spp, convert_coords(table[x, :X], table[x, :Y], width)] = grd[spp,
-  convert_coords(table[x, :X], table[x, :Y], width)] + table[x, :Moves], 1:nrow(table))
+  locs = map(row -> convert_coords(table[row, 1], table[row, 2], width),
+   1:size(table, 1))
+  grd[spp, locs] .= grd[spp, locs] .+ table[:, 3]
+  return eco
 end
 
 

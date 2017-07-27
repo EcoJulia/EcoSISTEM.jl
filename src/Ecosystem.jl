@@ -3,6 +3,14 @@ using Cubature
 using DataFrames
 using Unitful
 
+struct Lookup
+  x::Vector{Int64}
+  y::Vector{Int64}
+  p::Vector{Float64}
+end
+
+Lookup(df::DataFrame) = Lookup(df[:X], df[:Y], df[:Prob])
+
 function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
     realm = _calcabundance(sim, m)
     return typematch(realm, sim, part) &&
@@ -29,17 +37,17 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList} <:
   abenv::Part
   ordinariness::Nullable{Matrix{Float64}}
   relationship::TraitRelationship
-  lookup::Vector{DataFrame}
+  lookup::Vector{Lookup}
 
   function Ecosystem{Part, SL}(abundances::GridLandscape,
     spplist::SL, abenv::Part, ordinariness::Nullable{Matrix{Float64}},
-    relationship::TraitRelationship, lookup::Vector{DataFrame}) where {Part <:
+    relationship::TraitRelationship, lookup::Vector{Lookup}) where {Part <:
      AbstractAbiotic,
     SL <: SpeciesList}
     eltype(abenv.budget) == eltype(spplist.requirement) ||
       error("Environment and species energy not of the same type")
-    _mcmatch(abundances.matrix, spplist, abenv) ||
-      error("Dimension mismatch")
+    #_mcmatch(abundances.matrix, spplist, abenv) ||
+    #  error("Dimension mismatch")
     new{Part, SL}(abundances, spplist, abenv, ordinariness, relationship, lookup)
   end
 end
@@ -140,7 +148,7 @@ function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
   relsize =  hab.size ./ mov.var
   m = maximum(size(hab.matrix))
   p = mov.thresh
-  map(r -> _lookup(r, m, p, _gaussian_disperse), relsize)
+  return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)
 end
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
