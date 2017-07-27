@@ -48,15 +48,17 @@ function update!(eco::Ecosystem, timestep::Float64)
   for i in 1:dims
 
       # Get the overall energy budget of that square
-      K = eco.abenv.budget.matrix[i]
+      width = size(eco.abenv.habitat.matrix, 1)
+      (x, y) = convert_coords(i, width)
+      K = eco.abenv.budget.matrix[x, y]
       randomise=collect(1:spp)
       randomise=randomise[randperm(length(randomise))]
       # Get abundances of square we are interested in
-      currentabun = eco.abundances.matrix[:, i]
+      currentabun = view(eco.abundances.matrix, :, i)
 
       # Get energy budgets of species in square
       ϵ̄ = eco.spplist.requirement.energy
-      E = sum(currentabun .* ϵ̄)
+      E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
       # Traits
       ϵ̄real = map(ϵ̄, 1:spp) do epsilon, k
         epsilon/TraitFun(eco, i, k)
@@ -82,15 +84,14 @@ function update!(eco::Ecosystem, timestep::Float64)
           deathprob = 0
         end
         # Put probabilities into 0 - 1
-        probs = map(prob -> 1 - exp(-prob), [birthprob, deathprob])
+        newbirthprob, newdeathprob = sum_to_one([birthprob, deathprob])
 
         # Calculate how many births and deaths
         births = jbinom(1, currentabun[j], newbirthprob)[1]
         deaths = jbinom(1, currentabun[j], newdeathprob)[1]
 
         # Update population
-        eco.abundances.matrix[j, i] = eco.abundances.matrix[j, i] +
-          births - deaths
+        eco.abundances.matrix[j, i] += (births - deaths)
 
         # Perform gaussian movement
         move!(eco, eco.spplist.movement, i, j, net_migration, births)
@@ -98,9 +99,14 @@ function update!(eco::Ecosystem, timestep::Float64)
     end
   end
   eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
+  # Update environment
   getchangefun(eco)(eco)
 end
-
+function sum_to_one(probs::Array{Float64})
+  return map(probs) do prob
+    1.0 - exp(-prob)
+  end
+end
 function convert_coords(i::Int64, width::Int64)
   i = i - 1
   x = (i % width) + 1
