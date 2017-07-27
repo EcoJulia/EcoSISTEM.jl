@@ -1,5 +1,6 @@
 using StatsBase
 using ProgressMeter
+using Query
 
 """
     get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
@@ -38,13 +39,11 @@ of the species stochastically. Movement takes place across the landscape via
 movement rates defined in the ecosystem.
 """
 function update!(eco::Ecosystem, timestep::Float64)
-
   # Calculate dimenions of habitat and number of species
   dims = length(eco.abenv.habitat.matrix)
   spp = size(eco.abundances.grid,1)
-  net_migration = zeros(size(eco.abundances.matrix))
+  net_migration = zeros(Int64, size(eco.abundances.matrix))
   params = eco.spplist.params
-
   # Loop through grid squares
   for i in 1:dims
 
@@ -86,8 +85,8 @@ function update!(eco::Ecosystem, timestep::Float64)
         probs = map(prob -> 1 - exp(-prob), [birthprob, deathprob])
 
         # Calculate how many births and deaths
-        births = jbinom(1, Int(currentabun[j]), probs[1])[1]
-        deaths = jbinom(1, Int(currentabun[j]), probs[2])[1]
+        births = jbinom(1, currentabun[j], newbirthprob)[1]
+        deaths = jbinom(1, currentabun[j], newdeathprob)[1]
 
         # Update population
         eco.abundances.matrix[j, i] = eco.abundances.matrix[j, i] +

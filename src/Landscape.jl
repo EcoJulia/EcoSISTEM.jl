@@ -7,8 +7,8 @@ represent species, their abundances and position in the grid).
 
 """
 mutable struct GridLandscape
-  matrix::Matrix{Float64}
-  grid::Array{Float64, 3}
+  matrix::Matrix{Int64}
+  grid::Array{Int64, 3}
 
   function GridLandscape(abun::Matrix{Float64}, dimension::Tuple)
     return new(abun, reshape(abun, dimension))
