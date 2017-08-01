@@ -24,10 +24,11 @@ birth = 0.6
 death = 0.6
 l = 1.0
 s = 0.0
+boost = 1.0
 timestep = 1.0
 
 # Collect model parameters together (in this order!!)
-param = EqualPop(birth, death, l, s)
+param = EqualPop(birth, death, l, s, boost)
 
 grid = (2, 1)
 gridSize = 1.0
@@ -40,9 +41,10 @@ movement = AlwaysMovement(kernel)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement, param)
 abenv = simplenicheAE(numNiches, grid, totalK, gridSize)
-eco = Ecosystem(sppl, abenv, false)
+rel = TraitRelationship(SimpleNiche)
+eco = Ecosystem(sppl, abenv, rel)
 
-plotdiv(norm_sub_alpha, eco, collect(0:10))
+plotdiv(norm_sub_alpha, eco, collect(0.0:10))
 
 
 times = 1000; burnin = 500; interval = 10; reps = 10
@@ -52,8 +54,8 @@ lensim = length(0:interval:times)
 storage = generate_storage(eco, lensim, reps)
 
 @showprogress 1 "Computing..." for j in 1:reps
-  if (j != 1) repopulate!(eco, false) end
-  thisstore = slice(storage, :, :, :, j)
+  if (j != 1) repopulate!(eco) end
+  thisstore = view(storage, :, :, :, j)
   simulate!(eco, burnin, interval, timestep)
   simulate_record!(thisstore, eco, times, interval, timestep)
 end
