@@ -9,7 +9,7 @@ function TraitFun(env::Type{ContinuousHab{Temp}}, eco::Ecosystem, pos::Int64, sp
   return gettraitfun(eco)(T, T_opt, Var)
 end
 
-function TraitFun(env::Type{DiscreteHab{None}}, eco::Ecosystem, pos::Int64, spp::Int64)
+function TraitFun(env::Type{DiscreteHab{Niches}}, eco::Ecosystem, pos::Int64, spp::Int64)
   currentniche = gethabitat(eco, pos)
   preference = getpref(env, eco, spp)
   return gettraitfun(eco)(currentniche, preference)
@@ -32,6 +32,6 @@ function getpref(env::Type{ContinuousHab{Temp}}, eco::Ecosystem, spp::Int64)
   return traits.mean[spp], traits.var[spp]
 end
 
-function getpref(env::Type{DiscreteHab{None}}, eco::Ecosystem, spp::Int64)
+function getpref(env::Type{DiscreteHab{Niches}}, eco::Ecosystem, spp::Int64)
   return eco.spplist.traits.trait[spp]
 end

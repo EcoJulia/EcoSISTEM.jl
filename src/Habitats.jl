@@ -162,7 +162,7 @@ function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float
     _fill_in!(T, M, types, wv)
   end
 
-  return DiscreteHab{None}(T, gridsquaresize, HabitatUpdate(NoChange, 0.0))
+  return DiscreteHab{Niches}(T, gridsquaresize, HabitatUpdate(NoChange, 0.0))
 end
 
 function simplehabitat(val::Float64, size::Float64,
