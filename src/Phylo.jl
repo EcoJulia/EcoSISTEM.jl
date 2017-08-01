@@ -338,9 +338,3 @@ function get_traits(tree::BinaryTree, tips::Bool=true)
   names!(df, map(Symbol,nodes))
   return df
 end
-
-
-
-#tree = jcoal(["1","2","3"], 10.0, Float64)
-#assign_traits!(tree, [2.0, 3.0], [0.1, 0.5])
-#get_traits(tree, ["1","2","3"])
