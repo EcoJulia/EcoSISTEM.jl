@@ -35,8 +35,8 @@ end
     simplenicheAE(numniches::Int64, dimension::Tuple,
                         maxBud::Float64, gridsquaresize::Float64)
 
-Function to create a simple `Niches`, `SimpleBudget` type abiotic environment. Given a
-number of niche types `numniches`, it creates a `Niches` environment with
+Function to create a simple `DiscreteHab`, `SimpleBudget` type abiotic environment. Given a
+number of niche types `numniches`, it creates a `DiscreteHab` environment with
 dimensions `dimension` and a grid squaresize `gridsquaresize`. It also creates a
 `SimpleBudget` type filled with the maximum budget value `maxbud`.
 """
@@ -45,7 +45,7 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
   # Create niches
   niches = map(string, 1:numniches)
   # Create niche-like environment
-  hab = randomniches(dimension, niches, 0.5, repmat([0.5], numniches),
+  hab = randomniches(dimension, niches, 0.5, repmat([1.0/numniches], numniches),
   gridsquaresize)
   # Create empty budget and for now fill with one value
   bud = zeros(dimension)

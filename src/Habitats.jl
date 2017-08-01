@@ -14,7 +14,7 @@ function countsubcommunities(ah::AbstractHabitat)
 end
 
 """
-    Habitats <: AbstractHabitat{Float64}
+    ContinuousHab <: AbstractHabitat{Float64}
 
 This habitat subtype has a matrix of floats and a float grid square size
 """
@@ -23,28 +23,28 @@ mutable struct HabitatUpdate
   rate::Float64
 end
 
-mutable struct Habitats{E <: Envtype} <: AbstractHabitat{Float64}
+mutable struct ContinuousHab{E <: Envtype} <: AbstractHabitat{Float64}
   matrix::Matrix{Float64}
   size::Float64
   change::HabitatUpdate
 end
 
-function _countsubcommunities(hab::Habitats)
+function _countsubcommunities(hab::ContinuousHab)
   return length(hab.matrix)
 end
 
 """
-    Niches <: AbstractHabitat{String}
+    DiscreteHab <: AbstractHabitat{String}
 
 This habitat subtype has a matrix of strings and a float grid square size
 """
-mutable struct Niches{E <: Envtype} <: AbstractHabitat{String}
+mutable struct DiscreteHab{E <: Envtype} <: AbstractHabitat{String}
   matrix::Matrix{String}
   size::Float64
   change::HabitatUpdate
 end
 
-function _countsubcommunities(niches::Niches)
+function _countsubcommunities(niches::DiscreteHab)
   return length(niches.matrix)
 end
 
@@ -104,7 +104,7 @@ function _fill_in!(T, M, types, wv)
         # Find neighbours of square on string grid
         neighbours=get_neighbours(T, y, x, 8)
         # Check if they have already been assigned
-        already=vcat(mapslices(x->isdefined(T,x[1],x[2]), neighbours, 2)...)
+        already=vcat(mapslices(x->isassigned(T,x[1],x[2]), neighbours, 2)...)
         # If any already assigned then sample from most frequent neighbour traits
           if any(already)
             neighbours=neighbours[already,:]
@@ -130,7 +130,7 @@ end
 """
     randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float64, weights::Vector)
 
-Function to create a `Niches` habitat of dimension `dimension`, made up of sampled
+Function to create a `DiscreteHab` habitat of dimension `dimension`, made up of sampled
 string types, `types`, that have a weighting, `weights` and clumpiness parameter,
 `clumpiness`.
 """
@@ -162,7 +162,7 @@ function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float
     _fill_in!(T, M, types, wv)
   end
 
-  return Niches{None}(T, gridsquaresize, HabitatUpdate(NoChange, 0.0))
+  return DiscreteHab{None}(T, gridsquaresize, HabitatUpdate(NoChange, 0.0))
 end
 
 function simplehabitat(val::Float64, size::Float64,
@@ -170,7 +170,7 @@ function simplehabitat(val::Float64, size::Float64,
   M = zeros(dim)
   fill!(M, val)
 
-  Habitats{None}(M, size, HabitatUpdate(NoChange, 0.0))
+  ContinuousHab{None}(M, size, HabitatUpdate(NoChange, 0.0))
 end
 
 function tempgrad(min::Float64, max::Float64, size::Float64,
@@ -182,5 +182,5 @@ function tempgrad(min::Float64, max::Float64, size::Float64,
     M[seq, :] = temp_range[seq]
   end
 
-  Habitats{Temp}(M, size, HabitatUpdate(TempChange, rate))
+  ContinuousHab{Temp}(M, size, HabitatUpdate(TempChange, rate))
 end

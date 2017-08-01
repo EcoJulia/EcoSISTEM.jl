@@ -13,7 +13,7 @@ include("TraitRelationship.jl")
 export TraitRelationship, GaussTemp, SimpleNiche
 
 include("Habitats.jl")
-export Habitats, Niches, tempgrad
+export ContinuousHab, DiscreteHab, tempgrad
 
 include("Energy.jl")
 export SimpleRequirement
