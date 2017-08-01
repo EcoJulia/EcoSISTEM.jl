@@ -72,8 +72,8 @@ function update!(eco::Ecosystem, timestep::Float64)
 
         #params.s = 1 - exp(-params.s / TraitFun(eco, i, j))
         # Alter rates by energy available in current pop & own requirements
-        birth_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^-params.s * min(K / E, 1)
-        death_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^params.s * E / K
+        birth_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^-params.s * min(K/E, params.boost)
+        death_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^params.s * (E / K)
 
         # Calculate effective rates
         birthprob = params.birth[j] * timestep * birth_energy
@@ -84,7 +84,7 @@ function update!(eco::Ecosystem, timestep::Float64)
           deathprob = 0
         end
         # Put probabilities into 0 - 1
-        newbirthprob, newdeathprob = sum_to_one([birthprob, deathprob])
+        newbirthprob, newdeathprob = 1.0 - exp.(-[birthprob, deathprob])
 
         # Calculate how many births and deaths
         births = jbinom(1, currentabun[j], newbirthprob)[1]
@@ -102,11 +102,8 @@ function update!(eco::Ecosystem, timestep::Float64)
   # Update environment
   getchangefun(eco)(eco)
 end
-function sum_to_one(probs::Array{Float64})
-  return map(probs) do prob
-    1.0 - exp(-prob)
-  end
-end
+
+
 function convert_coords(i::Int64, width::Int64)
   i = i - 1
   x = (i % width) + 1
