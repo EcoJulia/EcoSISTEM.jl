@@ -1,23 +1,29 @@
 using RCall
 
-function plot_move(eco::Ecosystem, x::Int64, y::Int64, spp::Int64)
-  table = Array(eco.lookup[spp]) .+ [x y 0]
-  maxGrid = maximum(size(eco.abenv.habitat.matrix))
+function plot_move(eco::Ecosystem, x::Int64, y::Int64, spp::Int64, plot::Bool)
+
+  lookup = eco.lookup[spp]
+  maxX = size(eco.abenv.habitat.matrix, 1) - x
+  maxY = size(eco.abenv.habitat.matrix, 2) - y
   # Can't go over maximum dimension
-  lower  = find(mapslices(x->all(x.>0), table, 2))
-  upper = find(mapslices(x->all(x.<= maxGrid), table, 2))
-  valid = intersect(lower, upper)
-  table = table[valid, :]
-  table[:, 3] = table[:, 3]/sum(table[:, 3])
-  table
+  valid = find((lookup.x .> -x) .& (lookup.y .> -y) .&
+   (lookup.x .<= maxX) .& (lookup.y .<= maxY))
+  probs = lookup.p[valid]
+  probs ./= sum(probs)
+  xs = (lookup.x[valid] .+ x)
+  ys = (lookup.y[valid] .+ y)
   A = zeros(size(eco.abenv.habitat.matrix))
-  for i in eachindex(table[:, 1])
-    A[table[i, 1], table[i, 2]] = table[i, 3]
+  for i in eachindex(xs)
+    A[xs[i], ys[i]] = probs[i]
   end
-  @rput A
-  R"par(mfrow=c(1,1));library(fields);
-  A[A==0]=NA
-  image.plot(A)"
+  if plot
+    @rput A
+    R"par(mfrow=c(1,1));library(fields);
+    A[A==0]=NA
+    image.plot(A)"
+  else
+    return A
+  end
 end
 
 function plot_abun(abun::AbstractArray, numSpecies::Int64, gridSize::Int64)
@@ -34,6 +40,7 @@ function plot_abun(abun::AbstractArray, numSpecies::Int64, gridSize::Int64)
         }
     }"
   end
+
 function plot_divergence(expected::Vector{Float64}, actual::Vector{Float64})
   @rput expected
   @rput actual
