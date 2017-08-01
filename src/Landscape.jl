@@ -10,8 +10,9 @@ mutable struct GridLandscape
   matrix::Matrix{Int64}
   grid::Array{Int64, 3}
 
-  function GridLandscape(abun::Matrix{Float64}, dimension::Tuple)
-    return new(abun, reshape(abun, dimension))
+  function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
+    a = abun
+    return new(a, reshape(a, dimension))
   end
 end
 
@@ -22,7 +23,7 @@ Function to create an empty GridLandscape given a GridAbioticEnv and a
 SpeciesList.
 """
 function emptygridlandscape(gae::GridAbioticEnv, spplist::SpeciesList)
-  mat = zeros(counttypes(spplist, true), countsubcommunities(gae))
+  mat = zeros(Int64, counttypes(spplist, true), countsubcommunities(gae))
 
   dimension = (counttypes(spplist, true), size(gae.habitat.matrix)...)
   return GridLandscape(mat, dimension)
