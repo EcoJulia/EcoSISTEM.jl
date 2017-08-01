@@ -33,5 +33,10 @@ mutable struct AlwaysMovement{K <: AbstractKernel} <: AbstractMovement
   kernel::K
 end
 
+mutable struct NoMovement{K <: AbstractKernel} <: AbstractMovement
+  kernel::K
+end
+
 getkernel(m::BirthOnlyMovement) = m.kernel
 getkernel(m::AlwaysMovement) = m.kernel
+getkernel(m::NoMovement) = m.kernel

@@ -154,6 +154,19 @@ function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   grd[spp, locs] .= grd[spp, locs] .+ table[:, 3]
   return eco
 end
+"""
+    move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Int64, 2})
+
+Function to calculate the movement of species `spp` from a given position in the
+landscape `i`, using the lookup table found in the Ecosystem and updating the
+movement patterns on a grid, `grd`. Optionally, a number of births can be
+provided, so that movement only takes place as part of the birth process, instead
+of the entire population
+"""
+function move!(eco::Ecosystem, ::NoMovement, i::Int64, spp::Int64,
+  grd::Array{Int64, 2}, ::Int64)
+  return eco
+end
 
 
 function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64, grd::Array{Int64, 2},
@@ -185,21 +198,19 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
   len = dim[1] * dim[2]
   grid = collect(1:len)
   # Set up copy of budget
-  b = copy(abenv.budget.matrix)
+  b = reshape(copy(abenv.budget.matrix), size(grid))
   # Loop through species
   for i in eachindex(spplist.abun)
     # Get abundance of species
     abun = spplist.abun[i]
     # Loop through individuals
       while abun>0
-        zs = findin(reshape(b, size(grid)), 0)
-        deleteat!(grid, zs)
         # Randomly choose position on grid (weighted)
-        pos = sample(grid)
+        pos = sample(grid[b .> 0])
       # Add individual to this location
       ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
       abun = abun .- 1
-      b[pos] = b[pos] .- 1
+      b[pos] = b[pos] .- spplist.requirement.energy[i]
     end
   end
 end
