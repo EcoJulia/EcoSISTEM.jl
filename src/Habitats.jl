@@ -38,9 +38,10 @@ end
 
 This habitat subtype has a matrix of strings and a float grid square size
 """
-mutable struct Niches <: AbstractHabitat{String}
+mutable struct Niches{E <: Envtype} <: AbstractHabitat{String}
   matrix::Matrix{String}
   size::Float64
+  change::HabitatUpdate
 end
 
 function _countsubcommunities(niches::Niches)
@@ -161,7 +162,7 @@ function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float
     _fill_in!(T, M, types, wv)
   end
 
-  return Niches(T, gridsquaresize)
+  return Niches{None}(T, gridsquaresize, HabitatUpdate(NoChange, 0.0))
 end
 
 function simplehabitat(val::Float64, size::Float64,
