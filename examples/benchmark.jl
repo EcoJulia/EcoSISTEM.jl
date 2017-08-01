@@ -26,10 +26,11 @@ birth = 0.6/12
 death = 0.6/12
 l = 1.0
 s = 0.5
+boost = 1.05
 timestep = 1/12
 
 # Collect model parameters together
-param = EqualPop(birth, death, l, s)
+param = EqualPop(birth, death, l, s, boost)
 
 minT = 0.0
 maxT = 10.0

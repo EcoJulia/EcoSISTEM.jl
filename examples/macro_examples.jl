@@ -27,10 +27,11 @@ function runsim(times::Int64)
   death = 0.6/12
   l = 1.0
   s = 0.5
+  boost = 1.0
   timestep = 1/12
 
   # Collect model parameters together (in this order!!)
-  param = EqualPop(birth, death, l, s)
+  param = EqualPop(birth, death, l, s, boost)
 
   minT = 0.0
   maxT = 10.0
@@ -94,7 +95,20 @@ runsim(1200)
 storage_steady = load("macrorun_smaller.jld", "storage_steady")
 storage_change = load("macrorun_smaller.jld", "storage_change")
 storage = cat(3, storage_steady, storage_change)
+store = reshape(storage, 50, 20, 20, 1302, 1)
+im1 = mapslices(sum, store[:,:,:, 100, 1], [1, 3])
+im2 = mapslices(sum, store[:,:,:, 1300, 1], [1, 3])
+@rput im1
+@rput im2
 
+R"par(mfrow=c(2,1));library(plotrix);
+plot(-10:9, im1, xlim=c(-15, 25), xaxs='i', yaxs='i',cex=0.5,
+xlab ='', ylab='Total abundance', ylim=c(0, 550));
+gradient.rect(-10, 0, 10, 10, col = magma(32)[1:20])
+plot(2:21, im2, xlim=c(-15, 25), xaxs='i', yaxs='i',cex=0.5,
+xlab ='Temperature', ylab='Total abundance', ylim=c(0, 550));
+gradient.rect(2, 0, 22, 10, col = magma(32)[21:32])
+"
 """
 SPATIAL ALPHA PLOT
 """
@@ -204,7 +218,7 @@ for i in 1:1203
   if any(i.==divtimes)
     R"library(viridis);library(fields)
     jpeg(paste('plots/newrun/tempchange', i, '.jpg'))
-    image.plot(1:20, 1:20, t(hab),col=magma(35), breaks = c(-10:25),
+    image.plot(1:20, 1:20, t(hab),col=viridis(35), breaks = c(-10:25),
     xlab='', ylab='')
     dev.off()"
   end
