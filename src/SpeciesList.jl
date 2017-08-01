@@ -88,7 +88,7 @@ function SpeciesList{R <: AbstractRequirement,
     trts = map(string, 1:numtraits)
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    sp_trt = BasicTrait(Array(get_traits(tree, true)))
+    sp_trt = BasicTrait(vcat(Array(get_traits(tree, true))...))
     # Create similarity matrix (for now identity)
     phy = PhyloTypes(tree)
     # Draw random set of abundances from distribution
