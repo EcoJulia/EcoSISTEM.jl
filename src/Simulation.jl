@@ -10,7 +10,7 @@ include("Envtypes.jl")
 export Temp
 
 include("TraitRelationship.jl")
-export TraitRelationship, GaussTemp
+export TraitRelationship, GaussTemp, SimpleNiche
 
 include("Habitats.jl")
 export Habitats, Niches, tempgrad
