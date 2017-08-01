@@ -9,6 +9,9 @@ function TraitFun(env::Type{Habitats{Temp}}, eco::Ecosystem, pos::Int64, spp::In
   return gettraitfun(eco)(T, T_opt, Var)
 end
 
+function TraitFun(env::Type{Habitats{None}}, eco::Ecosystem, pos::Int64, spp::Int64)
+  return 1.0
+end
 
 function gettraitfun(eco::Ecosystem)
   return eco.relationship.traitfun

@@ -164,6 +164,14 @@ function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float
   return Niches(T, gridsquaresize)
 end
 
+function simplehabitat(val::Float64, size::Float64,
+  dim::Tuple{Int64, Int64})
+  M = zeros(dim)
+  fill!(M, val)
+
+  Habitats{None}(M, size, HabitatUpdate(NoChange, 0.0))
+end
+
 function tempgrad(min::Float64, max::Float64, size::Float64,
   dim::Tuple{Int64, Int64}, rate::Float64)
   M = zeros(dim)
