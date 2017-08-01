@@ -16,12 +16,13 @@ mutable struct PopGrowth <: AbstractParams
   death::Vector{Float64}
   l::Float64
   s::Float64
+  boost::Float64
 
   function PopGrowth(birth::Vector{Float64}, death::Vector{Float64},
-    l::Float64, s::Float64)
+    l::Float64, s::Float64, boost::Float64)
     l > s || error("l must be greater than s")
     l >= 0 && s >= 0 || error("l and s must be greater than zero")
-    new(birth, death, l, s)
+    new(birth, death, l, s, boost)
   end
 end
 
@@ -30,9 +31,10 @@ mutable struct EqualPop <: AbstractParams
   death::Float64
   l::Float64
   s::Float64
+  boost::Float64
 end
 
 function equalpop(params::EqualPop, numspp)
   PopGrowth(repmat([params.birth], numspp), repmat([params.death], numspp),
-  params.l, params.s)
+  params.l, params.s, params.boost)
 end
