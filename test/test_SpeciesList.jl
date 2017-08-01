@@ -4,6 +4,7 @@ using Distributions
 
 ## Run simulation over a grid and plot
 numSpecies=4
+numTraits = 2
 
 # Set up how much energy each species consumes
 energy_vec = SimpleRequirement(repmat([2], numSpecies))
@@ -31,3 +32,5 @@ traits = TempTrait(opts, vars)
 abun = Multinomial(individuals, numSpecies)
 @test_nowarn sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
 movement, param)
+@test_nowarn sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
+                   energy_vec, movement, param)

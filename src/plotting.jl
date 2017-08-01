@@ -88,7 +88,7 @@ function _freq_hist(total::Array{Float64}, grd::Array{Float64}, num::Int64)
   R"hist(count_tot, breaks=c(-0.5:(num+0.5)), main=' ', xlab='Abundance')"
 end
 
-function plotdiv(divfun::Function, eco::Ecosystem, qs::Array{Real})
+function plotdiv(divfun::Function, eco::Ecosystem, qs::Array{Float64, 1})
   datf = divfun(eco, qs)
   @rput datf
   R"library(ggplot2); library(cowplot)
