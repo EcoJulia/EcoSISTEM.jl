@@ -19,10 +19,10 @@ include("Energy.jl")
 export SimpleRequirement
 
 include("AbioticEnv.jl")
-export GridAbioticEnv, simplenicheAE, tempgradAE
+export GridAbioticEnv, simplenicheAE, tempgradAE, simplehabitatAE
 
 include("Movement.jl")
-export GaussianKernel, BirthOnlyMovement, AlwaysMovement, getkernel
+export GaussianKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel
 
 include("Traits.jl")
 export BasicTrait, TempTrait
