@@ -49,7 +49,7 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
   gridsquaresize)
   # Create empty budget and for now fill with one value
   bud = zeros(dimension)
-  fill!(bud, maxbud)
+  fill!(bud, maxbud/(dimension[1]*dimension[2]))
 
   return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, SimpleBudget(bud))
 end
@@ -66,7 +66,16 @@ function tempgradAE(min::Float64, max::Float64, dimension::Tuple{Int64, Int64},
                         maxbud::Float64, gridsquaresize::Float64, rate::Float64)
   hab = tempgrad(min, max, gridsquaresize, dimension, rate)
   bud = zeros(dimension)
-  fill!(bud, maxbud)
+  fill!(bud, maxbud/(dimension[1]*dimension[2]))
+
+  return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, SimpleBudget(bud))
+end
+
+function simplehabitatAE(val::Float64, dimension::Tuple{Int64, Int64},
+                        maxbud::Float64, gridsquaresize::Float64)
+  hab = simplehabitat(val, gridsquaresize, dimension)
+  bud = zeros(dimension)
+  fill!(bud, maxbud/(dimension[1]*dimension[2]))
 
   return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, SimpleBudget(bud))
 end
