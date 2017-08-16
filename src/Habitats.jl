@@ -1,6 +1,8 @@
 using StatsBase
 import Diversity.API._countsubcommunities
 import Diversity.countsubcommunities
+using Unitful
+using Unitful.DefaultSymbols
 
 """
     AbstractHabitat
@@ -18,14 +20,15 @@ end
 
 This habitat subtype has a matrix of floats and a float grid square size
 """
-mutable struct HabitatUpdate
+mutable struct HabitatUpdate{D <: Unitful.Dimension}
   changefun::Function
-  rate::Float64
+  rate::Quantity{Float64,Unitful.Dimensions{Tuple{D,
+   Unitful.Dimension{:Time}(-1//1)}}}
 end
 
 mutable struct ContinuousHab{E <: Envtype} <: AbstractHabitat{Float64}
-  matrix::Matrix{Float64}
-  size::Float64
+  matrix::Matrix{Unitful.Quantity{Float64}}
+  size::Unitful.Length
   change::HabitatUpdate
 end
 
@@ -40,7 +43,7 @@ This habitat subtype has a matrix of strings and a float grid square size
 """
 mutable struct DiscreteHab{E <: Envtype} <: AbstractHabitat{String}
   matrix::Matrix{String}
-  size::Float64
+  size::Unitful.Length
   change::HabitatUpdate
 end
 
@@ -135,7 +138,7 @@ string types, `types`, that have a weighting, `weights` and clumpiness parameter
 `clumpiness`.
 """
 function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float64,
-  weights::Vector, gridsquaresize::Float64)
+  weights::Vector, gridsquaresize::Unitful.Length)
   # Check that the proportion of coverage for each type matches the number
   # of types and that they add up to 1
   length(weights)==length(types) || error("There must be an area proportion for each type")
@@ -162,25 +165,32 @@ function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float
     _fill_in!(T, M, types, wv)
   end
 
-  return DiscreteHab{Niches}(T, gridsquaresize, HabitatUpdate(NoChange, 0.0))
+  return DiscreteHab{Niches}(T, gridsquaresize, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
 end
 
-function simplehabitat(val::Float64, size::Float64,
+function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
   dim::Tuple{Int64, Int64})
-  M = zeros(dim)
+  M = Array{Unitful.Quantity}(dim)
   fill!(M, val)
 
-  ContinuousHab{None}(M, size, HabitatUpdate(NoChange, 0.0))
+  ContinuousHab{None}(M, size, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
+end
+function simplehabitat(val::Float64, size::Unitful.Length,
+  dim::Tuple{Int64, Int64})
+  M = Array{Float64}(dim)
+  fill!(M, val)
+
+  ContinuousHab{None}(M, size, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
 end
 
-function tempgrad(min::Float64, max::Float64, size::Float64,
-  dim::Tuple{Int64, Int64}, rate::Float64)
-  M = zeros(dim)
+function tempgrad(min::Unitful.Temperature{Float64}, max::Unitful.Temperature{Float64},
+  size::Unitful.Length{Float64},
+  dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝚯*𝐓^1)})
+  M = Array{Unitful.Temperature}(dim)
   total = dim[1]
   temp_range = collect(linspace(min, max, total))
   map(1:total) do seq
     M[seq, :] = temp_range[seq]
   end
-
-  ContinuousHab{Temp}(M, size, HabitatUpdate(TempChange, rate))
+  ContinuousHab{Temp}(M, size, HabitatUpdate{Unitful.Dimension{:Temperature}}(TempChange, rate))
 end

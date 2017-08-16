@@ -1,8 +1,10 @@
-function TempChange(eco::Ecosystem)
+function TempChange(eco::Ecosystem, timestep::Unitful.Time)
   val = gethabitat(eco).change.rate
-  gethabitat(eco).matrix .+= val
+  v = uconvert(°C/unit(timestep), val)
+  gethabitat(eco).matrix .+= v
 end
-function NoChange(eco::Ecosystem)
+
+function NoChange(eco::Ecosystem, timestep::Unitful.Time)
 end
 
 function getchangefun(eco::Ecosystem)
