@@ -1,5 +1,8 @@
 module Simulation
 
+include("Units.jl")
+export day, week, month, year, Rates
+
 include("Dist.jl")
 export jnorm, jexp, jpois, jbinom, junif, jdir, jmulti
 
@@ -37,7 +40,7 @@ include("Landscape.jl")
 export GridLandscape
 
 include("Ecosystem.jl")
-export Ecosystem
+export Ecosystem, getsize, getenvtype, gethabitat, gettraitrel, getgridsize
 
 include("Traitfuns.jl")
 export TraitFun, TraitOff, getpref, gettraitrel, gethabitat

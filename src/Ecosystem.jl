@@ -113,6 +113,29 @@ function getenvtype(eco::Ecosystem)
   return typeof(eco.abenv.habitat)
 end
 
+function getsize(eco::Ecosystem)
+  x = eco.abenv.habitat.size * size(eco.abenv.habitat.matrix, 1)
+  y = eco.abenv.habitat.size * size(eco.abenv.habitat.matrix, 2)
+  return x * y
+end
+
+function getgridsize(eco::Ecosystem)
+  return eco.abenv.habitat.size
+end
+
+function getdispersaldist(eco::Ecosystem)
+  vars = eco.spplist.movement.kernel.var
+  return sqrt(getsize(eco)) * sqrt.(vars) * sqrt(pi) / 2
+end
+function getdispersaldist(eco::Ecosystem, spp::Int64)
+  vars = eco.spplist.movement.kernel.var[spp]
+  return sqrt(getsize(eco)) * sqrt(vars) * sqrt(pi) / 2
+end
+function getdispersaldist(eco::Ecosystem, spp::String)
+  num = find(eco.spplist.names.==spp)[1]
+  getdispersaldist(eco, num)
+end
+
 function _symmetric_grid(grid::DataFrame)
    for x in 1:nrow(grid)
      if grid[x, 1] != grid[x, 2]
@@ -145,7 +168,7 @@ Function to generate lookup tables, which hold information on the probability
 of moving to neighbouring squares.
 """
 function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
-  relsize =  hab.size ./ mov.var
+  relsize =  ustrip(hab.size ./ mov.var)
   m = maximum(size(hab.matrix))
   p = mov.thresh
   return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)
