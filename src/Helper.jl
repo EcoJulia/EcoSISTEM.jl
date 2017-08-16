@@ -1,4 +1,5 @@
-
+using Unitful
+using Unitful.DefaultSymbols
 """
 run_sim_spatial(eco::Ecosystem, param::AbstractVector,
    times::Int64, burnin::Int64, interval::Int64, reps::Int64, birth_move::Bool)
@@ -9,8 +10,10 @@ Function to run an ecosystem, `eco`, through a simulation for a set of parameter
 `interval`. There is also the option to run migration over all abundances or only
 those in the birth pulse, `birth_move`.
 """
-function simulate!(eco::Ecosystem, times::Int64,
-  interval::Int64, timestep::Float64)
+function simulate!(eco::Ecosystem, duration::Unitful.Time,
+  interval::Unitful.Time, timestep::Unitful.Time)
+  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
+  times = length(0s:timestep:duration)
   for i in 1:times
     update!(eco, timestep)
   end
@@ -22,14 +25,16 @@ function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
   abun = zeros(numSpecies, gridSize, times, reps)
 end
 
-function simulate_record!(storage::AbstractArray, eco::Ecosystem, times::Int64,
-  interval::Int64, timestep::Float64)
-  time_seq = 0:interval:times
+function simulate_record!(storage::AbstractArray, eco::Ecosystem,
+  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time)
+  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
+  record_seq = 0s:interval:times
+  time_seq = 0s:timestep:times
   storage[:, :, 1] = eco.abundances.matrix
   counting = 1
-  for i in 1:times
+  for i in 2:length(time_seq)
     update!(eco, timestep);
-    if any(i.==time_seq)
+    if any(time_seq[i].==record_seq)
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix
     end

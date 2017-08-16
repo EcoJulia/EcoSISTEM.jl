@@ -38,7 +38,7 @@ birth, death rates and longevity of species (l & s) to generate the abundances
 of the species stochastically. Movement takes place across the landscape via
 movement rates defined in the ecosystem.
 """
-function update!(eco::Ecosystem, timestep::Float64)
+function update!(eco::Ecosystem, timestep::Unitful.Time)
   # Calculate dimenions of habitat and number of species
   dims = length(eco.abenv.habitat.matrix)
   spp = size(eco.abundances.grid,1)
@@ -76,8 +76,10 @@ function update!(eco::Ecosystem, timestep::Float64)
         death_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^params.s * (E / K)
 
         # Calculate effective rates
-        birthprob = params.birth[j] * timestep * birth_energy
-        deathprob = params.death[j] * timestep * death_energy
+        birth = uconvert(unit(timestep)^-1, params.birth[j])
+        birthprob = birth * timestep * birth_energy
+        death = uconvert(unit(timestep)^-1, params.death[j])
+        deathprob = death * timestep * death_energy
       # If zero abundance then go extinct
         if currentabun[j] == 0
           birthprob = 0
@@ -100,7 +102,7 @@ function update!(eco::Ecosystem, timestep::Float64)
   end
   eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
   # Update environment
-  getchangefun(eco)(eco)
+  getchangefun(eco)(eco, timestep)
 end
 
 
