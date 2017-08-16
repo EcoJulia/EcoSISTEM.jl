@@ -8,6 +8,8 @@ using Distributions
 using StatsBase
 using ProgressMeter
 using DataStructures
+using Unitful
+using Unitful.DefaultSymbols
 
 ## Run simulation on 2 by 1 grid - investigate spatial distributions
 
@@ -20,18 +22,18 @@ numNiches=2
 energy_vec = SimpleRequirement(collect(2:9))
 
 # Set probabilities
-birth = 0.6
-death = 0.6
+birth = 0.6/month
+death = 0.6/month
 l = 1.0
 s = 0.0
 boost = 1.0
-timestep = 1.0
+timestep = 1.0month
 
 # Collect model parameters together (in this order!!)
 param = EqualPop(birth, death, l, s, boost)
 
 grid = (2, 1)
-gridSize = 1.0
+area = 10.0km^2
 totalK = 1000.0
 individuals=100
 
@@ -40,15 +42,17 @@ kernel = GaussianKernel(0.2, numSpecies, 10e-4)
 movement = AlwaysMovement(kernel)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement, param)
-abenv = simplenicheAE(numNiches, grid, totalK, gridSize)
+abenv = simplenicheAE(numNiches, grid, totalK, area)
 rel = TraitRelationship(SimpleNiche)
 eco = Ecosystem(sppl, abenv, rel)
 
 plotdiv(norm_sub_alpha, eco, collect(0.0:10))
 
-
-times = 1000; burnin = 500; interval = 10; reps = 10
-lensim = length(0:interval:times)
+times = 10year; burnin = 1year; interval = 3month; reps = 10
+# Run simulation grid
+lensim = length(0month:interval:times)
+#times = 1000; burnin = 500; interval = 10
+#lensim = length(0:interval:times)
 
 # Run simulations 10 times
 storage = generate_storage(eco, lensim, reps)
@@ -59,7 +63,7 @@ storage = generate_storage(eco, lensim, reps)
   simulate!(eco, burnin, interval, timestep)
   simulate_record!(thisstore, eco, times, interval, timestep)
 end
-
+plot_abun(storage, numSpecies, grid)
 
 ab = run_sim_spatial(eco, param, times, burnin, interval, reps)
 
