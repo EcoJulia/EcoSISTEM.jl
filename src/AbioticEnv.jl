@@ -1,5 +1,7 @@
 using Diversity
 importall Diversity.API
+using Unitful
+using Unitful.DefaultSymbols
 
 """
     AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
@@ -41,9 +43,11 @@ dimensions `dimension` and a grid squaresize `gridsquaresize`. It also creates a
 `SimpleBudget` type filled with the maximum budget value `maxbud`.
 """
 function simplenicheAE(numniches::Int64, dimension::Tuple,
-                        maxbud::Float64, gridsquaresize::Float64)
+                        maxbud::Float64, area::Unitful.Area{Float64})
   # Create niches
   niches = map(string, 1:numniches)
+  area = uconvert(km^2, area)
+  gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
   # Create niche-like environment
   hab = randomniches(dimension, niches, 0.5, repmat([1.0/numniches], numniches),
   gridsquaresize)
@@ -62,8 +66,13 @@ function _getsubcommunitynames(gae::GridAbioticEnv)
     return gae.names
 end
 
-function tempgradAE(min::Float64, max::Float64, dimension::Tuple{Int64, Int64},
-                        maxbud::Float64, gridsquaresize::Float64, rate::Float64)
+function tempgradAE(min::Unitful.Temperature{Float64},
+  max::Unitful.Temperature{Float64},
+  dimension::Tuple{Int64, Int64}, maxbud::Float64,
+  area::Unitful.Area{Float64}, rate::Float64)
+  min = uconvert(°C, min); max = uconvert(°C, max)
+  area = uconvert(km^2, area)
+  gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
   hab = tempgrad(min, max, gridsquaresize, dimension, rate)
   bud = zeros(dimension)
   fill!(bud, maxbud/(dimension[1]*dimension[2]))
@@ -71,8 +80,10 @@ function tempgradAE(min::Float64, max::Float64, dimension::Tuple{Int64, Int64},
   return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, SimpleBudget(bud))
 end
 
-function simplehabitatAE(val::Float64, dimension::Tuple{Int64, Int64},
-                        maxbud::Float64, gridsquaresize::Float64)
+function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
+  dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64})
+  area = uconvert(km^2, area)
+  gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
   hab = simplehabitat(val, gridsquaresize, dimension)
   bud = zeros(dimension)
   fill!(bud, maxbud/(dimension[1]*dimension[2]))

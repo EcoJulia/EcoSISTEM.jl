@@ -14,7 +14,7 @@ mutable struct BasicTrait{T} <: AbstractTraits{T}
   trait::Array{T, 1}
 end
 
-mutable struct TempTrait{T <: AbstractFloat} <: AbstractTraits{T}
+mutable struct TempTrait{T <: Unitful.Temperature{Float64}} <: AbstractTraits{T}
   mean::Array{T, 1}
   var::Array{T, 1}
 end
