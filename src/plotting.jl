@@ -49,6 +49,29 @@ function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64, grid::Tuple{Int64
 plot_abun(abun, numSpecies, grid, 1)
 end
 
+function plot_reps(abun::Array{Float64, 4}, numSpecies::Int64,
+  grid::Tuple{Int64, Int64})
+  # Plot
+  means = mapslices(mean, abun, 4)
+  upper = means .+ mapslices(std, abun, 4)
+  lower = means .- mapslices(std, abun, 4)
+  summary = [mean, upper, lower]
+  gridsize = collect(grid)
+  @rput summary
+  @rput numSpecies
+  @rput gridsize
+  R" par(mfrow=c(gridsize[1], gridsize[2]), mar=c(2, 2, 2, 2))
+  for (i in 1:(gridsize[1]*gridsize[2])){
+      for (k in 1:numSpecies){
+        if (k==1) plot_fun=plot else plot_fun=lines
+          plot_fun(summary[1, k, i, ], col=k, xlab='Abundance', ylab='Time', type='l',
+          ylim=c(0, max(abun)))
+          lines(summary[2, k, i, ], col=k, lty=2)
+          lines(summary[3, k, i, ], col=k, lty=2)
+        }
+    }"
+end
+
 function plot_divergence(expected::Vector{Float64}, actual::Vector{Float64})
   @rput expected
   @rput actual

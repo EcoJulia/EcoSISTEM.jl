@@ -63,7 +63,8 @@ storage = generate_storage(eco, lensim, reps)
   simulate!(eco, burnin, interval, timestep)
   simulate_record!(thisstore, eco, times, interval, timestep)
 end
-plot_abun(storage, numSpecies, grid)
+plot_abun(storage, numSpecies, grid, 3)
+plot_reps(storage, numSpecies, grid)
 
 ab = run_sim_spatial(eco, param, times, burnin, interval, reps)
 
