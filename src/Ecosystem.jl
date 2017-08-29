@@ -136,6 +136,7 @@ function getdispersaldist(eco::Ecosystem, spp::String)
   getdispersaldist(eco, num)
 end
 
+
 function _symmetric_grid(grid::DataFrame)
    for x in 1:nrow(grid)
      if grid[x, 1] != grid[x, 2]
@@ -155,6 +156,10 @@ function _symmetric_grid(grid::DataFrame)
    end
    grid
  end
+ function _gaussian_disperse(r, Θ)
+   t = r[1]
+   exp(-(t/(1-t^2))^2) / (Θ^2 * π)
+ end
 
  # Define gaussian kernel function
 function _gaussian_disperse(r)
@@ -168,7 +173,8 @@ Function to generate lookup tables, which hold information on the probability
 of moving to neighbouring squares.
 """
 function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
-  relsize =  ustrip(hab.size ./ mov.var)
+  sd = (2 * mov.dist) / sqrt(pi)
+  relsize =  hab.size ./ sd
   m = maximum(size(hab.matrix))
   p = mov.thresh
   return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)

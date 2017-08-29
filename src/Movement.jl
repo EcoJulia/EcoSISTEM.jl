@@ -16,13 +16,14 @@ dispersal variances per species, `var`, and a threshold, `thresh`, beyond which
 dispersal cannot take place.
 """
 mutable struct GaussianKernel <: AbstractKernel
-  var::Vector{Float64}
+  dist::Vector{Unitful.Length{Float64}}
   thresh::Float64
 end
 
-function GaussianKernel(dispersalvar::Float64, numspecies::Int64,
+function GaussianKernel(dispersaldist::Unitful.Length{Float64}, numspecies::Int64,
   pthresh::Float64)
-  GaussianKernel(repmat([dispersalvar], numspecies), pthresh)
+  dist = map(u-> uconvert(km, u), dispersaldist)
+  GaussianKernel(repmat([dist], numspecies), pthresh)
 end
 
 mutable struct BirthOnlyMovement{K <: AbstractKernel} <: AbstractMovement
