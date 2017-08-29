@@ -76,17 +76,12 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
         death_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^params.s * (E / K)
 
         # Calculate effective rates
-        birth = uconvert(unit(timestep)^-1, params.birth[j])
-        birthprob = birth * timestep * birth_energy
-        death = uconvert(unit(timestep)^-1, params.death[j])
-        deathprob = death * timestep * death_energy
-      # If zero abundance then go extinct
-        if currentabun[j] == 0
-          birthprob = 0
-          deathprob = 0
-        end
+        birthprob = params.birth[j] * timestep * birth_energy
+        deathprob = params.death[j] * timestep * death_energy
+
         # Put probabilities into 0 - 1
-        newbirthprob, newdeathprob = 1.0 - exp.(-[birthprob, deathprob])
+        newbirthprob = 1.0 - exp(-birthprob)
+        newdeathprob = 1.0 - exp(-deathprob)
 
         # Calculate how many births and deaths
         births = jbinom(1, currentabun[j], newbirthprob)[1]
@@ -107,14 +102,12 @@ end
 
 
 function convert_coords(i::Int64, width::Int64)
-  i = i - 1
-  x = (i % width) + 1
-  y = div(i, width)  + 1
+  x = ((i - 1) % width) + 1
+  y = div((i - 1), width)  + 1
   return (x, y)
 end
 function convert_coords(x::Int64, y::Int64, width::Int64)
-  x = x - 1 ; y = y - 1
-  i = x + width * y
+  i = x - 1 + width * (y - 1)
   return i + 1
 end
 
@@ -126,12 +119,16 @@ function calc_lookup_moves(i::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
   maxX = size(eco.abenv.habitat.matrix, 1) - x
   maxY = size(eco.abenv.habitat.matrix, 2) - y
   # Can't go over maximum dimension
-  valid = find((lookup.x .> -x) .& (lookup.y .> -y) .&
-   (lookup.x .<= maxX) .& (lookup.y .<= maxY))
+  valid = (lookup.x .> -x) .& (lookup.y .> -y) .&
+   (lookup.x .<= maxX) .& (lookup.y .<= maxY)
   probs = lookup.p[valid]
   probs ./= sum(probs)
   moves = rand(Multinomial(abun, probs))
-  return hcat(((lookup.x[valid] .+ x), (lookup.y[valid] .+ y), moves)...)
+  res = Array{Int64}(size(moves, 1), 3)
+  res[:,1] = lookup.x[valid] .+ x
+  res[:,2] = lookup.y[valid] .+ y
+  res[:,3] = moves
+  return res
 end
 """
     move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Int64, 2})
