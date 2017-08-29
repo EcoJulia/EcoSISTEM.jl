@@ -16,15 +16,30 @@ function plot_move(eco::Ecosystem, x::Int64, y::Int64, spp::Int64, plot::Bool)
   for i in eachindex(xs)
     A[xs[i], ys[i]] = probs[i]
   end
+  dims = collect(size(eco.abenv.habitat.matrix))
+  gridsize = ustrip(eco.abenv.habitat.size)
   if plot
-    @rput A
-    R"par(mfrow=c(1,1));library(fields);
-    A[A==0]=NA
-    image.plot(A)"
+    @rput A; @rput dims; @rput gridsize; @rput x; @rput y
+    R"par(mfrow=c(1,1), mar=c(5,5,4,6));library(fields);
+    lab1 = unique(round(c(1:dims[1])*gridsize))
+    lab2 = unique(round(c(1:dims[2])*gridsize))
+
+    image(A, axes=F, xlab='Distance (km)', ylab='Distance (km)',
+    col= c('lightgrey',heat.colors(20)))
+    #points((x-1)/(dims[1]-1), (y-1)/(dims[2]-1), pch=20)
+    rect((x-3/2)/(dims[1]-1),(y-3/2)/(dims[2]-1),
+    (x-1/2)/(dims[1]-1),(y-1/2)/(dims[2]-1), lty=2)
+    axis(1, at = c((0:dims[1])*gridsize / (dims[1] * gridsize)),
+    labels=0:dims[1])
+    axis(2, at = c((0:dims[2])*gridsize / (dims[2] * gridsize)),
+    labels=0:dims[2])
+    par(mfrow=c(1,1), mar=c(5,5,4,2))
+    image.plot(A, legend.only=T, col= c('lightgrey',heat.colors(20)))"
   else
     return A
   end
 end
+#, round(gridsize*dims[1]))
 
 function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64,
   grid::Tuple{Int64, Int64}, rep::Int64)
@@ -39,7 +54,7 @@ function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64,
       for (k in 1:numSpecies){
         if (k==1) plot_fun=plot else plot_fun=lines
           plot_fun(abun[k, i, , rep], col=k, xlab='Abundance', ylab='Time', type='l',
-          ylim=c(0, max(abun)))
+          ylim=c(min(abun), max(abun)))
         }
     }"
   end
@@ -48,6 +63,36 @@ function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64, grid::Tuple{Int64
   # Plot
 plot_abun(abun, numSpecies, grid, 1)
 end
+
+function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64,
+  rep::Int64, range::Vector{Int64})
+  # Plot
+  abun = abun[:, range, :, :]
+  len = length(range)
+  if !iseven(length(range))
+    len += 1
+  end
+  dims = len./(1:len/2)
+  dims = dims[isinteger.(dims)]
+  m = findmin(dims + (len./dims))[2]
+  gridsize = convert(Array{Int64}, [dims[m], len./dims[m]])
+  @rput abun
+  @rput numSpecies
+  @rput gridsize
+  @rput rep
+  R" par(mfrow=c(gridsize[1], gridsize[2]), mar=c(2, 2, 2, 2))
+  for (i in 1:(gridsize[1]*gridsize[2])){
+      for (k in 1:numSpecies){
+        if (k==1) plot_fun=plot else plot_fun=lines
+          plot_fun(abun[k, i, , rep], col=k, xlab='Abundance', ylab='Time', type='l',
+          ylim=c(min(abun), max(abun)))
+        }
+    }"
+  end
+  function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64, range::Vector{Int64})
+    # Plot
+  plot_abun(abun, numSpecies, 1, range)
+  end
 
 function plot_reps(abun::Array{Float64, 4}, numSpecies::Int64,
   grid::Tuple{Int64, Int64})
