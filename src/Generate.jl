@@ -42,7 +42,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
   # Calculate dimenions of habitat and number of species
   dims = length(eco.abenv.habitat.matrix)
   spp = size(eco.abundances.grid,1)
-  net_migration = zeros(Int64, size(eco.abundances.matrix))
+  net_migration = eco.cache.netmigration
   params = eco.spplist.params
   # Loop through grid squares
   for i in 1:dims
@@ -96,6 +96,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     end
   end
   eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
+  eco.cache.netmigration .= 0
   # Update environment
   getchangefun(eco)(eco, timestep)
 end
