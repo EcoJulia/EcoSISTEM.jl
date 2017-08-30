@@ -3,13 +3,20 @@ using Cubature
 using DataFrames
 using Unitful
 
-struct Lookup
+mutable struct Lookup
   x::Vector{Int64}
   y::Vector{Int64}
   p::Vector{Float64}
+  pnew::Vector{Float64}
+  moves::Vector{Int64}
 end
 
-Lookup(df::DataFrame) = Lookup(df[:X], df[:Y], df[:Prob])
+mutable struct Cache
+  netmigration::Array{Int64, 2}
+end
+
+Lookup(df::DataFrame) = Lookup(df[:X], df[:Y], df[:Prob],
+zeros(Float64, nrow(df)),zeros(Int64, nrow(df)))
 
 function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
     realm = _calcabundance(sim, m)
@@ -38,17 +45,18 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList} <:
   ordinariness::Nullable{Matrix{Float64}}
   relationship::TraitRelationship
   lookup::Vector{Lookup}
+  cache::Cache
 
   function Ecosystem{Part, SL}(abundances::GridLandscape,
     spplist::SL, abenv::Part, ordinariness::Nullable{Matrix{Float64}},
-    relationship::TraitRelationship, lookup::Vector{Lookup}) where {Part <:
+    relationship::TraitRelationship, lookup::Vector{Lookup}, cache::Cache) where {Part <:
      AbstractAbiotic,
     SL <: SpeciesList}
     eltype(abenv.budget) == eltype(spplist.requirement) ||
       error("Environment and species energy not of the same type")
     #_mcmatch(abundances.matrix, spplist, abenv) ||
     #  error("Dimension mismatch")
-    new{Part, SL}(abundances, spplist, abenv, ordinariness, relationship, lookup)
+    new{Part, SL}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
   end
 end
 """
@@ -70,9 +78,9 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
   populate!(ml, spplist, abenv)
   # Create lookup table of all moves and their probabilities
   lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
-
+  nm = zeros(Int64, size(ml.matrix))
   Ecosystem{typeof(abenv), typeof(spplist)}(ml, spplist, abenv,
-  Nullable{Matrix{Float64}}(), rel, lookup_tab)
+  Nullable{Matrix{Float64}}(), rel, lookup_tab, Cache(nm))
 end
 
 function _getabundance(eco::Ecosystem, input::Bool)
