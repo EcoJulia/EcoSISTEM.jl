@@ -116,20 +116,17 @@ function convert_coords(x::Array{Int64, 1}, y::Array{Int64, 1}, width::Int64)
   return i
 end
 
+function calc_lookup_moves(x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
   lookup = eco.lookup[spp]
   maxX = size(eco.abenv.habitat.matrix, 1) - x
   maxY = size(eco.abenv.habitat.matrix, 2) - y
   # Can't go over maximum dimension
   valid = (lookup.x .> -x) .& (lookup.y .> -y) .&
    (lookup.x .<= maxX) .& (lookup.y .<= maxY)
-  probs = lookup.p[valid]
-  probs ./= sum(probs)
-  moves = rand(Multinomial(abun, probs))
-  res = Array{Int64}(size(moves, 1), 3)
-  res[:,1] = lookup.x[valid] .+ x
-  res[:,2] = lookup.y[valid] .+ y
-  res[:,3] = moves
-  return res
+  lookup.pnew[.!valid] = 0.0
+  lookup.pnew[valid] = lookup.p[valid]
+  lookup.pnew ./= sum(lookup.pnew)
+  lookup.moves = rand(Multinomial(abun, lookup.pnew))
 end
 """
     move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Int64, 2})
