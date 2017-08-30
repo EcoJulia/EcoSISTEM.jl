@@ -108,13 +108,14 @@ function convert_coords(i::Int64, width::Int64)
   return (x, y)
 end
 function convert_coords(x::Int64, y::Int64, width::Int64)
-  i = x - 1 + width * (y - 1)
-  return i + 1
+  i = x + width * (y - 1)
+  return i
 end
 
-function calc_lookup_moves(i::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
-  width = size(eco.abenv.habitat.matrix, 1)
-  (x, y) = convert_coords(i, width)
+function convert_coords(x::Array{Int64, 1}, y::Array{Int64, 1}, width::Int64)
+  i = x .+ (width .* (y .- 1))
+  return i
+end
 
   lookup = eco.lookup[spp]
   maxX = size(eco.abenv.habitat.matrix, 1) - x
