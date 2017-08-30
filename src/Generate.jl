@@ -51,21 +51,20 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
       width = size(eco.abenv.habitat.matrix, 1)
       (x, y) = convert_coords(i, width)
       K = eco.abenv.budget.matrix[x, y]
-      randomise=collect(1:spp)
-      randomise=randomise[randperm(length(randomise))]
       # Get abundances of square we are interested in
-      currentabun = view(eco.abundances.matrix, :, i)
+      currentabun = eco.abundances.matrix[:, i]
 
       # Get energy budgets of species in square
       ϵ̄ = eco.spplist.requirement.energy
       E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
       # Traits
-      ϵ̄real = map(ϵ̄, 1:spp) do epsilon, k
-        epsilon/TraitFun(eco, i, k)
+      ϵ̄real = ϵ̄
+      for k in 1:spp
+        ϵ̄real[k] = ϵ̄[k]/TraitFun(eco, i, k)
       end
 
       # Loop through species in chosen square
-      for j in randomise
+      for j in 1:spp
         if currentabun[j] <= 0
           eco.abundances.matrix[j, i] = 0
         else
