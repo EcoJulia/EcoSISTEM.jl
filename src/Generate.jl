@@ -39,65 +39,60 @@ of the species stochastically. Movement takes place across the landscape via
 movement rates defined in the ecosystem.
 """
 function update!(eco::Ecosystem, timestep::Unitful.Time)
-  # Calculate dimenions of habitat and number of species
-  dims = length(eco.abenv.habitat.matrix)
-  spp = size(eco.abundances.grid,1)
-  net_migration = eco.cache.netmigration
-  params = eco.spplist.params
-  # Loop through grid squares
-  for i in 1:dims
+    # Calculate dimenions of habitat and number of species
+    dims = length(eco.abenv.habitat.matrix)
+    spp = size(eco.abundances.grid,1)
+    net_migration = eco.cache.netmigration
+    params = eco.spplist.params
+      # Loop through grid squares
+      for i in 1:dims
+          # Get the overall energy budget of that square
+          width = size(eco.abenv.habitat.matrix, 1)
+          (x, y) = convert_coords(i, width)
+          if eco.abenv.active[x, y]
+              K = eco.abenv.budget.matrix[x, y]
+              # Get abundances of square we are interested in
+              currentabun = eco.abundances.matrix[:, i]
 
-      # Get the overall energy budget of that square
-      width = size(eco.abenv.habitat.matrix, 1)
-      (x, y) = convert_coords(i, width)
-      K = eco.abenv.budget.matrix[x, y]
-      # Get abundances of square we are interested in
-      currentabun = eco.abundances.matrix[:, i]
+              # Get energy budgets of species in square
+              ϵ̄ = eco.spplist.requirement.energy
+              E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
+              # Traits
+              ϵ̄real = ϵ̄
+              for k in 1:spp
+                ϵ̄real[k] = ϵ̄[k]/TraitFun(eco, i, k)
+              end
 
-      # Get energy budgets of species in square
-      ϵ̄ = eco.spplist.requirement.energy
-      E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
-      # Traits
-      ϵ̄real = ϵ̄
-      for k in 1:spp
-        ϵ̄real[k] = ϵ̄[k]/TraitFun(eco, i, k)
-      end
+              # Loop through species in chosen square
+              for j in 1:spp
 
-      # Loop through species in chosen square
-      for j in 1:spp
-        if currentabun[j] <= 0
-          eco.abundances.matrix[j, i] = 0
-        else
+                # Alter rates by energy available in current pop & own requirements
+                birth_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^-params.s * min(K/E, params.boost)
+                death_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^params.s * (E / K)
 
-        #params.s = 1 - exp(-params.s / TraitFun(eco, i, j))
-        # Alter rates by energy available in current pop & own requirements
-        birth_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^-params.s * min(K/E, params.boost)
-        death_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^params.s * (E / K)
+                # Calculate effective rates
+                birthprob = params.birth[j] * timestep * birth_energy
+                deathprob = params.death[j] * timestep * death_energy
 
-        # Calculate effective rates
-        birthprob = params.birth[j] * timestep * birth_energy
-        deathprob = params.death[j] * timestep * death_energy
+                # Put probabilities into 0 - 1
+                newbirthprob = 1.0 - exp(-birthprob)
+                newdeathprob = 1.0 - exp(-deathprob)
 
-        # Put probabilities into 0 - 1
-        newbirthprob = 1.0 - exp(-birthprob)
-        newdeathprob = 1.0 - exp(-deathprob)
+                # Calculate how many births and deaths
+                births = jbinom(1, currentabun[j], newbirthprob)[1]
+                deaths = jbinom(1, currentabun[j], newdeathprob)[1]
+                # Update population
+                eco.abundances.matrix[j, i] += (births - deaths)
 
-        # Calculate how many births and deaths
-        births = jbinom(1, currentabun[j], newbirthprob)[1]
-        deaths = jbinom(1, currentabun[j], newdeathprob)[1]
-
-        # Update population
-        eco.abundances.matrix[j, i] += (births - deaths)
-
-        # Perform gaussian movement
-        move!(eco, eco.spplist.movement, i, j, net_migration, births)
-      end
+                # Perform gaussian movement
+                move!(eco, eco.spplist.movement, i, j, net_migration, births)
+            end
+        end
     end
-  end
-  eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
-  eco.cache.netmigration .= 0
-  # Update environment
-  getchangefun(eco)(eco, timestep)
+    eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
+    eco.cache.netmigration .= 0
+    # Update environment
+    getchangefun(eco)(eco, timestep)
 end
 
 
@@ -123,10 +118,17 @@ function calc_lookup_moves(x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun:
   # Can't go over maximum dimension
   valid = (lookup.x .> -x) .& (lookup.y .> -y) .&
    (lookup.x .<= maxX) .& (lookup.y .<= maxY)
-  lookup.pnew[.!valid] = 0.0
+  for i in eachindex(valid)
+      if valid[i]
+          valid[i] = valid[i] & (eco.abenv.active[lookup.x[i] .+ x,
+          lookup.y[i] .+ y])
+      end
+  end
+  lookup.pnew[.!valid] .= 0.0
   lookup.pnew[valid] = lookup.p[valid]
   lookup.pnew ./= sum(lookup.pnew)
-  lookup.moves = rand(Multinomial(abun, lookup.pnew))
+  multinom = Multinomial(abun, lookup.pnew)
+  lookup.moves = rand(multinom)
 end
 """
     move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Int64, 2})
@@ -151,7 +153,7 @@ function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   mov = eco.lookup[spp].moves[valid]
   locs = convert_coords((eco.lookup[spp].x .+ x), (eco.lookup[spp].y .+ y), width)[valid]
   for i in eachindex(locs)
-    grd[spp, locs[i]] += mov[i]
+     grd[spp, locs[i]] += mov[i]
   end
   return eco
 end
