@@ -20,17 +20,18 @@ of subcommunity names.
 """
 mutable struct GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
   habitat::H
+  active::Array{Bool, 2}
   budget::B
   names::Vector{String}
-  function (::Type{GridAbioticEnv{H, B}}){H, B}(habitat::H, budget::B,
-                                names::Vector{String} =
-                                map(x -> "$x", 1:countsubcommunities(habitat)))
+  function (::Type{GridAbioticEnv{H, B}}){H, B}(habitat::H, active::Array{Bool,2},
+       budget::B, names::Vector{String} =
+       map(x -> "$x", 1:countsubcommunities(habitat)))
 
     countsubcommunities(habitat) == countsubcommunities(budget) ||
       error("Habitat and budget must have same dimensions")
     countsubcommunities(habitat) == length(names) ||
       error("Number of subcommunities must match subcommunity names")
-    return new{H, B}(habitat, budget, names)
+    return new{H, B}(habitat, active, budget, names)
   end
 end
 """
@@ -43,7 +44,8 @@ dimensions `dimension` and a grid squaresize `gridsquaresize`. It also creates a
 `SimpleBudget` type filled with the maximum budget value `maxbud`.
 """
 function simplenicheAE(numniches::Int64, dimension::Tuple,
-                        maxbud::Float64, area::Unitful.Area{Float64})
+                        maxbud::Float64, area::Unitful.Area{Float64},
+                        active::Array{Bool, 2})
   # Create niches
   niches = map(string, 1:numniches)
   area = uconvert(km^2, area)
@@ -54,8 +56,13 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
   # Create empty budget and for now fill with one value
   bud = zeros(dimension)
   fill!(bud, maxbud/(dimension[1]*dimension[2]))
-
-  return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, SimpleBudget(bud))
+  return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, active, SimpleBudget(bud))
+end
+function simplenicheAE(numniches::Int64, dimension::Tuple,
+                        maxbud::Float64, area::Unitful.Area{Float64})
+    active = Array{Bool,2}(dimension)
+    fill!(active, true)
+    simplenicheAE(numniches, dimension, maxbud, area, active)
 end
 
 function _countsubcommunities(gae::GridAbioticEnv)
@@ -69,7 +76,8 @@ end
 function tempgradAE(min::Unitful.Temperature{Float64},
   max::Unitful.Temperature{Float64},
   dimension::Tuple{Int64, Int64}, maxbud::Float64,
-  area::Unitful.Area{Float64}, rate::Float64)
+  area::Unitful.Area{Float64}, rate::Float64,
+  active::Array{Bool, 2})
   min = uconvert(°C, min); max = uconvert(°C, max)
   area = uconvert(km^2, area)
   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
@@ -77,16 +85,47 @@ function tempgradAE(min::Unitful.Temperature{Float64},
   bud = zeros(dimension)
   fill!(bud, maxbud/(dimension[1]*dimension[2]))
 
-  return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, SimpleBudget(bud))
+  return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, active, SimpleBudget(bud))
 end
 
+function tempgradAE(min::Unitful.Temperature{Float64},
+  max::Unitful.Temperature{Float64},
+  dimension::Tuple{Int64, Int64}, maxbud::Float64,
+  area::Unitful.Area{Float64}, rate::Float64)
+
+  active = Array{Bool,2}(dimension)
+  fill!(active, true)
+  simplenicheAE(min, max, dimension, maxbud, area, rate, active)
+ end
+
 function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
-  dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64})
+  dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64},
+  active::Array{Bool, 2})
   area = uconvert(km^2, area)
   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
   hab = simplehabitat(val, gridsquaresize, dimension)
   bud = zeros(dimension)
   fill!(bud, maxbud/(dimension[1]*dimension[2]))
 
-  return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, SimpleBudget(bud))
+  return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, active, SimpleBudget(bud))
+end
+
+
+function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
+  dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64})
+
+  active = Array{Bool,2}(dimension)
+  fill!(active, true)
+  simplehabitatAE(val, dimension, maxbud, area, active)
+end
+
+function degradedhabitatAE(val::Union{Float64, Unitful.Quantity}, size::Unitful.Length,
+  dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝚯*𝐓^1)})
+
+  area = uconvert(km^2, area)
+  gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
+  hab = simplehabitat(val, gridsquaresize, dimension)
+  bud = zeros(dimension)
+  fill!(bud, maxbud/(dimension[1]*dimension[2]))
+
 end
