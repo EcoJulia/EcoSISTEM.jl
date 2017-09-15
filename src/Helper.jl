@@ -22,7 +22,7 @@ end
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
   numSpecies = length(eco.spplist.abun)
   gridSize = length(eco.abenv.habitat.matrix)
-  abun = zeros(numSpecies, gridSize, times, reps)
+  abun = Array{Int64, 4}(numSpecies, gridSize, times, reps)
 end
 
 function simulate_record!(storage::AbstractArray, eco::Ecosystem,
