@@ -202,6 +202,8 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
   grid = collect(1:len)
   # Set up copy of budget
   b = reshape(copy(abenv.budget.matrix), size(grid))
+  activity = reshape(abenv.active, size(grid))
+  b[.!activity] = 0
   # Loop through species
   for i in eachindex(spplist.abun)
     # Get abundance of species
