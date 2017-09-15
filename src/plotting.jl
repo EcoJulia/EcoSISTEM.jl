@@ -41,7 +41,7 @@ function plot_move(eco::Ecosystem, x::Int64, y::Int64, spp::Int64, plot::Bool)
 end
 #, round(gridsize*dims[1]))
 
-function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64,
+function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64,
   grid::Tuple{Int64, Int64}, rep::Int64)
   # Plot
   gridsize = collect(grid)
@@ -59,12 +59,12 @@ function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64,
     }"
   end
 
-function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64, grid::Tuple{Int64, Int64})
+function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64, grid::Tuple{Int64, Int64})
   # Plot
 plot_abun(abun, numSpecies, grid, 1)
 end
 
-function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64,
+function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64,
   rep::Int64, range::Vector{Int64})
   # Plot
   abun = abun[:, range, :, :]
@@ -89,7 +89,7 @@ function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64,
         }
     }"
   end
-  function plot_abun(abun::Array{Float64, 4}, numSpecies::Int64, range::Vector{Int64})
+  function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64, range::Vector{Int64})
     # Plot
   plot_abun(abun, numSpecies, 1, range)
   end
