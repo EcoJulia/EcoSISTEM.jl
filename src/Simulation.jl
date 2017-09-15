@@ -22,7 +22,7 @@ include("Energy.jl")
 export SimpleRequirement
 
 include("AbioticEnv.jl")
-export GridAbioticEnv, simplenicheAE, tempgradAE, simplehabitatAE
+export GridAbioticEnv, simplenicheAE, tempgradAE, simplehabitatAE, degradedhabitatAE
 
 include("Movement.jl")
 export GaussianKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel

@@ -182,7 +182,13 @@ function simplehabitat(val::Float64, size::Unitful.Length,
 
   ContinuousHab{None}(M, size, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
 end
+function degradedhab(val::Union{Float64, Unitful.Quantity}, size::Unitful.Length,
+  dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝐓^-1)})
+  M = Array{Float64}(dim)
+  fill!(M, val)
 
+  ContinuousHab{None}(M, size, HabitatUpdate{Unitful.Dimension{()}}(HabitatLoss, rate))
+end
 function tempgrad(min::Unitful.Temperature{Float64}, max::Unitful.Temperature{Float64},
   size::Unitful.Length{Float64},
   dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝚯*𝐓^1)})

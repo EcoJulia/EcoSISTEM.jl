@@ -119,13 +119,22 @@ function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
   simplehabitatAE(val, dimension, maxbud, area, active)
 end
 
-function degradedhabitatAE(val::Union{Float64, Unitful.Quantity}, size::Unitful.Length,
-  dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝚯*𝐓^1)})
+function degradedhabitatAE(val::Union{Float64, Unitful.Quantity},
+  dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64},
+  rate::Quantity{Float64, typeof(𝐓^-1)}, active::Array{Bool, 2})
 
   area = uconvert(km^2, area)
   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
-  hab = simplehabitat(val, gridsquaresize, dimension)
+  hab = degradedhab(val, gridsquaresize, dimension, rate)
   bud = zeros(dimension)
   fill!(bud, maxbud/(dimension[1]*dimension[2]))
+  GridAbioticEnv{typeof(hab), SimpleBudget}(hab, active, SimpleBudget(bud))
+end
 
+function degradedhabitatAE(val::Union{Float64, Unitful.Quantity},
+  dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64},
+  rate::Quantity{Float64, typeof(𝐓^-1)})
+  active = Array{Bool,2}(dimension)
+  fill!(active, true)
+  degradedhabitatAE(val, dimension, maxbud, area, rate, active)
 end
