@@ -1,13 +1,12 @@
 # Include simulation functions
 using Simulation
 using Distributions
-using RCall
+#using RCall
 using Unitful
 using Unitful.DefaultSymbols
 
 ## Run simulation over a grid and plot
-numSpecies=4
-numNiches=2
+numSpecies=100
 
 # Set up how much energy each species consumes
 energy_vec = SimpleRequirement(repmat([2], numSpecies))
@@ -23,13 +22,13 @@ timestep = 1.0month
 # Collect model parameters together (in this order!!)
 param = EqualPop(birth, death, long, surv, boost)
 
-grid = (5,5)
-area = 25.0km^2
-totalK = 10000.0
-individuals=1000
+grid = (10, 10)
+area = 10000.0km^2
+totalK = 1000000.0
+individuals=10000
 
 # Create ecosystem
-kernel = GaussianKernel(0.2, numSpecies, 10e-4)
+kernel = GaussianKernel(10.0km, numSpecies, 10e-04)
 movement = AlwaysMovement(kernel)
 
 opts = repmat([5.0°C], numSpecies) #collect(linspace(minT, maxT, 8))
@@ -39,19 +38,29 @@ abun = Multinomial(individuals, numSpecies)
 names = map(x -> "$x", 1:numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
 movement, param)
-abenv = simplehabitatAE(0.0, grid, totalK, area)
+active = Array{Bool, 2}(grid)
+fill!(active, true)
+active[1, 1] = false
+abenv = simplehabitatAE(0.0, grid, totalK, area, active)
 rel = TraitRelationship(GaussTemp)
 eco = Ecosystem(sppl, abenv, rel)
-plot_move(eco, 2, 2, 1, true)
 
-times = 10year; burnin = 1year; interval = 3month
-# Run simulation grid
+#plot_move(eco, 4, 4, 1, true)
+
+function runsim(eco::Ecosystem, times::Unitful.Time)
+burnin = 1year; interval = 3month
 lensim = length(0month:interval:times)
-
-# Run simulations 10 times
 abun = generate_storage(eco, lensim, 1)
 simulate!(eco, burnin, interval, timestep)
 simulate_record!(abun, eco, times, interval, timestep)
+end
 
+times = 10year;
+runsim(eco, 1year)
 
-plot_abun(abun, numSpecies, grid[1])
+#Profile.clear_malloc_data()
+#runsim(eco, times)
+@time runsim(eco, times)
+
+abun = runsim(eco, times);
+plot_abun(abun, numSpecies, 1, collect(1:16))
