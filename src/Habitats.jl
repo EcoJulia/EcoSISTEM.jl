@@ -191,7 +191,7 @@ function degradedhab(val::Union{Float64, Unitful.Quantity}, size::Unitful.Length
 end
 function tempgrad(min::Unitful.Temperature{Float64}, max::Unitful.Temperature{Float64},
   size::Unitful.Length{Float64},
-  dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝚯*𝐓^1)})
+  dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
   M = Array{Unitful.Temperature}(dim)
   total = dim[1]
   temp_range = collect(linspace(min, max, total))
