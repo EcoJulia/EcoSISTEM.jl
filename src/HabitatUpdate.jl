@@ -1,7 +1,7 @@
 function TempChange(eco::Ecosystem, timestep::Unitful.Time)
   val = gethabitat(eco).change.rate
   v = uconvert(°C/unit(timestep), val)
-  gethabitat(eco).matrix .+= v
+  gethabitat(eco).matrix .+= v * timestep
 end
 
 function NoChange(eco::Ecosystem, timestep::Unitful.Time)
@@ -13,6 +13,7 @@ function HabitatLoss(eco::Ecosystem, timestep::Unitful.Time)
     pos = find(eco.abenv.active)
     smp = sample(pos, jbinom(1, length(pos), ustrip(v))[1])
     eco.abenv.budget.matrix[smp] = 0.0
+    #eco.abenv.active[smp] = false
 end
 
 function getchangefun(eco::Ecosystem)
