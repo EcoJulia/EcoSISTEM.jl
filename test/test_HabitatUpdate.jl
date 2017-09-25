@@ -4,7 +4,7 @@ using Distributions
 using Unitful
 using Unitful.DefaultSymbols
 
-## Run simulation over a grid and plot
+## TEST TEMPERATURE GRADIENT
 numSpecies=4
 
 # Set up how much energy each species consumes
@@ -37,21 +37,20 @@ abun = Multinomial(individuals, numSpecies)
 names = map(x -> "$x", 1:numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
 movement, param)
-active = Array{Bool, 2}(grid)
-fill!(active, true)
-abenv = simplehabitatAE(0.0, grid, totalK, area, active)
+loss = 0.0/month
+abenv = degradedhabitatAE(0.0, grid, totalK, area, loss)
 rel = TraitRelationship(GaussTemp)
 eco = Ecosystem(sppl, abenv, rel)
 
 #plot_move(eco, 4, 4, 1, true)
 
 function runsim(eco::Ecosystem, times::Unitful.Time)
-burnin = 1year; interval = 3month
-lensim = length(0month:interval:times)
-abun = generate_storage(eco, lensim, 1)
-simulate!(eco, burnin, interval, timestep)
-simulate_record!(abun, eco, times, interval, timestep)
+    burnin = 1year; interval = 3month
+    lensim = length(0month:interval:times)
+    abun = generate_storage(eco, lensim, 1)
+    simulate!(eco, burnin, interval, timestep)
+    resetrate!(eco, 0.01/month)
+    simulate_record!(abun, eco, times, interval, timestep)
 end
-
 times = 10year;
-runsim(eco, 1year)
+@test_nowarn abun = runsim(eco, times);
