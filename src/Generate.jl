@@ -58,11 +58,14 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
               ϵ̄ = eco.spplist.requirement.energy
               E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
               # Traits
-              ϵ̄real = ϵ̄
+              ϵ̄real = copy(ϵ̄)
               for k in 1:spp
                 ϵ̄real[k] = ϵ̄[k]/TraitFun(eco, i, k)
               end
-
+              # K/E = NaN if both 0, so make sure to set denominator to something else
+              if sum(currentabun) == 0 && K == 0.0
+                  E = 1.0
+              end
               # Loop through species in chosen square
               for j in 1:spp
 
