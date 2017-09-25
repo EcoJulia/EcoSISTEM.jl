@@ -132,18 +132,38 @@ function getgridsize(eco::Ecosystem)
 end
 
 function getdispersaldist(eco::Ecosystem)
-  vars = eco.spplist.movement.kernel.var
-  return sqrt(getsize(eco)) * sqrt.(vars) * sqrt(pi) / 2
+  dists = eco.spplist.movement.kernel.dist
+  return dists
 end
 function getdispersaldist(eco::Ecosystem, spp::Int64)
-  vars = eco.spplist.movement.kernel.var[spp]
-  return sqrt(getsize(eco)) * sqrt(vars) * sqrt(pi) / 2
+  dists = eco.spplist.movement.kernel.dist
+  return dists[spp]
 end
 function getdispersaldist(eco::Ecosystem, spp::String)
   num = find(eco.spplist.names.==spp)[1]
   getdispersaldist(eco, num)
 end
+function getdispersalvar(eco::Ecosystem)
+    vars = (eco.spplist.movement.kernel.dist).^2 .* pi ./ 4
+    return vars
+end
+function getdispersalvar(eco::Ecosystem, spp::Int64)
+    vars = (eco.spplist.movement.kernel.dist).^2 .* pi ./ 4
+    return vars[spp]
+end
+function getdispersalvar(eco::Ecosystem, spp::String)
+    num = find(eco.spplist.names.==spp)[1]
+    getdispersalvar(eco, num)
+end
 
+function resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
+    eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimension{()}}(
+    eco.abenv.habitat.change.changefun, rate)
+end
+function resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
+    eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimension{:Temperature}}(
+    eco.abenv.habitat.change.changefun, rate)
+end
 
 function _symmetric_grid(grid::DataFrame)
    for x in 1:nrow(grid)
