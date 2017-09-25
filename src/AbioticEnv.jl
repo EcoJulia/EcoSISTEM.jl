@@ -76,7 +76,7 @@ end
 function tempgradAE(min::Unitful.Temperature{Float64},
   max::Unitful.Temperature{Float64},
   dimension::Tuple{Int64, Int64}, maxbud::Float64,
-  area::Unitful.Area{Float64}, rate::Float64,
+  area::Unitful.Area{Float64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)},
   active::Array{Bool, 2})
   min = uconvert(°C, min); max = uconvert(°C, max)
   area = uconvert(km^2, area)
@@ -91,11 +91,11 @@ end
 function tempgradAE(min::Unitful.Temperature{Float64},
   max::Unitful.Temperature{Float64},
   dimension::Tuple{Int64, Int64}, maxbud::Float64,
-  area::Unitful.Area{Float64}, rate::Float64)
+  area::Unitful.Area{Float64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
 
   active = Array{Bool,2}(dimension)
   fill!(active, true)
-  simplenicheAE(min, max, dimension, maxbud, area, rate, active)
+  tempgradAE(min, max, dimension, maxbud, area, rate, active)
  end
 
 function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
