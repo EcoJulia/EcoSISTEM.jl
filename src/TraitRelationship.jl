@@ -10,8 +10,8 @@ mutable struct TraitRelationship
 end
 
 function GaussTemp(temp::Unitful.Temperature{Float64}, opttemp::Unitful.Temperature{Float64},
-  var::Float64)
-  1/sqrt(2 * π * var^2) * exp(-abs(temp - opttemp)^2/(2 * var^2))
+  var::Unitful.Temperature{Float64})
+  1°C/sqrt(2 * π * var^2) * exp(-abs(temp - opttemp)^2/(2 * var^2))
 end
 
 function SimpleNiche(niche::String, pref::String)
