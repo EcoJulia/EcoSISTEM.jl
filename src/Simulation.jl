@@ -40,7 +40,8 @@ include("Landscape.jl")
 export GridLandscape
 
 include("Ecosystem.jl")
-export Ecosystem, getsize, getenvtype, gethabitat, gettraitrel, getgridsize
+export Ecosystem, getsize, getenvtype, gethabitat, gettraitrel, getgridsize,
+ getdispersaldist, getdispersalvar, resetrate!
 
 include("Traitfuns.jl")
 export TraitFun, TraitOff, getpref, gettraitrel, gethabitat
