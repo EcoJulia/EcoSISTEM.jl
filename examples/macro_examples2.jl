@@ -8,36 +8,35 @@ using DataStructures
 #using ArrayViews
 using DataFrames
 using JLD
+using Unitful.DefaultSymbols
 ## Run simulation on 2 by 1 grid - investigate spatial distributions
 function runsim(times::Int64)
   # Set up initial parameters for ecosystem
   numSpecies = 50
-  numTraits = 2
-  numNiches = 2
 
   # Set up how much energy each species consumes
   energy_vec = SimpleRequirement(repmat([2.0], numSpecies))
 
   # Set probabilities
-  birth = 0.6/12
-  death = 0.6/12
+  birth = 0.6/year
+  death = 0.6/year
   l = 1.0
   s = 0.5
-  timestep = 1/12
+  timestep = 1month
 
   # Collect model parameters together (in this order!!)
   param = EqualPop(birth, death, l, s)
 
-  minT = -10.0
-  maxT = 10.0
+  minT = -10.0°C
+  maxT = 10.0°C
 
   grid = (20, 20)
-  gridSize = 0.1
+  area = 4.0km^2
   totalK = 100000.0
   individuals=10000
 
   # Create ecosystem
-  kernel = GaussianKernel(0.2, numSpecies, 10e-4)
+  kernel = GaussianKernel(0.4km, numSpecies, 10e-4)
   movement = BirthOnlyMovement(kernel)
 
   #opts = repmat([5.0], numSpecies) #collect(linspace(minT, maxT, 8))
@@ -46,23 +45,23 @@ function runsim(times::Int64)
   prefs = [temps[:OrigValueStr] temps[:OrigValueStr]+1]
   conv = collect(linspace(-5, 20, 10))
   prefs = mapslices(x -> conv[x], prefs, 1)
-  opts = vcat(mapslices(x -> rand(Uniform(x[1], x[2])), prefs, 2)...)
+  opts = vcat(mapslices(x -> rand(Uniform(x[1], x[2])), prefs, 2)...) * °C
   #vars = collect(linspace(1, 4, numSpecies))
-  vars = rand(Uniform(0, 25/9), numSpecies)
+  vars = rand(Uniform(0, 25/9), numSpecies) * °C
   traits = TempTrait(opts, vars)
   abun = Multinomial(individuals, numSpecies)
   names = map(x -> "$x", 1:numSpecies)
   sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
    movement, param)
-  abenv = tempgradAE(minT, maxT, grid, totalK, gridSize, 0.0)
+  abenv = tempgradAE(minT, maxT, grid, totalK, gridSize, 0.0°C)
   rel = TraitRelationship(GaussTemp)
   eco = Ecosystem(sppl, abenv, rel)
 
   #plotdiv(norm_meta_alpha, eco, collect(0:10))
 
-  steady_state = 100; burnin = 200; interval = 1; reps = 1;
-  lensim = length(0:interval:times);
-  lensteady = length(0:interval:steady_state);
+  steady_state = 100month; burnin = 200month; interval = 1month; reps = 1;
+  lensim = length(0month:interval:times);
+  lensteady = length(0month:interval:steady_state);
 
   # Run simulations 10 times
   storage_steady = generate_storage(eco, lensteady, reps);
@@ -73,10 +72,10 @@ function runsim(times::Int64)
     simulate!(eco, burnin, interval, timestep);
     thisstoresteady = view(storage_steady, :, :, :, j);
     simulate_record!(thisstoresteady, eco, steady_state, interval, timestep);
-    eco.abenv.habitat.change.rate = 0.01
+    resetrate!(eco, 0.01°C/month)
     thisstorechange = view(storage_change, :, :, :, j)
     simulate_record!(thisstorechange, eco, times, interval, timestep)
-    #eco.abenv.habitat.change.rate = 0.0
+    #resetrate!(eco, 0.0°C/month)
     #thisstorenewsteady = view(storage_newsteady, :, :, :, j)
     #simulate_record!(thisstorenewsteady, eco, steady_state, interval, timestep)
   end
@@ -84,7 +83,7 @@ function runsim(times::Int64)
   "storage_steady", storage_steady)
 end
 
-runsim(1200)
+runsim(100year)
 
 
 ## New plots
