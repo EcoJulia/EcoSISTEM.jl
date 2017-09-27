@@ -174,13 +174,17 @@ end
 function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64, grd::Array{Int64, 2},
                 births::Int64)
   width = size(eco.abenv.habitat.matrix, 1)
-  table = calc_lookup_moves(i, spp, eco, births)
+  (x, y) = convert_coords(i, width)
+  table = calc_lookup_moves(x, y, spp, eco, births)
   # Lose moves from current grid square
-  grd[spp, i] = grd[spp, i] - sum(table[:, 3])
+  grd[spp, i] = grd[spp, i] - sum(eco.lookup[spp].moves)
+  valid = eco.lookup[spp].pnew .> 0.0
   # Map moves to location in grid
-  locs = map(row -> convert_coords(table[row, 1], table[row, 2], width),
-   1:size(table, 1))
-  grd[spp, locs] .= grd[spp, locs] .+ table[:, 3]
+  mov = eco.lookup[spp].moves[valid]
+  locs = convert_coords((eco.lookup[spp].x .+ x), (eco.lookup[spp].y .+ y), width)[valid]
+  for i in eachindex(locs)
+     grd[spp, locs[i]] += mov[i]
+  end
   return eco
 end
 
