@@ -49,7 +49,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
           # Get the overall energy budget of that square
           width = size(eco.abenv.habitat.matrix, 1)
           (x, y) = convert_coords(i, width)
-          if eco.abenv.active[x, y]
+          if (eco.abenv.active[x, y] && sum(eco.abundances.matrix[:, i])!=0)
               K = eco.abenv.budget.matrix[x, y]
               # Get abundances of square we are interested in
               currentabun = eco.abundances.matrix[:, i]
@@ -61,10 +61,6 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
               ϵ̄real = copy(ϵ̄)
               for k in 1:spp
                 ϵ̄real[k] = ϵ̄[k]/TraitFun(eco, i, k)
-              end
-              # K/E = NaN if both 0, so make sure to set denominator to something else
-              if sum(currentabun) == 0 && K == 0.0
-                  E = 1.0
               end
               # Loop through species in chosen square
               for j in 1:spp
