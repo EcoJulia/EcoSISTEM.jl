@@ -9,7 +9,7 @@ using DataFrames
 Function to create a random non-ultrametric phylogenetic tree, with branch
 lengths drawn from a distribution, `dist`, and node information of type, `T`.
 """
-function jtree(SpeciesNames::Vector{String}, T::Type = String,
+function jtree(SpeciesNames::Vector{String}, T::Type = Int64,
   dist::Distribution = Uniform(0, length(SpeciesNames)))
   #Create tree
   tree1 = BinaryTree{LeafInfo, Vector{T}}(SpeciesNames)
@@ -117,7 +117,7 @@ end
 Function to create a random ultrametric phylogenetic tree, with branches
 of length `len`, and node information of type, `T`.
 """
-function jcoal(SpeciesNames::Vector{String}, len::Float64, T::Type=String)
+function jcoal(SpeciesNames::Vector{String}, len::Float64, T::Type=Int64)
   # Create random tree
   tree2=jtree(SpeciesNames, T)
   n = length(SpeciesNames)
@@ -180,7 +180,7 @@ with a specific switching rate.
 """
 
 function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
-          traits::Vector{Vector{String}})
+          traits::Vector{Vector{Int64}})
   # Check if tree already assigned
   check = arenoderecordsempty(tree, getnodenames(tree))
   all(check) || error("Some nodes already assigned traits")
@@ -254,11 +254,11 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
 end
 
 function assign_traits!(tree::BinaryTree, switch_rate::Float64,
-  traits::Vector{String})
+  traits::Vector{Int64})
     assign_traits!(tree, [switch_rate], [traits])
 end
 
-function BM(T::Real,σ²::Float64, start::Float64, lab::String="")
+function BM(T::Real, σ²::Float64, start::Float64, lab::String="")
   t = 0:T  # time
 ## first, simulate a set of random deviates
 x = jnorm(0, sqrt(σ²),length(t) - 1)

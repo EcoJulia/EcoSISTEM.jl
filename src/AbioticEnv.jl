@@ -47,7 +47,7 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
                         maxbud::Float64, area::Unitful.Area{Float64},
                         active::Array{Bool, 2})
   # Create niches
-  niches = map(string, 1:numniches)
+  niches = collect(1:numniches)
   area = uconvert(km^2, area)
   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
   # Create niche-like environment

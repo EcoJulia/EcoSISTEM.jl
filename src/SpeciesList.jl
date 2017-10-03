@@ -85,10 +85,10 @@ function SpeciesList{R <: AbstractRequirement,
     # Create tree
     tree = jcoal(names, 100.0)
     # Create traits and assign to tips
-    trts = map(string, 1:numtraits)
+    trts = collect(1:numtraits)
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    sp_trt = BasicTrait(vcat(Array(get_traits(tree, true))...))
+    sp_trt = DiscreteTrait(vcat(Array(get_traits(tree, true))...))
     # Create similarity matrix (for now identity)
     phy = PhyloTypes(tree)
     # Draw random set of abundances from distribution
@@ -129,10 +129,10 @@ function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
     # Create tree
     tree = jcoal(names, 100.0)
     # Create traits and assign to tips
-    trts = map(string, 1:numtraits)
+    trts = collect(1:numtraits)
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    sp_trt = BasicTrait(Array(get_traits(tree, true)[:,1]))
+    sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:,1]))
     # Draw random set of abundances from distribution
     abun = rand(abun_dist)
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
