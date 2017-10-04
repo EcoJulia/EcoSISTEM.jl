@@ -94,7 +94,7 @@ function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64,
   plot_abun(abun, numSpecies, 1, range)
   end
 
-function plot_reps(abun::Array{Float64, 4}, numSpecies::Int64,
+function plot_reps(abun::Array{Int64, 4}, numSpecies::Int64,
   grid::Tuple{Int64, Int64})
   # Plot
   means = mapslices(mean, abun, 4)
@@ -115,6 +115,15 @@ function plot_reps(abun::Array{Float64, 4}, numSpecies::Int64,
           lines(summary[3, k, i, ], col=k, lty=2)
         }
     }"
+end
+function plot_mean(abun::Array{Int64, 4},numSpecies::Int64, grid::Tuple{Int64, Int64})
+    meanabun = reshape(mapslices(mean, abun, [3,4])[:,:, 1,1], (numSpecies, grid[1], grid[2]))
+    grid = collect(grid)
+    @rput meanabun; @rput grid
+    R"par(mfrow=c(1,1))
+    library(viridis); library(fields)
+    image.plot(1:grid[1], 1:grid[2],t(meanabun[2,,]), col=magma(50), xlab='',
+    ylab='')"
 end
 
 function plot_divergence(expected::Vector{Float64}, actual::Vector{Float64})
