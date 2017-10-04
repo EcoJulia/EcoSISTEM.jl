@@ -36,10 +36,13 @@ traits = ContinuousTrait(opts, vars)
 abun = Multinomial(individuals, numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
 movement, param)
-loss = 0.0/month
-abenv = degradedhabitatAE(0.0, grid, totalK, area, loss)
-rel = TraitRelationship(GaussTemp)
+abenv = tempgradAE(0.0°C, 10.0°C, grid, totalK, area, 0.0°C/month)
+rel = TraitRelationship{eltype(abenv.habitat)}(GaussTemp)
 eco = Ecosystem(sppl, abenv, rel)
+
+# Set up scenario of total habitat loss at certain rate
+loss = 5.0 /year
+degradation = SimpleScenario(Simulation.ClustHabitatLoss!, loss)
 
 #plot_move(eco, 4, 4, 1, true)
 
@@ -48,8 +51,9 @@ function runsim(eco::Ecosystem, times::Unitful.Time)
     lensim = length(0month:interval:times)
     abun = generate_storage(eco, lensim, 1)
     simulate!(eco, burnin, interval, timestep)
-    resetrate!(eco, 0.01/month)
-    simulate_record!(abun, eco, times, interval, timestep)
+    simulate_record!(abun, eco, times, interval, timestep, degradation)
 end
-times = 10year;
+
+times = 100year;
 abun = runsim(eco, times);
+plot_abun(abun, numSpecies, grid)
