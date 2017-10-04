@@ -15,6 +15,22 @@ mutable struct DiscreteTrait{D} <: AbstractTraits{D}
   val::Array{D, 1}
 end
 
+function DiscreteEvolve(numTraits::Int64, tree::BinaryTree)
+    # Create traits and assign to tips
+    trts = map(string, 1:numTraits)
+    assign_traits!(tree, 0.5, trts)
+    # Get traits from tree
+    return DiscreteTrait(vcat(Array(get_traits(tree, true))...))
+end
+function ContinuousEvolve(val::Union{Float64, Unitful.Quantity{Float64}},
+    var::Union{Float64, Unitful.Quantity{Float64}}, tree::BinaryTree)
+    # Create traits and assign to tips
+    numspecies = length(getleafnames(tree))
+    assign_traits!(tree, [ustrip(val)], [ustrip(var)])
+    # Get traits from tree
+    return ContinuousTrait(vcat(Array(get_traits(tree, true))...)*unit(val),
+     repmat([var], numspecies))
+end
 
 iscontinuous(trait::DiscreteTrait) = false
 function eltype{D}(trait::DiscreteTrait{D})
