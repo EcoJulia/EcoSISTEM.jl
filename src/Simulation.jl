@@ -51,9 +51,12 @@ export TraitFun, getpref, gettraitrel, gethabitat
 include("HabitatUpdate.jl")
 export getchangefun, TempChange
 
+include("Scenarios.jl")
+export SimpleScenario, RandHabitatLoss!, ClustHabitatLoss!
+
 include("Generate.jl")
 export populate!, repopulate!, randomniches, update!, update_birth_move!,
- convert_coords
+ convert_coords, get_neighbours
 
 include("Helper.jl")
 export simulate!, simulate_record!, expected_counts, generate_storage
