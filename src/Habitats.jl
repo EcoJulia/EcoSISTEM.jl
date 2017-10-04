@@ -60,6 +60,19 @@ end
 function _countsubcommunities(hab::DiscreteHab)
   return length(hab.matrix)
 end
+function _getdimension(hab::Union{DiscreteHab, ContinuousHab})
+    return size(hab.matrix)
+end
+function _getsize(hab::Union{DiscreteHab, ContinuousHab})
+  x = hab.size * size(hab.matrix, 1)
+  y = hab.size * size(hab.matrix, 2)
+  return x * y
+end
+
+function _getgridsize(hab::Union{DiscreteHab, ContinuousHab})
+  return hab.size
+end
+
 mutable struct HabitatCollection2{H1, H2} <: AbstractHabitat{Tuple{H1, H2}}
     h1::H1
     h2::H2
@@ -78,6 +91,25 @@ iscontinuous(hab::HabitatCollection3) = [iscontinuous(hab.h1),
     iscontinuous(hab.h2), iscontinuous(hab.h3)]
 function eltype(hab::HabitatCollection3)
     return [eltype(hab.h1), eltype(hab.h2), eltype(hab.h3)]
+end
+
+function _getdimension(hab::Union{HabitatCollection2, HabitatCollection3})
+    return size(hab.h1.matrix)
+end
+function _getsize(hab::Union{HabitatCollection2, HabitatCollection3})
+  return _getsize(hab.h1)
+end
+
+function _getgridsize(hab::Union{HabitatCollection2, HabitatCollection3})
+  return _getgridsize(hab.h1)
+end
+
+function gethabitat(hab::AbstractHabitat, pos::Int64)
+    x, y = convert_coords(pos, size(hab.matrix, 1))
+    return hab.matrix[x, y]
+end
+function gethabitat(hab::AbstractHabitat, field::Symbol)
+    return getfield(hab, field)
 end
 function _countsubcommunities(hab::HabitatCollection2)
   return _countsubcommunities(hab.h1)
