@@ -25,6 +25,6 @@ SpeciesList.
 function emptygridlandscape(gae::GridAbioticEnv, spplist::SpeciesList)
   mat = zeros(Int64, counttypes(spplist, true), countsubcommunities(gae))
 
-  dimension = (counttypes(spplist, true), size(gae.habitat.matrix)...)
+  dimension = (counttypes(spplist, true), _getdimension(gae.habitat)...)
   return GridLandscape(mat, dimension)
 end
