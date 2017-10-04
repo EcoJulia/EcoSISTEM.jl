@@ -40,14 +40,14 @@ movement rates defined in the ecosystem.
 """
 function update!(eco::Ecosystem, timestep::Unitful.Time)
     # Calculate dimenions of habitat and number of species
-    dims = length(eco.abenv.habitat.matrix)
+    dims = _countsubcommunities(eco.abenv.habitat)
     spp = size(eco.abundances.grid,1)
     net_migration = eco.cache.netmigration
     params = eco.spplist.params
       # Loop through grid squares
       for i in 1:dims
           # Get the overall energy budget of that square
-          width = size(eco.abenv.habitat.matrix, 1)
+          width = getdimension(eco)[1]
           (x, y) = convert_coords(i, width)
           if (eco.abenv.active[x, y] && sum(eco.abundances.matrix[:, i])!=0)
               K = eco.abenv.budget.matrix[x, y]
@@ -60,7 +60,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
               # Traits
               ϵ̄real = copy(ϵ̄)
               for k in 1:spp
-                ϵ̄real[k] = ϵ̄[k]/TraitFun(eco, i, k)
+                ϵ̄real[k] = ϵ̄[k]/traitfun(eco, i, k)
               end
               # Loop through species in chosen square
               for j in 1:spp
@@ -91,7 +91,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
     eco.cache.netmigration .= 0
     # Update environment
-    getchangefun(eco)(eco, timestep)
+    habitatupdate!(eco, timestep)
 end
 
 
@@ -112,8 +112,8 @@ end
 
 function calc_lookup_moves(x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
   lookup = eco.lookup[spp]
-  maxX = size(eco.abenv.habitat.matrix, 1) - x
-  maxY = size(eco.abenv.habitat.matrix, 2) - y
+  maxX = getdimension(eco)[1] - x
+  maxY = getdimension(eco)[2] - y
   # Can't go over maximum dimension
   valid = (lookup.x .> -x) .& (lookup.y .> -y) .&
    (lookup.x .<= maxX) .& (lookup.y .<= maxY)
@@ -141,7 +141,7 @@ of the entire population
 function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   grd::Array{Int64, 2}, ::Int64)
 
-  width = size(eco.abenv.habitat.matrix, 1)
+  width = getdimension(eco)[1]
   (x, y) = convert_coords(i, width)
   full_abun = eco.abundances.matrix[spp, i]
   calc_lookup_moves(x, y, spp, eco, full_abun)
@@ -173,7 +173,7 @@ end
 
 function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64, grd::Array{Int64, 2},
                 births::Int64)
-  width = size(eco.abenv.habitat.matrix, 1)
+  width = getdimension(eco)[1]
   (x, y) = convert_coords(i, width)
   table = calc_lookup_moves(x, y, spp, eco, births)
   # Lose moves from current grid square
@@ -200,7 +200,7 @@ and whether or not to include traits.
 function populate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AbstractAbiotic)
   # Calculate size of habitat
-  dim = size(abenv.habitat.matrix)
+  dim = _getdimension(abenv.habitat)
   len = dim[1] * dim[2]
   grid = collect(1:len)
   # Set up copy of budget
