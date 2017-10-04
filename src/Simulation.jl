@@ -13,10 +13,11 @@ include("Envtypes.jl")
 export Temp
 
 include("TraitRelationship.jl")
-export TraitRelationship, GaussTemp, SimpleNiche
+export TraitRelationship,multiplicativeTR2, multiplicativeTR3, GaussTemp, SimpleNiche, NoRel
 
 include("Habitats.jl")
-export ContinuousHab, DiscreteHab, tempgrad
+export ContinuousHab, DiscreteHab, HabitatCollection2, HabitatCollection3,
+ tempgrad
 
 include("Energy.jl")
 export SimpleRequirement
@@ -28,7 +29,8 @@ include("Movement.jl")
 export GaussianKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel
 
 include("Traits.jl")
-export BasicTrait, TempTrait
+export ContinuousTrait, DiscreteTrait, TraitCollection2, TraitCollection3,
+DiscreteEvolve, ContinuousEvolve
 
 include("Demographics.jl")
 export PopGrowth, EqualPop
@@ -44,7 +46,7 @@ export Ecosystem, getsize, getenvtype, gethabitat, gettraitrel, getgridsize,
  getdispersaldist, getdispersalvar, resetrate!
 
 include("Traitfuns.jl")
-export TraitFun, TraitOff, getpref, gettraitrel, gethabitat
+export TraitFun, getpref, gettraitrel, gethabitat
 
 include("HabitatUpdate.jl")
 export getchangefun, TempChange
@@ -57,7 +59,7 @@ include("Helper.jl")
 export simulate!, simulate_record!, expected_counts, generate_storage
 
 include("plotting.jl")
-export plot_move, plot_abun, plot_divergence, freq_hist, plotdiv
+export plot_move, plot_abun,plot_mean, plot_divergence, freq_hist, plotdiv
 
 
 end
