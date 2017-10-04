@@ -204,7 +204,7 @@ Function to create a `DiscreteHab` habitat of dimension `dimension`, made up of 
 string types, `types`, that have a weighting, `weights` and clumpiness parameter,
 `clumpiness`.
 """
-function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float64,
+function randomniches(dimension::Tuple, types::Vector{Int64}, clumpiness::Float64,
   weights::Vector, gridsquaresize::Unitful.Length)
   # Check that the proportion of coverage for each type matches the number
   # of types and that they add up to 1
@@ -225,14 +225,14 @@ function randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float
     # Select clusters and assign types
     _identify_clusters!(M)
     # Create a string grid of the same dimensions
-    T = Array{String}(dimension)
+    T = Array{Int64}(dimension)
     # Fill in T with clusters already created
     map(x -> T[M.==x]=sample(types, wv), 1:maximum(M))
     # Fill in undefined squares with most frequent neighbour
     _fill_in!(T, M, types, wv)
   end
 
-  return DiscreteHab{Niches}(T, gridsquaresize, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
+  return DiscreteHab(T, gridsquaresize, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
 end
 
 function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
@@ -240,30 +240,30 @@ function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
   M = Array{Unitful.Quantity}(dim)
   fill!(M, val)
 
-  ContinuousHab{None}(M, size, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
+  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
 end
 function simplehabitat(val::Float64, size::Unitful.Length,
   dim::Tuple{Int64, Int64})
   M = Array{Float64}(dim)
   fill!(M, val)
 
-  ContinuousHab{None}(M, size, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
+  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
 end
 function degradedhab(val::Union{Float64, Unitful.Quantity}, size::Unitful.Length,
   dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝐓^-1)})
   M = Array{Float64}(dim)
   fill!(M, val)
 
-  ContinuousHab{None}(M, size, HabitatUpdate{Unitful.Dimension{()}}(HabitatLoss, rate))
+  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimension{()}}(HabitatLoss, rate))
 end
 function tempgrad(min::Unitful.Temperature{Float64}, max::Unitful.Temperature{Float64},
   size::Unitful.Length{Float64},
   dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
-  M = Array{Unitful.Temperature}(dim)
+  M = Array{typeof(min)}(dim)
   total = dim[1]
   temp_range = collect(linspace(min, max, total))
   map(1:total) do seq
     M[seq, :] = temp_range[seq]
   end
-  ContinuousHab{Temp}(M, size, HabitatUpdate{Unitful.Dimension{:Temperature}}(TempChange, rate))
+  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimension{:Temperature}}(TempChange, rate))
 end
