@@ -26,10 +26,15 @@ mutable struct HabitatUpdate{D <: Unitful.Dimension}
    Unitful.Dimension{:Time}(-1//1)}}}
 end
 
-mutable struct ContinuousHab{E <: Envtype} <: AbstractHabitat{Float64}
-  matrix::Matrix{Unitful.Quantity{Float64}}
+mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
+  matrix::Array{C, 2}
   size::Unitful.Length
   change::HabitatUpdate
+end
+
+iscontinuous(hab::ContinuousHab) = true
+function eltype{C}(hab::ContinuousHab{C})
+    return C
 end
 
 function _countsubcommunities(hab::ContinuousHab)
@@ -41,14 +46,44 @@ end
 
 This habitat subtype has a matrix of strings and a float grid square size
 """
-mutable struct DiscreteHab{E <: Envtype} <: AbstractHabitat{String}
-  matrix::Matrix{String}
+mutable struct DiscreteHab{D} <: AbstractHabitat{D}
+  matrix::Array{D, 2}
   size::Unitful.Length
   change::HabitatUpdate
 end
 
-function _countsubcommunities(niches::DiscreteHab)
-  return length(niches.matrix)
+
+iscontinuous(hab::DiscreteHab) = false
+function eltype{D}(hab::DiscreteHab{D})
+    return D
+end
+function _countsubcommunities(hab::DiscreteHab)
+  return length(hab.matrix)
+end
+mutable struct HabitatCollection2{H1, H2} <: AbstractHabitat{Tuple{H1, H2}}
+    h1::H1
+    h2::H2
+end
+iscontinuous(hab::HabitatCollection2) = [iscontinuous(hab.h1), iscontinuous(hab.h2)]
+function eltype(hab::HabitatCollection2)
+    return [eltype(hab.h1), eltype(hab.h2)]
+end
+
+mutable struct HabitatCollection3{H1, H2, H3} <: AbstractHabitat{Tuple{H1, H2, H3}}
+    h1::H1
+    h2::H2
+    h3::H3
+end
+iscontinuous(hab::HabitatCollection3) = [iscontinuous(hab.h1),
+    iscontinuous(hab.h2), iscontinuous(hab.h3)]
+function eltype(hab::HabitatCollection3)
+    return [eltype(hab.h1), eltype(hab.h2), eltype(hab.h3)]
+end
+function _countsubcommunities(hab::HabitatCollection2)
+  return _countsubcommunities(hab.h1)
+end
+function _countsubcommunities(hab::HabitatCollection3)
+  return _countsubcommunities(hab.h1)
 end
 
 # Function to create a habitat from a discrete set of types according to the
