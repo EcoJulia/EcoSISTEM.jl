@@ -29,9 +29,9 @@ movement = AlwaysMovement(kernel)
 
 opts = repmat([5.0°C], numSpecies)
 vars = rand(Uniform(0, 25/9), numSpecies) * °C
-traits = TempTrait(opts, vars)
+traits = ContinuousTrait(opts, vars)
 abun = Multinomial(individuals, numSpecies)
 @test_nowarn sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
 movement, param)
-@test_nowarn sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
+@test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun,
                    energy_vec, movement, param)

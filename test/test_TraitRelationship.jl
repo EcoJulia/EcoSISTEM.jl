@@ -3,8 +3,8 @@ using Base.Test
 using Distributions
 using Unitful.DefaultSymbols
 
-@test_nowarn rel = TraitRelationship(GaussTemp)
-@test_nowarn rel = TraitRelationship(SimpleNiche)
+@test_nowarn rel = TraitRelationship{Unitful.Temperature}(GaussTemp)
+@test_nowarn rel = TraitRelationship{Int64}(SimpleNiche)
 
 
 numSpecies=4
@@ -38,7 +38,7 @@ abun = Multinomial(individuals, numSpecies)
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
                    energy_vec, movement, param)
 abenv = simplenicheAE(numNiches, grid, totalK, area)
-rel = TraitRelationship(SimpleNiche)
+rel = TraitRelationship{eltype(abenv.habitat)}(SimpleNiche)
 eco = Ecosystem(sppl, abenv, rel)
 @test_nowarn Simulation.update!(eco, 1.0year)
 
@@ -69,10 +69,10 @@ movement = AlwaysMovement(kernel)
 abun = Multinomial(individuals, numSpecies)
 opts = repmat([5.0°C], numSpecies)
 vars = rand(Uniform(0, 25/9), numSpecies) * °C
-traits = TempTrait(opts, vars)
+traits = ContinuousTrait(opts, vars)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
 movement, param)
 abenv = tempgradAE(-10.0°C, 10.0°C, grid, totalK, area, 0.01°C/month)
-rel = TraitRelationship(GaussTemp)
+rel = TraitRelationship{eltype(abenv.habitat)}(GaussTemp)
 eco = Ecosystem(sppl, abenv, rel)
 @test_nowarn Simulation.update!(eco, 1.0month)

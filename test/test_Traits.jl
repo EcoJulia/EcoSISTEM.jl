@@ -5,4 +5,4 @@ using Unitful.DefaultSymbols
 
 opts = repmat([5.0°C], numSpecies)
 vars = rand(Uniform(0, 25/9), numSpecies)  * °C
-@test_nowarn traits = TempTrait(opts, vars)
+@test_nowarn traits = ContinuousTrait(opts, vars)

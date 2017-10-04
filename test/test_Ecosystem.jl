@@ -31,20 +31,17 @@ movement = AlwaysMovement(kernel)
 
 opts = repmat([5.0°C], numSpecies)
 vars = rand(Uniform(0, 25/9), numSpecies) * °C
-traits = TempTrait(opts, vars)
+traits = ContinuousTrait(opts, vars)
 abun = Multinomial(individuals, numSpecies)
-names = map(x -> "$x", 1:numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
 movement, param)
 abenv = tempgradAE(-10.0°C, 10.0°C, grid, totalK, area,
 0.01°C/month)
-rel = TraitRelationship(GaussTemp)
+rel = TraitRelationship{eltype(abenv.habitat)}(GaussTemp)
 @test_nowarn eco = Ecosystem(sppl, abenv, rel)
 eco = Ecosystem(sppl, abenv, rel)
 @test_nowarn gettraitrel(eco)
 @test_nowarn gethabitat(eco)
-@test_nowarn gethabitat(eco, 1)
-@test_nowarn getenvtype(eco)
 @test_nowarn getsize(eco)
 @test_nowarn getgridsize(eco)
 @test_nowarn getdispersaldist(eco)

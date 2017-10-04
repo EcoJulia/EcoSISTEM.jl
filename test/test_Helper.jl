@@ -29,15 +29,14 @@ individuals=100
 kernel = GaussianKernel(2.0km, numSpecies, 10e-4)
 movement = AlwaysMovement(kernel)
 
-opts = repmat([5.0°C], numSpecies)
-vars = rand(Uniform(0, 25/9), numSpecies) * °C
-traits = TempTrait(opts, vars)
+opts = repmat([5.0], numSpecies)
+vars = rand(Uniform(0, 25/9), numSpecies)
+traits = ContinuousTrait(opts, vars)
 abun = Multinomial(individuals, numSpecies)
-names = map(x -> "$x", 1:numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
 movement, param)
 abenv = simplehabitatAE(0.0, grid, totalK, area)
-rel = TraitRelationship(GaussTemp)
+rel = TraitRelationship{eltype(abenv.habitat)}(NoRel)
 eco = Ecosystem(sppl, abenv, rel)
 
 times = 10.0year; burnin = 1.0year; interval = 1.0month
