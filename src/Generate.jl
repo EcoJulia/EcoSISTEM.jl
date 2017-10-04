@@ -30,6 +30,12 @@ function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int6
   neighbour_vec=neighbour_vec[remove,:]
   neighbour_vec
 end
+function get_neighbours(mat::Matrix, x_coord::Array{Int64,1},
+     y_coord::Array{Int64,1}, chess::Int64=4)
+     neighbours  =map(n -> get_neighbours(mat, x_coord[n], y_coord[n], chess),
+      eachindex(x_coord))
+      return vcat(neighbours...)
+end
 """
     update!(eco::Ecosystem,  birth::Float64, death::Float64,
        l::Float64, s::Float64, timestep::Real)
@@ -98,6 +104,11 @@ end
 function convert_coords(i::Int64, width::Int64)
   x = ((i - 1) % width) + 1
   y = div((i - 1), width)  + 1
+  return (x, y)
+end
+function convert_coords(i::Array{Int64, 1}, width::Int64)
+  x = ((i .- 1) .% width) .+ 1
+  y = div.((i .- 1), width)  .+ 1
   return (x, y)
 end
 function convert_coords(x::Int64, y::Int64, width::Int64)
