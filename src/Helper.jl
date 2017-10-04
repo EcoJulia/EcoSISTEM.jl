@@ -41,6 +41,24 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
   end
   storage
 end
+function simulate_record!(storage::AbstractArray, eco::Ecosystem,
+  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
+  scenario::SimpleScenario)
+  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
+  record_seq = 0s:interval:times
+  time_seq = 0s:timestep:times
+  storage[:, :, 1] = eco.abundances.matrix
+  counting = 1
+  for i in 2:length(time_seq)
+    update!(eco, timestep);
+    scenario.fun(eco, timestep, scenario.rate);
+    if any(time_seq[i].==record_seq)
+      counting = counting + 1
+      storage[:, :, counting] = eco.abundances.matrix
+    end
+  end
+  storage
+end
 
 function expected_counts(grd::Array{Float64, 3}, sq::Int64)
   grd = convert(Array{Int64}, grd)
