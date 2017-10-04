@@ -121,23 +121,19 @@ function gethabitat(eco::Ecosystem)
   return eco.abenv.habitat
 end
 
-function gethabitat(eco::Ecosystem, pos::Int64)
-  x, y = convert_coords(pos, size(gethabitat(eco).matrix, 1))
-  return gethabitat(eco).matrix[x, y]
-end
-
 function getenvtype(eco::Ecosystem)
   return typeof(eco.abenv.habitat)
 end
 
 function getsize(eco::Ecosystem)
-  x = eco.abenv.habitat.size * size(eco.abenv.habitat.matrix, 1)
-  y = eco.abenv.habitat.size * size(eco.abenv.habitat.matrix, 2)
-  return x * y
+  return _getsize(eco.abenv.hab)
 end
 
 function getgridsize(eco::Ecosystem)
-  return eco.abenv.habitat.size
+  return _getgridsize(eco.abenv.hab)
+end
+function getdimension(eco::Ecosystem)
+    return _getdimension(eco.abenv.habitat)
 end
 
 function getdispersaldist(eco::Ecosystem)
@@ -211,8 +207,8 @@ of moving to neighbouring squares.
 """
 function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
   sd = (2 * mov.dist) / sqrt(pi)
-  relsize =  hab.size ./ sd
-  m = maximum(size(hab.matrix))
+  relsize =  _getgridsize(hab) ./ sd
+  m = maximum(_getdimension(hab))
   p = mov.thresh
   return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)
 end
