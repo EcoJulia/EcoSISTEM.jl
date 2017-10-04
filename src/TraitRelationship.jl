@@ -42,10 +42,13 @@ function GaussTemp(temp::Unitful.Temperature{Float64}, opttemp::Unitful.Temperat
   1°C/sqrt(2 * π * var^2) * exp(-abs(temp - opttemp)^2/(2 * var^2))
 end
 
-function SimpleNiche(niche::String, pref::String)
+function SimpleNiche(niche::Int64, pref::Int64)
   if niche == pref
-    return 0.5
-  else
     return 1.0
+  else
+    return 0.5
   end
+end
+function NoRel(niche::Int64, pref::Int64)
+    return 1.0
 end
