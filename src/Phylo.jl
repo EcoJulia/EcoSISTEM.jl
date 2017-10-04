@@ -255,8 +255,15 @@ end
 
 function assign_traits!(tree::BinaryTree, switch_rate::Float64,
   traits::Vector{Int64})
-    assign_traits!(tree, [switch_rate], [traits])
+  if length(traits) == 1
+      for n in getnodenames(tree)
+          setnoderecord!(tree, n, traits)
+      end
+  else
+      assign_traits!(tree, [switch_rate], [traits])
+  end
 end
+
 
 function BM(T::Real, σ²::Float64, start::Float64, lab::String="")
   t = 0:T  # time
