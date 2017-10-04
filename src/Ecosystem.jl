@@ -25,6 +25,14 @@ function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
     countsubcommunities(part) == size(realm, 2)
 end
 
+function tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
+    (eltype(sppl.traits) == eltype(abenv.habitat)) &&
+    (iscontinuous(sppl.traits) == iscontinuous(abenv.habitat))
+end
+function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
+    eltype(sppl.traits) == eltype(traitrel)
+end
+
 importall Diversity.API
 """
     Ecosystem{Part <: AbstractAbiotic} <:
@@ -37,26 +45,27 @@ as well as properties such as trait information, `spplist`, and movement types,
 and available resources,`abenv`. Finally, there is a slot for the relationship
 between the environment and the characteristics of the species, `relationship`.
 """
-mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList} <:
+mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+    TR <: AbstractTraitRelationship} <:
    AbstractMetacommunity{Float64, Matrix{Float64}, SL, Part}
   abundances::GridLandscape
   spplist::SL
   abenv::Part
   ordinariness::Nullable{Matrix{Float64}}
-  relationship::TraitRelationship
+  relationship::TR
   lookup::Vector{Lookup}
   cache::Cache
 
-  function Ecosystem{Part, SL}(abundances::GridLandscape,
+  function Ecosystem{Part, SL, TR}(abundances::GridLandscape,
     spplist::SL, abenv::Part, ordinariness::Nullable{Matrix{Float64}},
-    relationship::TraitRelationship, lookup::Vector{Lookup}, cache::Cache) where {Part <:
+    relationship::TR, lookup::Vector{Lookup}, cache::Cache) where {Part <:
      AbstractAbiotic,
-    SL <: SpeciesList}
-    eltype(abenv.budget) == eltype(spplist.requirement) ||
-      error("Environment and species energy not of the same type")
+    SL <: SpeciesList, TR <: AbstractTraitRelationship}
+    tematch(spplist, abenv) || error("Traits do not match habitats")
+    trmatch(spplist, relationship) || error("Traits do not match trait functions")
     #_mcmatch(abundances.matrix, spplist, abenv) ||
     #  error("Dimension mismatch")
-    new{Part, SL}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
+    new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
   end
 end
 """
@@ -67,7 +76,7 @@ When the landscape is populated, there is the option for the individuals to be
 assigned locations based on their trait preferences.
 """
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
-   rel::TraitRelationship)
+   rel::AbstractTraitRelationship)
 
   # Check there is enough energy to support number of individuals at set up
   #sum(spplist.abun .* spplist.requirement.energy) <= sum(abenv.budget.matrix) ||
@@ -79,7 +88,7 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
   # Create lookup table of all moves and their probabilities
   lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
   nm = zeros(Int64, size(ml.matrix))
-  Ecosystem{typeof(abenv), typeof(spplist)}(ml, spplist, abenv,
+  Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
   Nullable{Matrix{Float64}}(), rel, lookup_tab, Cache(nm))
 end
 
