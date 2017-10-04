@@ -54,22 +54,5 @@ function runsim(eco::Ecosystem, times::Unitful.Time)
 end
 
 abun = runsim(eco, 10year)
-plot_abun(abun, 4, grid)
-
-meanabun = reshape(mapslices(mean, abun, [3,4])[:,:, 1,1], 4, 10, 10)
-map(1:4) do spp
-    [mean(meanabun[spp,:, :][hab.==getpref(DiscreteHab{Simulation.Niches}, eco, spp)]),
-    mean(meanabun[spp,:, :][hab.!=getpref(DiscreteHab{Simulation.Niches}, eco, spp)])]
-end
-im = reshape(abun[:,:, end, 1], 4, 10, 10)
-hab = eco.abenv.habitat.matrix
-map(1:4) do spp
-    [mean(im[spp,:,:][hab.==getpref(eco.spplist.traits, spp)]),
-    mean(im[spp,:,:][hab.!=getpref(eco.spplist.traits, spp)])]
-end
-@rput meanabun
-@rput hab
-R"par(mfrow=c(1,2))
-library(viridis); library(fields)
-image.plot(meanabun[2,,], col=magma(50))
-image.plot(hab, col=viridis(2))"
+plot_abun(abun, numSpecies, grid)
+plot_mean(abun, numSpecies, grid)
