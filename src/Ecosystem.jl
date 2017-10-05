@@ -126,11 +126,11 @@ function getenvtype(eco::Ecosystem)
 end
 
 function getsize(eco::Ecosystem)
-  return _getsize(eco.abenv.hab)
+  return _getsize(eco.abenv.habitat)
 end
 
 function getgridsize(eco::Ecosystem)
-  return _getgridsize(eco.abenv.hab)
+  return _getgridsize(eco.abenv.habitat)
 end
 function getdimension(eco::Ecosystem)
     return _getdimension(eco.abenv.habitat)
