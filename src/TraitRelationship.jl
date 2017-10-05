@@ -52,3 +52,6 @@ end
 function NoRel(niche::Int64, pref::Int64)
     return 1.0
 end
+function NoRel(val::Float64, optval::Float64, var::Float64)
+    return 1.0
+end
