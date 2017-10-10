@@ -21,8 +21,9 @@ end
 
 function RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity{Float64, typeof(𝐓^-1)})
     v = uconvert(unit(timestep)^-1, rate)
-    pos = find(eco.abenv.active)
-    smp = sample(pos, jbinom(1, length(pos), ustrip(v))[1])
+    pos = find(eco.abenv.budget.matrix .> 0.0)
+    howmany = jbinom(1, length(pos), ustrip(v))[1]
+    smp = sample(pos, howmany)
     eco.abenv.budget.matrix[smp] = 0.0
 end
 
