@@ -31,6 +31,7 @@ function tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
 end
 function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
     eltype(sppl.traits) == eltype(traitrel)
+    (iscontinuous(sppl.traits) == iscontinuous(traitrel))
 end
 
 importall Diversity.API
