@@ -13,7 +13,8 @@ include("Envtypes.jl")
 export Temp
 
 include("TraitRelationship.jl")
-export TraitRelationship,multiplicativeTR2, multiplicativeTR3, GaussTemp, SimpleNiche, NoRel
+export TraitRelationship,multiplicativeTR2, multiplicativeTR3, Gauss,
+Match, NoRelContinuous, NoRelDiscrete
 
 include("Habitats.jl")
 export ContinuousHab, DiscreteHab, HabitatCollection2, HabitatCollection3,
