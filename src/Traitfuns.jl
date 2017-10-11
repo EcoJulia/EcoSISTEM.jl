@@ -22,14 +22,14 @@ function _traitfun(hab::ContinuousHab, trts::ContinuousTrait,
     rel::AbstractTraitRelationship, pos::Int64, spp::Int64, cont::Bool)
         h = gethabitat(hab, pos)
         mean, var = getpref(trts, spp)
-    return getrelfun(rel)(h, mean, var)
+    return rel(h, mean, var)
 end
 
 function _traitfun(hab::DiscreteHab, trts::DiscreteTrait,
     rel::AbstractTraitRelationship, pos::Int64, spp::Int64, cont::Bool)
         currentniche = gethabitat(hab, pos)
         preference = getpref(trts, spp)
-    return getrelfun(rel)(currentniche, preference)
+    return rel(currentniche, preference)
 end
 
 #function TraitFun(eco::Ecosystem, pos::Int64, spp::Int64, cont::Bool = true)
@@ -64,9 +64,6 @@ function getpref(traits::AbstractTraits, field::Symbol)
   return getfield(traits, field)
 end
 
-function getrelfun(rel::AbstractTraitRelationship)
-  return rel.func
-end
 function getrelationship(rel::AbstractTraitRelationship, field::Symbol)
   return getfield(rel, field)
 end
