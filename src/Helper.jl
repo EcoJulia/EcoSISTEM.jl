@@ -80,6 +80,86 @@ for a particular timestep, 'timestep', and time interval for a diversity to be
 calculated and recorded, `interval`. Optionally, there may also be a scenario by which the
 whole ecosystem is updated, such as removal of habitat patches.
 """
+function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
+  scenario::SimpleScenario, divfun::Function, qs::Vector{Float64})
+  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
+  record_seq = 0s:interval:times
+  time_seq = 0s:timestep:times
+  counting = 0
+  for i in 1:length(time_seq)
+    update!(eco, timestep);
+    runscenario!(eco, timestep, scenario, time_seq[i]);
+    if any(time_seq[i].==record_seq)
+      counting = counting + 1
+      storage[:, :, counting] = reshape(divfun(eco, qs)[:diversity],
+      countsubcommunities(eco), length(qs))
+    end
+  end
+  storage
+end
+function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
+  divfun::Function, qs::Vector{Float64})
+  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
+  record_seq = 0s:interval:times
+  time_seq = 0s:timestep:times
+  counting = 0
+  for i in 1:length(time_seq)
+    update!(eco, timestep);
+    if any(time_seq[i].==record_seq)
+      counting = counting + 1
+      storage[:, :, counting] = reshape(divfun(eco, qs)[:diversity],
+      Int(length(divfun(eco, qs)[:diversity])/ length(qs)), length(qs))
+    end
+  end
+  storage
+end
+function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
+  divfuns::Array{Function, 1}, q::Float64)
+  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
+  record_seq = 0s:interval:times
+  time_seq = 0s:timestep:times
+  counting = 0
+  for i in 1:length(time_seq)
+    update!(eco, timestep);
+    if any(time_seq[i].==record_seq)
+      counting = counting + 1
+      storage[:, :, counting] = hcat(map(x-> x(eco, q)[:diversity], divfuns)...)
+    end
+  end
+  storage
+end
+function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
+  scenario::SimpleScenario, divfuns::Array{Function, 1}, q::Float64)
+  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
+  record_seq = 0s:interval:times
+  time_seq = 0s:timestep:times
+  counting = 0
+  for i in 1:length(time_seq)
+    update!(eco, timestep);
+    runscenario!(eco, timestep, scenario, time_seq[i]);
+    if any(time_seq[i].==record_seq)
+      counting = counting + 1
+      storage[:, :, counting] = hcat(map(x-> x(eco, q)[:diversity], divfuns)...)
+    end
+  end
+  storage
+end
+
+function cleanup!(abun::Array{Int64, 4})
+    zeroabun = mapslices(x -> all(x.!=0), abun, [1, 2, 4])[1, 1, :, 1]
+    abun = abun[:, :, zeroabun, :]
+end
+
+function cleanup!(div::Array{Float64, 4})
+    nadiv = mapslices(x -> all(!isnan.(x)), div, [1, 2, 4])[1, 1, :, 1]
+    div = div[:, :, nadiv, :]
+end
+
+
 function expected_counts(grd::Array{Float64, 3}, sq::Int64)
   grd = convert(Array{Int64}, grd)
   total = mapslices(sum, grd , length(size(grd)))[:, :,  1]
