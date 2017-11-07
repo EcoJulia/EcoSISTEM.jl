@@ -8,9 +8,7 @@ using Diversity
 Function to run an ecosystem, `eco` for specified length of times, `duration`,
 for a particular timestep, 'timestep'.
 """
-function simulate!(eco::Ecosystem, duration::Unitful.Time,
-  interval::Unitful.Time, timestep::Unitful.Time)
-  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
+function simulate!(eco::Ecosystem, duration::Unitful.Time, timestep::Unitful.Time)
   times = length(0s:timestep:duration)
   for i in 1:times
     update!(eco, timestep)
