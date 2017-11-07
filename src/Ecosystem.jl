@@ -3,6 +3,15 @@ using Cubature
 using DataFrames
 using Unitful
 
+"""
+    Lookup
+
+Lookup houses information on `x`, `y` grid locations and the probability of
+occurrence at the location for the species in question `p`. `pnew` and `moves`
+are initially empty storage and written over by the movement step in update!().
+`pnew` is the recalculated probability based on which directions are available
+and `moves` is the number of moves to that grid location in that step.
+"""
 mutable struct Lookup
   x::Vector{Int64}
   y::Vector{Int64}
@@ -10,7 +19,12 @@ mutable struct Lookup
   pnew::Vector{Float64}
   moves::Vector{Int64}
 end
+"""
+    Cache
 
+Cache houses an integer array of moves made by all species in a timestep for the
+update! function, `netmigration`.
+"""
 mutable struct Cache
   netmigration::Array{Int64, 2}
 end
@@ -25,12 +39,25 @@ function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
     countsubcommunities(part) == size(realm, 2)
 end
 
+
+"""
+    tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
+
+Function to check that the types of a trait list and habitat list are
+the same for a species list (`sppl`) and abiotic environment (`abenv`).
+"""
 function tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
     (eltype(sppl.traits) == eltype(abenv.habitat)) &&
     (iscontinuous(sppl.traits) == iscontinuous(abenv.habitat))
 end
+"""
+    trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
+
+Function to check that the types of a trait list and trait relationship list are
+the same for a species list (`sppl`) and trait relationship (`traitrel`).
+"""
 function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
-    eltype(sppl.traits) == eltype(traitrel)
+    eltype(sppl.traits) == eltype(traitrel) &&
     (iscontinuous(sppl.traits) == iscontinuous(traitrel))
 end
 
@@ -70,18 +97,18 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
   end
 end
 """
-    Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, traits)
+    Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
+        rel::AbstractTraitRelationship)
 
-Function to create an ecosystem given a species list and an abiotic environment.
-When the landscape is populated, there is the option for the individuals to be
-assigned locations based on their trait preferences.
+Function to create an `Ecosystem` given a species list, an abiotic environment
+and trait relationship.
 """
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
 
   # Check there is enough energy to support number of individuals at set up
-  #sum(spplist.abun .* spplist.requirement.energy) <= sum(abenv.budget.matrix) ||
-  #error("Environment does not have enough energy to support species")
+  sum(spplist.abun .* spplist.requirement.energy) <= sum(abenv.budget.matrix) ||
+  error("Environment does not have enough energy to support species")
   # Create matrix landscape of zero abundances
   ml = emptygridlandscape(abenv, spplist)
   # Populate this matrix with species abundances
@@ -115,28 +142,58 @@ function _getordinariness!(eco::Ecosystem)
     get(eco.ordinariness)
 end
 
+"""
+    gettraitrel(eco::Ecosystem)
+
+Function to extract trait relationships.
+"""
 function gettraitrel(eco::Ecosystem)
   return eco.relationship
 end
+
+"""
+    gethabitat(eco::Ecosystem)
+
+Function to extract habitat from Ecosystem object.
+"""
 function gethabitat(eco::Ecosystem)
   return eco.abenv.habitat
 end
 
-function getenvtype(eco::Ecosystem)
-  return typeof(eco.abenv.habitat)
-end
+"""
+    getsize(eco::Ecosystem)
 
+Function to extract size of habitat from Ecosystem object.
+"""
 function getsize(eco::Ecosystem)
   return _getsize(eco.abenv.habitat)
 end
 
+"""
+    getgridsize(eco::Ecosystem)
+
+Function to extract grid cell size of habitat from Ecosystem object.
+"""
 function getgridsize(eco::Ecosystem)
   return _getgridsize(eco.abenv.habitat)
 end
+
+"""
+    getdimension(eco::Ecosystem)
+
+Function to extract dimension of habitat from Ecosystem object.
+"""
 function getdimension(eco::Ecosystem)
     return _getdimension(eco.abenv.habitat)
 end
 
+"""
+    getdispersaldist(eco::Ecosystem)
+
+Function to extract average dispersal distance of species from Ecosystem object.
+Returns a vector of distances, unless a specific species is provided as a String
+or Integer.
+"""
 function getdispersaldist(eco::Ecosystem)
   dists = eco.spplist.movement.kernel.dist
   return dists
@@ -149,6 +206,14 @@ function getdispersaldist(eco::Ecosystem, spp::String)
   num = find(eco.spplist.names.==spp)[1]
   getdispersaldist(eco, num)
 end
+
+"""
+    getdispersalvar(eco::Ecosystem)
+
+Function to extract dispersal varaince of species from Ecosystem object.
+Returns a vector of distances, unless a specific species is provided as a String
+or Integer.
+"""
 function getdispersalvar(eco::Ecosystem)
     vars = (eco.spplist.movement.kernel.dist).^2 .* pi ./ 4
     return vars
@@ -161,7 +226,11 @@ function getdispersalvar(eco::Ecosystem, spp::String)
     num = find(eco.spplist.names.==spp)[1]
     getdispersalvar(eco, num)
 end
+"""
+    resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
 
+Function to reset the rate of habitat change for a species.
+"""
 function resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
     eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimension{()}}(
     eco.abenv.habitat.change.changefun, rate)
