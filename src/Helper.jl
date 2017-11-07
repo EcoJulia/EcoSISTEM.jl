@@ -20,6 +20,10 @@ function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
   gridSize = _countsubcommunities(eco.abenv.habitat)
   abun = Array{Int64, 4}(numSpecies, gridSize, times, reps)
 end
+function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
+  gridSize = _countsubcommunities(eco.abenv.habitat)
+  abun = Array{Float64, 4}(gridSize, qs, times, reps)
+end
 """
     simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
          timestep::Unitful.Time)
