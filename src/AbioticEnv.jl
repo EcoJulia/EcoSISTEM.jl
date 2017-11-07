@@ -36,12 +36,15 @@ mutable struct GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
 end
 """
     simplenicheAE(numniches::Int64, dimension::Tuple,
-                        maxBud::Float64, gridsquaresize::Float64)
+                        maxBud::Float64, area::Unitful.Area{Float64},
+                        active::Array{Bool, 2})
 
 Function to create a simple `DiscreteHab`, `SimpleBudget` type abiotic environment. Given a
 number of niche types `numniches`, it creates a `DiscreteHab` environment with
-dimensions `dimension` and a grid squaresize `gridsquaresize`. It also creates a
-`SimpleBudget` type filled with the maximum budget value `maxbud`.
+dimensions `dimension` and a specified area `area`. It also creates a
+`SimpleBudget` type filled with the maximum budget value `maxbud`. If a Bool
+matrix of active grid squares is included, `active`, this is used, else one is
+created with all grid cells active.
 """
 function simplenicheAE(numniches::Int64, dimension::Tuple,
                         maxbud::Float64, area::Unitful.Area{Float64},
@@ -72,7 +75,22 @@ end
 function _getsubcommunitynames(gae::GridAbioticEnv)
     return gae.names
 end
+"""
+    tempgradAE(min::Unitful.Temperature{Float64},
+      max::Unitful.Temperature{Float64},
+      dimension::Tuple{Int64, Int64}, maxbud::Float64,
+      area::Unitful.Area{Float64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)},
+      active::Array{Bool, 2})
 
+Function to create a temperature gradient `ContinuousHab`, `SimpleBudget` type abiotic
+environment. Given a `min` and `max` temperature, it generates a
+gradient from minimum at the bottom to maximum at the top. It creates a
+`ContinuousHab` environment with dimensions `dimension` and a specified area
+`area`. It also creates a `SimpleBudget` type filled with the maximum budget
+value `maxbud`. The rate of temperature change is specified using the parameter
+`rate`. If a Bool matrix of active grid squares is included, `active`,
+this is used, else one is created with all grid cells active.
+"""
 function tempgradAE(min::Unitful.Temperature{Float64},
   max::Unitful.Temperature{Float64},
   dimension::Tuple{Int64, Int64}, maxbud::Float64,
@@ -97,7 +115,19 @@ function tempgradAE(min::Unitful.Temperature{Float64},
   fill!(active, true)
   tempgradAE(min, max, dimension, maxbud, area, rate, active)
  end
+ """
+     simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
+         dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64},
+         active::Array{Bool, 2})
 
+ Function to create a simple `ContinuousHab`, `SimpleBudget` type abiotic
+ environment. It creates a `ContinuousHab` filled with a given value, `val`,
+ dimensions (`dimension`) and a specified area (`area`). It also creates a
+ `SimpleBudget` type filled with the maximum budget value (`maxbud`).
+ The rate of temperature change is specified using the parameter
+ `rate`. If a Bool matrix of active grid squares is included, `active`,
+ this is used, else one is created with all grid cells active.
+ """
 function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
   dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64},
   active::Array{Bool, 2})
