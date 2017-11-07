@@ -216,7 +216,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
   grid = collect(1:len)
   # Set up copy of budget
   b = reshape(copy(abenv.budget.matrix), size(grid))
-  activity = reshape(abenv.active, size(grid))
+  activity = reshape(copy(abenv.active), size(grid))
   b[.!activity] = 0
   # Loop through species
   for i in eachindex(spplist.abun)
@@ -234,7 +234,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
   end
 end
 """
-    repopulate!(eco::Ecosystem, traits::Bool)
+    repopulate!(eco::Ecosystem)
 Function to repopulate an ecosystem `eco`, with option for including trait
 preferences.
 """
@@ -242,4 +242,19 @@ function repopulate!(eco::Ecosystem)
   eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
   eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
   populate!(eco.abundances, eco.spplist, eco.abenv)
+end
+
+"""
+    reenergise!(eco::Ecosystem, budget::)
+Function to repopulate an ecosystem `eco`, with option for including trait
+preferences.
+"""
+function repopulate!(eco::Ecosystem)
+  eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
+  eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
+  populate!(eco.abundances, eco.spplist, eco.abenv)
+end
+
+function reenergise!(eco::Ecosystem, budget::Float64, grid::Tuple{Int64, Int64})
+    fill!(eco.abenv.budget.matrix, budget/(grid[1]*grid[2]))
 end
