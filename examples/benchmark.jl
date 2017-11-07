@@ -64,3 +64,33 @@ Profile.clear()  # in case we have any previous profiling data
 @profile runsim(eco, times)
 #Profile.print(format := flat)
 ProfileView.view()
+
+divfuns = [norm_meta_alpha, raw_meta_alpha, norm_meta_beta, raw_meta_beta,
+    norm_meta_rho, raw_meta_rho, meta_gamma, meta_speciesrichness, meta_shannon, meta_simpson]
+q = 1.0
+
+function runsim(eco::Ecosystem, times::Unitful.Time)
+    burnin = 1year; interval = 3month; reps = 10
+    lensim = length(0month:interval:times)
+    abun = zeros(1, length(divfuns), lensim, reps)
+        for j in 1:reps
+            reenergise!(eco, totalK, grid)
+            repopulate!(eco);
+            thisabun = view(abun, :, :, :, j);
+            simulate!(eco, burnin, timestep)
+            simulate_record_diversity!(thisabun, eco, times, interval, timestep,
+            divfuns, q)
+        end
+    end
+    abun
+end
+
+times = 10year;
+runsim(eco, 1year)
+#
+using BenchmarkTools
+using ProfileView
+Profile.clear()  # in case we have any previous profiling data
+@profile runsim(eco, times)
+#Profile.print(format := flat)
+ProfileView.view()
