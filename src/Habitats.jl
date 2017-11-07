@@ -254,7 +254,7 @@ end
 function tempgrad(min::Unitful.Temperature{Float64}, max::Unitful.Temperature{Float64},
   size::Unitful.Length{Float64},
   dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
-  dim[1] ==1 ||
+  dim[1] > 1 ||
   error("First dimension should be greater than 1 for temperature gradient")
   M = Array{typeof(min)}(dim)
   total = dim[1]
