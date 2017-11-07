@@ -1,14 +1,12 @@
 using Unitful
 using Unitful.DefaultSymbols
+using Diversity
 """
-run_sim_spatial(eco::Ecosystem, param::AbstractVector,
-   times::Int64, burnin::Int64, interval::Int64, reps::Int64, birth_move::Bool)
+    simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
+         timestep::Unitful.Time)
 
-Function to run an ecosystem, `eco`, through a simulation for a set of parameters,
-`param`, specified number of times, `times` and certain number of repetitions,
-`reps`, with a burnin period, `burnin`, time interval for abundances to be recorded,
-`interval`. There is also the option to run migration over all abundances or only
-those in the birth pulse, `birth_move`.
+Function to run an ecosystem, `eco` for specified length of times, `duration`,
+for a particular timestep, 'timestep'.
 """
 function simulate!(eco::Ecosystem, duration::Unitful.Time,
   interval::Unitful.Time, timestep::Unitful.Time)
@@ -24,7 +22,15 @@ function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
   gridSize = _countsubcommunities(eco.abenv.habitat)
   abun = Array{Int64, 4}(numSpecies, gridSize, times, reps)
 end
+"""
+    simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
+         timestep::Unitful.Time)
 
+Function to run an ecosystem, `eco` for specified length of times, `duration`,
+for a particular timestep, 'timestep', and time interval for abundances to be
+recorded, `interval`. Optionally, there may also be a scenario by which the
+whole ecosystem is updated, such as removal of habitat patches.
+"""
 function simulate_record!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time)
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
@@ -60,6 +66,16 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
   storage
 end
 
+"""
+    simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+      times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
+      scenario::SimpleScenario, divfun::Function, qs::Float64)
+
+Function to run an ecosystem, `eco` for specified length of times, `duration`,
+for a particular timestep, 'timestep', and time interval for a diversity to be
+calculated and recorded, `interval`. Optionally, there may also be a scenario by which the
+whole ecosystem is updated, such as removal of habitat patches.
+"""
 function expected_counts(grd::Array{Float64, 3}, sq::Int64)
   grd = convert(Array{Int64}, grd)
   total = mapslices(sum, grd , length(size(grd)))[:, :,  1]
