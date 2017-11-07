@@ -41,6 +41,42 @@ function plot_move(eco::Ecosystem, x::Int64, y::Int64, spp::Int64, plot::Bool)
 end
 #, round(gridsize*dims[1]))
 
+function plot_diversity(div::Array{Float64, 4}, q::Int64,
+    grid::Tuple{Int64, Int64}, rep::Int64)
+    # Plot
+    gridsize = collect(grid)
+    @rput div
+    @rput q
+    @rput gridsize
+    @rput rep
+    R" par(mfrow=c(gridsize[1], gridsize[2]), mar=c(2, 2, 2, 2))
+    div[is.na(div)] = 0
+    for (i in 1:(gridsize[1]*gridsize[2])){
+            plot(div[i, q, , rep], col=i, xlab='Diversity', ylab='Time', type='l',
+            ylim=c(min(div, na.rm=T), max(div, na.rm=T)))
+      }"
+end
+  function plot_diversity(div::Array{Float64, 4}, qs::Vector{Float64},
+      grid::Tuple{Int64, Int64}, rep::Int64)
+      # Plot
+      gridsize = collect(grid)
+      lenq = length(qs)
+      @rput div
+      @rput lenq
+      @rput gridsize
+      @rput rep
+      R" par(mfrow=c(gridsize[1], gridsize[2]), mar=c(2, 2, 2, 2))
+      div[is.na(div)] = 0
+      for (i in 1:(gridsize[1]*gridsize[2])){
+          for (k in 1:lenq){
+            if (k==1) plot_fun=plot else plot_fun=lines
+              plot_fun(div[i, k, , rep], col=k, xlab='Diversity', ylab='Time', type='l',
+              ylim=c(min(div, na.rm=T), max(div, na.rm=T)))
+            }
+        }"
+  end
+
+
 function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64,
   grid::Tuple{Int64, Int64}, rep::Int64)
   # Plot
@@ -49,7 +85,7 @@ function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64,
   @rput numSpecies
   @rput gridsize
   @rput rep
-  R" par(mfrow=c(gridsize[1], gridsize[2]), mar=c(2, 2, 2, 2))
+  R" par(mfcol=c(gridsize[1], gridsize[2]), mar=c(2, 2, 2, 2))
   for (i in 1:(gridsize[1]*gridsize[2])){
       for (k in 1:numSpecies){
         if (k==1) plot_fun=plot else plot_fun=lines
@@ -80,7 +116,7 @@ function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64,
   @rput numSpecies
   @rput gridsize
   @rput rep
-  R" par(mfrow=c(gridsize[1], gridsize[2]), mar=c(2, 2, 2, 2))
+  R" par(mfcol=c(gridsize[1], gridsize[2]), mar=c(2, 2, 2, 2))
   for (i in 1:(gridsize[1]*gridsize[2])){
       for (k in 1:numSpecies){
         if (k==1) plot_fun=plot else plot_fun=lines
@@ -93,6 +129,7 @@ function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64,
     # Plot
   plot_abun(abun, numSpecies, 1, range)
   end
+
 
 function plot_reps(abun::Array{Int64, 4}, numSpecies::Int64,
   grid::Tuple{Int64, Int64})
