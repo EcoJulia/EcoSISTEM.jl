@@ -49,9 +49,10 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
   end
   storage
 end
+
 function simulate_record!(storage::AbstractArray, eco::Ecosystem,
-  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
-  scenario::SimpleScenario)
+  times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time,
+  scenario::AbstractScenario)
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
   record_seq = 0s:interval:times
   time_seq = 0s:timestep:times
@@ -59,7 +60,7 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
   counting = 1
   for i in 2:length(time_seq)
     update!(eco, timestep);
-    scenario.fun(eco, timestep, scenario.rate);
+    runscenario!(eco, timestep, scenario, time_seq[i]);
     if any(time_seq[i].==record_seq)
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix
@@ -67,6 +68,7 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
   end
   storage
 end
+
 
 """
     simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
