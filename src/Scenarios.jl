@@ -147,30 +147,29 @@ end
 
 function Invasive(eco::Ecosystem, timestep::Unitful.Time,
     rate::Quantity{Float64, typeof(𝐓^-1)})
-
+    invasive = find(eco.spplist.native .== false)
+    numspecies = length(eco.spplist.names)
     currentabun = mapslices(sum, eco.abundances.matrix, 2)
-    rarest = find(currentabun .< (0.5 * maximum(currentabun)))
-    avlost = rate * timestep .* currentabun
-    for i in rarest
-        if any(eco.abundances.matrix[i, :] .> 0)
-        pos = find(eco.abundances.matrix[i, :] .> 0)
-        smp = sample(pos, Int(round(avlost[i])),
+    if all(eco.spplist.names .!= "sensitive")
+        sensitive = sample(1:numspecies, 5)
+        eco.spplist.names[sensitive] = "sensitive"
+    end
+    avgain = rate * timestep .* currentabun
+    for i in invasive
+        pos = find(eco.abundances.matrix[i, :])
+        smp = sample(pos, Int(round(avgain[i])),
          replace=true)
-        eco.abundances.matrix[i, smp] .-= 1
+        eco.abundances.matrix[i, smp] .+= 1
         end
+    sensitive = find(eco.spplist.names .== "sensitive")
+    for j in sensitive
+        pos = find(eco.abundances.matrix[j, :])
+        smp = sample(pos, Int(round(avgain[j])),
+         replace=true)
+        eco.abundances.matrix[j, smp] .-= 1
     end
 end
-function addspecies!(eco::Ecosystem, energy::Float64, startpop::Int64)
-    length(energy) == number || error("Not enough energy information")
-    eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(Int64, size(eco.abundances.matrix, 2))')
-    eco.abundances.grid = reshape(eco.abundances.matrix, size(eco.abundances.matrix, 1),
-    size(eco.abenv.habitat.matrix, 1), size(eco.abenv.habitat.matrix, 2))
-    numspecies = size(eco.abundances.matrix, 1)
-    eco.spplist.names = append!(eco.spplist.names, convert(String, "$numspecies"))
 
-
-
-end
 
 
 mutable struct DisturbanceScenario <: AbstractScenario
