@@ -41,21 +41,26 @@ mutable struct SpeciesList{TR <: AbstractTraits,
   types::T
   movement::MO
   params::P
+  native::Vector{Bool}
 
   function SpeciesList{TR, R, MO, T, P}(names:: Vector{String},
       traits::TR, abun::Vector{Int64}, req::R,
-      types::T, movement::MO, params::P) where {TR <: AbstractTraits,
+      types::T, movement::MO, params::P, native::Vector{Bool}) where {
+                       TR <: AbstractTraits,
                        R <: AbstractRequirement,
                        MO <: AbstractMovement,
                        T <: AbstractTypes,
                        P <: AbstractParams}
       # Check dimensions
       _simmatch(types)
-      new{TR, R, MO, T, P}(names, traits, abun, req, types, movement, params)
+      equal_param = equalpop(params, length(names))
+      new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
+       movement, equal_param, native)
   end
   function SpeciesList{TR, R, MO, T, P}(
       traits::TR, abun::Vector{Int64}, req::R,
-      types::T, movement::MO, params::P) where {TR <: AbstractTraits,
+      types::T, movement::MO, params::P, native::Vector{Bool}) where {
+                       TR <: AbstractTraits,
                        R <: AbstractRequirement,
                        MO <: AbstractMovement,
                        T <: AbstractTypes,
@@ -64,7 +69,9 @@ mutable struct SpeciesList{TR <: AbstractTraits,
       _simmatch(types)
       # Assign names
       names = map(x -> "$x", 1:length(abun))
-      new{TR, R, MO, T, P}(names, traits, abun, req, types, movement, params)
+      equal_param = equalpop(params, length(names))
+      new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
+       movement, equal_param, native)
   end
 end
 """
@@ -79,7 +86,7 @@ movement kernel.
 function SpeciesList{R <: AbstractRequirement,
     MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,
     numtraits::Int64, abun_dist::Distribution, req::R,
-    movement::MO, params::P)
+    movement::MO, params::P, native::Vector{Bool})
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
@@ -93,24 +100,20 @@ function SpeciesList{R <: AbstractRequirement,
     phy = PhyloTypes(tree)
     # Draw random set of abundances from distribution
     abun = rand(abun_dist)
+    if length(abun) < numspecies
+        abun = vcat(abun, repmat([0], numspecies - length(abun)))
+    end
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
     length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
                                           doesn't match number species"))
     length(req.energy)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
   SpeciesList{typeof(sp_trt), typeof(req),
-              typeof(movement), typeof(phy),typeof(params)}(names, sp_trt, abun,
-              req, phy, movement, params)
+              typeof(movement), typeof(phy), typeof(params)}(names, sp_trt, abun,
+              req, phy, movement, params, native)
 end
 
-function SpeciesList{R <: AbstractRequirement,
-    MO <: AbstractMovement}(numspecies::Int64,
-    numtraits::Int64, abun_dist::Distribution, req::R,
-    movement::MO, params::EqualPop)
 
-    equal_params = equalpop(params, numspecies)
-    return SpeciesList(numspecies, numtraits, abun_dist, req, movement, equal_params)
-end
 """
     SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
       T <: AbstractTypes, P <: AbstractParams}(numspecies::Int64,
@@ -123,7 +126,7 @@ movement kernel and any type of AbstractTypes.
 function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
     T <: AbstractTypes, P <: AbstractParams}(numspecies::Int64,
     numtraits::Int64, abun_dist::Distribution, req::R,
-    movement::MO, phy::T, params::P)
+    movement::MO, phy::T, params::P, native::Vector{Bool})
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
@@ -132,9 +135,12 @@ function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
     trts = collect(1:numtraits)
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:,1]))
+    sp_trt = DiscreteTrait(vcat(Array(get_traits(tree, true))...))
     # Draw random set of abundances from distribution
     abun = rand(abun_dist)
+    if length(abun) < numspecies
+        abun = vcat(abun, repmat([0], numspecies - length(abun)))
+    end
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
     length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
                                           doesn't match number species"))
@@ -142,28 +148,24 @@ function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
                                           doesn't match number species"))
   SpeciesList{typeof(sp_trt), typeof(req),
               typeof(movement), typeof(phy), typeof(params)}(names, sp_trt, abun,
-               req, phy, movement, params)
+               req, phy, movement, params, native)
 end
 
-function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
-    T <: AbstractTypes}(numspecies::Int64,
-    numtraits::Int64, abun_dist::Distribution, req::R,
-    movement::MO, phy::T, params::EqualPop)
 
-    equal_params = equalpop(params, numspecies)
-    return SpeciesList(numspecies, numtraits, abun_dist, req, movement, phy, equal_params)
-end
 
 function SpeciesList{TR<: AbstractTraits, R <: AbstractRequirement,
     MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,
     traits::TR, abun_dist::Distribution, req::R,
-    movement::MO, params::P)
+    movement::MO, params::P, native::Vector{Bool})
 
     names = map(x -> "$x", 1:numspecies)
     # Create similarity matrix (for now identity)
     ty = UniqueTypes(numspecies)
     # Draw random set of abundances from distribution
     abun = rand(abun_dist)
+    if length(abun) < numspecies
+        abun = vcat(abun, repmat([0], numspecies - length(abun)))
+    end
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
     length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
                                           doesn't match number species"))
@@ -171,16 +173,10 @@ function SpeciesList{TR<: AbstractTraits, R <: AbstractRequirement,
                                           doesn't match number species"))
   SpeciesList{typeof(traits), typeof(req),
               typeof(movement), typeof(ty),typeof(params)}(names, traits, abun,
-              req, ty, movement, params)
+              req, ty, movement, params, native)
 end
-function SpeciesList{TR<: AbstractTraits, R <: AbstractRequirement,
-    MO <: AbstractMovement}(numspecies::Int64,
-    traits::TR, abun_dist::Distribution, req::R,
-    movement::MO, params::EqualPop)
 
-    equal_params = equalpop(params, numspecies)
-    return SpeciesList(numspecies, traits, abun_dist, req, movement, equal_params)
-end
+
 
 
 function _simmatch(sim::SpeciesList)
