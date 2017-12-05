@@ -126,7 +126,9 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     update!(eco, timestep);
     if any(time_seq[i].==record_seq)
       counting = counting + 1
-      storage[:, :, counting] = hcat(map(x-> x(eco, q)[:diversity], divfuns)...)
+      for j in eachindex(divfuns)
+          storage[:, j, counting] = divfuns[j](eco, q)[:diversity][1]
+      end
     end
   end
   storage
@@ -139,12 +141,14 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   time_seq = 0s:timestep:times
   counting = 0
   for i in 1:length(time_seq)
-    update!(eco, timestep);
-    runscenario!(eco, timestep, scenario, time_seq[i]);
-    if any(time_seq[i].==record_seq)
-      counting = counting + 1
-      storage[:, :, counting] = hcat(map(x-> x(eco, q)[:diversity], divfuns)...)
-    end
+      update!(eco, timestep);
+      runscenario!(eco, timestep, scenario, time_seq[i]);
+      if any(time_seq[i].==record_seq)
+          counting = counting + 1
+          for j in eachindex(divfuns)
+              storage[:, j, counting] = divfuns[j](eco, q)[:diversity][1]
+          end
+      end
   end
   storage
 end
