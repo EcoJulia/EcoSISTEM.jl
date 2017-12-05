@@ -57,3 +57,6 @@ function equalpop(params::EqualPop, numspp)
   PopGrowth{typeof(u)}(repmat([params.birth], numspp), repmat([params.death], numspp),
   params.l, params.s, params.boost)
 end
+function equalpop(params::PopGrowth, numspp)
+  return params
+end
