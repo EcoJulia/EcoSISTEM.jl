@@ -9,9 +9,6 @@ export jnorm, jexp, jpois, jbinom, junif, jdir, jmulti
 include("Phylo.jl")
 export jtree, jcoal, assign_traits!, get_traits
 
-include("Envtypes.jl")
-export Temp
-
 include("TraitRelationship.jl")
 export TraitRelationship,multiplicativeTR2, multiplicativeTR3, Gauss,
 Match, NoRelContinuous, NoRelDiscrete
@@ -43,7 +40,7 @@ include("Landscape.jl")
 export GridLandscape
 
 include("Ecosystem.jl")
-export Ecosystem, getsize, getenvtype, gethabitat, gettraitrel, getgridsize,
+export Ecosystem, getsize, gethabitat, gettraitrel, getgridsize,
  getdispersaldist, getdispersalvar, resetrate!
 
 include("Traitfuns.jl")
@@ -55,7 +52,7 @@ export getchangefun, TempChange
 include("Scenarios.jl")
 export SimpleScenario, RandHabitatLoss!, ClustHabitatLoss!, DisturbanceScenario,
 HabitatDisturbance!, UniformDecline, ProportionalDecline, LargeDecline, RareDecline,
-CommonDecline, HabitatReplacement
+CommonDecline, HabitatReplacement, Invasive
 
 include("Generate.jl")
 export populate!, repopulate!,reenergise!, randomniches, update!, update_birth_move!,
