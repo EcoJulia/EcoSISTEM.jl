@@ -138,7 +138,8 @@ function calc_lookup_moves(x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun:
   lookup.pnew[valid] = lookup.p[valid]
   lookup.pnew ./= sum(lookup.pnew)
   multinom = Multinomial(abun, lookup.pnew)
-  lookup.moves = rand(multinom)
+  draw = rand(multinom)
+  lookup.moves .= draw
 end
 """
     move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Int64, 2})
