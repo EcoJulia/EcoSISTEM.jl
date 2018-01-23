@@ -24,11 +24,18 @@ load(Dagger.chunk,
 
 using Images
 using RCall
-@rlibrary("raster")
-R"
-img = raster('~/Documents/PhD/Data/Worldclim/wc2.0_30s_tmin/wc2.0_30s_tmin_01.tif')
-"
-@rget img
+using Dagger
+
+R"library(raster)"
+file = "~/Documents/PhD/Data/Worldclim/wc2.0_5m_bio/wc2.0_bio_5m_01.tif"
+img = rcall(:raster, file)
+data = rcall(:getValues, img)
+jdata = reshape(rcopy(data), 2160, 4320)
+Dagger.save()
+
+
+
+@rget vals
 
 img =
 Images.load("/Users/claireh/Documents/PhD/Data/Worldclim/wc2.0_30s_tmin/wc2.0_30s_tmin_01.tif")
