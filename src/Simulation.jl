@@ -1,8 +1,5 @@
 module Simulation
 
-include("Units.jl")
-export day, week, month, year, Rates
-
 include("Dist.jl")
 export jnorm, jexp, jpois, jbinom, junif, jdir, jmulti
 
