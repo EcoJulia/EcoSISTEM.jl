@@ -36,18 +36,19 @@ function read(f, filename)
     end
 end
 
-dir = "/Users/claireh/Documents/PhD/Data/Worldclim/wc2.0_5m/"
-folders = searchdir(dir, "wc2.0_5m")
-function extractfolders(dir::String, folders::Array{String, 1})
-    extract = map(folders) do folder
-        extractfolder(joinpath(dir, folder))
-    end
-end
-
 function extractfolder(dir::String)
     files = map(searchdir(dir, ".tif")) do files
         joinpath(dir, files)
     end
+    txy = [Float32, Int32(1), Int32(1)];
+
+    read(files[1]) do dataset
+        txy[1] = AG.getdatatype(AG.getband(dataset, 1))
+        txy[2] = AG.width(AG.getband(dataset, 1))
+        txy[3] = AG.height(AG.getband(dataset, 1))
+        print(dataset)
+    end
+
     numfiles = length(files)
     b = Array{txy[1], 3}(Int64(txy[2]), Int64(txy[3]), numfiles);
     map(eachindex(files)) do count
@@ -78,18 +79,20 @@ function extractfolder(dir::String)
     world
 end
 
-files = extractfolders(dir, folders)
+function extractfolders(dir::String, folders::Array{String, 1})
+    extract = map(folders) do folder
+        extractfolder(joinpath(dir, folder))
+    end
+end
 
-txy = [Float32, Int32(1), Int32(1)];
+dir = "/Users/claireh/Documents/PhD/Data/Worldclim/wc2.0_5m/"
+folders = searchdir(dir, "wc2.0_5m")
+datasets = extractfolders(dir, folders)
+
 #files = map(searchdir(folder, ".tif")) do files
 #    string(folder,files)
 #end
-read(files[1]) do dataset
-    txy[1] = AG.getdatatype(AG.getband(dataset, 1))
-    txy[2] = AG.width(AG.getband(dataset, 1))
-    txy[3] = AG.height(AG.getband(dataset, 1))
-    print(dataset)
-end
+
 b = Array{txy[1], 3}(Int64(txy[2]), Int64(txy[3]), 12);
 map(eachindex(files)) do count
 a = Array{txy[1], 2}(txy[2], txy[3]);
