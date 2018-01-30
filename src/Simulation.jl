@@ -36,32 +36,32 @@ export SpeciesList
 include("Landscape.jl")
 export GridLandscape
 
-include("Ecosystem.jl")
-export Ecosystem, getsize, gethabitat, gettraitrel, getgridsize,
- getdispersaldist, getdispersalvar, resetrate!
+#include("Ecosystem.jl")
+#export Ecosystem, getsize, gethabitat, gettraitrel, getgridsize,
+# getdispersaldist, getdispersalvar, resetrate!
 
-include("Traitfuns.jl")
-export TraitFun, getpref, gettraitrel, gethabitat
+#include("Traitfuns.jl")
+#export TraitFun, getpref, gettraitrel, gethabitat
 
-include("HabitatUpdate.jl")
-export getchangefun, TempChange
+#include("HabitatUpdate.jl")
+#export getchangefun, TempChange
 
-include("Scenarios.jl")
-export SimpleScenario, RandHabitatLoss!, ClustHabitatLoss!, DisturbanceScenario,
-HabitatDisturbance!, UniformDecline, ProportionalDecline, LargeDecline, RareDecline,
-CommonDecline, HabitatReplacement, Invasive
+#include("Scenarios.jl")
+#export SimpleScenario, RandHabitatLoss!, ClustHabitatLoss!, DisturbanceScenario,
+#HabitatDisturbance!, UniformDecline, ProportionalDecline, LargeDecline, RareDecline,
+#CommonDecline, HabitatReplacement, Invasive
 
-include("Generate.jl")
-export populate!, repopulate!,reenergise!, randomniches, update!, update_birth_move!,
- convert_coords, get_neighbours
+#include("Generate.jl")
+#export populate!, repopulate!,reenergise!, randomniches, update!, update_birth_move!,
+ #convert_coords, get_neighbours
 
-include("Helper.jl")
-export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
+#include("Helper.jl")
+#export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
 
-include("plotting.jl")
-export plot_move, plot_abun,plot_mean,plot_diversity, plot_divergence, freq_hist, plotdiv
+#include("plotting.jl")
+#export plot_move, plot_abun,plot_mean,plot_diversity, plot_divergence, freq_hist, plotdiv
 
-include("AdditionalDiversity.jl")
-export meta_simpson, meta_shannon, meta_speciesrichness
+#include("AdditionalDiversity.jl")
+#export meta_simpson, meta_shannon, meta_speciesrichness
 
 end

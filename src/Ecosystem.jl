@@ -74,9 +74,10 @@ as well as properties such as trait information, `spplist`, and movement types,
 and available resources,`abenv`. Finally, there is a slot for the relationship
 between the environment and the characteristics of the species, `relationship`.
 """
-mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-    TR <: AbstractTraitRelationship} <:
-   AbstractMetacommunity{Float64, Matrix{Float64}, SL, Part}
+mutable struct Ecosystem{Part <: AbstractAbiotic{H, B}, SL <: SpeciesList,
+    TR <: AbstractTraitRelationship{T}} <:
+   AbstractMetacommunity{Float64, Matrix{Float64}, SL, Part} where {T <: Any,
+   H <: AbstractHabitat, B <: AbstractBudget}
   abundances::GridLandscape
   spplist::SL
   abenv::Part
@@ -96,6 +97,9 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
     #  error("Dimension mismatch")
     new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
   end
+end
+mutable struct test{A, B} where {A <: Float64, B <: Int64}
+    mat::Array{A, B}
 end
 """
     Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
