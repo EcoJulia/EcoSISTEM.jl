@@ -2,6 +2,7 @@ using Diversity
 using Cubature
 using DataFrames
 using Unitful
+using myunitful
 
 """
     Lookup

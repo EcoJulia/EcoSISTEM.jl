@@ -1,6 +1,7 @@
 using Unitful
 using Unitful.DefaultSymbols
 using Diversity
+using myunitful
 """
     simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
          timestep::Unitful.Time)

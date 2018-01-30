@@ -1,6 +1,7 @@
 
 using Unitful
 using Unitful.DefaultSymbols
+using myunitful
 
 """
     AbstractScenario

@@ -2,6 +2,7 @@ using Diversity
 importall Diversity.API
 using Unitful
 using Unitful.DefaultSymbols
+using myunitful
 
 """
     AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
