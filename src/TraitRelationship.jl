@@ -193,3 +193,6 @@ depending on whether multiplicative, additive etc.
 function combineTR(tr::Union{multiplicativeTR2, multiplicativeTR3})
     return *
 end
+function combineTR(tr::Union{additiveTR2, additiveTR3})
+    return +
+end
