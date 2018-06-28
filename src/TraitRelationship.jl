@@ -29,6 +29,40 @@ function eltype{TR}(tr::Gauss{TR})
     return TR
 end
 """
+    Trapeze{TR} <: AbstractTraitRelationship{TR}
+
+The relationship between a continuous trait and its environment,
+paramaterised on any TR.
+
+"""
+mutable struct Trapeze{TR} <: AbstractTraitRelationship{TR}
+end
+
+function (::Trapeze{TR})(dist::Trapezoid, current::TR) where TR
+    return pdf(dist, ustrip(current))
+end
+iscontinuous(tr::Trapeze{TR}) where TR = true
+function eltype{TR}(tr::Trapeze{TR})
+    return TR
+end
+"""
+    Trapeze{TR} <: AbstractTraitRelationship{TR}
+
+The relationship between a continuous trait and its environment,
+paramaterised on any TR.
+
+"""
+mutable struct Unif{TR} <: AbstractTraitRelationship{TR}
+end
+
+function (::Unif{TR})(dist::Uniform, current::TR) where TR
+    return pdf(dist, uconvert(NoUnits, current/mm))
+end
+iscontinuous(tr::Unif{TR}) where TR = true
+function eltype{TR}(tr::Unif{TR})
+    return TR
+end
+"""
     Match{TR} <: AbstractTraitRelationship{TR}
 
 The relationship between a discrete trait and its environment,
