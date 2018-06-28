@@ -6,6 +6,24 @@ end
 
 function NoChange(eco::Ecosystem, hab::AbstractHabitat, timestep::Unitful.Time)
 end
+function eraChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
+    last = size(hab.matrix, 3)
+    monthstep = convert(typeof(1.0month), timestep)
+    hab.time = hab.time + round(Int64,ustrip(monthstep))
+    if hab.time > last
+        hab.time = 1
+        warn("More timesteps than available, have repeated")
+    end
+end
+function worldclimChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
+    last = size(hab.matrix, 3)
+    monthstep = convert(typeof(1.0month), timestep)
+    hab.time = hab.time + round(Int64,ustrip(monthstep))
+    if hab.time > last
+        hab.time = 1
+        warn("More timesteps than available, have repeated")
+    end
+end
 
 function HabitatLoss(eco::Ecosystem, hab::AbstractHabitat, timestep::Unitful.Time)
     val = hab.change.rate
