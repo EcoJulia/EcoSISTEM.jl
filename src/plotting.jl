@@ -154,12 +154,12 @@ function plot_reps(abun::Array{Int64, 4}, numSpecies::Int64,
     }"
 end
 function plot_mean(abun::Array{Int64, 4},numSpecies::Int64, grid::Tuple{Int64, Int64})
-    meanabun = reshape(mapslices(mean, abun, [3,4])[:,:, 1,1], (numSpecies, grid[1], grid[2]))
+    meanabun = reshape(mapslices(mean, abun, [1,3,4])[1,:, 1,1], (numSpecies, grid[1], grid[2]))
     grid = collect(grid)
     @rput meanabun; @rput grid
     R"par(mfrow=c(1,1))
     library(viridis); library(fields)
-    image.plot(1:grid[1], 1:grid[2],t(meanabun[2,,]), col=magma(50), xlab='',
+    image.plot(1:grid[1], 1:grid[2], t(meanabun[1,,]), col=magma(50), xlab='',
     ylab='')"
 end
 
