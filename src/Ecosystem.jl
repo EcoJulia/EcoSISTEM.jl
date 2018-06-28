@@ -4,6 +4,7 @@ using DataFrames
 using Unitful
 using myunitful
 
+import Diversity: _calcabundance
 """
     Lookup
 
@@ -74,10 +75,9 @@ as well as properties such as trait information, `spplist`, and movement types,
 and available resources,`abenv`. Finally, there is a slot for the relationship
 between the environment and the characteristics of the species, `relationship`.
 """
-mutable struct Ecosystem{Part <: AbstractAbiotic{H, B}, SL <: SpeciesList,
-    TR <: AbstractTraitRelationship{T}} <:
-   AbstractMetacommunity{Float64, Matrix{Float64}, SL, Part} where {T <: Any,
-   H <: AbstractHabitat, B <: AbstractBudget}
+mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+    TR <: AbstractTraitRelationship} <:
+   AbstractMetacommunity{Float64, Matrix{Int64}, Matrix{Float64}, SL, Part}
   abundances::GridLandscape
   spplist::SL
   abenv::Part
@@ -98,9 +98,6 @@ mutable struct Ecosystem{Part <: AbstractAbiotic{H, B}, SL <: SpeciesList,
     new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
   end
 end
-mutable struct test{A, B} where {A <: Float64, B <: Int64}
-    mat::Array{A, B}
-end
 """
     Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
         rel::AbstractTraitRelationship)
@@ -112,8 +109,8 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
 
   # Check there is enough energy to support number of individuals at set up
-  sum(spplist.abun .* spplist.requirement.energy) <= sum(abenv.budget.matrix) ||
-  error("Environment does not have enough energy to support species")
+  sum(spplist.abun .* spplist.requirement.energy) <= sum(abenv.budget.matrix[.!isnan.(abenv.budget.matrix)]) ||
+    error("Environment does not have enough energy to support species")
   # Create matrix landscape of zero abundances
   ml = emptygridlandscape(abenv, spplist)
   # Populate this matrix with species abundances
@@ -127,7 +124,7 @@ end
 
 function _getabundance(eco::Ecosystem, input::Bool)
   relab = eco.abundances.matrix / sum(eco.abundances.matrix)
-    return input ? relab : calcabundance(eco.spplist, relab)
+    return input ? relab : _calcabundance(eco.spplist, relab)
 end
 
 function _getmetaabundance(eco::Ecosystem)
