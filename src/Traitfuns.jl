@@ -18,13 +18,24 @@ function _traitfun(hab::AbstractHabitat, trts::AbstractTraits,
     end
     combineTR(rel)(results)
 end
-function _traitfun(hab::ContinuousHab, trts::ContinuousTrait,
+function _traitfun(hab::ContinuousHab, trts::GaussTrait,
     rel::AbstractTraitRelationship, pos::Int64, spp::Int64, cont::Bool)
         h = gethabitat(hab, pos)
         mean, var = getpref(trts, spp)
     return rel(h, mean, var)
 end
-
+function _traitfun(hab::ContinuousTimeHab, trts::TempBin,
+    rel::AbstractTraitRelationship, pos::Int64, spp::Int64, cont::Bool)
+        h = gethabitat(hab, pos)
+        (a, b, c, d) = getpref(trts, spp)
+    return rel(Trapezoid(a, b, c, d), h)
+end
+function _traitfun(hab::ContinuousTimeHab, trts::RainBin,
+    rel::AbstractTraitRelationship, pos::Int64, spp::Int64, cont::Bool)
+        h = gethabitat(hab, pos)
+        (a, b) = getpref(trts, spp)
+    return rel(Uniform(a, b), h)
+end
 function _traitfun(hab::DiscreteHab, trts::DiscreteTrait,
     rel::AbstractTraitRelationship, pos::Int64, spp::Int64, cont::Bool)
         currentniche = gethabitat(hab, pos)
@@ -52,10 +63,15 @@ end
 #function TraitFun(env::Type{ContinuousHab{None}}, eco::Ecosystem, pos::Int64, spp::Int64)
 #  return 1.0
 #end
-function getpref(traits::ContinuousTrait, spp::Int64)
+function getpref(traits::GaussTrait, spp::Int64)
   return traits.mean[spp], traits.var[spp]
 end
-
+function getpref(traits::TempBin, spp::Int64)
+  return traits.dist[:, spp]
+end
+function getpref(traits::RainBin, spp::Int64)
+  return traits.dist[:, spp]
+end
 function getpref(traits::DiscreteTrait, spp::Int64)
   return traits.val[spp]
 end
