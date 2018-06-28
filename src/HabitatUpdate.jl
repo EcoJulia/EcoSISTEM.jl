@@ -36,7 +36,7 @@ end
 function habitatupdate!(eco::Ecosystem, timestep::Unitful.Time)
   _habitatupdate!(eco, eco.abenv.habitat, timestep)
 end
-function _habitatupdate!(eco::Ecosystem, hab::Union{DiscreteHab, ContinuousHab}, timestep::Unitful.Time)
+function _habitatupdate!(eco::Ecosystem, hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, timestep::Unitful.Time)
     hab.change.changefun(eco, hab, timestep)
 end
 function _habitatupdate!(eco::Ecosystem, hab::Union{HabitatCollection2, HabitatCollection3}, timestep::Unitful.Time)
@@ -44,5 +44,22 @@ function _habitatupdate!(eco::Ecosystem, hab::Union{HabitatCollection2, HabitatC
     results = map(length(habnames)) do h
         thishab = gethabitat(hab, habnames[h])
         _habitatupdate!(eco, thishab, timestep::Unitful.Time)
+    end
+end
+
+function budgetupdate!(eco::Ecosystem, timestep::Unitful.Time)
+    _budgetupdate!(eco, eco.abenv.budget, timestep)
+end
+function _budgetupdate!(eco::Ecosystem, budget::SimpleBudget, timestep::Unitful.Time)
+    return budget
+end
+function _budgetupdate!(eco::Ecosystem, budget::SolarBudget, timestep::Unitful.Time)
+    lastE = size(budget.matrix, 3)
+    monthstep = convert(typeof(1.0month), timestep)
+    eco.abenv.budget.time = eco.abenv.budget.time +
+    round(Int64,ustrip(monthstep))
+    if eco.abenv.budget.time > lastE
+        eco.abenv.budget.time = 1
+        warn("More timesteps than available, have repeated")
     end
 end
