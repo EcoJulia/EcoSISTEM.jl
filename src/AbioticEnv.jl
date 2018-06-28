@@ -3,6 +3,7 @@ importall Diversity.API
 using Unitful
 using Unitful.DefaultSymbols
 using myunitful
+using ClimatePref
 
 """
     AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
@@ -115,6 +116,43 @@ function tempgradAE(min::Unitful.Temperature{Float64},
   active = Array{Bool,2}(dimension)
   fill!(active, true)
   tempgradAE(min, max, dimension, maxbud, area, rate, active)
+ end
+
+ function eraAE(era::ERA, maxbud::Float64)
+    dimension = size(era.array, 1,2)
+    gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
+
+    active = Array{Bool, 2}(dimension)
+    fill!(active, true)
+    active[isnan.(era.array[:,:,1])] = false
+
+    hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
+        HabitatUpdate{Unitful.Dimension{()}}(eraChange, 0.0/s))
+    bud = zeros(dimension)
+    fill!(bud, maxbud/(dimension[1]*dimension[2]))
+
+     return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, active, SimpleBudget(bud))
+ end
+ function eraAE(era::ERA, maxbud::Float64, active::Array{Bool, 2})
+    dimension = size(era.array, 1,2)
+    gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
+    gridsquaresize = ustrip.(gridsquaresize) * 111.32km
+    hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
+        HabitatUpdate{Unitful.Dimension{()}}(eraChange, 0.0/s))
+    bud = zeros(dimension)
+    fill!(bud, maxbud/(dimension[1]*dimension[2]))
+
+     return GridAbioticEnv{typeof(hab), SimpleBudget}(hab, active, SimpleBudget(bud))
+ end
+ import Simulation.eraAE
+ function eraAE(era::ERA, bud::SolarBudget, active::Array{Bool, 2})
+    dimension = size(era.array, 1,2)
+    gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
+    gridsquaresize = ustrip.(gridsquaresize) * 111.32km
+    hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
+        HabitatUpdate{Unitful.Dimension{()}}(eraChange, 0.0/s))
+
+     return GridAbioticEnv{typeof(hab), SolarBudget}(hab, active, bud)
  end
  """
      simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
