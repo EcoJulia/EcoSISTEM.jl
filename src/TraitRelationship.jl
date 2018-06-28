@@ -126,6 +126,8 @@ mutable struct multiplicativeTR2{TR1, TR2} <: AbstractTraitRelationship{Tuple{TR
   tr1::TR1
   tr2::TR2
 end
+iscontinuous(tr::multiplicativeTR2{TR1, TR2} ) where {TR1, TR2} =
+    [iscontinuous(tr.tr1), iscontinuous(tr.tr2)]
 function eltype(mtr::multiplicativeTR2)
     return [eltype(mtr.tr1), eltype(mtr.tr2)]
 end
@@ -144,6 +146,41 @@ mutable struct multiplicativeTR3{TR1, TR2, TR3} <:
 end
 
 function eltype(mtr::multiplicativeTR3)
+    return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
+end
+
+"""
+    additiveTR2{TR1, TR2} <: AbstractTraitRelationship{Tuple{TR1, TR2}}
+
+Type that houses multiple AbstractTraitRelationships for two trait and
+habitat levels.
+
+"""
+mutable struct additiveTR2{TR1, TR2} <: AbstractTraitRelationship{Tuple{TR1, TR2}}
+  tr1::TR1
+  tr2::TR2
+end
+iscontinuous(tr::additiveTR2{TR1, TR2} ) where {TR1, TR2} =
+    [iscontinuous(tr.tr1), iscontinuous(tr.tr2)]
+function eltype(mtr::additiveTR2)
+    return [eltype(mtr.tr1), eltype(mtr.tr2)]
+end
+"""
+    multiplicativeTR3{TR1, TR2, TR3} <: AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
+
+Type that houses multiple AbstractTraitRelationships for three trait and
+habitat levels.
+
+"""
+mutable struct additiveTR3{TR1, TR2, TR3} <:
+    AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
+  tr1::TR1
+  tr2::TR2
+  tr3::TR3
+end
+iscontinuous(tr::additiveTR3{TR1, TR2, TR3} ) where {TR1, TR2, TR3} =
+    [iscontinuous(tr.tr1), iscontinuous(tr.tr2), iscontinuous(tr.tr3)]
+function eltype(mtr::additiveTR3)
     return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
 end
 """
