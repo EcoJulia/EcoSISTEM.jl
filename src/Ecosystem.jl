@@ -161,6 +161,14 @@ Function to extract habitat from Ecosystem object.
 function gethabitat(eco::Ecosystem)
   return eco.abenv.habitat
 end
+"""
+    getbudget(eco::Ecosystem)
+
+Function to extract budget from Ecosystem object.
+"""
+function getbudget(eco::Ecosystem)
+    return _getbudget(eco.abenv.budget)
+end
 
 """
     getsize(eco::Ecosystem)
