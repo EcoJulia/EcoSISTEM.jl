@@ -98,6 +98,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     eco.cache.netmigration .= 0
     # Update environment
     habitatupdate!(eco, timestep)
+    budgetupdate!(eco, timestep)
 end
 
 
