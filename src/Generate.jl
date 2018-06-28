@@ -56,12 +56,12 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
           width = getdimension(eco)[1]
           (x, y) = convert_coords(i, width)
           if (eco.abenv.active[x, y] && sum(eco.abundances.matrix[:, i])!=0)
-              K = eco.abenv.budget.matrix[x, y]
+              K = ustrip.(getbudget(eco)[x, y])
               # Get abundances of square we are interested in
               currentabun = eco.abundances.matrix[:, i]
 
               # Get energy budgets of species in square
-              ϵ̄ = eco.spplist.requirement.energy
+              ϵ̄ = ustrip.(eco.spplist.requirement.energy)
               E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
               # Traits
               ϵ̄real = copy(ϵ̄)
