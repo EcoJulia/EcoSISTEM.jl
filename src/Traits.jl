@@ -36,20 +36,37 @@ iscontinuous(trait::DiscreteTrait) = false
 function eltype{D}(trait::DiscreteTrait{D})
     return D
 end
-mutable struct ContinuousTrait{C <: Number} <: AbstractTraits{C}
+abstract type ContinuousTrait{C <: Number} <: AbstractTraits{C}
+end
+mutable struct GaussTrait{C <: Number} <: ContinuousTrait{C}
   mean::Array{C, 1}
   var::Array{C, 1}
 end
-iscontinuous(trait::ContinuousTrait) = true
-function eltype{C}(trait::ContinuousTrait{C})
+iscontinuous(trait::Gauss{C}) where C = true
+function eltype{C}(trait::GaussTrait{C})
     return C
+end
+mutable struct TempBin{C <: Int}<: ContinuousTrait{C}
+  dist::Array{C, 2}
+end
+iscontinuous(trait::TempBin{C}) where C = true
+function eltype{C}(trait::TempBin{C})
+    return typeof(1.0°C)
+end
+mutable struct RainBin{C <: Int} <: ContinuousTrait{C}
+  dist::Array{C, 2}
+end
+iscontinuous(trait::RainBin{C}) where C = true
+function eltype{C}(trait::ContinuousTrait{C})
+    return typeof(1.0mm)
 end
 
 mutable struct TraitCollection2{T1, T2} <: AbstractTraits{Tuple{T1, T2}}
     t1::T1
     t2::T2
 end
-iscontinuous(trait::TraitCollection2) = [iscontinuous(trait.t1), iscontinuous(trait.t2)]
+iscontinuous(trait::TraitCollection2{T1, T2}) where {T1, T2} =
+    [iscontinuous(trait.t1), iscontinuous(trait.t2)]
 function eltype(trait::TraitCollection2)
     return [eltype(trait.t1), eltype(trait.t2)]
 end
