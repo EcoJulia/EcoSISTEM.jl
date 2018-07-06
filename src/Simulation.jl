@@ -16,7 +16,8 @@ export ContinuousHab,ContinuousTimeHab, DiscreteHab, HabitatCollection2, Habitat
  tempgrad
 
 include("Energy.jl")
-export SimpleRequirement, SolarRequirement, SimpleBudget, SolarBudget
+export SimpleRequirement, SolarRequirement, WaterRequirement, SimpleBudget, SolarBudget,
+    WaterBudget, ReqCollection2, BudgetCollection2
 
 include("AbioticEnv.jl")
 export GridAbioticEnv, simplenicheAE, tempgradAE, simplehabitatAE, degradedhabitatAE,
@@ -26,7 +27,7 @@ include("Movement.jl")
 export GaussianKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel
 
 include("Traits.jl")
-export ContinuousTrait, DiscreteTrait, TempBin,RainBin, TraitCollection2, TraitCollection3,
+export GaussTrait, DiscreteTrait, TempBin,RainBin, TraitCollection2, TraitCollection3,
 DiscreteEvolve, ContinuousEvolve
 
 include("Demographics.jl")
