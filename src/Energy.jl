@@ -1,5 +1,5 @@
 import Base.eltype
-
+import Base.length
 """
     AbstractRequirement{Energy}
 
@@ -20,13 +20,43 @@ A simple energy requirement is a single float for each species.
 mutable struct SimpleRequirement <: AbstractRequirement{Float64}
   energy::Vector{Float64}
 end
+length(req::SimpleRequirement) = length(req.energy)
+function _getenergyusage(abun::Vector{Int64}, req::SimpleRequirement)
+    sum(abun .* req.energy)
+end
 """
     SolarRequirement <: AbstractRequirement{typeof(1.0*day^-1*kJ*m^-2)}
 
-A simple energy requirement is a single float for each species.
 """
 mutable struct SolarRequirement <: AbstractRequirement{typeof(1.0*day^-1*kJ*m^-2)}
   energy::Vector{typeof(1.0*day^-1*kJ*m^-2)}
+end
+length(req::SolarRequirement) = length(req.energy)
+function _getenergyusage(abun::Vector{Int64}, req::SolarRequirement)
+    sum(abun .* req.energy)
+end
+"""
+    WaterRequirement <: AbstractRequirement{typeof(1.0*mm)}
+
+"""
+mutable struct WaterRequirement <: AbstractRequirement{typeof(1.0*mm)}
+  energy::Vector{typeof(1.0*mm)}
+end
+length(req::WaterRequirement) = length(req.energy)
+function _getenergyusage(abun::Vector{Int64}, req::WaterRequirement)
+    sum(abun .* req.energy)
+end
+
+mutable struct ReqCollection2{R1, R2} <: AbstractRequirement{Tuple{R1, R2}}
+    r1::R1
+    r2::R2
+end
+length(req::ReqCollection2) = length(req.r1.energy)
+function eltype(req::ReqCollection2)
+    return [eltype(req.r1), eltype(req.r2)]
+end
+function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
+    [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2)]
 end
 
 """

@@ -106,7 +106,7 @@ function SpeciesList{R <: AbstractRequirement,
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
     length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
                                           doesn't match number species"))
-    length(req.energy)==numspecies || throw(DimensionMismatch("Requirement vector
+    length(req)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
   SpeciesList{typeof(sp_trt), typeof(req),
               typeof(movement), typeof(phy), typeof(params)}(names, sp_trt, abun,
@@ -144,7 +144,7 @@ function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
     length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
                                           doesn't match number species"))
-    length(req.energy)==numspecies || throw(DimensionMismatch("Requirement vector
+    length(req)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
   SpeciesList{typeof(sp_trt), typeof(req),
               typeof(movement), typeof(phy), typeof(params)}(names, sp_trt, abun,
@@ -169,14 +169,16 @@ function SpeciesList{TR<: AbstractTraits, R <: AbstractRequirement,
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
     length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
                                           doesn't match number species"))
-    length(req.energy)==numspecies || throw(DimensionMismatch("Requirement vector
+    length(req)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
   SpeciesList{typeof(traits), typeof(req),
               typeof(movement), typeof(ty),typeof(params)}(names, traits, abun,
               req, ty, movement, params, native)
 end
 
-
+function getenergyusage(sppl::SpeciesList)
+    return _getenergyusage(sppl.abun, sppl.requirement)
+end
 
 
 function _simmatch(sim::SpeciesList)
