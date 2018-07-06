@@ -63,3 +63,26 @@ function _budgetupdate!(eco::Ecosystem, budget::SolarBudget, timestep::Unitful.T
         warn("More timesteps than available, have repeated")
     end
 end
+function _budgetupdate!(eco::Ecosystem, budget::WaterBudget, timestep::Unitful.Time)
+    lastE = size(budget.matrix, 3)
+    monthstep = convert(typeof(1.0month), timestep)
+    eco.abenv.budget.time = eco.abenv.budget.time +
+    round(Int64,ustrip(monthstep))
+    if eco.abenv.budget.time > lastE
+        eco.abenv.budget.time = 1
+        warn("More timesteps than available, have repeated")
+    end
+end
+function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2, timestep::Unitful.Time)
+    for i in fieldnames(budget)
+        bud = getfield(budget, i)
+        lastE = size(bud.matrix, 3)
+        monthstep = convert(typeof(1.0month), timestep)
+        getfield(eco.abenv.budget, i).time = getfield(eco.abenv.budget, i).time +
+        round(Int64,ustrip(monthstep))
+        if getfield(eco.abenv.budget, i).time > lastE
+            getfield(eco.abenv.budget, i).time = 1
+            warn("More timesteps than available, have repeated")
+        end
+    end
+end
