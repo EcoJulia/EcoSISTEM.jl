@@ -77,6 +77,10 @@ end
 function _getsubcommunitynames(gae::GridAbioticEnv)
     return gae.names
 end
+
+function getavailableenergy(gae::GridAbioticEnv)
+    return _getavailableenergy(gae.budget)
+end
 """
     tempgradAE(min::Unitful.Temperature{Float64},
       max::Unitful.Temperature{Float64},
