@@ -56,28 +56,15 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
           width = getdimension(eco)[1]
           (x, y) = convert_coords(i, width)
           if (eco.abenv.active[x, y] && sum(eco.abundances.matrix[:, i])!=0)
-              K = ustrip.(getbudget(eco)[x, y])
-              # Get abundances of square we are interested in
+             birth_energy, death_energy = energy(eco, eco.abenv.budget, i,
+              spp)
               currentabun = eco.abundances.matrix[:, i]
-
-              # Get energy budgets of species in square
-              ϵ̄ = ustrip.(eco.spplist.requirement.energy)
-              E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
-              # Traits
-              ϵ̄real = copy(ϵ̄)
-              for k in 1:spp
-                ϵ̄real[k] = ϵ̄[k]/traitfun(eco, i, k)
-              end
               # Loop through species in chosen square
               for j in 1:spp
 
-                # Alter rates by energy available in current pop & own requirements
-                birth_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^-params.s * min(K/E, params.boost)
-                death_energy = ϵ̄[j]^-params.l * ϵ̄real[j]^params.s * (E / K)
-
                 # Calculate effective rates
-                birthprob = params.birth[j] * timestep * birth_energy
-                deathprob = params.death[j] * timestep * death_energy
+                birthprob = params.birth[j] * timestep * birth_energy[j]
+                deathprob = params.death[j] * timestep * death_energy[j]
 
                 # Put probabilities into 0 - 1
                 newbirthprob = 1.0 - exp(-birthprob)
@@ -99,6 +86,58 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     # Update environment
     habitatupdate!(eco, timestep)
     budgetupdate!(eco, timestep)
+end
+
+function energy(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::Int64)
+    width = getdimension(eco)[1]
+    (x, y) = convert_coords(i, width)
+    params = eco.spplist.params
+    K = ustrip.(getbudget(eco)[x, y])
+    # Get abundances of square we are interested in
+    currentabun = eco.abundances.matrix[:, i]
+
+    # Get energy budgets of species in square
+    ϵ̄ = ustrip.(eco.spplist.requirement.energy)
+    E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
+    # Traits
+    ϵ̄real = copy(ϵ̄)
+    birth_energy = Vector{Float64}(spp); death_energy = Vector{Float64}(spp)
+    for k in 1:spp
+      ϵ̄real[k] = ϵ̄[k]/traitfun(eco, i, k)
+      # Alter rates by energy available in current pop & own requirements
+      birth_energy[k] = ϵ̄[k]^-params.l * ϵ̄real[k]^-params.s * min(K/E, params.boost)
+      death_energy[k] = ϵ̄[k]^-params.l * ϵ̄real[k]^params.s * (E / K)
+    end
+    return birth_energy, death_energy
+end
+function energy(eco::Ecosystem, bud::BudgetCollection2, i::Int64, spp::Int64)
+     width = getdimension(eco)[1]
+     (x, y) = convert_coords(i, width)
+     params = eco.spplist.params
+    K1 = ustrip.(_getbudget(eco.abenv.budget, :b1)[x, y])
+    K2 = ustrip.(_getbudget(eco.abenv.budget, :b2)[x, y])
+    # Get abundances of square we are interested in
+    currentabun = eco.abundances.matrix[:, i]
+
+    # Get energy budgets of species in square
+    ϵ̄1 = ustrip.(eco.spplist.requirement.r1.energy)
+    E1 = sum(convert(Vector{Float64}, currentabun) .* ϵ̄1)
+    ϵ̄2 = ustrip.(eco.spplist.requirement.r2.energy)
+    E2 = sum(convert(Vector{Float64}, currentabun) .* ϵ̄2)
+    # Traits
+    ϵ̄real1 = copy(ϵ̄1)
+    ϵ̄real2 = copy(ϵ̄2)
+    birth_energy = Vector{Float64}(spp); death_energy = Vector{Float64}(spp)
+    for k in 1:spp
+      ϵ̄real1[k] = ϵ̄1[k]/traitfun(eco, i, k)
+      ϵ̄real2[k] = ϵ̄2[k]/traitfun(eco, i, k)
+      # Alter rates by energy available in current pop & own requirements
+      birth_energy[k] = (ϵ̄1[k]^-params.l + ϵ̄2[k]^-params.l) * (ϵ̄real1[k]^-params.s +
+         ϵ̄real2[k]^-params.s) * min(K1/E1, K2/E2, params.boost)
+      death_energy[k] = (ϵ̄1[k]^-params.l + ϵ̄2[k]^-params.l) * (ϵ̄real1[k]^params.s +
+        ϵ̄real2[k]^params.s) * max(E1 / K1, E2/K2)
+    end
+    return birth_energy, death_energy
 end
 
 
