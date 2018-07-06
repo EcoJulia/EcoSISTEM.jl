@@ -9,5 +9,5 @@ numNiches = 4
 
 @test_nowarn abenv = simplehabitatAE(0.0, grid, totalK, area)
 @test_nowarn abenv = tempgradAE(-10.0°C, 10.0°C, grid, totalK, area,
-0.01°C/month)
+    0.01°C/month)
 @test_nowarn abenv = simplenicheAE(numNiches, grid, totalK, area)

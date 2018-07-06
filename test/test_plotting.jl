@@ -33,12 +33,14 @@ movement = AlwaysMovement(kernel)
 
 opts = repmat([5.0], numSpecies)
 vars = rand(Uniform(0, 25/9), numSpecies)
-traits = ContinuousTrait(opts, vars)
+traits = GaussTrait(opts, vars)
+native = Vector{Bool}(numSpecies)
+fill!(native, true)
 abun = Multinomial(individuals, numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-movement, param)
+    movement, param, native)
 abenv = simplehabitatAE(0.0, grid, totalK, area)
-rel = TraitRelationship{eltype(abenv.habitat)}(NoRel)
+rel = NoRelContinuous{eltype(abenv.habitat)}()
 eco = Ecosystem(sppl, abenv, rel)
 
 @test_nowarn plot_move(eco, 2, 2, 1, false)
@@ -49,7 +51,7 @@ lensim = length(0.0month:interval:times)
 
 # Run simulations 10 times
 abun = generate_storage(eco, lensim, 1)
-simulate!(eco, burnin, interval, timestep)
+simulate!(eco, burnin, timestep)
 simulate_record!(abun, eco, times, interval, timestep)
 
 

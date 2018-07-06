@@ -2,6 +2,7 @@ using Simulation
 using Base.Test
 using Unitful.DefaultSymbols
 using Distributions
+using myunitful
 
 ## Run simulation over a grid and plot
 numSpecies=4
@@ -31,13 +32,15 @@ movement = AlwaysMovement(kernel)
 
 opts = repmat([5.0°C], numSpecies)
 vars = rand(Uniform(0, 25/9), numSpecies) * °C
-traits = ContinuousTrait(opts, vars)
+traits = GaussTrait(opts, vars)
 abun = Multinomial(individuals, numSpecies)
+native = Vector{Bool}(numSpecies)
+fill!(native, true)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-movement, param)
+    movement, param, native)
 abenv = tempgradAE(-10.0°C, 10.0°C, grid, totalK, area,
-0.01°C/month)
-rel = TraitRelationship{eltype(abenv.habitat)}(GaussTemp)
+    0.01°C/month)
+rel = Gauss{eltype(abenv.habitat)}()
 @test_nowarn eco = Ecosystem(sppl, abenv, rel)
 eco = Ecosystem(sppl, abenv, rel)
 @test_nowarn gettraitrel(eco)

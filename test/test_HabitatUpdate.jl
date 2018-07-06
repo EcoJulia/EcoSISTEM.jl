@@ -32,12 +32,14 @@ movement = AlwaysMovement(kernel)
 
 opts = repmat([5.0°C], numSpecies) #collect(linspace(minT, maxT, 8))
 vars = rand(Uniform(0, 25/9), numSpecies) * °C
-traits = ContinuousTrait(opts, vars)
+traits = GaussTrait(opts, vars)
 abun = Multinomial(individuals, numSpecies)
+native = Vector{Bool}(numSpecies)
+fill!(native, true)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-movement, param)
+    movement, param, native)
 abenv = tempgradAE(0.0°C, 10.0°C, grid, totalK, area, 0.0°C/month)
-rel = TraitRelationship{eltype(abenv.habitat)}(GaussTemp)
+rel = Gauss{eltype(abenv.habitat)}()
 eco = Ecosystem(sppl, abenv, rel)
 
 #plot_move(eco, 4, 4, 1, true)
@@ -46,7 +48,7 @@ function runsim(eco::Ecosystem, times::Unitful.Time)
     burnin = 1year; interval = 3month
     lensim = length(0month:interval:times)
     abun = generate_storage(eco, lensim, 1)
-    simulate!(eco, burnin, interval, timestep)
+    simulate!(eco, burnin, timestep)
     resetrate!(eco, 0.01°C/month)
     simulate_record!(abun, eco, times, interval, timestep)
 end

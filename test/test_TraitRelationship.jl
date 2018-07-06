@@ -2,9 +2,10 @@ using Simulation
 using Base.Test
 using Distributions
 using Unitful.DefaultSymbols
+using myunitful
 
-@test_nowarn rel = TraitRelationship{Unitful.Temperature}(GaussTemp)
-@test_nowarn rel = TraitRelationship{Int64}(SimpleNiche)
+@test_nowarn rel = Gauss{Unitful.Temperature}()
+@test_nowarn rel = Match{Int64}()
 
 
 numSpecies=4
@@ -33,12 +34,13 @@ individuals=100
 kernel = GaussianKernel(2.0km, numSpecies, 10e-4)
 movement = AlwaysMovement(kernel)
 abun = Multinomial(individuals, numSpecies)
-
+native = Vector{Bool}(numSpecies)
+fill!(native, true)
 # Test out discrete trait update
 sppl = SpeciesList(numSpecies, numTraits, Multinomial(individuals, numSpecies),
-                   energy_vec, movement, param)
+                   energy_vec, movement, param, native)
 abenv = simplenicheAE(numNiches, grid, totalK, area)
-rel = TraitRelationship{eltype(abenv.habitat)}(SimpleNiche)
+rel = Match{eltype(abenv.habitat)}()
 eco = Ecosystem(sppl, abenv, rel)
 @test_nowarn Simulation.update!(eco, 1.0year)
 
@@ -69,10 +71,12 @@ movement = AlwaysMovement(kernel)
 abun = Multinomial(individuals, numSpecies)
 opts = repmat([5.0°C], numSpecies)
 vars = rand(Uniform(0, 25/9), numSpecies) * °C
-traits = ContinuousTrait(opts, vars)
+traits = GaussTrait(opts, vars)
+native = Vector{Bool}(numSpecies)
+fill!(native, true)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-movement, param)
+    movement, param, native)
 abenv = tempgradAE(-10.0°C, 10.0°C, grid, totalK, area, 0.01°C/month)
-rel = TraitRelationship{eltype(abenv.habitat)}(GaussTemp)
+rel = GaussTrait{eltype(abenv.habitat)}()
 eco = Ecosystem(sppl, abenv, rel)
 @test_nowarn Simulation.update!(eco, 1.0month)
