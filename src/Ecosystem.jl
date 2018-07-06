@@ -109,7 +109,7 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
 
   # Check there is enough energy to support number of individuals at set up
-  sum(spplist.abun .* spplist.requirement.energy) <= sum(abenv.budget.matrix[.!isnan.(abenv.budget.matrix)]) ||
+  all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
     error("Environment does not have enough energy to support species")
   # Create matrix landscape of zero abundances
   ml = emptygridlandscape(abenv, spplist)
