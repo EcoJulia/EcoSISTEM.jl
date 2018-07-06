@@ -249,13 +249,13 @@ end
 Function to populate a grid landscape given the abundances found in species list
 and whether or not to include traits.
 """
-    function populate!(ml::GridLandscape, spplist::SpeciesList,
-                       abenv::AbstractAbiotic)
-      # Calculate size of habitat
-      dim = _getdimension(abenv.habitat)
-      len = dim[1] * dim[2]
-      grid = collect(1:len)
-      # Set up copy of budget
+function populate!(ml::GridLandscape, spplist::SpeciesList,
+                   abenv::AbstractAbiotic)
+  # Calculate size of habitat
+  dim = _getdimension(abenv.habitat)
+  len = dim[1] * dim[2]
+  grid = collect(1:len)
+  # Set up copy of budget
       b = reshape(copy(_getbudget(abenv.budget)), size(grid))
       units = unit(b[1])
       activity = reshape(copy(abenv.active), size(grid))
@@ -274,7 +274,38 @@ and whether or not to include traits.
           b[pos] = b[pos] .- spplist.requirement.energy[i]
         end
       end
+end
+function populate!(ml::GridLandscape, spplist::SpeciesList,
+                   abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}} where {H <:
+                    AbstractHabitat, B1 <: AbstractBudget, B2 <: AbstractBudget})
+  # Calculate size of habitat
+  dim = _getdimension(abenv.habitat)
+  len = dim[1] * dim[2]
+  grid = collect(1:len)
+  # Set up copy of budget
+      b1 = reshape(copy(_getbudget(abenv.budget, :b1)), size(grid))
+      b2 = reshape(copy(_getbudget(abenv.budget, :b2)), size(grid))
+      units1 = unit(b1[1])
+      units2 = unit(b2[1])
+      activity = reshape(copy(abenv.active), size(grid))
+      b1[.!activity] = 0.0 * units1
+      b2[.!activity] = 0.0 * units2
+      # Loop through species
+      for i in eachindex(spplist.abun)
+        # Get abundance of species
+        abun = spplist.abun[i]
+        # Loop through individuals
+          while abun>0
+            # Randomly choose position on grid (weighted)
+            pos = sample(grid[(b1 .> (0 * units1)) & (b2 .> (0 * units2))])
+          # Add individual to this location
+          ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
+          abun = abun .- 1
+          b1[pos] = b1[pos] .- spplist.requirement.r1.energy[i]
+          b2[pos] = b2[pos] .- spplist.requirement.r2.energy[i]
+      end
     end
+end
 """
     repopulate!(eco::Ecosystem)
 Function to repopulate an ecosystem `eco`, with option for including trait
