@@ -110,8 +110,9 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     update!(eco, timestep);
     if any(time_seq[i].==record_seq)
       counting = counting + 1
-      storage[:, :, counting] = reshape(divfun(eco, qs)[:diversity],
-      Int(length(divfun(eco, qs)[:diversity])/ length(qs)), length(qs))
+      diversity = divfun(eco, qs)[:diversity]
+      storage[:, :, counting] = reshape(diversity,
+      Int(length(diversity)/ length(qs)), length(qs))
     end
   end
   storage

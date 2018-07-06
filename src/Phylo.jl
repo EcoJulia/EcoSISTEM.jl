@@ -1,6 +1,7 @@
 using Phylo
 using Distributions
 using DataFrames
+import Phylo.NodeNameIterator
 
 """
     jtree(SpeciesNames::Vector{String}, T::Type = String,
@@ -185,8 +186,8 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
   check = arenoderecordsempty(tree, getnodenames(tree))
   all(check) || error("Some nodes already assigned traits")
   # Calculate all branch paths from root to tips
-  tips = NodeNameIterator(tree, isleaf)
-  root = first(NodeNameIterator(tree, isroot))
+  tips = Phylo.NodeNameIterator(tree, isleaf)
+  root = first(Phylo.NodeNameIterator(tree, isroot))
 
   paths = root_to_tips(tree)
   # Assign first node a trait randomly

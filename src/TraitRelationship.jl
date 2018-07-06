@@ -92,7 +92,7 @@ paramaterised on any TR. Returns the value 1.
 """
 mutable struct NoRelContinuous{TR} <: AbstractTraitRelationship{TR}
 end
-function (::NoRelContinuous{TR})(niche::TR, pref::TR) where TR
+function (::NoRelContinuous{TR})(habitat::TR, niche::TR, pref::TR) where TR
     return 1.0
 end
 iscontinuous(tr::NoRelContinuous{TR}) where TR = true

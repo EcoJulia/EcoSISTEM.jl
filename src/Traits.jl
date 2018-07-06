@@ -42,7 +42,7 @@ mutable struct GaussTrait{C <: Number} <: ContinuousTrait{C}
   mean::Array{C, 1}
   var::Array{C, 1}
 end
-iscontinuous(trait::Gauss{C}) where C = true
+iscontinuous(trait::GaussTrait{C}) where C = true
 function eltype{C}(trait::GaussTrait{C})
     return C
 end
