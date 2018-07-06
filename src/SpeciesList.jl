@@ -210,7 +210,7 @@ function _floattypes(::SpeciesList)
 end
 
 function _calcordinariness(sl::SpeciesList, a::AbstractArray)
-    _calcordinariness(sl.types, a)
+    _calcordinariness(sl.types, a, one(eltype(a)))
 end
 
 function _calcabundance(sl::SpeciesList, a::AbstractArray)

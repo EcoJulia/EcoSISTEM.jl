@@ -138,9 +138,10 @@ function _gettypes(eco::Ecosystem)
 end
 
 function _getordinariness!(eco::Ecosystem)
-    if isnull(eco.ordinariness)
-        eco.ordinariness = calcordinariness(eco.spplist, getabundance(eco, true))
-    end
+    #if isnull(eco.ordinariness)
+    relab = getabundance(eco, false)
+    eco.ordinariness = _calcordinariness(eco.spplist, relab)
+    #end
     get(eco.ordinariness)
 end
 
