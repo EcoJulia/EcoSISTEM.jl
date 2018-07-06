@@ -3,6 +3,8 @@ using Cubature
 using DataFrames
 using Unitful
 using myunitful
+using ClimatePref
+using JuliaDB
 
 import Diversity: _calcabundance
 """
@@ -122,9 +124,35 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
   Nullable{Matrix{Float64}}(), rel, lookup_tab, Cache(nm))
 end
 
+function Ecosystem(locations::NextTable, spplist::SpeciesList,
+    abenv::GridAbioticEnv, rel::AbstractTraitRelationship)
+
+  # Check there is enough energy to support number of individuals at set up
+  all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
+    error("Environment does not have enough energy to support species")
+  # Create matrix landscape of zero abundances
+  ml = emptygridlandscape(abenv, spplist)
+  # Populate this matrix with species abundances
+  names = spplist.names
+  Set(names) == Set(unique(select(locations, 1))) || error("Species names in location table
+    do not match species list")
+    for i in eachindex(names)
+         spp = select(locations ,1)[:,1] .== names[i]
+         vals = select(locations, 2)[spp]
+         for j in eachindex(vals)
+             ml.matrix[i, vals[j]] = ml.matrix[i, vals[j]] + 1
+         end
+    end
+  # Create lookup table of all moves and their probabilities
+  lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
+  nm = zeros(Int64, size(ml.matrix))
+  Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
+  Nullable{Matrix{Float64}}(), rel, lookup_tab, Cache(nm))
+end
+
 function _getabundance(eco::Ecosystem, input::Bool)
   relab = eco.abundances.matrix / sum(eco.abundances.matrix)
-    return input ? relab : _calcabundance(eco.spplist, relab)
+    return input ? eco.abundances.matrix : relab
 end
 
 function _getmetaabundance(eco::Ecosystem)
