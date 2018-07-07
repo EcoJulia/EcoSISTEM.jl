@@ -2,6 +2,7 @@ using Simulation
 using Base.Test
 using Distributions
 using Unitful.DefaultSymbols
+using myunitful
 
 opts = repmat([5.0°C], numSpecies)
 vars = rand(Uniform(0, 25/9), numSpecies)  * °C

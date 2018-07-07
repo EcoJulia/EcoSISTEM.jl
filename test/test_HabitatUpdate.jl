@@ -3,6 +3,7 @@ using Distributions
 #using RCall
 using Unitful
 using Unitful.DefaultSymbols
+using myunitful
 
 ## TEST TEMPERATURE GRADIENT
 numSpecies=4

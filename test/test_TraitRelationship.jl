@@ -77,6 +77,6 @@ fill!(native, true)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
     movement, param, native)
 abenv = tempgradAE(-10.0°C, 10.0°C, grid, totalK, area, 0.01°C/month)
-rel = GaussTrait{eltype(abenv.habitat)}()
+rel = Gauss{eltype(abenv.habitat)}()
 eco = Ecosystem(sppl, abenv, rel)
 @test_nowarn Simulation.update!(eco, 1.0month)
