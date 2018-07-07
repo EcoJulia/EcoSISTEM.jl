@@ -90,7 +90,7 @@ function SpeciesList{R <: AbstractRequirement,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = jcoal(names, 100.0)
+    tree = rand(Ultrametric{BinaryTree{Vector{Int64}, Vector{Int64}}}(names))
     # Create traits and assign to tips
     trts = collect(1:numtraits)
     assign_traits!(tree, 0.5, trts)
@@ -130,7 +130,7 @@ function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = jcoal(names, 100.0)
+    tree = rand(Ultrametric{BinaryTree{Vector{Int64}, Vector{Int64}}}(names))
     # Create traits and assign to tips
     trts = collect(1:numtraits)
     assign_traits!(tree, 0.5, trts)
