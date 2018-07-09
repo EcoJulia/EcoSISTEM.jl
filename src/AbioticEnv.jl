@@ -2,7 +2,7 @@ using Diversity
 importall Diversity.API
 using Unitful
 using Unitful.DefaultSymbols
-using myunitful
+using MyUnitful
 using ClimatePref
 
 """

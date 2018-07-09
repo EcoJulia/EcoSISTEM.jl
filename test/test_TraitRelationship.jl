@@ -2,7 +2,7 @@ using Simulation
 using Base.Test
 using Distributions
 using Unitful.DefaultSymbols
-using myunitful
+using MyUnitful
 
 @test_nowarn rel = Gauss{Unitful.Temperature}()
 @test_nowarn rel = Match{Int64}()

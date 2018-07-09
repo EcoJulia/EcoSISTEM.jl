@@ -3,7 +3,7 @@ import Diversity.API._countsubcommunities
 import Diversity.countsubcommunities
 using Unitful
 using Unitful.DefaultSymbols
-using myunitful
+using MyUnitful
 
 """
     AbstractHabitat

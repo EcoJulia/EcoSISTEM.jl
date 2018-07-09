@@ -1,4 +1,4 @@
-using myunitful
+using MyUnitful
 """
     AbstractParams
 

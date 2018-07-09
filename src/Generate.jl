@@ -322,11 +322,6 @@ end
 Function to repopulate an ecosystem `eco`, with option for including trait
 preferences.
 """
-function repopulate!(eco::Ecosystem)
-  eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
-  eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
-  populate!(eco.abundances, eco.spplist, eco.abenv)
-end
 
 function reenergise!(eco::Ecosystem, budget::Float64, grid::Tuple{Int64, Int64})
     fill!(eco.abenv.budget.matrix, budget/(grid[1]*grid[2]))

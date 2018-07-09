@@ -1,5 +1,5 @@
 using Unitful
-using myunitful
+using MyUnitful
 import Base.eltype
 """
     AbstractTraitRelationship{TR}
