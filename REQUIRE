@@ -1,2 +1,15 @@
 julia 0.5
 Diversity 0.2.8-
+AxisArrays
+Unitful
+MyUnitful
+Cubature
+DataFrames
+ClimatePref
+JuliaDB
+StatsBase
+Distributions
+Phylo
+ProgressMeter
+Query
+RCall
