@@ -718,7 +718,7 @@ timestep = 1.0month
 # Collect model parameters together (in this order!!)
 param = EqualPop(birth, death, long, surv, boost)
 
-grid = (266, 120)
+grid = (533, 239)
 area = 10000.0km^2
 totalK = 1000000.0
 individuals=1000
@@ -726,14 +726,17 @@ individuals=1000
 # Load data for land cover
 file = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/World.tif"
 world = extractfile(file)
-world = world[-20.0° .. 189.25°, 0.0° .. 90.0°]
+world = upresolution(world, 2)
+world = world[-20.0° .. 189.625°, 0.0° .. 89.625°]
 #eu = ustrip.(europe)
 
 dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_1980"
 tempax1 = extractERA(dir1, "t2m", collect(1.0month:1month:10year))
+tempax1 = upresolution(tempax1, 2)
 
 dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
 prec = extractworldclim(joinpath(dir, "wc2.0_5m_prec"))
+prec = upresolution(prec, 2)
 prec.array = prec.array[-20.0° .. 189.25°, 0.0° .. 89.25°, :]
 x = prec.array.axes[1]
 y = prec.array.axes[2]
@@ -745,23 +748,24 @@ water = WaterBudget(Array{typeof(1.0*mm), 3}(prec.array), 1)
 
 dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
 srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
+srad = upresolution(srad, 2)
 srad.array = srad.array[-20.0° .. 189.25°, 0.0° .. 89.25°, :]
 srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
             srad.array)
 srad = SolarBudget(srad, 1)
-active = Array{Bool, 2}(.!isnan.(ustrip.(world[:,1:120])))
+active = Array{Bool, 2}(.!isnan.(ustrip.(world)))
 bud = BudgetCollection2(srad, water)
 
 testtemp = tempax1
-testtemp.array = tempax1.array[-19.25° .. 189.25°, 0.0° .. 89.25°, :]
+testtemp.array = tempax1.array[-19.625° .. 189.25°, 0.0° .. 89.25°, :]
 
 # Create ecosystem
 kernel = GaussianKernel(10.0km, numSpecies, 10e-4)
 movement = BirthOnlyMovement(kernel)
 
 refgrid = Array{Int64,2}(size(testtemp.array, 1, 2))
-x = testtemp.array.axes[1][1]:0.75°:testtemp.array.axes[1][end]
-y = testtemp.array.axes[2][1]:0.75°:testtemp.array.axes[2][end]
+x = testtemp.array.axes[1][1]:0.375°:testtemp.array.axes[1][end]
+y = testtemp.array.axes[2][1]:0.375°:testtemp.array.axes[2][end]
 refgrid =  AxisArray(refgrid, Axis{:longitude}(x), Axis{:latitude}(y))
 refgrid[1:end] = 1:length(refgrid)
 ref = Reference(refgrid)
@@ -795,8 +799,8 @@ rel = multiplicativeTR2(rel1, rel2)
 eco = Ecosystem(locations, sppl, abenv, rel)
 
 abun = mapslices(sum, eco.abundances.grid, 1)[1, :, :]
-x = ustrip.(tempax1.array.axes[1][1]:0.75°:tempax1.array.axes[1][end])
-y = ustrip.(tempax1.array.axes[2][1]:0.75°:tempax1.array.axes[2][end])
+x = ustrip.(tempax1.array.axes[1][1]:0.375°:tempax1.array.axes[1][end])
+y = ustrip.(tempax1.array.axes[2][1]:0.375°:tempax1.array.axes[2][end])
 @rput abun; @rput x; @rput y
 R"library(fields);par(mfrow=c(1,1))
 library(viridis)
@@ -838,7 +842,10 @@ function runsim(eco::Ecosystem, times::Unitful.Time)
 end
 times = 10year
 abun = runsim(eco, times)
-abun  = reshape(abun, 266, 120, 1, 121, 1)[:,:,1,:,1]
+abun  = reshape(abun, 533, 239, 1, 121, 1)[:,:,1,:,1]
+
+using JLD
+JLD.save("examples/data/divrun.jld", "divrun", abun)
 
 hab1 = ustrip.(eco.abenv.habitat.h1.matrix)
 @rput hab1
@@ -861,7 +868,7 @@ years = c(1980:1989)
 world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 for (i in c(1:120)){
 jpeg(paste('plots/gbif_sim/gbif_simulation_world', i, '.jpg'), quality=1000,
-    width =1000, height =1000)
+    width =1500, height =1000)
 im = abun[ , , i]
 im[is.na(im)] = 0
 par(mfrow=c(2,2))
