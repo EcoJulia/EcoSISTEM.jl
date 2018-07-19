@@ -4,7 +4,7 @@ using Base.Test
 using Distributions
 using RCall
 using Unitful.DefaultSymbols
-using myunitful
+using MyUnitful
 
 
 numSpecies=4

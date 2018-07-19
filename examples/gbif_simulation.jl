@@ -5,7 +5,7 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using myunitful
+using MyUnitful
 using AxisArrays
 using ClimatePref
 
@@ -158,7 +158,7 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using myunitful
+using MyUnitful
 using AxisArrays
 using ClimatePref
 
@@ -339,7 +339,7 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using myunitful
+using MyUnitful
 using AxisArrays
 using ClimatePref
 
@@ -522,7 +522,7 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using myunitful
+using MyUnitful
 using AxisArrays
 using ClimatePref
 
@@ -689,7 +689,7 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using myunitful
+using MyUnitful
 using AxisArrays
 using ClimatePref
 

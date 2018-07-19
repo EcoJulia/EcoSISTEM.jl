@@ -2,7 +2,7 @@ using Simulation
 using Base.Test
 using Unitful.DefaultSymbols
 using Distributions
-using myunitful
+using MyUnitful
 
 ## Run simulation over a grid and plot
 numSpecies=4

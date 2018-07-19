@@ -1,7 +1,7 @@
 using Simulation
 using Unitful.DefaultSymbols
 using Base.Test
-using myunitful
+using MyUnitful
 
 grid = (5, 5)
 area = 25.0km^2

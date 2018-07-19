@@ -1,7 +1,7 @@
 using Simulation
 using Unitful.DefaultSymbols
 using Base.Test
-using myunitful
+using MyUnitful
 
 birth = 0.6/month
 death = 0.6/month
