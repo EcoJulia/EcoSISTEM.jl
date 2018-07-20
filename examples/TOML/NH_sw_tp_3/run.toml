@@ -1,0 +1,9 @@
+[params]
+  burnin = 1
+  interval = 0.08333333333
+  times = 10
+  timestep = 0.08333333333
+  unit = "year"
+[measure]
+  measures = "norm_sub_alpha"
+  qs = [1.0]
