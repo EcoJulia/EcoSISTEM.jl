@@ -48,6 +48,9 @@ iscontinuous(hab::ContinuousTimeHab{C}) where C = true
 function eltype{C}(hab::ContinuousTimeHab{C})
     return C
 end
+function _resettime!(hab::ContinuousTimeHab)
+    hab.time = 1
+end
 
 function _countsubcommunities(hab::ContinuousHab)
   return length(hab.matrix)
@@ -98,6 +101,12 @@ function eltype(hab::HabitatCollection2)
     return [eltype(hab.h1), eltype(hab.h2)]
 end
 
+function _resettime!(hab::HabitatCollection2)
+    _resettime!(hab.h1)
+    _resettime!(hab.h2)
+end
+
+
 mutable struct HabitatCollection3{H1, H2, H3} <: AbstractHabitat{Tuple{H1, H2, H3}}
     h1::H1
     h2::H2
@@ -107,6 +116,11 @@ iscontinuous(hab::HabitatCollection3) = [iscontinuous(hab.h1),
     iscontinuous(hab.h2), iscontinuous(hab.h3)]
 function eltype(hab::HabitatCollection3)
     return [eltype(hab.h1), eltype(hab.h2), eltype(hab.h3)]
+end
+function _resettime!(hab::HabitatCollection2)
+    _resettime!(hab.h1)
+    _resettime!(hab.h2)
+    _resettime!(hab.h3)
 end
 
 function _getdimension(hab::Union{HabitatCollection2, HabitatCollection3})

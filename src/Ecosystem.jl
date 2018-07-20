@@ -279,6 +279,10 @@ function resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)
     eco.abenv.habitat.change.changefun, rate)
 end
 
+function resettime!(eco::Ecosystem)
+    _resettime!(eco.abenv.habitat)
+end
+
 function _symmetric_grid(grid::DataFrame)
    for x in 1:nrow(grid)
      if grid[x, 1] != grid[x, 2]

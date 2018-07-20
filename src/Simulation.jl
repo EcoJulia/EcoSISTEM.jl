@@ -41,7 +41,7 @@ export GridLandscape
 
 include("Ecosystem.jl")
 export Ecosystem, getsize, gethabitat, gettraitrel, getgridsize,
- getdispersaldist, getdispersalvar, resetrate!, getbudget
+ getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget
 
 include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
