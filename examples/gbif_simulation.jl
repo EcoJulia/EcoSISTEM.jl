@@ -719,8 +719,6 @@ timestep = 1.0month
 param = EqualPop(birth, death, long, surv, boost)
 
 grid = (533, 239)
-area = 10000.0km^2
-totalK = 1000000.0
 individuals=1000
 
 # Load data for land cover
