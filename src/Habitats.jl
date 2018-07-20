@@ -117,7 +117,7 @@ iscontinuous(hab::HabitatCollection3) = [iscontinuous(hab.h1),
 function eltype(hab::HabitatCollection3)
     return [eltype(hab.h1), eltype(hab.h2), eltype(hab.h3)]
 end
-function _resettime!(hab::HabitatCollection2)
+function _resettime!(hab::HabitatCollection3)
     _resettime!(hab.h1)
     _resettime!(hab.h2)
     _resettime!(hab.h3)
