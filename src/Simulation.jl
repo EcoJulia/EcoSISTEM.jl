@@ -61,6 +61,9 @@ export populate!, repopulate!,reenergise!, randomniches, update!, update_birth_m
 include("Helper.jl")
 export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
 
+include("ReadTOML.jl")
+export readTOML, runTOML
+
 include("plotting.jl")
 export plot_move, plot_abun,plot_mean,plot_diversity, plot_divergence, freq_hist, plotdiv
 
