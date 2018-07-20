@@ -65,13 +65,12 @@ end
 
 function TOML_sppl(fulldict::Dict)
     dir = fulldict["dir"]
-    traits = fulldict["traits"]
     species = fulldict["species"]
     requirements = fulldict["requirements"]
     movement = fulldict["movement"]
     numSpecies = length(species["names"])
     # Traits
-    traitcol = TOML_trait(traits, species)
+    traitcol = TOML_trait(fulldict)
     # Requirements
     req = TOML_requirement(requirements, numSpecies)
     movements = TOML_move(movement, numSpecies)
@@ -88,7 +87,10 @@ function TOML_sppl(fulldict::Dict)
     sppl.names = species["names"]
     return sppl
 end
-function TOML_trait(traits::Dict, species::Dict)
+function TOML_trait(fulldict::Dict)
+    dir = fulldict["dir"]
+    traits = fulldict["traits"]
+    species = fulldict["species"]
     numTraits = length(traits)
     if haskey(traits, "temperature")
         tempdict = traits["temperature"]
@@ -229,6 +231,7 @@ function TOML_abenv(fulldict::Dict)
 end
 
 function TOML_locs(fulldict::Dict)
+    dir = fulldict["dir"]
     grid = fulldict["grid"]
     locs = fulldict["locs"]
     refgrid = Array{Int64,2}(Tuple(grid["gridsize"]))
