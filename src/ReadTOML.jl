@@ -19,6 +19,19 @@ funcdict = Dict("norm_sub_alpha" => norm_sub_alpha)
 # Dictionary object of units
 unitdict = Dict("month" => month, "year" => year, "km" => km, "mm" => mm,
 "day^-1kJm^-2" => day^-1*kJ*m^-2, "deg" => °)
+function readoutput(file::String, name::String)
+    filenames = searchdir(file, name)
+    joinname = joinpath(file, filenames[1])
+    withoutend = split(joinname, ".jld")[1]
+    mat = JLD.load(joinname, String(withoutend))
+    for i in eachindex(filenames)[2:end]
+        joinname = joinpath(file, filenames[i])
+        withoutend = split(joinname, ".jld")[1]
+        newmat = JLD.load(joinname, String(withoutend))
+        mat = cat(3, mat, newmat)
+    end
+    return mat
+end
 function runTOML(file::String, eco::Ecosystem)
     fulldict = TOML.parsefile(file)
     params = fulldict["params"]
