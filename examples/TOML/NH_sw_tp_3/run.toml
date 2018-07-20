@@ -7,3 +7,6 @@
 [measure]
   measures = "norm_sub_alpha"
   qs = [1.0]
+[datadump]
+  interval = 1
+  outfile = "examples/TOML/NH_sw_tp_3/data/"
