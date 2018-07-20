@@ -8,6 +8,7 @@ using JuliaDB
 using JLD
 using ClimatePref
 using Simulation
+using Diversity
 using TOML
 # Dictionary object of types
 typedict = Dict("TempBin" => TempBin, "RainBin" => RainBin,
@@ -35,35 +36,49 @@ end
 function runTOML(file::String, eco::Ecosystem)
     fulldict = TOML.parsefile(file)
     params = fulldict["params"]
+    datadump = fulldict["datadump"]
+
     unit = unitdict[params["unit"]]
     burnin = params["burnin"] * unit
     times = params["times"] * unit
     interval = params["interval"] * unit
     timestep = params["timestep"] * unit
-    lensim = length(0month:interval:times)
+
+    dumpinterval = datadump["interval"] * unit
+    outfile = datadump["outfile"]
+    divides = Int(times/dumpinterval)
+
     if haskey(fulldict, "measure")
         measure = fulldict["measure"]
         qs = measure["qs"]
         divfun = funcdict[measure["measures"]]
-        function runsim(eco::Ecosystem, times::Unitful.Time)
+        simulate!(eco, burnin, timestep)
+        resettime!(eco)
+        for i in 1:divides
+            lensim = ifelse(i == 1, length(0month:interval:dumpinterval),
+                length(timestep:interval:dumpinterval))
             abun = generate_storage(eco, 1, lensim, 1)
-            simulate!(eco, burnin, timestep)
-            resettime!(eco)
-            simulate_record_diversity!(abun, eco, times, interval, timestep,
+            simulate_record_diversity!(abun, eco, dumpinterval, interval, timestep,
                 divfun, qs)
+            JLD.save(string(outfile, "Run", i, ".jld"), string(outfile, "Run", i), abun)
         end
     else
-        function runsim(eco::Ecosystem, times::Unitful.Time)
+        simulate!(eco, burnin, timestep)
+        resettime!(eco)
+        for i in 1:divides
+            lensim = ifelse(i == 1, length(0month:interval:dumpinterval),
+                length(timestep:interval:dumpinterval))
             abun = generate_storage(eco, lensim, 1)
-            simulate!(eco, burnin, timestep)
-            resettime!(eco)
-            simulate_record!(abun, eco, times, interval, timestep)
+            simulate_record!(abun, eco, dumpinterval, interval, timestep)
         end
     end
-    abun = runsim(eco, times)
-    abun  = reshape(abun, size(eco.abundances.grid, 2), size(eco.abundances.grid,3),
-     1, lensim, 1)[:,:,1,:,1]
+    numSpecies = size(eco.abundances.matrix, 1)
+    print(string("Model run:", "\n", times, "\n",
+        numSpecies, " species", "\n", burnin, " burnin",
+        "\n", interval, " recording interval", "\n",
+        timestep, " timestep", "\n", "Output: ", outputfile))
 end
+
 function readTOML(file::String)
     fulldict = TOML.parsefile(file)
     dir = fulldict["dir"]
