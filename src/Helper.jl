@@ -99,6 +99,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   end
   storage
 end
+
 function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
   divfun::Function, qs::Vector{Float64})
