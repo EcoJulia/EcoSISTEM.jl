@@ -217,7 +217,7 @@ function TOML_abenv(fulldict::Dict)
                 collect(1.0month:1month:tempdict["years"]*year))
             hab1.array = hab1.array[:, -89.25° .. 90°][minX .. maxX, minY .. maxY]
         elseif tp == CERA
-            hab1 = extractCERA(fulldict["dir"], tempdict["file"], tempdict["name"])
+            hab1 = extractCERA(joinpath(fulldict["dir"], tempdict["file"]), tempdict["search"], tempdict["name"])
             step = hab1.array.axes[1][2] - hab1.array.axes[1][1]
             hab1.array = hab1.array[:, -89.25° .. 90°][minX - step .. maxX, minY .. maxY]
         else
@@ -238,7 +238,7 @@ function TOML_abenv(fulldict::Dict)
             collect(1.0month:1month:raindict["years"]*year))
             hab2.array = hab2.array[:, -89.25° .. 90°][minX .. maxX, minY .. maxY]
         elseif tp == CERA
-            hab2 = extractCERA(fulldict["dir"], raindict["file"], raindict["name"])
+            hab2 = extractCERA(joinpath(fulldict["dir"], tempdict["file"]), tempdict["search"], raindict["name"])
             hab2.array = hab2.array[:, -89.25° .. 90°][minX .. maxX, minY .. maxY]
         else
             hab2 = extractworldclim(joinpath(filename, raindict["name"]))
