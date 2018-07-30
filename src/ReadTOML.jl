@@ -4,7 +4,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
 using AxisArrays
-using JuliaDB
+#using JuliaDB
 using JLD
 using ClimatePref
 using Simulation
@@ -86,7 +86,7 @@ function readTOML(file::String)
     # Traits
     sppl = TOML_sppl(fulldict)
     abenv = TOML_abenv(fulldict)
-    locations = TOML_locs(fulldict)
+    locations = TOML_locs(fulldict, sppl)
     rel = TOML_rel(fulldict)
     eco = Ecosystem(locations, sppl, abenv, rel)
     return eco
@@ -307,11 +307,11 @@ function TOML_abenv(fulldict::Dict)
             bud, abenv1.names)
 end
 
-function TOML_locs(fulldict::Dict)
+function TOML_locs(fulldict::Dict, sppl::SpeciesList)
     dir = fulldict["dir"]
     grid = fulldict["grid"]
     locs = fulldict["locs"]
-    names = fulldict["species"]["names"]
+    names = sppl.names
     refgrid = Array{Int64,2}(Tuple(grid["gridsize"]))
     unit = unitdict[grid["unit"]]
     x = (grid["minX"]*unit):(grid["resolution"]*unit):(grid["maxX"]*unit)
@@ -319,8 +319,10 @@ function TOML_locs(fulldict::Dict)
     refgrid =  AxisArray(refgrid, Axis{:longitude}(x), Axis{:latitude}(y))
     refgrid[1:end] = 1:length(refgrid)
     ref = Reference(refgrid)
+    addprocs(12)
+    using JuliaDB
     tab = JuliaDB.load(joinpath(dir,locs["file"]))
-    filtab = filter(t -> t.species == names, tab)
+    filtab = filter(t -> t.species in names, tab)
     lon = select(filtab, 2)
     lat = select(filtab, 3)
     locs = find((lon .> grid["minX"]) .& (lon .< grid["maxX"]) .&
