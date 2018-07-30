@@ -13,13 +13,14 @@ using TOML
 # Dictionary object of types
 typedict = Dict("TempBin" => TempBin, "RainBin" => RainBin,
 "GaussianKernel" => GaussianKernel, "Worldclim" => Worldclim,
-"ERA-interim" => ERA, "Trapeze" => Trapeze, "Uniform" => Unif)
+"ERA-interim" => ERA,"CERA-20C" => CERA, "Trapeze" => Trapeze, "Uniform" => Unif)
 # Dictionary object of functions
 funcdict = Dict("norm_sub_alpha" => norm_sub_alpha)
 
 # Dictionary object of units
 unitdict = Dict("month" => month, "year" => year, "km" => km, "mm" => mm,
 "day^-1kJm^-2" => day^-1*kJ*m^-2, "deg" => °)
+
 function readoutput(file::String, name::String)
     filenames = searchdir(file, name)
     joinname = joinpath(file, filenames[1])
@@ -96,9 +97,21 @@ function TOML_sppl(fulldict::Dict)
     species = fulldict["species"]
     requirements = fulldict["requirements"]
     movement = fulldict["movement"]
-    numSpecies = length(species["names"])
     # Traits
-    traitcol = TOML_trait(fulldict)
+    if typeof(species["names"]) == Vector{String}
+        names = species["names"]
+    else
+        numspp = species["names"]
+        gbif = collect(JuliaDB.load(joinpath(dir, species["file"])))
+        chunk = Int(round(length(gbif)/numspp))
+        names = Vector{String}(numspp)
+        for i in 1:numspp
+            sel = rand((chunk * (i-1) + 1) : (chunk * i), 1)
+            names[i] = rows(gbif, :species)[sel][1]
+        end
+    end
+    numSpecies = length(names)
+    traitcol = TOML_trait(fulldict, names)
     # Requirements
     req = TOML_requirement(requirements, numSpecies)
     movements = TOML_move(movement, numSpecies)
@@ -112,27 +125,28 @@ function TOML_sppl(fulldict::Dict)
     param = EqualPop(params["birth"]/month, params["death"]/month, params["long"], params["surv"], params["boost"])
     sppl = SpeciesList(numSpecies, traitcol, abun, req,
         movements, param, native)
-    sppl.names = species["names"]
+    sppl.names = names
     return sppl
 end
-function TOML_trait(fulldict::Dict)
+function TOML_trait(fulldict::Dict, names::Vector{String})
     dir = fulldict["dir"]
     traits = fulldict["traits"]
     species = fulldict["species"]
     numTraits = length(traits)
+
     if haskey(traits, "temperature")
         tempdict = traits["temperature"]
         filename = joinpath(dir, tempdict["file"])
         Temp = JLD.load(filename, tempdict["name"])
          tp = typedict[tempdict["type"]]
-        trait1 = tp(Array(transpose(Temp[species["names"],:])))
+        trait1 = tp(Array(transpose(Temp[names,:])))
     end
     if haskey(traits, "rainfall")
         raindict = traits["rainfall"]
         filename = joinpath(dir,raindict["file"])
         Rain = JLD.load(filename, raindict["name"])
         tp = typedict[raindict["type"]]
-        trait2 = tp(Array(transpose(Rain[species["names"],:])))
+        trait2 = tp(Array(transpose(Rain[names,:])))
     end
     if numTraits == 2
         traitcol = TraitCollection2(trait1, trait2)
@@ -178,9 +192,17 @@ function TOML_move(movement::Dict, numSpecies::Int64)
 end
 
 function TOML_abenv(fulldict::Dict)
+
     dir = fulldict["dir"]
     climate = fulldict["climate"]
     budget = fulldict["budget"]
+
+    grid = fulldict["grid"]
+    unit = unitdict[grid["unit"]]
+    minX = grid["minX"] * unit
+    maxX = grid["maxX"] * unit
+    minY = grid["minY"] * unit
+    maxY = grid["maxY"] * unit
 
     numHabs = length(climate)
     numEnergy = length(budget)
@@ -193,9 +215,17 @@ function TOML_abenv(fulldict::Dict)
         if tp == ERA
             hab1 = extractERA(filename, tempdict["name"],
                 collect(1.0month:1month:tempdict["years"]*year))
-            hab1.array = hab1.array[:, -89.25° .. 90°]
+            hab1.array = hab1.array[:, -89.25° .. 90°][minX .. maxX, minY .. maxY]
+        elseif tp == CERA
+            hab1 = extractCERA(fulldict["dir"], tempdict["file"], tempdict["name"])
+            step = hab1.array.axes[1][2] - hab1.array.axes[1][1]
+            hab1.array = hab1.array[:, -89.25° .. 90°][minX - step .. maxX, minY .. maxY]
         else
             hab1 = extractworldclim(joinpath(filename, tempdict["name"]))
+            hab1.array = hab1.array[minX .. maxX, minY .. maxY]
+        end
+        if haskey(tempdict, "upscale")
+            hab1 = upresolution(hab1, tempdict["upscale"])
         end
 
     end
@@ -206,17 +236,28 @@ function TOML_abenv(fulldict::Dict)
         if tp == ERA
             hab2 = extractERA(filename, raindict["name"],
             collect(1.0month:1month:raindict["years"]*year))
-            hab2.array = hab2.array[:, -90.0° .. 89.25°]
+            hab2.array = hab2.array[:, -89.25° .. 90°][minX .. maxX, minY .. maxY]
+        elseif tp == CERA
+            hab2 = extractCERA(fulldict["dir"], raindict["file"], raindict["name"])
+            hab2.array = hab2.array[:, -89.25° .. 90°][minX .. maxX, minY .. maxY]
         else
             hab2 = extractworldclim(joinpath(filename, raindict["name"]))
+            hab2.array = hab2.array[minX .. maxX, minY .. maxY]
         end
+    if haskey(raindict, "upscale")
+        hab2 = upresolution(hab2, raindict["upscale"])
+    end
+
     end
     # Budget
     if haskey(budget, "solar")
         solar = budget["solar"]
         filename = joinpath(dir, solar["file"])
-        tp =
         srad = extractworldclim(joinpath(filename, solar["name"]))
+        srad.array = srad.array[minX .. maxX, minY .. maxY]
+        if haskey(solar, "upscale")
+            srad = upresolution(srad, solar["upscale"])
+        end
         budget1 = SolarBudget(convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
             srad.array), 1)
     end
@@ -227,6 +268,10 @@ function TOML_abenv(fulldict::Dict)
         else
             filename = joinpath(dir, water["file"])
             water = extractworldclim(joinpath(filename, water["name"]))
+                        water.array = water.array[minX .. maxX, minY .. maxY]
+            if haskey(budget["water"], "upscale")
+                water = upresolution(water, budget["water"]["upscale"])
+            end
             budget2 = WaterBudget(convert(Array{typeof(2.0*mm),3},
                 water.array), 1)
         end
@@ -234,7 +279,11 @@ function TOML_abenv(fulldict::Dict)
     # Active
     active = fulldict["active"]
     filename = joinpath(dir, active["file"])
-    world = extractfile(filename)[:, 1:240]
+    world = extractfile(filename)[:, -89.25° .. 90°]
+    world = world[minX .. maxX, minY .. maxY]
+    if haskey(active, "upscale")
+        world = upresolution(world, active["upscale"])
+    end
     activegrid = Array{Bool, 2}(.!isnan.(ustrip.(world)))
 
 
@@ -262,6 +311,7 @@ function TOML_locs(fulldict::Dict)
     dir = fulldict["dir"]
     grid = fulldict["grid"]
     locs = fulldict["locs"]
+    names = fulldict["species"]["names"]
     refgrid = Array{Int64,2}(Tuple(grid["gridsize"]))
     unit = unitdict[grid["unit"]]
     x = (grid["minX"]*unit):(grid["resolution"]*unit):(grid["maxX"]*unit)
@@ -270,11 +320,12 @@ function TOML_locs(fulldict::Dict)
     refgrid[1:end] = 1:length(refgrid)
     ref = Reference(refgrid)
     tab = JuliaDB.load(joinpath(dir,locs["file"]))
-    x = select(tab, 2)
-    y = select(tab, 3)
-    locs = find((x .> grid["minX"]) .& (x .< grid["maxX"]) .&
-        (y .> grid["minY"]) .&  (y .< grid["maxY"]))
-    vals = extractvalues(y[locs] * °, x[locs] * °, ref)
+    filtab = filter(t -> t.species == names, tab)
+    lon = select(filtab, 2)
+    lat = select(filtab, 3)
+    locs = find((lon .> grid["minX"]) .& (lon .< grid["maxX"]) .&
+        (lat .> grid["minY"]) .&  (lat .< grid["maxY"]))
+    vals = extractvalues(lon[locs] * °, lat[locs] * °, ref)
     locations = table(select(tab, 1)[locs, :], vals)
     return locations
 end
