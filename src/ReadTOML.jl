@@ -314,7 +314,7 @@ function TOML_locs(fulldict::Dict, sppl::SpeciesList)
     names = sppl.names
     refgrid = Array{Int64,2}(Tuple(grid["gridsize"]))
     unit = unitdict[grid["unit"]]
-    x = (grid["minX"]*unit):(grid["resolution"]*unit):(grid["maxX"]*unit)
+    x = (grid["minX"]*unit - grid["resolution"]*unit):(grid["resolution"]*unit):(grid["maxX"]*unit)
     y =  (grid["minY"]*unit):(grid["resolution"]*unit):(grid["maxY"]*unit)
     refgrid =  AxisArray(refgrid, Axis{:longitude}(x), Axis{:latitude}(y))
     refgrid[1:end] = 1:length(refgrid)
