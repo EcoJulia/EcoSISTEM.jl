@@ -219,7 +219,7 @@ function TOML_abenv(fulldict::Dict)
         elseif tp == CERA
             hab1 = extractCERA(joinpath(fulldict["dir"], tempdict["file"]), tempdict["search"], tempdict["name"])
             step = hab1.array.axes[1][2] - hab1.array.axes[1][1]
-            hab1.array = hab1.array[:, -89.25° .. 90°][minX - step .. maxX, minY .. maxY]
+            hab1.array = hab1.array[:, -89.25° .. 90°][minX .. maxX, minY - step .. maxY]
         else
             hab1 = extractworldclim(joinpath(filename, tempdict["name"]))
             hab1.array = hab1.array[minX .. maxX, minY .. maxY]
@@ -239,7 +239,7 @@ function TOML_abenv(fulldict::Dict)
             hab2.array = hab2.array[:, -89.25° .. 90°][minX .. maxX, minY .. maxY]
         elseif tp == CERA
             hab2 = extractCERA(joinpath(fulldict["dir"], tempdict["file"]), tempdict["search"], raindict["name"])
-            hab2.array = hab2.array[:, -89.25° .. 90°][minX .. maxX, minY .. maxY]
+            hab2.array = hab2.array[:, -89.25° .. 90°][minX .. maxX, minY - step .. maxY]
         else
             hab2 = extractworldclim(joinpath(filename, raindict["name"]))
             hab2.array = hab2.array[minX .. maxX, minY .. maxY]
