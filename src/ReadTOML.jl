@@ -4,7 +4,8 @@ using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
 using AxisArrays
-#using JuliaDB
+addprocs(12)
+using JuliaDB
 using JLD
 using ClimatePref
 using Simulation
@@ -102,7 +103,7 @@ function TOML_sppl(fulldict::Dict)
         names = species["names"]
     else
         numspp = species["names"]
-        gbif = collect(JuliaDB.load(joinpath(dir, species["file"])))
+        gbif = JuliaDB.load(joinpath(dir, species["file"]), distributed=false)
         chunk = Int(round(length(gbif)/numspp))
         names = Vector{String}(numspp)
         for i in 1:numspp
@@ -319,16 +320,15 @@ function TOML_locs(fulldict::Dict, sppl::SpeciesList)
     refgrid =  AxisArray(refgrid, Axis{:longitude}(x), Axis{:latitude}(y))
     refgrid[1:end] = 1:length(refgrid)
     ref = Reference(refgrid)
-    addprocs(12)
-    using JuliaDB
     tab = JuliaDB.load(joinpath(dir,locs["file"]))
     filtab = filter(t -> t.species in names, tab)
-    lon = select(filtab, 2)
-    lat = select(filtab, 3)
+    ctab = collect(filtab)
+    lon = select(ctab, :decimallongitude)
+    lat = select(ctab, :decimallatitude)
     locs = find((lon .> grid["minX"]) .& (lon .< grid["maxX"]) .&
         (lat .> grid["minY"]) .&  (lat .< grid["maxY"]))
     vals = extractvalues(lon[locs] * °, lat[locs] * °, ref)
-    locations = table(select(tab, 1)[locs, :], vals)
+    locations = table(select(tab, :species)[locs, :], vals)
     return locations
 end
 function TOML_rel(fulldict::Dict)
