@@ -25,7 +25,8 @@ function readoutput(file::String, name::String)
     filenames = searchdir(file, name)
     joinname = joinpath(file, filenames[1])
     withoutend = split(joinname, ".jld")[1]
-    mat = JLD.load(joinname, String(withoutend))
+    withoutbegin = split(withoutend, file)[2]
+    mat = JLD.load(joinname, String(withoutbegin))
     for i in eachindex(filenames)[2:end]
         joinname = joinpath(file, filenames[i])
         withoutend = split(joinname, ".jld")[1]
@@ -61,7 +62,7 @@ function runTOML(file::String, eco::Ecosystem)
             abun = generate_storage(eco, 1, lensim, 1)
             simulate_record_diversity!(abun, eco, dumpinterval, interval, timestep,
                 divfun, qs)
-            JLD.save(string(outfile, "Run", i, ".jld"), string(outfile, "Run", i), abun)
+            JLD.save(string(outfile, "Run", i, ".jld"), string("Run", i), abun)
         end
     else
         simulate!(eco, burnin, timestep)
@@ -77,7 +78,7 @@ function runTOML(file::String, eco::Ecosystem)
     print(string("Model run:", "\n", times, "\n",
         numSpecies, " species", "\n", burnin, " burnin",
         "\n", interval, " recording interval", "\n",
-        timestep, " timestep", "\n", "Output: ", outputfile))
+        timestep, " timestep", "\n", "Output: ", outfile))
 end
 
 function readTOML(file::String)
