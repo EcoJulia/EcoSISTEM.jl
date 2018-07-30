@@ -136,11 +136,12 @@ function Ecosystem(locations::NextTable, spplist::SpeciesList,
   names = spplist.names
   Set(names) == Set(unique(select(locations, 1))) || error("Species names in location table
     do not match species list")
+    abun = spplist.abun
     for i in eachindex(names)
          spp = select(locations ,1)[:,1] .== names[i]
          vals = select(locations, 2)[spp]
          for j in eachindex(vals)
-             ml.matrix[i, vals[j]] = ml.matrix[i, vals[j]] + 1
+             ml.matrix[i, vals[j]] = ml.matrix[i, vals[j]] + abun[i]
          end
     end
   # Create lookup table of all moves and their probabilities
