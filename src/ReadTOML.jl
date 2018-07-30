@@ -4,13 +4,12 @@ using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
 using AxisArrays
-addprocs(12)
-using JuliaDB
 using JLD
 using ClimatePref
 using Simulation
 using Diversity
 using TOML
+using JuliaDB
 # Dictionary object of types
 typedict = Dict("TempBin" => TempBin, "RainBin" => RainBin,
 "GaussianKernel" => GaussianKernel, "Worldclim" => Worldclim,
