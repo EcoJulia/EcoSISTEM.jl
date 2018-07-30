@@ -328,7 +328,7 @@ function TOML_locs(fulldict::Dict, sppl::SpeciesList)
     locs = find((lon .> grid["minX"]) .& (lon .< grid["maxX"]) .&
         (lat .> grid["minY"]) .&  (lat .< grid["maxY"]))
     vals = extractvalues(lon[locs] * °, lat[locs] * °, ref)
-    locations = table(select(tab, :species)[locs, :], vals)
+    locations = table(collect(select(ctab, :species))[locs, :], vals)
     return locations
 end
 function TOML_rel(fulldict::Dict)
