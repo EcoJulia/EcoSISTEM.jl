@@ -103,7 +103,7 @@ function TOML_sppl(fulldict::Dict)
         names = species["names"]
     else
         numspp = species["names"]
-        gbif = JuliaDB.load(joinpath(dir, species["file"]), distributed=false)
+        gbif = JuliaDB.load(joinpath(dir, species["file"]))
         chunk = Int(round(length(gbif)/numspp))
         names = Vector{String}(numspp)
         for i in 1:numspp
