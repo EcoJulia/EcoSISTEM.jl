@@ -107,7 +107,7 @@ function TOML_sppl(fulldict::Dict)
         chunk = Int(round(length(gbif)/numspp))
         names = Vector{String}(numspp)
         for i in 1:numspp
-            sel = rand((chunk * (i-1) + 1) : (chunk * i), 1)
+            sel = rand((chunk * (1-1) + 1) : (chunk * 1), 1)
             names[i] = rows(gbif, :species)[sel][1]
         end
     end
