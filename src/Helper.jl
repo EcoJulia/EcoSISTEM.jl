@@ -131,7 +131,7 @@ function simulate_record_diversity!(storage::AbstractArray,
     if any(time_seq[i].==record_seq)
       counting = counting + 1
       diversity = divfun(eco, qs)[:diversity]
-      diversity2 = divfun(eco, qs)[:diversity]
+      diversity2 = divfun2(eco, qs)[:diversity]
       storage[:, :, counting] = reshape(diversity,
       Int(length(diversity)/ length(qs)), length(qs))
       storage2[:, counting] = diversity2
