@@ -66,9 +66,9 @@ function runTOML(file::String, eco::Ecosystem)
                 abun2 = Array{Float64}(1, lensim)
                 simulate_record_diversity!(abun, abun2, eco, dumpinterval, interval, timestep,
                     divfun,divfun2, qs)
-                JLD.save(string(outfile, "Run", @printf("%03d",i), ".jld"),
+                JLD.save(string(outfile, "Run", @sprintf("%03d",i), ".jld"),
                     string("Div1"), abun)
-                JLD.save(string(outfile, "Run", @printf("%03d",i), ".jld"),
+                JLD.save(string(outfile, "Run", @sprintf("%03d",i), ".jld"),
                     string("Div2"), abun2)
             end
         else
