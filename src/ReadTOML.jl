@@ -59,6 +59,7 @@ function runTOML(file::String, eco::Ecosystem)
         resettime!(eco)
         if haskey(measure, "meta_measures")
             for i in 1:divides
+                sp = @sprintf("%03d",i)
                 divfun2 = funcdict[measure["meta_measures"]]
                 lensim = ifelse(i == 1, length(0month:interval:dumpinterval),
                     length(timestep:interval:dumpinterval))
@@ -66,20 +67,21 @@ function runTOML(file::String, eco::Ecosystem)
                 abun2 = Array{Float64}(1, lensim)
                 simulate_record_diversity!(abun, abun2, eco, dumpinterval, interval, timestep,
                     divfun,divfun2, qs)
-                JLD.save(string(outfile, "Run", @sprintf("%03d",i), ".jld"),
+                JLD.save(string(outfile, "Run", sp, ".jld"),
                     string("Div1"), abun)
-                JLD.save(string(outfile, "Run", @sprintf("%03d",i), ".jld"),
+                JLD.save(string(outfile, "Run", sp, ".jld"),
                     string("Div2"), abun2)
             end
         else
             for i in 1:divides
+                sp = @sprintf("%03d",i)
                 lensim = ifelse(i == 1, length(0month:interval:dumpinterval),
                     length(timestep:interval:dumpinterval))
                 abun = generate_storage(eco, 1, lensim, 1)
                 simulate_record_diversity!(abun, eco, dumpinterval, interval, timestep,
                     divfun, qs)
-                JLD.save(string(outfile, "Run", @printf("%03d",i), ".jld"),
-                    string("Run", @printf("%03d",i)), abun)
+                JLD.save(string(outfile, "Run", sp, ".jld"),
+                    string("Run", sp), abun)
             end
         end
     else
