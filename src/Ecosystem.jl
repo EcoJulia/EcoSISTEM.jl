@@ -140,8 +140,9 @@ function Ecosystem(locations::NextTable, spplist::SpeciesList,
     for i in eachindex(names)
          spp = select(locations ,1)[:,1] .== names[i]
          vals = select(locations, 2)[spp]
+         vals = rand(vals, abun[i])
          for j in eachindex(vals)
-             ml.matrix[i, vals[j]] = ml.matrix[i, vals[j]] + abun[i]
+             ml.matrix[i, vals[j]] = ml.matrix[i, vals[j]] + 1
          end
     end
   # Create lookup table of all moves and their probabilities
