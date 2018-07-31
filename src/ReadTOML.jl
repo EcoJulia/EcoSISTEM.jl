@@ -15,7 +15,8 @@ typedict = Dict("TempBin" => TempBin, "RainBin" => RainBin,
 "GaussianKernel" => GaussianKernel, "Worldclim" => Worldclim,
 "ERA-interim" => ERA,"CERA-20C" => CERA, "Trapeze" => Trapeze, "Uniform" => Unif)
 # Dictionary object of functions
-funcdict = Dict("norm_sub_alpha" => norm_sub_alpha)
+funcdict = Dict("norm_sub_alpha" => norm_sub_alpha,
+    "norm_sub_beta" => norm_sub_beta, "norm_meta_beta" => norm_meta_beta)
 
 # Dictionary object of units
 unitdict = Dict("month" => month, "year" => year, "km" => km, "mm" => mm,
@@ -56,13 +57,30 @@ function runTOML(file::String, eco::Ecosystem)
         divfun = funcdict[measure["measures"]]
         simulate!(eco, burnin, timestep)
         resettime!(eco)
-        for i in 1:divides
-            lensim = ifelse(i == 1, length(0month:interval:dumpinterval),
-                length(timestep:interval:dumpinterval))
-            abun = generate_storage(eco, 1, lensim, 1)
-            simulate_record_diversity!(abun, eco, dumpinterval, interval, timestep,
-                divfun, qs)
-            JLD.save(string(outfile, "Run", i, ".jld"), string("Run", i), abun)
+        if haskey(measure, "meta_measures")
+            for i in 1:divides
+                divfun2 = funcdict[measure["meta_measures"]]
+                lensim = ifelse(i == 1, length(0month:interval:dumpinterval),
+                    length(timestep:interval:dumpinterval))
+                abun = generate_storage(eco, 1, lensim, 1)
+                abun2 = Array{Float64}(1, lensim)
+                simulate_record_diversity!(abun, abun2, eco, dumpinterval, interval, timestep,
+                    divfun,divfun2, qs)
+                JLD.save(string(outfile, "Run", @printf("%03d",i), ".jld"),
+                    string("Div1"), abun)
+                JLD.save(string(outfile, "Run", @printf("%03d",i), ".jld"),
+                    string("Div2"), abun2)
+            end
+        else
+            for i in 1:divides
+                lensim = ifelse(i == 1, length(0month:interval:dumpinterval),
+                    length(timestep:interval:dumpinterval))
+                abun = generate_storage(eco, 1, lensim, 1)
+                simulate_record_diversity!(abun, eco, dumpinterval, interval, timestep,
+                    divfun, qs)
+                JLD.save(string(outfile, "Run", @printf("%03d",i), ".jld"),
+                    string("Run", @printf("%03d",i)), abun)
+            end
         end
     else
         simulate!(eco, burnin, timestep)
@@ -107,7 +125,7 @@ function TOML_sppl(fulldict::Dict)
         chunk = Int(round(length(gbif)/numspp))
         names = Vector{String}(numspp)
         for i in 1:numspp
-            sel = rand(1:1000, 1)
+            sel = rand((chunk * (1-1) + 1) : (chunk * 1), 1)
             names[i] = rows(gbif, :species)[sel][1]
         end
     end
