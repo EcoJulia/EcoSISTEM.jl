@@ -118,6 +118,27 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   end
   storage
 end
+function simulate_record_diversity!(storage::AbstractArray,
+    storage2::AbstractArray, eco::Ecosystem,
+  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
+  divfun::Function, divfun2::Function, qs::Vector{Float64})
+  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
+  record_seq = ifelse(iseven(size(storage, 3)),timestep:interval:times, 0s:interval:times)
+  time_seq = ifelse(iseven(size(storage, 3)), timestep:timestep:times, 0s:timestep:times)
+  counting = 0
+  for i in 1:length(time_seq)
+    update!(eco, timestep);
+    if any(time_seq[i].==record_seq)
+      counting = counting + 1
+      diversity = divfun(eco, qs)[:diversity]
+      diversity2 = divfun(eco, qs)[:diversity]
+      storage[:, :, counting] = reshape(diversity,
+      Int(length(diversity)/ length(qs)), length(qs))
+      storage2[:, counting] = diversity2
+    end
+  end
+  return storage, storage2
+end
 function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
   divfuns::Array{Function, 1}, q::Float64)
