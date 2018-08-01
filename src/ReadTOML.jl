@@ -159,14 +159,22 @@ function TOML_trait(fulldict::Dict, names::Vector{String})
         filename = joinpath(dir, tempdict["file"])
         Temp = JLD.load(filename, tempdict["name"])
          tp = typedict[tempdict["type"]]
-        trait1 = tp(Array(transpose(Temp[names,:])))
+         mat = Array{Int64, 2}(4, length(names))
+         for i in 1:length(names)
+             mat[:, i] = Temp[names[i], :]
+         end
+        trait1 = tp(mat)
     end
     if haskey(traits, "rainfall")
         raindict = traits["rainfall"]
         filename = joinpath(dir,raindict["file"])
         Rain = JLD.load(filename, raindict["name"])
         tp = typedict[raindict["type"]]
-        trait2 = tp(Array(transpose(Rain[names,:])))
+        mat = Array{Int64, 2}(4, length(names))
+        for i in 1:length(names)
+            mat[:, i] = Rain[names[i], :]
+        end
+        trait2 = tp(mat)
     end
     if numTraits == 2
         traitcol = TraitCollection2(trait1, trait2)
