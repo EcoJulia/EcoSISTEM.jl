@@ -121,7 +121,7 @@ end
 function simulate_record_diversity!(storage::AbstractArray,
     storage2::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
-  divfun::Function, divfun2::Function, qs::Vector{Float64})
+  dm::DiversityMeasure, qs::Vector{Float64})
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
   record_seq = ifelse(iseven(size(storage, 3)),timestep:interval:times, 0s:interval:times)
   time_seq = ifelse(iseven(size(storage, 3)), timestep:timestep:times, 0s:timestep:times)
@@ -130,8 +130,8 @@ function simulate_record_diversity!(storage::AbstractArray,
     update!(eco, timestep);
     if any(time_seq[i].==record_seq)
       counting = counting + 1
-      diversity = divfun(eco, qs)[:diversity]
-      diversity2 = divfun2(eco, qs)[:diversity]
+      diversity = subdiv(dm, qs)[:diversity]
+      diversity2 = metadiv(dm, qs)[:diversity]
       storage[:, :, counting] = reshape(diversity,
       Int(length(diversity)/ length(qs)), length(qs))
       storage2[:, counting] = diversity2
