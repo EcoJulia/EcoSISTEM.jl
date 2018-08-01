@@ -61,7 +61,7 @@ function runTOML(file::String, eco::Ecosystem)
         if measure["meta_measures"]
             for i in 1:divides
                 sp = @sprintf("%03d",i)
-                div = funcdict[measure["meta_measures"]](eco)
+                div = funcdict[measure["measures"]](eco)
                 lensim = ifelse(i == 1, length(0month:interval:dumpinterval),
                     length(timestep:interval:dumpinterval))
                 abun = generate_storage(eco, 1, lensim, 1)
