@@ -170,7 +170,7 @@ function TOML_trait(fulldict::Dict, names::Vector{String})
         filename = joinpath(dir,raindict["file"])
         Rain = JLD.load(filename, raindict["name"])
         tp = typedict[raindict["type"]]
-        mat = Array{Int64, 2}(4, length(names))
+        mat = Array{Int64, 2}(2, length(names))
         for i in 1:length(names)
             mat[:, i] = Rain[names[i], :]
         end
