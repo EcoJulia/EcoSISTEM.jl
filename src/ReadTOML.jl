@@ -16,7 +16,8 @@ typedict = Dict("TempBin" => TempBin, "RainBin" => RainBin,
 "ERA-interim" => ERA,"CERA-20C" => CERA, "Trapeze" => Trapeze, "Uniform" => Unif)
 # Dictionary object of functions
 funcdict = Dict("norm_sub_alpha" => norm_sub_alpha,
-    "norm_sub_beta" => norm_sub_beta, "norm_meta_beta" => norm_meta_beta)
+    "norm_sub_beta" => norm_sub_beta, "norm_meta_beta" => norm_meta_beta,
+    "NormalisedBeta" => NormalisedBeta)
 
 # Dictionary object of units
 unitdict = Dict("month" => month, "year" => year, "km" => km, "mm" => mm,
