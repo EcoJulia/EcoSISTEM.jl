@@ -83,6 +83,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     end
     eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
     eco.cache.netmigration .= 0
+    resetcache!(eco)
     # Update environment
     habitatupdate!(eco, timestep)
     budgetupdate!(eco, timestep)

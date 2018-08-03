@@ -5,6 +5,7 @@ using Unitful
 using MyUnitful
 using ClimatePref
 using JuliaDB
+using Missings
 
 import Diversity: _calcabundance
 """
@@ -83,13 +84,13 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
   abundances::GridLandscape
   spplist::SL
   abenv::Part
-  ordinariness::Nullable{Matrix{Float64}}
+  ordinariness::Union{Matrix{Float64}, Missing}
   relationship::TR
   lookup::Vector{Lookup}
   cache::Cache
 
   function Ecosystem{Part, SL, TR}(abundances::GridLandscape,
-    spplist::SL, abenv::Part, ordinariness::Nullable{Matrix{Float64}},
+    spplist::SL, abenv::Part, ordinariness::Union{Matrix{Float64}, Missing},
     relationship::TR, lookup::Vector{Lookup}, cache::Cache) where {Part <:
      AbstractAbiotic,
     SL <: SpeciesList, TR <: AbstractTraitRelationship}
@@ -121,7 +122,7 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
   lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
   nm = zeros(Int64, size(ml.matrix))
   Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
-  Nullable{Matrix{Float64}}(), rel, lookup_tab, Cache(nm))
+  missing, rel, lookup_tab, Cache(nm))
 end
 
 function Ecosystem(locations::NextTable, spplist::SpeciesList,
@@ -149,12 +150,15 @@ function Ecosystem(locations::NextTable, spplist::SpeciesList,
   lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
   nm = zeros(Int64, size(ml.matrix))
   Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
-  Nullable{Matrix{Float64}}(), rel, lookup_tab, Cache(nm))
+  missing, rel, lookup_tab, Cache(nm))
 end
 
 function _getabundance(eco::Ecosystem, input::Bool)
-  relab = eco.abundances.matrix / sum(eco.abundances.matrix)
-    return input ? eco.abundances.matrix : relab
+    if input
+        return eco.abundances.matrix
+    else
+        return eco.abundances.matrix / sum(eco.abundances.matrix)
+    end
 end
 
 function _getmetaabundance(eco::Ecosystem)
@@ -168,11 +172,14 @@ function _gettypes(eco::Ecosystem)
 end
 
 function _getordinariness!(eco::Ecosystem)
-    #if isnull(eco.ordinariness)
-    relab = getabundance(eco, false)
-    eco.ordinariness = _calcordinariness(eco.spplist, relab)
-    #end
-    get(eco.ordinariness)
+    if ismissing(eco.ordinariness)
+        relab = getabundance(eco, false)
+        eco.ordinariness = _calcordinariness(eco.spplist, relab)
+    end
+    return eco.ordinariness
+end
+function resetcache!(eco::Ecosystem)
+    eco.ordinariness = missing
 end
 
 """
