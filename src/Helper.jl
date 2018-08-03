@@ -2,6 +2,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Diversity
 using MyUnitful
+import Diversity: Gamma
 """
     simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
          timestep::Unitful.Time)
@@ -138,6 +139,7 @@ function simulate_record_diversity!(storage::AbstractArray,
       storage[:, k, counting] = reshape(diversity,
       Int(length(diversity)/ length(qs)), length(qs))
       storage2[k, counting] = diversity2[1]
+    end
     end
   end
   return storage, storage2
