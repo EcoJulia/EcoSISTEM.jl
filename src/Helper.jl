@@ -130,11 +130,14 @@ function simulate_record_diversity!(storage::AbstractArray,
     update!(eco, timestep);
     if any(time_seq[i].==record_seq)
       counting = counting + 1
+      measures = [NormalisedAlpha, NormalisedBeta, Gamma]
+      for k in 1:3
+      dm = measures[k](eco)
       diversity = subdiv(dm, qs)[:diversity]
       diversity2 = metadiv(dm, qs)[:diversity]
-      storage[:, :, counting] = reshape(diversity,
+      storage[:, k, counting] = reshape(diversity,
       Int(length(diversity)/ length(qs)), length(qs))
-      storage2[:, counting] = diversity2
+      storage2[k, counting] = diversity2[1]
     end
   end
   return storage, storage2
