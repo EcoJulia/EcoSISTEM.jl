@@ -179,19 +179,23 @@ Function to evolve categorical functional traits through a phylogenetic tree
 with a specific switching rate.
 
 """
-
 function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
-          traits::Vector{Vector{Int64}})
+          traits::DataFrame)
+
   # Check if tree already assigned
   check = arenoderecordsempty(tree, getnodenames(tree))
   all(check) || error("Some nodes already assigned traits")
+
   # Calculate all branch paths from root to tips
-  tips = Phylo.NodeNameIterator(tree, isleaf)
-  root = first(Phylo.NodeNameIterator(tree, isroot))
+  tips = NodeNameIterator(tree, isleaf)
+  root = first(NodeNameIterator(tree, isroot))
 
   paths = root_to_tips(tree)
+  samp = DataFrame(colwise(rand,traits))
+  names!(samp, names(traits))
   # Assign first node a trait randomly
-  setnoderecord!(tree, root, map(sample, traits))
+  setnoderecord!(tree, root, samp)
+
   # Loop through all paths
   for i in paths
     # Split path into pairs of nodes
@@ -215,7 +219,7 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
       end
 
     # Sum up the event times cumulatively
-    cum_times = map(cumsum, alltimes)
+    cum_times = cumsum.(alltimes)
 
     # Run through the branches for the path, assigning a trait
     for j in 1 : size(pairs, 1)
@@ -241,9 +245,12 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
           # Else loop through for the required number of switches, sampling from list of traits
           while number > 0
             set_node = last(sel_pair)
-            newtrait = map(traits) do trt
-                        sample(trt[trt .!= last_label])
+            newtrait = map(names(traits)) do trt
+                        col = traits[trt]
+                        sample(col[col .!= last_label[trt]])
                        end
+            newtrait = DataFrame(newtrait)
+            names!(newtrait, names(traits))
             setnoderecord!(tree, set_node, newtrait)
             last_label = getnoderecord(tree, set_node)
             number = number - 1
@@ -330,7 +337,6 @@ Function to retrieve functional traits assigned to a phylogenetic tree, either
 just tips or all nodes.
 
 """
-
 function get_traits(tree::BinaryTree, tips::Bool=true)
    check = .!arenoderecordsempty(tree, getnodenames(tree))
    all(check) || error("All node records empty")
@@ -339,10 +345,7 @@ function get_traits(tree::BinaryTree, tips::Bool=true)
   else
     nodes = getnodenames(tree)
   end
-  records = map(nodes) do nod
-             getnoderecord(tree, nod)
-            end
-  df = DataFrame(records)
-  names!(df, map(Symbol,nodes))
+  df = vcat(getnoderecord.(tree, nodes)...)
+  df[:species] = nodes
   return df
 end
