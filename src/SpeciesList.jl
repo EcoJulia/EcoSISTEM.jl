@@ -90,12 +90,12 @@ function SpeciesList{R <: AbstractRequirement,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{Vector{Int64}, Vector{Int64}}}(names))
+    tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
     # Create traits and assign to tips
-    trts = collect(1:numtraits)
+    trts = DataFrame(trait1 = [1, 2, 3], trait2 = [1, 2, 3])
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    sp_trt = DiscreteTrait(vcat(Array(get_traits(tree, true))...))
+    sp_trt = DiscreteTrait(Array(get_traits(tree, true))[1:2])
     # Create similarity matrix (for now identity)
     phy = PhyloTypes(tree)
     # Draw random set of abundances from distribution
