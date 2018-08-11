@@ -272,14 +272,19 @@ function assign_traits!(tree::BinaryTree, switch_rate::Float64,
   end
 end
 
+"""
+    BM(T::Real, σ²::Float64, start::Float64, lab::String="")
 
+Function to evolve a Real value through Brownian motion, with a starting value,
+ `start`, and rate, `σ²`.
+
+"""
 function BM(T::Real, σ²::Float64, start::Float64, lab::String="")
   t = 0:T  # time
 ## first, simulate a set of random deviates
 x = jnorm(0, sqrt(σ²),length(t) - 1)
 ## now compute their cumulative sum
 x = cumsum(append!([start], x))
-#Plots.plot(t, x, ylims=collect(extrema(x)).*[0.9,1.1], label=lab)
 end
 
 """
@@ -293,29 +298,38 @@ through Brownian motion, with a starting value, `start`, and rate, `σ²`.
 function assign_traits!(tree::BinaryTree, start::Vector{Float64},
   σ²::Vector{Float64})
 
+  # Warning for nodes that have already been assigned traits
   check = arenoderecordsempty(tree, getnodenames(tree))
   all(check) || warn("Some nodes already assigned traits")
 
+  # Check that the length of the starting values and variances are the same
   length(start) == length(σ²) || error("Start values and variance must have
   same number of traits")
+
   # Find all names of nodes
   names =  getnodenames(tree)
+
   # Sort by distance from root
   root = first(collect(NodeNameIterator(tree, isroot)))
   dist = map(names) do node
           distance(tree, root, node)
          end
   names = names[sortperm(dist)]
+
   # Loop through nodes in order of appearance
   for i in names
+      # Set start value of BM to root
     if isroot(tree, i)
       setnoderecord!(tree, i, start)
     else
+      # Get value information for parent node
       pnt = getparent(tree, i)
       srt = getnoderecord(tree, pnt)
-      path = first(get(branchroute(tree, pnt, i)))
+      # Find length of path between parent and child node
+      path = first(branchroute(tree, pnt, i))
       ln = getlength(getbranch(tree, path))
 
+      # Run BM model on each trait and set record
       newtrait = map(srt, σ²) do start, sig
                   last(BM(ln, sig, start))
                  end
