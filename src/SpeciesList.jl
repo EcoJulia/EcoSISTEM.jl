@@ -1,4 +1,5 @@
-using Diversity.Phylogenetics
+using Diversity
+using Phylo
 importall Diversity.API
 
 """
@@ -92,10 +93,10 @@ function SpeciesList{R <: AbstractRequirement,
     # Create tree
     tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
     # Create traits and assign to tips
-    trts = DataFrame(trait1 = [1, 2, 3], trait2 = [1, 2, 3])
+    trts = DataFrame(trait1 = collect(1:numtraits))
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    sp_trt = DiscreteTrait(Array(get_traits(tree, true))[1:2])
+    sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
     # Create similarity matrix (for now identity)
     phy = PhyloTypes(tree)
     # Draw random set of abundances from distribution
@@ -130,12 +131,12 @@ function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{Vector{Int64}, Vector{Int64}}}(names))
+    tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
     # Create traits and assign to tips
-    trts = collect(1:numtraits)
+    trts = DataFrame(trait1 = collect(1:numtraits))
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    sp_trt = DiscreteTrait(vcat(Array(get_traits(tree, true))...))
+    sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
     # Draw random set of abundances from distribution
     abun = rand(abun_dist)
     if length(abun) < numspecies
