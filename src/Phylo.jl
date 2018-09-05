@@ -49,7 +49,7 @@ function find_rows(mat, sour, targ)
 end
 
 function root_to_tips(tree)
-  tips = collect(NodeNameIterator(tree, isleaf))
+  tips = collect(nodenamefilter(isleaf, tree))
   paths = map(tips) do tps
     reverse(nodehistory(tree, tps))
   end
@@ -75,14 +75,13 @@ with a specific switching rate.
 """
 function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
           traits::DataFrame)
-
   # Check if tree already assigned
   check = arenoderecordsempty(tree, getnodenames(tree))
   all(check) || error("Some nodes already assigned traits")
 
   # Calculate all branch paths from root to tips
-  tips = NodeNameIterator(tree, isleaf)
-  root = first(NodeNameIterator(tree, isroot))
+  tips = collect(nodenamefilter(isleaf, tree))
+  root = first(collect(nodenamefilter(isroot, tree)))
 
   paths = root_to_tips(tree)
   samp = DataFrame(colwise(rand,traits))
@@ -156,14 +155,8 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
 end
 
 function assign_traits!(tree::BinaryTree, switch_rate::Float64,
-  traits::Vector{Int64})
-  if length(traits) == 1
-      for n in getnodenames(tree)
-          setnoderecord!(tree, n, traits)
-      end
-  else
-      assign_traits!(tree, [switch_rate], [traits])
-  end
+  traits::DataFrame)
+  return assign_traits!(tree, [switch_rate], traits)
 end
 
 """
@@ -249,7 +242,7 @@ function get_traits(tree::BinaryTree, tips::Bool=true)
    check = .!arenoderecordsempty(tree, getnodenames(tree))
    all(check) || error("All node records empty")
   if tips
-    nodes = collect(NodeNameIterator(tree, isleaf))
+    nodes = collect(nodenamefilter(isleaf, tree))
   else
     nodes = getnodenames(tree)
   end
