@@ -31,7 +31,7 @@ export GaussTrait, DiscreteTrait, TempBin,RainBin, TraitCollection2, TraitCollec
 DiscreteEvolve, ContinuousEvolve
 
 include("Demographics.jl")
-export PopGrowth, EqualPop
+export PopGrowth, EqualPop, NoGrowth
 
 include("SpeciesList.jl")
 export SpeciesList
