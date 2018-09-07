@@ -84,8 +84,7 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
   root = first(collect(nodenamefilter(isroot, tree)))
 
   paths = root_to_tips(tree)
-  samp = DataFrame(colwise(rand,traits))
-  names!(samp, names(traits))
+  samp = DataFrame(hcat(colwise(rand,traits)), names(traits))
   # Assign first node a trait randomly
   setnoderecord!(tree, root, samp)
 
@@ -142,8 +141,7 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
                         col = traits[trt]
                         sample(col[col .!= last_label[trt]])
                        end
-            newtrait = DataFrame(newtrait)
-            names!(newtrait, names(traits))
+            newtrait = DataFrame(hcat(newtrait), names(traits))
             setnoderecord!(tree, set_node, newtrait)
             last_label = getnoderecord(tree, set_node)
             number = number - 1
