@@ -90,24 +90,29 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
 end
 
 function energy(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::Int64)
-    width = getdimension(eco)[1]
-    (x, y) = convert_coords(i, width)
-    params = eco.spplist.params
-    K = ustrip.(getbudget(eco)[x, y])
-    # Get abundances of square we are interested in
-    currentabun = eco.abundances.matrix[:, i]
+    if typeof(eco.spplist.params) <: NoGrowth
+        birth_energy = Vector{Float64}(spp); death_energy = Vector{Float64}(spp)
+        fill!(birth_energy, 0.0); fill!(death_energy, 0.0)
+    else
+        width = getdimension(eco)[1]
+        (x, y) = convert_coords(i, width)
+        params = eco.spplist.params
+        K = ustrip.(getbudget(eco)[x, y])
+        # Get abundances of square we are interested in
+        currentabun = eco.abundances.matrix[:, i]
 
-    # Get energy budgets of species in square
-    ϵ̄ = ustrip.(eco.spplist.requirement.energy)
-    E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
-    # Traits
-    ϵ̄real = copy(ϵ̄)
-    birth_energy = Vector{Float64}(spp); death_energy = Vector{Float64}(spp)
-    for k in 1:spp
-      ϵ̄real[k] = ϵ̄[k]/traitfun(eco, i, k)
-      # Alter rates by energy available in current pop & own requirements
-      birth_energy[k] = ϵ̄[k]^-params.l * ϵ̄real[k]^-params.s * min(K/E, params.boost)
-      death_energy[k] = ϵ̄[k]^-params.l * ϵ̄real[k]^params.s * (E / K)
+        # Get energy budgets of species in square
+        ϵ̄ = ustrip.(eco.spplist.requirement.energy)
+        E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
+        # Traits
+        ϵ̄real = copy(ϵ̄)
+        birth_energy = Vector{Float64}(spp); death_energy = Vector{Float64}(spp)
+        for k in 1:spp
+          ϵ̄real[k] = ϵ̄[k]/traitfun(eco, i, k)
+          # Alter rates by energy available in current pop & own requirements
+          birth_energy[k] = ϵ̄[k]^-params.l * ϵ̄real[k]^-params.s * min(K/E, params.boost)
+          death_energy[k] = ϵ̄[k]^-params.l * ϵ̄real[k]^params.s * (E / K)
+        end
     end
     return birth_energy, death_energy
 end
