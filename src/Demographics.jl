@@ -47,6 +47,23 @@ mutable struct EqualPop <: AbstractParams
   s::Float64
   boost::Float64
 end
+
+mutable struct NoGrowth{U <: Rates} <: AbstractParams
+    birth::Vector{Quantity{Float64, typeof(𝐓^-1), U}}
+    death::Vector{Quantity{Float64, typeof(𝐓^-1), U}}
+    l::Float64
+    s::Float64
+    boost::Float64
+
+    function NoGrowth{U}(birth::Vector{Quantity{Float64, typeof(𝐓^-1), U}},
+      death::Vector{Quantity{Float64, typeof(𝐓^-1), U}},
+      l::Float64, s::Float64, boost::Float64) where {U <: Rates}
+      l > s || error("l must be greater than s")
+      l >= 0 && s >= 0 || error("l and s must be greater than zero")
+      new{U}(birth, death, l, s, boost)
+    end
+end
+
 """
     equalpop(params::EqualPop, numspp)
 
@@ -59,5 +76,9 @@ function equalpop(params::EqualPop, numspp)
   params.l, params.s, params.boost)
 end
 function equalpop(params::PopGrowth, numspp)
+  return params
+end
+
+function equalpop(params::NoGrowth, numspp)
   return params
 end
