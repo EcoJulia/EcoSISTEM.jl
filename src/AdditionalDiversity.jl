@@ -20,7 +20,7 @@ Function to calculate the Shannon entropy for the entire ecosystem.
 """
 function meta_shannon(eco::Ecosystem, qs::Vector{Float64})
     div = meta_gamma(eco, 1.0)
-    div[:diversity] = log(div[:diversity])
+    div[:diversity] = log.(div[:diversity])
     return div
 end
 function meta_shannon(eco::Ecosystem, qs::Float64)
