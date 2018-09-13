@@ -693,27 +693,44 @@ using MyUnitful
 using AxisArrays
 using ClimatePref
 
-eco = readTOML("examples/TOML/NH_sw_tp_3/setup.toml")
+eco = readTOML("setupB.toml")
+runTOML("runB.toml", eco)
+eco = readTOML("examples/TOML/NH_sw_tp_5/setup.toml")
 
 abun = mapslices(sum, eco.abundances.grid, 1)[1, :, :]
-x = ustrip.(tempax1.array.axes[1][1]:0.375°:tempax1.array.axes[1][end])
-y = ustrip.(tempax1.array.axes[2][1]:0.375°:tempax1.array.axes[2][end])
+y = ustrip.(-0.375°:0.375°:90°)
+x = ustrip.(-20°:0.375°:180°)
 @rput abun; @rput x; @rput y
 R"library(fields);par(mfrow=c(1,1))
 library(viridis)
 library(rgdal)
 abun[is.na(abun)] = 0
 world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
-jpeg(paste('plots/gbif_sim/gbif_simulation_start2.jpg'), quality=1000,
+jpeg(paste('examples/TOML/NH_sw_tp_3/plots/simulation_start.jpg'), quality=1000,
     width =1500, height =1000)
-image.plot(x, y, log(1+abun), col=magma(30),zlim=c(0,10),
+image.plot(x, y, log(abun+1), col=magma(30),zlim=c(0,15),
+xlab='', ylab='', main ='')
+plot(world,  add = T, border = 'white')
+dev.off()
+"
+
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(raster)
+abun[is.na(abun)] = 0
+world = shapefile('../../gbif/ne_10m_land/ne_10m_land.shp')
+jpeg(paste('plots/simulation_start.jpg'), quality=1000,
+    width =1500, height =1000)
+image.plot(x, y, log(abun+1), col=magma(30),zlim=c(0,15),
 xlab='', ylab='', main ='')
 plot(world,  add = T, border = 'white')
 dev.off()
 "
 
 runTOML("examples/TOML/NH_sw_tp_3/run.toml", eco)
-abun = readoutput("examples/TOML/NH_sw_tp_3/data", "Run")
+abun = readoutput("examples/TOML/NH_sw_tp_3/data/", "Run")
+abun = reshape(abun, 534, 242, 1, 1285, 1)[:,:,1,:,1]
+
 
 hab1 = ustrip.(eco.abenv.habitat.h1.matrix)
 @rput hab1
@@ -723,8 +740,8 @@ bud1 = ustrip.(eco.abenv.budget.b1.matrix)
 @rput bud1
 bud2 = ustrip.(eco.abenv.budget.b2.matrix)
 @rput bud2
-x = ustrip.(world.axes[1].val)
-y = ustrip.(world.axes[2].val)
+x = -20.0:0.375:180
+y = -0.375:0.375:90
 @rput x; @rput y
 @rput abun; @rput hab1; @rput hab2; @rput bud1; @rput bud2
 R"library(fields);par(mfrow=c(1,1))
@@ -734,8 +751,8 @@ months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
 world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
-for (i in c(1:120)){
-jpeg(paste('plots/gbif_sim/gbif_simulation_world', i, '.jpg'), quality=1000,
+for (i in seq(0, 100, by = 10)){
+jpeg(paste('examples/TOML/NH_sw_tp_5/plots/simulation_world', i, '.jpg'), quality=1000,
     width =1500, height =1000)
 im = abun[ , , i]
 im[is.na(im)] = 0
@@ -749,9 +766,279 @@ plot(world,  add = T, border = 'white')
 image.plot(x,y, bud1[,,rep(c(1:12), 10)[i]],  col=viridis(50), main = '',
 zlim = c(0, 50000))
 plot(world,  add = T, border = 'white')
-image.plot(x, y, im, col=magma(30),zlim=c(0,3),
+image.plot(x, y, im, col=magma(30),zlim=c(0,5),
 xlab='', ylab='', main ='')
 plot(world,  add = T, border = 'white')
+dev.off()
+}
+"
+
+abun = readoutput("examples/TOML/NH_sw_tp_5/data/", "Run")
+abun = reshape(abun, 534, 242, 1, 1284, 1)[:,:,1,:,1]
+@rput x; @rput y
+@rput abun
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(rgdal)
+months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
+'August', 'September', 'October', 'November', 'December'), 10)
+years = c(1980:1989)
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
+for (i in seq(1, 1284, by = 1)){
+png(paste0('examples/TOML/NH_sw_tp_5/plots/simulation_world', sprintf('%03d', i), '.png'),
+    width =1069, height =484)
+im = abun[ , , i]
+im[is.na(im)] = 0
+image.plot(x, y, im, col=magma(30),zlim=c(0,5),
+xlab='', ylab='', main ='')
+plot(world,  add = T, border = 'white')
+plot(casp, add = 2, col = 1, border = 'white')
+dev.off()
+}
+"
+
+abun2, beta = Simulation.readbeta("examples/TOML/NH_sw_tp_5/data/beta/", "Run")
+abun2 = reshape(abun, 534, 242, 1, 169, 1)[:,:,1,:,1]
+@rput abun2; @rput beta
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(rgdal)
+months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
+'August', 'September', 'October', 'November', 'December'), 10)
+years = c(1980:1989)
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
+for (i in seq(1, 169, by = 12)){
+png(paste0('examples/TOML/NH_sw_tp_5/plots/simulation_beta', i, '.png'),
+    width =1069, height =968)
+par(mfrow = c(2, 1))
+im = abun2[ , , i]
+im[is.na(im)] = 0
+image.plot(x, y, im, col=magma(30),zlim=c(0,20),
+xlab='', ylab='', main ='')
+plot(world,  add = T, border = 'white')
+plot(beta[1:i], xlim=c(0, 157),ylim=c(0, 4), type = 'l', xlab = 'Month',
+    ylab = 'Number of distinct ecosystems')
+points(i, beta[i], pch = 20, col = 'red')
+dev.off()
+}
+"
+
+abun = readoutput("examples/TOML/NH_sw_tp_5/data/", "Run")
+abun = reshape(abun, 534, 242, 1, 1309, 1)[:,:,1,:,1]
+@rput x; @rput y
+@rput abun
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(rgdal)
+months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
+'August', 'September', 'October', 'November', 'December'), 10)
+years = c(1980:1989)
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+for (i in seq(1, 1300, by = 10)){
+jpeg(paste('examples/TOML/NH_sw_tp_5/plots/simulation_world', i, '.jpg'), quality=1000,
+    width =1500, height =1000)
+im = abun[ , , i]
+im[is.na(im)] = 0
+image.plot(x, y, im, col=magma(30),zlim=c(0,5),
+xlab='', ylab='', main ='')
+plot(world,  add = T, border = 'white')
+dev.off()
+}
+"
+
+abun = readoutput("examples/TOML/NH_sw_tp_10/data/", "Run")
+abun = reshape(abun, 534, 242, 1, 673, 1)[:,:,1,:,1]
+@rput x; @rput y
+@rput abun
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(rgdal)
+months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
+'August', 'September', 'October', 'November', 'December'), 10)
+years = c(1980:1989)
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+for (i in seq(1, 600, by = 10)){
+jpeg(paste('examples/TOML/NH_sw_tp_10/plots/simulation_world', i, '.jpg'), quality=1000,
+    width =1500, height =1000)
+im = abun[ , , i]
+im[is.na(im)] = 0
+image.plot(x, y, im, col=magma(30),zlim=c(0,10),
+xlab='', ylab='', main ='')
+plot(world,  add = T, border = 'white')
+dev.off()
+}
+"
+
+
+abun = readoutput("examples/TOML/NH_sw_tp_50/data/", "Run")
+abun = reshape(abun, 534, 242, 1, 649, 1)[:,:,1,:,1]
+@rput x; @rput y
+@rput abun
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(rgdal)
+months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
+'August', 'September', 'October', 'November', 'December'), 10)
+years = c(1980:1989)
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+for (i in seq(1, 649, by = 12)){
+png(paste0('examples/TOML/NH_sw_tp_50/plots/simulation_world', i, '.png'),
+    width = 1068, height = 484)
+im = abun[ , , i]
+im[is.na(im)] = 0
+image.plot(x, y, im, col=magma(30),zlim=c(0,20),
+xlab='', ylab='', main ='')
+plot(world,  add = T, border = 'white')
+dev.off()
+}
+"
+abun = readoutput("examples/TOML/NH_sw_tp_100/data/", "Run")
+abun = reshape(abun, 534, 242, 1, 1081, 1)[:,:,1,:,1]
+@rput x; @rput y
+@rput abun
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(rgdal)
+months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
+'August', 'September', 'October', 'November', 'December'), 10)
+years = c(1980:1989)
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
+for (i in seq(1, 1081, by = 12)){
+png(paste0('examples/TOML/NH_sw_tp_100/plots/simulation_world', i, '.png'),
+    width = 1068, height = 484)
+    im = abun[ , , i]
+    im[is.na(im)] = 0
+    image.plot(x, y, im, col=c('black', viridis(30)),zlim=c(0,100),
+    xlab='', ylab='', main ='')
+    plot(world,  add = T, border = 'white')
+    plot(casp, add = T, col = 1, border = 'white')
+dev.off()
+}
+"
+abun, abun2 = Simulation.readall("examples/TOML/NH_sw_tp_100/data/all/", "Run")
+abun = reshape(abun, 534, 242, 3, 1201, 1)[:,:,:,:,1]
+@rput abun; @rput abun2
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(rgdal)
+mains = c(' ','Number of distinct ecosystems', 'Number of remaining species')
+months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
+'August', 'September', 'October', 'November', 'December'), 100)
+years = rep(c(1901:2010), each =12)
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
+for (i in seq(1200, 1200, by = 1)){
+png(paste0('examples/TOML/NH_sw_tp_100/plots/simulation_alpha', sprintf('%04d',i+1), '.png'),
+    width =2000, height =1000)
+par(mfrow = c(2, 2), mar = c(5,4,4, 6))
+image.plot(x,y, hab1[,,i],  col=magma(50), main = 'Temperature',
+zlim = c(-80, 45), xlab='', ylab='', axes=F, cex.main = 4)
+plot(world,  add = T, border = 'white')
+image.plot(x,y, log(1 + hab2[,,rep(c(1:12), 100)[i]]),  col=viridis(50), main = 'Precipitation',
+zlim = c(0, 10), xlab='', ylab='', axes=F, cex.main = 4)
+plot(world,  add = T, border = 'white')
+image.plot(x,y, bud1[,,rep(c(1:12), 100)[i]],  col=viridis(50), main = 'Solar radiation',
+zlim = c(0, 50000), xlab='', ylab='', axes=F, cex.main = 4)
+plot(world,  add = T, border = 'white')
+im = abun[ , , 1, i]
+im[is.na(im)] = 0
+image.plot(x, y, im, col=c('black', viridis(100)[10:100]),zlim=c(0,100),
+xlab='', ylab='',  axes=F, main = paste('December',  2010), cex.main = 4)
+plot(world,  add = T, border = 'white')
+plot(casp, add = T, col = 1, border = 'white')
+dev.off()
+}
+"
+
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(rgdal)
+mains = c(' ','Number of distinct ecosystems', 'Number of remaining species')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
+for (i in seq(1082, 1201, by = 1)){
+png(paste0('examples/TOML/NH_sw_tp_100/plots/simulation_beta', sprintf('%04d',i), '.png'),
+    width =1069, height =968)
+par(mfrow = c(2, 1), mar = c(5,6,4,4))
+im = abun[ , , 2, i]
+im[is.na(im)] = 0
+image.plot(x, y, log(1+im), col=c('black',viridis(100)[10:100]),zlim=c(0,10),
+xlab='', ylab='', main ='', axes =F)
+plot(world,  add = T, border = 'white')
+plot(casp, add = T, col = 1, border = 'white')
+plot(abun2[2, 1:i], xlim = c(1, 1308), ylim = c(1, 20), type = 'l', xlab = 'Year',
+    ylab = list(mains[2], cex=2), xaxt='n', cex.axis=1.5, cex.lab = 2)
+axis(1, at=seq(1, 1308, 60), labels=seq(0, 109, 5), cex.axis = 1.5)
+points(i, abun2[2, i], pch = 20, col = 'red')
+dev.off()
+}
+"
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(rgdal)
+mains = c(' ','Number of distinct ecosystems', 'Number of remaining species')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
+for (i in seq(1082, 1201, by = 1)){
+png(paste0('examples/TOML/NH_sw_tp_100/plots/simulation_gamma', sprintf('%04d',i), '.png'),
+    width =1069, height =968)
+par(mfrow = c(2, 1), mar = c(5,6,4,4))
+im = abun[ , , 3, i]
+im[is.na(im)] = 0
+image.plot(x, y, im, col=c('black', viridis(100)[10:100]), zlim=c(0,1000),
+xlab='', ylab='', main ='', axes =F)
+plot(world,  add = T, border = 'white')
+plot(casp, add = T, col = 1, border = 'white')
+plot(abun2[3, 1:i], xlim=c(0, 1308), ylim=c(0, 100), type = 'l', xlab = 'Year',
+    ylab = list(mains[3], cex=2), xaxt='n', cex.axis=1.5, cex.lab = 2)
+axis(1, at=seq(1, 1308, 60), labels=seq(0, 109, 5), cex.axis=1.5)
+points(i, abun2[3, i], pch = 20, col = 'red')
+dev.off()
+}
+"
+hab1 = ustrip.(eco.abenv.habitat.h1.matrix)
+@rput hab1
+hab2 = ustrip.(eco.abenv.habitat.h2.matrix)
+@rput hab2
+bud1 = ustrip.(eco.abenv.budget.b1.matrix)
+@rput bud1
+bud2 = ustrip.(eco.abenv.budget.b2.matrix)
+@rput bud2
+x = -20.0:0.375:180
+y = -0.375:0.375:90
+abun = readoutput("examples/TOML/NH_sw_tp_1000/data/", "Run")
+abun = reshape(abun, 534, 242, 1, 109, 1)[:,:,1,:,1]
+@rput x; @rput y
+@rput abun
+R"library(fields);par(mfrow=c(1,1))
+library(viridis)
+library(rgdal)
+months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
+'August', 'September', 'October', 'November', 'December'), 10)
+years = c(1980:1989)
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
+for (i in seq(1, 109, by = 12)){
+png(paste0('examples/TOML/NH_sw_tp_1000/plots/simulation_world', i, '.png'),
+    width = 1068, height = 484)
+    par(mfrow=c(2,2))
+    image.plot(x,y, hab1[,,i],  col=magma(50), main = 'Temperature',
+    zlim = c(-80, 45))
+    plot(world,  add = T, border = 'white')
+    image.plot(x,y, log(1 + hab2[,,rep(c(1:12), 10)[i]]),  col=viridis(50), main = 'Precipitation',
+    zlim = c(0, 10))
+    plot(world,  add = T, border = 'white')
+    image.plot(x,y, bud1[,,rep(c(1:12), 10)[i]],  col=viridis(50), main = 'Solar radiation',
+    zlim = c(0, 50000))
+im = abun[ , , i]
+im[is.na(im)] = 0
+image.plot(x, y, im, col=c('black', viridis(50)),zlim=c(0,1000),
+xlab='', ylab='', main ='Alpha diversity')
+plot(world,  add = T, border = 'white')
+plot(casp, add = 2, col = 1, border = 'white')
 dev.off()
 }
 "
