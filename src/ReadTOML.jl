@@ -25,6 +25,7 @@ unitdict = Dict("month" => month, "year" => year, "km" => km, "mm" => mm,
 
 function readoutput(file::String, name::String)
     filenames = searchdir(file, name)
+    sort!(filenames)
     joinname = joinpath(file, filenames[1])
     withoutend = split(joinname, ".jld")[1]
     withoutbegin = split(withoutend, file)[2]
@@ -32,10 +33,39 @@ function readoutput(file::String, name::String)
     for i in eachindex(filenames)[2:end]
         joinname = joinpath(file, filenames[i])
         withoutend = split(joinname, ".jld")[1]
-        newmat = JLD.load(joinname, String(withoutend))
+        withoutbegin = split(withoutend, file)[2]
+        newmat = JLD.load(joinname, String(withoutbegin))
         mat = cat(3, mat, newmat)
     end
     return mat
+end
+function readbeta(file::String, name::String)
+    filenames = searchdir(file, name)
+    sort!(filenames)
+    joinname = joinpath(file, filenames[1])
+    mat = JLD.load(joinname, "Div1")
+    beta = JLD.load(joinname, "Div2")[1, :]
+    for i in eachindex(filenames)[2:end]
+        joinname = joinpath(file, filenames[i])
+        newmat = JLD.load(joinname, "Div1")
+        mat = cat(3, mat, newmat)
+        append!(beta,JLD.load(joinname, "Div2")[1, :])
+    end
+    return mat, beta
+end
+function readall(file::String, name::String)
+    filenames = searchdir(file, name)
+    sort!(filenames)
+    joinname = joinpath(file, filenames[1])
+    mat = JLD.load(joinname, "Div1")
+    all = JLD.load(joinname, "Div2")
+    for i in eachindex(filenames)[2:end]
+        joinname = joinpath(file, filenames[i])
+        newmat = JLD.load(joinname, "Div1")
+        mat = cat(3, mat, newmat)
+        all = cat(2, all, JLD.load(joinname, "Div2"))
+    end
+    return mat, all
 end
 function runTOML(file::String, eco::Ecosystem)
     fulldict = TOML.parsefile(file)
