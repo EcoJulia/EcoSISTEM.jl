@@ -110,19 +110,7 @@ and trait relationship.
 """
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
-
-  # Check there is enough energy to support number of individuals at set up
-  all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
-    error("Environment does not have enough energy to support species")
-  # Create matrix landscape of zero abundances
-  ml = emptygridlandscape(abenv, spplist)
-  # Populate this matrix with species abundances
-  populate!(ml, spplist, abenv)
-  # Create lookup table of all moves and their probabilities
-  lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
-  nm = zeros(Int64, size(ml.matrix))
-  Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
-  missing, rel, lookup_tab, Cache(nm))
+   return Ecosystem(populate!, spplist, abenv, rel)
 end
 
 function Ecosystem(locations::NextTable, spplist::SpeciesList,
@@ -146,6 +134,23 @@ function Ecosystem(locations::NextTable, spplist::SpeciesList,
              ml.matrix[i, vals[j]] = ml.matrix[i, vals[j]] + 1
          end
     end
+  # Create lookup table of all moves and their probabilities
+  lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
+  nm = zeros(Int64, size(ml.matrix))
+  Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
+  missing, rel, lookup_tab, Cache(nm))
+end
+
+function Ecosystem(popfun::Function, spplist::SpeciesList, abenv::GridAbioticEnv,
+   rel::AbstractTraitRelationship)
+
+  # Check there is enough energy to support number of individuals at set up
+  all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
+    error("Environment does not have enough energy to support species")
+  # Create matrix landscape of zero abundances
+  ml = emptygridlandscape(abenv, spplist)
+  # Populate this matrix with species abundances
+  popfun(ml, spplist, abenv)
   # Create lookup table of all moves and their probabilities
   lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
   nm = zeros(Int64, size(ml.matrix))
