@@ -5,8 +5,7 @@
   timestep = 0.08333333333
   unit = "year"
 [measure]
-  measures = "norm_sub_beta"
-  meta_measures = "norm_meta_beta"
+  measures = "norm_sub_alpha"
   qs = [1.0]
 [datadump]
   interval = 1

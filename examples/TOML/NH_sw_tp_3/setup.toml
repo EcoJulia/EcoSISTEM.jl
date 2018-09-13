@@ -1,12 +1,12 @@
 dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/"
 [grid]
-gridsize = [480, 240]
-resolution = 0.75
+gridsize = [534, 242]
+resolution = 0.375
 unit = "deg"
 maxX = 180.0
-minX = -179.25
+minX = -20.0
 maxY = 90.0
-minY = -89.25
+minY = 0.0
 [traits]
   [traits.temperature]
   file = "Temperature.jld"
@@ -19,20 +19,23 @@ minY = -89.25
 
 [climate]
   [climate.temperature]
-  file = "era_interim_moda_1980"
+  file = "CERA"
+  search = "cera_20C"
   name = "t2m"
-  type = "ERA-interim"
-  years = 10
+  type = "CERA-20C"
+
   [climate.rainfall]
   file = "wc"
   name = "wc2.0_5m_prec"
   type = "Worldclim"
+  upscale = 2
 
  [budget]
   [budget.solar]
   file = "wc"
   name = "wc2.0_5m_srad"
   type = "Worldclim"
+  upscale = 2
 
   [budget.water]
   fromclimate = true
@@ -48,7 +51,7 @@ minY = -89.25
   surv = 0.5
   boost = 1000.0
   grid = [533, 239]
-  individuals = 1000
+  individuals = 100
   unit = "month"
 
 [requirements]
@@ -68,9 +71,10 @@ minY = -89.25
   unit = "km"
 
 [active]
-  file = "World.tif"
+  file = "World_new.tif"
+  upscale = 2
 [locs]
-  file = "Simulation_plants"
+  file = "GBIF_3spp"
 
 [relationship]
   multiplicative = true

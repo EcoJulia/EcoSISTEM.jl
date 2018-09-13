@@ -1,12 +1,12 @@
-dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/"
+dir = "/home/claireh/Documents/gbif"
 [grid]
-gridsize = [147, 241]
-resolution = 0.75
+gridsize = [534, 242]
+resolution = 0.375
 unit = "deg"
 maxX = 180.0
-minX = 0.0
+minX = -20.0
 maxY = 90.0
-minY = -20.0
+minY = 0.0
 upscale = 2
 [traits]
   [traits.temperature]
@@ -20,19 +20,20 @@ upscale = 2
 
 [climate]
   [climate.temperature]
-  file = "cera_20C"
-  name = "t2m"
+  file = "../CERA"
+ search = "cera_20C" 
+name = "t2m"
   type = "CERA-20C"
 
   [climate.rainfall]
-  file = "wc"
+  file = "../RawWorldclim"
   name = "wc2.0_5m_prec"
   type = "Worldclim"
   upscale = 2
 
  [budget]
   [budget.solar]
-  file = "wc"
+  file = "../RawWorldclim"
   name = "wc2.0_5m_srad"
   type = "Worldclim"
   upscale = 2
@@ -41,7 +42,7 @@ upscale = 2
   fromclimate = true
 
 [species]
-  names = 5
+  names = 500
   file = "gbif_species"
   allnative = true
 
@@ -52,17 +53,17 @@ upscale = 2
   surv = 0.5
   boost = 1000.0
   grid = [533, 239]
-  individuals = 1000
+  individuals = 500000
   unit = "month"
 
 [requirements]
   allsame = true
 
   [requirements.solar]
-  req = 2
+  req = 0.02
   unit = "day^-1kJm^-2"
   [requirements.water]
-  req = 0.5
+  req = 0.005
   unit = "mm"
 
 [movement]
@@ -72,9 +73,10 @@ upscale = 2
   unit = "km"
 
 [active]
-  file = "World.tif"
+  file = "World_new.tif"
+upscale = 2
 [locs]
-  file = "Simulation_plants"
+  file = "GBIF_worldclim"
 
 [relationship]
   multiplicative = true
