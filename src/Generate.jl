@@ -26,7 +26,7 @@ function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int6
   end
   # Remove answers outside of the dimensions of the matrix
   remove=vcat(mapslices(all, [neighbour_vec.>=1 neighbour_vec[:,1].<=
-    dims[1] neighbour_vec[:,2].<=dims[2]], 2)...)
+    dims[1] neighbour_vec[:,2].<=dims[2]], dims=2)...)
   neighbour_vec=neighbour_vec[remove,:]
   neighbour_vec
 end
@@ -265,7 +265,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
       b = reshape(copy(_getbudget(abenv.budget)), size(grid))
       units = unit(b[1])
       activity = reshape(copy(abenv.active), size(grid))
-      b[.!activity] = 0.0 * units
+      b[.!activity] .= 0.0 * units
       # Loop through species
       for i in eachindex(spplist.abun)
         # Get abundance of species
@@ -328,7 +328,6 @@ end
 Function to repopulate an ecosystem `eco`, with option for including trait
 preferences.
 """
-
 function reenergise!(eco::Ecosystem, budget::Float64, grid::Tuple{Int64, Int64})
     fill!(eco.abenv.budget.matrix, budget/(grid[1]*grid[2]))
 end

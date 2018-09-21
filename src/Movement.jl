@@ -23,7 +23,7 @@ end
 function GaussianKernel(dispersaldist::Unitful.Length{Float64}, numspecies::Int64,
   pthresh::Float64)
   dist = map(u-> uconvert(km, u), dispersaldist)
-  GaussianKernel(repmat([dist], numspecies), pthresh)
+  GaussianKernel(fill(dist, numspecies), pthresh)
 end
 
 mutable struct BirthOnlyMovement{K <: AbstractKernel} <: AbstractMovement

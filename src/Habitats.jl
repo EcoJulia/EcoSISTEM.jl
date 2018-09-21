@@ -85,7 +85,7 @@ function _countsubcommunities(hab::DiscreteHab)
   return length(hab.matrix)
 end
 function _getdimension(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
-    return size(hab.matrix, 1, 2)
+    return (size(hab.matrix, 1), size(hab.matrix, 2))
 end
 function _getsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
   x = hab.size * size(hab.matrix, 1)
@@ -183,10 +183,10 @@ function _identify_clusters!(M::AbstractMatrix)
         neighbours=get_neighbours(M, y, x)
         # Find out if any of the neighbours also have a value of 1, thus, have
         # not been assigned a cluster yet
-        cluster = vcat(mapslices(x->M[x[1],x[2]].==1, neighbours, 2)...)
+        cluster = vcat(mapslices(x->M[x[1],x[2]].==1, neighbours, dims=2)...)
         # Find out if any of the neighbours have a value > 1, thus, have already
         # been assigned a cluster
-        already=vcat(mapslices(x->M[x[1],x[2]].>1, neighbours, 2)...)
+        already=vcat(mapslices(x->M[x[1],x[2]].>1, neighbours, dims=2)...)
         # If any already assigned neighbours, then assign the grid square to this
         # same type
           if any(already)
@@ -214,7 +214,7 @@ function _fill_in!(T, M, types, wv)
         # Find neighbours of square on string grid
         neighbours=get_neighbours(T, y, x, 8)
         # Check if they have already been assigned
-        already=vcat(mapslices(x->isassigned(T,x[1],x[2]), neighbours, 2)...)
+        already=vcat(mapslices(x->isassigned(T,x[1],x[2]), neighbours, dims=2)...)
         # If any already assigned then sample from most frequent neighbour traits
           if any(already)
             neighbours=neighbours[already,:]
@@ -222,7 +222,7 @@ function _fill_in!(T, M, types, wv)
             neighbour_traits=map(i->T[neighbours[i,1],neighbours[i,2]],
              1:size(neighbours,1))
              # Find which one is counted most often
-            ind=indmax(map(x->sum(neighbour_traits.==x), types))
+            ind=argmax(map(x->sum(neighbour_traits.==x), types))
             # Assign this type to the grid square in T
             T[x,y]= types[ind]
           # If none are assigned in entire grid already,
@@ -265,14 +265,14 @@ function randomniches(dimension::Tuple, types::Vector{Int64}, clumpiness::Float6
     # Select clusters and assign types
     _identify_clusters!(M)
     # Create a string grid of the same dimensions
-    T = Array{Int64}(dimension)
+    T = Array{Int64}(undef, dimension)
     # Fill in T with clusters already created
-    map(x -> T[M.==x]=sample(types, wv), 1:maximum(M))
+    map(x -> T[M.==x] .= sample(types, wv), 1:maximum(M))
     # Fill in undefined squares with most frequent neighbour
     _fill_in!(T, M, types, wv)
   end
 
-  return DiscreteHab(T, gridsquaresize, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
+  return DiscreteHab(T, gridsquaresize, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
 end
 
 function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,

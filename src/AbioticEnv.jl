@@ -58,7 +58,7 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
   area = uconvert(km^2, area)
   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
   # Create niche-like environment
-  hab = randomniches(dimension, niches, 0.5, repmat([1.0/numniches], numniches),
+  hab = randomniches(dimension, niches, 0.5, fill(1.0/numniches, numniches),
   gridsquaresize)
   # Create empty budget and for now fill with one value
   bud = zeros(dimension)
@@ -67,15 +67,15 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
 end
 function simplenicheAE(numniches::Int64, dimension::Tuple,
                         maxbud::Float64, area::Unitful.Area{Float64})
-    active = Array{Bool,2}(dimension)
+    active = Array{Bool,2}(undef, dimension)
     fill!(active, true)
     simplenicheAE(numniches, dimension, maxbud, area, active)
 end
-
+import Diversity.API: _countsubcommunities
 function _countsubcommunities(gae::GridAbioticEnv)
   return countsubcommunities(gae.habitat)
 end
-
+import Diversity.API: _getsubcommunitynames
 function _getsubcommunitynames(gae::GridAbioticEnv)
     return gae.names
 end
@@ -155,7 +155,7 @@ function tempgradAE(min::Unitful.Temperature{Float64},
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimension{()}}(eraChange, 0.0/s))
+        HabitatUpdate{Unitful.Dimensions{()}}(eraChange, 0.0/s))
 
      return GridAbioticEnv{typeof(hab), SolarBudget}(hab, active, bud)
  end
@@ -190,7 +190,7 @@ function tempgradAE(min::Unitful.Temperature{Float64},
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(wc.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimension{()}}(worldclimChange, 0.0/s))
+        HabitatUpdate{Unitful.Dimensions{()}}(worldclimChange, 0.0/s))
 
      return GridAbioticEnv{typeof(hab), SolarBudget}(hab, active, bud)
  end
