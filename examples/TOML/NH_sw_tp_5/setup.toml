@@ -1,12 +1,12 @@
-dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/"
+dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/"
 [grid]
-gridsize = [147, 241]
-resolution = 0.75
+gridsize = [534, 242]
+resolution = 0.375
 unit = "deg"
 maxX = 180.0
-minX = 0.0
+minX = -20.0
 maxY = 90.0
-minY = -20.0
+minY = 0.0
 upscale = 2
 [traits]
   [traits.temperature]
@@ -20,9 +20,10 @@ upscale = 2
 
 [climate]
   [climate.temperature]
-  file = "cera_20C"
+  file = "CERA"
   name = "t2m"
   type = "CERA-20C"
+ search = "cera_20C"
 
   [climate.rainfall]
   file = "wc"
@@ -59,10 +60,10 @@ upscale = 2
   allsame = true
 
   [requirements.solar]
-  req = 2
+  req = 0.02
   unit = "day^-1kJm^-2"
   [requirements.water]
-  req = 0.5
+  req = 0.005
   unit = "mm"
 
 [movement]
@@ -73,6 +74,7 @@ upscale = 2
 
 [active]
   file = "World.tif"
+  upscale = 2
 [locs]
   file = "Simulation_plants"
 
