@@ -1,5 +1,10 @@
 using Distributions
-
+if VERSION < v"0.7-"
+    import Base: rand
+else
+    import Random: rand
+    using Random
+end
 """
     jexp(theta, n::Int64=1)
 

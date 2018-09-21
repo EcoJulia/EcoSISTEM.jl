@@ -19,6 +19,10 @@ include("Energy.jl")
 export SimpleRequirement, SolarRequirement, WaterRequirement, SimpleBudget, SolarBudget,
     WaterBudget, ReqCollection2, BudgetCollection2
 
+if VERSION >= v"0.7-"
+    include("DataTypes.jl")
+end
+
 include("AbioticEnv.jl")
 export GridAbioticEnv, simplenicheAE, tempgradAE, simplehabitatAE, degradedhabitatAE,
     eraAE, worldclimAE
@@ -61,8 +65,10 @@ export populate!, repopulate!,reenergise!, randomniches, update!, update_birth_m
 include("Helper.jl")
 export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
 
-include("ReadTOML.jl")
-export readTOML, runTOML, readoutput
+if VERSION < v"0.7-"
+    include("ReadTOML.jl")
+    export readTOML, runTOML, readoutput
+end
 
 include("plotting.jl")
 export plot_move, plot_abun,plot_mean,plot_diversity, plot_divergence, freq_hist, plotdiv
