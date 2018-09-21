@@ -21,10 +21,15 @@ end
 
 This habitat subtype has a matrix of floats and a float grid square size
 """
-mutable struct HabitatUpdate{D <: Unitful.Dimension}
+mutable struct HabitatUpdate{D <: Unitful.Dimensions,
+                             DT}
   changefun::Function
-  rate::Quantity{Float64,Unitful.Dimensions{Tuple{D,
-   Unitful.Dimension{:Time}(-1//1)}}}
+  rate::DT
+end
+
+function HabitatUpdate{D}(changefun, rate::DT) where {D <: Unitful.Dimensions, DT}
+    typeof(dimension(rate * 1s)) == D || error("Failed to match types")
+    return HabitatUpdate{D, DT}(changefun, rate)
 end
 
 mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
@@ -34,7 +39,7 @@ mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
 end
 
 iscontinuous(hab::ContinuousHab{C}) where C = true
-function eltype{C}(hab::ContinuousHab{C})
+function eltype(hab::ContinuousHab{C}) where C
     return C
 end
 mutable struct ContinuousTimeHab{C <: Number} <: AbstractHabitat{C}
@@ -45,7 +50,7 @@ mutable struct ContinuousTimeHab{C <: Number} <: AbstractHabitat{C}
 end
 
 iscontinuous(hab::ContinuousTimeHab{C}) where C = true
-function eltype{C}(hab::ContinuousTimeHab{C})
+function eltype(hab::ContinuousTimeHab{C}) where C
     return C
 end
 function _resettime!(hab::ContinuousTimeHab)
@@ -73,7 +78,7 @@ end
 
 
 iscontinuous(hab::DiscreteHab) = false
-function eltype{D}(hab::DiscreteHab{D})
+function eltype(hab::DiscreteHab{D}) where D
     return D
 end
 function _countsubcommunities(hab::DiscreteHab)

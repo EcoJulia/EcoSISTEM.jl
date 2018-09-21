@@ -84,10 +84,10 @@ Function to create a SpeciesList given a number of species, the number of traits
 they possess, their abundances, requirement from the environment and their
 movement kernel.
 """
-function SpeciesList{R <: AbstractRequirement,
-    MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,
+function SpeciesList(numspecies::Int64,
     numtraits::Int64, abun_dist::Distribution, req::R,
-    movement::MO, params::P, native::Vector{Bool})
+    movement::MO, params::P, native::Vector{Bool}) where {R <: AbstractRequirement,
+        MO <: AbstractMovement, P <: AbstractParams}
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
@@ -124,10 +124,11 @@ Function to create a SpeciesList given a number of species, the number of traits
 they possess, their abundances, requirement from the environment and their
 movement kernel and any type of AbstractTypes.
 """
-function SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
-    T <: AbstractTypes, P <: AbstractParams}(numspecies::Int64,
+function SpeciesList(numspecies::Int64,
     numtraits::Int64, abun_dist::Distribution, req::R,
-    movement::MO, phy::T, params::P, native::Vector{Bool})
+    movement::MO, phy::T, params::P, native::Vector{Bool}) where
+    {R <: AbstractRequirement, MO <: AbstractMovement,
+        T <: AbstractTypes, P <: AbstractParams}
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
@@ -154,10 +155,11 @@ end
 
 
 
-function SpeciesList{TR<: AbstractTraits, R <: AbstractRequirement,
-    MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,
+function SpeciesList(numspecies::Int64,
     traits::TR, abun_dist::Distribution, req::R,
-    movement::MO, params::P, native::Vector{Bool})
+    movement::MO, params::P, native::Vector{Bool}) where
+    {TR<: AbstractTraits, R <: AbstractRequirement,
+        MO <: AbstractMovement, P <: AbstractParams}
 
     names = map(x -> "$x", 1:numspecies)
     # Create similarity matrix (for now identity)

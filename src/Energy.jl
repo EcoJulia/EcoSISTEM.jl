@@ -8,7 +8,7 @@ the type(s) of energy required `Energy`.
 """
 abstract type AbstractRequirement{Energy} end
 
-function eltype{Energy}(::AbstractRequirement{Energy})
+function eltype(::AbstractRequirement{Energy}) where Energy
   return Energy
 end
 
@@ -66,7 +66,7 @@ Abstract supertype for all budget types
 """
 abstract type AbstractBudget{Requirement} end
 
-function eltype{Energy}(::AbstractBudget{Energy})
+function eltype(::AbstractBudget{Energy}) where Energy
   return Energy
 end
 

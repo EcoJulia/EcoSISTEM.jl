@@ -33,7 +33,7 @@ function ContinuousEvolve(val::Union{Float64, Unitful.Quantity{Float64}},
 end
 
 iscontinuous(trait::DiscreteTrait) = false
-function eltype{D}(trait::DiscreteTrait{D})
+function eltype(trait::DiscreteTrait{D}) where D
     return D
 end
 abstract type ContinuousTrait{C <: Number} <: AbstractTraits{C}
@@ -43,21 +43,21 @@ mutable struct GaussTrait{C <: Number} <: ContinuousTrait{C}
   var::Array{C, 1}
 end
 iscontinuous(trait::GaussTrait{C}) where C = true
-function eltype{C}(trait::GaussTrait{C})
+function eltype(trait::GaussTrait{C}) where C
     return C
 end
 mutable struct TempBin{C <: Int}<: ContinuousTrait{C}
   dist::Array{C, 2}
 end
 iscontinuous(trait::TempBin{C}) where C = true
-function eltype{C}(trait::TempBin{C})
+function eltype(trait::TempBin{C}) where C
     return typeof(1.0°C)
 end
 mutable struct RainBin{C <: Int} <: ContinuousTrait{C}
   dist::Array{C, 2}
 end
 iscontinuous(trait::RainBin{C}) where C = true
-function eltype{C}(trait::ContinuousTrait{C})
+function eltype(trait::ContinuousTrait{C}) where C
     return typeof(1.0mm)
 end
 

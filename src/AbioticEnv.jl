@@ -25,9 +25,9 @@ mutable struct GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
   active::Array{Bool, 2}
   budget::B
   names::Vector{String}
-  function (::Type{GridAbioticEnv{H, B}}){H, B}(habitat::H, active::Array{Bool,2},
+  function (::Type{GridAbioticEnv{H, B}})(habitat::H, active::Array{Bool,2},
        budget::B, names::Vector{String} =
-       map(x -> "$x", 1:countsubcommunities(habitat)))
+       map(x -> "$x", 1:countsubcommunities(habitat))) where {H, B}
 
     countsubcommunities(habitat) == countsubcommunities(budget) ||
       error("Habitat and budget must have same dimensions")

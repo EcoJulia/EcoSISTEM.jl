@@ -8,9 +8,9 @@ The abstract supertype of relationships between a trait and its environment,
 parameterised on any TR.
 
 """
-
 abstract type AbstractTraitRelationship{TR}
 end
+
 """
     Gauss{TR} <: AbstractTraitRelationship{TR}
 
@@ -25,9 +25,10 @@ function (::Gauss{TR})(current::TR, opt::TR, var::TR) where TR
     return (1.0 * unit(current))/sqrt(2 * π * var^2) * exp(-abs(current - opt)^2/(2 * var^2))
 end
 iscontinuous(tr::Gauss{TR}) where TR = true
-function eltype{TR}(tr::Gauss{TR})
+function eltype(tr::Gauss{TR}) where TR
     return TR
 end
+
 """
     Trapeze{TR} <: AbstractTraitRelationship{TR}
 
@@ -42,9 +43,10 @@ function (::Trapeze{TR})(dist::Trapezoid, current::TR) where TR
     return pdf(dist, ustrip(current))
 end
 iscontinuous(tr::Trapeze{TR}) where TR = true
-function eltype{TR}(tr::Trapeze{TR})
+function eltype(tr::Trapeze{TR}) where TR
     return TR
 end
+
 """
     Trapeze{TR} <: AbstractTraitRelationship{TR}
 
@@ -59,9 +61,10 @@ function (::Unif{TR})(dist::Uniform, current::TR) where TR
     return pdf(dist, uconvert(NoUnits, current/mm))
 end
 iscontinuous(tr::Unif{TR}) where TR = true
-function eltype{TR}(tr::Unif{TR})
+function eltype(tr::Unif{TR}) where TR
     return TR
 end
+
 """
     Match{TR} <: AbstractTraitRelationship{TR}
 
@@ -80,9 +83,10 @@ function (::Match{TR})(niche::TR, pref::TR) where TR
   end
 end
 iscontinuous(tr::Match{TR}) where TR = false
-function eltype{TR}(tr::Match{TR})
+function eltype(tr::Match{TR}) where TR
     return TR
 end
+
 """
     NoRelContinuous{TR} <: AbstractTraitRelationship{TR}
 
@@ -96,9 +100,10 @@ function (::NoRelContinuous{TR})(habitat::TR, niche::TR, pref::TR) where TR
     return 1.0
 end
 iscontinuous(tr::NoRelContinuous{TR}) where TR = true
-function eltype{TR}(tr::NoRelContinuous{TR})
+function eltype(tr::NoRelContinuous{TR}) where TR
     return TR
 end
+
 """
     NoRelDiscrete{TR} <: AbstractTraitRelationship{TR}
 
@@ -112,9 +117,10 @@ function (::NoRelDiscrete{TR})(niche::TR, pref::TR) where TR
     return 1.0
 end
 iscontinuous(tr::NoRelDiscrete{TR}) where TR = true
-function eltype{TR}(tr::NoRelDiscrete{TR})
+function eltype(tr::NoRelDiscrete{TR}) where TR
     return TR
 end
+
 """
     multiplicativeTR2{TR1, TR2} <: AbstractTraitRelationship{Tuple{TR1, TR2}}
 
@@ -131,6 +137,7 @@ iscontinuous(tr::multiplicativeTR2{TR1, TR2} ) where {TR1, TR2} =
 function eltype(mtr::multiplicativeTR2)
     return [eltype(mtr.tr1), eltype(mtr.tr2)]
 end
+
 """
     multiplicativeTR3{TR1, TR2, TR3} <: AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
 
@@ -165,6 +172,7 @@ iscontinuous(tr::additiveTR2{TR1, TR2} ) where {TR1, TR2} =
 function eltype(mtr::additiveTR2)
     return [eltype(mtr.tr1), eltype(mtr.tr2)]
 end
+
 """
     multiplicativeTR3{TR1, TR2, TR3} <: AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
 
@@ -183,6 +191,7 @@ iscontinuous(tr::additiveTR3{TR1, TR2, TR3} ) where {TR1, TR2, TR3} =
 function eltype(mtr::additiveTR3)
     return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
 end
+
 """
     combineTR
 
