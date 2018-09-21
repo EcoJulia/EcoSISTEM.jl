@@ -3,8 +3,6 @@ using Cubature
 using DataFrames
 using Unitful
 using MyUnitful
-using ClimatePref
-using JuliaDB
 using Missings
 
 import Diversity: _calcabundance
@@ -66,7 +64,7 @@ function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
     (iscontinuous(sppl.traits) == iscontinuous(traitrel))
 end
 
-importall Diversity.API
+
 """
     Ecosystem{Part <: AbstractAbiotic} <:
        AbstractMetacommunity{Float64, Matrix{Float64}, SpeciesList, Part}
@@ -158,6 +156,7 @@ function Ecosystem(popfun::Function, spplist::SpeciesList, abenv::GridAbioticEnv
   missing, rel, lookup_tab, Cache(nm))
 end
 
+import Diversity.API: _getabundance
 function _getabundance(eco::Ecosystem, input::Bool)
     if input
         return eco.abundances.matrix
@@ -165,17 +164,19 @@ function _getabundance(eco::Ecosystem, input::Bool)
         return eco.abundances.matrix / sum(eco.abundances.matrix)
     end
 end
-
+import Diversity.API: _getmetaabundance
 function _getmetaabundance(eco::Ecosystem)
   return sumoversubcommunities(eco, _getabundance(eco))
 end
+import Diversity.API: _getpartition
 function _getpartition(eco::Ecosystem)
   return eco.abenv
 end
+import Diversity.API: _gettypes
 function _gettypes(eco::Ecosystem)
     return eco.spplist
 end
-
+import Diversity.API: _getordinariness!
 function _getordinariness!(eco::Ecosystem)
     if ismissing(eco.ordinariness)
         relab = getabundance(eco, false)

@@ -1,5 +1,4 @@
-import Base.eltype
-import Base.length
+import Base: eltype, length
 """
     AbstractRequirement{Energy}
 

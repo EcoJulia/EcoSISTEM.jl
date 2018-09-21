@@ -1,10 +1,12 @@
 using Diversity
-importall Diversity.API
 using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
-using ClimatePref
-
+using Compat
+if VERSION < v"0.7-"
+    using ClimatePref
+end
+using Diversity.API
 """
     AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
 
