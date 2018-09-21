@@ -1,28 +1,6 @@
 using Diversity
 using Phylo
-importall Diversity.API
 
-"""
-    simmatch(sim::AbstractTypes)
-
-Checks for size and value incompatibility in similarity objects
-"""
-function simmatch end
-
-function _simmatch(sim::PhyloTypes)
-  # Check similarity is square matrix
-  size(sim.Zmatrix, 1) == size(sim.Zmatrix, 2) ||
-    throw(DimensionMismatch("Similarity matrix is not square"))
-
-  # Check similarity is bounded between 0 and 1
-  minimum(sim.Zmatrix) ≥ 0 || throw(DomainError())
-  maximum(sim.Zmatrix) ≤ 1 || warn("Similarity matrix has values above 1")
-end
-
-function _simmatch(sim::UniqueTypes)
-  length(gettypenames(sim)) == counttypes(sim) ||
-    throw(DimensionMismatch("Names do not match number of types"))
-end
 """
     SpeciesList{TR <: AbstractTraits, R <: AbstractRequirement,
                 MO <: AbstractMovement, T <: AbstractTypes,
@@ -53,7 +31,6 @@ mutable struct SpeciesList{TR <: AbstractTraits,
                        T <: AbstractTypes,
                        P <: AbstractParams}
       # Check dimensions
-      _simmatch(types)
       equal_param = equalpop(params, length(names))
       new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
        movement, equal_param, native)
@@ -167,7 +144,7 @@ function SpeciesList(numspecies::Int64,
     # Draw random set of abundances from distribution
     abun = rand(abun_dist)
     if length(abun) < numspecies
-        abun = vcat(abun, repmat([0], numspecies - length(abun)))
+        abun = vcat(abun, fill(0, numspecies - length(abun)))
     end
     # error out when abun dist and NumberSpecies are not the same (same for energy dist)
     length(abun)==numspecies || throw(DimensionMismatch("Abundance vector

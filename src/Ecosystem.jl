@@ -106,39 +106,6 @@ end
 Function to create an `Ecosystem` given a species list, an abiotic environment
 and trait relationship.
 """
-function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship)
-   return Ecosystem(populate!, spplist, abenv, rel)
-end
-
-function Ecosystem(locations::NextTable, spplist::SpeciesList,
-    abenv::GridAbioticEnv, rel::AbstractTraitRelationship)
-
-  # Check there is enough energy to support number of individuals at set up
-  all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
-    error("Environment does not have enough energy to support species")
-  # Create matrix landscape of zero abundances
-  ml = emptygridlandscape(abenv, spplist)
-  # Populate this matrix with species abundances
-  names = spplist.names
-  Set(names) == Set(unique(select(locations, 1))) || error("Species names in location table
-    do not match species list")
-    abun = spplist.abun
-    for i in eachindex(names)
-         spp = select(locations ,1)[:,1] .== names[i]
-         vals = select(locations, 2)[spp]
-         vals = rand(vals, abun[i])
-         for j in eachindex(vals)
-             ml.matrix[i, vals[j]] = ml.matrix[i, vals[j]] + 1
-         end
-    end
-  # Create lookup table of all moves and their probabilities
-  lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
-  nm = zeros(Int64, size(ml.matrix))
-  Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
-  missing, rel, lookup_tab, Cache(nm))
-end
-
 function Ecosystem(popfun::Function, spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
 
@@ -156,6 +123,10 @@ function Ecosystem(popfun::Function, spplist::SpeciesList, abenv::GridAbioticEnv
   missing, rel, lookup_tab, Cache(nm))
 end
 
+function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
+   rel::AbstractTraitRelationship)
+   return Ecosystem(populate!, spplist, abenv, rel)
+end
 import Diversity.API: _getabundance
 function _getabundance(eco::Ecosystem, input::Bool)
     if input
