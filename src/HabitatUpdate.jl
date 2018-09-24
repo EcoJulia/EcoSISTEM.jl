@@ -31,6 +31,7 @@ function HabitatLoss(eco::Ecosystem, hab::AbstractHabitat, timestep::Unitful.Tim
     pos = find(eco.abenv.active)
     smp = sample(pos, jbinom(1, length(pos), ustrip(v))[1])
     eco.abenv.budget.matrix[smp] = 0.0
+    eco.abundances.matrix[:, smp] .= 0.0
 end
 
 function habitatupdate!(eco::Ecosystem, timestep::Unitful.Time)
