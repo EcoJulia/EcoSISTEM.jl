@@ -129,6 +129,22 @@ function runTOML(file::String, eco::Ecosystem)
         timestep, " timestep", "\n", "Output: ", outfile))
 end
 
+function populate_from_GBIF!(locations::NextTable, ml::GridLandscape,
+    abenv::GridAbioticEnv, rel::AbstractTraitRelationship)
+  names = spplist.names
+  Set(names) == Set(unique(select(locations, 1))) || error("Species names in location table
+    do not match species list")
+    abun = spplist.abun
+    for i in eachindex(names)
+         spp = select(locations ,1)[:,1] .== names[i]
+         vals = select(locations, 2)[spp]
+         vals = rand(vals, abun[i])
+         for j in eachindex(vals)
+             ml.matrix[i, vals[j]] = ml.matrix[i, vals[j]] + 1
+         end
+    end
+end
+
 function readTOML(file::String)
     fulldict = TOML.parsefile(file)
     dir = fulldict["dir"]
@@ -137,7 +153,8 @@ function readTOML(file::String)
     abenv = TOML_abenv(fulldict)
     locations = TOML_locs(fulldict, sppl)
     rel = TOML_rel(fulldict)
-    eco = Ecosystem(locations, sppl, abenv, rel)
+    eco = Ecosystem((ml, abenv, rel) -> populate_from_GBIF!(locations, ml, abenv, rel),
+                    sppl, abenv, rel)
     return eco
 end
 
@@ -156,7 +173,7 @@ function TOML_sppl(fulldict::Dict)
         names = Vector{String}(numspp)
         for i in 1:numspp
             sel = rand((chunk * (1-1) + 1) : (chunk * 1), 1)
-            names[i] = rows(gbif, :species)[sel][1]
+            names[i] = collect(rows(gbif, :species)[sel][1])
         end
     end
     numSpecies = length(names)

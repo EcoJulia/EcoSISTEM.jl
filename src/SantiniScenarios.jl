@@ -1,3 +1,4 @@
+using StatsBase
 function trait_populate!(ml::GridLandscape, spplist::SpeciesList,
                        abenv::AbstractAbiotic)
   # Calculate size of habitat
