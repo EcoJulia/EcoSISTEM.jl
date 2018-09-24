@@ -6,17 +6,18 @@ using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
 using RCall
-using JLD
+#using JLD
+using StatsBase
 
 # Start parallel processes
-addprocs(9)
+#addprocs(9)
 
 # Load packages to all cores
-@everywhere using Diversity
-@everywhere using Simulation
-@everywhere using DataFrames
-@everywhere using Distributions
-@everywhere using DataStructures
+using Diversity
+using Simulation
+using DataFrames
+using Distributions
+using DataStructures
 
 # Set up Ecosystem as discrete habitat with species having a trait preference
 # for one of the two niche types
@@ -29,8 +30,8 @@ numInvasive = 1
 energy_vec = SimpleRequirement(sample(2.0:10, numSpecies+numInvasive))
 
 # Set probabilities
-birth = repmat([0.0/month], numSpecies+numInvasive)
-death = repmat([0.0/month], numSpecies+numInvasive)
+birth = fill(0.0/month, numSpecies+numInvasive)
+death = fill(0.0/month, numSpecies+numInvasive)
 long = 1.0
 surv = 0.0
 boost = 1000.0
@@ -52,8 +53,7 @@ movement = NoMovement(kernel)
 
 #
 abun = Multinomial(individuals, numSpecies)
-native = Vector{Bool}(numSpecies + numInvasive)
-fill!(native, true)
+native = fill(true, numSpecies + numInvasive)
 native[numSpecies+numInvasive] = false
 traits = sample([1,2,3], weights([0.4, 0.2, 0.4]), numSpecies)
 push!(traits, 3)
@@ -61,7 +61,7 @@ sppl = SpeciesList(numSpecies + numInvasive, DiscreteTrait(traits), abun,
                    energy_vec, movement, param, native)
 abenv = simplenicheAE(numNiches, grid, totalK, area)
 rel = Match{eltype(abenv.habitat)}()
-eco = Ecosystem(trait_populate!, sppl, abenv, rel)
+eco = Ecosystem(populate!, sppl, abenv, rel)
 
 
 # Set up scenario of total habitat loss at certain rate
@@ -117,7 +117,7 @@ function runsim(eco::Ecosystem, times::Unitful.Time)
     abun
 end
 
-times = 10year;
+times = 1year;
 #div = runsim(eco, times);
 #save("SantiniRun50spp.jld", "div", div)
 #div[isnan.(div)] = 0.0
@@ -244,7 +244,7 @@ repslope = reshape(repslope, 80, 1)
 R"
 library(fields);
 library(viridis);library(RColorBrewer)
-png('Meanslope_static50.jpg', width = 1000, height = 800)
+png('Meanslope_static50.png', width = 1000, height = 800)
 par(mfrow=c(1,1), mar=c(4,4,6,6));
 image(meanslope, axes=FALSE, xlab='', ylab='', srt=45, col = magma(50),
     breaks =seq(-4, 4,length.out=51));

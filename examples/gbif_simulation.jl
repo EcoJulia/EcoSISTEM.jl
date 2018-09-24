@@ -695,7 +695,7 @@ using ClimatePref
 
 eco = readTOML("setupB.toml")
 runTOML("runB.toml", eco)
-eco = readTOML("examples/TOML/NH_sw_tp_5/setup.toml")
+eco = readTOML("examples/TOML/NH_sw_tp_3/setup.toml")
 
 abun = mapslices(sum, eco.abundances.grid, 1)[1, :, :]
 y = ustrip.(-0.375°:0.375°:90°)
