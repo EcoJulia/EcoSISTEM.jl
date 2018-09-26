@@ -31,6 +31,7 @@ function RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity
     howmany = jbinom(1, length(pos), ustrip(v))[1]
     smp = sample(pos, howmany)
     eco.abenv.budget.matrix[smp] = 0.0
+    eco.abundances.matrix[:, smp] .= 0.0
 end
 """
     ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
@@ -46,6 +47,7 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantit
         howmany = jbinom(1, length(pos), ustrip(v))[1]
         smp = sample(pos, howmany)
         eco.abenv.budget.matrix[smp] = 0.0
+        eco.abundances.matrix[:, smp] .= 0.0
     else
         pos = find(eco.abenv.budget.matrix .== 0.0)
         howmany = jbinom(1, length(find(eco.abenv.active)), ustrip(v))[1]
@@ -55,11 +57,13 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantit
         smp = sample(1:size(neighbours,1), howmany)
         i = convert_coords(neighbours[smp, 1], neighbours[smp, 2], width)
         eco.abenv.budget.matrix[i]=0.0
+        eco.abundances.matrix[:, smp] .= 0.0
     end
     # Add in additional start points
     howmany = jbinom(1, 1, ustrip(v))[1]
     smp = sample(pos, howmany)
     eco.abenv.budget.matrix[smp] = 0.0
+    eco.abundances.matrix[:, smp] .= 0.0
 end
 function HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity{Float64, typeof(𝐓^-1)})
     v = uconvert(unit(timestep)^-1, rate)
