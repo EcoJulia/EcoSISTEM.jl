@@ -64,7 +64,11 @@ function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
     (iscontinuous(sppl.traits) == iscontinuous(traitrel))
 end
 
-
+abstract type
+    AbstractEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+        TR <: AbstractTraitRelationship} <: AbstractMetacommunity{Float64, Matrix{Int64},
+                                        Matrix{Float64}, SL, Part}
+end
 """
     Ecosystem{Part <: AbstractAbiotic} <:
        AbstractMetacommunity{Float64, Matrix{Float64}, SpeciesList, Part}
@@ -77,8 +81,7 @@ and available resources,`abenv`. Finally, there is a slot for the relationship
 between the environment and the characteristics of the species, `relationship`.
 """
 mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-    TR <: AbstractTraitRelationship} <:
-   AbstractMetacommunity{Float64, Matrix{Int64}, Matrix{Float64}, SL, Part}
+    TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
   abundances::GridLandscape
   spplist::SL
   abenv::Part
@@ -98,6 +101,31 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
     #  error("Dimension mismatch")
     new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
   end
+end
+
+mutable struct CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+    TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
+  abundances::CachedGridLandscape
+  spplist::SL
+  abenv::Part
+  ordinariness::Union{Matrix{Float64}, Missing}
+  relationship::TR
+  lookup::Vector{Lookup}
+  cache::Cache
+  function CachedEcosystem{Part, SL, TR}(abundances::CachedGridLandscape,
+    spplist::SL, abenv::Part, ordinariness::Union{Matrix{Float64}, Missing},
+    relationship::TR, lookup::Vector{Lookup}, cache::Cache) where {Part <: AbstractAbiotic, SL <: SpeciesList,
+        TR <: AbstractTraitRelationship}
+    new{Part, SL, TR}(abundances, spplist, abenv, ordinariness,
+    relationship, lookup, cache)
+  end
+end
+
+function CachedEcosystem(eco::Ecosystem, outputfile::String, interval::Unitful.Time)
+    dim = size(eco.abenv.habitat, 3)
+    abundances = CachedGridLandscape(dim, outputfile, interval)
+  CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist), typeof(eco.relationship)}(abundances,
+  eco.spplist, eco.abenv, eco.ordinariness, eco.relationship, eco.lookup, eco.cache)
 end
 """
     Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
