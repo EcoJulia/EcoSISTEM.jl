@@ -1,3 +1,4 @@
+using Missings
 """
     GridLandscape
 
@@ -9,10 +10,23 @@ represent species, their abundances and position in the grid).
 mutable struct GridLandscape
   matrix::Matrix{Int64}
   grid::Array{Int64, 3}
+  seed::MersenneTwister
 
   function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
     a = abun
-    return new(a, reshape(a, dimension))
+    return new(a, reshape(a, dimension), Base.GLOBAL_RNG)
+  end
+end
+
+mutable struct CachedGridLandscape
+  matrix::Vector{Union{GridLandscape, Missing}}
+  outputfolder::String
+  saveinterval::Unitful.Time
+
+  function CachedGridLandscape(dim::Int64, file::String, interval::Unitful.Time)
+    v = Vector{Union{GridLandscape, Missing}}(undef, dim)
+    fill!(v, missing)
+    return new(v, file, interval)
   end
 end
 

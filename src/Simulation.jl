@@ -41,10 +41,10 @@ include("SpeciesList.jl")
 export SpeciesList
 
 include("Landscape.jl")
-export GridLandscape
+export GridLandscape, CachedGridLandscape
 
 include("Ecosystem.jl")
-export Ecosystem, getsize, gethabitat, gettraitrel, getgridsize,
+export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
  getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget
 
 include("Traitfuns.jl")
