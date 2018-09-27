@@ -10,14 +10,14 @@ using RCall
 using StatsBase
 
 # Start parallel processes
-#addprocs(9)
+addprocs(9)
 
 # Load packages to all cores
-using Diversity
-using Simulation
-using DataFrames
-using Distributions
-using DataStructures
+@everywhere using Diversity
+@everywhere using Simulation
+@everywhere using DataFrames
+@everywhere using Distributions
+@everywhere using DataStructures
 
 # Set up Ecosystem as discrete habitat with species having a trait preference
 # for one of the two niche types
@@ -73,7 +73,6 @@ scenario = [SimpleScenario(UniformDecline, declines),
     SimpleScenario(RareDecline, declines),
     SimpleScenario(CommonDecline, declines),
     SimpleScenario(Invasive, declines),
-    SimpleScenario(HabitatReplacement, habloss),
     SimpleScenario(RandHabitatLoss!, habloss)]
 divfuns = [norm_meta_alpha, raw_meta_alpha, norm_meta_beta, raw_meta_beta,
     norm_meta_rho, raw_meta_rho, meta_gamma, meta_speciesrichness, meta_shannon, meta_simpson]
@@ -117,11 +116,40 @@ function runsim(eco::Ecosystem, times::Unitful.Time)
     abun
 end
 
-times = 1year;
+times = 10year;
 #div = runsim(eco, times);
 #save("SantiniRun50spp.jld", "div", div)
 #div[isnan.(div)] = 0.0
 div = load("SantiniRun50spp.jld", "div")
+
+
+slopemat = slopes(Array(div)) .* 100
+meanslope = mapslices(x->mean(x[.!isnan.(x)]), slopemat, [1, 3, 5])[1,:,1,:, 1]
+repslope = mapslices(x->mean(x[.!isnan.(x)]), slopemat, [1, 3])[1,:,1,:, :]
+repslope = mapslices(x->all(x.>0) || all(x.<0), repslope, 3)[:,:,1]
+repslope = reshape(repslope, 70, 1)
+@rput meanslope
+@rput repslope
+R"
+library(fields);
+library(viridis);library(RColorBrewer)
+png('Meanslope_static50.png', width = 1000, height = 800)
+par(mfrow=c(1,1), mar=c(4,4,6,6));
+image(meanslope, axes=FALSE, xlab='', ylab='', srt=45, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51),
+    breaks =seq(-4, 4,length.out=52));
+axis(1, at = seq(0,1, length.out=10),
+labels = c('norm alpha q1', 'raw alpha q1', 'norm beta q1', 'raw beta q1', 'norm rho q1',
+'raw rho q1', 'gamma q1', 'richness', 'shannon', 'simpson'));
+axis(2, at = seq(0,1, length.out=7),
+labels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive', 'HabLoss'));
+image.plot(meanslope, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51), legend.only=TRUE,
+    breaks =seq(-2, 2,length.out=52), legend.lab ='% change in diversity metric')
+mat = expand.grid(seq(0,1, length.out=10), seq(0,1, length.out=7));
+mat = mat[repslope, ]
+points(mat[,1],mat[,2], pch=8, col ='grey20')
+dev.off()
+"
+
 
 # Simple niche preference ecosystem with 150 species over 10,000 km2 area
 #
