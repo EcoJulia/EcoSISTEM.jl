@@ -96,6 +96,7 @@ import Base.size
 function size(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, d)
     return size(hab.matrix, d)
 end
+
 function _getgridsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
   return hab.size
 end
@@ -140,6 +141,7 @@ end
 function size(hab::Union{HabitatCollection2, HabitatCollection3}, d)
     return size(hab.h1, d)
 end
+
 function _getgridsize(hab::Union{HabitatCollection2, HabitatCollection3})
   return _getgridsize(hab.h1)
 end
