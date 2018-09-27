@@ -74,7 +74,7 @@ function UniformDecline(eco::Ecosystem, timestep::Unitful.Time,
      spp = 1:size(eco.abundances.matrix, 1)
      meanabun = mean(eco.abundances.matrix)
      avlost = rate * timestep * meanabun
-     abunloss = jbinom(spp, 1, ustrip(avlost))
+     abunloss = jbinom(length(spp), 1, ustrip(avlost))
      for i in spp
         if any(eco.abundances.matrix[i, :] .> 0)
          pos = find(eco.abundances.matrix[i, :] .> 0)
@@ -89,7 +89,7 @@ function ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time,
      spp = 1:size(eco.abundances.matrix, 1)
      currentabun = mapslices(sum, eco.abundances.matrix, 2)
      avlost = rate * timestep .* currentabun
-     abunloss = jbinom(spp, 1, ustrip(avlost))
+     abunloss = jbinom(length(spp), 1, ustrip(avlost))
      for i in spp
          if any(eco.abundances.matrix[i, :] .> 0)
              pos = find(eco.abundances.matrix[i, :] .> 0)
@@ -107,7 +107,7 @@ function LargeDecline(eco::Ecosystem, timestep::Unitful.Time,
      (0.5 * maximum(eco.spplist.requirement.energy)))
      currentabun = mapslices(sum, eco.abundances.matrix, 2)
      avlost = rate * timestep .* currentabun
-     abunloss = jbinom(largest, 1, ustrip(avlost))
+     abunloss = jbinom(length(largest), 1, ustrip(avlost))
      for i in largest
          if any(eco.abundances.matrix[i, :] .> 0)
          pos = find(eco.abundances.matrix[i, :] .> 0)
@@ -122,7 +122,7 @@ function RareDecline(eco::Ecosystem, timestep::Unitful.Time,
      currentabun = mapslices(sum, eco.abundances.matrix, 2)
      rarest = find(currentabun .< (0.5 * maximum(currentabun)))
      avlost = rate * timestep .* currentabun
-     abunloss = jbinom(rarest, 1, ustrip(avlost))
+     abunloss = jbinom(length(rarest), 1, ustrip(avlost))
      for i in rarest
          if any(eco.abundances.matrix[i, :] .> 0)
              pos = find(eco.abundances.matrix[i, :] .> 0)
@@ -136,7 +136,7 @@ function CommonDecline(eco::Ecosystem, timestep::Unitful.Time,
      currentabun = mapslices(sum, eco.abundances.matrix, 2)
      common = find(currentabun .> (0.5 * maximum(currentabun)))
      avlost = rate * timestep .* currentabun
-     abunloss = jbinom(common, 1, ustrip(avlost))
+     abunloss = jbinom(length(common), 1, ustrip(avlost))
          for i in common
              if any(eco.abundances.matrix[i, :] .> 0)
              pos = find(eco.abundances.matrix[i, :] .> 0)
@@ -156,14 +156,14 @@ function Invasive(eco::Ecosystem, timestep::Unitful.Time,
         eco.spplist.names[sensitive] = "sensitive"
     end
     avgain = rate * timestep .* currentabun
-    abungain = jbinom(invasive, 1, ustrip(avgain))
+    abungain = jbinom(length(invasive), 1, ustrip(avgain))
     for i in invasive
         pos = find(eco.abundances.matrix[i, :])
         smp = sample(pos, abungain[i], replace=true)
         eco.abundances.matrix[i, smp] .+= 1
         end
     sensitive = find(eco.spplist.names .== "sensitive")
-    abunloss = jbinom(sensitive, 1, ustrip(avgain))
+    abunloss = jbinom(length(sensitive), 1, ustrip(avgain))
     for j in sensitive
         pos = find(eco.abundances.matrix[j, :])
         smp = sample(pos, abunloss[j], replace=true)
