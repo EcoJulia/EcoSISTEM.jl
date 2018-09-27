@@ -18,6 +18,12 @@ mutable struct GridLandscape
     return new(a, reshape(a, dimension), Base.GLOBAL_RNG)
   end
 end
+import Base.copy
+function copy(gl::GridLandscape)
+    return GridLandscape(copy(gl.matrix), size(gl.grid))
+end
+
+
 
 mutable struct CachedGridLandscape
   matrix::AxisArray{Union{GridLandscape, Missing}, 1}
