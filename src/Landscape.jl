@@ -1,4 +1,5 @@
 using Missings
+using AxisArrays
 """
     GridLandscape
 
@@ -19,15 +20,17 @@ mutable struct GridLandscape
 end
 
 mutable struct CachedGridLandscape
-  matrix::Vector{Union{GridLandscape, Missing}}
+  matrix::AxisArray{Union{GridLandscape, Missing}, 1}
   outputfolder::String
   saveinterval::Unitful.Time
+end
 
-  function CachedGridLandscape(dim::Int64, file::String, interval::Unitful.Time)
-    v = Vector{Union{GridLandscape, Missing}}(undef, dim)
-    fill!(v, missing)
-    return new(v, file, interval)
-  end
+function CachedGridLandscape(file::String, rng::StepRangeLen)
+  interval = step(rng)
+  v = Vector{Union{GridLandscape, Missing}}(undef, length(rng))
+  fill!(v, missing)
+  a = AxisArray(v, Axis{:time}(rng))
+  return CachedGridLandscape(a, file, interval)
 end
 
 """
