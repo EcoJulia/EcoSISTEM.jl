@@ -102,31 +102,6 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
     new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
   end
 end
-
-mutable struct CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-    TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
-  abundances::CachedGridLandscape
-  spplist::SL
-  abenv::Part
-  ordinariness::Union{Matrix{Float64}, Missing}
-  relationship::TR
-  lookup::Vector{Lookup}
-  cache::Cache
-  function CachedEcosystem{Part, SL, TR}(abundances::CachedGridLandscape,
-    spplist::SL, abenv::Part, ordinariness::Union{Matrix{Float64}, Missing},
-    relationship::TR, lookup::Vector{Lookup}, cache::Cache) where {Part <: AbstractAbiotic, SL <: SpeciesList,
-        TR <: AbstractTraitRelationship}
-    new{Part, SL, TR}(abundances, spplist, abenv, ordinariness,
-    relationship, lookup, cache)
-  end
-end
-
-function CachedEcosystem(eco::Ecosystem, outputfile::String, interval::Unitful.Time)
-    dim = size(eco.abenv.habitat, 3)
-    abundances = CachedGridLandscape(dim, outputfile, interval)
-  CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist), typeof(eco.relationship)}(abundances,
-  eco.spplist, eco.abenv, eco.ordinariness, eco.relationship, eco.lookup, eco.cache)
-end
 """
     Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
         rel::AbstractTraitRelationship)
@@ -155,6 +130,26 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
    return Ecosystem(populate!, spplist, abenv, rel)
 end
+
+mutable struct CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+    TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
+  abundances::CachedGridLandscape
+  spplist::SL
+  abenv::Part
+  ordinariness::Union{Matrix{Float64}, Missing}
+  relationship::TR
+  lookup::Vector{Lookup}
+  cache::Cache
+end
+
+function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
+    size(eco.abenv.habitat, 3) == length(rng) || error("Time range does not match habitat")
+    abundances = CachedGridLandscape(outputfile, rng)
+    abundances.matrix[1] = eco.abundances
+  CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist), typeof(eco.relationship)}(abundances,
+  eco.spplist, eco.abenv, eco.ordinariness, eco.relationship, eco.lookup, eco.cache)
+end
+
 import Diversity.API: _getabundance
 function _getabundance(eco::Ecosystem, input::Bool)
     if input
@@ -163,27 +158,45 @@ function _getabundance(eco::Ecosystem, input::Bool)
         return eco.abundances.matrix / sum(eco.abundances.matrix)
     end
 end
+function _getabundance(cache::CachedEcosystem, input::Bool)
+    if all(ismissing.(cache.abundances.matrix))
+        error("Abundances are missing")
+    else
+        id = find(.!ismissing.(cache.abundances.matrix))[end]
+        abun = cache.abundances.matrix[id]
+    end
+    if input
+        return abun.matrix
+    else
+        return abun.matrix / sum(abun.matrix)
+    end
+end
 import Diversity.API: _getmetaabundance
 function _getmetaabundance(eco::Ecosystem)
   return sumoversubcommunities(eco, _getabundance(eco))
 end
+
+function _getmetaabundance(eco::CachedEcosystem)
+  return sumoversubcommunities(eco, _getabundance(eco))
+end
+
 import Diversity.API: _getpartition
-function _getpartition(eco::Ecosystem)
+function _getpartition(eco::Union{Ecosystem, CachedEcosystem})
   return eco.abenv
 end
 import Diversity.API: _gettypes
-function _gettypes(eco::Ecosystem)
+function _gettypes(eco::Union{Ecosystem, CachedEcosystem})
     return eco.spplist
 end
 import Diversity.API: _getordinariness!
-function _getordinariness!(eco::Ecosystem)
+function _getordinariness!(eco::Union{Ecosystem, CachedEcosystem})
     if ismissing(eco.ordinariness)
         relab = getabundance(eco, false)
         eco.ordinariness = _calcordinariness(eco.spplist, relab)
     end
     return eco.ordinariness
 end
-function resetcache!(eco::Ecosystem)
+function resetcache!(eco::Union{Ecosystem, CachedEcosystem})
     eco.ordinariness = missing
 end
 
@@ -296,6 +309,7 @@ end
 function resettime!(eco::Ecosystem)
     _resettime!(eco.abenv.habitat)
 end
+
 
 function _symmetric_grid(grid::DataFrame)
    for x in 1:nrow(grid)
