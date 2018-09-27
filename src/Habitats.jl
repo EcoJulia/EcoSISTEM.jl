@@ -92,6 +92,10 @@ function _getsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
   y = hab.size * size(hab.matrix, 2)
   return x * y
 end
+import Base.size
+function size(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, d)
+    return size(hab.matrix, d)
+end
 
 function _getgridsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
   return hab.size
@@ -133,6 +137,9 @@ function _getdimension(hab::Union{HabitatCollection2, HabitatCollection3})
 end
 function _getsize(hab::Union{HabitatCollection2, HabitatCollection3})
   return _getsize(hab.h1)
+end
+function size(hab::Union{HabitatCollection2, HabitatCollection3}, d)
+    return size(hab.h1, d)
 end
 
 function _getgridsize(hab::Union{HabitatCollection2, HabitatCollection3})

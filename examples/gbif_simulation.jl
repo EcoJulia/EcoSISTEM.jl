@@ -527,9 +527,9 @@ using AxisArrays
 using ClimatePref
 
 # Load in temperature profiles
-Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/Temperature.jld",
+Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
  "Temperature")
- Rain = load("/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/Rainfall.jld",
+ Rain = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Rainfall.jld",
   "Rainfall")
 
 ## Run simulation over a grid and plot
@@ -557,15 +557,15 @@ totalK = 1000000.0
 individuals=1000
 
 # Load data for land cover
-file = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/World.tif"
+file = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/World.tif"
 world = extractfile(file)
 europe = world[-10° .. 60°, 35° .. 80°]
 eu = ustrip.(europe)
 
-dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_1980"
+dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_1980"
 tempax1 = extractERA(dir1, "t2m", collect(1.0month:1month:10year))
 
-dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
+dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
 prec = extractworldclim(joinpath(dir, "wc2.0_5m_prec"))
 prec.array = prec.array[-10° .. 60°, 35° .. 80°,:]
 x = prec.array.axes[1]
@@ -576,7 +576,7 @@ prec.array = AxisArray(1.0.*(prec.array),
 water = WaterBudget(Array{typeof(1.0*mm), 3}(prec.array), 1)
 
 
-dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
+dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
 srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
 srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
             srad.array[-10° .. 60°, 35° .. 80°,:])
