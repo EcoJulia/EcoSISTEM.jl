@@ -64,6 +64,13 @@ function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
     (iscontinuous(sppl.traits) == iscontinuous(traitrel))
 end
 
+"""
+    AbstractEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+        TR <: AbstractTraitRelationship} <: AbstractMetacommunity{Float64,
+            Matrix{Int64}, Matrix{Float64}, SL, Part}
+
+Abstract supertype for all ecosystem types and a subtype of AbstractMetacommunity.
+"""
 abstract type
     AbstractEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
         TR <: AbstractTraitRelationship} <: AbstractMetacommunity{Float64, Matrix{Int64},
@@ -71,7 +78,7 @@ abstract type
 end
 """
     Ecosystem{Part <: AbstractAbiotic} <:
-       AbstractMetacommunity{Float64, Matrix{Float64}, SpeciesList, Part}
+       AbstractEcosystem{Part, SL, TR}
 
 Ecosystem houses information on species and their interaction with their
 environment. For species, it holds abundances and locations, `abundances`,
@@ -131,6 +138,14 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    return Ecosystem(populate!, spplist, abenv, rel)
 end
 
+"""
+    CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+        TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
+
+CachedEcosystem houses the same information as Ecosystem (see ?Ecosystem), but
+holds the time period abundances as a CachedGridLandscape, so that they may
+be present or missing.
+"""
 mutable struct CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
     TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
   abundances::CachedGridLandscape
@@ -142,6 +157,13 @@ mutable struct CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
   cache::Cache
 end
 
+"""
+    CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
+
+Function to create a CachedEcosystem given an existing ecosystem, `eco`,
+output folder to which the simulations are saved, `outputfile`, and a range of
+times over which to simulate, `rng`.
+"""
 function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
     size(eco.abenv.habitat, 3) == length(rng) || error("Time range does not match habitat")
     abundances = CachedGridLandscape(outputfile, rng)
