@@ -1,35 +1,46 @@
 using Unitful
 using Missings
-function abundances(cache::CachedEcosystem, tm::Unitful.Time)
-    if ismissing(cache.abundances.matrix[tm])
-        if checkfile(cache.abundances.outputfolder, tm)
-            cache.abundances.matrix[tm] = loadfile(cache.abundances.outputfile,
-                                                    tm)
-            return tm
-        else
-            newtm =  abundances(cache, tm - cache.abundances.saveinterval)
-        end
-    else
-        return tm
-    end
-    difftm = tm - newtm
-    if difftm == 0s
-        return cache.abundances.matrix[tm]
-    else
-        simulate!(cache, difftm, cache.abundances.saveinterval)
-        return cache.abundances.matrix[tm]
-    end
-end
-
+using JLD
 
 searchdir(path,key) = filter(x->contains(x,key), readdir(path))
 
-function checkfile(file::String, tm::Unitful.Time)
-    checktm = ustrip(tm)
-    return !isempty(searchdir(file, string(checktm)))
+function checkfile(file::String, tm::Int)
+    return !isempty(searchdir(file, string(tm, ".jld")))
 end
 
-function loadfile(file::String, tm::Unitful.Time)
-    checktm = ustrip(tm)
-    return load(searchdir(file, string(tm)), string(tm))
+function checkfile(::String, ::Missing)
+    return false
+end
+
+function loadfile(file::String, tm::Int)
+    return load(searchdir(file, string(tm, ".jld"))[1], string(tm))
+end
+
+function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
+    yr = mod(tm, 1year) == 0year ? Int(ustrip(uconvert(year, tm))) : missing
+    if ismissing(cache.abundances.matrix[tm])
+        if checkfile(cache.abundances.outputfolder, yr)
+            cache.abundances.matrix[tm] = loadfile(cache.abundances.outputfolder,
+                                                    yr)
+            return tm, cache.abundances.matrix[tm]
+        else
+            newtm, abun =  _abundances(cache, tm - cache.abundances.saveinterval)
+            if (newtm > 2 * cache.abundances.saveinterval)
+                cache.abundances.matrix[(newtm - 2 * cache.abundances.saveinterval)] = missing
+            end
+        end
+    else
+        return tm, cache.abundances.matrix[tm]
+    end
+    simulate!(cache, newtm, cache.abundances.saveinterval)
+    if !ismissing(yr)
+        save(string(yr, ".jld"),
+        string(yr), cache.abundances.matrix[tm])
+    end
+    _abundances(cache, newtm + cache.abundances.saveinterval)
+
+end
+
+function abundances(cache::CachedEcosystem, tm::Unitful.Time)
+    return _abundances(cache, tm)[2]
 end
