@@ -1,5 +1,10 @@
 using Missings
 using AxisArrays
+
+struct SavedLandscape
+    matrix::Matrix{Int64}
+    seed::Vector{UInt32}
+end
 """
     GridLandscape
 
@@ -11,11 +16,11 @@ represent species, their abundances and position in the grid).
 mutable struct GridLandscape
   matrix::Matrix{Int64}
   grid::Array{Int64, 3}
-  seed::MersenneTwister
+  seed::Vector{UInt32}
 
   function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
     a = abun
-    return new(a, reshape(a, dimension), Base.GLOBAL_RNG)
+    return new(a, reshape(a, dimension), copy(Base.GLOBAL_RNG.seed))
   end
 end
 import Base.copy
