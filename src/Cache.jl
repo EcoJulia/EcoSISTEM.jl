@@ -22,6 +22,7 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
         if checkfile(cache.abundances.outputfolder, yr)
             cache.abundances.matrix[tm] = loadfile(cache.abundances.outputfolder,
                                                     yr)
+            srand(cache.abundances.seed)
             return tm, cache.abundances.matrix[tm]
         else
             newtm, abun =  _abundances(cache, tm - cache.abundances.saveinterval)
