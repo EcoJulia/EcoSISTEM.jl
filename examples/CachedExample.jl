@@ -1,5 +1,5 @@
 using Simulation
-using JLD
+#using JLD
 using Diversity
 using RCall
 using Distributions
@@ -7,13 +7,19 @@ using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
 using AxisArrays
+using Feather
 #using ClimatePref
 
 # Load in temperature profiles
-Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
- "Temperature")
- Rain = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Rainfall.jld",
-  "Rainfall")
+if VERSION >= v"0.7-"
+    Temp = Featherload("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.feather")
+    Rain = Featherload("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Rainfall.feather")
+else
+    Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
+     "Temperature")
+     Rain = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Rainfall.jld",
+      "Rainfall")
+end
 
 ## Run simulation over a grid and plot
 numSpecies=3

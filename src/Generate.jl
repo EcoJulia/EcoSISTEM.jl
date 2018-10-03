@@ -303,7 +303,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
         # Loop through individuals
         while abun>0
             # Randomly choose position on grid (weighted)
-            pos = sample(grid[(b1 .> (0 * units1)) & (b2 .> (0 * units2))])
+            pos = sample(grid[(b1 .> (0 * units1)) .& (b2 .> (0 * units2))])
             # Add individual to this location
             ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
             abun = abun .- 1
@@ -320,18 +320,18 @@ function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
   len = dim[1] * dim[2]
   grid = collect(1:len)
   # Set up copy of budget
-      b = reshape(copy(_getbudget(abenv.budget)), size(grid))
-      units = unit(b[1])
-      activity = reshape(copy(abenv.active), size(grid))
-      b[.!activity] .= 0.0 * units
-      # Loop through species
-      for i in eachindex(spplist.abun)
-        # Get abundance of species
-        abun = spplist.abun[i]
-        pos = sample(grid[b .> (0 * units)], abun)
-        # Add individual to this location
-        ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
-      end
+  b = reshape(copy(_getbudget(abenv.budget)), size(grid))
+  units = unit(b[1])
+  activity = reshape(copy(abenv.active), size(grid))
+  b[.!activity] .= 0.0 * units
+  # Loop through species
+  for i in eachindex(spplist.abun)
+    # Get abundance of species
+    abun = spplist.abun[i]
+    pos = sample(grid[b .> (0 * units)], abun)
+    # Add individual to this location
+    ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
+  end
 end
 """
     repopulate!(eco::Ecosystem)
