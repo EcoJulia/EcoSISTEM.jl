@@ -21,6 +21,9 @@ export SimpleRequirement, SolarRequirement, WaterRequirement, SimpleBudget, Sola
 
 if VERSION >= v"0.7-"
     include("DataTypes.jl")
+    include("GDAL.jl")
+    export read, searchdir, extractworldclim, extractbioclim, extractERA, extractCERA,
+        extractvalues, extractfile
 end
 
 include("AbioticEnv.jl")
@@ -68,12 +71,11 @@ export trait_populate!, trait_repopulate!
 include("Helper.jl")
 export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
 
-include("Cache.jl")
-export abundances
-
 if VERSION < v"0.7-"
     include("ReadTOML.jl")
     export readTOML, runTOML, readoutput
+    include("Cache.jl")
+    export abundances
 end
 
 include("plotting.jl")
