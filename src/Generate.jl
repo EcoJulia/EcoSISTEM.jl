@@ -303,7 +303,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
         # Loop through individuals
           while abun>0
             # Randomly choose position on grid (weighted)
-            pos = sample(grid[(b1 .> (0 * units1)) & (b2 .> (0 * units2))])
+            pos = sample(grid[(b1 .> (0 * units1)) .& (b2 .> (0 * units2))])
           # Add individual to this location
           ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
           abun = abun .- 1
