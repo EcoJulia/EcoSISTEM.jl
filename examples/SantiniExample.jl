@@ -6,7 +6,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
 using RCall
-#using JLD
+using JLD
 using StatsBase
 
 # Start parallel processes
@@ -141,7 +141,7 @@ axis(1, at = seq(0,1, length.out=10),
 labels = c('norm alpha q1', 'raw alpha q1', 'norm beta q1', 'raw beta q1', 'norm rho q1',
 'raw rho q1', 'gamma q1', 'richness', 'shannon', 'simpson'));
 axis(2, at = seq(0,1, length.out=7),
-labels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive', 'HabLoss'));
+labels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive', 'Habitat \n Loss'));
 image.plot(meanslope, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51), legend.only=TRUE,
     breaks =seq(-2, 2,length.out=52), legend.lab ='% change in diversity metric')
 mat = expand.grid(seq(0,1, length.out=10), seq(0,1, length.out=7));
@@ -160,7 +160,7 @@ using RCall
 using JLD
 
 # Start parallel processes
-addprocs(15)
+addprocs(9)
 
 # Load packages to all cores
 @everywhere using Diversity
@@ -280,9 +280,9 @@ axis(1, at = seq(0,1, length.out=10),
 labels = c('norm alpha q1', 'raw alpha q1', 'norm beta q1', 'raw beta q1', 'norm rho q1',
 'raw rho q1', 'gamma q1', 'richness', 'shannon', 'simpson'));
 axis(2, at = seq(0,1, length.out=8),
-labels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive','HabRep', 'HabLoss'));
-image.plot(meanslope, col = magma(50), legend.only=TRUE,
-    breaks =seq(-2, 2,length.out=51), legend.lab ='% change in diversity metric')
+labels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive','Habitat \n Replacement', 'Habitat \n Loss'));
+image.plot(meanslope, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51), legend.only=TRUE,
+    breaks =seq(-2, 2,length.out=52), legend.lab ='% change in diversity metric')
 mat = expand.grid(seq(0,1, length.out=10), seq(0,1, length.out=8));
 mat = mat[repslope, ]
 points(mat[,1],mat[,2], pch=8, col ='white')
