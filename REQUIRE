@@ -13,4 +13,6 @@ Phylo
 ProgressMeter
 Query
 RCall
+NetCDF
+Interpolations
 Missings
