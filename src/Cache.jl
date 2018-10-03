@@ -12,8 +12,9 @@ function checkfile(::String, ::Missing)
     return false
 end
 
-function loadfile(file::String, tm::Int)
-    return load(searchdir(file, string(tm, ".jld"))[1], string(tm))
+function loadfile(file::String, tm::Int, dim::Tuple)
+    a = load(searchdir(file, string(tm, ".jld"))[1], string(tm))
+    return GridLanscape(a, dim)
 end
 
 function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
@@ -21,7 +22,8 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     if ismissing(cache.abundances.matrix[tm])
         if checkfile(cache.abundances.outputfolder, yr)
             cache.abundances.matrix[tm] = loadfile(cache.abundances.outputfolder,
-                                                    yr)
+                                                    yr, (length(cache.spplist.names),
+                                                    _getdimension(cache.abenv.habitat) ...))
             srand(cache.abundances.seed)
             return tm, cache.abundances.matrix[tm]
         else
@@ -35,8 +37,8 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     end
     simulate!(cache, newtm, cache.abundances.saveinterval)
     if !ismissing(yr)
-        save(string(yr, ".jld"),
-        string(yr), cache.abundances.matrix[tm])
+        JLD.save(string(yr, ".jld"),
+        string(yr), SavedLandscape(cache.abundances.matrix[tm]))
     end
     _abundances(cache, newtm + cache.abundances.saveinterval)
 

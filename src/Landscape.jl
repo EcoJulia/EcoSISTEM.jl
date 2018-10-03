@@ -5,6 +5,7 @@ struct SavedLandscape
     matrix::Matrix{Int64}
     seed::Vector{UInt32}
 end
+
 """
     GridLandscape
 
@@ -26,6 +27,13 @@ end
 import Base.copy
 function copy(gl::GridLandscape)
     return GridLandscape(copy(gl.matrix), size(gl.grid))
+end
+function GridLandscape(sl::SavedLandscape, dimension::Tuple)
+    GridLandscape(sl.matrix, reshape(sl.matrix, dimension), sl.seed)
+end
+
+function SavedLandscape(gl::GridLandscape)
+    SavedLandscape(gl.matrix, gl.seed)
 end
 
 
