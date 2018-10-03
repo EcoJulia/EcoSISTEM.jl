@@ -1,4 +1,5 @@
 using AxisArrays
+axes = AxisArrays.axes
 using Unitful
 abstract type AbstractClimate end
 
