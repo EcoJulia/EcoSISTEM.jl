@@ -21,7 +21,7 @@ addprocs(9)
 
 # Set up Ecosystem as discrete habitat with species having a trait preference
 # for one of the two niche types
-numSpecies = 50
+numSpecies = 150
 numTraits = 2
 numNiches = 2
 numInvasive = 1
@@ -121,29 +121,42 @@ times = 10year;
 #save("SantiniRun50spp.jld", "div", div)
 #div[isnan.(div)] = 0.0
 div = load("SantiniRun50spp.jld", "div")
-
-
-slopemat = slopes(Array(div)) .* 100
-meanslope = mapslices(x->mean(x[.!isnan.(x)]), slopemat, [1, 3, 5])[1,:,1,:, 1]
-repslope = mapslices(x->mean(x[.!isnan.(x)]), slopemat, [1, 3])[1,:,1,:, :]
-repslope = mapslices(x->all(x.>0) || all(x.<0), repslope, 3)[:,:,1]
+div = Array(div)
+standardise(x) = (x .- mean(x))./std(x)
+#stanmat = mapslices(standardise, Array(div), (4,5))[1, :, :, :, :]
+stanmat = standardise(div)
+function linmod(x)
+    df = DataFrame(X = x, Y = 1:length(x))
+    mod = GLM.lm(@formula(X ~ Y), df)
+    return coef(mod)[2]
+end
+slopemat = mapslices(linmod, stanmat[1, :, :, :, :], 2)[:, 1, :, :]
+meanslope = mapslices(mean, slopemat, 3)[:, :, 1]
+repslope = mapslices(x->all(x.>0) || all(x.<0), slopemat, 3)[:, :, 1]
 repslope = reshape(repslope, 70, 1)
+
+
+#slopemat = slopes(Array(div)) .* 100
+#meanslope = mapslices(x->mean(x[.!isnan.(x)]), slopemat, [1, 3, 5])[1,:,1,:, 1]
+#repslope = mapslices(x->mean(x[.!isnan.(x)]), slopemat, [1, 3])[1,:,1,:, :]
+#repslope = mapslices(x->all(x.>0) || all(x.<0), repslope, 3)[:,:,1]
+#repslope = reshape(repslope, 70, 1)
 @rput meanslope
 @rput repslope
 R"
 library(fields);
 library(viridis);library(RColorBrewer)
-png('Meanslope_static50.png', width = 1000, height = 800)
+png('Meanslope_static150_norm.png', width = 1000, height = 800)
 par(mfrow=c(1,1), mar=c(4,4,6,6));
 image(meanslope, axes=FALSE, xlab='', ylab='', srt=45, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51),
-    breaks =seq(-4, 4,length.out=52));
+    breaks =seq(-0.06, 0.06,length.out=52));
 axis(1, at = seq(0,1, length.out=10),
 labels = c('norm alpha q1', 'raw alpha q1', 'norm beta q1', 'raw beta q1', 'norm rho q1',
 'raw rho q1', 'gamma q1', 'richness', 'shannon', 'simpson'));
 axis(2, at = seq(0,1, length.out=7),
 labels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive', 'Habitat \n Loss'));
 image.plot(meanslope, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51), legend.only=TRUE,
-    breaks =seq(-2, 2,length.out=52), legend.lab ='% change in diversity metric')
+    breaks =seq(-0.06, 0.06,length.out=52), legend.lab ='% change in diversity metric')
 mat = expand.grid(seq(0,1, length.out=10), seq(0,1, length.out=7));
 mat = mat[repslope, ]
 points(mat[,1],mat[,2], pch=8, col ='grey20')
