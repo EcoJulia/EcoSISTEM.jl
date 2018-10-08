@@ -1,5 +1,5 @@
 using Simulation
-#using JLD
+using JLD
 using Diversity
 using RCall
 using Distributions
@@ -8,7 +8,7 @@ using Unitful.DefaultSymbols
 using MyUnitful
 using AxisArrays
 using Feather
-#using ClimatePref
+using ClimatePref
 
 # Load in temperature profiles
 if VERSION >= v"0.7-"
@@ -101,6 +101,12 @@ eco = Ecosystem(sppl, abenv, rel)
 
 times = 1month:1month:10years
 cache = CachedEcosystem(eco, "examples/Cache", times)
+div = DiversitySet(cache)
+for time in gettimes(div)
+    updatesimulation!(cache, time)
+    newdiv = norm_sub_alpha(cache, 1.0)
+    append!(div, newdiv)
+end
 div = norm_sub_alpha(cache, 1.0)
 for i in times[2:end]
     abundances(cache, i)
@@ -108,3 +114,10 @@ for i in times[2:end]
     append!(div, newdiv)
 end
 div[:time] = vcat(map(x -> fill(x, size(eco.abundances.matrix, 2)), times) ...)
+div[:partition_name]
+grid = convert_coords.(parse.(div[:partition_name]), grid[1])
+div[:lat] = [ x[1] for x in grid ]
+div[:lon] = [ x[2] for x in grid ]
+div[:coords] = map((x,y) ->"$x" * "_$y", div[:lon], div[:lat])
+using CSV
+CSV.write("Test.csv", div)
