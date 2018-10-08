@@ -1,20 +1,36 @@
 using Unitful
 using Missings
-using JLD
+if VERSION < v"0.7"
+    using JLD
+else
+    using JLD2
+end
 
 searchdir(path,key) = filter(x->contains(x,key), readdir(path))
-
-function checkfile(file::String, tm::Int)
-    return !isempty(searchdir(file, string(tm, ".jld")))
-end
 
 function checkfile(::String, ::Missing)
     return false
 end
 
+@static if VERSION < v"0.7"
+function checkfile(file::String, tm::Int)
+    return !isempty(searchdir(file, string(tm, ".jld")))
+end
+
 function loadfile(file::String, tm::Int, dim::Tuple)
     a = load(searchdir(file, string(tm, ".jld"))[1], string(tm))
     return GridLanscape(a, dim)
+end
+else
+    function checkfile(file::String, tm::Int)
+        return !isempty(searchdir(file, string(tm, ".jld2")))
+    end
+
+    function loadfile(file::String, tm::Int, dim::Tuple)
+        a = load(searchdir(file, string(tm, ".jld2"))[1], string(tm))
+        return GridLanscape(a, dim)
+    end
+
 end
 
 function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
