@@ -23,15 +23,11 @@ function trait_populate!(ml::GridLandscape, spplist::SpeciesList,
             wv[reshape(abenv.habitat.matrix, len).==pref]= 1.0
             wv[reshape(abenv.habitat.matrix, len).!=pref]= 0.0
         end
-
-        # Loop through individuals
-          while abun>0
-            # Randomly choose position on grid (weighted)
-            pos = sample(grid[b .> (0 * units)], weights(wv))
-          # Add individual to this location
-          ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
-          abun = abun .- 1
-          b[pos] = b[pos] .- spplist.requirement.energy[i]
+        # Randomly choose position on grid (weighted)
+        pos = sample(grid[b .> (0 * units)], weights(wv), abun, replace=true)
+        # Add individual to this location
+        for j in pos
+            ml.matrix[i, j] = ml.matrix[i, j] + 1
         end
       end
 end
