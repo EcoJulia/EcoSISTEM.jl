@@ -1,4 +1,5 @@
 using Diversity
+using Phylo
 """
     meta_simpson(eco::Ecosystem, qs::Vector{Float64})
 Function to calculate the Simpson diversity for the entire ecosystem.
@@ -54,10 +55,14 @@ function geom_mean_abun(eco::Ecosystem, qs::Float64)
     return SR
 end
 function sorenson(eco::Ecosystem, qs::Float64)
+    SR = meta_speciesrichness(eco, 0.0)
     ab1 = eco.spplist.abun
     ab2 = mapslices(sum, eco.abundances.matrix, 1)
-    return 1 - abs(sum(ab1 .- ab2))/sum(ab1 .+ ab2)
+    SR[:diversity] = 1 - abs(sum(ab1 .- ab2))/sum(ab1 .+ ab2)
+    SR[:measure] = "Sorenson"
+    return SR
 end
 
 function pd(eco, qs::Float64)
-    
+    return meta_gamma(eco, 0.0)
+end
