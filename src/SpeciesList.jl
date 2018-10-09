@@ -63,7 +63,7 @@ movement kernel.
 """
 function SpeciesList(numspecies::Int64,
     numtraits::Int64, abun_dist::Distribution, req::R,
-    movement::MO, params::P, native::Vector{Bool}) where {R <: AbstractRequirement,
+    movement::MO, params::P, native::Vector{Bool}, switch::Vector{Float64}) where {R <: AbstractRequirement,
         MO <: AbstractMovement, P <: AbstractParams}
 
     names = map(x -> "$x", 1:numspecies)
@@ -71,7 +71,7 @@ function SpeciesList(numspecies::Int64,
     tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
     # Create traits and assign to tips
     trts = DataFrame(trait1 = collect(1:numtraits))
-    assign_traits!(tree, 0.5, trts)
+    assign_traits!(tree, switch, trts)
     # Get traits from tree
     sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
     # Create similarity matrix (for now identity)
@@ -90,6 +90,12 @@ function SpeciesList(numspecies::Int64,
               typeof(movement), typeof(phy), typeof(params)}(names, sp_trt, abun,
               req, phy, movement, params, native)
 end
+function SpeciesList(numspecies::Int64,
+    numtraits::Int64, abun_dist::Distribution, req::R,
+    movement::MO, params::P, native::Vector{Bool}) where {R <: AbstractRequirement,
+        MO <: AbstractMovement, P <: AbstractParams}
+        SpeciesList(numspecies, numtraits, abun_dist, req, movement, params,
+         native, [0.5])
 
 
 """
