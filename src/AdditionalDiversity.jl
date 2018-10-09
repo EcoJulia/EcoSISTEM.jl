@@ -53,3 +53,11 @@ function geom_mean_abun(eco::Ecosystem, qs::Float64)
     SR[:measure] = "Geometric mean abundance"
     return SR
 end
+function sorenson(eco::Ecosystem, qs::Float64)
+    ab1 = eco.spplist.abun
+    ab2 = mapslices(sum, eco.abundances.matrix, 1)
+    return 1 - abs(sum(ab1 .- ab2))/sum(ab1 .+ ab2)
+end
+
+function pd(eco, qs::Float64)
+    
