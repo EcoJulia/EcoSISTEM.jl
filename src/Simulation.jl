@@ -77,6 +77,7 @@ include("plotting.jl")
 export plot_move, plot_abun,plot_mean,plot_diversity, plot_divergence, freq_hist, plotdiv
 
 include("AdditionalDiversity.jl")
-export meta_simpson, meta_shannon, meta_speciesrichness
+export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun,
+    sorenson, pd
 
 end
