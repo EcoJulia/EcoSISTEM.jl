@@ -62,6 +62,9 @@ include("Generate.jl")
 export populate!, repopulate!,reenergise!, randomniches, update!, update_birth_move!,
  convert_coords, get_neighbours
 
+include("SantiniScenarios.jl")
+export trait_populate!, trait_repopulate!
+
 include("Helper.jl")
 export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
 
