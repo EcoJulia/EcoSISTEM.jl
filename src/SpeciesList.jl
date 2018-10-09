@@ -94,8 +94,9 @@ function SpeciesList(numspecies::Int64,
     numtraits::Int64, abun_dist::Distribution, req::R,
     movement::MO, params::P, native::Vector{Bool}) where {R <: AbstractRequirement,
         MO <: AbstractMovement, P <: AbstractParams}
-        SpeciesList(numspecies, numtraits, abun_dist, req, movement, params,
-         native, [0.5])
+        return SpeciesList(numspecies, numtraits, abun_dist, req, movement,
+                params, native, [0.5])
+end
 
 
 """
