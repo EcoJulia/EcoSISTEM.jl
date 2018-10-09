@@ -132,7 +132,7 @@ function _getabundance(eco::Ecosystem, input::Bool)
     if input
         return eco.abundances.matrix
     else
-        return eco.abundances.matrix / sum(eco.abundances.matrix)
+        return _calcabundance(_gettypes(eco), eco.abundances.matrix / sum(eco.abundances.matrix))[1]
     end
 end
 import Diversity.API: _getmetaabundance
@@ -155,6 +155,11 @@ function _getordinariness!(eco::Ecosystem)
     end
     return eco.ordinariness
 end
+import Diversity.API._getscale
+function _getscale(eco::Ecosystem)
+    return _calcabundance(_gettypes(eco), getabundance(eco, false))[2]
+end
+
 function resetcache!(eco::Ecosystem)
     eco.ordinariness = missing
 end
