@@ -53,7 +53,7 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     end
     simulate!(cache, newtm, cache.abundances.saveinterval)
     if !ismissing(yr)
-        JLD.save(string(yr, ".jld"),
+        JLD.save(joinpath(cache.abundances.outputfolder, string(yr, ".jld")),
         string(yr), SavedLandscape(cache.abundances.matrix[tm]))
     end
     _abundances(cache, newtm + cache.abundances.saveinterval)
