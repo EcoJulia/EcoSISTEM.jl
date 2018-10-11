@@ -101,20 +101,23 @@ eco = Ecosystem(sppl, abenv, rel)
 
 times = 1month:1month:10years
 cache = CachedEcosystem(eco, "examples/Cache", times)
-div = DiversitySet(cache)
-for time in gettimes(div)
-    updatesimulation!(cache, time)
+
+div = DiversitySet(cache, collect(times))
+for tm in gettimes(div)
+    updatesimulation!(cache, tm)
     newdiv = norm_sub_alpha(cache, 1.0)
-    append!(div, newdiv)
+    if ismissing(div.data)
+        div.data = newdiv
+    else
+        append!(div, newdiv)
+    end
 end
-div = norm_sub_alpha(cache, 1.0)
-for i in times[2:end]
-    abundances(cache, i)
-    newdiv = norm_sub_alpha(cache, 1.0)
-    append!(div, newdiv)
-end
-div[:time] = vcat(map(x -> fill(x, size(eco.abundances.matrix, 2)), times) ...)
-div[:partition_name]
+
+div.data[:time] = ustrip.(vcat(map(x -> fill(x, size(eco.abundances.matrix, 2)), times) ...))
+div.data = div.data[:,names(div.data) .!= :type_name]
+Feather.write(joinpath(div.folder, "Test.feather"), div.data)
+
+
 grid = convert_coords.(parse.(div[:partition_name]), grid[1])
 div[:lat] = [ x[1] for x in grid ]
 div[:lon] = [ x[2] for x in grid ]
