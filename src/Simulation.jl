@@ -72,10 +72,16 @@ include("Helper.jl")
 export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
 
 if VERSION < v"0.7-"
+
     include("ReadTOML.jl")
     export readTOML, runTOML, readoutput
+
     include("Cache.jl")
     export abundances
+
+    include("DiversitySet.jl")
+    export DiversitySet, updatesimulation!, gettimes
+
 end
 
 include("plotting.jl")
