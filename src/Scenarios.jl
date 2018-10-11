@@ -76,7 +76,7 @@ end
 function UniformDecline(eco::Ecosystem, timestep::Unitful.Time,
      rate::Quantity{Float64, typeof(𝐓^-1)})
      spp = 1:size(eco.abundances.matrix, 1)
-     meanabun = mean(mapslices(sum, eco.abundances.matrix, 2))
+     meanabun = mean(eco.spplist.abun)
      avlost = rate * timestep * meanabun
      for i in spp
         if any(eco.abundances.matrix[i, :] .> 0)
@@ -91,8 +91,7 @@ end
 function ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time,
      rate::Quantity{Float64, typeof(𝐓^-1)})
      spp = 1:size(eco.abundances.matrix, 1)
-     currentabun = mapslices(sum, eco.abundances.matrix, 2)
-     avlost = rate * timestep .* currentabun
+     avlost = rate * timestep .* eco.spplist.abun
      for i in spp
          if any(eco.abundances.matrix[i, :] .> 0)
              pos = find(eco.abundances.matrix[i, :] .> 0)
