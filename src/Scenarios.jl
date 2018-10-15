@@ -19,6 +19,7 @@ mutable struct SimpleScenario <: AbstractScenario
     fun::Function
     rate::Quantity{Float64, typeof(𝐓^-1)}
 end
+
 """
     RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -33,6 +34,7 @@ function RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity
     eco.abenv.budget.matrix[smp] = 0.0
     eco.abundances.matrix[:, smp] .= 0.0
 end
+
 """
     ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -65,6 +67,13 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantit
     eco.abenv.budget.matrix[smp] = 0.0
     eco.abundances.matrix[:, smp] .= 0.0
 end
+
+"""
+     HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time,
+        rate::Quantity{Float64, typeof(𝐓^-1)})
+
+A function that randomly replaces a portion of habitat with another.
+"""
 function HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity{Float64, typeof(𝐓^-1)})
     v = uconvert(unit(timestep)^-1, rate)
     pos = length(eco.abenv.budget.matrix)
@@ -73,6 +82,13 @@ function HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time, rate::Quanti
     eco.abenv.habitat.matrix[smp] = maximum(eco.spplist.traits.val) + 1
 end
 
+"""
+    UniformDecline(eco::Ecosystem, timestep::Unitful.Time,
+        rate::Quantity{Float64, typeof(𝐓^-1)})
+
+A function that reduces each species in the Ecosystem, `eco`, per `timestep`,
+    at a particular `rate`.
+"""
 function UniformDecline(eco::Ecosystem, timestep::Unitful.Time,
      rate::Quantity{Float64, typeof(𝐓^-1)})
      spp = 1:size(eco.abundances.matrix, 1)
@@ -81,13 +97,20 @@ function UniformDecline(eco::Ecosystem, timestep::Unitful.Time,
      for i in spp
         if any(eco.abundances.matrix[i, :] .> 0)
          pos = find(eco.abundances.matrix[i, :] .> 0)
-         smp = sample(pos, Int(round(avlost)),
-          replace=true)
+         smp = sample(pos, round(Int64, avlost),
+          replace = true)
          eco.abundances.matrix[i, smp] .-= 1
         end
      end
 end
 
+"""
+    ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time,
+        rate::Quantity{Float64, typeof(𝐓^-1)})
+
+A function that reduces each species in the Ecosystem, `eco`, per `timestep`,
+    at a particular `rate`, proportional to their starting population size.
+"""
 function ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time,
      rate::Quantity{Float64, typeof(𝐓^-1)})
      spp = 1:size(eco.abundances.matrix, 1)
@@ -95,81 +118,115 @@ function ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time,
      for i in spp
          if any(eco.abundances.matrix[i, :] .> 0)
              pos = find(eco.abundances.matrix[i, :] .> 0)
-             smp = sample(pos, Int(round(avlost[i])),
-              replace=true)
+             smp = sample(pos, round(Int64, avlost[i]),
+              replace = true)
              eco.abundances.matrix[i, smp] .-= 1
          end
      end
 end
 
+"""
+    LargeDecline(eco::Ecosystem, timestep::Unitful.Time,
+        rate::Quantity{Float64, typeof(𝐓^-1)})
+
+A function that reduces the largest species in the Ecosystem, `eco`, per `timestep`,
+    at a particular `rate`, proportional to their starting population size. The
+    largest species are those that have greater than half of the maximum energy
+    in the system.
+"""
 function LargeDecline(eco::Ecosystem, timestep::Unitful.Time,
      rate::Quantity{Float64, typeof(𝐓^-1)})
-     !all(eco.spplist.requirement.energy .== maximum(eco.spplist.requirement.energy)) ||
-     error("All species have the same requirement")
+     !all(eco.spplist.requirement.energy .==
+        maximum(eco.spplist.requirement.energy)) ||
+        error("All species have the same requirement")
      largest = find(eco.spplist.requirement.energy .>
-     (0.5 * maximum(eco.spplist.requirement.energy)))
-     currentabun = mapslices(sum, eco.abundances.matrix, 2)
-     avlost = rate * timestep .* currentabun
+        quantile(eco.spplist.requirement.energy)[3])
+     avlost = rate * timestep .* eco.spplist.abun
      for i in largest
          if any(eco.abundances.matrix[i, :] .> 0)
          pos = find(eco.abundances.matrix[i, :] .> 0)
-         smp = sample(pos, Int(round(avlost[i])),
-          replace=true)
+         smp = sample(pos, round(Int64, avlost[i]),
+          replace = true)
          eco.abundances.matrix[i, smp] .-= 1
      end
      end
 end
 
+"""
+    RareDecline(eco::Ecosystem, timestep::Unitful.Time,
+        rate::Quantity{Float64, typeof(𝐓^-1)})
+
+A function that reduces the rarest species in the Ecosystem, `eco`, per `timestep`,
+    at a particular `rate`, proportional to their starting population size. The
+    rarest species are those that have abundances lower than the 25th percentile.
+"""
 function RareDecline(eco::Ecosystem, timestep::Unitful.Time,
      rate::Quantity{Float64, typeof(𝐓^-1)})
-     currentabun = mapslices(sum, eco.abundances.matrix, 2)
-     rarest = find(currentabun .< quantile(currentabun[:,1])[2])
-     avlost = rate * timestep .* currentabun
+     originalabun = eco.spplist.abun
+     rarest = find(originalabun .< quantile(originalabun)[2])
+     avlost = rate * timestep .* eco.spplist.abun
      for i in rarest
          if any(eco.abundances.matrix[i, :] .> 0)
          pos = find(eco.abundances.matrix[i, :] .> 0)
-         smp = sample(pos, Int(round(avlost[i])),
-          replace=true)
-         eco.abundances.matrix[i, smp] .-= 1
-     end
-     end
-end
-function CommonDecline(eco::Ecosystem, timestep::Unitful.Time,
-     rate::Quantity{Float64, typeof(𝐓^-1)})
-     currentabun = mapslices(sum, eco.abundances.matrix, 2)
-     common = find(currentabun .> quantile(currentabun[:,1])[4])
-     avlost = rate * timestep .* currentabun
-     for i in common
-         if any(eco.abundances.matrix[i, :] .> 0)
-         pos = find(eco.abundances.matrix[i, :] .> 0)
-         smp = sample(pos, Int(round(avlost[i])),
-          replace=true)
+         smp = sample(pos, round(Int64, avlost[i]),
+          replace = true)
          eco.abundances.matrix[i, smp] .-= 1
      end
      end
 end
 
+"""
+    CommonDecline(eco::Ecosystem, timestep::Unitful.Time,
+        rate::Quantity{Float64, typeof(𝐓^-1)})
+
+A function that reduces the most common species in the Ecosystem, `eco`, per `timestep`,
+    at a particular `rate`, proportional to their starting population size. The
+    rarest species are those that have abundances greater than the 75th percentile.
+"""
+function CommonDecline(eco::Ecosystem, timestep::Unitful.Time,
+     rate::Quantity{Float64, typeof(𝐓^-1)})
+     originalabun = eco.spplist.abun
+     common = find(originalabun .> quantile(originalabun)[4])
+     avlost = rate * timestep .* eco.spplist.abun
+     for i in common
+         if any(eco.abundances.matrix[i, :] .> 0)
+         pos = find(eco.abundances.matrix[i, :] .> 0)
+         smp = sample(pos, round(Int64, avlost[i]),
+          replace = true)
+         eco.abundances.matrix[i, smp] .-= 1
+     end
+     end
+end
+
+"""
+    Invasive(eco::Ecosystem, timestep::Unitful.Time,
+        rate::Quantity{Float64, typeof(𝐓^-1)})
+
+A function that introduces an invasive species into the ecosystem, `eco`,
+    that gains abundance at each `timestep` at a particular rate, `rate` and
+    reduces 5 designated 'sensitive' species by an equivalent amount.
+"""
 function Invasive(eco::Ecosystem, timestep::Unitful.Time,
     rate::Quantity{Float64, typeof(𝐓^-1)})
     invasive = find(eco.spplist.native .== false)
     numspecies = length(eco.spplist.names)
-    currentabun = mapslices(sum, eco.abundances.matrix, 2)
+    meanabun = mean(eco.spplist.abun)
     if all(eco.spplist.names .!= "sensitive")
         sensitive = sample(1:numspecies, 5)
         eco.spplist.names[sensitive] = "sensitive"
     end
-    avgain = rate * timestep .* currentabun
+    avgain = rate * timestep * meanabun
     for i in invasive
         pos = find(eco.abundances.matrix[i, :])
-        smp = sample(pos, Int(round(avgain[i])),
-         replace=true)
+        smp = sample(pos, round(Int64, avgain),
+         replace = true)
         eco.abundances.matrix[i, smp] .+= 1
-        end
+    end
     sensitive = find(eco.spplist.names .== "sensitive")
     for j in sensitive
         pos = find(eco.abundances.matrix[j, :])
-        smp = sample(pos, Int(round(avgain[j])),
-         replace=true)
+        smp = sample(pos, round(Int64, avgain),
+         replace = true)
         eco.abundances.matrix[j, smp] .-= 1
     end
 end

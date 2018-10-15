@@ -191,8 +191,8 @@ import Diversity.API: _calcsimilarity
 function _calcsimilarity(sl::SpeciesList, a::AbstractArray)
     return _calcsimilarity(sl.types, a)
 end
-import Diversity.API: _floattypes
-function _floattypes(::SpeciesList)
+import Diversity.API: floattypes
+function floattypes(::SpeciesList)
     return Set([Float64])
 end
 import Diversity.API: _calcordinariness

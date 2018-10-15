@@ -129,8 +129,8 @@ function runTOML(file::String, eco::Ecosystem)
         timestep, " timestep", "\n", "Output: ", outfile))
 end
 
-function populate_from_GBIF!(locations::NextTable, ml::GridLandscape,
-    abenv::GridAbioticEnv, rel::AbstractTraitRelationship)
+function populate_from_GBIF!(locations::JuliaDB.DNDSparse{K,V}, ml::GridLandscape,
+    abenv::GridAbioticEnv, rel::AbstractTraitRelationship) where {K, V}
   names = spplist.names
   Set(names) == Set(unique(select(locations, 1))) || error("Species names in location table
     do not match species list")
