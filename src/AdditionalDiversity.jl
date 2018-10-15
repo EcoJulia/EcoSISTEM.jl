@@ -45,7 +45,7 @@ end
 function meta_shannon(eco::Ecosystem, qs::Float64)
     eco = makeunique(eco)
     div = meta_gamma(eco, 1.0)
-    div[:diversity] = log(div[:diversity])
+    div[:diversity] = log.(div[:diversity])
     return div
 end
 
