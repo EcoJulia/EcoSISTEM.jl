@@ -217,7 +217,7 @@ function Invasive(eco::Ecosystem, timestep::Unitful.Time,
     end
     avgain = rate * timestep * meanabun
     for i in invasive
-        pos = find(eco.abundances.matrix[i, :])
+        pos = 1:size(eco.abundances.matrix, 2)
         smp = sample(pos, round(Int64, avgain),
          replace = true)
         eco.abundances.matrix[i, smp] .+= 1
