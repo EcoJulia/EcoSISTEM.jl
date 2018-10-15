@@ -137,7 +137,7 @@ end
 function CommonDecline(eco::Ecosystem, timestep::Unitful.Time,
      rate::Quantity{Float64, typeof(𝐓^-1)})
      currentabun = mapslices(sum, eco.abundances.matrix, 2)
-     common = find(currentabun .> (0.5 * maximum(currentabun)))
+     common = find(currentabun .> quantile(currentabun[:,1])[4])
      avlost = rate * timestep .* currentabun
      for i in common
          if any(eco.abundances.matrix[i, :] .> 0)

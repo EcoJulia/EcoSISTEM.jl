@@ -211,6 +211,8 @@ grid = (50, 50)
 area = 10000.0km^2
 totalK = 1000000.0 * (numSpecies + numInvasive)
 individuals=20000 * numSpecies
+probs = rand(LogNormal(1.0, 0.5), numSpecies)
+probs /= sum(probs)
 
 # Create movement type - all individuals are allowed to move and have a wide range
 kernel = GaussianKernel(0.0km, numSpecies+numInvasive, 10e-04)
@@ -235,7 +237,7 @@ function runsim(times::Unitful.Time)
     lensim = length(0month:interval:times)
     abun = SharedArray(zeros(1, length(divfuns), lensim, length(scenario), reps))
     @sync @parallel  for j in 1:reps
-        abunvec = Multinomial(individuals, numSpecies)
+        abunvec = Multinomial(individuals, probs)
         native = fill(true, numSpecies + numInvasive)
         native[numSpecies+numInvasive] = false
         sppl = SpeciesList(numSpecies + numInvasive, 2, abunvec,
