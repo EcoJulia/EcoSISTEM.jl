@@ -224,10 +224,12 @@ function Invasive(eco::Ecosystem, timestep::Unitful.Time,
     end
     sensitive = find(eco.spplist.names .== "sensitive")
     for j in sensitive
-        pos = find(eco.abundances.matrix[j, :])
-        smp = sample(pos, round(Int64, avgain),
-         replace = true)
-        eco.abundances.matrix[j, smp] .-= 1
+        if any(eco.abundances.matrix[j, :] .> 0)
+            pos = find(eco.abundances.matrix[j, :])
+            smp = sample(pos, round(Int64, avgain),
+            replace = true)
+            eco.abundances.matrix[j, smp] .-= 1
+        end
     end
 end
 
