@@ -8,6 +8,7 @@ using MyUnitful
 using RCall
 using JLD
 using StatsBase
+using GLM
 
 # Start parallel processes
 addprocs(9)
@@ -46,23 +47,12 @@ grid = (50, 50)
 area = 10000.0km^2
 totalK = 1000000.0 * (numSpecies + numInvasive)
 individuals=20000 * numSpecies
+probs = rand(LogNormal(1.0, 0.5), numSpecies)
+probs /= sum(probs)
 
 # Create movement type - all individuals are allowed to move and have a wide range
 kernel = GaussianKernel(0.0km, numSpecies+numInvasive, 10e-04)
 movement = NoMovement(kernel)
-
-#
-abun = Multinomial(individuals, numSpecies)
-native = fill(true, numSpecies + numInvasive)
-native[numSpecies+numInvasive] = false
-traits = sample([1,2,3], weights([0.4, 0.2, 0.4]), numSpecies)
-push!(traits, 3)
-sppl = SpeciesList(numSpecies + numInvasive, DiscreteTrait(traits), abun,
-                   energy_vec, movement, param, native)
-abenv = simplenicheAE(numNiches, grid, totalK, area)
-rel = Match{eltype(abenv.habitat)}()
-eco = Ecosystem(populate!, sppl, abenv, rel)
-
 
 # Set up scenario of total habitat loss at certain rate
 habloss = 1.0 /10year
@@ -75,20 +65,25 @@ scenario = [SimpleScenario(UniformDecline, declines),
     SimpleScenario(Invasive, declines),
     SimpleScenario(RandHabitatLoss!, habloss)]
 divfuns = [norm_meta_alpha, raw_meta_alpha, norm_meta_beta, raw_meta_beta,
-    norm_meta_rho, raw_meta_rho, meta_gamma, meta_speciesrichness, meta_shannon, meta_simpson]
+    norm_meta_rho, raw_meta_rho, meta_gamma]
 q = 1.0
 
-function runsim(eco::Ecosystem, times::Unitful.Time)
+
+function runsim(times::Unitful.Time)
     burnin = 3year; interval = 3month; reps = 1000
     lensim = length(0month:interval:times)
     abun = SharedArray(zeros(1, length(divfuns), lensim, length(scenario), reps))
-    #abun = zeros(1, length(divfuns), lensim, length(scenario), reps)
-    @sync @parallel for i in 1:length(scenario)
-        print(scenario)
-    #for i in 1:length(scenario)
-        for j in 1:reps
-            reenergise!(eco, totalK, grid)
-            repopulate!(eco);
+    @sync @parallel  for j in 1:reps
+        abunvec = Multinomial(individuals, probs)
+        native = fill(true, numSpecies + numInvasive)
+        native[numSpecies+numInvasive] = false
+        sppl = SpeciesList(numSpecies + numInvasive, 2, abunvec,
+                           energy_vec, movement, param, native, [0.5, 0.5])
+        abenv = simplenicheAE(numNiches, grid, totalK, area)
+        rel = Match{eltype(abenv.habitat)}()
+        eco = Ecosystem(trait_populate!, sppl, abenv, rel)
+        for i in 1:length(scenario)
+            print(scenario)
             thisabun = view(abun, :, :, :, i, j);
             simulate!(eco, burnin, timestep)
             simulate_record_diversity!(thisabun, eco, times, interval, timestep,
@@ -117,18 +112,23 @@ function runsim(eco::Ecosystem, times::Unitful.Time)
 end
 
 times = 10year;
-#div = runsim(eco, times);
-#save("SantiniRun50spp.jld", "div", div)
+div = runsim(times);
+save("SantiniRun150spp.jld", "div", div)
 #div[isnan.(div)] = 0.0
 div = load("SantiniRun50spp.jld", "div")
 div = Array(div)
-standardise(x) = (x .- mean(x))./std(x)
+
+function nanrm(x)
+    x[isnan.(x)]
+end
+standardise(x) = (x .- mean(x[.!isnan.(x)]))./std(.!isnan.(x))
 #stanmat = mapslices(standardise, Array(div), (4,5))[1, :, :, :, :]
 #stanmat = mapslices(standardise, div, 2)
 stanmat = copy(div)
-for divfun in 1:10
+for divfun in 1:7
     stanmat[:, divfun, :, :, :] = standardise(div[:, divfun, :, :, :])
 end
+
 function linmod(x)
     df = DataFrame(X = x, Y = 1:length(x))
     mod = GLM.lm(@formula(X ~ Y), df)
@@ -137,7 +137,7 @@ end
 slopemat = mapslices(linmod, stanmat[1, :, :, :, :], 2)[:, 1, :, :]
 meanslope = mapslices(mean, slopemat, 3)[:, :, 1] .* 10
 repslope = mapslices(x-> (sum(x .> 0)/length(x)) > 0.95 || (sum(x .< 0)/length(x)) > 0.95, slopemat, 3)[:, :, 1]
-repslope = reshape(repslope, 70, 1)
+repslope = reshape(repslope, 49, 1)
 meanslope = meanslope[:, end:-1:1]
 
 #slopemat = slopes(Array(div)) .* 100
@@ -150,18 +150,18 @@ meanslope = meanslope[:, end:-1:1]
 R"
 library(fields);
 library(viridis);library(RColorBrewer)
-png('Meanslope_static150_norm.png', width = 1000, height = 800)
+png('Meanslope_static150_reeve.png', width = 1000, height = 800)
 par(mfrow=c(1,1), mar=c(4,4,6,8));
 image(meanslope, axes=FALSE, xlab='', ylab='', srt=45, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51),
     breaks =seq(-2, 2,length.out=52));
-axis(1, at = seq(0,1, length.out=10),
+axis(1, at = seq(0,1, length.out=7),
 labels = c('Norm alpha q1', 'Raw alpha q1', 'Norm beta q1', 'Raw beta q1', 'Norm rho q1',
 'Raw rho q1', 'Gamma q1', 'Richness', 'Shannon', 'Simpson'));
 axis(2, at = seq(0,1, length.out=7),
 labels = rev(c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive', 'Habitat \n Loss')));
 image.plot(meanslope, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51), legend.only=TRUE,
     breaks =seq(-2, 2,length.out=52), legend.lab ='% change in diversity metric')
-mat = expand.grid(seq(0,1, length.out=10), seq(0,1, length.out=7));
+mat = expand.grid(seq(0,1, length.out=7), seq(0,1, length.out=7));
 mat = mat[repslope, ]
 points(mat[,1],mat[,2], pch=8, col ='grey20')
 dev.off()
@@ -173,6 +173,7 @@ using MyUnitful
 using RCall
 using JLD
 using StatsBase
+using GLM
 
 # Start parallel processes
 addprocs(20)
@@ -255,9 +256,34 @@ function runsim(times::Unitful.Time)
     end
     abun
 end
+function runsim(times::Unitful.Time)
+    burnin = 0year; interval = 3month; reps = 1
+    lensim = length(0month:interval:times)
+    #abun = SharedArray(zeros(1, length(divfuns), lensim, length(scenario), reps))
+    abun = zeros(1, length(divfuns), lensim, length(scenario), reps)
+    for j in 1:reps
+        abunvec = Multinomial(individuals, probs)
+        native = fill(true, numSpecies + numInvasive)
+        native[numSpecies+numInvasive] = false
+        sppl = SpeciesList(numSpecies + numInvasive, 2, abunvec,
+                           energy_vec, movement, param, native, [0.5, 0.5])
+        abenv = simplenicheAE(numNiches, grid, totalK, area)
+        rel = Match{eltype(abenv.habitat)}()
+        eco = Ecosystem(trait_populate!, sppl, abenv, rel)
+        for i in 1:length(scenario)
+            print(scenario)
+            thisabun = view(abun, :, :, :, i, j);
+            simulate!(eco, burnin, timestep)
+            simulate_record_diversity!(thisabun, eco, times, interval, timestep,
+            scenario[i], divfuns, q)
+        end
+    end
+    abun
+end
 
-times = 10year
+times = 1year
 div = runsim(times)
+save("SantiniRun150spp_trad.jld", "div", div)
 div = div[:, [1,2, 5, 6, 4, 3, 7], :, :, :]
 standardise(x) = (x .- mean(x))./std(x)
 stanmat = copy(div)
@@ -279,17 +305,17 @@ meanslope = meanslope[:, end:-1:1]
 R"
 library(fields);
 library(viridis);library(RColorBrewer)
-png('Meanslope_static150_trad.png', width = 1000, height = 800)
+png('Meanslope_static150_test.png', width = 1000, height = 800)
 par(mfrow=c(1,1), mar=c(6,4,4,8));
 image(meanslope, axes=FALSE, xlab='', ylab='', srt=45, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51),
-    breaks =seq(-0.2, 0.2,length.out=52));
+    breaks =seq(-1, 1,length.out=52));
 axis(1, at = seq(0,1, length.out=7),
 labels = c('Sorenson', 'Richness', 'Mean abun',
 'Geometric mean','Simpson', 'Shannon',  'PD'));
 axis(2, at = seq(0,1, length.out=7),
 labels = rev(c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive', 'Habitat \n Loss')));
 image.plot(meanslope, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51), legend.only=TRUE,
-    breaks =seq(-0.2, 0.2,length.out=52), legend.lab ='% change in diversity metric')
+    breaks =seq(-1, 1,length.out=52), legend.lab ='% change in diversity metric')
 mat = expand.grid(seq(0,1, length.out=7), seq(0,1, length.out=7));
 mat = mat[repslope, ]
 points(mat[,1],mat[,2], pch=8, col ='grey20')
