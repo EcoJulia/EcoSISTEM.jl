@@ -4,7 +4,7 @@ include("Dist.jl")
 export jnorm, jexp, jpois, jbinom, junif, jdir, jmulti, Trapezoid
 
 include("Phylo.jl")
-export jtree, jcoal, assign_traits!, get_traits
+export jtree, jcoal, assign_traits!, get_traits, resettraits!
 
 include("TraitRelationship.jl")
 export TraitRelationship,multiplicativeTR2, multiplicativeTR3, Gauss,
@@ -59,7 +59,7 @@ export getchangefun, TempChange, eraChange, worldclimChange
 include("Scenarios.jl")
 export SimpleScenario, RandHabitatLoss!, ClustHabitatLoss!, DisturbanceScenario,
  HabitatDisturbance!, UniformDecline, ProportionalDecline, LargeDecline, RareDecline,
- CommonDecline, HabitatReplacement, Invasive
+ CommonDecline, HabitatReplacement, Invasive, SusceptibleDecline
 
 include("Generate.jl")
 export populate!, repopulate!,reenergise!, randomniches, update!, update_birth_move!,
