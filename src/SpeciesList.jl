@@ -21,6 +21,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
   movement::MO
   params::P
   native::Vector{Bool}
+  susceptible::Vector{Union{Missing, Float64}}
 
   function SpeciesList{TR, R, MO, T, P}(names:: Vector{String},
       traits::TR, abun::Vector{Int64}, req::R,
@@ -32,8 +33,9 @@ mutable struct SpeciesList{TR <: AbstractTraits,
                        P <: AbstractParams}
       # Check dimensions
       equal_param = equalpop(params, length(names))
+      sus = Vector{Union{Missing, Float64}}(length(names))
       new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
-       movement, equal_param, native)
+       movement, equal_param, native, sus)
   end
   function SpeciesList{TR, R, MO, T, P}(
       traits::TR, abun::Vector{Int64}, req::R,
@@ -48,8 +50,9 @@ mutable struct SpeciesList{TR <: AbstractTraits,
       # Assign names
       names = map(x -> "$x", 1:length(abun))
       equal_param = equalpop(params, length(names))
+      sus = Vector{Union{Missing, Float64}}(length(names))
       new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
-       movement, equal_param, native)
+       movement, equal_param, native, sus)
   end
 end
 """
