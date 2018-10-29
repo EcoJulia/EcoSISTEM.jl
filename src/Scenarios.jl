@@ -59,13 +59,13 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantit
         smp = sample(1:size(neighbours,1), howmany)
         i = convert_coords(neighbours[smp, 1], neighbours[smp, 2], width)
         eco.abenv.budget.matrix[i]=0.0
-        eco.abundances.matrix[:, smp] .= 0.0
+        eco.abundances.matrix[:, i] .= 0.0
     end
     # Add in additional start points
     howmany = jbinom(1, 1, ustrip(v))[1]
     smp = sample(pos, howmany)
     eco.abenv.budget.matrix[smp] = 0.0
-    eco.abundances.matrix[:, smp] .= 0.0
+    eco.abundances.matrix[:, i] .= 0.0
 end
 
 """
@@ -80,6 +80,24 @@ function HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time, rate::Quanti
     howmany = jbinom(1, pos, ustrip(v))[1]
     smp = sample(1:pos, howmany)
     eco.abenv.habitat.matrix[smp] = maximum(eco.spplist.traits.val) + 1
+end
+
+function SusceptibleDecline(eco::Ecosystem, timestep::Unitful.Time,
+            rate::Quantity{Float64, typeof(𝐓^-1)})
+     eco.spplist.susceptible *= (1 + rate * timestep)
+     currentabun = mapslices(sum, eco.abundances.matrix, 2)
+     spp = 1:size(eco.abundances.matrix, 1)
+     prob  = 1 / (1 + exp.(-eco.spplist.susceptible))
+     howmany =
+         map(currentabun, prob) do x, y
+             jbinom(1,x, y)[1]
+         end
+    for i in spp
+        pos = find(eco.abundances.matrix[i, :] .> 0)
+        smp = sample(pos, howmany[i],
+            replace = true)
+            eco.abundances.matrix[i, smp] .-= 1
+    end
 end
 
 """
