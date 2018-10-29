@@ -17,19 +17,22 @@ end
 
 function DiscreteEvolve(numTraits::Int64, tree::BinaryTree)
     # Create traits and assign to tips
-    trts = map(string, 1:numTraits)
+    trts = DataFrame(trait1 = collect(1:numTraits))
     assign_traits!(tree, 0.5, trts)
     # Get traits from tree
-    return DiscreteTrait(vcat(Array(get_traits(tree, true))...))
+    return DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
 end
+
 function ContinuousEvolve(val::Union{Float64, Unitful.Quantity{Float64}},
     var::Union{Float64, Unitful.Quantity{Float64}}, tree::BinaryTree)
     # Create traits and assign to tips
     numspecies = length(getleafnames(tree))
-    assign_traits!(tree, [ustrip(val)], [ustrip(var)])
+    trts = DataFrame(start = ustrip(val), σ² = ustrip(var))
+    assign_traits!(tree, trts)
     # Get traits from tree
-    return ContinuousTrait(vcat(Array(get_traits(tree, true))...)*unit(val),
-     repmat([var], numspecies))
+    newtrts = get_traits(tree, true)
+    newtrts[:start] = newtrts[:start] .* unit(val)
+    return GaussTrait(newtrts[:start], newtrts[:σ²])
 end
 
 iscontinuous(trait::DiscreteTrait) = false
@@ -57,7 +60,7 @@ mutable struct RainBin{C <: Int} <: ContinuousTrait{C}
   dist::Array{C, 2}
 end
 iscontinuous(trait::RainBin{C}) where C = true
-function eltype(trait::ContinuousTrait{C}) where C
+function eltype(trait::RainBin{C}) where C
     return typeof(1.0mm)
 end
 
@@ -65,6 +68,7 @@ mutable struct TraitCollection2{T1, T2} <: AbstractTraits{Tuple{T1, T2}}
     t1::T1
     t2::T2
 end
+
 iscontinuous(trait::TraitCollection2{T1, T2}) where {T1, T2} =
     [iscontinuous(trait.t1), iscontinuous(trait.t2)]
 function eltype(trait::TraitCollection2)
