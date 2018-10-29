@@ -4,6 +4,12 @@ using DataFrames
 import Phylo.NodeNameIterator
 
 
+function resettraits!(tree::BinaryTree)
+    nodes = getnodenames(tree)
+    for i in nodes
+        setnoderecord!(tree, i, DataFrame())
+    end
+end
 # Function to produce a matrix of all source and target nodes within a tree
 function sou_tar(tree::AbstractTree, len::Bool)
   # Create an empty array
@@ -180,15 +186,14 @@ Function to evolve continuous functional traits through a phylogenetic tree
 through Brownian motion, with a starting value, `start`, and rate, `σ²`.
 
 """
-function assign_traits!(tree::BinaryTree, start::Vector{Float64},
-  σ²::Vector{Float64})
+function assign_traits!(tree::BinaryTree, traits::DataFrame)
 
   # Warning for nodes that have already been assigned traits
   check = arenoderecordsempty(tree, getnodenames(tree))
   all(check) || warn("Some nodes already assigned traits")
 
   # Check that the length of the starting values and variances are the same
-  length(start) == length(σ²) || error("Start values and variance must have
+  length(traits[:start]) == length(traits[:σ²]) || error("Start values and variance must have
   same number of traits")
 
   # Find all names of nodes
@@ -205,28 +210,24 @@ function assign_traits!(tree::BinaryTree, start::Vector{Float64},
   for i in names
       # Set start value of BM to root
     if isroot(tree, i)
-      setnoderecord!(tree, i, start)
+      setnoderecord!(tree, i, traits)
     else
       # Get value information for parent node
       pnt = getparent(tree, i)
-      srt = getnoderecord(tree, pnt)
+      srt = getnoderecord(tree, pnt)[:start]
       # Find length of path between parent and child node
       path = first(branchroute(tree, pnt, i))
       ln = getlength(getbranch(tree, path))
 
       # Run BM model on each trait and set record
-      newtrait = map(srt, σ²) do start, sig
+      newtrait = map(srt, traits[:σ²]) do start, sig
                   last(BM(ln, sig, start))
                  end
-      setnoderecord!(tree, i, newtrait)
+      newdat = DataFrame(start = newtrait, σ² = repmat(traits[:σ²], length(newtrait)))
+      setnoderecord!(tree, i, newdat)
 
     end
   end
-end
-
-function assign_traits!(tree::BinaryTree, start::Float64,
-  σ²::Float64)
-  assign_traits!(tree, [start], [σ²])
 end
 
 """
