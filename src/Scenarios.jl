@@ -65,7 +65,7 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantit
     howmany = jbinom(1, 1, ustrip(v))[1]
     smp = sample(pos, howmany)
     eco.abenv.budget.matrix[smp] = 0.0
-    eco.abundances.matrix[:, i] .= 0.0
+    eco.abundances.matrix[:, smp] .= 0.0
 end
 
 """
