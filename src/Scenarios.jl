@@ -87,7 +87,7 @@ function SusceptibleDecline(eco::Ecosystem, timestep::Unitful.Time,
      eco.spplist.susceptible *= (1 + rate * timestep)
      currentabun = mapslices(sum, eco.abundances.matrix, 2)
      spp = 1:size(eco.abundances.matrix, 1)
-     prob  = 1 / (1 + exp.(-eco.spplist.susceptible))
+     prob  = 1 ./ (1 .+ exp.(-eco.spplist.susceptible))
      howmany =
          map(currentabun, prob) do x, y
              jbinom(1,x, y)[1]
