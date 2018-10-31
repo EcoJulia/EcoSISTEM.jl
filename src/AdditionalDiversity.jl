@@ -78,7 +78,7 @@ end
 function geom_mean_abun(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
     SR = meta_speciesrichness(eco, 0.0)
-    SR[:diversity] = exp.(sum(log.(mapslices(sum, eco.abundances.matrix, 1) + 1)) ./
+    SR[:diversity] = exp.(sum(log.(mapslices(sum, eco.abundances.matrix, 2) + 1)) ./
                         SR[:diversity]) - 1
     SR[:measure] = "Geometric mean abundance"
     return SR
@@ -92,7 +92,7 @@ function sorenson(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
     SR = meta_speciesrichness(eco, 0.0)
     ab1 = eco.spplist.abun
-    ab2 = mapslices(sum, eco.abundances.matrix, 1)
+    ab2 = mapslices(sum, eco.abundances.matrix, 2)
     SR[:diversity] = 1 - abs(sum(ab1 .- ab2))/sum(ab1 .+ ab2)
     SR[:measure] = "Sorenson"
     return SR
