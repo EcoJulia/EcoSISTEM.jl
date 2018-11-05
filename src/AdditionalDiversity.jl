@@ -8,7 +8,8 @@ function makeunique(eco::Ecosystem)
     newsppl = SpeciesList{typeof(sppl.traits), typeof(sppl.requirement),
     typeof(sppl.movement), UniqueTypes, typeof(sppl.params)}(sppl.names,
     sppl.traits, sppl.abun, sppl.requirement, UniqueTypes(spp), sppl.movement,
-    sppl.params, sppl.native, sppl.susceptible)
+    sppl.params, sppl.native)
+    newsppl.susceptible = sppl.susceptible
     return Ecosystem{typeof(eco.abenv), typeof(newsppl),
             typeof(eco.relationship)}(eco.abundances,
               newsppl, eco.abenv, eco.ordinariness,
