@@ -89,6 +89,6 @@ export plot_move, plot_abun,plot_mean,plot_diversity, plot_divergence, freq_hist
 
 include("AdditionalDiversity.jl")
 export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun,
-    sorenson, pd
+    sorenson, pd, makeunique
 
 end
