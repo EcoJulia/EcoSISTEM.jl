@@ -65,7 +65,7 @@ they possess, their abundances, requirement from the environment and their
 movement kernel.
 """
 function SpeciesList(numspecies::Int64,
-    numtraits::Int64, abun_dist::Distribution, req::R,
+    numtraits::Int64, abun::Vector{Int64}, req::R,
     movement::MO, params::P, native::Vector{Bool}, switch::Vector{Float64}) where {R <: AbstractRequirement,
         MO <: AbstractMovement, P <: AbstractParams}
 
@@ -80,7 +80,6 @@ function SpeciesList(numspecies::Int64,
     # Create similarity matrix (for now identity)
     phy = PhyloTypes(tree)
     # Draw random set of abundances from distribution
-    abun = rand(abun_dist)
     if length(abun) < numspecies
         abun = vcat(abun, repmat([0], numspecies - length(abun)))
     end
@@ -94,7 +93,7 @@ function SpeciesList(numspecies::Int64,
               req, phy, movement, params, native)
 end
 function SpeciesList(numspecies::Int64,
-    numtraits::Int64, abun_dist::Distribution, req::R,
+    numtraits::Int64, abun::Vector{Int64}, req::R,
     movement::MO, params::P, native::Vector{Bool}) where {R <: AbstractRequirement,
         MO <: AbstractMovement, P <: AbstractParams}
         return SpeciesList(numspecies, numtraits, abun_dist, req, movement,
@@ -112,7 +111,7 @@ they possess, their abundances, requirement from the environment and their
 movement kernel and any type of AbstractTypes.
 """
 function SpeciesList(numspecies::Int64,
-    numtraits::Int64, abun_dist::Distribution, req::R,
+    numtraits::Int64, abun::Vector{Int64}, req::R,
     movement::MO, phy::T, params::P, native::Vector{Bool}) where
     {R <: AbstractRequirement, MO <: AbstractMovement,
         T <: AbstractTypes, P <: AbstractParams}
@@ -126,7 +125,6 @@ function SpeciesList(numspecies::Int64,
     # Get traits from tree
     sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
     # Draw random set of abundances from distribution
-    abun = rand(abun_dist)
     if length(abun) < numspecies
         abun = vcat(abun, repmat([0], numspecies - length(abun)))
     end
@@ -143,7 +141,7 @@ end
 
 
 function SpeciesList(numspecies::Int64,
-    traits::TR, abun_dist::Distribution, req::R,
+    traits::TR, abun_dist::Vector{Int64}, req::R,
     movement::MO, params::P, native::Vector{Bool}) where
     {TR<: AbstractTraits, R <: AbstractRequirement,
         MO <: AbstractMovement, P <: AbstractParams}
@@ -152,7 +150,6 @@ function SpeciesList(numspecies::Int64,
     # Create similarity matrix (for now identity)
     ty = UniqueTypes(numspecies)
     # Draw random set of abundances from distribution
-    abun = rand(abun_dist)
     if length(abun) < numspecies
         abun = vcat(abun, fill(0, numspecies - length(abun)))
     end
