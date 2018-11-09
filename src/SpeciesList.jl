@@ -114,7 +114,7 @@ function SpeciesList(numspecies::Int64,
     # Get traits from tree
     sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
     # Evolve size as a trait along the tree
-    Simulation.resettraits!(sppl.types.tree)
+    Simulation.resettraits!(tree)
     energy = abs(ContinuousEvolve(mean, var, tree).mean)
     req = SimpleRequirement(energy)
     # Calculate density from size and relationship
