@@ -3,6 +3,14 @@ using Distributions
 using DataFrames
 import Phylo.NodeNameIterator
 
+function reroot!(tree::BinaryTree, node::String)
+    root = collect(nodenamefilter(isroot, tree))[1]
+    deletenode!(tree, node)
+    addnode!(tree, node)
+    addnode!(tree, "NewRoot")
+    addbranch!(tree, "NewRoot", root)
+    addbranch!(tree, "NewRoot", node)
+end
 
 function resettraits!(tree::BinaryTree)
     nodes = getnodenames(tree)

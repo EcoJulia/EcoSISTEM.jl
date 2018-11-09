@@ -4,7 +4,7 @@ include("Dist.jl")
 export jnorm, jexp, jpois, jbinom, junif, jdir, jmulti, Trapezoid
 
 include("Phylo.jl")
-export jtree, jcoal, assign_traits!, get_traits, resettraits!
+export jtree, jcoal, assign_traits!, get_traits, resettraits!, reroot!
 
 include("TraitRelationship.jl")
 export TraitRelationship,multiplicativeTR2, multiplicativeTR3, Gauss,
