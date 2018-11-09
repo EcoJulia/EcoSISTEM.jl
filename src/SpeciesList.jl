@@ -96,8 +96,41 @@ function SpeciesList(numspecies::Int64,
     numtraits::Int64, abun::Vector{Int64}, req::R,
     movement::MO, params::P, native::Vector{Bool}) where {R <: AbstractRequirement,
         MO <: AbstractMovement, P <: AbstractParams}
-        return SpeciesList(numspecies, numtraits, abun_dist, req, movement,
+        return SpeciesList(numspecies, numtraits, abun, req, movement,
                 params, native, [0.5])
+end
+
+function SpeciesList(numspecies::Int64,
+    numtraits::Int64, pop_mass::Float64, mean::Float64, var::Float64,
+    area::Unitful.Area, movement::MO, params::P, native::Vector{Bool},
+    switch::Vector{Float64}) where {MO <: AbstractMovement, P <: AbstractParams}
+
+    names = map(x -> "$x", 1:numspecies)
+    # Create tree
+    tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
+    # Create traits and assign to tips
+    trts = DataFrame(trait1 = collect(1:numtraits))
+    assign_traits!(tree, switch, trts)
+    # Get traits from tree
+    sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
+    # Evolve size as a trait along the tree
+    Simulation.resettraits!(sppl.types.tree)
+    sppl.requirement.energy = abs(ContinuousEvolve(mean, var, sppl.types.tree).mean)
+    # Calculate density from size and relationship
+    density = exp(log(sppl.requirement.energy) * pop_mass)./ km^2
+    # Multiply density by area to get final population sizes
+    abun = round(Int64, density * area)
+    # Create similarity matrix (for now identity)
+    phy = PhyloTypes(tree)
+    # Draw random set of abundances from distribution
+    # error out when abunance and NumberSpecies are not the same (same for energy dist)
+    length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
+                                          doesn't match number species"))
+    length(req)==numspecies || throw(DimensionMismatch("Requirement vector
+                                          doesn't match number species"))
+  SpeciesList{typeof(sp_trt), typeof(req),
+              typeof(movement), typeof(phy), typeof(params)}(names, sp_trt, abun,
+              req, phy, movement, params, native)
 end
 
 
