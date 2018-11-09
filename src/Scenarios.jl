@@ -224,29 +224,22 @@ A function that introduces an invasive species into the ecosystem, `eco`,
     that gains abundance at each `timestep` at a particular rate, `rate` and
     reduces 5 designated 'sensitive' species by an equivalent amount.
 """
+
 function Invasive(eco::Ecosystem, timestep::Unitful.Time,
     rate::Quantity{Float64, typeof(𝐓^-1)})
-    invasive = find(eco.spplist.native .== false)
-    numspecies = length(eco.spplist.names)
-    meanabun = mean(eco.spplist.abun)
-    if all(eco.spplist.names .!= "sensitive")
-        sensitive = sample(1:numspecies, 5)
-        eco.spplist.names[sensitive] = "sensitive"
-    end
-    avgain = rate * timestep * meanabun
+    qual = eco.spplist.native .== false
+    invasive = find(qual)
+    natives = find(!qual)
+    invasive_abun = eco.spplist.abun[invasive]
+    avgain = rate * timestep .* invasive_abun
     for i in invasive
         pos = 1:size(eco.abundances.matrix, 2)
-        smp = sample(pos, round(Int64, avgain),
+        smp = sample(pos, round(Int64, avgain[i]),
          replace = true)
         eco.abundances.matrix[i, smp] .+= 1
-    end
-    sensitive = find(eco.spplist.names .== "sensitive")
-    for j in sensitive
-        if any(eco.abundances.matrix[j, :] .> 0)
-            pos = find(eco.abundances.matrix[j, :])
-            smp = sample(pos, round(Int64, avgain),
-            replace = true)
-            eco.abundances.matrix[j, smp] .-= 1
+        for j in 1:length(smp)
+            nonzero = find(eco.abundances.matrix[natives, smp[i]] .> 0)
+            eco.abundances.matrix[sample(nonzero), smp[j]] .-= 1
         end
     end
 end
