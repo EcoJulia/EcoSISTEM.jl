@@ -13,6 +13,7 @@ function trait_populate!(ml::GridLandscape, spplist::SpeciesList,
       # Loop through species
       for i in eachindex(spplist.abun)
         # Get abundance of species
+        if spplist.native[i]
         abun = spplist.abun[i]
         options = unique(abenv.habitat.matrix)
         pref = spplist.traits.val[i]
@@ -30,6 +31,7 @@ function trait_populate!(ml::GridLandscape, spplist::SpeciesList,
             ml.matrix[i, j] = ml.matrix[i, j] + 1
         end
       end
+  end
 end
 
 function trait_repopulate!(eco::Ecosystem)

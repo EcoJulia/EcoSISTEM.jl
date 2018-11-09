@@ -326,12 +326,14 @@ function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
   b[.!activity] .= 0.0 * units
   # Loop through species
   for i in eachindex(spplist.abun)
-    # Get abundance of species
-    abun = spplist.abun[i]
-    pos = sample(grid[b .> (0 * units)], abun)
-    # Add individual to this location
-    ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
-  end
+      if spplist.native[i]
+        # Get abundance of species
+        abun = spplist.abun[i]
+        pos = sample(grid[b .> (0 * units)], abun)
+        # Add individual to this location
+        ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
+     end
+   end
 end
 """
     repopulate!(eco::Ecosystem)
