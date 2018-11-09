@@ -115,9 +115,10 @@ function SpeciesList(numspecies::Int64,
     sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
     # Evolve size as a trait along the tree
     Simulation.resettraits!(sppl.types.tree)
-    sppl.requirement.energy = abs(ContinuousEvolve(mean, var, sppl.types.tree).mean)
+    energy = abs(ContinuousEvolve(mean, var, tree).mean)
+    req = SimpleRequirement(energy)
     # Calculate density from size and relationship
-    density = exp(log(sppl.requirement.energy) * pop_mass)./ km^2
+    density = exp(log(energy) * pop_mass)./ km^2
     # Multiply density by area to get final population sizes
     abun = round(Int64, density * area)
     # Create similarity matrix (for now identity)
