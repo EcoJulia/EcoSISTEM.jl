@@ -24,11 +24,11 @@ numTraits = 2
 numNiches = 2
 numInvasive = 1
 
-val = 1.0
-var = 0.5
+sus_mean = 1.0
+sus_var = 0.5
 
-# Set up how much energy each species consumes
-energy_vec = SimpleRequirement(sample(2.0:10, numSpecies+numInvasive))
+size_mean = 5.0
+size_var = 15.0
 
 # Set probabilities
 birth = fill(0.0/month, numSpecies+numInvasive)
@@ -63,10 +63,12 @@ scenario = [SimpleScenario(UniformDecline, declines),
     SimpleScenario(RareDecline, declines),
     SimpleScenario(CommonDecline, declines),
     SimpleScenario(Invasive, declines),
+    SimpleScenario(Invasive, declines),
     SimpleScenario(RandHabitatLoss!, habloss),
     SimpleScenario(ClustHabitatLoss!, habloss),
     SimpleScenario(SusceptibleDecline, declines)]
-divfuns = [sorenson, geom_mean_abun]
+divfuns = [sorenson, meta_speciesrichness, meta_shannon, meta_simpson,
+    mean_abun, geom_mean_abun, pd]
 q = 1.0
 
 function runsim(times::Unitful.Time)
@@ -75,17 +77,16 @@ function runsim(times::Unitful.Time)
     abun = SharedArray(zeros(1, length(divfuns), lensim, length(scenario), reps))
     @sync @parallel  for j in 1:reps
         for i in 1:length(scenario)
-            abunvec = Multinomial(individuals, probs)
             native = fill(true, numSpecies + numInvasive)
             native[numSpecies+numInvasive] = false
-            sppl = SpeciesList(numSpecies + numInvasive, 2, abunvec,
-                               energy_vec, movement, param, native, [0.5, 0.5])
+            pop_mass = rand(Normal(-0.75, 0.1))
+            sppl = SpeciesList(numSpecies + numInvasive, 2, pop_mass, size_mean,
+            size_var, area, movement, param, native, [0.5, 0.5])
             Simulation.resettraits!(sppl.types.tree)
-            sppl.susceptible = ContinuousEvolve(val, var, sppl.types.tree).mean
-            #Simulation.resettraits!(sppl.types.tree)
-            #sppl.requirement.energy = ContinuousEvolve(5.0, 0.3, sppl.types.tree).mean
-            #prob = 1./sppl.requirement.energy
-            #sppl.abun = rand(Multinomial(individuals, prob./sum(prob)))
+            sppl.susceptible = ContinuousEvolve(sus_mean, sus_var, sppl.types.tree).mean
+            if i == 7
+                reroot!(sppl.types.tree, "151")
+            end
             abenv = simplenicheAE(numNiches, grid, totalK, area)
             rel = Match{eltype(abenv.habitat)}()
             eco = Ecosystem(trait_populate!, sppl, abenv, rel)
@@ -97,6 +98,7 @@ function runsim(times::Unitful.Time)
     end
     abun
 end
+
 function runsim(times::Unitful.Time)
     burnin = 3year; interval = 1month; reps = 1
     lensim = length(0month:interval:times)
@@ -129,7 +131,8 @@ end
 
 times = 10year
 div = runsim(times)
-#save("SantiniRun_trad150.jld", "div", div)
+save("SantiniRun_trad150.jld", "div", div)
+
 div = div[:, [1, 2, 5, 6, 4, 3, 7], :, :, :]
 div[isnan.(div)] = 0
 standardise(x) = (x .- mean(x))./std(x)
@@ -145,27 +148,38 @@ end
 slopemat = mapslices(linmod, stanmat[1, :, :, :, :], 2)[:, 1, :, :]
 meanslope = mapslices(mean, slopemat, 3)[:, :, 1] * 10
 repslope = mapslices(x-> (sum(x .> 0)/length(x)) > 0.95 || (sum(x .< 0)/length(x)) > 0.95, slopemat, 3)[:, :, 1]
-repslope = reshape(repslope, 49, 1)
+repslope = reshape(transpose(repslope), 70, 1)
+ms = reshape(transpose(meanslope), 70, 1)
+rep = Vector{String}(70)
+for i in 1:70
+    if repslope[i]
+        rep[i] = ifelse(ms[i] > 0 , "+", "-")
+    else
+        rep[i] = ""
+    end
+end
 @rput meanslope
 @rput repslope
+@rput rep
 R"
 library(fields);
 library(viridis);library(RColorBrewer)
-png('Meanslope_static150_trad.png', width = 1000, height = 800)
+png('Meanslope_static150_trad.png', width = 1000, height = 1000)
 par(mfrow=c(1,1), mar=c(6,4,4,10));
 image(meanslope, axes=FALSE, xlab='', ylab='', srt=45, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51),
-   breaks =seq(-1, 1,length.out=52));
+   breaks =seq(-0.3, 0.3,length.out=52));
 axis(1, at = seq(0,1, length.out=7), cex.axis=1.2,
 labels = c('Sorenson', 'Richness', 'Mean abun',
 'Geometric mean','Simpson', 'Shannon',  'PD'));
-axis(2, at = seq(0,1, length.out=7), cex.axis=1.2,
-labels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive', 'Habitat \n Loss'));
+axis(2, at = seq(0,1, length.out=10), cex.axis=1.2,
+labels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
+'Phylo \n invasive', 'Rand hab \n Loss', 'Clust hab \n Loss', 'Susceptible'));
 image.plot(meanslope, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51), legend.only=TRUE,
-   breaks =seq(-1, 1,length.out=52),legend.args=list( text='% change in metric',
+   breaks =seq(-0.3, 0.3,length.out=52),legend.args=list( text='Slope',
    cex=1.2, side=4,padj = 0.8, line=2), legend.mar = 7)
-mat = expand.grid(seq(0,1, length.out=7), seq(0,1, length.out=7));
+mat = expand.grid(seq(0,1, length.out=10), seq(0,1, length.out=7));
 mat = mat[repslope, ]
-points(mat[,1],mat[,2], pch=8, col ='grey20')
+points(mat[,2], mat[,1], pch=rep, col ='grey20', cex = 1.5, font = 2)
 dev.off()
 "
 # Plot trends over time
@@ -180,7 +194,7 @@ standat[:rep] = vcat(map(x -> repmat([x], 847), 1:1000)...)
 R"library(ggplot2); library(cowplot); library(scales)
 png('Temp_trends_trad.png', width = 1000, height = 900)
 g = ggplot(data = standat, aes(x=time, y = div, group = rep))+
-geom_line(col = alpha('black', 0.1))+facet_wrap(~measure)+ylim(-10, 15)+
+geom_line(col = alpha('black', 0.1))+facet_wrap(~measure)+ylim(-5, 5)+
 xlab('Time (years)') + ylab('Diversity value')
 print(g);dev.off()
 "
@@ -201,7 +215,7 @@ geom_line(col = alpha('black', 0.1))+facet_wrap(~scenario)+
 xlab('Time (years)') + ylab('Scenario')
 print(g);dev.off()
 "
-standat = DataFrame(div = reshape(div[1,3,:,:,:], 1089000))
+standat = DataFrame(div = reshape(div[1,4,:,:,:], 1089000))
 standat[:time] = (repmat(collect(1:121), 9000).-1)./12
 #standat[:time] = (repmat(vcat(map(x -> repmat([x], 9), 1:121)...), 1000) .- 1)./12
 standat[:scenario] = repmat(vcat(map(x -> repmat([x], 121), ["Uniform", "Proportional", "Large", "Rare",
@@ -214,35 +228,52 @@ standat$scenario = factor(standat$scenario, levels = c('Uniform', 'Proportional'
 png('Ab_trends_trad.png', width = 1000, height = 900)
 g = ggplot(data = standat, aes(x=time, y = div, group = rep))+
 geom_line(col = alpha('black', 0.1))+facet_wrap(~scenario)+
-xlab('Time (years)') + ylab('Scenario')
+xlab('Time (years)') + ylab('Geometric mean abundance')
 print(g);dev.off()
 "
 
 sdmat = mapslices(std, slopemat, 3)[:, :, 1]
-upper = meanslope .+ 1.96 .* (sdmat./sqrt(1000))
-lower = meanslope .- 1.96 .* (sdmat./sqrt(1000))
+upper = meanslope .+ sdmat
+lower = meanslope .- sdmat
+rep = Array{String, 2}(7, 10)
+for i in 1:7
+    for j in 1:10
+    if sum(slopemat[i,j,:] .> 0)/1000 >= 0.95 || sum(slopemat[i,j,:] .< 0)/1000 >= 0.95
+        rep[i, j ] = "*"
+    else
+        rep[i, j] = ""
+    end
+end
+end
+@rput rep
 @rput meanslope
 @rput upper
 @rput lower
-R"library(ggplot2)
+R"library(ggplot2); library(cowplot)
 labels = c('Sorenson', 'Richness', 'Mean abun',
 'Geometric mean','Simpson', 'Shannon',  'PD')
 scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-    'Habitat Loss')
+    'Phylo invasive','Rand hab loss', 'Clust hab loss', 'Susceptible')
 dat = data.frame()
+adj = c()
 for (i in 1:7){
     dat = rbind(dat, data.frame(mn = meanslope[i,], up = upper[i,], lo = lower[i,],
-    measure = rep(labels[i], 7), scenario = scenarios))
+    measure = rep(labels[i], 10), scenario = scenarios, rep = rep[i,]))
     }
-    dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-        'Habitat Loss'))
-    print(dat)
+    for (j in 1:nrow(dat)){
+        dat$adj[j] =  ifelse(dat$mn[j] > 0, dat$mn[j] + 0.02, dat$mn[j] - 0.02)
+        }
+    dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional',
+    'Largest', 'Rarest', 'Common','Invasive','Phylo invasive',
+        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) + geom_bar(stat = 'identity') +
         facet_wrap(~ measure, nrow = 2) + geom_hline(yintercept = 0)+
         geom_errorbar(aes(ymin=lo, ymax=up),
                 width=.2, position=position_dodge(.9)) + xlab('Scenario of change')+
                 ylab('Mean slope')+theme(legend.position = 'none',
-                axis.text.x = element_text(size=12, angle = 45, vjust = 0.9, hjust = 1))
+                axis.text.x = element_text(size=12, angle = 45, vjust = 0.9, hjust = 1))+
+                 geom_text(aes(y = adj, label=rep), size = 6)+
+        scale_fill_manual(palette = colorRampPalette(brewer.pal(7, 'Paired')))
     png('barplot_trad.png', width = 1200, height = 800)
     print(g)
     dev.off()
@@ -250,54 +281,32 @@ for (i in 1:7){
 
 # Check for early and late warning signals
 early = stanmat[:,:, 1:24,:,:]
-late = stanmat[:,:, 25:end,:,:]
 
 slopematE = mapslices(linmod, early[1, :, :, :, :], 2)[:, 1, :, :]
 meanslopeE = mapslices(mean, slopematE, 3)[:, :, 1]
 repslopeE = mapslices(x-> (sum(x .> 0)/length(x)) > 0.95 || (sum(x .< 0)/length(x)) > 0.95, slopematE, 3)[:, :, 1]
-repslopeE = reshape(repslopeE, 49, 1)
+repslopeE = reshape(repslopeE, 63, 1)
 
-slopematL = mapslices(linmod, late[1, :, :, :, :], 2)[:, 1, :, :]
-meanslopeL = mapslices(mean, slopematL, 3)[:, :, 1]
-repslopeL = mapslices(x-> (sum(x .> 0)/length(x)) > 0.95 || (sum(x .< 0)/length(x)) > 0.95, slopematL, 3)[:, :, 1]
-repslopeL = reshape(repslopeL, 49, 1)
-
-meanslopeT = Array{Float64, 2}(14, 7)
-for i in 1:7
-    meanslopeT[(2*i - 1), :] = meanslopeE[:, i]
-    meanslopeT[(2*i), :] = meanslopeL[:, i]
-end
-meanslopeT *= 10
-repslopeT = Array{Bool, 2}(49*2, 1)
-for i in 1:49
-    repslopeT[(2*i - 1), :] = repslopeE[:, i]
-    repslopeT[(2*i), :] = repslopeL[:, i]
-end
-@rput meanslopeT
-@rput repslopeT
+@rput meanslopeE
+@rput repslopeE
 R"
 library(fields);
 library(viridis);library(RColorBrewer)
-png('EWS_static150_reeve.png', width = 1000, height = 1200)
-par(mfrow=c(1,1), mar=c(6,6,4,8));
-metriclabels = c('Sorenson', 'Richness', 'Mean abun',
-'Geometric mean','Simpson', 'Shannon',  'PD');
-
-image(t(meanslopeT), axes=FALSE, xlab='', ylab='', srt=45, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51),
-    breaks =seq(-1, 1,length.out=52));
-axis(1, at = seq(0,1, length.out=7), metriclabels, cex = 1.2);
-labels = c('Uniform \n \n', 'Proportional \n \n', 'Largest \n \n', 'Rarest \n \n', 'Common \n \n','Invasive \n \n', 'Habitat Loss \n \n')
-sublabels = c('\n EWS', '\nLWS')
-#labels = paste(expand.grid(sublabels, labels)[,1],
-#    expand.grid(sublabels, labels)[,2])
-axis(2, at = seq(0,1, length.out=14), rep(sublabels, 7));
-axis(2, at = seq(0.05, 1, 0.15), labels, tick = F, font =2, cex = 1.2);
-#text(x = -0.5, y = seq(0.05, 1, 0.15), labels, srt = 90)
-image.plot(meanslopeT, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51), legend.only=TRUE,
-    breaks =seq(-1, 1,length.out=52), legend.args=list( text='% change in metric',
-    cex=1.2, side=4,padj = 0.8, line=2), legend.mar = 7)
-mat = expand.grid(seq(0,1, length.out=7), seq(0,1, length.out=14));
-mat = mat[repslopeT, ]
+png('Meanslope_static150_trad.png', width = 1000, height = 900)
+par(mfrow=c(1,1), mar=c(6,4,4,10));
+image(meanslope, axes=FALSE, xlab='', ylab='', srt=45, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51),
+   breaks =seq(-0.5, 0.5,length.out=52));
+axis(1, at = seq(0,1, length.out=7), cex.axis=1.2,
+labels = c('Sorenson', 'Richness', 'Mean abun',
+'Geometric mean','Simpson', 'Shannon',  'PD'));
+axis(2, at = seq(0,1, length.out=9), cex.axis=1.2,
+labels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
+'Phylo invasive','Rand hab \n Loss','Clust hab \n Loss', 'Susceptible'));
+image.plot(meanslope, col = colorRampPalette(brewer.pal(11, 'RdBu'))(51), legend.only=TRUE,
+   breaks =seq(-0.5, 0.5,length.out=52),legend.args=list( text='% change in metric',
+   cex=1.2, side=4,padj = 0.8, line=2), legend.mar = 7)
+mat = expand.grid(seq(0,1, length.out=7), seq(0,1, length.out=9));
+mat = mat[repslope, ]
 points(mat[,1],mat[,2], pch=8, col ='grey20')
 dev.off()
 "
@@ -371,14 +380,14 @@ R"library(ggplot2);library(cowplot)
 labels = c('Sorenson', 'Richness', 'Mean abun',
 'Geometric mean','Simpson', 'Shannon',  'PD')
 scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-    'Habitat Loss')
+    'Rand hab loss', 'Clust hab loss', 'Susceptible')
 dat = data.frame()
 for (i in 1:7){
     dat = rbind(dat, data.frame(mn = rawslope[i,], up = upper[i,], lo = lower[i,],
-    measure = rep(labels[i], 7), scenario = scenarios))
+    measure = rep(labels[i], 9), scenario = scenarios))
     }
     dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-        'Habitat Loss'))
+        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
     print(dat)
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) +
     geom_bar(stat = 'identity') +
