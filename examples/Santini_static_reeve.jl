@@ -24,11 +24,11 @@ numTraits = 2
 numNiches = 2
 numInvasive = 1
 
-val = 1.0
-var = 0.5
+sus_mean = 1.0
+sus_var = 0.5
 
-# Set up how much energy each species consumes
-energy_vec = SimpleRequirement(sample(2.0:10, numSpecies+numInvasive))
+size_mean = 5.0
+size_var = 15.0
 
 # Set probabilities
 birth = fill(0.0/month, numSpecies+numInvasive)
@@ -47,8 +47,6 @@ grid = (50, 50)
 area = 10000.0km^2
 totalK = 1000000.0 * (numSpecies + numInvasive)
 individuals=20000 * numSpecies
-probs = rand(LogNormal(1.0, 0.5), numSpecies)
-probs /= sum(probs)
 
 # Create movement type - all individuals are allowed to move and have a wide range
 kernel = GaussianKernel(0.0km, numSpecies+numInvasive, 10e-04)
@@ -77,19 +75,21 @@ function runsim(times::Unitful.Time)
     abun = SharedArray(zeros(1, length(divfuns), lensim, length(scenario), reps))
     @sync @parallel  for j in 1:reps
         for i in 1:length(scenario)
-            abunvec = Multinomial(individuals, probs)
             native = fill(true, numSpecies + numInvasive)
             native[numSpecies+numInvasive] = false
-            sppl = SpeciesList(numSpecies + numInvasive, 2, abunvec,
-                               energy_vec, movement, param, native, [0.5, 0.5])
+            pop_mass = rand(Normal(-0.75, 0.1))
+            sppl = SpeciesList(numSpecies + numInvasive, 2, pop_mass, size_mean,
+            size_var, area, movement, param, native, [0.5, 0.5])
             Simulation.resettraits!(sppl.types.tree)
-            sppl.susceptible = ContinuousEvolve(val, var, sppl.types.tree).mean
+            sppl.susceptible = ContinuousEvolve(sus_mean, sus_var, sppl.types.tree).mean
+            if i == 7
+                reroot!(sppl.types.tree, "151")
+            end
             abenv = simplenicheAE(numNiches, grid, totalK, area)
             rel = Match{eltype(abenv.habitat)}()
             eco = Ecosystem(trait_populate!, sppl, abenv, rel)
             thisabun = view(abun, :, :, :, i, j);
             simulate!(eco, burnin, timestep)
-            eco = makeunique(eco)
             simulate_record_diversity!(thisabun, eco, times, interval, timestep,
             scenario[i], divfuns, q)
         end
