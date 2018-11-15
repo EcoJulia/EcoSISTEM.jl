@@ -94,10 +94,12 @@ function SusceptibleDecline(eco::Ecosystem, timestep::Unitful.Time,
          end
     for i in spp
         for j in 1:howmany[i]
+            if any(eco.abundances.matrix[i, :] .> 0)
             pos = find(eco.abundances.matrix[i, :] .> 0)
             smp = sample(pos)
             eco.abundances.matrix[i, smp] .-= 1
         end
+    end
     end
 end
 
@@ -115,9 +117,11 @@ function UniformDecline(eco::Ecosystem, timestep::Unitful.Time,
      avlost = rate * timestep * meanabun
      for i in spp
          for j in 1:round(Int64, avlost)
+             if any(eco.abundances.matrix[i, :] .> 0)
          pos = find(eco.abundances.matrix[i, :] .> 0)
          smp = sample(pos)
          eco.abundances.matrix[i, smp] .-= 1
+     end
         end
      end
 end
