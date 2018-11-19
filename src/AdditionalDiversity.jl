@@ -69,7 +69,7 @@ end
 function mean_abun(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
     SR = meta_speciesrichness(eco, 0.0)
-    SR[:diversity] = sum(eco.abundances.matrix) ./ SR[:diversity]
+    SR[:diversity] = sum(eco.abundances.matrix) ./ size(eco.abundances.matrix, 1)
     SR[:measure] = "Mean abundance"
     return SR
 end
@@ -82,7 +82,7 @@ function geom_mean_abun(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
     SR = meta_speciesrichness(eco, 0.0)
     SR[:diversity] = exp.(sum(log.(mapslices(sum, eco.abundances.matrix, 2) + 1)) ./
-                        SR[:diversity]) - 1
+                        size(eco.abundances.matrix, 1)) - 1
     SR[:measure] = "Geometric mean abundance"
     return SR
 end
