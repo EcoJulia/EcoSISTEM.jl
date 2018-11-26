@@ -116,7 +116,7 @@ function SpeciesList(numspecies::Int64,
     # Evolve size as a trait along the tree
     Simulation.resettraits!(tree)
     energy = abs.(ContinuousEvolve(mean, var, tree).mean)
-    req = SimpleRequirement(energy)
+    req = SizeRequirement(energy, pop_mass, area)
     # Calculate density from size and relationship
     density = exp.(log.(energy) * pop_mass)./ km^2
     # Multiply density by area to get final population sizes

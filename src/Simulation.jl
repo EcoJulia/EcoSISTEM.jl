@@ -16,7 +16,7 @@ export ContinuousHab,ContinuousTimeHab, DiscreteHab, HabitatCollection2, Habitat
  tempgrad
 
 include("Energy.jl")
-export SimpleRequirement, SolarRequirement, WaterRequirement, SimpleBudget, SolarBudget,
+export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, SimpleBudget, SolarBudget,
     WaterBudget, ReqCollection2, BudgetCollection2
 
 if VERSION >= v"0.7-"

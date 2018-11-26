@@ -23,6 +23,22 @@ length(req::SimpleRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SimpleRequirement)
     sum(abun .* req.energy)
 end
+
+"""
+    SizeRequirement <: AbstractRequirement{Float64}
+
+A simple energy requirement is a single float for each species.
+"""
+mutable struct SizeRequirement <: AbstractRequirement{Float64}
+  energy::Vector{Float64}
+  pop_mass_rel::Float64
+  area::Unitful.Area
+end
+length(req::SizeRequirement) = length(req.energy)
+function _getenergyusage(abun::Vector{Int64}, req::SizeRequirement)
+    sum(abun .* req.energy)
+end
+
 """
     SolarRequirement <: AbstractRequirement{typeof(1.0*day^-1*kJ*m^-2)}
 
