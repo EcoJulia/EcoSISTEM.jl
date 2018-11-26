@@ -173,23 +173,23 @@ print(g);dev.off()
 "
 
 sdmat = mapslices(std, slopemat, 3)[:, :, 1]
-upper = meanslope .+ sdmat
-lower = meanslope .- sdmat
-rep = Array{String, 2}(7, 10)
+upper = meanslope .+ 2.24 .* (sdmat./sqrt(1000))
+lower = meanslope .- 2.24 .* (sdmat./sqrt(1000))
+reps = Array{String, 2}(7, 10)
 for i in 1:7
     for j in 1:10
     if sum(slopemat[i,j,:] .> 0)/1000 >= 0.95 || sum(slopemat[i,j,:] .< 0)/1000 >= 0.95
-        rep[i, j ] = "*"
+        reps[i, j ] = ifelse(meanslope[i,j] > 0, "+", "-")
     else
-        rep[i, j] = ""
+        reps[i, j] = ""
     end
 end
 end
-@rput rep
+@rput reps
 @rput meanslope
 @rput upper
 @rput lower
-R"library(ggplot2); library(cowplot)
+R"library(ggplot2); library(cowplot); library(RColorBrewer)
 labels = c('Sorenson', 'Richness', 'Mean abun',
 'Geometric mean','Simpson', 'Shannon',  'PD')
 scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
@@ -198,7 +198,7 @@ dat = data.frame()
 adj = c()
 for (i in 1:7){
     dat = rbind(dat, data.frame(mn = meanslope[i,], up = upper[i,], lo = lower[i,],
-    measure = rep(labels[i], 10), scenario = scenarios, rep = rep[i,]))
+    measure = rep(labels[i], 10), scenario = scenarios, rep = reps[i,]))
     }
     for (j in 1:nrow(dat)){
         dat$adj[j] =  ifelse(dat$mn[j] > 0, dat$mn[j] + 0.02, dat$mn[j] - 0.02)
@@ -225,13 +225,13 @@ early = stanmat[:,:, 1:24,:,:]
 slopematE = mapslices(linmod, early[1, :, :, :, :], 2)[:, 1, :, :]
 meanslopeE = mapslices(mean, slopematE, 3)[:, :, 1]
 sdmatE = mapslices(std, slopematE, 3)[:, :, 1]
-upperE = meanslopeE .+ sdmatE
-lowerE = meanslopeE .- sdmatE
+upperE = meanslopeE .+ 2.24 .* (sdmatE./sqrt(1000))
+lowerE = meanslopeE .- 2.24 .* (sdmatE./sqrt(1000))
 repE = Array{String, 2}(7, 10)
 for i in 1:7
     for j in 1:10
     if sum(slopematE[i,j,:] .> 0)/1000 >= 0.95 || sum(slopematE[i,j,:] .< 0)/1000 >= 0.95
-        repE[i, j ] = "*"
+        repE[i, j ] = ifelse(meanslopeE[i,j] > 0, "+", "-")
     else
         repE[i, j] = ""
     end
@@ -274,8 +274,8 @@ for (i in 1:7){
 rawmat = mapslices(linmod, div[1, :, :, :, :], 2)[:, 1, :, :]
 rawslope = mapslices(mean, rawmat, 3)[:, :, 1] * 10
 sdmat = mapslices(std, rawmat, 3)[:, :, 1]
-upper = rawslope .+ sdmat
-lower = rawslope .- sdmat
+upper = rawslope .+ 2.24 .* (sdmat./sqrt(1000))
+lower = rawslope .- 2.24 .* (sdmat./sqrt(1000))
 maxrep = mapslices(maximum, upper, 2)
 minrep = mapslices(minimum, lower, 2)
 rng = abs(maxrep - minrep)
@@ -292,7 +292,7 @@ dat = data.frame()
 adj = c()
 for (i in 1:7){
     dat = rbind(dat, data.frame(mn = rawslope[i,], up = upper[i,], lo = lower[i,],
-    measure = rep(labels[i], 10), scenario = scenarios, rep = rep[i,],
+    measure = rep(labels[i], 10), scenario = scenarios, rep = reps[i,],
     rn = rep(rng[i], 10)))
     }
     for (j in 1:nrow(dat)){
@@ -320,13 +320,13 @@ early = div[:,:, 1:24,:,:]
 slopematE = mapslices(linmod, early[1, :, :, :, :], 2)[:, 1, :, :]
 meanslopeE = mapslices(mean, slopematE, 3)[:, :, 1]
 sdmatE = mapslices(std, slopematE, 3)[:, :, 1]
-upperE = meanslopeE .+ sdmatE
-lowerE = meanslopeE .- sdmatE
+upperE = meanslopeE .+ 2.24 .* (sdmatE./sqrt(1000))
+lowerE = meanslopeE .- 2.24 .* (sdmatE./sqrt(1000))
 repE = Array{String, 2}(7, 10)
 for i in 1:7
     for j in 1:10
     if sum(slopematE[i,j,:] .> 0)/1000 >= 0.95 || sum(slopematE[i,j,:] .< 0)/1000 >= 0.95
-        repE[i, j ] = "*"
+        repE[i, j ] = ifelse(meanslopeE[i,j] > 0, "+", "-")
     else
         repE[i, j] = ""
     end
