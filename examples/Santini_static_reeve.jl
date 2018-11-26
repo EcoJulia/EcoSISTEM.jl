@@ -57,13 +57,13 @@ habloss = 1.0 /10year
 declines = 1.0 /10year
 scenario = [SimpleScenario(UniformDecline, declines),
     SimpleScenario(ProportionalDecline, declines),
-    SimpleScenario(LargeDecline, declines),
     SimpleScenario(RareDecline, declines),
     SimpleScenario(CommonDecline, declines),
+    SimpleScenario(LargeDecline, declines),
     SimpleScenario(Invasive, declines),
+    SimpleScenario(SusceptibleDecline, declines),
     SimpleScenario(RandHabitatLoss!, habloss),
-    SimpleScenario(ClustHabitatLoss!, habloss),
-    SimpleScenario(SusceptibleDecline, declines)]
+    SimpleScenario(ClustHabitatLoss!, habloss)]
 divfuns = [norm_meta_alpha, raw_meta_alpha, norm_meta_beta, raw_meta_beta,
     norm_meta_rho, raw_meta_rho, meta_gamma]
 q = 1.0
@@ -130,16 +130,16 @@ xlab('Time (years)') + ylab('Diversity value')
 print(g);dev.off()
 "
 
-standat = DataFrame(div = reshape(div[1,1,:,:,:], 1210000))
-standat[:time] = (repmat(collect(1:121), 10000).-1)./12
+standat = DataFrame(div = reshape(div[1,1,:,:,:], 1089000))
+standat[:time] = (repmat(collect(1:121), 9000).-1)./12
 #standat[:time] = (repmat(vcat(map(x -> repmat([x], 9), 1:121)...), 1000) .- 1)./12
 standat[:scenario] = repmat(vcat(map(x -> repmat([x], 121), ["Uniform", "Proportional", "Large", "Rare",
-    "Common", "Invasive","Phylo invasive", "Rand hab", "Clust hab", "Susceptible"])...), 1000)
-standat[:rep] = vcat(map(x -> repmat([x], 1210), 1:1000)...)
+    "Common", "Invasive", "Rand hab", "Clust hab", "Susceptible"])...), 1000)
+standat[:rep] = vcat(map(x -> repmat([x], 1089), 1:1000)...)
 @rput standat
 R"library(ggplot2); library(cowplot); library(scales)
 standat$scenario = factor(standat$scenario, levels = c('Uniform', 'Proportional',
-'Large', 'Rare', 'Common', 'Invasive','Phylo invasive', 'Rand hab', 'Clust hab', 'Susceptible'))
+ 'Rare', 'Common','Large', 'Invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
 png('Alpha_trends_reeve.png', width = 1000, height = 900)
 g = ggplot(data = standat, aes(x=time, y = div, group = rep))+
 geom_line(col = alpha('black', 0.1))+facet_wrap(~scenario, nrow =2)+
@@ -166,9 +166,9 @@ print(g);dev.off()
 sdmat = mapslices(std, slopemat, 3)[:, :, 1] * 10
 upper = meanslope .+ 2.24 .* (sdmat./sqrt(1000))
 lower = meanslope .- 2.24 .* (sdmat./sqrt(1000))
-reps = Array{String, 2}(7, 10)
+reps = Array{String, 2}(7, 9)
 for i in 1:7
-    for j in 1:10
+    for j in 1:9
     if sum(slopemat[i,j,:] .> 0)/1000 >= 0.95 || sum(slopemat[i,j,:] .< 0)/1000 >= 0.95
         reps[i, j ] = ifelse(meanslope[i,j] > 0, "+", "-")
     else
@@ -183,20 +183,19 @@ end
 R"library(ggplot2); library(cowplot); library(RColorBrewer)
 labels = c('Raw alpha', 'Norm alpha', 'Raw beta',
 'Norm beta','Raw rho', 'Norm rho',  'Gamma')
-scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-    'Phylo invasive','Rand hab loss', 'Clust hab loss', 'Susceptible')
+scenarios = c('Uniform', 'Proportional',
+ 'Rare', 'Common','Large', 'Invasive', 'Susceptible', 'Rand hab', 'Clust hab')
 dat = data.frame()
 adj = c()
 for (i in 1:7){
     dat = rbind(dat, data.frame(mn = meanslope[i,], up = upper[i,], lo = lower[i,],
-    measure = rep(labels[i], 10), scenario = scenarios, rep = reps[i,]))
+    measure = rep(labels[i], 9), scenario = scenarios, rep = reps[i,]))
     }
     for (j in 1:nrow(dat)){
         dat$adj[j] =  ifelse(dat$mn[j] > 0, dat$mn[j] + 0.02, dat$mn[j] - 0.02)
         }
     dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional',
-    'Largest', 'Rarest', 'Common','Invasive','Phylo invasive',
-        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
+     'Rare', 'Common','Large', 'Invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) + geom_bar(stat = 'identity') +
         facet_wrap(~ measure, nrow = 2) + geom_hline(yintercept = 0)+
         geom_errorbar(aes(ymin=lo, ymax=up),
@@ -219,9 +218,9 @@ meanslopeE = mapslices(mean, slopematE, 3)[:, :, 1]
 sdmatE = mapslices(std, slopematE, 3)[:, :, 1]
 upperE = meanslopeE .+ 2.24 .* (sdmatE./sqrt(1000))
 lowerE = meanslopeE .- 2.24 .* (sdmatE./sqrt(1000))
-repE = Array{String, 2}(7, 10)
+repE = Array{String, 2}(7, 9)
 for i in 1:7
-    for j in 1:10
+    for j in 1:9
     if sum(slopematE[i,j,:] .> 0)/1000 >= 0.95 || sum(slopematE[i,j,:] .< 0)/1000 >= 0.95
         repE[i, j ] = ifelse(meanslopeE[i,j] > 0, "+", "-")
     else
@@ -236,20 +235,19 @@ end
 R"library(ggplot2); library(cowplot)
 labels = c('Raw alpha', 'Norm alpha', 'Raw beta',
 'Norm beta','Raw rho', 'Norm rho',  'Gamma')
-scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-    'Phylo invasive','Rand hab loss', 'Clust hab loss', 'Susceptible')
+scenarios = c('Uniform', 'Proportional',
+ 'Rare', 'Common','Large', 'Invasive', 'Susceptible', 'Rand hab', 'Clust hab')
 dat = data.frame()
 adj = c()
 for (i in 1:7){
     dat = rbind(dat, data.frame(mn = meanslopeE[i,], up = upperE[i,], lo = lowerE[i,],
-    measure = rep(labels[i], 10), scenario = scenarios, rep = repE[i,]))
+    measure = rep(labels[i], 9), scenario = scenarios, rep = repE[i,]))
     }
     for (j in 1:nrow(dat)){
         dat$adj[j] =  ifelse(dat$mn[j] > 0, dat$up[j] + 0.01, dat$lo[j] - 0.01)
         }
     dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional',
-    'Largest', 'Rarest', 'Common','Invasive','Phylo invasive',
-        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
+     'Rare', 'Common','Large', 'Invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) + geom_bar(stat = 'identity') +
         facet_wrap(~ measure, nrow = 2) + geom_hline(yintercept = 0)+
         geom_errorbar(aes(ymin=lo, ymax=up),
@@ -278,14 +276,14 @@ rng = abs(maxrep - minrep)
 R"library(ggplot2); library(cowplot)
 labels = c('Raw alpha', 'Norm alpha', 'Raw beta',
 'Norm beta','Raw rho', 'Norm rho',  'Gamma')
-scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-    'Phylo invasive','Rand hab loss', 'Clust hab loss', 'Susceptible')
+scenarios = c('Uniform', 'Proportional',
+ 'Rare', 'Common','Large', 'Invasive', 'Susceptible', 'Rand hab', 'Clust hab')
 dat = data.frame()
 adj = c()
 for (i in 1:7){
     dat = rbind(dat, data.frame(mn = rawslope[i,], up = upper[i,], lo = lower[i,],
-    measure = rep(labels[i], 10), scenario = scenarios, rep = reps[i,],
-    rn = rep(rng[i], 10)))
+    measure = rep(labels[i], 9), scenario = scenarios, rep = reps[i,],
+    rn = rep(rng[i], 9)))
     }
     for (j in 1:nrow(dat)){
         dat$adj[j] =  ifelse(dat$mn[j] > 0, dat$up[j] + 0.05 * dat$rn[j],
@@ -314,9 +312,9 @@ meanslopeE = mapslices(mean, slopematE, 3)[:, :, 1]
 sdmatE = mapslices(std, slopematE, 3)[:, :, 1]
 upperE = meanslopeE .+ 2.24 .* (sdmatE./sqrt(1000))
 lowerE = meanslopeE .- 2.24 .* (sdmatE./sqrt(1000))
-repE = Array{String, 2}(7, 10)
+repE = Array{String, 2}(7, 9)
 for i in 1:7
-    for j in 1:10
+    for j in 1:9
     if sum(slopematE[i,j,:] .> 0)/1000 >= 0.95 || sum(slopematE[i,j,:] .< 0)/1000 >= 0.95
         repE[i, j ] = ifelse(meanslopeE[i,j] > 0, "+", "-")
     else
@@ -335,22 +333,21 @@ rngE = abs(maxrepE - minrepE)
 R"library(ggplot2); library(cowplot)
 labels = c('Raw alpha', 'Norm alpha', 'Raw beta',
 'Norm beta','Raw rho', 'Norm rho',  'Gamma')
-scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-    'Phylo invasive','Rand hab loss', 'Clust hab loss', 'Susceptible')
+scenarios = c('Uniform', 'Proportional',
+ 'Rare', 'Common','Large', 'Invasive', 'Susceptible', 'Rand hab', 'Clust hab')
 dat = data.frame()
 adj = c()
 for (i in 1:7){
     dat = rbind(dat, data.frame(mn = meanslopeE[i,], up = upperE[i,], lo = lowerE[i,],
-    measure = rep(labels[i], 10), scenario = scenarios, rep = repE[i,],
-    rn = rep(rngE[i], 10)))
+    measure = rep(labels[i], 9), scenario = scenarios, rep = repE[i,],
+    rn = rep(rngE[i], 9)))
     }
     for (j in 1:nrow(dat)){
         dat$adj[j] =  ifelse(dat$mn[j] > 0, dat$up[j] + 0.05 * dat$rn[j],
         dat$lo[j] - 0.05 * dat$rn[j])
         }
     dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional',
-    'Largest', 'Rarest', 'Common','Invasive','Phylo invasive',
-        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
+     'Rare', 'Common','Large', 'Invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) + geom_bar(stat = 'identity') +
         facet_wrap(~ measure, nrow = 2, scales='free_y') + geom_hline(yintercept = 0)+
         geom_errorbar(aes(ymin=lo, ymax=up),
