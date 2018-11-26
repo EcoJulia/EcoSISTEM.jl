@@ -237,12 +237,15 @@ function Invasive(eco::Ecosystem, timestep::Unitful.Time,
     invasive_abun = eco.spplist.abun[invasive]
     avgain = rate * timestep .* invasive_abun
     for i in eachindex(invasive)
-        for j in 1:round(Int64, avgain[i])
-            pos = find(mapslices(sum, eco.abundances.matrix[natives, :], 1) .> 0)
-            smp = sample(pos)
-            eco.abundances.matrix[invasive[i], smp] .+= 1
-            nonzero = find(eco.abundances.matrix[natives, smp] .> 0)
-            eco.abundances.matrix[sample(nonzero), smp] .-= 1
+        gains = round(Int64, avgain[i]) * eco.spplist.requirement.energy[invasive[i]]
+        avail_space = mapslices(sum, eco.abundances.matrix .* eco.spplist.requirement.energy, 1)
+        pos = find(avail_space .> gains)
+        smp = sample(pos)
+        eco.abundances.matrix[invasive[i], smp] .+= 1
+        while gains .> 0
+            spp = sample(find(eco.abundances.matrix[:, smp].>0))
+            eco.abundances.matrix[spp, smp] .-= 1
+            gains -= eco.spplist.requirement.energy[spp]
         end
     end
 end
