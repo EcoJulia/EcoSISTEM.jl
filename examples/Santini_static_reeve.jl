@@ -70,7 +70,7 @@ q = 1.0
 
 
 function runsim(times::Unitful.Time)
-    burnin = 3year; interval = 1month; reps = 1000
+    interval = 1month; reps = 1000
     lensim = length(0month:interval:times)
     abun = SharedArray(zeros(1, length(divfuns), lensim, length(scenario), reps))
     @sync @parallel  for j in 1:reps
@@ -89,7 +89,6 @@ function runsim(times::Unitful.Time)
             rel = Match{eltype(abenv.habitat)}()
             eco = Ecosystem(trait_populate!, sppl, abenv, rel)
             thisabun = view(abun, :, :, :, i, j);
-            simulate!(eco, burnin, timestep)
             simulate_record_diversity!(thisabun, eco, times, interval, timestep,
             scenario[i], divfuns, q)
         end

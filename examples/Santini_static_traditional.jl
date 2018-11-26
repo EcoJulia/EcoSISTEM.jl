@@ -70,7 +70,7 @@ divfuns = [sorenson, meta_speciesrichness, meta_shannon, meta_simpson,
 q = 1.0
 
 function runsim(times::Unitful.Time)
-    burnin = 3year; interval = 1month; reps = 1000
+    interval = 1month; reps = 1000
     lensim = length(0month:interval:times)
     abun = SharedArray(zeros(1, length(divfuns), lensim, length(scenario), reps))
     @sync @parallel  for j in 1:reps
@@ -89,7 +89,6 @@ function runsim(times::Unitful.Time)
             rel = Match{eltype(abenv.habitat)}()
             eco = Ecosystem(trait_populate!, sppl, abenv, rel)
             thisabun = view(abun, :, :, :, i, j);
-            simulate!(eco, burnin, timestep)
             simulate_record_diversity!(thisabun, eco, times, interval, timestep,
             scenario[i], divfuns, q)
         end
@@ -97,35 +96,6 @@ function runsim(times::Unitful.Time)
     abun
 end
 
-function runsim(times::Unitful.Time)
-    burnin = 3year; interval = 1month; reps = 1
-    lensim = length(0month:interval:times)
-    #abun = SharedArray(zeros(1, length(divfuns), lensim, length(scenario), reps))
-    abun = zeros(1, length(divfuns), lensim, length(scenario), reps)
-    for j in 1:reps
-        for i in 1:length(scenario)
-            print(scenario[i].fun, "\n")
-            # Ecosystem set up
-            abunvec = Multinomial(individuals, probs)
-            native = fill(true, numSpecies + numInvasive)
-            native[numSpecies+numInvasive] = false
-            sppl = SpeciesList(numSpecies + numInvasive, 2, abunvec,
-                               energy_vec, movement, param, native, [0.5, 0.5])
-            Simulation.resettraits!(sppl.types.tree)
-            sppl.susceptible = ContinuousEvolve(val, var, sppl.types.tree).mean
-            abenv = simplenicheAE(numNiches, grid, totalK, area)
-            rel = Match{eltype(abenv.habitat)}()
-            eco = Ecosystem(trait_populate!, sppl, abenv, rel)
-
-            # Run simulation
-            thisabun = view(abun, :, :, :, i, j);
-            simulate!(eco, burnin, timestep)
-            simulate_record_diversity!(thisabun, eco, times, interval, timestep,
-            scenario[i], divfuns, q)
-        end
-    end
-    abun
-end
 
 times = 10year
 div = runsim(times)
