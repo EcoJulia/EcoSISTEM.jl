@@ -57,14 +57,14 @@ habloss = 1.0 /10year
 declines = 1.0 /10year
 scenario = [SimpleScenario(UniformDecline, declines),
     SimpleScenario(ProportionalDecline, declines),
-    SimpleScenario(LargeDecline, declines),
     SimpleScenario(RareDecline, declines),
     SimpleScenario(CommonDecline, declines),
+    SimpleScenario(LargeDecline, declines),
     SimpleScenario(Invasive, declines),
     SimpleScenario(Invasive, declines),
+    SimpleScenario(SusceptibleDecline, declines),
     SimpleScenario(RandHabitatLoss!, habloss),
-    SimpleScenario(ClustHabitatLoss!, habloss),
-    SimpleScenario(SusceptibleDecline, declines)]
+    SimpleScenario(ClustHabitatLoss!, habloss)]
 divfuns = [sorenson, meta_speciesrichness, meta_shannon, meta_simpson,
     mean_abun, geom_mean_abun, pd]
 q = 1.0
@@ -147,7 +147,7 @@ standat[:rep] = vcat(map(x -> repmat([x], 1210), 1:1000)...)
 @rput standat
 R"library(ggplot2); library(cowplot); library(scales)
 standat$scenario = factor(standat$scenario, levels = c('Uniform', 'Proportional',
-'Large', 'Rare', 'Common', 'Invasive','Phylo invasive', 'Rand hab', 'Clust hab', 'Susceptible'))
+ 'Rare', 'Common','Large', 'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
 png('SR_trends_trad.png', width = 1000, height = 900)
 g = ggplot(data = standat, aes(x=time, y = div, group = rep))+
 geom_line(col = alpha('black', 0.1))+facet_wrap(~scenario, nrow =2)+
@@ -158,13 +158,13 @@ print(g);dev.off()
 standat = DataFrame(div = reshape(div[1,4,:,:,:], 1210000))
 standat[:time] = (repmat(collect(1:121), 10000).-1)./12
 #standat[:time] = (repmat(vcat(map(x -> repmat([x], 9), 1:121)...), 1000) .- 1)./12
-standat[:scenario] = repmat(vcat(map(x -> repmat([x], 121), ["Uniform", "Proportional", "Large", "Rare",
-    "Common", "Invasive","Phylo invasive", "Rand hab", "Clust hab", "Susceptible"])...), 1000)
+standat[:scenario] = repmat(vcat(map(x -> repmat([x], 121), ["Uniform", "Proportional", "Rare",
+    "Large", "Common", "Invasive","Phylo invasive", "Susceptible", "Rand hab", "Clust hab"])...), 1000)
 standat[:rep] = vcat(map(x -> repmat([x], 1210), 1:1000)...)
 @rput standat
 R"library(ggplot2); library(cowplot); library(scales)
 standat$scenario = factor(standat$scenario, levels = c('Uniform', 'Proportional',
-'Large', 'Rare', 'Common', 'Invasive','Phylo invasive', 'Rand hab', 'Clust hab', 'Susceptible'))
+ 'Rare', 'Common','Large', 'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
 png('Ab_trends_trad.png', width = 1000, height = 900)
 g = ggplot(data = standat, aes(x=time, y = div, group = rep))+
 geom_line(col = alpha('black', 0.1))+facet_wrap(~scenario, scales = 'free_y',
@@ -192,8 +192,8 @@ end
 R"library(ggplot2); library(cowplot); library(RColorBrewer)
 labels = c('Sorenson', 'Richness', 'Mean abun',
 'Geometric mean','Simpson', 'Shannon',  'PD')
-scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-    'Phylo invasive','Rand hab loss', 'Clust hab loss', 'Susceptible')
+scenarios = c('Uniform', 'Proportional',
+ 'Rare', 'Common','Large', 'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab')
 dat = data.frame()
 adj = c()
 for (i in 1:7){
@@ -204,8 +204,7 @@ for (i in 1:7){
         dat$adj[j] =  ifelse(dat$mn[j] > 0, dat$mn[j] + 0.02, dat$mn[j] - 0.02)
         }
     dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional',
-    'Largest', 'Rarest', 'Common','Invasive','Phylo invasive',
-        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
+     'Rare', 'Common','Large', 'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) + geom_bar(stat = 'identity') +
         facet_wrap(~ measure, nrow = 2) + geom_hline(yintercept = 0)+
         geom_errorbar(aes(ymin=lo, ymax=up),
@@ -244,8 +243,8 @@ end
 R"library(ggplot2); library(cowplot)
 labels = c('Sorenson', 'Richness', 'Mean abun',
 'Geometric mean','Simpson', 'Shannon',  'PD')
-scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-    'Phylo invasive','Rand hab loss', 'Clust hab loss', 'Susceptible')
+scenarios = c('Uniform', 'Proportional',
+ 'Rare', 'Common','Large', 'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab')
 dat = data.frame()
 adj = c()
 for (i in 1:7){
@@ -256,8 +255,7 @@ for (i in 1:7){
         dat$adj[j] =  ifelse(dat$mn[j] > 0, dat$up[j] + 0.02, dat$lo[j] - 0.02)
         }
     dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional',
-    'Largest', 'Rarest', 'Common','Invasive','Phylo invasive',
-        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
+     'Rare', 'Common','Large', 'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) + geom_bar(stat = 'identity') +
         facet_wrap(~ measure, nrow = 2) + geom_hline(yintercept = 0)+
         geom_errorbar(aes(ymin=lo, ymax=up),
@@ -286,8 +284,8 @@ rng = abs(maxrep - minrep)
 R"library(ggplot2); library(cowplot)
 labels = c('Sorenson', 'Richness', 'Mean abun',
 'Geometric mean','Simpson', 'Shannon',  'PD')
-scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-    'Phylo invasive','Rand hab loss', 'Clust hab loss', 'Susceptible')
+scenarios = c('Uniform', 'Proportional',
+ 'Rare', 'Common','Large', 'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab')
 dat = data.frame()
 adj = c()
 for (i in 1:7){
@@ -300,8 +298,7 @@ for (i in 1:7){
         dat$lo[j] - 0.05 * dat$rn[j])
         }
     dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional',
-    'Largest', 'Rarest', 'Common','Invasive','Phylo invasive',
-        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
+     'Rare', 'Common','Large', 'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) + geom_bar(stat = 'identity') +
         facet_wrap(~ measure, nrow = 2, scales = 'free_y') + geom_hline(yintercept = 0)+
         geom_errorbar(aes(ymin=lo, ymax=up),
@@ -343,8 +340,8 @@ rngE = abs(maxrepE - minrepE)
 R"library(ggplot2); library(cowplot)
 labels = c('Sorenson', 'Richness', 'Mean abun',
 'Geometric mean','Simpson', 'Shannon',  'PD')
-scenarios = c('Uniform', 'Proportional', 'Largest', 'Rarest', 'Common','Invasive',
-    'Phylo invasive','Rand hab loss', 'Clust hab loss', 'Susceptible')
+scenarios = c('Uniform', 'Proportional',
+ 'Rare', 'Common','Large', 'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab')
 dat = data.frame()
 adj = c()
 for (i in 1:7){
@@ -357,8 +354,7 @@ for (i in 1:7){
         dat$lo[j] - 0.05 * dat$rn[j])
         }
     dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional',
-    'Largest', 'Rarest', 'Common','Invasive','Phylo invasive',
-        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
+     'Rare', 'Common','Large', 'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) + geom_bar(stat = 'identity') +
         facet_wrap(~ measure, nrow = 2, scales='free_y') + geom_hline(yintercept = 0)+
         geom_errorbar(aes(ymin=lo, ymax=up),
@@ -371,3 +367,60 @@ for (i in 1:7){
     print(g)
     dev.off()
 "
+
+native = fill(true, numSpecies + numInvasive)
+native[numSpecies+numInvasive] = false
+pop_mass = rand(Normal(-0.75, 0.1))
+sppl = SpeciesList(numSpecies + numInvasive, 2, pop_mass, size_mean,
+size_var, area, movement, param, native, [0.5, 0.5])
+abenv = simplenicheAE(numNiches, grid, totalK, area)
+rel = Match{eltype(abenv.habitat)}()
+eco = Ecosystem(trait_populate!, sppl, abenv, rel)
+mat = Array{Float64, 3}(size(eco.abenv.budget.matrix, 1),size(eco.abenv.budget.matrix, 2), 121)
+for i in 1:121
+    ClustHabitatLoss!(eco, timestep, habloss)
+    mat[:,:,i] = eco.abenv.budget.matrix
+end
+Simulation.reenergise!(eco, totalK, size(eco.abenv.budget.matrix))
+mat2 = Array{Float64, 3}(size(eco.abenv.budget.matrix, 1),size(eco.abenv.budget.matrix, 2), 121)
+for i in 1:121
+    RandHabitatLoss!(eco, timestep, habloss)
+    mat2[:,:,i] = eco.abenv.budget.matrix
+end
+val = reshape(mat[:,:, 121], 2500)
+val2  = reshape(mat2[:,:, 121], 2500)
+@rput val
+@rput val2
+R"library(viridis); library(ggplot2); library(cowplot)
+dat = expand.grid(1:50, 1:50)
+dat$val1 = val2
+dat$val2 = val
+g1 = ggplot(dat, aes(x= Var1, y = Var2)) + geom_tile(aes(fill = factor(val1)))+
+    xlab('') + ylab('')+
+    scale_fill_manual(values = c('tan4', 'palegreen4'),
+        name='Habitat \n status',
+        labels=c('Removed', 'Remaining'))+
+theme(axis.text.x = element_blank(),
+      axis.text.y=element_blank())+
+theme(legend.position = 'right',
+      axis.ticks = element_blank(),
+      axis.line.x = element_blank(),
+      axis.line.y = element_blank())
+g2 = ggplot(dat, aes(x= Var1, y = Var2)) + geom_tile(aes(fill = factor(val2)))+
+xlab('') + ylab('')+
+scale_fill_manual(values = c('palegreen4', 'tan4'),
+    name='Habitat \n status',
+    labels=c('Removed', 'Remaining'))+
+theme(axis.text.x = element_blank(),
+  axis.text.y=element_blank())+
+theme(legend.position = 'none',
+  axis.ticks = element_blank(),
+  axis.line.x = element_blank(),
+  axis.line.y = element_blank())
+g = ggdraw() +
+  draw_plot(g1, 0, 0, 0.525, 0.95) +
+  draw_plot(g2, 0.525, 0, 0.475, 0.95) +
+  draw_plot_label(c('A', 'B'), c(0.01, 0.51), c(0.98, 0.98), size = 18)
+png('Cluster_mat.png', width = 1200, height = 800)
+print(g)
+dev.off()"
