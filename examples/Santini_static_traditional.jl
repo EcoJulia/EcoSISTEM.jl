@@ -103,11 +103,14 @@ save("SantiniRun_trad150.jld", "div", div)
 
 div = div[:, [1, 2, 5, 6, 4, 3, 7], :, :, :]
 div[isnan.(div)] = 0
+
+#load("SantiniRun_trad150.jld", "div")
 standardise(x) = (x .- mean(x))./std(x)
 stanmat = copy(div)
 for divfun in 1:7
     stanmat[:, divfun, :, :, :] = standardise(div[:, divfun, :, :, :])
 end
+save("Standat_trad.jld", "standat", standat)
 function linmod(x)
     df = DataFrame(X = x, Y = 1:length(x))
     mod = GLM.lm(@formula(X ~ Y), df)
@@ -123,46 +126,49 @@ standat[:measure] = repmat(repmat(["Sorenson", "Richness", "Mean abun",
 "Geometric mean","Simpson", "Shannon",  "PD"], 121), 1000)
 standat[:time] = (repmat(vcat(map(x -> repmat([x], 7), 1:121)...), 1000) .- 1)./12
 standat[:rep] = vcat(map(x -> repmat([x], 847), 1:1000)...)
-
+save("Standat_trad.jl", "standat", standat)
 @rput standat
 R"library(ggplot2); library(cowplot); library(scales)
 png('Temp_trends_trad.png', width = 1000, height = 900)
+standat$measure = factor(standat$measure, levels = c('Sorenson', 'Richness',
+'Mean abun', 'Geometric mean', 'Simpson', 'Shannon','PD'))
 g = ggplot(data = standat, aes(x=time, y = div, group = rep))+
-geom_line(col = alpha('black', 0.1))+facet_wrap(~measure)+ylim(-5, 5)+
+geom_line(col = alpha('black', 0.1))+facet_wrap(~measure, nrow =2)+ylim(-5, 5)+
 xlab('Time (years)') + ylab('Diversity value')
 print(g);dev.off()
 "
 
-standat = DataFrame(div = reshape(div[1,2,:,:,:], 1089000))
-standat[:time] = (repmat(collect(1:121), 9000).-1)./12
+standat = DataFrame(div = reshape(div[1,2,:,:,:], 1210000))
+standat[:time] = (repmat(collect(1:121), 10000).-1)./12
 #standat[:time] = (repmat(vcat(map(x -> repmat([x], 9), 1:121)...), 1000) .- 1)./12
 standat[:scenario] = repmat(vcat(map(x -> repmat([x], 121), ["Uniform", "Proportional", "Large", "Rare",
-    "Common", "Invasive", "Rand hab", "Clust hab", "Susceptible"])...), 1000)
-standat[:rep] = vcat(map(x -> repmat([x], 1089), 1:1000)...)
+    "Common", "Invasive","Phylo invasive", "Rand hab", "Clust hab", "Susceptible"])...), 1000)
+standat[:rep] = vcat(map(x -> repmat([x], 1210), 1:1000)...)
 @rput standat
 R"library(ggplot2); library(cowplot); library(scales)
 standat$scenario = factor(standat$scenario, levels = c('Uniform', 'Proportional',
-'Large', 'Rare', 'Common', 'Invasive', 'Rand hab', 'Clust hab', 'Susceptible'))
+'Large', 'Rare', 'Common', 'Invasive','Phylo invasive', 'Rand hab', 'Clust hab', 'Susceptible'))
 png('SR_trends_trad.png', width = 1000, height = 900)
 g = ggplot(data = standat, aes(x=time, y = div, group = rep))+
-geom_line(col = alpha('black', 0.1))+facet_wrap(~scenario)+
+geom_line(col = alpha('black', 0.1))+facet_wrap(~scenario, nrow =2)+
 xlab('Time (years)') + ylab('Scenario')
 print(g);dev.off()
 "
-standat = DataFrame(div = reshape(div[1,4,:,:,:], 1089000))
-standat[:time] = (repmat(collect(1:121), 9000).-1)./12
+
+standat = DataFrame(div = reshape(div[1,4,:,:,:], 1210000))
+standat[:time] = (repmat(collect(1:121), 10000).-1)./12
 #standat[:time] = (repmat(vcat(map(x -> repmat([x], 9), 1:121)...), 1000) .- 1)./12
 standat[:scenario] = repmat(vcat(map(x -> repmat([x], 121), ["Uniform", "Proportional", "Large", "Rare",
-    "Common", "Invasive", "Rand hab", "Clust hab", "Susceptible"])...), 1000)
-standat[:rep] = vcat(map(x -> repmat([x], 1089), 1:1000)...)
+    "Common", "Invasive","Phylo invasive", "Rand hab", "Clust hab", "Susceptible"])...), 1000)
+standat[:rep] = vcat(map(x -> repmat([x], 1210), 1:1000)...)
 @rput standat
 R"library(ggplot2); library(cowplot); library(scales)
 standat$scenario = factor(standat$scenario, levels = c('Uniform', 'Proportional',
-'Large', 'Rare', 'Common', 'Invasive', 'Rand hab', 'Clust hab', 'Susceptible'))
+'Large', 'Rare', 'Common', 'Invasive','Phylo invasive', 'Rand hab', 'Clust hab', 'Susceptible'))
 png('Ab_trends_trad.png', width = 1000, height = 900)
 g = ggplot(data = standat, aes(x=time, y = div, group = rep))+
-geom_line(col = alpha('black', 0.1))+facet_wrap(~scenario)+
-xlab('Time (years)') + ylab('Geometric mean abundance')
+geom_line(col = alpha('black', 0.1))+facet_wrap(~scenario, scales = 'free_y',
+nrow =2) + xlab('Time (years)') + ylab('Geometric mean abundance')
 print(g);dev.off()
 "
 
