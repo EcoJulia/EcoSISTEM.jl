@@ -28,7 +28,7 @@ mutable struct HabitatUpdate{D <: Unitful.Dimensions,
 end
 
 function HabitatUpdate{D}(changefun, rate::DT) where {D <: Unitful.Dimensions, DT}
-    typeof(dimension(rate * 1s)) == D || error("Failed to match types")
+    typeof(dimension(rate * 1month)) == D || error("Failed to match types")
     return HabitatUpdate{D, DT}(changefun, rate)
 end
 
@@ -309,5 +309,5 @@ function tempgrad(min::Unitful.Temperature{Float64}, max::Unitful.Temperature{Fl
   map(1:total) do seq
     M[seq, :] = temp_range[seq]
   end
-  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimension{:Temperature}}(TempChange, rate))
+  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(min))}(TempChange, rate))
 end
