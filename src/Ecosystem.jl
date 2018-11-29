@@ -326,11 +326,11 @@ end
 Function to reset the rate of habitat change for a species.
 """
 function resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
-    eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimension{()}}(
+    eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimensions{()}}(
     eco.abenv.habitat.change.changefun, rate)
 end
 function resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
-    eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimension{:Temperature}}(
+    eco.abenv.habitat.change = HabitatUpdate{typeof(dimension(1°C))}(
     eco.abenv.habitat.change.changefun, rate)
 end
 
