@@ -126,7 +126,7 @@ standat[:measure] = repmat(repmat(["Sorenson", "Richness", "Mean abun",
 "Geometric mean","Simpson", "Shannon",  "PD"], 121), 1000)
 standat[:time] = (repmat(vcat(map(x -> repmat([x], 7), 1:121)...), 1000) .- 1)./12
 standat[:rep] = vcat(map(x -> repmat([x], 847), 1:1000)...)
-save("Standat_trad.jl", "standat", standat)
+save("Standat_trad.jld", "standat", standat)
 @rput standat
 R"library(ggplot2); library(cowplot); library(scales)
 png('Temp_trends_trad.png', width = 1000, height = 900)
