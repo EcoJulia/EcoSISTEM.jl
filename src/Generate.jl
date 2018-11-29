@@ -166,8 +166,7 @@ function convert_coords(x::Array{Int64, 1}, y::Array{Int64, 1}, width::Int64)
   i = x .+ (width .* (y .- 1))
   return i
 end
-
-function calc_lookup_moves(x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
+function calc_lookup_moves(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
   lookup = eco.lookup[spp]
   maxX = getdimension(eco)[1] - x
   maxY = getdimension(eco)[2] - y
@@ -180,6 +179,50 @@ function calc_lookup_moves(x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun:
           lookup.y[i] .+ y])
       end
   end
+  lookup.pnew[.!valid] .= 0.0
+  lookup.pnew[valid] = lookup.p[valid]
+  lookup.pnew ./= sum(lookup.pnew)
+  multinom = Multinomial(abun, lookup.pnew)
+  draw = rand(multinom)
+  lookup.moves .= draw
+end
+
+function calc_lookup_moves(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
+  lookup = eco.lookup[spp]
+  lookup.x[lookup.x .<= -x] += Simulation.getdimension(eco)[1]
+  lookup.x[lookup.x .> maxX] -= Simulation.getdimension(eco)[1]
+
+  valid = (lookup.y .> -y) .& (lookup.y .<= maxY)
+  for i in eachindex(lookup.x)
+      if valid[i]
+          valid[i] = valid[i] & (eco.abenv.active[lookup.x[i] .+ x,
+            lookup.y[i] .+ y])
+      end
+  end
+
+  lookup.pnew[.!valid] .= 0.0
+  lookup.pnew[valid] = lookup.p[valid]
+  lookup.pnew ./= sum(lookup.pnew)
+  multinom = Multinomial(abun, lookup.pnew)
+  draw = rand(multinom)
+  lookup.moves .= draw
+end
+
+function calc_lookup_moves(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
+  lookup = eco.lookup[spp]
+  maxX = Simulation.getdimension(eco)[1] - x
+  maxY = Simulation.getdimension(eco)[2] - y
+  # Can't go over maximum dimension
+  lookup.x[lookup.x .<= -x] += Simulation.getdimension(eco)[1]
+  lookup.y[lookup.y .<= -y] += Simulation.getdimension(eco)[2]
+  lookup.x[lookup.x .> maxX] -= Simulation.getdimension(eco)[1]
+  lookup.y[lookup.y .> maxX] -= Simulation.getdimension(eco)[2]
+
+  valid = fill(true, length(lookup.x))
+  for i in eachindex(lookup.x)
+          valid[i] = eco.abenv.active[lookup.x[i] .+ x, lookup.y[i] .+ y]
+  end
+
   lookup.pnew[.!valid] .= 0.0
   lookup.pnew[valid] = lookup.p[valid]
   lookup.pnew ./= sum(lookup.pnew)
@@ -202,7 +245,7 @@ function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   width = getdimension(eco)[1]
   (x, y) = convert_coords(i, width)
   full_abun = eco.abundances.matrix[spp, i]
-  calc_lookup_moves(x, y, spp, eco, full_abun)
+  calc_lookup_moves(getboundary(eco.spplist.movement), x, y, spp, eco, full_abun)
   # Lose moves from current grid square
   grd[spp, i] = grd[spp, i] - sum(eco.lookup[spp].moves)
   valid = eco.lookup[spp].pnew .> 0.0
@@ -229,22 +272,22 @@ function move!(eco::Ecosystem, ::NoMovement, i::Int64, spp::Int64,
 end
 
 
-function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64, grd::Array{Int64, 2},
-                births::Int64)
-  width = getdimension(eco)[1]
-  (x, y) = convert_coords(i, width)
-  table = calc_lookup_moves(x, y, spp, eco, births)
-  # Lose moves from current grid square
-  grd[spp, i] = grd[spp, i] - sum(eco.lookup[spp].moves)
-  valid = eco.lookup[spp].pnew .> 0.0
-  # Map moves to location in grid
-  mov = eco.lookup[spp].moves[valid]
-  locs = convert_coords((eco.lookup[spp].x .+ x), (eco.lookup[spp].y .+ y), width)[valid]
-  for i in eachindex(locs)
-     grd[spp, locs[i]] += mov[i]
-  end
-  return eco
-end
+    function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
+        grd::Array{Int64, 2}, births::Int64)
+      width = getdimension(eco)[1]
+      (x, y) = convert_coords(i, width)
+      table = calc_lookup_moves(getboundary(eco.spplist.movement), x, y, spp, eco, births)
+      # Lose moves from current grid square
+      grd[spp, i] = grd[spp, i] - sum(eco.lookup[spp].moves)
+      valid = eco.lookup[spp].pnew .> 0.0
+      # Map moves to location in grid
+      mov = eco.lookup[spp].moves[valid]
+      locs = convert_coords((eco.lookup[spp].x .+ x), (eco.lookup[spp].y .+ y), width)[valid]
+      for i in eachindex(locs)
+         grd[spp, locs[i]] += mov[i]
+      end
+      return eco
+    end
 
 
 
