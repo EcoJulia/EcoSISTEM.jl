@@ -175,7 +175,7 @@ end
 
 
 function SpeciesList(numspecies::Int64,
-    traits::TR, abun_dist::Vector{Int64}, req::R,
+    traits::TR, abun::Vector{Int64}, req::R,
     movement::MO, params::P, native::Vector{Bool}) where
     {TR<: AbstractTraits, R <: AbstractRequirement,
         MO <: AbstractMovement, P <: AbstractParams}
