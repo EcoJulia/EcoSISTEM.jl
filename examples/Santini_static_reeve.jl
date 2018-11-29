@@ -129,6 +129,22 @@ geom_line(col = alpha('black', 0.1))+facet_wrap(~measure, nrow =2)+ylim(-5, 5)+
 xlab('Time (years)') + ylab('Diversity value')
 print(g);dev.off()
 "
+standat2 = load("Standat_trad.jld", "standat")
+append!(standat, standat2)
+@rput standat
+R"library(ggplot2); library(cowplot); library(scales)
+standat$measure = factor(standat$measure, levels = c('Sorenson', 'Richness',
+'Mean abun', 'Geometric mean', 'Simpson', 'Shannon', 'PD', 'Raw alpha',
+'Norm alpha', 'Raw beta', 'Norm beta', 'Raw rho', 'Norm rho', 'Gamma'))
+png('Temp_trends_all.png', width = 1300, height = 600)
+g = ggplot(data = standat, aes(x=time, y = div, group = rep))+
+geom_line(col = alpha('black', 0.05))+facet_wrap(~measure, nrow=2)+ylim(-2.5, 2.5)+
+xlab('Time (years)') + ylab('Diversity value')+
+scale_x_continuous(breaks = seq(0, 10, 2))+
+theme(axis.text = element_text(size =16), axis.title = element_text(size =18),
+strip.text = element_text(size=18))
+print(g);dev.off()
+"
 
 standat = DataFrame(div = reshape(div[1,1,:,:,:], 1089000))
 standat[:time] = (repmat(collect(1:121), 9000).-1)./12
@@ -147,22 +163,6 @@ xlab('Time (years)') + ylab('Scenario')
 print(g);dev.off()
 "
 
-standat2 = load("Standat_trad.jld", "standat")
-append!(standat, standat2)
-@rput standat
-R"library(ggplot2); library(cowplot); library(scales)
-standat$measure = factor(standat$measure, levels = c('Sorenson', 'Richness',
-'Mean abun', 'Geometric mean', 'Simpson', 'Shannon', 'PD', 'Raw alpha',
-'Norm alpha', 'Raw beta', 'Norm beta', 'Raw rho', 'Norm rho', 'Gamma'))
-png('Temp_trends_all.png', width = 1300, height = 600)
-g = ggplot(data = standat, aes(x=time, y = div, group = rep))+
-geom_line(col = alpha('black', 0.05))+facet_wrap(~measure, nrow=2)+ylim(-2.5, 2.5)+
-xlab('Time (years)') + ylab('Diversity value')+
-scale_x_continuous(breaks = seq(0, 10, 2))+
-theme(axis.text = element_text(size =16), axis.title = element_text(size =18),
-strip.text = element_text(size=18))
-print(g);dev.off()
-"
 sdmat = mapslices(std, slopemat, 3)[:, :, 1] * 10
 upper = meanslope .+ 2.24 .* (sdmat./sqrt(1000))
 lower = meanslope .- 2.24 .* (sdmat./sqrt(1000))
@@ -290,8 +290,7 @@ for (i in 1:7){
         dat$lo[j] - 0.05 * dat$rn[j])
         }
     dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional',
-    'Largest', 'Rarest', 'Common','Invasive','Phylo invasive',
-        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
+     'Rare', 'Common','Large', 'Invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) + geom_bar(stat = 'identity') +
         facet_wrap(~ measure, nrow = 2, scales = 'free_y') + geom_hline(yintercept = 0)+
         geom_errorbar(aes(ymin=lo, ymax=up),
