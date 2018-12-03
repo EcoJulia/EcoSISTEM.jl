@@ -69,8 +69,10 @@ export trait_populate!, trait_repopulate!
 include("Helper.jl")
 export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
 
-include("ReadTOML.jl")
-export readTOML, runTOML, readoutput
+if (VERSION <= v"0.6") || (VERSION >= v"1.0-")
+    include("ReadTOML.jl")
+    export readTOML, runTOML, readoutput
+end
 
 include("Cache.jl")
 export abundances
