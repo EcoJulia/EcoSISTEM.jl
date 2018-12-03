@@ -10,6 +10,7 @@ using JuliaDB
 if VERSION < v"0.7-"
     using TOML
 else
+    using Printf
     using Pkg
     using Pkg.TOML
 end
