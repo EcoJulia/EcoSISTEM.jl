@@ -19,11 +19,6 @@ include("Energy.jl")
 export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, SimpleBudget, SolarBudget,
     WaterBudget, ReqCollection2, BudgetCollection2
 
-include("DataTypes.jl")
-include("GDAL.jl")
-export read, searchdir, extractworldclim, extractbioclim, extractERA, extractCERA,
-    extractvalues, extractfile
-
 include("AbioticEnv.jl")
 export GridAbioticEnv, simplenicheAE, tempgradAE, simplehabitatAE, degradedhabitatAE,
     eraAE, worldclimAE
