@@ -6,7 +6,7 @@ MyUnitful
 Cubature
 DataFrames
 ClimatePref
-#JuliaDB
+JuliaDB
 StatsBase
 Distributions
 Phylo
@@ -20,3 +20,4 @@ Compat
 JLD
 Feather
 Plots
+SpatialEcology

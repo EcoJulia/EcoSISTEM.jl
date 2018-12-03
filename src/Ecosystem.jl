@@ -1,5 +1,9 @@
 using Diversity
-using Cubature
+if VERSION > v"1.0.0"
+    using HCubature
+else
+    using Cubature
+end
 using DataFrames
 using Unitful
 using MyUnitful
