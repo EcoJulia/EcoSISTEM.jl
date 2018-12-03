@@ -287,7 +287,7 @@ function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
   M = Array{Unitful.Quantity}(dim)
   fill!(M, val)
 
-  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
+  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
 end
 
 function simplehabitat(val::Float64, size::Unitful.Length,
@@ -295,7 +295,7 @@ function simplehabitat(val::Float64, size::Unitful.Length,
   M = Array{Float64}(dim)
   fill!(M, val)
 
-  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimension{()}}(NoChange, 0.0/s))
+  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
 end
 
 function tempgrad(min::Unitful.Temperature{Float64}, max::Unitful.Temperature{Float64},
