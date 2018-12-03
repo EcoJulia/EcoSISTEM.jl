@@ -228,7 +228,6 @@ A function that introduces an invasive species into the ecosystem, `eco`,
     that gains abundance at each `timestep` at a particular rate, `rate` and
     reduces 5 designated 'sensitive' species by an equivalent amount.
 """
-
 function Invasive(eco::Ecosystem, timestep::Unitful.Time,
     rate::Quantity{Float64, typeof(𝐓^-1)})
     qual = eco.spplist.native .== false
