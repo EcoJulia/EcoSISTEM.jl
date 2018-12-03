@@ -1,4 +1,30 @@
 using RCall
+using SpatialEcology
+using Plots
+using DataFrames
+
+function plot(eco::Ecosystem, fig=true)
+    # Convert ecosystem abundances into dataframe
+    abun_data = DataFrame(transpose(eco.abundances.matrix))
+    grid = size(eco.abundances.matrix)
+    # Convert grid cell positions to x,y coordinates (making sure they are Float values
+    # because otherwise they are interpreted as point locations)
+    coords = convert_coords.(1:grid[2], Simulation.getdimension(eco)[1])
+    abun_data[:lon] = [ x[1] for x in coords ] * 1.0
+    abun_data[:lat] = [ x[2] for x in coords ] * 1.0
+    abun_data[:coords] = map((x,y) ->"$x" * "_$y", abun_data[:lon], abun_data[:lat])
+    # Now plot as an assemblage
+    assem = Assemblage(abun_data[:, 1:grid[1]], abun_data[:, (grid[1]+1):end], sitecolumns = false)
+    if fig
+        plot(assem)
+    else
+        return assem
+    end
+end
+
+function plot(dat::Array{Float64, 1}, eco::Ecosystem)
+    plot(dat, plot(assem, false))
+end
 
 function plot_move(eco::Ecosystem, x::Int64, y::Int64, spp::Int64, plot::Bool)
 
