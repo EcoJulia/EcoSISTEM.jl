@@ -1,4 +1,4 @@
-julia 0.5
+julia 0.6-
 Diversity 0.2.8-
 AxisArrays
 Unitful
@@ -6,13 +6,16 @@ MyUnitful
 Cubature
 DataFrames
 ClimatePref
-JuliaDB
+#JuliaDB
 StatsBase
 Distributions
 Phylo
-ProgressMeter
 Query
 RCall
 NetCDF
+ArchGDAL
 Interpolations
 Missings
+Compat
+JLD
+Feather
