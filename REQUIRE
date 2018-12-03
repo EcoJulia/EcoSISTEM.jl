@@ -5,8 +5,8 @@ Unitful
 MyUnitful
 Cubature
 DataFrames
-#ClimatePref
-#JuliaDB
+ClimatePref
+JuliaDB
 StatsBase
 Distributions
 Phylo
