@@ -6,8 +6,13 @@ using AxisArrays
 using JLD
 using ClimatePref
 using Diversity
-using TOML
 using JuliaDB
+if VERSION < v"0.7-"
+    using TOML
+else
+    using Pkg
+    using Pkg.TOML
+end
 # Dictionary object of types
 typedict = Dict("TempBin" => TempBin, "RainBin" => RainBin,
 "GaussianKernel" => GaussianKernel, "Worldclim" => Worldclim,
