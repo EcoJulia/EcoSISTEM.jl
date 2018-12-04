@@ -6,6 +6,7 @@ using MyUnitful
 using Diversity
 using Distributions
 using Simulation
+using EcoBase
 using SpatialEcology
 using Plots
 using DataFrames
