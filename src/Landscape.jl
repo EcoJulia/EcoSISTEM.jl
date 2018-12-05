@@ -1,5 +1,6 @@
 using Missings
 using AxisArrays
+import Random
 
 struct SavedLandscape
     matrix::Matrix{Int64}
@@ -21,7 +22,7 @@ mutable struct GridLandscape
 
   function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
     a = abun
-    return new(a, reshape(a, dimension), copy(Base.GLOBAL_RNG.seed))
+    return new(a, reshape(a, dimension), copy(Random.GLOBAL_RNG.seed))
   end
 end
 import Base.copy
