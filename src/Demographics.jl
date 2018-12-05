@@ -14,16 +14,16 @@ availability. `l` represents the longevity of species based on their energy
 requirements and `s` is the survival of species dependent on how well their
 traits reflect the environment.
 """
-mutable struct PopGrowth{U <: Rates} <: AbstractParams
-  birth::Vector{Quantity{Float64, typeof(𝐓^-1), U}}
-  death::Vector{Quantity{Float64, typeof(𝐓^-1), U}}
+mutable struct PopGrowth{U <: Unitful.Units} <: AbstractParams
+  birth::Vector{Quantity{Float64, 𝐓^-1, U}}
+  death::Vector{Quantity{Float64, 𝐓^-1, U}}
   l::Float64
   s::Float64
   boost::Float64
 
-  function PopGrowth{U}(birth::Vector{Quantity{Float64, typeof(𝐓^-1), U}},
-    death::Vector{Quantity{Float64, typeof(𝐓^-1), U}},
-    l::Float64, s::Float64, boost::Float64) where {U <: Rates}
+  function PopGrowth{U}(birth::Vector{Quantity{Float64, 𝐓^-1, U}},
+    death::Vector{Quantity{Float64, 𝐓^-1, U}},
+    l::Float64, s::Float64, boost::Float64) where {U <: Unitful.Units}
     l > s || error("l must be greater than s")
     l >= 0 && s >= 0 || error("l and s must be greater than zero")
     new{U}(birth, death, l, s, boost)
@@ -41,23 +41,23 @@ of a boost the species get from being in an environment with lots of available
 energy.
 """
 mutable struct EqualPop <: AbstractParams
-  birth::Quantity{Float64, typeof(𝐓^-1)}
-  death::Quantity{Float64, typeof(𝐓^-1)}
+  birth::Quantity{Float64, 𝐓^-1}
+  death::Quantity{Float64, 𝐓^-1}
   l::Float64
   s::Float64
   boost::Float64
 end
 
-mutable struct NoGrowth{U <: Rates} <: AbstractParams
-    birth::Vector{Quantity{Float64, typeof(𝐓^-1), U}}
-    death::Vector{Quantity{Float64, typeof(𝐓^-1), U}}
+mutable struct NoGrowth{U <: Unitful.Units} <: AbstractParams
+    birth::Vector{Quantity{Float64, 𝐓^-1, U}}
+    death::Vector{Quantity{Float64, 𝐓^-1, U}}
     l::Float64
     s::Float64
     boost::Float64
 
-    function NoGrowth{U}(birth::Vector{Quantity{Float64, typeof(𝐓^-1), U}},
-      death::Vector{Quantity{Float64, typeof(𝐓^-1), U}},
-      l::Float64, s::Float64, boost::Float64) where {U <: Rates}
+    function NoGrowth{U}(birth::Vector{Quantity{Float64, 𝐓^-1, U}},
+      death::Vector{Quantity{Float64, 𝐓^-1, U}},
+      l::Float64, s::Float64, boost::Float64) where {U <: Unitful.Units}
       l > s || error("l must be greater than s")
       l >= 0 && s >= 0 || error("l and s must be greater than zero")
       new{U}(birth, death, l, s, boost)
