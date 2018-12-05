@@ -397,7 +397,7 @@ function _lookup(relSquareSize::Float64, maxGridSize::Int64,
     count = 0
     while (k <= maxGridSize && m <= maxGridSize)
       count = count + 1
-      calc_prob = pcubature(r -> dispersalfn(r),
+      calc_prob = hcubature(r -> dispersalfn(r),
                             [0, 0, k*relSquareSize, m*relSquareSize],
       [relSquareSize, relSquareSize, (k+1)*relSquareSize, (m+1)*relSquareSize],
        maxevals= 1000000)[1] / relSquareSize^2
