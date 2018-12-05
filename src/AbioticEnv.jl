@@ -118,8 +118,7 @@ function tempgradAE(min::Unitful.Temperature{Float64},
   dimension::Tuple{Int64, Int64}, maxbud::Float64,
   area::Unitful.Area{Float64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
 
-  active = Array{Bool,2}(dimension)
-  fill!(active, true)
+  active = fill(true, dimension)
   tempgradAE(min, max, dimension, maxbud, area, rate, active)
  end
 
@@ -127,8 +126,7 @@ function tempgradAE(min::Unitful.Temperature{Float64},
     dimension = size(era.array, 1,2)
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
 
-    active = Array{Bool, 2}(dimension)
-    fill!(active, true)
+    active = fill(true, dimension)
     active[isnan.(era.array[:,:,1])] = false
 
     hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
@@ -162,8 +160,7 @@ function tempgradAE(min::Unitful.Temperature{Float64},
     dimension = size(wc.array, 1,2)
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
 
-    active = Array{Bool, 2}(dimension)
-    fill!(active, true)
+    active = fill(true, dimension)
     active[isnan.(wc.array[:,:,1])] = false
 
     hab = ContinuousTimeHab(Array(wc.array), 1, gridsquaresize,
@@ -222,7 +219,6 @@ end
 function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
   dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64})
 
-  active = Array{Bool,2}(dimension)
-  fill!(active, true)
+  active = fill(true, dimension)
   simplehabitatAE(val, dimension, maxbud, area, active)
 end
