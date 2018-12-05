@@ -9,7 +9,7 @@ function trait_populate!(ml::GridLandscape, spplist::SpeciesList,
       b = reshape(copy(_getbudget(abenv.budget)), size(grid))
       units = unit(b[1])
       activity = reshape(copy(abenv.active), size(grid))
-      b[.!activity] = 0.0 * units
+      b[.!activity] .= 0.0 * units
       # Loop through species
       for i in eachindex(spplist.abun)
         # Get abundance of species
@@ -20,9 +20,9 @@ function trait_populate!(ml::GridLandscape, spplist::SpeciesList,
         if (pref ∉ options)
             wv = rand(Beta(2,2), len)
         else
-            wv= Vector{Float64}(len)
-            wv[reshape(abenv.habitat.matrix, len).==pref]= 1.0
-            wv[reshape(abenv.habitat.matrix, len).!=pref]= 0.0
+            wv= Vector{Float64}(undef, len)
+            wv[reshape(abenv.habitat.matrix, len).==pref] .= 1.0
+            wv[reshape(abenv.habitat.matrix, len).!=pref] .= 0.0
         end
         # Randomly choose position on grid (weighted)
         pos = sample(grid[b .> (0 * units)], weights(wv), abun, replace=true)
