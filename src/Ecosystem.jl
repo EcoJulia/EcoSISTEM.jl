@@ -400,7 +400,7 @@ function _lookup(relSquareSize::Float64, maxGridSize::Int64,
       calc_prob = hcubature(r -> dispersalfn(r),
                             [0, 0, k*relSquareSize, m*relSquareSize],
       [relSquareSize, relSquareSize, (k+1)*relSquareSize, (m+1)*relSquareSize],
-       maxevals= 1000000)[1] / relSquareSize^2
+       maxevals= 10000)[1] / relSquareSize^2
       if m == 0 && calc_prob < pThresh
         break
       end
