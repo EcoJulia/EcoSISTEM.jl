@@ -17,7 +17,7 @@ This scenario type holds a function that acts to change the entire ecosystem.
 """
 mutable struct SimpleScenario <: AbstractScenario
     fun::Function
-    rate::Quantity{Float64, typeof(𝐓^-1)}
+    rate::Quantity{Float64, 𝐓^-1}
 end
 
 """
