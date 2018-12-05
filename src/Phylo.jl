@@ -41,7 +41,7 @@ function pair(vec)
   # Calc number of pairs
   npairs=length(vec)-1
   # Create empty array
-  newvec=Array{String}(npairs,2)
+  newvec=Array{String}(undef, npairs, 2)
   # Split into pairs
   for i in collect(1:npairs)
     newvec[i,:]=vec[i:(i+1)]
@@ -116,7 +116,7 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
     # Draw switch times from exponential distribution
     # Stop when they are larger than the length of the path
     alltimes = map(switch_rate) do swt
-      times = Array{Float64}(0)
+      times = Array{Float64}(undef, 0)
         while(sum(times) < len)
           time_switch = jexp(swt*len)
           append!(times, time_switch)
@@ -231,7 +231,7 @@ function assign_traits!(tree::BinaryTree, traits::DataFrame)
       newtrait = map(srt, traits[:σ²]) do start, sig
                   last(BM(ln, sig, start))
                  end
-      newdat = DataFrame(start = newtrait, σ² = repmat(traits[:σ²], length(newtrait)))
+      newdat = DataFrame(start = newtrait, σ² = traits[:σ²])
       setnoderecord!(tree, i, newdat)
 
     end
@@ -253,7 +253,7 @@ function get_traits(tree::BinaryTree, tips::Bool=true)
   else
     nodes = getnodenames(tree)
   end
-  df = vcat(getnoderecord.(tree, nodes)...)
+  df = vcat(map(n->getnoderecord(tree, n), nodes)...)
   df[:species] = nodes
   return df
 end
