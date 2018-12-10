@@ -72,7 +72,7 @@ them into type `PopGrowth` based on the number of species (`numspp`).
 """
 function equalpop(params::EqualPop, numspp)
   u = unit(params.birth)
-  PopGrowth{typeof(u)}(repmat([params.birth], numspp), repmat([params.death], numspp),
+  PopGrowth{typeof(u)}(fill(params.birth, numspp), fill(params.death, numspp),
   params.l, params.s, params.boost)
 end
 function equalpop(params::PopGrowth, numspp)
