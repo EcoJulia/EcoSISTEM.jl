@@ -119,7 +119,7 @@ mutable struct SolarBudget <: AbstractBudget{typeof(1.0*day^-1*kJ*m^-2)}
   matrix::Array{typeof(1.0*day^-1*kJ*m^-2), 3}
   time::Int64
   function SolarBudget(mat::Array{typeof(1.0*day^-1*kJ*m^-2), 3}, time::Int64)
-    mat[isnan.(mat)] =  0*day^-1*kJ*m^-2
+    mat[isnan.(mat)] .=  0*day^-1*kJ*m^-2
     return new(mat, time)
   end
 end
@@ -145,7 +145,7 @@ mutable struct WaterBudget <: AbstractBudget{typeof(1.0*mm)}
   matrix::Array{typeof(1.0*mm), 3}
   time::Int64
   function WaterBudget(mat::Array{typeof(1.0*mm), 3}, time::Int64)
-    mat[isnan.(mat)] =  0*mm
+    mat[isnan.(mat)] .=  0*mm
     return new(mat, time)
   end
 end
