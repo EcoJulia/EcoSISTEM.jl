@@ -12,7 +12,7 @@ function eraChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Tim
     hab.time = hab.time + round(Int64,ustrip(monthstep))
     if hab.time > last
         hab.time = 1
-        warn("More timesteps than available, have repeated")
+        @warn "More timesteps than available, have repeated"
     end
 end
 function worldclimChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
@@ -21,7 +21,7 @@ function worldclimChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitf
     hab.time = hab.time + round(Int64,ustrip(monthstep))
     if hab.time > last
         hab.time = 1
-        warn("More timesteps than available, have repeated")
+        @warn "More timesteps than available, have repeated"
     end
 end
 
@@ -61,7 +61,7 @@ function _budgetupdate!(eco::Ecosystem, budget::SolarBudget, timestep::Unitful.T
     round(Int64,ustrip(monthstep))
     if eco.abenv.budget.time > lastE
         eco.abenv.budget.time = 1
-        warn("More timesteps than available, have repeated")
+        @warn "More timesteps than available, have repeated"
     end
 end
 function _budgetupdate!(eco::Ecosystem, budget::WaterBudget, timestep::Unitful.Time)
@@ -71,7 +71,7 @@ function _budgetupdate!(eco::Ecosystem, budget::WaterBudget, timestep::Unitful.T
     round(Int64,ustrip(monthstep))
     if eco.abenv.budget.time > lastE
         eco.abenv.budget.time = 1
-        warn("More timesteps than available, have repeated")
+        @warn "More timesteps than available, have repeated"
     end
 end
 function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2, timestep::Unitful.Time)
@@ -83,7 +83,7 @@ function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2, timestep::Uni
         round(Int64,ustrip(monthstep))
         if getfield(eco.abenv.budget, i).time > lastE
             getfield(eco.abenv.budget, i).time = 1
-            warn("More timesteps than available, have repeated")
+            @warn "More timesteps than available, have repeated"
         end
     end
 end
