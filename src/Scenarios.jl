@@ -85,7 +85,7 @@ end
 function SusceptibleDecline(eco::Ecosystem, timestep::Unitful.Time,
             rate::Quantity{Float64, typeof(𝐓^-1)})
      eco.spplist.susceptible *= (1 + rate * timestep)
-     currentabun = mapslices(sum, eco.abundances.matrix, 2)
+     currentabun = mapslices(sum, eco.abundances.matrix, dims = 2)
      spp = 1:size(eco.abundances.matrix, 1)
      prob  = 1 ./ (1 .+ exp.(-eco.spplist.susceptible))
      howmany =
@@ -237,7 +237,7 @@ function Invasive(eco::Ecosystem, timestep::Unitful.Time,
     avgain = rate * timestep .* invasive_abun
     for i in eachindex(invasive)
         gains = round(Int64, avgain[i]) * eco.spplist.requirement.energy[invasive[i]]
-        avail_space = mapslices(sum, eco.abundances.matrix .* eco.spplist.requirement.energy, 1)
+        avail_space = mapslices(sum, eco.abundances.matrix .* eco.spplist.requirement.energy, dims = 1)
         pos = find(avail_space .> gains)
         smp = sample(pos)
         eco.abundances.matrix[invasive[i], smp] .+= 1
