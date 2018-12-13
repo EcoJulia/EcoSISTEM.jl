@@ -198,7 +198,7 @@ function assign_traits!(tree::BinaryTree, traits::DataFrame)
 
   # Warning for nodes that have already been assigned traits
   check = arenoderecordsempty(tree, getnodenames(tree))
-  all(check) || warn("Some nodes already assigned traits")
+  all(check) || @warn "Some nodes already assigned traits"
 
   # Check that the length of the starting values and variances are the same
   length(traits[:start]) == length(traits[:σ²]) || error("Start values and variance must have
