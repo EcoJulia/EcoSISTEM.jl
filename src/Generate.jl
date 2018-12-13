@@ -105,7 +105,7 @@ function energy(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::Int64)
         E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
         # Traits
         ϵ̄real = copy(ϵ̄)
-        birth_energy = Vector{Float64}(spp); death_energy = Vector{Float64}(spp)
+        birth_energy = Vector{Float64}(undef, spp); death_energy = Vector{Float64}(undef, spp)
         for k in 1:spp
           ϵ̄real[k] = ϵ̄[k]/traitfun(eco, i, k)
           # Alter rates by energy available in current pop & own requirements
@@ -132,7 +132,7 @@ function energy(eco::Ecosystem, bud::BudgetCollection2, i::Int64, spp::Int64)
     # Traits
     ϵ̄real1 = copy(ϵ̄1)
     ϵ̄real2 = copy(ϵ̄2)
-    birth_energy = Vector{Float64}(spp); death_energy = Vector{Float64}(spp)
+    birth_energy = Vector{Float64}(undef, spp); death_energy = Vector{Float64}(undef, spp)
     for k in 1:spp
       ϵ̄real1[k] = ϵ̄1[k]/traitfun(eco, i, k)
       ϵ̄real2[k] = ϵ̄2[k]/traitfun(eco, i, k)
