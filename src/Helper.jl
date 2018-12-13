@@ -2,7 +2,8 @@ using Unitful
 using Unitful.DefaultSymbols
 using Diversity
 using MyUnitful
-import Diversity: Gamma
+import Diversity.Gamma
+
 """
     simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
          timestep::Unitful.Time)
@@ -28,11 +29,11 @@ end
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
   numSpecies = length(eco.spplist.abun)
   gridSize = _countsubcommunities(eco.abenv.habitat)
-  abun = Array{Int64, 4}(numSpecies, gridSize, times, reps)
+  abun = Array{Int64, 4}(undef, numSpecies, gridSize, times, reps)
 end
 function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
   gridSize = _countsubcommunities(eco.abenv.habitat)
-  abun = Array{Float64, 4}(gridSize, qs, times, reps)
+  abun = Array{Float64, 4}(undef, gridSize, qs, times, reps)
 end
 """
     simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
@@ -191,19 +192,19 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
 end
 
 function cleanup!(abun::Array{Int64, 4})
-    zeroabun = mapslices(x -> all(x.!=0), abun, [1, 2, 4])[1, 1, :, 1]
+    zeroabun = mapslices(x -> all(x.!=0), abun, dims = [1, 2, 4])[1, 1, :, 1]
     abun = abun[:, :, zeroabun, :]
 end
 
 function cleanup!(div::Array{Float64, 4})
-    nadiv = mapslices(x -> all(!isnan.(x)), div, [1, 2, 4])[1, 1, :, 1]
+    nadiv = mapslices(x -> all(!isnan.(x)), div, dims = [1, 2, 4])[1, 1, :, 1]
     div = div[:, :, nadiv, :]
 end
 
 
 function expected_counts(grd::Array{Float64, 3}, sq::Int64)
   grd = convert(Array{Int64}, grd)
-  total = mapslices(sum, grd , length(size(grd)))[:, :,  1]
+  total = mapslices(sum, grd , dims = length(size(grd)))[:, :,  1]
   grd = grd[:, :, sq]
   _expected_counts(total, grd, sq)
 end
@@ -211,7 +212,7 @@ end
 
 function expected_counts(grd::Array{Float64, 4}, sq::Int64)
   grd = convert(Array{Int64}, grd)
-  total = mapslices(sum, grd , length(size(grd)))[:, :, :,  1]
+  total = mapslices(sum, grd , dims = length(size(grd)))[:, :, :,  1]
   grd = grd[:, :, :, sq]
   _expected_counts(total, grd, sq)
 end
@@ -227,7 +228,7 @@ function _expected_counts(total::Array{Int64}, grd::Array{Int64}, sq::Int64)
   for i in 1:length(total)
     expected_dist[i, 1:(total[i]+1)] = repmat([1/(total[i]+1)], total[i]+1)
   end
-  expected = mapslices(sum, expected_dist, 1)
+  expected = mapslices(sum, expected_dist, dims = 1)
 
   # Cut expected values to length of actual
   expected = expected[1:length(actual)]
