@@ -4,6 +4,7 @@ import Diversity.countsubcommunities
 using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
+using Compat
 
 """
     AbstractHabitat
@@ -272,7 +273,7 @@ function randomniches(dimension::Tuple, types::Vector{Int64}, clumpiness::Float6
     # Select clusters and assign types
     _identify_clusters!(M)
     # Create a string grid of the same dimensions
-    T = Array{Int64}(undef, dimension)
+    T = Array{Int64}(Compat.undef, dimension)
     # Fill in T with clusters already created
     map(x -> T[M.==x] .= sample(types, wv), 1:maximum(M))
     # Fill in undefined squares with most frequent neighbour
@@ -301,7 +302,7 @@ function tempgrad(min::Unitful.Temperature{Float64}, max::Unitful.Temperature{Fl
   dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
   dim[1] > 1 ||
   error("First dimension should be greater than 1 for temperature gradient")
-  M = Array{typeof(min)}(undef, dim)
+  M = Array{typeof(min)}(Compat.undef, dim)
   total = dim[1]
   temp_range = collect(linspace(min, max, total))
   map(1:total) do seq

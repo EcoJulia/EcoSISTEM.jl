@@ -8,6 +8,8 @@ using DataFrames
 using Unitful
 using MyUnitful
 using Missings
+using Compat
+
 
 import Diversity: _calcabundance
 """
@@ -219,7 +221,7 @@ function _getabundance(cache::CachedEcosystem, input::Bool)
     if all(ismissing.(cache.abundances.matrix))
         error("Abundances are missing")
     else
-        id = find(.!ismissing.(cache.abundances.matrix))[end]
+        id = Compat.findall(.!ismissing.(cache.abundances.matrix))[end]
         abun = cache.abundances.matrix[id]
     end
     if input
@@ -332,7 +334,7 @@ function getdispersaldist(eco::Ecosystem, spp::Int64)
   return dists[spp]
 end
 function getdispersaldist(eco::Ecosystem, spp::String)
-  num = find(eco.spplist.names.==spp)[1]
+  num = Compat.findall(eco.spplist.names.==spp)[1]
   getdispersaldist(eco, num)
 end
 
@@ -352,7 +354,7 @@ function getdispersalvar(eco::Ecosystem, spp::Int64)
     return vars[spp]
 end
 function getdispersalvar(eco::Ecosystem, spp::String)
-    num = find(eco.spplist.names.==spp)[1]
+    num = Compat.findall(eco.spplist.names.==spp)[1]
     getdispersalvar(eco, num)
 end
 """

@@ -10,14 +10,26 @@ Abstract supertype for all whole ecosystem change scenarios
 """
 abstract type AbstractScenario end
 
-"""
-    SimpleScenario <: AbstractScenario
+if VERSION >= v"0.7"
+    """
+        SimpleScenario <: AbstractScenario
 
-This scenario type holds a function that acts to change the entire ecosystem.
-"""
-mutable struct SimpleScenario <: AbstractScenario
-    fun::Function
-    rate::Quantity{Float64, 𝐓^-1}
+    This scenario type holds a function that acts to change the entire ecosystem.
+    """
+    mutable struct SimpleScenario <: AbstractScenario
+        fun::Function
+        rate::Quantity{Float64, 𝐓^-1}
+    end
+else
+    """
+        SimpleScenario <: AbstractScenario
+
+    This scenario type holds a function that acts to change the entire ecosystem.
+    """
+    mutable struct SimpleScenario <: AbstractScenario
+        fun::Function
+        rate::Quantity{Float64, typeof(𝐓^-1)}
+    end
 end
 
 """

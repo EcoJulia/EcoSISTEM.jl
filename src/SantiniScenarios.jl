@@ -1,4 +1,5 @@
 using StatsBase
+using Compat
 function trait_populate!(ml::GridLandscape, spplist::SpeciesList,
                        abenv::AbstractAbiotic)
   # Calculate size of habitat
@@ -20,7 +21,7 @@ function trait_populate!(ml::GridLandscape, spplist::SpeciesList,
         if (pref ∉ options)
             wv = rand(Beta(2,2), len)
         else
-            wv= Vector{Float64}(undef, len)
+            wv= Vector{Float64}(Compat.undef, len)
             wv[reshape(abenv.habitat.matrix, len).==pref] .= 1.0
             wv[reshape(abenv.habitat.matrix, len).!=pref] .= 0.0
         end

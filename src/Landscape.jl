@@ -1,6 +1,7 @@
 using Missings
 using AxisArrays
-import Random
+using Compat.Random
+using Compat
 
 struct SavedLandscape
     matrix::Matrix{Int64}
@@ -47,7 +48,7 @@ end
 
 function CachedGridLandscape(file::String, rng::StepRangeLen)
   interval = step(rng)
-  v = Vector{Union{GridLandscape, Missing}}(undef, length(rng))
+  v = Vector{Union{GridLandscape, Missing}}(Compat.undef, length(rng))
   fill!(v, missing)
   a = AxisArray(v, Axis{:time}(rng))
   return CachedGridLandscape(a, file, interval)
