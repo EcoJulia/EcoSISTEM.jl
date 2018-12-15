@@ -55,8 +55,8 @@ function TestCache()
 
     grid = (94, 60)
     individuals=1000000
-    era = TestERA()
-    wc = TestWorldclim()
+    era = ClimatePref.TestERA()
+    wc = ClimatePref.TestWorldclim()
     wc = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3}, wc.array[-10° .. 60°, 35° .. 80°,:])
     bud = SolarBudget(wc, 1)
     active = Array(bud.matrix[:,:,1] .> 0*day^-1*kJ*m^-2)
