@@ -1,6 +1,6 @@
 using Simulation
 using Unitful.DefaultSymbols
-using Test
+using Compat.Test
 using MyUnitful
 using ClimatePref
 using AxisArrays
@@ -23,8 +23,8 @@ active = fill(true, grid)
 @test_nowarn abenv = simplenicheAE(numNiches, grid, totalK, area, active)
 
 ## TEST eraAE and worldclimAE
-era = TestERA()
-wc = TestWorldclim()
+era = ClimatePref.TestERA()
+wc = ClimatePref.TestWorldclim()
 wc = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3}, wc.array[-10° .. 60°, 35° .. 80°,:])
 bud = SolarBudget(wc, 1)
 @test_nowarn abenv = eraAE(era, totalK)
