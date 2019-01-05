@@ -40,13 +40,14 @@ function BirthOnlyMovement(kernel::K) where K <: AbstractKernel
     return BirthOnlyMovement{K, NoBoundary}(kernel, NoBoundary())
 end
 
-mutable struct AlwaysMovement{K <: AbstractKernel} <: AbstractMovement
+mutable struct AlwaysMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
   kernel::K
-  boundary::BoundaryCondition
+  boundary::B
 end
-function AlwaysMovement(kernel::K) where K
-    return AlwaysMovement{K <: AbstractKernel}(kernel, NoBoundary)
+function AlwaysMovement(kernel::K) where K <: AbstractKernel
+    return AlwaysMovement{K, NoBoundary}(kernel, NoBoundary())
 end
+
 
 mutable struct NoMovement{K <: AbstractKernel} <: AbstractMovement
   kernel::K
