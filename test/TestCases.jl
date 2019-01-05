@@ -5,13 +5,14 @@ using AxisArrays
 using Unitful.DefaultSymbols
 using Distributions
 using MyUnitful
+using Unitful
 
 function TestEcosystem()
     numSpecies = 150
     numNiches = 2
 
-    birth = 0.0/month
-    death = 0.0/month
+    birth = 0.6/month
+    death = 0.6/month
     long = 1.0
     surv = 0.0
     boost = 1000.0
@@ -45,13 +46,19 @@ function TestCache()
     energy_vec = SolarRequirement(fill(0.2*day^-1*kJ*m^-2, numSpecies))
 
 
-    birth = 0.0/month
-    death = 0.0/month
+    birth = 0.6/month
+    death = 0.6/month
     long = 1.0
     surv = 0.0
     boost = 1000.0
     timestep = 1.0month
     param = EqualPop(birth, death, long, surv, boost)
+
+    file = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/World.tif"
+    world = extractfile(file)
+    europe = world[-10° .. 60°, 35° .. 80°]
+    eu = ustrip.(europe)
+    active = Array{Bool, 2}(.!isnan.(eu))
 
     grid = (94, 60)
     individuals=1000000
@@ -59,7 +66,7 @@ function TestCache()
     wc = ClimatePref.TestWorldclim()
     wc = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3}, wc.array[-10° .. 60°, 35° .. 80°,:])
     bud = SolarBudget(wc, 1)
-    active = Array(bud.matrix[:,:,1] .> 0*day^-1*kJ*m^-2)
+    #active = Array(bud.matrix[:,:,1] .> 0*day^-1*kJ*m^-2)
     kernel = GaussianKernel(1.0km, numSpecies, 10e-04)
     movement = BirthOnlyMovement(kernel)
     common_species = ["Trifolium repens", "Urtica dioica", "Achillea millefolium"]
@@ -67,7 +74,7 @@ function TestCache()
     traits = Array(transpose(Temp[common_species,:]))
     traits = TempBin(traits)
     abun = rand(Multinomial(individuals, numSpecies))
-    sppl = SpeciesList(numSpecies, traits1, abun, energy_vec,
+    sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
     movement, param, native)
     abenv = eraAE(era, bud, active)
     rel = Trapeze{eltype(abenv.habitat)}()
