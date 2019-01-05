@@ -2,6 +2,7 @@ using Unitful
 using Missings
 using JLD
 import ClimatePref.searchdir
+using Compat.Random
 
 function checkfile(::String, ::Missing)
     return false
@@ -12,8 +13,15 @@ function checkfile(file::String, tm::Int)
 end
 
 function loadfile(file::String, tm::Int, dim::Tuple)
-    a = load(searchdir(file, string(tm, ".jld"))[1], string(tm))
-    return GridLanscape(a, dim)
+    a = JLD.load(joinpath(file, searchdir(file, string(tm, ".jld"))[1]), string(tm))
+    return GridLandscape(a, dim)
+end
+
+function clearcache(cache::CachedEcosystem)
+    files = searchdir(cache.abundances.outputfolder, ".jld")
+    rm.(joinpath.(cache.abundances.outputfolder, files))
+    len = length(files)
+    return  "$len files cleared"
 end
 
 
@@ -24,7 +32,7 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
             cache.abundances.matrix[tm] = loadfile(cache.abundances.outputfolder,
                                                     yr, (length(cache.spplist.names),
                                                     _getdimension(cache.abenv.habitat) ...))
-            srand(cache.abundances.seed)
+            seed!(cache.abundances.matrix[tm].seed)
             return tm, cache.abundances.matrix[tm]
         else
             newtm, abun =  _abundances(cache, tm - cache.abundances.saveinterval)
