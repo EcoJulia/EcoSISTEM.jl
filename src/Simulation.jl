@@ -24,7 +24,8 @@ export GridAbioticEnv, simplenicheAE, tempgradAE, simplehabitatAE, degradedhabit
     eraAE, worldclimAE
 
 include("Movement.jl")
-export GaussianKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel
+export GaussianKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel,
+    Torus, Cylinder, NoBoundary
 
 include("Traits.jl")
 export GaussTrait, DiscreteTrait, TempBin,RainBin, TraitCollection2, TraitCollection3,
@@ -41,7 +42,7 @@ export GridLandscape, CachedGridLandscape
 
 include("Ecosystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
- getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget
+ getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, resetcache!
 
 include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
@@ -70,7 +71,7 @@ if (VERSION <= v"0.6") || (VERSION >= v"1.0-")
 end
 
 include("Cache.jl")
-export abundances
+export abundances, clearcache
 
 include("DiversitySet.jl")
 export DiversitySet, updatesimulation!, gettimes

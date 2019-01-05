@@ -2,7 +2,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Diversity
 using MyUnitful
-using Diversity.Gamma
+import Diversity.Gamma
 using Compat
 
 """

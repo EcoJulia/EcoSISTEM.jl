@@ -25,13 +25,17 @@ mutable struct GridLandscape
     a = abun
     return new(a, reshape(a, dimension), copy(Random.GLOBAL_RNG.seed))
   end
+  function GridLandscape(abun::Matrix{Int64}, dimension::Tuple, seed::Vector{UInt32})
+    a = abun
+    return new(a, reshape(a, dimension), seed)
+  end
 end
 import Base.copy
 function copy(gl::GridLandscape)
     return GridLandscape(copy(gl.matrix), size(gl.grid))
 end
 function GridLandscape(sl::SavedLandscape, dimension::Tuple)
-    GridLandscape(sl.matrix, reshape(sl.matrix, dimension), sl.seed)
+    GridLandscape(sl.matrix, dimension, sl.seed)
 end
 
 function SavedLandscape(gl::GridLandscape)
