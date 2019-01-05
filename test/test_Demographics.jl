@@ -1,6 +1,6 @@
 using Simulation
 using Unitful.DefaultSymbols
-using Base.Test
+using Compat.Test
 using MyUnitful
 
 birth = 0.6/month
@@ -11,3 +11,5 @@ boost = 1000.0
 timestep = 1.0month
 
 @test_nowarn param = EqualPop(birth, death, l, s, boost)
+@test_nowarn param = PopGrowth{typeof(unit(0.0/month))}(fill(birth, 5), fill(death, 5), l, s, boost)
+@test_nowarn param = NoGrowth{typeof(unit(0.0/month))}(fill(birth, 5), fill(death, 5), l, s, boost)

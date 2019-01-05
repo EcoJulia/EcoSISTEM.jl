@@ -14,6 +14,7 @@ end
 println()
 
 @info "Running tests..."
+for t in testbase
     fn = "test_$t.jl"
     println("    * Testing $t.jl ...")
     include(fn)

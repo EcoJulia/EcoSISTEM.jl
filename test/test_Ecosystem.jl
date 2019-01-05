@@ -1,57 +1,41 @@
 using Simulation
-using Base.Test
+using Compat.Test
 using Unitful.DefaultSymbols
 using Distributions
 using MyUnitful
+using Diversity
 
-## Run simulation over a grid and plot
-numSpecies=4
+include("TestCases.jl")
 
-# Set up how much energy each species consumes
-energy_vec = SimpleRequirement(repmat([2], numSpecies))
+@test_nowarn eco = TestEcosystem()
+eco = TestEcosystem()
 
-# Set probabilities
-birth = 6.0/year
-death = 6.0/year
-l = 1.0
-s = 0.0
-boost = 1000.0
-timestep = 1.0month
-
-# Collect model parameters together (in this order!!)
-param = EqualPop(birth, death, l, s, boost)
-
-grid = (5, 5)
-area = 25.0km^2
-totalK = 1000.0
-individuals=100
-
-# Create ecosystem
-kernel = GaussianKernel(2.0km, numSpecies, 10e-4)
-movement = AlwaysMovement(kernel)
-
-opts = repmat([5.0°C], numSpecies)
-vars = rand(Uniform(0, 25/9), numSpecies) * °C
-traits = GaussTrait(opts, vars)
-abun = Multinomial(individuals, numSpecies)
-native = Vector{Bool}(numSpecies)
-fill!(native, true)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-    movement, param, native)
-abenv = tempgradAE(-10.0°C, 10.0°C, grid, totalK, area,
-    0.01°C/month)
-rel = Gauss{eltype(abenv.habitat)}()
-@test_nowarn eco = Ecosystem(sppl, abenv, rel)
-eco = Ecosystem(sppl, abenv, rel)
+# Test Simulation get functions
 @test_nowarn gettraitrel(eco)
+@test gettraitrel(eco) == eco.relationship
 @test_nowarn gethabitat(eco)
+@test gethabitat(eco) == eco.abenv.habitat
 @test_nowarn getsize(eco)
+@test getsize(eco) == size(eco.abundances.matrix, 2) .* eco.abenv.habitat.size^2
 @test_nowarn getgridsize(eco)
+@test getgridsize(eco) == eco.abenv.habitat.size
 @test_nowarn getdispersaldist(eco)
+@test getdispersaldist(eco) == eco.spplist.movement.kernel.dist
 @test_nowarn getdispersaldist(eco, 1)
+@test getdispersaldist(eco, 1) == eco.spplist.movement.kernel.dist[1]
 @test_nowarn getdispersaldist(eco, "1")
+@test getdispersaldist(eco, "1") == eco.spplist.movement.kernel.dist[1]
 @test_nowarn getdispersalvar(eco)
+@test getdispersalvar(eco) == (eco.spplist.movement.kernel.dist).^2 .* pi ./ 4
 @test_nowarn getdispersalvar(eco, 1)
 @test_nowarn getdispersalvar(eco, "1")
-@test_nowarn resetrate!(eco, 0.5°C/month)
-@test_nowarn resetrate!(eco, 0.5/month)
+
+
+# Test Diversity get functions
+@test_nowarn getmetaabundance(eco)
+@test_nowarn getpartition(eco)
+@test getpartition(eco) == eco.abenv
+@test_nowarn gettypes(eco)
+@test gettypes(eco) == eco.spplist
+@test_nowarn getordinariness!(eco)
+@test getordinariness!(eco) == eco.ordinariness

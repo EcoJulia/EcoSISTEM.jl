@@ -16,8 +16,8 @@ active = fill(true, grid)
 @test_nowarn abenv = simplehabitatAE(0.0, grid, totalK, area, active)
 
 ## TEST tempgradAE - temp offline until Unitful is sorted
-#@test_nowarn abenv = tempgradAE(-10.0°C, 10.0°C, grid, totalK, area,
-    #0.01°C/month)
+#@test_nowarn abenv = tempgradAE(-10.0K, 10.0K, grid, totalK, area,
+#    0.01K/month)
 ## TEST simplenicheAE
 @test_nowarn abenv = simplenicheAE(numNiches, grid, totalK, area)
 @test_nowarn abenv = simplenicheAE(numNiches, grid, totalK, area, active)

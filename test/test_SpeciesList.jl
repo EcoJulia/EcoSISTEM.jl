@@ -1,5 +1,5 @@
 using Simulation
-using Base.Test
+using Compat.Test
 using Unitful.DefaultSymbols
 using Distributions
 using MyUnitful
@@ -9,7 +9,7 @@ numSpecies=4
 numTraits = 2
 
 # Set up how much energy each species consumes
-energy_vec = SimpleRequirement(repmat([2], numSpecies))
+energy_vec = SimpleRequirement(fill(2, numSpecies))
 
 # Set probabilities
 birth = 6.0/year
@@ -28,12 +28,11 @@ individuals=100
 kernel = GaussianKernel(2.0km, numSpecies, 10e-4)
 movement = AlwaysMovement(kernel)
 
-opts = repmat([5.0°C], numSpecies)
+opts = fill(5.0°C, numSpecies)
 vars = rand(Uniform(0, 25/9), numSpecies) * °C
 traits = GaussTrait(opts, vars)
-abun = Multinomial(individuals, numSpecies)
-native = Vector{Bool}(numSpecies)
-fill!(native, true)
+abun = rand(Multinomial(individuals, numSpecies))
+native = fill(true, numSpecies)
 @test_nowarn sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
     movement, param, native)
 @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun,

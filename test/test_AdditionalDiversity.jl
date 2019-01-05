@@ -3,7 +3,9 @@ using Diversity
 using Phylo
 using Statistics
 using Test
+using RCall
 
+include("TestCases.jl")
 eco = TestEcosystem()
 
 Ab = mapslices(sum, eco.abundances.matrix, dims = 2)
