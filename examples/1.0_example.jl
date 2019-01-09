@@ -105,3 +105,98 @@ end
 
 times = 1year
 div = runsim(times)
+
+
+using Simulation
+using JLD
+using Diversity
+using RCall
+using Distributions
+using Unitful
+using Unitful.DefaultSymbols
+using MyUnitful
+using AxisArrays
+using ClimatePref
+
+# Load in temperature profiles
+Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
+ "Temperature")
+
+ ## Run simulation over a grid and plot
+ numSpecies=3
+
+ # Set up how much energy each species consumes
+ energy_vec = SolarRequirement(fill(2*day^-1*kJ*m^-2, numSpecies))
+
+ # Set probabilities
+ birth = 0.6/month
+ death = 0.6/month
+ long = 1.0
+ surv = 0.5
+ boost = 1000.0
+ timestep = 1.0month
+
+ # Collect model parameters together (in this order!!)
+ param = EqualPop(birth, death, long, surv, boost)
+
+ grid = (94, 60)
+ area = 10000.0km^2
+ totalK = 1000000.0
+ individuals=1000
+
+ # Load data for land cover
+ file = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/World.tif"
+ world = extractfile(file)
+ europe = world[-10° .. 60°, 35° .. 80°]
+ eu = ustrip.(europe)
+ @rput eu
+ R"image(eu)"
+
+ dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_1980"
+ tempax1 = extractERA(dir1, "t2m", collect(1.0month:1month:10year))
+ dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_1990"
+ tempax2 = extractERA(dir2, "t2m", collect(121month:1month:20year))
+ dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_2000"
+ tempax3 = extractERA(dir3, "t2m", collect(241month:1month:30year))
+ dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_2010"
+ tempax4 = extractERA(dir4, "t2m", collect(361month:1month:38year))
+
+
+ dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
+ srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
+ srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3}, srad.array[-10° .. 60°, 35° .. 80°,:])
+ srad = SolarBudget(srad, 1)
+ active = Array{Bool, 2}(.!isnan.(eu))
+
+
+ testtemp = tempax1
+ testtemp.array = tempax1.array[-10° .. 60°, 35° .. 80°, :]
+ # Create ecosystem
+ kernel = GaussianKernel(10.0km, numSpecies, 10e-4)
+ movement = BirthOnlyMovement(kernel)
+
+
+ native = fill(true, numSpecies)
+ traits = Array(transpose(Temp[1:3,:]))
+ traits = TempBin(traits)
+ abun = rand(Multinomial(individuals, numSpecies))
+ sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+ movement, param, native)
+ abenv = eraAE(testtemp, srad, active)
+ #abenv = tempgradAE(-10.0°C, 30.0°C,  grid, totalK, area, 0.0°C/month, active)
+ #abenv.habitat.matrix = transpose(tempax1.array[-10° .. 60°, 35° .. 80°, 1])
+ rel = Trapeze{eltype(abenv.habitat)}()
+ eco = Ecosystem(sppl, abenv, rel)
+
+
+ function runsim(eco::Ecosystem, times::Unitful.Time)
+     burnin = 1year; interval = 1month
+     lensim = length(0month:interval:times)
+     abun = generate_storage(eco, lensim, 1)
+     simulate!(eco, burnin, timestep)
+     eco.abenv.habitat.time = 1
+     #resetrate!(eco, 0.1°C/month)
+     simulate_record!(abun, eco, times, interval, timestep)
+ end
+ times = 1year
+ abun = runsim(eco, times)
