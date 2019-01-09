@@ -5,18 +5,30 @@ using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
 using Compat
+using EcoBase
+import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
+cells, xrange, yrange, xmax, ymax, indices, coordinates
 
 """
     AbstractHabitat
 
 Abstract supertype for all habitat types
 """
-abstract type AbstractHabitat{H} end
+abstract type AbstractHabitat{H} <: EcoBase.AbstractGrid end
 
 function countsubcommunities(ah::AbstractHabitat)
   return _countsubcommunities(ah)
 end
-
+xmin(ah::AbstractHabitat) = 0
+ymin(ah::AbstractHabitat) = 0
+xcellsize(ah::AbstractHabitat) = Float64(ah.size/km)
+ycellsize(ah::AbstractHabitat) = Float64(ah.size/km)
+xcells(ah::AbstractHabitat) = size(ah.matrix, 1)
+ycells(ah::AbstractHabitat) = size(ah.matrix, 2)
+indices(ah::AbstractHabitat) =
+    hcat(collect.(convert_coords.(1:length(ah.matrix), xcells(ah)))...)'
+indices(ah::AbstractHabitat, idx) = indices(ah)[:, idx]
+coordinates(ah::AbstractHabitat) = indices(ah)
 """
     ContinuousHab <: AbstractHabitat{Float64}
 
