@@ -1,6 +1,7 @@
 using Diversity
 using Phylo
 using Compat
+
 """
     SpeciesList{TR <: AbstractTraits, R <: AbstractRequirement,
                 MO <: AbstractMovement, T <: AbstractTypes,
@@ -236,4 +237,8 @@ end
 import Diversity.API: _calcabundance
 function _calcabundance(sl::SpeciesList, a::AbstractArray)
   return _calcabundance(sl.types, a)
+end
+import Diversity.API._getdiversityname
+function _getdiversityname(sl::SpeciesList)
+    return _getdiversityname(sl.types)
 end
