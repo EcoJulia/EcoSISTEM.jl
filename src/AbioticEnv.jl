@@ -222,3 +222,7 @@ function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
   active = fill(true, dimension)
   simplehabitatAE(val, dimension, maxbud, area, active)
 end
+
+import EcoBase.getcoords
+
+getcoords(abenv::GridAbioticEnv) = abenv.habitat
