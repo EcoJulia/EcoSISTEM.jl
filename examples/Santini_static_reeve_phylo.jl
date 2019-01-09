@@ -277,8 +277,7 @@ for (i in 1:7){
         dat$lo[j] - 0.05 * dat$rn[j])
         }
     dat$scenario = factor(dat$scenario, levels = c('Uniform', 'Proportional',
-    'Largest', 'Rarest', 'Common','Invasive','Phylo invasive',
-        'Rand hab loss', 'Clust hab loss', 'Susceptible'))
+    'Rare', 'Common','Large',  'Invasive','Phylo invasive', 'Susceptible', 'Rand hab', 'Clust hab'))
     g = ggplot(dat, aes(y= mn, x = scenario, fill = measure)) + geom_bar(stat = 'identity') +
         facet_wrap(~ measure, nrow = 2, scales = 'free_y') + geom_hline(yintercept = 0)+
         geom_errorbar(aes(ymin=lo, ymax=up),
