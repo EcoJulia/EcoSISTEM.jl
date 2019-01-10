@@ -36,13 +36,16 @@ ans = foreach(dat = files, .combine='rbind') %dopar% {
                           EOOcat = rep("NE", sum(Any_missing)),
                           AOOcat = rep("NE", sum(Any_missing)))
   # Remove rows with missing lat/lon
-  Genus = Genus[!is.na(Genus$decimallatitude) & !is.na(Genus$decimallongitude), ]
+  GenusCoords = Genus[!is.na(Genus$decimallatitude) & !is.na(Genus$decimallongitude), ]
   # Use rCAT to calculate EOO and AOO (with 2km cell size)
-  GenusCat = rCAT::ConBatch(Genus$species, Genus$decimallatitude,
-                       Genus$decimallongitude, cellsize = 2000,
-                       project2gether = FALSE)
+  GenusCat = rCAT::ConBatch(GenusCoords$species, GenusCoords$decimallatitude,
+                            GenusCoords$decimallongitude, cellsize = 2000,
+                            project2gether = FALSE)
   # Add on not evaluated (NE) species
-  return(rbind(GenusCat, NE_species))
+  GenusCat = rbind(GenusCat, NE_species)
+  matchnames <- function(dat, x) sum(dat$species == x)
+  totalrecords = sapply(GenusCat$taxa, matchnames, dat = Genus)
+  return(cbind(GenusCat, totalrecords))
 }
 # Write the dataframe as csv and stop workers
 write.csv(ans, "Conservation_status.csv")
