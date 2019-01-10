@@ -31,10 +31,10 @@ energy_vec = WaterRequirement(fill(0.2*mm, numSpecies))
 @test_nowarn energy_vec =  WaterRequirement(fill(0.2*mm, numSpecies))
 @test Simulation._getenergyusage(abun, energy_vec) == sum(abun .* energy_vec.energy)
 
-#Test SolarBudget
+#Test SolarTimeBudget
 sol = fill(200.0*day^-1*kJ*m^-2, 100, 100, 10)
-@test_nowarn SolarBudget(sol, 1)
-bud1 = SolarBudget(sol, 1)
+@test_nowarn SolarTimeBudget(sol, 1)
+bud1 = SolarTimeBudget(sol, 1)
 @test Simulation._countsubcommunities(bud1) == 100 * 100
 @test Simulation._getbudget(bud1) ==  bud1.matrix[:, :, 1]
 

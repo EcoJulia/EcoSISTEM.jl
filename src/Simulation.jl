@@ -16,8 +16,8 @@ export ContinuousHab,ContinuousTimeHab, DiscreteHab, HabitatCollection2, Habitat
  tempgrad
 
 include("Energy.jl")
-export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, SimpleBudget, SolarBudget,
-    WaterBudget, ReqCollection2, BudgetCollection2
+export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, SimpleBudget,
+    SolarBudget, SolarTimeBudget, WaterBudget, ReqCollection2, BudgetCollection2
 
 include("AbioticEnv.jl")
 export GridAbioticEnv, simplenicheAE, tempgradAE, simplehabitatAE, degradedhabitatAE,

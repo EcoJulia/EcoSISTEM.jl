@@ -69,7 +69,7 @@ dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
 srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
 srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
             srad.array[-10° .. 60°, 35° .. 80°,:])
-srad = SolarBudget(srad, 1)
+srad = SolarTimeBudget(srad, 1)
 active = Array{Bool, 2}(.!isnan.(eu))
 bud = BudgetCollection2(srad, water)
 

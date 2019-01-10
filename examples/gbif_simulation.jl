@@ -35,25 +35,25 @@ totalK = 1000000.0
 individuals=1000
 
 # Load data for land cover
-file = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/World.tif"
+file = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/World.tif"
 world = extractfile(file)
 europe = world[-10° .. 60°, 35° .. 80°]
 eu = ustrip.(europe)
 @rput eu
 R"image(t(eu))"
-dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_1980"
+dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_1980"
 tempax1 = extractERA(dir1, "t2m", collect(1.0month:1month:10year))
-dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_1990"
+dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_1990"
 tempax2 = extractERA(dir2, "t2m", collect(121month:1month:20year))
-dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_2000"
+dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_2000"
 tempax3 = extractERA(dir3, "t2m", collect(241month:1month:30year))
-dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_2010"
+dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_2010"
 tempax4 = extractERA(dir4, "t2m", collect(361month:1month:38year))
 
-dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
+dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
 srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
 srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3}, srad.array[-10° .. 60°, 35° .. 80°,:])
-srad = SolarBudget(srad, 1)
+srad = SolarTimeBudget(srad, 1)
 active = Array{Bool, 2}(.!isnan.(eu))
 
 testtemp = tempax1
@@ -229,7 +229,7 @@ dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
 srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
 srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
             srad.array[-10° .. 60°, 35° .. 80°,:])
-srad = SolarBudget(srad, 1)
+srad = SolarTimeBudget(srad, 1)
 active = Array{Bool, 2}(.!isnan.(eu))
 
 testtemp = tempax1
@@ -409,7 +409,7 @@ dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
 srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
 srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
             srad.array[-10° .. 60°, 35° .. 80°,:])
-srad = SolarBudget(srad, 1)
+srad = SolarTimeBudget(srad, 1)
 active = Array{Bool, 2}(.!isnan.(eu))
 
 testtemp = tempax1
@@ -580,7 +580,7 @@ dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
 srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
 srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
             srad.array[-10° .. 60°, 35° .. 80°,:])
-srad = SolarBudget(srad, 1)
+srad = SolarTimeBudget(srad, 1)
 active = Array{Bool, 2}(.!isnan.(eu))
 bud = BudgetCollection2(srad, water)
 

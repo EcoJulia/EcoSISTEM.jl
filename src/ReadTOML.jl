@@ -336,7 +336,7 @@ function TOML_abenv(fulldict::Dict)
         if haskey(solar, "upscale")
             srad = upresolution(srad, solar["upscale"])
         end
-        budget1 = SolarBudget(convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
+        budget1 = SolarTimeBudget(convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
             srad.array), 1)
     end
     if haskey(budget, "water")
