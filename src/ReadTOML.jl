@@ -342,7 +342,7 @@ function TOML_abenv(fulldict::Dict)
     if haskey(budget, "water")
         water = budget["water"]
         if water["fromclimate"]
-            budget2 = WaterBudget(Array{typeof(1.0*mm), 3}(hab2.array), 1)
+            budget2 = WaterTimeBudget(Array{typeof(1.0*mm), 3}(hab2.array), 1)
         else
             filename = joinpath(dir, water["file"])
             water = extractworldclim(joinpath(filename, water["name"]))
@@ -350,7 +350,7 @@ function TOML_abenv(fulldict::Dict)
             if haskey(budget["water"], "upscale")
                 water = upresolution(water, budget["water"]["upscale"])
             end
-            budget2 = WaterBudget(convert(Array{typeof(2.0*mm),3},
+            budget2 = WaterTimeBudget(convert(Array{typeof(2.0*mm),3},
                 water.array), 1)
         end
     end

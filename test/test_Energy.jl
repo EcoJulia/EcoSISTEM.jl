@@ -38,10 +38,10 @@ bud1 = SolarTimeBudget(sol, 1)
 @test Simulation._countsubcommunities(bud1) == 100 * 100
 @test Simulation._getbudget(bud1) ==  bud1.matrix[:, :, 1]
 
-#Test WaterBudget
+#Test WaterTimeBudget
 water = fill(2000.0*mm, 100, 100, 10)
-@test_nowarn WaterBudget(water, 1)
-bud2 = WaterBudget(water, 1)
+@test_nowarn WaterTimeBudget(water, 1)
+bud2 = WaterTimeBudget(water, 1)
 @test Simulation._countsubcommunities(bud2) == 100 * 100
 @test Simulation._getbudget(bud2) ==  bud2.matrix[:, :, 1]
 

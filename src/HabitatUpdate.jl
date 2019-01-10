@@ -58,6 +58,9 @@ end
 function _budgetupdate!(eco::Ecosystem, budget::SolarBudget, timestep::Unitful.Time)
     return budget
 end
+function _budgetupdate!(eco::Ecosystem, budget::WaterBudget, timestep::Unitful.Time)
+    return budget
+end
 function _budgetupdate!(eco::Ecosystem, budget::SolarTimeBudget, timestep::Unitful.Time)
     lastE = size(budget.matrix, 3)
     monthstep = convert(typeof(1.0month), timestep)
@@ -68,7 +71,7 @@ function _budgetupdate!(eco::Ecosystem, budget::SolarTimeBudget, timestep::Unitf
         Compat.@warn "More timesteps than available, have repeated"
     end
 end
-function _budgetupdate!(eco::Ecosystem, budget::WaterBudget, timestep::Unitful.Time)
+function _budgetupdate!(eco::Ecosystem, budget::WaterTimeBudget, timestep::Unitful.Time)
     lastE = size(budget.matrix, 3)
     monthstep = convert(typeof(1.0month), timestep)
     eco.abenv.budget.time = eco.abenv.budget.time +

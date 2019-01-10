@@ -573,7 +573,7 @@ y = prec.array.axes[2]
 t = prec.array.axes[3]
 prec.array = AxisArray(1.0.*(prec.array),
     Axis{:longitude}(x), Axis{:latitude}(y), Axis{:time}(t))
-water = WaterBudget(Array{typeof(1.0*mm), 3}(prec.array), 1)
+water = WaterTimeBudget(Array{typeof(1.0*mm), 3}(prec.array), 1)
 
 
 dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
