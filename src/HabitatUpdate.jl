@@ -56,6 +56,9 @@ function _budgetupdate!(eco::Ecosystem, budget::SimpleBudget, timestep::Unitful.
     return budget
 end
 function _budgetupdate!(eco::Ecosystem, budget::SolarBudget, timestep::Unitful.Time)
+    return budget
+end
+function _budgetupdate!(eco::Ecosystem, budget::SolarTimeBudget, timestep::Unitful.Time)
     lastE = size(budget.matrix, 3)
     monthstep = convert(typeof(1.0month), timestep)
     eco.abenv.budget.time = eco.abenv.budget.time +
