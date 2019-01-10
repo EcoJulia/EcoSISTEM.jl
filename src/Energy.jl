@@ -43,8 +43,8 @@ end
     SolarRequirement <: AbstractRequirement{typeof(1.0*day^-1*kJ*m^-2)}
 
 """
-mutable struct SolarRequirement <: AbstractRequirement{typeof(1.0*day^-1*kJ*m^-2)}
-  energy::Vector{typeof(1.0*day^-1*kJ*m^-2)}
+mutable struct SolarRequirement <: AbstractRequirement{typeof(1.0*kJ)}
+  energy::Vector{typeof(1.0*kJ)}
 end
 length(req::SolarRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SolarRequirement)
@@ -110,28 +110,44 @@ function _getavailableenergy(bud::SimpleBudget)
 end
 
 """
-    SolarBudget <: AbstractBudget{typeof(1.0*day^-1*kJ*m^-2)}
+    SolarTimeBudget <: AbstractBudget{typeof(1.0*day^-1*kJ*m^-2)}
 
 This budget type has a matrix of solar energy units, representing the energy budget of each
 subcommunity in the abiotic environment along with which time dimension we are interested in.
 """
-mutable struct SolarBudget <: AbstractBudget{typeof(1.0*day^-1*kJ*m^-2)}
+mutable struct SolarBudget <: AbstractBudget{typeof(1.0*kJ)}
+  matrix::Array{typeof(1.0*kJ), 2}
+  function SolarBudget(mat::Array{typeof(1.0*kJ), 2})
+    mat[isnan.(mat)] .=  0*kJ
+    return new(mat)
+  end
+end
+function _countsubcommunities(bud::SolarBudget)
+  return length(bud.matrix)
+end
+
+function _getbudget(bud::SolarBudget)
+    return bud.matrix
+end
+function _getavailableenergy(bud::SolarBudget)
+    return sum(bud.matrix[.!isnan.(bud.matrix)])
+end
+mutable struct SolarTimeBudget <: AbstractBudget{typeof(1.0*day^-1*kJ*m^-2)}
   matrix::Array{typeof(1.0*day^-1*kJ*m^-2), 3}
   time::Int64
-  function SolarBudget(mat::Array{typeof(1.0*day^-1*kJ*m^-2), 3}, time::Int64)
+  function SolarTimeBudget(mat::Array{typeof(1.0*day^-1*kJ*m^-2), 3}, time::Int64)
     mat[isnan.(mat)] .=  0*day^-1*kJ*m^-2
     return new(mat, time)
   end
 end
-
-function _countsubcommunities(bud::SolarBudget)
+function _countsubcommunities(bud::SolarTimeBudget)
   return length(bud.matrix[:,:,1])
 end
 
-function _getbudget(bud::SolarBudget)
+function _getbudget(bud::SolarTimeBudget)
     return bud.matrix[:, :, bud.time]
 end
-function _getavailableenergy(bud::SolarBudget)
+function _getavailableenergy(bud::SolarTimeBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
 end
 
