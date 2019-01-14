@@ -2,24 +2,23 @@ using Diversity
 using Simulation
 using RCall
 using Distributions
-using StatsBase
-using DataStructures
+using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
-using DataFrames
-using JLD
 using Plots
+using ClimatePref
+using AxisArrays
 # Set up initial parameters for ecosystem
 numSpecies = 50
 
 # Set up how much energy each species consumes
-energy_vec = SimpleRequirement(sample(1.0:10.0, numSpecies))
+energy_vec = SolarRequirement(sample(1000.0:4000, numSpecies) .* kJ)
 
 # Set probabilities
 birth = 0.6/year
 death = 0.6/year
 l = 1.0
-s = 0.5
+s = 0.8
 boost = 1.0
 timestep = 1month
 
@@ -28,12 +27,16 @@ param = EqualPop(birth, death, l, s, boost)
 
 grid = (20, 20)
 area = 4.0km^2
-totalK = 1000000.0
-individuals=10000
+dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
+srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
+srad.array = srad.array[-10° .. 60°, 35° .. 80°]
+meansrad = mean(srad.array[.!isnan.(srad.array)])
+totalK = uconvert(kJ, meansrad * month * (area/(grid[1]*grid[2])))
+individuals = 10000
 
 # Create ecosystem
 kernel = GaussianKernel(10.0km, numSpecies, 10e-10)
-movement = BirthOnlyMovement(kernel)
+movement = BirthOnlyMovement(kernel, Cylinder())
 
 opts = rand(Normal(274.0, 10.0), numSpecies) * K
 vars = rand(Uniform(0, 25/9), numSpecies) * K
@@ -49,10 +52,10 @@ plot(eco)
 
 burnin = 1month; interval = 1month; reps = 1; times = 10years
 lensim = length(0month:interval:times)
-sum_abun = zeros(60)
-for i in 1:60
+sum_abun = [sum(eco.abundances.matrix)]
+for i in 1:10
     simulate!(eco, burnin, timestep)
-    sum_abun[i] = sum(eco.abundances.matrix)
+    push!(sum_abun, sum(eco.abundances.matrix))
 end
 plot(sum_abun, ylabel = "Abundance", xlabel = "Months")
 #png("plots/burnin.png")
