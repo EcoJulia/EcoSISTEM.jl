@@ -189,6 +189,8 @@ end
 
 function calc_lookup_moves(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
   lookup = eco.lookup[spp]
+  maxX = getdimension(eco)[1] - x
+  maxY = getdimension(eco)[2] - y
   lookup.x[lookup.x .<= -x] += Simulation.getdimension(eco)[1]
   lookup.x[lookup.x .> maxX] -= Simulation.getdimension(eco)[1]
 
@@ -218,9 +220,13 @@ function calc_lookup_moves(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::Ec
   lookup.x[lookup.x .> maxX] -= Simulation.getdimension(eco)[1]
   lookup.y[lookup.y .> maxX] -= Simulation.getdimension(eco)[2]
 
-  valid = fill(true, length(lookup.x))
-  for i in eachindex(lookup.x)
-          valid[i] = eco.abenv.active[lookup.x[i] .+ x, lookup.y[i] .+ y]
+  valid = (lookup.x .> -x) .& (lookup.y .> -y) .&
+   (lookup.x .<= maxX) .& (lookup.y .<= maxY)
+  for i in eachindex(valid)
+      if valid[i]
+          valid[i] = valid[i] & (eco.abenv.active[lookup.x[i] .+ x,
+          lookup.y[i] .+ y])
+      end
   end
 
   lookup.pnew[.!valid] .= 0.0
