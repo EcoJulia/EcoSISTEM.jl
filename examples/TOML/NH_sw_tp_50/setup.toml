@@ -1,4 +1,4 @@
-dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/"
+dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/"
 [grid]
 gridsize = [147, 241]
 resolution = 0.75
