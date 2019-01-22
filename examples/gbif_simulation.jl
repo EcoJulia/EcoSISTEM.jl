@@ -10,7 +10,7 @@ using AxisArrays
 using ClimatePref
 
 # Load in temperature profiles
-Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/Temperature.jld",
+Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
  "Temperature")
 ## Run simulation over a grid and plot
 numSpecies=1
@@ -106,7 +106,7 @@ image.plot(t(abunmat), main = 'Abundances', col=magma(50))
   library(fields)
   months = c('January', 'February', 'March', 'April', 'May', 'June', 'July',
   'August', 'September', 'October', 'November', 'December')
-  world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+  world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
   for (i in c(1:12)){
      par(mfrow=c(1,2))
      image.plot(x,y, hab[,,i],  col=viridis(50), main = months[i],
@@ -122,7 +122,7 @@ image.plot(t(abunmat), main = 'Abundances', col=magma(50))
  months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
  'August', 'September', 'October', 'November', 'December'), 10)
  years = c(1980:1989)
- world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+ world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
  for (i in c(1:120)){
     jpeg(paste('plots/gbif_sim/gbif_simulation_sol', i,'.jpg', sep=''), quality=100, width =1000)
     par(mfrow=c(1,3))
@@ -141,7 +141,7 @@ image.plot(t(abunmat), main = 'Abundances', col=magma(50))
 library(rgdal)
 library(fields)
 par(mfrow=c(1,2))
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 image.plot(x,y, t(hab), main = 'Habitat', col=viridis(50))
 plot(world,  add = T)
 image.plot(x, y, t(abunmat), main = 'Abundances', col=magma(50))
@@ -163,9 +163,9 @@ using AxisArrays
 using ClimatePref
 
 # Load in temperature profiles
-Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/Temperature.jld",
+Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
  "Temperature")
- Rain = load("/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/Rainfall.jld",
+ Rain = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Rainfall.jld",
   "Rainfall")
 
 ## Run simulation over a grid and plot
@@ -191,31 +191,31 @@ totalK = 1000000.0
 individuals=1000
 
 # Load data for land cover
-file = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/World.tif"
+file = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/World.tif"
 world = extractfile(file)
 europe = world[-10° .. 60°, 35° .. 80°]
 eu = ustrip.(europe)
 @rput eu
 R"image(t(eu))"
-dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_1980"
+dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_1980"
 tempax1 = extractERA(dir1, "t2m", collect(1.0month:1month:10year))
-dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_1990"
+dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_1990"
 tempax2 = extractERA(dir2, "t2m", collect(121month:1month:20year))
-dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_2000"
+dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_2000"
 tempax3 = extractERA(dir3, "t2m", collect(241month:1month:30year))
-dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_2010"
+dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_2010"
 tempax4 = extractERA(dir4, "t2m", collect(361month:1month:38year))
 
-dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_mdfa_prec_1980"
+dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_mdfa_prec_1980"
 precax1 = extractERA(dir1, "tp", collect(1.0month:1month:10year))
-dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_mdfa_prec_1990"
+dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_mdfa_prec_1990"
 precax2 = extractERA(dir2, "tp", collect(121month:1month:20year))
-dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_mdfa_prec_2000"
+dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_mdfa_prec_2000"
 precax3 = extractERA(dir3, "tp", collect(241month:1month:30year))
-dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_mdfa_prec_2010"
+dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_mdfa_prec_2010"
 precax4 = extractERA(dir4, "tp", collect(361month:1month:38year))
 
-dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
+dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
 prec = extractworldclim(joinpath(dir, "wc2.0_5m_prec"))
 prec.array = prec.array[-10° .. 60°, 35° .. 80°,:]
 x = prec.array.axes[1]
@@ -225,7 +225,7 @@ prec.array = AxisArray(1.0.*(prec.array),
     Axis{:longitude}(x), Axis{:latitude}(y), Axis{:time}(t))
 
 
-dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
+dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
 srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
 srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
             srad.array[-10° .. 60°, 35° .. 80°,:])
@@ -292,7 +292,7 @@ image.plot(t(abunmat), main = 'Abundances', col=magma(50))
   library(fields)
   months = c('January', 'February', 'March', 'April', 'May', 'June', 'July',
   'August', 'September', 'October', 'November', 'December')
-  world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+  world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
   for (i in c(1:120)){
      par(mfrow=c(1,2))
      image.plot(x,y, hab[,,i],  col=viridis(50), main = months[i],
@@ -308,7 +308,7 @@ image.plot(t(abunmat), main = 'Abundances', col=magma(50))
  months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
  'August', 'September', 'October', 'November', 'December'), 10)
  years = c(1980:1989)
- world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+ world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
  for (i in c(1:120)){
     jpeg(paste('plots/gbif_sim/gbif_simulation_rain', i,'.jpg', sep=''),
     quality=100, width =1000, height =1000)
@@ -344,9 +344,9 @@ using AxisArrays
 using ClimatePref
 
 # Load in temperature profiles
-Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/Temperature.jld",
+Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
  "Temperature")
- Rain = load("/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/Rainfall.jld",
+ Rain = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Rainfall.jld",
   "Rainfall")
 
 ## Run simulation over a grid and plot
@@ -372,30 +372,30 @@ totalK = 1000000.0
 individuals=1000
 
 # Load data for land cover
-file = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/World.tif"
+file = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/World.tif"
 world = extractfile(file)
 europe = world[-10° .. 60°, 35° .. 80°]
 eu = ustrip.(europe)
 
-dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_1980"
+dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_1980"
 tempax1 = extractERA(dir1, "t2m", collect(1.0month:1month:10year))
-dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_1990"
+dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_1990"
 tempax2 = extractERA(dir2, "t2m", collect(121month:1month:20year))
-dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_2000"
+dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_2000"
 tempax3 = extractERA(dir3, "t2m", collect(241month:1month:30year))
-dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_moda_2010"
+dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_moda_2010"
 tempax4 = extractERA(dir4, "t2m", collect(361month:1month:38year))
 
-dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_mdfa_prec_1980"
+dir1 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_mdfa_prec_1980"
 precax1 = extractERA(dir1, "tp", collect(1.0month:1month:10year))
-dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_mdfa_prec_1990"
+dir2 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_mdfa_prec_1990"
 precax2 = extractERA(dir2, "tp", collect(121month:1month:20year))
-dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_mdfa_prec_2000"
+dir3 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_mdfa_prec_2000"
 precax3 = extractERA(dir3, "tp", collect(241month:1month:30year))
-dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/era_interim_mdfa_prec_2010"
+dir4 = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/era_interim_mdfa_prec_2010"
 precax4 = extractERA(dir4, "tp", collect(361month:1month:38year))
 
-dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
+dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
 prec = extractworldclim(joinpath(dir, "wc2.0_5m_prec"))
 prec.array = prec.array[-10° .. 60°, 35° .. 80°,:]
 x = prec.array.axes[1]
@@ -405,7 +405,7 @@ prec.array = AxisArray(1.0.*(prec.array),
     Axis{:longitude}(x), Axis{:latitude}(y), Axis{:time}(t))
 
 
-dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/wc"
+dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
 srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
 srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3},
             srad.array[-10° .. 60°, 35° .. 80°,:])
@@ -475,7 +475,7 @@ library(rgdal)
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 for (i in c(1:120)){
 jpeg(paste('plots/gbif_sim/gbif_simulation_multiple', i, '.jpg'), quality=1000,
     width =1000, height =1000)
@@ -654,7 +654,7 @@ library(rgdal)
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 for (i in c(1:120)){
 jpeg(paste('plots/gbif_sim/gbif_simulation_water', i, '.jpg'), quality=1000,
     width =1000, height =1000)
@@ -705,7 +705,7 @@ R"library(fields);par(mfrow=c(1,1))
 library(viridis)
 library(rgdal)
 abun[is.na(abun)] = 0
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 jpeg(paste('examples/TOML/NH_sw_tp_3/plots/simulation_start.jpg'), quality=1000,
     width =1500, height =1000)
 image.plot(x, y, log(abun+1), col=magma(30),zlim=c(0,15),
@@ -750,7 +750,7 @@ library(rgdal)
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 for (i in seq(0, 100, by = 10)){
 jpeg(paste('examples/TOML/NH_sw_tp_5/plots/simulation_world', i, '.jpg'), quality=1000,
     width =1500, height =1000)
@@ -783,7 +783,7 @@ library(rgdal)
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
 for (i in seq(1, 1284, by = 1)){
 png(paste0('examples/TOML/NH_sw_tp_5/plots/simulation_world', sprintf('%03d', i), '.png'),
@@ -807,7 +807,7 @@ library(rgdal)
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
 for (i in seq(1, 169, by = 12)){
 png(paste0('examples/TOML/NH_sw_tp_5/plots/simulation_beta', i, '.png'),
@@ -835,7 +835,7 @@ library(rgdal)
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 for (i in seq(1, 1300, by = 10)){
 jpeg(paste('examples/TOML/NH_sw_tp_5/plots/simulation_world', i, '.jpg'), quality=1000,
     width =1500, height =1000)
@@ -858,7 +858,7 @@ library(rgdal)
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 for (i in seq(1, 600, by = 10)){
 jpeg(paste('examples/TOML/NH_sw_tp_10/plots/simulation_world', i, '.jpg'), quality=1000,
     width =1500, height =1000)
@@ -882,7 +882,7 @@ library(rgdal)
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 for (i in seq(1, 649, by = 12)){
 png(paste0('examples/TOML/NH_sw_tp_50/plots/simulation_world', i, '.png'),
     width = 1068, height = 484)
@@ -904,7 +904,7 @@ library(rgdal)
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
 for (i in seq(1, 1081, by = 12)){
 png(paste0('examples/TOML/NH_sw_tp_100/plots/simulation_world', i, '.png'),
@@ -928,7 +928,7 @@ mains = c(' ','Number of distinct ecosystems', 'Number of remaining species')
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 100)
 years = rep(c(1901:2010), each =12)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
 for (i in seq(1200, 1200, by = 1)){
 png(paste0('examples/TOML/NH_sw_tp_100/plots/simulation_alpha', sprintf('%04d',i+1), '.png'),
@@ -957,7 +957,7 @@ R"library(fields);par(mfrow=c(1,1))
 library(viridis)
 library(rgdal)
 mains = c(' ','Number of distinct ecosystems', 'Number of remaining species')
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
 for (i in seq(1082, 1201, by = 1)){
 png(paste0('examples/TOML/NH_sw_tp_100/plots/simulation_beta', sprintf('%04d',i), '.png'),
@@ -980,7 +980,7 @@ R"library(fields);par(mfrow=c(1,1))
 library(viridis)
 library(rgdal)
 mains = c(' ','Number of distinct ecosystems', 'Number of remaining species')
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
 for (i in seq(1082, 1201, by = 1)){
 png(paste0('examples/TOML/NH_sw_tp_100/plots/simulation_gamma', sprintf('%04d',i), '.png'),
@@ -1019,7 +1019,7 @@ library(rgdal)
 months = rep(c('January', 'February', 'March', 'April', 'May', 'June', 'July',
 'August', 'September', 'October', 'November', 'December'), 10)
 years = c(1980:1989)
-world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref.jl/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
+world = readOGR('/Users/claireh/Documents/PhD/GIT/ClimatePref/data/ne_10m_land/ne_10m_land.shp', layer='ne_10m_land')
 casp = readOGR('/Users/claireh/Documents/worldglwd1/worldglwd1.shp', layer='worldglwd1')
 for (i in seq(1, 109, by = 12)){
 png(paste0('examples/TOML/NH_sw_tp_1000/plots/simulation_world', i, '.png'),
