@@ -191,8 +191,8 @@ function calc_lookup_moves(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco:
   lookup = eco.lookup[spp]
   maxX = getdimension(eco)[1] - x
   maxY = getdimension(eco)[2] - y
-  lookup.x[lookup.x .<= -x] += Simulation.getdimension(eco)[1]
-  lookup.x[lookup.x .> maxX] -= Simulation.getdimension(eco)[1]
+  lookup.x[lookup.x .<= -x] .+= Simulation.getdimension(eco)[1]
+  lookup.x[lookup.x .> maxX] .-= Simulation.getdimension(eco)[1]
 
   valid = (lookup.y .> -y) .& (lookup.y .<= maxY)
   for i in eachindex(lookup.x)
