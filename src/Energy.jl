@@ -1,3 +1,6 @@
+using RecipesBase
+using Unitful
+using Unitful.DefaultSymbols
 import Base: eltype, length
 """
     AbstractRequirement{Energy}
@@ -73,7 +76,8 @@ end
 function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
     [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2)]
 end
-
+unitdict= Dict(kJ => "Solar Radiation (kJ)",NoUnits => "Free energy",
+    mm => "Available water (mm)")
 """
     AbstractBudget
 
@@ -88,7 +92,15 @@ end
 function countsubcommunities(ab::AbstractBudget)
   return _countsubcommunities(ab)
 end
-
+@recipe function f(B::AbstractBudget{R}) where R
+    b = ustrip.(B.matrix)
+    seriestype  :=  :heatmap
+    grid --> false
+    aspect_ratio --> 1
+    title --> unitdict[unit(R)]
+    clims --> (minimum(b) * 0.99, maximum(b) * 1.01)
+    b
+end
 """
     SimpleBudget <: AbstractBudget{Float64}
 
@@ -156,6 +168,15 @@ end
 function _getavailableenergy(bud::SolarTimeBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
 end
+@recipe function f(B::SolarTimeBudget, time::Int64)
+    b = ustrip.(B.matrix)
+    seriestype  :=  :heatmap
+    grid --> false
+    aspect_ratio --> 1
+    title --> unitdict[kJ]
+    clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
+    b[:, :, time]
+end
 """
     WaterBudget <: AbstractBudget{typeof(1.0*mm)}
 
@@ -204,6 +225,15 @@ end
 function _getavailableenergy(bud::WaterTimeBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
 end
+@recipe function f(B::WaterTimeBudget, time::Int64)
+    b = ustrip.(B.matrix)
+    seriestype  :=  :heatmap
+    grid --> false
+    aspect_ratio --> 1
+    title --> unitdict[mm]
+    clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
+    b[:, :, time]
+end
 
 mutable struct BudgetCollection2{B1, B2} <: AbstractBudget{Tuple{B1, B2}}
     b1::B1
@@ -223,4 +253,17 @@ end
 
 function _getavailableenergy(bud::BudgetCollection2)
     return [_getavailableenergy(bud.b1), _getavailableenergy(bud.b2)]
+end
+
+@recipe function f(H::BudgetCollection2{B1, B2}) where {B1, B2}
+    x, y = B.b1, B.b2
+    layout := 2
+    @series begin
+        subplot := 1
+        x
+    end
+    @series begin
+        subplot := 2
+        y
+    end
 end
