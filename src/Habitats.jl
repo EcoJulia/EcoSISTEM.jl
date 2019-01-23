@@ -5,10 +5,13 @@ using Unitful
 using Unitful.DefaultSymbols
 using MyUnitful
 using Compat
+using RecipesBase
 using EcoBase
 import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
 cells, xrange, yrange, xmax, ymax, indices, coordinates
 
+unitdict= Dict(K => "Temperature (K)", °C => "Temperature (°C)", mm => "Rainfall (mm)",
+    kJ => "SolarRadiation (kJ)")
 """
     AbstractHabitat
 
@@ -55,11 +58,29 @@ iscontinuous(hab::ContinuousHab{C}) where C = true
 function eltype(hab::ContinuousHab{C}) where C
     return C
 end
+@recipe function f(H::ContinuousHab{C}) where C
+    h = ustrip.(H.matrix)
+    seriestype  :=  :heatmap
+    grid --> false
+    aspect_ratio --> 1
+    title --> unitdict[unit(C)]
+    zlims --> (minimum(h) * 0.9, maximum(h) * 1.1)
+    xrange(H), yrange(H), h
+end
+
 mutable struct ContinuousTimeHab{C <: Number} <: AbstractHabitat{C}
   matrix::Array{C, 3}
   time::Int64
   size::Unitful.Length
   change::HabitatUpdate
+end
+@recipe function f(H::ContinuousTimeHab{C}, time::Int64) where C
+    h = ustrip.(H.matrix)
+    seriestype  :=  :heatmap
+    grid --> false
+    aspect_ratio --> 1
+    title --> unitdict[unit(C)]
+    xrange(H), yrange(H), h[:,:,time]
 end
 
 iscontinuous(hab::ContinuousTimeHab{C}) where C = true
@@ -87,6 +108,15 @@ mutable struct DiscreteHab{D} <: AbstractHabitat{D}
   matrix::Array{D, 2}
   size::Unitful.Length
   change::HabitatUpdate
+end
+@recipe function f(H::DiscreteHab{D}) where D
+    h = ustrip.(H.matrix)
+    seriestype  :=  :heatmap
+    grid --> false
+    aspect_ratio --> 1
+    title --> unitdict[unit(D)]
+    zlims --> (minimum(h) * 0.9, maximum(h) * 1.1)
+    xrange(H), yrange(H), h
 end
 
 
@@ -121,6 +151,18 @@ end
 iscontinuous(hab::HabitatCollection2{H1, H2}) where {H1, H2} = [iscontinuous(hab.h1), iscontinuous(hab.h2)]
 function eltype(hab::HabitatCollection2)
     return [eltype(hab.h1), eltype(hab.h2)]
+end
+@recipe function f(H::HabitatCollection2{H1, H2}) where {H1, H2}
+    x, y = H.h1, H.h2
+    layout := 2
+    @series begin
+        subplot := 1
+        x
+    end
+    @series begin
+        subplot := 2
+        y
+    end
 end
 
 function _resettime!(hab::HabitatCollection2)
