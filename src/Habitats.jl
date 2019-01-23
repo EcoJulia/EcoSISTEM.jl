@@ -9,9 +9,10 @@ using RecipesBase
 using EcoBase
 import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
 cells, xrange, yrange, xmax, ymax, indices, coordinates
+import Plots: px
 
 unitdict= Dict(K => "Temperature (K)", °C => "Temperature (°C)", mm => "Rainfall (mm)",
-    kJ => "SolarRadiation (kJ)")
+    kJ => "Solar Radiation (kJ)")
 """
     AbstractHabitat
 
@@ -62,9 +63,11 @@ end
     h = ustrip.(H.matrix)
     seriestype  :=  :heatmap
     grid --> false
+    right_margin --> 0.1px
+    margin --> 10px
     aspect_ratio --> 1
     title --> unitdict[unit(C)]
-    zlims --> (minimum(h) * 0.9, maximum(h) * 1.1)
+    clims --> (minimum(h) * 0.99, maximum(h) * 1.01)
     xrange(H), yrange(H), h
 end
 
@@ -80,6 +83,7 @@ end
     grid --> false
     aspect_ratio --> 1
     title --> unitdict[unit(C)]
+    clims --> (minimum(h[:,:,time]) * 0.99, maximum(h[:,:,time]) * 1.01)
     xrange(H), yrange(H), h[:,:,time]
 end
 
@@ -115,7 +119,7 @@ end
     grid --> false
     aspect_ratio --> 1
     title --> unitdict[unit(D)]
-    zlims --> (minimum(h) * 0.9, maximum(h) * 1.1)
+    clims --> (minimum(h) * 0.99, maximum(h) * 1.01)
     xrange(H), yrange(H), h
 end
 
@@ -181,6 +185,24 @@ iscontinuous(hab::HabitatCollection3) = [iscontinuous(hab.h1),
 function eltype(hab::HabitatCollection3)
     return [eltype(hab.h1), eltype(hab.h2), eltype(hab.h3)]
 end
+
+@recipe function f(H::HabitatCollection3{H1, H2, H3}) where {H1, H2, H3}
+    x, y, z = H.h1, H.h2, H.h3
+    layout := 3
+    @series begin
+        subplot := 1
+        x
+    end
+    @series begin
+        subplot := 2
+        y
+    end
+    @series begin
+        subplot := 3
+        z
+    end
+end
+
 function _resettime!(hab::HabitatCollection3)
     _resettime!(hab.h1)
     _resettime!(hab.h2)
