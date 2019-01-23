@@ -67,10 +67,10 @@ function getpref(traits::GaussTrait, spp::Int64)
   return traits.mean[spp], traits.var[spp]
 end
 function getpref(traits::TempBin, spp::Int64)
-  return traits.dist[:, spp]
+  return traits.dist[spp, :]
 end
 function getpref(traits::RainBin, spp::Int64)
-  return traits.dist[:, spp]
+  return traits.dist[spp, :]
 end
 function getpref(traits::DiscreteTrait, spp::Int64)
   return traits.val[spp]
