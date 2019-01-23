@@ -309,16 +309,16 @@ function simplehabitat(val::Float64, size::Unitful.Length,
   ContinuousHab(M, size, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
 end
 
-function tempgrad(min::Unitful.Temperature{Float64}, max::Unitful.Temperature{Float64},
+function tempgrad(minT::Unitful.Temperature{Float64}, maxT::Unitful.Temperature{Float64},
   size::Unitful.Length{Float64},
-  dim::Tuple{Int64, Int64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
+  dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
   dim[1] > 1 ||
   error("First dimension should be greater than 1 for temperature gradient")
-  M = Array{typeof(min)}(Compat.undef, dim)
+  M = Array{typeof(minT)}(Compat.undef, dim)
   total = dim[1]
-  temp_range = collect(linspace(min, max, total))
+  temp_range = collect(range(minT, stop = maxT, length = total))
   map(1:total) do seq
-    M[seq, :] = temp_range[seq]
+    M[seq, :] .= temp_range[seq]
   end
-  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(min))}(TempChange, rate))
+  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(minT))}(TempChange, rate))
 end

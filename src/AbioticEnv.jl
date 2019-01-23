@@ -106,12 +106,11 @@ this is used, else one is created with all grid cells active.
 function tempgradAE(minT::Unitful.Temperature{Float64},
   maxT::Unitful.Temperature{Float64},
   dimension::Tuple{Int64, Int64}, maxbud::Union{Float64, Unitful.Quantity{Float64}},
-  area::Unitful.Area{Float64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)},
+  area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝚯*𝐓^-1},
   active::Array{Bool, 2})
-  minT = uconvert(°C, minT); maxT = uconvert(°C, maxT)
   area = uconvert(km^2, area)
   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
-  hab = tempgrad(min, max, gridsquaresize, dimension, rate)
+  hab = tempgrad(minT, maxT, gridsquaresize, dimension, rate)
   bud = zeros(typeof(maxbud), dimension)
   fill!(bud, maxbud/(dimension[1]*dimension[2]))
   checkbud(maxbud) || error("Unrecognised unit in budget")
@@ -122,7 +121,7 @@ end
 function tempgradAE(minT::Unitful.Temperature{Float64},
   maxT::Unitful.Temperature{Float64},
   dimension::Tuple{Int64, Int64}, maxbud::Union{Float64, Unitful.Quantity{Float64}},
-  area::Unitful.Area{Float64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
+  area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
 
   active = fill(true, dimension)
   tempgradAE(minT, maxT, dimension, maxbud, area, rate, active)
