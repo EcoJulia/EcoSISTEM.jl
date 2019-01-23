@@ -9,7 +9,7 @@ using Unitful
 using MyUnitful
 using Missings
 using Compat
-
+using RecipesBase
 
 import Diversity: _calcabundance
 """
@@ -28,6 +28,30 @@ mutable struct Lookup
   pnew::Vector{Float64}
   moves::Vector{Int64}
 end
+
+@recipe function f(::AbstractMovement, eco::Ecosystem, spp::Int64)
+    l = eco.lookup[spp]
+    maxX = maximum(l.x)
+    maxY = maximum(l.y)
+    x, y = round(Int64, maxX/2), round(Int64, maxY/2)
+    # Can't go over maximum dimension
+    valid = findall((l.x .> -x) .& (l.y .> -y) .&
+     (l.x .<= (maxX - x)) .& (l.y .<= (maxY - y)))
+    probs = l.p[valid]
+    probs ./= sum(probs)
+    xs = (l.x[valid] .+ x)
+    ys = (l.y[valid] .+ y)
+    A = zeros(maxX, maxY)
+    for i in eachindex(xs)
+      A[xs[i], ys[i]] = probs[i]
+    end
+    seriestype  :=  :heatmap
+    grid --> false
+    aspect_ratio --> 1
+    title --> "Movement kernel (km)"
+    xrange(gethabitat(eco)), yrange(gethabitat(eco)), A
+end
+
 """
     Cache
 
