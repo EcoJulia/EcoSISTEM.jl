@@ -125,6 +125,9 @@ else
         end
     end
 end
+GLOBAL_typedict["PopGrowth"] = PopGrowth
+GLOBAL_typedict["EqualPop"] = EqualPop
+GLOBAL_typedict["NoGrowth"] = NoGrowth
 """
     equalpop(params::EqualPop, numspp)
 
@@ -143,3 +146,5 @@ end
 function equalpop(params::NoGrowth, numspp)
   return params
 end
+
+GLOBAL_funcdict["equalpop"] = equalpop

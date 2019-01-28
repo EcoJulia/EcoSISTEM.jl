@@ -31,7 +31,7 @@ else
         rate::Quantity{Float64, typeof(𝐓^-1)}
     end
 end
-
+GLOBAL_typedict["SimpleScenario"] = SimpleScenario
 """
     RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -46,7 +46,7 @@ function RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity
     eco.abenv.budget.matrix[smp] = 0.0
     eco.abundances.matrix[:, smp] .= 0.0
 end
-
+GLOBAL_funcdict["RandHabitatLoss!"] = RandHabitatLoss!
 """
     ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -79,6 +79,7 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantit
     eco.abenv.budget.matrix[smp] = 0.0
     eco.abundances.matrix[:, smp] .= 0.0
 end
+GLOBAL_funcdict["ClustHabitatLoss!"] = ClustHabitatLoss!
 
 """
      HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time,
@@ -93,6 +94,8 @@ function HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time, rate::Quanti
     smp = sample(1:pos, howmany)
     eco.abenv.habitat.matrix[smp] = maximum(eco.spplist.traits.val) + 1
 end
+
+GLOBAL_funcdict["HabitatReplacement"] = HabitatReplacement
 
 function SusceptibleDecline(eco::Ecosystem, timestep::Unitful.Time,
             rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -114,7 +117,7 @@ function SusceptibleDecline(eco::Ecosystem, timestep::Unitful.Time,
     end
     end
 end
-
+GLOBAL_funcdict["SusceptibleDecline"] = SusceptibleDecline
 """
     UniformDecline(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -137,7 +140,7 @@ function UniformDecline(eco::Ecosystem, timestep::Unitful.Time,
         end
      end
 end
-
+GLOBAL_funcdict["UniformDecline"] = UniformDecline
 """
     ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -158,7 +161,7 @@ function ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time,
          end
      end
 end
-
+GLOBAL_funcdict["ProportionalDecline"] = ProportionalDecline
 """
     LargeDecline(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -185,7 +188,7 @@ function LargeDecline(eco::Ecosystem, timestep::Unitful.Time,
      end
      end
 end
-
+GLOBAL_funcdict["LargeDecline"] = LargeDecline
 """
     RareDecline(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -208,7 +211,7 @@ function RareDecline(eco::Ecosystem, timestep::Unitful.Time,
      end
      end
 end
-
+GLOBAL_funcdict["RareDecline"] = RareDecline
 """
     CommonDecline(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -231,7 +234,7 @@ function CommonDecline(eco::Ecosystem, timestep::Unitful.Time,
      end
      end
 end
-
+GLOBAL_funcdict["CommonDecline"] = CommonDecline
 """
     Invasive(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -260,174 +263,7 @@ function Invasive(eco::Ecosystem, timestep::Unitful.Time,
         end
     end
 end
-
-
-
-mutable struct DisturbanceScenario <: AbstractScenario
-    fun::Function
-    loss::Quantity{Float64, typeof(𝐓^-1)}
-    level::Float64
-    recovery::Quantity{Float64, typeof(𝐓^-1)}
-    lag::Unitful.Time
-end
-"""
-
-A function to create varying degrees of habitat disturbance
-"""
-function HabitatDisturbance!(eco::Ecosystem, timestep::Unitful.Time, loss::Quantity{Float64, typeof(𝐓^-1)},
-    level::Float64, recovery::Quantity{Float64, typeof(𝐓^-1)}, delay::Unitful.Time,
-    currentstep::Unitful.Time)
-    level < maximum(eco.abenv.budget.matrix) || error("Energy level must be lower than current")
-    if ustrip(recovery) == 0.0
-        HabitatDisturbance!(eco, timestep, loss, level)
-    elseif (ustrip(recovery) > 0.0) & (level == 0.0)
-        HabitatDisturbance!(eco, timestep, loss, recovery)
-    elseif (ustrip(recovery)> 0.0) & (level > 0.0) & lag == 0.0s
-        HabitatDisturbance!(eco, timestep, loss, level, recovery)
-    else
-        HabitatDisturbance!(eco, timestep, loss, delay, recovery, currentstep)
-    end
-end
-
-function HabitatDisturbance!(eco::Ecosystem, timestep::Unitful.Time, loss::Quantity{Float64, typeof(𝐓^-1)},
-    level::Float64)
-    v = uconvert(unit(timestep)^-1, loss)
-    if all(eco.abenv.budget.matrix .> level)
-        pos = find(eco.abenv.active)
-        howmany = jbinom(1, length(pos), ustrip(v))[1]
-        smp = sample(pos, howmany)
-        eco.abenv.budget.matrix[smp] = level
-    else
-        pos = find(eco.abenv.budget.matrix .== level)
-        howmany = jbinom(1, length(find(eco.abenv.active)), ustrip(v))[1]
-        width = size(eco.abenv.budget.matrix,1)
-        x, y = convert_coords(pos, width)
-        neighbours = get_neighbours(eco.abenv.budget.matrix, x, y, 8)
-        smp = sample(1:size(neighbours,1), howmany)
-        i = convert_coords(neighbours[smp, 1], neighbours[smp, 2], width)
-        eco.abenv.budget.matrix[i] = level
-    end
-    # Add in additional start points
-    howmany = jbinom(1, 1, ustrip(v))[1]
-    smp = sample(pos, howmany)
-    eco.abenv.budget.matrix[smp] = level
-end
-
-function HabitatDisturbance!(eco::Ecosystem, timestep::Unitful.Time, loss::Quantity{Float64, typeof(𝐓^-1)},
-    recovery::Quantity{Float64, typeof(𝐓^-1)})
-    # Recovery step
-    # Add recovered energy per timestep
-    eco.abenv.budget.matrix[eco.abenv.budget.matrix .<
-    maximum(eco.abenv.budget.matrix)] =
-    eco.abenv.budget.matrix[eco.abenv.budget.matrix .<
-      maximum(eco.abenv.budget.matrix)] .+ (recovery * timestep)
-    # Make sure to cap any squares that are now above original starting energy
-    eco.abenv.budget.matrix[eco.abenv.budget.matrix .>
-      maximum(eco.abenv.budget.matrix)] = maximum(eco.abenv.budget.matrix)
-
-    # Disturbance step
-    v = uconvert(unit(timestep)^-1, loss)
-    # When starting, pick some grid squares at random
-    if all(eco.abenv.budget.matrix .> 0)
-        pos = find(eco.abenv.active)
-        howmany = jbinom(1, length(pos), ustrip(v))[1]
-        smp = sample(pos, howmany)
-        eco.abenv.budget.matrix[smp] = 0.0
-    # For subsequent steps, only choose from neighbours
-    else
-        pos = find(eco.abenv.budget.matrix .== 0.0)
-        howmany = jbinom(1, length(find(eco.abenv.active)), ustrip(v))[1]
-        width = size(eco.abenv.budget.matrix,1)
-        x, y = convert_coords(pos, width)
-        neighbours = get_neighbours(eco.abenv.budget.matrix, x, y, 8)
-        smp = sample(1:size(neighbours,1), howmany)
-        i = convert_coords(neighbours[smp, 1], neighbours[smp, 2], width)
-        eco.abenv.budget.matrix[i]=0.0
-    end
-    # Add in additional start points
-    howmany = jbinom(1, 1, ustrip(v))[1]
-    smp = sample(pos, howmany)
-    eco.abenv.budget.matrix[smp] = 0.0
-end
-
-function HabitatDisturbance!(eco::Ecosystem, timestep::Unitful.Time, loss::Quantity{Float64, typeof(𝐓^-1)},
-    level::Float64, recovery::Quantity{Float64, typeof(𝐓^-1)})
-    # Recovery step
-    # Add recovered energy per timestep
-    eco.abenv.budget.matrix[eco.abenv.budget.matrix .<
-    maximum(eco.abenv.budget.matrix)] =
-    eco.abenv.budget.matrix[eco.abenv.budget.matrix .<
-      maximum(eco.abenv.budget.matrix)] .+ (recovery * timestep)
-    # Make sure to cap any squares that are now above original starting energy
-    eco.abenv.budget.matrix[eco.abenv.budget.matrix .>
-      maximum(eco.abenv.budget.matrix)] = maximum(eco.abenv.budget.matrix)
-
-    # Disturbance step
-    v = uconvert(unit(timestep)^-1, loss)
-    # When starting, pick some grid squares at random
-    if all(eco.abenv.budget.matrix .> level)
-        pos = find(eco.abenv.active)
-        howmany = jbinom(1, length(pos), ustrip(v))[1]
-        smp = sample(pos, howmany)
-        eco.abenv.budget.matrix[smp] = level
-    # For subsequent steps, only choose from neighbours
-    else
-        pos = find(eco.abenv.budget.matrix .== level)
-        howmany = jbinom(1, length(find(eco.abenv.active)), ustrip(v))[1]
-        width = size(eco.abenv.budget.matrix,1)
-        x, y = convert_coords(pos, width)
-        neighbours = get_neighbours(eco.abenv.budget.matrix, x, y, 8)
-        smp = sample(1:size(neighbours,1), howmany)
-        i = convert_coords(neighbours[smp, 1], neighbours[smp, 2], width)
-        eco.abenv.budget.matrix[i] = level
-    end
-    # Add in additional start points
-    howmany = jbinom(1, 1, ustrip(v))[1]
-    smp = sample(pos, howmany)
-    eco.abenv.budget.matrix[smp] = level
-end
-
-function HabitatDisturbance!(eco::Ecosystem, timestep::Unitful.Time, loss::Quantity{Float64, typeof(𝐓^-1)},
-    delay::Unitful.Time, recovery::Quantity{Float64, typeof(𝐓^-1)},
-    currentstep::Unitful.Time)
-    # Delayed recovery step
-    # Add recovered energy per timestep
-    # Only after delay period
-    if currentstep > delay
-        eco.abenv.budget.matrix[eco.abenv.budget.matrix .<
-        maximum(eco.abenv.budget.matrix)] =
-        eco.abenv.budget.matrix[eco.abenv.budget.matrix .<
-          maximum(eco.abenv.budget.matrix)] .+ (recovery * timestep)
-        # Make sure to cap any squares that are now above original starting energy
-        eco.abenv.budget.matrix[eco.abenv.budget.matrix .>
-          maximum(eco.abenv.budget.matrix)] = maximum(eco.abenv.budget.matrix)
-     end
-
-    # Disturbance step
-    v = uconvert(unit(timestep)^-1, loss)
-    # When starting, pick some grid squares at random
-    if all(eco.abenv.budget.matrix .> level)
-        pos = find(eco.abenv.active)
-        howmany = jbinom(1, length(pos), ustrip(v))[1]
-        smp = sample(pos, howmany)
-        eco.abenv.budget.matrix[smp] = level
-    # For subsequent steps, only choose from neighbours
-    else
-        pos = find(eco.abenv.budget.matrix .== level)
-        howmany = jbinom(1, length(find(eco.abenv.active)), ustrip(v))[1]
-        width = size(eco.abenv.budget.matrix,1)
-        x, y = convert_coords(pos, width)
-        neighbours = get_neighbours(eco.abenv.budget.matrix, x, y, 8)
-        smp = sample(1:size(neighbours,1), howmany)
-        i = convert_coords(neighbours[smp, 1], neighbours[smp, 2], width)
-        eco.abenv.budget.matrix[i] = level
-    end
-    # Add in additional start points
-    howmany = jbinom(1, 1, ustrip(v))[1]
-    smp = sample(pos, howmany)
-    eco.abenv.budget.matrix[smp] = level
-end
-
+GLOBAL_funcdict["Invasive"] = Invasive
 
 function runscenario!(eco::Ecosystem, timestep::Unitful.Time, scenario::SimpleScenario,
     currentstep::Unitful.Time)

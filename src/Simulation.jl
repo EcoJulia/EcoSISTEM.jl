@@ -1,5 +1,22 @@
 module Simulation
 
+struct BiDict{A, B}
+    forward::Dict{A, B}
+    backward::Dict{B, A}
+
+    BiDict{A, B}() where {A, B} = new{A, B}(Dict{A, B}(), Dict{B, A}())
+end
+import Base: getindex, setindex!
+getindex(dict::BiDict{A,B}, elt::A) where {A, B} = dict.forward[elt]
+getindex(dict::BiDict{A,B}, elt::B) where {A, B} = dict.backward[elt]
+function setindex!(dict::BiDict{A,B}, val::B, elt::A)  where {A, B}
+    dict.forward[elt] = val
+    dict.backward[val] = elt
+end
+
+GLOBAL_typedict = BiDict{String, Type}()
+GLOBAL_funcdict = BiDict{String, Function}()
+
 include("Dist.jl")
 export jnorm, jexp, jpois, jbinom, junif, jdir, jmulti, Trapezoid
 

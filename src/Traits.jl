@@ -14,8 +14,19 @@ type `T`.
 mutable struct DiscreteTrait{D} <: AbstractTraits{D}
   val::Array{D, 1}
 end
+iscontinuous(trait::DiscreteTrait) = false
+function eltype(trait::DiscreteTrait{D}) where D
+    return D
+end
 
-function DiscreteEvolve(numTraits::Int64, tree::BinaryTree)
+GLOBAL_typedict["DiscreteTrait"] = DiscreteTrait
+
+"""
+    DiscreteEvolve(numTraits::Int64, tree::BinaryTree)
+
+Function to evolve a discrete switching trait along a BinaryTree, `tree`. Takes in a number of traits, `numTraits` to be switched between and rate to switch between traits, `switch_rate` with default value of 0.5.
+"""
+function DiscreteEvolve(numTraits::Int64, tree::BinaryTree, switch_rate= 0.5)
     # Create traits and assign to tips
     trts = DataFrame(trait1 = collect(1:numTraits))
     assign_traits!(tree, 0.5, trts)
@@ -23,6 +34,11 @@ function DiscreteEvolve(numTraits::Int64, tree::BinaryTree)
     return DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
 end
 
+"""
+    ContinuousEvolve(val::Union{Float64, Unitful.Quantity{Float64}}, var::Union{Float64, Unitful.Quantity{Float64}}, tree::BinaryTree)
+
+Function to evolve a continuous trait along a BinaryTree, `tree` via Brownian motion. Takes in a starting value, `val` and a variance, `var`.
+"""
 function ContinuousEvolve(val::Union{Float64, Unitful.Quantity{Float64}},
     var::Union{Float64, Unitful.Quantity{Float64}}, tree::BinaryTree)
     # Create traits and assign to tips
@@ -35,12 +51,19 @@ function ContinuousEvolve(val::Union{Float64, Unitful.Quantity{Float64}},
     return GaussTrait(newtrts[:start], newtrts[:σ²])
 end
 
-iscontinuous(trait::DiscreteTrait) = false
-function eltype(trait::DiscreteTrait{D}) where D
-    return D
-end
+"""
+    ContinuousTrait{C <: Number} <: AbstractTraits{T}
+
+Abstract trait type that holds information on a single continuous trait for each species, of any Number type `C`.
+"""
 abstract type ContinuousTrait{C <: Number} <: AbstractTraits{C}
 end
+
+"""
+    GaussTrait{C <: Number} <: ContinuousTrait{C}
+
+Trait type that holds Gaussian mean and variance trait information for each species, of any number type `C`.
+"""
 mutable struct GaussTrait{C <: Number} <: ContinuousTrait{C}
   mean::Array{C, 1}
   var::Array{C, 1}
@@ -49,6 +72,13 @@ iscontinuous(trait::GaussTrait{C}) where C = true
 function eltype(trait::GaussTrait{C}) where C
     return C
 end
+GLOBAL_typedict["GaussTrait"] = GaussTrait
+
+"""
+    TempBin{C <: Int} <: ContinuousTrait{C}
+
+Trait type that holds binned temperature preference information created through ClimatePref. Holds an array of counts per temperature band (°C).
+"""
 mutable struct TempBin{C <: Int}<: ContinuousTrait{C}
   dist::Array{C, 2}
 end
@@ -56,6 +86,13 @@ iscontinuous(trait::TempBin{C}) where C = true
 function eltype(trait::TempBin{C}) where C
     return typeof(1.0°C)
 end
+GLOBAL_typedict["TempBin"] = TempBin
+
+"""
+    RainBin{C <: Int} <: ContinuousTrait{C}
+
+Trait type that holds binned rainfall preference information created through ClimatePref. Holds an array of counts per rainfall band (mm).
+"""
 mutable struct RainBin{C <: Int} <: ContinuousTrait{C}
   dist::Array{C, 2}
 end
@@ -63,7 +100,13 @@ iscontinuous(trait::RainBin{C}) where C = true
 function eltype(trait::RainBin{C}) where C
     return typeof(1.0mm)
 end
+GLOBAL_typedict["RainBin"] = RainBin
 
+"""
+    TraitCollection2{T1, T2} <: AbstractTraits{Tuple{T1, T2}}
+
+Trait collection that holds two trait types, `TR1` and `TR2`.
+"""
 mutable struct TraitCollection2{T1, T2} <: AbstractTraits{Tuple{T1, T2}}
     t1::T1
     t2::T2
@@ -74,6 +117,13 @@ iscontinuous(trait::TraitCollection2{T1, T2}) where {T1, T2} =
 function eltype(trait::TraitCollection2)
     return [eltype(trait.t1), eltype(trait.t2)]
 end
+GLOBAL_typedict["TraitCollection2"] = TraitCollection2
+
+"""
+    TraitCollection3{T1, T2, T3} <: AbstractTraits{Tuple{T1, T2, T3}}
+
+Trait collection that holds three trait types, `TR1`, `TR2` and `TR3`.
+"""
 mutable struct TraitCollection3{T1, T2, T3} <: AbstractTraits{Tuple{T1, T2, T3}}
     t1::T1
     t2::T2
@@ -84,3 +134,4 @@ iscontinuous(trait.t2), iscontinuous(trait.t3)]
 function eltype(trait::TraitCollection3)
     return [eltype(trait.t1), eltype(trait.t2), eltype(trait.t3)]
 end
+GLOBAL_typedict["TraitCollection3"] = TraitCollection3

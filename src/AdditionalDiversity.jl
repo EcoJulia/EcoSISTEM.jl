@@ -1,6 +1,10 @@
 using Diversity
 using Phylo
 
+"""
+    makeunique(eco::Ecosystem)
+Function to convert type of similarity in SpeciesList to UniqueTypes, i.e. an identity matrix.
+"""
 function makeunique(eco::Ecosystem)
     sppl = eco.spplist
     spp = length(sppl.names)
@@ -33,7 +37,7 @@ function meta_simpson(eco::Ecosystem, qs::Float64)
     div[:diversity] = 1 ./ div[:diversity]
     return div
 end
-
+GLOBAL_funcdict["meta_simpson"] = meta_simpson
 """
     meta_shannon(eco::Ecosystem, qs::Vector{Float64})
 Function to calculate the Shannon entropy for the entire ecosystem.
@@ -51,7 +55,7 @@ function meta_shannon(eco::Ecosystem, qs::Float64)
     div[:diversity] = log.(div[:diversity])
     return div
 end
-
+GLOBAL_funcdict["meta_shannon"] = meta_shannon
 """
     meta_speciesrichness(eco::Ecosystem, qs::Vector{Float64})
 Function to calculate the species richness for the entire ecosystem.
@@ -65,7 +69,11 @@ function meta_speciesrichness(eco::Ecosystem, qs::Float64)
     eco = makeunique(eco)
     return meta_gamma(eco, 0.0)
 end
-
+GLOBAL_funcdict["meta_speciesrichness"] = meta_speciesrichness
+"""
+    mean_abun(eco::Ecosystem, qs::Vector{Float64})
+Function to calculate the mean arithmetic abundance for the entire ecosystem.
+"""
 function mean_abun(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
     SR = meta_speciesrichness(eco, 0.0)
@@ -77,7 +85,12 @@ end
 function mean_abun(eco::Ecosystem, qs::Float64)
     return mean_abun(eco, [qs])
 end
+GLOBAL_funcdict["mean_abun"] = mean_abun
 
+"""
+    geom_mean_abun(eco::Ecosystem, qs::Vector{Float64})
+Function to calculate the geometric mean abundance for the entire ecosystem.
+"""
 function geom_mean_abun(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
     SR = meta_speciesrichness(eco, 0.0)
@@ -90,7 +103,12 @@ end
 function geom_mean_abun(eco::Ecosystem, qs::Float64)
     return geom_mean_abun(eco, [qs])
 end
+GLOBAL_funcdict["geom_mean_abun"] = geom_mean_abun
 
+"""
+    sorenson(eco::Ecosystem, qs::Vector{Float64})
+Function to calculate the Sorenson similarity for the entire ecosystem.
+"""
 function sorenson(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
     SR = meta_speciesrichness(eco, 0.0)
@@ -104,7 +122,12 @@ end
 function sorenson(eco::Ecosystem, qs::Float64)
     return sorenson(eco, [qs])
 end
+GLOBAL_funcdict["sorenson"] = sorenson
 
+"""
+    pd(eco::Ecosystem, qs::Vector{Float64})
+Function to calculate Faith's phylogenetic diversity (PD) for the entire ecosystem.
+"""
 function pd(eco::Ecosystem, qs::Vector{Float64})
     PD = meta_gamma(eco, 0.0)
     PD[:diversity] = PD[:diversity] / mean(heightstoroot(eco.spplist.types.tree))
@@ -116,3 +139,4 @@ function pd(eco::Ecosystem, qs::Float64)
     PD[:diversity] = PD[:diversity] / mean(heightstoroot(eco.spplist.types.tree))
     return PD
 end
+GLOBAL_funcdict["pd"] = pd

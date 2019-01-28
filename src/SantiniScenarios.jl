@@ -34,9 +34,12 @@ function trait_populate!(ml::GridLandscape, spplist::SpeciesList,
       end
   end
 end
+GLOBAL_funcdict["trait_populate!"] = trait_populate!
 
 function trait_repopulate!(eco::Ecosystem)
   eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
   eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
   trait_populate!(eco.abundances, eco.spplist, eco.abenv)
 end
+
+GLOBAL_funcdict["trait_repopulate!"] = trait_repopulate!

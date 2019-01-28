@@ -167,6 +167,7 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
    return Ecosystem(populate!, spplist, abenv, rel)
 end
+GLOBAL_typedict["Ecosystem"] = Ecosystem
 
 """
     CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
@@ -201,6 +202,8 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
   CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist), typeof(eco.relationship)}(abundances,
   eco.spplist, eco.abenv, eco.ordinariness, eco.relationship, eco.lookup, eco.cache)
 end
+
+GLOBAL_typedict["CachedEcosystem"] = CachedEcosystem
 
 import Diversity.API: _getabundance
 function _getabundance(eco::Ecosystem, input::Bool)

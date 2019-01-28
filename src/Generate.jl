@@ -88,6 +88,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     habitatupdate!(eco, timestep)
     budgetupdate!(eco, timestep)
 end
+GLOBAL_funcdict["update!"] = update!
 
 function energy(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::Int64)
     if typeof(eco.spplist.params) <: NoGrowth
@@ -361,6 +362,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
         end
     end
 end
+GLOBAL_funcdict["populate!"] = populate!
 
 function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AbstractAbiotic)
@@ -384,6 +386,8 @@ function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
      end
    end
 end
+GLOBAL_funcdict["simplepopulate!"] = simplepopulate!
+
 """
     repopulate!(eco::Ecosystem)
 Function to repopulate an ecosystem `eco`, with option for including trait
@@ -394,7 +398,7 @@ function repopulate!(eco::Ecosystem)
   eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
   populate!(eco.abundances, eco.spplist, eco.abenv)
 end
-
+GLOBAL_funcdict["repopulate!"] = repopulate!
 """
     reenergise!(eco::Ecosystem, budget::)
 Function to repopulate an ecosystem `eco`, with option for including trait
@@ -403,3 +407,5 @@ preferences.
 function reenergise!(eco::Ecosystem, budget::Float64, grid::Tuple{Int64, Int64})
     fill!(eco.abenv.budget.matrix, budget/(grid[1]*grid[2]))
 end
+
+GLOBAL_funcdict["reenergise!"] = reenergise!

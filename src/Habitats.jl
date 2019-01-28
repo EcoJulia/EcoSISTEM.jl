@@ -48,6 +48,7 @@ function HabitatUpdate{D}(changefun, rate::DT) where {D <: Unitful.Dimensions, D
     typeof(dimension(rate * 1month)) == D || error("Failed to match types")
     return HabitatUpdate{D, DT}(changefun, rate)
 end
+GLOBAL_typedict["HabitatUpdate"] = HabitatUpdate
 
 mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
   matrix::Array{C, 2}
@@ -70,6 +71,7 @@ end
     clims --> (minimum(h) * 0.99, maximum(h) * 1.01)
     xrange(H), yrange(H), h
 end
+GLOBAL_typedict["ContinuousHab"] = ContinuousHab
 
 mutable struct ContinuousTimeHab{C <: Number} <: AbstractHabitat{C}
   matrix::Array{C, 3}
@@ -102,6 +104,7 @@ end
 function _countsubcommunities(hab::ContinuousTimeHab)
   return length(hab.matrix[:, :, 1])
 end
+GLOBAL_typedict["ContinuousTimeHab"] = ContinuousTimeHab
 
 """
     DiscreteHab <: AbstractHabitat{String}
@@ -131,6 +134,8 @@ end
 function _countsubcommunities(hab::DiscreteHab)
   return length(hab.matrix)
 end
+GLOBAL_typedict["DiscreteHab"] = DiscreteHab
+
 function _getdimension(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
     return (size(hab.matrix, 1), size(hab.matrix, 2))
 end
@@ -168,7 +173,7 @@ end
         y
     end
 end
-
+GLOBAL_typedict["HabitatCollection2"] = HabitatCollection2
 function _resettime!(hab::HabitatCollection2)
     _resettime!(hab.h1)
     _resettime!(hab.h2)
@@ -202,7 +207,7 @@ end
         z
     end
 end
-
+GLOBAL_typedict["HabitatCollection3"] = HabitatCollection3
 function _resettime!(hab::HabitatCollection3)
     _resettime!(hab.h1)
     _resettime!(hab.h2)

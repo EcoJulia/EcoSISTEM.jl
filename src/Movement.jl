@@ -26,11 +26,17 @@ function GaussianKernel(dispersaldist::Unitful.Length{Float64}, numspecies::Int6
   GaussianKernel(fill(dist, numspecies), pthresh)
 end
 
+GLOBAL_typedict["GaussianKernel"] = GaussianKernel
+
 abstract type BoundaryCondition end
 
 mutable struct Cylinder <: BoundaryCondition end
 mutable struct Torus <: BoundaryCondition end
 mutable struct NoBoundary <: BoundaryCondition end
+
+GLOBAL_typedict["Cylinder"] = Cylinder
+GLOBAL_typedict["Torus"] = Torus
+GLOBAL_typedict["NoBoundary"] = NoBoundary
 
 mutable struct BirthOnlyMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
   kernel::K
@@ -39,7 +45,7 @@ end
 function BirthOnlyMovement(kernel::K) where K <: AbstractKernel
     return BirthOnlyMovement{K, NoBoundary}(kernel, NoBoundary())
 end
-
+GLOBAL_typedict["BirthOnlyMovement"] = BirthOnlyMovement
 mutable struct AlwaysMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
   kernel::K
   boundary::B
@@ -47,12 +53,12 @@ end
 function AlwaysMovement(kernel::K) where K <: AbstractKernel
     return AlwaysMovement{K, NoBoundary}(kernel, NoBoundary())
 end
-
+GLOBAL_typedict["AlwaysMovement"] = AlwaysMovement
 
 mutable struct NoMovement{K <: AbstractKernel} <: AbstractMovement
   kernel::K
 end
-
+GLOBAL_typedict["NoMovement"] = NoMovement
 getkernel(m::BirthOnlyMovement) = m.kernel
 getkernel(m::AlwaysMovement) = m.kernel
 getkernel(m::NoMovement) = m.kernel

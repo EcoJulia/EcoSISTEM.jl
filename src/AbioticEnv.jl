@@ -40,6 +40,8 @@ mutable struct GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
     return new{H, B}(habitat, active, budget, names)
   end
 end
+GLOBAL_typedict["GridAbioticEnv"] = GridAbioticEnv
+
 """
     simplenicheAE(numniches::Int64, dimension::Tuple,
                         maxBud::Float64, area::Unitful.Area{Float64},
@@ -75,6 +77,8 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
     fill!(active, true)
     simplenicheAE(numniches, dimension, maxbud, area, active)
 end
+GLOBAL_funcdict["simplenicheAE"] = simplenicheAE
+
 import Diversity.API: _countsubcommunities
 function _countsubcommunities(gae::GridAbioticEnv)
   return countsubcommunities(gae.habitat)
@@ -127,7 +131,9 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
   tempgradAE(minT, maxT, dimension, maxbud, area, rate, active)
  end
 
- function eraAE(era::ERA, maxbud::Union{Float64, Unitful.Quantity{Float64}})
+ GLOBAL_funcdict["tempgradAE"] = tempgradAE
+
+function eraAE(era::ERA, maxbud::Union{Float64, Unitful.Quantity{Float64}})
     dimension = size(era.array)[1:2]
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -141,8 +147,8 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
     checkbud(maxbud) || error("Unrecognised unit in budget")
     budtype = matchdict[unit(maxbud)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
- end
- function eraAE(era::ERA, maxbud::Union{Float64, Unitful.Quantity{Float64}}, active::Array{Bool, 2})
+end
+function eraAE(era::ERA, maxbud::Union{Float64, Unitful.Quantity{Float64}}, active::Array{Bool, 2})
     dimension = size(era.array)[1:2]
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -153,8 +159,8 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
     checkbud(maxbud) || error("Unrecognised unit in budget")
     budtype = matchdict[unit(maxbud)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
- end
- function eraAE(era::ERA, bud::SolarTimeBudget, active::Array{Bool, 2})
+end
+function eraAE(era::ERA, bud::SolarTimeBudget, active::Array{Bool, 2})
     dimension = size(era.array)[1:2]
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -162,8 +168,10 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
         HabitatUpdate{Unitful.Dimensions{()}}(eraChange, 0.0/s))
 
      return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
- end
- function worldclimAE(wc::Worldclim, maxbud::Union{Float64, Unitful.Quantity{Float64}})
+end
+GLOBAL_funcdict["eraAE"] = eraAE
+
+function worldclimAE(wc::Worldclim, maxbud::Union{Float64, Unitful.Quantity{Float64}})
     dimension = size(wc.array)[1:2]
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
 
@@ -177,8 +185,8 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
     checkbud(maxbud) || error("Unrecognised unit in budget")
     budtype = matchdict[unit(maxbud)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
- end
- function worldclimAE(wc::Worldclim, maxbud::Union{Float64, Unitful.Quantity{Float64}}, active::Array{Bool, 2})
+end
+function worldclimAE(wc::Worldclim, maxbud::Union{Float64, Unitful.Quantity{Float64}}, active::Array{Bool, 2})
     dimension = size(wc.array)[1:2]
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -189,8 +197,8 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
     checkbud(maxbud) || error("Unrecognised unit in budget")
     budtype = matchdict[unit(maxbud)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
- end
- function worldclimAE(wc::Worldclim, bud::SolarTimeBudget, active::Array{Bool, 2})
+end
+function worldclimAE(wc::Worldclim, bud::SolarTimeBudget, active::Array{Bool, 2})
     dimension = size(wc.array)[1:2]
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -198,7 +206,9 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
         HabitatUpdate{Unitful.Dimensions{()}}(worldclimChange, 0.0/s))
 
      return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
- end
+end
+
+GLOBAL_funcdict["worldclimAE"] = worldclimAE
  """
      simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
          dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64},
@@ -232,7 +242,7 @@ function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
   active = fill(true, dimension)
   simplehabitatAE(val, dimension, maxbud, area, active)
 end
-
+GLOBAL_funcdict["simplehabitatAE"] = simplehabitatAE
 import EcoBase.getcoords
 
 getcoords(abenv::GridAbioticEnv) = abenv.habitat

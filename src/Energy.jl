@@ -26,7 +26,7 @@ length(req::SimpleRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SimpleRequirement)
     sum(abun .* req.energy)
 end
-
+GLOBAL_typedict["SimpleRequirement"] = SimpleRequirement
 """
     SizeRequirement <: AbstractRequirement{Float64}
 
@@ -41,7 +41,7 @@ length(req::SizeRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SizeRequirement)
     sum(abun .* req.energy)
 end
-
+GLOBAL_typedict["SizeRequirement"] = SizeRequirement
 """
     SolarRequirement <: AbstractRequirement{typeof(1.0*day^-1*kJ*m^-2)}
 
@@ -53,6 +53,7 @@ length(req::SolarRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SolarRequirement)
     sum(abun .* req.energy)
 end
+GLOBAL_typedict["SolarRequirement"] = SolarRequirement
 """
     WaterRequirement <: AbstractRequirement{typeof(1.0*mm)}
 
@@ -64,6 +65,7 @@ length(req::WaterRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::WaterRequirement)
     sum(abun .* req.energy)
 end
+GLOBAL_typedict["WaterRequirement"] = WaterRequirement
 
 mutable struct ReqCollection2{R1, R2} <: AbstractRequirement{Tuple{R1, R2}}
     r1::R1
@@ -76,6 +78,7 @@ end
 function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
     [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2)]
 end
+GLOBAL_typedict["ReqCollection2"] = ReqCollection2
 unitdict= Dict(kJ => "Solar Radiation (kJ)",NoUnits => "Free energy",
     mm => "Available water (mm)")
 """
@@ -120,6 +123,7 @@ end
 function _getavailableenergy(bud::SimpleBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
 end
+GLOBAL_typedict["SimpleBudget"] = SimpleBudget
 
 """
     SolarBudget <: AbstractBudget{typeof(1.0*kJ)}
@@ -144,6 +148,8 @@ end
 function _getavailableenergy(bud::SolarBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
 end
+GLOBAL_typedict["SolarBudget"] = SolarBudget
+
 """
     SolarTimeBudget <: AbstractBudget{typeof(1.0*kJ)}
 
@@ -177,6 +183,8 @@ end
     clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
     b[:, :, time]
 end
+GLOBAL_typedict["SolarTimeBudget"] = SolarTimeBudget
+
 """
     WaterBudget <: AbstractBudget{typeof(1.0*mm)}
 
@@ -200,6 +208,8 @@ end
 function _getavailableenergy(bud::WaterBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
 end
+GLOBAL_typedict["WaterBudget"] = WaterBudget
+
 """
     WaterTimeBudget <: AbstractBudget{typeof(1.0*mm)}
 
@@ -234,6 +244,7 @@ end
     clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
     b[:, :, time]
 end
+GLOBAL_typedict["WaterTimeBudget"] = WaterTimeBudget
 
 mutable struct BudgetCollection2{B1, B2} <: AbstractBudget{Tuple{B1, B2}}
     b1::B1
@@ -267,3 +278,5 @@ end
         y
     end
 end
+
+GLOBAL_typedict["BudgetCollection2"] = BudgetCollection2
