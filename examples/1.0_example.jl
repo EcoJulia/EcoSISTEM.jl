@@ -126,7 +126,7 @@ Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
  numSpecies=3
 
  # Set up how much energy each species consumes
- energy_vec = SolarRequirement(fill(2*day^-1*kJ*m^-2, numSpecies))
+ energy_vec = SolarRequirement(fill(2.0*kJ, numSpecies))
 
  # Set probabilities
  birth = 0.6/month

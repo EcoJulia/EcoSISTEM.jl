@@ -16,7 +16,7 @@ Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
 numSpecies=1
 
 # Set up how much energy each species consumes
-energy_vec = SolarRequirement(repmat([2*day^-1*kJ*m^-2], numSpecies))
+energy_vec = SolarRequirement(fill(2000.0*kJ, numSpecies))
 
 # Set probabilities
 birth = 0.6/month
@@ -53,6 +53,7 @@ tempax4 = extractERA(dir4, "t2m", collect(361month:1month:38year))
 dir = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/wc"
 srad = extractworldclim(joinpath(dir, "wc2.0_5m_srad"))
 srad = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3}, srad.array[-10° .. 60°, 35° .. 80°,:])
+srad = uconvert.(kJ, srad * month * (area/(grid[1]*grid[2])))
 srad = SolarTimeBudget(srad, 1)
 active = Array{Bool, 2}(.!isnan.(eu))
 
@@ -64,10 +65,10 @@ movement = BirthOnlyMovement(kernel)
 
 native = repmat([true], numSpecies)
 traits = Array(transpose(Temp[1,:]))
-traits = TempBin{typeof(1.0°C)}(traits)
+traits = TempBin(traits)
 abun = Multinomial(individuals, numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-movement, param, native)
+sppl = SpeciesList(numSpecies, traits, rand(abun), energy_vec,
+    movement, param, native)
 abenv = eraAE(testtemp, srad, active)
 #abenv = tempgradAE(-10.0°C, 30.0°C,  grid, totalK, area, 0.0°C/month, active)
 #abenv.habitat.matrix = transpose(tempax1.array[-10° .. 60°, 35° .. 80°, 1])
@@ -99,7 +100,7 @@ bud = ustrip.(eco.abenv.budget.matrix)
 @rput bud
 R"par(mfrow=c(1,2));library(fields); library(viridis)
 image.plot(t(hab[,,120]), main = 'Habitat', col=viridis(50))
-image.plot(t(abunmat), main = 'Abundances', col=magma(50))
+image.plot(t(abunmat[,,120]), main = 'Abundances', col=magma(50))
    "
   R"pdf(file='plots/gbif_sim_era_sol.pdf', paper = 'a4r', height= 8.27, width=11.69 )
   library(rgdal)
