@@ -216,10 +216,10 @@ function calc_lookup_moves(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::Ec
   maxX = Simulation.getdimension(eco)[1] - x
   maxY = Simulation.getdimension(eco)[2] - y
   # Can't go over maximum dimension
-  lookup.x[lookup.x .<= -x] += Simulation.getdimension(eco)[1]
-  lookup.y[lookup.y .<= -y] += Simulation.getdimension(eco)[2]
-  lookup.x[lookup.x .> maxX] -= Simulation.getdimension(eco)[1]
-  lookup.y[lookup.y .> maxX] -= Simulation.getdimension(eco)[2]
+  lookup.x[lookup.x .<= -x] .= mod.(lookup.x[lookup.x .<= -x], Simulation.getdimension(eco)[1])
+  lookup.y[lookup.y .<= -y] .= mod.(lookup.y[lookup.y .<= -y], Simulation.getdimension(eco)[2])
+  lookup.x[lookup.x .> maxX] .= mod.(lookup.x[lookup.x .> maxX], Simulation.getdimension(eco)[1])
+  lookup.y[lookup.y .> maxY] .= mod.(lookup.y[lookup.y .> maxY], Simulation.getdimension(eco)[2])
 
   valid = (lookup.x .> -x) .& (lookup.y .> -y) .&
    (lookup.x .<= maxX) .& (lookup.y .<= maxY)
@@ -398,13 +398,29 @@ function repopulate!(eco::Ecosystem)
   eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
   populate!(eco.abundances, eco.spplist, eco.abenv)
 end
+function repopulate!(eco::Ecosystem, abun::Int64)
+    dim = _getdimension(eco.abenv.habitat)
+    len = dim[1] * dim[2]
+    grid = collect(1:len)
+    # Set up copy of budget
+    b = reshape(copy(_getbudget(eco.abenv.budget)), size(grid))
+    units = unit(b[1])
+    activity = reshape(copy(eco.abenv.active), size(grid))
+    b[.!activity] .= 0.0 * units
+    pos = sample(grid[b .> (0 * units)], abun)
+    # Add individual to this location
+    map(pos) do p
+        eco.abundances.matrix[end, p] += 1
+    end
+end
+
 GLOBAL_funcdict["repopulate!"] = repopulate!
 """
     reenergise!(eco::Ecosystem, budget::)
 Function to repopulate an ecosystem `eco`, with option for including trait
 preferences.
 """
-function reenergise!(eco::Ecosystem, budget::Float64, grid::Tuple{Int64, Int64})
+function reenergise!(eco::Ecosystem, budget::Union{Float64, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
     fill!(eco.abenv.budget.matrix, budget/(grid[1]*grid[2]))
 end
 
