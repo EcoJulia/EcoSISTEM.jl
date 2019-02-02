@@ -269,8 +269,3 @@ function runscenario!(eco::Ecosystem, timestep::Unitful.Time, scenario::SimpleSc
     currentstep::Unitful.Time)
     scenario.fun(eco, timestep, scenario.rate)
 end
-function runscenario!(eco::Ecosystem, timestep::Unitful.Time, scenario::DisturbanceScenario,
-    currentstep::Unitful.Time)
-    scenario.fun(eco, timestep, scenario.loss, scenario.level, scenario.recovery,
-    scenario.lag, currentstep)
-end
