@@ -22,7 +22,9 @@ A simple energy requirement is a single float for each species.
 mutable struct SimpleRequirement <: AbstractRequirement{Float64}
   energy::Vector{Float64}
 end
+
 length(req::SimpleRequirement) = length(req.energy)
+
 function _getenergyusage(abun::Vector{Int64}, req::SimpleRequirement)
     sum(abun .* req.energy)
 end
@@ -110,8 +112,9 @@ end
 This budget type has a matrix of floats, representing the energy budget of each
 subcommunity in the abiotic environment.
 """
-mutable struct SimpleBudget <: AbstractBudget{Float64}
-  matrix::Matrix{Float64}
+mutable struct SimpleBudget <: AbstractBudget{Unitful.Quantity{Float64, 𝐋^-2}}
+  matrix::Matrix{Unitful.Quantity{Float64, 𝐋^-2}}
+  
 end
 
 function _countsubcommunities(bud::SimpleBudget)
