@@ -29,28 +29,6 @@ mutable struct Lookup
   moves::Vector{Int64}
 end
 
-@recipe function f(::AbstractMovement, eco::Ecosystem, spp::Int64)
-    l = eco.lookup[spp]
-    maxX = maximum(l.x)
-    maxY = maximum(l.y)
-    x, y = round(Int64, maxX/2), round(Int64, maxY/2)
-    # Can't go over maximum dimension
-    valid = findall((l.x .> -x) .& (l.y .> -y) .&
-     (l.x .<= (maxX - x)) .& (l.y .<= (maxY - y)))
-    probs = l.p[valid]
-    probs ./= sum(probs)
-    xs = (l.x[valid] .+ x)
-    ys = (l.y[valid] .+ y)
-    A = zeros(maxX, maxY)
-    for i in eachindex(xs)
-      A[xs[i], ys[i]] = probs[i]
-    end
-    seriestype  :=  :heatmap
-    grid --> false
-    aspect_ratio --> 1
-    title --> "Movement kernel (km)"
-    xrange(gethabitat(eco)), yrange(gethabitat(eco)), A
-end
 
 """
     Cache
@@ -139,6 +117,29 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
     new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
   end
 end
+
+@recipe function f(::AbstractMovement, eco::Ecosystem, spp::Int64)
+    l = eco.lookup[spp]
+    maxX = maximum(l.x)
+    maxY = maximum(l.y)
+    x, y = round(Int64, maxX/2), round(Int64, maxY/2)
+    # Can't go over maximum dimension
+    valid = findall((l.x .> -x) .& (l.y .> -y) .&
+     (l.x .<= (maxX - x)) .& (l.y .<= (maxY - y)))
+    probs = l.p[valid]
+    probs ./= sum(probs)
+    xs = (l.x[valid] .+ x)
+    ys = (l.y[valid] .+ y)
+    A = zeros(maxX, maxY)
+    for i in eachindex(xs)
+      A[xs[i], ys[i]] .= probs[i]
+    end
+    seriestype  :=  :heatmap
+    grid --> false
+    aspect_ratio --> 1
+    title --> "Movement kernel (km)"
+    xrange(gethabitat(eco)), yrange(gethabitat(eco)), A
+end
 """
     Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
         rel::AbstractTraitRelationship)
@@ -168,6 +169,37 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    return Ecosystem(populate!, spplist, abenv, rel)
 end
 GLOBAL_typedict["Ecosystem"] = Ecosystem
+
+function addspecies!(eco::Ecosystem, abun::Int64)
+    eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(size(eco.abundances.matrix, 2)))
+    eco.abundances.grid = reshape(eco.abundances.matrix, (counttypes(eco.spplist, true)+1, _getdimension(eco.abenv.habitat)...))
+    repopulate!(eco, abun)
+    push!(eco.spplist.names, string.(counttypes(eco.spplist, true)+1))
+    append!(eco.spplist.abun, abun)
+    append!(eco.spplist.native, true)
+    addtraits!(eco.spplist.traits)
+    addmovement!(eco.spplist.movement)
+    addparams!(eco.spplist.params)
+    addrequirement!(eco.spplist.requirement)
+    addtypes!(eco.spplist.types)
+end
+function addtraits!(tr::GaussTrait)
+    append!(tr.mean, tr.mean[end])
+    append!(tr.var, tr.var[end])
+end
+
+addmovement!(mv::AbstractMovement) = append!(mv.kernel.dist, mv.kernel.dist[end])
+
+function addparams!(pr::AbstractParams)
+    append!(pr.birth, pr.birth[end])
+    append!(pr.death, pr.death[end])
+end
+
+addrequirement!(rq::AbstractRequirement) = append!(rq.energy, rq.energy[end])
+
+function addtypes!(ut::UniqueTypes)
+    ut = UniqueTypes(ut.num+1)
+end
 
 """
     CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
