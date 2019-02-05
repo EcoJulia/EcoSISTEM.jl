@@ -108,6 +108,16 @@ abun = runsim(2000months, 100)
 plot(abun[1,1,:,:], ylabel = "Abundance", xlabel = "Months", label="", grid = false, color = :black, linealpha = 0.1)
 png("plots/1species_1square.png")
 
+
+
+using Profile
+using ProfileView
+eco = create_eco(numSpecies, grd, totalK, req, individuals)
+runsim(eco, 1month, 1)  # run once to trigger compilation
+Profile.clear()
+@profile runsim(eco, 2000months, 100)
+ProfileView.view()
+
 using Diversity
 using MyUnitful
 using ClimatePref
