@@ -50,18 +50,24 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     spp = size(eco.abundances.grid,1)
     net_migration = eco.cache.netmigration
     params = eco.spplist.params
-      # Loop through grid squares
-      for i in 1:dims
-          # Get the overall energy budget of that square
-          width = getdimension(eco)[1]
-          (x, y) = convert_coords(i, width)
-          if (eco.abenv.active[x, y] && sum(eco.abundances.matrix[:, i])!=0)
-             birth_energy, death_energy = energy(eco, eco.abenv.budget, i,
-              spp)
-              currentabun = eco.abundances.matrix[:, i]
-              # Loop through species in chosen square
-              for j in 1:spp
-
+    width = getdimension(eco)[1]
+    # Loop through grid squares
+    #birth_energy = Array{Float64, 2}(undef, dims)
+    #death_energy = Vector{Float64}(undef, dims)
+    #@parallel for i in 1:dims
+      # Get the overall energy budget of that square
+    #  birth_energy, death_energy = energy(eco, eco.abenv.budget, i,
+    #      spp)
+    #end
+    # Loop through species in chosen square
+    Threads.@threads for j in 1:spp
+    # Loop through grid squares
+        for i in 1:dims
+            (x, y) = convert_coords(i, width)
+            birth_energy, death_energy = energy(eco, eco.abenv.budget, i,
+                spp)
+            if (eco.abenv.active[x, y] && sum(eco.abundances.matrix[:, i])!=0)
+                currentabun = eco.abundances.matrix[:, i]
                 # Calculate effective rates
                 birthprob = params.birth[j] * timestep * birth_energy[j]
                 deathprob = params.death[j] * timestep * death_energy[j]
