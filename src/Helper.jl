@@ -59,6 +59,7 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix
     end
+    print(".")
   end
   storage
 end

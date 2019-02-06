@@ -108,6 +108,21 @@ abun = runsim(2000months, 100)
 plot(abun[1,1,:,:], ylabel = "Abundance", xlabel = "Months", label="", grid = false, color = :black, linealpha = 0.1)
 png("plots/1species_1square.png")
 
+numSpecies = 8; grd = (1,1); totalK = 250000.0kJ/km^2; area = 4.0km^2; req= 20.0kJ; individuals=10000
+eco = create_eco(numSpecies, grd, area, totalK, req, individuals)
+abun = runsim(eco, 2000months, 100)
+plot_abun(abun, 10)
+
+for i in [1, 2, 4, 8, 16]
+    numSpecies = i; grd = (1,1); totalK = 250000.0kJ/km^2; area = 4.0km^2; req= 20.0kJ; individuals=10000
+    eco = create_eco(numSpecies, grd, area, totalK, req, individuals)
+    abun = runsim(eco, 2000months, 10)
+    if i == 1
+        display(plot([1/i], [mean(abun[:,:,1500:end,:])], seriestype = :scatter, label = "", ylim = (0, 5*10^4), xlim = (0,1.1), grid = false, ylab = "Average abundance at eqm", xlab= "1 / number of species"))
+    else
+        display(plot!([1/i], [mean(abun[:,:,1500:end,:])], seriestype = :scatter, label = ""))
+    end
+end
 
 
 using Profile
