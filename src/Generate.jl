@@ -22,7 +22,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     update_energy_usage!(eco)
 
     # Loop through species in chosen square
-    Threads.@threads for j in 1:spp
+    for j in 1:spp
     # Loop through grid squares
         for i in 1:dims
             (x, y) = convert_coords(i, width)
@@ -62,7 +62,7 @@ function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req, B, C, D}, 
     # Get energy budgets of species in square
     ϵ̄ = eco.spplist.requirement.energy
     # Loop through grid squares
-    Threads.@threads for i in 1:size(eco.abundances.matrix, 2)
+    for i in 1:size(eco.abundances.matrix, 2)
         eco.cache.totalE[i, 1] = ((@view eco.abundances.matrix[:, i]) ⋅ ϵ̄) * eco.spplist.requirement.exchange_rate
     end
     eco.cache.valid = true
@@ -73,7 +73,7 @@ function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req}}) where {A
     ϵ̄1 = eco.spplist.requirement.r1.energy
     ϵ̄2 = eco.spplist.requirement.r2.energy
 
-    Threads.@threads for i in 1:size(eco.abundances.matrix, 2)
+    for i in 1:size(eco.abundances.matrix, 2)
         currentabun = @view eco.abundances.matrix[:, i]
         eco.cache.totalE[i, 1] = (currentabun ⋅ ϵ̄1) * eco.spplist.requirement.r1.exchange_rate
         eco.cache.totalE[i, 2] = (currentabun ⋅ ϵ̄2) * eco.spplist.requirement.r2.exchange_rate
