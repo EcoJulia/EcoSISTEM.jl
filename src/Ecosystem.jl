@@ -38,7 +38,10 @@ update! function, `netmigration`.
 """
 mutable struct Cache
   netmigration::Array{Int64, 2}
+  totalE::Matrix{Float64}
+  valid::Bool
 end
+
 
 Lookup(df::DataFrame) = Lookup(df[:X], df[:Y], df[:Prob],
 zeros(Float64, nrow(df)),zeros(Int64, nrow(df)))
@@ -147,8 +150,8 @@ end
 Function to create an `Ecosystem` given a species list, an abiotic environment
 and trait relationship.
 """
-function Ecosystem(popfun::Function, spplist::SpeciesList, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship)
+function Ecosystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
+   rel::AbstractTraitRelationship) where {T, Req}
 
   # Check there is enough energy to support number of individuals at set up
   all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
@@ -160,8 +163,9 @@ function Ecosystem(popfun::Function, spplist::SpeciesList, abenv::GridAbioticEnv
   # Create lookup table of all moves and their probabilities
   lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
   nm = zeros(Int64, size(ml.matrix))
+  totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
   Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
-  missing, rel, lookup_tab, Cache(nm))
+  missing, rel, lookup_tab, Cache(nm, totalE, false))
 end
 
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
@@ -291,8 +295,10 @@ function _getscale(eco::Ecosystem)
     return _calcabundance(_gettypes(eco), getabundance(eco, false))[2]
 end
 
-function resetcache!(eco::Union{Ecosystem, CachedEcosystem})
+function invalidatecaches!(eco::Union{Ecosystem, CachedEcosystem})
     eco.ordinariness = missing
+    eco.cache.netmigration .= 0
+    eco.cache.valid = false
 end
 
 """
