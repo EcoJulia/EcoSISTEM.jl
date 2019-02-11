@@ -160,7 +160,7 @@ function calc_lookup_moves(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, ec
   lookup.pnew[valid] = lookup.p[valid]
   lookup.pnew ./= sum(lookup.pnew)
   multinom = Multinomial(abun, lookup.pnew)
-  draw = rand(multinom)
+  draw = rand(eco.abundances.seed[Threads.threadid()], multinom)
   lookup.moves .= draw
 end
 
@@ -182,7 +182,7 @@ function calc_lookup_moves(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco:
   lookup.pnew[.!valid] .= 0.0
   lookup.pnew[valid] = lookup.p[valid]
   lookup.pnew ./= sum(lookup.pnew)
-  multinom = Multinomial(abun, lookup.pnew)
+  multinom = Multinomial(eco.abundances.seed[Threads.threadid()], abun, lookup.pnew)
   draw = rand(multinom)
   lookup.moves .= draw
 end
@@ -192,24 +192,16 @@ function calc_lookup_moves(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::Ec
   maxX = Simulation.getdimension(eco)[1] - x
   maxY = Simulation.getdimension(eco)[2] - y
   # Can't go over maximum dimension
-  lookup.x[lookup.x .<= -x] .= mod.(lookup.x[lookup.x .<= -x], Simulation.getdimension(eco)[1])
-  lookup.y[lookup.y .<= -y] .= mod.(lookup.y[lookup.y .<= -y], Simulation.getdimension(eco)[2])
-  lookup.x[lookup.x .> maxX] .= mod.(lookup.x[lookup.x .> maxX], Simulation.getdimension(eco)[1])
-  lookup.y[lookup.y .> maxY] .= mod.(lookup.y[lookup.y .> maxY], Simulation.getdimension(eco)[2])
+  for i in eachindex(x)
+      newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, Simulation.getdimension(eco)[1]) + 1
+      newy =  -y < lookup.y[i] <= maxY ? lookup.y[i] + y : mod(lookup.y[i] + y - 1, Simulation.getdimension(eco)[2]) + 1
 
-  valid = (lookup.x .> -x) .& (lookup.y .> -y) .&
-   (lookup.x .<= maxX) .& (lookup.y .<= maxY)
-  for i in eachindex(valid)
-      if valid[i]
-          valid[i] = valid[i] & (eco.abenv.active[lookup.x[i] .+ x,
-          lookup.y[i] .+ y])
-      end
+      valid = eco.abenv.active[newx, newy]
+
+      lookup.pnew[i] = valid ? lookup.p[i] : 0.0
   end
-
-  lookup.pnew[.!valid] .= 0.0
-  lookup.pnew[valid] = lookup.p[valid]
   lookup.pnew ./= sum(lookup.pnew)
-  multinom = Multinomial(abun, lookup.pnew)
+  multinom = Multinomial(eco.abundances.seed[Threads.threadid()], abun, lookup.pnew)
   draw = rand(multinom)
   lookup.moves .= draw
 end
@@ -224,19 +216,17 @@ of the entire population
 """
 function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   grd::Array{Int64, 2}, ::Int64)
-
   width = getdimension(eco)[1]
   (x, y) = convert_coords(i, width)
   full_abun = eco.abundances.matrix[spp, i]
   calc_lookup_moves(getboundary(eco.spplist.movement), x, y, spp, eco, full_abun)
   # Lose moves from current grid square
-  grd[spp, i] = grd[spp, i] - sum(eco.lookup[spp].moves)
-  valid = eco.lookup[spp].pnew .> 0.0
+  grd[spp, i] -= full_abun
   # Map moves to location in grid
-  mov = eco.lookup[spp].moves[valid]
-  locs = convert_coords((eco.lookup[spp].x .+ x), (eco.lookup[spp].y .+ y), width)[valid]
-  for i in eachindex(locs)
-     grd[spp, locs[i]] += mov[i]
+  mov = eco.lookup[spp].moves
+  for i in eachindex(eco.lookup[spp].x)
+      loc = convert_coords(eco.lookup[spp].x[i] + x, eco.lookup[spp].y[i] + y, width)
+      grd[spp, loc] += mov[i]
   end
   return eco
 end
@@ -255,22 +245,21 @@ function move!(eco::Ecosystem, ::NoMovement, i::Int64, spp::Int64,
 end
 
 
-    function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
-        grd::Array{Int64, 2}, births::Int64)
-      width = getdimension(eco)[1]
-      (x, y) = convert_coords(i, width)
-      table = calc_lookup_moves(getboundary(eco.spplist.movement), x, y, spp, eco, births)
-      # Lose moves from current grid square
-      grd[spp, i] = grd[spp, i] - sum(eco.lookup[spp].moves)
-      valid = eco.lookup[spp].pnew .> 0.0
-      # Map moves to location in grid
-      mov = eco.lookup[spp].moves[valid]
-      locs = convert_coords((eco.lookup[spp].x .+ x), (eco.lookup[spp].y .+ y), width)[valid]
-      for i in eachindex(locs)
-         grd[spp, locs[i]] += mov[i]
-      end
-      return eco
-    end
+function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
+    grd::Array{Int64, 2}, births::Int64)
+  width = getdimension(eco)[1]
+  (x, y) = convert_coords(i, width)
+  table = calc_lookup_moves(getboundary(eco.spplist.movement), x, y, spp, eco, births)
+  # Lose moves from current grid square
+  grd[spp, i] -= births
+  # Map moves to location in grid
+  mov = eco.lookup[spp].moves
+  for i in eachindex(eco.lookup[spp].x)
+      loc = convert_coords(eco.lookup[spp].x[i] + x, eco.lookup[spp].y[i] + y, width)
+      grd[spp, loc] += mov[i]
+  end
+  return eco
+end
 
 
 
@@ -299,7 +288,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
         # Loop through individuals
           while abun>0
             # Randomly choose position on grid (weighted)
-            pos = sample(grid[b .> (0 * units)])
+            pos = rand(ml.seed[Threads.threadid()], grid[b .> (0 * units)])
           # Add individual to this location
           ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
           abun = abun .- 1
@@ -329,7 +318,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
         # Loop through individuals
         while abun>0
             # Randomly choose position on grid (weighted)
-            pos = sample(grid[(b1 .> (0 * units1)) .& (b2 .> (0 * units2))])
+            pos = rand(ml.seed[Threads.threadid()], grid[(b1 .> (0 * units1)) .& (b2 .> (0 * units2))])
             # Add individual to this location
             ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
             abun = abun .- 1
@@ -356,7 +345,7 @@ function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
       if spplist.native[i]
         # Get abundance of species
         abun = spplist.abun[i]
-        pos = sample(grid[b .> (0 * units)], abun)
+        pos = rand(ml.seed[Threads.threadid()], grid[b .> (0 * units)], abun)
         # Add individual to this location
         ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
      end
@@ -383,7 +372,7 @@ function repopulate!(eco::Ecosystem, abun::Int64)
     units = unit(b[1])
     activity = reshape(copy(eco.abenv.active), size(grid))
     b[.!activity] .= 0.0 * units
-    pos = sample(grid[b .> (0 * units)], abun)
+    pos = rand(eco.abundances.seed[Threads.threadid()], grid[b .> (0 * units)], abun)
     # Add individual to this location
     map(pos) do p
         eco.abundances.matrix[end, p] += 1
