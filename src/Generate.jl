@@ -1,41 +1,8 @@
 using StatsBase
 using Query
 using Compat
+using LinearAlgebra
 
-"""
-    get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
-
-Function to get the neighbours of a grid square in a matrix in 4 or 8 directions
-"""
-function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
-  # Calculate dimensions
-  dims=size(mat)
-  x_coord <= dims[1] && y_coord <= dims[2] || error("Coordinates outside grid")
-  # Include 4 directions
-  if chess==4
-    neighbour_vec=[x_coord y_coord-1; x_coord y_coord+1; x_coord-1 y_coord;
-     x_coord+1 y_coord]
-  # Include 8 directions
-  elseif chess==8
-    neighbour_vec=[x_coord y_coord-1; x_coord y_coord+1; x_coord-1 y_coord;
-     x_coord+1 y_coord; x_coord-1 y_coord-1; x_coord-1 y_coord+1;
-      x_coord+1 y_coord-1; x_coord+1 y_coord+1]
-  else
-    # Give error if other number chosen than 4 or 8
-    error("Can only calculate neighbours in 4 or 8 directions")
-  end
-  # Remove answers outside of the dimensions of the matrix
-  remove=vcat(mapslices(all, [neighbour_vec.>=1 neighbour_vec[:,1].<=
-    dims[1] neighbour_vec[:,2].<=dims[2]], dims=2)...)
-  neighbour_vec=neighbour_vec[remove,:]
-  neighbour_vec
-end
-function get_neighbours(mat::Matrix, x_coord::Array{Int64,1},
-     y_coord::Array{Int64,1}, chess::Int64=4)
-     neighbours  =map(n -> get_neighbours(mat, x_coord[n], y_coord[n], chess),
-      eachindex(x_coord))
-      return vcat(neighbours...)
-end
 """
     update!(eco::Ecosystem,  birth::Float64, death::Float64,
        l::Float64, s::Float64, timestep::Real)
@@ -48,17 +15,12 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     # Calculate dimenions of habitat and number of species
     dims = _countsubcommunities(eco.abenv.habitat)
     spp = size(eco.abundances.grid,1)
-    net_migration = eco.cache.netmigration
     params = eco.spplist.params
     width = getdimension(eco)[1]
-    # Loop through grid squares
-    #birth_energy = Array{Float64, 2}(undef, dims)
-    #death_energy = Vector{Float64}(undef, dims)
-    #@parallel for i in 1:dims
-      # Get the overall energy budget of that square
-    #  birth_energy, death_energy = energy(eco, eco.abenv.budget, i,
-    #      spp)
-    #end
+
+    # Set the overall energy budget of that square
+    update_energy_usage!(eco)
+
     # Loop through species in chosen square
     Threads.@threads for j in 1:spp
     # Loop through grid squares
@@ -66,90 +28,98 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
             (x, y) = convert_coords(i, width)
             birth_energy, death_energy = energy(eco, eco.abenv.budget, i,
                 spp)
-            if (eco.abenv.active[x, y] && sum(eco.abundances.matrix[:, i])!=0)
-                currentabun = eco.abundances.matrix[:, i]
+            if eco.abenv.active[x, y] && any((@view eco.abundances.matrix[:, i]) .≠ 0)
+                currentabun = @view eco.abundances.matrix[:, i]
                 # Calculate effective rates
-                birthprob = params.birth[j] * timestep * birth_energy[j]
-                deathprob = params.death[j] * timestep * death_energy[j]
+                birthprob = params.birth[j] * timestep * birth_energy
+                deathprob = params.death[j] * timestep * death_energy
 
                 # Put probabilities into 0 - 1
                 newbirthprob = 1.0 - exp(-birthprob)
                 newdeathprob = 1.0 - exp(-deathprob)
 
                 # Calculate how many births and deaths
-                births = jbinom(1, currentabun[j], newbirthprob)[1]
-                deaths = jbinom(1, currentabun[j], newdeathprob)[1]
+                births = rand(eco.abundances.seed[Threads.threadid()], Binomial(currentabun[j], newbirthprob))
+                deaths = rand(eco.abundances.seed[Threads.threadid()], Binomial(currentabun[j], newdeathprob))
                 # Update population
                 eco.abundances.matrix[j, i] += (births - deaths)
 
                 # Perform gaussian movement
-                move!(eco, eco.spplist.movement, i, j, net_migration, births)
+                move!(eco, eco.spplist.movement, i, j, eco.cache.netmigration, births)
             end
         end
     end
-    eco.abundances.matrix .= eco.abundances.matrix .+ net_migration
-    eco.cache.netmigration .= 0
-    resetcache!(eco)
+    eco.abundances.matrix .+= eco.cache.netmigration
+    invalidatecaches!(eco)
     # Update environment
     habitatupdate!(eco, timestep)
     budgetupdate!(eco, timestep)
 end
 GLOBAL_funcdict["update!"] = update!
 
+function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A,B, C, D, E, Tr, Req <: Abstract1Requirement}
+    !eco.cache.valid || return true
+    # Get energy budgets of species in square
+    ϵ̄ = eco.spplist.requirement.energy
+    # Loop through grid squares
+    Threads.@threads for i in 1:size(eco.abundances.matrix, 2)
+        eco.cache.totalE[i, 1] = ((@view eco.abundances.matrix[:, i]) ⋅ ϵ̄) * eco.spplist.requirement.exchange_rate
+    end
+    eco.cache.valid = true
+end
+function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req}}) where {A, Tr, Req <: Abstract2Requirements}
+    !eco.cache.valid || return true
+    # Get energy budgets of species in square
+    ϵ̄1 = eco.spplist.requirement.r1.energy
+    ϵ̄2 = eco.spplist.requirement.r2.energy
+
+    Threads.@threads for i in 1:size(eco.abundances.matrix, 2)
+        currentabun = @view eco.abundances.matrix[:, i]
+        eco.cache.totalE[i, 1] = (currentabun ⋅ ϵ̄1) * eco.spplist.requirement.r1.exchange_rate
+        eco.cache.totalE[i, 2] = (currentabun ⋅ ϵ̄2) * eco.spplist.requirement.r2.exchange_rate
+    end
+    eco.cache.valid = true
+end
+
 function energy(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::Int64)
     if typeof(eco.spplist.params) <: NoGrowth
-        birth_energy = Vector{Float64}(spp); death_energy = Vector{Float64}(spp)
-        fill!(birth_energy, 0.0); fill!(death_energy, 0.0)
+        return 0.0, 0.0
     else
         width = getdimension(eco)[1]
         (x, y) = convert_coords(i, width)
         params = eco.spplist.params
-        K = ustrip.(getbudget(eco)[x, y])
-        # Get abundances of square we are interested in
-        currentabun = eco.abundances.matrix[:, i]
-
+        K = getbudget(eco)[x, y] * eco.spplist.requirement.exchange_rate
         # Get energy budgets of species in square
-        ϵ̄ = ustrip.(eco.spplist.requirement.energy)
-        E = sum(convert(Vector{Float64}, currentabun) .* ϵ̄)
+        ϵ̄ = eco.spplist.requirement.energy[spp] * eco.spplist.requirement.exchange_rate
+        E = eco.cache.totalE[i, 1]
         # Traits
-        ϵ̄real = copy(ϵ̄)
-        birth_energy = Vector{Float64}(Compat.undef, spp); death_energy = Vector{Float64}(Compat.undef, spp)
-        for k in 1:spp
-          ϵ̄real[k] = ϵ̄[k]/traitfun(eco, i, k)
-          # Alter rates by energy available in current pop & own requirements
-          birth_energy[k] = ϵ̄[k]^-params.l * ϵ̄real[k]^-params.s * min(K/E, params.boost)
-          death_energy[k] = ϵ̄[k]^-params.l * ϵ̄real[k]^params.s * (E / K)
-        end
+        ϵ̄real = ϵ̄/traitfun(eco, i, spp)
+        # Alter rates by energy available in current pop & own requirements
+        birth_energy = ϵ̄^-params.longevity * ϵ̄real^-params.survival * min(K/E, params.boost)
+        death_energy = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
     end
     return birth_energy, death_energy
 end
+
 function energy(eco::Ecosystem, bud::BudgetCollection2, i::Int64, spp::Int64)
      width = getdimension(eco)[1]
      (x, y) = convert_coords(i, width)
      params = eco.spplist.params
-    K1 = ustrip.(_getbudget(eco.abenv.budget, :b1)[x, y])
-    K2 = ustrip.(_getbudget(eco.abenv.budget, :b2)[x, y])
+    K1 = _getbudget(eco.abenv.budget, :b1)[x, y] * eco.spplist.requirement.r1.exchange_rate
+    K2 = _getbudget(eco.abenv.budget, :b2)[x, y] * eco.spplist.requirement.r2.exchange_rate
     # Get abundances of square we are interested in
-    currentabun = eco.abundances.matrix[:, i]
-
     # Get energy budgets of species in square
-    ϵ̄1 = ustrip.(eco.spplist.requirement.r1.energy)
-    E1 = sum(convert(Vector{Float64}, currentabun) .* ϵ̄1)
-    ϵ̄2 = ustrip.(eco.spplist.requirement.r2.energy)
-    E2 = sum(convert(Vector{Float64}, currentabun) .* ϵ̄2)
-    # Traits
-    ϵ̄real1 = copy(ϵ̄1)
-    ϵ̄real2 = copy(ϵ̄2)
-    birth_energy = Vector{Float64}(Compat.undef, spp); death_energy = Vector{Float64}(Compat.undef, spp)
-    for k in 1:spp
-      ϵ̄real1[k] = ϵ̄1[k]/traitfun(eco, i, k)
-      ϵ̄real2[k] = ϵ̄2[k]/traitfun(eco, i, k)
-      # Alter rates by energy available in current pop & own requirements
-      birth_energy[k] = (ϵ̄1[k]^-params.l + ϵ̄2[k]^-params.l) * (ϵ̄real1[k]^-params.s +
-         ϵ̄real2[k]^-params.s) * min(K1/E1, K2/E2, params.boost)
-      death_energy[k] = (ϵ̄1[k]^-params.l + ϵ̄2[k]^-params.l) * (ϵ̄real1[k]^params.s +
-        ϵ̄real2[k]^params.s) * max(E1 / K1, E2/K2)
-    end
+    ϵ̄1 = eco.spplist.requirement.r1.energy[spp] * eco.spplist.requirement.r1.exchange_rate
+    E1 =  eco.cache.totalE[i, 1]
+    ϵ̄2 = eco.spplist.requirement.r2.energy[spp] * eco.spplist.requirement.r2.exchange_rate
+    E2 =  eco.cache.totalE[i, 2]
+    ϵ̄real1 = ϵ̄1/traitfun(eco, i, spp)
+    ϵ̄real2 = ϵ̄2/traitfun(eco, i, spp)
+    # Alter rates by energy available in current pop & own requirements
+    birth_energy = (ϵ̄1^-params.longevity + ϵ̄2^-params.longevity) * (ϵ̄real1^-params.survival +
+     ϵ̄real2^-params.survival) * min(K1/E1, K2/E2, params.boost)
+    death_energy = (ϵ̄1^-params.longevity + ϵ̄2^-params.longevity) * (ϵ̄real1^params.survival +
+    ϵ̄real2^params.survival) * max(E1 / K1, E2/K2)
     return birth_energy, death_energy
 end
 
