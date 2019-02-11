@@ -3,25 +3,38 @@ using Unitful
 using Unitful.DefaultSymbols
 import Base: eltype, length
 """
-    AbstractRequirement{Energy}
+    Abstract1Requirement{Energy}
 
 Abstract supertype for all species energy requirement types, parameterised by
 the type(s) of energy required `Energy`.
 """
 abstract type AbstractRequirement{Energy} end
+abstract type Abstract1Requirement{Energy} <: AbstractRequirement{Energy} end
+abstract type Abstract2Requirements{Energy} <: AbstractRequirement{Energy} end
 
-function eltype(::AbstractRequirement{Energy}) where Energy
+numrequirements(::Type{<: Abstract1Requirement}) = 1
+numrequirements(::Type{<: Abstract2Requirements}) = 2
+
+
+function eltype(::Abstract1Requirement{Energy}) where Energy
   return Energy
 end
 
 """
-    SimpleRequirement <: AbstractRequirement{Float64}
+    SimpleRequirement <: Abstract1Requirement{Float64}
 
 A simple energy requirement is a single float for each species.
 """
-mutable struct SimpleRequirement <: AbstractRequirement{Float64}
+mutable struct SimpleRequirement <: Abstract1Requirement{Float64}
   energy::Vector{Float64}
+  exchange_rate::Float64
+
+  function SimpleRequirement(energy::Vector{Float64})
+      return new(energy, 1.0)
+  end
 end
+
+
 
 length(req::SimpleRequirement) = length(req.energy)
 
@@ -30,38 +43,55 @@ function _getenergyusage(abun::Vector{Int64}, req::SimpleRequirement)
 end
 GLOBAL_typedict["SimpleRequirement"] = SimpleRequirement
 """
-    SizeRequirement <: AbstractRequirement{Float64}
+    SizeRequirement <: Abstract1Requirement{Float64}
 
 A simple energy requirement is a single float for each species.
 """
-mutable struct SizeRequirement <: AbstractRequirement{Float64}
+mutable struct SizeRequirement <: Abstract1Requirement{Float64}
   energy::Vector{Float64}
   pop_mass_rel::Float64
   area::Unitful.Area
+  exchange_rate::Float64
+
+  function SizeRequirement(energy::Vector{Float64}, pop_mass_rel::Float64, area::Unitful.Area, exchange_rate::Float64 = 1.0)
+      return new(energy, pop_mass_rel, area, exchange_rate)
+  end
 end
+
 length(req::SizeRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SizeRequirement)
     sum(abun .* req.energy)
 end
 GLOBAL_typedict["SizeRequirement"] = SizeRequirement
 """
-    SolarRequirement <: AbstractRequirement{typeof(1.0*day^-1*kJ*m^-2)}
+    SolarRequirement <: Abstract1Requirement{typeof(1.0*day^-1*kJ*m^-2)}
 
 """
-mutable struct SolarRequirement <: AbstractRequirement{typeof(1.0*kJ)}
+mutable struct SolarRequirement <: Abstract1Requirement{typeof(1.0*kJ)}
   energy::Vector{typeof(1.0*kJ)}
+  exchange_rate::typeof(1.0/kJ)
+
+  function SolarRequirement(energy::Vector{typeof(1.0*kJ)}, exchange_rate::typeof(1.0/kJ) = 1.0/kJ)
+      return new(energy, exchange_rate)
+  end
 end
+
 length(req::SolarRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SolarRequirement)
     sum(abun .* req.energy)
 end
 GLOBAL_typedict["SolarRequirement"] = SolarRequirement
 """
-    WaterRequirement <: AbstractRequirement{typeof(1.0*mm)}
+    WaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
 
 """
-mutable struct WaterRequirement <: AbstractRequirement{typeof(1.0*mm)}
+mutable struct WaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
   energy::Vector{typeof(1.0*mm)}
+  exchange_rate::typeof(1.0/mm)
+
+  function WaterRequirement(energy::Vector{typeof(1.0*mm)}, exchange_rate::typeof(1.0/mm) = 1.0/mm)
+      return new(energy, exchange_rate)
+  end
 end
 length(req::WaterRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::WaterRequirement)
@@ -69,7 +99,7 @@ function _getenergyusage(abun::Vector{Int64}, req::WaterRequirement)
 end
 GLOBAL_typedict["WaterRequirement"] = WaterRequirement
 
-mutable struct ReqCollection2{R1, R2} <: AbstractRequirement{Tuple{R1, R2}}
+mutable struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
     r1::R1
     r2::R2
 end
@@ -80,6 +110,7 @@ end
 function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
     [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2)]
 end
+
 GLOBAL_typedict["ReqCollection2"] = ReqCollection2
 unitdict= Dict(kJ => "Solar Radiation (kJ)",NoUnits => "Free energy",
     mm => "Available water (mm)")
@@ -114,7 +145,7 @@ subcommunity in the abiotic environment.
 """
 mutable struct SimpleBudget <: AbstractBudget{Unitful.Quantity{Float64, 𝐋^-2}}
   matrix::Matrix{Unitful.Quantity{Float64, 𝐋^-2}}
-  
+
 end
 
 function _countsubcommunities(bud::SimpleBudget)
