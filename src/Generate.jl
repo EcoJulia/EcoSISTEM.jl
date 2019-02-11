@@ -39,8 +39,8 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
                 newdeathprob = 1.0 - exp(-deathprob)
 
                 # Calculate how many births and deaths
-                births = rand(eco.abundances.seed[Threads.threadid()], Binomial(currentabun[j], newbirthprob))
-                deaths = rand(eco.abundances.seed[Threads.threadid()], Binomial(currentabun[j], newdeathprob))
+                births = rand(Binomial(currentabun[j], newbirthprob))
+                deaths = rand(Binomial(currentabun[j], newdeathprob))
                 # Update population
                 eco.abundances.matrix[j, i] += (births - deaths)
 
@@ -160,7 +160,7 @@ function calc_lookup_moves(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, ec
   lookup.pnew[valid] = lookup.p[valid]
   lookup.pnew ./= sum(lookup.pnew)
   multinom = Multinomial(abun, lookup.pnew)
-  draw = rand(eco.abundances.seed[Threads.threadid()], multinom)
+  draw = rand(multinom)
   lookup.moves .= draw
 end
 
@@ -182,7 +182,7 @@ function calc_lookup_moves(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco:
   lookup.pnew[.!valid] .= 0.0
   lookup.pnew[valid] = lookup.p[valid]
   lookup.pnew ./= sum(lookup.pnew)
-  multinom = Multinomial(eco.abundances.seed[Threads.threadid()], abun, lookup.pnew)
+  multinom = Multinomial(abun, lookup.pnew)
   draw = rand(multinom)
   lookup.moves .= draw
 end
@@ -201,7 +201,7 @@ function calc_lookup_moves(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::Ec
       lookup.pnew[i] = valid ? lookup.p[i] : 0.0
   end
   lookup.pnew ./= sum(lookup.pnew)
-  multinom = Multinomial(eco.abundances.seed[Threads.threadid()], abun, lookup.pnew)
+  multinom = Multinomial(abun, lookup.pnew)
   draw = rand(multinom)
   lookup.moves .= draw
 end
@@ -288,7 +288,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
         # Loop through individuals
           while abun>0
             # Randomly choose position on grid (weighted)
-            pos = rand(ml.seed[Threads.threadid()], grid[b .> (0 * units)])
+            pos = sample(grid[b .> (0 * units)])
           # Add individual to this location
           ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
           abun = abun .- 1
@@ -318,7 +318,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
         # Loop through individuals
         while abun>0
             # Randomly choose position on grid (weighted)
-            pos = rand(ml.seed[Threads.threadid()], grid[(b1 .> (0 * units1)) .& (b2 .> (0 * units2))])
+            pos = sample(grid[(b1 .> (0 * units1)) .& (b2 .> (0 * units2))])
             # Add individual to this location
             ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
             abun = abun .- 1
@@ -345,7 +345,7 @@ function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
       if spplist.native[i]
         # Get abundance of species
         abun = spplist.abun[i]
-        pos = rand(ml.seed[Threads.threadid()], grid[b .> (0 * units)], abun)
+        pos = sample(grid[b .> (0 * units)], abun)
         # Add individual to this location
         ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
      end
@@ -372,7 +372,7 @@ function repopulate!(eco::Ecosystem, abun::Int64)
     units = unit(b[1])
     activity = reshape(copy(eco.abenv.active), size(grid))
     b[.!activity] .= 0.0 * units
-    pos = rand(eco.abundances.seed[Threads.threadid()], grid[b .> (0 * units)], abun)
+    pos = sample(grid[b .> (0 * units)], abun)
     # Add individual to this location
     map(pos) do p
         eco.abundances.matrix[end, p] += 1

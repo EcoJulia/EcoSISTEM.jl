@@ -2,7 +2,6 @@ using Missings
 using AxisArrays
 using Compat.Random
 using Compat
-using LinearAlgebra
 
 struct SavedLandscape
     matrix::Matrix{Int64}
@@ -20,14 +19,13 @@ represent species, their abundances and position in the grid).
 mutable struct GridLandscape
   matrix::Matrix{Int64}
   grid::Array{Int64, 3}
-  seed::Vector{MersenneTwister}
+  seed::Vector{UInt32}
 
   function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
     a = abun
-    rngs   = [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()]
-    return new(a, reshape(a, dimension), rngs)
+    return new(a, reshape(a, dimension), copy(Random.GLOBAL_RNG.seed))
   end
-  function GridLandscape(abun::Matrix{Int64}, dimension::Tuple, seed::Vector{MersenneTwister})
+  function GridLandscape(abun::Matrix{Int64}, dimension::Tuple, seed::Vector{UInt32})
     a = abun
     return new(a, reshape(a, dimension), seed)
   end
