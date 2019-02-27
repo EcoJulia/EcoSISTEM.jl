@@ -4,12 +4,10 @@ AxisArrays
 Unitful
 MyUnitful
 DataFrames
-ClimatePref
 JuliaDB
 StatsBase
 Distributions
 Phylo
-Query
 RCall
 NetCDF
 ArchGDAL
@@ -23,3 +21,4 @@ SpatialEcology
 HCubature
 EcoBase
 RecipesBase
+ClimatePref
