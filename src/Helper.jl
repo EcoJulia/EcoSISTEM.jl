@@ -55,7 +55,7 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
   counting = 1
   for i in 2:length(time_seq)
     update!(eco, timestep);
-    if any(time_seq[i].==record_seq)
+    if time_seq[i] in record_seq
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix
     end
@@ -75,7 +75,7 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
   for i in 2:length(time_seq)
     update!(eco, timestep);
     runscenario!(eco, timestep, scenario, time_seq[i]);
-    if any(time_seq[i].==record_seq)
+    if time_seq[i] in record_seq
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix
     end
@@ -104,7 +104,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   for i in 1:length(time_seq)
     update!(eco, timestep);
     runscenario!(eco, timestep, scenario, time_seq[i]);
-    if any(time_seq[i].==record_seq)
+    if time_seq[i] in record_seq
       counting = counting + 1
       storage[:, :, counting] = reshape(divfun(eco, qs)[:diversity],
       countsubcommunities(eco), length(qs))
@@ -122,7 +122,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   counting = 0
   for i in 1:length(time_seq)
     update!(eco, timestep);
-    if any(time_seq[i].==record_seq)
+    if time_seq[i] in record_seq
       counting = counting + 1
       diversity = divfun(eco, qs)[:diversity]
       storage[:, :, counting] = reshape(diversity,
@@ -141,7 +141,7 @@ function simulate_record_diversity!(storage::AbstractArray,
   counting = 0
   for i in 1:length(time_seq)
     update!(eco, timestep);
-    if any(time_seq[i].==record_seq)
+    if time_seq[i] in record_seq
       counting = counting + 1
       measures = [NormalisedAlpha, NormalisedBeta, Gamma]
       for k in 1:3
@@ -165,7 +165,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   counting = 0
   for i in 1:length(time_seq)
     update!(eco, timestep);
-    if any(time_seq[i].==record_seq)
+    if time_seq[i] in record_seq
       counting = counting + 1
       for j in eachindex(divfuns)
           storage[:, j, counting] = divfuns[j](eco, q)[:diversity][1]
@@ -184,7 +184,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   for i in 1:length(time_seq)
       update!(eco, timestep);
       runscenario!(eco, timestep, scenario, time_seq[i]);
-      if any(time_seq[i].==record_seq)
+      if time_seq[i] in record_seq
           counting = counting + 1
           for j in eachindex(divfuns)
               storage[:, j, counting] = divfuns[j](eco, q)[:diversity][1]
