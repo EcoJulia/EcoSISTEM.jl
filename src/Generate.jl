@@ -39,7 +39,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
                 # Put probabilities into 0 - 1
                 newbirthprob = 1.0 - exp(-birthprob)
                 newdeathprob = 1.0 - exp(-deathprob)
-                print(newbirthprob, ",", newdeathprob, "\n")
+                
                 # Calculate how many births and deaths
                 births = rand(rng, Binomial(currentabun[j], newbirthprob))
                 deaths = rand(rng, Binomial(currentabun[j], newdeathprob))
