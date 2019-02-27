@@ -169,119 +169,109 @@ function convert_coords(x::Array{Int64, 1}, y::Array{Int64, 1}, width::Int64)
   i = x .+ (width .* (y .- 1))
   return i
 end
-function calc_lookup_moves(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
-  lookup = eco.lookup[spp]
-  maxX = getdimension(eco)[1] - x
-  maxY = getdimension(eco)[2] - y
-  # Can't go over maximum dimension
-  valid = (lookup.x .> -x) .& (lookup.y .> -y) .&
-   (lookup.x .<= maxX) .& (lookup.y .<= maxY)
-  for i in eachindex(valid)
-      if valid[i]
-          valid[i] = valid[i] & (eco.abenv.active[lookup.x[i] .+ x,
-          lookup.y[i] .+ y])
-      end
-  end
-  lookup.pnew[.!valid] .= 0.0
-  lookup.pnew[valid] = lookup.p[valid]
-  lookup.pnew ./= sum(lookup.pnew)
-  multinom = Multinomial(abun, lookup.pnew)
-  draw = rand(multinom)
-  lookup.moves .= draw
+
+"""
+    calc_lookup_moves!(bound, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
+
+Function to calculate the number of moves taken by a species, `spp`, from a specific grid square location (`x`, `y`). There is a boundary condition, `bound`, which determines how the species can move across space (see AbstractBoundary). The total abundance of individuals is given in `abun`, which may be the number of births in the timestep, or total indiviuals.
+"""
+function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
+    lookup = eco.lookup[spp]
+    maxX = Simulation.getdimension(eco)[1] - x
+    maxY = Simulation.getdimension(eco)[2] - y
+    # Can't go over maximum dimension
+    for i in eachindex(lookup.x)
+        valid =  (-x < lookup.x[i] <= maxX) && (-y < lookup.y[i] <= maxY) && (eco.abenv.active[lookup.x[i], lookup.y[i]])
+
+        lookup.pnew[i] = valid ? lookup.p[i] : 0.0
+    end
+    lookup.pnew ./= sum(lookup.pnew)
+    dist = Multinomial(abun, lookup.pnew)
+    rand!(eco.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function calc_lookup_moves(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
-  lookup = eco.lookup[spp]
-  maxX = getdimension(eco)[1] - x
-  maxY = getdimension(eco)[2] - y
-  lookup.x[lookup.x .<= -x] .+= Simulation.getdimension(eco)[1]
-  lookup.x[lookup.x .> maxX] .-= Simulation.getdimension(eco)[1]
+function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
+    lookup = eco.lookup[spp]
+    maxX = Simulation.getdimension(eco)[1] - x
+    maxY = Simulation.getdimension(eco)[2] - y
+    # Can't go over maximum dimension
+    for i in eachindex(lookup.x)
+        newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, Simulation.getdimension(eco)[1]) + 1
 
-  valid = (lookup.y .> -y) .& (lookup.y .<= maxY)
-  for i in eachindex(lookup.x)
-      if valid[i]
-          valid[i] = valid[i] & (eco.abenv.active[lookup.x[i] .+ x,
-            lookup.y[i] .+ y])
-      end
-  end
+        valid =  (-y < lookup.y[i] <= maxY) && (eco.abenv.active[newx, lookup.y[i]])
 
-  lookup.pnew[.!valid] .= 0.0
-  lookup.pnew[valid] = lookup.p[valid]
-  lookup.pnew ./= sum(lookup.pnew)
-  multinom = Multinomial(abun, lookup.pnew)
-  draw = rand(multinom)
-  lookup.moves .= draw
+        lookup.pnew[i] = valid ? lookup.p[i] : 0.0
+    end
+    lookup.pnew ./= sum(lookup.pnew)
+    dist = Multinomial(abun, lookup.pnew)
+    rand!(eco.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function calc_lookup_moves(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
+function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
   lookup = eco.lookup[spp]
   maxX = Simulation.getdimension(eco)[1] - x
   maxY = Simulation.getdimension(eco)[2] - y
   # Can't go over maximum dimension
-  for i in eachindex(x)
+  for i in eachindex(lookup.x)
       newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, Simulation.getdimension(eco)[1]) + 1
       newy =  -y < lookup.y[i] <= maxY ? lookup.y[i] + y : mod(lookup.y[i] + y - 1, Simulation.getdimension(eco)[2]) + 1
-
       valid = eco.abenv.active[newx, newy]
 
       lookup.pnew[i] = valid ? lookup.p[i] : 0.0
   end
   lookup.pnew ./= sum(lookup.pnew)
-  multinom = Multinomial(abun, lookup.pnew)
-  draw = rand(multinom)
-  lookup.moves .= draw
+  dist = Multinomial(abun, lookup.pnew)
+  rand!(eco.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
+
 """
-    move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Int64, 2})
+    move!(eco::Ecosystem, ::AbstractMovement, i::Int64, spp::Int64, grd::Array{Int64, 2}, abun::Int64)
 
 Function to calculate the movement of species `spp` from a given position in the
 landscape `i`, using the lookup table found in the Ecosystem and updating the
-movement patterns on a grid, `grd`. Optionally, a number of births can be
+movement patterns on a cached grid, `grd`. Optionally, a number of births can be
 provided, so that movement only takes place as part of the birth process, instead
 of the entire population
 """
 function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   grd::Array{Int64, 2}, ::Int64)
-  width = getdimension(eco)[1]
+  width, height = getdimension(eco)
   (x, y) = convert_coords(i, width)
+  lookup = eco.lookup[spp]
   full_abun = eco.abundances.matrix[spp, i]
-  calc_lookup_moves(getboundary(eco.spplist.movement), x, y, spp, eco, full_abun)
+  calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, spp, eco, full_abun)
   # Lose moves from current grid square
   grd[spp, i] -= full_abun
   # Map moves to location in grid
-  mov = eco.lookup[spp].moves
+  mov = lookup.moves
   for i in eachindex(eco.lookup[spp].x)
-      loc = convert_coords(eco.lookup[spp].x[i] + x, eco.lookup[spp].y[i] + y, width)
+      newx = mod(lookup.x[i] + x - 1, width) + 1
+      newy = mod(lookup.y[i] + y - 1, height) + 1
+      loc = convert_coords(newx, newy, width)
       grd[spp, loc] += mov[i]
   end
   return eco
 end
-"""
-    move!(i::Int64, spp::Int64, eco::Ecosystem, grd::Array{Int64, 2})
 
-Function to calculate the movement of species `spp` from a given position in the
-landscape `i`, using the lookup table found in the Ecosystem and updating the
-movement patterns on a grid, `grd`. Optionally, a number of births can be
-provided, so that movement only takes place as part of the birth process, instead
-of the entire population
-"""
 function move!(eco::Ecosystem, ::NoMovement, i::Int64, spp::Int64,
   grd::Array{Int64, 2}, ::Int64)
   return eco
 end
 
-
 function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
     grd::Array{Int64, 2}, births::Int64)
-  width = getdimension(eco)[1]
+  width, height = getdimension(eco)
   (x, y) = convert_coords(i, width)
-  table = calc_lookup_moves(getboundary(eco.spplist.movement), x, y, spp, eco, births)
+  lookup = eco.lookup[spp]
+  calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, spp, eco, births)
   # Lose moves from current grid square
   grd[spp, i] -= births
   # Map moves to location in grid
-  mov = eco.lookup[spp].moves
-  for i in eachindex(eco.lookup[spp].x)
-      loc = convert_coords(eco.lookup[spp].x[i] + x, eco.lookup[spp].y[i] + y, width)
+  mov = lookup.moves
+  for i in eachindex(lookup.x)
+      newx = mod(lookup.x[i] + x - 1, width) + 1
+      newy = mod(lookup.y[i] + y - 1, height) + 1
+      loc = convert_coords(newx, newy, width)
       grd[spp, loc] += mov[i]
   end
   return eco
