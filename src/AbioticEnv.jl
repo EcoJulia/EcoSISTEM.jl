@@ -18,7 +18,7 @@ Abstract supertype for all abiotic environment types and a subtype of
 AbstractPartition
 """
 abstract type AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <:
-   AbstractPartition end
+   AbstractPartition{H} end
 
 """
     GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
