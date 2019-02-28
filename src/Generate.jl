@@ -368,6 +368,20 @@ function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
 end
 
 
+function populate!(ml::GridLandscape, spplist::SpeciesList, abenv::AbstractAbiotic)
+    dim = _getdimension(abenv.habitat)
+    len = dim[1] * dim[2]
+    grid = collect(1:len)
+    # Set up copy of budget
+    b = reshape(ustrip.(_getbudget(abenv.budget)), size(grid))
+    activity = reshape(copy(abenv.active), size(grid))
+    b[.!activity] .= 0.0
+    B = b./sum(b)
+    # Loop through species
+    for i in eachindex(spplist.abun)
+        rand!(Multinomial(spplist.abun[i], B), (@view ml.matrix[i, :]))
+    end
+end
 
 """
     populate!(ml::GridLandscape, spplist::SpeciesList,
@@ -376,31 +390,31 @@ end
 Function to populate a grid landscape given the abundances found in species list
 and whether or not to include traits.
 """
-function populate!(ml::GridLandscape, spplist::SpeciesList,
+function _populate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AbstractAbiotic)
   # Calculate size of habitat
-  dim = _getdimension(abenv.habitat)
-  len = dim[1] * dim[2]
+ dim = _getdimension(abenv.habitat)
+ len = dim[1] * dim[2]
   grid = collect(1:len)
   # Set up copy of budget
-      b = reshape(copy(_getbudget(abenv.budget)), size(grid))
-      units = unit(b[1])
-      activity = reshape(copy(abenv.active), size(grid))
-      b[.!activity] .= 0.0 * units
-      # Loop through species
-      for i in eachindex(spplist.abun)
-        # Get abundance of species
-        abun = spplist.abun[i]
-        # Loop through individuals
-          while abun>0
-            # Randomly choose position on grid (weighted)
-            pos = sample(grid[b .> (0 * units)])
+  b = reshape(copy(_getbudget(abenv.budget)), size(grid))
+  units = unit(b[1])
+  activity = reshape(copy(abenv.active), size(grid))
+  b[.!activity] .= 0.0 * units
+  # Loop through species
+  for i in eachindex(spplist.abun)
+      # Get abundance of species
+      abun = spplist.abun[i]
+      # Loop through individuals
+      while abun>0
+          # Randomly choose position on grid (weighted)
+          pos = sample(grid[b .> (0 * units)])
           # Add individual to this location
           ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
           abun = abun .- 1
           b[pos] = b[pos] .- spplist.requirement.energy[i]
-        end
       end
+  end
 end
 function populate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}} where {H <:
