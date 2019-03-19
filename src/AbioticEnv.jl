@@ -115,6 +115,7 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
   dimension::Tuple{Int64, Int64}, maxbud::Unitful.Quantity{Float64},
   area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝚯*𝐓^-1},
   active::Array{Bool, 2})
+  minT = uconvert(K, minT); maxT = uconvert(K, maxT)
   area = uconvert(km^2, area)
   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
   hab = tempgrad(minT, maxT, gridsquaresize, dimension, rate)
@@ -134,6 +135,32 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
   active = fill(true, dimension)
   tempgradAE(minT, maxT, dimension, maxbud, area, rate, active)
  end
+
+ function peakedgradAE(minT::Unitful.Temperature{Float64},
+   maxT::Unitful.Temperature{Float64},
+   dimension::Tuple{Int64, Int64}, maxbud::Unitful.Quantity{Float64},
+   area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝚯*𝐓^-1},
+   active::Array{Bool, 2})
+   minT = uconvert(K, minT); maxT = uconvert(K, maxT)
+   area = uconvert(km^2, area)
+   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
+   hab = tempgrad(minT, maxT + (maxT - minT), gridsquaresize, dimension, rate)
+   hab.matrix[(ceil(Int, dimension[1]/2) + 1):end, :] = hab.matrix[floor(Int, dimension[1]/2):-1:1, :]
+   B = cancel(maxbud, area)
+   bud = zeros(typeof(B), dimension)
+   fill!(bud, B/(dimension[1]*dimension[2]))
+   checkbud(B) || error("Unrecognised unit in budget")
+   budtype = matchdict[unit(B)]
+   return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
+ end
+
+ function peakedgradAE(minT::Unitful.Temperature{Float64},
+   maxT::Unitful.Temperature{Float64},
+   dimension::Tuple{Int64, Int64}, maxbud::Unitful.Quantity{Float64},
+   area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
+   active = fill(true, dimension)
+   peakedgradAE(minT, maxT, dimension, maxbud, area, rate, active)
+  end
 
  GLOBAL_funcdict["tempgradAE"] = tempgradAE
 
@@ -233,6 +260,9 @@ GLOBAL_funcdict["worldclimAE"] = worldclimAE
 function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
   dimension::Tuple{Int64, Int64}, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64},
   active::Array{Bool, 2})
+  if typeof(val) <: Unitful.Temperature
+      val = uconvert(K, val)
+  end
   area = uconvert(km^2, area)
   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
   hab = simplehabitat(val, gridsquaresize, dimension)
