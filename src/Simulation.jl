@@ -37,7 +37,7 @@ export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, S
     SolarBudget, SolarTimeBudget, WaterTimeBudget, ReqCollection2, BudgetCollection2
 
 include("AbioticEnv.jl")
-export GridAbioticEnv, simplenicheAE, tempgradAE, simplehabitatAE, degradedhabitatAE,
+export GridAbioticEnv, simplenicheAE, tempgradAE, peakedgradAE,  simplehabitatAE, degradedhabitatAE,
     eraAE, worldclimAE
 
 include("Movement.jl")
