@@ -11,8 +11,6 @@ import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
 cells, xrange, yrange, xmax, ymax, indices, coordinates
 import Plots: px
 
-unitdict= Dict(K => "Temperature (K)", °C => "Temperature (°C)", mm => "Rainfall (mm)",
-    kJ => "Solar Radiation (kJ)")
 """
     AbstractHabitat
 
@@ -61,7 +59,20 @@ function eltype(hab::ContinuousHab{C}) where C
     return C
 end
 @recipe function f(H::ContinuousHab{C}) where C
+    unitdict= Dict(K => "Temperature (K)", °C => "Temperature (°C)", mm => "Rainfall (mm)", kJ => "Solar Radiation (kJ)")
     h = ustrip.(H.matrix)
+    seriestype  :=  :heatmap
+    grid --> false
+    right_margin --> 0.1px
+    margin --> 10px
+    aspect_ratio --> 1
+    title --> unitdict[unit(C)]
+    clims --> (minimum(h) * 0.99, maximum(h) * 1.01)
+    xrange(H), yrange(H), h
+end
+@recipe function f(H::ContinuousHab{C}) where C <: Unitful.Temperature
+    unitdict= Dict(K => "Temperature (K)", °C => "Temperature (°C)", mm => "Rainfall (mm)", kJ => "Solar Radiation (kJ)")
+    h = ustrip.(uconvert.(°C, H.matrix))
     seriestype  :=  :heatmap
     grid --> false
     right_margin --> 0.1px
@@ -367,8 +378,9 @@ end
 function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
   dim::Tuple{Int64, Int64})
   M = fill(val, dim)
-
-  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
+  func = ChangeLookup[unit(val)]
+  rate = 0.0 * unit(val)/s
+  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(val))}(func, rate))
 end
 
 function simplehabitat(val::Float64, size::Unitful.Length,
