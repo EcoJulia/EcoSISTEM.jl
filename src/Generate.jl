@@ -288,7 +288,7 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco
     for i in eachindex(lookup.x)
         newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, Simulation.getdimension(eco)[1]) + 1
 
-        valid =  (-y < lookup.y[i] <= maxY) && (eco.abenv.active[newx, lookup.y[i]])
+        valid =  (-y < lookup.y[i] <= maxY) && (eco.abenv.active[newx, lookup.y[i] + y])
 
         lookup.pnew[i] = valid ? lookup.p[i] : 0.0
     end
