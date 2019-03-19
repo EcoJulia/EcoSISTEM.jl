@@ -39,7 +39,7 @@ function readoutput(file::String, name::String)
         withoutend = split(joinname, ".jld")[1]
         withoutbegin = split(withoutend, file)[2]
         newmat = JLD.load(joinname, String(withoutbegin))
-        mat = cat(3, mat, newmat)
+        mat = cat(dims = 3, mat, newmat)
     end
     return mat
 end
@@ -52,7 +52,7 @@ function readbeta(file::String, name::String)
     for i in eachindex(filenames)[2:end]
         joinname = joinpath(file, filenames[i])
         newmat = JLD.load(joinname, "Div1")
-        mat = cat(3, mat, newmat)
+        mat = cat(dims = 3, mat, newmat)
         append!(beta,JLD.load(joinname, "Div2")[1, :])
     end
     return mat, beta
@@ -66,8 +66,8 @@ function readall(file::String, name::String)
     for i in eachindex(filenames)[2:end]
         joinname = joinpath(file, filenames[i])
         newmat = JLD.load(joinname, "Div1")
-        mat = cat(3, mat, newmat)
-        all = cat(2, all, JLD.load(joinname, "Div2"))
+        mat = cat(dims = 3, mat, newmat)
+        all = cat(dims = 2, all, JLD.load(joinname, "Div2"))
     end
     return mat, all
 end
