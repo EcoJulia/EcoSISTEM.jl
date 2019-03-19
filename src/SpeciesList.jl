@@ -200,6 +200,31 @@ function SpeciesList(numspecies::Int64,
               req, ty, movement, params, native)
 end
 
+function SpeciesList(tree::AbstractTree,
+    traits::TR, abun::Vector{Int64}, req::R,
+    movement::MO, params::P, native::Vector{Bool}) where
+    {TR<: AbstractTraits, R <: AbstractRequirement,
+        MO <: AbstractMovement, P <: AbstractParams}
+
+    names = sort(getleafnames(tree))
+    numspecies = length(names)
+
+    ty = PhyloTypes(tree)
+
+    # Draw random set of abundances from distribution
+    if length(abun) < numspecies
+        abun = vcat(abun, fill(0, numspecies - length(abun)))
+    end
+    # error out when abun dist and NumberSpecies are not the same (same for energy dist)
+    length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
+                                          doesn't match number species"))
+    length(req)==numspecies || throw(DimensionMismatch("Requirement vector
+                                          doesn't match number species"))
+  SpeciesList{typeof(traits), typeof(req),
+              typeof(movement), typeof(ty),typeof(params)}(names, traits, abun,
+              req, ty, movement, params, native)
+end
+
 function getenergyusage(sppl::SpeciesList)
     return _getenergyusage(sppl.abun, sppl.requirement)
 end
