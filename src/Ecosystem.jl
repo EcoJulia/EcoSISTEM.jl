@@ -154,8 +154,8 @@ function Ecosystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::GridAb
    rel::AbstractTraitRelationship) where {T, Req}
 
   # Check there is enough energy to support number of individuals at set up
-  all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
-    error("Environment does not have enough energy to support species")
+  #all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
+    #error("Environment does not have enough energy to support species")
   # Create matrix landscape of zero abundances
   ml = emptygridlandscape(abenv, spplist)
   # Populate this matrix with species abundances
@@ -403,7 +403,15 @@ function resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
     eco.abenv.habitat.change.changefun, rate)
 end
 function resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
-    eco.abenv.habitat.change = HabitatUpdate{typeof(dimension(1°C))}(
+    eco.abenv.habitat.change = HabitatUpdate{typeof(dimension(1K))}(
+    eco.abenv.habitat.change.changefun, rate)
+end
+function resetrate!(eco::Ecosystem, rate::Quantity{Float64, 𝐓^-1})
+    eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimensions{()}}(
+    eco.abenv.habitat.change.changefun, rate)
+end
+function resetrate!(eco::Ecosystem, rate::Quantity{Float64, 𝚯*𝐓^-1})
+    eco.abenv.habitat.change = HabitatUpdate{typeof(dimension(1K))}(
     eco.abenv.habitat.change.changefun, rate)
 end
 
