@@ -72,6 +72,11 @@ iscontinuous(trait::GaussTrait{C}) where C = true
 function eltype(trait::GaussTrait{C}) where C
     return C
 end
+function GaussTrait(mean::Array{C, 1}, var::Array{C, 1}) where C  <: Unitful.Temperature
+    meanK = uconvert.(K, mean)
+    varK = ustrip.(var) .* K
+    return GaussTrait{typeof(1.0K)}(meanK, varK)
+end
 GLOBAL_typedict["GaussTrait"] = GaussTrait
 
 """
