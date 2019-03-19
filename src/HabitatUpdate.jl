@@ -1,13 +1,17 @@
 using Compat
+using Unitful
+using Unitful.DefaultSymbols
+
 function TempChange(eco::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
   val = hab.change.rate
-  v = uconvert(°C/unit(timestep), val)
+  v = uconvert(K/unit(timestep), val)
   hab.matrix .+= v * timestep
 end
 GLOBAL_funcdict["TempChange"] = TempChange
 function NoChange(eco::Ecosystem, hab::AbstractHabitat, timestep::Unitful.Time)
 end
 GLOBAL_funcdict["NoChange"] = NoChange
+ChangeLookup = Dict(K => TempChange, NoUnits => NoChange)
 function eraChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
     last = size(hab.matrix, 3)
     monthstep = convert(typeof(1.0month), timestep)
