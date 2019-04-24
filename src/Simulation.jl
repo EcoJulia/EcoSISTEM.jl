@@ -68,7 +68,7 @@ include("HabitatUpdate.jl")
 export getchangefun, TempChange, eraChange, worldclimChange
 
 include("Scenarios.jl")
-export SimpleScenario, RandHabitatLoss!, ClustHabitatLoss!, DisturbanceScenario,
+export SimpleScenario, TempIncrease, RandHabitatLoss!, ClustHabitatLoss!, DisturbanceScenario,
  HabitatDisturbance!, UniformDecline, ProportionalDecline, LargeDecline, RareDecline,
  CommonDecline, HabitatReplacement, Invasive, SusceptibleDecline
 
