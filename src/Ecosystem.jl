@@ -439,14 +439,15 @@ function _symmetric_grid(grid::DataFrame)
    end
    grid
  end
- function _gaussian_disperse(r, Θ)
-   t = r[1]
-   exp(-(t/(1-t^2))^2) / (Θ^2 * π)
- end
 
  # Define gaussian kernel function
 function _gaussian_disperse(r)
   exp(-((r[3]-r[1])^2+(r[4]-r[2])^2)) / π
+end
+
+function _2Dt_disperse(r, a, b)
+    newfun = function(r) return((b - 1)/(π * a^2)) * (1 + ((r[3]-r[1])^2+(r[4]-r[2])^2)/a^2)^-b end
+    return newfun
 end
 
 """
@@ -460,6 +461,14 @@ function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
   relsize =  _getgridsize(hab) ./ sd
   m = maximum(_getdimension(hab))
   p = mov.thresh
+  return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)
+end
+function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
+  relsize = _getgridsize(hab)
+  m = maximum(_getdimension(hab))
+  p = mov.thresh
+  a = mov.dist
+  b = mov.shape
   return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)
 end
 
