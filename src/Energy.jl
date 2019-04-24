@@ -120,6 +120,7 @@ unitdict= Dict(kJ => "Solar Radiation (kJ)",NoUnits => "Free energy",
 Abstract supertype for all budget types
 """
 abstract type AbstractBudget{Requirement} end
+abstract type AbstractTimeBudget{Requirement} <: AbstractBudget{Requirement} end
 
 function eltype(::AbstractBudget{Energy}) where Energy
   return Energy
@@ -190,7 +191,7 @@ GLOBAL_typedict["SolarBudget"] = SolarBudget
 This budget type has a matrix of solar energy units, representing the energy budget of each
 subcommunity in the abiotic environment along with which time dimension we are interested in.
 """
-mutable struct SolarTimeBudget <: AbstractBudget{typeof(1.0*kJ)}
+mutable struct SolarTimeBudget <: AbstractTimeBudget{typeof(1.0*kJ)}
   matrix::Array{typeof(1.0*kJ), 3}
   time::Int64
   function SolarTimeBudget(mat::Array{typeof(1.0*kJ), 3}, time::Int64)
@@ -250,7 +251,7 @@ GLOBAL_typedict["WaterBudget"] = WaterBudget
 This budget type has a matrix of solar energy units, representing the energy budget of each
 subcommunity in the abiotic environment along with which time dimension we are interested in.
 """
-mutable struct WaterTimeBudget <: AbstractBudget{typeof(1.0*mm)}
+mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0*mm)}
   matrix::Array{typeof(1.0*mm), 3}
   time::Int64
   function WaterTimeBudget(mat::Array{typeof(1.0*mm), 3}, time::Int64)
@@ -291,10 +292,17 @@ end
 function _countsubcommunities(bud::BudgetCollection2)
   return length(bud.b1.matrix[:,:,1])
 end
+
 function _getbudget(bud::BudgetCollection2, field::Symbol)
+    B = getfield(bud, field)
+    return _getbudget(B)
+end
+
+function _getbudget(bud::Bud, field::Symbol) where Bud <: AbstractTimeBudget
     B = getfield(bud, field)
     return B.matrix[:, :, B.time]
 end
+
 
 function _getavailableenergy(bud::BudgetCollection2)
     return [_getavailableenergy(bud.b1), _getavailableenergy(bud.b2)]
