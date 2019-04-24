@@ -88,15 +88,17 @@ function _budgetupdate!(eco::Ecosystem, budget::WaterTimeBudget, timestep::Unitf
     end
 end
 function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2, timestep::Unitful.Time)
-    for i in fieldnames(budget)
+    for i in fieldnames(typeof(budget))
         bud = getfield(budget, i)
         lastE = size(bud.matrix, 3)
         monthstep = convert(typeof(1.0month), timestep)
-        getfield(eco.abenv.budget, i).time = getfield(eco.abenv.budget, i).time +
-        round(Int64,ustrip(monthstep))
-        if getfield(eco.abenv.budget, i).time > lastE
-            getfield(eco.abenv.budget, i).time = 1
-            Compat.@warn "More timesteps than available, have repeated"
+        if (typeof(getfield(budget, i)) <: Simulation.AbstractTimeBudget)
+            getfield(eco.abenv.budget, i).time =
+            getfield(eco.abenv.budget, i).time + round(Int64,ustrip(monthstep))
+            if getfield(eco.abenv.budget, i).time > lastE
+                getfield(eco.abenv.budget, i).time = 1
+                Compat.@warn "More timesteps than available, have repeated"
+            end
         end
     end
 end
