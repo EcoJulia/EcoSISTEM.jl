@@ -103,8 +103,9 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, ::Val{1})
 
                 # Calculate how many births and deaths
                 births = rand(rng, Binomial(currentabun[j], newbirthprob))
+                #births = rand(rng, NegativeBinomial(currentabun[j]*(1 - newbirthprob)/newbirthprob))
                 deaths = rand(rng, Binomial(currentabun[j], newdeathprob))
-
+                #deaths = rand(rng, NegativeBinomial(currentabun[j]*(1 − newdeathprob)/newdeathprob))
                 # Update population
                 eco.abundances.matrix[j, i] += (births - deaths)
 
@@ -213,7 +214,7 @@ function energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::I
     return birth_energy, death_energy
 end
 
-function energy(eco::Ecosystem, bud::BudgetCollection2, i::Int64, spp::Int64)
+function energy_adjustment(eco::Ecosystem, bud::BudgetCollection2, i::Int64, spp::Int64)
      width = getdimension(eco)[1]
      (x, y) = convert_coords(i, width)
      params = eco.spplist.params
@@ -429,8 +430,8 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
     units1 = unit(b1[1])
     units2 = unit(b2[1])
     activity = reshape(copy(abenv.active), size(grid))
-    b1[.!activity] = 0.0 * units1
-    b2[.!activity] = 0.0 * units2
+    b1[.!activity] .= 0.0 * units1
+    b2[.!activity] .= 0.0 * units2
     # Loop through species
     for i in eachindex(spplist.abun)
         # Get abundance of species
@@ -514,5 +515,9 @@ Function to refill an ecosystem `eco`, with energy from a budget value, `budget`
 """
 function reenergise!(eco::Ecosystem, budget::Union{Float64, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
     fill!(eco.abenv.budget.matrix, budget/(grid[1]*grid[2]))
+end
+function reenergise!(eco::Ecosystem, budget::Tuple{Unitful.Quantity{Float64}, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
+    fill!(eco.abenv.budget.b1.matrix, budget[1]/(grid[1]*grid[2]))
+    fill!(eco.abenv.budget.b2.matrix, budget[2]/(grid[1]*grid[2]))
 end
 GLOBAL_funcdict["reenergise!"] = reenergise!
