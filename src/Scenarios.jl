@@ -18,7 +18,7 @@ if VERSION >= v"0.7"
     """
     mutable struct SimpleScenario <: AbstractScenario
         fun::Function
-        rate::Quantity{Float64, 𝐓^-1}
+        rate::Union{Quantity{Float64, 𝐓^-1}, Quantity{Float64, 𝚯*𝐓^-1}}
     end
 else
     """
@@ -28,10 +28,15 @@ else
     """
     mutable struct SimpleScenario <: AbstractScenario
         fun::Function
-        rate::Quantity{Float64, typeof(𝐓^-1)}
+        rate::Union{Quantity{Float64, typeof(𝐓^-1)}, Quantity{Float64, typeof(𝚯*𝐓^-1)}}
     end
 end
 GLOBAL_typedict["SimpleScenario"] = SimpleScenario
+
+
+function TempIncrease(eco::Ecosystem, timestep::Unitful.Time, rate::typeof(1.0K/year))
+    resetrate!(eco, rate)
+end
 """
     RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
