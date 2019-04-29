@@ -10,6 +10,8 @@ Abstract supertype for all whole ecosystem change scenarios
 """
 abstract type AbstractScenario end
 
+RateType = typeof(1.0/year)
+
 if VERSION >= v"0.7"
     """
         SimpleScenario <: AbstractScenario
@@ -43,7 +45,7 @@ end
 
 A function that randomly removes a portion of habitat at a certain rate.
 """
-function RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity{Float64, typeof(𝐓^-1)})
+function RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
     v = uconvert(unit(timestep)^-1, rate)
     pos = find(eco.abenv.budget.matrix .> 0.0)
     howmany = jbinom(1, length(pos), ustrip(v))[1]
@@ -59,7 +61,7 @@ GLOBAL_funcdict["RandHabitatLoss!"] = RandHabitatLoss!
 A function that removes a portion of habitat at a certain rate, which spreads through
 joined pieces of habitat.
 """
-function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity{Float64, typeof(𝐓^-1)})
+function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
     v = uconvert(unit(timestep)^-1, rate)
     if all(eco.abenv.budget.matrix .> 0.0)
         pos = find(eco.abenv.active)
@@ -92,7 +94,7 @@ GLOBAL_funcdict["ClustHabitatLoss!"] = ClustHabitatLoss!
 
 A function that randomly replaces a portion of habitat with another.
 """
-function HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity{Float64, typeof(𝐓^-1)})
+function HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
     v = uconvert(unit(timestep)^-1, rate)
     pos = length(eco.abenv.budget.matrix)
     howmany = jbinom(1, pos, ustrip(v))[1]
@@ -102,8 +104,7 @@ end
 
 GLOBAL_funcdict["HabitatReplacement"] = HabitatReplacement
 
-function SusceptibleDecline(eco::Ecosystem, timestep::Unitful.Time,
-            rate::Quantity{Float64, typeof(𝐓^-1)})
+function SusceptibleDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
      eco.spplist.susceptible *= (1 + rate * timestep)
      currentabun = mapslices(sum, eco.abundances.matrix, dims = 2)
      spp = 1:size(eco.abundances.matrix, 1)
@@ -130,8 +131,7 @@ GLOBAL_funcdict["SusceptibleDecline"] = SusceptibleDecline
 A function that reduces each species in the Ecosystem, `eco`, per `timestep`,
     at a particular `rate`.
 """
-function UniformDecline(eco::Ecosystem, timestep::Unitful.Time,
-     rate::Quantity{Float64, typeof(𝐓^-1)})
+function UniformDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
      spp = 1:size(eco.abundances.matrix, 1)
      meanabun = mean(eco.spplist.abun)
      avlost = rate * timestep * meanabun
@@ -153,8 +153,7 @@ GLOBAL_funcdict["UniformDecline"] = UniformDecline
 A function that reduces each species in the Ecosystem, `eco`, per `timestep`,
     at a particular `rate`, proportional to their starting population size.
 """
-function ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time,
-     rate::Quantity{Float64, typeof(𝐓^-1)})
+function ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
      spp = 1:size(eco.abundances.matrix, 1)
      avlost = rate * timestep .* eco.spplist.abun
      for i in spp
@@ -176,8 +175,7 @@ A function that reduces the largest species in the Ecosystem, `eco`, per `timest
     largest species are those that have greater than half of the maximum energy
     in the system.
 """
-function LargeDecline(eco::Ecosystem, timestep::Unitful.Time,
-     rate::Quantity{Float64, typeof(𝐓^-1)})
+function LargeDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
      !all(eco.spplist.requirement.energy .==
         maximum(eco.spplist.requirement.energy)) ||
         error("All species have the same requirement")
@@ -202,8 +200,7 @@ A function that reduces the rarest species in the Ecosystem, `eco`, per `timeste
     at a particular `rate`, proportional to their starting population size. The
     rarest species are those that have abundances lower than the 25th percentile.
 """
-function RareDecline(eco::Ecosystem, timestep::Unitful.Time,
-     rate::Quantity{Float64, typeof(𝐓^-1)})
+function RareDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
      originalabun = eco.spplist.abun
      rarest = find(originalabun .< quantile(originalabun)[2])
      avlost = rate * timestep .* eco.spplist.abun
@@ -225,8 +222,7 @@ A function that reduces the most common species in the Ecosystem, `eco`, per `ti
     at a particular `rate`, proportional to their starting population size. The
     rarest species are those that have abundances greater than the 75th percentile.
 """
-function CommonDecline(eco::Ecosystem, timestep::Unitful.Time,
-     rate::Quantity{Float64, typeof(𝐓^-1)})
+function CommonDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
      originalabun = eco.spplist.abun
      common = find(originalabun .> quantile(originalabun)[4])
      avlost = rate * timestep .* eco.spplist.abun
@@ -248,11 +244,10 @@ A function that introduces an invasive species into the ecosystem, `eco`,
     that gains abundance at each `timestep` at a particular rate, `rate` and
     reduces 5 designated 'sensitive' species by an equivalent amount.
 """
-function Invasive(eco::Ecosystem, timestep::Unitful.Time,
-    rate::Quantity{Float64, typeof(𝐓^-1)})
+function Invasive(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
     qual = eco.spplist.native .== false
-    invasive = find(qual)
-    natives = find(!qual)
+    invasive = findall(qual)
+    natives = findall(.!qual)
     invasive_abun = eco.spplist.abun[invasive]
     avgain = rate * timestep .* invasive_abun
     for i in eachindex(invasive)
