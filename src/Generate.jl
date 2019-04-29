@@ -1,6 +1,40 @@
 using StatsBase
 using Compat
 using LinearAlgebra
+"""
+    get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
+
+Function to get the neighbours of a grid square in a matrix in 4 or 8 directions
+"""
+function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
+  # Calculate dimensions
+  dims=size(mat)
+  x_coord <= dims[1] && y_coord <= dims[2] || error("Coordinates outside grid")
+  # Include 4 directions
+  if chess==4
+    neighbour_vec=[x_coord y_coord-1; x_coord y_coord+1; x_coord-1 y_coord;
+     x_coord+1 y_coord]
+  # Include 8 directions
+  elseif chess==8
+    neighbour_vec=[x_coord y_coord-1; x_coord y_coord+1; x_coord-1 y_coord;
+     x_coord+1 y_coord; x_coord-1 y_coord-1; x_coord-1 y_coord+1;
+      x_coord+1 y_coord-1; x_coord+1 y_coord+1]
+  else
+    # Give error if other number chosen than 4 or 8
+    error("Can only calculate neighbours in 4 or 8 directions")
+  end
+  # Remove answers outside of the dimensions of the matrix
+  remove=vcat(mapslices(all, [neighbour_vec.>=1 neighbour_vec[:,1].<=
+    dims[1] neighbour_vec[:,2].<=dims[2]], dims=2)...)
+  neighbour_vec=neighbour_vec[remove,:]
+  neighbour_vec
+end
+function get_neighbours(mat::Matrix, x_coord::Array{Int64,1},
+     y_coord::Array{Int64,1}, chess::Int64=4)
+     neighbours  =map(n -> get_neighbours(mat, x_coord[n], y_coord[n], chess),
+      eachindex(x_coord))
+      return vcat(neighbours...)
+end
 
 update!(eco::Ecosystem, timestep::Unitful.Time) =
     update!(eco, timestep, Val{Threads.nthreads()}())
@@ -229,10 +263,8 @@ function energy_adjustment(eco::Ecosystem, bud::BudgetCollection2, i::Int64, spp
     ϵ̄real1 = ϵ̄1/traitfun(eco, i, spp)
     ϵ̄real2 = ϵ̄2/traitfun(eco, i, spp)
     # Alter rates by energy available in current pop & own requirements
-    birth_energy = (ϵ̄1^-params.longevity + ϵ̄2^-params.longevity) * (ϵ̄real1^-params.survival +
-     ϵ̄real2^-params.survival) * min(K1/E1, K2/E2, params.boost)
-    death_energy = (ϵ̄1^-params.longevity + ϵ̄2^-params.longevity) * (ϵ̄real1^params.survival +
-    ϵ̄real2^params.survival) * max(E1 / K1, E2/K2)
+    birth_energy = (ϵ̄1^-params.longevity + ϵ̄2^-params.longevity) * (ϵ̄real1^-params.survival + ϵ̄real2^-params.survival) * min(K1/E1, K2/E2, params.boost)
+    death_energy = (ϵ̄1^-params.longevity + ϵ̄2^-params.longevity) * (ϵ̄real1^params.survival + ϵ̄real2^params.survival) * max(E1/K1, E2/K2)
     return birth_energy, death_energy
 end
 
