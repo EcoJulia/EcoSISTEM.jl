@@ -187,7 +187,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
       if time_seq[i] in record_seq
           counting = counting + 1
           for j in eachindex(divfuns)
-              storage[:, j, counting] = divfuns[j](eco, q)[:diversity]
+              storage[j, counting] = divfuns[j](eco, q)[:diversity][1]
           end
       end
   end
