@@ -445,7 +445,7 @@ function _gaussian_disperse(r)
   exp(-((r[3]-r[1])^2+(r[4]-r[2])^2)) / π
 end
 
-function _2Dt_disperse(r, a, b)
+function _2Dt_disperse(r, b)
     newfun = function(r) return((b - 1)/(π)) * (1 + ((r[3]-r[1])^2+(r[4]-r[2])^2))^-b end
     return newfun
 end
@@ -469,7 +469,9 @@ function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
     m = maximum(_getdimension(hab))
     p = mov.thresh
     b = mov.shape
-    return map(r -> Lookup(_lookup(r, m, p, b, _2Dt_disperse)))
+    return map(relsize, b) do r, shape
+        r -> Lookup(_lookup(r, m, p, shape, _2Dt_disperse))
+    end
 end
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
