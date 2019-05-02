@@ -446,7 +446,7 @@ function _gaussian_disperse(r)
 end
 
 function _2Dt_disperse(r, a, b)
-    newfun = function(r) return((b - 1)/(π * a^2)) * (1 + ((r[3]-r[1])^2+(r[4]-r[2])^2)/a^2)^-b end
+    newfun = function(r) return((b - 1)/(π)) * (1 + ((r[3]-r[1])^2+(r[4]-r[2])^2))^-b end
     return newfun
 end
 
@@ -464,12 +464,12 @@ function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
   return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)
 end
 function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
-  relsize = _getgridsize(hab) ./ km
-  m = maximum(_getdimension(hab))
-  p = mov.thresh
-  a = mov.dist
-  b = mov.shape
-  return map(r -> Lookup(_lookup(r, m, p, _2Dt_disperse)), relsize)
+    sd = (2 * mov.dist) / sqrt(pi)
+    relsize =  _getgridsize(hab) ./ sd
+    m = maximum(_getdimension(hab))
+    p = mov.thresh
+    b = mov.shape
+    return map(r -> Lookup(_lookup(r, m, p, b, _2Dt_disperse)))
 end
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
@@ -484,6 +484,46 @@ function _lookup(relSquareSize::Float64, maxGridSize::Int64,
     while (k <= maxGridSize && m <= maxGridSize)
       count = count + 1
       calc_prob = hcubature(r -> dispersalfn(r),
+                            [0, 0, k*relSquareSize, m*relSquareSize],
+      [relSquareSize, relSquareSize, (k+1)*relSquareSize, (m+1)*relSquareSize],
+       maxevals= 10000)[1] / relSquareSize^2
+      if m == 0 && calc_prob < pThresh
+        break
+      end
+        if count == 1
+          push!(lookup_tab, [k m calc_prob])
+           k = k + 1
+        else
+          if (calc_prob > pThresh && m <= k)
+            push!(lookup_tab, [k m calc_prob])
+            m = m + 1
+          else m = 0; k = k + 1
+          end
+        end
+    end
+    # If no probabilities can be calculated, threshold is too high
+    nrow(lookup_tab) != 0 || error("probability threshold too high")
+    # Find all other directions
+    lookup_tab = _symmetric_grid(lookup_tab)
+    #info(sum(lookup_tab[:, 3]))
+    # Normalise
+    lookup_tab[:Prob] = lookup_tab[:Prob]/sum(lookup_tab[:Prob])
+    lookup_tab
+end
+
+
+function _lookup(relSquareSize::Float64, maxGridSize::Int64,
+                pThresh::Float64, b::Float64, dispersalfn::Function)
+  # Create empty array
+  lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
+
+   # Loop through directions until probability is below threshold
+    k = 0
+    m = 0
+    count = 0
+    while (k <= maxGridSize && m <= maxGridSize)
+      count = count + 1
+      calc_prob = hcubature(r -> dispersalfn(r, b),
                             [0, 0, k*relSquareSize, m*relSquareSize],
       [relSquareSize, relSquareSize, (k+1)*relSquareSize, (m+1)*relSquareSize],
        maxevals= 10000)[1] / relSquareSize^2
