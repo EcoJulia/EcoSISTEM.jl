@@ -468,9 +468,7 @@ function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
     m = maximum(_getdimension(hab))
     p = mov.thresh
     b = mov.shape
-    return map(relsize, b) do r, shape
-        r -> Lookup(_lookup(r, m, p, shape, _2Dt_disperse))
-    end
+    return map((r, shape) -> Simulation.Lookup(Simulation._lookup(r, m, p, shape, Simulation._2Dt_disperse)), relsize, b)
 end
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
