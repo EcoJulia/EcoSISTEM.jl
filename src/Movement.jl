@@ -30,8 +30,7 @@ mutable struct LongTailKernel <: AbstractKernel
   shape::Vector{Float64}
   thresh::Float64
 end
-function LongTailKernel(dispersaldist::Unitful.Length{Float64}, shape::Float64,  numspecies::Int64,
-  pthresh::Float64)
+function LongTailKernel(dispersaldist::Unitful.Length{Float64}, shape::Float64, numspecies::Int64, pthresh::Float64)
   dist = map(u-> uconvert(km, u), dispersaldist)
   LongTailKernel(fill(dist, numspecies), fill(shape, numspecies), pthresh)
 end

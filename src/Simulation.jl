@@ -41,8 +41,7 @@ export GridAbioticEnv, simplenicheAE, tempgradAE, peakedgradAE,  simplehabitatAE
     eraAE, worldclimAE
 
 include("Movement.jl")
-export GaussianKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel,
-    Torus, Cylinder, NoBoundary
+export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel, Torus, Cylinder, NoBoundary
 
 include("Traits.jl")
 export GaussTrait, DiscreteTrait, TempBin,RainBin, TraitCollection2, TraitCollection3,
