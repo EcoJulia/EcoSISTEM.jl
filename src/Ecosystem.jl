@@ -446,8 +446,7 @@ function _gaussian_disperse(r)
 end
 
 function _2Dt_disperse(r, b)
-    newfun = function(r) return((b - 1)/(π)) * (1 + ((r[3]-r[1])^2+(r[4]-r[2])^2))^-b end
-    return newfun
+    return((b - 1)/(π)) * (1 + ((r[3]-r[1])^2+(r[4]-r[2])^2))^-b
 end
 
 """
