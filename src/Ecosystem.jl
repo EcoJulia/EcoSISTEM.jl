@@ -464,12 +464,12 @@ function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
   return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)
 end
 function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
-  relsize = _getgridsize(hab)
+  relsize = _getgridsize(hab) ./ km
   m = maximum(_getdimension(hab))
   p = mov.thresh
   a = mov.dist
   b = mov.shape
-  return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)
+  return map(r -> Lookup(_lookup(r, m, p, _2Dt_disperse)), relsize)
 end
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
