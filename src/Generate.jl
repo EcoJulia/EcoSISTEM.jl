@@ -78,7 +78,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, ::Val{N}) where N
                 newdeathprob = 1.0 - exp(-deathprob)
 
                 # Calculate how many births and deaths
-                births = rand(rng, Binomial(currentabun[j], newbirthprob))
+                births = rand(rng, Poisson(currentabun[j] * newbirthprob))
                 deaths = rand(rng, Binomial(currentabun[j], newdeathprob))
 
                 # Update population
@@ -136,7 +136,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, ::Val{1})
                 newdeathprob = 1.0 - exp(-deathprob)
 
                 # Calculate how many births and deaths
-                births = rand(rng, Binomial(currentabun[j], newbirthprob))
+                births = rand(rng, Poisson(currentabun[j] * newbirthprob))
                 #births = rand(rng, NegativeBinomial(currentabun[j]*(1 - newbirthprob)/newbirthprob))
                 deaths = rand(rng, Binomial(currentabun[j], newdeathprob))
                 #deaths = rand(rng, NegativeBinomial(currentabun[j]*(1 − newdeathprob)/newdeathprob))
@@ -494,24 +494,23 @@ function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AbstractAbiotic)
   # Calculate size of habitat
   dim = _getdimension(abenv.habitat)
-  len = dim[1] * dim[2]
-  grid = collect(1:len)
-  # Set up copy of budget
-  b = reshape(copy(_getbudget(abenv.budget)), size(grid))
-  units = unit(b[1])
-  activity = reshape(copy(abenv.active), size(grid))
-  b[.!activity] .= 0.0 * units
+  numsquares = dim[1] * dim[2]
   # Loop through species
   for i in eachindex(spplist.abun)
       if spplist.native[i]
         # Get abundance of species
-        abun = spplist.abun[i]
-        pos = sample(grid[b .> (0 * units)], abun)
+        abun = rand(Multinomial(spplist.abun[i], numsquares))
         # Add individual to this location
-        ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
+        ml.matrix[i, :] .+= abun
      end
    end
 end
+function simplerepopulate!(eco::Ecosystem)
+  eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
+  eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
+  simplepopulate!(eco.abundances, eco.spplist, eco.abenv)
+end
+
 GLOBAL_funcdict["simplepopulate!"] = simplepopulate!
 
 """
