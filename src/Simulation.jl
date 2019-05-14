@@ -64,7 +64,7 @@ include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
 
 include("HabitatUpdate.jl")
-export getchangefun, TempChange, eraChange, worldclimChange
+export getchangefun, TempChange, TempFluct, eraChange, worldclimChange
 
 include("Scenarios.jl")
 export SimpleScenario, TempIncrease, RandHabitatLoss!, ClustHabitatLoss!, DisturbanceScenario,
