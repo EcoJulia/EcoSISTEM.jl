@@ -7,6 +7,14 @@ function TempChange(eco::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
   v = uconvert(K/unit(timestep), val)
   hab.matrix .+= v * timestep
 end
+
+function TempFluct(eco::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
+  val = hab.change.rate
+  v = uconvert(K/unit(timestep), val) * timestep
+  offset = v/pi
+  hab.matrix .+= (sin.(ustrip.(hab.matrix ./ offset)) .* v .*K)
+end
+
 GLOBAL_funcdict["TempChange"] = TempChange
 function NoChange(eco::Ecosystem, hab::AbstractHabitat, timestep::Unitful.Time)
 end
