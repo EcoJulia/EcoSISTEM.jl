@@ -64,7 +64,7 @@ mutable struct NoGrowth{U <: Unitful.Units} <: AbstractParams
     function NoGrowth{U}(birth::Vector{TimeUnitType{U}},
       death::Vector{TimeUnitType{U}},
       longevity::Float64, survival::Float64, boost::Float64) where {U <: Unitful.Units}
-      longevity > survival || error("longevity must be greater than survival")
+      #longevity > survival || error("longevity must be greater than survival")
       longevity >= 0 && survival >= 0 || error("longevity and survival must be greater than zero")
       new{U}(birth, death, longevity, survival, boost)
     end
