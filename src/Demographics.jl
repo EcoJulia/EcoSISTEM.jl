@@ -30,7 +30,7 @@ mutable struct PopGrowth{U <: Unitful.Units} <: AbstractParams
     function PopGrowth{U}(birth::Vector{TimeUnitType{U}},
         death::Vector{TimeUnitType{U}},
         longevity::Float64, survival::Float64, boost::Float64) where {U <: Unitful.Units}
-        longevity > survival || error("l must be greater than s")
+        #longevity > survival || error("l must be greater than s")
         longevity >= 0 && survival >= 0 || error("l and s must be greater than zero")
         new{U}(birth, death, longevity, survival, boost)
     end
