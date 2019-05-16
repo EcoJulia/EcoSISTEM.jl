@@ -71,8 +71,8 @@ mutable struct SolarRequirement <: Abstract1Requirement{typeof(1.0*kJ)}
   energy::Vector{typeof(1.0*kJ)}
   exchange_rate::typeof(1.0/kJ)
 
-  function SolarRequirement(energy::Vector{typeof(1.0*kJ)}, exchange_rate::typeof(1.0/kJ) = 1.0/kJ)
-      return new(energy, exchange_rate)
+  function SolarRequirement(energy::Vector{<: Unitful.Energy{Float64}}, exchange_rate::Unitful.Quantity{Float64} = 1.0/kJ)
+      return new(uconvert.(kJ, energy), uconvert(kJ^-1, exchange_rate))
   end
 end
 
@@ -89,8 +89,8 @@ mutable struct WaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
   energy::Vector{typeof(1.0*mm)}
   exchange_rate::typeof(1.0/mm)
 
-  function WaterRequirement(energy::Vector{typeof(1.0*mm)}, exchange_rate::typeof(1.0/mm) = 1.0/mm)
-      return new(energy, exchange_rate)
+  function WaterRequirement(energy::Vector{<: Unitful.Length{Float64}}, exchange_rate::Unitful.Quantity{Float64} = 1.0/mm)
+      return new(uconvert.(mm, energy), uconvert.(mm^-1, exchange_rate))
   end
 end
 length(req::WaterRequirement) = length(req.energy)
