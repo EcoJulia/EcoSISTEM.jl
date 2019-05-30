@@ -159,7 +159,7 @@ function Ecosystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::GridAb
   # Create matrix landscape of zero abundances
   ml = emptygridlandscape(abenv, spplist)
   # Populate this matrix with species abundances
-  popfun(ml, spplist, abenv)
+  popfun(ml, spplist, abenv, rel)
   # Create lookup table of all moves and their probabilities
   lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
   nm = zeros(Int64, size(ml.matrix))

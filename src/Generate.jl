@@ -491,15 +491,19 @@ Function to populate a grid landscape given the abundances found in species list
 and whether or not to include traits.
 """
 function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::AbstractAbiotic)
+                   abenv::AB, rel::R) where {AB <: AbstractAbiotic, R <: AbstractTraitRelationship}
   # Calculate size of habitat
   dim = _getdimension(abenv.habitat)
   numsquares = dim[1] * dim[2]
+  maxrng = spplist.traits.mean .+ spplist.traits.var
+  minrng = spplist.traits.mean .- spplist.traits.var
+  hab = reshape(abenv.habitat.matrix, numsquares)
+  probabilities = [_traitfun(abenv.habitat, spplist.traits, rel, i, spp, iscontinuous(abenv.habitat)) for i in 1:numsquares, spp in 1:numsquares]
   # Loop through species
   for i in eachindex(spplist.abun)
       if spplist.native[i]
         # Get abundance of species
-        abun = rand(Multinomial(spplist.abun[i], numsquares))
+        abun = rand(Multinomial(spplist.abun[i], probabilities[:, i]./sum(probabilities[:, i])))
         # Add individual to this location
         ml.matrix[i, :] .+= abun
      end
@@ -508,7 +512,7 @@ end
 function simplerepopulate!(eco::Ecosystem)
   eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
   eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
-  simplepopulate!(eco.abundances, eco.spplist, eco.abenv)
+  simplepopulate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship)
 end
 
 GLOBAL_funcdict["simplepopulate!"] = simplepopulate!
