@@ -495,10 +495,11 @@ function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
   # Calculate size of habitat
   dim = _getdimension(abenv.habitat)
   numsquares = dim[1] * dim[2]
+  numspp = length(spplist.names)
   maxrng = spplist.traits.mean .+ spplist.traits.var
   minrng = spplist.traits.mean .- spplist.traits.var
   hab = reshape(abenv.habitat.matrix, numsquares)
-  probabilities = [_traitfun(abenv.habitat, spplist.traits, rel, i, spp, iscontinuous(abenv.habitat)) for i in 1:numsquares, spp in 1:numsquares]
+  probabilities = [_traitfun(abenv.habitat, spplist.traits, rel, i, spp, iscontinuous(abenv.habitat)) for i in 1:numsquares, spp in 1:numspp]
   # Loop through species
   for i in eachindex(spplist.abun)
       if spplist.native[i]
