@@ -20,7 +20,7 @@ if VERSION >= v"0.7"
     """
     mutable struct SimpleScenario <: AbstractScenario
         fun::Function
-        rate::Union{Quantity{Float64, 𝐓^-1}, Quantity{Float64, 𝚯*𝐓^-1}}
+        rate::Union{Quantity{Float64, 𝐓^-1}, Quantity{Float64, 𝚯*𝐓^-1}, Quantity{Float64, 𝐋*𝐓^-1}}
     end
 else
     """
@@ -30,7 +30,7 @@ else
     """
     mutable struct SimpleScenario <: AbstractScenario
         fun::Function
-        rate::Union{Quantity{Float64, typeof(𝐓^-1)}, Quantity{Float64, typeof(𝚯*𝐓^-1)}}
+        rate::Union{Quantity{Float64, typeof(𝐓^-1)}, Quantity{Float64, typeof(𝚯*𝐓^-1)}, Quantity{Float64, typeof(𝐋*𝐓^-1)}}
     end
 end
 GLOBAL_typedict["SimpleScenario"] = SimpleScenario

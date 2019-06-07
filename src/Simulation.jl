@@ -29,16 +29,14 @@ export TraitRelationship,multiplicativeTR2, multiplicativeTR3, Gauss,
  additiveTR2, additiveTR3
 
 include("Habitats.jl")
-export ContinuousHab,ContinuousTimeHab, DiscreteHab, HabitatCollection2, HabitatCollection3,
- tempgrad
+export ContinuousHab,ContinuousTimeHab, DiscreteHab, HabitatCollection2, HabitatCollection3, tempgrad, raingrad
 
 include("Energy.jl")
 export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, SimpleBudget,
     SolarBudget, SolarTimeBudget, WaterTimeBudget, ReqCollection2, BudgetCollection2
 
 include("AbioticEnv.jl")
-export GridAbioticEnv, simplenicheAE, tempgradAE, peakedgradAE,  simplehabitatAE, degradedhabitatAE,
-    eraAE, worldclimAE
+export GridAbioticEnv, simplenicheAE, tempgradAE, raingradAE, peakedgradAE, simplehabitatAE, degradedhabitatAE, eraAE, worldclimAE
 
 include("Movement.jl")
 export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel, Torus, Cylinder, NoBoundary
@@ -64,7 +62,7 @@ include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
 
 include("HabitatUpdate.jl")
-export getchangefun, TempChange, TempFluct, eraChange, worldclimChange
+export getchangefun, TempChange, RainChange, TempFluct, eraChange, worldclimChange
 
 include("Scenarios.jl")
 export SimpleScenario, TempIncrease, RandHabitatLoss!, ClustHabitatLoss!, DisturbanceScenario,
