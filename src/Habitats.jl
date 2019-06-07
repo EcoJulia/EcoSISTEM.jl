@@ -403,3 +403,15 @@ function tempgrad(minT::Unitful.Temperature{Float64}, maxT::Unitful.Temperature{
   end
   ContinuousHab(M, size, HabitatUpdate{typeof(dimension(minT))}(TempChange, rate))
 end
+
+function raingrad(minR::Unitful.Length{Float64}, maxR::Unitful.Length{Float64}, size::Unitful.Length{Float64}, dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝐋*𝐓^-1})
+  dim[1] > 1 ||
+  error("First dimension should be greater than 1 for temperature gradient")
+  M = Array{typeof(minR)}(Compat.undef, dim)
+  total = dim[1]
+  rain_range = collect(range(minR, stop = maxR, length = total))
+  map(1:total) do seq
+    M[seq, :] .= rain_range[seq]
+  end
+  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(minR))}(RainfallChange, rate))
+end

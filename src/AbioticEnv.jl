@@ -163,6 +163,63 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
   end
 
  GLOBAL_funcdict["tempgradAE"] = tempgradAE
+ """
+     raingradAE(min::Unitful.Temperature{Float64},
+       max::Unitful.Temperature{Float64},
+       dimension::Tuple{Int64, Int64}, maxbud::Float64,
+       area::Unitful.Area{Float64}, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)},
+       active::Array{Bool, 2})
+
+ Function to create a rain gradient `ContinuousHab`, `SimpleBudget` type abiotic environment. Given a `min` and `max` rainfall, it generates a
+ gradient from minimum at the bottom to maximum at the top. It creates a
+ `ContinuousHab` environment with dimensions `dimension` and a specified area `area`. It also creates a `SimpleBudget` type filled with the maximum budget value `maxbud`. The rate of rainfall change is specified using the parameter `rate`. If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
+ """
+ function raingradAE(minR::Unitful.Length{Float64},
+   maxR::Unitful.Length{Float64},
+   dimension::Tuple{Int64, Int64}, maxbud::Unitful.Quantity{Float64},
+   area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝐋*𝐓^-1},
+   active::Array{Bool, 2})
+   minR = uconvert(mm, minR); maxR = uconvert(mm, maxR)
+   area = uconvert(km^2, area)
+   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
+   hab = raingrad(minR, maxR, gridsquaresize, dimension, rate)
+   B = cancel(maxbud, area)
+   bud = zeros(typeof(B), dimension)
+   fill!(bud, B/(dimension[1]*dimension[2]))
+   checkbud(B) || error("Unrecognised unit in budget")
+   budtype = matchdict[unit(B)]
+   return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
+ end
+
+ function raingradAE(minR::Unitful.Length{Float64},
+   maxR::Unitful.Length{Float64},
+   dimension::Tuple{Int64, Int64},
+   area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝐋*𝐓^-1},
+   active::Array{Bool, 2})
+   minR = uconvert(mm, minR); maxR = uconvert(mm, maxR)
+   area = uconvert(km^2, area)
+   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
+   hab = raingrad(minR, maxR, gridsquaresize, dimension, rate)
+   bud = WaterBudget(hab.matrix)
+   return GridAbioticEnv{typeof(hab), typeof(bud)}(hab, active, bud)
+ end
+
+ function raingradAE(minR::Unitful.Length{Float64},
+   maxR::Unitful.Length{Float64},
+   dimension::Tuple{Int64, Int64}, maxbud::Unitful.Quantity{Float64},
+   area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝐋*𝐓^-1})
+
+   active = fill(true, dimension)
+   raingradAE(minR, maxR, dimension, maxbud, area, rate, active)
+  end
+  function raingradAE(minR::Unitful.Length{Float64},
+    maxR::Unitful.Length{Float64},
+    dimension::Tuple{Int64, Int64},
+    area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝐋*𝐓^-1})
+
+    active = fill(true, dimension)
+    raingradAE(minR, maxR, dimension, area, rate, active)
+   end
 
 function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64})
     dimension = size(era.array)[1:2]
