@@ -8,11 +8,17 @@ function TempChange(eco::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
   hab.matrix .+= v * timestep
 end
 
+function RainfallChange(eco::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
+  val = hab.change.rate
+  v = uconvert(mm/unit(timestep), val)
+  hab.matrix .+= v * timestep
+end
+
 function TempFluct(eco::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
   val = hab.change.rate
   v = uconvert(K/unit(timestep), val) * timestep
   offset = v/pi
-  hab.matrix .+= (sin.(ustrip.(hab.matrix ./ offset)) .* v .*K)
+  hab.matrix .+= (sin.(hab.matrix ./ offset) .* v)
 end
 
 GLOBAL_funcdict["TempChange"] = TempChange
