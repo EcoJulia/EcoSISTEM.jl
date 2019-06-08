@@ -70,7 +70,7 @@ export SimpleScenario, TempIncrease, RandHabitatLoss!, ClustHabitatLoss!, Distur
  CommonDecline, HabitatReplacement, Invasive, SusceptibleDecline
 
 include("Generate.jl")
-export simplepopulate!, simplerepopulate!, populate!, repopulate!,reenergise!, randomniches, update!, update_birth_move!,
+export populate!, repopulate!, traitpopulate!, traitrepopulate!, reenergise!, randomniches, update!, update_birth_move!,
  convert_coords, get_neighbours
 
 include("SantiniScenarios.jl")
