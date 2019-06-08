@@ -506,7 +506,7 @@ Function to repopulate an ecosystem `eco`, with option for including trait prefe
 function traitrepopulate!(eco::Ecosystem)
   eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
   eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
-  simplepopulate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship)
+  traitpopulate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship)
 end
 
 """
