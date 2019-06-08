@@ -400,15 +400,22 @@ function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
   return eco
 end
 
+"""
+    populate!(ml::GridLandscape, spplist::SpeciesList,
+                   abenv::AbstractAbiotic, traits::Bool)
 
-function populate!(ml::GridLandscape, spplist::SpeciesList, abenv::AbstractAbiotic)
+Function to populate a grid landscape given the abundances found in species list according to availability of resources.
+"""
+
+function populate!(ml::GridLandscape, spplist::SpeciesList, abenv::AB, rel::R) where {AB <: AbstractAbiotic, R <: AbstractTraitRelationship}
     dim = _getdimension(abenv.habitat)
     len = dim[1] * dim[2]
     grid = collect(1:len)
     # Set up copy of budget
     b = reshape(ustrip.(_getbudget(abenv.budget)), size(grid))
     activity = reshape(copy(abenv.active), size(grid))
-    b[.!activity] .= 0.0
+    units = unit(b[1])
+    b[.!activity] .= 0.0 * units
     B = b./sum(b)
     # Loop through species
     for i in eachindex(spplist.abun)
@@ -416,42 +423,8 @@ function populate!(ml::GridLandscape, spplist::SpeciesList, abenv::AbstractAbiot
     end
 end
 
-"""
-    populate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::AbstractAbiotic, traits::Bool)
-
-Function to populate a grid landscape given the abundances found in species list
-and whether or not to include traits.
-"""
-function _populate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::AbstractAbiotic)
-  # Calculate size of habitat
- dim = _getdimension(abenv.habitat)
- len = dim[1] * dim[2]
-  grid = collect(1:len)
-  # Set up copy of budget
-  b = reshape(copy(_getbudget(abenv.budget)), size(grid))
-  units = unit(b[1])
-  activity = reshape(copy(abenv.active), size(grid))
-  b[.!activity] .= 0.0 * units
-  # Loop through species
-  for i in eachindex(spplist.abun)
-      # Get abundance of species
-      abun = spplist.abun[i]
-      # Loop through individuals
-      while abun>0
-          # Randomly choose position on grid (weighted)
-          pos = sample(grid[b .> (0 * units)])
-          # Add individual to this location
-          ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
-          abun = abun .- 1
-          b[pos] = b[pos] .- spplist.requirement.energy[i]
-      end
-  end
-end
 function populate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}} where {H <:
-                    AbstractHabitat, B1 <: AbstractBudget, B2 <: AbstractBudget})
+                   abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}}, rel::R) where {H <: AbstractHabitat, B1 <: AbstractBudget, B2 <: AbstractBudget, R <: AbstractTraitRelationship}
     # Calculate size of habitat
     dim = _getdimension(abenv.habitat)
     len = dim[1] * dim[2]
@@ -464,33 +437,48 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
     activity = reshape(copy(abenv.active), size(grid))
     b1[.!activity] .= 0.0 * units1
     b2[.!activity] .= 0.0 * units2
+    B = (b1./sum(b1)) * (b2./sum(b2))
     # Loop through species
     for i in eachindex(spplist.abun)
-        # Get abundance of species
-        abun = spplist.abun[i]
-        # Loop through individuals
-        while abun>0
-            # Randomly choose position on grid (weighted)
-            pos = sample(grid[(b1 .> (0 * units1)) .& (b2 .> (0 * units2))])
-            # Add individual to this location
-            ml.matrix[i, pos] = ml.matrix[i, pos] .+ 1
-            abun = abun .- 1
-            b1[pos] = b1[pos] .- spplist.requirement.r1.energy[i]
-            b2[pos] = b2[pos] .- spplist.requirement.r2.energy[i]
-        end
+        rand!(Multinomial(spplist.abun[i], B), (@view ml.matrix[i, :]))
     end
 end
 GLOBAL_funcdict["populate!"] = populate!
 
+"""
+    repopulate!(eco::Ecosystem, abun::Int64)
+Function to repopulate an ecosystem `eco`, with option for including trait preferences. An additional `abun` parameter can be included, in order to repopulate the ecosystem with a specified number of individuals.
+"""
+function repopulate!(eco::Ecosystem)
+  eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
+  eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
+  populate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship)
+end
+function repopulate!(eco::Ecosystem, abun::Int64)
+    dim = _getdimension(eco.abenv.habitat)
+    len = dim[1] * dim[2]
+    grid = collect(1:len)
+    # Set up copy of budget
+    b = reshape(copy(_getbudget(eco.abenv.budget)), size(grid))
+    units = unit(b[1])
+    activity = reshape(copy(eco.abenv.active), size(grid))
+    b[.!activity] .= 0.0 * units
+    pos = sample(grid[b .> (0 * units)], abun)
+    # Add individual to this location
+    map(pos) do p
+        eco.abundances.matrix[end, p] += 1
+    end
+end
+GLOBAL_funcdict["repopulate!"] = repopulate!
+
 
 """
-    populate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::AbstractAbiotic, traits::Bool)
+    traitpopulate!(ml::GridLandscape, spplist::SpeciesList,
+                   abenv::AbstractAbiotic)
 
-Function to populate a grid landscape given the abundances found in species list
-and whether or not to include traits.
+Function to populate a grid landscape given the abundances found in species list based upon how well the species traits match their environment.
 """
-function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
+function traitpopulate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AB, rel::R) where {AB <: AbstractAbiotic, R <: AbstractTraitRelationship}
   # Calculate size of habitat
   dim = _getdimension(abenv.habitat)
@@ -510,40 +498,16 @@ function simplepopulate!(ml::GridLandscape, spplist::SpeciesList,
      end
    end
 end
-function simplerepopulate!(eco::Ecosystem)
+
+"""
+    repopulate!(eco::Ecosystem, abun::Int64)
+Function to repopulate an ecosystem `eco`, with option for including trait preferences. An additional `abun` parameter can be included, in order to repopulate the ecosystem with a specified number of individuals.
+"""
+function traitrepopulate!(eco::Ecosystem)
   eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
   eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
   simplepopulate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship)
 end
-
-GLOBAL_funcdict["simplepopulate!"] = simplepopulate!
-
-"""
-    repopulate!(eco::Ecosystem, abun::Int64)
-Function to repopulate an ecosystem `eco`, with option for including trait
-preferences. An additional `abun` parameter can be included, in order to repopulate the ecosystem with a specified number of individuals.
-"""
-function repopulate!(eco::Ecosystem)
-  eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
-  eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
-  populate!(eco.abundances, eco.spplist, eco.abenv)
-end
-function repopulate!(eco::Ecosystem, abun::Int64)
-    dim = _getdimension(eco.abenv.habitat)
-    len = dim[1] * dim[2]
-    grid = collect(1:len)
-    # Set up copy of budget
-    b = reshape(copy(_getbudget(eco.abenv.budget)), size(grid))
-    units = unit(b[1])
-    activity = reshape(copy(eco.abenv.active), size(grid))
-    b[.!activity] .= 0.0 * units
-    pos = sample(grid[b .> (0 * units)], abun)
-    # Add individual to this location
-    map(pos) do p
-        eco.abundances.matrix[end, p] += 1
-    end
-end
-GLOBAL_funcdict["repopulate!"] = repopulate!
 
 """
     reenergise!(eco::Ecosystem, budget::Union{Float64, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
