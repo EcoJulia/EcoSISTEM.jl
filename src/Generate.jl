@@ -304,7 +304,7 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, e
     maxY = Simulation.getdimension(eco)[2] - y
     # Can't go over maximum dimension
     for i in eachindex(lookup.x)
-        valid =  (-x < lookup.x[i] <= maxX) && (-y < lookup.y[i] <= maxY) && (eco.abenv.active[lookup.x[i], lookup.y[i]])
+        valid =  (-x < lookup.x[i] <= maxX) && (-y < lookup.y[i] <= maxY) && (eco.abenv.active[lookup.x[i] + x, lookup.y[i] + y])
 
         lookup.pnew[i] = valid ? lookup.p[i] : 0.0
     end
