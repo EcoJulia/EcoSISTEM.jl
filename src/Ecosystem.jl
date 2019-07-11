@@ -232,7 +232,9 @@ output folder to which the simulations are saved, `outputfile`, and a range of
 times over which to simulate, `rng`.
 """
 function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
-    size(eco.abenv.habitat, 3) == length(rng) || error("Time range does not match habitat")
+    if size(eco.abenv.habitat, 3) > 1
+        size(eco.abenv.habitat, 3) == length(rng) || error("Time range does not match habitat")
+    end
     abundances = CachedGridLandscape(outputfile, rng)
     abundances.matrix[1] = eco.abundances
   CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist), typeof(eco.relationship)}(abundances,
