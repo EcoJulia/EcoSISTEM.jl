@@ -32,8 +32,7 @@ include("Habitats.jl")
 export ContinuousHab,ContinuousTimeHab, DiscreteHab, HabitatCollection2, HabitatCollection3, tempgrad, raingrad
 
 include("Energy.jl")
-export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, SimpleBudget,
-    SolarBudget, SolarTimeBudget, WaterTimeBudget, ReqCollection2, BudgetCollection2
+export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, VolWaterRequirement, SimpleBudget, SolarBudget, SolarTimeBudget, WaterTimeBudget, VolWaterTimeBudget, ReqCollection2, BudgetCollection2
 
 include("AbioticEnv.jl")
 export GridAbioticEnv, simplenicheAE, tempgradAE, raingradAE, peakedgradAE, simplehabitatAE, degradedhabitatAE, eraAE, worldclimAE

@@ -7,9 +7,9 @@ end
 function _traitfun(hab::AbstractHabitat, trts::AbstractTraits,
      rel::AbstractTraitRelationship, pos::Int64,
      spp::Int64, cont::Array{Bool, 1})
-    traitnames = fieldnames(trts)
-    habnames = fieldnames(hab)
-    relnames = fieldnames(rel)
+    traitnames = fieldnames(typeof(trts))
+    habnames = fieldnames(typeof(hab))
+    relnames = fieldnames(typeof(rel))
     results = map(length(traitnames)) do tr
         thishab = gethabitat(hab, habnames[tr])
         thistrt = getpref(trts, traitnames[tr])
@@ -19,6 +19,12 @@ function _traitfun(hab::AbstractHabitat, trts::AbstractTraits,
     combineTR(rel)(results)
 end
 function _traitfun(hab::ContinuousHab, trts::GaussTrait,
+    rel::AbstractTraitRelationship, pos::Int64, spp::Int64, cont::Bool)
+        h = gethabitat(hab, pos)
+        mean, var = getpref(trts, spp)
+    return rel(h, mean, var)
+end
+function _traitfun(hab::ContinuousTimeHab, trts::GaussTrait,
     rel::AbstractTraitRelationship, pos::Int64, spp::Int64, cont::Bool)
         h = gethabitat(hab, pos)
         mean, var = getpref(trts, spp)
