@@ -226,7 +226,7 @@ function _resettime!(hab::HabitatCollection3)
 end
 
 function _getdimension(hab::Union{HabitatCollection2, HabitatCollection3})
-    return size(hab.h1.matrix, 1, 2)
+    return size(hab.h1.matrix)[1:2]
 end
 function _getsize(hab::Union{HabitatCollection2, HabitatCollection3})
   return _getsize(hab.h1)
