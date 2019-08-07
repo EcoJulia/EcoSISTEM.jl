@@ -99,6 +99,24 @@ function _getenergyusage(abun::Vector{Int64}, req::WaterRequirement)
 end
 GLOBAL_typedict["WaterRequirement"] = WaterRequirement
 
+"""
+    VolWaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
+
+"""
+mutable struct VolWaterRequirement <: Abstract1Requirement{typeof(1.0*m^3)}
+  energy::Vector{typeof(1.0*m^3)}
+  exchange_rate::typeof(1.0/m^3)
+
+  function VolWaterRequirement(energy::Vector{<: Unitful.Volume{Float64}}, exchange_rate::Unitful.Quantity{Float64} = 1.0/mean(energy))
+      return new(uconvert.(m^3, energy), uconvert.(m^-3, exchange_rate))
+  end
+end
+length(req::VolWaterRequirement) = length(req.energy)
+function _getenergyusage(abun::Vector{Int64}, req::VolWaterRequirement)
+    sum(abun .* req.energy)
+end
+GLOBAL_typedict["VolWaterRequirement"] = VolWaterRequirement
+
 mutable struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
     r1::R1
     r2::R2
@@ -248,7 +266,7 @@ GLOBAL_typedict["WaterBudget"] = WaterBudget
 """
     WaterTimeBudget <: AbstractBudget{typeof(1.0*mm)}
 
-This budget type has a matrix of solar energy units, representing the energy budget of each
+This budget type has a matrix of rainfall units, representing the water budget of each
 subcommunity in the abiotic environment along with which time dimension we are interested in.
 """
 mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0*mm)}
@@ -270,6 +288,33 @@ end
 function _getavailableenergy(bud::WaterTimeBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
 end
+
+"""
+    VolWaterTimeBudget <: AbstractBudget{typeof(1.0*mm)}
+
+This budget type has a matrix of volumetric soil water units, representing the water budget of each
+subcommunity in the abiotic environment along with which time dimension we are interested in.
+"""
+mutable struct VolWaterTimeBudget <: AbstractTimeBudget{typeof(1.0*m^3)}
+  matrix::Array{typeof(1.0*m^3), 3}
+  time::Int64
+  function VolWaterTimeBudget(mat::Array{typeof(1.0*m^3), 3}, time::Int64)
+    mat[isnan.(mat)] .=  0*m^3
+    return new(mat, time)
+  end
+end
+
+function _countsubcommunities(bud::VolWaterTimeBudget)
+  return length(bud.matrix[:,:,1])
+end
+
+function _getbudget(bud::VolWaterTimeBudget)
+    return bud.matrix[:, :, bud.time]
+end
+function _getavailableenergy(bud::VolWaterTimeBudget)
+    return sum(bud.matrix[.!isnan.(bud.matrix)])
+end
+
 @recipe function f(B::WaterTimeBudget, time::Int64)
     b = ustrip.(B.matrix)
     seriestype  :=  :heatmap
