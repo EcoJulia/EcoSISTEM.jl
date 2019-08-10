@@ -135,7 +135,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, ::Val{1})
                 newbirthprob = 1.0 - exp(-birthprob)
                 newdeathprob = 1.0 - exp(-deathprob)
                 abun = currentabun[j]
-                (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n Abun: $abun \n i: $i")
+                (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n Abun: $abun \n i: $i \n j: $j")
                 # Calculate how many births and deaths
                 births = rand(rng, Poisson(currentabun[j] * newbirthprob))
                 #births = rand(rng, NegativeBinomial(currentabun[j]*(1 - newbirthprob)/newbirthprob))
@@ -253,8 +253,8 @@ function energy_adjustment(eco::Ecosystem, bud::BudgetCollection2, i::Int64, spp
      width = getdimension(eco)[1]
      (x, y) = convert_coords(i, width)
      params = eco.spplist.params
-    K1 = _getbudget(eco.abenv.budget, :b1)[x, y] * eco.spplist.requirement.r1.exchange_rate
-    K2 = _getbudget(eco.abenv.budget, :b2)[x, y] * eco.spplist.requirement.r2.exchange_rate
+    K1 = _getbudget(eco.abenv.budget.b1)[x, y] * eco.spplist.requirement.r1.exchange_rate
+    K2 = _getbudget(eco.abenv.budget.b2)[x, y] * eco.spplist.requirement.r2.exchange_rate
     # Get abundances of square we are interested in
     # Get energy budgets of species in square
     ϵ̄1 = eco.spplist.requirement.r1.energy[spp] * eco.spplist.requirement.r1.exchange_rate
