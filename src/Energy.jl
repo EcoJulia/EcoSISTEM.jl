@@ -222,7 +222,7 @@ function _countsubcommunities(bud::SolarTimeBudget)
 end
 
 function _getbudget(bud::SolarTimeBudget)
-    return bud.matrix[:, :, bud.time]
+    return @view bud.matrix[:, :, bud.time]
 end
 function _getavailableenergy(bud::SolarTimeBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
@@ -283,7 +283,7 @@ function _countsubcommunities(bud::WaterTimeBudget)
 end
 
 function _getbudget(bud::WaterTimeBudget)
-    return bud.matrix[:, :, bud.time]
+    return @view bud.matrix[:, :, bud.time]
 end
 function _getavailableenergy(bud::WaterTimeBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
@@ -309,7 +309,7 @@ function _countsubcommunities(bud::VolWaterTimeBudget)
 end
 
 function _getbudget(bud::VolWaterTimeBudget)
-    return bud.matrix[:, :, bud.time]
+    return @view bud.matrix[:, :, bud.time]
 end
 function _getavailableenergy(bud::VolWaterTimeBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
