@@ -27,10 +27,9 @@ end
 GLOBAL_funcdict["NoChange"] = NoChange
 ChangeLookup = Dict(K => TempChange, NoUnits => NoChange)
 function eraChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
-    last = size(hab.matrix, 3)
-    monthstep = convert(typeof(1.0month), timestep)
-    hab.time = hab.time + round(Int64,ustrip(monthstep))
-    if hab.time > last
+    monthstep = uconvert(month, timestep)
+    hab.time += round(Int64, monthstep/month)
+    if hab.time > size(hab.matrix, 3)
         hab.time = 1
         Compat.@warn "More timesteps than available, have repeated"
     end
@@ -61,12 +60,10 @@ end
 function _habitatupdate!(eco::Ecosystem, hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, timestep::Unitful.Time)
     hab.change.changefun(eco, hab, timestep)
 end
-function _habitatupdate!(eco::Ecosystem, hab::Union{HabitatCollection2, HabitatCollection3}, timestep::Unitful.Time)
-    habnames = fieldnames(typeof(hab))
-    results = map(length(habnames)) do h
-        thishab = gethabitat(hab, habnames[h])
-        _habitatupdate!(eco, thishab, timestep::Unitful.Time)
-    end
+
+function _habitatupdate!(eco::Ecosystem, hab::HabitatCollection2, timestep::Unitful.Time)
+    _habitatupdate!(eco, hab.h1, timestep)
+    _habitatupdate!(eco, hab.h2, timestep)
 end
 
 function budgetupdate!(eco::Ecosystem, timestep::Unitful.Time)
@@ -82,37 +79,39 @@ function _budgetupdate!(eco::Ecosystem, budget::WaterBudget, timestep::Unitful.T
     return budget
 end
 function _budgetupdate!(eco::Ecosystem, budget::SolarTimeBudget, timestep::Unitful.Time)
-    lastE = size(budget.matrix, 3)
-    monthstep = convert(typeof(1.0month), timestep)
-    eco.abenv.budget.time = eco.abenv.budget.time +
-    round(Int64,ustrip(monthstep))
-    if eco.abenv.budget.time > lastE
-        eco.abenv.budget.time = 1
+    monthstep = uconvert(month, timestep)
+    budget.time +=
+    round(Int64, monthstep/month)
+    if budget.time > size(budget.matrix, 3)
+        budget.time = 1
         Compat.@warn "More timesteps than available, have repeated"
     end
 end
 function _budgetupdate!(eco::Ecosystem, budget::WaterTimeBudget, timestep::Unitful.Time)
-    lastE = size(budget.matrix, 3)
-    monthstep = convert(typeof(1.0month), timestep)
-    eco.abenv.budget.time = eco.abenv.budget.time +
-    round(Int64,ustrip(monthstep))
-    if eco.abenv.budget.time > lastE
-        eco.abenv.budget.time = 1
+    monthstep = uconvert(month, timestep)
+    budget.time +=
+    round(Int64, monthstep/month)
+    if budget.time > size(budget.matrix, 3)
+        budget.time = 1
         Compat.@warn "More timesteps than available, have repeated"
     end
 end
-function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2, timestep::Unitful.Time)
-    for i in fieldnames(typeof(budget))
-        bud = getfield(budget, i)
-        lastE = size(bud.matrix, 3)
-        monthstep = convert(typeof(1.0month), timestep)
-        if (typeof(getfield(budget, i)) <: Simulation.AbstractTimeBudget)
-            getfield(eco.abenv.budget, i).time =
-            getfield(eco.abenv.budget, i).time + round(Int64,ustrip(monthstep))
-            if getfield(eco.abenv.budget, i).time > lastE
-                getfield(eco.abenv.budget, i).time = 1
-                Compat.@warn "More timesteps than available, have repeated"
-            end
-        end
+function _budgetupdate!(eco::Ecosystem, budget::VolWaterTimeBudget, timestep::Unitful.Time)
+    monthstep = uconvert(month, timestep)
+    budget.time +=
+    round(Int64, monthstep/month)
+    if budget.time > size(budget.matrix, 3)
+        budget.time = 1
+        Compat.@warn "More timesteps than available, have repeated"
     end
+end
+
+function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2{B1, B2}, timestep::Unitful.Time) where {B1, B2 <: AbstractTimeBudget}
+        budget.b1.time = eco.abenv.habitat.h1.time
+        budget.b2.time = eco.abenv.habitat.h1.time
+end
+
+function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2, timestep::Unitful.Time)
+    _budgetupdate!(eco, eco.budget.b1, timestep)
+    _budgetupdate!(eco, eco.budget.b2, timestep)
 end
