@@ -62,7 +62,7 @@ function _habitatupdate!(eco::Ecosystem, hab::Union{DiscreteHab, ContinuousHab, 
     hab.change.changefun(eco, hab, timestep)
 end
 function _habitatupdate!(eco::Ecosystem, hab::Union{HabitatCollection2, HabitatCollection3}, timestep::Unitful.Time)
-    habnames = fieldnames(hab)
+    habnames = fieldnames(typeof(hab))
     results = map(length(habnames)) do h
         thishab = gethabitat(hab, habnames[h])
         _habitatupdate!(eco, thishab, timestep::Unitful.Time)
