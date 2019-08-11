@@ -251,23 +251,27 @@ function energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::I
 end
 
 function energy_adjustment(eco::Ecosystem, bud::BudgetCollection2, i::Int64, spp::Int64)
-     width = getdimension(eco)[1]
-     (x, y) = convert_coords(i, width)
-     params = eco.spplist.params
-    K1 = _getbudget(eco.abenv.budget.b1)[x, y] * eco.spplist.requirement.r1.exchange_rate
-    K2 = _getbudget(eco.abenv.budget.b2)[x, y] * eco.spplist.requirement.r2.exchange_rate
-    # Get abundances of square we are interested in
-    # Get energy budgets of species in square
-    ϵ̄1 = eco.spplist.requirement.r1.energy[spp] * eco.spplist.requirement.r1.exchange_rate
-    E1 =  eco.cache.totalE[i, 1]
-    ϵ̄2 = eco.spplist.requirement.r2.energy[spp] * eco.spplist.requirement.r2.exchange_rate
-    E2 =  eco.cache.totalE[i, 2]
-    ϵ̄real1 = ϵ̄1/traitfun(eco, i, spp)
-    ϵ̄real2 = ϵ̄2/traitfun(eco, i, spp)
-    # Alter rates by energy available in current pop & own requirements
-    birth_energy = (ϵ̄1 * ϵ̄2)^-params.longevity * (ϵ̄real1 * ϵ̄real2)^-params.survival * min(K1/E1, K2/E2, params.boost)
-    death_energy = (ϵ̄1 * ϵ̄2)^-params.longevity * (ϵ̄real1 * ϵ̄real2)^params.survival * max(E1/K1, E2/K2)
-    return birth_energy, death_energy
+    width = getdimension(eco)[1]
+    (x, y) = convert_coords(i, width)
+    E1 = eco.cache.totalE[i, 1]
+    E2 = eco.cache.totalE[i, 2]
+    if (E1 == 0)
+        return 0.0, 0.0
+    else
+        # Get abundances of square we are interested in
+        # Get energy budgets of species in square
+        params = eco.spplist.params
+        K1 = _getbudget(eco.abenv.budget.b1)[x, y] * eco.spplist.requirement.r1.exchange_rate
+        K2 = _getbudget(eco.abenv.budget.b2)[x, y] * eco.spplist.requirement.r2.exchange_rate
+        ϵ̄1 = eco.spplist.requirement.r1.energy[spp] * eco.spplist.requirement.r1.exchange_rate
+        ϵ̄2 = eco.spplist.requirement.r2.energy[spp] * eco.spplist.requirement.r2.exchange_rate
+        ϵ̄real1 = ϵ̄1/traitfun(eco, i, spp)
+        ϵ̄real2 = ϵ̄2/traitfun(eco, i, spp)
+        # Alter rates by energy available in current pop & own requirements
+        birth_energy = (ϵ̄1 * ϵ̄2)^-params.longevity * (ϵ̄real1 * ϵ̄real2)^-params.survival * min(K1/E1, K2/E2, params.boost)
+        death_energy = (ϵ̄1 * ϵ̄2)^-params.longevity * (ϵ̄real1 * ϵ̄real2)^params.survival * max(E1/K1, E2/K2)
+        return birth_energy, death_energy
+    end
 end
 
 """
