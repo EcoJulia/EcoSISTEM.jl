@@ -65,7 +65,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, ::Val{N}) where N
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(i, width)
             # Check if grid cell currently active
-            if eco.abenv.active[x, y] & eco.cache.totalE[i, 1] > 0
+            if eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)
 
                 currentabun = @view eco.abundances.matrix[:, i]
 
@@ -124,7 +124,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, ::Val{1})
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(i, width)
             # Check if grid cell currently active
-            if eco.abenv.active[x, y] & eco.cache.totalE[i, 1] > 0
+            if eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)
 
                 currentabun = @view eco.abundances.matrix[:, i]
 
