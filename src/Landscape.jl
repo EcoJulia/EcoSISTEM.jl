@@ -5,7 +5,7 @@ using Compat
 
 struct SavedLandscape
     matrix::Matrix{Int64}
-    seed::Vector{UInt32}
+    seed::Vector{MersenneTwister}
 end
 
 """
