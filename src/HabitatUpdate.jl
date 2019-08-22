@@ -112,6 +112,6 @@ function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2{B1, B2}, times
 end
 
 function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2, timestep::Unitful.Time)
-    _budgetupdate!(eco, eco.budget.b1, timestep)
-    _budgetupdate!(eco, eco.budget.b2, timestep)
+    _budgetupdate!(eco, eco.abenv.budget.b1, timestep)
+    _budgetupdate!(eco, eco.abenv.budget.b2, timestep)
 end
