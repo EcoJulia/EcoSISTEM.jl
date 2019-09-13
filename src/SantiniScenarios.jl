@@ -1,7 +1,7 @@
 using StatsBase
 using Compat
 function trait_populate!(ml::GridLandscape, spplist::SpeciesList,
-                       abenv::AbstractAbiotic)
+                       abenv::AB, rel::R) where {AB <: AbstractAbiotic, R <: AbstractTraitRelationship}
   # Calculate size of habitat
   dim = _getdimension(abenv.habitat)
   len = dim[1] * dim[2]

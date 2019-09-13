@@ -162,8 +162,8 @@ end
 This budget type has a matrix of floats, representing the energy budget of each
 subcommunity in the abiotic environment.
 """
-mutable struct SimpleBudget <: AbstractBudget{Unitful.Quantity{Float64, 𝐋^-2}}
-  matrix::Matrix{Unitful.Quantity{Float64, 𝐋^-2}}
+mutable struct SimpleBudget <: AbstractBudget{Float64}
+  matrix::Matrix{Float64}
 
 end
 

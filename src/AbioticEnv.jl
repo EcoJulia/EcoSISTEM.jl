@@ -11,6 +11,7 @@ matchdict = Dict(kJ => SolarBudget, mm => WaterBudget, NoUnits => SimpleBudget)
 checkbud(maxbud) = unit(maxbud) in keys(matchdict)
 cancel(a::Quantity{<: Real, 𝐌*𝐓^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(kJ, a*b)
 cancel(a::Quantity{<: Real, 𝐋*𝐋^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(mm, a*b)
+cancel(a::Quantity{<: Real, 𝐋^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(NoUnits, a*b)
 """
     AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
 
@@ -75,7 +76,7 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
   return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 function simplenicheAE(numniches::Int64, dimension::Tuple,
-                        maxbud::Float64, area::Unitful.Area{Float64})
+                        maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
     active = Array{Bool,2}(Compat.undef, dimension)
     fill!(active, true)
     simplenicheAE(numniches, dimension, maxbud, area, active)
