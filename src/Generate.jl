@@ -494,7 +494,9 @@ function traitpopulate!(ml::GridLandscape, spplist::SpeciesList,
   for i in eachindex(spplist.abun)
       if spplist.native[i]
         # Get abundance of species
-        abun = rand(Multinomial(spplist.abun[i], probabilities[:, i]./sum(probabilities[:, i])))
+        probs = probabilities[:, i]./sum(probabilities[:, i])
+        probs[isnan.(probs)] .= 1/numsquares
+        abun = rand(Multinomial(spplist.abun[i], probs))
         # Add individual to this location
         ml.matrix[i, :] .+= abun
      end

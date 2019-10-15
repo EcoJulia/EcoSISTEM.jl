@@ -265,7 +265,6 @@ function Invasive(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
 end
 GLOBAL_funcdict["Invasive"] = Invasive
 
-function runscenario!(eco::Ecosystem, timestep::Unitful.Time, scenario::SimpleScenario,
-    currentstep::Unitful.Time)
+function runscenario!(eco::Ecosystem, timestep::Unitful.Time, scenario::SimpleScenario, currentstep::Unitful.Time)
     scenario.fun(eco, timestep, scenario.rate)
 end
