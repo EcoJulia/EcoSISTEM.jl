@@ -242,7 +242,7 @@ function energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::I
         ϵ̄ = eco.spplist.requirement.energy[spp] * eco.spplist.requirement.exchange_rate
         E = eco.cache.totalE[i, 1]
         # Traits
-        ϵ̄real = ϵ̄/traitfun(eco, i, spp)
+        ϵ̄real = 1/traitfun(eco, i, spp)
         # Alter rates by energy available in current pop & own requirements
         birth_energy = ϵ̄^-params.longevity * ϵ̄real^-params.survival * min(K/E, params.boost)
         death_energy = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
@@ -262,8 +262,8 @@ function energy_adjustment(eco::Ecosystem, bud::BudgetCollection2, i::Int64, spp
     ϵ̄2 = eco.spplist.requirement.r2.energy[spp] * eco.spplist.requirement.r2.exchange_rate
     E1 = eco.cache.totalE[i, 1]
     E2 = eco.cache.totalE[i, 2]
-    ϵ̄real1 = ϵ̄1/traitfun(eco, i, spp)
-    ϵ̄real2 = ϵ̄2/traitfun(eco, i, spp)
+    ϵ̄real1 = 1/traitfun(eco, i, spp)
+    ϵ̄real2 = 1/traitfun(eco, i, spp)
     # Alter rates by energy available in current pop & own requirements
     birth_energy = (ϵ̄1 * ϵ̄2)^-params.longevity * (ϵ̄real1 * ϵ̄real2)^-params.survival * min(K1/E1, K2/E2, params.boost)
     death_energy = (ϵ̄1 * ϵ̄2)^-params.longevity * (ϵ̄real1 * ϵ̄real2)^params.survival * max(E1/K1, E2/K2)
