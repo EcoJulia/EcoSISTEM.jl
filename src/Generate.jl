@@ -514,6 +514,14 @@ function traitrepopulate!(eco::Ecosystem)
 end
 
 """
+    emptypopulate!(ml::GridLandscape, spplist::SpeciesList,
+                   abenv::AB, rel::R) where {AB <: Simulation.AbstractAbiotic, R <: Simulation.AbstractTraitRelationship}
+"""
+function emptypopulate!(ml::GridLandscape, spplist::SpeciesList,
+                   abenv::AB, rel::R) where {AB <: Simulation.AbstractAbiotic, R <: Simulation.AbstractTraitRelationship}
+@warn "Ecosystem not populated!"
+end
+"""
     reenergise!(eco::Ecosystem, budget::Union{Float64, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
 Function to refill an ecosystem `eco`, with energy from a budget value, `budget` and a grid size.
 """
