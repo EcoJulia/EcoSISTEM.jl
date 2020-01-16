@@ -139,9 +139,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, ::Val{1})
                 (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n Abun: $abun \n i: $i \n j: $j")
                 # Calculate how many births and deaths
                 births = rand(rng, Poisson(currentabun[j] * newbirthprob))
-                #births = rand(rng, NegativeBinomial(currentabun[j]*(1 - newbirthprob)/newbirthprob))
                 deaths = rand(rng, Binomial(currentabun[j], newdeathprob))
-                #deaths = rand(rng, NegativeBinomial(currentabun[j]*(1 − newdeathprob)/newdeathprob))
                 # Update population
                 eco.abundances.matrix[j, i] += (births - deaths)
 
