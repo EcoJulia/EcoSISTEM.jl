@@ -16,23 +16,25 @@ dispersal variances per species, `var`, and a threshold, `thresh`, beyond which
 dispersal cannot take place.
 """
 mutable struct GaussianKernel <: AbstractKernel
-  dist::Vector{Unitful.Length{Float64}}
+  dist::Unitful.Length{Float64}
   thresh::Float64
+
+  function GaussianKernel(dispersaldist::Unitful.Length{Float64}, pthresh::Float64)
+    dist = uconvert(km, dispersaldist)
+    new(dist, pthresh)
+  end
 end
 
-function GaussianKernel(dispersaldist::Unitful.Length{Float64}, numspecies::Int64, pthresh::Float64)
-  dist = map(u-> uconvert(km, u), dispersaldist)
-  GaussianKernel(fill(dist, numspecies), pthresh)
-end
 
 mutable struct LongTailKernel <: AbstractKernel
-  dist::Vector{Unitful.Length{Float64}}
-  shape::Vector{Float64}
+  dist::Unitful.Length{Float64}
+  shape::Float64
   thresh::Float64
-end
-function LongTailKernel(dispersaldist::Unitful.Length{Float64}, shape::Float64, numspecies::Int64, pthresh::Float64)
-  dist = map(u-> uconvert(km, u), dispersaldist)
-  LongTailKernel(fill(dist, numspecies), fill(shape, numspecies), pthresh)
+  
+  function LongTailKernel(dispersaldist::Unitful.Length{Float64}, shape::Float64, pthresh::Float64)
+    dist = uconvert(km, dispersaldist)
+    new(dist, shape, pthresh)
+  end
 end
 
 GLOBAL_typedict["GaussianKernel"] = GaussianKernel
@@ -48,29 +50,29 @@ GLOBAL_typedict["Torus"] = Torus
 GLOBAL_typedict["NoBoundary"] = NoBoundary
 
 mutable struct BirthOnlyMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
-  kernel::K
+  kernels::Vector{K}
   boundary::B
 end
-function BirthOnlyMovement(kernel::K) where K <: AbstractKernel
+function BirthOnlyMovement(kernels::Vector{K}) where K <: AbstractKernel
     return BirthOnlyMovement{K, NoBoundary}(kernel, NoBoundary())
 end
 GLOBAL_typedict["BirthOnlyMovement"] = BirthOnlyMovement
 mutable struct AlwaysMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
-  kernel::K
+  kernels::Vector{K}
   boundary::B
 end
-function AlwaysMovement(kernel::K) where K <: AbstractKernel
+function AlwaysMovement(kernels::Vector{K}) where K <: AbstractKernel
     return AlwaysMovement{K, NoBoundary}(kernel, NoBoundary())
 end
 GLOBAL_typedict["AlwaysMovement"] = AlwaysMovement
 
 mutable struct NoMovement{K <: AbstractKernel} <: AbstractMovement
-  kernel::K
+  kernels::Vector{K}
 end
 GLOBAL_typedict["NoMovement"] = NoMovement
-getkernel(m::BirthOnlyMovement) = m.kernel
-getkernel(m::AlwaysMovement) = m.kernel
-getkernel(m::NoMovement) = m.kernel
+getkernels(m::BirthOnlyMovement) = m.kernels
+getkernels(m::AlwaysMovement) = m.kernels
+getkernels(m::NoMovement) = m.kernels
 
 getboundary(m::BirthOnlyMovement) = m.boundary
 getboundary(m::AlwaysMovement) = m.boundary
