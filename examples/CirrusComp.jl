@@ -2,10 +2,8 @@ using Simulation
 using MyUnitful
 using Unitful, Unitful.DefaultSymbols
 using Distributions
-using MPI
 using Diversity
 
-MPI.Init()
 println(Threads.nthreads())
 
 numSpecies = 1000; grid = (100, 10); req= 10.0kJ; individuals=10_000_000; area = 400_000.0*km^2; totalK = 100_000.0kJ/km^2
@@ -45,18 +43,15 @@ abenv = simplehabitatAE(274.0K, grid, totalK, area)
 rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
-eco = MPIEcosystem(sppl, abenv, rel)
-println("$(eco.rank): $(eco.firstspecies) : $(eco.firstsc)")
+eco = Ecosystem(sppl, abenv, rel)
 #print(eco.rank, "\n", eco.counts, "\n", length(eco.lookup))
 # Simulation Parameters
 burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
 lensim = length(0years:record_interval:times)
 # Burnin
 simulate!(eco, burnin, timestep)
-println("$(eco.rank): $(mapslices(sum, eco.abundances.matrix, dims = 2)[1:10])")
+println("$(mapslices(sum, eco.abundances.matrix, dims = 2)[1:10])")
 
 # Run simulation
 # abundances = generate_storage(eco, lensim, repeats)
 # simulate_record!(abundances, eco, times, record_interval, timestep)
-
-MPI.Finalize()
