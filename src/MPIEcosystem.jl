@@ -12,18 +12,11 @@ using Compat
 
 import Diversity: _calcabundance
 """
-    MPIEcosystem{Part <: AbstractAbiotic} <:
-       AbstractEcosystem{Part, SL, TR}
+    MPIEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList, TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
 
-MPIEcosystem houses information on species and their interaction with their
-environment. For species, it holds abundances and locations, `abundances`,
-as well as properties such as trait information, `spplist`, and movement types,
-`lookup`. For environments, it provides information on environmental conditions
-and available resources,`abenv`. Finally, there is a slot for the relationship
-between the environment and the characteristics of the species, `relationship`.
+MPIEcosystem houses information on species and their interaction with their environment. It houses all information of a normal `Ecosystem` (see documentation for more details), with additional fields to describe which species are calculated on which machine. This includes: `counts` - a vector of number of species per node, `firstspecies` - the identity of the first species held by that particular node, `rank` - the identity of the node itself, and `comm` - a communicator object between nodes.
 """
-mutable struct MPIEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-    TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
+mutable struct MPIEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList, TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
   abundances::GridLandscape
   spplist::SL
   abenv::Part
@@ -54,8 +47,7 @@ end
     MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
         rel::AbstractTraitRelationship)
 
-Function to create an `MPIEcosystem` given a species list, an abiotic environment
-and trait relationship.
+Function to create an `MPIEcosystem` given a species list, an abiotic environment and trait relationship.
 """
 function MPIEcosystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship, comm::MPI.Comm = MPI.COMM_WORLD) where {T, Req}

@@ -1,7 +1,7 @@
 
 """
-    update!(eco::Ecosystem, time::Unitful.Time)
-Function to update a ecosystem abundances and environment for one timestep.
+    update!(eco::MPIEcosystem, timestep::Unitful.Time, ::Val{N}) where N
+Function to update an MPIEcosystem abundances and environment for one timestep.
 """
 function update!(eco::MPIEcosystem, timestep::Unitful.Time, ::Val{N}) where N
 
