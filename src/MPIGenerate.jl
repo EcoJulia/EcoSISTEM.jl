@@ -1,27 +1,26 @@
-
 """
-    update!(eco::MPIEcosystem, timestep::Unitful.Time, ::Val{N}) where N
+    update!(eco::MPIEcosystem, timestep::Unitful.Time) where N
 Function to update an MPIEcosystem abundances and environment for one timestep.
 """
-function update!(eco::MPIEcosystem, timestep::Unitful.Time, ::Val{N}) where N
+function update!(eco::MPIEcosystem, timestep::Unitful.Time)
 
     # Calculate dimenions of habitat and number of species
-    dims = _countsubcommunities(eco.abenv.habitat)
+    nsc = countsubcommunities(eco)
+    nsp = counttypes(eco)
     params = eco.spplist.params
     width = getdimension(eco)[1]
 
     # Set the overall energy budget of that square
-    if eco.rank == 0
-        update_energy_usage!(eco, Val{N}())
-    end
-    MPI.Bcast!(eco.cache.totalE, 0, eco.comm)
+    update_energy_usage!(eco)
+    MPI.Allgatherv!(MPI.IN_PLACE, eco.cache.totalE,
+                    eco.sccounts, eco.comm)
     eco.cache.valid = true
 
     # Loop through species in chosen square
-    Threads.@threads for j in eco.firstspecies:(eco.firstspecies + eco.counts[eco.rank + 1] - 1)
+    Threads.@threads for j in eco.firstspecies:(eco.firstspecies + eco.speciescounts[eco.rank + 1] - 1)
         rng = eco.abundances.seed[Threads.threadid()]
         # Loop through grid squares
-        for i in 1:dims
+        for i in 1:nsc
             # Calculate how much birth and death should be adjusted
             adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, i, j)
 
@@ -56,8 +55,8 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time, ::Val{N}) where N
 
     # Update abundances with all movements
     eco.abundances.matrix .+= eco.cache.netmigration
-    gatherings = copy(eco.counts)
-    gatherings .*= dims
+    gatherings = copy(eco.speciescounts)
+    gatherings .*= nsc
     m = collect(eco.abundances.matrix')
     MPI.Allgatherv!(MPI.IN_PLACE, m, gatherings, eco.comm)
     eco.abundances.matrix .= m'
@@ -72,4 +71,33 @@ end
 
 function getlookup(eco::MPIEcosystem, spp::Int64)
     return eco.lookup[spp - eco.firstspecies + 1]
+end
+
+function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract1Requirement}
+    !eco.cache.valid || return true
+
+    # Get energy budgets of species in square
+    ϵ̄ = eco.spplist.requirement.energy
+
+    # Loop through grid squares
+    Threads.@threads for i in eco.firstsc:(eco.firstsc + eco.sccounts[eco.rank + 1] - 1)
+        eco.cache.totalE[i, 1] = ((@view eco.abundances.matrix[:, i]) ⋅ ϵ̄) * eco.spplist.requirement.exchange_rate
+    end
+    eco.cache.valid = true
+end
+
+function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract2Requirements}
+    !eco.cache.valid || return true
+
+    # Get energy budgets of species in square
+    ϵ̄1 = eco.spplist.requirement.r1.energy
+    ϵ̄2 = eco.spplist.requirement.r2.energy
+
+    # Loop through grid squares
+    Threads.@threads for i in eco.firstsc:(eco.firstsc + eco.sccounts[eco.rank + 1] - 1)
+        currentabun = @view eco.abundances.matrix[:, i]
+        eco.cache.totalE[i, 1] = (currentabun ⋅ ϵ̄1) * eco.spplist.requirement.r1.exchange_rate
+        eco.cache.totalE[i, 2] = (currentabun ⋅ ϵ̄2) * eco.spplist.requirement.r2.exchange_rate
+    end
+    eco.cache.valid = true
 end
