@@ -57,6 +57,9 @@ include("Ecosystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
  getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
 
+include("MPIEcosystem.jl")
+export MPIEcosystem
+
 include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
 
@@ -71,6 +74,8 @@ export SimpleScenario, TempIncrease, RandHabitatLoss!, ClustHabitatLoss!, Distur
 include("Generate.jl")
 export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!, reenergise!, randomniches, update!, update_birth_move!,
  convert_coords, get_neighbours
+
+include("MPIGenerate.jl")
 
 include("SantiniScenarios.jl")
 export trait_populate!, trait_repopulate!
