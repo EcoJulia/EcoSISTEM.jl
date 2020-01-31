@@ -244,7 +244,7 @@ end
 GLOBAL_typedict["CachedEcosystem"] = CachedEcosystem
 
 import Diversity.API: _getabundance
-function _getabundance(eco::Ecosystem, input::Bool)
+function _getabundance(eco::AbstractEcosystem, input::Bool)
     if input
         return eco.abundances.matrix
     else
@@ -267,7 +267,7 @@ function _getabundance(cache::CachedEcosystem, input::Bool)
     end
 end
 import Diversity.API: _getmetaabundance
-function _getmetaabundance(eco::Ecosystem)
+function _getmetaabundance(eco::AbstractEcosystem)
   return sumoversubcommunities(eco, _getabundance(eco))
 end
 
@@ -276,15 +276,15 @@ function _getmetaabundance(eco::CachedEcosystem)
 end
 
 import Diversity.API: _getpartition
-function _getpartition(eco::Union{Ecosystem, CachedEcosystem})
+function _getpartition(eco::AbstractEcosystem)
   return eco.abenv
 end
 import Diversity.API: _gettypes
-function _gettypes(eco::Union{Ecosystem, CachedEcosystem})
+function _gettypes(eco::AbstractEcosystem)
     return eco.spplist
 end
 import Diversity.API: _getordinariness!
-function _getordinariness!(eco::Union{Ecosystem, CachedEcosystem})
+function _getordinariness!(eco::AbstractEcosystem)
     if ismissing(eco.ordinariness)
         relab = getabundance(eco, false)
         eco.ordinariness = _calcordinariness(eco.spplist, relab)
@@ -293,11 +293,11 @@ function _getordinariness!(eco::Union{Ecosystem, CachedEcosystem})
 end
 
 import Diversity.API._getscale
-function _getscale(eco::Ecosystem)
+function _getscale(eco::AbstractEcosystem)
     return _calcabundance(_gettypes(eco), getabundance(eco, false))[2]
 end
 
-function invalidatecaches!(eco::Union{Ecosystem, CachedEcosystem})
+function invalidatecaches!(eco::AbstractEcosystem)
     eco.ordinariness = missing
     eco.cache.netmigration .= 0
     eco.cache.valid = false
@@ -308,7 +308,7 @@ end
 
 Function to extract trait relationships.
 """
-function gettraitrel(eco::Ecosystem)
+function gettraitrel(eco::AbstractEcosystem)
   return eco.relationship
 end
 
@@ -317,7 +317,7 @@ end
 
 Function to extract habitat from Ecosystem object.
 """
-function gethabitat(eco::Ecosystem)
+function gethabitat(eco::AbstractEcosystem)
   return eco.abenv.habitat
 end
 """
@@ -325,7 +325,7 @@ end
 
 Function to extract budget from Ecosystem object.
 """
-function getbudget(eco::Ecosystem)
+function getbudget(eco::AbstractEcosystem)
     return _getbudget(eco.abenv.budget)
 end
 
@@ -334,7 +334,7 @@ end
 
 Function to extract size of habitat from Ecosystem object.
 """
-function getsize(eco::Ecosystem)
+function getsize(eco::AbstractEcosystem)
   return _getsize(eco.abenv.habitat)
 end
 
@@ -343,7 +343,7 @@ end
 
 Function to extract grid cell size of habitat from Ecosystem object.
 """
-function getgridsize(eco::Ecosystem)
+function getgridsize(eco::AbstractEcosystem)
   return _getgridsize(eco.abenv.habitat)
 end
 
@@ -352,7 +352,7 @@ end
 
 Function to extract dimension of habitat from Ecosystem object.
 """
-function getdimension(eco::Ecosystem)
+function getdimension(eco::AbstractEcosystem)
     return _getdimension(eco.abenv.habitat)
 end
 

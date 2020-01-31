@@ -2,19 +2,19 @@ using Compat
 using Unitful
 using Unitful.DefaultSymbols
 
-function TempChange(eco::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
+function TempChange(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
   val = hab.change.rate
   v = uconvert(K/unit(timestep), val)
   hab.matrix .+= v * timestep
 end
 
-function RainfallChange(eco::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
+function RainfallChange(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
   val = hab.change.rate
   v = uconvert(mm/unit(timestep), val)
   hab.matrix .+= v * timestep
 end
 
-function TempFluct(eco::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
+function TempFluct(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
   val = hab.change.rate
   v = uconvert(K/unit(timestep), val) * timestep
   offset = v/pi
@@ -22,11 +22,11 @@ function TempFluct(eco::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
 end
 
 GLOBAL_funcdict["TempChange"] = TempChange
-function NoChange(eco::Ecosystem, hab::AbstractHabitat, timestep::Unitful.Time)
+function NoChange(eco::AbstractEcosystem, hab::AbstractHabitat, timestep::Unitful.Time)
 end
 GLOBAL_funcdict["NoChange"] = NoChange
 ChangeLookup = Dict(K => TempChange, NoUnits => NoChange)
-function eraChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
+function eraChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
     monthstep = uconvert(month, timestep)
     hab.time += round(Int64, monthstep/month)
     if hab.time > size(hab.matrix, 3)
@@ -35,7 +35,7 @@ function eraChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Tim
     end
 end
 GLOBAL_funcdict["eraChange"] = eraChange
-function worldclimChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
+function worldclimChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
     last = size(hab.matrix, 3)
     monthstep = convert(typeof(1.0month), timestep)
     hab.time = hab.time + round(Int64,ustrip(monthstep))
@@ -45,7 +45,7 @@ function worldclimChange(eco::Ecosystem, hab::ContinuousTimeHab, timestep::Unitf
     end
 end
 GLOBAL_funcdict["worldclimChange"] = worldclimChange
-function HabitatLoss(eco::Ecosystem, hab::AbstractHabitat, timestep::Unitful.Time)
+function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat, timestep::Unitful.Time)
     val = hab.change.rate
     v = uconvert(unit(timestep)^-1, val)
     pos = find(eco.abenv.active)
@@ -54,31 +54,31 @@ function HabitatLoss(eco::Ecosystem, hab::AbstractHabitat, timestep::Unitful.Tim
     eco.abundances.matrix[:, smp] .= 0.0
 end
 GLOBAL_funcdict["HabitatLoss"] = HabitatLoss
-function habitatupdate!(eco::Ecosystem, timestep::Unitful.Time)
+function habitatupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
   _habitatupdate!(eco, eco.abenv.habitat, timestep)
 end
-function _habitatupdate!(eco::Ecosystem, hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, timestep::Unitful.Time)
+function _habitatupdate!(eco::AbstractEcosystem, hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, timestep::Unitful.Time)
     hab.change.changefun(eco, hab, timestep)
 end
 
-function _habitatupdate!(eco::Ecosystem, hab::HabitatCollection2, timestep::Unitful.Time)
+function _habitatupdate!(eco::AbstractEcosystem, hab::HabitatCollection2, timestep::Unitful.Time)
     _habitatupdate!(eco, hab.h1, timestep)
     _habitatupdate!(eco, hab.h2, timestep)
 end
 
-function budgetupdate!(eco::Ecosystem, timestep::Unitful.Time)
+function budgetupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
     _budgetupdate!(eco, eco.abenv.budget, timestep)
 end
-function _budgetupdate!(eco::Ecosystem, budget::SimpleBudget, timestep::Unitful.Time)
+function _budgetupdate!(eco::AbstractEcosystem, budget::SimpleBudget, timestep::Unitful.Time)
     return budget
 end
-function _budgetupdate!(eco::Ecosystem, budget::SolarBudget, timestep::Unitful.Time)
+function _budgetupdate!(eco::AbstractEcosystem, budget::SolarBudget, timestep::Unitful.Time)
     return budget
 end
-function _budgetupdate!(eco::Ecosystem, budget::WaterBudget, timestep::Unitful.Time)
+function _budgetupdate!(eco::AbstractEcosystem, budget::WaterBudget, timestep::Unitful.Time)
     return budget
 end
-function _budgetupdate!(eco::Ecosystem, budget::SolarTimeBudget, timestep::Unitful.Time)
+function _budgetupdate!(eco::AbstractEcosystem, budget::SolarTimeBudget, timestep::Unitful.Time)
     monthstep = uconvert(month, timestep)
     budget.time +=
     round(Int64, monthstep/month)
@@ -87,7 +87,7 @@ function _budgetupdate!(eco::Ecosystem, budget::SolarTimeBudget, timestep::Unitf
         Compat.@warn "More timesteps than available, have repeated"
     end
 end
-function _budgetupdate!(eco::Ecosystem, budget::WaterTimeBudget, timestep::Unitful.Time)
+function _budgetupdate!(eco::AbstractEcosystem, budget::WaterTimeBudget, timestep::Unitful.Time)
     monthstep = uconvert(month, timestep)
     budget.time +=
     round(Int64, monthstep/month)
@@ -96,7 +96,7 @@ function _budgetupdate!(eco::Ecosystem, budget::WaterTimeBudget, timestep::Unitf
         Compat.@warn "More timesteps than available, have repeated"
     end
 end
-function _budgetupdate!(eco::Ecosystem, budget::VolWaterTimeBudget, timestep::Unitful.Time)
+function _budgetupdate!(eco::AbstractEcosystem, budget::VolWaterTimeBudget, timestep::Unitful.Time)
     monthstep = uconvert(month, timestep)
     budget.time +=
     round(Int64, monthstep/month)
@@ -106,12 +106,12 @@ function _budgetupdate!(eco::Ecosystem, budget::VolWaterTimeBudget, timestep::Un
     end
 end
 
-function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2{B1, B2}, timestep::Unitful.Time) where {B1, B2 <: AbstractTimeBudget}
+function _budgetupdate!(eco::AbstractEcosystem, budget::BudgetCollection2{B1, B2}, timestep::Unitful.Time) where {B1, B2 <: AbstractTimeBudget}
         budget.b1.time = eco.abenv.habitat.h1.time
         budget.b2.time = eco.abenv.habitat.h1.time
 end
 
-function _budgetupdate!(eco::Ecosystem, budget::BudgetCollection2, timestep::Unitful.Time)
+function _budgetupdate!(eco::AbstractEcosystem, budget::BudgetCollection2, timestep::Unitful.Time)
     _budgetupdate!(eco, eco.abenv.budget.b1, timestep)
     _budgetupdate!(eco, eco.abenv.budget.b2, timestep)
 end

@@ -12,7 +12,7 @@ using Compat
 Function to run an ecosystem, `eco` for specified length of times, `duration`,
 for a particular timestep, 'timestep'.
 """
-function simulate!(eco::Ecosystem, duration::Unitful.Time, timestep::Unitful.Time)
+function simulate!(eco::AbstractEcosystem, duration::Unitful.Time, timestep::Unitful.Time)
   times = length(0s:timestep:duration)
   for i in 1:times
     update!(eco, timestep)

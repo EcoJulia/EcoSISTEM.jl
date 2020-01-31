@@ -1,4 +1,4 @@
-function traitfun(eco::Ecosystem, pos::Int64, spp::Int64)
+function traitfun(eco::AbstractEcosystem, pos::Int64, spp::Int64)
     hab = eco.abenv.habitat
     trts = eco.spplist.traits
     rel = eco.relationship

@@ -36,7 +36,7 @@ function get_neighbours(mat::Matrix, x_coord::Array{Int64,1},
       return vcat(neighbours...)
 end
 
-update!(eco::Ecosystem, timestep::Unitful.Time) =
+update!(eco::AbstractEcosystem, timestep::Unitful.Time) =
     update!(eco, timestep, Val{Threads.nthreads()}())
 
 """
@@ -166,7 +166,7 @@ GLOBAL_funcdict["update!"] = update!
     update_energy_usage!(eco::Ecosystem)
 Function to calculate how much energy has been used up by the current species in each grid square in the ecosystem, `eco`. This function is parameterised on whether the species have one type of energy requirement or two.
 """
-function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}, ::Val{N}) where {N, A, B, C, D, E, Tr, Req <: Abstract1Requirement}
+function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}, ::Val{N}) where {N, A, B, C, D, E, Tr, Req <: Abstract1Requirement}
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square
@@ -179,7 +179,7 @@ function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req, B, C, D}, 
     eco.cache.valid = true
 end
 
-function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}, ::Val{N}) where {N, A, B, C, D, E, Tr, Req <: Abstract2Requirements}
+function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}, ::Val{N}) where {N, A, B, C, D, E, Tr, Req <: Abstract2Requirements}
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square
@@ -195,7 +195,7 @@ function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req, B, C, D}, 
     eco.cache.valid = true
 end
 
-function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}, ::Val{1}) where {A, B, C, D, E, Tr, Req <: Abstract1Requirement}
+function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}, ::Val{1}) where {A, B, C, D, E, Tr, Req <: Abstract1Requirement}
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square
@@ -208,7 +208,7 @@ function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req, B, C, D}, 
     eco.cache.valid = true
 end
 
-function update_energy_usage!(eco::Ecosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}, ::Val{1}) where {A, B, C, D, E, Tr, Req <: Abstract2Requirements}
+function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}, ::Val{1}) where {A, B, C, D, E, Tr, Req <: Abstract2Requirements}
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square
@@ -228,7 +228,7 @@ end
     energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::Int64)
 Function to calculate how much birth and death rates should be adjusted by, according to how much energy is available, `bud`, in the grid square, `i`, and how much energy the species, `spp`, requires.
 """
-function energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::Int64)
+function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget, i::Int64, spp::Int64)
     if typeof(eco.spplist.params) <: NoGrowth
         return 0.0, 0.0
     else
@@ -248,7 +248,7 @@ function energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::I
     return birth_energy, death_energy
 end
 
-function energy_adjustment(eco::Ecosystem, bud::BudgetCollection2, i::Int64, spp::Int64)
+function energy_adjustment(eco::AbstractEcosystem, bud::BudgetCollection2, i::Int64, spp::Int64)
     width = getdimension(eco)[1]
     (x, y) = convert_coords(i, width)
     params = eco.spplist.params
@@ -298,8 +298,8 @@ end
 
 Function to calculate the number of moves taken by a species, `spp`, from a specific grid square location (`x`, `y`). There is a boundary condition, `bound`, which determines how the species can move across space (see AbstractBoundary). The total abundance of individuals is given in `abun`, which may be the number of births in the timestep, or total indiviuals.
 """
-function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
-    lookup = eco.lookup[spp]
+function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, eco::AbstractEcosystem, abun::Int64)
+    lookup = getlookup(eco, spp)
     maxX = Simulation.getdimension(eco)[1] - x
     maxY = Simulation.getdimension(eco)[2] - y
     # Can't go over maximum dimension
@@ -313,8 +313,8 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, e
     rand!(eco.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
-    lookup = eco.lookup[spp]
+function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco::AbstractEcosystem, abun::Int64)
+    lookup = getlookup(eco, spp)
     maxX = Simulation.getdimension(eco)[1] - x
     maxY = Simulation.getdimension(eco)[2] - y
     # Can't go over maximum dimension
@@ -330,8 +330,8 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco
     rand!(eco.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
-  lookup = eco.lookup[spp]
+function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::AbstractEcosystem, abun::Int64)
+  lookup = getlookup(eco, spp)
   maxX = Simulation.getdimension(eco)[1] - x
   maxY = Simulation.getdimension(eco)[2] - y
   # Can't go over maximum dimension
@@ -356,11 +356,11 @@ movement patterns on a cached grid, `grd`. Optionally, a number of births can be
 provided, so that movement only takes place as part of the birth process, instead
 of the entire population
 """
-function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64,
+function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   grd::Array{Int64, 2}, ::Int64)
   width, height = getdimension(eco)
   (x, y) = convert_coords(i, width)
-  lookup = eco.lookup[spp]
+  lookup = getlookup(eco, spp)
   full_abun = eco.abundances.matrix[spp, i]
   calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, spp, eco, full_abun)
   # Lose moves from current grid square
@@ -376,16 +376,16 @@ function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   return eco
 end
 
-function move!(eco::Ecosystem, ::NoMovement, i::Int64, spp::Int64,
+function move!(eco::AbstractEcosystem, ::NoMovement, i::Int64, spp::Int64,
   grd::Array{Int64, 2}, ::Int64)
   return eco
 end
 
-function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
+function move!(eco::AbstractEcosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
     grd::Array{Int64, 2}, births::Int64)
   width, height = getdimension(eco)
   (x, y) = convert_coords(i, width)
-  lookup = eco.lookup[spp]
+   lookup = getlookup(eco, spp)
   calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, spp, eco, births)
   # Lose moves from current grid square
   grd[spp, i] -= births
