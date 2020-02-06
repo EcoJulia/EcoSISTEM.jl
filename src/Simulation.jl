@@ -53,6 +53,9 @@ export SpeciesList
 include("Landscape.jl")
 export GridLandscape, CachedGridLandscape
 
+include("MPILandscape.jl")
+export MPIGridLandscape
+
 include("Ecosystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
  getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!

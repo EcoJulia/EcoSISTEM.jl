@@ -99,3 +99,40 @@ function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D
     end
     eco.cache.valid = true
 end
+
+function populate!(ml::MPIGridLandscape, spplist::SpeciesList, abenv::AB, rel::R) where {AB <: AbstractAbiotic, R <: AbstractTraitRelationship}
+    dim = _getdimension(abenv.habitat)
+    len = dim[1] * dim[2]
+    grid = collect(1:len)
+    # Set up copy of budget
+    b = reshape(ustrip.(_getbudget(abenv.budget)), size(grid))
+    activity = reshape(copy(abenv.active), size(grid))
+    units = unit(b[1])
+    b[.!activity] .= 0.0 * units
+    B = b./sum(b)
+    # Loop through species
+    for i in eachindex(spplist.abun)
+        rand!(Multinomial(spplist.abun[i], B), (@view ml.matrix[i, :]))
+    end
+end
+
+function populate!(ml::MPIGridLandscape, spplist::SpeciesList,
+                   abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}}, rel::R) where {H <: AbstractHabitat, B1 <: AbstractBudget, B2 <: AbstractBudget, R <: AbstractTraitRelationship}
+    # Calculate size of habitat
+    dim = _getdimension(abenv.habitat)
+    len = dim[1] * dim[2]
+    grid = collect(1:len)
+    # Set up copy of budget
+    b1 = reshape(copy(_getbudget(abenv.budget, :b1)), size(grid))
+    b2 = reshape(copy(_getbudget(abenv.budget, :b2)), size(grid))
+    units1 = unit(b1[1])
+    units2 = unit(b2[1])
+    activity = reshape(copy(abenv.active), size(grid))
+    b1[.!activity] .= 0.0 * units1
+    b2[.!activity] .= 0.0 * units2
+    B = (b1./sum(b1)) * (b2./sum(b2))
+    # Loop through species
+    for i in eachindex(spplist.abun)
+        rand!(Multinomial(spplist.abun[i], B), (@view ml.matrix[i, :]))
+    end
+end

@@ -17,7 +17,7 @@ import Diversity: _calcabundance
 MPIEcosystem houses information on species and their interaction with their environment. It houses all information of a normal `Ecosystem` (see documentation for more details), with additional fields to describe which species are calculated on which machine. This includes: `speciescounts` - a vector of number of species per node, `firstspecies` - the identity of the first species held by that particular node, `rank` - the identity of the node itself, and `comm` - a communicator object between nodes.
 """
 mutable struct MPIEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList, TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
-  abundances::GridLandscape
+  abundances::MPIGridLandscape
   spplist::SL
   abenv::Part
   ordinariness::Union{Matrix{Float64}, Missing}
@@ -31,7 +31,7 @@ mutable struct MPIEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList, TR <: Ab
   comm::MPI.Comm
   cache::Cache
 
-  function MPIEcosystem{Part, SL, TR}(abundances::GridLandscape,
+  function MPIEcosystem{Part, SL, TR}(abundances::MPIGridLandscape,
     spplist::SL, abenv::Part, ordinariness::Union{Matrix{Float64}, Missing},
     relationship::TR, lookup::Vector{Lookup}, speciescounts::Vector, firstspecies::Int64, sccounts::Vector, firstsc::Int64, rank::Int64,
     comm::MPI.Comm, cache::Cache) where {Part <:
@@ -71,7 +71,7 @@ function MPIEcosystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::Gri
     firstsc = scindices[rank + 1] + 1
 
     # Create matrix landscape of zero abundances
-    ml = emptygridlandscape(abenv, spplist)
+    ml = emptyMPIgridlandscape(abenv, spplist)
     # Populate this matrix with species abundances
     if rank == 0
         popfun(ml, spplist, abenv, rel)
