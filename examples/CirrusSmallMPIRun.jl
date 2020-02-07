@@ -49,7 +49,6 @@ eco = Ecosystem(sppl, abenv, rel)
 burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
 lensim = length(0years:record_interval:times)
 # Burnin
-simulate!(eco, burnin, timestep)
-println("$(mapslices(sum, eco.abundances.matrix, dims = 2)[1:10])")
+@time simulate!(eco, burnin, timestep)
 
 MPI.Finalize()
