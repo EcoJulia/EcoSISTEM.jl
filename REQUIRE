@@ -8,7 +8,6 @@ JuliaDB
 StatsBase
 Distributions
 Phylo
-RCall
 NetCDF
 ArchGDAL
 Interpolations
