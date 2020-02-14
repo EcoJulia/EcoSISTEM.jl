@@ -1,0 +1,12 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+ClimatePref = "21e50a1b-ea2d-5c46-9379-c0b863303ae1"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Diversity = "d3d5718d-52de-57ab-b67a-eca7fd6175a4"
+EcoBase = "a58aae7d-b440-5a11-b283-399458f99aac"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+MyUnitful = "0a6c8c22-afc9-56dd-8ae0-6497d1f1ca28"
+NetCDF = "30363a11-5582-574a-97bb-aa9a979735b9"
+RCall = "6f49c342-dc21-5d91-9882-a32aef131414"
+Simulation = "32412955-7621-5ad6-a026-c690bd158fd1"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"

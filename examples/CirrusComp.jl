@@ -44,7 +44,7 @@ rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
 eco = Ecosystem(sppl, abenv, rel)
-#print(eco.rank, "\n", eco.counts, "\n", length(eco.lookup))
+println("Starting...")
 # Simulation Parameters
 burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
 lensim = length(0years:record_interval:times)
