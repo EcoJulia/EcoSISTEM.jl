@@ -8,8 +8,6 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
     nsc = countsubcommunities(eco)
     nsp = counttypes(eco)
     params = eco.spplist.params
-    width = getdimension(eco)[1]
-
     # Set the overall energy budget of that square
     update_energy_usage!(eco)
     MPI.Allgatherv!(MPI.IN_PLACE, eco.cache.totalE,
@@ -25,7 +23,7 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
             adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, i, j)
 
             # Convert 1D dimension to 2D coordinates
-            (x, y) = convert_coords(i, width)
+            (x, y) = convert_coords(eco, i)
             # Check if grid cell currently active
             if eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)
 

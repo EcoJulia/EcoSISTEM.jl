@@ -72,11 +72,10 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::RateTyp
     else
         pos = findall(eco.abenv.budget.matrix .== 0.0)
         howmany = jbinom(1, length(findall(eco.abenv.active)), ustrip(v))[1]
-        width = size(eco.abenv.budget.matrix,1)
         x, y = [ x[1] for x in pos ], [ x[2] for x in pos ]
         neighbours = get_neighbours(eco.abenv.budget.matrix, x, y, 8)
         smp = sample(1:size(neighbours,1), howmany)
-        i = convert_coords(neighbours[smp, 1], neighbours[smp, 2], width)
+        i = convert_coords(eco, (neighbours[smp, 1], neighbours[smp, 2]))
         eco.abenv.budget.matrix[i] .= 0.0
         eco.abundances.matrix[:, i] .= 0.0
     end

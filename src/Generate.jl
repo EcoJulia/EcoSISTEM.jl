@@ -63,7 +63,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
             adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, i, j)
 
             # Convert 1D dimension to 2D coordinates
-            (x, y) = convert_coords(i, width)
+            (x, y) = convert_coords(eco, i, width)
             # Check if grid cell currently active
             if eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)
                 # Calculate effective rates
@@ -143,7 +143,7 @@ function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget, i::Int64
         return 0.0, 0.0
     else
         width = getdimension(eco)[1]
-        (x, y) = convert_coords(i, width)
+        (x, y) = convert_coords(eco, i, width)
         params = eco.spplist.params
         K = getbudget(eco)[x, y] * eco.spplist.requirement.exchange_rate
         # Get energy budgets of species in square
@@ -160,7 +160,7 @@ end
 
 function energy_adjustment(eco::AbstractEcosystem, bud::BudgetCollection2, i::Int64, spp::Int64)
     width = getdimension(eco)[1]
-    (x, y) = convert_coords(i, width)
+    (x, y) = convert_coords(eco, i, width)
     params = eco.spplist.params
     K1 = _getbudget(eco.abenv.budget.b1)[x, y] * eco.spplist.requirement.r1.exchange_rate
     K2 = _getbudget(eco.abenv.budget.b2)[x, y] * eco.spplist.requirement.r2.exchange_rate
@@ -179,30 +179,29 @@ function energy_adjustment(eco::AbstractEcosystem, bud::BudgetCollection2, i::In
 end
 
 """
-    convert_coords(i::Int64, width::Int64)
-    convert_coords(x::Int64, y::Int64, width::Int64)
+    convert_coords(eco, i::Int64, width::Int64)
+    convert_coords(eco, x::Int64, y::Int64, width::Int64)
 Function to convert coordinates from two-dimensional (`x`,`y`) format to one dimension (`i`), or vice versa, using the `width` of the grid. This function can also be applied to arrays of coordinates.
 """
+function convert_coords(eco::AbstractEcosystem, i::Int64, width::Int64 = getdimension(eco)[1])
+    x = ((i - 1) % width) + 1
+    y = div((i - 1), width)  + 1
+    return (x, y)
+end
+function convert_coords(eco::AbstractEcosystem, pos::Tuple{Int64, Int64}, width::Int64 = getdimension(eco)[1])
+    i = pos[1] + width * (pos[2] - 1)
+    return i
+end
+
 function convert_coords(i::Int64, width::Int64)
   x = ((i - 1) % width) + 1
   y = div((i - 1), width)  + 1
-  return (x, y)
-end
-function convert_coords(i::Array{Int64, 1}, width::Int64)
-  x = ((i .- 1) .% width) .+ 1
-  y = div.((i .- 1), width)  .+ 1
   return (x, y)
 end
 function convert_coords(x::Int64, y::Int64, width::Int64)
   i = x + width * (y - 1)
   return i
 end
-
-function convert_coords(x::Array{Int64, 1}, y::Array{Int64, 1}, width::Int64)
-  i = x .+ (width .* (y .- 1))
-  return i
-end
-
 """
     calc_lookup_moves!(bound, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
 
@@ -210,8 +209,8 @@ Function to calculate the number of moves taken by a species, `spp`, from a spec
 """
 function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, eco::AbstractEcosystem, abun::Int64)
     lookup = getlookup(eco, spp)
-    maxX = Simulation.getdimension(eco)[1] - x
-    maxY = Simulation.getdimension(eco)[2] - y
+    maxX = getdimension(eco)[1] - x
+    maxY = getdimension(eco)[2] - y
     # Can't go over maximum dimension
     for i in eachindex(lookup.x)
         valid =  (-x < lookup.x[i] <= maxX) && (-y < lookup.y[i] <= maxY) && (eco.abenv.active[lookup.x[i] + x, lookup.y[i] + y])
@@ -225,11 +224,11 @@ end
 
 function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco::AbstractEcosystem, abun::Int64)
     lookup = getlookup(eco, spp)
-    maxX = Simulation.getdimension(eco)[1] - x
-    maxY = Simulation.getdimension(eco)[2] - y
+    maxX = getdimension(eco)[1] - x
+    maxY = getdimension(eco)[2] - y
     # Can't go over maximum dimension
     for i in eachindex(lookup.x)
-        newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, Simulation.getdimension(eco)[1]) + 1
+        newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, getdimension(eco)[1]) + 1
 
         valid =  (-y < lookup.y[i] <= maxY) && (eco.abenv.active[newx, lookup.y[i] + y])
 
@@ -242,12 +241,12 @@ end
 
 function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::AbstractEcosystem, abun::Int64)
   lookup = getlookup(eco, spp)
-  maxX = Simulation.getdimension(eco)[1] - x
-  maxY = Simulation.getdimension(eco)[2] - y
+  maxX = getdimension(eco)[1] - x
+  maxY = getdimension(eco)[2] - y
   # Can't go over maximum dimension
   for i in eachindex(lookup.x)
-      newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, Simulation.getdimension(eco)[1]) + 1
-      newy =  -y < lookup.y[i] <= maxY ? lookup.y[i] + y : mod(lookup.y[i] + y - 1, Simulation.getdimension(eco)[2]) + 1
+      newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, getdimension(eco)[1]) + 1
+      newy =  -y < lookup.y[i] <= maxY ? lookup.y[i] + y : mod(lookup.y[i] + y - 1, getdimension(eco)[2]) + 1
       valid = eco.abenv.active[newx, newy]
 
       lookup.pnew[i] = valid ? lookup.p[i] : 0.0
@@ -269,7 +268,7 @@ of the entire population
 function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   grd::Array{Int64, 2}, ::Int64)
   width, height = getdimension(eco)
-  (x, y) = convert_coords(i, width)
+  (x, y) = convert_coords(eco, i, width)
   lookup = getlookup(eco, spp)
   full_abun = eco.abundances.matrix[spp, i]
   calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, spp, eco, full_abun)
@@ -280,7 +279,7 @@ function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   for i in eachindex(eco.lookup[spp].x)
       newx = mod(lookup.x[i] + x - 1, width) + 1
       newy = mod(lookup.y[i] + y - 1, height) + 1
-      loc = convert_coords(newx, newy, width)
+      loc = convert_coords(eco, (newx, newy), width)
       grd[spp, loc] += mov[i]
   end
   return eco
@@ -294,7 +293,7 @@ end
 function move!(eco::AbstractEcosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
     grd::Array{Int64, 2}, births::Int64)
   width, height = getdimension(eco)
-  (x, y) = convert_coords(i, width)
+  (x, y) = convert_coords(eco, i, width)
    lookup = getlookup(eco, spp)
   calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, spp, eco, births)
   # Lose moves from current grid square
@@ -304,7 +303,7 @@ function move!(eco::AbstractEcosystem, ::BirthOnlyMovement, i::Int64, spp::Int64
   for i in eachindex(lookup.x)
       newx = mod(lookup.x[i] + x - 1, width) + 1
       newy = mod(lookup.y[i] + y - 1, height) + 1
-      loc = convert_coords(newx, newy, width)
+      loc = convert_coords(eco, (newx, newy), width)
       grd[spp, loc] += mov[i]
   end
   return eco

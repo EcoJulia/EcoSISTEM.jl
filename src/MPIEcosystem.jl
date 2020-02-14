@@ -79,8 +79,8 @@ function MPIEcosystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::Gri
     MPI.Bcast!(ml.matrix, 0, comm)
     rankspp = firstspecies : spindices[rank + 2]
     lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), @view getkernels(spplist.movement)[rankspp]))
-    nm = zeros(Int64, size(ml.matrix))
-    totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
+    nm = zeros(Int64, (numspecies, numsc))
+    totalE = zeros(Float64, (numsc, numrequirements(Req)))
     MPIEcosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv, missing, rel, lookup_tab, speciescounts, firstspecies, sccounts, firstsc, rank, comm, Cache(nm, totalE, false))
 end
 
