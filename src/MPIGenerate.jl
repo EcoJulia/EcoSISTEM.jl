@@ -10,7 +10,8 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
     params = eco.spplist.params
     # Set the overall energy budget of that square
     update_energy_usage!(eco)
-    synchronise_from_cols!(eco.abundances)
+    MPI.Allgatherv!(MPI.IN_PLACE, eco.cache.totalE,
+                    eco.sccounts, MPI.COMM_WORLD)
     eco.cache.valid = true
 
     # Loop through species in chosen square
@@ -67,12 +68,25 @@ end
 function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract1Requirement}
     !eco.cache.valid || return true
 
+    rank = MPI.Comm_rank(MPI.COMM_WORLD)
+
     # Get energy budgets of species in square
     ϵ̄ = eco.spplist.requirement.energy
+    mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
-    Threads.@threads for i in eco.firstsc:(eco.firstsc + eco.sccounts[eco.rank + 1] - 1)
-        eco.cache.totalE[i, 1] = ((@view eco.abundances.matrix[:, i]) ⋅ ϵ̄) * eco.spplist.requirement.exchange_rate
+    Threads.@threads for sc in 1:eco.sccounts[rank + 1]
+        truesc = eco.firstsc + sc - 1
+        eco.cache.totalE[sc, 1] = 0.0
+        spindex = 1
+        for block in 1:length(mats)
+            nextsp = spindex + eco.speciescounts - 1
+            currentabun = @view mats[block][:, sc]
+            e1 = @view ϵ̄[spindex:nextsp]
+            eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1)
+            spindex = nextsp + 1
+        end
+        eco.cache.totalE[truesc, 1] *= eco.spplist.requirement.exchange_rate
     end
     eco.cache.valid = true
 end
@@ -80,15 +94,30 @@ end
 function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract2Requirements}
     !eco.cache.valid || return true
 
+    rank = MPI.Comm_rank(MPI.COMM_WORLD)
+
     # Get energy budgets of species in square
     ϵ̄1 = eco.spplist.requirement.r1.energy
     ϵ̄2 = eco.spplist.requirement.r2.energy
+    mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
-    Threads.@threads for i in eco.firstsc:(eco.firstsc + eco.sccounts[eco.rank + 1] - 1)
-        currentabun = @view eco.abundances.matrix[:, i]
-        eco.cache.totalE[i, 1] = (currentabun ⋅ ϵ̄1) * eco.spplist.requirement.r1.exchange_rate
-        eco.cache.totalE[i, 2] = (currentabun ⋅ ϵ̄2) * eco.spplist.requirement.r2.exchange_rate
+    Threads.@threads for sc in 1:eco.sccounts[rank + 1]
+        truesc = eco.firstsc + sc - 1
+        eco.cache.totalE[sc, 1] = 0.0
+        eco.cache.totalE[sc, 2] = 0.0
+        spindex = 1
+        for block in 1:length(mats)
+            nextsp = spindex + eco.speciescounts - 1
+            currentabun = @view mats[block][:, sc]
+            e1 = @view ϵ̄1[spindex:nextsp]
+            eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1)
+            e2 = @view ϵ̄2[spindex:nextsp]
+            eco.cache.totalE[truesc, 2] += (currentabun ⋅ e2)
+            spindex = nextsp + 1
+        end
+        eco.cache.totalE[truesc, 1] *= eco.spplist.requirement.r1.exchange_rate
+        eco.cache.totalE[truesc, 2] *= eco.spplist.requirement.r2.exchange_rate
     end
     eco.cache.valid = true
 end
