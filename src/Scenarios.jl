@@ -256,9 +256,9 @@ function Invasive(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
         smp = sample(pos)
         eco.abundances.matrix[invasive[i], smp] .+= 1
         while gains .> 0
-            spp = sample(find(eco.abundances.matrix[:, smp].>0))
-            eco.abundances.matrix[spp, smp] .-= 1
-            gains -= eco.spplist.requirement.energy[spp]
+            sp = sample(find(eco.abundances.matrix[:, smp].>0))
+            eco.abundances.matrix[sp, smp] .-= 1
+            gains -= eco.spplist.requirement.energy[sp]
         end
     end
 end

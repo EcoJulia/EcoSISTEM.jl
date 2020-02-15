@@ -60,8 +60,8 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
     budgetupdate!(eco, timestep)
 end
 
-function getlookup(eco::MPIEcosystem, spp::Int64)
-    return eco.lookup[spp - eco.firstspecies + 1]
+function getlookup(eco::MPIEcosystem, sp::Int64)
+    return eco.lookup[sp - eco.firstspecies + 1]
 end
 
 function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract1Requirement}

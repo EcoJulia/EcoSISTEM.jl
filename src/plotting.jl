@@ -26,9 +26,9 @@ function plot(dat::Array{Float64, 1}, eco::Ecosystem)
     plot(dat, plot(assem, false))
 end
 
-function plot_move(eco::Ecosystem, x::Int64, y::Int64, spp::Int64, plot::Bool)
+function plot_move(eco::Ecosystem, x::Int64, y::Int64, sp::Int64, plot::Bool)
 
-  lookup = eco.lookup[spp]
+  lookup = eco.lookup[sp]
   maxX = size(eco.abenv.habitat.matrix, 1) - x
   maxY = size(eco.abenv.habitat.matrix, 2) - y
   # Can't go over maximum dimension
@@ -222,9 +222,9 @@ function freq_hist(grd::Array{Float64, 3}, sq::Int64, num::Int64)
   _freq_hist(total, grd, num)
 end
 
-function freq_hist(grd::Array{Float64}, sq::Int64, num::Int64, spp::Int64)
-  spp_grd = grd[:, spp, :, :]
-  freq_hist(spp_grd, sq, num)
+function freq_hist(grd::Array{Float64}, sq::Int64, num::Int64, sp::Int64)
+  sp_grd = grd[:, sp, :, :]
+  freq_hist(sp_grd, sq, num)
 end
 
 function _freq_hist(total::Array{Float64}, grd::Array{Float64}, num::Int64)

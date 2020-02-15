@@ -135,10 +135,10 @@ function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B,
 end
 
 """
-    energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, spp::Int64)
-Function to calculate how much birth and death rates should be adjusted by, according to how much energy is available, `bud`, in the grid square, `i`, and how much energy the species, `spp`, requires.
+    energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, sp::Int64)
+Function to calculate how much birth and death rates should be adjusted by, according to how much energy is available, `bud`, in the grid square, `i`, and how much energy the species, `sp`, requires.
 """
-function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget, i::Int64, spp::Int64)
+function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget, i::Int64, sp::Int64)
     if typeof(eco.spplist.params) <: NoGrowth
         return 0.0, 0.0
     else
@@ -147,10 +147,10 @@ function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget, i::Int64
         params = eco.spplist.params
         K = getbudget(eco)[x, y] * eco.spplist.requirement.exchange_rate
         # Get energy budgets of species in square
-        ϵ̄ = eco.spplist.requirement.energy[spp] * eco.spplist.requirement.exchange_rate
+        ϵ̄ = eco.spplist.requirement.energy[sp] * eco.spplist.requirement.exchange_rate
         E = eco.cache.totalE[i, 1]
         # Traits
-        ϵ̄real = 1/traitfun(eco, i, spp)
+        ϵ̄real = 1/traitfun(eco, i, sp)
         # Alter rates by energy available in current pop & own requirements
         birth_energy = ϵ̄^-params.longevity * ϵ̄real^-params.survival * min(K/E, params.boost)
         death_energy = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
@@ -158,7 +158,7 @@ function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget, i::Int64
     return birth_energy, death_energy
 end
 
-function energy_adjustment(eco::AbstractEcosystem, bud::BudgetCollection2, i::Int64, spp::Int64)
+function energy_adjustment(eco::AbstractEcosystem, bud::BudgetCollection2, i::Int64, sp::Int64)
     width = getdimension(eco)[1]
     (x, y) = convert_coords(eco, i, width)
     params = eco.spplist.params
@@ -166,12 +166,12 @@ function energy_adjustment(eco::AbstractEcosystem, bud::BudgetCollection2, i::In
     K2 = _getbudget(eco.abenv.budget.b2)[x, y] * eco.spplist.requirement.r2.exchange_rate
     # Get abundances of square we are interested in
     # Get energy budgets of species in square
-    ϵ̄1 = eco.spplist.requirement.r1.energy[spp] * eco.spplist.requirement.r1.exchange_rate
-    ϵ̄2 = eco.spplist.requirement.r2.energy[spp] * eco.spplist.requirement.r2.exchange_rate
+    ϵ̄1 = eco.spplist.requirement.r1.energy[sp] * eco.spplist.requirement.r1.exchange_rate
+    ϵ̄2 = eco.spplist.requirement.r2.energy[sp] * eco.spplist.requirement.r2.exchange_rate
     E1 = eco.cache.totalE[i, 1]
     E2 = eco.cache.totalE[i, 2]
-    ϵ̄real1 = 1/traitfun(eco, i, spp)
-    ϵ̄real2 = 1/traitfun(eco, i, spp)
+    ϵ̄real1 = 1/traitfun(eco, i, sp)
+    ϵ̄real2 = 1/traitfun(eco, i, sp)
     # Alter rates by energy available in current pop & own requirements
     birth_energy = (ϵ̄1 * ϵ̄2)^-params.longevity * (ϵ̄real1 * ϵ̄real2)^-params.survival * min(K1/E1, K2/E2, params.boost)
     death_energy = (ϵ̄1 * ϵ̄2)^-params.longevity * (ϵ̄real1 * ϵ̄real2)^params.survival * max(E1/K1, E2/K2)
@@ -203,12 +203,12 @@ function convert_coords(x::Int64, y::Int64, width::Int64)
   return i
 end
 """
-    calc_lookup_moves!(bound, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
+    calc_lookup_moves!(bound, x::Int64, y::Int64, sp::Int64, eco::Ecosystem, abun::Int64)
 
-Function to calculate the number of moves taken by a species, `spp`, from a specific grid square location (`x`, `y`). There is a boundary condition, `bound`, which determines how the species can move across space (see AbstractBoundary). The total abundance of individuals is given in `abun`, which may be the number of births in the timestep, or total indiviuals.
+Function to calculate the number of moves taken by a species, `sp`, from a specific grid square location (`x`, `y`). There is a boundary condition, `bound`, which determines how the species can move across space (see AbstractBoundary). The total abundance of individuals is given in `abun`, which may be the number of births in the timestep, or total indiviuals.
 """
-function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, eco::AbstractEcosystem, abun::Int64)
-    lookup = getlookup(eco, spp)
+function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, sp::Int64, eco::AbstractEcosystem, abun::Int64)
+    lookup = getlookup(eco, sp)
     maxX = getdimension(eco)[1] - x
     maxY = getdimension(eco)[2] - y
     # Can't go over maximum dimension
@@ -222,8 +222,8 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, e
     rand!(eco.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco::AbstractEcosystem, abun::Int64)
-    lookup = getlookup(eco, spp)
+function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, sp::Int64, eco::AbstractEcosystem, abun::Int64)
+    lookup = getlookup(eco, sp)
     maxX = getdimension(eco)[1] - x
     maxY = getdimension(eco)[2] - y
     # Can't go over maximum dimension
@@ -239,8 +239,8 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco
     rand!(eco.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::AbstractEcosystem, abun::Int64)
-  lookup = getlookup(eco, spp)
+function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64, eco::AbstractEcosystem, abun::Int64)
+  lookup = getlookup(eco, sp)
   maxX = getdimension(eco)[1] - x
   maxY = getdimension(eco)[2] - y
   # Can't go over maximum dimension
@@ -257,54 +257,54 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::A
 end
 
 """
-    move!(eco::Ecosystem, ::AbstractMovement, i::Int64, spp::Int64, grd::Array{Int64, 2}, abun::Int64)
+    move!(eco::Ecosystem, ::AbstractMovement, i::Int64, sp::Int64, grd::Array{Int64, 2}, abun::Int64)
 
-Function to calculate the movement of species `spp` from a given position in the
+Function to calculate the movement of species `sp` from a given position in the
 landscape `i`, using the lookup table found in the Ecosystem and updating the
 movement patterns on a cached grid, `grd`. Optionally, a number of births can be
 provided, so that movement only takes place as part of the birth process, instead
 of the entire population
 """
-function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, spp::Int64,
+function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, sp::Int64,
   grd::Array{Int64, 2}, ::Int64)
   width, height = getdimension(eco)
   (x, y) = convert_coords(eco, i, width)
-  lookup = getlookup(eco, spp)
-  full_abun = eco.abundances.matrix[spp, i]
-  calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, spp, eco, full_abun)
+  lookup = getlookup(eco, sp)
+  full_abun = eco.abundances.matrix[sp, i]
+  calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, sp, eco, full_abun)
   # Lose moves from current grid square
-  grd[spp, i] -= full_abun
+  grd[sp, i] -= full_abun
   # Map moves to location in grid
   mov = lookup.moves
-  for i in eachindex(eco.lookup[spp].x)
+  for i in eachindex(eco.lookup[sp].x)
       newx = mod(lookup.x[i] + x - 1, width) + 1
       newy = mod(lookup.y[i] + y - 1, height) + 1
       loc = convert_coords(eco, (newx, newy), width)
-      grd[spp, loc] += mov[i]
+      grd[sp, loc] += mov[i]
   end
   return eco
 end
 
-function move!(eco::AbstractEcosystem, ::NoMovement, i::Int64, spp::Int64,
+function move!(eco::AbstractEcosystem, ::NoMovement, i::Int64, sp::Int64,
   grd::Array{Int64, 2}, ::Int64)
   return eco
 end
 
-function move!(eco::AbstractEcosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
+function move!(eco::AbstractEcosystem, ::BirthOnlyMovement, i::Int64, sp::Int64,
     grd::Array{Int64, 2}, births::Int64)
   width, height = getdimension(eco)
   (x, y) = convert_coords(eco, i, width)
-   lookup = getlookup(eco, spp)
-  calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, spp, eco, births)
+   lookup = getlookup(eco, sp)
+  calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, sp, eco, births)
   # Lose moves from current grid square
-  grd[spp, i] -= births
+  grd[sp, i] -= births
   # Map moves to location in grid
   mov = lookup.moves
   for i in eachindex(lookup.x)
       newx = mod(lookup.x[i] + x - 1, width) + 1
       newy = mod(lookup.y[i] + y - 1, height) + 1
       loc = convert_coords(eco, (newx, newy), width)
-      grd[spp, loc] += mov[i]
+      grd[sp, loc] += mov[i]
   end
   return eco
 end
@@ -396,7 +396,7 @@ function traitpopulate!(ml::GridLandscape, spplist::SpeciesList,
   maxrng = spplist.traits.mean .+ spplist.traits.var
   minrng = spplist.traits.mean .- spplist.traits.var
   hab = reshape(abenv.habitat.matrix, numsquares)
-  probabilities = [_traitfun(abenv.habitat, spplist.traits, rel, i, spp) for i in 1:numsquares, spp in 1:numspp]
+  probabilities = [_traitfun(abenv.habitat, spplist.traits, rel, i, sp) for i in 1:numsquares, sp in 1:numspp]
   # Loop through species
   for i in eachindex(spplist.abun)
       if spplist.native[i]

@@ -241,7 +241,7 @@ function _expected_counts(total::Array{Int64}, grd::Array{Int64}, sq::Int64)
 end
 
 
-function expected_counts(grd::Array{Float64}, sq::Int64, spp::Int64)
-  spp_grd = grd[:, spp, :, :]
-  expected_counts(spp_grd, sq)
+function expected_counts(grd::Array{Float64}, sq::Int64, sp::Int64)
+  sp_grd = grd[:, sp, :, :]
+  expected_counts(sp_grd, sq)
 end

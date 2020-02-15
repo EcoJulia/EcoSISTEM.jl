@@ -121,8 +121,8 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
   end
 end
 
-@recipe function f(::AbstractMovement, eco::Ecosystem, spp::Int64)
-    l = eco.lookup[spp]
+@recipe function f(::AbstractMovement, eco::Ecosystem, sp::Int64)
+    l = eco.lookup[sp]
     maxX = maximum(l.x)
     maxY = maximum(l.y)
     x, y = round(Int64, maxX/2), round(Int64, maxY/2)
@@ -363,12 +363,12 @@ Function to extract average dispersal distance of species from Ecosystem object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
-function getdispersaldist(eco::AbstractEcosystem, spp::Int64)
-  dist = eco.spplist.movement.kernels[spp].dist
+function getdispersaldist(eco::AbstractEcosystem, sp::Int64)
+  dist = eco.spplist.movement.kernels[sp].dist
   return dist
 end
-function getdispersaldist(eco::AbstractEcosystem, spp::String)
-  num = Compat.findall(eco.spplist.names.==spp)[1]
+function getdispersaldist(eco::AbstractEcosystem, sp::String)
+  num = Compat.findall(eco.spplist.names.==sp)[1]
   getdispersaldist(eco, num)
 end
 
@@ -379,12 +379,12 @@ Function to extract dispersal varaince of species from Ecosystem object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
-function getdispersalvar(eco::AbstractEcosystem, spp::Int64)
-    var = (eco.spplist.movement.kernels[spp].dist)^2 * pi / 4
+function getdispersalvar(eco::AbstractEcosystem, sp::Int64)
+    var = (eco.spplist.movement.kernels[sp].dist)^2 * pi / 4
     return var
 end
-function getdispersalvar(eco::AbstractEcosystem, spp::String)
-    num = Compat.findall(eco.spplist.names.==spp)[1]
+function getdispersalvar(eco::AbstractEcosystem, sp::String)
+    num = Compat.findall(eco.spplist.names.==sp)[1]
     getdispersalvar(eco, num)
 end
 """
@@ -392,11 +392,11 @@ end
 
 Function to extract movement lookup table of species from Ecosystem object.
 """
-function getlookup(eco::AbstractEcosystem, spp::Int64)
-    return eco.lookup[spp]
+function getlookup(eco::AbstractEcosystem, sp::Int64)
+    return eco.lookup[sp]
 end
-function getlookup(eco::AbstractEcosystem, spp::String)
-    num = Compat.findall(eco.spplist.names.==spp)[1]
+function getlookup(eco::AbstractEcosystem, sp::String)
+    num = Compat.findall(eco.spplist.names.==sp)[1]
     getlookup(eco, num)
 end
 
