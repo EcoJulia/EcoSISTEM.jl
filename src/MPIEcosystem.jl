@@ -74,7 +74,9 @@ function MPIEcosystem(popfun::Function, spplist::SpeciesList{T, Req},
 
     # Create matrix landscape of zero abundances
     ml = emptyMPIgridlandscape(sppcounts, sccounts)
-    #popfun(ml, spplist, abenv, rel)
+
+    # Populate this matrix with species abundances
+    popfun(ml, spplist, abenv, rel)
 
     rankspp = firstsp : sppindices[rank + 2]
     lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), @view getkernels(spplist.movement)[rankspp]))

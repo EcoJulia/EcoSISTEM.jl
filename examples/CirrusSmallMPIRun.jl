@@ -1,12 +1,15 @@
+using Pkg
+Pkg.activate("examples")
+
 using Simulation
 using MyUnitful
 using Unitful, Unitful.DefaultSymbols
 using Distributions
 using MPI
-using Diversity
+
 MPI.Init()
 println(Threads.nthreads())
-numSpecies = 10; grid = (5, 5); req= 10.0kJ; individuals=1000; area = 1000.0*km^2; totalK = 1.0kJ/km^2
+numSpecies = 10; grid = (5, 5); req= 10.0kJ; individuals=1000; area = 1000.0*km^2; totalK = 10.0kJ/km^2
 # Set up initial parameters for ecosystem
 
 # Set up how much energy each species consumes
@@ -23,7 +26,7 @@ boost = 1.0
 param = EqualPop(birth, death, longevity, survival, boost)
 
 # Create kernel for movement
-kernel = fill(GaussianKernel(10.0km, 10e-10), numSpecies)
+kernel = fill(GaussianKernel(1.0km, 10e-10), numSpecies)
 movement = BirthOnlyMovement(kernel, Torus())
 
 # Create species list, including their temperature preferences, seed abundance and native status
@@ -44,30 +47,18 @@ rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
 eco = MPIEcosystem(sppl, abenv, rel)
-sleep(MPI.Comm_rank(MPI.COMM_WORLD))
-println("$(MPI.Comm_rank(MPI.COMM_WORLD)): $(eco.abundances.rows_tuple)")
-println("$(MPI.Comm_rank(MPI.COMM_WORLD)): $(eco.abundances.cols_tuple)")
-eco.abundances.reshaped_cols[1][1,1] = 1 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
-if length(eco.abundances.reshaped_cols) > 1
-    eco.abundances.reshaped_cols[2][1,1] = 2 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
-end
-Simulation.synchronise_from_cols!(eco.abundances)
-sleep(MPI.Comm_rank(MPI.COMM_WORLD))
-println(eco.abundances.rows_matrix)
-eco.abundances.rows_matrix[2,2] = 3 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
-eco.abundances.rows_matrix[2,15] = 4 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
-Simulation.synchronise_from_rows!(eco.abundances)
-sleep(MPI.Comm_rank(MPI.COMM_WORLD))
-for i in 1:length(eco.abundances.reshaped_cols)
-    println("$(MPI.Comm_rank(MPI.COMM_WORLD)),$i:")
-    println(eco.abundances.reshaped_cols[i])
-end
 
-#print(eco.rank, "\n", eco.counts, "\n", length(eco.lookup))
+sleep(MPI.Comm_rank(MPI.COMM_WORLD))
+print("$(MPI.Comm_rank(MPI.COMM_WORLD)):")
+println(eco.abundances.rows_matrix)
+
 # Simulation Parameters
-# burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
-# lensim = length(0years:record_interval:times)
-# # Burnin
-# @time simulate!(eco, burnin, timestep)
-#
+burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
+lensim = length(0years:record_interval:times)
+# Burnin
+@time simulate!(eco, burnin, timestep)
+
+sleep(MPI.Comm_rank(MPI.COMM_WORLD))
+print("$(MPI.Comm_rank(MPI.COMM_WORLD)):")
+println(eco.abundances.rows_matrix)
 MPI.Finalize()

@@ -121,7 +121,7 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
   end
 end
 
-@recipe function f(::AbstractMovement, eco::Ecosystem, sp::Int64)
+@recipe function f(::AbstractMovement, eco::AbstractEcosystem, sp::Int64)
     l = eco.lookup[sp]
     maxX = maximum(l.x)
     maxY = maximum(l.y)
