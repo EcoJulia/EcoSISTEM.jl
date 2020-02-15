@@ -46,7 +46,7 @@ rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
 eco = MPIEcosystem(sppl, abenv, rel)
-println("$(eco.rank): $(eco.firstspecies) : $(eco.firstsc)")
+println("$(eco.rank): $(eco.firstsp) : $(eco.firstsc)")
 #print(eco.rank, "\n", eco.counts, "\n", length(eco.lookup))
 # Simulation Parameters
 burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1

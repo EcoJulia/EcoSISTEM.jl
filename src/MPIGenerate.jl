@@ -15,17 +15,18 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
     eco.cache.valid = true
 
     # Loop through species in chosen square
-    Threads.@threads for j in eco.firstspecies:(eco.firstspecies + eco.speciescounts[eco.rank + 1] - 1)
+    Threads.@threads for sp in 1:eco.sppcounts[eco.rank + 1]
+        truesp = eco.firstsp + sp - 1
         rng = eco.abundances.seed[Threads.threadid()]
         # Loop through grid squares
-        for i in 1:nsc
+        for sc in 1:nsc
             # Calculate how much birth and death should be adjusted
-            adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, i, j)
+            adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, sc, truesp)
 
             # Convert 1D dimension to 2D coordinates
-            (x, y) = convert_coords(eco, i)
+            (x, y) = convert_coords(eco, sc)
             # Check if grid cell currently active
-            if eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)
+            if eco.abenv.active[x, y] && (eco.cache.totalE[sc, 1] > 0)
 
                 # Calculate effective rates
                 birthprob = params.birth[j] * timestep * adjusted_birth
@@ -35,22 +36,23 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
                 newbirthprob = 1.0 - exp(-birthprob)
                 newdeathprob = 1.0 - exp(-deathprob)
 
-                (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n i: $i \n j: $j")
+                (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n sc: $sc \n sp: $sp")
                 # Calculate how many births and deaths
-                births = rand(rng, Poisson(eco.abundances.matrix[j, i] * newbirthprob))
-                deaths = rand(rng, Binomial(eco.abundances.matrix[j, i], newdeathprob))
+                births = rand(rng, Poisson(eco.abundances.row_matrix[sp, sc] * newbirthprob))
+                deaths = rand(rng, Binomial(eco.abundances.row_matrix[sp, sc], newdeathprob))
 
                 # Update population
-                eco.abundances.matrix[j, i] += (births - deaths)
+                eco.abundances.row_matrix[sp, sc] += (births - deaths)
 
                 # Calculate moves and write to cache
-                move!(eco, eco.spplist.movement, i, j, eco.cache.netmigration, births)
+                error("move!() not yet fixed for MPIGridLandscape!")
+                move!(eco, eco.spplist.movement, sc, truesp, eco.cache.netmigration, births)
             end
         end
     end
 
     # Update abundances with all movements
-    eco.abundances.matrix .+= eco.cache.netmigration
+    eco.abundances.row_matrix .+= eco.cache.netmigration
     synchronise_from_rows!(eco.abundances)
 
     # Invalidate all caches for next update
@@ -62,7 +64,7 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
 end
 
 function getlookup(eco::MPIEcosystem, sp::Int64)
-    return eco.lookup[sp - eco.firstspecies + 1]
+    return eco.lookup[sp - eco.firstsp + 1]
 end
 
 function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract1Requirement}
@@ -80,7 +82,7 @@ function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D
         eco.cache.totalE[sc, 1] = 0.0
         spindex = 1
         for block in 1:length(mats)
-            nextsp = spindex + eco.speciescounts - 1
+            nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄[spindex:nextsp]
             eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1)
@@ -108,7 +110,7 @@ function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D
         eco.cache.totalE[sc, 2] = 0.0
         spindex = 1
         for block in 1:length(mats)
-            nextsp = spindex + eco.speciescounts - 1
+            nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄1[spindex:nextsp]
             eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1)
