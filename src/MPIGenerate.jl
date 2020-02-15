@@ -10,8 +10,7 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
     params = eco.spplist.params
     # Set the overall energy budget of that square
     update_energy_usage!(eco)
-    MPI.Allgatherv!(MPI.IN_PLACE, eco.cache.totalE,
-                    eco.sccounts, eco.comm)
+    synchronise_from_vertical!(eco.abundances)
     eco.cache.valid = true
 
     # Loop through species in chosen square
@@ -51,11 +50,7 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
 
     # Update abundances with all movements
     eco.abundances.matrix .+= eco.cache.netmigration
-    gatherings = copy(eco.speciescounts)
-    gatherings .*= nsc
-    m = collect(eco.abundances.matrix')
-    MPI.Allgatherv!(MPI.IN_PLACE, m, gatherings, eco.comm)
-    eco.abundances.matrix .= m'
+    synchronise_from_horizontal!(eco.abundances)
 
     # Invalidate all caches for next update
     invalidatecaches!(eco)

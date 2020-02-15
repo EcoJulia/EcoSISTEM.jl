@@ -43,12 +43,28 @@ abenv = simplehabitatAE(274.0K, grid, totalK, area)
 rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
-eco = Ecosystem(sppl, abenv, rel)
+eco = MPIEcosystem(sppl, abenv, rel)
+sleep(MPI.Comm_rank(MPI.COMM_WORLD))
+print("$(MPI.Comm_rank(MPI.COMM_WORLD)): $(eco.abundances.horizontal_tuple)")
+print("$(MPI.Comm_rank(MPI.COMM_WORLD)): $(eco.abundances.vertical_tuple)")
+eco.abundances.reshaped_vertical[1][1,1] = 1 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
+if length(eco.abundances.reshaped_vertical) > 1
+    eco.abundances.reshaped_vertical[2][1,1] = 2 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
+end
+Simulation.synchronise_from_vertical!(eco.abundances)
+sleep(MPI.Comm_rank(MPI.COMM_WORLD))
+print(eco.abundances.horizontal_matrix)
+eco.abundances.horizontal_matrix[2,2] = 3 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
+eco.abundances.horizontal_matrix[2,15] = 4 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
+Simulation.synchronise_from_horizontal!(eco.abundances)
+sleep(MPI.Comm_rank(MPI.COMM_WORLD))
+print(eco.abundances.reshaped_vertical)
+
 #print(eco.rank, "\n", eco.counts, "\n", length(eco.lookup))
 # Simulation Parameters
-burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
-lensim = length(0years:record_interval:times)
-# Burnin
-@time simulate!(eco, burnin, timestep)
-
+# burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
+# lensim = length(0years:record_interval:times)
+# # Burnin
+# @time simulate!(eco, burnin, timestep)
+#
 MPI.Finalize()
