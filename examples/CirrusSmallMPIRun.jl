@@ -45,20 +45,23 @@ rel = Gauss{typeof(1.0K)}()
 # Create ecosystem
 eco = MPIEcosystem(sppl, abenv, rel)
 sleep(MPI.Comm_rank(MPI.COMM_WORLD))
-print("$(MPI.Comm_rank(MPI.COMM_WORLD)): $(eco.abundances.horizontal_tuple)")
-print("$(MPI.Comm_rank(MPI.COMM_WORLD)): $(eco.abundances.vertical_tuple)")
-eco.abundances.reshaped_vertical[1][1,1] = 1 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
-if length(eco.abundances.reshaped_vertical) > 1
-    eco.abundances.reshaped_vertical[2][1,1] = 2 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
+println("$(MPI.Comm_rank(MPI.COMM_WORLD)): $(eco.abundances.rows_tuple)")
+println("$(MPI.Comm_rank(MPI.COMM_WORLD)): $(eco.abundances.cols_tuple)")
+eco.abundances.reshaped_cols[1][1,1] = 1 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
+if length(eco.abundances.reshaped_cols) > 1
+    eco.abundances.reshaped_cols[2][1,1] = 2 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
 end
-Simulation.synchronise_from_vertical!(eco.abundances)
+Simulation.synchronise_from_cols!(eco.abundances)
 sleep(MPI.Comm_rank(MPI.COMM_WORLD))
-print(eco.abundances.horizontal_matrix)
-eco.abundances.horizontal_matrix[2,2] = 3 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
-eco.abundances.horizontal_matrix[2,15] = 4 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
-Simulation.synchronise_from_horizontal!(eco.abundances)
+println(eco.abundances.rows_matrix)
+eco.abundances.rows_matrix[2,2] = 3 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
+eco.abundances.rows_matrix[2,15] = 4 + 10 * MPI.Comm_rank(MPI.COMM_WORLD)
+Simulation.synchronise_from_rows!(eco.abundances)
 sleep(MPI.Comm_rank(MPI.COMM_WORLD))
-print(eco.abundances.reshaped_vertical)
+for i in 1:length(eco.abundances.reshaped_cols)
+    println("$(MPI.Comm_rank(MPI.COMM_WORLD)),$i:")
+    println(eco.abundances.reshaped_cols[i])
+end
 
 #print(eco.rank, "\n", eco.counts, "\n", length(eco.lookup))
 # Simulation Parameters
