@@ -11,13 +11,12 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
     params = eco.spplist.params
     # Set the overall energy budget of that square
     update_energy_usage!(eco)
-    MPI.Allgatherv!(MPI.IN_PLACE, eco.cache.totalE,
-                    eco.sccounts, comm)
+    MPI.Allgatherv!(MPI.IN_PLACE, eco.cache.totalE, eco.sccounts, comm)
     eco.cache.valid = true
 
     # Loop through species in chosen square
-    Threads.@threads for sp in 1:eco.sppcounts[rank + 1]
-        truesp = eco.firstsp + sp - 1
+    Threads.@threads for mpisp in 1:eco.sppcounts[rank + 1]
+        truesp = eco.firstsp + mpisp - 1
         rng = eco.abundances.seed[Threads.threadid()]
         # Loop through grid squares
         for sc in 1:numsc
@@ -37,13 +36,13 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
                 newbirthprob = 1.0 - exp(-birthprob)
                 newdeathprob = 1.0 - exp(-deathprob)
 
-                (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n sc: $sc \n sp: $sp")
+                (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n sc: $sc \n sp: $truesp")
                 # Calculate how many births and deaths
-                births = rand(rng, Poisson(eco.abundances.rows_matrix[sp, sc] * newbirthprob))
-                deaths = rand(rng, Binomial(eco.abundances.rows_matrix[sp, sc], newdeathprob))
+                births = rand(rng, Poisson(eco.abundances.rows_matrix[mpisp, sc] * newbirthprob))
+                deaths = rand(rng, Binomial(eco.abundances.rows_matrix[mpisp, sc], newdeathprob))
 
                 # Update population
-                eco.abundances.rows_matrix[sp, sc] += (births - deaths)
+                eco.abundances.rows_matrix[mpisp, sc] += (births - deaths)
 
                 # Calculate moves and write to cache
                 move!(eco, eco.spplist.movement, sc, truesp, eco.cache.netmigration, births)
@@ -79,7 +78,7 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, 
     # Loop through grid squares
     Threads.@threads for sc in 1:eco.sccounts[rank + 1]
         truesc = eco.firstsc + sc - 1
-        eco.cache.totalE[sc, 1] = 0.0
+        eco.cache.totalE[truesc, 1] = 0.0
         spindex = 1
         for block in 1:length(mats)
             nextsp = spindex + eco.sppcounts[block] - 1
@@ -105,8 +104,8 @@ function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D
     # Loop through grid squares
     Threads.@threads for sc in 1:eco.sccounts[rank + 1]
         truesc = eco.firstsc + sc - 1
-        eco.cache.totalE[sc, 1] = 0.0
-        eco.cache.totalE[sc, 2] = 0.0
+        eco.cache.totalE[truesc, 1] = 0.0
+        eco.cache.totalE[truesc, 2] = 0.0
         spindex = 1
         for block in 1:length(mats)
             nextsp = spindex + eco.sppcounts[block] - 1
