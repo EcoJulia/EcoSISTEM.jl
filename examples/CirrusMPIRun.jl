@@ -8,6 +8,7 @@ using Statistics
 MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
+rank == 0 && println("using")
 totMPI = MPI.Comm_size(comm)
 io = open("output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt", write = true)
 write(io, "rank $rank / $totMPI: $(Threads.nthreads()) threads\n")
@@ -47,6 +48,8 @@ abenv = simplehabitatAE(274.0K, grid, totalK, area)
 # Set relationship between species and environment (gaussian)
 rel = Gauss{typeof(1.0K)}()
 
+rank == 0 && println("Startup")
+
 # Create ecosystem
 eco = MPIEcosystem(sppl, abenv, rel)
 
@@ -58,6 +61,7 @@ write(io, "numspp = $(size(eco.abundances.rows_matrix, 1)) " *
 burnin = 1years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
 lensim = length(0years:record_interval:times)
 # Burnin
+rank == 0 && println("Start first burnin")
 MPI.Barrier(comm)
 one = time_ns()
 val = simulate!(eco, burnin, timestep)
@@ -67,6 +71,7 @@ write(io, "time = $(convert(typeof(1.0s), (two - one) * ns))\n")
 sppcounts = sum(eco.abundances.rows_matrix, dims = 2)
 write(io, "numspp = $(size(eco.abundances.rows_matrix, 1)) mean = $(mean(sppcounts)) std = $(std(sppcounts))\n")
 
+rank == 0 && println("Start second burnin")
 MPI.Barrier(comm)
 one = time_ns()
 val = @timed simulate!(eco, burnin, timestep)
@@ -77,4 +82,5 @@ write(io, "time = $(convert(typeof(1.0s), (two - one) * ns))\n")
 sppcounts = sum(eco.abundances.rows_matrix, dims = 2)
 write(io, "numspp = $(size(eco.abundances.rows_matrix, 1)) mean = $(mean(sppcounts)) std = $(std(sppcounts))\n")
 close(io)
+rank == 0 && println("End second burnin")
 MPI.Finalize()
