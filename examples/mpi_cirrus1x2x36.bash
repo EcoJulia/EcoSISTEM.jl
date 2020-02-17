@@ -27,4 +27,4 @@ export JULIA_NUM_THREADS=36
 # Launch the parallel job
 #   Using 2 MPI processes and 2 MPI processes per node
 mpirun -ppn 2 -n 2 julia --project=../git/Simulation/examples \
-  ../git/Simulation/examples/CirrusMPIRun.jl > stdout.txt 2> stderr.txt
+  ../git/Simulation/examples/CirrusMPIRun.jl
