@@ -61,7 +61,7 @@ export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize
  getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
 
 include("MPIEcosystem.jl")
-export MPIEcosystem
+export MPIEcosystem, gather_abundance
 
 include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
