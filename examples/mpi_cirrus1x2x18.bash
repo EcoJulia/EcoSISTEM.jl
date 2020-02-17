@@ -2,7 +2,7 @@
 
 # PBS job options (name, compute nodes, job time)
 #PBS -N Small_Simulation1-2-36
-# Select 4 full nodes
+# Select 1 full nodes
 #PBS -l select=1:ncpus=2
 # Parallel jobs should always specify exclusive node access
 #PBS -l place=scatter:excl
