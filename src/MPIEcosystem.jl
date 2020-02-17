@@ -92,3 +92,12 @@ function MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
    return MPIEcosystem(populate!, spplist, abenv, rel)
 end
+
+function gather_abundance(eco::MPIEcosystem)
+    comm = MPI.COMM_WORLD
+    rank = MPI.Comm_rank(comm)
+    abun = MPI.Gatherv(eco.abundances.rows_matrix, Int32.(eco.sppcounts .* sum(eco.sccounts)), 0, comm)
+    if rank == 0
+        return reshape(abun, counttypes(eco), countsubcommunities(eco))
+    end
+end
