@@ -29,6 +29,7 @@ mutable struct MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic, 
   sccounts::Vector{Int32}
   firstsc::Int64
   cache::Cache
+  fullabun::Union{Matrix{Int64}, Missing}
 
   function MPIEcosystem{MPIGL, Part, SL, TR}(abundances::MPIGL,
     spplist::SL, abenv::Part, ordinariness::Union{Matrix{Float64},
@@ -93,21 +94,22 @@ function MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    return MPIEcosystem(populate!, spplist, abenv, rel)
 end
 
-function gather_abundance(eco::MPIEcosystem)
+function gather_abundance!(eco::MPIEcosystem)
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     abun = MPI.Gatherv(eco.abundances.rows_matrix, Int32.(eco.sppcounts .* sum(eco.sccounts)), 0, comm)
     if rank == 0
-        return reshape(abun, counttypes(eco), countsubcommunities(eco))
+        eco.fullabun = reshape(abun, counttypes(eco), countsubcommunities(eco))
+    else
+        eco.fullabun = missing
     end
 end
 
 import Diversity.API: _getabundance
 function _getabundance(eco::MPIEcosystem, input::Bool)
-    abun = gather_abundance(eco)
     if input
-        return abun
+        return eco.fullabun
     else
-        return _calcabundance(_gettypes(eco), abun / sum(abun))[1]
+        return _calcabundance(_gettypes(eco), eco.fullabun / sum(eco.fullabun))[1]
     end
 end

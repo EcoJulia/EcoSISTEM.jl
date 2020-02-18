@@ -47,18 +47,10 @@ rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
 eco = MPIEcosystem(sppl, abenv, rel)
-print(norm_sub_alpha(eco, 1.0))
-#println("$(rank): $(eco.firstsp) : $(eco.firstsc)")
-#print(eco.rank, "\n", eco.counts, "\n", length(eco.lookup))
-# Simulation Parameters
-# burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
-# lensim = length(0years:record_interval:times)
-# # Burnin
-# simulate!(eco, burnin, timestep)
-# println("$(rank): $(mapslices(sum, eco.abundances.matrix, dims = 2)[1:10])")
-
-# Run simulation
-# abundances = generate_storage(eco, lensim, repeats)
-# simulate_record!(abundances, eco, times, record_interval, timestep)
+gather_abundance!(eco)
+println(ismissing(eco.fullabun))
+if !ismissing(eco.fullabun)
+    print(norm_sub_alpha(eco, 1.0))
+end
 
 MPI.Finalize()
