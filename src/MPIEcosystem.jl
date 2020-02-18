@@ -101,3 +101,13 @@ function gather_abundance(eco::MPIEcosystem)
         return reshape(abun, counttypes(eco), countsubcommunities(eco))
     end
 end
+
+import Diversity.API: _getabundance
+function _getabundance(eco::MPIEcosystem, input::Bool)
+    abun = gather_abundance(eco)
+    if input
+        return abun
+    else
+        return _calcabundance(_gettypes(eco), abun / sum(abun))[1]
+    end
+end
