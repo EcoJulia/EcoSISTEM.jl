@@ -173,11 +173,11 @@ function populate!(ml::MPIGridLandscape, spplist::SpeciesList,
     activity = reshape(copy(abenv.active), size(grid))
     b1[.!activity] .= 0.0 * units1
     b2[.!activity] .= 0.0 * units2
-    B = (b1./sum(b1)) * (b2./sum(b2))
+    B = (b1./sum(b1)) .* (b2./sum(b2))
     # Loop through species
     abundances = @view spplist.abun[ml.rows_tuple.first:ml.rows_tuple.last]
     for mpisp in eachindex(abundances)
-        rand!(Multinomial(abundances[mpisp], B),
+        rand!(Multinomial(abundances[mpisp], B ./ sum(B)),
         (@view ml.rows_matrix[mpisp, :]))
     end
     synchronise_from_rows!(ml)

@@ -349,7 +349,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
     B = (b1./sum(b1)) .* (b2./sum(b2))
     # Loop through species
     for i in eachindex(spplist.abun)
-        rand!(Multinomial(spplist.abun[i], B), (@view ml.matrix[i, :]))
+        rand!(Multinomial(spplist.abun[i], B./sum(B)), (@view ml.matrix[i, :]))
     end
 end
 GLOBAL_funcdict["populate!"] = populate!
