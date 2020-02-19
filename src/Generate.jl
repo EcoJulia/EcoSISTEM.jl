@@ -346,7 +346,7 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
     activity = reshape(copy(abenv.active), size(grid))
     b1[.!activity] .= 0.0 * units1
     b2[.!activity] .= 0.0 * units2
-    B = (b1./sum(b1)) * (b2./sum(b2))
+    B = (b1./sum(b1)) .* (b2./sum(b2))
     # Loop through species
     for i in eachindex(spplist.abun)
         rand!(Multinomial(spplist.abun[i], B), (@view ml.matrix[i, :]))
