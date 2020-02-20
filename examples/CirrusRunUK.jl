@@ -25,6 +25,7 @@ close(io)
 traits = load("../data/BSBI_had_prefs_UK")
 traits = filter(t-> !isnan(t.sun) & !isnan(t.rainfall) & !isnan(t.tas_st) & !isnan(t.rain_st), traits)
 traits = filter(t -> (t.rain_st > 0) & (t.tas_st > 0), traits)
+numSpecies = length(traits)
 individuals = Int(1e10)
 
 # Set up species requirements
