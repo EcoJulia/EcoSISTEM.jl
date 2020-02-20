@@ -66,7 +66,7 @@ sppl = SpeciesList(numSpecies, trts, abun, req, movement, param, native)
 
 # Import HadUK grid data
 dir = "../data/HadUK/tas/"
-times = collect(2008year:1month:2017year+11month)
+times = collect(2010year:1month:2017year+11month)
 tas = readHadUK(dir, "tas", times)
 dir = "../data/HadUK/rainfall/"
 rainfall = readHadUK(dir, "rainfall", times)
