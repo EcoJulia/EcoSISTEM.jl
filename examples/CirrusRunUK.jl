@@ -1,3 +1,4 @@
+start = time()
 using UKclim
 using JuliaDB
 using JuliaDBMeta
