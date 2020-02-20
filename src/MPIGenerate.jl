@@ -91,7 +91,7 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, 
     eco.cache.valid = true
 end
 
-function update_energy_usage!(eco::MPIEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract2Requirements}
+function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, B, C, D}, E}) where {MPGL <: MPIGridLandscape, A, B, C, D, E, Tr, Req <: Abstract2Requirements}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
