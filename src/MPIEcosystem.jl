@@ -29,7 +29,6 @@ mutable struct MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic, 
   sccounts::Vector{Int32}
   firstsc::Int64
   cache::Cache
-  fullabun::Union{Matrix{Int64}, Missing}
 
   function MPIEcosystem{MPIGL, Part, SL, TR}(abundances::MPIGL,
     spplist::SL, abenv::Part, ordinariness::Union{Matrix{Float64},
@@ -94,22 +93,66 @@ function MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    return MPIEcosystem(populate!, spplist, abenv, rel)
 end
 
-function gather_abundance!(eco::MPIEcosystem)
-    comm = MPI.COMM_WORLD
-    rank = MPI.Comm_rank(comm)
-    abun = MPI.Gatherv(eco.abundances.rows_matrix, Int32.(eco.sppcounts .* sum(eco.sccounts)), 0, comm)
-    if rank == 0
-        eco.fullabun = reshape(abun, counttypes(eco), countsubcommunities(eco))
+# function gather_abundance!(eco::MPIEcosystem)
+#     comm = MPI.COMM_WORLD
+#     rank = MPI.Comm_rank(comm)
+#     abun = MPI.Gatherv(eco.abundances.rows_matrix, Int32.(eco.sppcounts .* sum(eco.sccounts)), 0, comm)
+#     if rank == 0
+#         eco.fullabun = reshape(abun, counttypes(eco), countsubcommunities(eco))
+#     else
+#         eco.fullabun = missing
+#     end
+# end
+
+import Diversity.API: _getabundance
+function _getabundance(eco::MPIEcosystem, raw::Bool)
+    if raw
+        return eco.abundances.rows_matrix
     else
-        eco.fullabun = missing
+        return _calcabundance(_gettypes(eco), eco.abundances.rows_matrix / sum(eco.abundances.rows_matrix))[1]
     end
 end
 
-import Diversity.API: _getabundance
-function _getabundance(eco::MPIEcosystem, input::Bool)
-    if input
-        return eco.fullabun
+import Diversity.API: _getmetaabundance
+function _getmetaabundance(eco::MPIEcosystem)
+    comm = MPI.COMM_WORLD
+    ab = sum(_getabundance(eco), dims = 2)
+    return MPI.Allgatherv(ab, eco.sppcounts, comm)
+end
+
+import Diversity.API: _getweight
+function _getweight(eco::MPIEcosystem)
+    comm = MPI.COMM_WORLD
+    w = sum(_getabundance(eco, false), dims = 1)
+    return MPI.Allreduce(w, +, comm)[1, :]
+end
+
+import Diversity.API: _getordinariness!
+function _getordinariness!(eco::MPIEcosystem)
+    if ismissing(eco.ordinariness)
+        eco.ordinariness = _calcordinariness(eco)
+    end
+    return eco.ordinariness
+end
+
+import Diversity.API: _calcordinariness
+function _calcordinariness(eco::MPIEcosystem)
+    relab = getabundance(eco, false)
+    sp_rng = eco.abundances.rows_tuple.first:eco.abundances.rows_tuple.last
+    return _calcsimilarity(eco.spplist.types, one(eltype(relab)))[sp_rng, sp_rng] * relab
+end
+
+function gather_diversity(eco::MPIEcosystem, divmeasure::Function, q)
+    comm = MPI.COMM_WORLD
+    totalsize = MPI.Comm_size(comm)
+    div = divmeasure(eco, q)
+    totalabun = MPI.Gather(sum(eco.abundances.rows_matrix), 0, comm)
+    mpidivs = MPI.Gather(div[!, :diversity], 0, comm)
+    if rank == 0
+        mpidivs = vcat(reshape(mpidivs, countsubcommunities(eco), totalsize), div[!, :q])
+        div[!, :diversity] .= mapslices(x -> Diversity.powermean(x[:, 1:end-1], 1 - x[:, end], totalabun .* 1.0), mpidivs, dims = 2)[:, 1]
+        return div
     else
-        return _calcabundance(_gettypes(eco), eco.fullabun / sum(eco.fullabun))[1]
+        return div
     end
 end
