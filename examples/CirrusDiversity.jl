@@ -7,9 +7,11 @@ using Diversity
 
 MPI.Init()
 println(Threads.nthreads())
-rank = MPI.Comm_rank(MPI.COMM_WORLD)
+comm = MPI.COMM_WORLD
+rank = MPI.Comm_rank(comm)
+totalsize = MPI.Comm_size(comm)
 
-numSpecies = 1000; grid = (100, 10); req= 10.0kJ; individuals=10_000_000; area = 400_000.0*km^2; totalK = 100_000.0kJ/km^2
+numSpecies = 1000; grid = (10, 10); req= 10.0kJ; individuals=10_000_000; area = 400_000.0*km^2; totalK = 100_000.0kJ/km^2
 # Set up initial parameters for ecosystem
 
 # Set up how much energy each species consumes
@@ -47,10 +49,10 @@ rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
 eco = MPIEcosystem(sppl, abenv, rel)
-gather_abundance!(eco)
-println(ismissing(eco.fullabun))
-if !ismissing(eco.fullabun)
-    print(norm_sub_alpha(eco, 1.0))
+q = 1.0
+alphadiv = gather_diversity(eco, norm_sub_alpha, q)
+if rank == 0
+    print(alphadiv)
 end
 
 MPI.Finalize()
