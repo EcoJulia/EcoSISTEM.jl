@@ -43,7 +43,6 @@ mutable struct GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
     return new{H, B}(habitat, active, budget, names)
   end
 end
-GLOBAL_typedict["GridAbioticEnv"] = GridAbioticEnv
 
 """
     simplenicheAE(numniches::Int64, dimension::Tuple,
@@ -81,7 +80,6 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
     fill!(active, true)
     simplenicheAE(numniches, dimension, maxbud, area, active)
 end
-GLOBAL_funcdict["simplenicheAE"] = simplenicheAE
 
 import Diversity.API: _countsubcommunities
 function _countsubcommunities(gae::GridAbioticEnv)
@@ -163,7 +161,6 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
    peakedgradAE(minT, maxT, dimension, maxbud, area, rate, active)
   end
 
- GLOBAL_funcdict["tempgradAE"] = tempgradAE
  """
      raingradAE(min::Unitful.Temperature{Float64},
        max::Unitful.Temperature{Float64},
@@ -260,7 +257,6 @@ function eraAE(era::ERA, bud::SolarTimeBudget, active::Array{Bool, 2})
 
      return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
 end
-GLOBAL_funcdict["eraAE"] = eraAE
 
 function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64})
     dimension = size(wc.array)[1:2]
@@ -301,7 +297,6 @@ function worldclimAE(wc::Worldclim, bud::SolarTimeBudget, active::Array{Bool, 2}
      return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
 end
 
-GLOBAL_funcdict["worldclimAE"] = worldclimAE
  """
      simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
          dimension::Tuple{Int64, Int64}, maxbud::Float64, area::Unitful.Area{Float64},
@@ -339,7 +334,7 @@ function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
   active = fill(true, dimension)
   simplehabitatAE(val, dimension, maxbud, area, active)
 end
-GLOBAL_funcdict["simplehabitatAE"] = simplehabitatAE
+
 import EcoBase.getcoords
 
 getcoords(abenv::GridAbioticEnv) = abenv.habitat

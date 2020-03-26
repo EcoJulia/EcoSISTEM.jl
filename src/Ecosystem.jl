@@ -172,7 +172,6 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
    return Ecosystem(populate!, spplist, abenv, rel)
 end
-GLOBAL_typedict["Ecosystem"] = Ecosystem
 
 function addspecies!(eco::Ecosystem, abun::Int64)
     eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(size(eco.abundances.matrix, 2)))

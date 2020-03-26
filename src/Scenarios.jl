@@ -12,29 +12,15 @@ abstract type AbstractScenario end
 
 RateType = typeof(1.0/year)
 
-if VERSION >= v"0.7"
-    """
-        SimpleScenario <: AbstractScenario
+"""
+    SimpleScenario <: AbstractScenario
 
-    This scenario type holds a function that acts to change the entire ecosystem.
-    """
-    mutable struct SimpleScenario <: AbstractScenario
-        fun::Function
-        rate::Union{Quantity{Float64, 𝐓^-1}, Quantity{Float64, 𝚯*𝐓^-1}, Quantity{Float64, 𝐋*𝐓^-1}}
-    end
-else
-    """
-        SimpleScenario <: AbstractScenario
-
-    This scenario type holds a function that acts to change the entire ecosystem.
-    """
-    mutable struct SimpleScenario <: AbstractScenario
-        fun::Function
-        rate::Union{Quantity{Float64, typeof(𝐓^-1)}, Quantity{Float64, typeof(𝚯*𝐓^-1)}, Quantity{Float64, typeof(𝐋*𝐓^-1)}}
-    end
+This scenario type holds a function that acts to change the entire ecosystem.
+"""
+mutable struct SimpleScenario <: AbstractScenario
+    fun::Function
+    rate::Union{Quantity{Float64, 𝐓^-1}, Quantity{Float64, 𝚯*𝐓^-1}, Quantity{Float64, 𝐋*𝐓^-1}}
 end
-GLOBAL_typedict["SimpleScenario"] = SimpleScenario
-
 
 function TempIncrease(eco::Ecosystem, timestep::Unitful.Time, rate::typeof(1.0K/year))
     resetrate!(eco, rate)
@@ -53,7 +39,7 @@ function RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::RateType
     eco.abenv.budget.matrix[smp] .= 0.0
     eco.abundances.grid[:, smp] .= 0.0
 end
-GLOBAL_funcdict["RandHabitatLoss!"] = RandHabitatLoss!
+
 """
     ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -85,7 +71,6 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::RateTyp
     eco.abenv.budget.matrix[smp] .= 0.0
     eco.abundances.grid[:, smp] .= 0.0
 end
-GLOBAL_funcdict["ClustHabitatLoss!"] = ClustHabitatLoss!
 
 """
      HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time,
@@ -101,7 +86,6 @@ function HabitatReplacement(eco::Ecosystem, timestep::Unitful.Time, rate::RateTy
     eco.abenv.habitat.matrix[smp] = maximum(eco.spplist.traits.val) + 1
 end
 
-GLOBAL_funcdict["HabitatReplacement"] = HabitatReplacement
 
 function SusceptibleDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
      eco.spplist.susceptible *= (1 + rate * timestep)
@@ -122,7 +106,7 @@ function SusceptibleDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateTy
     end
     end
 end
-GLOBAL_funcdict["SusceptibleDecline"] = SusceptibleDecline
+
 """
     UniformDecline(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -144,7 +128,7 @@ function UniformDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
         end
      end
 end
-GLOBAL_funcdict["UniformDecline"] = UniformDecline
+
 """
     ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -164,7 +148,7 @@ function ProportionalDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateT
          end
      end
 end
-GLOBAL_funcdict["ProportionalDecline"] = ProportionalDecline
+
 """
     LargeDecline(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -190,7 +174,7 @@ function LargeDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
      end
      end
 end
-GLOBAL_funcdict["LargeDecline"] = LargeDecline
+
 """
     RareDecline(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -212,7 +196,7 @@ function RareDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
      end
      end
 end
-GLOBAL_funcdict["RareDecline"] = RareDecline
+
 """
     CommonDecline(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -234,7 +218,7 @@ function CommonDecline(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
      end
      end
 end
-GLOBAL_funcdict["CommonDecline"] = CommonDecline
+
 """
     Invasive(eco::Ecosystem, timestep::Unitful.Time,
         rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -262,7 +246,6 @@ function Invasive(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
         end
     end
 end
-GLOBAL_funcdict["Invasive"] = Invasive
 
 function runscenario!(eco::Ecosystem, timestep::Unitful.Time, scenario::SimpleScenario, currentstep::Unitful.Time)
     scenario.fun(eco, timestep, scenario.rate)

@@ -21,10 +21,10 @@ function TempFluct(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful
   hab.matrix .+= (sin.(hab.matrix ./ offset) .* v)
 end
 
-GLOBAL_funcdict["TempChange"] = TempChange
+
 function NoChange(eco::AbstractEcosystem, hab::AbstractHabitat, timestep::Unitful.Time)
 end
-GLOBAL_funcdict["NoChange"] = NoChange
+
 ChangeLookup = Dict(K => TempChange, NoUnits => NoChange)
 function eraChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
     monthstep = uconvert(month, timestep)
@@ -34,7 +34,7 @@ function eraChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timestep::Uni
         Compat.@warn "More timesteps than available, have repeated"
     end
 end
-GLOBAL_funcdict["eraChange"] = eraChange
+
 function worldclimChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
     last = size(hab.matrix, 3)
     monthstep = convert(typeof(1.0month), timestep)
@@ -44,7 +44,7 @@ function worldclimChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timeste
         Compat.@warn "More timesteps than available, have repeated"
     end
 end
-GLOBAL_funcdict["worldclimChange"] = worldclimChange
+
 function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat, timestep::Unitful.Time)
     val = hab.change.rate
     v = uconvert(unit(timestep)^-1, val)
@@ -53,7 +53,7 @@ function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat, timestep::Uni
     eco.abenv.budget.matrix[smp] = 0.0
     eco.abundances.matrix[:, smp] .= 0.0
 end
-GLOBAL_funcdict["HabitatLoss"] = HabitatLoss
+
 function habitatupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
   _habitatupdate!(eco, eco.abenv.habitat, timestep)
 end
