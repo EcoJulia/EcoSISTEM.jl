@@ -56,10 +56,10 @@ GLOBAL_typedict = BiDict{String, Type}()
 GLOBAL_funcdict = BiDict{String, Function}()
 
 include("Dist.jl")
-export jnorm, jexp, jpois, jbinom, junif, jdir, jmulti, Trapezoid
+export Trapezoid
 
 include("Phylo.jl")
-export jtree, jcoal, assign_traits!, get_traits, resettraits!, reroot!
+export assign_traits!, get_traits, resettraits!, reroot!
 
 include("TraitRelationship.jl")
 export TraitRelationship,multiplicativeTR2, multiplicativeTR3, Gauss,

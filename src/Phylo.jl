@@ -119,7 +119,7 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
     alltimes = map(switch_rate) do swt
       times = Array{Float64}(Compat.undef, 0)
         while(sum(times) < len)
-          time_switch = jexp(swt*len)
+          time_switch = rand(Exponential(swt*len))
           append!(times, time_switch)
         end
         times
@@ -182,7 +182,7 @@ Function to evolve a Real value through Brownian motion, with a starting value,
 function BM(T::Real, σ²::Float64, start::Float64, lab::String="")
   t = 0:T  # time
 ## first, simulate a set of random deviates
-x = jnorm(0, sqrt(σ²),length(t) - 1)
+x = rand(Normal(0, sqrt(σ²)),length(t) - 1)
 ## now compute their cumulative sum
 x = cumsum(append!([start], x))
 end
