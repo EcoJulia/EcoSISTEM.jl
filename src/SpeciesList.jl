@@ -57,7 +57,6 @@ mutable struct SpeciesList{TR <: AbstractTraits,
   end
 end
 
-GLOBAL_typedict["SpeciesList"] = SpeciesList
 """
     SpeciesList{R <: AbstractRequirement,
       MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,

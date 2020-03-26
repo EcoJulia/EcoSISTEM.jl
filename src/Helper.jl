@@ -19,7 +19,6 @@ function simulate!(eco::Ecosystem, duration::Unitful.Time, timestep::Unitful.Tim
   end
 end
 
-GLOBAL_funcdict["simulate!"] = simulate!
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
   numSpecies = length(eco.spplist.abun)
   gridSize = _countsubcommunities(eco.abenv.habitat)
@@ -29,7 +28,7 @@ function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
   gridSize = _countsubcommunities(eco.abenv.habitat)
   abun = Array{Float64, 4}(Compat.undef, gridSize, qs, times, reps)
 end
-GLOBAL_funcdict["generate_storage"] = generate_storage
+
 """
     simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
          timestep::Unitful.Time)
@@ -76,7 +75,6 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
   storage
 end
 
-GLOBAL_funcdict["simulate_record!"] = simulate_record!
 """
     simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
       times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
@@ -186,7 +184,6 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   end
   storage
 end
-GLOBAL_funcdict["simulate_record_diversity!"] = simulate_record_diversity!
 
 function cleanup!(abun::Array{Int64, 4})
     zeroabun = mapslices(x -> all(x.!=0), abun, dims = [1, 2, 4])[1, 1, :, 1]

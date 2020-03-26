@@ -19,7 +19,6 @@ function eltype(trait::DiscreteTrait{D}) where D
     return D
 end
 
-GLOBAL_typedict["DiscreteTrait"] = DiscreteTrait
 
 """
     DiscreteEvolve(numTraits::Int64, tree::BinaryTree)
@@ -77,7 +76,6 @@ function GaussTrait(mean::Array{C, 1}, var::Array{C, 1}) where C  <: Unitful.Tem
     varK = ustrip.(var) .* K
     return GaussTrait{typeof(1.0K)}(meanK, varK)
 end
-GLOBAL_typedict["GaussTrait"] = GaussTrait
 
 """
     TempBin{C <: Int} <: ContinuousTrait{C}
@@ -91,7 +89,6 @@ iscontinuous(trait::TempBin{C}) where C = true
 function eltype(trait::TempBin{C}) where C
     return typeof(1.0°C)
 end
-GLOBAL_typedict["TempBin"] = TempBin
 
 """
     RainBin{C <: Int} <: ContinuousTrait{C}
@@ -105,7 +102,6 @@ iscontinuous(trait::RainBin{C}) where C = true
 function eltype(trait::RainBin{C}) where C
     return typeof(1.0mm)
 end
-GLOBAL_typedict["RainBin"] = RainBin
 
 """
     TraitCollection2{T1, T2} <: AbstractTraits{Tuple{T1, T2}}
@@ -122,7 +118,6 @@ iscontinuous(trait::TraitCollection2{T1, T2}) where {T1, T2} =
 function eltype(trait::TraitCollection2)
     return [eltype(trait.t1), eltype(trait.t2)]
 end
-GLOBAL_typedict["TraitCollection2"] = TraitCollection2
 
 """
     TraitCollection3{T1, T2, T3} <: AbstractTraits{Tuple{T1, T2, T3}}
@@ -139,4 +134,3 @@ iscontinuous(trait.t2), iscontinuous(trait.t3)]
 function eltype(trait::TraitCollection3)
     return [eltype(trait.t1), eltype(trait.t2), eltype(trait.t3)]
 end
-GLOBAL_typedict["TraitCollection3"] = TraitCollection3

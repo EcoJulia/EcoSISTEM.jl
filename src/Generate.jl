@@ -93,7 +93,6 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     budgetupdate!(eco, timestep)
 end
 
-GLOBAL_funcdict["update!"] = update!
 
 """
     update_energy_usage!(eco::Ecosystem)
@@ -348,7 +347,6 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
         rand!(Multinomial(spplist.abun[i], B), (@view ml.matrix[i, :]))
     end
 end
-GLOBAL_funcdict["populate!"] = populate!
 
 """
     repopulate!(eco::Ecosystem, abun::Int64)
@@ -374,7 +372,6 @@ function repopulate!(eco::Ecosystem, abun::Int64)
         eco.abundances.matrix[end, p] += 1
     end
 end
-GLOBAL_funcdict["repopulate!"] = repopulate!
 
 
 """
@@ -435,4 +432,3 @@ function reenergise!(eco::Ecosystem, budget::Tuple{Unitful.Quantity{Float64}, Un
     fill!(eco.abenv.budget.b1.matrix, budget[1]/(grid[1]*grid[2]))
     fill!(eco.abenv.budget.b2.matrix, budget[2]/(grid[1]*grid[2]))
 end
-GLOBAL_funcdict["reenergise!"] = reenergise!
