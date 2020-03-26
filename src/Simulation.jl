@@ -79,8 +79,9 @@ include("Movement.jl")
 export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel, Torus, Cylinder, NoBoundary
 
 include("Traits.jl")
-export GaussTrait, DiscreteTrait, TempBin,RainBin, TraitCollection2, TraitCollection3,
-DiscreteEvolve, ContinuousEvolve
+export GaussTrait, DiscreteTrait, TempBin,RainBin,
+TraitCollection2, TraitCollection3,DiscreteEvolve,
+ContinuousEvolve
 
 include("Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth
@@ -113,21 +114,12 @@ export SimpleScenario, TempIncrease, RandHabitatLoss!, ClustHabitatLoss!, Distur
  CommonDecline, HabitatReplacement, Invasive, SusceptibleDecline
 
 include("Generate.jl")
-export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!, reenergise!, randomniches, update!, update_birth_move!,
- convert_coords, get_neighbours
+export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!, reenergise!, randomniches, update!, update_birth_move!, convert_coords, get_neighbours
 
 include("MPIGenerate.jl")
 
-include("SantiniScenarios.jl")
-export trait_populate!, trait_repopulate!
-
 include("Helper.jl")
 export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
-
-if (VERSION <= v"0.6") || (VERSION >= v"1.0-")
-    include("ReadTOML.jl")
-    export readTOML, runTOML, readoutput
-end
 
 include("Cache.jl")
 export abundances, clearcache
@@ -136,7 +128,6 @@ include("DiversitySet.jl")
 export DiversitySet, updatesimulation!, gettimes
 
 include("AdditionalDiversity.jl")
-export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun,
-    sorenson, pd, makeunique
+export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
 
 end
