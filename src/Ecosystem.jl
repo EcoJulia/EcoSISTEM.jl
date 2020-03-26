@@ -8,7 +8,6 @@ using DataFrames
 using Unitful
 using Simulation.Units
 using Missings
-using Compat
 using RecipesBase
 
 import Diversity: _calcabundance
@@ -316,7 +315,7 @@ function getdispersaldist(eco::Ecosystem, spp::Int64)
   return dists[spp]
 end
 function getdispersaldist(eco::Ecosystem, spp::String)
-  num = Compat.findall(eco.spplist.names.==spp)[1]
+  num = findall(eco.spplist.names.==spp)[1]
   getdispersaldist(eco, num)
 end
 
@@ -336,7 +335,7 @@ function getdispersalvar(eco::Ecosystem, spp::Int64)
     return vars[spp]
 end
 function getdispersalvar(eco::Ecosystem, spp::String)
-    num = Compat.findall(eco.spplist.names.==spp)[1]
+    num = findall(eco.spplist.names.==spp)[1]
     getdispersalvar(eco, num)
 end
 """

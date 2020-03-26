@@ -3,7 +3,6 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 using AxisArrays
 using NetCDF
-using Compat
 
 import Unitful.°, Unitful.°C, Unitful.mm
 import ArchGDAL
@@ -30,7 +29,7 @@ end
 
 Function to search a directory `path` using a given `key` string.
 """
-searchdir(path,key) = filter(x->Compat.occursin(key, x), readdir(path))
+searchdir(path,key) = filter(x->occursin(key, x), readdir(path))
 
 """
     readfile(file::String)
@@ -48,7 +47,7 @@ function readfile(file::String)
         print(dataset)
     end
 
-    a = Array{txy[1], 2}(Compat.undef, txy[2], txy[3])
+    a = Array{txy[1], 2}(undef, txy[2], txy[3])
     read(file) do dataset
         bd = AG.getband(dataset, 1);
         AG.read!(bd, a);
@@ -78,7 +77,7 @@ function readfile(file::String, xmin, xmax, ymin, ymax)
         print(dataset)
     end
 
-    a = Array{txy[1], 2}(Compat.undef, txy[2], txy[3])
+    a = Array{txy[1], 2}(undef, txy[2], txy[3])
     read(file) do dataset
         bd = AG.getband(dataset, 1);
         AG.read!(bd, a);
@@ -116,9 +115,9 @@ function readworldclim(dir::String)
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(Compat.undef, Int64(txy[2]), Int64(txy[3]), numfiles);
+    b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles);
     map(eachindex(files)) do count
-    a = Array{txy[1], 2}(Compat.undef, txy[2], txy[3]);
+    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
     read(files[count]) do dataset
         bd = AG.getband(dataset, 1);
         AG.read!(bd, a);
@@ -166,9 +165,9 @@ function readbioclim(dir::String)
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(Compat.undef, Int64(txy[2]), Int64(txy[3]), numfiles);
+    b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles);
     map(eachindex(files)) do count
-    a = Array{txy[1], 2}(Compat.undef, txy[2], txy[3]);
+    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
     read(files[count]) do dataset
         bd = AG.getband(dataset, 1);
         AG.read!(bd, a);
@@ -215,7 +214,7 @@ function readERA(dir::String, param::String, dim::Vector{T}) where T<: Unitful.T
     #    array = uconvert.(°C, array)
     #end
     if any(lon .== 180)
-        splitval = Compat.findall(lon .== 180)[1]
+        splitval = findall(lon .== 180)[1]
         firstseg = collect((splitval+1):size(array,1))
         secondseg = collect(1:splitval)
         array = array[vcat(firstseg ,secondseg), :, :]
@@ -287,9 +286,9 @@ function readCRUTS(dir::String)
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(Compat.undef, Int64(txy[2]), Int64(txy[3]), numfiles);
+    b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles);
     map(eachindex(files)) do count
-        a = Array{txy[1], 2}(Compat.undef, txy[2], txy[3]);
+        a = Array{txy[1], 2}(undef, txy[2], txy[3]);
         read(files[count]) do dataset
             bd = AG.getband(dataset, 1);
             AG.read!(bd, a);
@@ -336,8 +335,8 @@ function readCHELSA(dir::String, var_name::String; res = 1, fn = mean)
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(Compat.undef, ceil(Int64, txy[2]/res),  ceil(Int64, txy[3]/res), numfiles);
-    a = Array{txy[1], 2}(Compat.undef, txy[2], txy[3]);
+    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2]/res),  ceil(Int64, txy[3]/res), numfiles);
+    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
     map(eachindex(files)) do count
         read(files[count]) do dataset
             bd = AG.getband(dataset, 1);

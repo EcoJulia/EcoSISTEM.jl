@@ -1,7 +1,5 @@
 using Missings
 using AxisArrays
-using Compat.Random
-using Compat
 
 """
     GridLandscape

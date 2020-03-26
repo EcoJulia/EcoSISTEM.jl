@@ -3,7 +3,6 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 using AxisArrays
 using NetCDF
-using Compat
 
 import JuliaDB.DIndexedTable
 

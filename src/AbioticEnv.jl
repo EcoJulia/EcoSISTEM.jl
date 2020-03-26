@@ -2,7 +2,6 @@ using Diversity
 using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
-using Compat
 using Simulation.ClimatePref
 
 using Diversity.API
@@ -76,7 +75,7 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
 end
 function simplenicheAE(numniches::Int64, dimension::Tuple,
                         maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
-    active = Array{Bool,2}(Compat.undef, dimension)
+    active = Array{Bool,2}(undef, dimension)
     fill!(active, true)
     simplenicheAE(numniches, dimension, maxbud, area, active)
 end

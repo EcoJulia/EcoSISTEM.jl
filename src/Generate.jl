@@ -1,5 +1,4 @@
 using StatsBase
-using Compat
 using LinearAlgebra
 """
     get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
