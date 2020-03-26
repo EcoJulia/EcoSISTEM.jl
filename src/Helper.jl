@@ -18,14 +18,7 @@ function simulate!(eco::Ecosystem, duration::Unitful.Time, timestep::Unitful.Tim
     update!(eco, timestep)
   end
 end
-function simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.Time)
-  eco = Ecosystem{typeof(cache.abenv), typeof(cache.spplist),
-  typeof(cache.relationship)}(copy(cache.abundances.matrix[srt]),
-   cache.spplist, cache.abenv,
-  cache.ordinariness, cache.relationship, cache.lookup, cache.cache)
-  update!(eco, timestep)
-  cache.abundances.matrix[srt + timestep] = eco.abundances
-end
+
 GLOBAL_funcdict["simulate!"] = simulate!
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
   numSpecies = length(eco.spplist.abun)

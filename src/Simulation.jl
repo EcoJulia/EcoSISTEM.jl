@@ -89,11 +89,12 @@ include("SpeciesList.jl")
 export SpeciesList
 
 include("Landscape.jl")
-export GridLandscape, CachedGridLandscape
+export GridLandscape
 
 include("Ecosystem.jl")
-export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
- getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
+export Ecosystem, getsize, gethabitat,
+gettraitrel, getgridsize, getdispersaldist, getdispersalvar,
+resetrate!,resettime!, getbudget, addspecies!
 
 include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
@@ -120,12 +121,6 @@ if (VERSION <= v"0.6") || (VERSION >= v"1.0-")
     include("ReadTOML.jl")
     export readTOML, runTOML, readoutput
 end
-
-include("Cache.jl")
-export abundances, clearcache
-
-include("DiversitySet.jl")
-export DiversitySet, updatesimulation!, gettimes
 
 include("AdditionalDiversity.jl")
 export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun,

@@ -44,21 +44,6 @@ end
 GLOBAL_typedict["GridLandscape"] = GridLandscape
 
 
-mutable struct CachedGridLandscape
-  matrix::AxisArray{Union{GridLandscape, Missing}, 1}
-  outputfolder::String
-  saveinterval::Unitful.Time
-end
-
-function CachedGridLandscape(file::String, rng::StepRangeLen)
-  interval = step(rng)
-  v = Vector{Union{GridLandscape, Missing}}(Compat.undef, length(rng))
-  fill!(v, missing)
-  a = AxisArray(v, Axis{:time}(rng))
-  return CachedGridLandscape(a, file, interval)
-end
-
-GLOBAL_typedict["CachedGridLandscape"] = CachedGridLandscape
 
 """
     emptygridlandscape(gae::GridAbioticEnv, spplist::SpeciesList)

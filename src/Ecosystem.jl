@@ -205,44 +205,6 @@ function addtypes!(ut::UniqueTypes)
     ut = UniqueTypes(ut.num+1)
 end
 
-"""
-    CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-        TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
-
-CachedEcosystem houses the same information as Ecosystem (see ?Ecosystem), but
-holds the time period abundances as a CachedGridLandscape, so that they may
-be present or missing.
-"""
-mutable struct CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-    TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
-  abundances::CachedGridLandscape
-  spplist::SL
-  abenv::Part
-  ordinariness::Union{Matrix{Float64}, Missing}
-  relationship::TR
-  lookup::Vector{Lookup}
-  cache::Cache
-end
-
-"""
-    CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
-
-Function to create a CachedEcosystem given an existing ecosystem, `eco`,
-output folder to which the simulations are saved, `outputfile`, and a range of
-times over which to simulate, `rng`.
-"""
-function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
-    if size(eco.abenv.habitat, 3) > 1
-        size(eco.abenv.habitat, 3) == length(rng) || error("Time range does not match habitat")
-    end
-    abundances = CachedGridLandscape(outputfile, rng)
-    abundances.matrix[1] = eco.abundances
-  CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist), typeof(eco.relationship)}(abundances,
-  eco.spplist, eco.abenv, eco.ordinariness, eco.relationship, eco.lookup, eco.cache)
-end
-
-GLOBAL_typedict["CachedEcosystem"] = CachedEcosystem
-
 import Diversity.API: _getabundance
 function _getabundance(eco::Ecosystem, input::Bool)
     if input
@@ -253,38 +215,21 @@ function _getabundance(eco::Ecosystem, input::Bool)
 end
 
 
-function _getabundance(cache::CachedEcosystem, input::Bool)
-    if all(ismissing.(cache.abundances.matrix))
-        error("Abundances are missing")
-    else
-        id = Compat.findall(.!ismissing.(cache.abundances.matrix))[end]
-        abun = cache.abundances.matrix[id]
-    end
-    if input
-        return abun.matrix
-    else
-        return abun.matrix / sum(abun.matrix)
-    end
-end
 import Diversity.API: _getmetaabundance
 function _getmetaabundance(eco::Ecosystem)
   return sumoversubcommunities(eco, _getabundance(eco))
 end
 
-function _getmetaabundance(eco::CachedEcosystem)
-  return sumoversubcommunities(eco, _getabundance(eco))
-end
-
 import Diversity.API: _getpartition
-function _getpartition(eco::Union{Ecosystem, CachedEcosystem})
+function _getpartition(eco::Ecosystem)
   return eco.abenv
 end
 import Diversity.API: _gettypes
-function _gettypes(eco::Union{Ecosystem, CachedEcosystem})
+function _gettypes(eco::Ecosystem)
     return eco.spplist
 end
 import Diversity.API: _getordinariness!
-function _getordinariness!(eco::Union{Ecosystem, CachedEcosystem})
+function _getordinariness!(eco::Ecosystem)
     if ismissing(eco.ordinariness)
         relab = getabundance(eco, false)
         eco.ordinariness = _calcordinariness(eco.spplist, relab)
@@ -297,7 +242,7 @@ function _getscale(eco::Ecosystem)
     return _calcabundance(_gettypes(eco), getabundance(eco, false))[2]
 end
 
-function invalidatecaches!(eco::Union{Ecosystem, CachedEcosystem})
+function invalidatecaches!(eco::Ecosystem)
     eco.ordinariness = missing
     eco.cache.netmigration .= 0
     eco.cache.valid = false
