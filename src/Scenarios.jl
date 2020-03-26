@@ -1,7 +1,7 @@
 
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 
 """
     AbstractScenario

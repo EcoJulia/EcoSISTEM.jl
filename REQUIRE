@@ -2,7 +2,6 @@ julia 0.6-
 Diversity 0.2.8-
 AxisArrays
 Unitful
-MyUnitful
 DataFrames
 JuliaDB
 StatsBase
@@ -21,4 +20,7 @@ SpatialEcology
 HCubature
 EcoBase
 RecipesBase
-ClimatePref
+Requires
+IndexedTables
+Optim
+Calculus

@@ -2,7 +2,7 @@ using Simulation
 using Compat.Test
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 
 abun = fill(10, 10)
 # Test SimpleRequirement

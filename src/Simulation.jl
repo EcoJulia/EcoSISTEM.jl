@@ -1,5 +1,43 @@
 module Simulation
 
+module Units
+
+import Unitful
+using Unitful: @unit
+day = Unitful.d
+week = Unitful.wk
+@unit month "month" Month 2.628e6 * Unitful.s false
+@unit year "year" Year 31536000 * Unitful.s false
+
+const days = day
+const weeks = week
+const months = month
+const years = year
+const January = 0month
+const February = 1month
+const March = 2months
+const April = 3months
+const May = 4months
+const June = 5months
+const July = 6months
+const August = 7months
+const September = 8months
+const October = 9months
+const November = 10months
+const December = 11months
+
+export day, days, week, weeks, month, months, year, years, Rates,
+January, February, March, April, May, June, July, August,
+September, October, November, December
+
+end
+
+module ClimatePref
+
+include("ClimatePref/ClimatePref.jl")
+
+end
+
 struct BiDict{A, B}
     forward::Dict{A, B}
     backward::Dict{B, A}
@@ -88,9 +126,6 @@ export abundances, clearcache
 
 include("DiversitySet.jl")
 export DiversitySet, updatesimulation!, gettimes
-
-#include("plotting.jl")
-#export plot_move, plot_abun,plot_mean,plot_diversity, plot_divergence, freq_hist, plotdiv
 
 include("AdditionalDiversity.jl")
 export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun,

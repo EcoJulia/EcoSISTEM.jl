@@ -1,10 +1,10 @@
 using Simulation
-using ClimatePref
+using Simulation.ClimatePref
 using JLD
 using AxisArrays
 using Unitful.DefaultSymbols
 using Distributions
-using MyUnitful
+using Simulation.Units
 using Unitful
 
 function TestEcosystem()

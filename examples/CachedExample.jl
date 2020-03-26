@@ -5,10 +5,10 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using AxisArrays
 using Feather
-using ClimatePref
+using Simulation.ClimatePref
 
 # Load in temperature profiles
 if VERSION >= v"0.7-"

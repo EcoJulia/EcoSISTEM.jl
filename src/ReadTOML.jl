@@ -1,10 +1,10 @@
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using AxisArrays
 using JLD
-using ClimatePref
+using Simulation.ClimatePref
 using Diversity
 using JuliaDB
 if VERSION < v"0.7-"

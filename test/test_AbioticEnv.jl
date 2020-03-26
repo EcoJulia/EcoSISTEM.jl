@@ -1,8 +1,8 @@
 using Simulation
 using Unitful.DefaultSymbols
 using Compat.Test
-using MyUnitful
-using ClimatePref
+using Simulation.Units
+using Simulation.ClimatePref
 using AxisArrays
 
 grid = (5, 5)

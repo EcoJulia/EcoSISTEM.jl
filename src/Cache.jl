@@ -1,7 +1,6 @@
 using Unitful
 using Missings
 using JLD
-import ClimatePref.searchdir
 using Compat.Random
 
 function checkfile(::String, ::Missing)
