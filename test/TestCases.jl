@@ -27,7 +27,7 @@ function TestEcosystem()
 
     abun = rand(Multinomial(individuals, numSpecies))
 
-    kernel = GaussianKernel(1.0km, numSpecies, 10e-04)
+    kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, numSpecies)
     energy = SolarRequirement(fill(2.0kJ, numSpecies))

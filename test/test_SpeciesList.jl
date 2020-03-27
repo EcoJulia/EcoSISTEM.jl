@@ -25,7 +25,7 @@ param = EqualPop(birth, death, long, surv, boost)
 individuals=100
 
 # Create ecosystem
-kernel = GaussianKernel(2.0km, numSpecies, 10e-4)
+kernel = GaussianKernel.(fill(2.0km, numSpecies), 10e-4)
 movement = AlwaysMovement(kernel)
 
 opts = fill(5.0°C, numSpecies)

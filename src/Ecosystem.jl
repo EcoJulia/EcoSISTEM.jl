@@ -160,7 +160,7 @@ function Ecosystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::GridAb
   # Populate this matrix with species abundances
   popfun(ml, spplist, abenv, rel)
   # Create lookup table of all moves and their probabilities
-  lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
+  lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.movement)))
   nm = zeros(Int64, size(ml.matrix))
   totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
   Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
@@ -190,7 +190,7 @@ function addtraits!(tr::GaussTrait)
     append!(tr.var, tr.var[end])
 end
 
-addmovement!(mv::AbstractMovement) = append!(mv.kernel.dist, mv.kernel.dist[end])
+addmovement!(mv::AbstractMovement) = append!(mv.kernels, mv.kernels[end])
 
 function addparams!(pr::AbstractParams)
     append!(pr.birth, pr.birth[end])
@@ -306,13 +306,9 @@ Function to extract average dispersal distance of species from Ecosystem object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
-function getdispersaldist(eco::Ecosystem)
-  dists = eco.spplist.movement.kernel.dist
-  return dists
-end
 function getdispersaldist(eco::Ecosystem, spp::Int64)
-  dists = eco.spplist.movement.kernel.dist
-  return dists[spp]
+  dist = eco.spplist.movement.kernels[spp].dist
+  return dist
 end
 function getdispersaldist(eco::Ecosystem, spp::String)
   num = findall(eco.spplist.names.==spp)[1]
@@ -326,18 +322,28 @@ Function to extract dispersal varaince of species from Ecosystem object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
-function getdispersalvar(eco::Ecosystem)
-    vars = (eco.spplist.movement.kernel.dist).^2 .* pi ./ 4
-    return vars
-end
 function getdispersalvar(eco::Ecosystem, spp::Int64)
-    vars = (eco.spplist.movement.kernel.dist).^2 .* pi ./ 4
-    return vars[spp]
+    var = (eco.spplist.movement.kernels[spp].dist)^2 * pi / 4
+    return var
 end
 function getdispersalvar(eco::Ecosystem, spp::String)
     num = findall(eco.spplist.names.==spp)[1]
     getdispersalvar(eco, num)
 end
+
+"""
+    getlookup(eco::Ecosystem)
+
+Function to extract movement lookup table of species from Ecosystem object.
+"""
+function getlookup(eco::Ecosystem, spp::Int64)
+    return eco.lookup[spp]
+end
+function getlookup(eco::Ecosystem, spp::String)
+    num = findall(eco.spplist.names.==spp)[1]
+    getlookup(eco, num)
+end
+
 """
     resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
 
@@ -405,7 +411,7 @@ function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
   relsize =  _getgridsize(hab) ./ sd
   m = maximum(_getdimension(hab))
   p = mov.thresh
-  return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)
+  return Lookup(_lookup(relsize, m, p, _gaussian_disperse))
 end
 function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
     sd = (2 * mov.dist) / sqrt(pi)
@@ -413,7 +419,7 @@ function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
     m = maximum(_getdimension(hab))
     p = mov.thresh
     b = mov.shape
-    return map((r, shape) -> Simulation.Lookup(Simulation._lookup(r, m, p, shape, Simulation._2Dt_disperse)), relsize, b)
+    return Lookup(_lookup(relsize, m, p, b, _2Dt_disperse))
 end
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,

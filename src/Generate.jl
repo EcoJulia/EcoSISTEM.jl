@@ -202,7 +202,7 @@ end
 Function to calculate the number of moves taken by a species, `spp`, from a specific grid square location (`x`, `y`). There is a boundary condition, `bound`, which determines how the species can move across space (see AbstractBoundary). The total abundance of individuals is given in `abun`, which may be the number of births in the timestep, or total indiviuals.
 """
 function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
-    lookup = eco.lookup[spp]
+    lookup = getlookup(eco, spp)
     maxX = Simulation.getdimension(eco)[1] - x
     maxY = Simulation.getdimension(eco)[2] - y
     # Can't go over maximum dimension
@@ -217,7 +217,7 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, spp::Int64, e
 end
 
 function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
-    lookup = eco.lookup[spp]
+    lookup = getlookup(eco, spp)
     maxX = Simulation.getdimension(eco)[1] - x
     maxY = Simulation.getdimension(eco)[2] - y
     # Can't go over maximum dimension
@@ -234,7 +234,7 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, spp::Int64, eco
 end
 
 function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, spp::Int64, eco::Ecosystem, abun::Int64)
-  lookup = eco.lookup[spp]
+  lookup = getlookup(eco, spp)
   maxX = Simulation.getdimension(eco)[1] - x
   maxY = Simulation.getdimension(eco)[2] - y
   # Can't go over maximum dimension
@@ -263,7 +263,7 @@ function move!(eco::Ecosystem, ::AlwaysMovement, i::Int64, spp::Int64,
   grd::Array{Int64, 2}, ::Int64)
   width, height = getdimension(eco)
   (x, y) = convert_coords(i, width)
-  lookup = eco.lookup[spp]
+  lookup = getlookup(eco, spp)
   full_abun = eco.abundances.matrix[spp, i]
   calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, spp, eco, full_abun)
   # Lose moves from current grid square
@@ -288,7 +288,7 @@ function move!(eco::Ecosystem, ::BirthOnlyMovement, i::Int64, spp::Int64,
     grd::Array{Int64, 2}, births::Int64)
   width, height = getdimension(eco)
   (x, y) = convert_coords(i, width)
-  lookup = eco.lookup[spp]
+  lookup = getlookup(eco, spp)
   calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, spp, eco, births)
   # Lose moves from current grid square
   grd[spp, i] -= births
