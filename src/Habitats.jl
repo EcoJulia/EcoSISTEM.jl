@@ -258,7 +258,7 @@ end
 # Saura-Martinez-Millan algorithm (2000)
 function _percolate!(M::AbstractMatrix, clumpiness::Real)
   for i in 1:(length(M))
-    if junif(0, 1) < clumpiness
+    if rand(Uniform(0, 1)) < clumpiness
       M[i]=1
     end
   end

@@ -9,18 +9,18 @@ numSpecies=4
 numTraits = 2
 
 # Set up how much energy each species consumes
-energy_vec = SimpleRequirement(fill(2, numSpecies))
+energy_vec = SimpleRequirement(fill(2.0, numSpecies))
 
 # Set probabilities
 birth = 6.0/year
 death = 6.0/year
-l = 1.0
-s = 0.0
+long = 1.0
+surv = 0.0
 boost = 1000.0
 timestep = 1.0month
 
 # Collect model parameters together (in this order!!)
-param = EqualPop(birth, death, l, s, boost)
+param = EqualPop(birth, death, long, surv, boost)
 
 individuals=100
 
