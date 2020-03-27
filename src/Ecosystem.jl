@@ -42,7 +42,7 @@ mutable struct Cache
 end
 
 
-Lookup(df::DataFrame) = Lookup(df[:X], df[:Y], df[:Prob],
+Lookup(df::DataFrame) = Lookup(df[!, :X], df[!, :Y], df[!, :Prob],
 zeros(Float64, nrow(df)),zeros(Int64, nrow(df)))
 
 function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
@@ -451,7 +451,7 @@ function _lookup(relSquareSize::Float64, maxGridSize::Int64,
     lookup_tab = _symmetric_grid(lookup_tab)
     #info(sum(lookup_tab[:, 3]))
     # Normalise
-    lookup_tab[:Prob] = lookup_tab[:Prob]/sum(lookup_tab[:Prob])
+    lookup_tab[!, :Prob] = lookup_tab[!, :Prob] / sum(lookup_tab[!, :Prob])
     lookup_tab
 end
 
@@ -491,6 +491,6 @@ function _lookup(relSquareSize::Float64, maxGridSize::Int64,
     lookup_tab = _symmetric_grid(lookup_tab)
     #info(sum(lookup_tab[:, 3]))
     # Normalise
-    lookup_tab[:Prob] = lookup_tab[:Prob]/sum(lookup_tab[:Prob])
+    lookup_tab[!, :Prob] = lookup_tab[!, :Prob] / sum(lookup_tab[!, :Prob])
     lookup_tab
 end
