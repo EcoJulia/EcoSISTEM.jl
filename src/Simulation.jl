@@ -26,6 +26,12 @@ const October = 9months
 const November = 10months
 const December = 11months
 
+const localunits = Unitful.basefactors
+function __init__()
+    merge!(Unitful.basefactors, localunits)
+    Unitful.register(Units)
+end
+
 export day, days, week, weeks, month, months, year, years, Rates,
 January, February, March, April, May, June, July, August,
 September, October, November, December
