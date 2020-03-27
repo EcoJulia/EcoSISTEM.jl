@@ -104,27 +104,3 @@ mutable struct CHELSA <: AbstractClimate
         new(array)
     end
 end
-
-
-"""
-    TestERA()
-
-Function that builds a test ERA dataset.
-"""
-function TestERA()
-    dir = dirname(pathof(ClimatePref)) * "/../test/Testdata/TestERA"
-    data = readERA(dir, "t2m", collect(1.0month:1month:10year))
-    data.array = data.array[-10° .. 60°, 35° .. 80°, :]
-    return data
-end
-
-"""
-    TestWorldclim()
-
-Function that builds a test worldclim dataset.
-"""
-function TestWorldclim()
-    dir = dirname(pathof(ClimatePref)) * "/../test/Testdata/TestWorldclim/"
-    data = readworldclim(joinpath(dir, "wc2.0_5m_srad"))
-    return data
-end

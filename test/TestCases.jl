@@ -22,7 +22,7 @@ function TestEcosystem()
     grid = (50, 50)
     area = 10000.0km^2
     individuals=20000 * numSpecies
-    totalK = 1000000.0 * numSpecies
+    totalK = 1000000.0 * kJ/km^2 * numSpecies
     abenv = simplenicheAE(numNiches, grid, totalK, area)
 
     abun = rand(Multinomial(individuals, numSpecies))
@@ -30,10 +30,10 @@ function TestEcosystem()
     kernel = GaussianKernel(1.0km, numSpecies, 10e-04)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, numSpecies)
-    energy = SimpleRequirement(fill(2.0, numSpecies))
+    energy = SolarRequirement(fill(2.0kJ, numSpecies))
     sppl = SpeciesList(numSpecies, numNiches, abun, energy, movement, param, native)
 
     rel = Match{eltype(abenv.habitat)}()
-    eco = Ecosystem(trait_populate!, sppl, abenv, rel)
+    eco = Ecosystem(sppl, abenv, rel)
     return eco
 end
