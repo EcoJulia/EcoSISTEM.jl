@@ -64,8 +64,9 @@ function _getenergyusage(abun::Vector{Int64}, req::SizeRequirement)
 end
 
 """
-    SolarRequirement <: Abstract1Requirement{typeof(1.0*day^-1*kJ*m^-2)}
+    SolarRequirement <: Abstract1Requirement{typeof(1.0*kJ)}
 
+A vector of solar energy requirements (kJ) for each species.
 """
 mutable struct SolarRequirement <: Abstract1Requirement{typeof(1.0*kJ)}
   energy::Vector{typeof(1.0*kJ)}
@@ -84,6 +85,7 @@ end
 """
     WaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
 
+A vector of water requirements (mm) for each species.
 """
 mutable struct WaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
   energy::Vector{typeof(1.0*mm)}
@@ -100,7 +102,7 @@ end
 
 """
     VolWaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
-
+A vector of soil water volume requirements (m^3) for each species.
 """
 mutable struct VolWaterRequirement <: Abstract1Requirement{typeof(1.0*m^3)}
   energy::Vector{typeof(1.0*m^3)}
@@ -155,8 +157,7 @@ end
 """
     SimpleBudget <: AbstractBudget{Float64}
 
-This budget type has a matrix of floats, representing the energy budget of each
-subcommunity in the abiotic environment.
+This budget type has a matrix of floats, representing the energy budget of each subcommunity in the abiotic environment.
 """
 mutable struct SimpleBudget <: AbstractBudget{Float64}
   matrix::Matrix{Float64}
@@ -176,8 +177,7 @@ end
 """
     SolarBudget <: AbstractBudget{typeof(1.0*kJ)}
 
-This budget type has a matrix of solar energy units, representing the energy budget of each
-subcommunity in the abiotic environment at a fixed point in time.
+This budget type has a matrix of solar energy units, representing the energy budget of each subcommunity in the abiotic environment at a fixed point in time.
 """
 mutable struct SolarBudget <: AbstractBudget{typeof(1.0*kJ)}
   matrix::Array{typeof(1.0*kJ), 2}

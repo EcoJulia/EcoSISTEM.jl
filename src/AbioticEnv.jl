@@ -133,9 +133,25 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
 
   active = fill(true, dimension)
   tempgradAE(minT, maxT, dimension, maxbud, area, rate, active)
- end
+end
 
- function peakedgradAE(minT::Unitful.Temperature{Float64},
+"""
+    peakedgradAE(minT::Unitful.Temperature{Float64},
+       maxT::Unitful.Temperature{Float64},
+       dimension::Tuple{Int64, Int64}, maxbud::Unitful.Quantity{Float64},
+       area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝚯*𝐓^-1},
+       active::Array{Bool, 2})
+
+Function to create a temperature gradient `ContinuousHab`, `SimpleBudget` type abiotic
+environment. Given a `min` and `max` temperature, it generates a
+gradient from minima at the top and bottom peaking to maximum in the middle. It creates a
+`ContinuousHab` environment with dimensions `dimension` and a specified area
+`area`. It also creates a `SimpleBudget` type filled with the maximum budget
+value `maxbud`. The rate of temperature change is specified using the parameter
+`rate`. If a Bool matrix of active grid squares is included, `active`,
+this is used, else one is created with all grid cells active.
+"""
+function peakedgradAE(minT::Unitful.Temperature{Float64},
    maxT::Unitful.Temperature{Float64},
    dimension::Tuple{Int64, Int64}, maxbud::Unitful.Quantity{Float64},
    area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝚯*𝐓^-1},
@@ -151,15 +167,15 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
    checkbud(B) || error("Unrecognised unit in budget")
    budtype = matchdict[unit(B)]
    return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
- end
+end
 
- function peakedgradAE(minT::Unitful.Temperature{Float64},
+function peakedgradAE(minT::Unitful.Temperature{Float64},
    maxT::Unitful.Temperature{Float64},
    dimension::Tuple{Int64, Int64}, maxbud::Unitful.Quantity{Float64},
    area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
    active = fill(true, dimension)
    peakedgradAE(minT, maxT, dimension, maxbud, area, rate, active)
-  end
+ end
 
  """
      raingradAE(min::Unitful.Temperature{Float64},
@@ -218,7 +234,11 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
     active = fill(true, dimension)
     raingradAE(minR, maxR, dimension, area, rate, active)
    end
+"""
+   eraAE(era::ERA, maxbud::Unitful.Quantity{Float64})
 
+Function to create a `ContinuousHab`, `SimpleBudget` type abiotic environment from an ERA type climate. It either creates a `SimpleBudget` type filled with the maximum budget value `maxbud` or uses a provided budget of type `SolarTimeBudget`. If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
+"""
 function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64})
     dimension = size(era.array)[1:2]
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
@@ -258,6 +278,11 @@ function eraAE(era::ERA, bud::SolarTimeBudget, active::Array{Bool, 2})
      return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
 end
 
+"""
+   worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64})
+
+Function to create a `ContinuousHab`, `SimpleBudget` type abiotic environment from an Wordclim type climate. It either creates a `SimpleBudget` type filled with the maximum budget value `maxbud` or uses a provided budget of type `SolarTimeBudget`. If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
+"""
 function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64})
     dimension = size(wc.array)[1:2]
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]

@@ -1,3 +1,9 @@
+"""
+    traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
+
+Function to calculate relationship between the current environment and a species' particular trait.
+
+"""
 function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
     hab = eco.abenv.habitat
     trts = eco.spplist.traits
@@ -54,10 +60,22 @@ function getpref(traits::DiscreteTrait, sp::Int64)
   return traits.val[sp]
 end
 
+"""
+    getpref(traits::T, field::Symbol) where T <: AbstractTraits
+
+Function to extract trait preferences for all species in the ecosystem.
+
+"""
 function getpref(traits::T, field::Symbol) where T <: AbstractTraits
   return getfield(traits, field)
 end
 
+"""
+    getpref(traits::T, field::Symbol) where T <: AbstractTraits
+
+Function to extract the trait relationship of all species in the ecosystem.
+
+"""
 function getrelationship(rel::R, field::Symbol) where R <: AbstractTraitRelationship
   return getfield(rel, field)
 end

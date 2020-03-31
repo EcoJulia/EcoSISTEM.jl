@@ -38,7 +38,7 @@ function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
 end
 
 """
-    simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
+    simulate_record!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
          timestep::Unitful.Time)
 
 Function to run an ecosystem, `eco` for specified length of times, `duration`,

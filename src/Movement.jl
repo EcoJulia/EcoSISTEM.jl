@@ -11,8 +11,8 @@ abstract type AbstractKernel end
 """
     GaussianKernel <: AbstractKernel
 
-GaussianMovement holds parameters for a gaussian movement kernel; a vector of
-dispersal variances per species, `var`, and a threshold, `thresh`, beyond which
+GaussianMovement holds parameters for a gaussian movement kernel; a
+dispersal variance for a species, `var`, and a threshold, `thresh`, beyond which
 dispersal cannot take place.
 """
 mutable struct GaussianKernel <: AbstractKernel
@@ -25,7 +25,12 @@ mutable struct GaussianKernel <: AbstractKernel
   end
 end
 
+"""
+    LongTailKernel <: AbstractKernel
 
+LongTailKernel holds parameters for a movement kernel; a
+dispersal variance for a species, `var`, and a threshold, `thresh`, beyond which dispersal cannot take place.
+"""
 mutable struct LongTailKernel <: AbstractKernel
   dist::Unitful.Length{Float64}
   shape::Float64
@@ -37,13 +42,37 @@ mutable struct LongTailKernel <: AbstractKernel
   end
 end
 
+"""
+    BoundaryCondition
 
+An abstract type for what should happen at the boundaries of an ecosystem.
+"""
 abstract type BoundaryCondition end
 
+"""
+    Cylinder <: BoundaryCondition
+
+A cylindrical boundary where species can cross the x boundary but not the y.
+"""
 mutable struct Cylinder <: BoundaryCondition end
+"""
+    Torus <: BoundaryCondition
+
+A toroidal boundary where species can cross both boundaries.
+"""
 mutable struct Torus <: BoundaryCondition end
+"""
+    NoBoundary <: BoundaryCondition
+
+A hard boundary where no species can cross.
+"""
 mutable struct NoBoundary <: BoundaryCondition end
 
+"""
+    BirthOnlyMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
+
+Movement can only happen to individuals that have just been born ("plant-like").
+"""
 mutable struct BirthOnlyMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
   kernels::Vector{K}
   boundary::B
@@ -52,6 +81,11 @@ function BirthOnlyMovement(kernels::Vector{K}) where K <: AbstractKernel
     return BirthOnlyMovement{K, NoBoundary}(kernel, NoBoundary())
 end
 
+"""
+    AlwaysMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
+
+Movement can happen to any individual ("animal-like").
+"""
 mutable struct AlwaysMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
   kernels::Vector{K}
   boundary::B
@@ -60,6 +94,11 @@ function AlwaysMovement(kernels::Vector{K}) where K <: AbstractKernel
     return AlwaysMovement{K, NoBoundary}(kernel, NoBoundary())
 end
 
+"""
+    NoMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
+
+No movement can take place.
+"""
 mutable struct NoMovement{K <: AbstractKernel} <: AbstractMovement
   kernels::Vector{K}
 end

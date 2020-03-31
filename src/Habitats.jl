@@ -371,6 +371,12 @@ function randomniches(dimension::Tuple, types::Vector{Int64}, clumpiness::Float6
   return DiscreteHab(T, gridsquaresize, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
 end
 
+"""
+    simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
+    dim::Tuple{Int64, Int64})
+
+Function to create a `ContinuousHab` habitat of dimension `dim`, with cell `size` and filled value, `val`.
+"""
 function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
   dim::Tuple{Int64, Int64})
   M = fill(val, dim)
@@ -386,6 +392,13 @@ function simplehabitat(val::Float64, size::Unitful.Length,
   ContinuousHab(M, size, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
 end
 
+"""
+    tempgrad(minT::Unitful.Temperature{Float64}, maxT::Unitful.Temperature{Float64},
+      size::Unitful.Length{Float64},
+      dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
+
+Function to create a `ContinuousHab` habitat with a temperature gradient.
+"""
 function tempgrad(minT::Unitful.Temperature{Float64}, maxT::Unitful.Temperature{Float64},
   size::Unitful.Length{Float64},
   dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
@@ -400,6 +413,13 @@ function tempgrad(minT::Unitful.Temperature{Float64}, maxT::Unitful.Temperature{
   ContinuousHab(M, size, HabitatUpdate{typeof(dimension(minT))}(TempChange, rate))
 end
 
+"""
+    raingrad(minT::Unitful.Temperature{Float64}, maxT::Unitful.Temperature{Float64},
+      size::Unitful.Length{Float64},
+      dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
+
+Function to create a `ContinuousHab` habitat with a rainfall gradient.
+"""
 function raingrad(minR::Unitful.Length{Float64}, maxR::Unitful.Length{Float64}, size::Unitful.Length{Float64}, dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝐋*𝐓^-1})
   dim[1] > 1 ||
   error("First dimension should be greater than 1 for temperature gradient")

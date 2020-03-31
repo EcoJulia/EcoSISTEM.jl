@@ -42,6 +42,12 @@ function SavedLandscape(gl::GridLandscape)
     SavedLandscape(gl.matrix, gl.seed)
 end
 
+"""
+    CachedGridLandscape
+
+Ecosystem abundances housed in the cached landscape. These are either stored in the matrix or output to a cache.
+
+"""
 mutable struct CachedGridLandscape
   matrix::AxisArray{Union{GridLandscape, Missing}, 1}
   outputfolder::String
