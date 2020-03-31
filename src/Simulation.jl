@@ -98,9 +98,7 @@ include("HabitatUpdate.jl")
 export getchangefun, TempChange, RainChange, TempFluct, eraChange, worldclimChange
 
 include("Scenarios.jl")
-export SimpleScenario, TempIncrease, RandHabitatLoss!, ClustHabitatLoss!, DisturbanceScenario,
- HabitatDisturbance!, UniformDecline, ProportionalDecline, LargeDecline, RareDecline,
- CommonDecline, HabitatReplacement, Invasive, SusceptibleDecline
+export SimpleScenario, FluctScenario, MultiScenario
 
 include("Generate.jl")
 export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!, reenergise!, randomniches, update!, update_birth_move!, convert_coords, get_neighbours
