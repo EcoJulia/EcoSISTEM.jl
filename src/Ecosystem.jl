@@ -240,8 +240,6 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
   eco.spplist, eco.abenv, eco.ordinariness, eco.relationship, eco.lookup, eco.cache)
 end
 
-GLOBAL_typedict["CachedEcosystem"] = CachedEcosystem
-
 import Diversity.API: _getabundance
 function _getabundance(eco::AbstractEcosystem, input::Bool)
     if input

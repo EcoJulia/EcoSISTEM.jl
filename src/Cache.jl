@@ -62,4 +62,3 @@ forward.
 function abundances(cache::CachedEcosystem, tm::Unitful.Time)
     return _abundances(cache, tm)[2]
 end
-GLOBAL_funcdict["abundances"] = abundances
