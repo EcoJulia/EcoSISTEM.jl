@@ -11,7 +11,7 @@ environmental changes in climate and habitat.
 
 The package was primarily developed for global scale simulations of 
 plant biodiversity. The underlying model for this is described in the arXiv
-paper [arXiv:1911.12257 (q-bio.QM)][paper-url],
+paper [arXiv:1911.12257 (q-bio.QM)][https://arxiv.org/abs/1911.12257],
 *Dynamic virtual ecosystems as a tool for detecting large-scale 
 responses of biodiversity to environmental and land-use change*.
 Future updates to the package functionality involve incorporating
