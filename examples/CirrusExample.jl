@@ -1,5 +1,5 @@
 using Simulation
-using MyUnitful
+using Simulation.Units
 using Unitful, Unitful.DefaultSymbols
 using Distributions
 using MPI

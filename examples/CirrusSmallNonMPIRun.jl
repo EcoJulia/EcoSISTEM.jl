@@ -2,7 +2,7 @@ using Pkg
 Pkg.activate("examples")
 
 using Simulation
-using MyUnitful
+using Simulation.Units
 using Unitful, Unitful.DefaultSymbols
 using Distributions
 
