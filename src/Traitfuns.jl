@@ -1,10 +1,10 @@
 """
-    traitfun(eco::Ecosystem, pos::Int64, sp::Int64)
+    traitfun(eco::Ecosystem, pos::Int64, spp::Int64)
 
 Function to calculate relationship between the current environment and a species' particular trait.
 
 """
-function traitfun(eco::Ecosystem, pos::Int64, sp::Int64)
+function traitfun(eco::Ecosystem, pos::Int64, spp::Int64)
     hab = eco.abenv.habitat
     trts = eco.spplist.traits
     rel = eco.relationship
