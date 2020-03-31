@@ -19,14 +19,10 @@ eco = TestEcosystem()
 @test getsize(eco) == size(eco.abundances.matrix, 2) .* eco.abenv.habitat.size^2
 @test_nowarn getgridsize(eco)
 @test getgridsize(eco) == eco.abenv.habitat.size
-@test_nowarn getdispersaldist(eco)
-@test getdispersaldist(eco) == eco.spplist.movement.kernel.dist
 @test_nowarn getdispersaldist(eco, 1)
-@test getdispersaldist(eco, 1) == eco.spplist.movement.kernel.dist[1]
+@test getdispersaldist(eco, 1) == eco.spplist.movement.kernels[1].dist
 @test_nowarn getdispersaldist(eco, "1")
-@test getdispersaldist(eco, "1") == eco.spplist.movement.kernel.dist[1]
-@test_nowarn getdispersalvar(eco)
-@test getdispersalvar(eco) == (eco.spplist.movement.kernel.dist).^2 .* pi ./ 4
+@test getdispersaldist(eco, "1") == eco.spplist.movement.kernels[1].dist
 @test_nowarn getdispersalvar(eco, 1)
 @test_nowarn getdispersalvar(eco, "1")
 

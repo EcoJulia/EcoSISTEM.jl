@@ -153,8 +153,8 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
           while number > 0
             set_node = last(sel_pair)
             newtrait = map(names(traits)) do trt
-                        col = traits[trt]
-                        sample(col[col .!= last_label[trt]])
+                        col = traits[!, trt]
+                        sample(col[col .!= last_label[:, trt]])
                        end
             newtrait = DataFrame(hcat(newtrait), names(traits))
             setnoderecord!(tree, set_node, newtrait)
@@ -255,6 +255,6 @@ function get_traits(tree::BinaryTree, tips::Bool=true)
     nodes = getnodenames(tree)
   end
   df = vcat(map(n->getnoderecord(tree, n), nodes)...)
-  df[:species] = nodes
+  df[!, :species] = nodes
   return df
 end

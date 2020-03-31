@@ -6,8 +6,8 @@ using Simulation.Units
 
 numSpecies = 10
 
-@test_nowarn GaussianKernel(0.2km, numSpecies, 10e-4)
-kernel = GaussianKernel(0.2m, numSpecies, 10e-4)
+@test_nowarn GaussianKernel.(fill(0.2km, numSpecies), 10e-4)
+kernel = GaussianKernel.(fill(0.2m, numSpecies), 10e-4)
 @test_nowarn AlwaysMovement(kernel, NoBoundary())
 @test_nowarn AlwaysMovement(kernel, Cylinder())
 @test_nowarn AlwaysMovement(kernel, Torus())

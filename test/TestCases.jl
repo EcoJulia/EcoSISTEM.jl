@@ -27,7 +27,7 @@ function TestEcosystem()
 
     abun = rand(Multinomial(individuals, numSpecies))
 
-    kernel = GaussianKernel(1.0km, numSpecies, 10e-04)
+    kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, numSpecies)
     energy = SolarRequirement(fill(2.0kJ, numSpecies))
@@ -67,7 +67,7 @@ function TestCache()
     wc = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3}, wc.array[-10° .. 60°, 35° .. 80°,:])
     bud = SolarTimeBudget(wc, 1)
     #active = Array(bud.matrix[:,:,1] .> 0*day^-1*kJ*m^-2)
-    kernel = GaussianKernel(1.0km, numSpecies, 10e-04)
+    kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
     movement = BirthOnlyMovement(kernel)
     common_species = ["Trifolium repens", "Urtica dioica", "Achillea millefolium"]
     native = fill(true, numSpecies)
