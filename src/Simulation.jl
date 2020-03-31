@@ -26,6 +26,12 @@ const October = 9months
 const November = 10months
 const December = 11months
 
+const localunits = Unitful.basefactors
+function __init__()
+    merge!(Unitful.basefactors, localunits)
+    Unitful.register(Units)
+end
+
 export day, days, week, weeks, month, months, year, years, Rates,
 January, February, March, April, May, June, July, August,
 September, October, November, December
@@ -38,28 +44,11 @@ include("ClimatePref/ClimatePref.jl")
 
 end
 
-struct BiDict{A, B}
-    forward::Dict{A, B}
-    backward::Dict{B, A}
-
-    BiDict{A, B}() where {A, B} = new{A, B}(Dict{A, B}(), Dict{B, A}())
-end
-import Base: getindex, setindex!
-getindex(dict::BiDict{A,B}, elt::A) where {A, B} = dict.forward[elt]
-getindex(dict::BiDict{A,B}, elt::B) where {A, B} = dict.backward[elt]
-function setindex!(dict::BiDict{A,B}, val::B, elt::A)  where {A, B}
-    dict.forward[elt] = val
-    dict.backward[val] = elt
-end
-
-GLOBAL_typedict = BiDict{String, Type}()
-GLOBAL_funcdict = BiDict{String, Function}()
-
 include("Dist.jl")
-export jnorm, jexp, jpois, jbinom, junif, jdir, jmulti, Trapezoid
+export Trapezoid
 
 include("Phylo.jl")
-export jtree, jcoal, assign_traits!, get_traits, resettraits!, reroot!
+export assign_traits!, get_traits, resettraits!, reroot!
 
 include("TraitRelationship.jl")
 export TraitRelationship,multiplicativeTR2, multiplicativeTR3, Gauss,
@@ -79,8 +68,9 @@ include("Movement.jl")
 export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel, Torus, Cylinder, NoBoundary
 
 include("Traits.jl")
-export GaussTrait, DiscreteTrait, TempBin,RainBin, TraitCollection2, TraitCollection3,
-DiscreteEvolve, ContinuousEvolve
+export GaussTrait, DiscreteTrait, TempBin,RainBin,
+TraitCollection2, TraitCollection3,DiscreteEvolve,
+ContinuousEvolve
 
 include("Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth
@@ -91,9 +81,15 @@ export SpeciesList
 include("Landscape.jl")
 export GridLandscape, CachedGridLandscape
 
+include("MPILandscape.jl")
+export MPIGridLandscape
+
 include("Ecosystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
  getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
+
+include("MPIEcosystem.jl")
+export MPIEcosystem, gather_abundance!, gather_diversity
 
 include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
@@ -102,24 +98,15 @@ include("HabitatUpdate.jl")
 export getchangefun, TempChange, RainChange, TempFluct, eraChange, worldclimChange
 
 include("Scenarios.jl")
-export SimpleScenario, TempIncrease, RandHabitatLoss!, ClustHabitatLoss!, DisturbanceScenario,
- HabitatDisturbance!, UniformDecline, ProportionalDecline, LargeDecline, RareDecline,
- CommonDecline, HabitatReplacement, Invasive, SusceptibleDecline
+export SimpleScenario, FluctScenario, MultiScenario
 
 include("Generate.jl")
-export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!, reenergise!, randomniches, update!, update_birth_move!,
- convert_coords, get_neighbours
+export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!, reenergise!, randomniches, update!, update_birth_move!, convert_coords, get_neighbours
 
-include("SantiniScenarios.jl")
-export trait_populate!, trait_repopulate!
+include("MPIGenerate.jl")
 
 include("Helper.jl")
 export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
-
-if (VERSION <= v"0.6") || (VERSION >= v"1.0-")
-    include("ReadTOML.jl")
-    export readTOML, runTOML, readoutput
-end
 
 include("Cache.jl")
 export abundances, clearcache
@@ -128,7 +115,6 @@ include("DiversitySet.jl")
 export DiversitySet, updatesimulation!, gettimes
 
 include("AdditionalDiversity.jl")
-export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun,
-    sorenson, pd, makeunique
+export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
 
 end

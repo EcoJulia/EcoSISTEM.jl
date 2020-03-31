@@ -43,7 +43,7 @@ mutable struct Cache
 end
 
 
-Lookup(df::DataFrame) = Lookup(df[:X], df[:Y], df[:Prob],
+Lookup(df::DataFrame) = Lookup(df[!, :X], df[!, :Y], df[!, :Prob],
 zeros(Float64, nrow(df)),zeros(Int64, nrow(df)))
 
 function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
@@ -121,8 +121,8 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
   end
 end
 
-@recipe function f(::AbstractMovement, eco::Ecosystem, spp::Int64)
-    l = eco.lookup[spp]
+@recipe function f(::AbstractMovement, eco::AbstractEcosystem, sp::Int64)
+    l = eco.lookup[sp]
     maxX = maximum(l.x)
     maxY = maximum(l.y)
     x, y = round(Int64, maxX/2), round(Int64, maxY/2)
@@ -161,7 +161,7 @@ function Ecosystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::GridAb
   # Populate this matrix with species abundances
   popfun(ml, spplist, abenv, rel)
   # Create lookup table of all moves and their probabilities
-  lookup_tab = genlookups(abenv.habitat, getkernel(spplist.movement))
+  lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.movement)))
   nm = zeros(Int64, size(ml.matrix))
   totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
   Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
@@ -172,7 +172,6 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
    return Ecosystem(populate!, spplist, abenv, rel)
 end
-GLOBAL_typedict["Ecosystem"] = Ecosystem
 
 function addspecies!(eco::Ecosystem, abun::Int64)
     eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(size(eco.abundances.matrix, 2)))
@@ -192,7 +191,7 @@ function addtraits!(tr::GaussTrait)
     append!(tr.var, tr.var[end])
 end
 
-addmovement!(mv::AbstractMovement) = append!(mv.kernel.dist, mv.kernel.dist[end])
+addmovement!(mv::AbstractMovement) = append!(mv.kernels, mv.kernels[end])
 
 function addparams!(pr::AbstractParams)
     append!(pr.birth, pr.birth[end])
@@ -241,10 +240,8 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
   eco.spplist, eco.abenv, eco.ordinariness, eco.relationship, eco.lookup, eco.cache)
 end
 
-GLOBAL_typedict["CachedEcosystem"] = CachedEcosystem
-
 import Diversity.API: _getabundance
-function _getabundance(eco::Ecosystem, input::Bool)
+function _getabundance(eco::AbstractEcosystem, input::Bool)
     if input
         return eco.abundances.matrix
     else
@@ -267,7 +264,7 @@ function _getabundance(cache::CachedEcosystem, input::Bool)
     end
 end
 import Diversity.API: _getmetaabundance
-function _getmetaabundance(eco::Ecosystem)
+function _getmetaabundance(eco::AbstractEcosystem)
   return sumoversubcommunities(eco, _getabundance(eco))
 end
 
@@ -276,15 +273,15 @@ function _getmetaabundance(eco::CachedEcosystem)
 end
 
 import Diversity.API: _getpartition
-function _getpartition(eco::Union{Ecosystem, CachedEcosystem})
+function _getpartition(eco::AbstractEcosystem)
   return eco.abenv
 end
 import Diversity.API: _gettypes
-function _gettypes(eco::Union{Ecosystem, CachedEcosystem})
+function _gettypes(eco::AbstractEcosystem)
     return eco.spplist
 end
 import Diversity.API: _getordinariness!
-function _getordinariness!(eco::Union{Ecosystem, CachedEcosystem})
+function _getordinariness!(eco::AbstractEcosystem)
     if ismissing(eco.ordinariness)
         relab = getabundance(eco, false)
         eco.ordinariness = _calcordinariness(eco.spplist, relab)
@@ -293,11 +290,11 @@ function _getordinariness!(eco::Union{Ecosystem, CachedEcosystem})
 end
 
 import Diversity.API._getscale
-function _getscale(eco::Ecosystem)
+function _getscale(eco::AbstractEcosystem)
     return _calcabundance(_gettypes(eco), getabundance(eco, false))[2]
 end
 
-function invalidatecaches!(eco::Union{Ecosystem, CachedEcosystem})
+function invalidatecaches!(eco::AbstractEcosystem)
     eco.ordinariness = missing
     eco.cache.netmigration .= 0
     eco.cache.valid = false
@@ -308,7 +305,7 @@ end
 
 Function to extract trait relationships.
 """
-function gettraitrel(eco::Ecosystem)
+function gettraitrel(eco::AbstractEcosystem)
   return eco.relationship
 end
 
@@ -317,7 +314,7 @@ end
 
 Function to extract habitat from Ecosystem object.
 """
-function gethabitat(eco::Ecosystem)
+function gethabitat(eco::AbstractEcosystem)
   return eco.abenv.habitat
 end
 """
@@ -325,7 +322,7 @@ end
 
 Function to extract budget from Ecosystem object.
 """
-function getbudget(eco::Ecosystem)
+function getbudget(eco::AbstractEcosystem)
     return _getbudget(eco.abenv.budget)
 end
 
@@ -334,7 +331,7 @@ end
 
 Function to extract size of habitat from Ecosystem object.
 """
-function getsize(eco::Ecosystem)
+function getsize(eco::AbstractEcosystem)
   return _getsize(eco.abenv.habitat)
 end
 
@@ -343,7 +340,7 @@ end
 
 Function to extract grid cell size of habitat from Ecosystem object.
 """
-function getgridsize(eco::Ecosystem)
+function getgridsize(eco::AbstractEcosystem)
   return _getgridsize(eco.abenv.habitat)
 end
 
@@ -352,7 +349,7 @@ end
 
 Function to extract dimension of habitat from Ecosystem object.
 """
-function getdimension(eco::Ecosystem)
+function getdimension(eco::AbstractEcosystem)
     return _getdimension(eco.abenv.habitat)
 end
 
@@ -363,16 +360,12 @@ Function to extract average dispersal distance of species from Ecosystem object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
-function getdispersaldist(eco::Ecosystem)
-  dists = eco.spplist.movement.kernel.dist
-  return dists
+function getdispersaldist(eco::AbstractEcosystem, sp::Int64)
+  dist = eco.spplist.movement.kernels[sp].dist
+  return dist
 end
-function getdispersaldist(eco::Ecosystem, spp::Int64)
-  dists = eco.spplist.movement.kernel.dist
-  return dists[spp]
-end
-function getdispersaldist(eco::Ecosystem, spp::String)
-  num = Compat.findall(eco.spplist.names.==spp)[1]
+function getdispersaldist(eco::AbstractEcosystem, sp::String)
+  num = Compat.findall(eco.spplist.names.==sp)[1]
   getdispersaldist(eco, num)
 end
 
@@ -383,41 +376,50 @@ Function to extract dispersal varaince of species from Ecosystem object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
-function getdispersalvar(eco::Ecosystem)
-    vars = (eco.spplist.movement.kernel.dist).^2 .* pi ./ 4
-    return vars
+function getdispersalvar(eco::AbstractEcosystem, sp::Int64)
+    var = (eco.spplist.movement.kernels[sp].dist)^2 * pi / 4
+    return var
 end
-function getdispersalvar(eco::Ecosystem, spp::Int64)
-    vars = (eco.spplist.movement.kernel.dist).^2 .* pi ./ 4
-    return vars[spp]
-end
-function getdispersalvar(eco::Ecosystem, spp::String)
-    num = Compat.findall(eco.spplist.names.==spp)[1]
+function getdispersalvar(eco::AbstractEcosystem, sp::String)
+    num = Compat.findall(eco.spplist.names.==sp)[1]
     getdispersalvar(eco, num)
 end
+"""
+    getlookup(eco::Ecosystem)
+
+Function to extract movement lookup table of species from Ecosystem object.
+"""
+function getlookup(eco::AbstractEcosystem, sp::Int64)
+    return eco.lookup[sp]
+end
+function getlookup(eco::AbstractEcosystem, sp::String)
+    num = Compat.findall(eco.spplist.names.==sp)[1]
+    getlookup(eco, num)
+end
+
 """
     resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
 
 Function to reset the rate of habitat change for a species.
 """
-function resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
+function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
     eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimensions{()}}(
     eco.abenv.habitat.change.changefun, rate)
 end
-function resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
+function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
     eco.abenv.habitat.change = HabitatUpdate{typeof(dimension(1K))}(
     eco.abenv.habitat.change.changefun, rate)
 end
-function resetrate!(eco::Ecosystem, rate::Quantity{Float64, 𝐓^-1})
+function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝐓^-1})
     eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimensions{()}}(
     eco.abenv.habitat.change.changefun, rate)
 end
-function resetrate!(eco::Ecosystem, rate::Quantity{Float64, 𝚯*𝐓^-1})
+function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯*𝐓^-1})
     eco.abenv.habitat.change = HabitatUpdate{typeof(dimension(1K))}(
     eco.abenv.habitat.change.changefun, rate)
 end
 
-function resettime!(eco::Ecosystem)
+function resettime!(eco::AbstractEcosystem)
     _resettime!(eco.abenv.habitat)
 end
 
@@ -462,7 +464,7 @@ function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
   relsize =  _getgridsize(hab) ./ sd
   m = maximum(_getdimension(hab))
   p = mov.thresh
-  return map(r -> Lookup(_lookup(r, m, p, _gaussian_disperse)), relsize)
+  return Lookup(_lookup(relsize, m, p, _gaussian_disperse))
 end
 function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
     sd = (2 * mov.dist) / sqrt(pi)
@@ -470,7 +472,7 @@ function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
     m = maximum(_getdimension(hab))
     p = mov.thresh
     b = mov.shape
-    return map((r, shape) -> Simulation.Lookup(Simulation._lookup(r, m, p, shape, Simulation._2Dt_disperse)), relsize, b)
+    return Simulation.Lookup(Simulation._lookup(relsize, m, p, b, Simulation._2Dt_disperse))
 end
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
@@ -508,7 +510,7 @@ function _lookup(relSquareSize::Float64, maxGridSize::Int64,
     lookup_tab = _symmetric_grid(lookup_tab)
     #info(sum(lookup_tab[:, 3]))
     # Normalise
-    lookup_tab[:Prob] = lookup_tab[:Prob]/sum(lookup_tab[:Prob])
+    lookup_tab[!, :Prob] = lookup_tab[!, :Prob]/sum(lookup_tab[!, :Prob])
     lookup_tab
 end
 

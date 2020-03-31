@@ -6,10 +6,9 @@ using Simulation.Units
 
 abun = fill(10, 10)
 # Test SimpleRequirement
-energy_vec = SimpleRequirement(fill(2, 10))
-@test_nowarn energy_vec = SimpleRequirement(fill(2, 10))
-@test_nowarn energy_vec = SimpleRequirement(2:10)
-@test_nowarn energy_vec = SimpleRequirement(2.0:10.0)
+energy_vec = SimpleRequirement(fill(2.0, 10))
+@test_nowarn energy_vec = SimpleRequirement(fill(2.0, 10))
+@test_nowarn energy_vec = SimpleRequirement(collect(2.0:10.0))
 @test Simulation._getenergyusage(abun, energy_vec) == sum(abun .* energy_vec.energy)
 bud = Array{Float64, 2}(undef, 2, 2)
 fill!(bud, 100.0)
@@ -22,8 +21,8 @@ energy_vec = SizeRequirement(fill(0.2, 10), -0.1, 1000.0km^2)
 
 numSpecies = 10
 # Test SolarRequirement
-energy_vec = SolarRequirement(fill(0.2*day^-1*kJ*m^-2, numSpecies))
-@test_nowarn energy_vec = SolarRequirement(fill(0.2*day^-1*kJ*m^-2, numSpecies))
+energy_vec = SolarRequirement(fill(0.2*kJ, numSpecies))
+@test_nowarn energy_vec = SolarRequirement(fill(0.2*kJ, numSpecies))
 @test Simulation._getenergyusage(abun, energy_vec) == sum(abun .* energy_vec.energy)
 
 # Test WaterRequirement
@@ -32,7 +31,7 @@ energy_vec = WaterRequirement(fill(0.2*mm, numSpecies))
 @test Simulation._getenergyusage(abun, energy_vec) == sum(abun .* energy_vec.energy)
 
 #Test SolarTimeBudget
-sol = fill(200.0*day^-1*kJ*m^-2, 100, 100, 10)
+sol = fill(200.0*kJ, 100, 100, 10)
 @test_nowarn SolarTimeBudget(sol, 1)
 bud1 = SolarTimeBudget(sol, 1)
 @test Simulation._countsubcommunities(bud1) == 100 * 100

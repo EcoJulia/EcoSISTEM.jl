@@ -41,8 +41,6 @@ end
 function SavedLandscape(gl::GridLandscape)
     SavedLandscape(gl.matrix, gl.seed)
 end
-GLOBAL_typedict["GridLandscape"] = GridLandscape
-
 
 mutable struct CachedGridLandscape
   matrix::AxisArray{Union{GridLandscape, Missing}, 1}
@@ -58,8 +56,6 @@ function CachedGridLandscape(file::String, rng::StepRangeLen)
   return CachedGridLandscape(a, file, interval)
 end
 
-GLOBAL_typedict["CachedGridLandscape"] = CachedGridLandscape
-
 """
     emptygridlandscape(gae::GridAbioticEnv, spplist::SpeciesList)
 
@@ -72,5 +68,3 @@ function emptygridlandscape(gae::GridAbioticEnv, spplist::SpeciesList)
   dimension = (counttypes(spplist, true), _getdimension(gae.habitat)...)
   return GridLandscape(mat, dimension)
 end
-
-GLOBAL_funcdict["emptygridlandscape"] = emptygridlandscape

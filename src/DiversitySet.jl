@@ -11,12 +11,11 @@ end
 function DiversitySet(cache::CachedEcosystem, times::Vector{T}) where T <: Unitful.Time
     return DiversitySet(missing, cache.abundances.outputfolder, times)
 end
-GLOBAL_typedict["DiversitySet"] = DiversitySet
 
 function updatesimulation!(cache::CachedEcosystem, tm::Unitful.Time)
     abundances(cache, tm)
 end
-GLOBAL_funcdict["updatesimulation!"] = updatesimulation!
+
 function gettimes(div::DiversitySet)
     file = searchdir(div.folder, ".feather")
     if ismissing(div.data) & isempty(file)
@@ -32,7 +31,7 @@ function gettimes(div::DiversitySet)
         return newtimes
     end
 end
-GLOBAL_funcdict["gettimes"] = gettimes
+
 import DataFrames.append!
 function append!(div::DiversitySet, dat::DataFrame)
     append!(div.data, dat)

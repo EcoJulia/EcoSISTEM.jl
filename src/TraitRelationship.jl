@@ -28,7 +28,6 @@ iscontinuous(tr::Gauss{TR}) where TR = true
 function eltype(tr::Gauss{TR}) where TR
     return TR
 end
-GLOBAL_typedict["Gauss"] = Gauss
 
 """
     Trapeze{TR} <: AbstractTraitRelationship{TR}
@@ -47,7 +46,6 @@ iscontinuous(tr::Trapeze{TR}) where TR = true
 function eltype(tr::Trapeze{TR}) where TR
     return TR
 end
-GLOBAL_typedict["Trapeze"] = Trapeze
 
 """
     Trapeze{TR} <: AbstractTraitRelationship{TR}
@@ -66,7 +64,6 @@ iscontinuous(tr::Unif{TR}) where TR = true
 function eltype(tr::Unif{TR}) where TR
     return TR
 end
-GLOBAL_typedict["Unif"] = Unif
 
 """
     Match{TR} <: AbstractTraitRelationship{TR}
@@ -89,7 +86,6 @@ iscontinuous(tr::Match{TR}) where TR = false
 function eltype(tr::Match{TR}) where TR
     return TR
 end
-GLOBAL_typedict["Match"] = Match
 
 """
     NoRelContinuous{TR} <: AbstractTraitRelationship{TR}
@@ -107,7 +103,6 @@ iscontinuous(tr::NoRelContinuous{TR}) where TR = true
 function eltype(tr::NoRelContinuous{TR}) where TR
     return TR
 end
-GLOBAL_typedict["NoRelContinuous"] = NoRelContinuous
 
 """
     NoRelDiscrete{TR} <: AbstractTraitRelationship{TR}
@@ -125,7 +120,6 @@ iscontinuous(tr::NoRelDiscrete{TR}) where TR = true
 function eltype(tr::NoRelDiscrete{TR}) where TR
     return TR
 end
-GLOBAL_typedict["NoRelDiscrete"] = NoRelDiscrete
 
 """
     multiplicativeTR2{TR1, TR2} <: AbstractTraitRelationship{Tuple{TR1, TR2}}
@@ -143,7 +137,6 @@ iscontinuous(tr::multiplicativeTR2{TR1, TR2} ) where {TR1, TR2} =
 function eltype(mtr::multiplicativeTR2)
     return [eltype(mtr.tr1), eltype(mtr.tr2)]
 end
-GLOBAL_typedict["multiplicativeTR2"] = multiplicativeTR2
 
 """
     multiplicativeTR3{TR1, TR2, TR3} <: AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
@@ -158,7 +151,6 @@ mutable struct multiplicativeTR3{TR1, TR2, TR3} <:
   tr2::TR2
   tr3::TR3
 end
-GLOBAL_typedict["multiplicativeTR3"] = multiplicativeTR3
 
 function eltype(mtr::multiplicativeTR3)
     return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
@@ -180,7 +172,6 @@ iscontinuous(tr::additiveTR2{TR1, TR2} ) where {TR1, TR2} =
 function eltype(mtr::additiveTR2)
     return [eltype(mtr.tr1), eltype(mtr.tr2)]
 end
-GLOBAL_typedict["additiveTR2"] = additiveTR2
 
 """
     multiplicativeTR3{TR1, TR2, TR3} <: AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
@@ -200,7 +191,6 @@ iscontinuous(tr::additiveTR3{TR1, TR2, TR3} ) where {TR1, TR2, TR3} =
 function eltype(mtr::additiveTR3)
     return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
 end
-GLOBAL_typedict["additiveTR3"] = additiveTR3
 
 """
     combineTR
