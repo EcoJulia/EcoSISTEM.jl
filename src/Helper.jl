@@ -1,7 +1,7 @@
 using Unitful
 using Unitful.DefaultSymbols
 using Diversity
-using MyUnitful
+using Simulation.Units
 import Diversity.Gamma
 using Compat
 

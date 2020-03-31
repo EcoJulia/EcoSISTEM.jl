@@ -3,7 +3,7 @@ using Compat.Test
 using Distributions
 using RCall
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 
 include("TestCases.jl")
 

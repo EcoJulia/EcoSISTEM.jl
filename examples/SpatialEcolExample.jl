@@ -2,7 +2,7 @@
 
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using Diversity
 using Distributions
 using Simulation

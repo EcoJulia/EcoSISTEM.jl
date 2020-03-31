@@ -3,7 +3,7 @@
 addprocs(20)
 using RCall
 using JuliaDB
-using ClimatePref
+using Simulation.ClimatePref
 using DataFrames
 
 gbif = load("Post1970GBIF")

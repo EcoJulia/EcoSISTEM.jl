@@ -5,9 +5,9 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using AxisArrays
-using ClimatePref
+using Simulation.ClimatePref
 
 # Load in temperature profiles
 Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
@@ -159,9 +159,9 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using AxisArrays
-using ClimatePref
+using Simulation.ClimatePref
 
 # Load in temperature profiles
 Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
@@ -340,9 +340,9 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using AxisArrays
-using ClimatePref
+using Simulation.ClimatePref
 
 # Load in temperature profiles
 Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
@@ -523,9 +523,9 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using AxisArrays
-using ClimatePref
+using Simulation.ClimatePref
 
 # Load in temperature profiles
 Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/data/Temperature.jld",
@@ -690,9 +690,9 @@ using RCall
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using AxisArrays
-using ClimatePref
+using Simulation.ClimatePref
 
 eco = readTOML("setupB.toml")
 runTOML("runB.toml", eco)

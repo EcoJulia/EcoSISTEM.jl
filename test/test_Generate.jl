@@ -2,7 +2,7 @@ using Simulation
 using Compat.Test
 using Unitful.DefaultSymbols
 using Distributions
-using MyUnitful
+using Simulation.Units
 
 include("TestCases.jl")
 

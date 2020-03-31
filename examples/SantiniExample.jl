@@ -4,7 +4,7 @@
 ## STATIC VERSION
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using RCall
 using JLD
 using StatsBase
@@ -147,7 +147,7 @@ dev.off()
 ## STATIC VERSION
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using RCall
 using JLD
 using StatsBase
@@ -376,7 +376,7 @@ dev.off()
 #
 using Unitful
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 using RCall
 using JLD
 

@@ -2,7 +2,7 @@ using Simulation
 using Compat.Test
 using Distributions
 using Unitful.DefaultSymbols
-using MyUnitful
+using Simulation.Units
 
 numSpecies = 10
 
