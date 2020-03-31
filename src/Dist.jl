@@ -4,6 +4,12 @@ using Random
 
 import Distributions: @check_args, ContinuousUnivariateDistribution,
 rand, params, GLOBAL_RNG, pdf
+
+"""
+    Trapezoid{T<:Real} <: ContinuousUnivariateDistribution
+
+Trapezoidal distribution as described at https://en.wikipedia.org/wiki/Trapezoidal_distribution.
+"""
 struct Trapezoid{T<:Real} <: ContinuousUnivariateDistribution
     a::T
     b::T
