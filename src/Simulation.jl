@@ -117,4 +117,30 @@ export DiversitySet, updatesimulation!, gettimes
 include("AdditionalDiversity.jl")
 export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
 
+include("EpiControl.jl")
+export NoControl
+
+include("EpiEnv.jl")
+export GridEpiEnv, simplehabitatAE
+
+include("EpiParams.jl")
+export EpiGrowth
+
+include("EpiList.jl")
+export EpiList, SIR
+
+include("EpiLandscape.jl")
+export EpiLandscape
+
+include("EpiSystem.jl")
+export EpiSystem
+
+include("EpiTraits.jl")
+
+include("EpiGenerate.jl")
+export populate!
+
+include("EpiHelper.jl")
+export simulate!, simulate_record!
+
 end
