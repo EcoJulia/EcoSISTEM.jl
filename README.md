@@ -21,8 +21,8 @@ age-structure and epidemiological models.
 
 This package is in beta now, so please raise an issue if you find any
 problems. The code has been substantially optimised for speed and can be fully
-run in parallel through use of multi-threading. This can be extended to run
-on HPCC using MPI. Over 30 nodes, a century worth of simulation of
-South America for 80km grid cells and ~60,000 species takes roughly 12 hours.
+run in parallel through use of multi-threading. Over 30 cores, a century worth of simulation of
+South America for 80km grid cells and ~60,000 species takes roughly 12 hours. This has been extended to run
+on HPC using MPI. Scaling up to 36 nodes using MPI worked with 95% efficiency.
 
 [paper-url]: https://arxiv.org/abs/1911.12257
