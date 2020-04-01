@@ -27,43 +27,6 @@ function update!(epi::EpiSystem, timestep::Unitful.Time)
     applycontrols!(epi, timestep)
 end
 
-# function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
-#     # Calculate dimenions of habitat and number of species
-#     dims = _countsubcommunities(epi.epienv.habitat)
-#     params = epi.epilist.params
-#     width = getdimension(epi)[1]
-#     rng = epi.abundances.seed[Threads.threadid()]
-#
-#     Threads.@threads for i in 1:dims
-#         # Calculate how much birth and death should be adjusted
-#         adjusted_birth, adjusted_death = adjustment(epi, i, j)
-#
-#         # Convert 1D dimension to 2D coordinates
-#         (x, y) = convert_coords(epi, i, width)
-#         # Check if grid cell currently active
-#         if epi.epienv.active[x, y]
-#             # Calculate effective rates
-#             birthprob = params.beta * timestep * adjusted_birth
-#             deathprob = params.death[1] * timestep * adjusted_death
-#
-#             # Put probabilities into 0 - 1
-#             newbirthprob = 1.0 - exp(-birthprob)
-#             newdeathprob = 1.0 - exp(-deathprob)
-#
-#             (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n i: $i \n j: $j")
-#             # Calculate how many births and deaths
-#             births = rand(rng, Poisson(eco.abundances.matrix[1, i] * newbirthprob))
-#             deaths = rand(rng, Binomial(eco.abundances.matrix[1, i], newdeathprob))
-#
-#             # Update population
-#             epi.abundances.matrix[1, i] += (births - deaths)
-#
-#             # Calculate moves and write to cache
-#             move!(eco, eco.spplist.movement, i, 1, eco.cache.netmigration, births)
-#         end
-#     end
-# end
-
 function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     # Calculate dimenions of habitat and number of classes
     dims = _countsubcommunities(epi.epienv.habitat)
