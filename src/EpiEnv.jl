@@ -7,10 +7,10 @@ using Simulation.ClimatePref
 using Diversity.API
 
 """
-    AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
+    AbstractEpiEnv{H <: AbstractHabitat, C <: AbstractControl} <:
+    AbstractPartition{H}
 
-Abstract supertype for all abiotic environment types and a subtype of
-AbstractPartition
+Abstract supertype for all epi environment types and a subtype of AbstractPartition.
 """
 abstract type AbstractEpiEnv{H <: AbstractHabitat, C <: AbstractControl} <:
    AbstractPartition{H} end
@@ -41,6 +41,7 @@ import Diversity.API: _getsubcommunitynames
 function _getsubcommunitynames(epienv::GridEpiEnv)
     return epienv.names
 end
+
 """
     simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
     dimension::Tuple{Int64, Int64}, area::Unitful.Area{Float64},
@@ -60,7 +61,6 @@ function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
  hab = simplehabitat(val, gridsquaresize, dimension)
  return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control)
 end
-
 
 function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
  dimension::Tuple{Int64, Int64}, area::Unitful.Area{Float64}, control::C) where C <: AbstractControl

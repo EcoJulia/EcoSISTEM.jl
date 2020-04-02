@@ -3,8 +3,8 @@ using Compat
 using LinearAlgebra
 
 """
-    update!(eco::Ecosystem, time::Unitful.Time)
-Function to update a ecosystem abundances and environment for one timestep.
+    update!(epi::EpiSystem, time::Unitful.Time)
+Function to update disease class abundances and environment for one timestep.
 """
 function update!(epi::EpiSystem, timestep::Unitful.Time)
 
@@ -27,6 +27,10 @@ function update!(epi::EpiSystem, timestep::Unitful.Time)
     applycontrols!(epi, timestep)
 end
 
+"""
+    classupdate!(epi::EpiSystem, timestep::Unitful.Time)
+Function to update disease class abundances for one timestep.
+"""
 function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     # Calculate dimenions of habitat and number of classes
     dims = _countsubcommunities(epi.epienv.habitat)
@@ -40,15 +44,15 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
         # Loop through grid squares
         for i in 1:dims
             # Calculate how much birth and death should be adjusted
-            adjusted_birth, adjusted_death = adjustment(epi, class, i, j)
+            adjust = adjustment(epi, class, i, j)
 
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(epi, i, width)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
                 # Calculate effective rates
-                birthprob = params.birth[j] * timestep * adjusted_birth
-                deathprob = params.death[j] * timestep * adjusted_death
+                birthprob = params.birth[j] * timestep * adjust
+                deathprob = params.death[j] * timestep * adjust^-1
 
                 # Put probabilities into 0 - 1
                 newbirthprob = 1.0 - exp(-birthprob)
@@ -69,45 +73,53 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     end
 end
 
+"""
+    newinfections!(epi::EpiSystem, timestep::Unitful.Time)
+Function to generate new infections based on viral load in each grid square.
+"""
 function newinfections!(epi::EpiSystem, timestep::Unitful.Time)
     rng = epi.abundances.seed[Threads.threadid()]
-    gridsize = epi.epienv.habitat.size
-    virus = epi.abundances.matrix[1, :]
-    virusparam = epi.epilist.params.viralload * gridsize / unit(gridsize) * timestep
-    infprob = virus ./ (virusparam .+ virus)
+    virus = @view epi.abundances.matrix[1, :]
+    infprob = virus .* (epi.epilist.params.beta * timestep)
     infections = rand.(fill(rng, length(infprob)), Binomial.(epi.abundances.matrix[2, :], infprob))
     epi.abundances.matrix[2, :] .-= infections
     epi.abundances.matrix[3, :] .+= infections
 end
 
+"""
+    newrecoveries!(epi::EpiSystem, timestep::Unitful.Time)
+Function to generate new recoveries based on a set recovery rate in each grid square.
+"""
 function newrecoveries!(epi::EpiSystem, timestep::Unitful.Time)
     rng = epi.abundances.seed[Threads.threadid()]
-    infecteds = epi.abundances.matrix[3, :]
+    infecteds = @view epi.abundances.matrix[3, :]
     recoveries = rand.(fill(rng, length(infecteds)), Binomial.(infecteds, uconvert(NoUnits, epi.epilist.params.sigma * timestep)))
     epi.abundances.matrix[3, :] .-= recoveries
     epi.abundances.matrix[4, :] .+= recoveries
 end
 
 
+"""
+    adjustment(epi::AbstractEpiSystem, class::DiseaseClass, i::Int64, j::Int64)
+Function to calculate match between environment and birth/death for each disease class. This is assumed to be 1 for all susceptible, infected, recovered and dependent on a trait function for the virus.
+"""
 function adjustment(epi::AbstractEpiSystem, class::Virus, i::Int64, j::Int64)
-    susceptibles = epi.abundances.matrix[2, i]
-    infecteds = epi.abundances.matrix[3, i]
-    total = sum(epi.abundances.matrix[:, i])
-    traitmatch = 1/traitfun(epi, i, j)
-    birth_boost = (susceptibles * infecteds/ total) * traitmatch^-1
-    death_boost = (susceptibles * infecteds/ total)^-1 * traitmatch
-    return birth_boost, death_boost
+    return traitfun(epi, i, j)
 end
 function adjustment(epi::AbstractEpiSystem, class::Susceptible, i::Int64, j::Int64)
-    return 1, 1
+    return 1
 end
 function adjustment(epi::AbstractEpiSystem, class::Infected, i::Int64, j::Int64)
-    return 1, 1
+    return 1
 end
 function adjustment(epi::AbstractEpiSystem, class::Recovered, i::Int64, j::Int64)
-    return 1, 1
+    return 1
 end
 
+"""
+    populate!(ml::EpiLandscape, epilist::EpiList, epienv::EE, rel::R)
+Function to populate an EpiLandscape with information on each disease class in the EpiList.
+"""
 function populate!(ml::EpiLandscape, epilist::EpiList, epienv::EE, rel::R) where {EE <: AbstractEpiEnv, R <: AbstractTraitRelationship}
     dim = _getdimension(epienv.habitat)
     len = dim[1] * dim[2]
@@ -117,7 +129,10 @@ function populate!(ml::EpiLandscape, epilist::EpiList, epienv::EE, rel::R) where
     end
 end
 
-
+"""
+    applycontrols!(epi::EpiSystem, timestep::Unitful.Time)
+Function to apply control strategies to an EpiSystem for one timestep.
+"""
 function applycontrols!(epi::EpiSystem, timestep::Unitful.Time)
     _applycontrols!(epi, epi.epienv.control, timestep)
 end
@@ -187,16 +202,12 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64, epi::Ab
 end
 
 """
-    move!(eco::Ecosystem, ::AbstractMovement, i::Int64, sp::Int64, grd::Array{Int64, 2}, abun::Int64)
+    move!(epi::AbstractEpiSystem, ::AlwaysMovement, i::Int64, sp::Int64, grd::Array{Int64, 2}, ::Int64)
 
-Function to calculate the movement of species `sp` from a given position in the
-landscape `i`, using the lookup table found in the Ecosystem and updating the
-movement patterns on a cached grid, `grd`. Optionally, a number of births can be
-provided, so that movement only takes place as part of the birth process, instead
-of the entire population
+Function to calculate the movement of a disease class `sp` from a given position in the landscape `i`, using the lookup table found in the EpiSystem and updating the movement patterns on a cached grid, `grd`. Optionally, a number of births can be
+provided, so that movement only takes place as part of the birth process, instead of the entire population.
 """
-function move!(epi::AbstractEpiSystem, ::AlwaysMovement, i::Int64, sp::Int64,
-  grd::Array{Int64, 2}, ::Int64)
+function move!(epi::AbstractEpiSystem, ::AlwaysMovement, i::Int64, sp::Int64, grd::Array{Int64, 2}, ::Int64)
   width, height = getdimension(epi)
   (x, y) = convert_coords(epi, i, width)
   lookup = getlookup(epi, sp)
