@@ -263,7 +263,6 @@ function _habitatupdate!(epi::AbstractEpiSystem, hab::HabitatCollection2, timest
 end
 
 function TempChange(epi::AbstractEpiSystem, hab::ContinuousHab, timestep::Unitful.Time)
-  val = hab.change.rate
-  v = uconvert(K/unit(timestep), val)
-  hab.matrix .+= v * timestep
+  v = uconvert(K/unit(timestep), hab.change.rate)
+  hab.matrix .+= (v * timestep)
 end
