@@ -5,12 +5,11 @@ using Simulation.Units
 using Plots
 plotlyjs()
 
-birth = [0.0/day; fill(1e-10/day, 3)]
+birth = [0.001/day; fill(1e-10/day, 3)]
 death = [0.001/day; fill(1e-10/day, 3)]
-beta = 0.05/day
-sigma = 0.05/day
-viralload = 1.0/day
-param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma, viralload)
+beta = 0.005/day
+sigma = 0.001/day
+param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 grid = (2, 2)
 area = 10.0km^2

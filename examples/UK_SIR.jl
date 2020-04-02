@@ -4,12 +4,11 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 
 # Larger grid
-birth = [0.0/day; fill(1e-10/day, 3)]
+birth = [0.001/day; fill(1e-10/day, 3)]
 death = [0.001/day; fill(1e-10/day, 3)]
-beta = 1.0/day
+beta = 0.14/day
 sigma = 1.0/14days
-viralload = 100.0/day
-param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma, viralload)
+param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 grid = (500, 500)
 area = 250_000.0km^2
@@ -17,7 +16,7 @@ epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 abun = [0, 60_000_000, 0, 0]
 
-dispersal_dists = [2.0km; fill(5.0km, 3)]
+dispersal_dists = [2.0km; fill(0.01km, 3)]
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
@@ -33,7 +32,7 @@ abuns = zeros(Int64, 4, 250_000, 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
-display(heatmap(reshape(abuns[3, :, 1], 500, 500), layout = (@layout [a b; c d]), subplot = 1, title = "Day 1", clim = (0, 250)))
-display(heatmap!(reshape(abuns[3, :, 90], 500, 500), subplot = 2, title = "3 months", clim = (0, 250)))
-display(heatmap!(reshape(abuns[3, :, 180], 500, 500), subplot = 3, title = "6 months", clim = (0, 250)))
-display(heatmap!(reshape(abuns[3, :, 365], 500, 500), subplot = 4, title = "1 year", clim = (0, 250)))
+display(heatmap(reshape(abuns[3, :, 1], 500, 500), layout = (@layout [a b; c d]), subplot = 1, title = "Day 1", clim = (0, 100)))
+display(heatmap!(reshape(abuns[3, :, 7], 500, 500), subplot = 2, title = "3 months", clim = (0, 100)))
+display(heatmap!(reshape(abuns[3, :, 14], 500, 500), subplot = 3, title = "6 months", clim = (0, 100)))
+display(heatmap!(reshape(abuns[3, :, 30], 500, 500), subplot = 4, title = "1 year", clim = (0, 100)))
