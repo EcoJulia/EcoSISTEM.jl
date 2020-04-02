@@ -53,7 +53,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     id = Threads.threadid()
     rng = epi.abundances.seed[id]
     # Loop through grid squares
-    Threads.@threads for i in 1:dims
+    for i in 1:dims
         # Calculate how much birth and death should be adjusted
         birth_adjust, death_adjust = adjustment(epi, i)
 
@@ -255,14 +255,14 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64, epi::Ab
   rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function virusmove!(epi::AbstractEpiSystem, ::AlwaysMovement, i::Int64, id::Int64, grd::Array{Int64, 2}, ::Int64)
+function virusmove!(epi::AbstractEpiSystem, ::AlwaysMovement, pos::Int64, id::Int64, grd::Array{Int64, 2}, ::Int64)
   width, height = getdimension(epi)
-  (x, y) = convert_coords(epi, i, width)
+  (x, y) = convert_coords(epi, pos, width)
   lookup = getlookup(epi, 1)
-  full_abun = epi.abundances.matrix[1, i]
+  full_abun = epi.abundances.matrix[1, pos]
   calc_lookup_moves!(getboundary(epi.epilist.movement), x, y, 1, epi, full_abun)
   # Lose moves from current grid square
-  grd[id, i] -= full_abun
+  grd[id, pos] -= full_abun
   # Map moves to location in grid
   mov = lookup.moves
   for i in eachindex(epi.lookup[1].x)
