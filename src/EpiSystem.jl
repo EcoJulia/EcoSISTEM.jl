@@ -9,6 +9,7 @@ abstract type AbstractEpiSystem{Part <: AbstractEpiEnv, EL <: EpiList, TR <: Abs
 
 mutable struct EpiCache
   netmigration::Array{Int64, 2}
+  virusmigration::Array{Int64, 2}
   valid::Bool
 end
 """
@@ -42,7 +43,8 @@ function EpiSystem(popfun::Function, epilist::EpiList, epienv::GridEpiEnv, rel::
   # Create lookup table of all moves and their probabilities
   lookup_tab = collect(map(k -> genlookups(epienv.habitat, k), getkernels(epilist.movement)))
   nm = zeros(Int64, size(ml.matrix))
-  EpiSystem{typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, false))
+  vm = zeros(Int64, Threads.nthreads(), size(ml.matrix, 2))
+  EpiSystem{typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv,
@@ -112,6 +114,7 @@ end
 function invalidatecaches!(epi::EpiSystem)
     epi.ordinariness = missing
     epi.cache.netmigration .= 0
+    epi.cache.virusmigration .= 0
     epi.cache.valid = false
 end
 
