@@ -12,6 +12,19 @@ mutable struct EpiCache
   virusmigration::Array{Int64, 2}
   valid::Bool
 end
+
+
+
+mutable struct EpiLookup
+  x::Vector{Int64}
+  y::Vector{Int64}
+  p::Vector{Float64}
+  pnew::Matrix{Float64}
+  moves::Matrix{Int64}
+end
+EpiLookup(df::DataFrame) = EpiLookup(df[!, :X], df[!, :Y], df[!, :Prob],
+zeros(Float64, nrow(df), Threads.nthreads()), zeros(Int64, nrow(df), Threads.nthreads()))
+
 """
     EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractRelationship} <: AbstractEpiSystem{EE, EL, ER}
 
@@ -23,11 +36,11 @@ mutable struct EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTrai
   epienv::EE
   ordinariness::Union{Matrix{Float64}, Missing}
   relationship::ER
-  lookup::Vector{Lookup}
+  lookup::Vector{EpiLookup}
   cache::EpiCache
 
   function EpiSystem{EE, EL, ER}(abundances::EpiLandscape,
-    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::Vector{Lookup}, cache::EpiCache) where {EE <:
+    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::Vector{EpiLookup}, cache::EpiCache) where {EE <:
      AbstractEpiEnv,
     EL <: EpiList, ER <: AbstractTraitRelationship}
     new{EE, EL, ER}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache)
@@ -41,7 +54,7 @@ function EpiSystem(popfun::Function, epilist::EpiList, epienv::GridEpiEnv, rel::
   # Populate this matrix with species abundances
   popfun(ml, epilist, epienv, rel)
   # Create lookup table of all moves and their probabilities
-  lookup_tab = collect(map(k -> genlookups(epienv.habitat, k), getkernels(epilist.movement)))
+  lookup_tab = collect(map(k -> genlookups(epienv, k), getkernels(epilist.movement)))
   nm = zeros(Int64, size(ml.matrix))
   vm = zeros(Int64, Threads.nthreads(), size(ml.matrix, 2))
   EpiSystem{typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
@@ -52,6 +65,30 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv,
    return EpiSystem(populate!, epilist, epienv, rel)
 end
 
+
+"""
+    genlookups(hab::AbstractHabitat, mov::GaussianMovement)
+
+Function to generate lookup tables, which hold information on the probability
+of moving to neighbouring squares.
+"""
+function genlookups(epienv::AbstractEpiEnv, mov::GaussianKernel)
+    hab = epienv.habitat
+    sd = (2 * mov.dist) / sqrt(pi)
+    relsize =  _getgridsize(hab) ./ sd
+    m = maximum(_getdimension(hab))
+    p = mov.thresh
+    return EpiLookup(_lookup(relsize, m, p, _gaussian_disperse))
+end
+function genlookups(epienv::AbstractEpiEnv, mov::LongTailKernel)
+    hab = epienv.habitat
+    sd = (2 * mov.dist) / sqrt(pi)
+    relsize =  _getgridsize(hab) ./ sd
+    m = maximum(_getdimension(hab))
+    p = mov.thresh
+    b = mov.shape
+    return EpiLookup(_lookup(relsize, m, p, b, _2Dt_disperse))
+end
 
 function getsize(epi::AbstractEpiSystem)
   return _getsize(epi.epienv.habitat)
