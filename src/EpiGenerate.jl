@@ -77,7 +77,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Update population
             epi.abundances.matrix[1, i] += (births - deaths)
 
-            move!(epi, epi.epilist.movement, i, id, epi.cache.virusmigration, births)
+            virusmove!(epi, epi.epilist.movement, i, id, epi.cache.virusmigration, births)
 
         end
     end
@@ -253,6 +253,25 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64, epi::Ab
   lookup.pnew ./= sum(lookup.pnew)
   dist = Multinomial(abun, lookup.pnew)
   rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+end
+
+function virusmove!(epi::AbstractEpiSystem, ::AlwaysMovement, i::Int64, id::Int64, grd::Array{Int64, 2}, ::Int64)
+  width, height = getdimension(epi)
+  (x, y) = convert_coords(epi, i, width)
+  lookup = getlookup(epi, 1)
+  full_abun = epi.abundances.matrix[1, i]
+  calc_lookup_moves!(getboundary(epi.epilist.movement), x, y, 1, epi, full_abun)
+  # Lose moves from current grid square
+  grd[id, i] -= full_abun
+  # Map moves to location in grid
+  mov = lookup.moves
+  for i in eachindex(epi.lookup[1].x)
+      newx = mod(lookup.x[i] + x - 1, width) + 1
+      newy = mod(lookup.y[i] + y - 1, height) + 1
+      loc = convert_coords(epi, (newx, newy), width)
+      grd[id, loc] += mov[i]
+  end
+  return epi
 end
 
 """
