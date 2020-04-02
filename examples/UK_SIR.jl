@@ -4,10 +4,10 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 
 # Larger grid
-birth = [0.001/day; fill(1e-10/day, 3)]
-death = [0.001/day; fill(1e-10/day, 3)]
-beta = 0.14/day
-sigma = 1.0/14days
+birth = [0.0001/day; fill(1e-10/day, 3)]
+death = [0.005/day; fill(1e-10/day, 3)]
+beta = 0.014/day
+sigma = 0.1/14days
 param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 grid = (500, 500)
@@ -25,14 +25,17 @@ epilist = SIR(traits, abun, movement, param)
 
 rel = Gauss{eltype(epienv.habitat)}()
 epi = EpiSystem(epilist, epienv, rel)
-epi.abundances.matrix[1, 1] = 10_000
-epi.abundances.matrix[3, 1] = 100
+samp = rand(1:250_000, 100)
+epi.abundances.matrix[1, samp] .= 100
+epi.abundances.matrix[3, samp] .= 10
 
 abuns = zeros(Int64, 4, 250_000, 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
+using Plots
+plotlyjs()
 display(heatmap(reshape(abuns[3, :, 1], 500, 500), layout = (@layout [a b; c d]), subplot = 1, title = "Day 1", clim = (0, 100)))
-display(heatmap!(reshape(abuns[3, :, 7], 500, 500), subplot = 2, title = "3 months", clim = (0, 100)))
-display(heatmap!(reshape(abuns[3, :, 14], 500, 500), subplot = 3, title = "6 months", clim = (0, 100)))
-display(heatmap!(reshape(abuns[3, :, 30], 500, 500), subplot = 4, title = "1 year", clim = (0, 100)))
+display(heatmap!(reshape(abuns[3, :, 7], 500, 500), subplot = 2, title = "Day 7", clim = (0, 100)))
+display(heatmap!(reshape(abuns[3, :, 14], 500, 500), subplot = 3, title = "Day 14", clim = (0, 100)))
+display(heatmap!(reshape(abuns[3, :, 30], 500, 500), subplot = 4, title = "Day 30", clim = (0, 100)))

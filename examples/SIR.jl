@@ -5,10 +5,10 @@ using Simulation.Units
 using Plots
 plotlyjs()
 
-birth = [0.001/day; fill(1e-10/day, 3)]
-death = [0.001/day; fill(1e-10/day, 3)]
-beta = 0.005/day
-sigma = 0.001/day
+birth = [0.0001/day; fill(1e-10/day, 3)]
+death = [0.07/day; fill(1e-10/day, 3)]
+beta = 0.05/day
+sigma = 0.05/day
 param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 grid = (2, 2)
@@ -27,8 +27,8 @@ epilist = SIR(traits, abun, movement, param)
 rel = Gauss{eltype(epienv.habitat)}()
 epi = EpiSystem(epilist, epienv, rel)
 
-abuns = zeros(Int64, 4, 4, 366)
-times = 1year; interval = 1day; timestep = 1day
+abuns = zeros(Int64, 4, 4, 731)
+times = 2years; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
 display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptibles"))
