@@ -164,7 +164,7 @@ end
 Function to calculate match between environment and birth/death for each disease class. This is assumed to be 1 for all susceptible, infected, recovered and dependent on a trait function for the virus.
 """
 function adjustment(epi::AbstractEpiSystem, pos::Int64)
-    traitmatch = traitfun(epi, 1, pos)
+    traitmatch = traitfun(epi, pos, 1)
     birth_boost = epi.abundances.matrix[3, pos] * traitmatch
     death_boost = epi.abundances.matrix[1, pos] * traitmatch^-1
     return birth_boost, death_boost
