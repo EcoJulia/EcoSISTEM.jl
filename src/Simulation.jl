@@ -44,103 +44,103 @@ include("ClimatePref/ClimatePref.jl")
 
 end
 
-include("Dist.jl")
+include("Biodiversity/Dist.jl")
 export Trapezoid
 
-include("Phylo.jl")
+include("Biodiversity/Phylo.jl")
 export assign_traits!, get_traits, resettraits!, reroot!
 
-include("TraitRelationship.jl")
+include("Biodiversity/TraitRelationship.jl")
 export TraitRelationship,multiplicativeTR2, multiplicativeTR3, Gauss,
  Match, NoRelContinuous, NoRelDiscrete, Trapeze, Unif,
  additiveTR2, additiveTR3
 
-include("Habitats.jl")
+include("Biodiversity/Habitats.jl")
 export ContinuousHab,ContinuousTimeHab, DiscreteHab, HabitatCollection2, HabitatCollection3, tempgrad, raingrad
 
-include("Energy.jl")
+include("Biodiversity/Energy.jl")
 export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, VolWaterRequirement, SimpleBudget, SolarBudget, SolarTimeBudget, WaterTimeBudget, VolWaterTimeBudget, ReqCollection2, BudgetCollection2
 
-include("AbioticEnv.jl")
+include("Biodiversity/AbioticEnv.jl")
 export GridAbioticEnv, simplenicheAE, tempgradAE, raingradAE, peakedgradAE, simplehabitatAE, degradedhabitatAE, eraAE, worldclimAE
 
-include("Movement.jl")
+include("Biodiversity/Movement.jl")
 export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel, Torus, Cylinder, NoBoundary
 
-include("Traits.jl")
+include("Biodiversity/Traits.jl")
 export GaussTrait, DiscreteTrait, TempBin,RainBin,
 TraitCollection2, TraitCollection3,DiscreteEvolve,
 ContinuousEvolve
 
-include("Demographics.jl")
+include("Biodiversity/Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth
 
-include("SpeciesList.jl")
+include("Biodiversity/SpeciesList.jl")
 export SpeciesList
 
-include("Landscape.jl")
+include("Biodiversity/Landscape.jl")
 export GridLandscape, CachedGridLandscape
 
-include("MPILandscape.jl")
+include("Biodiversity/MPILandscape.jl")
 export MPIGridLandscape
 
-include("Ecosystem.jl")
+include("Biodiversity/Ecosystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
  getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
 
-include("MPIEcosystem.jl")
+include("Biodiversity/MPIEcosystem.jl")
 export MPIEcosystem, gather_abundance!, gather_diversity
 
-include("Traitfuns.jl")
+include("Biodiversity/Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
 
-include("HabitatUpdate.jl")
+include("Biodiversity/HabitatUpdate.jl")
 export getchangefun, TempChange, RainChange, TempFluct, eraChange, worldclimChange
 
-include("Scenarios.jl")
+include("Biodiversity/Scenarios.jl")
 export SimpleScenario, FluctScenario, MultiScenario
 
-include("Generate.jl")
+include("Biodiversity/Generate.jl")
 export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!, reenergise!, randomniches, update!, update_birth_move!, convert_coords, get_neighbours
 
-include("MPIGenerate.jl")
+include("Biodiversity/MPIGenerate.jl")
 
-include("Helper.jl")
+include("Biodiversity/Helper.jl")
 export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
 
-include("Cache.jl")
+include("Biodiversity/Cache.jl")
 export abundances, clearcache
 
-include("DiversitySet.jl")
+include("Biodiversity/DiversitySet.jl")
 export DiversitySet, updatesimulation!, gettimes
 
-include("AdditionalDiversity.jl")
+include("Biodiversity/AdditionalDiversity.jl")
 export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
 
-include("EpiControl.jl")
+include("Epidemiology/EpiControl.jl")
 export NoControl
 
-include("EpiEnv.jl")
+include("Epidemiology/EpiEnv.jl")
 export GridEpiEnv, simplehabitatAE
 
-include("EpiParams.jl")
+include("Epidemiology/EpiParams.jl")
 export EpiGrowth
 
-include("EpiList.jl")
+include("Epidemiology/EpiList.jl")
 export EpiList, SIR
 
-include("EpiLandscape.jl")
+include("Epidemiology/EpiLandscape.jl")
 export EpiLandscape
 
-include("EpiSystem.jl")
+include("Epidemiology/EpiSystem.jl")
 export EpiSystem
 
-include("EpiTraits.jl")
+include("Epidemiology/EpiTraits.jl")
 
-include("EpiGenerate.jl")
+include("Epidemiology/EpiGenerate.jl")
 export populate!
 
-include("EpiHelper.jl")
+include("Epidemiology/EpiHelper.jl")
 export simulate!, simulate_record!
 
 end

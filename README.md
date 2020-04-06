@@ -15,9 +15,8 @@ The package was primarily developed for global scale simulations of
 plant biodiversity. The underlying model for this is described in the arXiv
 paper [arXiv:1911.12257 (q-bio.QM)][paper-url],
 *Dynamic virtual ecosystems as a tool for detecting large-scale
-responses of biodiversity to environmental and land-use change*.
-Future updates to the package functionality involve incorporating
-age-structure and epidemiological models.
+responses of biodiversity to environmental and land-use change*. This has now been adapted to include basic functionality for spatially explicit, dynamic, stochastic SIR models. Future updates to the package functionality involve incorporating
+age-structure and more complex epidemiological models.
 
 This package is in beta now, so please raise an issue if you find any
 problems. The code has been substantially optimised for speed and can be fully
