@@ -118,7 +118,8 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 deaths = rand(rng, Binomial(epi.abundances.matrix[j, i], newdeathprob))
 
                 # Update population
-                epi.abundances.matrix[j, i] += (births - deaths)
+                epi.abundances.matrix[1, i] += births
+                epi.abundances.matrix[j, i] -= deaths
 
                 # Infections
                 if j == 2
