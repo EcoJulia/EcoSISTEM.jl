@@ -6,8 +6,8 @@ using Simulation.Units
 # Larger grid
 birth = [0.0001/day; fill(1e-10/day, 3)]
 death = [0.005/day; fill(1e-10/day, 3)]
-beta = 0.014/day
-sigma = 0.1/14days
+beta = 0.0014/day
+sigma = 0.01/14days
 param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 grid = (500, 500)
@@ -35,7 +35,7 @@ times = 1year; interval = 1day; timestep = 1day
 
 using Plots
 plotlyjs()
-display(heatmap(reshape(abuns[3, :, 1], 500, 500), layout = (@layout [a b; c d]), subplot = 1, title = "Day 1", clim = (0, 100)))
-display(heatmap!(reshape(abuns[3, :, 7], 500, 500), subplot = 2, title = "Day 7", clim = (0, 100)))
-display(heatmap!(reshape(abuns[3, :, 14], 500, 500), subplot = 3, title = "Day 14", clim = (0, 100)))
-display(heatmap!(reshape(abuns[3, :, 30], 500, 500), subplot = 4, title = "Day 30", clim = (0, 100)))
+display(heatmap(reshape(abuns[3, :, 1], 500, 500), layout = (@layout [a b; c d]), subplot = 1, title = "Day 1", clim = (0, 20)))
+display(heatmap!(reshape(abuns[3, :, 7], 500, 500), subplot = 2, title = "Day 7", clim = (0, 20)))
+display(heatmap!(reshape(abuns[3, :, 14], 500, 500), subplot = 3, title = "Day 14", clim = (0, 20)))
+display(heatmap!(reshape(abuns[3, :, 30], 500, 500), subplot = 4, title = "Day 30", clim = (0, 20)))
