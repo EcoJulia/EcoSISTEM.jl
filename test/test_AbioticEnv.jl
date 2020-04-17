@@ -36,7 +36,7 @@ abenv = tempgradAE(-10.0K, 10.0K, grid, totalK, area, 0.01K/month)
 abenv = simplenicheAE(numNiches, grid, totalK, area)
 @test_nowarn simplenicheAE(numNiches, grid, totalK, area)
 @test_nowarn simplenicheAE(numNiches, grid, totalK, area, active)
-@test maximum(abenv.habitat.matrix) == numNiches
+@test maximum(abenv.habitat.matrix) <= numNiches
 @test size(abenv.habitat.matrix) == grid
 @test sum(abenv.budget.matrix) == totalK * area
 @test abenv.active == active
