@@ -62,3 +62,6 @@ display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, labe
 display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Red, label = "Infected"))
 display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Black, label = "Recovered"))
 Plots.pdf("/Users/claireh/Documents/COVID/ScotlandSimSIR.pdf")
+
+
+@animate 
