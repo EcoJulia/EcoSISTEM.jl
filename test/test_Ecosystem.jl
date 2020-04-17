@@ -9,6 +9,7 @@ include("TestCases.jl")
 
 @test_nowarn eco = TestEcosystem()
 eco = TestEcosystem()
+@test sum(eco.abundances.matrix, dims = 2)[:, 1] == eco.spplist.abun
 
 # Test Simulation get functions
 @test_nowarn gettraitrel(eco)
