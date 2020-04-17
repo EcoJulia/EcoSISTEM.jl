@@ -21,4 +21,4 @@ problems. The code has been substantially optimised for speed and can be fully r
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 
-![](test/examples/ScotlandSIRSim.gif)
+<img src="test/examples/ScotlandSIRSim.gif" width="300" height="400" />
