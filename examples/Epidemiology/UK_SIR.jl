@@ -4,10 +4,10 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 
 # Set simulation parameters
-birth = [0.0001/day; fill(1e-10/day, 3)]
-death = [0.005/day; fill(1e-10/day, 3)]
-beta = 0.0014/day
-sigma = 0.01/14days
+birth = [0.1/day; fill(1e-5/day, 3)]
+death = [1/day; fill(1e-5/day, 3)]
+beta = 1e-2/day
+sigma = 1/14days
 param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 # Set up simple gridded environment
@@ -44,7 +44,12 @@ times = 1year; interval = 1day; timestep = 1day
 # Plot heatmap of spatial disease progression
 using Plots
 plotlyjs()
-display(heatmap(reshape(abuns[3, :, 1], 500, 500), layout = (@layout [a b; c d]), subplot = 1, title = "Day 1", clim = (0, 20)))
-display(heatmap!(reshape(abuns[3, :, 7], 500, 500), subplot = 2, title = "Day 7", clim = (0, 20)))
-display(heatmap!(reshape(abuns[3, :, 14], 500, 500), subplot = 3, title = "Day 14", clim = (0, 20)))
-display(heatmap!(reshape(abuns[3, :, 30], 500, 500), subplot = 4, title = "Day 30", clim = (0, 20)))
+display(heatmap(reshape(abuns[3, :, 1], 500, 500), layout = (@layout [a b; c d]), subplot = 1, title = "Day 1", clim = (0, 200)))
+display(heatmap!(reshape(abuns[3, :, 7], 500, 500), subplot = 2, title = "Day 7", clim = (0, 200)))
+display(heatmap!(reshape(abuns[3, :, 14], 500, 500), subplot = 3, title = "Day 14", clim = (0, 200)))
+display(heatmap!(reshape(abuns[3, :, 30], 500, 500), subplot = 4, title = "Day 30", clim = (0, 200)))
+
+# View summed SIR dynamics for whole area
+display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptible"))
+display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Red, label = "Infected"))
+display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Black, label = "Recovered"))

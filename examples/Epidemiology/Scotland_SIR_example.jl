@@ -6,10 +6,10 @@ using Simulation.ClimatePref
 using StatsBase
 
 # Set simulation parameters
-birth = [0.00001/day; fill(1e-10/day, 3)]
-death = [0.005/day; fill(1e-10/day, 3)]
+birth = [0.1/day; fill(1e-5/day, 3)]
+death = [1/day; fill(1e-5/day, 3)]
 beta = 1e-2/day
-sigma = 0.1/14days
+sigma = 1/14days
 param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 # Read in population sizes for Scotland
