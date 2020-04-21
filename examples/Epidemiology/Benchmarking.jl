@@ -7,7 +7,7 @@ beta = 0.05/day
 sigma = 0.05/day
 birth = [0.001/day; fill(1e-10/day, 3)]
 death = [0.001/day; fill(1e-10/day, 3)]
-param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
+param = SIRGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 grid = (10, 10)
 area = 100.0km^2

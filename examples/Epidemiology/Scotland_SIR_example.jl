@@ -10,7 +10,7 @@ birth = [0.1/day; fill(1e-5/day, 3)]
 death = [1/day; fill(1e-5/day, 3)]
 beta = 1e-2/day
 sigma = 1/14days
-param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
+param = SIRGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 # Read in population sizes for Scotland
 scotpop = Array{Float64, 2}(readfile("test/examples/ScotlandDensity2011.tif", 0.0, 7e5, 5e5, 1.25e6))

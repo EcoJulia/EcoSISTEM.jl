@@ -8,7 +8,7 @@ birth = [0.1/day; fill(1e-5/day, 3)]
 death = [1/day; fill(1e-5/day, 3)]
 beta = 1e-2/day
 sigma = 1/14days
-param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
+param = SIRGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 # Set up simple gridded environment
 grid = (500, 500)

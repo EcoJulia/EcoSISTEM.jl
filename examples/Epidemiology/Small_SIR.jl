@@ -10,7 +10,7 @@ birth = [0.0001/day; fill(1e-10/day, 3)]
 death = [0.07/day; fill(1e-10/day, 3)]
 beta = 0.05/day
 sigma = 0.05/day
-param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
+param = SIRGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 # Set up simple gridded environment
 grid = (2, 2)
@@ -50,7 +50,7 @@ death = [0.001/day; fill(1e-10/day, 3)]
 beta = 0.1/day
 sigma = 0.005/day
 viralload = 1.0/day
-param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma, viralload)
+param = SIRGrowth{typeof(unit(beta))}(birth, death, beta, sigma, viralload)
 
 grid = (10, 10)
 area = 100.0km^2
