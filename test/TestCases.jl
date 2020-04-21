@@ -42,7 +42,7 @@ function TestEpiSystem()
     death = [0.07/day; fill(1e-10/day, 3)]
     beta = 0.05/day
     sigma = 0.05/day
-    param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
+    param = SIRGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
     grid = (2, 2)
     area = 10.0km^2

@@ -9,7 +9,7 @@ birth = [0.0001/day; fill(1e-10/day, 3)]
 death = [0.07/day; fill(1e-10/day, 3)]
 beta = 0.05/day
 sigma = 0.05/day
-param = EpiGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
+param = SIRGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
 
 abun = [10, 1000, 1, 0]
 dispersal_dists = [2.0km; fill(0.01km, 3)]
