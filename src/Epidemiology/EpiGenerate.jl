@@ -130,8 +130,48 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time, model::SIR)
     end
 end
 
+function classupdate!(epi::EpiSystem, timestep::Unitful.Time, model::SEI2HRD)
+    # Calculate dimenions of habitat and number of classes
+    dims = _countsubcommunities(epi.epienv.habitat)
+    params = epi.epilist.params
+    width = getdimension(epi)[1]
+    classes = size(epi.abundances.matrix, 1)
+    dict = epi.epilist.model.dict
+    # Loop through grid squares
+    Threads.@threads for i in 1:dims
+        # Loop through classes in chosen square
+        for j in 2:(classes - 1)
+            rng = epi.abundances.seed[Threads.threadid()]
+
+            # Convert 1D dimension to 2D coordinates
+            (x, y) = convert_coords(epi, i, width)
+            # Check if grid cell currently active
+            if epi.epienv.active[x, y]
+                # Calculate effective rates
+                birthprob = params.birth[j] * timestep
+                deathprob = params.death[j] * timestep
+
+                # Put probabilities into 0 - 1
+                newbirthprob = 1.0 - exp(-birthprob)
+                newdeathprob = 1.0 - exp(-deathprob)
+
+                (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n i: $i \n j: $j")
+                # Calculate how many births and deaths
+                births = rand(rng, Binomial(epi.abundances.matrix[j, i],  newbirthprob))
+                deaths = rand(rng, Binomial(epi.abundances.matrix[j, i], newdeathprob))
+
+                # Update population
+                epi.abundances.matrix[dict["Susceptible"], i] += births
+                epi.abundances.matrix[j, i] -= deaths
+                epi.abundances.matrix[dict["Dead"], i] += deaths
             end
         end
+        # Infections
+        newinfections!(epi, timestep, i, model)
+        # Recoveries
+        newrecoveries!(epi, timestep, i, model)
+        # Deaths
+        newdeaths!(epi, timestep, i, model)
     end
 end
 
@@ -150,6 +190,39 @@ function newinfections!(epi::EpiSystem, timestep::Unitful.Time, pos::Int64, mode
     epi.abundances.matrix[susclass, pos] -= infections
     epi.abundances.matrix[infclass, pos] += infections
 end
+
+function newinfections!(epi::EpiSystem, timestep::Unitful.Time, pos::Int64, model::SEI2HRD)
+    rng = epi.abundances.seed[Threads.threadid()]
+    # Get disease classes
+    dict = epi.epilist.model.dict
+    virclass = dict["Virus"]
+    susclass = dict["Susceptible"]
+    expclass = dict["Exposed"]
+    inf1class = dict["AsymptomaticInfected"]
+    inf2class = dict["SymptomaticInfected"]
+    hospclass = dict["Hospitalised"]
+    # Calc prob of infection
+    expprob = epi.abundances.matrix[virclass, pos] * (epi.epilist.params.beta * timestep)
+    expprob <= 1 || error("Infection probability greater than 1.")
+    # New exposures
+    exposures = rand(rng, Binomial(epi.abundances.matrix[susclass, pos], expprob))
+    epi.abundances.matrix[susclass, pos] -= exposures
+    epi.abundances.matrix[expclass, pos] += exposures
+
+    # New asymptomatic infections
+    infections = rand(rng, Binomial(epi.abundances.matrix[expclass, pos], epi.epilist.params.mu_1 * timestep))
+    epi.abundances.matrix[expclass, pos] -= infections
+    epi.abundances.matrix[inf1class, pos] += infections
+
+    # New symptomatic infections
+    infections2 = rand(rng, Binomial(epi.abundances.matrix[inf1class, pos], epi.epilist.params.mu_2 * timestep))
+    epi.abundances.matrix[inf1class, pos] -= infections2
+    epi.abundances.matrix[inf2class, pos] += infections2
+
+    # New hospitalisations
+    hosp = rand(rng, Binomial(epi.abundances.matrix[inf2class, pos], epi.epilist.params.hospitalisation * timestep))
+    epi.abundances.matrix[inf2class, pos] -= hosp
+    epi.abundances.matrix[hospclass, pos] += hosp
 end
 
 
@@ -166,6 +239,52 @@ function newrecoveries!(epi::EpiSystem, timestep::Unitful.Time, pos::Int64, mode
     epi.abundances.matrix[infclass, pos] -= recoveries
     epi.abundances.matrix[recclass, pos] += recoveries
 end
+
+function newrecoveries!(epi::EpiSystem, timestep::Unitful.Time, pos::Int64, model::SEI2HRD)
+    dict = epi.epilist.model.dict
+    inf1class = dict["AsymptomaticInfected"]
+    inf2class = dict["SymptomaticInfected"]
+    hospclass = dict["Hospitalised"]
+    recclass = dict["Recovered"]
+    rng = epi.abundances.seed[Threads.threadid()]
+
+    # Asymptomatic recoveries
+    recoveries_1 = rand(rng, Binomial(epi.abundances.matrix[inf1class, pos], uconvert(NoUnits, epi.epilist.params.sigma_1 * timestep)))
+    epi.abundances.matrix[inf1class, pos] -= recoveries_1
+    epi.abundances.matrix[recclass, pos] += recoveries_1
+
+    # Symptomatic recoveries
+    recoveries_2 = rand(rng, Binomial(epi.abundances.matrix[inf2class, pos], uconvert(NoUnits, epi.epilist.params.sigma_2 * timestep)))
+    epi.abundances.matrix[inf2class, pos] -= recoveries_2
+    epi.abundances.matrix[recclass, pos] += recoveries_2
+
+    # Hospital recoveries
+    recoveries_hosp = rand(rng, Binomial(epi.abundances.matrix[hospclass, pos], uconvert(NoUnits, epi.epilist.params.sigma_hospital * timestep)))
+    epi.abundances.matrix[hospclass, pos] -= recoveries_hosp
+    epi.abundances.matrix[recclass, pos] += recoveries_hosp
+
+end
+
+"""
+    newdeaths!(epi::EpiSystem, timestep::Unitful.Time)
+Function to generate new deaths based on a death rate in each grid square.
+"""
+function newdeaths!(epi::EpiSystem, timestep::Unitful.Time, pos::Int64, model::SEI2HRD)
+    rng = epi.abundances.seed[Threads.threadid()]
+    dict = epi.epilist.model.dict
+    inf2class = dict["SymptomaticInfected"]
+    hospclass = dict["Hospitalised"]
+    deathclass = dict["Dead"]
+
+    # Deaths at home
+    deaths_home = rand(rng, Binomial(epi.abundances.matrix[inf2class, pos], uconvert(NoUnits, epi.epilist.params.death_home * timestep)))
+    epi.abundances.matrix[inf2class, pos] -= deaths_home
+    epi.abundances.matrix[deathclass, pos] += deaths_home
+
+    # Deaths at hospital
+    deaths_hosp = rand(rng, Binomial(epi.abundances.matrix[hospclass, pos], uconvert(NoUnits, epi.epilist.params.death_hospital * timestep)))
+    epi.abundances.matrix[hospclass, pos] -= deaths_hosp
+    epi.abundances.matrix[deathclass, pos] += deaths_hosp
 end
 
 
@@ -182,9 +301,15 @@ function adjustment(epi::AbstractEpiSystem, pos::Int64, model::SIR)
     death_boost = epi.abundances.matrix[virclass, pos] * traitmatch^-1
     return birth_boost, death_boost
 end
+
+function adjustment(epi::AbstractEpiSystem, pos::Int64, model::SEI2HRD)
+    dict = epi.epilist.model.dict
+    inf1class = dict["AsymptomaticInfected"]
+    inf2class = dict["SymptomaticInfected"]
+    virclass = dict["Virus"]
     traitmatch = traitfun(epi, pos, 1)
-    birth_boost = epi.abundances.matrix[3, pos] * traitmatch
-    death_boost = epi.abundances.matrix[1, pos] * traitmatch^-1
+    birth_boost = (epi.abundances.matrix[inf1class, pos] + epi.abundances.matrix[inf2class, pos]) * traitmatch
+    death_boost = epi.abundances.matrix[virclass, pos] * traitmatch^-1
     return birth_boost, death_boost
 end
 

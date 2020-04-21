@@ -106,21 +106,23 @@ function SIR(traits::TR, abun::Vector{Int64},
     names = ["Virus", "Susceptible", "Infected", "Recovered"]
     types = UniqueTypes(length(names))
     length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
-  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
+    model = SIR()
+  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params), typeof(model)}(names, traits, abun, types, movement, params, model)
 end
 
-abstract type DiseaseClass end
+function SEI2HRD(traits::TR, abun::Vector{Int64},
+    movement::MO, params::P) where {TR <: AbstractTraits,
+        MO <: AbstractMovement, P <: AbstractParams}
 
-mutable struct Virus <: DiseaseClass
-end
-mutable struct Susceptible <: DiseaseClass
-end
-mutable struct Infected <: DiseaseClass
-end
-mutable struct Recovered <: DiseaseClass
+    names = ["Virus", "Susceptible", "Exposed", "AsymptomaticInfected", "SymptomaticInfected", "Hospitalised", "Recovered", "Dead"]
+    types = UniqueTypes(length(names))
+    length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
+    length(params.birth) == length(params.death) || throw(DimensionMismatch("Birth and death rates do not have the same number of classes"))
+    length(params.birth) == length(names) || throw(DimensionMismatch("Birth and death rates do not have the correct number of classes"))
+    model = SEI2HRD()
+  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params), typeof(model)}(names, traits, abun, types, movement, params, model)
 end
 
-classDict = Dict("Virus" => Virus(), "Susceptible" => Susceptible(), "Infected" => Infected(), "Recovered" => Recovered())
-function getclass(class::String)
-    return classDict[class]
+function getclass(el::EpiList)
+    return el.model
 end
