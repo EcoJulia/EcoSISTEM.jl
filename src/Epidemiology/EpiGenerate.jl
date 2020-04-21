@@ -9,13 +9,13 @@ Function to update disease class abundances and environment for one timestep.
 function update!(epi::EpiSystem, timestep::Unitful.Time)
 
     # Human movement loop
-    humanmove!(epi, timestep)
+    humanmove!(epi, timestep, getclass(epi))
 
     # Virus movement loop
-    virusupdate!(epi, timestep)
+    virusupdate!(epi, timestep, getclass(epi))
 
     # Birth/death/infection/recovery loop of each class
-    classupdate!(epi, timestep)
+    classupdate!(epi, timestep, getclass(epi))
 
     # Invalidate all caches for next update
     invalidatecaches!(epi)
@@ -25,7 +25,7 @@ function update!(epi::EpiSystem, timestep::Unitful.Time)
     applycontrols!(epi, timestep)
 end
 
-function humanmove!(epi::EpiSystem, timestep::Unitful.Time)
+function humanmove!(epi::EpiSystem, timestep::Unitful.Time, model::MC) where MC <: ModelClass
     dims = _countsubcommunities(epi.epienv.habitat)
     width = getdimension(epi)[1]
     classes = size(epi.abundances.matrix, 1)
@@ -46,7 +46,7 @@ function humanmove!(epi::EpiSystem, timestep::Unitful.Time)
     epi.abundances.matrix .+= epi.cache.netmigration
 end
 
-function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
+function virusupdate!(epi::EpiSystem, timestep::Unitful.Time, model::MC) where MC <: ModelClass
     dims = _countsubcommunities(epi.epienv.habitat)
     width = getdimension(epi)[1]
     params = epi.epilist.params
@@ -55,7 +55,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     # Loop through grid squares
     Threads.@threads for i in 1:dims
         # Calculate how much birth and death should be adjusted
-        birth_adjust, death_adjust = adjustment(epi, i)
+        birth_adjust, death_adjust = adjustment(epi, i, model)
 
         # Convert 1D dimension to 2D coordinates
         (x, y) = convert_coords(epi, i, width)
@@ -85,21 +85,21 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
 end
 
 """
-    classupdate!(epi::EpiSystem, timestep::Unitful.Time)
-Function to update disease class abundances for one timestep.
+    classupdate!(epi::EpiSystem, timestep::Unitful.Time, model::MC) where MC <: ModelClass
+Function to update disease class abundances for one timestep. Dispatches differently depending on the class of model stored in the EpiSystem.
 """
-function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
+function classupdate!(epi::EpiSystem, timestep::Unitful.Time, model::SIR)
     # Calculate dimenions of habitat and number of classes
     dims = _countsubcommunities(epi.epienv.habitat)
     params = epi.epilist.params
     width = getdimension(epi)[1]
     classes = size(epi.abundances.matrix, 1)
-    # Loop through classes in chosen square
-    for j in 2:classes
+    dict = epi.epilist.model.dict
+    # Loop through grid squares
+    Threads.@threads for i in 1:dims
         rng = epi.abundances.seed[Threads.threadid()]
-        # Loop through grid squares
-        Threads.@threads for i in 1:dims
-
+        # Loop through classes in chosen square
+        for j in 2:classes
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(epi, i, width)
             # Check if grid cell currently active
@@ -118,18 +118,18 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 deaths = rand(rng, Binomial(epi.abundances.matrix[j, i], newdeathprob))
 
                 # Update population
-                epi.abundances.matrix[1, i] += births
+                epi.abundances.matrix[dict["Susceptible"], i] += births
                 epi.abundances.matrix[j, i] -= deaths
+            end
+        end
+        # Infections
+        newinfections!(epi, timestep, i, model)
 
-                # Infections
-                if j == 2
-                    newinfections!(epi, timestep, i)
-                end
+        # Recoveries
+        newrecoveries!(epi, timestep, i, model)
+    end
+end
 
-                # Recoveries
-                if j == 3
-                    newrecoveries!(epi, timestep, i)
-                end
             end
         end
     end
@@ -139,24 +139,33 @@ end
     newinfections!(epi::EpiSystem, timestep::Unitful.Time)
 Function to generate new infections based on viral load in each grid square.
 """
-function newinfections!(epi::EpiSystem, timestep::Unitful.Time, pos::Int64)
+function newinfections!(epi::EpiSystem, timestep::Unitful.Time, pos::Int64, model::SIR)
+    dict = epi.epilist.model.dict
+    susclass = dict["Susceptible"]
+    infclass = dict["Infected"]
     rng = epi.abundances.seed[Threads.threadid()]
     infprob = epi.abundances.matrix[1, pos] * (epi.epilist.params.beta * timestep)
     infprob <= 1 || error("Infection probability greater than 1.")
-    infections = rand(rng, Binomial(epi.abundances.matrix[2, pos], infprob))
-    epi.abundances.matrix[2, pos] -= infections
-    epi.abundances.matrix[3, pos] += infections
+    infections = rand(rng, Binomial(epi.abundances.matrix[susclass, pos], infprob))
+    epi.abundances.matrix[susclass, pos] -= infections
+    epi.abundances.matrix[infclass, pos] += infections
 end
+end
+
 
 """
     newrecoveries!(epi::EpiSystem, timestep::Unitful.Time)
 Function to generate new recoveries based on a set recovery rate in each grid square.
 """
-function newrecoveries!(epi::EpiSystem, timestep::Unitful.Time, pos::Int64)
+function newrecoveries!(epi::EpiSystem, timestep::Unitful.Time, pos::Int64, model::SIR)
+    dict = epi.epilist.model.dict
+    infclass = dict["Infected"]
+    recclass = dict["Recovered"]
     rng = epi.abundances.seed[Threads.threadid()]
-    recoveries = rand(rng, Binomial(epi.abundances.matrix[3, pos], uconvert(NoUnits, epi.epilist.params.sigma * timestep)))
-    epi.abundances.matrix[3, pos] -= recoveries
-    epi.abundances.matrix[4, pos] += recoveries
+    recoveries = rand(rng, Binomial(epi.abundances.matrix[infclass, pos], uconvert(NoUnits, epi.epilist.params.sigma * timestep)))
+    epi.abundances.matrix[infclass, pos] -= recoveries
+    epi.abundances.matrix[recclass, pos] += recoveries
+end
 end
 
 
@@ -164,7 +173,15 @@ end
     adjustment(epi::AbstractEpiSystem, class::DiseaseClass, i::Int64, j::Int64)
 Function to calculate match between environment and birth/death for each disease class. This is assumed to be 1 for all susceptible, infected, recovered and dependent on a trait function for the virus.
 """
-function adjustment(epi::AbstractEpiSystem, pos::Int64)
+function adjustment(epi::AbstractEpiSystem, pos::Int64, model::SIR)
+    dict = epi.epilist.model.dict
+    infclass = dict["Infected"]
+    virclass = dict["Virus"]
+    traitmatch = traitfun(epi, pos, 1)
+    birth_boost = epi.abundances.matrix[infclass, pos] * traitmatch
+    death_boost = epi.abundances.matrix[virclass, pos] * traitmatch^-1
+    return birth_boost, death_boost
+end
     traitmatch = traitfun(epi, pos, 1)
     birth_boost = epi.abundances.matrix[3, pos] * traitmatch
     death_boost = epi.abundances.matrix[1, pos] * traitmatch^-1
@@ -188,11 +205,11 @@ end
     applycontrols!(epi::EpiSystem, timestep::Unitful.Time)
 Function to apply control strategies to an EpiSystem for one timestep.
 """
-function applycontrols!(epi::EpiSystem, timestep::Unitful.Time)
+function applycontrols!(epi::AbstractEpiSystem, timestep::Unitful.Time)
     _applycontrols!(epi, epi.epienv.control, timestep)
 end
 
-function _applycontrols!(epi::EpiSystem, controls::NoControl, timestep::Unitful.Time)
+function _applycontrols!(epi::AbstractEpiSystem, controls::NoControl, timestep::Unitful.Time)
     return controls
 end
 

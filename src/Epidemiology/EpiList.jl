@@ -1,3 +1,33 @@
+
+abstract type ModelClass end
+
+mutable struct SIR <: ModelClass
+    dict::Dict
+    function SIR()
+        names = ["Virus", "Susceptible", "Infected", "Recovered"]
+        dict = Dict(zip(names, 1:4))
+        new(dict)
+    end
+end
+
+mutable struct SEIR <: ModelClass
+    dict::Dict
+    function SEIR()
+        names = ["Virus", "Exposed", "Susceptible", "Infected", "Recovered"]
+        dict = Dict(zip(names, 1:5))
+        new(dict)
+    end
+end
+
+mutable struct SEI2HRD <: ModelClass
+    dict::Dict
+    function SEI2HRD()
+        names = ["Virus", "Susceptible", "Exposed", "AsymptomaticInfected", "SymptomaticInfected", "Hospitalised", "Recovered", "Dead"]
+        dict = Dict(zip(names, 1:8))
+        new(dict)
+    end
+end
+
 """
     EpiList{TR <: AbstractTraits,
                  MO <: AbstractMovement,
@@ -8,30 +38,34 @@ Epi list houses all disease class specific information including trait informati
 mutable struct EpiList{TR <: AbstractTraits,
                  MO <: AbstractMovement,
                  T <: AbstractTypes,
-                 P <: AbstractParams} <: AbstractTypes
+                 P <: AbstractParams,
+                 MC <: ModelClass} <: AbstractTypes
   names::Vector{String}
   traits::TR
   abun::Vector{Int64}
   types::T
   movement::MO
   params::P
+  model::MC
 
-  function EpiList{TR, MO, T, P}(names:: Vector{String}, traits::TR, abun::Vector{Int64}, types::T, movement::MO, params::P) where {
+  function EpiList{TR, MO, T, P, MC}(names:: Vector{String}, traits::TR, abun::Vector{Int64}, types::T, movement::MO, params::P, model::MC) where {
                        TR <: AbstractTraits,
                        MO <: AbstractMovement,
                        T <: AbstractTypes,
-                       P <: AbstractParams}
-      new{TR, MO, T, P}(names, traits, abun, types,
-       movement, params)
+                       P <: AbstractParams,
+                       MC <: ModelClass}
+      new{TR, MO, T, P, MC}(names, traits, abun, types,
+       movement, params, model)
   end
-  function EpiList{TR, MO, T, P}(traits::TR, abun::Vector{Int64}, types::T, movement::MO, params::P) where {
+  function EpiList{TR, MO, T, P, MC}(traits::TR, abun::Vector{Int64}, types::T, movement::MO, params::P, model::MC) where {
                        TR <: AbstractTraits,
                        MO <: AbstractMovement,
                        T <: AbstractTypes,
-                       P <: AbstractParams}
+                       P <: AbstractParams,
+                       MC <: ModelClass}
       names = map(x -> "$x", 1:length(abun))
-      new{TR, MO, T, P}(names, traits, abun, types,
-       movement, params)
+      new{TR, MO, T, P, MC}(names, traits, abun, types,
+       movement, params, model)
   end
 end
 

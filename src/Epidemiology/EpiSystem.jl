@@ -111,6 +111,10 @@ function gethabitat(epi::AbstractEpiSystem)
   return epi.epienv.habitat
 end
 
+function getclass(epi::AbstractEpiSystem)
+    return getclass(epi.epilist)
+end
+
 import Diversity.API: _getabundance
 function _getabundance(epi::AbstractEpiSystem, input::Bool)
     if input
@@ -148,7 +152,7 @@ function _getscale(epi::AbstractEpiSystem)
     return _calcabundance(_gettypes(epi), getabundance(epi, false))[2]
 end
 
-function invalidatecaches!(epi::EpiSystem)
+function invalidatecaches!(epi::AbstractEpiSystem)
     epi.ordinariness = missing
     epi.cache.netmigration .= 0
     epi.cache.virusmigration .= 0
