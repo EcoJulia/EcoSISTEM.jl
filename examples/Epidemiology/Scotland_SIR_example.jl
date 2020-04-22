@@ -6,8 +6,8 @@ using Simulation.ClimatePref
 using StatsBase
 
 # Set simulation parameters
-birth = [0.0/day; fill(1e-5/day, 3)]
-death = [0.0/day; fill(1e-5/day, 3)]
+birth = [0.0/day; fill(1e-5/day, 3); 0.0/day]
+death = [0.0/day; fill(1e-5/day, 3); 0.0/day]
 virus_growth = 0.1/day
 virus_decay = 1.0/day
 beta = 1e-2/day
@@ -26,15 +26,15 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, active, NoControl())
 
 # Set population to initially have no individuals
-abun = fill(0, 4)
+abun = fill(0, 5)
 
 # Dispersal kernels for virus and disease classes
-dispersal_dists = [1e-2km; fill(2.0km, 3)] # Virus disperses further than people for now
+dispersal_dists = [1e-2km; fill(2.0km, 3); 1e-2km] # Virus disperses further than people for now
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-traits = GaussTrait(fill(298.0K, 4), fill(0.1K, 4))
+traits = GaussTrait(fill(298.0K, 5), fill(0.1K, 5))
 epilist = SIR(traits, abun, movement, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
@@ -51,7 +51,7 @@ epi.abundances.matrix[1, samp] .= 100 # Virus pop
 epi.abundances.matrix[3, samp] .= 10 # Infected pop
 
 # Run simulation
-abuns = zeros(Int64, 4, 525_000, 366)
+abuns = zeros(Int64, 5, 525_000, 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 

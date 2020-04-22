@@ -4,8 +4,8 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 
 # Set simulation parameters
-birth = [0.0/day; fill(1e-5/day, 3)]
-death = [0.0/day; fill(1e-5/day, 3)]
+birth = [0.0/day; fill(1e-5/day, 3); 0.0/day]
+death = [0.0/day; fill(1e-5/day, 3); 0.0/day]
 virus_growth = 0.1/day
 virus_decay = 1.0/day
 beta = 1e-2/day
@@ -19,15 +19,15 @@ area = 250_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-abun = [0, 60_000_000, 0, 0]
+abun = [0, 60_000_000, 0, 0, 0]
 
 # Dispersal kernels for virus and disease classes
-dispersal_dists = [1e-2km; fill(2.0km, 3)]
+dispersal_dists = [1e-2km; fill(2.0km, 3); 1e-2km]
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-traits = GaussTrait(fill(298.0K, 4), fill(0.1K, 4))
+traits = GaussTrait(fill(298.0K, 5), fill(0.1K, 5))
 epilist = SIR(traits, abun, movement, param)
 
 # Create epi system with all information
@@ -40,7 +40,7 @@ epi.abundances.matrix[1, samp] .= 100
 epi.abundances.matrix[3, samp] .= 10
 
 # Run simulation
-abuns = zeros(Int64, 4, 250_000, 366)
+abuns = zeros(Int64, 5, 250_000, 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 

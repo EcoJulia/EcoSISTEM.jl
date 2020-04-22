@@ -70,7 +70,7 @@ function SIR(traits::TR, abun::Vector{Int64},
     movement::MO, params::P) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
 
-    names = ["Virus", "Susceptible", "Infected", "Recovered"]
+    names = ["Virus", "Susceptible", "Infected", "Recovered", "Dead"]
     types = UniqueTypes(length(names))
     length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
   EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
@@ -83,7 +83,6 @@ function SEI2HRD(traits::TR, abun::Vector{Int64},
     names = ["Virus", "Susceptible", "Exposed", "AsymptomaticInfected", "SymptomaticInfected", "Hospitalised", "Recovered", "Dead"]
     types = UniqueTypes(length(names))
     length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
-    length(params.birth) == length(params.death) || throw(DimensionMismatch("Birth and death rates do not have the same number of classes"))
-    length(params.birth) == length(names) || throw(DimensionMismatch("Birth and death rates do not have the correct number of classes"))
+    size(params.transition, 1) == length(names) || throw(DimensionMismatch("Transition matrix does not have the correct number of classes"))
   EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
 end

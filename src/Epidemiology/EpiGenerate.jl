@@ -52,7 +52,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     params = epi.epilist.params
     id = Threads.threadid()
     rng = epi.abundances.seed[id]
-    classes = findall((sum(params.virus_transition, dims = 1)[1,:].*timestep) .> 0)
+    classes = findall((params.virus_growth .* timestep) .> 0)
     # Loop through grid squares
     Threads.@threads for j in classes
         for i in 1:dims
@@ -64,8 +64,8 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
                 # Calculate effective rates
-                birthprob = params.virus_transition[1, j] * timestep * birth_adjust
-                deathprob = params.virus_transition[j, 1] * timestep * death_adjust
+                birthprob = params.virus_growth[j] * timestep * birth_adjust
+                deathprob = params.virus_decay[j] * timestep * death_adjust
 
                 # Put probabilities into 0 - 1
                 newbirthprob = 1.0 - exp(-birthprob)
@@ -116,23 +116,6 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             (x, y) = convert_coords(epi, i, width)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
-                # Calculate effective rates
-                birthprob = params.birth[j] * timestep
-                deathprob = params.death[j] * timestep
-
-                # Put probabilities into 0 - 1
-                newbirthprob = 1.0 - exp(-birthprob)
-                newdeathprob = 1.0 - exp(-deathprob)
-
-                (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n i: $i \n j: $j")
-                # Calculate how many births and deaths
-                births = rand(rng, Binomial(epi.abundances.matrix[j, i],  newbirthprob))
-                deaths = rand(rng, Binomial(epi.abundances.matrix[j, i], newdeathprob))
-
-                # Update population
-                epi.abundances.matrix[2, i] += births
-                epi.abundances.matrix[j, i] -= deaths
-
                 # Make transitions
                 trans_prob = params.transition[j, :] .* timestep
                 if j == 3
@@ -141,7 +124,9 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 all(trans_prob .<= 1) || error("Transition probability greater than 1.")
                 trans = rand.(fill(rng, length(trans_prob)), Binomial.(epi.abundances.matrix[:, i],  trans_prob))
                 epi.abundances.matrix[j, i] += sum(trans)
-                epi.abundances.matrix[:, i] .-= trans
+                if j > 2
+                    epi.abundances.matrix[:, i] .-= trans
+                end
             end
         end
     end

@@ -77,14 +77,12 @@ function SEI2HRDGrowth(birth::Vector{TimeUnitType{U}},
 end
 
 mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
-    birth::Vector{TimeUnitType{U}}
-    death::Vector{TimeUnitType{U}}
+    virus_growth::Vector{TimeUnitType{U}}
+    virus_decay::Vector{TimeUnitType{U}}
     transition::Matrix{TimeUnitType{U}}
-    virus_transition::Matrix{TimeUnitType{U}}
-    function EpiParams{U}(birth::Vector{TimeUnitType{U}},
-        death::Vector{TimeUnitType{U}}, transition::Matrix{TimeUnitType{U}},
-        virus_transition::Matrix{TimeUnitType{U}}) where {U <: Unitful.Units}
-        new{U}(birth, death, transition, virus_transition)
+    function EpiParams{U}(virus_growth::Vector{TimeUnitType{U}},
+        virus_decay::Vector{TimeUnitType{U}}, transition::Matrix{TimeUnitType{U}}) where {U <: Unitful.Units}
+        new{U}(virus_growth, virus_decay, transition)
     end
 end
 
@@ -92,14 +90,16 @@ function transition(params::SIRGrowth)
     ordered_transitions = [params.beta, params.sigma]
     from = [2, 3]
     to = [3, 4]
-    vmat = zeros(typeof(params.beta), 4, 4)
-    tmat = zeros(typeof(params.beta), 4, 4)
+    tmat = zeros(typeof(params.beta), 5, 5)
     for i in eachindex(to)
             tmat[to[i], from[i]] = ordered_transitions[i]
     end
-    vmat[1, 2] = params.virus_growth
-    vmat[2, 1] = params.virus_decay
-  return EpiParams{typeof(unit(params.beta))}(params.birth, params.death, tmat, vmat)
+    tmat[2, :] .= params.birth
+    tmat[end, :] .+= params.death
+    v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 5)
+    v_growth[3] = params.virus_growth
+    v_decay[3] = params.virus_decay
+  return EpiParams{typeof(unit(params.beta))}(v_growth, v_decay, tmat)
 end
 function transition(params::SEI2HRDGrowth)
     ordered_transitions = [params.mu_1, params.mu_2, params.hospitalisation,
@@ -107,13 +107,12 @@ function transition(params::SEI2HRDGrowth)
     params.death_hospital]
     from = [3, 4, 5, 4, 5, 6, 5, 6]
     to = [4, 5, 6, 7, 7, 7, 8, 8]
-    vmat = zeros(typeof(params.beta[1]), 8, 8)
     tmat = zeros(typeof(params.beta[1]), 8, 8)
     for i in eachindex(to)
             tmat[to[i], from[i]] = ordered_transitions[i]
     end
     tmat[:, 2] .= params.beta
-    vmat[1, :] .= params.virus_growth
-    vmat[:, 1] .= params.virus_decay
-  return EpiParams{typeof(unit(params.beta[1]))}(params.birth, params.death, tmat, vmat)
+    tmat[2, :] .= params.birth
+    tmat[end, :] .+= params.death
+  return EpiParams{typeof(unit(params.beta[1]))}(params.virus_growth, params.virus_decay, tmat)
 end
