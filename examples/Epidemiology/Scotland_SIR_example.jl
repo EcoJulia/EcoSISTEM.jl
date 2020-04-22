@@ -6,11 +6,14 @@ using Simulation.ClimatePref
 using StatsBase
 
 # Set simulation parameters
-birth = [0.1/day; fill(1e-5/day, 3)]
-death = [1/day; fill(1e-5/day, 3)]
+birth = [0.0/day; fill(1e-5/day, 3)]
+death = [0.0/day; fill(1e-5/day, 3)]
+virus_growth = 0.1/day
+virus_decay = 1.0/day
 beta = 1e-2/day
 sigma = 1/14days
-param = SIRGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
+param = SIRGrowth{typeof(unit(beta))}(birth, death, virus_growth, virus_decay, beta, sigma)
+param = transition(param)
 
 # Read in population sizes for Scotland
 scotpop = Array{Float64, 2}(readfile("test/examples/ScotlandDensity2011.tif", 0.0, 7e5, 5e5, 1.25e6))
@@ -26,7 +29,7 @@ epienv = simplehabitatAE(298.0K, grid, area, active, NoControl())
 abun = fill(0, 4)
 
 # Dispersal kernels for virus and disease classes
-dispersal_dists = [2.0km; fill(0.01km, 3)] # Virus disperses further than people for now
+dispersal_dists = [1e-2km; fill(2.0km, 3)] # Virus disperses further than people for now
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 

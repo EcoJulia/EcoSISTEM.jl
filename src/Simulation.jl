@@ -124,7 +124,7 @@ include("Epidemiology/EpiEnv.jl")
 export GridEpiEnv, simplehabitatAE
 
 include("Epidemiology/EpiParams.jl")
-export SIRGrowth, SEI2HRDGrowth
+export SIRGrowth, SEI2HRDGrowth, transition
 
 include("Epidemiology/EpiList.jl")
 export EpiList, SIR, SEI2HRD

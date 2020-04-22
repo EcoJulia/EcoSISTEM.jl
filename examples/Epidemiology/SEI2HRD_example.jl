@@ -6,10 +6,15 @@ using Simulation.ClimatePref
 using StatsBase
 
 # Set simulation parameters
-virus_growth = 0.1/day; birth_rates = 1e-5/day; death_rates = birth_rates
-birth = [virus_growth; fill(birth_rates, 6); 0.0/day]
-death = [1/day; fill(death_rates, 6); 0.0/day]
-beta = 1e-2/day
+birth_rates = 1e-5/day; death_rates = birth_rates
+birth = [0.0/day; fill(birth_rates, 6); 0.0/day]
+death = [0.0/day; fill(death_rates, 6); 0.0/day]
+virus_growth = fill(0.0/day, 8)
+virus_growth[4:5] .= 0.1/day
+virus_decay = fill(0.0/day, 8)
+virus_decay[4:5] .= 1.0/day
+beta = fill(0.0/day, 8)
+beta[3] = 1e-2/day
 
 # Prob of developing symptoms
 p_s = 0.96
@@ -28,7 +33,9 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = SEI2HRDGrowth(birth, death, beta, p_s, p_h, cfr, T_lat, T_asym, T_sym, T_hosp, T_rec)
+param = SEI2HRDGrowth(birth, death, virus_growth, virus_decay, beta,
+p_s, p_h, cfr, T_lat, T_asym, T_sym, T_hosp, T_rec)
+param = transition(param)
 
 # Read in population sizes for Scotland
 scotpop = Array{Float64, 2}(readfile("test/examples/ScotlandDensity2011.tif", 0.0, 7e5, 5e5, 1.25e6))
@@ -44,7 +51,7 @@ epienv = simplehabitatAE(298.0K, grid, area, active, NoControl())
 abun = fill(0, 8)
 
 # Dispersal kernels for virus and disease classes
-dispersal_dists = [2.0km; fill(0.01km, 6); 1e-2km] # Virus disperses further than people for now
+dispersal_dists = [1e-2km; fill(2.0km, 6); 1e-2km] # Virus disperses further than people for now
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 

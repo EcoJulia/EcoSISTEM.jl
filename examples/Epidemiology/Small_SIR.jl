@@ -6,11 +6,14 @@ using Plots
 plotlyjs()
 
 # Set simulation parameters
-birth = [0.0001/day; fill(1e-10/day, 3)]
-death = [0.07/day; fill(1e-10/day, 3)]
+birth = [0.0/day; fill(1e-5/day, 3)]
+death = [0.0/day; fill(1e-5/day, 3)]
 beta = 0.05/day
 sigma = 0.05/day
-param = SIRGrowth{typeof(unit(beta))}(birth, death, beta, sigma)
+virus_growth = 0.0001/day
+virus_decay = 0.07/day
+param = SIRGrowth{typeof(unit(beta))}(birth, death, virus_growth, virus_decay, beta, sigma)
+param = transition(param)
 
 # Set up simple gridded environment
 grid = (2, 2)
@@ -21,7 +24,7 @@ epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 abun = [10, 1000, 1, 0]
 
 # Dispersal kernels for virus and disease classes
-dispersal_dists = [2.0km; fill(0.01km, 3)]
+dispersal_dists = [1e-2km; fill(2.0km, 3)]
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
