@@ -1,33 +1,4 @@
 
-abstract type ModelClass end
-
-mutable struct SIR <: ModelClass
-    dict::Dict
-    function SIR()
-        names = ["Virus", "Susceptible", "Infected", "Recovered"]
-        dict = Dict(zip(names, 1:4))
-        new(dict)
-    end
-end
-
-mutable struct SEIR <: ModelClass
-    dict::Dict
-    function SEIR()
-        names = ["Virus", "Exposed", "Susceptible", "Infected", "Recovered"]
-        dict = Dict(zip(names, 1:5))
-        new(dict)
-    end
-end
-
-mutable struct SEI2HRD <: ModelClass
-    dict::Dict
-    function SEI2HRD()
-        names = ["Virus", "Susceptible", "Exposed", "AsymptomaticInfected", "SymptomaticInfected", "Hospitalised", "Recovered", "Dead"]
-        dict = Dict(zip(names, 1:8))
-        new(dict)
-    end
-end
-
 """
     EpiList{TR <: AbstractTraits,
                  MO <: AbstractMovement,
@@ -38,34 +9,30 @@ Epi list houses all disease class specific information including trait informati
 mutable struct EpiList{TR <: AbstractTraits,
                  MO <: AbstractMovement,
                  T <: AbstractTypes,
-                 P <: AbstractParams,
-                 MC <: ModelClass} <: AbstractTypes
+                 P <: AbstractParams} <: AbstractTypes
   names::Vector{String}
   traits::TR
   abun::Vector{Int64}
   types::T
   movement::MO
   params::P
-  model::MC
 
-  function EpiList{TR, MO, T, P, MC}(names:: Vector{String}, traits::TR, abun::Vector{Int64}, types::T, movement::MO, params::P, model::MC) where {
+  function EpiList{TR, MO, T, P}(names:: Vector{String}, traits::TR, abun::Vector{Int64}, types::T, movement::MO, params::P) where {
                        TR <: AbstractTraits,
                        MO <: AbstractMovement,
                        T <: AbstractTypes,
-                       P <: AbstractParams,
-                       MC <: ModelClass}
-      new{TR, MO, T, P, MC}(names, traits, abun, types,
-       movement, params, model)
+                       P <: AbstractParams}
+      new{TR, MO, T, P}(names, traits, abun, types,
+       movement, params)
   end
-  function EpiList{TR, MO, T, P, MC}(traits::TR, abun::Vector{Int64}, types::T, movement::MO, params::P, model::MC) where {
+  function EpiList{TR, MO, T, P}(traits::TR, abun::Vector{Int64}, types::T, movement::MO, params::P) where {
                        TR <: AbstractTraits,
                        MO <: AbstractMovement,
                        T <: AbstractTypes,
-                       P <: AbstractParams,
-                       MC <: ModelClass}
+                       P <: AbstractParams}
       names = map(x -> "$x", 1:length(abun))
-      new{TR, MO, T, P, MC}(names, traits, abun, types,
-       movement, params, model)
+      new{TR, MO, T, P}(names, traits, abun, types,
+       movement, params)
   end
 end
 
@@ -106,8 +73,7 @@ function SIR(traits::TR, abun::Vector{Int64},
     names = ["Virus", "Susceptible", "Infected", "Recovered"]
     types = UniqueTypes(length(names))
     length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
-    model = SIR()
-  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params), typeof(model)}(names, traits, abun, types, movement, params, model)
+  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
 end
 
 function SEI2HRD(traits::TR, abun::Vector{Int64},
@@ -119,10 +85,5 @@ function SEI2HRD(traits::TR, abun::Vector{Int64},
     length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
     length(params.birth) == length(params.death) || throw(DimensionMismatch("Birth and death rates do not have the same number of classes"))
     length(params.birth) == length(names) || throw(DimensionMismatch("Birth and death rates do not have the correct number of classes"))
-    model = SEI2HRD()
-  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params), typeof(model)}(names, traits, abun, types, movement, params, model)
-end
-
-function getclass(el::EpiList)
-    return el.model
+  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
 end

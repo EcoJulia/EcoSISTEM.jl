@@ -8,14 +8,14 @@ Function to update disease class abundances and environment for one timestep.
 """
 function update!(epi::EpiSystem, timestep::Unitful.Time)
 
-    # Human movement loop
-    humanmove!(epi, timestep, getclass(epi))
+    # Human movement loop - ignore for now while we focus on lockdown
+    # humanmove!(epi, timestep)
 
     # Virus movement loop
-    virusupdate!(epi, timestep, getclass(epi))
+    virusupdate!(epi, timestep)
 
     # Birth/death/infection/recovery loop of each class
-    classupdate!(epi, timestep, getclass(epi))
+    classupdate!(epi, timestep)
 
     # Invalidate all caches for next update
     invalidatecaches!(epi)
@@ -25,7 +25,7 @@ function update!(epi::EpiSystem, timestep::Unitful.Time)
     applycontrols!(epi, timestep)
 end
 
-function humanmove!(epi::EpiSystem, timestep::Unitful.Time, model::MC) where MC <: ModelClass
+function humanmove!(epi::EpiSystem, timestep::Unitful.Time)
     dims = _countsubcommunities(epi.epienv.habitat)
     width = getdimension(epi)[1]
     classes = size(epi.abundances.matrix, 1)
@@ -46,7 +46,7 @@ function humanmove!(epi::EpiSystem, timestep::Unitful.Time, model::MC) where MC 
     epi.abundances.matrix .+= epi.cache.netmigration
 end
 
-function virusupdate!(epi::EpiSystem, timestep::Unitful.Time, model::MC) where MC <: ModelClass
+function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     dims = _countsubcommunities(epi.epienv.habitat)
     width = getdimension(epi)[1]
     params = epi.epilist.params
