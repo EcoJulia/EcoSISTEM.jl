@@ -349,27 +349,23 @@ function convert_coords(epi::AbstractEpiSystem, pos::Tuple{Int64, Int64}, width:
 end
 
 
-function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, sp::Int64, epi::AbstractEpiSystem, abun::Int64)
-    id = Threads.threadid()
-    lookup = getlookup(epi, sp)
+function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
+    lookup = getlookup(epi, id)
     maxX = getdimension(epi)[1] - x
     maxY = getdimension(epi)[2] - y
     # Can't go over maximum dimension
     for i in eachindex(lookup.x)
         valid =  (-x < lookup.x[i] <= maxX) && (-y < lookup.y[i] <= maxY) && (epi.epienv.active[lookup.x[i] + x, lookup.y[i] + y])
 
-        lookup.pnew[i, id] = valid ? lookup.p[i] : 0.0
+        lookup.pnew[i] = valid ? lookup.p[i] : 0.0
     end
-    pnew = @view lookup.pnew[:, id]
-    pnew ./= sum(pnew)
-    dist = Multinomial(abun, pnew)
-    m = @view lookup.moves[:, id]
-    rand!(epi.abundances.seed[Threads.threadid()], dist, m)
+    lookup.pnew ./= sum(lookup.pnew)
+    dist = Multinomial(abun, lookup.pnew)
+    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, sp::Int64, epi::AbstractEpiSystem, abun::Int64)
-    id = Threads.threadid()
-    lookup = getlookup(epi, sp)
+function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
+    lookup = getlookup(epi, id)
     maxX = getdimension(epi)[1] - x
     maxY = getdimension(epi)[2] - y
     # Can't go over maximum dimension
@@ -378,46 +374,40 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, sp::Int64, epi:
 
         valid =  (-y < lookup.y[i] <= maxY) && (epi.epienv.active[newx, lookup.y[i] + y])
 
-        lookup.pnew[i, id] = valid ? lookup.p[i] : 0.0
+        lookup.pnew[i] = valid ? lookup.p[i] : 0.0
     end
-    pnew = @view lookup.pnew[:, id]
-    pnew ./= sum(pnew)
-    dist = Multinomial(abun, pnew)
-    m = @view lookup.moves[:, id]
-    rand!(epi.abundances.seed[Threads.threadid()], dist, m)
+    lookup.pnew ./= sum(lookup.pnew)
+    dist = Multinomial(abun, lookup.pnew)
+    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64, epi::AbstractEpiSystem, abun::Int64)
-    id = Threads.threadid()
-  lookup = getlookup(epi, sp)
-  maxX = getdimension(epi)[1] - x
-  maxY = getdimension(epi)[2] - y
-  # Can't go over maximum dimension
-  for i in eachindex(lookup.x)
-      newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, getdimension(epi)[1]) + 1
-      newy =  -y < lookup.y[i] <= maxY ? lookup.y[i] + y : mod(lookup.y[i] + y - 1, getdimension(epi)[2]) + 1
-      valid = epi.epienv.active[newx, newy]
+function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
+    lookup = getlookup(epi, id)
+    maxX = getdimension(epi)[1] - x
+    maxY = getdimension(epi)[2] - y
+    # Can't go over maximum dimension
+    for i in eachindex(lookup.x)
+        newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, getdimension(epi)[1]) + 1
+        newy =  -y < lookup.y[i] <= maxY ? lookup.y[i] + y : mod(lookup.y[i] + y - 1, getdimension(epi)[2]) + 1
+        valid = epi.epienv.active[newx, newy]
 
-      lookup.pnew[i, id] = valid ? lookup.p[i] : 0.0
-  end
-  pnew = @view lookup.pnew[:, id]
-  pnew ./= sum(pnew)
-  dist = Multinomial(abun, pnew)
-  m = @view lookup.moves[:, id]
-  rand!(epi.abundances.seed[Threads.threadid()], dist, m)
+        lookup.pnew[i] = valid ? lookup.p[i] : 0.0
+    end
+    lookup.pnew ./= sum(lookup.pnew)
+    dist = Multinomial(abun, lookup.pnew)
+    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function virusmove!(epi::AbstractEpiSystem, ::AlwaysMovement, pos::Int64, id::Int64, grd::Array{Int64, 2}, ::Int64)
+function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Int64, 2}, births::Int64)
   width, height = getdimension(epi)
   (x, y) = convert_coords(epi, pos, width)
-  lookup = getlookup(epi, 1)
-  full_abun = epi.abundances.matrix[1, pos]
-  calc_lookup_moves!(getboundary(epi.epilist.movement), x, y, 1, epi, full_abun)
+  lookup = getlookup(epi, id)
+  calc_lookup_moves!(getboundary(epi.epilist.movement), x, y, id, epi, births)
   # Lose moves from current grid square
-  grd[id, pos] -= full_abun
+  grd[id, pos] -= births
   # Map moves to location in grid
-  mov = @view lookup.moves[:, id]
-  for i in eachindex(epi.lookup[1].x)
+  mov = lookup.moves
+  for i in eachindex(lookup.x)
       newx = mod(lookup.x[i] + x - 1, width) + 1
       newy = mod(lookup.y[i] + y - 1, height) + 1
       loc = convert_coords(epi, (newx, newy), width)

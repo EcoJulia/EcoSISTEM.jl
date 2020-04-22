@@ -19,11 +19,11 @@ mutable struct EpiLookup
   x::Vector{Int64}
   y::Vector{Int64}
   p::Vector{Float64}
-  pnew::Matrix{Float64}
-  moves::Matrix{Int64}
+  pnew::Vector{Float64}
+  moves::Vector{Int64}
 end
 EpiLookup(df::DataFrame) = EpiLookup(df[!, :X], df[!, :Y], df[!, :Prob],
-zeros(Float64, nrow(df), Threads.nthreads()), zeros(Int64, nrow(df), Threads.nthreads()))
+zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))
 
 """
     EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractRelationship} <: AbstractEpiSystem{EE, EL, ER}
@@ -56,7 +56,7 @@ function EpiSystem(popfun::Function, epilist::EpiList, epienv::GridEpiEnv, rel::
   # Create lookup table of all moves and their probabilities
   lookup_tab = collect(map(k -> genlookups(epienv, k), getkernels(epilist.movement)))
   nm = zeros(Int64, size(ml.matrix))
-  vm = zeros(Int64, Threads.nthreads(), size(ml.matrix, 2))
+  vm = zeros(Int64, size(ml.matrix))
   EpiSystem{typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
 end
 
@@ -109,10 +109,6 @@ end
 
 function gethabitat(epi::AbstractEpiSystem)
   return epi.epienv.habitat
-end
-
-function getclass(epi::AbstractEpiSystem)
-    return getclass(epi.epilist)
 end
 
 import Diversity.API: _getabundance
