@@ -110,21 +110,19 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     # Loop through grid squares
     Threads.@threads for i in 1:dims
         rng = epi.abundances.seed[Threads.threadid()]
+        susclass = findfirst(epi.epilist.names .== "Susceptible")
         # Loop through classes in chosen square
-        for j in 2:classes
+        for j in susclass:classes
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(epi, i, width)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
                 # Make transitions
-                trans_prob = params.transition[j, :] .* timestep
-                if j == 3
-                    trans_prob *= epi.abundances.matrix[1, i]
-                end
+                trans_prob = (params.transition[j, :] .+ (params.transition_virus[j, :] .* epi.abundances.matrix[1, i])) .* timestep
                 all(trans_prob .<= 1) || error("Transition probability greater than 1.")
                 trans = rand.(fill(rng, length(trans_prob)), Binomial.(epi.abundances.matrix[:, i],  trans_prob))
                 epi.abundances.matrix[j, i] += sum(trans)
-                if j > 2
+                if j != susclass
                     epi.abundances.matrix[:, i] .-= trans
                 end
             end

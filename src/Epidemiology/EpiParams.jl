@@ -80,26 +80,24 @@ mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
     virus_growth::Vector{TimeUnitType{U}}
     virus_decay::Vector{TimeUnitType{U}}
     transition::Matrix{TimeUnitType{U}}
+    transition_virus::Matrix{TimeUnitType{U}}
     function EpiParams{U}(virus_growth::Vector{TimeUnitType{U}},
-        virus_decay::Vector{TimeUnitType{U}}, transition::Matrix{TimeUnitType{U}}) where {U <: Unitful.Units}
-        new{U}(virus_growth, virus_decay, transition)
+        virus_decay::Vector{TimeUnitType{U}}, transition::Matrix{TimeUnitType{U}}, transition_virus::Matrix{TimeUnitType{U}}) where {U <: Unitful.Units}
+        new{U}(virus_growth, virus_decay, transition, transition_virus)
     end
 end
 
 function transition(params::SIRGrowth)
-    ordered_transitions = [params.beta, params.sigma]
-    from = [2, 3]
-    to = [3, 4]
     tmat = zeros(typeof(params.beta), 5, 5)
-    for i in eachindex(to)
-            tmat[to[i], from[i]] = ordered_transitions[i]
-    end
+    tmat[4, 3] = params.sigma
     tmat[2, :] .= params.birth
     tmat[end, :] .+= params.death
+    vmat = zeros(typeof(params.beta), 5, 5)
+    vmat[3, 2] = params.beta
     v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 5)
     v_growth[3] = params.virus_growth
     v_decay[3] = params.virus_decay
-  return EpiParams{typeof(unit(params.beta))}(v_growth, v_decay, tmat)
+  return EpiParams{typeof(unit(params.beta))}(v_growth, v_decay, tmat, vmat)
 end
 function transition(params::SEI2HRDGrowth)
     ordered_transitions = [params.mu_1, params.mu_2, params.hospitalisation,
@@ -111,8 +109,9 @@ function transition(params::SEI2HRDGrowth)
     for i in eachindex(to)
             tmat[to[i], from[i]] = ordered_transitions[i]
     end
-    tmat[:, 2] .= params.beta
+    vmat = zeros(typeof(params.beta[1]), 8, 8)
+    vmat[:, 2] .= params.beta
     tmat[2, :] .= params.birth
     tmat[end, :] .+= params.death
-  return EpiParams{typeof(unit(params.beta[1]))}(params.virus_growth, params.virus_decay, tmat)
+  return EpiParams{typeof(unit(params.beta[1]))}(params.virus_growth, params.virus_decay, tmat, vmat)
 end
