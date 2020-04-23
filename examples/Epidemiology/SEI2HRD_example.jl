@@ -12,9 +12,9 @@ death = [0.0/day; fill(death_rates, 6); 0.0/day]
 virus_growth = fill(0.0/day, 8)
 virus_growth[4:5] .= 0.1/day
 virus_decay = fill(0.0/day, 8)
-virus_decay[4:5] .= 1.0/day
+virus_decay[4] = 1.0/day
 beta = fill(0.0/day, 8)
-beta[3] = 1e-2/day
+beta[3] = 1e-3/day
 
 # Prob of developing symptoms
 p_s = 0.96

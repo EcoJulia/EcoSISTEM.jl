@@ -81,8 +81,8 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
         end
-        epi.abundances.matrix[1, :] .+= epi.cache.virusmigration[j, :]
     end
+    epi.abundances.matrix[1, :] .+= sum(epi.cache.virusmigration, dims = 1)[1, :]
 end
 
 """
@@ -119,7 +119,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             if epi.epienv.active[x, y]
                 # Make transitions
                 trans_prob = (params.transition[j, :] .+ (params.transition_virus[j, :] .* epi.abundances.matrix[1, i])) .* timestep
-                all(trans_prob .<= 1) || error("Transition probability greater than 1.")
+                trans_prob = 1.0 .- exp.(-1 .* trans_prob)
                 trans = rand.(fill(rng, length(trans_prob)), Binomial.(epi.abundances.matrix[:, i],  trans_prob))
                 epi.abundances.matrix[j, i] += sum(trans)
                 if j != susclass
