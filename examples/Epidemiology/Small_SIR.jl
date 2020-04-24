@@ -48,24 +48,26 @@ display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Black, la
 
 
 # Again, but with larger grid
-birth = [0.0/day; fill(1e-10/day, 3)]
-death = [0.001/day; fill(1e-10/day, 3)]
-beta = 0.1/day
-sigma = 0.005/day
-viralload = 1.0/day
-param = SIRGrowth{typeof(unit(beta))}(birth, death, beta, sigma, viralload)
+birth = [0.0/day; fill(1e-5/day, 3); 0.0/day]
+death = [0.0/day; fill(1e-5/day, 3); 0.0/day]
+beta = 0.05/day
+sigma = 0.05/day
+virus_growth = 0.0001/day
+virus_decay = 0.07/day
+param = SIRGrowth{typeof(unit(beta))}(birth, death, virus_growth, virus_decay, beta, sigma)
+param = transition(param)
 
 grid = (10, 10)
 area = 100.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
-abun = [0, 10_000, 0, 0]
+abun = [0, 10_000, 0, 0, 0]
 
-dispersal_dists = [0.5km; fill(0.01km, 3)]
+dispersal_dists = [1e-2km; fill(0.5km, 3); 1e-2km]
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
-traits = GaussTrait(fill(298.0K, 4), fill(0.1K, 4))
+traits = GaussTrait(fill(298.0K, 5), fill(0.1K, 5))
 epilist = SIR(traits, abun, movement, param)
 
 rel = Gauss{eltype(epienv.habitat)}()
@@ -73,7 +75,7 @@ epi = EpiSystem(epilist, epienv, rel)
 epi.abundances.matrix[1, 1] = 100
 epi.abundances.matrix[3, 1] = 1
 
-abuns = zeros(Int64, 4, 100, 366)
+abuns = zeros(Int64, 5, 100, 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
