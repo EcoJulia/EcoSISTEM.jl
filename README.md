@@ -16,8 +16,8 @@ plant biodiversity. The underlying model for this is described in the arXiv pape
 responses of biodiversity to environmental and land-use change*. Future updates to the package functionality involve incorporating
 age-structure and more complex epidemiological models.
 
-This package is in beta now, so please raise an issue if you find any
-problems. The code has been substantially optimised for speed and can be fully run in parallel through use of multi-threading. Over 30 cores, a century worth of simulation of South America for 80km grid cells and ~60,000 species takes roughly 12 hours. This has been extended to run on HPC using MPI. Scaling up to 36 nodes using MPI worked with 95% efficiency.
+This package is in alpha now, so please raise an issue if you find any
+problems.
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 
