@@ -53,9 +53,9 @@ function SEI2HRDGrowth(birth::Vector{TimeUnitType{U}},
     T_lat::Unitful.Time, T_asym::Unitful.Time, T_sym::Unitful.Time,
     T_hosp::Unitful.Time, T_rec::Unitful.Time) where {U <: Unitful.Units}
     # Prob of death at hospital
-    prob_hosp_death = case_fatality_ratio/prob_hosp
+    prob_hosp_death = (case_fatality_ratio * prob_hosp)/prob_hosp
     # Prob of death at home
-    prob_death = case_fatality_ratio/(1 - prob_hosp)
+    prob_death = (case_fatality_ratio * (1 - prob_hosp))/(1 - prob_hosp)
     # Exposed -> asymptomatic
     mu_1 = 1/T_lat
     # Asymptomatic -> symptomatic

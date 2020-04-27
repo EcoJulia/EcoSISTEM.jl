@@ -23,3 +23,8 @@ testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
         println()
     end
 end
+
+@info "Running canonical test"
+println("    * Testing Canonical.jl ...")
+include("test_Canonical.jl")
+println()

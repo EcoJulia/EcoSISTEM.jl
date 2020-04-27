@@ -31,7 +31,7 @@ epienv = simplehabitatAE(298.0K, grid, area, active, NoControl())
 abun = fill(0, 5)
 
 # Dispersal kernels for virus and disease classes
-dispersal_dists = [1e-2km; fill(2.0km, 3); 1e-2km] # Virus disperses further than people for now
+dispersal_dists = [1e-2km; fill(2.0km, 3); 1e-2km]
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
