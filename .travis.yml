@@ -13,6 +13,7 @@ notifications:
 # install mpi
 install:
   - source ci/travis/installMPI.sh
+  - export R_HOME=""
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
