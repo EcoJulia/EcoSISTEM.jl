@@ -29,6 +29,7 @@ else
 			make -j4 &> openmpi.make
 			make install &> openmpi.install
 			cd ..
+			export JULIA_MPI_PATH=$TRAVIS_BUILD_DIR/openmpi
     fi
     test -n $CC && unset CC
     test -n $CXX && unset CXX
