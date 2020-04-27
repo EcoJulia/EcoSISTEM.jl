@@ -13,7 +13,7 @@ notifications:
 # install mpi
 install:
   - source ci/travis/installMPI.sh
-  - export R_HOME=""
+  - export R_HOME="*" # https://github.com/JuliaInterop/RCall.jl/blob/master/docs/src/installation.md
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
