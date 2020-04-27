@@ -9,6 +9,11 @@ julia:
 notifications:
   email: false
 # uncomment the following lines to override the default test script
+
+# install mpi
+install:
+  - bash ci/travis/installMPI
+
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   - julia --project=@. -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.test(\"Simulation\", coverage=true);"
