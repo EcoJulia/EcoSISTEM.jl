@@ -12,7 +12,7 @@ notifications:
 
 # install mpi
 install:
-  - bash ci/travis/installMPI.sh
+  - source ci/travis/installMPI.sh
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
