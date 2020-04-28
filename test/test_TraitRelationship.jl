@@ -1,5 +1,5 @@
 using Simulation
-using Compat.Test
+using Test
 using Distributions
 using Unitful
 using Unitful.DefaultSymbols

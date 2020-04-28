@@ -1,6 +1,6 @@
 using Missings
 using AxisArrays
-using Compat.Random
+using Random
 using Compat
 
 struct SavedLandscape
