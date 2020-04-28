@@ -6,8 +6,8 @@ import Unitful
 using Unitful: @unit
 day = Unitful.d
 week = Unitful.wk
+year = Unitful.yr
 @unit month "month" Month 2.628e6 * Unitful.s false
-@unit year "year" Year 31536000 * Unitful.s false
 
 const days = day
 const weeks = week
