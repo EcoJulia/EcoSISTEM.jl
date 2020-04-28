@@ -22,9 +22,12 @@ before_install: # https://github.com/JuliaInterop/RCall.jl/blob/master/.travis.y
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then wget "https://cran.rstudio.com/bin/macosx/$(wget -qO- https://cran.rstudio.com/bin/macosx/ | sed -n 's/.*href="\(R-[^"]*.pkg\)".*/\1/p' | head -n 1)"; fi
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo installer -pkg R-*.pkg -target /; fi
 
-# install mpi and set R_HOME to * to use conda install
+# install mpi
 install:
   - source ci/travis/installMPI.sh
+
+before-script:
+  - R -e 'install.packages("picante", dependencies=TRUE)'
 #  - export R_HOME="*" # https://github.com/JuliaInterop/RCall.jl/blob/master/docs/src/installation.md
 
 script:
