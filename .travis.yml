@@ -27,7 +27,7 @@ install:
   - source ci/travis/installMPI.sh
 
 before-script:
-  - Rscript -e 'install.packages("picante", dependencies=TRUE, repos="http://cran.rstudio.com")'
+  - sudo Rscript -e 'install.packages("picante", dependencies=TRUE, repos="http://cran.rstudio.com")'
 #  - export R_HOME="*" # https://github.com/JuliaInterop/RCall.jl/blob/master/docs/src/installation.md
 
 script:
