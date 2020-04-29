@@ -117,14 +117,15 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             (x, y) = convert_coords(epi, i, width)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
+                # Births
+                births = rand(rng, Binomial(epi.abundances.matrix[j, i],  params.births[j] * timestep))
+                epi.abundances.matrix[susclass, i] += births
                 # Make transitions
                 trans_prob = (params.transition[j, :] .+ (params.transition_virus[j, :] .* epi.abundances.matrix[1, i])) .* timestep
                 trans_prob = 1.0 .- exp.(-1 .* trans_prob)
                 trans = rand.(fill(rng, length(trans_prob)), Binomial.(epi.abundances.matrix[:, i],  trans_prob))
                 epi.abundances.matrix[j, i] += sum(trans)
-                if j != susclass
-                    epi.abundances.matrix[:, i] .-= trans
-                end
+                epi.abundances.matrix[:, i] .-= trans
             end
         end
     end

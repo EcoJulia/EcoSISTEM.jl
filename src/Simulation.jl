@@ -124,10 +124,10 @@ include("Epidemiology/EpiEnv.jl")
 export GridEpiEnv, simplehabitatAE
 
 include("Epidemiology/EpiParams.jl")
-export SIRGrowth, SEI2HRDGrowth, transition
+export SIRGrowth, SEI2HRDGrowth, SISGrowth, transition
 
 include("Epidemiology/EpiList.jl")
-export EpiList, SIR, SEI2HRD
+export EpiList, SIR, SEI2HRD, SIS
 
 include("Epidemiology/EpiLandscape.jl")
 export EpiLandscape

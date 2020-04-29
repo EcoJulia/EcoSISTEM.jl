@@ -91,40 +91,39 @@ function SEI2HRDGrowth(birth::Vector{TimeUnitType{U}},
 end
 
 mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
+    births::Vector{TimeUnitType{U}}
     virus_growth::Vector{TimeUnitType{U}}
     virus_decay::Vector{TimeUnitType{U}}
     transition::Matrix{TimeUnitType{U}}
     transition_virus::Matrix{TimeUnitType{U}}
-    function EpiParams{U}(virus_growth::Vector{TimeUnitType{U}},
+    function EpiParams{U}(births::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}},
         virus_decay::Vector{TimeUnitType{U}}, transition::Matrix{TimeUnitType{U}}, transition_virus::Matrix{TimeUnitType{U}}) where {U <: Unitful.Units}
-        new{U}(virus_growth, virus_decay, transition, transition_virus)
+        new{U}(births, virus_growth, virus_decay, transition, transition_virus)
     end
 end
 
 function transition(params::SISGrowth)
     tmat = zeros(typeof(params.beta), 4, 4)
-    tmat[2, 3] = params.sigma
-    tmat[2, :] .= params.birth
     tmat[end, :] .+= params.death
+    tmat[2, 3] = params.sigma
     vmat = zeros(typeof(params.beta), 4, 4)
     vmat[3, 2] = params.beta
     v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 5)
     v_growth[3] = params.virus_growth
     v_decay[3] = params.virus_decay
-  return EpiParams{typeof(unit(params.beta))}(v_growth, v_decay, tmat, vmat)
+  return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
 end
 
 function transition(params::SIRGrowth)
     tmat = zeros(typeof(params.beta), 5, 5)
     tmat[4, 3] = params.sigma
-    tmat[2, :] .= params.birth
     tmat[end, :] .+= params.death
     vmat = zeros(typeof(params.beta), 5, 5)
     vmat[3, 2] = params.beta
     v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 5)
     v_growth[3] = params.virus_growth
     v_decay[3] = params.virus_decay
-  return EpiParams{typeof(unit(params.beta))}(v_growth, v_decay, tmat, vmat)
+  return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
 end
 
 function transition(params::SEI2HRDGrowth)
@@ -139,7 +138,6 @@ function transition(params::SEI2HRDGrowth)
     end
     vmat = zeros(typeof(params.beta[1]), 8, 8)
     vmat[:, 2] .= params.beta
-    tmat[2, :] .= params.birth
     tmat[end, :] .+= params.death
-  return EpiParams{typeof(unit(params.beta[1]))}(params.virus_growth, params.virus_decay, tmat, vmat)
+  return EpiParams{typeof(unit(params.beta[1]))}(params.birth, params.virus_growth, params.virus_decay, tmat, vmat)
 end
