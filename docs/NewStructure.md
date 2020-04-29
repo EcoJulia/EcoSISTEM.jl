@@ -24,7 +24,7 @@ where <img src="svgs/60491d9986c130c5330721a64b127048.svg?invert_in_darkmode" al
 
 
 
-![](SEI2HRD.png)
+![](SEI2HRD.svg)
 *Figure 1: Current model structure.*
 
 ## Code Structure
