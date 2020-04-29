@@ -65,6 +65,15 @@ function _getdiversityname(el::EpiList)
     return _getdiversityname(el.types)
 end
 
+function SIS(traits::TR, abun::Vector{Int64},
+    movement::MO, params::P) where {TR <: AbstractTraits,
+        MO <: AbstractMovement, P <: AbstractParams}
+
+    names = ["Virus", "Susceptible", "Infected", "Dead"]
+    types = UniqueTypes(length(names))
+    length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
+  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
+end
 
 function SIR(traits::TR, abun::Vector{Int64},
     movement::MO, params::P) where {TR <: AbstractTraits,

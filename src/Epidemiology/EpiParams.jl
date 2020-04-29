@@ -14,6 +14,20 @@ mutable struct SIRGrowth{U <: Unitful.Units} <: AbstractParams
         new{U}(birth, death, virus_growth, virus_decay, beta, sigma)
     end
 end
+mutable struct SISGrowth{U <: Unitful.Units} <: AbstractParams
+      birth::Vector{TimeUnitType{U}}
+      death::Vector{TimeUnitType{U}}
+      virus_growth::TimeUnitType{U}
+      virus_decay::TimeUnitType{U}
+      beta::TimeUnitType{U}
+      sigma::TimeUnitType{U}
+    function SISGrowth{U}(birth::Vector{TimeUnitType{U}},
+        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U},
+        virus_decay::TimeUnitType{U}, beta::TimeUnitType{U},
+        sigma::TimeUnitType{U}) where {U <: Unitful.Units}
+        new{U}(birth, death, virus_growth, virus_decay, beta, sigma)
+    end
+end
 
 mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Vector{TimeUnitType{U}}
@@ -87,6 +101,19 @@ mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
     end
 end
 
+function transition(params::SISGrowth)
+    tmat = zeros(typeof(params.beta), 4, 4)
+    tmat[2, 3] = params.sigma
+    tmat[2, :] .= params.birth
+    tmat[end, :] .+= params.death
+    vmat = zeros(typeof(params.beta), 4, 4)
+    vmat[3, 2] = params.beta
+    v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 5)
+    v_growth[3] = params.virus_growth
+    v_decay[3] = params.virus_decay
+  return EpiParams{typeof(unit(params.beta))}(v_growth, v_decay, tmat, vmat)
+end
+
 function transition(params::SIRGrowth)
     tmat = zeros(typeof(params.beta), 5, 5)
     tmat[4, 3] = params.sigma
@@ -99,6 +126,7 @@ function transition(params::SIRGrowth)
     v_decay[3] = params.virus_decay
   return EpiParams{typeof(unit(params.beta))}(v_growth, v_decay, tmat, vmat)
 end
+
 function transition(params::SEI2HRDGrowth)
     ordered_transitions = [params.mu_1, params.mu_2, params.hospitalisation,
     params.sigma_1, params.sigma_2, params.sigma_hospital, params.death_home,
