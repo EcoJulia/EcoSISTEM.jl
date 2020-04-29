@@ -24,7 +24,13 @@ testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
     end
 end
 
-@info "Running canonical test"
-println("    * Testing Canonical.jl ...")
-include("test_Canonical.jl")
-println()
+@testset "Canonical tests" begin
+    @info "Running canonical tests ..."
+    canonical_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"), filter(str -> occursin(r"^test_.*\.jl$", str), readdir("canonical")))
+    for t in canonical_testbase
+        fn = "test_$t.jl"
+        println("    * Testing $t.jl ...")
+        include(fn)
+        println()
+    end
+end
