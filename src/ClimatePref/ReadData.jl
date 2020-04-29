@@ -86,7 +86,7 @@ function readfile(file::String, xmin, xmax, ymin, ymax)
     lat, long = size(a, 1), size(a, 2);
     step = abs(xmin - xmax) / lat;
 
-    world = AxisArray(a,
+    world = AxisArray(a[:, long:-1:1],
                            Axis{:latitude}((xmin+ step):step:xmax),
                            Axis{:longitude}((ymin+ step):step:ymax));
 

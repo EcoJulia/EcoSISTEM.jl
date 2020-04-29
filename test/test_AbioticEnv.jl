@@ -11,13 +11,33 @@ totalK = 10000.0kJ/km^2
 numNiches = 4
 active = fill(true, grid)
 
-## TEST simplehabitatAE
-@test_nowarn abenv = simplehabitatAE(0.0, grid, totalK, area)
-@test_nowarn abenv = simplehabitatAE(0.0, grid, totalK, area, active)
+# TEST simplehabitatAE
+fillval = 0.0
+abenv = simplehabitatAE(fillval, grid, totalK, area)
+@test_nowarn simplehabitatAE(fillval, grid, totalK, area)
+@test_nowarn simplehabitatAE(fillval, grid, totalK, area, active)
+@test all(abenv.habitat.matrix .== fillval)
+@test size(abenv.habitat.matrix) == grid
+@test sum(abenv.budget.matrix) == totalK * area
+@test abenv.active == active
+@test all(abenv.active)
 
-## TEST tempgradAE
-@test_nowarn abenv = tempgradAE(-10.0K, 10.0K, grid, totalK, area,
-    0.01K/month)
-## TEST simplenicheAE
-@test_nowarn abenv = simplenicheAE(numNiches, grid, totalK, area)
-@test_nowarn abenv = simplenicheAE(numNiches, grid, totalK, area, active)
+# TEST tempgradAE
+abenv = tempgradAE(-10.0K, 10.0K, grid, totalK, area, 0.01K/month)
+@test_nowarn tempgradAE(-10.0K, 10.0K, grid, totalK, area, 0.01K/month)
+@test minimum(abenv.habitat.matrix) == -10.0K
+@test maximum(abenv.habitat.matrix) == 10.0K
+@test size(abenv.habitat.matrix) == grid
+@test sum(abenv.budget.matrix) == totalK * area
+@test abenv.active == active
+@test all(abenv.active)
+
+# TEST simplenicheAE
+abenv = simplenicheAE(numNiches, grid, totalK, area)
+@test_nowarn simplenicheAE(numNiches, grid, totalK, area)
+@test_nowarn simplenicheAE(numNiches, grid, totalK, area, active)
+@test maximum(abenv.habitat.matrix) <= numNiches
+@test size(abenv.habitat.matrix) == grid
+@test sum(abenv.budget.matrix) == totalK * area
+@test abenv.active == active
+@test all(abenv.active)
