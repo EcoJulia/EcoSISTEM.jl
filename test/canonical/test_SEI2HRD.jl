@@ -4,6 +4,7 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 using Simulation.ClimatePref
 using StatsBase
+using Test
 
 # Set simulation parameters
 birth = fill(0.0/day, 8)
@@ -72,7 +73,7 @@ epi.abundances.matrix[1, 1] = new_virus
 epi.abundances.matrix[4:5, 1] .= new_symptomatic
 
 # Run simulation
-abuns = zeros(Int64, 8, 16, 366)
+abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
