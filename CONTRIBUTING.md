@@ -13,7 +13,7 @@ Thanks for contributing to Simulation.jl! Please read the below on how best to m
 
 3. Name the branch `username/featurename` and have fun!
 
-4. If referencing the issue number from with a commit message then it should have the full path to the issue in `ScottishCovidResponse/SCRCIssueTracking` but only in the description (not the first line of the commit) i.e.:
+4. If referencing the issue from within a commit message then it should have the full path to the issue, `ScottishCovidResponse/SCRCIssueTracking#123`, but only in the description (not the first line of the commit) i.e.:
 
    - `git commit -m "pithy description" -m "ScottishCovidResponse/SCRCIssueTracking#123 and more details"` to refer to issue number 123. 
    - writing the commit message and description in an editor is also possible with `export EDITOR=vi` for example, and then just doing a `git commit`. 
