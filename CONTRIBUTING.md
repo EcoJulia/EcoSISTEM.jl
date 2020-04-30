@@ -25,7 +25,9 @@ Thanks for contributing to Simulation.jl! Please read the below on how best to m
    > second line ScottishCovidResponse/SCRCIssueTracking#123"
    ```
 
-5. When your feature is ready to merge back into the master branch create a PR against  `ScottishCovidResponse/Simulation#master` (**not** `boydorr/Simulation.jl`) and assign two of `claireh93`,  `richardreeve` and `jwscook` as reviewers.
+5. When your feature is ready to merge back into the `dev` branch create a PR against  `ScottishCovidResponse/Simulation#master` (**not** `boydorr/Simulation.jl`) and assign two of `claireh93`,  `richardreeve` and `jwscook` as reviewers.
 
-6. Thanks for your time and effort!
+6. Semver will be handled in PRs from `dev` into `master`.
+
+7. Thanks for your time and effort!
 
