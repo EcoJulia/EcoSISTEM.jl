@@ -21,7 +21,7 @@ epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
 virus = 10
-susceptible = 1000
+susceptible = 5_000_000
 infected = 1
 dead = 0
 abun = [virus, susceptible, infected, dead]
@@ -45,5 +45,5 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix,
 times = 2years; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
-@test sum(abuns[4, :, :]) == 0
+@test sum(abuns[end, :, :]) == 0
 @test all(sum(abuns[2:3, :, :], dims = (1, 2)) .== (susceptible + infected))
