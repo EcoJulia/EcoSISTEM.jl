@@ -24,9 +24,25 @@ epi = TestEpiSystem()
 @test_nowarn getdispersalvar(epi, 1)
 @test_nowarn getdispersalvar(epi, "Virus")
 
-# Test saving Function
-Simulation.save("testepi.jlso", epi)
-loaded_epi = Simulation.load("testepi.jlso", EpiSystem)
-# Ideally we'd compare epi and loaded_epi, but `EpiSystem` still does not support comparisons
-@test loaded_epi isa EpiSystem
-rm("testepi.jlso") # Delete temporary file
+
+@testset "Approximate equality" begin
+    atol = 1
+    epi_2 = deepcopy(epi)
+    @test isapprox(epi_2, epi; atol=atol)
+    # Make some small change within the approximate equality range
+    epi_2.abundances.matrix[2, 1] += 1
+    @test isapprox(epi_2, epi; atol=atol)
+    # Make some larger change outside the approximate equality range
+    epi_2.abundances.matrix[2, 1] += 1000
+    @test !isapprox(epi_2, epi; atol=atol)
+end
+
+
+@testset "save and load (with JLSO)" begin
+    # Test saving Function
+    Simulation.save("testepi.jlso", epi)
+    loaded_epi = Simulation.load("testepi.jlso", EpiSystem)
+    # Ideally we'd compare epi and loaded_epi, but `EpiSystem` still does not support comparisons
+    @test loaded_epi isa EpiSystem
+    rm("testepi.jlso") # Delete temporary file
+end

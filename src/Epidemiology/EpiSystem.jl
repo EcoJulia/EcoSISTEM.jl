@@ -67,8 +67,26 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv,
    return EpiSystem(populate!, epilist, epienv, rel)
 end
 
+
+"""
+    isapprox(epi_1::AbstractEpiSystem, epi_2::AbstractEpiSystem; kwargs...)
+
+Compare two `EpiSystem`s for approximate equality. Specifically, compares the
+`EpiLandscape`s of the two systems.
+
+## Keyword arguments
+- Anything to pass to `Base.isapprox`.
+
+!!! note
+    You may want to pass in `atol` or `rtol` to loosen the equality tolerance.
+"""
+function Base.isapprox(epi_1::AbstractEpiSystem, epi_2::AbstractEpiSystem; kwargs...)
+    return isapprox(epi_1.abundances, epi_2.abundances; kwargs...)
+end
+
 save(path::String, system::EpiSystem) = JLSO.save(path, :episystem => system)
 load(path::String, obj_type::Type{EpiSystem}) = JLSO.load(path)[:episystem]
+
 
 """
     genlookups(hab::AbstractHabitat, mov::GaussianMovement)

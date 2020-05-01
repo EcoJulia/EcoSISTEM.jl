@@ -23,6 +23,10 @@ function copy(gl::EpiLandscape)
     return EpiLandscape(copy(gl.matrix), size(gl.grid))
 end
 
+function Base.isapprox(gl_1::EpiLandscape, gl_2::EpiLandscape; kwargs...)
+    return isapprox(gl_1.matrix, gl_2.matrix; kwargs...)
+end
+
 """
     emptyepilandscape(epienv::GridEpiEnv, epilist::EpiList)
 
