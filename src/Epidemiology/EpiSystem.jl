@@ -1,3 +1,5 @@
+using JLSO
+
 """
     AbstractEpiSystem
 
@@ -65,6 +67,8 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv,
    return EpiSystem(populate!, epilist, epienv, rel)
 end
 
+save(path::String, system::EpiSystem) = JLSO.save(path, :episystem => system)
+load(path::String, obj_type::Type{EpiSystem}) = JLSO.load(path)[:episystem]
 
 """
     genlookups(hab::AbstractHabitat, mov::GaussianMovement)

@@ -23,3 +23,10 @@ epi = TestEpiSystem()
 @test getdispersaldist(epi, "Virus") == epi.epilist.movement.kernels[1].dist
 @test_nowarn getdispersalvar(epi, 1)
 @test_nowarn getdispersalvar(epi, "Virus")
+
+# Test saving Function
+Simulation.save("testepi.jlso", epi)
+loaded_epi = Simulation.load("testepi.jlso", EpiSystem)
+# Ideally we'd compare epi and loaded_epi, but `EpiSystem` still does not support comparisons
+@test loaded_epi isa EpiSystem
+rm("testepi.jlso") # Delete temporary file
