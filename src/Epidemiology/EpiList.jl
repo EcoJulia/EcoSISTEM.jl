@@ -85,6 +85,23 @@ function SIR(traits::TR, abun::Vector{Int64},
   EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
 end
 
+function SEIR(traits::TR, abun::Vector{Int64},
+    movement::MO, params::P) where {TR <: AbstractTraits,
+        MO <: AbstractMovement, P <: AbstractParams}
+
+    names = ["Virus", "Susceptible", "Exposed", "Infected", "Recovered", "Dead"]
+    types = UniqueTypes(length(names))
+    length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
+  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
+end
+
+function SEIRS(traits::TR, abun::Vector{Int64},
+    movement::MO, params::P) where {TR <: AbstractTraits,
+        MO <: AbstractMovement, P <: AbstractParams}
+
+    return SEIR(traits, abun, movement, params)
+end
+
 function SEI2HRD(traits::TR, abun::Vector{Int64},
     movement::MO, params::P) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
