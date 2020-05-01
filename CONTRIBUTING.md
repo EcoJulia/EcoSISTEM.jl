@@ -13,16 +13,16 @@ Thanks for contributing to Simulation.jl! Please read the below on how best to m
 
 3. Name the branch `username/featurename` and have fun!
 
-4. If referencing the issue from within a commit message then it should have the full path to the issue, `ScottishCovidResponse/SCRCIssueTracking#123`, but only in the description (not the first line of the commit) i.e.:
+4. If referencing the issue from within a commit message then it should have the correct path to the issue on the `ScottishCovidResponse/SCRCIssueTracking` repository. An autolink reference has been created to make a shortcut;  `ScottishCovidResponse/SCRCIssueTracking#123` -> `SCRC-123`. Please put the reference in the commit description (not the first line of the commit) i.e.:
 
-   - `git commit -m "pithy description" -m "ScottishCovidResponse/SCRCIssueTracking#123 and more details"` to refer to issue number 123. 
+   - `git commit -m "pithy description" -m "SCRC-123 and more details"` to refer to issue number 123. 
    - writing the commit message and description in an editor is also possible with `export EDITOR=vi` for example, and then just doing a `git commit`. 
    - bash also recognises line breaks in the double inverted commas
 
    ```bash
    $ git commit -m "first line
    >
-   > second line ScottishCovidResponse/SCRCIssueTracking#123"
+   > second line SCRC-123"
    ```
 
 5. When your feature is ready to merge back into the `dev` branch create a PR against  `ScottishCovidResponse/Simulation#master` (**not** `boydorr/Simulation.jl`) and assign `ScottishCovidResponse/simulation-jl-admins` as reviewers.
