@@ -1,6 +1,6 @@
 using Simulation
 using Unitful.DefaultSymbols
-using Compat.Test
+using Test
 using Simulation.Units
 import Simulation.equalpop
 

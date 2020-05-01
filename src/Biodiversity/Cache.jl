@@ -1,7 +1,7 @@
 using Unitful
 using Missings
 using JLD
-using Compat.Random
+using Random
 
 function checkfile(::String, ::Missing)
     return false

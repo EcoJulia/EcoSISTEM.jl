@@ -14,7 +14,7 @@ timestep = 1.0day
 lensim = length(0.0month:interval:times)
 
 # Run simulations 10 times
-abun =  zeros(Int64, 4, size(epi.abundances.matrix, 2), lensim)
+abun =  zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), lensim)
 @test_nowarn simulate!(epi, burnin, timestep)
 @test_nowarn simulate_record!(abun, epi, times, interval, timestep)
 @test all(abun .>= 0)
