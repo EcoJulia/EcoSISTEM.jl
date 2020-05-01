@@ -1,7 +1,6 @@
 using Simulation
 using Test
 using Distributions
-using RCall
 using Unitful.DefaultSymbols
 using Simulation.Units
 
