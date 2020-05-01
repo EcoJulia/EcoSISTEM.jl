@@ -65,5 +65,5 @@ R"library(picante)
        p = pd(mat, tree, include.root=F)"
 @test pd(eco, 1.0)[!, :diversity] ≈ @rget(p)[!, :PD] / mean(heightstoroot(eco.spplist.types.tree))
 @test pd(eco, 1.0)[!, :diversity][1] ≈ sum(map(b -> getlength(eco.spplist.types.tree,b),
-           getbranchnames(eco.spplist.types.tree))) / mean(heightstoroot(eco.spplist.types.tree))
+           collect(getbranchnames(eco.spplist.types.tree)))) / mean(heightstoroot(eco.spplist.types.tree))
 @test pd(eco, 0.0) == pd(eco, [0.0, 1, 2])

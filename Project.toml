@@ -48,7 +48,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 DataAPI = "=1.2.0"
 OnlineStats = "=1.2.0"
 OnlineStatsBase = "=1.2.8"
-Phylo = "=0.3.3"
+Phylo = "^0.4.2"
 julia = "1"
 
 [extras]

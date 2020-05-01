@@ -16,7 +16,7 @@ end
 function resettraits!(tree::BinaryTree)
     nodes = getnodenames(tree)
     for i in nodes
-        setnoderecord!(tree, i, DataFrame())
+        setnodedata!(tree, i, DataFrame())
     end
 end
 # Function to produce a matrix of all source and target nodes within a tree
@@ -76,7 +76,7 @@ end
 
 function arenoderecordsempty(tree::AbstractTree, nodes::Vector{String})
   map(nodes) do nod
-  isempty(getnoderecord(tree, nod))
+  isempty(getnodedata(tree, nod))
   end
 end
 
@@ -91,7 +91,7 @@ with a specific switching rate.
 function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
           traits::DataFrame)
   # Check if tree already assigned
-  check = arenoderecordsempty(tree, getnodenames(tree))
+  check = arenoderecordsempty(tree, collect(getnodenames(tree)))
   all(check) || error("Some nodes already assigned traits")
 
   # Calculate all branch paths from root to tips
@@ -101,7 +101,7 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
   paths = root_to_tips(tree)
   samp = DataFrame(hcat([rand(col) for col = eachcol(traits)]), names(traits))
   # Assign first node a trait randomly
-  setnoderecord!(tree, root, samp)
+  setnodedata!(tree, root, samp)
 
   # Loop through all paths
   for i in paths
@@ -141,13 +141,13 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
         end
 
       # Find trait of last node
-      last_label = getnoderecord(tree, first(sel_pair))
+      last_label = getnodedata(tree, first(sel_pair))
 
       map(num_switches) do number
         # If there are no switches, give same trait as previous node
         if number == 0
           set_node = last(sel_pair)
-          setnoderecord!(tree, set_node, last_label)
+          setnodedata!(tree, set_node, last_label)
         else
           # Else loop through for the required number of switches, sampling from list of traits
           while number > 0
@@ -157,8 +157,8 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
                         sample(col[col .!= last_label[:, trt]])
                        end
             newtrait = DataFrame(hcat(newtrait), names(traits))
-            setnoderecord!(tree, set_node, newtrait)
-            last_label = getnoderecord(tree, set_node)
+            setnodedata!(tree, set_node, newtrait)
+            last_label = getnodedata(tree, set_node)
             number = number - 1
           end
         end
@@ -219,11 +219,11 @@ function assign_traits!(tree::BinaryTree, traits::DataFrame)
   for i in names
       # Set start value of BM to root
     if isroot(tree, i)
-      setnoderecord!(tree, i, traits)
+      setnodedata!(tree, i, traits)
     else
       # Get value information for parent node
       pnt = getparent(tree, i)
-      srt = getnoderecord(tree, pnt)[:start]
+      srt = getnodedata(tree, pnt)[:start]
       # Find length of path between parent and child node
       path = first(branchroute(tree, pnt, i))
       ln = getlength(getbranch(tree, path))
@@ -233,7 +233,7 @@ function assign_traits!(tree::BinaryTree, traits::DataFrame)
                   last(BM(ln, sig, start))
                  end
       newdat = DataFrame(start = newtrait, σ² = traits[:σ²])
-      setnoderecord!(tree, i, newdat)
+      setnodedata!(tree, i, newdat)
 
     end
   end
@@ -247,14 +247,14 @@ just tips or all nodes.
 
 """
 function get_traits(tree::BinaryTree, tips::Bool=true)
-   check = .!arenoderecordsempty(tree, getnodenames(tree))
+   check = .!arenoderecordsempty(tree, collect(getnodenames(tree)))
    all(check) || error("All node records empty")
   if tips
     nodes = collect(nodenamefilter(isleaf, tree))
   else
     nodes = getnodenames(tree)
   end
-  df = vcat(map(n->getnoderecord(tree, n), nodes)...)
+  df = vcat(map(n->getnodedata(tree, n), nodes)...)
   df[!, :species] = nodes
   return df
 end
