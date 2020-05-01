@@ -9,25 +9,9 @@ julia: # https://github.com/ScottishCovidResponse/SCRCIssueTracking/issues/16
 notifications:
   email: false
 
-before_install: # https://github.com/JuliaInterop/RCall.jl/blob/master/.travis.yml
-  # linux
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo add-apt-repository -y "deb http://cran.rstudio.com/bin/linux/ubuntu $(lsb_release -s -c)/"; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get update -qq -y; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install --allow-unauthenticated git r-base r-base-dev r-recommended -y; fi
-
-  # osx
-  # faster than using homebrew/science tap
-  # but no permalink to release download
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then wget "https://cran.rstudio.com/bin/macosx/$(wget -qO- https://cran.rstudio.com/bin/macosx/ | sed -n 's/.*href="\(R-[^"]*.pkg\)".*/\1/p' | head -n 1)"; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo installer -pkg R-*.pkg -target /; fi
-
 # install mpi
 install:
   - source ci/travis/installMPI.sh
-
-before-script:
-  - sudo Rscript -e 'install.packages("picante", dependencies=TRUE, repos="http://cran.rstudio.com")'
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
