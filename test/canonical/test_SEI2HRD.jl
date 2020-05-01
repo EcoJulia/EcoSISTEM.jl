@@ -6,8 +6,7 @@ using Simulation.ClimatePref
 using StatsBase
 using Test
 
-
-## High transmission
+## High transmission & 100% case fatality
 ##
 # Set simulation parameters
 birth = fill(0.0/day, 8)
@@ -85,7 +84,7 @@ times = 1year; interval = 1day; timestep = 1day
 @test sum(abuns[2, :, 365]) == 0
 @test sum(abuns[end, :, 365]) == (susceptible + new_symptomatic + new_asymptomatic)
 
-## Low transmission
+## Low transmission & 100% case fatality
 ##
 
 birth = fill(0.0/day, 8)
@@ -159,6 +158,6 @@ times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
 
-# Test no one becomes infected
+# Test no one becomes infected & dies
 @test sum(abuns[2, :, 365]) == susceptible
 @test sum(abuns[end, :, 365]) == (new_symptomatic + new_asymptomatic)
