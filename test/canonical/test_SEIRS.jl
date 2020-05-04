@@ -54,9 +54,3 @@ times = 2years; interval = 1day; timestep = 1day
 @test sum(abuns[end, :, :]) == 0
 # Test overall population size stays constant (birth rate = death rate = 0)
 @test all(sum(abuns[2:5, :, :], dims = (1, 2)) .== (susceptible + infected))
-
-# display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptible"))
-# display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Orange, label = "Exposed"))
-# display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Red, label = "Infected"))
-# display(plot!(mapslices(sum, abuns[5, :, :], dims = 1)[1, :], color = :Green, label = "Recovered"))
-# display(plot!(mapslices(sum, abuns[6, :, :], dims = 1)[1, :], color = :Black, label = "Deaths"))
