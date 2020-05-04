@@ -16,6 +16,10 @@ install:
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   - julia --project=@. -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.test(\"Simulation\", coverage=true);"
+
+after_script:
+  - rm -rf ~/.julia/packages/Simulation
+
 after_success:
   # push coverage results to Coveralls
   - julia -e 'using Pkg; cd(Pkg.dir("Simulation")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
@@ -25,3 +29,9 @@ after_success:
 jobs:
   allow_failures:
     - julia: 1.0.5
+
+cache:
+  directories:
+    - ~/.julia
+    - openmpi
+  
