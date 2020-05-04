@@ -5,6 +5,8 @@ using Simulation.Units
 using Simulation.ClimatePref
 using StatsBase
 
+do_plot = false
+
 # Set simulation parameters
 birth_rates = 1e-5/day; death_rates = birth_rates
 birth = [0.0/day; fill(birth_rates, 6); 0.0/day]
@@ -75,13 +77,15 @@ abuns = zeros(Int64, 8, 525_000, 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
-using Plots
-plotlyjs()
-# View summed SIR dynamics for whole area
-display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptible"))
-display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Orange, label = "Exposed"))
-display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Yellow, label = "Asymptomatic"))
-display(plot!(mapslices(sum, abuns[5, :, :], dims = 1)[1, :], color = :Red, label = "Symptomatic"))
-display(plot!(mapslices(sum, abuns[6, :, :], dims = 1)[1, :], color = :Darkred, label = "Hospital"))
-display(plot!(mapslices(sum, abuns[7, :, :], dims = 1)[1, :], color = :Green, label = "Recovered"))
-display(plot!(mapslices(sum, abuns[8, :, :], dims = 1)[1, :], color = :Black, label = "Deaths"))
+if do_plot
+    using Plots
+    plotlyjs()
+    # View summed SIR dynamics for whole area
+    display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptible"))
+    display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Orange, label = "Exposed"))
+    display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Yellow, label = "Asymptomatic"))
+    display(plot!(mapslices(sum, abuns[5, :, :], dims = 1)[1, :], color = :Red, label = "Symptomatic"))
+    display(plot!(mapslices(sum, abuns[6, :, :], dims = 1)[1, :], color = :Darkred, label = "Hospital"))
+    display(plot!(mapslices(sum, abuns[7, :, :], dims = 1)[1, :], color = :Green, label = "Recovered"))
+    display(plot!(mapslices(sum, abuns[8, :, :], dims = 1)[1, :], color = :Black, label = "Deaths"))
+end

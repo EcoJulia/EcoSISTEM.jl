@@ -5,6 +5,8 @@ using Simulation.Units
 using Plots
 plotlyjs()
 
+do_plot = false
+
 # Set simulation parameters
 birth = [0.0/day; fill(1e-5/day, 3); 0.0/day]
 death = [0.0/day; fill(1e-5/day, 3); 0.0/day]
@@ -41,11 +43,12 @@ abuns = zeros(Int64, 5, 4, 731)
 times = 2years; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
-# Plot SIR dynamics
-display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptibles"))
-display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Red, label = "Infecteds"))
-display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Black, label = "Recovereds"))
-
+if do_plot
+    # Plot SIR dynamics
+    display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptibles"))
+    display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Red, label = "Infecteds"))
+    display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Black, label = "Recovereds"))
+end
 
 # Again, but with larger grid
 birth = [0.0/day; fill(1e-5/day, 3); 0.0/day]
@@ -79,8 +82,10 @@ abuns = zeros(Int64, 5, 100, 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
-# Plot as heatmaps of infected individuals over space
-display(heatmap(reshape(abuns[3, :, 1], 10, 10), layout = (@layout [a b; c d]), subplot = 1, title = "Day 0", clim = (0, 120)))
-display(heatmap!(reshape(abuns[3, :, 7], 10, 10), subplot = 2, title = "Day 7", clim = (0, 120)))
-display(heatmap!(reshape(abuns[3, :, 14], 10, 10), subplot = 3, title = "Day 14", clim = (0, 120)))
-display(heatmap!(reshape(abuns[3, :, 30], 10, 10), subplot = 4, title = "Day 30", clim = (0, 120)))
+if do_plot
+    # Plot as heatmaps of infected individuals over space
+    display(heatmap(reshape(abuns[3, :, 1], 10, 10), layout = (@layout [a b; c d]), subplot = 1, title = "Day 0", clim = (0, 120)))
+    display(heatmap!(reshape(abuns[3, :, 7], 10, 10), subplot = 2, title = "Day 7", clim = (0, 120)))
+    display(heatmap!(reshape(abuns[3, :, 14], 10, 10), subplot = 3, title = "Day 14", clim = (0, 120)))
+    display(heatmap!(reshape(abuns[3, :, 30], 10, 10), subplot = 4, title = "Day 30", clim = (0, 120)))
+end
