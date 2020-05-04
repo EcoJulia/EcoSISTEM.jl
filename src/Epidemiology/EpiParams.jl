@@ -165,11 +165,11 @@ function transition(params::SEIRGrowth)
             tmat[to[i], from[i]] = ordered_transitions[i]
     end
     tmat[end, :] .+= params.death
-    vmat = zeros(typeof(params.beta), 5, 5)
+    vmat = zeros(typeof(params.beta), 6, 6)
     vmat[3, 2] = params.beta
-    v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 5)
-    v_growth[3] = params.virus_growth
-    v_decay[3] = params.virus_decay
+    v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 6)
+    v_growth[4] = params.virus_growth
+    v_decay[4] = params.virus_decay
   return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
 end
 
@@ -182,11 +182,11 @@ function transition(params::SEIRSGrowth)
             tmat[to[i], from[i]] = ordered_transitions[i]
     end
     tmat[end, :] .+= params.death
-    vmat = zeros(typeof(params.beta), 5, 5)
+    vmat = zeros(typeof(params.beta), 6, 6)
     vmat[3, 2] = params.beta
-    v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 5)
-    v_growth[3] = params.virus_growth
-    v_decay[3] = params.virus_decay
+    v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 6)
+    v_growth[4] = params.virus_growth
+    v_decay[4] = params.virus_decay
   return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
 end
 

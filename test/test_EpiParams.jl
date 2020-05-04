@@ -21,5 +21,4 @@ param = SIRGrowth{typeof(unit(beta))}(birth, death, virus_growth, virus_decay, b
 transition_params = transition(param)
 @test size(transition_params.transition) == size(transition_params.transition_virus)
 @test length(transition_params.virus_decay) == length(transition_params.virus_growth)
-@test transition_params.transition[2, :] == birth
-@test transition_params.transition[2, :] == death
+@test transition_params.transition[end, :] == death

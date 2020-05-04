@@ -4,15 +4,16 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
 
+numclasses = 6
 # Set simulation parameters
 birth = fill(0.0/day, numclasses)
 death = fill(0.0/day, numclasses)
-beta = 5.0days
+beta = 1e-4/day
 mu = 1/7days
-sigma = 1/7days
-epsilon = 0.0/day
+sigma = 0.1/days
+epsilon = 0.01/day
 virus_growth = 1e-3/day
-virus_decay = Inf/day
+virus_decay = 1.0/day
 param = SEIRSGrowth{typeof(unit(beta))}(birth, death, virus_growth, virus_decay, beta, mu, sigma, epsilon)
 param = transition(param)
 
@@ -32,7 +33,7 @@ abun = [virus, susceptible, exposed, infected, recovered, dead]
 
 # Dispersal kernels for virus and disease classes
 dispersal_dists = fill(100.0km, numclasses)
-dispersal_dists[3] = 700.0km
+dispersal_dists[4] = 700.0km
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
@@ -50,6 +51,12 @@ times = 2years; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
 # Test no-one dies (death rate = 0)
-@test sum(thisabun[end, :, :]) == 0
+@test sum(abuns[end, :, :]) == 0
 # Test overall population size stays constant (birth rate = death rate = 0)
-@test all(sum(thisabun[2:3, :, :], dims = (1, 2)) .== (susceptible + infected))
+@test all(sum(abuns[2:5, :, :], dims = (1, 2)) .== (susceptible + infected))
+
+# display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptible"))
+# display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Orange, label = "Exposed"))
+# display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Red, label = "Infected"))
+# display(plot!(mapslices(sum, abuns[5, :, :], dims = 1)[1, :], color = :Green, label = "Recovered"))
+# display(plot!(mapslices(sum, abuns[6, :, :], dims = 1)[1, :], color = :Black, label = "Deaths"))
