@@ -23,7 +23,7 @@ p_s = 0.96
 # Prob of hospitalisation
 p_h = 0.2
 # Case fatality ratio
-cfr = 0.1
+cfr_home = cfr_hospital = 0.1
 # Time exposed
 T_lat = 5days
 # Time asymptomatic
@@ -35,8 +35,7 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = SEI2HRDGrowth(birth, death, virus_growth, virus_decay, beta,
-p_s, p_h, cfr, T_lat, T_asym, T_sym, T_hosp, T_rec)
+param = SEI2HRDGrowth(birth, death, virus_growth, virus_decay, beta, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_sym, T_hosp, T_rec)
 param = transition(param)
 
 # Read in population sizes for Scotland

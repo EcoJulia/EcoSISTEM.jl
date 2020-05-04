@@ -23,7 +23,7 @@ p_s = 1.0
 # Prob of hospitalisation
 p_h = 0.2
 # Case fatality ratio
-cfr = 1.0
+cfr_home = cfr_hosp = 1.0
 # Time exposed
 T_lat = 5days
 # Time asymptomatic
@@ -36,7 +36,7 @@ T_hosp = 5days
 T_rec = 11days
 
 param = SEI2HRDGrowth(birth, death, virus_growth, virus_decay, beta,
-p_s, p_h, cfr, T_lat, T_asym, T_sym, T_hosp, T_rec)
+p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_sym, T_hosp, T_rec)
 param = transition(param)
 
 # Set up simple gridded environment
@@ -101,7 +101,7 @@ p_s = 1.0
 # Prob of hospitalisation
 p_h = 0.2
 # Case fatality ratio
-cfr = 1.0
+cfr_home = cfr_hosp = 1.0
 # Time exposed
 T_lat = 5days
 # Time asymptomatic
@@ -114,7 +114,7 @@ T_hosp = 5days
 T_rec = 11days
 
 param = SEI2HRDGrowth(birth, death, virus_growth, virus_decay, beta,
-p_s, p_h, cfr, T_lat, T_asym, T_sym, T_hosp, T_rec)
+p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_sym, T_hosp, T_rec)
 param = transition(param)
 
 # Set up simple gridded environment
