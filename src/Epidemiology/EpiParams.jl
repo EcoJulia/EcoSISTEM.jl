@@ -1,5 +1,10 @@
 using Unitful
 
+"""
+    SIRGrowth{U <: Unitful.Units} <: AbstractParams
+
+Parameter set that houses information on birth and death rates of different classes in an SIR model, as well as growth and decay of virus, and infection/recovery parameters.
+"""
 mutable struct SIRGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Vector{TimeUnitType{U}}
       death::Vector{TimeUnitType{U}}
@@ -14,6 +19,12 @@ mutable struct SIRGrowth{U <: Unitful.Units} <: AbstractParams
         new{U}(birth, death, virus_growth, virus_decay, beta, sigma)
     end
 end
+
+"""
+    SISGrowth{U <: Unitful.Units} <: AbstractParams
+
+Parameter set that houses information on birth and death rates of different classes in an SIS model, as well as growth and decay of virus, and infection/recovery parameters.
+"""
 mutable struct SISGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Vector{TimeUnitType{U}}
       death::Vector{TimeUnitType{U}}
@@ -28,6 +39,12 @@ mutable struct SISGrowth{U <: Unitful.Units} <: AbstractParams
         new{U}(birth, death, virus_growth, virus_decay, beta, sigma)
     end
 end
+
+"""
+    SEIRGrowth{U <: Unitful.Units} <: AbstractParams
+
+Parameter set that houses information on birth and death rates of different classes in an SEIR model, as well as growth and decay of virus, and infection/incubation/recovery parameters.
+"""
 mutable struct SEIRGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Vector{TimeUnitType{U}}
       death::Vector{TimeUnitType{U}}
@@ -42,6 +59,12 @@ mutable struct SEIRGrowth{U <: Unitful.Units} <: AbstractParams
         new{U}(birth, death, virus_growth, virus_decay, beta, mu, sigma)
     end
 end
+
+"""
+    SEIRSGrowth{U <: Unitful.Units} <: AbstractParams
+
+Parameter set that houses information on birth and death rates of different classes in an SEIRS model, as well as growth and decay of virus, and infection/incubation/recovery parameters.
+"""
 mutable struct SEIRSGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Vector{TimeUnitType{U}}
       death::Vector{TimeUnitType{U}}
@@ -59,6 +82,11 @@ mutable struct SEIRSGrowth{U <: Unitful.Units} <: AbstractParams
     end
 end
 
+"""
+    SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
+
+Parameter set that houses information on birth and death rates of different classes in an SEI2HRD model, as well as growth and decay of virus, and infection/incubation/hospitalisation/recovery parameters.
+"""
 mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Vector{TimeUnitType{U}}
       death::Vector{TimeUnitType{U}}
@@ -120,6 +148,11 @@ function SEI2HRDGrowth(birth::Vector{TimeUnitType{U}},
     sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital)
 end
 
+"""
+    EpiParams{U <: Unitful.Units} <: AbstractParams
+
+Parameter set for any epi model type, which stores information on birth, virus generation and decay probabilities, as well as matrices for transitions between different states. `transition` houses straightforward transition probabilities between classes, whereas `transition_virus` houses probabilities that should be multiplied by the amount of virus in the system, such as infection transitions.
+"""
 mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
     births::Vector{TimeUnitType{U}}
     virus_growth::Vector{TimeUnitType{U}}
@@ -132,6 +165,11 @@ mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
     end
 end
 
+"""
+    transition(params::SISGrowth)
+
+Function to create transition matrix from SIS parameters and return an `EpiParams` type that can be used by the model update.
+"""
 function transition(params::SISGrowth)
     tmat = zeros(typeof(params.beta), 4, 4)
     tmat[end, :] .+= params.death
@@ -144,6 +182,11 @@ function transition(params::SISGrowth)
   return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
 end
 
+"""
+    transition(params::SIRGrowth)
+
+Function to create transition matrix from SIR parameters and return an `EpiParams` type that can be used by the model update.
+"""
 function transition(params::SIRGrowth)
     tmat = zeros(typeof(params.beta), 5, 5)
     tmat[4, 3] = params.sigma
@@ -156,6 +199,11 @@ function transition(params::SIRGrowth)
   return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
 end
 
+"""
+    transition(params::SEIRGrowth)
+
+Function to create transition matrix from SEIR parameters and return an `EpiParams` type that can be used by the model update.
+"""
 function transition(params::SEIRGrowth)
     tmat = zeros(typeof(params.beta), 6, 6)
     ordered_transitions = [params.mu, params.sigma]
@@ -173,6 +221,11 @@ function transition(params::SEIRGrowth)
   return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
 end
 
+"""
+    transition(params::SEIRSGrowth)
+
+Function to create transition matrix from SEIRS parameters and return an `EpiParams` type that can be used by the model update.
+"""
 function transition(params::SEIRSGrowth)
     tmat = zeros(typeof(params.beta), 6, 6)
     ordered_transitions = [params.mu, params.sigma, params.epsilon]
@@ -190,6 +243,11 @@ function transition(params::SEIRSGrowth)
   return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
 end
 
+"""
+    transition(params::SEI2HRDGrowth)
+
+Function to create transition matrix from SEI2HRD parameters and return an `EpiParams` type that can be used by the model update.
+"""
 function transition(params::SEI2HRDGrowth)
     ordered_transitions = [params.mu_1, params.mu_2, params.hospitalisation,
     params.sigma_1, params.sigma_2, params.sigma_hospital, params.death_home,
