@@ -3,24 +3,27 @@
 # Updated to use openMPI 4.0
 cd ~/openmpi
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+	echo $PWD
+	ls *
 	if [ -f "./bin/mpirun" ]; then
-		echo "Using cached OpenMPI"
+		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
     else
-		echo "Installing OpenMPI with homebrew"
+		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
 		NUM_CORES=$(sysctl -n hw.ncpu)
+		HOMEBREW_TEMP=$HOME/openmpi
 		HOMEBREW_MAKE_JOBS=$NUM_CORES brew install open-mpi
     fi
 	ln -s /usr/local/bin bin
 	ln -s /usr/local/lib lib
 	ln -s /usr/local/include include
 else
-	if [ -f "./bin/mpirun" ] && [ -f "~/openmpi-4.0.3/config.log" ]; then
-		echo "Using cached OpenMPI"
+	if [ -f "./bin/mpirun" ] && [ -f "$HOME/openmpi-4.0.3/config.log" ]; then
+		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
 		echo "Configuring OpenMPI"
 		cd ../openmpi-4.0.3
 		./configure --prefix=~/openmpi CC=$C_COMPILER CXX=$CXX_COMPILER &> openmpi.configure
 	else
-		echo "Downloading OpenMPI Source"
+		echo "Downloading OpenMPI Source on " $TRAVIS_OS_NAME
 		wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.3.tar.gz
 		tar zxf openmpi-4.0.3.tar.gz
 		echo "Configuring and building OpenMPI"
@@ -31,11 +34,8 @@ else
 		make install &> openmpi.install
 		echo "PWD = " $PWD
 		ls
-		export JULIA_MPI_PATH=~/openmpi
 	fi
 	test -n $CC && unset CC
 	test -n $CXX && unset CXX
 fi
-echo "JULIA_MPI_PATH = " $JULIA_MPI_PATH
-ls $JULIA_MPI_PATH
 cd $TRAVIS_BUILD_DIR
