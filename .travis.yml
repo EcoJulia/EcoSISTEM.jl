@@ -33,5 +33,5 @@ jobs:
 cache:
   directories:
     - ~/.julia
-    - openmpi
+    - ~/openmpi
   
