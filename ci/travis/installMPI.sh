@@ -28,10 +28,11 @@ else
 		echo "Downloading OpenMPI Source on " $TRAVIS_OS_NAME
 		rm -rf ~/openmpi
 		rm -rf ~/openmpi-4.0.3
+		cd ~
 		wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.3.tar.gz
 		tar zxf openmpi-4.0.3.tar.gz
 		echo "Configuring and building OpenMPI"
-		mv openmpi-4.0.3 ~
+		mkdir -p ~/openmpi
 		cd ~/openmpi-4.0.3
 		./configure --prefix=$HOME/openmpi CC=$C_COMPILER CXX=$CXX_COMPILER &> openmpi.configure
 		make -j &> openmpi.make
