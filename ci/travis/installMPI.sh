@@ -1,15 +1,15 @@
 #!/bin/bash
 # https://www.aithercfd.com/2016/12/03/using-travisci.html
 # Updated to use openMPI 4.0
+mkdir -p ~/openmpi
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 	cd ~/openmpi
 	if [ -f "~/openmpi/bin/mpirun" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
     else
 		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
-		rm -rf ~/openmpi
-		rm -rf ~/openmpi-4.0.3
-		mkdir -p ~/openmpi
+		echo "PWD " $PWD
+		rm -rf ~/openmpi/*
 		NUM_CORES=$(sysctl -n hw.ncpu)
 		HOMEBREW_MAKE_JOBS=$NUM_CORES brew install open-mpi
 		cp -r /usr/local/Cellar/open-mpi/4.0.3/* . # 4.0.3 will be out of date eventually
