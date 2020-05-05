@@ -3,6 +3,12 @@
 using Compat
 using Test
 
+if haskey(ENV, "JULIA_MPI_PATH")
+  @show ENV["JULIA_MPI_PATH"]
+else
+  println("JULIA_MPI_PATH not set in ENV")
+end
+
 filebase = map(file -> replace(file, r"(.*).jl" => s"\1"),
                 filter(file -> occursin(r".*\.jl", file), readdir("../src")))
 testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
