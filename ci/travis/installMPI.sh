@@ -21,14 +21,15 @@ else
 			./configure --prefix=~/openmpi CC=$C_COMPILER CXX=$CXX_COMPILER &> openmpi.configure
 		else
 			echo "Downloading OpenMPI Source"
-			wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.3.tar.gz
+			wget ‐‐directory-prefix=~ https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.3.tar.gz
 			tar zxf openmpi-4.0.3.tar.gz
 			echo "Configuring and building OpenMPI"
 			cd openmpi-4.0.3
-			./configure --prefix=$PWD/openmpi CC=$C_COMPILER CXX=$CXX_COMPILER &> openmpi.configure
+			./configure --prefix=~/openmpi CC=$C_COMPILER CXX=$CXX_COMPILER &> openmpi.configure
 			make -j4 &> openmpi.make
 			make install &> openmpi.install
-			export JULIA_MPI_PATH=$PWD/openmpi
+			export JULIA_MPI_PATH=~/openmpi
+			echo $JULIA_MPI_PATH
     fi
     test -n $CC && unset CC
     test -n $CXX && unset CXX
