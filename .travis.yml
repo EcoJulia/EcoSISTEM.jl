@@ -15,15 +15,15 @@ install:
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - cp -r $HOME/openmpi .
+  - export JULIA_MPI_PATH=$HOME/openmpi
   - julia --project=@. -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.test(\"Simulation\", coverage=true);"
-  - rm -rf ~/.julia/packages/Simulation
 
 after_success:
   # push coverage results to Coveralls
   - julia -e 'using Pkg; cd(Pkg.dir("Simulation")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
   # push coverage results to Codecov
   - julia -e 'using Pkg; cd(Pkg.dir("Simulation")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+  - rm -rf ~/.julia/packages/Simulation
 
 jobs:
   allow_failures:
