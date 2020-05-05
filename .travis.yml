@@ -12,13 +12,10 @@ notifications:
 # install mpi
 install:
   - source ci/travis/installMPI.sh
-  - echo $JULIA_MPI_PATH
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - echo $JULIA_MPI_PATH
-  - echo $PWD
-  - cp $HOME/openmpi .
+  - cp -r $HOME/openmpi .
   - julia --project=@. -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.test(\"Simulation\", coverage=true);"
   - rm -rf ~/.julia/packages/Simulation
 
