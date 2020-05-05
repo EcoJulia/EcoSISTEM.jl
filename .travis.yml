@@ -9,6 +9,10 @@ julia: # https://github.com/ScottishCovidResponse/SCRCIssueTracking/issues/16
 notifications:
   email: false
 
+jobs:
+  allow_failures:
+    - julia: 1.0.5
+
 # install mpi
 install:
   - source ci/travis/installMPI.sh
@@ -23,15 +27,12 @@ after_success:
   - julia -e 'using Pkg; cd(Pkg.dir("Simulation")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
   # push coverage results to Codecov
   - julia -e 'using Pkg; cd(Pkg.dir("Simulation")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
-  - rm -rf ~/.julia/packages/Simulation
 
-jobs:
-  allow_failures:
-    - julia: 1.0.5
+before_cache:
+  - rm -rf ~/.julia/packages/Simulation
 
 cache:
   directories:
     - ~/.julia
     - ~/openmpi
     - ~/openmpi-4.0.3
-  
