@@ -15,7 +15,8 @@ install:
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - cp -rH $HOME/openmpi .
+  - ls $HOME
+  - cp -r $HOME/openmpi .
   - julia --project=@. -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.test(\"Simulation\", coverage=true);"
   - rm -rf ~/.julia/packages/Simulation
 
