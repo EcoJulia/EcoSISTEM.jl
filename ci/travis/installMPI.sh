@@ -2,7 +2,7 @@
 # https://www.aithercfd.com/2016/12/03/using-travisci.html
 # Updated to use openMPI 4.0
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-	if [ -f "./bin/mpirun" ]; then
+	if [ -f "./openmpi/bin/mpirun" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
     else
 		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
@@ -19,7 +19,7 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 	ln -s /usr/local/include include
 else
 	cd ~/openmpi
-	if [ -f "$HOME/bin/mpirun" ] && [ -f "$HOME/openmpi-4.0.3/config.log" ]; then
+	if [ -f "$HOME/openmpi/bin/mpirun" ] && [ -f "$HOME/openmpi-4.0.3/config.log" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
 		echo "Configuring OpenMPI"
 		cd ~/openmpi-4.0.3
