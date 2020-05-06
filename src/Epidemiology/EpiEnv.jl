@@ -50,21 +50,29 @@ end
 Function to create a simple `ContinuousHab` type epi
 environment. It creates a `ContinuousHab` filled with a given value, `val`, dimensions (`dimension`) and a specified area (`area`). The rate of environmental change is specified using the parameter `rate`. If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
 """
-function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
- dimension::Tuple{Int64, Int64}, area::Unitful.Area{Float64},
- active::Array{Bool, 2}, control::C) where C <: AbstractControl
- if typeof(val) <: Unitful.Temperature
-     val = uconvert(K, val)
- end
- area = uconvert(km^2, area)
- gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
- hab = simplehabitat(val, gridsquaresize, dimension)
- return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control)
+function simplehabitatAE(
+    val::Union{Float64, Unitful.Quantity{Float64}},
+    dimension::Tuple{Int64, Int64},
+    area::Unitful.Area{Float64},
+    active::Array{Bool, 2},
+    control::C
+) where C <: AbstractControl
+    if typeof(val) <: Unitful.Temperature
+        val = uconvert(K, val)
+    end
+    area = uconvert(km^2, area)
+    gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
+    hab = simplehabitat(val, gridsquaresize, dimension)
+    return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control)
 end
 
-function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
- dimension::Tuple{Int64, Int64}, area::Unitful.Area{Float64}, control::C) where C <: AbstractControl
+function simplehabitatAE(
+    val::Union{Float64, Unitful.Quantity{Float64}},
+    dimension::Tuple{Int64, Int64},
+    area::Unitful.Area{Float64},
+    control::C
+) where C <: AbstractControl
 
- active = fill(true, dimension)
- simplehabitatAE(val, dimension, area, active, control)
+    active = fill(true, dimension)
+    simplehabitatAE(val, dimension, area, active, control)
 end
