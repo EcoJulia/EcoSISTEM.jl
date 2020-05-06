@@ -10,13 +10,13 @@ mutable struct SIRGrowth{U <: Unitful.Units} <: AbstractParams
       death::Vector{TimeUnitType{U}}
       virus_growth::TimeUnitType{U}
       virus_decay::TimeUnitType{U}
-      beta::TimeUnitType{U}
+      beta_force::TimeUnitType{U}
+      beta_env::TimeUnitType{U}
       sigma::TimeUnitType{U}
     function SIRGrowth{U}(birth::Vector{TimeUnitType{U}},
-        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U},
-        virus_decay::TimeUnitType{U}, beta::TimeUnitType{U},
-        sigma::TimeUnitType{U}) where {U <: Unitful.Units}
-        new{U}(birth, death, virus_growth, virus_decay, beta, sigma)
+        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, sigma::TimeUnitType{U}) where {U <: Unitful.Units}
+        length(birth) == length(death) || ("Birth and death vector lengths differ")
+        new{U}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
     end
 end
 
@@ -30,13 +30,15 @@ mutable struct SISGrowth{U <: Unitful.Units} <: AbstractParams
       death::Vector{TimeUnitType{U}}
       virus_growth::TimeUnitType{U}
       virus_decay::TimeUnitType{U}
-      beta::TimeUnitType{U}
+      beta_force::TimeUnitType{U}
+      beta_env::TimeUnitType{U}
       sigma::TimeUnitType{U}
     function SISGrowth{U}(birth::Vector{TimeUnitType{U}},
         death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U},
-        virus_decay::TimeUnitType{U}, beta::TimeUnitType{U},
+        virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U},
         sigma::TimeUnitType{U}) where {U <: Unitful.Units}
-        new{U}(birth, death, virus_growth, virus_decay, beta, sigma)
+        length(birth) == length(death) || ("Birth and death vector lengths differ")
+        new{U}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
     end
 end
 
@@ -50,13 +52,16 @@ mutable struct SEIRGrowth{U <: Unitful.Units} <: AbstractParams
       death::Vector{TimeUnitType{U}}
       virus_growth::TimeUnitType{U}
       virus_decay::TimeUnitType{U}
-      beta::TimeUnitType{U}
+      beta_force::TimeUnitType{U}
+      beta_env::TimeUnitType{U}
       mu::TimeUnitType{U}
       sigma::TimeUnitType{U}
     function SEIRGrowth{U}(birth::Vector{TimeUnitType{U}},
         death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U},
-        virus_decay::TimeUnitType{U}, beta::TimeUnitType{U}, mu::TimeUnitType{U}, sigma::TimeUnitType{U}) where {U <: Unitful.Units}
-        new{U}(birth, death, virus_growth, virus_decay, beta, mu, sigma)
+        virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U},
+        beta_env::TimeUnitType{U}, mu::TimeUnitType{U}, sigma::TimeUnitType{U}) where {U <: Unitful.Units}
+        length(birth) == length(death) || ("Birth and death vector lengths differ")
+        new{U}(birth, death, virus_growth, virus_decay, beta_force, beta_env, mu, sigma)
     end
 end
 
@@ -70,15 +75,17 @@ mutable struct SEIRSGrowth{U <: Unitful.Units} <: AbstractParams
       death::Vector{TimeUnitType{U}}
       virus_growth::TimeUnitType{U}
       virus_decay::TimeUnitType{U}
-      beta::TimeUnitType{U}
+      beta_force::TimeUnitType{U}
+      beta_env::TimeUnitType{U}
       mu::TimeUnitType{U}
       epsilon::TimeUnitType{U}
       sigma::TimeUnitType{U}
     function SEIRSGrowth{U}(birth::Vector{TimeUnitType{U}},
         death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U},
-        virus_decay::TimeUnitType{U}, beta::TimeUnitType{U},
+        virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U},
         mu::TimeUnitType{U}, sigma::TimeUnitType{U}, epsilon::TimeUnitType{U}) where {U <: Unitful.Units}
-        new{U}(birth, death, virus_growth, virus_decay, beta, mu, sigma, epsilon)
+        length(birth) == length(death) || ("Birth and death vector lengths differ")
+        new{U}(birth, death, virus_growth, virus_decay, beta_force, beta_env, mu, sigma, epsilon)
     end
 end
 
@@ -92,7 +99,8 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
       death::Vector{TimeUnitType{U}}
       virus_growth::Vector{TimeUnitType{U}}
       virus_decay::Vector{TimeUnitType{U}}
-      beta::Vector{TimeUnitType{U}}
+      beta_force::TimeUnitType{U}
+      beta_env::TimeUnitType{U}
       sigma_1::TimeUnitType{U}
       sigma_2::TimeUnitType{U}
       sigma_hospital::TimeUnitType{U}
@@ -103,12 +111,14 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
       death_hospital::TimeUnitType{U}
     function SEI2HRDGrowth{U}(birth::Vector{TimeUnitType{U}},
         death::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}},
-        virus_decay::Vector{TimeUnitType{U}}, beta::Vector{TimeUnitType{U}},
+        virus_decay::Vector{TimeUnitType{U}}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U},
         sigma_1::TimeUnitType{U}, sigma_2::TimeUnitType{U}, sigma_hospital::TimeUnitType{U}, mu_1::TimeUnitType{U},
         mu_2::TimeUnitType{U}, hospitalisation::TimeUnitType{U}, death_home::TimeUnitType{U},
         death_hospital::TimeUnitType{U}) where {U <: Unitful.Units}
-        new{U}(birth, death, virus_growth, virus_decay, beta, sigma_1,
-        sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital)
+        length(birth) == length(death) || ("Birth and death vector lengths differ")
+        length(virus_growth) == length(virus_decay) || ("Virus growth and decay vector lengths differ")
+        (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
+        new{U}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital)
     end
 end
 
@@ -120,7 +130,7 @@ Function to calculate SEI2HRD parameters from initial probabilities of developin
 """
 function SEI2HRDGrowth(birth::Vector{TimeUnitType{U}},
     death::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}},
-    virus_decay::Vector{TimeUnitType{U}}, beta::Vector{TimeUnitType{U}},
+    virus_decay::Vector{TimeUnitType{U}}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U},
     prob_sym::Float64, prob_hosp::Float64, cfr_home::Float64, cfr_hosp::Float64,
     T_lat::Unitful.Time, T_asym::Unitful.Time, T_sym::Unitful.Time,
     T_hosp::Unitful.Time, T_rec::Unitful.Time) where {U <: Unitful.Units}
@@ -140,7 +150,7 @@ function SEI2HRDGrowth(birth::Vector{TimeUnitType{U}},
     death_home = cfr_home * 2/T_hosp
     # Hospital -> death
     death_hospital = cfr_hosp * 1/T_hosp
-    return SEI2HRDGrowth{U}(birth, death, virus_growth, virus_decay, beta,
+    return SEI2HRDGrowth{U}(birth, death, virus_growth, virus_decay, beta_force, beta_env,
     sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital)
 end
 
@@ -154,10 +164,14 @@ mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
     virus_growth::Vector{TimeUnitType{U}}
     virus_decay::Vector{TimeUnitType{U}}
     transition::Matrix{TimeUnitType{U}}
+    transition_force::Matrix{TimeUnitType{U}}
     transition_virus::Matrix{TimeUnitType{U}}
     function EpiParams{U}(births::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}},
-        virus_decay::Vector{TimeUnitType{U}}, transition::Matrix{TimeUnitType{U}}, transition_virus::Matrix{TimeUnitType{U}}) where {U <: Unitful.Units}
-        new{U}(births, virus_growth, virus_decay, transition, transition_virus)
+        virus_decay::Vector{TimeUnitType{U}}, transition::Matrix{TimeUnitType{U}}, transition_force::Matrix{TimeUnitType{U}}, transition_virus::Matrix{TimeUnitType{U}}) where {U <: Unitful.Units}
+        size(transition, 1) == size(transition, 2) || error("Transition matrix should be square.")
+        size(transition, 1) == size(transition_virus, 1) || error("Transition matrices should match dimensions.")
+        size(transition_force, 1) == size(transition_virus, 1) || error("Transition matrices should match dimensions.")
+        new{U}(births, virus_growth, virus_decay, transition, transition_force, transition_virus)
     end
 end
 
