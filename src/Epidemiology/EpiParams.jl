@@ -181,15 +181,18 @@ end
 Function to create transition matrix from SIS parameters and return an `EpiParams` type that can be used by the model update.
 """
 function transition(params::SISGrowth)
-    tmat = zeros(typeof(params.beta), 4, 4)
+    tmat = zeros(typeof(params.beta_force), 4, 4)
     tmat[end, :] .+= params.death
     tmat[2, 3] = params.sigma
-    vmat = zeros(typeof(params.beta), 4, 4)
-    vmat[3, 2] = params.beta
-    v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 5)
+    vmat = zeros(typeof(params.beta_force), 4, 4)
+    vfmat = zeros(typeof(params.beta_force), 4, 4)
+    vfmat[3, 2] = params.beta_force
+    vmat[3, 2] = params.beta_env
+    v_growth = fill(0.0 * unit(params.virus_growth), 5)
+    v_decay = fill(0.0 * unit(params.virus_growth), 5)
     v_growth[3] = params.virus_growth
     v_decay[3] = params.virus_decay
-  return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
+  return EpiParams{typeof(unit(params.beta_force))}(params.birth, v_growth, v_decay, tmat, vfmat, vmat)
 end
 
 """
@@ -198,15 +201,18 @@ end
 Function to create transition matrix from SIR parameters and return an `EpiParams` type that can be used by the model update.
 """
 function transition(params::SIRGrowth)
-    tmat = zeros(typeof(params.beta), 5, 5)
+    tmat = zeros(typeof(params.beta_force), 5, 5)
     tmat[4, 3] = params.sigma
     tmat[end, :] .+= params.death
-    vmat = zeros(typeof(params.beta), 5, 5)
-    vmat[3, 2] = params.beta
-    v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 5)
+    vmat = zeros(typeof(params.beta_force), 5, 5)
+    vfmat = zeros(typeof(params.beta_force), 5, 5)
+    vfmat[3, 2] = params.beta_force
+    vmat[3, 2] = params.beta_env
+    v_growth = fill(0.0 * unit(params.virus_growth), 5)
+    v_decay = fill(0.0 * unit(params.virus_growth), 5)
     v_growth[3] = params.virus_growth
     v_decay[3] = params.virus_decay
-  return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
+  return EpiParams{typeof(unit(params.beta_force))}(params.birth, v_growth, v_decay, tmat, vfmat, vmat)
 end
 
 """
@@ -215,7 +221,7 @@ end
 Function to create transition matrix from SEIR parameters and return an `EpiParams` type that can be used by the model update.
 """
 function transition(params::SEIRGrowth)
-    tmat = zeros(typeof(params.beta), 6, 6)
+    tmat = zeros(typeof(params.beta_force), 6, 6)
     ordered_transitions = [params.mu, params.sigma]
     from = [3, 4]
     to = [4, 5]
@@ -223,12 +229,15 @@ function transition(params::SEIRGrowth)
             tmat[to[i], from[i]] = ordered_transitions[i]
     end
     tmat[end, :] .+= params.death
-    vmat = zeros(typeof(params.beta), 6, 6)
-    vmat[3, 2] = params.beta
-    v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 6)
+    vmat = zeros(typeof(params.beta_force), 6, 6)
+    vfmat = zeros(typeof(params.beta_force), 6, 6)
+    vfmat[3, 2] = params.beta_force
+    vmat[3, 2] = params.beta_env
+    v_growth = fill(0.0 * unit(params.virus_growth), 6)
+    v_decay = fill(0.0 * unit(params.virus_growth), 6)
     v_growth[4] = params.virus_growth
     v_decay[4] = params.virus_decay
-  return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
+  return EpiParams{typeof(unit(params.beta_force))}(params.birth, v_growth, v_decay, tmat, vfmat, vmat)
 end
 
 """
@@ -237,7 +246,7 @@ end
 Function to create transition matrix from SEIRS parameters and return an `EpiParams` type that can be used by the model update.
 """
 function transition(params::SEIRSGrowth)
-    tmat = zeros(typeof(params.beta), 6, 6)
+    tmat = zeros(typeof(params.beta_force), 6, 6)
     ordered_transitions = [params.mu, params.sigma, params.epsilon]
     from = [3, 4, 5]
     to = [4, 5, 2]
@@ -245,12 +254,15 @@ function transition(params::SEIRSGrowth)
             tmat[to[i], from[i]] = ordered_transitions[i]
     end
     tmat[end, :] .+= params.death
-    vmat = zeros(typeof(params.beta), 6, 6)
-    vmat[3, 2] = params.beta
-    v_growth = v_decay = fill(0.0 * unit(params.virus_growth), 6)
+    vmat = zeros(typeof(params.beta_force), 6, 6)
+    vfmat = zeros(typeof(params.beta_force), 6, 6)
+    vfmat[3, 2] = params.beta_force
+    vmat[3, 2] = params.beta_env
+    v_growth = fill(0.0 * unit(params.virus_growth), 6)
+    v_decay = fill(0.0 * unit(params.virus_growth), 6)
     v_growth[4] = params.virus_growth
     v_decay[4] = params.virus_decay
-  return EpiParams{typeof(unit(params.beta))}(params.birth, v_growth, v_decay, tmat, vmat)
+  return EpiParams{typeof(unit(params.beta_force))}(params.birth, v_growth, v_decay, tmat, vfmat, vmat)
 end
 
 """
@@ -259,17 +271,18 @@ end
 Function to create transition matrix from SEI2HRD parameters and return an `EpiParams` type that can be used by the model update.
 """
 function transition(params::SEI2HRDGrowth)
-    ordered_transitions = [params.mu_1, params.mu_2, params.hospitalisation,
-    params.sigma_1, params.sigma_2, params.sigma_hospital, params.death_home,
+    ordered_transitions = [params.mu_1, params.mu_2, params.hospitalisation, params.sigma_1, params.sigma_2, params.sigma_hospital, params.death_home,
     params.death_hospital]
     from = [3, 4, 5, 4, 5, 6, 5, 6]
     to = [4, 5, 6, 7, 7, 7, 8, 8]
-    tmat = zeros(typeof(params.beta[1]), 8, 8)
+    tmat = zeros(typeof(params.beta_force), 8, 8)
     for i in eachindex(to)
             tmat[to[i], from[i]] = ordered_transitions[i]
     end
-    vmat = zeros(typeof(params.beta[1]), 8, 8)
-    vmat[:, 2] .= params.beta
+    vmat = zeros(typeof(params.beta_force), 8, 8)
+    vfmat = zeros(typeof(params.beta_force), 8, 8)
+    vfmat[3, 2] = params.beta_force
+    vmat[3, 2] = params.beta_env
     tmat[end, :] .+= params.death
-  return EpiParams{typeof(unit(params.beta[1]))}(params.birth, params.virus_growth, params.virus_decay, tmat, vmat)
+  return EpiParams{typeof(unit(params.beta_force))}(params.birth, params.virus_growth, params.virus_decay, tmat, vfmat, vmat)
 end
