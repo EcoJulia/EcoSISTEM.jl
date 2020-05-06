@@ -81,16 +81,6 @@ function simplehabitatAE(
     return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control, initial_population)
 end
 
-function simplehabitatAE(
-    val::Union{Float64, Unitful.Quantity{Float64}},
-    dimension::Tuple{Int64, Int64},
-    area::Unitful.Area{Float64},
-    control::C
-) where C <: AbstractControl
-    active = fill(true, dimension)
-    return simplehabitatAE(val, dimension, area, active, control)
-end
-
 """
     simplehabitatAE(
         val::Union{Float64, Unitful.Quantity{Float64}},
@@ -124,5 +114,5 @@ function simplehabitatAE(
     active = Matrix{Bool}(.!inactive.(initial_population))
     initial_population[inactive.(initial_population)] .= 0
     initial_population = Int.(round.(initial_population))
-    return simplehabitatAE(val, dimension, area, active, control, initial_population)
+    return simplehabitatAE(val, dimension, area, control, active, initial_population)
 end
