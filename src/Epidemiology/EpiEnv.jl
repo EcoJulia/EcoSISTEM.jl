@@ -43,12 +43,18 @@ function _getsubcommunitynames(epienv::GridEpiEnv)
 end
 
 """
-    simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
-    dimension::Tuple{Int64, Int64}, area::Unitful.Area{Float64},
-    active::Array{Bool, 2}, control::C)
+    function simplehabitatAE(
+        val::Union{Float64, Unitful.Quantity{Float64}},
+        dimension::Tuple{Int64, Int64},
+        area::Unitful.Area{Float64},
+        active::Array{Bool, 2},
+        control::C
+    )
 
-Function to create a simple `ContinuousHab` type epi
-environment. It creates a `ContinuousHab` filled with a given value, `val`, dimensions (`dimension`) and a specified area (`area`). The rate of environmental change is specified using the parameter `rate`. If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
+Function to create a simple `ContinuousHab` type epi environment. It creates a
+`ContinuousHab` filled with a given value `val`, of dimensions `dimension` and specified
+area `area`. If a Bool matrix `active` of active grid squares is included, this is used,
+else one is created with all grid cells active.
 """
 function simplehabitatAE(
     val::Union{Float64, Unitful.Quantity{Float64}},
