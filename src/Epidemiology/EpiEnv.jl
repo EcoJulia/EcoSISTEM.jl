@@ -85,23 +85,34 @@ end
 """
     simplehabitatAE(
         val::Union{Float64, Unitful.Quantity{Float64}},
-        population::Matrix{<:Real},
         area::Unitful.Area{Float64},
-        control::C
+        control::C,
+        initial_population::Matrix{<:Real},
     )
 
-Create a simple `ContinuousHab` type epi environment from a specified `population` matrix.
-The dimensions of the habitat are derived from `population`. Values in `population` which
-are `NaN` are used to mask off inactive areas.
+Create a simple `ContinuousHab` type epi environment from a specified `initial_population`
+matrix.
+
+## Inputs
+- `val`: Fill the habitat with this value
+- `initial_population`: Used to derive the dimensions of the habitat, and the initial
+    susceptible population. Values in `initial_population` which are `NaN` or `Missing` are
+    used to mask off inactive areas. `initial_population` will be rounded to integers.
+- `area`: The area of the habitat
+- `control`: The control to apply
 """
 function simplehabitatAE(
     val::Union{Float64, Unitful.Quantity{Float64}},
-    population::Matrix{<:Real},
     area::Unitful.Area{Float64},
-    control::C
+    control::C,
+    initial_population::Matrix{<:Real},
 ) where C <: AbstractControl
-    !all(isnan.(population)) || throw(ArgumentError("Specified population is all NaN"))
-    dimension = size(population)
-    active = Matrix{Bool}(.!isnan.(population))
+    inactive(x) = isnan(x) || ismissing(x)
+    if all(inactive.(initial_population))
+        throw(ArgumentError("initial_population is all NaN / missing"))
+    end
+    dimension = size(initial_population)
+    active = Matrix{Bool}(.!inactive.(initial_population))
+    initial_population = Int.(round.(initial_population))
     return simplehabitatAE(val, dimension, area, active, control)
 end
