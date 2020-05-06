@@ -19,22 +19,24 @@ abstract type AbstractEpiEnv{H <: AbstractHabitat, C <: AbstractControl} <:
     GridEpiEnv{H, C} <: AbstractAbiotic{H, C}
 
 This epi environment type holds a habitat and control strategy, as well as a string of
-subcommunity names.
+subcommunity names, and initial susceptible population.
 """
 mutable struct GridEpiEnv{H, C} <: AbstractEpiEnv{H, C}
     habitat::H
     active::Array{Bool, 2}
     control::C
+    initial_population::Matrix{Int}
     names::Vector{String}
     function (::Type{GridEpiEnv{H, C}})(
         habitat::H,
         active::Array{Bool,2},
         control::C,
+        initial_population=zeros(Int, _getdimension(habitat)),
         names::Vector{String}=map(x -> "$x", 1:countsubcommunities(habitat))
     ) where {H, C}
         countsubcommunities(habitat) == length(names) ||
             error("Number of subcommunities must match subcommunity names")
-        return new{H, C}(habitat, active, control, names)
+        return new{H, C}(habitat, active, control, initial_population, names)
     end
 end
 
@@ -53,7 +55,8 @@ end
         dimension::Tuple{Int64, Int64},
         area::Unitful.Area{Float64},
         active::Array{Bool, 2},
-        control::C
+        control::C,
+        initial_population::Matrix{<:Integer}=zeros(Int, dimension),
     )
 
 Function to create a simple `ContinuousHab` type epi environment. It creates a
@@ -65,8 +68,9 @@ function simplehabitatAE(
     val::Union{Float64, Unitful.Quantity{Float64}},
     dimension::Tuple{Int64, Int64},
     area::Unitful.Area{Float64},
-    active::Array{Bool, 2},
-    control::C
+    control::C,
+    active::Array{Bool, 2}=fill(true, dimension),
+    initial_population::Matrix{<:Integer}=zeros(Int, dimension),
 ) where C <: AbstractControl
     if typeof(val) <: Unitful.Temperature
         val = uconvert(K, val)
@@ -74,7 +78,7 @@ function simplehabitatAE(
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
     hab = simplehabitat(val, gridsquaresize, dimension)
-    return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control)
+    return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control, initial_population)
 end
 
 function simplehabitatAE(
@@ -120,5 +124,5 @@ function simplehabitatAE(
     active = Matrix{Bool}(.!inactive.(initial_population))
     initial_population[inactive.(initial_population)] .= 0
     initial_population = Int.(round.(initial_population))
-    return simplehabitatAE(val, dimension, area, active, control)
+    return simplehabitatAE(val, dimension, area, active, control, initial_population)
 end
