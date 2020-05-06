@@ -18,19 +18,24 @@ abstract type AbstractEpiEnv{H <: AbstractHabitat, C <: AbstractControl} <:
 """
     GridEpiEnv{H, C} <: AbstractAbiotic{H, C}
 
-This epi environment type holds a habitat and control strategy, as well as a string of subcommunity names.
+This epi environment type holds a habitat and control strategy, as well as a string of
+subcommunity names.
 """
 mutable struct GridEpiEnv{H, C} <: AbstractEpiEnv{H, C}
-  habitat::H
-  active::Array{Bool, 2}
-  control::C
-  names::Vector{String}
-  function (::Type{GridEpiEnv{H, C}})(habitat::H, active::Array{Bool,2}, control::C, names::Vector{String} =
-       map(x -> "$x", 1:countsubcommunities(habitat))) where {H, C}
-    countsubcommunities(habitat) == length(names) ||
-      error("Number of subcommunities must match subcommunity names")
-    return new{H, C}(habitat, active, control, names)
-  end
+    habitat::H
+    active::Array{Bool, 2}
+    control::C
+    names::Vector{String}
+    function (::Type{GridEpiEnv{H, C}})(
+        habitat::H,
+        active::Array{Bool,2},
+        control::C,
+        names::Vector{String}=map(x -> "$x", 1:countsubcommunities(habitat))
+    ) where {H, C}
+        countsubcommunities(habitat) == length(names) ||
+            error("Number of subcommunities must match subcommunity names")
+        return new{H, C}(habitat, active, control, names)
+    end
 end
 
 import Diversity.API: _countsubcommunities
