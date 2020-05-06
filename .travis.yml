@@ -36,3 +36,4 @@ cache:
     - ~/.julia
     - ~/openmpi
     - ~/openmpi-4.0.3
+    - /usr/local/Cellar

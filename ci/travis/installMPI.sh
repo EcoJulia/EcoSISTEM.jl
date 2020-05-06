@@ -11,8 +11,9 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 		rm -rf ~/openmpi/*
 		NUM_CORES=$(sysctl -n hw.ncpu)
 		HOMEBREW_MAKE_JOBS=$NUM_CORES brew install open-mpi
-		cp -r /usr/local/Cellar/open-mpi/4.0.3/* . # 4.0.3 will be out of date eventually
     fi
+	echo "PATH " $PATH
+	echo "LD_LIBRARY_PATH " $LD_LIBRARY_PATH
 	export PATH=$PATH:$HOME/openmpi/bin
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/openmpi/lib
 else
