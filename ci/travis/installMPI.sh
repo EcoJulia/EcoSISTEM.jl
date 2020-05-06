@@ -10,6 +10,7 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 	ls /usr/local/Cellar
 	echo "ls /usr/local/Cellar/4.0.3"
 	ls /usr/local/Cellar/4.0.3
+	if [ -d "/usr/local/Cellar" ]; then echo "found cellar"; else echo "lost cellar"; fi
 	if [ -d "/usr/local/Cellar" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
 		ln -s /usr/local/bin /usr/local/Cellar/4.0.3/bin
