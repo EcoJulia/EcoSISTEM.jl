@@ -113,6 +113,7 @@ function simplehabitatAE(
     end
     dimension = size(initial_population)
     active = Matrix{Bool}(.!inactive.(initial_population))
+    initial_population[inactive.(initial_population)] .= 0
     initial_population = Int.(round.(initial_population))
     return simplehabitatAE(val, dimension, area, active, control)
 end
