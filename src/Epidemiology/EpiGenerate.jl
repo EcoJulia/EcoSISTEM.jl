@@ -68,21 +68,25 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 deathprob = params.virus_decay[j] * timestep * death_adjust
 
                 # Put probabilities into 0 - 1
-                newbirthprob = 1.0 - exp(-birthprob)
+                #newbirthprob = 1.0 - exp(-birthprob)
                 newdeathprob = 1.0 - exp(-deathprob)
 
-                (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n i: $i")
+                (birthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n i: $i")
                 # Calculate how many births and deaths
-                births = rand(rng, Binomial(epi.abundances.matrix[1, i],  newbirthprob))
+                births = rand(rng, Poisson(birthprob))
                 deaths = rand(rng, Binomial(epi.abundances.matrix[1, i], newdeathprob))
 
                 # Update population
-                epi.cache.virusmigration[j, i] += (births - deaths)
+                epi.cache.virusmigration[j, i] += births
+                epi.cache.netmigration[j, i] -= deaths
                 virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
         end
     end
-    epi.abundances.matrix[1, :] .+= sum(epi.cache.virusmigration, dims = 1)[1, :]
+    vm = @view sum(epi.cache.virusmigration, dims = 1)[1, :]
+    nm = @view sum(epi.cache.netmigration, dims = 1)[1, :]
+    epi.abundances.matrix[1, :] .+= (nm .+ vm)
+    epi.cache.virusmigration[1, :] .+= vm
 end
 
 """
@@ -92,7 +96,7 @@ Function to calculate match between environment and birth/death for each disease
 function adjustment(epi::EpiSystem, pos::Int64, class::Int64)
     traitmatch = traitfun(epi, pos, 1)
     birth_boost = epi.abundances.matrix[class, pos] * traitmatch
-    death_boost = epi.abundances.matrix[1, pos] * traitmatch^-1
+    death_boost = traitmatch^-1
     return birth_boost, death_boost
 end
 
@@ -107,6 +111,8 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     params = epi.epilist.params
     width = getdimension(epi)[1]
     classes = size(epi.abundances.matrix, 1)
+    gs = getgridsize(epi)
+    gs /= unit(gs)
     # Loop through grid squares
     Threads.@threads for i in 1:dims
         rng = epi.abundances.seed[Threads.threadid()]
@@ -120,9 +126,17 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 # Births
                 births = rand(rng, Binomial(epi.abundances.matrix[j, i],  params.births[j] * timestep))
                 epi.abundances.matrix[susclass, i] += births
-                # Make transitions
-                trans_prob = (params.transition[j, :] .+ (params.transition_virus[j, :] .* epi.abundances.matrix[1, i])) .* timestep
+
+                # Calculate force of inf and env inf
+                env_inf = (params.transition_virus[j, :] .* timestep .* epi.abundances.matrix[1, i]) ./ (gs^2)
+
+                force_inf = (params.transition_force[j, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ (gs^2)
+
+                # Add to transitional probabilities
+                trans_prob = (params.transition[j, :] .* timestep) .+ env_inf .+  force_inf
                 trans_prob = 1.0 .- exp.(-1 .* trans_prob)
+
+                # Make transitions
                 trans = rand.(fill(rng, length(trans_prob)), Binomial.(epi.abundances.matrix[:, i],  trans_prob))
                 epi.abundances.matrix[j, i] += sum(trans)
                 epi.abundances.matrix[:, i] .-= trans
