@@ -68,8 +68,8 @@ function simplehabitatAE(
     val::Union{Float64, Unitful.Quantity{Float64}},
     dimension::Tuple{Int64, Int64},
     area::Unitful.Area{Float64},
+    active::Array{Bool, 2},
     control::C,
-    active::Array{Bool, 2}=fill(true, dimension),
     initial_population::Matrix{<:Integer}=zeros(Int, dimension),
 ) where C <: AbstractControl
     if typeof(val) <: Unitful.Temperature
@@ -79,6 +79,16 @@ function simplehabitatAE(
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
     hab = simplehabitat(val, gridsquaresize, dimension)
     return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control, initial_population)
+end
+
+function simplehabitatAE(
+    val::Union{Float64, Unitful.Quantity{Float64}},
+    dimension::Tuple{Int64, Int64},
+    area::Unitful.Area{Float64},
+    control::C,
+) where C <: AbstractControl
+    active = fill(true, dimension)
+    return simplehabitatAE(val, dimension, area, active, control)
 end
 
 """
