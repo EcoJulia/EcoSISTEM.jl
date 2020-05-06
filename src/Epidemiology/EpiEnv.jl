@@ -78,7 +78,30 @@ function simplehabitatAE(
     area::Unitful.Area{Float64},
     control::C
 ) where C <: AbstractControl
-
     active = fill(true, dimension)
-    simplehabitatAE(val, dimension, area, active, control)
+    return simplehabitatAE(val, dimension, area, active, control)
+end
+
+"""
+    simplehabitatAE(
+        val::Union{Float64, Unitful.Quantity{Float64}},
+        population::Matrix{<:Real},
+        area::Unitful.Area{Float64},
+        control::C
+    )
+
+Create a simple `ContinuousHab` type epi environment from a specified `population` matrix.
+The dimensions of the habitat are derived from `population`. Values in `population` which
+are `NaN` are used to mask off inactive areas.
+"""
+function simplehabitatAE(
+    val::Union{Float64, Unitful.Quantity{Float64}},
+    population::Matrix{<:Real},
+    area::Unitful.Area{Float64},
+    control::C
+) where C <: AbstractControl
+    !all(isnan.(population)) || throw(ArgumentError("Specified population is all NaN"))
+    dimension = size(population)
+    active = Matrix{Bool}(.!isnan.(population))
+    return simplehabitatAE(val, dimension, area, active, control)
 end
