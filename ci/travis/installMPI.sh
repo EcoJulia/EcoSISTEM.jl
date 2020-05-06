@@ -15,6 +15,7 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
 		export PATH=$PATH:/usr/local/Cellar/open-mpi/4.0.3/bin
 		export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/usr/local/Cellar/open-mpi/4.0.3/lib
+		brew list | xargs -I % sh -c 'brew unlink %; brew link %'
     else
 		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
 		NUM_CORES=$(sysctl -n hw.ncpu)
