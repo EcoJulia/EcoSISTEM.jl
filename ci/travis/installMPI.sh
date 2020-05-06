@@ -13,9 +13,8 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 		HOMEBREW_MAKE_JOBS=$NUM_CORES brew install open-mpi
 		cp -r /usr/local/Cellar/open-mpi/4.0.3/* . # 4.0.3 will be out of date eventually
     fi
-	ln -s /usr/local/bin bin
-	ln -s /usr/local/lib lib
-	ln -s /usr/local/include include
+	export PATH=$PATH:$HOME/openmpi/bin
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/openmpi/lib
 else
 	cd ~/openmpi
 	if [ -f "$HOME/openmpi/bin/mpirun" ] && [ -f "$HOME/openmpi-4.0.3/config.log" ]; then
