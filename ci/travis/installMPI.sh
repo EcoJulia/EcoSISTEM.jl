@@ -2,19 +2,9 @@
 # https://www.aithercfd.com/2016/12/03/using-travisci.html
 # Updated to use openMPI 4.0
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-	echo "ls /usr/local"
-	ls /usr/local
-	echo "ls /usr/local/Cellar"
-	ls /usr/local/Cellar
-	echo "ls /usr/local/Cellar/open-mpi"
-	ls /usr/local/Cellar/open-mpi
-	echo "ls /usr/local/Cellar/open-mpi/4.0.3/*"
-	ls /usr/local/Cellar/open-mpi/4.0.3/*
-	if [ -d "/usr/local/Cellar" ]; then echo "found cellar"; else echo "lost cellar"; fi
-	if [ -d "/usr/local/Cellar" ]; then
+	HOMEBREW_TEMP=$HOME/openmpi
+	if [ -f "$HOME/openmpi/bin/mpirun" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
-		export PATH=$PATH:/usr/local/Cellar/open-mpi/4.0.3/bin
-		export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/usr/local/Cellar/open-mpi/4.0.3/lib
 		brew list | xargs -I % sh -c 'brew unlink %; brew link %'
     else
 		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
