@@ -13,9 +13,8 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 	if [ -d "/usr/local/Cellar" ]; then echo "found cellar"; else echo "lost cellar"; fi
 	if [ -d "/usr/local/Cellar" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
-		ln -s /usr/local/bin /usr/local/Cellar/open-mpi/4.0.3/bin
-		ln -s /usr/local/lib /usr/local/Cellar/open-mpi/4.0.3/lib
-		ln -s /usr/local/include /usr/local/Cellar/open-mpi/4.0.3/include
+		export PATH=$PATH:/usr/local/Cellar/open-mpi/4.0.3/bin
+		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/Cellar/open-mpi/4.0.3/lib
     else
 		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
 		NUM_CORES=$(sysctl -n hw.ncpu)
