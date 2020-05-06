@@ -4,16 +4,23 @@
 mkdir -p ~/openmpi
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 	cd ~/openmpi
-	if [ -f "$HOME/openmpi/bin/mpirun" ] && [ -f "/usr/local/Cellar" ]; then
+	echo "ls /usr/local"
+	ls /usr/local
+	echo "ls /usr/local/Cellar"
+	ls /usr/local/Cellar
+	echo "ls /usr/local/Cellar/4.0.3"
+	ls /usr/local/Cellar/4.0.3
+	if [ -d "/usr/local/Cellar" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
+		ln -s /usr/local/bin /usr/local/Cellar/4.0.3/bin
+		ln -s /usr/local/lib /usr/local/Cellar/4.0.3/lib
+		ln -s /usr/local/include /usr/local/Cellar/4.0.3/include
     else
 		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
 		rm -rf ~/openmpi/*
 		NUM_CORES=$(sysctl -n hw.ncpu)
 		HOMEBREW_MAKE_JOBS=$NUM_CORES brew install open-mpi
-    fi
-#	export PATH=$PATH:$HOME/openmpi/bin
-#	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/openmpi/lib
+	fi
 else
 	cd ~/openmpi
 	if [ -f "$HOME/openmpi/bin/mpirun" ] && [ -f "$HOME/openmpi-4.0.3/config.log" ]; then
