@@ -1,28 +1,28 @@
 #!/bin/bash
 # https://www.aithercfd.com/2016/12/03/using-travisci.html
 # Updated to use openMPI 4.0
-mkdir -p ~/openmpi
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-	cd ~/openmpi
 	echo "ls /usr/local"
 	ls /usr/local
 	echo "ls /usr/local/Cellar"
 	ls /usr/local/Cellar
-	echo "ls /usr/local/Cellar/4.0.3"
-	ls /usr/local/Cellar/4.0.3
+	echo "ls /usr/local/Cellar/open-mpi"
+	ls /usr/local/Cellar/open-mpi
+	echo "ls /usr/local/Cellar/open-mpi/4.0.3/*"
+	ls /usr/local/Cellar/open-mpi/4.0.3/*
 	if [ -d "/usr/local/Cellar" ]; then echo "found cellar"; else echo "lost cellar"; fi
 	if [ -d "/usr/local/Cellar" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
-		ln -s /usr/local/bin /usr/local/Cellar/4.0.3/bin
-		ln -s /usr/local/lib /usr/local/Cellar/4.0.3/lib
-		ln -s /usr/local/include /usr/local/Cellar/4.0.3/include
+		ln -s /usr/local/bin /usr/local/Cellar/open-mpi/4.0.3/bin
+		ln -s /usr/local/lib /usr/local/Cellar/open-mpi/4.0.3/lib
+		ln -s /usr/local/include /usr/local/Cellar/open-mpi/4.0.3/include
     else
 		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
-		rm -rf ~/openmpi/*
 		NUM_CORES=$(sysctl -n hw.ncpu)
 		HOMEBREW_MAKE_JOBS=$NUM_CORES brew install open-mpi
 	fi
 else
+	mkdir -p ~/openmpi
 	cd ~/openmpi
 	if [ -f "$HOME/openmpi/bin/mpirun" ] && [ -f "$HOME/openmpi-4.0.3/config.log" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
