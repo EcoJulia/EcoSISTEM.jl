@@ -8,19 +8,14 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
     else
 		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
-		echo "PWD " $PWD
 		rm -rf ~/openmpi/*
 		NUM_CORES=$(sysctl -n hw.ncpu)
 		HOMEBREW_MAKE_JOBS=$NUM_CORES brew install open-mpi
 		cp -r /usr/local/Cellar/open-mpi/4.0.3/* . # 4.0.3 will be out of date eventually
     fi
-	echo "ls $HOME/openmpi/bin"
-	ls $HOME/openmpi/bin
-	echo "ls $HOME/openmpi/lib"
-	ls $HOME/openmpi/lib
-#	ln -s /usr/local/bin bin
-#	ln -s /usr/local/lib lib
-#	ln -s /usr/local/include include
+	ln -s /usr/local/bin bin
+	ln -s /usr/local/lib lib
+	ln -s /usr/local/include include
 else
 	cd ~/openmpi
 	if [ -f "$HOME/openmpi/bin/mpirun" ] && [ -f "$HOME/openmpi-4.0.3/config.log" ]; then
