@@ -8,13 +8,14 @@ numclasses = 6
 # Set simulation parameters
 birth = fill(0.0/day, numclasses)
 death = fill(0.0/day, numclasses)
-beta = 1e-4/day
+beta_force = 1.0/day
+beta_env = 1.0/day
 mu = 1/7days
 sigma = 0.1/days
 epsilon = 0.01/day
-virus_growth = 1e-3/day
-virus_decay = 1.0/day
-param = SEIRSGrowth{typeof(unit(beta))}(birth, death, virus_growth, virus_decay, beta, mu, sigma, epsilon)
+virus_growth = 1.0/day
+virus_decay = 1.0/2days
+param = SEIRSGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, mu, sigma, epsilon)
 param = transition(param)
 
 # Set up simple gridded environment
