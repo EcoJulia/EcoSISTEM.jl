@@ -247,7 +247,7 @@ function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64})
     active[isnan.(era.array[:,:,1])] .= false
 
     hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(eraChange, 0.0/s))
+        HabitatUpdate(eraChange, 0.0/s, Unitful.Dimensions{()}))
     B = cancel(maxbud, area)
     bud = zeros(typeof(B), dimension)
     fill!(bud, B/(dimension[1]*dimension[2]))
@@ -260,7 +260,7 @@ function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64}, active::Array{Bool, 
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(eraChange, 0.0/s))
+        HabitatUpdate(eraChange, 0.0/s, Unitful.Dimensions{()}))
     B = cancel(maxbud, area)
     bud = zeros(typeof(B), dimension)
     fill!(bud, B/(dimension[1]*dimension[2]))
@@ -273,7 +273,7 @@ function eraAE(era::ERA, bud::SolarTimeBudget, active::Array{Bool, 2})
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(eraChange, 0.0/s))
+        HabitatUpdate(eraChange, 0.0/s, Unitful.Dimensions{()}))
 
      return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
 end
@@ -291,7 +291,7 @@ function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64})
     active[isnan.(wc.array[:,:,1])] = false
 
     hab = ContinuousTimeHab(Array(wc.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(worldclimChange, 0.0/s))
+        HabitatUpdate(worldclimChange, 0.0/s, Unitful.Dimensions{()}))
     B = cancel(maxbud, area)
     bud = zeros(typeof(B), dimension)
     fill!(bud, B/(dimension[1]*dimension[2]))
@@ -304,7 +304,7 @@ function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, active::A
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(wc.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(worldclimChange, 0.0/s))
+        HabitatUpdate(worldclimChange, 0.0/s, Unitful.Dimensions{()}))
     B = cancel(maxbud, area)
     bud = zeros(typeof(B), dimension)
     fill!(bud, B/(dimension[1]*dimension[2]))
@@ -317,7 +317,7 @@ function worldclimAE(wc::Worldclim, bud::SolarTimeBudget, active::Array{Bool, 2}
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(wc.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(worldclimChange, 0.0/s))
+        HabitatUpdate(worldclimChange, 0.0/s, Unitful.Dimensions{()}))
 
      return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
 end

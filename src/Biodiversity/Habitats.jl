@@ -36,15 +36,15 @@ coordinates(ah::AbstractHabitat) = indices(ah)
 
 This habitat subtype has a matrix of floats and a float grid square size
 """
-mutable struct HabitatUpdate{D <: Unitful.Dimensions,
-                             DT}
-  changefun::Function
+mutable struct HabitatUpdate{F<:Function, DT}
+  changefun::F
   rate::DT
 end
 
-function HabitatUpdate{D}(changefun, rate::DT) where {D <: Unitful.Dimensions, DT}
-    typeof(dimension(rate * 1month)) == D || error("Failed to match types")
-    return HabitatUpdate{D, DT}(changefun, rate)
+function HabitatUpdate(changefun::F, rate::DT, ::Type{D}
+    ) where {F<:Function, DT, D<:Unitful.Dimensions}
+  typeof(dimension(rate * 1month)) <: D || error("Failed to match types $(rate * 1month) vs $D")
+  return HabitatUpdate(changefun, rate)
 end
 
 mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
@@ -367,8 +367,8 @@ function randomniches(dimension::Tuple, types::Vector{Int64}, clumpiness::Float6
     # Fill in undefined squares with most frequent neighbour
     _fill_in!(T, M, types, wv)
   end
-
-  return DiscreteHab(T, gridsquaresize, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
+  habitatupdate = HabitatUpdate(NoChange, 0.0/s, Unitful.Dimensions{()})
+  return DiscreteHab(T, gridsquaresize, habitatupdate)
 end
 
 """
@@ -382,14 +382,16 @@ function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
   M = fill(val, dim)
   func = ChangeLookup[unit(val)]
   rate = 0.0 * unit(val)/s
-  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(val))}(func, rate))
+  habitatupdate = HabitatUpdate(func, rate, typeof(dimension(val)))
+  ContinuousHab(M, size, habitatupdate)
 end
 
 function simplehabitat(val::Float64, size::Unitful.Length,
   dim::Tuple{Int64, Int64})
   M = fill(val, dim)
 
-  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
+  habitatupdate = HabitatUpdate(NoChange, 0.0/s, Unitful.Dimensions{()})
+  ContinuousHab(M, size, habitatupdate)
 end
 
 """
@@ -410,7 +412,8 @@ function tempgrad(minT::Unitful.Temperature{Float64}, maxT::Unitful.Temperature{
   map(1:total) do seq
     M[seq, :] .= temp_range[seq]
   end
-  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(minT))}(TempChange, rate))
+  habitatupdate = HabitatUpdate(TempChange, rate, typeof(dimension(minT)))
+  ContinuousHab(M, size, habitatupdate)
 end
 
 """
@@ -429,5 +432,6 @@ function raingrad(minR::Unitful.Length{Float64}, maxR::Unitful.Length{Float64}, 
   map(1:total) do seq
     M[seq, :] .= rain_range[seq]
   end
-  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(minR))}(RainfallChange, rate))
+  habitatupdate = HabitatUpdate(RainfallChange, rate, typeof(dimension(minR)))
+  ContinuousHab(M, size, habitatupdate)
 end

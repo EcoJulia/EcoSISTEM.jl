@@ -49,7 +49,8 @@ mutable struct EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTrai
   end
 end
 
-function EpiSystem(popfun::Function, epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship)
+function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
+    rel::AbstractTraitRelationship) where {F<:Function}
 
   # Create matrix landscape of zero abundances
   ml = emptyepilandscape(epienv, epilist)

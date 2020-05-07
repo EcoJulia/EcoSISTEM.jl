@@ -203,19 +203,19 @@ end
 Function to decrease the resolution of a climate dataset, by a factor, `rescale`, and aggregation function, `fn`. The aggregation function has a default setting of taking the mean value.
 """
 
-function downresolution(era::ERA, rescale::Int64; fn::Function = mean)
+function downresolution(era::ERA, rescale::Int64; fn::F=mean) where {F<:Function}
     array = downresolution(era.array, rescale, fn)
     return ERA(array)
 end
-function downresolution(wc::Worldclim, rescale::Int64; fn::Function = mean)
+function downresolution(wc::Worldclim, rescale::Int64; fn::F=mean) where {F<:Function}
     array = downresolution(wc.array, rescale, fn)
     return Worldclim(array)
 end
-function downresolution(bc::Bioclim, rescale::Int64; fn::Function = mean)
+function downresolution(bc::Bioclim, rescale::Int64; fn::F=mean) where {F<:Function}
     array = downresolution(bc.array, rescale, fn)
     return Bioclim(array)
 end
-function downresolution(aa::AxisArray{T, 3} where T, rescale::Int64, fn::Function)
+function downresolution(aa::AxisArray{T, 3} where T, rescale::Int64, fn::F) where {F<:Function}
     grid = size(aa)
     grid = ceil.(Int64, (grid[1] ./ rescale, grid[2] ./ rescale, grid[3]))
     array = Array{typeof(aa[1]), 3}(undef, grid)
