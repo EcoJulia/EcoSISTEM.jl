@@ -3,6 +3,10 @@
 # Updated to use openMPI 4.0
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 	MACOS_OPENMPI_DIR=$HOME/openmpi
+	echo "ls $HOME"
+	ls $HOME
+	echo "ls $HOME/*"
+	ls $HOME/*
 	echo "ls $MACOS_OPENMPI_DIR/*"
 	ls $MACOS_OPENMPI_DIR/*
 	if [ -f "$MACOS_OPENMPI_DIR/bin/mpirun" ]; then
