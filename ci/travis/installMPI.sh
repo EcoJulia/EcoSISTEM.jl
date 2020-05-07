@@ -36,3 +36,4 @@ else
 	test -n $CXX && unset CXX
 fi
 cd $TRAVIS_BUILD_DIR
+export JULIA_MPI_PATH=$HOME/openmpi

@@ -19,7 +19,6 @@ install:
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - export JULIA_MPI_PATH=$HOME/openmpi
   - julia --project=@. -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.test(\"Simulation\", coverage=true);"
 
 after_success:
