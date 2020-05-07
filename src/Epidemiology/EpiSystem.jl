@@ -62,9 +62,16 @@ function EpiSystem(popfun::Function, epilist::EpiList, epienv::GridEpiEnv, rel::
   EpiSystem{typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
 end
 
-function EpiSystem(epilist::EpiList, epienv::GridEpiEnv,
-   rel::AbstractTraitRelationship)
-   return EpiSystem(populate!, epilist, epienv, rel)
+function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship)
+    epi = EpiSystem(populate!, epilist, epienv, rel)
+    # Add in the initial susceptible population
+    idx = findfirst(epilist.names .== "Susceptible")
+    if idx == nothing
+        msg = "epilist has no Susceptible category. epilist.names = $(epilist.names)"
+        throw(ArgumentError(msg))
+    end
+    epi.abundances.grid[idx, :, :] .+= epienv.initial_population
+    return epi
 end
 
 

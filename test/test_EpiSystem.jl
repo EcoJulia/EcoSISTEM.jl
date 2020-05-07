@@ -24,6 +24,12 @@ epi = TestEpiSystem()
 @test_nowarn getdispersalvar(epi, 1)
 @test_nowarn getdispersalvar(epi, "Virus")
 
+@testset "EpiSystem from initial population" begin
+    initial_pop = rand(10, 10) * 10
+    epi = TestEpiSystemFromPopulation(initial_pop)
+    @test epi.epienv.initial_population == round.(initial_pop)
+    @test epi.abundances.grid[2, :, :] == round.(initial_pop)
+end
 
 @testset "Approximate equality" begin
     atol = 1
@@ -36,7 +42,6 @@ epi = TestEpiSystem()
     epi_2.abundances.matrix[2, 1] += 1000
     @test !isapprox(epi_2, epi; atol=atol)
 end
-
 
 @testset "save and load (with JLSO)" begin
     # Test saving Function
