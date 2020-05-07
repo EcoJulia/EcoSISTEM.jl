@@ -3,7 +3,9 @@
 # Updated to use openMPI 4.0
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 	MACOS_OPENMPI_DIR=$HOME/openmpi
-	if [ -f "$HOME/openmpi/bin/mpirun" ]; then
+	echo "ls $MACOS_OPENMPI_DIR/openmpi/*"
+	ls $MACOS_OPENMPI_DIR/openmpi/*
+	if [ -f "$MACOS_OPENMPI_DIR/openmpi/bin/mpirun" ]; then
 		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
     else
 		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
