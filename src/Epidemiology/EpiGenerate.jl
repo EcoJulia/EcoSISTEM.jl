@@ -78,13 +78,13 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
 
                 # Update population
                 epi.cache.virusmigration[j, i] += births
-                epi.cache.netmigration[j, i] -= deaths
+                epi.cache.virusdecay[j, i] -= deaths
                 virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
         end
     end
-    vm = @view sum(epi.cache.virusmigration, dims = 1)[1, :]
-    nm = @view sum(epi.cache.netmigration, dims = 1)[1, :]
+    vm = sum(epi.cache.virusmigration, dims = 1)[1, :]
+    nm = sum(epi.cache.virusdecay, dims = 1)[1, :]
     epi.abundances.matrix[1, :] .+= (nm .+ vm)
     epi.cache.virusmigration[1, :] .+= vm
 end
