@@ -71,7 +71,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 #newbirthprob = 1.0 - exp(-birthprob)
                 newdeathprob = 1.0 - exp(-deathprob)
 
-                (birthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n i: $i")
+                (birthprob >= 0) & (newdeathprob >= 0) || error("Birth: $birthprob \n Death: $newdeathprob \n \n i: $i")
                 # Calculate how many births and deaths
                 births = rand(rng, Poisson(birthprob))
                 deaths = rand(rng, Binomial(epi.abundances.matrix[1, i], newdeathprob))
