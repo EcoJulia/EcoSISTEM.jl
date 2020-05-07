@@ -3,15 +3,13 @@
 # Updated to use openMPI 4.0
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 	NUM_CORES=$(sysctl -n hw.ncpu)
-#	if [ -d "/usr/local/Cellar" ]; then
-#		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
-#		export PATH=$PATH:/usr/local/Cellar/open-mpi/4.0.3/bin
-#		export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/usr/local/Cellar/open-mpi/4.0.3/lib
-#		brew list | xargs -P $NUM_CORES -I % sh -c 'brew unlink %; brew link %'
-#    else
-	echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
-	HOMEBREW_MAKE_JOBS=$NUM_CORES brew install open-mpi
-#	fi
+	if [ -d "/usr/local/Cellar" ]; then
+		echo "Using cached OpenMPI on " $TRAVIS_OS_NAME
+		brew list | xargs -P $NUM_CORES -I % sh -c 'brew unlink %; brew link %'
+	else
+		echo "Installing OpenMPI with homebrew on " $TRAVIS_OS_NAME
+		HOMEBREW_MAKE_JOBS=$NUM_CORES brew install open-mpi
+	fi
 else
 	mkdir -p ~/openmpi
 	cd ~/openmpi
