@@ -59,6 +59,6 @@ end
 abuns = sum(abuns, dims = 3)[:, :, 1, :]
 # For each disease category, check trajectory is the same when we change grid size
 for i in 2:numclasses
-    @test isapprox(abuns[1, i, :], abuns[2, i, :], rtol = 1e-2)
-    @test isapprox(abuns[2, i, :], abuns[3, i, :], rtol = 1e-2)
+    @test isapprox(abuns[1, i, :], abuns[2, i, :], rtol = 5e-2)
+    @test isapprox(abuns[2, i, :], abuns[3, i, :], rtol = 5e-2)
 end

@@ -15,8 +15,8 @@ virus_growth = fill(0.0/day, 8)
 virus_growth[4:5] .= 1e-3/day
 virus_decay = fill(0.0/day, 8)
 virus_decay[4] = 1/3days
-beta_force = 10.0/day
-beta_env = 10.0/day
+beta_force = 1e3/day
+beta_env = 1e3/day
 
 # Prob of developing symptoms
 p_s = 1.0
