@@ -10,9 +10,10 @@ birth = [0.0/day; fill(1e-5/day, 3); 0.0/day]
 death = [0.0/day; fill(1e-5/day, 3); 0.0/day]
 virus_growth = 0.1/day
 virus_decay = 1.0/day
-beta = 1e-2/day
+beta_force = 1e-2/day
+beta_env = 1e-2/day
 sigma = 1/14days
-param = SIRGrowth{typeof(unit(beta))}(birth, death, virus_growth, virus_decay, beta, sigma)
+param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
 param = transition(param)
 
 # Set up simple gridded environment

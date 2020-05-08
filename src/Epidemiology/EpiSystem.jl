@@ -10,7 +10,7 @@ abstract type AbstractEpiSystem{Part <: AbstractEpiEnv, EL <: EpiList, TR <: Abs
 
 
 mutable struct EpiCache
-  netmigration::Array{Int64, 2}
+  virusdecay::Array{Int64, 2}
   virusmigration::Array{Int64, 2}
   valid::Bool
 end
@@ -180,7 +180,7 @@ end
 
 function invalidatecaches!(epi::AbstractEpiSystem)
     epi.ordinariness = missing
-    epi.cache.netmigration .= 0
+    epi.cache.virusdecay .= 0
     epi.cache.virusmigration .= 0
     epi.cache.valid = false
 end
