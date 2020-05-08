@@ -8,7 +8,7 @@
 
 ### Virus update loop
 * Virus grows as the sum of several Binomal draws from each infection category,
-$NV_{k, c}$ ~ $Binomial(V_k, p_c)$
+$NV_{k, c}$ ~ $Poisson(p_c)$
 where $NV$ is new virus, $k$ is the current grid square, $c$ is the disease class, and $p_c$ is the probability of virus generation per disease class.
 * The probability of generating virus is dependent on the population size of that disease class ($P_{c,k}$), the growth parameter of that disease class ($g_c$), and the match of the virus to the environment at that location ($T_k$):
 $p_c = g_c * P_{c,k} * T_k$
@@ -17,6 +17,7 @@ Decayed virus ~ $Binomial(V_k, d * T_k^{-1})$
 * The newly generated virus is distributed in space (i.e. grid square $k \rightarrow j$) via a Gaussian kernel:
 $D_c(k,j)*NV_{k,c}$ where $D_c$ is a gaussian kernel per infection class.
 * Currently, only the symptomatic and asymptomatic infectious classes can generate and spread virus, and $p_c = 0$ for all others.
+* Newly generated virus infects other susceptibles either as an instantaneous force of infection (e.g. aerosol transmission) or through environmental transmission (e.g. through contact with a surface), both at separate rates. See below for more details.
 
 ### Disease class update loop
 * Birth/death per class: Susceptibles are born into the population at a set probability per class. There is also a background probability of death from each disease class.
@@ -25,11 +26,11 @@ $D_c(k,j)*NV_{k,c}$ where $D_c$ is a gaussian kernel per infection class.
 * Transitions per class: transitions between disease classes happen according to a transition matrix $M$, which are calculated as moves into the disease class from other categories:
 $in_{k, c} = \sum_{j}^{J} Binomial(P_{k, j}, M_{c, j})$
  where $j \in{1,..,J}$ number of classes.
-* $M$ is constructed in advance and is altered for movement from Susceptible to Exposed categories by the amount of virus available in that location, $V_k$.
+* $M$ is constructed in advance and is altered for movement from Susceptible to Exposed categories by the amount of virus available in that location, $V_k$, or the instantaneous force of infection, $F_k$, which disappears at the end of each step.
 
 
 
-![](SEI2HRD.png)
+![](SEI2HRD.svg)
 *Figure 1: Current model structure.*
 
 ## Code Structure
