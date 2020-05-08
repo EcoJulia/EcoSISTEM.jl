@@ -271,8 +271,8 @@ end
 Function to create transition matrix from SEI2HRD parameters and return an `EpiParams` type that can be used by the model update.
 """
 function transition(params::SEI2HRDGrowth)
-    ordered_transitions = [params.mu_1, params.mu_2, params.hospitalisation, params.sigma_1, params.sigma_2, params.sigma_hospital, params.death_home,
-    params.death_hospital]
+    ordered_transitions = (incubation_period = params.mu_1, symptoms_develop = params.mu_2, symptoms_worsen = params.hospitalisation, recovery_asymptomatic = params.sigma_1, recovery_symptomatic = params.sigma_2, recovery_hospital = params.sigma_hospital, death_symptomatic = params.death_home,
+    death_hospitalised = params.death_hospital)
     from = [3, 4, 5, 4, 5, 6, 5, 6]
     to = [4, 5, 6, 7, 7, 7, 8, 8]
     tmat = zeros(typeof(params.beta_force), 8, 8)
