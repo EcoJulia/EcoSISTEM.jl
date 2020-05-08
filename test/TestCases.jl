@@ -66,6 +66,34 @@ function TestEpiSystem()
 
     return epi
 end
+function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
+    birth = [0.0/day; fill(1e-5/day, 3); 0.0/day]
+    death = [0.0/day; fill(1e-5/day, 3); 0.0/day]
+    beta = 0.0005/day
+    sigma = 0.05/day
+    virus_growth = 0.0001/day
+    virus_decay = 0.07/day
+    param = SIRGrowth{typeof(unit(beta))}(birth, death, virus_growth, virus_decay, beta, sigma)
+    param = transition(param)
+
+    area = 10.0km^2
+    epienv = simplehabitatAE(298.0K, area, NoControl(), initial_pop)
+
+    # Zero susceptible so we can test the specified initial_pop
+    abun = [10, 0, 1, 0, 0]
+
+    dispersal_dists = [1e-2km; fill(2.0km, 3); 1e-2km]
+    kernel = GaussianKernel.(dispersal_dists, 1e-10)
+    movement = AlwaysMovement(kernel)
+
+    traits = GaussTrait(fill(298.0K, 5), fill(0.1K, 5))
+    epilist = SIR(traits, abun, movement, param)
+
+    rel = Gauss{eltype(epienv.habitat)}()
+    epi = EpiSystem(epilist, epienv, rel)
+
+    return epi
+end
 
 
 function TestCache()

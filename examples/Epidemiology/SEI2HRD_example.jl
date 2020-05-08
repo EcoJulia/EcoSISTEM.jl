@@ -40,13 +40,10 @@ param = transition(param)
 
 # Read in population sizes for Scotland
 scotpop = Array{Float64, 2}(readfile("test/examples/ScotlandDensity2011.tif", 0.0, 7e5, 5e5, 1.25e6))
-active = Array{Bool, 2}(.!isnan.(scotpop))
-scotpop = round.(scotpop)
 
 # Set up simple gridded environment
-grid = (700, 750)
 area = 525_000.0km^2
-epienv = simplehabitatAE(298.0K, grid, area, active, NoControl())
+epienv = simplehabitatAE(298.0K, area, NoControl(), scotpop)
 
 # Set population to initially have no individuals
 abun = fill(0, 8)
@@ -63,8 +60,6 @@ rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
 epi = EpiSystem(epilist, epienv, rel)
-scotpop[isnan.(scotpop)] .= 0
-epi.abundances.grid[2, :, :] .+= scotpop
 
 # Add in initial infections randomly (samples weighted by population size)
 samp = sample(1:525_000, weights(1.0 .* epi.abundances.matrix[2, :]), 100)

@@ -81,15 +81,9 @@ export SpeciesList
 include("Biodiversity/Landscape.jl")
 export GridLandscape, CachedGridLandscape
 
-include("Biodiversity/MPILandscape.jl")
-export MPIGridLandscape
-
 include("Biodiversity/Ecosystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
- getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
-
-include("Biodiversity/MPIEcosystem.jl")
-export MPIEcosystem, gather_abundance!, gather_diversity
+getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
 
 include("Biodiversity/Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
@@ -103,7 +97,18 @@ export SimpleScenario, FluctScenario, MultiScenario
 include("Biodiversity/Generate.jl")
 export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!, reenergise!, randomniches, update!, update_birth_move!, convert_coords, get_neighbours
 
-include("Biodiversity/MPIGenerate.jl")
+using Requires
+function __init__()
+    @require MPI="da04e1cc-30fd-572f-bb4f-1f8673147195" @eval begin
+        include("Biodiversity/MPILandscape.jl")
+        export MPIGridLandscape
+
+        include("Biodiversity/MPIEcosystem.jl")
+        export MPIEcosystem, gather_abundance!, gather_diversity
+
+        include("Biodiversity/MPIGenerate.jl")
+    end
+end
 
 include("Biodiversity/Helper.jl")
 export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage

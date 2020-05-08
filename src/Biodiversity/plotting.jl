@@ -236,7 +236,8 @@ function _freq_hist(total::Array{Float64}, grd::Array{Float64}, num::Int64)
   R"hist(count_tot, breaks=c(-0.5:(num+0.5)), main=' ', xlab='Abundance')"
 end
 
-function plotdiv(divfun::Function, eco::Ecosystem, qs::Array{Float64, 1})
+function plotdiv(divfun::F, eco::Ecosystem, qs::Array{Float64, 1}
+    ) where {F<:Function}
   datf = divfun(eco, qs)
   @rput datf
   R"library(ggplot2); library(cowplot)
@@ -244,7 +245,7 @@ function plotdiv(divfun::Function, eco::Ecosystem, qs::Array{Float64, 1})
 end
 
 
-function plotdiv(divfun::Function, eco::Ecosystem, qs::Real)
+function plotdiv(divfun::F, eco::Ecosystem, qs::Real) where {F<:Function}
   datf = divfun(eco, qs)
   size(datf, 1) == length(eco.abenv.habitat.matrix) ||
     error("Metacommunity measures cannot be plotted as grid")
