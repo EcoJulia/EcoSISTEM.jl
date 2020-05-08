@@ -35,4 +35,4 @@ include("Plotting.jl")
 export getprofile
 
 include("PhyloModels.jl")
-export Brownian, Lambda, fitBrownian, fitLambda, varcovar
+export Brownian, Lambda, varcovar

@@ -1,7 +1,6 @@
 using IndexedTables
 using AxisArrays
 using Unitful.DefaultSymbols
-using Plots
 using Statistics
 
 """

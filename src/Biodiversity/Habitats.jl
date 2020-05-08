@@ -9,7 +9,8 @@ using RecipesBase
 using EcoBase
 import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
 cells, xrange, yrange, xmax, ymax, indices, coordinates
-import Plots: px
+using Measures: AbsoluteLength
+const px = AbsoluteLength(0.254)
 
 """
     AbstractHabitat

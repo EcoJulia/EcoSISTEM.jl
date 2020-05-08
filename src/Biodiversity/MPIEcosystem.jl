@@ -1,4 +1,4 @@
-using MPI
+using .MPI
 using Diversity
 if VERSION > v"1.0.0"
     using HCubature
