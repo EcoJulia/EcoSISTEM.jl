@@ -57,24 +57,24 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     Threads.@threads for j in classes
         for i in 1:dims
             # Calculate how much birth and death should be adjusted
-            birth_adjust, death_adjust = adjustment(epi, i, j)
 
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(epi, i, width)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
+                traitmatch = traitfun(epi, i, 1)
                 # Calculate effective rates
-                birthprob = params.virus_growth[j] * timestep * birth_adjust
-                deathprob = params.virus_decay[j] * timestep * death_adjust
+                birthrate = params.virus_growth[j] * timestep * epi.abundances.matrix[j, i]
+                deathrate = params.virus_decay[j] * timestep * traitmatch^-1
 
                 # Put probabilities into 0 - 1
                 #newbirthprob = 1.0 - exp(-birthprob)
-                newdeathprob = 1.0 - exp(-deathprob)
+                deathprob = 1.0 - exp(-deathrate)
 
-                (birthprob >= 0) & (newdeathprob >= 0) || error("Birth: $birthprob \n Death: $newdeathprob \n \n i: $i")
+                (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthprob \n Death: $newdeathprob \n \n i: $i")
                 # Calculate how many births and deaths
-                births = rand(rng, Poisson(birthprob))
-                deaths = rand(rng, Binomial(epi.abundances.matrix[1, i], newdeathprob))
+                births = rand(rng, Poisson(birthrate))
+                deaths = rand(rng, Binomial(epi.abundances.matrix[1, i], deathprob))
 
                 # Update population
                 epi.cache.virusmigration[j, i] += births
@@ -88,18 +88,6 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     epi.abundances.matrix[1, :] .+= (nm .+ vm)
     epi.cache.virusmigration[1, :] .+= vm
 end
-
-"""
-    adjustment(epi::AbstractEpiSystem, class::DiseaseClass, i::Int64, j::Int64)
-Function to calculate match between environment and birth/death for each disease class. This is assumed to be 1 for all susceptible, infected, recovered and dependent on a trait function for the virus.
-"""
-function adjustment(epi::EpiSystem, pos::Int64, class::Int64)
-    traitmatch = traitfun(epi, pos, 1)
-    birth_boost = epi.abundances.matrix[class, pos] * traitmatch
-    death_boost = traitmatch^-1
-    return birth_boost, death_boost
-end
-
 
 """
     classupdate!(epi::EpiSystem, timestep::Unitful.Time)

@@ -7,11 +7,11 @@
 * We currently have an SEI2HRD compartmental model: Susceptible-Exposed-Asymptomatic-Symptomatic-Hospitalised-Recovered-Dead, as seen in Figure 1 below.
 
 ### Virus update loop
-* Virus grows as the sum of several Binomal draws from each infection category, $NV_{k, c}$ ~ $Poisson(p_c)$ where $NV$ is new virus, $k$ is the current grid square, $c$ is the disease class, and $p_c$ is the probability of virus generation per disease class.
-* The probability of generating virus is dependent on the population size of that disease class ($P_{c,k}$), the growth parameter of that disease class ($g_c$), and the match of the virus to the environment at that location ($T_k$): $p_c = g_c * P_{c,k} * T_k$
+* Virus grows as the sum of several Binomal draws from each infection category, $NV_{k, c}$ ~ $Poisson(f_c)$ where $NV$ is new virus, $k$ is the current grid square, $c$ is the disease class, and $f_c$ is the force of infection generation per disease class.
+* The force of infection is dependent on the population size of that disease class ($P_{c,k}$), the growth parameter of that disease class ($g_c$), and the match of the virus to the environment at that location ($T_k$): $f_c = g_c * P_{c,k} * T_k$
 * The virus decays similarly, according to a set probability $d$ and the inverse match with environment ($T_k^{-1}$): Decayed virus ~ $Binomial(V_k, d * T_k^{-1})$
 * The newly generated virus is distributed in space (i.e. grid square $k \rightarrow j$) via a Gaussian kernel: $D_c(k,j)*NV_{k,c}$ where $D_c$ is a gaussian kernel per infection class.
-* Currently, only the symptomatic and asymptomatic infectious classes can generate and spread virus, and $p_c = 0$ for all others.
+* Currently, only the symptomatic and asymptomatic infectious classes can generate and spread virus, and $f_c = 0$ for all others.
 * Newly generated virus infects other susceptibles either as an instantaneous force of infection (e.g. aerosol transmission) or through environmental transmission (e.g. through contact with a surface), both at separate rates. See below for more details.
 
 ### Disease class update loop
