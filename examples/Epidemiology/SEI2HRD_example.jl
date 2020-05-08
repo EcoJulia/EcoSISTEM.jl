@@ -15,8 +15,8 @@ virus_growth = fill(0.0/day, 8)
 virus_growth[4:5] .= 0.1/day
 virus_decay = fill(0.0/day, 8)
 virus_decay[4] = 1.0/day
-beta = fill(0.0/day, 8)
-beta[3] = 1e-3/day
+beta_force = 10.0/day
+beta_env = 10.0/day
 
 # Prob of developing symptoms
 p_s = 0.96
@@ -35,7 +35,7 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = SEI2HRDGrowth(birth, death, virus_growth, virus_decay, beta, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_sym, T_hosp, T_rec)
+param = SEI2HRDGrowth(birth, death, virus_growth, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_sym, T_hosp, T_rec)
 param = transition(param)
 
 # Read in population sizes for Scotland
