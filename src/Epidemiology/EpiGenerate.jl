@@ -111,12 +111,11 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     params = epi.epilist.params
     width = getdimension(epi)[1]
     classes = size(epi.abundances.matrix, 1)
-    gs = getgridsize(epi)
-    gs /= unit(gs)
     # Loop through grid squares
     Threads.@threads for i in 1:dims
         rng = epi.abundances.seed[Threads.threadid()]
         susclass = findfirst(epi.epilist.names .== "Susceptible")
+        N = sum(epi.abundances.matrix[susclass:end, i])
         # Loop through classes in chosen square
         for j in susclass:classes
             # Convert 1D dimension to 2D coordinates
@@ -128,9 +127,9 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 epi.abundances.matrix[susclass, i] += births
 
                 # Calculate force of inf and env inf
-                env_inf = (params.transition_virus[j, :] .* timestep .* epi.abundances.matrix[1, i]) ./ (gs^2)
+                env_inf = (params.transition_virus[j, :] .* timestep .* epi.abundances.matrix[1, i]) ./ N
 
-                force_inf = (params.transition_force[j, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ (gs^2)
+                force_inf = (params.transition_force[j, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ N
 
                 # Add to transitional probabilities
                 trans_prob = (params.transition[j, :] .* timestep) .+ env_inf .+  force_inf
