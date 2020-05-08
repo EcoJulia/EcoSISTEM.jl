@@ -67,8 +67,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 birthrate = params.virus_growth[j] * timestep * epi.abundances.matrix[j, i]
                 deathrate = params.virus_decay[j] * timestep * traitmatch^-1
 
-                # Put probabilities into 0 - 1
-                #newbirthprob = 1.0 - exp(-birthprob)
+                # Convert death rate into 0 - 1 probability
                 deathprob = 1.0 - exp(-deathrate)
 
                 (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthprob \n Death: $newdeathprob \n \n i: $i")
@@ -89,6 +88,13 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     epi.cache.virusmigration[1, :] .+= vm
 end
 
+function sum_pop(M::Matrix{Int64}, start::Int64, i::Int64)
+    N = 0
+    for j in start:size(M, 1)
+        N += M[j, i]
+    end
+    return N
+end
 """
     classupdate!(epi::EpiSystem, timestep::Unitful.Time)
 Function to update disease class abundances for one timestep. Dispatches differently depending on the class of model stored in the EpiSystem.
@@ -103,7 +109,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     Threads.@threads for i in 1:dims
         rng = epi.abundances.seed[Threads.threadid()]
         susclass = findfirst(epi.epilist.names .== "Susceptible")
-        N = sum(epi.abundances.matrix[susclass:end, i])
+        N = sum_pop(epi.abundances.matrix, susclass, i)
         # Loop through classes in chosen square
         for j in susclass:classes
             # Convert 1D dimension to 2D coordinates
