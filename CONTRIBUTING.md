@@ -25,9 +25,16 @@ Thanks for contributing to Simulation.jl! Please read the below on how best to m
    > second line SCRC-123"
    ```
 
-5. When your feature is ready to merge back into the `dev` branch create a PR against  `ScottishCovidResponse/Simulation#dev` (**not** `boydorr/Simulation.jl`) and assign `ScottishCovidResponse/simulation-jl-admins` as reviewers.
+5. When your feature is ready to merge back into the `dev` branch create a PR against  `ScottishCovidResponse/Simulation#dev` (**not** `boydorr/Simulation.jl`) **and assign `ScottishCovidResponse/simulation-jl-admins` as reviewers**.
 
 6. Semver will be handled in PRs from `dev` into `master`.
 
 7. Thanks for your time and effort!
 
+## Licensing
+
+By contributing to this project (e.g. by submitting a pull request or providing advice on code), you agree - unless simultaneously and expressly stated otherwise - that your contribution may be included in the source code of the project and published under the following copyright licenses:
+
+         [GNU GPL-3.0 (or any later version)](LICENSE.md) with a special exception to allow distribution under the [2-Clause BSD License](https://opensource.org/licenses/BSD-2-Clause) if the package as a whole is rereleased under that license.
+
+and that the contribution was created in whole or in part by you and you have the right to submit it under the open source license indicated above.
