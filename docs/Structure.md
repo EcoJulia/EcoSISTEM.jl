@@ -24,6 +24,7 @@
 
 
 ![](SEI2HRD.svg)
+
 *Figure 1: Current model structure.*
 
 ## Code Structure
