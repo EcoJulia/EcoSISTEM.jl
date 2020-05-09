@@ -6,6 +6,10 @@ using Simulation.ClimatePref
 using StatsBase
 using Test
 
+# sort out settings to potentially save inputs/outputs of `simulate`
+do_save = (@isdefined do_save) ? do_save : false
+save_path = (@isdefined save_path) ? save_path : pwd()
+
 ## High transmission & 100% case fatality
 ##
 # Set simulation parameters
@@ -76,7 +80,7 @@ epi.abundances.matrix[4:5, 1] .= new_symptomatic
 # Run simulation
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
 times = 1year; interval = 1day; timestep = 1day
-@time simulate_record!(abuns, epi, times, interval, timestep)
+@time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "high_trans"))
 
 
 # Test everyone becomes infected and dies
@@ -116,13 +120,13 @@ param = SEI2HRDGrowth(birth, death, virus_growth, virus_decay, beta_force, beta_
 param = transition(param)
 
 # Set up simple gridded environment
-grid = (4, 4)
+grid = (8, 8)
 area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set population to initially have no individuals
 virus = 0
-susceptible = 5_000_000
+susceptible = 500_000 * prod(grid)
 exposed = 0
 asymptomatic = 0
 symptomatic = 0
@@ -151,9 +155,10 @@ epi.abundances.matrix[1, 1] = new_virus
 epi.abundances.matrix[4:5, 1] .= new_symptomatic
 
 # Run simulation
-abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
 times = 1year; interval = 1day; timestep = 1day
-@time simulate_record!(abuns, epi, times, interval, timestep)
+abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2),
+              convert(Int64, floor(times / interval)) + 1)
+@time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "low_trans"))
 
 
 # Test no one becomes infected & dies

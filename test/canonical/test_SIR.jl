@@ -4,9 +4,14 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
 
-grid_sizes = [1, 2, 4]
+# sort out settings to potentially save inputs/outputs of `simulate`
+do_save = (@isdefined do_save) ? do_save : false
+save_path = (@isdefined save_path) ? save_path : pwd()
+
+grid_sizes = [4, 8, 16]
 numclasses = 5
-abuns = zeros(Int64, 3, numclasses, 16, 731)
+abuns = Vector{Array{Int64, 3}}(undef, length(grid_sizes))
+sumabuns = Vector{Array{Int64, 2}}(undef, length(grid_sizes))
 for i in eachindex(grid_sizes)
     # Set simulation parameters
     birth = fill(0.0/day, numclasses)
@@ -25,9 +30,9 @@ for i in eachindex(grid_sizes)
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
     # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-    virus = 1_000
-    susceptible = 5_000_000
-    infected = 1_000
+    virus = 0
+    susceptible = 500_000 * maximum(grid_sizes)^2
+    infected = 100 * maximum(grid_sizes)^2
     recovered = 0
     dead = 0
     abun = [virus, susceptible, infected, recovered, dead]
@@ -48,17 +53,21 @@ for i in eachindex(grid_sizes)
 
     # Run simulation
     times = 2years; interval = 1day; timestep = 1day
-    thisabun = @view abuns[i, :, 1:grid_sizes[i]^2, :]
-    @time simulate_record!(thisabun, epi, times, interval, timestep)
+    abuns[i] = zeros(Int64, numclasses, grid_sizes[i]^2,
+                     convert(Int64, floor(times / interval)) + 1)
+    thisabun = abuns[i]
+    @time simulate_record!(thisabun, epi, times, interval, timestep;
+                           save=do_save, save_path=joinpath(save_path, "grid_size_$(grid_sizes[i])"))
     # Test no-one dies (death rate = 0)
     @test sum(thisabun[end, :, :]) == 0
     # Test overall population size stays constant (birth rate = death rate = 0)
     @test all(sum(thisabun[2:4, :, :], dims = (1, 2)) .== (susceptible + infected + recovered))
+    sumabuns[i] = sum(abuns[i], dims = 2)[:, 1, :]
 end
 
-abuns = sum(abuns, dims = 3)[:, :, 1, :]
 # For each disease category, check trajectory is the same when we change grid size
-for i in 2:numclasses
-    @test isapprox(abuns[1, i, :], abuns[2, i, :], rtol = 5e-2)
-    @test isapprox(abuns[2, i, :], abuns[3, i, :], rtol = 5e-2)
+for j in 2:length(sumabuns)
+    for i in 2:numclasses
+        @test isapprox(sumabuns[j-1][i, :], sumabuns[j][i, :], rtol = 5e-2)
+    end
 end

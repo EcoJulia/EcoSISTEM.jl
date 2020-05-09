@@ -6,7 +6,6 @@ using Simulation.Units
     simulate!(
         epi::AbstractEpiSystem,
         duration::Unitful.Time,
-        interval::Unitful.Time,
         timestep::Unitful.Time;
         save=false,
         save_path=pwd(),
@@ -23,9 +22,9 @@ function simulate!(
     save=false,
     save_path=pwd(),
 )
-  times = length(0s:timestep:duration)
+  # save pre-simulation inputs
   if save && !isdir(save_path) # Create the directory if it doesn't already exist.
-      mkdir(save_path)
+      mkpath(save_path)
   end
   save && Simulation.save(joinpath(save_path, "initial_system.jlso"), epi)
   save && JLSO.save(
@@ -33,9 +32,14 @@ function simulate!(
     :duration => duration,
     :timestep => timestep,
   )
+
+  times = length(0s:timestep:duration)
+
   for i in 1:times
     update!(epi, timestep)
   end
+
+  # save simulation results
   save && Simulation.save(joinpath(save_path, "final_system.jlso"), epi)
 end
 
@@ -65,28 +69,34 @@ function simulate_record!(
     save_path=pwd(),
 )
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
-  record_seq = 0s:interval:times
-  time_seq = 0s:timestep:times
-  storage[:, :, 1] = epi.abundances.matrix
-  counting = 1
+
+  # save pre-simulation inputs
   if save && !isdir(save_path) # Create the directory if it doesn't already exist.
-      mkdir(save_path)
+      mkpath(save_path)
   end
   save && Simulation.save(joinpath(save_path, "initial_system.jlso"), epi)
   save && JLSO.save(
     joinpath(save_path, "configuration.jlso"),
+    :storage => storage,
     :times => times,
     :timestep => timestep,
     :interval => interval,
   )
+
+  record_seq = 0s:interval:times
+  time_seq = 0s:timestep:times
+  storage[:, :, 1] = epi.abundances.matrix
+  counting = 1
+
   for i in 2:length(time_seq)
     update!(epi, timestep);
     if time_seq[i] in record_seq
       counting = counting + 1
       storage[:, :, counting] = epi.abundances.matrix
     end
-    print(".")
   end
+
+  # save simulation results
   save && Simulation.save(joinpath(save_path, "final_system.jlso"), epi)
   save && JLSO.save(joinpath(save_path, "abundances.jlso"), :abundances => storage)
   return storage
