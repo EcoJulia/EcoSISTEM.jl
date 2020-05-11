@@ -47,23 +47,23 @@ end
     fillval = 1.0
 
     active = fill(true, grid)
-    # Set inactive cells on the outer two layers
+    # Set inactive cells on the outer layers
+    # Make this asymmetric to be more general
     # These should be trimmed off
-    for row in (1, 2, 9, 10)
+    for row in (1, 2, 3, 10)
         active[row, :] .= false
     end
-    for col in (1, 2, 9, 10)
+    for col in (1, 2, 10)
         active[:, col] .= false
     end
     # Set some more inactive cells, these shouldn't result in any further trimming
-    active[3, 3] = false
-    active[4, 3] = false
+    active[4, 4] = false
+    active[5, 4] = false
     active[5, 5] = false
     active[8, 8] = false
-    # Should be trimmed from 10^2 to 8^2
-    expected_grid= (8, 8)
-    expected_active = active[3:8, 3:8]
-    expected_area = area * (8/10)^2
+    # Should be trimmed from 10x10 to 6x7
+    expected_grid= (6, 7)
+    expected_active = active[4:9, 3:9]
     # Shouldn't change
     expected_gridlength = 1km
     control = NoControl()
