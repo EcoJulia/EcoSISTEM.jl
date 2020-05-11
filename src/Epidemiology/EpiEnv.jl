@@ -36,6 +36,18 @@ mutable struct GridEpiEnv{H, C} <: AbstractEpiEnv{H, C}
     ) where {H, C}
         countsubcommunities(habitat) == length(names) ||
             error("Number of subcommunities must match subcommunity names")
+        if size(habitat.matrix) != size(active)
+            throw(DimensionMismatch(
+                "size(habitat.matrix)=$(size(habitat.matrix)) != " *
+                "size(active)=$(size(active))"
+            ))
+        end
+        if size(initial_population) != size(active)
+            throw(DimensionMismatch(
+                "size(initial_population)=$(size(initial_population)) != " *
+                "size(active)=$(size(active))"
+            ))
+        end
         return new{H, C}(habitat, active, control, initial_population, names)
     end
 end
