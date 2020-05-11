@@ -70,7 +70,7 @@ end
     expected_matrix = fill(fillval, expected_grid)
 
     @testset "Construct directly" begin
-        epienv = simplehabitatAE(fillval, grid, area, control)
+        epienv = simplehabitatAE(fillval, grid, area, active, control)
 
         @test epienv.active == expected_active
         @test size(epienv.habitat.matrix) == expected_grid
