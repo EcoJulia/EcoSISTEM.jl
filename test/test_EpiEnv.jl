@@ -61,13 +61,22 @@ end
     active[5, 4] = false
     active[5, 5] = false
     active[8, 8] = false
-    # Should be trimmed from 10x10 to 6x7
-    expected_grid= (6, 7)
-    expected_active = active[4:9, 3:9]
+    # This should stop col 2 being trimmed
+    active[5, 2] = true
+    # Should be trimmed from 10x10 to 6x8
+    expected_grid= (6, 8)
+    expected_active = active[4:9, 2:9]
     # Shouldn't change
     expected_gridlength = 1km
     control = NoControl()
     expected_matrix = fill(fillval, expected_grid)
+
+    @testset "_shrink_to_active" begin
+        M = rand(grid...)
+        M_shrunk = Simulation._shrink_to_active(M, active)
+        @test size(M_shrunk) == expected_grid
+        @test M_shrunk == M[4:9, 2:9]
+    end
 
     @testset "Construct directly" begin
         epienv = simplehabitatAE(fillval, grid, area, active, control)

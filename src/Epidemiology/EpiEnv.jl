@@ -62,6 +62,27 @@ function _getsubcommunitynames(epienv::GridEpiEnv)
 end
 
 """
+    _shrink_to_active(M::AbstractMatrix, active::AbstractMatrix{<:Bool})
+
+Shrink the matrix `M` to the minimum rectangular region which contains all active cells, as
+defined by `active`. Returns the shrunk matrix.
+"""
+function _shrink_to_active(M::AbstractMatrix, active::AbstractMatrix{<:Bool})
+    if size(M) != size(active)
+        throw(DimensionMismatch("size(M)=$(size(M)) != size(active)=$(size(active))"))
+    end
+    # Find indices of non-missing values
+    idx = Tuple.(findall(active))
+    # Separate into row and column indices
+    row_idx = first.(idx)
+    col_idx = last.(idx)
+    # Return the shrunk region
+    shrunk_rows = minimum(row_idx):maximum(row_idx)
+    shrunk_cols = minimum(col_idx):maximum(col_idx)
+    return M[shrunk_rows, shrunk_cols]
+end
+
+"""
     function simplehabitatAE(
         val::Union{Float64, Unitful.Quantity{Float64}},
         dimension::Tuple{Int64, Int64},
