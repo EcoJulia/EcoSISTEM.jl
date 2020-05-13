@@ -83,8 +83,8 @@ end
 
         @test epienv.active == expected_active
         @test size(epienv.habitat.matrix) == expected_grid
-        @test epienv.habitat.size ≈ expected_gridlength
-        @test epienv.habitat.matrix ≈ expected_matrix
+        @test epienv.habitat.size == expected_gridlength
+        @test epienv.habitat.matrix == expected_matrix
     end
 
     @testset "Construct from initial population" begin
@@ -98,8 +98,8 @@ end
 
         @test epienv.active == expected_active
         @test size(epienv.habitat.matrix) == expected_grid
-        @test epienv.habitat.size ≈ expected_gridlength
-        @test epienv.habitat.matrix ≈ expected_matrix
-        @test epienv.initial_pop ≈ expected_initial_pop
+        @test epienv.habitat.size == expected_gridlength
+        @test epienv.habitat.matrix == expected_matrix
+        @test epienv.initial_population == expected_initial_pop
     end
 end
