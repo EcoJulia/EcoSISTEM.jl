@@ -9,22 +9,34 @@ Parameter set that houses information on birth and death rates of different clas
 mutable struct SIRGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Matrix{TimeUnitType{U}}
       death::Matrix{TimeUnitType{U}}
+      ageing::Vector{TimeUnitType{U}}
       virus_growth::Vector{TimeUnitType{U}}
       virus_decay::Vector{TimeUnitType{U}}
       beta_force::Vector{TimeUnitType{U}}
       beta_env::Vector{TimeUnitType{U}}
       sigma::Vector{TimeUnitType{U}}
+
+    # Multiple age categories
     function SIRGrowth{U}(birth::Matrix{TimeUnitType{U}},
-        death::Matrix{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
-        size(birth) == size(death) || ("Birth and death vector lengths differ")
-        new{U}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
+        death::Matrix{TimeUnitType{U}}, ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
+
+        size(birth) == size(death) || error("Birth and death vector lengths differ")
+        all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
+        length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
+
+        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, sigma)
     end
+    # Single age category
     function SIRGrowth{U}(birth::Vector{TimeUnitType{U}},
         death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, sigma::TimeUnitType{U}) where {U <: Unitful.Units}
-        length(birth) == length(death) || ("Birth and death vector lengths differ")
+
+        length(birth) == length(death) || error("Birth and death vector lengths differ")
+        (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
+
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
-        new{U}(new_birth, new_death, [virus_growth], [virus_decay], [beta_force], [beta_env], [sigma])
+        ageing = [0.0/day]
+        return new{U}(new_birth, new_death, ageing, [virus_growth], [virus_decay], [beta_force], [beta_env], [sigma])
     end
 end
 
@@ -36,22 +48,34 @@ Parameter set that houses information on birth and death rates of different clas
 mutable struct SISGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Matrix{TimeUnitType{U}}
       death::Matrix{TimeUnitType{U}}
+      ageing::Vector{TimeUnitType{U}}
       virus_growth::Vector{TimeUnitType{U}}
       virus_decay::Vector{TimeUnitType{U}}
       beta_force::Vector{TimeUnitType{U}}
       beta_env::Vector{TimeUnitType{U}}
       sigma::Vector{TimeUnitType{U}}
+
+    # Multiple age categories
     function SISGrowth{U}(birth::Matrix{TimeUnitType{U}},
-        death::Matrix{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
-        size(birth) == size(death) || ("Birth and death vector lengths differ")
-        new{U}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
+        death::Matrix{TimeUnitType{U}}, ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
+
+        size(birth) == size(death) || error("Birth and death vector lengths differ")
+        all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
+        length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
+
+        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, sigma)
     end
+    # Single age category
     function SISGrowth{U}(birth::Vector{TimeUnitType{U}},
         death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, sigma::TimeUnitType{U}) where {U <: Unitful.Units}
-        length(birth) == length(death) || ("Birth and death vector lengths differ")
+
+        length(birth) == length(death) || error("Birth and death vector lengths differ")
+        (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
+
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
-        new{U}(new_birth, new_death, [virus_growth], [virus_decay], [beta_force], [beta_env], [sigma])
+        ageing = [0.0/day]
+        return new{U}(new_birth, new_death, ageing, [virus_growth], [virus_decay], [beta_force], [beta_env], [sigma])
     end
 end
 
@@ -63,23 +87,36 @@ Parameter set that houses information on birth and death rates of different clas
 mutable struct SEIRGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Matrix{TimeUnitType{U}}
       death::Matrix{TimeUnitType{U}}
+      ageing::Vector{TimeUnitType{U}}
       virus_growth::Vector{TimeUnitType{U}}
       virus_decay::Vector{TimeUnitType{U}}
       beta_force::Vector{TimeUnitType{U}}
       beta_env::Vector{TimeUnitType{U}}
       mu::Vector{TimeUnitType{U}}
       sigma::Vector{TimeUnitType{U}}
+
+    # Multiple age categories
     function SEIRGrowth{U}(birth::Matrix{TimeUnitType{U}},
-        death::Matrix{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
-        size(birth) == size(death) || ("Birth and death vector lengths differ")
-        new{U}(birth, death, virus_growth, virus_decay, beta_force, beta_env, mu, sigma)
+        death::Matrix{TimeUnitType{U}},
+        ageing::Vector{TimeUnitType{U}},  virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
+
+        size(birth) == size(death) || error("Birth and death vector lengths differ")
+        all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
+        length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
+
+        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, mu, sigma)
     end
+    # Single age category
     function SEIRGrowth{U}(birth::Vector{TimeUnitType{U}},
         death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, mu::TimeUnitType{U}, sigma::TimeUnitType{U}) where {U <: Unitful.Units}
-        length(birth) == length(death) || ("Birth and death vector lengths differ")
+
+        length(birth) == length(death) || error("Birth and death vector lengths differ")
+        (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
+
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
-        new{U}(new_birth, new_death, [virus_growth], [virus_decay], [beta_force], [beta_env], [mu], [sigma])
+        ageing = [0.0/day]
+        return new{U}(new_birth, new_death, ageing, [virus_growth], [virus_decay], [beta_force], [beta_env], [mu], [sigma])
     end
 end
 
@@ -91,6 +128,7 @@ Parameter set that houses information on birth and death rates of different clas
 mutable struct SEIRSGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Matrix{TimeUnitType{U}}
       death::Matrix{TimeUnitType{U}}
+      ageing::Vector{TimeUnitType{U}}
       virus_growth::Vector{TimeUnitType{U}}
       virus_decay::Vector{TimeUnitType{U}}
       beta_force::Vector{TimeUnitType{U}}
@@ -98,17 +136,29 @@ mutable struct SEIRSGrowth{U <: Unitful.Units} <: AbstractParams
       mu::Vector{TimeUnitType{U}}
       sigma::Vector{TimeUnitType{U}}
       epsilon::Vector{TimeUnitType{U}}
+
+    # Multiple age categories
     function SEIRSGrowth{U}(birth::Matrix{TimeUnitType{U}},
-        death::Matrix{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}, epsilon::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
-        size(birth) == size(death) || ("Birth and death vector lengths differ")
-        new{U}(birth, death, virus_growth, virus_decay, beta_force, beta_env, mu, sigma, epsilon)
+        death::Matrix{TimeUnitType{U}},
+        ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}, epsilon::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
+
+        size(birth) == size(death) || error("Birth and death vector lengths differ")
+        all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
+        length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
+
+        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, mu, sigma, epsilon)
     end
+    # Single age category
     function SEIRSGrowth{U}(birth::Vector{TimeUnitType{U}},
         death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, mu::TimeUnitType{U}, sigma::TimeUnitType{U}, epsilon::TimeUnitType{U}) where {U <: Unitful.Units}
+
         length(birth) == length(death) || ("Birth and death vector lengths differ")
+        (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
+
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
-        new{U}(new_birth, new_death, [virus_growth], [virus_decay], [beta_force], [beta_env], [mu], [sigma], [epsilon])
+        ageing = [0.0/day]
+        return new{U}(new_birth, new_death, ageing, [virus_growth], [virus_decay], [beta_force], [beta_env], [mu], [sigma], [epsilon])
     end
 end
 
@@ -120,6 +170,7 @@ Parameter set that houses information on birth and death rates of different clas
 mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
       birth::Matrix{TimeUnitType{U}}
       death::Matrix{TimeUnitType{U}}
+      ageing::Vector{TimeUnitType{U}}
       virus_growth_asymp::Vector{TimeUnitType{U}}
       virus_growth_symp::Vector{TimeUnitType{U}}
       virus_decay::Vector{TimeUnitType{U}}
@@ -133,8 +184,11 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
       hospitalisation::Vector{TimeUnitType{U}}
       death_home::Vector{TimeUnitType{U}}
       death_hospital::Vector{TimeUnitType{U}}
+
+    # Multiple age categories
     function SEI2HRDGrowth{U}(birth::Matrix{TimeUnitType{U}},
-        death::Matrix{TimeUnitType{U}}, virus_growth_asymp::Vector{TimeUnitType{U}},
+        death::Matrix{TimeUnitType{U}},
+        ageing::Vector{TimeUnitType{U}}, virus_growth_asymp::Vector{TimeUnitType{U}},
         virus_growth_symp::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma_1::Vector{TimeUnitType{U}},
         sigma_2::Vector{TimeUnitType{U}},
         sigma_hospital::Vector{TimeUnitType{U}},
@@ -143,10 +197,14 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
         hospitalisation::Vector{TimeUnitType{U}},
         death_home::Vector{TimeUnitType{U}},
         death_hospital::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
-        size(birth) == size(death) || ("Birth and death vector lengths differ")
+
+        size(birth) == size(death) || error("Birth and death vector lengths differ")
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
-        new{U}(birth, death, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, mu, sigma)
+        length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
+
+        return new{U}(birth, death, ageing, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, mu, sigma)
     end
+    # Single age category
     function SEI2HRDGrowth{U}(birth::Vector{TimeUnitType{U}},
         death::Vector{TimeUnitType{U}}, virus_growth_asymp::TimeUnitType{U},
         virus_growth_symp::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, sigma_1::TimeUnitType{U},
@@ -157,11 +215,14 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
         hospitalisation::TimeUnitType{U},
         death_home::TimeUnitType{U},
         death_hospital::TimeUnitType{U}) where {U <: Unitful.Units}
+
         length(birth) == length(death) || ("Birth and death vector lengths differ")
         (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
+
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
-        new{U}(new_birth, new_death, [virus_growth_asymp], [virus_growth_symp], [virus_decay], [beta_force], [beta_env], [sigma_1], [sigma_2], [sigma_hospital], [mu_1], [mu_2], [hospitalisation], [death_home], [death_hospital])
+        ageing = [0.0/day]
+        return new{U}(new_birth, new_death, ageing, [virus_growth_asymp], [virus_growth_symp], [virus_decay], [beta_force], [beta_env], [sigma_1], [sigma_2], [sigma_hospital], [mu_1], [mu_2], [hospitalisation], [death_home], [death_hospital])
     end
 end
 
@@ -199,7 +260,8 @@ function SEI2HRDGrowth(birth::Vector{TimeUnitType{U}},
 end
 
 function SEI2HRDGrowth(birth::Matrix{TimeUnitType{U}},
-    death::Matrix{TimeUnitType{U}}, virus_growth_asymp::Vector{TimeUnitType{U}},
+    death::Matrix{TimeUnitType{U}},
+    ageing::Vector{TimeUnitType{U}},  virus_growth_asymp::Vector{TimeUnitType{U}},
     virus_growth_symp::Vector{TimeUnitType{U}},
     virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}},
     prob_sym::Vector{Float64}, prob_hosp::Vector{Float64}, cfr_home::Vector{Float64}, cfr_hosp::Vector{Float64},
@@ -221,7 +283,7 @@ function SEI2HRDGrowth(birth::Matrix{TimeUnitType{U}},
     death_home = cfr_home .* 2/T_hosp
     # Hospital -> death
     death_hospital = cfr_hosp .* 1/T_hosp
-    return SEI2HRDGrowth{U}(birth, death, virus_growth_asymp, virus_growth_symp, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital)
+    return SEI2HRDGrowth{U}(birth, death, ageing,  virus_growth_asymp, virus_growth_symp, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital)
 end
 
 """
@@ -245,6 +307,17 @@ mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
     end
 end
 
+# function transition(paramDat::DataFrame, age_categories::Int64, nclasses::Int64)
+#     # Set up number of classes etc
+#     nclasses = 3
+#     cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
+#
+#     # Set up transition matrix
+#     tm_size = nclasses * age_categories
+#     tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
+#
+#
+# end
 """
     transition(params::SISGrowth)
 
@@ -260,9 +333,10 @@ function transition(params::SISGrowth, age_categories = 1)
     tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
 
     # Ageing
-    age_diag = diagind(tmat, -1)
-    tmat[age_diag] .= 1/365days
-    tmat[age_diag[age_categories:age_categories:end]] .= 0.0/day
+    for i in 1:(nclasses-1)
+        amat = @view tmat[cat_idx[:, i], cat_idx[:, i]]
+        amat[diagind(amat, -1)].= params.ageing
+    end
 
     # Death
     for i in 1:(nclasses-1)
@@ -307,9 +381,10 @@ function transition(params::SIRGrowth, age_categories = 1)
     tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
 
     # Ageing
-    age_diag = diagind(tmat, -1)
-    tmat[age_diag] .= 1/365days
-    tmat[age_diag[age_categories:age_categories:end]] .= 0.0/day
+    for i in 1:(nclasses-1)
+        amat = @view tmat[cat_idx[:, i], cat_idx[:, i]]
+        amat[diagind(amat, -1)].= params.ageing
+    end
 
     # Death
     for i in 1:(nclasses-1)
@@ -354,9 +429,10 @@ function transition(params::SEIRGrowth, age_categories = 1)
     tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
 
     # Ageing
-    age_diag = diagind(tmat, -1)
-    tmat[age_diag] .= 1/365days
-    tmat[age_diag[age_categories:age_categories:end]] .= 0.0/day
+    for i in 1:(nclasses-1)
+        amat = @view tmat[cat_idx[:, i], cat_idx[:, i]]
+        amat[diagind(amat, -1)].= params.ageing
+    end
 
     # Death
     for i in 1:(nclasses-1)
@@ -405,9 +481,10 @@ function transition(params::SEIRSGrowth, age_categories = 1)
     tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
 
     # Ageing
-    age_diag = diagind(tmat, -1)
-    tmat[age_diag] .= 1/365days
-    tmat[age_diag[age_categories:age_categories:end]] .= 0.0/day
+    for i in 1:(nclasses-1)
+        amat = @view tmat[cat_idx[:, i], cat_idx[:, i]]
+        amat[diagind(amat, -1)].= params.ageing
+    end
 
     # Death
     for i in 1:(nclasses-1)
@@ -460,9 +537,10 @@ function transition(params::SEI2HRDGrowth, age_categories = 1)
     tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
 
     # Ageing
-    age_diag = diagind(tmat, -1)
-    tmat[age_diag] .= 1/365days
-    tmat[age_diag[age_categories:age_categories:end]] .= 0.0/day
+    for i in 1:(nclasses-1)
+        amat = @view tmat[cat_idx[:, i], cat_idx[:, i]]
+        amat[diagind(amat, -1)].= params.ageing
+    end
 
     # Death
     for i in 1:(nclasses-1)
