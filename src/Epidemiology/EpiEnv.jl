@@ -96,6 +96,9 @@ Function to create a simple `ContinuousHab` type epi environment. It creates a
 `ContinuousHab` filled with a given value `val`, of dimensions `dimension` and specified
 area `area`. If a Bool matrix `active` of active grid squares is included, this is used,
 else one is created with all grid cells active.
+
+!!! note
+    The simulation grid will be shrunk so that it tightly wraps the active values
 """
 function simplehabitatAE(
     val::Union{Float64, Unitful.Quantity{Float64}},
@@ -110,6 +113,13 @@ function simplehabitatAE(
     end
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
+
+    # Shrink to active region
+    # This doesn't change the gridsquaresize
+    initial_population = _shrink_to_active(initial_population, active)
+    active = _shrink_to_active(active, active)
+    dimension = size(active)
+
     hab = simplehabitat(val, gridsquaresize, dimension)
     return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control, initial_population)
 end
@@ -142,6 +152,10 @@ matrix.
     used to mask off inactive areas. `initial_population` will be rounded to integers.
 - `area`: The area of the habitat
 - `control`: The control to apply
+
+!!! note
+    The simulation grid will be shrunk so that it tightly wraps the active values in
+    `initial_population`.
 """
 function simplehabitatAE(
     val::Union{Float64, Unitful.Quantity{Float64}},
