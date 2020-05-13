@@ -9,7 +9,7 @@ do_save = (@isdefined do_save) ? do_save : false
 save_path = (@isdefined save_path) ? save_path : pwd()
 
 grid_sizes = [4, 8, 16]
-numclasses = 5
+numclasses = 4
 abuns = Vector{Array{Int64, 3}}(undef, length(grid_sizes))
 sumabuns = Vector{Array{Int64, 2}}(undef, length(grid_sizes))
 for i in eachindex(grid_sizes)
@@ -53,8 +53,7 @@ for i in eachindex(grid_sizes)
 
     # Run simulation
     times = 2years; interval = 1day; timestep = 1day
-    abuns[i] = zeros(Int64, numclasses, grid_sizes[i]^2,
-                     convert(Int64, floor(times / interval)) + 1)
+    abuns[i] = zeros(Int64, numclasses + 1, grid_sizes[i]^2, convert(Int64, floor(times / interval)) + 1)
     thisabun = abuns[i]
     @time simulate_record!(thisabun, epi, times, interval, timestep;
                            save=do_save, save_path=joinpath(save_path, "grid_size_$(grid_sizes[i])"))

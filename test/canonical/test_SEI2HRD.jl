@@ -15,10 +15,8 @@ save_path = (@isdefined save_path) ? save_path : pwd()
 # Set simulation parameters
 birth = fill(0.0/day, 8)
 death = fill(0.0/day, 8)
-virus_growth = fill(0.0/day, 8)
-virus_growth[4:5] .= 1e-3/day
-virus_decay = fill(0.0/day, 8)
-virus_decay[4] = 1/3days
+virus_growth_asymp = virus_growth_symp = 1e-3/day
+virus_decay = 1/3days
 beta_force = 1e3/day
 beta_env = 1e3/day
 
@@ -39,7 +37,7 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = SEI2HRDGrowth(birth, death, virus_growth, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_sym, T_hosp, T_rec)
+param = SEI2HRDGrowth(birth, death, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_sym, T_hosp, T_rec)
 param = transition(param)
 
 # Set up simple gridded environment
@@ -92,10 +90,8 @@ times = 1year; interval = 1day; timestep = 1day
 
 birth = fill(0.0/day, 8)
 death = fill(0.0/day, 8)
-virus_growth = fill(0.0/day, 8)
-virus_growth[4:5] .= 1e-3/day
-virus_decay = fill(0.0/day, 8)
-virus_decay[4] = 1.0/day
+virus_growth_asymp = virus_growth_symp = 1e-3/day
+virus_decay = 1.0/day
 beta_force = 1e-10/day
 beta_env = 1e-10/day
 
@@ -116,7 +112,7 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = SEI2HRDGrowth(birth, death, virus_growth, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_sym, T_hosp, T_rec)
+param = SEI2HRDGrowth(birth, death, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_sym, T_hosp, T_rec)
 param = transition(param)
 
 # Set up simple gridded environment
