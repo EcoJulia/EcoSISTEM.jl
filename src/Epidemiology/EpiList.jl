@@ -66,49 +66,57 @@ function _getdiversityname(el::EpiList)
 end
 
 function SIS(traits::TR, abun::Vector{Int64},
-    movement::MO, params::P) where {TR <: AbstractTraits,
+    movement::MO, params::P, age_categories::Int64 = 1) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
 
-    names = ["Virus", "Susceptible", "Infected", "Dead"]
-    types = UniqueTypes(length(names))
-    length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
-  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
+    names = ["Susceptible", "Infected", "Dead"]
+    new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories, j in names]
+    new_names =  ["Virus"; new_names[1:end]]
+    types = UniqueTypes(length(new_names))
+    length(abun) == length(new_names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
+  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(new_names, traits, abun, types, movement, params)
 end
 
 function SIR(traits::TR, abun::Vector{Int64},
-    movement::MO, params::P) where {TR <: AbstractTraits,
+    movement::MO, params::P, age_categories::Int64 = 1) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
 
-    names = ["Virus", "Susceptible", "Infected", "Recovered", "Dead"]
-    types = UniqueTypes(length(names))
-    length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
-  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
+    names = ["Susceptible", "Infected", "Recovered", "Dead"]
+    new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories, j in names]
+    new_names =  ["Virus"; new_names[1:end]]
+    types = UniqueTypes(length(new_names))
+    length(abun) == length(new_names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
+  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(new_names, traits, abun, types, movement, params)
 end
 
 function SEIR(traits::TR, abun::Vector{Int64},
-    movement::MO, params::P) where {TR <: AbstractTraits,
+    movement::MO, params::P, age_categories::Int64 = 1) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
 
-    names = ["Virus", "Susceptible", "Exposed", "Infected", "Recovered", "Dead"]
-    types = UniqueTypes(length(names))
-    length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
-  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
+    names = ["Susceptible", "Exposed", "Infected", "Recovered", "Dead"]
+    new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories, j in names]
+    new_names =  ["Virus"; new_names[1:end]]
+    types = UniqueTypes(length(new_names))
+    length(abun) == length(new_names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
+  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(new_names, traits, abun, types, movement, params)
 end
 
 function SEIRS(traits::TR, abun::Vector{Int64},
-    movement::MO, params::P) where {TR <: AbstractTraits,
+    movement::MO, params::P, age_categories::Int64 = 1) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
 
-    return SEIR(traits, abun, movement, params)
+    return SEIR(traits, abun, movement, params, age_categories)
 end
 
 function SEI2HRD(traits::TR, abun::Vector{Int64},
-    movement::MO, params::P) where {TR <: AbstractTraits,
+    movement::MO, params::P, age_categories::Int64 = 1) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
 
-    names = ["Virus", "Susceptible", "Exposed", "AsymptomaticInfected", "SymptomaticInfected", "Hospitalised", "Recovered", "Dead"]
-    types = UniqueTypes(length(names))
-    length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
-    size(params.transition, 1) == length(names) || throw(DimensionMismatch("Transition matrix does not have the correct number of classes"))
-  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
+    names = ["Susceptible", "Exposed", "AsymptomaticInfected", "SymptomaticInfected", "Hospitalised", "Recovered", "Dead"]
+    new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories, j in names]
+    new_names =  ["Virus"; new_names[1:end]]
+    types = UniqueTypes(length(new_names))
+    length(abun) == length(new_names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
+    size(params.transition, 1) == (length(new_names) - 1) || throw(DimensionMismatch("Transition matrix does not have the correct number of classes"))
+  EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(new_names, traits, abun, types, movement, params)
 end
