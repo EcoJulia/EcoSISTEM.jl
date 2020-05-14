@@ -1,5 +1,6 @@
 using Unitful
 using LinearAlgebra
+using DataFrames
 
 """
     SIRGrowth{U <: Unitful.Units} <: AbstractParams
@@ -11,14 +12,14 @@ mutable struct SIRGrowth{U <: Unitful.Units} <: AbstractParams
       death::Matrix{TimeUnitType{U}}
       ageing::Vector{TimeUnitType{U}}
       virus_growth::Vector{TimeUnitType{U}}
-      virus_decay::Vector{TimeUnitType{U}}
+      virus_decay::TimeUnitType{U}
       beta_force::Vector{TimeUnitType{U}}
       beta_env::Vector{TimeUnitType{U}}
       sigma::Vector{TimeUnitType{U}}
 
     # Multiple age categories
     function SIRGrowth{U}(birth::Matrix{TimeUnitType{U}},
-        death::Matrix{TimeUnitType{U}}, ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
+        death::Matrix{TimeUnitType{U}}, ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
 
         size(birth) == size(death) || error("Birth and death vector lengths differ")
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
@@ -36,7 +37,7 @@ mutable struct SIRGrowth{U <: Unitful.Units} <: AbstractParams
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth], [virus_decay], [beta_force], [beta_env], [sigma])
+        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [sigma])
     end
 end
 
@@ -50,14 +51,14 @@ mutable struct SISGrowth{U <: Unitful.Units} <: AbstractParams
       death::Matrix{TimeUnitType{U}}
       ageing::Vector{TimeUnitType{U}}
       virus_growth::Vector{TimeUnitType{U}}
-      virus_decay::Vector{TimeUnitType{U}}
+      virus_decay::TimeUnitType{U}
       beta_force::Vector{TimeUnitType{U}}
       beta_env::Vector{TimeUnitType{U}}
       sigma::Vector{TimeUnitType{U}}
 
     # Multiple age categories
     function SISGrowth{U}(birth::Matrix{TimeUnitType{U}},
-        death::Matrix{TimeUnitType{U}}, ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
+        death::Matrix{TimeUnitType{U}}, ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
 
         size(birth) == size(death) || error("Birth and death vector lengths differ")
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
@@ -75,7 +76,7 @@ mutable struct SISGrowth{U <: Unitful.Units} <: AbstractParams
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth], [virus_decay], [beta_force], [beta_env], [sigma])
+        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [sigma])
     end
 end
 
@@ -89,7 +90,7 @@ mutable struct SEIRGrowth{U <: Unitful.Units} <: AbstractParams
       death::Matrix{TimeUnitType{U}}
       ageing::Vector{TimeUnitType{U}}
       virus_growth::Vector{TimeUnitType{U}}
-      virus_decay::Vector{TimeUnitType{U}}
+      virus_decay::TimeUnitType{U}
       beta_force::Vector{TimeUnitType{U}}
       beta_env::Vector{TimeUnitType{U}}
       mu::Vector{TimeUnitType{U}}
@@ -98,7 +99,7 @@ mutable struct SEIRGrowth{U <: Unitful.Units} <: AbstractParams
     # Multiple age categories
     function SEIRGrowth{U}(birth::Matrix{TimeUnitType{U}},
         death::Matrix{TimeUnitType{U}},
-        ageing::Vector{TimeUnitType{U}},  virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
+        ageing::Vector{TimeUnitType{U}},  virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
 
         size(birth) == size(death) || error("Birth and death vector lengths differ")
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
@@ -116,7 +117,7 @@ mutable struct SEIRGrowth{U <: Unitful.Units} <: AbstractParams
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth], [virus_decay], [beta_force], [beta_env], [mu], [sigma])
+        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [mu], [sigma])
     end
 end
 
@@ -130,7 +131,7 @@ mutable struct SEIRSGrowth{U <: Unitful.Units} <: AbstractParams
       death::Matrix{TimeUnitType{U}}
       ageing::Vector{TimeUnitType{U}}
       virus_growth::Vector{TimeUnitType{U}}
-      virus_decay::Vector{TimeUnitType{U}}
+      virus_decay::TimeUnitType{U}
       beta_force::Vector{TimeUnitType{U}}
       beta_env::Vector{TimeUnitType{U}}
       mu::Vector{TimeUnitType{U}}
@@ -140,7 +141,7 @@ mutable struct SEIRSGrowth{U <: Unitful.Units} <: AbstractParams
     # Multiple age categories
     function SEIRSGrowth{U}(birth::Matrix{TimeUnitType{U}},
         death::Matrix{TimeUnitType{U}},
-        ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}, epsilon::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
+        ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}, epsilon::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
 
         size(birth) == size(death) || error("Birth and death vector lengths differ")
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
@@ -158,7 +159,7 @@ mutable struct SEIRSGrowth{U <: Unitful.Units} <: AbstractParams
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth], [virus_decay], [beta_force], [beta_env], [mu], [sigma], [epsilon])
+        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [mu], [sigma], [epsilon])
     end
 end
 
@@ -173,7 +174,7 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
       ageing::Vector{TimeUnitType{U}}
       virus_growth_asymp::Vector{TimeUnitType{U}}
       virus_growth_symp::Vector{TimeUnitType{U}}
-      virus_decay::Vector{TimeUnitType{U}}
+      virus_decay::TimeUnitType{U}
       beta_force::Vector{TimeUnitType{U}}
       beta_env::Vector{TimeUnitType{U}}
       sigma_1::Vector{TimeUnitType{U}}
@@ -189,7 +190,7 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
     function SEI2HRDGrowth{U}(birth::Matrix{TimeUnitType{U}},
         death::Matrix{TimeUnitType{U}},
         ageing::Vector{TimeUnitType{U}}, virus_growth_asymp::Vector{TimeUnitType{U}},
-        virus_growth_symp::Vector{TimeUnitType{U}}, virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma_1::Vector{TimeUnitType{U}},
+        virus_growth_symp::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma_1::Vector{TimeUnitType{U}},
         sigma_2::Vector{TimeUnitType{U}},
         sigma_hospital::Vector{TimeUnitType{U}},
         mu_1::Vector{TimeUnitType{U}},
@@ -222,7 +223,7 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth_asymp], [virus_growth_symp], [virus_decay], [beta_force], [beta_env], [sigma_1], [sigma_2], [sigma_hospital], [mu_1], [mu_2], [hospitalisation], [death_home], [death_hospital])
+        return new{U}(new_birth, new_death, ageing, [virus_growth_asymp], [virus_growth_symp], virus_decay, [beta_force], [beta_env], [sigma_1], [sigma_2], [sigma_hospital], [mu_1], [mu_2], [hospitalisation], [death_home], [death_hospital])
     end
 end
 
@@ -263,7 +264,7 @@ function SEI2HRDGrowth(birth::Matrix{TimeUnitType{U}},
     death::Matrix{TimeUnitType{U}},
     ageing::Vector{TimeUnitType{U}},  virus_growth_asymp::Vector{TimeUnitType{U}},
     virus_growth_symp::Vector{TimeUnitType{U}},
-    virus_decay::Vector{TimeUnitType{U}}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}},
+    virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}},
     prob_sym::Vector{Float64}, prob_hosp::Vector{Float64}, cfr_home::Vector{Float64}, cfr_hosp::Vector{Float64},
     T_lat::Unitful.Time, T_asym::Unitful.Time, T_sym::Unitful.Time,
     T_hosp::Unitful.Time, T_rec::Unitful.Time) where {U <: Unitful.Units}
@@ -307,30 +308,13 @@ mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
     end
 end
 
-# function transition(paramDat::DataFrame, age_categories::Int64, nclasses::Int64)
-#     # Set up number of classes etc
-#     nclasses = 3
-#     cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
-#
-#     # Set up transition matrix
-#     tm_size = nclasses * age_categories
-#     tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-#
-#
-# end
-"""
-    transition(params::SISGrowth)
-
-Function to create transition matrix from SIS parameters and return an `EpiParams` type that can be used by the model update.
-"""
-function transition(params::SISGrowth, age_categories = 1)
+function create_transition_matrix(params::AbstractParams, paramDat::DataFrame, age_categories::Int64, nclasses::Int64)
     # Set up number of classes etc
-    nclasses = 3
     cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
 
     # Set up transition matrix
     tm_size = nclasses * age_categories
-    tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
+    tmat = zeros(typeof(paramDat[1, :param][1]), tm_size, tm_size)
 
     # Ageing
     for i in 1:(nclasses-1)
@@ -344,25 +328,59 @@ function transition(params::SISGrowth, age_categories = 1)
         dmat[diagind(dmat)].= params.death[cat_idx[:, i]]
     end
 
-    # Recovery
-    rmat = @view tmat[cat_idx[:, 2], cat_idx[:, 3]]
-    rmat[diagind(rmat)] .= params.sigma
+    # Other transitions
+    ordered_transitions = paramDat[!, :param]
+    from = paramDat[!, :from]
+    to = paramDat[!, :to]
+    for i in eachindex(to)
+            view_mat = @view tmat[cat_idx[:, to[i]], cat_idx[:, from[i]]]
+            view_mat[diagind(view_mat)] .= ordered_transitions[i]
+    end
+    return tmat
+end
+
+function create_virus_matrix(beta::Vector{TimeUnitType{U}}, age_categories::Int64, nclasses::Int64) where U <: Unitful.Units
+    cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
+    vm_size = nclasses * age_categories
+    vmat = zeros(typeof(beta[1]), vm_size, vm_size)
+    bmat = @view vmat[cat_idx[:, 2], cat_idx[:, 1]]
+    bmat[diagind(bmat)] .= beta
+    return vmat
+end
+
+function create_virus_vector(virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, age_categories::Int64, nclasses::Int64, inf_cat::Int64) where U <: Unitful.Units
+    cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
+    vm_size = nclasses * age_categories
+    v_growth = fill(0.0 * unit(virus_decay), vm_size)
+    v_decay = fill(0.0 * unit(virus_decay), vm_size)
+    v_growth[cat_idx[:, inf_cat]] .= virus_growth
+    v_decay[cat_idx[1, inf_cat]] = virus_decay
+    return v_growth, v_decay
+end
+"""
+    transition(params::SISGrowth)
+
+Function to create transition matrix from SIS parameters and return an `EpiParams` type that can be used by the model update.
+"""
+function transition(params::SISGrowth, age_categories = 1)
+    # Set up number of classes etc
+    nclasses = 3
+
+    from = 2
+    to = 1
+    paramDat = DataFrame(from = from, to = to, param = params.sigma)
+
+    tmat = create_transition_matrix(params, paramDat, age_categories, nclasses)
 
     # Env virus matrix
-    vmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-    bmat = @view vmat[cat_idx[:, 2], cat_idx[:, 1]]
-    bmat[diagind(bmat)] .= params.beta_env
+    vmat = create_virus_matrix(params.beta_env, age_categories, nclasses)
 
     # Force matrix
-    vfmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-    bmat = @view vfmat[cat_idx[:, 2], cat_idx[:, 1]]
-    bmat[diagind(bmat)] .= params.beta_force
+    vfmat = create_virus_matrix(params.beta_force, age_categories, nclasses)
 
     # Virus growth and decay
-    v_growth = fill(0.0 * unit(params.virus_growth[1]), tm_size)
-    v_decay = fill(0.0 * unit(params.virus_growth[1]), tm_size)
-    v_growth[cat_idx[:, 2]] .= params.virus_growth
-    v_decay[cat_idx[:, 2]] .= params.virus_decay
+    v_growth, v_decay = create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 2)
+
   return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat)
 end
 
@@ -374,43 +392,22 @@ Function to create transition matrix from SIR parameters and return an `EpiParam
 function transition(params::SIRGrowth, age_categories = 1)
     # Set up number of classes etc
     nclasses = 4
-    cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
 
-    # Set up transition matrix
-    tm_size = nclasses * age_categories
-    tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
+    from = 2
+    to = 3
+    paramDat = DataFrame(from = from, to = to, param = params.sigma)
 
-    # Ageing
-    for i in 1:(nclasses-1)
-        amat = @view tmat[cat_idx[:, i], cat_idx[:, i]]
-        amat[diagind(amat, -1)].= params.ageing
-    end
-
-    # Death
-    for i in 1:(nclasses-1)
-        dmat = @view tmat[cat_idx[:, end], cat_idx[:, i]]
-        dmat[diagind(dmat)].= params.death[cat_idx[:, i]]
-    end
-
-    # Recovery
-    rmat = @view tmat[cat_idx[:, 3], cat_idx[:, 2]]
-    rmat[diagind(rmat)] .= params.sigma
+    tmat = create_transition_matrix(params, paramDat, age_categories, nclasses)
 
     # Env virus matrix
-    vmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-    bmat = @view vmat[cat_idx[:, 2], cat_idx[:, 1]]
-    bmat[diagind(bmat)] .= params.beta_env
+    vmat = create_virus_matrix(params.beta_env, age_categories, nclasses)
 
     # Force matrix
-    vfmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-    bmat = @view vfmat[cat_idx[:, 2], cat_idx[:, 1]]
-    bmat[diagind(bmat)] .= params.beta_force
+    vfmat = create_virus_matrix(params.beta_force, age_categories, nclasses)
 
     # Virus growth and decay
-    v_growth = fill(0.0 * unit(params.virus_growth[1]), tm_size)
-    v_decay = fill(0.0 * unit(params.virus_growth[1]), tm_size)
-    v_growth[cat_idx[:, 2]] .= params.virus_growth
-    v_decay[cat_idx[:, 2]] .= params.virus_decay
+    v_growth, v_decay = create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 2)
+
   return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat)
 end
 
@@ -422,47 +419,22 @@ Function to create transition matrix from SEIR parameters and return an `EpiPara
 function transition(params::SEIRGrowth, age_categories = 1)
     # Set up number of classes etc
     nclasses = 5
-    cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
 
-    # Set up transition matrix
-    tm_size = nclasses * age_categories
-    tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
+    from = [2, 3]
+    to = [3, 4]
+    paramDat = DataFrame(from = from, to = to, param = [params.mu, params.sigma])
 
-    # Ageing
-    for i in 1:(nclasses-1)
-        amat = @view tmat[cat_idx[:, i], cat_idx[:, i]]
-        amat[diagind(amat, -1)].= params.ageing
-    end
-
-    # Death
-    for i in 1:(nclasses-1)
-        dmat = @view tmat[cat_idx[:, end], cat_idx[:, i]]
-        dmat[diagind(dmat)].= params.death[cat_idx[:, i]]
-    end
-
-    # Incubation
-    imat = @view tmat[cat_idx[:, 3], cat_idx[:, 2]]
-    imat[diagind(imat)] .= params.mu
-
-    # Recovery
-    rmat = @view tmat[cat_idx[:, 4], cat_idx[:, 3]]
-    rmat[diagind(rmat)] .= params.sigma
+    tmat = create_transition_matrix(params, paramDat, age_categories, nclasses)
 
     # Env virus matrix
-    vmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-    bmat = @view vmat[cat_idx[:, 2], cat_idx[:, 1]]
-    bmat[diagind(bmat)] .= params.beta_env
+    vmat = create_virus_matrix(params.beta_env, age_categories, nclasses)
 
     # Force matrix
-    vfmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-    bmat = @view vfmat[cat_idx[:, 2], cat_idx[:, 1]]
-    bmat[diagind(bmat)] .= params.beta_force
+    vfmat = create_virus_matrix(params.beta_force, age_categories, nclasses)
 
     # Virus growth and decay
-    v_growth = fill(0.0 * unit(params.virus_growth[1]), tm_size)
-    v_decay = fill(0.0 * unit(params.virus_growth[1]), tm_size)
-    v_growth[cat_idx[:, 3]] .= params.virus_growth
-    v_decay[cat_idx[:, 3]] .= params.virus_decay
+    v_growth, v_decay = create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 3)
+
   return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat)
 end
 
@@ -474,51 +446,22 @@ Function to create transition matrix from SEIRS parameters and return an `EpiPar
 function transition(params::SEIRSGrowth, age_categories = 1)
     # Set up number of classes etc
     nclasses = 5
-    cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
 
-    # Set up transition matrix
-    tm_size = nclasses * age_categories
-    tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
+    from = [2, 3, 4]
+    to = [3, 4, 1]
+    paramDat = DataFrame(from = from, to = to, param = [params.mu, params.sigma, params.epsilon])
 
-    # Ageing
-    for i in 1:(nclasses-1)
-        amat = @view tmat[cat_idx[:, i], cat_idx[:, i]]
-        amat[diagind(amat, -1)].= params.ageing
-    end
-
-    # Death
-    for i in 1:(nclasses-1)
-        dmat = @view tmat[cat_idx[:, end], cat_idx[:, i]]
-        dmat[diagind(dmat)].= params.death[cat_idx[:, i]]
-    end
-
-    # Incubation
-    imat = @view tmat[cat_idx[:, 3], cat_idx[:, 2]]
-    imat[diagind(imat)] .= params.mu
-
-    # Recovery
-    rmat = @view tmat[cat_idx[:, 4], cat_idx[:, 3]]
-    rmat[diagind(rmat)] .= params.sigma
-
-    # Immunity waning
-    rmat = @view tmat[cat_idx[:, 1], cat_idx[:, 4]]
-    rmat[diagind(rmat)] .= params.epsilon
+    tmat = create_transition_matrix(params, paramDat, age_categories, nclasses)
 
     # Env virus matrix
-    vmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-    bmat = @view vmat[cat_idx[:, 2], cat_idx[:, 1]]
-    bmat[diagind(bmat)] .= params.beta_env
+    vmat = create_virus_matrix(params.beta_env, age_categories, nclasses)
 
     # Force matrix
-    vfmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-    bmat = @view vfmat[cat_idx[:, 2], cat_idx[:, 1]]
-    bmat[diagind(bmat)] .= params.beta_force
+    vfmat = create_virus_matrix(params.beta_force, age_categories, nclasses)
 
     # Virus growth and decay
-    v_growth = fill(0.0 * unit(params.virus_growth[1]), tm_size)
-    v_decay = fill(0.0 * unit(params.virus_growth[1]), tm_size)
-    v_growth[cat_idx[:, 3]] .= params.virus_growth
-    v_decay[cat_idx[:, 3]] .= params.virus_decay
+    v_growth, v_decay = create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 3)
+
   return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat)
 end
 
@@ -530,48 +473,24 @@ Function to create transition matrix from SEI2HRD parameters and return an `EpiP
 function transition(params::SEI2HRDGrowth, age_categories = 1)
     # Set up number of classes etc
     nclasses = 7
-    cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
-
-    # Set up transition matrix
-    tm_size = nclasses * age_categories
-    tmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-
-    # Ageing
-    for i in 1:(nclasses-1)
-        amat = @view tmat[cat_idx[:, i], cat_idx[:, i]]
-        amat[diagind(amat, -1)].= params.ageing
-    end
-
-    # Death
-    for i in 1:(nclasses-1)
-        dmat = @view tmat[cat_idx[:, end], cat_idx[:, i]]
-        dmat[diagind(dmat)].= params.death[cat_idx[:, i]]
-    end
 
     ordered_transitions = (incubation_period = params.mu_1, symptoms_develop = params.mu_2, symptoms_worsen = params.hospitalisation, recovery_asymptomatic = params.sigma_1, recovery_symptomatic = params.sigma_2, recovery_hospital = params.sigma_hospital, death_symptomatic = params.death_home,
     death_hospitalised = params.death_hospital)
     from = [2, 3, 4, 3, 4, 5, 4, 5]
     to = [3, 4, 5, 6, 6, 6, 7, 7]
-    for i in eachindex(to)
-            view_mat = @view tmat[cat_idx[:, to[i]], cat_idx[:, from[i]]]
-            view_mat[diagind(view_mat)] .= ordered_transitions[i]
-    end
+    paramDat = DataFrame(from = from, to = to, param = ordered_transitions)
+
+    tmat = create_transition_matrix(params, paramDat, age_categories, nclasses)
 
     # Env virus matrix
-    vmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-    bmat = @view vmat[cat_idx[:, 2], cat_idx[:, 1]]
-    bmat[diagind(bmat)] .= params.beta_env
+    vmat = create_virus_matrix(params.beta_env, age_categories, nclasses)
 
     # Force matrix
-    vfmat = zeros(typeof(params.beta_force[1]), tm_size, tm_size)
-    bmat = @view vfmat[cat_idx[:, 2], cat_idx[:, 1]]
-    bmat[diagind(bmat)] .= params.beta_force
+    vfmat = create_virus_matrix(params.beta_force, age_categories, nclasses)
 
     # Virus growth and decay
-    v_growth = fill(0.0 * unit(params.virus_growth_asymp[1]), tm_size)
-    v_decay = fill(0.0 * unit(params.virus_growth_asymp[1]), tm_size)
-    v_growth[cat_idx[:, 3]] .= params.virus_growth_asymp
-    v_growth[cat_idx[:, 4]] .= params.virus_growth_symp
-    v_decay[cat_idx[:, 3]] .= params.virus_decay
+    v_growth, v_decay = create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 3)
+    v_growth .+= create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 4)[1]
+
   return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat)
 end
