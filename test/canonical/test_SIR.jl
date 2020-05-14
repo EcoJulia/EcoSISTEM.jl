@@ -39,7 +39,7 @@ for i in eachindex(grid_sizes)
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(100.0km, numclasses)
-    dispersal_dists[3] = 1_000.0km
+    dispersal_dists[2] = 1_000.0km
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = AlwaysMovement(kernel)
 
@@ -53,7 +53,7 @@ for i in eachindex(grid_sizes)
 
     # Run simulation
     times = 2years; interval = 1day; timestep = 1day
-    abuns[i] = zeros(Int64, numclasses + 1, grid_sizes[i]^2, convert(Int64, floor(times / interval)) + 1)
+    abuns[i] = zeros(Int64, size(epi.abundances.matrix, 1), grid_sizes[i]^2, convert(Int64, floor(times / interval)) + 1)
     thisabun = abuns[i]
     @time simulate_record!(thisabun, epi, times, interval, timestep;
                            save=do_save, save_path=joinpath(save_path, "grid_size_$(grid_sizes[i])"))

@@ -13,8 +13,9 @@ save_path = (@isdefined save_path) ? save_path : pwd()
 ## High transmission & 100% case fatality
 ##
 # Set simulation parameters
-birth = fill(0.0/day, 8)
-death = fill(0.0/day, 8)
+numclasses = 7
+birth = fill(0.0/day, numclasses)
+death = fill(0.0/day, numclasses)
 virus_growth_asymp = virus_growth_symp = 1e-3/day
 virus_decay = 1/3days
 beta_force = 1e3/day
@@ -57,14 +58,14 @@ dead = 0
 abun = [virus, susceptible, exposed, asymptomatic, symptomatic, hospitalised, recovered, dead]
 
 # Dispersal kernels for virus dispersal from different disease classes
-dispersal_dists = fill(1.0km, 8)
-dispersal_dists[4:5] .= 500.0km
+dispersal_dists = fill(1.0km, numclasses)
+dispersal_dists[3:4] .= 500.0km
 
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-traits = GaussTrait(fill(298.0K, 8), fill(0.1K, 8))
+traits = GaussTrait(fill(298.0K, numclasses), fill(0.1K, numclasses))
 epilist = Simulation.SEI2HRD(traits, abun, movement, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
@@ -88,8 +89,8 @@ times = 1year; interval = 1day; timestep = 1day
 ## Low transmission & 100% case fatality
 ##
 
-birth = fill(0.0/day, 8)
-death = fill(0.0/day, 8)
+birth = fill(0.0/day, numclasses)
+death = fill(0.0/day, numclasses)
 virus_growth_asymp = virus_growth_symp = 1e-3/day
 virus_decay = 1.0/day
 beta_force = 1e-10/day
@@ -132,14 +133,14 @@ dead = 0
 abun = [virus, susceptible, exposed, asymptomatic, symptomatic, hospitalised, recovered, dead]
 
 # Dispersal kernels for virus dispersal from different disease classes
-dispersal_dists = fill(1.0km, 8)
-dispersal_dists[4:5] .= 200.0km
+dispersal_dists = fill(1.0km, numclasses)
+dispersal_dists[3:4] .= 200.0km
 
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-traits = GaussTrait(fill(298.0K, 8), fill(0.1K, 8))
+traits = GaussTrait(fill(298.0K, numclasses), fill(0.1K, numclasses))
 epilist = Simulation.SEI2HRD(traits, abun, movement, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
