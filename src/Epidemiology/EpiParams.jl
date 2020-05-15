@@ -314,7 +314,7 @@ function create_transition_matrix(params::AbstractParams, paramDat::DataFrame, a
 
     # Set up transition matrix
     tm_size = nclasses * age_categories
-    tmat = zeros(typeof(paramDat[1, :param][1]), tm_size, tm_size)
+    tmat = zeros(typeof(params.beta_env[1]), tm_size, tm_size)
 
     # Ageing
     for i in 1:(nclasses-1)
@@ -478,7 +478,7 @@ function transition(params::SEI2HRDGrowth, age_categories = 1)
     death_hospitalised = params.death_hospital)
     from = [2, 3, 4, 3, 4, 5, 4, 5]
     to = [3, 4, 5, 6, 6, 6, 7, 7]
-    paramDat = DataFrame(from = from, to = to, param = ordered_transitions)
+    paramDat = DataFrame(from = from, to = to, param = collect(ordered_transitions))
 
     tmat = create_transition_matrix(params, paramDat, age_categories, nclasses)
 
@@ -489,8 +489,8 @@ function transition(params::SEI2HRDGrowth, age_categories = 1)
     vfmat = create_virus_matrix(params.beta_force, age_categories, nclasses)
 
     # Virus growth and decay
-    v_growth, v_decay = create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 3)
-    v_growth .+= create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 4)[1]
+    v_growth, v_decay = create_virus_vector(params.virus_growth_asymp, params.virus_decay, age_categories, nclasses, 3)
+    v_growth .+= create_virus_vector(params.virus_growth_symp, params.virus_decay, age_categories, nclasses, 4)[1]
 
   return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat)
 end
