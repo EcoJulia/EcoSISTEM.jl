@@ -69,12 +69,12 @@ epi.abundances.matrix[4:5, samp] .= 10 # Inf pop
 
 # Run simulation
 abuns = zeros(Int64, 8, N_cells, 366)
-times = 1year; interval = 1day; timestep = 1day
+times = 1month; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
 if do_plot
     using Plots
-    plotlyjs()
+    #plotlyjs()
     # View summed SIR dynamics for whole area
     display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptible"))
     display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Orange, label = "Exposed"))
