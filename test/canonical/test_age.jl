@@ -17,10 +17,10 @@ for i in eachindex(age_cats)
     birth = fill(0.0/day, numclasses, age_cats[i])
     death = fill(0.0/day, numclasses, age_cats[i])
     ageing = fill(age_cats[i]/80years, age_cats[i] - 1)
-    beta_force = fill(0.1/day, age_cats[i])
-    beta_env = fill(0.1/day, age_cats[i])
+    beta_force = fill(1.0/day, age_cats[i])
+    beta_env = fill(1.0/day, age_cats[i])
     sigma = fill(0.02/day, age_cats[i])
-    virus_growth = fill(1e-3/day, age_cats[i])
+    virus_growth = fill(1e-2/day, age_cats[i])
     virus_decay = 1.0/2day
     if i == 1
         param = SISGrowth{typeof(unit(beta_force[1]))}(birth[1:end], death[1:end], virus_growth[1], virus_decay, beta_force[1], beta_env[1], sigma[1])
