@@ -1,29 +1,38 @@
+abstract type AbstractAgent end # What to call this?
+
+struct Virus <: AbstractAgent end
+struct Human <: AbstractAgent end
+struct Generic <: AbstractAgent end
+
+
 """
     EpiLandscape
 
 Disease class abundances housed in the landscape. These are represented in both 2 dimensions (for computational efficiency in simulations) and 3 dimensions (to represent disease classes, their abundances and position in the grid).
 
 """
-mutable struct EpiLandscape
+mutable struct EpiLandscape{T<:AbstractAgent}
   matrix::Matrix{Int64}
   grid::Array{Int64, 3}
   seed::Vector{MersenneTwister}
 
-  function EpiLandscape(abun::Matrix{Int64}, dimension::Tuple)
+  EpiLandscape(A::Matrix{Int64}, args...) = EpiLandscape(Generic, A, args...)
+  function EpiLandscape(Generic, abun::Matrix{Int64}, dimension::Tuple)
     a = abun
-    return new(a, reshape(a, dimension), [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()])
+    return new{Generic}(a, reshape(a, dimension), [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()])
   end
-  function EpiLandscape(abun::Matrix{Int64}, dimension::Tuple, seed::Vector{MersenneTwister})
+  function EpiLandscape(Generic, abun::Matrix{Int64}, dimension::Tuple, seed::Vector{MersenneTwister})
     a = abun
-    return new(a, reshape(a, dimension), seed)
+    return new{Generic}(a, reshape(a, dimension), seed)
   end
 end
+
 import Base.copy
 function copy(gl::EpiLandscape)
     return EpiLandscape(copy(gl.matrix), size(gl.grid))
 end
 
-function Base.isapprox(gl_1::EpiLandscape, gl_2::EpiLandscape; kwargs...)
+function Base.isapprox(gl_1::EpiLandscape{T}, gl_2::EpiLandscape{T}; kwargs...) where {T<:AbstractAgent}
     return isapprox(gl_1.matrix, gl_2.matrix; kwargs...)
 end
 
