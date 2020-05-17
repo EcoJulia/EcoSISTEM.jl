@@ -33,7 +33,7 @@ zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))
 EpiSystem houses information on different disease classes, `epilist`, the environment, `epienv`, and their relationship to one another, `relationship`.
 """
 mutable struct EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship} <: AbstractEpiSystem{EE, EL, ER}
-  abundances::Array{EpiLandscape}
+  abundances::Vector{<:EpiLandscape}
   epilist::EL
   epienv::EE
   ordinariness::Union{Matrix{Float64}, Missing}
