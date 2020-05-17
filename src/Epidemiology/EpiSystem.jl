@@ -49,6 +49,8 @@ mutable struct EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTrai
   end
 end
 
+abundances(epi::AbstractEpiSystem) = epi.abundances
+
 function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
     rel::AbstractTraitRelationship) where {F<:Function}
 
@@ -71,7 +73,7 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
         msg = "epilist has no Susceptible category. epilist.names = $(epilist.names)"
         throw(ArgumentError(msg))
     end
-    epi.abundances.grid[idx, :, :] .+= epienv.initial_population
+    abundances(epi).grid[idx, :, :] .+= epienv.initial_population
     return epi
 end
 
@@ -144,9 +146,9 @@ end
 import Diversity.API: _getabundance
 function _getabundance(epi::AbstractEpiSystem, input::Bool)
     if input
-        return epi.abundances.matrix
+        return abundances(epi).matrix
     else
-        return _calcabundance(_gettypes(epi), epi.abundances.matrix / sum(epi.abundances.matrix))[1]
+        return _calcabundance(_gettypes(epi), abundances(epi).matrix / sum(abundances(epi).matrix))[1]
     end
 end
 

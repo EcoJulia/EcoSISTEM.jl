@@ -28,9 +28,9 @@ end
 function humanmove!(epi::EpiSystem, timestep::Unitful.Time)
     dims = _countsubcommunities(epi.epienv.habitat)
     width = getdimension(epi)[1]
-    classes = size(epi.abundances.matrix, 1)
+    classes = size(abundances(epi).matrix, 1)
     Threads.@threads for j in 2:classes
-        rng = epi.abundances.seed[Threads.threadid()]
+        rng = abundances(epi).seed[Threads.threadid()]
         # Loop through grid squares
         for i in 1:dims
             # Convert 1D dimension to 2D coordinates
@@ -38,12 +38,12 @@ function humanmove!(epi::EpiSystem, timestep::Unitful.Time)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
                 # Calculate moves and write to cache
-                move!(epi, epi.epilist.movement, i, j, epi.cache.netmigration, epi.abundances.matrix[j, i])
+                move!(epi, epi.epilist.movement, i, j, epi.cache.netmigration, abundances(epi).matrix[j, i])
             end
         end
     end
     # Update abundances with all movements
-    epi.abundances.matrix .+= epi.cache.netmigration
+    abundances(epi).matrix .+= epi.cache.netmigration
 end
 
 function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
@@ -51,7 +51,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     width = getdimension(epi)[1]
     params = epi.epilist.params
     id = Threads.threadid()
-    rng = epi.abundances.seed[id]
+    rng = abundances(epi).seed[id]
     classes = findall((params.virus_growth .* timestep) .> 0)
     # Loop through grid squares
     Threads.@threads for j in classes
@@ -64,7 +64,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             if epi.epienv.active[x, y]
                 traitmatch = traitfun(epi, i, 1)
                 # Calculate effective rates
-                birthrate = params.virus_growth[j] * timestep * epi.abundances.matrix[j, i]
+                birthrate = params.virus_growth[j] * timestep * abundances(epi).matrix[j, i]
                 deathrate = params.virus_decay[j] * timestep * traitmatch^-1
 
                 # Convert death rate into 0 - 1 probability
@@ -73,7 +73,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthprob \n Death: $newdeathprob \n \n i: $i")
                 # Calculate how many births and deaths
                 births = rand(rng, Poisson(birthrate))
-                deaths = rand(rng, Binomial(epi.abundances.matrix[1, i], deathprob))
+                deaths = rand(rng, Binomial(abundances(epi).matrix[1, i], deathprob))
 
                 # Update population
                 epi.cache.virusmigration[j, i] += births
@@ -84,7 +84,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     end
     vm = sum(epi.cache.virusmigration, dims = 1)[1, :]
     nm = sum(epi.cache.virusdecay, dims = 1)[1, :]
-    epi.abundances.matrix[1, :] .+= (nm .+ vm)
+    abundances(epi).matrix[1, :] .+= (nm .+ vm)
     epi.cache.virusmigration[1, :] .+= vm
 end
 
@@ -104,12 +104,12 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     dims = _countsubcommunities(epi.epienv.habitat)
     params = epi.epilist.params
     width = getdimension(epi)[1]
-    classes = size(epi.abundances.matrix, 1)
+    classes = size(abundances(epi).matrix, 1)
     # Loop through grid squares
     Threads.@threads for i in 1:dims
-        rng = epi.abundances.seed[Threads.threadid()]
+        rng = abundances(epi).seed[Threads.threadid()]
         susclass = findfirst(epi.epilist.names .== "Susceptible")
-        N = sum_pop(epi.abundances.matrix, susclass, i)
+        N = sum_pop(abundances(epi).matrix, susclass, i)
         # Loop through classes in chosen square
         for j in susclass:classes
             # Convert 1D dimension to 2D coordinates
@@ -117,11 +117,11 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
                 # Births
-                births = rand(rng, Binomial(epi.abundances.matrix[j, i],  params.births[j] * timestep))
-                epi.abundances.matrix[susclass, i] += births
+                births = rand(rng, Binomial(abundances(epi).matrix[j, i],  params.births[j] * timestep))
+                abundances(epi).matrix[susclass, i] += births
 
                 # Calculate force of inf and env inf
-                env_inf = (params.transition_virus[j, :] .* timestep .* epi.abundances.matrix[1, i]) ./ N
+                env_inf = (params.transition_virus[j, :] .* timestep .* abundances(epi).matrix[1, i]) ./ N
 
                 force_inf = (params.transition_force[j, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ N
 
@@ -130,9 +130,9 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 trans_prob = 1.0 .- exp.(-1 .* trans_prob)
 
                 # Make transitions
-                trans = rand.(fill(rng, length(trans_prob)), Binomial.(epi.abundances.matrix[:, i],  trans_prob))
-                epi.abundances.matrix[j, i] += sum(trans)
-                epi.abundances.matrix[:, i] .-= trans
+                trans = rand.(fill(rng, length(trans_prob)), Binomial.(abundances(epi).matrix[:, i],  trans_prob))
+                abundances(epi).matrix[j, i] += sum(trans)
+                abundances(epi).matrix[:, i] .-= trans
             end
         end
     end
@@ -186,7 +186,7 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, ep
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    rand!(abundances(epi).seed[Threads.threadid()], dist, lookup.moves)
 end
 
 function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
@@ -203,7 +203,7 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, id::Int64, epi:
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    rand!(abundances(epi).seed[Threads.threadid()], dist, lookup.moves)
 end
 
 function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
@@ -220,7 +220,7 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::Ab
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    rand!(abundances(epi).seed[Threads.threadid()], dist, lookup.moves)
 end
 
 function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Int64, 2}, births::Int64)
@@ -251,7 +251,7 @@ function move!(epi::AbstractEpiSystem, ::AlwaysMovement, i::Int64, sp::Int64, gr
   width, height = getdimension(epi)
   (x, y) = convert_coords(epi, i, width)
   lookup = getlookup(epi, sp)
-  full_abun = epi.abundances.matrix[sp, i]
+  full_abun = abundances(epi).matrix[sp, i]
   calc_lookup_moves!(getboundary(epi.epilist.movement), x, y, sp, epi, full_abun)
   # Lose moves from current grid square
   grd[sp, i] -= full_abun

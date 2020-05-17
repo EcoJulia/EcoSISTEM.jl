@@ -4,6 +4,7 @@ using Distributions
 using Unitful.DefaultSymbols
 using Simulation.Units
 import Simulation: emptyepilandscape
+using Simulation: abundances
 
 include("TestCases.jl")
 

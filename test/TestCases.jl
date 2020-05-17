@@ -6,6 +6,7 @@ using Unitful.DefaultSymbols
 using Distributions
 using Simulation.Units
 using Unitful
+using Simulation: abundances
 
 function TestEcosystem()
     numSpecies = 150

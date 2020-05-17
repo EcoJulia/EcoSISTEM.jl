@@ -85,14 +85,14 @@ function simulate_record!(
 
   record_seq = 0s:interval:times
   time_seq = 0s:timestep:times
-  storage[:, :, 1] = epi.abundances.matrix
+  storage[:, :, 1] = abundances(epi).matrix
   counting = 1
 
   for i in 2:length(time_seq)
     update!(epi, timestep);
     if time_seq[i] in record_seq
       counting = counting + 1
-      storage[:, :, counting] = epi.abundances.matrix
+      storage[:, :, counting] = abundances(epi).matrix
     end
   end
 

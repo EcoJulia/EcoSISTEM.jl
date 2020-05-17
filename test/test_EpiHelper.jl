@@ -3,6 +3,7 @@ using Test
 using Distributions
 using Unitful.DefaultSymbols
 using Simulation.Units
+using Simulation: abundances
 
 include("TestCases.jl")
 
@@ -15,7 +16,7 @@ epi = TestEpiSystem()
     lensim = length(0.0month:interval:times)
 
     # Run simulations 10 times
-    abun =  zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), lensim)
+    abun =  zeros(Int64, size(abundances(epi).matrix, 1), size(abundances(epi).matrix, 2), lensim)
     @test_nowarn simulate!(epi, burnin, timestep; save=true, save_path="TEMP")
     # Check if everything was saved
     @test isdir("TEMP")

@@ -3,18 +3,19 @@ using Test
 using Distributions
 using Unitful.DefaultSymbols
 using Simulation.Units
+using Simulation: abundances
 
 include("TestCases.jl")
 
 epi = TestEpiSystem()
 
-@test sum(epi.abundances.matrix, dims = 2)[:, 1] == epi.epilist.abun
+@test sum(abundances(epi).matrix, dims = 2)[:, 1] == epi.epilist.abun
 @test_nowarn gettraitrel(epi)
 @test gettraitrel(epi) == epi.relationship
 @test_nowarn gethabitat(epi)
 @test gethabitat(epi) == epi.epienv.habitat
 @test_nowarn getsize(epi)
-@test getsize(epi) == size(epi.abundances.matrix, 2) .* epi.epienv.habitat.size^2
+@test getsize(epi) == size(abundances(epi).matrix, 2) .* epi.epienv.habitat.size^2
 @test_nowarn getgridsize(epi)
 @test getgridsize(epi) == epi.epienv.habitat.size
 @test_nowarn getdispersaldist(epi, 1)
@@ -28,7 +29,7 @@ epi = TestEpiSystem()
     initial_pop = rand(10, 10) * 10
     epi = TestEpiSystemFromPopulation(initial_pop)
     @test epi.epienv.initial_population == round.(initial_pop)
-    @test epi.abundances.grid[2, :, :] == round.(initial_pop)
+    @test abundances(epi).grid[2, :, :] == round.(initial_pop)
 end
 
 @testset "Approximate equality" begin

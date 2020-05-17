@@ -74,11 +74,11 @@ rel = Gauss{eltype(epienv.habitat)}()
 new_symptomatic = new_asymptomatic = 100
 new_virus = 1000
 epi = EpiSystem(epilist, epienv, rel)
-epi.abundances.matrix[1, 1] = new_virus
-epi.abundances.matrix[4:5, 1] .= new_symptomatic
+abundances(epi).matrix[1, 1] = new_virus
+abundances(epi).matrix[4:5, 1] .= new_symptomatic
 
 # Run simulation
-abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
+abuns = zeros(Int64, size(abundances(epi).matrix, 1), size(abundances(epi).matrix, 2), 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "high_trans"))
 
@@ -151,12 +151,12 @@ rel = Gauss{eltype(epienv.habitat)}()
 new_symptomatic = new_asymptomatic = 100
 new_virus = 1000
 epi = EpiSystem(epilist, epienv, rel)
-epi.abundances.matrix[1, 1] = new_virus
-epi.abundances.matrix[4:5, 1] .= new_symptomatic
+abundances(epi).matrix[1, 1] = new_virus
+abundances(epi).matrix[4:5, 1] .= new_symptomatic
 
 # Run simulation
 times = 1year; interval = 1day; timestep = 1day
-abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2),
+abuns = zeros(Int64, size(abundances(epi).matrix, 1), size(abundances(epi).matrix, 2),
               convert(Int64, floor(times / interval)) + 1)
 @time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "low_trans"))
 
