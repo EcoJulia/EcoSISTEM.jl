@@ -29,11 +29,13 @@ zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))
 
 """
     EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractRelationship} <: AbstractEpiSystem{EE, EL, ER}
-
 EpiSystem houses information on different disease classes, `epilist`, the environment, `epienv`, and their relationship to one another, `relationship`.
+
+# Array{Simulation.EpiLandscape{Simulation.Generic}} <: Array{<:Simulation.EpiLandscape}
+
 """
 mutable struct EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship} <: AbstractEpiSystem{EE, EL, ER}
-  abundances::Vector{<:EpiLandscape}
+  abundances::EpiLandscape{<:AbstractAgent}
   epilist::EL
   epienv::EE
   ordinariness::Union{Matrix{Float64}, Missing}
@@ -41,11 +43,7 @@ mutable struct EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTrai
   lookup::Vector{EpiLookup}
   cache::EpiCache
 
-  function EpiSystem{EE, EL, ER}(abundances::EpiLandscape, args...) where {EE, EL, ER}
-    EpiSystem{EE, EL, ER}([abundances], args...)
-  end
-
-  function EpiSystem{EE, EL, ER}(abundances::Array{EpiLandscape},
+  function EpiSystem{EE, EL, ER}(abundances::EpiLandscape,
     epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::Vector{EpiLookup}, cache::EpiCache) where {EE <:
      AbstractEpiEnv,
     EL <: EpiList, ER <: AbstractTraitRelationship}
@@ -53,7 +51,7 @@ mutable struct EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTrai
   end
 end
 
-abundances(epi::AbstractEpiSystem) = first(epi.abundances)
+abundances(epi::AbstractEpiSystem) = epi.abundances
 
 function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
     rel::AbstractTraitRelationship) where {F<:Function}
