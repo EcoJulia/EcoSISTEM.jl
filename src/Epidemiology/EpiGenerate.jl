@@ -121,7 +121,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 human(epi.abundances)[susclass, i] += births
 
                 # Calculate force of inf and env inf
-                env_inf = (params.transition_virus[j, :] .* timestep .* human(epi.abundances)[1, i]) ./ N
+                env_inf = (params.transition_virus[j, :] .* timestep .* virus(epi.abundances)[1, i]) ./ N
 
                 force_inf = (params.transition_force[j, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ N
 
