@@ -69,7 +69,7 @@ function SIS(traits::TR, abun::Vector{Int64},
     movement::MO, params::P) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
 
-    names = ["Susceptible", "Infected", "Dead"]
+    names = ["Virus", "Susceptible", "Infected", "Dead"]
     types = UniqueTypes(length(names))
     length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
   EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
@@ -79,7 +79,7 @@ function SIR(traits::TR, abun::Vector{Int64},
     movement::MO, params::P) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
 
-    names = ["Susceptible", "Infected", "Recovered", "Dead"]
+    names = ["Virus", "Susceptible", "Infected", "Recovered", "Dead"]
     types = UniqueTypes(length(names))
     length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
   EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
@@ -89,7 +89,7 @@ function SEIR(traits::TR, abun::Vector{Int64},
     movement::MO, params::P) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
 
-    names = ["Susceptible", "Exposed", "Infected", "Recovered", "Dead"]
+    names = ["Virus", "Susceptible", "Exposed", "Infected", "Recovered", "Dead"]
     types = UniqueTypes(length(names))
     length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
   EpiList{typeof(traits), typeof(movement), typeof(types), typeof(params)}(names, traits, abun, types, movement, params)
@@ -106,7 +106,7 @@ function SEI2HRD(traits::TR, abun::Vector{Int64},
     movement::MO, params::P) where {TR <: AbstractTraits,
         MO <: AbstractMovement, P <: AbstractParams}
 
-    names = ["Susceptible", "Exposed", "AsymptomaticInfected", "SymptomaticInfected", "Hospitalised", "Recovered", "Dead"]
+    names = ["Virus", "Susceptible", "Exposed", "AsymptomaticInfected", "SymptomaticInfected", "Hospitalised", "Recovered", "Dead"]
     types = UniqueTypes(length(names))
     length(abun) == length(names) || throw(DimensionMismatch("Abundance vector doesn't match number of disease classes"))
     size(params.transition, 1) == length(names) || throw(DimensionMismatch("Transition matrix does not have the correct number of classes"))

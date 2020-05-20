@@ -39,8 +39,8 @@ epi = EpiSystem(epilist, epienv, rel)
 
 # Add in initial infections randomly across grid
 samp = rand(1:250_000, 100)
-epi.abundances.matrix[1, samp] .= 100
-epi.abundances.matrix[3, samp] .= 10
+human(epi.abundances)[1, samp] .= 100
+human(epi.abundances)[3, samp] .= 10
 
 # Run simulation
 abuns = zeros(Int64, 5, 250_000, 366)

@@ -38,7 +38,7 @@ function humanmove!(epi::EpiSystem, timestep::Unitful.Time)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
                 # Calculate moves and write to cache
-                move!(epi, epi.epilist.movement, i, j, epi.cache.netmigration, epi.abundances.matrix[j, i])
+                move!(epi, epi.epilist.movement, i, j, epi.cache.netmigration, human(epi.abundances)[j, i])
             end
         end
     end
@@ -64,7 +64,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             if epi.epienv.active[x, y]
                 traitmatch = traitfun(epi, i, 1)
                 # Calculate effective rates
-                birthrate = params.virus_growth[j] * timestep * epi.abundances.matrix[j, i]
+                birthrate = params.virus_growth[j] * timestep * virus(epi.abundances)[j, i]
                 deathrate = params.virus_decay[j] * timestep * traitmatch^-1
 
                 # Convert death rate into 0 - 1 probability
@@ -73,7 +73,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthprob \n Death: $newdeathprob \n \n i: $i")
                 # Calculate how many births and deaths
                 births = rand(rng, Poisson(birthrate))
-                deaths = rand(rng, Binomial(epi.abundances.matrix[1, i], deathprob))
+                deaths = rand(rng, Binomial(virus(epi.abundances)[1, i], deathprob))
 
                 # Update population
                 epi.cache.virusmigration[j, i] += births
@@ -84,7 +84,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     end
     vm = sum(epi.cache.virusmigration, dims = 1)[1, :]
     nm = sum(epi.cache.virusdecay, dims = 1)[1, :]
-    epi.abundances.matrix[1, :] .+= (nm .+ vm)
+    virus(epi.abundances)[1, :] .+= (nm .+ vm)
     epi.cache.virusmigration[1, :] .+= vm
 end
 
@@ -104,7 +104,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     dims = _countsubcommunities(epi.epienv.habitat)
     params = epi.epilist.params
     width = getdimension(epi)[1]
-    classes = size(epi.abundances.matrix, 1)
+    classes = size(human(epi.abundances), 1)
     # Loop through grid squares
     Threads.@threads for i in 1:dims
         rng = epi.abundances.seed[Threads.threadid()]
@@ -117,11 +117,11 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
                 # Births
-                births = rand(rng, Binomial(epi.abundances.matrix[j, i],  params.births[j] * timestep))
-                epi.abundances.matrix[susclass, i] += births
+                births = rand(rng, Binomial(human(epi.abundances)[j, i],  params.births[j] * timestep))
+                human(epi.abundances)[susclass, i] += births
 
                 # Calculate force of inf and env inf
-                env_inf = (params.transition_virus[j, :] .* timestep .* epi.abundances.matrix[1, i]) ./ N
+                env_inf = (params.transition_virus[j, :] .* timestep .* human(epi.abundances)[1, i]) ./ N
 
                 force_inf = (params.transition_force[j, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ N
 
@@ -130,9 +130,9 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 trans_prob = 1.0 .- exp.(-1 .* trans_prob)
 
                 # Make transitions
-                trans = rand.(fill(rng, length(trans_prob)), Binomial.(epi.abundances.matrix[:, i],  trans_prob))
-                epi.abundances.matrix[j, i] += sum(trans)
-                epi.abundances.matrix[:, i] .-= trans
+                trans = rand.(fill(rng, length(trans_prob)), Binomial.(human(epi.abundances)[:, i],  trans_prob))
+                human(epi.abundances)[j, i] += sum(trans)
+                human(epi.abundances)[:, i] .-= trans
             end
         end
     end
@@ -251,7 +251,7 @@ function move!(epi::AbstractEpiSystem, ::AlwaysMovement, i::Int64, sp::Int64, gr
   width, height = getdimension(epi)
   (x, y) = convert_coords(epi, i, width)
   lookup = getlookup(epi, sp)
-  full_abun = epi.abundances.matrix[sp, i]
+  full_abun = human(epi.abundances)[sp, i]
   calc_lookup_moves!(getboundary(epi.epilist.movement), x, y, sp, epi, full_abun)
   # Lose moves from current grid square
   grd[sp, i] -= full_abun

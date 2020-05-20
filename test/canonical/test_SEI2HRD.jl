@@ -5,6 +5,7 @@ using Simulation.Units
 using Simulation.ClimatePref
 using StatsBase
 using Test
+using Simulation: human, virus
 
 # sort out settings to potentially save inputs/outputs of `simulate`
 do_save = (@isdefined do_save) ? do_save : false
@@ -48,15 +49,17 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set population to initially have no individuals
-virus = 0
-susceptible = 5_000_000
-exposed = 0
-asymptomatic = 0
-symptomatic = 0
-hospitalised = 0
-recovered = 0
-dead = 0
-abun = [virus, susceptible, exposed, asymptomatic, symptomatic, hospitalised, recovered, dead]
+initial_pops = (
+  virus = 0,
+  susceptible = 5_000_000,
+  exposed = 0,
+  asymptomatic = 0,
+  symptomatic = 0,
+  hospitalised = 0,
+  recovered = 0,
+  dead = 0,
+)
+abun = [initial_pops...]
 
 # Dispersal kernels for virus dispersal from different disease classes
 dispersal_dists = fill(1.0km, 8)
@@ -74,8 +77,8 @@ rel = Gauss{eltype(epienv.habitat)}()
 new_symptomatic = new_asymptomatic = 100
 new_virus = 1000
 epi = EpiSystem(epilist, epienv, rel)
-epi.abundances.matrix[1, 1] = new_virus
-epi.abundances.matrix[4:5, 1] .= new_symptomatic
+human(epi.abundances)[1, 1] = new_virus
+human(epi.abundances)[4:5, 1] .= new_symptomatic
 
 # Run simulation
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
@@ -85,7 +88,7 @@ times = 1year; interval = 1day; timestep = 1day
 
 # Test everyone becomes infected and dies
 @test sum(abuns[2, :, 365]) == 0
-@test sum(abuns[end, :, 365]) == (susceptible + new_symptomatic + new_asymptomatic)
+@test sum(abuns[end, :, 365]) == (initial_pops[:susceptible] + new_symptomatic + new_asymptomatic)
 
 ## Low transmission & 100% case fatality
 ##
@@ -125,15 +128,18 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set population to initially have no individuals
-virus = 0
-susceptible = 500_000 * prod(grid)
-exposed = 0
-asymptomatic = 0
-symptomatic = 0
-hospitalised = 0
-recovered = 0
-dead = 0
-abun = [virus, susceptible, exposed, asymptomatic, symptomatic, hospitalised, recovered, dead]
+initial_pops = (
+  virus = 0,
+  susceptible = 500_000 * prod(grid),
+  exposed = 0,
+  asymptomatic = 0,
+  symptomatic = 0,
+  hospitalised = 0,
+  recovered = 0,
+  dead = 0,
+)
+
+abun = [initial_pops...]
 
 # Dispersal kernels for virus dispersal from different disease classes
 dispersal_dists = fill(1.0km, 8)
@@ -151,8 +157,8 @@ rel = Gauss{eltype(epienv.habitat)}()
 new_symptomatic = new_asymptomatic = 100
 new_virus = 1000
 epi = EpiSystem(epilist, epienv, rel)
-epi.abundances.matrix[1, 1] = new_virus
-epi.abundances.matrix[4:5, 1] .= new_symptomatic
+virus(epi.abundances)[1, 1] = new_virus
+human(epi.abundances)[3:4, 1] .= new_symptomatic
 
 # Run simulation
 times = 1year; interval = 1day; timestep = 1day
@@ -162,5 +168,5 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix,
 
 
 # Test no one becomes infected & dies
-@test sum(abuns[2, :, 365]) == susceptible
+@test sum(abuns[2, :, 365]) == initial_pops[:susceptible]
 @test sum(abuns[end, :, 365]) == (new_symptomatic + new_asymptomatic)

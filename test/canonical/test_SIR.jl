@@ -30,12 +30,14 @@ for i in eachindex(grid_sizes)
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
     # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-    virus = 0
-    susceptible = 500_000 * maximum(grid_sizes)^2
-    infected = 100 * maximum(grid_sizes)^2
-    recovered = 0
-    dead = 0
-    abun = [virus, susceptible, infected, recovered, dead]
+    initial_pops = (
+        virus = 0,
+        susceptible = 500_000 * maximum(grid_sizes)^2,
+        infected = 100 * maximum(grid_sizes)^2,
+        recovered = 0,
+        dead = 0,
+    )
+    abun = [initial_pops...]
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(100.0km, numclasses)
@@ -61,7 +63,8 @@ for i in eachindex(grid_sizes)
     # Test no-one dies (death rate = 0)
     @test sum(thisabun[end, :, :]) == 0
     # Test overall population size stays constant (birth rate = death rate = 0)
-    @test all(sum(thisabun[2:4, :, :], dims = (1, 2)) .== (susceptible + infected + recovered))
+    @test all(sum(thisabun[2:4, :, :], dims = (1, 2)) .==
+        (initial_pops[:susceptible] + initial_pops[:infected] + initial_pops[:recovered]))
     sumabuns[i] = sum(abuns[i], dims = 2)[:, 1, :]
 end
 

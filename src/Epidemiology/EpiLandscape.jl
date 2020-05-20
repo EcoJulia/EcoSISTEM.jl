@@ -6,18 +6,20 @@ Disease class abundances housed in the landscape. These are represented in both 
 """
 mutable struct EpiLandscape
   matrix::Matrix{Int64}
+  matrix_v::Matrix{Int64}
   grid::Array{Int64, 3}
   seed::Vector{MersenneTwister}
-
-  function EpiLandscape(abun::Matrix{Int64}, dimension::Tuple)
-    a = abun
-    return new(a, reshape(a, dimension), [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()])
+  function EpiLandscape(abun1::Matrix{Int64}, abun2::Matrix{Int64}, d1::Tuple)
+    return new(abun1, abun2, reshape(abun1, d1), [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()])
   end
-  function EpiLandscape(abun::Matrix{Int64}, dimension::Tuple, seed::Vector{MersenneTwister})
-    a = abun
-    return new(a, reshape(a, dimension), seed)
+  function EpiLandscape(abun1::Matrix{Int64}, abun2::Matrix{Int64}, d1::Tuple, d2::Tuple, seed::Vector{MersenneTwister})
+    return new(abun1, abun2, reshape(abun1, d1), seed)
   end
 end
+
+virus(x::EpiLandscape) = x.matrix_v
+human(x::EpiLandscape) = x.matrix
+
 import Base.copy
 function copy(gl::EpiLandscape)
     return EpiLandscape(copy(gl.matrix), size(gl.grid))
@@ -36,6 +38,9 @@ EpiList.
 function emptyepilandscape(epienv::GridEpiEnv, epilist::EpiList)
   mat = zeros(Int64, counttypes(epilist, true), countsubcommunities(epienv))
 
+  # @show countsubcommunities(epienv)
+  # @show counttypes(epilist, true)
+
   dimension = (counttypes(epilist, true), _getdimension(epienv.habitat)...)
-  return EpiLandscape(mat, dimension)
+  return EpiLandscape(mat, mat, dimension)
 end
