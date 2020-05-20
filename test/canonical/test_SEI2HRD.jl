@@ -158,7 +158,7 @@ new_symptomatic = new_asymptomatic = 100
 new_virus = 1000
 epi = EpiSystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
-human(epi.abundances)[3:4, 1] .= new_symptomatic
+human(epi.abundances)[4:5, 1] .= new_symptomatic
 
 # Run simulation
 times = 1year; interval = 1day; timestep = 1day
