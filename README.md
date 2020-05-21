@@ -2,6 +2,8 @@
 
 *Package for running dynamic ecosystem and epidemiological simulations*
 
+[![][docs-dev-img]][docs-dev-url] [![][travis-dev-img]][travis-dev-url]
+
 ## Summary
 
 **Simulation** is a [Julia](http://www.julialang.org) package that
@@ -21,3 +23,8 @@ problems.
 [paper-url]: https://arxiv.org/abs/1911.12257
 
 <img src="test/examples/ScotlandSIRSim.gif" width="300" height="400" />
+
+[docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
+[docs-dev-url]: https://ScottishCovidResponse.github.io/Simulation.jl/dev
+[travis-dev-img]: https://travis-ci.org/ScottishCovidResponse/Simulation.jl.svg?branch=dev
+[travis-dev-url]: https://travis-ci.org/ScottishCovidResponse/Simulation.jl?branch=dev

@@ -1,0 +1,6 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Simulation = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
+
+[compat]
+Documenter = "0.24"
