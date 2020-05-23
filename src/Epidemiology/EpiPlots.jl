@@ -50,7 +50,6 @@ end
     if isempty(steps)
         steps = _default_steps(abuns)
     end
-    clim = _default_clim(abuns, idx, steps)
 
     layout := length(steps)
 
@@ -60,7 +59,6 @@ end
         data = reshape(abuns[idx, :, step], gridsize...)
         @series begin
             seriestype := :heatmap
-            clims := clim
             title := "Day $step ($compartment)"
             subplot := subplot
             data
