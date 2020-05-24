@@ -3,8 +3,6 @@ using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
-using Random
-
 
 
 # sort out settings to potentially save inputs/outputs of `simulate`
