@@ -58,6 +58,25 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), grid[1]*grid[2], convert(In
 @time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=save_path)
 
 # Test no-one dies (death rate = 0)
-@test sum(abuns[end, :, :]) == 0
+@test sum(abuns[end, :, :]) == initial_pops[:dead]
 # Test overall population size stays constant (birth rate = death rate = 0)
 @test all(sum(abuns[2:5, :, :], dims = (1, 2)) .== (initial_pops[:susceptible] + initial_pops[:infected]))
+
+### TEST OUTPUTS
+# TODO: When shifting out virus from Epilist, these indexes will need updating.
+
+idx_sus = 2
+idx_rec = 5
+idx_dead = 6
+
+# Test susceptible population decreasing or constant only [Source]
+@test_broken all(diff(vec(sum(abuns[idx_sus, :, :], dims = 1))) .<= 0)
+@test sum(abuns[idx_sus, :, 1]) == initial_pops[:susceptible]
+
+# Test recovered population increasing  or constant only [Sink]
+@test_broken all(diff(vec(sum(abuns[idx_rec, :, :], dims = 1))) .>= 0)
+@test sum(abuns[idx_rec, :, 1]) == initial_pops[:recovered]
+
+# Test dead population increasing or constant only [Sink]
+@test all(diff(vec(sum(abuns[idx_dead, :, :], dims = 1))) .>= 0)
+@test sum(abuns[idx_dead, :, 1]) == initial_pops[:dead]

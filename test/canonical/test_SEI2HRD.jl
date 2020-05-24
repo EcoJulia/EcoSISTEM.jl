@@ -133,7 +133,7 @@ initial_pops = (
   symptomatic = 0,
   hospitalised = 0,
   recovered = 0,
-  dead = 0,
+  dead = 5,
 )
 
 abun = [initial_pops...]
@@ -164,6 +164,26 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix,
 @time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "low_trans"))
 
 
-# Test no one becomes infected & dies
+
+# Test no one becomes infected & dies # TODO: Check this comment
 @test sum(abuns[2, :, 365]) == initial_pops[:susceptible]
-@test sum(abuns[end, :, 365]) == (new_symptomatic + new_asymptomatic)
+@test sum(abuns[end, :, 365]) == (new_symptomatic + new_asymptomatic) + initial_pops[:dead]
+
+### TEST OUTPUTS
+# TODO: When shifting out virus from Epilist, these indexes will need updating.
+
+idx_sus = 2
+idx_rec = 7
+idx_dead = 8
+
+# Test susceptible population decreasing or constant only [Source]
+@test all(diff(vec(sum(abuns[idx_sus, :, :], dims = 1))) .<= 0)
+@test sum(abuns[idx_sus, :, 1]) == initial_pops[:susceptible]
+
+# Test recovered population increasing  or constant only [Sink]
+@test all(diff(vec(sum(abuns[idx_rec, :, :], dims = 1))) .>= 0)
+@test sum(abuns[idx_rec, :, 1]) == initial_pops[:recovered]
+
+# Test dead population increasing or constant only [Sink]
+@test all(diff(vec(sum(abuns[idx_dead, :, :], dims = 1))) .>= 0)
+@test sum(abuns[idx_dead, :, 1]) == initial_pops[:dead]
