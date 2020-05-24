@@ -8,7 +8,7 @@ using Test
 do_save = (@isdefined do_save) ? do_save : false
 save_path = (@isdefined save_path) ? save_path : pwd()
 
-numclasses = 6
+numclasses = 5
 # Set simulation parameters
 birth = fill(0.0/day, numclasses)
 death = fill(0.0/day, numclasses)
@@ -39,7 +39,7 @@ abun = [initial_pops...]
 
 # Dispersal kernels for virus and disease classes
 dispersal_dists = fill(100.0km, numclasses)
-dispersal_dists[4] = 700.0km
+dispersal_dists[3] = 700.0km
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
@@ -53,10 +53,10 @@ epi = EpiSystem(epilist, epienv, rel)
 
 # Run simulation
 times = 2years; interval = 1day; timestep = 1day
-abuns = zeros(Int64, numclasses, grid[1]*grid[2], convert(Int64, floor(times / interval)) + 1)
+abuns = zeros(Int64, size(epi.abundances.matrix, 1), grid[1]*grid[2], convert(Int64, floor(times / interval)) + 1)
 @time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=save_path)
 
 # Test no-one dies (death rate = 0)
 @test sum(abuns[end, :, :]) == 0
 # Test overall population size stays constant (birth rate = death rate = 0)
-@test all(sum(abuns[2:5, :, :], dims = (1, 2)) .== (initial_pops[:susceptible] + initial_pops[:infected]))
+@test all(sum(abuns[2:end, :, :], dims = (1, 2)) .== (initial_pops[:susceptible] + initial_pops[:infected]))

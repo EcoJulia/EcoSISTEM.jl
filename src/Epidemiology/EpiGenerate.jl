@@ -64,7 +64,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             if epi.epienv.active[x, y]
                 traitmatch = traitfun(epi, i, 1)
                 # Calculate effective rates
-                birthrate = params.virus_growth[j] * timestep * virus(epi.abundances)[j, i]
+                birthrate = params.virus_growth[j] * timestep * virus(epi.abundances)[j + 1, i]
                 deathrate = params.virus_decay[j] * timestep * traitmatch^-1
 
                 # Convert death rate into 0 - 1 probability
@@ -76,9 +76,9 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 deaths = rand(rng, Binomial(virus(epi.abundances)[1, i], deathprob))
 
                 # Update population
-                epi.cache.virusmigration[j, i] += births
-                epi.cache.virusdecay[j, i] -= deaths
-                virusmove!(epi, i, j, epi.cache.virusmigration, births)
+                epi.cache.virusmigration[j + 1, i] += births
+                epi.cache.virusdecay[j + 1, i] -= deaths
+                virusmove!(epi, i, j + 1, epi.cache.virusmigration, births)
             end
         end
     end
@@ -117,22 +117,22 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
                 # Births
-                births = rand(rng, Binomial(human(epi.abundances)[j, i],  params.births[j] * timestep))
+                births = rand(rng, Binomial(human(epi.abundances)[j, i],  params.births[j - 1] * timestep))
                 human(epi.abundances)[susclass, i] += births
 
                 # Calculate force of inf and env inf
-                env_inf = (params.transition_virus[j, :] .* timestep .* virus(epi.abundances)[1, i]) ./ N
+                env_inf = (params.transition_virus[j - 1, :] .* timestep .* virus(epi.abundances)[1, i]) ./ N
 
-                force_inf = (params.transition_force[j, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ N
+                force_inf = (params.transition_force[j - 1, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ N
 
                 # Add to transitional probabilities
-                trans_prob = (params.transition[j, :] .* timestep) .+ env_inf .+  force_inf
+                trans_prob = (params.transition[j - 1, :] .* timestep) .+ env_inf .+  force_inf
                 trans_prob = 1.0 .- exp.(-1 .* trans_prob)
 
                 # Make transitions
-                trans = rand.(fill(rng, length(trans_prob)), Binomial.(human(epi.abundances)[:, i],  trans_prob))
+                trans = rand.(fill(rng, length(trans_prob)), Binomial.(human(epi.abundances)[susclass:end, i],  trans_prob))
                 human(epi.abundances)[j, i] += sum(trans)
-                human(epi.abundances)[:, i] .-= trans
+                human(epi.abundances)[susclass:end, i] .-= trans
             end
         end
     end
