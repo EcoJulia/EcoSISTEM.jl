@@ -4,6 +4,7 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 using Simulation.ClimatePref
 using StatsBase
+using Distributions
 
 do_plot = false
 
@@ -36,11 +37,16 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = SEI2HRDGrowth(birth_rates, death_rates, ageing, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_sym, T_hosp, T_rec)
+param = SEI2HRDGrowth(birth_rates, death_rates, ageing,
+                      virus_growth_asymp, virus_growth_symp, virus_decay,
+                      beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital,
+                      T_lat, T_asym, T_sym, T_hosp, T_rec)
 param = transition(param, age_categories)
 
 # Read in population sizes for Scotland
-ukpop = Array{Float64, 2}(readfile("test/examples/UK.tif", 0.0, 7e5, 0, 1.25e6))
+ukpop = Array{Float64, 2}(readfile(Simulation.path("test", "examples",
+                                                   "UK.tif"),
+                                   0.0, 7e5, 0, 1.25e6))
 # Coarsen grid to 10km
 ukpop = [sum(ukpop[i:i+9, j:j+9]) for i in 1:10:size(ukpop, 1), j in 1:10:size(ukpop, 2)]
 
