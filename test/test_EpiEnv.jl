@@ -72,10 +72,27 @@ end
     expected_matrix = fill(fillval, expected_grid)
 
     @testset "_shrink_to_active" begin
-        M = rand(grid...)
-        M_shrunk = Simulation._shrink_to_active(M, active)
-        @test size(M_shrunk) == expected_grid
-        @test M_shrunk == M[4:9, 2:9]
+        @testset "shrink a normal matrix" begin
+            M = rand(grid...)
+            M_shrunk = Simulation._shrink_to_active(M, active)
+            @test M_shrunk isa AxisArray
+            @test axisvalues(M_shrunk) == (4:9, 2:9)
+            @test size(M_shrunk) == expected_grid
+            @test M_shrunk == M[4:9, 2:9]
+        end
+        @testset "shrink an AxisArray matrix" begin
+            M = AxisArray(
+                rand(grid...);
+                x=Symbol.("x_", 1:grid[1]),
+                y=Symbol.("y_", 1:grid[2]),
+            )
+            M_shrunk = Simulation._shrink_to_active(M, active)
+            @test M_shrunk isa AxisArray
+            @test axisvalues(M_shrunk) == (Symbol.("x_", 4:9), Symbol.("y_", 2:9))
+            @test size(M_shrunk) == expected_grid
+            @test M_shrunk == M[4:9, 2:9]
+        end
+
     end
 
     @testset "Construct directly" begin
@@ -85,6 +102,7 @@ end
         @test size(epienv.habitat.matrix) == expected_grid
         @test epienv.habitat.size == expected_gridlength
         @test epienv.habitat.matrix == expected_matrix
+        @test epienv.initial_population isa AxisArray
     end
 
     @testset "Construct from initial population" begin
@@ -101,5 +119,6 @@ end
         @test epienv.habitat.size == expected_gridlength
         @test epienv.habitat.matrix == expected_matrix
         @test epienv.initial_population == expected_initial_pop
+        @test epienv.initial_population isa AxisArray
     end
 end
