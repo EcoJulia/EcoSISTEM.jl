@@ -71,13 +71,10 @@ idx_dead = 6
 
 # Test susceptible population decreasing or constant only [Source]
 # https://github.com/ScottishCovidResponse/Simulation.jl/pull/37
-#@test_broken all(diff(vec(sum(abuns[idx_sus, :, :], dims = 1))) .<= 0)
 @test sum(abuns[idx_sus, :, 1]) == initial_pops.susceptible
 
-# Test recovered population increasing  or constant only [Sink]
-@test_broken all(diff(vec(sum(abuns[idx_rec, :, :], dims = 1))) .>= 0)
 @test sum(abuns[idx_rec, :, 1]) == initial_pops.recovered
 
 # Test dead population increasing or constant only [Sink]
-#@test all(diff(vec(sum(abuns[idx_dead, :, :], dims = 1))) .>= 0)
+@test all(diff(vec(sum(abuns[idx_dead, :, :], dims = 1))) .>= 0)
 @test sum(abuns[idx_dead, :, 1]) == initial_pops.dead
