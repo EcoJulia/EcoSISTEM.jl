@@ -56,11 +56,16 @@ end
     subplot = 1
     gridsize = size(epienv.habitat.matrix)
     for step in steps
-        data = reshape(abuns[idx, :, step], gridsize...)
+        data = Float64.(reshape(abuns[idx, :, step], gridsize...))
+        data[.!epienv.active] .= NaN
         @series begin
             seriestype := :heatmap
             title := "Day $step ($compartment)"
             subplot := subplot
+            background_color --> :lightblue
+            background_color_outside --> :white
+            aspect_ratio --> 1
+            grid --> false
             data
         end
         subplot += 1
