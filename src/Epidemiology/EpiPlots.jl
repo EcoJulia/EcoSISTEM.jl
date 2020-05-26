@@ -9,11 +9,6 @@ function _default_steps(abuns)
     return Int.(floor.(range(1, N_steps; length=4)))
 end
 
-function _default_clim(abuns, idx, steps)
-    max_val = maximum(maximum(abuns[idx, :, step]) for step in steps)
-    return (0, max_val)
-end
-
 """
     plot_epiheatmaps(
         abuns::AbstractArray{<:Integer, 3},
