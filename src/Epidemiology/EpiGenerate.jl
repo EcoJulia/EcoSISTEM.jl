@@ -130,7 +130,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 trans_prob = 1.0 .- exp.(-1 .* trans_prob)
 
                 # Make transitions
-                trans = rand.(fill(rng, length(trans_prob)), Binomial.(human(epi.abundances)[susclass:end, i],  trans_prob))
+                trans = collect(rand(rng, b) for b in Binomial.(human(epi.abundances)[susclass:end, i],  trans_prob))
                 human(epi.abundances)[j, i] += sum(trans)
                 human(epi.abundances)[susclass:end, i] .-= trans
             end

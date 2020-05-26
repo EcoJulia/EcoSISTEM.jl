@@ -37,10 +37,6 @@ EpiList.
 """
 function emptyepilandscape(epienv::GridEpiEnv, epilist::EpiList)
   mat = zeros(Int64, counttypes(epilist, true), countsubcommunities(epienv))
-
-  # @show countsubcommunities(epienv)
-  # @show counttypes(epilist, true)
-
   dimension = (counttypes(epilist, true), _getdimension(epienv.habitat)...)
   return EpiLandscape(mat, mat, dimension)
 end
