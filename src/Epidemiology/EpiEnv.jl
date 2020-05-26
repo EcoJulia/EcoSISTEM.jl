@@ -23,13 +23,13 @@ subcommunity names, and initial susceptible population.
 """
 mutable struct GridEpiEnv{H, C} <: AbstractEpiEnv{H, C}
     habitat::H
-    active::Array{Bool, 2}
+    active::AbstractMatrix{Bool}
     control::C
-    initial_population::Matrix{Int}
+    initial_population::AbstractMatrix{Int}
     names::Vector{String}
     function (::Type{GridEpiEnv{H, C}})(
         habitat::H,
-        active::Array{Bool,2},
+        active::AbstractMatrix{Bool},
         control::C,
         initial_population=zeros(Int, _getdimension(habitat)),
         names::Vector{String}=map(x -> "$x", 1:countsubcommunities(habitat))
@@ -79,7 +79,30 @@ function _shrink_to_active(M::AbstractMatrix, active::AbstractMatrix{<:Bool})
     # Return the shrunk region
     shrunk_rows = minimum(row_idx):maximum(row_idx)
     shrunk_cols = minimum(col_idx):maximum(col_idx)
-    return M[shrunk_rows, shrunk_cols]
+    #return M[shrunk_rows, shrunk_cols]
+    return _construct_shrunk_matrix(M, shrunk_rows, shrunk_cols)
+end
+
+"""
+    _construct_shrunk_matrix
+
+Construct a shrunk matrix by selecting certain rows and columns specified by `row_idxs` and
+`col_idxs` from AbstractMatrix `M`.
+
+Return an AxisArray{T, 2}. The axes will be the selected subset of the original axes if `M`
+is an AxisArray. If `M` is a normal matrix, the axes of the returned AxisArray are the
+selected coordinates.
+"""
+function _construct_shrunk_matrix(M::Matrix, row_idxs, col_idxs)::AxisArray
+    return AxisArray(
+        M[row_idxs, col_idxs];
+        row_idxs=row_idxs,
+        col_idxs=col_idxs,
+    )
+end
+
+function _construct_shrunk_matrix(M::AxisArray, row_idxs, col_idxs)::AxisArray
+    return M[row_idxs, col_idxs]
 end
 
 """
@@ -87,9 +110,9 @@ end
         val::Union{Float64, Unitful.Quantity{Float64}},
         dimension::Tuple{Int64, Int64},
         area::Unitful.Area{Float64},
-        active::Array{Bool, 2},
+        active::AbstractMatrix{Bool},
         control::C,
-        initial_population::Matrix{<:Integer}=zeros(Int, dimension),
+        initial_population::AbstractMatrix{<:Integer}=zeros(Int, dimension),
     )
 
 Function to create a simple `ContinuousHab` type epi environment. It creates a
@@ -104,9 +127,9 @@ function simplehabitatAE(
     val::Union{Float64, Unitful.Quantity{Float64}},
     dimension::Tuple{Int64, Int64},
     area::Unitful.Area{Float64},
-    active::Array{Bool, 2},
+    active::AbstractMatrix{Bool},
     control::C,
-    initial_population::Matrix{<:Integer}=zeros(Int, dimension),
+    initial_population::AbstractMatrix{<:Integer}=zeros(Int, dimension),
 ) where C <: AbstractControl
     if typeof(val) <: Unitful.Temperature
         val = uconvert(K, val)
@@ -139,7 +162,7 @@ end
         val::Union{Float64, Unitful.Quantity{Float64}},
         area::Unitful.Area{Float64},
         control::C,
-        initial_population::Matrix{<:Real},
+        initial_population::AbstractMatrix{<:Real},
     )
 
 Create a simple `ContinuousHab` type epi environment from a specified `initial_population`
@@ -161,7 +184,7 @@ function simplehabitatAE(
     val::Union{Float64, Unitful.Quantity{Float64}},
     area::Unitful.Area{Float64},
     control::C,
-    initial_population::Matrix{<:Real},
+    initial_population::AbstractMatrix{<:Real},
 ) where C <: AbstractControl
     inactive(x) = isnan(x) || ismissing(x)
     if all(inactive.(initial_population))
@@ -169,7 +192,34 @@ function simplehabitatAE(
     end
     dimension = size(initial_population)
     active = Matrix{Bool}(.!inactive.(initial_population))
-    initial_population[inactive.(initial_population)] .= 0
-    initial_population = Int.(round.(initial_population))
+    initial_population = _convert_population(initial_population, active)
     return simplehabitatAE(val, dimension, area, active, control, initial_population)
+end
+
+"""
+    _convert_population
+
+Convert populatioin matrix to Int matrix by filling in the inactive area with 0 population
+and rounding the active area.
+"""
+function _convert_population(
+    initial_population::Matrix{<:Real},
+    active::AbstractMatrix{Bool}
+)::Matrix{<:Int}
+    initial_population[.!active] .= 0
+    initial_population = Int.(round.(initial_population))
+    return initial_population
+end
+
+function _convert_population(
+    initial_population::AxisArray{<:Real, 2},
+    active::AbstractMatrix{Bool}
+)::AxisArray{<:Int, 2}
+    # NOTE: this is a workaround as logical indexing directly on AxisArray leads to
+    #   stackoverflow. see issue: https://github.com/JuliaArrays/AxisArrays.jl/issues/179
+    initial_population.data[.!active] .= 0
+    return AxisArray(
+            Int.(round.(initial_population.data)),
+            initial_population.axes
+        )
 end

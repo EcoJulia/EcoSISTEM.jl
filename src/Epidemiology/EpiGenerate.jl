@@ -78,7 +78,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 # Update population
                 epi.cache.virusmigration[j + 1, i] += births
                 epi.cache.virusdecay[j + 1, i] -= deaths
-                virusmove!(epi, i, j + 1, epi.cache.virusmigration, births)
+                virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
         end
     end
