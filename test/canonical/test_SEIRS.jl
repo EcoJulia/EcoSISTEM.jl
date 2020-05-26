@@ -28,13 +28,15 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-virus = 0
-susceptible = 500_000 * prod(grid)
-exposed = 0
-infected = 100 * prod(grid)
-recovered = 0
-dead = 0
-abun = [virus, susceptible, exposed, infected, recovered, dead]
+initial_pops = (
+  virus = 0,
+  susceptible = 500_000 * prod(grid),
+  exposed = 0,
+  infected = 100 * prod(grid),
+  recovered = 0,
+  dead = 0,
+)
+abun = [initial_pops...]
 
 # Dispersal kernels for virus and disease classes
 dispersal_dists = fill(100.0km, numclasses)
@@ -56,6 +58,23 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), grid[1]*grid[2], convert(In
 @time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=save_path)
 
 # Test no-one dies (death rate = 0)
-@test sum(abuns[end, :, :]) == 0
+@test sum(abuns[end, :, :]) == initial_pops.dead
 # Test overall population size stays constant (birth rate = death rate = 0)
-@test all(sum(abuns[2:5, :, :], dims = (1, 2)) .== (susceptible + infected))
+@test all(sum(abuns[2:5, :, :], dims = (1, 2)) .== (initial_pops.susceptible + initial_pops.infected))
+
+### TEST OUTPUTS
+# TODO: When shifting out virus from Epilist, these indexes will need updating.
+
+idx_sus = 2
+idx_rec = 5
+idx_dead = 6
+
+# Test susceptible population decreasing or constant only [Source]
+# https://github.com/ScottishCovidResponse/Simulation.jl/pull/37
+@test sum(abuns[idx_sus, :, 1]) == initial_pops.susceptible
+
+@test sum(abuns[idx_rec, :, 1]) == initial_pops.recovered
+
+# Test dead population increasing or constant only [Sink]
+@test all(diff(vec(sum(abuns[idx_dead, :, :], dims = 1))) .>= 0)
+@test sum(abuns[idx_dead, :, 1]) == initial_pops.dead

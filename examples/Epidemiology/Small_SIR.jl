@@ -77,8 +77,8 @@ epilist = SIR(traits, abun, movement, param)
 
 rel = Gauss{eltype(epienv.habitat)}()
 epi = EpiSystem(epilist, epienv, rel)
-epi.abundances.matrix[1, 1] = 100
-epi.abundances.matrix[3, 1] = 1
+virus(epi.abundances)[1, 1] = 100
+human(epi.abundances)[3, 1] = 1
 
 abuns = zeros(Int64, 5, 100, 366)
 times = 1year; interval = 1day; timestep = 1day
