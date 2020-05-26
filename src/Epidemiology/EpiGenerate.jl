@@ -64,7 +64,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             if epi.epienv.active[x, y]
                 traitmatch = traitfun(epi, i, 1)
                 # Calculate effective rates
-                birthrate = params.virus_growth[j] * timestep * virus(epi.abundances)[j + 1, i]
+                birthrate = params.virus_growth[j] * timestep * human(epi.abundances)[j + 1, i]
                 deathrate = params.virus_decay[j] * timestep * traitmatch^-1
 
                 # Convert death rate into 0 - 1 probability
