@@ -63,7 +63,7 @@ for i in eachindex(grid_sizes)
     @test sum(thisabun[end, :, :]) == 0
     # Test overall population size stays constant (birth rate = death rate = 0)
     @test all(sum(thisabun[2:4, :, :], dims = (1, 2)) .==
-        (initial_pops[:susceptible] + initial_pops[:infected] + initial_pops[:recovered]))
+        (initial_pops.susceptible + initial_pops.infected + initial_pops.recovered))
     sumabuns[i] = sum(abuns[i], dims = 2)[:, 1, :]
 end
 
