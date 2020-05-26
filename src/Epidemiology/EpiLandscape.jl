@@ -12,8 +12,8 @@ mutable struct EpiLandscape
   function EpiLandscape(abun1::Matrix{Int64}, abun2::Matrix{Int64}, d1::Tuple)
     return new(abun1, abun2, reshape(abun1, d1), [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()])
   end
-  function EpiLandscape(abun1::Matrix{Int64}, abun2::Matrix{Int64}, d1::Tuple, d2::Tuple, seed::Vector{MersenneTwister})
-    return new(abun1, abun2, reshape(abun1, d1), seed)
+  function EpiLandscape(human_abun::Matrix{Int64}, virus_abun::Matrix{Int64}, d1::Tuple, d2::Tuple, seed::Vector{MersenneTwister})
+    return new(human_abun, virus_abun, reshape(human_abun, d1), seed)
   end
 end
 
