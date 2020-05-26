@@ -108,17 +108,39 @@ end
     @testset "Construct from initial population" begin
         # Set an initial population of zeros
         # The zeros should not be masked out (but the NaNs should)
-        initial_pop = zeros(grid...)
-        initial_pop[.!active] .= NaN
+        @testset "Initial population is provided as a normal Matrix" begin
+            initial_pop = zeros(grid...)
+            initial_pop[.!active] .= NaN
 
-        epienv = simplehabitatAE(fillval, area, control, initial_pop)
-        expected_initial_pop = zeros(expected_grid)
+            epienv = simplehabitatAE(fillval, area, control, initial_pop)
+            expected_initial_pop = zeros(expected_grid)
 
-        @test epienv.active == expected_active
-        @test size(epienv.habitat.matrix) == expected_grid
-        @test epienv.habitat.size == expected_gridlength
-        @test epienv.habitat.matrix == expected_matrix
-        @test epienv.initial_population == expected_initial_pop
-        @test epienv.initial_population isa AxisArray
+            @test epienv.active == expected_active
+            @test size(epienv.habitat.matrix) == expected_grid
+            @test epienv.habitat.size == expected_gridlength
+            @test epienv.habitat.matrix == expected_matrix
+            @test epienv.initial_population == expected_initial_pop
+            @test epienv.initial_population isa AxisArray
+            @test axisvalues(epienv.initial_population) == (4:9, 2:9)
+        end
+        @testset "Initial population is provided as a AxisArray Matrix" begin
+            initial_pop = AxisArray(
+                zeros(grid...);
+                x=Symbol.("x_", 1:grid[1]),
+                y=Symbol.("y_", 1:grid[2]),
+            )
+            initial_pop.data[.!active] .= NaN
+
+            epienv = simplehabitatAE(fillval, area, control, initial_pop)
+            expected_initial_pop = zeros(expected_grid)
+            @test epienv.active == expected_active
+            @test size(epienv.habitat.matrix) == expected_grid
+            @test epienv.habitat.size == expected_gridlength
+            @test epienv.habitat.matrix == expected_matrix
+            @test epienv.initial_population == expected_initial_pop
+            @test axisvalues(epienv.initial_population) ==
+                (Symbol.("x_", 4:9), Symbol.("y_", 2:9))
+        end
+
     end
 end
