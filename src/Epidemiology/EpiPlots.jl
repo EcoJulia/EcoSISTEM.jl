@@ -15,7 +15,7 @@ function _default_clim(abuns, idx, steps)
 end
 
 """
-    epiheatmaps(
+    plot_epiheatmaps(
         abuns::AbstractArray{<:Integer, 3},
         epilist::EpiList,
         epienv::AbstractEpiEnv;
@@ -25,9 +25,9 @@ end
 
 Plot heatmaps of `abuns` for `compartment` at `steps`.
 """
-epiheatmaps
-@userplot EpiHeatmaps
-function _check_args(h::EpiHeatmaps)
+plot_epiheatmaps
+@userplot Plot_EpiHeatmaps
+function _check_args(h)
     correct_args = (
         length(h.args) == 3 &&
         isa(h.args[1], AbstractArray{<:Integer, 3}) &&
@@ -35,12 +35,12 @@ function _check_args(h::EpiHeatmaps)
     )
     if !correct_args
         throw(ArgumentError(
-            "epiheatmaps requires (abuns, EpiList, EpiEnv); got: $(typeof(h.args))"
+            "$(typeof(h)) requires (abuns, EpiList, EpiEnv); got: $(typeof(h.args))"
         ))
     end
 end
 @recipe function f(
-    h::EpiHeatmaps;
+    h::Plot_EpiHeatmaps;
     compartment="Infected",
     steps=[],
 )
@@ -64,5 +64,32 @@ end
             data
         end
         subplot += 1
+    end
+end
+
+"""
+    plot_epidynamics(
+        abuns::AbstractArray{<:Integer, 3},
+        epilist::EpiList,
+        epienv::AbstractEpiEnv,
+    )
+
+Plot the dynamics over time of `abuns`.
+"""
+plot_epidynamics
+@userplot Plot_EpiDynamics
+@recipe function f(h::Plot_EpiDynamics)
+    _check_args(h)
+    abuns, epilist, epienv = h.args
+
+    for (idx, name) in enumerate(epilist.names)
+        data = vec(mapslices(sum, abuns[idx, :, :], dims = 1))
+        title --> "Infection dynamics"
+        xguide --> "Step"
+        yguide --> "Totals"
+        @series begin
+            label := name
+            data
+        end
     end
 end
