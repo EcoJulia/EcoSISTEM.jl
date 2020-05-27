@@ -38,8 +38,10 @@ function TestEcosystem()
     return eco
 end
 function TestEpiSystem()
-    birth = [0.0/day; fill(1e-5/day, 3); 0.0/day]
-    death = [0.0/day; fill(1e-5/day, 3); 0.0/day]
+    numvirus = 1
+    numclasses = 4
+    birth = [fill(1e-5/day, numclasses - 1); 0.0/day]
+    death = [fill(1e-5/day, numclasses - 1); 0.0/day]
     beta_force = 5.0/day
     beta_env = 0.5/day
     sigma = 0.05/day
@@ -52,14 +54,15 @@ function TestEpiSystem()
     area = 10.0km^2
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
-    abun = [10, 1000, 1, 0, 0]
+    abun_h = [1000, 1, 0, 0]
+    abun_v = [10]
 
-    dispersal_dists = [1e-2km; fill(2.0km, 3); 1e-2km]
+    dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = AlwaysMovement(kernel)
 
-    traits = GaussTrait(fill(298.0K, 5), fill(0.1K, 5))
-    epilist = SIR(traits, abun, movement, param)
+    traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+    epilist = SIR(traits, abun_v, abun_h, movement, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel)
@@ -67,8 +70,10 @@ function TestEpiSystem()
     return epi
 end
 function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
-    birth = [0.0/day; fill(1e-5/day, 3); 0.0/day]
-    death = [0.0/day; fill(1e-5/day, 3); 0.0/day]
+    numclasses = 4
+    numvirus = 1
+    birth = [fill(1e-5/day, numclasses - 1); 0.0/day]
+    death = [fill(1e-5/day, numclasses - 1); 0.0/day]
     beta_force = 5.0/day
     beta_env = 0.5/day
     sigma = 0.05/day
@@ -81,14 +86,15 @@ function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
     epienv = simplehabitatAE(298.0K, area, NoControl(), initial_pop)
 
     # Zero susceptible so we can test the specified initial_pop
-    abun = [10, 0, 1, 0, 0]
+    abun_h = [0, 1, 0, 0]
+    abun_v = [10]
 
-    dispersal_dists = [1e-2km; fill(2.0km, 3); 1e-2km]
+    dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = AlwaysMovement(kernel)
 
-    traits = GaussTrait(fill(298.0K, 5), fill(0.1K, 5))
-    epilist = SIR(traits, abun, movement, param)
+    traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+    epilist = SIR(traits, abun_v, abun_h, movement, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel)
