@@ -44,7 +44,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             if epi.epienv.active[x, y]
                 traitmatch = traitfun(epi, i, 1)
                 # Calculate effective rates
-                birthrate = params.virus_growth[j] * timestep * virus(epi.abundances)[j + 1, i]
+                birthrate = params.virus_growth[j] * timestep * human(epi.abundances)[j, i]
                 deathrate = params.virus_decay[j] * timestep * traitmatch^-1
 
                 # Convert death rate into 0 - 1 probability
@@ -56,9 +56,9 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 deaths = rand(rng, Binomial(virus(epi.abundances)[1, i], deathprob))
 
                 # Update population
-                epi.cache.virusmigration[j + 1, i] += births
-                epi.cache.virusdecay[j + 1, i] -= deaths
-                virusmove!(epi, i, j + 1, epi.cache.virusmigration, births)
+                epi.cache.virusmigration[j, i] += births
+                epi.cache.virusdecay[j, i] -= deaths
+                virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
         end
     end
@@ -68,9 +68,13 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     epi.cache.virusmigration[1, :] .+= vm
 end
 
-function sum_pop(M::Matrix{Int64}, start::Int64, i::Int64)
+"""
+    sum_pop(M::Matrix{Int64}, i::Int64)
+Function to sum a population matrix, `M`, without memory allocation, at a grid location `i`.
+"""
+function sum_pop(M::Matrix{Int64}, i::Int64)
     N = 0
-    for j in start:size(M, 1)
+    for j in 1:size(M, 1)
         N += M[j, i]
     end
     return N
@@ -89,31 +93,30 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     # Loop through grid squares
     Threads.@threads for i in 1:dims
         rng = epi.abundances.seed[Threads.threadid()]
-        susclass = findfirst(epi.epilist.names .== "Susceptible")
-        N = sum_pop(epi.abundances.matrix, susclass, i)
+        N = sum_pop(epi.abundances.matrix, i)
         # Loop through classes in chosen square
-        for j in susclass:classes
+        for j in 1:classes
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(epi, i, width)
             # Check if grid cell currently active
             if epi.epienv.active[x, y]
                 # Births
-                births = rand(rng, Binomial(human(epi.abundances)[j, i],  params.births[j - 1] * timestep))
-                human(epi.abundances)[susclass, i] += births
+                births = rand(rng, Binomial(human(epi.abundances)[j, i],  params.births[j] * timestep))
+                human(epi.abundances)[1, i] += births
 
                 # Calculate force of inf and env inf
-                env_inf = (params.transition_virus[j - 1, :] .* timestep .* virus(epi.abundances)[1, i]) ./ N
+                env_inf = (params.transition_virus[j, :] .* timestep .* virus(epi.abundances)[1, i]) ./ N
 
-                force_inf = (params.transition_force[j - 1, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ N
+                force_inf = (params.transition_force[j, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ N
 
                 # Add to transitional probabilities
-                trans_prob = (params.transition[j - 1, :] .* timestep) .+ env_inf .+  force_inf
-                trans_prob = 1.0 .- exp.(-1 .* trans_prob)
+                trans_val = (params.transition[j, :] .* timestep) .+ env_inf .+  force_inf
+                trans_prob = 1.0 .- exp.(-1 .* trans_val)
 
                 # Make transitions
-                trans = collect(rand(rng, b) for b in Binomial.(human(epi.abundances)[susclass:end, i],  trans_prob))
+                trans = collect(rand(rng, b) for b in Binomial.(human(epi.abundances)[:, i],  trans_prob))
                 human(epi.abundances)[j, i] += sum(trans)
-                human(epi.abundances)[susclass:end, i] .-= trans
+                human(epi.abundances)[:, i] .-= trans
             end
         end
     end
