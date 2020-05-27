@@ -4,12 +4,9 @@ using LinearAlgebra
 
 """
     update!(epi::EpiSystem, time::Unitful.Time)
-Function to update disease class abundances and environment for one timestep.
+Function to update disease and virus class abundances and environment for one timestep.
 """
 function update!(epi::EpiSystem, timestep::Unitful.Time)
-
-    # Human movement loop - ignore for now while we focus on lockdown
-    # humanmove!(epi, timestep)
 
     # Virus movement loop
     virusupdate!(epi, timestep)
@@ -25,27 +22,10 @@ function update!(epi::EpiSystem, timestep::Unitful.Time)
     applycontrols!(epi, timestep)
 end
 
-function humanmove!(epi::EpiSystem, timestep::Unitful.Time)
-    dims = _countsubcommunities(epi.epienv.habitat)
-    width = getdimension(epi)[1]
-    classes = size(epi.abundances.matrix, 1)
-    Threads.@threads for j in 2:classes
-        rng = epi.abundances.seed[Threads.threadid()]
-        # Loop through grid squares
-        for i in 1:dims
-            # Convert 1D dimension to 2D coordinates
-            (x, y) = convert_coords(epi, i, width)
-            # Check if grid cell currently active
-            if epi.epienv.active[x, y]
-                # Calculate moves and write to cache
-                move!(epi, epi.epilist.movement, i, j, epi.cache.netmigration, human(epi.abundances)[j, i])
-            end
-        end
-    end
-    # Update abundances with all movements
-    epi.abundances.matrix .+= epi.cache.netmigration
-end
-
+"""
+    virusupdate!(epi::EpiSystem, time::Unitful.Time)
+Function to update virus abundances and disperse for one timestep.
+"""
 function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     dims = _countsubcommunities(epi.epienv.habitat)
     width = getdimension(epi)[1]
@@ -95,9 +75,10 @@ function sum_pop(M::Matrix{Int64}, start::Int64, i::Int64)
     end
     return N
 end
+
 """
     classupdate!(epi::EpiSystem, timestep::Unitful.Time)
-Function to update disease class abundances for one timestep. Dispatches differently depending on the class of model stored in the EpiSystem.
+Function to update disease class abundances for one timestep.
 """
 function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     # Calculate dimenions of habitat and number of classes
@@ -223,13 +204,18 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::Ab
     rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
 
-function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Int64, 2}, births::Int64)
+"""
+    virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Int64, 2}, newvirus::Int64)
+
+Function to calculate the movement of force of infection `id` from a given position in the landscape `pos`, using the lookup table found in the EpiSystem and updating the movement patterns on a cached grid, `grd`. The number of new virus is provided, so that movement only takes place as part of the generation process.
+"""
+function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Int64, 2}, newvirus::Int64)
   width, height = getdimension(epi)
   (x, y) = convert_coords(epi, pos, width)
   lookup = getlookup(epi, id)
-  calc_lookup_moves!(getboundary(epi.epilist.movement), x, y, id, epi, births)
+  calc_lookup_moves!(getboundary(epi.epilist.human.movement), x, y, id, epi, newvirus)
   # Lose moves from current grid square
-  grd[id, pos] -= births
+  grd[id, pos] -= newvirus
   # Map moves to location in grid
   mov = lookup.moves
   for i in eachindex(lookup.x)
@@ -241,54 +227,6 @@ function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{In
   return epi
 end
 
-"""
-    move!(epi::AbstractEpiSystem, ::AlwaysMovement, i::Int64, sp::Int64, grd::Array{Int64, 2}, ::Int64)
-
-Function to calculate the movement of a disease class `sp` from a given position in the landscape `i`, using the lookup table found in the EpiSystem and updating the movement patterns on a cached grid, `grd`. Optionally, a number of births can be
-provided, so that movement only takes place as part of the birth process, instead of the entire population.
-"""
-function move!(epi::AbstractEpiSystem, ::AlwaysMovement, i::Int64, sp::Int64, grd::Array{Int64, 2}, ::Int64)
-  width, height = getdimension(epi)
-  (x, y) = convert_coords(epi, i, width)
-  lookup = getlookup(epi, sp)
-  full_abun = human(epi.abundances)[sp, i]
-  calc_lookup_moves!(getboundary(epi.epilist.movement), x, y, sp, epi, full_abun)
-  # Lose moves from current grid square
-  grd[sp, i] -= full_abun
-  # Map moves to location in grid
-  mov = @view lookup.moves[:, Threads.threadid()]
-  for i in eachindex(epi.lookup[sp].x)
-      newx = mod(lookup.x[i] + x - 1, width) + 1
-      newy = mod(lookup.y[i] + y - 1, height) + 1
-      loc = convert_coords(epi, (newx, newy), width)
-      grd[sp, loc] += mov[i]
-  end
-  return epi
-end
-
-function move!(epi::AbstractEpiSystem, ::NoMovement, i::Int64, sp::Int64,
-  grd::Array{Int64, 2}, ::Int64)
-  return epi
-end
-
-function move!(epi::AbstractEpiSystem, ::BirthOnlyMovement, i::Int64, sp::Int64,
-    grd::Array{Int64, 2}, births::Int64)
-  width, height = getdimension(epi)
-  (x, y) = convert_coords(epi, i, width)
-   lookup = getlookup(epi, sp)
-  calc_lookup_moves!(getboundary(epi.epilist.movement), x, y, sp, epi, births)
-  # Lose moves from current grid square
-  grd[sp, i] -= births
-  # Map moves to location in grid
-  mov = @view lookup.moves[:, Threads.threadid()]
-  for i in eachindex(lookup.x)
-      newx = mod(lookup.x[i] + x - 1, width) + 1
-      newy = mod(lookup.y[i] + y - 1, height) + 1
-      loc = convert_coords(epi, (newx, newy), width)
-      grd[sp, loc] += mov[i]
-  end
-  return epi
-end
 
 function habitatupdate!(epi::AbstractEpiSystem, timestep::Unitful.Time)
   _habitatupdate!(epi, epi.epienv.habitat, timestep)
