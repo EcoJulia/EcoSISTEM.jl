@@ -3,23 +3,26 @@
 
 Function to simulate simple SIR stochastic realisations, given a grid dimension, `grid_size`, area size, set of parameters, `params` and number of repeats, `reps`.
 
-Outputs an vector of abundance matrices, one for each repeat, of compartment by grid cell.
+Outputs an vector of abundance matrices, one for each repeat, of compartment by grid cell. Compartments for the SIR model are: Susceptible, Infected, Recovered, Dead.
 """
 function SIR_wrapper(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64}, params::NamedTuple, reps::Int64=1)
+    # Set up
     do_save = (@isdefined do_save) ? do_save : false
     save_path = (@isdefined save_path) ? save_path : pwd()
     abuns = Vector{Array{Int64, 3}}(undef, reps)
     numclasses = 4
     Ncells = grid_size[1] * grid_size[2]
 
+    # Extract model params from tuple
     beta_force = params[:beta_force]
     beta_env = params[:beta_env]
     sigma = params[:sigma]
     virus_growth = params[:virus_growth]
     virus_decay = params[:virus_decay]
     mean_dispersal_dist = params[:mean_dispersal_dist]
+    # Loop through repeats
     for i in 1:reps
-        # Set simulation parameters
+        # Set simulation parameters & create transition matrices
         birth = fill(0.0/day, numclasses)
         death = fill(0.0/day, numclasses)
         param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
