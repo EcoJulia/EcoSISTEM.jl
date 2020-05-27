@@ -203,7 +203,8 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
         length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
 
-        return new{U}(birth, death, ageing, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, mu, sigma)
+        return new{U}(birth, death, ageing, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1,
+        sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital)
     end
     # Single age category
     function SEI2HRDGrowth{U}(birth::Vector{TimeUnitType{U}},
@@ -269,7 +270,7 @@ function SEI2HRDGrowth(birth::Matrix{TimeUnitType{U}},
     T_lat::Unitful.Time, T_asym::Unitful.Time, T_sym::Unitful.Time,
     T_hosp::Unitful.Time, T_rec::Unitful.Time) where {U <: Unitful.Units}
     # Exposed -> asymptomatic
-    mu_1 = 1/T_lat
+    mu_1 = fill(1/T_lat, length(beta_force))
     # Asymptomatic -> symptomatic
     mu_2 = prob_sym .* 1/T_asym
     # Symptomatic -> hospital
@@ -284,7 +285,7 @@ function SEI2HRDGrowth(birth::Matrix{TimeUnitType{U}},
     death_home = cfr_home .* 2/T_hosp
     # Hospital -> death
     death_hospital = cfr_hosp .* 1/T_hosp
-    return SEI2HRDGrowth{U}(birth, death, ageing,  virus_growth_asymp, virus_growth_symp, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital)
+    return SEI2HRDGrowth{U}(birth, death, ageing,  virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital)
 end
 
 """

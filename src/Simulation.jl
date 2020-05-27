@@ -148,4 +148,7 @@ export populate!
 include("Epidemiology/EpiHelper.jl")
 export simulate!, simulate_record!
 
+# Path into package
+path(paths...) = joinpath(@__DIR__, "..", paths...)
+
 end
