@@ -130,8 +130,11 @@ function populate!(ml::EpiLandscape, epilist::EpiList, epienv::EE, rel::R) where
     dim = _getdimension(epienv.habitat)
     len = dim[1] * dim[2]
     # Loop through classes
-    for i in eachindex(epilist.abun)
-        rand!(Multinomial(epilist.abun[i], len), (@view ml.matrix[i, :]))
+    for i in eachindex(epilist.human.abun)
+        rand!(Multinomial(epilist.human.abun[i], len), (@view ml.matrix[i, :]))
+    end
+    for i in eachindex(epilist.virus.abun)
+        rand!(Multinomial(epilist.virus.abun[i], len), (@view ml.matrix_v[i, :]))
     end
 end
 
