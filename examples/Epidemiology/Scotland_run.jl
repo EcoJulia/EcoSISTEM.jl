@@ -9,7 +9,6 @@ using Distributions
 do_plot = false
 
 # Set simulation parameters
-age_categories = 10
 numclasses = 7
 numvirus = 1
 birth_rates = fill(0.0/day, numclasses, age_categories)
@@ -45,15 +44,16 @@ param = SEI2HRDGrowth(birth_rates, death_rates, ageing,
 param = transition(param, age_categories)
 
 # Read in population sizes for Scotland
-scotpop = Array{Float64, 2}(readfile(Simulation.path("test", "examples",
-                                                     "ScotlandDensity2011.tif"),
-                               0.0, 7e5, 5e5, 1.25e6))
-# Coarsen grid to 10km
-scotpop = [sum(scotpop[i:i+9, j:j+9]) for i in 1:10:size(scotpop, 1), j in 1:10:size(scotpop, 2)]
+scotpop = parse_scotpop(Simulation.path("test", "examples", "scrc_demographics.h5"))
+# Sum up age categories and turn into simple matrix
+total_pop = Matrix(sum(scotpop, dims=3)[:, :])
 
 # Set up simple gridded environment
 area = 525_000.0km^2
-epienv = simplehabitatAE(298.0K, area, NoControl(), scotpop)
+epienv = simplehabitatAE(298.0K, area, NoControl(), total_pop)
+
+# Read number of age categories
+age_categories = size(scotpop, 3)
 
 # Set population to initially have no individuals
 abun_h = fill(0, numclasses * age_categories)
