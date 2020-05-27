@@ -57,7 +57,7 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   # Populate this matrix with species abundances
   popfun(ml, epilist, epienv, rel)
   # Create lookup table of all moves and their probabilities
-  lookup_tab = collect(map(k -> genlookups(epienv, k), getkernels(epilist.movement)))
+  lookup_tab = collect(map(k -> genlookups(epienv, k), getkernels(epilist.human.movement)))
   nm = zeros(Int64, size(ml.matrix))
   vm = zeros(Int64, size(ml.matrix))
   EpiSystem{typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
@@ -66,9 +66,9 @@ end
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship)
     epi = EpiSystem(populate!, epilist, epienv, rel)
     # Add in the initial susceptible population
-    idx = findfirst(epilist.names .== "Susceptible")
+    idx = findfirst(epilist.human.names .== "Susceptible")
     if idx == nothing
-        msg = "epilist has no Susceptible category. epilist.names = $(epilist.names)"
+        msg = "epilist has no Susceptible category. epilist.names = $(epilist.human.names)"
         throw(ArgumentError(msg))
     end
     epi.abundances.grid[idx, :, :] .+= epienv.initial_population
@@ -186,20 +186,20 @@ function invalidatecaches!(epi::AbstractEpiSystem)
 end
 
 function getdispersaldist(epi::AbstractEpiSystem, sp::Int64)
-  dist = epi.epilist.movement.kernels[sp].dist
+  dist = epi.epilist.human.movement.kernels[sp].dist
   return dist
 end
 function getdispersaldist(epi::AbstractEpiSystem, sp::String)
-  num = Compat.findall(epi.epilist.names.==sp)[1]
+  num = Compat.findall(epi.epilist.human.names.==sp)[1]
   getdispersaldist(epi, num)
 end
 
 function getdispersalvar(epi::AbstractEpiSystem, sp::Int64)
-    var = (epi.epilist.movement.kernels[sp].dist)^2 * pi / 4
+    var = (epi.epilist.human.movement.kernels[sp].dist)^2 * pi / 4
     return var
 end
 function getdispersalvar(epi::AbstractEpiSystem, sp::String)
-    num = Compat.findall(epi.epilist.names.==sp)[1]
+    num = Compat.findall(epi.epilist.human.names.==sp)[1]
     getdispersalvar(epi, num)
 end
 
@@ -207,6 +207,6 @@ function getlookup(epi::AbstractEpiSystem, sp::Int64)
     return epi.lookup[sp]
 end
 function getlookup(epi::AbstractEpiSystem, sp::String)
-    num = Compat.findall(epi.epilist.names.==sp)[1]
+    num = Compat.findall(epi.epilist.human.names.==sp)[1]
     getlookup(epi, num)
 end

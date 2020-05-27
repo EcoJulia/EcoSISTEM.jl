@@ -6,7 +6,7 @@ Function to calculate relationship between the current environment and a particu
 """
 function traitfun(epi::AbstractEpiSystem, pos::Int64, sp::Int64)
     hab = epi.epienv.habitat
-    trts = epi.epilist.traits
+    trts = epi.epilist.virus.traits
     rel = epi.relationship
   _traitfun(hab, trts, rel, pos, sp)
 end
