@@ -63,7 +63,7 @@ end
         data[.!epi.epienv.active] .= NaN
         @series begin
             seriestype := :heatmap
-            title := "Day $step ($compartment)"
+            title := "Step $step ($compartment)"
             subplot := subplot
             background_color --> :lightblue
             background_color_outside --> :white
