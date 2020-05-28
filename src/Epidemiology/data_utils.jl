@@ -16,9 +16,8 @@ function parse_scotpop(path; grid="10k")
     data = h5read(path, "scotland_2018")
 
     # Get age brackets
-    # I can't seem to find this data in the file, so I'll fill it with placeholder values
-    # for now. TODO: find out which ones they are.
-    ages = collect(1:19)
+    ages = [string(5*i)*"-"*string(5*i+4) for i in 0:17]
+    push!(ages, "90+")
 
     # Create empty grid
     grid_size = parse(Int, chop(grid)) * 1000
