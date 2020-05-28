@@ -74,11 +74,5 @@ if do_plot
     using Plots
     plotlyjs()
     # View summed SIR dynamics for whole area
-    display(plot(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptible"))
-    display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Orange, label = "Exposed"))
-    display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Yellow, label = "Asymptomatic"))
-    display(plot!(mapslices(sum, abuns[5, :, :], dims = 1)[1, :], color = :Red, label = "Symptomatic"))
-    display(plot!(mapslices(sum, abuns[6, :, :], dims = 1)[1, :], color = :Darkred, label = "Hospital"))
-    display(plot!(mapslices(sum, abuns[7, :, :], dims = 1)[1, :], color = :Green, label = "Recovered"))
-    display(plot!(mapslices(sum, abuns[8, :, :], dims = 1)[1, :], color = :Black, label = "Deaths"))
+    plot_epidynamics(epi, abuns)
 end
