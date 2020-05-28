@@ -100,5 +100,5 @@ if do_plot
         "Recovered" => cat_idx[:, 6],
         "Deaths" => cat_idx[:, 7],
     )
-    plot_epidynamics(epi, abuns; category_map=category_map)
+    display(plot_epidynamics(epi, abuns; category_map=category_map))
 end
