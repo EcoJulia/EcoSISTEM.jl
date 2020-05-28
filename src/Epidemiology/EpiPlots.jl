@@ -89,11 +89,11 @@ Plot the dynamics of `abuns` summed over space, as a function of time.
 - `abuns`: The array of abundances to plot, of size Ncompartments x Ncells x Nsteps
 
 ## Keyword arguments
-- `category_map`: A list of key-value pairs where the keys are category names, and the
-    values are a list of compartment indices associated with that category. These compartments
-    will be summed in the plot. For example, the following will plot the sum of compartments 1
-    and 2 as the `Susceptible` category, and the sum of compartments 3 and 4 as the `Infected`
-    category.
+- `category_map`: An iterable of key-value pairs where the keys are category names, and the
+    values are a list of compartment indices associated with that category. These
+    compartments will be summed in the plot. For example, the following will plot the sum of
+    compartments 1 and 2 as the `Susceptible` category, and the sum of compartments 3 and 4
+    as the `Infected` category.
 
         category_map = ("Susceptible" => [1, 2], "Infected" => [3, 4])
 
