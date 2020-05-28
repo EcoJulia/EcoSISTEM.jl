@@ -11,26 +11,34 @@ end
 
 """
     plot_epiheatmaps(
-        abuns::AbstractArray{<:Integer, 3},
-        epilist::EpiList,
-        epienv::AbstractEpiEnv;
+        epi::AbstractEpiSystem,
+        abuns::AbstractArray{<:Integer, 3};
         compartment="Infected",
         steps=[],
     )
 
 Plot heatmaps of `abuns` for `compartment` at `steps`.
+
+## Arguments
+- `epi`: The `AbstractEpiSystem` to plot.
+- `abuns`: The array of abundances to plot, of size Ncompartments x Ncells x Nsteps
+
+## Keyword arguments
+- `compartment`: The compartment to plot
+- `steps`: A list of steps to plot (one heatmap for each step). If empty, plots 4
+    equally-spaced steps.
 """
 plot_epiheatmaps
 @userplot Plot_EpiHeatmaps
 function _check_args(h)
     correct_args = (
-        length(h.args) == 3 &&
-        isa(h.args[1], AbstractArray{<:Integer, 3}) &&
-        isa(h.args[2], EpiList) && isa(h.args[3], AbstractEpiEnv)
+        length(h.args) == 2 &&
+        isa(h.args[1], AbstractEpiSystem) &&
+        isa(h.args[2], AbstractArray{<:Integer, 3})
     )
     if !correct_args
         throw(ArgumentError(
-            "$(typeof(h)) requires (abuns, EpiList, EpiEnv); got: $(typeof(h.args))"
+            "$(typeof(h)) requires (AbstractEpiSystem, abuns); got: $(typeof(h.args))"
         ))
     end
 end
@@ -40,8 +48,8 @@ end
     steps=[],
 )
     _check_args(h)
-    abuns, epilist, epienv = h.args
-    idx = _compartment_idx(compartment, epilist.names)
+    epi, abuns = h.args
+    idx = _compartment_idx(compartment, epi.epilist.names)
     if isempty(steps)
         steps = _default_steps(abuns)
     end
@@ -49,10 +57,10 @@ end
     layout := length(steps)
 
     subplot = 1
-    gridsize = size(epienv.habitat.matrix)
+    gridsize = size(epi.epienv.habitat.matrix)
     for step in steps
         data = Float64.(reshape(abuns[idx, :, step], gridsize...))
-        data[.!epienv.active] .= NaN
+        data[.!epi.epienv.active] .= NaN
         @series begin
             seriestype := :heatmap
             title := "Day $step ($compartment)"
@@ -69,20 +77,23 @@ end
 
 """
     plot_epidynamics(
-        abuns::AbstractArray{<:Integer, 3},
-        epilist::EpiList,
-        epienv::AbstractEpiEnv,
+        epi::AbstractEpiSystem,
+        abuns::AbstractArray{<:Integer, 3}
     )
 
-Plot the dynamics over time of `abuns`.
+Plot the dynamics of `abuns` summed over space, as a function of time.
+
+## Arguments
+- `epi`: The `AbstractEpiSystem` to plot.
+- `abuns`: The array of abundances to plot, of size Ncompartments x Ncells x Nsteps
 """
 plot_epidynamics
 @userplot Plot_EpiDynamics
 @recipe function f(h::Plot_EpiDynamics)
     _check_args(h)
-    abuns, epilist, epienv = h.args
+    epi, abuns = h.args
 
-    for (idx, name) in enumerate(epilist.names)
+    for (idx, name) in enumerate(epi.epilist.names)
         data = vec(mapslices(sum, abuns[idx, :, :], dims = 1))
         title --> "Infection dynamics"
         xguide --> "Step"
