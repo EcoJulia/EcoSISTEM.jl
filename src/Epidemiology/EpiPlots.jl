@@ -78,7 +78,8 @@ end
 """
     plot_epidynamics(
         epi::AbstractEpiSystem,
-        abuns::AbstractArray{<:Integer, 3}
+        abuns::AbstractArray{<:Integer, 3};
+        category_map=nothing,
     )
 
 Plot the dynamics of `abuns` summed over space, as a function of time.
@@ -86,15 +87,32 @@ Plot the dynamics of `abuns` summed over space, as a function of time.
 ## Arguments
 - `epi`: The `AbstractEpiSystem` to plot.
 - `abuns`: The array of abundances to plot, of size Ncompartments x Ncells x Nsteps
+
+## Keyword arguments
+- `category_map`: A list of key-value pairs where the keys are category names, and the
+    values are a list of compartment indices associated with that category. These compartments
+    will be summed in the plot. For example, the following will plot the sum of compartments 1
+    and 2 as the `Susceptible` category, and the sum of compartments 3 and 4 as the `Infected`
+    category.
+
+        category_map = ("Susceptible" => [1, 2], "Infected" => [3, 4])
+
+    If `category_map` is `nothing`, all compartments in `epi` will be plotted separately
+    with their corresponding names.
 """
 plot_epidynamics
 @userplot Plot_EpiDynamics
-@recipe function f(h::Plot_EpiDynamics)
+@recipe function f(h::Plot_EpiDynamics; category_map=nothing)
     _check_args(h)
     epi, abuns = h.args
 
-    for (idx, name) in enumerate(epi.epilist.names)
-        data = vec(mapslices(sum, abuns[idx, :, :], dims = 1))
+    if isnothing(category_map)
+        # Make each compartment its own category
+        category_map = (name => [idx] for (idx, name) in enumerate(epi.epilist.names))
+    end
+
+    for (name, idx) in category_map
+        data = vec(mapslices(sum, abuns[idx, :, :], dims = (1, 2)))
         title --> "Infection dynamics"
         xguide --> "Step"
         yguide --> "Totals"
