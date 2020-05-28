@@ -13,7 +13,7 @@ end
     plot_epiheatmaps(
         epi::AbstractEpiSystem,
         abuns::AbstractArray{<:Integer, 3};
-        compartment="Infected",
+        compartment="Exposed",
         steps=[],
     )
 
@@ -44,7 +44,7 @@ function _check_args(h)
 end
 @recipe function f(
     h::Plot_EpiHeatmaps;
-    compartment="Infected",
+    compartment="Exposed",
     steps=[],
 )
     _check_args(h)
