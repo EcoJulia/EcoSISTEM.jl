@@ -10,6 +10,7 @@ save_path = (@isdefined save_path) ? save_path : pwd()
 
 age_cats = [1, 2, 4]
 numclasses = 3
+numvirus = 1
 abuns = Vector{Array{Int64, 3}}(undef, length(age_cats))
 sumabuns = Vector{Array{Int64, 2}}(undef, length(age_cats))
 for i in eachindex(age_cats)
@@ -39,7 +40,8 @@ for i in eachindex(age_cats)
     susceptible = fill(Int64.(50_000_000/age_cats[i]), age_cats[i])
     infected = fill(Int64.(10_000/age_cats[i]), age_cats[i])
     dead = fill(0, age_cats[i])
-    abun = [virus; susceptible; infected; dead]
+    abun_h = [susceptible; infected; dead]
+    abun_v = [virus]
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(100.0km, numclasses * age_cats[i])
@@ -49,8 +51,8 @@ for i in eachindex(age_cats)
     movement = AlwaysMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-    traits = GaussTrait(fill(298.0K, numclasses * age_cats[i]), fill(0.1K, numclasses * age_cats[i]))
-    epilist = SIS(traits, abun, movement, param, age_cats[i])
+    traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+    epilist = SIS(traits, abun_v, abun_h, movement, param, age_cats[i])
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
@@ -58,14 +60,14 @@ for i in eachindex(age_cats)
 
     # Run simulation
     times = 2years; interval = 1day; timestep = 1day
-    abuns[i] = zeros(Int64, numclasses * age_cats[i] + 1, 16, convert(Int64, floor(times / interval)) + 1)
+    abuns[i] = zeros(Int64, numclasses * age_cats[i], 16, convert(Int64, floor(times / interval)) + 1)
     thisabun = abuns[i]
     @time simulate_record!(thisabun, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "age_cats_$(age_cats[i])"))
 
     # Test no-one dies (death rate = 0)
     @test sum(thisabun[end, :, :]) == 0
     # Test overall population size stays constant (birth rate = death rate = 0)
-    @test all(sum(thisabun[2:(2 * age_cats[i] + 1), :, :], dims = (1, 2)) .== sum(susceptible + infected))
+    @test all(sum(thisabun[1:(2 * age_cats[i]), :, :], dims = (1, 2)) .== sum(susceptible + infected))
     sumabuns[i] = sum(abuns[i], dims = 2)[:, 1, :]
 end
 
@@ -73,8 +75,8 @@ end
 
 for j in 2:length(sumabuns)
     for i in 2:numclasses
-        cat_idx1 = reshape(1:(numclasses * age_cats[j - 1]), age_cats[j - 1], numclasses) .+ 1
-        cat_idx2 = reshape(1:(numclasses * age_cats[j]), age_cats[j], numclasses) .+ 1
+        cat_idx1 = reshape(1:(numclasses * age_cats[j - 1]), age_cats[j - 1], numclasses)
+        cat_idx2 = reshape(1:(numclasses * age_cats[j]), age_cats[j], numclasses)
         @test isapprox(sum(sumabuns[j-1][cat_idx1[:, i], :], dims = 1), sum(sumabuns[j][cat_idx2[:, i], :], dims = 1), rtol = 5e-2)
     end
 end

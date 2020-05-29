@@ -10,6 +10,7 @@ do_save = (@isdefined do_save) ? do_save : false
 save_path = (@isdefined save_path) ? save_path : pwd()
 
 numclasses = 5
+numvirus = 1
 # Set simulation parameters
 birth = fill(0.0/day, numclasses)
 death = fill(0.0/day, numclasses)
@@ -37,6 +38,8 @@ initial_pops = (
   dead = 5,
 )
 abun = [initial_pops...]
+abun_h = abun[2:end]
+abun_v = [abun[1]]
 
 # Dispersal kernels for virus and disease classes
 dispersal_dists = fill(100.0km, numclasses)
@@ -45,8 +48,8 @@ kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-traits = GaussTrait(fill(298.0K, numclasses), fill(0.1K, numclasses))
-epilist = SEIR(traits, abun, movement, param)
+traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+epilist = SEIR(traits, abun_v, abun_h, movement, param)
 
 # Create epi system with all information
 rel = Gauss{eltype(epienv.habitat)}()
@@ -62,15 +65,15 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), grid[1]*grid[2], convert(In
 # Test no-one additional dies (death rate = 0)
 @test all(sum(abuns[end, :, :], dims = (1)) .== initial_pops.dead)
 # Test overall population size stays constant (birth rate = death rate = 0)
-@test all(sum(abuns[2:end, :, :], dims = (1, 2)) .==
+@test all(sum(abuns, dims = (1, 2)) .==
   initial_pops.susceptible + initial_pops.infected + initial_pops.dead)
 
 ### TEST OUTPUTS
 # TODO: When shifting out virus from Epilist, these indexes will need updating.
 
-idx_sus = 2
-idx_rec = 5
-idx_dead = 6
+idx_sus = 1
+idx_rec = 4
+idx_dead = 5
 
 # Test susceptible population decreasing or constant only [Source]
 @test all(diff(vec(sum(abuns[idx_sus, :, :], dims = 1))) .<= 0)
