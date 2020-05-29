@@ -10,6 +10,7 @@ save_path = (@isdefined save_path) ? save_path : pwd()
 
 grid_sizes = [4, 8, 16]
 numclasses = 3
+numvirus = 1
 abuns = Vector{Array{Int64, 3}}(undef, length(grid_sizes))
 sumabuns = Vector{Array{Int64, 2}}(undef, length(grid_sizes))
 for i in eachindex(grid_sizes)
@@ -34,7 +35,8 @@ for i in eachindex(grid_sizes)
     susceptible = 1_000_000 * maximum(grid_sizes)^2
     infected = 250 * maximum(grid_sizes)^2
     dead = 0
-    abun = [virus, susceptible, infected, dead]
+    abun_v = [virus]
+    abun_h = [susceptible, infected, dead]
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(100.0km, numclasses)
@@ -43,8 +45,8 @@ for i in eachindex(grid_sizes)
     movement = AlwaysMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-    traits = GaussTrait(fill(298.0K, numclasses), fill(0.1K, numclasses))
-    epilist = SIS(traits, abun, movement, param)
+    traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+    epilist = SIS(traits, abun_v, abun_h, movement, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
@@ -60,13 +62,13 @@ for i in eachindex(grid_sizes)
     # Test no-one dies (death rate = 0)
     @test sum(thisabun[end, :, :]) == 0
     # Test overall population size stays constant (birth rate = death rate = 0)
-    @test all(sum(thisabun[2:3, :, :], dims = (1, 2)) .== (susceptible + infected))
+    @test all(sum(thisabun[1:2, :, :], dims = (1, 2)) .== (susceptible + infected))
     sumabuns[i] = sum(abuns[i], dims = 2)[:, 1, :]
 end
 
 # For each disease category, check trajectory is the same when we change grid size
 for j in 2:length(sumabuns)
-    for i in 2:numclasses
+    for i in 1:numclasses
         @test isapprox(sumabuns[j-1][i, :], sumabuns[j][i, :], rtol = 5e-2)
     end
 end

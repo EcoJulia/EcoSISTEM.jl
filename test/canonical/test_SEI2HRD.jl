@@ -15,6 +15,7 @@ save_path = (@isdefined save_path) ? save_path : pwd()
 ##
 # Set simulation parameters
 numclasses = 7
+numvirus = 1
 birth = fill(0.0/day, numclasses)
 death = fill(0.0/day, numclasses)
 virus_growth_asymp = virus_growth_symp = 1e-3/day
@@ -59,6 +60,8 @@ initial_pops = (
   dead = 0,
 )
 abun = [initial_pops...]
+abun_h = abun[2:end]
+abun_v = [abun[1]]
 
 # Dispersal kernels for virus dispersal from different disease classes
 dispersal_dists = fill(1.0km, numclasses)
@@ -68,16 +71,16 @@ kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-traits = GaussTrait(fill(298.0K, numclasses), fill(0.1K, numclasses))
-epilist = Simulation.SEI2HRD(traits, abun, movement, param)
+traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+epilist = SEI2HRD(traits, abun_v, abun_h, movement, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
 new_symptomatic = new_asymptomatic = 100
-new_virus = 1000
+new_virus = 1_000
 epi = EpiSystem(epilist, epienv, rel)
-human(epi.abundances)[1, 1] = new_virus
-human(epi.abundances)[4:5, 1] .= new_symptomatic
+virus(epi.abundances)[1, 1] = new_virus
+human(epi.abundances)[3:4, 1] .= new_symptomatic
 
 # Run simulation
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
@@ -86,7 +89,7 @@ times = 1year; interval = 1day; timestep = 1day
 
 
 # Test everyone becomes infected and dies
-@test sum(abuns[2, :, 365]) == 0
+@test sum(abuns[1, :, 365]) == 0
 @test sum(abuns[end, :, 365]) == (initial_pops.susceptible + new_symptomatic + new_asymptomatic)
 
 ## Low transmission & 100% case fatality
@@ -137,6 +140,8 @@ initial_pops = (
 )
 
 abun = [initial_pops...]
+abun_h = abun[2:end]
+abun_v = [abun[1]]
 
 # Dispersal kernels for virus dispersal from different disease classes
 dispersal_dists = fill(1.0km, numclasses)
@@ -146,8 +151,8 @@ kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-traits = GaussTrait(fill(298.0K, numclasses), fill(0.1K, numclasses))
-epilist = Simulation.SEI2HRD(traits, abun, movement, param)
+traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+epilist = SEI2HRD(traits, abun_v, abun_h, movement, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
@@ -155,7 +160,7 @@ new_symptomatic = new_asymptomatic = 100
 new_virus = 1000
 epi = EpiSystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
-human(epi.abundances)[4:5, 1] .= new_symptomatic
+human(epi.abundances)[3:4, 1] .= new_symptomatic
 
 # Run simulation
 times = 1year; interval = 1day; timestep = 1day
@@ -166,15 +171,15 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix,
 
 
 # Test no one becomes infected & dies # TODO: Check this comment
-@test sum(abuns[2, :, 365]) == initial_pops.susceptible
+@test sum(abuns[1, :, 365]) == initial_pops.susceptible
 @test sum(abuns[end, :, 365]) == (new_symptomatic + new_asymptomatic) + initial_pops.dead
 
 ### TEST OUTPUTS
 # TODO: When shifting out virus from Epilist, these indexes will need updating.
 
-idx_sus = 2
-idx_rec = 7
-idx_dead = 8
+idx_sus = 1
+idx_rec = 6
+idx_dead = 7
 
 # Test susceptible population decreasing or constant only [Source]
 @test all(diff(vec(sum(abuns[idx_sus, :, :], dims = 1))) .<= 0)

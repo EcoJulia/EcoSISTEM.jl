@@ -36,7 +36,8 @@ Function to create an empty EpiLandscape given a GridEpiEnv and a
 EpiList.
 """
 function emptyepilandscape(epienv::GridEpiEnv, epilist::EpiList)
-  mat = zeros(Int64, counttypes(epilist, true), countsubcommunities(epienv))
-  dimension = (counttypes(epilist, true), _getdimension(epienv.habitat)...)
-  return EpiLandscape(mat, mat, dimension)
+  mat_human = zeros(Int64, counttypes(epilist.human, true), countsubcommunities(epienv))
+  mat_virus = zeros(Int64, counttypes(epilist.virus, true), countsubcommunities(epienv))
+  dimension = (counttypes(epilist.human, true), _getdimension(epienv.habitat)...)
+  return EpiLandscape(mat_human, mat_virus, dimension)
 end
