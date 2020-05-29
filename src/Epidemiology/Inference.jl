@@ -9,7 +9,7 @@ function SIR_wrapper(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64}
     times = runtimes.times; interval = runtimes.interval
     Ncells = grid_size[1] * grid_size[2]
     numclasses = 4
-    abuns = zeros(Int64, numclasses + 1, Ncells, convert(Int64, floor(times / interval)) + 1)
+    abuns = zeros(Int64, numclasses, Ncells, convert(Int64, floor(times / interval)) + 1)
     return SIR_wrapper!(grid_size, area, params, runtimes, abuns)
 end
 """
@@ -22,6 +22,7 @@ Fills an abundance matrice of compartment by grid cell over time. Compartments f
 function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64}, params::NamedTuple, runtimes::NamedTuple, abuns::Array{Int64, 3})
     # Set up
     numclasses = 4
+    numvirus = 1
     Ncells = grid_size[1] * grid_size[2]
 
     # Extract model params from tuple
@@ -50,6 +51,8 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
         dead = 0,
     )
     abun = [initial_pops...]
+    abun_h = abun[2:end]
+    abun_v = [abun[1]]
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(sqrt(area/Ncells)/5, numclasses)
@@ -58,8 +61,8 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
     movement = AlwaysMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-    traits = GaussTrait(fill(298.0K, numclasses), fill(0.1K, numclasses))
-    epilist = SIR(traits, abun, movement, param)
+    traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+    epilist = SIR(traits, abun_v, abun_h, movement, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
