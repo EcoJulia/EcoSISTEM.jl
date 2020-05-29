@@ -52,7 +52,7 @@ end
 )
     _check_args(h)
     epi, abuns = h.args
-    idx = _compartment_idx(compartment, epi.epilist.names)
+    idx = _compartment_idx(compartment, epi.epilist.human.names)
     if isempty(steps)
         steps = _default_steps(abuns)
     end
@@ -122,7 +122,7 @@ plot_epidynamics
 
     if isnothing(category_map)
         # Make each compartment its own category
-        category_map = (name => [idx] for (idx, name) in enumerate(epi.epilist.names))
+        category_map = (name => [idx] for (idx, name) in enumerate(epi.epilist.human.names))
     end
 
     for (name, idx) in category_map
