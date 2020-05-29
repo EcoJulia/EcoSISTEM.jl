@@ -65,9 +65,9 @@ epi = EpiSystem(epilist, epienv, rel)
 
 # Add in initial infections randomly (samples weighted by population size)
 N_cells = size(epi.abundances.matrix, 2)
-samp = sample(1:N_cells, weights(1.0 .* human(epi.abundances)[1, :]), 100)
+samp = sample(weights(1.0 .* human(epi.abundances)[1, :]), 100)
 virus(epi.abundances)[1, samp] .= 100 # Virus pop
-human(epi.abundances)[3:4, samp] .= 10 # Inf pop
+human(epi.abundances)[2, samp] .= 10 # Exposed pop
 
 # Run simulation
 abuns = zeros(Int64, numclasses, N_cells, 366)

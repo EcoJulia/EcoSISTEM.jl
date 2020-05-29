@@ -111,7 +111,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
 
                 # Add to transitional probabilities
                 trans_val = (params.transition[j, :] .* timestep) .+ env_inf .+  force_inf
-                trans_prob = 1.0 .- exp.(-1 .* trans_val)
+                trans_prob = 1.0 .- exp.(-trans_val)
 
                 # Make transitions
                 trans = collect(rand(rng, b) for b in Binomial.(human(epi.abundances)[:, i],  trans_prob))

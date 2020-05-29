@@ -18,7 +18,7 @@ numclasses = 7
 numvirus = 1
 birth = fill(0.0/day, numclasses)
 death = fill(0.0/day, numclasses)
-virus_growth_asymp = virus_growth_symp = 1e-1/day
+virus_growth_asymp = virus_growth_symp = 1e-3/day
 virus_decay = 1/3days
 beta_force = 1e3/day
 beta_env = 1e3/day
