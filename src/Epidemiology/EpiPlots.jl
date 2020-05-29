@@ -27,6 +27,9 @@ Plot heatmaps of `abuns` for `compartment` at `steps`.
 - `compartment`: The compartment to plot
 - `steps`: A list of steps to plot (one heatmap for each step). If empty, plots 4
     equally-spaced steps.
+
+!!! note
+    Heatmaps are transposed by default. Pass in `transpose=false` to turn this off.
 """
 plot_epiheatmaps
 @userplot Plot_EpiHeatmaps
@@ -55,12 +58,20 @@ end
     end
 
     layout := length(steps)
+    # Transpose by default
+    # `match_dimensions` is the same as `transpose`
+    match_dimensions --> true
 
     subplot = 1
     gridsize = size(epi.epienv.habitat.matrix)
     for step in steps
         data = Float64.(reshape(abuns[idx, :, step], gridsize...))
         data[.!epi.epienv.active] .= NaN
+        x = 1:size(data, 2)
+        y = 1:size(data, 1)
+        if plotattributes[:match_dimensions]
+            x, y = y, x
+        end
         @series begin
             seriestype := :heatmap
             title := "Step $step ($compartment)"
@@ -69,7 +80,7 @@ end
             background_color_outside --> :white
             aspect_ratio --> 1
             grid --> false
-            data
+            x, y, data
         end
         subplot += 1
     end
