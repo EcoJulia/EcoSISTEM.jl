@@ -7,10 +7,13 @@ using StatsBase
 
 do_plot = false
 
+numvirus = 1
+numclasses = 7
+
 # Set simulation parameters
 birth_rates = 1e-5/day; death_rates = birth_rates
-birth = [0.0/day; fill(birth_rates, 6); 0.0/day]
-death = [0.0/day; fill(death_rates, 6); 0.0/day]
+birth = [fill(birth_rates, 6); 0.0/day]
+death = [fill(death_rates, 6); 0.0/day]
 virus_growth_asymp = virus_growth_symp = 0.1/day
 virus_decay = 1.0/day
 beta_force = 10.0/day
@@ -44,16 +47,17 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, area, NoControl(), scotpop)
 
 # Set population to initially have no individuals
-abun = fill(0, 8)
+abun_h = fill(0, numclasses)
+abun_v = fill(0, numvirus)
 
 # Dispersal kernels for virus and disease classes
-dispersal_dists = [1e-2km; fill(2.0km, 6); 1e-2km] # Virus disperses further than people for now
+dispersal_dists = [fill(2.0km, 6); 1e-2km] # Virus disperses further than people for now
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-traits = GaussTrait(fill(298.0K, 8), fill(0.1K, 8))
-epilist = Simulation.SEI2HRD(traits, abun, movement, param)
+traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+epilist = Simulation.SEI2HRD(traits, abun_v, abun_h, movement, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
@@ -61,12 +65,12 @@ epi = EpiSystem(epilist, epienv, rel)
 
 # Add in initial infections randomly (samples weighted by population size)
 N_cells = size(epi.abundances.matrix, 2)
-samp = sample(1:N_cells, weights(1.0 .* Simulation.human(epi.abundances)[2, :]), 100)
-Simulation.virus(epi.abundances)[1, samp] .= 100 # Virus pop
-Simulation.human(epi.abundances)[4:5, samp] .= 10 # Inf pop
+samp = sample(weights(1.0 .* human(epi.abundances)[1, :]), 100)
+virus(epi.abundances)[1, samp] .= 100 # Virus pop
+human(epi.abundances)[2, samp] .= 10 # Exposed pop
 
 # Run simulation
-abuns = zeros(Int64, 8, N_cells, 366)
+abuns = zeros(Int64, numclasses, N_cells, 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 

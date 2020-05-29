@@ -11,6 +11,7 @@ do_plot = false
 # Set simulation parameters
 age_categories = 10
 numclasses = 7
+numvirus = 1
 birth_rates = fill(0.0/day, numclasses, age_categories)
 death_rates = fill(0.0/day, numclasses, age_categories)
 birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years); death_rates[1:end-1, :] .= uconvert(day^-1, 1/100years)
@@ -55,33 +56,34 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, area, NoControl(), scotpop)
 
 # Set population to initially have no individuals
-abun = fill(0, numclasses * age_categories + 1)
+abun_h = fill(0, numclasses * age_categories)
+abun_v = fill(0, numvirus)
 
 # Dispersal kernels for virus and disease classes
-dispersal_dists = fill(1.0km, numclasses * age_categories + 1)
-cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses) .+ 1
+dispersal_dists = fill(1.0km, numclasses * age_categories)
+cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
 dispersal_dists[vcat(cat_idx[:, 3:4]...)] .= 20.0km
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-traits = GaussTrait(fill(298.0K, numclasses * age_categories + 1), fill(0.1K, numclasses * age_categories + 1))
-epilist = SEI2HRD(traits, abun, movement, param, age_categories)
+traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+epilist = SEI2HRD(traits, abun_v, abun_h, movement, param, age_categories)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
 epi = EpiSystem(epilist, epienv, rel)
 
 # Spread susceptibles randomly over age categories
-split_pop = rand.(Multinomial.(Int.(epi.abundances.matrix[2, :]), 10))
+split_pop = rand.(Multinomial.(Int.(epi.abundances.matrix[1, :]), 10))
 for j in 1:size(epi.abundances.matrix, 2)
     epi.abundances.matrix[cat_idx[:, 1], j] .= split_pop[j]
 end
 
 # Add in initial infections randomly (samples weighted by population size)
 N_cells = size(epi.abundances.matrix, 2)
-samp = sample(1:N_cells, weights(1.0 .* epi.abundances.matrix[2, :]), 100)
-epi.abundances.matrix[vcat(cat_idx[:, 4:5]...), samp] .= 10 # Inf pop
+samp = sample(weights(1.0 .* epi.abundances.matrix[1, :]), 100)
+epi.abundances.matrix[vcat(cat_idx[:, 2]...), samp] .= 10 # Exposed pop
 
 # Run simulation
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells, 366)
