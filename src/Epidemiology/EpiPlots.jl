@@ -61,6 +61,7 @@ end
     # Transpose by default
     # `match_dimensions` is the same as `transpose`
     match_dimensions --> true
+    seriescolor --> :heat
 
     subplot = 1
     gridsize = size(epi.epienv.habitat.matrix)
