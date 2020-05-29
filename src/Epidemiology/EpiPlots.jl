@@ -80,6 +80,8 @@ end
             background_color_outside --> :white
             aspect_ratio --> 1
             grid --> false
+            xlims --> extrema(x)
+            ylims --> extrema(y)
             x, y, data
         end
         subplot += 1
