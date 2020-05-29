@@ -46,7 +46,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
     initial_pops = (
         virus = 0,
         susceptible = 500_000 * Ncells,
-        infected = 100 * Ncells,
+        infected = 0,
         recovered = 0,
         dead = 0,
     )
@@ -67,6 +67,9 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel)
+
+    # Seed infected category at a single location
+    human(epi.abundances)[2, 1] = 100 * Ncells
 
     # Run simulation
     times = runtimes.times; interval = runtimes.interval; timestep = runtimes.timestep
