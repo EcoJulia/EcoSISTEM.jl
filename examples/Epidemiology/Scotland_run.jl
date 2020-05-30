@@ -8,6 +8,17 @@ using Distributions
 
 do_plot = false
 
+# Read in population sizes for Scotland
+scotpop = parse_scotpop(Simulation.path("test", "examples", "scrc_demographics.h5"))
+# Sum up age categories and turn into simple matrix
+total_pop = Matrix(dropdims(sum(scotpop, dims=3), dims=3))
+
+# Read number of age categories
+age_categories = size(scotpop, 3)
+
+# Set up simple gridded environment
+area = 525_000.0km^2
+
 # Set simulation parameters
 numclasses = 7
 numvirus = 1
@@ -43,17 +54,7 @@ param = SEI2HRDGrowth(birth_rates, death_rates, ageing,
                       T_lat, T_asym, T_sym, T_hosp, T_rec)
 param = transition(param, age_categories)
 
-# Read in population sizes for Scotland
-scotpop = parse_scotpop(Simulation.path("test", "examples", "scrc_demographics.h5"))
-# Sum up age categories and turn into simple matrix
-total_pop = Matrix(sum(scotpop, dims=3)[:, :])
-
-# Set up simple gridded environment
-area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, area, NoControl(), total_pop)
-
-# Read number of age categories
-age_categories = size(scotpop, 3)
 
 # Set population to initially have no individuals
 abun_h = fill(0, numclasses * age_categories)
@@ -73,6 +74,11 @@ rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
 epi = EpiSystem(epilist, epienv, rel)
+
+# Populate susceptibles according to actual population spread
+for j in 1:size(epi.abundances.matrix, 2)
+    epi.abundances.matrix[cat_idx[:, 1], j] .= split_pop[j]
+end
 
 # Spread susceptibles randomly over age categories
 split_pop = rand.(Multinomial.(Int.(epi.abundances.matrix[1, :]), 10))
