@@ -81,7 +81,7 @@ epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
 
 # Add in initial infections randomly (samples weighted by population size)
 N_cells = size(epi.abundances.matrix, 2)
-samp = sample(1:N_cells, weights(1.0 .* epi.abundances.matrix[2, :]), 100)
+samp = sample(1:N_cells, weights(1.0 .* sum(epi.abundances.matrix, dims=1)), 100)
 epi.abundances.matrix[vcat(cat_idx[:, 2]...), samp] .= 10 # Exposed pop
 
 # Run simulation
