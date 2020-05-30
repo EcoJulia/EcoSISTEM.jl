@@ -9,9 +9,9 @@ using Distributions
 do_plot = false
 
 # Read in population sizes for Scotland
-scotpop = parse_scotpop(Simulation.path("test", "examples", "scrc_demographics.h5"))
+scotpop = parse_scotpop(Simulation.path("test", "examples", "scrc_demographics.h5"), grid="1k")
 # Sum up age categories and turn into simple matrix
-total_pop = Matrix(dropdims(sum(scotpop, dims=3), dims=3))
+total_pop = dropdims(sum(scotpop, dims=3), dims=3)
 
 # Read number of age categories
 age_categories = size(scotpop, 3)
@@ -76,19 +76,12 @@ rel = Gauss{eltype(epienv.habitat)}()
 epi = EpiSystem(epilist, epienv, rel)
 
 # Populate susceptibles according to actual population spread
-for j in 1:size(epi.abundances.matrix, 2)
-    epi.abundances.matrix[cat_idx[:, 1], j] .= split_pop[j]
-end
-
-# Spread susceptibles randomly over age categories
-split_pop = rand.(Multinomial.(Int.(epi.abundances.matrix[1, :]), 10))
-for j in 1:size(epi.abundances.matrix, 2)
-    epi.abundances.matrix[cat_idx[:, 1], j] .= split_pop[j]
-end
+reshaped_pop = reshape(scotpop, size(scotpop, 1) * size(scotpop, 2), size(scotpop, 3))'
+epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
 
 # Add in initial infections randomly (samples weighted by population size)
 N_cells = size(epi.abundances.matrix, 2)
-samp = sample(weights(1.0 .* epi.abundances.matrix[1, :]), 100)
+samp = sample(1:N_cells, weights(1.0 .* epi.abundances.matrix[2, :]), 100)
 epi.abundances.matrix[vcat(cat_idx[:, 2]...), samp] .= 10 # Exposed pop
 
 # Run simulation
