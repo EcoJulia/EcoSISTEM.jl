@@ -4,14 +4,14 @@ os:
   - linux
   - osx
 julia: # https://github.com/ScottishCovidResponse/SCRCIssueTracking/issues/16
-  - 1.0.5
   - 1.4
+  - 1.5.0-beta1
 notifications:
   email: false
 
 jobs:
   allow_failures:
-    - julia: 1.0.5
+    - julia: 1.5.0-beta1
   include:
     - stage: "Documentation"
       julia: 1.4
