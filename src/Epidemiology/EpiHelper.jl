@@ -199,6 +199,11 @@ function update_output_abuns(
     timestep::Int;
     h5fn=joinpath(pwd(),"abundances.h5")
 )
+    if !(isfile(h5fn) && ishdf5(h5fn))
+        throw(ArgumentError(
+            "$(h5fn) does not exist or is not a valid HDF5 file"
+        ))
+    end
     h5open(h5fn, "cw") do fid
         fid["abundances"]["abuns"][:,:,timestep] = abuns_t
     end
