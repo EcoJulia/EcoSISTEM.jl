@@ -148,6 +148,8 @@ export populate!
 include("Epidemiology/EpiHelper.jl")
 export simulate!, simulate_record!
 
+include("Epidemiology/EpiPlots.jl")
+
 include("Epidemiology/Inference.jl")
 export SIR_wrapper, SIR_wrapper!
 

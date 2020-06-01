@@ -31,6 +31,8 @@ zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))
     EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractRelationship} <: AbstractEpiSystem{EE, EL, ER}
 
 EpiSystem houses information on different disease classes, `epilist`, the environment, `epienv`, and their relationship to one another, `relationship`.
+
+See `help?>plot_epidynamics` and `help?>plot_epiheatmaps` for relevant plotting functions.
 """
 mutable struct EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship} <: AbstractEpiSystem{EE, EL, ER}
   abundances::EpiLandscape
