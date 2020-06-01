@@ -47,8 +47,16 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, area, NoControl(), scotpop)
 
 # Set population to initially have no individuals
-abun_h = fill(0, numclasses)
-abun_v = fill(0, numvirus)
+abun_h = (
+    Susceptible = 0,
+    Exposed = 0,
+    Asymptomatic = 0,
+    Symptomatic = 0,
+    Hospitalised = 0,
+    Recovered = 0,
+    Dead = 0,
+)
+abun_v = (Virus = 0,)
 
 # Dispersal kernels for virus and disease classes
 dispersal_dists = [fill(2.0km, 6); 1e-2km] # Virus disperses further than people for now
@@ -57,7 +65,7 @@ movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = Simulation.SEI2HRD(traits, abun_v, abun_h, movement, param)
+epilist = EpiList(traits, abun_v, abun_h, movement, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
@@ -65,7 +73,7 @@ epi = EpiSystem(epilist, epienv, rel)
 
 # Add in initial infections randomly (samples weighted by population size)
 N_cells = size(epi.abundances.matrix, 2)
-samp = sample(weights(1.0 .* human(epi.abundances)[1, :]), 100)
+samp = sample(1:N_cells, weights(1.0 .* human(epi.abundances)[1, :]), 100)
 virus(epi.abundances)[1, samp] .= 100 # Virus pop
 human(epi.abundances)[2, samp] .= 10 # Exposed pop
 

@@ -31,16 +31,13 @@ for i in eachindex(grid_sizes)
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
     # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-    initial_pops = (
-        virus = 0,
-        susceptible = 500_000 * maximum(grid_sizes)^2,
-        infected = 100 * maximum(grid_sizes)^2,
-        recovered = 0,
-        dead = 0,
+    abun_h = (
+      Susceptible = 500_000 * maximum(grid_sizes)^2,
+      Infected = 100 * maximum(grid_sizes)^2,
+      Recovered = 0,
+      Dead = 0
     )
-    abun = [initial_pops...]
-    abun_h = abun[2:end]
-    abun_v = [abun[1]]
+    abun_v = (Virus = 0,)
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(100.0km, numclasses)
@@ -50,7 +47,7 @@ for i in eachindex(grid_sizes)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = SIR(traits, abun_v, abun_h, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, movement, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
@@ -66,7 +63,7 @@ for i in eachindex(grid_sizes)
     @test sum(thisabun[end, :, :]) == 0
     # Test overall population size stays constant (birth rate = death rate = 0)
     @test all(sum(thisabun[1:3, :, :], dims = (1, 2)) .==
-        (initial_pops.susceptible + initial_pops.infected + initial_pops.recovered))
+        (abun_h.Susceptible + abun_h.Infected + abun_h.Recovered))
     sumabuns[i] = sum(abuns[i], dims = 2)[:, 1, :]
 end
 

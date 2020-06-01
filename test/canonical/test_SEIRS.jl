@@ -29,18 +29,14 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-initial_pops = (
-  virus = 0,
-  susceptible = 500_000 * prod(grid),
-  exposed = 0,
-  infected = 100 * prod(grid),
-  recovered = 0,
-  dead = 0,
+abun_h = (
+  Susceptible = 500_000 * prod(grid),
+  Exposed = 0,
+  Infected = 100 * prod(grid),
+  Recovered = 0,
+  Dead = 0
 )
-abun = [initial_pops...]
-abun_h = abun[2:end]
-abun_v = [abun[1]]
-
+abun_v = (Virus = 0,)
 # Dispersal kernels for virus and disease classes
 dispersal_dists = fill(100.0km, numclasses)
 dispersal_dists[3] = 700.0km
@@ -49,7 +45,7 @@ movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = SEIRS(traits, abun_v, abun_h, movement, param)
+epilist = EpiList(traits, abun_v, abun_h, movement, param)
 
 # Create epi system with all information
 rel = Gauss{eltype(epienv.habitat)}()
@@ -61,9 +57,9 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), grid[1]*grid[2], convert(In
 @time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=save_path)
 
 # Test no-one dies (death rate = 0)
-@test sum(abuns[end, :, :]) == initial_pops.dead
+@test sum(abuns[end, :, :]) == abun_h.Dead
 # Test overall population size stays constant (birth rate = death rate = 0)
-@test all(sum(abuns[1:4, :, :], dims = (1, 2)) .== (initial_pops.susceptible + initial_pops.infected))
+@test all(sum(abuns[1:4, :, :], dims = (1, 2)) .== (abun_h.Susceptible + abun_h.Infected))
 
 ### TEST OUTPUTS
 # TODO: When shifting out virus from Epilist, these indexes will need updating.
@@ -74,10 +70,10 @@ idx_dead = 5
 
 # Test susceptible population decreasing or constant only [Source]
 # https://github.com/ScottishCovidResponse/Simulation.jl/pull/37
-@test sum(abuns[idx_sus, :, 1]) == initial_pops.susceptible
+@test sum(abuns[idx_sus, :, 1]) == abun_h.Susceptible
 
-@test sum(abuns[idx_rec, :, 1]) == initial_pops.recovered
+@test sum(abuns[idx_rec, :, 1]) == abun_h.Recovered
 
 # Test dead population increasing or constant only [Sink]
 @test all(diff(vec(sum(abuns[idx_dead, :, :], dims = 1))) .>= 0)
-@test sum(abuns[idx_dead, :, 1]) == initial_pops.dead
+@test sum(abuns[idx_dead, :, 1]) == abun_h.Dead

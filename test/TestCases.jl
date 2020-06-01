@@ -54,15 +54,18 @@ function TestEpiSystem()
     area = 10.0km^2
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
-    abun_h = [1000, 1, 0, 0]
-    abun_v = [10]
+    abun_h = (
+    Susceptible = 1000,
+    Infected = 1, Recovered = 0,
+    Dead = 0)
+    abun_v = (Virus = 10,)
 
     dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = AlwaysMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = SIR(traits, abun_v, abun_h, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, movement, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel)
@@ -86,15 +89,18 @@ function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
     epienv = simplehabitatAE(298.0K, area, NoControl(), initial_pop)
 
     # Zero susceptible so we can test the specified initial_pop
-    abun_h = [0, 1, 0, 0]
-    abun_v = [10]
+    abun_h = (
+    Susceptible = 0,
+    Infected = 1, Recovered = 0,
+    Dead = 0)
+    abun_v = (Virus = 10,)
 
     dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = AlwaysMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = SIR(traits, abun_v, abun_h, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, movement, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel)
