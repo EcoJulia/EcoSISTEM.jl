@@ -150,6 +150,9 @@ export simulate!, simulate_record!
 
 include("Epidemiology/EpiPlots.jl")
 
+include("Epidemiology/Inference.jl")
+export SIR_wrapper, SIR_wrapper!
+
 # Path into package
 path(paths...) = joinpath(@__DIR__, "..", paths...)
 
