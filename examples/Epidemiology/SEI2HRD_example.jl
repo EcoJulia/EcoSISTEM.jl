@@ -40,7 +40,7 @@ param = SEI2HRDGrowth(birth, death, virus_growth_asymp, virus_growth_symp, virus
 param = transition(param)
 
 # Read in population sizes for Scotland
-scotpop = Array{Float64, 2}(readfile("test/examples/ScotlandDensity2011.tif", 0.0, 7e5, 5e5, 1.25e6))
+scotpop = Array{Float64, 2}(readfile(Simulation.path("test", "examples", "ScotlandDensity2011.tif"), 0.0, 7e5, 5e5, 1.25e6))
 
 # Set up simple gridded environment
 area = 525_000.0km^2
