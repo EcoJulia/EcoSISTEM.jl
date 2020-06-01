@@ -95,7 +95,9 @@ function simulate_record!(
   grid_id = map(Iterators.product(axisvalues(epi.epienv.initial_population)...)) do (x,y)
       return string.(Int(x), "-", Int(y))
   end
-  grid_id = vec(grid_id) # TODO: construct `grid-id` correctly
+  # TODO: confirm converting `grid_id` from matrix to vector in the way below gives the
+  # correct order assumed in the model
+  grid_id = vec(grid_id)
   axes = (;
       compartment = epi.epilist.human.names,
       grid_id = grid_id,
