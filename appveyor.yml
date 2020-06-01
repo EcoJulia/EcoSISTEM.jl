@@ -1,7 +1,7 @@
 environment:
   matrix:
-  - julia_version: 1
-  - julia_version: nightly
+  - julia_version: 1.4
+  - julia_version: 1.5
 
 platform:
   - x86
@@ -9,7 +9,7 @@ platform:
 
 matrix:
   allow_failures:
-  - julia_version: nightly
+  - julia_version: 1.5
 
 #branches:
 #  only:
