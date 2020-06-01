@@ -132,7 +132,6 @@ function simulate_record!(
 
   # save simulation results
   save && Simulation.save(joinpath(save_path, "final_system.jlso"), epi)
-  save && JLSO.save(joinpath(save_path, "abundances.jlso"), :abundances => storage)
   return storage
 end
 
@@ -208,14 +207,3 @@ function update_output_abuns(
         fid["abundances"]["abuns"][:,:,timestep] = abuns_t
     end
 end
-
-
-
-# TEMP
-# using AxisArrays
-# using HDF5
-#
-# # - to check what's saved
-# f = h5open("test.h5", "r")
-# abuns_data = read(f["abundances"]["abuns"])
-# close(f)
