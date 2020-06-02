@@ -47,6 +47,8 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, area, NoControl(), scotpop)
 
 # Set population to initially have no individuals
+sus = ["Susceptible"]
+inf = ["Asymptomatic", "Symptomatic"]
 abun_h = (
     Susceptible = 0,
     Exposed = 0,
@@ -55,6 +57,8 @@ abun_h = (
     Hospitalised = 0,
     Recovered = 0,
     Dead = 0,
+    susceptibility = sus,
+    infectious = inf
 )
 abun_v = (Virus = 0,)
 

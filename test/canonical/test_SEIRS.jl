@@ -29,12 +29,15 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
+sus = ["Susceptible"]
+inf = ["Infected"]
 abun_h = (
   Susceptible = 500_000 * prod(grid),
   Exposed = 0,
   Infected = 100 * prod(grid),
   Recovered = 0,
-  Dead = 0
+  Dead = 0,
+  susceptibility = sus, infectious = inf
 )
 abun_v = (Virus = 0,)
 # Dispersal kernels for virus and disease classes

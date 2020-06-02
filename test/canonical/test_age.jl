@@ -40,10 +40,13 @@ for i in eachindex(age_cats)
     susceptible = fill(Int64.(50_000_000/age_cats[i]), age_cats[i])
     infected = fill(Int64.(10_000/age_cats[i]), age_cats[i])
     dead = fill(0, age_cats[i])
+    sus = ["Susceptible"]
+    inf = ["Infected"]
     abun_h = (
       Susceptible = susceptible,
       Infected = infected,
-      Dead = dead
+      Dead = dead,
+      susceptibility = sus, infectious = inf
     )
     abun_v = (Virus = virus,)
 

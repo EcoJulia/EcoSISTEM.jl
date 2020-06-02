@@ -54,10 +54,12 @@ function TestEpiSystem()
     area = 10.0km^2
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
+    sus = ["Susceptible"]
+    inf = ["Infected"]
     abun_h = (
     Susceptible = 1000,
     Infected = 1, Recovered = 0,
-    Dead = 0)
+    Dead = 0, susceptibility = sus, infectious = inf)
     abun_v = (Virus = 10,)
 
     dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
@@ -89,10 +91,13 @@ function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
     epienv = simplehabitatAE(298.0K, area, NoControl(), initial_pop)
 
     # Zero susceptible so we can test the specified initial_pop
+    sus = ["Susceptible"]
+    inf = ["Infected"]
     abun_h = (
     Susceptible = 0,
     Infected = 1, Recovered = 0,
-    Dead = 0)
+    Dead = 0,
+    susceptibility = sus, infectious = inf)
     abun_v = (Virus = 10,)
 
     dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]

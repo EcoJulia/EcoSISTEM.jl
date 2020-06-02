@@ -31,11 +31,14 @@ for i in eachindex(grid_sizes)
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
     # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
+    sus = ["Susceptible"]
+    inf = ["Infected"]
     abun_h = (
       Susceptible = 500_000 * maximum(grid_sizes)^2,
       Infected = 100 * maximum(grid_sizes)^2,
       Recovered = 0,
-      Dead = 0
+      Dead = 0,
+      susceptibility = sus, infectious = inf
     )
     abun_v = (Virus = 0,)
 

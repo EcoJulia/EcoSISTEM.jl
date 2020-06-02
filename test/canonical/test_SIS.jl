@@ -35,10 +35,13 @@ for i in eachindex(grid_sizes)
     susceptible = 1_000_000 * maximum(grid_sizes)^2
     infected = 250 * maximum(grid_sizes)^2
     dead = 0
+    sus = ["Susceptible"]
+    inf = ["Infected"]
     abun_h = (
       Susceptible = susceptible,
       Infected = infected,
-      Dead = dead
+      Dead = dead,
+      susceptibility = sus, infectious = inf
     )
     abun_v = (Virus = virus,)
 

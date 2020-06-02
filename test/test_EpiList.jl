@@ -15,10 +15,12 @@ virus_decay = 0.07/day
 param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
 param = transition(param)
 
+sus = ["Susceptible"]
+inf = ["Infected"]
 abun_h = (
 Susceptible = 1000,
 Infected = 1, Recovered = 0,
-Dead = 0)
+Dead = 0, susceptibility = sus, infectious = inf)
 abun_v = (Virus = 10,)
 
 dispersal_dists = [fill(2.0km, 3); 1e-2km]
