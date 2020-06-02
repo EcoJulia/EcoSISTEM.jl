@@ -108,11 +108,12 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple, mov
     # Test for susceptibility/infectiousness categories
     haskey(human_abun, :infectious) || error("Missing 'infectious' key - vector of infectious categories")
     haskey(human_abun, :susceptibility) || error("Missing 'susceptibility' key - vector of susceptible categories")
+
+    # Extract infectious/susceptible categories
     susceptibility = human_abun.susceptibility
     infectious = human_abun.infectious
+    # Find their index locations in the names list
     names = collect(string.(keys(human_abun)))
-    sus = Vector{Int64}(indexin(susceptibility, names))
-    inf = Vector{Int64}(indexin(infectious, names))
     rm_idx = indexin(["susceptibility", "infectious"], names)
     deleteat!(names, rm_idx)
     abuns = vcat(collect(human_abun)...)
@@ -120,6 +121,8 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple, mov
     deleteat!(abuns, rm_idx)
 
     new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories, j in names][1:end]
+    sus = findall(occursin.(susceptibility, new_names))
+    inf = vcat(map(i -> findall(occursin.(infectious[i], new_names)), eachindex(infectious))...)
     ht = UniqueTypes(length(new_names))
     human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns), ht, movement, sus, inf)
 
@@ -128,6 +131,8 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple, mov
     vt = UniqueTypes(length(virus_names))
     virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt)
 
+    length(sus) == length(susceptibility) * age_categories || throw(DimensionMismatch("Number of susceptible categories is incorrect"))
+    length(inf) == length(infectious) * age_categories || throw(DimensionMismatch("Number of infectious categories is incorrect"))
     length(movement.kernels) == length(new_names) || throw(DimensionMismatch("Movement vector doesn't match number of disease classes"))
     length(traits.mean) == length(virus_names) || throw(DimensionMismatch("Trait vector doesn't match number of virus classes"))
     size(params.transition, 1) == length(new_names) || throw(DimensionMismatch("Transition matrix doesn't match number of disease classes"))
