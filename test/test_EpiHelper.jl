@@ -1,3 +1,4 @@
+using HDF5
 using Simulation
 using Test
 using Distributions
@@ -31,7 +32,10 @@ epi = TestEpiSystem()
     @test isfile(joinpath("TEMP", "configuration.jlso"))
     @test isfile(joinpath("TEMP", "initial_system.jlso"))
     @test isfile(joinpath("TEMP", "final_system.jlso"))
-    @test isfile(joinpath("TEMP", "abundances.jlso"))
+    @test isfile(joinpath("TEMP", "abundances.h5"))
+    # Check output abundance HDF5 file
+    saved_abuns = h5read(joinpath("TEMP", "abundances.h5"), "abundances/abuns")
+    @test saved_abuns == abun
     # Delete temporary directory
     rm("TEMP", recursive=true)
     @test all(abun .>= 0)
