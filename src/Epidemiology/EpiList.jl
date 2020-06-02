@@ -32,17 +32,19 @@ mutable struct HumanTypes{MO <: AbstractMovement,
   abun::Vector{Int64}
   types::T
   movement::MO
+  susceptible::Vector{Int64}
+  infectious::Vector{Int64}
 
-  function HumanTypes{MO, T}(names:: Vector{String}, abun::Vector{Int64}, types::T, movement::MO) where {
+  function HumanTypes{MO, T}(names:: Vector{String}, abun::Vector{Int64}, types::T, movement::MO, susceptible::Vector{Int64}, infectious::Vector{Int64}) where {
                        MO <: AbstractMovement,
                        T <: AbstractTypes}
-      new{MO, T}(names, abun, types, movement)
+      new{MO, T}(names, abun, types, movement, susceptible, infectious)
   end
-  function HumanTypes{MO, T}(abun::Vector{Int64}, types::T, movement::MO) where {
+  function HumanTypes{MO, T}(abun::Vector{Int64}, types::T, movement::MO, susceptible::Vector{Int64}, infectious::Vector{Int64}) where {
                        MO <: AbstractMovement,
                        T <: AbstractTypes}
       names = map(x -> "$x", 1:length(abun))
-      new{MO, T}(names, abun, types, movement)
+      new{MO, T}(names, abun, types, movement, susceptible, infectious)
   end
 end
 
@@ -103,10 +105,23 @@ end
 Function to create an `EpiList` for any type of epidemiological model - creating the correct number of classes and checking dimensions.
 """
 function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple, movement::MO, params::P, age_categories::Int64 = 1) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
+    # Test for susceptibility/infectiousness categories
+    haskey(abun_h, :infectious) || error("Missing 'infectious' key - vector of infectious categories")
+    haskey(abun_h, :susceptibility) || error("Missing 'susceptibility' key - vector of susceptible categories")
+    susceptibility = human_abun.susceptibility
+    infectious = human_abun.infectious
     names = collect(string.(keys(human_abun)))
+    sus = Vector{Int64}(indexin(susceptibility, names))
+    inf = Vector{Int64}(indexin(infectious, names))
+    rm_idx = indexin(["susceptibility", "infectious"], names)
+    deleteat!(names, rm_idx)
+    abuns = vcat(collect(human_abun)...)
+    rm_idx = indexin([susceptibility; infectious], abuns)
+    deleteat!(abuns, rm_idx)
+
     new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories, j in names][1:end]
     ht = UniqueTypes(length(new_names))
-    human = HumanTypes{typeof(movement), typeof(ht)}(new_names, vcat(collect(human_abun)...), ht, movement)
+    human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns), ht, movement, sus, inf)
 
     virus_names = collect(string.(keys(virus_abun)))
     virus_names = [ifelse(i == 1, "$(virus_names[i])", "$(virus_names[i])$i") for i in 1:length(virus_abun)]
