@@ -40,7 +40,7 @@ param = SEI2HRDGrowth(birth, death, virus_growth_asymp, virus_growth_symp, virus
 param = transition(param)
 
 # Read in population sizes for Scotland
-scotpop = Array{Float64, 2}(readfile("test/examples/ScotlandDensity2011.tif", 0.0, 7e5, 5e5, 1.25e6))
+scotpop = Array{Float64, 2}(readfile(Simulation.path("test", "examples", "ScotlandDensity2011.tif"), 0.0, 7e5, 5e5, 1.25e6))
 
 # Set up simple gridded environment
 area = 525_000.0km^2
@@ -65,7 +65,7 @@ epi = EpiSystem(epilist, epienv, rel)
 
 # Add in initial infections randomly (samples weighted by population size)
 N_cells = size(epi.abundances.matrix, 2)
-samp = sample(weights(1.0 .* human(epi.abundances)[1, :]), 100)
+samp = sample(1:N_cells, weights(1.0 .* human(epi.abundances)[1, :]), 100)
 virus(epi.abundances)[1, samp] .= 100 # Virus pop
 human(epi.abundances)[2, samp] .= 10 # Exposed pop
 
@@ -76,13 +76,6 @@ times = 1year; interval = 1day; timestep = 1day
 
 if do_plot
     using Plots
-    plotlyjs()
     # View summed SIR dynamics for whole area
-    display(plot(mapslices(sum, abuns[1, :, :], dims = 1)[1, :], color = :Blue, label = "Susceptible"))
-    display(plot!(mapslices(sum, abuns[2, :, :], dims = 1)[1, :], color = :Orange, label = "Exposed"))
-    display(plot!(mapslices(sum, abuns[3, :, :], dims = 1)[1, :], color = :Yellow, label = "Asymptomatic"))
-    display(plot!(mapslices(sum, abuns[4, :, :], dims = 1)[1, :], color = :Red, label = "Symptomatic"))
-    display(plot!(mapslices(sum, abuns[5, :, :], dims = 1)[1, :], color = :Darkred, label = "Hospital"))
-    display(plot!(mapslices(sum, abuns[6, :, :], dims = 1)[1, :], color = :Green, label = "Recovered"))
-    display(plot!(mapslices(sum, abuns[7, :, :], dims = 1)[1, :], color = :Black, label = "Deaths"))
+    display(plot_epidynamics(epi, abuns))
 end

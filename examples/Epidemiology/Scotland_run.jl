@@ -97,15 +97,18 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells, 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
+
 if do_plot
     using Plots
-    #plotlyjs()
     # View summed SIR dynamics for whole area
-    display(plot(mapslices(sum, abuns[cat_idx[:, 1], :, :], dims = (1, 2))[1, 1, :], color = :Blue, label = "Susceptible"))
-    display(plot!(mapslices(sum, abuns[cat_idx[:, 2], :, :], dims = (1, 2))[1, 1, :], color = :Orange, label = "Exposed"))
-    display(plot!(mapslices(sum, abuns[cat_idx[:, 3], :, :], dims = (1, 2))[1, 1, :], color = :Yellow, label = "Asymptomatic"))
-    display(plot!(mapslices(sum, abuns[cat_idx[:, 4], :, :], dims = (1, 2))[1, 1, :], color = :Red, label = "Symptomatic"))
-    display(plot!(mapslices(sum, abuns[cat_idx[:, 5], :, :], dims = (1, 2))[1, 1, :], color = :Darkred, label = "Hospital"))
-    display(plot!(mapslices(sum, abuns[cat_idx[:, 6], :, :], dims = (1, 2))[1, 1, :], color = :Green, label = "Recovered"))
-    display(plot!(mapslices(sum, abuns[cat_idx[:, 7], :, :], dims = (1, 2))[1, 1, :], color = :Black, label = "Deaths"))
+    category_map = (
+        "Susceptible" => cat_idx[:, 1],
+        "Exposed" => cat_idx[:, 2],
+        "Asymptomatic" => cat_idx[:, 3],
+        "Symptomatic" => cat_idx[:, 4],
+        "Hospital" => cat_idx[:, 5],
+        "Recovered" => cat_idx[:, 6],
+        "Deaths" => cat_idx[:, 7],
+    )
+    display(plot_epidynamics(epi, abuns; category_map=category_map))
 end
