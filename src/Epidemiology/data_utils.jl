@@ -1,23 +1,20 @@
 using HDF5
 
 """
-    parse_scotpop(path; grid="10k")
+    parse_hdf5(path; grid="10k", component="scotland_2018")
 
-Parse HDF5-format file at `path`, containing the Scottish population by age. The data is
-read on a grid with cells of size `grid` meters x `grid` meters.
+Parse HDF5-format file at `path`, containing `component`. The data is
+read on a grid with cells of size `grid` meters x `grid` meters and ages are assumed to be
+binned into 5 years intervals, starting at zero and going up to 90+.
 """
-function parse_scotpop(path; grid="10k")
+function parse_hdf5(path; grid="10k", component="scotland_2018")
     # TODO write a method that automatically downloads the file from Github if no path is
     # provided.
     grid in ["1k", "10k"] || throw(
         ArgumentError("Invalid argument value grid=$grid. Allowed values are 1k or 10k.")
     )
 
-    data = h5read(path, "scotland_2018")
-
-    # Get age brackets
-    ages = [string(5*i)*"-"*string(5*i+4) for i in 0:17]
-    push!(ages, "90+")
+    data = h5read(path, component)
 
     # Get rows and columns
     field = "grid" * grid
@@ -28,12 +25,12 @@ function parse_scotpop(path; grid="10k")
     # Create empty grid
     cell_size = parse(Int, chop(grid))km
     population = AxisArray(
-        zeros(max_row, max_column, length(ages)),
+        zeros(max_row, max_column, 19),
         # Placing the coordinates of the cell as the distance between its origin and the
         # origin of the grid.
         grid_x=[cell_size * (i - 1) for i in 1:max_row],
         grid_y=[cell_size * (i - 1) for i in 1:max_column],
-        age=ages,
+        age=[5 * i * year for i in 0:18],
     )
 
     # Populate grid

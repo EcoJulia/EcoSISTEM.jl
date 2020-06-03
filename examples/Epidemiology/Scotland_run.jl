@@ -9,7 +9,7 @@ using Distributions
 do_plot = false
 
 # Read in population sizes for Scotland
-scotpop = parse_scotpop(Simulation.path("test", "examples", "scrc_demographics.h5"), grid="10k")
+scotpop = parse_hdf5(Simulation.path("test", "examples", "scrc_demographics.h5"), grid="10k")
 # Sum up age categories and turn into simple matrix
 total_pop = dropdims(sum(scotpop, dims=3), dims=3)
 
