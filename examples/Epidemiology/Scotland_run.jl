@@ -9,7 +9,7 @@ using Distributions
 do_plot = false
 
 # Read in population sizes for Scotland
-scotpop = parse_scotpop(Simulation.path("test", "examples", "scrc_demographics.h5"), grid="1k")
+scotpop = parse_scotpop(Simulation.path("test", "examples", "scrc_demographics.h5"), grid="10k")
 # Sum up age categories and turn into simple matrix
 total_pop = dropdims(sum(scotpop, dims=3), dims=3)
 
@@ -80,9 +80,17 @@ reshaped_pop = reshape(scotpop, size(scotpop, 1) * size(scotpop, 2), size(scotpo
 epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
 
 # Add in initial infections randomly (samples weighted by population size)
-N_cells = size(epi.abundances.matrix, 2)
-samp = sample(1:N_cells, weights(1.0 .* sum(epi.abundances.matrix, dims=1)), 100)
-epi.abundances.matrix[vcat(cat_idx[:, 2]...), samp] .= 10 # Exposed pop
+# Define generator for all pair age x cell
+age_and_cells = Iterators.product(1:age_categories, 1:size(epi.abundances.matrix, 2))
+# Take all susceptibles of each age per cell
+pop_weights = epi.abundances.matrix[vcat(cat_idx[:, 1]...), :]
+# It would be nice if it wasn't necessary to call collect here
+samp = sample(collect(age_and_cells), weights(1.0 .* vec(pop_weights)), 100)
+age_ids = getfield.(samp, 1)
+cell_ids = getfield.(samp, 2)
+epi.abundances.matrix[vcat(cat_idx[age_ids, 2]...), cell_ids] .= 10 # Add to exposed
+epi.abundances.matrix[vcat(cat_idx[age_ids, 1]...), cell_ids] =
+epi.abundances.matrix[vcat(cat_idx[age_ids, 1]...), cell_ids] .- 10 # Remove from susceptible
 
 # Run simulation
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells, 366)
