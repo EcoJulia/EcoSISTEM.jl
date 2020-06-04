@@ -122,24 +122,24 @@ function genlookups(epienv::AbstractEpiEnv, mov::LongTailKernel)
     return EpiLookup(_lookup(relsize, m, p, b, _2Dt_disperse))
 end
 
-function getsize(epi::AbstractEpiSystem)
+function getsize(epi::T) where {T<:AbstractEpiSystem}
   return _getsize(epi.epienv.habitat)
 end
 
-function getgridsize(epi::AbstractEpiSystem)
+function getgridsize(epi::T) where {T<:AbstractEpiSystem}
   return _getgridsize(epi.epienv.habitat)
 end
 
-function getdimension(epi::AbstractEpiSystem)
+function getdimension(epi::T) where {T<:AbstractEpiSystem}
     return _getdimension(epi.epienv.habitat)
 end
 
 
-function gettraitrel(epi::AbstractEpiSystem)
+function gettraitrel(epi::T) where {T<:AbstractEpiSystem}
   return epi.relationship
 end
 
-function gethabitat(epi::AbstractEpiSystem)
+function gethabitat(epi::T) where {T<:AbstractEpiSystem}
   return epi.epienv.habitat
 end
 
