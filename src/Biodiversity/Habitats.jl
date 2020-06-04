@@ -144,20 +144,20 @@ function _countsubcommunities(hab::DiscreteHab)
   return length(hab.matrix)
 end
 
-function _getdimension(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
+function _getdimension(hab::T) where {T<:Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}}
     return (size(hab.matrix, 1), size(hab.matrix, 2))
 end
-function _getsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
+function _getsize(hab::T) where {T<:Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}}
   x = hab.size * size(hab.matrix, 1)
   y = hab.size * size(hab.matrix, 2)
   return x * y
 end
 import Base.size
-function size(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, d)
+function size(hab::T, d) where {T<:Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}}
     return size(hab.matrix, d)
 end
 
-function _getgridsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
+function _getgridsize(hab::T) where {T<:Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}}
   return hab.size
 end
 
@@ -222,17 +222,17 @@ function _resettime!(hab::HabitatCollection3)
     _resettime!(hab.h3)
 end
 
-function _getdimension(hab::Union{HabitatCollection2, HabitatCollection3})
+function _getdimension(hab::T) where {T<:Union{HabitatCollection2, HabitatCollection3}}
     return (size(hab.h1.matrix, 1), size(hab.h2.matrix, 2))
 end
-function _getsize(hab::Union{HabitatCollection2, HabitatCollection3})
+function _getsize(hab::T) where {T<:Union{HabitatCollection2, HabitatCollection3}}
   return _getsize(hab.h1)
 end
-function size(hab::Union{HabitatCollection2, HabitatCollection3}, d)
+function size(hab::T, d) where {T<:Union{HabitatCollection2, HabitatCollection3}}
     return size(hab.h1, d)
 end
 
-function _getgridsize(hab::Union{HabitatCollection2, HabitatCollection3})
+function _getgridsize(hab::T) where {T<:Union{HabitatCollection2, HabitatCollection3}}
   return _getgridsize(hab.h1)
 end
 
