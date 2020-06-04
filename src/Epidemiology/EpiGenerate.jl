@@ -94,6 +94,9 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
 
     # Loop through grid squares
     Threads.@threads for i in 1:dims
+        # will result +=/-= 0 at end of inner loop, so safe to skip
+        all(iszero, human(epi.abundances)[:, i]) && continue
+
         rng = epi.abundances.seed[Threads.threadid()]
         N = sum_pop(epi.abundances.matrix, i)
         # Convert 1D dimension to 2D coordinates
@@ -109,6 +112,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Note transposition of transition matrices to make iteration over k faster
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
+                iszero(human(epi.abundances)[k, i]) && continue # will result +=/-= 0 at end of loop
                 env_inf = (params.transition_virus[j, k] * timestep * virus(epi.abundances)[1, i]) / N
 
                 force_inf = (params.transition_force[j, k] * timestep * epi.cache.virusmigration[1, i]) / N
@@ -116,10 +120,10 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 # Add to transitional probabilities
                 trans_val = (params.transition[j, k] * timestep) + env_inf + force_inf
                 trans_prob = 1 - exp(-trans_val)
+                iszero(trans_prob) && continue # will result +=/-= 0 at end of loop
 
                 # Make transitions
-                b = Binomial(human(epi.abundances)[k, i], trans_prob)
-                trans = rand(rng, b)
+                trans = rand(rng, Binomial(human(epi.abundances)[k, i], trans_prob))
                 human(epi.abundances)[j, i] += trans
                 human(epi.abundances)[k, i] -= trans
             end
@@ -168,6 +172,19 @@ end
 
 function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
     lookup = getlookup(epi, id)
+
+    # lookup.pnew[i] would be set to zero at the top of the loop, but do it here instead
+    # incase we return early when we discover there's no hard work to do
+    fill!(lookup.pnew, zero(eltype(lookup.pnew)))
+
+    # If all lookup.p are zero or abun is zero then there's no need to do anything.
+    # This is because the insertion of non-zero rands into lookup.moves depends on dist
+    # producing non rands, which is only true if both abun and lookup.p are non-zero
+    if iszero(abun) || all(iszero, lookup.p)
+      fill!(lookup.moves, zero(eltype(lookup.moves)))
+      return nothing
+    end
+
     maxX = getdimension(epi)[1]
     maxY = getdimension(epi)[2]
     # the for loop looks a bit grotty because it's been optimised
@@ -175,7 +192,6 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, ep
     lookuppnew, lookupp, lookupx, lookupy = lookup.pnew, lookup.p, lookup.x, lookup.y
     epiepienvactive = epi.epienv.active
     @inbounds for i in eachindex(lookupx)
-        lookuppnew[i] = zero(eltype(lookuppnew))
         lookuppi = lookupp[i]
         iszero(lookuppi) && continue # then lookuppnew is already correct
         lookupxi = lookupx[i] + x
@@ -185,9 +201,11 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, ep
         epiepienvactive[lookupxi, lookupyi] || continue # skip if inactive
         lookuppnew[i] = lookuppi
     end
+    # Case that produces NaN (if sum(lookup.pnew) also pnew always .>= 0) dealt with above
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
     rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    return nothing
 end
 
 function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
@@ -223,6 +241,7 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::Ab
     dist = Multinomial(abun, lookup.pnew)
     rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
 end
+
 
 """
     virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Int64, 2}, newvirus::Int64)
