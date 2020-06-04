@@ -80,6 +80,7 @@ function sum_pop(M::Matrix{Int64}, i::Int64)
     return N
 end
 
+
 """
     classupdate!(epi::EpiSystem, timestep::Unitful.Time)
 Function to update disease class abundances for one timestep.
@@ -90,33 +91,37 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     params = epi.epilist.params
     width = getdimension(epi)[1]
     classes = size(human(epi.abundances), 1)
+
     # Loop through grid squares
     Threads.@threads for i in 1:dims
         rng = epi.abundances.seed[Threads.threadid()]
         N = sum_pop(epi.abundances.matrix, i)
+        # Convert 1D dimension to 2D coordinates
+        (x, y) = convert_coords(epi, i, width)
+        # Check if grid cell currently active. If inactive skip the inner loop
+        epi.epienv.active[x, y] || continue
         # Loop through classes in chosen square
         for j in 1:classes
-            # Convert 1D dimension to 2D coordinates
-            (x, y) = convert_coords(epi, i, width)
-            # Check if grid cell currently active
-            if epi.epienv.active[x, y]
-                # Births
-                births = rand(rng, Binomial(human(epi.abundances)[j, i],  params.births[j] * timestep))
-                human(epi.abundances)[1, i] += births
+            # Births
+            births = rand(rng, Binomial(human(epi.abundances)[j, i],  params.births[j] * timestep))
+            human(epi.abundances)[1, i] += births
 
-                # Calculate force of inf and env inf
-                env_inf = (params.transition_virus[j, :] .* timestep .* virus(epi.abundances)[1, i]) ./ N
+            # Note transposition of transition matrices to make iteration over k faster
+            # Calculate force of inf and env inf
+            for k in 1:size(params.transition_virus, 1)
+                env_inf = (params.transition_virus[j, k] * timestep * virus(epi.abundances)[1, i]) / N
 
-                force_inf = (params.transition_force[j, :] .* timestep .* epi.cache.virusmigration[1, i]) ./ N
+                force_inf = (params.transition_force[j, k] * timestep * epi.cache.virusmigration[1, i]) / N
 
                 # Add to transitional probabilities
-                trans_val = (params.transition[j, :] .* timestep) .+ env_inf .+  force_inf
-                trans_prob = 1.0 .- exp.(-trans_val)
+                trans_val = (params.transition[j, k] * timestep) + env_inf + force_inf
+                trans_prob = 1 - exp(-trans_val)
 
                 # Make transitions
-                trans = collect(rand(rng, b) for b in Binomial.(human(epi.abundances)[:, i],  trans_prob))
-                human(epi.abundances)[j, i] += sum(trans)
-                human(epi.abundances)[:, i] .-= trans
+                b = Binomial(human(epi.abundances)[k, i], trans_prob)
+                trans = rand(rng, b)
+                human(epi.abundances)[j, i] += trans
+                human(epi.abundances)[k, i] -= trans
             end
         end
     end
@@ -163,13 +168,22 @@ end
 
 function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
     lookup = getlookup(epi, id)
-    maxX = getdimension(epi)[1] - x
-    maxY = getdimension(epi)[2] - y
-    # Can't go over maximum dimension
-    for i in eachindex(lookup.x)
-        valid =  (-x < lookup.x[i] <= maxX) && (-y < lookup.y[i] <= maxY) && (epi.epienv.active[lookup.x[i] + x, lookup.y[i] + y])
-
-        lookup.pnew[i] = valid ? lookup.p[i] : 0.0
+    maxX = getdimension(epi)[1]
+    maxY = getdimension(epi)[2]
+    # the for loop looks a bit grotty because it's been optimised
+    # make references to containers on structs to avoid getproperty overheads
+    lookuppnew, lookupp, lookupx, lookupy = lookup.pnew, lookup.p, lookup.x, lookup.y
+    epiepienvactive = epi.epienv.active
+    @inbounds for i in eachindex(lookupx)
+        lookuppnew[i] = zero(eltype(lookuppnew))
+        lookuppi = lookupp[i]
+        iszero(lookuppi) && continue # then lookuppnew is already correct
+        lookupxi = lookupx[i] + x
+        (0 < lookupxi <= maxX) || continue # Can't go over maximum dimension
+        lookupyi = lookupy[i] + y
+        (0 < lookupyi <= maxY) || continue # Can't go over maximum dimension
+        epiepienvactive[lookupxi, lookupyi] || continue # skip if inactive
+        lookuppnew[i] = lookuppi
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
