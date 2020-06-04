@@ -256,12 +256,11 @@ function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{In
   # Lose moves from current grid square
   grd[id, pos] -= newvirus
   # Map moves to location in grid
-  mov = lookup.moves
-  for i in eachindex(lookup.x)
-      newx = mod(lookup.x[i] + x - 1, width) + 1
-      newy = mod(lookup.y[i] + y - 1, height) + 1
+  for (i, move) in enumerate(lookup.moves)
+      newx = mymod(lookup.x[i] + x - 1, width) + 1
+      newy = mymod(lookup.y[i] + y - 1, height) + 1
       loc = convert_coords(epi, (newx, newy), width)
-      grd[id, loc] += mov[i]
+      grd[id, loc] += move
   end
   return epi
 end
@@ -283,3 +282,15 @@ function TempChange(epi::AbstractEpiSystem, hab::ContinuousHab, timestep::Unitfu
   v = uconvert(K/unit(timestep), hab.change.rate)
   hab.matrix .+= (v * timestep)
 end
+
+function mymod(x::T, h::T) where {T<:Integer}
+    while !(-1 < x < h)
+        if x <= -1
+            x += h
+        elseif x >= h
+            x -= h
+        end
+    end
+    return x
+end
+
