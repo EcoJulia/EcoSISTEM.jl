@@ -257,11 +257,9 @@ function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{In
   grd[id, pos] -= newvirus
   # Map moves to location in grid
   @inbounds for (i, move) in enumerate(lookup.moves)
-      newx = lookup.x[i] + x - 1
-      newy = lookup.y[i] + y - 1
-      (0 <= newx < width) || (newx = quickmod(lookup.x[i] + x - 1, width))
-      (0 <= newy < height) || (newy = quickmod(lookup.y[i] + y - 1, height))
-      loc = convert_coords(epi, (newx + 1, newy + 1), width)
+      newx = quickmod(lookup.x[i] + x - 1, width) + 1
+      newy = quickmod(lookup.y[i] + y - 1, height) + 1
+      loc = convert_coords(epi, (newx, newy), width)
       grd[id, loc] += move
   end
   return epi
