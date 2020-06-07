@@ -122,6 +122,9 @@ export DiversitySet, updatesimulation!, gettimes
 include("Biodiversity/AdditionalDiversity.jl")
 export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
 
+include("Epidemiology/data_utils.jl")
+export parse_hdf5
+
 include("Epidemiology/EpiControl.jl")
 export NoControl
 
