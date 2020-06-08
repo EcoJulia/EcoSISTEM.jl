@@ -15,15 +15,27 @@ virus_decay = 0.07/day
 param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
 param = transition(param)
 
-abun_h = [1000, 1, 0, 0]
-abun_v = [10]
+sus = ["Susceptible"]
+inf = ["Infected"]
+abun_h = (
+    Susceptible = 1000,
+    Infected = 1,
+    Recovered = 0,
+    Dead = 0
+)
+disease_classes = (
+    susceptible = ["Susceptible"],
+    infectious = ["Infected"]
+)
+abun_v = (Virus = 10,)
+
 dispersal_dists = [fill(2.0km, 3); 1e-2km]
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 traits = GaussTrait([298.0K], [0.1K])
-@test_nowarn SIR(traits, abun_v, abun_h, movement, param)
-epilist = SIR(traits, abun_v, abun_h, movement, param)
+@test_nowarn EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
 @test epilist.virus.names[1] == "Virus"
 @test epilist.human.names[1] == "Susceptible"
 @test epilist.human.names[2] == "Infected"

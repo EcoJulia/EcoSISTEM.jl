@@ -49,19 +49,20 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set population to initially have no individuals
-initial_pops = (
-  virus = 0,
-  susceptible = 5_000_000,
-  exposed = 0,
-  asymptomatic = 0,
-  symptomatic = 0,
-  hospitalised = 0,
-  recovered = 0,
-  dead = 0,
+abun_h = (
+  Susceptible = 5_000_000,
+  Exposed = 0,
+  Asymptomatic = 0,
+  Symptomatic = 0,
+  Hospitalised = 0,
+  Recovered = 0,
+  Dead = 0
 )
-abun = [initial_pops...]
-abun_h = abun[2:end]
-abun_v = [abun[1]]
+disease_classes = (
+  susceptible = ["Susceptible"],
+  infectious = ["Asymptomatic", "Symptomatic"]
+)
+abun_v = (Virus = 0,)
 
 # Dispersal kernels for virus dispersal from different disease classes
 dispersal_dists = fill(1.0km, numclasses)
@@ -72,7 +73,7 @@ movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = SEI2HRD(traits, abun_v, abun_h, movement, param)
+epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
@@ -90,7 +91,7 @@ times = 1year; interval = 1day; timestep = 1day
 
 # Test everyone becomes infected and dies
 @test sum(abuns[1, :, 365]) == 0
-@test sum(abuns[end, :, 365]) == (initial_pops.susceptible + new_symptomatic + new_asymptomatic)
+@test sum(abuns[end, :, 365]) == (abun_h.Susceptible + new_symptomatic + new_asymptomatic)
 
 ## Low transmission & 100% case fatality
 ##
@@ -128,20 +129,20 @@ area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set population to initially have no individuals
-initial_pops = (
-  virus = 0,
-  susceptible = 500_000 * prod(grid),
-  exposed = 0,
-  asymptomatic = 0,
-  symptomatic = 0,
-  hospitalised = 0,
-  recovered = 0,
-  dead = 5,
+abun_h = (
+  Susceptible = 500_000 * prod(grid),
+  Exposed = 0,
+  Asymptomatic = 0,
+  Symptomatic = 0,
+  Hospitalised = 0,
+  Recovered = 0,
+  Dead = 0
 )
-
-abun = [initial_pops...]
-abun_h = abun[2:end]
-abun_v = [abun[1]]
+disease_classes = (
+  susceptible = ["Susceptible"],
+  infectious = ["Asymptomatic", "Symptomatic"]
+)
+abun_v = (Virus = 0,)
 
 # Dispersal kernels for virus dispersal from different disease classes
 dispersal_dists = fill(1.0km, numclasses)
@@ -152,7 +153,7 @@ movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = SEI2HRD(traits, abun_v, abun_h, movement, param)
+epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
@@ -171,8 +172,8 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix,
 
 
 # Test no one becomes infected & dies # TODO: Check this comment
-@test sum(abuns[1, :, 365]) == initial_pops.susceptible
-@test sum(abuns[end, :, 365]) == (new_symptomatic + new_asymptomatic) + initial_pops.dead
+@test sum(abuns[1, :, 365]) == abun_h.Susceptible
+@test sum(abuns[end, :, 365]) == (new_symptomatic + new_asymptomatic) + abun_h.Dead
 
 ### TEST OUTPUTS
 # TODO: When shifting out virus from Epilist, these indexes will need updating.
@@ -183,12 +184,12 @@ idx_dead = 7
 
 # Test susceptible population decreasing or constant only [Source]
 @test all(diff(vec(sum(abuns[idx_sus, :, :], dims = 1))) .<= 0)
-@test sum(abuns[idx_sus, :, 1]) == initial_pops.susceptible
+@test sum(abuns[idx_sus, :, 1]) == abun_h.Susceptible
 
 # Test recovered population increasing  or constant only [Sink]
 @test all(diff(vec(sum(abuns[idx_rec, :, :], dims = 1))) .>= 0)
-@test sum(abuns[idx_rec, :, 1]) == initial_pops.recovered
+@test sum(abuns[idx_rec, :, 1]) == abun_h.Recovered
 
 # Test dead population increasing or constant only [Sink]
 @test all(diff(vec(sum(abuns[idx_dead, :, :], dims = 1))) .>= 0)
-@test sum(abuns[idx_dead, :, 1]) == initial_pops.dead
+@test sum(abuns[idx_dead, :, 1]) == abun_h.Dead

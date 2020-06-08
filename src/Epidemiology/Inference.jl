@@ -43,16 +43,18 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
     epienv = simplehabitatAE(298.0K, grid_size, area, NoControl())
 
     # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-    initial_pops = (
-        virus = 0,
-        susceptible = 500_000 * Ncells,
-        infected = 0,
-        recovered = 0,
-        dead = 0,
+    abun_h = (
+        Susceptible = 500_000 * Ncells,
+        Infected = 0,
+        Recovered = 0,
+        Dead = 0
     )
-    abun = [initial_pops...]
-    abun_h = abun[2:end]
-    abun_v = [abun[1]]
+    disease_classes = (
+        susceptible = ["Susceptible"],
+        infectious = ["Infected"]
+    )
+    abun_v = (
+        Virus = 0,)
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(sqrt(area/Ncells)/5, numclasses)
@@ -62,7 +64,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = SIR(traits, abun_v, abun_h, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
