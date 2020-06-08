@@ -56,8 +56,6 @@ area = 875_000.0km^2
 epienv = simplehabitatAE(298.0K, area, NoControl(), ukpop)
 
 # Set population to initially have no individuals
-sus = ["Susceptible"]
-inf = ["Asymptomatic", "Symptomatic"]
 abun_h = (
     Susceptible = fill(0, age_categories),
     Exposed = fill(0, age_categories),
@@ -65,9 +63,11 @@ abun_h = (
     Symptomatic = fill(0, age_categories),
     Hospitalised = fill(0, age_categories),
     Recovered = fill(0, age_categories),
-    Dead = fill(0, age_categories),
-    susceptibility = sus,
-    infectious = inf
+    Dead = fill(0, age_categories)
+)
+disease_states = (
+    susceptible = ["Susceptible"],
+    infectious = ["Asymptomatic", "Symptomatic"]
 )
 abun_v = (Virus = 0,)
 
@@ -80,7 +80,7 @@ movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = EpiList(traits, abun_v, abun_h, movement, param, age_categories)
+epilist = EpiList(traits, abun_v, abun_h, disease_states, movement, param, age_categories)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
