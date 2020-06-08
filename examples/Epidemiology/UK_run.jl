@@ -15,7 +15,7 @@ numvirus = 1
 birth_rates = fill(0.0/day, numclasses, age_categories)
 death_rates = fill(0.0/day, numclasses, age_categories)
 birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years); death_rates[1:end-1, :] .= uconvert(day^-1, 1/100years)
-virus_growth_asymp = virus_growth_symp = fill(0.1/day, age_categories)
+virus_growth_asymp = virus_growth_presymp = virus_growth_symp = fill(0.1/day, age_categories)
 virus_decay = 1.0/day
 beta_force = fill(10.0/day, age_categories)
 beta_env = fill(10.0/day, age_categories)
@@ -41,7 +41,7 @@ T_hosp = 5days
 T_rec = 11days
 
 param = SEI3HRDGrowth(birth_rates, death_rates, ageing,
-                      virus_growth_asymp, virus_growth_symp, virus_decay,
+                      virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay,
                       beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital,
                       T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
 param = transition(param, age_categories)

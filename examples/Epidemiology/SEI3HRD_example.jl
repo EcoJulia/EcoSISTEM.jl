@@ -14,7 +14,7 @@ numclasses = 8
 birth_rates = 1e-5/day; death_rates = birth_rates
 birth = fill(birth_rates, numclasses)
 death = fill(death_rates, numclasses)
-virus_growth_asymp = virus_growth_symp = 0.1/day
+virus_growth_asymp = virus_growth_presymp = virus_growth_symp = 0.1/day
 virus_decay = 1.0/day
 beta_force = 10.0/day
 beta_env = 10.0/day
@@ -38,7 +38,7 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = SEI3HRDGrowth(birth, death, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
+param = SEI3HRDGrowth(birth, death, virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
 param = transition(param)
 
 # Read in population sizes for Scotland
