@@ -70,7 +70,8 @@ function simulate_record!(
     save=false,
     save_path=pwd(),
 )
-  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
+  mod(interval,timestep) == zero(mod(interval,timestep)) ||
+    error("Interval must be a multiple of timestep")
 
   # save pre-simulation inputs
   if save && !isdir(save_path) # Create the directory if it doesn't already exist.

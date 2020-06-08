@@ -5,26 +5,39 @@ using Simulation.Units
 using Simulation.ClimatePref
 using StatsBase
 using Distributions
+using AxisArrays
+using HTTP
 
 do_plot = false
 
-# Read in population sizes for Scotland
-scotpop = parse_hdf5(Simulation.path("test", "examples", "scrc_demographics.h5"), grid="10k")
-# Sum up age categories and turn into simple matrix
-total_pop = dropdims(sum(scotpop, dims=3), dims=3)
+# Download and read in population sizes for Scotland
+file, io = mktemp()
+r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
+write(io, r.body)
+close(io)
+scotpop = parse_hdf5(file, grid = "10km", component = "grid10km/10year/persons")
 
 # Read number of age categories
 age_categories = size(scotpop, 3)
 
 # Set up simple gridded environment
-area = 525_000.0km^2
+area = (AxisArrays.axes(scotpop, 1)[end] + AxisArrays.axes(scotpop, 1)[2] -
+    2 * AxisArrays.axes(scotpop, 1)[1]) *
+    (AxisArrays.axes(scotpop, 2)[end] + AxisArrays.axes(scotpop, 2)[2] -
+    2 * AxisArrays.axes(scotpop, 2)[1]) * 1.0
+
+# Sum up age categories and turn into simple matrix
+total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
+total_pop = AxisArray(total_pop, AxisArrays.axes(scotpop)[1], AxisArrays.axes(scotpop)[2])
+total_pop.data[total_pop .≈ 0.0] .= NaN
 
 # Set simulation parameters
 numclasses = 7
 numvirus = 1
 birth_rates = fill(0.0/day, numclasses, age_categories)
 death_rates = fill(0.0/day, numclasses, age_categories)
-birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years); death_rates[1:end-1, :] .= uconvert(day^-1, 1/100years)
+birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years)
+death_rates[1:end-1, :] .= uconvert(day^-1, 1/100years)
 virus_growth_asymp = virus_growth_symp = fill(0.1/day, age_categories)
 virus_decay = 1.0/day
 beta_force = fill(10.0/day, age_categories)
@@ -91,25 +104,32 @@ rel = Gauss{eltype(epienv.habitat)}()
 epi = EpiSystem(epilist, epienv, rel)
 
 # Populate susceptibles according to actual population spread
-reshaped_pop = reshape(scotpop, size(scotpop, 1) * size(scotpop, 2), size(scotpop, 3))'
+reshaped_pop =
+    reshape(scotpop[1:size(epienv.active, 1), 1:size(epienv.active, 2), :],
+            size(epienv.active, 1) * size(epienv.active, 2), size(scotpop, 3))'
 epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
 
 # Add in initial infections randomly (samples weighted by population size)
 # Define generator for all pair age x cell
-age_and_cells = Iterators.product(1:age_categories, 1:size(epi.abundances.matrix, 2))
+age_and_cells = Iterators.product(1:age_categories,
+                                  1:size(epi.abundances.matrix, 2))
 # Take all susceptibles of each age per cell
 pop_weights = epi.abundances.matrix[vcat(cat_idx[:, 1]...), :]
 # It would be nice if it wasn't necessary to call collect here
+N_cells = size(epi.abundances.matrix, 2)
 samp = sample(collect(age_and_cells), weights(1.0 .* vec(pop_weights)), 100)
 age_ids = getfield.(samp, 1)
 cell_ids = getfield.(samp, 2)
-epi.abundances.matrix[vcat(cat_idx[age_ids, 2]...), cell_ids] .= 10 # Add to exposed
+# Add to exposed
+epi.abundances.matrix[vcat(cat_idx[age_ids, 2]...), cell_ids] .= 1
+# Remove from susceptible
 epi.abundances.matrix[vcat(cat_idx[age_ids, 1]...), cell_ids] =
-epi.abundances.matrix[vcat(cat_idx[age_ids, 1]...), cell_ids] .- 10 # Remove from susceptible
+    epi.abundances.matrix[vcat(cat_idx[age_ids, 1]...), cell_ids] .- 1
 
 # Run simulation
-abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells, 366)
-times = 1year; interval = 1day; timestep = 1day
+times = 2months; interval = 1day; timestep = 1day
+abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells,
+              floor(Int, times/timestep) + 1)
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
 if do_plot
@@ -124,5 +144,6 @@ if do_plot
         "Recovered" => cat_idx[:, 6],
         "Deaths" => cat_idx[:, 7],
     )
-    display(plot_epidynamics(epi, abuns; category_map=category_map))
+    display(plot_epidynamics(epi, abuns, category_map = category_map))
+    display(plot_epiheatmaps(epi, abuns, steps = [21]))
 end

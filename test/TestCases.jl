@@ -54,12 +54,16 @@ function TestEpiSystem()
     area = 10.0km^2
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
-    sus = ["Susceptible"]
-    inf = ["Infected"]
     abun_h = (
-    Susceptible = 1000,
-    Infected = 1, Recovered = 0,
-    Dead = 0, susceptibility = sus, infectious = inf)
+        Susceptible = 1000,
+        Infected = 1,
+        Recovered = 0,
+        Dead = 0
+    )
+    disease_classes = (
+        susceptible = ["Susceptible"],
+        infectious = ["Infected"]
+    )
     abun_v = (Virus = 10,)
 
     dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
@@ -67,7 +71,7 @@ function TestEpiSystem()
     movement = AlwaysMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel)
@@ -91,13 +95,16 @@ function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
     epienv = simplehabitatAE(298.0K, area, NoControl(), initial_pop)
 
     # Zero susceptible so we can test the specified initial_pop
-    sus = ["Susceptible"]
-    inf = ["Infected"]
     abun_h = (
-    Susceptible = 0,
-    Infected = 1, Recovered = 0,
-    Dead = 0,
-    susceptibility = sus, infectious = inf)
+        Susceptible = 0,
+        Infected = 1,
+        Recovered = 0,
+        Dead = 0
+    )
+    disease_classes = (
+        susceptible = ["Susceptible"],
+        infectious = ["Infected"]
+    )
     abun_v = (Virus = 10,)
 
     dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
@@ -105,7 +112,7 @@ function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
     movement = AlwaysMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel)
