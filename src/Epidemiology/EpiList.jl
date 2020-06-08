@@ -100,7 +100,7 @@ function _getdiversityname(el::EpiList)
 end
 
 """
-    EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,disease_classes::NamedTuple, movement::MO, param::P, age_categories::Int64 = 1) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
+    EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple, disease_classes::NamedTuple, movement::MO, param::P, age_categories::Int64 = 1) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
 
 Function to create an `EpiList` for any type of epidemiological model - creating the correct number of classes and checking dimensions.
 """

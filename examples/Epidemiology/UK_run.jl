@@ -65,7 +65,7 @@ abun_h = (
     Recovered = fill(0, age_categories),
     Dead = fill(0, age_categories)
 )
-disease_states = (
+disease_classes = (
     susceptible = ["Susceptible"],
     infectious = ["Asymptomatic", "Symptomatic"]
 )
@@ -80,7 +80,7 @@ movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = EpiList(traits, abun_v, abun_h, disease_states, movement, param, age_categories)
+epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param, age_categories)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
