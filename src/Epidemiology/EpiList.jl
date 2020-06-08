@@ -57,8 +57,8 @@ mutable struct EpiList{P <: AbstractParams} <: AbstractTypes
     human::HumanTypes
     params::P
 
-    function EpiList{P}(virus::VirusTypes, human::HumanTypes, params::P) where {P <: AbstractParams}
-      new{P}(virus, human, params)
+    function EpiList{P}(virus::VirusTypes, human::HumanTypes, param::P) where {P <: AbstractParams}
+      new{P}(virus, human, param)
     end
 end
 
@@ -100,41 +100,55 @@ function _getdiversityname(el::EpiList)
 end
 
 """
-    EpiList(traits::TR, virus_abun::Vector{Int64}, human_abun::Vector{Int64}, movement::MO, params::P, age_categories::Int64 = 1) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
+    EpiList(traits::TR, virus_abun::Vector{Int64}, human_abun::Vector{Int64}, disease_classes::NamedTuple, movement::MO, param::P, age_categories::Int64 = 1) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
 
 Function to create an `EpiList` for any type of epidemiological model - creating the correct number of classes and checking dimensions.
 """
-function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple, movement::MO, params::P, age_categories::Int64 = 1) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
+function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
+                 disease_classes::NamedTuple, movement::MO, param::P,
+                 age_categories::Int64 = 1) where {TR <: AbstractTraits,
+                                                   MO <: AbstractMovement,
+                                                   P <: AbstractParams}
     # Test for susceptibility/infectiousness categories
-    haskey(human_abun, :infectious) || error("Missing 'infectious' key - vector of infectious categories")
-    haskey(human_abun, :susceptibility) || error("Missing 'susceptibility' key - vector of susceptible categories")
+    haskey(disease_classes, :infectious) ||
+        error("Missing 'infectious' key - vector of infectious categories")
+    haskey(disease_classes, :susceptible) ||
+        error("Missing 'susceptible' key - vector of susceptible categories")
 
     # Extract infectious/susceptible categories
-    susceptibility = human_abun.susceptibility
-    infectious = human_abun.infectious
+    susceptible = disease_classes.susceptible
+    infectious = disease_classes.infectious
+
     # Find their index locations in the names list
     names = collect(string.(keys(human_abun)))
-    rm_idx = indexin(["susceptibility", "infectious"], names)
-    deleteat!(names, rm_idx)
     abuns = vcat(collect(human_abun)...)
-    rm_idx = indexin([susceptibility; infectious], abuns)
-    deleteat!(abuns, rm_idx)
+#    rm_idx = indexin([susceptible; infectious], abuns)
+#    deleteat!(abuns, rm_idx)
 
-    new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories, j in names][1:end]
-    sus = findall(occursin.(susceptibility, new_names))
-    inf = vcat(map(i -> findall(occursin.(infectious[i], new_names)), eachindex(infectious))...)
+    new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories,
+                                                   j in names][1:end]
+    sus = findall(occursin.(susceptible, new_names))
+    inf = vcat(map(i -> findall(occursin.(infectious[i], new_names)),
+                   eachindex(infectious))...)
     ht = UniqueTypes(length(new_names))
-    human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns), ht, movement, sus, inf)
+    human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns),
+                                                     ht, movement, sus, inf)
 
     virus_names = collect(string.(keys(virus_abun)))
-    virus_names = [ifelse(i == 1, "$(virus_names[i])", "$(virus_names[i])$i") for i in 1:length(virus_abun)]
+    virus_names = [ifelse(i == 1, "$(virus_names[i])", "$(virus_names[i])$i")
+                   for i in 1:length(virus_abun)]
     vt = UniqueTypes(length(virus_names))
     virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt)
 
-    length(sus) == length(susceptibility) * age_categories || throw(DimensionMismatch("Number of susceptible categories is incorrect"))
-    length(inf) == length(infectious) * age_categories || throw(DimensionMismatch("Number of infectious categories is incorrect"))
-    length(movement.kernels) == length(new_names) || throw(DimensionMismatch("Movement vector doesn't match number of disease classes"))
-    length(traits.mean) == length(virus_names) || throw(DimensionMismatch("Trait vector doesn't match number of virus classes"))
-    size(params.transition, 1) == length(new_names) || throw(DimensionMismatch("Transition matrix doesn't match number of disease classes"))
-    return EpiList{typeof(params)}(virus, human, params)
+    length(sus) == length(susceptible) * age_categories ||
+        throw(DimensionMismatch("Number of susceptible categories is incorrect"))
+    length(inf) == length(infectious) * age_categories ||
+        throw(DimensionMismatch("Number of infectious categories is incorrect"))
+    length(movement.kernels) == length(new_names) ||
+        throw(DimensionMismatch("Movement vector doesn't match number of disease classes"))
+    length(traits.mean) == length(virus_names) ||
+        throw(DimensionMismatch("Trait vector doesn't match number of virus classes"))
+    size(param.transition, 1) == length(new_names) ||
+        throw(DimensionMismatch("Transition matrix doesn't match number of disease classes"))
+    return EpiList{typeof(param)}(virus, human, param)
 end

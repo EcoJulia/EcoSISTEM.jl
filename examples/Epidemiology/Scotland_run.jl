@@ -57,8 +57,6 @@ param = transition(param, age_categories)
 epienv = simplehabitatAE(298.0K, area, NoControl(), total_pop)
 
 # Set population to initially have no individuals
-sus = ["Susceptible"]
-inf = ["Asymptomatic", "Symptomatic"]
 abun_h = (
     Susceptible = fill(0, age_categories),
     Exposed = fill(0, age_categories),
@@ -66,10 +64,14 @@ abun_h = (
     Symptomatic = fill(0, age_categories),
     Hospitalised = fill(0, age_categories),
     Recovered = fill(0, age_categories),
-    Dead = fill(0, age_categories),
-    susceptibility = sus,
-    infectious = inf
+    Dead = fill(0, age_categories)
 )
+
+disease_classes = (
+    susceptible = ["Susceptible"],
+    infectious = ["Asymptomatic", "Symptomatic"]
+)
+
 abun_v = (Virus = 0,)
 
 # Dispersal kernels for virus and disease classes
@@ -81,7 +83,8 @@ movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = EpiList(traits, abun_v, abun_h, movement, param, age_categories)
+epilist = EpiList(traits, abun_v, abun_h, disease_classes,
+                  movement, param, age_categories)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
@@ -108,7 +111,6 @@ epi.abundances.matrix[vcat(cat_idx[age_ids, 1]...), cell_ids] .- 10 # Remove fro
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells, 366)
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
-
 
 if do_plot
     using Plots
