@@ -31,14 +31,15 @@ for i in eachindex(grid_sizes)
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
     # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-    sus = ["Susceptible"]
-    inf = ["Infected"]
     abun_h = (
       Susceptible = 500_000 * maximum(grid_sizes)^2,
       Infected = 100 * maximum(grid_sizes)^2,
       Recovered = 0,
-      Dead = 0,
-      susceptibility = sus, infectious = inf
+      Dead = 0
+    )
+    disease_classes = (
+        susceptible = ["Susceptible"],
+        infectious = ["Infected"]
     )
     abun_v = (Virus = 0,)
 
@@ -50,7 +51,7 @@ for i in eachindex(grid_sizes)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()

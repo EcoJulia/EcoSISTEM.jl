@@ -35,16 +35,16 @@ for i in eachindex(grid_sizes)
     susceptible = 1_000_000 * maximum(grid_sizes)^2
     infected = 250 * maximum(grid_sizes)^2
     dead = 0
-    sus = ["Susceptible"]
-    inf = ["Infected"]
     abun_h = (
       Susceptible = susceptible,
       Infected = infected,
-      Dead = dead,
-      susceptibility = sus, infectious = inf
+      Dead = dead
+    )
+    disease_classes = (
+        susceptible = ["Susceptible"],
+        infectious = ["Infected"]
     )
     abun_v = (Virus = virus,)
-
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(100.0km, numclasses)
@@ -54,7 +54,7 @@ for i in eachindex(grid_sizes)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()

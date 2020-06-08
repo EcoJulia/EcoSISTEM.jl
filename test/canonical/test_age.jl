@@ -45,8 +45,11 @@ for i in eachindex(age_cats)
     abun_h = (
       Susceptible = susceptible,
       Infected = infected,
-      Dead = dead,
-      susceptibility = sus, infectious = inf
+      Dead = dead
+    )
+    disease_classes = (
+        susceptible = ["Susceptible"],
+        infectious = ["Infected"]
     )
     abun_v = (Virus = virus,)
 
@@ -59,7 +62,7 @@ for i in eachindex(age_cats)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, param, age_cats[i])
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param, age_cats[i])
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
