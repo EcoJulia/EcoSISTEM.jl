@@ -18,7 +18,7 @@ numclasses = 8
 numvirus = 1
 birth = fill(0.0/day, numclasses)
 death = fill(0.0/day, numclasses)
-virus_growth_asymp = virus_growth_symp = 1e-3/day
+virus_growth_asymp = virus_growth_presymp = virus_growth_symp = 1e-3/day
 virus_decay = 1/3days
 beta_force = 1e3/day
 beta_env = 1e3/day
@@ -42,7 +42,7 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = Simulation.SEI3HRDGrowth(birth, death, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
+param = SEI3HRDGrowth(birth, death, virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
 param = transition(param)
 
 # Set up simple gridded environment
@@ -101,7 +101,7 @@ times = 1year; interval = 1day; timestep = 1day
 
 birth = fill(0.0/day, numclasses)
 death = fill(0.0/day, numclasses)
-virus_growth_asymp = virus_growth_symp = 1e-3/day
+virus_growth_asymp = virus_growth_presymp = virus_growth_symp = 1e-3/day
 virus_decay = 1.0/day
 beta_force = 1e-10/day
 beta_env = 1e-10/day
@@ -125,7 +125,7 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = Simulation.SEI3HRDGrowth(birth, death, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
+param = Simulation.SEI3HRDGrowth(birth, death, virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
 param = transition(param)
 
 # Set up simple gridded environment
