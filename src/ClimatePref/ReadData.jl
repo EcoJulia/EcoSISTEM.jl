@@ -5,13 +5,13 @@ using AxisArrays
 using NetCDF
 using Compat
 
-import Unitful.°, Unitful.°C, Unitful.mm
+import Unitful.°, Unitful.°C, Unitful.mm, Unitful.hr
 import ArchGDAL
 import Base.read
 const AG = ArchGDAL
 
 vardict = Dict("bio" => NaN, "prec" => mm, "srad" => u"kJ"* u"m"^-2 * day^-1, "tavg" => K, "tmax" => K, "tmin" => K, "vapr" => u"kPa", "wind" => u"m" * u"s"^-1)
-unitdict = Dict("K" => K, "m" => m, "J m**-2" => J/m^2, "m**3 m**-3" => m^3)
+unitdict = Dict("K" => K, "m" => m, "J m**-2" => J/m^2, "m**3 m**-3" => m^3, "kg m-2 s-1" => kg * m^-2 * s^-1)
 """
     read(f, filename)
 
@@ -31,6 +31,44 @@ end
 Function to search a directory `path` using a given `key` string.
 """
 searchdir(path,key) = filter(x->Compat.occursin(key, x), readdir(path))
+
+
+"""
+    readMet(dir::String, param::String)
+
+Function to extract a certain parameter, `param`, from an Met Office netcdf file, and convert into an axis array.
+"""
+function readMet(dir::String, param::String)
+
+    lat = ncread(dir, "grid_latitude")
+    lon = ncread(dir, "grid_longitude")
+    units = ncgetatt(dir, param, "units")
+    units = unitdict[units]
+    array = ncread(dir, param)
+    array = array * 1.0
+    unitarray = array .* units
+
+    uk = AxisArray(unitarray, Axis{:longitude}(lon * °), Axis{:latitude}(lat * °))
+    return uk
+end
+
+"""
+    readMet(dir::String, file::String, param::String, dim::Vector{Vector{T}})
+        where T<: Unitful.Time
+
+Function to extract a certain parameter, `param`, from a directory, `dir`, containing Met Office netcdf files,
+for a certain timerange, `dim`, and convert into an axis array.
+"""
+function readMet(dir::String, file::String, param::String, dim::Vector{T}) where T <: Unitful.Time
+    filenames = searchdir(dir, file)
+    newmet = Array{AxisArray, 1}(undef, length(filenames))
+    for i in eachindex(filenames)
+        newmet[i] = readMet(joinpath(dir, filenames[i]), param)
+    end
+    catmet = cat(dims=3, newmet ...)
+    catmet = AxisArray(catmet, Axis{:longitude}(catmet.axes[1]), Axis{:latitude}(catmet.axes[2]), Axis{:day}(dim))
+    return catmet
+end
 
 """
     readfile(file::String)
