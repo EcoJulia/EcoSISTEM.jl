@@ -4,7 +4,7 @@
 
 ## Epidemiology
 
-* We currently have an SEI2HRD compartmental model: Susceptible-Exposed-Asymptomatic-Symptomatic-Hospitalised-Recovered-Dead, as seen in Figure 1 below.
+* We currently have an SEI3HRD compartmental model: Susceptible-Exposed-Asymptomatic-Presymptomatic-Symptomatic-Hospitalised-Recovered-Dead, as seen in Figure 1 below.
 
 ### Virus update loop
 * Virus grows as the sum of several Binomial draws from each infection category, ``NV_{k, c} \sim \mathrm{Poisson}(f_c)`` where ``NV`` is new virus, ``k`` is the current grid square, ``c`` is the disease class, and ``f_c`` is the force of infection generation per disease class.
@@ -23,7 +23,7 @@
 
 
 
-![](SEI2HRD.svg)
+![](SEI3HRD.svg)
 
 *Figure 1: Current model structure.*
 
