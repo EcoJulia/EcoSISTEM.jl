@@ -32,11 +32,7 @@ indices(ah::AbstractHabitat) =
     hcat(collect.(convert_coords.(1:length(ah.matrix), xcells(ah)))...)'
 indices(ah::AbstractHabitat, idx) = indices(ah)[:, idx]
 coordinates(ah::AbstractHabitat) = indices(ah)
-"""
-    ContinuousHab <: AbstractHabitat{Float64}
 
-This habitat subtype has a matrix of floats and a float grid square size
-"""
 mutable struct HabitatUpdate{F<:Function, DT}
   changefun::F
   rate::DT
@@ -48,6 +44,11 @@ function HabitatUpdate(changefun::F, rate::DT, ::Type{D}
   return HabitatUpdate(changefun, rate)
 end
 
+"""
+    ContinuousHab{C <: Number} <: AbstractHabitat{C}
+
+This habitat subtype houses a habitat matrix `matrix` of any units, a grid square size `size` and HabitatUpdate type `change`.
+"""
 mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
   matrix::Array{C, 2}
   size::Unitful.Length
@@ -83,13 +84,18 @@ end
     xrange(H), yrange(H), h
 end
 
-mutable struct ContinuousTimeHab{C <: Number} <: AbstractHabitat{C}
-  matrix::Array{C, 3}
+"""
+    ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <: AbstractHabitat{C}
+
+This habitat subtype houses a habitat matrix `matrix` of any units, the time slice of the habitat matrix currently being operated on `time`, a grid square size `size` and HabitatUpdate type `change`.
+"""
+mutable struct ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <: AbstractHabitat{C}
+  matrix::M
   time::Int64
   size::Unitful.Length
   change::HabitatUpdate
 end
-@recipe function f(H::ContinuousTimeHab{C}, time::Int64) where C
+@recipe function f(H::ContinuousTimeHab{C, M}, time::Int64) where {C, M <: AbstractArray{C, 3}}
     h = ustrip.(H.matrix)
     seriestype  :=  :heatmap
     grid --> false
@@ -99,8 +105,8 @@ end
     xrange(H), yrange(H), h[:,:,time]
 end
 
-iscontinuous(hab::ContinuousTimeHab{C}) where C = true
-function eltype(hab::ContinuousTimeHab{C}) where C
+iscontinuous(hab::ContinuousTimeHab{C, M}) where {C, M <: AbstractArray{C, 3}} = true
+function eltype(hab::ContinuousTimeHab{C, M}) where {C, M <: AbstractArray{C, 3}}
     return C
 end
 function _resettime!(hab::ContinuousTimeHab)
