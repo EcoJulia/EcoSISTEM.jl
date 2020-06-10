@@ -15,6 +15,9 @@ export Worldclim, Bioclim, ERA, CERA, Reference
 include("ReadData.jl")
 export read, searchdir, readworldclim, readbioclim, readERA, readCERA, readfile, readCHELSA, readMet
 
+include("DownloadClimate.jl")
+export MetOfficeDownload, getMetparams, getMetdata
+
 include("ReadGBIF.jl")
 export ReadGBIF
 

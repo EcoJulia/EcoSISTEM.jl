@@ -11,7 +11,7 @@ import Base.read
 const AG = ArchGDAL
 
 vardict = Dict("bio" => NaN, "prec" => mm, "srad" => u"kJ"* u"m"^-2 * day^-1, "tavg" => K, "tmax" => K, "tmin" => K, "vapr" => u"kPa", "wind" => u"m" * u"s"^-1)
-unitdict = Dict("K" => K, "m" => m, "J m**-2" => J/m^2, "m**3 m**-3" => m^3, "kg m-2 s-1" => kg * m^-2 * s^-1)
+unitdict = Dict("K" => K, "m" => m, "J m**-2" => J/m^2, "m**3 m**-3" => m^3, "kg m-2 s-1" => kg * m^-2 * s^-1, "1" => 1, nothing => W*m^-2)
 """
     read(f, filename)
 
