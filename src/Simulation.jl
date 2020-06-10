@@ -129,7 +129,7 @@ include("Epidemiology/EpiControl.jl")
 export NoControl
 
 include("Epidemiology/EpiEnv.jl")
-export GridEpiEnv, simplehabitatAE
+export GridEpiEnv, simplehabitatAE, ukclimateAE
 
 include("Epidemiology/EpiParams.jl")
 export SISGrowth, SIRGrowth, SEIRGrowth, SEIRSGrowth, SEI2HRDGrowth, transition

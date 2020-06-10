@@ -278,9 +278,28 @@ function _habitatupdate!(epi::AbstractEpiSystem, hab::HabitatCollection2, timest
     _habitatupdate!(epi, hab.h2, timestep)
 end
 
+"""
+    TempChange(epi::EpiSystem, hab::ContinuousHab, timestep::Unitful.Time)
+
+Function to change temperature at a rate set by the habitat `hab` for one timestep.
+"""
 function TempChange(epi::AbstractEpiSystem, hab::ContinuousHab, timestep::Unitful.Time)
   v = uconvert(K/unit(timestep), hab.change.rate)
   hab.matrix .+= (v * timestep)
+end
+
+"""
+    ukChange(epi::EpiSystem, hab::ContinuousHab, timestep::Unitful.Time)
+
+Function to step the uk climate forward by one timestep. Will repeat if time counter becomes greater than the number of dimensions in the habitat.
+"""
+function ukChange(epi::EpiSystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
+    daystep = uconvert(day, timestep)
+    hab.time += round(Int64, daystep/day)
+    if hab.time > size(hab.matrix, 3)
+        hab.time = 1
+        Compat.@warn "More timesteps than available, have repeated"
+    end
 end
 
 function quickmod(x::T, h::T) where {T<:Integer}
@@ -293,4 +312,3 @@ function quickmod(x::T, h::T) where {T<:Integer}
     end
     return x
 end
-
