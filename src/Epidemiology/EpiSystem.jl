@@ -10,8 +10,8 @@ abstract type AbstractEpiSystem{Part <: AbstractEpiEnv, EL <: EpiList, TR <: Abs
 
 
 mutable struct EpiCache
-  virusdecay::Array{Int64, 2}
-  virusmigration::Array{Int64, 2}
+  virusdecay::Array{Float64, 2}
+  virusmigration::Array{Float64, 2}
   valid::Bool
 end
 
@@ -22,7 +22,7 @@ mutable struct EpiLookup
   y::Vector{Int64}
   p::Vector{Float64}
   pnew::Vector{Float64}
-  moves::Vector{Int64}
+  moves::Vector{Float64}
 end
 EpiLookup(df::DataFrame) = EpiLookup(df[!, :X], df[!, :Y], df[!, :Prob],
 zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))

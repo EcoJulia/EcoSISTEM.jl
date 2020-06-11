@@ -62,10 +62,15 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             end
         end
     end
-    vm = sum(epi.cache.virusmigration, dims = 1)[1, :]
-    nm = sum(epi.cache.virusdecay, dims = 1)[1, :]
-    virus(epi.abundances)[1, :] .+= (nm .+ vm)
-    epi.cache.virusmigration[1, :] .+= vm
+    Threads.@threads for l in 1:size(epi.cache.virusmigration, 2)
+        for k in 1:size(epi.cache.virusmigration, 1)
+            dist = Poisson(epi.cache.virusmigration[k, l])
+            epi.cache.virusmigration[k, l] = rand(rng, dist)
+        end
+        vm = sum_pop(epi.cache.virusmigration, l)
+        nm = sum_pop(epi.cache.virusdecay, l)
+        virus(epi.abundances)[1, l] += (nm + vm)
+    end
 end
 
 """
@@ -73,6 +78,14 @@ end
 Function to sum a population matrix, `M`, without memory allocation, at a grid location `i`.
 """
 function sum_pop(M::Matrix{Int64}, i::Int64)
+    N = 0
+    for j in 1:size(M, 1)
+        N += M[j, i]
+    end
+    return N
+end
+
+function sum_pop(M::Matrix{Float64}, i::Int64)
     N = 0
     for j in 1:size(M, 1)
         N += M[j, i]
@@ -204,7 +217,8 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, ep
     # Case that produces NaN (if sum(lookup.pnew) also pnew always .>= 0) dealt with above
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    # rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    lookup.moves .= abun .* lookup.pnew
     return nothing
 end
 
@@ -222,7 +236,8 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, id::Int64, epi:
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    # rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    lookup.moves .= abun .* lookup.pnew
 end
 
 function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
@@ -238,8 +253,9 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::Ab
         lookup.pnew[i] = valid ? lookup.p[i] : 0.0
     end
     lookup.pnew ./= sum(lookup.pnew)
-    dist = Multinomial(abun, lookup.pnew)
-    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    # dist = Multinomial(abun, lookup.pnew)
+    # rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    lookup.moves .= abun .* lookup.pnew
 end
 
 
@@ -248,7 +264,7 @@ end
 
 Function to calculate the movement of force of infection `id` from a given position in the landscape `pos`, using the lookup table found in the EpiSystem and updating the movement patterns on a cached grid, `grd`. The number of new virus is provided, so that movement only takes place as part of the generation process.
 """
-function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Int64, 2}, newvirus::Int64)
+function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Float64, 2}, newvirus::Int64)
   width, height = getdimension(epi)
   (x, y) = convert_coords(epi, pos, width)
   lookup = getlookup(epi, id)
@@ -293,4 +309,3 @@ function quickmod(x::T, h::T) where {T<:Integer}
     end
     return x
 end
-
