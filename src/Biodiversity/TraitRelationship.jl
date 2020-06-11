@@ -22,7 +22,8 @@ mutable struct Gauss{TR} <: AbstractTraitRelationship{TR}
 end
 
 function (::Gauss{TR})(current::TR, opt::TR, var::TR) where TR
-    return (1.0 * unit(current))/sqrt(2 * π * var^2) * exp(-abs(current - opt)^2/(2 * var^2))
+    pref = (1.0)/sqrt(2 * π * var^2) * exp(-abs(current - opt)^2/(2 * var^2))
+    return pref * unit(current)
 end
 iscontinuous(tr::Gauss{TR}) where TR = true
 function eltype(tr::Gauss{TR}) where TR

@@ -8,7 +8,7 @@ function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
     hab = eco.abenv.habitat
     trts = eco.spplist.traits
     rel = eco.relationship
-  _traitfun(hab, trts, rel, pos, sp)
+    _traitfun(hab, trts, rel, pos, sp)
 end
 
 function _traitfun(hab::HabitatCollection2, trts::TraitCollection2, rel::R, pos::Int64, sp::Int64) where R <: AbstractTraitRelationship
@@ -18,8 +18,9 @@ function _traitfun(hab::HabitatCollection2, trts::TraitCollection2, rel::R, pos:
 end
 function _traitfun(hab::ContinuousHab, trts::GaussTrait,
     rel::R, pos::Int64, sp::Int64) where R <: AbstractTraitRelationship
-        mean, var = getpref(trts, sp)
-    return rel(hab.matrix[pos], mean, var)
+    h = hab.matrix[pos]
+    mean, var = getpref(trts, sp)
+    return rel(h, mean, var)
 end
 function _traitfun(hab::ContinuousTimeHab, trts::GaussTrait,
     rel::R, pos::Int64, sp::Int64) where R <: AbstractTraitRelationship
