@@ -41,29 +41,31 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(epi, i, width)
             # Check if grid cell currently active
-            if epi.epienv.active[x, y]
-                traitmatch = traitfun(epi, i, 1)
-                # Calculate effective rates
-                birthrate = params.virus_growth[j] * timestep * human(epi.abundances)[j, i]
-                deathrate = params.virus_decay[j] * timestep * traitmatch^-1
+            epi.epienv.active[x, y] || continue
+            traitmatch = traitfun(epi, i, 1)
+            # Calculate effective rates
+            birthrate = params.virus_growth[j] * timestep * human(epi.abundances)[j, i]
+            deathrate = params.virus_decay[j] * timestep * traitmatch^-1
 
-                # Convert death rate into 0 - 1 probability
-                deathprob = 1.0 - exp(-deathrate)
+            (iszero(birthrate) && iszero(deathrate)) && continue
+            # Convert death rate into 0 - 1 probability
+            deathprob = 1.0 - exp(-deathrate)
 
-                (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthprob \n Death: $newdeathprob \n \n i: $i")
-                # Calculate how many births and deaths
-                births = rand(rng, Poisson(birthrate))
-                deaths = rand(rng, Binomial(virus(epi.abundances)[1, i], deathprob))
+            # (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthprob \n Death: $newdeathprob \n \n i: $i")
+            # Calculate how many births and deaths
+            births = rand(rng, Poisson(birthrate))
+            deaths = rand(rng, Binomial(virus(epi.abundances)[1, i], deathprob))
 
-                # Update population
-                epi.cache.virusmigration[j, i] += births
-                epi.cache.virusdecay[j, i] -= deaths
-                virusmove!(epi, i, j, epi.cache.virusmigration, births)
-            end
+            # Update population
+            epi.cache.virusmigration[j, i] += births
+            epi.cache.virusdecay[j, i] -= deaths
+            iszero(births) && continue
+            virusmove!(epi, i, j, epi.cache.virusmigration, births)
         end
     end
     Threads.@threads for l in 1:size(epi.cache.virusmigration, 2)
         for k in 1:size(epi.cache.virusmigration, 1)
+            iszero(epi.cache.virusmigration[k, l]) && continue
             dist = Poisson(epi.cache.virusmigration[k, l])
             epi.cache.virusmigration[k, l] = rand(rng, dist)
         end

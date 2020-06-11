@@ -18,9 +18,8 @@ function _traitfun(hab::HabitatCollection2, trts::TraitCollection2, rel::R, pos:
 end
 function _traitfun(hab::ContinuousHab, trts::GaussTrait,
     rel::R, pos::Int64, sp::Int64) where R <: AbstractTraitRelationship
-        h = gethabitat(hab, pos)
         mean, var = getpref(trts, sp)
-    return rel(h, mean, var)
+    return rel(hab.matrix[pos], mean, var)
 end
 function _traitfun(hab::ContinuousTimeHab, trts::GaussTrait,
     rel::R, pos::Int64, sp::Int64) where R <: AbstractTraitRelationship
