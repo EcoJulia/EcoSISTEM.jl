@@ -122,11 +122,12 @@ age_ids = getfield.(samp, 1)
 cell_ids = getfield.(samp, 2)
 
 for i in eachindex(age_ids)
-    # Add to exposed
-    epi.abundances.matrix[vcat(cat_idx[age_ids[i], 2]...), cell_ids[i]] .= 1
-    # Remove from susceptible
-    epi.abundances.matrix[vcat(cat_idx[age_ids[i], 1]...), cell_ids[i]] =
-        epi.abundances.matrix[vcat(cat_idx[age_ids[i], 1]...), cell_ids[i]] .- 1
+    if (epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] > 0)
+        # Add to exposed
+        epi.abundances.matrix[cat_idx[age_ids[i], 2], cell_ids[i]] += 1
+        # Remove from susceptible
+        epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] -= 1
+    end
 end
 
 # Run simulation
