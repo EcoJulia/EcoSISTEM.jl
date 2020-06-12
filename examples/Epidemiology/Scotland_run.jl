@@ -15,7 +15,7 @@ file, io = mktemp()
 r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
 write(io, r.body)
 close(io)
-scotpop = parse_hdf5(file, grid = "10km", component = "grid10km/10year/persons")
+scotpop = parse_hdf5(file, grid = "1km", component = "grid1km/10year/persons")
 
 # Read number of age categories
 age_categories = size(scotpop, 3)
@@ -92,9 +92,11 @@ abun_v = (Virus = 0,)
 
 # Dispersal kernels for virus and disease classes
 dispersal_dists = fill(1.0km, numclasses * age_categories)
+thresholds = fill(1e-3, numclasses * age_categories)
 cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
 dispersal_dists[vcat(cat_idx[:, 3:5]...)] .= 20.0km
-kernel = GaussianKernel.(dispersal_dists, 1e-10)
+thresholds[vcat(cat_idx[:, 3:5]...)] .= 1e-4
+kernel = GaussianKernel.(dispersal_dists, thresholds)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
