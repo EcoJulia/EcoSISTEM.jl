@@ -42,25 +42,26 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             (x, y) = convert_coords(epi, i, width)
             # Check if grid cell currently active
             epi.epienv.active[x, y] || continue
-            traitmatch = traitfun(epi, i, 1)
+
             # Calculate effective rates
             birthrate = params.virus_growth[j] * timestep * human(epi.abundances)[j, i]
-            deathrate = params.virus_decay[j] * timestep * traitmatch^-1
+            births = rand(rng, Poisson(birthrate))
 
-            (iszero(birthrate) && iszero(deathrate)) && continue
+            # Update population
+            if (!iszero(births))
+                epi.cache.virusmigration[j, i] += births
+                virusmove!(epi, i, j, epi.cache.virusmigration, births)
+            end
+
+            iszero(params.virus_decay[j]) && continue
+            traitmatch = traitfun(epi, i, 1)
+            deathrate = params.virus_decay[j] * timestep * traitmatch^-1
             # Convert death rate into 0 - 1 probability
             deathprob = 1.0 - exp(-deathrate)
 
-            # (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthprob \n Death: $newdeathprob \n \n i: $i")
             # Calculate how many births and deaths
-            births = rand(rng, Poisson(birthrate))
             deaths = rand(rng, Binomial(virus(epi.abundances)[1, i], deathprob))
-
-            # Update population
-            epi.cache.virusmigration[j, i] += births
             epi.cache.virusdecay[j, i] -= deaths
-            iszero(births) && continue
-            virusmove!(epi, i, j, epi.cache.virusmigration, births)
         end
     end
     Threads.@threads for l in 1:size(epi.cache.virusmigration, 2)
@@ -110,7 +111,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     # Loop through grid squares
     Threads.@threads for i in 1:dims
         # will result +=/-= 0 at end of inner loop, so safe to skip
-        all(iszero, human(epi.abundances)[:, i]) && continue
+        iszero(sum_pop(human(epi.abundances), i)) && continue
 
         rng = epi.abundances.seed[Threads.threadid()]
         N = sum_pop(epi.abundances.matrix, i)
@@ -218,8 +219,6 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, ep
     end
     # Case that produces NaN (if sum(lookup.pnew) also pnew always .>= 0) dealt with above
     lookup.pnew ./= sum(lookup.pnew)
-    dist = Multinomial(abun, lookup.pnew)
-    # rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
     lookup.moves .= abun .* lookup.pnew
     return nothing
 end
