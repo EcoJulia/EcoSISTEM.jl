@@ -123,11 +123,15 @@ N_cells = size(epi.abundances.matrix, 2)
 samp = sample(collect(age_and_cells), weights(1.0 .* vec(pop_weights)), 100)
 age_ids = getfield.(samp, 1)
 cell_ids = getfield.(samp, 2)
-# Add to exposed
-epi.abundances.matrix[vcat(cat_idx[age_ids, 2]...), cell_ids] .= 1
-# Remove from susceptible
-epi.abundances.matrix[vcat(cat_idx[age_ids, 1]...), cell_ids] =
-    epi.abundances.matrix[vcat(cat_idx[age_ids, 1]...), cell_ids] .- 1
+
+for i in eachindex(age_ids)
+    if (epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] > 0)
+        # Add to exposed
+        epi.abundances.matrix[cat_idx[age_ids[i], 2], cell_ids[i]] += 1
+        # Remove from susceptible
+        epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] -= 1
+    end
+end
 
 # Run simulation
 times = 2months; interval = 1day; timestep = 1day
