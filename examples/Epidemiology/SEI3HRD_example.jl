@@ -8,13 +8,13 @@ using StatsBase
 do_plot = false
 
 numvirus = 1
-numclasses = 7
+numclasses = 8
 
 # Set simulation parameters
 birth_rates = 1e-5/day; death_rates = birth_rates
-birth = [fill(birth_rates, 6); 0.0/day]
-death = [fill(death_rates, 6); 0.0/day]
-virus_growth_asymp = virus_growth_symp = 0.1/day
+birth = fill(birth_rates, numclasses)
+death = fill(death_rates, numclasses)
+virus_growth_asymp = virus_growth_presymp = virus_growth_symp = 0.1/day
 virus_decay = 1.0/day
 beta_force = 10.0/day
 beta_env = 10.0/day
@@ -26,9 +26,11 @@ p_h = 0.2
 # Case fatality ratio
 cfr_home = cfr_hospital = 0.1
 # Time exposed
-T_lat = 5days
+T_lat = 3days
 # Time asymptomatic
-T_asym = 3days
+T_asym = 5days
+# Time pre-symptomatic
+T_presym = 1.5days
 # Time symptomatic
 T_sym = 5days
 # Time in hospital
@@ -36,7 +38,7 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = SEI2HRDGrowth(birth, death, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_sym, T_hosp, T_rec)
+param = SEI3HRDGrowth(birth, death, virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
 param = transition(param)
 
 # Read in population sizes for Scotland
@@ -51,6 +53,7 @@ abun_h = (
     Susceptible = 0,
     Exposed = 0,
     Asymptomatic = 0,
+    Presymptomatic = 0,
     Symptomatic = 0,
     Hospitalised = 0,
     Recovered = 0,
@@ -58,12 +61,12 @@ abun_h = (
 )
 disease_classes = (
     susceptible = ["Susceptible"],
-    infectious = ["Asymptomatic", "Symptomatic"]
+    infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
 )
 abun_v = (Virus = 0,)
 
 # Dispersal kernels for virus and disease classes
-dispersal_dists = [fill(2.0km, 6); 1e-2km] # Virus disperses further than people for now
+dispersal_dists = fill(2.0km, numclasses)
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
@@ -83,7 +86,7 @@ human(epi.abundances)[2, samp] .= 10 # Exposed pop
 
 # Run simulation
 abuns = zeros(Int64, numclasses, N_cells, 366)
-times = 1year; interval = 1day; timestep = 1day
+times = 2months; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
 if do_plot

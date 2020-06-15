@@ -2,7 +2,7 @@
 
 *Package for running dynamic ecosystem and epidemiological simulations*
 
-[![][docs-dev-img]][docs-dev-url] [![][travis-dev-img]][travis-dev-url]
+[![][docs-dev-img]][docs-dev-url] [![][travis-dev-img]][travis-dev-url] [![][codecov-dev-img]][codecov-dev-url]
 
 ## Summary
 
@@ -28,3 +28,5 @@ problems.
 [docs-dev-url]: https://ScottishCovidResponse.github.io/Simulation.jl/dev
 [travis-dev-img]: https://travis-ci.org/ScottishCovidResponse/Simulation.jl.svg?branch=dev
 [travis-dev-url]: https://travis-ci.org/ScottishCovidResponse/Simulation.jl?branch=dev
+[codecov-dev-img]: https://codecov.io/gh/ScottishCovidResponse/Simulation.jl/branch/dev/graph/badge.svg
+[codecov-dev-url]: https://codecov.io/gh/ScottishCovidResponse/Simulation.jl?branch=dev

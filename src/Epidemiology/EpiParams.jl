@@ -288,6 +288,141 @@ function SEI2HRDGrowth(birth::Matrix{TimeUnitType{U}},
     return SEI2HRDGrowth{U}(birth, death, ageing,  virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital)
 end
 
+
+
+"""
+    SEI3HRDGrowth{U <: Unitful.Units} <: AbstractParams
+
+Parameter set that houses information on birth and death rates of different classes in an SEI3HRD model, as well as growth and decay of virus, and infection/incubation/hospitalisation/recovery parameters.
+"""
+mutable struct SEI3HRDGrowth{U <: Unitful.Units} <: AbstractParams
+      birth::Matrix{TimeUnitType{U}}
+      death::Matrix{TimeUnitType{U}}
+      ageing::Vector{TimeUnitType{U}}
+      virus_growth_asymp::Vector{TimeUnitType{U}}
+      virus_growth_presymp::Vector{TimeUnitType{U}}
+      virus_growth_symp::Vector{TimeUnitType{U}}
+      virus_decay::TimeUnitType{U}
+      beta_force::Vector{TimeUnitType{U}}
+      beta_env::Vector{TimeUnitType{U}}
+      sigma_1::Vector{TimeUnitType{U}}
+      sigma_2::Vector{TimeUnitType{U}}
+      sigma_hospital::Vector{TimeUnitType{U}}
+      mu_1::Vector{TimeUnitType{U}}
+      mu_2::Vector{TimeUnitType{U}}
+      mu_3::Vector{TimeUnitType{U}}
+      hospitalisation::Vector{TimeUnitType{U}}
+      death_home::Vector{TimeUnitType{U}}
+      death_hospital::Vector{TimeUnitType{U}}
+
+    # Multiple age categories
+    function SEI3HRDGrowth{U}(birth::Matrix{TimeUnitType{U}},
+        death::Matrix{TimeUnitType{U}},
+        ageing::Vector{TimeUnitType{U}}, virus_growth_asymp::Vector{TimeUnitType{U}},
+        virus_growth_presymp::Vector{TimeUnitType{U}},
+        virus_growth_symp::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma_1::Vector{TimeUnitType{U}},
+        sigma_2::Vector{TimeUnitType{U}},
+        sigma_hospital::Vector{TimeUnitType{U}},
+        mu_1::Vector{TimeUnitType{U}},
+        mu_2::Vector{TimeUnitType{U}},
+        mu_3::Vector{TimeUnitType{U}},
+        hospitalisation::Vector{TimeUnitType{U}},
+        death_home::Vector{TimeUnitType{U}},
+        death_hospital::Vector{TimeUnitType{U}}) where {U <: Unitful.Units}
+
+        size(birth) == size(death) || error("Birth and death vector lengths differ")
+        all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
+        length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
+
+        return new{U}(birth, death, ageing, virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1,
+        sigma_2, sigma_hospital, mu_1, mu_2, mu_3, hospitalisation, death_home, death_hospital)
+    end
+    # Single age category
+    function SEI3HRDGrowth{U}(birth::Vector{TimeUnitType{U}},
+        death::Vector{TimeUnitType{U}}, virus_growth_asymp::TimeUnitType{U},
+        virus_growth_presymp::TimeUnitType{U},
+        virus_growth_symp::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, sigma_1::TimeUnitType{U},
+        sigma_2::TimeUnitType{U},
+        sigma_hospital::TimeUnitType{U},
+        mu_1::TimeUnitType{U},
+        mu_2::TimeUnitType{U},
+        mu_3::TimeUnitType{U},
+        hospitalisation::TimeUnitType{U},
+        death_home::TimeUnitType{U},
+        death_hospital::TimeUnitType{U}) where {U <: Unitful.Units}
+
+        length(birth) == length(death) || ("Birth and death vector lengths differ")
+        (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
+
+        new_birth = reshape(birth, length(birth), 1)
+        new_death = reshape(birth, length(death), 1)
+        ageing = [0.0/day]
+        return new{U}(new_birth, new_death, ageing, [virus_growth_asymp], [virus_growth_presymp], [virus_growth_symp], virus_decay, [beta_force], [beta_env], [sigma_1], [sigma_2], [sigma_hospital], [mu_1], [mu_2], [mu_3], [hospitalisation], [death_home], [death_hospital])
+    end
+end
+
+function SEI3HRDGrowth(birth::Vector{TimeUnitType{U}},
+    death::Vector{TimeUnitType{U}}, virus_growth_asymp::TimeUnitType{U},
+    virus_growth_presymp::TimeUnitType{U},
+    virus_growth_symp::TimeUnitType{U},
+    virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U},
+    prob_sym::Float64, prob_hosp::Float64, cfr_home::Float64, cfr_hosp::Float64,
+    T_lat::Unitful.Time, T_asym::Unitful.Time, T_presym::Unitful.Time, T_sym::Unitful.Time,
+    T_hosp::Unitful.Time, T_rec::Unitful.Time) where {U <: Unitful.Units}
+
+    # Exposed -> asymptomatic
+    mu_1 = (1 - prob_sym) * 1/T_lat
+    # Exposed -> Pre-symptomatic
+    mu_2 = prob_sym * 1/T_lat
+    # Pre-symptomatic -> symptomatic
+    mu_3 = 1/T_presym
+    # Symptomatic -> hospital
+    hospitalisation = prob_hosp * 1/T_sym
+    # Asymptomatic -> recovered
+    sigma_1 = 1/T_asym
+    # Symptomatic -> recovered
+    sigma_2 = (1 - prob_hosp) * (1 - cfr_home) * 1/T_rec
+    # Hospital -> recovered
+    sigma_hospital = (1 - cfr_hosp) * 1/T_hosp
+    # Symptomatic -> death
+    death_home = cfr_home * 2/T_hosp
+    # Hospital -> death
+    death_hospital = cfr_hosp * 1/T_hosp
+    return SEI3HRDGrowth{U}(birth, death, virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env,
+    sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, mu_3, hospitalisation, death_home, death_hospital)
+end
+
+function SEI3HRDGrowth(birth::Matrix{TimeUnitType{U}},
+    death::Matrix{TimeUnitType{U}},
+    ageing::Vector{TimeUnitType{U}},  virus_growth_asymp::Vector{TimeUnitType{U}},
+    virus_growth_presymp::Vector{TimeUnitType{U}},
+    virus_growth_symp::Vector{TimeUnitType{U}},
+    virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}},
+    prob_sym::Vector{Float64}, prob_hosp::Vector{Float64}, cfr_home::Vector{Float64}, cfr_hosp::Vector{Float64},
+    T_lat::Unitful.Time, T_asym::Unitful.Time, T_presym::Unitful.Time, T_sym::Unitful.Time,
+    T_hosp::Unitful.Time, T_rec::Unitful.Time) where {U <: Unitful.Units}
+
+    # Exposed -> asymptomatic
+    mu_1 = (1 .- prob_sym) .* 1/T_lat
+    # Exposed -> Pre-symptomatic
+    mu_2 = prob_sym .* 1/T_lat
+    # Pre-symptomatic -> symptomatic
+    mu_3 = fill(1/T_presym, length(beta_force))
+    # Symptomatic -> hospital
+    hospitalisation = prob_hosp .* 1/T_sym
+    # Asymptomatic -> recovered
+    sigma_1 = (1 .- prob_sym) .* 1/T_asym
+    # Symptomatic -> recovered
+    sigma_2 = (1 .- prob_hosp) .* (1 .- cfr_home) .* 1/T_rec
+    # Hospital -> recovered
+    sigma_hospital = (1 .- cfr_hosp) .* 1/T_hosp
+    # Symptomatic -> death
+    death_home = cfr_home .* 2/T_hosp
+    # Hospital -> death
+    death_hospital = cfr_hosp .* 1/T_hosp
+    return SEI3HRDGrowth{U}(birth, death, ageing,  virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, mu_3, hospitalisation, death_home, death_hospital)
+end
+
 """
     EpiParams{U <: Unitful.Units} <: AbstractParams
 
@@ -492,6 +627,37 @@ function transition(params::SEI2HRDGrowth, age_categories = 1)
     # Virus growth and decay
     v_growth, v_decay = create_virus_vector(params.virus_growth_asymp, params.virus_decay, age_categories, nclasses, 3)
     v_growth .+= create_virus_vector(params.virus_growth_symp, params.virus_decay, age_categories, nclasses, 4)[1]
+
+  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat)
+end
+
+"""
+    transition(params::SEI3HRDGrowth)
+
+Function to create transition matrix from SEI2HRD parameters and return an `EpiParams` type that can be used by the model update.
+"""
+function transition(params::SEI3HRDGrowth, age_categories = 1)
+    # Set up number of classes etc
+    nclasses = 8
+
+    ordered_transitions = (asymptomatic = params.mu_1, incubation_period = params.mu_2, symptoms_develop = params.mu_2, symptoms_worsen = params.hospitalisation, recovery_asymptomatic = params.sigma_1, recovery_symptomatic = params.sigma_2, recovery_hospital = params.sigma_hospital, death_symptomatic = params.death_home,
+    death_hospitalised = params.death_hospital)
+    from = [2, 2, 4, 5, 3, 5, 6, 5, 6]
+    to = [3, 4, 5, 6, 7, 7, 7, 8, 8]
+    paramDat = DataFrame(from = from, to = to, param = collect(ordered_transitions))
+
+    tmat = create_transition_matrix(params, paramDat, age_categories, nclasses)
+
+    # Env virus matrix
+    vmat = create_virus_matrix(params.beta_env, age_categories, nclasses)
+
+    # Force matrix
+    vfmat = create_virus_matrix(params.beta_force, age_categories, nclasses)
+
+    # Virus growth and decay
+    v_growth, v_decay = create_virus_vector(params.virus_growth_asymp, params.virus_decay, age_categories, nclasses, 3)
+    v_growth .+= create_virus_vector(params.virus_growth_presymp, params.virus_decay, age_categories, nclasses, 4)[1]
+    v_growth .+= create_virus_vector(params.virus_growth_symp, params.virus_decay, age_categories, nclasses, 5)[1]
 
   return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat)
 end

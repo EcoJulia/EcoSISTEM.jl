@@ -10,12 +10,12 @@ do_plot = false
 
 # Set simulation parameters
 age_categories = 10
-numclasses = 7
+numclasses = 8
 numvirus = 1
 birth_rates = fill(0.0/day, numclasses, age_categories)
 death_rates = fill(0.0/day, numclasses, age_categories)
 birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years); death_rates[1:end-1, :] .= uconvert(day^-1, 1/100years)
-virus_growth_asymp = virus_growth_symp = fill(0.1/day, age_categories)
+virus_growth_asymp = virus_growth_presymp = virus_growth_symp = fill(0.1/day, age_categories)
 virus_decay = 1.0/day
 beta_force = fill(10.0/day, age_categories)
 beta_env = fill(10.0/day, age_categories)
@@ -28,9 +28,11 @@ p_h = fill(0.2, age_categories)
 # Case fatality ratio
 cfr_home = cfr_hospital = fill(0.1, age_categories)
 # Time exposed
-T_lat = 5days
+T_lat = 3days
 # Time asymptomatic
-T_asym = 3days
+T_asym = 5days
+# Time pre-symptomatic
+T_presym = 1.5days
 # Time symptomatic
 T_sym = 5days
 # Time in hospital
@@ -38,10 +40,10 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = SEI2HRDGrowth(birth_rates, death_rates, ageing,
-                      virus_growth_asymp, virus_growth_symp, virus_decay,
+param = SEI3HRDGrowth(birth_rates, death_rates, ageing,
+                      virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay,
                       beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital,
-                      T_lat, T_asym, T_sym, T_hosp, T_rec)
+                      T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
 param = transition(param, age_categories)
 
 # Read in population sizes for Scotland
@@ -60,6 +62,7 @@ abun_h = (
     Susceptible = fill(0, age_categories),
     Exposed = fill(0, age_categories),
     Asymptomatic = fill(0, age_categories),
+    Presymptomatic = fill(0, age_categories),
     Symptomatic = fill(0, age_categories),
     Hospitalised = fill(0, age_categories),
     Recovered = fill(0, age_categories),
@@ -67,14 +70,14 @@ abun_h = (
 )
 disease_classes = (
     susceptible = ["Susceptible"],
-    infectious = ["Asymptomatic", "Symptomatic"]
+    infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
 )
 abun_v = (Virus = 0,)
 
 # Dispersal kernels for virus and disease classes
 dispersal_dists = fill(1.0km, numclasses * age_categories)
 cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
-dispersal_dists[vcat(cat_idx[:, 3:4]...)] .= 20.0km
+dispersal_dists[vcat(cat_idx[:, 3:5]...)] .= 20.0km
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
@@ -99,7 +102,7 @@ epi.abundances.matrix[vcat(cat_idx[:, 2]...), samp] .= 10 # Exposed pop
 
 # Run simulation
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells, 366)
-times = 1year; interval = 1day; timestep = 1day
+times = 2months; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep)
 
 if do_plot
@@ -109,10 +112,11 @@ if do_plot
         "Susceptible" => cat_idx[:, 1],
         "Exposed" => cat_idx[:, 2],
         "Asymptomatic" => cat_idx[:, 3],
-        "Symptomatic" => cat_idx[:, 4],
-        "Hospital" => cat_idx[:, 5],
-        "Recovered" => cat_idx[:, 6],
-        "Deaths" => cat_idx[:, 7],
+        "Presymptomatic" => cat_idx[:, 4],
+        "Symptomatic" => cat_idx[:, 5],
+        "Hospital" => cat_idx[:, 6],
+        "Recovered" => cat_idx[:, 7],
+        "Deaths" => cat_idx[:, 8],
     )
     display(plot_epidynamics(epi, abuns; category_map=category_map))
 end
