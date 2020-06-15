@@ -10,7 +10,7 @@ save_path = (@isdefined save_path) ? save_path : pwd()
 
 age_cats = [1, 2, 4]
 numclasses = 3
-numvirus = 1
+numvirus = 2
 abuns = Vector{Array{Int64, 3}}(undef, length(age_cats))
 sumabuns = Vector{Array{Int64, 2}}(undef, length(age_cats))
 for i in eachindex(age_cats)
@@ -36,7 +36,7 @@ for i in eachindex(age_cats)
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
     # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-    virus = 0
+    virus_env = 0
     susceptible = fill(Int64.(50_000_000/age_cats[i]), age_cats[i])
     infected = fill(Int64.(10_000/age_cats[i]), age_cats[i])
     dead = fill(0, age_cats[i])
@@ -51,7 +51,7 @@ for i in eachindex(age_cats)
         susceptible = ["Susceptible"],
         infectious = ["Infected"]
     )
-    abun_v = (Virus = virus,)
+    abun_v = (Environment = virus_env, Force = 0)
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(100.0km, numclasses * age_cats[i])

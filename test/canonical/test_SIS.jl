@@ -10,7 +10,7 @@ save_path = (@isdefined save_path) ? save_path : pwd()
 
 grid_sizes = [4, 8, 16]
 numclasses = 3
-numvirus = 1
+numvirus = 2
 abuns = Vector{Array{Int64, 3}}(undef, length(grid_sizes))
 sumabuns = Vector{Array{Int64, 2}}(undef, length(grid_sizes))
 for i in eachindex(grid_sizes)
@@ -44,7 +44,7 @@ for i in eachindex(grid_sizes)
         susceptible = ["Susceptible"],
         infectious = ["Infected"]
     )
-    abun_v = (Virus = virus,)
+    abun_v = (Environment = virus, Force = 0)
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(100.0km, numclasses)
