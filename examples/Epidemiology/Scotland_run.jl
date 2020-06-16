@@ -7,6 +7,7 @@ using StatsBase
 using Distributions
 using AxisArrays
 using HTTP
+import Dates.DateTime
 
 do_plot = false
 
@@ -69,6 +70,11 @@ param = SEI3HRDGrowth(birth_rates, death_rates, ageing,
                       T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
 param = transition(param, age_categories)
 
+startDate = DateTime("2020-01-01")
+endDate = DateTime("2020-01-30")
+outputfolder = "test/examples/temp"
+uktemp = MetOfficeDownload(:uk_daily, :temp_mean, outputfolder, startDate, endDate)
+epienv = ukclimateAE(uktemp, grid, area, active, NoControl(), total_pop)
 epienv = simplehabitatAE(298.0K, area, NoControl(), total_pop)
 
 # Set population to initially have no individuals
