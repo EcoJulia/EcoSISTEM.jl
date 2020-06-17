@@ -8,13 +8,19 @@ using Distributions
 using AxisArrays
 using HTTP
 using Plots
+using Profile
 
-function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time, do_plot::Bool = false)
+function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time, do_plot::Bool = false, do_download::Bool = true)
     # Download and read in population sizes for Scotland
-    file, io = mktemp()
-    r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
-    write(io, r.body)
-    close(io)
+    dir = Simulation.path("test", "TEMP")
+    file = joinpath(dir, "demographics.h5")
+    if do_download
+        mkdir(Simulation.path("test", "TEMP"))
+        io = open(Simulation.path("test", "TEMP", "demographics.h5"), "w")
+        r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
+        write(io, r.body)
+        close(io)
+    end
     scotpop = parse_hdf5(file, grid = "1km", component = "grid1km/10year/persons")
 
     # Read number of age categories
@@ -154,5 +160,5 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     return abuns
 end
 
-times = 1year; interval = 1day; timestep = 1day
-abuns = run_model(times, interval, timestep);
+times = 1month; interval = 1day; timestep = 1day
+abunl(times, interval, timestep);

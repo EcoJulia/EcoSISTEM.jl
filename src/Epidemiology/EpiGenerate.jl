@@ -96,6 +96,14 @@ function sum_pop(M::Matrix{Float64}, i::Int64)
     return N
 end
 
+function sum_pop(V::Vector{Float64})
+    N = 0
+    for i in 1:length(V)
+        N += V[i]
+    end
+    return N
+end
+
 
 """
     classupdate!(epi::EpiSystem, timestep::Unitful.Time)
@@ -218,8 +226,8 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, ep
         lookuppnew[i] = lookuppi
     end
     # Case that produces NaN (if sum(lookup.pnew) also pnew always .>= 0) dealt with above
-    lookup.pnew ./= sum(lookup.pnew)
-    lookup.moves .= abun .* lookup.pnew
+    lookuppnew ./= sum_pop(lookuppnew)
+    lookup.moves .= abun .* lookuppnew
     return nothing
 end
 
