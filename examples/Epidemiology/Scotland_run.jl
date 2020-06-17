@@ -160,5 +160,5 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     return abuns
 end
 
-times = 1month; interval = 1day; timestep = 1day
-abunl(times, interval, timestep);
+times = 1year; interval = 1day; timestep = 1day
+abuns = run_model(times, interval, timestep);
