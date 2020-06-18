@@ -61,11 +61,11 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
         end
+        vm = sum(@view epi.cache.virusmigration[:, j])
+        nm = sum(@view epi.cache.virusdecay[:, j])
+        virus(epi.abundances)[1, j] += nm + vm
+        epi.cache.virusmigration[1, j] += vm
     end
-    vm = sum(epi.cache.virusmigration, dims = 1)[1, :]
-    nm = sum(epi.cache.virusdecay, dims = 1)[1, :]
-    virus(epi.abundances)[1, :] .+= (nm .+ vm)
-    epi.cache.virusmigration[1, :] .+= vm
 end
 
 """
