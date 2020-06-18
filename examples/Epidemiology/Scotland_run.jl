@@ -16,7 +16,7 @@ file, io = mktemp()
 r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
 write(io, r.body)
 close(io)
-scotpop = parse_hdf5(file, grid = "10km", component = "grid10km/10year/persons")
+scotpop = parse_hdf5(file, grid = "1km", component = "grid1km/10year/persons")
 
 # Read number of age categories
 age_categories = size(scotpop, 3)
@@ -74,8 +74,8 @@ startDate = DateTime("2020-01-01")
 endDate = DateTime("2020-01-30")
 outputfolder = "test/examples/temp"
 uktemp = MetOfficeDownload(:uk_daily, :temp_mean, outputfolder, startDate, endDate)
-epienv = ukclimateAE(uktemp, grid, area, active, NoControl(), total_pop)
-epienv = simplehabitatAE(298.0K, area, NoControl(), total_pop)
+total_pop.data[isnan.(uktemp[:, :, 1])] .= NaN
+epienv = ukclimateAE(uktemp, area, NoControl(), total_pop)
 
 # Set population to initially have no individuals
 abun_h = (
@@ -104,7 +104,7 @@ kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+traits = GaussTrait(fill(279.0K, numvirus), fill(5.0K, numvirus))
 epilist = EpiList(traits, abun_v, abun_h, disease_classes,
                   movement, param, age_categories)
 rel = Gauss{eltype(epienv.habitat)}()
@@ -140,7 +140,7 @@ for i in eachindex(age_ids)
 end
 
 # Run simulation
-times = 2months; interval = 1day; timestep = 1day
+times = 30days; interval = 1day; timestep = 1day
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells,
               floor(Int, times/timestep) + 1)
 @time simulate_record!(abuns, epi, times, interval, timestep)
