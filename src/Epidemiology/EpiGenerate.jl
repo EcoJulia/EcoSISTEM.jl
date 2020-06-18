@@ -33,6 +33,8 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     id = Threads.threadid()
     rng = epi.abundances.seed[id]
     classes = findall((params.virus_growth .* timestep) .> 0)
+    vms = [zeros(eltype(epi.cache.virusmigration), dims) for i in 1:Threads.nthreads()]
+    nms = [zeros(eltype(epi.cache.virusdecay), dims) for i in 1:Threads.nthreads()]
     # Loop through grid squares
     Threads.@threads for j in classes
         for i in 1:dims
@@ -61,11 +63,12 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
         end
-        vm = sum(@view epi.cache.virusmigration[:, j])
-        nm = sum(@view epi.cache.virusdecay[:, j])
-        virus(epi.abundances)[1, j] += nm + vm
-        epi.cache.virusmigration[1, j] += vm
+        vms[Threads.threadid()] .+= epi.cache.virusmigration[j, :]
+        nms[Threads.threadid()] .+= epi.cache.virusdecay[j, :]
     end
+    vm = sum(vms)
+    virus(epi.abundances)[1, :] .+= sum(nms) .+ vm
+    epi.cache.virusmigration[1, :] .+= vm
 end
 
 """
