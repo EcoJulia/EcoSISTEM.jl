@@ -73,6 +73,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
         vm = sum_pop(epi.cache.virusmigration, l)
         nm = sum_pop(epi.cache.virusdecay, l)
         virus(epi.abundances)[1, l] += (nm + vm)
+        virus(epi.abundances)[2, l] = vm
     end
 end
 
@@ -139,7 +140,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 iszero(human(epi.abundances)[k, i]) && continue # will result +=/-= 0 at end of loop
                 env_inf = (params.transition_virus[j, k] * timestep * virus(epi.abundances)[1, i]) / N
 
-                force_inf = (params.transition_force[j, k] * timestep * epi.cache.virusmigration[1, i]) / N
+                force_inf = (params.transition_force[j, k] * timestep * virus(epi.abundances)[2, i]) / N
 
                 # Add to transitional probabilities
                 trans_val = (params.transition[j, k] * timestep) + env_inf + force_inf

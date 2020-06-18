@@ -11,7 +11,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     # Set simulation parameters
     age_categories = 10
     numclasses = 8
-    numvirus = 1
+    numvirus = 2
     birth_rates = fill(0.0/day, numclasses, age_categories)
     death_rates = fill(0.0/day, numclasses, age_categories)
     birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years); death_rates[1:end-1, :] .= uconvert(day^-1, 1/100years)
@@ -72,7 +72,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
         susceptible = ["Susceptible"],
         infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
     )
-    abun_v = (Virus = 0,)
+    abun_v = (Environment = 0, Force = 0)
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(1.0km, numclasses * age_categories)
