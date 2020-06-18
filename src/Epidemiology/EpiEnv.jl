@@ -245,7 +245,7 @@ function ukclimateAE(
     initial_population::AbstractMatrix{<:Integer}=zeros(Int, dimension),
 ) where C <: AbstractControl
     if typeof(first(climatearray)) <: Unitful.Temperature
-        climatearray = uconvert.(K, climatearray)
+        climatearray .= uconvert.(K, climatearray)
     end
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
@@ -305,7 +305,6 @@ function ukclimateAE(
     end
     dimension = size(initial_population)
     active = Matrix{Bool}(.!inactive.(initial_population))
-    climatearray = _shrink_to_active(climatearray, active)
     initial_population = _convert_population(initial_population, active)
     return ukclimateAE(climatearray, dimension, area, active, control, initial_population)
 end

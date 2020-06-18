@@ -50,7 +50,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 # Convert death rate into 0 - 1 probability
                 deathprob = 1.0 - exp(-deathrate)
 
-                (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthprob \n Death: $newdeathprob \n \n i: $i")
+                (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthrate \n Death: $deathprob \n \n i: $i")
                 # Calculate how many births and deaths
                 births = rand(rng, Poisson(birthrate))
                 deaths = rand(rng, Binomial(virus(epi.abundances)[1, i], deathprob))
