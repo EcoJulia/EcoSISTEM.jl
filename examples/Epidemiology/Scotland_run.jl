@@ -8,9 +8,8 @@ using Distributions
 using AxisArrays
 using HTTP
 using Plots
-using Profile
 
-function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time, do_plot::Bool = false, do_download::Bool = true)
+function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
     # Download and read in population sizes for Scotland
     dir = Simulation.path("test", "TEMP")
     file = joinpath(dir, "demographics.h5")
@@ -113,7 +112,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     rel = Gauss{eltype(epienv.habitat)}()
 
     # Create epi system with all information
-    epi = EpiSystem(epilist, epienv, rel)
+    epi = EpiSystem(epilist, epienv, rel, UInt16(1))
 
     # Populate susceptibles according to actual population spread
     reshaped_pop =
@@ -132,16 +131,20 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     samp = sample(collect(age_and_cells), weights(1.0 .* vec(pop_weights)), 100)
     age_ids = getfield.(samp, 1)
     cell_ids = getfield.(samp, 2)
-    # Add to exposed
-    epi.abundances.matrix[vcat(cat_idx[age_ids, 2]...), cell_ids] .= 1
-    # Remove from susceptible
-    epi.abundances.matrix[vcat(cat_idx[age_ids, 1]...), cell_ids] =
-        epi.abundances.matrix[vcat(cat_idx[age_ids, 1]...), cell_ids] .- 1
-    epi.abundances.matrix[epi.abundances.matrix .< 0] .= 0
+
+    for i in eachindex(age_ids)
+        if (epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] > 0)
+            # Add to exposed
+            epi.abundances.matrix[cat_idx[age_ids[i], 2], cell_ids[i]] += 1
+            # Remove from susceptible
+            epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] -= 1
+        end
+    end
+
     # Run simulation
     abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells,
                   floor(Int, times/timestep) + 1)
-    @time simulate_record!(abuns, epi, times, interval, timestep)
+    @time simulate_record!(abuns, epi, times, interval, timestep, save, savepath)
 
     if do_plot
         # View summed SIR dynamics for whole area

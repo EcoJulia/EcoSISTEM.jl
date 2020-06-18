@@ -81,7 +81,7 @@ end
     sum_pop(M::Matrix{Int64}, i::Int64)
 Function to sum a population matrix, `M`, without memory allocation, at a grid location `i`.
 """
-function sum_pop(M::Matrix{Int64}, i::Int64)
+function sum_pop(M::Matrix{U}, i::Int64) where U <: Integer
     N = 0
     for j in 1:size(M, 1)
         N += M[j, i]
