@@ -38,7 +38,7 @@ function TestEcosystem()
     return eco
 end
 function TestEpiSystem()
-    numvirus = 1
+    numvirus = 2
     numclasses = 4
     birth = [fill(1e-5/day, numclasses - 1); 0.0/day]
     death = [fill(1e-5/day, numclasses - 1); 0.0/day]
@@ -64,7 +64,7 @@ function TestEpiSystem()
         susceptible = ["Susceptible"],
         infectious = ["Infected"]
     )
-    abun_v = (Virus = 10,)
+    abun_v = (Environment = 0, Force = 0)
 
     dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
@@ -80,7 +80,7 @@ function TestEpiSystem()
 end
 function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
     numclasses = 4
-    numvirus = 1
+    numvirus = 2
     birth = [fill(1e-5/day, numclasses - 1); 0.0/day]
     death = [fill(1e-5/day, numclasses - 1); 0.0/day]
     beta_force = 5.0/day
@@ -105,7 +105,7 @@ function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
         susceptible = ["Susceptible"],
         infectious = ["Infected"]
     )
-    abun_v = (Virus = 10,)
+    abun_v = (Environment = 0, Force = 0)
 
     dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
     kernel = GaussianKernel.(dispersal_dists, 1e-10)

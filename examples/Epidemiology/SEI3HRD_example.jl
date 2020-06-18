@@ -7,7 +7,7 @@ using StatsBase
 
 do_plot = false
 
-numvirus = 1
+numvirus = 2
 numclasses = 8
 
 # Set simulation parameters
@@ -63,7 +63,7 @@ disease_classes = (
     susceptible = ["Susceptible"],
     infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
 )
-abun_v = (Virus = 0,)
+abun_v = (Environment = 0, Force = 0)
 
 # Dispersal kernels for virus and disease classes
 dispersal_dists = fill(2.0km, numclasses)
@@ -81,7 +81,7 @@ epi = EpiSystem(epilist, epienv, rel)
 # Add in initial infections randomly (samples weighted by population size)
 N_cells = size(epi.abundances.matrix, 2)
 samp = sample(1:N_cells, weights(1.0 .* human(epi.abundances)[1, :]), 100)
-virus(epi.abundances)[1, samp] .= 100 # Virus pop
+virus(epi.abundances)[1, samp] .= 100 # Virus pop in Environment
 human(epi.abundances)[2, samp] .= 10 # Exposed pop
 
 # Run simulation

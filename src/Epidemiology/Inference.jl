@@ -22,7 +22,7 @@ Fills an abundance matrice of compartment by grid cell over time. Compartments f
 function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64}, params::NamedTuple, runtimes::NamedTuple, abuns::Array{Int64, 3})
     # Set up
     numclasses = 4
-    numvirus = 1
+    numvirus = 2
     Ncells = grid_size[1] * grid_size[2]
 
     # Extract model params from tuple
@@ -53,8 +53,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
         susceptible = ["Susceptible"],
         infectious = ["Infected"]
     )
-    abun_v = (
-        Virus = 0,)
+    abun_v = (Environment = 0, Force = 0)
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(sqrt(area/Ncells)/5, numclasses)
