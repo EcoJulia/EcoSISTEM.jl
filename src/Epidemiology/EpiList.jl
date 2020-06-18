@@ -135,8 +135,7 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
                                                      ht, movement, sus, inf)
 
     virus_names = collect(string.(keys(virus_abun)))
-    virus_names = [ifelse(i == 1, "$(virus_names[i])", "$(virus_names[i])$i")
-                   for i in 1:length(virus_abun)]
+
     vt = UniqueTypes(length(virus_names))
     virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt)
 

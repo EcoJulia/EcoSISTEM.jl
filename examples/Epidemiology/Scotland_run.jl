@@ -33,7 +33,7 @@ total_pop.data[total_pop .≈ 0.0] .= NaN
 
 # Set simulation parameters
 numclasses = 8
-numvirus = 1
+numvirus = 2
 birth_rates = fill(0.0/day, numclasses, age_categories)
 death_rates = fill(0.0/day, numclasses, age_categories)
 birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years)
@@ -88,7 +88,7 @@ disease_classes = (
     infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
 )
 
-abun_v = (Virus = 0,)
+abun_v = (Environment = 0, Force = 0)
 
 # Dispersal kernels for virus and disease classes
 dispersal_dists = fill(1.0km, numclasses * age_categories)
