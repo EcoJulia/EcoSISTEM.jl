@@ -95,7 +95,6 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     abun_v = (Environment = 0, Force = 0)
 
-
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(1.0km, numclasses * age_categories)
     thresholds = fill(1e-3, numclasses * age_categories)
@@ -142,9 +141,9 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     end
 
     # Run simulation
-    abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells,
+    abuns = zeros(UInt16, size(epi.abundances.matrix, 1), N_cells,
                   floor(Int, times/timestep) + 1)
-    @time simulate_record!(abuns, epi, times, interval, timestep, save, savepath)
+    @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
 
     if do_plot
         # View summed SIR dynamics for whole area
@@ -164,5 +163,5 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     return abuns
 end
 
-times = 1year; interval = 1day; timestep = 1day
+times = 2months; interval = 1day; timestep = 1day
 abuns = run_model(times, interval, timestep);
