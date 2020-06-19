@@ -16,7 +16,7 @@ Function to download climate data from Met Office covid response, for a particul
 
 Parameter names can be accessed with the `getMetparams()` function and dataset names similarly with `getMetdata()`.
 """
-function MetOfficeDownload(dataset::Symbol, param::Symbol, outputfolder::String, startDate::DateTime, endDate::DateTime, read::Bool=true)
+function MetOfficeDownload(dataset::Symbol, param::Symbol, outputfolder::String, startDate::DateTime, endDate::DateTime; read::Bool=true, process::Bool=true)
     # Check outputfolder exists and make folder if it doesn't
     isdir(outputfolder) || mkdir(outputfolder)
 
@@ -45,7 +45,11 @@ function MetOfficeDownload(dataset::Symbol, param::Symbol, outputfolder::String,
     else
         error("No other datasets currently implemented")
     end
-    return readMet(outputfolder, splitpath(endurl)[2], paramdict[param], times)
+    if process
+        return processMet(outputfolder, splitpath(endurl)[2], paramdict[param], times)
+    else
+        return readMet(outputfolder, splitpath(endurl)[2], paramdict[param], times)
+    end
 end
 
 getMetparams() = keys(pathdict)

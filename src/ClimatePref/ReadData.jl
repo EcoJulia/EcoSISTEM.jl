@@ -12,7 +12,7 @@ import Base.read
 const AG = ArchGDAL
 
 vardict = Dict("bio" => NaN, "prec" => mm, "srad" => u"kJ"* u"m"^-2 * day^-1, "tavg" => K, "tmax" => K, "tmin" => K, "vapr" => u"kPa", "wind" => u"m" * u"s"^-1)
-unitdict = Dict("K" => K, "m" => m, "J m**-2" => J/m^2, "m**3 m**-3" => m^3, "kg m-2 s-1" => kg * m^-2 * s^-1, "1" => 1, nothing => W*m^-2)
+unitdict = Dict("K" => K, "m" => m, "J m**-2" => J/m^2, "m**3 m**-3" => m^3, "kg m-2 s-1" => kg * m^-2 * s^-1, "1" => 1, nothing => W*m^-2, "d" => day)
 """
     read(f, filename)
 
@@ -39,8 +39,7 @@ searchdir(path,key) = filter(x->Compat.occursin(key, x), readdir(path))
 
 Function to extract a certain parameter, `param`, from an Met Office netcdf file, and convert into an axis array.
 """
-function readMet(dir::String, param::String)
-
+function readMet_raw(dir::String, param::String)
     lat = ncread(dir, "grid_latitude")
     lon = ncread(dir, "grid_longitude")
     units = ncgetatt(dir, param, "units")
@@ -53,61 +52,43 @@ function readMet(dir::String, param::String)
     return uk
 end
 
-function processMet(dir::String, param::String, xmin::Float64 = 5513, xmax::Float64 = 470513, ymin::Float64 = 530301.5, ymax::Float64 = 1220302, res::Int64 = 1000)
-    # Alter projection of netcdf data and resample to BNG
-    @rput xmin xmax ymin ymax res
-    @rput dir
-    R"library(raster);
-    tmpin = raster(dir)
-    crs(tmpin) = '+proj=ob_tran +o_proj=longlat +lon_0=357.5 +o_lon_p=0 +o_lat_p=37.5 +a=6371229 +b=6371229 +to_meter=0.0174532925199 +wktext'
-    extent(tmpin)[1] = extent(tmpin)[1] - 360
-    extent(tmpin)[2] = extent(tmpin)[2] - 360
-    ext = extent(xmin, xmax, ymin, ymax)
-    proj = '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 +units=m +no_defs'
-    resol = c(res, res)
-    r = raster(ext = ext, resolution = resol, crs = proj)
-    reproj = projectRaster(from = tmpin, crs = proj)
-    reproj = resample(reproj, r)
-    newdat = reproj@data@values
-    x = reproj@nrows
-    y = reproj@ncols
-    "
-    @rget newdat
-    @rget x y
-    # Reshape output and add units
-    xs = (xmin+res/2:res:xmax)  .* m
-    ys = (ymin:res:ymax) .* m
-    reshaped_dat = reshape(newdat', y, x)
-    reshaped_dat = reshaped_dat[:, end:-1:1]
-    reshaped_dat = hcat(reshaped_dat, fill(missing, y))
-    reshaped_dat = replace(reshaped_dat, missing=>NaN)
-    units = ncgetatt(dir, param, "units")
-    units = unitdict[units]
-    uk = AxisArray(reshaped_dat .* units, Axis{:longitude}(xs), Axis{:latitude}(ys))
-    return uk
-end
-
 """
-    readMet(dir::String, file::String, param::String, dim::Vector{Vector{T}})
+    readMet_raw(dir::String, file::String, param::String, dim::Vector{Vector{T}})
         where T<: Unitful.Time
 
 Function to extract a certain parameter, `param`, from a directory, `dir`, containing Met Office netcdf files,
 for a certain timerange, `dim`, and convert into an axis array.
 """
-function readMet(dir::String, file::String, param::String, dim::Vector{T}, process::Bool = true) where T <: Unitful.Time
+function readMet_raw(dir::String, file::String, param::String, dim::Vector{T}, process::Bool = true) where T <: Unitful.Time
     filenames = searchdir(dir, file)
     newmet = Array{AxisArray, 1}(undef, length(filenames))
     for i in eachindex(filenames)
-        if process
-            newmet[i] = processMet(joinpath(dir, filenames[i]), param)
-        else
-            newmet[i] = readMet(joinpath(dir, filenames[i]), param)
-        end
+        newmet[i] = readMet(joinpath(dir, filenames[i]), param)
     end
     catmet = cat(dims=3, newmet ...)
     catmet = AxisArray(catmet, Axis{:longitude}(catmet.axes[1]), Axis{:latitude}(catmet.axes[2]), Axis{:day}(dim))
     return catmet
 end
+
+"""
+    readMet(dir::String, param::String)
+
+Function to extract a certain parameter, `param`, from a directory, `dir`, containing Met Office processed HDF5 files.
+"""
+function readMet(dir::String, param::String)
+    clim = h5read(dir, "climate")
+    xs = split.(clim["x"], " ")
+    x = [parse(Float64, x[1]) for x in xs] .* unitdict[xs[1][2]]
+    ys = split.(clim["y"], " ")
+    y =[parse(Float64, y[1]) for y in ys] .* unitdict[ys[1][2]]
+    ts = split.(clim["times"], " ")
+    times =[parse(Float64, t[1]) for t in ts] .* unitdict[ts[1][2]]
+    units = unitdict[clim["units"]]
+
+    climatearray = h5read(dir, joinpath("climate", param))
+    return AxisArray(climatearray .* units, Axis{:x}(x), Axis{:y}(y), Axis{:time}(times))
+end
+
 
 """
     readfile(file::String)

@@ -12,6 +12,9 @@ end
 include("ClimateTypes.jl")
 export Worldclim, Bioclim, ERA, CERA, Reference
 
+include("ProcessData.jl")
+export processMet, writeMet
+
 include("ReadData.jl")
 export read, searchdir, readworldclim, readbioclim, readERA, readCERA, readfile, readCHELSA, readMet
 
