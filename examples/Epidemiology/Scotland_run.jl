@@ -7,7 +7,6 @@ using StatsBase
 using Distributions
 using AxisArrays
 using HTTP
-import Dates.DateTime
 
 do_plot = false
 
@@ -16,7 +15,7 @@ file, io = mktemp()
 r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
 write(io, r.body)
 close(io)
-scotpop = parse_hdf5(file, grid = "1km", component = "grid1km/10year/persons")
+scotpop = parse_hdf5(file, grid = "10km", component = "grid10km/10year/persons")
 
 # Read number of age categories
 age_categories = size(scotpop, 3)
