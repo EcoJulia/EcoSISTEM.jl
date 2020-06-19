@@ -113,9 +113,9 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
                 iszero(human(epi.abundances)[k, i]) && continue # will result +=/-= 0 at end of loop
-                env_inf = (params.transition_virus[j, k] * timestep * virus(epi.abundances)[1, i]) / (N^params.freq_vs_density)
+                env_inf = (params.transition_virus[j, k] * timestep * virus(epi.abundances)[1, i]) / (N^params.freq_vs_density_env)
 
-                force_inf = (params.transition_force[j, k] * timestep * virus(epi.abundances)[2, i]) / (N^params.freq_vs_density)
+                force_inf = (params.transition_force[j, k] * timestep * virus(epi.abundances)[2, i]) / (N^params.freq_vs_density_force)
 
                 # Add to transitional probabilities
                 trans_val = (params.transition[j, k] * timestep) + ((1 - params.force_vs_env) * env_inf) + (params.force_vs_env * force_inf)
