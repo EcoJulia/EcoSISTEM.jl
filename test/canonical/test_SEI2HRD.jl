@@ -15,7 +15,7 @@ save_path = (@isdefined save_path) ? save_path : pwd()
 ##
 # Set simulation parameters
 numclasses = 7
-numvirus = 1
+numvirus = 2
 birth = fill(0.0/day, numclasses)
 death = fill(0.0/day, numclasses)
 virus_growth_asymp = virus_growth_symp = 1e-3/day
@@ -62,7 +62,7 @@ disease_classes = (
   susceptible = ["Susceptible"],
   infectious = ["Asymptomatic", "Symptomatic"]
 )
-abun_v = (Virus = 0,)
+abun_v = (Environment = 0, Force = 0)
 
 # Dispersal kernels for virus dispersal from different disease classes
 dispersal_dists = fill(1.0km, numclasses)
@@ -142,7 +142,7 @@ disease_classes = (
   susceptible = ["Susceptible"],
   infectious = ["Asymptomatic", "Symptomatic"]
 )
-abun_v = (Virus = 0,)
+abun_v = (Environment = 0, Force = 0)
 
 # Dispersal kernels for virus dispersal from different disease classes
 dispersal_dists = fill(1.0km, numclasses)
