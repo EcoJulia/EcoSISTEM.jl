@@ -48,7 +48,7 @@ function MetOfficeDownload(dataset::Symbol, param::Symbol, outputfolder::String,
     if process
         return processMet(outputfolder, splitpath(endurl)[2], paramdict[param], times)
     else
-        return readMet(outputfolder, splitpath(endurl)[2], paramdict[param], times)
+        return readMet_raw(outputfolder, splitpath(endurl)[2], paramdict[param], times)
     end
 end
 

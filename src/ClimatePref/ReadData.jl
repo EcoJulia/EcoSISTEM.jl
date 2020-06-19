@@ -35,9 +35,9 @@ searchdir(path,key) = filter(x->Compat.occursin(key, x), readdir(path))
 
 
 """
-    readMet(dir::String, param::String)
+    readMet_raw(dir::String, param::String)
 
-Function to extract a certain parameter, `param`, from an Met Office netcdf file, and convert into an axis array.
+Function to extract a certain parameter, `param`, from an Met Office netcdf file, and convert into an axis array. No processing done.
 """
 function readMet_raw(dir::String, param::String)
     lat = ncread(dir, "grid_latitude")
@@ -57,7 +57,7 @@ end
         where T<: Unitful.Time
 
 Function to extract a certain parameter, `param`, from a directory, `dir`, containing Met Office netcdf files,
-for a certain timerange, `dim`, and convert into an axis array.
+for a certain timerange, `dim`, and convert into an axis array. No processing done.
 """
 function readMet_raw(dir::String, file::String, param::String, dim::Vector{T}, process::Bool = true) where T <: Unitful.Time
     filenames = searchdir(dir, file)
