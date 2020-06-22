@@ -89,7 +89,7 @@ function sum_pop(M::Matrix{R}, i::Int64) where R <: Real
     return n
 end
 
-function sum_pop(M::vector{R}) where R <: Real
+function sum_pop(M::Vector{R}) where R <: Real
     n = zero(R)
     for i in 1:length(V)
         n += V[i]
