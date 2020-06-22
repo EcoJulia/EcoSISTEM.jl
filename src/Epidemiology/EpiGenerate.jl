@@ -78,21 +78,21 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
 end
 
 """
-    sum_pop(M::Matrix{Int64}, i::Int64)
-Function to sum a population matrix, `M`, without memory allocation, at a grid location `i`.
+    sum_pop(m::Matrix{Int64}, i::Int64)
+Function to sum a population matrix, `m`, without memory allocation, at a grid location `i`.
 """
-function sum_pop(M::Matrix{R}, i::Int64) where R <: Real
+function sum_pop(m::Matrix{R}, i::Int64) where R <: Real
     n = zero(R)
-    for j in 1:size(M, 1)
-        n += M[j, i]
+    @inbounds for j in 1:size(m, 1)
+        n += m[j, i]
     end
     return n
 end
 
-function sum_pop(M::Vector{R}) where R <: Real
+function sum_pop(v::Vector{R}) where R <: Real
     n = zero(R)
-    for i in 1:length(V)
-        n += V[i]
+    @inbounds for i in 1:length(v)
+        n += v[i]
     end
     return n
 end
