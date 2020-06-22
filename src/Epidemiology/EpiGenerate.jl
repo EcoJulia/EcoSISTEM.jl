@@ -41,43 +41,60 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(epi, i, width)
             # Check if grid cell currently active
-            if epi.epienv.active[x, y]
-                traitmatch = traitfun(epi, i, 1)
-                # Calculate effective rates
-                birthrate = params.virus_growth[j] * timestep * human(epi.abundances)[j, i]
-                deathrate = params.virus_decay[j] * timestep * traitmatch^-1
+            epi.epienv.active[x, y] || continue
 
-                # Convert death rate into 0 - 1 probability
-                deathprob = 1.0 - exp(-deathrate)
+            # Calculate effective rates
+            birthrate = params.virus_growth[j] * timestep * human(epi.abundances)[j, i]
+            births = rand(rng, Poisson(birthrate))
 
-                (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthprob \n Death: $deathprob \n \n i: $i")
-                # Calculate how many births and deaths
-                births = rand(rng, Poisson(birthrate))
-                deaths = rand(rng, Binomial(virus(epi.abundances)[1, i], deathprob))
-
-                # Update population
+            # Update population
+            if (!iszero(births))
                 epi.cache.virusmigration[j, i] += births
-                epi.cache.virusdecay[j, i] -= deaths
                 virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
+
+            iszero(params.virus_decay[j]) && continue
+            traitmatch = traitfun(epi, i, 1)
+            deathrate = params.virus_decay[j] * timestep * traitmatch^-1
+            # Convert death rate into 0 - 1 probability
+            deathprob = 1.0 - exp(-deathrate)
+
+            # Calculate how many births and deaths
+            deaths = rand(rng, Binomial(virus(epi.abundances)[1, i], deathprob))
+            epi.cache.virusdecay[j, i] -= deaths
         end
     end
-    vm = sum(epi.cache.virusmigration, dims = 1)[1, :]
-    nm = sum(epi.cache.virusdecay, dims = 1)[1, :]
-    virus(epi.abundances)[1, :] .+= (nm .+ vm)
-    virus(epi.abundances)[2, :] = vm
+    Threads.@threads for l in 1:size(epi.cache.virusmigration, 2)
+        for k in 1:size(epi.cache.virusmigration, 1)
+            iszero(epi.cache.virusmigration[k, l]) && continue
+            dist = Poisson(epi.cache.virusmigration[k, l])
+            epi.cache.virusmigration[k, l] = rand(rng, dist)
+        end
+        vm = sum_pop(epi.cache.virusmigration, l)
+        nm = sum_pop(epi.cache.virusdecay, l)
+        virus(epi.abundances)[1, l] += (nm + vm)
+        virus(epi.abundances)[2, l] = vm
+    end
 end
 
 """
-    sum_pop(M::Matrix{Int64}, i::Int64)
-Function to sum a population matrix, `M`, without memory allocation, at a grid location `i`.
+    sum_pop(m::Matrix{Int64}, i::Int64)
+Function to sum a population matrix, `m`, without memory allocation, at a grid location `i`.
 """
-function sum_pop(M::Matrix{Int64}, i::Int64)
-    N = 0
-    for j in 1:size(M, 1)
-        N += M[j, i]
+function sum_pop(m::Matrix{R}, i::Int64) where R <: Real
+    n = zero(R)
+    @inbounds for j in 1:size(m, 1)
+        n += m[j, i]
     end
-    return N
+    return n
+end
+
+function sum_pop(v::Vector{R}) where R <: Real
+    n = zero(R)
+    @inbounds for i in 1:length(v)
+        n += v[i]
+    end
+    return n
 end
 
 
@@ -95,7 +112,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     # Loop through grid squares
     Threads.@threads for i in 1:dims
         # will result +=/-= 0 at end of inner loop, so safe to skip
-        all(iszero, human(epi.abundances)[:, i]) && continue
+        iszero(sum_pop(human(epi.abundances), i)) && continue
 
         rng = epi.abundances.seed[Threads.threadid()]
         N = sum_pop(epi.abundances.matrix, i)
@@ -202,9 +219,8 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, ep
         lookuppnew[i] = lookuppi
     end
     # Case that produces NaN (if sum(lookup.pnew) also pnew always .>= 0) dealt with above
-    lookup.pnew ./= sum(lookup.pnew)
-    dist = Multinomial(abun, lookup.pnew)
-    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    lookuppnew ./= sum_pop(lookuppnew)
+    lookup.moves .= abun .* lookuppnew
     return nothing
 end
 
@@ -222,7 +238,8 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, id::Int64, epi:
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    # rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    lookup.moves .= abun .* lookup.pnew
 end
 
 function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
@@ -238,8 +255,9 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::Ab
         lookup.pnew[i] = valid ? lookup.p[i] : 0.0
     end
     lookup.pnew ./= sum(lookup.pnew)
-    dist = Multinomial(abun, lookup.pnew)
-    rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    # dist = Multinomial(abun, lookup.pnew)
+    # rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    lookup.moves .= abun .* lookup.pnew
 end
 
 
@@ -248,7 +266,7 @@ end
 
 Function to calculate the movement of force of infection `id` from a given position in the landscape `pos`, using the lookup table found in the EpiSystem and updating the movement patterns on a cached grid, `grd`. The number of new virus is provided, so that movement only takes place as part of the generation process.
 """
-function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Int64, 2}, newvirus::Int64)
+function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Float64, 2}, newvirus::Int64)
   width, height = getdimension(epi)
   (x, y) = convert_coords(epi, pos, width)
   lookup = getlookup(epi, id)

@@ -9,8 +9,8 @@ include("TestCases.jl")
 
 epi = TestEpiSystem()
 
-@test_nowarn emptyepilandscape(epi.epienv, epi.epilist)
-el = emptyepilandscape(epi.epienv, epi.epilist)
+@test_nowarn emptyepilandscape(epi.epienv, epi.epilist, Int64(1))
+el = emptyepilandscape(epi.epienv, epi.epilist, Int64(1))
 @test size(el.grid, 2) * size(el.grid, 3) == size(el.matrix, 2)
 @test size(el.grid, 1) == size(el.matrix, 1)
 @test sum(el.grid) == sum(el.matrix)
