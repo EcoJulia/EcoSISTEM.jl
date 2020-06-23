@@ -90,7 +90,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     end
 
     jindices = 1:size(epi.cache.virusmigration, 2)
-    threadedjindices = [jindices[i:Threads.nthreads():end] for i in 1:Threads.nthreads()]
+    threadedjindices = [jindices[j:Threads.nthreads():end] for j in 1:Threads.nthreads()]
     @assert all(sort(unique(vcat(threadedjindices...))) .== jindices)
     Threads.@threads for jrange in threadedjindices
        for j in jrange
@@ -131,45 +131,42 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     width = getdimension(epi)[1]
     classes = size(human(epi.abundances), 1)
 
-    # Loop through grid squares
-    #Threads.@threads for i in 1:dims
+    # Check if grid cell currently active. If inactive skip the inner loop
+    # epi.epienv.active[convert_coords(epi, j, width)...] || continue
 
-    iindices = 1:dims
-    threadediindices = [iindices[i:Threads.nthreads():end] for i in 1:Threads.nthreads()]
-    @assert all(sort(unique(vcat(threadediindices...))) .== iindices)
-    Threads.@threads for irange in threadediindices; for i in irange
+    # Loop through grid squares
+    activejindices = findall(j->epi.epienv.active[convert_coords(epi, j, width)...], 1:dims)
+    threadedjindices = [activejindices[j:Threads.nthreads():end] for j in 1:Threads.nthreads()]
+    @assert all(sort(unique(vcat(threadedjindices...))) .== activejindices)
+    Threads.@threads for jrange in threadedjindices; for j in jrange
         # will result +=/-= 0 at end of inner loop, so safe to skip
-        iszero(sum_pop(human(epi.abundances), i)) && continue
+        iszero(sum_pop(human(epi.abundances), j)) && continue
 
         rng = epi.abundances.seed[Threads.threadid()]
-        N = sum_pop(epi.abundances.matrix, i)
-        # Convert 1D dimension to 2D coordinates
-        (x, y) = convert_coords(epi, i, width)
-        # Check if grid cell currently active. If inactive skip the inner loop
-        epi.epienv.active[x, y] || continue
+        N = sum_pop(epi.abundances.matrix, j)
         # Loop through classes in chosen square
-        for j in 1:classes
+        for i in 1:classes
             # Births
-            births = rand(rng, Binomial(human(epi.abundances)[j, i],  params.births[j] * timestep))
-            human(epi.abundances)[1, i] += births
+            births = rand(rng, Binomial(human(epi.abundances)[i, j],  params.births[i] * timestep))
+            human(epi.abundances)[1, j] += births
 
             # Note transposition of transition matrices to make iteration over k faster
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
-                iszero(human(epi.abundances)[k, i]) && continue # will result +=/-= 0 at end of loop
-                env_inf = (params.transition_virus[j, k] * timestep * virus(epi.abundances)[1, i]) / N
+                iszero(human(epi.abundances)[k, j]) && continue # will result +=/-= 0 at end of loop
+                env_inf = (params.transition_virus[i, k] * timestep * virus(epi.abundances)[1, j]) / N
 
-                force_inf = (params.transition_force[j, k] * timestep * virus(epi.abundances)[2, i]) / N
+                force_inf = (params.transition_force[i, k] * timestep * virus(epi.abundances)[2, j]) / N
 
                 # Add to transitional probabilities
-                trans_val = (params.transition[j, k] * timestep) + env_inf + force_inf
+                trans_val = (params.transition[i, k] * timestep) + env_inf + force_inf
                 trans_prob = 1 - exp(-trans_val)
                 iszero(trans_prob) && continue # will result +=/-= 0 at end of loop
 
                 # Make transitions
-                trans = rand(rng, Binomial(human(epi.abundances)[k, i], trans_prob))
-                human(epi.abundances)[j, i] += trans
-                human(epi.abundances)[k, i] -= trans
+                trans = rand(rng, Binomial(human(epi.abundances)[k, j], trans_prob))
+                human(epi.abundances)[i, j] += trans
+                human(epi.abundances)[k, j] -= trans
             end
         end
     end; end
