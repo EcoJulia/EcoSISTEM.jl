@@ -33,47 +33,69 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     id = Threads.threadid()
     rng = epi.abundances.seed[id]
     classes = findall((params.virus_growth .* timestep) .> 0)
+
+    # Convert 1D dimension to 2D coordinates with (x, y) = convert_coords(epi, j, width)
+    # Check which grid cells are active, only iterate along those
+    activejindices = findall(j->epi.epienv.active[convert_coords(epi, j, width)...], 1:dims)
     # Loop through grid squares
-    Threads.@threads for j in classes
-        for i in 1:dims
+    function firstloop(i)
+        for j in activejindices
             # Calculate how much birth and death should be adjusted
 
-            # Convert 1D dimension to 2D coordinates
-            (x, y) = convert_coords(epi, i, width)
-            # Check if grid cell currently active
-            epi.epienv.active[x, y] || continue
-
             # Calculate effective rates
-            birthrate = params.virus_growth[j] * timestep * human(epi.abundances)[j, i]
+            birthrate = params.virus_growth[i] * timestep * human(epi.abundances)[i, j]
             births = rand(rng, Poisson(birthrate))
 
             # Update population
             if (!iszero(births))
-                epi.cache.virusmigration[j, i] += births
+                epi.cache.virusmigration[i, j] += births
                 virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
 
-            iszero(params.virus_decay[j]) && continue
-            traitmatch = traitfun(epi, i, 1)
-            deathrate = params.virus_decay[j] * timestep * traitmatch^-1
+            iszero(params.virus_decay[i]) && continue
+            traitmatch = traitfun(epi, j, 1)
+            deathrate = params.virus_decay[i] * timestep * traitmatch^-1
             # Convert death rate into 0 - 1 probability
             deathprob = 1.0 - exp(-deathrate)
 
             # Calculate how many births and deaths
-            deaths = rand(rng, Binomial(virus(epi.abundances)[1, i], deathprob))
-            epi.cache.virusdecay[j, i] -= deaths
+            deaths = rand(rng, Binomial(virus(epi.abundances)[1, j], deathprob))
+            epi.cache.virusdecay[i, j] -= deaths
         end
     end
-    Threads.@threads for l in 1:size(epi.cache.virusmigration, 2)
-        for k in 1:size(epi.cache.virusmigration, 1)
-            iszero(epi.cache.virusmigration[k, l]) && continue
-            dist = Poisson(epi.cache.virusmigration[k, l])
-            epi.cache.virusmigration[k, l] = rand(rng, dist)
+
+    firstlooptasks = Dict{Int, Task}()
+    # spawn tasks on threads through the first loop
+    for i in classes
+        firstlooptasks[i] = Threads.@spawn firstloop(i)
+    end
+
+    notclasses = [i for i in 1:size(epi.cache.virusmigration, 1) if !(i in classes)]
+    ordered_i_loop = vcat(notclasses, classes)
+    function secondloop(j)
+        vm = zero(eltype(epi.cache.virusmigration))
+        nm = zero(eltype(epi.cache.virusdecay))
+        # order the work so that the spawned tasks come towards the end of the loop
+        for i in ordered_i_loop
+            haskey(firstlooptasks, i) && Threads.wait(firstlooptasks[i])
+            # after wait virusmigration[i, j] will be up to date
+            iszero(epi.cache.virusmigration[i, j]) && continue
+            dist = Poisson(epi.cache.virusmigration[i, j])
+            epi.cache.virusmigration[i, j] = rand(rng, dist)
+            vm += epi.cache.virusmigration[i, j]
+            nm += epi.cache.virusdecay[i, j]
         end
-        vm = sum_pop(epi.cache.virusmigration, l)
-        nm = sum_pop(epi.cache.virusdecay, l)
-        virus(epi.abundances)[1, l] += (nm + vm)
-        virus(epi.abundances)[2, l] = vm
+        virus(epi.abundances)[1, j] += (nm + vm)
+        virus(epi.abundances)[2, j] = vm
+    end
+
+    jindices = 1:size(epi.cache.virusmigration, 2)
+    threadedjindices = [jindices[i:Threads.nthreads():end] for i in 1:Threads.nthreads()]
+    @assert all(sort(unique(vcat(threadedjindices...))) .== jindices)
+    Threads.@threads for jrange in threadedjindices
+       for j in jrange
+           secondloop(j)
+       end
     end
 end
 
@@ -118,7 +140,12 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     classes = size(human(epi.abundances), 1)
 
     # Loop through grid squares
-    Threads.@threads for i in 1:dims
+    #Threads.@threads for i in 1:dims
+
+    iindices = 1:dims
+    threadediindices = [iindices[i:Threads.nthreads():end] for i in 1:Threads.nthreads()]
+    @assert all(sort(unique(vcat(threadediindices...))) .== iindices)
+    Threads.@threads for irange in threadediindices; for i in irange
         # will result +=/-= 0 at end of inner loop, so safe to skip
         iszero(sum_pop(human(epi.abundances), i)) && continue
 
@@ -153,7 +180,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 human(epi.abundances)[k, i] -= trans
             end
         end
-    end
+    end; end
 end
 
 """
@@ -270,11 +297,11 @@ end
 
 
 """
-    virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Int64, 2}, newvirus::Int64)
+    virusmove!(epi::AbstractEpiSystem, id::Int64, pos::Int64, grd::Array{Int64, 2}, newvirus::Int64)
 
 Function to calculate the movement of force of infection `id` from a given position in the landscape `pos`, using the lookup table found in the EpiSystem and updating the movement patterns on a cached grid, `grd`. The number of new virus is provided, so that movement only takes place as part of the generation process.
 """
-function virusmove!(epi::AbstractEpiSystem, pos::Int64, id::Int64, grd::Array{Float64, 2}, newvirus::Int64)
+function virusmove!(epi::AbstractEpiSystem, id::Int64, pos::Int64, grd::Array{Float64, 2}, newvirus::Int64)
   width, height = getdimension(epi)
   (x, y) = convert_coords(epi, pos, width)
   lookup = getlookup(epi, id)
