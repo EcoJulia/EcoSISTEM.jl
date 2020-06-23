@@ -156,6 +156,9 @@ include("Epidemiology/EpiPlots.jl")
 include("Epidemiology/Inference.jl")
 export SIR_wrapper, SIR_wrapper!
 
+include("Epidemiology/shrink.jl")
+export shrink_to_active, shrink_to_boundingbox
+
 # Path into package
 path(paths...) = joinpath(@__DIR__, "..", paths...)
 
