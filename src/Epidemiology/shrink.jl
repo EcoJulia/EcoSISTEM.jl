@@ -43,6 +43,13 @@ function _construct_shrunk_matrix(M::AxisArray, row_idxs, col_idxs)::AxisArray
     return M[row_idxs, col_idxs]
 end
 
+"""
+    shrink_and_convert(M::AM, intnum::U=Int64(1)) where {AM <: AbstractMatrix, U <: Integer}
+
+Shrink the matrix M to its active bounding box, and then convert the entries to type U.
+Active entries are defined as being non-nan, non-inf, and non-zero.
+In the output, any inactive entries are set to zero.
+"""
 function shrink_and_convert(M::AM, intnum::U=Int64(1)) where {AM <: AbstractMatrix, U <: Integer}
     inactive(x) = isnan(x) || ismissing(x) || x==0
     active = .!inactive.(M)
@@ -52,7 +59,12 @@ function shrink_and_convert(M::AM, intnum::U=Int64(1)) where {AM <: AbstractMatr
 end
 
 """
-    convert_population
+    function convert_population(
+        initial_population,
+        active::AbstractMatrix{Bool},
+        intnum::U = Int64(1)
+    )
+
 Convert population matrix to Int matrix by filling in the inactive area with 0 population
 and rounding the active area.
 """
