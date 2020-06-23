@@ -52,10 +52,11 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
                                        0.0, 7e5, 0, 1.25e6))
     # Coarsen grid to 10km
     ukpop = [sum(ukpop[i:i+9, j:j+9]) for i in 1:10:size(ukpop, 1), j in 1:10:size(ukpop, 2)]
+    ukpop = shrink_and_convert(ukpop)
 
     # Set up simple gridded environment
     area = 875_000.0km^2
-    epienv = simplehabitatAE(298.0K, area, NoControl(), ukpop)
+    epienv = simplehabitatAE(298.0K, size(ukpop), area, NoControl())
 
     # Set population to initially have no individuals
     abun_h = (
@@ -87,7 +88,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     rel = Gauss{eltype(epienv.habitat)}()
 
     # Create epi system with all information
-    epi = EpiSystem(epilist, epienv, rel)
+    epi = EpiSystem(epilist, epienv, rel, ukpop)
 
     # Spread susceptibles randomly over age categories
     split_pop = rand.(Multinomial.(Int.(epi.abundances.matrix[1, :]), 10))
