@@ -35,7 +35,7 @@ end
 Function to create an empty EpiLandscape given a GridEpiEnv and a
 EpiList.
 """
-function emptyepilandscape(epienv::GridEpiEnv, epilist::EpiList, IntType::U) where U <: Integer
+function emptyepilandscape(epienv::GridEpiEnv, epilist::EpiList, intnum::U) where U <: Integer
   mat_human = zeros(U, counttypes(epilist.human, true), countsubcommunities(epienv))
   mat_virus = zeros(U, counttypes(epilist.virus, true), countsubcommunities(epienv))
   dimension = (counttypes(epilist.human, true), _getdimension(epienv.habitat)...)

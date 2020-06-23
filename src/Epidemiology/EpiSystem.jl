@@ -52,10 +52,10 @@ mutable struct EpiSystem{U <: Integer, EE <: AbstractEpiEnv, EL <: EpiList, ER <
 end
 
 function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
-    rel::AbstractTraitRelationship, IntType::U) where {F<:Function, U <: Integer}
+    rel::AbstractTraitRelationship, intnum::U) where {F<:Function, U <: Integer}
 
   # Create matrix landscape of zero abundances
-  ml = emptyepilandscape(epienv, epilist, IntType)
+  ml = emptyepilandscape(epienv, epilist, intnum)
   # Populate this matrix with species abundances
   popfun(ml, epilist, epienv, rel)
   # Create lookup table of all moves and their probabilities
@@ -65,8 +65,8 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
 end
 
-function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, IntType::U = Int64(1)) where U <: Integer
-    epi = EpiSystem(populate!, epilist, epienv, rel, IntType)
+function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, intnum::U = Int64(1)) where U <: Integer
+    epi = EpiSystem(populate!, epilist, epienv, rel, intnum)
     # Add in the initial susceptible population
     idx = findfirst(epilist.human.names .== "Susceptible")
     if idx == nothing

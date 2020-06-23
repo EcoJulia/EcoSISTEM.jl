@@ -175,7 +175,7 @@ function initialise_output_abuns(
         dset_abuns = d_create(
             group,
             "abuns",
-            datatype(typeof(abuns[1])),
+            datatype(eltype(abuns)),
             dataspace(size(abuns)),
             "chunk",
             (size.(Ref(abuns), [1,2])...,1)
