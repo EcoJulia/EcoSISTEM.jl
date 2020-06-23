@@ -27,7 +27,6 @@ epi = TestEpiSystem()
 @testset "EpiSystem from initial population" begin
     initial_pop = rand(10, 10) * 10
     epi = TestEpiSystemFromPopulation(initial_pop)
-    @test epi.epienv.initial_population == round.(initial_pop)
     @test epi.abundances.grid[1, :, :] == round.(initial_pop)
 end
 

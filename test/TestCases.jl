@@ -92,7 +92,7 @@ function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
     param = transition(param)
 
     area = 10.0km^2
-    epienv = simplehabitatAE(298.0K, area, NoControl(), initial_pop)
+    epienv = simplehabitatAE(298.0K, size(initial_pop), area, NoControl())
 
     # Zero susceptible so we can test the specified initial_pop
     abun_h = (
@@ -115,7 +115,7 @@ function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
     epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
-    epi = EpiSystem(epilist, epienv, rel)
+    epi = EpiSystem(epilist, epienv, rel, initial_pop)
 
     return epi
 end
