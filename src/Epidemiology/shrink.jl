@@ -31,7 +31,7 @@ Return an AxisArray{T, 2}. The axes will be the selected subset of the original 
 is an AxisArray. If `M` is a normal matrix, the axes of the returned AxisArray are the
 selected coordinates.
 """
-function _construct_shrunk_matrix(M::Matrix, row_idxs, col_idxs)::AxisArray
+function _construct_shrunk_matrix(M::AbstractMatrix, row_idxs, col_idxs)::AxisArray
     return AxisArray(
         M[row_idxs, col_idxs];
         row_idxs=row_idxs,
@@ -43,7 +43,39 @@ function _construct_shrunk_matrix(M::AxisArray, row_idxs, col_idxs)::AxisArray
     return M[row_idxs, col_idxs]
 end
 
-function shrink_to_boundingbox(M::AM) where {AM <: AbstractMatrix}
+function shrink_and_convert(M::AM, intnum::U=Int64(1)) where {AM <: AbstractMatrix, U <: Integer}
     inactive(x) = isnan(x) || ismissing(x) || x==0
-    return shrink_to_active(M, .!inactive.(M))
+    active = .!inactive.(M)
+    M_out = shrink_to_active(M, active)
+    active = shrink_to_active(active, active)
+    return convert_population(M_out, active, intnum)
+end
+
+"""
+    convert_population
+Convert population matrix to Int matrix by filling in the inactive area with 0 population
+and rounding the active area.
+"""
+function convert_population(
+    initial_population::Matrix{<:Real},
+    active::AbstractMatrix{Bool},
+    intnum::U = Int64(1)
+) where U <: Integer
+    initial_population[.!active] .= 0
+    initial_population = U.(round.(initial_population))
+    return initial_population
+end
+
+function convert_population(
+    initial_population::AxisArray{<:Real, 2},
+    active::AbstractMatrix{Bool},
+    intnum::U = Int64(1)
+) where U <: Integer
+    # NOTE: this is a workaround as logical indexing directly on AxisArray leads to
+    #   stackoverflow. see issue: https://github.com/JuliaArrays/AxisArrays.jl/issues/179
+    initial_population.data[.!active] .= 0
+    return AxisArray(
+        U.(round.(initial_population.data)),
+        initial_population.axes
+    )
 end

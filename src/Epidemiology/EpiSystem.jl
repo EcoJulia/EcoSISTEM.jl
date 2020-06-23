@@ -77,40 +77,11 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
         msg = "epilist has no Susceptible category. epilist.names = $(epilist.human.names)"
         throw(ArgumentError(msg))
     end
-    epi.abundances.grid[idx, :, :] .+= _convert_population(initial_population, epienv.active, intnum)
+    epi.abundances.grid[idx, :, :] .+= convert_population(initial_population, epienv.active, intnum)
     # Modify active cells based on new population
     # Set any cells with zero population to inactive
     epi.epienv.active .&= (epi.abundances.grid[idx, :, :] .!= 0)
     return epi
-end
-
-"""
-    _convert_population
-Convert population matrix to Int matrix by filling in the inactive area with 0 population
-and rounding the active area.
-"""
-function _convert_population(
-    initial_population::Matrix{<:Real},
-    active::AbstractMatrix{Bool},
-    intnum::U = Int64(1)
-) where U <: Integer
-    initial_population[.!active] .= 0
-    initial_population = U.(round.(initial_population))
-    return initial_population
-end
-
-function _convert_population(
-    initial_population::AxisArray{<:Real, 2},
-    active::AbstractMatrix{Bool},
-    intnum::U = Int64(1)
-) where U <: Integer
-    # NOTE: this is a workaround as logical indexing directly on AxisArray leads to
-    #   stackoverflow. see issue: https://github.com/JuliaArrays/AxisArrays.jl/issues/179
-    initial_population.data[.!active] .= 0
-    return AxisArray(
-        U.(round.(initial_population.data)),
-        initial_population.axes
-    )
 end
 
 """
