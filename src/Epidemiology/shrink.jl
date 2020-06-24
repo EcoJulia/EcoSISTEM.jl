@@ -4,6 +4,9 @@
 
 Shrink the matrix `M` to the minimum rectangular region which contains all active cells, as
 defined by `active`. Returns the shrunk matrix.
+
+If `active is not provided, automatically determines the active region by masking out
+entries which are `NaN` or `missing`.
 """
 function shrink_to_active(M::AM, active::A) where {AM <: AbstractMatrix, A <: AbstractMatrix{<: Bool}}
     if size(M) != size(active)
@@ -20,6 +23,13 @@ function shrink_to_active(M::AM, active::A) where {AM <: AbstractMatrix, A <: Ab
     #return M[shrunk_rows, shrunk_cols]
     return _construct_shrunk_matrix(M, shrunk_rows, shrunk_cols)
 end
+
+function shrink_to_active(M::AM) where {AM <: AbstractMatrix}
+    active = .!_inactive.(M)
+    return shrink_to_active(M, active)
+end
+
+_inactive(x) = ismissing(x) || isnan(x)
 
 """
     _construct_shrunk_matrix
@@ -44,24 +54,8 @@ function _construct_shrunk_matrix(M::AxisArray, row_idxs, col_idxs)::AxisArray
 end
 
 """
-    shrink_and_convert(M::AM, intnum::U=Int64(1)) where {AM <: AbstractMatrix, U <: Integer}
-
-Shrink the matrix M to its active bounding box, and then convert the entries to type U.
-Active entries are defined as being non-nan, non-inf, and non-zero.
-In the output, any inactive entries are set to zero.
-"""
-function shrink_and_convert(M::AM, intnum::U=Int64(1)) where {AM <: AbstractMatrix, U <: Integer}
-    inactive(x) = isnan(x) || ismissing(x) || x==0
-    active = .!inactive.(M)
-    M_out = shrink_to_active(M, active)
-    active = shrink_to_active(active, active)
-    return convert_population(M_out, active, intnum)
-end
-
-"""
     function convert_population(
         initial_population,
-        active::AbstractMatrix{Bool},
         intnum::U = Int64(1)
     )
 
@@ -69,20 +63,20 @@ Convert population matrix to Int matrix by filling in the inactive area with 0 p
 and rounding the active area.
 """
 function convert_population(
-    initial_population::Matrix{<:Real},
-    active::AbstractMatrix{Bool},
+    initial_population::Matrix,
     intnum::U = Int64(1)
 ) where U <: Integer
+    active = .!_inactive.(initial_population)
     initial_population[.!active] .= 0
     initial_population = U.(round.(initial_population))
     return initial_population
 end
 
 function convert_population(
-    initial_population::AxisArray{<:Real, 2},
-    active::AbstractMatrix{Bool},
+    initial_population::AxisArray,
     intnum::U = Int64(1)
 ) where U <: Integer
+    active = .!_inactive.(initial_population)
     # NOTE: this is a workaround as logical indexing directly on AxisArray leads to
     #   stackoverflow. see issue: https://github.com/JuliaArrays/AxisArrays.jl/issues/179
     initial_population.data[.!active] .= 0
