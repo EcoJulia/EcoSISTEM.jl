@@ -129,7 +129,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     dims = _countsubcommunities(epi.epienv.habitat)
     params = epi.epilist.params
     width = getdimension(epi)[1]
-    classes = size(human(epi.abundances), 1)
+    classes = 1:size(human(epi.abundances), 1)
 
     # Check if grid cell currently active. If inactive skip the inner loop
     # epi.epienv.active[convert_coords(epi, j, width)...] || continue
