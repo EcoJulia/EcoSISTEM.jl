@@ -50,7 +50,7 @@ epi = TestEpiSystem()
         @test epi.epienv.active == expected_active
         @test epi.abundances.grid[1, :, :] == expected_pop
         # Should not have modified initial_pop
-        @test initial_pop == initial_pop_ref
+        @test isequal(initial_pop, initial_pop_ref)
 
         # If we specify inactive regions when constructing the EpiEnv, these should be
         # preserved
@@ -67,7 +67,7 @@ epi = TestEpiSystem()
         @test epi.epienv.active == expected_active
         @test epi.abundances.grid[1, :, :] == expected_pop
         # Should not have modified initial_pop
-        @test initial_pop == initial_pop_ref
+        @test isequal(initial_pop, initial_pop_ref)
     end
 
     @testset "Initial population is provided as a AxisArray Matrix" begin
