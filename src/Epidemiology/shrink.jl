@@ -66,6 +66,8 @@ function convert_population(
     initial_population::Matrix,
     intnum::U = Int64(1)
 ) where U <: Integer
+    # Don't modify the arg
+    initial_population = copy(initial_population)
     active = .!_inactive.(initial_population)
     initial_population[.!active] .= 0
     initial_population = U.(round.(initial_population))
@@ -76,6 +78,8 @@ function convert_population(
     initial_population::AxisArray,
     intnum::U = Int64(1)
 ) where U <: Integer
+    # Don't modify the arg
+    initial_population = copy(initial_population)
     active = .!_inactive.(initial_population)
     # NOTE: this is a workaround as logical indexing directly on AxisArray leads to
     #   stackoverflow. see issue: https://github.com/JuliaArrays/AxisArrays.jl/issues/179
