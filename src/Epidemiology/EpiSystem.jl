@@ -70,6 +70,11 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, initial_population, intnum::U = Int64(1)) where U <: Integer
+    if size(initial_population) != size(epienv.active)
+        msg = "size(initial_population)==$(size(initial_population)) != " *
+            "size(epienv.active)==$(size(epienv.active))"
+        throw(DimensionMismatch(msg))
+    end
     epi = EpiSystem(epilist, epienv, rel, intnum)
     # Add in the initial susceptible population
     idx = findfirst(epilist.human.names .== "Susceptible")
