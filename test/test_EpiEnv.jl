@@ -21,26 +21,6 @@ abenv = simplehabitatAE(fillval, grid, area, control)
 @test all(abenv.active)
 @test abenv.habitat.size^2 * grid[1] * grid[2] == area
 
-@testset "Constructing from initial population" begin
-    fillval = 1.0
-    area = 25.0km^2
-    control = NoControl()
-    initial_pop = rand(10, 15) * 10
-    # Fill some NaNs, these should indicate inactive areas
-    missing_idx = CartesianIndex.([1, 4, 8], [5, 8, 2])
-    initial_pop[missing_idx] .= NaN
-
-    expected_active = Matrix{Bool}(.!isnan.(initial_pop))
-    expected_size = size(initial_pop)
-    expected_pop = round.(replace(initial_pop, NaN => 0))
-
-    epienv = simplehabitatAE(fillval, area, control, initial_pop)
-    @test all(epienv.habitat.matrix .== fillval)
-    @test size(epienv.habitat.matrix) == expected_size
-    @test epienv.active == expected_active
-    @test epienv.initial_population == expected_pop
-end
-
 @testset "Shrink grid" begin
     grid = (10, 10)
     area = 100.0km^2
@@ -71,30 +51,6 @@ end
     control = NoControl()
     expected_matrix = fill(fillval, expected_grid)
 
-    @testset "_shrink_to_active" begin
-        @testset "shrink a normal matrix" begin
-            M = rand(grid...)
-            M_shrunk = Simulation._shrink_to_active(M, active)
-            @test M_shrunk isa AxisArray
-            @test axisvalues(M_shrunk) == (4:9, 2:9)
-            @test size(M_shrunk) == expected_grid
-            @test M_shrunk == M[4:9, 2:9]
-        end
-        @testset "shrink an AxisArray matrix" begin
-            M = AxisArray(
-                rand(grid...);
-                x=Symbol.("x_", 1:grid[1]),
-                y=Symbol.("y_", 1:grid[2]),
-            )
-            M_shrunk = Simulation._shrink_to_active(M, active)
-            @test M_shrunk isa AxisArray
-            @test axisvalues(M_shrunk) == (Symbol.("x_", 4:9), Symbol.("y_", 2:9))
-            @test size(M_shrunk) == expected_grid
-            @test M_shrunk == M[4:9, 2:9]
-        end
-
-    end
-
     @testset "Construct directly" begin
         epienv = simplehabitatAE(fillval, grid, area, active, control)
 
@@ -103,44 +59,5 @@ end
         @test epienv.habitat.size == expected_gridlength
         @test epienv.habitat.matrix == expected_matrix
         @test epienv.initial_population isa AxisArray
-    end
-
-    @testset "Construct from initial population" begin
-        # Set an initial population of zeros
-        # The zeros should not be masked out (but the NaNs should)
-        @testset "Initial population is provided as a normal Matrix" begin
-            initial_pop = zeros(grid...)
-            initial_pop[.!active] .= NaN
-
-            epienv = simplehabitatAE(fillval, area, control, initial_pop)
-            expected_initial_pop = zeros(expected_grid)
-
-            @test epienv.active == expected_active
-            @test size(epienv.habitat.matrix) == expected_grid
-            @test epienv.habitat.size == expected_gridlength
-            @test epienv.habitat.matrix == expected_matrix
-            @test epienv.initial_population == expected_initial_pop
-            @test epienv.initial_population isa AxisArray
-            @test axisvalues(epienv.initial_population) == (4:9, 2:9)
-        end
-        @testset "Initial population is provided as a AxisArray Matrix" begin
-            initial_pop = AxisArray(
-                zeros(grid...);
-                x=Symbol.("x_", 1:grid[1]),
-                y=Symbol.("y_", 1:grid[2]),
-            )
-            initial_pop.data[.!active] .= NaN
-
-            epienv = simplehabitatAE(fillval, area, control, initial_pop)
-            expected_initial_pop = zeros(expected_grid)
-            @test epienv.active == expected_active
-            @test size(epienv.habitat.matrix) == expected_grid
-            @test epienv.habitat.size == expected_gridlength
-            @test epienv.habitat.matrix == expected_matrix
-            @test epienv.initial_population == expected_initial_pop
-            @test axisvalues(epienv.initial_population) ==
-                (Symbol.("x_", 4:9), Symbol.("y_", 2:9))
-        end
-
     end
 end
