@@ -102,7 +102,7 @@ function simulate_record!(
   axes = (;
       compartment = epi.epilist.human.names,
       grid_id = grid_id,
-      times = string.(record_seq)
+      times = string.(uconvert.(day, 1.0 .* record_seq))
   )
   if save
       initialise_output_abuns(
@@ -175,7 +175,7 @@ function initialise_output_abuns(
         dset_abuns = d_create(
             group,
             "abuns",
-            datatype(Int),
+            datatype(eltype(abuns)),
             dataspace(size(abuns)),
             "chunk",
             (size.(Ref(abuns), [1,2])...,1)
@@ -197,10 +197,10 @@ end
 Update the existing HDF5 file `h5fn` with the abundance matrix at a certain timestep.
 """
 function update_output_abuns(
-    abuns_t::Matrix,
+    abuns_t::Matrix{U},
     timestep::Int;
     h5fn=joinpath(pwd(),"abundances.h5")
-)
+) where U <: Integer
     if !(isfile(h5fn) && ishdf5(h5fn))
         throw(ArgumentError(
             "$(h5fn) does not exist or is not a valid HDF5 file"

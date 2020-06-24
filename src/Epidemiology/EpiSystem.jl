@@ -10,8 +10,8 @@ abstract type AbstractEpiSystem{Part <: AbstractEpiEnv, EL <: EpiList, TR <: Abs
 
 
 mutable struct EpiCache
-  virusdecay::Array{Int64, 2}
-  virusmigration::Array{Int64, 2}
+  virusdecay::Array{Float64, 2}
+  virusmigration::Array{Float64, 2}
   valid::Bool
 end
 
@@ -22,7 +22,7 @@ mutable struct EpiLookup
   y::Vector{Int64}
   p::Vector{Float64}
   pnew::Vector{Float64}
-  moves::Vector{Int64}
+  moves::Vector{Float64}
 end
 EpiLookup(df::DataFrame) = EpiLookup(df[!, :X], df[!, :Y], df[!, :Prob],
 zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))
@@ -34,8 +34,8 @@ EpiSystem houses information on different disease classes, `epilist`, the enviro
 
 See `help?>plot_epidynamics` and `help?>plot_epiheatmaps` for relevant plotting functions.
 """
-mutable struct EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship} <: AbstractEpiSystem{EE, EL, ER}
-  abundances::EpiLandscape
+mutable struct EpiSystem{U <: Integer, EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship} <: AbstractEpiSystem{EE, EL, ER}
+  abundances::EpiLandscape{U}
   epilist::EL
   epienv::EE
   ordinariness::Union{Matrix{Float64}, Missing}
@@ -43,37 +43,37 @@ mutable struct EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTrai
   lookup::Vector{EpiLookup}
   cache::EpiCache
 
-  function EpiSystem{EE, EL, ER}(abundances::EpiLandscape,
-    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::Vector{EpiLookup}, cache::EpiCache) where {EE <:
+  function EpiSystem{U, EE, EL, ER}(abundances::EpiLandscape{U},
+    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::Vector{EpiLookup}, cache::EpiCache) where {U <: Integer, EE <:
      AbstractEpiEnv,
     EL <: EpiList, ER <: AbstractTraitRelationship}
-    new{EE, EL, ER}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache)
+    new{U, EE, EL, ER}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache)
   end
 end
 
 function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
-    rel::AbstractTraitRelationship) where {F<:Function}
+    rel::AbstractTraitRelationship, intnum::U) where {F<:Function, U <: Integer}
 
   # Create matrix landscape of zero abundances
-  ml = emptyepilandscape(epienv, epilist)
+  ml = emptyepilandscape(epienv, epilist, intnum)
   # Populate this matrix with species abundances
   popfun(ml, epilist, epienv, rel)
   # Create lookup table of all moves and their probabilities
   lookup_tab = collect(map(k -> genlookups(epienv, k), getkernels(epilist.human.movement)))
-  nm = zeros(Int64, size(ml.matrix))
-  vm = zeros(Int64, size(ml.matrix))
-  EpiSystem{typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
+  nm = zeros(Float64, size(ml.matrix))
+  vm = zeros(Float64, size(ml.matrix))
+  EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
 end
 
-function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship)
-    epi = EpiSystem(populate!, epilist, epienv, rel)
+function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, intnum::U = Int64(1)) where U <: Integer
+    epi = EpiSystem(populate!, epilist, epienv, rel, intnum)
     # Add in the initial susceptible population
     idx = findfirst(epilist.human.names .== "Susceptible")
     if idx == nothing
         msg = "epilist has no Susceptible category. epilist.names = $(epilist.human.names)"
         throw(ArgumentError(msg))
     end
-    epi.abundances.grid[idx, :, :] .+= epienv.initial_population
+    epi.abundances.grid[idx, :, :] .+= U.(epienv.initial_population)
     return epi
 end
 

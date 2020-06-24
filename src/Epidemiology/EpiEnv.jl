@@ -21,19 +21,19 @@ abstract type AbstractEpiEnv{H <: AbstractHabitat, C <: AbstractControl} <:
 This epi environment type holds a habitat and control strategy, as well as a string of
 subcommunity names, and initial susceptible population.
 """
-mutable struct GridEpiEnv{H, C} <: AbstractEpiEnv{H, C}
+mutable struct GridEpiEnv{H, C, A, P} <: AbstractEpiEnv{H, C}
     habitat::H
-    active::AbstractMatrix{Bool}
+    active::A
     control::C
-    initial_population::AbstractMatrix{Int}
+    initial_population::P
     names::Vector{String}
     function (::Type{GridEpiEnv{H, C}})(
         habitat::H,
-        active::AbstractMatrix{Bool},
+        active::A,
         control::C,
-        initial_population=zeros(Int, _getdimension(habitat)),
+        initial_population::P=zeros(Int, _getdimension(habitat)),
         names::Vector{String}=map(x -> "$x", 1:countsubcommunities(habitat))
-    ) where {H, C}
+    ) where {H, C, A <: AbstractMatrix{Bool}, P <: AbstractMatrix{Int}}
         countsubcommunities(habitat) == length(names) ||
             error("Number of subcommunities must match subcommunity names")
         if (size(habitat.matrix, 1), size(habitat.matrix, 2)) != size(active)
@@ -48,7 +48,7 @@ mutable struct GridEpiEnv{H, C} <: AbstractEpiEnv{H, C}
                 "size(active)=$(size(active))"
             ))
         end
-        return new{H, C}(habitat, active, control, initial_population, names)
+        return new{H, C, A, P}(habitat, active, control, initial_population, names)
     end
 end
 
@@ -67,7 +67,7 @@ end
 Shrink the matrix `M` to the minimum rectangular region which contains all active cells, as
 defined by `active`. Returns the shrunk matrix.
 """
-function _shrink_to_active(M::AbstractMatrix, active::AbstractMatrix{<:Bool})
+function _shrink_to_active(M::AM, active::A) where {AM <: AbstractMatrix, A <: AbstractMatrix{<: Bool}}
     if size(M) != size(active)
         throw(DimensionMismatch("size(M)=$(size(M)) != size(active)=$(size(active))"))
     end
@@ -147,10 +147,10 @@ function simplehabitatAE(
     val::Union{Float64, Unitful.Quantity{Float64}},
     dimension::Tuple{Int64, Int64},
     area::Unitful.Area{Float64},
-    active::AbstractMatrix{Bool},
+    active::M,
     control::C,
-    initial_population::AbstractMatrix{<:Integer}=zeros(Int, dimension),
-) where C <: AbstractControl
+    initial_population::P=zeros(Int, dimension),
+) where {C <: AbstractControl, M <: AbstractMatrix{Bool}, P <: AbstractMatrix{<:Integer}}
     if typeof(val) <: Unitful.Temperature
         val = uconvert(K, val)
     end
@@ -204,8 +204,8 @@ function simplehabitatAE(
     val::Union{Float64, Unitful.Quantity{Float64}},
     area::Unitful.Area{Float64},
     control::C,
-    initial_population::AbstractMatrix{<:Real},
-) where C <: AbstractControl
+    initial_population::M,
+) where {C <: AbstractControl, M <: AbstractMatrix{<:Real}}
     inactive(x) = isnan(x) || ismissing(x)
     if all(inactive.(initial_population))
         throw(ArgumentError("initial_population is all NaN / missing"))

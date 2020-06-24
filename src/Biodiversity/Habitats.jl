@@ -242,11 +242,11 @@ function _getgridsize(hab::Union{HabitatCollection2, HabitatCollection3})
   return _getgridsize(hab.h1)
 end
 
-function gethabitat(hab::AbstractHabitat, pos::Int64)
+function gethabitat(hab::H, pos::Int64) where H <: AbstractHabitat
     x, y = convert_coords(pos, size(hab.matrix, 1))
     return hab.matrix[x, y]
 end
-function gethabitat(hab::AbstractHabitat, field::Symbol)
+function gethabitat(hab::H, field::Symbol) where H <: AbstractHabitat
     return getfield(hab, field)
 end
 function gethabitat(hab::ContinuousTimeHab, pos::Int64)
