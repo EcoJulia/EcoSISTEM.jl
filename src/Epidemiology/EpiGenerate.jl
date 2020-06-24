@@ -145,7 +145,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
         rng = epi.abundances.seed[Threads.threadid()]
         N = sum_pop(epi.abundances.matrix, j)
         # Loop through classes in chosen square
-        for i in 1:classes
+        for i in classes
             # Births
             births = rand(rng, Binomial(human(epi.abundances)[i, j],  params.births[i] * timestep))
             human(epi.abundances)[1, j] += births
