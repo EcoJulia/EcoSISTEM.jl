@@ -52,7 +52,6 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
                                        0.0, 7e5, 0, 1.25e6))
     # Coarsen grid to 10km
     ukpop = [sum(ukpop[i:i+9, j:j+9]) for i in 1:10:size(ukpop, 1), j in 1:10:size(ukpop, 2)]
-    ukpop = shrink_and_convert(ukpop)
 
     # Set up simple gridded environment
     area = 875_000.0km^2

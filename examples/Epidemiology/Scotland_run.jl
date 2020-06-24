@@ -34,8 +34,9 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     # Sum up age categories and turn into simple matrix
     total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
     total_pop = AxisArray(total_pop, AxisArrays.axes(scotpop)[1], AxisArrays.axes(scotpop)[2])
-    # Shrink to smallest bounding box
-    total_pop = shrink_and_convert(total_pop);
+    total_pop.data[total_pop .≈ 0.0] .= NaN
+    # Shrink to smallest bounding box. The NaNs are inactive.
+    total_pop = shrink_to_active(total_pop);
 
     # Set simulation parameters
     numclasses = 8

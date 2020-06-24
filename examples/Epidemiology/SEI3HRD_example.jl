@@ -44,7 +44,6 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     # Read in population sizes for Scotland
     scotpop = Array{Float64, 2}(readfile(Simulation.path("test", "examples", "ScotlandDensity2011.tif"), 0.0, 7e5, 5e5, 1.25e6))
-    scotpop = shrink_and_convert(scotpop)
 
     # Set up simple gridded environment
     area = 525_000.0km^2
