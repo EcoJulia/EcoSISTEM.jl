@@ -77,10 +77,10 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
         msg = "epilist has no Susceptible category. epilist.names = $(epilist.human.names)"
         throw(ArgumentError(msg))
     end
-    epi.abundances.grid[idx, :, :] .+= convert_population(initial_population, epienv.active, intnum)
     # Modify active cells based on new population
-    # Set any cells with zero population to inactive
-    epi.epienv.active .&= (epi.abundances.grid[idx, :, :] .!= 0)
+    epi.epienv.active .&= .!_inactive.(initial_population)
+    initial_population = convert_population(initial_population, intnum)
+    epi.abundances.grid[idx, :, :] .+= initial_population
     return epi
 end
 
