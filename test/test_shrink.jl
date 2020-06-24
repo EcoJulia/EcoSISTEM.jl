@@ -73,3 +73,21 @@ expected_matrix = fill(fillval, expected_grid)
         @test M_shrunk == M[4:9, 2:9]
     end
 end
+
+@testset "convert_population" begin
+    M = Matrix{Union{Float64, Missing}}(rand(grid...))
+    M[.!active] .= NaN
+    M[1, 1] = missing
+    M_ref = copy(M)
+
+    @testset "Integer type $U" for U in (Int64, UInt64)
+        M_expected = U.(round.(replace(M, NaN => 0, missing => 0)))
+
+        M_converted = convert_population(M, U(1))
+
+        @test M_converted isa Matrix{U}
+        @test M_converted == M_expected
+        # Should not modify M
+        @test isequal(M, M_ref)
+    end
+end
