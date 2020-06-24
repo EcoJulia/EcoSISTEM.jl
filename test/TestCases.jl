@@ -78,7 +78,10 @@ function TestEpiSystem()
 
     return epi
 end
-function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
+function TestEpiSystemFromPopulation(
+    initial_pop::AbstractMatrix;
+    epienv_active=fill(true, size(initial_pop))
+)
     numclasses = 4
     numvirus = 2
     birth = [fill(1e-5/day, numclasses - 1); 0.0/day]
@@ -92,7 +95,7 @@ function TestEpiSystemFromPopulation(initial_pop::Matrix{<:Real})
     param = transition(param)
 
     area = 10.0km^2
-    epienv = simplehabitatAE(298.0K, size(initial_pop), area, NoControl())
+    epienv = simplehabitatAE(298.0K, size(initial_pop), area, epienv_active, NoControl())
 
     # Zero susceptible so we can test the specified initial_pop
     abun_h = (
