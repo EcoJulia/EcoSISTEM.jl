@@ -58,6 +58,5 @@ abenv = simplehabitatAE(fillval, grid, area, control)
         @test size(epienv.habitat.matrix) == expected_grid
         @test epienv.habitat.size == expected_gridlength
         @test epienv.habitat.matrix == expected_matrix
-        @test epienv.initial_population isa AxisArray
     end
 end
