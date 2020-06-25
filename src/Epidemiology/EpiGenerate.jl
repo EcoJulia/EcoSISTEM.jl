@@ -51,16 +51,6 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 epi.cache.virusmigration[i, j] += births
                 virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
-
-            iszero(params.virus_decay[i]) && continue
-            traitmatch = traitfun(epi, j, 1)
-            deathrate = params.virus_decay[i] * timestep * traitmatch^-1
-            # Convert death rate into 0 - 1 probability
-            deathprob = 1.0 - exp(-deathrate)
-
-            # Calculate how many births and deaths
-            deaths = rand(rng, Binomial(virus(epi.abundances)[1, j], deathprob))
-            epi.cache.virusdecay[i, j] -= deaths
         end
     end
 
@@ -70,13 +60,11 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
         firstlooptasks[i] = Threads.@spawn firstloop(i)
     end
 
-    notclasses = [i for i in 1:size(epi.cache.virusmigration, 1) if !(i in classes)]
-    ordered_i_loop = vcat(notclasses, classes)
     function secondloop(j)
         vm = zero(eltype(epi.cache.virusmigration))
         nm = zero(eltype(epi.cache.virusdecay))
         # order the work so that the spawned tasks come towards the end of the loop
-        for i in ordered_i_loop
+        for i in classes
             haskey(firstlooptasks, i) && Threads.wait(firstlooptasks[i])
             # after wait virusmigration[i, j] will be up to date
             iszero(epi.cache.virusmigration[i, j]) && continue
@@ -85,6 +73,24 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             vm += epi.cache.virusmigration[i, j]
             nm += epi.cache.virusdecay[i, j]
         end
+        traitmatch = traitfun(epi, j, 1)
+        deathrate = params.virus_decay * timestep * traitmatch^-1
+        # Convert death rate into 0 - 1 probability
+        deathprob = 1.0 - exp(-deathrate)
+
+        # Calculate how many births and deaths
+        deaths = rand(rng, Binomial(virus(epi.abundances)[1, j], deathprob))
+
+        deathrate = params.virus_decay * timestep / 2.0 * traitmatch^-1
+        # Convert death rate into 0 - 1 probability
+        survivalprob = exp(-deathrate)
+
+        # Calculate how many births and deaths
+        env_virus = rand(rng, Binomial(vm, survivalprob  * params.env_virus_scale))
+
+        virus(epi.abundances)[1, j] += env_virus - deaths
+        virus(epi.abundances)[2, j] = vm
+
         virus(epi.abundances)[1, j] += (nm + vm)
         virus(epi.abundances)[2, j] = vm
     end
