@@ -4,7 +4,7 @@ using Simulation.Units
 using AxisArrays
 using NetCDF
 using Compat
-using RCall
+using .RCall
 using HDF5
 
 """
