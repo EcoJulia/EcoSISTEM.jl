@@ -55,7 +55,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     # Set up simple gridded environment
     area = 875_000.0km^2
-    epienv = simplehabitatAE(298.0K, area, NoControl(), ukpop)
+    epienv = simplehabitatAE(298.0K, size(ukpop), area, NoControl())
 
     # Set population to initially have no individuals
     abun_h = (
@@ -87,7 +87,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     rel = Gauss{eltype(epienv.habitat)}()
 
     # Create epi system with all information
-    epi = EpiSystem(epilist, epienv, rel)
+    epi = EpiSystem(epilist, epienv, rel, ukpop)
 
     # Spread susceptibles randomly over age categories
     split_pop = rand.(Multinomial.(Int.(epi.abundances.matrix[1, :]), 10))

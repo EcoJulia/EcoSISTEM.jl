@@ -25,10 +25,79 @@ epi = TestEpiSystem()
 @test_nowarn getdispersalvar(epi, "Susceptible")
 
 @testset "EpiSystem from initial population" begin
-    initial_pop = rand(10, 10) * 10
-    epi = TestEpiSystemFromPopulation(initial_pop)
-    @test epi.epienv.initial_population == round.(initial_pop)
-    @test epi.abundances.grid[1, :, :] == round.(initial_pop)
+    @testset "All active" begin
+        initial_pop = rand(10, 10) * 10
+        epi = TestEpiSystemFromPopulation(initial_pop)
+        @test epi.abundances.grid[1, :, :] == round.(initial_pop)
+    end
+
+    @testset "Some inactive" begin
+        initial_pop = Matrix{Union{Float64, Missing}}(rand(10, 15) * 10)
+        # Fill some NaNs and missing, these should indicate inactive areas
+        missing_idx = CartesianIndex.([1, 4, 8], [5, 8, 2])
+        initial_pop[missing_idx[1]] .= NaN
+        initial_pop[missing_idx[2]] .= missing
+        initial_pop[missing_idx[3]] .= missing
+        initial_pop_ref = copy(initial_pop)
+
+        expected_active = fill(true, size(initial_pop))
+        expected_active[missing_idx] .= false
+        expected_size = size(initial_pop)
+        expected_pop = round.(replace(initial_pop, NaN => 0, missing => 0))
+
+        epi = TestEpiSystemFromPopulation(initial_pop)
+        @test size(epi.epienv.habitat.matrix) == expected_size
+        @test epi.epienv.active == expected_active
+        @test epi.abundances.grid[1, :, :] == expected_pop
+        # Should not have modified initial_pop
+        @test isequal(initial_pop, initial_pop_ref)
+
+        # If we specify inactive regions when constructing the EpiEnv, these should be
+        # preserved
+        epienv_active = fill(true, size(initial_pop))
+        epienv_active[1, 1] = false
+        epienv_active[2, 2] = false
+        epienv_active[3, 3] = false
+        expected_active = copy(epienv_active)
+        expected_active[missing_idx] .= false
+        @test expected_active != epienv_active
+
+        epi = TestEpiSystemFromPopulation(initial_pop; epienv_active=epienv_active)
+        @test size(epi.epienv.habitat.matrix) == expected_size
+        @test epi.epienv.active == expected_active
+        @test epi.abundances.grid[1, :, :] == expected_pop
+        # Should not have modified initial_pop
+        @test isequal(initial_pop, initial_pop_ref)
+    end
+
+    @testset "Initial population is provided as a AxisArray Matrix" begin
+        grid = (10, 10)
+        active = fill(true, grid)
+        # Set inactive cells on the outer layers
+        # These should not be trimmed off by the EpiSystem constructor
+        for row in (1, 2, 3, 10)
+            active[row, :] .= false
+        end
+        for col in (1, 2, 10)
+            active[:, col] .= false
+        end
+        initial_pop = AxisArray(
+            zeros(grid...);
+            x=Symbol.("x_", 1:grid[1]),
+            y=Symbol.("y_", 1:grid[2]),
+        )
+        initial_pop.data[.!active] .= NaN
+
+        expected_active = active
+        expected_initial_pop = Int.(zeros(grid))
+        expected_initial_pop[.!active] .= 0
+
+        epi = TestEpiSystemFromPopulation(initial_pop)
+
+        @test epi.epienv.active == expected_active
+        @test size(epi.epienv.habitat.matrix) == grid
+        @test epi.abundances.grid[1, :, :] == expected_initial_pop
+    end
 end
 
 @testset "Approximate equality" begin
