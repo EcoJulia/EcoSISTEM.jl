@@ -36,7 +36,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
 
     # Convert 1D dimension to 2D coordinates with (x, y) = convert_coords(epi, j, width)
     # Check which grid cells are active, only iterate along those
-    activejindices = findall(j->epi.epienv.active[convert_coords(epi, j, width)...], 1:dims)
+    activejindices = findall(j -> epi.epienv.active[convert_coords(epi, j, width)...], 1:dims)
     # Loop through grid squares
     function firstloop(i)
         for j in activejindices
@@ -62,7 +62,6 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
 
     function secondloop(j)
         vm = zero(eltype(epi.cache.virusmigration))
-        nm = zero(eltype(epi.cache.virusdecay))
         # order the work so that the spawned tasks come towards the end of the loop
         for i in classes
             haskey(firstlooptasks, i) && Threads.wait(firstlooptasks[i])
@@ -71,7 +70,6 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             dist = Poisson(epi.cache.virusmigration[i, j])
             epi.cache.virusmigration[i, j] = rand(rng, dist)
             vm += epi.cache.virusmigration[i, j]
-            nm += epi.cache.virusdecay[i, j]
         end
         traitmatch = traitfun(epi, j, 1)
         deathrate = params.virus_decay * timestep * traitmatch^-1
@@ -86,12 +84,9 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
         survivalprob = exp(-deathrate)
 
         # Calculate how many births and deaths
-        env_virus = rand(rng, Binomial(vm, survivalprob  * params.env_virus_scale))
+        env_virus = rand(rng, Binomial(Int(vm), survivalprob  * params.env_virus_scale))
 
         virus(epi.abundances)[1, j] += env_virus - deaths
-        virus(epi.abundances)[2, j] = vm
-
-        virus(epi.abundances)[1, j] += (nm + vm)
         virus(epi.abundances)[2, j] = vm
     end
 
