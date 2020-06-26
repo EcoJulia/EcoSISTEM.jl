@@ -191,7 +191,6 @@ end
 
 function invalidatecaches!(epi::AbstractEpiSystem)
     epi.ordinariness = missing
-    epi.cache.virusdecay .= 0
     epi.cache.virusmigration .= 0
     epi.cache.valid = false
 end

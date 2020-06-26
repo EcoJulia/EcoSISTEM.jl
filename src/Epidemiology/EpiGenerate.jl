@@ -60,17 +60,27 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
         firstlooptasks[i] = Threads.@spawn firstloop(i)
     end
 
+    cat_idx = epi.epilist.virus.force_to_human
+    force_cats = epi.epilist.virus.force_cats
+    ages = size(cat_idx, 1)
+    nclasses = size(cat_idx, 2)
+
     function secondloop(j)
         vm = zero(eltype(epi.cache.virusmigration))
         # order the work so that the spawned tasks come towards the end of the loop
-        for i in classes
-            haskey(firstlooptasks, i) && Threads.wait(firstlooptasks[i])
-            # after wait virusmigration[i, j] will be up to date
-            iszero(epi.cache.virusmigration[i, j]) && continue
-            dist = Poisson(epi.cache.virusmigration[i, j])
-            epi.cache.virusmigration[i, j] = rand(rng, dist)
-            vm += epi.cache.virusmigration[i, j]
+        for i in 1:ages
+            for k in 1:nclasses
+                this_cat = cat_idx[i, k]
+                haskey(firstlooptasks, this_cat) && Threads.wait(firstlooptasks[this_cat])
+                # after wait virusmigration[i, j] will be up to date
+                iszero(epi.cache.virusmigration[this_cat, j]) && continue
+                dist = Poisson(epi.cache.virusmigration[this_cat, j])
+                epi.cache.virusmigration[this_cat, j] = rand(rng, dist)
+                vm += epi.cache.virusmigration[this_cat, j]
+            end
+            virus(epi.abundances)[force_cats[i], j] = vm
         end
+
         traitmatch = traitfun(epi, j, 1)
         deathrate = params.virus_decay * timestep * traitmatch^-1
         # Convert death rate into 0 - 1 probability
@@ -87,7 +97,6 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
         env_virus = rand(rng, Binomial(Int(vm), survivalprob  * params.env_virus_scale))
 
         virus(epi.abundances)[1, j] += env_virus - deaths
-        virus(epi.abundances)[2, j] = vm
     end
 
     jindices = 1:size(epi.cache.virusmigration, 2)
@@ -135,6 +144,9 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     # Check if grid cell currently active. If inactive skip the inner loop
     # epi.epienv.active[convert_coords(epi, j, width)...] || continue
 
+    human_to_force = epi.epilist.human.human_to_force
+    force_cats = epi.epilist.virus.force_cats
+
     # Loop through grid squares
     activejindices = findall(j->epi.epienv.active[convert_coords(epi, j, width)...], 1:dims)
     threadedjindices = [activejindices[j:Threads.nthreads():end] for j in 1:Threads.nthreads()]
@@ -151,13 +163,16 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             births = rand(rng, Binomial(human(epi.abundances)[i, j],  params.births[i] * timestep))
             human(epi.abundances)[1, j] += births
 
+            i_age_cat = human_to_force[i]
+
             # Note transposition of transition matrices to make iteration over k faster
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
+                k_age_cat = human_to_force[k]
                 iszero(human(epi.abundances)[k, j]) && continue # will result +=/-= 0 at end of loop
                 env_inf = (params.transition_virus[i, k] * timestep * virus(epi.abundances)[1, j]) / N
 
-                force_inf = (params.transition_force[i, k] * timestep * virus(epi.abundances)[2, j]) / N
+                force_inf = (params.transition_force[i, k] * timestep * params.age_mixing[k_age_cat, i_age_cat] * virus(epi.abundances)[force_cats[k_age_cat], j]) / N
 
                 # Add to transitional probabilities
                 trans_val = (params.transition[i, k] * timestep) + env_inf + force_inf
