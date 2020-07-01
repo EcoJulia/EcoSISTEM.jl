@@ -14,7 +14,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     dir = Simulation.path("test", "TEMP")
     file = joinpath(dir, "demographics.h5")
     if do_download
-        mkdir(Simulation.path("test", "TEMP"))
+        !isdir(Simulation.path("test", "TEMP")) && mkdir(Simulation.path("test", "TEMP"))
         io = open(Simulation.path("test", "TEMP", "demographics.h5"), "w")
         r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
         write(io, r.body)
