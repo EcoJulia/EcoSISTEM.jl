@@ -31,7 +31,7 @@ abun_v = (Virus = 10,)
 
 dispersal_dists = [fill(2.0km, 3); 1e-2km]
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
-movement = AlwaysMovement(kernel)
+movement = EpiMovement(kernel)
 
 traits = GaussTrait([298.0K], [0.1K])
 @test_nowarn EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
@@ -42,7 +42,6 @@ epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
 @test epilist.human.names[3] == "Recovered"
 @test epilist.human.names[4] == "Dead"
 
-@test length(epilist.human.names) == length(epilist.human.movement.kernels)
 @test length(epilist.human.names) == length(epilist.human.abun)
 @test length(epilist.virus.names) == length(epilist.virus.abun)
 @test length(epilist.virus.names) == length(epilist.virus.traits.mean)
