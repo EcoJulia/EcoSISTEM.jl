@@ -293,8 +293,8 @@ Function to calculate the movement of force of infection `id` from a given posit
 function virusmove!(epi::AbstractEpiSystem, id::Int64, pos::Int64, grd::Array{Float64, 2}, newvirus::Int64)
   width, height = getdimension(epi)
   (x, y) = convert_coords(epi, pos, width)
-  lookup = getlookup(epi, id)
-  calc_lookup_moves!(getboundary(epi.epilist.human.movement), x, y, id, epi, newvirus)
+  lookup = getlookup(epi, pos)
+  calc_lookup_moves!(getboundary(epi.epilist.human.movement.home), x, y, pos, epi, newvirus)
   # Lose moves from current grid square
   grd[id, pos] -= newvirus
   # Map moves to location in grid

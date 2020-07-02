@@ -106,9 +106,7 @@ Function to create an `EpiList` for any type of epidemiological model - creating
 """
 function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
                  disease_classes::NamedTuple, movement::MO, param::P,
-                 age_categories::Int64 = 1) where {TR <: AbstractTraits,
-                                                   MO <: AbstractMovement,
-                                                   P <: AbstractParams}
+                 age_categories::Int64 = 1) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
     # Test for susceptibility/infectiousness categories
     haskey(disease_classes, :infectious) ||
         error("Missing 'infectious' key - vector of infectious categories")
@@ -143,8 +141,6 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
         throw(DimensionMismatch("Number of susceptible categories is incorrect"))
     length(inf) == length(infectious) * age_categories ||
         throw(DimensionMismatch("Number of infectious categories is incorrect"))
-    length(movement.kernels) == length(new_names) ||
-        throw(DimensionMismatch("Movement vector doesn't match number of disease classes"))
     length(traits.mean) == length(virus_names) ||
         throw(DimensionMismatch("Trait vector doesn't match number of virus classes"))
     size(param.transition, 1) == length(new_names) ||

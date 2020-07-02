@@ -199,7 +199,7 @@ function invalidatecaches!(epi::AbstractEpiSystem)
 end
 
 function getdispersaldist(epi::AbstractEpiSystem, sp::Int64)
-  dist = epi.epilist.human.movement.kernels[sp].dist
+  dist = epi.epilist.human.movement.home.kernels[sp].dist
   return dist
 end
 function getdispersaldist(epi::AbstractEpiSystem, sp::String)
@@ -208,7 +208,7 @@ function getdispersaldist(epi::AbstractEpiSystem, sp::String)
 end
 
 function getdispersalvar(epi::AbstractEpiSystem, sp::Int64)
-    var = (epi.epilist.human.movement.kernels[sp].dist)^2 * pi / 4
+    var = (epi.epilist.human.movement.home.kernels[sp].dist)^2 * pi / 4
     return var
 end
 function getdispersalvar(epi::AbstractEpiSystem, sp::String)
