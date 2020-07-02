@@ -16,16 +16,20 @@ mutable struct EpiCache
 end
 
 
-
-mutable struct EpiLookup
+mutable struct EpiLookupTable
   x::Vector{Int64}
   y::Vector{Int64}
   p::Vector{Float64}
   pnew::Vector{Float64}
   moves::Vector{Float64}
 end
-EpiLookup(df::DataFrame) = EpiLookup(df[!, :X], df[!, :Y], df[!, :Prob],
+EpiLookupTable(df::DataFrame) = EpiLookupTable(df[!, :X], df[!, :Y], df[!, :Prob],
 zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))
+
+mutable struct EpiLookup
+  homelookup::Vector{EpiLookupTable}
+  worklookup::Union{Missing, Vector{EpiLookupTable}}
+end
 
 """
     EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractRelationship} <: AbstractEpiSystem{EE, EL, ER}
@@ -40,11 +44,11 @@ mutable struct EpiSystem{U <: Integer, EE <: AbstractEpiEnv, EL <: EpiList, ER <
   epienv::EE
   ordinariness::Union{Matrix{Float64}, Missing}
   relationship::ER
-  lookup::Vector{EpiLookup}
+  lookup::EpiLookup
   cache::EpiCache
 
   function EpiSystem{U, EE, EL, ER}(abundances::EpiLandscape{U},
-    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::Vector{EpiLookup}, cache::EpiCache) where {U <: Integer, EE <:
+    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup, cache::EpiCache) where {U <: Integer, EE <:
      AbstractEpiEnv,
     EL <: EpiList, ER <: AbstractTraitRelationship}
     new{U, EE, EL, ER}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache)
@@ -59,10 +63,25 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   # Populate this matrix with species abundances
   popfun(ml, epilist, epienv, rel)
   # Create lookup table of all moves and their probabilities
-  lookup_tab = collect(map(k -> genlookups(epienv, k), getkernels(epilist.human.movement)))
+  kernels = getkernels(epilist.human.movement.home)
+  if all(y->y.dist==kernels[1].dist, kernels) && all(y->y.thresh==kernels[1].thresh, kernels)
+      home_lookup = fill(genlookups(epienv, kernels[1]), length(kernels))
+  else
+      home_lookup = collect(map(k -> genlookups(epienv, k), kernels))
+  end
+  if ismissing(epilist.human.movement.work)
+      work_lookup = missing
+  else
+      home_to_work = epilist.human.movement.work.home_to_work
+      work_lookup = map(home_to_work[!, :from]) do from
+          fil_tab = filter(row -> row[:from] == from, home_to_work)
+          EpiLookupTable(fil_tab[!, :from], fil_tab[!, :to], fill(0.0, nrow(fil_tab)), fill(0.0, nrow(fil_tab)), fil_tab[!, :count])
+      end
+  end
+  lookup = EpiLookup(home_lookup, work_lookup)
   nm = zeros(Float64, size(ml.matrix))
   vm = zeros(Float64, size(ml.matrix))
-  EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
+  EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false))
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, intnum::U = Int64(1)) where U <: Integer
@@ -116,12 +135,16 @@ Function to generate lookup tables, which hold information on the probability
 of moving to neighbouring squares.
 """
 function genlookups(epienv::AbstractEpiEnv, mov::GaussianKernel)
-    hab = epienv.habitat
-    sd = (2 * mov.dist) / sqrt(pi)
-    relsize =  _getgridsize(hab) ./ sd
-    m = maximum(_getdimension(hab))
-    p = mov.thresh
-    return EpiLookup(_lookup(relsize, m, p, _gaussian_disperse))
+    if mov.dist == 0.0km
+        return EpiLookupTable([0.0], [0.0], [1.0], [0.0], [0.0])
+    else
+        hab = epienv.habitat
+        sd = (2 * mov.dist) / sqrt(pi)
+        relsize =  _getgridsize(hab) ./ sd
+        m = maximum(_getdimension(hab))
+        p = mov.thresh
+        return EpiLookupTable(_lookup(relsize, m, p, _gaussian_disperse))
+    end
 end
 function genlookups(epienv::AbstractEpiEnv, mov::LongTailKernel)
     hab = epienv.habitat
@@ -130,7 +153,7 @@ function genlookups(epienv::AbstractEpiEnv, mov::LongTailKernel)
     m = maximum(_getdimension(hab))
     p = mov.thresh
     b = mov.shape
-    return EpiLookup(_lookup(relsize, m, p, b, _2Dt_disperse))
+    return EpiLookupTable(_lookup(relsize, m, p, b, _2Dt_disperse))
 end
 
 function getsize(epi::AbstractEpiSystem)
@@ -217,7 +240,7 @@ function getdispersalvar(epi::AbstractEpiSystem, sp::String)
 end
 
 function getlookup(epi::AbstractEpiSystem, sp::Int64)
-    return epi.lookup[sp]
+    return epi.lookup.homelookup[sp]
 end
 function getlookup(epi::AbstractEpiSystem, sp::String)
     num = Compat.findall(epi.epilist.human.names.==sp)[1]
