@@ -246,3 +246,32 @@ function getlookup(epi::AbstractEpiSystem, sp::String)
     num = Compat.findall(epi.epilist.human.names.==sp)[1]
     getlookup(epi, num)
 end
+
+function genlookups(epienv::GridEpiEnv, mov::GaussianKernel)
+    grid_locs = 1:(size(epienv.active, 1) * size(epienv.active, 2))
+    grid_locs = grid_locs[.!epienv.active[1:end]]
+    xys = convert_coords.(grid_locs, size(epienv.active, 2))
+    grid_size = _getgridsize(epienv.habitat)
+    sd = (2 * mov.dist) / sqrt(pi)
+    relsize =  grid_size ./ sd
+    grid_size /= unit(grid_size)
+    res = map(i -> Simulation.genlookups(i, grid_locs, xys, grid_size, relsize, mov.thresh, epienv), grid_locs)
+end
+
+function genlookups(from::Int64, to::Vector{Int64}, xys::Array{Tuple{Int64,Int64},1}, grid_size::Float64, relsize::Float64, thresh::Float64, epienv::GridEpiEnv)
+    x, y = xys[to .== from][1]
+    maxX = ceil(Int64, x + grid_size + 1/relsize); minX = ceil(Int64, x - grid_size - 1/relsize)
+    maxY = floor(Int64, y + grid_size + 1/relsize); minY = floor(Int64, y - grid_size - 1/relsize)
+    keep = [(i[1] <= maxX) & (i[2] <= maxY) & (i[1] >= minX) & (i[2] >= minY) for i in xys]
+    to = to[keep]
+    probs = [_lookup((x = x, y = y), (x = i[1], y = i[2]), relsize, _gaussian_disperse) for i in xys[keep]]
+    keep = probs .> thresh
+    return to[keep], probs[keep]
+end
+
+function _lookup(from::NamedTuple, to::NamedTuple, relSquareSize::Float64, dispersalfn::F) where {F<:Function}
+    return calc_prob = hcubature(r -> dispersalfn(r),
+      [from.x - relSquareSize, from.y - relSquareSize, to.x - relSquareSize, to.y - relSquareSize],
+      [from.x, from.y, to.x, to.y],
+      maxevals= 100, rtol = 0.01)[1] / relSquareSize^2
+end
