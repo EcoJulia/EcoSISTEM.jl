@@ -5,7 +5,7 @@ Movement can happen at several different levels, local gaussian processes, `home
 """
 mutable struct EpiMovement{MO1 <: AbstractMovement, MO2 <: AbstractMovement} <: AbstractMovement
     home::MO1
-    work::Union{Missing, MO2}
+    work::MO2
 end
 
 function EpiMovement(homekernels::Vector{K}, home_to_work::DataFrame) where K <: AbstractKernel
@@ -16,7 +16,7 @@ end
 
 function EpiMovement(homekernels::Vector{K}) where K <: AbstractKernel
     home = AlwaysMovement{K, NoBoundary}(homekernels, NoBoundary())
-    work = missing
+    work = Commuting(DataFrame([1.0, 1.0, 1.0], [:from, :to, :count]))
     return EpiMovement{typeof(home), typeof(home)}(home, work)
 end
 
