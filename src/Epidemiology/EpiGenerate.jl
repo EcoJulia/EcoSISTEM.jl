@@ -216,7 +216,7 @@ Function to calculate the movement of force of infection `id` from a given posit
 """
 function virusmove!(epi::AbstractEpiSystem, id::Int64, pos::Int64, grd::Array{Float64, 2}, newvirus::Int64)
   # Map moves to location in grid
-  grd[id, :] .+= newvirus .* (epi.lookup.homelookup[id, :] .+ epi.lookup.worklookup[id, :])
+  grd[id, :] .+= newvirus .* (epi.lookup.homelookup[pos, :] .+ epi.lookup.worklookup[pos, :])
   return epi
 end
 
