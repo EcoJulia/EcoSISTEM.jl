@@ -215,10 +215,9 @@ end
 Function to calculate the movement of force of infection `id` from a given position in the landscape `pos`, using the lookup table found in the EpiSystem and updating the movement patterns on a cached grid, `grd`. The number of new virus is provided, so that movement only takes place as part of the generation process.
 """
 function virusmove!(epi::AbstractEpiSystem, id::Int64, pos::Int64, grd::Array{Float64, 2}, newvirus::Int64)
-  homelookup = getlookup(epi, pos, "home")
-  worklookup = getlookup(epi, pos, "work")
+  homelookup, worklookup = getlookup(epi, pos)
   # Map moves to location in grid
-  grd[id, :] .+= newvirus .* (homelookup./2 .+ worklookup./2)
+  grd[id, :] .+= newvirus .* (homelookup .+ worklookup)
   return epi
 end
 

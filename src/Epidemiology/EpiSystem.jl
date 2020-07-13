@@ -197,11 +197,15 @@ function getlookup(epi::AbstractEpiSystem, id::Int64, movetype::String)
     end
 end
 
+function getlookup(epi::AbstractEpiSystem, id::Int64)
+    return epi.lookup.homelookup[id, :], epi.lookup.worklookup[id, :]
+end
+
 function genlookups(epienv::AbstractEpiEnv, mov::Commuting)
     total_size = (size(epienv.active, 1) * size(epienv.active, 2))
-    Is = Int64.(mov1.home_to_work[!, :from])
-    Js = Int64.(mov1.home_to_work[!, :to])
-    Vs = mov1.home_to_work[!, :count]
+    Is = Int64.(mov.home_to_work[!, :from])
+    Js = Int64.(mov.home_to_work[!, :to])
+    Vs = mov.home_to_work[!, :count]
     work = sparse(Is, Js, Vs, total_size, total_size)
     dropzeros!(work)
     for i in work.rowval
@@ -212,7 +216,7 @@ end
 function genlookups(epienv::GridEpiEnv, mov::AlwaysMovement)
     total_size = (size(epienv.active, 1) * size(epienv.active, 2))
     grid_locs = 1:total_size
-    activity = .!epienv.active[1:end]
+    activity = epienv.active[1:end]
     grid_locs = grid_locs[activity]
     xys = convert_coords.(grid_locs, size(epienv.active, 2))
     grid_size = _getgridsize(epienv.habitat)
