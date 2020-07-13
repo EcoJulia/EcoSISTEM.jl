@@ -16,8 +16,8 @@ end
 
 function EpiMovement(homekernels::Vector{K}) where K <: AbstractKernel
     home = AlwaysMovement{K, NoBoundary}(homekernels, NoBoundary())
-    work = Commuting(DataFrame([1.0, 1.0, 1.0], [:from, :to, :count]))
-    return EpiMovement{typeof(home), typeof(home)}(home, work)
+    work = Commuting(DataFrame([[1.0], [1.0], [1.0]], [:from, :to, :count]))
+    return EpiMovement{typeof(home), typeof(work)}(home, work)
 end
 
 mutable struct Commuting <: AbstractMovement
