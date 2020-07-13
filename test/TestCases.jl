@@ -110,7 +110,7 @@ function TestEpiSystemFromPopulation(
     )
     abun_v = (Environment = 0, Force = 0)
 
-    dispersal_dists = fill(2.0km, grid[1] * grid[2])
+    dispersal_dists = fill(2.0km, size(initial_pop, 1) * size(initial_pop, 2))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 

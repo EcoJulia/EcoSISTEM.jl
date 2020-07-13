@@ -65,7 +65,7 @@ disease_classes = (
 abun_v = (Environment = 0, Force = 0)
 
 # Dispersal kernels for virus dispersal from different disease classes
-dispersal_dists = fill(500.0km, grid[1] * grid[2])
+dispersal_dists = fill(500.0km, prod(grid))
 
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = EpiMovement(kernel)
@@ -144,7 +144,7 @@ disease_classes = (
 abun_v = (Environment = 0, Force = 0)
 
 # Dispersal kernels for virus dispersal from different disease classes
-dispersal_dists = fill(200.0km, numclasses)
+dispersal_dists = fill(200.0km, prod(grid))
 
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = EpiMovement(kernel)

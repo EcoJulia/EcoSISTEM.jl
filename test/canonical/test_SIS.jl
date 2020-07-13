@@ -47,7 +47,7 @@ for i in eachindex(grid_sizes)
     abun_v = (Environment = virus, Force = 0)
 
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(1_000.0km, grid[1] * grid[2])
+    dispersal_dists = fill(1_000.0km, prod(grid))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 

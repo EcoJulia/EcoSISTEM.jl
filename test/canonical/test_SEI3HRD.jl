@@ -165,7 +165,7 @@ new_exposed = 100
 new_virus = 1000
 epi = EpiSystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
-human(epi.abundances)[2, 1] = new_symptomatic
+human(epi.abundances)[2, 1] = new_exposed
 
 # Run simulation
 times = 1year; interval = 1day; timestep = 1day
