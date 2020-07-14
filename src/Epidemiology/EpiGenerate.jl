@@ -154,18 +154,27 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Note transposition of transition matrices to make iteration over k faster
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
-                iszero(human(epi.abundances)[k, j]) && continue # will result +=/-= 0 at end of loop
-                env_inf = (params.transition_virus[i, k] * timestep * virus(epi.abundances)[1, j]) / N
+                # Skip if there are no people in k at location j
+                iszero(human(epi.abundances)[k, j]) && continue 
+                # Skip if there are no transitions from k to i
+                params.transition[i, k] + params.transition_virus[i, k] + params.transition_force[i, k] > zero(inv(timestep)) || continue 
+                
+                # Environmental infection rate from k to i
+                env_inf = (params.transition_virus[i, k] * virus(epi.abundances)[1, j]) / (N^params.freq_vs_density_env)
 
-                force_inf = (params.transition_force[i, k] * timestep * virus(epi.abundances)[2, j]) / N
+                # Direct transmission infection rate from k to i
+                force_inf = (params.transition_force[i, k] * virus(epi.abundances)[2, j]) / (N^params.freq_vs_density_force)
 
-                # Add to transitional probabilities
-                trans_val = (params.transition[i, k] * timestep) + env_inf + force_inf
-                trans_prob = 1 - exp(-trans_val)
-                iszero(trans_prob) && continue # will result +=/-= 0 at end of loop
+                # Add to baseline transitional probabilities from k to i
+                trans_val = params.transition[i, k] + env_inf + force_inf
+                trans_prob = 1.0 - exp(-trans_val * timestep)
+
+                # Skip is probability is zero
+                iszero(trans_prob) && continue
 
                 # Make transitions
-                trans = rand(rng, Binomial(human(epi.abundances)[k, j], trans_prob))
+                trans = rand(rng, Binomial(human(epi.abundances)[k, j],
+                             trans_prob))
                 human(epi.abundances)[i, j] += trans
                 human(epi.abundances)[k, j] -= trans
             end
