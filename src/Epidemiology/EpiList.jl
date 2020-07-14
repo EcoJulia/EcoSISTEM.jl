@@ -52,13 +52,13 @@ end
     EpiList{P <: AbstractParams} <: AbstractTypes
 Epi list houses all disease and virus class specific information, as well as parameters for model runs.
 """
-mutable struct EpiList{P <: AbstractParams} <: AbstractTypes
-    virus::VirusTypes
-    human::HumanTypes
+mutable struct EpiList{P <: AbstractParams, V <: VirusTypes, H <: HumanTypes} <: AbstractTypes
+    virus::V
+    human::H
     params::P
 
-    function EpiList{P}(virus::VirusTypes, human::HumanTypes, param::P) where {P <: AbstractParams}
-      new{P}(virus, human, param)
+    function EpiList{P, V, H}(virus::V, human::H, param::P) where {P <: AbstractParams, V <: VirusTypes, H <: HumanTypes}
+      new{P, V, H}(virus, human, param)
     end
 end
 
@@ -149,5 +149,5 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
         throw(DimensionMismatch("Trait vector doesn't match number of virus classes"))
     size(param.transition, 1) == length(new_names) ||
         throw(DimensionMismatch("Transition matrix doesn't match number of disease classes"))
-    return EpiList{typeof(param)}(virus, human, param)
+    return EpiList{typeof(param), typeof(virus), typeof(human)}(virus, human, param)
 end
