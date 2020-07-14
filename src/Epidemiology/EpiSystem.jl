@@ -233,8 +233,8 @@ end
 
 function genlookups(from::Int64, to::Vector{Int64}, xys::Array{Tuple{Int64,Int64},1}, grid_size::Float64, relsize::Float64, thresh::Float64, epienv::GridEpiEnv)
     x, y = xys[to .== from][1]
-    maxX = ceil(Int64, x + grid_size + 1/relsize); minX = ceil(Int64, x - grid_size - 1/relsize)
-    maxY = floor(Int64, y + grid_size + 1/relsize); minY = floor(Int64, y - grid_size - 1/relsize)
+    maxX = ceil(Int64, x + grid_size * 2/relsize); minX = ceil(Int64, x - grid_size * 2/relsize)
+    maxY = floor(Int64, y + grid_size * 2/relsize); minY = floor(Int64, y - grid_size * 2/relsize)
     keep = [(i[1] <= maxX) & (i[2] <= maxY) & (i[1] >= minX) & (i[2] >= minY) for i in xys]
     to = to[keep]
     probs = [_lookup((x = x, y = y), (x = i[1], y = i[2]), relsize, _gaussian_disperse) for i in xys[keep]]

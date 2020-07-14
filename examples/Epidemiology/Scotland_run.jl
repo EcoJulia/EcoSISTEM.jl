@@ -119,7 +119,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     rel = Gauss{eltype(epienv.habitat)}()
 
     # Create epi system with all information
-    @time epi = EpiSystem(epilist, epienv, rel, total_pop, UInt16(1))
+    @time epi = EpiSystem(epilist, epienv, rel, total_pop, UInt32(1))
 
     # Populate susceptibles according to actual population spread
     cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
@@ -150,8 +150,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     end
 
     # Run simulation
-    abuns = zeros(UInt16, size(epi.abundances.matrix, 1), N_cells,
-                  floor(Int, times/timestep) + 1)
+    abuns = zeros(UInt32, size(epi.abundances.matrix, 1), N_cells, floor(Int, times/timestep) + 1)
     @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
 
     if do_plot
