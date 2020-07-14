@@ -21,19 +21,17 @@ abstract type AbstractEpiEnv{H <: AbstractHabitat, C <: AbstractControl} <:
 This epi environment type holds a habitat and control strategy, as well as a string of
 subcommunity names, and initial susceptible population.
 """
-mutable struct GridEpiEnv{H, C, A, P} <: AbstractEpiEnv{H, C}
+mutable struct GridEpiEnv{H, C, A} <: AbstractEpiEnv{H, C}
     habitat::H
     active::A
     control::C
-    initial_population::P
     names::Vector{String}
     function (::Type{GridEpiEnv{H, C}})(
         habitat::H,
         active::A,
         control::C,
-        initial_population::P=zeros(Int, _getdimension(habitat)),
         names::Vector{String}=map(x -> "$x", 1:countsubcommunities(habitat))
-    ) where {H, C, A <: AbstractMatrix{Bool}, P <: AbstractMatrix{Int}}
+    ) where {H, C, A <: AbstractMatrix{Bool}}
         countsubcommunities(habitat) == length(names) ||
             error("Number of subcommunities must match subcommunity names")
         if (size(habitat.matrix, 1), size(habitat.matrix, 2)) != size(active)
@@ -42,13 +40,7 @@ mutable struct GridEpiEnv{H, C, A, P} <: AbstractEpiEnv{H, C}
                 "size(active)=$(size(active))"
             ))
         end
-        if size(initial_population) != size(active)
-            throw(DimensionMismatch(
-                "size(initial_population)=$(size(initial_population)) != " *
-                "size(active)=$(size(active))"
-            ))
-        end
-        return new{H, C, A, P}(habitat, active, control, initial_population, names)
+        return new{H, C, A}(habitat, active, control, names)
     end
 end
 
@@ -132,7 +124,6 @@ end
         area::Unitful.Area{Float64},
         active::AbstractMatrix{Bool},
         control::C,
-        initial_population::AbstractMatrix{<:Integer}=zeros(Int, dimension),
     )
 
 Function to create a simple `ContinuousHab` type epi environment. It creates a
@@ -149,8 +140,7 @@ function simplehabitatAE(
     area::Unitful.Area{Float64},
     active::M,
     control::C,
-    initial_population::P=zeros(Int, dimension),
-) where {C <: AbstractControl, M <: AbstractMatrix{Bool}, P <: AbstractMatrix{<:Integer}}
+) where {C <: AbstractControl, M <: AbstractMatrix{Bool}}
     if typeof(val) <: Unitful.Temperature
         val = uconvert(K, val)
     end
@@ -159,12 +149,11 @@ function simplehabitatAE(
 
     # Shrink to active region
     # This doesn't change the gridsquaresize
-    initial_population = _shrink_to_active(initial_population, active)
-    active = _shrink_to_active(active, active)
+    active = shrink_to_active(active, active)
     dimension = size(active)
 
     hab = simplehabitat(val, gridsquaresize, dimension)
-    return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control, initial_population)
+    return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control)
 end
 
 function simplehabitatAE(

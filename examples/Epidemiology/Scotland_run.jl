@@ -14,7 +14,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     dir = Simulation.path("test", "TEMP")
     file = joinpath(dir, "demographics.h5")
     if do_download
-        mkdir(Simulation.path("test", "TEMP"))
+        !isdir(Simulation.path("test", "TEMP")) && mkdir(Simulation.path("test", "TEMP"))
         io = open(Simulation.path("test", "TEMP", "demographics.h5"), "w")
         r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
         write(io, r.body)
@@ -35,6 +35,8 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
     total_pop = AxisArray(total_pop, AxisArrays.axes(scotpop)[1], AxisArrays.axes(scotpop)[2])
     total_pop.data[total_pop .≈ 0.0] .= NaN
+    # Shrink to smallest bounding box. The NaNs are inactive.
+    total_pop = shrink_to_active(total_pop);
 
     # Set simulation parameters
     numclasses = 8
@@ -74,7 +76,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
                           T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
     param = transition(param, age_categories)
 
-    epienv = simplehabitatAE(298.0K, area, NoControl(), total_pop)
+    epienv = simplehabitatAE(298.0K, size(total_pop), area, NoControl())
 
     # Set population to initially have no individuals
     abun_h = (
@@ -111,7 +113,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     rel = Gauss{eltype(epienv.habitat)}()
 
     # Create epi system with all information
-    epi = EpiSystem(epilist, epienv, rel, UInt16(1))
+    epi = EpiSystem(epilist, epienv, rel, total_pop, UInt16(1))
 
     # Populate susceptibles according to actual population spread
     reshaped_pop =

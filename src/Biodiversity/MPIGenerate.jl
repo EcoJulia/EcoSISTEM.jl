@@ -17,7 +17,7 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
     # Loop through species in chosen square
     Threads.@threads for mpisp in 1:eco.sppcounts[rank + 1]
         truesp = eco.firstsp + mpisp - 1
-        rng = eco.abundances.seed[Threads.threadid()]
+        rng = eco.abundances.rngs[Threads.threadid()]
         # Loop through grid squares
         for sc in 1:numsc
             # Calculate how much birth and death should be adjusted

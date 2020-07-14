@@ -93,7 +93,8 @@ function simulate_record!(
 
   # - initialise and save the first timestep abuns/storage to HDF5
   # construct axes for abuns/storage matrix
-  grid_id = map(Iterators.product(axisvalues(epi.epienv.initial_population)...)) do (x,y)
+  ax = AxisArrays.axes(epi.abundances.grid)[end-1:end]
+  grid_id = map(Iterators.product(ax...)) do (x,y)
       return string.(x, "-", y)
   end
   # TODO: confirm converting `grid_id` from matrix to vector in the way below gives the
