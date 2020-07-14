@@ -16,13 +16,12 @@ mutable struct SIRGrowth{U <: Unitful.Units} <: AbstractParams
       beta_force::Vector{TimeUnitType{U}}
       beta_env::Vector{TimeUnitType{U}}
       sigma::Vector{TimeUnitType{U}}
-      force_vs_env::Float64
       freq_vs_density_force::Float64
       freq_vs_density_env::Float64
 
     # Multiple age categories
     function SIRGrowth{U}(birth::Matrix{TimeUnitType{U}},
-        death::Matrix{TimeUnitType{U}}, ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}; force_vs_env::Float64 = 0.5,
+        death::Matrix{TimeUnitType{U}}, ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}};
         freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         size(birth) == size(death) || error("Birth and death vector lengths differ")
@@ -30,25 +29,23 @@ mutable struct SIRGrowth{U <: Unitful.Units} <: AbstractParams
         length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
-        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, sigma, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, sigma, freq_vs_density_force, freq_vs_density_env)
     end
     # Single age category
     function SIRGrowth{U}(birth::Vector{TimeUnitType{U}},
-        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, sigma::TimeUnitType{U}; force_vs_env::Float64 = 0.5,
+        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, sigma::TimeUnitType{U};
         freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         length(birth) == length(death) || error("Birth and death vector lengths differ")
         (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [sigma], force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [sigma],freq_vs_density_force, freq_vs_density_env)
     end
 end
 
@@ -66,38 +63,35 @@ mutable struct SISGrowth{U <: Unitful.Units} <: AbstractParams
       beta_force::Vector{TimeUnitType{U}}
       beta_env::Vector{TimeUnitType{U}}
       sigma::Vector{TimeUnitType{U}}
-      force_vs_env::Float64
       freq_vs_density_force::Float64
       freq_vs_density_env::Float64
 
     # Multiple age categories
     function SISGrowth{U}(birth::Matrix{TimeUnitType{U}},
-        death::Matrix{TimeUnitType{U}}, ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}; force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+        death::Matrix{TimeUnitType{U}}, ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}; freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         size(birth) == size(death) || error("Birth and death vector lengths differ")
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
         length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
-        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, sigma, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, sigma, freq_vs_density_force, freq_vs_density_env)
     end
     # Single age category
     function SISGrowth{U}(birth::Vector{TimeUnitType{U}},
-        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, sigma::TimeUnitType{U}; force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0,
+        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, sigma::TimeUnitType{U}; freq_vs_density_force::Float64 = 1.0,
         freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         length(birth) == length(death) || error("Birth and death vector lengths differ")
         (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [sigma], force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [sigma], freq_vs_density_force, freq_vs_density_env)
     end
 end
 
@@ -116,38 +110,35 @@ mutable struct SEIRGrowth{U <: Unitful.Units} <: AbstractParams
       beta_env::Vector{TimeUnitType{U}}
       mu::Vector{TimeUnitType{U}}
       sigma::Vector{TimeUnitType{U}}
-      force_vs_env::Float64
       freq_vs_density_force::Float64
       freq_vs_density_env::Float64
 
     # Multiple age categories
     function SEIRGrowth{U}(birth::Matrix{TimeUnitType{U}},
         death::Matrix{TimeUnitType{U}},
-        ageing::Vector{TimeUnitType{U}},  virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+        ageing::Vector{TimeUnitType{U}},  virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         size(birth) == size(death) || error("Birth and death vector lengths differ")
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
         length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
-        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, mu, sigma, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, mu, sigma, freq_vs_density_force, freq_vs_density_env)
     end
     # Single age category
     function SEIRGrowth{U}(birth::Vector{TimeUnitType{U}},
-        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, mu::TimeUnitType{U}, sigma::TimeUnitType{U}, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, mu::TimeUnitType{U}, sigma::TimeUnitType{U}, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         length(birth) == length(death) || error("Birth and death vector lengths differ")
         (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [mu], [sigma], force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [mu], [sigma], freq_vs_density_force, freq_vs_density_env)
     end
 end
 
@@ -167,38 +158,35 @@ mutable struct SEIRSGrowth{U <: Unitful.Units} <: AbstractParams
       mu::Vector{TimeUnitType{U}}
       sigma::Vector{TimeUnitType{U}}
       epsilon::Vector{TimeUnitType{U}}
-      force_vs_env::Float64
       freq_vs_density_force::Float64
       freq_vs_density_env::Float64
 
     # Multiple age categories
     function SEIRSGrowth{U}(birth::Matrix{TimeUnitType{U}},
         death::Matrix{TimeUnitType{U}},
-        ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}, epsilon::Vector{TimeUnitType{U}}, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+        ageing::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}}, virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}}, mu::Vector{TimeUnitType{U}}, sigma::Vector{TimeUnitType{U}}, epsilon::Vector{TimeUnitType{U}}, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         size(birth) == size(death) || error("Birth and death vector lengths differ")
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
         length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
-        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, mu, sigma, epsilon, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        return new{U}(birth, death, ageing, virus_growth, virus_decay, beta_force, beta_env, mu, sigma, epsilon, freq_vs_density_force, freq_vs_density_env)
     end
     # Single age category
     function SEIRSGrowth{U}(birth::Vector{TimeUnitType{U}},
-        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, mu::TimeUnitType{U}, sigma::TimeUnitType{U}, epsilon::TimeUnitType{U}, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+        death::Vector{TimeUnitType{U}}, virus_growth::TimeUnitType{U}, virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U}, mu::TimeUnitType{U}, sigma::TimeUnitType{U}, epsilon::TimeUnitType{U}, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         length(birth) == length(death) || ("Birth and death vector lengths differ")
         (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [mu], [sigma], [epsilon], force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        return new{U}(new_birth, new_death, ageing, [virus_growth], virus_decay, [beta_force], [beta_env], [mu], [sigma], [epsilon], freq_vs_density_force, freq_vs_density_env)
     end
 end
 
@@ -224,7 +212,6 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
       hospitalisation::Vector{TimeUnitType{U}}
       death_home::Vector{TimeUnitType{U}}
       death_hospital::Vector{TimeUnitType{U}}
-      force_vs_env::Float64
       freq_vs_density_force::Float64
       freq_vs_density_env::Float64
 
@@ -239,17 +226,16 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
         mu_2::Vector{TimeUnitType{U}},
         hospitalisation::Vector{TimeUnitType{U}},
         death_home::Vector{TimeUnitType{U}},
-        death_hospital::Vector{TimeUnitType{U}}, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+        death_hospital::Vector{TimeUnitType{U}}, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         size(birth) == size(death) || error("Birth and death vector lengths differ")
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
         length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
         return new{U}(birth, death, ageing, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1,
-        sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital, freq_vs_density_force, freq_vs_density_env)
     end
     # Single age category
     function SEI2HRDGrowth{U}(birth::Vector{TimeUnitType{U}},
@@ -261,18 +247,17 @@ mutable struct SEI2HRDGrowth{U <: Unitful.Units} <: AbstractParams
         mu_2::TimeUnitType{U},
         hospitalisation::TimeUnitType{U},
         death_home::TimeUnitType{U},
-        death_hospital::TimeUnitType{U}, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+        death_hospital::TimeUnitType{U}, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         length(birth) == length(death) || ("Birth and death vector lengths differ")
         (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth_asymp], [virus_growth_symp], virus_decay, [beta_force], [beta_env], [sigma_1], [sigma_2], [sigma_hospital], [mu_1], [mu_2], [hospitalisation], [death_home], [death_hospital], force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        return new{U}(new_birth, new_death, ageing, [virus_growth_asymp], [virus_growth_symp], virus_decay, [beta_force], [beta_env], [sigma_1], [sigma_2], [sigma_hospital], [mu_1], [mu_2], [hospitalisation], [death_home], [death_hospital], freq_vs_density_force, freq_vs_density_env)
     end
 end
 
@@ -288,7 +273,7 @@ function SEI2HRDGrowth(birth::Vector{TimeUnitType{U}},
     virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U},
     prob_sym::Float64, prob_hosp::Float64, cfr_home::Float64, cfr_hosp::Float64,
     T_lat::Unitful.Time, T_asym::Unitful.Time, T_sym::Unitful.Time,
-    T_hosp::Unitful.Time, T_rec::Unitful.Time, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+    T_hosp::Unitful.Time, T_rec::Unitful.Time, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
     # Exposed -> asymptomatic
     mu_1 = 1/T_lat
     # Asymptomatic -> symptomatic
@@ -306,7 +291,7 @@ function SEI2HRDGrowth(birth::Vector{TimeUnitType{U}},
     # Hospital -> death
     death_hospital = cfr_hosp * 1/T_hosp
     return SEI2HRDGrowth{U}(birth, death, virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env,
-    sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+    sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital, freq_vs_density_force, freq_vs_density_env)
 end
 
 function SEI2HRDGrowth(birth::Matrix{TimeUnitType{U}},
@@ -316,7 +301,7 @@ function SEI2HRDGrowth(birth::Matrix{TimeUnitType{U}},
     virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}},
     prob_sym::Vector{Float64}, prob_hosp::Vector{Float64}, cfr_home::Vector{Float64}, cfr_hosp::Vector{Float64},
     T_lat::Unitful.Time, T_asym::Unitful.Time, T_sym::Unitful.Time,
-    T_hosp::Unitful.Time, T_rec::Unitful.Time, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+    T_hosp::Unitful.Time, T_rec::Unitful.Time, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
     # Exposed -> asymptomatic
     mu_1 = fill(1/T_lat, length(beta_force))
     # Asymptomatic -> symptomatic
@@ -333,7 +318,7 @@ function SEI2HRDGrowth(birth::Matrix{TimeUnitType{U}},
     death_home = cfr_home .* 2/T_hosp
     # Hospital -> death
     death_hospital = cfr_hosp .* 1/T_hosp
-    return SEI2HRDGrowth{U}(birth, death, ageing,  virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+    return SEI2HRDGrowth{U}(birth, death, ageing,  virus_growth_asymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, hospitalisation, death_home, death_hospital, freq_vs_density_force, freq_vs_density_env)
 end
 
 
@@ -362,7 +347,6 @@ mutable struct SEI3HRDGrowth{U <: Unitful.Units} <: AbstractParams
       hospitalisation::Vector{TimeUnitType{U}}
       death_home::Vector{TimeUnitType{U}}
       death_hospital::Vector{TimeUnitType{U}}
-      force_vs_env::Float64
       freq_vs_density_force::Float64
       freq_vs_density_env::Float64
 
@@ -379,17 +363,16 @@ mutable struct SEI3HRDGrowth{U <: Unitful.Units} <: AbstractParams
         mu_3::Vector{TimeUnitType{U}},
         hospitalisation::Vector{TimeUnitType{U}},
         death_home::Vector{TimeUnitType{U}},
-        death_hospital::Vector{TimeUnitType{U}}, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+        death_hospital::Vector{TimeUnitType{U}}, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         size(birth) == size(death) || error("Birth and death vector lengths differ")
         all(beta_force .!= 0/day) & all(beta_env .!= 0/day) || warning("Transmission rates are zero.")
         length(ageing) == (size(birth, 2) - 1) || error("Ageing parameters are not the correct length")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
         return new{U}(birth, death, ageing, virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1,
-        sigma_2, sigma_hospital, mu_1, mu_2, mu_3, hospitalisation, death_home, death_hospital, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        sigma_2, sigma_hospital, mu_1, mu_2, mu_3, hospitalisation, death_home, death_hospital, freq_vs_density_force, freq_vs_density_env)
     end
     # Single age category
     function SEI3HRDGrowth{U}(birth::Vector{TimeUnitType{U}},
@@ -403,18 +386,17 @@ mutable struct SEI3HRDGrowth{U <: Unitful.Units} <: AbstractParams
         mu_3::TimeUnitType{U},
         hospitalisation::TimeUnitType{U},
         death_home::TimeUnitType{U},
-        death_hospital::TimeUnitType{U}, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+        death_hospital::TimeUnitType{U}, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
         length(birth) == length(death) || ("Birth and death vector lengths differ")
         (beta_force != 0/day) & (beta_env != 0/day) || warning("Transmission rate is zero.")
         (freq_vs_density_force <= 1) & (freq_vs_density_force >= 0) || error("Frequency/density balance must be 0-1")
         (freq_vs_density_env <= 1) & (freq_vs_density_env >= 0) || error("Frequency/density balance must be 0-1")
-        (force_vs_env <= 1) & (force_vs_env >= 0) || error("Force/env balance must be 0-1")
 
         new_birth = reshape(birth, length(birth), 1)
         new_death = reshape(birth, length(death), 1)
         ageing = [0.0/day]
-        return new{U}(new_birth, new_death, ageing, [virus_growth_asymp], [virus_growth_presymp], [virus_growth_symp], virus_decay, [beta_force], [beta_env], [sigma_1], [sigma_2], [sigma_hospital], [mu_1], [mu_2], [mu_3], [hospitalisation], [death_home], [death_hospital], force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        return new{U}(new_birth, new_death, ageing, [virus_growth_asymp], [virus_growth_presymp], [virus_growth_symp], virus_decay, [beta_force], [beta_env], [sigma_1], [sigma_2], [sigma_hospital], [mu_1], [mu_2], [mu_3], [hospitalisation], [death_home], [death_hospital], freq_vs_density_force, freq_vs_density_env)
     end
 end
 
@@ -425,7 +407,7 @@ function SEI3HRDGrowth(birth::Vector{TimeUnitType{U}},
     virus_decay::TimeUnitType{U}, beta_force::TimeUnitType{U}, beta_env::TimeUnitType{U},
     prob_sym::Float64, prob_hosp::Float64, cfr_home::Float64, cfr_hosp::Float64,
     T_lat::Unitful.Time, T_asym::Unitful.Time, T_presym::Unitful.Time, T_sym::Unitful.Time,
-    T_hosp::Unitful.Time, T_rec::Unitful.Time, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+    T_hosp::Unitful.Time, T_rec::Unitful.Time, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
     # Exposed -> asymptomatic
     mu_1 = (1 - prob_sym) * 1/T_lat
@@ -446,7 +428,7 @@ function SEI3HRDGrowth(birth::Vector{TimeUnitType{U}},
     # Hospital -> death
     death_hospital = cfr_hosp * 1/T_hosp
     return SEI3HRDGrowth{U}(birth, death, virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env,
-    sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, mu_3, hospitalisation, death_home, death_hospital, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+    sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, mu_3, hospitalisation, death_home, death_hospital, freq_vs_density_force, freq_vs_density_env)
 end
 
 function SEI3HRDGrowth(birth::Matrix{TimeUnitType{U}},
@@ -457,7 +439,7 @@ function SEI3HRDGrowth(birth::Matrix{TimeUnitType{U}},
     virus_decay::TimeUnitType{U}, beta_force::Vector{TimeUnitType{U}}, beta_env::Vector{TimeUnitType{U}},
     prob_sym::Vector{Float64}, prob_hosp::Vector{Float64}, cfr_home::Vector{Float64}, cfr_hosp::Vector{Float64},
     T_lat::Unitful.Time, T_asym::Unitful.Time, T_presym::Unitful.Time, T_sym::Unitful.Time,
-    T_hosp::Unitful.Time, T_rec::Unitful.Time, force_vs_env::Float64 = 0.5, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
+    T_hosp::Unitful.Time, T_rec::Unitful.Time, freq_vs_density_force::Float64 = 1.0, freq_vs_density_env::Float64 = 1.0) where {U <: Unitful.Units}
 
     # Exposed -> asymptomatic
     mu_1 = (1 .- prob_sym) .* 1/T_lat
@@ -477,7 +459,7 @@ function SEI3HRDGrowth(birth::Matrix{TimeUnitType{U}},
     death_home = cfr_home .* 2/T_hosp
     # Hospital -> death
     death_hospital = cfr_hosp .* 1/T_hosp
-    return SEI3HRDGrowth{U}(birth, death, ageing,  virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, mu_3, hospitalisation, death_home, death_hospital, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+    return SEI3HRDGrowth{U}(birth, death, ageing,  virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, sigma_1, sigma_2, sigma_hospital, mu_1, mu_2, mu_3, hospitalisation, death_home, death_hospital, freq_vs_density_force, freq_vs_density_env)
 end
 
 """
@@ -492,15 +474,14 @@ mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
     transition::Matrix{TimeUnitType{U}}
     transition_force::Matrix{TimeUnitType{U}}
     transition_virus::Matrix{TimeUnitType{U}}
-    force_vs_env::Float64
     freq_vs_density_force::Float64
     freq_vs_density_env::Float64
     function EpiParams{U}(births::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}},
-        virus_decay::Vector{TimeUnitType{U}}, transition::Matrix{TimeUnitType{U}}, transition_force::Matrix{TimeUnitType{U}}, transition_virus::Matrix{TimeUnitType{U}}, force_vs_env::Float64, freq_vs_density_force::Float64, freq_vs_density_env::Float64) where {U <: Unitful.Units}
+        virus_decay::Vector{TimeUnitType{U}}, transition::Matrix{TimeUnitType{U}}, transition_force::Matrix{TimeUnitType{U}}, transition_virus::Matrix{TimeUnitType{U}}, freq_vs_density_force::Float64, freq_vs_density_env::Float64) where {U <: Unitful.Units}
         size(transition, 1) == size(transition, 2) || error("Transition matrix should be square.")
         size(transition, 1) == size(transition_virus, 1) || error("Transition matrices should match dimensions.")
         size(transition_force, 1) == size(transition_virus, 1) || error("Transition matrices should match dimensions.")
-        new{U}(births, virus_growth, virus_decay, transition, transition_force, transition_virus, force_vs_env, freq_vs_density_force, freq_vs_density_env)
+        new{U}(births, virus_growth, virus_decay, transition, transition_force, transition_virus, freq_vs_density_force, freq_vs_density_env)
     end
 end
 
@@ -577,7 +558,7 @@ function transition(params::SISGrowth, age_categories = 1)
     # Virus growth and decay
     v_growth, v_decay = create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 2)
 
-  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.force_vs_env, params.freq_vs_density_force, params.freq_vs_density_env)
+  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.freq_vs_density_force, params.freq_vs_density_env)
 end
 
 """
@@ -604,7 +585,7 @@ function transition(params::SIRGrowth, age_categories = 1)
     # Virus growth and decay
     v_growth, v_decay = create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 2)
 
-  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.force_vs_env, params.freq_vs_density_force, params.freq_vs_density_env)
+  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.freq_vs_density_force, params.freq_vs_density_env)
 end
 
 """
@@ -631,7 +612,7 @@ function transition(params::SEIRGrowth, age_categories = 1)
     # Virus growth and decay
     v_growth, v_decay = create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 3)
 
-  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.force_vs_env, params.freq_vs_density_force, params.freq_vs_density_env)
+  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.freq_vs_density_force, params.freq_vs_density_env)
 end
 
 """
@@ -658,7 +639,7 @@ function transition(params::SEIRSGrowth, age_categories = 1)
     # Virus growth and decay
     v_growth, v_decay = create_virus_vector(params.virus_growth, params.virus_decay, age_categories, nclasses, 3)
 
-  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.force_vs_env, params.freq_vs_density_force, params.freq_vs_density_env)
+  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.freq_vs_density_force, params.freq_vs_density_env)
 end
 
 """
@@ -688,7 +669,7 @@ function transition(params::SEI2HRDGrowth, age_categories = 1)
     v_growth, v_decay = create_virus_vector(params.virus_growth_asymp, params.virus_decay, age_categories, nclasses, 3)
     v_growth .+= create_virus_vector(params.virus_growth_symp, params.virus_decay, age_categories, nclasses, 4)[1]
 
-  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.force_vs_env, params.freq_vs_density_force, params.freq_vs_density_env)
+  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.freq_vs_density_force, params.freq_vs_density_env)
 end
 
 """
@@ -719,5 +700,5 @@ function transition(params::SEI3HRDGrowth, age_categories = 1)
     v_growth .+= create_virus_vector(params.virus_growth_presymp, params.virus_decay, age_categories, nclasses, 4)[1]
     v_growth .+= create_virus_vector(params.virus_growth_symp, params.virus_decay, age_categories, nclasses, 5)[1]
 
-  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.force_vs_env, params.freq_vs_density_force, params.freq_vs_density_env)
+  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, v_decay, tmat, vfmat, vmat, params.freq_vs_density_force, params.freq_vs_density_env)
 end
