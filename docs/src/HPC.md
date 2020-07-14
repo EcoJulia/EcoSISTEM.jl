@@ -8,8 +8,10 @@ login.hpc.cam.ac.uk
 ```
 
 Julia is already installed on the cluster, so the only things that are needed are a Project.toml
-file defining the environment for the experiment, a Julia script with the experiment, and a
-submission script. Here we give examples using the [Scottish experiment](https://github.com/ScottishCovidResponse/Simulation.jl/blob/dev/examples/Epidemiology/Scotland_run.jl).
+file and a Julia script defining and setting up the environment for the experiment, a Julia
+script with the experiment, and a submission script. Here we give examples using the
+[Scottish experiment](https://github.com/ScottishCovidResponse/Simulation.jl/blob/dev/examples/Epidemiology/Scotland_run.jl).
+The other files needed for this experiment can be found [here](https://github.com/ScottishCovidResponse/Simulation.jl/blob/dev/examples/Epidemiology/HPC/)
 
 ## Project.toml
 
@@ -36,23 +38,22 @@ julia = "1.1"
 ```
 
 **This file should not include Simulation.jl, as it is unregistered.** This will be taken care
-of by the experiment script.
+of by the setup script.
 
-## Experiment script
+## Setup script
 
-This file should contain the experiment to be run, prepended by the commands to set up the
-environment:
+This file is responsible for cloning Simulation.jl, as it is unregistered, and also for
+instantiating the environment.
+
 ```julia
-# Set up environment
 using Pkg
 Pkg.add(PackageSpec(url="https://github.com/ScottishCovidResponse/Simulation.jl.git"))
 Pkg.instantiate()
-
-# Experiment code
 ```
-The experiment code can be, for example, the [Scottish experiment](https://github.com/ScottishCovidResponse/Simulation.jl/blob/dev/examples/Epidemiology/Scotland_run.jl).
 
-**This file instantiates the environment and clones Simulation.jl.**
+## Experiment script
+
+This file should contain the experiment to be run. There are [examples](https://github.com/ScottishCovidResponse/Simulation.jl/blob/dev/examples/Epidemiology/) available.
 
 ## Submission script
 
@@ -94,6 +95,7 @@ mkdir $dir
 mkdir $dir/Output
 cp $inputfile $dir
 cp Project.toml $dir
+cp setup.jl $dir
 inputbasename=$(basename $inputfile)
 
 cat >$dir/submit.sh <<EOF
@@ -111,6 +113,7 @@ module purge
 module load rhel7/default-peta4
 module load julia/1.4
 export JULIA_NUM_THREADS=$nprocs
+stdbuf -oL -eL julia --project=@. setup.jl
 stdbuf -oL -eL julia --project=@. $inputbasename
 EOF
 
@@ -124,10 +127,10 @@ Usage example:
 ./submit_scot --input Scotland_run.jl --nprocs 6 --walltime 1:00:00 --dir /home/username/run1
 ```
 The command above must be run from the directory where `submit_scot`, `Scotland_run.jl` (the
-experiment script in this case) and `Project.toml` are. These will be copied to a new folder
-at the provided path, `/home/username/run1`. At that path, a `log.txt` file will contain the
-logs of the job. The `mail-type ALL` option makes it such that an email is sent informing of
-the conclusion of the job, and it can be changed or removed.
+experiment script in this case), `setup.jl` and `Project.toml` are. These will be copied to
+a new folder at the provided path, `/home/username/run1`. At that path, a `log.txt` file
+will contain the logs of the job. The `mail-type ALL` option makes it such that an email is
+sent informing of the conclusion of the job, and it can be changed or removed.
 
 ## Further resources
 
