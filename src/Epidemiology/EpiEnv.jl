@@ -109,10 +109,6 @@ function _construct_shrunk_matrix(M::Matrix, row_idxs, col_idxs)::AxisArray
     )
 end
 
-function _construct_shrunk_matrix(M::AxisArray, row_idxs, col_idxs)::AxisArray
-    return M[row_idxs, col_idxs]
-end
-
 function _construct_shrunk_matrix(M::AxisArray{T, 3}, row_idxs, col_idxs)::AxisArray{T, 3} where T <: Unitful.Quantity
     return M[row_idxs, col_idxs, :]
 end
