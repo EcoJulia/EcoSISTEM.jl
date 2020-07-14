@@ -5,6 +5,37 @@ using Simulation.Units
 using Simulation.ClimatePref
 using StatsBase
 using Plots
+using Random
+using Distributions
+
+const stochasticmode = false
+const seed = hash(time()) # seed used for Random.jl and therefore rngs used in Simulation.jl
+const ic_rng = Random.MersenneTwister(0) # rng for initial conditions in this file
+
+if !stochasticmode
+    @eval Main using Cassette # Cassette has to be known to Main
+    @eval Main Cassette.@context Deterministicify # this needs to be in Main too
+
+    replacement(rng, dist::Distribution) = median(dist)
+    replacement(rng, dist::Distribution, n) = median(dist) .+ zeros(typeof(median(dist)), n)
+
+    replacement!(dist::Distribution, container) = fill!(container, median(dist))
+    replacement!(rng, dist::Distribution, container) = fill!(container, median(dist))
+
+    Cassette.overdub(::Deterministicify, fn::typeof(rand), args...) = replacement(args...)
+    Cassette.overdub(::Deterministicify, fn::typeof(rand!), args...) = replacement!(args...)
+    "https://github.com/jrevels/Cassette.jl/issues/120"
+    function Cassette.overdub(ctx::Deterministicify, ::typeof(Base.Core._Task),
+        @nospecialize(rand), stack::Int, future)
+      return Base.Core._Task(()->Cassette.overdub(ctx, rand), stack, future)
+    end
+    function Cassette.overdub(ctx::Deterministicify, ::typeof(Base.Core._Task),
+        @nospecialize(rand!), stack::Int, future)
+      return Base.Core._Task(()->Cassette.overdub(ctx, rand!), stack, future)
+    end
+end
+
+Random.seed!(seed)
 
 function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time, do_plot::Bool = false)
 
@@ -81,19 +112,25 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     # Add in initial infections randomly (samples weighted by population size)
     N_cells = size(epi.abundances.matrix, 2)
-    samp = sample(1:N_cells, weights(1.0 .* human(epi.abundances)[1, :]), 100)
+    samp = sample(ic_rng, 1:N_cells, weights(1.0 .* human(epi.abundances)[1, :]), 100)
     virus(epi.abundances)[1, samp] .= 100 # Virus pop in Environment
     human(epi.abundances)[2, samp] .= 10 # Exposed pop
 
     # Run simulation
     abuns = zeros(Int64, numclasses, N_cells, 366)
     times = 2months; interval = 1day; timestep = 1day
-    @time simulate_record!(abuns, epi, times, interval, timestep)
+
+    @time if stochasticmode
+      simulate_record!(abuns, epi, times, interval, timestep)
+    else
+      Cassette.overdub(Deterministicify(), simulate_record!, abuns, epi, times, interval, timestep)
+    end
 
     if do_plot
         # View summed SIR dynamics for whole area
         display(plot_epidynamics(epi, abuns))
     end
+
 end
 
 times = 1year; interval = 1day; timestep = 1day
