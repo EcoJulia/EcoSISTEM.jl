@@ -7,7 +7,6 @@ using LinearAlgebra
 Function to update disease and virus class abundances and environment for one timestep.
 """
 function update!(epi::EpiSystem, timestep::Unitful.Time)
-
     # Virus movement loop
     virusupdate!(epi, timestep)
 
@@ -31,12 +30,13 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     width = getdimension(epi)[1]
     params = epi.epilist.params
     id = Threads.threadid()
-    rng = epi.abundances.seed[id]
+    rng = epi.abundances.rngs[id]
     classes = findall((params.virus_growth .* timestep) .> 0)
 
     # Convert 1D dimension to 2D coordinates with (x, y) = convert_coords(epi, j, width)
     # Check which grid cells are active, only iterate along those
     activejindices = findall(j->epi.epienv.active[convert_coords(epi, j, width)...], 1:dims)
+
     # Loop through grid squares
     function firstloop(i)
         for j in activejindices
@@ -88,6 +88,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
         virus(epi.abundances)[1, j] += (nm + vm)
         virus(epi.abundances)[2, j] = vm
     end
+
 
     jindices = 1:size(epi.cache.virusmigration, 2)
     threadedjindices = [jindices[j:Threads.nthreads():end] for j in 1:Threads.nthreads()]
@@ -142,7 +143,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
         # will result +=/-= 0 at end of inner loop, so safe to skip
         iszero(sum_pop(human(epi.abundances), j)) && continue
 
-        rng = epi.abundances.seed[Threads.threadid()]
+        rng = epi.abundances.rngs[Threads.threadid()]
         N = sum_pop(epi.abundances.matrix, j)
         # Loop through classes in chosen square
         for i in classes
@@ -170,6 +171,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             end
         end
     end; end
+
 end
 
 """
@@ -262,7 +264,7 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, id::Int64, epi:
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    # rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    # rand!(epi.abundances.rngs[Threads.threadid()], dist, lookup.moves)
     lookup.moves .= abun .* lookup.pnew
 end
 
@@ -280,7 +282,7 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::Ab
     end
     lookup.pnew ./= sum(lookup.pnew)
     # dist = Multinomial(abun, lookup.pnew)
-    # rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    # rand!(epi.abundances.rngs[Threads.threadid()], dist, lookup.moves)
     lookup.moves .= abun .* lookup.pnew
 end
 
