@@ -12,7 +12,7 @@ mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
   reshaped_cols::Vector{RA}
   rows_tuple::NT
   cols_tuple::NT
-  seed::Vector{MersenneTwister}
+  rngs::Vector{MersenneTwister}
 
   function MPIGridLandscape(sppcounts::Vector{Int32}, sccounts::Vector{Int32}, rows_matrix::Matrix{Int64}, cols_vector::Vector{Int64})
     rank = MPI.Comm_rank(MPI.COMM_WORLD)

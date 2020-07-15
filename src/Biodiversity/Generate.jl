@@ -56,7 +56,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
 
     # Loop through species in chosen square
     Threads.@threads for j in 1:spp
-        rng = eco.abundances.seed[Threads.threadid()]
+        rng = eco.abundances.rngs[Threads.threadid()]
         # Loop through grid squares
         for i in 1:dims
             # Calculate how much birth and death should be adjusted
@@ -218,7 +218,7 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, sp::Int64, ec
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    rand!(eco.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    rand!(eco.abundances.rngs[Threads.threadid()], dist, lookup.moves)
 end
 
 function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, sp::Int64, eco::AbstractEcosystem, abun::Int64)
@@ -235,7 +235,7 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, sp::Int64, eco:
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    rand!(eco.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    rand!(eco.abundances.rngs[Threads.threadid()], dist, lookup.moves)
 end
 
 function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64, eco::AbstractEcosystem, abun::Int64)
@@ -252,7 +252,7 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64, eco::Ab
   end
   lookup.pnew ./= sum(lookup.pnew)
   dist = Multinomial(abun, lookup.pnew)
-  rand!(eco.abundances.seed[Threads.threadid()], dist, lookup.moves)
+  rand!(eco.abundances.rngs[Threads.threadid()], dist, lookup.moves)
 end
 
 """

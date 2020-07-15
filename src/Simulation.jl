@@ -129,7 +129,7 @@ include("Epidemiology/EpiControl.jl")
 export NoControl
 
 include("Epidemiology/EpiEnv.jl")
-export GridEpiEnv, simplehabitatAE
+export GridEpiEnv, simplehabitatAE, ukclimateAE
 
 include("Epidemiology/EpiParams.jl")
 export SISGrowth, SIRGrowth, SEIRGrowth, SEIRSGrowth, SEI2HRDGrowth, SEI3HRDGrowth, transition
@@ -154,7 +154,7 @@ export simulate!, simulate_record!
 include("Epidemiology/EpiPlots.jl")
 
 include("Epidemiology/Inference.jl")
-export SIR_wrapper, SIR_wrapper!
+export SIR_wrapper, SIR_wrapper!, SEI3HRD_wrapper, SEI3HRD_wrapper!
 
 include("Epidemiology/shrink.jl")
 export shrink_to_active, convert_population

@@ -64,7 +64,7 @@ end
     seriescolor --> :heat
 
     subplot = 1
-    gridsize = size(epi.epienv.habitat.matrix)
+    gridsize = (size(epi.epienv.habitat.matrix, 1), size(epi.epienv.habitat.matrix, 2))
     for step in steps
         data = Float64.(reshape(abuns[idx, :, step], gridsize...))
         data[.!epi.epienv.active] .= NaN
