@@ -155,10 +155,10 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
                 # Skip if there are no people in k at location j
-                iszero(human(epi.abundances)[k, j]) && continue 
+                iszero(human(epi.abundances)[k, j]) && continue
                 # Skip if there are no transitions from k to i
-                params.transition[i, k] + params.transition_virus[i, k] + params.transition_force[i, k] > zero(inv(timestep)) || continue 
-                
+                params.transition[i, k] + params.transition_virus[i, k] + params.transition_force[i, k] > zero(inv(timestep)) || continue
+
                 # Environmental infection rate from k to i
                 env_inf = (params.transition_virus[i, k] * virus(epi.abundances)[1, j]) / (N^params.freq_vs_density_env)
 
@@ -192,10 +192,10 @@ function populate!(ml::EpiLandscape, epilist::EpiList, epienv::EE, rel::R) where
     len = dim[1] * dim[2]
     # Loop through classes
     for i in eachindex(epilist.human.abun)
-        rand!(ml.seed[1], Multinomial(epilist.human.abun[i], len), (@view ml.matrix[i, :]))
+        rand!(ml.rngs[1], Multinomial(epilist.human.abun[i], len), (@view ml.matrix[i, :]))
     end
     for i in eachindex(epilist.virus.abun)
-        rand!(ml.seed[1], Multinomial(epilist.virus.abun[i], len), (@view ml.matrix_v[i, :]))
+        rand!(ml.rngs[1], Multinomial(epilist.virus.abun[i], len), (@view ml.matrix_v[i, :]))
     end
 end
 
