@@ -203,10 +203,13 @@ end
 
 function genlookups(epienv::AbstractEpiEnv, mov::Commuting)
     total_size = (size(epienv.active, 1) * size(epienv.active, 2))
+    # Column access so Js should be source grid cells
     Js = Int64.(mov.home_to_work[!, :from])
+    # Is should be destination grid cells
     Is = Int64.(mov.home_to_work[!, :to])
     Vs = mov.home_to_work[!, :count]
     work = sparse(Is, Js, Vs, total_size, total_size)
+    # Make sure each row adds to one (probability of movement)
     summed = map(j -> sum(work[:, j]), unique(Js))
     summed[summed .== 0] .= 1.0
     work.nzval ./= summed
@@ -214,17 +217,25 @@ function genlookups(epienv::AbstractEpiEnv, mov::Commuting)
 end
 function genlookups(epienv::GridEpiEnv, mov::AlwaysMovement)
     total_size = (size(epienv.active, 1) * size(epienv.active, 2))
+    # Generate grid ids and x,y coords for active cells only
     grid_locs = 1:total_size
     activity = epienv.active[1:end]
     grid_locs = grid_locs[activity]
     xys = convert_coords.(grid_locs, size(epienv.active, 2))
+
+    # Collate all movement related parameters
     grid_size = _getgridsize(epienv.habitat)
     sd = [(2 .* k.dist) ./ sqrt(pi) for k in mov.kernels][activity]
     relsize =  grid_size ./ sd
     thresh = [k.thresh for k in mov.kernels][activity]
     grid_size /= unit(grid_size)
+
+    # Calculate lookup probabilities for each grid location
     res = map((i, r, t) -> Simulation.genlookups(i, grid_locs, xys, grid_size, r, t, epienv), grid_locs, relsize, thresh)
+
+    # Column vectors are source grid cells (repeated for each destination calculated)
     Js = vcat([fill(grid_locs[r], length(res[r][1])) for r in eachindex(res)]...)
+    # Row vectors are destination grid cells
     Is = vcat([r[1] for r in res]...)
     Vs = vcat([r[2] for r in res]...)
     return sparse(Is, Js, Vs, total_size, total_size)
