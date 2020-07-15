@@ -8,7 +8,7 @@ mutable struct EpiLandscape{U <: Integer, VecRNGType <: AbstractVector{<:Random.
   matrix::Matrix{U}
   matrix_v::Matrix{U}
   grid::Array{U, 3}
-  rngs::Vector{MersenneTwister}
+  rngs::VecRNGType
 end
 function EpiLandscape(human_abun::Matrix{U}, virus_abun::Matrix{U}, d1::Tuple,
     rngtype::RNGType=Random.MersenneTwister) where {U <: Integer, RNGType}
