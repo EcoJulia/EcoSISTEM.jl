@@ -8,31 +8,26 @@ using Plots
 using Random
 using Distributions
 
-const stochasticmode = false
+const stochasticmode = true
 const seed = hash(time()) # seed used for Random.jl and therefore rngs used in Simulation.jl
 const ic_rng = Random.MersenneTwister(0) # rng for initial conditions in this file
 
-if !stochasticmode
-    @eval Main using Cassette # Cassette has to be known to Main
-    @eval Main Cassette.@context Deterministicify # this needs to be in Main too
 
-    replacement(rng, dist::Distribution) = median(dist)
-    replacement(rng, dist::Distribution, n) = median(dist) .+ zeros(typeof(median(dist)), n)
+struct MedianGenerator <: Random.AbstractRNG end
+MedianGenerator(args...) = MedianGenerator()
 
-    replacement!(dist::Distribution, container) = fill!(container, median(dist))
-    replacement!(rng, dist::Distribution, container) = fill!(container, median(dist))
+import Random: rand, rand!
+import Distributions: rand, rand!, median
 
-    Cassette.overdub(::Deterministicify, fn::typeof(rand), args...) = replacement(args...)
-    Cassette.overdub(::Deterministicify, fn::typeof(rand!), args...) = replacement!(args...)
-    "https://github.com/jrevels/Cassette.jl/issues/120"
-    function Cassette.overdub(ctx::Deterministicify, ::typeof(Base.Core._Task),
-        @nospecialize(rand), stack::Int, future)
-      return Base.Core._Task(()->Cassette.overdub(ctx, rand), stack, future)
-    end
-    function Cassette.overdub(ctx::Deterministicify, ::typeof(Base.Core._Task),
-        @nospecialize(rand!), stack::Int, future)
-      return Base.Core._Task(()->Cassette.overdub(ctx, rand!), stack, future)
-    end
+rand(::MedianGenerator, dist::Distribution{Univariate,S}) where {S<:ValueSupport} = median(dist)
+rand(::MedianGenerator, dist::Binomial) = median(dist)
+
+# guess how to determine the median from Multivariate
+median(dist::Distribution{Multivariate,S}) where {S<:ValueSupport} = dist.n .* dist.p
+function rand!(::MedianGenerator, dist::Distribution{Multivariate,S},
+        container::AbstractVector{T}) where {S<:ValueSupport, T<:Integer}
+    container .= T.(round.(median(dist)))
+    return nothing
 end
 
 Random.seed!(seed)
@@ -107,8 +102,11 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
     rel = Gauss{eltype(epienv.habitat)}()
 
+    # multiple dispatch in action
+    rngtype = stochasticmode ? Random.MersenneTwister : MedianGenerator
+
     # Create epi system with all information
-    epi = EpiSystem(epilist, epienv, rel, scotpop)
+    epi = EpiSystem(epilist, epienv, rel, scotpop; rngtype=rngtype)
 
     # Add in initial infections randomly (samples weighted by population size)
     N_cells = size(epi.abundances.matrix, 2)
@@ -120,17 +118,12 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     abuns = zeros(Int64, numclasses, N_cells, 366)
     times = 2months; interval = 1day; timestep = 1day
 
-    @time if stochasticmode
-      simulate_record!(abuns, epi, times, interval, timestep)
-    else
-      Cassette.overdub(Deterministicify(), simulate_record!, abuns, epi, times, interval, timestep)
-    end
+    @time simulate_record!(abuns, epi, times, interval, timestep)
 
     if do_plot
         # View summed SIR dynamics for whole area
         display(plot_epidynamics(epi, abuns))
     end
-
 end
 
 times = 1year; interval = 1day; timestep = 1day
