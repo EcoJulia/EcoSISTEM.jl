@@ -209,7 +209,7 @@ function genlookups(epienv::AbstractEpiEnv, mov::Commuting)
     work = sparse(Is, Js, Vs, total_size, total_size)
     dropzeros!(work)
     for i in work.rowval
-        work[i, :] ./= sum(work[i, :])
+        work[:, i] ./= sum(work[:, i])
     end
     return sparse(Is, Js, Vs, total_size, total_size)
 end
