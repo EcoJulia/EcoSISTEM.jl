@@ -208,7 +208,7 @@ function genlookups(epienv::AbstractEpiEnv, mov::Commuting)
     Vs = mov.home_to_work[!, :count]
     work = sparse(Is, Js, Vs, total_size, total_size)
     dropzeros!(work)
-    for i in work.rowval
+    for i in unique(Js)
         work[:, i] ./= sum(work[:, i])
     end
     return sparse(Is, Js, Vs, total_size, total_size)
