@@ -31,7 +31,7 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
             cache.abundances.matrix[tm] = loadfile(cache.abundances.outputfolder,
                                                     yr, (length(cache.spplist.names),
                                                     _getdimension(cache.abenv.habitat) ...))
-            seed!(cache.abundances.matrix[tm].seed)
+            seed!(cache.abundances.matrix[tm].rngs)
             return tm, cache.abundances.matrix[tm]
         else
             newtm, abun =  _abundances(cache, tm - cache.abundances.saveinterval)
