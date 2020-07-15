@@ -203,8 +203,8 @@ end
 
 function genlookups(epienv::AbstractEpiEnv, mov::Commuting)
     total_size = (size(epienv.active, 1) * size(epienv.active, 2))
-    Is = Int64.(mov.home_to_work[!, :from])
-    Js = Int64.(mov.home_to_work[!, :to])
+    Js = Int64.(mov.home_to_work[!, :from])
+    Is = Int64.(mov.home_to_work[!, :to])
     Vs = mov.home_to_work[!, :count]
     work = sparse(Is, Js, Vs, total_size, total_size)
     dropzeros!(work)
@@ -225,8 +225,8 @@ function genlookups(epienv::GridEpiEnv, mov::AlwaysMovement)
     thresh = [k.thresh for k in mov.kernels][activity]
     grid_size /= unit(grid_size)
     res = map((i, r, t) -> Simulation.genlookups(i, grid_locs, xys, grid_size, r, t, epienv), grid_locs, relsize, thresh)
-    Is = vcat([fill(grid_locs[r], length(res[r][1])) for r in eachindex(res)]...)
-    Js = vcat([r[1] for r in res]...)
+    Js = vcat([fill(grid_locs[r], length(res[r][1])) for r in eachindex(res)]...)
+    Is = vcat([r[1] for r in res]...)
     Vs = vcat([r[2] for r in res]...)
     return sparse(Is, Js, Vs, total_size, total_size)
 end
