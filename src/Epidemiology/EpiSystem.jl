@@ -207,11 +207,10 @@ function genlookups(epienv::AbstractEpiEnv, mov::Commuting)
     Is = Int64.(mov.home_to_work[!, :to])
     Vs = mov.home_to_work[!, :count]
     work = sparse(Is, Js, Vs, total_size, total_size)
-    dropzeros!(work)
-    for i in unique(Js)
-        work[:, i] ./= sum(work[:, i])
-    end
-    return sparse(Is, Js, Vs, total_size, total_size)
+    summed = map(j -> sum(work[:, j]), unique(Js))
+    summed[summed .== 0] .= 1.0
+    work.nzval ./= summed
+    return work
 end
 function genlookups(epienv::GridEpiEnv, mov::AlwaysMovement)
     total_size = (size(epienv.active, 1) * size(epienv.active, 2))
