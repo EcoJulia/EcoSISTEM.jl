@@ -99,6 +99,8 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     abun_v = (Environment = 0, Force = 0)
 
+    movement_balance = (home = fill(0.5, numclasses * age_categories), work = fill(0.5, numclasses * age_categories))
+
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(1.0km, length(total_pop))
     thresholds = fill(1e-3, length(total_pop))
@@ -116,7 +118,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param, age_categories)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param, age_categories, movement_balance)
     rel = Gauss{eltype(epienv.habitat)}()
 
     # Create epi system with all information
