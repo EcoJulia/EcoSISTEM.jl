@@ -107,10 +107,11 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     # Import commuter data (for now, fake table)
     active_cells = findall(.!isnan.(total_pop[1:end]))
-    from = active_cells; to = shuffle(active_cells)
+    from = active_cells
+    to = sample(active_cells, weights(total_pop[active_cells]), length(active_cells))
     count = round.(total_pop[to]/10)
     home_to_work = DataFrame([from, to, count], [:from, :to, :count])
-    work = Simulation.Commuting(home_to_work)
+    work = Commuting(home_to_work)
     movement = EpiMovement(home, work)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
