@@ -10,7 +10,6 @@ abstract type AbstractEpiSystem{Part <: AbstractEpiEnv, EL <: EpiList, TR <: Abs
 
 
 mutable struct EpiCache
-  virusdecay::Array{Float64, 2}
   virusmigration::Array{Float64, 2}
   valid::Bool
 end
@@ -60,9 +59,8 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   popfun(ml, epilist, epienv, rel)
   # Create lookup table of all moves and their probabilities
   lookup_tab = collect(map(k -> genlookups(epienv, k), getkernels(epilist.human.movement)))
-  nm = zeros(Float64, size(ml.matrix))
   vm = zeros(Float64, size(ml.matrix))
-  EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
+  EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(vm, false))
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, intnum::U = Int64(1)) where U <: Integer
@@ -193,7 +191,6 @@ end
 
 function invalidatecaches!(epi::AbstractEpiSystem)
     epi.ordinariness = missing
-    epi.cache.virusdecay .= 0
     epi.cache.virusmigration .= 0
     epi.cache.valid = false
 end

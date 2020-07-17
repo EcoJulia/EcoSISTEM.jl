@@ -10,14 +10,14 @@ save_path = (@isdefined save_path) ? save_path : pwd()
 
 age_cats = [1, 2, 4]
 numclasses = 3
-numvirus = 2
 abuns = Vector{Array{Int64, 3}}(undef, length(age_cats))
 sumabuns = Vector{Array{Int64, 2}}(undef, length(age_cats))
 for i in eachindex(age_cats)
+    numvirus = age_cats[i] + 1
     # Set simulation parameters
     birth = fill(0.0/day, numclasses, age_cats[i])
     death = fill(0.0/day, numclasses, age_cats[i])
-    ageing = fill(age_cats[i]/80years, age_cats[i] - 1)
+    age_mixing = fill(1.0, age_cats[i], age_cats[i])
     beta_force = fill(1.0/day, age_cats[i])
     beta_env = fill(1.0/day, age_cats[i])
     sigma = fill(0.02/day, age_cats[i])
@@ -26,7 +26,7 @@ for i in eachindex(age_cats)
     if i == 1
         param = SISGrowth{typeof(unit(beta_force[1]))}(birth[1:end], death[1:end], virus_growth[1], virus_decay, beta_force[1], beta_env[1], sigma[1])
     else
-        param = SISGrowth{typeof(unit(beta_force[1]))}(birth, death, uconvert.(day^-1, ageing), virus_growth, virus_decay, beta_force, beta_env, sigma)
+        param = SISGrowth{typeof(unit(beta_force[1]))}(birth, death, age_mixing, virus_growth, virus_decay, beta_force, beta_env, sigma)
     end
     param = transition(param, age_cats[i])
 
@@ -51,7 +51,7 @@ for i in eachindex(age_cats)
         susceptible = ["Susceptible"],
         infectious = ["Infected"]
     )
-    abun_v = (Environment = virus_env, Force = 0)
+    abun_v = (Environment = virus_env, Force = fill(0, age_cats[i]))
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(100.0km, numclasses * age_cats[i])
