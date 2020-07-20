@@ -157,3 +157,59 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
         throw(DimensionMismatch("Transition matrix doesn't match number of disease classes"))
     return EpiList{typeof(param), typeof(virus), typeof(human)}(virus, human, param)
 end
+
+
+function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
+                 disease_classes::NamedTuple, movement::MO, paramDat::DataFrame, params::NamedTuple,
+                 age_categories::Int64 = 1) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
+    # Test for susceptibility/infectiousness categories
+    haskey(disease_classes, :infectious) ||
+        error("Missing 'infectious' key - vector of infectious categories")
+    haskey(disease_classes, :susceptible) ||
+        error("Missing 'susceptible' key - vector of susceptible categories")
+
+    # Extract infectious/susceptible categories
+    susceptible = disease_classes.susceptible
+    infectious = disease_classes.infectious
+
+    # Find their index locations in the names list
+    names = collect(string.(keys(human_abun)))
+    abuns = vcat(collect(human_abun)...)
+    #    rm_idx = indexin([susceptible; infectious], abuns)
+    #    deleteat!(abuns, rm_idx)
+
+    new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories, j in names][1:end]
+    sus = findall(occursin.(susceptible, new_names))
+    inf = vcat(map(i -> findall(occursin.(infectious[i], new_names)),
+                   eachindex(infectious))...)
+    ht = UniqueTypes(length(new_names))
+    human_to_force = repeat(1:age_categories, length(human_abun))
+    human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns), ht, movement, sus, inf, human_to_force)
+
+    virus_names = collect(string.(keys(virus_abun)))
+    if length(virus_abun.Force) > 1
+        force_cats = ["$(virus_names[2])$i" for i in 1:age_categories]
+        virus_names = [virus_names[1]; force_cats]
+    end
+    force_cats = findall(occursin.("Force", virus_names))
+    force_to_human = reshape(collect(1:(length(human_abun) * age_categories)), age_categories, length(human_abun))
+
+    vt = UniqueTypes(length(virus_names))
+    virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt, force_cats, force_to_human)
+
+    paramDat[!, :to_ind] = vcat(map(i -> findall(occursin.(paramDat[i, :to], names)), eachindex(paramDat[!, :to]))...)
+    paramDat[!, :from_ind] = vcat(map(i -> findall(occursin.(paramDat[i, :from], names)),
+                                  eachindex(paramDat[!, :from]))...)
+    inf_cat = vcat(map(i -> findall(occursin.(infectious[i], names)), eachindex(infectious))...)
+    param = transition(params, paramDat, length(names), inf, age_categories)
+
+    length(sus) == length(susceptible) * age_categories ||
+        throw(DimensionMismatch("Number of susceptible categories is incorrect"))
+    length(inf) == length(infectious) * age_categories ||
+        throw(DimensionMismatch("Number of infectious categories is incorrect"))
+    length(traits.mean) == length(virus_names) ||
+        throw(DimensionMismatch("Trait vector doesn't match number of virus classes"))
+    size(param.transition, 1) == length(new_names) ||
+        throw(DimensionMismatch("Transition matrix doesn't match number of disease classes"))
+    return EpiList{typeof(param), typeof(virus), typeof(human)}(virus, human, param)
+end
