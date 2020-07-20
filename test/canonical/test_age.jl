@@ -23,12 +23,8 @@ for i in eachindex(age_cats)
     sigma = fill(0.02/day, age_cats[i])
     virus_growth = fill(1e-2/day, age_cats[i])
     virus_decay = 1.0/2day
-    if i == 1
-        param = SISGrowth{typeof(unit(beta_force[1]))}(birth[1:end], death[1:end], virus_growth[1], virus_decay, beta_force[1], beta_env[1], sigma[1])
-    else
-        param = SISGrowth{typeof(unit(beta_force[1]))}(birth, death, age_mixing, virus_growth, virus_decay, beta_force, beta_env, sigma)
-    end
-    param = transition(param, age_cats[i])
+    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
+    paramDat = DataFrame([["Infected"], ["Susceptible"], [sigma]], [:from, :to, :prob])
 
     # Set up simple gridded environment
     grid = (4, 4)
@@ -62,7 +58,7 @@ for i in eachindex(age_cats)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param, age_cats[i])
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param, age_cats[i])
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
