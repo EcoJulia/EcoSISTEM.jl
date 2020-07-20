@@ -3,6 +3,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
+using DataFrames
 
 # sort out settings to potentially save inputs/outputs of `simulate`
 do_save = (@isdefined do_save) ? do_save : false
@@ -23,7 +24,7 @@ for i in eachindex(age_cats)
     sigma = fill(0.02/day, age_cats[i])
     virus_growth = fill(1e-2/day, age_cats[i])
     virus_decay = 1.0/2day
-    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
+    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force, age_mixing = age_mixing)
     paramDat = DataFrame([["Infected"], ["Susceptible"], [sigma]], [:from, :to, :prob])
 
     # Set up simple gridded environment

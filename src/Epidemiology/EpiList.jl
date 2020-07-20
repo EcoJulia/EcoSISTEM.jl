@@ -201,7 +201,7 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
     paramDat[!, :from_ind] = vcat(map(i -> findall(occursin.(paramDat[i, :from], names)),
                                   eachindex(paramDat[!, :from]))...)
     inf_cat = vcat(map(i -> findall(occursin.(infectious[i], names)), eachindex(infectious))...)
-    param = transition(params, paramDat, length(names), inf, age_categories)
+    param = transition(params, paramDat, length(names), inf_cat, age_categories)
 
     length(sus) == length(susceptible) * age_categories ||
         throw(DimensionMismatch("Number of susceptible categories is incorrect"))

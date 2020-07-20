@@ -3,6 +3,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
+using DataFrames
 
 # sort out settings to potentially save inputs/outputs of `simulate`
 do_save = (@isdefined do_save) ? do_save : false

@@ -13,8 +13,8 @@ beta_env = 0.5/day
 sigma = 0.05/day
 virus_growth = 0.0001/day
 virus_decay = 0.07/day
-param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
-param = transition(param)
+param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
+paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
 
 sus = ["Susceptible"]
 inf = ["Infected"]
@@ -35,8 +35,8 @@ kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = AlwaysMovement(kernel)
 
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-@test_nowarn EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
-epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+@test_nowarn EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
+epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
 @test epilist.virus.names[1] == "Environment"
 @test epilist.virus.names[2] == "Force"
 @test epilist.human.names[1] == "Susceptible"

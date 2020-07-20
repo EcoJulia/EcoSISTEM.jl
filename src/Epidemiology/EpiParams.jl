@@ -38,7 +38,7 @@ function create_transition_matrix(params::NamedTuple, paramDat::DataFrame, age_c
     tmat = zeros(typeof(params.beta_env[1]), tm_size, tm_size)
 
     # Death
-    for i in 1:(nclasses-1)
+    for i in 1:nclasses
         dmat = @view tmat[cat_idx[:, end], cat_idx[:, i]]
         dmat[diagind(dmat)].= params.death[cat_idx[:, i]]
     end
@@ -67,6 +67,14 @@ function create_virus_matrix(beta::TimeUnitType{U}, age_categories::Int64, nclas
 end
 
 function create_virus_vector(virus_growth::Vector{TimeUnitType{U}}, age_categories::Int64, nclasses::Int64, inf_cat::Vector{Int64}) where U <: Unitful.Units
+    cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
+    vm_size = nclasses * age_categories
+    v_growth = fill(0.0 * unit(virus_growth[1]), vm_size)
+    v_growth[cat_idx[:, inf_cat]] .= virus_growth
+    return v_growth
+end
+
+function create_virus_vector(virus_growth::Matrix{TimeUnitType{U}}, age_categories::Int64, nclasses::Int64, inf_cat::Vector{Int64}) where U <: Unitful.Units
     cat_idx = reshape(1:(nclasses * age_categories), age_categories, nclasses)
     vm_size = nclasses * age_categories
     v_growth = fill(0.0 * unit(virus_growth[1]), vm_size)

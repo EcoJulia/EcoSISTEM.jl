@@ -3,6 +3,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
+using DataFrames
 
 # sort out settings to potentially save inputs/outputs of `simulate`
 do_save = (@isdefined do_save) ? do_save : false
@@ -22,8 +23,9 @@ for i in eachindex(grid_sizes)
     sigma = 0.02/day
     virus_growth = 1e-3/day
     virus_decay = 1e-3/day
-    param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
-    param = transition(param)
+    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
+    paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
+
 
     # Set up simple gridded environment
     grid = (grid_sizes[i], grid_sizes[i])
@@ -51,7 +53,7 @@ for i in eachindex(grid_sizes)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()

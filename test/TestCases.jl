@@ -6,6 +6,7 @@ using Unitful.DefaultSymbols
 using Distributions
 using Simulation.Units
 using Unitful
+using DataFrames
 
 function TestEcosystem()
     numSpecies = 150
@@ -47,8 +48,8 @@ function TestEpiSystem()
     sigma = 0.05/day
     virus_growth = 0.0001/day
     virus_decay = 0.07/day
-    param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
-    param = transition(param)
+    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
+    paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
 
     grid = (2, 2)
     area = 10.0km^2
@@ -71,7 +72,7 @@ function TestEpiSystem()
     movement = AlwaysMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel)
@@ -91,8 +92,8 @@ function TestEpiSystemFromPopulation(
     sigma = 0.05/day
     virus_growth = 0.0001/day
     virus_decay = 0.07/day
-    param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
-    param = transition(param)
+    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
+    paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
 
     area = 10.0km^2
     epienv = simplehabitatAE(298.0K, size(initial_pop), area, epienv_active, NoControl())
@@ -115,7 +116,7 @@ function TestEpiSystemFromPopulation(
     movement = AlwaysMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel, initial_pop)
