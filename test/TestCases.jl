@@ -66,9 +66,9 @@ function TestEpiSystem()
     )
     abun_v = (Environment = 0, Force = 0)
 
-    dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
+    dispersal_dists = fill(2.0km, grid[1] * grid[2])
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
     epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
@@ -110,9 +110,9 @@ function TestEpiSystemFromPopulation(
     )
     abun_v = (Environment = 0, Force = 0)
 
-    dispersal_dists = [fill(2.0km, numclasses - 1); 1e-2km]
+    dispersal_dists = fill(2.0km, size(initial_pop, 1) * size(initial_pop, 2))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
     epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)

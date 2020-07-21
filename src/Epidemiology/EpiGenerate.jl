@@ -48,7 +48,6 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
 
             # Update population
             if (!iszero(births))
-                epi.cache.virusmigration[i, j] += births
                 virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
 
@@ -155,10 +154,10 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
                 # Skip if there are no people in k at location j
-                iszero(human(epi.abundances)[k, j]) && continue 
+                iszero(human(epi.abundances)[k, j]) && continue
                 # Skip if there are no transitions from k to i
-                params.transition[i, k] + params.transition_virus[i, k] + params.transition_force[i, k] > zero(inv(timestep)) || continue 
-                
+                params.transition[i, k] + params.transition_virus[i, k] + params.transition_force[i, k] > zero(inv(timestep)) || continue
+
                 # Environmental infection rate from k to i
                 env_inf = (params.transition_virus[i, k] * virus(epi.abundances)[1, j]) / (N^params.freq_vs_density_env)
 
@@ -221,100 +220,15 @@ function convert_coords(epi::AbstractEpiSystem, pos::Tuple{Int64, Int64}, width:
     return i
 end
 
-
-function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
-    lookup = getlookup(epi, id)
-
-    # lookup.pnew[i] would be set to zero at the top of the loop, but do it here instead
-    # incase we return early when we discover there's no hard work to do
-    fill!(lookup.pnew, zero(eltype(lookup.pnew)))
-
-    # If all lookup.p are zero or abun is zero then there's no need to do anything.
-    # This is because the insertion of non-zero rands into lookup.moves depends on dist
-    # producing non rands, which is only true if both abun and lookup.p are non-zero
-    if iszero(abun) || all(iszero, lookup.p)
-      fill!(lookup.moves, zero(eltype(lookup.moves)))
-      return nothing
-    end
-
-    maxX = getdimension(epi)[1]
-    maxY = getdimension(epi)[2]
-    # the for loop looks a bit grotty because it's been optimised
-    # make references to containers on structs to avoid getproperty overheads
-    lookuppnew, lookupp, lookupx, lookupy = lookup.pnew, lookup.p, lookup.x, lookup.y
-    epiepienvactive = epi.epienv.active
-    @inbounds for i in eachindex(lookupx)
-        lookuppi = lookupp[i]
-        iszero(lookuppi) && continue # then lookuppnew is already correct
-        lookupxi = lookupx[i] + x
-        (0 < lookupxi <= maxX) || continue # Can't go over maximum dimension
-        lookupyi = lookupy[i] + y
-        (0 < lookupyi <= maxY) || continue # Can't go over maximum dimension
-        epiepienvactive[lookupxi, lookupyi] || continue # skip if inactive
-        lookuppnew[i] = lookuppi
-    end
-    # Case that produces NaN (if sum(lookup.pnew) also pnew always .>= 0) dealt with above
-    lookuppnew ./= sum_pop(lookuppnew)
-    lookup.moves .= abun .* lookuppnew
-    return nothing
-end
-
-function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
-    lookup = getlookup(epi, id)
-    maxX = getdimension(epi)[1] - x
-    maxY = getdimension(epi)[2] - y
-    # Can't go over maximum dimension
-    for i in eachindex(lookup.x)
-        newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, getdimension(epi)[1]) + 1
-
-        valid =  (-y < lookup.y[i] <= maxY) && (epi.epienv.active[newx, lookup.y[i] + y])
-
-        lookup.pnew[i] = valid ? lookup.p[i] : 0.0
-    end
-    lookup.pnew ./= sum(lookup.pnew)
-    dist = Multinomial(abun, lookup.pnew)
-    # rand!(epi.abundances.rngs[Threads.threadid()], dist, lookup.moves)
-    lookup.moves .= abun .* lookup.pnew
-end
-
-function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::AbstractEpiSystem, abun::Int64)
-    lookup = getlookup(epi, id)
-    maxX = getdimension(epi)[1] - x
-    maxY = getdimension(epi)[2] - y
-    # Can't go over maximum dimension
-    for i in eachindex(lookup.x)
-        newx = -x < lookup.x[i] <= maxX ? lookup.x[i] + x : mod(lookup.x[i] + x - 1, getdimension(epi)[1]) + 1
-        newy =  -y < lookup.y[i] <= maxY ? lookup.y[i] + y : mod(lookup.y[i] + y - 1, getdimension(epi)[2]) + 1
-        valid = epi.epienv.active[newx, newy]
-
-        lookup.pnew[i] = valid ? lookup.p[i] : 0.0
-    end
-    lookup.pnew ./= sum(lookup.pnew)
-    # dist = Multinomial(abun, lookup.pnew)
-    # rand!(epi.abundances.rngs[Threads.threadid()], dist, lookup.moves)
-    lookup.moves .= abun .* lookup.pnew
-end
-
-
 """
     virusmove!(epi::AbstractEpiSystem, id::Int64, pos::Int64, grd::Array{Int64, 2}, newvirus::Int64)
 
 Function to calculate the movement of force of infection `id` from a given position in the landscape `pos`, using the lookup table found in the EpiSystem and updating the movement patterns on a cached grid, `grd`. The number of new virus is provided, so that movement only takes place as part of the generation process.
 """
 function virusmove!(epi::AbstractEpiSystem, id::Int64, pos::Int64, grd::Array{Float64, 2}, newvirus::Int64)
-  width, height = getdimension(epi)
-  (x, y) = convert_coords(epi, pos, width)
-  lookup = getlookup(epi, id)
-  calc_lookup_moves!(getboundary(epi.epilist.human.movement), x, y, id, epi, newvirus)
-  # Lose moves from current grid square
-  grd[id, pos] -= newvirus
+    newsparse = newvirus .* (epi.epilist.human.home_balance[id] .* epi.lookup.homelookup[:, pos] .+ epi.epilist.human.work_balance[id] .* epi.lookup.worklookup[:, pos])
   # Map moves to location in grid
-  @inbounds for (i, move) in enumerate(lookup.moves)
-      newx = quickmod(lookup.x[i] + x - 1, width) + 1
-      newy = quickmod(lookup.y[i] + y - 1, height) + 1
-      loc = convert_coords(epi, (newx, newy), width)
-      grd[id, loc] += move
-  end
+  grd[id, newsparse.nzind] .+= newsparse.nzval
   return epi
 end
 
