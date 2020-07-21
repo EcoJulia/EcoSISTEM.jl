@@ -17,8 +17,8 @@ mutable struct EpiCache
 end
 
 mutable struct EpiLookup
-  homelookup::SparseMatrixCSC{Float64,Int64}
-  worklookup::SparseMatrixCSC{Float64,Int64}
+  homelookup::SparseMatrixCSC{Float64, Int32}
+  worklookup::SparseMatrixCSC{Float64, Int32}
 end
 
 """
@@ -72,7 +72,20 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
         throw(DimensionMismatch(msg))
     end
     epienv.active .&= .!_inactive.(initial_population)
-    epi = EpiSystem(epilist, epienv, rel, intnum)
+
+    # Create matrix landscape of zero abundances
+    ml = emptyepilandscape(epienv, epilist, intnum)
+
+    # Create lookup table of all moves and their probabilities
+    home_lookup = genlookups(epienv, epilist.human.movement.home)
+    work_lookup = genlookups(epienv, epilist.human.movement.work, initial_population[epienv.active[1:end]])
+    lookup = EpiLookup(home_lookup, work_lookup)
+
+    nm = zeros(Float64, size(ml.matrix))
+    vm = zeros(Float64, size(ml.matrix))
+
+    epi = EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false))
+    # epi = EpiSystem(epilist, epienv, rel, intnum)
     # Add in the initial susceptible population
     idx = findfirst(epilist.human.names .== "Susceptible")
     if idx == nothing
@@ -169,21 +182,21 @@ function invalidatecaches!(epi::AbstractEpiSystem)
     epi.cache.valid = false
 end
 
-function getdispersaldist(epi::AbstractEpiSystem, sp::Int64)
-  dist = epi.epilist.human.movement.home.kernels[sp].dist
+function getdispersaldist(epi::AbstractEpiSystem, id::Int64)
+  dist = epi.epilist.human.movement.home.kernels[id].dist
   return dist
 end
-function getdispersaldist(epi::AbstractEpiSystem, sp::String)
-  num = Compat.findall(epi.epilist.human.names.==sp)[1]
+function getdispersaldist(epi::AbstractEpiSystem, id::String)
+  num = Compat.findall(epi.epilist.human.names .== id)[1]
   getdispersaldist(epi, num)
 end
 
-function getdispersalvar(epi::AbstractEpiSystem, sp::Int64)
-    var = (epi.epilist.human.movement.home.kernels[sp].dist)^2 * pi / 4
+function getdispersalvar(epi::AbstractEpiSystem, id::Int64)
+    var = (epi.epilist.human.movement.home.kernels[id].dist)^2 * pi / 4
     return var
 end
-function getdispersalvar(epi::AbstractEpiSystem, sp::String)
-    num = Compat.findall(epi.epilist.human.names.==sp)[1]
+function getdispersalvar(epi::AbstractEpiSystem, id::String)
+    num = Compat.findall(epi.epilist.human.names .== id)[1]
     getdispersalvar(epi, num)
 end
 
@@ -201,7 +214,7 @@ function getlookup(epi::AbstractEpiSystem, id::Int64)
     return epi.lookup.homelookup[id, :], epi.lookup.worklookup[id, :]
 end
 
-function genlookups(epienv::AbstractEpiEnv, mov::Commuting)
+function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size)
     total_size = (size(epienv.active, 1) * size(epienv.active, 2))
     # Column access so Js should be source grid cells
     Js = Int64.(mov.home_to_work[!, :from])
@@ -209,6 +222,8 @@ function genlookups(epienv::AbstractEpiEnv, mov::Commuting)
     Is = Int64.(mov.home_to_work[!, :to])
     Vs = mov.home_to_work[!, :count]
     work = sparse(Is, Js, Vs, total_size, total_size)
+    # Divide through by total population size
+    work.nzval ./= pop_size
     # Make sure each row adds to one (probability of movement)
     summed = map(j -> sum(work[:, j]), unique(Js))
     summed[summed .== 0] .= 1.0
