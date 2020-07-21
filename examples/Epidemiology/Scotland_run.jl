@@ -78,7 +78,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
                           T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
     param = transition(param, age_categories)
 
-    epienv = simplehabitatAE(298.0K, size(total_pop), area, NoControl())
+    epienv = simplehabitatAE(298.0K, size(total_pop), area, Lockdown(20days))
 
     # Set population to initially have no individuals
     abun_h = (
@@ -151,6 +151,12 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
             epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] -= 1
         end
     end
+
+    # Turn off work moves for <20s and >70s
+    epi.epilist.human.home_balance[cat_idx[1:2, :]] .= 1.0
+    epi.epilist.human.home_balance[cat_idx[7:10, :]] .= 1.0
+    epi.epilist.human.work_balance[cat_idx[1:2, :]] .= 0.0
+    epi.epilist.human.work_balance[cat_idx[7:10, :]] .= 0.0
 
     # Run simulation
     abuns = zeros(UInt32, size(epi.abundances.matrix, 1), N_cells, floor(Int, times/timestep) + 1)

@@ -126,7 +126,7 @@ include("Epidemiology/data_utils.jl")
 export parse_hdf5
 
 include("Epidemiology/EpiControl.jl")
-export NoControl
+export NoControl, Lockdown
 
 include("Epidemiology/EpiEnv.jl")
 export GridEpiEnv, simplehabitatAE, ukclimateAE

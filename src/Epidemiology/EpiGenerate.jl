@@ -210,6 +210,15 @@ function _applycontrols!(epi::AbstractEpiSystem, controls::NoControl, timestep::
     return controls
 end
 
+function _applycontrols!(epi::AbstractEpiSystem, controls::Lockdown, timestep::Unitful.Time)
+    if controls.current_date >= controls.lockdown_date
+        epi.epilist.human.work_balance .= 0.0
+    else
+        controls.current_date += timestep
+    end
+    return controls
+end
+
 function convert_coords(epi::AbstractEpiSystem, i::Int64, width::Int64 = getdimension(epi)[1])
     x = ((i - 1) % width) + 1
     y = div((i - 1), width)  + 1
