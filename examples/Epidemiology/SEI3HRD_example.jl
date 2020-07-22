@@ -39,8 +39,10 @@ function median(dist::Multinomial)
         n += 1
     end
 
-    rounded[order[1:-count]] .+= 1
-
+    if count < 0
+        rounded[order[(length(order)+count-1):length(order)]] .+= 1
+    end
+    
     return rounded
 end
 
