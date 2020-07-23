@@ -4,7 +4,7 @@ using JLD
 using AxisArrays
 using Unitful.DefaultSymbols
 using Distributions
-using Simulation.Units
+using SimulationData.Units
 using Unitful
 
 function TestEcosystem()

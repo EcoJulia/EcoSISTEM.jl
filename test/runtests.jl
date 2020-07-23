@@ -39,4 +39,9 @@ end
     end
 end
 
+@testset "SimulationData integration" begin
+    @info "Running SimulationData integration tests..."
+    include("simulationdata/test_integration.jl")
+end
+
 include("test_data_utils.jl")

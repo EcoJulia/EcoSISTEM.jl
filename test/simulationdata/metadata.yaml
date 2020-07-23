@@ -1,0 +1,5 @@
+-
+  data_product: parameter
+  component: example-estimate
+  version: 1.0.0
+  filename: parameter/example.toml
