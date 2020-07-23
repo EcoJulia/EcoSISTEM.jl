@@ -1,0 +1,3 @@
+data_directory: .
+run_id: example
+fail_on_hash_mismatch: False
