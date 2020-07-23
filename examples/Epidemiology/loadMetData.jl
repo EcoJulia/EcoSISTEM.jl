@@ -1,25 +1,34 @@
+using RCall
 using Simulation
-using Unitful
-using Unitful.DefaultSymbols
 using Simulation.Units
 using Simulation.ClimatePref
-using StatsBase
-using Distributions
-using AxisArrays
+using Unitful
 using HTTP
+using AxisArrays
+using Unitful.DefaultSymbols
 using Plots
+import Dates.DateTime
 
-function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
+# Download climate data and write to HDF5
+startDate = DateTime("2020-01-01")
+endDate = DateTime("2020-01-30")
+uktemp = ClimatePref.MetOfficeDownload(:uk_daily, :temp_mean, "test/examples/temp", startDate, endDate)
+outputfolder = "test/examples/climate.h5"
+writeMet(uktemp, "temp", outputfolder)
+uktemp = readMet(outputfolder, "temp")
+
+function run_model(climatearray::AxisArray, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true)
     # Download and read in population sizes for Scotland
     dir = Simulation.path("test", "TEMP")
     file = joinpath(dir, "demographics.h5")
     if do_download
-        !isdir(Simulation.path("test", "TEMP")) && mkdir(Simulation.path("test", "TEMP"))
+        mkdir(Simulation.path("test", "TEMP"))
         io = open(Simulation.path("test", "TEMP", "demographics.h5"), "w")
         r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
         write(io, r.body)
         close(io)
     end
+
     scotpop = parse_hdf5(file, grid = "1km", component = "grid1km/10year/persons")
 
     # Read number of age categories
@@ -35,12 +44,10 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
     total_pop = AxisArray(total_pop, AxisArrays.axes(scotpop)[1], AxisArrays.axes(scotpop)[2])
     total_pop.data[total_pop .≈ 0.0] .= NaN
-    # Shrink to smallest bounding box. The NaNs are inactive.
-    total_pop = shrink_to_active(total_pop);
 
     # Set simulation parameters
     numclasses = 8
-    numvirus = age_categories + 1
+    numvirus = 2
     birth_rates = fill(0.0/day, numclasses, age_categories)
     death_rates = fill(0.0/day, numclasses, age_categories)
     birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years)
@@ -49,14 +56,14 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     virus_decay = 1.0/day
     beta_force = fill(10.0/day, age_categories)
     beta_env = fill(10.0/day, age_categories)
-    age_mixing = fill(1.0, age_categories, age_categories)
+    ageing = fill(0.0/day, age_categories - 1) # no ageing for now
 
     # Prob of developing symptoms
     p_s = fill(0.96, age_categories)
     # Prob of hospitalisation
-    p_h = [0.143, 0.143, 0.1141, 0.117, 0.102, 0.125, 0.2, 0.303, 0.303, 0.303]
+    p_h = fill(0.2, age_categories)
     # Case fatality ratio
-    cfr_home = cfr_hospital = [0.0, 0.002, 0.002, 0.002, 0.004, 0.013, 0.036, 0.08, 0.148, 0.148]
+    cfr_home = cfr_hospital = fill(0.1, age_categories)
     # Time exposed
     T_lat = 3days
     # Time asymptomatic
@@ -70,13 +77,14 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     # Time to recovery if symptomatic
     T_rec = 11days
 
-    param = SEI3HRDGrowth(birth_rates, death_rates, age_mixing,
+    param = SEI3HRDGrowth(birth_rates, death_rates, ageing,
                           virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay,
                           beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital,
                           T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
     param = transition(param, age_categories)
 
-    epienv = simplehabitatAE(298.0K, size(total_pop), area, NoControl())
+    total_pop.data[isnan.(climatearray[:, :, 1])] .= NaN
+    epienv = ukclimateAE(climatearray, area, NoControl(), total_pop)
 
     # Set population to initially have no individuals
     abun_h = (
@@ -95,25 +103,23 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
         infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
     )
 
-    abun_v = (Environment = 0, Force = fill(0, age_categories))
+    abun_v = (Environment = 0, Force = 0)
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(1.0km, numclasses * age_categories)
-    thresholds = fill(1e-3, numclasses * age_categories)
     cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
-    dispersal_dists[vcat(cat_idx[:, 3:5]...)] .= 10.0km
-    thresholds[vcat(cat_idx[:, 3:5]...)] .= 1e-4
-    kernel = GaussianKernel.(dispersal_dists, thresholds)
+    dispersal_dists[vcat(cat_idx[:, 3:5]...)] .= 20.0km
+    kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = AlwaysMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-    traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+    traits = GaussTrait(fill(279.0K, numvirus), fill(5.0K, numvirus))
     epilist = EpiList(traits, abun_v, abun_h, disease_classes,
                       movement, param, age_categories)
     rel = Gauss{eltype(epienv.habitat)}()
 
     # Create epi system with all information
-    epi = EpiSystem(epilist, epienv, rel, total_pop, UInt16(1))
+    epi = EpiSystem(epilist, epienv, rel)
 
     # Populate susceptibles according to actual population spread
     reshaped_pop =
@@ -143,9 +149,9 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     end
 
     # Run simulation
-    abuns = zeros(UInt16, size(epi.abundances.matrix, 1), N_cells,
+    abuns = zeros(Int64, size(epi.abundances.matrix, 1), N_cells,
                   floor(Int, times/timestep) + 1)
-    @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
+    @time simulate_record!(abuns, epi, times, interval, timestep)
 
     if do_plot
         # View summed SIR dynamics for whole area
@@ -165,5 +171,5 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     return abuns
 end
 
-times = 2months; interval = 1day; timestep = 1day
-abuns = run_model(times, interval, timestep);
+times = 2days; interval = 1day; timestep = 1day
+abuns = run_model(uktemp, times, interval, timestep)

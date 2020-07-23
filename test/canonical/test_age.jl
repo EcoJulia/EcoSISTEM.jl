@@ -84,7 +84,7 @@ end
 # For each disease category, check trajectory is the same when we change grid size
 
 for j in 2:length(sumabuns)
-    for i in 2:numclasses
+    for i in 1:numclasses
         cat_idx1 = reshape(1:(numclasses * age_cats[j - 1]), age_cats[j - 1], numclasses)
         cat_idx2 = reshape(1:(numclasses * age_cats[j]), age_cats[j], numclasses)
         @test isapprox(sum(sumabuns[j-1][cat_idx1[:, i], :], dims = 1), sum(sumabuns[j][cat_idx2[:, i], :], dims = 1), rtol = 5e-2)

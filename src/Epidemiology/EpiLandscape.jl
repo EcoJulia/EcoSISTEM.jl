@@ -8,12 +8,12 @@ mutable struct EpiLandscape{U <: Integer}
   matrix::Matrix{U}
   matrix_v::Matrix{U}
   grid::Array{U, 3}
-  seed::Vector{MersenneTwister}
+  rngs::Vector{MersenneTwister}
   function EpiLandscape{U}(human_abun::Matrix{U}, virus_abun::Matrix{U}, d1::Tuple) where U <: Integer
     return new(human_abun, virus_abun, reshape(human_abun, d1), [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()])
   end
-  function EpiLandscape{U}(human_abun::Matrix{U}, virus_abun::Matrix{U}, d1::Tuple, d2::Tuple, seed::Vector{MersenneTwister}) where U <: Integer
-    return new(human_abun, virus_abun, reshape(human_abun, d1), seed)
+  function EpiLandscape{U}(human_abun::Matrix{U}, virus_abun::Matrix{U}, d1::Tuple, d2::Tuple, rngs::Vector{MersenneTwister}) where U <: Integer
+    return new(human_abun, virus_abun, reshape(human_abun, d1), rngs)
   end
 end
 

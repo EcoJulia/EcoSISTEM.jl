@@ -7,7 +7,6 @@ using LinearAlgebra
 Function to update disease and virus class abundances and environment for one timestep.
 """
 function update!(epi::EpiSystem, timestep::Unitful.Time)
-
     # Virus movement loop
     virusupdate!(epi, timestep)
 
@@ -31,7 +30,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     width = getdimension(epi)[1]
     params = epi.epilist.params
     id = Threads.threadid()
-    rng = epi.abundances.seed[id]
+    rng = epi.abundances.rngs[id]
     classes = findall((params.virus_growth .* timestep) .> 0)
 
     # Convert 1D dimension to 2D coordinates with (x, y) = convert_coords(epi, j, width)
@@ -99,6 +98,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
         virus(epi.abundances)[1, j] += env_virus - deaths
     end
 
+
     jindices = 1:size(epi.cache.virusmigration, 2)
     threadedjindices = [jindices[j:Threads.nthreads():end] for j in 1:Threads.nthreads()]
     @assert all(sort(unique(vcat(threadedjindices...))) .== jindices)
@@ -155,7 +155,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
         # will result +=/-= 0 at end of inner loop, so safe to skip
         iszero(sum_pop(human(epi.abundances), j)) && continue
 
-        rng = epi.abundances.seed[Threads.threadid()]
+        rng = epi.abundances.rngs[Threads.threadid()]
         N = sum_pop(epi.abundances.matrix, j)
         # Loop through classes in chosen square
         for i in classes
@@ -168,24 +168,34 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Note transposition of transition matrices to make iteration over k faster
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
+                # Skip if there are no people in k at location j
                 k_age_cat = human_to_force[k]
-                iszero(human(epi.abundances)[k, j]) && continue # will result +=/-= 0 at end of loop
-                env_inf = (params.transition_virus[i, k] * timestep * virus(epi.abundances)[1, j]) / N
+                iszero(human(epi.abundances)[k, j]) && continue
+                # Skip if there are no transitions from k to i
+                params.transition[i, k] + params.transition_virus[i, k] + params.transition_force[i, k] > zero(inv(timestep)) || continue
 
-                force_inf = (params.transition_force[i, k] * timestep * params.age_mixing[k_age_cat, i_age_cat] * virus(epi.abundances)[force_cats[k_age_cat], j]) / N
+                # Environmental infection rate from k to i
+                env_inf = (params.transition_virus[i, k] * virus(epi.abundances)[1, j]) / (N^params.freq_vs_density_env)
 
-                # Add to transitional probabilities
-                trans_val = (params.transition[i, k] * timestep) + env_inf + force_inf
-                trans_prob = 1 - exp(-trans_val)
-                iszero(trans_prob) && continue # will result +=/-= 0 at end of loop
+                # Direct transmission infection rate from k to i
+                force_inf = (params.transition_force[i, k] * params.age_mixing[k_age_cat, i_age_cat] * virus(epi.abundances)[force_cats[k_age_cat], j]) / (N^params.freq_vs_density_force)
+
+                # Add to baseline transitional probabilities from k to i
+                trans_val = params.transition[i, k] + env_inf + force_inf
+                trans_prob = 1.0 - exp(-trans_val * timestep)
+
+                # Skip is probability is zero
+                iszero(trans_prob) && continue
 
                 # Make transitions
-                trans = rand(rng, Binomial(human(epi.abundances)[k, j], trans_prob))
+                trans = rand(rng, Binomial(human(epi.abundances)[k, j],
+                             trans_prob))
                 human(epi.abundances)[i, j] += trans
                 human(epi.abundances)[k, j] -= trans
             end
         end
     end; end
+
 end
 
 """
@@ -278,7 +288,7 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, id::Int64, epi:
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    # rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    # rand!(epi.abundances.rngs[Threads.threadid()], dist, lookup.moves)
     lookup.moves .= abun .* lookup.pnew
 end
 
@@ -296,7 +306,7 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, id::Int64, epi::Ab
     end
     lookup.pnew ./= sum(lookup.pnew)
     # dist = Multinomial(abun, lookup.pnew)
-    # rand!(epi.abundances.seed[Threads.threadid()], dist, lookup.moves)
+    # rand!(epi.abundances.rngs[Threads.threadid()], dist, lookup.moves)
     lookup.moves .= abun .* lookup.pnew
 end
 
@@ -336,9 +346,28 @@ function _habitatupdate!(epi::AbstractEpiSystem, hab::HabitatCollection2, timest
     _habitatupdate!(epi, hab.h2, timestep)
 end
 
+"""
+    TempChange(epi::EpiSystem, hab::ContinuousHab, timestep::Unitful.Time)
+
+Function to change temperature at a rate set by the habitat `hab` for one timestep.
+"""
 function TempChange(epi::AbstractEpiSystem, hab::ContinuousHab, timestep::Unitful.Time)
   v = uconvert(K/unit(timestep), hab.change.rate)
   hab.matrix .+= (v * timestep)
+end
+
+"""
+    ukChange(epi::EpiSystem, hab::ContinuousHab, timestep::Unitful.Time)
+
+Function to step the uk climate forward by one timestep. Will repeat if time counter becomes greater than the number of dimensions in the habitat.
+"""
+function ukChange(epi::EpiSystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
+    daystep = uconvert(day, timestep)
+    hab.time += round(Int64, daystep/day)
+    if hab.time > size(hab.matrix, 3)
+        hab.time = 1
+        Compat.@warn "More timesteps than available, have repeated"
+    end
 end
 
 function quickmod(x::T, h::T) where {T<:Integer}
