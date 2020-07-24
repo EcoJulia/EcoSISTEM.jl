@@ -69,7 +69,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(2.0km, numclasses)
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
