@@ -1,0 +1,8 @@
+data_directory: data
+access_log: access-{run_id}.yaml
+fail_on_hash_mismatch: True
+namespace: SCRC
+read:
+  - where:
+      data_product: human/infection/SARS-CoV-2/asymptomatic-period
+      component: asymptomatic-period
