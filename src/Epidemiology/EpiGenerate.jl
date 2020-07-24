@@ -226,12 +226,26 @@ end
 Function to calculate the movement of force of infection `id` from a given position in the landscape `pos`, using the lookup table found in the EpiSystem and updating the movement patterns on a cached grid, `grd`. The number of new virus is provided, so that movement only takes place as part of the generation process.
 """
 function virusmove!(epi::AbstractEpiSystem, id::Int64, pos::Int64, grd::Array{Float64, 2}, newvirus::Int64)
-    newsparse = newvirus .* (epi.epilist.human.home_balance[id] .* epi.lookup.homelookup[:, pos] .+ epi.epilist.human.work_balance[id] .* epi.lookup.worklookup[:, pos])
-  # Map moves to location in grid
-  grd[id, newsparse.nzind] .+= newsparse.nzval
-  return epi
-end
+    # Add in home movements
+    home = epi.lookup.homelookup
+    home_scale = newvirus * epi.epilist.human.home_balance[id]
+    if home_scale > zero(home_scale)
+        for nzi in home.colptr[pos]:(home.colptr[pos+1]-1)
+            grd[id, home.rowval[nzi]] += home_scale * home.nzval[nzi]
+        end
+    end
 
+    # Add in work movements
+    work = epi.lookup.worklookup
+    work_scale = newvirus * epi.epilist.human.work_balance[id]
+    if work_scale > zero(work_scale)
+        for nzi in work.colptr[pos]:(work.colptr[pos+1]-1)
+            grd[id, work.rowval[nzi]] += work_scale * work.nzval[nzi]
+        end
+    end
+
+    return epi
+end
 
 function habitatupdate!(epi::AbstractEpiSystem, timestep::Unitful.Time)
   _habitatupdate!(epi, epi.epienv.habitat, timestep)
