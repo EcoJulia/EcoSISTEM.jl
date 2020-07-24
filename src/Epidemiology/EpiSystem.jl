@@ -16,7 +16,9 @@ mutable struct EpiCache
   valid::Bool
 end
 
-mutable struct EpiLookup
+@enum MovementType homeMovement workMovement
+
+struct EpiLookup
   homelookup::SparseMatrixCSC{Float64, Int32}
   worklookup::SparseMatrixCSC{Float64, Int32}
   function EpiLookup(homelookup::SparseMatrixCSC{Float64, Int32}, worklookup::SparseMatrixCSC{Float64, Int32})
@@ -206,10 +208,10 @@ function getdispersalvar(epi::AbstractEpiSystem, id::String)
     getdispersalvar(epi, num)
 end
 
-function getlookup(epi::AbstractEpiSystem, id::Int64, movetype::String)
-    if movetype == "home"
+function getlookup(epi::AbstractEpiSystem, id::Int64, movetype::MovementType)
+    if movetype == homeMovement
         return epi.lookup.homelookup[id, :]
-    elseif movetype == "work"
+    elseif movetype == workMovement
         return epi.lookup.worklookup[id, :]
     else
         return error("No other movement types currently implemented")
