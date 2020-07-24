@@ -195,7 +195,7 @@ function getdispersaldist(epi::AbstractEpiSystem, id::Int64)
   return dist
 end
 function getdispersaldist(epi::AbstractEpiSystem, id::String)
-  num = Compat.findall(epi.epilist.human.names .== id)[1]
+  num = findfirst(epi.epilist.human.names .== id)
   getdispersaldist(epi, num)
 end
 
@@ -204,7 +204,7 @@ function getdispersalvar(epi::AbstractEpiSystem, id::Int64)
     return var
 end
 function getdispersalvar(epi::AbstractEpiSystem, id::String)
-    num = Compat.findall(epi.epilist.human.names .== id)[1]
+    num = findfirst(epi.epilist.human.names .== id)
     getdispersalvar(epi, num)
 end
 
