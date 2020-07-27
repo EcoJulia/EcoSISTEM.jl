@@ -175,6 +175,6 @@ end
 
 times = 2months; interval = 1day; timestep = 1day
 
-StandardAPI("data_config.yaml", "test_uri", "test_git_sha") do api
+StandardAPI("examples/Epidemiology/data_config.yaml", "test_uri", "test_git_sha") do api
     abuns = run_model(api, times, interval, timestep);
 end
