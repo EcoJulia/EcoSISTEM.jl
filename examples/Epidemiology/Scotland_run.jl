@@ -155,6 +155,9 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
                   floor(Int, times/timestep) + 1)
     @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
 
+    # Write to pipeline
+    write_array(api, "simulation-outputs", "final-abundances", abuns)
+
     if do_plot
         # View summed SIR dynamics for whole area
         category_map = (
@@ -175,6 +178,6 @@ end
 
 times = 2months; interval = 1day; timestep = 1day
 
-StandardAPI("examples/Epidemiology/data_config.yaml", "test_uri", "test_git_sha") do api
-    abuns = run_model(api, times, interval, timestep);
-end
+abuns = StandardAPI("examples/Epidemiology/data_config.yaml", "test_uri", "test_git_sha") do api
+    run_model(api, times, interval, timestep)
+end;
