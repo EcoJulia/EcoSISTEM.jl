@@ -70,7 +70,11 @@ Use a single instantiation of `StandardAPI` for the entire model run, for readin
 
 ### Writing model outputs
 
-TODO
+Example of writing an array:
+
+```julia
+write_array(api, "simulation-outputs", "final-abundances", abuns)
+```
 
 ## Wrapper structure
 
