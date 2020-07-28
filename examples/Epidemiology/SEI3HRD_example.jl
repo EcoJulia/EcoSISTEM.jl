@@ -12,46 +12,6 @@ const stochasticmode = true
 const seed = hash(time()) # seed used for Random.jl and therefore rngs used in Simulation.jl
 const ic_rng = Random.MersenneTwister(0) # rng for initial conditions in this file
 
-
-struct MedianGenerator <: Random.AbstractRNG end
-MedianGenerator(args...) = MedianGenerator()
-
-import Random: rand, rand!
-import Distributions: rand, rand!, median
-
-rand(::MedianGenerator, dist::Distribution{Univariate,S}) where {S<:ValueSupport} = median(dist)
-rand(::MedianGenerator, dist::Binomial) = median(dist)
-
-# guess how to determine the median from Multivariate
-function median(dist::Multinomial)
-    values = dist.n .* dist.p
-    rounded = round.(Int64, values)
-    values .-= rounded
-    order = sortperm(values)
-    count = sum(rounded) - dist.n
-    
-    n = 1
-    while count > 0
-        if rounded[order[n]] > 0
-            rounded[order[n]] -= 1
-            count -= 1
-        end
-        n += 1
-    end
-
-    if count < 0
-        rounded[order[(length(order)+count-1):length(order)]] .+= 1
-    end
-    
-    return rounded
-end
-
-function rand!(::MedianGenerator, dist::Distribution{Multivariate,S},
-        container::AbstractVector{T}) where {S<:ValueSupport, T<:Integer}
-    container .= T.(median(dist))
-    return nothing
-end
-
 Random.seed!(seed)
 
 function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time, do_plot::Bool = false)
