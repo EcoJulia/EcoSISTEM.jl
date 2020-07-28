@@ -10,16 +10,15 @@ mutable struct VirusTypes{TR <: AbstractTraits,
   abun::Vector{Int64}
   types::T
   force_cats::Vector{Int64}
-  force_to_human::Matrix{Int64}
 
-  function VirusTypes{TR, T}(names:: Vector{String}, traits::TR, abun::Vector{Int64}, types::T, force_cats::Vector{Int64}, force_to_human::Matrix{Int64}) where {
+  function VirusTypes{TR, T}(names:: Vector{String}, traits::TR, abun::Vector{Int64}, types::T, force_cats::Vector{Int64}) where {
                        TR <: AbstractTraits,
                        T <: AbstractTypes}
-      new{TR, T}(names, traits, abun, types, force_cats, force_to_human)
+      new{TR, T}(names, traits, abun, types, force_cats)
   end
-  function VirusTypes{TR, T}(traits::TR, abun::Vector{Int64}, types::T, force_cats::Vector{Int64}, force_to_human::Matrix{Int64}) where {TR <: AbstractTraits, T <: AbstractTypes}
+  function VirusTypes{TR, T}(traits::TR, abun::Vector{Int64}, types::T, force_cats::Vector{Int64}) where {TR <: AbstractTraits, T <: AbstractTypes}
       names = map(x -> "$x", 1:length(abun))
-      new{TR, T}(names, traits, abun, types, force_cats, force_to_human)
+      new{TR, T}(names, traits, abun, types, force_cats)
   end
 end
 
@@ -142,10 +141,9 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
         virus_names = [virus_names[1]; force_cats]
     end
     force_cats = findall(occursin.("Force", virus_names))
-    force_to_human = reshape(collect(1:(length(human_abun) * age_categories)), age_categories, length(human_abun))
 
     vt = UniqueTypes(length(virus_names))
-    virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt, force_cats, force_to_human)
+    virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt, force_cats)
 
     length(sus) == length(susceptible) * age_categories ||
         throw(DimensionMismatch("Number of susceptible categories is incorrect"))

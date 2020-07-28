@@ -87,10 +87,9 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     work_lookup = genlookups(epienv, epilist.human.movement.work, initial_population[1:end])
     lookup = EpiLookup(home_lookup, work_lookup)
 
-    nm = zeros(Float64, size(ml.matrix))
     vm = zeros(Float64, size(ml.matrix))
 
-    epi = EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false))
+    epi = EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false))
     # epi = EpiSystem(epilist, epienv, rel, intnum)
     # Add in the initial susceptible population
     idx = findfirst(epilist.human.names .== "Susceptible")

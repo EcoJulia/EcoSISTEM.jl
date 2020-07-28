@@ -58,25 +58,20 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
         firstlooptasks[i] = Threads.@spawn firstloop(i)
     end
 
-    cat_idx = epi.epilist.virus.force_to_human
     force_cats = epi.epilist.virus.force_cats
-    ages = size(cat_idx, 1)
-    nclasses = size(cat_idx, 2)
+    human_to_force = epi.epilist.human.human_to_force
+    ages = length(unique(human_to_force))
 
     function secondloop(j)
-        vm = zero(eltype(epi.cache.virusmigration))
+        vm = zeros(eltype(epi.cache.virusmigration), ages)
         # order the work so that the spawned tasks come towards the end of the loop
-        for i in 1:ages
-            for k in 1:nclasses
-                this_cat = cat_idx[i, k]
-                haskey(firstlooptasks, this_cat) && Threads.wait(firstlooptasks[this_cat])
-                # after wait virusmigration[i, j] will be up to date
-                iszero(epi.cache.virusmigration[this_cat, j]) && continue
-                dist = Poisson(epi.cache.virusmigration[this_cat, j])
-                epi.cache.virusmigration[this_cat, j] = rand(rng, dist)
-                vm += epi.cache.virusmigration[this_cat, j]
-            end
-            virus(epi.abundances)[force_cats[i], j] = vm
+        for i in classes
+            haskey(firstlooptasks, i) && Threads.wait(firstlooptasks[i])
+            # after wait virusmigration[i, j] will be up to date
+            iszero(epi.cache.virusmigration[i, j]) && continue
+            dist = Poisson(epi.cache.virusmigration[i, j])
+            epi.cache.virusmigration[i, j] = rand(rng, dist)
+            vm[human_to_force[i]] += epi.cache.virusmigration[i, j]
         end
 
         traitmatch = traitfun(epi, j, 1)
@@ -92,9 +87,10 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
         survivalprob = exp(-deathrate)
 
         # Calculate how many births and deaths
-        env_virus = rand(rng, Binomial(Int(vm), survivalprob  * params.env_virus_scale))
+        env_virus = rand(rng, Binomial(Int(sum(vm)), survivalprob  * params.env_virus_scale))
 
         virus(epi.abundances)[1, j] += env_virus - deaths
+        virus(epi.abundances)[force_cats, j] .= vm
     end
 
 
@@ -168,10 +164,11 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
                 # Skip if there are no people in k at location j
-                k_age_cat = human_to_force[k]
                 iszero(human(epi.abundances)[k, j]) && continue
                 # Skip if there are no transitions from k to i
                 params.transition[i, k] + params.transition_virus[i, k] + params.transition_force[i, k] > zero(inv(timestep)) || continue
+
+                k_age_cat = human_to_force[k]
 
                 # Environmental infection rate from k to i
                 env_inf = (params.transition_virus[i, k] * virus(epi.abundances)[1, j]) / (N^params.freq_vs_density_env)
@@ -183,7 +180,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 trans_val = params.transition[i, k] + env_inf + force_inf
                 trans_prob = 1.0 - exp(-trans_val * timestep)
 
-                # Skip is probability is zero
+                # Skip if probability is zero
                 iszero(trans_prob) && continue
 
                 # Make transitions
