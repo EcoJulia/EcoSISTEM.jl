@@ -813,11 +813,11 @@ version = "0.1.0"
 
 [[SimulationData]]
 deps = ["Conda", "DataDeps", "DataFrames", "Distributions", "HDF5", "Pandas", "Pkg", "PyCall", "Test", "Unitful"]
-git-tree-sha1 = "26b30ad42ef072e084916aba20b8bc10834ca7f9"
-repo-rev = "master"
+git-tree-sha1 = "97070ec49fec3f63f7aecd4b59e999a8dfd14a4d"
+repo-rev = "v0.4.1"
 repo-url = "https://github.com/ScottishCovidResponse/SimulationData.jl"
 uuid = "3d44aec0-db1b-416b-9784-2428c815ea7f"
-version = "0.4.0"
+version = "0.4.1"
 
 [[Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
