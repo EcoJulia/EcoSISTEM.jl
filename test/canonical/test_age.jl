@@ -18,16 +18,13 @@ for i in eachindex(age_cats)
     birth = fill(0.0/day, numclasses, age_cats[i])
     death = fill(0.0/day, numclasses, age_cats[i])
     age_mixing = fill(1.0, age_cats[i], age_cats[i])
-    beta_force = fill(1.0/day, age_cats[i])
-    beta_env = fill(1.0/day, age_cats[i])
+    beta_force = fill(10.0/day, age_cats[i])
+    beta_env = fill(10.0/day, age_cats[i])
     sigma = fill(0.02/day, age_cats[i])
     virus_growth = fill(1e-2/day, age_cats[i])
     virus_decay = 1.0/2day
-    if i == 1
-        param = SISGrowth{typeof(unit(beta_force[1]))}(birth[1:end], death[1:end], virus_growth[1], virus_decay, beta_force[1], beta_env[1], sigma[1])
-    else
-        param = SISGrowth{typeof(unit(beta_force[1]))}(birth, death, age_mixing, virus_growth, virus_decay, beta_force, beta_env, sigma)
-    end
+    env_virus_scale = 0.5
+    param = SISGrowth{typeof(unit(beta_force[1]))}(birth, death, age_mixing, virus_growth, virus_decay, beta_force, beta_env, sigma, env_virus_scale = env_virus_scale, freq_vs_density_force = 1.0)
     param = transition(param, age_cats[i])
 
     # Set up simple gridded environment
@@ -71,7 +68,7 @@ for i in eachindex(age_cats)
     abuns[i] = zeros(Int64, numclasses * age_cats[i], 16, convert(Int64, floor(times / interval)) + 1)
     thisabun = abuns[i]
     @time simulate_record!(thisabun, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "age_cats_$(age_cats[i])"))
-
+    
     # Test no-one dies (death rate = 0)
     @test sum(thisabun[end, :, :]) == 0
     # Test overall population size stays constant (birth rate = death rate = 0)
