@@ -68,11 +68,10 @@ disease_classes = (
 abun_v = (Environment = 0, Force = 0)
 
 # Dispersal kernels for virus dispersal from different disease classes
-dispersal_dists = fill(1.0km, numclasses)
-dispersal_dists[3:5] .= 500.0km
+dispersal_dists = fill(500.0km, grid[1] * grid[2])
 
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
-movement = AlwaysMovement(kernel)
+movement = EpiMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
@@ -151,11 +150,10 @@ disease_classes = (
 abun_v = (Environment = 0, Force = 0)
 
 # Dispersal kernels for virus dispersal from different disease classes
-dispersal_dists = fill(1.0km, numclasses)
-dispersal_dists[3:5] .= 200.0km
+dispersal_dists = fill(200.0km, grid[1] * grid[2])
 
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
-movement = AlwaysMovement(kernel)
+movement = EpiMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
@@ -167,7 +165,7 @@ new_exposed = 100
 new_virus = 1000
 epi = EpiSystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
-human(epi.abundances)[2, 1] = new_symptomatic
+human(epi.abundances)[2, 1] = new_exposed
 
 # Run simulation
 times = 1year; interval = 1day; timestep = 1day

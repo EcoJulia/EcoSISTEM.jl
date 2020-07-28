@@ -1,4 +1,5 @@
 using JLSO
+using SparseArrays
 
 """
     AbstractEpiSystem
@@ -15,17 +16,17 @@ mutable struct EpiCache
   valid::Bool
 end
 
+@enum MovementType homeMovement workMovement
 
-
-mutable struct EpiLookup
-  x::Vector{Int64}
-  y::Vector{Int64}
-  p::Vector{Float64}
-  pnew::Vector{Float64}
-  moves::Vector{Float64}
+struct EpiLookup
+  homelookup::SparseMatrixCSC{Float64, Int32}
+  worklookup::SparseMatrixCSC{Float64, Int32}
+  function EpiLookup(homelookup::SparseMatrixCSC{Float64, Int32}, worklookup::SparseMatrixCSC{Float64, Int32})
+      all(0 .<= homelookup.nzval .<= 1) || error("Home lookup values must be between 0 and 1")
+      all(0 .<= worklookup.nzval .<= 1) || error("Work lookup values must be between 0 and 1")
+      return new(homelookup, worklookup)
+  end
 end
-EpiLookup(df::DataFrame) = EpiLookup(df[!, :X], df[!, :Y], df[!, :Prob],
-zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))
 
 """
     EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractRelationship} <: AbstractEpiSystem{EE, EL, ER}
@@ -40,11 +41,11 @@ mutable struct EpiSystem{U <: Integer, EE <: AbstractEpiEnv, EL <: EpiList, ER <
   epienv::EE
   ordinariness::Union{Matrix{Float64}, Missing}
   relationship::ER
-  lookup::Vector{EpiLookup}
+  lookup::EpiLookup
   cache::EpiCache
 
   function EpiSystem{U, EE, EL, ER}(abundances::EpiLandscape{U},
-    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::Vector{EpiLookup}, cache::EpiCache) where {U <: Integer, EE <:
+    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup, cache::EpiCache) where {U <: Integer, EE <:
      AbstractEpiEnv,
     EL <: EpiList, ER <: AbstractTraitRelationship}
     new{U, EE, EL, ER}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache)
@@ -58,11 +59,14 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   ml = emptyepilandscape(epienv, epilist, intnum)
   # Populate this matrix with species abundances
   popfun(ml, epilist, epienv, rel)
+  initial_pop = sum(ml.matrix, dims = 1)
   # Create lookup table of all moves and their probabilities
-  lookup_tab = collect(map(k -> genlookups(epienv, k), getkernels(epilist.human.movement)))
+  home_lookup = genlookups(epienv, epilist.human.movement.home)
+  work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
+  lookup = EpiLookup(home_lookup, work_lookup)
   nm = zeros(Float64, size(ml.matrix))
   vm = zeros(Float64, size(ml.matrix))
-  EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
+  EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false))
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, intnum::U = Int64(1)) where U <: Integer
@@ -75,7 +79,21 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
             "size(epienv.active)==$(size(epienv.active))"
         throw(DimensionMismatch(msg))
     end
-    epi = EpiSystem(epilist, epienv, rel, intnum)
+    epienv.active .&= .!_inactive.(initial_population)
+
+    # Create matrix landscape of zero abundances
+    ml = emptyepilandscape(epienv, epilist, intnum)
+
+    # Create lookup table of all moves and their probabilities
+    home_lookup = genlookups(epienv, epilist.human.movement.home)
+    work_lookup = genlookups(epienv, epilist.human.movement.work, initial_population[1:end])
+    lookup = EpiLookup(home_lookup, work_lookup)
+
+    nm = zeros(Float64, size(ml.matrix))
+    vm = zeros(Float64, size(ml.matrix))
+
+    epi = EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false))
+    # epi = EpiSystem(epilist, epienv, rel, intnum)
     # Add in the initial susceptible population
     idx = findfirst(epilist.human.names .== "Susceptible")
     if idx == nothing
@@ -83,7 +101,6 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
         throw(ArgumentError(msg))
     end
     # Modify active cells based on new population
-    epi.epienv.active .&= .!_inactive.(initial_population)
     initial_population = convert_population(initial_population, intnum)
     epi.abundances.grid[idx, :, :] .+= initial_population
     return epi
@@ -107,31 +124,6 @@ end
 
 save(path::String, system::EpiSystem) = JLSO.save(path, :episystem => system)
 load(path::String, obj_type::Type{EpiSystem}) = JLSO.load(path)[:episystem]
-
-
-"""
-    genlookups(hab::AbstractHabitat, mov::GaussianMovement)
-
-Function to generate lookup tables, which hold information on the probability
-of moving to neighbouring squares.
-"""
-function genlookups(epienv::AbstractEpiEnv, mov::GaussianKernel)
-    hab = epienv.habitat
-    sd = (2 * mov.dist) / sqrt(pi)
-    relsize =  _getgridsize(hab) ./ sd
-    m = maximum(_getdimension(hab))
-    p = mov.thresh
-    return EpiLookup(_lookup(relsize, m, p, _gaussian_disperse))
-end
-function genlookups(epienv::AbstractEpiEnv, mov::LongTailKernel)
-    hab = epienv.habitat
-    sd = (2 * mov.dist) / sqrt(pi)
-    relsize =  _getgridsize(hab) ./ sd
-    m = maximum(_getdimension(hab))
-    p = mov.thresh
-    b = mov.shape
-    return EpiLookup(_lookup(relsize, m, p, b, _2Dt_disperse))
-end
 
 function getsize(epi::AbstractEpiSystem)
   return _getsize(epi.epienv.habitat)
@@ -198,28 +190,97 @@ function invalidatecaches!(epi::AbstractEpiSystem)
     epi.cache.valid = false
 end
 
-function getdispersaldist(epi::AbstractEpiSystem, sp::Int64)
-  dist = epi.epilist.human.movement.kernels[sp].dist
+function getdispersaldist(epi::AbstractEpiSystem, id::Int64)
+  dist = epi.epilist.human.movement.home.kernels[id].dist
   return dist
 end
-function getdispersaldist(epi::AbstractEpiSystem, sp::String)
-  num = Compat.findall(epi.epilist.human.names.==sp)[1]
+function getdispersaldist(epi::AbstractEpiSystem, id::String)
+  num = findfirst(epi.epilist.human.names .== id)
   getdispersaldist(epi, num)
 end
 
-function getdispersalvar(epi::AbstractEpiSystem, sp::Int64)
-    var = (epi.epilist.human.movement.kernels[sp].dist)^2 * pi / 4
+function getdispersalvar(epi::AbstractEpiSystem, id::Int64)
+    var = (epi.epilist.human.movement.home.kernels[id].dist)^2 * pi / 4
     return var
 end
-function getdispersalvar(epi::AbstractEpiSystem, sp::String)
-    num = Compat.findall(epi.epilist.human.names.==sp)[1]
+function getdispersalvar(epi::AbstractEpiSystem, id::String)
+    num = findfirst(epi.epilist.human.names .== id)
     getdispersalvar(epi, num)
 end
 
-function getlookup(epi::AbstractEpiSystem, sp::Int64)
-    return epi.lookup[sp]
+function getlookup(epi::AbstractEpiSystem, id::Int64, movetype::MovementType)
+    if movetype == homeMovement
+        return epi.lookup.homelookup[id, :]
+    elseif movetype == workMovement
+        return epi.lookup.worklookup[id, :]
+    else
+        return error("No other movement types currently implemented")
+    end
 end
-function getlookup(epi::AbstractEpiSystem, sp::String)
-    num = Compat.findall(epi.epilist.human.names.==sp)[1]
-    getlookup(epi, num)
+
+function getlookup(epi::AbstractEpiSystem, id::Int64)
+    return epi.lookup.homelookup[id, :], epi.lookup.worklookup[id, :]
+end
+
+function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size)
+    total_size = (size(epienv.active, 1) * size(epienv.active, 2))
+    # Column access so Js should be source grid cells
+    Js = Int32.(mov.home_to_work[!, :from])
+    # Is should be destination grid cells
+    Is = Int32.(mov.home_to_work[!, :to])
+    Vs = mov.home_to_work[!, :count]
+    work = sparse(Is, Js, Vs, total_size, total_size)
+    # Divide through by total population size
+    work.nzval ./= pop_size[Is]
+    work.nzval[isnan.(work.nzval)] .= 0
+    # Make sure each row adds to one (probability of movement)
+    summed = map(j -> sum(work[:, j]), unique(Js))
+    summed[summed .== 0] .= 1.0
+    work.nzval ./= summed
+    return work
+end
+function genlookups(epienv::GridEpiEnv, mov::AlwaysMovement)
+    total_size = (size(epienv.active, 1) * size(epienv.active, 2))
+    # Generate grid ids and x,y coords for active cells only
+    grid_locs = 1:total_size
+    activity = epienv.active[1:end]
+    grid_locs = grid_locs[activity]
+    xys = convert_coords.(grid_locs, size(epienv.active, 2))
+
+    # Collate all movement related parameters
+    grid_size = _getgridsize(epienv.habitat)
+    sd = [(2 .* k.dist) ./ sqrt(pi) for k in mov.kernels][activity]
+    relsize =  grid_size ./ sd
+    thresh = [k.thresh for k in mov.kernels][activity]
+    grid_size /= unit(grid_size)
+
+    # Calculate lookup probabilities for each grid location
+    res = map((i, r, t) -> Simulation.genlookups(i, grid_locs, xys, grid_size, r, t, epienv), grid_locs, relsize, thresh)
+
+    # Column vectors are source grid cells (repeated for each destination calculated)
+    Js = vcat([fill(grid_locs[r], length(res[r][1])) for r in eachindex(res)]...)
+    # Row vectors are destination grid cells
+    Is = vcat([r[1] for r in res]...)
+    Vs = vcat([r[2] for r in res]...)
+    return sparse(Int32.(Is), Int32.(Js), Vs, total_size, total_size)
+end
+
+function genlookups(from::Int64, to::Vector{Int64}, xys::Array{Tuple{Int64,Int64},1}, grid_size::Float64, relsize::Float64, thresh::Float64, epienv::GridEpiEnv)
+    x, y = xys[to .== from][1]
+    maxX = ceil(Int64, x + 1/relsize); minX = ceil(Int64, x - 1/relsize)
+    maxY = floor(Int64, y + 1/relsize); minY = floor(Int64, y - 1/relsize)
+    keep = [(i[1] <= maxX) & (i[2] <= maxY) & (i[1] >= minX) & (i[2] >= minY) for i in xys]
+    to = to[keep]
+    probs = [_lookup((x = x, y = y), (x = i[1], y = i[2]), relsize, _gaussian_disperse) for i in xys[keep]]
+    keep = probs .> thresh
+    probs = probs[keep]
+    probs ./= sum(probs)
+    return to[keep], probs
+end
+
+function _lookup(from::NamedTuple, to::NamedTuple, relSquareSize::Float64, dispersalfn::F) where {F<:Function}
+    return calc_prob = hcubature(r -> dispersalfn(r),
+      [from.y *relSquareSize - relSquareSize, from.x * relSquareSize - relSquareSize, to.y * relSquareSize - relSquareSize, to.x * relSquareSize - relSquareSize],
+      [from.y * relSquareSize, from.x * relSquareSize, to.y * relSquareSize, to.x * relSquareSize],
+      maxevals= 100, rtol = 0.01)[1] / relSquareSize^2
 end

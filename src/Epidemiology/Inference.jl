@@ -56,10 +56,9 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
     abun_v = (Environment = 0, Force = 0)
 
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(sqrt(area/Ncells)/5, numclasses)
-    dispersal_dists[2] = mean_dispersal_dist
+    dispersal_dists = fill(mean_dispersal_dist, Ncells)
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
@@ -171,10 +170,9 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
     abun_v = (Environment = 0, Force = 0)
 
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(sqrt(area/Ncells)/5, numclasses)
-    dispersal_dists[cat_idx[:, 3:5]] .= mean_dispersal_dist
+    dispersal_dists = fill(mean_dispersal_dist, Ncells)
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
