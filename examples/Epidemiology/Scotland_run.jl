@@ -123,7 +123,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     initial_infecteds = 100
     # Create epi system with all information
-    @time epi = EpiSystem(epilist, epienv, rel, total_pop, UInt32(1), initial_infecteds)
+    @time epi = EpiSystem(epilist, epienv, rel, total_pop, UInt32(1), initial_infected = initial_infecteds)
 
     # Populate susceptibles according to actual population spread
     cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)

@@ -25,7 +25,7 @@ function update!(epi::EpiSystem, timestep::Unitful.Time)
     applycontrols!(epi, timestep)
 end
 
-function seedinfected!(epi::EpiSystem, control::NoControl, timestep::Unitful.Time)
+function seedinfected!(epi::EpiSystem, controls::NoControl, timestep::Unitful.Time)
     return controls
 end
 

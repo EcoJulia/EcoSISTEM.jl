@@ -64,7 +64,7 @@ mutable struct EpiSystem{U <: Integer, EE <: AbstractEpiEnv, EL <: EpiList, ER <
 end
 
 function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
-    rel::AbstractTraitRelationship, intnum::U, initial_infected = 0) where {F<:Function, U <: Integer}
+    rel::AbstractTraitRelationship, intnum::U; initial_infected = 0) where {F<:Function, U <: Integer}
 
   # Create matrix landscape of zero abundances
   ml = emptyepilandscape(epienv, epilist, intnum)
@@ -80,11 +80,11 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false), initial_infected)
 end
 
-function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, intnum::U = Int64(1), initial_infected = 0) where U <: Integer
-    return EpiSystem(populate!, epilist, epienv, rel, intnum, initial_infected)
+function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, intnum::U = Int64(1); initial_infected = 0) where U <: Integer
+    return EpiSystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected)
 end
 
-function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, initial_population, intnum::U = Int64(1), initial_infected = 0) where U <: Integer
+function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, initial_population::A, intnum::U = Int64(1); initial_infected = 0) where {U <: Integer, A <: AbstractArray}
     if size(initial_population) != size(epienv.active)
         msg = "size(initial_population)==$(size(initial_population)) != " *
             "size(epienv.active)==$(size(epienv.active))"
