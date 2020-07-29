@@ -121,8 +121,9 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param, age_categories, movement_balance)
     rel = Gauss{eltype(epienv.habitat)}()
 
+    initial_infecteds = 100
     # Create epi system with all information
-    @time epi = EpiSystem(epilist, epienv, rel, total_pop, UInt32(1))
+    @time epi = EpiSystem(epilist, epienv, rel, total_pop, UInt32(1), initial_infecteds)
 
     # Populate susceptibles according to actual population spread
     cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
@@ -130,27 +131,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
         reshape(scotpop[1:size(epienv.active, 1), 1:size(epienv.active, 2), :],
                 size(epienv.active, 1) * size(epienv.active, 2), size(scotpop, 3))'
     epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
-
-    # Add in initial infections randomly (samples weighted by population size)
-    # Define generator for all pair age x cell
-    age_and_cells = Iterators.product(1:age_categories,
-                                      1:size(epi.abundances.matrix, 2))
-    # Take all susceptibles of each age per cell
-    pop_weights = epi.abundances.matrix[vcat(cat_idx[:, 1]...), :]
-    # It would be nice if it wasn't necessary to call collect here
     N_cells = size(epi.abundances.matrix, 2)
-    samp = sample(collect(age_and_cells), weights(1.0 .* vec(pop_weights)), 100)
-    age_ids = getfield.(samp, 1)
-    cell_ids = getfield.(samp, 2)
-
-    for i in eachindex(age_ids)
-        if (epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] > 0)
-            # Add to exposed
-            epi.abundances.matrix[cat_idx[age_ids[i], 2], cell_ids[i]] += 1
-            # Remove from susceptible
-            epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] -= 1
-        end
-    end
 
     # Turn off work moves for <20s and >70s
     epi.epilist.human.home_balance[cat_idx[1:2, :]] .= 1.0
@@ -175,7 +156,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
             "Deaths" => cat_idx[:, 8],
         )
         display(plot_epidynamics(epi, abuns, category_map = category_map))
-        display(plot_epiheatmaps(epi, abuns, steps = [21]))
+        display(plot_epiheatmaps(epi, abuns, steps = [30]))
     end
     return abuns
 end
