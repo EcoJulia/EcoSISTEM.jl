@@ -2,6 +2,7 @@
 using Pkg
 tempdir = mktempdir()
 Pkg.activate(tempdir)
+Pkg.develop(PackageSpec(url="https://github.com/ScottishCovidResponse/SimulationData.jl.git")) # Temporary fix
 Pkg.develop(PackageSpec(path=joinpath(@__DIR__, "..")))
 Pkg.add(["BenchmarkTools", "PkgBenchmark"])  # for benchmarking
 Pkg.add(["JLSO", "StatsBase", "Unitful", "Test"])  # for running this file and examples

@@ -16,9 +16,16 @@ mutable struct EpiCache
   valid::Bool
 end
 
-mutable struct EpiLookup
+@enum MovementType homeMovement workMovement
+
+struct EpiLookup
   homelookup::SparseMatrixCSC{Float64, Int32}
   worklookup::SparseMatrixCSC{Float64, Int32}
+  function EpiLookup(homelookup::SparseMatrixCSC{Float64, Int32}, worklookup::SparseMatrixCSC{Float64, Int32})
+      all(0 .<= homelookup.nzval .<= 1) || error("Home lookup values must be between 0 and 1")
+      all(0 .<= worklookup.nzval .<= 1) || error("Work lookup values must be between 0 and 1")
+      return new(homelookup, worklookup)
+  end
 end
 
 """
@@ -52,9 +59,10 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   ml = emptyepilandscape(epienv, epilist, intnum)
   # Populate this matrix with species abundances
   popfun(ml, epilist, epienv, rel)
+  initial_pop = sum(ml.matrix, dims = 1)
   # Create lookup table of all moves and their probabilities
   home_lookup = genlookups(epienv, epilist.human.movement.home)
-  work_lookup = genlookups(epienv, epilist.human.movement.work)
+  work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
   lookup = EpiLookup(home_lookup, work_lookup)
   nm = zeros(Float64, size(ml.matrix))
   vm = zeros(Float64, size(ml.matrix))
@@ -78,7 +86,7 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
 
     # Create lookup table of all moves and their probabilities
     home_lookup = genlookups(epienv, epilist.human.movement.home)
-    work_lookup = genlookups(epienv, epilist.human.movement.work, initial_population[epienv.active[1:end]])
+    work_lookup = genlookups(epienv, epilist.human.movement.work, initial_population[1:end])
     lookup = EpiLookup(home_lookup, work_lookup)
 
     nm = zeros(Float64, size(ml.matrix))
@@ -187,7 +195,7 @@ function getdispersaldist(epi::AbstractEpiSystem, id::Int64)
   return dist
 end
 function getdispersaldist(epi::AbstractEpiSystem, id::String)
-  num = Compat.findall(epi.epilist.human.names .== id)[1]
+  num = findfirst(epi.epilist.human.names .== id)
   getdispersaldist(epi, num)
 end
 
@@ -196,14 +204,14 @@ function getdispersalvar(epi::AbstractEpiSystem, id::Int64)
     return var
 end
 function getdispersalvar(epi::AbstractEpiSystem, id::String)
-    num = Compat.findall(epi.epilist.human.names .== id)[1]
+    num = findfirst(epi.epilist.human.names .== id)
     getdispersalvar(epi, num)
 end
 
-function getlookup(epi::AbstractEpiSystem, id::Int64, movetype::String)
-    if movetype == "home"
+function getlookup(epi::AbstractEpiSystem, id::Int64, movetype::MovementType)
+    if movetype == homeMovement
         return epi.lookup.homelookup[id, :]
-    elseif movetype == "work"
+    elseif movetype == workMovement
         return epi.lookup.worklookup[id, :]
     else
         return error("No other movement types currently implemented")
@@ -217,13 +225,14 @@ end
 function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size)
     total_size = (size(epienv.active, 1) * size(epienv.active, 2))
     # Column access so Js should be source grid cells
-    Js = Int64.(mov.home_to_work[!, :from])
+    Js = Int32.(mov.home_to_work[!, :from])
     # Is should be destination grid cells
-    Is = Int64.(mov.home_to_work[!, :to])
+    Is = Int32.(mov.home_to_work[!, :to])
     Vs = mov.home_to_work[!, :count]
     work = sparse(Is, Js, Vs, total_size, total_size)
     # Divide through by total population size
-    work.nzval ./= pop_size
+    work.nzval ./= pop_size[Is]
+    work.nzval[isnan.(work.nzval)] .= 0
     # Make sure each row adds to one (probability of movement)
     summed = map(j -> sum(work[:, j]), unique(Js))
     summed[summed .== 0] .= 1.0
@@ -253,7 +262,7 @@ function genlookups(epienv::GridEpiEnv, mov::AlwaysMovement)
     # Row vectors are destination grid cells
     Is = vcat([r[1] for r in res]...)
     Vs = vcat([r[2] for r in res]...)
-    return sparse(Is, Js, Vs, total_size, total_size)
+    return sparse(Int32.(Is), Int32.(Js), Vs, total_size, total_size)
 end
 
 function genlookups(from::Int64, to::Vector{Int64}, xys::Array{Tuple{Int64,Int64},1}, grid_size::Float64, relsize::Float64, thresh::Float64, epienv::GridEpiEnv)
