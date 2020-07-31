@@ -159,7 +159,7 @@ end
 
 function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
                  disease_classes::NamedTuple, movement::MO, paramDat::DataFrame, params::NamedTuple,
-                 age_categories::Int64 = 1) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
+                 age_categories::Int64 = 1, movement_balance::NamedTuple = (home = fill(1.0, length(human_abun) * age_categories), work = fill(0.0, length(human_abun) * age_categories))) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
     # Test for susceptibility/infectiousness categories
     haskey(disease_classes, :infectious) ||
         error("Missing 'infectious' key - vector of infectious categories")
@@ -182,7 +182,7 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
                    eachindex(infectious))...)
     ht = UniqueTypes(length(new_names))
     human_to_force = repeat(1:age_categories, length(human_abun))
-    human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns), ht, movement, sus, inf, human_to_force)
+    human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns), ht, movement,  movement_balance.home, movement_balance.work, sus, inf, human_to_force)
 
     virus_names = collect(string.(keys(virus_abun)))
     if length(virus_abun.Force) > 1
@@ -190,10 +190,9 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
         virus_names = [virus_names[1]; force_cats]
     end
     force_cats = findall(occursin.("Force", virus_names))
-    force_to_human = reshape(collect(1:(length(human_abun) * age_categories)), age_categories, length(human_abun))
 
     vt = UniqueTypes(length(virus_names))
-    virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt, force_cats, force_to_human)
+    virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt, force_cats)
 
     paramDat[!, :to_ind] = vcat(map(i -> findall(occursin.(paramDat[i, :to], names)), eachindex(paramDat[!, :to]))...)
     paramDat[!, :from_ind] = vcat(map(i -> findall(occursin.(paramDat[i, :from], names)),
