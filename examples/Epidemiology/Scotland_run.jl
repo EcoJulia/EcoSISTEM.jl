@@ -165,7 +165,7 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
 
     # Write to pipeline
-    write_array(api, "simulation-outputs", "final-abundances", abuns)
+    write_array(api, "simulation-outputs", "final-abundances", DataPipelineArray(abuns))
 
     if do_plot
         # View summed SIR dynamics for whole area
