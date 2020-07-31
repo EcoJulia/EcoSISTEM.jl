@@ -12,6 +12,7 @@ makedocs(
         "Model Structure" => "model_structure.md",
         "Model Development" => "model_development.md",
         "API" => "api.md",
+        "HPC" => "HPC.md",
     ],
     strict=true,
     checkdocs=:none,

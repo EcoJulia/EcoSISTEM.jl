@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Usage: ./submit_scot --input <scriptfilename> --nprocs <numberofprocesses> --walltime <walltime> --dir <pathtorundir>
+
+set -e
+set -u
+
+while [ $# -gt 0 ]; do
+    if [ $1 = "--input" ]; then
+        inputfile=$2
+        shift 2
+    elif [ $1 == "--samples" ]; then
+        nsamples=$2
+        shift 2
+    elif [ $1 == "--dir" ]; then
+        dir=$2
+        shift 2
+    elif [ $1 == "--nprocs" ]; then
+        nprocs=$2
+        shift 2
+    elif [ $1 == "--walltime" ]; then
+        walltime=$2
+        shift 2
+    else
+        echo "Unrecognised arguments: $*" >&2
+        exit 1
+    fi
+done
+
+jobname=$(basename $dir)
+
+mkdir $dir
+mkdir $dir/Output
+cp $inputfile $dir
+cp Project.toml $dir
+cp setup.jl $dir
+inputbasename=$(basename $inputfile)
+
+cat >$dir/submit.sh <<EOF
+#!/bin/bash
+#SBATCH --job-name $jobname
+#SBATCH --account DIRAC-DC003-CPU
+#SBATCH --ntasks $nprocs
+#SBATCH --time $walltime
+#SBATCH --mail-type ALL
+#SBATCH --no-requeue
+#SBATCH --partition skylake
+#SBATCH --output log.txt
+. /etc/profile.d/modules.sh
+module purge
+module load rhel7/default-peta4
+module load julia/1.4
+export JULIA_NUM_THREADS=$nprocs
+stdbuf -oL -eL julia --project=@. setup.jl
+stdbuf -oL -eL julia --project=@. $inputbasename
+EOF
+
+cd $dir
+chmod u+x submit.sh
+sbatch submit.sh

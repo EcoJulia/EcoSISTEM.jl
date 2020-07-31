@@ -19,8 +19,8 @@ for i in eachindex(age_cats)
     birth = fill(0.0/day, numclasses, age_cats[i])
     death = fill(0.0/day, numclasses, age_cats[i])
     age_mixing = fill(1.0, age_cats[i], age_cats[i])
-    beta_force = fill(1.0/day, age_cats[i])
-    beta_env = fill(1.0/day, age_cats[i])
+    beta_force = fill(10.0/day, age_cats[i])
+    beta_env = fill(10.0/day, age_cats[i])
     sigma = fill(0.02/day, age_cats[i])
     virus_growth = fill(1e-2/day, age_cats[i])
     virus_decay = 1.0/2day
@@ -51,11 +51,9 @@ for i in eachindex(age_cats)
     abun_v = (Environment = virus_env, Force = fill(0, age_cats[i]))
 
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(100.0km, numclasses * age_cats[i])
-    cat_idx = reshape(1:(numclasses * age_cats[i]), age_cats[i], numclasses)
-    dispersal_dists[cat_idx[:, 2]] .= 1_000.0km
+    dispersal_dists = fill(1_000.0km, grid[1] * grid[2])
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))

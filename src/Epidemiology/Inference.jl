@@ -56,10 +56,9 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
     abun_v = (Environment = 0, Force = 0)
 
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(sqrt(area/Ncells)/5, numclasses)
-    dispersal_dists[2] = mean_dispersal_dist
+    dispersal_dists = fill(mean_dispersal_dist, Ncells)
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
@@ -102,8 +101,8 @@ Fills an abundance matrice of compartment by grid cell over time. Compartments f
 """
 function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64}, params::NamedTuple, runtimes::NamedTuple, abuns::Array{Int64, 3}, num_ages::Int64 = 1)
     # Set up
-    numclasses = 8 * num_ages
-    numvirus = 2
+    numclasses = 8
+    numvirus = num_ages + 1
     Ncells = grid_size[1] * grid_size[2]
     cat_idx = reshape(1:(numclasses * num_ages), num_ages, numclasses)
 
@@ -123,7 +122,8 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
     # Set simulation parameters & create transition matrices
     birth = fill(0.0/day, numclasses, num_ages)
     death = fill(0.0/day, numclasses, num_ages)
-    ageing = fill(0.0/day, num_ages - 1)
+    age_mixing = fill(1.0, num_ages, num_ages)
+
     # Prob of developing symptoms
     p_s = fill(0.96, num_ages)
     # Prob of hospitalisation
@@ -184,13 +184,12 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
         susceptible = ["Susceptible"],
         infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
     )
-    abun_v = (Environment = 0, Force = 0)
+    abun_v = (Environment = 0, Force = fill(0, num_ages))
 
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(sqrt(area/Ncells)/5, numclasses)
-    dispersal_dists[cat_idx[:, 3:5]] .= mean_dispersal_dist
+    dispersal_dists = fill(mean_dispersal_dist, Ncells)
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))

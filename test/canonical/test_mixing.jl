@@ -52,11 +52,9 @@ for i in eachindex(mixing_rate)
     abun_v = (Environment = virus_env, Force = fill(0, age_cats))
 
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(100.0km, numclasses * age_cats)
-    cat_idx = reshape(1:(numclasses * age_cats), age_cats, numclasses)
-    dispersal_dists[cat_idx[:, 2]] .= 1_000.0km
+    dispersal_dists = fill(1_000.0km, prod(grid))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
@@ -80,7 +78,6 @@ for i in eachindex(mixing_rate)
 end
 
 # Check that more are infected when mixing rates are higher
-
 cat_idx = reshape(1:(numclasses * age_cats), age_cats, numclasses)
 for j in 2:length(sumabuns)
     @test sum(sum(sumabuns[j-1][cat_idx[:, 2], :], dims = 1) .>= sum(sumabuns[j][cat_idx[:, 2], :], dims = 1)) >= (0.95 * size(sumabuns[1], 2))
