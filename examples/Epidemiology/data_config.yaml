@@ -1,6 +1,6 @@
 data_directory: data
 access_log: access-{run_id}.yaml
-fail_on_hash_mismatch: True
+fail_on_hash_mismatch: False
 namespace: SCRC
 read:
   - where:
