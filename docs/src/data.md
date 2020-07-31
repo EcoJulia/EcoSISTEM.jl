@@ -4,6 +4,12 @@ This page summarises the basic usage of the data pipeline.
 For more information see the [`data_pipeline_api`](https://github.com/ScottishCovidResponse/data_pipeline_api)
 repository.
 
+## Wrapper structure
+
+This package uses `SimulationData.jl`, which provides a Julia wrapper around the Python package
+`data_pipeline_api`. The functions in `SimulationData.jl` are mostly designed to have the same signatures
+as those in `data_pipeline_api`, except one calls `f(api, ...)` rather than `api.f(...)`.
+
 ## Basic flow
 
 The basic flow is as follows:
@@ -13,7 +19,9 @@ The basic flow is as follows:
 3. From within your model script, use the `StandardAPI` from [`SimulationData.jl`](https://github.com/ScottishCovidResponse/SimulationData.jl) to read the data.
 4. Use the same API to write model outputs.
 
-These steps are outlines in more detail below.
+Use a single instantiation of the API for the entire model run, for reading and writing.
+
+These steps are outlined in more detail below.
 
 ### Config file
 
@@ -21,28 +29,21 @@ See `examples/Epidemiology/data_config.yaml` for an example.
 
 ### Downloading data
 
-There is an [open issue](https://github.com/ScottishCovidResponse/SimulationData.jl/issues/13) in
-`SimulationData.jl` to wrap the download script. Until then, data can be downloaded manually by the
-following procedure:
+Use the `download_data_registry` function from `SimulationData.jl`. For example:
+```julia
+julia> using SimulationData
+[ Info: Precompiling SimulationData [3d44aec0-db1b-416b-9784-2428c815ea7f]
+[ Info: Found data-pipeline-api v0.7.0
 
-```bash
-# Clone the data_pipeline_api repo (at a specified commit where this has been tested)
-git clone -b d2efc99 https://github.com/ScottishCovidResponse/data_pipeline_api.git
-cd data_pipeline_api
-
-# Install all the requirements, here by creating a virtualenv and installing the package
-# through pip.  Or you could use conda instead.
-virtualenv -p python3 venv
-source venv/bin/activate
-pip install data_pipeline_api
-
-# Run the download script on your config.yaml file.
-# Note: this runs the one in the working directory, not the one installed through pip.
-python -m data_pipeline_api.registry.download --config <path_to_config_file>
+julia> download_data_registry("examples/Epidemiology/data_config.yaml")
+┌ Info:     Downloading from registry: https://data.scrc.uk/api/
+│     Using config file: examples/Epidemiology/data_config.yaml
+└     ...
+[ Info: Registry download done
 ```
 
 The above will download the required data to the path specified in the config file.
-Note: this path is relative to the config file location, not to where you ran the download script.
+Note: this path is relative to the config file location, not to where you ran the download.
 
 ### Reading data
 
@@ -66,8 +67,6 @@ StandardAPI("path/to/config.yaml", "test_uri", "test_git_sha") do api
 end
 ```
 
-Use a single instantiation of `StandardAPI` for the entire model run, for reading and writing.
-
 ### Writing model outputs
 
 Example of writing an array:
@@ -76,7 +75,4 @@ Example of writing an array:
 write_array(api, "simulation-outputs", "final-abundances", abuns)
 ```
 
-## Wrapper structure
-
-This package uses `SimulationData.jl`, which provides a Julia wrapper around the Python package
-`data_pipeline_api`.
+This will write outputs to the data folder specified in the API config file.
