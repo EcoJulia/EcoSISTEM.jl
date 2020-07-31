@@ -42,6 +42,11 @@ git-tree-sha1 = "c86df6ed41b3bd192d663e5e0e7cac0d11fd4375"
 uuid = "69666777-d1a9-59fb-9406-91d4454c9d45"
 version = "0.2.4"
 
+[[AutoHashEquals]]
+git-tree-sha1 = "45bb6705d93be619b81451bb2006b7ee5d4e4453"
+uuid = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
+version = "0.2.0"
+
 [[AxisAlgorithms]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
 git-tree-sha1 = "a4d07a1c313392a77042855df46c5f534076fab9"
@@ -836,12 +841,12 @@ uuid = "699a6c99-e7fa-54fc-8d76-47d257e15c1d"
 version = "0.9.2"
 
 [[SimulationData]]
-deps = ["Conda", "DataDeps", "DataFrames", "Distributions", "HDF5", "Pandas", "Pkg", "PyCall", "Test", "Unitful"]
-git-tree-sha1 = "97070ec49fec3f63f7aecd4b59e999a8dfd14a4d"
-repo-rev = "v0.4.1"
+deps = ["AutoHashEquals", "Conda", "DataDeps", "DataFrames", "Distributions", "HDF5", "Pandas", "Pkg", "PyCall", "Test", "Unitful", "YAML"]
+git-tree-sha1 = "e08a50808ab4db23d8e850b1a118aa13e822d8e0"
+repo-rev = "0.6.0"
 repo-url = "https://github.com/ScottishCovidResponse/SimulationData.jl"
 uuid = "3d44aec0-db1b-416b-9784-2428c815ea7f"
-version = "0.4.1"
+version = "0.6.0"
 
 [[Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
@@ -997,6 +1002,12 @@ deps = ["Libdl", "Libiconv_jll", "Pkg", "Zlib_jll"]
 git-tree-sha1 = "432d91f45e950f2f2bda5c0f4e2b938c14493af9"
 uuid = "02c8fc9c-b97f-50b9-bbe4-9be30ff0a78a"
 version = "2.9.10+1"
+
+[[YAML]]
+deps = ["Base64", "Dates", "Printf"]
+git-tree-sha1 = "c5e2eaa5ce818c5277388377d592eb4c81f27c00"
+uuid = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
+version = "0.4.0"
 
 [[Zlib_jll]]
 deps = ["Libdl", "Pkg"]
