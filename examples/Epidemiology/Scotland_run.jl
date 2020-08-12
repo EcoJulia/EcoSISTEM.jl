@@ -1,4 +1,5 @@
 using Simulation
+using SimulationData
 using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
@@ -11,7 +12,7 @@ using Random
 using DataFrames
 using Plots
 
-function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
+function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
     # Download and read in population sizes for Scotland
     dir = Simulation.path("test", "TEMP")
     file = joinpath(dir, "demographics.h5")
@@ -61,8 +62,15 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     cfr_home = cfr_hospital = [0.0, 0.002, 0.002, 0.002, 0.004, 0.013, 0.036, 0.08, 0.148, 0.148]
     # Time exposed
     T_lat = 3days
+
     # Time asymptomatic
-    T_asym = 5days
+    T_asym = days(read_estimate(
+        api,
+        "human/infection/SARS-CoV-2/asymptomatic-period",
+        "asymptomatic-period"
+    )Unitful.hr)
+    @show T_asym
+
     # Time pre-symptomatic
     T_presym = 1.5days
     # Time symptomatic
@@ -156,6 +164,9 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     abuns = zeros(UInt32, size(epi.abundances.matrix, 1), N_cells, floor(Int, times/timestep) + 1)
     @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
 
+    # Write to pipeline
+    write_array(api, "simulation-outputs", "final-abundances", DataPipelineArray(abuns))
+
     if do_plot
         # View summed SIR dynamics for whole area
         category_map = (
@@ -174,5 +185,9 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     return abuns
 end
 
+config = "data_config.yaml"
+download_data_registry(config)
 times = 2months; interval = 1day; timestep = 1day
-abuns = run_model(times, interval, timestep);
+abuns = StandardAPI(config, "test_uri", "test_git_sha") do api
+    run_model(api, times, interval, timestep)
+end;
