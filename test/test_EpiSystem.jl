@@ -35,9 +35,9 @@ epi = TestEpiSystem()
         initial_pop = Matrix{Union{Float64, Missing}}(rand(10, 15) * 10)
         # Fill some NaNs and missing, these should indicate inactive areas
         missing_idx = CartesianIndex.([1, 4, 8], [5, 8, 2])
-        initial_pop[missing_idx[1]] .= NaN
-        initial_pop[missing_idx[2]] .= missing
-        initial_pop[missing_idx[3]] .= missing
+        initial_pop[missing_idx[1]] = NaN
+        initial_pop[missing_idx[2]] = missing
+        initial_pop[missing_idx[3]] = missing
         initial_pop_ref = copy(initial_pop)
 
         expected_active = fill(true, size(initial_pop))
