@@ -30,11 +30,14 @@ function seedinfected!(epi::EpiSystem, controls::NoControl, timestep::Unitful.Ti
 end
 
 function seedinfected!(epi::EpiSystem, controls::Lockdown, timestep::Unitful.Time)
+    id = Threads.threadid()
+    rng = epi.abundances.rngs[id]
     if (epi.initial_infected > 0) && (controls.current_date < controls.lockdown_date)
         inf = rand(Poisson(epi.initial_infected * timestep /controls.lockdown_date))
-        pos = sample(epi.ordered_active, weights(1 ./ eachindex(epi.ordered_active)), inf)
         sus_id = sample(epi.epilist.human.susceptible, inf)
         exp_id = sus_id .+ length(epi.epilist.human.susceptible)
+        summed_exp = sum(human(epi.abundances)[exp_id, :], dims = 1)[1, :]
+        pos = sample(rng, epi.ordered_active, weights(summed_exp[epi.ordered_active]), inf)
         for i in 1:inf
             if (human(epi.abundances)[sus_id[i], pos[i]] > 0)
                 human(epi.abundances)[sus_id[i], pos[i]] -= 1
