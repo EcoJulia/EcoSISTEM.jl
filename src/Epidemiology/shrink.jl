@@ -64,10 +64,21 @@ function _construct_shrunk_matrix(M::Matrix, row_idxs, col_idxs)::AxisArray
         col_idxs=col_idxs,
     )
 end
+function _construct_shrunk_matrix(M::AbstractMatrix, row_idxs, col_idxs)::AxisArray
+     return AxisArray(
+         M[row_idxs, col_idxs];
+         row_idxs=row_idxs,
+         col_idxs=col_idxs,
+     )
+ end
 
 function _construct_shrunk_matrix(M::AxisArray{T, 3}, row_idxs, col_idxs)::AxisArray{T, 3} where T <: Unitful.Quantity
     return M[row_idxs, col_idxs, :]
 end
+
+function _construct_shrunk_matrix(M::AxisArray, row_idxs, col_idxs)::AxisArray
+    return M[row_idxs, col_idxs]
+ end
 
 """
     function convert_population(
