@@ -3,6 +3,7 @@ using Test
 using Unitful.DefaultSymbols
 using Distributions
 using Simulation.Units
+using Diversity
 
 ## Run simulation over a grid and plot
 numSpecies=4
@@ -37,3 +38,14 @@ native = fill(true, numSpecies)
     movement, param, native)
 @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun,
                    energy_vec, movement, param, native)
+
+sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+                       movement, param, native)
+newsppl = SpeciesList{typeof(sppl.traits), typeof(sppl.requirement), typeof(sppl.movement), typeof(sppl.types), typeof(sppl.params)}(sppl.traits, sppl.abun, sppl.requirement, sppl.types, sppl.movement, sppl.params, sppl.native)
+@test newsppl.names == sppl.names
+
+# Test mass based species list
+@test_nowarn SpeciesList(numSpecies, numTraits, 10.0, 10.0, 0.5, 100.0km^2, movement, param, native, [0.5, 0.5])
+
+# Test
+@test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, energy_vec, movement, UniqueTypes(numSpecies), param, native)
