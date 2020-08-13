@@ -6,34 +6,31 @@ import Random: rand, rand!
 import Distributions: rand, rand!, median
 
 function median(dist::Multinomial)
-    values = dist.n .* dist.p
-    rounded = round.(Int64, values)
-    values .-= rounded
-    order = sortperm(values)
-    count = sum(rounded) - dist.n
-
-    n = 1
-    while count > 0
-        if rounded[order[n]] > 0
-            rounded[order[n]] -= 1
-            count -= 1
-        end
-        n += 1
-    end
-
-    if count < 0
-        rounded[order[(length(order)+count-1):length(order)]] .+= 1
-    end
-
-    return rounded
+  v = dist.n * dist.p
+  output = Int64.(floor.(v))
+  sum(output) == dist.n && return output
+  @assert dist.n - length(dist.p) <= sum(output) < dist.n
+  p = sortperm(v .- output)
+  for rp in reverse(p)
+    sum(output) == dist.n && break
+    output[rp] += 1
+  end
+  @assert sum(output) == dist.n
+  return output
 end
 
+# Distributions/src/multivariates.jl exports rand(::AbstractRNG, _) which shouldn't be called
+# with rand(::MedianGenerator, _)
+function rand(::MedianGenerator, dist)
+  throw(ArgumentError("rand(::MedianGenerator, dist) not implemented for dist=$dist."))
+end
 rand(::MedianGenerator, dist::Distribution{Univariate,S}) where {S<:ValueSupport} = median(dist)
 rand(::MedianGenerator, dist::Binomial) = median(dist)
+rand(::MedianGenerator, dist::Distribution{Multivariate,S}) where {S<:ValueSupport} = median(dist)
 
 function rand!(::MedianGenerator, dist::Distribution{Multivariate,S},
         container::AbstractVector{T}) where {S<:ValueSupport, T<:Integer}
-    container .= T.(median(dist))
+    container .= median(dist)
     return nothing
 end
 
