@@ -46,24 +46,6 @@ mutable struct EpiSystem{U <: Integer, VecRNGType <: AbstractVector{<:Random.Abs
   cache::EpiCache
 end
 
-function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
-    rel::AbstractTraitRelationship, intnum::U, rngtype::RNGType = Random.MersenneTwister
-    ) where {F<:Function, U <: Integer, RNGType}
-
-  # Create matrix landscape of zero abundances
-  ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
-  # Populate this matrix with species abundances
-  popfun(ml, epilist, epienv, rel)
-  initial_pop = sum(ml.matrix, dims = 1)
-  # Create lookup table of all moves and their probabilities
-  home_lookup = genlookups(epienv, epilist.human.movement.home)
-  work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
-  lookup = EpiLookup(home_lookup, work_lookup)
-  nm = zeros(Float64, size(ml.matrix))
-  vm = zeros(Float64, size(ml.matrix))
-  EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false))
-end
-
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         initial_population, intnum::U = Int64(1); rngtype::RNGType = Random.MersenneTwister
         ) where {U <: Integer, RNGType}
@@ -72,7 +54,21 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
             "size(epienv.active)==$(size(epienv.active))"
         throw(DimensionMismatch(msg))
     end
-    epi = EpiSystem(populate!, epilist, epienv, rel, intnum, rngtype)
+    epienv.active .&= .!_inactive.(initial_population)
+
+    # Create matrix landscape of zero abundances
+    ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
+
+    # Create lookup table of all moves and their probabilities
+    home_lookup = genlookups(epienv, epilist.human.movement.home)
+    work_lookup = genlookups(epienv, epilist.human.movement.work, initial_population[1:end])
+    lookup = EpiLookup(home_lookup, work_lookup)
+
+    nm = zeros(Float64, size(ml.matrix))
+    vm = zeros(Float64, size(ml.matrix))
+
+    epi = EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false))
+
     # Add in the initial susceptible population
     idx = findfirst(epilist.human.names .== "Susceptible")
     if idx == nothing
@@ -84,6 +80,19 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     epi.abundances.grid[idx, :, :] .+= initial_population
     return epi
 end
+
+function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
+    rel::AbstractTraitRelationship, intnum::U, rngtype::RNGType = Random.MersenneTwister
+    ) where {F<:Function, U <: Integer, RNGType}
+
+  # Create matrix landscape of zero abundances
+  ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
+  # Populate this matrix with species abundances
+  popfun(ml, epilist, epienv, rel)
+  initial_pop = sum(ml.matrix, dims = 1)
+  return EpiSystem(epilist, epienv, rel, initial_pop, intnum; rngtype=rngtype)
+end
+
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         intnum::U = Int64(1)) where {U <: Integer}
