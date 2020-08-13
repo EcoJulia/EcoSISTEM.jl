@@ -21,6 +21,10 @@ abenv = simplehabitatAE(fillval, grid, area, control)
 @test all(abenv.active)
 @test abenv.habitat.size^2 * grid[1] * grid[2] == area
 
+temp = AxisArray(fill(1.0K, 10, 10, 3), Axis{:latitude}(1:10), Axis{:longitude}(1:10), Axis{:time}(collect(1:3) .* s))
+ukclim = ukclimateAE(temp, 100.0km^2, NoControl())
+
+
 @testset "Shrink grid" begin
     grid = (10, 10)
     area = 100.0km^2

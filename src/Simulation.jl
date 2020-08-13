@@ -104,6 +104,9 @@ export parse_hdf5
 include("Epidemiology/EpiControl.jl")
 export NoControl
 
+include("Epidemiology/shrink.jl")
+export shrink_to_active, convert_population
+
 include("Epidemiology/EpiEnv.jl")
 export GridEpiEnv, simplehabitatAE, ukclimateAE
 
@@ -134,9 +137,6 @@ include("Epidemiology/EpiPlots.jl")
 
 include("Epidemiology/Inference.jl")
 export SIR_wrapper, SIR_wrapper!, SEI3HRD_wrapper, SEI3HRD_wrapper!
-
-include("Epidemiology/shrink.jl")
-export shrink_to_active, convert_population
 
 # Path into package
 path(paths...) = joinpath(@__DIR__, "..", paths...)
