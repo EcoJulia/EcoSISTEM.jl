@@ -87,7 +87,7 @@ mutable struct TempBin{C <: Int}<: ContinuousTrait{C}
 end
 iscontinuous(trait::TempBin{C}) where C = true
 function eltype(trait::TempBin{C}) where C
-    return typeof(1.0°C)
+    return typeof(1.0K)
 end
 
 """
