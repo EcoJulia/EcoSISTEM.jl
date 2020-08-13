@@ -104,7 +104,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     runscenario!(eco, timestep, scenario, time_seq[i]);
     if time_seq[i] in record_seq
       counting = counting + 1
-      storage[:, :, counting] = reshape(divfun(eco, qs)[:diversity],
+      storage[:, :, counting] = reshape(divfun(eco, qs)[!, :diversity],
       countsubcommunities(eco), length(qs))
     end
   end
@@ -122,7 +122,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     update!(eco, timestep);
     if time_seq[i] in record_seq
       counting = counting + 1
-      diversity = divfun(eco, qs)[:diversity]
+      diversity = divfun(eco, qs)[!, :diversity]
       storage[:, :, counting] = reshape(diversity,
       Int(length(diversity)/ length(qs)), length(qs))
     end
@@ -144,11 +144,11 @@ function simulate_record_diversity!(storage::AbstractArray,
       measures = [NormalisedAlpha, NormalisedBeta, Gamma]
       for k in 1:3
       dm = measures[k](eco)
-      diversity = subdiv(dm, qs)[:diversity]
-      diversity2 = metadiv(dm, qs)[:diversity]
-      storage[:, k, counting] = reshape(diversity,
+      diversity = subdiv(dm, qs)[!, :diversity]
+      diversity2 = metadiv(dm, qs)[!, :diversity]
+      storage[:, :, k, counting] = reshape(diversity,
       Int(length(diversity)/ length(qs)), length(qs))
-      storage2[k, counting] = diversity2[1]
+      storage2[:, k, counting] = diversity2
     end
     end
   end
@@ -166,7 +166,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     if time_seq[i] in record_seq
       counting = counting + 1
       for j in eachindex(divfuns)
-          storage[:, j, counting] = divfuns[j](eco, q)[:diversity][1]
+          storage[:, j, counting] .= divfuns[j](eco, q)[!, :diversity][1]
       end
     end
   end
@@ -185,60 +185,9 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
       if time_seq[i] in record_seq
           counting = counting + 1
           for j in eachindex(divfuns)
-              storage[j, counting] = divfuns[j](eco, q)[:diversity][1]
+              storage[:, j, counting] .= divfuns[j](eco, q)[!, :diversity][1]
           end
       end
   end
   storage
-end
-
-function cleanup!(abun::Array{Int64, 4})
-    zeroabun = mapslices(x -> all(x.!=0), abun, dims = [1, 2, 4])[1, 1, :, 1]
-    abun = abun[:, :, zeroabun, :]
-end
-
-function cleanup!(div::Array{Float64, 4})
-    nadiv = mapslices(x -> all(!isnan.(x)), div, dims = [1, 2, 4])[1, 1, :, 1]
-    div = div[:, :, nadiv, :]
-end
-
-
-function expected_counts(grd::Array{Float64, 3}, sq::Int64)
-  grd = convert(Array{Int64}, grd)
-  total = mapslices(sum, grd , dims = length(size(grd)))[:, :,  1]
-  grd = grd[:, :, sq]
-  _expected_counts(total, grd, sq)
-end
-
-
-function expected_counts(grd::Array{Float64, 4}, sq::Int64)
-  grd = convert(Array{Int64}, grd)
-  total = mapslices(sum, grd , dims = length(size(grd)))[:, :, :,  1]
-  grd = grd[:, :, :, sq]
-  _expected_counts(total, grd, sq)
-end
-
-function _expected_counts(total::Array{Int64}, grd::Array{Int64}, sq::Int64)
-  grd = grd[reshape(total, size(grd)).>0]
-  total = total[total.>0]
-
-  actual = counts(grd+1, maximum(grd+1))
-  actual = convert(Array{Float64,1}, actual)
-
-  expected_dist = zeros(Float64, (length(total), maximum(total)+1))
-  for i in 1:length(total)
-    expected_dist[i, 1:(total[i]+1)] = repmat([1/(total[i]+1)], total[i]+1)
-  end
-  expected = mapslices(sum, expected_dist, dims = 1)
-
-  # Cut expected values to length of actual
-  expected = expected[1:length(actual)]
-
-  return [expected, actual]
-end
-
-
-function expected_counts(grd::Array{Float64}, sq::Int64, sp::Int64)
-  sp_grd = grd[:, sp, :, :]
-  expected_counts(sp_grd, sq)
 end

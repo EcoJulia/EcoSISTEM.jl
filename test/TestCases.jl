@@ -19,7 +19,7 @@ function TestEcosystem()
     timestep = 1.0month
     param = EqualPop(birth, death, long, surv, boost)
 
-    grid = (50, 50)
+    grid = (10, 10)
     area = 10000.0km^2
     individuals=20000 * numSpecies
     totalK = 1000000.0 * kJ/km^2 * numSpecies
@@ -49,7 +49,7 @@ function TestMultiEcosystem()
     timestep = 1.0month
     param = EqualPop(birth, death, long, surv, boost)
 
-    grid = (50, 50)
+    grid = (10, 10)
     area = 10000.0km^2
     individuals=20000 * numSpecies
     totalK1 = 1000000.0 * kJ/km^2 * numSpecies
