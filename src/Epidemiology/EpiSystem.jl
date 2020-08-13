@@ -61,7 +61,7 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   lookup = EpiLookup(home_lookup, work_lookup)
   nm = zeros(Float64, size(ml.matrix))
   vm = zeros(Float64, size(ml.matrix))
-  EpiSystem(ml, epilist, epienv, missing, rel, lookup_tab, EpiCache(nm, vm, false))
+  EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false))
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
