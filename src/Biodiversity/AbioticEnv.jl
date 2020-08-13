@@ -268,14 +268,14 @@ function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{F
     budtype = matchdict[unit(B)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function eraAE(era::ERA, bud::SolarTimeBudget, active::Array{Bool, 2})
+function eraAE(era::ERA, bud::B, active::Array{Bool, 2}) where B <: AbstractTimeBudget
     dimension = size(era.array)[1:2]
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
         HabitatUpdate(eraChange, 0.0/s, Unitful.Dimensions{()}))
 
-     return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
+     return GridAbioticEnv{typeof(hab), typeof(bud)}(hab, active, bud)
 end
 
 """
@@ -312,14 +312,14 @@ function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, area::Uni
     budtype = matchdict[unit(B)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function worldclimAE(wc::Worldclim, bud::SolarTimeBudget, active::Array{Bool, 2})
+function worldclimAE(wc::Worldclim, bud::B, active::Array{Bool, 2}) where B <: AbstractTimeBudget
     dimension = size(wc.array)[1:2]
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(wc.array), 1, gridsquaresize,
         HabitatUpdate(worldclimChange, 0.0/s, Unitful.Dimensions{()}))
 
-     return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
+     return GridAbioticEnv{typeof(hab), typeof(bud)}(hab, active, bud)
 end
 
  """
