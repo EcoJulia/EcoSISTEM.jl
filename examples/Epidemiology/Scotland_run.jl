@@ -1,4 +1,5 @@
 using Simulation
+using SimulationData
 using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
@@ -7,9 +8,11 @@ using StatsBase
 using Distributions
 using AxisArrays
 using HTTP
+using Random
+using DataFrames
 using Plots
 
-function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
+function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
     # Download and read in population sizes for Scotland
     dir = Simulation.path("test", "TEMP")
     file = joinpath(dir, "demographics.h5")
@@ -59,8 +62,15 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     cfr_home = cfr_hospital = [0.0, 0.002, 0.002, 0.002, 0.004, 0.013, 0.036, 0.08, 0.148, 0.148]
     # Time exposed
     T_lat = 3days
+
     # Time asymptomatic
-    T_asym = 5days
+    T_asym = days(read_estimate(
+        api,
+        "human/infection/SARS-CoV-2/asymptomatic-period",
+        "asymptomatic-period"
+    )Unitful.hr)
+    @show T_asym
+
     # Time pre-symptomatic
     T_presym = 1.5days
     # Time symptomatic
@@ -97,25 +107,33 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     abun_v = (Environment = 0, Force = 0)
 
+    movement_balance = (home = fill(0.5, numclasses * age_categories), work = fill(0.5, numclasses * age_categories))
+
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(1.0km, numclasses * age_categories)
-    thresholds = fill(1e-3, numclasses * age_categories)
-    cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
-    dispersal_dists[vcat(cat_idx[:, 3:5]...)] .= 10.0km
-    thresholds[vcat(cat_idx[:, 3:5]...)] .= 1e-4
+    dispersal_dists = fill(1.0km, length(total_pop))
+    thresholds = fill(1e-3, length(total_pop))
     kernel = GaussianKernel.(dispersal_dists, thresholds)
-    movement = AlwaysMovement(kernel)
+    home = AlwaysMovement(kernel)
+
+    # Import commuter data (for now, fake table)
+    active_cells = findall(.!isnan.(total_pop[1:end]))
+    from = active_cells
+    to = sample(active_cells, weights(total_pop[active_cells]), length(active_cells))
+    count = round.(total_pop[to]/10)
+    home_to_work = DataFrame([from, to, count], [:from, :to, :count])
+    work = Commuting(home_to_work)
+    movement = EpiMovement(home, work)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes,
-                      movement, param, age_categories)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param, age_categories, movement_balance)
     rel = Gauss{eltype(epienv.habitat)}()
 
     # Create epi system with all information
-    epi = EpiSystem(epilist, epienv, rel, total_pop, UInt16(1))
+    @time epi = EpiSystem(epilist, epienv, rel, total_pop, UInt32(1))
 
     # Populate susceptibles according to actual population spread
+    cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
     reshaped_pop =
         reshape(scotpop[1:size(epienv.active, 1), 1:size(epienv.active, 2), :],
                 size(epienv.active, 1) * size(epienv.active, 2), size(scotpop, 3))'
@@ -143,9 +161,11 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     end
 
     # Run simulation
-    abuns = zeros(UInt16, size(epi.abundances.matrix, 1), N_cells,
-                  floor(Int, times/timestep) + 1)
+    abuns = zeros(UInt32, size(epi.abundances.matrix, 1), N_cells, floor(Int, times/timestep) + 1)
     @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
+
+    # Write to pipeline
+    write_array(api, "simulation-outputs", "final-abundances", DataPipelineArray(abuns))
 
     if do_plot
         # View summed SIR dynamics for whole area
@@ -165,5 +185,9 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     return abuns
 end
 
+config = "data_config.yaml"
+download_data_registry(config)
 times = 2months; interval = 1day; timestep = 1day
-abuns = run_model(times, interval, timestep);
+abuns = StandardAPI(config, "test_uri", "test_git_sha") do api
+    run_model(api, times, interval, timestep)
+end;

@@ -79,7 +79,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
     dispersal_dists[vcat(cat_idx[:, 3:5]...)] .= 20.0km
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))

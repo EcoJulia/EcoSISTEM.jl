@@ -47,10 +47,9 @@ for i in eachindex(grid_sizes)
     abun_v = (Environment = virus, Force = 0)
 
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(100.0km, numclasses)
-    dispersal_dists[2] = 1_000.0km
+    dispersal_dists = fill(1_000.0km, prod(grid))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = AlwaysMovement(kernel)
+    movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))

@@ -1,44 +1,20 @@
 module Simulation
 
-module Units
+using Unitful
+using Unitful.DefaultSymbols
+using SimulationData
+using SimulationData.Units
 
-import Unitful
-using Unitful: @unit
-day = Unitful.d
-week = Unitful.wk
-year = Unitful.yr
-@unit month "month" Month 2.628e6 * Unitful.s false
 
-const days = day
-const weeks = week
-const months = month
-const years = year
-const January = 0month
-const February = 1month
-const March = 2months
-const April = 3months
-const May = 4months
-const June = 5months
-const July = 6months
-const August = 7months
-const September = 8months
-const October = 9months
-const November = 10months
-const December = 11months
 
-const localunits = Unitful.basefactors
-function __init__()
-    merge!(Unitful.basefactors, localunits)
-    Unitful.register(Units)
-end
-
-export day, days, week, weeks, month, months, year, years, Rates,
-January, February, March, April, May, June, July, August,
-September, October, November, December
-
-end
 
 module ClimatePref
+
+"""
+    env_bool(key)
+Checks for an enviroment variable and fuzzy converts it to a bool
+"""
+env_bool(key, default=false) = haskey(ENV, key) ? lowercase(ENV[key]) ∉ ["0","","false", "no"] : default
 
 include("ClimatePref/ClimatePref.jl")
 
@@ -136,6 +112,9 @@ export GridEpiEnv, simplehabitatAE, ukclimateAE
 
 include("Epidemiology/EpiParams.jl")
 export SISGrowth, SIRGrowth, SEIRGrowth, SEIRSGrowth, SEI2HRDGrowth, SEI3HRDGrowth, transition
+
+include("Epidemiology/EpiMove.jl")
+export EpiMovement, Commuting
 
 include("Epidemiology/EpiList.jl")
 export EpiList, SIS, SIR, SEIR, SEIRS, SEI2HRD

@@ -10,14 +10,12 @@ notifications:
   email: false
 
 jobs:
-  allow_failures:
-    - julia: 1.5
   include:
     - stage: "Documentation"
-      julia: 1.4
+      julia: 1.5
       os: linux
-      script:
-        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+      script: # https://github.com/JuliaLang/Pkg.jl/issues/492
+        - julia --project=docs/ -e "using Pkg; Pkg.instantiate(); Pkg.build()"
         - julia --project=docs/ docs/make.jl
       after_success: skip
 
@@ -27,7 +25,7 @@ install:
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia --project=@. -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.test(\"Simulation\", coverage=true);"
+  - julia --project=@. -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.build(\"Simulation\"); Pkg.test(\"Simulation\", coverage=true);"
 
 after_success:
   # push coverage results to Coveralls
@@ -40,7 +38,5 @@ before_cache:
 
 cache:
   directories:
-    - ~/.julia
     - ~/openmpi
     - ~/openmpi-4.0.3
-    - /usr/local/Cellar
