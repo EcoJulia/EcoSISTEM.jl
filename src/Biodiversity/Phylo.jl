@@ -4,7 +4,7 @@ using DataFrames
 using Phylo: NodeNameIterator
 using Compat
 
-function reroot!(tree::BinaryTree, node::String)
+function reroot!(tree::AbstractTree, node::String)
     root = collect(nodenamefilter(isroot, tree))[1]
     deletenode!(tree, node)
     addnode!(tree, node)
@@ -13,30 +13,13 @@ function reroot!(tree::BinaryTree, node::String)
     addbranch!(tree, "NewRoot", node)
 end
 
-function resettraits!(tree::BinaryTree)
+function resettraits!(tree::AbstractTree)
     nodes = getnodenames(tree)
     for i in nodes
         setnodedata!(tree, i, DataFrame())
     end
 end
-# Function to produce a matrix of all source and target nodes within a tree
-function sou_tar(tree::AbstractTree, len::Bool)
-  # Create an empty array
-  branches = sort(getbranchnames(tree))
-  # Run through each branch
-  path =  map(branches) do brn
-  getsource(tree, brn), gettarget(tree, brn)
-end
-  path = hcat(path, repmat([0.0], size(path, 1)))
-    # Set length
-    if len
-      # Get length from tree
-      path[:, 2] = map(branches) do brn
-        getlength(tree, brn)
-      end
-  end
-  path
-end
+
 # Function to split vector into pairs of numbers
 function pair(vec)
   # Calc number of pairs
@@ -50,19 +33,6 @@ function pair(vec)
   newvec
 end
 
-# Function to find which row source and target node are in
-function find_row(mat, sou, tar)
-  find(map(mat[:,1]) do check
-    (sou, tar) == check
-  end)
-end
-# Function to find which row source and target nodes are in
-function find_rows(mat, sour, targ)
-  vcat(map(sour, targ) do sour, targ
-    find_row(mat, sour, targ)
-  end...)
-end
-
 function root_to_tips(tree)
   tips = collect(nodenamefilter(isleaf, tree))
   paths = map(tips) do tps
@@ -71,9 +41,6 @@ function root_to_tips(tree)
   paths
 end
 
-
-
-
 function arenoderecordsempty(tree::AbstractTree, nodes::Vector{String})
   map(nodes) do nod
   isempty(getnodedata(tree, nod))
@@ -81,14 +48,14 @@ function arenoderecordsempty(tree::AbstractTree, nodes::Vector{String})
 end
 
 """
-    assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
+    assign_traits!(tree::AbstractTree, switch_rate::Vector{Float64},
     traits::Vector{Vector{String}})
 
 Function to evolve categorical functional traits through a phylogenetic tree
 with a specific switching rate.
 
 """
-function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
+function assign_traits!(tree::AbstractTree, switch_rate::Vector{Float64},
           traits::DataFrame)
   # Check if tree already assigned
   check = arenoderecordsempty(tree, collect(getnodenames(tree)))
@@ -167,7 +134,7 @@ function assign_traits!(tree::BinaryTree, switch_rate::Vector{Float64},
   end
 end
 
-function assign_traits!(tree::BinaryTree, switch_rate::Float64,
+function assign_traits!(tree::AbstractTree, switch_rate::Float64,
   traits::DataFrame)
   return assign_traits!(tree, [switch_rate], traits)
 end
@@ -181,24 +148,25 @@ Function to evolve a Real value through Brownian motion, with a starting value,
 """
 function BM(T::Real, σ²::Float64, start::Float64, lab::String="")
   t = 0:T  # time
-## first, simulate a set of random deviates
-x = rand(Normal(0, sqrt(σ²)),length(t) - 1)
-## now compute their cumulative sum
-x = cumsum(append!([start], x))
+    # first, simulate a set of random deviates
+    x = rand(Normal(0, sqrt(σ²)),length(t))
+    # now compute their cumulative sum
+    x = cumsum(append!([start], x))
+    return x
 end
 
 """
-    assign_traits!(tree::BinaryTree, start::Vector{Float64},
+    assign_traits!(tree::AbstractTree, start::Vector{Float64},
       σ²::Vector{Float64})
 
 Function to evolve continuous functional traits through a phylogenetic tree
 through Brownian motion, with a starting value, `start`, and rate, `σ²`.
 
 """
-function assign_traits!(tree::BinaryTree, traits::DataFrame)
+function assign_traits!(tree::AbstractTree, traits::DataFrame)
 
   # Warning for nodes that have already been assigned traits
-  check = arenoderecordsempty(tree, getnodenames(tree))
+  check = arenoderecordsempty(tree, collect(getnodenames(tree)))
   all(check) || Compat.@warn "Some nodes already assigned traits"
 
   # Check that the length of the starting values and variances are the same
@@ -206,7 +174,7 @@ function assign_traits!(tree::BinaryTree, traits::DataFrame)
   same number of traits")
 
   # Find all names of nodes
-  names =  getnodenames(tree)
+  names =  collect(getnodenames(tree))
 
   # Sort by distance from root
   root = first(collect(NodeNameIterator(tree, isroot)))
@@ -226,7 +194,7 @@ function assign_traits!(tree::BinaryTree, traits::DataFrame)
       srt = getnodedata(tree, pnt)[:start]
       # Find length of path between parent and child node
       path = first(branchroute(tree, pnt, i))
-      ln = getlength(getbranch(tree, path))
+      ln = getlength(tree, getbranch(tree, path))
 
       # Run BM model on each trait and set record
       newtrait = map(srt, traits[:σ²]) do start, sig
@@ -240,13 +208,13 @@ function assign_traits!(tree::BinaryTree, traits::DataFrame)
 end
 
 """
-    get_traits(tree::BinaryTree, tips::Bool=true)
+    get_traits(tree::AbstractTree, tips::Bool=true)
 
 Function to retrieve functional traits assigned to a phylogenetic tree, either
 just tips or all nodes.
 
 """
-function get_traits(tree::BinaryTree, tips::Bool=true)
+function get_traits(tree::AbstractTree, tips::Bool=true)
    check = .!arenoderecordsempty(tree, collect(getnodenames(tree)))
    all(check) || error("All node records empty")
   if tips
