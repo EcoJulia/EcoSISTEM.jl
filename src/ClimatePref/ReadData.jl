@@ -4,6 +4,7 @@ using Simulation.Units
 using AxisArrays
 using NetCDF
 using Compat
+using HDF5
 
 import Unitful.°, Unitful.°C, Unitful.mm, Unitful.hr
 import ArchGDAL
