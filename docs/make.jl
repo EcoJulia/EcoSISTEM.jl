@@ -13,6 +13,7 @@ makedocs(
         "Model Development" => "model_development.md",
         "API" => "api.md",
         "HPC" => "HPC.md",
+        "Data" => "data.md",
     ],
     strict=true,
     checkdocs=:none,
