@@ -7,6 +7,8 @@ using StatsBase
 using Test
 using Simulation: human, virus
 
+@testset "SEI3HRD" begin
+
 # sort out settings to potentially save inputs/outputs of `simulate`
 do_save = (@isdefined do_save) ? do_save : false
 save_path = (@isdefined save_path) ? save_path : pwd()
@@ -197,3 +199,5 @@ idx_dead = 8
 # Test dead population increasing or constant only [Sink]
 @test all(diff(vec(sum(abuns[idx_dead, :, :], dims = 1))) .>= 0)
 @test sum(abuns[idx_dead, :, 1]) == abun_h.Dead
+
+end

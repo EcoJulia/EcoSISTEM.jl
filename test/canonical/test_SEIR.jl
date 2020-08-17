@@ -4,6 +4,7 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
 
+@testset "SEIR" begin
 
 # sort out settings to potentially save inputs/outputs of `simulate`
 do_save = (@isdefined do_save) ? do_save : false
@@ -88,3 +89,4 @@ idx_dead = 5
 # Test dead population increasing or constant only [Sink]
 @test all(diff(vec(sum(abuns[idx_dead, :, :], dims = 1))) .>= 0)
 @test sum(abuns[idx_dead, :, 1]) == abun_h.Dead
+end

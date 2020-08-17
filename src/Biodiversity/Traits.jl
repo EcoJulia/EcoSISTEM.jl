@@ -46,8 +46,8 @@ function ContinuousEvolve(val::Union{Float64, Unitful.Quantity{Float64}},
     assign_traits!(tree, trts)
     # Get traits from tree
     newtrts = get_traits(tree, true)
-    newtrts[:start] = newtrts[:start] .* unit(val)
-    return GaussTrait(newtrts[:start], newtrts[:σ²])
+    newtrts[!, :start] = newtrts[!, :start] .* unit(val)
+    return GaussTrait(newtrts[!, :start], newtrts[!, :σ²])
 end
 
 """

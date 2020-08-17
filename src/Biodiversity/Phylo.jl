@@ -5,12 +5,12 @@ using Phylo: NodeNameIterator
 using Compat
 
 function reroot!(tree::AbstractTree, node::String)
-    root = collect(nodenamefilter(isroot, tree))[1]
+    root = getroot(tree)
     deletenode!(tree, node)
-    addnode!(tree, node)
-    addnode!(tree, "NewRoot")
-    addbranch!(tree, "NewRoot", root)
-    addbranch!(tree, "NewRoot", node)
+    createnode!(tree, node)
+    createnode!(tree, "NewRoot")
+    createbranch!(tree, "NewRoot", root)
+    createbranch!(tree, "NewRoot", node)
 end
 
 function resettraits!(tree::AbstractTree)
@@ -170,8 +170,7 @@ function assign_traits!(tree::AbstractTree, traits::DataFrame)
   all(check) || Compat.@warn "Some nodes already assigned traits"
 
   # Check that the length of the starting values and variances are the same
-  length(traits[:start]) == length(traits[:σ²]) || error("Start values and variance must have
-  same number of traits")
+  length(traits[!, :start]) == length(traits[!, :σ²]) || error("Start values and variance must have same number of traits")
 
   # Find all names of nodes
   names =  collect(getnodenames(tree))
@@ -191,16 +190,16 @@ function assign_traits!(tree::AbstractTree, traits::DataFrame)
     else
       # Get value information for parent node
       pnt = getparent(tree, i)
-      srt = getnodedata(tree, pnt)[:start]
+      srt = getnodedata(tree, pnt)[!, :start]
       # Find length of path between parent and child node
       path = first(branchroute(tree, pnt, i))
       ln = getlength(tree, getbranch(tree, path))
 
       # Run BM model on each trait and set record
-      newtrait = map(srt, traits[:σ²]) do start, sig
+      newtrait = map(srt, traits[!, :σ²]) do start, sig
                   last(BM(ln, sig, start))
                  end
-      newdat = DataFrame(start = newtrait, σ² = traits[:σ²])
+      newdat = DataFrame(start = newtrait, σ² = traits[!, :σ²])
       setnodedata!(tree, i, newdat)
 
     end
@@ -215,14 +214,14 @@ just tips or all nodes.
 
 """
 function get_traits(tree::AbstractTree, tips::Bool=true)
-   check = .!arenoderecordsempty(tree, collect(getnodenames(tree)))
-   all(check) || error("All node records empty")
+  check = .!arenoderecordsempty(tree, getnodes(tree))
+  all(check) || error("All node records empty")
   if tips
-    nodes = collect(nodenamefilter(isleaf, tree))
+    nodes = nodenamefilter(isleaf, tree)
   else
     nodes = getnodenames(tree)
   end
   df = vcat(map(n->getnodedata(tree, n), nodes)...)
-  df[!, :species] = nodes
+  df[!, :species] .= nodes
   return df
 end

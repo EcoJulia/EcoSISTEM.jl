@@ -4,6 +4,8 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
 
+@testset "age" begin
+
 # sort out settings to potentially save inputs/outputs of `simulate`
 do_save = (@isdefined do_save) ? do_save : false
 save_path = (@isdefined save_path) ? save_path : pwd()
@@ -87,4 +89,6 @@ for j in 2:length(sumabuns)
         cat_idx2 = reshape(1:(numclasses * age_cats[j]), age_cats[j], numclasses)
         @test isapprox(sum(sumabuns[j-1][cat_idx1[:, i], :], dims = 1), sum(sumabuns[j][cat_idx2[:, i], :], dims = 1), rtol = 5e-2)
     end
+end
+
 end
