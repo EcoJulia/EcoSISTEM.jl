@@ -111,7 +111,7 @@ include("Epidemiology/EpiEnv.jl")
 export GridEpiEnv, simplehabitatAE, ukclimateAE
 
 include("Epidemiology/EpiParams.jl")
-export SISGrowth, SIRGrowth, SEIRGrowth, SEIRSGrowth, SEI2HRDGrowth, SEI3HRDGrowth, transition
+export transition
 
 include("Epidemiology/EpiMove.jl")
 export EpiMovement, Commuting

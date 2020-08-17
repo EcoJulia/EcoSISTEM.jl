@@ -4,7 +4,8 @@ using Unitful.DefaultSymbols
 using Distributions
 using Simulation.Units
 
-
+numvirus = 2
+numclasses = 4
 birth = [0.0/day; fill(1e-5/day, 3); 0.0/day]
 death = [0.0/day; fill(1e-5/day, 3); 0.0/day]
 beta_force = 5.0/day
@@ -12,8 +13,8 @@ beta_env = 0.5/day
 sigma = 0.05/day
 virus_growth = 0.0001/day
 virus_decay = 0.07/day
-param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
-param = transition(param)
+param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
+paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
 
 sus = ["Susceptible"]
 inf = ["Infected"]
@@ -27,16 +28,17 @@ disease_classes = (
     susceptible = ["Susceptible"],
     infectious = ["Infected"]
 )
-abun_v = (Virus = 10,)
+abun_v = (Environment = 10, Force = 10)
 
-dispersal_dists = [fill(2.0km, 3); 1e-2km]
+dispersal_dists = fill(2.0km, numclasses)
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = EpiMovement(kernel)
 
-traits = GaussTrait([298.0K], [0.1K])
-@test_nowarn EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
-epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
-@test epilist.virus.names[1] == "Virus"
+traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+@test_nowarn EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
+epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
+@test epilist.virus.names[1] == "Environment"
+@test epilist.virus.names[2] == "Force"
 @test epilist.human.names[1] == "Susceptible"
 @test epilist.human.names[2] == "Infected"
 @test epilist.human.names[3] == "Recovered"

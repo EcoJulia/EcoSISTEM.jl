@@ -3,6 +3,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
+using DataFrames
 
 @testset "age" begin
 
@@ -12,25 +13,21 @@ save_path = (@isdefined save_path) ? save_path : pwd()
 
 age_cats = [1, 2, 4]
 numclasses = 3
-numvirus = 2
 abuns = Vector{Array{Int64, 3}}(undef, length(age_cats))
 sumabuns = Vector{Array{Int64, 2}}(undef, length(age_cats))
 for i in eachindex(age_cats)
+    numvirus = age_cats[i] + 1
     # Set simulation parameters
     birth = fill(0.0/day, numclasses, age_cats[i])
     death = fill(0.0/day, numclasses, age_cats[i])
-    ageing = fill(age_cats[i]/80years, age_cats[i] - 1)
-    beta_force = fill(1.0/day, age_cats[i])
-    beta_env = fill(1.0/day, age_cats[i])
+    age_mixing = fill(1.0, age_cats[i], age_cats[i])
+    beta_force = fill(10.0/day, age_cats[i])
+    beta_env = fill(10.0/day, age_cats[i])
     sigma = fill(0.02/day, age_cats[i])
     virus_growth = fill(1e-2/day, age_cats[i])
     virus_decay = 1.0/2day
-    if i == 1
-        param = SISGrowth{typeof(unit(beta_force[1]))}(birth[1:end], death[1:end], virus_growth[1], virus_decay, beta_force[1], beta_env[1], sigma[1])
-    else
-        param = SISGrowth{typeof(unit(beta_force[1]))}(birth, death, uconvert.(day^-1, ageing), virus_growth, virus_decay, beta_force, beta_env, sigma)
-    end
-    param = transition(param, age_cats[i])
+    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force, age_mixing = age_mixing)
+    paramDat = DataFrame([["Infected"], ["Susceptible"], [sigma]], [:from, :to, :prob])
 
     # Set up simple gridded environment
     grid = (4, 4)
@@ -53,7 +50,7 @@ for i in eachindex(age_cats)
         susceptible = ["Susceptible"],
         infectious = ["Infected"]
     )
-    abun_v = (Environment = virus_env, Force = 0)
+    abun_v = (Environment = virus_env, Force = fill(0, age_cats[i]))
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(1_000.0km, grid[1] * grid[2])
@@ -62,7 +59,7 @@ for i in eachindex(age_cats)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param, age_cats[i])
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param, age_cats[i])
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()

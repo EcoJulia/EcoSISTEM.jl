@@ -5,6 +5,7 @@ using Simulation.Units
 using Simulation.ClimatePref
 using StatsBase
 using Test
+using DataFrames
 using Simulation: human, virus
 
 @testset "SEI3HRD" begin
@@ -44,8 +45,28 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = SEI3HRDGrowth(birth, death, virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
-param = transition(param)
+# Exposed -> asymptomatic
+mu_1 = (1 - p_s) * 1/T_lat
+# Exposed -> Pre-symptomatic
+mu_2 = p_s * 1/T_lat
+# Pre-symptomatic -> symptomatic
+mu_3 = 1/T_presym
+# Symptomatic -> hospital
+hospitalisation = p_h * 1/T_sym
+# Asymptomatic -> recovered
+sigma_1 = 1/T_asym
+# Symptomatic -> recovered
+sigma_2 = (1 - p_h) * (1 - cfr_home) * 1/T_rec
+# Hospital -> recovered
+sigma_hospital = (1 - cfr_hosp) * 1/T_hosp
+# Symptomatic -> death
+death_home = cfr_home * 2/T_hosp
+# Hospital -> death
+death_hospital = cfr_hosp * 1/T_hosp
+
+paramDat = DataFrame([["Exposed", "Exposed", "Presymptomatic", "Symptomatic", "Asymptomatic", "Symptomatic", "Hospitalised", "Symptomatic", "Hospitalised"], ["Asymptomatic", "Presymptomatic", "Symptomatic", "Hospitalised", "Recovered", "Recovered", "Recovered", "Dead", "Dead"], [mu_1, mu_2, mu_3, hospitalisation, sigma_1, sigma_2, sigma_hospital, death_home, death_hospital]], [:from, :to, :prob])
+
+param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env)
 
 # Set up simple gridded environment
 grid = (4, 4)
@@ -77,7 +98,7 @@ movement = EpiMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
@@ -126,8 +147,28 @@ T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
 
-param = Simulation.SEI3HRDGrowth(birth, death, virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hosp, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
-param = transition(param)
+# Exposed -> asymptomatic
+mu_1 = (1 - p_s) * 1/T_lat
+# Exposed -> Pre-symptomatic
+mu_2 = p_s * 1/T_lat
+# Pre-symptomatic -> symptomatic
+mu_3 = 1/T_presym
+# Symptomatic -> hospital
+hospitalisation = p_h * 1/T_sym
+# Asymptomatic -> recovered
+sigma_1 = 1/T_asym
+# Symptomatic -> recovered
+sigma_2 = (1 - p_h) * (1 - cfr_home) * 1/T_rec
+# Hospital -> recovered
+sigma_hospital = (1 - cfr_hosp) * 1/T_hosp
+# Symptomatic -> death
+death_home = cfr_home * 2/T_hosp
+# Hospital -> death
+death_hospital = cfr_hosp * 1/T_hosp
+
+paramDat = DataFrame([["Exposed", "Exposed", "Presymptomatic", "Symptomatic", "Asymptomatic", "Symptomatic", "Hospitalised", "Symptomatic", "Hospitalised"], ["Asymptomatic", "Presymptomatic", "Symptomatic", "Hospitalised", "Recovered", "Recovered", "Recovered", "Dead", "Dead"], [mu_1, mu_2, mu_3, hospitalisation, sigma_1, sigma_2, sigma_hospital, death_home, death_hospital]], [:from, :to, :prob])
+
+param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env)
 
 # Set up simple gridded environment
 grid = (8, 8)
@@ -159,7 +200,7 @@ movement = EpiMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information

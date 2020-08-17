@@ -15,5 +15,4 @@ update!(epi, 1day)
 @test_nowarn virusupdate!(epi, 1day)
 @test_nowarn classupdate!(epi, 1day)
 invalidatecaches!(epi)
-@test sum(epi.cache.virusdecay) == 0
 @test sum(epi.cache.virusmigration) == 0

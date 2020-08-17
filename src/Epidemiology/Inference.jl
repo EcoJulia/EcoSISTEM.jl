@@ -36,8 +36,8 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
     # Set simulation parameters & create transition matrices
     birth = fill(0.0/day, numclasses)
     death = fill(0.0/day, numclasses)
-    param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
-    param = transition(param)
+    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
+    paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
 
     # Set up simple gridded environment
     epienv = simplehabitatAE(298.0K, grid_size, area, NoControl())
@@ -62,7 +62,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
@@ -101,8 +101,8 @@ Fills an abundance matrice of compartment by grid cell over time. Compartments f
 """
 function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64}, params::NamedTuple, runtimes::NamedTuple, abuns::Array{Int64, 3}, num_ages::Int64 = 1)
     # Set up
-    numclasses = 8 * num_ages
-    numvirus = 2
+    numclasses = 8
+    numvirus = num_ages + 1
     Ncells = grid_size[1] * grid_size[2]
     cat_idx = reshape(1:(numclasses * num_ages), num_ages, numclasses)
 
@@ -122,7 +122,8 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
     # Set simulation parameters & create transition matrices
     birth = fill(0.0/day, numclasses, num_ages)
     death = fill(0.0/day, numclasses, num_ages)
-    ageing = fill(0.0/day, num_ages - 1)
+    age_mixing = fill(1.0, num_ages, num_ages)
+
     # Prob of developing symptoms
     p_s = fill(0.96, num_ages)
     # Prob of hospitalisation
@@ -142,12 +143,28 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
     # Time to recovery if symptomatic
     T_rec = 11days
 
-    if num_ages == 1
-        param = SEI3HRDGrowth(birth, death, ageing,  [virus_growth_asymp], [virus_growth_presymp], [virus_growth_symp], virus_decay, [beta_force], [beta_env], p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
-    else
-        param = SEI3HRDGrowth(birth, death, ageing,  virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
-    end
-    param = transition(param, num_ages)
+    # Exposed -> asymptomatic
+    mu_1 = (1 .- p_s) .* 1/T_lat
+    # Exposed -> Pre-symptomatic
+    mu_2 = p_s .* 1/T_lat
+    # Pre-symptomatic -> symptomatic
+    mu_3 = fill(1 / T_presym, length(beta_force))
+    # Symptomatic -> hospital
+    hospitalisation = p_h .* 1/T_sym
+    # Asymptomatic -> recovered
+    sigma_1 = (1 .- p_s) .* 1/T_asym
+    # Symptomatic -> recovered
+    sigma_2 = (1 .- p_h) .* (1 .- cfr_home) .* 1/T_rec
+    # Hospital -> recovered
+    sigma_hospital = (1 .- cfr_hospital) .* 1/T_hosp
+    # Symptomatic -> death
+    death_home = cfr_home .* 2/T_hosp
+    # Hospital -> death
+    death_hospital = cfr_hospital .* 1/T_hosp
+
+    paramDat = DataFrame([["Exposed", "Exposed", "Presymptomatic", "Symptomatic", "Asymptomatic", "Symptomatic", "Hospitalised", "Symptomatic", "Hospitalised"], ["Asymptomatic", "Presymptomatic", "Symptomatic", "Hospitalised", "Recovered", "Recovered", "Recovered", "Dead", "Dead"], [mu_1, mu_2, mu_3, hospitalisation, sigma_1, sigma_2, sigma_hospital, death_home, death_hospital]], [:from, :to, :prob])
+
+    param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env, age_mixing = age_mixing)
 
     # Set up simple gridded environment
     epienv = simplehabitatAE(298.0K, grid_size, area, NoControl())
@@ -167,7 +184,7 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
         susceptible = ["Susceptible"],
         infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
     )
-    abun_v = (Environment = 0, Force = 0)
+    abun_v = (Environment = 0, Force = fill(0, num_ages))
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(mean_dispersal_dist, Ncells)
@@ -176,7 +193,7 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param, num_ages)
+    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param, num_ages)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
