@@ -7,6 +7,10 @@ using LinearAlgebra
 Function to update disease and virus class abundances and environment for one timestep.
 """
 function update!(epi::EpiSystem, timestep::Unitful.Time)
+
+    # Seed initial infecteds
+    seedinfected!(epi, epi.epienv.control, timestep)
+
     # Virus movement loop
     virusupdate!(epi, timestep)
 
@@ -19,6 +23,31 @@ function update!(epi::EpiSystem, timestep::Unitful.Time)
     # Update environment - habitat and energy budgets
     habitatupdate!(epi, timestep)
     applycontrols!(epi, timestep)
+end
+
+function seedinfected!(epi::EpiSystem, controls::NoControl, timestep::Unitful.Time)
+    return controls
+end
+
+function seedinfected!(epi::EpiSystem, controls::Lockdown, timestep::Unitful.Time)
+    id = Threads.threadid()
+    rng = epi.abundances.rngs[id]
+    if (epi.initial_infected > 0) && (controls.current_date < controls.lockdown_date)
+        inf = rand(Poisson(epi.initial_infected * timestep /controls.lockdown_date))
+        sus_id = sample(epi.epilist.human.susceptible, inf)
+        exp_id = sus_id .+ length(epi.epilist.human.susceptible)
+        summed_exp = sum(human(epi.abundances)[exp_id, :], dims = 1)[1, :]
+        pos = sample(rng, epi.ordered_active, weights(summed_exp[epi.ordered_active]), inf)
+        for i in 1:inf
+            if (human(epi.abundances)[sus_id[i], pos[i]] > 0)
+                human(epi.abundances)[sus_id[i], pos[i]] -= 1
+                human(epi.abundances)[exp_id[i], pos[i]] += 1
+            end
+        end
+    elseif controls.current_date == controls.lockdown_date
+        println("Lockdown initiated - $(sum(human(epi.abundances)[epi.epilist.human.susceptible .+ length(epi.epilist.human.susceptible), :])) individuals infected")
+    end
+    return controls
 end
 
 """
@@ -207,6 +236,16 @@ function applycontrols!(epi::AbstractEpiSystem, timestep::Unitful.Time)
 end
 
 function _applycontrols!(epi::AbstractEpiSystem, controls::NoControl, timestep::Unitful.Time)
+    return controls
+end
+
+function _applycontrols!(epi::AbstractEpiSystem, controls::Lockdown, timestep::Unitful.Time)
+    if controls.current_date >= controls.lockdown_date
+        epi.epilist.human.work_balance .= 0.0
+        controls.current_date += timestep
+    else
+        controls.current_date += timestep
+    end
     return controls
 end
 
