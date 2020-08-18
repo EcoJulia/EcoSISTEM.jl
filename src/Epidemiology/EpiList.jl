@@ -136,9 +136,10 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
     human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns), ht, movement,  movement_balance.home, movement_balance.work, sus, inf, human_to_force)
 
     virus_names = collect(string.(keys(virus_abun)))
-    if length(virus_abun.Force) > 1
-        force_cats = ["$(virus_names[2])$i" for i in 1:age_categories]
-        virus_names = [virus_names[1]; force_cats]
+    if "Force" ∈ virus_names && length(virus_abun.Force) > 1
+        force_names = ["Force$i" for i in 1:age_categories]
+        force_index = findfirst(==("Force"), virus_names)
+        virus_names = [virus_names[1:(force_index-1)]; force_names; virus_names[(force_index+1):length(virus_names)]]
     end
     force_cats = findall(occursin.("Force", virus_names))
 
