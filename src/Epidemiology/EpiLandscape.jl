@@ -10,10 +10,14 @@ mutable struct EpiLandscape{U <: Integer, VecRNGType <: AbstractVector{<:Random.
   grid::Array{U, 3}
   rngs::VecRNGType
 end
+function EpiLandscape(human_abun::Matrix{U}, virus_abun::Matrix{U}, grid::Array{U, 3},
+    rngtype::RNGType=Random.MersenneTwister) where {U <: Integer, RNGType <: Random.AbstractRNG}
+  rngs = [rngtype(rand(UInt)) for _ in 1:Threads.nthreads()]
+  return EpiLandscape(human_abun, virus_abun, grid, rngs)
+end
 function EpiLandscape(human_abun::Matrix{U}, virus_abun::Matrix{U}, d1::Tuple,
-    rngtype::RNGType=Random.MersenneTwister) where {U <: Integer, RNGType}
-  return EpiLandscape(human_abun, virus_abun, reshape(human_abun, d1),
-    [rngtype(rand(UInt)) for _ in 1:Threads.nthreads()])
+    rngtype::RNGType=Random.MersenneTwister) where {U <: Integer, RNGType <: Random.AbstractRNG}
+  return EpiLandscape(human_abun, virus_abun, reshape(human_abun, d1), rngtype)
 end
 
 virus(x::EpiLandscape) = x.matrix_v
@@ -37,9 +41,8 @@ end
 Function to create an empty EpiLandscape given a GridEpiEnv and a
 EpiList.
 """
-function emptyepilandscape(epienv::GridEpiEnv, epilist::EpiList,
-    rngtype::RNGType=Random.MersenneTwister) where {RNGType}
-  U = Int64 # need to change this
+function emptyepilandscape(epienv::GridEpiEnv, epilist::EpiList, intnum::U,
+    rngtype::RNGType = Random.MersenneTwister) where {U <: Integer, RNGType <: Random.AbstractRNG}
   mat_human = zeros(U, counttypes(epilist.human, true), countsubcommunities(epienv))
   mat_virus = zeros(U, counttypes(epilist.virus, true), countsubcommunities(epienv))
   dimension = (counttypes(epilist.human, true), _getdimension(epienv.habitat)...)

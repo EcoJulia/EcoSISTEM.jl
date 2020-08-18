@@ -1,4 +1,5 @@
 using JLSO
+using SparseArrays
 
 """
     AbstractEpiSystem
@@ -10,27 +11,29 @@ abstract type AbstractEpiSystem{Part <: AbstractEpiEnv, EL <: EpiList, TR <: Abs
 
 
 mutable struct EpiCache
-  netmigration::Array{Int64, 2}
-  virusmigration::Array{Int64, 2}
+  virusdecay::Array{Float64, 2}
+  virusmigration::Array{Float64, 2}
   valid::Bool
 end
 
+@enum MovementType homeMovement workMovement
 
-
-mutable struct EpiLookup
-  x::Vector{Int64}
-  y::Vector{Int64}
-  p::Vector{Float64}
-  pnew::Vector{Float64}
-  moves::Vector{Int64}
+struct EpiLookup
+  homelookup::SparseMatrixCSC{Float64, Int32}
+  worklookup::SparseMatrixCSC{Float64, Int32}
+  function EpiLookup(homelookup::SparseMatrixCSC{Float64, Int32}, worklookup::SparseMatrixCSC{Float64, Int32})
+      all(0 .<= homelookup.nzval .<= 1) || error("Home lookup values must be between 0 and 1")
+      all(0 .<= worklookup.nzval .<= 1) || error("Work lookup values must be between 0 and 1")
+      return new(homelookup, worklookup)
+  end
 end
-EpiLookup(df::DataFrame) = EpiLookup(df[!, :X], df[!, :Y], df[!, :Prob],
-zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))
 
 """
     EpiSystem{EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractRelationship} <: AbstractEpiSystem{EE, EL, ER}
 
 EpiSystem houses information on different disease classes, `epilist`, the environment, `epienv`, and their relationship to one another, `relationship`.
+
+See `help?>plot_epidynamics` and `help?>plot_epiheatmaps` for relevant plotting functions.
 """
 mutable struct EpiSystem{U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG}, EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship} <: AbstractEpiSystem{EE, EL, ER}
   abundances::EpiLandscape{U, VecRNGType}
@@ -38,47 +41,61 @@ mutable struct EpiSystem{U <: Integer, VecRNGType <: AbstractVector{<:Random.Abs
   epienv::EE
   ordinariness::Union{Matrix{Float64}, Missing}
   relationship::ER
-  lookup::Vector{EpiLookup}
+  lookup::EpiLookup
   cache::EpiCache
   initial_infected::Int64
   ordered_active::Vector{Int64}
 
   function EpiSystem{U, VecRNGType, EE, EL, ER}(abundances::EpiLandscape{U, VecRNGType},
-    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup, cache::EpiCache, initial_infected::Int64) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG}, EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship}
+      epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER,
+      lookup::EpiLookup, cache::EpiCache, initial_infected::Int64) where {U <: Integer,
+      VecRNGType <: AbstractVector{<:Random.AbstractRNG}, EE <: AbstractEpiEnv,
+      EL <: EpiList, ER <: AbstractTraitRelationship}
     total_pop = sum(abundances.matrix, dims = 1)[1, :]
     sorted_grid_ids = sortperm(total_pop, rev = true)
     sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
     new{U, VecRNGType, EE, EL, ER}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, initial_infected, sorted_grid_ids)
   end
-#  function EpiSystem{U, EE, EL, ER}(abundances::EpiLandscape{U},
-#    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup, cache::EpiCache, initial_infected::Int64, ordered_active::Vector{Int64}) where {U <: Integer, EE <:
-#     AbstractEpiEnv,
-#    EL <: EpiList, ER <: AbstractTraitRelationship}
-#    new{U, EE, EL, ER}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, initial_infected, sorted_grid_ids, ordered_active)
-#  end
+  function EpiSystem{U, VecRNGType, EE, EL, ER}(abundances::EpiLandscape{U, VecRNGType},
+      epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER,
+      lookup::EpiLookup, cache::EpiCache, initial_infected::Int64, ordered_active::Vector{Int64}
+      ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
+      EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship}
+    new{U, VecRNGType, EE, EL, ER}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, initial_infected, sorted_grid_ids, ordered_active)
+  end
 end
 
 function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
-    rel::AbstractTraitRelationship, intnum::U; initial_infected = 0, rngtype::RNGType = Random.MersenneTwister) where {F<:Function, U <: Integer, RNGType}
+    rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
+    rngtype::RNGType = Random.MersenneTwister
+    ) where {F<:Function, U <: Integer, RNGType <: Random.AbstractRNG}
+        @show "juyrtdhrgsfewda"
 
   # Create matrix landscape of zero abundances
-  ml = emptyepilandscape(epienv, epilist, rngtype)
+  ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
   # Populate this matrix with species abundances
   popfun(ml, epilist, epienv, rel)
+  initial_pop = sum(ml.matrix, dims = 1)
   # Create lookup table of all moves and their probabilities
   home_lookup = genlookups(epienv, epilist.human.movement.home)
   work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
   lookup = EpiLookup(home_lookup, work_lookup)
   nm = zeros(Float64, size(ml.matrix))
   vm = zeros(Float64, size(ml.matrix))
-  EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false), initial_infected)
+  return EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false), initial_infected)
 end
 
-function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, intnum::U = Int64(1); initial_infected = 0, rngtype::RNGType = Random.MersenneTwister) where {U <: Integer, RNGType}
-    return EpiSystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected)
+function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+        intnum::U = Int64(1); initial_infected = 0, rngtype::RNGType = Random.MersenneTwister
+        ) where {U <: Integer, RNGType <: Random.AbstractRNG}
+        @show "yjdtthrsrgesw"
+    return EpiSystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype)
 end
 
-function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, initial_population::A, intnum::U = Int64(1); initial_infected = 0) where {U <: Integer, A <: AbstractArray}
+function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+        initial_population::A, intnum::U = Int64(1); initial_infected = 0,
+        rngtype::RNGType = Random.MersenneTwister
+        ) where {U <: Integer, A <: AbstractArray, RNGType <: Random.AbstractRNG}
     if size(initial_population) != size(epienv.active)
         msg = "size(initial_population)==$(size(initial_population)) != " *
             "size(epienv.active)==$(size(epienv.active))"
@@ -87,7 +104,7 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     epienv.active .&= .!_inactive.(initial_population)
 
     # Create matrix landscape of zero abundances
-    ml = emptyepilandscape(epienv, epilist, intnum)
+    ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
 
     # Create lookup table of all moves and their probabilities
     home_lookup = genlookups(epienv, epilist.human.movement.home)
@@ -97,7 +114,7 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     nm = zeros(Float64, size(ml.matrix))
     vm = zeros(Float64, size(ml.matrix))
 
-    epi = EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false), initial_infected)
+    epi = EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false), initial_infected)
     # epi = EpiSystem(epilist, epienv, rel, intnum)
     # Add in the initial susceptible population
     idx = findfirst(epilist.human.names .== "Susceptible")
