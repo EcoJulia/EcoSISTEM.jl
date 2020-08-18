@@ -24,6 +24,9 @@ function copy(gl::EpiLandscape)
     return EpiLandscape(copy(gl.matrix), size(gl.grid))
 end
 
+import Base.eltype
+eltype(l::EpiLandscape{U, VecRNGType}) where {U, VecRNGType} = U
+
 function Base.isapprox(gl_1::EpiLandscape, gl_2::EpiLandscape; kwargs...)
     return isapprox(gl_1.matrix, gl_2.matrix; kwargs...)
 end
@@ -34,8 +37,9 @@ end
 Function to create an empty EpiLandscape given a GridEpiEnv and a
 EpiList.
 """
-function emptyepilandscape(epienv::GridEpiEnv, epilist::EpiList, intnum::U,
-    rngtype::RNGType=Random.MersenneTwister) where {U <: Integer, RNGType}
+function emptyepilandscape(epienv::GridEpiEnv, epilist::EpiList,
+    rngtype::RNGType=Random.MersenneTwister) where {RNGType}
+  U = Int64 # need to change this
   mat_human = zeros(U, counttypes(epilist.human, true), countsubcommunities(epienv))
   mat_virus = zeros(U, counttypes(epilist.virus, true), countsubcommunities(epienv))
   dimension = (counttypes(epilist.human, true), _getdimension(epienv.habitat)...)
