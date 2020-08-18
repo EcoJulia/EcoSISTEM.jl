@@ -11,7 +11,6 @@ abstract type AbstractEpiSystem{Part <: AbstractEpiEnv, EL <: EpiList, TR <: Abs
 
 
 mutable struct EpiCache
-  virusdecay::Array{Float64, 2}
   virusmigration::Array{Float64, 2}
   valid::Bool
 end
@@ -71,7 +70,6 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   home_lookup = genlookups(epienv, epilist.human.movement.home)
   work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
   lookup = EpiLookup(home_lookup, work_lookup)
-  nm = zeros(Float64, size(ml.matrix))
   vm = zeros(Float64, size(ml.matrix))
   return EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false), initial_infected)
 end
@@ -101,10 +99,10 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     work_lookup = genlookups(epienv, epilist.human.movement.work, initial_population[1:end])
     lookup = EpiLookup(home_lookup, work_lookup)
 
-    nm = zeros(Float64, size(ml.matrix))
     vm = zeros(Float64, size(ml.matrix))
 
     epi = EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false), initial_infected)
+
     # Add in the initial susceptible population
     idx = findfirst(epilist.human.names .== "Susceptible")
     if idx == nothing
@@ -201,7 +199,6 @@ end
 
 function invalidatecaches!(epi::AbstractEpiSystem)
     epi.ordinariness = missing
-    epi.cache.virusdecay .= 0
     epi.cache.virusmigration .= 0
     epi.cache.valid = false
 end
