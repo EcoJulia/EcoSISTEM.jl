@@ -1,4 +1,5 @@
 using Simulation
+using SimulationData
 using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
@@ -11,7 +12,7 @@ using Random
 using DataFrames
 using Plots
 
-function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
+function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
     # Download and read in population sizes for Scotland
     dir = Simulation.path("test", "TEMP")
     file = joinpath(dir, "demographics.h5")
@@ -61,8 +62,15 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     cfr_home = cfr_hospital = [0.0, 0.002, 0.002, 0.002, 0.004, 0.013, 0.036, 0.08, 0.148, 0.148]
     # Time exposed
     T_lat = 3days
+
     # Time asymptomatic
-    T_asym = 5days
+    T_asym = days(read_estimate(
+        api,
+        "human/infection/SARS-CoV-2/asymptomatic-period",
+        "asymptomatic-period"
+    )Unitful.hr)
+    @show T_asym
+
     # Time pre-symptomatic
     T_presym = 1.5days
     # Time symptomatic
@@ -95,7 +103,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env, age_mixing = age_mixing)
 
-    epienv = simplehabitatAE(298.0K, size(total_pop), area, NoControl())
+    epienv = simplehabitatAE(298.0K, size(total_pop), area, Lockdown(20days))
 
     # Set population to initially have no individuals
     abun_h = (
@@ -138,8 +146,9 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param, age_categories, movement_balance)
     rel = Gauss{eltype(epienv.habitat)}()
 
+    initial_infecteds = 100
     # Create epi system with all information
-    @time epi = EpiSystem(epilist, epienv, rel, total_pop, UInt32(1))
+    @time epi = EpiSystem(epilist, epienv, rel, total_pop, UInt32(1), initial_infected = initial_infecteds)
 
     # Populate susceptibles according to actual population spread
     cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
@@ -147,31 +156,20 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
         reshape(scotpop[1:size(epienv.active, 1), 1:size(epienv.active, 2), :],
                 size(epienv.active, 1) * size(epienv.active, 2), size(scotpop, 3))'
     epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
-
-    # Add in initial infections randomly (samples weighted by population size)
-    # Define generator for all pair age x cell
-    age_and_cells = Iterators.product(1:age_categories,
-                                      1:size(epi.abundances.matrix, 2))
-    # Take all susceptibles of each age per cell
-    pop_weights = epi.abundances.matrix[vcat(cat_idx[:, 1]...), :]
-    # It would be nice if it wasn't necessary to call collect here
     N_cells = size(epi.abundances.matrix, 2)
-    samp = sample(collect(age_and_cells), weights(1.0 .* vec(pop_weights)), 100)
-    age_ids = getfield.(samp, 1)
-    cell_ids = getfield.(samp, 2)
 
-    for i in eachindex(age_ids)
-        if (epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] > 0)
-            # Add to exposed
-            epi.abundances.matrix[cat_idx[age_ids[i], 2], cell_ids[i]] += 1
-            # Remove from susceptible
-            epi.abundances.matrix[cat_idx[age_ids[i], 1], cell_ids[i]] -= 1
-        end
-    end
+    # Turn off work moves for <20s and >70s
+    epi.epilist.human.home_balance[cat_idx[1:2, :]] .= 1.0
+    epi.epilist.human.home_balance[cat_idx[7:10, :]] .= 1.0
+    epi.epilist.human.work_balance[cat_idx[1:2, :]] .= 0.0
+    epi.epilist.human.work_balance[cat_idx[7:10, :]] .= 0.0
 
     # Run simulation
     abuns = zeros(UInt32, size(epi.abundances.matrix, 1), N_cells, floor(Int, times/timestep) + 1)
     @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
+
+    # Write to pipeline
+    write_array(api, "simulation-outputs", "final-abundances", DataPipelineArray(abuns))
 
     if do_plot
         # View summed SIR dynamics for whole area
@@ -186,10 +184,19 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
             "Deaths" => cat_idx[:, 8],
         )
         display(plot_epidynamics(epi, abuns, category_map = category_map))
-        display(plot_epiheatmaps(epi, abuns, steps = [21]))
+        display(plot_epiheatmaps(epi, abuns, steps = [30]))
     end
     return abuns
 end
 
+<<<<<<< HEAD
 times = 1month; interval = 1day; timestep = 1day
 abuns = run_model(times, interval, timestep);
+=======
+config = "data_config.yaml"
+download_data_registry(config)
+times = 2months; interval = 1day; timestep = 1day
+abuns = StandardAPI(config, "test_uri", "test_git_sha") do api
+    run_model(api, times, interval, timestep)
+end;
+>>>>>>> b21e56d0a352ab45ab496766f24261c7c900f1c5

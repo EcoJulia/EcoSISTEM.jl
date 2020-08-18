@@ -4,7 +4,10 @@ using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
 using DataFrames
+using LinearAlgebra
 
+@testset "mixing" begin
+    
 # sort out settings to potentially save inputs/outputs of `simulate`
 do_save = (@isdefined do_save) ? do_save : false
 save_path = (@isdefined save_path) ? save_path : pwd()
@@ -20,6 +23,8 @@ for i in eachindex(mixing_rate)
     birth = fill(0.0/day, numclasses, age_cats)
     death = fill(0.0/day, numclasses, age_cats)
     age_mixing = fill(mixing_rate[i], age_cats, age_cats)
+    # Diagonal elements are 1 so we mix with ourselves
+    age_mixing[diagind(age_mixing)] .= 1.0
     beta_force = fill(1.0/day, age_cats)
     beta_env = fill(1.0/day, age_cats)
     sigma = fill(0.02/day, age_cats)
@@ -81,4 +86,6 @@ end
 cat_idx = reshape(1:(numclasses * age_cats), age_cats, numclasses)
 for j in 2:length(sumabuns)
     @test sum(sum(sumabuns[j-1][cat_idx[:, 2], :], dims = 1) .>= sum(sumabuns[j][cat_idx[:, 2], :], dims = 1)) >= (0.95 * size(sumabuns[1], 2))
+end
+
 end

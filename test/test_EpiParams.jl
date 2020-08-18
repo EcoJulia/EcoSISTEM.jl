@@ -2,7 +2,6 @@ using Simulation
 using Unitful.DefaultSymbols
 using Test
 using Simulation.Units
-import Simulation.SIRGrowth
 
 numclasses = 4
 age_categories = 1
