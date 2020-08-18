@@ -200,7 +200,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
                 env_inf = (params.transition_virus[i, k] * virus(epi.abundances)[1, j]) / (N^params.freq_vs_density_env)
 
                 # Direct transmission infection rate from k to i
-                force_inf = (params.transition_force[i, k] * sum(params.age_mixing[k_age_cat, :] .* virus(epi.abundances)[force_cats, j])) / (N^params.freq_vs_density_force)
+                force_inf = params.transition_force[i, k] * (params.age_mixing[k_age_cat, :] ⋅ virus(epi.abundances)[force_cats, j]) / (N^params.freq_vs_density_force)
 
                 # Add to baseline transitional probabilities from k to i
                 trans_val = params.transition[i, k] + env_inf + force_inf
