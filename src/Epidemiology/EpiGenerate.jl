@@ -62,7 +62,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     rng = epi.abundances.rngs[id]
     classes = findall((params.virus_growth .* timestep) .> 0)
 
-    # Convert 1D dimension to 2D coordinates with (x, y) = convert_coords(epi, j, width)
+    # Convert 1D dimension to 2D coordinates with convert_coords(epi, j, width)
     # Check which grid cells are active, only iterate along those
     activejindices = findall(j -> epi.epienv.active[convert_coords(epi, j, width)...], 1:dims)
     # Loop through grid squares
@@ -125,7 +125,8 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
 
 
     jindices = 1:size(epi.cache.virusmigration, 2)
-    threadedjindices = [jindices[j:Threads.nthreads():end] for j in 1:Threads.nthreads()]
+    threadedjindices = [jindices[j:Threads.nthreads():end]
+                        for j in 1:Threads.nthreads()]
     @assert all(sort(unique(vcat(threadedjindices...))) .== jindices)
     Threads.@threads for jrange in threadedjindices
        for j in jrange
@@ -169,7 +170,7 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     human_to_force = epi.epilist.human.human_to_force
     force_cats = epi.epilist.virus.force_cats
 
-    # Convert 1D dimension to 2D coordinates with (x, y) = convert_coords(epi, j, width)
+    # Convert 1D dimension to 2D coordinates with convert_coords(epi, j, width)
     # Check which grid cells are active, only iterate along those
     activejindices = findall(j->epi.epienv.active[convert_coords(epi, j, width)...], 1:dims)
     threadedjindices = [activejindices[j:Threads.nthreads():end] for j in 1:Threads.nthreads()]
@@ -183,35 +184,44 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
         # Loop through classes in chosen square
         for i in classes
             # Births
-            births = rand(rng, Binomial(human(epi.abundances)[i, j],  params.births[i] * timestep))
+            births = rand(rng, Binomial(human(epi.abundances)[i, j],
+                                        params.births[i] * timestep))
             human(epi.abundances)[1, j] += births
 
-            # Note transposition of transition matrices to make iteration over k faster
+            # Note - transpose transition matrices makes iteration over k faster
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
                 # Skip if there are no people in k at location j
                 iszero(human(epi.abundances)[k, j]) && continue
                 # Skip if there are no transitions from k to i
-                params.transition[i, k] + params.transition_virus[i, k] + params.transition_force[i, k] > zero(inv(timestep)) || continue
+                params.transition[i, k] +
+                    params.transition_virus[i, k] +
+                    params.transition_force[i, k] > zero(inv(timestep)) ||
+                    continue
 
                 k_age_cat = human_to_force[k]
 
                 # Environmental infection rate from k to i
-                env_inf = (params.transition_virus[i, k] * virus(epi.abundances)[1, j]) / (N^params.freq_vs_density_env)
+                env_inf = virus(epi.abundances)[1, j] /
+                    (N^params.freq_vs_density_env)
 
                 # Direct transmission infection rate from k to i
-                force_inf = params.transition_force[i, k] * (params.age_mixing[k_age_cat, :] ⋅ virus(epi.abundances)[force_cats, j]) / (N^params.freq_vs_density_force)
+                force_inf = (params.age_mixing[k_age_cat, :] ⋅
+                             virus(epi.abundances)[force_cats, j]) /
+                    (N^params.freq_vs_density_force)
 
                 # Add to baseline transitional probabilities from k to i
-                trans_val = params.transition[i, k] + env_inf + force_inf
+                trans_val = params.transition[i, k] +
+                    params.transition_virus[i, k] * env_inf +
+                    params.transition_force[i, k] * force_inf
                 trans_prob = 1.0 - exp(-trans_val * timestep)
 
                 # Skip if probability is zero
                 iszero(trans_prob) && continue
 
                 # Make transitions
-                trans = rand(rng, Binomial(human(epi.abundances)[k, j],
-                             trans_prob))
+                trans = rand(rng,
+                             Binomial(human(epi.abundances)[k, j], trans_prob))
                 human(epi.abundances)[i, j] += trans
                 human(epi.abundances)[k, j] -= trans
             end
