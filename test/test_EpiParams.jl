@@ -2,7 +2,6 @@ using Simulation
 using Unitful.DefaultSymbols
 using Test
 using Simulation.Units
-import Simulation.SIRGrowth
 
 @testset "Epi params" begin
     numclasses = 4
