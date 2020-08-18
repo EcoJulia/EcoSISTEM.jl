@@ -199,14 +199,9 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     return abuns
 end
 
-<<<<<<< HEAD
-times = 1month; interval = 1day; timestep = 1day
-abuns = run_model(times, interval, timestep);
-=======
 config = "data_config.yaml"
 download_data_registry(config)
 times = 2months; interval = 1day; timestep = 1day
 abuns = StandardAPI(config, "test_uri", "test_git_sha") do api
     run_model(api, times, interval, timestep)
 end;
->>>>>>> b21e56d0a352ab45ab496766f24261c7c900f1c5
