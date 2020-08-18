@@ -9,15 +9,16 @@ mutable struct VirusTypes{TR <: AbstractTraits,
   traits::TR
   abun::Vector{Int64}
   types::T
+  force_cats::Vector{Int64}
 
-  function VirusTypes{TR, T}(names:: Vector{String}, traits::TR, abun::Vector{Int64}, types::T) where {
+  function VirusTypes{TR, T}(names:: Vector{String}, traits::TR, abun::Vector{Int64}, types::T, force_cats::Vector{Int64}) where {
                        TR <: AbstractTraits,
                        T <: AbstractTypes}
-      new{TR, T}(names, traits, abun, types)
+      new{TR, T}(names, traits, abun, types, force_cats)
   end
-  function VirusTypes{TR, T}(traits::TR, abun::Vector{Int64}, types::T) where {TR <: AbstractTraits, T <: AbstractTypes}
+  function VirusTypes{TR, T}(traits::TR, abun::Vector{Int64}, types::T, force_cats::Vector{Int64}) where {TR <: AbstractTraits, T <: AbstractTypes}
       names = map(x -> "$x", 1:length(abun))
-      new{TR, T}(names, traits, abun, types)
+      new{TR, T}(names, traits, abun, types, force_cats)
   end
 end
 
@@ -36,17 +37,18 @@ mutable struct HumanTypes{MO <: AbstractMovement,
   work_balance::Vector{Float64}
   susceptible::Vector{Int64}
   infectious::Vector{Int64}
+  human_to_force::Vector{Int64}
 
-  function HumanTypes{MO, T}(names:: Vector{String}, abun::Vector{Int64}, types::T, movement::MO, home_balance::Vector{Float64}, work_balance::Vector{Float64}, susceptible::Vector{Int64}, infectious::Vector{Int64}) where {
+  function HumanTypes{MO, T}(names:: Vector{String}, abun::Vector{Int64}, types::T, movement::MO, home_balance::Vector{Float64}, work_balance::Vector{Float64}, susceptible::Vector{Int64}, infectious::Vector{Int64}, human_to_force::Vector{Int64}) where {
                        MO <: AbstractMovement,
                        T <: AbstractTypes}
-      new{MO, T}(names, abun, types, movement, home_balance, work_balance, susceptible, infectious)
+      new{MO, T}(names, abun, types, movement, home_balance, work_balance, susceptible, infectious, human_to_force)
   end
-  function HumanTypes{MO, T}(abun::Vector{Int64}, types::T, movement::MO, home_balance::Vector{Float64}, work_balance::Vector{Float64}, susceptible::Vector{Int64}, infectious::Vector{Int64}) where {
+  function HumanTypes{MO, T}(abun::Vector{Int64}, types::T, movement::MO, home_balance::Vector{Float64}, work_balance::Vector{Float64}, susceptible::Vector{Int64}, infectious::Vector{Int64}, human_to_force::Vector{Int64}) where {
                        MO <: AbstractMovement,
                        T <: AbstractTypes}
       names = map(x -> "$x", 1:length(abun))
-      new{MO, T}(names, abun, types, movement, home_balance, work_balance, susceptible, infectious)
+      new{MO, T}(names, abun, types, movement, home_balance, work_balance, susceptible, infectious, human_to_force)
   end
 end
 
@@ -125,18 +127,24 @@ function EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple,
 #    rm_idx = indexin([susceptible; infectious], abuns)
 #    deleteat!(abuns, rm_idx)
 
-    new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories,
-                                                   j in names][1:end]
+    new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories, j in names][1:end]
     sus = findall(occursin.(susceptible, new_names))
     inf = vcat(map(i -> findall(occursin.(infectious[i], new_names)),
                    eachindex(infectious))...)
     ht = UniqueTypes(length(new_names))
-    human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns), ht, movement, movement_balance.home, movement_balance.work, sus, inf)
+    human_to_force = repeat(1:age_categories, length(human_abun))
+    human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns), ht, movement,  movement_balance.home, movement_balance.work, sus, inf, human_to_force)
 
     virus_names = collect(string.(keys(virus_abun)))
+    if "Force" ∈ virus_names && length(virus_abun.Force) > 1
+        force_names = ["Force$i" for i in 1:age_categories]
+        force_index = findfirst(==("Force"), virus_names)
+        virus_names = [virus_names[1:(force_index-1)]; force_names; virus_names[(force_index+1):length(virus_names)]]
+    end
+    force_cats = findall(occursin.("Force", virus_names))
 
     vt = UniqueTypes(length(virus_names))
-    virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt)
+    virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt, force_cats)
 
     length(sus) == length(susceptible) * age_categories ||
         throw(DimensionMismatch("Number of susceptible categories is incorrect"))

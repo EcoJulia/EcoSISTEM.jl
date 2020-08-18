@@ -43,7 +43,7 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
 
     # Set simulation parameters
     numclasses = 8
-    numvirus = 2
+    numvirus = age_categories + 1
     birth_rates = fill(0.0/day, numclasses, age_categories)
     death_rates = fill(0.0/day, numclasses, age_categories)
     birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years)
@@ -52,7 +52,7 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     virus_decay = 1.0/day
     beta_force = fill(10.0/day, age_categories)
     beta_env = fill(10.0/day, age_categories)
-    ageing = fill(0.0/day, age_categories - 1) # no ageing for now
+    age_mixing = fill(1.0, age_categories, age_categories)
 
     # Prob of developing symptoms
     p_s = fill(0.96, age_categories)
@@ -80,7 +80,7 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     # Time to recovery if symptomatic
     T_rec = 11days
 
-    param = SEI3HRDGrowth(birth_rates, death_rates, ageing,
+    param = SEI3HRDGrowth(birth_rates, death_rates, age_mixing,
                           virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay,
                           beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital,
                           T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
@@ -105,7 +105,7 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
         infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
     )
 
-    abun_v = (Environment = 0, Force = 0)
+    abun_v = (Environment = 0, Force = fill(0, age_categories))
 
     movement_balance = (home = fill(0.5, numclasses * age_categories), work = fill(0.5, numclasses * age_categories))
 

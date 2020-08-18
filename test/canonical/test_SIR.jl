@@ -33,7 +33,7 @@ for i in eachindex(grid_sizes)
     # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
     abun_h = (
       Susceptible = 500_000 * maximum(grid_sizes)^2,
-      Infected = 100 * maximum(grid_sizes)^2,
+      Infected = 1000 * maximum(grid_sizes)^2,
       Recovered = 0,
       Dead = 0
     )
