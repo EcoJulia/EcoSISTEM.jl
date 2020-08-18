@@ -17,4 +17,9 @@ include("TestCases.jl")
     @test_nowarn classupdate!(epi, 1day)
     invalidatecaches!(epi)
     @test sum(epi.cache.virusmigration) == 0
+  
+    epi = TestEpiLockdown()
+    @test_nowarn update!(epi, 1day)
+    update!(epi, 1day)
 end
+
