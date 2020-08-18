@@ -13,8 +13,6 @@ do_save = (@isdefined do_save) ? do_save : false
 save_path = (@isdefined save_path) ? save_path : pwd()
 
 ## High transmission & 100% case fatality
-##
-# Set simulation parameters
 numclasses = 7
 numvirus = 2
 birth = fill(0.0/day, numclasses)
@@ -40,8 +38,6 @@ T_sym = 5days
 T_hosp = 5days
 # Time to recovery if symptomatic
 T_rec = 11days
-
-
 # Exposed -> asymptomatic
 mu_1 = 1/T_lat
 # Asymptomatic -> symptomatic
@@ -115,64 +111,14 @@ abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix,
 times = 1year; interval = 1day; timestep = 1day
 @time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "high_trans"))
 
-
 # Test everyone becomes infected and dies
 @test sum(abuns[1, :, 365]) == 0
 @test sum(abuns[end, :, 365]) == (abun_h.Susceptible + new_symptomatic + new_asymptomatic)
 
 ## Low transmission & 100% case fatality
-##
-
-birth = fill(0.0/day, numclasses)
-death = fill(0.0/day, numclasses)
-virus_growth_asymp = virus_growth_symp = 1e-3/day
 virus_decay = 1.0/day
 beta_force = 1e-10/day
 beta_env = 1e-10/day
-
-# Prob of developing symptoms
-p_s = 1.0
-# Prob of hospitalisation
-p_h = 0.2
-# Case fatality ratio
-cfr_home = cfr_hosp = 1.0
-# Time exposed
-T_lat = 5days
-# Time asymptomatic
-T_asym = 3days
-# Time symptomatic
-T_sym = 5days
-# Time in hospital
-T_hosp = 5days
-# Time to recovery if symptomatic
-T_rec = 11days
-
-# Exposed -> asymptomatic
-mu_1 = 1/T_lat
-# Asymptomatic -> symptomatic
-mu_2 = p_s * 1/T_asym
-# Symptomatic -> hospital
-hospitalisation = p_h * 1/T_sym
-# Asymptomatic -> recovered
-sigma_1 = (1 - p_s) * 1/T_asym
-# Symptomatic -> recovered
-sigma_2 = (1 - p_h) * (1 - cfr_home) * 1/T_rec
-# Hospital -> recovered
-sigma_hospital = (1 - cfr_hosp) * 1/T_hosp
-# Symptomatic -> death
-death_home = cfr_home * 2/T_hosp
-# Hospital -> death
-death_hospital = cfr_hosp * 1/T_hosp
-
-paramDat =
-    DataFrame([(from="Exposed", to="Asymptomatic", prob=mu_1),
-               (from="Asymptomatic", to="Symptomatic", prob=mu_2),
-               (from="Symptomatic", to="Hospitalised", prob=hospitalisation),
-               (from="Asymptomatic", to="Recovered", prob=sigma_1),
-               (from="Symptomatic", to="Recovered", prob=sigma_2),
-               (from="Hospitalised", to="Recovered", prob=sigma_hospital),
-               (from="Symptomatic", to="Dead", prob=death_home),
-               (from="Hospitalised", to="Dead", prob=death_hospital)])
 
 param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env)
 
@@ -220,8 +166,6 @@ times = 1year; interval = 1day; timestep = 1day
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2),
               convert(Int64, floor(times / interval)) + 1)
 @time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "low_trans"))
-
-
 
 # Test no one becomes infected & dies # TODO: Check this comment
 @test sum(abuns[1, :, 365]) == abun_h.Susceptible

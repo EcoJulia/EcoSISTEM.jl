@@ -24,8 +24,7 @@ for i in eachindex(grid_sizes)
     virus_growth = 1e-3/day
     virus_decay = 1e-3/day
     param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-    paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
-
+    paramDat = DataFrame([(from="Infected", to="Recovered", prob=sigma)])
 
     # Set up simple gridded environment
     grid = (grid_sizes[i], grid_sizes[i])
