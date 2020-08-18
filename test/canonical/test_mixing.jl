@@ -31,7 +31,7 @@ for i in eachindex(mixing_rate)
     virus_growth = fill(1e-2/day, age_cats)
     virus_decay = 1.0/2day
     param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force, age_mixing = age_mixing)
-    paramDat = DataFrame([["Infected"], ["Susceptible"], [sigma]], [:from, :to, :prob])
+    paramDat = DataFrame([(from="Infected", to="Susceptible", prob=sigma)])
 
     # Set up simple gridded environment
     grid = (4, 4)

@@ -26,7 +26,7 @@ for i in eachindex(grid_sizes)
     # param = SISGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
     # param = transition(param)
     param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-    paramDat = DataFrame([["Infected"], ["Susceptible"], [sigma]], [:from, :to, :prob])
+    paramDat = DataFrame([(from="Infected", to="Susceptible", prob=sigma)])
 
     # Set up simple gridded environment
     grid = (grid_sizes[i], grid_sizes[i])

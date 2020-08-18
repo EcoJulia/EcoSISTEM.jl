@@ -49,7 +49,7 @@ function TestEpiSystem()
     virus_growth = 0.0001/day
     virus_decay = 0.07/day
     param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-    paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
+    paramDat = DataFrame([(from="Infected", to="Recovered", prob=sigma)])
 
     grid = (2, 2)
     area = 10.0km^2
@@ -90,7 +90,7 @@ function TestEpiLockdown()
     virus_growth = 0.0001/day
     virus_decay = 0.07/day
     param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-    paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
+    paramDat = DataFrame([(from="Infected", to="Recovered", prob=sigma)])
 
     grid = (2, 2)
     area = 10.0km^2
@@ -134,7 +134,7 @@ function TestEpiSystemFromPopulation(
     virus_growth = 0.0001/day
     virus_decay = 0.07/day
     param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-    paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
+    paramDat = DataFrame([(from="Infected", to="Recovered", prob=sigma)])
 
     area = 10.0km^2
     epienv = simplehabitatAE(298.0K, size(initial_pop), area, epienv_active, NoControl())

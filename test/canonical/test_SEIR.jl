@@ -22,7 +22,8 @@ sigma = 1/7days
 virus_growth = 1.0/day
 virus_decay = 1.0/2days
 param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-paramDat = DataFrame([["Exposed", "Infected"], ["Infected", "Recovered"], [mu, sigma]], [:from, :to, :prob])
+paramDat = paramDat = DataFrame([(from="Exposed", to="Infected", prob=mu),
+                                 (from="Infected", to="Recovered", prob=sigma)])
 
 # Set up simple gridded environment
 grid = (8, 8)

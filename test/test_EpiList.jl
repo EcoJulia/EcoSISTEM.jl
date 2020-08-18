@@ -14,7 +14,7 @@ sigma = 0.05/day
 virus_growth = 0.0001/day
 virus_decay = 0.07/day
 param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
+paramDat = DataFrame([(from="Infected", to="Recovered", prob=sigma)])
 
 sus = ["Susceptible"]
 inf = ["Infected"]

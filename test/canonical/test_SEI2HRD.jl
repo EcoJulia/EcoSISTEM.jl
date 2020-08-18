@@ -59,7 +59,15 @@ death_home = cfr_home * 2/T_hosp
 # Hospital -> death
 death_hospital = cfr_hosp * 1/T_hosp
 
-paramDat = DataFrame([["Exposed", "Asymptomatic", "Symptomatic", "Asymptomatic", "Symptomatic", "Hospitalised", "Symptomatic", "Hospitalised"], ["Asymptomatic", "Symptomatic", "Hospitalised", "Recovered", "Recovered", "Recovered", "Dead", "Dead"], [mu_1, mu_2, hospitalisation, sigma_1, sigma_2, sigma_hospital, death_home, death_hospital]], [:from, :to, :prob])
+paramDat =
+    DataFrame([(from="Exposed", to="Asymptomatic", prob=mu_1),
+               (from="Asymptomatic", to="Symptomatic", prob=mu_2),
+               (from="Symptomatic", to="Hospitalised", prob=hospitalisation),
+               (from="Asymptomatic", to="Recovered", prob=sigma_1),
+               (from="Symptomatic", to="Recovered", prob=sigma_2),
+               (from="Hospitalised", to="Recovered", prob=sigma_hospital),
+               (from="Symptomatic", to="Dead", prob=death_home),
+               (from="Hospitalised", to="Dead", prob=death_hospital)])
 
 param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env)
 
@@ -156,7 +164,15 @@ death_home = cfr_home * 2/T_hosp
 # Hospital -> death
 death_hospital = cfr_hosp * 1/T_hosp
 
-paramDat = DataFrame([["Exposed", "Asymptomatic", "Symptomatic", "Asymptomatic", "Symptomatic", "Hospitalised", "Symptomatic", "Hospitalised"], ["Asymptomatic", "Symptomatic", "Hospitalised", "Recovered", "Recovered", "Recovered", "Dead", "Dead"], [mu_1, mu_2, hospitalisation, sigma_1, sigma_2, sigma_hospital, death_home, death_hospital]], [:from, :to, :prob])
+paramDat =
+    DataFrame([(from="Exposed", to="Asymptomatic", prob=mu_1),
+               (from="Asymptomatic", to="Symptomatic", prob=mu_2),
+               (from="Symptomatic", to="Hospitalised", prob=hospitalisation),
+               (from="Asymptomatic", to="Recovered", prob=sigma_1),
+               (from="Symptomatic", to="Recovered", prob=sigma_2),
+               (from="Hospitalised", to="Recovered", prob=sigma_hospital),
+               (from="Symptomatic", to="Dead", prob=death_home),
+               (from="Hospitalised", to="Dead", prob=death_hospital)])
 
 param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env)
 

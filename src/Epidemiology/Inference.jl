@@ -37,7 +37,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
     birth = fill(0.0/day, numclasses)
     death = fill(0.0/day, numclasses)
     param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-    paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma]], [:from, :to, :prob])
+    paramDat = DataFrame([(from="Infected", to="Recovered", prob=sigma)])
 
     # Set up simple gridded environment
     epienv = simplehabitatAE(298.0K, grid_size, area, NoControl())
@@ -162,7 +162,17 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
     # Hospital -> death
     death_hospital = cfr_hospital .* 1/T_hosp
 
-    paramDat = DataFrame([["Exposed", "Exposed", "Presymptomatic", "Symptomatic", "Asymptomatic", "Symptomatic", "Hospitalised", "Symptomatic", "Hospitalised"], ["Asymptomatic", "Presymptomatic", "Symptomatic", "Hospitalised", "Recovered", "Recovered", "Recovered", "Dead", "Dead"], [mu_1, mu_2, mu_3, hospitalisation, sigma_1, sigma_2, sigma_hospital, death_home, death_hospital]], [:from, :to, :prob])
+    paramDat =
+        DataFrame([(from="Exposed", to="Asymptomatic", prob=mu_1),
+                   (from="Exposed", to="Presymptomatic", prob=mu_2),
+                   (from="Presymptomatic", to="Symptomatic", prob=mu_3),
+                   (from="Symptomatic", to="Hospitalised", prob=hospitalisation),
+                   (from="Asymptomatic", to="Recovered", prob=sigma_1),
+                   (from="Symptomatic", to="Recovered", prob=sigma_2),
+                   (from="Hospitalised", to="Recovered", prob=sigma_hospital),
+                   (from="Symptomatic", to="Dead", prob=death_home),
+                   (from="Hospitalised", to="Dead", prob=death_hospital)])
+
 
     param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env, age_mixing = age_mixing)
 
