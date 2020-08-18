@@ -3,6 +3,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
 using Test
+using LinearAlgebra
 
 @testset "mixing" begin
     
@@ -21,9 +22,8 @@ for i in eachindex(mixing_rate)
     birth = fill(0.0/day, numclasses, age_cats)
     death = fill(0.0/day, numclasses, age_cats)
     age_mixing = fill(mixing_rate[i], age_cats, age_cats)
-    for i in 1:age_cats
-        age_mixing[i,i] = 1.0
-    end
+    # Diagonal elements are 1 so we mix with ourselves
+    age_mixing[diagind(age_mixing)] .= 1.0
     beta_force = fill(1.0/day, age_cats)
     beta_env = fill(1.0/day, age_cats)
     sigma = fill(0.02/day, age_cats)

@@ -74,8 +74,8 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
             birthrate = params.virus_growth[i] * timestep * human(epi.abundances)[i, j]
             births = rand(rng, Poisson(birthrate))
 
-            # Update population
-            if (!iszero(births))
+            # Spread force of infection over space
+            if !iszero(births)
                 virusmove!(epi, i, j, epi.cache.virusmigration, births)
             end
         end
@@ -93,30 +93,32 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
 
     function secondloop(j)
         vm = zeros(eltype(epi.cache.virusmigration), ages)
-        # order the work so that the spawned tasks come towards the end of the loop
         for i in classes
-            haskey(firstlooptasks, i) && Threads.wait(firstlooptasks[i])
             # after wait virusmigration[i, j] will be up to date
+            haskey(firstlooptasks, i) && Threads.wait(firstlooptasks[i])
             iszero(epi.cache.virusmigration[i, j]) && continue
             dist = Poisson(epi.cache.virusmigration[i, j])
             epi.cache.virusmigration[i, j] = rand(rng, dist)
+            # Put force of infection from this class into right group
             vm[human_to_force[i]] += epi.cache.virusmigration[i, j]
         end
 
+        # viral species 1 is assumed to be the environmental virus
         traitmatch = traitfun(epi, j, 1)
         deathrate = params.virus_decay * timestep * traitmatch^-1
         # Convert death rate into 0 - 1 probability
         deathprob = 1.0 - exp(-deathrate)
 
-        # Calculate how many births and deaths
+        # Calculate how much virus degrades in the environment
         deaths = rand(rng, Binomial(virus(epi.abundances)[1, j], deathprob))
 
-        # Convert death rate into 0 - 1 probability
-        survivalprob = exp(-deathrate)
+        # Force of infection on average around half of timestep in environment
+        survivalprob = exp(-deathrate/2.0)
 
-        # Calculate how many births and deaths
-        env_virus = rand(rng, Binomial(Int(sum(vm)), survivalprob  * params.env_virus_scale))
+        # So this much force of infection survives in the environment
+        env_virus = rand(rng, Binomial(Int(sum(vm)), survivalprob * params.env_virus_scale))
 
+        # Now update virus in environment and force of infection
         virus(epi.abundances)[1, j] += env_virus - deaths
         virus(epi.abundances)[force_cats, j] .= vm
     end
@@ -164,13 +166,11 @@ function classupdate!(epi::EpiSystem, timestep::Unitful.Time)
     width = getdimension(epi)[1]
     classes = 1:size(human(epi.abundances), 1)
 
-    # Check if grid cell currently active. If inactive skip the inner loop
-    # epi.epienv.active[convert_coords(epi, j, width)...] || continue
-
     human_to_force = epi.epilist.human.human_to_force
     force_cats = epi.epilist.virus.force_cats
 
-    # Loop through grid squares
+    # Convert 1D dimension to 2D coordinates with (x, y) = convert_coords(epi, j, width)
+    # Check which grid cells are active, only iterate along those
     activejindices = findall(j->epi.epienv.active[convert_coords(epi, j, width)...], 1:dims)
     threadedjindices = [activejindices[j:Threads.nthreads():end] for j in 1:Threads.nthreads()]
     @assert all(sort(unique(vcat(threadedjindices...))) .== activejindices)
