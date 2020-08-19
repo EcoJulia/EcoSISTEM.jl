@@ -35,3 +35,12 @@ abuns = zeros(Int64, numclasses, Ncells, convert(Int64, floor(times / interval))
 @test_nowarn SEI3HRD_wrapper!(grid_size, area, param, runparams, abuns)
 
 @test abuns == SEI3HRD_wrapper!(grid_size, area, param, runparams, abuns)
+
+
+# Multiple age categories:
+age_categories = 10
+param = (beta_env = fill(1.0/day, age_categories), beta_force = fill(1.0/day, age_categories), virus_growth_symp = fill(1e-3/day, age_categories), virus_growth_asymp = fill(1e-3/day, age_categories), virus_growth_presymp = fill(1e-3/day, age_categories), virus_decay = 1e-3/day, mean_dispersal_dist = 10.0km)
+runparams = (times = 2years, interval = 1day, timestep = 1day)
+grid_size = (4,4)
+area = 100.0km^2
+@test_nowarn abuns = SEI3HRD_wrapper(grid_size, area, param, runparams, age_categories)

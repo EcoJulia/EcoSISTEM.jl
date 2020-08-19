@@ -101,8 +101,8 @@ Fills an abundance matrice of compartment by grid cell over time. Compartments f
 """
 function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64}, params::NamedTuple, runtimes::NamedTuple, abuns::Array{Int64, 3}, num_ages::Int64 = 1)
     # Set up
-    numclasses = 8 * num_ages
-    numvirus = 2
+    numclasses = 8
+    numvirus = num_ages + 1
     Ncells = grid_size[1] * grid_size[2]
     cat_idx = reshape(1:(numclasses * num_ages), num_ages, numclasses)
 
@@ -122,7 +122,8 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
     # Set simulation parameters & create transition matrices
     birth = fill(0.0/day, numclasses, num_ages)
     death = fill(0.0/day, numclasses, num_ages)
-    ageing = fill(0.0/day, num_ages - 1)
+    age_mixing = fill(1.0, num_ages, num_ages)
+
     # Prob of developing symptoms
     p_s = fill(0.96, num_ages)
     # Prob of hospitalisation
@@ -143,9 +144,9 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
     T_rec = 11days
 
     if num_ages == 1
-        param = SEI3HRDGrowth(birth, death, ageing,  [virus_growth_asymp], [virus_growth_presymp], [virus_growth_symp], virus_decay, [beta_force], [beta_env], p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
+        param = SEI3HRDGrowth(birth, death, age_mixing, [virus_growth_asymp], [virus_growth_presymp], [virus_growth_symp], virus_decay, [beta_force], [beta_env], p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
     else
-        param = SEI3HRDGrowth(birth, death, ageing,  virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
+        param = SEI3HRDGrowth(birth, death, age_mixing,  virus_growth_asymp, virus_growth_presymp, virus_growth_symp, virus_decay, beta_force, beta_env, p_s, p_h, cfr_home, cfr_hospital, T_lat, T_asym, T_presym, T_sym, T_hosp, T_rec)
     end
     param = transition(param, num_ages)
 
@@ -167,7 +168,7 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
         susceptible = ["Susceptible"],
         infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
     )
-    abun_v = (Environment = 0, Force = 0)
+    abun_v = (Environment = 0, Force = fill(0, num_ages))
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(mean_dispersal_dist, Ncells)
