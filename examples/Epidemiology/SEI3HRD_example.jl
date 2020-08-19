@@ -75,7 +75,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     abun_v = (Environment = 0, Force = 0)
 
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(2.0km, numclasses)
+    dispersal_dists = fill(2.0km, length(epienv.active))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 
