@@ -59,11 +59,11 @@ end
 
 function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
       rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
-      Rngtype::Type{R} = Random.MersenneTwister
+      rngtype::Type{R} = Random.MersenneTwister
       ) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
 
   # Create matrix landscape of zero abundances
-  ml = emptyepilandscape(epienv, epilist, intnum, Rngtype)
+  ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
   # Populate this matrix with species abundances
   popfun(ml, epilist, epienv, rel)
   initial_pop = sum(ml.matrix, dims = 1)
@@ -77,14 +77,14 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
-        intnum::U = Int64(1); initial_infected = 0, Rngtype::Type{R} = Random.MersenneTwister
+        intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister
         ) where {U <: Integer, R <: Random.AbstractRNG}
-    return EpiSystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, Rngtype = Rngtype)
+    return EpiSystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype)
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         initial_population::A, intnum::U = Int64(1); initial_infected = 0,
-        Rngtype::Type{R} = Random.MersenneTwister
+        rngtype::Type{R} = Random.MersenneTwister
         ) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
     if size(initial_population) != size(epienv.active)
         msg = "size(initial_population)==$(size(initial_population)) != " *
@@ -94,7 +94,7 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     epienv.active .&= .!_inactive.(initial_population)
 
     # Create matrix landscape of zero abundances
-    ml = emptyepilandscape(epienv, epilist, intnum, Rngtype)
+    ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
 
     # Create lookup table of all moves and their probabilities
     home_lookup = genlookups(epienv, epilist.human.movement.home)
