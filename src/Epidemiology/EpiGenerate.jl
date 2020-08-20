@@ -30,10 +30,9 @@ function seedinfected!(epi::EpiSystem, controls::NoControl, timestep::Unitful.Ti
 end
 
 function seedinfected!(epi::EpiSystem, controls::Lockdown, timestep::Unitful.Time)
-    id = Threads.threadid()
-    rng = epi.abundances.rngs[id]
+    rng = epi.abundances.rngs[Threads.threadid()]
     if (epi.initial_infected > 0) && (controls.current_date < controls.lockdown_date)
-        inf = rand(Poisson(epi.initial_infected * timestep /controls.lockdown_date))
+        inf = rand(rng, Poisson(epi.initial_infected * timestep /controls.lockdown_date))
         sus_id = sample(epi.epilist.human.susceptible, inf)
         exp_id = sus_id .+ length(epi.epilist.human.susceptible)
         summed_exp = sum(human(epi.abundances)[exp_id, :], dims = 1)[1, :]
@@ -58,8 +57,7 @@ function virusupdate!(epi::EpiSystem, timestep::Unitful.Time)
     dims = _countsubcommunities(epi.epienv.habitat)
     width = getdimension(epi)[1]
     params = epi.epilist.params
-    id = Threads.threadid()
-    rng = epi.abundances.rngs[id]
+    rng = epi.abundances.rngs[Threads.threadid()]
     classes = findall((params.virus_growth .* timestep) .> 0)
 
     # Convert 1D dimension to 2D coordinates with convert_coords(epi, j, width)
@@ -237,12 +235,14 @@ Function to populate an EpiLandscape with information on each disease class in t
 function populate!(ml::EpiLandscape, epilist::EpiList, epienv::EE, rel::R) where {EE <: AbstractEpiEnv, R <: AbstractTraitRelationship}
     dim = _getdimension(epienv.habitat)
     len = dim[1] * dim[2]
+
+    rng = ml.rngs[Threads.threadid()]
     # Loop through classes
     for i in eachindex(epilist.human.abun)
-        rand!(ml.rngs[1], Multinomial(epilist.human.abun[i], len), (@view ml.matrix[i, :]))
+        rand!(rng, Multinomial(epilist.human.abun[i], len), (@view ml.matrix[i, :]))
     end
     for i in eachindex(epilist.virus.abun)
-        rand!(ml.rngs[1], Multinomial(epilist.virus.abun[i], len), (@view ml.matrix_v[i, :]))
+        rand!(rng, Multinomial(epilist.virus.abun[i], len), (@view ml.matrix_v[i, :]))
     end
 end
 
