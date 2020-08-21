@@ -2,6 +2,7 @@ using Simulation
 using Unitful.DefaultSymbols
 using Test
 using Simulation.Units
+using DataFrames
 
 @testset "Epi params" begin
     numclasses = 4
@@ -14,7 +15,8 @@ using Simulation.Units
     virus_growth = 0.0001/day
     virus_decay = 0.07/day
     param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-    paramDat = DataFrame([["Infected"], [ "Recovered"], [sigma], [2], [3]], [:from, :to, :prob, :from_ind, :to_ind])
+    paramDat = DataFrame([(from="Infected", to="Recovered", prob=sigma,
+                           from_ind=2, to_ind=3)])
     transition_params = transition(param, paramDat, numclasses, [2], age_categories)
     @test size(transition_params.transition) == size(transition_params.transition_virus)
     @test transition_params.transition[end, :] == death

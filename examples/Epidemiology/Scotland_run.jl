@@ -28,6 +28,27 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     # Read number of age categories
     age_categories = size(scotpop, 3)
 
+    # Set initial population sizes for all pathogen categories
+    abun_v = DataFrame([
+        (name="Environment", initial=0),
+        (name="Force", initial=fill(0, age_categories)),
+    ])
+    numvirus = sum(length.(abun_v.initial))
+
+    # Set population to initially have no individuals
+    abun_h = DataFrame([
+        (name="Susceptible", type=Susceptible, initial=fill(0, age_categories)),
+        (name="Exposed", type=OtherDiseaseState, initial=fill(0, age_categories)),
+        (name="Asymptomatic", type=Infectious, initial=fill(0, age_categories)),
+        (name="Presymptomatic", type=Infectious, initial=fill(0, age_categories)),
+        (name="Symptomatic", type=Infectious, initial=fill(0, age_categories)),
+        (name="Hospitalised", type=OtherDiseaseState, initial=fill(0, age_categories)),
+        (name="Recovered", type=Removed, initial=fill(0, age_categories)),
+        (name="Dead", type=Removed, initial=fill(0, age_categories)),
+    ])
+    numclasses = nrow(abun_h)
+    numstates = sum(length.(abun_h.initial))
+
     # Set up simple gridded environment
     area = (AxisArrays.axes(scotpop, 1)[end] + AxisArrays.axes(scotpop, 1)[2] -
         2 * AxisArrays.axes(scotpop, 1)[1]) *
@@ -41,25 +62,14 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     # Shrink to smallest bounding box. The NaNs are inactive.
     total_pop = shrink_to_active(total_pop);
 
-    # Set simulation parameters
-    numclasses = 8
-    numvirus = age_categories + 1
-    birth_rates = fill(0.0/day, numclasses, age_categories)
-    death_rates = fill(0.0/day, numclasses, age_categories)
-    birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years)
-    death_rates[1:end-1, :] .= uconvert(day^-1, 1/100years)
-    virus_growth_asymp = virus_growth_presymp = virus_growth_symp = fill(0.1/day, age_categories)
-    virus_decay = 1.0/day
-    beta_force = fill(10.0/day, age_categories)
-    beta_env = fill(10.0/day, age_categories)
-    age_mixing = fill(1.0, age_categories, age_categories)
-
     # Prob of developing symptoms
     p_s = fill(0.96, age_categories)
     # Prob of hospitalisation
     p_h = [0.143, 0.143, 0.1141, 0.117, 0.102, 0.125, 0.2, 0.303, 0.303, 0.303]
     # Case fatality ratio
     cfr_home = cfr_hospital = [0.0, 0.002, 0.002, 0.002, 0.004, 0.013, 0.036, 0.08, 0.148, 0.148]
+    @assert length(p_s) == length(p_h) == length(cfr_home)
+
     # Time exposed
     T_lat = 3days
 
@@ -85,7 +95,7 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     # Exposed -> Pre-symptomatic
     mu_2 = p_s .* 1/T_lat
     # Pre-symptomatic -> symptomatic
-    mu_3 = fill(1 / T_presym, length(beta_force))
+    mu_3 = fill(1 / T_presym, age_categories)
     # Symptomatic -> hospital
     hospitalisation = p_h .* 1/T_sym
     # Asymptomatic -> recovered
@@ -99,30 +109,32 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     # Hospital -> death
     death_hospital = cfr_hospital .* 1/T_hosp
 
-    paramDat = DataFrame([["Exposed", "Exposed", "Presymptomatic", "Symptomatic", "Asymptomatic", "Symptomatic", "Hospitalised", "Symptomatic", "Hospitalised"], ["Asymptomatic", "Presymptomatic", "Symptomatic", "Hospitalised", "Recovered", "Recovered", "Recovered", "Dead", "Dead"], [mu_1, mu_2, mu_3, hospitalisation, sigma_1, sigma_2, sigma_hospital, death_home, death_hospital]], [:from, :to, :prob])
+    transitions = DataFrame([
+        (from="Exposed", to="Asymptomatic", prob=mu_1),
+        (from="Exposed", to="Presymptomatic", prob=mu_2),
+        (from="Presymptomatic", to="Symptomatic", prob=mu_3),
+        (from="Symptomatic", to="Hospitalised", prob=hospitalisation),
+        (from="Asymptomatic", to="Recovered", prob=sigma_1),
+        (from="Symptomatic", to="Recovered", prob=sigma_2),
+        (from="Hospitalised", to="Recovered", prob=sigma_hospital),
+        (from="Symptomatic", to="Dead", prob=death_home),
+        (from="Hospitalised", to="Dead", prob=death_hospital)
+    ])
 
-    param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env, age_mixing = age_mixing)
+    # Set simulation parameters
+    birth_rates = fill(0.0/day, numclasses, age_categories)
+    death_rates = fill(0.0/day, numclasses, age_categories)
+    birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years)
+    death_rates[1:end-1, :] .= uconvert(day^-1, 1/100years)
+    virus_growth_asymp = virus_growth_presymp = virus_growth_symp = fill(0.1/day, age_categories)
+    virus_decay = 1.0/day
+    beta_force = fill(10.0/day, age_categories)
+    beta_env = fill(10.0/day, age_categories)
+    age_mixing = fill(1.0, age_categories, age_categories)
+
+    param = (birth = birth_rates, death = death_rates, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env, age_mixing = age_mixing)
 
     epienv = simplehabitatAE(298.0K, size(total_pop), area, Lockdown(20days))
-
-    # Set population to initially have no individuals
-    abun_h = (
-        Susceptible = fill(0, age_categories),
-        Exposed = fill(0, age_categories),
-        Asymptomatic = fill(0, age_categories),
-        Presymptomatic = fill(0, age_categories),
-        Symptomatic = fill(0, age_categories),
-        Hospitalised = fill(0, age_categories),
-        Recovered = fill(0, age_categories),
-        Dead = fill(0, age_categories)
-    )
-
-    disease_classes = (
-        susceptible = ["Susceptible"],
-        infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
-    )
-
-    abun_v = (Environment = 0, Force = fill(0, age_categories))
 
     movement_balance = (home = fill(0.5, numclasses * age_categories), work = fill(0.5, numclasses * age_categories))
 
@@ -137,13 +149,13 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     from = active_cells
     to = sample(active_cells, weights(total_pop[active_cells]), length(active_cells))
     count = round.(total_pop[to]/10)
-    home_to_work = DataFrame([from, to, count], [:from, :to, :count])
+    home_to_work = DataFrame(from=from, to=to, count=count)
     work = Commuting(home_to_work)
     movement = EpiMovement(home, work)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param, age_categories, movement_balance)
+    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param, age_categories, movement_balance)
     rel = Gauss{eltype(epienv.habitat)}()
 
     initial_infecteds = 100

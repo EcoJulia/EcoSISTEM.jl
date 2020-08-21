@@ -7,6 +7,7 @@ using HTTP
 using AxisArrays
 using Unitful.DefaultSymbols
 using Plots
+using DataFrames
 import Dates.DateTime
 
 # Download climate data and write to HDF5
@@ -22,7 +23,7 @@ function run_model(climatearray::AxisArray, times::Unitful.Time, interval::Unitf
     dir = Simulation.path("test", "TEMP")
     file = joinpath(dir, "demographics.h5")
     if do_download
-        mkdir(Simulation.path("test", "TEMP"))
+        !isdir(Simulation.path("test", "TEMP")) && mkdir(Simulation.path("test", "TEMP"))
         io = open(Simulation.path("test", "TEMP", "demographics.h5"), "w")
         r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
         write(io, r.body)
@@ -40,23 +41,31 @@ function run_model(climatearray::AxisArray, times::Unitful.Time, interval::Unitf
         (AxisArrays.axes(scotpop, 2)[end] + AxisArrays.axes(scotpop, 2)[2] -
         2 * AxisArrays.axes(scotpop, 2)[1]) * 1.0
 
+    # Set initial population sizes for all pathogen categories
+    abun_v = DataFrame([
+        (name="Environment", initial=0),
+        (name="Force", initial=fill(0, age_categories)),
+    ])
+    numvirus = nrow(abun_v)
+
+    # Set population to initially have no individuals
+    abun_h = DataFrame([
+        (name="Susceptible", type=Susceptible, initial=fill(0, age_categories)),
+        (name="Exposed", type=OtherDiseaseState, initial=fill(0, age_categories)),
+        (name="Asymptomatic", type=Infectious, initial=fill(0, age_categories)),
+        (name="Presymptomatic", type=Infectious, initial=fill(0, age_categories)),
+        (name="Symptomatic", type=Infectious, initial=fill(0, age_categories)),
+        (name="Hospitalised", type=OtherDiseaseState, initial=fill(0, age_categories)),
+        (name="Recovered", type=Removed, initial=fill(0, age_categories)),
+        (name="Dead", type=Removed, initial=fill(0, age_categories)),
+    ])
+    numclasses = nrow(abun_h)
+    numstates = sum(length.(abun_h.initial))
+
     # Sum up age categories and turn into simple matrix
     total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
     total_pop = AxisArray(total_pop, AxisArrays.axes(scotpop)[1], AxisArrays.axes(scotpop)[2])
     total_pop.data[total_pop .≈ 0.0] .= NaN
-
-    # Set simulation parameters
-    numclasses = 8
-    numvirus = 2
-    birth_rates = fill(0.0/day, numclasses, age_categories)
-    death_rates = fill(0.0/day, numclasses, age_categories)
-    birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years)
-    death_rates[1:end-1, :] .= uconvert(day^-1, 1/100years)
-    virus_growth_asymp = virus_growth_presymp = virus_growth_symp = fill(0.1/day, age_categories)
-    virus_decay = 1.0/day
-    beta_force = fill(10.0/day, age_categories)
-    beta_env = fill(10.0/day, age_categories)
-    ageing = fill(0.0/day, age_categories - 1) # no ageing for now
 
     # Prob of developing symptoms
     p_s = fill(0.96, age_categories)
@@ -76,13 +85,12 @@ function run_model(climatearray::AxisArray, times::Unitful.Time, interval::Unitf
     T_hosp = 5days
     # Time to recovery if symptomatic
     T_rec = 11days
-
     # Exposed -> asymptomatic
     mu_1 = (1 .- p_s) .* 1/T_lat
     # Exposed -> Pre-symptomatic
     mu_2 = p_s .* 1/T_lat
     # Pre-symptomatic -> symptomatic
-    mu_3 = fill(1 / T_presym, length(beta_force))
+    mu_3 = fill(1 / T_presym, age_categories)
     # Symptomatic -> hospital
     hospitalisation = p_h .* 1/T_sym
     # Asymptomatic -> recovered
@@ -96,31 +104,35 @@ function run_model(climatearray::AxisArray, times::Unitful.Time, interval::Unitf
     # Hospital -> death
     death_hospital = cfr_hospital .* 1/T_hosp
 
-    paramDat = DataFrame([["Exposed", "Exposed", "Presymptomatic", "Symptomatic", "Asymptomatic", "Symptomatic", "Hospitalised", "Symptomatic", "Hospitalised"], ["Asymptomatic", "Presymptomatic", "Symptomatic", "Hospitalised", "Recovered", "Recovered", "Recovered", "Dead", "Dead"], [mu_1, mu_2, mu_3, hospitalisation, sigma_1, sigma_2, sigma_hospital, death_home, death_hospital]], [:from, :to, :prob])
+    transitions = DataFrame([
+        (from="Exposed", to="Asymptomatic", prob=mu_1),
+        (from="Exposed", to="Presymptomatic", prob=mu_2),
+        (from="Presymptomatic", to="Symptomatic", prob=mu_3),
+        (from="Symptomatic", to="Hospitalised", prob=hospitalisation),
+        (from="Asymptomatic", to="Recovered", prob=sigma_1),
+        (from="Symptomatic", to="Recovered", prob=sigma_2),
+        (from="Hospitalised", to="Recovered", prob=sigma_hospital),
+        (from="Symptomatic", to="Dead", prob=death_home),
+        (from="Hospitalised", to="Dead", prob=death_hospital)
+    ])
 
-    param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env, age_mixing = age_mixing)
+    # Set simulation parameters
+    birth_rates = fill(0.0/day, numclasses, age_categories)
+    death_rates = fill(0.0/day, numclasses, age_categories)
+    birth_rates[:, 2:4] .= uconvert(day^-1, 1/20years)
+    death_rates[1:end-1, :] .= uconvert(day^-1, 1/100years)
+    virus_growth_asymp = virus_growth_presymp = virus_growth_symp = fill(0.1/day, age_categories)
+    virus_decay = 1.0/day
+    beta_force = fill(10.0/day, age_categories)
+    beta_env = fill(10.0/day, age_categories)
+    ageing = fill(0.0/day, age_categories - 1) # no ageing for now
+    age_mixing = fill(1.0, age_categories, age_categories)
+
+    param = (birth = birth_rates, death = death_rates, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env, age_mixing = age_mixing)
 
     total_pop.data[isnan.(climatearray[:, :, 1])] .= NaN
+    # ! Bug - this final argument is wrong, or a constructor is missing
     epienv = ukclimateAE(climatearray, area, NoControl(), total_pop)
-
-    # Set population to initially have no individuals
-    abun_h = (
-        Susceptible = fill(0, age_categories),
-        Exposed = fill(0, age_categories),
-        Asymptomatic = fill(0, age_categories),
-        Presymptomatic = fill(0, age_categories),
-        Symptomatic = fill(0, age_categories),
-        Hospitalised = fill(0, age_categories),
-        Recovered = fill(0, age_categories),
-        Dead = fill(0, age_categories)
-    )
-
-    disease_classes = (
-        susceptible = ["Susceptible"],
-        infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
-    )
-
-    abun_v = (Environment = 0, Force = 0)
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(20.0km, length(total_pop))
@@ -130,8 +142,8 @@ function run_model(climatearray::AxisArray, times::Unitful.Time, interval::Unitf
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(279.0K, numvirus), fill(5.0K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes,
-                      movement, paramDat, param, age_categories)
+    epilist = EpiList(traits, abun_v, abun_h,
+                      movement, transitions, param, age_categories)
     rel = Gauss{eltype(epienv.habitat)}()
 
     # Create epi system with all information

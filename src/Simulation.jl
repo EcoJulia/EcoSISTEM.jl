@@ -20,6 +20,14 @@ include("ClimatePref/ClimatePref.jl")
 
 end
 
+"""
+    enum: DiseaseState
+    
+    Disease state of a group, from: Susceptible Infectious Removed OtherDiseaseState
+"""
+@enum DiseaseState Susceptible Infectious Removed OtherDiseaseState
+export Susceptible, Infectious, Removed, OtherDiseaseState
+
 include("Biodiversity/Dist.jl")
 export Trapezoid
 
