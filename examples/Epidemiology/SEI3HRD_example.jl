@@ -11,7 +11,6 @@ using Distributions
 
 const stochasticmode = true
 const seed = hash(time()) # seed used for Random.jl and therefore rngs used in Simulation.jl
-const ic_rng = Random.MersenneTwister(0) # rng for initial conditions in this file
 
 Random.seed!(seed)
 
@@ -122,13 +121,13 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     # Add in initial infections randomly (samples weighted by population size)
     N_cells = size(epi.abundances.matrix, 2)
-    samp = sample(ic_rng, 1:N_cells, weights(1.0 .* human(epi.abundances)[1, :]), 100)
-    virus(epi.abundances)[1, samp] .= 100 # Virus pop in Environment
-    human(epi.abundances)[2, samp] .= 10 # Exposed pop
-
+    w = weights(@view human(epi.abundances)[1, :])
+    samp = rand(rngtype(), Multinomial(1000, w/sum(w)))
+    virus(epi.abundances)[1, :] .+= 10 * samp # Virus pop in Environment
+    human(epi.abundances)[2, :] .+= samp # Exposed pop
+    human(epi.abundances)[1, :] .-= samp # Not susceptible
     # Run simulation
-    abuns = zeros(Int64, numclasses, N_cells, 366)
-    times = 2months; interval = 1day; timestep = 1day
+    abuns = zeros(Int64, numclasses, N_cells, floor(Int, times / interval) + 1)
 
     @time simulate_record!(abuns, epi, times, interval, timestep)
 
