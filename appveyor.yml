@@ -29,6 +29,7 @@ install:
 
 build_script:
   - echo "%JL_BUILD_SCRIPT%"
+  - C:\julia\bin\julia -e "%ENV[\"PYTHON\"] = \"\""
   - C:\julia\bin\julia -e "%JL_BUILD_SCRIPT%"
 
 test_script:
