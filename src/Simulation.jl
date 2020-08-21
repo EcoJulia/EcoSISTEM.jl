@@ -20,6 +20,14 @@ include("ClimatePref/ClimatePref.jl")
 
 end
 
+"""
+    enum: DiseaseState
+    
+    Disease state of a group, from: Susceptible Infectious Removed OtherDiseaseState
+"""
+@enum DiseaseState Susceptible Infectious Removed OtherDiseaseState
+export Susceptible, Infectious, Removed, OtherDiseaseState
+
 include("Biodiversity/Dist.jl")
 export Trapezoid
 
@@ -111,7 +119,7 @@ include("Epidemiology/EpiEnv.jl")
 export GridEpiEnv, simplehabitatAE, ukclimateAE
 
 include("Epidemiology/EpiParams.jl")
-export SISGrowth, SIRGrowth, SEIRGrowth, SEIRSGrowth, SEI2HRDGrowth, SEI3HRDGrowth, transition
+export transition
 
 include("Epidemiology/EpiMove.jl")
 export EpiMovement, Commuting

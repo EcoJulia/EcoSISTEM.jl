@@ -108,7 +108,8 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     epi = EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(nm, vm, false), initial_infected)
 
     # Add in the initial susceptible population
-    idx = findfirst(epilist.human.names .== "Susceptible")
+    # TODO Need to fix code so it doesn't rely on name of susceptible class
+    idx = findfirst(occursin.("Susceptible", epilist.human.names))
     if idx == nothing
         msg = "epilist has no Susceptible category. epilist.names = $(epilist.human.names)"
         throw(ArgumentError(msg))

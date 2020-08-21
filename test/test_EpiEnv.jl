@@ -19,7 +19,7 @@ abenv = simplehabitatAE(fillval, grid, area, control)
 @test size(abenv.habitat.matrix) == grid
 @test abenv.active == active
 @test all(abenv.active)
-@test abenv.habitat.size^2 * grid[1] * grid[2] == area
+@test abenv.habitat.size^2 * prod(grid) == area
 
 @testset "Shrink grid" begin
     grid = (10, 10)
