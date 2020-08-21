@@ -104,61 +104,12 @@ function _getdiversityname(el::EpiList)
 end
 
 """
-    EpiList(traits::TR, virus_abun::NamedTuple, human_abun::NamedTuple, disease_classes::NamedTuple, movement::MO, param::P, age_categories::Int64 = 1) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
+    EpiList(traits::TR, virus_abun::DataFrame, human_abun::DataFrame,
+                 movement::MO, transitions::DataFrame, params::NamedTuple,
+                 age_categories::Int64 = 1, movement_balance::NamedTuple = (home = fill(1.0, nrow(human_abun) * age_categories), work = fill(0.0, nrow(human_abun) * age_categories))) where {TR <: AbstractTraits, MO <: AbstractMovement}
 
 Function to create an `EpiList` for any type of epidemiological model - creating the correct number of classes and checking dimensions.
-""" # TODO This function is almost certainly redundant now
-function EpiList(traits::TR, virus_abun::DataFrame, human_abun::DataFrame,
-                 movement::MO, param::P,
-                 age_categories::Int64 = 1, movement_balance::NamedTuple = (home = fill(1.0, length(human_abun) * age_categories), work = fill(0.0, length(human_abun) * age_categories))) where {TR <: AbstractTraits, MO <: AbstractMovement, P <: AbstractParams}
-    # Test for susceptibility/infectiousness categories
-    haskey(disease_classes, :infectious) ||
-        error("Missing 'infectious' key - vector of infectious categories")
-    haskey(disease_classes, :susceptible) ||
-        error("Missing 'susceptible' key - vector of susceptible categories")
-
-    # Extract infectious/susceptible categories
-    susceptible = disease_classes.susceptible
-    infectious = disease_classes.infectious
-
-    # Find their index locations in the names list
-    names = collect(string.(keys(human_abun)))
-    abuns = vcat(collect(human_abun)...)
-#    rm_idx = indexin([susceptible; infectious], abuns)
-#    deleteat!(abuns, rm_idx)
-
-    new_names = [ifelse(i == 1, "$j", "$j$i") for i in 1:age_categories, j in names][1:end]
-    sus = findall(occursin.(susceptible, new_names))
-    inf = vcat(map(i -> findall(occursin.(infectious[i], new_names)),
-                   eachindex(infectious))...)
-    ht = UniqueTypes(length(new_names))
-    human_to_force = repeat(1:age_categories, length(human_abun))
-    human = HumanTypes{typeof(movement), typeof(ht)}(new_names, Int64.(abuns), ht, movement,  movement_balance.home, movement_balance.work, sus, inf, human_to_force)
-
-    virus_names = collect(string.(keys(virus_abun)))
-    # TODO Need to stop "Force" being a required name in the virus list
-    if "Force" ∈ virus_names && length(virus_abun.Force) > 1
-        force_names = ["Force$i" for i in 1:age_categories]
-        force_index = findfirst(==("Force"), virus_names)
-        virus_names = [virus_names[1:(force_index-1)]; force_names; virus_names[(force_index+1):length(virus_names)]]
-    end
-    force_cats = findall(occursin.("Force", virus_names))
-
-    vt = UniqueTypes(length(virus_names))
-    virus = VirusTypes{typeof(traits), typeof(vt)}(virus_names, traits, vcat(collect(virus_abun)...), vt, force_cats)
-
-    length(sus) == length(susceptible) * age_categories ||
-        throw(DimensionMismatch("Number of susceptible categories is incorrect"))
-    length(inf) == length(infectious) * age_categories ||
-        throw(DimensionMismatch("Number of infectious categories is incorrect"))
-    length(traits.mean) == length(virus_names) ||
-        throw(DimensionMismatch("Trait vector doesn't match number of virus classes"))
-    size(param.transition, 1) == length(new_names) ||
-        throw(DimensionMismatch("Transition matrix doesn't match number of disease classes"))
-    return EpiList{typeof(param), typeof(virus), typeof(human)}(virus, human, param)
-end
-
-
+"""
 function EpiList(traits::TR, virus_abun::DataFrame, human_abun::DataFrame,
                  movement::MO, transitions::DataFrame, params::NamedTuple,
                  age_categories::Int64 = 1, movement_balance::NamedTuple = (home = fill(1.0, nrow(human_abun) * age_categories), work = fill(0.0, nrow(human_abun) * age_categories))) where {TR <: AbstractTraits, MO <: AbstractMovement}
