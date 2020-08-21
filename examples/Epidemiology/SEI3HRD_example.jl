@@ -131,11 +131,19 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
 
     @time simulate_record!(abuns, epi, times, interval, timestep)
 
+
     if do_plot
         # View summed SIR dynamics for whole area
         display(plot_epidynamics(epi, abuns))
     end
 end
 
-times = 2days; interval = 1day; timestep = 1day
-abuns = run_model(times, interval, timestep);
+times = 1month; interval = 10day; timestep = 1day
+abuns_run1 = run_model(times, interval, timestep);
+abuns_run2 = run_model(times, interval, timestep);
+
+if stochasticmode
+    abuns_run1 == abuns_run2 && @warn "Stochastic realisations are identical..."
+else
+    abuns_run1 == abuns_run2 || @error "Deterministic runs are different..."
+end

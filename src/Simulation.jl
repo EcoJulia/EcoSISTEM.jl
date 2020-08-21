@@ -22,7 +22,7 @@ end
 
 """
     enum: DiseaseState
-    
+
     Disease state of a group, from: Susceptible Infectious Removed OtherDiseaseState
 """
 @enum DiseaseState Susceptible Infectious Removed OtherDiseaseState
@@ -107,7 +107,7 @@ include("Biodiversity/AdditionalDiversity.jl")
 export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
 
 include("Epidemiology/MedianGenerator.jl")
-export MedianGenerator, median, rand, rand!
+export MedianGenerator
 
 include("Epidemiology/data_utils.jl")
 export parse_hdf5
