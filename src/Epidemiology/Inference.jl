@@ -21,48 +21,48 @@ Fills an abundance matrice of compartment by grid cell over time. Compartments f
 """
 function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64}, params::NamedTuple, runtimes::NamedTuple, abuns::Array{Int64, 3})
     # Set up
-    numclasses = 4
-    numvirus = 2
-    Ncells = grid_size[1] * grid_size[2]
+    Ncells = prod(grid_size)
 
-    # Extract model params from tuple
-    beta_force = params.beta_force
-    beta_env = params.beta_env
+    # Set initial population sizes for all pathogen categories
+    virus = 0
+    abun_v = DataFrame([
+        (name="Environment", initial=virus),
+        (name="Force", initial=0),
+    ])
+    numvirus = nrow(abun_v)
+    
+    # Set initial population sizes for all human categories
+    susceptible = 500_000 * Ncells
+    abun_h = DataFrame([
+        (name="Susceptible", type=Susceptible, initial=susceptible),
+        (name="Infected", type=Infectious, initial=0),
+        (name="Recovered", type=Removed, initial=0),
+        (name="Dead", type=Removed, initial=0),
+    ])
+    numclasses = nrow(abun_h)
+
+    # Set non-pathogen mediated transitions
     sigma = params.sigma
-    virus_growth = params.virus_growth
-    virus_decay = params.virus_decay
-    mean_dispersal_dist = params.mean_dispersal_dist
+    transitions = DataFrame([
+        (from="Infected", to="Recovered", prob=sigma),
+    ])
 
     # Set simulation parameters & create transition matrices
     birth = fill(0.0/day, numclasses)
     death = fill(0.0/day, numclasses)
-    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-    paramDat = DataFrame([(from="Infected", to="Recovered", prob=sigma)])
+    param = (birth = birth, death = death, virus_growth = params.virus_growth, virus_decay = params.virus_decay, beta_env = params.beta_env, beta_force = params.beta_force)
 
     # Set up simple gridded environment
     epienv = simplehabitatAE(298.0K, grid_size, area, NoControl())
 
-    # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-    abun_h = (
-        Susceptible = 500_000 * Ncells,
-        Infected = 0,
-        Recovered = 0,
-        Dead = 0
-    )
-    disease_classes = (
-        susceptible = ["Susceptible"],
-        infectious = ["Infected"]
-    )
-    abun_v = (Environment = 0, Force = 0)
-
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(mean_dispersal_dist, Ncells)
+    dispersal_dists = fill(params.mean_dispersal_dist, Ncells)
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param)
+    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
@@ -100,29 +100,31 @@ Function to simulate SEI3HRD stochastic realisations, given a grid dimension, `g
 Fills an abundance matrice of compartment by grid cell over time. Compartments for the SIR model are: Susceptible, Exposed, Asymptomatic Infected, Pre-symptomatic Infected, Symptomatic Infected, Hospitalised, Recovered, Dead.
 """
 function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64}, params::NamedTuple, runtimes::NamedTuple, abuns::Array{Int64, 3}, num_ages::Int64 = 1)
-    # Set up
-    numclasses = 8
-    numvirus = num_ages + 1
-    Ncells = grid_size[1] * grid_size[2]
-    cat_idx = reshape(1:(numclasses * num_ages), num_ages, numclasses)
 
-    # Extract model params from tuple
-    beta_force = params.beta_force
-    beta_env = params.beta_env
-    virus_growth_asymp = params.virus_growth_asymp
-    virus_growth_presymp = params.virus_growth_presymp
-    virus_growth_symp = params.virus_growth_symp
-    virus_decay = params.virus_decay
-    mean_dispersal_dist = params.mean_dispersal_dist
+    Ncells = prod(grid_size)
 
-    (length(beta_force) == num_ages) && (length(beta_env) == num_ages) || error("Length of beta parameters must equal number of age classes")
+    # Set initial population sizes for all pathogen categories
+    virus = 0
+    abun_v = DataFrame([
+        (name="Environment", initial=virus),
+        (name="Force", initial=fill(0, num_ages)),
+    ])
+    numvirus = sum(length.(abun_v.initial))
 
-    (length(virus_growth_asymp) == num_ages) && (length(virus_growth_presymp) == num_ages) && (length(virus_growth_symp) == num_ages) || error("Length of virus growth parameters must equal number of age classes")
-
-    # Set simulation parameters & create transition matrices
-    birth = fill(0.0/day, numclasses, num_ages)
-    death = fill(0.0/day, numclasses, num_ages)
-    age_mixing = fill(1.0, num_ages, num_ages)
+    # Set initial population
+    abun_h = DataFrame([
+        (name="Susceptible", type=Susceptible, initial=fill(500_000 * Ncells, num_ages)),
+        (name="Exposed", type=OtherDiseaseState, initial=fill(0, num_ages)),
+        (name="Asymptomatic", type=Infectious, initial=fill(0, num_ages)),
+        (name="Presymptomatic", type=Infectious, initial=fill(0, num_ages)),
+        (name="Symptomatic", type=Infectious, initial=fill(0, num_ages)),
+        (name="Hospitalised", type=OtherDiseaseState, initial=fill(0, num_ages)),
+        (name="Recovered", type=Removed, initial=fill(0, num_ages)),
+        (name="Dead", type=Removed, initial=fill(0, num_ages)),
+    ])
+    numclasses = nrow(abun_h)
+    numstates = sum(length.(abun_h.initial))
+    cat_idx = reshape(1:numstates, num_ages, numclasses)
 
     # Prob of developing symptoms
     p_s = fill(0.96, num_ages)
@@ -148,7 +150,7 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
     # Exposed -> Pre-symptomatic
     mu_2 = p_s .* 1/T_lat
     # Pre-symptomatic -> symptomatic
-    mu_3 = fill(1 / T_presym, length(beta_force))
+    mu_3 = fill(1 / T_presym, length(params.beta_force))
     # Symptomatic -> hospital
     hospitalisation = p_h .* 1/T_sym
     # Asymptomatic -> recovered
@@ -162,48 +164,38 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
     # Hospital -> death
     death_hospital = cfr_hospital .* 1/T_hosp
 
-    paramDat =
-        DataFrame([(from="Exposed", to="Asymptomatic", prob=mu_1),
-                   (from="Exposed", to="Presymptomatic", prob=mu_2),
-                   (from="Presymptomatic", to="Symptomatic", prob=mu_3),
-                   (from="Symptomatic", to="Hospitalised", prob=hospitalisation),
-                   (from="Asymptomatic", to="Recovered", prob=sigma_1),
-                   (from="Symptomatic", to="Recovered", prob=sigma_2),
-                   (from="Hospitalised", to="Recovered", prob=sigma_hospital),
-                   (from="Symptomatic", to="Dead", prob=death_home),
-                   (from="Hospitalised", to="Dead", prob=death_hospital)])
+    transitions = DataFrame([
+        (from="Exposed", to="Asymptomatic", prob=mu_1),
+        (from="Exposed", to="Presymptomatic", prob=mu_2),
+        (from="Presymptomatic", to="Symptomatic", prob=mu_3),
+        (from="Symptomatic", to="Hospitalised", prob=hospitalisation),
+        (from="Asymptomatic", to="Recovered", prob=sigma_1),
+        (from="Symptomatic", to="Recovered", prob=sigma_2),
+        (from="Hospitalised", to="Recovered", prob=sigma_hospital),
+        (from="Symptomatic", to="Dead", prob=death_home),
+        (from="Hospitalised", to="Dead", prob=death_hospital),
+    ])
 
+    # Set simulation parameters
+    birth = fill(0.0/day, numclasses, num_ages)
+    death = fill(0.0/day, numclasses, num_ages)
+    age_mixing = fill(1.0, num_ages, num_ages)
 
-    param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env, age_mixing = age_mixing)
+    @assert length(params.beta_force) == length(params.beta_env) == length(params.virus_growth_asymp) == length(params.virus_growth_presymp) == length(params.virus_growth_symp) == num_ages
+
+    param = (birth = birth, death = death, virus_growth = [params.virus_growth_asymp params.virus_growth_presymp params.virus_growth_symp], virus_decay = params.virus_decay, beta_force = params.beta_force, beta_env = params.beta_env, age_mixing = age_mixing)
 
     # Set up simple gridded environment
     epienv = simplehabitatAE(298.0K, grid_size, area, NoControl())
 
-    # Set initial population sizes for all categories: Virus, Susceptible, Infected, Recovered
-    abun_h = (
-        Susceptible = fill(500_000 * Ncells, num_ages),
-        Exposed = fill(0, num_ages),
-        Asymptomatic = fill(0, num_ages),
-        Presymptomatic = fill(0, num_ages),
-        Symptomatic = fill(0, num_ages),
-        Hospitalised = fill(0, num_ages),
-        Recovered = fill(0, num_ages),
-        Dead = fill(0, num_ages)
-    )
-    disease_classes = (
-        susceptible = ["Susceptible"],
-        infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
-    )
-    abun_v = (Environment = 0, Force = fill(0, num_ages))
-
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(mean_dispersal_dist, Ncells)
+    dispersal_dists = fill(params.mean_dispersal_dist, Ncells)
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, paramDat, param, num_ages)
+    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param, num_ages)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
