@@ -57,22 +57,26 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     area = 875_000.0km^2
     epienv = simplehabitatAE(298.0K, size(ukpop), area, NoControl())
 
+    # Set initial population sizes for all pathogen categories
+    abun_v = DataFrame([
+        (name="Environment", initial=0),
+        (name="Force", initial=fill(0, age_categories)),
+    ])
+    numvirus = sum(length.(abun_v.initial))
+
     # Set population to initially have no individuals
-    abun_h = (
-        Susceptible = fill(0, age_categories),
-        Exposed = fill(0, age_categories),
-        Asymptomatic = fill(0, age_categories),
-        Presymptomatic = fill(0, age_categories),
-        Symptomatic = fill(0, age_categories),
-        Hospitalised = fill(0, age_categories),
-        Recovered = fill(0, age_categories),
-        Dead = fill(0, age_categories)
-    )
-    disease_classes = (
-        susceptible = ["Susceptible"],
-        infectious = ["Asymptomatic", "Presymptomatic", "Symptomatic"]
-    )
-    abun_v = (Environment = 0, Force = 0)
+    abun_h = DataFrame([
+        (name="Susceptible", type=Susceptible, initial=fill(0, age_categories)),
+        (name="Exposed", type=OtherDiseaseState, initial=fill(0, age_categories)),
+        (name="Asymptomatic", type=Infectious, initial=fill(0, age_categories)),
+        (name="Presymptomatic", type=Infectious, initial=fill(0, age_categories)),
+        (name="Symptomatic", type=Infectious, initial=fill(0, age_categories)),
+        (name="Hospitalised", type=OtherDiseaseState, initial=fill(0, age_categories)),
+        (name="Recovered", type=Removed, initial=fill(0, age_categories)),
+        (name="Dead", type=Removed, initial=fill(0, age_categories)),
+    ])
+    numclasses = nrow(abun_h)
+    numstates = sum(length.(abun_h.initial))
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(1.0km, numclasses * age_categories)

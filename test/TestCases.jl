@@ -6,6 +6,7 @@ using Unitful.DefaultSymbols
 using Distributions
 using SimulationData.Units
 using Unitful
+using DataFrames
 
 function TestEcosystem()
     numSpecies = 150
@@ -38,40 +39,48 @@ function TestEcosystem()
     return eco
 end
 function TestEpiSystem()
-    numvirus = 2
-    numclasses = 4
-    birth = [fill(1e-5/day, numclasses - 1); 0.0/day]
-    death = [fill(1e-5/day, numclasses - 1); 0.0/day]
-    beta_force = 5.0/day
-    beta_env = 0.5/day
-    sigma = 0.05/day
-    virus_growth = 0.0001/day
-    virus_decay = 0.07/day
-    param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
-    param = transition(param)
-
     grid = (2, 2)
     area = 10.0km^2
     epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
-    abun_h = (
-        Susceptible = 1000,
-        Infected = 1,
-        Recovered = 0,
-        Dead = 0
-    )
-    disease_classes = (
-        susceptible = ["Susceptible"],
-        infectious = ["Infected"]
-    )
-    abun_v = (Environment = 0, Force = 0)
+    # Set initial population sizes for all pathogen categories
+    virus = 0
+    abun_v = DataFrame([
+        (name="Environment", initial=virus),
+        (name="Force", initial=0),
+    ])
+    numvirus = nrow(abun_v)
+    
+    # Set initial population sizes for all human categories
+    abun_h = DataFrame([
+        (name="Susceptible", type=Susceptible, initial=1000),
+        (name="Infected", type=Infectious, initial=1),
+        (name="Recovered", type=Removed, initial=0),
+        (name="Dead", type=Removed, initial=0),
+    ])
+    numclasses = nrow(abun_h)
 
-    dispersal_dists = fill(2.0km, grid[1] * grid[2])
+    # Set non-pathogen mediated transitions
+    sigma = 0.05/day
+    transitions = DataFrame([
+        (from="Infected", to="Recovered", prob=sigma),
+    ])
+
+    # Set simulation parameters
+    birth = [fill(1e-5/day, numclasses - 1); 0.0/day]
+    death = [fill(1e-5/day, numclasses - 1); 0.0/day]
+    beta_force = 5.0/day
+    beta_env = 0.5/day
+    virus_growth = 0.0001/day
+    virus_decay = 0.07/day
+    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
+
+    dispersal_dists = fill(2.0km, prod(grid))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel)
@@ -79,40 +88,48 @@ function TestEpiSystem()
     return epi
 end
 function TestEpiLockdown()
-    numvirus = 2
-    numclasses = 4
+    # Set initial population sizes for all pathogen categories
+    virus = 0
+    abun_v = DataFrame([
+        (name="Environment", initial=virus),
+        (name="Force", initial=0),
+    ])
+    numvirus = nrow(abun_v)
+    
+    # Set initial population sizes for all human categories
+    abun_h = DataFrame([
+        (name="Susceptible", type=Susceptible, initial=1000),
+        (name="Infected", type=Infectious, initial=0),
+        (name="Recovered", type=Removed, initial=0),
+        (name="Dead", type=Removed, initial=0),
+    ])
+    numclasses = nrow(abun_h)
+
+    # Set non-pathogen mediated transitions
+    sigma = 0.05/day
+    transitions = DataFrame([
+        (from="Infected", to="Recovered", prob=sigma),
+    ])
+
+    # Set simulation parameters
     birth = [fill(1e-5/day, numclasses - 1); 0.0/day]
     death = [fill(1e-5/day, numclasses - 1); 0.0/day]
     beta_force = 5.0/day
     beta_env = 0.5/day
-    sigma = 0.05/day
     virus_growth = 0.0001/day
     virus_decay = 0.07/day
-    param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
-    param = transition(param)
+    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
 
     grid = (2, 2)
     area = 10.0km^2
     epienv = simplehabitatAE(298.0K, grid, area, Lockdown(1day))
 
-    abun_h = (
-        Susceptible = 1000,
-        Infected = 0,
-        Recovered = 0,
-        Dead = 0
-    )
-    disease_classes = (
-        susceptible = ["Susceptible"],
-        infectious = ["Infected"]
-    )
-    abun_v = (Environment = 0, Force = 0)
-
-    dispersal_dists = fill(2.0km, grid[1] * grid[2])
+    dispersal_dists = fill(2.0km, prod(grid))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel, initial_infected = 1)
@@ -123,40 +140,47 @@ function TestEpiSystemFromPopulation(
     initial_pop::AbstractMatrix;
     epienv_active=fill(true, size(initial_pop))
 )
-    numclasses = 4
-    numvirus = 2
+    # Set initial population sizes for all pathogen categories
+    virus = 0
+    abun_v = DataFrame([
+        (name="Environment", initial=virus),
+        (name="Force", initial=0),
+    ])
+    numvirus = nrow(abun_v)
+    
+    # Set initial population sizes for all human categories
+    abun_h = DataFrame([
+        (name="Susceptible", type=Susceptible, initial=0),
+        (name="Infected", type=Infectious, initial=1),
+        (name="Recovered", type=Removed, initial=0),
+        (name="Dead", type=Removed, initial=0),
+    ])
+    numclasses = nrow(abun_h)
+
+    # Set non-pathogen mediated transitions
+    sigma = 0.05/day
+    transitions = DataFrame([
+        (from="Infected", to="Recovered", prob=sigma),
+    ])
+
+    # Set simulation parameters
     birth = [fill(1e-5/day, numclasses - 1); 0.0/day]
     death = [fill(1e-5/day, numclasses - 1); 0.0/day]
     beta_force = 5.0/day
     beta_env = 0.5/day
-    sigma = 0.05/day
     virus_growth = 0.0001/day
     virus_decay = 0.07/day
-    param = SIRGrowth{typeof(unit(beta_force))}(birth, death, virus_growth, virus_decay, beta_force, beta_env, sigma)
-    param = transition(param)
+    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
 
     area = 10.0km^2
     epienv = simplehabitatAE(298.0K, size(initial_pop), area, epienv_active, NoControl())
-
-    # Zero susceptible so we can test the specified initial_pop
-    abun_h = (
-        Susceptible = 0,
-        Infected = 1,
-        Recovered = 0,
-        Dead = 0
-    )
-    disease_classes = (
-        susceptible = ["Susceptible"],
-        infectious = ["Infected"]
-    )
-    abun_v = (Environment = 0, Force = 0)
 
     dispersal_dists = fill(2.0km, size(initial_pop, 1) * size(initial_pop, 2))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, disease_classes, movement, param)
+    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
 
     rel = Gauss{eltype(epienv.habitat)}()
     epi = EpiSystem(epilist, epienv, rel, initial_pop)
