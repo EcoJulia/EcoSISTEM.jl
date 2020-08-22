@@ -25,6 +25,7 @@ function rand(::MedianGenerator, dist)
   throw(ArgumentError("rand(::MedianGenerator, dist) not implemented for dist=$dist."))
 end
 rand(::MedianGenerator, dist::Distribution{Univariate,S}) where {S<:ValueSupport} = median(dist)
+rand(::MedianGenerator, dist::Binomial) = median(dist)
 rand(::MedianGenerator, dist::Distribution{Multivariate,S}) where {S<:ValueSupport} = median(dist)
 
 function rand!(::MedianGenerator, dist::Distribution{Multivariate,S},
