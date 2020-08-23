@@ -6,6 +6,13 @@ using Simulation.ClimatePref
 using StatsBase
 using Plots
 using DataFrames
+using Random
+using Distributions
+
+const stochasticmode = true
+const seed = hash(time()) # seed used for Random.jl and therefore rngs used in Simulation.jl
+
+Random.seed!(seed)
 
 function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time, do_plot::Bool = false)
 
@@ -97,7 +104,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     epienv = simplehabitatAE(298.0K, size(scotpop), area, NoControl())
 
     # Dispersal kernels for virus and disease classes
-    dispersal_dists = fill(2.0km, prod(size(epienv.active)))
+    dispersal_dists = fill(2.0km, length(epienv.active))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 
@@ -106,19 +113,24 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
     rel = Gauss{eltype(epienv.habitat)}()
 
+    # multiple dispatch in action
+    rngtype = stochasticmode ? Random.MersenneTwister : MedianGenerator
+
     # Create epi system with all information
-    epi = EpiSystem(epilist, epienv, rel, scotpop)
+    epi = EpiSystem(epilist, epienv, rel, scotpop; rngtype=rngtype)
 
     # Add in initial infections randomly (samples weighted by population size)
     N_cells = size(epi.abundances.matrix, 2)
-    samp = sample(1:N_cells, weights(1.0 .* human(epi.abundances)[1, :]), 100)
-    virus(epi.abundances)[1, samp] .= 100 # Virus pop in Environment
-    human(epi.abundances)[2, samp] .= 10 # Exposed pop
-
+    w = weights(@view human(epi.abundances)[1, :])
+    samp = rand(rngtype(), Multinomial(1000, w/sum(w)))
+    virus(epi.abundances)[1, :] .+= 10 * samp # Virus pop in Environment
+    human(epi.abundances)[2, :] .+= samp # Exposed pop
+    human(epi.abundances)[1, :] .-= samp # Not susceptible
     # Run simulation
-    abuns = zeros(Int64, numclasses, N_cells, 366)
-    times = 2months; interval = 1day; timestep = 1day
+    abuns = zeros(Int64, numclasses, N_cells, floor(Int, times / interval) + 1)
+
     @time simulate_record!(abuns, epi, times, interval, timestep)
+
 
     if do_plot
         # View summed SIR dynamics for whole area
@@ -126,5 +138,12 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     end
 end
 
-times = 2days; interval = 1day; timestep = 1day
-abuns = run_model(times, interval, timestep);
+times = 1month; interval = 10day; timestep = 1day
+abuns_run1 = run_model(times, interval, timestep);
+abuns_run2 = run_model(times, interval, timestep);
+
+if stochasticmode
+    abuns_run1 == abuns_run2 && @warn "Stochastic realisations are identical..."
+else
+    abuns_run1 == abuns_run2 || @error "Deterministic runs are different..."
+end

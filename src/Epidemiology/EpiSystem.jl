@@ -34,8 +34,8 @@ EpiSystem houses information on different disease classes, `epilist`, the enviro
 
 See `help?>plot_epidynamics` and `help?>plot_epiheatmaps` for relevant plotting functions.
 """
-mutable struct EpiSystem{U <: Integer, EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship} <: AbstractEpiSystem{EE, EL, ER}
-  abundances::EpiLandscape{U}
+mutable struct EpiSystem{U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG}, EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship} <: AbstractEpiSystem{EE, EL, ER}
+  abundances::EpiLandscape{U, VecRNGType}
   epilist::EL
   epienv::EE
   ordinariness::Union{Matrix{Float64}, Missing}
@@ -44,29 +44,26 @@ mutable struct EpiSystem{U <: Integer, EE <: AbstractEpiEnv, EL <: EpiList, ER <
   cache::EpiCache
   initial_infected::Int64
   ordered_active::Vector{Int64}
-
-  function EpiSystem{U, EE, EL, ER}(abundances::EpiLandscape{U},
-    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup, cache::EpiCache, initial_infected::Int64) where {U <: Integer, EE <:
-     AbstractEpiEnv,
-    EL <: EpiList, ER <: AbstractTraitRelationship}
-    total_pop = sum(abundances.matrix, dims = 1)[1, :]
-    sorted_grid_ids = sortperm(total_pop, rev = true)
-    sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
-    new{U, EE, EL, ER}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, initial_infected, sorted_grid_ids)
-  end
-  function EpiSystem{U, EE, EL, ER}(abundances::EpiLandscape{U},
-    epilist::EL, epienv::EE, ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup, cache::EpiCache, initial_infected::Int64, ordered_active::Vector{Int64}) where {U <: Integer, EE <:
-     AbstractEpiEnv,
-    EL <: EpiList, ER <: AbstractTraitRelationship}
-    new{U, EE, EL, ER}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, initial_infected, sorted_grid_ids, ordered_active)
-  end
+end
+function EpiSystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv::EE,
+    ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup,
+    cache::EpiCache, initial_infected::Int64
+    ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
+    EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship}
+  total_pop = sum(abundances.matrix, dims = 1)[1, :]
+  sorted_grid_ids = sortperm(total_pop, rev = true)
+  sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
+  return EpiSystem(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, initial_infected, sorted_grid_ids)
 end
 
 function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
-    rel::AbstractTraitRelationship, intnum::U; initial_infected = 0) where {F<:Function, U <: Integer}
+      rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
+      rngtype::Type{R} = Random.MersenneTwister
+      ) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
 
   # Create matrix landscape of zero abundances
-  ml = emptyepilandscape(epienv, epilist, intnum)
+  ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
+
   # Populate this matrix with species abundances
   popfun(ml, epilist, epienv, rel)
   initial_pop = sum(ml.matrix, dims = 1)
@@ -75,14 +72,19 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
   lookup = EpiLookup(home_lookup, work_lookup)
   vm = zeros(Float64, size(ml.matrix))
-  EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected)
+  return EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected)
 end
 
-function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, intnum::U = Int64(1); initial_infected = 0) where U <: Integer
-    return EpiSystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected)
+function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+        intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister
+        ) where {U <: Integer, R <: Random.AbstractRNG}
+    return EpiSystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype)
 end
 
-function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship, initial_population::A, intnum::U = Int64(1); initial_infected = 0) where {U <: Integer, A <: AbstractArray}
+function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+        initial_population::A, intnum::U = Int64(1); initial_infected = 0,
+        rngtype::Type{R} = Random.MersenneTwister
+        ) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
     if size(initial_population) != size(epienv.active)
         msg = "size(initial_population)==$(size(initial_population)) != " *
             "size(epienv.active)==$(size(epienv.active))"
@@ -91,7 +93,7 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     epienv.active .&= .!_inactive.(initial_population)
 
     # Create matrix landscape of zero abundances
-    ml = emptyepilandscape(epienv, epilist, intnum)
+    ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
 
     # Create lookup table of all moves and their probabilities
     home_lookup = genlookups(epienv, epilist.human.movement.home)
@@ -100,8 +102,8 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
 
     vm = zeros(Float64, size(ml.matrix))
 
-    epi = EpiSystem{U, typeof(epienv), typeof(epilist), typeof(rel)}(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected)
-    # epi = EpiSystem(epilist, epienv, rel, intnum)
+    epi = EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected)
+
     # Add in the initial susceptible population
     # TODO Need to fix code so it doesn't rely on name of susceptible class
     idx = findfirst(occursin.("Susceptible", epilist.human.names))
