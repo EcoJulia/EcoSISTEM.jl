@@ -6,3 +6,6 @@ read:
   - where:
       data_product: human/infection/SARS-CoV-2/asymptomatic-period
       component: asymptomatic-period
+  - where:
+      data_product: human/demographics/population/scotland
+      component: grid1km/age/persons

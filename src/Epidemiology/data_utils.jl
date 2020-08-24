@@ -42,3 +42,38 @@ function parse_hdf5(path; grid="10km", component="grid10km/10year/persons")
 
     return population
 end
+
+
+function parse_hdf5(api::DataPipelineAPI; product="human/demographics/population/scotland", component="grid1km/age/persons", aggregate_age=10)
+
+    data = read_array(api, product, component)
+
+    # Get rows and columns
+    distance = data.dimensions[1].units
+    cell_ids = map(x -> parse.(Int, split(x, "-")), data.dimensions[1].names)
+    max_x = maximum(getindex.(cell_ids, 1))
+    max_y = maximum(getindex.(cell_ids, 2))
+
+    # Create empty grid
+    cell_size = parse(Int, split(distance, "km")[1])km
+    n_ages = length(data.dimensions[2].names)
+    agg_years = collect(1:aggregate_age:n_ages)
+    push!(agg_years, n_ages + 1)
+    expanded_agg_years = [agg_years[i]:agg_years[i+1]-1 for i in 1:length(agg_years) - 1]
+    population = AxisArray(
+        zeros(Int, max_x, max_y, length(agg_years)-1),
+        # Placing the coordinates of the cell as the distance between its
+        # origin and origin of the grid.
+        grid_x=[cell_size * (i - 1) for i in 1:max_x],
+        grid_y=[cell_size * (i - 1) for i in 1:max_y],
+        age=[i for i in 0:aggregate_age:(n_ages-1)],
+    )
+
+    # Populate grid
+    data_age = hcat([sum(data.data[i, :], dims = 1)[1, :] for i in expanded_agg_years]...)
+    for (id, pop) in zip(cell_ids, eachrow(data_age))
+        population[grid_x = id[1], grid_y = id[2]] = Int.(pop)
+    end
+
+    return population
+end
