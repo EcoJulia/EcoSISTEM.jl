@@ -44,7 +44,7 @@ function seedinfected!(epi::EpiSystem, controls::Lockdown, timestep::Unitful.Tim
             end
         end
     elseif controls.current_date == controls.lockdown_date
-        println("Lockdown initiated - $(sum(human(epi.abundances)[epi.epilist.human.susceptible .+ length(epi.epilist.human.susceptible), :])) individuals infected")
+        @info "Lockdown initiated - $(sum(human(epi.abundances)[epi.epilist.human.susceptible .+ length(epi.epilist.human.susceptible), :])) individuals infected"
     end
     return controls
 end
