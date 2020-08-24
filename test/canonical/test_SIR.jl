@@ -5,6 +5,8 @@ using Simulation.Units
 using Test
 using DataFrames
 
+@testset "SIR" begin
+
 # sort out settings to potentially save inputs/outputs of `simulate`
 do_save = (@isdefined do_save) ? do_save : false
 save_path = (@isdefined save_path) ? save_path : pwd()
@@ -90,4 +92,6 @@ for j in 2:length(sumabuns)
     for i in 1:numclasses
         @test isapprox(sumabuns[j-1][i, :], sumabuns[j][i, :], rtol = 5e-2)
     end
+end
+
 end

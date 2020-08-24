@@ -46,13 +46,6 @@ end
 Lookup(df::DataFrame) = Lookup(df[!, :X], df[!, :Y], df[!, :Prob],
 zeros(Float64, nrow(df)),zeros(Int64, nrow(df)))
 
-function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
-    realm = _calcabundance(sim, m)
-    return typematch(realm, sim, part) &&
-    counttypes(sim) == size(realm, 1) &&
-    countsubcommunities(part) == size(realm, 2)
-end
-
 
 """
     tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
@@ -115,8 +108,6 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
     SL <: SpeciesList, TR <: AbstractTraitRelationship}
     tematch(spplist, abenv) || error("Traits do not match habitats")
     trmatch(spplist, relationship) || error("Traits do not match trait functions")
-    #_mcmatch(abundances.matrix, spplist, abenv) ||
-    #  error("Dimension mismatch")
     new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
   end
 end
@@ -173,7 +164,7 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
 end
 
 function addspecies!(eco::Ecosystem, abun::Int64)
-    eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(size(eco.abundances.matrix, 2)))
+    eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(1, size(eco.abundances.matrix, 2)))
     eco.abundances.grid = reshape(eco.abundances.matrix, (counttypes(eco.spplist, true)+1, _getdimension(eco.abenv.habitat)...))
     repopulate!(eco, abun)
     push!(eco.spplist.names, string.(counttypes(eco.spplist, true)+1))
@@ -190,7 +181,11 @@ function addtraits!(tr::GaussTrait)
     append!(tr.var, tr.var[end])
 end
 
-addmovement!(mv::AbstractMovement) = append!(mv.kernels, mv.kernels[end])
+function addtraits!(tr::DiscreteTrait)
+    append!(tr.val, rand(tr.val))
+end
+
+addmovement!(mv::AbstractMovement) = push!(mv.kernels, mv.kernels[end])
 
 function addparams!(pr::AbstractParams)
     append!(pr.birth, pr.birth[end])
@@ -550,6 +545,6 @@ function _lookup(relSquareSize::Float64, maxGridSize::Int64,
   lookup_tab = _symmetric_grid(lookup_tab)
   #info(sum(lookup_tab[:, 3]))
   # Normalise
-  lookup_tab[:Prob] = lookup_tab[:Prob]/sum(lookup_tab[:Prob])
+  lookup_tab[!, :Prob] = lookup_tab[!, :Prob]/sum(lookup_tab[!, :Prob])
   lookup_tab
 end

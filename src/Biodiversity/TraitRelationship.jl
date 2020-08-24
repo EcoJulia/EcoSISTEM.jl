@@ -117,7 +117,7 @@ end
 function (::NoRelDiscrete{TR})(niche::TR, pref::TR) where TR
     return 1.0
 end
-iscontinuous(tr::NoRelDiscrete{TR}) where TR = true
+iscontinuous(tr::NoRelDiscrete{TR}) where TR = false
 function eltype(tr::NoRelDiscrete{TR}) where TR
     return TR
 end
@@ -152,7 +152,8 @@ mutable struct multiplicativeTR3{TR1, TR2, TR3} <:
   tr2::TR2
   tr3::TR3
 end
-
+iscontinuous(tr::multiplicativeTR3{TR1, TR2, TR3} ) where {TR1, TR2, TR3} =
+    [iscontinuous(tr.tr1), iscontinuous(tr.tr2), iscontinuous(tr.tr3)]
 function eltype(mtr::multiplicativeTR3)
     return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
 end
