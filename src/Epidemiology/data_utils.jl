@@ -43,10 +43,15 @@ function parse_hdf5(path; grid="10km", component="grid10km/10year/persons")
     return population
 end
 
+"""
+    parse_scottish_population(api::DataPipelineAPI; product="human/demographics/population/scotland", component="grid1km/age/persons", aggregate_age=10)
 
-function parse_hdf5(api::DataPipelineAPI; product="human/demographics/population/scotland", component="grid1km/age/persons", aggregate_age=10)
+Parse HDF5-format file of Scottish Population sizes at `product`, containing `component`. The data can be aggregated by age, `aggregate_age`, but otherwise is binned in yearly intervals, starting at zero and going up to 90+.
+"""
+function parse_scottish_population(api::DataPipelineAPI; product="human/demographics/population/scotland", component="grid1km/age/persons", aggregate_age=10)
 
     data = read_array(api, product, component)
+    data.data[data.data .< 0] .= 0
 
     # Get rows and columns
     distance = data.dimensions[1].units

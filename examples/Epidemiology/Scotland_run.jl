@@ -14,7 +14,7 @@ using Plots
 
 function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
     # Download and read in population sizes for Scotland
-    scotpop = parse_hdf5(api)
+    scotpop = parse_scottish_population(api)
 
     # Read number of age categories
     age_categories = size(scotpop, 3)
@@ -54,7 +54,11 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     total_pop = shrink_to_active(total_pop);
 
     # Prob of developing symptoms
-    p_s = fill(0.96, age_categories)
+    p_s = fill(read_estimate(
+               api,
+               "human/infection/SARS-CoV-2/symptom-probability",
+               "symptom-probability"
+           ), age_categories)
     # Prob of hospitalisation
     p_h = [0.143, 0.143, 0.1141, 0.117, 0.102, 0.125, 0.2, 0.303, 0.303, 0.303]
     # Case fatality ratio
@@ -75,11 +79,23 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     # Time pre-symptomatic
     T_presym = 1.5days
     # Time symptomatic
-    T_sym = 5days
+    T_sym = days(read_estimate(
+        api,
+        "human/infection/SARS-CoV-2/infectious-duration",
+        "infectious-duration"
+    )Unitful.hr) - T_presym
     # Time in hospital
-    T_hosp = 5days
+    T_hosp = read_estimate(
+        api,
+        "fixed-parameters/T_hos",
+        "T_hos"
+    )days
     # Time to recovery if symptomatic
-    T_rec = 11days
+    T_rec = read_estimate(
+        api,
+        "fixed-parameters/T_rec",
+        "T_rec"
+    )days
 
     # Exposed -> asymptomatic
     mu_1 = (1 .- p_s) .* 1/T_lat
@@ -172,7 +188,7 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
 
     # Write to pipeline
-    write_array(api, "simulation-outputs", "final-abundances", DataPipelineArray(abuns))
+    #write_array(api, "simulation-outputs", "final-abundances", DataPipelineArray(abuns))
 
     if do_plot
         # View summed SIR dynamics for whole area
@@ -194,6 +210,7 @@ end
 
 config = "data_config.yaml"
 download_data_registry(config)
+
 times = 2months; interval = 1day; timestep = 1day
 abuns = StandardAPI(config, "test_uri", "test_git_sha") do api
     run_model(api, times, interval, timestep)

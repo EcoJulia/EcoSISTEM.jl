@@ -2,10 +2,33 @@ data_directory: data
 access_log: access-{run_id}.yaml
 fail_on_hash_mismatch: False
 namespace: SCRC
+
 read:
   - where:
       data_product: human/infection/SARS-CoV-2/asymptomatic-period
       component: asymptomatic-period
   - where:
+      data_product: human/infection/SARS-CoV-2/infectious-duration
+      component: infectious-duration
+  - where:
+      data_product: human/infection/SARS-CoV-2/latent-period
+      component: latent-period
+  - where:
+      data_product: human/infection/SARS-CoV-2/symptom-delay
+      component: symptom-delay
+  - where:
+      data_product: human/infection/SARS-CoV-2/symptom-probability
+      component: symptom-probability
+  - where:
       data_product: human/demographics/population/scotland
-      component: grid1km/age/persons
+
+
+namespace: EERA
+
+read:
+  - where:
+      data_product: fixed-parameters/T_hos
+      component: T_hos
+  - where:
+      data_product: fixed-parameters/T_rec
+      component: T_rec

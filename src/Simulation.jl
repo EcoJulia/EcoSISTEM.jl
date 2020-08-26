@@ -110,7 +110,7 @@ include("Epidemiology/MedianGenerator.jl")
 export MedianGenerator
 
 include("Epidemiology/data_utils.jl")
-export parse_hdf5
+export parse_hdf5, parse_scottish_population
 
 include("Epidemiology/EpiControl.jl")
 export NoControl, Lockdown
