@@ -22,6 +22,10 @@ read:
   - where:
       data_product: human/demographics/population/scotland
   - where:
+      data_product: geography/lookup_table/gridcell_admin_area/scotland
+  - where:
+      data_product: records/pollution
+  - where:
       data_product: fixed-parameters/T_hos
       component: T_hos
     use:
