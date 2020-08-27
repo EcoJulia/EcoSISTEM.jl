@@ -59,10 +59,20 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
                "human/infection/SARS-CoV-2/symptom-probability",
                "symptom-probability"
            ), age_categories)
+
+    param_tab = read_table(api, "prob_hosp_and_cfr/data_for_scotland", "cfr_byage")
     # Prob of hospitalisation
-    p_h = [0.143, 0.143, 0.1141, 0.117, 0.102, 0.125, 0.2, 0.303, 0.303, 0.303]
+    p_h = param_tab.p_h[1:end-1] # remove HCW
+    pushfirst!(p_h, p_h[1]) # extend age categories
+    append!(p_h, fill(p_h[end], 2)) # extend age categories
     # Case fatality ratio
-    cfr_home = cfr_hospital = [0.0, 0.002, 0.002, 0.002, 0.004, 0.013, 0.036, 0.08, 0.148, 0.148]
+    cfr_home = param_tab.cfr[1:end-1]
+    pushfirst!(cfr_home, cfr_home[1])
+    append!(cfr_home, fill(cfr_home[end], 2))
+    cfr_hospital = param_tab.p_d[1:end-1]
+    pushfirst!(cfr_hospital, cfr_hospital[1])
+    append!(cfr_hospital, fill(cfr_hospital[end], 2))
+
     @assert length(p_s) == length(p_h) == length(cfr_home)
 
     # Time exposed

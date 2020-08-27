@@ -31,3 +31,8 @@ read:
       component: T_rec
     use:
       namespace: EERA
+  - where:
+      data_product: prob_hosp_and_cfr/data_for_scotland
+      component: cfr_byage
+    use:
+      namespace: EERA
