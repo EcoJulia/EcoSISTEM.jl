@@ -21,14 +21,13 @@ read:
       component: symptom-probability
   - where:
       data_product: human/demographics/population/scotland
-
-
-namespace: EERA
-
-read:
   - where:
       data_product: fixed-parameters/T_hos
       component: T_hos
+    use:
+      namespace: EERA
   - where:
       data_product: fixed-parameters/T_rec
       component: T_rec
+    use:
+      namespace: EERA
