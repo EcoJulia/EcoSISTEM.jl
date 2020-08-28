@@ -2,8 +2,10 @@ using SimulationData
 
 @testset "simulationdata" begin
     config = joinpath("simulationdata", "config.yaml")
+    dataconfig = joinpath("simulationdata", "data_config.yaml")
     accessfile = joinpath("simulationdata", "access-example.yaml")
     remove_accessfile() = rm(accessfile, force=true)
+    remove_data() = rm("simulationdata/human", recursive=true)
 
     # Basic tests to check integration
 
@@ -26,5 +28,16 @@ using SimulationData
         end
         @test isfile(accessfile)
         remove_accessfile()
+    end
+    @testset "Population data" begin
+        download_data_registry(dataconfig)
+        api = StandardAPI(dataconfig, "test_uri", "test_git_sha")
+        scotpop = parse_scottish_population(api)
+        @test isfile("simulationdata/human/demographics/population/scotland/1.0.0/1.0.0.h5")
+        @test size(scotpop) == (465, 691, 10)
+        @test sum(scotpop .< 0) == 0
+        @test sum(scotpop) > 5e6
+        remove_accessfile()
+        remove_data()
     end
 end
