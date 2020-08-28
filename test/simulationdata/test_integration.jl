@@ -5,6 +5,7 @@ using SimulationData
     dataconfig = joinpath("simulationdata", "data_config.yaml")
     accessfile = joinpath("simulationdata", "access-example.yaml")
     remove_accessfile() = rm(accessfile, force=true)
+    remove_metadata() = rm(joinpath("simulationdata", "metadata.yaml"), force=true)
     remove_data() = rm("simulationdata/human", recursive=true)
 
     # Basic tests to check integration
@@ -39,5 +40,6 @@ using SimulationData
         @test sum(scotpop) > 5e6
         remove_accessfile()
         remove_data()
+        remove_metadata()
     end
 end
