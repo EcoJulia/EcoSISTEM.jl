@@ -1,5 +1,5 @@
 data_directory: .
-run_id: example2
+run_id: example
 fail_on_hash_mismatch: False
 namespace: SCRC
 

@@ -2,11 +2,10 @@ using SimulationData
 
 @testset "simulationdata" begin
     config = joinpath("simulationdata", "config.yaml")
-    dataconfig = joinpath("simulationdata", "data_config.yaml")
+    dataconfig = joinpath("simulationdata/demographics", "data_config.yaml")
     accessfile = joinpath("simulationdata", "access-example.yaml")
     remove_accessfile() = rm(accessfile, force=true)
-    remove_metadata() = rm(joinpath("simulationdata", "metadata.yaml"), force=true)
-    remove_data() = rm("simulationdata/human", recursive=true)
+    remove_data() = rm("simulationdata/demographics/human", recursive=true)
 
     # Basic tests to check integration
 
@@ -34,12 +33,10 @@ using SimulationData
         download_data_registry(dataconfig)
         api = StandardAPI(dataconfig, "test_uri", "test_git_sha")
         scotpop = parse_scottish_population(api)
-        @test isfile("simulationdata/human/demographics/population/scotland/1.0.0/1.0.0.h5")
+        @test isfile("simulationdata/demographics/human/demographics/population/scotland/1.0.0/1.0.0.h5")
         @test size(scotpop) == (465, 691, 10)
         @test sum(scotpop .< 0) == 0
         @test sum(scotpop) > 5e6
-        remove_accessfile()
         remove_data()
-        remove_metadata()
     end
 end
