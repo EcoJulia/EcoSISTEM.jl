@@ -76,7 +76,11 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     @assert length(p_s) == length(p_h) == length(cfr_home)
 
     # Time exposed
-    T_lat = 3days
+    T_lat = days(read_estimate(
+        api,
+        "human/infection/SARS-CoV-2/latent-period",
+        "latent-period"
+    )Unitful.hr)
 
     # Time asymptomatic
     T_asym = days(read_estimate(
