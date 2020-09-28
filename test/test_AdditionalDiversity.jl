@@ -59,11 +59,11 @@ tree = eco.spplist.types.tree
 mat = reshape(mapslices(sum, eco.abundances.matrix, dims = 2), 1, 150)
 @rput tree
 @rput mat
-R"library(picante)
-       mat = data.frame(mat, row.names ='eco1')
-       colnames(mat) = tree$tip.label
-       p = pd(mat, tree, include.root=F)"
-@test pd(eco, 1.0)[!, :diversity] ≈ @rget(p)[!, :PD] / mean(heightstoroot(eco.spplist.types.tree))
-@test pd(eco, 1.0)[!, :diversity][1] ≈ sum(map(b -> getlength(eco.spplist.types.tree,b),
-           getbranchnames(eco.spplist.types.tree))) / mean(heightstoroot(eco.spplist.types.tree))
-@test pd(eco, 0.0) == pd(eco, [0.0, 1, 2])
+#R"library(picante)
+#       mat = data.frame(mat, row.names ='eco1')
+#       colnames(mat) = tree$tip.label
+#       p = pd(mat, tree, include.root=F)"
+#@test pd(eco, 1.0)[!, :diversity] ≈ @rget(p)[!, :PD] / mean(heightstoroot(eco.spplist.types.tree))
+#@test pd(eco, 1.0)[!, :diversity][1] ≈ sum(map(b -> getlength(eco.spplist.types.tree,b),
+#           getbranchnames(eco.spplist.types.tree))) / mean(heightstoroot(eco.spplist.types.tree))
+#@test pd(eco, 0.0) == pd(eco, [0.0, 1, 2])

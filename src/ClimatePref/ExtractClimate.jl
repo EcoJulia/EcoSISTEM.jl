@@ -4,6 +4,7 @@ using Simulation.Units
 using AxisArrays
 using NetCDF
 using Compat
+using IndexedTables
 
 import JuliaDB.DIndexedTable
 

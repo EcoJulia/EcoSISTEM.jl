@@ -46,8 +46,8 @@ function ContinuousEvolve(val::Union{Float64, Unitful.Quantity{Float64}},
     assign_traits!(tree, trts)
     # Get traits from tree
     newtrts = get_traits(tree, true)
-    newtrts[:start] = newtrts[:start] .* unit(val)
-    return GaussTrait(newtrts[:start], newtrts[:σ²])
+    newtrts[!, :start] = newtrts[!, :start] .* unit(val)
+    return GaussTrait(newtrts[!, :start], newtrts[!, :σ²])
 end
 
 """
@@ -87,7 +87,7 @@ mutable struct TempBin{C <: Int}<: ContinuousTrait{C}
 end
 iscontinuous(trait::TempBin{C}) where C = true
 function eltype(trait::TempBin{C}) where C
-    return typeof(1.0°C)
+    return typeof(1.0K)
 end
 
 """

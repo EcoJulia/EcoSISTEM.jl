@@ -68,8 +68,8 @@ include("Movement.jl")
 export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel, Torus, Cylinder, NoBoundary
 
 include("Traits.jl")
-export GaussTrait, DiscreteTrait, TempBin,RainBin,
-TraitCollection2, TraitCollection3,DiscreteEvolve,
+export GaussTrait, TempBin, RainBin,
+TraitCollection2, TraitCollection3, DiscreteEvolve,
 ContinuousEvolve
 
 include("Demographics.jl")

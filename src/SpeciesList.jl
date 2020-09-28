@@ -46,8 +46,6 @@ mutable struct SpeciesList{TR <: AbstractTraits,
                        MO <: AbstractMovement,
                        T <: AbstractTypes,
                        P <: AbstractParams}
-      # Check dimensions
-      _simmatch(types)
       # Assign names
       names = map(x -> "$x", 1:length(abun))
       equal_param = equalpop(params, length(names))
@@ -73,14 +71,14 @@ function SpeciesList(numspecies::Int64,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
+    tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
     # Create traits and assign to tips
     trts = DataFrame(trait1 = collect(1:numtraits))
     assign_traits!(tree, switch, trts)
     # Get traits from tree
     sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
     # Create similarity matrix (for now identity)
-    phy = PhyloTypes(tree)
+    phy = PhyloBranches(tree)
     # Draw random set of abundances from distribution
     if length(abun) < numspecies
         abun = vcat(abun, repmat([0], numspecies - length(abun)))
@@ -109,7 +107,7 @@ function SpeciesList(numspecies::Int64,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
+    tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
     # Create traits and assign to tips
     trts = DataFrame(trait1 = collect(1:numtraits))
     assign_traits!(tree, switch, trts)
@@ -124,7 +122,7 @@ function SpeciesList(numspecies::Int64,
     # Multiply density by area to get final population sizes
     abun = round.(Int64, density * area)
     # Create similarity matrix (for now identity)
-    phy = PhyloTypes(tree)
+    phy = PhyloBranches(tree)
     # Draw random set of abundances from distribution
     # error out when abunance and NumberSpecies are not the same (same for energy dist)
     length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
@@ -154,7 +152,7 @@ function SpeciesList(numspecies::Int64,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
+    tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
     # Create traits and assign to tips
     trts = DataFrame(trait1 = collect(1:numtraits))
     assign_traits!(tree, 0.5, trts)
@@ -199,30 +197,6 @@ function SpeciesList(numspecies::Int64,
               req, ty, movement, params, native)
 end
 
-function SpeciesList(tree::AbstractTree,
-    traits::TR, abun::Vector{Int64}, req::R,
-    movement::MO, params::P, native::Vector{Bool}) where
-    {TR<: AbstractTraits, R <: AbstractRequirement,
-        MO <: AbstractMovement, P <: AbstractParams}
-
-    names = sort(getleafnames(tree))
-    numspecies = length(names)
-
-    ty = PhyloTypes(tree)
-
-    # Draw random set of abundances from distribution
-    if length(abun) < numspecies
-        abun = vcat(abun, fill(0, numspecies - length(abun)))
-    end
-    # error out when abun dist and NumberSpecies are not the same (same for energy dist)
-    length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
-                                          doesn't match number species"))
-    length(req)==numspecies || throw(DimensionMismatch("Requirement vector
-                                          doesn't match number species"))
-  SpeciesList{typeof(traits), typeof(req),
-              typeof(movement), typeof(ty),typeof(params)}(names, traits, abun,
-              req, ty, movement, params, native)
-end
 
 function getenergyusage(sppl::SpeciesList)
     return _getenergyusage(sppl.abun, sppl.requirement)
