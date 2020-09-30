@@ -6,3 +6,12 @@ comment:
   require_head: yes       # [yes :: must have a head report to post]
   branches:               # branch names that can post comment
     - "dev"
+coverage:
+  status:
+     project:
+       default:
+         threshold: 0.1%
+ignore:
+  - "src/Epidemiology/data_utils.jl"
+# We can't pull pipeline data through travis currently.
+# Issues with boydorr.ac.uk ftp server.
