@@ -10,7 +10,7 @@ coverage:
   status:
      project:
        default:
-         threshold: 0.1%
+         threshold: 0.2%
 ignore:
   - "src/Epidemiology/data_utils.jl"
 # We can't pull pipeline data through travis currently.
