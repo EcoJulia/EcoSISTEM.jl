@@ -1,7 +1,7 @@
-**Table of datasets currently in use by Simulation.jl**
-
+**Table of datasets currently in use by Simulation.jl**
+
 Preliminary list of parameters/datasets.
-
+
 | Name of parameter/ dataset | Description | Value | Source | Other info (e.g. stability) |
 |----------------------------|-------------|-------|--------|-----------------------------|
 |  p_s                          |     Probability of developing symptoms        |      0.96 |  http://gabgoh.github.io/COVID/index.html (From Thibaud's original model)      |                              |
