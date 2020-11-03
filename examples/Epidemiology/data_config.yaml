@@ -5,20 +5,7 @@ namespace: SCRC
 
 read:
   - where:
-      data_product: human/infection/SARS-CoV-2/asymptomatic-period
-      component: asymptomatic-period
-  - where:
-      data_product: human/infection/SARS-CoV-2/infectious-duration
-      component: infectious-duration
-  - where:
-      data_product: human/infection/SARS-CoV-2/latent-period
-      component: latent-period
-  - where:
-      data_product: human/infection/SARS-CoV-2/symptom-delay
-      component: symptom-delay
-  - where:
-      data_product: human/infection/SARS-CoV-2/symptom-probability
-      component: symptom-probability
+      data_product: human/infection/SARS-CoV-2/*
   - where:
       data_product: human/demographics/population/scotland
   - where:
@@ -26,15 +13,19 @@ read:
   - where:
       data_product: records/pollution
   - where:
+      data_product: human/infection/SARS-CoV-2/hospitalisation-period
+      component: recovery-period
+    use:
+      namespace: EERA
       data_product: fixed-parameters/T_hos
       component: T_hos
+  - where:
+      data_product: human/infection/SARS-CoV-2/recovery-period
+      component: recovery-period
     use:
       namespace: EERA
-  - where:
       data_product: fixed-parameters/T_rec
       component: T_rec
-    use:
-      namespace: EERA
   - where:
       data_product: prob_hosp_and_cfr/data_for_scotland
       component: cfr_byage

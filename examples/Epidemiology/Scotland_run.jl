@@ -101,14 +101,14 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     # Time in hospital
     T_hosp = read_estimate(
         api,
-        "fixed-parameters/T_hos",
-        "T_hos"
+        "human/infection/SARS-CoV-2/hospitalisation-period",
+        "hospitalisation-period"
     )days
     # Time to recovery if symptomatic
     T_rec = read_estimate(
         api,
-        "fixed-parameters/T_rec",
-        "T_rec"
+        "human/infection/SARS-CoV-2/recovery-period",
+        "recovery-period"
     )days
 
     # Exposed -> asymptomatic
