@@ -8,13 +8,14 @@ read:
       data_product: human/infection/SARS-CoV-2/*
   - where:
       data_product: human/demographics/population/scotland
+      version: 1.0.1
   - where:
       data_product: geography/lookup_table/gridcell_admin_area/scotland
   - where:
       data_product: records/pollution
   - where:
       data_product: human/infection/SARS-CoV-2/hospitalisation-period
-      component: recovery-period
+      component: hospitalisation-period
     use:
       namespace: EERA
       data_product: fixed-parameters/T_hos
