@@ -117,7 +117,7 @@ import Diversity.API: _getmetaabundance
 function _getmetaabundance(eco::MPIEcosystem)
     comm = MPI.COMM_WORLD
     ab = sum(_getabundance(eco), dims = 2)
-    return MPI.Allgatherv(ab, eco.sppcounts, comm)
+    return MPI.Allgatherv(VBuffer(ab, eco.sppcounts), comm)
 end
 
 import Diversity.API: _getweight

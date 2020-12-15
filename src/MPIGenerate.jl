@@ -11,7 +11,7 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
     params = eco.spplist.params
     # Set the overall energy budget of that square
     update_energy_usage!(eco)
-    MPI.Allgatherv!(MPI.IN_PLACE, eco.cache.totalE, eco.sccounts, comm)
+    MPI.Allgatherv!(VBuffer(eco.cache.totalE, eco.sccounts), comm)
     eco.cache.valid = true
 
     # Loop through species in chosen square
