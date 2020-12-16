@@ -64,13 +64,13 @@ function emptyMPIgridlandscape(sppcounts::Vector{Int32},
 end
 
 function synchronise_from_rows!(ml::MPIGridLandscape)
-  MPI.Alltoallv!(VBuffer(ml.rows_matrix, ml.rows_tuple.counts),
-                 VBuffer(ml.cols_vector, ml.cols_tuple.counts),
+  MPI.Alltoallv!(MPI.VBuffer(ml.rows_matrix, ml.rows_tuple.counts),
+                 MPI.VBuffer(ml.cols_vector, ml.cols_tuple.counts),
                  MPI.COMM_WORLD)
 end
 
 function synchronise_from_cols!(ml::MPIGridLandscape)
-  MPI.Alltoallv!(VBuffer(ml.cols_vector, ml.cols_tuple.counts),
-                 VBuffer(ml.rows_matrix, ml.rows_tuple.counts),
+  MPI.Alltoallv!(MPI.VBuffer(ml.cols_vector, ml.cols_tuple.counts),
+                 MPI.VBuffer(ml.rows_matrix, ml.rows_tuple.counts),
                  MPI.COMM_WORLD)
 end
