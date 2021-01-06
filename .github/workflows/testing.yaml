@@ -19,8 +19,8 @@ jobs:
       uses: actions/checkout@v1.0.0
     - name: Set up julia
       uses: julia-actions/setup-julia@latest
-        with:
-          version: ${{ matrix.julia-version }}
+      with:
+        version: ${{ matrix.julia-version }}
     - name: Build package
       uses: julia-actions/julia-buildpkg@master
     - name: Running
