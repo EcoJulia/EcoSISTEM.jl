@@ -3,7 +3,7 @@ name: Simulation testing
 # run workflow on push
 on:
   push:
-    branches: master
+    branches: actions
   pull_request:
 
 jobs:
