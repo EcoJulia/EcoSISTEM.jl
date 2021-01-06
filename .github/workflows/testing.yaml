@@ -1,13 +1,12 @@
 name: Simulation testing
 
-# run workflow on push
 on:
   push:
     branches: actions
   pull_request:
 
 jobs:
-  dru-tests:
+  simulation-tests:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -25,7 +24,3 @@ jobs:
       uses: julia-actions/julia-buildpkg@master
     - name: Running
       uses: julia-actions/julia-runtest@master
-    # - name: Run tests
-    #   # env:
-    #   #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
-    #   run: julia --project=test/ test/runtests.jl
