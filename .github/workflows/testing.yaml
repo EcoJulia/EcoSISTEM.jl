@@ -16,7 +16,7 @@ jobs:
         os: [ubuntu-latest, macOS-latest]
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v1.0.0
     - name: Set up julia
       uses: julia-actions/setup-julia@latest
         with:
@@ -25,7 +25,7 @@ jobs:
       uses: julia-actions/julia-buildpkg@master
     - name: Running
       uses: julia-actions/julia-runtest@master
-    - name: Run tests
-      # env:
-      #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
-      run: julia --project=test/ test/runtests.jl
+    # - name: Run tests
+    #   # env:
+    #   #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
+    #   run: julia --project=test/ test/runtests.jl
