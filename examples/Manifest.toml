@@ -936,7 +936,7 @@ version = "0.9.3"
 [[Simulation]]
 deps = ["ArchGDAL", "AxisArrays", "Calculus", "Compat", "DataFrames", "Dates", "Distributions", "Diversity", "EcoBase", "Feather", "HCubature", "HDF5", "IndexedTables", "Interpolations", "JLD", "JuliaDB", "LibGit2", "Libdl", "LinearAlgebra", "Logging", "MPI", "Markdown", "Measures", "Missings", "NetCDF", "Optim", "Phylo", "Plots", "Printf", "RCall", "REPL", "Random", "RecipesBase", "Requires", "SHA", "SpatialEcology", "Statistics", "StatsBase", "UUIDs", "Unitful"]
 git-tree-sha1 = "4c35b27dfc9bf85da97b629216bb55e2b5009b72"
-repo-rev = "mpi-fix"
+repo-rev = "master"
 repo-url = "https://github.com/boydorr/Simulation.jl"
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 version = "0.0.0"
