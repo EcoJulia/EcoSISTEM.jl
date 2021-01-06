@@ -23,6 +23,7 @@ jobs:
           version: ${{ matrix.julia-version }}
     - name: Build package
       uses: julia-actions/julia-buildpkg@master
+    - name: Running
       uses: julia-actions/julia-runtest@master
     - name: Run tests
       # env:
