@@ -17,6 +17,13 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
+    - name: Set up julia
+      uses: julia-actions/setup-julia@latest
+        with:
+          version: ${{ matrix.julia-version }}
+    - name: Build package
+      uses: julia-actions/julia-buildpkg@master
+      uses: julia-actions/julia-runtest@master
     - name: Run tests
       # env:
       #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
