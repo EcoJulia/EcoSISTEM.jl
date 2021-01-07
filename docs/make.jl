@@ -15,6 +15,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/boydorr/Simulation.jl.git/",
+    repo = "github.com/boydorr/Simulation.jl.git",
     push_preview = true,
 )
