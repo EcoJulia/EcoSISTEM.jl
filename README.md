@@ -1,7 +1,7 @@
 # Simulation
+[![][docs-dev-img]][docs-dev-url]
 
 *Package for running dynamic ecosystem simulations*
-
 ![](test/examples/Simulation.gif)
 
 ## Summary
@@ -26,3 +26,5 @@ South America for 80km grid cells and ~60,000 species takes roughly 12 hours. Th
 on HPC using MPI. Scaling up to 36 nodes using MPI worked with 95% efficiency.
 
 [paper-url]: https://arxiv.org/abs/1911.12257
+[docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
+[docs-dev-url]: https://boydorr.github.io/Simulation.jl
