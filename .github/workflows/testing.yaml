@@ -2,7 +2,7 @@ name: Simulation testing
 
 on:
   push:
-    branches: actions
+    branches: master
   pull_request:
 
 jobs:
