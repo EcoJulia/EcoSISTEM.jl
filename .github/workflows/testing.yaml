@@ -1,0 +1,26 @@
+name: Simulation testing
+
+on:
+  push:
+    branches: actions
+  pull_request:
+
+jobs:
+  simulation-tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.4', '1.5']
+        os: [ubuntu-latest, macOS-latest]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Set up julia
+      uses: julia-actions/setup-julia@v1
+      with:
+        version: ${{ matrix.julia-version }}
+    - name: Build package
+      uses: julia-actions/julia-buildpkg@master
+    - name: Running
+      uses: julia-actions/julia-runtest@master
