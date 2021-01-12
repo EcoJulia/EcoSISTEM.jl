@@ -10,3 +10,5 @@ The underlying model for this is described in the arXiv paper [arXiv:1911.12257 
 to environmental and land-use change*.
 
 This package is in alpha now, so please raise an issue if you find any problems.
+
+![](../../test/examples/Simulation.gif)

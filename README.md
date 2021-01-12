@@ -2,7 +2,6 @@
 [![][docs-dev-img]][docs-dev-url]
 
 *Package for running dynamic ecosystem simulations*
-![](test/examples/Simulation.gif)
 
 ## Summary
 
