@@ -27,4 +27,4 @@ on HPC using MPI. Scaling up to 36 nodes using MPI worked with 95% efficiency.
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://boydorr.github.io/Simulation.jl
+[docs-dev-url]: https://boydorr.github.io/Simulation.jl/dev/
