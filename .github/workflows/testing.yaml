@@ -2,7 +2,6 @@ name: Simulation testing
 
 on:
   push:
-    branches: claireh93/actions
   pull_request:
 
 jobs:
