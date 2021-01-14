@@ -11,4 +11,4 @@ to environmental and land-use change*.
 
 This package is in alpha now, so please raise an issue if you find any problems.
 
-![](../../test/examples/Simulation.gif)
+![](test/examples/Simulation.gif)

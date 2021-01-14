@@ -16,7 +16,7 @@ paper [arXiv:1911.12257 (q-bio.QM)][paper-url],
 *Dynamic virtual ecosystems as a tool for detecting large-scale
 responses of biodiversity to environmental and land-use change*.
 Future updates to the package functionality involve incorporating
-age-structure and epidemiological models (see the [epi branch](https://github.com/boydorr/Simulation.jl/tree/epi) for more details).
+age-structure and epidemiological models (see the [SCRC fork](https://github.com/ScottishCovidResponse/Simulation.jl) for more details).
 
 This package is in beta now, so please raise an issue if you find any
 problems. The code has been substantially optimised for speed and can be fully
