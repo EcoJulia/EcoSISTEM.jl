@@ -30,5 +30,5 @@ problems.
 [actions-dev-url]: https://github.com/ScottishCovidResponse/Simulation.jl/actions
 [codecov-dev-img]: https://codecov.io/gh/ScottishCovidResponse/Simulation.jl/branch/dev/graph/badge.svg
 [codecov-dev-url]: https://codecov.io/gh/ScottishCovidResponse/Simulation.jl?branch=dev
-[model-struct-url]: [docs-dev-url]: https://ScottishCovidResponse.github.io/Simulation.jl/dev/model_structure/
-[model-dev-url]: [docs-dev-url]: https://ScottishCovidResponse.github.io/Simulation.jl/dev/model_development/
+[model-struct-url]: https://ScottishCovidResponse.github.io/Simulation.jl/dev/model_structure/
+[model-dev-url]: https://ScottishCovidResponse.github.io/Simulation.jl/dev/model_development/
