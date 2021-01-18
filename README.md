@@ -10,7 +10,7 @@
 provides functionality for simulating species undergoing dynamic
 biological processes such as birth, death, competition and dispersal, as well as environmental changes in climate and habitat. This branch has now been adapted to include basic functionality for spatially explicit, dynamic, stochastic SIR models.
 
-Examples for running small test SIR simulations and scaled up versions (UK and Scotland sized) are available in `examples/Epidemiology`. Documentation of model structure can be found [here](model-struct-url) and ideas for model development [here](model-dev-url).
+Examples for running small test SIR simulations and scaled up versions (UK and Scotland sized) are available in `examples/Epidemiology`. Documentation of model structure can be found [here]([model-struct-url]) and ideas for model development [here]([model-dev-url]).
 
 The package was primarily developed for global scale simulations of
 plant biodiversity. The underlying model for this is described in the arXiv paper [arXiv:1911.12257 (q-bio.QM)][paper-url],
