@@ -10,7 +10,7 @@
 provides functionality for simulating species undergoing dynamic
 biological processes such as birth, death, competition and dispersal, as well as environmental changes in climate and habitat. This branch has now been adapted to include basic functionality for spatially explicit, dynamic, stochastic SIR models.
 
-Examples for running small test SIR simulations and scaled up versions (UK and Scotland sized) are available in `examples/Epidemiology`. Documentation of model structure can be found [here](docs/Structure_gh.md) and ideas for model development [here](docs/Design.md).
+Examples for running small test SIR simulations and scaled up versions (UK and Scotland sized) are available in `examples/Epidemiology`. Documentation of model structure can be found [here](docs-dev-url/model_structure/) and ideas for model development [here](docs-dev-url/model_development/).
 
 The package was primarily developed for global scale simulations of
 plant biodiversity. The underlying model for this is described in the arXiv paper [arXiv:1911.12257 (q-bio.QM)][paper-url],
@@ -26,9 +26,6 @@ problems.
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [docs-dev-url]: https://ScottishCovidResponse.github.io/Simulation.jl/dev
-[travis-dev-img]: https://travis-ci.org/ScottishCovidResponse/Simulation.jl.svg?branch=dev
-[travis-dev-url]: https://travis-ci.org/ScottishCovidResponse/Simulation.jl?branch=dev
-
 [actions-dev-img]: https://github.com/ScottishCovidResponse/Simulation.jl/workflows/Simulation%20testing/badge.svg
 [actions-dev-url]: https://github.com/ScottishCovidResponse/Simulation.jl/actions
 [codecov-dev-img]: https://codecov.io/gh/ScottishCovidResponse/Simulation.jl/branch/dev/graph/badge.svg
