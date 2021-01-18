@@ -1,5 +1,5 @@
 # Simulation
-[![][docs-dev-img]][docs-dev-url]
+[![][docs-dev-img]][docs-dev-url] [![][actions-img]][actions-url] [![][codecov-img]][codecov-url]
 
 *Package for running dynamic ecosystem simulations*
 ![](test/examples/Simulation.gif)
@@ -28,3 +28,7 @@ on HPC using MPI. Scaling up to 36 nodes using MPI worked with 95% efficiency.
 [paper-url]: https://arxiv.org/abs/1911.12257
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [docs-dev-url]: https://boydorr.github.io/Simulation.jl/dev/
+[actions-img]: https://github.com/boydorr/Simulation.jl/workflows/Simulation%20testing/badge.svg
+[actions-url]: https://github.com/boydorr/Simulation.jl/actions
+[codecov-img]: https://codecov.io/gh/ScottishCovidResponse/Simulation.jl/branch/master/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/ScottishCovidResponse/Simulation.jl?branch=master
