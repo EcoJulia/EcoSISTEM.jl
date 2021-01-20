@@ -107,17 +107,18 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
   relationship::TR
   lookup::Vector{Lookup}
   cache::Cache
+  transitions::TransitionList
 
   function Ecosystem{Part, SL, TR}(abundances::GridLandscape,
     spplist::SL, abenv::Part, ordinariness::Union{Matrix{Float64}, Missing},
-    relationship::TR, lookup::Vector{Lookup}, cache::Cache) where {Part <:
+    relationship::TR, lookup::Vector{Lookup}, cache::Cache, transitions::TransitionList) where {Part <:
      AbstractAbiotic,
     SL <: SpeciesList, TR <: AbstractTraitRelationship}
     tematch(spplist, abenv) || error("Traits do not match habitats")
     trmatch(spplist, relationship) || error("Traits do not match trait functions")
     #_mcmatch(abundances.matrix, spplist, abenv) ||
     #  error("Dimension mismatch")
-    new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
+    new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache, transitions)
   end
 end
 
@@ -163,8 +164,9 @@ function Ecosystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::GridAb
   lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.movement)))
   nm = zeros(Int64, size(ml.matrix))
   totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
+  transitions = create_transitions(spplist, abenv)
   Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
-  missing, rel, lookup_tab, Cache(nm, totalE, false))
+  missing, rel, lookup_tab, Cache(nm, totalE, false), transitions)
 end
 
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,

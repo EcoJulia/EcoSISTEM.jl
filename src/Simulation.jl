@@ -84,9 +84,15 @@ export GridLandscape, CachedGridLandscape
 include("MPILandscape.jl")
 export MPIGridLandscape
 
+include("transitions.jl")
+export create_transitions
+
 include("Ecosystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
  getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
+
+include("transition_generate.jl")
+export run_rule!, new_update!, new_simulate!, new_simulate_record!
 
 include("MPIEcosystem.jl")
 export MPIEcosystem, gather_abundance!, gather_diversity
