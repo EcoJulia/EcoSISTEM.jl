@@ -42,24 +42,6 @@ mutable struct BirthDeathProcess{U <: Unitful.Units} <: AbstractStateTransition
     death::DeathProcess{U}
 end
 
-mutable struct Exposure
-    species::Int64
-    location::Int64
-    prob::Unitful.Quantity
-end
-
-mutable struct Infection
-    species::Int64
-    location::Int64
-    prob::Unitful.Quantity
-end
-
-mutable struct Recovery
-    species::Int64
-    location::Int64
-    prob::Unitful.Quantity
-end
-
 mutable struct AllDisperse <: AbstractPlaceTransition
     species::Int64
     location::Int64
