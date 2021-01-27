@@ -1,5 +1,5 @@
 using HDF5
-
+using SQLite
 """
     parse_hdf5(path; grid="10k", component="scotland_2018")
 
@@ -84,25 +84,25 @@ end
 # end
 #
 #
-# function get_3d_km_grid_axis_array(cn::SQLite.DB, dims::Array{String,1}, msr::String, tbl::String)
-#     sel_sql = ""
-#     dim_ax = []
-#     for i in eachindex(dims)
-#         sel_sql = string(sel_sql, dims[i], ",")
-#         dim_st = SQLite.Stmt(cn, string("SELECT DISTINCT ", dims[i], " AS val FROM ", tbl, " ORDER BY ", dims[i]))
-#         dim_vals = SQLite.DBInterface.execute(dim_st) |> DataFrames.DataFrame
-#         av = i < 3 ? [(v)km for v in dim_vals.val] : dim_vals.val   # unit conversion
-#         push!(dim_ax, AxisArrays.Axis{Symbol(dims[i])}(av))
-#     end
-#     sel_sql = string("SELECT ", sel_sql, " SUM(", msr, ") AS val\nFROM ", tbl, "\nGROUP BY ", rstrip(sel_sql, ','))
-#     stmt = SQLite.Stmt(cn, sel_sql)
-#     df = SQLite.DBInterface.execute(stmt) |> DataFrames.DataFrame
-#     ## scottish population AxisArray
-#     axis_size = Tuple(Int64[length(d) for d in dim_ax])
-#     # data = zeros(typeof(df.val[1]), axis_size)
-#     output = AxisArrays.AxisArray(zeros(typeof(df.val[1]), axis_size), Tuple(dim_ax))
-#     for row in eachrow(df)
-#         output[AxisArrays.atvalue(row[Symbol(dims[1])]km), AxisArrays.atvalue(row[Symbol(dims[2])]km), AxisArrays.atvalue(row[Symbol(dims[3])])] = row.val
-#     end
-#     return output
-# end
+function get_3d_km_grid_axis_array(cn::SQLite.DB, dims::Array{String,1}, msr::String, tbl::String)
+    sel_sql = ""
+    dim_ax = []
+    for i in eachindex(dims)
+        sel_sql = string(sel_sql, dims[i], ",")
+        dim_st = SQLite.Stmt(cn, string("SELECT DISTINCT ", dims[i], " AS val FROM ", tbl, " ORDER BY ", dims[i]))
+        dim_vals = SQLite.DBInterface.execute(dim_st) |> DataFrames.DataFrame
+        av = i < 3 ? [(v)km for v in dim_vals.val] : dim_vals.val   # unit conversion
+        push!(dim_ax, AxisArrays.Axis{Symbol(dims[i])}(av))
+    end
+    sel_sql = string("SELECT ", sel_sql, " SUM(", msr, ") AS val\nFROM ", tbl, "\nGROUP BY ", rstrip(sel_sql, ','))
+    stmt = SQLite.Stmt(cn, sel_sql)
+    df = SQLite.DBInterface.execute(stmt) |> DataFrames.DataFrame
+    ## scottish population AxisArray
+    axis_size = Tuple(Int64[length(d) for d in dim_ax])
+    # data = zeros(typeof(df.val[1]), axis_size)
+    output = AxisArrays.AxisArray(zeros(typeof(df.val[1]), axis_size), Tuple(dim_ax))
+    for row in eachrow(df)
+        output[AxisArrays.atvalue(row[Symbol(dims[1])]km), AxisArrays.atvalue(row[Symbol(dims[2])]km), AxisArrays.atvalue(row[Symbol(dims[3])])] = row.val
+    end
+    return output
+end
