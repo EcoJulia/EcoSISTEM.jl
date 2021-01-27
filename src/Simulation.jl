@@ -2,10 +2,6 @@ module Simulation
 
 using Unitful
 using Unitful.DefaultSymbols
-using SimulationData
-using SimulationData.Units
-
-
 
 
 module ClimatePref
@@ -19,6 +15,8 @@ env_bool(key, default=false) = haskey(ENV, key) ? lowercase(ENV[key]) ∉ ["0","
 include("ClimatePref/ClimatePref.jl")
 
 end
+
+include("units.jl")
 
 """
     enum: DiseaseState
