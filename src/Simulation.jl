@@ -3,6 +3,7 @@ module Simulation
 using Unitful
 using Unitful.DefaultSymbols
 
+include("units.jl")
 
 module ClimatePref
 
@@ -16,7 +17,6 @@ include("ClimatePref/ClimatePref.jl")
 
 end
 
-include("units.jl")
 
 """
     enum: DiseaseState
