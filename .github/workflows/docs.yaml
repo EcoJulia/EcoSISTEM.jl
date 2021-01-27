@@ -3,7 +3,7 @@ name: Documentation
 on:
   push:
     branches:
-      - doc-improv
+      - master
     tags: '*'
   pull_request:
 
