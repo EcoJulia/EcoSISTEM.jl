@@ -149,7 +149,7 @@ version = "0.20.2"
 
 [[DataRegistryUtils]]
 deps = ["AxisArrays", "DataFrames", "Dates", "FTPClient", "HDF5", "HTTP", "JSON", "SHA", "SQLite", "TOML", "YAML"]
-git-tree-sha1 = "549f138383ddb152adc78cf9356e60a341851074"
+git-tree-sha1 = "f34ec4977dd5213274fa2e3900a5c947456f4a60"
 repo-rev = "main"
 repo-url = "https://github.com/ScottishCovidResponse/DataRegistryUtils.jl.git"
 uuid = "1a5903ec-9658-4297-bb6d-314c615f2e02"

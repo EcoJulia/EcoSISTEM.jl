@@ -36,6 +36,7 @@ access*
 **/*.txt
 **/*.h5
 examples/**/*.toml
+out/**/*.toml
 
 # General #
 ###########
