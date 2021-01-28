@@ -166,14 +166,14 @@ function initialise_output_abuns(
     # - initialise HDF5 file
     h5open(h5fn, "w") do fid
         # - create group
-        group = g_create(fid, "abundances")
+        group = h5g_create(fid, "abundances")
         attrs(group)["Description"] = string(
             "Contains the abundances for each compartment and geographic location ",
             "through the simulation duration."
         )
         # - add data to the group
         # initialise abuns 3D array
-        dset_abuns = d_create(
+        dset_abuns = h5d_create(
             group,
             "abuns",
             datatype(eltype(abuns)),
