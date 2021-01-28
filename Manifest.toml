@@ -125,6 +125,11 @@ git-tree-sha1 = "a2a6a5fea4d6f730ec4c18a76d27ec10e8ec1c50"
 uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
 version = "1.0.0"
 
+[[DBInterface]]
+git-tree-sha1 = "441a377eb7f994cd454b7c45f29f911ce0d42ce0"
+uuid = "a10d1c49-ce27-4219-8d33-6db1a4562965"
+version = "2.4.0"
+
 [[Dagger]]
 deps = ["Distributed", "LinearAlgebra", "MemPool", "Profile", "Random", "Serialization", "SharedArrays", "SparseArrays", "Statistics", "StatsBase", "Test"]
 git-tree-sha1 = "39dd9351c6637a71d1925e26e49adcd8a25ebf0b"
@@ -138,13 +143,13 @@ version = "1.4.1"
 
 [[DataFrames]]
 deps = ["CategoricalArrays", "Compat", "DataAPI", "Future", "InvertedIndices", "IteratorInterfaceExtensions", "Missings", "PooledArrays", "Printf", "REPL", "Reexport", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
-git-tree-sha1 = "00136fcd39d503e66ab1b2eab800c47deaf7ca04"
+git-tree-sha1 = "7d5bf815cc0b30253e3486e8ce2b93bf9d0faff6"
 uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-version = "0.20.0"
+version = "0.20.2"
 
 [[DataRegistryUtils]]
 deps = ["AxisArrays", "DataFrames", "Dates", "FTPClient", "HDF5", "HTTP", "JSON", "SHA", "SQLite", "TOML", "YAML"]
-git-tree-sha1 = "0b357efdacfeb01cb02235562bc9714bf2805222"
+git-tree-sha1 = "549f138383ddb152adc78cf9356e60a341851074"
 repo-rev = "main"
 repo-url = "https://github.com/ScottishCovidResponse/DataRegistryUtils.jl.git"
 uuid = "1a5903ec-9658-4297-bb6d-314c615f2e02"
@@ -250,9 +255,9 @@ version = "1.2.1"
 
 [[Feather]]
 deps = ["Arrow", "CategoricalArrays", "DataFrames", "Dates", "FlatBuffers", "Mmap", "Tables"]
-git-tree-sha1 = "f00ed0cadaa2ff0ee31340482f3fbf9321ad2499"
+git-tree-sha1 = "bccb9825b129604bf6282681391ac1cdd4340fb5"
 uuid = "becb17da-46f6-5d3c-ad1b-1c5fe96bc73c"
-version = "0.5.4"
+version = "0.5.5"
 
 [[FileIO]]
 deps = ["Pkg"]
@@ -362,10 +367,10 @@ uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 version = "0.9.2"
 
 [[IndexedTables]]
-deps = ["DataAPI", "DataValues", "Distributed", "IteratorInterfaceExtensions", "OnlineStatsBase", "PooledArrays", "SparseArrays", "Statistics", "StructArrays", "TableTraits", "TableTraitsUtils", "Tables", "WeakRefStrings"]
-git-tree-sha1 = "57635c168763748fedd8282587a85cbd58d7ec9a"
+deps = ["DataValues", "Dates", "IteratorInterfaceExtensions", "LinearAlgebra", "OnlineStats", "PooledArrays", "Random", "Serialization", "SparseArrays", "Statistics", "TableTraits", "TableTraitsUtils", "Test", "WeakRefStrings"]
+git-tree-sha1 = "cb4406eeed8729f8179940d39e6dec5598971341"
 uuid = "6deec6e2-d858-57c5-ab9b-e6ca5bd20e43"
-version = "0.12.4"
+version = "0.8.1"
 
 [[Inflate]]
 git-tree-sha1 = "f5fc07d4e706b84f72d54eedcc1c13d92fb0871c"
@@ -452,10 +457,10 @@ uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "2.0.1+3"
 
 [[JuliaDB]]
-deps = ["Dagger", "DataValues", "Distributed", "Glob", "IndexedTables", "MemPool", "Nullables", "OnlineStats", "OnlineStatsBase", "PooledArrays", "Printf", "RecipesBase", "Serialization", "Statistics", "StatsBase", "Test", "TextParse", "WeakRefStrings"]
-git-tree-sha1 = "958bda10d25cca244e5d506785188079c77f2ac8"
+deps = ["Dagger", "DataValues", "Dates", "Distributed", "Glob", "IndexedTables", "MemPool", "Nullables", "OnlineStats", "OnlineStatsBase", "PooledArrays", "Printf", "Random", "RecipesBase", "Serialization", "Statistics", "StatsBase", "Test", "TextParse", "WeakRefStrings"]
+git-tree-sha1 = "83cfc7566e079721ab9c2b19efa6a26bc5ba9d20"
 uuid = "a93385a2-3734-596a-9a66-3cfbb77141e6"
-version = "0.12.0"
+version = "0.9.0"
 
 [[JuliaInterpreter]]
 deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
@@ -807,10 +812,10 @@ version = "0.2.2+1"
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 
 [[SQLite]]
-deps = ["BinaryProvider", "DataFrames", "Dates", "Libdl", "Random", "Serialization", "Tables", "Test", "WeakRefStrings"]
-git-tree-sha1 = "5c53dd3d239c327812cba66b110c4789e87942c8"
+deps = ["BinaryProvider", "DBInterface", "Dates", "Libdl", "Random", "SQLite_jll", "Serialization", "Tables", "Test", "WeakRefStrings"]
+git-tree-sha1 = "94cebc0035ada5ad4e00c16c648e667535fef9ab"
 uuid = "0aa819cd-b072-5ff4-a722-6bc24af294d9"
-version = "0.9.0"
+version = "1.1.0"
 
 [[SQLite_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
@@ -872,12 +877,6 @@ git-tree-sha1 = "3b9f665c70712af3264b61c27a7e1d62055dafd1"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 version = "0.9.6"
 
-[[StructArrays]]
-deps = ["PooledArrays", "Tables", "WeakRefStrings"]
-git-tree-sha1 = "e860d3808176ace576a45d658ba80d7c815bf1ce"
-uuid = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
-version = "0.4.1"
-
 [[SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
@@ -914,9 +913,9 @@ version = "1.0.1"
 
 [[Tables]]
 deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "TableTraits", "Test"]
-git-tree-sha1 = "aaed7b3b00248ff6a794375ad6adf30f30ca5591"
+git-tree-sha1 = "8dc2bb7d3548e315d890706547b24502ed79504f"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "0.2.11"
+version = "1.3.1"
 
 [[Test]]
 deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
