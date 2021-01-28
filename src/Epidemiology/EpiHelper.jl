@@ -4,6 +4,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
 
+import HDF5: ishdf5
 """
     simulate!(
         epi::AbstractEpiSystem,
@@ -167,7 +168,7 @@ function initialise_output_abuns(
     h5open(h5fn, "w") do fid
         # - create group
         group = create_group(fid, "abundances")
-        attrs(group)["Description"] = string(
+        attributes(group)["Description"] = string(
             "Contains the abundances for each compartment and geographic location ",
             "through the simulation duration."
         )
@@ -178,8 +179,7 @@ function initialise_output_abuns(
             "abuns",
             datatype(eltype(abuns)),
             dataspace(size(abuns)),
-            "chunk",
-            (size.(Ref(abuns), [1,2])...,1)
+            chunk=(size.(Ref(abuns), [1,2])...,1)
         )
         # fill in axes information
         for k in keys(axes)

@@ -27,6 +27,16 @@ deps/src/
 docs/build/
 docs/site/
 
+# Files generated when running data pipeline or saving output
+access*
+**/*.jld
+**/*.jlso
+**/*.pdf
+**/*.csv
+**/*.txt
+**/*.h5
+examples/**/*.toml
+
 # General #
 ###########
 
