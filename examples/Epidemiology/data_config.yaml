@@ -5,7 +5,17 @@ namespace: SCRC
 
 read:
   - where:
-      data_product: human/infection/SARS-CoV-2/*
+      data_product: human/infection/SARS-CoV-2/asymptomatic-period
+      component: asymptomatic-period
+  - where:
+      data_product: human/infection/SARS-CoV-2/infectious-duration
+      component: infectious-duration
+  - where:
+      data_product: human/infection/SARS-CoV-2/latent-period
+      component: latent-period
+  - where:
+      data_product: human/infection/SARS-CoV-2/symptom-probability
+      component: symptom-probability
   - where:
       data_product: human/demographics/population/scotland
       version: 1.0.1
