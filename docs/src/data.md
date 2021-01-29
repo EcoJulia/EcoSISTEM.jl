@@ -2,7 +2,7 @@
 
 This page summarises the basic usage of the data pipeline.
 For more information see the [`DataRegistryUtils.jl`](https://github.com/ScottishCovidResponse/DataRegistryUtils.jl)
-repository.
+repository and [documentation](https://scottishcovidresponse.github.io/DataRegistryUtils.jl/stable/).
 
 ## Wrapper structure
 
