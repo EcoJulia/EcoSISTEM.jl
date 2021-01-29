@@ -37,6 +37,7 @@ access*
 **/*.h5
 examples/**/*.toml
 out/**/*.toml
+**/*.db
 
 # General #
 ###########
