@@ -4,9 +4,9 @@ This page summarises the basic usage of the data pipeline.
 For more information see the [`DataRegistryUtils.jl`](https://github.com/ScottishCovidResponse/DataRegistryUtils.jl)
 repository and [documentation](https://scottishcovidresponse.github.io/DataRegistryUtils.jl/stable/).
 
-## Wrapper structure
+## Overview
 
-This package uses `DataRegistryUtils.jl`, which provides a Julia interaction with the [SCRC data registry](https://data.scrc.uk).
+This package uses `DataRegistryUtils.jl`, which provides a Julia interaction with the [SCRC data registry](https://data.scrc.uk). An overview of the pipeline itself can be found [here](https://scottishcovidresponse.github.io).
 
 ## Basic flow
 
@@ -14,12 +14,8 @@ The basic flow is as follows:
 
 1. Write a `config.yaml` file, which specifies the data products which you need.
 2. Download the specified data products from the registry.
-3. From within your model script, use the `StandardAPI` from [`SimulationData.jl`](https://github.com/ScottishCovidResponse/SimulationData.jl) to read the data.
-4. Use the same API to write model outputs.
-
-Use a single instantiation of the API for the entire model run, for reading and writing.
-
-These steps are outlined in more detail below.
+3. From within your model script, use the read functions provided by `DataRegistryUtils` or access directly through the downloaded database. An optional SQL file can be provided to describe how a data product should be displayed.
+4. Write model outputs back to pipeline (WIP).
 
 ### Config file
 
