@@ -88,8 +88,11 @@ include("transitions.jl")
 export create_transitions
 
 include("Ecosystem.jl")
-export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
+export Ecosystem, Episystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
  getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
+
+ include("transition_sir.jl")
+ export create_epi_transitions, new_simulate!
 
 include("transition_generate.jl")
 export run_rule!, new_update!, new_simulate!, new_simulate_record!

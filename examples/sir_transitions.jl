@@ -6,7 +6,7 @@ using Diversity
 
 # Set up initial parameters for ecosystem
 
-numSpecies = 10; grid = (10, 10); req= 10.0kJ; individuals=10_000; area = 1000.0*km^2; totalK = 1000.0kJ/km^2
+numSpecies = 4; grid = (10, 10); req= 10.0kJ; individuals=0; area = 1000.0*km^2; totalK = 1000.0kJ/km^2
 
 # Set up how much energy each species consumes
 energy_vec = SolarRequirement(fill(req, numSpecies))
@@ -35,7 +35,6 @@ native = fill(true, numSpecies)
 abun = fill(div(individuals, numSpecies), numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
     movement, param, native)
-sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
 abenv = simplehabitatAE(274.0K, grid, totalK, area)
@@ -45,26 +44,23 @@ abenv = simplehabitatAE(274.0K, grid, totalK, area)
 rel = Gauss{typeof(1.0K)}()
 
 #Create ecosystem
-eco = Ecosystem(sppl, abenv, rel)
+epi = Episystem(sppl, abenv, rel)
+epi.abundances.matrix[1, :] .+= 100
 
 # Simulation Parameters
-burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
+burnin = 1month; times = 5years; timestep = 1day; record_interval = 1day; repeats = 1
 lensim = length(0years:record_interval:times)
 abuns = zeros(Int64, numSpecies, prod(grid), lensim)
 # Burnin
-@time new_simulate!(eco, burnin, timestep);
-@time new_simulate_record!(abuns, eco, times, record_interval, timestep);
-
-eco = Ecosystem(sppl, abenv, rel)
-@time simulate!(eco, burnin, timestep);
-@time simulate_record!(abuns, eco, times, record_interval, timestep);
+@time new_simulate!(epi, burnin, timestep);
+@time new_simulate_record!(abuns, epi, times, record_interval, timestep);
 
 # Benchmark
 using BenchmarkTools
-eco = Ecosystem(sppl, abenv, rel)
-@benchmark new_simulate!(eco, burnin, timestep)
-eco = Ecosystem(sppl, abenv, rel)
-@benchmark simulate!(eco, burnin, timestep)
+epi = Episystem(sppl, abenv, rel)
+@benchmark new_simulate!(epi, burnin, timestep)
+epi = Episystem(sppl, abenv, rel)
+@benchmark simulate!(epi, burnin, timestep)
 
 using Plots
 @gif for i in 1:lensim
@@ -72,5 +68,5 @@ using Plots
 end
 
 using ProfileView
-eco = Ecosystem(sppl, abenv, rel)
-@profview new_simulate!(eco, burnin, timestep)
+epi = Episystem(sppl, abenv, rel)
+@profview new_simulate!(epi, burnin, timestep)

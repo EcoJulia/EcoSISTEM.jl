@@ -22,20 +22,20 @@ mutable struct SEIR{U <: Unitful.Units} <: AbstractStateTransition
     recovery::Recovery{U}
 end
 
-function run_rule!(eco::Ecosystem, rule::Exposure, timestep::TimeUnitType{U}) where U <: Unitful.Units
+function run_rule!(eco::Episystem, rule::Exposure{U}, timestep::Unitful.Time) where U <: Unitful.Units
     rng = eco.abundances.seed[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
     if eco.abenv.active[loc]
         expprob = getprob(rule) * timestep
         newexpprob = 1.0 - exp(-expprob)
-        exp = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
-        eco.abundances.matrix[spp, loc] -= exp
-        eco.abundances.matrix[spp + 1, loc] += exp
+        exposures = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
+        eco.abundances.matrix[spp, loc] -= exposures
+        eco.abundances.matrix[spp + 1, loc] += exposures
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::Infection, timestep::TimeUnitType{U}) where U <: Unitful.Units
+function run_rule!(eco::Episystem, rule::Infection{U}, timestep::Unitful.Time) where U <: Unitful.Units
     rng = eco.abundances.seed[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
@@ -48,7 +48,7 @@ function run_rule!(eco::Ecosystem, rule::Infection, timestep::TimeUnitType{U}) w
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::Recovery, timestep::TimeUnitType{U}) where U <: Unitful.Units
+function run_rule!(eco::Episystem, rule::Recovery{U}, timestep::Unitful.Time) where U <: Unitful.Units
     rng = eco.abundances.seed[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
@@ -62,12 +62,53 @@ function run_rule!(eco::Ecosystem, rule::Recovery, timestep::TimeUnitType{U}) wh
 end
 
 
+function run_rule!(eco::Episystem, rule::SEIR{U}, timestep::Unitful.Time) where U <: Unitful.Units
+    run_rule!(eco, rule.exposure, timestep)
+    run_rule!(eco, rule.infection, timestep)
+    run_rule!(eco, rule.recovery, timestep)
+end
+
+function _run_rule!(eco::Episystem, rule::AllDisperse)
+    spp = getspecies(rule)
+    loc = getlocation(rule)
+    if eco.abenv.active[loc]
+        move!(eco, eco.spplist.movement, loc, spp, eco.cache.netmigration, eco.abundances.matrix[spp, loc])
+    end
+end
+
+function run_rule!(eco::Episystem, rule::R, timestep::Unitful.Time) where R <: AbstractTransition
+    if typeof(rule) <: Exposure
+        _run_rule!(eco, rule, timestep)
+    elseif typeof(rule) <: Infection
+        _run_rule!(eco, rule, timestep)
+    elseif typeof(rule) <: Recovery
+        _run_rule!(eco, rule, timestep)
+    elseif typeof(rule) <: AllDisperse
+        _run_rule!(eco, rule)
+    end
+end
 
 function create_epi_transitions(spplist::SpeciesList, abenv::GridAbioticEnv)
 
-    state_list = [SEIR(Exposure(spp, loc, spplist.params.birth[spp]), Infection(spp, loc, spplist.params.death[spp]), Recovery(spp, loc, spplist.params.death[spp])) for spp in eachindex(spplist.names) for loc in eachindex(abenv.habitat.matrix)]
+    state_list = [SEIR(Exposure(1, loc, spplist.params.birth[1]), Infection(2, loc, spplist.params.death[2]), Recovery(3, loc, spplist.params.death[3])) for loc in eachindex(abenv.habitat.matrix)]
 
     place_list = [AllDisperse(spp, loc) for spp in eachindex(spplist.names) for loc in eachindex(abenv.habitat.matrix)]
 
     return TransitionList(state_list, place_list)
+end
+
+function new_update!(epi::Episystem, timestep::Unitful.Time)
+
+    Threads.@threads for st in epi.transitions.state
+        run_rule!(epi, st, timestep)
+    end
+    Threads.@threads for pl in epi.transitions.place
+        run_rule!(epi, pl, timestep)
+    end
+
+    epi.abundances.matrix .+= epi.cache.netmigration
+
+    # Invalidate all caches for next update
+    invalidatecaches!(epi)
+
 end

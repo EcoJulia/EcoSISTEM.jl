@@ -11,7 +11,7 @@ function _run_rule!(eco::Ecosystem, rule::BirthProcess{U}, timestep) where U <: 
     end
 end
 
-function _run_rule!(eco::Ecosystem, rule::DeathProcess{U}, timestep) where U <: Unitful.Units
+function _run_rule!(eco::Ecosystem, rule::DeathProcess{U}, timestep::Unitful.Time) where U <: Unitful.Units
     rng = eco.abundances.seed[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
@@ -71,15 +71,15 @@ function new_update!(eco::Ecosystem, timestep::Unitful.Time)
     budgetupdate!(eco, timestep)
 end
 
-function new_simulate!(eco::AbstractEcosystem, duration::Unitful.Time, timestep::Unitful.Time)
+function new_simulate!(eco::E, duration::Unitful.Time, timestep::Unitful.Time) where E <: AbstractEcosystem
   times = length(0s:timestep:duration)
   for i in 1:times
     new_update!(eco, timestep)
   end
 end
 
-function new_simulate_record!(storage::AbstractArray, eco::Ecosystem,
-  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time)
+function new_simulate_record!(storage::AbstractArray, eco::E,
+  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time) where E <: AbstractEcosystem
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
   record_seq = 0s:interval:times
   time_seq = 0s:timestep:times
