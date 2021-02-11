@@ -3,8 +3,6 @@
 
 *Package for running dynamic ecosystem simulations*
 
-![](docs/svgs/Simulation.svg)
-
 ## Summary
 
 **Simulation** is a [Julia](http://www.julialang.org) package that
