@@ -84,3 +84,9 @@ lensim = length(0years:record_interval:times)
 # Burnin
 @time simulate!(eco, burnin, timestep)
 ```
+
+Plot using SpatialEcology
+```julia
+using SpatialEcology
+plot(eco)
+```
