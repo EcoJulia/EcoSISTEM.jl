@@ -17,7 +17,7 @@ function makeunique(eco::Ecosystem)
     return Ecosystem{typeof(eco.abenv), typeof(newsppl),
             typeof(eco.relationship)}(eco.abundances,
               newsppl, eco.abenv, eco.ordinariness,
-              eco.relationship, eco.lookup, eco.cache)
+              eco.relationship, eco.lookup, eco.cache, eco.transitions)
 end
 
 """
