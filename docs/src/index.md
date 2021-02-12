@@ -13,3 +13,5 @@ to environmental and land-use change*. Future updates to the package functionali
 incorporating age-structure and more complex epidemiological models.
 
 This package is in alpha now, so please raise an issue if you find any problems.
+
+![](../svgs/Simulation.gif)
