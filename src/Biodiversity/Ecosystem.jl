@@ -201,60 +201,6 @@ function addtypes!(ut::UniqueTypes)
     ut = UniqueTypes(ut.num+1)
 end
 
-mutable struct Episystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-    TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
-  abundances::GridLandscape
-  spplist::SL
-  abenv::Part
-  ordinariness::Union{Matrix{Float64}, Missing}
-  relationship::TR
-  lookup::Vector{Lookup}
-  cache::Cache
-  transitions::TransitionList
-
-  function Episystem{Part, SL, TR}(abundances::GridLandscape,
-    spplist::SL, abenv::Part, ordinariness::Union{Matrix{Float64}, Missing},
-    relationship::TR, lookup::Vector{Lookup}, cache::Cache, transitions::TransitionList) where {Part <:
-     AbstractAbiotic,
-    SL <: SpeciesList, TR <: AbstractTraitRelationship}
-    tematch(spplist, abenv) || error("Traits do not match habitats")
-    trmatch(spplist, relationship) || error("Traits do not match trait functions")
-    #_mcmatch(abundances.matrix, spplist, abenv) ||
-    #  error("Dimension mismatch")
-    new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache, transitions)
-  end
-end
-"""
-    Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
-        rel::AbstractTraitRelationship)
-
-Function to create an `Ecosystem` given a species list, an abiotic environment and trait relationship. An optional population function can be added, `popfun`, which defaults to generic random filling of the ecosystem.
-"""
-function Episystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship) where {T, Req}
-
-  # Check there is enough energy to support number of individuals at set up
-  #all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
-    #error("Environment does not have enough energy to support species")
-  # Create matrix landscape of zero abundances
-  ml = emptygridlandscape(abenv, spplist)
-  # Populate this matrix with species abundances
-  popfun(ml, spplist, abenv, rel)
-
-  # Create lookup table of all moves and their probabilities
-  lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.movement)))
-  nm = zeros(Int64, size(ml.matrix))
-  totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
-  transitions = create_epi_transitions(spplist, abenv)
-  Episystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
-  missing, rel, lookup_tab, Cache(nm, totalE, false), transitions)
-end
-
-function Episystem(spplist::SpeciesList, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship)
-   return Episystem(populate!, spplist, abenv, rel)
-end
-
 """
     CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
         TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}

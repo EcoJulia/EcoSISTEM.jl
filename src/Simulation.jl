@@ -72,10 +72,6 @@ include("Biodiversity/Ecosystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
 getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
 
-
-include("transition_sir.jl")
-export create_epi_transitions, new_simulate!
-
 include("transition_generate.jl")
 export run_rule!, new_update!, new_simulate!, new_simulate_record!
 
@@ -158,6 +154,9 @@ include("Epidemiology/EpiPlots.jl")
 
 include("Epidemiology/Inference.jl")
 export SIR_wrapper, SIR_wrapper!, SEI3HRD_wrapper, SEI3HRD_wrapper!
+
+include("transition_sir.jl")
+export create_epi_transitions, new_simulate!, new_simulate_record!
 
 # Path into package
 path(paths...) = joinpath(@__DIR__, "..", paths...)

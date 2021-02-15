@@ -44,16 +44,17 @@ mutable struct EpiSystem{U <: Integer, VecRNGType <: AbstractVector{<:Random.Abs
   cache::EpiCache
   initial_infected::Int64
   ordered_active::Vector{Int64}
+  transitions::TransitionList
 end
 function EpiSystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv::EE,
     ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup,
-    cache::EpiCache, initial_infected::Int64
+    cache::EpiCache, initial_infected::Int64, transitions::TransitionList
     ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
     EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship}
   total_pop = sum(abundances.matrix, dims = 1)[1, :]
   sorted_grid_ids = sortperm(total_pop, rev = true)
   sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
-  return EpiSystem(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, initial_infected, sorted_grid_ids)
+  return EpiSystem(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, initial_infected, sorted_grid_ids, transitions)
 end
 
 function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
@@ -72,7 +73,8 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
   lookup = EpiLookup(home_lookup, work_lookup)
   vm = zeros(Float64, size(ml.matrix))
-  return EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected)
+  transitions = create_transitions(epilist, epienv)
+  return EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected, transitions)
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
@@ -101,8 +103,9 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     lookup = EpiLookup(home_lookup, work_lookup)
 
     vm = zeros(Float64, size(ml.matrix))
+    transitions = create_transitions(epilist, epienv)
 
-    epi = EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected)
+    epi = EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected, transitions)
 
     # Add in the initial susceptible population
     # TODO Need to fix code so it doesn't rely on name of susceptible class
