@@ -10,7 +10,7 @@ mutable struct Exposure{U <: Unitful.Units} <: AbstractStateTransition
     virus_prob::TimeUnitType{U}
 end
 
-function get_prob(rule::Exposure)
+function getprob(rule::Exposure)
     return rule.force_prob, rule.virus_prob
 end
 
@@ -32,13 +32,13 @@ mutable struct SEIR{U <: Unitful.Units} <: AbstractStateTransition
     recovery::Recovery{U}
 end
 
-mutable struct Force{U <: Unitful.Units} <: AbstractPlaceTransition
+mutable struct ForceProduce{U <: Unitful.Units} <: AbstractPlaceTransition
     species::Int64
     location::Int64
     prob::TimeUnitType{U}
 end
 
-function get_prob(rule::Force)
+function getprob(rule::ForceProduce)
     return rule.prob
 end
 
@@ -47,16 +47,21 @@ mutable struct ForceDisperse <: AbstractPlaceTransition
     location::Int64
 end
 
-function run_rule!(epi::EpiSystem, rule::Exposure{U}, timestep::Unitful.Time) where U <: Unitful.Units
-    rng = epi.abundances.seed[Threads.threadid()]
+mutable struct Force{U <: Unitful.Units}
+    forceprod::ForceProduce{U}
+    forcedisp::ForceDisperse
+end
+
+function _run_rule!(epi::EpiSystem, rule::Exposure{U}, timestep::Unitful.Time) where U <: Unitful.Units
+    rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
     params = epi.epilist.params
-    if epi.abenv.active[loc]
+    if epi.epienv.active[loc]
         N = sum_pop(epi.abundances.matrix, loc)
         env_inf = virus(epi.abundances)[1, loc] /
             (N^params.freq_vs_density_env)
-        force_inf = virus(epi.abundances)[spp, loc] /
+        force_inf = virus(epi.abundances)[2, loc] /
             (N^params.freq_vs_density_force)
         expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
         newexpprob = 1.0 - exp(-expprob)
@@ -66,11 +71,11 @@ function run_rule!(epi::EpiSystem, rule::Exposure{U}, timestep::Unitful.Time) wh
     end
 end
 
-function run_rule!(epi::EpiSystem, rule::Infection{U}, timestep::Unitful.Time) where U <: Unitful.Units
-    rng = epi.abundances.seed[Threads.threadid()]
+function _run_rule!(epi::EpiSystem, rule::Infection{U}, timestep::Unitful.Time) where U <: Unitful.Units
+    rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
-    if epi.abenv.active[loc]
+    if epi.epienv.active[loc]
         infprob = getprob(rule) * timestep
         newinfprob = 1.0 - exp(-infprob)
         infs = rand(rng, Binomial(epi.abundances.matrix[spp, loc], newinfprob))
@@ -79,11 +84,11 @@ function run_rule!(epi::EpiSystem, rule::Infection{U}, timestep::Unitful.Time) w
     end
 end
 
-function run_rule!(epi::EpiSystem, rule::Recovery{U}, timestep::Unitful.Time) where U <: Unitful.Units
-    rng = epi.abundances.seed[Threads.threadid()]
+function _run_rule!(epi::EpiSystem, rule::Recovery{U}, timestep::Unitful.Time) where U <: Unitful.Units
+    rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
-    if epi.abenv.active[loc]
+    if epi.epienv.active[loc]
         recprob = getprob(rule) * timestep
         newrecprob = 1.0 - exp(-recprob)
         recs = rand(rng, Binomial(epi.abundances.matrix[spp, loc], newrecprob))
@@ -100,10 +105,16 @@ function run_rule!(epi::EpiSystem, rule::SEIR{U}, timestep::Unitful.Time) where 
 end
 
 function _run_rule!(epi::EpiSystem, rule::Force{U}, timestep::Unitful.Time) where U <: Unitful.Units
+    run_rule!(epi, rule.forceprod, timestep)
+    run_rule!(epi, rule.forcedisp, timestep)
+end
+
+function _run_rule!(epi::EpiSystem, rule::ForceProduce{U}, timestep::Unitful.Time) where U <: Unitful.Units
+    rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
     # Calculate effective rates
-    birthrate = get_prob(rule) * timestep * human(epi.abundances)[spp, loc]
+    birthrate = getprob(rule) * timestep * human(epi.abundances)[spp, loc]
     births = rand(rng, Poisson(birthrate))
     # Spread force of infection over space
     if !iszero(births)
@@ -112,27 +123,28 @@ function _run_rule!(epi::EpiSystem, rule::Force{U}, timestep::Unitful.Time) wher
 end
 
 function _run_rule!(epi::EpiSystem, rule::ViralLoad{U}, timestep::Unitful.Time) where U <: Unitful.Units
+    rng = epi.abundances.rngs[Threads.threadid()]
     params = epi.epilist.params
     loc = getlocation(rule)
     traitmatch = traitfun(epi, loc, 1)
-    deathrate = get_prob(rule) * timestep * traitmatch^-1
+    deathrate = getprob(rule) * timestep * traitmatch^-1
     # Convert death rate into 0 - 1 probability
     deathprob = 1.0 - exp(-deathrate)
 
     # Calculate how much virus degrades in the environment
     deaths = rand(rng, Binomial(virus(epi.abundances)[1, loc], deathprob))
-
     # Force of infection on average around half of timestep in environment
     survivalprob = exp(-deathrate/2.0)
 
     # So this much force of infection survives in the environment
-    env_virus = rand(rng, Binomial(virus(epi.abundances)[1, loc], survivalprob * params.env_virus_scale))
+    env_virus = rand(rng, Binomial(virus(epi.abundances)[2, loc], survivalprob * params.env_virus_scale))
 
     # Now update virus in environment and force of infection
     virus(epi.abundances)[1, loc] += env_virus - deaths
 end
 
 function _run_rule!(epi::EpiSystem, rule::ForceDisperse)
+    rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
     dist = Poisson(epi.cache.virusmigration[spp, loc])
@@ -147,38 +159,41 @@ function run_rule!(epi::EpiSystem, rule::R, timestep::Unitful.Time) where R <: A
     elseif typeof(rule) <: Recovery
         _run_rule!(epi, rule, timestep)
     elseif typeof(rule) <: ForceDisperse
-        _run_rule!(epi, rule, timestep)
+        _run_rule!(epi, rule)
     elseif typeof(rule) <: ViralLoad
         _run_rule!(epi, rule, timestep)
-    elseif typeof(rule) <: Force
-        _run_rule!(epi, rule)
+    elseif typeof(rule) <: ForceProduce
+        _run_rule!(epi, rule, timestep)
     end
 end
 
 function create_transitions(epilist::EpiList, epienv::GridEpiEnv)
     params = epilist.params
 
-    state_list = [SEIR(Exposure(1, loc, params.transition_force[1, 2], params.transition_virus[1, 2]), Infection(2, loc, params.transition[2, 3]), Recovery(3, loc, params.transition[3, 4])) for loc in eachindex(epienv.habitat.matrix)]
+    state_list = [SEIR(Exposure(1, loc, params.transition_force[2, 1], params.transition_virus[2, 1]), Infection(2, loc, params.transition[3, 2]), Recovery(3, loc, params.transition[4, 3])) for loc in eachindex(epienv.habitat.matrix)]
 
     virus_list = [ViralLoad(loc, params.virus_decay) for loc in eachindex(epienv.habitat.matrix)]
 
     state_list = [virus_list; state_list]
 
-    place_list = [ForceDisperse(spp, loc) for spp in eachindex(epilist.virus.names) for loc in eachindex(epienv.habitat.matrix)]
+    place_list = [ForceDisperse(spp, loc) for spp in eachindex(epilist.human.names) for loc in eachindex(epienv.habitat.matrix)]
+    force_list = [ForceProduce(spp, loc, params.virus_growth[spp]) for spp in eachindex(epilist.human.names) for loc in eachindex(epienv.habitat.matrix)]
+    place_list = [force_list; place_list]
 
     return TransitionList(state_list, place_list)
 end
 
 function new_update!(epi::EpiSystem, timestep::Unitful.Time)
 
-    Threads.@threads for st in epi.transitions.state
-        run_rule!(epi, st, timestep)
-    end
     Threads.@threads for pl in epi.transitions.place
         run_rule!(epi, pl, timestep)
     end
 
-    epi.abundances.matrix .+= epi.cache.netmigration
+    Threads.@threads for st in epi.transitions.state
+        run_rule!(epi, st, timestep)
+    end
+
+    virus(epi.abundances)[2, :] .= sum(epi.cache.virusmigration, dims = 1)[1, :]
 
     # Invalidate all caches for next update
     invalidatecaches!(epi)

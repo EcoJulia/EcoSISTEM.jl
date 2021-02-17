@@ -3,10 +3,11 @@ using Simulation.Units
 using Unitful, Unitful.DefaultSymbols
 using Distributions
 using DataFrames
+using Plots
 
 # Set up simple gridded environment
-grid = (8, 8)
-area = 525_000.0km^2
+grid = (10, 10)
+area = 1_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
 # Set initial population sizes for all pathogen categories
@@ -40,14 +41,14 @@ transitions = DataFrame([
 # Set simulation parameters
 birth = fill(0.0/day, numclasses)
 death = fill(0.0/day, numclasses)
-beta_force = 1.0/day
-beta_env = 1.0/day
-virus_growth = 1.0/day
+beta_force = 10.0/day
+beta_env = 10.0/day
+virus_growth = 0.1/day
 virus_decay = 1.0/2days
 param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
 
 # Dispersal kernels for virus and disease classes
-dispersal_dists = fill(700.0km, prod(grid))
+dispersal_dists = fill(10.0km, prod(grid))
 kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = EpiMovement(kernel)
 
@@ -60,9 +61,18 @@ rel = Gauss{eltype(epienv.habitat)}()
 epi = EpiSystem(epilist, epienv, rel)
 
 # Run simulation
-times = 2years; interval = 1day; timestep = 1day
-abuns = zeros(Int64, numclasses, prod(grid), div(times, interval) + 1)
-@time new_simulate!(epi, times, timestep)
+times = 1month; interval = 1day; timestep = 1day
+abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
+@time new_simulate_record!(abuns, epi, times, interval, timestep);
+plot_epidynamics(epi, abuns)
+
+epi = EpiSystem(epilist, epienv, rel)
+
+# Run simulation
+times = 1month; interval = 1day; timestep = 1day
+abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
+@time simulate_record!(abuns, epi, times, interval, timestep);
+plot_epidynamics(epi, abuns)
 
 # Simulation Parameters
 burnin = 1month; times = 5years; timestep = 1day; record_interval = 1day; repeats = 1
