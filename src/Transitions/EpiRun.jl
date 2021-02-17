@@ -1,61 +1,8 @@
-mutable struct ViralLoad{U <: Unitful.Units} <: AbstractStateTransition
-    location::Int64
-    prob::TimeUnitType{U}
-end
-
-mutable struct Exposure{U <: Unitful.Units} <: AbstractStateTransition
-    species::Int64
-    location::Int64
-    destination::Int64
-    force_prob::TimeUnitType{U}
-    virus_prob::TimeUnitType{U}
-end
-
-function getprob(rule::Exposure)
-    return rule.force_prob, rule.virus_prob
-end
-
-mutable struct Infection{U <: Unitful.Units} <: AbstractStateTransition
-    species::Int64
-    location::Int64
-    prob::TimeUnitType{U}
-end
-
-mutable struct Recovery{U <: Unitful.Units} <: AbstractStateTransition
-    species::Int64
-    location::Int64
-    prob::TimeUnitType{U}
-end
-
-mutable struct SEIR{U <: Unitful.Units} <: AbstractStateTransition
-    exposure::Exposure{U}
-    infection::Infection{U}
-    recovery::Recovery{U}
-end
-
-mutable struct ForceProduce{U <: Unitful.Units} <: AbstractPlaceTransition
-    species::Int64
-    location::Int64
-    prob::TimeUnitType{U}
-end
-
-function getprob(rule::ForceProduce)
-    return rule.prob
-end
-
-mutable struct ForceDisperse <: AbstractPlaceTransition
-    species::Int64
-    location::Int64
-end
-
-mutable struct Force{U <: Unitful.Units}
-    forceprod::ForceProduce{U}
-    forcedisp::ForceDisperse
-end
 
 function _run_rule!(epi::EpiSystem, rule::Exposure{U}, timestep::Unitful.Time) where U <: Unitful.Units
     rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
+    dest = getdestination(rule)
     loc = getlocation(rule)
     params = epi.epilist.params
     if epi.epienv.active[loc]
@@ -68,33 +15,35 @@ function _run_rule!(epi::EpiSystem, rule::Exposure{U}, timestep::Unitful.Time) w
         newexpprob = 1.0 - exp(-expprob)
         exposures = rand(rng, Binomial(epi.abundances.matrix[spp, loc], newexpprob))
         human(epi.abundances)[spp, loc] -= exposures
-        human(epi.abundances)[spp + 1, loc] += exposures
+        human(epi.abundances)[dest, loc] += exposures
     end
 end
 
 function _run_rule!(epi::EpiSystem, rule::Infection{U}, timestep::Unitful.Time) where U <: Unitful.Units
     rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
+    dest = getdestination(rule)
     loc = getlocation(rule)
     if epi.epienv.active[loc]
         infprob = getprob(rule) * timestep
         newinfprob = 1.0 - exp(-infprob)
         infs = rand(rng, Binomial(epi.abundances.matrix[spp, loc], newinfprob))
         human(epi.abundances)[spp, loc] -= infs
-        human(epi.abundances)[spp + 1, loc] += infs
+        human(epi.abundances)[dest, loc] += infs
     end
 end
 
 function _run_rule!(epi::EpiSystem, rule::Recovery{U}, timestep::Unitful.Time) where U <: Unitful.Units
     rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
+    dest = getdestination(rule)
     loc = getlocation(rule)
     if epi.epienv.active[loc]
         recprob = getprob(rule) * timestep
         newrecprob = 1.0 - exp(-recprob)
         recs = rand(rng, Binomial(epi.abundances.matrix[spp, loc], newrecprob))
         human(epi.abundances)[spp, loc] -= recs
-        human(epi.abundances)[spp + 1, loc] += recs
+        human(epi.abundances)[dest, loc] += recs
     end
 end
 
@@ -166,22 +115,6 @@ function run_rule!(epi::EpiSystem, rule::R, timestep::Unitful.Time) where R <: A
     elseif typeof(rule) <: ForceProduce
         _run_rule!(epi, rule, timestep)
     end
-end
-
-function create_transition_list(epilist::EpiList, epienv::GridEpiEnv)
-    params = epilist.params
-
-    state_list = [SEIR(Exposure(1, loc, params.transition_force[2, 1], params.transition_virus[2, 1]), Infection(2, loc, params.transition[3, 2]), Recovery(3, loc, params.transition[4, 3])) for loc in eachindex(epienv.habitat.matrix)]
-
-    virus_list = [ViralLoad(loc, params.virus_decay) for loc in eachindex(epienv.habitat.matrix)]
-
-    state_list = [virus_list; state_list]
-
-    place_list = [ForceDisperse(spp, loc) for spp in eachindex(epilist.human.names) for loc in eachindex(epienv.habitat.matrix)]
-    force_list = [ForceProduce(spp, loc, params.virus_growth[spp]) for spp in eachindex(epilist.human.names) for loc in eachindex(epienv.habitat.matrix)]
-    place_list = [force_list; place_list]
-
-    return TransitionList(state_list, place_list)
 end
 
 function new_update!(epi::EpiSystem, timestep::Unitful.Time)
