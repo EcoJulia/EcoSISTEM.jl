@@ -73,7 +73,7 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
   lookup = EpiLookup(home_lookup, work_lookup)
   vm = zeros(Float64, size(ml.matrix))
-  transitions = create_transitions(epilist, epienv)
+  transitions = create_transition_list(epilist, epienv)
   return EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected, transitions)
 end
 
@@ -103,7 +103,7 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     lookup = EpiLookup(home_lookup, work_lookup)
 
     vm = zeros(Float64, size(ml.matrix))
-    transitions = create_transitions(epilist, epienv)
+    transitions = create_transition_list(epilist, epienv)
 
     epi = EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected, transitions)
 

@@ -6,6 +6,7 @@ end
 mutable struct Exposure{U <: Unitful.Units} <: AbstractStateTransition
     species::Int64
     location::Int64
+    destination::Int64
     force_prob::TimeUnitType{U}
     virus_prob::TimeUnitType{U}
 end
@@ -167,7 +168,7 @@ function run_rule!(epi::EpiSystem, rule::R, timestep::Unitful.Time) where R <: A
     end
 end
 
-function create_transitions(epilist::EpiList, epienv::GridEpiEnv)
+function create_transition_list(epilist::EpiList, epienv::GridEpiEnv)
     params = epilist.params
 
     state_list = [SEIR(Exposure(1, loc, params.transition_force[2, 1], params.transition_virus[2, 1]), Infection(2, loc, params.transition[3, 2]), Recovery(3, loc, params.transition[4, 3])) for loc in eachindex(epienv.habitat.matrix)]
