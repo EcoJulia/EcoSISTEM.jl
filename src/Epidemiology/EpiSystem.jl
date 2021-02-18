@@ -44,11 +44,11 @@ mutable struct EpiSystem{U <: Integer, VecRNGType <: AbstractVector{<:Random.Abs
   cache::EpiCache
   initial_infected::Int64
   ordered_active::Vector{Int64}
-  transitions::TransitionList
+  transitions::Union{Missing, TransitionList}
 end
 function EpiSystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv::EE,
     ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup,
-    cache::EpiCache, initial_infected::Int64, transitions::TransitionList
+    cache::EpiCache, initial_infected::Int64, transitions::Union{Missing, TransitionList}
     ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
     EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship}
   total_pop = sum(abundances.matrix, dims = 1)[1, :]
@@ -59,8 +59,8 @@ end
 
 function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
       rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
-      rngtype::Type{R} = Random.MersenneTwister
-      ) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
+      rngtype::Type{R} = Random.MersenneTwister,
+      transitions = missing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
 
   # Create matrix landscape of zero abundances
   ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
@@ -73,20 +73,20 @@ function EpiSystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
   lookup = EpiLookup(home_lookup, work_lookup)
   vm = zeros(Float64, size(ml.matrix))
-  transitions = create_transition_list(epilist, epienv)
   return EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected, transitions)
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
-        intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister
+        intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister,
+        transitions = missing
         ) where {U <: Integer, R <: Random.AbstractRNG}
-    return EpiSystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype)
+    return EpiSystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype, transitions = transitions)
 end
 
 function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         initial_population::A, intnum::U = Int64(1); initial_infected = 0,
-        rngtype::Type{R} = Random.MersenneTwister
-        ) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
+        rngtype::Type{R} = Random.MersenneTwister,
+        transitions = missing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
     if size(initial_population) != size(epienv.active)
         msg = "size(initial_population)==$(size(initial_population)) != " *
             "size(epienv.active)==$(size(epienv.active))"
@@ -103,7 +103,6 @@ function EpiSystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     lookup = EpiLookup(home_lookup, work_lookup)
 
     vm = zeros(Float64, size(ml.matrix))
-    transitions = create_transition_list(epilist, epienv)
 
     epi = EpiSystem(ml, epilist, epienv, missing, rel, lookup, EpiCache(vm, false), initial_infected, transitions)
 

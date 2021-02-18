@@ -159,7 +159,7 @@ include("Epidemiology/Inference.jl")
 export SIR_wrapper, SIR_wrapper!, SEI3HRD_wrapper, SEI3HRD_wrapper!
 
 include("Transitions/EpiTransitions.jl")
-export create_epi_transitions
+export create_transition_list
 
 include("Transitions/EpiRun.jl")
 export new_simulate!, new_simulate_record!
