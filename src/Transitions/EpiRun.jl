@@ -4,12 +4,14 @@ function _run_rule!(epi::EpiSystem, rule::Exposure{U}, timestep::Unitful.Time) w
     spp = getspecies(rule)
     dest = getdestination(rule)
     loc = getlocation(rule)
-    params = epi.epilist.params
     if epi.epienv.active[loc]
+        params = epi.epilist.params
+        force_cats = epi.epilist.virus.force_cats
+        age_cat = epi.epilist.human.human_to_force
         N = sum_pop(epi.abundances.matrix, loc)
         env_inf = virus(epi.abundances)[1, loc] /
             (N^params.freq_vs_density_env)
-        force_inf = virus(epi.abundances)[2, loc] /
+        force_inf = (params.age_mixing[age_cat[spp], :] ⋅ virus(epi.abundances)[force_cats, loc]) /
             (N^params.freq_vs_density_force)
         expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
         newexpprob = 1.0 - exp(-expprob)
@@ -87,7 +89,7 @@ function _run_rule!(epi::EpiSystem, rule::ViralLoad{U}, timestep::Unitful.Time) 
     survivalprob = exp(-deathrate/2.0)
 
     # So this much force of infection survives in the environment
-    env_virus = rand(rng, Binomial(virus(epi.abundances)[2, loc], survivalprob * params.env_virus_scale))
+    env_virus = rand(rng, Binomial(sum(virus(epi.abundances)[2:end, loc], dims=1)[1], survivalprob * params.env_virus_scale))
 
     # Now update virus in environment and force of infection
     virus(epi.abundances)[1, loc] += env_virus - deaths
@@ -117,17 +119,31 @@ function run_rule!(epi::EpiSystem, rule::R, timestep::Unitful.Time) where R <: A
     end
 end
 
+function update_virus_cache!(epi::EpiSystem)
+    force_cats = epi.epilist.virus.force_cats
+    human_to_force = epi.epilist.human.human_to_force
+    locs = size(virus(epi.abundances), 2)
+    vm = zeros(eltype(epi.cache.virusmigration), length(force_cats), locs)
+    classes = length(epi.epilist.human.names)
+    Threads.@threads for i in 1:classes
+        for j in 1:locs
+            vm[human_to_force[i], j] += epi.cache.virusmigration[i, j]
+        end
+    end
+    virus(epi.abundances)[force_cats, :] .= vm
+end
+
 function new_update!(epi::EpiSystem, timestep::Unitful.Time)
 
     Threads.@threads for pl in epi.transitions.place
         run_rule!(epi, pl, timestep)
     end
 
+    update_virus_cache!(epi)
+
     Threads.@threads for st in epi.transitions.state
         run_rule!(epi, st, timestep)
     end
-
-    virus(epi.abundances)[2, :] .= sum(epi.cache.virusmigration, dims = 1)[1, :]
 
     # Invalidate all caches for next update
     invalidatecaches!(epi)

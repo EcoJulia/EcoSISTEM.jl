@@ -57,8 +57,10 @@ end
 
 function create_transition_list(epilist::EpiList, epienv::GridEpiEnv)
     params = epilist.params
+    paramDat = params.transition_dat
+    num_cats = length(paramDat[1, :from_id])
 
-    state_list = [SEIR(Exposure(1, loc, 2, params.transition_force[2, 1], params.transition_virus[2, 1]), Infection(2, loc, 3, params.transition[3, 2]), Recovery(3, loc, 4, params.transition[4, 3])) for loc in eachindex(epienv.habitat.matrix)]
+    state_list = [SEIR(Exposure(paramDat[1, :from_id][n], loc, paramDat[1, :to_id][n], paramDat[1, :prob].force[n], paramDat[1, :prob].env[n]), Infection(paramDat[2, :from_id][n], loc, paramDat[2, :to_id][n], paramDat[2, :prob][n]), Recovery(paramDat[3, :from_id][n], loc, paramDat[3, :to_id][n], paramDat[3, :prob][n])) for n in 1:num_cats for loc in eachindex(epienv.habitat.matrix)]
 
     virus_list = [ViralLoad(loc, params.virus_decay) for loc in eachindex(epienv.habitat.matrix)]
 

@@ -9,6 +9,7 @@ using DataFrames
 Parameter set for any epi model type, which stores information on birth, virus generation and decay probabilities, as well as matrices for transitions between different states. `transition` houses straightforward transition probabilities between classes, whereas `transition_virus` houses probabilities that should be multiplied by the amount of virus in the system, such as infection transitions.
 """
 mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
+    transition_dat::DataFrame
     births::Vector{TimeUnitType{U}}
     virus_growth::Vector{TimeUnitType{U}}
     virus_decay::TimeUnitType{U}
@@ -19,12 +20,12 @@ mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
     freq_vs_density_env::Float64
     age_mixing::Matrix{Float64}
     env_virus_scale::Float64
-    function EpiParams{U}(births::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}},
+    function EpiParams{U}(transition_dat::DataFrame, births::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}},
         virus_decay::TimeUnitType{U}, transition::Matrix{TimeUnitType{U}}, transition_force::Matrix{TimeUnitType{U}}, transition_virus::Matrix{TimeUnitType{U}}, freq_vs_density_force::Float64, freq_vs_density_env::Float64, age_mixing::Matrix{Float64}, env_virus_scale::Float64 = 1.0) where {U <: Unitful.Units}
         size(transition, 1) == size(transition, 2) || error("Transition matrix should be square.")
         size(transition, 1) == size(transition_virus, 1) || error("Transition matrices should match dimensions.")
         size(transition_force, 1) == size(transition_virus, 1) || error("Transition matrices should match dimensions.")
-        new{U}(births, virus_growth, virus_decay, transition, transition_force, transition_virus, freq_vs_density_force, freq_vs_density_env, age_mixing, env_virus_scale)
+        new{U}(transition_dat, births, virus_growth, virus_decay, transition, transition_force, transition_virus, freq_vs_density_force, freq_vs_density_env, age_mixing, env_virus_scale)
     end
 end
 
@@ -106,7 +107,12 @@ function transition(params::NamedTuple, paramDat::DataFrame, nclasses::Int64, in
         params = (; params..., age_mixing = fill(1.0, 1, 1))
     end
 
-    tmat = create_transition_matrix(params, paramDat, age_categories, nclasses)
+    if paramDat[1, :from] == "Susceptible"
+        new_paramDat = paramDat[2:end, :]
+        tmat = create_transition_matrix(params, new_paramDat, age_categories, nclasses)
+    else
+        tmat = create_transition_matrix(params, paramDat, age_categories, nclasses)
+    end
 
     # Env virus matrix
     vmat = create_virus_matrix(params.beta_env, age_categories, nclasses)
@@ -117,5 +123,5 @@ function transition(params::NamedTuple, paramDat::DataFrame, nclasses::Int64, in
     # Virus growth and decay
     v_growth = create_virus_vector(params.virus_growth, age_categories, nclasses, inf_cat)
 
-  return EpiParams{typeof(unit(params.beta_force[1]))}(params.birth[1:end], v_growth, params.virus_decay, tmat, vfmat, vmat, params.freq_vs_density_force, params.freq_vs_density_env, params.age_mixing, params.env_scale)
+  return EpiParams{typeof(unit(params.beta_force[1]))}(paramDat, params.birth[1:end], v_growth, params.virus_decay, tmat, vfmat, vmat, params.freq_vs_density_force, params.freq_vs_density_env, params.age_mixing, params.env_scale)
 end
