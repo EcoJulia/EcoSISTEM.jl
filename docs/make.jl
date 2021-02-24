@@ -12,7 +12,7 @@ makedocs(
         "Biodiversity" => [
         "Basics" => "basics.md",
         "Diversity" => "diversity.md"
-        ]
+        ],
         "Epidemiology" => [
         "SCRC" => "epi.md",
         "Model Structure" => "model_structure.md",
