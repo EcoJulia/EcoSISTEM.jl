@@ -962,8 +962,8 @@ version = "0.0.0"
 [[SimulationData]]
 deps = ["AutoHashEquals", "Conda", "DataDeps", "DataFrames", "Distributions", "HDF5", "Pandas", "Pkg", "PyCall", "Test", "Unitful", "YAML"]
 git-tree-sha1 = "56d5178b10976bf392a87e2483f49affe120b516"
-repo-rev = "v0.6.2"
-repo-url = "https://github.com/ScottishCovidResponse/SimulationData.jl"
+repo-rev = "master"
+repo-url = "https://github.com/ScottishCovidResponse/SimulationData.jl.git"
 uuid = "3d44aec0-db1b-416b-9784-2428c815ea7f"
 version = "0.6.2"
 
