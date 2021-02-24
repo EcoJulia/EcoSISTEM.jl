@@ -14,7 +14,7 @@ makedocs(
         "Diversity" => "diversity.md"
         ]
         "Epidemiology" => [
-        "SCRC => epi.md",
+        "SCRC" => "epi.md",
         "Model Structure" => "model_structure.md",
         "Model Development" => "model_development.md",
         "API" => "api.md",
