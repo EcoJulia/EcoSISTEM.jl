@@ -45,10 +45,11 @@ virus_decay = 1.0/2days
 age_mixing = fill(1.0, ages, ages)
 param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force, age_mixing = age_mixing)
 
+cat_idx = reshape(1:(nrow(abun_h) * ages), ages, nrow(abun_h))
 transitions = DataFrame([
-  (from="Susceptible", from_id=collect(1:4), to="Exposed", to_id=collect(5:8), prob = (env = beta_env, force = beta_force)),
-  (from="Exposed", from_id=collect(5:8), to="Infected", to_id=collect(9:12), prob=mu),
-  (from="Infected", from_id=collect(9:12), to="Recovered", to_id=collect(13:16), prob=sigma),
+  (from="Susceptible", from_id=cat_idx[:, 1], to="Exposed", to_id=cat_idx[:, 2], prob = (env = beta_env, force = beta_force)),
+  (from="Exposed", from_id=cat_idx[:, 2], to="Infected", to_id=cat_idx[:, 3], prob=mu),
+  (from="Infected", from_id=cat_idx[:, 3], to="Recovered", to_id=cat_idx[:,4], prob=sigma),
 ])
 
 # Dispersal kernels for virus and disease classes
@@ -60,7 +61,6 @@ movement = EpiMovement(kernel)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
 epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param, ages)
 
-cat_idx = reshape(1:(nrow(abun_h) * ages), ages, nrow(abun_h))
 category_map = (
     "Susceptible" => cat_idx[:, 1],
     "Exposed" => cat_idx[:, 2],

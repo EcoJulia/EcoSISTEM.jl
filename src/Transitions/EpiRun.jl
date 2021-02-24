@@ -89,7 +89,8 @@ function _run_rule!(epi::EpiSystem, rule::ViralLoad{U}, timestep::Unitful.Time) 
     survivalprob = exp(-deathrate/2.0)
 
     # So this much force of infection survives in the environment
-    env_virus = rand(rng, Binomial(sum(virus(epi.abundances)[2:end, loc], dims=1)[1], survivalprob * params.env_virus_scale))
+    force_cats = epi.epilist.virus.force_cats
+    env_virus = rand(rng, Binomial(sum(virus(epi.abundances)[force_cats, loc], dims=1)[1], survivalprob * params.env_virus_scale))
 
     # Now update virus in environment and force of infection
     virus(epi.abundances)[1, loc] += env_virus - deaths
