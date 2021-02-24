@@ -12,7 +12,7 @@ import Simulation: DiscreteTrait
     numSpecies = 10
     opts = fill(5.0°C, numSpecies)
     vars = rand(Uniform(0, 25/9), numSpecies)  * °C
-    
+
     @testset "gaussian trait" begin
         # Gaussian trait
         @test_nowarn GaussTrait(opts, vars)

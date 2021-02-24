@@ -9,9 +9,18 @@ makedocs(
     ),
     pages = [
         "Home" => "index.md",
+        "Biodiversity" => [
         "Basics" => "basics.md",
-        "Diversity" => "diversity.md",
-        "Epidemiology" => "epi.md",
+        "Diversity" => "diversity.md"
+        ],
+        "Epidemiology" => [
+        "SCRC" => "epi.md",
+        "Model Structure" => "model_structure.md",
+        "Model Development" => "model_development.md",
+        "API" => "api.md",
+        "HPC" => "HPC.md",
+        "Data" => "data.md"
+        ]
     ],
     strict=true,
     checkdocs=:none,
@@ -19,4 +28,5 @@ makedocs(
 
 deploydocs(
     repo = "github.com/boydorr/Simulation.jl.git",
+    push_preview = true
 )

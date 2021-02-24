@@ -1,14 +1,15 @@
 # Simulation
 [![][docs-dev-img]][docs-dev-url] [![][actions-img]][actions-url] [![][codecov-img]][codecov-url]
 
-*Package for running dynamic ecosystem simulations*
+*Package for running dynamic ecosystem and epidemiological simulations*
 
 ## Summary
 
 **Simulation** is a [Julia](http://www.julialang.org) package that
 provides functionality for simulating species undergoing dynamic
-biological processes such as birth, death, competition and dispersal, as well as
-environmental changes in climate and habitat.
+biological processes such as birth, death, competition and dispersal, as well as environmental changes in climate and habitat. This branch has now been adapted to include basic functionality for spatially explicit, dynamic, stochastic epidemiological models.
+
+Examples for running small test compartmenta simulations and scaled up versions (UK and Scotland sized) are available in `examples/Epidemiology`. Documentation of model structure can be found [here][model-struct-url] and ideas for model development [here][model-dev-url].
 
 The package was primarily developed for global scale simulations of
 plant biodiversity. The underlying model for this is described in the arXiv
@@ -18,16 +19,15 @@ responses of biodiversity to environmental and land-use change*.
 Future updates to the package functionality involve incorporating
 age-structure and epidemiological models (see the [SCRC fork](https://github.com/ScottishCovidResponse/Simulation.jl) for more details).
 
-This package is in beta now, so please raise an issue if you find any
-problems. The code has been substantially optimised for speed and can be fully
-run in parallel through use of multi-threading. Over 30 cores, a century worth of simulation of
-South America for 80km grid cells and ~60,000 species takes roughly 12 hours. This has been extended to run
-on HPC using MPI. Scaling up to 36 nodes using MPI worked with 95% efficiency.
+This package is in alpha now, so please raise an issue if you find any
+problems.
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [docs-dev-url]: https://boydorr.github.io/Simulation.jl/dev/
 [actions-img]: https://github.com/boydorr/Simulation.jl/workflows/Simulation%20testing/badge.svg
 [actions-url]: https://github.com/boydorr/Simulation.jl/actions
-[codecov-img]: https://codecov.io/gh/ScottishCovidResponse/Simulation.jl/branch/master/graph/badge.svg
-[codecov-url]: https://codecov.io/gh/ScottishCovidResponse/Simulation.jl?branch=master
+[codecov-img]: https://codecov.io/gh/boydorr/Simulation.jl/branch/master/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/boydorr/Simulation.jl?branch=master
+[model-struct-url]: https://boydorr.github.io/Simulation.jl/dev/Epidemiology/model_structure/
+[model-dev-url]: https://boydorr.github.io/Simulation.jl/Epidemiology/dev/model_development/
