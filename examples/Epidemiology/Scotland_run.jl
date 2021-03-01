@@ -1,5 +1,5 @@
 using Simulation
-using SimulationData
+using DataRegistryUtils
 using Unitful
 using Unitful.DefaultSymbols
 using Simulation.Units
@@ -11,10 +11,11 @@ using HTTP
 using Random
 using DataFrames
 using Plots
+using SQLite
 
-function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
+function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
     # Download and read in population sizes for Scotland
-    scotpop = parse_scottish_population(api)
+    scotpop = get_3d_km_grid_axis_array(db, ["grid_x", "grid_y", "age_aggr"], "val", "scottish_population_view")
 
     # Read number of age categories
     age_categories = size(scotpop, 3)
@@ -54,13 +55,12 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     total_pop = shrink_to_active(total_pop);
 
     # Prob of developing symptoms
-    p_s = fill(read_estimate(
-               api,
-               "human/infection/SARS-CoV-2/symptom-probability",
-               "symptom-probability"
-           ), age_categories)
+    p_s = fill(read_estimate(db,
+        "human/infection/SARS-CoV-2/%",
+        "symptom-probability",
+        data_type=Float64)[1], age_categories)
 
-    param_tab = read_table(api, "prob_hosp_and_cfr/data_for_scotland", "cfr_byage")
+    param_tab = read_table(db, "prob_hosp_and_cfr/data_for_scotland", "cfr_byage")
     # Prob of hospitalisation
     p_h = param_tab.p_h[1:end-1] # remove HCW
     pushfirst!(p_h, p_h[1]) # extend age categories
@@ -77,39 +77,44 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
 
     # Time exposed
     T_lat = days(read_estimate(
-        api,
+        db,
         "human/infection/SARS-CoV-2/latent-period",
-        "latent-period"
-    )Unitful.hr)
+        "latent-period",
+        data_type=Float64
+    )[1] * Unitful.hr)
 
     # Time asymptomatic
     T_asym = days(read_estimate(
-        api,
+        db,
         "human/infection/SARS-CoV-2/asymptomatic-period",
-        "asymptomatic-period"
-    )Unitful.hr)
+        "asymptomatic-period",
+        data_type=Float64
+    )[1] * Unitful.hr)
     @show T_asym
 
     # Time pre-symptomatic
     T_presym = 1.5days
     # Time symptomatic
     T_sym = days(read_estimate(
-        api,
+        db,
         "human/infection/SARS-CoV-2/infectious-duration",
-        "infectious-duration"
-    )Unitful.hr) - T_presym
+        "infectious-duration",
+        data_type=Float64
+    )[1] * Unitful.hr) - T_presym
     # Time in hospital
     T_hosp = read_estimate(
-        api,
+        db,
         "fixed-parameters/T_hos",
-        "T_hos"
-    )days
+        "T_hos",
+        data_type=Float64
+    )[1] * days
     # Time to recovery if symptomatic
     T_rec = read_estimate(
-        api,
+        db,
         "fixed-parameters/T_rec",
-        "T_rec"
-    )days
+        "T_rec",
+        data_type=Float64
+    )[1] * days
 
     # Exposed -> asymptomatic
     mu_1 = (1 .- p_s) .* 1/T_lat
@@ -222,10 +227,10 @@ function run_model(api::DataPipelineAPI, times::Unitful.Time, interval::Unitful.
     return abuns
 end
 
+data_dir= "data/"
 config = "data_config.yaml"
-download_data_registry(config)
+view_sql = "Scotland_run_view.sql"
+db = fetch_data_per_yaml(config, data_dir, use_sql=true, sql_file=view_sql, verbose=false)
 
 times = 2months; interval = 1day; timestep = 1day
-abuns = StandardAPI(config, "test_uri", "test_git_sha") do api
-    run_model(api, times, interval, timestep)
-end;
+run_model(db, times, interval, timestep)
