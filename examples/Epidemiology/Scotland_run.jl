@@ -230,7 +230,7 @@ end
 data_dir= "data/"
 config = "data_config.yaml"
 view_sql = "Scotland_run_view.sql"
-db = fetch_data_per_yaml(config, data_dir, use_sql=true, sql_file=view_sql, verbose=false)
+db = initialise_local_registry(data_dir, data_config = config)
 
 times = 2months; interval = 1day; timestep = 1day
 run_model(db, times, interval, timestep)
