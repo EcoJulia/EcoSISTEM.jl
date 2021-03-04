@@ -84,6 +84,15 @@ using Simulation.Units
     @test eltype(bud2) == typeof(bud2.matrix[1])
     @test Simulation._getavailableenergy(bud2) == sum(bud2.matrix)
 
+    # Test VolWaterBudget
+    water = fill(200.0*m^3, 100, 100)
+    @test_nowarn VolWaterBudget(water)
+    bud2 = VolWaterBudget(water)
+    @test Simulation._countsubcommunities(bud2) == 100 * 100
+    @test Simulation._getbudget(bud2) ==  bud2.matrix[:, :, 1]
+    @test eltype(bud2) == typeof(bud2.matrix[1])
+    @test Simulation._getavailableenergy(bud2) == sum(bud2.matrix)
+
     # Test SolarTimeBudget
     sol = fill(200.0*kJ, 100, 100, 10)
     @test_nowarn SolarTimeBudget(sol, 1)

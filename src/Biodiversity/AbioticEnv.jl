@@ -7,11 +7,12 @@ using Simulation.ClimatePref
 
 using Diversity.API
 
-matchdict = Dict(kJ => SolarBudget, mm => WaterBudget, NoUnits => SimpleBudget)
+matchdict = Dict(kJ => SolarBudget, mm => WaterBudget, NoUnits => SimpleBudget, m^3 => VolWaterBudget)
 checkbud(maxbud) = unit(maxbud) in keys(matchdict)
 cancel(a::Quantity{<: Real, 𝐌*𝐓^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(kJ, a*b)
 cancel(a::Quantity{<: Real, 𝐋*𝐋^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(mm, a*b)
 cancel(a::Quantity{<: Real, 𝐋^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(NoUnits, a*b)
+cancel(a::Quantity{<: Real, 𝐋^3*𝐋^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(m^3, a*b)
 """
     AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
 
