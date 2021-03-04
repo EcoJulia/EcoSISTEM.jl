@@ -11,6 +11,16 @@ mutable struct Exposure{U <: Unitful.Units} <: AbstractStateTransition
     virus_prob::TimeUnitType{U}
 end
 
+mutable struct EnvExposure{U <: Unitful.Units} <: AbstractStateTransition
+    species::Int64
+    location::Int64
+    destination::Int64
+    force_prob::TimeUnitType{U}
+    virus_prob::TimeUnitType{U}
+    env_field::Symbol
+    env_param::Unitful.Quantity{Float64}
+end
+
 function getprob(rule::Exposure)
     return rule.force_prob, rule.virus_prob
 end

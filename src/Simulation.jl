@@ -2,11 +2,8 @@ module Simulation
 
 using Unitful
 using Unitful.DefaultSymbols
-using SimulationData
-using SimulationData.Units
 
-
-
+include("units.jl")
 
 module ClimatePref
 
@@ -19,6 +16,7 @@ env_bool(key, default=false) = haskey(ENV, key) ? lowercase(ENV[key]) ∉ ["0","
 include("ClimatePref/ClimatePref.jl")
 
 end
+
 
 """
     enum: DiseaseState
@@ -119,7 +117,7 @@ include("Epidemiology/MedianGenerator.jl")
 export MedianGenerator
 
 include("Epidemiology/data_utils.jl")
-export parse_hdf5, parse_scottish_population
+export parse_hdf5, get_3d_km_grid_axis_array
 
 include("Epidemiology/EpiControl.jl")
 export NoControl, Lockdown
