@@ -123,6 +123,9 @@ end
 function _budgetupdate!(eco::AbstractEcosystem, budget::WaterBudget, timestep::Unitful.Time)
     return budget
 end
+function _budgetupdate!(eco::AbstractEcosystem, budget::VolWaterBudget, timestep::Unitful.Time)
+    return budget
+end
 function _budgetupdate!(eco::AbstractEcosystem, budget::SolarTimeBudget, timestep::Unitful.Time)
     monthstep = uconvert(month, timestep)
     budget.time +=
