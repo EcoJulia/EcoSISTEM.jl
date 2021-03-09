@@ -5,7 +5,6 @@ using Distributions
 using Diversity
 
 # Set up initial parameters for ecosystem
-
 numSpecies = 10; grid = (10, 10); req= 10.0kJ; individuals=10_000; area = 1000.0*km^2; totalK = 1000.0kJ/km^2
 
 # Set up how much energy each species consumes
@@ -61,9 +60,9 @@ eco = Ecosystem(sppl, abenv, rel)
 
 # Benchmark
 using BenchmarkTools
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, abenv, rel);
 @benchmark new_simulate!(eco, burnin, timestep)
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, abenv, rel);
 @benchmark simulate!(eco, burnin, timestep)
 
 using Plots

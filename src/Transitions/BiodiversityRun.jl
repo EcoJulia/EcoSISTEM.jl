@@ -1,5 +1,5 @@
-function _run_rule!(eco::Ecosystem, rule::BirthProcess{U}, timestep) where U <: Unitful.Units
-    rng = eco.abundances.seed[Threads.threadid()]
+function _run_rule!(eco::Ecosystem, rule::BirthProcess, timestep::Unitful.Time)
+    rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
     if eco.abenv.active[loc]
@@ -11,8 +11,8 @@ function _run_rule!(eco::Ecosystem, rule::BirthProcess{U}, timestep) where U <: 
     end
 end
 
-function _run_rule!(eco::Ecosystem, rule::DeathProcess{U}, timestep::Unitful.Time) where U <: Unitful.Units
-    rng = eco.abundances.seed[Threads.threadid()]
+function _run_rule!(eco::Ecosystem, rule::DeathProcess, timestep::Unitful.Time)
+    rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
     if eco.abenv.active[loc]
@@ -24,11 +24,6 @@ function _run_rule!(eco::Ecosystem, rule::DeathProcess{U}, timestep::Unitful.Tim
     end
 end
 
-function _run_rule!(eco::Ecosystem, rule::BirthDeathProcess{U}, timestep::Unitful.Time) where U <: Unitful.Units
-    _run_rule!(eco, rule.birth, timestep)
-    _run_rule!(eco, rule.death, timestep)
-end
-
 function _run_rule!(eco::Ecosystem, rule::AllDisperse)
     spp = getspecies(rule)
     loc = getlocation(rule)
@@ -37,14 +32,18 @@ function _run_rule!(eco::Ecosystem, rule::AllDisperse)
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractTransition
-    if typeof(rule) <: BirthProcess
+function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractStateTransition
+    if typeof(rule) == BirthProcess
         _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) <: DeathProcess
+    elseif typeof(rule) == DeathProcess
         _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) <: BirthDeathProcess
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) <: AllDisperse
+    elseif typeof(rule) == AllDisperse
+        _run_rule!(eco, rule)
+    end
+end
+
+function run_rule!(eco::Ecosystem, rule::R) where R <: AbstractPlaceTransition
+    if typeof(rule) == AllDisperse
         _run_rule!(eco, rule)
     end
 end
@@ -58,7 +57,7 @@ function new_update!(eco::Ecosystem, timestep::Unitful.Time)
         run_rule!(eco, st, timestep)
     end
     Threads.@threads for pl in eco.transitions.place
-        run_rule!(eco, pl, timestep)
+        run_rule!(eco, pl)
     end
 
     eco.abundances.matrix .+= eco.cache.netmigration

@@ -106,7 +106,7 @@ end
 
 Function to plot climate profiles for a vector of species names, `spp_names`, using a JuliaDB table of GBIF records, `data`, column containing climate variable of interest, `var`, and dimensions over which it should be plotted, `dims`.
 """
-function getprofile(spp_names::Array{String, 1}, data::IndexedTable, var::Symbol, label::String, dims::Tuple{Int64, Int64} = (1,1))
+function getprofile(spp_names::Array{String, 1}, data::NDSparse, var::Symbol, label::String, dims::Tuple{Int64, Int64} = (1,1))
 
     # Check for dimensions to be greater or the same as the length of species, or for all to be plotted in one plot pane.
     (dims[1] * dims[2] >= length(spp_names) || dims == (1,1)) || error("Dimensions not big enough for number of species")

@@ -1,5 +1,5 @@
 
-function _run_rule!(epi::EpiSystem, rule::Exposure{U}, timestep::Unitful.Time) where U <: Unitful.Units
+function _run_rule!(epi::EpiSystem, rule::Exposure, timestep::Unitful.Time)
     rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     dest = getdestination(rule)
@@ -21,7 +21,7 @@ function _run_rule!(epi::EpiSystem, rule::Exposure{U}, timestep::Unitful.Time) w
     end
 end
 
-function _run_rule!(epi::EpiSystem, rule::Infection{U}, timestep::Unitful.Time) where U <: Unitful.Units
+function _run_rule!(epi::EpiSystem, rule::Infection, timestep::Unitful.Time)
     rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     dest = getdestination(rule)
@@ -35,7 +35,7 @@ function _run_rule!(epi::EpiSystem, rule::Infection{U}, timestep::Unitful.Time) 
     end
 end
 
-function _run_rule!(epi::EpiSystem, rule::Recovery{U}, timestep::Unitful.Time) where U <: Unitful.Units
+function _run_rule!(epi::EpiSystem, rule::Recovery, timestep::Unitful.Time)
     rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     dest = getdestination(rule)
@@ -49,19 +49,7 @@ function _run_rule!(epi::EpiSystem, rule::Recovery{U}, timestep::Unitful.Time) w
     end
 end
 
-
-function run_rule!(epi::EpiSystem, rule::SEIR{U}, timestep::Unitful.Time) where U <: Unitful.Units
-    run_rule!(epi, rule.exposure, timestep)
-    run_rule!(epi, rule.infection, timestep)
-    run_rule!(epi, rule.recovery, timestep)
-end
-
-function _run_rule!(epi::EpiSystem, rule::Force{U}, timestep::Unitful.Time) where U <: Unitful.Units
-    run_rule!(epi, rule.forceprod, timestep)
-    run_rule!(epi, rule.forcedisp, timestep)
-end
-
-function _run_rule!(epi::EpiSystem, rule::ForceProduce{U}, timestep::Unitful.Time) where U <: Unitful.Units
+function _run_rule!(epi::EpiSystem, rule::ForceProduce, timestep::Unitful.Time)
     rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
@@ -74,7 +62,7 @@ function _run_rule!(epi::EpiSystem, rule::ForceProduce{U}, timestep::Unitful.Tim
     end
 end
 
-function _run_rule!(epi::EpiSystem, rule::ViralLoad{U}, timestep::Unitful.Time) where U <: Unitful.Units
+function _run_rule!(epi::EpiSystem, rule::ViralLoad, timestep::Unitful.Time)
     rng = epi.abundances.rngs[Threads.threadid()]
     params = epi.epilist.params
     loc = getlocation(rule)
@@ -104,19 +92,23 @@ function _run_rule!(epi::EpiSystem, rule::ForceDisperse)
     epi.cache.virusmigration[spp, loc] = rand(rng, dist)
 end
 
-function run_rule!(epi::EpiSystem, rule::R, timestep::Unitful.Time) where R <: AbstractTransition
-    if typeof(rule) <: Exposure
+function run_rule!(epi::EpiSystem, rule::R, timestep::Unitful.Time) where R <: AbstractStateTransition
+    if typeof(rule) == Exposure
         _run_rule!(epi, rule, timestep)
-    elseif typeof(rule) <: Infection
+    elseif typeof(rule) == Infection
         _run_rule!(epi, rule, timestep)
-    elseif typeof(rule) <: Recovery
+    elseif typeof(rule) == Recovery
         _run_rule!(epi, rule, timestep)
-    elseif typeof(rule) <: ForceDisperse
+    elseif typeof(rule) == ViralLoad
+        _run_rule!(epi, rule, timestep)
+    elseif typeof(rule) == ForceProduce
+        _run_rule!(epi, rule, timestep)
+    end
+end
+
+function run_rule!(epi::EpiSystem, rule::R, timestep::Unitful.Time) where R <: AbstractPlaceTransition
+    if typeof(rule) == ForceDisperse
         _run_rule!(epi, rule)
-    elseif typeof(rule) <: ViralLoad
-        _run_rule!(epi, rule, timestep)
-    elseif typeof(rule) <: ForceProduce
-        _run_rule!(epi, rule, timestep)
     end
 end
 
@@ -136,15 +128,16 @@ end
 
 function new_update!(epi::EpiSystem, timestep::Unitful.Time)
 
+
+    Threads.@threads for st in epi.transitions.state
+        run_rule!(epi, st, timestep)
+    end
+
     Threads.@threads for pl in epi.transitions.place
         run_rule!(epi, pl, timestep)
     end
 
     update_virus_cache!(epi)
-
-    Threads.@threads for st in epi.transitions.state
-        run_rule!(epi, st, timestep)
-    end
 
     # Invalidate all caches for next update
     invalidatecaches!(epi)
