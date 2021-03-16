@@ -21,6 +21,32 @@ function _run_rule!(epi::EpiSystem, rule::Exposure, timestep::Unitful.Time)
     end
 end
 
+function _run_rule!(epi::EpiSystem, rule::EnvExposure, timestep::Unitful.Time)
+    rng = epi.abundances.rngs[Threads.threadid()]
+    spp = getspecies(rule)
+    dest = getdestination(rule)
+    loc = getlocation(rule)
+    get_env = rule.get_env
+    env_exposure = rule.env_param
+    if epi.epienv.active[loc]
+        params = epi.epilist.params
+        force_cats = epi.epilist.virus.force_cats
+        age_cat = epi.epilist.human.human_to_force
+        N = sum_pop(epi.abundances.matrix, loc)
+        env = @view get_env(epi.epienv.habitat)[loc]
+        env_transition = env[1] * env_exposure/mean(epi.epienv.habitat.matrix)
+        env_inf = virus(epi.abundances)[1, loc] /
+            (N^params.freq_vs_density_env)
+        force_inf = env_transition * (params.age_mixing[age_cat[spp], :] ⋅ virus(epi.abundances)[force_cats, loc]) /
+            (N^params.freq_vs_density_force)
+        expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
+        newexpprob = 1.0 - exp(-expprob)
+        exposures = rand(rng, Binomial(epi.abundances.matrix[spp, loc], newexpprob))
+        human(epi.abundances)[spp, loc] -= exposures
+        human(epi.abundances)[dest, loc] += exposures
+    end
+end
+
 function _run_rule!(epi::EpiSystem, rule::Infection, timestep::Unitful.Time)
     rng = epi.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
@@ -94,6 +120,8 @@ end
 
 function run_rule!(epi::EpiSystem, rule::R, timestep::Unitful.Time) where R <: AbstractStateTransition
     if typeof(rule) == Exposure
+        _run_rule!(epi, rule, timestep)
+    elseif typeof(rule) == EnvExposure
         _run_rule!(epi, rule, timestep)
     elseif typeof(rule) == Infection
         _run_rule!(epi, rule, timestep)

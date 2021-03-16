@@ -43,7 +43,9 @@ beta_env = fill(10.0/day, ages)
 virus_growth = fill(0.1/day, ages)
 virus_decay = 1.0/2days
 age_mixing = fill(1.0, ages, ages)
-param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force, age_mixing = age_mixing)
+param = (birth = birth, death = death, virus_growth = virus_growth,
+        virus_decay = virus_decay, beta_env = beta_env,
+        beta_force = beta_force, age_mixing = age_mixing)
 
 cat_idx = reshape(1:(nrow(abun_h) * ages), ages, nrow(abun_h))
 transitions = DataFrame([
@@ -69,9 +71,10 @@ category_map = (
     "Dead" => cat_idx[:, 5],
 )
 
+extra_params = (env_exposure = 2.5,)
 # Create epi system with all information
 rel = Gauss{eltype(epienv.habitat)}()
-transitions = create_transition_list(epilist, epienv)
+transitions = Simulation.create_transition_list_env_SEIR(epilist, epienv, extra_params)
 epi = EpiSystem(epilist, epienv, rel, transitions = transitions)
 
 # Run simulation
@@ -80,10 +83,11 @@ abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
 @time new_simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns, category_map = category_map)
 
-epi = EpiSystem(epilist, epienv, rel)
+transitions = Simulation.create_transition_list_SEIR(epilist, epienv)
+epi = EpiSystem(epilist, epienv, rel, transitions = transitions)
 
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
-@time simulate_record!(abuns, epi, times, interval, timestep);
+@time new_simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns, category_map = category_map)
