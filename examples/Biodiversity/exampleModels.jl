@@ -432,12 +432,12 @@ end
 meanSR = dropdims(mean(SR, dims = 2), dims = 2)
 sdSR = dropdims(std(SR, dims = 2), dims = 2)
 
-bar(string.(species), meanSR ./species, yerr= sdSR, grid = false, xlab = "Number of species introduced",
+bar!(string.(species), meanSR ./species, yerr= sdSR ./ species, grid = false, xlab = "Number of species introduced",
 ylab = "% Species survived", guidefontsize = 16,
 tickfontsize= 16, titlefontsize=24, margin = 10.0*Plots.mm,
-label = "",  title = "D", titleloc = :left,
+label = "",  title = "D", subplot = 4, titleloc = :left,
 left_margin = 20.0 *Plots.mm, ylim = (0, 1))
-
+Plots.pdf("examples/Biodiversity/Abundance.pdf")
 ## DISPERSAL ##
 times = 50years; timestep = 1month
 lensim = length(0month:timestep:times)
