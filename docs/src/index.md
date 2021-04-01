@@ -14,4 +14,4 @@ incorporating age-structure and more complex epidemiological models.
 
 This package is in alpha now, so please raise an issue if you find any problems.
 
-![](../svgs/Simulation.gif)
+<img src="https://github.com/boydorr/Simulation.jl/blob/main/docs/svgs/Simulation.gif">
