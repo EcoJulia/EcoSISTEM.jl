@@ -11,7 +11,8 @@ makedocs(
         "Home" => "index.md",
         "Biodiversity" => [
         "Basics" => "basics.md",
-        "Diversity" => "diversity.md"
+        "Diversity" => "diversity.md",
+        "Examples" => "examples.md"
         ],
         "Epidemiology" => [
         "SCRC" => "epi.md",
