@@ -151,7 +151,7 @@ plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
     xlab = "Selective advantage", ylab = "Invasion speed (km/month)",
     label = "", grid = false)
 ```
-![](/svgs/Invasion.svg)
+![](../svgs/Invasion.svg)
 *Figure 1: Invasive capacity of a specialist plant species versus a generalist. Selective advantage is the difference in niche width between the specialist and generalist, and invasion speed is calculated as the average distance travelled per month by the specialist.*
 #### ONE SPECIALIST VERSUS MANY GENERALISTS ####
 ``` julia
@@ -346,5 +346,5 @@ heatmap!(sumabuns,
     title = "D", titleloc = :left, clim = (0, 1))
 ```
 
-![](/svgs/Africa.svg)
+![](../svgs/Africa.svg)
 *Figure 2: 100 year simulations of Africa with 50,000 species. (A) Species richness after 100 years of simulation with all species equal. (B) Species richness after 50 years, with one specialist introduced. (C) Species richness after 100 years, with one specialist introduced. (D) Representativeness after 50 years with one specialist introduced (0 is completely unrepresentative of the ecosystem as a whole, 1 is completely representative).*
