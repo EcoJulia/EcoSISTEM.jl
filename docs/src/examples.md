@@ -213,7 +213,7 @@ margin = 10.0*Plots.mm, label = "", subplot = 3,
 title = "C", titleloc = :left, ylim = (0, 32_000))
 ```
 
-![](docs/svgs/Opt_var_panel.svg)
+![](/svgs/Opt_var_panel.svg)
 *Abundance of species across 100km² patch ecosystem with 100 species, (A) with a different temperature preferences and a homogeneous climate of 25°C, (B)  with different niche widths and a temperature preference for 25°C and (C) different niche widths with a shifted homogeneous climate of 26°C.*
 
 ## 2. Varying resources, grid sizes, areas and number of species
@@ -462,7 +462,7 @@ label = "",  title = "D", subplot = 4, titleloc = :left,
 left_margin = 20.0 *Plots.mm, ylim = (0, 1))
 ```
 
-![](docs/svgs/Abundance.svg)
+![](/svgs/Abundance.svg)
 *Model testing on island ecosystems. (A) Total abundance of 100 species, with varying resources of water and solar energy across the grid. (B) Total abundance of 100 species, with increasing area size. (C) Total abundance of 100 species, with increasing grid square resolution. (D) Percentage of species survived after 10 years of simulation.*
 
 
@@ -536,5 +536,5 @@ for i in 1:4
     clim = (0, 1.5e4), link = :both))
 end
 ```
-![](docs/svgs/DispersalSD.svg)
+![](/svgs/DispersalSD.svg)
 *Total abundance of two species in island ecosystems after 10 years of simulation, with species populated at opposite sides of the island. Those with higher dispersal distances moved further away from their starting populations at a faster rate. (A) Mean dispersal distance of 0.5km, (B) mean dispersal distance of 1km, (C) Mean dispersal distance of 2km, Mean dispersal distance of 4km.*

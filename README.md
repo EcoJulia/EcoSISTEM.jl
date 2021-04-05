@@ -26,7 +26,7 @@ This package is in alpha now, so please raise an issue if you find any problems.
 [docs-dev-url]: https://boydorr.github.io/Simulation.jl/dev/
 [actions-img]: https://github.com/boydorr/Simulation.jl/workflows/Simulation%20testing/badge.svg
 [actions-url]: https://github.com/boydorr/Simulation.jl/actions
-[codecov-img]: https://codecov.io/gh/boydorr/Simulation.jl/branch/master/graph/badge.svg
-[codecov-url]: https://codecov.io/gh/boydorr/Simulation.jl?branch=master
+[codecov-img]: https://codecov.io/gh/boydorr/Simulation.jl/branch/main/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/boydorr/Simulation.jl?branch=main
 [model-struct-url]: https://boydorr.github.io/Simulation.jl/dev/model_structure/
 [model-dev-url]: https://boydorr.github.io/Simulation.jl/dev/model_structure/
