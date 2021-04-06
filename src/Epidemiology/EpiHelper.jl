@@ -2,7 +2,7 @@ using AxisArrays
 using HDF5
 using Unitful
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 
 import HDF5: ishdf5
 """
@@ -29,7 +29,7 @@ function simulate!(
   if save && !isdir(save_path) # Create the directory if it doesn't already exist.
       mkpath(save_path)
   end
-  save && Simulation.save(joinpath(save_path, "initial_system.jlso"), epi)
+  save && EcoSISTEM.save(joinpath(save_path, "initial_system.jlso"), epi)
   save && JLSO.save(
     joinpath(save_path, "configuration.jlso"),
     :duration => duration,
@@ -43,7 +43,7 @@ function simulate!(
   end
 
   # save simulation results
-  save && Simulation.save(joinpath(save_path, "final_system.jlso"), epi)
+  save && EcoSISTEM.save(joinpath(save_path, "final_system.jlso"), epi)
 end
 
 """
@@ -78,7 +78,7 @@ function simulate_record!(
   if save && !isdir(save_path) # Create the directory if it doesn't already exist.
       mkpath(save_path)
   end
-  save && Simulation.save(joinpath(save_path, "initial_system.jlso"), epi)
+  save && EcoSISTEM.save(joinpath(save_path, "initial_system.jlso"), epi)
   save && JLSO.save(
     joinpath(save_path, "configuration.jlso"),
     :storage => storage,
@@ -136,7 +136,7 @@ function simulate_record!(
   end
 
   # save simulation results
-  save && Simulation.save(joinpath(save_path, "final_system.jlso"), epi)
+  save && EcoSISTEM.save(joinpath(save_path, "final_system.jlso"), epi)
   return storage
 end
 

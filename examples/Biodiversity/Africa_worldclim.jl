@@ -1,7 +1,7 @@
 
-using Simulation
-using Simulation.ClimatePref
-using Simulation.Units
+using EcoSISTEM
+using EcoSISTEM.ClimatePref
+using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 using JLD
@@ -56,7 +56,7 @@ rel = Gauss{typeof(1.0K)}()
 #Create ecosystem
 eco = Ecosystem(sppl, abenv, rel)
 
-import Simulation.simulate!
+import EcoSISTEM.simulate!
 function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
   time_seq = 0s:timestep:times
   counting = 0

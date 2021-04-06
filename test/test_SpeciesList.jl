@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
 using Distributions
-using Simulation.Units
+using EcoSISTEM.Units
 using Diversity
 
 @testset "SpeciesList" begin

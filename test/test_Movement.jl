@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Distributions
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 
 @testset "Movement" begin
     numSpecies = 10
@@ -19,15 +19,15 @@ using Simulation.Units
 
     kernel = GaussianKernel.(fill(0.2m, numSpecies), 10e-4)
     mov = AlwaysMovement(kernel, NoBoundary())
-    @test Simulation.getkernels(mov) == mov.kernels
-    @test Simulation.getboundary(mov) == mov.boundary
+    @test EcoSISTEM.getkernels(mov) == mov.kernels
+    @test EcoSISTEM.getboundary(mov) == mov.boundary
     mov = BirthOnlyMovement(kernel)
-    @test Simulation.getkernels(mov) == mov.kernels
-    @test Simulation.getboundary(mov) == mov.boundary
+    @test EcoSISTEM.getkernels(mov) == mov.kernels
+    @test EcoSISTEM.getboundary(mov) == mov.boundary
     mov =  NoMovement(kernel)
-    @test Simulation.getkernels(mov) == mov.kernels
+    @test EcoSISTEM.getkernels(mov) == mov.kernels
     kernel = LongTailKernel.(fill(0.2m, numSpecies), 1.0, 10e-4)
     mov = AlwaysMovement(kernel, NoBoundary())
-    @test Simulation.getkernels(mov) == mov.kernels
-    @test Simulation.getboundary(mov) == mov.boundary
+    @test EcoSISTEM.getkernels(mov) == mov.kernels
+    @test EcoSISTEM.getboundary(mov) == mov.boundary
 end

@@ -11,8 +11,8 @@ Here we describe several properties that the model ecosystem should be able to r
 
 What follows are several examples of this operating in practice.
 ```julia
-using Simulation
-using Simulation.Units
+using EcoSISTEM
+using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 using Diversity

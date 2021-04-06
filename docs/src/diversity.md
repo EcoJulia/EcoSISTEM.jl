@@ -2,7 +2,7 @@
 
 Simulation is integrated with the [Diversity](https://github.com/richardreeve/Diversity.jl) package, so that diversity measures can be calculated directly on ecosystems.
 
-See [Basics](https://boydorr.github.io/Simulation.jl/dev/basics/) for more information on setting up an Ecosystem.
+See [Basics](https://boydorr.github.io/EcoSISTEM.jl/dev/basics/) for more information on setting up an Ecosystem.
 
 ```julia
 using Diversity

@@ -272,7 +272,7 @@ function genlookups(epienv::GridEpiEnv, mov::AlwaysMovement)
     grid_size /= unit(grid_size)
 
     # Calculate lookup probabilities for each grid location
-    res = map((i, r, t) -> Simulation.genlookups(i, grid_locs, xys, grid_size, r, t, epienv), grid_locs, relsize, thresh)
+    res = map((i, r, t) -> EcoSISTEM.genlookups(i, grid_locs, xys, grid_size, r, t, epienv), grid_locs, relsize, thresh)
 
     # Column vectors are source grid cells (repeated for each destination calculated)
     Js = vcat([fill(grid_locs[r], length(res[r][1])) for r in eachindex(res)]...)

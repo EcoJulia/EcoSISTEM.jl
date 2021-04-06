@@ -6,7 +6,7 @@ else
 end
 using DataFrames
 using Unitful
-using Simulation.Units
+using EcoSISTEM.Units
 using Missings
 using Compat
 using RecipesBase
@@ -469,7 +469,7 @@ function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
     m = maximum(_getdimension(hab))
     p = mov.thresh
     b = mov.shape
-    return Simulation.Lookup(Simulation._lookup(relsize, m, p, b, Simulation._2Dt_disperse))
+    return EcoSISTEM.Lookup(EcoSISTEM._lookup(relsize, m, p, b, EcoSISTEM._2Dt_disperse))
 end
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,

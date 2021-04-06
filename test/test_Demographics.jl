@@ -1,9 +1,9 @@
-using Simulation
+using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
-using Simulation.Units
+using EcoSISTEM.Units
 using Unitful
-import Simulation.equalpop
+import EcoSISTEM.equalpop
 
 @testset "Params"  begin
     birth = 0.6/month

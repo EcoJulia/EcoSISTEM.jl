@@ -1,11 +1,11 @@
-# Simulation
+# EcoSISTEM
 [![][docs-dev-img]][docs-dev-url] [![][actions-img]][actions-url] [![][codecov-img]][codecov-url]
 
 *Package for running dynamic ecosystem and epidemiological simulations*
 
 ## Summary
 
-**Simulation** is a [Julia](http://www.julialang.org) package that
+**EcoSISTEM** is a [Julia](http://www.julialang.org) package that
 provides functionality for simulating species undergoing dynamic
 biological processes such as birth, death, competition and dispersal, as well as environmental changes in climate and habitat. This branch has now been adapted to include basic functionality for spatially explicit, dynamic, stochastic epidemiological models.
 
@@ -23,10 +23,10 @@ This package is in alpha now, so please raise an issue if you find any problems.
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://boydorr.github.io/Simulation.jl/dev/
-[actions-img]: https://github.com/boydorr/Simulation.jl/workflows/Simulation%20testing/badge.svg
-[actions-url]: https://github.com/boydorr/Simulation.jl/actions
-[codecov-img]: https://codecov.io/gh/boydorr/Simulation.jl/branch/main/graph/badge.svg
-[codecov-url]: https://codecov.io/gh/boydorr/Simulation.jl?branch=main
-[model-struct-url]: https://boydorr.github.io/Simulation.jl/dev/model_structure/
-[model-dev-url]: https://boydorr.github.io/Simulation.jl/dev/model_structure/
+[docs-dev-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/
+[actions-img]: https://github.com/boydorr/EcoSISTEM.jl/workflows/Simulation%20testing/badge.svg
+[actions-url]: https://github.com/boydorr/EcoSISTEM.jl/actions
+[codecov-img]: https://codecov.io/gh/boydorr/EcoSISTEM.jl/branch/main/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/boydorr/EcoSISTEM.jl?branch=main
+[model-struct-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/model_structure/
+[model-dev-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/model_structure/

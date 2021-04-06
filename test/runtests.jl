@@ -17,7 +17,7 @@ testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
 # Seed RNG to make tests reproducible
 Random.seed!(1234)
 
-@testset "Simulation.jl" begin
+@testset "EcoSISTEM.jl" begin
     println()
     @info "Running tests for files:"
     for t in testbase

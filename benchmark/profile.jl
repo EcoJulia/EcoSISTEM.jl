@@ -9,7 +9,7 @@ Pkg.resolve()
 
 using StatProfilerHTML
 using JLSO
-using Simulation
+using EcoSISTEM
 
 include(joinpath(@__DIR__, "utils.jl"))
 
@@ -31,7 +31,7 @@ function profile_example(case_name)
             reldir = relpath(root, PATH_TO_EPI)
             println("\n profile episystem: ", reldir)
             # load simulate inputs
-            @time epi = Simulation.load(joinpath(root, "initial_system.jlso"), EpiSystem)
+            @time epi = EcoSISTEM.load(joinpath(root, "initial_system.jlso"), EpiSystem)
             @time configs = JLSO.load(joinpath(root, "configuration.jlso"))
             # run simulate
             if :storage in keys(configs)

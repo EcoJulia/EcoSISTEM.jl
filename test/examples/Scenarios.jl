@@ -1,6 +1,6 @@
 using Unitful
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 
 import Simulation: RateType, get_neighbours
 

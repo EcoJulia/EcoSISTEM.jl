@@ -1,4 +1,4 @@
-module Simulation
+module EcoSISTEM
 
 using Unitful
 using Unitful.DefaultSymbols

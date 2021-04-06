@@ -1,9 +1,9 @@
 using Documenter
-using Simulation
+using EcoSISTEM
 
 makedocs(
-    modules = [Simulation],
-    sitename = "Simulation.jl",
+    modules = [EcoSISTEM],
+    sitename = "EcoSISTEM.jl",
     format=Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true",
     ),
@@ -29,7 +29,7 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/boydorr/Simulation.jl.git",
+    repo = "github.com/boydorr/EcoSISTEM.jl.git",
     push_preview = true,
     devbranch = "main"
 )

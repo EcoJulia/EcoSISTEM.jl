@@ -8,7 +8,7 @@ Function to convert type of similarity in SpeciesList to UniqueTypes, i.e. an id
 function makeunique(eco::Ecosystem)
     sppl = eco.spplist
     spp = length(sppl.names)
-    Simulation.invalidatecaches!(eco)
+    EcoSISTEM.invalidatecaches!(eco)
     newsppl = SpeciesList{typeof(sppl.traits), typeof(sppl.requirement),
     typeof(sppl.movement), UniqueTypes, typeof(sppl.params)}(sppl.names,
     sppl.traits, sppl.abun, sppl.requirement, UniqueTypes(spp), sppl.movement,

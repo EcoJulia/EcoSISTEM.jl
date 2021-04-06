@@ -1,4 +1,4 @@
-# Simulation.jl
+# EcoSISTEM.jl
 
 **Simulation** is a [Julia](http://www.julialang.org) package that provides functionality
 for simulating species undergoing dynamic biological processes such as birth, death,
@@ -14,4 +14,4 @@ incorporating age-structure and more complex epidemiological models.
 
 This package is in alpha now, so please raise an issue if you find any problems.
 
-![](Simulation.gif)
+![](EcoSISTEM.gif)

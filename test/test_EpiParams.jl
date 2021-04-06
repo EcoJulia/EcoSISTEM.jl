@@ -1,7 +1,7 @@
-using Simulation
+using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
-using Simulation.Units
+using EcoSISTEM.Units
 using DataFrames
 
 @testset "Epi params" begin

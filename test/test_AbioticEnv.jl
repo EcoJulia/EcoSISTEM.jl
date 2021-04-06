@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
-using Simulation.Units
-using Simulation.ClimatePref
+using EcoSISTEM.Units
+using EcoSISTEM.ClimatePref
 using AxisArrays
 
 grid = (5, 5)
@@ -23,8 +23,8 @@ active = fill(true, grid)
     @test abenv.active == active
     @test all(abenv.active)
 
-    @test Simulation._getsubcommunitynames(abenv) == abenv.names
-    @test Simulation.getavailableenergy(abenv) == sum(abenv.budget.matrix)
+    @test EcoSISTEM._getsubcommunitynames(abenv) == abenv.names
+    @test EcoSISTEM.getavailableenergy(abenv) == sum(abenv.budget.matrix)
 end
 
 @testset "temperature gradient" begin

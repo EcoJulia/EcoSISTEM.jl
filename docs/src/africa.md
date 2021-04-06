@@ -7,9 +7,9 @@ We can also explore the behaviour of selective advantage of specialist species o
 #### SINGLE SPECIES ####
 
 ```julia
-using Simulation
-using Simulation.ClimatePref
-using Simulation.Units
+using EcoSISTEM
+using EcoSISTEM.ClimatePref
+using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 using Distances
@@ -155,9 +155,9 @@ plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
 *Figure 1: Invasive capacity of a specialist plant species versus a generalist. Selective advantage is the difference in niche width between the specialist and generalist, and invasion speed is calculated as the average distance travelled per month by the specialist.*
 #### ONE SPECIALIST VERSUS MANY GENERALISTS ####
 ``` julia
-using Simulation
-using Simulation.ClimatePref
-using Simulation.Units
+using EcoSISTEM
+using EcoSISTEM.ClimatePref
+using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 using JLD
@@ -209,7 +209,7 @@ rel = Gauss{typeof(1.0K)}()
 eco = Ecosystem(sppl, abenv, rel)
 eco.abundances.matrix[50_000, :] .= 0
 
-import Simulation.simulate!
+import EcoSISTEM.simulate!
 function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
   time_seq = 0s:timestep:times
   counting = 0
@@ -234,9 +234,9 @@ eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
 #### 50,000 SPECIES COEXISTING #####
 
 ```julia
-using Simulation
-using Simulation.ClimatePref
-using Simulation.Units
+using EcoSISTEM
+using EcoSISTEM.ClimatePref
+using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 using JLD

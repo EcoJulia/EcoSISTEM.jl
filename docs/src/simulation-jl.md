@@ -1,4 +1,4 @@
-**Table of datasets currently in use by Simulation.jl**
+**Table of datasets currently in use by EcoSISTEM.jl**
 
 Preliminary list of parameters/datasets.
 

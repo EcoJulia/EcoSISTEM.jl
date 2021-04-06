@@ -1,6 +1,6 @@
 # Running on DiRAC
 
-In order to run Simulation.jl on DiRAC, it is first necessary to [request an account](https://safe.epcc.ed.ac.uk/dirac/)
+In order to run EcoSISTEM.jl on DiRAC, it is first necessary to [request an account](https://safe.epcc.ed.ac.uk/dirac/)
 and then to request access to the `dc003` project. Once that is granted, it is possible to log
 into the server via ssh at the address
 ```
@@ -10,8 +10,8 @@ login.hpc.cam.ac.uk
 Julia is already installed on the cluster, so the only things that are needed are a Project.toml
 file and a Julia script defining and setting up the environment for the experiment, a Julia
 script with the experiment, and a submission script. Here we give examples using the
-[Scottish experiment](https://github.com/ScottishCovidResponse/Simulation.jl/blob/dev/examples/Epidemiology/Scotland_run.jl).
-The other files needed for this experiment can be found [here](https://github.com/ScottishCovidResponse/Simulation.jl/blob/dev/examples/Epidemiology/HPC/)
+[Scottish experiment](https://github.com/ScottishCovidResponse/EcoSISTEM.jl/blob/dev/examples/Epidemiology/Scotland_run.jl).
+The other files needed for this experiment can be found [here](https://github.com/ScottishCovidResponse/EcoSISTEM.jl/blob/dev/examples/Epidemiology/HPC/)
 
 ## Project.toml
 
@@ -37,23 +37,23 @@ julia = "1.1"
 [targets]
 ```
 
-**This file should not include Simulation.jl, as it is unregistered.** This will be taken care
+**This file should not include EcoSISTEM.jl, as it is unregistered.** This will be taken care
 of by the setup script.
 
 ## Setup script
 
-This file is responsible for cloning Simulation.jl, as it is unregistered, and also for
+This file is responsible for cloning EcoSISTEM.jl, as it is unregistered, and also for
 instantiating the environment.
 
 ```julia
 using Pkg
-Pkg.add(PackageSpec(url="https://github.com/ScottishCovidResponse/Simulation.jl.git"))
+Pkg.add(PackageSpec(url="https://github.com/ScottishCovidResponse/EcoSISTEM.jl.git"))
 Pkg.instantiate()
 ```
 
 ## Experiment script
 
-This file should contain the experiment to be run. There are [examples](https://github.com/ScottishCovidResponse/Simulation.jl/blob/dev/examples/Epidemiology/) available.
+This file should contain the experiment to be run. There are [examples](https://github.com/ScottishCovidResponse/EcoSISTEM.jl/blob/dev/examples/Epidemiology/) available.
 
 ## Submission script
 

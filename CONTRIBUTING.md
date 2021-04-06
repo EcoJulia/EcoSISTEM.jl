@@ -1,15 +1,15 @@
-# Contributing to Simulation.jl
+# Contributing to EcoSISTEM.jl
 
-Thanks for contributing to Simulation.jl! Please read the below on how best to make progress on this project.
+Thanks for contributing to EcoSISTEM.jl! Please read the below on how best to make progress on this project.
 
 ## Pull Request Process
 
 
-1. Please branch from within ScottishCovidResponse/Simulation.jl 
+1. Please branch from within ScottishCovidResponse/EcoSISTEM.jl 
 
    - Please **don't** fork this repository to your own github.com/username or other organisation.
 
-2. Read the issues and choose/be assigned an appropriate issue. This is likely to be either a `Starter issue` or one assigned by chatting in `zulip/Simulation.jl`.
+2. Read the issues and choose/be assigned an appropriate issue. This is likely to be either a `Starter issue` or one assigned by chatting in `zulip/EcoSISTEM.jl`.
 
 3. Name the branch `username/featurename` and have fun!
 
@@ -25,7 +25,7 @@ Thanks for contributing to Simulation.jl! Please read the below on how best to m
    > second line SCRC-123"
    ```
 
-5. When your feature is ready to merge back into the `dev` branch create a PR against  `ScottishCovidResponse/Simulation#dev` (**not** `boydorr/Simulation.jl`) **and assign `ScottishCovidResponse/simulation-jl-admins` as reviewers**.
+5. When your feature is ready to merge back into the `dev` branch create a PR against  `ScottishCovidResponse/Simulation#dev` (**not** `boydorr/EcoSISTEM.jl`) **and assign `ScottishCovidResponse/simulation-jl-admins` as reviewers**.
 
 6. Semver will be handled in PRs from `dev` into `master`.
 

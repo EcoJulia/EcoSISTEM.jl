@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Unitful
 using Unitful.DefaultSymbols
-using Simulation.Units
-using Simulation.ClimatePref
+using EcoSISTEM.Units
+using EcoSISTEM.ClimatePref
 using StatsBase
 using Distributions
 using Plots
@@ -47,7 +47,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     param = transition(param, age_categories)
 
     # Read in population sizes for Scotland
-    ukpop = Array{Float64, 2}(readfile(Simulation.path("test", "examples",
+    ukpop = Array{Float64, 2}(readfile(EcoSISTEM.path("test", "examples",
                                                        "UK.tif"),
                                        0.0, 7e5, 0, 1.25e6))
     # Coarsen grid to 10km

@@ -10,7 +10,7 @@ Pkg.resolve()
 
 using BenchmarkTools
 using JLSO
-using Simulation
+using EcoSISTEM
 
 include(joinpath(@__DIR__, "utils.jl"))
 
@@ -38,7 +38,7 @@ function bench_example(case_name)
             reldir = relpath(root, PATH_TO_EPI)
             println("\n benchmark episystem: ", reldir)
             # load simulate inputs
-            @time epi = Simulation.load(joinpath(root, "initial_system.jlso"), EpiSystem)
+            @time epi = EcoSISTEM.load(joinpath(root, "initial_system.jlso"), EpiSystem)
             @time configs = JLSO.load(joinpath(root, "configuration.jlso"))
             # run simulate
             SUITE[reldir] = if :storage in keys(configs)
