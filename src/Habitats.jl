@@ -3,7 +3,7 @@ import Diversity.API._countsubcommunities
 import Diversity.countsubcommunities
 using Unitful
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 using Compat
 using RecipesBase
 using EcoBase

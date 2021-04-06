@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Compat.Test
 using Distributions
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 
 numSpecies = 10
 

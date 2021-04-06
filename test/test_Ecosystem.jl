@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Compat.Test
 using Unitful.DefaultSymbols
 using Distributions
-using Simulation.Units
+using EcoSISTEM.Units
 using Diversity
 
 include("TestCases.jl")
@@ -10,7 +10,7 @@ include("TestCases.jl")
 @test_nowarn eco = TestEcosystem()
 eco = TestEcosystem()
 
-# Test Simulation get functions
+# Test EcoSISTEM get functions
 @test_nowarn gettraitrel(eco)
 @test gettraitrel(eco) == eco.relationship
 @test_nowarn gethabitat(eco)

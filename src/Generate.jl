@@ -419,10 +419,10 @@ end
 
 """
     emptypopulate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::AB, rel::R) where {AB <: Simulation.AbstractAbiotic, R <: Simulation.AbstractTraitRelationship}
+                   abenv::AB, rel::R) where {AB <: EcoSISTEM.AbstractAbiotic, R <: EcoSISTEM.AbstractTraitRelationship}
 """
 function emptypopulate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::AB, rel::R) where {AB <: Simulation.AbstractAbiotic, R <: Simulation.AbstractTraitRelationship}
+                   abenv::AB, rel::R) where {AB <: EcoSISTEM.AbstractAbiotic, R <: EcoSISTEM.AbstractTraitRelationship}
 @warn "Ecosystem not populated!"
 end
 """

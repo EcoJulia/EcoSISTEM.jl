@@ -1,13 +1,13 @@
-using Simulation
+using EcoSISTEM
 using Unitful
 using Unitful.DefaultSymbols
 using Distributions
-using Simulation.Units
+using EcoSISTEM.Units
 using Phylo
 using DataFrames
 using Diversity
 
-function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(), size = (mean = 1.0m^2, std = 0.0001m^2)) where {A <: Simulation.AbstractAbiotic, B <: Simulation.BoundaryCondition}
+function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(), size = (mean = 1.0m^2, std = 0.0001m^2)) where {A <: EcoSISTEM.AbstractAbiotic, B <: EcoSISTEM.BoundaryCondition}
     # Set up initial parameters for ecosystem
     birth = haskey(paramDict, "birth") ? paramDict["birth"] : 0.6/year
     death = haskey(paramDict, "death") ? paramDict["death"] : 0.6/year

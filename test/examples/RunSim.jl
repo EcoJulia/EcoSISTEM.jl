@@ -1,13 +1,13 @@
-using Simulation
+using EcoSISTEM
 using Unitful
-using Simulation.Units
+using EcoSISTEM.Units
 using JLD
 using Printf
 
-import Simulation.runscenario!
+import EcoSISTEM.runscenario!
 function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
-  scenario::SC, divfuns::Array{Function, 1}, q::Float64, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String, rep::Int64) where SC <: Simulation.AbstractScenario
+  scenario::SC, divfuns::Array{Function, 1}, q::Float64, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String, rep::Int64) where SC <: EcoSISTEM.AbstractScenario
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
   record_seq = 0s:interval:times
   time_seq = 0s:timestep:times
@@ -30,7 +30,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   storage
 end
 
-function runsim!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict, simDict::Dict, rep::Int64, folder::String = "./", recreate = true) where AB <: Simulation.AbstractAbiotic
+function runsim!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict, simDict::Dict, rep::Int64, folder::String = "./", recreate = true) where AB <: EcoSISTEM.AbstractAbiotic
     cacheFolder = joinpath(folder, "cache")
     isdir(cacheFolder) || mkdir(cacheFolder)
     eco = create_eco(paramDict, abenv, bound = paramDict["bound"])
@@ -67,7 +67,7 @@ function adjusttemp!(eco::Ecosystem, scenario::MultiScenario, times::Unitful.Tim
     end
 end
 
-function dispersalrun!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict, simDict::Dict, rep::Int64, folder::String = "./") where AB <: Simulation.AbstractAbiotic
+function dispersalrun!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict, simDict::Dict, rep::Int64, folder::String = "./") where AB <: EcoSISTEM.AbstractAbiotic
     cacheFolder = joinpath(folder, "cache")
     isdir(cacheFolder) || mkdir(cacheFolder)
     eco = create_eco(paramDict, abenv, bound = paramDict["bound"])

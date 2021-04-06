@@ -9,7 +9,7 @@ function plot(eco::Ecosystem, fig=true)
     grid = size(eco.abundances.matrix)
     # Convert grid cell positions to x,y coordinates (making sure they are Float values
     # because otherwise they are interpreted as point locations)
-    coords = convert_coords.(1:grid[2], Simulation.getdimension(eco)[1])
+    coords = convert_coords.(1:grid[2], EcoSISTEM.getdimension(eco)[1])
     abun_data[:lon] = [ x[1] for x in coords ] * 1.0
     abun_data[:lat] = [ x[2] for x in coords ] * 1.0
     abun_data[:coords] = map((x,y) ->"$x" * "_$y", abun_data[:lon], abun_data[:lat])

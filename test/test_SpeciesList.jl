@@ -1,10 +1,10 @@
-using Simulation
+using EcoSISTEM
 using Compat.Test
 using Unitful.DefaultSymbols
 using Distributions
-using Simulation.Units
+using EcoSISTEM.Units
 
-## Run simulation over a grid and plot
+## Run EcoSISTEM over a grid and plot
 numSpecies=4
 numTraits = 2
 

@@ -1,4 +1,4 @@
-The Simulation.jl package is licensed under the GNU Public License, Version 3.0+:
+The EcoSISTEM.jl package is licensed under the GNU Public License, Version 3.0+:
 
 > Copyright (c) 2016: Claire Harris.
 > This program is free software: you can redistribute it and/or modify

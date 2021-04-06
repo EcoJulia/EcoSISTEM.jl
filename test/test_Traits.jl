@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Compat.Test
 using Distributions
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 
 opts = fill(5.0°C, numSpecies)
 vars = rand(Uniform(0, 25/9), numSpecies)  * °C

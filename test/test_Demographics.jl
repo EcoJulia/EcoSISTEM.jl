@@ -1,7 +1,7 @@
-using Simulation
+using EcoSISTEM
 using Unitful.DefaultSymbols
 using Compat.Test
-using Simulation.Units
+using EcoSISTEM.Units
 
 birth = 0.6/month
 death = 0.6/month
