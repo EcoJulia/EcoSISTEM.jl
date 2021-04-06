@@ -221,7 +221,7 @@ title = "C", titleloc = :left, ylim = (0, 32_000))
 Firstly, we confirmed that abundance depended upon the amount of available resource. Here, we simulated an island ecosystem with two resources, water and sunlight, each on a gradient West to East and South to North, respectively. All species were seeded with the same resource requirements and vital rates. Abundance increased in squares with greater amounts of water and sunlight, with some edge effects. Next, we investigated the relationship between abundance and area size. As expected, ecosystems with greater areas could support more individuals, and these abundances were invariant to the resolution of the grid. We also tested in an ecosystem in which species demographic and dispersal rates and resource requirements varied. Under these circumstances, some species not favoured for the conditions go extinct, but most species survive to the end of the simulation.
 
 ``` julia
-
+## MORE ENERGY MORE ABUNDANCE ##
 numSpecies = 100; grd = (10,10); req=(450000.0kJ/m^2, 192.0nm/m^2); individuals = 100_000_000; area = 100.0*km^2; totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
 
 abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
