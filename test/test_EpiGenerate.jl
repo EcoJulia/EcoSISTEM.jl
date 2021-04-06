@@ -4,7 +4,7 @@ using Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
 
-import Simulation: virusupdate!, classupdate!, invalidatecaches!
+import EcoSISTEM: virusupdate!, classupdate!, invalidatecaches!
 include("TestCases.jl")
 
 @testset "Episystem" begin

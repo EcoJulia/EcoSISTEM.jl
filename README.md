@@ -5,7 +5,7 @@
 
 ## Summary
 
-**EcoSISTEM** is a [Julia](http://www.julialang.org) package that
+**EcoSISTEM** (Ecosystem Simulation through Species-Trait Environment Modelling) is a [Julia](http://www.julialang.org) package that
 provides functionality for simulating species undergoing dynamic
 biological processes such as birth, death, competition and dispersal, as well as environmental changes in climate and habitat. This branch has now been adapted to include basic functionality for spatially explicit, dynamic, stochastic epidemiological models.
 

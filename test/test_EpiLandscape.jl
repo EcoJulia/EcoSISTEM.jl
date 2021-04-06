@@ -3,7 +3,7 @@ using Test
 using Distributions
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
-import Simulation: emptyepilandscape
+import EcoSISTEM: emptyepilandscape
 
 include("TestCases.jl")
 

@@ -6,7 +6,7 @@ using EcoSISTEM.Units
 using Phylo
 using DataFrames
 
-import Simulation: DiscreteTrait
+import EcoSISTEM: DiscreteTrait
 
 @testset "Traits" begin
     numSpecies = 10

@@ -3,7 +3,7 @@ using Test
 using Distributions
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
-import Simulation: traitfun
+import EcoSISTEM: traitfun
 
 include("TestCases.jl")
 
