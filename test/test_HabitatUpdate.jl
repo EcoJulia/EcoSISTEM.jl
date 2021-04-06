@@ -1,6 +1,6 @@
 using EcoSISTEM
 using Distributions
-using Compat.Test
+using Test
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units

@@ -253,7 +253,7 @@ function _getabundance(cache::CachedEcosystem, input::Bool)
     if all(ismissing.(cache.abundances.matrix))
         error("Abundances are missing")
     else
-        id = Compat.findall(.!ismissing.(cache.abundances.matrix))[end]
+        id = findall(.!ismissing.(cache.abundances.matrix))[end]
         abun = cache.abundances.matrix[id]
     end
     if input
@@ -364,7 +364,7 @@ function getdispersaldist(eco::AbstractEcosystem, sp::Int64)
   return dist
 end
 function getdispersaldist(eco::AbstractEcosystem, sp::String)
-  num = Compat.findall(eco.spplist.names.==sp)[1]
+  num = findall(eco.spplist.names.==sp)[1]
   getdispersaldist(eco, num)
 end
 
@@ -380,7 +380,7 @@ function getdispersalvar(eco::AbstractEcosystem, sp::Int64)
     return var
 end
 function getdispersalvar(eco::AbstractEcosystem, sp::String)
-    num = Compat.findall(eco.spplist.names.==sp)[1]
+    num = findall(eco.spplist.names.==sp)[1]
     getdispersalvar(eco, num)
 end
 """
@@ -392,7 +392,7 @@ function getlookup(eco::AbstractEcosystem, sp::Int64)
     return eco.lookup[sp]
 end
 function getlookup(eco::AbstractEcosystem, sp::String)
-    num = Compat.findall(eco.spplist.names.==sp)[1]
+    num = findall(eco.spplist.names.==sp)[1]
     getlookup(eco, num)
 end
 

@@ -1,5 +1,5 @@
 using EcoSISTEM
-using Compat.Test
+using Test
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units

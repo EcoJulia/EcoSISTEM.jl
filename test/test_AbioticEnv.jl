@@ -1,6 +1,6 @@
 using EcoSISTEM
 using Unitful.DefaultSymbols
-using Compat.Test
+using Test
 using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
 using AxisArrays

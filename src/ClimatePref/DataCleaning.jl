@@ -48,7 +48,7 @@ end
 Function to mask botanic garden locations found in `gard` from occurrence
 records found in `occ`, with an optional size for the mask, `masksize`.
 """
-function gardenmask(occ::IndexedTable, gard::IndexedTable,
+function gardenmask(occ::NextTable, gard::NextTable,
      masksize::Float64)
     coords = hcat(select(gard, :Latitude), select(gard, :Longitude))
     ref = create_reference(masksize)
@@ -68,7 +68,7 @@ end
 
 Function to clean occurrence data of botanic garden information.
 """
-function genus_clean(genus::IndexedTable)
+function genus_clean(genus::NextTable)
     gardens = load("data/garden_table")
     genus = gardenmask(genus, gardens, 0.02)
     return genus
@@ -80,8 +80,8 @@ end
 Function to clean occurrence data of botanic garden information, and
 join with worldclim data.
 """
-function genus_worldclim_average(genus::IndexedTable,
-    worldclim::IndexedTable)
+function genus_worldclim_average(genus::NextTable,
+    worldclim::NextTable)
     worldclim_names = [:prec, :srad, :tavg, :tmax, :tmin, :vapr, :wind]
     genus = genus_clean(genus)
     ref = create_reference(1/12)
@@ -99,8 +99,8 @@ end
 Function to clean occurrence data of botanic garden information, and
 join with monthly worldclim data.
 """
-function genus_worldclim_monthly(genus::IndexedTable,
-    worldclim::IndexedTable)
+function genus_worldclim_monthly(genus::NextTable,
+    worldclim::NextTable)
     worldclim_names = [:prec, :srad, :tavg, :tmax, :tmin, :vapr, :wind]
     genus = genus_clean(genus)
     ref = create_reference(1/12)

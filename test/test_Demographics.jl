@@ -1,6 +1,6 @@
 using EcoSISTEM
 using Unitful.DefaultSymbols
-using Compat.Test
+using Test
 using EcoSISTEM.Units
 
 birth = 0.6/month

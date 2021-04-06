@@ -34,7 +34,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
                        P <: AbstractParams}
       # Check dimensions
       equal_param = equalpop(params, length(names))
-      sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
+      sus = Vector{Union{Missing, Float64}}(undef, length(names))
       new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
        movement, equal_param, native, sus)
   end
@@ -51,7 +51,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
       # Assign names
       names = map(x -> "$x", 1:length(abun))
       equal_param = equalpop(params, length(names))
-      sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
+      sus = Vector{Union{Missing, Float64}}(undef, length(names))
       new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
        movement, equal_param, native, sus)
   end
@@ -73,14 +73,14 @@ function SpeciesList(numspecies::Int64,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
+    tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
     # Create traits and assign to tips
     trts = DataFrame(trait1 = collect(1:numtraits))
     assign_traits!(tree, switch, trts)
     # Get traits from tree
     sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
     # Create similarity matrix (for now identity)
-    phy = PhyloTypes(tree)
+    phy = PhyloBranches(tree)
     # Draw random set of abundances from distribution
     if length(abun) < numspecies
         abun = vcat(abun, repmat([0], numspecies - length(abun)))
@@ -109,7 +109,7 @@ function SpeciesList(numspecies::Int64,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
+    tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
     # Create traits and assign to tips
     trts = DataFrame(trait1 = collect(1:numtraits))
     assign_traits!(tree, switch, trts)
@@ -124,7 +124,7 @@ function SpeciesList(numspecies::Int64,
     # Multiply density by area to get final population sizes
     abun = round.(Int64, density * area)
     # Create similarity matrix (for now identity)
-    phy = PhyloTypes(tree)
+    phy = PhyloBranches(tree)
     # Draw random set of abundances from distribution
     # error out when abunance and NumberSpecies are not the same (same for energy dist)
     length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
@@ -154,7 +154,7 @@ function SpeciesList(numspecies::Int64,
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
+    tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
     # Create traits and assign to tips
     trts = DataFrame(trait1 = collect(1:numtraits))
     assign_traits!(tree, 0.5, trts)
@@ -208,7 +208,7 @@ function SpeciesList(tree::AbstractTree,
     names = sort(getleafnames(tree))
     numspecies = length(names)
 
-    ty = PhyloTypes(tree)
+    ty = PhyloBranches(tree)
 
     # Draw random set of abundances from distribution
     if length(abun) < numspecies
@@ -237,7 +237,7 @@ end
 #  return eye(ut.num)
 #end
 
-#function _calcsimilarity(ph::PhyloTypes)
+#function _calcsimilarity(ph::PhyloBranches)
 # return ph.Zmatrix
 #end
 import Diversity.API: _gettypenames
