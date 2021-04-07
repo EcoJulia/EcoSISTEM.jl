@@ -1,4 +1,4 @@
-name: Simulation testing
+name: EcoSISTEM testing
 
 on:
   push:
