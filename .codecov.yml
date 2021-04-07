@@ -1,0 +1,4 @@
+# Ignore ClimatePref for now - not possible to test
+# as relies on access to v large datasets.
+ignore:
+  - "src/ClimatePref"
