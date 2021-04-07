@@ -42,13 +42,13 @@ function create_reference(gridsize::Float64)
     ref = Reference(refarray)
 end
 """
-    gardenmask(occ::IndexedTables.NextTable, gard::IndexedTables.NextTable,
+    gardenmask(occ::IndexedTables.IndexedTable, gard::IndexedTables.IndexedTable,
      masksize::Float64)
 
 Function to mask botanic garden locations found in `gard` from occurrence
 records found in `occ`, with an optional size for the mask, `masksize`.
 """
-function gardenmask(occ::NextTable, gard::NextTable,
+function gardenmask(occ::IndexedTable, gard::IndexedTable,
      masksize::Float64)
     coords = hcat(select(gard, :Latitude), select(gard, :Longitude))
     ref = create_reference(masksize)
@@ -64,24 +64,24 @@ function gardenmask(occ::NextTable, gard::NextTable,
     return occ
 end
 """
-    genus_clean(genus::IndexedTables.NextTable)
+    genus_clean(genus::IndexedTables.IndexedTable)
 
 Function to clean occurrence data of botanic garden information.
 """
-function genus_clean(genus::NextTable)
+function genus_clean(genus::IndexedTable)
     gardens = load("data/garden_table")
     genus = gardenmask(genus, gardens, 0.02)
     return genus
 end
 
 """
-    genus_worldclim_average(genus::IndexedTables.NextTable)
+    genus_worldclim_average(genus::IndexedTables.IndexedTable)
 
 Function to clean occurrence data of botanic garden information, and
 join with worldclim data.
 """
-function genus_worldclim_average(genus::NextTable,
-    worldclim::NextTable)
+function genus_worldclim_average(genus::IndexedTable,
+    worldclim::IndexedTable)
     worldclim_names = [:prec, :srad, :tavg, :tmax, :tmin, :vapr, :wind]
     genus = genus_clean(genus)
     ref = create_reference(1/12)
@@ -94,13 +94,13 @@ function genus_worldclim_average(genus::NextTable,
     return genus
 end
 """
-    genus_worldclim_monthly(genus::IndexedTables.NextTable)
+    genus_worldclim_monthly(genus::IndexedTables.IndexedTable)
 
 Function to clean occurrence data of botanic garden information, and
 join with monthly worldclim data.
 """
-function genus_worldclim_monthly(genus::NextTable,
-    worldclim::NextTable)
+function genus_worldclim_monthly(genus::IndexedTable,
+    worldclim::IndexedTable)
     worldclim_names = [:prec, :srad, :tavg, :tmax, :tmin, :vapr, :wind]
     genus = genus_clean(genus)
     ref = create_reference(1/12)
