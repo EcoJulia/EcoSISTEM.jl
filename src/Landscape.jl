@@ -1,10 +1,11 @@
 using Missings
 using AxisArrays
 using Random
+using Compat
 
 struct SavedLandscape
     matrix::Matrix{Int64}
-    seed::Vector{MersenneTwister}
+    rngs::Vector{MersenneTwister}
 end
 
 """
@@ -18,15 +19,15 @@ represent species, their abundances and position in the grid).
 mutable struct GridLandscape
   matrix::Matrix{Int64}
   grid::Array{Int64, 3}
-  seed::Vector{MersenneTwister}
+  rngs::Vector{MersenneTwister}
 
   function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
     a = abun
     return new(a, reshape(a, dimension), [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()])
   end
-  function GridLandscape(abun::Matrix{Int64}, dimension::Tuple, seed::Vector{MersenneTwister})
+  function GridLandscape(abun::Matrix{Int64}, dimension::Tuple, rngs::Vector{MersenneTwister})
     a = abun
-    return new(a, reshape(a, dimension), seed)
+    return new(a, reshape(a, dimension), rngs)
   end
 end
 import Base.copy
@@ -34,11 +35,11 @@ function copy(gl::GridLandscape)
     return GridLandscape(copy(gl.matrix), size(gl.grid))
 end
 function GridLandscape(sl::SavedLandscape, dimension::Tuple)
-    GridLandscape(sl.matrix, dimension, sl.seed)
+    GridLandscape(sl.matrix, dimension, sl.rngs)
 end
 
 function SavedLandscape(gl::GridLandscape)
-    SavedLandscape(gl.matrix, gl.seed)
+    SavedLandscape(gl.matrix, gl.rngs)
 end
 
 """
@@ -55,7 +56,7 @@ end
 
 function CachedGridLandscape(file::String, rng::StepRangeLen)
   interval = step(rng)
-  v = Vector{Union{GridLandscape, Missing}}(undef, length(rng))
+  v = Vector{Union{GridLandscape, Missing}}(Compat.undef, length(rng))
   fill!(v, missing)
   a = AxisArray(v, Axis{:time}(rng))
   return CachedGridLandscape(a, file, interval)

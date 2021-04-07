@@ -10,7 +10,7 @@ function __init__()
 end
 
 include("ClimateTypes.jl")
-export Worldclim, Bioclim, ERA, CERA, Reference
+export Worldclim, Bioclim, ERA, CERA, CRUTS, CHELSA, Reference
 
 include("ReadData.jl")
 export read, searchdir, readworldclim, readbioclim, readERA, readCERA, readfile, readCHELSA

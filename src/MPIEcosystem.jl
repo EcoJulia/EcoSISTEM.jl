@@ -1,4 +1,4 @@
-using MPI
+using .MPI
 using Diversity
 if VERSION > v"1.0.0"
     using HCubature
@@ -52,8 +52,9 @@ end
 
 Function to create an `MPIEcosystem` given a species list, an abiotic environment and trait relationship.
 """
-function MPIEcosystem(popfun::Function, spplist::SpeciesList{T, Req},
-  abenv::GridAbioticEnv, rel::AbstractTraitRelationship) where {T, Req}
+function MPIEcosystem(popfun::F, spplist::SpeciesList{T, Req},
+  abenv::GridAbioticEnv, rel::AbstractTraitRelationship
+  ) where {F<:Function, T, Req}
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
@@ -117,7 +118,7 @@ import Diversity.API: _getmetaabundance
 function _getmetaabundance(eco::MPIEcosystem)
     comm = MPI.COMM_WORLD
     ab = sum(_getabundance(eco), dims = 2)
-    return MPI.Allgatherv(ab, eco.sppcounts, comm)
+    return MPI.Allgatherv(MPI.VBuffer(ab, eco.sppcounts), comm)
 end
 
 import Diversity.API: _getweight
@@ -142,7 +143,7 @@ function _calcordinariness(eco::MPIEcosystem)
     return _calcsimilarity(eco.spplist.types, one(eltype(relab)))[sp_rng, sp_rng] * relab
 end
 
-function gather_diversity(eco::MPIEcosystem, divmeasure::Function, q)
+function gather_diversity(eco::MPIEcosystem, divmeasure::F, q) where {F<:Function}
     comm = MPI.COMM_WORLD
     totalsize = MPI.Comm_size(comm)
     div = divmeasure(eco, q)

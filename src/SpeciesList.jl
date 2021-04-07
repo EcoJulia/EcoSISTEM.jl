@@ -34,7 +34,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
                        P <: AbstractParams}
       # Check dimensions
       equal_param = equalpop(params, length(names))
-      sus = Vector{Union{Missing, Float64}}(undef, length(names))
+      sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
       new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
        movement, equal_param, native, sus)
   end
@@ -46,12 +46,10 @@ mutable struct SpeciesList{TR <: AbstractTraits,
                        MO <: AbstractMovement,
                        T <: AbstractTypes,
                        P <: AbstractParams}
-      # Check dimensions
-      _simmatch(types)
       # Assign names
       names = map(x -> "$x", 1:length(abun))
       equal_param = equalpop(params, length(names))
-      sus = Vector{Union{Missing, Float64}}(undef, length(names))
+      sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
       new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
        movement, equal_param, native, sus)
   end
@@ -199,30 +197,6 @@ function SpeciesList(numspecies::Int64,
               req, ty, movement, params, native)
 end
 
-function SpeciesList(tree::AbstractTree,
-    traits::TR, abun::Vector{Int64}, req::R,
-    movement::MO, params::P, native::Vector{Bool}) where
-    {TR<: AbstractTraits, R <: AbstractRequirement,
-        MO <: AbstractMovement, P <: AbstractParams}
-
-    names = sort(getleafnames(tree))
-    numspecies = length(names)
-
-    ty = PhyloBranches(tree)
-
-    # Draw random set of abundances from distribution
-    if length(abun) < numspecies
-        abun = vcat(abun, fill(0, numspecies - length(abun)))
-    end
-    # error out when abun dist and NumberSpecies are not the same (same for energy dist)
-    length(abun)==numspecies || throw(DimensionMismatch("Abundance vector
-                                          doesn't match number species"))
-    length(req)==numspecies || throw(DimensionMismatch("Requirement vector
-                                          doesn't match number species"))
-  SpeciesList{typeof(traits), typeof(req),
-              typeof(movement), typeof(ty),typeof(params)}(names, traits, abun,
-              req, ty, movement, params, native)
-end
 
 function getenergyusage(sppl::SpeciesList)
     return _getenergyusage(sppl.abun, sppl.requirement)
@@ -237,7 +211,7 @@ end
 #  return eye(ut.num)
 #end
 
-#function _calcsimilarity(ph::PhyloBranches)
+#function _calcsimilarity(ph::PhyloTypes)
 # return ph.Zmatrix
 #end
 import Diversity.API: _gettypenames

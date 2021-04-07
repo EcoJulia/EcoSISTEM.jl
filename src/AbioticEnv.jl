@@ -7,11 +7,12 @@ using EcoSISTEM.ClimatePref
 
 using Diversity.API
 
-matchdict = Dict(kJ => SolarBudget, mm => WaterBudget, NoUnits => SimpleBudget)
+matchdict = Dict(kJ => SolarBudget, mm => WaterBudget, NoUnits => SimpleBudget, m^3 => VolWaterBudget)
 checkbud(maxbud) = unit(maxbud) in keys(matchdict)
 cancel(a::Quantity{<: Real, 𝐌*𝐓^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(kJ, a*b)
 cancel(a::Quantity{<: Real, 𝐋*𝐋^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(mm, a*b)
 cancel(a::Quantity{<: Real, 𝐋^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(NoUnits, a*b)
+cancel(a::Quantity{<: Real, 𝐋^3*𝐋^-2}, b::Quantity{<: Real, 𝐋^2}) = uconvert(m^3, a*b)
 """
     AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
 
@@ -76,7 +77,7 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
 end
 function simplenicheAE(numniches::Int64, dimension::Tuple,
                         maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
-    active = Array{Bool,2}(undef, dimension)
+    active = Array{Bool,2}(Compat.undef, dimension)
     fill!(active, true)
     simplenicheAE(numniches, dimension, maxbud, area, active)
 end
@@ -239,7 +240,7 @@ function peakedgradAE(minT::Unitful.Temperature{Float64},
 
 Function to create a `ContinuousHab`, `SimpleBudget` type abiotic environment from an ERA type climate. It either creates a `SimpleBudget` type filled with the maximum budget value `maxbud` or uses a provided budget of type `SolarTimeBudget`. If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
 """
-function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64})
+function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
     dimension = size(era.array)[1:2]
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -247,7 +248,7 @@ function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64})
     active[isnan.(era.array[:,:,1])] .= false
 
     hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(eraChange, 0.0/s))
+        HabitatUpdate(eraChange, 0.0/s, Unitful.Dimensions{()}))
     B = cancel(maxbud, area)
     bud = zeros(typeof(B), dimension)
     fill!(bud, B/(dimension[1]*dimension[2]))
@@ -255,12 +256,12 @@ function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64})
     budtype = matchdict[unit(B)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64}, active::Array{Bool, 2})
+function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64}, active::Array{Bool, 2})
     dimension = size(era.array)[1:2]
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(eraChange, 0.0/s))
+        HabitatUpdate(eraChange, 0.0/s, Unitful.Dimensions{()}))
     B = cancel(maxbud, area)
     bud = zeros(typeof(B), dimension)
     fill!(bud, B/(dimension[1]*dimension[2]))
@@ -268,14 +269,14 @@ function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64}, active::Array{Bool, 
     budtype = matchdict[unit(B)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function eraAE(era::ERA, bud::SolarTimeBudget, active::Array{Bool, 2})
+function eraAE(era::ERA, bud::B, active::Array{Bool, 2}) where B <: AbstractTimeBudget
     dimension = size(era.array)[1:2]
     gridsquaresize = era.array.axes[1].val[2] - era.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(era.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(eraChange, 0.0/s))
+        HabitatUpdate(eraChange, 0.0/s, Unitful.Dimensions{()}))
 
-     return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
+     return GridAbioticEnv{typeof(hab), typeof(bud)}(hab, active, bud)
 end
 
 """
@@ -283,15 +284,15 @@ end
 
 Function to create a `ContinuousHab`, `SimpleBudget` type abiotic environment from an Wordclim type climate. It either creates a `SimpleBudget` type filled with the maximum budget value `maxbud` or uses a provided budget of type `SolarTimeBudget`. If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
 """
-function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64})
+function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
     dimension = size(wc.array)[1:2]
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
 
     active = fill(true, dimension)
-    active[isnan.(wc.array[:,:,1])] = false
+    active[isnan.(wc.array[:,:,1])] .= false
 
     hab = ContinuousTimeHab(Array(wc.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(worldclimChange, 0.0/s))
+        HabitatUpdate(worldclimChange, 0.0/s, Unitful.Dimensions{()}))
     B = cancel(maxbud, area)
     bud = zeros(typeof(B), dimension)
     fill!(bud, B/(dimension[1]*dimension[2]))
@@ -299,12 +300,12 @@ function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64})
     budtype = matchdict[unit(B)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, active::Array{Bool, 2})
+function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64}, active::Array{Bool, 2})
     dimension = size(wc.array)[1:2]
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(wc.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(worldclimChange, 0.0/s))
+        HabitatUpdate(worldclimChange, 0.0/s, Unitful.Dimensions{()}))
     B = cancel(maxbud, area)
     bud = zeros(typeof(B), dimension)
     fill!(bud, B/(dimension[1]*dimension[2]))
@@ -312,14 +313,14 @@ function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, active::A
     budtype = matchdict[unit(B)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function worldclimAE(wc::Worldclim, bud::SolarTimeBudget, active::Array{Bool, 2})
+function worldclimAE(wc::Worldclim, bud::B, active::Array{Bool, 2}) where B <: AbstractTimeBudget
     dimension = size(wc.array)[1:2]
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(wc.array), 1, gridsquaresize,
-        HabitatUpdate{Unitful.Dimensions{()}}(worldclimChange, 0.0/s))
+        HabitatUpdate(worldclimChange, 0.0/s, Unitful.Dimensions{()}))
 
-     return GridAbioticEnv{typeof(hab), SolarTimeBudget}(hab, active, bud)
+     return GridAbioticEnv{typeof(hab), typeof(bud)}(hab, active, bud)
 end
 
  """

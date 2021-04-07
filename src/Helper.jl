@@ -30,11 +30,11 @@ end
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
   numSpecies = length(eco.spplist.abun)
   gridSize = _countsubcommunities(eco.abenv.habitat)
-  abun = Array{Int64, 4}(undef, numSpecies, gridSize, times, reps)
+  abun = Array{Int64, 4}(Compat.undef, numSpecies, gridSize, times, reps)
 end
 function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
   gridSize = _countsubcommunities(eco.abenv.habitat)
-  abun = Array{Float64, 4}(undef, gridSize, qs, times, reps)
+  abun = Array{Float64, 4}(Compat.undef, gridSize, qs, times, reps)
 end
 
 """
@@ -59,7 +59,6 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix
     end
-    print(".")
   end
   storage
 end
@@ -95,7 +94,7 @@ whole ecosystem is updated, such as removal of habitat patches.
 """
 function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
-  scenario::SimpleScenario, divfun::Function, qs::Vector{Float64})
+  scenario::SimpleScenario, divfun::F, qs::Vector{Float64}) where {F<:Function}
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
   record_seq = 0s:interval:times
   time_seq = 0s:timestep:times
@@ -105,7 +104,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     runscenario!(eco, timestep, scenario, time_seq[i]);
     if time_seq[i] in record_seq
       counting = counting + 1
-      storage[:, :, counting] = reshape(divfun(eco, qs)[:diversity],
+      storage[:, :, counting] = reshape(divfun(eco, qs)[!, :diversity],
       countsubcommunities(eco), length(qs))
     end
   end
@@ -114,7 +113,7 @@ end
 
 function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
-  divfun::Function, qs::Vector{Float64})
+  divfun::F, qs::Vector{Float64}) where {F<:Function}
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
   record_seq = ifelse(iseven(size(storage, 3)),timestep:interval:times, 0s:interval:times)
   time_seq = ifelse(iseven(size(storage, 3)), timestep:timestep:times, 0s:timestep:times)
@@ -123,7 +122,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     update!(eco, timestep);
     if time_seq[i] in record_seq
       counting = counting + 1
-      diversity = divfun(eco, qs)[:diversity]
+      diversity = divfun(eco, qs)[!, :diversity]
       storage[:, :, counting] = reshape(diversity,
       Int(length(diversity)/ length(qs)), length(qs))
     end
@@ -145,11 +144,11 @@ function simulate_record_diversity!(storage::AbstractArray,
       measures = [NormalisedAlpha, NormalisedBeta, Gamma]
       for k in 1:3
       dm = measures[k](eco)
-      diversity = subdiv(dm, qs)[:diversity]
-      diversity2 = metadiv(dm, qs)[:diversity]
-      storage[:, k, counting] = reshape(diversity,
+      diversity = subdiv(dm, qs)[!, :diversity]
+      diversity2 = metadiv(dm, qs)[!, :diversity]
+      storage[:, :, k, counting] = reshape(diversity,
       Int(length(diversity)/ length(qs)), length(qs))
-      storage2[k, counting] = diversity2[1]
+      storage2[:, k, counting] = diversity2
     end
     end
   end
@@ -167,7 +166,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     if time_seq[i] in record_seq
       counting = counting + 1
       for j in eachindex(divfuns)
-          storage[:, j, counting] = divfuns[j](eco, q)[:diversity][1]
+          storage[:, j, counting] .= divfuns[j](eco, q)[!, :diversity][1]
       end
     end
   end
@@ -186,60 +185,9 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
       if time_seq[i] in record_seq
           counting = counting + 1
           for j in eachindex(divfuns)
-              storage[j, counting] = divfuns[j](eco, q)[:diversity][1]
+              storage[:, j, counting] .= divfuns[j](eco, q)[!, :diversity][1]
           end
       end
   end
   storage
-end
-
-function cleanup!(abun::Array{Int64, 4})
-    zeroabun = mapslices(x -> all(x.!=0), abun, dims = [1, 2, 4])[1, 1, :, 1]
-    abun = abun[:, :, zeroabun, :]
-end
-
-function cleanup!(div::Array{Float64, 4})
-    nadiv = mapslices(x -> all(!isnan.(x)), div, dims = [1, 2, 4])[1, 1, :, 1]
-    div = div[:, :, nadiv, :]
-end
-
-
-function expected_counts(grd::Array{Float64, 3}, sq::Int64)
-  grd = convert(Array{Int64}, grd)
-  total = mapslices(sum, grd , dims = length(size(grd)))[:, :,  1]
-  grd = grd[:, :, sq]
-  _expected_counts(total, grd, sq)
-end
-
-
-function expected_counts(grd::Array{Float64, 4}, sq::Int64)
-  grd = convert(Array{Int64}, grd)
-  total = mapslices(sum, grd , dims = length(size(grd)))[:, :, :,  1]
-  grd = grd[:, :, :, sq]
-  _expected_counts(total, grd, sq)
-end
-
-function _expected_counts(total::Array{Int64}, grd::Array{Int64}, sq::Int64)
-  grd = grd[reshape(total, size(grd)).>0]
-  total = total[total.>0]
-
-  actual = counts(grd+1, maximum(grd+1))
-  actual = convert(Array{Float64,1}, actual)
-
-  expected_dist = zeros(Float64, (length(total), maximum(total)+1))
-  for i in 1:length(total)
-    expected_dist[i, 1:(total[i]+1)] = repmat([1/(total[i]+1)], total[i]+1)
-  end
-  expected = mapslices(sum, expected_dist, dims = 1)
-
-  # Cut expected values to length of actual
-  expected = expected[1:length(actual)]
-
-  return [expected, actual]
-end
-
-
-function expected_counts(grd::Array{Float64}, sq::Int64, sp::Int64)
-  sp_grd = grd[:, sp, :, :]
-  expected_counts(sp_grd, sq)
 end

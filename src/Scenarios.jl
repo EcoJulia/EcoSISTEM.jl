@@ -17,8 +17,8 @@ RateType = typeof(1.0/year)
 
 This scenario type holds a function that acts to change the entire ecosystem.
 """
-mutable struct SimpleScenario <: AbstractScenario
-    fun::Function
+mutable struct SimpleScenario{F<:Function} <: AbstractScenario
+    fun::F
     rate::Union{Quantity{Float64, 𝐓^-1}, Quantity{Float64, 𝚯*𝐓^-1}, Quantity{Float64, 𝐋*𝐓^-1}}
 end
 
@@ -27,10 +27,10 @@ end
 
 This scenario type holds a function that acts to fluctuate the environment.
 """
-mutable struct FluctScenario <: AbstractScenario
-        fun::Function
+mutable struct FluctScenario{F<:Function} <: AbstractScenario
+        fun::F
         rate::Quantity{Float64, 𝚯*𝐓^-1}
-        startarray::Array{Unitful.Temperature{Float64}, 2}
+        startarray::Array{typeof(1.0K), 2}
 end
 
 """

@@ -1,4 +1,4 @@
-using MPI
+using .MPI
 
 """
     MPIGridLandscape
@@ -12,7 +12,7 @@ mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
   reshaped_cols::Vector{RA}
   rows_tuple::NT
   cols_tuple::NT
-  seed::Vector{MersenneTwister}
+  rngs::Vector{MersenneTwister}
 
   function MPIGridLandscape(sppcounts::Vector{Int32}, sccounts::Vector{Int32}, rows_matrix::Matrix{Int64}, cols_vector::Vector{Int64})
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
@@ -64,11 +64,13 @@ function emptyMPIgridlandscape(sppcounts::Vector{Int32},
 end
 
 function synchronise_from_rows!(ml::MPIGridLandscape)
-  MPI.Alltoallv!(ml.rows_matrix, ml.cols_vector,
-                 ml.rows_tuple.counts, ml.cols_tuple.counts, MPI.COMM_WORLD)
+  MPI.Alltoallv!(MPI.VBuffer(ml.rows_matrix, ml.rows_tuple.counts),
+                 MPI.VBuffer(ml.cols_vector, ml.cols_tuple.counts),
+                 MPI.COMM_WORLD)
 end
 
 function synchronise_from_cols!(ml::MPIGridLandscape)
-  MPI.Alltoallv!(ml.cols_vector, ml.rows_matrix,
-                 ml.cols_tuple.counts, ml.rows_tuple.counts, MPI.COMM_WORLD)
+  MPI.Alltoallv!(MPI.VBuffer(ml.cols_vector, ml.cols_tuple.counts),
+                 MPI.VBuffer(ml.rows_matrix, ml.rows_tuple.counts),
+                 MPI.COMM_WORLD)
 end

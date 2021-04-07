@@ -149,8 +149,8 @@ end
 
 Function to create an `Ecosystem` given a species list, an abiotic environment and trait relationship. An optional population function can be added, `popfun`, which defaults to generic random filling of the ecosystem.
 """
-function Ecosystem(popfun::Function, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship) where {T, Req}
+function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
+   rel::AbstractTraitRelationship) where {F<:Function, T, Req}
 
   # Check there is enough energy to support number of individuals at set up
   #all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
@@ -173,7 +173,7 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
 end
 
 function addspecies!(eco::Ecosystem, abun::Int64)
-    eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(size(eco.abundances.matrix, 2)))
+    eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(1, size(eco.abundances.matrix, 2)))
     eco.abundances.grid = reshape(eco.abundances.matrix, (counttypes(eco.spplist, true)+1, _getdimension(eco.abenv.habitat)...))
     repopulate!(eco, abun)
     push!(eco.spplist.names, string.(counttypes(eco.spplist, true)+1))
@@ -190,7 +190,11 @@ function addtraits!(tr::GaussTrait)
     append!(tr.var, tr.var[end])
 end
 
-addmovement!(mv::AbstractMovement) = append!(mv.kernels, mv.kernels[end])
+function addtraits!(tr::DiscreteTrait)
+    append!(tr.val, rand(tr.val))
+end
+
+addmovement!(mv::AbstractMovement) = push!(mv.kernels, mv.kernels[end])
 
 function addparams!(pr::AbstractParams)
     append!(pr.birth, pr.birth[end])
@@ -202,6 +206,7 @@ addrequirement!(rq::AbstractRequirement) = append!(rq.energy, rq.energy[end])
 function addtypes!(ut::UniqueTypes)
     ut = UniqueTypes(ut.num+1)
 end
+
 
 """
     CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
@@ -402,20 +407,20 @@ end
 Function to reset the rate of habitat change for a species.
 """
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
-    eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimensions{()}}(
-    eco.abenv.habitat.change.changefun, rate)
+    eco.abenv.habitat.change = HabitatUpdate(
+    eco.abenv.habitat.change.changefun, rate, Unitful.Dimensions{()})
 end
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
-    eco.abenv.habitat.change = HabitatUpdate{typeof(dimension(1K))}(
-    eco.abenv.habitat.change.changefun, rate)
+    eco.abenv.habitat.change = HabitatUpdate(
+    eco.abenv.habitat.change.changefun, rate, typeof(dimension(1K)))
 end
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝐓^-1})
-    eco.abenv.habitat.change = HabitatUpdate{Unitful.Dimensions{()}}(
-    eco.abenv.habitat.change.changefun, rate)
+    eco.abenv.habitat.change = HabitatUpdate(
+    eco.abenv.habitat.change.changefun, rate, Unitful.Dimensions{()})
 end
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯*𝐓^-1})
-    eco.abenv.habitat.change = HabitatUpdate{typeof(dimension(1K))}(
-    eco.abenv.habitat.change.changefun, rate)
+    eco.abenv.habitat.change = HabitatUpdate(
+    eco.abenv.habitat.change.changefun, rate, typeof(dimension(1K)))
 end
 
 function resettime!(eco::AbstractEcosystem)
@@ -475,80 +480,81 @@ function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
 end
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
-                pThresh::Float64, dispersalfn::Function)
+                pThresh::Float64, dispersalfn::F) where {F<:Function}
   # Create empty array
   lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
 
-   # Loop through directions until probability is below threshold
-    k = 0
-    m = 0
-    count = 0
-    while (k <= maxGridSize && m <= maxGridSize)
-      count = count + 1
-      calc_prob = hcubature(r -> dispersalfn(r),
-                            [0, 0, k*relSquareSize, m*relSquareSize],
+  # Loop through directions until probability is below threshold
+  k = 0
+  m = 0
+  count = 0
+  while (k <= maxGridSize && m <= maxGridSize)
+    count = count + 1
+    calc_prob = hcubature(r -> dispersalfn(r),
+      [0, 0, k*relSquareSize, m*relSquareSize],
       [relSquareSize, relSquareSize, (k+1)*relSquareSize, (m+1)*relSquareSize],
-       maxevals= 10000)[1] / relSquareSize^2
-      if m == 0 && calc_prob < pThresh
-        break
-      end
-        if count == 1
-          push!(lookup_tab, [k m calc_prob])
-           k = k + 1
-        else
-          if (calc_prob > pThresh && m <= k)
-            push!(lookup_tab, [k m calc_prob])
-            m = m + 1
-          else m = 0; k = k + 1
-          end
-        end
+      maxevals= 10000)[1] / relSquareSize^2
+    if m == 0 && calc_prob < pThresh
+      break
     end
-    # If no probabilities can be calculated, threshold is too high
-    nrow(lookup_tab) != 0 || error("probability threshold too high")
-    # Find all other directions
-    lookup_tab = _symmetric_grid(lookup_tab)
-    #info(sum(lookup_tab[:, 3]))
-    # Normalise
-    lookup_tab[!, :Prob] = lookup_tab[!, :Prob]/sum(lookup_tab[!, :Prob])
-    lookup_tab
+    if count == 1
+      push!(lookup_tab, [k m calc_prob])
+      k = k + 1
+    elseif (calc_prob > pThresh && m <= k)
+      push!(lookup_tab, [k m calc_prob])
+      m = m + 1
+    else
+      m = 0
+      k = k + 1
+    end
+  end
+  # If no probabilities can be calculated, threshold is too high
+  nrow(lookup_tab) != 0 || error("probability threshold too high")
+  # Find all other directions
+  lookup_tab = _symmetric_grid(lookup_tab)
+  #info(sum(lookup_tab[:, 3]))
+  # Normalise
+  lookup_tab[!, :Prob] = lookup_tab[!, :Prob]/sum(lookup_tab[!, :Prob])
+  lookup_tab
 end
 
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
-                pThresh::Float64, b::Float64, dispersalfn::Function)
+                pThresh::Float64, b::Float64, dispersalfn::F
+                ) where {F<:Function}
   # Create empty array
   lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
 
-   # Loop through directions until probability is below threshold
-    k = 0
-    m = 0
-    count = 0
-    while (k <= maxGridSize && m <= maxGridSize)
-      count = count + 1
-      calc_prob = hcubature(r -> dispersalfn(r, b),
-                            [0, 0, k*relSquareSize, m*relSquareSize],
+  # Loop through directions until probability is below threshold
+  k = 0
+  m = 0
+  count = 0
+  while (k <= maxGridSize && m <= maxGridSize)
+    count = count + 1
+    calc_prob = hcubature(r -> dispersalfn(r, b),
+      [0, 0, k*relSquareSize, m*relSquareSize],
       [relSquareSize, relSquareSize, (k+1)*relSquareSize, (m+1)*relSquareSize],
-       maxevals= 10000)[1] / relSquareSize^2
-      if m == 0 && calc_prob < pThresh
-        break
-      end
-        if count == 1
-          push!(lookup_tab, [k m calc_prob])
-           k = k + 1
-        else
-          if (calc_prob > pThresh && m <= k)
-            push!(lookup_tab, [k m calc_prob])
-            m = m + 1
-          else m = 0; k = k + 1
-          end
-        end
+      maxevals=10000)[1] / relSquareSize^2
+    if m == 0 && calc_prob < pThresh
+      break
     end
-    # If no probabilities can be calculated, threshold is too high
-    nrow(lookup_tab) != 0 || error("probability threshold too high")
-    # Find all other directions
-    lookup_tab = _symmetric_grid(lookup_tab)
-    #info(sum(lookup_tab[:, 3]))
-    # Normalise
-    lookup_tab[:Prob] = lookup_tab[:Prob]/sum(lookup_tab[:Prob])
-    lookup_tab
+    if count == 1
+      push!(lookup_tab, [k m calc_prob])
+       k = k + 1
+    elseif (calc_prob > pThresh && m <= k)
+      push!(lookup_tab, [k m calc_prob])
+      m = m + 1
+    else
+      m = 0
+      k = k + 1
+    end
+  end
+  # If no probabilities can be calculated, threshold is too high
+  nrow(lookup_tab) != 0 || error("probability threshold too high")
+  # Find all other directions
+  lookup_tab = _symmetric_grid(lookup_tab)
+  #info(sum(lookup_tab[:, 3]))
+  # Normalise
+  lookup_tab[!, :Prob] = lookup_tab[!, :Prob]/sum(lookup_tab[!, :Prob])
+  lookup_tab
 end

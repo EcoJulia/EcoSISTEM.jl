@@ -19,7 +19,7 @@ function TestEcosystem()
     timestep = 1.0month
     param = EqualPop(birth, death, long, surv, boost)
 
-    grid = (50, 50)
+    grid = (10, 10)
     area = 10000.0km^2
     individuals=20000 * numSpecies
     totalK = 1000000.0 * kJ/km^2 * numSpecies
@@ -38,13 +38,8 @@ function TestEcosystem()
     return eco
 end
 
-
-function TestCache()
-    numSpecies = 3
-    Temp = load("/Users/claireh/Documents/PhD/GIT/ClimatePref/test/Testdata/testTempBin.jld",
-     "Temperature")
-    energy_vec = SolarRequirement(fill(0.2*day^-1*kJ*m^-2, numSpecies))
-
+function TestMultiEcosystem()
+    numSpecies = 150
 
     birth = 0.6/month
     death = 0.6/month
@@ -54,31 +49,28 @@ function TestCache()
     timestep = 1.0month
     param = EqualPop(birth, death, long, surv, boost)
 
-    file = "/Users/claireh/Documents/PhD/GIT/ClimatePref/data/World.tif"
-    world = extractfile(file)
-    europe = world[-10° .. 60°, 35° .. 80°]
-    eu = ustrip.(europe)
-    active = Array{Bool, 2}(.!isnan.(eu))
+    grid = (10, 10)
+    area = 10000.0km^2
+    individuals=20000 * numSpecies
+    totalK1 = 1000000.0 * kJ/km^2 * numSpecies
+    totalK2 = 100.0 * mm/km^2 * numSpecies
+    abenv1 = simplehabitatAE(10.0K, grid, totalK1, area)
+    abenv2 = simplehabitatAE(10.0K, grid, totalK2, area)
+    budget = BudgetCollection2(abenv1.budget, abenv2.budget)
+    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(budget)}(abenv1.habitat, abenv1.active, budget, abenv1.names)
 
-    grid = (94, 60)
-    individuals=1000000
-    era = ClimatePref.TestERA()
-    wc = ClimatePref.TestWorldclim()
-    wc = convert(Array{typeof(2.0*day^-1*kJ*m^-2),3}, wc.array[-10° .. 60°, 35° .. 80°,:])
-    bud = SolarTimeBudget(wc, 1)
-    #active = Array(bud.matrix[:,:,1] .> 0*day^-1*kJ*m^-2)
+    abun = rand(Multinomial(individuals, numSpecies))
+
     kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
     movement = BirthOnlyMovement(kernel)
-    common_species = ["Trifolium repens", "Urtica dioica", "Achillea millefolium"]
     native = fill(true, numSpecies)
-    traits = Array(transpose(Temp[common_species,:]))
-    traits = TempBin(traits)
-    abun = rand(Multinomial(individuals, numSpecies))
-    sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-    movement, param, native)
-    abenv = eraAE(era, bud, active)
-    rel = Trapeze{eltype(abenv.habitat)}()
-    eco = Ecosystem(populate!, sppl, abenv, rel)
-    times = 1month:1month:10years
+    energy1 = SolarRequirement(fill(2.0kJ, numSpecies))
+    energy2 = WaterRequirement(fill(2.0mm, numSpecies))
+    energy = ReqCollection2(energy1, energy2)
+    traits = GaussTrait(fill(10.0K, numSpecies), fill(0.1K, numSpecies))
+    sppl = SpeciesList(numSpecies, traits, abun, energy, movement, param, native)
+
+    rel = Gauss{eltype(abenv.habitat)}()
+    eco = Ecosystem(sppl, abenv, rel)
     return eco
 end

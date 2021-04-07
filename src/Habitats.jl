@@ -9,7 +9,8 @@ using RecipesBase
 using EcoBase
 import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
 cells, xrange, yrange, xmax, ymax, indices, coordinates
-import Plots: px
+using Measures: AbsoluteLength
+const px = AbsoluteLength(0.254)
 
 """
     AbstractHabitat
@@ -31,22 +32,23 @@ indices(ah::AbstractHabitat) =
     hcat(collect.(convert_coords.(1:length(ah.matrix), xcells(ah)))...)'
 indices(ah::AbstractHabitat, idx) = indices(ah)[:, idx]
 coordinates(ah::AbstractHabitat) = indices(ah)
-"""
-    ContinuousHab <: AbstractHabitat{Float64}
 
-This habitat subtype has a matrix of floats and a float grid square size
-"""
-mutable struct HabitatUpdate{D <: Unitful.Dimensions,
-                             DT}
-  changefun::Function
+mutable struct HabitatUpdate{F<:Function, DT}
+  changefun::F
   rate::DT
 end
 
-function HabitatUpdate{D}(changefun, rate::DT) where {D <: Unitful.Dimensions, DT}
-    typeof(dimension(rate * 1month)) == D || error("Failed to match types")
-    return HabitatUpdate{D, DT}(changefun, rate)
+function HabitatUpdate(changefun::F, rate::DT, ::Type{D}
+    ) where {F<:Function, DT, D<:Unitful.Dimensions}
+  typeof(dimension(rate * 1month)) <: D || error("Failed to match types $(rate * 1month) vs $D")
+  return HabitatUpdate(changefun, rate)
 end
 
+"""
+    ContinuousHab{C <: Number} <: AbstractHabitat{C}
+
+This habitat subtype houses a habitat matrix `matrix` of any units, a grid square size `size` and HabitatUpdate type `change`.
+"""
 mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
   matrix::Array{C, 2}
   size::Unitful.Length
@@ -82,13 +84,18 @@ end
     xrange(H), yrange(H), h
 end
 
-mutable struct ContinuousTimeHab{C <: Number} <: AbstractHabitat{C}
-  matrix::Array{C, 3}
+"""
+    ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <: AbstractHabitat{C}
+
+This habitat subtype houses a habitat matrix `matrix` of any units, the time slice of the habitat matrix currently being operated on `time`, a grid square size `size` and HabitatUpdate type `change`.
+"""
+mutable struct ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <: AbstractHabitat{C}
+  matrix::M
   time::Int64
   size::Unitful.Length
   change::HabitatUpdate
 end
-@recipe function f(H::ContinuousTimeHab{C}, time::Int64) where C
+@recipe function f(H::ContinuousTimeHab{C, M}, time::Int64) where {C, M <: AbstractArray{C, 3}}
     h = ustrip.(H.matrix)
     seriestype  :=  :heatmap
     grid --> false
@@ -98,8 +105,8 @@ end
     xrange(H), yrange(H), h[:,:,time]
 end
 
-iscontinuous(hab::ContinuousTimeHab{C}) where C = true
-function eltype(hab::ContinuousTimeHab{C}) where C
+iscontinuous(hab::ContinuousTimeHab{C, M}) where {C, M <: AbstractArray{C, 3}} = true
+function eltype(hab::ContinuousTimeHab{C, M}) where {C, M <: AbstractArray{C, 3}}
     return C
 end
 function _resettime!(hab::ContinuousTimeHab)
@@ -235,11 +242,11 @@ function _getgridsize(hab::Union{HabitatCollection2, HabitatCollection3})
   return _getgridsize(hab.h1)
 end
 
-function gethabitat(hab::AbstractHabitat, pos::Int64)
+function gethabitat(hab::H, pos::Int64) where H <: AbstractHabitat
     x, y = convert_coords(pos, size(hab.matrix, 1))
     return hab.matrix[x, y]
 end
-function gethabitat(hab::AbstractHabitat, field::Symbol)
+function gethabitat(hab::H, field::Symbol) where H <: AbstractHabitat
     return getfield(hab, field)
 end
 function gethabitat(hab::ContinuousTimeHab, pos::Int64)
@@ -361,14 +368,14 @@ function randomniches(dimension::Tuple, types::Vector{Int64}, clumpiness::Float6
     # Select clusters and assign types
     _identify_clusters!(M)
     # Create a string grid of the same dimensions
-    T = Array{Int64}(undef, dimension)
+    T = Array{Int64}(Compat.undef, dimension)
     # Fill in T with clusters already created
     map(x -> T[M.==x] .= sample(types, wv), 1:maximum(M))
     # Fill in undefined squares with most frequent neighbour
     _fill_in!(T, M, types, wv)
   end
-
-  return DiscreteHab(T, gridsquaresize, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
+  habitatupdate = HabitatUpdate(NoChange, 0.0/s, Unitful.Dimensions{()})
+  return DiscreteHab(T, gridsquaresize, habitatupdate)
 end
 
 """
@@ -382,14 +389,16 @@ function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
   M = fill(val, dim)
   func = ChangeLookup[unit(val)]
   rate = 0.0 * unit(val)/s
-  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(val))}(func, rate))
+  habitatupdate = HabitatUpdate(func, rate, typeof(dimension(val)))
+  ContinuousHab(M, size, habitatupdate)
 end
 
 function simplehabitat(val::Float64, size::Unitful.Length,
   dim::Tuple{Int64, Int64})
   M = fill(val, dim)
 
-  ContinuousHab(M, size, HabitatUpdate{Unitful.Dimensions{()}}(NoChange, 0.0/s))
+  habitatupdate = HabitatUpdate(NoChange, 0.0/s, Unitful.Dimensions{()})
+  ContinuousHab(M, size, habitatupdate)
 end
 
 """
@@ -404,13 +413,14 @@ function tempgrad(minT::Unitful.Temperature{Float64}, maxT::Unitful.Temperature{
   dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
   dim[1] > 1 ||
   error("First dimension should be greater than 1 for temperature gradient")
-  M = Array{typeof(minT)}(undef, dim)
+  M = Array{typeof(minT)}(Compat.undef, dim)
   total = dim[1]
   temp_range = collect(range(minT, stop = maxT, length = total))
   map(1:total) do seq
     M[seq, :] .= temp_range[seq]
   end
-  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(minT))}(TempChange, rate))
+  habitatupdate = HabitatUpdate(TempChange, rate, typeof(dimension(minT)))
+  ContinuousHab(M, size, habitatupdate)
 end
 
 """
@@ -423,11 +433,12 @@ Function to create a `ContinuousHab` habitat with a rainfall gradient.
 function raingrad(minR::Unitful.Length{Float64}, maxR::Unitful.Length{Float64}, size::Unitful.Length{Float64}, dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝐋*𝐓^-1})
   dim[1] > 1 ||
   error("First dimension should be greater than 1 for temperature gradient")
-  M = Array{typeof(minR)}(undef, dim)
+  M = Array{typeof(minR)}(Compat.undef, dim)
   total = dim[1]
   rain_range = collect(range(minR, stop = maxR, length = total))
   map(1:total) do seq
     M[seq, :] .= rain_range[seq]
   end
-  ContinuousHab(M, size, HabitatUpdate{typeof(dimension(minR))}(RainfallChange, rate))
+  habitatupdate = HabitatUpdate(RainfallChange, rate, typeof(dimension(minR)))
+  ContinuousHab(M, size, habitatupdate)
 end
