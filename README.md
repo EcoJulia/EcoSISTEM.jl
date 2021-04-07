@@ -24,7 +24,7 @@ This package is in alpha now, so please raise an issue if you find any problems.
 [paper-url]: https://arxiv.org/abs/1911.12257
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [docs-dev-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/
-[actions-img]: https://github.com/boydorr/EcoSISTEM.jl/workflows/Simulation%20testing/badge.svg?branch=dev
+[actions-img]: https://github.com/boydorr/EcoSISTEM.jl/workflows/EcoSISTEM%20testing/badge.svg?branch=dev
 [actions-url]: https://github.com/boydorr/EcoSISTEM.jl/actions
 [codecov-img]: https://codecov.io/gh/boydorr/EcoSISTEM.jl/branch/main/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/boydorr/EcoSISTEM.jl?branch=main
