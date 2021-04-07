@@ -31,5 +31,6 @@ makedocs(
 deploydocs(
     repo = "github.com/boydorr/EcoSISTEM.jl.git",
     push_preview = true,
-    devbranch = "main"
+    devbranch = "dev",
+    devurl = "dev"
 )
