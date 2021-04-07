@@ -23,6 +23,6 @@ makedocs(
 deploydocs(
     repo = "github.com/boydorr/EcoSISTEM.jl.git",
     push_preview = true,
-    devbranch = "biodiversity",
+    devbranch = "main",
     devurl = "main",
 )
