@@ -3,6 +3,7 @@ name: CompatHelper
 on:
   push:
     branches:
+      - main
       - dev
   schedule:
     - cron: '0 4 * * *'  # Daily at 4 AM
@@ -13,7 +14,7 @@ jobs:
     strategy:
       matrix:
         julia-version:
-          - '1'
+          - '1.6'
         arch:
           - x86
         os:
