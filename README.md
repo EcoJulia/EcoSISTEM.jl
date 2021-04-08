@@ -18,7 +18,9 @@ paper [arXiv:1911.12257 (q-bio.QM)][paper-url],
 *Dynamic virtual ecosystems as a tool for detecting large-scale
 responses of biodiversity to environmental and land-use change*.
 
-This package is in alpha now, so please raise an issue if you find any problems.
+There are substantial changes to the package introduced through the [`dev`](dev-url) branch, including epidemiological simulations and refactoring of the code base for further flexibility.
+
+This package is in beta now, so please raise an issue if you find any problems.
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 [docs-main-img]: https://img.shields.io/badge/docs-main-blue.svg
@@ -29,3 +31,4 @@ This package is in alpha now, so please raise an issue if you find any problems.
 [actions-url]: https://github.com/boydorr/EcoSISTEM.jl/actions
 [codecov-img]: https://codecov.io/gh/boydorr/EcoSISTEM.jl/branch/main/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/boydorr/EcoSISTEM.jl?branch=main
+[dev-url]: https://github.com/boydorr/EcoSISTEM.jl/tree/dev
