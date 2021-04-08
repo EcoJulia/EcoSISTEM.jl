@@ -19,7 +19,7 @@ responses of biodiversity to environmental and land-use change*.
 Future updates to the package functionality involve incorporating
 age-structure and epidemiological models (see the [SCRC fork](https://github.com/ScottishCovidResponse/Simulation.jl) for more details).
 
-This package is in alpha now, so please raise an issue if you find any problems.
+This package is in beta now, so please raise an issue if you find any problems.
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
