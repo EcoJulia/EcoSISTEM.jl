@@ -18,7 +18,7 @@ paper [arXiv:1911.12257 (q-bio.QM)][paper-url],
 *Dynamic virtual ecosystems as a tool for detecting large-scale
 responses of biodiversity to environmental and land-use change*.
 
-There are substantial changes to the package introduced through the [`dev`](dev-url) branch, including epidemiological simulations and refactoring of the code base for further flexibility.
+There are substantial changes to the package introduced through the [`dev`][dev-url] branch, including epidemiological simulations and refactoring of the code base for further flexibility.
 
 This package is in beta now, so please raise an issue if you find any problems.
 
