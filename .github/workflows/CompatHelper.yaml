@@ -1,0 +1,37 @@
+name: CompatHelper
+
+on:
+  push:
+    branches:
+      - dev
+  schedule:
+    - cron: '0 4 * * *'  # Daily at 4 AM
+
+jobs:
+  CompatHelper:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        julia-version:
+          - '1'
+        arch:
+          - x86
+        os:
+          - ubuntu-latest
+    steps:
+      - uses: julia-actions/setup-julia@latest
+        with:
+          version: ${{ matrix.julia-version }}
+          arch: ${{ matrix.arch }}
+      - name: Pkg.add("CompatHelper")
+        run: |
+          julia -e '
+            using Pkg
+            Pkg.add("CompatHelper")'
+      - name: CompatHelper.main()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          julia -e '
+            using CompatHelper
+            CompatHelper.main()'
