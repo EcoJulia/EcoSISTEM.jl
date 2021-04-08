@@ -402,7 +402,7 @@ for i in eachindex(species)
 end
 
 # Test most species can survive
-@test all(SR./species .> 0.9)
+@test all(SR./species .>= 0.9)
 
 ## DISPERSAL ##
 times = 50years; timestep = 1month
