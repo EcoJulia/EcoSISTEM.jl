@@ -1,7 +1,8 @@
 # EcoSISTEM
-[![][docs-main-img]][docs-main-url] [![][actions-img]][actions-url] [![][codecov-img]][codecov-url]
+[![][docs-main-img]][docs-main-url] [![][docs-dev-img]][docs-dev-url]
 
-[![][docs-dev-img]][docs-dev-url]
+
+[![][actions-img]][actions-url] [![][codecov-img]][codecov-url]
 
 *Package for running dynamic ecosystem simulations*
 
