@@ -1,11 +1,12 @@
 name: CI
 
 on:
-  release:
   push:
     branches:
       - main
       - dev
+    tags:
+      - 'v*'
   pull_request:
 
 jobs:
