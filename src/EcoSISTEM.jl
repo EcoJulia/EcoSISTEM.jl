@@ -66,9 +66,13 @@ export GridLandscape, CachedGridLandscape
 include("Transitions/Transitions.jl")
 export TransitionList
 
-include("Biodiversity/Ecosystem.jl")
+include("Transitions/TransitionSystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
 getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
+
+# include("Biodiversity/Ecosystem.jl")
+# export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
+# getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
 
 include("Transitions/BiodiversityTransitions.jl")
 export create_transitions

@@ -104,7 +104,7 @@ end
     update_energy_usage!(eco::Ecosystem)
 Function to calculate how much energy has been used up by the current species in each grid square in the ecosystem, `eco`. This function is parameterised on whether the species have one type of energy requirement or two.
 """
-function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract1Requirement}
+function update_energy_usage!(eco::AbstractEcosystem{A, B, SpeciesList{Tr,  Req, C, D, E}, F, G, H}) where {A, B, C, D, E, F, G, H, Tr, Req <: Abstract1Requirement}
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square
@@ -117,7 +117,7 @@ function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B,
     eco.cache.valid = true
 end
 
-function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract2Requirements}
+function update_energy_usage!(eco::AbstractEcosystem{A, B, SpeciesList{Tr,  Req, C, D, E}, F, G, H}) where {A, B, C, D, E, F, G, H, Tr, Req <: Abstract2Requirements}
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square

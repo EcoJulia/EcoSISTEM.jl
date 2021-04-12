@@ -1,6 +1,11 @@
 using JLSO
 using SparseArrays
 
+function create_cache(sppl::EpiList, ml::EpiLandscape)
+  vm = zeros(Float64, size(ml.matrix))
+  return EpiCache(vm, false)
+end
+
 """
     AbstractEpiSystem
 
