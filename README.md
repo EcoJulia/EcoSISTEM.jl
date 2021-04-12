@@ -20,7 +20,7 @@ responses of biodiversity to environmental and land-use change*.
 
 There are substantial changes to the package introduced through the [`dev`][dev-url] branch, including epidemiological simulations and refactoring of the code base for further flexibility.
 
-This package is in beta now, so please raise an issue if you find any problems.
+This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](CONTRIBUTING.md).
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 [docs-main-img]: https://img.shields.io/badge/docs-main-blue.svg
