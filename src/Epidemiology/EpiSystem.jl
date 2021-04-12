@@ -10,14 +10,14 @@ abstract type AbstractEpiSystem{Part <: AbstractEpiEnv, EL <: EpiList, TR <: Abs
                                     Matrix{Float64}, EL, Part} end
 
 
-mutable struct EpiCache
+mutable struct EpiCache <: AbstractCache
   virusmigration::Array{Float64, 2}
   valid::Bool
 end
 
 @enum MovementType homeMovement workMovement
 
-struct EpiLookup
+struct EpiLookup <: AbstractLookup
   homelookup::SparseMatrixCSC{Float64, Int32}
   worklookup::SparseMatrixCSC{Float64, Int32}
   function EpiLookup(homelookup::SparseMatrixCSC{Float64, Int32}, worklookup::SparseMatrixCSC{Float64, Int32})

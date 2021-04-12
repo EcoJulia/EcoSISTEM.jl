@@ -1,10 +1,11 @@
+
 """
     EpiLandscape
 
 Disease class abundances housed in the landscape. These are represented in both 2 dimensions (for computational efficiency in simulations) and 3 dimensions (to represent disease classes, their abundances and position in the grid).
 
 """
-mutable struct EpiLandscape{U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG}}
+mutable struct EpiLandscape{U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG}} <: AbstractLandscape
   matrix::Matrix{U}
   matrix_v::Matrix{U}
   grid::Array{U, 3}

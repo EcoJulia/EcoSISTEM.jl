@@ -2,6 +2,8 @@ using Diversity
 using Phylo
 using Compat
 
+
+abstract type AbstractSpeciesList <: AbstractTypes end
 """
     SpeciesList{TR <: AbstractTraits, R <: AbstractRequirement,
                 MO <: AbstractMovement, T <: AbstractTypes,
@@ -13,7 +15,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
                  R <: AbstractRequirement,
                  MO <: AbstractMovement,
                  T <: AbstractTypes,
-                 P <: AbstractParams} <: AbstractTypes
+                 P <: AbstractParams} <: AbstractSpeciesList
   names::Vector{String}
   traits::TR
   abun::Vector{Int64}

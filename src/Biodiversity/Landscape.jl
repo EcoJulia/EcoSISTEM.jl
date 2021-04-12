@@ -8,6 +8,8 @@ struct SavedLandscape
     rngs::Vector{MersenneTwister}
 end
 
+abstract type AbstractLandscape end
+
 """
     GridLandscape
 
@@ -16,7 +18,7 @@ dimensions (for computational efficiency in simulations) and 3 dimensions (to
 represent species, their abundances and position in the grid).
 
 """
-mutable struct GridLandscape
+mutable struct GridLandscape <: AbstractLandscape
   matrix::Matrix{Int64}
   grid::Array{Int64, 3}
   rngs::Vector{MersenneTwister}
@@ -48,7 +50,7 @@ end
 Ecosystem abundances housed in the cached landscape. These are either stored in the matrix or output to a cache.
 
 """
-mutable struct CachedGridLandscape
+mutable struct CachedGridLandscape <: AbstractLandscape
   matrix::AxisArray{Union{GridLandscape, Missing}, 1}
   outputfolder::String
   saveinterval::Unitful.Time

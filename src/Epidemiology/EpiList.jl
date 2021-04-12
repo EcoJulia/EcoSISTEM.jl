@@ -56,7 +56,7 @@ end
     EpiList{P <: AbstractParams} <: AbstractTypes
 Epi list houses all disease and virus class specific information, as well as parameters for model runs.
 """
-mutable struct EpiList{P <: AbstractParams, V <: VirusTypes, H <: HumanTypes} <: AbstractTypes
+mutable struct EpiList{P <: AbstractParams, V <: VirusTypes, H <: HumanTypes} <: AbstractSpeciesList
     virus::V
     human::H
     params::P
