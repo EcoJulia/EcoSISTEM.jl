@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Unitful
 using Unitful.DefaultSymbols
-using Simulation.Units
-using Simulation.ClimatePref
+using EcoSISTEM.Units
+using EcoSISTEM.ClimatePref
 using StatsBase
 using Plots
 using DataFrames
@@ -10,7 +10,7 @@ using Random
 using Distributions
 
 const stochasticmode = true
-const seed = hash(time()) # seed used for Random.jl and therefore rngs used in Simulation.jl
+const seed = hash(time()) # seed used for Random.jl and therefore rngs used in EcoSISTEM.jl
 
 Random.seed!(seed)
 
@@ -97,7 +97,7 @@ function run_model(times::Unitful.Time, interval::Unitful.Time, timestep::Unitfu
     param = (birth = birth, death = death, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env)
 
     # Read in population sizes for Scotland
-    scotpop = Array{Float64, 2}(readfile(Simulation.path("test", "examples", "ScotlandDensity2011.tif"), 0.0, 7e5, 5e5, 1.25e6))
+    scotpop = Array{Float64, 2}(readfile(EcoSISTEM.path("test", "examples", "ScotlandDensity2011.tif"), 0.0, 7e5, 5e5, 1.25e6))
 
     # Set up simple gridded environment
     area = 525_000.0km^2

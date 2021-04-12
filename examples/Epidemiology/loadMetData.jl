@@ -1,7 +1,7 @@
 using RCall
-using Simulation
-using Simulation.Units
-using Simulation.ClimatePref
+using EcoSISTEM
+using EcoSISTEM.Units
+using EcoSISTEM.ClimatePref
 using Unitful
 using HTTP
 using AxisArrays
@@ -20,11 +20,11 @@ uktemp = readMet(outputfolder, "temp")
 
 function run_model(climatearray::AxisArray, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true)
     # Download and read in population sizes for Scotland
-    dir = Simulation.path("test", "TEMP")
+    dir = EcoSISTEM.path("test", "TEMP")
     file = joinpath(dir, "demographics.h5")
     if do_download
-        !isdir(Simulation.path("test", "TEMP")) && mkdir(Simulation.path("test", "TEMP"))
-        io = open(Simulation.path("test", "TEMP", "demographics.h5"), "w")
+        !isdir(EcoSISTEM.path("test", "TEMP")) && mkdir(EcoSISTEM.path("test", "TEMP"))
+        io = open(EcoSISTEM.path("test", "TEMP", "demographics.h5"), "w")
         r = HTTP.request("GET", "https://raw.githubusercontent.com/ScottishCovidResponse/temporary_data/master/human/demographics/scotland/data/demographics.h5")
         write(io, r.body)
         close(io)

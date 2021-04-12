@@ -1,9 +1,9 @@
 using Documenter
-using Simulation
+using EcoSISTEM
 
 makedocs(
-    modules = [Simulation],
-    sitename = "Simulation.jl",
+    modules = [EcoSISTEM],
+    sitename = "EcoSISTEM.jl",
     format=Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true",
     ),
@@ -11,7 +11,9 @@ makedocs(
         "Home" => "index.md",
         "Biodiversity" => [
         "Basics" => "basics.md",
-        "Diversity" => "diversity.md"
+        "Diversity" => "diversity.md",
+        "Examples" => "examples.md",
+        "Africa" => "africa.md"
         ],
         "Epidemiology" => [
         "SCRC" => "epi.md",
@@ -27,6 +29,8 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/boydorr/Simulation.jl.git",
-    push_preview = true
+    repo = "github.com/boydorr/EcoSISTEM.jl.git",
+    push_preview = true,
+    devbranch = "dev",
+    devurl = "dev"
 )

@@ -1,6 +1,6 @@
-# Simulation.jl
+# EcoSISTEM.jl
 
-**Simulation** is a [Julia](http://www.julialang.org) package that provides functionality
+**EcoSISTEM** (Ecosystem Simulation through Species-Trait Environment Modelling) is a [Julia](http://www.julialang.org) package that provides functionality
 for simulating species undergoing dynamic biological processes such as birth, death,
 competition and dispersal, as well as environmental changes in climate and habitat. This
 repo has now been adapted to include basic functionality for spatially explicit, dynamic,
@@ -14,4 +14,4 @@ incorporating age-structure and more complex epidemiological models.
 
 This package is in alpha now, so please raise an issue if you find any problems.
 
-![](../svgs/Simulation.gif)
+![](Simulation.gif)

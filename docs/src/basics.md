@@ -1,11 +1,11 @@
-# The basics of Simulation.jl
+# The basics of EcoSISTEM.jl
 
 ## Install
 
 Simulation has yet to be officially released, but you can download the package through github:
 
 ```julia
-]add https://github.com/boydorr/Simulation.jl.git
+]add https://github.com/boydorr/EcoSISTEM.jl.git
 ```
 
 ## Setting up an ecosystem
@@ -16,8 +16,8 @@ The package runs on an `Ecosystem` containing information about species, the `Sp
 
 Load required packages
 ```julia
-using Simulation
-using Simulation.Units
+using EcoSISTEM
+using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 using Distributions
 using Diversity

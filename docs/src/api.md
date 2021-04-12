@@ -4,6 +4,6 @@
 ```
 
 ```@autodocs
-Modules = [Simulation]
+Modules = [EcoSISTEM]
 Private = true
 ```

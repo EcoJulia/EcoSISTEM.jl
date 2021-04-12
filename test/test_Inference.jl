@@ -1,7 +1,7 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 
 @testset "Inference" begin
     @testset "SIR wrapper" begin

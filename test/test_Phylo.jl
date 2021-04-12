@@ -1,6 +1,6 @@
 using Phylo
 using DataFrames
-using Simulation
+using EcoSISTEM
 using Test
 
 @testset "Phylo traits" begin

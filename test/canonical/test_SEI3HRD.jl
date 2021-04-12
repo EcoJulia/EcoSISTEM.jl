@@ -1,12 +1,12 @@
-using Simulation
+using EcoSISTEM
 using Unitful
 using Unitful.DefaultSymbols
-using Simulation.Units
-using Simulation.ClimatePref
+using EcoSISTEM.Units
+using EcoSISTEM.ClimatePref
 using StatsBase
 using Test
 using DataFrames
-using Simulation: human, virus
+using EcoSISTEM: human, virus
 
 @testset "SEI3HRD" begin
 

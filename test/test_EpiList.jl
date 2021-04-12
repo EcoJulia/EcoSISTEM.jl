@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
 using Distributions
-using Simulation.Units
+using EcoSISTEM.Units
 @testset "EpiList" begin
     # Set initial population sizes for all pathogen categories
     abun_v = DataFrame([

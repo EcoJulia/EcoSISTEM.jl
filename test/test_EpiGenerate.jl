@@ -1,10 +1,10 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
 using Distributions
-using Simulation.Units
+using EcoSISTEM.Units
 
-import Simulation: virusupdate!, classupdate!, invalidatecaches!
+import EcoSISTEM: virusupdate!, classupdate!, invalidatecaches!
 include("TestCases.jl")
 
 @testset "Episystem" begin

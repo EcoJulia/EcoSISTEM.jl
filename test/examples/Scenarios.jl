@@ -1,8 +1,8 @@
 using Unitful
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 
-import Simulation: RateType, get_neighbours
+import EcoSISTEM: RateType, get_neighbours
 
 """
     TempIncrease!(eco::Ecosystem, timestep::Unitful.Time,

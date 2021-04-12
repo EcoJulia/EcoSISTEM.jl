@@ -1,9 +1,9 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Distributions
 using Unitful.DefaultSymbols
-using Simulation.Units
-import Simulation: emptyepilandscape
+using EcoSISTEM.Units
+import EcoSISTEM: emptyepilandscape
 
 include("TestCases.jl")
 

@@ -1,7 +1,7 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 using DataFrames
 
 @testset "Epi movement" begin

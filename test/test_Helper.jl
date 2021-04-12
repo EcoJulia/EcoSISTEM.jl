@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Distributions
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 using Diversity
 
 include("TestCases.jl")

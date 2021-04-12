@@ -1,7 +1,7 @@
-using Simulation
+using EcoSISTEM
 using Unitful
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 using Test
 using DataFrames
 
@@ -87,7 +87,7 @@ idx_dead = findfirst(==("Dead"), abun_h.name)
 ### TEST OUTPUTS
 
 # Test susceptible population decreasing or constant only [Source]
-# https://github.com/ScottishCovidResponse/Simulation.jl/pull/37
+# https://github.com/ScottishCovidResponse/EcoSISTEM.jl/pull/37
 @test sum(abuns[idx_sus, :, 1]) == abun_h.initial[idx_sus]
 
 @test sum(abuns[idx_rec, :, 1]) == abun_h.initial[idx_rec]

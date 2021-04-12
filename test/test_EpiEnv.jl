@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
-using Simulation.Units
-using Simulation.ClimatePref
+using EcoSISTEM.Units
+using EcoSISTEM.ClimatePref
 using AxisArrays
 
 @testset "Epi environments" begin

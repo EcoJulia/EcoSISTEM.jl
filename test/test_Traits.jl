@@ -1,12 +1,12 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Distributions
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 using Phylo
 using DataFrames
 
-import Simulation: DiscreteTrait
+import EcoSISTEM: DiscreteTrait
 
 @testset "Traits" begin
     numSpecies = 10
@@ -16,36 +16,36 @@ import Simulation: DiscreteTrait
     @testset "gaussian trait" begin
         # Gaussian trait
         @test_nowarn GaussTrait(opts, vars)
-        @test Simulation.iscontinuous(GaussTrait(opts, vars)) == true
+        @test EcoSISTEM.iscontinuous(GaussTrait(opts, vars)) == true
         @test eltype(GaussTrait(opts, vars)) <: Unitful.Temperature
     end
     @testset "discrete trait" begin
         # Discrete trait
         @test_nowarn DiscreteTrait(fill(1, 10))
-        @test Simulation.iscontinuous(DiscreteTrait(fill(1, 10))) == false
+        @test EcoSISTEM.iscontinuous(DiscreteTrait(fill(1, 10))) == false
         @test eltype(DiscreteTrait(fill(1, 10))) <: Int
     end
     @testset "temperature bin" begin
         # Temperature bin
         @test_nowarn TempBin(fill(1, 10, 2))
-        @test Simulation.iscontinuous(TempBin(fill(1, 10, 2))) == true
+        @test EcoSISTEM.iscontinuous(TempBin(fill(1, 10, 2))) == true
         @test eltype(TempBin(fill(1, 10, 2))) <: Unitful.Temperature
     end
     @testset "rainfall bin" begin
         # Rainfall bin
         @test_nowarn RainBin(fill(1, 10, 2))
-        @test Simulation.iscontinuous(RainBin(fill(1, 10, 2))) == true
+        @test EcoSISTEM.iscontinuous(RainBin(fill(1, 10, 2))) == true
         @test eltype(RainBin(fill(1, 10, 2))) <: Unitful.Length
         @test_nowarn TraitCollection2(TempBin(fill(1, 10, 2)), RainBin(fill(1, 10, 2)))
     end
     @testset "multiple traits" begin
         # Multiple traits
         tr2 = TraitCollection2(TempBin(fill(1, 10, 2)), RainBin(fill(1, 10, 2)))
-        @test Simulation.iscontinuous(tr2) == [true, true]
+        @test EcoSISTEM.iscontinuous(tr2) == [true, true]
         @test eltype(tr2) == [typeof(1.0K), typeof(1.0mm)]
         @test_nowarn TraitCollection3(GaussTrait(opts, vars), TempBin(fill(1, 10, 2)), RainBin(fill(1, 10, 2)))
         tr3 = TraitCollection3(GaussTrait(opts, vars), TempBin(fill(1, 10, 2)), RainBin(fill(1, 10, 2)))
-        @test Simulation.iscontinuous(tr3) == [true, true, true]
+        @test EcoSISTEM.iscontinuous(tr3) == [true, true, true]
         @test eltype(tr3) == [typeof(1.0K), typeof(1.0K), typeof(1.0mm)]
     end
     @testset "evolution" begin

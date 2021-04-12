@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
 using Distributions
-using Simulation.Units
+using EcoSISTEM.Units
 using Diversity
 
 @testset "Ecosystem" begin
@@ -11,8 +11,8 @@ using Diversity
     @test_nowarn eco = TestEcosystem()
     eco = TestEcosystem()
     @test sum(eco.abundances.matrix, dims = 2)[:, 1] == eco.spplist.abun
-    @test Simulation.tematch(eco.spplist, eco.abenv) == true
-    @test Simulation.trmatch(eco.spplist, eco.relationship) == true
+    @test EcoSISTEM.tematch(eco.spplist, eco.abenv) == true
+    @test EcoSISTEM.trmatch(eco.spplist, eco.relationship) == true
 
     sppl = SpeciesList{typeof(eco.spplist.traits), typeof(eco.spplist.requirement), typeof(eco.spplist.movement), UniqueTypes, typeof(eco.spplist.params)}(eco.spplist.names, eco.spplist.traits, eco.spplist.abun, eco.spplist.requirement, UniqueTypes(length(eco.spplist.names)), eco.spplist.movement, eco.spplist.params, eco.spplist.native)
     eco = Ecosystem(sppl, eco.abenv, eco.relationship)
@@ -34,8 +34,8 @@ using Diversity
         @test getdispersaldist(eco, "1") == eco.spplist.movement.kernels[1].dist
         @test_nowarn getdispersalvar(eco, 1)
         @test_nowarn getdispersalvar(eco, "1")
-        @test Simulation.getlookup(eco, "1") == eco.lookup[1]
-        @test Simulation.getlookup(eco, 1) == eco.lookup[1]
+        @test EcoSISTEM.getlookup(eco, "1") == eco.lookup[1]
+        @test EcoSISTEM.getlookup(eco, 1) == eco.lookup[1]
         @test_nowarn resetrate!(eco, 0.1/s)
         @test eco.abenv.habitat.change.rate == 0.1/s
         @test_throws MethodError resettime!(eco)

@@ -1,8 +1,8 @@
-using Simulation
+using EcoSISTEM
 using Test
 using Distributions
 using Unitful.DefaultSymbols
-using Simulation.Units
+using EcoSISTEM.Units
 
 include("TestCases.jl")
 
@@ -115,8 +115,8 @@ include("TestCases.jl")
 
     @testset "save and load (with JLSO)" begin
         # Test saving Function
-        Simulation.save("testepi.jlso", epi)
-        loaded_epi = Simulation.load("testepi.jlso", EpiSystem)
+        EcoSISTEM.save("testepi.jlso", epi)
+        loaded_epi = EcoSISTEM.load("testepi.jlso", EpiSystem)
         # Ideally we'd compare epi and loaded_epi, but `EpiSystem` still does not support comparisons
         @test loaded_epi isa EpiSystem
         rm("testepi.jlso") # Delete temporary file
