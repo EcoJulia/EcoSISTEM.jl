@@ -122,6 +122,23 @@ function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    return Ecosystem(populate!, spplist, abenv, rel)
 end
 
+"""
+    isapprox(epi_1::AbstractEpiSystem, epi_2::AbstractEpiSystem; kwargs...)
+
+Compare two `EpiSystem`s for approximate equality. Specifically, compares the
+`EpiLandscape`s of the two systems.
+
+## Keyword arguments
+- Anything to pass to `Base.isapprox`.
+
+!!! note
+    You may want to pass in `atol` or `rtol` to loosen the equality tolerance.
+"""
+function Base.isapprox(eco_1::AbstractEcosystem, eco_2::AbstractEcosystem; kwargs...)
+    return isapprox(eco_1.abundances, eco_2.abundances; kwargs...)
+end
+
+
 save(path::String, system::Ecosystem) = JLSO.save(path, :ecosystem => system)
 load(path::String, obj_type::Type{Ecosystem}) = JLSO.load(path)[:ecosystem]
 
@@ -199,7 +216,7 @@ end
 function invalidatecaches!(eco::AbstractEcosystem)
     _invalidatecaches!(eco, eco.cache)
 end
-function _invalidatecaches!(eco::Ecosystem, cache::Cache)
+function _invalidatecaches!(eco::A, cache::Cache) where A <: AbstractEcosystem
     eco.ordinariness = missing
     eco.cache.netmigration .= 0
     eco.cache.valid = false
@@ -265,13 +282,21 @@ Function to extract average dispersal distance of species from Ecosystem object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
-function getdispersaldist(eco::AbstractEcosystem, sp::Int64)
-  dist = eco.spplist.movement.kernels[sp].dist
+function getdispersaldist(eco::A, sp::Int64) where A <: AbstractEcosystem
+    return _getdispersaldist(eco.spplist, sp)
+end
+function getdispersaldist(eco::A, sp::String) where A <: AbstractEcosystem
+    return _getdispersaldist(eco.spplist, sp)
+end
+function _getdispersaldist(sppl::SpeciesList, sp::Int64)
+  dist = sppl.movement.kernels[sp].dist
   return dist
 end
-function getdispersaldist(eco::AbstractEcosystem, sp::String)
-  num = Compat.findall(eco.spplist.names.==sp)[1]
-  getdispersaldist(eco, num)
+
+function _getdispersaldist(sppl::SpeciesList, sp::String)
+    sp = findfirst(sppl.names .== sp)
+  dist = sppl.movement.kernels[sp].dist
+  return dist
 end
 
 """
@@ -281,13 +306,20 @@ Function to extract dispersal varaince of species from Ecosystem object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
-function getdispersalvar(eco::AbstractEcosystem, sp::Int64)
-    var = (eco.spplist.movement.kernels[sp].dist)^2 * pi / 4
+function getdispersalvar(eco::A, sp::Int64) where A <: AbstractEcosystem
+    return _getdispersalvar(eco.spplist, sp)
+end
+function getdispersalvar(eco::A, sp::String) where A <: AbstractEcosystem
+    return _getdispersalvar(eco.spplist, sp)
+end
+function _getdispersalvar(sppl::SpeciesList, sp::Int64)
+    var = (sppl.movement.kernels[sp].dist)^2 * pi / 4
     return var
 end
-function getdispersalvar(eco::AbstractEcosystem, sp::String)
-    num = Compat.findall(eco.spplist.names.==sp)[1]
-    getdispersalvar(eco, num)
+function _getdispersalvar(sppl::SpeciesList, sp::String)
+    sp = findfirst(sppl.names .== sp)
+    var = (sppl.movement.kernels[sp].dist)^2 * pi / 4
+    return var
 end
 """
     getlookup(eco::Ecosystem)
@@ -297,6 +329,7 @@ Function to extract movement lookup table of species from Ecosystem object.
 function getlookup(eco::A, sp::Int64) where A <: AbstractEcosystem
     return _getlookup(eco.lookup, sp)
 end
+
 function _getlookup(lookup::SpeciesLookup, sp::Int64)
     return lookup.species[sp]
 end
@@ -600,7 +633,7 @@ function Ecosystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     total_pop = sum(human(epi.abundances), dims = 1)[1, :]
     sorted_grid_ids = sortperm(total_pop, rev = true)
     sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
-    epi.ordered_active = sorted_grid_ids
+    epi.cache.ordered_active = sorted_grid_ids
     return epi
 end
 
@@ -685,4 +718,26 @@ function _lookup(from::NamedTuple, to::NamedTuple, relSquareSize::Float64, dispe
       [from.y *relSquareSize - relSquareSize, from.x * relSquareSize - relSquareSize, to.y * relSquareSize - relSquareSize, to.x * relSquareSize - relSquareSize],
       [from.y * relSquareSize, from.x * relSquareSize, to.y * relSquareSize, to.x * relSquareSize],
       maxevals= 100, rtol = 0.01)[1] / relSquareSize^2
+end
+
+function _getdispersaldist(sppl::EpiList, id::Int64)
+  dist = sppl.human.movement.home.kernels[id].dist
+  return dist
+end
+
+function _getdispersaldist(sppl::EpiList, sp::String)
+  id = findfirst(sppl.human.names .== sp)
+  dist = sppl.human.movement.home.kernels[id].dist
+  return dist
+end
+
+function _getdispersalvar(sppl::EpiList,id::Int64)
+    var = (sppl.human.movement.home.kernels[id].dist)^2 * pi / 4
+    return var
+end
+
+function _getdispersalvar(sppl::EpiList, sp::String)
+    id = findfirst(sppl.human.names .== sp)
+    var = (sppl.human.movement.home.kernels[id].dist)^2 * pi / 4
+    return var
 end

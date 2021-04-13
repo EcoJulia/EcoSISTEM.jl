@@ -36,6 +36,11 @@ import Base.copy
 function copy(gl::GridLandscape)
     return GridLandscape(copy(gl.matrix), size(gl.grid))
 end
+
+function Base.isapprox(gl_1::GridLandscape, gl_2::GridLandscape; kwargs...)
+    return isapprox(gl_1.matrix, gl_2.matrix; kwargs...)
+end
+
 function GridLandscape(sl::SavedLandscape, dimension::Tuple)
     GridLandscape(sl.matrix, dimension, sl.rngs)
 end

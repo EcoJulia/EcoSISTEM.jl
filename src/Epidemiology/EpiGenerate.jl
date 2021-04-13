@@ -31,12 +31,12 @@ end
 
 function seedinfected!(epi::Ecosystem, controls::Lockdown, timestep::Unitful.Time)
     rng = epi.abundances.rngs[Threads.threadid()]
-    if (epi.initial_infected > 0) && (controls.current_date < controls.lockdown_date)
-        inf = rand(rng, Poisson(epi.initial_infected * timestep /controls.lockdown_date))
+    if (epi.cache.initial_infected > 0) && (controls.current_date < controls.lockdown_date)
+        inf = rand(rng, Poisson(epi.cache.initial_infected * timestep /controls.lockdown_date))
         sus_id = sample(epi.spplist.human.susceptible, inf)
         exp_id = sus_id .+ length(epi.spplist.human.susceptible)
         summed_exp = sum(human(epi.abundances)[exp_id, :], dims = 1)[1, :]
-        pos = sample(rng, epi.ordered_active, weights(summed_exp[epi.ordered_active]), inf)
+        pos = sample(rng, epi.cache.ordered_active, weights(summed_exp[epi.cache.ordered_active]), inf)
         for i in 1:inf
             if (human(epi.abundances)[sus_id[i], pos[i]] > 0)
                 human(epi.abundances)[sus_id[i], pos[i]] -= 1
@@ -268,16 +268,6 @@ function _applycontrols!(epi::AbstractEcosystem, controls::Lockdown, timestep::U
     return controls
 end
 
-function convert_coords(epi::AbstractEcosystem, i::Int64, width::Int64 = getdimension(epi)[1])
-    x = ((i - 1) % width) + 1
-    y = div((i - 1), width)  + 1
-    return (x, y)
-end
-function convert_coords(epi::AbstractEcosystem, pos::Tuple{Int64, Int64}, width::Int64 = getdimension(epi)[1])
-    i = pos[1] + width * (pos[2] - 1)
-    return i
-end
-
 """
     virusmove!(epi::AbstractEcosystem, id::Int64, pos::Int64, grd::Array{Int64, 2}, newvirus::Int64)
 
@@ -305,27 +295,6 @@ function virusmove!(epi::AbstractEcosystem, id::Int64, pos::Int64, grd::Array{Fl
     return epi
 end
 
-function habitatupdate!(epi::AbstractEcosystem, timestep::Unitful.Time)
-  _habitatupdate!(epi, epi.abenv.habitat, timestep)
-end
-function _habitatupdate!(epi::AbstractEcosystem, hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, timestep::Unitful.Time)
-    hab.change.changefun(epi, hab, timestep)
-end
-
-function _habitatupdate!(epi::AbstractEcosystem, hab::HabitatCollection2, timestep::Unitful.Time)
-    _habitatupdate!(epi, hab.h1, timestep)
-    _habitatupdate!(epi, hab.h2, timestep)
-end
-
-"""
-    TempChange(epi::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
-
-Function to change temperature at a rate set by the habitat `hab` for one timestep.
-"""
-function TempChange(epi::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
-  v = uconvert(K/unit(timestep), hab.change.rate)
-  hab.matrix .+= (v * timestep)
-end
 
 """
     ukChange(epi::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)

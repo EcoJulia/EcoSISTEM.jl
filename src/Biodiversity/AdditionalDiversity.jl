@@ -14,8 +14,8 @@ function makeunique(eco::Ecosystem)
     sppl.traits, sppl.abun, sppl.requirement, UniqueTypes(spp), sppl.movement,
     sppl.params, sppl.native)
     newsppl.susceptible = sppl.susceptible
-    return Ecosystem{typeof(eco.abenv), typeof(newsppl),
-            typeof(eco.relationship)}(eco.abundances,
+    return Ecosystem{typeof(eco.abundances), typeof(eco.abenv), typeof(newsppl),
+            typeof(eco.relationship), typeof(eco.lookup), typeof(eco.cache)}(eco.abundances,
               newsppl, eco.abenv, eco.ordinariness,
               eco.relationship, eco.lookup, eco.cache, eco.transitions)
 end

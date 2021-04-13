@@ -22,15 +22,15 @@ end
         @test_nowarn generate_storage(eco, lensim, 1)
         abun = generate_storage(eco, lensim, 1)
         @test size(abun) == (size(eco.abundances.matrix, 1), size(eco.abundances.matrix, 2), lensim, 1)
-        @test_nowarn simulate!(eco, burnin, timestep)
-        @test_nowarn simulate_record!(abun, eco, times, interval, timestep)
+        @test_nowarn biodiversity_simulate!(eco, burnin, timestep)
+        @test_nowarn biodiversity_simulate_record!(abun, eco, times, interval, timestep)
     end
     @testset "scenarios" begin
         # Run with scenarios
         eco = TestMultiEcosystem()
         abun = generate_storage(eco, lensim, 1)
         scenario = SimpleScenario(TempIncrease!, 0.0K/year)
-        @test_nowarn simulate_record!(abun, eco, times, interval, timestep, scenario)
+        @test_nowarn biodiversity_simulate_record!(abun, eco, times, interval, timestep, scenario)
     end
     @testset "diversity simulate" begin
         # Run diversity simulations 10 times
@@ -38,25 +38,25 @@ end
         @test_nowarn generate_storage(eco, length(qs), lensim, 1)
         abun = generate_storage(eco, length(qs), lensim, 1)
         @test size(abun) == (size(eco.abundances.matrix, 2), length(qs), lensim, 1)
-        @test_nowarn simulate!(eco, burnin, timestep)
-        @test_nowarn simulate_record_diversity!(abun, eco, times, interval, timestep, norm_sub_alpha, qs)
+        @test_nowarn biodiversity_simulate!(eco, burnin, timestep)
+        @test_nowarn biodiversity_simulate_record_diversity!(abun, eco, times, interval, timestep, norm_sub_alpha, qs)
 
         abun = generate_storage(eco, length(qs), lensim, 1)
         scenario = SimpleScenario(TempIncrease!, 0.0K/year)
-        @test_nowarn simulate_record_diversity!(abun, eco, times, interval, timestep, scenario, norm_sub_alpha, qs)
+        @test_nowarn biodiversity_simulate_record_diversity!(abun, eco, times, interval, timestep, scenario, norm_sub_alpha, qs)
 
         divfuns = [norm_sub_alpha, norm_sub_beta]
         abun = generate_storage(eco, length(divfuns), lensim, 1)
-        @test_nowarn simulate_record_diversity!(abun, eco, times, interval, timestep, divfuns, 1.0)
+        @test_nowarn biodiversity_simulate_record_diversity!(abun, eco, times, interval, timestep, divfuns, 1.0)
 
         divfuns = [norm_sub_alpha, norm_sub_beta]
         scenario = SimpleScenario(TempIncrease!, 0.0K/year)
         abun = generate_storage(eco, length(divfuns), lensim, 1)
-        @test_nowarn simulate_record_diversity!(abun, eco, times, interval, timestep, scenario, divfuns, 1.0)
+        @test_nowarn biodiversity_simulate_record_diversity!(abun, eco, times, interval, timestep, scenario, divfuns, 1.0)
 
         qs = collect(1.0:3)
         abun1 = zeros(Float64, 100, 3, 3, 4)
         abun2 = zeros(Float64, 3, 3, 4)
-        @test_nowarn simulate_record_diversity!(abun1, abun2, eco, times, interval, timestep, qs)
+        @test_nowarn biodiversity_simulate_record_diversity!(abun1, abun2, eco, times, interval, timestep, qs)
     end
 end

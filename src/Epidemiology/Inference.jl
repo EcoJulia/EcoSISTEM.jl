@@ -30,7 +30,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
         (name="Force", initial=0),
     ])
     numvirus = nrow(abun_v)
-    
+
     # Set initial population sizes for all human categories
     susceptible = 500_000 * Ncells
     abun_h = DataFrame([
@@ -66,14 +66,14 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
-    epi = EpiSystem(epilist, epienv, rel)
+    epi = Ecosystem(epilist, epienv, rel)
 
     # Seed infected category at a single location
     human(epi.abundances)[2, 1] = 100 * Ncells
 
     # Run simulation
     times = runtimes.times; interval = runtimes.interval; timestep = runtimes.timestep
-    simulate_record!(abuns, epi, times, interval, timestep; save=false)
+    epi_simulate_record!(abuns, epi, times, interval, timestep; save=false)
     return abuns
 end
 
@@ -199,13 +199,13 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
-    epi = EpiSystem(epilist, epienv, rel)
+    epi = Ecosystem(epilist, epienv, rel)
 
     # Seed infected category at a single location
     human(epi.abundances)[cat_idx[:, 2], 1] .= 100 * Ncells
 
     # Run simulation
     times = runtimes.times; interval = runtimes.interval; timestep = runtimes.timestep
-    simulate_record!(abuns, epi, times, interval, timestep; save=false)
+    epi_simulate_record!(abuns, epi, times, interval, timestep; save=false)
     return abuns
 end

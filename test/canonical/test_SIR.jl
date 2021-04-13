@@ -26,7 +26,7 @@ for i in eachindex(grid_sizes)
         (name="Force", initial=0),
     ])
     numvirus = nrow(abun_v)
-    
+
     # Set initial population sizes for all human categories
     susceptible = 500_000 * maximum(grid_sizes)^2
     infected = 1_000 * maximum(grid_sizes)^2
@@ -64,13 +64,13 @@ for i in eachindex(grid_sizes)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
-    epi = EpiSystem(epilist, epienv, rel)
+    epi = Ecosystem(epilist, epienv, rel)
 
     # Run simulation
     times = 2years; interval = 1day; timestep = 1day
     abuns[i] = zeros(Int64, numclasses, prod(grid), div(times, interval) + 1)
     thisabun = abuns[i]
-    @time simulate_record!(thisabun, epi, times, interval, timestep;
+    @time epi_simulate_record!(thisabun, epi, times, interval, timestep;
                            save=do_save, save_path=joinpath(save_path, "grid_size_$(grid_sizes[i])"))
 
     # Find correct indices in arrays

@@ -170,12 +170,12 @@ function simulate_record!(
       times = string.(uconvert.(day, 1.0 .* record_seq))
   )
   if save
-      initialise_output_abuns(
+      initialise_output(
           storage,
           axes;
           h5fn=joinpath(save_path, "abundances.h5")
       )
-      update_output_abuns(
+      update_output(
           eco.abundances.matrix,
           counting;
           h5fn=joinpath(save_path, "abundances.h5")
@@ -189,7 +189,7 @@ function simulate_record!(
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix
       if save
-          update_output_abuns(
+          update_output(
               eco.abundances.matrix,
               counting;
               h5fn=joinpath(save_path, "abundances.h5")
@@ -204,7 +204,7 @@ function simulate_record!(
 end
 
 """
-    initialise_output_abuns(
+    initialise_output(
         abuns::Array,
         axes::NamedTuple;
         h5fn=joinpath(pwd(),"abundances.h5")
@@ -214,7 +214,7 @@ Create an HDF5 file `h5fn` to store abundance. Preallocate a fix-sized array to 
 abundance for each compartment, grid location and timestep. Fill in values for compartments,
 grid locations and timesteps.
 """
-function initialise_output_abuns(
+function initialise_output(
     abuns::Array,
     axes::NamedTuple;
     h5fn=joinpath(pwd(),"abundances.h5")
@@ -252,7 +252,7 @@ function initialise_output_abuns(
 end
 
 """
-    update_output_abuns(
+    update_output(
         abuns_t::Matrix,
         timestep::Int;
         h5fn=joinpath(pwd(),"abundances.h5")
@@ -260,7 +260,7 @@ end
 
 Update the existing HDF5 file `h5fn` with the abundance matrix at a certain timestep.
 """
-function update_output_abuns(
+function update_output(
     abuns_t::Matrix{U},
     timestep::Int;
     h5fn=joinpath(pwd(),"abundances.h5")

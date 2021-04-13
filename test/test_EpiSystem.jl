@@ -9,19 +9,19 @@ include("TestCases.jl")
 @testset "Episystem" begin
     epi = TestEpiSystem()
 
-    @test sum(epi.abundances.matrix, dims = 2)[:, 1] == epi.epilist.human.abun
+    @test sum(epi.abundances.matrix, dims = 2)[:, 1] == epi.spplist.human.abun
     @test_nowarn gettraitrel(epi)
     @test gettraitrel(epi) == epi.relationship
     @test_nowarn gethabitat(epi)
-    @test gethabitat(epi) == epi.epienv.habitat
+    @test gethabitat(epi) == epi.abenv.habitat
     @test_nowarn getsize(epi)
-    @test getsize(epi) == size(epi.abundances.matrix, 2) .* epi.epienv.habitat.size^2
+    @test getsize(epi) == size(epi.abundances.matrix, 2) .* epi.abenv.habitat.size^2
     @test_nowarn getgridsize(epi)
-    @test getgridsize(epi) == epi.epienv.habitat.size
+    @test getgridsize(epi) == epi.abenv.habitat.size
     @test_nowarn getdispersaldist(epi, 1)
-    @test getdispersaldist(epi, 1) == epi.epilist.human.movement.home.kernels[1].dist
+    @test getdispersaldist(epi, 1) == epi.spplist.human.movement.home.kernels[1].dist
     @test_nowarn getdispersaldist(epi, "Susceptible")
-    @test getdispersaldist(epi, "Susceptible") == epi.epilist.human.movement.home.kernels[1].dist
+    @test getdispersaldist(epi, "Susceptible") == epi.spplist.human.movement.home.kernels[1].dist
     @test_nowarn getdispersalvar(epi, 1)
     @test_nowarn getdispersalvar(epi, "Susceptible")
 
@@ -47,25 +47,25 @@ include("TestCases.jl")
             expected_pop = round.(replace(initial_pop, NaN => 0, missing => 0))
 
             epi = TestEpiSystemFromPopulation(initial_pop)
-            @test size(epi.epienv.habitat.matrix) == expected_size
-            @test epi.epienv.active == expected_active
+            @test size(epi.abenv.habitat.matrix) == expected_size
+            @test epi.abenv.active == expected_active
             @test epi.abundances.grid[1, :, :] == expected_pop
             # Should not have modified initial_pop
             @test isequal(initial_pop, initial_pop_ref)
 
             # If we specify inactive regions when constructing the EpiEnv, these should be
             # preserved
-            epienv_active = fill(true, size(initial_pop))
-            epienv_active[1, 1] = false
-            epienv_active[2, 2] = false
-            epienv_active[3, 3] = false
-            expected_active = copy(epienv_active)
+            abenv_active = fill(true, size(initial_pop))
+            abenv_active[1, 1] = false
+            abenv_active[2, 2] = false
+            abenv_active[3, 3] = false
+            expected_active = copy(abenv_active)
             expected_active[missing_idx] .= false
-            @test expected_active != epienv_active
+            @test expected_active != abenv_active
 
-            epi = TestEpiSystemFromPopulation(initial_pop; epienv_active=epienv_active)
-            @test size(epi.epienv.habitat.matrix) == expected_size
-            @test epi.epienv.active == expected_active
+            epi = TestEpiSystemFromPopulation(initial_pop; abenv_active=abenv_active)
+            @test size(epi.abenv.habitat.matrix) == expected_size
+            @test epi.abenv.active == expected_active
             @test epi.abundances.grid[1, :, :] == expected_pop
             # Should not have modified initial_pop
             @test isequal(initial_pop, initial_pop_ref)
@@ -95,8 +95,8 @@ include("TestCases.jl")
 
             epi = TestEpiSystemFromPopulation(initial_pop)
 
-            @test epi.epienv.active == expected_active
-            @test size(epi.epienv.habitat.matrix) == grid
+            @test epi.abenv.active == expected_active
+            @test size(epi.abenv.habitat.matrix) == grid
             @test epi.abundances.grid[1, :, :] == expected_initial_pop
         end
     end
@@ -116,9 +116,9 @@ include("TestCases.jl")
     @testset "save and load (with JLSO)" begin
         # Test saving Function
         EcoSISTEM.save("testepi.jlso", epi)
-        loaded_epi = EcoSISTEM.load("testepi.jlso", EpiSystem)
+        loaded_epi = EcoSISTEM.load("testepi.jlso", Ecosystem)
         # Ideally we'd compare epi and loaded_epi, but `EpiSystem` still does not support comparisons
-        @test loaded_epi isa EpiSystem
+        @test loaded_epi isa Ecosystem
         rm("testepi.jlso") # Delete temporary file
     end
 end

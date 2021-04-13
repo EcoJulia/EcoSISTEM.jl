@@ -52,8 +52,8 @@ burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; 
 lensim = length(0years:record_interval:times)
 abuns = zeros(Int64, numSpecies, prod(grid), lensim)
 # Burnin
-@test_nowarn new_simulate!(eco, burnin, timestep);
-@test_nowarn new_simulate_record!(abuns, eco, times, record_interval, timestep);
+@test_nowarn simulate!(eco, burnin, timestep);
+@test_nowarn simulate_record!(abuns, eco, times, record_interval, timestep);
 
 
 
@@ -112,11 +112,11 @@ epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
 
 # Create epi system with all information
 rel = Gauss{eltype(epienv.habitat)}()
-transitions = create_transition_list(epilist, epienv)
-epi = EpiSystem(epilist, epienv, rel, transitions = transitions)
+transitions = create_transition_list_SEIR(epilist, epienv)
+epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
-@test_nowarn new_simulate!(epi, times, timestep);
-@test_nowarn new_simulate_record!(abuns, epi, times, interval, timestep);
+@test_nowarn simulate!(epi, times, timestep);
+@test_nowarn simulate_record!(abuns, epi, times, interval, timestep);

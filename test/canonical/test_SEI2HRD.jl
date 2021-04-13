@@ -108,14 +108,14 @@ rel = Gauss{eltype(epienv.habitat)}()
 # Create epi system with all information
 new_symptomatic = new_asymptomatic = 100
 new_virus = 1_000
-epi = EpiSystem(epilist, epienv, rel)
+epi = Ecosystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
 human(epi.abundances)[3:4, 1] .= new_symptomatic
 
 # Run simulation
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
 times = 1year; interval = 1day; timestep = 1day
-@time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "high_trans"))
+@time epi_simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "high_trans"))
 
 # Test everyone becomes infected and dies
 @test sum(abuns[1, :, 365]) == 0
@@ -157,14 +157,14 @@ epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
 # Create epi system with all information
 new_symptomatic = new_asymptomatic = 100
 new_virus = 1000
-epi = EpiSystem(epilist, epienv, rel)
+epi = Ecosystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
 human(epi.abundances)[3:4, 1] .= new_symptomatic
 
 # Run simulation
 times = 1year; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), div(times, interval) + 1)
-@time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "low_trans"))
+@time epi_simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "low_trans"))
 
 # Find correct indices in arrays
 idx_sus = findfirst(==("Susceptible"), abun_h.name)

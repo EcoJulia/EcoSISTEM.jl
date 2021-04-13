@@ -34,8 +34,7 @@ using Diversity
         @test getdispersaldist(eco, "1") == eco.spplist.movement.kernels[1].dist
         @test_nowarn getdispersalvar(eco, 1)
         @test_nowarn getdispersalvar(eco, "1")
-        @test EcoSISTEM.getlookup(eco, "1") == eco.lookup[1]
-        @test EcoSISTEM.getlookup(eco, 1) == eco.lookup[1]
+        @test EcoSISTEM.getlookup(eco, 1) == eco.lookup.species[1]
         @test_nowarn resetrate!(eco, 0.1/s)
         @test eco.abenv.habitat.change.rate == 0.1/s
         @test_throws MethodError resettime!(eco)

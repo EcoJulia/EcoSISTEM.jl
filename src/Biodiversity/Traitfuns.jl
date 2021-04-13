@@ -81,7 +81,7 @@ function getrelationship(rel::R, field::Symbol) where R <: AbstractTraitRelation
 end
 
 
-function gettraits(eco::Ecosystem)
+function gettraits(eco::A) where A <: AbstractEcosystem
     return _gettraits(eco.spplist)
 end
 

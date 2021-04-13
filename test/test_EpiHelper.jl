@@ -17,7 +17,7 @@ epi = TestEpiSystem()
 
     # Run simulations 10 times
     abun =  zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), lensim)
-    @test_nowarn simulate!(epi, burnin, timestep; save=true, save_path="TEMP")
+    @test_nowarn epi_simulate!(epi, burnin, timestep; save=true, save_path="TEMP")
     # Check if everything was saved
     @test isdir("TEMP")
     @test isfile(joinpath("TEMP", "configuration.jlso"))
@@ -26,7 +26,7 @@ epi = TestEpiSystem()
     # Delete temporary directory
     rm("TEMP", recursive=true)
 
-    @test_nowarn simulate_record!(abun, epi, times, interval, timestep; save=true, save_path="TEMP")
+    @test_nowarn epi_simulate_record!(abun, epi, times, interval, timestep; save=true, save_path="TEMP")
     # Check if everything was saved
     @test isdir("TEMP")
     @test isfile(joinpath("TEMP", "configuration.jlso"))

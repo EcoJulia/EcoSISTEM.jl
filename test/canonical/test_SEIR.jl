@@ -64,12 +64,12 @@ epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
 
 # Create epi system with all information
 rel = Gauss{eltype(epienv.habitat)}()
-epi = EpiSystem(epilist, epienv, rel)
+epi = Ecosystem(epilist, epienv, rel)
 
 # Run simulation
 times = 2years; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), div(times, interval) + 1)
-@time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=save_path)
+@time epi_simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=save_path)
 
 # Find correct indices in arrays
 idx_sus = findfirst(==("Susceptible"), abun_h.name)

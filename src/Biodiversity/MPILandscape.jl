@@ -6,7 +6,7 @@ using .MPI
 MPIEcosystem abundances housed in the landscape, shared across multiple nodes.
 
 """
-mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
+mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple} <: AbstractLandscape
   rows_matrix::Matrix{Int64}
   cols_vector::Vector{Int64}
   reshaped_cols::Vector{RA}
