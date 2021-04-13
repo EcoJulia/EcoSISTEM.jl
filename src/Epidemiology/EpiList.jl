@@ -173,3 +173,7 @@ function EpiList(traits::TR, virus_abun::DataFrame, human_abun::DataFrame,
         throw(DimensionMismatch("Transition matrix doesn't match number of disease classes"))
     return EpiList{typeof(param), typeof(virus), typeof(human)}(virus, human, param)
 end
+
+function getnames(sppl::EpiList)
+    return sppl.human.names
+end

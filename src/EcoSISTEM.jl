@@ -141,10 +141,10 @@ export DiversitySet, updatesimulation!, gettimes
 include("Biodiversity/AdditionalDiversity.jl")
 export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
 
-include("Epidemiology/EpiSystem.jl")
-export EpiSystem
-
-include("Epidemiology/EpiTraits.jl")
+# include("Epidemiology/EpiSystem.jl")
+# export EpiSystem
+#
+# include("Epidemiology/EpiTraits.jl")
 
 include("Epidemiology/EpiGenerate.jl")
 export populate!

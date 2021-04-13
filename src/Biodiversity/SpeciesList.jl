@@ -204,6 +204,9 @@ function getenergyusage(sppl::SpeciesList)
     return _getenergyusage(sppl.abun, sppl.requirement)
 end
 
+function getnames(sppl::SpeciesList)
+    return sppl.names
+end
 
 function _simmatch(sim::SpeciesList)
   _simmatch(sim.types)
