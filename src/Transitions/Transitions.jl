@@ -33,10 +33,10 @@ function getdestination(rule::S) where S <: AbstractStateTransition
     return rule.destination
 end
 
-mutable struct TransitionList{T1 <: AbstractSetUp, T2 <: AbstractStateTransition,
-    T3 <: AbstractPlaceTransition, T4 <: AbstractWindDown}
-    setup::Union{Missing, T1}
+mutable struct TransitionList{T1 <: Union{Missing, AbstractSetUp}, T2 <: AbstractStateTransition,
+    T3 <: AbstractPlaceTransition, T4 <: Union{Missing, AbstractWindDown}}
+    setup::T1
     state::Array{T2, 1}
     place::Array{T3, 1}
-    winddown::Union{Missing, T4}
+    winddown::T4
 end

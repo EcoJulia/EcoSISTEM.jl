@@ -74,8 +74,8 @@ category_map = (
 extra_params = (env_exposure = 2.5,)
 # Create epi system with all information
 rel = Gauss{eltype(epienv.habitat)}()
-transitions = Simulation.create_transition_list_env_SEIR(epilist, epienv, extra_params)
-epi = EpiSystem(epilist, epienv, rel, transitions = transitions)
+transitions = create_transition_list_env_SEIR(epilist, epienv, extra_params)
+epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
@@ -84,7 +84,7 @@ abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
 plot_epidynamics(epi, abuns, category_map = category_map)
 
 transitions = Simulation.create_transition_list_SEIR(epilist, epienv)
-epi = EpiSystem(epilist, epienv, rel, transitions = transitions)
+epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day

@@ -29,9 +29,11 @@ end
 function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractSetUp
     if typeof(rule) == UpdateEnergy
         _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == Missing
-        _run_rule!(eco, rule, timestep)
     end
+end
+
+function run_rule!(eco::Ecosystem, rule::Missing, timestep::Unitful.Time)
+    return @warn "No setup"
 end
 
 function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractWindDown

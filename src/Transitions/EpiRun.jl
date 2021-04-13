@@ -122,7 +122,3 @@ end
 function _run_rule!(eco::Ecosystem, rule::UpdateEpiEnvironment, timestep::Unitful.Time)
     rule.update_fun(eco, timestep)
 end
-
-function _run_rule!(eco::Ecosystem, rule::Missing, timestep::Unitful.Time)
-    return @warn "No setup"
-end

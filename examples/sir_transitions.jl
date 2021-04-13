@@ -60,8 +60,8 @@ epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
 
 # Create epi system with all information
 rel = Gauss{eltype(epienv.habitat)}()
-transitions = create_transition_list(epilist, epienv)
-epi = EpiSystem(epilist, epienv, rel, transitions = transitions)
+transitions = create_transition_list_SEIR(epilist, epienv)
+epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
