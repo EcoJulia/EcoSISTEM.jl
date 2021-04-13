@@ -6,7 +6,7 @@ using LinearAlgebra
     update!(epi::Ecosystem, time::Unitful.Time)
 Function to update disease and virus class abundances and environment for one timestep.
 """
-function update!(epi::Ecosystem, timestep::Unitful.Time)
+function epi_update!(epi::Ecosystem, timestep::Unitful.Time)
 
     # Seed initial infecteds
     seedinfected!(epi, epi.abenv.control, timestep)

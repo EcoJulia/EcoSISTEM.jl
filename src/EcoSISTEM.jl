@@ -164,7 +164,7 @@ include("Transitions/BiodiversityRun.jl")
 include("Transitions/EpiRun.jl")
 
 include("Transitions/Run.jl")
-export run_rule!, new_update!, new_simulate!, new_simulate_record!
+export run_rule!, update!, new_simulate!, new_simulate_record!
 
 # Path into package
 path(paths...) = joinpath(@__DIR__, "..", paths...)

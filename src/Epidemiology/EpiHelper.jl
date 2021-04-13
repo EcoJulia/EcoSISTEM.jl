@@ -39,7 +39,7 @@ function simulate!(
   times = length(0s:timestep:duration)
 
   for i in 1:times
-    update!(epi, timestep)
+    epi_update!(epi, timestep)
   end
 
   # save simulation results
@@ -121,7 +121,7 @@ function simulate_record!(
 
   # - simulate each timestep
   for i in 2:length(time_seq)
-    update!(epi, timestep);
+    epi_update!(epi, timestep);
     if time_seq[i] in record_seq
       counting = counting + 1
       storage[:, :, counting] = epi.abundances.matrix

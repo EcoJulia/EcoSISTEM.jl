@@ -36,14 +36,14 @@ function get_neighbours(mat::Matrix, x_coord::Array{Int64,1},
       return vcat(neighbours...)
 end
 
-update!(eco::AbstractEcosystem, timestep::Unitful.Time) =
+biodiversity_update!(eco::AbstractEcosystem, timestep::Unitful.Time) =
     update!(eco, timestep, Val{Threads.nthreads()}())
 
 """
     update!(eco::Ecosystem, time::Unitful.Time)
 Function to update a ecosystem abundances and environment for one timestep.
 """
-function update!(eco::Ecosystem, timestep::Unitful.Time)
+function biodiversity_update!(eco::Ecosystem, timestep::Unitful.Time)
 
     # Calculate dimenions of habitat and number of species
     dims = _countsubcommunities(eco.abenv.habitat)

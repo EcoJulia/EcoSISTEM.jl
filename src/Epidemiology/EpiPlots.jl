@@ -122,7 +122,7 @@ plot_epidynamics
 
     if isnothing(category_map)
         # Make each compartment its own category
-        category_map = (name => [idx] for (idx, name) in enumerate(epi.epilist.human.names))
+        category_map = (name => [idx] for (idx, name) in enumerate(getnames(epi.spplist)))
     end
 
     for (name, idx) in category_map

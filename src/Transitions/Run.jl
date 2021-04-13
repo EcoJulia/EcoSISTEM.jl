@@ -52,7 +52,7 @@ function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: A
     end
 end
 
-function new_update!(eco::Ecosystem, timestep::Unitful.Time)
+function update!(eco::Ecosystem, timestep::Unitful.Time)
 
     run_rule!(eco, eco.transitions.setup, timestep)
 
@@ -102,7 +102,7 @@ function new_simulate!(
   times = length(0s:timestep:duration)
 
   for i in 1:times
-    new_update!(eco, timestep)
+    update!(eco, timestep)
   end
 
   # save simulation results
@@ -184,7 +184,7 @@ function new_simulate_record!(
 
   # - simulate each timestep
   for i in 2:length(time_seq)
-    new_update!(eco, timestep);
+    update!(eco, timestep);
     if time_seq[i] in record_seq
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix
