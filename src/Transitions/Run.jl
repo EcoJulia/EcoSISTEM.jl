@@ -69,7 +69,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
 end
 
 """
-    function new_simulate!(
+    function simulate!(
         eco::AbstractEcosystem,
         duration::Unitful.Time,
         timestep::Unitful.Time;
@@ -81,7 +81,7 @@ Run an ecosystem, `eco`, for specified length of times, `duration`, for a
 particular timestep, `timestep`. If `save=true`, inputs and outputs are saved as JLSO files
 at `save_path`.
 """
-function new_simulate!(
+function simulate!(
     eco::AbstractEcosystem,
     duration::Unitful.Time,
     timestep::Unitful.Time;
@@ -110,7 +110,7 @@ function new_simulate!(
 end
 
 """
-    new_simulate_record!(
+    simulate_record!(
         storage::AbstractArray,
         eco::Ecosystem,
         times::Unitful.Time,
@@ -125,7 +125,7 @@ for a particular timestep, `timestep`, and time interval for abundances to be
 recorded, `interval`. Optionally, there may also be a scenario by which the
 whole ecosystem is updated, such as removal of habitat patches.
 """
-function new_simulate_record!(
+function simulate_record!(
     storage::AbstractArray,
     eco::Ecosystem,
     times::Unitful.Time,

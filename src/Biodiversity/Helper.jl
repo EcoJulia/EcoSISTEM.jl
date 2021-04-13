@@ -12,13 +12,13 @@ using Compat
 Function to run an ecosystem, `eco` for specified length of times, `duration`,
 for a particular timestep, 'timestep'.
 """
-function simulate!(eco::AbstractEcosystem, duration::Unitful.Time, timestep::Unitful.Time)
+function biodiversity_simulate!(eco::AbstractEcosystem, duration::Unitful.Time, timestep::Unitful.Time)
   times = length(0s:timestep:duration)
   for i in 1:times
     biodiversity_update!(eco, timestep)
   end
 end
-function simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.Time)
+function biodiversity_simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.Time)
   eco = Ecosystem{typeof(cache.abenv), typeof(cache.spplist),
   typeof(cache.relationship)}(copy(cache.abundances.matrix[srt]),
    cache.spplist, cache.abenv,
@@ -46,7 +46,7 @@ for a particular timestep, 'timestep', and time interval for abundances to be
 recorded, `interval`. Optionally, there may also be a scenario by which the
 whole ecosystem is updated, such as removal of habitat patches.
 """
-function simulate_record!(storage::AbstractArray, eco::Ecosystem,
+function biodiversity_simulate_record!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time)
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
   record_seq = 0s:interval:times
@@ -63,7 +63,7 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
   storage
 end
 
-function simulate_record!(storage::AbstractArray, eco::Ecosystem,
+function biodiversity_simulate_record!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time,
   scenario::AbstractScenario)
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
@@ -92,7 +92,7 @@ for a particular timestep, 'timestep', and time interval for a diversity to be
 calculated and recorded, `interval`. Optionally, there may also be a scenario by which the
 whole ecosystem is updated, such as removal of habitat patches.
 """
-function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+function biodiversity_simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
   scenario::SimpleScenario, divfun::F, qs::Vector{Float64}) where {F<:Function}
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
@@ -111,7 +111,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   storage
 end
 
-function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+function biodiversity_simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
   divfun::F, qs::Vector{Float64}) where {F<:Function}
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
@@ -129,7 +129,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   end
   storage
 end
-function simulate_record_diversity!(storage::AbstractArray,
+function biodiversity_simulate_record_diversity!(storage::AbstractArray,
     storage2::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
   qs::Vector{Float64})
@@ -154,7 +154,7 @@ function simulate_record_diversity!(storage::AbstractArray,
   end
   return storage, storage2
 end
-function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+function biodiversity_simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
   divfuns::Array{Function, 1}, q::Float64)
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
@@ -172,7 +172,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   end
   storage
 end
-function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+function biodiversity_simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
   scenario::SimpleScenario, divfuns::Array{Function, 1}, q::Float64)
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")

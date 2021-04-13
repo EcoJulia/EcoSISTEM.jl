@@ -18,7 +18,7 @@ Run an epidemiological system, `epi`, for specified length of times, `duration`,
 particular timestep, `timestep`. If `save=true`, inputs and outputs are saved as JLSO files
 at `save_path`.
 """
-function simulate!(
+function epi_simulate!(
     epi::AbstractEcosystem,
     duration::Unitful.Time,
     timestep::Unitful.Time;
@@ -62,7 +62,7 @@ for a particular timestep, `timestep`, and time interval for abundances to be
 recorded, `interval`. Optionally, there may also be a scenario by which the
 whole ecosystem is updated, such as removal of habitat patches.
 """
-function simulate_record!(
+function epi_simulate_record!(
     storage::AbstractArray,
     epi::Ecosystem,
     times::Unitful.Time,

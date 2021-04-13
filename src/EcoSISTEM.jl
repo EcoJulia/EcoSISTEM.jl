@@ -130,7 +130,7 @@ function __init__()
 end
 
 include("Biodiversity/Helper.jl")
-export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
+export biodiversity_simulate!, biodiversity_simulate_record!, biodiversity_simulate_record_diversity!, expected_counts, generate_storage
 
 include("Biodiversity/Cache.jl")
 export abundances, clearcache
@@ -150,7 +150,7 @@ include("Epidemiology/EpiGenerate.jl")
 export populate!
 
 include("Epidemiology/EpiHelper.jl")
-export simulate!, simulate_record!
+export epi_simulate!, epi_simulate_record!
 
 include("Epidemiology/EpiPlots.jl")
 
@@ -164,7 +164,7 @@ include("Transitions/BiodiversityRun.jl")
 include("Transitions/EpiRun.jl")
 
 include("Transitions/Run.jl")
-export run_rule!, update!, new_simulate!, new_simulate_record!
+export run_rule!, update!, simulate!, simulate_record!
 
 # Path into package
 path(paths...) = joinpath(@__DIR__, "..", paths...)
