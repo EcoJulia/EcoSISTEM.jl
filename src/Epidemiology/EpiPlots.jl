@@ -36,12 +36,12 @@ plot_epiheatmaps
 function _check_args(h)
     correct_args = (
         length(h.args) == 2 &&
-        isa(h.args[1], AbstractEpiSystem) &&
+        isa(h.args[1], AbstractEcosystem) &&
         isa(h.args[2], AbstractArray{<:Integer, 3})
     )
     if !correct_args
         throw(ArgumentError(
-            "$(typeof(h)) requires (AbstractEpiSystem, abuns); got: $(typeof(h.args))"
+            "$(typeof(h)) requires (AbstractEcosystem, abuns); got: $(typeof(h.args))"
         ))
     end
 end

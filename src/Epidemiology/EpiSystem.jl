@@ -14,12 +14,6 @@ Abstract supertype for all disease system types.
 abstract type AbstractEpiSystem{Part <: AbstractEpiEnv, EL <: EpiList, TR <: AbstractTraitRelationship} <: AbstractMetacommunity{Float64, Matrix{Int64},
                                     Matrix{Float64}, EL, Part} end
 
-
-mutable struct EpiCache <: AbstractCache
-  virusmigration::Array{Float64, 2}
-  valid::Bool
-end
-
 @enum MovementType homeMovement workMovement
 
 struct EpiLookup <: AbstractLookup

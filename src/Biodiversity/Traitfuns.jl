@@ -6,7 +6,7 @@ Function to calculate relationship between the current environment and a species
 """
 function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
     hab = eco.abenv.habitat
-    trts = eco.spplist.traits
+    trts = gettraits(eco)
     rel = eco.relationship
     _traitfun(hab, trts, rel, pos, sp)
 end
@@ -78,4 +78,16 @@ Function to extract the trait relationship of all species in the ecosystem.
 """
 function getrelationship(rel::R, field::Symbol) where R <: AbstractTraitRelationship
   return getfield(rel, field)
+end
+
+
+function gettraits(eco::Ecosystem)
+    return _gettraits(eco.spplist)
+end
+
+function _gettraits(sppl::EpiList)
+    return sppl.virus.traits
+end
+function _gettraits(sppl::SpeciesList)
+    return sppl.traits
 end

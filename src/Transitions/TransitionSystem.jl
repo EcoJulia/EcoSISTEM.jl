@@ -24,12 +24,16 @@ are initially empty storage and written over by the movement step in update!().
 `pnew` is the recalculated probability based on which directions are available
 and `moves` is the number of moves to that grid location in that step.
 """
-mutable struct Lookup <: AbstractLookup
+mutable struct Lookup
   x::Vector{Int64}
   y::Vector{Int64}
   p::Vector{Float64}
   pnew::Vector{Float64}
   moves::Vector{Int64}
+end
+
+mutable struct SpeciesLookup  <: AbstractLookup
+    species::Vector{Lookup}
 end
 
 abstract type AbstractCache end
@@ -85,6 +89,7 @@ abstract type
                                         Matrix{Float64}, SL, Part}
 end
 
+
 mutable struct Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <: AbstractSpeciesList,
     TR <: AbstractTraitRelationship, LU <: AbstractLookup, C <: AbstractCache} <: AbstractEcosystem{L, Part, SL, TR, LU, C}
   abundances::L
@@ -92,7 +97,7 @@ mutable struct Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <
   abenv::Part
   ordinariness::Union{Matrix{Float64}, Missing}
   relationship::TR
-  lookup::Vector{LU}
+  lookup::LU
   cache::C
   transitions::Union{Missing, TransitionList}
 end
@@ -105,17 +110,20 @@ function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEn
   # Populate this matrix with species abundances
   popfun(ml, spplist, abenv, rel)
   # Create lookup table of all moves and their probabilities
-  lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.movement)))
+  lookup = SpeciesLookup(collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.movement))))
   cache = create_cache(spplist, ml)
   transitions = create_transitions(spplist, abenv)
-  return Ecosystem{typeof(ml), typeof(abenv), typeof(spplist), typeof(rel), typeof(lookup_tab[1]), typeof(cache)}(ml, spplist, abenv,
-  missing, rel, lookup_tab, cache, transitions)
+  return Ecosystem{typeof(ml), typeof(abenv), typeof(spplist), typeof(rel), typeof(lookup), typeof(cache)}(ml, spplist, abenv,
+  missing, rel, lookup, cache, transitions)
 end
 
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship)
    return Ecosystem(populate!, spplist, abenv, rel)
 end
+
+save(path::String, system::Ecosystem) = JLSO.save(path, :ecosystem => system)
+load(path::String, obj_type::Type{Ecosystem}) = JLSO.load(path)[:ecosystem]
 
 function addspecies!(eco::Ecosystem, abun::Int64)
     eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(1, size(eco.abundances.matrix, 2)))
@@ -189,6 +197,9 @@ function _getscale(eco::AbstractEcosystem)
 end
 
 function invalidatecaches!(eco::AbstractEcosystem)
+    _invalidatecaches!(eco, eco.cache)
+end
+function _invalidatecaches!(eco::Ecosystem, cache::Cache)
     eco.ordinariness = missing
     eco.cache.netmigration .= 0
     eco.cache.valid = false
@@ -283,12 +294,11 @@ end
 
 Function to extract movement lookup table of species from Ecosystem object.
 """
-function getlookup(eco::AbstractEcosystem, sp::Int64)
-    return eco.lookup[sp]
+function getlookup(eco::A, sp::Int64) where A <: AbstractEcosystem
+    return _getlookup(eco.lookup, sp)
 end
-function getlookup(eco::AbstractEcosystem, sp::String)
-    num = Compat.findall(eco.spplist.names.==sp)[1]
-    getlookup(eco, num)
+function _getlookup(lookup::SpeciesLookup, sp::Int64)
+    return lookup.species[sp]
 end
 
 """
@@ -459,13 +469,13 @@ holds the time period abundances as a CachedGridLandscape, so that they may
 be present or missing.
 """
 mutable struct CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-    TR <: AbstractTraitRelationship} <: AbstractEcosystem{CachedGridLandscape, Part, SL, TR, Lookup, Cache}
+    TR <: AbstractTraitRelationship} <: AbstractEcosystem{CachedGridLandscape, Part, SL, TR, SpeciesLookup, Cache}
   abundances::CachedGridLandscape
   spplist::SL
   abenv::Part
   ordinariness::Union{Matrix{Float64}, Missing}
   relationship::TR
-  lookup::Vector{Lookup}
+  lookup::SpeciesLookup
   cache::Cache
 end
 
@@ -484,4 +494,195 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
     abundances.matrix[1] = eco.abundances
   CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist), typeof(eco.relationship)}(abundances,
   eco.spplist, eco.abenv, eco.ordinariness, eco.relationship, eco.lookup, eco.cache)
+end
+
+
+
+using JLSO
+using SparseArrays
+
+function create_cache(sppl::EpiList, ml::EpiLandscape)
+  vm = zeros(Float64, size(ml.matrix))
+  return EpiCache(vm, false)
+end
+
+mutable struct EpiCache <: AbstractCache
+  virusmigration::Array{Float64, 2}
+  initial_infected::Int64
+  ordered_active::Vector{Int64}
+  valid::Bool
+end
+
+@enum MovementType homeMovement workMovement
+
+struct EpiLookup <: AbstractLookup
+  homelookup::SparseMatrixCSC{Float64, Int32}
+  worklookup::SparseMatrixCSC{Float64, Int32}
+  function EpiLookup(homelookup::SparseMatrixCSC{Float64, Int32}, worklookup::SparseMatrixCSC{Float64, Int32})
+      all(0 .<= homelookup.nzval .<= 1) || error("Home lookup values must be between 0 and 1")
+      all(0 .<= worklookup.nzval .<= 1) || error("Work lookup values must be between 0 and 1")
+      return new(homelookup, worklookup)
+  end
+end
+
+function Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv::EE,
+    ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup,
+    vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Missing, TransitionList}
+    ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
+    EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship}
+  total_pop = sum(abundances.matrix, dims = 1)[1, :]
+  sorted_grid_ids = sortperm(total_pop, rev = true)
+  sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
+  cache = EpiCache(vm, initial_infected, sorted_grid_ids, valid)
+  return Ecosystem(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, transitions)
+end
+
+function Ecosystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
+      rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
+      rngtype::Type{R} = Random.MersenneTwister,
+      transitions = missing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
+
+  # Create matrix landscape of zero abundances
+  ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
+
+  # Populate this matrix with species abundances
+  popfun(ml, epilist, epienv, rel)
+  initial_pop = sum(ml.matrix, dims = 1)
+  # Create lookup table of all moves and their probabilities
+  home_lookup = genlookups(epienv, epilist.human.movement.home)
+  work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
+  lookup = EpiLookup(home_lookup, work_lookup)
+  vm = zeros(Float64, size(ml.matrix))
+  return Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions)
+end
+
+function Ecosystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+        intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister,
+        transitions = missing
+        ) where {U <: Integer, R <: Random.AbstractRNG}
+    return Ecosystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype, transitions = transitions)
+end
+
+function Ecosystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+        initial_population::A, intnum::U = Int64(1); initial_infected = 0,
+        rngtype::Type{R} = Random.MersenneTwister,
+        transitions = missing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
+    if size(initial_population) != size(epienv.active)
+        msg = "size(initial_population)==$(size(initial_population)) != " *
+            "size(epienv.active)==$(size(epienv.active))"
+        throw(DimensionMismatch(msg))
+    end
+    epienv.active .&= .!_inactive.(initial_population)
+
+    # Create matrix landscape of zero abundances
+    ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
+
+    # Create lookup table of all moves and their probabilities
+    home_lookup = genlookups(epienv, epilist.human.movement.home)
+    work_lookup = genlookups(epienv, epilist.human.movement.work, initial_population[1:end])
+    lookup = EpiLookup(home_lookup, work_lookup)
+
+    vm = zeros(Float64, size(ml.matrix))
+
+    epi = Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions)
+
+    # Add in the initial susceptible population
+    # TODO Need to fix code so it doesn't rely on name of susceptible class
+    idx = findfirst(occursin.("Susceptible", epilist.human.names))
+    if idx == nothing
+        msg = "epilist has no Susceptible category. epilist.names = $(epilist.human.names)"
+        throw(ArgumentError(msg))
+    end
+    # Modify active cells based on new population
+    initial_population = convert_population(initial_population, intnum)
+    epi.abundances.grid[idx, :, :] .+= initial_population
+
+    total_pop = sum(human(epi.abundances), dims = 1)[1, :]
+    sorted_grid_ids = sortperm(total_pop, rev = true)
+    sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
+    epi.ordered_active = sorted_grid_ids
+    return epi
+end
+
+function _invalidatecaches!(eco::Ecosystem, cache::EpiCache)
+    eco.ordinariness = missing
+    eco.cache.virusmigration .= 0
+    eco.cache.valid = false
+end
+
+function getlookup(epi::Ecosystem, id::Int64, movetype::MovementType)
+    if movetype == homeMovement
+        return epi.lookup.homelookup[id, :]
+    elseif movetype == workMovement
+        return epi.lookup.worklookup[id, :]
+    else
+        return error("No other movement types currently implemented")
+    end
+end
+
+function _getlookup(lookup::EpiLookup, id::Int64)
+    return lookup.homelookup[id, :], lookup.worklookup[id, :]
+end
+
+function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size)
+    total_size = (size(epienv.active, 1) * size(epienv.active, 2))
+    # Column access so Js should be source grid cells
+    Js = Int32.(mov.home_to_work[!, :from])
+    # Is should be destination grid cells
+    Is = Int32.(mov.home_to_work[!, :to])
+    Vs = mov.home_to_work[!, :count]
+    work = sparse(Is, Js, Vs, total_size, total_size)
+    # Divide through by total population size
+    work.nzval ./= pop_size[Is]
+    work.nzval[isnan.(work.nzval)] .= 0
+    # Make sure each row adds to one (probability of movement)
+    summed = map(j -> sum(work[:, j]), unique(Js))
+    summed[summed .== 0] .= 1.0
+    work.nzval ./= summed
+    return work
+end
+function genlookups(epienv::GridEpiEnv, mov::AlwaysMovement)
+    total_size = (size(epienv.active, 1) * size(epienv.active, 2))
+    # Generate grid ids and x,y coords for active cells only
+    grid_locs = 1:total_size
+    activity = epienv.active[1:end]
+    grid_locs = grid_locs[activity]
+    xys = convert_coords.(grid_locs, size(epienv.active, 2))
+
+    # Collate all movement related parameters
+    grid_size = _getgridsize(epienv.habitat)
+    sd = [(2 .* k.dist) ./ sqrt(pi) for k in mov.kernels][activity]
+    relsize =  grid_size ./ sd
+    thresh = [k.thresh for k in mov.kernels][activity]
+    grid_size /= unit(grid_size)
+
+    # Calculate lookup probabilities for each grid location
+    res = map((i, r, t) -> EcoSISTEM.genlookups(i, grid_locs, xys, grid_size, r, t, epienv), grid_locs, relsize, thresh)
+
+    # Column vectors are source grid cells (repeated for each destination calculated)
+    Js = vcat([fill(grid_locs[r], length(res[r][1])) for r in eachindex(res)]...)
+    # Row vectors are destination grid cells
+    Is = vcat([r[1] for r in res]...)
+    Vs = vcat([r[2] for r in res]...)
+    return sparse(Int32.(Is), Int32.(Js), Vs, total_size, total_size)
+end
+
+function genlookups(from::Int64, to::Vector{Int64}, xys::Array{Tuple{Int64,Int64},1}, grid_size::Float64, relsize::Float64, thresh::Float64, epienv::GridEpiEnv)
+    x, y = xys[to .== from][1]
+    maxX = ceil(Int64, x + 1/relsize); minX = ceil(Int64, x - 1/relsize)
+    maxY = floor(Int64, y + 1/relsize); minY = floor(Int64, y - 1/relsize)
+    keep = [(i[1] <= maxX) & (i[2] <= maxY) & (i[1] >= minX) & (i[2] >= minY) for i in xys]
+    to = to[keep]
+    probs = [_lookup((x = x, y = y), (x = i[1], y = i[2]), relsize, _gaussian_disperse) for i in xys[keep]]
+    keep = probs .> thresh
+    probs = probs[keep]
+    probs ./= sum(probs)
+    return to[keep], probs
+end
+
+function _lookup(from::NamedTuple, to::NamedTuple, relSquareSize::Float64, dispersalfn::F) where {F<:Function}
+    return calc_prob = hcubature(r -> dispersalfn(r),
+      [from.y *relSquareSize - relSquareSize, from.x * relSquareSize - relSquareSize, to.y * relSquareSize - relSquareSize, to.x * relSquareSize - relSquareSize],
+      [from.y * relSquareSize, from.x * relSquareSize, to.y * relSquareSize, to.x * relSquareSize],
+      maxevals= 100, rtol = 0.01)[1] / relSquareSize^2
 end
