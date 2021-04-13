@@ -275,7 +275,7 @@ function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, sp::Int64,
   grd[sp, i] -= full_abun
   # Map moves to location in grid
   mov = lookup.moves
-  for i in eachindex(eco.lookup[sp].x)
+  for i in eachindex(lookup.x)
       newx = mod(lookup.x[i] + x - 1, width) + 1
       newy = mod(lookup.y[i] + y - 1, height) + 1
       loc = convert_coords(eco, (newx, newy), width)

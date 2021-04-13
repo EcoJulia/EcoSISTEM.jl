@@ -66,6 +66,33 @@ export GridLandscape, CachedGridLandscape
 include("Transitions/Transitions.jl")
 export TransitionList
 
+include("Epidemiology/MedianGenerator.jl")
+export MedianGenerator
+
+include("Epidemiology/data_utils.jl")
+export parse_hdf5, get_3d_km_grid_axis_array
+
+include("Epidemiology/EpiControl.jl")
+export NoControl, Lockdown
+
+include("Epidemiology/shrink.jl")
+export shrink_to_active, convert_population
+
+include("Epidemiology/EpiEnv.jl")
+export GridEpiEnv, simplehabitatAE, ukclimateAE
+
+include("Epidemiology/EpiParams.jl")
+export transition
+
+include("Epidemiology/EpiMove.jl")
+export EpiMovement, Commuting
+
+include("Epidemiology/EpiList.jl")
+export EpiList, SIS, SIR, SEIR, SEIRS, SEI2HRD
+
+include("Epidemiology/EpiLandscape.jl")
+export EpiLandscape, human, virus
+
 include("Transitions/TransitionSystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
 getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
@@ -76,9 +103,6 @@ getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
 
 include("Transitions/BiodiversityTransitions.jl")
 export create_transitions
-
-include("Transitions/BiodiversityRun.jl")
-export run_rule!, new_update!, new_simulate!, new_simulate_record!
 
 include("Biodiversity/Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
@@ -117,33 +141,6 @@ export DiversitySet, updatesimulation!, gettimes
 include("Biodiversity/AdditionalDiversity.jl")
 export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
 
-include("Epidemiology/MedianGenerator.jl")
-export MedianGenerator
-
-include("Epidemiology/data_utils.jl")
-export parse_hdf5, get_3d_km_grid_axis_array
-
-include("Epidemiology/EpiControl.jl")
-export NoControl, Lockdown
-
-include("Epidemiology/shrink.jl")
-export shrink_to_active, convert_population
-
-include("Epidemiology/EpiEnv.jl")
-export GridEpiEnv, simplehabitatAE, ukclimateAE
-
-include("Epidemiology/EpiParams.jl")
-export transition
-
-include("Epidemiology/EpiMove.jl")
-export EpiMovement, Commuting
-
-include("Epidemiology/EpiList.jl")
-export EpiList, SIS, SIR, SEIR, SEIRS, SEI2HRD
-
-include("Epidemiology/EpiLandscape.jl")
-export EpiLandscape, human, virus
-
 include("Epidemiology/EpiSystem.jl")
 export EpiSystem
 
@@ -161,10 +158,13 @@ include("Epidemiology/Inference.jl")
 export SIR_wrapper, SIR_wrapper!, SEI3HRD_wrapper, SEI3HRD_wrapper!
 
 include("Transitions/EpiTransitions.jl")
-export create_transition_list
+export create_transition_list_SEIR, create_transition_list_env_SEIR
 
+include("Transitions/BiodiversityRun.jl")
 include("Transitions/EpiRun.jl")
-export new_simulate!, new_simulate_record!
+
+include("Transitions/Run.jl")
+export run_rule!, new_update!, new_simulate!, new_simulate_record!
 
 # Path into package
 path(paths...) = joinpath(@__DIR__, "..", paths...)
