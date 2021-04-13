@@ -63,6 +63,30 @@ function get_env(habitat::A) where A <: AbstractHabitat
     return habitat.matrix
 end
 
+
+mutable struct UpdateEpiEnvironment <: AbstractWindDown
+    update_fun::Function
+end
+function update_virus_cache!(epi::Ecosystem)
+    force_cats = epi.spplist.virus.force_cats
+    human_to_force = epi.spplist.human.human_to_force
+    locs = size(virus(epi.abundances), 2)
+    vm = zeros(eltype(epi.cache.virusmigration), length(force_cats), locs)
+    classes = length(epi.spplist.human.names)
+    Threads.@threads for i in 1:classes
+        for j in 1:locs
+            vm[human_to_force[i], j] += epi.cache.virusmigration[i, j]
+        end
+    end
+    virus(epi.abundances)[force_cats, :] .= vm
+end
+
+function update_epi_environment!(epi::Ecosystem, timestep::Unitful.Time)
+    update_virus_cache!(epi)
+    # Invalidate all caches for next update
+    invalidatecaches!(epi)
+end
+
 function create_transition_list_SEIR(epilist::EpiList, epienv::GridEpiEnv)
     params = epilist.params
     paramDat = params.transition_dat
@@ -79,7 +103,9 @@ function create_transition_list_SEIR(epilist::EpiList, epienv::GridEpiEnv)
 
     place_list = [ForceDisperse(spp, loc) for spp in eachindex(epilist.human.names) for loc in eachindex(epienv.habitat.matrix)]
 
-    return TransitionList(state_list, place_list)
+    before = missing
+    after = UpdateEpiEnvironment(update_epi_environment!)
+    return TransitionList(before, state_list, place_list, after)
 end
 
 function create_transition_list_env_SEIR(epilist::EpiList, epienv::GridEpiEnv, env_params::NamedTuple)
@@ -112,5 +138,7 @@ function create_transition_list_env_SEIR(epilist::EpiList, epienv::GridEpiEnv, e
                     for spp in eachindex(epilist.human.names)
                     for loc in eachindex(epienv.habitat.matrix)]
 
-    return TransitionList(state_list, place_list)
+    before = missing
+    after = UpdateEpiEnvironment(update_epi_environment!)
+    return TransitionList(before, state_list, place_list, after)
 end
