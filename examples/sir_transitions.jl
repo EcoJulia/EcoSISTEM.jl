@@ -66,15 +66,15 @@ epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
-@time new_simulate_record!(abuns, epi, times, interval, timestep);
+@time simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns)
 
-epi = EpiSystem(epilist, epienv, rel)
+epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
-@time simulate_record!(abuns, epi, times, interval, timestep);
+@time epi_simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns)
 
 # Simulation Parameters
@@ -82,15 +82,15 @@ burnin = 1month; times = 5years; timestep = 1day; record_interval = 1day; repeat
 lensim = length(0years:record_interval:times)
 abuns = zeros(Int64, numSpecies, prod(grid), lensim)
 # Burnin
-@time new_simulate!(epi, burnin, timestep);
-@time new_simulate_record!(abuns, epi, times, record_interval, timestep);
+@time simulate!(epi, burnin, timestep);
+@time simulate_record!(abuns, epi, times, record_interval, timestep);
 
 # Benchmark
 using BenchmarkTools
 epi = Episystem(sppl, abenv, rel)
-@benchmark new_simulate!(epi, burnin, timestep)
-epi = Episystem(sppl, abenv, rel)
 @benchmark simulate!(epi, burnin, timestep)
+epi = Episystem(sppl, abenv, rel)
+@benchmark wpi_simulate!(epi, burnin, timestep)
 
 using Plots
 @gif for i in 1:lensim
@@ -99,4 +99,4 @@ end
 
 using ProfileView
 epi = Episystem(sppl, abenv, rel)
-@profview new_simulate!(epi, burnin, timestep)
+@profview simulate!(epi, burnin, timestep)

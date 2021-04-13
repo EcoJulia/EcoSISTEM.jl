@@ -51,19 +51,19 @@ burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; 
 lensim = length(0years:record_interval:times)
 abuns = zeros(Int64, numSpecies, prod(grid), lensim)
 # Burnin
-@time new_simulate!(eco, burnin, timestep);
-@time new_simulate_record!(abuns, eco, times, record_interval, timestep);
-
-eco = Ecosystem(sppl, abenv, rel)
 @time simulate!(eco, burnin, timestep);
 @time simulate_record!(abuns, eco, times, record_interval, timestep);
+
+eco = Ecosystem(sppl, abenv, rel)
+@time biodiversity_simulate!(eco, burnin, timestep);
+@time biodiversity_simulate_record!(abuns, eco, times, record_interval, timestep);
 
 # Benchmark
 using BenchmarkTools
 eco = Ecosystem(sppl, abenv, rel);
-@benchmark new_simulate!(eco, burnin, timestep)
-eco = Ecosystem(sppl, abenv, rel);
 @benchmark simulate!(eco, burnin, timestep)
+eco = Ecosystem(sppl, abenv, rel);
+@benchmark biodiversity_simulate!(eco, burnin, timestep)
 
 using Plots
 @gif for i in 1:lensim
@@ -72,4 +72,4 @@ end
 
 using ProfileView
 eco = Ecosystem(sppl, abenv, rel)
-@profview new_simulate!(eco, burnin, timestep)
+@profview simulate!(eco, burnin, timestep)

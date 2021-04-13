@@ -80,7 +80,7 @@ epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
-@time new_simulate_record!(abuns, epi, times, interval, timestep);
+@time simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns, category_map = category_map)
 
 transitions = Simulation.create_transition_list_SEIR(epilist, epienv)
@@ -89,5 +89,7 @@ epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
-@time new_simulate_record!(abuns, epi, times, interval, timestep);
+@time simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns, category_map = category_map)
+
+@time epi_simulate_record!(abuns, epi, times, interval, timestep);

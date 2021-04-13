@@ -71,13 +71,13 @@ category_map = (
 
 # Create epi system with all information
 rel = Gauss{eltype(epienv.habitat)}()
-transitions = create_transition_list(epilist, epienv)
+transitions = create_transition_list_SEIR(epilist, epienv)
 epi = EpiSystem(epilist, epienv, rel, transitions = transitions)
 
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
-@time new_simulate_record!(abuns, epi, times, interval, timestep);
+@time simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns, category_map = category_map)
 
 epi = EpiSystem(epilist, epienv, rel)
@@ -85,5 +85,5 @@ epi = EpiSystem(epilist, epienv, rel)
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
-@time simulate_record!(abuns, epi, times, interval, timestep);
+@time epi_simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns, category_map = category_map)
