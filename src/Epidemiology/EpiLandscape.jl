@@ -43,8 +43,8 @@ SpeciesList.
 function emptyepilandscape(epienv::GridEpiEnv, epilist::SpeciesList, intnum::U,
     Rngtype::Type{R} = Random.MersenneTwister
     ) where {U <: Integer, R <: Random.AbstractRNG}
-  mat_human = zeros(U, counttypes(epilist.species, true), countsubcommunities(epienv))
-  mat_virus = zeros(U, counttypes(epilist.pathogens, true), countsubcommunities(epienv))
-  dimension = (counttypes(epilist.species, true), _getdimension(epienv.habitat)...)
+  mat_human = zeros(U, _counttypes(epilist.species, true), countsubcommunities(epienv))
+  mat_virus = zeros(U, _counttypes(epilist.pathogens, true), countsubcommunities(epienv))
+  dimension = (_counttypes(epilist.species, true), _getdimension(epienv.habitat)...)
   return EpiLandscape(mat_human, mat_virus, dimension, Rngtype)
 end

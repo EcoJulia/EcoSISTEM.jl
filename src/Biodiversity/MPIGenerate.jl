@@ -10,7 +10,7 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
 
     # Calculate dimenions of habitat and number of species
     numsc = countsubcommunities(eco)
-    params = eco.spplist.species.params
+    params = eco.spplist.params
     # Set the overall energy budget of that square
     update_energy_usage!(eco)
     MPI.Allgatherv!(MPI.VBuffer(eco.cache.totalE, eco.sccounts), comm)

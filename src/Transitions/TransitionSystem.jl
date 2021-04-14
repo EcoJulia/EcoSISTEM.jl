@@ -282,13 +282,11 @@ Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
 function getdispersaldist(eco::A, sp::Int64) where A <: AbstractEcosystem
-    dist = eco.spplist.species.movement.kernels[sp].dist
-    return dist
+    return getdispersaldist(eco.spplist.species.movement, sp)
 end
 function getdispersaldist(eco::A, sp::String) where A <: AbstractEcosystem
     sp = findfirst(eco.spplist.species.names .== sp)
-    dist = eco.spplist.species.movement.kernels[sp].dist
-    return dist
+    return getdispersaldist(eco.spplist.species.movement, sp)
 end
 
 """
@@ -299,13 +297,11 @@ Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
 function getdispersalvar(eco::A, sp::Int64) where A <: AbstractEcosystem
-    var = (eco.spplist.species.movement.kernels[sp].dist)^2 * pi / 4
-    return var
+    return getdispersalvar(eco.spplist.species.movement, sp)
 end
 function getdispersalvar(eco::A, sp::String) where A <: AbstractEcosystem
     sp = findfirst(eco.spplist.species.names .== sp)
-    var = (eco.spplist.species.movement.kernels[sp].dist)^2 * pi / 4
-    return var
+    return getdispersalvar(eco.spplist.species.movement, sp)
 end
 
 """

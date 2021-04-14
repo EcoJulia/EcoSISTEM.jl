@@ -248,9 +248,10 @@ function _gettypenames(sl::SpeciesList, input::Bool)
     return _gettypenames(sl.species.types, input)
 end
 import Diversity.API: _counttypes
-function _counttypes(sl::SpeciesList, input::Bool)
+function _counttypes(sl::SpeciesList{A, B, C}, input::Bool) where {A <: SpeciesTypes, B <: AbstractPathogenTypes, C <: AbstractParams}
     return _counttypes(sl.species.types, input)
 end
+
 import Diversity.API: _calcsimilarity
 function _calcsimilarity(sl::SpeciesList, a::AbstractArray)
     return _calcsimilarity(sl.species.types, a)

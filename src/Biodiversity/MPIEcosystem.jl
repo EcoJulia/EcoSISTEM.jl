@@ -52,9 +52,9 @@ end
 
 Function to create an `MPIEcosystem` given a species list, an abiotic environment and trait relationship.
 """
-function MPIEcosystem(popfun::F, spplist::SpeciesList{T, Req},
+function MPIEcosystem(popfun::F, spplist::SpeciesList{SpeciesTypes{T, Req, MO, TY}, P, PA},
   abenv::GridAbioticEnv, rel::AbstractTraitRelationship
-  ) where {F<:Function, T, Req}
+  ) where {F<:Function, T, Req, MO, TY, P, PA}
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)

@@ -130,13 +130,14 @@ function getnames(sppl::SpeciesList{A, B, C}) where {A <: HumanTypes, B, C}
     return sppl.species.names
 end
 
-import Diversity.API: _counttypes
+import Diversity.API._counttypes
+
 function _counttypes(el::SpeciesList{A, B, C}, input::Bool) where {A <: HumanTypes, B <: VirusTypes, C <: AbstractParams}
     return _counttypes(el.human.types, input) + _counttypes(el.virus.types, input)
 end
 function _counttypes(hm::HumanTypes, input::Bool)
-    return _counttypes(hm.types, input)
+    return Diversity._counttypes(hm.types, input)
 end
 function _counttypes(vr::VirusTypes, input::Bool)
-    return _counttypes(vr.types, input)
+    return Diversity._counttypes(vr.types, input)
 end
