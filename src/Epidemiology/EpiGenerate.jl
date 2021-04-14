@@ -33,8 +33,8 @@ function seedinfected!(epi::Ecosystem, controls::Lockdown, timestep::Unitful.Tim
     rng = epi.abundances.rngs[Threads.threadid()]
     if (epi.cache.initial_infected > 0) && (controls.current_date < controls.lockdown_date)
         inf = rand(rng, Poisson(epi.cache.initial_infected * timestep /controls.lockdown_date))
-        sus_id = sample(epi.spplist.human.susceptible, inf)
-        exp_id = sus_id .+ length(epi.spplist.human.susceptible)
+        sus_id = sample(epi.spplist.species.susceptible, inf)
+        exp_id = sus_id .+ length(epi.spplist.species.susceptible)
         summed_exp = sum(human(epi.abundances)[exp_id, :], dims = 1)[1, :]
         pos = sample(rng, epi.cache.ordered_active, weights(summed_exp[epi.cache.ordered_active]), inf)
         for i in 1:inf
@@ -44,7 +44,7 @@ function seedinfected!(epi::Ecosystem, controls::Lockdown, timestep::Unitful.Tim
             end
         end
     elseif controls.current_date == controls.lockdown_date
-        @info "Lockdown initiated - $(sum(human(epi.abundances)[epi.spplist.human.susceptible .+ length(epi.spplist.human.susceptible), :])) individuals infected"
+        @info "Lockdown initiated - $(sum(human(epi.abundances)[epi.spplist.species.susceptible .+ length(epi.spplist.species.susceptible), :])) individuals infected"
     end
     return controls
 end
@@ -85,8 +85,8 @@ function virusupdate!(epi::Ecosystem, timestep::Unitful.Time)
         firstlooptasks[i] = Threads.@spawn firstloop(i)
     end
 
-    force_cats = epi.spplist.virus.force_cats
-    human_to_force = epi.spplist.human.human_to_force
+    force_cats = epi.spplist.pathogens.force_cats
+    human_to_force = epi.spplist.species.human_to_force
     ages = length(unique(human_to_force))
 
     function secondloop(j)
@@ -165,8 +165,8 @@ function classupdate!(epi::Ecosystem, timestep::Unitful.Time)
     width = getdimension(epi)[1]
     classes = 1:size(human(epi.abundances), 1)
 
-    human_to_force = epi.spplist.human.human_to_force
-    force_cats = epi.spplist.virus.force_cats
+    human_to_force = epi.spplist.species.human_to_force
+    force_cats = epi.spplist.pathogens.force_cats
 
     # Convert 1D dimension to 2D coordinates with convert_coords(epi, j, width)
     # Check which grid cells are active, only iterate along those
@@ -229,20 +229,20 @@ function classupdate!(epi::Ecosystem, timestep::Unitful.Time)
 end
 
 """
-    populate!(ml::EpiLandscape, spplist::EpiList, abenv::EE, rel::R)
-Function to populate an EpiLandscape with information on each disease class in the EpiList.
+    populate!(ml::EpiLandscape, spplist::SpeciesList, abenv::EE, rel::R)
+Function to populate an EpiLandscape with information on each disease class in the SpeciesList.
 """
-function populate!(ml::EpiLandscape, spplist::EpiList, abenv::EE, rel::R) where {EE <: AbstractEpiEnv, R <: AbstractTraitRelationship}
+function populate!(ml::EpiLandscape, spplist::SpeciesList, abenv::EE, rel::R) where {EE <: AbstractEpiEnv, R <: AbstractTraitRelationship}
     dim = _getdimension(abenv.habitat)
     len = dim[1] * dim[2]
 
     rng = ml.rngs[Threads.threadid()]
     # Loop through classes
-    for i in eachindex(spplist.human.abun)
-        rand!(rng, Multinomial(spplist.human.abun[i], len), (@view ml.matrix[i, :]))
+    for i in eachindex(spplist.species.abun)
+        rand!(rng, Multinomial(spplist.species.abun[i], len), (@view ml.matrix[i, :]))
     end
-    for i in eachindex(spplist.virus.abun)
-        rand!(rng, Multinomial(spplist.virus.abun[i], len), (@view ml.matrix_v[i, :]))
+    for i in eachindex(spplist.pathogens.abun)
+        rand!(rng, Multinomial(spplist.pathogens.abun[i], len), (@view ml.matrix_v[i, :]))
     end
 end
 
@@ -260,7 +260,7 @@ end
 
 function _applycontrols!(epi::AbstractEcosystem, controls::Lockdown, timestep::Unitful.Time)
     if controls.current_date >= controls.lockdown_date
-        epi.spplist.human.work_balance .= 0.0
+        epi.spplist.species.work_balance .= 0.0
         controls.current_date += timestep
     else
         controls.current_date += timestep
@@ -276,7 +276,7 @@ Function to calculate the movement of force of infection `id` from a given posit
 function virusmove!(epi::AbstractEcosystem, id::Int64, pos::Int64, grd::Array{Float64, 2}, newvirus::Int64)
     # Add in home movements
     home = epi.lookup.homelookup
-    home_scale = newvirus * epi.spplist.human.home_balance[id]
+    home_scale = newvirus * epi.spplist.species.home_balance[id]
     if home_scale > zero(home_scale)
         for nzi in home.colptr[pos]:(home.colptr[pos+1]-1)
             grd[id, home.rowval[nzi]] += home_scale * home.nzval[nzi]
@@ -285,7 +285,7 @@ function virusmove!(epi::AbstractEcosystem, id::Int64, pos::Int64, grd::Array{Fl
 
     # Add in work movements
     work = epi.lookup.worklookup
-    work_scale = newvirus * epi.spplist.human.work_balance[id]
+    work_scale = newvirus * epi.spplist.species.work_balance[id]
     if work_scale > zero(work_scale)
         for nzi in work.colptr[pos]:(work.colptr[pos+1]-1)
             grd[id, work.rowval[nzi]] += work_scale * work.nzval[nzi]

@@ -52,7 +52,7 @@ end
 )
     _check_args(h)
     epi, abuns = h.args
-    idx = _compartment_idx(compartment, epi.epilist.human.names)
+    idx = _compartment_idx(compartment, epi.spplist.species.names)
     if isempty(steps)
         steps = _default_steps(abuns)
     end

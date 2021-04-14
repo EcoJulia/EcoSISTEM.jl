@@ -62,7 +62,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+    epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
@@ -195,7 +195,7 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param, num_ages)
+    epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param, num_ages)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()

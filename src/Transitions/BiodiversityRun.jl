@@ -28,7 +28,7 @@ function _run_rule!(eco::Ecosystem, rule::AllDisperse)
     spp = getspecies(rule)
     loc = getlocation(rule)
     if eco.abenv.active[loc]
-        move!(eco, eco.spplist.movement, loc, spp, eco.cache.netmigration, eco.abundances.matrix[spp, loc])
+        move!(eco, eco.spplist.species.movement, loc, spp, eco.cache.netmigration, eco.abundances.matrix[spp, loc])
     end
 end
 

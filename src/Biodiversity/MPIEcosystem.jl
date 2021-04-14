@@ -58,7 +58,7 @@ function MPIEcosystem(popfun::F, spplist::SpeciesList{T, Req},
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
-    numspp = length(spplist.names)
+    numspp = length(spplist.species.names)
     numsc = countsubcommunities(abenv.habitat)
 
     count = div(numspp + totalsize - 1, totalsize)
@@ -80,7 +80,7 @@ function MPIEcosystem(popfun::F, spplist::SpeciesList{T, Req},
     popfun(ml, spplist, abenv, rel)
 
     rankspp = firstsp : sppindices[rank + 2]
-    lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), @view getkernels(spplist.movement)[rankspp]))
+    lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), @view getkernels(spplist.species.movement)[rankspp]))
     nm = zeros(Int64, (sppcounts[rank + 1], numsc))
     totalE = zeros(Float64, (numsc, numrequirements(Req)))
     MPIEcosystem{typeof(ml), typeof(abenv),
@@ -140,7 +140,7 @@ import Diversity.API: _calcordinariness
 function _calcordinariness(eco::MPIEcosystem)
     relab = getabundance(eco, false)
     sp_rng = eco.abundances.rows_tuple.first:eco.abundances.rows_tuple.last
-    return _calcsimilarity(eco.spplist.types, one(eltype(relab)))[sp_rng, sp_rng] * relab
+    return _calcsimilarity(eco.spplist.species.types, one(eltype(relab)))[sp_rng, sp_rng] * relab
 end
 
 function gather_diversity(eco::MPIEcosystem, divmeasure::F, q) where {F<:Function}

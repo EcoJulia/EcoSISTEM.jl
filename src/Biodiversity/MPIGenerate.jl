@@ -10,7 +10,7 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
 
     # Calculate dimenions of habitat and number of species
     numsc = countsubcommunities(eco)
-    params = eco.spplist.params
+    params = eco.spplist.species.params
     # Set the overall energy budget of that square
     update_energy_usage!(eco)
     MPI.Allgatherv!(MPI.VBuffer(eco.cache.totalE, eco.sccounts), comm)
@@ -47,7 +47,7 @@ function update!(eco::MPIEcosystem, timestep::Unitful.Time)
                 eco.abundances.rows_matrix[mpisp, sc] += (births - deaths)
 
                 # Calculate moves and write to cache
-                move!(eco, eco.spplist.movement, sc, truesp, eco.cache.netmigration, births)
+                move!(eco, eco.spplist.species.movement, sc, truesp, eco.cache.netmigration, births)
             end
         end
     end
@@ -68,13 +68,13 @@ function getlookup(eco::MPIEcosystem, sp::Int64)
     return eco.lookup[sp - eco.firstsp + 1]
 end
 
-function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, B, C, D}, E}) where {MPIGL <: MPIGridLandscape, A, B, C, D, E, Tr, Req <: Abstract1Requirement}
+function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{SpeciesTypes{B, Req, C, D},  E, F}, G}) where {MPIGL <: MPIGridLandscape, A, B, C, D, E, F, G, Req <: Abstract1Requirement}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
     # Get energy budgets of species in square
-    ϵ̄ = eco.spplist.requirement.energy
+    ϵ̄ = eco.spplist.species.requirement.energy
     mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
@@ -86,21 +86,21 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, 
             nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄[spindex:nextsp]
-            eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) * eco.spplist.requirement.exchange_rate
+            eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) * eco.spplist.species.requirement.exchange_rate
             spindex = nextsp + 1
         end
     end
     eco.cache.valid = true
 end
 
-function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, B, C, D}, E}) where {MPIGL <: MPIGridLandscape, A, B, C, D, E, Tr, Req <: Abstract2Requirements}
+function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{SpeciesTypes{B, Req, C, D},  E, F}, G}) where {MPIGL <: MPIGridLandscape, A, B, C, D, E, F, G, Req <: Abstract2Requirements}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
     # Get energy budgets of species in square
-    ϵ̄1 = eco.spplist.requirement.r1.energy
-    ϵ̄2 = eco.spplist.requirement.r2.energy
+    ϵ̄1 = eco.spplist.species.requirement.r1.energy
+    ϵ̄2 = eco.spplist.species.requirement.r2.energy
     mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
@@ -113,9 +113,9 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, 
             nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄1[spindex:nextsp]
-            eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) * eco.spplist.requirement.r1.exchange_rate
+            eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) * eco.spplist.species.requirement.r1.exchange_rate
             e2 = @view ϵ̄2[spindex:nextsp]
-            eco.cache.totalE[truesc, 2] += (currentabun ⋅ e2) * eco.spplist.requirement.r2.exchange_rate
+            eco.cache.totalE[truesc, 2] += (currentabun ⋅ e2) * eco.spplist.species.requirement.r2.exchange_rate
             spindex = nextsp + 1
         end
     end
@@ -127,7 +127,7 @@ function move!(eco::MPIEcosystem, ::BirthOnlyMovement, sc::Int64, truesp::Int64,
   width, height = getdimension(eco)
   (x, y) = convert_coords(eco, sc, width)
   lookup = getlookup(eco, truesp)
-  calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, truesp, eco, births)
+  calc_lookup_moves!(getboundary(eco.spplist.species.movement), x, y, truesp, eco, births)
   # Lose moves from current grid square
   mpisp = truesp - eco.firstsp + 1
   grd[mpisp, sc] -= births
@@ -153,7 +153,7 @@ function populate!(ml::MPIGridLandscape, spplist::SpeciesList, abenv::AB, rel::R
     b[.!activity] .= 0.0 * units
     B = b./sum(b)
     # Loop through species
-    abundances = @view spplist.abun[ml.rows_tuple.first:ml.rows_tuple.last]
+    abundances = @view spplist.species.abun[ml.rows_tuple.first:ml.rows_tuple.last]
     for mpisp in eachindex(abundances)
         rand!(Multinomial(abundances[mpisp], B),
         (@view ml.rows_matrix[mpisp, :]))
@@ -177,7 +177,7 @@ function populate!(ml::MPIGridLandscape, spplist::SpeciesList,
     b2[.!activity] .= 0.0 * units2
     B = (b1./sum(b1)) .* (b2./sum(b2))
     # Loop through species
-    abundances = @view spplist.abun[ml.rows_tuple.first:ml.rows_tuple.last]
+    abundances = @view spplist.species.abun[ml.rows_tuple.first:ml.rows_tuple.last]
     for mpisp in eachindex(abundances)
         rand!(Multinomial(abundances[mpisp], B ./ sum(B)),
         (@view ml.rows_matrix[mpisp, :]))

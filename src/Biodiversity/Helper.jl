@@ -28,7 +28,7 @@ function biodiversity_simulate!(cache::CachedEcosystem, srt::Unitful.Time, times
 end
 
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
-  numSpecies = length(eco.spplist.abun)
+  numSpecies = length(eco.spplist.species.abun)
   gridSize = _countsubcommunities(eco.abenv.habitat)
   abun = Array{Int64, 4}(Compat.undef, numSpecies, gridSize, times, reps)
 end

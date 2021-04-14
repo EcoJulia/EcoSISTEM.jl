@@ -102,7 +102,7 @@ function epi_simulate_record!(
   # correct order assumed in the model
   grid_id = vec(grid_id)
   axes = (;
-      compartment = epi.spplist.human.names,
+      compartment = epi.spplist.species.names,
       grid_id = grid_id,
       times = string.(uconvert.(day, 1.0 .* record_seq))
   )

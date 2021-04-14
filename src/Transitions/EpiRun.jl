@@ -7,8 +7,8 @@ function _run_rule!(eco::Ecosystem, rule::Exposure, timestep::Unitful.Time)
     loc = getlocation(rule)
     if eco.abenv.active[loc]
         params = eco.spplist.params
-        force_cats = eco.spplist.virus.force_cats
-        age_cat = eco.spplist.human.human_to_force
+        force_cats = eco.spplist.pathogens.force_cats
+        age_cat = eco.spplist.species.human_to_force
         N = sum_pop(eco.abundances.matrix, loc)
         env_inf = virus(eco.abundances)[1, loc] /
             (N^params.freq_vs_density_env)
@@ -31,8 +31,8 @@ function _run_rule!(eco::Ecosystem, rule::EnvExposure, timestep::Unitful.Time)
     env_exposure = rule.env_param
     if eco.abenv.active[loc]
         params = eco.spplist.params
-        force_cats = eco.spplist.virus.force_cats
-        age_cat = eco.spplist.human.human_to_force
+        force_cats = eco.spplist.pathogens.force_cats
+        age_cat = eco.spplist.species.human_to_force
         N = sum_pop(eco.abundances.matrix, loc)
         env = @view get_env(eco.abenv.habitat)[loc]
         env_transition = env[1] * env_exposure/mean(eco.abenv.habitat.matrix)
@@ -104,7 +104,7 @@ function _run_rule!(eco::Ecosystem, rule::ViralLoad, timestep::Unitful.Time)
     survivalprob = exp(-deathrate/2.0)
 
     # So this much force of infection survives in the environment
-    force_cats = eco.spplist.virus.force_cats
+    force_cats = eco.spplist.pathogens.force_cats
     env_virus = rand(rng, Binomial(sum(virus(eco.abundances)[force_cats, loc], dims=1)[1], survivalprob * params.env_virus_scale))
 
     # Now update virus in environment and force of infection

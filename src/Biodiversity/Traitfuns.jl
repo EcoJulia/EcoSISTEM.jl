@@ -85,9 +85,9 @@ function gettraits(eco::A) where A <: AbstractEcosystem
     return _gettraits(eco.spplist)
 end
 
-function _gettraits(sppl::EpiList)
-    return sppl.virus.traits
-end
 function _gettraits(sppl::SpeciesList)
-    return sppl.traits
+    return sppl.species.traits
+end
+function _gettraits(sppl::SpeciesList{A, B, C}) where {A <: HumanTypes, B <: VirusTypes, C}
+    return sppl.pathogens.traits
 end

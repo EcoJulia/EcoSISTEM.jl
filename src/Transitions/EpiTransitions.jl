@@ -68,11 +68,11 @@ mutable struct UpdateEpiEnvironment <: AbstractWindDown
     update_fun::Function
 end
 function update_virus_cache!(epi::Ecosystem)
-    force_cats = epi.spplist.virus.force_cats
-    human_to_force = epi.spplist.human.human_to_force
+    force_cats = epi.spplist.pathogens.force_cats
+    human_to_force = epi.spplist.species.human_to_force
     locs = size(virus(epi.abundances), 2)
     vm = zeros(eltype(epi.cache.virusmigration), length(force_cats), locs)
-    classes = length(epi.spplist.human.names)
+    classes = length(epi.spplist.species.names)
     Threads.@threads for i in 1:classes
         for j in 1:locs
             vm[human_to_force[i], j] += epi.cache.virusmigration[i, j]
@@ -87,7 +87,7 @@ function update_epi_environment!(epi::Ecosystem, timestep::Unitful.Time)
     invalidatecaches!(epi)
 end
 
-function create_transition_list_SEIR(epilist::EpiList, epienv::GridEpiEnv)
+function create_transition_list_SEIR(epilist::SpeciesList, epienv::GridEpiEnv)
     params = epilist.params
     paramDat = params.transition_dat
     num_cats = length(paramDat[1, :from_id])
@@ -97,18 +97,18 @@ function create_transition_list_SEIR(epilist::EpiList, epienv::GridEpiEnv)
     recovery = [Recovery(paramDat[3, :from_id][n], loc, paramDat[3, :to_id][n], paramDat[3, :prob][n]) for n in 1:num_cats for loc in eachindex(epienv.habitat.matrix)]
 
     virus_list = [ViralLoad(loc, params.virus_decay) for loc in eachindex(epienv.habitat.matrix)]
-    force_list = [ForceProduce(spp, loc, params.virus_growth[spp]) for spp in eachindex(epilist.human.names) for loc in eachindex(epienv.habitat.matrix)]
+    force_list = [ForceProduce(spp, loc, params.virus_growth[spp]) for spp in eachindex(epilist.species.names) for loc in eachindex(epienv.habitat.matrix)]
 
     state_list = [force_list; virus_list; exposure; infection; recovery]
 
-    place_list = [ForceDisperse(spp, loc) for spp in eachindex(epilist.human.names) for loc in eachindex(epienv.habitat.matrix)]
+    place_list = [ForceDisperse(spp, loc) for spp in eachindex(epilist.species.names) for loc in eachindex(epienv.habitat.matrix)]
 
     before = missing
     after = UpdateEpiEnvironment(update_epi_environment!)
     return TransitionList(before, state_list, place_list, after)
 end
 
-function create_transition_list_env_SEIR(epilist::EpiList, epienv::GridEpiEnv, env_params::NamedTuple)
+function create_transition_list_env_SEIR(epilist::SpeciesList, epienv::GridEpiEnv, env_params::NamedTuple)
     params = epilist.params
     paramDat = params.transition_dat
     num_cats = length(paramDat[1, :from_id])
@@ -129,13 +129,13 @@ function create_transition_list_env_SEIR(epilist::EpiList, epienv::GridEpiEnv, e
     virus_list = [ViralLoad(loc, params.virus_decay)
                     for loc in eachindex(epienv.habitat.matrix)]
     force_list = [ForceProduce(spp, loc, params.virus_growth[spp])
-                    for spp in eachindex(epilist.human.names)
+                    for spp in eachindex(epilist.species.names)
                     for loc in eachindex(epienv.habitat.matrix)]
 
     state_list = [force_list; virus_list; exposure; infection; recovery]
 
     place_list = [ForceDisperse(spp, loc)
-                    for spp in eachindex(epilist.human.names)
+                    for spp in eachindex(epilist.species.names)
                     for loc in eachindex(epienv.habitat.matrix)]
 
     before = missing

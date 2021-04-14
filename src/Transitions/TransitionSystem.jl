@@ -61,8 +61,8 @@ Function to check that the types of a trait list and habitat list are
 the same for a species list (`sppl`) and abiotic environment (`abenv`).
 """
 function tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
-    (eltype(sppl.traits) == eltype(abenv.habitat)) &&
-    (iscontinuous(sppl.traits) == iscontinuous(abenv.habitat))
+    (eltype(sppl.species.traits) == eltype(abenv.habitat)) &&
+    (iscontinuous(sppl.species.traits) == iscontinuous(abenv.habitat))
 end
 """
     trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
@@ -71,15 +71,15 @@ Function to check that the types of a trait list and trait relationship list are
 the same for a species list (`sppl`) and trait relationship (`traitrel`).
 """
 function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
-    eltype(sppl.traits) == eltype(traitrel) &&
-    (iscontinuous(sppl.traits) == iscontinuous(traitrel))
+    eltype(sppl.species.traits) == eltype(traitrel) &&
+    (iscontinuous(sppl.species.traits) == iscontinuous(traitrel))
 end
 
 
 
 function create_cache(sppl::SpeciesList, ml::GridLandscape)
   nm = zeros(Int64, size(ml.matrix))
-  totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(typeof(sppl.requirement))))
+  totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(typeof(sppl.species.requirement))))
   return Cache(nm, totalE, false)
 end
 
@@ -110,7 +110,7 @@ function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEn
   # Populate this matrix with species abundances
   popfun(ml, spplist, abenv, rel)
   # Create lookup table of all moves and their probabilities
-  lookup = SpeciesLookup(collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.movement))))
+  lookup = SpeciesLookup(collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.species.movement))))
   cache = create_cache(spplist, ml)
   transitions = create_transitions(spplist, abenv)
   return Ecosystem{typeof(ml), typeof(abenv), typeof(spplist), typeof(rel), typeof(lookup), typeof(cache)}(ml, spplist, abenv,
@@ -138,7 +138,6 @@ function Base.isapprox(eco_1::AbstractEcosystem, eco_2::AbstractEcosystem; kwarg
     return isapprox(eco_1.abundances, eco_2.abundances; kwargs...)
 end
 
-
 save(path::String, system::Ecosystem) = JLSO.save(path, :ecosystem => system)
 load(path::String, obj_type::Type{Ecosystem}) = JLSO.load(path)[:ecosystem]
 
@@ -146,14 +145,14 @@ function addspecies!(eco::Ecosystem, abun::Int64)
     eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(1, size(eco.abundances.matrix, 2)))
     eco.abundances.grid = reshape(eco.abundances.matrix, (counttypes(eco.spplist, true)+1, _getdimension(eco.abenv.habitat)...))
     repopulate!(eco, abun)
-    push!(eco.spplist.names, string.(counttypes(eco.spplist, true)+1))
-    append!(eco.spplist.abun, abun)
-    append!(eco.spplist.native, true)
-    addtraits!(eco.spplist.traits)
-    addmovement!(eco.spplist.movement)
+    push!(eco.spplist.species.names, string.(counttypes(eco.spplist, true)+1))
+    append!(eco.spplist.species.abun, abun)
+    append!(eco.spplist.species.native, true)
+    addtraits!(eco.spplist.species.traits)
+    addmovement!(eco.spplist.species.movement)
     addparams!(eco.spplist.params)
-    addrequirement!(eco.spplist.requirement)
-    addtypes!(eco.spplist.types)
+    addrequirement!(eco.spplist.species.requirement)
+    addtypes!(eco.spplist.species.types)
 end
 function addtraits!(tr::GaussTrait)
     append!(tr.mean, tr.mean[end])
@@ -283,20 +282,13 @@ Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
 function getdispersaldist(eco::A, sp::Int64) where A <: AbstractEcosystem
-    return _getdispersaldist(eco.spplist, sp)
+    dist = eco.spplist.species.movement.kernels[sp].dist
+    return dist
 end
 function getdispersaldist(eco::A, sp::String) where A <: AbstractEcosystem
-    return _getdispersaldist(eco.spplist, sp)
-end
-function _getdispersaldist(sppl::SpeciesList, sp::Int64)
-  dist = sppl.movement.kernels[sp].dist
-  return dist
-end
-
-function _getdispersaldist(sppl::SpeciesList, sp::String)
-    sp = findfirst(sppl.names .== sp)
-  dist = sppl.movement.kernels[sp].dist
-  return dist
+    sp = findfirst(eco.spplist.species.names .== sp)
+    dist = eco.spplist.species.movement.kernels[sp].dist
+    return dist
 end
 
 """
@@ -307,20 +299,15 @@ Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
 function getdispersalvar(eco::A, sp::Int64) where A <: AbstractEcosystem
-    return _getdispersalvar(eco.spplist, sp)
+    var = (eco.spplist.species.movement.kernels[sp].dist)^2 * pi / 4
+    return var
 end
 function getdispersalvar(eco::A, sp::String) where A <: AbstractEcosystem
-    return _getdispersalvar(eco.spplist, sp)
-end
-function _getdispersalvar(sppl::SpeciesList, sp::Int64)
-    var = (sppl.movement.kernels[sp].dist)^2 * pi / 4
+    sp = findfirst(eco.spplist.species.names .== sp)
+    var = (eco.spplist.species.movement.kernels[sp].dist)^2 * pi / 4
     return var
 end
-function _getdispersalvar(sppl::SpeciesList, sp::String)
-    sp = findfirst(sppl.names .== sp)
-    var = (sppl.movement.kernels[sp].dist)^2 * pi / 4
-    return var
-end
+
 """
     getlookup(eco::Ecosystem)
 
@@ -534,7 +521,7 @@ end
 using JLSO
 using SparseArrays
 
-function create_cache(sppl::EpiList, ml::EpiLandscape)
+function create_cache(sppl::SpeciesList, ml::EpiLandscape)
   vm = zeros(Float64, size(ml.matrix))
   return EpiCache(vm, false)
 end
@@ -562,7 +549,7 @@ function Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv:
     ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup,
     vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Missing, TransitionList}
     ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
-    EE <: AbstractEpiEnv, EL <: EpiList, ER <: AbstractTraitRelationship}
+    EE <: AbstractEpiEnv, EL <: SpeciesList, ER <: AbstractTraitRelationship}
   total_pop = sum(abundances.matrix, dims = 1)[1, :]
   sorted_grid_ids = sortperm(total_pop, rev = true)
   sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
@@ -570,7 +557,7 @@ function Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv:
   return Ecosystem(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, transitions)
 end
 
-function Ecosystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
+function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
       rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
       rngtype::Type{R} = Random.MersenneTwister,
       transitions = missing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
@@ -582,21 +569,21 @@ function Ecosystem(popfun::F, epilist::EpiList, epienv::GridEpiEnv,
   popfun(ml, epilist, epienv, rel)
   initial_pop = sum(ml.matrix, dims = 1)
   # Create lookup table of all moves and their probabilities
-  home_lookup = genlookups(epienv, epilist.human.movement.home)
-  work_lookup = genlookups(epienv, epilist.human.movement.work, initial_pop)
+  home_lookup = genlookups(epienv, epilist.species.movement.home)
+  work_lookup = genlookups(epienv, epilist.species.movement.work, initial_pop)
   lookup = EpiLookup(home_lookup, work_lookup)
   vm = zeros(Float64, size(ml.matrix))
   return Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions)
 end
 
-function Ecosystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister,
         transitions = missing
         ) where {U <: Integer, R <: Random.AbstractRNG}
     return Ecosystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype, transitions = transitions)
 end
 
-function Ecosystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         initial_population::A, intnum::U = Int64(1); initial_infected = 0,
         rngtype::Type{R} = Random.MersenneTwister,
         transitions = missing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
@@ -611,8 +598,8 @@ function Ecosystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
     ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
 
     # Create lookup table of all moves and their probabilities
-    home_lookup = genlookups(epienv, epilist.human.movement.home)
-    work_lookup = genlookups(epienv, epilist.human.movement.work, initial_population[1:end])
+    home_lookup = genlookups(epienv, epilist.species.movement.home)
+    work_lookup = genlookups(epienv, epilist.species.movement.work, initial_population[1:end])
     lookup = EpiLookup(home_lookup, work_lookup)
 
     vm = zeros(Float64, size(ml.matrix))
@@ -621,9 +608,9 @@ function Ecosystem(epilist::EpiList, epienv::GridEpiEnv, rel::AbstractTraitRelat
 
     # Add in the initial susceptible population
     # TODO Need to fix code so it doesn't rely on name of susceptible class
-    idx = findfirst(occursin.("Susceptible", epilist.human.names))
+    idx = findfirst(occursin.("Susceptible", epilist.species.names))
     if idx == nothing
-        msg = "epilist has no Susceptible category. epilist.names = $(epilist.human.names)"
+        msg = "epilist has no Susceptible category. epilist.names = $(epilist.species.names)"
         throw(ArgumentError(msg))
     end
     # Modify active cells based on new population
@@ -718,26 +705,4 @@ function _lookup(from::NamedTuple, to::NamedTuple, relSquareSize::Float64, dispe
       [from.y *relSquareSize - relSquareSize, from.x * relSquareSize - relSquareSize, to.y * relSquareSize - relSquareSize, to.x * relSquareSize - relSquareSize],
       [from.y * relSquareSize, from.x * relSquareSize, to.y * relSquareSize, to.x * relSquareSize],
       maxevals= 100, rtol = 0.01)[1] / relSquareSize^2
-end
-
-function _getdispersaldist(sppl::EpiList, id::Int64)
-  dist = sppl.human.movement.home.kernels[id].dist
-  return dist
-end
-
-function _getdispersaldist(sppl::EpiList, sp::String)
-  id = findfirst(sppl.human.names .== sp)
-  dist = sppl.human.movement.home.kernels[id].dist
-  return dist
-end
-
-function _getdispersalvar(sppl::EpiList,id::Int64)
-    var = (sppl.human.movement.home.kernels[id].dist)^2 * pi / 4
-    return var
-end
-
-function _getdispersalvar(sppl::EpiList, sp::String)
-    id = findfirst(sppl.human.names .== sp)
-    var = (sppl.human.movement.home.kernels[id].dist)^2 * pi / 4
-    return var
 end
