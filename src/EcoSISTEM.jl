@@ -58,7 +58,7 @@ include("Biodiversity/Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth
 
 include("Biodiversity/SpeciesList.jl")
-export SpeciesList
+export SpeciesList, SpeciesTypes, NoPathogen
 
 include("Biodiversity/Landscape.jl")
 export GridLandscape, CachedGridLandscape
@@ -88,7 +88,7 @@ include("Epidemiology/EpiMove.jl")
 export EpiMovement, Commuting
 
 include("Epidemiology/EpiList.jl")
-export EpiList, SIS, SIR, SEIR, SEIRS, SEI2HRD
+export SpeciesList, SIS, SIR, SEIR, SEIRS, SEI2HRD
 
 include("Epidemiology/EpiLandscape.jl")
 export EpiLandscape, human, virus
@@ -96,10 +96,6 @@ export EpiLandscape, human, virus
 include("Transitions/TransitionSystem.jl")
 export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
 getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
-
-# include("Biodiversity/Ecosystem.jl")
-# export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
-# getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
 
 include("Transitions/BiodiversityTransitions.jl")
 export create_transitions
@@ -140,11 +136,6 @@ export DiversitySet, updatesimulation!, gettimes
 
 include("Biodiversity/AdditionalDiversity.jl")
 export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
-
-# include("Epidemiology/EpiSystem.jl")
-# export EpiSystem
-#
-# include("Epidemiology/EpiTraits.jl")
 
 include("Epidemiology/EpiGenerate.jl")
 export populate!

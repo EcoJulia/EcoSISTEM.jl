@@ -1,10 +1,12 @@
+using Diversity
+
 """
     VirusTypes{TR <: AbstractTraits,
                  T <: AbstractTypes} <: AbstractTypes
 VirusTypes holds information on the virus classes, such as the name of each class, their trait match to the environment, initial abundances and types.
 """
 mutable struct VirusTypes{TR <: AbstractTraits,
-                 T <: AbstractTypes} <: AbstractTypes
+                 T <: AbstractTypes} <: AbstractPathogenTypes
   names::Vector{String}
   traits::TR
   abun::Vector{Int64}
@@ -28,7 +30,7 @@ end
 HumanTypes holds information on the human disease classes, such as the name of each class, their initial abundances and types, as well as how they disperse virus across the landscape.
 """
 mutable struct HumanTypes{MO <: AbstractMovement,
-                 T <: AbstractTypes} <: AbstractTypes
+                 T <: AbstractTypes} <: AbstractSpeciesTypes
   names::Vector{String}
   abun::Vector{Int64}
   types::T
@@ -52,65 +54,15 @@ mutable struct HumanTypes{MO <: AbstractMovement,
   end
 end
 
-"""
-    EpiList{P <: AbstractParams} <: AbstractTypes
-Epi list houses all disease and virus class specific information, as well as parameters for model runs.
-"""
-mutable struct EpiList{P <: AbstractParams, V <: VirusTypes, H <: HumanTypes} <: AbstractSpeciesList
-    virus::V
-    human::H
-    params::P
-
-    function EpiList{P, V, H}(virus::V, human::H, param::P) where {P <: AbstractParams, V <: VirusTypes, H <: HumanTypes}
-      new{P, V, H}(virus, human, param)
-    end
-end
-
-import Diversity.API: _gettypenames
-function _gettypenames(el::EpiList, input::Bool)
-    return _gettypenames(el.human.types, input)
-end
-
-import Diversity.API: _counttypes
-function _counttypes(el::EpiList, input::Bool)
-    return _counttypes(el.human.types, input) + _counttypes(el.virus.types, input)
-end
-function _counttypes(hm::HumanTypes, input::Bool)
-    return _counttypes(hm.types, input)
-end
-function _counttypes(vr::VirusTypes, input::Bool)
-    return _counttypes(vr.types, input)
-end
-
-import Diversity.API: _calcsimilarity
-function _calcsimilarity(el::EpiList, a::AbstractArray)
-    return _calcsimilarity(el.human.types, a)
-end
-import Diversity.API: floattypes
-function floattypes(::EpiList)
-    return Set([Float64])
-end
-import Diversity.API: _calcordinariness
-function _calcordinariness(el::EpiList, a::AbstractArray)
-    _calcordinariness(el.human.types, a, one(eltype(a)))
-end
-import Diversity.API: _calcabundance
-function _calcabundance(el::EpiList, a::AbstractArray)
-  return _calcabundance(el.human.types, a)
-end
-import Diversity.API._getdiversityname
-function _getdiversityname(el::EpiList)
-    return _getdiversityname(el.human.types)
-end
 
 """
-    EpiList(traits::TR, virus_abun::DataFrame, human_abun::DataFrame,
+    SpeciesList(traits::TR, virus_abun::DataFrame, human_abun::DataFrame,
                  movement::MO, transitions::DataFrame, params::NamedTuple,
                  age_categories::Int64 = 1, movement_balance::NamedTuple = (home = fill(1.0, nrow(human_abun) * age_categories), work = fill(0.0, nrow(human_abun) * age_categories))) where {TR <: AbstractTraits, MO <: AbstractMovement}
 
-Function to create an `EpiList` for any type of epidemiological model - creating the correct number of classes and checking dimensions.
+Function to create an `SpeciesList` for any type of epidemiological model - creating the correct number of classes and checking dimensions.
 """
-function EpiList(traits::TR, virus_abun::DataFrame, human_abun::DataFrame,
+function SpeciesList(traits::TR, virus_abun::DataFrame, human_abun::DataFrame,
                  movement::MO, transitions::DataFrame, params::NamedTuple,
                  age_categories::Int64 = 1, movement_balance::NamedTuple = (home = fill(1.0, nrow(human_abun) * age_categories), work = fill(0.0, nrow(human_abun) * age_categories))) where {TR <: AbstractTraits, MO <: AbstractMovement}
     # Test for susceptibility/infectiousness categories
@@ -171,9 +123,20 @@ function EpiList(traits::TR, virus_abun::DataFrame, human_abun::DataFrame,
 
     size(param.transition, 1) == length(h_names) ||
         throw(DimensionMismatch("Transition matrix doesn't match number of disease classes"))
-    return EpiList{typeof(param), typeof(virus), typeof(human)}(virus, human, param)
+    return SpeciesList{typeof(human), typeof(virus), typeof(param)}(human, virus, param)
 end
 
-function getnames(sppl::EpiList)
-    return sppl.human.names
+function getnames(sppl::SpeciesList{A, B, C}) where {A <: HumanTypes, B, C}
+    return sppl.species.names
+end
+
+import Diversity.API: _counttypes
+function _counttypes(el::SpeciesList{A, B, C}, input::Bool) where {A <: HumanTypes, B <: VirusTypes, C <: AbstractParams}
+    return _counttypes(el.human.types, input) + _counttypes(el.virus.types, input)
+end
+function _counttypes(hm::HumanTypes, input::Bool)
+    return _counttypes(hm.types, input)
+end
+function _counttypes(vr::VirusTypes, input::Bool)
+    return _counttypes(vr.types, input)
 end

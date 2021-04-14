@@ -4,59 +4,68 @@ using Compat
 
 
 abstract type AbstractSpeciesList <: AbstractTypes end
+
+abstract type AbstractSpeciesTypes <: AbstractTypes end
+
+abstract type AbstractPathogenTypes <: AbstractTypes end
+
+mutable struct SpeciesList{S <: AbstractSpeciesTypes, P <: AbstractPathogenTypes, PA <: AbstractParams} <: AbstractSpeciesList
+    species::S
+    pathogens::P
+    params::PA
+end
+
 """
-    SpeciesList{TR <: AbstractTraits, R <: AbstractRequirement,
+    SpeciesTypes{TR <: AbstractTraits, R <: AbstractRequirement,
                 MO <: AbstractMovement, T <: AbstractTypes,
                 P <: AbstractParams} <: AbstractTypes
 Species list houses all species-specific information including trait information,
 phylogenetic relationships, requirement for energy and movement types.
 """
-mutable struct SpeciesList{TR <: AbstractTraits,
+mutable struct SpeciesTypes{TR <: AbstractTraits,
                  R <: AbstractRequirement,
                  MO <: AbstractMovement,
-                 T <: AbstractTypes,
-                 P <: AbstractParams} <: AbstractSpeciesList
+                 T <: AbstractTypes} <: AbstractSpeciesTypes
   names::Vector{String}
   traits::TR
   abun::Vector{Int64}
   requirement::R
   types::T
   movement::MO
-  params::P
   native::Vector{Bool}
   susceptible::Vector{Union{Missing, Float64}}
 
-  function SpeciesList{TR, R, MO, T, P}(names:: Vector{String},
+  function SpeciesTypes{TR, R, MO, T}(names:: Vector{String},
       traits::TR, abun::Vector{Int64}, req::R,
-      types::T, movement::MO, params::P, native::Vector{Bool}) where {
+      types::T, movement::MO, native::Vector{Bool}) where {
                        TR <: AbstractTraits,
                        R <: AbstractRequirement,
                        MO <: AbstractMovement,
-                       T <: AbstractTypes,
-                       P <: AbstractParams}
+                       T <: AbstractTypes}
       # Check dimensions
-      equal_param = equalpop(params, length(names))
       sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
-      new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
-       movement, equal_param, native, sus)
+      new{TR, R, MO, T}(names, traits, abun, req, types,
+       movement, native, sus)
   end
-  function SpeciesList{TR, R, MO, T, P}(
+  function SpeciesTypes{TR, R, MO, T}(
       traits::TR, abun::Vector{Int64}, req::R,
-      types::T, movement::MO, params::P, native::Vector{Bool}) where {
+      types::T, movement::MO, native::Vector{Bool}) where {
                        TR <: AbstractTraits,
                        R <: AbstractRequirement,
                        MO <: AbstractMovement,
-                       T <: AbstractTypes,
-                       P <: AbstractParams}
+                       T <: AbstractTypes}
       # Assign names
       names = map(x -> "$x", 1:length(abun))
-      equal_param = equalpop(params, length(names))
       sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
-      new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
-       movement, equal_param, native, sus)
+      new{TR, R, MO, T}(names, traits, abun, req, types,
+       movement, native, sus)
   end
 end
 
+mutable struct NoPathogen <: AbstractPathogenTypes end
+function _counttypes(virus::NoPathogen, input::Bool)
+    return 0
+end
 """
     SpeciesList{R <: AbstractRequirement,
       MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,
@@ -68,8 +77,9 @@ movement kernel.
 """
 function SpeciesList(numspecies::Int64,
     numtraits::Int64, abun::Vector{Int64}, req::R,
-    movement::MO, params::P, native::Vector{Bool}, switch::Vector{Float64}) where {R <: AbstractRequirement,
-        MO <: AbstractMovement, P <: AbstractParams}
+    movement::MO, params::PA, native::Vector{Bool}, switch::Vector{Float64},
+    pathogens::P = NoPathogen()) where {R <: AbstractRequirement,
+        MO <: AbstractMovement, PA <: AbstractParams, P <: AbstractPathogenTypes}
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
@@ -90,9 +100,12 @@ function SpeciesList(numspecies::Int64,
                                           doesn't match number species"))
     length(req)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
-  SpeciesList{typeof(sp_trt), typeof(req),
-              typeof(movement), typeof(phy), typeof(params)}(names, sp_trt, abun,
-              req, phy, movement, params, native)
+
+    params = equalpop(params, length(names))
+    species = SpeciesTypes{typeof(sp_trt), typeof(req),
+              typeof(movement), typeof(phy)}(names, sp_trt, abun,
+              req, phy, movement, native)
+    return SpeciesList{typeof(species), typeof(pathogens), typeof(params)}(species, pathogens, params)
 end
 function SpeciesList(numspecies::Int64,
     numtraits::Int64, abun::Vector{Int64}, req::R,
@@ -104,8 +117,10 @@ end
 
 function SpeciesList(numspecies::Int64,
     numtraits::Int64, pop_mass::Float64, mean::Float64, var::Float64,
-    area::Unitful.Area, movement::MO, params::P, native::Vector{Bool},
-    switch::Vector{Float64}) where {MO <: AbstractMovement, P <: AbstractParams}
+    area::Unitful.Area, movement::MO, params::PA, native::Vector{Bool},
+    switch::Vector{Float64},
+    pathogens::P = NoPathogen()) where {MO <: AbstractMovement, PA <: AbstractParams,
+    P <: AbstractPathogenTypes}
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
@@ -131,9 +146,11 @@ function SpeciesList(numspecies::Int64,
                                           doesn't match number species"))
     length(req)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
-  SpeciesList{typeof(sp_trt), typeof(req),
-              typeof(movement), typeof(phy), typeof(params)}(names, sp_trt, abun,
-              req, phy, movement, params, native)
+    params = equalpop(params, length(names))
+    species = SpeciesTypes{typeof(sp_trt), typeof(req),
+              typeof(movement), typeof(phy)}(names, sp_trt, abun,
+              req, phy, movement, native)
+    return SpeciesList{typeof(species), typeof(pathogens), typeof(params)}(species, pathogens, params)
 end
 
 
@@ -148,9 +165,10 @@ movement kernel and any type of AbstractTypes.
 """
 function SpeciesList(numspecies::Int64,
     numtraits::Int64, abun::Vector{Int64}, req::R,
-    movement::MO, phy::T, params::P, native::Vector{Bool}) where
+    movement::MO, phy::T, params::PA, native::Vector{Bool},
+    pathogens::P = NoPathogen()) where
     {R <: AbstractRequirement, MO <: AbstractMovement,
-        T <: AbstractTypes, P <: AbstractParams}
+        T <: AbstractTypes, PA <: AbstractParams, P <: AbstractPathogenTypes}
 
     names = map(x -> "$x", 1:numspecies)
     # Create tree
@@ -169,18 +187,22 @@ function SpeciesList(numspecies::Int64,
                                           doesn't match number species"))
     length(req)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
-  SpeciesList{typeof(sp_trt), typeof(req),
-              typeof(movement), typeof(phy), typeof(params)}(names, sp_trt, abun,
-               req, phy, movement, params, native)
+   params = equalpop(params, length(names))
+   species = SpeciesTypes{typeof(sp_trt), typeof(req),
+              typeof(movement), typeof(phy)}(names, sp_trt, abun,
+               req, phy, movement, native)
+    return SpeciesList{typeof(species), typeof(pathogens), typeof(params)}(species, pathogens, params)
 end
 
 
 
 function SpeciesList(numspecies::Int64,
     traits::TR, abun::Vector{Int64}, req::R,
-    movement::MO, params::P, native::Vector{Bool}) where
+    movement::MO, params::PA, native::Vector{Bool},
+    pathogens::P = NoPathogen()) where
     {TR<: AbstractTraits, R <: AbstractRequirement,
-        MO <: AbstractMovement, P <: AbstractParams}
+        MO <: AbstractMovement, PA <: AbstractParams,
+        P <: AbstractPathogenTypes}
 
     names = map(x -> "$x", 1:numspecies)
     # Create similarity matrix (for now identity)
@@ -194,22 +216,24 @@ function SpeciesList(numspecies::Int64,
                                           doesn't match number species"))
     length(req)==numspecies || throw(DimensionMismatch("Requirement vector
                                           doesn't match number species"))
-  SpeciesList{typeof(traits), typeof(req),
-              typeof(movement), typeof(ty),typeof(params)}(names, traits, abun,
-              req, ty, movement, params, native)
+  params = equalpop(params, length(names))
+  species = SpeciesTypes{typeof(traits), typeof(req),
+              typeof(movement), typeof(ty)}(names, traits, abun,
+              req, ty, movement, native)
+  return SpeciesList{typeof(species), typeof(pathogens), typeof(params)}(species, pathogens, params)
 end
 
 
 function getenergyusage(sppl::SpeciesList)
-    return _getenergyusage(sppl.abun, sppl.requirement)
+    return _getenergyusage(sppl.species.abun, sppl.species.requirement)
 end
 
 function getnames(sppl::SpeciesList)
-    return sppl.names
+    return sppl.species.names
 end
 
 function _simmatch(sim::SpeciesList)
-  _simmatch(sim.types)
+  _simmatch(sim.species.types)
 end
 
 #function _calcsimilarity(ut::UniqueTypes)
@@ -221,15 +245,15 @@ end
 #end
 import Diversity.API: _gettypenames
 function _gettypenames(sl::SpeciesList, input::Bool)
-    return _gettypenames(sl.types, input)
+    return _gettypenames(sl.species.types, input)
 end
 import Diversity.API: _counttypes
 function _counttypes(sl::SpeciesList, input::Bool)
-    return _counttypes(sl.types, input)
+    return _counttypes(sl.species.types, input)
 end
 import Diversity.API: _calcsimilarity
 function _calcsimilarity(sl::SpeciesList, a::AbstractArray)
-    return _calcsimilarity(sl.types, a)
+    return _calcsimilarity(sl.species.types, a)
 end
 import Diversity.API: floattypes
 function floattypes(::SpeciesList)
@@ -237,13 +261,13 @@ function floattypes(::SpeciesList)
 end
 import Diversity.API: _calcordinariness
 function _calcordinariness(sl::SpeciesList, a::AbstractArray)
-    _calcordinariness(sl.types, a, one(eltype(a)))
+    _calcordinariness(sl.species.types, a, one(eltype(a)))
 end
 import Diversity.API: _calcabundance
 function _calcabundance(sl::SpeciesList, a::AbstractArray)
-  return _calcabundance(sl.types, a)
+  return _calcabundance(sl.species.types, a)
 end
 import Diversity.API._getdiversityname
 function _getdiversityname(sl::SpeciesList)
-    return _getdiversityname(sl.types)
+    return _getdiversityname(sl.species.types)
 end
