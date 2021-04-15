@@ -59,7 +59,7 @@ for i in eachindex(grid_sizes)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+    epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()

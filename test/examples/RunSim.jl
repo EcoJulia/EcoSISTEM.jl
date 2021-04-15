@@ -41,7 +41,7 @@ function runsim!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict, simDict::Di
     q = simDict["q"]
     for i in 1:length(scenario)
         if recreate
-            recreate_eco!(eco, totalK, sum(eco.spplist.abun))
+            recreate_eco!(eco, totalK, sum(eco.spplist.species.abun))
         end
         thisstore = view(div, :, :, i)
         simulate!(eco, simDict["burnin"], simDict["timestep"])
@@ -77,8 +77,8 @@ function dispersalrun!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict, simDi
     divfuns = simDict["divfuns"]
     q = simDict["q"]
     eco.abundances.matrix .= 0
-    eco.abundances.grid[1, :, 1] .= rand(Multinomial(eco.spplist.abun[1], 10))
-    eco.abundances.grid[2, :, end] .= rand(Multinomial(eco.spplist.abun[2], 10))
+    eco.abundances.grid[1, :, 1] .= rand(Multinomial(eco.spplist.species.abun[1], 10))
+    eco.abundances.grid[2, :, end] .= rand(Multinomial(eco.spplist.species.abun[2], 10))
     for i in 1:length(scenario)
         thisstore = view(div, :, :, i)
         simulate!(eco, simDict["burnin"], simDict["timestep"])

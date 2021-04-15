@@ -9,7 +9,7 @@ include("TestCases.jl")
 @testset "Episystem" begin
     epi = TestEpiSystem()
 
-    @test sum(epi.abundances.matrix, dims = 2)[:, 1] == epi.spplist.human.abun
+    @test sum(epi.abundances.matrix, dims = 2)[:, 1] == epi.spplist.species.abun
     @test_nowarn gettraitrel(epi)
     @test gettraitrel(epi) == epi.relationship
     @test_nowarn gethabitat(epi)
@@ -19,9 +19,9 @@ include("TestCases.jl")
     @test_nowarn getgridsize(epi)
     @test getgridsize(epi) == epi.abenv.habitat.size
     @test_nowarn getdispersaldist(epi, 1)
-    @test getdispersaldist(epi, 1) == epi.spplist.human.movement.home.kernels[1].dist
+    @test getdispersaldist(epi, 1) == epi.spplist.species.movement.home.kernels[1].dist
     @test_nowarn getdispersaldist(epi, "Susceptible")
-    @test getdispersaldist(epi, "Susceptible") == epi.spplist.human.movement.home.kernels[1].dist
+    @test getdispersaldist(epi, "Susceptible") == epi.spplist.species.movement.home.kernels[1].dist
     @test_nowarn getdispersalvar(epi, 1)
     @test_nowarn getdispersalvar(epi, "Susceptible")
 

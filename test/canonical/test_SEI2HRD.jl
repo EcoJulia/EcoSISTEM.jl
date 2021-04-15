@@ -102,7 +102,7 @@ movement = EpiMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
@@ -152,7 +152,7 @@ kernel = GaussianKernel.(dispersal_dists, 1e-10)
 movement = EpiMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
-epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
 # Create epi system with all information
 new_symptomatic = new_asymptomatic = 100

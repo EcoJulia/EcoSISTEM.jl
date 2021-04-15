@@ -42,8 +42,12 @@ using Diversity
 
     sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
                            movement, param, native)
-    newsppl = SpeciesList{typeof(sppl.traits), typeof(sppl.requirement), typeof(sppl.movement), typeof(sppl.types), typeof(sppl.params)}(sppl.traits, sppl.abun, sppl.requirement, sppl.types, sppl.movement, sppl.params, sppl.native)
-    @test newsppl.names == sppl.names
+    species = SpeciesTypes{typeof(sppl.species.traits), typeof(sppl.species.requirement),
+    typeof(sppl.species.movement), typeof(sppl.species.types)}(sppl.species.traits, sppl.species.abun,
+    sppl.species.requirement, sppl.species.types, sppl.species.movement, sppl.species.native)
+
+    newsppl = SpeciesList{typeof(species), NoPathogen, typeof(sppl.params)}(species, NoPathogen(), sppl.params)
+    @test newsppl.species.names == sppl.species.names
 
     # Test mass based species list
     @test_nowarn SpeciesList(numSpecies, numTraits, 10.0, 10.0, 0.5, 100.0km^2, movement, param, native, [0.5, 0.5])

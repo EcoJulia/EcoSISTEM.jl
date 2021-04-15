@@ -197,10 +197,10 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     N_cells = size(epi.abundances.matrix, 2)
 
     # Turn off work moves for <20s and >70s
-    epi.epilist.human.home_balance[cat_idx[1:2, :]] .= 1.0
-    epi.epilist.human.home_balance[cat_idx[7:10, :]] .= 1.0
-    epi.epilist.human.work_balance[cat_idx[1:2, :]] .= 0.0
-    epi.epilist.human.work_balance[cat_idx[7:10, :]] .= 0.0
+    epi.spplist.species.home_balance[cat_idx[1:2, :]] .= 1.0
+    epi.spplist.species.home_balance[cat_idx[7:10, :]] .= 1.0
+    epi.spplist.species.work_balance[cat_idx[1:2, :]] .= 0.0
+    epi.spplist.species.work_balance[cat_idx[7:10, :]] .= 0.0
 
     # Run simulation
     abuns = zeros(UInt32, size(epi.abundances.matrix, 1), N_cells, floor(Int, times/timestep) + 1)

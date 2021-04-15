@@ -94,11 +94,11 @@ end
 A function that introduces an invasive species into the ecosystem, `eco`, that gains abundance at each `timestep` at a particular rate, `rate`. The invasive species are introduced in one side of the grid and have the highest variance for trait preference.
 """
 function GeneralistInvasive(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
-    qual = eco.spplist.native .== false
+    qual = eco.spplist.species.native .== false
     invasive = findall(qual)
     natives = findall(.!qual)
-    eco.spplist.traits.var[invasive] .= maximum(eco.spplist.traits.var)
-    invasive_abun = eco.spplist.abun[invasive]
+    eco.spplist.species.traits.var[invasive] .= maximum(eco.spplist.species.traits.var)
+    invasive_abun = eco.spplist.species.abun[invasive]
     avgain = uconvert(NoUnits, rate * timestep)
     for i in eachindex(invasive)
         gains = rand(Poisson(avgain))
@@ -115,12 +115,12 @@ end
 A function that introduces an invasive species into the ecosystem, `eco`, that gains abundance at each `timestep` at a particular rate, `rate`. The invasive species are introduced at the hottest end of the grid and take on the trait preference of that grid cell.
 """
 function SpecialistInvasive(eco::Ecosystem, timestep::Unitful.Time, rate::RateType)
-    qual = eco.spplist.native .== false
+    qual = eco.spplist.species.native .== false
     invasive = findall(qual)
     natives = findall(.!qual)
-    eco.spplist.traits.mean[invasive] .= mean(eco.abenv.habitat.matrix[end, :])
-    eco.spplist.traits.var[invasive] .= minimum(eco.spplist.traits.var)
-    invasive_abun = eco.spplist.abun[invasive]
+    eco.spplist.species.traits.mean[invasive] .= mean(eco.abenv.habitat.matrix[end, :])
+    eco.spplist.species.traits.var[invasive] .= minimum(eco.spplist.species.traits.var)
+    invasive_abun = eco.spplist.species.abun[invasive]
     avgain = uconvert(NoUnits, rate * timestep)
     for i in eachindex(invasive)
         gains = rand(Poisson(avgain))

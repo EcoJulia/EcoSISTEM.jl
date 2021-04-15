@@ -60,9 +60,9 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(), size = (mean 
 end
 
 function recreate_eco!(eco::Ecosystem, totalK::Tuple{Unitful.Quantity{Float64}, Unitful.Quantity{Float64}}, individuals::Int64)
-    numSpecies = sum(eco.spplist.native)
-    numInvasive = sum(.!eco.spplist.native)
-    eco.spplist.abun = [rand(Multinomial(individuals, numSpecies)); fill(0, numInvasive)]
+    numSpecies = sum(eco.spplist.species.native)
+    numInvasive = sum(.!eco.spplist.species.native)
+    eco.spplist.species.abun = [rand(Multinomial(individuals, numSpecies)); fill(0, numInvasive)]
     reenergise!(eco, totalK, size(eco.abenv.habitat.matrix))
     eco.abenv.active .= true
     traitrepopulate!(eco)

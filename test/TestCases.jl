@@ -118,7 +118,7 @@ function TestEpiSystem()
     movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    spplist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+    spplist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
     rel = Gauss{eltype(abenv.habitat)}()
     epi = Ecosystem(spplist, abenv, rel)
@@ -167,7 +167,7 @@ function TestEpiLockdown()
     movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    spplist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+    spplist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
     rel = Gauss{eltype(abenv.habitat)}()
     epi = Ecosystem(spplist, abenv, rel, initial_infected = 10)
@@ -218,7 +218,7 @@ function TestEpiSystemFromPopulation(
     movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    spplist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+    spplist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
     rel = Gauss{eltype(abenv.habitat)}()
     epi = Ecosystem(spplist, abenv, rel, initial_pop)
