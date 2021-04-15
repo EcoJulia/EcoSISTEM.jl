@@ -43,8 +43,20 @@ abenv = simplehabitatAE(274.0K, grid, totalK, area)
 # Set relationship between species and environment (gaussian)
 rel = Gauss{typeof(1.0K)}()
 
+# Create transition list
+transitions = create_transition_list()
+addtransition!(transitions, UpdateEnergy(EcoSISTEM.update_energy_usage!))
+addtransition!(transitions, UpdateEnvironment(update_environment!))
+for spp in eachindex(sppl.species.names)
+    for loc in eachindex(abenv.habitat.matrix)
+        addtransition!(transitions, BirthProcess(spp, loc, sppl.params.birth[spp]))
+        addtransition!(transitions, DeathProcess(spp, loc, sppl.params.death[spp]))
+        addtransition!(transitions, AllDisperse(spp, loc))
+    end
+end
+
 #Create ecosystem
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
 
 # Simulation Parameters
 burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1

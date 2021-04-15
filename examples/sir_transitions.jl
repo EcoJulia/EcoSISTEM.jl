@@ -43,10 +43,10 @@ virus_growth = 0.1/day
 virus_decay = 1.0/2days
 param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
 
-transitions = DataFrame([
-  (from="Susceptible", from_id=[1], to="Exposed", to_id=[2], prob = (env = beta_env, force = beta_force)),
-  (from="Exposed", from_id=[2], to="Infected", to_id=[3], prob=[mu]),
-  (from="Infected", from_id=[3], to="Recovered", to_id=[4], prob=[sigma]),
+transitiondat = DataFrame([
+  (from="Susceptible", from_id=1, to="Exposed", to_id=2, prob = (env = beta_env, force = beta_force)),
+  (from="Exposed", from_id=2, to="Infected", to_id=3, prob=mu),
+  (from="Infected", from_id=3, to="Recovered", to_id=4, prob=sigma),
 ])
 
 # Dispersal kernels for virus and disease classes
@@ -56,11 +56,27 @@ movement = EpiMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+epilist = SpeciesList(traits, abun_v, abun_h, movement, transitiondat, param)
+rel = Gauss{eltype(epienv.habitat)}()
+
+# Create list of transitions for the simulation
+transitions = create_transition_list()
+addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
+for loc in eachindex(epienv.habitat.matrix)
+    addtransition!(transitions, ForceProduce(3, loc, param.virus_growth))
+    addtransition!(transitions, ViralLoad(loc, param.virus_decay))
+    addtransition!(transitions, Exposure(transitiondat[1, :from_id], loc,
+        transitiondat[1, :to_id], transitiondat[1, :prob].force, transitiondat[1, :prob].env))
+    addtransition!(transitions, Infection(transitiondat[2, :from_id], loc,
+        transitiondat[2, :to_id], transitiondat[2, :prob]))
+    addtransition!(transitions, Recovery(transitiondat[3, :from_id], loc,
+        transitiondat[3, :to_id], transitiondat[3, :prob]))
+    for spp in eachindex(epilist.species.names)
+        addtransition!(transitions, ForceDisperse(spp, loc))
+    end
+end
 
 # Create epi system with all information
-rel = Gauss{eltype(epienv.habitat)}()
-transitions = create_transition_list_SEIR(epilist, epienv)
 epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 
 # Run simulation
