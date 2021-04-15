@@ -56,7 +56,7 @@ function eraChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timestep::Uni
     hab.time += round(Int64, monthstep/month)
     if hab.time > size(hab.matrix, 3)
         hab.time = 1
-        Compat.@warn "More timesteps than available, have repeated"
+        @warn "More timesteps than available, have repeated"
     end
 end
 
@@ -71,7 +71,7 @@ function worldclimChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timeste
     hab.time = hab.time + round(Int64,ustrip(monthstep))
     if hab.time > last
         hab.time = 1
-        Compat.@warn "More timesteps than available, have repeated"
+        @warn "More timesteps than available, have repeated"
     end
 end
 
@@ -132,7 +132,7 @@ function _budgetupdate!(eco::AbstractEcosystem, budget::SolarTimeBudget, timeste
     round(Int64, monthstep/month)
     if budget.time > size(budget.matrix, 3)
         budget.time = 1
-        Compat.@warn "More timesteps than available, have repeated"
+        @warn "More timesteps than available, have repeated"
     end
 end
 function _budgetupdate!(eco::AbstractEcosystem, budget::WaterTimeBudget, timestep::Unitful.Time)
@@ -141,7 +141,7 @@ function _budgetupdate!(eco::AbstractEcosystem, budget::WaterTimeBudget, timeste
     round(Int64, monthstep/month)
     if budget.time > size(budget.matrix, 3)
         budget.time = 1
-        Compat.@warn "More timesteps than available, have repeated"
+        @warn "More timesteps than available, have repeated"
     end
 end
 function _budgetupdate!(eco::AbstractEcosystem, budget::VolWaterTimeBudget, timestep::Unitful.Time)
@@ -150,7 +150,7 @@ function _budgetupdate!(eco::AbstractEcosystem, budget::VolWaterTimeBudget, time
     round(Int64, monthstep/month)
     if budget.time > size(budget.matrix, 3)
         budget.time = 1
-        Compat.@warn "More timesteps than available, have repeated"
+        @warn "More timesteps than available, have repeated"
     end
 end
 
