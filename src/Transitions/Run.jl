@@ -52,9 +52,18 @@ function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: A
     end
 end
 
+"""
+    update!(eco::Ecosystem, timestep::Unitful.Time)
+
+Update an Ecosystem by one timestep, running through different
+transitions, including set up, state and place transitions, and
+winddown.
+"""
 function update!(eco::Ecosystem, timestep::Unitful.Time)
 
-    run_rule!(eco, eco.transitions.setup, timestep)
+    Threads.@threads for su in eco.transitions.setup
+        run_rule!(eco, su, timestep)
+    end
 
     Threads.@threads for st in eco.transitions.state
         run_rule!(eco, st, timestep)
@@ -64,7 +73,9 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
         run_rule!(eco, pl, timestep)
     end
 
-    run_rule!(eco, eco.transitions.winddown, timestep)
+    Threads.@threads for wd in eco.transitions.winddown
+        run_rule!(eco, wd, timestep)
+    end
 
 end
 

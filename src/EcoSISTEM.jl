@@ -64,7 +64,7 @@ include("Biodiversity/Landscape.jl")
 export GridLandscape, CachedGridLandscape
 
 include("Transitions/Transitions.jl")
-export TransitionList
+export TransitionList, create_transition_list, addtransition!
 
 include("Epidemiology/MedianGenerator.jl")
 export MedianGenerator
@@ -113,7 +113,9 @@ include("Biodiversity/Scenarios.jl")
 export SimpleScenario, FluctScenario, MultiScenario
 
 include("Biodiversity/Generate.jl")
-export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!, reenergise!, randomniches, update!, update_birth_move!, convert_coords, get_neighbours
+export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!,
+reenergise!, randomniches, update!, update_birth_move!,
+convert_coords, get_neighbours, update_energy_usage!
 
 using Requires
 function __init__()
@@ -151,8 +153,13 @@ include("Epidemiology/EpiPlots.jl")
 include("Epidemiology/Inference.jl")
 export SIR_wrapper, SIR_wrapper!, SEI3HRD_wrapper, SEI3HRD_wrapper!
 
+include("Transitions/BiodiversityTransitions.jl")
+export BirthProcess, DeathProcess, AllDisperse, UpdateEnergy, UpdateEnvironment, update_environment!
+
 include("Transitions/EpiTransitions.jl")
-export create_transition_list_SEIR, create_transition_list_env_SEIR
+export ForceProduce, ForceDisperse, ViralLoad, Exposure, EnvExposure, Infection,
+DevelopSymptoms, Hospitalise, DeathFromInfection,
+Recovery, UpdateEpiEnvironment, update_epi_environment!
 
 include("Transitions/BiodiversityRun.jl")
 include("Transitions/EpiRun.jl")

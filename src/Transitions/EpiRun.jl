@@ -48,31 +48,18 @@ function _run_rule!(eco::Ecosystem, rule::EnvExposure, timestep::Unitful.Time)
     end
 end
 
-function _run_rule!(eco::Ecosystem, rule::Infection, timestep::Unitful.Time)
+function _run_rule!(eco::Ecosystem, rule::Union{Infection, DevelopSymptoms, Hospitalise,
+    DeathFromInfection, Recovery}, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     dest = getdestination(rule)
     loc = getlocation(rule)
     if eco.abenv.active[loc]
-        infprob = getprob(rule) * timestep
-        newinfprob = 1.0 - exp(-infprob)
-        infs = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newinfprob))
-        human(eco.abundances)[spp, loc] -= infs
-        human(eco.abundances)[dest, loc] += infs
-    end
-end
-
-function _run_rule!(eco::Ecosystem, rule::Recovery, timestep::Unitful.Time)
-    rng = eco.abundances.rngs[Threads.threadid()]
-    spp = getspecies(rule)
-    dest = getdestination(rule)
-    loc = getlocation(rule)
-    if eco.abenv.active[loc]
-        recprob = getprob(rule) * timestep
-        newrecprob = 1.0 - exp(-recprob)
-        recs = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newrecprob))
-        human(eco.abundances)[spp, loc] -= recs
-        human(eco.abundances)[dest, loc] += recs
+        prob = getprob(rule) * timestep
+        newprob = 1.0 - exp(-prob)
+        changes = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newprob))
+        human(eco.abundances)[spp, loc] -= changes
+        human(eco.abundances)[dest, loc] += changes
     end
 end
 
