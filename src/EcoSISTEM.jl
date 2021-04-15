@@ -93,12 +93,15 @@ export SpeciesList, SIS, SIR, SEIR, SEIRS, SEI2HRD
 include("Epidemiology/EpiLandscape.jl")
 export EpiLandscape, human, virus
 
-include("Transitions/TransitionSystem.jl")
-export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
-getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
+include("Transitions/TransitionLookup.jl")
 
-include("Transitions/BiodiversityTransitions.jl")
-export create_transitions
+include("Transitions/TransitionSystem.jl")
+export Ecosystem, CachedEcosystem
+
+include("Transitions/TransitionSystemHelperFuns.jl")
+export getsize, gethabitat, gettraitrel, getgridsize,
+getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, getlookup,
+addspecies!
 
 include("Biodiversity/Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
