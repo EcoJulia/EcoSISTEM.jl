@@ -6,8 +6,15 @@ using EcoSISTEM.Units
 
 import HDF5: ishdf5
 
+"""
+    run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractTransition
+
+Implement `_run_rule!` function for a particular rule type, `R`, for one timestep.
+"""
 function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractStateTransition
     if typeof(rule) == BirthProcess
+        _run_rule!(eco, rule, timestep)
+    elseif typeof(rule) == GenerateSeed
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == DeathProcess
         _run_rule!(eco, rule, timestep)
@@ -36,6 +43,8 @@ end
 
 function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractPlaceTransition
     if typeof(rule) == AllDisperse
+        _run_rule!(eco, rule)
+    elseif typeof(rule) == SeedDisperse
         _run_rule!(eco, rule)
     elseif typeof(rule) == ForceDisperse
         _run_rule!(eco, rule)

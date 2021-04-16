@@ -154,7 +154,8 @@ include("Epidemiology/Inference.jl")
 export SIR_wrapper, SIR_wrapper!, SEI3HRD_wrapper, SEI3HRD_wrapper!
 
 include("Transitions/BiodiversityTransitions.jl")
-export BirthProcess, DeathProcess, AllDisperse, UpdateEnergy, UpdateEnvironment, update_environment!
+export BirthProcess, DeathProcess, GenerateSeed, AllDisperse, SeedDisperse,
+UpdateEnergy, UpdateEnvironment, update_environment!
 
 include("Transitions/EpiTransitions.jl")
 export ForceProduce, ForceDisperse, ViralLoad, Exposure, EnvExposure, Infection,

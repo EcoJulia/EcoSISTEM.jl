@@ -170,6 +170,12 @@ function _invalidatecaches!(eco::A, cache::Cache) where A <: AbstractEcosystem
     eco.cache.netmigration .= 0
     eco.cache.valid = false
 end
+function _invalidatecaches!(eco::A, cache::PlantCache) where A <: AbstractEcosystem
+    eco.ordinariness = missing
+    eco.cache.netmigration .= 0
+    eco.cache.seedbank .= 0
+    eco.cache.valid = false
+end
 function _invalidatecaches!(eco::Ecosystem, cache::EpiCache)
     eco.ordinariness = missing
     eco.cache.virusmigration .= 0

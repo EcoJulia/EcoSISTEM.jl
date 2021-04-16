@@ -28,11 +28,26 @@ mutable struct EpiCache <: AbstractCache
   ordered_active::Vector{Int64}
   valid::Bool
 end
+mutable struct PlantCache <: AbstractCache
+  netmigration::Array{Int64, 2}
+  seedbank::Array{Int64, 2}
+  totalE::Matrix{Float64}
+  valid::Bool
+end
 
-function create_cache(sppl::SpeciesList, ml::GridLandscape)
+function create_cache(sppl::SpeciesList{SpeciesTypes{TR, R, MO, T}},
+    ml::GridLandscape) where {TR, R, MO <: AlwaysMovement, T}
   nm = zeros(Int64, size(ml.matrix))
   totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(typeof(sppl.species.requirement))))
   return Cache(nm, totalE, false)
+end
+
+function create_cache(sppl::SpeciesList{SpeciesTypes{TR, R, MO, T}},
+    ml::GridLandscape) where {TR, R, MO <: BirthOnlyMovement, T}
+  nm = zeros(Int64, size(ml.matrix))
+  sb = zeros(Int64, size(ml.matrix))
+  totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(typeof(sppl.species.requirement))))
+  return PlantCache(nm, sb, totalE, false)
 end
 
 function create_cache(sppl::SpeciesList, ml::EpiLandscape)
