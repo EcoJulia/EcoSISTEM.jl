@@ -24,8 +24,8 @@ function shrink_to_active(M::AM, active::A) where {AM <: AbstractMatrix, A <: Ab
     return _construct_shrunk_matrix(M, shrunk_rows, shrunk_cols)
 end
 
-function _shrink_to_active(M::AbstractArray, active::AbstractMatrix{<:Bool})
-    if size(M[:, :, 1]) != size(active)
+function _shrink_to_active(A::AbstractArray, active::AbstractMatrix{<:Bool})
+    if size(A[:, :, 1]) != size(active)
         throw(DimensionMismatch("size(M)=$(size(M)) != size(active)=$(size(active))"))
     end
     # Find indices of non-missing values
@@ -37,12 +37,19 @@ function _shrink_to_active(M::AbstractArray, active::AbstractMatrix{<:Bool})
     shrunk_rows = minimum(row_idx):maximum(row_idx)
     shrunk_cols = minimum(col_idx):maximum(col_idx)
     #return M[shrunk_rows, shrunk_cols]
-    return _construct_shrunk_matrix(M, shrunk_rows, shrunk_cols)
+    return _construct_shrunk_matrix(A, shrunk_rows, shrunk_cols)
 end
 
 function shrink_to_active(M::AM) where {AM <: AbstractMatrix}
     active = .!_inactive.(M)
     return shrink_to_active(M, active)
+end
+
+function shrink_to_active(A::AM) where {AM <: AbstractArray}
+    M = dropdims(sum(Float64.(A), dims=3), dims=3)
+    M[M .≈ 0.0] .= NaN
+    active = .!_inactive.(M)
+    return _shrink_to_active(A, active)
 end
 
 _inactive(x) = ismissing(x) || isnan(x)
@@ -72,7 +79,7 @@ function _construct_shrunk_matrix(M::AbstractMatrix, row_idxs, col_idxs)::AxisAr
      )
  end
 
-function _construct_shrunk_matrix(M::AxisArray{T, 3}, row_idxs, col_idxs)::AxisArray{T, 3} where T <: Unitful.Quantity
+function _construct_shrunk_matrix(M::AxisArray{T, 3}, row_idxs, col_idxs)::AxisArray{T, 3} where T
     return M[row_idxs, col_idxs, :]
 end
 

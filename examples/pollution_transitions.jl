@@ -14,6 +14,7 @@ using Plots
 using SQLite
 
 function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
+
     # Download and read in population sizes for Scotland
     DataRegistryUtils.load_array!(db, "human/demographics/population/scotland", "/grid1km/age/persons"; sql_alias="human_demographics_population_scotland_grid1km_age_persons_arr")
     scotpop = get_3d_km_grid_axis_array(db, ["grid_x", "grid_y", "age_aggr"], "val", "scottish_population_view")
@@ -52,6 +53,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
     total_pop = AxisArray(total_pop, AxisArrays.axes(scotpop)[1], AxisArrays.axes(scotpop)[2])
     total_pop.data[total_pop .≈ 0.0] .= NaN
+
     # Shrink to smallest bounding box. The NaNs are inactive.
     total_pop = shrink_to_active(total_pop);
 
@@ -95,6 +97,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
         data_type=Float64
     )[1] * Unitful.hr)
     @show T_asym
+
 
     # Time pre-symptomatic
     T_presym = 1.5days
@@ -142,18 +145,6 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     # Hospital -> death
     death_hospital = cfr_hospital .* 1/T_hosp
 
-    transitions = DataFrame([
-        (from="Exposed", to="Asymptomatic", prob=mu_1),
-        (from="Exposed", to="Presymptomatic", prob=mu_2),
-        (from="Presymptomatic", to="Symptomatic", prob=mu_3),
-        (from="Symptomatic", to="Hospitalised", prob=hospitalisation),
-        (from="Asymptomatic", to="Recovered", prob=sigma_1),
-        (from="Symptomatic", to="Recovered", prob=sigma_2),
-        (from="Hospitalised", to="Recovered", prob=sigma_hospital),
-        (from="Symptomatic", to="Dead", prob=death_home),
-        (from="Hospitalised", to="Dead", prob=death_hospital)
-    ])
-
     # Set simulation parameters
     birth_rates = fill(0.0/day, numclasses, age_categories)
     death_rates = fill(0.0/day, numclasses, age_categories)
@@ -166,6 +157,20 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     age_mixing = fill(1.0, age_categories, age_categories)
 
     param = (birth = birth_rates, death = death_rates, virus_growth = [virus_growth_asymp virus_growth_presymp virus_growth_symp], virus_decay = virus_decay, beta_force = beta_force, beta_env = beta_env, age_mixing = age_mixing)
+
+    cat_idx = reshape(1:(nrow(abun_h) * age_categories), age_categories, nrow(abun_h))
+    transitiondat = DataFrame([
+        (from="Susceptible", from_id=cat_idx[:, 1], to="Exposed", to_id=cat_idx[:, 2], prob=(env = beta_env, force = beta_force)),
+        (from="Exposed", from_id=cat_idx[:, 2], to="Asymptomatic", to_id=cat_idx[:, 3], prob=mu_1),
+        (from="Exposed", from_id=cat_idx[:, 2], to="Presymptomatic", to_id=cat_idx[:, 4], prob=mu_2),
+        (from="Presymptomatic", from_id=cat_idx[:, 4], to="Symptomatic", to_id=cat_idx[:, 5], prob=mu_3),
+        (from="Symptomatic", from_id=cat_idx[:, 5], to="Hospitalised", to_id=cat_idx[:, 6], prob=hospitalisation),
+        (from="Asymptomatic", from_id=cat_idx[:, 3], to="Recovered", to_id=cat_idx[:, 7], prob=sigma_1),
+        (from="Symptomatic", from_id=cat_idx[:, 5], to="Recovered", to_id=cat_idx[:, 7], prob=sigma_2),
+        (from="Hospitalised", from_id=cat_idx[:, 6], to="Recovered", to_id=cat_idx[:, 7], prob=sigma_hospital),
+        (from="Symptomatic", from_id=cat_idx[:, 5], to="Dead", to_id=cat_idx[:, 8], prob=death_home),
+        (from="Hospitalised", from_id=cat_idx[:, 6], to="Dead", to_id=cat_idx[:, 8], prob=death_hospital)
+    ])
 
     epienv = simplehabitatAE(298.0K, size(total_pop), area, Lockdown(20days))
 
@@ -188,19 +193,67 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param, age_categories, movement_balance)
+    epilist = SpeciesList(traits, abun_v, abun_h, movement, transitiondat, param, age_categories, movement_balance)
     rel = Gauss{eltype(epienv.habitat)}()
+
+    transitions = create_transition_list()
+    addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
 
     initial_infecteds = 100
     # Create epi system with all information
-    @time epi = Ecosystem(epilist, epienv, rel, total_pop, UInt32(1), initial_infected = initial_infecteds)
+    @time epi = Ecosystem(epilist, epienv, rel, total_pop, UInt32(1),
+    initial_infected = initial_infecteds, transitions = transitions)
+
+    for loc in epi.cache.ordered_active
+        addtransition!(epi.transitions, ViralLoad(loc, param.virus_decay))
+        for age in 1:age_categories
+            # Add Force
+            addtransition!(epi.transitions, ForceProduce(cat_idx[age, 3], loc, param.virus_growth[age, 1]))
+            addtransition!(epi.transitions, ForceProduce(cat_idx[age, 4], loc, param.virus_growth[age, 2]))
+            addtransition!(epi.transitions, ForceProduce(cat_idx[age, 5], loc, param.virus_growth[age, 3]))
+            addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 3], loc))
+            addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 4], loc))
+            addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 5], loc))
+            # Exposure
+            addtransition!(epi.transitions, Exposure(transitiondat[1, :from_id][age], loc,
+                transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age]))
+            # Infected but asymptomatic
+            addtransition!(epi.transitions, Infection(transitiondat[2, :from_id][age], loc,
+                transitiondat[2, :to_id][age], transitiondat[2, :prob][age]))
+            # Infected but presymptomatic
+            addtransition!(epi.transitions, Infection(transitiondat[3, :from_id][age], loc,
+                transitiondat[3, :to_id][age], transitiondat[3, :prob][age]))
+            # Develop symptoms
+            addtransition!(epi.transitions, DevelopSymptoms(transitiondat[4, :from_id][age], loc,
+                transitiondat[4, :to_id][age], transitiondat[4, :prob][age]))
+            # Hospitalise
+            addtransition!(epi.transitions, Hospitalise(transitiondat[5, :from_id][age], loc,
+                transitiondat[5, :to_id][age], transitiondat[5, :prob][age]))
+            # Recover without symptoms
+            addtransition!(epi.transitions, Recovery(transitiondat[6, :from_id][age], loc,
+                transitiondat[6, :to_id][age], transitiondat[6, :prob][age]))
+            # Recover with symptoms
+            addtransition!(epi.transitions, Recovery(transitiondat[7, :from_id][age], loc,
+                transitiondat[7, :to_id][age], transitiondat[7, :prob][age]))
+            # Recover from hospital
+            addtransition!(epi.transitions, Recovery(transitiondat[8, :from_id][age], loc,
+                transitiondat[8, :to_id][age], transitiondat[8, :prob][age]))
+            # Die from home
+            addtransition!(epi.transitions, DeathFromInfection(transitiondat[9, :from_id][age], loc,
+                transitiondat[9, :to_id][age], transitiondat[9, :prob][age]))
+            # Die from hospital
+            addtransition!(epi.transitions, DeathFromInfection(transitiondat[10, :from_id][age], loc,
+                transitiondat[10, :to_id][age], transitiondat[10, :prob][age]))
+        end
+    end
 
     # Populate susceptibles according to actual population spread
-    cat_idx = reshape(1:(numclasses * age_categories), age_categories, numclasses)
+    scotpop = shrink_to_active(scotpop)
     reshaped_pop =
         reshape(scotpop[1:size(epienv.active, 1), 1:size(epienv.active, 2), :],
                 size(epienv.active, 1) * size(epienv.active, 2), size(scotpop, 3))'
-    epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
+        epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
+
     N_cells = size(epi.abundances.matrix, 2)
 
     # Turn off work moves for <20s and >70s
@@ -211,7 +264,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     # Run simulation
     abuns = zeros(UInt32, size(epi.abundances.matrix, 1), N_cells, floor(Int, times/timestep) + 1)
-    @time epi_simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
+    @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
 
     # Write to pipeline
     #write_array(api, "simulation-outputs", "final-abundances", DataPipelineArray(abuns))
@@ -234,10 +287,15 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     return abuns
 end
 
-data_dir= "data/"
-config = "data_config.yaml"
-view_sql = "Scotland_run_view.sql"
+data_dir= "Epidemiology/data/"
+config = "Epidemiology/data_config.yaml"
+view_sql = "Epidemiology/Scotland_run_view.sql"
 db = initialise_local_registry(data_dir, data_config = config, sql_file = view_sql)
 
-times = 2months; interval = 1day; timestep = 1day
-run_model(db, times, interval, timestep)
+times = 1month; interval = 1day; timestep = 1day
+run_model(db, times, interval, timestep, do_plot = true)
+
+#
+# pollution = parse_pollution(api)
+# pollution = pollution[5513m .. 470513m, 531500m .. 1221500m, "pm2-5"]
+# ukclimateAE(pollution, size(total_pop), area, fill(true, total_pop), Lockdown(20days))

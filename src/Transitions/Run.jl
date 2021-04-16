@@ -17,11 +17,19 @@ function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: A
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == Infection
         _run_rule!(eco, rule, timestep)
+    elseif typeof(rule) == DevelopSymptoms
+        _run_rule!(eco, rule, timestep)
+    elseif typeof(rule) == Hospitalise
+        _run_rule!(eco, rule, timestep)
+    elseif typeof(rule) == DeathFromInfection
+        _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == Recovery
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == ViralLoad
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == ForceProduce
+        _run_rule!(eco, rule, timestep)
+    else
         _run_rule!(eco, rule, timestep)
     end
 end
@@ -31,11 +39,15 @@ function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: A
         _run_rule!(eco, rule)
     elseif typeof(rule) == ForceDisperse
         _run_rule!(eco, rule)
+    else
+        _run_rule!(eco, rule, timestep)
     end
 end
 
 function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractSetUp
     if typeof(rule) == UpdateEnergy
+        _run_rule!(eco, rule, timestep)
+    else
         _run_rule!(eco, rule, timestep)
     end
 end
@@ -48,6 +60,8 @@ function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: A
     if typeof(rule) == UpdateEnvironment
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == UpdateEpiEnvironment
+        _run_rule!(eco, rule, timestep)
+    else
         _run_rule!(eco, rule, timestep)
     end
 end

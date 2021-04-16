@@ -35,10 +35,10 @@ end
 
 mutable struct TransitionList{T1 <: AbstractSetUp, T2 <: AbstractStateTransition,
     T3 <: AbstractPlaceTransition, T4 <: AbstractWindDown}
-    setup::Array{T1, 1}
-    state::Array{T2, 1}
-    place::Array{T3, 1}
-    winddown::Array{T4, 1}
+    setup::Vector{T1}
+    state::Vector{T2}
+    place::Vector{T3}
+    winddown::Vector{T4}
 end
 
 function create_transition_list()
