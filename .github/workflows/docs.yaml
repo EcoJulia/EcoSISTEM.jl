@@ -18,15 +18,15 @@ jobs:
       - name: Set up julia
         uses: julia-actions/setup-julia@v1
         with:
-          version: '1.6'
+          version: '1'
           arch: x64
       - name: Install dependencies
         run: |
-          julia --project=docs/ -e '
-            using Pkg
-            Pkg.develop(PackageSpec(path=pwd()))
+            import Pkg
+            Pkg.develop(Pkg.PackageSpec(path=pwd()))
             Pkg.instantiate()
-            Pkg.add("Documenter")'
+            Pkg.add("Documenter")
+        shell: julia --project=docs/ --color=yes {0}
       - name: Build and deploy
         run: |
           julia --project=docs/ --color=yes docs/make.jl

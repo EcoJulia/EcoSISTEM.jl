@@ -10,7 +10,7 @@ on:
   pull_request:
 
 jobs:
-  simulation-tests:
+  EcoSISTEM-tests:
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}
     strategy:
