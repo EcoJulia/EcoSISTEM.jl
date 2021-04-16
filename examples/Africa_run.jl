@@ -1,12 +1,5 @@
-# Virtual plant simulations of Africa
-
-EcoSISTEM was designed to scale to much larger areas, supporting many more species. As an illustrative example, here we simulate up to 50,000 plant species over Africa at an 80km grid scale, with a constant background environment of 25°C. When all species are given an equal fitness in the habitat, all 50,000 can co-exist over long time scales of over 100 years (Figure 2A). This can be run on a workstation with 24 threads in just under 5 hours.
-
-We can also explore the behaviour of selective advantage of specialist species over generalists at these scales. When we introduce a specialist species into an African-sized landscape with an existing generalist, the specialist out-competes the generalist and spreads throughout the continent. The larger the selective advantage of the specialist, the faster it is able to invade and colonise across the landscape (Figure 1). These same dynamics can be seen when we introduce a specialist to the full complement of 50,000 species (Figure 1B-D).
-
 #### SINGLE SPECIES ####
 
-```julia
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
@@ -15,7 +8,7 @@ using Unitful.DefaultSymbols
 using Distances
 using StatsBase
 using Plots
-file = "Africa.tif"
+file = "../Chapter5/data/Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
 
@@ -65,7 +58,7 @@ eco = Ecosystem(sppl, abenv, rel)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
-# EcoSISTEM Parameters
+# Simulation Parameters
 times = 100years; timestep = 1month; record_interval = 1month; repeats = 1
 lensim = length(0years:record_interval:times)
 abuns = zeros(Int64, numSpecies, prod(grid), lensim)
@@ -128,7 +121,7 @@ for i in eachindex(specialist_vars)
     eco = Ecosystem(sppl, abenv, rel)
     eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
-    # EcoSISTEM Parameters
+    # Simulation Parameters
     burnin = 100years; times = 100years; timestep = 1month; record_interval = 1month; repeats = 1
     lensim = length(0years:record_interval:times)
     simulate!(eco, burnin,timestep)
@@ -145,16 +138,32 @@ for i in eachindex(specialist_vars)
         return maximum(dists)/month
     end
     velocity[i] = mean(inst_velocity)
+    # anim = @animate for i in 1:lensim
+    #     africa_abun1 = Float64.(abuns[1, :, :, i])
+    #     africa_abun1[.!(active)] .= NaN
+    #     africa_abun2 = Float64.(abuns[2, :, :, i])
+    #     africa_abun2[.!(active)] .= NaN
+    #     heatmap(africa_abun1, clim = (0, 700_000),
+    #     background_color = :lightblue,
+    #     background_color_outside=:white,
+    #     grid = false, color = cgrad(:algae, scale = :exp),
+    #     aspect_ratio = 1, layout = (@layout [a b]), subplot = 1)
+    #     heatmap!(africa_abun2, clim = (0, 700_000),
+    #     background_color = :lightblue,
+    #     background_color_outside=:white,
+    #     grid = false, color = cgrad(:algae, scale = :exp),
+    #     aspect_ratio = 1, subplot = 2)
+    # end
+    # gif(anim, "examples/Biodiversity/Africa_$i.gif", fps = 30)
 end
 
 plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
     xlab = "Selective advantage", ylab = "Invasion speed (km/month)",
     label = "", grid = false)
-```
-![](Invasion.svg)
-*Figure 1: Invasive capacity of a specialist plant species versus a generalist. Selective advantage is the difference in niche width between the specialist and generalist, and invasion speed is calculated as the average distance travelled per month by the specialist.*
-#### ONE SPECIALIST VERSUS MANY GENERALISTS ####
-``` julia
+Plots.pdf("examples/Biodiversity/Invasion.pdf")
+
+
+#### SPECIALIST VERSUS MANY GENERALISTS ####
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
@@ -162,7 +171,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using JLD
 using Printf
-file = "Africa.tif"
+file = "Documents/Chapter5/data/Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
@@ -222,18 +231,17 @@ function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, 
   end
 end
 
-# EcoSISTEM Parameters
+# Simulation Parameters
 burnin = 100years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
-@time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run");
-```
+@time simulate!(eco, times, timestep, record_interval, "sdc/Africa/specialist", "Africa_run");
+
 
 #### 50,000 SPECIES COEXISTING #####
 
-```julia
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
@@ -242,7 +250,7 @@ using Unitful.DefaultSymbols
 using JLD
 using Printf
 
-file = "Africa.tif"
+file = "Documents/Chapter5/data/Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
@@ -287,11 +295,24 @@ rel = Gauss{typeof(1.0K)}()
 #Create ecosystem
 eco = Ecosystem(sppl, abenv, rel)
 
-# EcoSISTEM Parameters
+import EcoSISTEM.simulate!
+function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
+  time_seq = 0s:timestep:times
+  counting = 0
+  for i in 1:length(time_seq)
+      update!(eco, timestep);
+      # Save cache of abundances
+      if mod(time_seq[i], cacheInterval) == 0year
+          JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
+      end
+  end
+end
+
+# Simulation Parameters
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
-@time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run_coexist");
+@time simulate!(eco, times, timestep, record_interval, "sdc/Africa", "Africa_run_coexist");
 
 using JLD
 using Plots
@@ -344,7 +365,4 @@ heatmap!(sumabuns,
     aspect_ratio = 1, subplot = 4,
      right_margin = 2.0 * Plots.mm,
     title = "D", titleloc = :left, clim = (0, 1))
-```
-
-![](Africa.svg)
-*Figure 2: 100 year simulations of Africa with 50,000 species. (A) Species richness after 100 years of simulation with all species equal. (B) Species richness after 50 years, with one specialist introduced. (C) Species richness after 100 years, with one specialist introduced. (D) Representativeness after 50 years with one specialist introduced (0 is completely unrepresentative of the ecosystem as a whole, 1 is completely representative).*
+Plots.pdf("examples/Biodiversity/Africa.pdf")

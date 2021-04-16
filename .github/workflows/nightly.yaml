@@ -1,0 +1,28 @@
+name: JuliaNightly
+# Nightly Scheduled Julia Nightly Run
+on:
+  push:
+    branches:
+      - main
+      - dev
+    tags:
+      - 'v*'
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly at 2 AM UTC Sunday
+
+jobs:
+  test:
+    name: Julia Nightly - Ubuntu - x64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up julia
+        uses: julia-actions/setup-julia@v1
+        with:
+          version: nightly
+          arch: x64
+      - name: Build package
+        uses: julia-actions/julia-buildpkg@latest
+      - name: Run tests
+        uses: julia-actions/julia-runtest@latest

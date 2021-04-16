@@ -1,9 +1,10 @@
 # EcoSISTEM
-[![][docs-dev-img]][docs-dev-url] [![][actions-img]][actions-url] [![][codecov-img]][codecov-url]
 
-*Package for running dynamic ecosystem and epidemiological simulations*
+[![main docs][docs-main-img]][docs-main-url] [![dev docs][docs-dev-img]][docs-dev-url]
 
-## Summary
+[![build tests][actions-img]][actions-url] [![codecov][codecov-img]][codecov-url]
+
+## Package for running dynamic ecosystem and epidemiological simulations
 
 **EcoSISTEM** (Ecosystem Simulation through Integrated Species-Trait Environment Modelling) is a [Julia](http://www.julialang.org) package that
 provides functionality for simulating species undergoing dynamic
@@ -22,11 +23,18 @@ age-structure and epidemiological models (see the [SCRC fork](https://github.com
 This package is in beta now, so please raise an issue if you find any problems.
 
 [paper-url]: https://arxiv.org/abs/1911.12257
+
+[docs-main-img]: https://img.shields.io/badge/docs-main-blue.svg
+[docs-main-url]: https://boydorr.github.io/EcoSISTEM.jl/main/
+
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [docs-dev-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/
+
 [actions-img]: https://github.com/boydorr/EcoSISTEM.jl/workflows/EcoSISTEM%20testing/badge.svg?branch=dev
 [actions-url]: https://github.com/boydorr/EcoSISTEM.jl/actions
+
 [codecov-img]: https://codecov.io/gh/boydorr/EcoSISTEM.jl/branch/dev/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/boydorr/EcoSISTEM.jl?branch=dev
+
 [model-struct-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/model_structure/
 [model-dev-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/model_structure/

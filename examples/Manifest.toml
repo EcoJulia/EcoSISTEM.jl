@@ -219,6 +219,12 @@ git-tree-sha1 = "4cb846e6dd521a122d6be123ab77375f563581ea"
 uuid = "a58aae7d-b440-5a11-b283-399458f99aac"
 version = "0.1.3"
 
+[[EcoSISTEM]]
+deps = ["ArchGDAL", "AxisArrays", "Calculus", "Compat", "Conda", "DataFrames", "DataRegistryUtils", "Dates", "Distributions", "Diversity", "EcoBase", "Feather", "HCubature", "HDF5", "HTTP", "IndexedTables", "Interpolations", "JLD", "JLSO", "LibGit2", "Libdl", "LinearAlgebra", "Logging", "Markdown", "Measures", "Missings", "NetCDF", "ORCA", "OnlineStats", "OnlineStatsBase", "Phylo", "Pkg", "Printf", "REPL", "Random", "RecipesBase", "Requires", "Revise", "SHA", "SQLite", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "Unitful"]
+path = ".."
+uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
+version = "0.1.0"
+
 [[EllipsisNotation]]
 deps = ["ArrayInterface"]
 git-tree-sha1 = "8041575f021cba5a099a456b4163c9a08b566a02"

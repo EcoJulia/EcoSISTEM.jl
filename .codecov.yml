@@ -2,3 +2,8 @@
 # as relies on access to v large datasets.
 ignore:
   - "src/ClimatePref"
+coverage:
+  status:
+     project:
+       default:
+         threshold: 0.2%
