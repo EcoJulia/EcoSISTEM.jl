@@ -1,0 +1,7 @@
+[beta-env]
+type = "point-estimate"
+value = 1.0
+
+[beta-force]
+type = "point-estimate"
+value = 2.0

@@ -1,4 +1,5 @@
 [deps]
+DataRegistryUtils = "1a5903ec-9658-4297-bb6d-314c615f2e02"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 EcoSISTEM = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 

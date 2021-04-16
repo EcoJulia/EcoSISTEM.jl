@@ -1,0 +1,144 @@
+- accessibility: 0
+  component: urban rural classification/age/persons
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: urban rural classification/age/genders
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: travel to work area/age/persons
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: travel to work area/age/genders
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: scottish parliamentary constituency/age/persons
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: scottish parliamentary constituency/age/genders
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: multi member ward/age/persons
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: multi member ward/age/genders
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: local authority/age/persons
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: local authority/age/genders
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: intermediate zone/age/persons
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: intermediate zone/age/genders
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: health board/age/persons
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: health board/age/genders
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: grid area/age/persons
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: grid area/age/genders
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: datazone/age/persons
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
+- accessibility: 0
+  component: datazone/age/genders
+  data_product: human/demographics/population/scotland
+  extension: h5
+  filename: human/demographics/population/scotland/1.0.2/1.0.2.h5
+  namespace: SCRC
+  verified_hash: d298197ad0b8e2cc54836908da511de7fe1c9877
+  version: 1.0.2
