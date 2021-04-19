@@ -2,7 +2,7 @@
 
 ## Install
 
-Simulation has yet to be officially released, but you can download the package through github:
+EcoSISTEM has yet to be officially released, but you can download the package through github:
 
 ```julia
 ]add https://github.com/boydorr/EcoSISTEM.jl.git
@@ -78,7 +78,7 @@ eco = Ecosystem(sppl, abenv, rel)
 
 Run simulation
 ```julia
-# Simulation Parameters
+# EcoSISTEM Parameters
 burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
 lensim = length(0years:record_interval:times)
 # Burnin

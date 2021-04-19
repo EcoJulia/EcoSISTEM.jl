@@ -7,7 +7,7 @@ using OnlineStats
 using Plots
 plotlyjs()
 
-cachefolder = joinpath(dirname(pathof(Simulation)), "../test/examples/")
+cachefolder = joinpath(dirname(pathof(EcoSISTEM)), "../test/examples/")
 
 ## DIFFERENT TEMPERATURE OPTIMUMS ##
 # 100 species with a range of different niche preferences for temperature. Check those closer to the environmental temperature have a higher abundance.

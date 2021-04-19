@@ -1,17 +1,33 @@
-name: EcoSISTEM testing
+name: CI
 
 on:
   push:
+    branches:
+      - main
+      - dev
+    tags:
+      - 'v*'
   pull_request:
 
 jobs:
-  simulation-tests:
+  EcoSISTEM-tests:
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
-      fail-fast: false
       matrix:
-        julia-version: ['1.4', '1.5']
-        os: [ubuntu-latest, macOS-latest, windows-latest]
+        julia-version:
+          - '1.6'
+        os:
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
+        R-version:
+          - 'release'
+        arch:
+          - x64
+        experimental:
+          - false
+      fail-fast: false
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
@@ -19,11 +35,17 @@ jobs:
       uses: julia-actions/setup-julia@v1
       with:
         version: ${{ matrix.julia-version }}
+        arch: ${{ matrix.arch }}
     - name: Build package
       uses: julia-actions/julia-buildpkg@master
     - name: Running
       uses: julia-actions/julia-runtest@master
     - name: Process coverage
       uses: julia-actions/julia-processcoverage@v1
-    - name: Upload to Codecov
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./lcov.info
+    - name: Codecov
       uses: codecov/codecov-action@v1
