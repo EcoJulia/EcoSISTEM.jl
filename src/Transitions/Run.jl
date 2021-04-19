@@ -56,6 +56,8 @@ end
 function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractSetUp
     if typeof(rule) == UpdateEnergy
         _run_rule!(eco, rule, timestep)
+    elseif typeof(rule) == SeedInfection
+        _run_rule!(eco, rule, timestep)
     else
         _run_rule!(eco, rule, timestep)
     end

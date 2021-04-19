@@ -115,7 +115,7 @@ export SimpleScenario, FluctScenario, MultiScenario
 include("Biodiversity/Generate.jl")
 export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!,
 reenergise!, randomniches, update!, update_birth_move!,
-convert_coords, get_neighbours, update_energy_usage!
+convert_coords, get_neighbours, update_energy_usage!, seedinfected!
 
 using Requires
 function __init__()
@@ -160,7 +160,7 @@ UpdateEnergy, UpdateEnvironment, update_environment!
 include("Transitions/EpiTransitions.jl")
 export ForceProduce, ForceDisperse, ViralLoad, Exposure, EnvExposure, Infection,
 DevelopSymptoms, Hospitalise, DeathFromInfection,
-Recovery, UpdateEpiEnvironment, update_epi_environment!
+Recovery, SeedInfection, UpdateEpiEnvironment, update_epi_environment!
 
 include("Transitions/BiodiversityRun.jl")
 include("Transitions/EpiRun.jl")

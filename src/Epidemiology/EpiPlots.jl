@@ -64,10 +64,10 @@ end
     seriescolor --> :heat
 
     subplot = 1
-    gridsize = (size(epi.epienv.habitat.matrix, 1), size(epi.epienv.habitat.matrix, 2))
+    gridsize = (size(epi.abenv.habitat.matrix, 1), size(epi.abenv.habitat.matrix, 2))
     for step in steps
         data = Float64.(reshape(abuns[idx, :, step], gridsize...))
-        data[.!epi.epienv.active] .= NaN
+        data[.!epi.abenv.active] .= NaN
         x = 1:size(data, 2)
         y = 1:size(data, 1)
         if plotattributes[:match_dimensions]

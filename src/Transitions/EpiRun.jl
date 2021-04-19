@@ -143,6 +143,15 @@ function _run_rule!(eco::Ecosystem, rule::ForceDisperse)
 end
 
 """
+    _run_rule!(eco::Ecosystem, rule::SeedInfection)
+
+Seed initial infected individuals.
+"""
+function _run_rule!(eco::Ecosystem, rule::SeedInfection, timestep::Unitful.Time)
+    rule.update_fun(eco, eco.abenv.control, timestep)
+end
+
+"""
     _run_rule!(eco::Ecosystem, rule::UpdateEpiEnvironment)
 
 Update the ecosystem caches.

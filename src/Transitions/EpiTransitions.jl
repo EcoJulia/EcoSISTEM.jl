@@ -157,6 +157,16 @@ function get_env(habitat::A) where A <: AbstractHabitat
 end
 
 """
+    SeedInfection <: AbstractWindDown
+
+Transition to update caches at end of update timestep,
+described in `update_fun`.
+"""
+mutable struct SeedInfection <: AbstractSetUp
+    update_fun::Function
+end
+
+"""
     UpdateEpiEnvironment <: AbstractWindDown
 
 Transition to update caches at end of update timestep,

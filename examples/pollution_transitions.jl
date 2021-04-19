@@ -198,6 +198,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     transitions = create_transition_list()
     addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
+    addtransition!(transitions, SeedInfection(seedinfected!))
 
     initial_infecteds = 100
     # Create epi system with all information
@@ -252,7 +253,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     reshaped_pop =
         reshape(scotpop[1:size(epienv.active, 1), 1:size(epienv.active, 2), :],
                 size(epienv.active, 1) * size(epienv.active, 2), size(scotpop, 3))'
-        epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
+    epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
 
     N_cells = size(epi.abundances.matrix, 2)
 
