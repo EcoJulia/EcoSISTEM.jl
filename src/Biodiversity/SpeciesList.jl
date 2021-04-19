@@ -3,12 +3,33 @@ using Phylo
 using Compat
 
 
+"""
+    AbstractSpeciesList <: AbstractTypes
+
+Abstract type for species lists, which is a subtype of `AbstractTypes`.
+"""
 abstract type AbstractSpeciesList <: AbstractTypes end
 
+"""
+    AbstractSpeciesTypes <: AbstractTypes
+
+Abstract type for species types, which is a subtype of `AbstractTypes`.
+"""
 abstract type AbstractSpeciesTypes <: AbstractTypes end
 
+"""
+    AbstractPathogenTypes <: AbstractTypes
+
+Abstract type for pathogen types, which is a subtype of `AbstractTypes`.
+"""
 abstract type AbstractPathogenTypes <: AbstractTypes end
 
+"""
+    SpeciesList{S <: AbstractSpeciesTypes, P <: AbstractPathogenTypes, PA <: AbstractParams} <: AbstractSpeciesList
+
+`SpeciesList` holds information on any `species` types, `pathogens` types and
+associated parameters, `params`.
+"""
 mutable struct SpeciesList{S <: AbstractSpeciesTypes, P <: AbstractPathogenTypes, PA <: AbstractParams} <: AbstractSpeciesList
     species::S
     pathogens::P

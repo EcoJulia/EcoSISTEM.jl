@@ -9,25 +9,49 @@ using RecipesBase
 
 import Diversity: _calcabundance
 
+"""
+    AbstractCache
 
+Abstract type for `Ecosystem` caches.
+"""
 abstract type AbstractCache end
+
 """
     Cache
 
 Cache houses an integer array of moves made by all species in a timestep for the
-update! function, `netmigration`.
+update! function, `netmigration`, a matrix of current resource used in the
+Ecosystem, `totalE`, and a Bool to say if these caches are `valid`.
 """
 mutable struct Cache <: AbstractCache
   netmigration::Array{Int64, 2}
   totalE::Matrix{Float64}
   valid::Bool
 end
+
+"""
+    EpiCache
+
+EpiCache houses a float array of moves made by all force of infection categories in a timestep for the
+update! function, `virusmigration`, an integer of how many initially infected individuals
+are introduced to the system, an array of locations that are active in the system, `ordered_active`,
+and a Bool to say if these caches are `valid`.
+"""
 mutable struct EpiCache <: AbstractCache
   virusmigration::Array{Float64, 2}
   initial_infected::Int64
   ordered_active::Vector{Int64}
   valid::Bool
 end
+
+"""
+    PlantCache
+
+Cache houses an integer array of seed production made by all species in the Ecosystem,
+`seedbank`, moves made by all dispersing seeds in a timestep, `netmigration`,
+a matrix of current resource used in the Ecosystem, `totalE`,
+and a Bool to say if these caches are `valid`.
+"""
 mutable struct PlantCache <: AbstractCache
   netmigration::Array{Int64, 2}
   seedbank::Array{Int64, 2}
@@ -35,13 +59,24 @@ mutable struct PlantCache <: AbstractCache
   valid::Bool
 end
 
-function create_cache(sppl::SpeciesList{SpeciesTypes{TR, R, MO, T}},
-    ml::GridLandscape) where {TR, R, MO <: AlwaysMovement, T}
+"""
+    create_cache(sppl::SpeciesList, ml::GridLandscape)
+
+Function to create a `Cache` for a SpeciesList and GridLandscape.
+"""
+function create_cache(sppl::SpeciesList, ml::GridLandscape)
   nm = zeros(Int64, size(ml.matrix))
   totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(typeof(sppl.species.requirement))))
   return Cache(nm, totalE, false)
 end
 
+"""
+    create_cache(sppl::SpeciesList{SpeciesTypes{TR, R, MO, T}},
+        ml::GridLandscape) where {TR, R, MO <: BirthOnlyMovement, T}
+
+Function to create a `PlantCache` for a SpeciesList with movement only via
+seed production (`BirthOnlyMovement`) and GridLandscape.
+"""
 function create_cache(sppl::SpeciesList{SpeciesTypes{TR, R, MO, T}},
     ml::GridLandscape) where {TR, R, MO <: BirthOnlyMovement, T}
   nm = zeros(Int64, size(ml.matrix))
@@ -50,6 +85,11 @@ function create_cache(sppl::SpeciesList{SpeciesTypes{TR, R, MO, T}},
   return PlantCache(nm, sb, totalE, false)
 end
 
+"""
+    create_cache(sppl::SpeciesList, ml::EpiLandscape)
+
+Function to create an `EpiCache` for a SpeciesList and EpiLandscape.
+"""
 function create_cache(sppl::SpeciesList, ml::EpiLandscape)
   vm = zeros(Float64, size(ml.matrix))
   return EpiCache(vm, false)
@@ -66,6 +106,7 @@ function tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
     (eltype(sppl.species.traits) == eltype(abenv.habitat)) &&
     (iscontinuous(sppl.species.traits) == iscontinuous(abenv.habitat))
 end
+
 """
     trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
 
@@ -77,14 +118,31 @@ function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
     (iscontinuous(sppl.species.traits) == iscontinuous(traitrel))
 end
 
+"""
+    AbstractEcosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <: AbstractSpeciesList,
+    TR <: AbstractTraitRelationship, LU <: AbstractLookup, C <: AbstractCache} <:
+    AbstractMetacommunity{Float64, Matrix{Int64}, Matrix{Float64}, SL, Part}
 
+Abstract type for `Ecosystem`s which is a subtype of `AbstractMetacommunity`.
+"""
 abstract type
     AbstractEcosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <: AbstractSpeciesList,
         TR <: AbstractTraitRelationship, LU <: AbstractLookup, C <: AbstractCache} <: AbstractMetacommunity{Float64, Matrix{Int64},
                                         Matrix{Float64}, SL, Part}
 end
 
+"""
+    Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <: AbstractSpeciesList,
+    TR <: AbstractTraitRelationship, LU <: AbstractLookup, C <: AbstractCache} <:
+    AbstractEcosystem{L, Part, SL, TR, LU, C}
 
+`Ecosystem` type which is a subtype of `AbstractEcosystem`. It houses information
+on the abundances of species in the landscape, `abundances`, information about
+those species, `spplist`, information about the abiotic environment, `abenv`,
+the `ordinariness` (for Diversity.jl calculations), the `relationship` between
+the species and their environment, a pre-calculated `lookup` of all possible moves that could
+be made by each species, a `cache`, and a list of `transitions`.
+"""
 mutable struct Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <: AbstractSpeciesList,
     TR <: AbstractTraitRelationship, LU <: AbstractLookup, C <: AbstractCache} <: AbstractEcosystem{L, Part, SL, TR, LU, C}
   abundances::L
@@ -97,6 +155,15 @@ mutable struct Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <
   transitions::Union{Missing, TransitionList}
 end
 
+"""
+   Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
+   rel::AbstractTraitRelationship; transitions::Union{Missing, TransitionList} = missing)
+   where {F<:Function, T, Req}
+
+Function to create an `Ecosystem` with species from a `SpeciesList`, environment from
+ a `GridAbioticEnvironment`, an `AbstractTraitRelationship` between the two, and
+ a list of `transitions`. The `Ecosystem` can be populated with a `popfun.`
+"""
 function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship; transitions::Union{Missing, TransitionList} = missing) where {F<:Function, T, Req}
 
@@ -111,11 +178,33 @@ function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEn
   missing, rel, lookup, cache, transitions)
 end
 
+"""
+   Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, rel::AbstractTraitRelationship;
+   transitions::Union{Missing, TransitionList} = missing)
+
+Function to create an `Ecosystem` with species from a `SpeciesList`, environment from
+ a `GridAbioticEnvironment`, an `AbstractTraitRelationship` between the two, and
+ a list of `transitions`. The `Ecosystem` is automatically and randomly populated
+ from the start abundances in `spplist`.
+"""
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    rel::AbstractTraitRelationship; transitions::Union{Missing, TransitionList} = missing)
    return Ecosystem(populate!, spplist, abenv, rel, transitions = transitions)
 end
 
+"""
+   Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv::EE,
+       ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup,
+       vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Missing, TransitionList}
+       ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
+       EE <: AbstractEpiEnv, EL <: SpeciesList, ER <: AbstractTraitRelationship}
+
+Function to create an `Ecosystem` with epi categories from a `SpeciesList`, environment from
+ a `AbstractEpiEnvironment`, an `AbstractTraitRelationship` between the two,
+ an `EpiLookup` of pre-determined moves, information for the `EpiCache`
+ (`initial_infected`, `valid` and `vm`) and a list of `transitions`.
+ An `EpiCache` is automatically generated.
+"""
 function Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv::EE,
     ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup,
     vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Missing, TransitionList}
@@ -128,6 +217,18 @@ function Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv:
   return Ecosystem(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, transitions)
 end
 
+"""
+   Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
+         rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
+         rngtype::Type{R} = Random.MersenneTwister,
+         transitions = missing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
+
+Function to create an `Ecosystem` with epi categories from a `SpeciesList`, environment from
+ a `GridEpiEnv`, an `AbstractTraitRelationship` between the two,
+ an indication of what integer type the abundances should be stored in `intnum`,
+ an optional number of `initial_infected` to be seeded, and optional type for rand calls,
+`rngtype`, and an optional list of `transitions`. The `Ecosystem` can be populated with a `popfun.`
+"""
 function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
       rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
       rngtype::Type{R} = Random.MersenneTwister,
@@ -147,6 +248,19 @@ function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
   return Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions)
 end
 
+"""
+   Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+           intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister,
+           transitions = missing
+           ) where {U <: Integer, R <: Random.AbstractRNG}
+
+Function to create an `Ecosystem` with epi categories from a `SpeciesList`, environment from
+ a `GridEpiEnv`, an `AbstractTraitRelationship` between the two,
+ an indication of what integer type the abundances should be stored in `intnum`,
+ an optional number of `initial_infected` to be seeded, and optional type for rand calls,
+`rngtype`, and an optional list of `transitions`. The `Ecosystem` is automatically and randomly populated
+from the start abundances in `spplist`.
+"""
 function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister,
         transitions = missing
@@ -154,6 +268,19 @@ function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitR
     return Ecosystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype, transitions = transitions)
 end
 
+"""
+   Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+           initial_population::A, intnum::U = Int64(1); initial_infected = 0,
+           rngtype::Type{R} = Random.MersenneTwister,
+           transitions = missing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
+
+Function to create an `Ecosystem` with epi categories from a `SpeciesList`, environment from
+ a `GridEpiEnv`, an `AbstractTraitRelationship` between the two,
+ an array of initial susceptible population abundances, an indication of what integer type the abundances should be stored in `intnum`,
+ an optional number of `initial_infected` to be seeded, and optional type for rand calls,
+`rngtype`, and an optional list of `transitions`. The `Ecosystem` is automatically and randomly populated
+from the start abundances in `spplist`.
+"""
 function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         initial_population::A, intnum::U = Int64(1); initial_infected = 0,
         rngtype::Type{R} = Random.MersenneTwister,

@@ -8,6 +8,11 @@ struct SavedLandscape
     rngs::Vector{MersenneTwister}
 end
 
+"""
+    AbstractLandscape
+
+Abstract type for landscapes.
+"""
 abstract type AbstractLandscape end
 
 """

@@ -1,5 +1,11 @@
 
+"""
+    _run_rule!(eco::Ecosystem, rule::Exposure, timestep::Unitful.Time)
 
+Stochastic exposure process for a location, housed inside `rule`,
+ for one timestep. Moves from susceptible category, `species` to
+exposed category, `destination`.
+"""
 function _run_rule!(eco::Ecosystem, rule::Exposure, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
@@ -22,6 +28,13 @@ function _run_rule!(eco::Ecosystem, rule::Exposure, timestep::Unitful.Time)
     end
 end
 
+"""
+    _run_rule!(eco::Ecosystem, rule::EnvExposure, timestep::Unitful.Time)
+
+Stochastic environmentally-driven exposure process for a location, housed inside `rule`,
+ for one timestep. Moves from susceptible category, `species` to
+exposed category, `destination`.
+"""
 function _run_rule!(eco::Ecosystem, rule::EnvExposure, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
@@ -48,6 +61,14 @@ function _run_rule!(eco::Ecosystem, rule::EnvExposure, timestep::Unitful.Time)
     end
 end
 
+"""
+    _run_rule!(eco::Ecosystem, rule::Union{Infection, DevelopSymptoms, Hospitalise,
+        DeathFromInfection, Recovery}, timestep::Unitful.Time)
+
+Stochastic epi transition process for a location, housed inside `rule`,
+ for one timestep. Moves from source category, `species` to
+destination category, `destination`.
+"""
 function _run_rule!(eco::Ecosystem, rule::Union{Infection, DevelopSymptoms, Hospitalise,
     DeathFromInfection, Recovery}, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
@@ -63,6 +84,11 @@ function _run_rule!(eco::Ecosystem, rule::Union{Infection, DevelopSymptoms, Hosp
     end
 end
 
+"""
+    _run_rule!(eco::Ecosystem, rule::ForceProduce, timestep::Unitful.Time)
+
+Generation of force of infection for a location.
+"""
 function _run_rule!(eco::Ecosystem, rule::ForceProduce, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
@@ -76,6 +102,11 @@ function _run_rule!(eco::Ecosystem, rule::ForceProduce, timestep::Unitful.Time)
     end
 end
 
+"""
+    _run_rule!(eco::Ecosystem, rule::ViralLoad, timestep::Unitful.Time)
+
+Settling of force of infection into environmental reservoir for a location.
+"""
 function _run_rule!(eco::Ecosystem, rule::ViralLoad, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     params = eco.spplist.params
@@ -98,6 +129,11 @@ function _run_rule!(eco::Ecosystem, rule::ViralLoad, timestep::Unitful.Time)
     virus(eco.abundances)[1, loc] += env_virus - deaths
 end
 
+"""
+    _run_rule!(eco::Ecosystem, rule::ForceDisperse)
+
+Random dispersal of force of infection from a location.
+"""
 function _run_rule!(eco::Ecosystem, rule::ForceDisperse)
     rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
@@ -106,6 +142,11 @@ function _run_rule!(eco::Ecosystem, rule::ForceDisperse)
     eco.cache.virusmigration[spp, loc] = rand(rng, dist)
 end
 
+"""
+    _run_rule!(eco::Ecosystem, rule::UpdateEpiEnvironment)
+
+Update the ecosystem caches.
+"""
 function _run_rule!(eco::Ecosystem, rule::UpdateEpiEnvironment, timestep::Unitful.Time)
     rule.update_fun(eco, timestep)
 end

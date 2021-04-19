@@ -122,10 +122,20 @@ function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯*𝐓^-1
     eco.abenv.habitat.change.changefun, rate, typeof(dimension(1K)))
 end
 
+"""
+    resettime!(eco::AbstractEcosystem)
+
+Function to reset the time of habitat change for a species.
+"""
 function resettime!(eco::AbstractEcosystem)
     _resettime!(eco.abenv.habitat)
 end
 
+"""
+    addspecies!(eco::Ecosystem, abun::Int64)
+
+Function to add a species to the Ecosystem.
+"""
 function addspecies!(eco::Ecosystem, abun::Int64)
     eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(1, size(eco.abundances.matrix, 2)))
     eco.abundances.grid = reshape(eco.abundances.matrix, (counttypes(eco.spplist, true)+1, _getdimension(eco.abenv.habitat)...))
@@ -161,7 +171,11 @@ function addtypes!(ut::UniqueTypes)
     ut = UniqueTypes(ut.num+1)
 end
 
+"""
+    invalidatecaches!(eco::AbstractEcosystem)
 
+Function to invalidate Ecosystem caches at the end of a timestep.
+"""
 function invalidatecaches!(eco::AbstractEcosystem)
     _invalidatecaches!(eco, eco.cache)
 end

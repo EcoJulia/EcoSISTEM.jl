@@ -2,8 +2,13 @@ using JLSO
 using SparseArrays
 using HCubature
 
+"""
+    AbstractLookup
 
+Abstract type for lookups.
+"""
 abstract type AbstractLookup end
+
 """
     Lookup
 
