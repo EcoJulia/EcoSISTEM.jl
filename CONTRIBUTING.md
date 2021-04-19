@@ -18,6 +18,10 @@ Thanks for contributing to EcoSISTEM.jl! Please read the below on how best to ma
 
 6. Thanks for your time and effort!
 
+## Notes on workflow
+
+Following the first release of the package, all subsequent merges to `main` should only occur as an associated release (following approval from 1 or more reviewers).
+
 ## Licensing
 
 By contributing to this project (e.g. by submitting a pull request or providing advice on code), you agree - unless simultaneously and expressly stated otherwise - that your contribution may be included in the source code of the project and published under the following copyright licenses:
