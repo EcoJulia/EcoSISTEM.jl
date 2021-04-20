@@ -3,7 +3,7 @@
 | **Documentation** | **Build Status** | **DOI** |
 |:-----------------:|:----------------:|:-------:|
 | [![stable docs][docs-stable-img]][docs-stable-url] | [![build tests][actions-img]][actions-url] [![JuliaNightly][nightly-img]][nightly-url] | [![DOI][zenodo-img]][zenodo-url] |
-| [![dev docs][docs-dev-img]][docs-dev-url] | [![codecov][codecov-img]][codecov-url] [![coveralls][coveralls-img]][coveralls-url] | |
+| [![dev docs][docs-dev-img]][docs-dev-url] | [![codecov][codecov-img]][codecov-url] | |
 
 ## Package for running dynamic ecosystem simulations
 
@@ -36,9 +36,6 @@ This package is in beta now, so please raise an issue if you find any problems. 
 
 [nightly-img]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml/badge.svg?branch=main
 [nightly-url]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml
-
-[coveralls-img]: https://img.shields.io/coveralls/boydorr/EcoSISTEM.jl.svg
-[coveralls-url]: https://coveralls.io/r/boydorr/EcoSISTEM.jl?branch=main
 
 [codecov-img]: https://codecov.io/gh/boydorr/EcoSISTEM.jl/branch/main/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/boydorr/EcoSISTEM.jl?branch=main
