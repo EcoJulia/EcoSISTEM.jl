@@ -2,8 +2,8 @@
 
 | **Documentation** | **Build Status** | **DOI** |
 |:-----------------:|:----------------:|:-------:|
-| [![stable docs][docs-stable-img]][docs-stable-url] | [![build tests][actions-img]][actions-url] | [![DOI][zenodo-img]][zenodo-url] |
-| [![dev docs][docs-dev-img]][docs-dev-url] | [![codecov][codecov-img]][codecov-url] | |
+| [![stable docs][docs-stable-img]][docs-stable-url] | [![build tests][actions-img]][actions-url] [![JuliaNightly][nightly-img]][nightly-url] | [![DOI][zenodo-img]][zenodo-url] |
+| [![dev docs][docs-dev-img]][docs-dev-url] | [![codecov][codecov-img]][codecov-url] [![coveralls][coveralls-img]][coveralls-url] | |
 
 ## Package for running dynamic ecosystem simulations
 
@@ -11,7 +11,7 @@
 
 **EcoSISTEM** (Ecosystem Simulation through Integrated Species-Trait Environment Modelling) is a [Julia](http://www.julialang.org) package that
 provides functionality for simulating species undergoing dynamic
-biological processes such as birth, death, competition and dispersal, as well as environmental changes in climate and habitat
+biological processes such as birth, death, competition and dispersal, as well as environmental changes in climate and habitat.
 
 The package was primarily developed for global scale simulations of
 plant biodiversity. The underlying model for this is described in the arXiv
@@ -33,6 +33,12 @@ This package is in beta now, so please raise an issue if you find any problems. 
 
 [actions-img]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/testing.yaml/badge.svg?branch=main
 [actions-url]: https://github.com/boydorr/EcoSISTEM.jl/actions
+
+[nightly-img]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml/badge.svg?branch=main
+[nightly-url]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml
+
+[coveralls-img]: https://img.shields.io/coveralls/boydorr/EcoSISTEM.jl.svg
+[coveralls-url]: https://coveralls.io/r/boydorr/EcoSISTEM.jl?branch=main
 
 [codecov-img]: https://codecov.io/gh/boydorr/EcoSISTEM.jl/branch/main/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/boydorr/EcoSISTEM.jl?branch=main
