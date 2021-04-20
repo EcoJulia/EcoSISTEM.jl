@@ -18,7 +18,7 @@ read:
       component: symptom-probability
   - where:
       data_product: human/demographics/population/scotland
-      version: 1.0.1
+      version: 1.0.2
   - where:
       data_product: geography/lookup_table/gridcell_admin_area/scotland
   - where:

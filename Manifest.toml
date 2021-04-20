@@ -73,6 +73,12 @@ git-tree-sha1 = "aa9ef39b54a168c3df1b2911e7797e4feee50fbe"
 uuid = "0b7ba130-8d10-5ba8-a3d6-c5182647fed9"
 version = "1.14.3+1"
 
+[[BritishNationalGrid]]
+deps = ["Formatting", "Proj4", "Test"]
+git-tree-sha1 = "72b2e5fb84eb64fb19db8158b131d06a1b5e88dd"
+uuid = "07503c7f-9676-5157-a8e2-6c0d0a9caee7"
+version = "0.3.1"
+
 [[CEnum]]
 git-tree-sha1 = "215a9aa4a1f23fbd05b92769fdd62559488d70e9"
 uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
@@ -681,6 +687,12 @@ version = "1.2.1"
 [[Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[[Proj4]]
+deps = ["CEnum", "PROJ_jll", "StaticArrays"]
+git-tree-sha1 = "bc528bdefb4c10458599aff50c0aeb841440791a"
+uuid = "9a7e659c-8ee8-5706-894e-f68f43bc57ea"
+version = "0.7.4"
 
 [[QuadGK]]
 deps = ["DataStructures", "LinearAlgebra"]

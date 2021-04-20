@@ -16,8 +16,8 @@ using SQLite
 function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
 
     # Download and read in population sizes for Scotland
-    DataRegistryUtils.load_array!(db, "human/demographics/population/scotland", "/grid1km/age/persons"; sql_alias="human_demographics_population_scotland_grid1km_age_persons_arr")
-    scotpop = get_3d_km_grid_axis_array(db, ["grid_x", "grid_y", "age_aggr"], "val", "scottish_population_view")
+    DataRegistryUtils.load_array!(db, "human/demographics/population/scotland", "/grid area/age/persons"; sql_alias="km_age_persons_arr")
+    scotpop = get_3d_km_grid_axis_array(db, ["grid_area", "age_aggr"], "val", "scottish_population_view")
 
     # Read number of age categories
     age_categories = size(scotpop, 3)
