@@ -5,6 +5,7 @@ using Distributions
 using DataFrames
 using Test
 
+## Test generic biodiversity
 # Set up initial parameters for ecosystem
 numSpecies = 10; grid = (10, 10); req= 10.0kJ; individuals=10_000; area = 1000.0*km^2; totalK = 1000.0kJ/km^2
 
@@ -68,8 +69,38 @@ abuns = zeros(Int64, numSpecies, prod(grid), lensim)
 @test_nowarn simulate!(eco, burnin, timestep);
 @test_nowarn simulate_record!(abuns, eco, times, record_interval, timestep);
 
+## Test plant biodiversity
+# Change movement to seed dispersal
+movement = BirthOnlyMovement(kernel, Torus())
+sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    movement, param, native)
+
+# Create transition list
+transitions = create_transition_list()
+addtransition!(transitions, UpdateEnergy(EcoSISTEM.update_energy_usage!))
+addtransition!(transitions, UpdateEnvironment(update_environment!))
+for spp in eachindex(sppl.species.names)
+    for loc in eachindex(abenv.habitat.matrix)
+        addtransition!(transitions, GenerateSeed(spp, loc, sppl.params.birth[spp]))
+        addtransition!(transitions, DeathProcess(spp, loc, sppl.params.death[spp]))
+        addtransition!(transitions, SeedDisperse(spp, loc))
+    end
+end
+
+#Create ecosystem
+eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
+
+# Simulation Parameters
+burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
+lensim = length(0years:record_interval:times)
+abuns = zeros(Int64, numSpecies, prod(grid), lensim)
+# Burnin
+@test_nowarn simulate!(eco, burnin, timestep);
+@test_nowarn simulate_record!(abuns, eco, times, record_interval, timestep);
 
 
+
+## Test SEIR
 # Set up simple gridded environment
 grid = (10, 10)
 area = 1_000.0km^2
@@ -126,12 +157,43 @@ rel = Gauss{eltype(epienv.habitat)}()
 
 # Create list of transitions for the simulation
 transitions = create_transition_list()
+addtransition!(transitions, SeedInfection(seedinfected!))
 addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
 for loc in eachindex(epienv.habitat.matrix)
     addtransition!(transitions, ForceProduce(3, loc, param.virus_growth))
     addtransition!(transitions, ViralLoad(loc, param.virus_decay))
     addtransition!(transitions, Exposure(transitiondat[1, :from_id], loc,
         transitiondat[1, :to_id], transitiondat[1, :prob].force, transitiondat[1, :prob].env))
+    addtransition!(transitions, Infection(transitiondat[2, :from_id], loc,
+        transitiondat[2, :to_id], transitiondat[2, :prob]))
+    addtransition!(transitions, Recovery(transitiondat[3, :from_id], loc,
+        transitiondat[3, :to_id], transitiondat[3, :prob]))
+    for spp in eachindex(epilist.species.names)
+        addtransition!(transitions, ForceDisperse(spp, loc))
+    end
+end
+
+# Create epi system with all information
+epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
+
+# Run simulation
+times = 1month; interval = 1day; timestep = 1day
+abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
+@test_nowarn simulate!(epi, times, timestep);
+@test_nowarn simulate_record!(abuns, epi, times, interval, timestep);
+
+
+## Test SEIR with environmental exposure
+# Create list of transitions for the simulation
+transitions = create_transition_list()
+addtransition!(transitions, SeedInfection(seedinfected!))
+addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
+for loc in eachindex(epienv.habitat.matrix)
+    addtransition!(transitions, ForceProduce(3, loc, param.virus_growth))
+    addtransition!(transitions, ViralLoad(loc, param.virus_decay))
+    addtransition!(transitions, EnvExposure(transitiondat[1, :from_id], loc,
+        transitiondat[1, :to_id], transitiondat[1, :prob].force, transitiondat[1, :prob].env,
+        1.0, get_env))
     addtransition!(transitions, Infection(transitiondat[2, :from_id], loc,
         transitiondat[2, :to_id], transitiondat[2, :prob]))
     addtransition!(transitions, Recovery(transitiondat[3, :from_id], loc,
