@@ -28,10 +28,10 @@ This package is in beta now, so please raise an issue if you find any problems. 
 [docs-dev-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/
 
 [actions-img]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/testing.yaml/badge.svg?branch=main
-[actions-url]: https://github.com/boydorr/EcoSISTEM.jl/actions
+[actions-url]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/testing.yaml?branch=main
 
 [nightly-img]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml/badge.svg?branch=main
-[nightly-url]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml
+[nightly-url]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml?branch=main
 
 [codecov-img]: https://codecov.io/gh/boydorr/EcoSISTEM.jl/branch/main/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/boydorr/EcoSISTEM.jl?branch=main
