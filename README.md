@@ -1,8 +1,9 @@
 # EcoSISTEM
 
-[![main docs][docs-main-img]][docs-main-url] [![dev docs][docs-dev-img]][docs-dev-url]
-
-[![build tests][actions-img]][actions-url] [![codecov][codecov-img]][codecov-url]
+| **Documentation** | **Build Status** | **DOI** |
+|:-----------------:|:----------------:|:-------:|
+| [![stable docs][docs-stable-img]][docs-stable-url] | [![build tests][actions-img]][actions-url] | [![DOI][zenodo-img]][zenodo-url] |
+| [![dev docs][docs-dev-img]][docs-dev-url] | [![codecov][codecov-img]][codecov-url] | |
 
 ## Package for running dynamic ecosystem simulations
 
@@ -24,8 +25,8 @@ This package is in beta now, so please raise an issue if you find any problems. 
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 
-[docs-main-img]: https://img.shields.io/badge/docs-main-blue.svg
-[docs-main-url]: https://boydorr.github.io/EcoSISTEM.jl/main/
+[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
+[docs-stable-url]: https://boydorr.github.io/EcoSISTEM.jl/stable/
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [docs-dev-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/
@@ -35,5 +36,8 @@ This package is in beta now, so please raise an issue if you find any problems. 
 
 [codecov-img]: https://codecov.io/gh/boydorr/EcoSISTEM.jl/branch/main/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/boydorr/EcoSISTEM.jl?branch=main
+
+[zenodo-img]: https://zenodo.org/badge/251665824.svg
+[zenodo-url]: https://zenodo.org/badge/latestdoi/251665824
 
 [dev-url]: https://github.com/boydorr/EcoSISTEM.jl/tree/dev
