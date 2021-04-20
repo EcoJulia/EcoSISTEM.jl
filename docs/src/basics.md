@@ -2,10 +2,8 @@
 
 ## Install
 
-EcoSISTEM has yet to be officially released, but you can download the package through github:
-
 ```julia
-]add https://github.com/boydorr/EcoSISTEM.jl.git
+]add EcoSISTEM
 ```
 
 ## Setting up an ecosystem
