@@ -19,7 +19,7 @@ particular timestep, `timestep`. If `save=true`, inputs and outputs are saved as
 at `save_path`.
 """
 function epi_simulate!(
-    epi::Ecosystem,
+    epi::AbstractEcosystem,
     duration::Unitful.Time,
     timestep::Unitful.Time;
     save=false,
@@ -64,7 +64,7 @@ whole ecosystem is updated, such as removal of habitat patches.
 """
 function epi_simulate_record!(
     storage::AbstractArray,
-    epi::Ecosystem,
+    epi::AbstractEcosystem,
     times::Unitful.Time,
     interval::Unitful.Time,
     timestep::Unitful.Time;
