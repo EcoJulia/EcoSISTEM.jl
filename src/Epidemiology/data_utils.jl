@@ -44,15 +44,15 @@ function parse_hdf5(path; grid="10km", component="grid10km/10year/persons")
     return population
 end
 
-function get_xy(bng_name::String)
+function get_en(bng_name::String)
     bng = BritishNationalGrid.BNGPoint(parse(Int, bng_name[3:4]) * 1000, parse(Int, bng_name[5:6]) * 1000, uppercase(bng_name[1:2]))
     return bng.e, bng.n
 end
-function get_xy(bng_names::Vector{String})
-    xys = get_xy.(bng_names)
-    xs = [xys[i][1] for i in eachindex(xys)]
-    ys = [xys[i][2] for i in eachindex(xys)]
-    return xs, ys
+function get_en(bng_names::Vector{String})
+    ens = get_en.(bng_names)
+    easts = [ens[i][1] for i in eachindex(ens)]
+    norths = [ens[i][2] for i in eachindex(ens)]
+    return easts, norths
 end
 function get_bng(east_north::Tuple{Int64, Int64}, ref::Int64)
     pnt = BNGPoint(east_north[1], east_north[2])
@@ -61,7 +61,7 @@ end
 function create_BNG_grid(east::Vector{Int64}, north::Vector{Int64}, vals::Array{Float64, 1}, ages::Vector{Int64})
     easts = collect(minimum(east):1_000:maximum(east)) .* m
     norths = collect(minimum(north):1_000:maximum(north)) .* m
-    grid_a = AxisArray(zeros(Float64, length(norths), length(easts),  length(unique(ages))), Axis{:northing}(norths), Axis{:easting}(easts), Axis{:age}(unique(ages)))
+    grid_a = AxisArray(zeros(Float64, length(norths), length(easts), length(unique(ages))), Axis{:northing}(norths), Axis{:easting}(easts), Axis{:age}(unique(ages)))
     for i in eachindex(east)
         grid_a[atvalue(north[i] * m), atvalue(east[i] * m), atvalue(ages[i])] = vals[i]
     end
@@ -87,7 +87,7 @@ function get_3d_km_grid_axis_array(cn::SQLite.DB, dims::Array{String,1}, msr::St
     stmt = SQLite.Stmt(cn, sel_sql)
     df = SQLite.DBInterface.execute(stmt) |> DataFrames.DataFrame
     grid_area = df[!, :grid_area]
-    east,north = get_xy(grid_area)
+    east,north = get_en(grid_area)
     vals = df[!, :val]
     ages = df[!, :age_aggr]
     output = create_BNG_grid(east, north, vals, ages)

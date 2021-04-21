@@ -18,6 +18,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     # Download and read in population sizes for Scotland
     DataRegistryUtils.load_array!(db, "human/demographics/population/scotland", "/grid area/age/persons"; sql_alias="km_age_persons_arr")
     scotpop = get_3d_km_grid_axis_array(db, ["grid_area", "age_aggr"], "val", "scottish_population_view")
+    scotpop = shrink_to_active(scotpop)
 
     # Read number of age categories
     age_categories = size(scotpop, 3)
@@ -48,14 +49,6 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
         2 * AxisArrays.axes(scotpop, 1)[1]) *
         (AxisArrays.axes(scotpop, 2)[end] + AxisArrays.axes(scotpop, 2)[2] -
         2 * AxisArrays.axes(scotpop, 2)[1]) * 1.0
-
-    # Sum up age categories and turn into simple matrix
-    total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
-    total_pop = AxisArray(total_pop, AxisArrays.axes(scotpop)[1], AxisArrays.axes(scotpop)[2])
-    total_pop.data[total_pop .≈ 0.0] .= NaN
-
-    # Shrink to smallest bounding box. The NaNs are inactive.
-    total_pop = shrink_to_active(total_pop);
 
     # Prob of developing symptoms
     p_s = fill(read_estimate(db,
@@ -172,6 +165,8 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
         (from="Hospitalised", from_id=cat_idx[:, 6], to="Dead", to_id=cat_idx[:, 8], prob=death_hospital)
     ])
 
+    total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
+    total_pop[total_pop .≈ 0.0] .= NaN
     epienv = simplehabitatAE(298.0K, size(total_pop), area, Lockdown(20days))
 
     movement_balance = (home = fill(0.5, numclasses * age_categories), work = fill(0.5, numclasses * age_categories))
@@ -202,7 +197,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     initial_infecteds = 100
     # Create epi system with all information
-    @time epi = Ecosystem(epilist, epienv, rel, total_pop, UInt32(1),
+    @time epi = Ecosystem(epilist, epienv, rel, scotpop, UInt32(1),
     initial_infected = initial_infecteds, transitions = transitions)
 
     for loc in epi.cache.ordered_active
@@ -247,13 +242,6 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
                 transitiondat[10, :to_id][age], transitiondat[10, :prob][age]))
         end
     end
-
-    # Populate susceptibles according to actual population spread
-    scotpop = shrink_to_active(scotpop)
-    reshaped_pop =
-        reshape(scotpop[1:size(epienv.active, 1), 1:size(epienv.active, 2), :],
-                size(epienv.active, 1) * size(epienv.active, 2), size(scotpop, 3))'
-    epi.abundances.matrix[cat_idx[:, 1], :] = reshaped_pop
 
     N_cells = size(epi.abundances.matrix, 2)
 

@@ -54,6 +54,16 @@ end
 
 _inactive(x) = ismissing(x) || isnan(x)
 
+function findactive(A::AbstractArray{T, 3}) where T
+    M = dropdims(sum(Float64.(A), dims=3), dims=3)
+    M[M .== 0] .= NaN
+    return .!_inactive.(M)
+end
+
+function findactive(M::AbstractArray{T, 2}) where T
+    return .!_inactive.(M)
+end
+
 """
     _construct_shrunk_matrix
 

@@ -285,19 +285,21 @@ function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitR
         initial_population::A, intnum::U = Int64(1); initial_infected = 0,
         rngtype::Type{R} = Random.MersenneTwister,
         transitions = missing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
-    if size(initial_population) != size(epienv.active)
+    if (size(epienv.active, 1) ∉ size(initial_population)) |
+        (size(epienv.active, 2) ∉ size(initial_population))
         msg = "size(initial_population)==$(size(initial_population)) != " *
             "size(epienv.active)==$(size(epienv.active))"
         throw(DimensionMismatch(msg))
     end
-    epienv.active .&= .!_inactive.(initial_population)
+
+    epienv.active .&= findactive(initial_population)
 
     # Create matrix landscape of zero abundances
     ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
 
     # Create lookup table of all moves and their probabilities
     home_lookup = genlookups(epienv, epilist.species.movement.home)
-    work_lookup = genlookups(epienv, epilist.species.movement.work, initial_population[1:end])
+    work_lookup = genlookups(epienv, epilist.species.movement.work, initial_population)
     lookup = EpiLookup(home_lookup, work_lookup)
 
     vm = zeros(Float64, size(ml.matrix))
@@ -305,16 +307,12 @@ function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitR
     epi = Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions)
 
     # Add in the initial susceptible population
-    # TODO Need to fix code so it doesn't rely on name of susceptible class
-    idx = findfirst(occursin.("Susceptible", epilist.species.names))
-    if idx == nothing
-        msg = "epilist has no Susceptible category. epilist.names = $(epilist.species.names)"
-        throw(ArgumentError(msg))
-    end
+    idx = epilist.species.susceptible
     # Modify active cells based on new population
     initial_population = convert_population(initial_population, intnum)
-    epi.abundances.grid[idx, :, :] .+= initial_population
-
+    for i in eachindex(idx)
+        epi.abundances.grid[idx[i], :, :] .+= initial_population[:, :, i]
+    end
     total_pop = sum(human(epi.abundances), dims = 1)[1, :]
     sorted_grid_ids = sortperm(total_pop, rev = true)
     sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]

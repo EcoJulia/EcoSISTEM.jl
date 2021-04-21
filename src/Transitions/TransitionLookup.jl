@@ -194,7 +194,14 @@ function _getlookup(lookup::EpiLookup, id::Int64)
     return lookup.homelookup[id, :], lookup.worklookup[id, :]
 end
 
-function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size)
+function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size::AbstractArray{T, 3}) where T
+  M = dropdims(sum(Float64.(pop_size), dims=3), dims=3)
+  return genlookups(epienv, mov, M)
+end
+function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size::AbstractArray{T, 2}) where T
+  return genlookups(epienv, mov, pop_size[1:end])
+end
+function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size::Vector{T}) where T
     total_size = (size(epienv.active, 1) * size(epienv.active, 2))
     # Column access so Js should be source grid cells
     Js = Int32.(mov.home_to_work[!, :from])
@@ -227,7 +234,7 @@ function genlookups(epienv::GridEpiEnv, mov::AlwaysMovement)
     grid_size /= unit(grid_size)
 
     # Calculate lookup probabilities for each grid location
-    res = map((i, r, t) -> EcoSISTEM.genlookups(i, grid_locs, xys, grid_size, r, t, epienv), grid_locs, relsize, thresh)
+    res = map((i, r, t) -> genlookups(i, grid_locs, xys, grid_size, r, t, epienv), grid_locs, relsize, thresh)
 
     # Column vectors are source grid cells (repeated for each destination calculated)
     Js = vcat([fill(grid_locs[r], length(res[r][1])) for r in eachindex(res)]...)
