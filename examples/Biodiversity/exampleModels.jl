@@ -9,7 +9,6 @@ using OnlineStats
 using Plots
 using Distributions
 using Diversity
-plotlyjs()
 
 ## DIFFERENT OPTS ##
 
@@ -57,7 +56,7 @@ eco = Ecosystem(sppl, abenv, rel)
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
 
-simulate!(eco, times, timestep)
+biodiversity_simulate!(eco, times, timestep)
 endabun = eco.abundances.matrix
 temps = map(eachindex(opts)) do i
     repeat([opts[i]], endabun[i])
@@ -120,7 +119,7 @@ eco = Ecosystem(sppl, abenv, rel)
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
 
-simulate!(eco, times, timestep)
+biodiversity_simulate!(eco, times, timestep)
 endabun = eco.abundances.matrix
 widths = map(eachindex(vars)) do i
     repeat([vars[i]], endabun[i])
@@ -181,7 +180,7 @@ eco = Ecosystem(sppl, abenv, rel)
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
 
-simulate!(eco, times, timestep)
+biodiversity_simulate!(eco, times, timestep)
 endabun = eco.abundances.matrix
 widths = map(eachindex(vars)) do i
     repeat([vars[i]], endabun[i])
@@ -253,7 +252,7 @@ eco = Ecosystem(sppl, abenv, rel)
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
 
-simulate!(eco, times, timestep)
+biodiversity_simulate!(eco, times, timestep)
 endabun = sum(eco.abundances.matrix, dims = 1)
 endabun = reshape(endabun, 10, 10)
 
@@ -310,7 +309,7 @@ for i in eachindex(grids)
         movement, param, native)
     rel = Gauss{typeof(first(opts))}()
     eco = Ecosystem(sppl, abenv, rel)
-    simulate!(eco, times, timestep)
+    biodiversity_simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
 
@@ -366,7 +365,7 @@ for i in eachindex(areas)
         movement, param, native)
     rel = Gauss{typeof(first(opts))}()
     eco = Ecosystem(sppl, abenv, rel)
-    simulate!(eco, times, timestep)
+    biodiversity_simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
 
@@ -423,7 +422,7 @@ for r in 1:reps
             movement, param, native)
         rel = Gauss{typeof(first(opts))}()
         eco = Ecosystem(sppl, abenv, rel)
-        simulate!(eco, times, timestep)
+        biodiversity_simulate!(eco, times, timestep)
         SR[i, r] = sum(sum(eco.abundances.matrix, dims = 2) .> 0)
         print(".")
     end
@@ -485,7 +484,7 @@ for i in eachindex(distances)
     eco = Ecosystem(sppl, abenv, rel)
     eco.abundances.grid[1, :, 1] .= 100.0
     eco.abundances.grid[2, :, 10] .= 100.0
-    simulate!(eco, times, timestep)
+    biodiversity_simulate!(eco, times, timestep)
     endabuns[:, :, i] = sum(eco.abundances.matrix, dims = 1)
 end
 
