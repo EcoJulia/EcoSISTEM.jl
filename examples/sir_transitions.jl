@@ -105,8 +105,8 @@ abuns = zeros(Int64, numSpecies, prod(grid), lensim)
 using BenchmarkTools
 epi = Episystem(sppl, abenv, rel)
 @benchmark simulate!(epi, burnin, timestep)
-epi = Episystem(sppl, abenv, rel)
-@benchmark wpi_simulate!(epi, burnin, timestep)
+epi = Ecosystem(sppl, abenv, rel)
+@benchmark epi_simulate!(epi, burnin, timestep)
 
 using Plots
 @gif for i in 1:lensim
