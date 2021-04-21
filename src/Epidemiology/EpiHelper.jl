@@ -6,8 +6,8 @@ using EcoSISTEM.Units
 
 import HDF5: ishdf5
 """
-    simulate!(
-        epi::AbstractEcosystem,
+    epi_simulate!(
+        epi::Ecosystem,
         duration::Unitful.Time,
         timestep::Unitful.Time;
         save=false,
@@ -19,7 +19,7 @@ particular timestep, `timestep`. If `save=true`, inputs and outputs are saved as
 at `save_path`.
 """
 function epi_simulate!(
-    epi::AbstractEcosystem,
+    epi::Ecosystem,
     duration::Unitful.Time,
     timestep::Unitful.Time;
     save=false,
@@ -47,7 +47,7 @@ function epi_simulate!(
 end
 
 """
-    simulate_record!(
+    epi_simulate!(
         storage::AbstractArray,
         epi::Ecosystem,
         times::Unitful.Time,

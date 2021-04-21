@@ -6,18 +6,19 @@ import Diversity.Gamma
 using Compat
 
 """
-    simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
+    biodiversity_simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
          timestep::Unitful.Time)
 
 Function to run an ecosystem, `eco` for specified length of times, `duration`,
 for a particular timestep, 'timestep'.
 """
-function biodiversity_simulate!(eco::AbstractEcosystem, duration::Unitful.Time, timestep::Unitful.Time)
+function biodiversity_simulate!(eco::Ecosystem, duration::Unitful.Time, timestep::Unitful.Time)
   times = length(0s:timestep:duration)
   for i in 1:times
     biodiversity_update!(eco, timestep)
   end
 end
+
 function biodiversity_simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.Time)
   eco = Ecosystem{typeof(cache.abenv), typeof(cache.spplist),
   typeof(cache.relationship)}(copy(cache.abundances.matrix[srt]),
@@ -38,7 +39,7 @@ function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
 end
 
 """
-    simulate_record!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
+    biodiversity_simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
          timestep::Unitful.Time)
 
 Function to run an ecosystem, `eco` for specified length of times, `duration`,
@@ -83,7 +84,7 @@ function biodiversity_simulate_record!(storage::AbstractArray, eco::Ecosystem,
 end
 
 """
-    simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+    biodiversity_simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
       times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
       scenario::SimpleScenario, divfun::Function, qs::Float64)
 
