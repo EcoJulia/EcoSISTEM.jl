@@ -6,8 +6,8 @@ using EcoSISTEM.Units
 
 import HDF5: ishdf5
 """
-    simulate!(
-        epi::AbstractEcosystem,
+    epi_simulate!(
+        epi::Ecosystem,
         duration::Unitful.Time,
         timestep::Unitful.Time;
         save=false,
@@ -47,7 +47,7 @@ function epi_simulate!(
 end
 
 """
-    simulate_record!(
+    epi_simulate!(
         storage::AbstractArray,
         epi::Ecosystem,
         times::Unitful.Time,
@@ -64,7 +64,7 @@ whole ecosystem is updated, such as removal of habitat patches.
 """
 function epi_simulate_record!(
     storage::AbstractArray,
-    epi::Ecosystem,
+    epi::AbstractEcosystem,
     times::Unitful.Time,
     interval::Unitful.Time,
     timestep::Unitful.Time;

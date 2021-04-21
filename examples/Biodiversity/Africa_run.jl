@@ -8,7 +8,7 @@ using Unitful.DefaultSymbols
 using Distances
 using StatsBase
 using Plots
-file = "../Chapter5/data/Africa.tif"
+file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
 
@@ -171,7 +171,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using JLD
 using Printf
-file = "Documents/Chapter5/data/Africa.tif"
+file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
@@ -218,26 +218,13 @@ rel = Gauss{typeof(1.0K)}()
 eco = Ecosystem(sppl, abenv, rel)
 eco.abundances.matrix[50_000, :] .= 0
 
-import EcoSISTEM.simulate!
-function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
-  time_seq = 0s:timestep:times
-  counting = 0
-  for i in 1:length(time_seq)
-      update!(eco, timestep);
-      # Save cache of abundances
-      if mod(time_seq[i], cacheInterval) == 0year
-          JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
-      end
-  end
-end
-
 # Simulation Parameters
 burnin = 100years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
-@time simulate!(eco, times, timestep, record_interval, "sdc/Africa/specialist", "Africa_run");
+@time biodiversity_simulate!(eco, times, timestep, record_interval, "sdc/Africa/specialist", "Africa_run");
 
 
 #### 50,000 SPECIES COEXISTING #####
@@ -250,7 +237,7 @@ using Unitful.DefaultSymbols
 using JLD
 using Printf
 
-file = "Documents/Chapter5/data/Africa.tif"
+file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
@@ -295,24 +282,12 @@ rel = Gauss{typeof(1.0K)}()
 #Create ecosystem
 eco = Ecosystem(sppl, abenv, rel)
 
-import EcoSISTEM.simulate!
-function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
-  time_seq = 0s:timestep:times
-  counting = 0
-  for i in 1:length(time_seq)
-      update!(eco, timestep);
-      # Save cache of abundances
-      if mod(time_seq[i], cacheInterval) == 0year
-          JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
-      end
-  end
-end
 
 # Simulation Parameters
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
-@time simulate!(eco, burnin, timestep)
-@time simulate!(eco, times, timestep, record_interval, "sdc/Africa", "Africa_run_coexist");
+@time biodiversity_simulate!(eco, burnin, timestep)
+@time biodiversity_simulate!(eco, times, timestep, record_interval, "sdc/Africa", "Africa_run_coexist");
 
 using JLD
 using Plots

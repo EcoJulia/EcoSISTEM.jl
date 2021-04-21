@@ -100,7 +100,22 @@ abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
 @time simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns, category_map = category_map)
 
-transitions = Simulation.create_transition_list_SEIR(epilist, epienv)
+# Compare to non environmental exposure
+transitions = create_transition_list()#
+addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
+for loc in eachindex(epienv.habitat.matrix)
+    addtransition!(transitions, ViralLoad(loc, param.virus_decay))
+    for age in 1:ages
+        addtransition!(transitions, ForceProduce(cat_idx[age, 3], loc, param.virus_growth[age]))
+        addtransition!(transitions, ForceDisperse(cat_idx[age, 3], loc))
+        addtransition!(transitions, Exposure(transitiondat[1, :from_id][age], loc,
+            transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age]))
+        addtransition!(transitions, Infection(transitiondat[2, :from_id][age], loc,
+            transitiondat[2, :to_id][age], transitiondat[2, :prob][age]))
+        addtransition!(transitions, Recovery(transitiondat[3, :from_id][age], loc,
+            transitiondat[3, :to_id][age], transitiondat[3, :prob][age]))
+    end
+end
 epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 
 # Run simulation

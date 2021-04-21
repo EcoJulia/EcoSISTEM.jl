@@ -106,7 +106,7 @@ end
 
 """
     function simulate!(
-        eco::AbstractEcosystem,
+        eco::Ecosystem,
         duration::Unitful.Time,
         timestep::Unitful.Time;
         save=false,
@@ -118,7 +118,7 @@ particular timestep, `timestep`. If `save=true`, inputs and outputs are saved as
 at `save_path`.
 """
 function simulate!(
-    eco::AbstractEcosystem,
+    eco::Ecosystem,
     duration::Unitful.Time,
     timestep::Unitful.Time;
     save=false,

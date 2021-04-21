@@ -69,7 +69,7 @@ eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 times = 100years; timestep = 1month; record_interval = 1month; repeats = 1
 lensim = length(0years:record_interval:times)
 abuns = zeros(Int64, numSpecies, prod(grid), lensim)
-@time simulate_record!(abuns, eco, times, record_interval, timestep);
+@time biodiversity_simulate_record!(abuns, eco, times, record_interval, timestep);
 
 abuns = reshape(abuns[1, :, :, 1], grid[1], grid[2], lensim)
 
@@ -131,10 +131,10 @@ for i in eachindex(specialist_vars)
     # EcoSISTEM Parameters
     burnin = 100years; times = 100years; timestep = 1month; record_interval = 1month; repeats = 1
     lensim = length(0years:record_interval:times)
-    simulate!(eco, burnin,timestep)
+    biodiversity_simulate!(eco, burnin,timestep)
     eco.abundances.grid[2, rand_start[1], rand_start[2]] = 100
     abuns = zeros(Int64, numSpecies, prod(grid), lensim)
-    @time simulate_record!(abuns, eco, times, record_interval, timestep);
+    @time biodiversity_simulate_record!(abuns, eco, times, record_interval, timestep);
 
     abuns = reshape(abuns[:, :, :, 1], numSpecies, grid[1], grid[2], lensim)
     origin = [rand_start[1], rand_start[2]]
@@ -209,26 +209,14 @@ rel = Gauss{typeof(1.0K)}()
 eco = Ecosystem(sppl, abenv, rel)
 eco.abundances.matrix[50_000, :] .= 0
 
-import EcoSISTEM.simulate!
-function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
-  time_seq = 0s:timestep:times
-  counting = 0
-  for i in 1:length(time_seq)
-      update!(eco, timestep);
-      # Save cache of abundances
-      if mod(time_seq[i], cacheInterval) == 0year
-          JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
-      end
-  end
-end
 
 # EcoSISTEM Parameters
 burnin = 100years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
-@time simulate!(eco, burnin, timestep)
+@time biodiversity_simulate!(eco, burnin, timestep)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
-@time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run");
+@time biodiversity_simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run");
 ```
 
 #### 50,000 SPECIES COEXISTING #####
@@ -290,8 +278,8 @@ eco = Ecosystem(sppl, abenv, rel)
 # EcoSISTEM Parameters
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
-@time simulate!(eco, burnin, timestep)
-@time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run_coexist");
+@time biodiversity_simulate!(eco, burnin, timestep)
+@time biodiversity_simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run_coexist");
 
 using JLD
 using Plots
