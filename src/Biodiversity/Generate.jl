@@ -40,7 +40,7 @@ biodiversity_update!(eco::AbstractEcosystem, timestep::Unitful.Time) =
     update!(eco, timestep, Val{Threads.nthreads()}())
 
 """
-    update!(eco::Ecosystem, time::Unitful.Time)
+    biodiversity_update!(eco::Ecosystem, time::Unitful.Time)
 Function to update a ecosystem abundances and environment for one timestep.
 """
 function biodiversity_update!(eco::Ecosystem, timestep::Unitful.Time)
