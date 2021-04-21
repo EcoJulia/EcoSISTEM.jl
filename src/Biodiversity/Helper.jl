@@ -2,6 +2,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Diversity
 using EcoSISTEM.Units
+using Printf
 import Diversity.Gamma
 using Compat
 
@@ -16,6 +17,17 @@ function biodiversity_simulate!(eco::Ecosystem, duration::Unitful.Time, timestep
   times = length(0s:timestep:duration)
   for i in 1:times
     biodiversity_update!(eco, timestep)
+  end
+end
+function biodiversity_simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
+  time_seq = 0s:timestep:times
+  counting = 0
+  for i in 1:length(time_seq)
+      update!(eco, timestep);
+      # Save cache of abundances
+      if mod(time_seq[i], cacheInterval) == 0year
+          JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
+      end
   end
 end
 

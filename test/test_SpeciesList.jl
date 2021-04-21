@@ -42,6 +42,12 @@ using Diversity
 
     sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
                            movement, param, native)
+   # Test species types
+   @test counttypes(sppl) == 4
+   # Test pathogen types
+   @test EcoSISTEM._counttypes(sppl.pathogens, true) == 0
+
+   # Create new species list and test names
     species = SpeciesTypes{typeof(sppl.species.traits), typeof(sppl.species.requirement),
     typeof(sppl.species.movement), typeof(sppl.species.types)}(sppl.species.traits, sppl.species.abun,
     sppl.species.requirement, sppl.species.types, sppl.species.movement, sppl.species.native)
