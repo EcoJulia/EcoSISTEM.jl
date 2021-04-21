@@ -120,7 +120,7 @@ human(epi.abundances)[2, 1] = new_exposed
 # Run simulation
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
 times = 1year; interval = 1day; timestep = 1day
-@time epi_simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "high_trans"))
+@time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "high_trans"))
 
 
 # Test everyone becomes infected and dies
@@ -160,7 +160,7 @@ human(epi.abundances)[2, 1] = new_exposed
 # Run simulation
 times = 1year; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), div(times, interval) + 1)
-@time epi_simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "low_trans"))
+@time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "low_trans"))
 
 
 # Find correct indices in arrays

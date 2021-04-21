@@ -69,7 +69,7 @@ for i in eachindex(grid_sizes)
     times = 2years; interval = 1day; timestep = 1day
     abuns[i] = zeros(Int64, numclasses, prod(grid), div(times, interval) + 1)
     thisabun = abuns[i]
-    @time epi_simulate_record!(thisabun, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "grid_size_$(grid_sizes[i])"))
+    @time simulate_record!(thisabun, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "grid_size_$(grid_sizes[i])"))
 
     # Test no-one dies (death rate = 0)
     @test sum(thisabun[end, :, :]) == 0

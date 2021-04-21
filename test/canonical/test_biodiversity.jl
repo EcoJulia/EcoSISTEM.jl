@@ -52,7 +52,7 @@ eco = Ecosystem(sppl, abenv, rel)
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
 
-biodiversity_simulate!(eco, times, timestep)
+simulate!(eco, times, timestep)
 endabun = eco.abundances.matrix
 temps = map(eachindex(opts)) do i
     repeat([opts[i]], endabun[i])
@@ -113,7 +113,7 @@ eco = Ecosystem(sppl, abenv, rel)
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
 
-biodiversity_simulate!(eco, times, timestep)
+simulate!(eco, times, timestep)
 endabun = eco.abundances.matrix
 widths = map(eachindex(vars)) do i
     repeat([vars[i]], endabun[i])
@@ -171,7 +171,7 @@ eco = Ecosystem(sppl, abenv, rel)
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
 
-biodiversity_simulate!(eco, times, timestep)
+simulate!(eco, times, timestep)
 endabun = eco.abundances.matrix
 widths = map(eachindex(vars)) do i
     repeat([vars[i]], endabun[i])
@@ -241,7 +241,7 @@ eco = Ecosystem(sppl, abenv, rel)
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
 
-biodiversity_simulate!(eco, times, timestep)
+simulate!(eco, times, timestep)
 endabun = sum(eco.abundances.matrix, dims = 1)
 endabun = reshape(endabun, 10, 10)
 
@@ -294,7 +294,7 @@ for i in eachindex(grids)
         movement, param, native)
     local rel = Gauss{typeof(first(opts))}()
     local eco = Ecosystem(sppl, abenv, rel)
-    biodiversity_simulate!(eco, times, timestep)
+    simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
 
@@ -346,7 +346,7 @@ for i in eachindex(areas)
         movement, param, native)
     local rel = Gauss{typeof(first(opts))}()
     local eco = Ecosystem(sppl, abenv, rel)
-    biodiversity_simulate!(eco, times, timestep)
+    simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
 # Test larger areas can support more individuals
@@ -397,7 +397,7 @@ for i in eachindex(species)
         movement, param, native)
     local rel = Gauss{typeof(first(opts))}()
     local eco = Ecosystem(sppl, abenv, rel)
-    biodiversity_simulate!(eco, times, timestep)
+    simulate!(eco, times, timestep)
     SR[i] = sum(sum(eco.abundances.matrix, dims = 2) .> 0)
 end
 
@@ -451,7 +451,7 @@ for i in eachindex(distances)
     local eco = Ecosystem(sppl, abenv, rel)
     eco.abundances.grid[1, :, 1] .= 100.0
     eco.abundances.grid[2, :, 10] .= 100.0
-    biodiversity_simulate!(eco, times, timestep)
+    simulate!(eco, times, timestep)
     endabuns[:, :, i] = sum(eco.abundances.matrix, dims = 1)
 end
 

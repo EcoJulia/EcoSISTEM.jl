@@ -101,6 +101,10 @@ end
 #     end
 # end
 
+function gettransitions(eco::MPIEcosystem)
+    return nothing
+end
+
 import Diversity.API: _getabundance
 function _getabundance(eco::MPIEcosystem, raw::Bool)
     if raw

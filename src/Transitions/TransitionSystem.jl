@@ -152,12 +152,12 @@ mutable struct Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <
   relationship::TR
   lookup::LU
   cache::C
-  transitions::Union{Missing, TransitionList}
+  transitions::Union{Nothing, TransitionList}
 end
 
 """
    Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship; transitions::Union{Missing, TransitionList} = missing)
+   rel::AbstractTraitRelationship; transitions::Union{Nothing, TransitionList} = nothing)
    where {F<:Function, T, Req}
 
 Function to create an `Ecosystem` with species from a `SpeciesList`, environment from
@@ -165,7 +165,7 @@ Function to create an `Ecosystem` with species from a `SpeciesList`, environment
  a list of `transitions`. The `Ecosystem` can be populated with a `popfun.`
 """
 function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship; transitions::Union{Missing, TransitionList} = missing) where {F<:Function, T, Req}
+   rel::AbstractTraitRelationship; transitions::Union{Nothing, TransitionList} = nothing) where {F<:Function, T, Req}
 
     # Create matrix landscape of zero abundances
   ml = emptygridlandscape(abenv, spplist)
@@ -180,7 +180,7 @@ end
 
 """
    Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv, rel::AbstractTraitRelationship;
-   transitions::Union{Missing, TransitionList} = missing)
+   transitions::Union{Nothing, TransitionList} = nothing)
 
 Function to create an `Ecosystem` with species from a `SpeciesList`, environment from
  a `GridAbioticEnvironment`, an `AbstractTraitRelationship` between the two, and
@@ -188,14 +188,14 @@ Function to create an `Ecosystem` with species from a `SpeciesList`, environment
  from the start abundances in `spplist`.
 """
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship; transitions::Union{Missing, TransitionList} = missing)
+   rel::AbstractTraitRelationship; transitions::Union{Nothing, TransitionList} = nothing)
    return Ecosystem(populate!, spplist, abenv, rel, transitions = transitions)
 end
 
 """
    Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv::EE,
        ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup,
-       vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Missing, TransitionList}
+       vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Nothing, TransitionList}
        ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
        EE <: AbstractEpiEnv, EL <: SpeciesList, ER <: AbstractTraitRelationship}
 
@@ -207,7 +207,7 @@ Function to create an `Ecosystem` with epi categories from a `SpeciesList`, envi
 """
 function Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv::EE,
     ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup,
-    vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Missing, TransitionList}
+    vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Nothing, TransitionList}
     ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
     EE <: AbstractEpiEnv, EL <: SpeciesList, ER <: AbstractTraitRelationship}
   total_pop = sum(abundances.matrix, dims = 1)[1, :]
@@ -221,7 +221,7 @@ end
    Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
          rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
          rngtype::Type{R} = Random.MersenneTwister,
-         transitions = missing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
+         transitions = nothing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
 
 Function to create an `Ecosystem` with epi categories from a `SpeciesList`, environment from
  a `GridEpiEnv`, an `AbstractTraitRelationship` between the two,
@@ -232,7 +232,7 @@ Function to create an `Ecosystem` with epi categories from a `SpeciesList`, envi
 function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
       rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
       rngtype::Type{R} = Random.MersenneTwister,
-      transitions = missing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
+      transitions = nothing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
 
   # Create matrix landscape of zero abundances
   ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
@@ -251,7 +251,7 @@ end
 """
    Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
            intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister,
-           transitions = missing
+           transitions = nothing
            ) where {U <: Integer, R <: Random.AbstractRNG}
 
 Function to create an `Ecosystem` with epi categories from a `SpeciesList`, environment from
@@ -263,7 +263,7 @@ from the start abundances in `spplist`.
 """
 function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister,
-        transitions = missing
+        transitions = nothing
         ) where {U <: Integer, R <: Random.AbstractRNG}
     return Ecosystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype, transitions = transitions)
 end
@@ -272,7 +272,7 @@ end
    Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
            initial_population::A, intnum::U = Int64(1); initial_infected = 0,
            rngtype::Type{R} = Random.MersenneTwister,
-           transitions = missing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
+           transitions = nothing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
 
 Function to create an `Ecosystem` with epi categories from a `SpeciesList`, environment from
  a `GridEpiEnv`, an `AbstractTraitRelationship` between the two,
@@ -284,7 +284,7 @@ from the start abundances in `spplist`.
 function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         initial_population::A, intnum::U = Int64(1); initial_infected = 0,
         rngtype::Type{R} = Random.MersenneTwister,
-        transitions = missing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
+        transitions = nothing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
     if size(initial_population) != size(epienv.active)
         msg = "size(initial_population)==$(size(initial_population)) != " *
             "size(epienv.active)==$(size(epienv.active))"

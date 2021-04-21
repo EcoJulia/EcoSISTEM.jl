@@ -36,9 +36,6 @@ function get_neighbours(mat::Matrix, x_coord::Array{Int64,1},
       return vcat(neighbours...)
 end
 
-biodiversity_update!(eco::AbstractEcosystem, timestep::Unitful.Time) =
-    update!(eco, timestep, Val{Threads.nthreads()}())
-
 """
     biodiversity_update!(eco::Ecosystem, time::Unitful.Time)
 Function to update a ecosystem abundances and environment for one timestep.

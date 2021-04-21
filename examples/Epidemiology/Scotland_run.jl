@@ -211,7 +211,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     # Run simulation
     abuns = zeros(UInt32, size(epi.abundances.matrix, 1), N_cells, floor(Int, times/timestep) + 1)
-    @time epi_simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
+    @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
 
     # Write to pipeline
     #write_array(api, "simulation-outputs", "final-abundances", DataPipelineArray(abuns))

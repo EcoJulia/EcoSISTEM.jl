@@ -69,7 +69,7 @@ eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 times = 100years; timestep = 1month; record_interval = 1month; repeats = 1
 lensim = length(0years:record_interval:times)
 abuns = zeros(Int64, numSpecies, prod(grid), lensim)
-@time biodiversity_simulate_record!(abuns, eco, times, record_interval, timestep);
+@time simulate_record!(abuns, eco, times, record_interval, timestep);
 
 abuns = reshape(abuns[1, :, :, 1], grid[1], grid[2], lensim)
 
@@ -131,10 +131,10 @@ for i in eachindex(specialist_vars)
     # EcoSISTEM Parameters
     burnin = 100years; times = 100years; timestep = 1month; record_interval = 1month; repeats = 1
     lensim = length(0years:record_interval:times)
-    biodiversity_simulate!(eco, burnin,timestep)
+    simulate!(eco, burnin,timestep)
     eco.abundances.grid[2, rand_start[1], rand_start[2]] = 100
     abuns = zeros(Int64, numSpecies, prod(grid), lensim)
-    @time biodiversity_simulate_record!(abuns, eco, times, record_interval, timestep);
+    @time simulate_record!(abuns, eco, times, record_interval, timestep);
 
     abuns = reshape(abuns[:, :, :, 1], numSpecies, grid[1], grid[2], lensim)
     origin = [rand_start[1], rand_start[2]]
@@ -213,10 +213,10 @@ eco.abundances.matrix[50_000, :] .= 0
 # EcoSISTEM Parameters
 burnin = 100years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
-@time biodiversity_simulate!(eco, burnin, timestep)
+@time simulate!(eco, burnin, timestep)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
-@time biodiversity_simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run");
+@time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run");
 ```
 
 #### 50,000 SPECIES COEXISTING #####
@@ -278,8 +278,8 @@ eco = Ecosystem(sppl, abenv, rel)
 # EcoSISTEM Parameters
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
-@time biodiversity_simulate!(eco, burnin, timestep)
-@time biodiversity_simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run_coexist");
+@time simulate!(eco, burnin, timestep)
+@time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run_coexist");
 
 using JLD
 using Plots

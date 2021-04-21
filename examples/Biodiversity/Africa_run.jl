@@ -224,7 +224,7 @@ lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
-@time biodiversity_simulate!(eco, times, timestep, record_interval, "sdc/Africa/specialist", "Africa_run");
+@time simulate!(eco, times, timestep, record_interval, "sdc/Africa/specialist", "Africa_run");
 
 
 #### 50,000 SPECIES COEXISTING #####
@@ -286,8 +286,8 @@ eco = Ecosystem(sppl, abenv, rel)
 # Simulation Parameters
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
-@time biodiversity_simulate!(eco, burnin, timestep)
-@time biodiversity_simulate!(eco, times, timestep, record_interval, "sdc/Africa", "Africa_run_coexist");
+@time simulate!(eco, burnin, timestep)
+@time simulate!(eco, times, timestep, record_interval, "sdc/Africa", "Africa_run_coexist");
 
 using JLD
 using Plots

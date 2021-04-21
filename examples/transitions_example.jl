@@ -71,15 +71,15 @@ using Plots
 end
 
 # Run older biodiversity code for comparison
-@time biodiversity_simulate!(eco, burnin, timestep);
-@time biodiversity_simulate_record!(abuns, eco, times, record_interval, timestep);
+@time simulate!(eco, burnin, timestep);
+@time simulate_record!(abuns, eco, times, record_interval, timestep);
 
 # Benchmark
 using BenchmarkTools
 eco = Ecosystem(sppl, abenv, rel);
 @benchmark simulate!(eco, burnin, timestep)
 eco = Ecosystem(sppl, abenv, rel);
-@benchmark biodiversity_simulate!(eco, burnin, timestep)
+@benchmark simulate!(eco, burnin, timestep)
 
 using ProfileView
 eco = Ecosystem(sppl, abenv, rel)

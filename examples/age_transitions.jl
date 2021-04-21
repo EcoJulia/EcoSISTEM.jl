@@ -99,5 +99,5 @@ epi = EpiSystem(epilist, epienv, rel)
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
-@time epi_simulate_record!(abuns, epi, times, interval, timestep);
+@time simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns, category_map = category_map)

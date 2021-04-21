@@ -1,5 +1,9 @@
 using MPI
 
+function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: MPIGridLandscape
+    biodiversity_update!(eco, timestep)
+end
+
 """
     update!(eco::MPIEcosystem, timestep::Unitful.Time) where N
 Function to update an MPIEcosystem abundances and environment for one timestep.

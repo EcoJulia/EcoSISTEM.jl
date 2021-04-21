@@ -1,4 +1,16 @@
 """
+    gettransitions(eco::AbstractEcosystem)
+
+Function to extract the transition list from an arbitrary ecosystem.
+"""
+function gettransitions(eco::AbstractEcosystem)
+    return eco.transitions
+end
+function gettransitions(eco::CachedEcosystem)
+    return nothing
+end
+
+"""
     gettraitrel(eco::Ecosystem)
 
 Function to extract trait relationships.

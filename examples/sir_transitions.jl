@@ -90,7 +90,7 @@ epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 # Run simulation
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
-@time epi_simulate_record!(abuns, epi, times, interval, timestep);
+@time simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns)
 
 # Simulation Parameters
@@ -106,7 +106,7 @@ using BenchmarkTools
 epi = Episystem(sppl, abenv, rel)
 @benchmark simulate!(epi, burnin, timestep)
 epi = Ecosystem(sppl, abenv, rel)
-@benchmark epi_simulate!(epi, burnin, timestep)
+@benchmark simulate!(epi, burnin, timestep)
 
 using Plots
 @gif for i in 1:lensim

@@ -74,7 +74,7 @@ for i in eachindex(age_cats)
     times = 2years; interval = 1day; timestep = 1day
     abuns[i] = zeros(Int64, numstates, prod(grid), div(times, interval) + 1)
     thisabun = abuns[i]
-    @time epi_simulate_record!(thisabun, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "age_cats_$(age_cats[i])"))
+    @time simulate_record!(thisabun, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "age_cats_$(age_cats[i])"))
 
     # Test no-one dies (death rate = 0)
     @test sum(thisabun[end, :, :]) == 0
