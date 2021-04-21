@@ -4,7 +4,7 @@ using MPI
     update!(eco::MPIEcosystem, timestep::Unitful.Time) where N
 Function to update an MPIEcosystem abundances and environment for one timestep.
 """
-function update!(eco::MPIEcosystem, timestep::Unitful.Time)
+function biodiversity_update!(eco::MPIEcosystem, timestep::Unitful.Time)
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
 
