@@ -87,6 +87,7 @@ mutable struct NoPathogen <: AbstractPathogenTypes end
 function _counttypes(virus::NoPathogen, input::Bool)
     return 0
 end
+
 """
     SpeciesList{R <: AbstractRequirement,
       MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,
@@ -258,6 +259,10 @@ function _getspeciestraits(sppl::SpeciesList)
 end
 function _getpathogentraits(sppl::SpeciesList)
     return sppl.pathogens.traits
+end
+
+function _getpathogentraits(sppl::SpeciesList{A, B, C}) where {A, B <: NoPathogen, C}
+    return error("No pathogens in this SpeciesList")
 end
 
 function _simmatch(sim::SpeciesList)

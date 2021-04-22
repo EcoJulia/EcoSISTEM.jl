@@ -30,8 +30,8 @@ using EcoSISTEM.Units
     @test EcoSISTEM.getdispersalvar(mov, 1) == (mov.kernels[1].dist)^2 * pi / 4
     mov =  NoMovement(kernel)
     @test EcoSISTEM.getkernels(mov) == mov.kernels
-    @test EcoSISTEM.getdispersaldist(mov, 1) == "No movement takes place"
-    @test EcoSISTEM.getdispersalvar(mov, 1) == "No movement takes place"
+    @test_throws ErrorException EcoSISTEM.getdispersaldist(mov, 1)
+    @test_throws ErrorException EcoSISTEM.getdispersalvar(mov, 1)
     kernel = LongTailKernel.(fill(0.2m, numSpecies), 1.0, 10e-4)
     mov = AlwaysMovement(kernel, NoBoundary())
     @test EcoSISTEM.getkernels(mov) == mov.kernels
