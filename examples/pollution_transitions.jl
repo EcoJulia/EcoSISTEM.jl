@@ -20,6 +20,9 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     scotpop = get_3d_km_grid_axis_array(db, ["grid_area", "age_aggr"], "val", "scottish_population_view")
     scotpop = shrink_to_active(scotpop)
 
+    DataRegistryUtils.load_array!(db, "records/pollution", "/array"; sql_alias="records_pollution_array_arr")
+    pollution = get_3d_km_grid_axis_array(db, ["grid_x", "grid_y"], "val", "pollution_grid_view", 1.0μg * m^-3)
+    pollution = pollution[531500m .. 1215000m, 54500m .. 465000m]
     # Read number of age categories
     age_categories = size(scotpop, 3)
 
@@ -167,7 +170,10 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
     total_pop[total_pop .≈ 0.0] .= NaN
-    epienv = simplehabitatAE(298.0K, size(total_pop), area, Lockdown(20days))
+
+    epienv_1 = simplehabitatAE(298.0K, size(total_pop), area, Lockdown(20days))
+    epienv_2 = ukclimateAE(pollution, area, Lockdown(20days))
+    epienv = HabitatCollection2(epienv_1, epienv_2)
 
     movement_balance = (home = fill(0.5, numclasses * age_categories), work = fill(0.5, numclasses * age_categories))
 
@@ -189,7 +195,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
     epilist = SpeciesList(traits, abun_v, abun_h, movement, transitiondat, param, age_categories, movement_balance)
-    rel = Gauss{eltype(epienv.habitat)}()
+    rel = Gauss{eltype(epienv.h1.habitat)}()
 
     transitions = create_transition_list()
     addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
@@ -211,8 +217,9 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
             addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 4], loc))
             addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 5], loc))
             # Exposure
-            addtransition!(epi.transitions, Exposure(transitiondat[1, :from_id][age], loc,
-                transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age]))
+            addtransition!(epi.transitions, EnvExposure(transitiondat[1, :from_id][age], loc,
+                transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age],
+                1.0, x -> x.matrix))
             # Infected but asymptomatic
             addtransition!(epi.transitions, Infection(transitiondat[2, :from_id][age], loc,
                 transitiondat[2, :to_id][age], transitiondat[2, :prob][age]))
@@ -243,13 +250,19 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
         end
     end
 
-    N_cells = size(epi.abundances.matrix, 2)
+    # Store BNG names in abenv
+    norths = ustrip.(AxisArrays.axes(scotpop)[1].val)
+    easts = ustrip.(AxisArrays.axes(scotpop)[2].val)
+    n_e = collect(Base.product(norths, easts))[1:end]
+    epi.abenv.names = [get_bng(n[2], n[1]) for n in n_e]
 
     # Turn off work moves for <20s and >70s
     epi.spplist.species.home_balance[cat_idx[1:2, :]] .= 1.0
     epi.spplist.species.home_balance[cat_idx[7:10, :]] .= 1.0
     epi.spplist.species.work_balance[cat_idx[1:2, :]] .= 0.0
     epi.spplist.species.work_balance[cat_idx[7:10, :]] .= 0.0
+
+    N_cells = size(epi.abundances.matrix, 2)
 
     # Run simulation
     abuns = zeros(UInt32, size(epi.abundances.matrix, 1), N_cells, floor(Int, times/timestep) + 1)
@@ -271,7 +284,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
             "Deaths" => cat_idx[:, 8],
         )
         display(plot_epidynamics(epi, abuns, category_map = category_map))
-        display(plot_epiheatmaps(epi, abuns, steps = [30]))
+        display(plot_epiheatmaps(epi, abuns, steps = [30], match_dimensions = false))
     end
     return abuns
 end
@@ -283,8 +296,3 @@ db = initialise_local_registry(data_dir, data_config = config, sql_file = view_s
 
 times = 1month; interval = 1day; timestep = 1day
 run_model(db, times, interval, timestep, do_plot = true)
-
-#
-# pollution = parse_pollution(api)
-# pollution = pollution[5513m .. 470513m, 531500m .. 1221500m, "pm2-5"]
-# ukclimateAE(pollution, size(total_pop), area, fill(true, total_pop), Lockdown(20days))

@@ -121,12 +121,34 @@ else one is created with all grid cells active.
     The simulation grid will be shrunk so that it tightly wraps the active values
 """
 function ukclimateAE(
-    climatearray::AxisArray,
+    climatearray::AxisArray{T, 2},
     dimension::Tuple{Int64, Int64},
     area::Unitful.Area{Float64},
     active::AbstractMatrix{Bool},
     control::C,
-) where C <: AbstractControl
+) where {C <: AbstractControl, T}
+    if typeof(first(climatearray)) <: Unitful.Temperature
+        climatearray .= uconvert.(K, climatearray)
+    end
+    area = uconvert(km^2, area)
+    gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
+
+    # Shrink to active region
+    # This doesn't change the gridsquaresize
+    climatearray = _shrink_to_active(climatearray, active)
+    active = _shrink_to_active(active, active)
+
+    hab = ContinuousHab(Array(climatearray), gridsquaresize, HabitatUpdate(ukChange, 0.0/s, Unitful.Dimensions{()}))
+    return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control)
+end
+
+function ukclimateAE(
+    climatearray::AxisArray{T, 3},
+    dimension::Tuple{Int64, Int64},
+    area::Unitful.Area{Float64},
+    active::AbstractMatrix{Bool},
+    control::C,
+) where {C <: AbstractControl, T}
     if typeof(first(climatearray)) <: Unitful.Temperature
         climatearray .= uconvert.(K, climatearray)
     end

@@ -54,16 +54,26 @@ function get_en(bng_names::Vector{String})
     norths = [ens[i][2] for i in eachindex(ens)]
     return easts, norths
 end
-function get_bng(east_north::Tuple{Int64, Int64}, ref::Int64)
-    pnt = BNGPoint(east_north[1], east_north[2])
+function get_bng(east::Real, north::Real, ref::Int64 = 4)
+    pnt = BNGPoint(east, north)
     return gridref(pnt, ref, true)
 end
-function create_BNG_grid(east::Vector{Int64}, north::Vector{Int64}, vals::Array{Float64, 1}, ages::Vector{Int64})
+
+function create_BNG_grid(east::Vector{Int64}, north::Vector{Int64}, vals::Array{T, 1}, ages::Vector{Int64}) where T
     easts = collect(minimum(east):1_000:maximum(east)) .* m
     norths = collect(minimum(north):1_000:maximum(north)) .* m
-    grid_a = AxisArray(zeros(Float64, length(norths), length(easts), length(unique(ages))), Axis{:northing}(norths), Axis{:easting}(easts), Axis{:age}(unique(ages)))
+    grid_a = AxisArray(zeros(typeof(vals[1]), length(norths), length(easts), length(unique(ages))), Axis{:northing}(norths), Axis{:easting}(easts), Axis{:age}(unique(ages)))
     for i in eachindex(east)
         grid_a[atvalue(north[i] * m), atvalue(east[i] * m), atvalue(ages[i])] = vals[i]
+    end
+    return grid_a
+end
+function create_BNG_grid(east::Vector{Int64}, north::Vector{Int64}, vals::Array{T, 1}) where T
+    easts = collect(minimum(east):1_000:maximum(east)) .* m
+    norths = collect(minimum(north):1_000:maximum(north)) .* m
+    grid_a = AxisArray(zeros(typeof(vals[1]), length(norths), length(easts)), Axis{:northing}(norths), Axis{:easting}(easts))
+    for i in eachindex(east)
+        grid_a[atvalue(north[i] * m), atvalue(east[i] * m)] = vals[i]
     end
     return grid_a
 end
@@ -73,7 +83,7 @@ end
 Function to take Scottish Population data from an SQLite database and convert to an axis array.
 
 """
-function get_3d_km_grid_axis_array(cn::SQLite.DB, dims::Array{String,1}, msr::String, tbl::String)
+function get_3d_km_grid_axis_array(cn::SQLite.DB, dims::Array{String,1}, msr::String, tbl::String, units = Float64)
     sel_sql = ""
     dim_ax = []
     for i in eachindex(dims)
@@ -86,10 +96,15 @@ function get_3d_km_grid_axis_array(cn::SQLite.DB, dims::Array{String,1}, msr::St
     sel_sql = string("SELECT ", sel_sql, " SUM(", msr, ") AS val\nFROM ", tbl, "\nGROUP BY ", rstrip(sel_sql, ','))
     stmt = SQLite.Stmt(cn, sel_sql)
     df = SQLite.DBInterface.execute(stmt) |> DataFrames.DataFrame
-    grid_area = df[!, :grid_area]
-    east,north = get_en(grid_area)
-    vals = df[!, :val]
-    ages = df[!, :age_aggr]
-    output = create_BNG_grid(east, north, vals, ages)
+    grid_axes = df[!, dims]
+    if tbl == "scottish_population_view"
+        east,north = get_en(grid_axes[!, dims[1]])
+        vals = df[!, msr] * oneunit(units)
+        ages = df[!, dims[2]]
+        output = create_BNG_grid(east, north, vals, ages)
+    else
+        vals = df[!, msr] * oneunit(units)
+        output = create_BNG_grid(grid_axes[!, dims[1]], grid_axes[!, dims[2]], vals)
+    end
     return output
 end
