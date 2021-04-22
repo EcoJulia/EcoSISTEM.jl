@@ -3,6 +3,7 @@ using HDF5
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using Printf
 
 import HDF5: ishdf5
 
@@ -84,7 +85,7 @@ Update an Ecosystem by one timestep, running through different
 transitions, including set up, state and place transitions, and
 winddown.
 """
-function update!(eco::Ecosystem, timestep::Unitful.Time)
+function update!(eco::Ecosystem, timestep::Unitful.Time, ::TransitionList)
 
     Threads.@threads for su in eco.transitions.setup
         run_rule!(eco, su, timestep)
@@ -105,6 +106,32 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
 end
 
 """
+    update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: EpiLandscape
+
+Update an Ecosystem by one timestep, running through the older version
+of the epidemiology code.
+"""
+function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: EpiLandscape
+    epi_update!(eco, timestep)
+end
+
+"""
+    update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: GridLandscape
+
+Update an Ecosystem by one timestep, running through the older version
+of the biodiversity code.
+"""
+function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: GridLandscape
+    biodiversity_update!(eco, timestep)
+end
+
+function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
+  numSpecies = counttypes(eco.spplist)
+  gridSize = _countsubcommunities(eco.abenv.habitat)
+  abun = Array{Int64, 4}(Compat.undef, numSpecies, gridSize, times, reps)
+end
+
+"""
     function simulate!(
         eco::Ecosystem,
         duration::Unitful.Time,
@@ -118,7 +145,7 @@ particular timestep, `timestep`. If `save=true`, inputs and outputs are saved as
 at `save_path`.
 """
 function simulate!(
-    eco::Ecosystem,
+    eco::AbstractEcosystem,
     duration::Unitful.Time,
     timestep::Unitful.Time;
     save=false,
@@ -138,7 +165,7 @@ function simulate!(
   times = length(0s:timestep:duration)
 
   for i in 1:times
-    update!(eco, timestep)
+    update!(eco, timestep, gettransitions(eco))
   end
 
   # save simulation results
@@ -163,7 +190,7 @@ whole ecosystem is updated, such as removal of habitat patches.
 """
 function simulate_record!(
     storage::AbstractArray,
-    eco::Ecosystem,
+    eco::AbstractEcosystem,
     times::Unitful.Time,
     interval::Unitful.Time,
     timestep::Unitful.Time;
@@ -220,7 +247,7 @@ function simulate_record!(
 
   # - simulate each timestep
   for i in 2:length(time_seq)
-    update!(eco, timestep);
+    update!(eco, timestep, gettransitions(eco));
     if time_seq[i] in record_seq
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix
@@ -309,4 +336,17 @@ function update_output(
     h5open(h5fn, "cw") do fid
         fid["abundances"]["abuns"][:,:,timestep] = abuns_t
     end
+end
+
+function simulate!(eco::AbstractEcosystem, times::Unitful.Time, timestep::Unitful.Time,
+  cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
+  time_seq = 0s:timestep:times
+  counting = 0
+  for i in 1:length(time_seq)
+      update!(eco, timestep, gettransitions(eco));
+      # Save cache of abundances
+      if mod(time_seq[i], cacheInterval) == 0year
+          JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
+      end
+  end
 end

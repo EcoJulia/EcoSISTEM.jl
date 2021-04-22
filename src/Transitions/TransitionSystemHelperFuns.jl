@@ -1,4 +1,16 @@
 """
+    gettransitions(eco::AbstractEcosystem)
+
+Function to extract the transition list from an arbitrary ecosystem.
+"""
+function gettransitions(eco::AbstractEcosystem)
+    return eco.transitions
+end
+function gettransitions(eco::CachedEcosystem)
+    return nothing
+end
+
+"""
     gettraitrel(eco::Ecosystem)
 
 Function to extract trait relationships.
@@ -22,6 +34,24 @@ Function to extract budget from Ecosystem object.
 """
 function getbudget(eco::AbstractEcosystem)
     return _getbudget(eco.abenv.budget)
+end
+
+"""
+    getspeciestraits(eco::Ecosystem)
+
+Function to extract species trait preferences from Ecosystem object.
+"""
+function getspeciestraits(eco::AbstractEcosystem)
+    return _getspeciestraits(eco.spplist)
+end
+
+"""
+    getpathogentraits(eco::Ecosystem)
+
+Function to extract pathogen trait preferences from Ecosystem object.
+"""
+function getpathogentraits(eco::AbstractEcosystem)
+    return _getpathogentraits(eco.spplist)
 end
 
 """

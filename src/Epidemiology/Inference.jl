@@ -73,7 +73,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
 
     # Run simulation
     times = runtimes.times; interval = runtimes.interval; timestep = runtimes.timestep
-    epi_simulate_record!(abuns, epi, times, interval, timestep; save=false)
+    simulate_record!(abuns, epi, times, interval, timestep; save=false)
     return abuns
 end
 
@@ -206,6 +206,6 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
 
     # Run simulation
     times = runtimes.times; interval = runtimes.interval; timestep = runtimes.timestep
-    epi_simulate_record!(abuns, epi, times, interval, timestep; save=false)
+    simulate_record!(abuns, epi, times, interval, timestep; save=false)
     return abuns
 end

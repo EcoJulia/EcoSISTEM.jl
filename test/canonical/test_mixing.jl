@@ -78,7 +78,7 @@ using StatsBase
         times = 2years; interval = 1day; timestep = 1day
         abuns[i] = zeros(Int64, numstates, prod(grid), div(times, interval) + 1)
         thisabun = abuns[i]
-        @time epi_simulate_record!(thisabun, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "mixing_rate_$(mixing_rate[i])"))
+        @time simulate_record!(thisabun, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "mixing_rate_$(mixing_rate[i])"))
 
         # Find correct indices in arrays
         row_sus = findfirst(==("Susceptible"), abun_h.name)

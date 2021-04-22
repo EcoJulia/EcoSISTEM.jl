@@ -58,7 +58,7 @@ using MPI
     lensim = length(0years:record_interval:times)
     # Burnin
     MPI.Barrier(comm)
-    @time biodiversity_simulate!(eco, burnin, timestep)
+    @time simulate!(eco, burnin, timestep)
 
     MPI.Finalize()
 end

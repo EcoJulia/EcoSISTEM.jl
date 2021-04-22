@@ -111,7 +111,7 @@ function _run_rule!(eco::Ecosystem, rule::ViralLoad, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     params = eco.spplist.params
     loc = getlocation(rule)
-    traitmatch = traitfun(eco, loc, 1)
+    traitmatch = traitfun(eco, loc, 1, eco.spplist.pathogens)
     deathrate = getprob(rule) * timestep * traitmatch^-1
     # Convert death rate into 0 - 1 probability
     deathprob = 1.0 - exp(-deathrate)

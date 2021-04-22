@@ -8,14 +8,17 @@ abstract type AbstractTransition end
 """
     AbstractStateTransition <: AbstractTransition
 
-Abstract type for state transitions.
+Abstract type for state transitions. State transitions occur between types within
+a single grid square, e.g. growth between age categories,
+or transitions between disease categories.
 """
 abstract type AbstractStateTransition <: AbstractTransition end
 
 """
     AbstractPlaceTransition <: AbstractTransition
 
-Abstract type for place transitions.
+Abstract type for place transitions. Place transitions occur across multiple grid
+squares for a single type, e.g. dispersal of seeds across the landscape.
 """
 abstract type AbstractPlaceTransition <: AbstractTransition end
 
@@ -81,7 +84,7 @@ function getlocation(rule::P) where P <: AbstractPlaceTransition
 end
 
 """
-    getspecies(rule::P) where P <: AbstractPlaceTransition
+    getdestination(rule::S) where S <: AbstractStateTransition
 
 Generic function to get a destination to which a state transition happening.
 """

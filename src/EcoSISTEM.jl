@@ -99,8 +99,8 @@ include("Transitions/TransitionSystem.jl")
 export Ecosystem, CachedEcosystem
 
 include("Transitions/TransitionSystemHelperFuns.jl")
-export getsize, gethabitat, gettraitrel, getgridsize,
-getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, getlookup,
+export gettransitions, getsize, gethabitat, gettraitrel, getgridsize,
+getdispersaldist, getdispersalvar, resetrate!, resettime!, getbudget, getlookup,
 addspecies!
 
 include("Biodiversity/Traitfuns.jl")
@@ -130,9 +130,6 @@ function __init__()
     end
 end
 
-include("Biodiversity/Helper.jl")
-export biodiversity_simulate!, biodiversity_simulate_record!, biodiversity_simulate_record_diversity!, expected_counts, generate_storage
-
 include("Biodiversity/Cache.jl")
 export abundances, clearcache
 
@@ -144,9 +141,6 @@ export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_ab
 
 include("Epidemiology/EpiGenerate.jl")
 export populate!
-
-include("Epidemiology/EpiHelper.jl")
-export epi_simulate!, epi_simulate_record!
 
 include("Epidemiology/EpiPlots.jl")
 
@@ -167,7 +161,7 @@ include("Transitions/BiodiversityRun.jl")
 include("Transitions/EpiRun.jl")
 
 include("Transitions/Run.jl")
-export run_rule!, update!, simulate!, simulate_record!
+export run_rule!, update!, simulate!, simulate_record!, generate_storage
 
 # Path into package
 path(paths...) = joinpath(@__DIR__, "..", paths...)

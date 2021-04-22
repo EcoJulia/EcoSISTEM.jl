@@ -114,5 +114,5 @@ getdispersaldist(m::BirthOnlyMovement, sp::Int64) = m.kernels[sp].dist
 getdispersalvar(m::BirthOnlyMovement, sp::Int64) = (m.kernels[sp].dist)^2 * pi / 4
 getdispersaldist(m::AlwaysMovement, sp::Int64) = m.kernels[sp].dist
 getdispersalvar(m::AlwaysMovement, sp::Int64) = (m.kernels[sp].dist)^2 * pi / 4
-getdispersaldist(m::NoMovement, sp::Int64) = m.kernels[sp].dist
-getdispersalvar(m::NoMovement, sp::Int64) = (m.kernels[sp].dist)^2 * pi / 4
+getdispersaldist(m::NoMovement, sp::Int64) = "No movement takes place"
+getdispersalvar(m::NoMovement, sp::Int64) = "No movement takes place"
