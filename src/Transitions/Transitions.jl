@@ -18,7 +18,7 @@ abstract type AbstractStateTransition <: AbstractTransition end
     AbstractPlaceTransition <: AbstractTransition
 
 Abstract type for place transitions. Place transitions occur across multiple grid
-squares for a single type, e.g. dispersal of types across the landscape.
+squares for a single type, e.g. dispersal of seeds across the landscape.
 """
 abstract type AbstractPlaceTransition <: AbstractTransition end
 
