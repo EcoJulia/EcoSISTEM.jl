@@ -102,7 +102,7 @@ function virusupdate!(epi::Ecosystem, timestep::Unitful.Time)
         end
 
         # viral species 1 is assumed to be the environmental virus
-        traitmatch = traitfun(epi, j, 1)
+        traitmatch = traitfun(epi, j, 1, epi.spplist.pathogens)
         deathrate = params.virus_decay * timestep * traitmatch^-1
         # Convert death rate into 0 - 1 probability
         deathprob = 1.0 - exp(-deathrate)

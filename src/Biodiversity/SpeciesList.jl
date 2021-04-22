@@ -253,6 +253,13 @@ function getnames(sppl::SpeciesList)
     return sppl.species.names
 end
 
+function _getspeciestraits(sppl::SpeciesList)
+    return sppl.species.traits
+end
+function _getpathogentraits(sppl::SpeciesList)
+    return sppl.pathogens.traits
+end
+
 function _simmatch(sim::SpeciesList)
   _simmatch(sim.species.types)
 end

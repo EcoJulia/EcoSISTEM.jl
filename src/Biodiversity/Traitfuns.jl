@@ -1,12 +1,25 @@
 """
-    traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
+    traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64, ::S) where S <: AbstractSpeciesTypes
 
 Function to calculate relationship between the current environment and a species' particular trait.
 
 """
-function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
+function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64, ::S) where S <: AbstractSpeciesTypes
     hab = eco.abenv.habitat
-    trts = gettraits(eco)
+    trts = getspeciestraits(eco)
+    rel = eco.relationship
+    _traitfun(hab, trts, rel, pos, sp)
+end
+
+"""
+    traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64, ::P) where P <: AbstractPathogenTypes
+
+Function to calculate relationship between the current environment and a pathogen's particular trait.
+
+"""
+function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64, ::P) where P <: AbstractPathogenTypes
+    hab = eco.abenv.habitat
+    trts = getpathogentraits(eco)
     rel = eco.relationship
     _traitfun(hab, trts, rel, pos, sp)
 end
@@ -78,16 +91,4 @@ Function to extract the trait relationship of all species in the ecosystem.
 """
 function getrelationship(rel::R, field::Symbol) where R <: AbstractTraitRelationship
   return getfield(rel, field)
-end
-
-
-function gettraits(eco::A) where A <: AbstractEcosystem
-    return _gettraits(eco.spplist)
-end
-
-function _gettraits(sppl::SpeciesList)
-    return sppl.species.traits
-end
-function _gettraits(sppl::SpeciesList{A, B, C}) where {A <: HumanTypes, B <: VirusTypes, C}
-    return sppl.pathogens.traits
 end

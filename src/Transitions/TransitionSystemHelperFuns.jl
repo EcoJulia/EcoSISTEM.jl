@@ -37,6 +37,24 @@ function getbudget(eco::AbstractEcosystem)
 end
 
 """
+    getspeciestraits(eco::Ecosystem)
+
+Function to extract species trait preferences from Ecosystem object.
+"""
+function getspeciestraits(eco::AbstractEcosystem)
+    return _getspeciestraits(eco.spplist)
+end
+
+"""
+    getpathogentraits(eco::Ecosystem)
+
+Function to extract pathogen trait preferences from Ecosystem object.
+"""
+function getpathogentraits(eco::AbstractEcosystem)
+    return _getpathogentraits(eco.spplist)
+end
+
+"""
     getsize(eco::Ecosystem)
 
 Function to extract size of habitat from Ecosystem object.
