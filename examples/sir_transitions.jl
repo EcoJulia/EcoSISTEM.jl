@@ -93,26 +93,9 @@ abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
 @time simulate_record!(abuns, epi, times, interval, timestep);
 plot_epidynamics(epi, abuns)
 
-# Simulation Parameters
-burnin = 1month; times = 5years; timestep = 1day; record_interval = 1day; repeats = 1
-lensim = length(0years:record_interval:times)
-abuns = zeros(Int64, numSpecies, prod(grid), lensim)
-# Burnin
-@time simulate!(epi, burnin, timestep);
-@time simulate_record!(abuns, epi, times, record_interval, timestep);
-
 # Benchmark
 using BenchmarkTools
-epi = Episystem(sppl, abenv, rel)
+epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 @benchmark simulate!(epi, burnin, timestep)
-epi = Ecosystem(sppl, abenv, rel)
+epi = Ecosystem(epilist, epienv, rel)
 @benchmark simulate!(epi, burnin, timestep)
-
-using Plots
-@gif for i in 1:lensim
-    heatmap(abuns[:, :, i], clim = (50, 150))
-end
-
-using ProfileView
-epi = Episystem(sppl, abenv, rel)
-@profview simulate!(epi, burnin, timestep)
