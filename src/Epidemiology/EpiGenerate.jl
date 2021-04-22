@@ -297,7 +297,7 @@ end
 
 
 """
-    ukChange(epi::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
+    ukChange(epi::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
 
 Function to step the uk climate forward by one timestep. Will repeat if time counter becomes greater than the number of dimensions in the habitat.
 """
