@@ -84,7 +84,7 @@ function getlocation(rule::P) where P <: AbstractPlaceTransition
 end
 
 """
-    getspecies(rule::P) where P <: AbstractPlaceTransition
+    getdestination(rule::S) where S <: AbstractStateTransition
 
 Generic function to get a destination to which a state transition happening.
 """

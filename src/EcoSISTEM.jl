@@ -100,7 +100,7 @@ export Ecosystem, CachedEcosystem
 
 include("Transitions/TransitionSystemHelperFuns.jl")
 export gettransitions, getsize, gethabitat, gettraitrel, getgridsize,
-getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, getlookup,
+getdispersaldist, getdispersalvar, resetrate!, resettime!, getbudget, getlookup,
 addspecies!
 
 include("Biodiversity/Traitfuns.jl")

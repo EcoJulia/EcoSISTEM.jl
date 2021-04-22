@@ -3,7 +3,7 @@ using Compat
 using LinearAlgebra
 
 """
-    update!(epi::Ecosystem, time::Unitful.Time)
+    epi_update!(epi::Ecosystem, time::Unitful.Time)
 Function to update disease and virus class abundances and environment for one timestep.
 """
 function epi_update!(epi::Ecosystem, timestep::Unitful.Time)
@@ -297,7 +297,7 @@ end
 
 
 """
-    ukChange(epi::Ecosystem, hab::ContinuousHab, timestep::Unitful.Time)
+    ukChange(epi::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
 
 Function to step the uk climate forward by one timestep. Will repeat if time counter becomes greater than the number of dimensions in the habitat.
 """
