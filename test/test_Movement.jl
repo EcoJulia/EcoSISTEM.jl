@@ -21,11 +21,17 @@ using EcoSISTEM.Units
     mov = AlwaysMovement(kernel, NoBoundary())
     @test EcoSISTEM.getkernels(mov) == mov.kernels
     @test EcoSISTEM.getboundary(mov) == mov.boundary
+    @test EcoSISTEM.getdispersaldist(mov, 1) == mov.kernels[1].dist
+    @test EcoSISTEM.getdispersalvar(mov, 1) == (mov.kernels[1].dist)^2 * pi / 4
     mov = BirthOnlyMovement(kernel)
     @test EcoSISTEM.getkernels(mov) == mov.kernels
     @test EcoSISTEM.getboundary(mov) == mov.boundary
+    @test EcoSISTEM.getdispersaldist(mov, 1) == mov.kernels[1].dist
+    @test EcoSISTEM.getdispersalvar(mov, 1) == (mov.kernels[1].dist)^2 * pi / 4
     mov =  NoMovement(kernel)
     @test EcoSISTEM.getkernels(mov) == mov.kernels
+    @test EcoSISTEM.getdispersaldist(mov, 1) == "No movement takes place"
+    @test EcoSISTEM.getdispersalvar(mov, 1) == "No movement takes place"
     kernel = LongTailKernel.(fill(0.2m, numSpecies), 1.0, 10e-4)
     mov = AlwaysMovement(kernel, NoBoundary())
     @test EcoSISTEM.getkernels(mov) == mov.kernels
