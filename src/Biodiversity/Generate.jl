@@ -36,14 +36,11 @@ function get_neighbours(mat::Matrix, x_coord::Array{Int64,1},
       return vcat(neighbours...)
 end
 
-update!(eco::AbstractEcosystem, timestep::Unitful.Time) =
-    update!(eco, timestep, Val{Threads.nthreads()}())
-
 """
-    update!(eco::Ecosystem, time::Unitful.Time)
+    biodiversity_update!(eco::Ecosystem, time::Unitful.Time)
 Function to update a ecosystem abundances and environment for one timestep.
 """
-function update!(eco::Ecosystem, timestep::Unitful.Time)
+function biodiversity_update!(eco::Ecosystem, timestep::Unitful.Time)
 
     # Calculate dimenions of habitat and number of species
     dims = _countsubcommunities(eco.abenv.habitat)
@@ -83,7 +80,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
                 eco.abundances.matrix[j, i] += (births - deaths)
 
                 # Calculate moves and write to cache
-                move!(eco, eco.spplist.movement, i, j, eco.cache.netmigration, births)
+                move!(eco, eco.spplist.species.movement, i, j, eco.cache.netmigration, births)
             end
         end
     end
@@ -104,31 +101,31 @@ end
     update_energy_usage!(eco::Ecosystem)
 Function to calculate how much energy has been used up by the current species in each grid square in the ecosystem, `eco`. This function is parameterised on whether the species have one type of energy requirement or two.
 """
-function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract1Requirement}
+function update_energy_usage!(eco::AbstractEcosystem{A, B, SpeciesList{SpeciesTypes{C, Req, D, E},  F, G}, H, I, J}) where {A, B, C, D, E, F, G, H, I, J, Req <: Abstract1Requirement}
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square
-    ϵ̄ = eco.spplist.requirement.energy
+    ϵ̄ = eco.spplist.species.requirement.energy
 
     # Loop through grid squares
     Threads.@threads for i in 1:size(eco.abundances.matrix, 2)
-        eco.cache.totalE[i, 1] = ((@view eco.abundances.matrix[:, i]) ⋅ ϵ̄) * eco.spplist.requirement.exchange_rate
+        eco.cache.totalE[i, 1] = ((@view eco.abundances.matrix[:, i]) ⋅ ϵ̄) * eco.spplist.species.requirement.exchange_rate
     end
     eco.cache.valid = true
 end
 
-function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B, C, D}, E}) where {A, B, C, D, E, Tr, Req <: Abstract2Requirements}
+function update_energy_usage!(eco::AbstractEcosystem{A, B, SpeciesList{SpeciesTypes{C, Req, D, E},  F, G}, H, I, J}) where {A, B, C, D, E, F, G, H, I, J, Req <: Abstract2Requirements}
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square
-    ϵ̄1 = eco.spplist.requirement.r1.energy
-    ϵ̄2 = eco.spplist.requirement.r2.energy
+    ϵ̄1 = eco.spplist.species.requirement.r1.energy
+    ϵ̄2 = eco.spplist.species.requirement.r2.energy
 
     # Loop through grid squares
     Threads.@threads for i in 1:size(eco.abundances.matrix, 2)
         currentabun = @view eco.abundances.matrix[:, i]
-        eco.cache.totalE[i, 1] = (currentabun ⋅ ϵ̄1) * eco.spplist.requirement.r1.exchange_rate
-        eco.cache.totalE[i, 2] = (currentabun ⋅ ϵ̄2) * eco.spplist.requirement.r2.exchange_rate
+        eco.cache.totalE[i, 1] = (currentabun ⋅ ϵ̄1) * eco.spplist.species.requirement.r1.exchange_rate
+        eco.cache.totalE[i, 2] = (currentabun ⋅ ϵ̄2) * eco.spplist.species.requirement.r2.exchange_rate
     end
     eco.cache.valid = true
 end
@@ -144,12 +141,12 @@ function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget, i::Int64
         width = getdimension(eco)[1]
         (x, y) = convert_coords(eco, i, width)
         params = eco.spplist.params
-        K = getbudget(eco)[x, y] * eco.spplist.requirement.exchange_rate
+        K = getbudget(eco)[x, y] * eco.spplist.species.requirement.exchange_rate
         # Get energy budgets of species in square
-        ϵ̄ = eco.spplist.requirement.energy[sp] * eco.spplist.requirement.exchange_rate
+        ϵ̄ = eco.spplist.species.requirement.energy[sp] * eco.spplist.species.requirement.exchange_rate
         E = eco.cache.totalE[i, 1]
         # Traits
-        ϵ̄real = 1/traitfun(eco, i, sp)
+        ϵ̄real = 1/traitfun(eco, i, sp, eco.spplist.species)
         # Alter rates by energy available in current pop & own requirements
         birth_energy = ϵ̄^-params.longevity * ϵ̄real^-params.survival * min(K/E, params.boost)
         death_energy = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
@@ -161,16 +158,16 @@ function energy_adjustment(eco::AbstractEcosystem, bud::BudgetCollection2, i::In
     width = getdimension(eco)[1]
     (x, y) = convert_coords(eco, i, width)
     params = eco.spplist.params
-    K1 = _getbudget(eco.abenv.budget.b1)[x, y] * eco.spplist.requirement.r1.exchange_rate
-    K2 = _getbudget(eco.abenv.budget.b2)[x, y] * eco.spplist.requirement.r2.exchange_rate
+    K1 = _getbudget(eco.abenv.budget.b1)[x, y] * eco.spplist.species.requirement.r1.exchange_rate
+    K2 = _getbudget(eco.abenv.budget.b2)[x, y] * eco.spplist.species.requirement.r2.exchange_rate
     # Get abundances of square we are interested in
     # Get energy budgets of species in square
-    ϵ̄1 = eco.spplist.requirement.r1.energy[sp] * eco.spplist.requirement.r1.exchange_rate
-    ϵ̄2 = eco.spplist.requirement.r2.energy[sp] * eco.spplist.requirement.r2.exchange_rate
+    ϵ̄1 = eco.spplist.species.requirement.r1.energy[sp] * eco.spplist.species.requirement.r1.exchange_rate
+    ϵ̄2 = eco.spplist.species.requirement.r2.energy[sp] * eco.spplist.species.requirement.r2.exchange_rate
     E1 = eco.cache.totalE[i, 1]
     E2 = eco.cache.totalE[i, 2]
-    ϵ̄real1 = 1/traitfun(eco, i, sp)
-    ϵ̄real2 = 1/traitfun(eco, i, sp)
+    ϵ̄real1 = 1/traitfun(eco, i, sp, eco.spplist.species)
+    ϵ̄real2 = 1/traitfun(eco, i, sp, eco.spplist.species)
     # Alter rates by energy available in current pop & own requirements
     birth_energy = (ϵ̄1 * ϵ̄2)^-params.longevity * (ϵ̄real1 * ϵ̄real2)^-params.survival * min(K1/E1, K2/E2, params.boost)
     death_energy = (ϵ̄1 * ϵ̄2)^-params.longevity * (ϵ̄real1 * ϵ̄real2)^params.survival * max(E1/K1, E2/K2)
@@ -270,12 +267,12 @@ function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, sp::Int64,
   (x, y) = convert_coords(eco, i, width)
   lookup = getlookup(eco, sp)
   full_abun = eco.abundances.matrix[sp, i]
-  calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, sp, eco, full_abun)
+  calc_lookup_moves!(getboundary(eco.spplist.species.movement), x, y, sp, eco, full_abun)
   # Lose moves from current grid square
   grd[sp, i] -= full_abun
   # Map moves to location in grid
   mov = lookup.moves
-  for i in eachindex(eco.lookup[sp].x)
+  for i in eachindex(lookup.x)
       newx = mod(lookup.x[i] + x - 1, width) + 1
       newy = mod(lookup.y[i] + y - 1, height) + 1
       loc = convert_coords(eco, (newx, newy), width)
@@ -294,7 +291,7 @@ function move!(eco::AbstractEcosystem, ::BirthOnlyMovement, i::Int64, sp::Int64,
   width, height = getdimension(eco)
   (x, y) = convert_coords(eco, i, width)
    lookup = getlookup(eco, sp)
-  calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, sp, eco, births)
+  calc_lookup_moves!(getboundary(eco.spplist.species.movement), x, y, sp, eco, births)
   # Lose moves from current grid square
   grd[sp, i] -= births
   # Map moves to location in grid
@@ -326,8 +323,8 @@ function populate!(ml::GridLandscape, spplist::SpeciesList, abenv::AB, rel::R) w
     b[.!activity] .= 0.0 * units
     B = b./sum(b)
     # Loop through species
-    for i in eachindex(spplist.abun)
-        rand!(Multinomial(spplist.abun[i], B), (@view ml.matrix[i, :]))
+    for i in eachindex(spplist.species.abun)
+        rand!(Multinomial(spplist.species.abun[i], B), (@view ml.matrix[i, :]))
     end
 end
 
@@ -347,8 +344,8 @@ function populate!(ml::GridLandscape, spplist::SpeciesList,
     b2[.!activity] .= 0.0 * units2
     B = (b1./sum(b1)) .* (b2./sum(b2))
     # Loop through species
-    for i in eachindex(spplist.abun)
-        rand!(Multinomial(spplist.abun[i], B./sum(B)), (@view ml.matrix[i, :]))
+    for i in eachindex(spplist.species.abun)
+        rand!(Multinomial(spplist.species.abun[i], B./sum(B)), (@view ml.matrix[i, :]))
     end
 end
 
@@ -358,7 +355,7 @@ Function to repopulate an ecosystem `eco`, with option for including trait prefe
 """
 function repopulate!(eco::Ecosystem)
   eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
-  eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
+  eco.spplist.species.abun = rand(Multinomial(sum(eco.spplist.species.abun), length(eco.spplist.species.abun)))
   populate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship)
 end
 function repopulate!(eco::Ecosystem, abun::Int64)
@@ -389,18 +386,18 @@ function traitpopulate!(ml::GridLandscape, spplist::SpeciesList,
   # Calculate size of habitat
   dim = _getdimension(abenv.habitat)
   numsquares = dim[1] * dim[2]
-  numspp = length(spplist.names)
-  maxrng = spplist.traits.mean .+ spplist.traits.var
-  minrng = spplist.traits.mean .- spplist.traits.var
+  numspp = length(spplist.species.names)
+  maxrng = spplist.species.traits.mean .+ spplist.species.traits.var
+  minrng = spplist.species.traits.mean .- spplist.species.traits.var
   hab = reshape(abenv.habitat.matrix, numsquares)
-  probabilities = [_traitfun(abenv.habitat, spplist.traits, rel, i, sp) for i in 1:numsquares, sp in 1:numspp]
+  probabilities = [_traitfun(abenv.habitat, spplist.species.traits, rel, i, sp) for i in 1:numsquares, sp in 1:numspp]
   # Loop through species
-  for i in eachindex(spplist.abun)
-      if spplist.native[i]
+  for i in eachindex(spplist.species.abun)
+      if spplist.species.native[i]
         # Get abundance of species
         probs = probabilities[:, i]./sum(probabilities[:, i])
         probs[isnan.(probs)] .= 1/numsquares
-        abun = rand(Multinomial(spplist.abun[i], probs))
+        abun = rand(Multinomial(spplist.species.abun[i], probs))
         # Add individual to this location
         ml.matrix[i, :] .+= abun
      end
@@ -413,7 +410,7 @@ Function to repopulate an ecosystem `eco`, with option for including trait prefe
 """
 function traitrepopulate!(eco::Ecosystem)
   eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
-  eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun), length(eco.spplist.abun)))
+  eco.spplist.species.abun = rand(Multinomial(sum(eco.spplist.species.abun), length(eco.spplist.species.abun)))
   traitpopulate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship)
 end
 

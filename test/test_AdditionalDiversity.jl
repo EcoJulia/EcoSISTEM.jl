@@ -11,7 +11,7 @@ using Test
     RelAb = Ab / sum(eco.abundances.matrix)
     ## TEST makeunique
     @test_nowarn makeunique(eco)
-    @test typeof(makeunique(eco).spplist.types) <: UniqueTypes
+    @test typeof(makeunique(eco).spplist.species.types) <: UniqueTypes
 
     ## TEST meta_simpson
     @test meta_simpson(eco, 1.0)[!, :diversity] == meta_simpson(eco, 2.0)[!, :diversity]
@@ -54,8 +54,8 @@ using Test
 
     ## TEST pd (against R and julia)
     @test pd(eco, 1.0)[!, :diversity] == pd(eco, 0.0)[!, :diversity]
-    tree = eco.spplist.types.tree
-    @test pd(eco, 1.0)[!, :diversity][1] ≈ sum(map(b -> getlength(eco.spplist.types.tree,b),
-               collect(getbranchnames(eco.spplist.types.tree)))) / mean(heightstoroot(eco.spplist.types.tree))
+    tree = eco.spplist.species.types.tree
+    @test pd(eco, 1.0)[!, :diversity][1] ≈ sum(map(b -> getlength(eco.spplist.species.types.tree,b),
+               collect(getbranchnames(eco.spplist.species.types.tree)))) / mean(heightstoroot(eco.spplist.species.types.tree))
     @test pd(eco, 0.0) == pd(eco, [0.0, 1, 2])
 end

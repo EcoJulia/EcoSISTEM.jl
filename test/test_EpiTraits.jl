@@ -9,6 +9,6 @@ include("TestCases.jl")
 
 @testset "Epi traits" begin
     epi = TestEpiSystem()
-    @test_nowarn traitfun(epi, 1, 1)
-    @test traitfun(epi, 1, 1) == traitfun(epi, 2, 1)
+    @test_nowarn traitfun(epi, 1, 1, epi.spplist.pathogens)
+    @test traitfun(epi, 1, 1, epi.spplist.pathogens) == traitfun(epi, 2, 1, epi.spplist.pathogens)
 end

@@ -42,7 +42,7 @@ for i in eachindex(grid_sizes)
     transitions = DataFrame([
         (from="Infected", to="Susceptible", prob=sigma),
     ])
-    
+
     # Set simulation parameters
     birth = fill(0.0/day, numclasses)
     death = fill(0.0/day, numclasses)
@@ -59,11 +59,11 @@ for i in eachindex(grid_sizes)
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+    epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
-    epi = EpiSystem(epilist, epienv, rel)
+    epi = Ecosystem(epilist, epienv, rel)
 
     # Run simulation
     times = 2years; interval = 1day; timestep = 1day

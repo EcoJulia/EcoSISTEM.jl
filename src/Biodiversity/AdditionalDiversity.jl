@@ -7,15 +7,17 @@ Function to convert type of similarity in SpeciesList to UniqueTypes, i.e. an id
 """
 function makeunique(eco::Ecosystem)
     sppl = eco.spplist
-    spp = length(sppl.names)
+    spp = length(sppl.species.names)
     EcoSISTEM.invalidatecaches!(eco)
-    newsppl = SpeciesList{typeof(sppl.traits), typeof(sppl.requirement),
-    typeof(sppl.movement), UniqueTypes, typeof(sppl.params)}(sppl.names,
-    sppl.traits, sppl.abun, sppl.requirement, UniqueTypes(spp), sppl.movement,
-    sppl.params, sppl.native)
-    newsppl.susceptible = sppl.susceptible
-    return Ecosystem{typeof(eco.abenv), typeof(newsppl),
-            typeof(eco.relationship)}(eco.abundances,
+    species = SpeciesTypes{typeof(sppl.species.traits), typeof(sppl.species.requirement),
+    typeof(sppl.species.movement), UniqueTypes}(sppl.species.names,
+    sppl.species.traits, sppl.species.abun, sppl.species.requirement, UniqueTypes(spp),
+    sppl.species.movement, sppl.species.native)
+    newsppl = SpeciesList{typeof(species), NoPathogen,
+    typeof(sppl.params)}(species, NoPathogen(), sppl.params)
+    newsppl.species.susceptible = sppl.species.susceptible
+    return Ecosystem{typeof(eco.abundances), typeof(eco.abenv), typeof(newsppl),
+            typeof(eco.relationship), typeof(eco.lookup), typeof(eco.cache)}(eco.abundances,
               newsppl, eco.abenv, eco.ordinariness,
               eco.relationship, eco.lookup, eco.cache, eco.transitions)
 end
@@ -110,7 +112,7 @@ Function to calculate the Sorenson similarity for the entire ecosystem.
 function sorenson(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
     SR = meta_speciesrichness(eco, 0.0)
-    ab1 = eco.spplist.abun
+    ab1 = eco.spplist.species.abun
     ab2 = mapslices(sum, eco.abundances.matrix, dims = 2)
     SR[:, :diversity] .= 1 - abs(sum(ab1 .- ab2))/sum(ab1 .+ ab2)
     SR[:, :measure] .= "Sorenson"
@@ -127,12 +129,12 @@ Function to calculate Faith's phylogenetic diversity (PD) for the entire ecosyst
 """
 function pd(eco::Ecosystem, qs::Vector{Float64})
     PD = meta_gamma(eco, 0.0)
-    PD[:, :diversity] .= PD[:, :diversity] / mean(heightstoroot(eco.spplist.types.tree))
+    PD[:, :diversity] .= PD[:, :diversity] / mean(heightstoroot(eco.spplist.species.types.tree))
     return PD
 end
 
 function pd(eco::Ecosystem, qs::Float64)
     PD = meta_gamma(eco, 0.0)
-    PD[:, :diversity] .= PD[:, :diversity] / mean(heightstoroot(eco.spplist.types.tree))
+    PD[:, :diversity] .= PD[:, :diversity] / mean(heightstoroot(eco.spplist.species.types.tree))
     return PD
 end

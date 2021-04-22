@@ -1,3 +1,9 @@
+"""
+    _run_rule!(eco::Ecosystem, rule::BirthProcess, timestep::Unitful.Time)
+
+Stochastic birth process for a location and species, house inside `rule`,
+ for one timestep.
+"""
 function _run_rule!(eco::Ecosystem, rule::BirthProcess, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
@@ -10,7 +16,32 @@ function _run_rule!(eco::Ecosystem, rule::BirthProcess, timestep::Unitful.Time)
         eco.abundances.matrix[spp, loc] += births
     end
 end
+"""
+    _run_rule!(eco::Ecosystem, rule::GenerateSeed, timestep::Unitful.Time)
 
+Stochastic seeding process for a location and species, house inside `rule`,
+ for one timestep.
+"""
+function _run_rule!(eco::Ecosystem, rule::GenerateSeed, timestep::Unitful.Time)
+    rng = eco.abundances.rngs[Threads.threadid()]
+    spp = getspecies(rule)
+    loc = getlocation(rule)
+    if eco.abenv.active[loc]
+        adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, loc, spp)
+        birthprob = getprob(rule) * timestep * adjusted_birth
+        newbirthprob = 1.0 - exp(-birthprob)
+        births = rand(rng, Poisson(eco.abundances.matrix[spp, loc] * newbirthprob))
+        eco.abundances.matrix[spp, loc] += births
+        eco.cache.seedbank[spp, loc] += births
+    end
+end
+
+"""
+    _run_rule!(eco::Ecosystem, rule::DeathProcess, timestep::Unitful.Time)
+
+Stochastic death process for a location and species, house inside `rule`,
+ for one timestep.
+"""
 function _run_rule!(eco::Ecosystem, rule::DeathProcess, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
@@ -24,72 +55,48 @@ function _run_rule!(eco::Ecosystem, rule::DeathProcess, timestep::Unitful.Time)
     end
 end
 
+"""
+    _run_rule!(eco::Ecosystem, rule::AllDisperse, timestep::Unitful.Time)
+
+Stochastic dispersal process across the ecosystem for a species from a location, house inside `rule`,
+ for one timestep.
+"""
 function _run_rule!(eco::Ecosystem, rule::AllDisperse)
     spp = getspecies(rule)
     loc = getlocation(rule)
     if eco.abenv.active[loc]
-        move!(eco, eco.spplist.movement, loc, spp, eco.cache.netmigration, eco.abundances.matrix[spp, loc])
+        move!(eco, eco.spplist.species.movement, loc, spp, eco.cache.netmigration, eco.abundances.matrix[spp, loc])
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractStateTransition
-    if typeof(rule) == BirthProcess
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == DeathProcess
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == AllDisperse
-        _run_rule!(eco, rule)
+"""
+    _run_rule!(eco::Ecosystem, rule::SeedDisperse, timestep::Unitful.Time)
+
+Stochastic seed dispersal process across the ecosystem for a species from a location, house inside `rule`,
+ for one timestep.
+"""
+function _run_rule!(eco::Ecosystem, rule::SeedDisperse)
+    spp = getspecies(rule)
+    loc = getlocation(rule)
+    if eco.abenv.active[loc]
+        move!(eco, eco.spplist.species.movement, loc, spp, eco.cache.netmigration, eco.cache.seedbank[spp, loc])
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::R) where R <: AbstractPlaceTransition
-    if typeof(rule) == AllDisperse
-        _run_rule!(eco, rule)
-    end
+"""
+    _run_rule!(eco::Ecosystem, rule::UpdateEnergy, timestep::Unitful.Time)
+
+Calculate energy usage across the Ecosystem for one timestep.
+"""
+function _run_rule!(eco::Ecosystem, rule::UpdateEnergy, timestep::Unitful.Time)
+    rule.update_fun(eco)
 end
 
-function new_update!(eco::Ecosystem, timestep::Unitful.Time)
+"""
+    _run_rule!(eco::Ecosystem, rule::UpdateEnvironment, timestep::Unitful.Time)
 
-    # Set the overall energy budget of that square
-    update_energy_usage!(eco)
-
-    Threads.@threads for st in eco.transitions.state
-        run_rule!(eco, st, timestep)
-    end
-    Threads.@threads for pl in eco.transitions.place
-        run_rule!(eco, pl)
-    end
-
-    eco.abundances.matrix .+= eco.cache.netmigration
-
-    # Invalidate all caches for next update
-    invalidatecaches!(eco)
-
-    # Update environment - habitat and energy budgets
-    habitatupdate!(eco, timestep)
-    budgetupdate!(eco, timestep)
-end
-
-function new_simulate!(eco::E, duration::Unitful.Time, timestep::Unitful.Time) where E <: AbstractEcosystem
-  times = length(0s:timestep:duration)
-  for i in 1:times
-    new_update!(eco, timestep)
-  end
-end
-
-function new_simulate_record!(storage::AbstractArray, eco::E,
-  times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time) where E <: AbstractEcosystem
-  ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
-  record_seq = 0s:interval:times
-  time_seq = 0s:timestep:times
-  storage[:, :, 1] = eco.abundances.matrix
-  counting = 1
-  for i in 2:length(time_seq)
-    new_update!(eco, timestep);
-    if time_seq[i] in record_seq
-      counting = counting + 1
-      storage[:, :, counting] = eco.abundances.matrix
-    end
-  end
-  storage
+Update habitat and resource budget across the Ecosystem for one timestep.
+"""
+function _run_rule!(eco::Ecosystem, rule::UpdateEnvironment, timestep::Unitful.Time)
+    rule.update_fun(eco, timestep)
 end

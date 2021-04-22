@@ -1,12 +1,25 @@
 """
-    traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
+    traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64, ::S) where S <: AbstractSpeciesTypes
 
 Function to calculate relationship between the current environment and a species' particular trait.
 
 """
-function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
+function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64, ::S) where S <: AbstractSpeciesTypes
     hab = eco.abenv.habitat
-    trts = eco.spplist.traits
+    trts = getspeciestraits(eco)
+    rel = eco.relationship
+    _traitfun(hab, trts, rel, pos, sp)
+end
+
+"""
+    traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64, ::P) where P <: AbstractPathogenTypes
+
+Function to calculate relationship between the current environment and a pathogen's particular trait.
+
+"""
+function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64, ::P) where P <: AbstractPathogenTypes
+    hab = eco.abenv.habitat
+    trts = getpathogentraits(eco)
     rel = eco.relationship
     _traitfun(hab, trts, rel, pos, sp)
 end
