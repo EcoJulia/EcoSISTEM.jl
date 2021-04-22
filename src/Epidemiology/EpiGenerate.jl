@@ -3,7 +3,7 @@ using Compat
 using LinearAlgebra
 
 """
-    update!(epi::Ecosystem, time::Unitful.Time)
+    epi_update!(epi::Ecosystem, time::Unitful.Time)
 Function to update disease and virus class abundances and environment for one timestep.
 """
 function epi_update!(epi::Ecosystem, timestep::Unitful.Time)
