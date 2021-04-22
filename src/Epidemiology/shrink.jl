@@ -45,7 +45,7 @@ function shrink_to_active(M::AM) where {AM <: AbstractMatrix}
     return shrink_to_active(M, active)
 end
 
-function shrink_to_active(A::AM) where {AM <: AbstractArray}
+function shrink_to_active(A::AA) where {AA <: AbstractArray}
     M = dropdims(sum(Float64.(A), dims=3), dims=3)
     M[M .≈ 0.0] .= NaN
     active = .!_inactive.(M)
