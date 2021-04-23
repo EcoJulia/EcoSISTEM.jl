@@ -36,12 +36,12 @@ plot_epiheatmaps
 function _check_args(h)
     correct_args = (
         length(h.args) == 2 &&
-        isa(h.args[1], AbstractEpiSystem) &&
+        isa(h.args[1], AbstractEcosystem) &&
         isa(h.args[2], AbstractArray{<:Integer, 3})
     )
     if !correct_args
         throw(ArgumentError(
-            "$(typeof(h)) requires (AbstractEpiSystem, abuns); got: $(typeof(h.args))"
+            "$(typeof(h)) requires (AbstractEcosystem, abuns); got: $(typeof(h.args))"
         ))
     end
 end
@@ -52,7 +52,7 @@ end
 )
     _check_args(h)
     epi, abuns = h.args
-    idx = _compartment_idx(compartment, epi.epilist.human.names)
+    idx = _compartment_idx(compartment, epi.spplist.species.names)
     if isempty(steps)
         steps = _default_steps(abuns)
     end
@@ -64,10 +64,10 @@ end
     seriescolor --> :heat
 
     subplot = 1
-    gridsize = (size(epi.epienv.habitat.matrix, 1), size(epi.epienv.habitat.matrix, 2))
+    gridsize = (size(epi.abenv.habitat.matrix, 1), size(epi.abenv.habitat.matrix, 2))
     for step in steps
         data = Float64.(reshape(abuns[idx, :, step], gridsize...))
-        data[.!epi.epienv.active] .= NaN
+        data[.!epi.abenv.active] .= NaN
         x = 1:size(data, 2)
         y = 1:size(data, 1)
         if plotattributes[:match_dimensions]
@@ -122,7 +122,7 @@ plot_epidynamics
 
     if isnothing(category_map)
         # Make each compartment its own category
-        category_map = (name => [idx] for (idx, name) in enumerate(epi.epilist.human.names))
+        category_map = (name => [idx] for (idx, name) in enumerate(getnames(epi.spplist)))
     end
 
     for (name, idx) in category_map

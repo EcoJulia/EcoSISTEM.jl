@@ -3,7 +3,7 @@ using Test
 using Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
-@testset "EpiList" begin
+@testset "SpeciesList" begin
     # Set initial population sizes for all pathogen categories
     abun_v = DataFrame([
         (name="Environment", initial=10),
@@ -41,17 +41,17 @@ using EcoSISTEM.Units
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 
-    @test_nowarn EpiList(traits, abun_v, abun_h, movement, transitions, param)
-    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
-    @test epilist.virus.names[1] == "Environment"
-    @test epilist.virus.names[2] == "Force"
-    @test epilist.human.names[1] == "Susceptible"
-    @test epilist.human.names[2] == "Infected"
-    @test epilist.human.names[3] == "Recovered"
-    @test epilist.human.names[4] == "Dead"
+    @test_nowarn SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
+    epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
+    @test epilist.pathogens.names[1] == "Environment"
+    @test epilist.pathogens.names[2] == "Force"
+    @test epilist.species.names[1] == "Susceptible"
+    @test epilist.species.names[2] == "Infected"
+    @test epilist.species.names[3] == "Recovered"
+    @test epilist.species.names[4] == "Dead"
 
-    @test length(epilist.human.names) == length(epilist.human.abun)
-    @test length(epilist.virus.names) == length(epilist.virus.abun)
-    @test length(epilist.virus.names) == length(epilist.virus.traits.mean)
-    @test length(epilist.virus.names) == length(epilist.virus.traits.var)
+    @test length(epilist.species.names) == length(epilist.species.abun)
+    @test length(epilist.pathogens.names) == length(epilist.pathogens.abun)
+    @test length(epilist.pathogens.names) == length(epilist.pathogens.traits.mean)
+    @test length(epilist.pathogens.names) == length(epilist.pathogens.traits.var)
 end

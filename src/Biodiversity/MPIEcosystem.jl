@@ -1,10 +1,6 @@
 using .MPI
 using Diversity
-if VERSION > v"1.0.0"
-    using HCubature
-else
-    using Cubature
-end
+using HCubature
 using Unitful
 using EcoSISTEM.Units
 using Missings
@@ -17,7 +13,7 @@ import Diversity: _calcabundance
 
 MPIEcosystem houses information on species and their interaction with their environment. It houses all information of a normal `Ecosystem` (see documentation for more details), with additional fields to describe which species are calculated on which machine. This includes: `sppcounts` - a vector of number of species per node, `firstsp` - the identity of the first species held by that particular node.
 """
-mutable struct MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic, SL <: SpeciesList, TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
+mutable struct MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic, SL <: SpeciesList, TR <: AbstractTraitRelationship} <: AbstractEcosystem{MPIGL, Part, SL, TR, SpeciesLookup, Cache}
   abundances::MPIGL
   spplist::SL
   abenv::Part
@@ -52,13 +48,13 @@ end
 
 Function to create an `MPIEcosystem` given a species list, an abiotic environment and trait relationship.
 """
-function MPIEcosystem(popfun::F, spplist::SpeciesList{T, Req},
+function MPIEcosystem(popfun::F, spplist::SpeciesList{SpeciesTypes{T, Req, MO, TY}, P, PA},
   abenv::GridAbioticEnv, rel::AbstractTraitRelationship
-  ) where {F<:Function, T, Req}
+  ) where {F<:Function, T, Req, MO, TY, P, PA}
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
-    numspp = length(spplist.names)
+    numspp = length(spplist.species.names)
     numsc = countsubcommunities(abenv.habitat)
 
     count = div(numspp + totalsize - 1, totalsize)
@@ -80,7 +76,7 @@ function MPIEcosystem(popfun::F, spplist::SpeciesList{T, Req},
     popfun(ml, spplist, abenv, rel)
 
     rankspp = firstsp : sppindices[rank + 2]
-    lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), @view getkernels(spplist.movement)[rankspp]))
+    lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), @view getkernels(spplist.species.movement)[rankspp]))
     nm = zeros(Int64, (sppcounts[rank + 1], numsc))
     totalE = zeros(Float64, (numsc, numrequirements(Req)))
     MPIEcosystem{typeof(ml), typeof(abenv),
@@ -104,6 +100,10 @@ end
 #         eco.fullabun = missing
 #     end
 # end
+
+function gettransitions(eco::MPIEcosystem)
+    return nothing
+end
 
 import Diversity.API: _getabundance
 function _getabundance(eco::MPIEcosystem, raw::Bool)
@@ -140,7 +140,7 @@ import Diversity.API: _calcordinariness
 function _calcordinariness(eco::MPIEcosystem)
     relab = getabundance(eco, false)
     sp_rng = eco.abundances.rows_tuple.first:eco.abundances.rows_tuple.last
-    return _calcsimilarity(eco.spplist.types, one(eltype(relab)))[sp_rng, sp_rng] * relab
+    return _calcsimilarity(eco.spplist.species.types, one(eltype(relab)))[sp_rng, sp_rng] * relab
 end
 
 function gather_diversity(eco::MPIEcosystem, divmeasure::F, q) where {F<:Function}

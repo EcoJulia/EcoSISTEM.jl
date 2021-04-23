@@ -9,7 +9,6 @@ using OnlineStats
 using Plots
 using Distributions
 using Diversity
-plotlyjs()
 
 ## DIFFERENT OPTS ##
 

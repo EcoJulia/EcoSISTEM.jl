@@ -79,7 +79,7 @@ end
 function TestEpiSystem()
     grid = (2, 2)
     area = 10.0km^2
-    epienv = simplehabitatAE(298.0K, grid, area, NoControl())
+    abenv = simplehabitatAE(298.0K, grid, area, NoControl())
 
     # Set initial population sizes for all pathogen categories
     virus = 0
@@ -118,10 +118,10 @@ function TestEpiSystem()
     movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+    spplist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
-    rel = Gauss{eltype(epienv.habitat)}()
-    epi = EpiSystem(epilist, epienv, rel)
+    rel = Gauss{eltype(abenv.habitat)}()
+    epi = Ecosystem(spplist, abenv, rel)
 
     return epi
 end
@@ -160,23 +160,23 @@ function TestEpiLockdown()
 
     grid = (2, 2)
     area = 10.0km^2
-    epienv = simplehabitatAE(298.0K, grid, area, Lockdown(1day))
+    abenv = simplehabitatAE(298.0K, grid, area, Lockdown(1day))
 
     dispersal_dists = fill(2.0km, prod(grid))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+    spplist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
-    rel = Gauss{eltype(epienv.habitat)}()
-    epi = EpiSystem(epilist, epienv, rel, initial_infected = 10)
+    rel = Gauss{eltype(abenv.habitat)}()
+    epi = Ecosystem(spplist, abenv, rel, initial_infected = 10)
 
     return epi
 end
 function TestEpiSystemFromPopulation(
     initial_pop::AbstractMatrix;
-    epienv_active=fill(true, size(initial_pop))
+    abenv_active=fill(true, size(initial_pop))
 )
     # Set initial population sizes for all pathogen categories
     virus = 0
@@ -211,17 +211,17 @@ function TestEpiSystemFromPopulation(
     param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
 
     area = 10.0km^2
-    epienv = simplehabitatAE(298.0K, size(initial_pop), area, epienv_active, NoControl())
+    abenv = simplehabitatAE(298.0K, size(initial_pop), area, abenv_active, NoControl())
 
     dispersal_dists = fill(2.0km, size(initial_pop, 1) * size(initial_pop, 2))
     kernel = GaussianKernel.(dispersal_dists, 1e-10)
     movement = EpiMovement(kernel)
 
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+    spplist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
-    rel = Gauss{eltype(epienv.habitat)}()
-    epi = EpiSystem(epilist, epienv, rel, initial_pop)
+    rel = Gauss{eltype(abenv.habitat)}()
+    epi = Ecosystem(spplist, abenv, rel, initial_pop)
 
     return epi
 end

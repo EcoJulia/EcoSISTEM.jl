@@ -1,9 +1,22 @@
 const DayType = typeof(1.0/day)
+"""
+    ViralLoad <: AbstractStateTransition
+
+Transition for force of infection to settle into
+    environmental reservoir.
+"""
 mutable struct ViralLoad <: AbstractStateTransition
     location::Int64
     prob::DayType
 end
 
+"""
+    Exposure <: AbstractStateTransition
+
+Transition for exposure of susceptibles to force of infection
+    and environmental reservoir at set probabilities,
+    `force_prob` and `virus_prob` respectively.
+"""
 mutable struct Exposure <: AbstractStateTransition
     species::Int64
     location::Int64
@@ -12,20 +25,41 @@ mutable struct Exposure <: AbstractStateTransition
     virus_prob::DayType
 end
 
+"""
+    EnvExposure <: AbstractStateTransition
+
+Transition for exposure of susceptibles to force of infection
+    and environmental reservoir at set probabilities,
+    `force_prob` and `virus_prob` respectively. This exposure
+    mechanism is influenced by the local environment (fetched
+    through the `get_env` function), controlled by the strength
+    of `env_param`.
+"""
 mutable struct EnvExposure <: AbstractStateTransition
     species::Int64
     location::Int64
     destination::Int64
     force_prob::DayType
     virus_prob::DayType
-    env_field::Symbol
-    env_param::Unitful.Quantity{Float64}
+    env_param::Float64
+    get_env::Function
 end
 
 function getprob(rule::Exposure)
     return rule.force_prob, rule.virus_prob
 end
 
+function getprob(rule::EnvExposure)
+    return rule.force_prob, rule.virus_prob
+end
+
+"""
+    Infection <: AbstractStateTransition
+
+Transition from exposed to infectious categories at a
+set probability, `prob`. Any infectious category can
+be designated through `destination`.
+"""
 mutable struct Infection <: AbstractStateTransition
     species::Int64
     location::Int64
@@ -33,6 +67,39 @@ mutable struct Infection <: AbstractStateTransition
     prob::DayType
 end
 
+"""
+    DevelopSymptoms <: AbstractStateTransition
+
+Transition from pre-infectious to infectious categories at a
+set probability, `prob`. Any infectious category can
+be designated through `destination`.
+"""
+mutable struct DevelopSymptoms <: AbstractStateTransition
+    species::Int64
+    location::Int64
+    destination::Int64
+    prob::DayType
+end
+
+"""
+    Hospitalise <: AbstractStateTransition
+
+Transition from infectious to hospitalised categories at a
+set probability, `prob`.
+"""
+mutable struct Hospitalise <: AbstractStateTransition
+    species::Int64
+    location::Int64
+    destination::Int64
+    prob::DayType
+end
+
+"""
+    Recovery <: AbstractStateTransition
+
+Transition from infected to recovered category at a
+set probability, `prob`.
+"""
 mutable struct Recovery <: AbstractStateTransition
     species::Int64
     location::Int64
@@ -40,6 +107,25 @@ mutable struct Recovery <: AbstractStateTransition
     prob::DayType
 end
 
+"""
+    DeathFromInfection <: AbstractStateTransition
+
+Transition from infected to dead category at a
+set probability, `prob`.
+"""
+mutable struct DeathFromInfection <: AbstractStateTransition
+    species::Int64
+    location::Int64
+    destination::Int64
+    prob::DayType
+end
+
+"""
+    ForceProduce <: AbstractStateTransition
+
+Transition to produce force of infection from an infectious category at a
+set probability, `prob`.
+"""
 mutable struct ForceProduce <: AbstractStateTransition
     species::Int64
     location::Int64
@@ -50,26 +136,74 @@ function getprob(rule::ForceProduce)
     return rule.prob
 end
 
+"""
+    ForceDisperse <: AbstractStateTransition
+
+Transition to disperse force of infection from a `location`.
+"""
 mutable struct ForceDisperse <: AbstractPlaceTransition
     species::Int64
     location::Int64
 end
 
-function create_transition_list(epilist::EpiList, epienv::GridEpiEnv)
-    params = epilist.params
-    paramDat = params.transition_dat
-    num_cats = length(paramDat[1, :from_id])
+"""
+    get_env(habitat::A) where A <: AbstractHabitat
 
-    exposure = [Exposure(paramDat[1, :from_id][n], loc, paramDat[1, :to_id][n], paramDat[1, :prob].force[n], paramDat[1, :prob].env[n]) for n in 1:num_cats for loc in eachindex(epienv.habitat.matrix)]
-    infection = [Infection(paramDat[2, :from_id][n], loc, paramDat[2, :to_id][n], paramDat[2, :prob][n]) for n in 1:num_cats for loc in eachindex(epienv.habitat.matrix)]
-    recovery = [Recovery(paramDat[3, :from_id][n], loc, paramDat[3, :to_id][n], paramDat[3, :prob][n]) for n in 1:num_cats for loc in eachindex(epienv.habitat.matrix)]
+Generic function to extract a habitat matrix from any
+habitat type.
+"""
+function get_env(habitat::A) where A <: AbstractHabitat
+    return habitat.matrix
+end
 
-    virus_list = [ViralLoad(loc, params.virus_decay) for loc in eachindex(epienv.habitat.matrix)]
-    force_list = [ForceProduce(spp, loc, params.virus_growth[spp]) for spp in eachindex(epilist.human.names) for loc in eachindex(epienv.habitat.matrix)]
+"""
+    SeedInfection <: AbstractWindDown
 
-    state_list = [force_list; virus_list; exposure; infection; recovery]
+Transition to update caches at end of update timestep,
+described in `update_fun`.
+"""
+mutable struct SeedInfection <: AbstractSetUp
+    update_fun::Function
+end
 
-    place_list = [ForceDisperse(spp, loc) for spp in eachindex(epilist.human.names) for loc in eachindex(epienv.habitat.matrix)]
+"""
+    UpdateEpiEnvironment <: AbstractWindDown
 
-    return TransitionList(state_list, place_list)
+Transition to update caches at end of update timestep,
+described in `update_fun`.
+"""
+mutable struct UpdateEpiEnvironment <: AbstractWindDown
+    update_fun::Function
+end
+
+"""
+    update_virus_cache!(epi::Ecosystem)
+
+Function to update the virus abundances with cached
+migration moves.
+"""
+function update_virus_cache!(epi::Ecosystem)
+    force_cats = epi.spplist.pathogens.force_cats
+    human_to_force = epi.spplist.species.human_to_force
+    locs = size(virus(epi.abundances), 2)
+    vm = zeros(eltype(epi.cache.virusmigration), length(force_cats), locs)
+    classes = length(epi.spplist.species.names)
+    Threads.@threads for i in 1:classes
+        for j in 1:locs
+            vm[human_to_force[i], j] += epi.cache.virusmigration[i, j]
+        end
+    end
+    virus(epi.abundances)[force_cats, :] .= vm
+end
+
+"""
+    update_epi_environment!(epi::Ecosystem, timestep::Unitful.Time)
+
+Function to update the virus abundances with cached
+migration moves and invalidate all caches.
+"""
+function update_epi_environment!(epi::Ecosystem, timestep::Unitful.Time)
+    update_virus_cache!(epi)
+    # Invalidate all caches for next update
+    invalidatecaches!(epi)
 end

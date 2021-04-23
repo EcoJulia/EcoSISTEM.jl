@@ -58,60 +58,13 @@ include("Biodiversity/Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth
 
 include("Biodiversity/SpeciesList.jl")
-export SpeciesList
+export SpeciesList, SpeciesTypes, NoPathogen
 
 include("Biodiversity/Landscape.jl")
 export GridLandscape, CachedGridLandscape
 
 include("Transitions/Transitions.jl")
-export TransitionList
-
-include("Biodiversity/Ecosystem.jl")
-export Ecosystem, CachedEcosystem, getsize, gethabitat, gettraitrel, getgridsize,
-getdispersaldist, getdispersalvar, resetrate!,resettime!, getbudget, addspecies!
-
-include("Transitions/BiodiversityTransitions.jl")
-export create_transitions
-
-include("Transitions/BiodiversityRun.jl")
-export run_rule!, new_update!, new_simulate!, new_simulate_record!
-
-include("Biodiversity/Traitfuns.jl")
-export TraitFun, getpref, gettraitrel, gethabitat
-
-include("Biodiversity/HabitatUpdate.jl")
-export getchangefun, TempChange, RainChange, TempFluct, eraChange, worldclimChange
-
-include("Biodiversity/Scenarios.jl")
-export SimpleScenario, FluctScenario, MultiScenario
-
-include("Biodiversity/Generate.jl")
-export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!, reenergise!, randomniches, update!, update_birth_move!, convert_coords, get_neighbours
-
-using Requires
-function __init__()
-    @require MPI="da04e1cc-30fd-572f-bb4f-1f8673147195" @eval begin
-        include("Biodiversity/MPILandscape.jl")
-        export MPIGridLandscape
-
-        include("Biodiversity/MPIEcosystem.jl")
-        export MPIEcosystem, gather_abundance!, gather_diversity
-
-        include("Biodiversity/MPIGenerate.jl")
-    end
-end
-
-include("Biodiversity/Helper.jl")
-export simulate!, simulate_record!,simulate_record_diversity!, expected_counts, generate_storage
-
-include("Biodiversity/Cache.jl")
-export abundances, clearcache
-
-include("Biodiversity/DiversitySet.jl")
-export DiversitySet, updatesimulation!, gettimes
-
-include("Biodiversity/AdditionalDiversity.jl")
-export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
+export TransitionList, create_transition_list, addtransition!
 
 include("Epidemiology/MedianGenerator.jl")
 export MedianGenerator
@@ -135,32 +88,80 @@ include("Epidemiology/EpiMove.jl")
 export EpiMovement, Commuting
 
 include("Epidemiology/EpiList.jl")
-export EpiList, SIS, SIR, SEIR, SEIRS, SEI2HRD
+export SpeciesList, SIS, SIR, SEIR, SEIRS, SEI2HRD
 
 include("Epidemiology/EpiLandscape.jl")
 export EpiLandscape, human, virus
 
-include("Epidemiology/EpiSystem.jl")
-export EpiSystem
+include("Transitions/TransitionLookup.jl")
 
-include("Epidemiology/EpiTraits.jl")
+include("Transitions/TransitionSystem.jl")
+export Ecosystem, CachedEcosystem
+
+include("Transitions/TransitionSystemHelperFuns.jl")
+export gettransitions, getsize, gethabitat, gettraitrel, getgridsize,
+getdispersaldist, getdispersalvar, resetrate!, resettime!, getbudget, getlookup,
+addspecies!
+
+include("Biodiversity/Traitfuns.jl")
+export TraitFun, getpref, gettraitrel, gethabitat
+
+include("Biodiversity/HabitatUpdate.jl")
+export getchangefun, TempChange, RainChange, TempFluct, eraChange, worldclimChange
+
+include("Biodiversity/Scenarios.jl")
+export SimpleScenario, FluctScenario, MultiScenario
+
+include("Biodiversity/Generate.jl")
+export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!,
+reenergise!, randomniches, update!, update_birth_move!,
+convert_coords, get_neighbours, update_energy_usage!, seedinfected!
+
+using Requires
+function __init__()
+    @require MPI="da04e1cc-30fd-572f-bb4f-1f8673147195" @eval begin
+        include("Biodiversity/MPILandscape.jl")
+        export MPIGridLandscape
+
+        include("Biodiversity/MPIEcosystem.jl")
+        export MPIEcosystem, gather_abundance!, gather_diversity
+
+        include("Biodiversity/MPIGenerate.jl")
+    end
+end
+
+include("Biodiversity/Cache.jl")
+export abundances, clearcache
+
+include("Biodiversity/DiversitySet.jl")
+export DiversitySet, updatesimulation!, gettimes
+
+include("Biodiversity/AdditionalDiversity.jl")
+export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson, pd, makeunique
 
 include("Epidemiology/EpiGenerate.jl")
 export populate!
-
-include("Epidemiology/EpiHelper.jl")
-export simulate!, simulate_record!
 
 include("Epidemiology/EpiPlots.jl")
 
 include("Epidemiology/Inference.jl")
 export SIR_wrapper, SIR_wrapper!, SEI3HRD_wrapper, SEI3HRD_wrapper!
 
-include("Transitions/EpiTransitions.jl")
-export create_transition_list
+include("Transitions/BiodiversityTransitions.jl")
+export BirthProcess, DeathProcess, GenerateSeed, AllDisperse, SeedDisperse,
+UpdateEnergy, UpdateEnvironment, update_environment!
 
+include("Transitions/EpiTransitions.jl")
+export ForceProduce, ForceDisperse, ViralLoad, Exposure, EnvExposure, Infection,
+DevelopSymptoms, Hospitalise, DeathFromInfection,
+Recovery, SeedInfection, UpdateEpiEnvironment, update_epi_environment!,
+get_env
+
+include("Transitions/BiodiversityRun.jl")
 include("Transitions/EpiRun.jl")
-export new_simulate!, new_simulate_record!
+
+include("Transitions/Run.jl")
+export run_rule!, update!, simulate!, simulate_record!, generate_storage
 
 # Path into package
 path(paths...) = joinpath(@__DIR__, "..", paths...)

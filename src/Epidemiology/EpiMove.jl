@@ -23,3 +23,7 @@ end
 mutable struct Commuting <: AbstractMovement
     home_to_work::DataFrame
 end
+
+
+getdispersaldist(m::EpiMovement, sp::Int64) = m.home.kernels[sp].dist
+getdispersalvar(m::EpiMovement, sp::Int64) = (m.home.kernels[sp].dist)^2 * pi / 4

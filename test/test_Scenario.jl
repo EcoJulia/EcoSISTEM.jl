@@ -17,7 +17,7 @@ include("TestCases.jl")
     end
     scenario = SimpleScenario(TempIncrease!, 1.0K/year)
     @test_nowarn EcoSISTEM.runscenario!(eco, 1month, scenario, 1month)
-    EcoSISTEM.update!(eco, 1month)
+    EcoSISTEM.biodiversity_update!(eco, 1month)
     @test mean(eco.abenv.habitat.matrix) > 10.0K
 
     # Fluctuating scenario

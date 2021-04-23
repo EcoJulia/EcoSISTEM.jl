@@ -107,13 +107,13 @@ movement = EpiMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
 new_exposed = 100
 new_virus = 1_000
-epi = EpiSystem(epilist, epienv, rel)
+epi = Ecosystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
 human(epi.abundances)[2, 1] = new_exposed
 
@@ -147,13 +147,13 @@ movement = EpiMovement(kernel)
 
 # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
 traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create epi system with all information
 new_exposed = 100
 new_virus = 1000
-epi = EpiSystem(epilist, epienv, rel)
+epi = Ecosystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
 human(epi.abundances)[2, 1] = new_exposed
 

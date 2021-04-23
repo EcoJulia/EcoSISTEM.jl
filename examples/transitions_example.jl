@@ -34,7 +34,6 @@ native = fill(true, numSpecies)
 abun = fill(div(individuals, numSpecies), numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
     movement, param, native)
-sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
 abenv = simplehabitatAE(274.0K, grid, totalK, area)
@@ -43,33 +42,74 @@ abenv = simplehabitatAE(274.0K, grid, totalK, area)
 # Set relationship between species and environment (gaussian)
 rel = Gauss{typeof(1.0K)}()
 
+# Create transition list
+transitions = create_transition_list()
+addtransition!(transitions, UpdateEnergy(EcoSISTEM.update_energy_usage!))
+addtransition!(transitions, UpdateEnvironment(update_environment!))
+for spp in eachindex(sppl.species.names)
+    for loc in eachindex(abenv.habitat.matrix)
+        addtransition!(transitions, BirthProcess(spp, loc, sppl.params.birth[spp]))
+        addtransition!(transitions, DeathProcess(spp, loc, sppl.params.death[spp]))
+        addtransition!(transitions, AllDisperse(spp, loc))
+    end
+end
+
 #Create ecosystem
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
 
 # Simulation Parameters
 burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
 lensim = length(0years:record_interval:times)
 abuns = zeros(Int64, numSpecies, prod(grid), lensim)
 # Burnin
-@time new_simulate!(eco, burnin, timestep);
-@time new_simulate_record!(abuns, eco, times, record_interval, timestep);
+@time simulate!(eco, burnin, timestep);
+@time simulate_record!(abuns, eco, times, record_interval, timestep);
 
+using Plots
+@gif for i in 1:lensim
+    heatmap(reshape(abuns[1, :, i], 10, 10), clim = (50, 150))
+end
+
+# Run older biodiversity code for comparison
 eco = Ecosystem(sppl, abenv, rel)
 @time simulate!(eco, burnin, timestep);
 @time simulate_record!(abuns, eco, times, record_interval, timestep);
 
 # Benchmark
 using BenchmarkTools
-eco = Ecosystem(sppl, abenv, rel);
-@benchmark new_simulate!(eco, burnin, timestep)
+eco = Ecosystem(sppl, abenv, rel, transitions = transitions);
+@benchmark simulate!(eco, burnin, timestep)
 eco = Ecosystem(sppl, abenv, rel);
 @benchmark simulate!(eco, burnin, timestep)
 
-using Plots
-@gif for i in 1:lensim
-    heatmap(abuns[:, :, i], clim = (50, 150))
+using ProfileView
+eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
+@profview simulate!(eco, burnin, timestep)
+
+# Plant example
+
+# Alter movement mechanism
+movement = BirthOnlyMovement(kernel, Torus())
+sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    movement, param, native)
+# Create new transition list
+transitions = create_transition_list()
+addtransition!(transitions, UpdateEnergy(update_energy_usage!))
+addtransition!(transitions, UpdateEnvironment(update_environment!))
+for spp in eachindex(sppl.species.names)
+    for loc in eachindex(abenv.habitat.matrix)
+        addtransition!(transitions, GenerateSeed(spp, loc, sppl.params.birth[spp]))
+        addtransition!(transitions, DeathProcess(spp, loc, sppl.params.death[spp]))
+        addtransition!(transitions, SeedDisperse(spp, loc))
+    end
 end
 
-using ProfileView
-eco = Ecosystem(sppl, abenv, rel)
-@profview new_simulate!(eco, burnin, timestep)
+# Re-simulate
+eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
+@time simulate!(eco, burnin, timestep);
+@time simulate_record!(abuns, eco, times, record_interval, timestep);
+
+using Plots
+@gif for i in 1:lensim
+    heatmap(reshape(abuns[1, :, i], 10, 10), clim = (50, 150))
+end

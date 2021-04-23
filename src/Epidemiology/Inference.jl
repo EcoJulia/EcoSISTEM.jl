@@ -30,7 +30,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
         (name="Force", initial=0),
     ])
     numvirus = nrow(abun_v)
-    
+
     # Set initial population sizes for all human categories
     susceptible = 500_000 * Ncells
     abun_h = DataFrame([
@@ -62,11 +62,11 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param)
+    epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
-    epi = EpiSystem(epilist, epienv, rel)
+    epi = Ecosystem(epilist, epienv, rel)
 
     # Seed infected category at a single location
     human(epi.abundances)[2, 1] = 100 * Ncells
@@ -195,11 +195,11 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    epilist = EpiList(traits, abun_v, abun_h, movement, transitions, param, num_ages)
+    epilist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param, num_ages)
 
     # Create epi system with all information
     rel = Gauss{eltype(epienv.habitat)}()
-    epi = EpiSystem(epilist, epienv, rel)
+    epi = Ecosystem(epilist, epienv, rel)
 
     # Seed infected category at a single location
     human(epi.abundances)[cat_idx[:, 2], 1] .= 100 * Ncells

@@ -48,7 +48,7 @@ using MPI
     # Create ecosystem
     @test_nowarn eco = MPIEcosystem(sppl, abenv, rel)
     eco = MPIEcosystem(sppl, abenv, rel)
-    @test sum(eco.sppcounts) == length(eco.spplist.names)
+    @test sum(eco.sppcounts) == length(eco.spplist.species.names)
     @test eco.firstsp == 1
     @test sum(eco.sccounts) == prod(size(eco.abenv.habitat.matrix))
     @test eco.firstsc == 1
