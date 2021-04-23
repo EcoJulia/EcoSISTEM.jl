@@ -152,10 +152,10 @@ export BirthProcess, DeathProcess, GenerateSeed, AllDisperse, SeedDisperse,
 UpdateEnergy, UpdateEnvironment, update_environment!
 
 include("Transitions/EpiTransitions.jl")
-export ForceProduce, ForceDisperse, ViralLoad, Exposure, EnvExposure, Infection,
+export ForceProduce, ForceDisperse, ViralLoad, EnvViralLoad, Exposure, Infection,
 DevelopSymptoms, Hospitalise, DeathFromInfection,
 Recovery, SeedInfection, UpdateEpiEnvironment, update_epi_environment!,
-get_env
+get_env, EnvTransition
 
 include("Transitions/BiodiversityRun.jl")
 include("Transitions/EpiRun.jl")

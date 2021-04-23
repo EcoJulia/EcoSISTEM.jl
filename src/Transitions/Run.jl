@@ -21,8 +21,6 @@ function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: A
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == Exposure
         _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == EnvExposure
-        _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == Infection
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == DevelopSymptoms
@@ -35,7 +33,11 @@ function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: A
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == ViralLoad
         _run_rule!(eco, rule, timestep)
+    elseif typeof(rule) == EnvViralLoad
+        _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == ForceProduce
+        _run_rule!(eco, rule, timestep)
+    elseif typeof(rule) == EnvTransition
         _run_rule!(eco, rule, timestep)
     else
         _run_rule!(eco, rule, timestep)

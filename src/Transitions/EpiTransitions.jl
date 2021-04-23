@@ -11,6 +11,19 @@ mutable struct ViralLoad <: AbstractStateTransition
 end
 
 """
+    EnvViralLoad <: AbstractStateTransition
+
+Transition for force of infection to settle into environmental reservoir,
+influenced by the local environment, accessed through `get_env`.
+
+"""
+mutable struct EnvViralLoad <: AbstractStateTransition
+    location::Int64
+    prob::DayType
+    get_env::Function
+end
+
+"""
     Exposure <: AbstractStateTransition
 
 Transition for exposure of susceptibles to force of infection
@@ -25,34 +38,24 @@ mutable struct Exposure <: AbstractStateTransition
     virus_prob::DayType
 end
 
-"""
-    EnvExposure <: AbstractStateTransition
-
-Transition for exposure of susceptibles to force of infection
-    and environmental reservoir at set probabilities,
-    `force_prob` and `virus_prob` respectively. This exposure
-    mechanism is influenced by the local environment (fetched
-    through the `get_env` function), controlled by the strength
-    of `env_param`.
-"""
-mutable struct EnvExposure <: AbstractStateTransition
-    species::Int64
-    location::Int64
-    destination::Int64
-    force_prob::DayType
-    virus_prob::DayType
-    env_param::Float64
-    get_env::Function
-end
-
 function getprob(rule::Exposure)
     return rule.force_prob, rule.virus_prob
 end
 
-function getprob(rule::EnvExposure)
-    return rule.force_prob, rule.virus_prob
-end
+"""
+    EnvTransition <: AbstractStateTransition
 
+Transition, `rule` is influenced by the local environment (fetched
+through the `get_env` function), controlled by the strength of `env_param`.
+"""
+mutable struct EnvTransition <: AbstractStateTransition
+    rule::AbstractStateTransition
+    env_param::Unitful.Quantity{Float64}
+    get_env::Function
+end
+function EnvTransition(rule::AbstractStateTransition, env_param::Unitful.Quantity{Float64})
+    return EnvTransition(rule, env_param, get_env)
+end
 """
     Infection <: AbstractStateTransition
 
@@ -154,6 +157,9 @@ habitat type.
 """
 function get_env(habitat::A) where A <: AbstractHabitat
     return habitat.matrix
+end
+function get_env(habitat::A, loc::Int64) where A <: AbstractHabitat
+    return habitat.matrix[loc]
 end
 
 """

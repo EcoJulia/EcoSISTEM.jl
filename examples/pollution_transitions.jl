@@ -170,12 +170,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
     total_pop[total_pop .≈ 0.0] .= NaN
-
-    epienv_1 = simplehabitatAE(298.0K, size(total_pop), area, Lockdown(20days))
-    epienv_2 = ukclimateAE(pollution, area, Lockdown(20days))
-    epienv = HabitatCollection2(epienv_1, epienv_2)
-
-    movement_balance = (home = fill(0.5, numclasses * age_categories), work = fill(0.5, numclasses * age_categories))
+    epienv = ukclimateAE(pollution, area, Lockdown(20days))
 
     # Dispersal kernels for virus and disease classes
     dispersal_dists = fill(1.0km, length(total_pop))
@@ -194,8 +189,9 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     # Traits for match to environment (turned off currently through param choice, i.e. virus matches environment perfectly)
     traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
+    movement_balance = (home = fill(0.5, numclasses * age_categories), work = fill(0.5, numclasses * age_categories))
     epilist = SpeciesList(traits, abun_v, abun_h, movement, transitiondat, param, age_categories, movement_balance)
-    rel = Gauss{eltype(epienv.h1.habitat)}()
+    rel = Gauss{eltype(epienv.habitat)}()
 
     transitions = create_transition_list()
     addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
@@ -217,9 +213,9 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
             addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 4], loc))
             addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 5], loc))
             # Exposure
-            addtransition!(epi.transitions, EnvExposure(transitiondat[1, :from_id][age], loc,
-                transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age],
-                1.0, x -> x.matrix))
+            addtransition!(epi.transitions, EnvTransition(Exposure(transitiondat[1, :from_id][age], loc,
+                transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age]),
+                1.0m^3/μg))
             # Infected but asymptomatic
             addtransition!(epi.transitions, Infection(transitiondat[2, :from_id][age], loc,
                 transitiondat[2, :to_id][age], transitiondat[2, :prob][age]))
@@ -227,8 +223,8 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
             addtransition!(epi.transitions, Infection(transitiondat[3, :from_id][age], loc,
                 transitiondat[3, :to_id][age], transitiondat[3, :prob][age]))
             # Develop symptoms
-            addtransition!(epi.transitions, DevelopSymptoms(transitiondat[4, :from_id][age], loc,
-                transitiondat[4, :to_id][age], transitiondat[4, :prob][age]))
+            addtransition!(epi.transitions, EnvTransition(DevelopSymptoms(transitiondat[4, :from_id][age], loc,
+                transitiondat[4, :to_id][age], transitiondat[4, :prob][age]), 1.0m^3/μg, getpollution))
             # Hospitalise
             addtransition!(epi.transitions, Hospitalise(transitiondat[5, :from_id][age], loc,
                 transitiondat[5, :to_id][age], transitiondat[5, :prob][age]))
