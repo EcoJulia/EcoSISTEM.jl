@@ -1,6 +1,5 @@
 using Diversity
 using Phylo
-using Compat
 
 """
     SpeciesList{TR <: AbstractTraits, R <: AbstractRequirement,
@@ -34,7 +33,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
                        P <: AbstractParams}
       # Check dimensions
       equal_param = equalpop(params, length(names))
-      sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
+      sus = Vector{Union{Missing, Float64}}(undef, length(names))
       new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
        movement, equal_param, native, sus)
   end
@@ -49,7 +48,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
       # Assign names
       names = map(x -> "$x", 1:length(abun))
       equal_param = equalpop(params, length(names))
-      sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
+      sus = Vector{Union{Missing, Float64}}(undef, length(names))
       new{TR, R, MO, T, typeof(equal_param)}(names, traits, abun, req, types,
        movement, equal_param, native, sus)
   end

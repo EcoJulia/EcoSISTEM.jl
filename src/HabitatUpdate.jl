@@ -1,4 +1,3 @@
-using Compat
 using Unitful
 using Unitful.DefaultSymbols
 
