@@ -45,7 +45,8 @@ virus_decay = 1.0/2days
 age_mixing = fill(1.0, ages, ages)
 param = (birth = birth, death = death, virus_growth = virus_growth,
         virus_decay = virus_decay, beta_env = beta_env,
-        beta_force = beta_force, age_mixing = age_mixing, env_exposure = 2.5)
+        beta_force = beta_force, age_mixing = age_mixing,
+        env_exposure = 2.0/mean(epienv.habitat.matrix))
 
 cat_idx = reshape(1:(nrow(abun_h) * ages), ages, nrow(abun_h))
 transitiondat = DataFrame([
@@ -81,9 +82,9 @@ for loc in eachindex(epienv.habitat.matrix)
     for age in 1:ages
         addtransition!(transitions, ForceProduce(cat_idx[age, 3], loc, param.virus_growth[age]))
         addtransition!(transitions, ForceDisperse(cat_idx[age, 3], loc))
-        addtransition!(transitions, EnvExposure(transitiondat[1, :from_id][age], loc,
-            transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age],
-            param.env_exposure, x -> x.matrix))
+        addtransition!(transitions, EnvTransition(Exposure(transitiondat[1, :from_id][age], loc,
+            transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age]),
+            param.env_exposure))
         addtransition!(transitions, Infection(transitiondat[2, :from_id][age], loc,
             transitiondat[2, :to_id][age], transitiondat[2, :prob][age]))
         addtransition!(transitions, Recovery(transitiondat[3, :from_id][age], loc,

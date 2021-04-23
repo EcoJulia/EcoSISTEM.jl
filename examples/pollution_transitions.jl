@@ -215,7 +215,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
             # Exposure
             addtransition!(epi.transitions, EnvTransition(Exposure(transitiondat[1, :from_id][age], loc,
                 transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age]),
-                1.0m^3/μg))
+                5.0/mean(epienv.habitat.matrix)))
             # Infected but asymptomatic
             addtransition!(epi.transitions, Infection(transitiondat[2, :from_id][age], loc,
                 transitiondat[2, :to_id][age], transitiondat[2, :prob][age]))
@@ -224,10 +224,10 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
                 transitiondat[3, :to_id][age], transitiondat[3, :prob][age]))
             # Develop symptoms
             addtransition!(epi.transitions, EnvTransition(DevelopSymptoms(transitiondat[4, :from_id][age], loc,
-                transitiondat[4, :to_id][age], transitiondat[4, :prob][age]), 1.0m^3/μg, getpollution))
+                transitiondat[4, :to_id][age], transitiondat[4, :prob][age]), 2.0/mean(epienv.habitat.matrix)))
             # Hospitalise
-            addtransition!(epi.transitions, Hospitalise(transitiondat[5, :from_id][age], loc,
-                transitiondat[5, :to_id][age], transitiondat[5, :prob][age]))
+            addtransition!(epi.transitions, EnvTransition(Hospitalise(transitiondat[5, :from_id][age], loc,
+                transitiondat[5, :to_id][age], transitiondat[5, :prob][age]), 2.0/mean(epienv.habitat.matrix)))
             # Recover without symptoms
             addtransition!(epi.transitions, Recovery(transitiondat[6, :from_id][age], loc,
                 transitiondat[6, :to_id][age], transitiondat[6, :prob][age]))
