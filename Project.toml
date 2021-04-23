@@ -1,7 +1,7 @@
 name = "EcoSISTEM"
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 authors = ["Claire Harris <claire.harris@bioss.ac.uk>", "Richard Reeve <Richard.Reeve@glasgow.ac.uk>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
@@ -50,7 +50,7 @@ AxisArrays = "0.4.3"
 Calculus = "0.4.1, 0.5"
 DataFrames = "0.21.8, 0.22, 1.0"
 Distributions = "0.24.15"
-Diversity = "0.5.3"
+Diversity = "=0.5.4"
 EcoBase = "0.1.3"
 Feather = "0.5.7"
 HCubature = "1.5.0"
