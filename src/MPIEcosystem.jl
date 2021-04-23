@@ -8,7 +8,6 @@ end
 using Unitful
 using EcoSISTEM.Units
 using Missings
-using Compat
 
 import Diversity: _calcabundance
 """

@@ -3,7 +3,6 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using AxisArrays
 using NetCDF
-using Compat
 
 import Unitful.°, Unitful.°C, Unitful.mm
 import ArchGDAL
