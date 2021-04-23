@@ -1,5 +1,4 @@
 using Diversity
-using Phylo
 
 """
     makeunique(eco::Ecosystem)

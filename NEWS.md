@@ -1,5 +1,7 @@
 # NEWS
 
+- v0.1.2
+  - Fix phylogenetic diversity management
 - v0.1.1
   - Remove unnecessary Compat dependency
   - Fix incompatibility with latest Diversity release

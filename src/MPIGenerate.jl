@@ -1,4 +1,5 @@
 using MPI
+using LinearAlgebra
 
 """
     update!(eco::MPIEcosystem, timestep::Unitful.Time) where N

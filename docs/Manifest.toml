@@ -239,7 +239,7 @@ version = "0.24.18"
 deps = ["AxisArrays", "DataFrames", "EcoBase", "InteractiveUtils", "LinearAlgebra", "Missings", "RecipesBase", "Requires", "Statistics"]
 git-tree-sha1 = "b0601dcd6efbf6e560c329f5c03bb5294357c598"
 uuid = "d3d5718d-52de-57ab-b67a-eca7fd6175a4"
-version = "0.5.5"
+version = "0.5.6"
 
 [[DocStringExtensions]]
 deps = ["LibGit2", "Markdown", "Pkg", "Test"]
@@ -273,7 +273,7 @@ version = "0.1.3"
 deps = ["ArchGDAL", "AxisArrays", "Calculus", "Compat", "DataFrames", "Dates", "Distributions", "Diversity", "EcoBase", "Feather", "HCubature", "IndexedTables", "Interpolations", "JLD", "JuliaDB", "LibGit2", "Libdl", "LinearAlgebra", "Logging", "MPI", "Markdown", "Measures", "Missings", "NetCDF", "OnlineStats", "Optim", "Phylo", "Plots", "Printf", "RCall", "REPL", "Random", "RecipesBase", "Requires", "SHA", "SpatialEcology", "Statistics", "StatsBase", "UUIDs", "Unitful"]
 git-tree-sha1 = "55bcaf9fe1e595691a58c2c6d9a6f1b08a7e7ffb"
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
-version = "0.1.0"
+version = "0.1.2"
 
 [[EllipsisNotation]]
 deps = ["ArrayInterface"]
