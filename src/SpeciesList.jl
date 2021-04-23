@@ -210,7 +210,7 @@ end
 #  return eye(ut.num)
 #end
 
-#function _calcsimilarity(ph::PhyloTypes)
+#function _calcsimilarity(ph::PhyloBranches)
 # return ph.Zmatrix
 #end
 import Diversity.API: _gettypenames
