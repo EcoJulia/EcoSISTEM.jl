@@ -4,7 +4,6 @@ import Diversity.countsubcommunities
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
-using Compat
 using RecipesBase
 using EcoBase
 import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
@@ -368,7 +367,7 @@ function randomniches(dimension::Tuple, types::Vector{Int64}, clumpiness::Float6
     # Select clusters and assign types
     _identify_clusters!(M)
     # Create a string grid of the same dimensions
-    T = Array{Int64}(Compat.undef, dimension)
+    T = Array{Int64}(undef, dimension)
     # Fill in T with clusters already created
     map(x -> T[M.==x] .= sample(types, wv), 1:maximum(M))
     # Fill in undefined squares with most frequent neighbour
@@ -413,7 +412,7 @@ function tempgrad(minT::Unitful.Temperature{Float64}, maxT::Unitful.Temperature{
   dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
   dim[1] > 1 ||
   error("First dimension should be greater than 1 for temperature gradient")
-  M = Array{typeof(minT)}(Compat.undef, dim)
+  M = Array{typeof(minT)}(undef, dim)
   total = dim[1]
   temp_range = collect(range(minT, stop = maxT, length = total))
   map(1:total) do seq
@@ -433,7 +432,7 @@ Function to create a `ContinuousHab` habitat with a rainfall gradient.
 function raingrad(minR::Unitful.Length{Float64}, maxR::Unitful.Length{Float64}, size::Unitful.Length{Float64}, dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝐋*𝐓^-1})
   dim[1] > 1 ||
   error("First dimension should be greater than 1 for temperature gradient")
-  M = Array{typeof(minR)}(Compat.undef, dim)
+  M = Array{typeof(minR)}(undef, dim)
   total = dim[1]
   rain_range = collect(range(minR, stop = maxR, length = total))
   map(1:total) do seq

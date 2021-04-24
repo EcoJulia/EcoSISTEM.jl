@@ -4,9 +4,7 @@ Thanks for contributing to EcoSISTEM.jl! Please read the below on how best to ma
 
 ## Pull Request Process
 
-1. Please branch from within boydorr/EcoSISTEM.jl
-
-   - Please **don't** fork this repository to your own github.com/username or other organisation.
+1. Please branch `dev` from within boydorr/EcoSISTEM.jl or fork this repository to your own github.com/username or other organisation.
 
 2. Read the issues and choose/be assigned an appropriate issue.
 
@@ -17,6 +15,10 @@ Thanks for contributing to EcoSISTEM.jl! Please read the below on how best to ma
 5. Semver will be handled in PRs from `dev` into `master`.
 
 6. Thanks for your time and effort!
+
+## Notes on workflow
+
+Now that the package has been released, all subsequent merges to `main` will only occur as an associated release (following approval from 2 or more reviewers).
 
 ## Licensing
 
