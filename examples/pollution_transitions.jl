@@ -14,7 +14,6 @@ using Plots
 using SQLite
 
 function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
-
     # Download and read in population sizes for Scotland
     DataRegistryUtils.load_array!(db, "human/demographics/population/scotland", "/grid area/age/persons"; sql_alias="km_age_persons_arr")
     scotpop = get_3d_km_grid_axis_array(db, ["grid_area", "age_aggr"], "val", "scottish_population_view")
@@ -213,8 +212,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
             addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 4], loc))
             addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 5], loc))
             # Exposure
-            addtransition!(epi.transitions, EnvTransition(Exposure(transitiondat[1, :from_id][age], loc,
-                transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age]),
+            addtransition!(epi.transitions, EnvTransition(Exposure(transitiondat[1, :from_id][age], loc, transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age]),
                 5.0/mean(epienv.habitat.matrix)))
             # Infected but asymptomatic
             addtransition!(epi.transitions, Infection(transitiondat[2, :from_id][age], loc,
@@ -241,8 +239,8 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
             addtransition!(epi.transitions, DeathFromInfection(transitiondat[9, :from_id][age], loc,
                 transitiondat[9, :to_id][age], transitiondat[9, :prob][age]))
             # Die from hospital
-            addtransition!(epi.transitions, DeathFromInfection(transitiondat[10, :from_id][age], loc,
-                transitiondat[10, :to_id][age], transitiondat[10, :prob][age]))
+            addtransition!(epi.transitions, EnvTransition(DeathFromInfection(transitiondat[10, :from_id][age], loc,
+                transitiondat[10, :to_id][age], transitiondat[10, :prob][age]), 2.0/mean(epienv.habitat.matrix)))
         end
     end
 
@@ -259,7 +257,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     epi.spplist.species.work_balance[cat_idx[7:10, :]] .= 0.0
 
     N_cells = size(epi.abundances.matrix, 2)
-
+    println("Ecosystem initiated")
     # Run simulation
     abuns = zeros(UInt32, size(epi.abundances.matrix, 1), N_cells, floor(Int, times/timestep) + 1)
     @time simulate_record!(abuns, epi, times, interval, timestep, save = save, save_path = savepath)
@@ -285,10 +283,12 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     return abuns
 end
 
+cd("examples")
 data_dir= "Epidemiology/data/"
 config = "Epidemiology/data_config.yaml"
 view_sql = "Epidemiology/Scotland_run_view.sql"
 db = initialise_local_registry(data_dir, data_config = config, sql_file = view_sql)
 
 times = 1month; interval = 1day; timestep = 1day
-run_model(db, times, interval, timestep, do_plot = true)
+run_model(db, 1day, interval, timestep)
+run_model(db, times, interval, timestep, save = true, do_plot = true)
