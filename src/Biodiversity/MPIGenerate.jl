@@ -1,4 +1,5 @@
 using MPI
+using LinearAlgebra
 
 function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: MPIGridLandscape
     biodiversity_update!(eco, timestep)

@@ -4,7 +4,6 @@ using HCubature
 using Unitful
 using EcoSISTEM.Units
 using Missings
-using Compat
 
 import Diversity: _calcabundance
 """
@@ -57,15 +56,15 @@ function MPIEcosystem(popfun::F, spplist::SpeciesList{SpeciesTypes{T, Req, MO, T
     numspp = length(spplist.species.names)
     numsc = countsubcommunities(abenv.habitat)
 
-    count = div(numspp + totalsize - 1, totalsize)
+    count = div(numspp, totalsize)
     sppcounts = Int32.(fill(count, totalsize))
-    sppcounts[end] = numspp - sum(sppcounts) + count
+    sppcounts[1:(numspp - sum(sppcounts))] .+= 1
     sppindices = vcat([0], cumsum(sppcounts))
     firstsp = sppindices[rank + 1] + 1
 
-    sccount = div(numsc + totalsize - 1, totalsize)
+    sccount = div(numsc, totalsize)
     sccounts = Int32.(fill(sccount, totalsize))
-    sccounts[end] = numsc - sum(sccounts) + sccount
+    sccounts[1:(numsc - sum(sccounts))] .+= 1
     scindices = vcat([0], cumsum(sccounts))
     firstsc = scindices[rank + 1] + 1
 
