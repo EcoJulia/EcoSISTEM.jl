@@ -1,5 +1,4 @@
 using StatsBase
-using Compat
 using LinearAlgebra
 
 """
@@ -306,7 +305,7 @@ function ukChange(epi::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time
     hab.time += round(Int64, daystep/day)
     if hab.time > size(hab.matrix, 3)
         hab.time = 1
-        Compat.@warn "More timesteps than available, have repeated"
+        @warn "More timesteps than available, have repeated"
     end
 end
 

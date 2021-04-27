@@ -1,6 +1,5 @@
 # Identify files in test/ that are testing matching files in src/
 #  - src/Source.jl will be matched by test/test_Source.jl
-using Compat
 using Random
 using Test
 

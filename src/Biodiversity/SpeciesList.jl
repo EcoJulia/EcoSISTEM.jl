@@ -1,6 +1,5 @@
 using Diversity
 using Phylo
-using Compat
 
 
 """
@@ -64,7 +63,7 @@ mutable struct SpeciesTypes{TR <: AbstractTraits,
                        MO <: AbstractMovement,
                        T <: AbstractTypes}
       # Check dimensions
-      sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
+      sus = Vector{Union{Missing, Float64}}(undef, length(names))
       new{TR, R, MO, T}(names, traits, abun, req, types,
        movement, native, sus)
   end
@@ -77,7 +76,7 @@ mutable struct SpeciesTypes{TR <: AbstractTraits,
                        T <: AbstractTypes}
       # Assign names
       names = map(x -> "$x", 1:length(abun))
-      sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
+      sus = Vector{Union{Missing, Float64}}(undef, length(names))
       new{TR, R, MO, T}(names, traits, abun, req, types,
        movement, native, sus)
   end
@@ -273,7 +272,7 @@ end
 #  return eye(ut.num)
 #end
 
-#function _calcsimilarity(ph::PhyloTypes)
+#function _calcsimilarity(ph::PhyloBranches)
 # return ph.Zmatrix
 #end
 import Diversity.API: _gettypenames
