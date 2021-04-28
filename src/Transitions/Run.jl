@@ -130,7 +130,7 @@ end
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
   numSpecies = counttypes(eco.spplist)
   gridSize = _countsubcommunities(eco.abenv.habitat)
-  abun = Array{Int64, 4}(Compat.undef, numSpecies, gridSize, times, reps)
+  abun = Array{Int64, 4}(undef, numSpecies, gridSize, times, reps)
 end
 
 """

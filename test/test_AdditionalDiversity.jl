@@ -3,6 +3,7 @@ using Diversity
 using Phylo
 using Statistics
 using Test
+
 @testset "diversity" begin
     include("TestCases.jl")
     eco = TestEcosystem()

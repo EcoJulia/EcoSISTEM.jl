@@ -3,7 +3,6 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using AxisArrays
 using NetCDF
-using Compat
 using IndexedTables
 
 import JuliaDB.DIndexedTable

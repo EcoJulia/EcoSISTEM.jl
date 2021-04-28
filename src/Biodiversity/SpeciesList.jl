@@ -1,6 +1,5 @@
 using Diversity
 using Phylo
-using Compat
 
 
 """
@@ -64,7 +63,7 @@ mutable struct SpeciesTypes{TR <: AbstractTraits,
                        MO <: AbstractMovement,
                        T <: AbstractTypes}
       # Check dimensions
-      sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
+      sus = Vector{Union{Missing, Float64}}(undef, length(names))
       new{TR, R, MO, T}(names, traits, abun, req, types,
        movement, native, sus)
   end
@@ -77,7 +76,7 @@ mutable struct SpeciesTypes{TR <: AbstractTraits,
                        T <: AbstractTypes}
       # Assign names
       names = map(x -> "$x", 1:length(abun))
-      sus = Vector{Union{Missing, Float64}}(Compat.undef, length(names))
+      sus = Vector{Union{Missing, Float64}}(undef, length(names))
       new{TR, R, MO, T}(names, traits, abun, req, types,
        movement, native, sus)
   end
@@ -87,6 +86,7 @@ mutable struct NoPathogen <: AbstractPathogenTypes end
 function _counttypes(virus::NoPathogen, input::Bool)
     return 0
 end
+
 """
     SpeciesList{R <: AbstractRequirement,
       MO <: AbstractMovement, P <: AbstractParams}(numspecies::Int64,
@@ -260,6 +260,10 @@ function _getpathogentraits(sppl::SpeciesList)
     return sppl.pathogens.traits
 end
 
+function _getpathogentraits(sppl::SpeciesList{A, B, C}) where {A, B <: NoPathogen, C}
+    return error("No pathogens in this SpeciesList")
+end
+
 function _simmatch(sim::SpeciesList)
   _simmatch(sim.species.types)
 end
@@ -268,7 +272,7 @@ end
 #  return eye(ut.num)
 #end
 
-#function _calcsimilarity(ph::PhyloTypes)
+#function _calcsimilarity(ph::PhyloBranches)
 # return ph.Zmatrix
 #end
 import Diversity.API: _gettypenames

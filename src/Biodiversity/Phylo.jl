@@ -2,7 +2,6 @@ using Phylo
 using Distributions
 using DataFrames
 using Phylo: NodeNameIterator
-using Compat
 
 function reroot!(tree::AbstractTree, node::String)
     root = getroot(tree)
@@ -25,7 +24,7 @@ function pair(vec)
   # Calc number of pairs
   npairs=length(vec)-1
   # Create empty array
-  newvec=Array{String}(Compat.undef, npairs, 2)
+  newvec=Array{String}(undef, npairs, 2)
   # Split into pairs
   for i in collect(1:npairs)
     newvec[i,:]=vec[i:(i+1)]
@@ -84,7 +83,7 @@ function assign_traits!(tree::AbstractTree, switch_rate::Vector{Float64},
     # Draw switch times from exponential distribution
     # Stop when they are larger than the length of the path
     alltimes = map(switch_rate) do swt
-      times = Array{Float64}(Compat.undef, 0)
+      times = Array{Float64}(undef, 0)
         while(sum(times) < len)
           time_switch = rand(Exponential(swt*len))
           append!(times, time_switch)
@@ -167,7 +166,7 @@ function assign_traits!(tree::AbstractTree, traits::DataFrame)
 
   # Warning for nodes that have already been assigned traits
   check = arenoderecordsempty(tree, collect(getnodenames(tree)))
-  all(check) || Compat.@warn "Some nodes already assigned traits"
+  all(check) || @warn "Some nodes already assigned traits"
 
   # Check that the length of the starting values and variances are the same
   length(traits[!, :start]) == length(traits[!, :σ²]) || error("Start values and variance must have same number of traits")
