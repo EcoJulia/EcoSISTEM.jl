@@ -39,56 +39,56 @@ Abstract type for transitions that wind down the `Ecosystem` at
 abstract type AbstractWindDown <: AbstractTransition end
 
 """
-    getprob(rule::S) where S <: AbstractStateTransition
+    getprob(rule::AbstractStateTransition)
 
 Generic function to get probability of a state transition happening.
 """
-function getprob(rule::S) where S <: AbstractStateTransition
+function getprob(rule::AbstractStateTransition)
     return rule.prob
 end
 
 """
-    getspecies(rule::S) where S <: AbstractStateTransition
+    getspecies(rule::AbstractStateTransition)
 
 Generic function to get species to which a state transition happening.
 """
-function getspecies(rule::S) where S <: AbstractStateTransition
+function getspecies(rule::AbstractStateTransition)
     return rule.species
 end
 
 """
-    getlocation(rule::S) where S <: AbstractStateTransition
+    getlocation(rule::AbstractStateTransition)
 
 Generic function to get location where a state transition happening.
 """
-function getlocation(rule::S) where S <: AbstractStateTransition
+function getlocation(rule::AbstractStateTransition)
     return rule.location
 end
 
 """
-    getspecies(rule::P) where P <: AbstractPlaceTransition
+    getspecies(rule::AbstractPlaceTransition)
 
 Generic function to get species to which a place transition happening.
 """
-function getspecies(rule::P) where P <: AbstractPlaceTransition
+function getspecies(rule::AbstractPlaceTransition)
     return rule.species
 end
 
 """
-    getlocation(rule::P) where P <: AbstractPlaceTransition
+    getlocation(rule::AbstractPlaceTransition)
 
 Generic function to get location where a place transition happening.
 """
-function getlocation(rule::P) where P <: AbstractPlaceTransition
+function getlocation(rule::AbstractPlaceTransition)
     return rule.location
 end
 
 """
-    getdestination(rule::S) where S <: AbstractStateTransition
+    getdestination(rule::AbstractStateTransition)
 
 Generic function to get a destination to which a state transition happening.
 """
-function getdestination(rule::S) where S <: AbstractStateTransition
+function getdestination(rule::AbstractStateTransition)
     return rule.destination
 end
 
@@ -121,37 +121,37 @@ function create_transition_list()
 end
 
 """
-    addtransition!(tl::TransitionList, rule::R) where R <: AbstractStateTransition
+    addtransition!(tl::TransitionList, rule::AbstractStateTransition)
 
 Add a state transition to the `TransitionList`.
 """
-function addtransition!(tl::TransitionList, rule::R) where R <: AbstractStateTransition
+function addtransition!(tl::TransitionList, rule::AbstractStateTransition)
     push!(tl.state, rule)
 end
 
 """
-    addtransition!(tl::TransitionList, rule::R) where R <: AbstractPlaceTransition
+    addtransition!(tl::TransitionList, rule::AbstractPlaceTransition)
 
 Add a place transition to the `TransitionList`.
 """
-function addtransition!(tl::TransitionList, rule::R) where R <: AbstractPlaceTransition
+function addtransition!(tl::TransitionList, rule::AbstractPlaceTransition)
     push!(tl.place, rule)
 end
 
 """
-    addtransition!(tl::TransitionList, rule::R) where R <: AbstractSetUp
+    addtransition!(tl::TransitionList, rule::AbstractSetUp)
 
 Add a set up transition to the `TransitionList`.
 """
-function addtransition!(tl::TransitionList, rule::R) where R <: AbstractSetUp
+function addtransition!(tl::TransitionList, rule::AbstractSetUp)
     push!(tl.setup, rule)
 end
 
 """
-    addtransition!(tl::TransitionList, rule::R) where R <: AbstractWindDown
+    addtransition!(tl::TransitionList, rule::AbstractWindDown)
 
 Add a wind down transition to the `TransitionList`.
 """
-function addtransition!(tl::TransitionList, rule::R) where R <: AbstractWindDown
+function addtransition!(tl::TransitionList, rule::AbstractWindDown)
     push!(tl.winddown, rule)
 end
