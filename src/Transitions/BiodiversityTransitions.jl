@@ -9,6 +9,10 @@ mutable struct BirthProcess <: AbstractStateTransition
     species::Int64
     location::Int64
     prob::TimeType
+    function BirthProcess(species::Int64, location::Int64, prob::T) where T
+        prob = uconvert(unit(TimeType), prob)
+        new(species, location, prob)
+    end
 end
 
 """
@@ -20,6 +24,10 @@ mutable struct GenerateSeed <: AbstractStateTransition
     species::Int64
     location::Int64
     prob::TimeType
+    function GenerateSeed(species::Int64, location::Int64, prob::T) where T
+        prob = uconvert(unit(TimeType), prob)
+        new(species, location, prob)
+    end
 end
 
 """
@@ -31,6 +39,10 @@ mutable struct DeathProcess <: AbstractStateTransition
     species::Int64
     location::Int64
     prob::TimeType
+    function DeathProcess(species::Int64, location::Int64, prob::T) where T
+        prob = uconvert(unit(TimeType), prob)
+        new(species, location, prob)
+    end
 end
 
 """
