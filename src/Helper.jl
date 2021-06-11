@@ -35,14 +35,15 @@ function simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.
 end
 
 """
-    simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
-         timestep::Unitful.Time)
+    simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, 
+cacheFolder::String, scenario_name::String)
 
 Function to run an ecosystem, `eco` for specified length of times, `duration`,
 for a particular timestep, 'timestep'. A cache interval and folder/file name 
 are specified for saving output.
 """
-function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
+function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, 
+  cacheFolder::String, scenario_name::String)
   time_seq = 0s:timestep:times
   counting = 0
   for i in 1:length(time_seq)

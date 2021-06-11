@@ -24,6 +24,9 @@ end
         @test size(abun) == (size(eco.abundances.matrix, 1), size(eco.abundances.matrix, 2), lensim, 1)
         @test_nowarn simulate!(eco, burnin, timestep)
         @test_nowarn simulate_record!(abun, eco, times, interval, timestep)
+        isdir("data") || mkdir("data")
+        @test_nowarn simulate!(eco, times, interval, timestep, "data", "testrun")
+        rm("data", recursive = true)
     end
     @testset "scenarios" begin
         # Run with scenarios
