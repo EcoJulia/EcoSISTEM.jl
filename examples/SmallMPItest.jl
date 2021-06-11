@@ -95,14 +95,13 @@ MPI.Barrier(comm)
 sleep(rank)
 
 # Collect full abundance matrix together
-
 true_abuns = zeros(Int64, counttypes(eco), countsubcommunities(eco))
 if rank == 0
     output_vbuf = VBuffer(true_abuns, Int32.(eco.sppcounts .* sum(eco.sccounts)))
 else
     output_vbuf = VBuffer(nothing)
 end
-MPI.Gatherv!(eco.abundances.rows_matrix, output_vbuf, 0, comm)
+MPI.Gatherv!(eco.abundances.cols_vector, output_vbuf, 0, comm)
 
 # On root node, print abundances and save out
 if rank == 0
