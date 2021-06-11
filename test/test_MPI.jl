@@ -3,6 +3,7 @@ using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 using Distributions
 using MPI
+using JLD
 
 @testset "MPI" begin
     MPI.Init()
@@ -60,5 +61,39 @@ using MPI
     MPI.Barrier(comm)
     @time simulate!(eco, burnin, timestep)
 
+    # Set columns vector to zero and check synchronise from rows
+    eco.abundances.cols_vector .= 0
+    EcoSISTEM.synchronise_from_rows!(eco.abundances)
+    @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
+
+    # Set rows matrix to zero and check synchronise from cols
+    eco.abundances.rows_matrix .= 0
+    EcoSISTEM.synchronise_from_cols!(eco.abundances)
+    @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
+
     MPI.Finalize()
+end
+
+@testset "" begin
+    # Keep outputs all one folder 
+    isdir("data") || mkdir("data")
+
+    # Compare 1 thread 4 processes vs. 4 threads 1 process vs. 2 threads 2 processes
+    ENV["JULIA_NUM_THREADS"] = 1
+    mpiexec(cmd -> run(`$cmd -n 4 julia SmallMPItest.jl`));
+
+    ENV["JULIA_NUM_THREADS"] = 2
+    mpiexec(cmd -> run(`$cmd -n 2 julia SmallMPItest.jl`));
+
+    ENV["JULIA_NUM_THREADS"] = 4
+    mpiexec(cmd -> run(`$cmd -n 1 julia SmallMPItest.jl`));
+
+    ## All answers should be the same
+    abuns1thread = load("data/Test_abuns1.jld", "abuns")
+    abuns2thread = load("data/Test_abuns2.jld", "abuns")
+    abuns4thread = load("data/Test_abuns4.jld", "abuns")
+
+    @test abuns1thread == abuns2thread == abuns4thread
+    # Clean up outputs
+    rm("data", recursive = true)
 end
