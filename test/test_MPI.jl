@@ -71,6 +71,10 @@ using JLD
     EcoSISTEM.synchronise_from_cols!(eco.abundances)
     @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
+    # Gather abundances and check against rows matrix - should be same for 1 process
+    abuns = gather_abundance(eco)
+    @test abuns == eco.abundances.rows_matrix
+
     MPI.Finalize()
 end
 
