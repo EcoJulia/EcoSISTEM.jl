@@ -9,6 +9,7 @@ using MPI
 using Random
 using Diversity
 using JLD
+using Test
 
 # Set up MPI and print threads
 MPI.Init()
@@ -61,22 +62,16 @@ eco = MPIEcosystem(sppl, abenv, rel)
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
 sleep(rank)
-print("$(rank):")
-println(eco.abundances.rows_matrix)
 
 # Set columns vector to zero and check synchronise from rows
 eco.abundances.cols_vector .= 0
 EcoSISTEM.synchronise_from_rows!(eco.abundances)
-sleep(rank)
-print("$(rank):")
-println(eco.abundances.cols_vector)
+@test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
 # Set rows matrix to zero and check synchronise from cols
 eco.abundances.rows_matrix .= 0
 EcoSISTEM.synchronise_from_cols!(eco.abundances)
-sleep(rank)
-print("$(rank):")
-println(eco.abundances.rows_matrix)
+@test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
 # Set random seed to 0 for all rngs
 for i in 1:length(eco.abundances.rngs)
