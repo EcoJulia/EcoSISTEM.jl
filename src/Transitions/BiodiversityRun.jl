@@ -11,6 +11,7 @@ function _run_rule!(eco::Ecosystem, rule::BirthProcess, timestep::Unitful.Time)
     if (eco.abenv.active[loc]) & (eco.cache.totalE[loc, 1] > 0)
         adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, loc, spp)
         birthrate = getprob(rule) * timestep * adjusted_birth
+        birthrate += 0.0
         births = rand(rng, Poisson(eco.abundances.matrix[spp, loc] * birthrate))
         eco.abundances.matrix[spp, loc] += births
     end
@@ -28,6 +29,7 @@ function _run_rule!(eco::Ecosystem, rule::GenerateSeed, timestep::Unitful.Time)
     if (eco.abenv.active[loc]) & (eco.cache.totalE[loc, 1] > 0)
         adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, loc, spp)
         birthrate = getprob(rule) * timestep * adjusted_birth
+        birthrate += 0.0
         births = rand(rng, Poisson(eco.abundances.matrix[spp, loc] * birthrate))
         eco.abundances.matrix[spp, loc] += births
         eco.cache.seedbank[spp, loc] = births
