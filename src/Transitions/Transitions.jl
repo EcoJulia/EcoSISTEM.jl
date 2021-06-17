@@ -47,6 +47,7 @@ function getprob(rule::S) where S <: AbstractStateTransition
     return rule.prob
 end
 
+
 """
     getspecies(rule::S) where S <: AbstractStateTransition
 

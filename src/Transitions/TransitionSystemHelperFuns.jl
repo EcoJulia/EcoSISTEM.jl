@@ -225,3 +225,12 @@ function _invalidatecaches!(eco::Ecosystem, cache::EpiCache)
     eco.cache.virusmigration .= 0
     eco.cache.valid = false
 end
+
+"""
+    getprob(eco::Ecosystem, rule::S) where S <: AbstractStateTransition
+
+Generic function to get probability of a state transition happening.
+"""
+function getprob(eco::Ecosystem, rule::S) where S <: AbstractStateTransition
+    return getprob(rule)
+end

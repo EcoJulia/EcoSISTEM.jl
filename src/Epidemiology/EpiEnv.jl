@@ -138,7 +138,7 @@ function ukclimateAE(
     climatearray = _shrink_to_active(climatearray, active)
     active = _shrink_to_active(active, active)
 
-    hab = ContinuousHab(Array(climatearray), gridsquaresize, HabitatUpdate(ukChange, 0.0/s, Unitful.Dimensions{()}))
+    hab = ContinuousHab(Array(climatearray), gridsquaresize, HabitatUpdate(NoChange, 0.0/s, Unitful.Dimensions{()}))
     return GridEpiEnv{typeof(hab), typeof(control)}(hab, active, control)
 end
 

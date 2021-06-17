@@ -64,7 +64,7 @@ include("Biodiversity/Landscape.jl")
 export GridLandscape, CachedGridLandscape
 
 include("Transitions/Transitions.jl")
-export TransitionList, create_transition_list, addtransition!
+export TransitionList, create_transition_list, addtransition!, getprob
 
 include("Epidemiology/MedianGenerator.jl")
 export MedianGenerator
@@ -155,7 +155,7 @@ include("Transitions/EpiTransitions.jl")
 export ForceProduce, ForceDisperse, ViralLoad, EnvViralLoad, Exposure, Infection,
 DevelopSymptoms, Hospitalise, DeathFromInfection,
 Recovery, SeedInfection, UpdateEpiEnvironment, update_epi_environment!,
-get_env, EnvTransition
+get_env, deterministic_seed!
 
 include("Transitions/BiodiversityRun.jl")
 include("Transitions/EpiRun.jl")

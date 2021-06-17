@@ -13,7 +13,10 @@ using DataFrames
 using Plots
 using SQLite
 
-function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
+import EcoSISTEM.getprob
+const stochasticmode = false
+
+function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, save::Bool = false, savepath::String = pwd())
     # Download and read in population sizes for Scotland
     DataRegistryUtils.load_array!(db, "human/demographics/population/scotland", "/grid area/age/persons"; sql_alias="km_age_persons_arr")
     scotpop = get_3d_km_grid_axis_array(db, ["grid_area", "age_aggr"], "val", "scottish_population_view")
@@ -194,12 +197,15 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     transitions = create_transition_list()
     addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
-    addtransition!(transitions, SeedInfection(seedinfected!))
+    addtransition!(transitions, SeedInfection(deterministic_seed!))
 
-    initial_infecteds = 100
+    initial_infecteds = 10_000
+
+    rngtype = stochasticmode ? Random.MersenneTwister : MedianGenerator
+
     # Create epi system with all information
     @time epi = Ecosystem(epilist, epienv, rel, scotpop, UInt32(1),
-    initial_infected = initial_infecteds, transitions = transitions)
+    initial_infected = initial_infecteds, transitions = transitions, rngtype = rngtype)
 
     for loc in epi.cache.ordered_active
         addtransition!(epi.transitions, ViralLoad(loc, param.virus_decay))
@@ -212,8 +218,8 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
             addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 4], loc))
             addtransition!(epi.transitions, ForceDisperse(cat_idx[age, 5], loc))
             # Exposure
-            addtransition!(epi.transitions, EnvTransition(Exposure(transitiondat[1, :from_id][age], loc, transitiondat[1, :to_id][age], transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age]),
-                5.0/mean(epienv.habitat.matrix)))
+            addtransition!(epi.transitions, Exposure(transitiondat[1, :from_id][age], loc, transitiondat[1, :to_id][age],
+                transitiondat[1, :prob].force[age], transitiondat[1, :prob].env[age]))
             # Infected but asymptomatic
             addtransition!(epi.transitions, Infection(transitiondat[2, :from_id][age], loc,
                 transitiondat[2, :to_id][age], transitiondat[2, :prob][age]))
@@ -221,11 +227,11 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
             addtransition!(epi.transitions, Infection(transitiondat[3, :from_id][age], loc,
                 transitiondat[3, :to_id][age], transitiondat[3, :prob][age]))
             # Develop symptoms
-            addtransition!(epi.transitions, EnvTransition(DevelopSymptoms(transitiondat[4, :from_id][age], loc,
-                transitiondat[4, :to_id][age], transitiondat[4, :prob][age]), 2.0/mean(epienv.habitat.matrix)))
+            addtransition!(epi.transitions, DevelopSymptoms(transitiondat[4, :from_id][age], loc,
+                transitiondat[4, :to_id][age], transitiondat[4, :prob][age]))
             # Hospitalise
-            addtransition!(epi.transitions, EnvTransition(Hospitalise(transitiondat[5, :from_id][age], loc,
-                transitiondat[5, :to_id][age], transitiondat[5, :prob][age]), 2.0/mean(epienv.habitat.matrix)))
+            addtransition!(epi.transitions, Hospitalise(transitiondat[5, :from_id][age], loc,
+                transitiondat[5, :to_id][age], transitiondat[5, :prob][age]))
             # Recover without symptoms
             addtransition!(epi.transitions, Recovery(transitiondat[6, :from_id][age], loc,
                 transitiondat[6, :to_id][age], transitiondat[6, :prob][age]))
@@ -239,10 +245,16 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
             addtransition!(epi.transitions, DeathFromInfection(transitiondat[9, :from_id][age], loc,
                 transitiondat[9, :to_id][age], transitiondat[9, :prob][age]))
             # Die from hospital
-            addtransition!(epi.transitions, EnvTransition(DeathFromInfection(transitiondat[10, :from_id][age], loc,
-                transitiondat[10, :to_id][age], transitiondat[10, :prob][age]), 2.0/mean(epienv.habitat.matrix)))
+            addtransition!(epi.transitions, DeathFromInfection(transitiondat[10, :from_id][age], loc,
+                transitiondat[10, :to_id][age], transitiondat[10, :prob][age]))
         end
     end
+
+    # Define how probabilities for transitions should be altered by pollution
+    getprob(eco::Ecosystem, rule::Exposure) = (rule.force_prob * 5.0/mean(eco.abenv.habitat.matrix) * get_env(eco.abenv.habitat, rule.location), rule.virus_prob)
+    getprob(eco::Ecosystem, rule::DevelopSymptoms) = rule.prob * 2.0/mean(eco.abenv.habitat.matrix) * get_env(eco.abenv.habitat, rule.location)
+    getprob(eco::Ecosystem, rule::Hospitalise) = rule.prob * 2.0/mean(eco.abenv.habitat.matrix) * get_env(eco.abenv.habitat, rule.location)
+    getprob(eco::Ecosystem, rule::DeathFromInfection) = rule.prob * 5.0/mean(eco.abenv.habitat.matrix) * get_env(eco.abenv.habitat, rule.location)
 
     # Store BNG names in abenv
     norths = ustrip.(AxisArrays.axes(scotpop)[1].val)

@@ -43,20 +43,6 @@ function getprob(rule::Exposure)
 end
 
 """
-    EnvTransition <: AbstractStateTransition
-
-Transition, `rule` is influenced by the local environment (fetched
-through the `get_env` function), controlled by the strength of `env_param`.
-"""
-mutable struct EnvTransition <: AbstractStateTransition
-    rule::AbstractStateTransition
-    env_param::Unitful.Quantity{Float64}
-    get_env::Function
-end
-function EnvTransition(rule::AbstractStateTransition, env_param::Unitful.Quantity{Float64})
-    return EnvTransition(rule, env_param, get_env)
-end
-"""
     Infection <: AbstractStateTransition
 
 Transition from exposed to infectious categories at a
@@ -212,4 +198,27 @@ function update_epi_environment!(epi::Ecosystem, timestep::Unitful.Time)
     update_virus_cache!(epi)
     # Invalidate all caches for next update
     invalidatecaches!(epi)
+    # Update environment - habitat and energy budgets
+    habitatupdate!(epi, timestep)
+    applycontrols!(epi, timestep)
+end
+
+
+function deterministic_seed!(epi::Ecosystem, controls::Lockdown, timestep::Unitful.Time)
+    rng = epi.abundances.rngs[Threads.threadid()]
+    if (epi.cache.initial_infected > 0) && (controls.current_date < controls.lockdown_date)
+        inf = rand(rng, Poisson(epi.cache.initial_infected * timestep /controls.lockdown_date))
+        sus_id = epi.spplist.species.susceptible
+        exp_id = sus_id .+ length(epi.spplist.species.susceptible)
+        pos = epi.cache.ordered_active[mod(Int(ustrip(controls.current_date)), length(epi.cache.ordered_active)) + 1]
+        for i in sus_id 
+            if (human(epi.abundances)[sus_id[i], pos] >= inf)
+                human(epi.abundances)[sus_id[i], pos] -= inf
+                human(epi.abundances)[exp_id[i], pos] += inf
+            end
+        end
+    elseif controls.current_date == controls.lockdown_date
+        @info "Lockdown initiated - $(sum(human(epi.abundances)[epi.spplist.species.susceptible .+ length(epi.spplist.species.susceptible), :])) individuals infected"
+    end
+    return controls
 end
