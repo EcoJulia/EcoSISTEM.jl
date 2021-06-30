@@ -37,8 +37,6 @@ function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: A
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == ForceProduce
         _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == EnvTransition
-        _run_rule!(eco, rule, timestep)
     else
         _run_rule!(eco, rule, timestep)
     end
