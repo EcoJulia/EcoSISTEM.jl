@@ -1,37 +1,49 @@
 const TimeType = typeof(1.0/year)
 
 """
-    _run_rule!(eco::Ecosystem, rule::BirthProcess, timestep::Unitful.Time)
+    BirthProcess <: AbstractStateTransition
 
-Stochastic birth process for a location and species, with an associated probability.
+Stochastic birth process for a location and species, with an associated probability. An optional destination 
+    argument can be added if the birth should be added to a different category (i.e. age structured).
 """
 mutable struct BirthProcess <: AbstractStateTransition
     species::Int64
     location::Int64
+    destination::Int64
     prob::TimeType
     function BirthProcess(species::Int64, location::Int64, prob::T) where T
         prob = uconvert(unit(TimeType), prob)
-        new(species, location, prob)
+        new(species, location, species, prob)
+    end
+    function BirthProcess(species::Int64, location::Int64, destination::Int64, prob::T) where T
+        prob = uconvert(unit(TimeType), prob)
+        new(species, location, destination, prob)
     end
 end
 
 """
-    _run_rule!(eco::Ecosystem, rule::GenerateSeed, timestep::Unitful.Time)
+    GenerateSeed <: AbstractStateTransition
 
-Stochastic seed generation process for a location and species, with an associated probability.
+Stochastic seed generation process for a location and species, with an associated probability. An optional destination 
+    argument can be added if the seed produced should be added to a different category (i.e. age structured).
 """
 mutable struct GenerateSeed <: AbstractStateTransition
     species::Int64
     location::Int64
+    destination::Int64
     prob::TimeType
     function GenerateSeed(species::Int64, location::Int64, prob::T) where T
         prob = uconvert(unit(TimeType), prob)
-        new(species, location, prob)
+        new(species, location, species, prob)
+    end
+    function GenerateSeed(species::Int64, location::Int64, destination::Int64, prob::T) where T
+        prob = uconvert(unit(TimeType), prob)
+        new(species, location, destination, prob)
     end
 end
 
 """
-    _run_rule!(eco::Ecosystem, rule::DeathProcess, timestep::Unitful.Time)
+    DeathProcess <: AbstractStateTransition
 
 Stochastic death process for a location and species, with an associated probability.
 """
@@ -46,7 +58,7 @@ mutable struct DeathProcess <: AbstractStateTransition
 end
 
 """
-    _run_rule!(eco::Ecosystem, rule::AllDisperse, timestep::Unitful.Time)
+    AllDisperse <: AbstractPlaceTransition
 
 Stochastic dispersal for a species at a location.
 """
@@ -56,7 +68,7 @@ mutable struct AllDisperse <: AbstractPlaceTransition
 end
 
 """
-    _run_rule!(eco::Ecosystem, rule::SeedDisperse, timestep::Unitful.Time)
+    SeedDisperse <: AbstractPlaceTransition
 
 Stochastic seed dispersal for a species at a location.
 """
@@ -66,7 +78,7 @@ mutable struct SeedDisperse <: AbstractPlaceTransition
 end
 
 """
-    _run_rule!(eco::Ecosystem, rule::UpdateEnergy, timestep::Unitful.Time)
+    UpdateEnergy <: AbstractSetUp
 
 Houses a function to update energy usage across the Ecosystem.
 """
@@ -75,7 +87,7 @@ mutable struct UpdateEnergy <: AbstractSetUp
 end
 
 """
-    _run_rule!(eco::Ecosystem, rule::UpdateEnvironment, timestep::Unitful.Time)
+    UpdateEnvironment <: AbstractWindDown
 
 Houses a function to update the habitat and resources across the Ecosystem.
 """
