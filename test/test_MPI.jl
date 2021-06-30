@@ -78,7 +78,7 @@ using JLD
     MPI.Finalize()
 end
 
-@testset "" begin
+@testset "mpirun" begin
     # Keep outputs all one folder 
     isdir("data") || mkdir("data")
 
