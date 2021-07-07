@@ -49,7 +49,7 @@ function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, 
   for i in 1:length(time_seq)
       update!(eco, timestep);
       # Save cache of abundances
-      if mod(time_seq[i], cacheInterval) == 0year
+      if mod(time_seq[i], cacheInterval) == zero(time_seq[i])
           JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
       end
   end
