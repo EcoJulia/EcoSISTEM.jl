@@ -10,6 +10,7 @@ mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
   rows_matrix::Matrix{Int64}
   cols_vector::Vector{Int64}
   reshaped_cols::Vector{RA}
+  reshaped_cols_vector::Vector{Int64}
   rows_tuple::NT
   cols_tuple::NT
   rngs::Vector{MersenneTwister}
@@ -33,6 +34,10 @@ mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
       reshape(view(cols_vector, (sppindices[i] + 1) : sppindices[i + 1]),
               Int64(sppcounts[i]), Int64(sccounts[rank + 1]))
     end
+    reshaped_cols_vector = vcat(map(1:length(sccounts)) do i
+      reshape(view(cols_vector, (sppindices[i] + 1) : sppindices[i + 1]),
+              Int64(sppcounts[i]), Int64(sccounts[rank + 1]))
+    end ...)[1:end]
     rows = (total = totalspp, first = firstsp, last = lastsp,
             counts = sccounts .* sppcounts[rank + 1])
     cols = (total = totalsc, first = firstsc, last = lastsc,
@@ -43,7 +48,7 @@ mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
       error("cols_vector size mismatch: $(cols.last - cols.first + 1) * $(rows.total) !=$(length(cols_vector))")
 
     return new{typeof(reshaped_cols[1]), typeof(rows)}(rows_matrix,
-      cols_vector, reshaped_cols, rows, cols,
+      cols_vector, reshaped_cols, reshaped_cols_vector, rows, cols,
       [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()])
   end
 end
