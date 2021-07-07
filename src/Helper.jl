@@ -45,7 +45,6 @@ are specified for saving output.
 function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, 
   cacheFolder::String, scenario_name::String)
   time_seq = zero(times):timestep:times
-  counting = 0
   for i in 1:length(time_seq)
       update!(eco, timestep);
       # Save cache of abundances
