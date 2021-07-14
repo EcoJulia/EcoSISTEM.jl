@@ -8,7 +8,7 @@ using Unitful.DefaultSymbols
 using Distances
 using StatsBase
 using Plots
-file = "../Chapter5/data/Africa.tif"
+file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
 
@@ -171,7 +171,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using JLD
 using Printf
-file = "Documents/Chapter5/data/Africa.tif"
+file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
@@ -218,18 +218,6 @@ rel = Gauss{typeof(1.0K)}()
 eco = Ecosystem(sppl, abenv, rel)
 eco.abundances.matrix[50_000, :] .= 0
 
-import EcoSISTEM.simulate!
-function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
-  time_seq = 0s:timestep:times
-  counting = 0
-  for i in 1:length(time_seq)
-      update!(eco, timestep);
-      # Save cache of abundances
-      if mod(time_seq[i], cacheInterval) == 0year
-          JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
-      end
-  end
-end
 
 # Simulation Parameters
 burnin = 100years; times = 100years; timestep = 1month; record_interval = 12months;
@@ -250,7 +238,7 @@ using Unitful.DefaultSymbols
 using JLD
 using Printf
 
-file = "Documents/Chapter5/data/Africa.tif"
+file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
@@ -295,19 +283,6 @@ rel = Gauss{typeof(1.0K)}()
 #Create ecosystem
 eco = Ecosystem(sppl, abenv, rel)
 
-import EcoSISTEM.simulate!
-function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
-  time_seq = 0s:timestep:times
-  counting = 0
-  for i in 1:length(time_seq)
-      update!(eco, timestep);
-      # Save cache of abundances
-      if mod(time_seq[i], cacheInterval) == 0year
-          JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
-      end
-  end
-end
-
 # Simulation Parameters
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
@@ -317,7 +292,7 @@ lensim = length(0years:record_interval:times)
 using JLD
 using Plots
 using Diversity
-abuns = load("examples/Biodiversity/Africa_run_coexist100.jld", "abun")
+abuns = load("examples/Africa_run_coexist100.jld", "abun")
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -329,7 +304,7 @@ heatmap(sumabuns,
     clim = (0, 50_000), margin = 0.5 * Plots.mm,
     title = "A", titleloc = :left)
 
-abuns = load("examples/Biodiversity/Africa_run50.jld", "abun")
+abuns = load("examples/Africa_run50.jld", "abun")
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -341,7 +316,7 @@ heatmap!(sumabuns,
     clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
     title = "B", titleloc = :left)
 
-abuns = load("examples/Biodiversity/Africa_run100.jld", "abun")
+abuns = load("examples/Africa_run100.jld", "abun")
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -353,16 +328,16 @@ heatmap!(sumabuns,
     clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
     title = "C", titleloc = :left)
 
-
-abuns = load("examples/Biodiversity/Africa_run50.jld", "abun")
+using Diversity.Ecology
+abuns = load("examples/Africa_run50.jld", "abun")
 meta = Metacommunity(abuns)
-div = norm_sub_rho(meta, 1.0)
-sumabuns = reshape(div[!, :diversity], 100, 100)
+diver = shannon(meta)
+sumabuns = reshape(diver[!, :diversity], 100, 100)
 heatmap!(sumabuns,
     background_color = :lightblue,
     background_color_outside=:white,
     grid = false, color = :algae,
     aspect_ratio = 1, subplot = 4,
-     right_margin = 2.0 * Plots.mm,
-    title = "D", titleloc = :left, clim = (0, 1))
-Plots.pdf("examples/Biodiversity/Africa.pdf")
+        right_margin = 2.0 * Plots.mm,
+    title = "D", titleloc = :left, clim = (0, 10))
+Plots.pdf("examples/Africa.pdf")
