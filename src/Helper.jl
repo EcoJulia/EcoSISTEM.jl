@@ -2,6 +2,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Diversity
 using EcoSISTEM.Units
+using Printf
 import Diversity.Gamma
 
 """
@@ -17,6 +18,13 @@ function simulate!(eco::AbstractEcosystem, duration::Unitful.Time, timestep::Uni
     update!(eco, timestep)
   end
 end
+
+"""
+    simulate!(cache::CachedEcosystem,  srt::Unitful.Time, timestep::Unitful.Time)
+
+Function to run a cached ecosystem, `cache` at a specified timepoint, `srt`,
+for a particular timestep, 'timestep'.
+"""
 function simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.Time)
   eco = Ecosystem{typeof(cache.abenv), typeof(cache.spplist),
   typeof(cache.relationship)}(copy(cache.abundances.matrix[srt]),
@@ -24,6 +32,26 @@ function simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.
   cache.ordinariness, cache.relationship, cache.lookup, cache.cache)
   update!(eco, timestep)
   cache.abundances.matrix[srt + timestep] = eco.abundances
+end
+
+"""
+    simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, 
+cacheFolder::String, scenario_name::String)
+
+Function to run an ecosystem, `eco` for specified length of times, `duration`,
+for a particular timestep, 'timestep'. A cache interval and folder/file name 
+are specified for saving output.
+"""
+function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, 
+  cacheFolder::String, scenario_name::String)
+  time_seq = zero(times):timestep:times
+  for i in 1:length(time_seq)
+      update!(eco, timestep);
+      # Save cache of abundances
+      if mod(time_seq[i], cacheInterval) == zero(time_seq[i])
+          JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
+      end
+  end
 end
 
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
