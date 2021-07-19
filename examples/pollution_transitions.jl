@@ -13,10 +13,22 @@ using DataFrames
 using Plots
 using SQLite
 
-import EcoSISTEM.getprob
+module PollutionRun
+    using EcoSISTEM
+    using Statistics
+    import EcoSISTEM.getprob
+    # Define how probabilities for transitions should be altered by pollution
+    getprob(eco::Ecosystem, rule::Exposure) = (rule.force_prob * 5.0 * get_env(eco.abenv.habitat, rule.location), rule.virus_prob)
+    getprob(eco::Ecosystem, rule::DevelopSymptoms) = rule.prob * 2.0 * get_env(eco.abenv.habitat, rule.location)
+    getprob(eco::Ecosystem, rule::Hospitalise) = rule.prob * 2.0 * get_env(eco.abenv.habitat, rule.location)
+    getprob(eco::Ecosystem, rule::DeathFromInfection) = rule.prob * 5.0 * get_env(eco.abenv.habitat, rule.location)
+    export getprob
+end
+using Main.PollutionRun
+
 const stochasticmode = false
 
-function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, save::Bool = false, savepath::String = pwd())
+function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, save::Bool = false, savepath::String = pwd(), death_boost::Float64 = 2.0)
     # Download and read in population sizes for Scotland
     DataRegistryUtils.load_array!(db, "human/demographics/population/scotland", "/grid area/age/persons"; sql_alias="km_age_persons_arr")
     scotpop = get_3d_km_grid_axis_array(db, ["grid_area", "age_aggr"], "val", "scottish_population_view")
@@ -25,6 +37,10 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     DataRegistryUtils.load_array!(db, "records/pollution", "/array"; sql_alias="records_pollution_array_arr")
     pollution = get_3d_km_grid_axis_array(db, ["grid_x", "grid_y"], "val", "pollution_grid_view", 1.0μg * m^-3)
     pollution = pollution[531500m .. 1215000m, 54500m .. 465000m]
+    
+    rngtype = stochasticmode ? Random.MersenneTwister : MedianGenerator
+    seed_fun = stochasticmode ? seedinfected! : deterministic_seed!
+
     # Read number of age categories
     age_categories = size(scotpop, 3)
 
@@ -95,7 +111,6 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
         data_type=Float64
     )[1] * Unitful.hr)
     @show T_asym
-
 
     # Time pre-symptomatic
     T_presym = 1.5days
@@ -172,6 +187,9 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
     total_pop[total_pop .≈ 0.0] .= NaN
+    axis1 = pollution.axes[1]; axis2 = pollution.axes[2]
+    poll = pollution ./ mean(pollution)
+    pollution = AxisArray(poll, axis1, axis2)
     epienv = ukclimateAE(pollution, area, Lockdown(20days))
 
     # Dispersal kernels for virus and disease classes
@@ -183,7 +201,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     # Import commuter data (for now, fake table)
     active_cells = findall(.!isnan.(total_pop[1:end]))
     from = active_cells
-    to = sample(active_cells, weights(total_pop[active_cells]), length(active_cells))
+    to = sample(rngtype(), active_cells, weights(total_pop[active_cells]), length(active_cells))
     count = round.(total_pop[to]/10)
     home_to_work = DataFrame(from=from, to=to, count=count)
     work = Commuting(home_to_work)
@@ -197,11 +215,9 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
 
     transitions = create_transition_list()
     addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
-    addtransition!(transitions, SeedInfection(deterministic_seed!))
+    addtransition!(transitions, SeedInfection(seed_fun))
 
     initial_infecteds = 10_000
-
-    rngtype = stochasticmode ? Random.MersenneTwister : MedianGenerator
 
     # Create epi system with all information
     @time epi = Ecosystem(epilist, epienv, rel, scotpop, UInt32(1),
@@ -249,13 +265,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
                 transitiondat[10, :to_id][age], transitiondat[10, :prob][age]))
         end
     end
-
-    # Define how probabilities for transitions should be altered by pollution
-    getprob(eco::Ecosystem, rule::Exposure) = (rule.force_prob * 5.0/mean(eco.abenv.habitat.matrix) * get_env(eco.abenv.habitat, rule.location), rule.virus_prob)
-    getprob(eco::Ecosystem, rule::DevelopSymptoms) = rule.prob * 2.0/mean(eco.abenv.habitat.matrix) * get_env(eco.abenv.habitat, rule.location)
-    getprob(eco::Ecosystem, rule::Hospitalise) = rule.prob * 2.0/mean(eco.abenv.habitat.matrix) * get_env(eco.abenv.habitat, rule.location)
-    getprob(eco::Ecosystem, rule::DeathFromInfection) = rule.prob * 5.0/mean(eco.abenv.habitat.matrix) * get_env(eco.abenv.habitat, rule.location)
-
+    
     # Store BNG names in abenv
     norths = ustrip.(AxisArrays.axes(scotpop)[1].val)
     easts = ustrip.(AxisArrays.axes(scotpop)[2].val)
