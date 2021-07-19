@@ -178,14 +178,13 @@ function update_virus_cache!(epi::Ecosystem)
     force_cats = epi.spplist.pathogens.force_cats
     human_to_force = epi.spplist.species.human_to_force
     locs = size(virus(epi.abundances), 2)
-    vm = zeros(eltype(epi.cache.virusmigration), length(force_cats), locs)
     classes = length(epi.spplist.species.names)
     Threads.@threads for i in 1:classes
         for j in 1:locs
-            vm[human_to_force[i], j] += epi.cache.virusmigration[i, j]
+            epi.cache.forcemigration[human_to_force[i], j] += epi.cache.virusmigration[i, j]
         end
     end
-    virus(epi.abundances)[force_cats, :] .= vm
+    virus(epi.abundances)[force_cats, :] .= epi.cache.forcemigration
 end
 
 """
@@ -210,11 +209,13 @@ function deterministic_seed!(epi::Ecosystem, controls::Lockdown, timestep::Unitf
         inf = rand(rng, Poisson(epi.cache.initial_infected * timestep /controls.lockdown_date))
         sus_id = epi.spplist.species.susceptible
         exp_id = sus_id .+ length(epi.spplist.species.susceptible)
-        pos = epi.cache.ordered_active[mod(Int(ustrip(controls.current_date)), length(epi.cache.ordered_active)) + 1]
+        pos = epi.cache.ordered_active[1:inf]
         for i in sus_id 
-            if (human(epi.abundances)[sus_id[i], pos] >= inf)
-                human(epi.abundances)[sus_id[i], pos] -= inf
-                human(epi.abundances)[exp_id[i], pos] += inf
+            for j in eachindex(pos)
+                if (human(epi.abundances)[sus_id[i], pos[j]] >= 1)
+                    human(epi.abundances)[sus_id[i], pos[j]] -= 1
+                    human(epi.abundances)[exp_id[i], pos[j]] += 1
+                end
             end
         end
     elseif controls.current_date == controls.lockdown_date

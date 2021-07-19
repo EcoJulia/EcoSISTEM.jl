@@ -34,8 +34,9 @@ function rand!(::MedianGenerator, dist::Distribution{Multivariate,S},
     return nothing
 end
 
+import StatsBase.sample
 function sample(::MedianGenerator, a::AbstractArray, wv::AbstractWeights, n::Int64)
-  order = sortperm(wv.values)
+  order = sortperm(wv.values, rev =true)
   return a[order[1:n]]
 end
 

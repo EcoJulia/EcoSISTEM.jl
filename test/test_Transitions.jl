@@ -191,9 +191,8 @@ addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
 for loc in eachindex(epienv.habitat.matrix)
     addtransition!(transitions, ForceProduce(3, loc, param.virus_growth))
     addtransition!(transitions, ViralLoad(loc, param.virus_decay))
-    addtransition!(transitions, EnvExposure(transitiondat[1, :from_id], loc,
-        transitiondat[1, :to_id], transitiondat[1, :prob].force, transitiondat[1, :prob].env,
-        1.0, get_env))
+    addtransition!(transitions, Exposure(transitiondat[1, :from_id], loc,
+        transitiondat[1, :to_id], transitiondat[1, :prob].force, transitiondat[1, :prob].env))
     addtransition!(transitions, Infection(transitiondat[2, :from_id], loc,
         transitiondat[2, :to_id], transitiondat[2, :prob]))
     addtransition!(transitions, Recovery(transitiondat[3, :from_id], loc,
@@ -202,6 +201,9 @@ for loc in eachindex(epienv.habitat.matrix)
         addtransition!(transitions, ForceDisperse(spp, loc))
     end
 end
+
+import EcoSISTEM.getprob
+getprob(eco::Ecosystem, rule::Exposure) = (rule.force_prob * 2.0/K * get_env(eco.abenv.habitat, rule.location), rule.virus_prob)
 
 # Create epi system with all information
 epi = Ecosystem(epilist, epienv, rel, transitions = transitions)

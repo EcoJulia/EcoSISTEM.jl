@@ -223,6 +223,7 @@ end
 function _invalidatecaches!(eco::Ecosystem, cache::EpiCache)
     eco.ordinariness = missing
     eco.cache.virusmigration .= 0
+    eco.cache.forcemigration .= 0
     eco.cache.valid = false
 end
 
