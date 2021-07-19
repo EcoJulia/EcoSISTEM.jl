@@ -201,7 +201,7 @@ end
 function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size::AbstractArray{T, 2}) where T
   return genlookups(epienv, mov, pop_size[1:end])
 end
-function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size::Vector{T}) where T
+function genlookups(epienv::AbstractEpiEnv, mov::Commuting, pop_size::AbstractArray{T, 1}) where T
     total_size = (size(epienv.active, 1) * size(epienv.active, 2))
     # Column access so Js should be source grid cells
     Js = Int32.(mov.home_to_work[!, :from])
