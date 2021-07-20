@@ -1,6 +1,7 @@
 using EcoSISTEM
 using Distributions
 using Random
+using StatsBase
 using Test
 
 Random.seed!(0)
@@ -90,6 +91,21 @@ end
         rand!(mg, d, output!)
         @test all(output .== output!)
     end
+end
+
+@testset "sample(::MedianGenerator, a::AbstractArray, n::Int64)" begin
+    a = collect(1:10); n = 5
+    b = sample(mg, a, n)
+    @test b == collect(1:5)
+end
+
+@testset "sample(::MedianGenerator, a::AbstractArray, wv::AbstractWeights, n::Int64)" begin
+    a = collect(1:10); n = 5; wv = Weights(collect(10:-1:1))
+    b = sample(mg, a, wv, n)
+    @test b == collect(1:5)
+    a = collect(1:10); n = 5; wv = Weights(collect(1:10))
+    b = sample(mg, a, wv, n)
+    @test b == collect(10:-1:6)
 end
 
 end
