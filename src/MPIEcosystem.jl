@@ -1,10 +1,6 @@
 using .MPI
 using Diversity
-if VERSION > v"1.0.0"
-    using HCubature
-else
-    using Cubature
-end
+using HCubature
 using Unitful
 using EcoSISTEM.Units
 using Missings
@@ -93,16 +89,24 @@ function MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
    return MPIEcosystem(populate!, spplist, abenv, rel)
 end
 
-# function gather_abundance!(eco::MPIEcosystem)
-#     comm = MPI.COMM_WORLD
-#     rank = MPI.Comm_rank(comm)
-#     abun = MPI.Gatherv(eco.abundances.rows_matrix, Int32.(eco.sppcounts .* sum(eco.sccounts)), 0, comm)
-#     if rank == 0
-#         eco.fullabun = reshape(abun, counttypes(eco), countsubcommunities(eco))
-#     else
-#         eco.fullabun = missing
-#     end
-# end
+"""
+    gather_abundance(eco::MPIEcosystem)
+
+Gather full abundances matrix on root node.
+"""
+function gather_abundance(eco::MPIEcosystem)
+    comm = MPI.COMM_WORLD
+    rank = MPI.Comm_rank(comm)
+    true_abuns = zeros(Int64, counttypes(eco), countsubcommunities(eco))
+    if rank == 0
+        output_vbuf = VBuffer(true_abuns, Int32.(eco.sppcounts .* sum(eco.sccounts)))
+    else
+        output_vbuf = VBuffer(nothing)
+    end
+    MPI.Gatherv!(vcat(eco.abundances.reshaped_cols...)[1:end], output_vbuf, 0, comm)
+    return true_abuns
+end
+
 
 import Diversity.API: _getabundance
 function _getabundance(eco::MPIEcosystem, raw::Bool)

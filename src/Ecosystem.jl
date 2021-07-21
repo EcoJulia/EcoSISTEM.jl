@@ -1,9 +1,5 @@
 using Diversity
-if VERSION > v"1.0.0"
-    using HCubature
-else
-    using Cubature
-end
+using HCubature
 using DataFrames
 using Unitful
 using EcoSISTEM.Units
