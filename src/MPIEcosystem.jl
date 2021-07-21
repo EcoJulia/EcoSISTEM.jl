@@ -103,7 +103,7 @@ function gather_abundance(eco::MPIEcosystem)
     else
         output_vbuf = VBuffer(nothing)
     end
-    MPI.Gatherv!(vcat(eco.abundances.reshaped_cols...)[1:end], output_vbuf, 0, comm)    
+    MPI.Gatherv!(vcat(eco.abundances.reshaped_cols...)[1:end], output_vbuf, 0, comm)
     return true_abuns
 end
 
