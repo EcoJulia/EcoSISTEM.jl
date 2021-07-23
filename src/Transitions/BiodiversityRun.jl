@@ -27,7 +27,7 @@ function _run_rule!(eco::Ecosystem, rule::GenerateSeed, timestep::Unitful.Time)
     spp = getspecies(rule)
     dest = getdestination(rule)
     loc = getlocation(rule)
-    if (eco.abenv.active[loc]) & (eco.cache.totalE[loc, 1] > 0)
+    if (eco.abenv.active[loc]) && (eco.cache.totalE[loc, 1] > 0)
         adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, loc, spp)
         birthrate = getprob(rule) * timestep * adjusted_birth
         birthrate += 0.0
