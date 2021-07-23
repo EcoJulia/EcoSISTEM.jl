@@ -50,7 +50,7 @@ function run_rule!(eco::Ecosystem, rule::AbstractPlaceTransition, timestep::Unit
     elseif typeof(rule) == ForceDisperse
         _run_rule!(eco, rule)
     else
-        _run_rule!(eco, rule, timestep)
+        _run_rule!(eco, rule)
     end
 end
 
