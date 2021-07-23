@@ -11,8 +11,7 @@ function _run_rule!(eco::Ecosystem, rule::BirthProcess, timestep::Unitful.Time)
     loc = getlocation(rule)
     if (eco.abenv.active[loc]) & (eco.cache.totalE[loc, 1] > 0)
         adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, loc, spp)
-        birthrate = getprob(rule) * timestep * adjusted_birth
-        birthrate += 0.0
+        birthrate = getprob(rule) * timestep * adjusted_birth |> NoUnits
         births = rand(rng, Poisson(eco.abundances.matrix[spp, loc] * birthrate))
         eco.abundances.matrix[dest, loc] += births
     end
@@ -28,10 +27,9 @@ function _run_rule!(eco::Ecosystem, rule::GenerateSeed, timestep::Unitful.Time)
     spp = getspecies(rule)
     dest = getdestination(rule)
     loc = getlocation(rule)
-    if (eco.abenv.active[loc]) & (eco.cache.totalE[loc, 1] > 0)
+    if (eco.abenv.active[loc]) && (eco.cache.totalE[loc, 1] > 0)
         adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, loc, spp)
-        birthrate = getprob(rule) * timestep * adjusted_birth
-        birthrate += 0.0
+        birthrate = getprob(rule) * timestep * adjusted_birth |> NoUnits
         births = rand(rng, Poisson(eco.abundances.matrix[spp, loc] * birthrate))
         eco.abundances.matrix[dest, loc] += births
         eco.cache.seedbank[dest, loc] = births
@@ -48,7 +46,7 @@ function _run_rule!(eco::Ecosystem, rule::DeathProcess, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     loc = getlocation(rule)
-    if (eco.abenv.active[loc]) & (eco.cache.totalE[loc, 1] > 0)
+    if (eco.abenv.active[loc]) && (eco.cache.totalE[loc, 1] > 0)
         adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, loc, spp)
         deathprob = getprob(rule) * timestep * adjusted_death
         newdeathprob = 1.0 - exp(-deathprob)
