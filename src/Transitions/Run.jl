@@ -8,11 +8,11 @@ using Printf
 import HDF5: ishdf5
 
 """
-    run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractTransition
+    run_rule!(eco::Ecosystem, rule::AbstractTransition, timestep::Unitful.Time)
 
 Implement `_run_rule!` function for a particular rule type, `R`, for one timestep.
 """
-function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractStateTransition
+function run_rule!(eco::Ecosystem, rule::AbstractStateTransition, timestep::Unitful.Time)
     if typeof(rule) == BirthProcess
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == GenerateSeed
@@ -42,7 +42,7 @@ function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: A
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractPlaceTransition
+function run_rule!(eco::Ecosystem, rule::AbstractPlaceTransition, timestep::Unitful.Time)
     if typeof(rule) == AllDisperse
         _run_rule!(eco, rule)
     elseif typeof(rule) == SeedDisperse
@@ -50,11 +50,11 @@ function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: A
     elseif typeof(rule) == ForceDisperse
         _run_rule!(eco, rule)
     else
-        _run_rule!(eco, rule, timestep)
+        _run_rule!(eco, rule)
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractSetUp
+function run_rule!(eco::Ecosystem, rule::AbstractSetUp, timestep::Unitful.Time)
     if typeof(rule) == UpdateEnergy
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == SeedInfection
@@ -68,7 +68,7 @@ function run_rule!(eco::Ecosystem, rule::Missing, timestep::Unitful.Time)
     return @warn "No setup"
 end
 
-function run_rule!(eco::Ecosystem, rule::R, timestep::Unitful.Time) where R <: AbstractWindDown
+function run_rule!(eco::Ecosystem, rule::AbstractWindDown, timestep::Unitful.Time)
     if typeof(rule) == UpdateEnvironment
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == UpdateEpiEnvironment
