@@ -1,6 +1,6 @@
 using Unitful
 using Missings
-using JLD
+using JLD2
 using Random
 
 function checkfile(::String, ::Missing)
@@ -8,16 +8,16 @@ function checkfile(::String, ::Missing)
 end
 
 function checkfile(file::String, tm::Int)
-    return !isempty(searchdir(file, string(tm, ".jld")))
+    return !isempty(searchdir(file, string(tm, ".jld2")))
 end
 
 function loadfile(file::String, tm::Int, dim::Tuple)
-    a = JLD.load(joinpath(file, searchdir(file, string(tm, ".jld"))[1]), string(tm))
+    a = JLD2.load(joinpath(file, searchdir(file, string(tm, ".jld2"))[1]), string(tm))
     return GridLandscape(a, dim)
 end
 
 function clearcache(cache::CachedEcosystem)
-    files = searchdir(cache.abundances.outputfolder, ".jld")
+    files = searchdir(cache.abundances.outputfolder, ".jld2")
     rm.(joinpath.(cache.abundances.outputfolder, files))
     len = length(files)
     return  "$len files cleared"
@@ -44,7 +44,7 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     end
     simulate!(cache, newtm, cache.abundances.saveinterval)
     if !ismissing(yr)
-        JLD.save(joinpath(cache.abundances.outputfolder, string(yr, ".jld")),
+        JLD2.save(joinpath(cache.abundances.outputfolder, string(yr, ".jld2")),
         string(yr), SavedLandscape(cache.abundances.matrix[tm]))
     end
     _abundances(cache, newtm + cache.abundances.saveinterval)

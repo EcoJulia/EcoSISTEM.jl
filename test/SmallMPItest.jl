@@ -8,7 +8,7 @@ using Distributions
 using MPI
 using Random
 using Diversity
-using JLD
+using JLD2
 using Test
 
 # Set up MPI and print threads
@@ -95,7 +95,7 @@ true_abuns = gather_abundance(eco)
 if rank == 0
     print("$(rank):")
     println(true_abuns)
-    JLD.save("data/Test_abuns"*"$nthread.jld", "abuns", true_abuns)
+    JLD2.save("data/Test_abuns"*"$nthread.jld2", "abuns", true_abuns)
 end
 
 MPI.Finalize()

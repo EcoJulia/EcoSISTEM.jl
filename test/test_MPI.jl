@@ -3,7 +3,7 @@ using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 using Distributions
 using MPI
-using JLD
+using JLD2
 
 @testset "MPI" begin
     MPI.Init()
@@ -93,9 +93,9 @@ end
     mpiexec(cmd -> run(`$cmd -n 1 julia SmallMPItest.jl`));
 
     ## All answers should be the same
-    abuns1thread = load("data/Test_abuns1.jld", "abuns")
-    abuns2thread = load("data/Test_abuns2.jld", "abuns")
-    abuns4thread = load("data/Test_abuns4.jld", "abuns")
+    abuns1thread = load("data/Test_abuns1.jld2", "abuns")
+    abuns2thread = load("data/Test_abuns2.jld2", "abuns")
+    abuns4thread = load("data/Test_abuns4.jld2", "abuns")
 
     @test abuns1thread == abuns2thread == abuns4thread
     # Clean up outputs
