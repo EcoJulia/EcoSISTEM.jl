@@ -15,24 +15,24 @@ export Worldclim, Bioclim, ERA, CERA, CRUTS, CHELSA, Reference
 include("ReadData.jl")
 export read, searchdir, readworldclim, readbioclim, readERA, readCERA, readfile, readCHELSA
 
-include("ReadGBIF.jl")
-export ReadGBIF
+# include("ReadGBIF.jl")
+# export ReadGBIF
 
-include("ReadTPL.jl")
-export ReadTPL
+# include("ReadTPL.jl")
+# export ReadTPL
 
-include("ExtractClimate.jl")
-export extractvalues
+# include("ExtractClimate.jl")
+# export extractvalues
 
-include("DataCleaning.jl")
-export create_reference, gardenmask, genus_worldclim_average,
-    genus_worldclim_monthly, upresolution, downresolution
+# include("DataCleaning.jl")
+# export create_reference, gardenmask, genus_worldclim_average,
+#     genus_worldclim_monthly, upresolution, downresolution
 
-include("Conversion.jl")
-export worldclim_to_DB, era_to_DB, CHELSA_to_DB
+# include("Conversion.jl")
+# export worldclim_to_DB, era_to_DB, CHELSA_to_DB
 
-include("Plotting.jl")
-export getprofile
+# include("Plotting.jl")
+# export getprofile
 
 include("PhyloModels.jl")
 export Brownian, Lambda, fitBrownian, fitLambda, varcovar
