@@ -292,7 +292,7 @@ lensim = length(0years:record_interval:times)
 using JLD2
 using Plots
 using Diversity
-abuns = load("examples/Africa_run_coexist100.jld2", "abun")
+abuns = @load "examples/Africa_run_coexist100.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -304,7 +304,7 @@ heatmap(sumabuns,
     clim = (0, 50_000), margin = 0.5 * Plots.mm,
     title = "A", titleloc = :left)
 
-abuns = load("examples/Africa_run50.jld2", "abun")
+abuns = @load "examples/Africa_run50.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -316,7 +316,7 @@ heatmap!(sumabuns,
     clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
     title = "B", titleloc = :left)
 
-abuns = load("examples/Africa_run100.jld2", "abun")
+abuns = @load "examples/Africa_run100.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -329,7 +329,7 @@ heatmap!(sumabuns,
     title = "C", titleloc = :left)
 
 using Diversity.Ecology
-abuns = load("examples/Africa_run50.jld2", "abun")
+abuns = @load "examples/Africa_run50.jld2" abun
 meta = Metacommunity(abuns)
 diver = shannon(meta)
 sumabuns = reshape(diver[!, :diversity], 100, 100)

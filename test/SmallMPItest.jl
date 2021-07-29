@@ -95,7 +95,7 @@ true_abuns = gather_abundance(eco)
 if rank == 0
     print("$(rank):")
     println(true_abuns)
-    JLD2.save("data/Test_abuns"*"$nthread.jld2", "abuns", true_abuns)
+    @save "data/Test_abuns"*"$nthread.jld2" abuns = true_abuns
 end
 
 MPI.Finalize()

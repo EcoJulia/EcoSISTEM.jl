@@ -24,7 +24,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
       end
       # Save cache of abundances
       if mod(time_seq[i], cacheInterval) == 0year
-          JLD2.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d" uconvert(NoUnits,time_seq[i]/cacheInterval)) * (@sprintf "%03d.jld2" rep)), "abun", eco.abundances.matrix)
+          @save joinpath(cacheFolder, scenario_name * (@sprintf "%02d" uconvert(NoUnits,time_seq[i]/cacheInterval)) * (@sprintf "%03d.jld2" rep)) abun = eco.abundances.matrix
       end
   end
   storage
@@ -49,7 +49,7 @@ function runsim!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict, simDict::Di
         scenario[i], divfuns, q, simDict["cacheInterval"], cacheFolder, scenario_names[i], rep)
         adjusttemp!(eco, scenario[i], simDict["times"])
     end
-    JLD2.save((folder * @sprintf "%03d.jld2" rep), "div", div)
+    @save (folder * @sprintf "%03d.jld2" rep) div = div
     print(rep, "\n")
 end
 
@@ -86,6 +86,6 @@ function dispersalrun!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict, simDi
         scenario[i], divfuns, q, simDict["cacheInterval"], cacheFolder, scenario_names[i], rep)
         adjusttemp!(eco, scenario[i], simDict["times"])
     end
-    JLD2.save((folder * @sprintf "%03d.jld2" rep), "div", div)
+    @save (folder * @sprintf "%03d.jld2" rep) div = div
     print(rep, "\n")
 end

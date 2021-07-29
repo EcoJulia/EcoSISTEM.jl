@@ -12,7 +12,7 @@ function checkfile(file::String, tm::Int)
 end
 
 function loadfile(file::String, tm::Int, dim::Tuple)
-    a = JLD2.load(joinpath(file, searchdir(file, string(tm, ".jld2"))[1]), string(tm))
+    a = @load joinpath(file, searchdir(file, string(tm, ".jld2"))[1]) abuns
     return GridLandscape(a, dim)
 end
 
@@ -44,8 +44,7 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     end
     simulate!(cache, newtm, cache.abundances.saveinterval)
     if !ismissing(yr)
-        JLD2.save(joinpath(cache.abundances.outputfolder, string(yr, ".jld2")),
-        string(yr), SavedLandscape(cache.abundances.matrix[tm]))
+        @save joinpath(cache.abundances.outputfolder, string(yr, ".jld2")) abuns = SavedLandscape(cache.abundances.matrix[tm])
     end
     _abundances(cache, newtm + cache.abundances.saveinterval)
 
