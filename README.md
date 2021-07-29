@@ -22,21 +22,21 @@ This package is in beta now, so please raise an issue if you find any problems. 
 [paper-url]: https://arxiv.org/abs/1911.12257
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
-[docs-stable-url]: https://boydorr.github.io/EcoSISTEM.jl/stable/
+[docs-stable-url]: https://docs.ecojulia.org/EcoSISTEM.jl/stable/
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/
+[docs-dev-url]: https://docs.ecojulia.org/EcoSISTEM.jl/dev/
 
-[actions-img]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/testing.yaml/badge.svg?branch=main
-[actions-url]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/testing.yaml?branch=main
+[actions-img]: https://github.com/EcoJulia/EcoSISTEM.jl/actions/workflows/testing.yaml/badge.svg?branch=main
+[actions-url]: https://github.com/EcoJulia/EcoSISTEM.jl/actions/workflows/testing.yaml?branch=main
 
-[nightly-img]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml/badge.svg?branch=main
-[nightly-url]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml?branch=main
+[nightly-img]: https://github.com/EcoJulia/EcoSISTEM.jl/actions/workflows/nightly.yaml/badge.svg?branch=main
+[nightly-url]: https://github.com/EcoJulia/EcoSISTEM.jl/actions/workflows/nightly.yaml?branch=main
 
-[codecov-img]: https://codecov.io/gh/boydorr/EcoSISTEM.jl/branch/main/graph/badge.svg
-[codecov-url]: https://codecov.io/gh/boydorr/EcoSISTEM.jl?branch=main
+[codecov-img]: https://codecov.io/gh/EcoJulia/EcoSISTEM.jl/branch/main/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/EcoJulia/EcoSISTEM.jl?branch=main
 
 [zenodo-img]: https://zenodo.org/badge/251665824.svg
 [zenodo-url]: https://zenodo.org/badge/latestdoi/251665824
 
-[dev-url]: https://github.com/boydorr/EcoSISTEM.jl/tree/dev
+[dev-url]: https://github.com/EcoJulia/EcoSISTEM.jl/tree/dev
