@@ -5,7 +5,8 @@ using AxisArrays
 using NetCDF
 using IndexedTables
 
-import JuliaDB.DIndexedTable
+# JuliaDB not supported until compatibility issues are fixed!
+# import JuliaDB.DIndexedTable
 
 function checkbounds(x::Vector{typeof(1.0°)}, y::Vector{typeof(1.0°)})
     -180.0 .<= x .<= 180.0 || error("X coordinate is out of bounds")
@@ -105,11 +106,11 @@ end
 Function to extract values from an ERA object, at specified x, y locations and
 years. Must be given a starting year of the dataset.
 """
-function extractvalues(tab::Union{IndexedTable, DIndexedTable}, era::ERA, varname::Symbol)
-    vals = map(t -> extractvalues(t.decimallatitude * °, t.decimallongitude * °, t.year, era), tab)
-    tab = pushcol(tab, varname, vals)
-    return tab
-end
+# function extractvalues(tab::Union{IndexedTable, DIndexedTable}, era::ERA, varname::Symbol)
+#     vals = map(t -> extractvalues(t.decimallatitude * °, t.decimallongitude * °, t.year, era), tab)
+#     tab = pushcol(tab, varname, vals)
+#     return tab
+# end
 
 
 function extractvalues(lat::Union{Missing, typeof(1.0°)}, lon::Union{Missing, typeof(1.0°)}, yr::Union{Missing, Int64}, era::ERA)
@@ -154,11 +155,11 @@ function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
         end
     end
 end
-function extractvalues(tab::Union{IndexedTable, DIndexedTable}, ref::Reference, varname::Symbol)
-    vals = map(t -> extractvalues(t.decimallatitude * °, t.decimallongitude * °, ref), tab)
-    tab = pushcol(tab, varname, vals)
-    return tab
-end
+# function extractvalues(tab::Union{IndexedTable, DIndexedTable}, ref::Reference, varname::Symbol)
+#     vals = map(t -> extractvalues(t.decimallatitude * °, t.decimallongitude * °, ref), tab)
+#     tab = pushcol(tab, varname, vals)
+#     return tab
+# end
 function extractvalues(lat::Union{Missing, typeof(1.0°)}, lon::Union{Missing, typeof(1.0°)}, ref::Reference)
     if any(ismissing.([lat, lon]))
         return NaN .* unit(ref.array[1,1])
