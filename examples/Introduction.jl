@@ -52,47 +52,60 @@ md"You will see: (A) the abundances of each species over time, and (B) the total
 
 # ╔═╡ 368a2a64-2aee-4282-b182-e5182b949392
 begin
-	grd = (numGrid, numGrid); req=(450000.0kJ/m^2, 192.0nm/m^2);
-	individuals = 100_000; area = 100.0*km^2;
+	
+	# Set up abiotic environment
+	grd = (numGrid, numGrid); area = 100.0*km^2;
 	totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
-
 	abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 	abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 	bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 	abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, 		abenv1.active, bud, abenv1.names)
-
-	av_dist = fill(2.4, numSpecies) .* km
-	kernel = GaussianKernel.(av_dist, 10e-10)
-	movement = BirthOnlyMovement(kernel, Torus())
-
+	
+	# Species characteristics
+	individuals = 100_000
+	abun = rand(Multinomial(individuals, numSpecies))
 	death = 0.15/ year
 	birth = death
 	long = 1.0
 	surv = 0.1
 	boost = 1.0
 	param = EqualPop(birth, death, long, surv, boost)
-
-	size_mean = 1.0m^2
+	native = fill(true, numSpecies)
 	
+	# Dispersal
+	av_dist = fill(2.4, numSpecies) .* km
+	kernel = GaussianKernel.(av_dist, 10e-10)
+	movement = BirthOnlyMovement(kernel, Torus())
+
+	# Resource requirements
+	req=(450000.0kJ/m^2, 192.0nm/m^2)
+	size_mean = 1.0m^2
 	energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
 	energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
 	energy_vec = ReqCollection2(energy_vec1, energy_vec2)
 
+	# Habitat preferences
 	vars = fill(2.0, numSpecies) .* K
 	opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
 	trts = GaussTrait(opts, vars)
-	native = fill(true, numSpecies)
-	abun = rand(Multinomial(individuals, numSpecies))
+	
+	# Species list
 	sppl = SpeciesList(numSpecies, trts, abun, energy_vec,
 		movement, param, native)
+	
+	# Trait relationship
 	rel = Gauss{typeof(first(opts))}()
+	
+	# Build ecosystem
 	eco = Ecosystem(sppl, abenv, rel)
 
+	# Run simulation
 	times = 10years; timestep = 1month; interval = 1month
 	lensim = length(0month:timestep:times)
 	abuns = zeros(Int64, numSpecies, prod(grd), lensim)
 	simulate_record!(abuns, eco, times, timestep, interval)
 	
+	# Plot abundances
 	sumabun = sum(abuns, dims = 2)[:, 1, :]
 	floor_plot = zeros(lensim)
 	p1 = plot(sumabun[1,:], ribbon=(sumabun[1,:], floor_plot), 
@@ -157,11 +170,11 @@ Let's try something slightly more adventurous:"
 
 # ╔═╡ e1ca4d60-383f-4c2a-945b-c7665b51bff9
 begin
-	temp_env2 = tempgradAE(totalT - 10.0K, totalT + 10.0K, grid, totalW, 
-		area_size, 0.0K/month)
+	temp_grad_env = tempgradAE(totalT - 10.0K, totalT + 10.0K, grid, totalW, 
+		area_size, 0.2K/month)
 
 	# Let's plot it to see what it looks like now
-	heatmap(temp_env2.habitat.matrix ./ K, clim = (278, 308), title = "Habitat")
+	heatmap(temp_grad_env.habitat.matrix' ./ K, clim = (278, 308), title = "Habitat")
 end
 
 # ╔═╡ 5928ca0d-479e-4714-acfe-ff2d9c43533e
@@ -249,6 +262,70 @@ begin
 	p3 = vline!([298], colour = :black, label = "Current temperature")
 	p3
 end
+
+# ╔═╡ ccbf7d75-1c1d-43ad-998e-aa033bcd1ebc
+md"### _The final touches ..._
+
+The last thing we need to specify is the relationship between the species and their environment - for this example, let's assume that we want this match to be a Gaussian curve like above.
+"
+
+# ╔═╡ 41206ea4-77ed-4b87-8acf-8d2a9ee170db
+trait_relationship = Gauss{typeof(first(optima))}()
+
+# ╔═╡ 1d59bcaa-3670-4765-8981-9e2dd6d99436
+md"Now we can build our ecosystem! EcoSISTEM is integrated with SpatialEcology.jl, so we can take advantage of their plotting system, by simply calling plot on our `Ecosystem` object. This will show us the species richness over space."
+
+# ╔═╡ ffd5ca3f-00b3-4444-9f89-77062358c439
+example_eco = Ecosystem(species_list, temp_grad_env, trait_relationship)
+
+# ╔═╡ 7492f556-957c-48a3-8597-9c7c7ba20547
+begin
+	using Diversity.Ecology
+	shannon(example_eco.abundances.matrix)
+end
+
+# ╔═╡ ca77e96e-dda3-4c5a-b063-e782535045e5
+plot(example_eco, clim = (0, 10), title = "Species richness")
+
+# ╔═╡ 43b32242-7577-4593-b8ea-9f3fcd0cfda5
+md"We can see that all species are present in the grid as we have set it up. Let's simulate it over a 10 year period and monthly timesteps to see what will happen. Remember that we added in a change in temperature over time!"
+
+# ╔═╡ fa1ea836-6750-43d0-b574-d1490ecd6ebf
+simulate!(example_eco, 10year, 1month)
+
+# ╔═╡ 6b0fb54e-6d52-40ed-87d5-96aff5f3d93d
+plot(example_eco, clim = (0, 10))
+
+# ╔═╡ 46bd023d-d3d7-4b8f-b8da-ef1800a2b939
+md"Our first simulation run! You'll notice that in the hotter locations, we see species richness drop more quickly.
+
+We can also play around with other measures of diversity through the Diversity.jl package. Here we have a measure of representativeness, called rho diversity, for every grid cell. You'll notice that as we go down the list, grid cells get less representative, as they contain fewer and more rare species."
+
+# ╔═╡ 858fd79e-d41e-4302-8197-c6c628919844
+norm_sub_rho(example_eco, 1.0)
+
+# ╔═╡ 078406b4-7546-4da7-a13a-57acbd1f6925
+md"We can also access more traditional diversity measures like Shannon and Simpson through the `Diversity.Ecology` module."
+
+# ╔═╡ 81cd8c4b-bf8a-424d-840d-3834beae575b
+simpson(example_eco.abundances.matrix)
+
+# ╔═╡ f1abf877-98ce-4d0f-8408-ad6e203c6fbd
+md"The final thing you need to know for this tutorial is that you can store the outputs of the model on a certain time interval, like so:"
+
+# ╔═╡ 97a3ef6d-e7ff-4851-95b5-c8482e953b70
+begin 
+	simulation_time = 10years; time_step = 1month; record_interval = 1month
+	len_sim = length(0month:time_step:simulation_time)
+	record_abuns = zeros(Int64, numSpp, prod(grid), len_sim)
+	simulate_record!(record_abuns, example_eco, simulation_time, time_step, record_interval)
+end
+
+# ╔═╡ 0d0e0197-d826-4f62-943c-79783e5fa701
+md"# _That's all folks!_
+
+There are more examples that can be found in the examples folder. Be aware to check first how big the simulation is before running it on your laptop!
+"
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1406,7 +1483,7 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╟─496434ae-1bc8-4472-8981-2d9fc08b688a
 # ╟─39be3104-92c0-40fe-ad10-905d6c889917
 # ╟─fa91699e-926f-452b-bae0-219fe489709f
-# ╠═368a2a64-2aee-4282-b182-e5182b949392
+# ╟─368a2a64-2aee-4282-b182-e5182b949392
 # ╟─ff15c0e9-2fee-4c42-a255-924cd29c5ecb
 # ╟─288fb7fb-60d5-4e4c-914c-39eaa54577d9
 # ╠═16a70493-683a-45bc-baa0-83e917fa774b
@@ -1416,5 +1493,21 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═797cc60f-ce47-4d64-b7d9-1fa16a74db7a
 # ╟─8e33c75b-d128-4b25-9b2b-5cff452c3a4e
 # ╠═b9091796-d377-49c7-8601-a84ec0006f65
+# ╟─ccbf7d75-1c1d-43ad-998e-aa033bcd1ebc
+# ╠═41206ea4-77ed-4b87-8acf-8d2a9ee170db
+# ╟─1d59bcaa-3670-4765-8981-9e2dd6d99436
+# ╠═ffd5ca3f-00b3-4444-9f89-77062358c439
+# ╠═ca77e96e-dda3-4c5a-b063-e782535045e5
+# ╟─43b32242-7577-4593-b8ea-9f3fcd0cfda5
+# ╠═fa1ea836-6750-43d0-b574-d1490ecd6ebf
+# ╠═6b0fb54e-6d52-40ed-87d5-96aff5f3d93d
+# ╟─46bd023d-d3d7-4b8f-b8da-ef1800a2b939
+# ╠═858fd79e-d41e-4302-8197-c6c628919844
+# ╟─078406b4-7546-4da7-a13a-57acbd1f6925
+# ╠═7492f556-957c-48a3-8597-9c7c7ba20547
+# ╠═81cd8c4b-bf8a-424d-840d-3834beae575b
+# ╟─f1abf877-98ce-4d0f-8408-ad6e203c6fbd
+# ╠═97a3ef6d-e7ff-4851-95b5-c8482e953b70
+# ╟─0d0e0197-d826-4f62-943c-79783e5fa701
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
