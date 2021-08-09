@@ -271,7 +271,6 @@ end
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-dir = "../../Data/CHELSA/CRUTS/prec/"
 function readCRUTS(dir::String)
     files = map(searchdir(dir, ".tif")) do files
         joinpath(dir, files)
@@ -362,5 +361,5 @@ function readCHELSA(dir::String, var_name::String; res = 1, fn = mean)
                                              Axis{:time}(1month)]] *= NaN;
     end;
 
-    CHELSA(world)
+    CHELSA_monthly(world)
 end

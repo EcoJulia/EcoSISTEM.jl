@@ -10,7 +10,7 @@ function __init__()
 end
 
 include("ClimateTypes.jl")
-export Worldclim, Bioclim, ERA, CERA, CRUTS, CHELSA, Reference
+export Worldclim, Bioclim, ERA, CERA, CRUTS, CHELSA_bioclim, CHELSA_monthly, Reference
 
 include("ReadData.jl")
 export read, searchdir, readworldclim, readbioclim, readERA, readCERA, readfile, readCHELSA
@@ -36,3 +36,6 @@ export getprofile
 
 include("PhyloModels.jl")
 export Brownian, Lambda, fitBrownian, fitLambda, varcovar
+
+include("SimpleSDMInterface.jl")
+export Worldclim, Bioclim, CHELSA_bioclim, Landcover

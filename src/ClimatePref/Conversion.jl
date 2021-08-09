@@ -26,7 +26,7 @@ function worldclim_to_DB(wc::Worldclim)
     return worldclim_tab
 end
 
-function CHELSA_to_DB(ch::CHELSA)
+function CHELSA_to_DB(ch::CHELSA_monthly)
     gridsize = step(axes(ch.array, 1).val)
     ref = create_reference(ustrip.(gridsize))
     x = collect(axes(ch.array, 1).val)

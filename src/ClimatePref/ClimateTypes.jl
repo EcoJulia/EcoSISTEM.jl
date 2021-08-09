@@ -33,11 +33,16 @@ Type that houses data extracted from Bioclim raster files.
 """
 mutable struct Bioclim <: AbstractClimate
     array::AxisArray
-    function Bioclim(array::AxisArray)
-        size(array, 3) == 19 ||
-            error("There should 19 climate variables for bioclim")
-        new(array)
-    end
+end
+
+
+"""
+    Landcover <: AbstractClimate
+
+Type that houses data extracted from EarthEnv Landcover raster files.
+"""
+mutable struct Landcover <: AbstractClimate
+    array::AxisArray
 end
 
 """
@@ -96,11 +101,20 @@ end
 
 Type that houses data extracted from CHELSA raster files.
 """
-mutable struct CHELSA <: AbstractClimate
+mutable struct CHELSA_monthly <: AbstractClimate
     array::AxisArray
-    function CHELSA(array::AxisArray)
+    function CHELSA_monthly(array::AxisArray)
         size(array, 3) == 12 ||
             error("There should be 12 months of data for CHELSA")
         new(array)
     end
+end
+
+"""
+    CHELSA <: AbstractClimate
+
+Type that houses data extracted from CHELSA raster files.
+"""
+mutable struct CHELSA_bioclim <: AbstractClimate
+    array::AxisArray
 end

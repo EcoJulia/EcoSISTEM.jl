@@ -13,7 +13,7 @@ end
 @testset "Worldclim types" begin
     temp = AxisArray(fill(1.0K, 10, 10, 12), Axis{:latitude}(1:10), Axis{:longitude}(1:10), Axis{:time}(collect(1:12) .* s))
     @test_nowarn Worldclim(temp)
-    @test_nowarn CHELSA(temp)
+    @test_nowarn CHELSA_monthly(temp)
 end
 
 @testset "Bioclim types" begin
