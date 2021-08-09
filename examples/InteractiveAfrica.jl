@@ -113,7 +113,14 @@ end
 
 
 # ╔═╡ 7e16f197-874b-482d-80b6-13a62ddda1f7
+begin
+	temperature = SimpleSDMPredictor(WorldClim, BioClim, 1)
+	africa_temp = temperature[left = -25.0, right = 50.0, bottom = -35.0, top = 40.0]
+	plot(africa_temp)
+end
 
+# ╔═╡ 03ade0dc-271d-407c-a0f1-583007b168d8
+Worldclim(africa_temp)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1286,5 +1293,6 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═e9e9065b-cf7e-4d37-8162-88f0076ad1eb
 # ╠═220e4af6-f228-4b8d-a77e-0ddbf5fc6705
 # ╠═7e16f197-874b-482d-80b6-13a62ddda1f7
+# ╠═03ade0dc-271d-407c-a0f1-583007b168d8
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

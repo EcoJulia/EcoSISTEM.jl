@@ -31,7 +31,9 @@ end
 # ╔═╡ 6b280ae0-6af9-4d3c-91c8-f02a20d28d18
 md"# _A quick introduction to EcoSISTEM.jl!_
 
-Welcome to the EcoSISTEM package. You can use us to simulate communities of plants!  Have a go below and remember you can write `?` to check the documentation for any Julia function or variable."
+Welcome to the EcoSISTEM package. You can use us to simulate communities of plants! In any simulation, we run multiple species competing, dispersing and dying over time and space. You can set up any type of Ecosystem you like, but there are a few in-built functions to make things easier.
+
+Have a go below and remember you can write `?` to check the documentation for any Julia function or variable."
 
 # ╔═╡ 39be3104-92c0-40fe-ad10-905d6c889917
 begin
@@ -170,16 +172,30 @@ Let's try something slightly more adventurous:"
 
 # ╔═╡ e1ca4d60-383f-4c2a-945b-c7665b51bff9
 begin
+	# A temperature gradient spanning 10 degrees either side of total temperature from above. We can also give it a rate over which to change over time
+	temp_change_rate = 0.2K/month
 	temp_grad_env = tempgradAE(totalT - 10.0K, totalT + 10.0K, grid, totalW, 
-		area_size, 0.2K/month)
+		area_size, temp_change_rate)
 
 	# Let's plot it to see what it looks like now
 	heatmap(temp_grad_env.habitat.matrix' ./ K, clim = (278, 308), title = "Habitat")
 end
 
-# ╔═╡ 5928ca0d-479e-4714-acfe-ff2d9c43533e
-md"That's better!
+# ╔═╡ 8f7b85a1-1e64-4d1a-90f6-55c6307a03cf
+md"That's better! How about something even fancier?"
 
+# ╔═╡ 01a11afc-7c9b-41f5-b308-003303dfa72a
+begin
+	# A temperature peak spanning 10 degrees either side of total temperature from above. We can also give it a rate over which to change over time
+	temp_peak_env = peakedgradAE(totalT - 10.0K, totalT + 10.0K, grid, totalW, 
+		area_size, temp_change_rate)
+
+	# Let's plot it to see what it looks like now
+	heatmap(temp_peak_env.habitat.matrix' ./ K, clim = (278, 308), title = "Habitat")
+end
+
+# ╔═╡ 5928ca0d-479e-4714-acfe-ff2d9c43533e
+md"
 ### _Now to add the species!_
 
 Similarly to the abiotic environment, all information about species is housed in its own Julia type, called a `SpeciesList`. We'll set one up now:
@@ -1489,6 +1505,8 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═16a70493-683a-45bc-baa0-83e917fa774b
 # ╟─d1602be3-2724-4441-8dc3-8fa7713ed249
 # ╠═e1ca4d60-383f-4c2a-945b-c7665b51bff9
+# ╟─8f7b85a1-1e64-4d1a-90f6-55c6307a03cf
+# ╠═01a11afc-7c9b-41f5-b308-003303dfa72a
 # ╟─5928ca0d-479e-4714-acfe-ff2d9c43533e
 # ╠═797cc60f-ce47-4d64-b7d9-1fa16a74db7a
 # ╟─8e33c75b-d128-4b25-9b2b-5cff452c3a4e
