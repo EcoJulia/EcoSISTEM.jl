@@ -4,6 +4,7 @@ using Test
 using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
 using AxisArrays
+using SimpleSDMLayers
 
 grid = (5, 5)
 area = 25.0km^2
@@ -109,4 +110,22 @@ end
 
     solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
     wc = worldclimAE(wctemp, solar, active)
+end
+
+@testset "Bioclim data" begin
+    africa_temp = SimpleSDMPredictor(WorldClim, BioClim, 1, left = -25, right = 50, bottom = -35, top = 40)
+    bio_africa = Bioclim(africa_temp, °C)
+    active = fill(true, size(africa_temp.grid))
+    totalK = 1000.0kJ/km^2; area = 100.0km^2
+    bc = bioclimAE(bio_africa, totalK, area)
+    @test_nowarn bioclimAE(bio_africa, totalK, area)
+    @test_nowarn bioclimAE(bio_africa, totalK, area, active)
+    @test size(bc.habitat.matrix) == size(africa_temp.grid)
+    @test isapprox(sum(bc.budget.matrix), totalK * area)
+    solar = SolarBudget(fill(10.0kJ, size(africa_temp.grid)))
+    bc = bioclimAE(bio_africa, solar, active)
+end
+
+if isdir("assets")
+    rm("assets", recursive = true)
 end
