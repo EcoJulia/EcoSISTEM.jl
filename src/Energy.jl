@@ -1,3 +1,4 @@
+using EcoSISTEM.ClimatePref
 using RecipesBase
 using Unitful
 using Unitful.DefaultSymbols
@@ -213,7 +214,7 @@ mutable struct SolarTimeBudget <: AbstractTimeBudget{typeof(1.0*kJ)}
 end
 
 function SolarTimeBudget(wc::Worldclim, time::Int64)
-  mat = Matrix(wc.array)
+  mat = Array(wc.array)
   mat[isnan.(mat)] .=  0*kJ
   return SolarTimeBudget(mat, time)
 end
@@ -285,7 +286,7 @@ mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0*mm)}
 end
 
 function WaterTimeBudget(wc::Worldclim, time::Int64)
-  mat = Matrix(wc.array)
+  mat = Array(wc.array)
   mat[isnan.(mat)] .=  0*mm
   return WaterTimeBudget(mat, time)
 end
