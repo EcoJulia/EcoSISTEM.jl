@@ -211,6 +211,13 @@ mutable struct SolarTimeBudget <: AbstractTimeBudget{typeof(1.0*kJ)}
     return new(mat, time)
   end
 end
+
+function SolarTimeBudget(wc::Worldclim, time::Int64)
+  mat = Matrix(wc.array)
+  mat[isnan.(mat)] .=  0*kJ
+  return SolarTimeBudget(mat, time)
+end
+
 function _countsubcommunities(bud::SolarTimeBudget)
   return length(bud.matrix[:,:,1])
 end
@@ -244,6 +251,13 @@ mutable struct WaterBudget <: AbstractBudget{typeof(1.0*mm)}
     return new(mat)
   end
 end
+
+function WaterBudget(bc::Bioclim)
+  mat = Matrix(bc.array)
+  mat[isnan.(mat)] .=  0*mm
+  return WaterBudget(mat)
+end
+
 function _countsubcommunities(bud::WaterBudget)
   return length(bud.matrix)
 end
@@ -268,6 +282,12 @@ mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0*mm)}
     mat[isnan.(mat)] .=  0*mm
     return new(mat, time)
   end
+end
+
+function WaterTimeBudget(wc::Worldclim, time::Int64)
+  mat = Matrix(wc.array)
+  mat[isnan.(mat)] .=  0*mm
+  return WaterTimeBudget(mat, time)
 end
 
 function _countsubcommunities(bud::WaterTimeBudget)
