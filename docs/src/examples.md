@@ -16,7 +16,7 @@ using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 using Diversity
-using JLD
+using JLD2
 using OnlineStats
 using Plots
 using Distributions

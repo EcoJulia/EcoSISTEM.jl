@@ -9,27 +9,28 @@ function __init__()
     end
 end
 
+@warn "This functionality remains under development!"
+
 include("ClimateTypes.jl")
 export Worldclim, Bioclim, ERA, CERA, CRUTS, CHELSA, Reference
 
 include("ReadData.jl")
 export read, searchdir, readworldclim, readbioclim, readERA, readCERA, readfile, readCHELSA
 
-include("ReadGBIF.jl")
-export ReadGBIF
+# include("ReadGBIF.jl")
+# export ReadGBIF
 
-include("ReadTPL.jl")
-export ReadTPL
+# include("ReadTPL.jl")
+# export ReadTPL
 
 include("ExtractClimate.jl")
 export extractvalues
 
 include("DataCleaning.jl")
-export create_reference, gardenmask, genus_worldclim_average,
-    genus_worldclim_monthly, upresolution, downresolution
+export create_reference, upresolution, downresolution
 
-include("Conversion.jl")
-export worldclim_to_DB, era_to_DB, CHELSA_to_DB
+# include("Conversion.jl")
+# export worldclim_to_DB, era_to_DB, CHELSA_to_DB
 
 include("Plotting.jl")
 export getprofile
