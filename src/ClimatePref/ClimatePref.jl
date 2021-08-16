@@ -13,7 +13,8 @@ include("ClimateTypes.jl")
 export Worldclim, Bioclim, ERA, CERA, CRUTS, CHELSA_bioclim, CHELSA_monthly, Reference
 
 include("ReadData.jl")
-export read, searchdir, readworldclim, readbioclim, readERA, readCERA, readfile, readCHELSA
+export read, searchdir, readworldclim, readbioclim, readERA, 
+readCERA, readfile, readCHELSA_monthly, readCHELSA_bioclim
 
 include("ReadGBIF.jl")
 export ReadGBIF
