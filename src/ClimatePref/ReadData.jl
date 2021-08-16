@@ -349,7 +349,7 @@ function readCHELSA_bioclim(dir::String,
     xmin::Unitful.Quantity{Float64} = -180.0°, 
     xmax::Unitful.Quantity{Float64} = 180.0°,
     ymin::Unitful.Quantity{Float64} = -90.0°, 
-    ymax::Unitful.Quantity{Float64} = 90.0°)
+    ymax::Unitful.Quantity{Float64} = 90.0°; res = 1, fn = mean)
     files = map(searchdir(dir, ".tif")) do files
         joinpath(dir, files)
     end
@@ -363,14 +363,14 @@ function readCHELSA_bioclim(dir::String,
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(undef, txy[2], txy[3], numfiles);
+    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2]/res),  ceil(Int64, txy[3]/res), numfiles);
     a = Array{txy[1], 2}(undef, txy[2], txy[3]);
     map(eachindex(files)) do count
         read(files[count]) do dataset
             bd = AG.getband(dataset, 1);
             AG.read!(bd, a);
         end;
-        b[:, :, count] = a
+        downresolution!(b[:, :, count], a, res, fn)
     end
     lat, long = size(b, 1), size(b, 2);
     unit = 1.0

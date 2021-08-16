@@ -262,10 +262,8 @@ function downresolution(aa::AxisArray{T, 2} where T, rescale::Int64, fn)
 end
 
 function downresolution!(resized_array::Array{T, 2}, array::Array{T, 2}, rescale::Int64, fn) where T
-    grid = size(array)
-    grid = ceil.(Int64, (grid[1] ./ rescale, grid[2] ./ rescale))
     Threads.@threads for i in 1:length(resized_array)
-        x, y = convert_coords(i, size(resized_array, 2))
+        x, y = convert_coords(i, size(resized_array, 1))
         xcoords = filter(x -> x .<= size(array, 1), (rescale*x-(rescale-1)):(rescale*x))
         ycoords = filter(y -> y .<= size(array, 2), (rescale*y-(rescale - 1)):(rescale*y))
         resized_array[x, y] = fn(filter(!isnan, array[xcoords, ycoords]))
