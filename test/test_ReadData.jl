@@ -9,9 +9,6 @@ using Test
     temp = SimpleSDMPredictor(WorldClim, BioClim, 1)
     @test_nowarn readbioclim("assets/WorldClim/BioClim/10/")
     @test_nowarn readfile("assets/WorldClim/BioClim/10/wc2.1_10m_bio_1.tif")
-
-    chelsa_temp = SimpleSDMPredictor(CHELSA, BioClim, 1)
-    @test_nowarn readCHELSA_bioclim("assets/CHELSA/BioClim/", res = 10)
 end
 
 @testset "Output data" begin
