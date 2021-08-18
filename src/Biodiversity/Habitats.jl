@@ -386,7 +386,7 @@ Function to create a `ContinuousHab` habitat of dimension `dim`, with cell `size
 function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
   dim::Tuple{Int64, Int64})
   M = fill(val, dim)
-  func = ChangeLookup[unit(val)]
+  func = !haskey(ChangeLookup, unit(val)) ? NoChange : ChangeLookup[unit(val)]
   rate = 0.0 * unit(val)/s
   habitatupdate = HabitatUpdate(func, rate, typeof(dimension(val)))
   ContinuousHab(M, size, habitatupdate)

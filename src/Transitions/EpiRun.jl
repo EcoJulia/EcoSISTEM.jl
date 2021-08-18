@@ -21,7 +21,7 @@ function _run_rule!(eco::Ecosystem, rule::Exposure, timestep::Unitful.Time)
             (N^params.freq_vs_density_env)
         force_inf = (params.age_mixing[age_cat[spp], :] ⋅ virus(eco.abundances)[force_cats, loc]) /
             (N^params.freq_vs_density_force)
-        expprob = (force_prob * force_inf + force_prob * env_inf) * timestep
+        expprob = (force_prob * force_inf + virus_prob * env_inf) * timestep
         newexpprob = 1.0 - exp(-expprob)
         exposures = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
         human(eco.abundances)[spp, loc] -= exposures
