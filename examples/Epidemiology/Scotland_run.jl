@@ -1,5 +1,4 @@
 using EcoSISTEM
-using DataRegistryUtils
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
@@ -13,11 +12,11 @@ using DataFrames
 using Plots
 using SQLite
 
-function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
+function run_model(dir::String, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, save::Bool = false, savepath::String = pwd())
     # Download and read in population sizes for Scotland
-    DataRegistryUtils.load_array!(db, "human/demographics/population/scotland", "/grid1km/age/persons"; sql_alias="human_demographics_population_scotland_grid1km_age_persons_arr")
-    scotpop = get_3d_km_grid_axis_array(db, ["grid_x", "grid_y", "age_aggr"], "val", "scottish_population_view")
-
+    isdir(dir) || mkdir(dir)
+    parse_data_toml("access-data.toml")
+    scotpop = parse_hdf5(joinpath(dir, "population.h5"))
     # Read number of age categories
     age_categories = size(scotpop, 3)
 
@@ -55,14 +54,12 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     # Shrink to smallest bounding box. The NaNs are inactive.
     total_pop = shrink_to_active(total_pop);
 
+    
     # Prob of developing symptoms
-    p_s = fill(read_estimate(db,
-        "human/infection/SARS-CoV-2/%",
-        "symptom-probability",
-        key="value",
-        data_type=Float64)[1], age_categories)
+    p_s = fill(parse_toml(joinpath(dir, "symptom-probability.toml"),
+    "symptom-probability"), age_categories)
 
-    param_tab = read_table(db, "prob_hosp_and_cfr/data_for_scotland", "cfr_byage")
+    param_tab = parse_table(joinpath(dir, "prob_hosp_and_cfr.h5"), "cfr_byage")
     # Prob of hospitalisation
     p_h = param_tab.p_h[1:end-1] # remove HCW
     pushfirst!(p_h, p_h[1]) # extend age categories
@@ -78,50 +75,34 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     @assert length(p_s) == length(p_h) == length(cfr_home)
 
     # Time exposed
-    T_lat = days(read_estimate(
-        db,
-        "human/infection/SARS-CoV-2/latent-period",
-        "latent-period",
-        key="value",
-        data_type=Float64
-    )[1] * Unitful.hr)
+    T_lat = days(parse_toml(
+        joinpath(dir, "latent-period.toml"),
+        "latent-period"
+    ) * Unitful.hr)
 
     # Time asymptomatic
-    T_asym = days(read_estimate(
-        db,
-        "human/infection/SARS-CoV-2/asymptomatic-period",
-        "asymptomatic-period",
-        key="value",
-        data_type=Float64
-    )[1] * Unitful.hr)
+    T_asym = days(parse_toml(
+        joinpath(dir, "asymptomatic-period.toml"),
+        "asymptomatic-period"
+    ) * Unitful.hr)
     @show T_asym
 
     # Time pre-symptomatic
     T_presym = 1.5days
     # Time symptomatic
-    T_sym = days(read_estimate(
-        db,
-        "human/infection/SARS-CoV-2/infectious-duration",
-        "infectious-duration",
-        key="value",
-        data_type=Float64
-    )[1] * Unitful.hr) - T_presym
+    T_sym = days(parse_toml(
+        joinpath(dir, "infectious-duration.toml"),
+        "infectious-duration"
+    ) * Unitful.hr) - T_presym
     # Time in hospital
-    T_hosp = read_estimate(
-        db,
-        "fixed-parameters/T_hos",
-        "T_hos",
-        key="value",
-        data_type=Float64
-    )[1] * days
+    T_hosp = parse_toml(joinpath(dir, "T_hos.toml"),
+        "T_hos"
+    ) * days
     # Time to recovery if symptomatic
-    T_rec = read_estimate(
-        db,
-        "fixed-parameters/T_rec",
-        "T_rec",
-        key="value",
-        data_type=Float64
-    )[1] * days
+    T_rec = parse_toml(
+        joinpath(dir, "T_rec.toml"),
+        "T_rec"
+    ) * days
 
     # Exposed -> asymptomatic
     mu_1 = (1 .- p_s) .* 1/T_lat
@@ -234,10 +215,6 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     return abuns
 end
 
-data_dir= "data/"
-config = "data_config.yaml"
-view_sql = "Scotland_run_view.sql"
-db = initialise_local_registry(data_dir, data_config = config, sql_file = view_sql)
-
+datadir = "data/human"
 times = 2months; interval = 1day; timestep = 1day
-run_model(db, times, interval, timestep)
+run_model(datadir, times, interval, timestep, do_plot = true)

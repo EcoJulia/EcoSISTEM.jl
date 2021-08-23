@@ -70,7 +70,7 @@ include("Epidemiology/MedianGenerator.jl")
 export MedianGenerator
 
 include("Epidemiology/data_utils.jl")
-export parse_hdf5, get_3d_km_grid_axis_array
+export parse_hdf5, parse_toml, parse_table, parse_data_toml
 
 include("Epidemiology/EpiControl.jl")
 export NoControl, Lockdown
