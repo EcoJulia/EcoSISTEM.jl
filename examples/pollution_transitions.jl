@@ -16,17 +16,19 @@ using SQLite
 module PollutionRun
     using EcoSISTEM
     using Statistics
+    using Unitful
+    using Unitful.DefaultSymbols
     import EcoSISTEM.getprob
     # Define how probabilities for transitions should be altered by pollution
-    getprob(eco::Ecosystem, rule::Exposure) = (rule.force_prob * 5.0 * get_env(eco.abenv.habitat, rule.location), rule.virus_prob)
-    getprob(eco::Ecosystem, rule::DevelopSymptoms) = rule.prob * 2.0 * get_env(eco.abenv.habitat, rule.location)
-    getprob(eco::Ecosystem, rule::Hospitalise) = rule.prob * 2.0 * get_env(eco.abenv.habitat, rule.location)
-    getprob(eco::Ecosystem, rule::DeathFromInfection) = rule.prob * 5.0 * get_env(eco.abenv.habitat, rule.location)
+    getprob(eco::Ecosystem, rule::Exposure) = (rule.force_prob * max(1.0, 1.0/(μg/m^3) * get_env(eco.abenv.habitat, rule.location)), rule.virus_prob)
+    getprob(eco::Ecosystem, rule::DevelopSymptoms) = rule.prob * max(1.0, 2.0/(μg/m^3) * get_env(eco.abenv.habitat, rule.location))
+    getprob(eco::Ecosystem, rule::Hospitalise) = rule.prob * max(1.0, 2.0/(μg/m^3) * get_env(eco.abenv.habitat, rule.location))
+    getprob(eco::Ecosystem, rule::DeathFromInfection) = rule.prob * max(1.0, 2.0/(μg/m^3) * get_env(eco.abenv.habitat, rule.location))
     export getprob
 end
 using Main.PollutionRun
 
-const stochasticmode = false
+const stochasticmode = true
 
 function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, save::Bool = false, savepath::String = pwd(), death_boost::Float64 = 2.0)
     # Download and read in population sizes for Scotland
@@ -188,8 +190,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     total_pop = dropdims(sum(Float64.(scotpop), dims=3), dims=3)
     total_pop[total_pop .≈ 0.0] .= NaN
     axis1 = pollution.axes[1]; axis2 = pollution.axes[2]
-    poll = pollution ./ mean(pollution)
-    pollution = AxisArray(poll, axis1, axis2)
+    pollution = AxisArray(pollution, axis1, axis2)
     epienv = ukclimateAE(pollution, area, Lockdown(20days))
 
     # Dispersal kernels for virus and disease classes
@@ -217,11 +218,11 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
     addtransition!(transitions, SeedInfection(seed_fun))
 
-    initial_infecteds = 10_000
+    initial_infecteds = 100
 
     # Create epi system with all information
-    @time epi = Ecosystem(epilist, epienv, rel, scotpop, UInt32(1),
-    initial_infected = initial_infecteds, transitions = transitions, rngtype = rngtype)
+    @time epi = Ecosystem(epilist, epienv, rel, scotpop, UInt32(1), initial_infected = initial_infecteds, 
+    transitions = transitions, rngtype = rngtype)
 
     for loc in epi.cache.ordered_active
         addtransition!(epi.transitions, ViralLoad(loc, param.virus_decay))
@@ -278,6 +279,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     epi.spplist.species.work_balance[cat_idx[1:2, :]] .= 0.0
     epi.spplist.species.work_balance[cat_idx[7:10, :]] .= 0.0
 
+    #human(epi.abundances)[cat_idx[:, 2], epi.cache.ordered_active[1:20]] .+= 100
     N_cells = size(epi.abundances.matrix, 2)
     println("Ecosystem initiated")
     # Run simulation
@@ -313,4 +315,4 @@ db = initialise_local_registry(data_dir, data_config = config, sql_file = view_s
 
 times = 1month; interval = 1day; timestep = 1day
 run_model(db, 1day, interval, timestep)
-run_model(db, times, interval, timestep, save = true, do_plot = true)
+abuns = run_model(db, times, interval, timestep, save = true, do_plot = true)

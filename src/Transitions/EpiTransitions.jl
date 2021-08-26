@@ -209,12 +209,13 @@ function deterministic_seed!(epi::Ecosystem, controls::Lockdown, timestep::Unitf
         inf = rand(rng, Poisson(epi.cache.initial_infected * timestep /controls.lockdown_date))
         sus_id = epi.spplist.species.susceptible
         exp_id = sus_id .+ length(epi.spplist.species.susceptible)
-        pos = epi.cache.ordered_active[1:inf]
+        top10 = ceil(Int, 0.1 * length(epi.cache.ordered_active))
+        pos = epi.cache.ordered_active[1:top10]
         for i in sus_id 
             for j in eachindex(pos)
-                if (human(epi.abundances)[sus_id[i], pos[j]] >= 1)
-                    human(epi.abundances)[sus_id[i], pos[j]] -= 1
-                    human(epi.abundances)[exp_id[i], pos[j]] += 1
+                if (human(epi.abundances)[sus_id[i], pos[j]] >= inf)
+                    human(epi.abundances)[sus_id[i], pos[j]] -= inf
+                    human(epi.abundances)[exp_id[i], pos[j]] += inf
                 end
             end
         end

@@ -34,8 +34,8 @@ function seedinfected!(epi::Ecosystem, controls::Lockdown, timestep::Unitful.Tim
         inf = rand(rng, Poisson(epi.cache.initial_infected * timestep /controls.lockdown_date))
         sus_id = sample(epi.spplist.species.susceptible, inf)
         exp_id = sus_id .+ length(epi.spplist.species.susceptible)
-        summed_exp = sum(human(epi.abundances)[exp_id, :], dims = 1)[1, :]
-        pos = sample(rng, epi.cache.ordered_active, weights(summed_exp[epi.cache.ordered_active]), inf)
+        summed_sus = sum(human(epi.abundances)[sus_id, :], dims = 1)[1, :]
+        pos = sample(rng, epi.cache.ordered_active, weights(summed_sus[epi.cache.ordered_active]), inf)
         for i in 1:inf
             if (human(epi.abundances)[sus_id[i], pos[i]] > 0)
                 human(epi.abundances)[sus_id[i], pos[i]] -= 1
