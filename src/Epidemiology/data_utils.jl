@@ -54,12 +54,12 @@ function get_en(bng_names::Vector{String})
     norths = [ens[i][2] for i in eachindex(ens)]
     return easts, norths
 end
-function get_bng(east::Real, north::Real, ref::Int64 = 4)
+function get_bng(east::R, north::R, ref::Int64 = 4) where R <: Real
     pnt = BNGPoint(east, north)
     return gridref(pnt, ref, true)
 end
 
-function create_BNG_grid(east::Vector{Int64}, north::Vector{Int64}, vals::Array{T, 1}, ages::Vector{Int64}) where T
+function create_BNG_grid(east::Vector{R}, north::Vector{R}, vals::Array{T, 1}, ages::Vector{R}) where {T, R <:Real}
     easts = collect(minimum(east):1_000:maximum(east)) .* m
     norths = collect(minimum(north):1_000:maximum(north)) .* m
     grid_a = AxisArray(zeros(typeof(vals[1]), length(norths), length(easts), length(unique(ages))), Axis{:northing}(norths), Axis{:easting}(easts), Axis{:age}(unique(ages)))
@@ -68,7 +68,7 @@ function create_BNG_grid(east::Vector{Int64}, north::Vector{Int64}, vals::Array{
     end
     return grid_a
 end
-function create_BNG_grid(east::Vector{Int64}, north::Vector{Int64}, vals::Array{T, 1}) where T
+function create_BNG_grid(east::Vector{R}, north::Vector{R}, vals::Array{T, 1}) where {T, R <: Real}
     easts = collect(minimum(east):1_000:maximum(east)) .* m
     norths = collect(minimum(north):1_000:maximum(north)) .* m
     grid_a = AxisArray(zeros(typeof(vals[1]), length(norths), length(easts)), Axis{:northing}(norths), Axis{:easting}(easts))

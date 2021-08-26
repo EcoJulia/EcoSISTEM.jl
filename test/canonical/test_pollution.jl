@@ -9,13 +9,8 @@ using DataFrames
 using EcoSISTEM: human, virus
 
 import EcoSISTEM.getprob
-@testset "Pollution" begin
-    # Define how probabilities for transitions should be altered by pollution
-    getprob(eco::Ecosystem, rule::Exposure) = (rule.force_prob * 2.0 * get_env(eco.abenv.habitat, rule.location), rule.virus_prob)
-    getprob(eco::Ecosystem, rule::DevelopSymptoms) = rule.prob * 2.0 * get_env(eco.abenv.habitat, rule.location)
-    getprob(eco::Ecosystem, rule::Hospitalise) = rule.prob * 2.0 * get_env(eco.abenv.habitat, rule.location)
-    getprob(eco::Ecosystem, rule::DeathFromInfection) = rule.prob * 5.0 * get_env(eco.abenv.habitat, rule.location)
 
+@testset "Pollution" begin
 
     # sort out settings to potentially save inputs/outputs of `simulate`
     do_save = (@isdefined do_save) ? do_save : false
@@ -24,7 +19,7 @@ import EcoSISTEM.getprob
     # Set up simple gridded environment
     grid = (4, 4)
     area = 525_000.0km^2
-    epienv = simplehabitatAE(20.0, grid, area, NoControl())
+    epienv = simplehabitatAE(20.0 * μg/m^3, grid, area, NoControl())
 
     # Set initial population sizes for all pathogen categories
     abun_v = DataFrame([
@@ -87,10 +82,10 @@ import EcoSISTEM.getprob
     ## High transmission & 100% case fatality
     birth = fill(0.0/day, numclasses)
     death = fill(0.0/day, numclasses)
-    virus_growth_asymp = virus_growth_presymp = virus_growth_symp = 1.0/day
+    virus_growth_asymp = virus_growth_presymp = virus_growth_symp = 0.1/day
     virus_decay = 1/3days
-    beta_force = 1e3/day
-    beta_env = 1e3/day
+    beta_force = 1.0/day
+    beta_env = 1.0/day
 
     transitiondat = DataFrame([
         (from="Susceptible", from_id=1, to="Exposed", to_id=2, prob=(env = beta_env, force = beta_force)),
@@ -120,14 +115,12 @@ import EcoSISTEM.getprob
 
     # Create epi system with all information
     new_exposed = 100
-    new_virus = 1_000
     transitions = create_transition_list()
     addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
     addtransition!(transitions, SeedInfection(seedinfected!))
 
     epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
-    virus(epi.abundances)[1, 1] = new_virus
-    human(epi.abundances)[2, 1] = new_exposed
+    human(epi.abundances)[2, :] .+= new_exposed
 
     for loc in epi.cache.ordered_active
         addtransition!(epi.transitions, ViralLoad(loc, param.virus_decay))
@@ -172,13 +165,21 @@ import EcoSISTEM.getprob
     
 
     # Run simulation
-    abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
+    abuns1 = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
     times = 1year; interval = 1day; timestep = 1day
-    @time simulate_record!(abuns, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "high_trans"))
+    @time simulate_record!(abuns1, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "high_trans"))
 
+    epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
+    human(epi.abundances)[2, :] .+= new_exposed
 
-    # Test everyone becomes infected and dies
-    @test sum(abuns[1, :, 365]) == 0
-    @test sum(abuns[end, :, 365]) == (susceptible + new_exposed)
+    # Define how probabilities for transitions should be altered by pollution
+    pollution_boost = 2.0/(μg*m^-3)
+    getprob(eco::Ecosystem, rule::Exposure) = (rule.force_prob * max(1.0, pollution_boost * get_env(eco.abenv.habitat, rule.location)), rule.virus_prob)
 
+    abuns2 = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
+    times = 1year; interval = 1day; timestep = 1day
+    @time simulate_record!(abuns2, epi, times, interval, timestep; save=do_save, save_path=joinpath(save_path, "high_trans"))
+
+    # Test more people become exposed once pollution effect is introduced
+    all(sum(abuns2[2, :, :], dims = (2,3)) .> sum(abuns1[2, :, :], dims = (2,3)))
 end
