@@ -30,31 +30,6 @@ function _run_rule!(eco::Ecosystem, rule::Exposure, timestep::Unitful.Time)
 end
 
 """
-    _run_rule!(eco::Ecosystem, rule::EnvTransition, timestep::Unitful.Time)
-
-Stochastic environmentally-driven state transition process for a location, housed inside `rule`,
- for one timestep. Moves from susceptible category, `species` to
-exposed category, `destination`.
-"""
-# function _run_rule!(eco::Ecosystem, rule::EnvTransition, timestep::Unitful.Time)
-#     get_env = rule.get_env
-#     env_param = rule.env_param
-#     new_rule = rule.rule
-#     env = get_env(eco.abenv.habitat, new_rule.location)
-#     new_prob = max(1, env * env_param)
-#     _update_prob!(new_rule, new_prob)
-#     _run_rule!(eco, new_rule, timestep)
-#     _update_prob!(new_rule, 1/new_prob)
-# end
-
-# function _update_prob!(rule::Exposure, val::Float64)
-#     rule.force_prob *= val
-# end
-# function _update_prob!(rule::S, val::Float64) where S <: AbstractStateTransition
-#     rule.prob *= val
-# end
-
-"""
     _run_rule!(eco::Ecosystem, rule::Union{Infection, DevelopSymptoms, Hospitalise,
         DeathFromInfection, Recovery}, timestep::Unitful.Time)
 
