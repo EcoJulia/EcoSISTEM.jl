@@ -46,7 +46,7 @@ traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = fill(div(individuals, numSpecies), numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-    movement, param, native)
+                   movement, param, native)
 
 # Create abiotic environment - with temperature and water resource
 abenv = bioclimAE(bio_africa, bio_africa_water, active)
