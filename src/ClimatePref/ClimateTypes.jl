@@ -13,13 +13,13 @@ Abstract supertype of all climate data.
 abstract type AbstractClimate end
 
 """
-    Worldclim <: AbstractClimate
+    Worldclim_monthly <: AbstractClimate
 
 Type that houses data extracted from Worldclim raster files.
 """
-mutable struct Worldclim{A <: AxisArray} <: AbstractClimate
+mutable struct Worldclim_monthly{A <: AxisArray} <: AbstractClimate
     array::A
-    function Worldclim(array::A) where A <: AxisArray
+    function Worldclim_monthly(array::A) where A <: AxisArray
         size(array, 3) == 12 ||
             error("There should be 12 months of data for worldclim")
         new{A}(array)
@@ -27,11 +27,11 @@ mutable struct Worldclim{A <: AxisArray} <: AbstractClimate
 end
 
 """
-    Bioclim <: AbstractClimate
+    Worldclim_bioclim <: AbstractClimate
 
 Type that houses data extracted from Bioclim raster files.
 """
-mutable struct Bioclim{A <: AxisArray} <: AbstractClimate
+mutable struct Worldclim_bioclim{A <: AxisArray} <: AbstractClimate
     array::A
 end
 

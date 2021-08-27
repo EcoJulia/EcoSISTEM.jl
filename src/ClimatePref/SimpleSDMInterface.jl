@@ -4,7 +4,7 @@ using Unitful
 using Unitful.DefaultSymbols
 import AxisArrays.Axis
 
-function Bioclim(sdm::SimpleSDMPredictor, units::Unitful.Units)
+function Worldclim_bioclim(sdm::SimpleSDMPredictor, units::Unitful.Units)
     sdm = convert(Float64, sdm)
     sdm.grid[isnothing.(sdm.grid)] .= NaN
     unit_grid = sdm.grid .* units  
@@ -14,7 +14,7 @@ function Bioclim(sdm::SimpleSDMPredictor, units::Unitful.Units)
     lat = collect(latitudes(sdm)) .* °
     lon = collect(longitudes(sdm)) .* °
     ax_array = AxisArray(unit_grid, Axis{:latitude}(lat), Axis{:longitude}(lon))
-    return Bioclim(ax_array)
+    return Worldclim_bioclim(ax_array)
 end
 
 function CHELSA_bioclim(sdm::SimpleSDMPredictor, units::Unitful.Units)

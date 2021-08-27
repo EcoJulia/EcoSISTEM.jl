@@ -213,7 +213,7 @@ mutable struct SolarTimeBudget <: AbstractTimeBudget{typeof(1.0*kJ)}
   end
 end
 
-function SolarTimeBudget(wc::Worldclim, time::Int64)
+function SolarTimeBudget(wc::Worldclim_monthly, time::Int64)
   mat = Array(wc.array)
   mat[isnan.(mat)] .=  zero(eltype(mat))
   return SolarTimeBudget(mat, time)
@@ -253,7 +253,7 @@ mutable struct WaterBudget <: AbstractBudget{typeof(1.0*mm)}
   end
 end
 
-function WaterBudget(bc::Bioclim)
+function WaterBudget(bc::Worldclim_bioclim)
   mat = Matrix(bc.array)
   mat[isnan.(mat)] .=  zero(eltype(mat))
   return WaterBudget(mat)
@@ -285,7 +285,7 @@ mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0*mm)}
   end
 end
 
-function WaterTimeBudget(wc::Worldclim, time::Int64)
+function WaterTimeBudget(wc::Worldclim_monthly, time::Int64)
   mat = Array(wc.array)
   mat[isnan.(mat)] .=  zero(eltype(mat))
   return WaterTimeBudget(mat, time)

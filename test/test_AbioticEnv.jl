@@ -97,7 +97,7 @@ end
 @testset "Worldclim data" begin
     # TEST worldclimAE
     temp = AxisArray(fill(1.0K, 10, 10, 12), Axis{:latitude}(collect(1:10) .* m), Axis{:longitude}(collect(1:10) .* m), Axis{:time}(collect(1:12) .* month))
-    wctemp = Worldclim(temp)
+    wctemp = Worldclim_monthly(temp)
     active = fill(true, 10, 10)
     totalK = 1000.0kJ/m^2; area = 100.0km^2
     wc = worldclimAE(wctemp, totalK, area)
@@ -114,7 +114,7 @@ end
 
 @testset "Bioclim data" begin
     africa_temp = SimpleSDMPredictor(WorldClim, BioClim, 1, left = -25, right = 50, bottom = -35, top = 40)
-    bio_africa = Bioclim(africa_temp, °C)
+    bio_africa = Worldclim_bioclim(africa_temp, °C)
     active = fill(true, size(africa_temp.grid))
     totalK = 1000.0kJ/km^2; area = 100.0km^2
     bc = bioclimAE(bio_africa, totalK, area)

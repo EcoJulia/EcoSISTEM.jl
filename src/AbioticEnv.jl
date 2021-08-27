@@ -279,13 +279,13 @@ function eraAE(era::ERA, bud::B, active::Array{Bool, 2}) where B <: AbstractTime
 end
 
 """
-   worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64})
+   worldclimAE(wc::Worldclim_monthly, maxbud::Unitful.Quantity{Float64})
 
 Function to create a `ContinuousTimeHab`, `SimpleBudget` type abiotic environment from a Wordclim type climate. 
 It either creates a `SimpleBudget` type filled with the maximum budget value `maxbud` or uses a provided budget of type `SolarTimeBudget`. 
 If a Bool matrix of active grid squares is included, `active`, this is used, otherwise one is all grid cells are considered active.
 """
-function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
+function worldclimAE(wc::Worldclim_monthly, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
     dimension = size(wc.array)[1:2]
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
 
@@ -301,7 +301,7 @@ function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, area::Uni
     budtype = matchdict[unit(B)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64}, active::Array{Bool, 2})
+function worldclimAE(wc::Worldclim_monthly, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64}, active::Array{Bool, 2})
     dimension = size(wc.array)[1:2]
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -314,7 +314,7 @@ function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, area::Uni
     budtype = matchdict[unit(B)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function worldclimAE(wc::Worldclim, bud::B, active::Array{Bool, 2}) where B <: AbstractTimeBudget
+function worldclimAE(wc::Worldclim_monthly, bud::B, active::Array{Bool, 2}) where B <: AbstractTimeBudget
     gridsquaresize = wc.array.axes[1].val[2] - wc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = ContinuousTimeHab(Array(wc.array), 1, gridsquaresize,
@@ -324,13 +324,13 @@ function worldclimAE(wc::Worldclim, bud::B, active::Array{Bool, 2}) where B <: A
 end
 
 """
-  bioclimAE(bc::Bioclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
+  bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
 
 Function to create a `ContinuousHab`, `SimpleBudget` type abiotic environment from an Wordclim type climate. 
 It either creates a `SimpleBudget` type filled with the maximum budget value `maxbud` or uses a provided budget of type `SolarBudget`. 
 If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
 """
-function bioclimAE(bc::Bioclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
+function bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
     dimension = size(bc.array)[1:2]
     gridsquaresize = bc.array.axes[1].val[2] - bc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -347,7 +347,7 @@ function bioclimAE(bc::Bioclim, maxbud::Unitful.Quantity{Float64}, area::Unitful
     budtype = matchdict[unit(B)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function bioclimAE(bc::Bioclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64}, active::Array{Bool, 2})
+function bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64}, active::Array{Bool, 2})
     dimension = size(bc.array)[1:2]
     gridsquaresize = bc.array.axes[1].val[2] - bc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -360,7 +360,7 @@ function bioclimAE(bc::Bioclim, maxbud::Unitful.Quantity{Float64}, area::Unitful
     budtype = matchdict[unit(B)]
      return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function bioclimAE(bc::Bioclim, bud::B, active::Array{Bool, 2}) where B <: AbstractBudget
+function bioclimAE(bc::Worldclim_bioclim, bud::B, active::Array{Bool, 2}) where B <: AbstractBudget
     
     gridsquaresize = bc.array.axes[1].val[2] - bc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km

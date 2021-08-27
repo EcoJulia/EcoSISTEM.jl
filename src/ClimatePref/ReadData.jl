@@ -125,7 +125,7 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
         world[isapprox.(world, txy[4])] *= NaN;
     end;
 
-    Worldclim(world)
+    Worldclim_monthly(world)
 end
 
 """
@@ -173,7 +173,7 @@ function readbioclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     if txy[1] <: AbstractFloat  
         world[isapprox.(world, txy[4])] *= NaN;
     end;
-    Bioclim(world)
+    Worldclim_bioclim(world)
 end
 
 """

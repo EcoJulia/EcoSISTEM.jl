@@ -12,7 +12,7 @@ end
 @warn "This functionality remains under development!"
 
 include("ClimateTypes.jl")
-export Worldclim, Bioclim, ERA, CERA, CRUTS, CHELSA_bioclim, CHELSA_monthly, Reference
+export Worldclim_monthly, Worldclim_bioclim, ERA, CERA, CRUTS, CHELSA_bioclim, CHELSA_monthly, Reference
 
 include("ReadData.jl")
 export read, searchdir, readworldclim, readbioclim, readERA, 
@@ -31,4 +31,4 @@ include("PhyloModels.jl")
 export Brownian, Lambda, fitBrownian, fitLambda, varcovar
 
 include("SimpleSDMInterface.jl")
-export Worldclim, Bioclim, CHELSA_bioclim, Landcover
+export Worldclim_monthly, Worldclim_bioclim, CHELSA_bioclim, Landcover

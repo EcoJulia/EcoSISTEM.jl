@@ -7,7 +7,7 @@ using Test
 
 @testset "Worldclim" begin
     africa_temp = SimpleSDMPredictor(WorldClim, BioClim, 1, left = -25, right = 50, bottom = -35, top = 40)
-    bio_africa = Bioclim(africa_temp, °C)
+    bio_africa = Worldclim_bioclim(africa_temp, °C)
     @test unit(bio_africa.array[1]) == K
 end
 

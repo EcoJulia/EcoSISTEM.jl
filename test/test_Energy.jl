@@ -134,7 +134,7 @@ end
 
 @testset "Worldclim/Bioclim budgets" begin
     water = AxisArray(fill(1.0mm, 10, 10, 12), Axis{:latitude}(collect(1:10) .* m), Axis{:longitude}(collect(1:10) .* m), Axis{:time}(collect(1:12) .* month))
-    wc = Worldclim(water)
+    wc = Worldclim_monthly(water)
     bud = WaterTimeBudget(wc, 1)
     @test_nowarn WaterTimeBudget(wc, 1)
     @test EcoSISTEM._countsubcommunities(bud) == 100
@@ -143,7 +143,7 @@ end
     @test EcoSISTEM._getavailableenergy(bud) == sum(bud.matrix)
 
     solar = AxisArray(fill(1.0kJ, 10, 10, 12), Axis{:latitude}(collect(1:10) .* m), Axis{:longitude}(collect(1:10) .* m), Axis{:time}(collect(1:12) .* month))
-    wc = Worldclim(solar)
+    wc = Worldclim_monthly(solar)
     bud = SolarTimeBudget(wc, 1)
     @test_nowarn SolarTimeBudget(wc, 1)
     @test EcoSISTEM._countsubcommunities(bud) == 100
@@ -152,7 +152,7 @@ end
     @test EcoSISTEM._getavailableenergy(bud) == sum(bud.matrix)
     
     water = AxisArray(fill(1.0mm, 10, 10), Axis{:latitude}(collect(1:10) .* m), Axis{:longitude}(collect(1:10) .* m))
-    wc = Bioclim(water)
+    wc = Worldclim_bioclim(water)
     bud = WaterBudget(wc)
     @test_nowarn WaterBudget(wc)
     @test EcoSISTEM._countsubcommunities(bud) == 100

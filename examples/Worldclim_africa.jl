@@ -11,9 +11,9 @@ using Plots
 
 # Download temperature and precipitation data
 africa_temp = SimpleSDMPredictor(WorldClim, BioClim, 1, left = -25, right = 50, bottom = -35, top = 40)
-bio_africa = Bioclim(africa_temp, °C)
+bio_africa = Worldclim_bioclim(africa_temp, °C)
 africa_water = SimpleSDMPredictor(WorldClim, BioClim, 12, left = -25, right = 50, bottom = -35, top = 40)
-bio_africa_water = WaterBudget(Bioclim(africa_water, mm))
+bio_africa_water = WaterBudget(Worldclim_bioclim(africa_water, mm))
 
 # Find which grid cells are land
 active =  Array{Bool, 2}(.!isnan.(bio_africa.array))

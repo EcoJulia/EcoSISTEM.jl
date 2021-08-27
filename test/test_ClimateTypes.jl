@@ -12,13 +12,13 @@ end
 
 @testset "Worldclim types" begin
     temp = AxisArray(fill(1.0K, 10, 10, 12), Axis{:latitude}(1:10), Axis{:longitude}(1:10), Axis{:time}(collect(1:12) .* s))
-    @test_nowarn Worldclim(temp)
+    @test_nowarn Worldclim_monthly(temp)
     @test_nowarn CHELSA_monthly(temp)
 end
 
 @testset "Bioclim types" begin
     temp = AxisArray(fill(1.0K, 10, 10, 19), Axis{:latitude}(1:10), Axis{:longitude}(1:10), Axis{:vars}(collect(1:19)))
-    @test_nowarn Bioclim(temp)
+    @test_nowarn Worldclim_bioclim(temp)
 end
 
 @testset "Reference types" begin

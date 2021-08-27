@@ -27,13 +27,13 @@ end
 
 """
     extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        wc::Worldclim, dim::Unitful.Time)
+        wc::Worldclim_monthly, dim::Unitful.Time)
 
 Function to extract values from a worldclim object, at specified x, y locations and
 time, `dim`.
 """
 function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-   wc::Worldclim, dim::Unitful.Time)
+   wc::Worldclim_monthly, dim::Unitful.Time)
    checkbounds(x, y)
    thisstep = calculatestep(wc, 1)
    res = map((i, j) -> wc.array[(i-thisstep/2)..(i+thisstep/2),
@@ -44,13 +44,13 @@ end
 
 """
     extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        wc::Worldclim, dim::Unitful.Time)
+        wc::Worldclim_monthly, dim::Unitful.Time)
 
 Function to extract values from a worldclim object, at specified x, y locations and
 over a range of times, `dim`.
 """
 function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-   wc::Worldclim, dim::StepRange{typeof(1month)})
+   wc::Worldclim_monthly, dim::StepRange{typeof(1month)})
    all(x .<= 180.0) && all(x .>= -180.0) ||
    error("X coordinate is out of bounds")
    all(y .< 90.0) && all(y .> -90.0) ||
@@ -62,12 +62,12 @@ function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
 end
 """
     extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        bc::Bioclim, dim::Unitful.Time)
+        bc::Worldclim_bioclim, dim::Unitful.Time)
 
 Function to extract values from a bioclim object, at specified x, y locations and time, `dim`.
 """
 function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-   bc::Bioclim, val::Int64)
+   bc::Worldclim_bioclim, val::Int64)
    all(x .<= 180.0) && all(x .>= -180.0) ||
    error("X coordinate is out of bounds")
    all(y .< 90.0) && all(y .> -90.0) ||
@@ -80,12 +80,12 @@ function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
 end
 """
     extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        bc::Bioclim, dim::Unitful.Time)
+        bc::Worldclim_bioclim, dim::Unitful.Time)
 
 Function to extract values from a bioclim object, at specified x, y locations and over a time period, `dim`.
 """
 function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-   bc::Bioclim, vals::StepRange{Int64})
+   bc::Worldclim_bioclim, vals::StepRange{Int64})
    all(x .<= 180.0) && all(x .>= -180.0) ||
    error("X coordinate is out of bounds")
    all(y .< 90.0) && all(y .> -90.0) ||
