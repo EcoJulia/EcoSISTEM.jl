@@ -57,8 +57,8 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
         AG.read!(bd, a);
     end;
     lat, long = size(a, 1), size(a, 2);
-    step1 = (xmax - xmin) / lat;
-    step2 = (ymax - ymin) / long;
+    step_lat = (xmax - xmin) / lat;
+    step_long = (ymax - ymin) / long;
 
     world = AxisArray(a[:, long:-1:1],
                            Axis{:latitude}((xmin + step1):step1:(xmax)),
