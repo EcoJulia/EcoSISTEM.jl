@@ -86,7 +86,7 @@ end
     @test_nowarn eraAE(eratemp, totalK, area)
     @test_nowarn eraAE(eratemp, totalK, area, active)
     @test size(ea.habitat.matrix) == size(temp)
-    @test sum(ea.budget.matrix) == totalK * area
+    @test EcoSISTEM.getavailableenergy(ea) == totalK * area
     @test ea.active == active
     @test all(ea.active)
 
@@ -104,7 +104,7 @@ end
     @test_nowarn worldclimAE(wctemp, totalK, area)
     @test_nowarn worldclimAE(wctemp, totalK, area, active)
     @test size(wc.habitat.matrix) == size(temp)
-    @test sum(wc.budget.matrix) == totalK * area
+    @test EcoSISTEM.getavailableenergy(wc) == totalK * area
     @test wc.active == active
     @test all(wc.active)
 
@@ -121,7 +121,7 @@ end
     @test_nowarn bioclimAE(bio_africa, totalK, area)
     @test_nowarn bioclimAE(bio_africa, totalK, area, active)
     @test size(bc.habitat.matrix) == size(africa_temp.grid)
-    @test isapprox(sum(bc.budget.matrix), totalK * area)
+    @test isapprox(EcoSISTEM.getavailableenergy(bc), totalK * area)
     solar = SolarBudget(fill(10.0kJ, size(africa_temp.grid)))
     bc = bioclimAE(bio_africa, solar, active)
 end

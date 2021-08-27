@@ -19,10 +19,10 @@ Type that houses data extracted from Worldclim raster files.
 """
 mutable struct Worldclim{A <: AxisArray} <: AbstractClimate
     array::A
-    function Worldclim(array::AxisArray)
+    function Worldclim(array::A) where A <: AxisArray
         size(array, 3) == 12 ||
             error("There should be 12 months of data for worldclim")
-        new(array)
+        new{A}(array)
     end
 end
 
@@ -55,7 +55,7 @@ mutable struct ERA{A <: AxisArray} <: AbstractClimate
     function ERA(array::A) where A <: AxisArray
         typeof(collect(axes(array, 3).val)[1])<: Unitful.Time ||
             error("Third dimension of array must be time")
-        new(array)
+        new{A}(array)
     end
 end
 
@@ -69,7 +69,7 @@ mutable struct CERA{A <: AxisArray} <: AbstractClimate
     function CERA(array::A) where A <: AxisArray
         typeof(collect(axes(array, 3).val)[1])<: Unitful.Time ||
             error("Third dimension of array must be time")
-        new(array)
+        new{A}(array)
     end
 end
 
@@ -92,12 +92,12 @@ mutable struct CRUTS{A <: AxisArray} <: AbstractClimate
     function CRUTS(array::A) where A <: AxisArray
         typeof(collect(axes(array, 3).val)[1])<: Unitful.Time ||
             error("Third dimension of array must be time")
-        new(array)
+        new{A}(array)
     end
 end
 
 """
-    CHELSA <: AbstractClimate
+    CHELSA_monthly <: AbstractClimate
 
 Type that houses data extracted from CHELSA raster files.
 """
@@ -106,12 +106,12 @@ mutable struct CHELSA_monthly{A <: AxisArray} <: AbstractClimate
     function CHELSA_monthly(array::A) where A <: AxisArray
         size(array, 3) == 12 ||
             error("There should be 12 months of data for CHELSA")
-        new(array)
+        new{A}(array)
     end
 end
 
 """
-    CHELSA <: AbstractClimate
+    CHELSA_bioclim <: AbstractClimate
 
 Type that houses data extracted from CHELSA raster files.
 """
