@@ -157,7 +157,7 @@ end
     @test_nowarn WaterBudget(wc)
     @test EcoSISTEM._countsubcommunities(bud) == 100
     @test EcoSISTEM._getbudget(bud) ==  bud.matrix
-    @test eltype(bud) == typeof(bud.matrix[1])
+    @test eltype(bud) == eltype(bud.matrix)
     @test EcoSISTEM._getavailableenergy(bud) == sum(bud.matrix)
 
 end
