@@ -255,7 +255,7 @@ end
 
 function WaterBudget(bc::Bioclim)
   mat = Matrix(bc.array)
-  mat[isnan.(mat)] .=  0*mm
+  mat[isnan.(mat)] .=  zero(eltype(mat))
   return WaterBudget(mat)
 end
 
