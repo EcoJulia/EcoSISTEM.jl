@@ -113,7 +113,8 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
                                             Axis{:longitude}((ymin + step2):step2:ymax),
                                             Axis{:time}(1month:1month:12month));
     if unit == K
-        world .+= 273.15K
+        # bugfix
+        world .+= uconvert(K, 0.0°C)
     end
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
