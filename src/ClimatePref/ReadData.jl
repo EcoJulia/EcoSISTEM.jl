@@ -38,9 +38,9 @@ searchdir(path,key) = filter(x->occursin(key, x), readdir(path))
 Function to import a selected file from a path string.
 """
 function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°, 
-    xmax::Unitful.Quantity{Float64} = 180.0°,
-    ymin::Unitful.Quantity{Float64} = -90.0°, 
-    ymax::Unitful.Quantity{Float64} = 90.0°)
+                  xmax::Unitful.Quantity{Float64} = 180.0°,
+                  ymin::Unitful.Quantity{Float64} = -90.0°, 
+                  ymax::Unitful.Quantity{Float64} = 90.0°)
     txy = [Float64, Int64(1), Int64(1), Float64(1)]
     #
     read(file) do dataset
