@@ -283,7 +283,7 @@ end
 
 Function to create a `ContinuousTimeHab`, `SimpleBudget` type abiotic environment from a Wordclim type climate. 
 It either creates a `SimpleBudget` type filled with the maximum budget value `maxbud` or uses a provided budget of type `SolarTimeBudget`. 
-If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
+If a Bool matrix of active grid squares is included, `active`, this is used, otherwise one is all grid cells are considered active.
 """
 function worldclimAE(wc::Worldclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
     dimension = size(wc.array)[1:2]
