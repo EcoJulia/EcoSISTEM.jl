@@ -61,7 +61,7 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
 
     world = AxisArray(a[:, long:-1:1],
                            Axis{:latitude}(xmin:step_lat:(xmax-step_lat)),
-                           Axis{:longitude}(ymin:step_long:(ymax-step_long));
+                           Axis{:longitude}(ymin:step_long:(ymax-step_long)));
 
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
@@ -82,12 +82,13 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     files = map(searchdir(dir, ".tif")) do files
         joinpath(dir, files)
     end
-    txy = [Float64, Int32(1), Int32(1)];
+    txy = [Float64, Int32(1), Int32(1), Int32(1)];
 
     read(files[1]) do dataset
         txy[1] = AG.pixeltype(AG.getband(dataset, 1))
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
+        txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
         print(dataset)
     end
 
@@ -102,15 +103,20 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     b[:, :, count] = a
     end
     lat, long = size(b, 1), size(b, 2);
-    variable = split(dir, "wc2.0_5m_")[2]
-    unit = vardict[variable]
-    step1 = (xmax - xmin) / lat;
-    step2 = (ymax - ymin) / long;
-
+    variables = split(first(files), "_")
+    if any(map(v -> v ∈ keys(vardict), variables))
+        findvar = findfirst(map(v -> v ∈ keys(vardict), variables))
+        unit = vardict[variables[findvar]]
+    else
+        unit = 1.0
+    end
+    step_lat = (xmax - xmin) / lat;
+    step_lon = (ymax - ymin) / long;
+    
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                                            Axis{:latitude}((xmin + step1):step1:(xmax)),
-                                            Axis{:longitude}((ymin + step2):step2:ymax),
-                                            Axis{:time}(1month:1month:12month));
+                                            Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
+                                            Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
+                                            Axis{:time}(1month:1month:(1month * numfiles)));
     if unit == K
         # bugfix
         world .+= uconvert(K, 0.0°C)
@@ -157,12 +163,12 @@ function readbioclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     b[:, :, count] = a
     end
     lat, long = size(b, 1), size(b, 2);
-    step1 = (xmax - xmin) / lat;
-    step2 = (ymax - ymin) / long;
+    step_lat = (xmax - xmin) / lat;
+    step_lon = (ymax - ymin) / long;
     unit = 1.0
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                            Axis{:latitude}((xmin + step1):step1:(xmax)),
-                            Axis{:longitude}((ymin + step2):step2:ymax),
+                            Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
+                            Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
                             Axis{:var}(1:1:numfiles));
     if txy[1] <: AbstractFloat  
         world[isapprox.(world, txy[4])] *= NaN;
@@ -250,12 +256,12 @@ end
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readCRUTS(dir::String)
+function readCRUTS(dir::String, var_name::String)
     files = map(searchdir(dir, ".tif")) do files
         joinpath(dir, files)
     end
     txy = [Float64, Int32(1), Int32(1), Float64(1)];
-    files = files[1:10]
+    
     read(files[1]) do dataset
         txy[1] = Float64
         txy[2] = AG.width(AG.getband(dataset, 1))
@@ -275,27 +281,29 @@ function readCRUTS(dir::String)
         b[:, :, count] = a
     end
     lat, long = size(b, 1), size(b, 2);
-    variable = split(dir, "wc2.0_5m_")[2]
-    unit = vardict[variable]
-    step = 180.0° / long;
+    unit = vardict[var_name]
+    step_lat = 360.0° / lat;
+    step_lon = 180.0° / long;
 
-    world = AxisArray(b[:, long:-1:1, :] * unit,
-                           Axis{:latitude}((-180.0°+ step):step:180.0°),
-                           Axis{:longitude}((-90.0°+step):step:90.0°),
-                           Axis{:time}(1month:1month:12month));
+    numfiles = length(files)
+
+    world = AxisArray(b .* unit,
+                           Axis{:latitude}(-180.0°:step_lat:(180.0°-step_lat)),
+                           Axis{:longitude}(-90.0°:step_lon:(90.0° - step_lat)),
+                           Axis{:time}(1month:1month:numfiles * 1month));
     if unit == K
         # bugfix
         world .+= uconvert(K, 0.0°C)
     end
-    if txy[1] <: AbstractFloat
+    if txy[1] <: AbstractFloat && !isnothing(txy[4])
         world[isapprox.(world, txy[4])] *= NaN;
     end;
 
-    Worldclim(world)
+    CRUTS(world)
 end
 
 """
-    readCHELSA(dir::String)
+    readCHELSA_monthly(dir::String)
 
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
@@ -326,17 +334,17 @@ function readCHELSA_monthly(dir::String, var_name::String,
             bd = AG.getband(dataset, 1);
             AG.read!(bd, a);
         end;
-        downresolution!(b[:, :, count], a, res, fn)
+        downresolution!(b, a, count, res, fn)
     end
     lat, long = size(b, 1), size(b, 2);
     unit = vardict[var_name]
-    step1 = (xmax - xmin) / lat;
-    step2 = (ymax - ymin) / long;
+    step_lat = (xmax - xmin) / lat;
+    step_lon = (ymax - ymin) / long;
 
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                            Axis{:latitude}((xmin + step1):step1:(xmax)),
-                            Axis{:longitude}((ymin + step2):step2:ymax),
-                            Axis{:time}(1month:1month:35years));
+                            Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
+                            Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
+                            Axis{:time}(1month:1month:(numfiles * 1month)));
     if unit == K
         # bugfix
         world .+= uconvert(K, 0.0°C)
@@ -374,21 +382,17 @@ function readCHELSA_bioclim(dir::String,
             bd = AG.getband(dataset, 1);
             AG.read!(bd, a);
         end;
-        downresolution!(b[:, :, count], a, res, fn)
+        downresolution!(b, a, count, res, fn)
     end
     lat, long = size(b, 1), size(b, 2);
     unit = 1.0
-    step1 = (xmax - xmin) / lat;
-    step2 = (ymax - ymin) / long;
+    step_lat = (xmax - xmin) / lat;
+    step_lon = (ymax - ymin) / long;
 
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                            Axis{:latitude}((xmin + step1):step1:(xmax)),
-                            Axis{:longitude}((ymin + step2):step2:ymax),
+                            Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
+                            Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
                             Axis{:var}(1:1:numfiles));
-    if unit == K
-        # bugfix
-        world .+= uconvert(K, 0.0°C)
-    end
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
     end;

@@ -16,13 +16,13 @@ export Worldclim, Bioclim, ERA, CERA, CRUTS, CHELSA_bioclim, CHELSA_monthly, Ref
 
 include("ReadData.jl")
 export read, searchdir, readworldclim, readbioclim, readERA, 
-readCERA, readfile, readCHELSA_monthly, readCHELSA_bioclim
+readCERA, readfile, readCHELSA_monthly, readCHELSA_bioclim, readCRUTS
 
 include("ExtractClimate.jl")
 export extractvalues
 
 include("DataCleaning.jl")
-export create_reference, upresolution, downresolution
+export create_reference, upresolution, downresolution, downresolution!
 
 include("Plotting.jl")
 export getprofile
