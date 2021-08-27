@@ -287,7 +287,7 @@ end
 
 function WaterTimeBudget(wc::Worldclim, time::Int64)
   mat = Array(wc.array)
-  mat[isnan.(mat)] .=  0*mm
+  mat[isnan.(mat)] .=  zero(eltype(mat))
   return WaterTimeBudget(mat, time)
 end
 
