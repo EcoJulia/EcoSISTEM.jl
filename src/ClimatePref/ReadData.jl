@@ -44,7 +44,6 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     txy = [Float64, Int64(1), Int64(1), Float64(1)]
     #
     read(file) do dataset
-        #txy[1] = AG.pixeltype(AG.getband(dataset, 1))
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
         txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
