@@ -382,7 +382,8 @@ function readCHELSA_bioclim(dir::String,
                             Axis{:longitude}((ymin + step2):step2:ymax),
                             Axis{:var}(1:1:numfiles));
     if unit == K
-        world .+= 273.15K
+        # bugfix
+        world .+= uconvert(K, 0.0°C)
     end
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
