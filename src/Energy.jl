@@ -215,7 +215,7 @@ end
 
 function SolarTimeBudget(wc::Worldclim, time::Int64)
   mat = Array(wc.array)
-  mat[isnan.(mat)] .=  0*kJ
+  mat[isnan.(mat)] .=  zero(eltype(mat))
   return SolarTimeBudget(mat, time)
 end
 
@@ -255,7 +255,7 @@ end
 
 function WaterBudget(bc::Bioclim)
   mat = Matrix(bc.array)
-  mat[isnan.(mat)] .=  0*mm
+  mat[isnan.(mat)] .=  zero(eltype(mat))
   return WaterBudget(mat)
 end
 
@@ -287,7 +287,7 @@ end
 
 function WaterTimeBudget(wc::Worldclim, time::Int64)
   mat = Array(wc.array)
-  mat[isnan.(mat)] .=  0*mm
+  mat[isnan.(mat)] .=  zero(eltype(mat))
   return WaterTimeBudget(mat, time)
 end
 

@@ -38,13 +38,12 @@ searchdir(path,key) = filter(x->occursin(key, x), readdir(path))
 Function to import a selected file from a path string.
 """
 function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°, 
-    xmax::Unitful.Quantity{Float64} = 180.0°,
-    ymin::Unitful.Quantity{Float64} = -90.0°, 
-    ymax::Unitful.Quantity{Float64} = 90.0°)
+                  xmax::Unitful.Quantity{Float64} = 180.0°,
+                  ymin::Unitful.Quantity{Float64} = -90.0°, 
+                  ymax::Unitful.Quantity{Float64} = 90.0°)
     txy = [Float64, Int64(1), Int64(1), Float64(1)]
     #
     read(file) do dataset
-        #txy[1] = AG.pixeltype(AG.getband(dataset, 1))
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
         txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
@@ -57,12 +56,12 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
         AG.read!(bd, a);
     end;
     lat, long = size(a, 1), size(a, 2);
-    step1 = (xmax - xmin) / lat;
-    step2 = (ymax - ymin) / long;
+    step_lat = (xmax - xmin) / lat;
+    step_long = (ymax - ymin) / long;
 
     world = AxisArray(a[:, long:-1:1],
-                           Axis{:latitude}((xmin + step1):step1:(xmax)),
-                           Axis{:longitude}((ymin + step2):step2:ymax));
+                           Axis{:latitude}(xmin:step_lat:(xmax-step_lat)),
+                           Axis{:longitude}(ymin:step_long:(ymax-step_long));
 
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;

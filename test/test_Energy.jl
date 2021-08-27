@@ -148,7 +148,7 @@ end
     @test_nowarn SolarTimeBudget(wc, 1)
     @test EcoSISTEM._countsubcommunities(bud) == 100
     @test EcoSISTEM._getbudget(bud) ==  bud.matrix[:, :, 1]
-    @test eltype(bud) == typeof(bud.matrix[1])
+    @test eltype(bud) == eltype(bud.matrix)
     @test EcoSISTEM._getavailableenergy(bud) == sum(bud.matrix)
     
     water = AxisArray(fill(1.0mm, 10, 10), Axis{:latitude}(collect(1:10) .* m), Axis{:longitude}(collect(1:10) .* m))
@@ -157,7 +157,7 @@ end
     @test_nowarn WaterBudget(wc)
     @test EcoSISTEM._countsubcommunities(bud) == 100
     @test EcoSISTEM._getbudget(bud) ==  bud.matrix
-    @test eltype(bud) == typeof(bud.matrix[1])
+    @test eltype(bud) == eltype(bud.matrix)
     @test EcoSISTEM._getavailableenergy(bud) == sum(bud.matrix)
 
 end
