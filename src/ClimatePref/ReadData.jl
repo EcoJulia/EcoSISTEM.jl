@@ -113,7 +113,8 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
                                             Axis{:longitude}((ymin + step2):step2:ymax),
                                             Axis{:time}(1month:1month:12month));
     if unit == K
-        world .+= 273.15K
+        # bugfix
+        world .+= uconvert(K, 0.0°C)
     end
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
@@ -284,7 +285,8 @@ function readCRUTS(dir::String)
                            Axis{:longitude}((-90.0°+step):step:90.0°),
                            Axis{:time}(1month:1month:12month));
     if unit == K
-        world .+= 273.15K
+        # bugfix
+        world .+= uconvert(K, 0.0°C)
     end
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
@@ -337,7 +339,8 @@ function readCHELSA_monthly(dir::String, var_name::String,
                             Axis{:longitude}((ymin + step2):step2:ymax),
                             Axis{:time}(1month:1month:35years));
     if unit == K
-        world .+= 273.15K
+        # bugfix
+        world .+= uconvert(K, 0.0°C)
     end
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
@@ -384,7 +387,8 @@ function readCHELSA_bioclim(dir::String,
                             Axis{:longitude}((ymin + step2):step2:ymax),
                             Axis{:var}(1:1:numfiles));
     if unit == K
-        world .+= 273.15K
+        # bugfix
+        world .+= uconvert(K, 0.0°C)
     end
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;

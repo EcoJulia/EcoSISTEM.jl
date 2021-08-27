@@ -46,7 +46,7 @@ traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = fill(div(individuals, numSpecies), numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-    movement, param, native)
+                   movement, param, native)
 
 # Create abiotic environment - with temperature and water resource
 abenv = bioclimAE(bio_africa, bio_africa_water, active)
@@ -78,7 +78,7 @@ anim = @animate for i in 1:lensim
     background_color = :lightblue, background_color_outside=:white, 
     grid = false, color = cgrad(:algae, scale = :exp))
 end
-gif(anim, "examples/Biodiversity/Africa.gif", fps = 15)
+gif(anim, "examples/Africa.gif", fps = 15)
 
 # Plot start and end abundances, next to temperature and rainfall
 africa_startabun = Float64.(abuns[:, :, 1])
