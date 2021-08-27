@@ -61,8 +61,8 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     step_long = (ymax - ymin) / long;
 
     world = AxisArray(a[:, long:-1:1],
-                           Axis{:latitude}((xmin + step1):step1:(xmax)),
-                           Axis{:longitude}((ymin + step2):step2:ymax));
+                           Axis{:latitude}(xmin:step_lat:(xmax-step_lat)),
+                           Axis{:longitude}(ymin:step_long:(ymax-step_long));
 
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
