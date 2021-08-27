@@ -78,7 +78,7 @@ anim = @animate for i in 1:lensim
     background_color = :lightblue, background_color_outside=:white, 
     grid = false, color = cgrad(:algae, scale = :exp))
 end
-gif(anim, "examples/Biodiversity/Africa.gif", fps = 15)
+gif(anim, "examples/Africa.gif", fps = 15)
 
 # Plot start and end abundances, next to temperature and rainfall
 africa_startabun = Float64.(abuns[:, :, 1])
