@@ -215,7 +215,7 @@ end
 
 function SolarTimeBudget(wc::Worldclim, time::Int64)
   mat = Array(wc.array)
-  mat[isnan.(mat)] .=  0*kJ
+  mat[isnan.(mat)] .=  zero(eltype(mat))
   return SolarTimeBudget(mat, time)
 end
 
