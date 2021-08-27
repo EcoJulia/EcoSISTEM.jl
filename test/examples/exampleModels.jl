@@ -2,7 +2,7 @@ include("CreateEco.jl")
 include("RunSim.jl")
 include("Scenarios.jl")
 using Diversity
-using JLD
+using JLD2
 using OnlineStats
 using Plots
 plotlyjs()
@@ -42,7 +42,7 @@ paramDict = Dict("numSpecies" => numSpecies, "numInvasive" => 0, "numIndiv" => i
 diver = zeros(length(divfuns), lensim, length(scenario))
 runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
 
-endabun = mapslices(sum, JLD.load(joinpath(cachefolder, "cache/DiffOpts10001.jld"), "abun"), dims = 2)[:,1]
+endabun = mapslices(sum, @load joinpath(cachefolder, "cache/DiffOpts10001.jld2") abun, dims = 2)[:,1]
 temps = map(eachindex(opts)) do i
     repeat([opts[i]], endabun[i])
 end
@@ -86,7 +86,7 @@ paramDict = Dict("numSpecies" => numSpecies, "numInvasive" => 0, "numIndiv" => i
 diver = zeros(length(divfuns), lensim, length(scenario))
 runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
 
-endabun = mapslices(sum, JLD.load(joinpath(cachefolder, "cache/DiffVars10001.jld"), "abun"), dims = 2)[:,1]
+endabun = mapslices(sum, @load joinpath(cachefolder, "cache/DiffVars10001.jld2") abun, dims = 2)[:,1]
 widths = map(eachindex(vars)) do i
     repeat([vars[i]], endabun[i])
 end
@@ -129,7 +129,7 @@ paramDict = Dict("numSpecies" => numSpecies, "numInvasive" => 0, "numIndiv" => i
 diver = zeros(length(divfuns), lensim, length(scenario))
 runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
 
-endabun = mapslices(sum, JLD.load(joinpath(cachefolder, "cache/DiffVarsMismatch10001.jld"), "abun"), dims = 2)[:,1]
+endabun = mapslices(sum, @load joinpath(cachefolder, "cache/DiffVarsMismatch10001.jld2") abun, dims = 2)[:,1]
 widths = map(eachindex(vars)) do i
     repeat([vars[i]], endabun[i])
 end
@@ -185,7 +185,7 @@ paramDict = Dict("numSpecies" => numSpecies, "numInvasive" => 0, "numIndiv" => i
 diver = zeros(length(divfuns), lensim, length(scenario))
 runsim!(diver, abenv, paramDict, simDict, 1, cachefolder, false)
 
-endabun = mapslices(sum, JLD.load(joinpath(cachefolder, "cache/Energy10001.jld"), "abun"), dims = 1)[1,:]
+endabun = mapslices(sum, @load joinpath(cachefolder, "cache/Energy10001.jld2") abun, dims = 1)[1,:]
 endabun = reshape(endabun, 10, 10)
 
 heatmap(sol_range./kJ, water_range./mm, endabun, grid = false, xlab = "Solar energy", ylab = "Water", size = (1200, 800), guidefontsize = 12,tickfontsize= 12, titlefontsize=18, margin = 2.0*Plots.mm, legendfontsize = 12, label = "")
@@ -225,10 +225,10 @@ for i in [1,2,5,10]
     runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
 end
 
-endabun1 = sum(JLD.load(joinpath(cachefolder, "cache/GridSize110001.jld"), "abun"))
-endabun2 = sum(JLD.load(joinpath(cachefolder, "cache/GridSize210001.jld"), "abun"))
-endabun3 = sum(JLD.load(joinpath(cachefolder, "cache/GridSize510001.jld"), "abun"))
-endabun4 = sum(JLD.load(joinpath(cachefolder, "cache/GridSize1010001.jld"), "abun"))
+endabun1 = sum(@load joinpath(cachefolder, "cache/GridSize110001.jld2") abun)
+endabun2 = sum(@load joinpath(cachefolder, "cache/GridSize210001.jld2") abun)
+endabun3 = sum(@load joinpath(cachefolder, "cache/GridSize510001.jld2") abun)
+endabun4 = sum(@load joinpath(cachefolder, "cache/GridSize1010001.jld2") abun)
 
 bar(["1","4","25","100"], [endabun1, endabun2, endabun3, endabun4], grid = false, xlab = "Number of grid squares", ylab = "Total abundance", size = (1200, 800), guidefontsize = 12,tickfontsize= 12, titlefontsize=18, margin = 2.0*Plots.mm, legendfontsize = 12, label = "")
 
@@ -268,10 +268,10 @@ for i in [10.0,20.0,50.0,100.0]
     runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
 end
 
-endabun1 = sum(JLD.load(joinpath(cachefolder, "cache/Area1010001.jld"), "abun"))
-endabun2 = sum(JLD.load(joinpath(cachefolder, "cache/Area2010001.jld"), "abun"))
-endabun3 = sum(JLD.load(joinpath(cachefolder, "cache/Area5010001.jld"), "abun"))
-endabun4 = sum(JLD.load(joinpath(cachefolder, "cache/Area10010001.jld"), "abun"))
+endabun1 = sum(@load joinpath(cachefolder, "cache/Area1010001.jld2") abun)
+endabun2 = sum(@load joinpath(cachefolder, "cache/Area2010001.jld2") abun)
+endabun3 = sum(@load joinpath(cachefolder, "cache/Area5010001.jld2") abun)
+endabun4 = sum(@load joinpath(cachefolder, "cache/Area10010001.jld2") abun)
 
 bar(["10","20","50","100"], [endabun1, endabun2, endabun3, endabun4], grid = false, xlab = "Area (km²)", ylab = "Total abundance", size = (1200, 800), guidefontsize = 12,tickfontsize= 12, titlefontsize=18, margin = 2.0*Plots.mm, legendfontsize = 12, label = "")
 
@@ -314,7 +314,7 @@ end
 
 display(heatmap(grid = false, xlab = "Distance (km)", ylab = "Distance (km)", size = (1200, 800), guidefontsize = 12,tickfontsize= 12, titlefontsize=10, margin = 2.0*Plots.mm, legendfontsize = 12, label = "", layout = (@layout [a b; c d]), clim = (0, 1e6), link = :both))
 for i in 1:4
-    endabun = mapslices(sum, JLD.load(joinpath(cachefolder, "cache/Dispersal$i"*"10001.jld"), "abun"), dims = 1)[1,:]
+    endabun = mapslices(sum, @load joinpath(cachefolder, "cache/Dispersal$i"*"10001.jld2") abun, dims = 1)[1,:]
     endabun = reshape(endabun, 10, 10)
     m = distances[i]
     display(heatmap!(1:10,1:10, endabun, grid = false, xlab = "Distance (km)", ylab = "Distance (km)", size = (1200, 800), guidefontsize = 12,tickfontsize= 12, titlefontsize=18, margin = 2.0*Plots.mm, legendfontsize = 12, label = "", layout = (@layout [a b; c d]), subplot = i, clim = (0, 1e6), link = :both, title ="Average dispersal of $m km"))

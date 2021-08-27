@@ -24,22 +24,22 @@ This package is in beta now, so please raise an issue if you find any problems. 
 [paper-url]: https://arxiv.org/abs/1911.12257
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
-[docs-stable-url]: https://boydorr.github.io/EcoSISTEM.jl/stable/
+[docs-stable-url]: https://docs.ecojulia.org/EcoSISTEM.jl/stable/
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/
+[docs-dev-url]: https://docs.ecojulia.org/EcoSISTEM.jl/dev/
 
-[actions-img]: https://github.com/boydorr/EcoSISTEM.jl/workflows/EcoSISTEM%20testing/badge.svg?branch=dev
-[actions-url]: https://github.com/boydorr/EcoSISTEM.jl/actions
+[actions-img]: https://github.com/EcoJulia/EcoSISTEM.jl/workflows/EcoSISTEM%20testing/badge.svg?branch=dev
+[actions-url]: https://github.com/EcoJulia/EcoSISTEM.jl/actions
 
-[nightly-img]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml/badge.svg?branch=dev
-[nightly-url]: https://github.com/boydorr/EcoSISTEM.jl/actions/workflows/nightly.yaml?branch=dev
+[nightly-img]: https://github.com/EcoJulia/EcoSISTEM.jl/actions/workflows/nightly.yaml/badge.svg?branch=dev
+[nightly-url]: https://github.com/EcoJulia/EcoSISTEM.jl/actions/workflows/nightly.yaml?branch=dev
 
-[codecov-img]: https://codecov.io/gh/boydorr/EcoSISTEM.jl/branch/dev/graph/badge.svg
-[codecov-url]: https://codecov.io/gh/boydorr/EcoSISTEM.jl?branch=dev
+[codecov-img]: https://codecov.io/gh/EcoJulia/EcoSISTEM.jl/branch/dev/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/EcoJulia/EcoSISTEM.jl?branch=dev
 
-[model-struct-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/model_structure/
-[model-dev-url]: https://boydorr.github.io/EcoSISTEM.jl/dev/model_structure/
+[model-struct-url]: https://docs.ecojulia.org/EcoSISTEM.jl/dev/model_structure/
+[model-dev-url]: https://docs.ecojulia.org/EcoSISTEM.jl/dev/model_structure/
 
 [zenodo-img]: https://zenodo.org/badge/251665824.svg
 [zenodo-url]: https://zenodo.org/badge/latestdoi/251665824

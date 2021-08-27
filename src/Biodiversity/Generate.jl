@@ -64,17 +64,17 @@ function biodiversity_update!(eco::Ecosystem, timestep::Unitful.Time)
             # Check if grid cell currently active
             if eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)
                 # Calculate effective rates
-                birthprob = params.birth[j] * timestep * adjusted_birth
-                deathprob = params.death[j] * timestep * adjusted_death
+                birthrate = params.birth[j] * timestep * adjusted_birth
+                deathparam = params.death[j] * timestep * adjusted_death
 
-                # Put probabilities into 0 - 1
-                newbirthprob = 1.0 - exp(-birthprob)
-                newdeathprob = 1.0 - exp(-deathprob)
+                # Turn deathparam into probability and cancel units of birthrate
+                birthrate += 0.0
+                deathprob = 1.0 - exp(-deathparam)
 
-                (newbirthprob >= 0) & (newdeathprob >= 0) || error("Birth: $newbirthprob \n Death: $newdeathprob \n \n i: $i \n j: $j")
+                (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthrate \n Death: $deathprob \n \n i: $i \n j: $j")
                 # Calculate how many births and deaths
-                births = rand(rng, Poisson(eco.abundances.matrix[j, i] * newbirthprob))
-                deaths = rand(rng, Binomial(eco.abundances.matrix[j, i], newdeathprob))
+                births = rand(rng, Poisson(eco.abundances.matrix[j, i] * birthrate))
+                deaths = rand(rng, Binomial(eco.abundances.matrix[j, i], deathprob))
 
                 # Update population
                 eco.abundances.matrix[j, i] += (births - deaths)

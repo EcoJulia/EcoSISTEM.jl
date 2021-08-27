@@ -378,7 +378,7 @@ for i in eachindex(species)
     local survival = 0.1
     local boost = 1.0
 
-    local size_mean = rand(Normal(1.0, 0.5), numSpecies) .* m^2
+    local size_mean = rand(Normal(1.0, 0.05), numSpecies) .* m^2
     # Set up how much energy each species consumes
     local energy_vec1 = SolarRequirement(abs.(req[1] .* size_mean))
     local energy_vec2 = WaterRequirement(abs.(req[2] .* size_mean))
