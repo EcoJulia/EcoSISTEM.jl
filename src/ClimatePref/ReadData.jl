@@ -285,7 +285,8 @@ function readCRUTS(dir::String)
                            Axis{:longitude}((-90.0°+step):step:90.0°),
                            Axis{:time}(1month:1month:12month));
     if unit == K
-        world .+= 273.15K
+        # bugfix
+        world .+= uconvert(K, 0.0°C)
     end
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
