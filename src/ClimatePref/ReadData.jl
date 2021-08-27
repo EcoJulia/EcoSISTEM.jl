@@ -303,7 +303,8 @@ function readCHELSA_monthly(dir::String, var_name::String,
     xmin::Unitful.Quantity{Float64} = -180.0°, 
     xmax::Unitful.Quantity{Float64} = 180.0°,
     ymin::Unitful.Quantity{Float64} = -90.0°, 
-    ymax::Unitful.Quantity{Float64} = 90.0°; res = 1, fn = mean)
+    ymax::Unitful.Quantity{Float64} = 90.0°; 
+    res = 1, fn = mean)
     files = map(searchdir(dir, ".tif")) do files
         joinpath(dir, files)
     end
@@ -349,7 +350,8 @@ function readCHELSA_bioclim(dir::String,
     xmin::Unitful.Quantity{Float64} = -180.0°, 
     xmax::Unitful.Quantity{Float64} = 180.0°,
     ymin::Unitful.Quantity{Float64} = -90.0°, 
-    ymax::Unitful.Quantity{Float64} = 90.0°; res = 1, fn = mean)
+    ymax::Unitful.Quantity{Float64} = 90.0°;
+    res = 1, fn = mean)
     files = map(searchdir(dir, ".tif")) do files
         joinpath(dir, files)
     end
