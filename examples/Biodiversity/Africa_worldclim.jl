@@ -4,10 +4,10 @@ using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
-using JLD
+using JLD2
 using Printf
 
-file = "Documents/Chapter5/data/Africa.tif"
+file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
@@ -42,7 +42,7 @@ sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
     movement, param, native)
 sppl.params.birth
 
-
+#TODO @claireh93 this path doesn't exist
 dir1 = "Documents/CERA"
 temp = readCERA(dir1, "cera_20c_temp2m", "t2m")
 africa_temp = ERA(temp[-25°.. 50°, -35°.. 40°, :])
@@ -60,6 +60,7 @@ import EcoSISTEM.simulate!
 function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
   time_seq = 0s:timestep:times
   counting = 0
+  mkpath(cacheFolder)
   for i in 1:length(time_seq)
       update!(eco, timestep);
       # Save cache of abundances
