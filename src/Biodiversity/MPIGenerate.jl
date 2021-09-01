@@ -1,4 +1,4 @@
-using MPI
+using ..MPI
 using LinearAlgebra
 
 function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: MPIGridLandscape
