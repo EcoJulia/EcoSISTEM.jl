@@ -85,13 +85,13 @@ include("Epidemiology/EpiParams.jl")
 export transition
 
 include("Epidemiology/EpiMove.jl")
-export EpiMovement, Commuting
+export EpiMovement, LongDistance
 
 include("Epidemiology/EpiList.jl")
 export SpeciesList, SIS, SIR, SEIR, SEIRS, SEI2HRD
 
 include("Epidemiology/EpiLandscape.jl")
-export EpiLandscape, human, virus
+export EpiLandscape, host, virus
 
 include("Transitions/TransitionLookup.jl")
 

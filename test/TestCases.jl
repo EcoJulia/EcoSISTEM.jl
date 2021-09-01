@@ -88,7 +88,7 @@ function TestEpiSystem()
     ])
     numvirus = nrow(abun_v)
 
-    # Set initial population sizes for all human categories
+    # Set initial population sizes for all host categories
     abun_h = DataFrame([
         (name="Susceptible", type=Susceptible, initial=1000),
         (name="Infected", type=Infectious, initial=1),
@@ -133,7 +133,7 @@ function TestEpiLockdown()
     ])
     numvirus = nrow(abun_v)
 
-    # Set initial population sizes for all human categories
+    # Set initial population sizes for all host categories
     abun_h = DataFrame([
         (name="Susceptible", type=Susceptible, initial=1000),
         (name="Infected", type=Infectious, initial=0),
@@ -185,7 +185,7 @@ function TestEpiSystemFromPopulation(
     ])
     numvirus = nrow(abun_v)
 
-    # Set initial population sizes for all human categories
+    # Set initial population sizes for all host categories
     abun_h = DataFrame([
         (name="Susceptible", type=Susceptible, initial=0),
         (name="Infected", type=Infectious, initial=1),

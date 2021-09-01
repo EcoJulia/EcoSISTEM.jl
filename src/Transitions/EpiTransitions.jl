@@ -184,13 +184,13 @@ migration moves.
 """
 function update_virus_cache!(epi::Ecosystem)
     force_cats = epi.spplist.pathogens.force_cats
-    human_to_force = epi.spplist.species.human_to_force
+    host_to_force = epi.spplist.species.host_to_force
     locs = size(virus(epi.abundances), 2)
     vm = zeros(eltype(epi.cache.virusmigration), length(force_cats), locs)
     classes = length(epi.spplist.species.names)
     Threads.@threads for i in 1:classes
         for j in 1:locs
-            vm[human_to_force[i], j] += epi.cache.virusmigration[i, j]
+            vm[host_to_force[i], j] += epi.cache.virusmigration[i, j]
         end
     end
     virus(epi.abundances)[force_cats, :] .= vm

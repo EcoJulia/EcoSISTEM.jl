@@ -14,7 +14,7 @@ function _run_rule!(eco::Ecosystem, rule::Exposure, timestep::Unitful.Time)
     if eco.abenv.active[loc]
         params = eco.spplist.params
         force_cats = eco.spplist.pathogens.force_cats
-        age_cat = eco.spplist.species.human_to_force
+        age_cat = eco.spplist.species.host_to_force
         N = sum_pop(eco.abundances.matrix, loc)
         env_inf = virus(eco.abundances)[1, loc] /
             (N^params.freq_vs_density_env)
@@ -23,8 +23,8 @@ function _run_rule!(eco::Ecosystem, rule::Exposure, timestep::Unitful.Time)
         expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
         newexpprob = 1.0 - exp(-expprob)
         exposures = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
-        human(eco.abundances)[spp, loc] -= exposures
-        human(eco.abundances)[dest, loc] += exposures
+        host(eco.abundances)[spp, loc] -= exposures
+        host(eco.abundances)[dest, loc] += exposures
     end
 end
 
@@ -45,7 +45,7 @@ function _run_rule!(eco::Ecosystem, rule::EnvExposure, timestep::Unitful.Time)
     if eco.abenv.active[loc]
         params = eco.spplist.params
         force_cats = eco.spplist.pathogens.force_cats
-        age_cat = eco.spplist.species.human_to_force
+        age_cat = eco.spplist.species.host_to_force
         N = sum_pop(eco.abundances.matrix, loc)
         env = @view get_env(eco.abenv.habitat)[loc]
         env_transition = env[1] * env_exposure/mean(eco.abenv.habitat.matrix)
@@ -56,8 +56,8 @@ function _run_rule!(eco::Ecosystem, rule::EnvExposure, timestep::Unitful.Time)
         expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
         newexpprob = 1.0 - exp(-expprob)
         exposures = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
-        human(eco.abundances)[spp, loc] -= exposures
-        human(eco.abundances)[dest, loc] += exposures
+        host(eco.abundances)[spp, loc] -= exposures
+        host(eco.abundances)[dest, loc] += exposures
     end
 end
 
@@ -79,8 +79,8 @@ function _run_rule!(eco::Ecosystem, rule::Union{Infection, DevelopSymptoms, Hosp
         prob = getprob(rule) * timestep
         newprob = 1.0 - exp(-prob)
         changes = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newprob))
-        human(eco.abundances)[spp, loc] -= changes
-        human(eco.abundances)[dest, loc] += changes
+        host(eco.abundances)[spp, loc] -= changes
+        host(eco.abundances)[dest, loc] += changes
     end
 end
 
@@ -94,7 +94,7 @@ function _run_rule!(eco::Ecosystem, rule::ForceProduce, timestep::Unitful.Time)
     spp = getspecies(rule)
     loc = getlocation(rule)
     # Calculate effective rates
-    birthrate = getprob(rule) * timestep * human(eco.abundances)[spp, loc]
+    birthrate = getprob(rule) * timestep * host(eco.abundances)[spp, loc]
     births = rand(rng, Poisson(birthrate))
     # Spread force of infection over space
     if !iszero(births)

@@ -6,7 +6,7 @@ using EcoSISTEM.ClimatePref
 using StatsBase
 using Test
 using DataFrames
-using EcoSISTEM: human, virus
+using EcoSISTEM: host, virus
 
 @testset "SEI3HRD" begin
 
@@ -26,7 +26,7 @@ abun_v = DataFrame([
 ])
 numvirus = nrow(abun_v)
 
-# Set initial population sizes for all human categories
+# Set initial population sizes for all host categories
 susceptible = 5_000_000
 abun_h = DataFrame([
   (name="Susceptible", type=Susceptible, initial=susceptible),
@@ -115,7 +115,7 @@ new_exposed = 100
 new_virus = 1_000
 epi = Ecosystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
-human(epi.abundances)[2, 1] = new_exposed
+host(epi.abundances)[2, 1] = new_exposed
 
 # Run simulation
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
@@ -155,7 +155,7 @@ new_exposed = 100
 new_virus = 1000
 epi = Ecosystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
-human(epi.abundances)[2, 1] = new_exposed
+host(epi.abundances)[2, 1] = new_exposed
 
 # Run simulation
 times = 1year; interval = 1day; timestep = 1day

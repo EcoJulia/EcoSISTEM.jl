@@ -240,9 +240,9 @@ function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
   popfun(ml, epilist, epienv, rel)
   initial_pop = sum(ml.matrix, dims = 1)
   # Create lookup table of all moves and their probabilities
-  home_lookup = genlookups(epienv, epilist.species.movement.home)
-  work_lookup = genlookups(epienv, epilist.species.movement.work, initial_pop)
-  lookup = EpiLookup(home_lookup, work_lookup)
+  local_lookup = genlookups(epienv, epilist.species.movement.localmoves)
+  region_lookup = genlookups(epienv, epilist.species.movement.regionmoves, initial_pop)
+  lookup = EpiLookup(local_lookup, region_lookup)
   vm = zeros(Float64, size(ml.matrix))
   return Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions)
 end
@@ -268,22 +268,22 @@ function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitR
 end
 
 """
-   Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
-           initial_population::A, intnum::U = Int64(1); initial_infected = 0,
-           rngtype::Type{R} = Random.MersenneTwister,
-           transitions = nothing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
+Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
+        initial_population::A, intnum::U = Int64(1); initial_infected = 0,
+        rngtype::Type{R} = Random.MersenneTwister,
+        transitions = nothing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
 
 Function to create an `Ecosystem` with epi categories from a `SpeciesList`, environment from
- a `GridEpiEnv`, an `AbstractTraitRelationship` between the two,
- an array of initial susceptible population abundances, an indication of what integer type the abundances should be stored in `intnum`,
- an optional number of `initial_infected` to be seeded, and optional type for rand calls,
+a `GridEpiEnv`, an `AbstractTraitRelationship` between the two,
+an array of initial susceptible population abundances, an indication of what integer type the abundances should be stored in `intnum`,
+an optional number of `initial_infected` to be seeded, and optional type for rand calls,
 `rngtype`, and an optional list of `transitions`. The `Ecosystem` is automatically and randomly populated
 from the start abundances in `spplist`.
 """
 function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
-        initial_population::A, intnum::U = Int64(1); initial_infected = 0,
-        rngtype::Type{R} = Random.MersenneTwister,
-        transitions = nothing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
+     initial_population::A, intnum::U = Int64(1); initial_infected = 0,
+     rngtype::Type{R} = Random.MersenneTwister,
+     transitions = nothing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
     if size(initial_population) != size(epienv.active)
         msg = "size(initial_population)==$(size(initial_population)) != " *
             "size(epienv.active)==$(size(epienv.active))"
@@ -295,9 +295,9 @@ function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitR
     ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
 
     # Create lookup table of all moves and their probabilities
-    home_lookup = genlookups(epienv, epilist.species.movement.home)
-    work_lookup = genlookups(epienv, epilist.species.movement.work, initial_population[1:end])
-    lookup = EpiLookup(home_lookup, work_lookup)
+    local_lookup = genlookups(epienv, epilist.species.movement.localmoves)
+    region_lookup = genlookups(epienv, epilist.species.movement.regionmoves, initial_population[1:end])
+    lookup = EpiLookup(local_lookup, region_lookup)
 
     vm = zeros(Float64, size(ml.matrix))
 
@@ -314,12 +314,13 @@ function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitR
     initial_population = convert_population(initial_population, intnum)
     epi.abundances.grid[idx, :, :] .+= initial_population
 
-    total_pop = sum(human(epi.abundances), dims = 1)[1, :]
+    total_pop = sum(host(epi.abundances), dims = 1)[1, :]
     sorted_grid_ids = sortperm(total_pop, rev = true)
     sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
     epi.cache.ordered_active = sorted_grid_ids
     return epi
 end
+
 
 """
     isapprox(epi_1::AbstractEpiSystem, epi_2::AbstractEpiSystem; kwargs...)

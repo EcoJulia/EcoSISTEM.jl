@@ -11,7 +11,7 @@ using EcoSISTEM.Units
     ])
     numvirus = nrow(abun_v)
 
-    # Set initial population sizes for all human categories
+    # Set initial population sizes for all host categories
     susceptible = 1_000
     infected = 1
     abun_h = DataFrame([

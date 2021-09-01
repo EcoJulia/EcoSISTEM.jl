@@ -31,7 +31,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
     ])
     numvirus = nrow(abun_v)
 
-    # Set initial population sizes for all human categories
+    # Set initial population sizes for all host categories
     susceptible = 500_000 * Ncells
     abun_h = DataFrame([
         (name="Susceptible", type=Susceptible, initial=susceptible),
@@ -69,7 +69,7 @@ function SIR_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Float64
     epi = Ecosystem(epilist, epienv, rel)
 
     # Seed infected category at a single location
-    human(epi.abundances)[2, 1] = 100 * Ncells
+    host(epi.abundances)[2, 1] = 100 * Ncells
 
     # Run simulation
     times = runtimes.times; interval = runtimes.interval; timestep = runtimes.timestep
@@ -202,7 +202,7 @@ function SEI3HRD_wrapper!(grid_size::Tuple{Int64, Int64}, area::Unitful.Area{Flo
     epi = Ecosystem(epilist, epienv, rel)
 
     # Seed infected category at a single location
-    human(epi.abundances)[cat_idx[:, 2], 1] .= 100 * Ncells
+    host(epi.abundances)[cat_idx[:, 2], 1] .= 100 * Ncells
 
     # Run simulation
     times = runtimes.times; interval = runtimes.interval; timestep = runtimes.timestep
