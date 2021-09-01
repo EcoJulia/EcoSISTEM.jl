@@ -68,7 +68,7 @@ end
     x, y, A
 end
 
-@recipe function f(wc::Worldclim, time::Unitful.Time)
+@recipe function f(wc::Worldclim_monthly, time::Unitful.Time)
     ind = (time + 1month) / month
     typeof(ind) <: Int64 || error("NO")
     mnth = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][ind]
@@ -82,7 +82,7 @@ end
     x, y, A
 end
 
-@recipe function f(wc::Worldclim, time::Unitful.Time, xmin::typeof(1.0°),
+@recipe function f(wc::Worldclim_monthly, time::Unitful.Time, xmin::typeof(1.0°),
     xmax::typeof(1.0°), ymin::typeof(1.0°), ymax::typeof(1.0°))
     ind = (time + 1month) / month
     typeof(ind) <: Int64 || error("NO")

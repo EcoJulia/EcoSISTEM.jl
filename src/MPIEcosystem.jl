@@ -1,4 +1,4 @@
-using .MPI
+using ..MPI
 using Diversity
 using HCubature
 using Unitful

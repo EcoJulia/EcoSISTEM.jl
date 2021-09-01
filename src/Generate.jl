@@ -67,11 +67,10 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
             # Check if grid cell currently active
             if eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)
                 # Calculate effective rates
-                birthrate = params.birth[j] * timestep * adjusted_birth
+                birthrate = params.birth[j] * timestep * adjusted_birth |> NoUnits
                 deathparam = params.death[j] * timestep * adjusted_death
 
                 # Turn deathparam into probability and cancel units of birthrate
-                birthrate += 0.0
                 deathprob = 1.0 - exp(-deathparam)
 
                 (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthrate \n Death: $deathprob \n \n i: $i \n j: $j")

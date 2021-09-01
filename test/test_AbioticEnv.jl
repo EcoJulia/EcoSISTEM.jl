@@ -4,6 +4,7 @@ using Test
 using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
 using AxisArrays
+using SimpleSDMLayers
 
 grid = (5, 5)
 area = 25.0km^2
@@ -85,7 +86,7 @@ end
     @test_nowarn eraAE(eratemp, totalK, area)
     @test_nowarn eraAE(eratemp, totalK, area, active)
     @test size(ea.habitat.matrix) == size(temp)
-    @test sum(ea.budget.matrix) == totalK * area
+    @test EcoSISTEM.getavailableenergy(ea) == totalK * area
     @test ea.active == active
     @test all(ea.active)
 
@@ -96,17 +97,35 @@ end
 @testset "Worldclim data" begin
     # TEST worldclimAE
     temp = AxisArray(fill(1.0K, 10, 10, 12), Axis{:latitude}(collect(1:10) .* m), Axis{:longitude}(collect(1:10) .* m), Axis{:time}(collect(1:12) .* month))
-    wctemp = Worldclim(temp)
+    wctemp = Worldclim_monthly(temp)
     active = fill(true, 10, 10)
     totalK = 1000.0kJ/m^2; area = 100.0km^2
     wc = worldclimAE(wctemp, totalK, area)
     @test_nowarn worldclimAE(wctemp, totalK, area)
     @test_nowarn worldclimAE(wctemp, totalK, area, active)
     @test size(wc.habitat.matrix) == size(temp)
-    @test sum(wc.budget.matrix) == totalK * area
+    @test EcoSISTEM.getavailableenergy(wc) == totalK * area
     @test wc.active == active
     @test all(wc.active)
 
     solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
     wc = worldclimAE(wctemp, solar, active)
+end
+
+@testset "Bioclim data" begin
+    africa_temp = SimpleSDMPredictor(WorldClim, BioClim, 1, left = -25, right = 50, bottom = -35, top = 40)
+    bio_africa = Worldclim_bioclim(africa_temp, °C)
+    active = fill(true, size(africa_temp.grid))
+    totalK = 1000.0kJ/km^2; area = 100.0km^2
+    bc = bioclimAE(bio_africa, totalK, area)
+    @test_nowarn bioclimAE(bio_africa, totalK, area)
+    @test_nowarn bioclimAE(bio_africa, totalK, area, active)
+    @test size(bc.habitat.matrix) == size(africa_temp.grid)
+    @test isapprox(EcoSISTEM.getavailableenergy(bc), totalK * area)
+    solar = SolarBudget(fill(10.0kJ, size(africa_temp.grid)))
+    bc = bioclimAE(bio_africa, solar, active)
+end
+
+if isdir("assets")
+    rm("assets", recursive = true)
 end
