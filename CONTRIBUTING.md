@@ -4,7 +4,9 @@ Thanks for contributing to EcoSISTEM.jl! Please read the below on how best to ma
 
 ## Pull Request Process
 
-1. Please branch `dev` from within boydorr/EcoSISTEM.jl or fork this repository to your own github.com/username or other organisation.
+1. Please branch `dev` from within EcoJulia/EcoSISTEM.jl
+
+   - Please **don't** fork this repository to your own github.com/username or other organisation.
 
 2. Read the issues and choose/be assigned an appropriate issue.
 

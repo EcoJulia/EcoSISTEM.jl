@@ -12,6 +12,6 @@ The underlying model for this is described in the arXiv paper [arXiv:1911.12257 
 to environmental and land-use change*. Future updates to the package functionality involve
 incorporating age-structure and more complex epidemiological models.
 
-This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](https://github.com/boydorr/EcoSISTEM.jl/blob/main/CONTRIBUTING.md).
+This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/CONTRIBUTING.md).
 
 ![](Simulation.gif)

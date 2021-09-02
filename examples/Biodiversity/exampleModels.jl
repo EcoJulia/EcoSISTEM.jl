@@ -1,10 +1,12 @@
+# Activate the environment in this directory and cd to it to run
+# ; cd examples/Biodiversity
+# ] activate .
 
 using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 using Diversity
-using JLD
 using OnlineStats
 using Plots
 using Distributions
@@ -194,7 +196,7 @@ xlab = "Niche width (°C)", ylab = "",
 guidefontsize = 16, tickfontsize= 16, titlefontsize = 16,
 margin = 10.0*Plots.mm, label = "", subplot = 3,
 title = "C", titleloc = :left, ylim = (0, 32_000))
-Plots.pdf("examples/Biodiversity/Opt_var_panel.pdf")
+Plots.pdf("Opt_var_panel.pdf")
 
 ## MORE ENERGY MORE ABUNDANCE ##
 
@@ -436,7 +438,7 @@ ylab = "% Species survived", guidefontsize = 16,
 tickfontsize= 16, titlefontsize=24, margin = 10.0*Plots.mm,
 label = "",  title = "D", subplot = 4, titleloc = :left,
 left_margin = 20.0 *Plots.mm, ylim = (0, 1))
-Plots.pdf("examples/Biodiversity/Abundance.pdf")
+Plots.pdf("Abundance.pdf")
 ## DISPERSAL ##
 times = 50years; timestep = 1month
 lensim = length(0month:timestep:times)
@@ -504,4 +506,4 @@ for i in 1:4
     clim = (0, 1.5e4), link = :both))
 end
 
-Plots.pdf("examples/Biodiversity/DispersalSD.pdf")
+Plots.pdf("DispersalSD.pdf")

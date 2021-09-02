@@ -29,7 +29,7 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/boydorr/EcoSISTEM.jl.git",
+    repo = "github.com/EcoJulia/EcoSISTEM.jl.git",
     push_preview = true,
     devbranch = "dev",
     devurl = "dev"

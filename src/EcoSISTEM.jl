@@ -124,7 +124,7 @@ function __init__()
         export MPIGridLandscape
 
         include("Biodiversity/MPIEcosystem.jl")
-        export MPIEcosystem, gather_abundance!, gather_diversity
+        export MPIEcosystem, gather_abundance, gather_diversity
 
         include("Biodiversity/MPIGenerate.jl")
     end

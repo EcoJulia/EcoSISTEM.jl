@@ -160,7 +160,7 @@ using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
-using JLD
+using JLD2
 using Printf
 file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
@@ -209,7 +209,6 @@ rel = Gauss{typeof(1.0K)}()
 eco = Ecosystem(sppl, abenv, rel)
 eco.abundances.matrix[50_000, :] .= 0
 
-
 # EcoSISTEM Parameters
 burnin = 100years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
@@ -227,7 +226,7 @@ using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
-using JLD
+using JLD2
 using Printf
 
 file = "Africa.tif"
@@ -281,10 +280,10 @@ lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
 @time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run_coexist");
 
-using JLD
+using JLD2
 using Plots
 using Diversity
-abuns = load("examples/Biodiversity/Africa_run_coexist100.jld", "abun")
+abuns = @load "examples/Biodiversity/Africa_run_coexist100.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -296,7 +295,7 @@ heatmap(sumabuns,
     clim = (0, 50_000), margin = 0.5 * Plots.mm,
     title = "A", titleloc = :left)
 
-abuns = load("examples/Biodiversity/Africa_run50.jld", "abun")
+abuns = @load "examples/Biodiversity/Africa_run50.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -308,7 +307,7 @@ heatmap!(sumabuns,
     clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
     title = "B", titleloc = :left)
 
-abuns = load("examples/Biodiversity/Africa_run100.jld", "abun")
+abuns = @load "examples/Biodiversity/Africa_run100.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -321,7 +320,7 @@ heatmap!(sumabuns,
     title = "C", titleloc = :left)
 
 
-abuns = load("examples/Biodiversity/Africa_run50.jld", "abun")
+abuns = @load "examples/Biodiversity/Africa_run50.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_rho(meta, 1.0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
