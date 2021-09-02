@@ -13,20 +13,6 @@ using Distances
 using StatsBase
 using Plots
 
-import EcoSISTEM.simulate!
-function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
-  time_seq = 0s:timestep:times
-  counting = 0
-  mkpath(cacheFolder)
-  for i in 1:length(time_seq)
-      update!(eco, timestep);
-      # Save cache of abundances
-      if mod(time_seq[i], cacheInterval) == 0year
-          @save joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld2" uconvert(NoUnits,time_seq[i]/cacheInterval))) abun=eco.abundances.matrix
-      end
-  end
-end
-
 file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
@@ -243,7 +229,7 @@ lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
-@time simulate!(eco, times, timestep, record_interval, "sdc/Africa/specialist", "Africa_run");
+@time simulate!(eco, times, timestep, record_interval, pwd(), "Africa_run");
 
 
 #### 50,000 SPECIES COEXISTING #####
@@ -305,12 +291,12 @@ eco = Ecosystem(sppl, abenv, rel)
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
-@time simulate!(eco, times, timestep, record_interval, "sdc/Africa", "Africa_run_coexist");
+@time simulate!(eco, times, timestep, record_interval, pwd(), "Africa_run_coexist");
 
 using JLD2
 using Plots
 using Diversity
-abuns = @load "sdc/Africa/Africa_run_coexist100.jld2" abun
+abuns = @load "Africa_run_coexist100.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -322,7 +308,7 @@ heatmap(sumabuns,
     clim = (0, 50_000), margin = 0.5 * Plots.mm,
     title = "A", titleloc = :left)
 
-abuns = @load "sdc/Africa/Africa_run50.jld2" abun
+abuns = @load "Africa_run50.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -347,7 +333,7 @@ heatmap!(sumabuns,
     title = "C", titleloc = :left)
 
 using Diversity.Ecology
-abuns = @load "sdc/Africa/Africa_run50.jld2" abun
+abuns = @load "Africa_run50.jld2" abun
 meta = Metacommunity(abuns)
 diver = shannon(meta)
 sumabuns = reshape(diver[!, :diversity], 100, 100)
