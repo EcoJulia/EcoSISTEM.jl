@@ -96,6 +96,6 @@ plot_epidynamics(epi, abuns)
 # Benchmark
 using BenchmarkTools
 epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
-@benchmark simulate!(epi, burnin, timestep)
+@benchmark simulate!(epi, times, timestep)
 epi = Ecosystem(epilist, epienv, rel)
-@benchmark simulate!(epi, burnin, timestep)
+@benchmark simulate!(epi, times, timestep)

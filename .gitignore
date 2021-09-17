@@ -35,7 +35,6 @@ access*
 **/*.csv
 **/*.txt
 **/*.h5
-examples/**/*.toml
 out/**/*.toml
 **/*.db
 **/*.nc

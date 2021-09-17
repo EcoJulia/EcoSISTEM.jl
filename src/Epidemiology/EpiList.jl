@@ -133,7 +133,7 @@ end
 import Diversity.API._counttypes
 
 function _counttypes(el::SpeciesList{A, B, C}, input::Bool) where {A <: HumanTypes, B <: VirusTypes, C <: AbstractParams}
-    return _counttypes(el.human.types, input) + _counttypes(el.virus.types, input)
+    return _counttypes(el.species.types, input) + _counttypes(el.pathogens.types, input)
 end
 function _counttypes(hm::HumanTypes, input::Bool)
     return Diversity._counttypes(hm.types, input)
