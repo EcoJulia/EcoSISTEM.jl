@@ -118,8 +118,8 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     step_long = (ymax - ymin) / long;
 
     world = AxisArray(a[:, long:-1:1],
-                           Axis{:latitude}(xmin:step_lat:(xmax-step_lat)),
-                           Axis{:longitude}(ymin:step_long:(ymax-step_long)));
+                           Axis{:latitude}(xmin:step_lat:(xmax-step_lat/2.0)),
+                           Axis{:longitude}(ymin:step_long:(ymax-step_long/2.0)));
 
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
@@ -172,9 +172,9 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     step_lon = (ymax - ymin) / long;
     
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                                            Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
-                                            Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
-                                            Axis{:time}(1month:1month:(1month * numfiles)));
+                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat/2.0)),
+                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon/2.0)),
+                      Axis{:time}(1month*(1:numfiles)));
     if unit == K
         # bugfix
         world .+= uconvert(K, 0.0°C)
@@ -225,9 +225,9 @@ function readbioclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     step_lon = (ymax - ymin) / long;
     unit = 1.0
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                            Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
-                            Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
-                            Axis{:var}(1:1:numfiles));
+                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat/2.0)),
+                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon/2.0)),
+                       Axis{:var}(1:numfiles));
     if txy[1] <: AbstractFloat  
         world[isapprox.(world, txy[4])] *= NaN;
     end;
@@ -346,9 +346,9 @@ function readCRUTS(dir::String, var_name::String)
     numfiles = length(files)
 
     world = AxisArray(b .* unit,
-                           Axis{:latitude}(-180.0°:step_lat:(180.0°-step_lat)),
-                           Axis{:longitude}(-90.0°:step_lon:(90.0° - step_lat)),
-                           Axis{:time}(1month:1month:numfiles * 1month));
+                           Axis{:latitude}(-180.0°:step_lat:(180.0° - step_lat/2.0)),
+                           Axis{:longitude}(-90.0°:step_lon:(90.0° - step_lat/2.0)),
+                           Axis{:time}(1month * (1:numfiles)));
     if unit == K
         # bugfix
         world .+= uconvert(K, 0.0°C)
@@ -448,9 +448,9 @@ function readCHELSA_bioclim(dir::String,
     step_lon = (ymax - ymin) / long;
 
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                            Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
-                            Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
-                            Axis{:var}(1:1:numfiles));
+                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat/2.0)),
+                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon/2.0)),
+                       Axis{:var}(1:numfiles));
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
     end;
