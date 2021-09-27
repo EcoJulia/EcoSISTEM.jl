@@ -26,7 +26,7 @@ include("TestCases.jl")
 
     # Test worldclim update
     temp = AxisArray(fill(1.0K, 10, 10, 12), Axis{:latitude}(collect(1:10) .* m), Axis{:longitude}(collect(1:10) .* m), Axis{:time}(collect(1:12) .* month))
-    wctemp = Worldclim(temp)
+    wctemp = Worldclim_monthly(temp)
     active = fill(true, 10, 10)
     solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
     wc = worldclimAE(wctemp, solar, active)
