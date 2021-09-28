@@ -69,9 +69,6 @@ export TransitionList, create_transition_list, addtransition!
 include("Epidemiology/MedianGenerator.jl")
 export MedianGenerator
 
-include("Epidemiology/data_utils.jl")
-export parse_hdf5, get_3d_km_grid_axis_array
-
 include("Epidemiology/EpiControl.jl")
 export NoControl, Lockdown
 
