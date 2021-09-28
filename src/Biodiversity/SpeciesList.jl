@@ -82,6 +82,7 @@ mutable struct SpeciesTypes{TR <: AbstractTraits,
   end
 end
 
+import Diversity.API._counttypes
 mutable struct NoPathogen <: AbstractPathogenTypes end
 function _counttypes(virus::NoPathogen, input::Bool)
     return 0
@@ -279,7 +280,7 @@ import Diversity.API: _gettypenames
 function _gettypenames(sl::SpeciesList, input::Bool)
     return _gettypenames(sl.species.types, input)
 end
-import Diversity.API: _counttypes
+
 function _counttypes(sl::SpeciesList{A, B, C}, input::Bool) where {A <: SpeciesTypes, B <: AbstractPathogenTypes, C <: AbstractParams}
     return _counttypes(sl.species.types, input)
 end

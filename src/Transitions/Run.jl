@@ -341,12 +341,11 @@ end
 function simulate!(eco::AbstractEcosystem, times::Unitful.Time, timestep::Unitful.Time,
   cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
   time_seq = 0s:timestep:times
-  counting = 0
   for i in 1:length(time_seq)
       update!(eco, timestep, gettransitions(eco));
       # Save cache of abundances
       if mod(time_seq[i], cacheInterval) == 0year
-          JLD.save(joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval))), "abun", eco.abundances.matrix)
+          @save joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld" uconvert(NoUnits,time_seq[i]/cacheInterval)))  abun=eco.abundances.matrix
       end
   end
 end

@@ -1,5 +1,9 @@
 #### SINGLE SPECIES ####
 
+# Activate the environment in this directory and cd to it to run
+# ; cd examples/Biodiversity
+# ] activate .
+
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
@@ -8,6 +12,7 @@ using Unitful.DefaultSymbols
 using Distances
 using StatsBase
 using Plots
+
 file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
 active =  Array{Bool, 2}(.!isnan.(africa'))
@@ -71,7 +76,7 @@ anim = @animate for i in 1:lensim
     africa_abun[.!(active)] .= NaN
     heatmap(africa_abun, clim = (0, 700_000), background_color = :lightblue, background_color_outside=:white, grid = false, color = cgrad(:algae, scale = :exp), aspect_ratio = 1)
 end
-gif(anim, "examples/Biodiversity/Africa.gif", fps = 30)
+gif(anim, "Africa.gif", fps = 30)
 
 #### SPECIALIST VERSUS GENERALIST ####
 
@@ -160,7 +165,7 @@ end
 plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
     xlab = "Selective advantage", ylab = "Invasion speed (km/month)",
     label = "", grid = false)
-Plots.pdf("examples/Biodiversity/Invasion.pdf")
+Plots.pdf("Invasion.pdf")
 
 
 #### SPECIALIST VERSUS MANY GENERALISTS ####
@@ -224,7 +229,7 @@ lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
-@time simulate!(eco, times, timestep, record_interval, "sdc/Africa/specialist", "Africa_run");
+@time simulate!(eco, times, timestep, record_interval, pwd(), "Africa_run");
 
 
 #### 50,000 SPECIES COEXISTING #####
@@ -286,12 +291,12 @@ eco = Ecosystem(sppl, abenv, rel)
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
-@time simulate!(eco, times, timestep, record_interval, "sdc/Africa", "Africa_run_coexist");
+@time simulate!(eco, times, timestep, record_interval, pwd(), "Africa_run_coexist");
 
 using JLD2
 using Plots
 using Diversity
-abuns = @load "examples/Africa_run_coexist100.jld2" abun
+abuns = @load "Africa_run_coexist100.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -303,7 +308,7 @@ heatmap(sumabuns,
     clim = (0, 50_000), margin = 0.5 * Plots.mm,
     title = "A", titleloc = :left)
 
-abuns = @load "examples/Africa_run50.jld2" abun
+abuns = @load "Africa_run50.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -315,7 +320,7 @@ heatmap!(sumabuns,
     clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
     title = "B", titleloc = :left)
 
-abuns = @load "examples/Africa_run100.jld2" abun
+abuns = @load "sdc/Africa/Africa_run100.jld2" abun
 meta = Metacommunity(abuns)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
@@ -328,7 +333,7 @@ heatmap!(sumabuns,
     title = "C", titleloc = :left)
 
 using Diversity.Ecology
-abuns = @load "examples/Africa_run50.jld2" abun
+abuns = @load "Africa_run50.jld2" abun
 meta = Metacommunity(abuns)
 diver = shannon(meta)
 sumabuns = reshape(diver[!, :diversity], 100, 100)
@@ -339,4 +344,4 @@ heatmap!(sumabuns,
     aspect_ratio = 1, subplot = 4,
         right_margin = 2.0 * Plots.mm,
     title = "D", titleloc = :left, clim = (0, 10))
-Plots.pdf("examples/Africa.pdf")
+Plots.pdf("Africa.pdf")
