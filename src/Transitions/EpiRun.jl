@@ -69,7 +69,7 @@ Stochastic epi transition process for a location, housed inside `rule`,
  for one timestep. Moves from source category, `species` to
 destination category, `destination`.
 """
-function _run_rule!(eco::Ecosystem, rule::Union{Infection, DevelopSymptoms, Hospitalise,
+function _run_rule!(eco::Ecosystem, rule::Union{Infection, DevelopSymptoms,
     DeathFromInfection, Recovery}, timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)

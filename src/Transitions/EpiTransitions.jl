@@ -82,19 +82,6 @@ mutable struct DevelopSymptoms <: AbstractStateTransition
 end
 
 """
-    Hospitalise <: AbstractStateTransition
-
-Transition from infectious to hospitalised categories at a
-set probability, `prob`.
-"""
-mutable struct Hospitalise <: AbstractStateTransition
-    species::Int64
-    location::Int64
-    destination::Int64
-    prob::DayType
-end
-
-"""
     Recovery <: AbstractStateTransition
 
 Transition from infected to recovered category at a
