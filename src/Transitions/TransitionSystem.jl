@@ -240,8 +240,8 @@ function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
   popfun(ml, epilist, epienv, rel)
   initial_pop = sum(ml.matrix, dims = 1)
   # Create lookup table of all moves and their probabilities
-  local_lookup = genlookups(epienv, epilist.species.movement.localmoves)
-  region_lookup = genlookups(epienv, epilist.species.movement.regionmoves, initial_pop)
+  local_lookup = genlookups(epienv, getlocal(epilist.species.movement))
+  region_lookup = genlookups(epienv, getregion(epilist.species.movement), initial_pop)
   lookup = EpiLookup(local_lookup, region_lookup)
   vm = zeros(Float64, size(ml.matrix))
   return Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions)

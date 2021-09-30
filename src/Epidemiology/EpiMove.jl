@@ -27,3 +27,6 @@ end
 
 getdispersaldist(m::EpiMovement, sp::Int64) = m.localmoves.kernels[sp].dist
 getdispersalvar(m::EpiMovement, sp::Int64) = (m.localmoves.kernels[sp].dist)^2 * pi / 4
+
+getlocal(m::EpiMovement) = m.localmoves
+getregion(m::EpiMovement) = m.regionmoves
