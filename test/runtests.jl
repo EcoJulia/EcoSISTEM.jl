@@ -68,13 +68,30 @@ end
 @testset "Examples folder" begin
     println()
     @info "Running from examples folder ..."
-    #cd("../examples/")
-    Pkg.activate("../examples")
+    Pkg.activate("../examples/Transitions")
     Pkg.instantiate()
-    example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),                        filter(str -> occursin(r"^test_.*\.jl$", str),
-                                    readdir("../examples/")))
-    for t in example_testbase
-        fn = "../examples/test_$t.jl"
+    transition_example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),                        filter(str -> occursin(r"^test_.*\.jl$", str),
+                                    readdir("../examples/Transitions")))
+    for t in transition_example_testbase
+        fn = "../examples/Transitions/test_$t.jl"
+        println("    * Testing $t.jl ...")
+        include(fn)
+    end
+    Pkg.activate("../examples/Biodiversity")
+    Pkg.instantiate()
+    biod_example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),                        filter(str -> occursin(r"^test_.*\.jl$", str),
+                                    readdir("../examples/Biodiversity")))
+    for t in biod_example_testbase
+        fn = "../examples/Biodiversity/test_$t.jl"
+        println("    * Testing $t.jl ...")
+        include(fn)
+    end
+    Pkg.activate("../examples/Epidemiology")
+    Pkg.instantiate()
+    epi_example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),                        filter(str -> occursin(r"^test_.*\.jl$", str),
+                                    readdir("../examples/Epidemiology")))
+    for t in epi_example_testbase
+        fn = "../examples/Epidemiology/test_$t.jl"
         println("    * Testing $t.jl ...")
         include(fn)
     end
