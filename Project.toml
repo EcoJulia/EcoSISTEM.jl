@@ -93,8 +93,9 @@ HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 OnlineStats = "a15396b6-48d5-5d58-9928-6d29437db91e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 RCall = "6f49c342-dc21-5d91-9882-a32aef131414"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "HTTP", "MPI", "OnlineStats"]
+test = ["Test", "HTTP", "MPI", "OnlineStats", "Pkg"]
