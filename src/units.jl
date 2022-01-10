@@ -1,7 +1,7 @@
 module Units
 
 import Unitful
-using Unitful: @unit
+using Unitful: @unit, uconvert
 day = Unitful.d
 week = Unitful.wk
 year = Unitful.yr
