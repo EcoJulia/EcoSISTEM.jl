@@ -5,7 +5,7 @@ using Unitful: @unit, uconvert
 day = Unitful.d
 week = Unitful.wk
 year = Unitful.yr
-@unit month "month" Month uconvert(s, year/12) false
+@unit month "month" Month uconvert(Unitful.s, year/12) false
 
 const days = day
 const weeks = week
