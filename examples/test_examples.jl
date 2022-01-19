@@ -30,8 +30,8 @@ kernel = GaussianKernel.(av_dist, 10e-10)
 
 death = 0.15/ year
 birth = death
-l = 1.0
-s = 0.1
+long = 1.0
+surv = 0.1
 boost = 1.0
 
 size_mean = 1.0m^2
@@ -40,7 +40,7 @@ energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
 energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
 
 energy_vec = ReqCollection2(energy_vec1, energy_vec2)
-param = EqualPop(birth, death, l, s , boost)
+param = EqualPop(birth, death, long, surv, boost)
 
 # Create ecosystem
 
