@@ -251,7 +251,7 @@ lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
-@time simulate!(eco, times, timestep, record_interval, "sdc/Africa/specialist", "Africa_run");
+@time simulate!(eco, times, timestep, record_interval, "/home/claireh/sdc/Africa/specialist2", "Africa_run");
 
 
 #### 50,000 SPECIES COEXISTING #####
@@ -265,7 +265,7 @@ using JLD2
 using Printf
 
 file = "Africa.tif"
-africa = readfile(file, -25°, 50°, -35°, 40°)
+africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
 active = Array{Bool, 2}(fill(0, size(africa)))
 
 xs = 1:size(africa, 1)
@@ -327,25 +327,24 @@ eco = Ecosystem(sppl, abenv, rel)
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
-@time simulate!(eco, times, timestep, record_interval, "sdc/Africa", "Africa_run_coexist");
+@time simulate!(eco, times, timestep, record_interval, "/home/claireh/sdc/Africa/coexist2", "Africa_run_coexist");
 
 using JLD2
 using Plots
 using Diversity
-abuns = @load "examples/Africa_run_coexist100.jld2" abun
-meta = Metacommunity(abuns)
+@load "examples/Africa_run_coexist100.jld2" abun
+meta = Metacommunity(abun)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
+
 heatmap(sumabuns,
-    background_color = :lightblue,
-    background_color_outside=:white,
     grid = false, color = :algae,
     aspect_ratio = 1, layout = (@layout [a b; c d]),
     clim = (0, 50_000), margin = 0.5 * Plots.mm,
     title = "A", titleloc = :left)
 
-abuns = @load "examples/Africa_run50.jld2" abun
-meta = Metacommunity(abuns)
+@load "examples/Africa_run50.jld2" abun
+meta = Metacommunity(abun)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
 heatmap!(sumabuns,
@@ -356,8 +355,8 @@ heatmap!(sumabuns,
     clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
     title = "B", titleloc = :left)
 
-abuns = @load "examples/Africa_run100.jld2" abun
-meta = Metacommunity(abuns)
+@load "examples/Africa_run100.jld2" abun
+meta = Metacommunity(abun)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
 heatmap!(sumabuns,
@@ -369,8 +368,8 @@ heatmap!(sumabuns,
     title = "C", titleloc = :left)
 
 using Diversity.Ecology
-abuns = @load "examples/Africa_run50.jld2" abun
-meta = Metacommunity(abuns)
+@load "examples/Africa_run50.jld2" abun
+meta = Metacommunity(abun)
 diver = shannon(meta)
 sumabuns = reshape(diver[!, :diversity], 100, 100)
 heatmap!(sumabuns,
