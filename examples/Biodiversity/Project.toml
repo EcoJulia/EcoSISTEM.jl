@@ -12,10 +12,8 @@ MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 NetCDF = "30363a11-5582-574a-97bb-aa9a979735b9"
 OnlineStats = "a15396b6-48d5-5d58-9928-6d29437db91e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-RCall = "6f49c342-dc21-5d91-9882-a32aef131414"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
 
 [compat]
 Distributions = "0.24.15, 0.25"
@@ -28,7 +26,6 @@ MPI = "0.17.2, 0.18, 0.19"
 NetCDF = "0.11.3"
 OnlineStats = "1.5.8"
 Plots = "0.28.4, 0.29, 1"
-RCall = "0.13.10"
 StatsBase = "0.32.2, 0.33"
 Unitful = "1.7"
 julia = "1.6"
