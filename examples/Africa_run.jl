@@ -88,7 +88,7 @@ gif(anim, "Africa.gif", fps = 30)
 #### SPECIALIST VERSUS GENERALIST ####
 
 specialist_vars = [0.5K, 1.0K, 5.0K, 10.0K, 25.0K, 50.0K]
-velocity = zeros(typeof(1.0km/month), length(specialist_vars))
+velocity = zeros(typeof(1.0km/year), length(specialist_vars))
 rand_start = rand(findall(active), 1)[1]
 for i in eachindex(specialist_vars)
     # Set up initial parameters for ecosystem
@@ -143,13 +143,15 @@ for i in eachindex(specialist_vars)
 
     abuns = reshape(abuns[:, :, :, 1], numSpecies, grid[1], grid[2], lensim)
     origin = [rand_start[1], rand_start[2]]
-    dest = findall(abuns[2, :, :, 1] .> 0)
-    inst_velocity = map(1:lensim) do t
-        dest = findall(abuns[2, :, :, t] .> 0)
-        dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
-        return maximum(dists)/month
-    end
-    velocity[i] = mean(inst_velocity)
+    dest = findall(abuns[2, :, :, end] .> 0)
+    dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
+    velocity[i] = mean(dists) / 100years
+    # inst_velocity = map(1:lensim) do t
+    #     dest = findall(abuns[2, :, :, t] .> 0)
+    #     dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
+    #     return maximum(dists)/month
+    # end
+    #velocity[i] = mean(inst_velocity)
     # anim = @animate for i in 1:lensim
     #     africa_abun1 = Float64.(abuns[1, :, :, i])
     #     africa_abun1[.!(active)] .= NaN
@@ -170,9 +172,9 @@ for i in eachindex(specialist_vars)
 end
 
 plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
-    xlab = "Selective advantage", ylab = "Invasion speed (km/month)",
+    xlab = "Selective advantage", ylab = "Average invasion speed (km/year)",
     label = "", grid = false)
-Plots.pdf("Invasion.pdf")
+Plots.pdf("InvasionCircle.pdf")
 
 
 #### SPECIALIST VERSUS MANY GENERALISTS ####

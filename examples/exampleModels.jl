@@ -256,7 +256,7 @@ endabun = sum(eco.abundances.matrix, dims = 1)
 endabun = reshape(endabun, 10, 10)
 
 heatmap(sol_range./kJ, water_range./mm, endabun, grid = false,
- xlab = "Solar energy", ylab = "Water", size = (1600, 1200),
+ xlab = "Solar energy (kJ)", ylab = "Water (mm)", size = (1600, 1200),
 guidefontsize = 16, tickfontsize= 16, titlefontsize=24,
 margin = 10.0*Plots.mm, legendfontsize = 16, label = "", left_margin = 20.0 * Plots.mm,
 layout = (@layout [a b; c d]), title = "A", titleloc = :left)
@@ -402,7 +402,7 @@ for r in 1:reps
         s = 0.1
         boost = 1.0
 
-        size_mean = rand(Normal(1.0, 0.5), numSpecies) .* m^2
+        size_mean = rand(Normal(1.0, 0.1), numSpecies) .* m^2
         # Set up how much energy each species consumes
         energy_vec1 = SolarRequirement(abs.(req[1] .* size_mean))
         energy_vec2 = WaterRequirement(abs.(req[2] .* size_mean))
@@ -430,11 +430,11 @@ end
 meanSR = dropdims(mean(SR, dims = 2), dims = 2)
 sdSR = dropdims(std(SR, dims = 2), dims = 2)
 
-bar!(string.(species), meanSR ./species, yerr= sdSR ./ species, grid = false, xlab = "Number of species introduced",
+bar!(string.(species), (100 .* meanSR) ./species, yerr= sdSR ./ species, grid = false, xlab = "Number of species introduced",
 ylab = "% Species survived", guidefontsize = 16,
 tickfontsize= 16, titlefontsize=24, margin = 10.0*Plots.mm,
 label = "",  title = "D", subplot = 4, titleloc = :left,
-left_margin = 20.0 *Plots.mm, ylim = (0, 1))
+left_margin = 20.0 *Plots.mm, ylim = (0, 100))
 Plots.pdf("examples/Biodiversity/Abundance.pdf")
 ## DISPERSAL ##
 times = 50years; timestep = 1month
