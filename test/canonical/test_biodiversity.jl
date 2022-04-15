@@ -139,7 +139,7 @@ abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, aben
 vars = collect(range(0.0001K, stop = 5.0K, length = numSpecies))
 opts = fill(298.0K, numSpecies)
 
-av_dist = fill(2.4, numSpecies) .* km
+av_dist = fill(2.4km, numSpecies)
 kernel = GaussianKernel.(av_dist, 10e-10)
 
 death = 0.15/ year
