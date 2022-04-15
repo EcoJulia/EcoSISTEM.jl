@@ -78,7 +78,7 @@ abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
 
-collect(range(0.0001K, stop = 5.0K, length = numSpecies))
+vars = collect(range(0.0001K, stop = 5.0K, length = numSpecies))
 opts = fill(298.0K, numSpecies)
 
 av_dist = fill(2.4km, numSpecies)
