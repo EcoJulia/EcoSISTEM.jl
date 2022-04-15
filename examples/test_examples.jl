@@ -50,7 +50,7 @@ traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-    movement, param, native)
+                   movement, param, native)
 rel = Gauss{typeof(first(opts))}()
 eco = Ecosystem(sppl, abenv, rel)
 
