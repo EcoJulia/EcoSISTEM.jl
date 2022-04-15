@@ -9,9 +9,9 @@ import ArchGDAL
 import Base.read
 const AG = ArchGDAL
 
-vardict = Dict("bio" => NaN, "prec" => mm, "srad" => u"kJ"* u"m"^-2 * day^-1, "tavg" => K, "tmax" => K, "tmin" => K, "vapr" => u"kPa", "wind" => u"m" * u"s"^-1)
-unitdict = Dict("K" => K, "m" => m, "J m**-2" => J/m^2, "m**3 m**-3" => m^3)
-biodict = Dict(zip(1:19, [fill(K, 11); fill(kg/m^2, 8)]))
+const VARDICT = Dict("bio" => NaN, "prec" => mm, "srad" => u"kJ"* u"m"^-2 * day^-1, "tavg" => K, "tmax" => K, "tmin" => K, "vapr" => u"kPa", "wind" => u"m" * u"s"^-1)
+const UNITDICT = Dict("K" => K, "m" => m, "J m**-2" => J/m^2, "m**3 m**-3" => m^3)
+const BIODICT = Dict(zip(1:19, [fill(K, 11); fill(kg/m^2, 8)]))
 """
     read(f, filename)
 
@@ -60,8 +60,8 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     step_long = (ymax - ymin) / long;
 
     world = AxisArray(a[:, long:-1:1],
-                           Axis{:latitude}(xmin:step_lat:(xmax-step_lat)),
-                           Axis{:longitude}(ymin:step_long:(ymax-step_long)));
+                           Axis{:latitude}(xmin:step_lat:(xmax-step_lat/2.0)),
+                           Axis{:longitude}(ymin:step_long:(ymax-step_long/2.0)));
 
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
@@ -104,9 +104,9 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     end
     lat, long = size(b, 1), size(b, 2);
     variables = split(first(files), "_")
-    if any(map(v -> v ∈ keys(vardict), variables))
-        findvar = findfirst(map(v -> v ∈ keys(vardict), variables))
-        unit = vardict[variables[findvar]]
+    if any(map(v -> v ∈ keys(VARDICT), variables))
+        findvar = findfirst(map(v -> v ∈ keys(VARDICT), variables))
+        unit = VARDICT[variables[findvar]]
     else
         unit = 1.0
     end
@@ -114,9 +114,9 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     step_lon = (ymax - ymin) / long;
     
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                                            Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
-                                            Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
-                                            Axis{:time}(1month:1month:(1month * numfiles)));
+                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat/2.0)),
+                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon/2.0)),
+                      Axis{:time}(1month*(1:numfiles)));
     if unit == K
         # bugfix
         world .+= uconvert(K, 0.0°C)
@@ -167,9 +167,9 @@ function readbioclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     step_lon = (ymax - ymin) / long;
     unit = 1.0
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                            Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
-                            Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
-                            Axis{:var}(1:1:numfiles));
+                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat/2.0)),
+                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon/2.0)),
+                       Axis{:var}(1:numfiles));
     if txy[1] <: AbstractFloat  
         world[isapprox.(world, txy[4])] *= NaN;
     end;
@@ -186,7 +186,7 @@ function readERA(dir::String, param::String, dim::Vector{T}) where T<: Unitful.T
     lat = reverse(ncread(dir, "latitude"))
     lon = ncread(dir, "longitude")
     units = ncgetatt(dir, param, "units")
-    units = unitdict[units]
+    units = UNITDICT[units]
     array = ncread(dir, param)
     array = array * 1.0
     array[array .≈ ncgetatt(dir, param, "_FillValue")] .= NaN
@@ -281,16 +281,16 @@ function readCRUTS(dir::String, var_name::String)
         b[:, :, count] = a
     end
     lat, long = size(b, 1), size(b, 2);
-    unit = vardict[var_name]
+    unit = VARDICT[var_name]
     step_lat = 360.0° / lat;
     step_lon = 180.0° / long;
 
     numfiles = length(files)
 
     world = AxisArray(b .* unit,
-                           Axis{:latitude}(-180.0°:step_lat:(180.0°-step_lat)),
-                           Axis{:longitude}(-90.0°:step_lon:(90.0° - step_lat)),
-                           Axis{:time}(1month:1month:numfiles * 1month));
+                           Axis{:latitude}(-180.0°:step_lat:(180.0° - step_lat/2.0)),
+                           Axis{:longitude}(-90.0°:step_lon:(90.0° - step_lat/2.0)),
+                           Axis{:time}(1month * (1:numfiles)));
     if unit == K
         # bugfix
         world .+= uconvert(K, 0.0°C)
@@ -337,7 +337,7 @@ function readCHELSA_monthly(dir::String, var_name::String,
         downresolution!(b, a, count, res, fn)
     end
     lat, long = size(b, 1), size(b, 2);
-    unit = vardict[var_name]
+    unit = VARDICT[var_name]
     step_lat = (xmax - xmin) / lat;
     step_lon = (ymax - ymin) / long;
 
@@ -390,9 +390,9 @@ function readCHELSA_bioclim(dir::String,
     step_lon = (ymax - ymin) / long;
 
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                            Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
-                            Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
-                            Axis{:var}(1:1:numfiles));
+                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat/2.0)),
+                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon/2.0)),
+                       Axis{:var}(1:numfiles));
     if txy[1] <: AbstractFloat
         world[isapprox.(world, txy[4])] *= NaN;
     end;
