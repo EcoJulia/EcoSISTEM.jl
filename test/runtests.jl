@@ -70,8 +70,9 @@ end
     @info "Running from examples folder ..."
     Pkg.activate("../examples")
     Pkg.instantiate()
-    example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),                        filter(str -> occursin(r"^test_.*\.jl$", str),
-                                    readdir("../examples/")))
+    example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
+                                           filter(str -> occursin(r"^test_.*\.jl$", str),
+                                           readdir("../examples/")))
     for t in example_testbase
         fn = "../examples/test_$t.jl"
         println("    * Testing $t.jl ...")
