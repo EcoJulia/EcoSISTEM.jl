@@ -68,7 +68,6 @@ end
 @testset "Examples folder" begin
     println()
     @info "Running from examples folder ..."
-    #cd("../examples/")
     Pkg.activate("../examples")
     Pkg.instantiate()
     example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),                        filter(str -> occursin(r"^test_.*\.jl$", str),
