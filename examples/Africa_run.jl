@@ -227,7 +227,6 @@ rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
 @time simulate!(eco, times, timestep, record_interval, "sdc/Africa/specialist", "Africa_run");
 
-
 #### 50,000 SPECIES COEXISTING #####
 
 using EcoSISTEM
