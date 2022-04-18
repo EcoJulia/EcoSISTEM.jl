@@ -1,3 +1,4 @@
+using EcoSISTEM.ClimatePref
 using RecipesBase
 using Unitful
 using Unitful.DefaultSymbols
@@ -211,6 +212,13 @@ mutable struct SolarTimeBudget <: AbstractTimeBudget{typeof(1.0*kJ)}
     return new(mat, time)
   end
 end
+
+function SolarTimeBudget(wc::Worldclim_monthly, time::Int64)
+  mat = Array(wc.array)
+  mat[isnan.(mat)] .=  zero(eltype(mat))
+  return SolarTimeBudget(mat, time)
+end
+
 function _countsubcommunities(bud::SolarTimeBudget)
   return length(bud.matrix[:,:,1])
 end
@@ -244,6 +252,13 @@ mutable struct WaterBudget <: AbstractBudget{typeof(1.0*mm)}
     return new(mat)
   end
 end
+
+function WaterBudget(bc::Worldclim_bioclim)
+  mat = Matrix(bc.array)
+  mat[isnan.(mat)] .=  zero(eltype(mat))
+  return WaterBudget(mat)
+end
+
 function _countsubcommunities(bud::WaterBudget)
   return length(bud.matrix)
 end
@@ -268,6 +283,12 @@ mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0*mm)}
     mat[isnan.(mat)] .=  0*mm
     return new(mat, time)
   end
+end
+
+function WaterTimeBudget(wc::Worldclim_monthly, time::Int64)
+  mat = Array(wc.array)
+  mat[isnan.(mat)] .=  zero(eltype(mat))
+  return WaterTimeBudget(mat, time)
 end
 
 function _countsubcommunities(bud::WaterTimeBudget)

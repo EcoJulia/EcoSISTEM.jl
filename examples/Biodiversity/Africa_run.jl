@@ -167,7 +167,6 @@ plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
     label = "", grid = false)
 Plots.pdf("Invasion.pdf")
 
-
 #### SPECIALIST VERSUS MANY GENERALISTS ####
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
