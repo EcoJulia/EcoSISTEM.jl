@@ -84,7 +84,7 @@ eco = Ecosystem(sppl, abenv, rel);
 
 using ProfileView
 eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
-@profview simulate!(eco, burnin, timestep)
+ProfileView.@profview simulate!(eco, burnin, timestep)
 
 # Plant example
 

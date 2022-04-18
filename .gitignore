@@ -35,7 +35,6 @@ access*
 **/*.csv
 **/*.txt
 **/*.h5
-examples/**/*.toml
 out/**/*.toml
 **/*.db
 **/*.nc
@@ -137,3 +136,6 @@ __pycache__/
 
 # C extensions
 *.so
+
+# Simple SDM data
+assets/
