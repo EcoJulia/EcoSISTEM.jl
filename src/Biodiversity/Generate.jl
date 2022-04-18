@@ -76,7 +76,7 @@ function biodiversity_update!(eco::Ecosystem, timestep::Unitful.Time)
                 deaths = rand(rng, Binomial(eco.abundances.matrix[j, i], deathprob))
 
                 # Update population
-                eco.abundances.matrix[j, i] += (births - deaths)
+                eco.abundances.matrix[j, i] -= deaths
 
                 # Calculate moves and write to cache
                 move!(eco, eco.spplist.species.movement, i, j, eco.cache.netmigration, births)
@@ -267,8 +267,6 @@ function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, sp::Int64,
   lookup = getlookup(eco, sp)
   full_abun = eco.abundances.matrix[sp, i]
   calc_lookup_moves!(getboundary(eco.spplist.species.movement), x, y, sp, eco, full_abun)
-  # Lose moves from current grid square
-  grd[sp, i] -= full_abun
   # Map moves to location in grid
   mov = lookup.moves
   for i in eachindex(lookup.x)
@@ -291,8 +289,6 @@ function move!(eco::AbstractEcosystem, ::BirthOnlyMovement, i::Int64, sp::Int64,
   (x, y) = convert_coords(eco, i, width)
    lookup = getlookup(eco, sp)
   calc_lookup_moves!(getboundary(eco.spplist.species.movement), x, y, sp, eco, births)
-  # Lose moves from current grid square
-  grd[sp, i] -= births
   # Map moves to location in grid
   mov = lookup.moves
   for i in eachindex(lookup.x)
