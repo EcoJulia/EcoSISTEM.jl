@@ -667,7 +667,7 @@ uuid = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 version = "7.1.1"
 
 [[LinearAlgebra]]
-deps = ["Libdl", "libblastrampoline_jll"]
+deps = ["Libdl"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[LittleCMS_jll]]
@@ -789,10 +789,6 @@ deps = ["AbstractTrees", "Dates", "LinearAlgebra", "OrderedCollections", "Statis
 git-tree-sha1 = "287bd0f7ee1cc2a73f08057a7a6fcfe0c23fe4b0"
 uuid = "925886fa-5bf2-5e8e-b522-a9147a512338"
 version = "1.4.9"
-
-[[OpenBLAS_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
-uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
 
 [[OpenJpeg_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libtiff_jll", "LittleCMS_jll", "Pkg", "libpng_jll"]
@@ -952,7 +948,7 @@ deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 
 [[Random]]
-deps = ["SHA", "Serialization"]
+deps = ["Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [[RandomBooleanMatrices]]
@@ -1385,10 +1381,6 @@ deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "HarfBuzz_jll"
 git-tree-sha1 = "5982a94fcba20f02f42ace44b9894ee2b140fe47"
 uuid = "0ac62f75-1d6f-5e53-bd7c-93b484bb37c0"
 version = "0.15.1+0"
-
-[[libblastrampoline_jll]]
-deps = ["Artifacts", "Libdl", "OpenBLAS_jll"]
-uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
 
 [[libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
