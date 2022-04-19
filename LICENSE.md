@@ -1,4 +1,5 @@
 Copyright (c) 2016-2022: Claire Harris and Richard Reeve.
+
                    GNU LESSER GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
