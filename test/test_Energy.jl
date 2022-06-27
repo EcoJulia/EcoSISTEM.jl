@@ -142,7 +142,7 @@ using EcoSISTEM.Units
     @test_nowarn BudgetCollection3(bud1, bud2, bud3)
     @test EcoSISTEM._countsubcommunities(bud) == 100 * 100
     @test EcoSISTEM._getbudget(bud, :b1) ==  bud1.matrix[:, :, 1]
-    @test eltype(bud) == [typeof(bud1.matrix[1]), typeof(bud2.matrix[1]), typeof(bud3matrix[1])]
+    @test eltype(bud) == [typeof(bud1.matrix[1]), typeof(bud2.matrix[1]), typeof(bud3.matrix[1])]
     @test EcoSISTEM._getavailableenergy(bud) == [sum(bud1.matrix), sum(bud2.matrix), sum(bud3.matrix)]
 
 end
