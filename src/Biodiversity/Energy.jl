@@ -12,9 +12,11 @@ the type(s) of energy required `Energy`.
 abstract type AbstractRequirement{Energy} end
 abstract type Abstract1Requirement{Energy} <: AbstractRequirement{Energy} end
 abstract type Abstract2Requirements{Energy} <: AbstractRequirement{Energy} end
+abstract type Abstract3Requirements{Energy} <: AbstractRequirement{Energy} end
 
 numrequirements(::Type{<: Abstract1Requirement}) = 1
 numrequirements(::Type{<: Abstract2Requirements}) = 2
+numrequirements(::Type{<: Abstract3Requirements}) = 3
 
 
 function eltype(::Abstract1Requirement{Energy}) where Energy
@@ -128,6 +130,19 @@ function eltype(req::ReqCollection2)
 end
 function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
     [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2)]
+end
+
+mutable struct ReqCollection3{R1, R2, R3} <: Abstract3Requirements{Tuple{R1, R2, R3}}
+  r1::R1
+  r2::R2
+  r3::R3
+end
+length(req::ReqCollection3) = length(req.r1.energy)
+function eltype(req::ReqCollection3)
+  return [eltype(req.r1), eltype(req.r2), eltype(req.r3)]
+end
+function _getenergyusage(abun::Vector{Int64}, req::ReqCollection3)
+  [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2), _getenergyusage(abun, req.r3)]
 end
 
 unitdict= Dict(kJ => "Solar Radiation (kJ)",NoUnits => "Free energy", mm => "Available water (mm)")
@@ -400,4 +415,28 @@ end
         subplot := 2
         y
     end
+end
+
+
+mutable struct BudgetCollection3{B1, B2, B3} <: AbstractBudget{Tuple{B1, B2, B3}}
+  b1::B1
+  b2::B2
+  b3::B3
+end
+
+function eltype(bud::BudgetCollection3)
+  return [eltype(bud.b1), eltype(bud.b2), eltype(bud.b3)]
+end
+function _countsubcommunities(bud::BudgetCollection3)
+return length(bud.b1.matrix[:,:,1])
+end
+
+function _getbudget(bud::BudgetCollection3, field::Symbol)
+  B = getfield(bud, field)
+  return _getbudget(B)
+end
+
+
+function _getavailableenergy(bud::BudgetCollection3)
+  return [_getavailableenergy(bud.b1), _getavailableenergy(bud.b2), _getavailableenergy(bud.b3)]
 end

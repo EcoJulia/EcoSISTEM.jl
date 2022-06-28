@@ -29,6 +29,14 @@ function _traitfun(hab::HabitatCollection2, trts::TraitCollection2, rel::R, pos:
     res2 = _traitfun(hab.h2, trts.t2, rel.tr2, pos, sp)
     return combineTR(rel)(res1, res2)
 end
+
+function _traitfun(hab::HabitatCollection3, trts::TraitCollection3, rel::R, pos::Int64, spp::Int64) where R <: AbstractTraitRelationship
+    res1 = _traitfun(hab.h1, trts.t1, rel.tr1, pos, spp)
+    res2 = _traitfun(hab.h2, trts.t2, rel.tr2, pos, spp)
+    res3 = _traitfun(hab.h3, trts.t3, rel.tr3, pos, spp)
+    return combineTR(rel)(res1, res2, res3)
+end
+
 function _traitfun(hab::ContinuousHab, trts::GaussTrait,
     rel::R, pos::Int64, sp::Int64) where R <: AbstractTraitRelationship
     h = hab.matrix[pos]

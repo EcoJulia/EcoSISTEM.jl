@@ -58,6 +58,14 @@ using EcoSISTEM.Units
     @test eltype(req) == [typeof(energy_vec1.energy[1]), typeof(energy_vec2.energy[1])]
     @test length(req) == length(energy_vec1.energy)
 
+    energy_vec1 = SolarRequirement(fill(0.2*kJ, numSpecies))
+    energy_vec2 = WaterRequirement(fill(0.2*mm, numSpecies))
+    energy_vec3 = VolWaterRequirement(fill(0.2*m^3, numSpecies))
+    req = ReqCollection3(energy_vec1, energy_vec2, energy_vec3)
+    @test EcoSISTEM.numrequirements(typeof(req)) == 3
+    @test eltype(req) == [typeof(energy_vec1.energy[1]), typeof(energy_vec2.energy[1]), typeof(energy_vec3.energy[1])]
+    @test length(req) == length(energy_vec1.energy)
+
     # Test SimpleBudget
     bud = Array{Float64, 2}(undef, 2, 2)
     fill!(bud, 100.0)
@@ -129,6 +137,13 @@ using EcoSISTEM.Units
     @test EcoSISTEM._getbudget(bud, :b1) ==  bud1.matrix[:, :, 1]
     @test eltype(bud) == [typeof(bud1.matrix[1]), typeof(bud2.matrix[1])]
     @test EcoSISTEM._getavailableenergy(bud) == [sum(bud1.matrix), sum(bud2.matrix)]
+
+    bud = BudgetCollection3(bud1, bud2, bud3)
+    @test_nowarn BudgetCollection3(bud1, bud2, bud3)
+    @test EcoSISTEM._countsubcommunities(bud) == 100 * 100
+    @test EcoSISTEM._getbudget(bud, :b1) ==  bud1.matrix[:, :, 1]
+    @test eltype(bud) == [typeof(bud1.matrix[1]), typeof(bud2.matrix[1]), typeof(bud3.matrix[1])]
+    @test EcoSISTEM._getavailableenergy(bud) == [sum(bud1.matrix), sum(bud2.matrix), sum(bud3.matrix)]
 
 end
 
