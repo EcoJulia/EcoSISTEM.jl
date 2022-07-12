@@ -233,7 +233,7 @@ end
 function _getsize(hab::H) where H <: Union{HabitatCollection2, HabitatCollection3}
   return _getsize(hab.h1)
 end
-function size(hab::H) where H <: Union{HabitatCollection2, HabitatCollection3}
+function size(hab::H, d) where H <: Union{HabitatCollection2, HabitatCollection3}
     return size(hab.h1, d)
 end
 
