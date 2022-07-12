@@ -48,17 +48,17 @@ end
 
 This habitat subtype houses a habitat matrix `matrix` of any units, a grid square size `size` and HabitatUpdate type `change`.
 """
-mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
+mutable struct ContinuousHab{C <: Number, L <: Unitful.Length} <: AbstractHabitat{C}
   matrix::Array{C, 2}
-  size::Unitful.Length
+  size::L
   change::HabitatUpdate
 end
 
-iscontinuous(hab::ContinuousHab{C}) where C = true
-function eltype(hab::ContinuousHab{C}) where C
+iscontinuous(hab::ContinuousHab{C, L}) where {C, L} = true
+function eltype(hab::ContinuousHab{C, L}) where {C, L}
     return C
 end
-@recipe function f(H::ContinuousHab{C}) where C
+@recipe function f(H::ContinuousHab{C, L}) where {C, L}
     unitdict= Dict(K => "Temperature (K)", °C => "Temperature (°C)", mm => "Rainfall (mm)", kJ => "Solar Radiation (kJ)")
     h = ustrip.(H.matrix)
     seriestype  :=  :heatmap
@@ -70,7 +70,7 @@ end
     clims --> (minimum(h) * 0.99, maximum(h) * 1.01)
     xrange(H), yrange(H), h
 end
-@recipe function f(H::ContinuousHab{C}) where C <: Unitful.Temperature
+@recipe function f(H::ContinuousHab{C, L}) where {C <: Unitful.Temperature, L}
     unitdict= Dict(K => "Temperature (K)", °C => "Temperature (°C)", mm => "Rainfall (mm)", kJ => "Solar Radiation (kJ)")
     h = ustrip.(uconvert.(°C, H.matrix))
     seriestype  :=  :heatmap
@@ -88,13 +88,13 @@ end
 
 This habitat subtype houses a habitat matrix `matrix` of any units, the time slice of the habitat matrix currently being operated on `time`, a grid square size `size` and HabitatUpdate type `change`.
 """
-mutable struct ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <: AbstractHabitat{C}
+mutable struct ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}, L <: Unitful.Length} <: AbstractHabitat{C}
   matrix::M
   time::Int64
-  size::Unitful.Length
+  size::L
   change::HabitatUpdate
 end
-@recipe function f(H::ContinuousTimeHab{C, M}, time::Int64) where {C, M <: AbstractArray{C, 3}}
+@recipe function f(H::ContinuousTimeHab{C, M, L}, time::Int64) where {C, M <: AbstractArray{C, 3}, L}
     h = ustrip.(H.matrix)
     seriestype  :=  :heatmap
     grid --> false
@@ -104,8 +104,8 @@ end
     xrange(H), yrange(H), h[:,:,time]
 end
 
-iscontinuous(hab::ContinuousTimeHab{C, M}) where {C, M <: AbstractArray{C, 3}} = true
-function eltype(hab::ContinuousTimeHab{C, M}) where {C, M <: AbstractArray{C, 3}}
+iscontinuous(hab::ContinuousTimeHab{C, M, L}) where {C, M <: AbstractArray{C, 3}, L} = true
+function eltype(hab::ContinuousTimeHab{C, M, L}) where {C, M <: AbstractArray{C, 3}, L}
     return C
 end
 function _resettime!(hab::ContinuousTimeHab)
@@ -125,12 +125,12 @@ end
 
 This habitat subtype has a matrix of strings and a float grid square size
 """
-mutable struct DiscreteHab{D} <: AbstractHabitat{D}
+mutable struct DiscreteHab{D, L <: Unitful.Length} <: AbstractHabitat{D}
   matrix::Array{D, 2}
-  size::Unitful.Length
+  size::L
   change::HabitatUpdate
 end
-@recipe function f(H::DiscreteHab{D}) where D
+@recipe function f(H::DiscreteHab{D, L}) where {D, L}
     h = ustrip.(H.matrix)
     seriestype  :=  :heatmap
     grid --> false
@@ -142,7 +142,7 @@ end
 
 
 iscontinuous(hab::DiscreteHab) = false
-function eltype(hab::DiscreteHab{D}) where D
+function eltype(hab::DiscreteHab{D, L}) where {D, L}
     return D
 end
 function _countsubcommunities(hab::DiscreteHab)
