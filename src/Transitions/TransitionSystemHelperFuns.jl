@@ -1,9 +1,9 @@
 """
-    gettransitions(eco::AbstractEcosystem)
+    gettransitions(eco::E) where E <: AbstractEcosystem
 
 Function to extract the transition list from an arbitrary ecosystem.
 """
-function gettransitions(eco::AbstractEcosystem)
+function gettransitions(eco::E) where E <: AbstractEcosystem
     return eco.transitions
 end
 function gettransitions(eco::CachedEcosystem)
@@ -15,7 +15,7 @@ end
 
 Function to extract trait relationships.
 """
-function gettraitrel(eco::AbstractEcosystem)
+function gettraitrel(eco::E) where E <: AbstractEcosystem
   return eco.relationship
 end
 
@@ -24,7 +24,7 @@ end
 
 Function to extract habitat from Ecosystem object.
 """
-function gethabitat(eco::AbstractEcosystem)
+function gethabitat(eco::E) where E <: AbstractEcosystem
   return eco.abenv.habitat
 end
 """
@@ -32,7 +32,7 @@ end
 
 Function to extract budget from Ecosystem object.
 """
-function getbudget(eco::AbstractEcosystem)
+function getbudget(eco::E) where E <: AbstractEcosystem
     return _getbudget(eco.abenv.budget)
 end
 
@@ -41,7 +41,7 @@ end
 
 Function to extract species trait preferences from Ecosystem object.
 """
-function getspeciestraits(eco::AbstractEcosystem)
+function getspeciestraits(eco::E) where E <: AbstractEcosystem
     return _getspeciestraits(eco.spplist)
 end
 
@@ -50,7 +50,7 @@ end
 
 Function to extract pathogen trait preferences from Ecosystem object.
 """
-function getpathogentraits(eco::AbstractEcosystem)
+function getpathogentraits(eco::E) where E <: AbstractEcosystem
     return _getpathogentraits(eco.spplist)
 end
 
@@ -59,7 +59,7 @@ end
 
 Function to extract size of habitat from Ecosystem object.
 """
-function getsize(eco::AbstractEcosystem)
+function getsize(eco::E) where E <: AbstractEcosystem
   return _getsize(eco.abenv.habitat)
 end
 
@@ -68,7 +68,7 @@ end
 
 Function to extract grid cell size of habitat from Ecosystem object.
 """
-function getgridsize(eco::AbstractEcosystem)
+function getgridsize(eco::E) where E <: AbstractEcosystem
   return _getgridsize(eco.abenv.habitat)
 end
 
@@ -77,7 +77,7 @@ end
 
 Function to extract dimension of habitat from Ecosystem object.
 """
-function getdimension(eco::AbstractEcosystem)
+function getdimension(eco::E) where E <: AbstractEcosystem
     return _getdimension(eco.abenv.habitat)
 end
 
@@ -153,11 +153,11 @@ function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯*𝐓^-1
 end
 
 """
-    resettime!(eco::AbstractEcosystem)
+    resettime!(eco::E) where E <: AbstractEcosystem
 
 Function to reset the time of habitat change for a species.
 """
-function resettime!(eco::AbstractEcosystem)
+function resettime!(eco::E) where E <: AbstractEcosystem
     _resettime!(eco.abenv.habitat)
 end
 
@@ -202,11 +202,11 @@ function addtypes!(ut::UniqueTypes)
 end
 
 """
-    invalidatecaches!(eco::AbstractEcosystem)
+    invalidatecaches!(eco::E) where E <: AbstractEcosystem
 
 Function to invalidate Ecosystem caches at the end of a timestep.
 """
-function invalidatecaches!(eco::AbstractEcosystem)
+function invalidatecaches!(eco::E) where E <: AbstractEcosystem
     _invalidatecaches!(eco, eco.cache)
 end
 function _invalidatecaches!(eco::A, cache::Cache) where A <: AbstractEcosystem
