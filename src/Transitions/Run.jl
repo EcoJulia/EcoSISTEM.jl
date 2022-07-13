@@ -78,6 +78,20 @@ function run_rule!(eco::Ecosystem, rule::AbstractWindDown, timestep::Unitful.Tim
     end
 end
 
+
+function getsetup(rule::R) where R <: AbstractSetUp
+    return rule
+end
+function getstate(rule::R) where R <: AbstractStateTransition
+    return rule
+end
+function getplace(rule::R) where R <: AbstractPlaceTransition
+    return rule
+end
+function getwinddown(rule::R) where R <: AbstractWindDown
+    return rule
+end
+
 """
     update!(eco::Ecosystem, timestep::Unitful.Time)
 
@@ -87,19 +101,23 @@ winddown.
 """
 function update!(eco::Ecosystem, timestep::Unitful.Time, ::TransitionList)
 
-    Threads.@threads for su in eco.transitions.setup
+    Threads.@threads for su in eachindex(eco.transitions.setup)
+        su = getsetup(getindex(eco.transitions.setup, su))
         run_rule!(eco, su, timestep)
     end
 
-    Threads.@threads for st in eco.transitions.state
+    Threads.@threads for st in eachindex(eco.transitions.state)
+        st = getstate(getindex(eco.transitions.state, st))
         run_rule!(eco, st, timestep)
     end
 
-    Threads.@threads for pl in eco.transitions.place
+    Threads.@threads for pl in eachindex(eco.transitions.place)
+        pl = getplace(getindex(eco.transitions.place, pl))
         run_rule!(eco, pl, timestep)
     end
 
-    Threads.@threads for wd in eco.transitions.winddown
+    Threads.@threads for wd in eachindex(eco.transitions.winddown)
+        wd = getwinddown(getindex(eco.transitions.winddown, wd))
         run_rule!(eco, wd, timestep)
     end
 
