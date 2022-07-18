@@ -12,7 +12,7 @@ import HDF5: ishdf5
 
 Implement `_run_rule!` function for a particular rule type, `R`, for one timestep.
 """
-function run_rule!(eco::Ecosystem, rule::AbstractStateTransition, timestep::Unitful.Time)
+function run_rule!(eco::Ecosystem, rule::S, timestep::Unitful.Time) where S <: AbstractStateTransition
     if typeof(rule) == BirthProcess
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == GenerateSeed
@@ -42,7 +42,7 @@ function run_rule!(eco::Ecosystem, rule::AbstractStateTransition, timestep::Unit
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::AbstractPlaceTransition, timestep::Unitful.Time)
+function run_rule!(eco::Ecosystem, rule::P, timestep::Unitful.Time) where P <: AbstractPlaceTransition
     if typeof(rule) == AllDisperse
         _run_rule!(eco, rule)
     elseif typeof(rule) == SeedDisperse
@@ -54,7 +54,7 @@ function run_rule!(eco::Ecosystem, rule::AbstractPlaceTransition, timestep::Unit
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::AbstractSetUp, timestep::Unitful.Time)
+function run_rule!(eco::Ecosystem, rule::SU, timestep::Unitful.Time) where SU <: AbstractSetUp
     if typeof(rule) == UpdateEnergy
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == SeedInfection
@@ -68,7 +68,7 @@ function run_rule!(eco::Ecosystem, rule::Missing, timestep::Unitful.Time)
     return @warn "No setup"
 end
 
-function run_rule!(eco::Ecosystem, rule::AbstractWindDown, timestep::Unitful.Time)
+function run_rule!(eco::Ecosystem, rule::WD, timestep::Unitful.Time) where WD <: AbstractWindDown
     if typeof(rule) == UpdateEnvironment
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == UpdateEpiEnvironment
