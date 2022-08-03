@@ -105,6 +105,13 @@ function _habitatupdate!(eco::AbstractEcosystem, hab::HabitatCollection2, timest
     _habitatupdate!(eco, hab.h2, timestep)
 end
 
+function _habitatupdate!(eco::Ecosystem, hab::HabitatCollection3, timestep::Unitful.Time)
+    _habitatupdate!(eco, hab.h1, timestep)
+    _habitatupdate!(eco, hab.h2, timestep)
+    _habitatupdate!(eco, hab.h3, timestep)
+end
+
+
 """
     budgetupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
 
@@ -161,4 +168,10 @@ end
 function _budgetupdate!(eco::AbstractEcosystem, budget::BudgetCollection2, timestep::Unitful.Time)
     _budgetupdate!(eco, eco.abenv.budget.b1, timestep)
     _budgetupdate!(eco, eco.abenv.budget.b2, timestep)
+end
+
+function _budgetupdate!(eco::AbstractEcosystem, budget::BudgetCollection3, timestep::Unitful.Time)
+    _budgetupdate!(eco, eco.abenv.budget.b1, timestep)
+    _budgetupdate!(eco, eco.abenv.budget.b2, timestep)
+    _budgetupdate!(eco, eco.abenv.budget.b3, timestep)
 end

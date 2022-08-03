@@ -19,7 +19,11 @@ responses of biodiversity to environmental and land-use change*.
 Future updates to the package functionality involve incorporating
 age-structure and epidemiological models (see the [SCRC fork](https://github.com/ScottishCovidResponse/Simulation.jl) for more details).
 
-This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](CONTRIBUTING.md).
+This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](CONTRIBUTING.md). We are supported by NERC's Landscape Decisions [small][NERC-small] and [large][NERC-big] maths grants and an [EPSRC][EPSRC-stu] studentship.
+
+[NERC-small]: https://gtr.ukri.org/projects?ref=NE%2FT004193%2F1
+[NERC-big]: https://gtr.ukri.org/projects?ref=NE%2FT010355%2F1
+[EPSRC-stu]: https://gtr.ukri.org/projects?ref=EP%2FM506539%2F1
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 

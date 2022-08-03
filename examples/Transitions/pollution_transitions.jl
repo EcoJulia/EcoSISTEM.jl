@@ -1,9 +1,9 @@
 using EcoSISTEM
-using DataRegistryUtils
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
+using DataPipeline
 using StatsBase
 using Distributions
 using AxisArrays
@@ -12,6 +12,8 @@ using Random
 using DataFrames
 using Plots
 using SQLite
+
+## TODO - update to current datapipeline when stable.
 
 function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time; do_plot::Bool = false, do_download::Bool = true, save::Bool = false, savepath::String = pwd())
 

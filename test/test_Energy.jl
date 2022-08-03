@@ -1,4 +1,6 @@
 using EcoSISTEM
+using EcoSISTEM.ClimatePref
+using AxisArrays
 using Test
 using Unitful
 using Unitful.DefaultSymbols
@@ -54,6 +56,14 @@ using EcoSISTEM.Units
     req = ReqCollection2(energy_vec1, energy_vec2)
     @test EcoSISTEM.numrequirements(typeof(req)) == 2
     @test eltype(req) == [typeof(energy_vec1.energy[1]), typeof(energy_vec2.energy[1])]
+    @test length(req) == length(energy_vec1.energy)
+
+    energy_vec1 = SolarRequirement(fill(0.2*kJ, numSpecies))
+    energy_vec2 = WaterRequirement(fill(0.2*mm, numSpecies))
+    energy_vec3 = VolWaterRequirement(fill(0.2*m^3, numSpecies))
+    req = ReqCollection3(energy_vec1, energy_vec2, energy_vec3)
+    @test EcoSISTEM.numrequirements(typeof(req)) == 3
+    @test eltype(req) == [typeof(energy_vec1.energy[1]), typeof(energy_vec2.energy[1]), typeof(energy_vec3.energy[1])]
     @test length(req) == length(energy_vec1.energy)
 
     # Test SimpleBudget
@@ -127,5 +137,42 @@ using EcoSISTEM.Units
     @test EcoSISTEM._getbudget(bud, :b1) ==  bud1.matrix[:, :, 1]
     @test eltype(bud) == [typeof(bud1.matrix[1]), typeof(bud2.matrix[1])]
     @test EcoSISTEM._getavailableenergy(bud) == [sum(bud1.matrix), sum(bud2.matrix)]
+
+    bud = BudgetCollection3(bud1, bud2, bud3)
+    @test_nowarn BudgetCollection3(bud1, bud2, bud3)
+    @test EcoSISTEM._countsubcommunities(bud) == 100 * 100
+    @test EcoSISTEM._getbudget(bud, :b1) ==  bud1.matrix[:, :, 1]
+    @test eltype(bud) == [typeof(bud1.matrix[1]), typeof(bud2.matrix[1]), typeof(bud3.matrix[1])]
+    @test EcoSISTEM._getavailableenergy(bud) == [sum(bud1.matrix), sum(bud2.matrix), sum(bud3.matrix)]
+
+end
+
+@testset "Worldclim/Bioclim budgets" begin
+    water = AxisArray(fill(1.0mm, 10, 10, 12), Axis{:latitude}(collect(1:10) .* m), Axis{:longitude}(collect(1:10) .* m), Axis{:time}(collect(1:12) .* month))
+    wc = Worldclim_monthly(water)
+    bud = WaterTimeBudget(wc, 1)
+    @test_nowarn WaterTimeBudget(wc, 1)
+    @test EcoSISTEM._countsubcommunities(bud) == 100
+    @test EcoSISTEM._getbudget(bud) ==  bud.matrix[:, :, 1]
+    @test eltype(bud) == typeof(bud.matrix[1])
+    @test EcoSISTEM._getavailableenergy(bud) == sum(bud.matrix)
+
+    solar = AxisArray(fill(1.0kJ, 10, 10, 12), Axis{:latitude}(collect(1:10) .* m), Axis{:longitude}(collect(1:10) .* m), Axis{:time}(collect(1:12) .* month))
+    wc = Worldclim_monthly(solar)
+    bud = SolarTimeBudget(wc, 1)
+    @test_nowarn SolarTimeBudget(wc, 1)
+    @test EcoSISTEM._countsubcommunities(bud) == 100
+    @test EcoSISTEM._getbudget(bud) ==  bud.matrix[:, :, 1]
+    @test eltype(bud) == eltype(bud.matrix)
+    @test EcoSISTEM._getavailableenergy(bud) == sum(bud.matrix)
+    
+    water = AxisArray(fill(1.0mm, 10, 10), Axis{:latitude}(collect(1:10) .* m), Axis{:longitude}(collect(1:10) .* m))
+    wc = Worldclim_bioclim(water)
+    bud = WaterBudget(wc)
+    @test_nowarn WaterBudget(wc)
+    @test EcoSISTEM._countsubcommunities(bud) == 100
+    @test EcoSISTEM._getbudget(bud) ==  bud.matrix
+    @test eltype(bud) == eltype(bud.matrix)
+    @test EcoSISTEM._getavailableenergy(bud) == sum(bud.matrix)
 
 end

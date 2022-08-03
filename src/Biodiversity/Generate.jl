@@ -64,11 +64,10 @@ function biodiversity_update!(eco::Ecosystem, timestep::Unitful.Time)
             # Check if grid cell currently active
             if eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)
                 # Calculate effective rates
-                birthrate = params.birth[j] * timestep * adjusted_birth
+                birthrate = params.birth[j] * timestep * adjusted_birth |> NoUnits
                 deathparam = params.death[j] * timestep * adjusted_death
 
                 # Turn deathparam into probability and cancel units of birthrate
-                birthrate += 0.0
                 deathprob = 1.0 - exp(-deathparam)
 
                 (birthrate >= 0) & (deathprob >= 0) || error("Birth: $birthrate \n Death: $deathprob \n \n i: $i \n j: $j")
@@ -77,7 +76,7 @@ function biodiversity_update!(eco::Ecosystem, timestep::Unitful.Time)
                 deaths = rand(rng, Binomial(eco.abundances.matrix[j, i], deathprob))
 
                 # Update population
-                eco.abundances.matrix[j, i] += (births - deaths)
+                eco.abundances.matrix[j, i] -= deaths
 
                 # Calculate moves and write to cache
                 move!(eco, eco.spplist.species.movement, i, j, eco.cache.netmigration, births)
@@ -268,8 +267,6 @@ function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, sp::Int64,
   lookup = getlookup(eco, sp)
   full_abun = eco.abundances.matrix[sp, i]
   calc_lookup_moves!(getboundary(eco.spplist.species.movement), x, y, sp, eco, full_abun)
-  # Lose moves from current grid square
-  grd[sp, i] -= full_abun
   # Map moves to location in grid
   mov = lookup.moves
   for i in eachindex(lookup.x)
@@ -292,8 +289,6 @@ function move!(eco::AbstractEcosystem, ::BirthOnlyMovement, i::Int64, sp::Int64,
   (x, y) = convert_coords(eco, i, width)
    lookup = getlookup(eco, sp)
   calc_lookup_moves!(getboundary(eco.spplist.species.movement), x, y, sp, eco, births)
-  # Lose moves from current grid square
-  grd[sp, i] -= births
   # Map moves to location in grid
   mov = lookup.moves
   for i in eachindex(lookup.x)
