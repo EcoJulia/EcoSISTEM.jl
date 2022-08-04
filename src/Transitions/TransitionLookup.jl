@@ -218,7 +218,7 @@ function genlookups(epienv::GridEpiEnv, mov::AlwaysMovement)
     grid_locs = 1:total_size
     activity = epienv.active[1:end]
     grid_locs = grid_locs[activity]
-    xys = convert_coords.(grid_locs, size(epienv.active, 2))
+    xys = convert_coords.(grid_locs, size(epienv.active, 1))
 
     # Collate all movement related parameters
     grid_size = _getgridsize(epienv.habitat)

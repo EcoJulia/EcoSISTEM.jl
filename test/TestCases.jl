@@ -173,58 +173,6 @@ function TestEpiLockdown()
 
     return epi
 end
-function TestEpiSystemFromPopulation(
-    initial_pop::AbstractMatrix;
-    abenv_active=fill(true, size(initial_pop))
-)
-    # Set initial population sizes for all pathogen categories
-    virus = 0
-    abun_v = DataFrame([
-        (name="Environment", initial=virus),
-        (name="Force", initial=0),
-    ])
-    numvirus = nrow(abun_v)
-
-    # Set initial population sizes for all host categories
-    abun_h = DataFrame([
-        (name="Susceptible", type=Susceptible, initial=0),
-        (name="Infected", type=Infectious, initial=1),
-        (name="Recovered", type=Removed, initial=0),
-        (name="Dead", type=Removed, initial=0),
-    ])
-    numclasses = nrow(abun_h)
-
-    # Set non-pathogen mediated transitions
-    sigma = 0.05/day
-    transitions = DataFrame([
-        (from="Infected", to="Recovered", prob=sigma),
-    ])
-
-    # Set simulation parameters
-    birth = [fill(1e-5/day, numclasses - 1); 0.0/day]
-    death = [fill(1e-5/day, numclasses - 1); 0.0/day]
-    beta_force = 5.0/day
-    beta_env = 0.5/day
-    virus_growth = 0.0001/day
-    virus_decay = 0.07/day
-    param = (birth = birth, death = death, virus_growth = virus_growth, virus_decay = virus_decay, beta_env = beta_env, beta_force = beta_force)
-
-    area = 10.0km^2
-    abenv = simplehabitatAE(298.0K, size(initial_pop), area, abenv_active, NoControl())
-
-    dispersal_dists = fill(2.0km, size(initial_pop, 1) * size(initial_pop, 2))
-    kernel = GaussianKernel.(dispersal_dists, 1e-10)
-    movement = EpiMovement(kernel)
-
-    traits = GaussTrait(fill(298.0K, numvirus), fill(0.1K, numvirus))
-    spplist = SpeciesList(traits, abun_v, abun_h, movement, transitions, param)
-
-    rel = Gauss{eltype(abenv.habitat)}()
-    epi = Ecosystem(spplist, abenv, rel, initial_pop)
-
-    return epi
-end
-
 
 function TestCache()
     numSpecies = 3
