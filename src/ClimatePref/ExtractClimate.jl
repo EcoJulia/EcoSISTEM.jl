@@ -3,7 +3,6 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using AxisArrays
 using NetCDF
-using IndexedTables
 
 function checkbounds(x::Vector{typeof(1.0°)}, y::Vector{typeof(1.0°)})
     -180.0 .<= x .<= 180.0 || error("X coordinate is out of bounds")
