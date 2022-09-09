@@ -1,3 +1,4 @@
+using InteractiveUtils
 """
     AbstractTransition
 
@@ -107,16 +108,29 @@ mutable struct TransitionList{T1 <: AbstractSetUp, T2 <: AbstractStateTransition
     winddown::Vector{T4}
 end
 
+function rsubtypes(t)
+    return rsubtypes([t])
+end
+
+function rsubtypes(types::AbstractVector, out = [])
+    if isempty(types) 
+        return out 
+    else
+        sub = subtypes.(types)
+        return rsubtypes(filter(isabstracttype, vcat(sub...)), filter(!isabstracttype, vcat(types, sub...))) 
+    end
+end
+
 """
     create_transition_list()
 
 Create an empty `TransitionList`.
 """
 function create_transition_list()
-    before = Vector{AbstractSetUp}(undef,0)
-    state_list = Vector{AbstractStateTransition}(undef,0)
-    place_list = Vector{AbstractPlaceTransition}(undef,0)
-    after = Vector{AbstractWindDown}(undef,0)
+    before = Vector{Union{rsubtypes(AbstractSetUp)...}}(undef,0)
+    state_list = Vector{Union{rsubtypes(AbstractStateTransition)...}}(undef,0)
+    place_list = Vector{Union{rsubtypes(AbstractPlaceTransition)...}}(undef,0)
+    after = Vector{Union{rsubtypes(AbstractWindDown)...}}(undef,0)
     return TransitionList(before, state_list, place_list, after)
 end
 
