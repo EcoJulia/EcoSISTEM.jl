@@ -117,7 +117,7 @@ function rsubtypes(types::AbstractVector, out = [])
         return out 
     else
         sub = subtypes.(types)
-        return rsubtypes(filter(isabstracttype, vcat(sub...)), filter(!isabstracttype, vcat(types, sub...))) 
+        return rsubtypes(filter(isabstracttype, vcat(sub...)), filter(!isabstracttype, vcat(out, types, sub...))) 
     end
 end
 
