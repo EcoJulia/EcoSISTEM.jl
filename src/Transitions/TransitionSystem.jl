@@ -143,7 +143,7 @@ the species and their environment, a pre-calculated `lookup` of all possible mov
 be made by each species, a `cache`, and a list of `transitions`.
 """
 mutable struct Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <: AbstractSpeciesList,
-    TR <: AbstractTraitRelationship, LU <: AbstractLookup, C <: AbstractCache} <: AbstractEcosystem{L, Part, SL, TR, LU, C}
+    TR <: AbstractTraitRelationship, LU <: AbstractLookup, C <: AbstractCache, TL <: TransitionList} <: AbstractEcosystem{L, Part, SL, TR, LU, C}
   abundances::L
   spplist::SL
   abenv::Part
@@ -151,7 +151,7 @@ mutable struct Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <
   relationship::TR
   lookup::LU
   cache::C
-  transitions::Union{Nothing, TransitionList}
+  transitions::Union{Nothing, TL}
 end
 
 """
@@ -173,7 +173,7 @@ function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEn
   # Create lookup table of all moves and their probabilities
   lookup = SpeciesLookup(collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.species.movement))))
   cache = create_cache(spplist, ml)
-  return Ecosystem{typeof(ml), typeof(abenv), typeof(spplist), typeof(rel), typeof(lookup), typeof(cache)}(ml, spplist, abenv,
+  return Ecosystem{typeof(ml), typeof(abenv), typeof(spplist), typeof(rel), typeof(lookup), typeof(cache), typeof(transitions)}(ml, spplist, abenv,
   missing, rel, lookup, cache, transitions)
 end
 

@@ -108,30 +108,40 @@ mutable struct TransitionList{T1 <: AbstractSetUp, T2 <: AbstractStateTransition
     winddown::Vector{T4}
 end
 
-function rsubtypes(t)
-    return rsubtypes([t])
+function TransitionList(specialise=false)
+    if specialise
+        before = Vector{Union{rsubtypes(AbstractSetUp)...}}(undef,0)
+        state_list = Vector{Union{rsubtypes(AbstractStateTransition)...}}(undef,0)
+        place_list = Vector{Union{rsubtypes(AbstractPlaceTransition)...}}(undef,0)
+        after = Vector{Union{rsubtypes(AbstractWindDown)...}}(undef,0)
+    else
+        before = Vector{AbstractSetUp}(undef,0)
+        state_list = Vector{AbstractStateTransition}(undef,0)
+        place_list = Vector{AbstractPlaceTransition}(undef,0)
+        after = Vector{AbstractWindDown}(undef,0)
+    end
+    return TransitionList{eltype(before), eltype(state_list), eltype(place_list), eltype(after)}(before, state_list, place_list, after)
 end
 
-function rsubtypes(types::AbstractVector, out = [])
+function specialise_transition_list(tl::TransitionList)
+    setup = Vector{Union{unique(typeof.(tl.setup))...}}(tl.setup)
+    state = Vector{Union{unique(typeof.(tl.state))...}}(tl.state)
+    place = Vector{Union{unique(typeof.(tl.place))...}}(tl.place)
+    winddown = Vector{Union{unique(typeof.(tl.winddown))...}}(tl.winddown)
+    return TransitionList{eltype(setup), eltype(state), eltype(place), eltype(winddown)}(setup, state, place, winddown)
+end
+
+function rsubtypes(t)
+    return rsubtypes([t], [])
+end
+
+function rsubtypes(types::AbstractVector, out)
     if isempty(types) 
         return out 
     else
         sub = subtypes.(types)
         return rsubtypes(filter(isabstracttype, vcat(sub...)), filter(!isabstracttype, vcat(out, types, sub...))) 
     end
-end
-
-"""
-    create_transition_list()
-
-Create an empty `TransitionList`.
-"""
-function create_transition_list()
-    before = Vector{Union{rsubtypes(AbstractSetUp)...}}(undef,0)
-    state_list = Vector{Union{rsubtypes(AbstractStateTransition)...}}(undef,0)
-    place_list = Vector{Union{rsubtypes(AbstractPlaceTransition)...}}(undef,0)
-    after = Vector{Union{rsubtypes(AbstractWindDown)...}}(undef,0)
-    return TransitionList(before, state_list, place_list, after)
 end
 
 """
