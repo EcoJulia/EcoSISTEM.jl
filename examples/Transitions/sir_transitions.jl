@@ -60,7 +60,7 @@ epilist = SpeciesList(traits, abun_v, abun_h, movement, transitiondat, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create list of transitions for the simulation
-transitions = create_transition_list()
+transitions = TransitionList()
 addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
 for loc in eachindex(epienv.habitat.matrix)
     addtransition!(transitions, ForceProduce(3, loc, param.virus_growth))

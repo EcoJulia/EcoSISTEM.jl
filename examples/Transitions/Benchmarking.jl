@@ -1,3 +1,4 @@
+using Revise
 using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
@@ -43,6 +44,29 @@ abenv = simplehabitatAE(274.0K, grid, totalK, area)
 rel = Gauss{typeof(1.0K)}()
 
 # Create transition list
+transitions = TransitionList(true)
+addtransition!(transitions, UpdateEnergy(EcoSISTEM.update_energy_usage!))
+addtransition!(transitions, UpdateEnvironment(update_environment!))
+for spp in eachindex(sppl.species.names)
+    for loc in eachindex(abenv.habitat.matrix)
+        addtransition!(transitions, BirthProcess(spp, loc, sppl.params.birth[spp]))
+        addtransition!(transitions, DeathProcess(spp, loc, sppl.params.death[spp]))
+        addtransition!(transitions, AllDisperse(spp, loc))
+    end
+end
+transitions = specialise_transition_list(transitions)
+
+#Create ecosystem
+eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
+
+# Simulation Parameters
+burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
+lensim = length(0years:record_interval:times)
+abuns = zeros(Int64, numSpecies, prod(grid), lensim)
+# Burnin
+@time simulate!(eco, burnin, timestep, specialise = true);
+
+# Create transition list
 transitions = TransitionList()
 addtransition!(transitions, UpdateEnergy(EcoSISTEM.update_energy_usage!))
 addtransition!(transitions, UpdateEnvironment(update_environment!))
@@ -53,7 +77,6 @@ for spp in eachindex(sppl.species.names)
         addtransition!(transitions, AllDisperse(spp, loc))
     end
 end
-
 #Create ecosystem
 eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
 
@@ -63,53 +86,45 @@ lensim = length(0years:record_interval:times)
 abuns = zeros(Int64, numSpecies, prod(grid), lensim)
 # Burnin
 @time simulate!(eco, burnin, timestep);
-@time simulate_record!(abuns, eco, times, record_interval, timestep);
 
-using Plots
-@gif for i in 1:lensim
-    heatmap(reshape(abuns[1, :, i], 10, 10), clim = (50, 150))
-end
 
-# Run older biodiversity code for comparison
-eco = Ecosystem(sppl, abenv, rel)
-@time simulate!(eco, burnin, timestep);
-@time simulate_record!(abuns, eco, times, record_interval, timestep);
-
-# Benchmark
-using BenchmarkTools
-eco = Ecosystem(sppl, abenv, rel, transitions = transitions);
-@benchmark simulate!(eco, burnin, timestep)
-eco = Ecosystem(sppl, abenv, rel);
-@benchmark simulate!(eco, burnin, timestep)
-
-using ProfileView
-eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
-ProfileView.@profview simulate!(eco, burnin, timestep)
-
-# Plant example
-
-# Alter movement mechanism
-movement = BirthOnlyMovement(kernel, Torus())
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-    movement, param, native)
-# Create new transition list
-transitions = TransitionList()
-addtransition!(transitions, UpdateEnergy(update_energy_usage!))
+transitions = TransitionList(true)
+addtransition!(transitions, UpdateEnergy(EcoSISTEM.update_energy_usage!))
 addtransition!(transitions, UpdateEnvironment(update_environment!))
 for spp in eachindex(sppl.species.names)
     for loc in eachindex(abenv.habitat.matrix)
-        addtransition!(transitions, GenerateSeed(spp, loc, sppl.params.birth[spp]))
+        addtransition!(transitions, BirthProcess(spp, loc, sppl.params.birth[spp]))
         addtransition!(transitions, DeathProcess(spp, loc, sppl.params.death[spp]))
-        addtransition!(transitions, SeedDisperse(spp, loc))
+        addtransition!(transitions, AllDisperse(spp, loc))
     end
 end
-
-# Re-simulate
+#Create ecosystem
 eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
-@time simulate!(eco, burnin, timestep);
-@time simulate_record!(abuns, eco, times, record_interval, timestep);
+transitions = specialise_transition_list(transitions)
 
-using Plots
-@gif for i in 1:lensim
-    heatmap(reshape(abuns[1, :, i], 10, 10), clim = (50, 150))
+# Simulation Parameters
+burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
+lensim = length(0years:record_interval:times)
+abuns = zeros(Int64, numSpecies, prod(grid), lensim)
+# Burnin
+@time simulate!(eco, burnin, timestep);
+
+transitions = TransitionList()
+addtransition!(transitions, UpdateEnergy(EcoSISTEM.update_energy_usage!))
+addtransition!(transitions, UpdateEnvironment(update_environment!))
+for spp in eachindex(sppl.species.names)
+    for loc in eachindex(abenv.habitat.matrix)
+        addtransition!(transitions, BirthProcess(spp, loc, sppl.params.birth[spp]))
+        addtransition!(transitions, DeathProcess(spp, loc, sppl.params.death[spp]))
+        addtransition!(transitions, AllDisperse(spp, loc))
+    end
 end
+#Create ecosystem
+eco = Ecosystem(sppl, abenv, rel, transitions = transitions)
+
+# Simulation Parameters
+burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
+lensim = length(0years:record_interval:times)
+abuns = zeros(Int64, numSpecies, prod(grid), lensim)
+# Burnin
+@time simulate!(eco, burnin, timestep, specialise = true);

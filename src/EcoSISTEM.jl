@@ -64,7 +64,7 @@ include("Biodiversity/Landscape.jl")
 export GridLandscape, CachedGridLandscape
 
 include("Transitions/Transitions.jl")
-export TransitionList, create_transition_list, addtransition!
+export TransitionList, create_transition_list, addtransition!, specialise_transition_list
 
 include("Epidemiology/MedianGenerator.jl")
 export MedianGenerator

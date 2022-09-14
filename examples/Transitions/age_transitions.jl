@@ -71,7 +71,7 @@ category_map = (
 
 # Create epi system with all information
 rel = Gauss{eltype(epienv.habitat)}()
-transitions = create_transition_list()
+transitions = TransitionList()
 addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
 for loc in eachindex(epienv.habitat.matrix)
     addtransition!(transitions, ViralLoad(loc, param.virus_decay))

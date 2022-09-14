@@ -113,6 +113,60 @@ end
     return generated
 end
 
+@generated function run_generated!(eco::E, rule::AbstractSetUp, timestep::Unitful.Time) where {SetUpTypes <: AbstractSetUp, L, Part, SL,
+    TR, LU, C, ST, PL, WD, TL <: TransitionList{SetUpTypes, ST, PL, WD}, E <: Ecosystem{L, Part, SL, TR, LU, C, TL}}
+    generated = quote end
+    if isabstracttype(SetUpTypes)
+        types = rsubtypes(SetUpTypes)
+    else
+        types = Base.uniontypes(SetUpTypes)
+    end
+    for type in types
+        push!(generated.args, :(if typeof(rule) == $type
+                                    return _run_rule!(eco, rule, timestep)
+                                end)
+             )
+    end
+    push!(generated.args, :(@error "Reached an unmatched rule type ($(typeof(rule)))"))
+    return generated
+end
+
+@generated function run_generated!(eco::E, rule::AbstractPlaceTransition) where {PlaceTypes <: AbstractPlaceTransition, L, Part, SL,
+    TR, LU, C, SU, ST, WD, TL <: TransitionList{SU, ST, PlaceTypes, WD}, E <: Ecosystem{L, Part, SL, TR, LU, C, TL}}
+    generated = quote end
+    if isabstracttype(PlaceTypes)
+        types = rsubtypes(PlaceTypes)
+    else
+        types = Base.uniontypes(PlaceTypes)
+    end
+    for type in types
+        push!(generated.args, :(if typeof(rule) == $type
+                                    return _run_rule!(eco, rule)
+                                end)
+             )
+    end
+    push!(generated.args, :(@error "Reached an unmatched rule type ($(typeof(rule)))"))
+    return generated
+end
+
+@generated function run_generated!(eco::E, rule::AbstractWindDown, timestep::Unitful.Time) where {WindDownTypes <: AbstractWindDown, L, Part, SL,
+    TR, LU, C, SU, ST, PL, TL <: TransitionList{SU, ST, PL, WindDownTypes}, E <: Ecosystem{L, Part, SL, TR, LU, C, TL}}
+    generated = quote end
+    if isabstracttype(WindDownTypes)
+        types = rsubtypes(WindDownTypes)
+    else
+        types = Base.uniontypes(WindDownTypes)
+    end
+    for type in types
+        push!(generated.args, :(if typeof(rule) == $type
+                                    return _run_rule!(eco, rule, timestep)
+                                end)
+             )
+    end
+    push!(generated.args, :(@error "Reached an unmatched rule type ($(typeof(rule)))"))
+    return generated
+end
+
 
 """
     update!(eco::Ecosystem, timestep::Unitful.Time)
@@ -121,22 +175,27 @@ Update an Ecosystem by one timestep, running through different
 transitions, including set up, state and place transitions, and
 winddown.
 """
-function update!(eco::Ecosystem, timestep::Unitful.Time, ::TransitionList)
+function update!(eco::Ecosystem, timestep::Unitful.Time, ::TransitionList, specialise = false)
+    if specialise
+        run! = _run_rule!
+    else
+        run! = run_generated!
+    end
 
     Threads.@threads for su in eco.transitions.setup
-        run_rule!(eco, su, timestep)
+        run!(eco, su, timestep)
     end
 
     Threads.@threads for st in eco.transitions.state
-        run_rule!(eco, st, timestep)
+        run!(eco, st, timestep)
     end
 
     Threads.@threads for pl in eco.transitions.place
-        run_rule!(eco, pl, timestep)
+        run!(eco, pl)
     end
 
     Threads.@threads for wd in eco.transitions.winddown
-        run_rule!(eco, wd, timestep)
+        run!(eco, wd, timestep)
     end
 
 end
@@ -147,7 +206,7 @@ end
 Update an Ecosystem by one timestep, running through the older version
 of the epidemiology code.
 """
-function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: EpiLandscape
+function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing, specialise = false) where L <: EpiLandscape
     epi_update!(eco, timestep)
 end
 
@@ -157,7 +216,7 @@ end
 Update an Ecosystem by one timestep, running through the older version
 of the biodiversity code.
 """
-function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: GridLandscape
+function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing, specialise = false) where L <: GridLandscape
     biodiversity_update!(eco, timestep)
 end
 
@@ -186,6 +245,7 @@ function simulate!(
     timestep::Unitful.Time;
     save=false,
     save_path=pwd(),
+    specialise = false,
 )
   # save pre-simulation inputs
   if save && !isdir(save_path) # Create the directory if it doesn't already exist.
@@ -201,7 +261,7 @@ function simulate!(
   times = length(0s:timestep:duration)
 
   for i in 1:times
-    update!(eco, timestep, gettransitions(eco))
+    update!(eco, timestep, gettransitions(eco), specialise)
   end
 
   # save simulation results
@@ -232,6 +292,7 @@ function simulate_record!(
     timestep::Unitful.Time;
     save=false,
     save_path=pwd(),
+    specialise = false,
 )
   mod(interval,timestep) == zero(mod(interval,timestep)) ||
     error("Interval must be a multiple of timestep")
@@ -283,7 +344,7 @@ function simulate_record!(
 
   # - simulate each timestep
   for i in 2:length(time_seq)
-    update!(eco, timestep, gettransitions(eco));
+    update!(eco, timestep, gettransitions(eco), specialise);
     if time_seq[i] in record_seq
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix

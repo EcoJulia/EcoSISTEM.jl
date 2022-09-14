@@ -74,7 +74,7 @@ category_map = (
 rel = Gauss{eltype(epienv.habitat)}()
 
 
-transitions = create_transition_list()
+transitions = TransitionList()
 addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
 for loc in eachindex(epienv.habitat.matrix)
     addtransition!(transitions, ViralLoad(loc, param.virus_decay))
@@ -101,7 +101,7 @@ abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
 plot_epidynamics(epi, abuns, category_map = category_map)
 
 # Compare to non environmental exposure
-transitions = create_transition_list()#
+transitions = TransitionList()#
 addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
 for loc in eachindex(epienv.habitat.matrix)
     addtransition!(transitions, ViralLoad(loc, param.virus_decay))
