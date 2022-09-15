@@ -190,8 +190,10 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, ::TransitionList, speci
         run!(eco, st, timestep)
     end
 
-    Threads.@threads for pl in eco.transitions.place
-        run!(eco, pl)
+    Threads.@threads for pl in eco.transitions.placelist
+        for p in pl
+            run!(eco, eco.transitions.place[p])
+        end
     end
 
     Threads.@threads for wd in eco.transitions.winddown
