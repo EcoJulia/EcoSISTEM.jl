@@ -173,7 +173,12 @@ function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEn
   # Create lookup table of all moves and their probabilities
   lookup = SpeciesLookup(collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.species.movement))))
   cache = create_cache(spplist, ml)
-  return Ecosystem{typeof(ml), typeof(abenv), typeof(spplist), typeof(rel), typeof(lookup), typeof(cache), typeof(transitions)}(ml, spplist, abenv,
+  if isnothing(transitions)
+    tl = TransitionList()
+  else
+    tl = transitions
+  end
+  return Ecosystem{typeof(ml), typeof(abenv), typeof(spplist), typeof(rel), typeof(lookup), typeof(cache), typeof(tl)}(ml, spplist, abenv,
   missing, rel, lookup, cache, transitions)
 end
 
