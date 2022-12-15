@@ -1,7 +1,7 @@
 using AxisArrays
 using Unitful
 using EcoSISTEM.Units
-using RecipesBase
+using Plots.RecipesBase
 
 import AxisArrays.axes
 
