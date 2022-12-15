@@ -1,3 +1,5 @@
+Sys.total_memory()/1e9 >= 100 || error("You do not have enough memory to run these examples!")
+
 #### SINGLE SPECIES ####
 
 using EcoSISTEM
