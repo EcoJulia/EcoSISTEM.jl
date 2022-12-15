@@ -1,5 +1,5 @@
 using EcoSISTEM.ClimatePref
-using RecipesBase
+using Plots.RecipesBase
 using Unitful
 using Unitful.DefaultSymbols
 import Base: eltype, length

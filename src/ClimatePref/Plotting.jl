@@ -1,4 +1,4 @@
-using RecipesBase
+using Plots.RecipesBase
 using Measures: AbsoluteLength
 const px = AbsoluteLength(0.254)
 

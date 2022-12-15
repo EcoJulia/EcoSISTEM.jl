@@ -3,7 +3,7 @@ using DataFrames
 using Unitful
 using EcoSISTEM.Units
 using Missings
-using RecipesBase
+using Plots.RecipesBase
 
 
 import Diversity: _calcabundance
