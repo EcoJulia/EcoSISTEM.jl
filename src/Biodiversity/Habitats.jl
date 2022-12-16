@@ -4,7 +4,7 @@ import Diversity.countsubcommunities
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
-using Plots.RecipesBase
+using RecipesBase
 using EcoBase
 import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
 cells, xrange, yrange, xmax, ymax, indices, coordinates
