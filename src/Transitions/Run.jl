@@ -12,7 +12,7 @@ import HDF5: ishdf5
 
 Implement `_run_rule!` function for a particular rule type, `R`, for one timestep.
 """
-function run_rule!(eco::Ecosystem, rule::AbstractStateTransition, timestep::Unitful.Time, specialise = false)
+function run_rule!(eco::Ecosystem, rule::S, timestep::Unitful.Time, specialise = false) where S <: AbstractStateTransition
     if specialise
         _run_rule!(eco, rule, timestep)
     else
@@ -44,8 +44,9 @@ function run_rule!(eco::Ecosystem, rule::AbstractStateTransition, timestep::Unit
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::AbstractPlaceTransition, timestep::Unitful.Time, specialise = false)
+function run_rule!(eco::Ecosystem, rule::P, timestep::Unitful.Time, specialise = false) where P <: AbstractPlaceTransition
     if specialise
+
         _run_rule!(eco, rule)
     else
         if typeof(rule) == AllDisperse
@@ -60,7 +61,7 @@ function run_rule!(eco::Ecosystem, rule::AbstractPlaceTransition, timestep::Unit
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::AbstractSetUp, timestep::Unitful.Time, specialise = false)
+function run_rule!(eco::Ecosystem, rule::SU, timestep::Unitful.Time, specialise = false) where SU <: AbstractSetUp
     if specialise
         _run_rule!(eco, rule, timestep)
     else
@@ -78,7 +79,7 @@ function run_rule!(eco::Ecosystem, rule::Missing, timestep::Unitful.Time, specia
     return @warn "No setup"
 end
 
-function run_rule!(eco::Ecosystem, rule::AbstractWindDown, timestep::Unitful.Time, specialise = false)
+function run_rule!(eco::Ecosystem, rule::WD, timestep::Unitful.Time, specialise = false) where WD <: AbstractWindDown
     if specialise
         _run_rule!(eco, rule, timestep)
     else
@@ -91,7 +92,6 @@ function run_rule!(eco::Ecosystem, rule::AbstractWindDown, timestep::Unitful.Tim
         end
     end
 end
-
 
 @generated function run_generated!(eco::E, rule::AbstractStateTransition, timestep::Unitful.Time) where {StateTypes <: AbstractStateTransition, L, Part, SL,
     TR, LU, C, SU, PL, WD, TL <: TransitionList{SU, StateTypes, PL, WD}, E <: Ecosystem{L, Part, SL, TR, LU, C, TL}}
@@ -164,7 +164,6 @@ end
     push!(generated.args, :(@error "Reached an unmatched rule type ($(typeof(rule)))"))
     return generated
 end
-
 
 """
     update!(eco::Ecosystem, timestep::Unitful.Time)

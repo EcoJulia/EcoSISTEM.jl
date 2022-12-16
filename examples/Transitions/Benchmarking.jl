@@ -1,4 +1,7 @@
-using Revise
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+using Profile
 using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
@@ -24,7 +27,6 @@ param = EqualPop(birth, death, longevity, survival, boost)
 # Create kernel for movement
 kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
 movement = AlwaysMovement(kernel, Torus())
-
 
 # Create species list, including their temperature preferences, seed abundance and native status
 opts = fill(274.0K, numSpecies)
