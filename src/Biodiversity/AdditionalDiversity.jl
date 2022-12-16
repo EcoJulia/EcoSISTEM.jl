@@ -15,8 +15,13 @@ function makeunique(eco::Ecosystem)
     newsppl = SpeciesList{typeof(species), NoPathogen,
     typeof(sppl.params)}(species, NoPathogen(), sppl.params)
     newsppl.species.susceptible = sppl.species.susceptible
+    if eco.transitions == nothing
+        tl = TransitionList()
+    else
+        tl = eco.transitions
+    end
     return Ecosystem{typeof(eco.abundances), typeof(eco.abenv), typeof(newsppl),
-            typeof(eco.relationship), typeof(eco.lookup), typeof(eco.cache)}(eco.abundances,
+            typeof(eco.relationship), typeof(eco.lookup), typeof(eco.cache), typeof(tl)}(eco.abundances,
               newsppl, eco.abenv, eco.ordinariness,
               eco.relationship, eco.lookup, eco.cache, eco.transitions)
 end

@@ -214,11 +214,16 @@ function Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv:
     vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Nothing, TransitionList}
     ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
     EE <: AbstractEpiEnv, EL <: SpeciesList, ER <: AbstractTraitRelationship}
+    if isnothing(transitions)
+        tl = TransitionList()
+      else
+        tl = transitions
+      end
   total_pop = sum(abundances.matrix, dims = 1)[1, :]
   sorted_grid_ids = sortperm(total_pop, rev = true)
   sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
   cache = EpiCache(vm, initial_infected, sorted_grid_ids, valid)
-  return Ecosystem(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, transitions)
+  return Ecosystem{typeof(abundances), typeof(epienv), typeof(epilist), typeof(relationship), typeof(lookup), typeof(cache), typeof(tl)}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, transitions)
 end
 
 """
@@ -236,7 +241,7 @@ Function to create an `Ecosystem` with epi categories from a `SpeciesList`, envi
 function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
       rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
       rngtype::Type{R} = Random.MersenneTwister,
-      transitions = nothing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
+      transitions::Union{Nothing, TransitionList} = nothing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
 
   # Create matrix landscape of zero abundances
   ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
