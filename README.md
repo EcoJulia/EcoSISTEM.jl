@@ -19,6 +19,15 @@ There are substantial changes to the package introduced through the [`dev`][dev-
 
 This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](CONTRIBUTING.md). We are supported by NERC's Landscape Decisions [small][NERC-small] and [large][NERC-big] maths grants and an [EPSRC][EPSRC-stu] studentship.
 
+## Introduction to EcoSISTEM
+You can now run through a full introduction to EcoSISTEM with Pluto.jl! To get started:
+
+``` julia
+import Pluto
+Pluto.run()
+```
+This should open a Pluto window in your browser - from there you can type `examples\Introduction.jl` in the `Open from file` box. Note that it may be slow on first launch!
+
 [paper-url]: https://arxiv.org/abs/1911.12257
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
