@@ -82,19 +82,6 @@ mutable struct DevelopSymptoms <: AbstractStateTransition
 end
 
 """
-    Hospitalise <: AbstractStateTransition
-
-Transition from infectious to hospitalised categories at a
-set probability, `prob`.
-"""
-mutable struct Hospitalise <: AbstractStateTransition
-    species::Int64
-    location::Int64
-    destination::Int64
-    prob::DayType
-end
-
-"""
     Recovery <: AbstractStateTransition
 
 Transition from infected to recovered category at a
@@ -184,13 +171,13 @@ migration moves.
 """
 function update_virus_cache!(epi::Ecosystem)
     force_cats = epi.spplist.pathogens.force_cats
-    human_to_force = epi.spplist.species.human_to_force
+    host_to_force = epi.spplist.species.host_to_force
     locs = size(virus(epi.abundances), 2)
     vm = zeros(eltype(epi.cache.virusmigration), length(force_cats), locs)
     classes = length(epi.spplist.species.names)
     Threads.@threads for i in 1:classes
         for j in 1:locs
-            vm[human_to_force[i], j] += epi.cache.virusmigration[i, j]
+            vm[host_to_force[i], j] += epi.cache.virusmigration[i, j]
         end
     end
     virus(epi.abundances)[force_cats, :] .= vm

@@ -1,29 +1,32 @@
 """
     EpiMovement{MO <: AbstractMovement} <: AbstractMovement
 
-Movement can happen at several different levels, local gaussian processes, `home`, and longer distance commutes, `work`.
+Movement can happen at several different levels, local gaussian processes, `localmoves`, and longer distance moves, `regionmoves`.
 """
 mutable struct EpiMovement{MO1 <: AbstractMovement, MO2 <: AbstractMovement} <: AbstractMovement
-    home::MO1
-    work::MO2
+    localmoves::MO1
+    regionmoves::MO2
 end
 
-function EpiMovement(homekernels::Vector{K}, home_to_work::DataFrame) where K <: AbstractKernel
-    home = AlwaysMovement{K, NoBoundary}(homekernels, NoBoundary())
-    work = Commuting(home_to_work)
-    return EpiMovement{typeof(home), typeof(work)}(home, work)
+function EpiMovement(localkernels::Vector{K}, move_record::DataFrame) where K <: AbstractKernel
+    localmoves = AlwaysMovement{K, NoBoundary}(localkernels, NoBoundary())
+    regionmoves = LongDistance(move_record)
+    return EpiMovement{typeof(localmoves), typeof(regionmoves)}(localmoves, regionmoves)
 end
 
-function EpiMovement(homekernels::Vector{K}) where K <: AbstractKernel
-    home = AlwaysMovement{K, NoBoundary}(homekernels, NoBoundary())
-    work = Commuting(DataFrame([(from=1.0, to=1.0, count=0.0)]))
-    return EpiMovement{typeof(home), typeof(work)}(home, work)
+function EpiMovement(localkernels::Vector{K}) where K <: AbstractKernel
+    localmoves = AlwaysMovement{K, NoBoundary}(localkernels, NoBoundary())
+    regionmoves = LongDistance(DataFrame([(from=1.0, to=1.0, count=0.0)]))
+    return EpiMovement{typeof(localmoves), typeof(regionmoves)}(localmoves, regionmoves)
 end
 
-mutable struct Commuting <: AbstractMovement
-    home_to_work::DataFrame
+mutable struct LongDistance <: AbstractMovement
+    move_record::DataFrame
 end
 
 
-getdispersaldist(m::EpiMovement, sp::Int64) = m.home.kernels[sp].dist
-getdispersalvar(m::EpiMovement, sp::Int64) = (m.home.kernels[sp].dist)^2 * pi / 4
+getdispersaldist(m::EpiMovement, sp::Int64) = m.localmoves.kernels[sp].dist
+getdispersalvar(m::EpiMovement, sp::Int64) = (m.localmoves.kernels[sp].dist)^2 * pi / 4
+
+getlocal(m::EpiMovement) = m.localmoves
+getregion(m::EpiMovement) = m.regionmoves

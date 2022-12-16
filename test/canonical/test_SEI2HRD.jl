@@ -6,7 +6,7 @@ using EcoSISTEM.ClimatePref
 using StatsBase
 using Test
 using DataFrames
-using EcoSISTEM: human, virus
+using EcoSISTEM: host, virus
 
 @testset "SEI2HRD" begin
 
@@ -26,7 +26,7 @@ abun_v = DataFrame([
 ])
 numvirus = nrow(abun_v)
 
-# Set initial population sizes for all human categories
+# Set initial population sizes for all host categories
 susceptible = 500_000 * prod(grid)
 abun_h = DataFrame([
   (name="Susceptible", type=Susceptible, initial=susceptible),
@@ -110,7 +110,7 @@ new_symptomatic = new_asymptomatic = 100
 new_virus = 1_000
 epi = Ecosystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
-human(epi.abundances)[3:4, 1] .= new_symptomatic
+host(epi.abundances)[3:4, 1] .= new_symptomatic
 
 # Run simulation
 abuns = zeros(Int64, size(epi.abundances.matrix, 1), size(epi.abundances.matrix, 2), 366)
@@ -133,7 +133,7 @@ grid = (8, 8)
 area = 525_000.0km^2
 epienv = simplehabitatAE(298.0K, grid, area, NoControl())
 
-# Set initial population sizes for all human categories
+# Set initial population sizes for all host categories
 susceptible = 500_000 * prod(grid)
 abun_h = DataFrame([
   (name="Susceptible", type=Susceptible, initial=susceptible),
@@ -159,7 +159,7 @@ new_symptomatic = new_asymptomatic = 100
 new_virus = 1000
 epi = Ecosystem(epilist, epienv, rel)
 virus(epi.abundances)[1, 1] = new_virus
-human(epi.abundances)[3:4, 1] .= new_symptomatic
+host(epi.abundances)[3:4, 1] .= new_symptomatic
 
 # Run simulation
 times = 1year; interval = 1day; timestep = 1day

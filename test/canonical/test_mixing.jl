@@ -32,7 +32,7 @@ using StatsBase
         ])
         numvirus = sum(length.(abun_v.initial))
 
-        # Set initial population sizes for all human categories
+        # Set initial population sizes for all host categories
         susceptible = fill(Int64.(50_000_000/age_cats), age_cats)
         infected = fill(Int64.(10_000/age_cats), age_cats)
         dead = fill(0, age_cats)

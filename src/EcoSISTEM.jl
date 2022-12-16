@@ -69,9 +69,6 @@ export TransitionList, create_transition_list, addtransition!
 include("Epidemiology/MedianGenerator.jl")
 export MedianGenerator
 
-include("Epidemiology/data_utils.jl")
-export parse_hdf5, get_3d_km_grid_axis_array
-
 include("Epidemiology/EpiControl.jl")
 export NoControl, Lockdown
 
@@ -85,13 +82,13 @@ include("Epidemiology/EpiParams.jl")
 export transition
 
 include("Epidemiology/EpiMove.jl")
-export EpiMovement, Commuting
+export EpiMovement, LongDistance
 
 include("Epidemiology/EpiList.jl")
 export SpeciesList, SIS, SIR, SEIR, SEIRS, SEI2HRD
 
 include("Epidemiology/EpiLandscape.jl")
-export EpiLandscape, human, virus
+export EpiLandscape, host, virus
 
 include("Transitions/TransitionLookup.jl")
 
