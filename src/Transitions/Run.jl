@@ -12,7 +12,7 @@ import HDF5: ishdf5
 
 Implement `_run_rule!` function for a particular rule type, `R`, for one timestep.
 """
-function run_rule!(eco::Ecosystem, rule::AbstractStateTransition, timestep::Unitful.Time)
+function run_rule!(eco::Ecosystem, rule::S, timestep::Unitful.Time) where S <: AbstractStateTransition
     if typeof(rule) == BirthProcess
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == GenerateSeed
@@ -40,7 +40,7 @@ function run_rule!(eco::Ecosystem, rule::AbstractStateTransition, timestep::Unit
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::AbstractPlaceTransition, timestep::Unitful.Time)
+function run_rule!(eco::Ecosystem, rule::P, timestep::Unitful.Time) where P <: AbstractPlaceTransition
     if typeof(rule) == AllDisperse
         _run_rule!(eco, rule)
     elseif typeof(rule) == SeedDisperse
@@ -52,7 +52,7 @@ function run_rule!(eco::Ecosystem, rule::AbstractPlaceTransition, timestep::Unit
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::AbstractSetUp, timestep::Unitful.Time)
+function run_rule!(eco::Ecosystem, rule::SU, timestep::Unitful.Time) where SU <: AbstractSetUp
     if typeof(rule) == UpdateEnergy
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == SeedInfection
@@ -66,7 +66,7 @@ function run_rule!(eco::Ecosystem, rule::Missing, timestep::Unitful.Time)
     return @warn "No setup"
 end
 
-function run_rule!(eco::Ecosystem, rule::AbstractWindDown, timestep::Unitful.Time)
+function run_rule!(eco::Ecosystem, rule::WD, timestep::Unitful.Time) where WD <: AbstractWindDown
     if typeof(rule) == UpdateEnvironment
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == UpdateEpiEnvironment
@@ -74,6 +74,20 @@ function run_rule!(eco::Ecosystem, rule::AbstractWindDown, timestep::Unitful.Tim
     else
         _run_rule!(eco, rule, timestep)
     end
+end
+
+
+function getsetup(rule::R) where R <: AbstractSetUp
+    return rule
+end
+function getstate(rule::R) where R <: AbstractStateTransition
+    return rule
+end
+function getplace(rule::R) where R <: AbstractPlaceTransition
+    return rule
+end
+function getwinddown(rule::R) where R <: AbstractWindDown
+    return rule
 end
 
 """
@@ -84,20 +98,27 @@ transitions, including set up, state and place transitions, and
 winddown.
 """
 function update!(eco::Ecosystem, timestep::Unitful.Time, ::TransitionList)
-
-    Threads.@threads for su in eco.transitions.setup
+    setups = eco.transitions.setup
+    Threads.@threads for su in eachindex(setups)
+        su = getsetup(getindex(setups, su))
         run_rule!(eco, su, timestep)
     end
 
-    Threads.@threads for st in eco.transitions.state
+    states = eco.transitions.state
+    Threads.@threads for st in eachindex(states)
+        st = getstate(getindex(states, st))
         run_rule!(eco, st, timestep)
     end
 
-    Threads.@threads for pl in eco.transitions.place
+    places = eco.transitions.place
+    Threads.@threads for pl in eachindex(places)
+        pl = getplace(getindex(places, pl))
         run_rule!(eco, pl, timestep)
     end
 
-    Threads.@threads for wd in eco.transitions.winddown
+    winddowns = eco.transitions.winddown
+    Threads.@threads for wd in eachindex(winddowns)
+        wd = getwinddown(getindex(winddowns, wd))
         run_rule!(eco, wd, timestep)
     end
 
