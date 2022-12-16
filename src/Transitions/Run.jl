@@ -27,8 +27,6 @@ function run_rule!(eco::Ecosystem, rule::S, timestep::Unitful.Time) where S <: A
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == DevelopSymptoms
         _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == Hospitalise
-        _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == DeathFromInfection
         _run_rule!(eco, rule, timestep)
     elseif typeof(rule) == Recovery

@@ -34,16 +34,16 @@ function seedinfected!(epi::Ecosystem, controls::Lockdown, timestep::Unitful.Tim
         inf = rand(rng, Poisson(epi.cache.initial_infected * timestep /controls.lockdown_date))
         sus_id = sample(epi.spplist.species.susceptible, inf)
         exp_id = sus_id .+ length(epi.spplist.species.susceptible)
-        summed_exp = sum(human(epi.abundances)[exp_id, :], dims = 1)[1, :]
+        summed_exp = sum(host(epi.abundances)[exp_id, :], dims = 1)[1, :]
         pos = sample(rng, epi.cache.ordered_active, weights(summed_exp[epi.cache.ordered_active]), inf)
         for i in 1:inf
-            if (human(epi.abundances)[sus_id[i], pos[i]] > 0)
-                human(epi.abundances)[sus_id[i], pos[i]] -= 1
-                human(epi.abundances)[exp_id[i], pos[i]] += 1
+            if (host(epi.abundances)[sus_id[i], pos[i]] > 0)
+                host(epi.abundances)[sus_id[i], pos[i]] -= 1
+                host(epi.abundances)[exp_id[i], pos[i]] += 1
             end
         end
     elseif controls.current_date == controls.lockdown_date
-        @info "Lockdown initiated - $(sum(human(epi.abundances)[epi.spplist.species.susceptible .+ length(epi.spplist.species.susceptible), :])) individuals infected"
+        @info "Lockdown initiated - $(sum(host(epi.abundances)[epi.spplist.species.susceptible .+ length(epi.spplist.species.susceptible), :])) individuals infected"
     end
     return controls
 end
@@ -68,7 +68,7 @@ function virusupdate!(epi::Ecosystem, timestep::Unitful.Time)
             # Calculate how much birth and death should be adjusted
 
             # Calculate effective rates
-            birthrate = params.virus_growth[i] * timestep * human(epi.abundances)[i, j]
+            birthrate = params.virus_growth[i] * timestep * host(epi.abundances)[i, j]
             births = rand(rng, Poisson(birthrate))
 
             # Spread force of infection over space
@@ -85,8 +85,8 @@ function virusupdate!(epi::Ecosystem, timestep::Unitful.Time)
     end
 
     force_cats = epi.spplist.pathogens.force_cats
-    human_to_force = epi.spplist.species.human_to_force
-    ages = length(unique(human_to_force))
+    host_to_force = epi.spplist.species.host_to_force
+    ages = length(unique(host_to_force))
 
     function secondloop(j)
         vm = zeros(eltype(epi.cache.virusmigration), ages)
@@ -97,7 +97,7 @@ function virusupdate!(epi::Ecosystem, timestep::Unitful.Time)
             dist = Poisson(epi.cache.virusmigration[i, j])
             epi.cache.virusmigration[i, j] = rand(rng, dist)
             # Put force of infection from this class into right group
-            vm[human_to_force[i]] += epi.cache.virusmigration[i, j]
+            vm[host_to_force[i]] += epi.cache.virusmigration[i, j]
         end
 
         # viral species 1 is assumed to be the environmental virus
@@ -162,9 +162,9 @@ function classupdate!(epi::Ecosystem, timestep::Unitful.Time)
     dims = _countsubcommunities(epi.abenv.habitat)
     params = epi.spplist.params
     width = getdimension(epi)[1]
-    classes = 1:size(human(epi.abundances), 1)
+    classes = 1:size(host(epi.abundances), 1)
 
-    human_to_force = epi.spplist.species.human_to_force
+    host_to_force = epi.spplist.species.host_to_force
     force_cats = epi.spplist.pathogens.force_cats
 
     # Convert 1D dimension to 2D coordinates with convert_coords(epi, j, width)
@@ -174,29 +174,29 @@ function classupdate!(epi::Ecosystem, timestep::Unitful.Time)
     @assert all(sort(unique(vcat(threadedjindices...))) .== activejindices)
     Threads.@threads for jrange in threadedjindices; for j in jrange
         # will result +=/-= 0 at end of inner loop, so safe to skip
-        iszero(sum_pop(human(epi.abundances), j)) && continue
+        iszero(sum_pop(host(epi.abundances), j)) && continue
 
         rng = epi.abundances.rngs[Threads.threadid()]
         N = sum_pop(epi.abundances.matrix, j)
         # Loop through classes in chosen square
         for i in classes
             # Births
-            births = rand(rng, Binomial(human(epi.abundances)[i, j],
+            births = rand(rng, Binomial(host(epi.abundances)[i, j],
                                         params.births[i] * timestep))
-            human(epi.abundances)[1, j] += births
+            host(epi.abundances)[1, j] += births
 
             # Note - transpose transition matrices makes iteration over k faster
             # Calculate force of inf and env inf
             for k in 1:size(params.transition_virus, 1)
                 # Skip if there are no people in k at location j
-                iszero(human(epi.abundances)[k, j]) && continue
+                iszero(host(epi.abundances)[k, j]) && continue
                 # Skip if there are no transitions from k to i
                 params.transition[i, k] +
                     params.transition_virus[i, k] +
                     params.transition_force[i, k] > zero(inv(timestep)) ||
                     continue
 
-                k_age_cat = human_to_force[k]
+                k_age_cat = host_to_force[k]
 
                 # Environmental infection rate from k to i
                 env_inf = virus(epi.abundances)[1, j] /
@@ -218,9 +218,9 @@ function classupdate!(epi::Ecosystem, timestep::Unitful.Time)
 
                 # Make transitions
                 trans = rand(rng,
-                             Binomial(human(epi.abundances)[k, j], trans_prob))
-                human(epi.abundances)[i, j] += trans
-                human(epi.abundances)[k, j] -= trans
+                             Binomial(host(epi.abundances)[k, j], trans_prob))
+                host(epi.abundances)[i, j] += trans
+                host(epi.abundances)[k, j] -= trans
             end
         end
     end; end
@@ -259,7 +259,7 @@ end
 
 function _applycontrols!(epi::AbstractEcosystem, controls::Lockdown, timestep::Unitful.Time)
     if controls.current_date >= controls.lockdown_date
-        epi.spplist.species.work_balance .= 0.0
+        epi.spplist.species.region_balance .= 0.0
         controls.current_date += timestep
     else
         controls.current_date += timestep
@@ -273,21 +273,21 @@ end
 Function to calculate the movement of force of infection `id` from a given position in the landscape `pos`, using the lookup table found in the Ecosystem and updating the movement patterns on a cached grid, `grd`. The number of new virus is provided, so that movement only takes place as part of the generation process.
 """
 function virusmove!(epi::AbstractEcosystem, id::Int64, pos::Int64, grd::Array{Float64, 2}, newvirus::Int64)
-    # Add in home movements
-    home = epi.lookup.homelookup
-    home_scale = newvirus * epi.spplist.species.home_balance[id]
-    if home_scale > zero(home_scale)
-        for nzi in home.colptr[pos]:(home.colptr[pos+1]-1)
-            grd[id, home.rowval[nzi]] += home_scale * home.nzval[nzi]
+    # Add in local movements
+    localmoves = epi.lookup.locallookup
+    local_scale = newvirus * epi.spplist.species.local_balance[id]
+    if local_scale > zero(local_scale)
+        for nzi in localmoves.colptr[pos]:(localmoves.colptr[pos+1]-1)
+            grd[id, localmoves.rowval[nzi]] += local_scale * localmoves.nzval[nzi]
         end
     end
 
-    # Add in work movements
-    work = epi.lookup.worklookup
-    work_scale = newvirus * epi.spplist.species.work_balance[id]
-    if work_scale > zero(work_scale)
-        for nzi in work.colptr[pos]:(work.colptr[pos+1]-1)
-            grd[id, work.rowval[nzi]] += work_scale * work.nzval[nzi]
+    # Add in region movements
+    regionmoves = epi.lookup.regionlookup
+    region_scale = newvirus * epi.spplist.species.region_balance[id]
+    if region_scale > zero(region_scale)
+        for nzi in regionmoves.colptr[pos]:(regionmoves.colptr[pos+1]-1)
+            grd[id, regionmoves.rowval[nzi]] += region_scale * regionmoves.nzval[nzi]
         end
     end
 

@@ -19,7 +19,7 @@ jobs:
           - '1.6'
         os:
           - ubuntu-latest
-          - macOS-latest
+          - macOS-10.15
           - windows-latest
         R-version:
           - 'release'

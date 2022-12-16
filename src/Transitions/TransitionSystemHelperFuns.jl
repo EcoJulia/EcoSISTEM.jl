@@ -121,10 +121,10 @@ function getlookup(eco::A, sp::Int64) where A <: AbstractEcosystem
 end
 
 function getlookup(eco::Ecosystem, id::Int64, movetype::MovementType)
-    if movetype == homeMovement
-        return eco.lookup.homelookup[id, :]
-    elseif movetype == workMovement
-        return eco.lookup.worklookup[id, :]
+    if movetype == localMovement
+        return eco.lookup.locallookup[id, :]
+    elseif movetype == regionMovement
+        return eco.lookup.regionlookup[id, :]
     else
         return error("No other movement types currently implemented")
     end
