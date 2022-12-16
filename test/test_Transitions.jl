@@ -113,7 +113,7 @@ abun_v = DataFrame([
 ])
 numvirus = nrow(abun_v)
 
-# Set initial population sizes for all human categories
+# Set initial population sizes for all host categories
 susceptible = 500_000 * prod(grid)
 exposed = 0
 infected = 100 * prod(grid)

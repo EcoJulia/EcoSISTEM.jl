@@ -30,8 +30,6 @@ function run_rule!(eco::Ecosystem, rule::AbstractStateTransition, timestep::Unit
             _run_rule!(eco, rule, timestep)
         elseif typeof(rule) == DevelopSymptoms
             _run_rule!(eco, rule, timestep)
-        elseif typeof(rule) == Hospitalise
-            _run_rule!(eco, rule, timestep)
         elseif typeof(rule) == DeathFromInfection
             _run_rule!(eco, rule, timestep)
         elseif typeof(rule) == Recovery

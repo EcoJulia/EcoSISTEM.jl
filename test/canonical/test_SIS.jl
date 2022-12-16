@@ -27,7 +27,7 @@ for i in eachindex(grid_sizes)
     ])
     numvirus = nrow(abun_v)
 
-    # Set initial population sizes for all human categories
+    # Set initial population sizes for all host categories
     susceptible = 1_000_000 * maximum(grid_sizes)^2
     infected = 250 * maximum(grid_sizes)^2
     abun_h = DataFrame([

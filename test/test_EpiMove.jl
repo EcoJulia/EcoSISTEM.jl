@@ -10,15 +10,15 @@ using DataFrames
 
     @test_nowarn EpiMovement(kernel)
     move = EpiMovement(kernel)
-    @test typeof(move.home) <: AlwaysMovement
-    @test typeof(move.work) <: Commuting
-    @test move.home.kernels == kernel
+    @test typeof(move.localmoves) <: AlwaysMovement
+    @test typeof(move.regionmoves) <: LongDistance
+    @test move.localmoves.kernels == kernel
 
-    work = DataFrame([[1], [1], [1.0]], [:from, :to, :count])
-    @test_nowarn EpiMovement(kernel, work)
-    move = EpiMovement(kernel, work)
-    @test typeof(move.home) <: AlwaysMovement
-    @test typeof(move.work) <: Commuting
-    @test move.home.kernels == kernel
-    @test move.work.home_to_work == work
+    move_record = DataFrame([[1], [1], [1.0]], [:from, :to, :count])
+    @test_nowarn EpiMovement(kernel, move_record)
+    move = EpiMovement(kernel, move_record)
+    @test typeof(move.localmoves) <: AlwaysMovement
+    @test typeof(move.regionmoves) <: LongDistance
+    @test move.localmoves.kernels == kernel
+    @test move.regionmoves.move_record == move_record
 end

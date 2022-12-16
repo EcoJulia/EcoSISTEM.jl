@@ -245,9 +245,9 @@ function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
   popfun(ml, epilist, epienv, rel)
   initial_pop = sum(ml.matrix, dims = 1)
   # Create lookup table of all moves and their probabilities
-  home_lookup = genlookups(epienv, epilist.species.movement.home)
-  work_lookup = genlookups(epienv, epilist.species.movement.work, initial_pop)
-  lookup = EpiLookup(home_lookup, work_lookup)
+  local_lookup = genlookups(epienv, getlocal(epilist.species.movement))
+  region_lookup = genlookups(epienv, getregion(epilist.species.movement), initial_pop)
+  lookup = EpiLookup(local_lookup, region_lookup)
   vm = zeros(Float64, size(ml.matrix))
   return Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions)
 end
@@ -270,60 +270,6 @@ function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitR
         transitions = nothing
         ) where {U <: Integer, R <: Random.AbstractRNG}
     return Ecosystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype, transitions = transitions)
-end
-
-"""
-   Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
-           initial_population::A, intnum::U = Int64(1); initial_infected = 0,
-           rngtype::Type{R} = Random.MersenneTwister,
-           transitions = nothing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
-
-Function to create an `Ecosystem` with epi categories from a `SpeciesList`, environment from
- a `GridEpiEnv`, an `AbstractTraitRelationship` between the two,
- an array of initial susceptible population abundances, an indication of what integer type the abundances should be stored in `intnum`,
- an optional number of `initial_infected` to be seeded, and optional type for rand calls,
-`rngtype`, and an optional list of `transitions`. The `Ecosystem` is automatically and randomly populated
-from the start abundances in `spplist`.
-"""
-function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
-        initial_population::A, intnum::U = Int64(1); initial_infected = 0,
-        rngtype::Type{R} = Random.MersenneTwister,
-        transitions = nothing) where {U <: Integer, A <: AbstractArray, R <: Random.AbstractRNG}
-    if size(initial_population) != size(epienv.active)
-        msg = "size(initial_population)==$(size(initial_population)) != " *
-            "size(epienv.active)==$(size(epienv.active))"
-        throw(DimensionMismatch(msg))
-    end
-    epienv.active .&= .!_inactive.(initial_population)
-
-    # Create matrix landscape of zero abundances
-    ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
-
-    # Create lookup table of all moves and their probabilities
-    home_lookup = genlookups(epienv, epilist.species.movement.home)
-    work_lookup = genlookups(epienv, epilist.species.movement.work, initial_population[1:end])
-    lookup = EpiLookup(home_lookup, work_lookup)
-
-    vm = zeros(Float64, size(ml.matrix))
-
-    epi = Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions)
-
-    # Add in the initial susceptible population
-    # TODO Need to fix code so it doesn't rely on name of susceptible class
-    idx = findfirst(occursin.("Susceptible", epilist.species.names))
-    if idx == nothing
-        msg = "epilist has no Susceptible category. epilist.names = $(epilist.species.names)"
-        throw(ArgumentError(msg))
-    end
-    # Modify active cells based on new population
-    initial_population = convert_population(initial_population, intnum)
-    epi.abundances.grid[idx, :, :] .+= initial_population
-
-    total_pop = sum(human(epi.abundances), dims = 1)[1, :]
-    sorted_grid_ids = sortperm(total_pop, rev = true)
-    sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
-    epi.cache.ordered_active = sorted_grid_ids
-    return epi
 end
 
 """
