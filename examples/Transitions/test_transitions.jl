@@ -3,7 +3,6 @@ using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 using Distributions
 using DataFrames
-using Plots
 
 # Set up simple gridded environment
 grid = (10, 10)
