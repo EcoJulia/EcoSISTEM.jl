@@ -82,3 +82,16 @@ epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
 @test_nowarn simulate_record!(abuns, epi, times, interval, timestep);
+
+for su in epi.transitions.setup
+    @test_nowarn run_rule!(epi, su, timestep)
+end
+for st in epi.transitions.state
+    @test_nowarn run_rule!(epi, st, timestep)
+end
+for pl in epi.transitions.place
+    @test_nowarn run_rule!(epi, pl, timestep)
+end
+for wd in epi.transitions.winddown
+    @test_nowarn run_rule!(epi, wd, timestep)
+end
