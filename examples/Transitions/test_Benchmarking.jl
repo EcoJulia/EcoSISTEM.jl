@@ -1,6 +1,3 @@
-using Pkg
-Pkg.activate(".")
-Pkg.instantiate()
 using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
