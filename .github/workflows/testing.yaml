@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         julia-version:
-          - '1.6'
+          - '1.8'
         os:
           - ubuntu-latest
           - macOS-10.15
