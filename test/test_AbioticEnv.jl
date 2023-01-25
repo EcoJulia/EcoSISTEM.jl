@@ -6,7 +6,10 @@ using EcoSISTEM.ClimatePref
 using AxisArrays
 using RasterDataSources
 
-ENV["RASTERDATASOURCES_PATH"] = "../assets"
+if !isdir("assets")
+    mkdir("assets")
+end
+ENV["RASTERDATASOURCES_PATH"] = "assets"
 temp = getraster(WorldClim{BioClim}, :bio1)
 
 grid = (5, 5)
@@ -116,7 +119,7 @@ end
 end
 
 @testset "Bioclim data" begin
-    bio_africa = readbioclim("../assets/WorldClim/BioClim/")
+    bio_africa = readbioclim("assets/WorldClim/BioClim/")
     bio_africa = Worldclim_bioclim(bio_africa.array[:,:,1])
     active = fill(true, size(bio_africa.array))
     totalK = 1000.0kJ/km^2; area = 100.0km^2
@@ -129,6 +132,6 @@ end
     bc = bioclimAE(bio_africa, solar, active)
 end
 
-if isdir("../assets/WorldClim")
-    rm("../assets/WorldClim", recursive = true)
+if isdir("assets/WorldClim")
+    rm("assets/WorldClim", recursive = true)
 end
