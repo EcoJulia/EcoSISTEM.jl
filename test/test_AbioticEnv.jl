@@ -4,7 +4,10 @@ using Test
 using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
 using AxisArrays
-using SimpleSDMLayers
+using RasterDataSources
+
+ENV["RASTERDATASOURCES_PATH"] = "../assets"
+temp = getraster(WorldClim{BioClim}, :bio1)
 
 grid = (5, 5)
 area = 25.0km^2
@@ -113,19 +116,19 @@ end
 end
 
 @testset "Bioclim data" begin
-    africa_temp = SimpleSDMPredictor(WorldClim, BioClim, 1, left = -25, right = 50, bottom = -35, top = 40)
-    bio_africa = Worldclim_bioclim(africa_temp, °C)
-    active = fill(true, size(africa_temp.grid))
+    bio_africa = readbioclim("../assets/WorldClim/BioClim/")
+    bio_africa = Worldclim_bioclim(bio_africa.array[:,:,1])
+    active = fill(true, size(bio_africa.array))
     totalK = 1000.0kJ/km^2; area = 100.0km^2
     bc = bioclimAE(bio_africa, totalK, area)
     @test_nowarn bioclimAE(bio_africa, totalK, area)
     @test_nowarn bioclimAE(bio_africa, totalK, area, active)
-    @test size(bc.habitat.matrix) == size(africa_temp.grid)
+    @test size(bc.habitat.matrix) == size(bio_africa.array)
     @test isapprox(EcoSISTEM.getavailableenergy(bc), totalK * area)
-    solar = SolarBudget(fill(10.0kJ, size(africa_temp.grid)))
+    solar = SolarBudget(fill(10.0kJ, size(bio_africa.array)))
     bc = bioclimAE(bio_africa, solar, active)
 end
 
-if isdir("assets")
-    rm("assets", recursive = true)
+if isdir("../assets/WorldClim")
+    rm("../assets/WorldClim", recursive = true)
 end

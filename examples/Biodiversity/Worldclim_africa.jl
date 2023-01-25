@@ -3,17 +3,21 @@
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
-using SimpleSDMLayers
+using RasterDataSources
+using AxisArrays
 using Unitful
 using Unitful.DefaultSymbols
 using StatsBase
 using Plots
 
 # Download temperature and precipitation data
-africa_temp = SimpleSDMPredictor(WorldClim, BioClim, 1, left = -25, right = 50, bottom = -35, top = 40)
-bio_africa = Worldclim_bioclim(africa_temp, °C)
-africa_water = SimpleSDMPredictor(WorldClim, BioClim, 12, left = -25, right = 50, bottom = -35, top = 40)
-bio_africa_water = WaterBudget(Worldclim_bioclim(africa_water, mm))
+getraster(WorldClim{BioClim})
+world = readbioclim("assets/WorldClim/BioClim/10")
+africa_temp = world.array[-25°.. 50°, -35° .. 40°, 1]
+bio_africa = Worldclim_bioclim(AxisArray(africa_temp .* °C, AxisArrays.axes(africa_temp)))
+africa_water = world.array[-25°.. 50°, -35° .. 40°, 12] .* mm
+africa_water = Worldclim_bioclim(AxisArray(africa_water, AxisArrays.axes(africa_temp)))
+bio_africa_water = WaterBudget(africa_water)
 
 # Find which grid cells are land
 active =  Array{Bool, 2}(.!isnan.(bio_africa.array))
