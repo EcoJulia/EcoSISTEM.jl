@@ -27,6 +27,3 @@ export create_reference, upresolution, downresolution, downresolution!
 
 include("Plotting.jl")
 export getprofile
-
-include("SimpleSDMInterface.jl")
-export Worldclim_monthly, Worldclim_bioclim, CHELSA_bioclim, Landcover
