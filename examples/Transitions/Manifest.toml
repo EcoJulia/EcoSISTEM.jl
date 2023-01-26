@@ -4,6 +4,11 @@ julia_version = "1.8.0"
 manifest_format = "2.0"
 project_hash = "e90d3121a90e3c0cd5fee403fa04e12b8267bece"
 
+[[deps.ASCIIrasters]]
+git-tree-sha1 = "0cb0046798af8ac8561334c5a2a31f015e53c2b1"
+uuid = "81770e7c-c736-4fa5-8129-46dd21831640"
+version = "0.1.1"
+
 [[deps.ATK_jll]]
 deps = ["Artifacts", "Glib_jll", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "58c36d8a1beeb12d63921bcfaa674baf30a1140e"
@@ -298,10 +303,8 @@ uuid = "a58aae7d-b440-5a11-b283-399458f99aac"
 version = "0.1.6"
 
 [[deps.EcoSISTEM]]
-deps = ["ArchGDAL", "AxisArrays", "Calculus", "Conda", "DataFrames", "Dates", "Distributions", "Diversity", "EcoBase", "Feather", "HCubature", "HDF5", "HTTP", "IndexedTables", "InteractiveUtils", "Interpolations", "JLD2", "JLSO", "LibGit2", "Libdl", "LinearAlgebra", "Logging", "Markdown", "Measures", "Missings", "NetCDF", "ORCA", "OnlineStats", "OnlineStatsBase", "Phylo", "Pkg", "Printf", "REPL", "Random", "RecipesBase", "Requires", "Revise", "SHA", "SimpleSDMLayers", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "Unitful"]
-git-tree-sha1 = "313a2e5ffa6c29288f0c67d53edfd76fc64671a3"
-repo-rev = "claireh93/generated-functions"
-repo-url = "../.."
+deps = ["ArchGDAL", "AxisArrays", "Calculus", "Conda", "DataFrames", "Dates", "Distributions", "Diversity", "EcoBase", "Feather", "HCubature", "HDF5", "HTTP", "IndexedTables", "InteractiveUtils", "Interpolations", "JLD2", "JLSO", "LibGit2", "Libdl", "LinearAlgebra", "Logging", "Markdown", "Measures", "Missings", "NetCDF", "ORCA", "OnlineStats", "OnlineStatsBase", "Phylo", "Pkg", "Printf", "REPL", "Random", "RasterDataSources", "RecipesBase", "Requires", "Revise", "SHA", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "Unitful"]
+path = "../.."
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 version = "0.1.2"
 
@@ -1087,6 +1090,12 @@ uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 git-tree-sha1 = "b9039e93773ddcfc828f12aadf7115b4b4d225f5"
 uuid = "b3c3ace0-ae52-54e7-9d0b-2c1406fd6b9d"
 version = "0.3.2"
+
+[[deps.RasterDataSources]]
+deps = ["ASCIIrasters", "Dates", "DelimitedFiles", "HTTP", "JSON", "URIs", "ZipFile"]
+git-tree-sha1 = "f660e7f9dfc027aaa8fa05ba277d5e2615513ea9"
+uuid = "3cb90ccd-e1b6-4867-9617-4276c8b2ca36"
+version = "0.5.5"
 
 [[deps.Ratios]]
 deps = ["Requires"]
