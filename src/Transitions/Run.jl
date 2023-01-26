@@ -12,82 +12,157 @@ import HDF5: ishdf5
 
 Implement `_run_rule!` function for a particular rule type, `R`, for one timestep.
 """
-function run_rule!(eco::Ecosystem, rule::S, timestep::Unitful.Time) where S <: AbstractStateTransition
-    if typeof(rule) == BirthProcess
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == GenerateSeed
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == DeathProcess
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == Exposure
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == EnvExposure
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == Infection
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == DevelopSymptoms
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == DeathFromInfection
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == Recovery
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == ViralLoad
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == ForceProduce
+function run_rule!(eco::Ecosystem, rule::S, timestep::Unitful.Time, specialise = false) where S <: AbstractStateTransition
+    if specialise
         _run_rule!(eco, rule, timestep)
     else
-        _run_rule!(eco, rule, timestep)
+        if typeof(rule) == BirthProcess
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == GenerateSeed
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == DeathProcess
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == Exposure
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == EnvExposure
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == Infection
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == DevelopSymptoms
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == DeathFromInfection
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == Recovery
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == ViralLoad
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == ForceProduce
+            _run_rule!(eco, rule, timestep)
+        else
+            _run_rule!(eco, rule, timestep)
+        end
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::P, timestep::Unitful.Time) where P <: AbstractPlaceTransition
-    if typeof(rule) == AllDisperse
-        _run_rule!(eco, rule)
-    elseif typeof(rule) == SeedDisperse
-        _run_rule!(eco, rule)
-    elseif typeof(rule) == ForceDisperse
+function run_rule!(eco::Ecosystem, rule::P, timestep::Unitful.Time, specialise = false) where P <: AbstractPlaceTransition
+    if specialise
+
         _run_rule!(eco, rule)
     else
-        _run_rule!(eco, rule)
+        if typeof(rule) == AllDisperse
+            _run_rule!(eco, rule)
+        elseif typeof(rule) == SeedDisperse
+            _run_rule!(eco, rule)
+        elseif typeof(rule) == ForceDisperse
+            _run_rule!(eco, rule)
+        else
+            _run_rule!(eco, rule)
+        end
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::SU, timestep::Unitful.Time) where SU <: AbstractSetUp
-    if typeof(rule) == UpdateEnergy
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == SeedInfection
+function run_rule!(eco::Ecosystem, rule::SU, timestep::Unitful.Time, specialise = false) where SU <: AbstractSetUp
+    if specialise
         _run_rule!(eco, rule, timestep)
     else
-        _run_rule!(eco, rule, timestep)
+        if typeof(rule) == UpdateEnergy
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == SeedInfection
+            _run_rule!(eco, rule, timestep)
+        else
+            _run_rule!(eco, rule, timestep)
+        end
     end
 end
 
-function run_rule!(eco::Ecosystem, rule::Missing, timestep::Unitful.Time)
+function run_rule!(eco::Ecosystem, rule::Missing, timestep::Unitful.Time, specialise = false)
     return @warn "No setup"
 end
 
-function run_rule!(eco::Ecosystem, rule::WD, timestep::Unitful.Time) where WD <: AbstractWindDown
-    if typeof(rule) == UpdateEnvironment
-        _run_rule!(eco, rule, timestep)
-    elseif typeof(rule) == UpdateEpiEnvironment
+function run_rule!(eco::Ecosystem, rule::WD, timestep::Unitful.Time, specialise = false) where WD <: AbstractWindDown
+    if specialise
         _run_rule!(eco, rule, timestep)
     else
-        _run_rule!(eco, rule, timestep)
+        if typeof(rule) == UpdateEnvironment
+            _run_rule!(eco, rule, timestep)
+        elseif typeof(rule) == UpdateEpiEnvironment
+            _run_rule!(eco, rule, timestep)
+        else
+            _run_rule!(eco, rule, timestep)
+        end
     end
 end
 
+@generated function run_generated!(eco::E, rule::AbstractStateTransition, timestep::Unitful.Time) where {StateTypes <: AbstractStateTransition, L, Part, SL,
+    TR, LU, C, SU, PL, WD, TL <: TransitionList{SU, StateTypes, PL, WD}, E <: Ecosystem{L, Part, SL, TR, LU, C, TL}}
+    generated = quote end
+    if isabstracttype(StateTypes)
+        types = rsubtypes(StateTypes)
+    else
+        types = Base.uniontypes(StateTypes)
+    end
+    for type in types
+        push!(generated.args, :(if typeof(rule) == $type
+                                    return _run_rule!(eco, rule, timestep)
+                                end)
+             )
+    end
+    push!(generated.args, :(@error "Reached an unmatched rule type ($(typeof(rule)))"))
+    return generated
+end
 
-function getsetup(rule::R) where R <: AbstractSetUp
-    return rule
+@generated function run_generated!(eco::E, rule::AbstractSetUp, timestep::Unitful.Time) where {SetUpTypes <: AbstractSetUp, L, Part, SL,
+    TR, LU, C, ST, PL, WD, TL <: TransitionList{SetUpTypes, ST, PL, WD}, E <: Ecosystem{L, Part, SL, TR, LU, C, TL}}
+    generated = quote end
+    if isabstracttype(SetUpTypes)
+        types = rsubtypes(SetUpTypes)
+    else
+        types = Base.uniontypes(SetUpTypes)
+    end
+    for type in types
+        push!(generated.args, :(if typeof(rule) == $type
+                                    return _run_rule!(eco, rule, timestep)
+                                end)
+             )
+    end
+    push!(generated.args, :(@error "Reached an unmatched rule type ($(typeof(rule)))"))
+    return generated
 end
-function getstate(rule::R) where R <: AbstractStateTransition
-    return rule
+
+@generated function run_generated!(eco::E, rule::AbstractPlaceTransition) where {PlaceTypes <: AbstractPlaceTransition, L, Part, SL,
+    TR, LU, C, SU, ST, WD, TL <: TransitionList{SU, ST, PlaceTypes, WD}, E <: Ecosystem{L, Part, SL, TR, LU, C, TL}}
+    generated = quote end
+    if isabstracttype(PlaceTypes)
+        types = rsubtypes(PlaceTypes)
+    else
+        types = Base.uniontypes(PlaceTypes)
+    end
+    for type in types
+        push!(generated.args, :(if typeof(rule) == $type
+                                    return _run_rule!(eco, rule)
+                                end)
+             )
+    end
+    push!(generated.args, :(@error "Reached an unmatched rule type ($(typeof(rule)))"))
+    return generated
 end
-function getplace(rule::R) where R <: AbstractPlaceTransition
-    return rule
-end
-function getwinddown(rule::R) where R <: AbstractWindDown
-    return rule
+
+@generated function run_generated!(eco::E, rule::AbstractWindDown, timestep::Unitful.Time) where {WindDownTypes <: AbstractWindDown, L, Part, SL,
+    TR, LU, C, SU, ST, PL, TL <: TransitionList{SU, ST, PL, WindDownTypes}, E <: Ecosystem{L, Part, SL, TR, LU, C, TL}}
+    generated = quote end
+    if isabstracttype(WindDownTypes)
+        types = rsubtypes(WindDownTypes)
+    else
+        types = Base.uniontypes(WindDownTypes)
+    end
+    for type in types
+        push!(generated.args, :(if typeof(rule) == $type
+                                    return _run_rule!(eco, rule, timestep)
+                                end)
+             )
+    end
+    push!(generated.args, :(@error "Reached an unmatched rule type ($(typeof(rule)))"))
+    return generated
 end
 
 """
@@ -97,29 +172,29 @@ Update an Ecosystem by one timestep, running through different
 transitions, including set up, state and place transitions, and
 winddown.
 """
-function update!(eco::Ecosystem, timestep::Unitful.Time, ::TransitionList)
-    setups = eco.transitions.setup
-    Threads.@threads for su in eachindex(setups)
-        su = getsetup(getindex(setups, su))
-        run_rule!(eco, su, timestep)
+function update!(eco::Ecosystem, timestep::Unitful.Time, ::TransitionList, specialise = false)
+    if specialise
+        run! = _run_rule!
+    else
+        run! = run_generated!
     end
 
-    states = eco.transitions.state
-    Threads.@threads for st in eachindex(states)
-        st = getstate(getindex(states, st))
-        run_rule!(eco, st, timestep)
+    Threads.@threads for su in eco.transitions.setup
+        run!(eco, su, timestep)
     end
 
-    places = eco.transitions.place
-    Threads.@threads for pl in eachindex(places)
-        pl = getplace(getindex(places, pl))
-        run_rule!(eco, pl, timestep)
+    Threads.@threads for st in eco.transitions.state
+        run!(eco, st, timestep)
     end
 
-    winddowns = eco.transitions.winddown
-    Threads.@threads for wd in eachindex(winddowns)
-        wd = getwinddown(getindex(winddowns, wd))
-        run_rule!(eco, wd, timestep)
+    Threads.@threads for pl in eco.transitions.placelist
+        for p in pl
+            run!(eco, eco.transitions.place[p])
+        end
+    end
+
+    Threads.@threads for wd in eco.transitions.winddown
+        run!(eco, wd, timestep)
     end
 
 end
@@ -130,7 +205,7 @@ end
 Update an Ecosystem by one timestep, running through the older version
 of the epidemiology code.
 """
-function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: EpiLandscape
+function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing, specialise = false) where L <: EpiLandscape
     epi_update!(eco, timestep)
 end
 
@@ -140,7 +215,7 @@ end
 Update an Ecosystem by one timestep, running through the older version
 of the biodiversity code.
 """
-function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing) where L <: GridLandscape
+function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing, specialise = false) where L <: GridLandscape
     biodiversity_update!(eco, timestep)
 end
 
@@ -169,6 +244,7 @@ function simulate!(
     timestep::Unitful.Time;
     save=false,
     save_path=pwd(),
+    specialise = false,
 )
   # save pre-simulation inputs
   if save && !isdir(save_path) # Create the directory if it doesn't already exist.
@@ -184,7 +260,7 @@ function simulate!(
   times = length(0s:timestep:duration)
 
   for i in 1:times
-    update!(eco, timestep, gettransitions(eco))
+    update!(eco, timestep, gettransitions(eco), specialise)
   end
 
   # save simulation results
@@ -215,6 +291,7 @@ function simulate_record!(
     timestep::Unitful.Time;
     save=false,
     save_path=pwd(),
+    specialise = false,
 )
   mod(interval,timestep) == zero(mod(interval,timestep)) ||
     error("Interval must be a multiple of timestep")
@@ -266,7 +343,7 @@ function simulate_record!(
 
   # - simulate each timestep
   for i in 2:length(time_seq)
-    update!(eco, timestep, gettransitions(eco));
+    update!(eco, timestep, gettransitions(eco), specialise);
     if time_seq[i] in record_seq
       counting = counting + 1
       storage[:, :, counting] = eco.abundances.matrix

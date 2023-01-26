@@ -46,7 +46,7 @@ abenv = simplehabitatAE(274.0K, grid, totalK, area)
 rel = Gauss{typeof(1.0K)}()
 
 # Create transition list
-transitions = create_transition_list()
+transitions = TransitionList()
 addtransition!(transitions, UpdateEnergy(EcoSISTEM.update_energy_usage!))
 addtransition!(transitions, UpdateEnvironment(update_environment!))
 for spp in eachindex(sppl.species.names)
@@ -76,7 +76,7 @@ sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
     movement, param, native)
 
 # Create transition list
-transitions = create_transition_list()
+transitions = TransitionList()
 addtransition!(transitions, UpdateEnergy(EcoSISTEM.update_energy_usage!))
 addtransition!(transitions, UpdateEnvironment(update_environment!))
 for spp in eachindex(sppl.species.names)
@@ -156,7 +156,7 @@ epilist = SpeciesList(traits, abun_v, abun_h, movement, transitiondat, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create list of transitions for the simulation
-transitions = create_transition_list()
+transitions = TransitionList()
 addtransition!(transitions, SeedInfection(seedinfected!))
 addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
 for loc in eachindex(epienv.habitat.matrix)
@@ -185,7 +185,7 @@ abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
 
 ## Test SEIR with environmental exposure
 # Create list of transitions for the simulation
-transitions = create_transition_list()
+transitions = TransitionList()
 addtransition!(transitions, SeedInfection(seedinfected!))
 addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
 for loc in eachindex(epienv.habitat.matrix)

@@ -78,7 +78,19 @@ function _run_rule!(eco::Ecosystem, rule::SeedDisperse)
     spp = getspecies(rule)
     loc = getlocation(rule)
     if eco.abenv.active[loc]
-        move!(eco, eco.spplist.species.movement, loc, spp, eco.cache.netmigration, eco.cache.seedbank[spp, loc])
+        births = eco.cache.seedbank[spp, loc]
+        width, height = getdimension(eco)
+        (x, y) = convert_coords(eco, loc, width)
+         lookup = getlookup(eco, spp)
+        calc_lookup_moves!(getboundary(eco.spplist.species.movement), x, y, spp, eco, births)
+        # Map moves to location in grid
+        mov = lookup.moves
+        for i in eachindex(lookup.x)
+            newx = mod(lookup.x[i] + x - 1, width) + 1
+            newy = mod(lookup.y[i] + y - 1, height) + 1
+            newloc = convert_coords(eco, (newx, newy), width)
+            eco.cache.netmigration[spp, newloc] += mov[i]
+        end
     end
 end
 

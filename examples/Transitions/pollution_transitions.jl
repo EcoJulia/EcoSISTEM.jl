@@ -198,7 +198,7 @@ function run_model(db::SQLite.DB, times::Unitful.Time, interval::Unitful.Time, t
     epilist = SpeciesList(traits, abun_v, abun_h, movement, transitiondat, param, age_categories, movement_balance)
     rel = Gauss{eltype(epienv.habitat)}()
 
-    transitions = create_transition_list()
+    transitions = TransitionList()
     addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
     addtransition!(transitions, SeedInfection(seedinfected!))
 

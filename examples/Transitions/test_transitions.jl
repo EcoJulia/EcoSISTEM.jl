@@ -3,7 +3,6 @@ using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 using Distributions
 using DataFrames
-using Plots
 
 # Set up simple gridded environment
 grid = (10, 10)
@@ -60,7 +59,7 @@ epilist = SpeciesList(traits, abun_v, abun_h, movement, transitiondat, param)
 rel = Gauss{eltype(epienv.habitat)}()
 
 # Create list of transitions for the simulation
-transitions = create_transition_list()
+transitions = TransitionList()
 addtransition!(transitions, UpdateEpiEnvironment(update_epi_environment!))
 for loc in eachindex(epienv.habitat.matrix)
     addtransition!(transitions, ForceProduce(3, loc, param.virus_growth))
@@ -83,3 +82,16 @@ epi = Ecosystem(epilist, epienv, rel, transitions = transitions)
 times = 1month; interval = 1day; timestep = 1day
 abuns = zeros(Int64, numclasses, prod(grid), floor(Int, times/timestep) + 1)
 @test_nowarn simulate_record!(abuns, epi, times, interval, timestep);
+
+for su in epi.transitions.setup
+    @test_nowarn run_rule!(epi, su, timestep)
+end
+for st in epi.transitions.state
+    @test_nowarn run_rule!(epi, st, timestep)
+end
+for pl in epi.transitions.place
+    @test_nowarn run_rule!(epi, pl, timestep)
+end
+for wd in epi.transitions.winddown
+    @test_nowarn run_rule!(epi, wd, timestep)
+end

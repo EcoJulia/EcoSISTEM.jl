@@ -143,7 +143,7 @@ the species and their environment, a pre-calculated `lookup` of all possible mov
 be made by each species, a `cache`, and a list of `transitions`.
 """
 mutable struct Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <: AbstractSpeciesList,
-    TR <: AbstractTraitRelationship, LU <: AbstractLookup, C <: AbstractCache} <: AbstractEcosystem{L, Part, SL, TR, LU, C}
+    TR <: AbstractTraitRelationship, LU <: AbstractLookup, C <: AbstractCache, TL <: TransitionList} <: AbstractEcosystem{L, Part, SL, TR, LU, C}
   abundances::L
   spplist::SL
   abenv::Part
@@ -151,7 +151,7 @@ mutable struct Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <
   relationship::TR
   lookup::LU
   cache::C
-  transitions::Union{Nothing, TransitionList}
+  transitions::Union{Nothing, TL}
 end
 
 """
@@ -173,7 +173,12 @@ function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEn
   # Create lookup table of all moves and their probabilities
   lookup = SpeciesLookup(collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.species.movement))))
   cache = create_cache(spplist, ml)
-  return Ecosystem{typeof(ml), typeof(abenv), typeof(spplist), typeof(rel), typeof(lookup), typeof(cache)}(ml, spplist, abenv,
+  if isnothing(transitions)
+    tl = TransitionList()
+  else
+    tl = transitions
+  end
+  return Ecosystem{typeof(ml), typeof(abenv), typeof(spplist), typeof(rel), typeof(lookup), typeof(cache), typeof(tl)}(ml, spplist, abenv,
   missing, rel, lookup, cache, transitions)
 end
 
@@ -209,11 +214,16 @@ function Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv:
     vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Nothing, TransitionList}
     ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
     EE <: AbstractEpiEnv, EL <: SpeciesList, ER <: AbstractTraitRelationship}
+    if isnothing(transitions)
+        tl = TransitionList()
+      else
+        tl = transitions
+      end
   total_pop = sum(abundances.matrix, dims = 1)[1, :]
   sorted_grid_ids = sortperm(total_pop, rev = true)
   sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
   cache = EpiCache(vm, initial_infected, sorted_grid_ids, valid)
-  return Ecosystem(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, transitions)
+  return Ecosystem{typeof(abundances), typeof(epienv), typeof(epilist), typeof(relationship), typeof(lookup), typeof(cache), typeof(tl)}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, transitions)
 end
 
 """
@@ -231,7 +241,7 @@ Function to create an `Ecosystem` with epi categories from a `SpeciesList`, envi
 function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
       rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
       rngtype::Type{R} = Random.MersenneTwister,
-      transitions = nothing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
+      transitions::Union{Nothing, TransitionList} = nothing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
 
   # Create matrix landscape of zero abundances
   ml = emptyepilandscape(epienv, epilist, intnum, rngtype)

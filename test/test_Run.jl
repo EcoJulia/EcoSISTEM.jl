@@ -9,13 +9,14 @@ using HDF5
 include("TestCases.jl")
 
 @testset "Simulate functions" begin
-    eco = TestMultiEcosystem()
+    
+    @testset "Eco" begin
+        eco = TestMultiEcosystem()
 
-    times = 3.0months; burnin = 1.0months; interval = 1.0month
-    timestep = 1month
-    # Run simulation grid
-    lensim = length(0.0month:interval:times)
-    @testset "simulate" begin
+        times = 3.0months; burnin = 1.0months; interval = 1.0month
+        timestep = 1month
+        # Run simulation grid
+        lensim = length(0.0month:interval:times)
         # Run simulations 10 times
         @test_nowarn generate_storage(eco, lensim, 1)
         abun = generate_storage(eco, lensim, 1)
@@ -24,9 +25,8 @@ include("TestCases.jl")
         @test_nowarn simulate_record!(abun, eco, times, interval, timestep)
     end
 
-    epi = TestEpiSystem()
-
-    @testset "EpiHelper" begin
+    @testset "Epi" begin
+        epi = TestEpiSystem()
         times = 1.0month; burnin = 1.0month; interval = 1.0day
         timestep = 1.0day
         # Run simulation grid
@@ -59,4 +59,20 @@ include("TestCases.jl")
         @test all(sum(abun, dims = (1,2)) .> 0)
     end
 
+    @testset "Transitions" begin
+        eco = TestTransitions()
+        timestep = 1month
+        for su in eco.transitions.setup
+            @test_nowarn run_rule!(eco, su, timestep)
+        end
+        for st in eco.transitions.state
+            @test_nowarn run_rule!(eco, st, timestep)
+        end
+        for pl in eco.transitions.place
+            @test_nowarn run_rule!(eco, pl, timestep)
+        end
+        for wd in eco.transitions.winddown
+            @test_nowarn run_rule!(eco, wd, timestep)
+        end
+    end
 end
