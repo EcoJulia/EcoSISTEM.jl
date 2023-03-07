@@ -3,25 +3,34 @@
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
-using SimpleSDMLayers
+using RasterDataSources
+using AxisArrays
 using Unitful
 using Unitful.DefaultSymbols
 using StatsBase
 using Plots
 
 # Download temperature and precipitation data
-africa_temp = SimpleSDMPredictor(WorldClim, BioClim, 1, left = -25, right = 50, bottom = -35, top = 40)
-bio_africa = Worldclim_bioclim(africa_temp, °C)
-africa_water = SimpleSDMPredictor(WorldClim, BioClim, 12, left = -25, right = 50, bottom = -35, top = 40)
-bio_africa_water = WaterBudget(Worldclim_bioclim(africa_water, mm))
+if !isdir("assets")
+    mkdir("assets")
+end
+ENV["RASTERDATASOURCES_PATH"] = "assets"
+getraster(WorldClim{BioClim})
+world = readbioclim("assets/WorldClim/BioClim/")
+africa_temp = world.array[-25°.. 50°, -35° .. 40°, 1]
+bio_africa = uconvert.(K, africa_temp .* °C)
+bio_africa = Worldclim_bioclim(AxisArray(bio_africa, AxisArrays.axes(africa_temp)))
+africa_water = world.array[-25°.. 50°, -35° .. 40°, 12] .* mm
+africa_water = Worldclim_bioclim(AxisArray(africa_water, AxisArrays.axes(africa_temp)))
+bio_africa_water = WaterBudget(africa_water)
 
 # Find which grid cells are land
 active =  Array{Bool, 2}(.!isnan.(bio_africa.array))
 
-plot(africa_temp)
+heatmap(africa_temp')
 
 # Set up initial parameters for ecosystem
-numSpecies = 1; grid = size(active); req= 10.0mm; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
+numSpecies = 1; grid = size(active); req= 0.1mm; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
 # Set up how much water each species consumes
 energy_vec = WaterRequirement(fill(req, numSpecies))
@@ -40,8 +49,8 @@ kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
 movement = AlwaysMovement(kernel, Torus())
 
 # Create species list, including their temperature preferences, seed abundance and native status
-opts = fill(284.0K, numSpecies)
-vars = fill(4.0K, numSpecies)
+opts = fill(280.0K, numSpecies)
+vars = fill(10.0K, numSpecies)
 traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = fill(div(individuals, numSpecies), numSpecies)
@@ -85,13 +94,16 @@ africa_startabun = Float64.(abuns[:, :, 1])
 africa_startabun[.!(active)] .= NaN
 africa_endabun = Float64.(abuns[:, :, end])
 africa_endabun[.!(active)] .= NaN
-heatmap(africa_startabun, clim = (0, maximum(abuns)), 
+heatmap(africa_startabun', clim = (0, maximum(abuns)), 
     background_color = :lightblue, background_color_outside=:white, 
     grid = false, color = cgrad(:algae, scale = :exp), 
     layout = (@layout [a b; c d]))
-heatmap!(africa_endabun, clim = (0, maximum(abuns)), 
+heatmap!(africa_endabun', clim = (0, maximum(abuns)), 
     background_color = :lightblue, background_color_outside=:white, 
     grid = false, color = cgrad(:algae, scale = :exp), 
     subplot = 2)
-plot!(africa_temp, grid = false, subplot = 3)
-plot!(africa_water, grid = false, subplot = 4)
+
+africa_temp = world.array[-25°.. 50°, -35° .. 40°, 1]
+africa_water = world.array[-25°.. 50°, -35° .. 40°, 12] 
+heatmap!(africa_temp', grid = false, subplot = 3)
+heatmap!(africa_water', grid = false, subplot = 4)

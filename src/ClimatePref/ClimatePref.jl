@@ -30,5 +30,3 @@ export getprofile
 include("PhyloModels.jl")
 export Brownian, Lambda, fitBrownian, fitLambda, varcovar
 
-include("SimpleSDMInterface.jl")
-export Worldclim_monthly, Worldclim_bioclim, CHELSA_bioclim, Landcover
