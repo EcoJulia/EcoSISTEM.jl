@@ -119,20 +119,20 @@ end
 
 # ╔═╡ 7e16f197-874b-482d-80b6-13a62ddda1f7
 begin
-	temperature = SimpleSDMPredictor(WorldClim, BioClim, 1)
-	africa_temp = temperature[left = -25.0, right = 50.0, bottom = -35.0, top = 40.0]
+	if !isdir("assets")
+		mkdir("assets")
+	end
+	ENV["RASTERDATASOURCES_PATH"] = "assets"
+	getraster(WorldClim{BioClim})
+	world = readbioclim("assets/WorldClim/BioClim/")
+	africa_temp = world.array[-25°.. 50°, -35° .. 40°, 1]
 	plot(africa_temp)
-end
-
-# ╔═╡ 03ade0dc-271d-407c-a0f1-583007b168d8
-begin
-	temp = Worldclim_bioclim(africa_temp, °C)
-	meantemp = mean(temp.array[.!isnan.(temp.array)])
 end
 
 # ╔═╡ ee925e21-b0b6-478e-a3a0-573e8497b9f6
 begin
-	africa_new = Worldclim_bioclim(africa_temp, K)
+	temp = uconvert.(K, africa_temp .* °C)
+	africa_new = Worldclim_bioclim(AxisArray(temp, AxisArrays.axes(africa_temp)))
 	active_new =  Array{Bool, 2}(.!isnan.(africa))
 	# Set up initial parameters for ecosystem
 	grd_new = size(africa_new.array); req_new= 10.0kJ; individuals_new=3*10^8; area_new = 64e6km^2; totalK_new = 1000.0kJ/km^2
