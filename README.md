@@ -26,7 +26,7 @@ You can now run through a full introduction to EcoSISTEM with Pluto.jl! To get s
 import Pluto
 Pluto.run()
 ```
-This should open a Pluto window in your browser - from there you can type `examples\Introduction.jl` in the `Open from file` box. Note that it may be slow on first launch!
+This should open a Pluto window in your browser - from there you can type `notebooks\Introduction.jl` in the `Open from file` box. Note that it may be slow on first launch!
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 
