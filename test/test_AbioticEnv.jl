@@ -12,6 +12,7 @@ end
 ENV["RASTERDATASOURCES_PATH"] = "assets"
 
 temp = getraster(WorldClim{BioClim}, :bio1)
+getraster(EarthEnv{LandCover})
 grid = (5, 5)
 area = 25.0km^2
 totalK = 10000.0kJ/km^2
@@ -132,6 +133,24 @@ end
     bc = bioclimAE(bio_africa, solar, active)
 end
 
+@testset "Lancover data" begin
+    world = readlc("assets/EarthEnv/LandCover/without_DISCover/")
+    world_lc = compressLC(world)
+    world_lc = Landcover(world_lc)
+    active = fill(true, size(world_lc.array))
+    totalK = 1000.0kJ/km^2; area = 100.0km^2
+    lc = lcAE(world_lc, totalK, area)
+    @test_nowarn lcAE(world_lc, totalK, area)
+    @test_nowarn lcAE(world_lc, totalK, area, active)
+    @test size(lc.habitat.matrix) == size(world_lc.array)
+    @test isapprox(EcoSISTEM.getavailableenergy(lc), totalK * area)
+    solar = SolarBudget(fill(10.0kJ, size(world_lc.array)))
+    lc = lcAE(world_lc, solar, active)
+end
+
 if isdir("assets/WorldClim")
     rm("assets/WorldClim", recursive = true)
+end
+if isdir("assets/EarthEnv")
+    rm("assets/EarthEnv", recursive = true)
 end
