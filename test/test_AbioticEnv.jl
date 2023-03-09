@@ -4,8 +4,15 @@ using Test
 using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
 using AxisArrays
-using SimpleSDMLayers
+using RasterDataSources
 
+if !isdir("assets")
+    mkdir("assets")
+end
+ENV["RASTERDATASOURCES_PATH"] = "assets"
+
+temp = getraster(WorldClim{BioClim}, :bio1)
+getraster(EarthEnv{LandCover})
 grid = (5, 5)
 area = 25.0km^2
 totalK = 10000.0kJ/km^2
@@ -113,19 +120,37 @@ end
 end
 
 @testset "Bioclim data" begin
-    africa_temp = SimpleSDMPredictor(WorldClim, BioClim, 1, left = -25, right = 50, bottom = -35, top = 40)
-    bio_africa = Worldclim_bioclim(africa_temp, °C)
-    active = fill(true, size(africa_temp.grid))
+    bio_africa = readbioclim("assets/WorldClim/BioClim/")
+    bio_africa = Worldclim_bioclim(bio_africa.array[:,:,1])
+    active = fill(true, size(bio_africa.array))
     totalK = 1000.0kJ/km^2; area = 100.0km^2
     bc = bioclimAE(bio_africa, totalK, area)
     @test_nowarn bioclimAE(bio_africa, totalK, area)
     @test_nowarn bioclimAE(bio_africa, totalK, area, active)
-    @test size(bc.habitat.matrix) == size(africa_temp.grid)
+    @test size(bc.habitat.matrix) == size(bio_africa.array)
     @test isapprox(EcoSISTEM.getavailableenergy(bc), totalK * area)
-    solar = SolarBudget(fill(10.0kJ, size(africa_temp.grid)))
+    solar = SolarBudget(fill(10.0kJ, size(bio_africa.array)))
     bc = bioclimAE(bio_africa, solar, active)
 end
 
-if isdir("assets")
-    rm("assets", recursive = true)
+@testset "Lancover data" begin
+    world = readlc("assets/EarthEnv/LandCover/without_DISCover/")
+    world_lc = compressLC(world)
+    world_lc = Landcover(world_lc)
+    active = fill(true, size(world_lc.array))
+    totalK = 1000.0kJ/km^2; area = 100.0km^2
+    lc = lcAE(world_lc, totalK, area)
+    @test_nowarn lcAE(world_lc, totalK, area)
+    @test_nowarn lcAE(world_lc, totalK, area, active)
+    @test size(lc.habitat.matrix) == size(world_lc.array)
+    @test isapprox(EcoSISTEM.getavailableenergy(lc), totalK * area)
+    solar = SolarBudget(fill(10.0kJ, size(world_lc.array)))
+    lc = lcAE(world_lc, solar, active)
+end
+
+if isdir("assets/WorldClim")
+    rm("assets/WorldClim", recursive = true)
+end
+if isdir("assets/EarthEnv")
+    rm("assets/EarthEnv", recursive = true)
 end

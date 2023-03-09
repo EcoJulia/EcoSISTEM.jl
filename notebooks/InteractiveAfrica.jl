@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.0
+# v0.19.22
 
 using Markdown
 using InteractiveUtils
@@ -27,7 +27,8 @@ begin
 	using Distributions
 	using Diversity
 	using SpatialEcology
-	using SimpleSDMLayers
+	using RasterDataSources
+	using AxisArrays
 end
 
 # ╔═╡ 39b75180-f384-11eb-3449-4f7c2ad25d99
@@ -36,6 +37,9 @@ md"# _Interactive Africa!_
 Welcome to EcoSISTEM.jl! In the examples folder, you'll notice an example of running simulations of 50,000 plant species across Africa. This is very computationally intensive! Here we have an easy-to-run, interactive example for you to run.
 
 The first time round things may be a little slow - this is because Julia is compiling the code. After that, the time will whizz by!"
+
+# ╔═╡ 1e9bcd31-9146-494b-98f5-27569c54ab0f
+
 
 # ╔═╡ e9e9065b-cf7e-4d37-8162-88f0076ad1eb
 begin
@@ -115,20 +119,20 @@ end
 
 # ╔═╡ 7e16f197-874b-482d-80b6-13a62ddda1f7
 begin
-	temperature = SimpleSDMPredictor(WorldClim, BioClim, 1)
-	africa_temp = temperature[left = -25.0, right = 50.0, bottom = -35.0, top = 40.0]
+	if !isdir("assets")
+		mkdir("assets")
+	end
+	ENV["RASTERDATASOURCES_PATH"] = "assets"
+	getraster(WorldClim{BioClim})
+	world = readbioclim("assets/WorldClim/BioClim/")
+	africa_temp = world.array[-25°.. 50°, -35° .. 40°, 1]
 	plot(africa_temp)
-end
-
-# ╔═╡ 03ade0dc-271d-407c-a0f1-583007b168d8
-begin
-	temp = Worldclim_bioclim(africa_temp, °C)
-	meantemp = mean(temp.array[.!isnan.(temp.array)])
 end
 
 # ╔═╡ ee925e21-b0b6-478e-a3a0-573e8497b9f6
 begin
-	africa_new = Worldclim_bioclim(africa_temp, K)
+	temp = uconvert.(K, africa_temp .* °C)
+	africa_new = Worldclim_bioclim(AxisArray(temp, AxisArrays.axes(africa_temp)))
 	active_new =  Array{Bool, 2}(.!isnan.(africa))
 	# Set up initial parameters for ecosystem
 	grd_new = size(africa_new.array); req_new= 10.0kJ; individuals_new=3*10^8; area_new = 64e6km^2; totalK_new = 1000.0kJ/km^2
@@ -191,22 +195,24 @@ end
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Diversity = "d3d5718d-52de-57ab-b67a-eca7fd6175a4"
 EcoSISTEM = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 OnlineStats = "a15396b6-48d5-5d58-9928-6d29437db91e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-SimpleSDMLayers = "2c645270-77db-11e9-22c3-0f302a89c64c"
+RasterDataSources = "3cb90ccd-e1b6-4867-9617-4276c8b2ca36"
 SpatialEcology = "348f2d5d-71a3-5ad4-b565-8af070f99681"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
+AxisArrays = "~0.4.6"
 Distributions = "~0.24.18"
 Diversity = "~0.5.6"
 EcoSISTEM = "~0.1.2"
 OnlineStats = "~1.5.11"
 Plots = "~0.28.4"
-SimpleSDMLayers = "~0.7.0"
+RasterDataSources = "~0.5.6"
 SpatialEcology = "~0.9.7"
 Unitful = "~1.9.0"
 """
@@ -214,6 +220,11 @@ Unitful = "~1.9.0"
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
+
+[[ASCIIrasters]]
+git-tree-sha1 = "0cb0046798af8ac8561334c5a2a31f015e53c2b1"
+uuid = "81770e7c-c736-4fa5-8129-46dd21831640"
+version = "0.1.1"
 
 [[AbstractTrees]]
 git-tree-sha1 = "03e0550477d86222521d254b741d470ba17ea0b5"
@@ -234,6 +245,7 @@ version = "0.6.0"
 
 [[ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
+version = "1.1.1"
 
 [[ArnoldiMethod]]
 deps = ["LinearAlgebra", "Random", "StaticArrays"]
@@ -258,9 +270,9 @@ version = "1.0.0"
 
 [[AxisArrays]]
 deps = ["Dates", "IntervalSets", "IterTools", "RangeArrays"]
-git-tree-sha1 = "d127d5e4d86c7680b20c35d40b503c74b9a39b5e"
+git-tree-sha1 = "1dd4d9f5beebac0c03446918741b1a03dc5e5788"
 uuid = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
-version = "0.4.4"
+version = "0.4.6"
 
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -332,6 +344,7 @@ version = "2.2.1"
 [[CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
+version = "0.5.2+0"
 
 [[ConstructionBase]]
 deps = ["LinearAlgebra"]
@@ -439,8 +452,9 @@ uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 version = "0.8.5"
 
 [[Downloads]]
-deps = ["ArgTools", "LibCURL", "NetworkOptions"]
+deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+version = "1.6.0"
 
 [[EcoBase]]
 deps = ["RecipesBase"]
@@ -477,6 +491,9 @@ deps = ["CategoricalArrays", "DataFrames", "Dates", "FlatBuffers", "Mmap", "Tabl
 git-tree-sha1 = "5a9c74bfef934bcd813570a513ccf38f25555352"
 uuid = "becb17da-46f6-5d3c-ad1b-1c5fe96bc73c"
 version = "0.5.9"
+
+[[FileWatching]]
+uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
 [[FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays"]
@@ -575,6 +592,12 @@ git-tree-sha1 = "fd83fa0bde42e01952757f01149dd968c06c4dba"
 uuid = "0234f1f7-429e-5d53-9886-15a909be8d59"
 version = "1.12.0+1"
 
+[[HTTP]]
+deps = ["Base64", "Dates", "IniFile", "Logging", "MbedTLS", "NetworkOptions", "Sockets", "URIs"]
+git-tree-sha1 = "0fa77022fe4b511826b39c894c90daf5fce3334a"
+uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+version = "0.9.17"
+
 [[IfElse]]
 git-tree-sha1 = "28e837ff3e7a6c3cdb252ce49fb412c8eb3caeef"
 uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
@@ -590,6 +613,11 @@ version = "0.12.6"
 git-tree-sha1 = "f5fc07d4e706b84f72d54eedcc1c13d92fb0871c"
 uuid = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
 version = "0.1.2"
+
+[[IniFile]]
+git-tree-sha1 = "f550e6e32074c939295eb5ea6de31849ac2c9625"
+uuid = "83e8ac13-25f8-5344-8a64-a9f2b223428f"
+version = "0.5.1"
 
 [[InteractiveUtils]]
 deps = ["Markdown"]
@@ -662,10 +690,12 @@ version = "3.0.0+1"
 [[LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
+version = "0.6.3"
 
 [[LibCURL_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
+version = "7.84.0+0"
 
 [[LibGit2]]
 deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
@@ -674,6 +704,7 @@ uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 [[LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
+version = "1.10.2+0"
 
 [[Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -697,7 +728,7 @@ uuid = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
 version = "7.1.1"
 
 [[LinearAlgebra]]
-deps = ["Libdl"]
+deps = ["Libdl", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[LittleCMS_jll]]
@@ -737,9 +768,16 @@ version = "0.5.6"
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
+[[MbedTLS]]
+deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "Random", "Sockets"]
+git-tree-sha1 = "03a9b9718f5682ecb107ac9f7308991db4ce395b"
+uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
+version = "1.1.7"
+
 [[MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
+version = "2.28.0+0"
 
 [[Measures]]
 git-tree-sha1 = "e498ddeee6f9fdb4551ce855a46f54dbd900245f"
@@ -763,6 +801,7 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
+version = "2022.2.1"
 
 [[NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
@@ -789,6 +828,7 @@ version = "400.702.400+0"
 
 [[NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
+version = "1.2.0"
 
 [[OffsetArrays]]
 deps = ["Adapt"]
@@ -807,6 +847,11 @@ deps = ["AbstractTrees", "Dates", "LinearAlgebra", "OrderedCollections", "Statis
 git-tree-sha1 = "8efa5acf7af1623eabeebdc82ef54396adf16f71"
 uuid = "925886fa-5bf2-5e8e-b522-a9147a512338"
 version = "1.4.5"
+
+[[OpenBLAS_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
+uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
+version = "0.3.20+0"
 
 [[OpenJpeg_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libtiff_jll", "LittleCMS_jll", "Pkg", "libpng_jll"]
@@ -876,6 +921,7 @@ version = "0.4.19"
 [[Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+version = "1.8.0"
 
 [[PlotThemes]]
 deps = ["PlotUtils", "Requires", "Statistics"]
@@ -928,7 +974,7 @@ deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 
 [[Random]]
-deps = ["Serialization"]
+deps = ["SHA", "Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [[RandomBooleanMatrices]]
@@ -947,6 +993,12 @@ version = "1.5.2"
 git-tree-sha1 = "b9039e93773ddcfc828f12aadf7115b4b4d225f5"
 uuid = "b3c3ace0-ae52-54e7-9d0b-2c1406fd6b9d"
 version = "0.3.2"
+
+[[RasterDataSources]]
+deps = ["ASCIIrasters", "Dates", "DelimitedFiles", "HTTP", "JSON", "URIs", "ZipFile"]
+git-tree-sha1 = "aeb786b2cc040bc320bc97630f91fc2c33612873"
+uuid = "3cb90ccd-e1b6-4867-9617-4276c8b2ca36"
+version = "0.5.6"
 
 [[Ratios]]
 git-tree-sha1 = "37d210f612d70f3f7d57d488cb3b6eff56ad4e41"
@@ -984,6 +1036,7 @@ version = "0.3.0+0"
 
 [[SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+version = "0.7.0"
 
 [[SQLite_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
@@ -1099,6 +1152,7 @@ version = "0.3.0"
 [[TOML]]
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+version = "1.0.0"
 
 [[TableTraits]]
 deps = ["IteratorInterfaceExtensions"]
@@ -1121,6 +1175,7 @@ version = "1.5.0"
 [[Tar]]
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
+version = "1.10.0"
 
 [[Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
@@ -1136,6 +1191,11 @@ deps = ["Random", "Test"]
 git-tree-sha1 = "7c53c35547de1c5b9d46a4797cf6d8253807108c"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.5"
+
+[[URIs]]
+git-tree-sha1 = "074f993b0ca030848b897beff716d93aca60f06a"
+uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
+version = "1.4.2"
 
 [[UUIDs]]
 deps = ["Random", "SHA"]
@@ -1171,12 +1231,18 @@ version = "0.9.3"
 [[Zlib_jll]]
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
+version = "1.2.12+3"
 
 [[Zstd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "cc4bf3fdde8b7e3e9fa0351bdeedba1cf3b7f6e6"
 uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
 version = "1.5.0+0"
+
+[[libblastrampoline_jll]]
+deps = ["Artifacts", "Libdl", "OpenBLAS_jll"]
+uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
+version = "5.1.1+0"
 
 [[libgeotiff_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libtiff_jll", "PROJ_jll", "Pkg"]
@@ -1193,15 +1259,19 @@ version = "1.6.38+0"
 [[nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
+version = "1.48.0+0"
 
 [[p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
+version = "17.4.0+0"
 """
 
 # ╔═╡ Cell order:
 # ╟─39b75180-f384-11eb-3449-4f7c2ad25d99
 # ╠═108951ec-3ecf-4f0c-b5e4-e79d00b1bfac
+# ╠═5dd6e516-cfb5-4a4f-9f1c-50334c1f743f
+# ╠═1e9bcd31-9146-494b-98f5-27569c54ab0f
 # ╠═e9e9065b-cf7e-4d37-8162-88f0076ad1eb
 # ╠═220e4af6-f228-4b8d-a77e-0ddbf5fc6705
 # ╠═7e16f197-874b-482d-80b6-13a62ddda1f7

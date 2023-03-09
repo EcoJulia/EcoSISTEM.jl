@@ -17,7 +17,7 @@ export assign_traits!, get_traits, resettraits!, reroot!
 include("TraitRelationship.jl")
 export TraitRelationship,multiplicativeTR2, multiplicativeTR3, Gauss,
  Match, NoRelContinuous, NoRelDiscrete, Trapeze, Unif,
- additiveTR2, additiveTR3
+ additiveTR2, additiveTR3, LCmatch
 
 include("Habitats.jl")
 export ContinuousHab,ContinuousTimeHab, DiscreteHab, HabitatCollection2, HabitatCollection3, tempgrad, raingrad
@@ -26,7 +26,7 @@ include("Energy.jl")
 export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, VolWaterRequirement, SimpleBudget, SolarBudget, SolarTimeBudget, WaterBudget, VolWaterBudget, WaterTimeBudget, VolWaterTimeBudget, ReqCollection2, BudgetCollection2
 
 include("AbioticEnv.jl")
-export GridAbioticEnv, simplenicheAE, tempgradAE, raingradAE, peakedgradAE, simplehabitatAE, degradedhabitatAE, eraAE, worldclimAE, bioclimAE
+export GridAbioticEnv, simplenicheAE, tempgradAE, raingradAE, peakedgradAE, simplehabitatAE, degradedhabitatAE, eraAE, worldclimAE, bioclimAE, lcAE
 
 include("Movement.jl")
 export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel, Torus, Cylinder, NoBoundary
@@ -34,7 +34,7 @@ export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement, NoMove
 include("Traits.jl")
 export GaussTrait, DiscreteTrait, TempBin,RainBin,
 TraitCollection2, TraitCollection3,DiscreteEvolve,
-ContinuousEvolve
+ContinuousEvolve, LCtrait
 
 include("Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth
