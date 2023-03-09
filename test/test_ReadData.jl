@@ -29,12 +29,16 @@ end
     rf = readfile("assets/WorldClim/BioClim/wc2.1_10m_bio_1.tif")
     wc = readworldclim("assets/WorldClim/BioClim/")
     ch_b = readCHELSA_bioclim("assets/WorldClim/BioClim/")
-    lc = readlc("assets/EarthEnv/LandCover/without_DISCover/")
 
-    @test unit(bc.array[1]) == unit(wc.array[1]) ==  unit(rf[1]) == unit(ch_b.array[1]) == unit(lc[1])== NoUnits
+    @test unit(bc.array[1]) == unit(wc.array[1]) ==  unit(rf[1]) == unit(ch_b.array[1]) == NoUnits
 end
 
-@testset "Output data 2" begin
+@testset "Output data 2" begin 
+    lc = readlc("assets/EarthEnv/LandCover/without_DISCover/")
+    @test unit(lc[1])== NoUnits
+end
+
+@testset "Output data 3" begin
     cr = readCRUTS("assets/WorldClim/BioClim/", "tavg")
     ch_m = readCHELSA_monthly("assets/WorldClim/BioClim/", "tavg")
 
