@@ -79,7 +79,7 @@ using JLD2
 end
 
 # Only test on linux for now - bug in Windows machine testing
-if Sys.islinux()
+if !Sys.iswindows()
     @testset "mpirun" begin
         # Keep outputs all one folder 
         isdir("data") || mkdir("data")
