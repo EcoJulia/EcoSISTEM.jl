@@ -48,3 +48,6 @@ end
 if isdir("assets/WorldClim")
     rm("assets/WorldClim", recursive = true)
 end
+if isdir("assets/EarthEnv")
+    rm("assets/EarthEnv", recursive = true)
+end
