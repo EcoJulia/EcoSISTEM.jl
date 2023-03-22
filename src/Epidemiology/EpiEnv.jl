@@ -34,9 +34,9 @@ mutable struct GridEpiEnv{H, C, A} <: AbstractEpiEnv{H, C}
     ) where {H, C, A <: AbstractMatrix{Bool}}
         countsubcommunities(habitat) == length(names) ||
             error("Number of subcommunities must match subcommunity names")
-        if (size(habitat.matrix, 1), size(habitat.matrix, 2)) != size(active)
+        if (size(habitat, 1), size(habitat, 2)) != size(active)
             throw(DimensionMismatch(
-                "size(habitat.matrix)=$(size(habitat.matrix)) != " *
+                "size(habitat)=$(size(habitat, 1)), $(size(habitat, 2)) != " *
                 "size(active)=$(size(active))"
             ))
         end
