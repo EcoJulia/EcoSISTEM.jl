@@ -1,5 +1,5 @@
 using Distributions
-import Random: rand
+import Random: rand, GLOBAL_RNG
 using Random
 
 import Distributions: @check_args, ContinuousUnivariateDistribution,
