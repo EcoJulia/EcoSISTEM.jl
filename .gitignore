@@ -29,7 +29,7 @@ docs/site/
 
 # Files generated when running data pipeline or saving output
 access*
-**/*.jld
+**/*.jld2
 **/*.jlso
 **/*.pdf
 **/*.csv
