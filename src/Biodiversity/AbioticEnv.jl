@@ -58,14 +58,13 @@ created with all grid cells active.
 """
 function simplenicheAE(numniches::Int64, dimension::Tuple,
                         maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64},
-                        active::Array{Bool, 2})
+                        active::Array{Bool, 2}, weights::Vector{Float64} = fill(1.0/numniches, numniches))
   # Create niches
   niches = collect(1:numniches)
   area = uconvert(km^2, area)
   gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
   # Create niche-like environment
-  hab = randomniches(dimension, niches, 0.5, fill(1.0/numniches, numniches),
-  gridsquaresize)
+  hab = randomniches(dimension, niches, 0.5, weights, gridsquaresize)
   # Create empty budget and for now fill with one value
   B = cancel(maxbud, area)
   bud = zeros(typeof(B), dimension)
@@ -75,10 +74,10 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
   return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 function simplenicheAE(numniches::Int64, dimension::Tuple,
-                        maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
+                        maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64}, weights::Vector{Float64} = fill(1.0/numniches, numniches))
     active = Array{Bool,2}(undef, dimension)
     fill!(active, true)
-    simplenicheAE(numniches, dimension, maxbud, area, active)
+    simplenicheAE(numniches, dimension, maxbud, area, active, weights)
 end
 
 import Diversity.API: _countsubcommunities
