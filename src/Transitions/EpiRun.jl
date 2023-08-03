@@ -16,15 +16,17 @@ function _run_rule!(eco::Ecosystem, rule::Exposure, timestep::Unitful.Time)
         force_cats = eco.spplist.pathogens.force_cats
         age_cat = eco.spplist.species.host_to_force
         N = sum_pop(eco.abundances.matrix, loc)
-        env_inf = virus(eco.abundances)[1, loc] /
-            (N^params.freq_vs_density_env)
-        force_inf = (params.age_mixing[age_cat[spp], :] ⋅ virus(eco.abundances)[force_cats, loc]) /
-            (N^params.freq_vs_density_force)
-        expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
-        newexpprob = 1.0 - exp(-expprob)
-        exposures = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
-        host(eco.abundances)[spp, loc] -= exposures
-        host(eco.abundances)[dest, loc] += exposures
+        if N > 0
+            env_inf = virus(eco.abundances)[1, loc] /
+                (N^params.freq_vs_density_env)
+            force_inf = (params.age_mixing[age_cat[spp], :] ⋅ virus(eco.abundances)[force_cats, loc]) /
+                (N^params.freq_vs_density_force)
+            expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
+            newexpprob = 1.0 - exp(-expprob)
+            exposures = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
+            host(eco.abundances)[spp, loc] -= exposures
+            host(eco.abundances)[dest, loc] += exposures
+        end
     end
 end
 
@@ -47,17 +49,19 @@ function _run_rule!(eco::Ecosystem, rule::EnvExposure, timestep::Unitful.Time)
         force_cats = eco.spplist.pathogens.force_cats
         age_cat = eco.spplist.species.host_to_force
         N = sum_pop(eco.abundances.matrix, loc)
-        env = @view get_env(eco.abenv.habitat)[loc]
-        env_transition = env[1] * env_exposure/mean(eco.abenv.habitat.matrix)
-        env_inf = virus(eco.abundances)[1, loc] /
-            (N^params.freq_vs_density_env)
-        force_inf = env_transition * (params.age_mixing[age_cat[spp], :] ⋅ virus(eco.abundances)[force_cats, loc]) /
-            (N^params.freq_vs_density_force)
-        expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
-        newexpprob = 1.0 - exp(-expprob)
-        exposures = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
-        host(eco.abundances)[spp, loc] -= exposures
-        host(eco.abundances)[dest, loc] += exposures
+        if N > 0
+            env = @view get_env(eco.abenv.habitat)[loc]
+            env_transition = env[1] * env_exposure/mean(eco.abenv.habitat.matrix)
+            env_inf = virus(eco.abundances)[1, loc] /
+                (N^params.freq_vs_density_env)
+            force_inf = env_transition * (params.age_mixing[age_cat[spp], :] ⋅ virus(eco.abundances)[force_cats, loc]) /
+                (N^params.freq_vs_density_force)
+            expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
+            newexpprob = 1.0 - exp(-expprob)
+            exposures = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
+            host(eco.abundances)[spp, loc] -= exposures
+            host(eco.abundances)[dest, loc] += exposures
+        end
     end
 end
 
