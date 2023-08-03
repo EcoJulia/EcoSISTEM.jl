@@ -196,6 +196,9 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, ::TransitionList, speci
     Threads.@threads for wd in eco.transitions.winddown
         run!(eco, wd, timestep)
     end
+    if !isnothing(eco.time)
+        eco.time += timestep
+    end
 
 end
 
@@ -207,6 +210,9 @@ of the epidemiology code.
 """
 function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing, specialise = false) where L <: EpiLandscape
     epi_update!(eco, timestep)
+    if !isnothing(eco.time)
+        eco.time += timestep
+    end
 end
 
 """
@@ -217,6 +223,9 @@ of the biodiversity code.
 """
 function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing, specialise = false) where L <: GridLandscape
     biodiversity_update!(eco, timestep)
+    if !isnothing(eco.time)
+        eco.time += timestep
+    end
 end
 
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)

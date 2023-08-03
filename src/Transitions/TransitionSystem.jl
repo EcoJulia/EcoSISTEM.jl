@@ -152,6 +152,7 @@ mutable struct Ecosystem{L <: AbstractLandscape, Part <: AbstractPartition, SL <
   lookup::LU
   cache::C
   transitions::Union{Nothing, TL}
+  time::Union{Nothing, Unitful.Time}
 end
 
 """
@@ -164,7 +165,7 @@ Function to create an `Ecosystem` with species from a `SpeciesList`, environment
  a list of `transitions`. The `Ecosystem` can be populated with a `popfun.`
 """
 function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship; transitions::Union{Nothing, TransitionList} = nothing) where {F<:Function, T, Req}
+   rel::AbstractTraitRelationship; transitions::Union{Nothing, TransitionList} = nothing, time::Union{Nothing, Unitful.Time} = nothing) where {F<:Function, T, Req}
 
     # Create matrix landscape of zero abundances
   ml = emptygridlandscape(abenv, spplist)
@@ -179,7 +180,7 @@ function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEn
     tl = transitions
   end
   return Ecosystem{typeof(ml), typeof(abenv), typeof(spplist), typeof(rel), typeof(lookup), typeof(cache), typeof(tl)}(ml, spplist, abenv,
-  missing, rel, lookup, cache, transitions)
+  missing, rel, lookup, cache, transitions, time)
 end
 
 """
@@ -192,8 +193,8 @@ Function to create an `Ecosystem` with species from a `SpeciesList`, environment
  from the start abundances in `spplist`.
 """
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship; transitions::Union{Nothing, TransitionList} = nothing)
-   return Ecosystem(populate!, spplist, abenv, rel, transitions = transitions)
+   rel::AbstractTraitRelationship; transitions::Union{Nothing, TransitionList} = nothing, time::Union{Nothing, Unitful.Time} = nothing)
+   return Ecosystem(populate!, spplist, abenv, rel, transitions = transitions, time = time)
 end
 
 """
@@ -211,8 +212,8 @@ Function to create an `Ecosystem` with epi categories from a `SpeciesList`, envi
 """
 function Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv::EE,
     ordinariness::Union{Matrix{Float64}, Missing}, relationship::ER, lookup::EpiLookup,
-    vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Nothing, TransitionList}
-    ) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
+    vm::Array{Float64, 2}, initial_infected::Int64, valid::Bool, transitions::Union{Nothing, TransitionList},
+    time::Union{Nothing, Unitful.Time} = nothing) where {U <: Integer, VecRNGType <: AbstractVector{<:Random.AbstractRNG},
     EE <: AbstractEpiEnv, EL <: SpeciesList, ER <: AbstractTraitRelationship}
     if isnothing(transitions)
         tl = TransitionList()
@@ -223,7 +224,7 @@ function Ecosystem(abundances::EpiLandscape{U, VecRNGType}, epilist::EL, epienv:
   sorted_grid_ids = sortperm(total_pop, rev = true)
   sorted_grid_ids = sorted_grid_ids[total_pop[sorted_grid_ids] .> 0]
   cache = EpiCache(vm, initial_infected, sorted_grid_ids, valid)
-  return Ecosystem{typeof(abundances), typeof(epienv), typeof(epilist), typeof(relationship), typeof(lookup), typeof(cache), typeof(tl)}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, transitions)
+  return Ecosystem{typeof(abundances), typeof(epienv), typeof(epilist), typeof(relationship), typeof(lookup), typeof(cache), typeof(tl)}(abundances, epilist, epienv, ordinariness, relationship, lookup, cache, transitions, time)
 end
 
 """
@@ -241,7 +242,7 @@ Function to create an `Ecosystem` with epi categories from a `SpeciesList`, envi
 function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
       rel::AbstractTraitRelationship, intnum::U; initial_infected = 0,
       rngtype::Type{R} = Random.MersenneTwister,
-      transitions::Union{Nothing, TransitionList} = nothing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
+      transitions::Union{Nothing, TransitionList} = nothing, time::Union{Nothing, Unitful.Time} = nothing) where {F<:Function, U <: Integer, R <: Random.AbstractRNG}
 
   # Create matrix landscape of zero abundances
   ml = emptyepilandscape(epienv, epilist, intnum, rngtype)
@@ -254,7 +255,7 @@ function Ecosystem(popfun::F, epilist::SpeciesList, epienv::GridEpiEnv,
   region_lookup = genlookups(epienv, getregion(epilist.species.movement), initial_pop)
   lookup = EpiLookup(local_lookup, region_lookup)
   vm = zeros(Float64, size(ml.matrix))
-  return Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions)
+  return Ecosystem(ml, epilist, epienv, missing, rel, lookup, vm, initial_infected, false, transitions, time)
 end
 
 """
@@ -272,9 +273,9 @@ from the start abundances in `spplist`.
 """
 function Ecosystem(epilist::SpeciesList, epienv::GridEpiEnv, rel::AbstractTraitRelationship,
         intnum::U = Int64(1); initial_infected = 0, rngtype::Type{R} = Random.MersenneTwister,
-        transitions = nothing
+        transitions = nothing, time::Union{Nothing, Unitful.Time} = nothing
         ) where {U <: Integer, R <: Random.AbstractRNG}
-    return Ecosystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype, transitions = transitions)
+    return Ecosystem(populate!, epilist, epienv, rel, intnum, initial_infected = initial_infected, rngtype = rngtype, transitions = transitions, time = time)
 end
 
 """
