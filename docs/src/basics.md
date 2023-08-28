@@ -3,7 +3,8 @@
 ## Install
 
 ```julia
-]add EcoSISTEM
+using Pkg
+Pkg.add("EcoSISTEM")
 ```
 
 ## Setting up an ecosystem
