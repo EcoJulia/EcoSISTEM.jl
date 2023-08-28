@@ -13,7 +13,7 @@ makedocs(
         "Basics" => "basics.md",
         "Diversity" => "diversity.md",
         "Examples" => "examples.md",
-        "Africa" => "africa.md"
+        "Africa" => "africa.md",
         "Data Pipeline" => "pipeline.md"
         ]
     ],
