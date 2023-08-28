@@ -32,9 +32,6 @@ mutable struct LCtrait{D <: Number} <: AbstractTraits{D}
       return LCtrait{typeof(1.0)}(vals)
   end
   
-  iscontinuous(tr::multiplicativeTR3{TR1, TR2, TR3} ) where {TR1, TR2, TR3} =
-      [iscontinuous(tr.tr1), iscontinuous(tr.tr2), iscontinuous(tr.tr3)]
-  
 
 """
     DiscreteEvolve(numTraits::Int64, tree::BinaryTree)
