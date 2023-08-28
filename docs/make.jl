@@ -14,6 +14,7 @@ makedocs(
         "Diversity" => "diversity.md",
         "Examples" => "examples.md",
         "Africa" => "africa.md"
+        "Data Pipeline" => "pipeline.md"
         ]
     ],
     strict=true,
