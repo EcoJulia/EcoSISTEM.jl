@@ -20,7 +20,7 @@ jobs:
           - '1.9'
         os:
           - ubuntu-latest
-          - macOS-10.15
+          - macOS-latest
           - windows-latest
         R-version:
           - 'release'
