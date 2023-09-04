@@ -46,6 +46,24 @@ function _traitfun(hab::DiscreteHab, trts::DiscreteTrait,
         preference = getpref(trts, sp)
     return rel(currentniche, preference)
 end
+function _traitfun(hab::HabitatCollection3, trts::TraitCollection3, rel::R, pos::Int64, spp::Int64) where R <: AbstractTraitRelationship
+    res1 = _traitfun(hab.h1, trts.t1, rel.tr1, pos, spp)
+    res2 = _traitfun(hab.h2, trts.t2, rel.tr2, pos, spp)
+    res3 = _traitfun(hab.h3, trts.t3, rel.tr3, pos, spp)
+    return combineTR(rel)(res1, res2, res3)
+end
+
+function _traitfun(hab::DiscreteHab, trts::LCtrait,
+    rel::R, pos::Int64, spp::Int64) where R <: AbstractTraitRelationship
+        h = gethabitat(hab, pos)
+        vals = getpref(trts, spp)
+    return rel(h, vals)
+end
+
+function getpref(traits::LCtrait, spp::Int64)
+  return traits.vals[spp]
+end
+
 
 function getpref(traits::GaussTrait, sp::Int64)
   return traits.mean[sp], traits.var[sp]

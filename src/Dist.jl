@@ -3,7 +3,8 @@ import Random: rand
 using Random
 
 import Distributions: @check_args, ContinuousUnivariateDistribution,
-rand, params, GLOBAL_RNG, pdf
+rand, params, pdf
+import Random: GLOBAL_RNG
 
 """
     Trapezoid{T<:Real} <: ContinuousUnivariateDistribution

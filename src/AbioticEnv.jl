@@ -411,3 +411,42 @@ end
 import EcoBase.getcoords
 
 getcoords(abenv::GridAbioticEnv) = abenv.habitat
+
+function lcAE(lc::Landcover, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area)
+  dimension = size(lc.array)
+  gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
+  gridsquaresize = ustrip.(gridsquaresize) * 111.32km
+  active = fill(true, dimension)
+  active[isnan.(lc.array[:,:,1])] .= false
+
+  hab = DiscreteHab(Array(lc.array), gridsquaresize,
+      HabitatUpdate(NoChange, 0.0/s))
+  B = cancel(maxbud, area)
+  bud = zeros(typeof(B), dimension)
+  fill!(bud, B/(dimension[1]*dimension[2]))
+  checkbud(B) || error("Unrecognised unit in budget")
+  budtype = matchdict[unit(B)]
+   return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
+end
+function lcAE(lc::Landcover, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area, active::Array{Bool, 2})
+  dimension = size(lc.array)[1:2]
+  gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
+  gridsquaresize = ustrip.(gridsquaresize) * 111.32km
+  hab = DiscreteHab(Array(lc.array), gridsquaresize,
+      HabitatUpdate(NoChange, 0.0/s))
+  B = cancel(maxbud, area)
+  bud = zeros(typeof(B), dimension)
+  fill!(bud, B/(dimension[1]*dimension[2]))
+  checkbud(B) || error("Unrecognised unit in budget")
+  budtype = matchdict[unit(B)]
+   return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
+end
+function lcAE(lc::Landcover, bud::B, active::Array{Bool, 2}) where B <: AbstractBudget
+  dimension = size(lc.array)[1:2]
+  gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
+  gridsquaresize = ustrip.(gridsquaresize) * 111.32km
+  hab = DiscreteHab(Array(lc.array), gridsquaresize,
+      HabitatUpdate(NoChange, 0.0/s))
+
+   return GridAbioticEnv{typeof(hab), typeof(bud)}(hab, active, bud)
+end

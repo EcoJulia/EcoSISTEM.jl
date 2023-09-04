@@ -61,7 +61,7 @@ function upresolution(bc::Worldclim_bioclim, rescale::Int64)
 end
 function upresolution(aa::AxisArray{T, 3} where T, rescale::Int64)
     grid = size(aa)
-    grid = (grid[1] .* rescale, grid[2] .* rescale, grid[3])
+    grid = (grid[1] * rescale -1, grid[2] * rescale - 1, grid[3])
     array = Array{typeof(aa[1]), 3}(undef, grid)
     map(1:grid[3]) do time
         for x in 1:size(aa, 1)
@@ -72,47 +72,28 @@ function upresolution(aa::AxisArray{T, 3} where T, rescale::Int64)
         end
     end
     lon = aa.axes[1].val
-    smallstep = (lon[2] - lon[1]) / rescale
-    if lon[1] == -180°
-        newlon = collect(lon[1]:smallstep:(lon[end]+smallstep))
-    else
-        newlon = collect((lon[1] -smallstep):smallstep:lon[end])
-    end
+    newlon = range(lon[1], lon[end], grid[1])
     lat = aa.axes[2].val
-    smallstep = (lat[2] - lat[1]) / rescale
-    if lat[1] == -90°
-        newlat = collect(lat[1]:smallstep:(lat[end]+smallstep))
-    else
-        newlat = collect((lat[1]-smallstep):smallstep:lat[end])
-    end
+    newlat = range(lat[1], lat[end], grid[2])
     return AxisArray(array,
         Axis{:longitude}(newlon),
         Axis{:latitude}(newlat),
         Axis{:time}(aa.axes[3].val))
 end
 function upresolution(aa::AxisArray{T, 2} where T, rescale::Int64)
-    grid = size(aa) .* rescale
+    grid = size(aa) .* rescale .- 1
     array = Array{typeof(aa[1]), 2}(undef, grid)
-    for x in 1:size(aa, 1)
-        for y in 1:size(aa, 2)
+    for x in 1:size(aa, 1) - 1
+        for y in 1:size(aa, 2) - 1
             array[(rescale*x-(rescale-1)):(rescale*x),
             (rescale*y-(rescale - 1)):(rescale*y)] .= aa[x, y]
         end
     end
     lon = aa.axes[1].val
-    smallstep = (lon[2] - lon[1]) / rescale
-    if lon[1] == -180°
-        newlon = collect(lon[1]:smallstep:(lon[end]+smallstep))
-    else
-        newlon = collect((lon[1] -smallstep):smallstep:lon[end])
-    end
+    newlon = range(lon[1], lon[end], grid[1])
     lat = aa.axes[2].val
-    smallstep = (lat[2] - lat[1]) / rescale
-    if lat[1] == -90°
-        newlat = collect(lat[1]:smallstep:(lat[end]+smallstep))
-    else
-        newlat = collect((lat[1]-smallstep):smallstep:lat[end])
-    end
+    newlat = range(lat[1], lat[end], grid[2])
+
     return AxisArray(array,
         Axis{:longitude}(newlon),
         Axis{:latitude}(newlat))
@@ -199,4 +180,14 @@ function downresolution!(resized_array::Array{T, 3}, array::Array{T, 2}, dim::In
         ycoords = filter(y -> y .<= size(array, 2), (rescale*y-(rescale - 1)):(rescale*y))
         resized_array[x, y, dim] = fn(filter(!isnan, array[xcoords, ycoords]))
     end
+end
+
+function compressLC(lc::AxisArray)
+    newLC = AxisArray(zeros(Int64, size(lc, 1), size(lc, 2)), AxisArrays.axes(lc, 1), AxisArrays.axes(lc, 2))
+    for i in 1:size(lc, 1)
+        for j in 1:size(lc, 2)
+            newLC[i, j] = findmax(lc[i, j, :])[2]
+        end
+    end
+    return newLC
 end

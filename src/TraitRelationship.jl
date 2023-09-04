@@ -88,6 +88,20 @@ function eltype(tr::Match{TR}) where TR
     return TR
 end
 
+mutable struct LCmatch{TR} <: AbstractTraitRelationship{TR}
+end
+function (::LCmatch{TR})(niche::TR, pref::Vector{TR}) where TR
+  if niche in pref
+    return 1.0
+  else
+    return 0.0
+  end
+end
+iscontinuous(tr::LCmatch{TR}) where TR = false
+function eltype(tr::LCmatch{TR}) where TR
+    return TR
+end
+
 """
     NoRelContinuous{TR} <: AbstractTraitRelationship{TR}
 
