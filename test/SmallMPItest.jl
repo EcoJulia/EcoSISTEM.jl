@@ -1,5 +1,8 @@
 ## Small scale test for MPI Ecosystems
 ## Set random number seeds for reproducible results
+using Pkg
+Pkg.activate("..")
+Pkg.instantiate()
 
 using EcoSISTEM
 using EcoSISTEM.Units
