@@ -24,7 +24,7 @@ heatmap(africa_lc')
 
 getraster(WorldClim{BioClim})
 world = readbioclim("assets/WorldClim/BioClim/")
-africa_water = world.array[-25°.. 50°, -35° .. 40°, 12]
+africa_water = world.array[-25°.. 50°, -35° .. 40°, 13]
 africa_water = upresolution(africa_water, 2)
 africa_water = Worldclim_bioclim(AxisArray(africa_water .* mm, AxisArrays.axes(africa_water)))
 bio_africa_water = WaterBudget(africa_water)
