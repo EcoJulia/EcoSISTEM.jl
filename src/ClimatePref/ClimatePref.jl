@@ -1,15 +1,26 @@
-using Requires
+if !isdefined(Base, :get_extension)
+    using Requires
+end
+
 function __init__()
-    @require PyCall="438e738f-606a-5dbb-bf0a-cddfbfd45ab0" begin
-        println("Creating ECMWF interface ...")
-        include("ERA_interim_tools.jl")
-        export retrieve_era_interim
-        include("ECMWF_tools.jl")
-        export retrieve_ECMWF
+    @static if !isdefined(Base, :get_extension)
+        @require PyCall="438e738f-606a-5dbb-bf0a-cddfbfd45ab0" begin
+            println("Creating ECMWF interface ...")
+            include("ERA5_tools.jl")
+            export retrieve_era5
+        end
+        @require DataPipeline = "9ced6f0a-eb77-43a8-bbd1-bbf3031b0d12" begin
+            println("Creating data pipeline interface ...")
+            include("Pipeline.jl")
+            export unzip 
+        end
     end
 end
 
 @warn "This functionality remains under development!"
+
+include("Extensions.jl")
+export unzip, retrieve_era5 
 
 include("ClimateTypes.jl")
 export Worldclim_monthly, Worldclim_bioclim, ERA, CERA, CRUTS, CHELSA_bioclim, CHELSA_monthly, Reference, Landcover
