@@ -1,0 +1,37 @@
+run_metadata:
+  default_input_namespace: claireh93
+  description: Africa model inputs
+  script: |
+    julia --project=examples examples/pipeline/AfricaRun.jl
+
+register:
+- namespace: UCDavis
+  full_name: University of California Davis
+  website: https://ror.org/05rrcem69
+- namespace: GBIF
+  full_name: Global Biodiversity Information Facility
+  website: https://ror.org/05fjyn938
+
+- external_object: AfricaModel/WorldClim
+  namespace_name: UCDavis
+  root: https://biogeo.ucdavis.edu/
+  path: data/worldclim/v2.1/base/wc2.1_10m_bio.zip
+  title: WorldClim Bioclimatic variables
+  description: Bioclimatic variables are derived from the monthly temperature and rainfall values in order to generate more biologically meaningful variables. 
+  identifier: https://doi.org/10.1002/joc.5086
+  file_type: zip
+  release_date: 2017-03-28T12:00
+  version: "1.0.0"
+  primary: True
+  authors:
+  - https://ror.org/05rrcem69
+
+write:
+- data_product: Africa-plot
+  description: Plot start and end abundances, next to temperature and rainfall
+  file_type: pdf
+  use: 
+    data_product: AfricaModel/Africa-plot
+
+
+

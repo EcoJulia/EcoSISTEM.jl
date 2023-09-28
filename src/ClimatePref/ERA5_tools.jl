@@ -1,12 +1,11 @@
-using .PyCall
+# using .PyCall
 py"""
 from math import floor
-from ecmwfapi import ECMWFDataServer
+import cdsapi
 
-server = ECMWFDataServer()
+server = cdsapi.Client()
 
-
-def retrieve_ECMWF(param, from_year, to_year, filename, **kwargs):
+def retrieve_era5(param, from_year, to_year, filename, **kwargs):
 
     months = range(1, 13)
     years = range(from_year, to_year + 1)
@@ -16,27 +15,21 @@ def retrieve_ECMWF(param, from_year, to_year, filename, **kwargs):
     for d in decades:
         # Filter for years within the decade
         years_in_decade = list(filter(lambda y: floor(y / 10) * 10 == d, years))
-
         # Set up all request months per decade in correct format
         request_dates = "/".join([f'{y}{m:02}01' for y in years_in_decade for m in months])
-
         # Create target file
         target = f'{filename}_{d}'
         print(f'Years: {years_in_decade}\nOutput file: {target}')
-        ECMWF_request(param, request_dates, d, target, **kwargs)
+        era5_request(param, request_dates, d, target, **kwargs)
 
-
-def ECMWF_request(
+def era5_request(
         param, request_dates, decade, target,
-        eclass = 'ei', dataset = 'interim', stream='moda', modeltype='an', levtype='sfc', grid='0.75/0.75', format='netcdf', step='0-12', num = '0'
-):
+        stream='moda', modeltype='an', levtype='sfc',
+        grid='0.75/0.75', format='netcdf', step='0-12'):
 
-    server.retrieve({
-        'class':   eclass,
-        'dataset': dataset,
-        'expver':  '1',
+    server.retrieve('reanalysis-era5-complete', {
+        "dataset": "era5",
         'stream':  stream,
-        'number':  num,
         'type':    modeltype,
         'levtype': levtype,
         'param':   param,
@@ -49,6 +42,6 @@ def ECMWF_request(
     })
 """
 
-function retrieve_ECMWF(param::String, from_year::Int64, to_year::Int64, filename::String = "era_interim"; kws...)
-    py"retrieve_ECMWF"(param, from_year, to_year, filename; kws...)
+function retrieve_era5(param::String, from_year::Int64, to_year::Int64, filename::String = "era5"; kws...)
+    py"retrieve_era5"(param, from_year, to_year, filename; kws...)
 end
