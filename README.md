@@ -17,7 +17,16 @@ responses of biodiversity to environmental and land-use change*.
 
 There are substantial changes to the package introduced through the [`dev`][dev-url] branch ([docs][docs-dev-url]), including epidemiological simulations and refactoring of the code base for further flexibility.
 
-This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](CONTRIBUTING.md).
+This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](CONTRIBUTING.md). We are supported by NERC's Landscape Decisions [small][NERC-small] and [large][NERC-big] maths grants and an [EPSRC][EPSRC-stu] studentship.
+
+## Introduction to EcoSISTEM
+You can now run through a full introduction to EcoSISTEM with Pluto.jl! To get started:
+
+``` julia
+import Pluto
+Pluto.run()
+```
+This should open a Pluto window in your browser - from there you can type `notebooks\Introduction.jl` in the `Open from file` box. Note that it may be slow on first launch!
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 
@@ -40,3 +49,6 @@ This package is in beta now, so please raise an issue if you find any problems. 
 [zenodo-url]: https://zenodo.org/badge/latestdoi/251665824
 
 [dev-url]: https://github.com/EcoJulia/EcoSISTEM.jl/tree/dev
+[NERC-small]: https://gtr.ukri.org/projects?ref=NE%2FT004193%2F1
+[NERC-big]: https://gtr.ukri.org/projects?ref=NE%2FT010355%2F1
+[EPSRC-stu]: https://gtr.ukri.org/projects?ref=EP%2FM506539%2F1

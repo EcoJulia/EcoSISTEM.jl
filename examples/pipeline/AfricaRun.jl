@@ -9,14 +9,15 @@ using Unitful
 using Unitful.DefaultSymbols
 using StatsBase
 using Plots
+using DataPipeline
+
+# Initialise datapipeline
+handle = DataPipeline.initialise()
 
 # Download temperature and precipitation data
-if !isdir("assets")
-    mkdir("assets")
-end
-ENV["RASTERDATASOURCES_PATH"] = "assets"
-getraster(WorldClim{BioClim})
-world = readbioclim("assets/WorldClim/BioClim/")
+path = link_read!(handle, "AfricaModel/WorldClim")
+newpath = unzip(path)
+world = readbioclim(newpath)
 africa_temp = world.array[-25°.. 50°, -35° .. 40°, 1]
 bio_africa = uconvert.(K, africa_temp .* °C)
 bio_africa = Worldclim_bioclim(AxisArray(bio_africa, AxisArrays.axes(africa_temp)))
@@ -79,16 +80,6 @@ abuns = zeros(Int64, numSpecies, prod(grid), lensim)
 # Reshape abundances for plotting
 abuns = reshape(abuns[1, :, :, 1], grid[1], grid[2], lensim)
 
-# Create a gif (warning, slow!)
-anim = @animate for i in 1:lensim
-    africa_abun = Float64.(abuns[:, :, i])
-    africa_abun[.!(active)] .= NaN
-    heatmap(africa_abun, clim = (0, maximum(abuns)), 
-    background_color = :lightblue, background_color_outside=:white, 
-    grid = false, color = cgrad(:algae, scale = :exp))
-end
-gif(anim, "examples/Africa.gif", fps = 15)
-
 # Plot start and end abundances, next to temperature and rainfall
 africa_startabun = Float64.(abuns[:, :, 1])
 africa_startabun[.!(active)] .= NaN
@@ -107,3 +98,8 @@ africa_temp = world.array[-25°.. 50°, -35° .. 40°, 1]
 africa_water = world.array[-25°.. 50°, -35° .. 40°, 12] 
 heatmap!(africa_temp', grid = false, subplot = 3)
 heatmap!(africa_water', grid = false, subplot = 4)
+
+path = link_write!(handle, "Africa-plot")
+Plots.pdf(path)
+
+DataPipeline.finalise(handle)

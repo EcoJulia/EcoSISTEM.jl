@@ -1,3 +1,5 @@
+Sys.total_memory()/1e9 >= 100 || error("You do not have enough memory to run these examples!")
+
 #### SINGLE SPECIES ####
 
 using EcoSISTEM
@@ -254,7 +256,6 @@ lensim = length(0years:record_interval:times)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
 @time simulate!(eco, times, timestep, record_interval, "/home/claireh/sdc/Africa/specialist2", "Africa_run");
-
 
 #### 50,000 SPECIES COEXISTING #####
 

@@ -83,7 +83,7 @@ abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
 
-vars = range(0.0001, stop = 5, length = numSpecies) .* K
+vars = collect(range(0.0001, stop = 5, length = numSpecies)) .* K
 opts = fill(298.0K, numSpecies)
 
 av_dist = fill(2.4, numSpecies) .* km
@@ -144,7 +144,7 @@ abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
 
-vars = range(0.0001, stop = 5, length = numSpecies) .* K
+vars = collect(range(0.0001, stop = 5, length = numSpecies)) .* K
 opts = fill(298.0K, numSpecies)
 
 av_dist = fill(2.4, numSpecies) .* km
@@ -193,7 +193,7 @@ xlab = "Niche width (°C)", ylab = "",
 guidefontsize = 16, tickfontsize= 16, titlefontsize = 16,
 margin = 10.0*Plots.mm, label = "", subplot = 3,
 title = "C", titleloc = :left, ylim = (0, 32_000))
-Plots.pdf("examples/Biodiversity/Opt_var_panel.pdf")
+Plots.pdf("Opt_var_panel.pdf")
 
 ## MORE ENERGY MORE ABUNDANCE ##
 
@@ -434,8 +434,8 @@ bar!(string.(species), (100 .* meanSR) ./species, yerr= sdSR ./ species, grid = 
 ylab = "% Species survived", guidefontsize = 16,
 tickfontsize= 16, titlefontsize=24, margin = 10.0*Plots.mm,
 label = "",  title = "D", subplot = 4, titleloc = :left,
-left_margin = 20.0 *Plots.mm, ylim = (0, 100))
-Plots.pdf("examples/Biodiversity/Abundance.pdf")
+left_margin = 20.0 *Plots.mm, ylim = (0, 1))
+Plots.pdf("Abundance.pdf")
 ## DISPERSAL ##
 times = 50years; timestep = 1month
 lensim = length(0month:timestep:times)
@@ -503,4 +503,4 @@ for i in 1:4
     clim = (0, 1.5e4), link = :both))
 end
 
-Plots.pdf("examples/Biodiversity/DispersalSD.pdf")
+Plots.pdf("DispersalSD.pdf")

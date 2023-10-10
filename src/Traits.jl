@@ -19,6 +19,19 @@ function eltype(trait::DiscreteTrait{D}) where D
     return D
 end
 
+mutable struct LCtrait{D <: Number} <: AbstractTraits{D}
+    vals::Array{Array{D, 1}, 1}
+  end
+  
+  iscontinuous(trait::LCtrait{D}) where D = false
+  function eltype(trait::LCtrait{D}) where D
+      return D
+  end
+  
+  function LCtrait(vals::Array{Array{D, 1}, 1}) where D  <: AbstractFloat
+      return LCtrait{typeof(1.0)}(vals)
+  end
+  
 
 """
     DiscreteEvolve(numTraits::Int64, tree::BinaryTree)

@@ -16,7 +16,8 @@ jobs:
     strategy:
       matrix:
         julia-version:
-          - '1.6'
+          - '1.8'
+          - '1.9'
         os:
           - ubuntu-latest
           - macOS-latest
@@ -37,9 +38,9 @@ jobs:
         version: ${{ matrix.julia-version }}
         arch: ${{ matrix.arch }}
     - name: Build package
-      uses: julia-actions/julia-buildpkg@master
+      uses: julia-actions/julia-buildpkg@v1
     - name: Running
-      uses: julia-actions/julia-runtest@master
+      uses: julia-actions/julia-runtest@v1
     - name: Process coverage
       uses: julia-actions/julia-processcoverage@v1
     - name: Coveralls

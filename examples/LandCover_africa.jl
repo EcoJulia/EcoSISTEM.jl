@@ -10,27 +10,30 @@ using Unitful.DefaultSymbols
 using StatsBase
 using Plots
 
-# Download temperature and precipitation data
+# Download landcover data
 if !isdir("assets")
     mkdir("assets")
 end
 ENV["RASTERDATASOURCES_PATH"] = "assets"
+getraster(EarthEnv{LandCover})
+world = readlc("assets/EarthEnv/LandCover/without_DISCover/", -180.0°, 180.0°, -56.0°, 90.0°)
+world = compressLC(world)
+africa_lc = world[-25°.. 50°, -35° .. 40°]
+bio_africa_lc = Landcover(africa_lc)
+heatmap(africa_lc')
+
 getraster(WorldClim{BioClim})
 world = readbioclim("assets/WorldClim/BioClim/")
-africa_temp = world.array[-25°.. 50°, -35° .. 40°, 1]
-bio_africa = uconvert.(K, africa_temp .* °C)
-bio_africa = Worldclim_bioclim(AxisArray(bio_africa, AxisArrays.axes(africa_temp)))
-africa_water = world.array[-25°.. 50°, -35° .. 40°, 12] .* mm
-africa_water = Worldclim_bioclim(AxisArray(africa_water, AxisArrays.axes(africa_temp)))
+africa_water = world.array[-25°.. 50°, -35° .. 40°, 13]
+africa_water = upresolution(africa_water, 2)
+africa_water = Worldclim_bioclim(AxisArray(africa_water .* mm, AxisArrays.axes(africa_water)))
 bio_africa_water = WaterBudget(africa_water)
 
 # Find which grid cells are land
-active =  Array{Bool, 2}(.!isnan.(bio_africa.array))
-
-heatmap(africa_temp')
+active =  Array{Bool, 2}(africa_lc .!= 4)
 
 # Set up initial parameters for ecosystem
-numSpecies = 1; grid = size(active); req= 0.1mm; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
+numSpecies = 1; grid = size(active); req= 10.0mm; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
 # Set up how much water each species consumes
 energy_vec = WaterRequirement(fill(req, numSpecies))
@@ -49,19 +52,18 @@ kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
 movement = AlwaysMovement(kernel, Torus())
 
 # Create species list, including their temperature preferences, seed abundance and native status
-opts = fill(280.0K, numSpecies)
-vars = fill(10.0K, numSpecies)
-traits = GaussTrait(opts, vars)
+opts = fill(collect(1:8), numSpecies)
+traits = LCtrait(opts)
 native = fill(true, numSpecies)
 abun = fill(div(individuals, numSpecies), numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
                    movement, param, native)
 
 # Create abiotic environment - with temperature and water resource
-abenv = bioclimAE(bio_africa, bio_africa_water, active)
+abenv = lcAE(bio_africa_lc, bio_africa_water, active)
 
 # Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+rel = LCmatch{Int64}()
 
 # Create ecosystem and fill every active grid square with an individual
 eco = Ecosystem(sppl, abenv, rel)
@@ -97,13 +99,13 @@ africa_endabun[.!(active)] .= NaN
 heatmap(africa_startabun', clim = (0, maximum(abuns)), 
     background_color = :lightblue, background_color_outside=:white, 
     grid = false, color = cgrad(:algae, scale = :exp), 
-    layout = (@layout [a b; c d]))
+    layout = (@layout [a b; c d]), title = "Start abundance")
 heatmap!(africa_endabun', clim = (0, maximum(abuns)), 
     background_color = :lightblue, background_color_outside=:white, 
     grid = false, color = cgrad(:algae, scale = :exp), 
-    subplot = 2)
-
-africa_temp = world.array[-25°.. 50°, -35° .. 40°, 1]
+    subplot = 2, title = "End Abundance")
+africa_lc = Float64.(africa_lc.data)
+africa_lc[.!active] .= NaN
+heatmap!(africa_lc', grid = false, subplot = 3, title = "Land Cover")
 africa_water = world.array[-25°.. 50°, -35° .. 40°, 12] 
-heatmap!(africa_temp', grid = false, subplot = 3)
-heatmap!(africa_water', grid = false, subplot = 4)
+heatmap!(africa_water', grid = false, subplot = 4, title = "Precipitation")
