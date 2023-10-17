@@ -19,7 +19,7 @@ jobs:
           - '1.8'
           - '1.9'
         os:
-          - ubuntu-latest
+          - ubuntu-20.04
           - macOS-latest
           - windows-latest
         R-version:
