@@ -78,8 +78,8 @@ using JLD2
     MPI.Finalize()
 end
 
-# Only test on linux for now - bug in Windows machine testing
-#if Sys.islinux()
+# Only test on windows for now - bug in linux machine testing
+if Sys.iswindows()
     @testset "mpirun" begin
         # Keep outputs all one folder 
         isdir("data") || mkdir("data")
@@ -108,5 +108,5 @@ end
         @test abuns1thread == abuns2thread == abuns4thread
         # Clean up outputs
         rm("data", recursive = true)
-   # end
+   end
 end
