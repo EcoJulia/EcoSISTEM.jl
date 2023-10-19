@@ -79,20 +79,26 @@ using JLD2
 end
 
 # Only test on linux for now - bug in Windows machine testing
-if Sys.islinux()
+#if Sys.islinux()
     @testset "mpirun" begin
         # Keep outputs all one folder 
         isdir("data") || mkdir("data")
 
         # Compare 1 thread 4 processes vs. 4 threads 1 process vs. 2 threads 2 processes
         ENV["JULIA_NUM_THREADS"] = 1
-        mpiexec(cmd -> run(`$cmd -n 4 julia SmallMPItest.jl`));
+        mpiexec() do cmd 
+            run(`$cmd -n 4 julia SmallMPItest.jl`)
+        end;
 
         ENV["JULIA_NUM_THREADS"] = 2
-        mpiexec(cmd -> run(`$cmd -n 2 julia SmallMPItest.jl`));
+        mpiexec() do cmd
+            run(`$cmd -n 2 julia SmallMPItest.jl`)
+        end;
 
         ENV["JULIA_NUM_THREADS"] = 4
-        mpiexec(cmd -> run(`$cmd -n 1 julia SmallMPItest.jl`));
+        mpiexec() do cmd 
+            run(`$cmd -n 1 julia SmallMPItest.jl`)
+        end;
 
         ## All answers should be the same
         abuns1thread = @load "data/Test_abuns1.jld2" abuns
@@ -102,5 +108,5 @@ if Sys.islinux()
         @test abuns1thread == abuns2thread == abuns4thread
         # Clean up outputs
         rm("data", recursive = true)
-    end
+   # end
 end
