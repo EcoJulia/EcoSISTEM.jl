@@ -10,9 +10,21 @@ using Unitful.DefaultSymbols
 using Distances
 using StatsBase
 using Plots
+using LinearAlgebra
 file = "Africa.tif"
-africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Array{Bool, 2}(.!isnan.(africa'))
+africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
+active = Array{Bool, 2}(fill(0, size(africa)))
+
+xs = 1:size(africa, 1)
+ys = 1:size(africa, 2)
+radius = 50
+for x in xs
+    for y in ys
+        if norm((x-radius,y-radius)) < radius
+            active[x, y] = 1
+        end
+    end
+end
 
 heatmap(active)
 
@@ -73,12 +85,12 @@ anim = @animate for i in 1:lensim
     africa_abun[.!(active)] .= NaN
     heatmap(africa_abun, clim = (0, 700_000), background_color = :lightblue, background_color_outside=:white, grid = false, color = cgrad(:algae, scale = :exp), aspect_ratio = 1)
 end
-gif(anim, "examples/Biodiversity/Africa.gif", fps = 30)
+gif(anim, "Africa.gif", fps = 30)
 
 #### SPECIALIST VERSUS GENERALIST ####
 
 specialist_vars = [0.5K, 1.0K, 5.0K, 10.0K, 25.0K, 50.0K]
-velocity = zeros(typeof(1.0km/month), length(specialist_vars))
+velocity = zeros(typeof(1.0km/year), length(specialist_vars))
 rand_start = rand(findall(active), 1)[1]
 for i in eachindex(specialist_vars)
     # Set up initial parameters for ecosystem
@@ -133,13 +145,15 @@ for i in eachindex(specialist_vars)
 
     abuns = reshape(abuns[:, :, :, 1], numSpecies, grid[1], grid[2], lensim)
     origin = [rand_start[1], rand_start[2]]
-    dest = findall(abuns[2, :, :, 1] .> 0)
-    inst_velocity = map(1:lensim) do t
-        dest = findall(abuns[2, :, :, t] .> 0)
-        dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
-        return maximum(dists)/month
-    end
-    velocity[i] = mean(inst_velocity)
+    dest = findall(abuns[2, :, :, end] .> 0)
+    dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
+    velocity[i] = mean(dists) / 100years
+    # inst_velocity = map(1:lensim) do t
+    #     dest = findall(abuns[2, :, :, t] .> 0)
+    #     dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
+    #     return maximum(dists)/month
+    # end
+    #velocity[i] = mean(inst_velocity)
     # anim = @animate for i in 1:lensim
     #     africa_abun1 = Float64.(abuns[1, :, :, i])
     #     africa_abun1[.!(active)] .= NaN
@@ -160,9 +174,9 @@ for i in eachindex(specialist_vars)
 end
 
 plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
-    xlab = "Selective advantage", ylab = "Invasion speed (km/month)",
+    xlab = "Selective advantage", ylab = "Average invasion speed (km/year)",
     label = "", grid = false)
-Plots.pdf("examples/Biodiversity/Invasion.pdf")
+Plots.pdf("InvasionCircle.pdf")
 
 
 #### SPECIALIST VERSUS MANY GENERALISTS ####
@@ -174,8 +188,22 @@ using Unitful.DefaultSymbols
 using JLD2
 using Printf
 file = "Africa.tif"
-africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Array{Bool, 2}(.!isnan.(africa'))
+africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
+active = Array{Bool, 2}(fill(0, size(africa)))
+
+xs = 1:size(africa, 1)
+ys = 1:size(africa, 2)
+radius = 50
+for x in xs
+    for y in ys
+        if norm((x-radius,y-radius)) < radius
+            active[x, y] = 1
+        end
+    end
+end
+
+heatmap(active)
+
 # Set up initial parameters for ecosystem
 numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
@@ -227,7 +255,7 @@ lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
-@time simulate!(eco, times, timestep, record_interval, "sdc/Africa/specialist", "Africa_run");
+@time simulate!(eco, times, timestep, record_interval, "/home/claireh/sdc/Africa/specialist2", "Africa_run");
 
 #### 50,000 SPECIES COEXISTING #####
 
@@ -240,8 +268,22 @@ using JLD2
 using Printf
 
 file = "Africa.tif"
-africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Array{Bool, 2}(.!isnan.(africa'))
+africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
+active = Array{Bool, 2}(fill(0, size(africa)))
+
+xs = 1:size(africa, 1)
+ys = 1:size(africa, 2)
+radius = 50
+for x in xs
+    for y in ys
+        if norm((x-radius,y-radius)) < radius
+            active[x, y] = 1
+        end
+    end
+end
+
+heatmap(active)
+
 # Set up initial parameters for ecosystem
 numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
@@ -288,25 +330,24 @@ eco = Ecosystem(sppl, abenv, rel)
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
 @time simulate!(eco, burnin, timestep)
-@time simulate!(eco, times, timestep, record_interval, "sdc/Africa", "Africa_run_coexist");
+@time simulate!(eco, times, timestep, record_interval, "/home/claireh/sdc/Africa/coexist2", "Africa_run_coexist");
 
 using JLD2
 using Plots
 using Diversity
-abuns = @load "examples/Africa_run_coexist100.jld2" abun
-meta = Metacommunity(abuns)
+@load "examples/Africa_run_coexist100.jld2" abun
+meta = Metacommunity(abun)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
+
 heatmap(sumabuns,
-    background_color = :lightblue,
-    background_color_outside=:white,
     grid = false, color = :algae,
     aspect_ratio = 1, layout = (@layout [a b; c d]),
     clim = (0, 50_000), margin = 0.5 * Plots.mm,
     title = "A", titleloc = :left)
 
-abuns = @load "examples/Africa_run50.jld2" abun
-meta = Metacommunity(abuns)
+@load "examples/Africa_run50.jld2" abun
+meta = Metacommunity(abun)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
 heatmap!(sumabuns,
@@ -317,8 +358,8 @@ heatmap!(sumabuns,
     clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
     title = "B", titleloc = :left)
 
-abuns = @load "examples/Africa_run100.jld2" abun
-meta = Metacommunity(abuns)
+@load "examples/Africa_run100.jld2" abun
+meta = Metacommunity(abun)
 div = norm_sub_alpha(meta, 0)
 sumabuns = reshape(div[!, :diversity], 100, 100)
 heatmap!(sumabuns,
@@ -330,8 +371,8 @@ heatmap!(sumabuns,
     title = "C", titleloc = :left)
 
 using Diversity.Ecology
-abuns = @load "examples/Africa_run50.jld2" abun
-meta = Metacommunity(abuns)
+@load "examples/Africa_run50.jld2" abun
+meta = Metacommunity(abun)
 diver = shannon(meta)
 sumabuns = reshape(diver[!, :diversity], 100, 100)
 heatmap!(sumabuns,

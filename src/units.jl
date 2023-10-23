@@ -1,11 +1,11 @@
 module Units
 
 import Unitful
-using Unitful: @unit
+using Unitful: @unit, uconvert
 day = Unitful.d
 week = Unitful.wk
 year = Unitful.yr
-@unit month "month" Month 2.628e6 * Unitful.s false
+@unit month "month" Month uconvert(Unitful.s, year/12) false
 
 const days = day
 const weeks = week
