@@ -17,6 +17,7 @@ jobs:
       matrix:
         julia-version:
           - '1.8'
+          - '1'
         os:
           - ubuntu-latest
           - macOS-latest
