@@ -83,7 +83,7 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, 
         truesc = eco.firstsc + sc - 1
         eco.cache.totalE[truesc, 1] = 0.0
         spindex = 1
-        for block in 1:length(mats)
+        for block in eachindex(mats)
             nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄[spindex:nextsp]
@@ -110,7 +110,7 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, 
         eco.cache.totalE[truesc, 1] = 0.0
         eco.cache.totalE[truesc, 2] = 0.0
         spindex = 1
-        for block in 1:length(mats)
+        for block in eachindex(mats)
             nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄1[spindex:nextsp]
