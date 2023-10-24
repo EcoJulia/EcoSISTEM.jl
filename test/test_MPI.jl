@@ -5,8 +5,11 @@ using Distributions
 using MPI
 using JLD2
 
-@testset "MPI" begin
+if !MPI.Initialized()
     MPI.Init()
+end
+
+@testset "MPI" begin
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     println(Threads.nthreads())
@@ -74,42 +77,42 @@ using JLD2
     # Gather abundances and check against rows matrix - should be same for 1 process
     abuns = gather_abundance(eco)
     @test abuns == eco.abundances.rows_matrix
-
-    MPI.Finalize()
 end
 
-# Only test on unix machines for now - bug in Windows machine testing for MPI
-if Sys.isunix()
-    @testset "mpirun" begin
-        # Keep outputs all one folder 
-        isdir("data") || mkdir("data")
-        testdir = @__DIR__
-        # Compare 1 thread 4 processes vs. 4 threads 1 process vs. 2 threads 2 processes
-        mpiexec() do mpirun
-            withenv("JULIA_NUM_THREADS" => "4") do
-                nprocs = 1
-                cmd(n=nprocs) = `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
-                @test success(run(cmd()))
-            end
-            withenv("JULIA_NUM_THREADS" => "2") do
-                nprocs = 2
-                cmd(n=nprocs) = `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
-                @test success(run(cmd()))
-            end
-            withenv("JULIA_NUM_THREADS" => "1") do
-                nprocs = 4
-                cmd(n=nprocs) = `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
-                @test success(run(cmd()))
-            end
+@testset "mpirun" begin
+    # Keep outputs all one folder 
+    isdir("data") || mkdir("data")
+    testdir = @__DIR__
+    # Compare 1 thread 4 processes vs. 4 threads 1 process vs. 2 threads 2 processes
+    mpiexec() do mpirun
+        withenv("JULIA_NUM_THREADS" => "4") do
+            nprocs = 1
+            cmd(n=nprocs) = `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            @test success(run(cmd()))
         end
+        withenv("JULIA_NUM_THREADS" => "2") do
+            nprocs = 2
+            cmd(n=nprocs) = `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            @test success(run(cmd()))
+        end
+        withenv("JULIA_NUM_THREADS" => "1") do
+            nprocs = 4
+            cmd(n=nprocs) = `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            @test success(run(cmd()))
+        end
+    end
 
-        ## All answers should be the same
-        abuns1thread = @load "data/Test_abuns1.jld2" abuns
-        abuns2thread = @load "data/Test_abuns2.jld2" abuns
-        abuns4thread = @load "data/Test_abuns4.jld2" abuns
+    ## All answers should be the same
+    abuns1thread = @load "data/Test_abuns1.jld2" abuns
+    abuns2thread = @load "data/Test_abuns2.jld2" abuns
+    abuns4thread = @load "data/Test_abuns4.jld2" abuns
 
-        @test abuns1thread == abuns2thread == abuns4thread
-        # Clean up outputs
-        rm("data", recursive = true)
-   end
+    @test abuns1thread == abuns2thread == abuns4thread
+end
+
+# Clean up outputs
+rm("data", recursive = true)
+
+if !MPI.Finalized()
+    MPI.Finalize()
 end
