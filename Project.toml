@@ -80,7 +80,7 @@ PyCall = "1"
 RasterDataSources = "0.5.6"
 Requires = "1"
 SpatialEcology = "0.9"
-StatsBase = "0.32.2, 0.33"
+StatsBase = "0.32.2, 0.33, 0.34"
 Unitful = "1.7"
 julia = "1.9"
 

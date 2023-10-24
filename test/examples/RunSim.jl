@@ -12,7 +12,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   record_seq = 0s:interval:times
   time_seq = 0s:timestep:times
   counting = 0
-  for i in 1:length(time_seq)
+  for i in eachindex(time_seq)
       update!(eco, timestep);
       runscenario!(eco, timestep, scenario, time_seq[i]);
       # Record diversity profiles for each measure
@@ -39,7 +39,7 @@ function runsim!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict, simDict::Di
     scenario_names = simDict["scenario_names"]
     divfuns = simDict["divfuns"]
     q = simDict["q"]
-    for i in 1:length(scenario)
+    for i in eachindex(scenario)
         if recreate
             recreate_eco!(eco, totalK, sum(eco.spplist.abun))
         end
@@ -79,7 +79,7 @@ function dispersalrun!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict, simDi
     eco.abundances.matrix .= 0
     eco.abundances.grid[1, :, 1] .= rand(Multinomial(eco.spplist.abun[1], 10))
     eco.abundances.grid[2, :, end] .= rand(Multinomial(eco.spplist.abun[2], 10))
-    for i in 1:length(scenario)
+    for i in eachindex(scenario)
         thisstore = view(div, :, :, i)
         simulate!(eco, simDict["burnin"], simDict["timestep"])
         simulate_record_diversity!(thisstore, eco, simDict["times"], simDict["interval"], simDict["timestep"],
