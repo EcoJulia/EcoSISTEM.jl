@@ -110,8 +110,6 @@ end
     @test abuns1thread == abuns2thread == abuns4thread
 end
 
-include("SmallMPItest.jl")
-
 # Clean up outputs
 rm("data", recursive = true)
 
