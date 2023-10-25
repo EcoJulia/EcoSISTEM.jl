@@ -62,7 +62,6 @@ eco = MPIEcosystem(sppl, abenv, rel)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
-sleep(rank)
 
 # Set columns vector to zero and check synchronise from rows
 eco.abundances.cols_vector .= 0
@@ -86,9 +85,11 @@ lensim = length(0years:record_interval:times)
 
 # Burnin
 MPI.Barrier(comm)
+@test sum(getabundance(eco)) ≈ 1.0
+@test sum(getmetaabundance(eco)) ≈ 1.0
 @test_nowarn simulate!(eco, burnin, timestep)
-
-sleep(rank)
+@test sum(getabundance(eco)) ≈ 1.0
+@test sum(getmetaabundance(eco)) ≈ 1.0
 
 # Collect full abundance matrix together
 true_abuns = gather_abundance(eco)

@@ -74,6 +74,11 @@ end
     EcoSISTEM.synchronise_from_cols!(eco.abundances)
     @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
+    @test sum(getabundance(eco)) ≈ 1.0
+    @test sum(getmetaabundance(eco)) ≈ 1.0
+    @test sum(getordinariness!(eco)) ≈ 1.0
+    @test sum(getweight(eco)) ≈ 1.0
+
     # Gather abundances and check against rows matrix - should be same for 1 process
     abuns = gather_abundance(eco)
     @test abuns == eco.abundances.rows_matrix
