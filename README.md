@@ -2,7 +2,8 @@
 
 | **Documentation** | **Build Status** | **DOI** |
 |:-----------------:|:----------------:|:-------:|
-| [![stable docs][docs-stable-img]][docs-stable-url] | [![build tests][actions-img]][actions-url] [![JuliaNightly][nightly-img]][nightly-url] | [![DOI][zenodo-img]][zenodo-url] |
+| [![stable docs][docs-stable-img]][docs-stable-url] [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FEcoJulia%2FEcoSISTEM.jl.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FEcoJulia%2FEcoSISTEM.jl?ref=badge_shield)
+| [![build tests][actions-img]][actions-url] [![JuliaNightly][nightly-img]][nightly-url] | [![DOI][zenodo-img]][zenodo-url] |
 | [![dev docs][docs-dev-img]][docs-dev-url] | [![codecov][codecov-img]][codecov-url] | |
 
 ## Package for running dynamic ecosystem simulations
@@ -52,3 +53,7 @@ This should open a Pluto window in your browser - from there you can type `noteb
 [NERC-small]: https://gtr.ukri.org/projects?ref=NE%2FT004193%2F1
 [NERC-big]: https://gtr.ukri.org/projects?ref=NE%2FT010355%2F1
 [EPSRC-stu]: https://gtr.ukri.org/projects?ref=EP%2FM506539%2F1
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FEcoJulia%2FEcoSISTEM.jl.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FEcoJulia%2FEcoSISTEM.jl?ref=badge_large)
