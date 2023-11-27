@@ -160,9 +160,9 @@ function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64,
 function plot_reps(abun::Array{Int64, 4}, numSpecies::Int64,
   grid::Tuple{Int64, Int64})
   # Plot
-  means = mapslices(mean, abun, 4)
-  upper = means .+ mapslices(std, abun, 4)
-  lower = means .- mapslices(std, abun, 4)
+  means = mapslices(mean, abun, dims = 4)
+  upper = means .+ mapslices(std, abun, dims = 4)
+  lower = means .- mapslices(std, abun, dims = 4)
   summary = [mean, upper, lower]
   gridsize = collect(grid)
   @rput summary
@@ -180,7 +180,7 @@ function plot_reps(abun::Array{Int64, 4}, numSpecies::Int64,
     }"
 end
 function plot_mean(abun::Array{Int64, 4},numSpecies::Int64, grid::Tuple{Int64, Int64})
-    meanabun = reshape(mapslices(mean, abun, [1,3,4])[1,:, 1,1], (numSpecies, grid[1], grid[2]))
+    meanabun = reshape(mapslices(mean, abun, dims = [1,3,4])[1,:, 1,1], (numSpecies, grid[1], grid[2]))
     grid = collect(grid)
     @rput meanabun; @rput grid
     R"par(mfrow=c(1,1))
@@ -211,13 +211,13 @@ function plot_divergence(combined::Array{Array{Float64, 1}, 1})
 end
 
 function freq_hist(grd::Array{Float64, 4}, sq::Int64, num::Int64)
-  total = mapslices(sum, grd , length(size(grd)))
+  total = mapslices(sum, grd, dims = length(size(grd)))
   grd = grd[:, :, :, sq]
   _freq_hist(total, grd, num)
 end
 
 function freq_hist(grd::Array{Float64, 3}, sq::Int64, num::Int64)
-  total = mapslices(sum, grd , length(size(grd)))
+  total = mapslices(sum, grd, dims = length(size(grd)))
   grd = grd[:, :, sq]
   _freq_hist(total, grd, num)
 end

@@ -11,7 +11,7 @@ function checkbounds(x::Vector{typeof(1.0°)}, y::Vector{typeof(1.0°)})
 end
 
 function calculatestep(dat::D, dim::Int64) where {D <: AbstractClimate}
-    return axes(dat.array, dim).val[2] - axes(dat.array, dim).val[1]
+    return AxisArrays.axes(dat.array, dim).val[2] - AxisArrays.axes(dat.array, dim).val[1]
 end
 
 function _extract(x, y, dat, dim::Unitful.Time)
