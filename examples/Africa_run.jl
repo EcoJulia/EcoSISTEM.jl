@@ -147,7 +147,7 @@ for i in eachindex(specialist_vars)
     origin = [rand_start[1], rand_start[2]]
     dest = findall(abuns[2, :, :, end] .> 0)
     dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in eachindex(dest)] .* getgridsize(eco)
-    velocity[i] = mean(dists) / 100years
+    velocity[i] = mean(dists) / 100.0years
     # inst_velocity = map(1:lensim) do t
     #     dest = findall(abuns[2, :, :, t] .> 0)
     #     dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in eachindex(dest)] .* getgridsize(eco)
