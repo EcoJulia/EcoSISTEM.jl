@@ -398,13 +398,13 @@ uuid = "a58aae7d-b440-5a11-b283-399458f99aac"
 version = "0.1.6"
 
 [[deps.EcoSISTEM]]
-deps = ["ArchGDAL", "AxisArrays", "Calculus", "DataFrames", "Dates", "Distributions", "Diversity", "EcoBase", "Feather", "HCubature", "IndexedTables", "Interpolations", "JLD2", "LibGit2", "Libdl", "LinearAlgebra", "Logging", "Markdown", "Measures", "Missings", "NetCDF", "OnlineStats", "Optim", "Phylo", "Plots", "Pluto", "Printf", "REPL", "Random", "RasterDataSources", "RecipesBase", "SHA", "SpatialEcology", "Statistics", "StatsBase", "UUIDs", "Unitful"]
+deps = ["ArchGDAL", "AxisArrays", "Calculus", "DataFrames", "Dates", "Distributions", "Diversity", "EcoBase", "Feather", "HCubature", "IndexedTables", "Interpolations", "JLD2", "LibGit2", "Libdl", "LinearAlgebra", "Logging", "Markdown", "Measures", "Missings", "NetCDF", "OnlineStats", "Optim", "Phylo", "Plots", "Pluto", "Printf", "REPL", "Random", "RasterDataSources", "RecipesBase", "SHA", "SpatialEcology", "Statistics", "StatsBase", "Tar", "UUIDs", "Unitful"]
 path = ".."
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 version = "0.1.4"
 
     [deps.EcoSISTEM.extensions]
-    EcoSISTEMDataPipelineExt = ["DataPipeline", "Tar"]
+    EcoSISTEMDataPipelineExt = "DataPipeline"
     EcoSISTEMERAExt = "PyCall"
     EcoSISTEMMPIExt = "MPI"
 
@@ -412,7 +412,6 @@ version = "0.1.4"
     DataPipeline = "9ced6f0a-eb77-43a8-bbd1-bbf3031b0d12"
     MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
     PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
-    Tar = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
 
 [[deps.EpollShim_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -483,12 +482,13 @@ uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra", "Random"]
-git-tree-sha1 = "35f0c0f345bff2c6d636f95fdb136323b5a796ef"
+git-tree-sha1 = "28e4e9c4b7b162398ec8004bdabe9a90c78c122d"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "1.7.0"
-weakdeps = ["SparseArrays", "Statistics"]
+version = "1.8.0"
+weakdeps = ["PDMats", "SparseArrays", "Statistics"]
 
     [deps.FillArrays.extensions]
+    FillArraysPDMatsExt = "PDMats"
     FillArraysSparseArraysExt = "SparseArrays"
     FillArraysStatisticsExt = "Statistics"
 
@@ -775,9 +775,9 @@ version = "0.4.38"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
-git-tree-sha1 = "9fb0b890adab1c0a4a475d4210d51f228bfc250d"
+git-tree-sha1 = "a53ebe394b71470c7f97c2e7e170d51df21b17af"
 uuid = "1019f520-868f-41f5-a6de-eb00f4b6a39c"
-version = "0.1.6"
+version = "0.1.7"
 
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
@@ -1950,10 +1950,10 @@ uuid = "28df3c45-c428-5900-9ff8-a3135698ca75"
 version = "1.76.0+1"
 
 [[deps.fzf_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "47cf33e62e138b920039e8ff9f9841aafe1b733e"
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "a68c9655fbe6dfcab3d972808f1aafec151ce3f8"
 uuid = "214eeab7-80f7-51ab-84ad-2988db7cef09"
-version = "0.35.1+0"
+version = "0.43.0+0"
 
 [[deps.libaom_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]

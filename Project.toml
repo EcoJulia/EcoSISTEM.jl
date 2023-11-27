@@ -39,6 +39,7 @@ SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 SpatialEcology = "348f2d5d-71a3-5ad4-b565-8af070f99681"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+Tar = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
@@ -46,10 +47,9 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 DataPipeline = "9ced6f0a-eb77-43a8-bbd1-bbf3031b0d12"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
-Tar = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
 
 [extensions]
-EcoSISTEMDataPipelineExt = ["DataPipeline", "Tar"]
+EcoSISTEMDataPipelineExt = "DataPipeline"
 EcoSISTEMERAExt = "PyCall"
 EcoSISTEMMPIExt = "MPI"
 
