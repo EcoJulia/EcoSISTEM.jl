@@ -4,7 +4,7 @@ import Diversity.countsubcommunities
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
-using Plots.RecipesBase
+using RecipesBase
 using EcoBase
 import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
 cells, xrange, yrange, xmax, ymax, indices, coordinates
@@ -263,7 +263,7 @@ end
 # Function to create a habitat from a discrete set of types according to the
 # Saura-Martinez-Millan algorithm (2000)
 function _percolate!(M::AbstractMatrix, clumpiness::Real)
-  for i in 1:(length(M))
+  for i in eachindex(M)
     if rand(Uniform(0, 1)) < clumpiness
       M[i]=1
     end
@@ -272,12 +272,11 @@ end
 
 # Function to create clusters from percolated grid
 function _identify_clusters!(M::AbstractMatrix)
-  dimension=size(M)
   # Begin cluster count
   count=1
   # Loop through each grid square in M
-  for x in 1:dimension[1]
-    for y in 1:dimension[2]
+  for x in Base.axes(M, 1)
+    for y in Base.axes(M, 2)
 
       # If square is marked as 1, then apply cluster finding algorithm
       if M[x,y]==1.0
@@ -307,10 +306,9 @@ function _identify_clusters!(M::AbstractMatrix)
 end
 
 function _fill_in!(T, M, types, wv)
-  dimension = size(M)
   # Loop through grid of clusters
-  for x in 1:dimension[1]
-    for y in 1:dimension[2]
+  for x in Base.axes(M, 1)
+    for y in Base.axes(M, 2)
       # If square is zero then it is yet to be assigned
       if M[x,y]==0
         # Find neighbours of square on string grid

@@ -1,5 +1,12 @@
-using ..MPI
+using EcoSISTEM
+using MPI
 using LinearAlgebra
+using Distributions
+
+import EcoSISTEM: getlookup, update!, update_energy_usage!, move!, populate!
+using EcoSISTEM: AbstractAbiotic, Abstract1Requirement, Abstract2Requirements
+using EcoSISTEM: AbstractHabitat, AbstractBudget, AbstractTraitRelationship
+using EcoSISTEM: energy_adjustment, invalidatecaches!, habitatupdate!, budgetupdate!
 
 """
     update!(eco::MPIEcosystem, timestep::Unitful.Time) where N
@@ -69,7 +76,8 @@ function getlookup(eco::MPIEcosystem, sp::Int64)
     return eco.lookup[sp - eco.firstsp + 1]
 end
 
-function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, B, C, D}, E}) where {MPIGL <: MPIGridLandscape, A, B, C, D, E, Tr, Req <: Abstract1Requirement}
+function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, B, C, D}, E}) where
+    {MPIGL <: MPIGridLandscape, A, B, C, D, E, Tr, Req <: Abstract1Requirement}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
@@ -123,6 +131,7 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{Tr,  Req, 
     eco.cache.valid = true
 end
 
+using EcoSISTEM: getdimension, getboundary, calc_lookup_moves!
 function move!(eco::MPIEcosystem, ::BirthOnlyMovement, sc::Int64, truesp::Int64,
     grd::Array{Int64, 2}, births::Int64)
   width, height = getdimension(eco)
@@ -143,6 +152,7 @@ function move!(eco::MPIEcosystem, ::BirthOnlyMovement, sc::Int64, truesp::Int64,
   return eco
 end
 
+using EcoSISTEM: _getdimension, _getbudget
 function populate!(ml::MPIGridLandscape, spplist::SpeciesList, abenv::AB, rel::R) where {AB <: AbstractAbiotic, R <: AbstractTraitRelationship}
     dim = _getdimension(abenv.habitat)
     len = dim[1] * dim[2]

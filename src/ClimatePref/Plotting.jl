@@ -1,5 +1,5 @@
-using Plots.RecipesBase
-import Plots: px
+using RecipesBase
+# import Plots: px
 
 # Recipe for plotting ERA data from a particular time period.
 @recipe function f(era::ERA, time::Unitful.Time)

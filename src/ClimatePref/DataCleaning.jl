@@ -1,7 +1,6 @@
 using IndexedTables
 using AxisArrays
 using Unitful.DefaultSymbols
-using Plots
 using Statistics
 
 """
@@ -184,8 +183,8 @@ end
 
 function compressLC(lc::AxisArray)
     newLC = AxisArray(zeros(Int64, size(lc, 1), size(lc, 2)), AxisArrays.axes(lc, 1), AxisArrays.axes(lc, 2))
-    for i in 1:size(lc, 1)
-        for j in 1:size(lc, 2)
+    for i in Base.axes(lc, 1)
+        for j in Base.axes(lc, 2)
             newLC[i, j] = findmax(lc[i, j, :])[2]
         end
     end
