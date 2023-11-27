@@ -111,14 +111,14 @@ begin
 	# Plot abundances
 	sumabun = sum(abuns, dims = 2)[:, 1, :]
 	floor_plot = zeros(lensim)
-	p1 = plot(sumabun[1,:], ribbon=(sumabun[1,:], floor_plot), 
-		guidefontsize = 16, tickfontsize= 16, size = (1000, 1000), titlefontsize = 16, 
-		grid= false, layout = (2, 1), label = "", titleloc = :left)
+	p1 = plot(sumabun[1,:], ribbon=(sumabun[1,:], floor_plot),
+			  guidefontsize = 16, tickfontsize= 16, size = (1000, 1000), titlefontsize = 16,
+			  grid = false, layout = (2, 1), label = "", titleloc = :left)
 	for i in 2:(numSpecies)
 		before_spp = sum(sumabun[1:(i-1), :], dims = 1)[1, :]
-		p1 = plot!(sumabun[i, :] .+ before_spp, ribbon=(sumabun[i,:], floor_plot), 
-			xlabel="Time", ylabel="Population", label="", 
-			title="A", subplot = 1)
+		p1 = plot!(sumabun[i, :] .+ before_spp, ribbon=(sumabun[i,:], floor_plot),
+				   xlabel="Time", ylabel="Population", label="",
+				   title="A", subplot = 1)
 	end
 	sumabun_space = sum(eco.abundances.matrix, dims = 1)[1, :]
 	p1 = heatmap!(reshape(sumabun_space, grd[1], grd[2]), subplot = 2, 
@@ -270,11 +270,11 @@ md"Phew, that was a lot, but now we can look at some of those pieces of informat
 
 # ╔═╡ b9091796-d377-49c7-8601-a84ec0006f65
 begin
-	p3 = plot(288:0.1:308, pdf(Normal(optima[1]/K, niche_width[1]/K), collect(288:0.1:308)), 
-		label = "", xlabel = "Temperature (K)", ylabel = "Match to environment")
+	p3 = plot(288:0.1:308, pdf(Normal(optima[1]/K, niche_width[1]/K), collect(288:0.1:308)),
+		      label = "", xlabel = "Temperature (K)", ylabel = "Match to environment")
 	for j in 2:numSpp
-		plot!(288:0.1:308, pdf(Normal(optima[j]/K, niche_width[j]/K), collect(288:0.1:308)), 
-			subplot = 1, label = "")
+		plot!(288:0.1:308, pdf(Normal(optima[j]/K, niche_width[j]/K), collect(288:0.1:308)),
+			  subplot = 1, label = "")
 	end
 	p3 = vline!([298], colour = :black, label = "Current temperature")
 	p3
