@@ -20,7 +20,7 @@ function MPIGridLandscape(sppcounts::Vector{Int32}, sccounts::Vector{Int32},
   sppindices = [0; cumsum(sppcounts) .* sccounts[rank + 1]]
   scindices = [0; cumsum(sccounts) .* sppcounts[rank + 1]]
 
-  reshaped_cols = map(1:length(sccounts)) do i
+  reshaped_cols = map(eachindex(sccounts)) do i
     reshape(view(cols_vector, (sppindices[i] + 1) : sppindices[i + 1]),
             Int64(sppcounts[i]), Int64(sccounts[rank + 1]))
   end

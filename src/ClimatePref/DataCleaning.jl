@@ -37,8 +37,8 @@ function create_reference(gridsize::Float64)
     y = 180 * (1/gridsize) + 1
     gridsize = gridsize * °
     refarray = AxisArray(Array{Int64, 2}(undef, Int(floor(x)), Int(floor(y))),Axis{:longitude}(-180.0°:gridsize:180.0°),Axis{:latitude}(-90.0°:gridsize:90.0°))
-    refarray[1:length(refarray)]= collect(1:length(refarray))
-    ref = Reference(refarray)
+    vec(refarray) .= eachindex(refarray)
+    return Reference(refarray)
 end
 
 """
@@ -83,8 +83,8 @@ end
 function upresolution(aa::AxisArray{T, 2} where T, rescale::Int64)
     grid = size(aa) .* rescale .- 1
     array = Array{typeof(aa[1]), 2}(undef, grid)
-    for x in 1:size(aa, 1) - 1
-        for y in 1:size(aa, 2) - 1
+    for x in Base.axes(aa, 1) - 1
+        for y in Base.axes(aa, 2) - 1
             array[(rescale*x-(rescale-1)):(rescale*x),
             (rescale*y-(rescale - 1)):(rescale*y)] .= aa[x, y]
         end
@@ -122,8 +122,8 @@ function downresolution(aa::AxisArray{T, 3} where T, rescale::Int64, fn::Functio
     grid = ceil.(Int64, (grid[1] ./ rescale, grid[2] ./ rescale, grid[3]))
     array = Array{typeof(aa[1]), 3}(undef, grid)
     map(1:grid[3]) do tm
-        for x in 1:size(array, 1)
-            for y in 1:size(array, 2)
+        for x in Base.axes(array, 1)
+            for y in Base.axes(array, 2)
                 xcoords = filter(x -> x .<= size(aa, 1), (rescale*x-(rescale-1)):(rescale*x))
                 ycoords = filter(y -> y .<= size(aa, 2), (rescale*y-(rescale - 1)):(rescale*y))
                 array[x, y, tm] = fn(filter(!isnan, aa[xcoords, ycoords, tm]))
@@ -145,8 +145,8 @@ function downresolution(aa::AxisArray{T, 2} where T, rescale::Int64, fn)
     grid = size(aa)
     grid = ceil.(Int64, (grid[1] ./ rescale, grid[2] ./ rescale))
     array = Array{typeof(aa[1]), 2}(undef, grid)
-    for x in 1:size(array, 1)
-        for y in 1:size(array, 2)
+    for x in Base.axes(array, 1)
+        for y in Base.axes(array, 2)
             xcoords = filter(x -> x .<= size(aa, 1), (rescale*x-(rescale-1)):(rescale*x))
             ycoords = filter(y -> y .<= size(aa, 2), (rescale*y-(rescale - 1)):(rescale*y))
             array[x, y] = fn(filter(!isnan, aa[xcoords, ycoords]))
@@ -164,7 +164,7 @@ function downresolution(aa::AxisArray{T, 2} where T, rescale::Int64, fn)
 end
 
 function downresolution!(resized_array::Array{T, 2}, array::Array{T, 2}, rescale::Int64, fn) where T
-    Threads.@threads for i in 1:length(resized_array)
+    Threads.@threads for i in eachindex(resized_array)
         x, y = convert_coords(i, size(resized_array, 1))
         xcoords = filter(x -> x .<= size(array, 1), (rescale*x-(rescale-1)):(rescale*x))
         ycoords = filter(y -> y .<= size(array, 2), (rescale*y-(rescale - 1)):(rescale*y))

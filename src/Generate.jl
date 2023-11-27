@@ -110,7 +110,7 @@ function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B,
     ϵ̄ = eco.spplist.requirement.energy
 
     # Loop through grid squares
-    Threads.@threads for i in 1:size(eco.abundances.matrix, 2)
+    Threads.@threads for i in Base.axes(eco.abundances.matrix, 2)
         eco.cache.totalE[i, 1] = ((@view eco.abundances.matrix[:, i]) ⋅ ϵ̄) * eco.spplist.requirement.exchange_rate
     end
     eco.cache.valid = true
@@ -124,7 +124,7 @@ function update_energy_usage!(eco::AbstractEcosystem{A, SpeciesList{Tr,  Req, B,
     ϵ̄2 = eco.spplist.requirement.r2.energy
 
     # Loop through grid squares
-    Threads.@threads for i in 1:size(eco.abundances.matrix, 2)
+    Threads.@threads for i in Base.axes(eco.abundances.matrix, 2)
         currentabun = @view eco.abundances.matrix[:, i]
         eco.cache.totalE[i, 1] = (currentabun ⋅ ϵ̄1) * eco.spplist.requirement.r1.exchange_rate
         eco.cache.totalE[i, 2] = (currentabun ⋅ ϵ̄2) * eco.spplist.requirement.r2.exchange_rate

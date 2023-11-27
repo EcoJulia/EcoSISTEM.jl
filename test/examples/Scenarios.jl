@@ -71,7 +71,7 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time, rate::RateTyp
         width = size(eco.abenv.budget.b1.matrix,1)
         x, y = [ x[1] for x in pos ], [ x[2] for x in pos ]
         neighbours = get_neighbours(eco.abenv.budget.b1.matrix, x, y, 8)
-        smp = sample(1:size(neighbours,1), howmany)
+        smp = sample(Base.axes(neighbours,1), howmany)
         i = convert_coords(neighbours[smp, 1], neighbours[smp, 2], width)
         eco.abenv.budget.b1.matrix[i] .= 0.0kJ
         eco.abenv.budget.b2.matrix[i] .= 0.0mm
@@ -102,7 +102,7 @@ function GeneralistInvasive(eco::Ecosystem, timestep::Unitful.Time, rate::RateTy
     avgain = uconvert(NoUnits, rate * timestep)
     for i in eachindex(invasive)
         gains = rand(Poisson(avgain))
-        pos = 1:size(eco.abenv.habitat.matrix, 1)
+        pos = Base.axes(eco.abenv.habitat.matrix, 1)
         smp = sample(pos, gains)
         eco.abundances.grid[invasive[i], :, 1] .+=  map(x -> sum(smp .== x), pos)
     end
@@ -124,7 +124,7 @@ function SpecialistInvasive(eco::Ecosystem, timestep::Unitful.Time, rate::RateTy
     avgain = uconvert(NoUnits, rate * timestep)
     for i in eachindex(invasive)
         gains = rand(Poisson(avgain))
-        pos = 1:size(eco.abenv.habitat.matrix, 2)
+        pos = Base.axes(eco.abenv.habitat.matrix, 2)
         smp = sample(pos, gains, replace = true)
         eco.abundances.grid[invasive[i], end, :] .+= map(x -> sum(smp .== x), pos)
     end

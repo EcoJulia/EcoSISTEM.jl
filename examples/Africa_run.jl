@@ -15,8 +15,8 @@ file = "Africa.tif"
 africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
 active = Array{Bool, 2}(fill(0, size(africa)))
 
-xs = 1:size(africa, 1)
-ys = 1:size(africa, 2)
+xs = Base.axes(africa, 1)
+ys = Base.axes(africa, 2)
 radius = 50
 for x in xs
     for y in ys
@@ -191,8 +191,8 @@ file = "Africa.tif"
 africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
 active = Array{Bool, 2}(fill(0, size(africa)))
 
-xs = 1:size(africa, 1)
-ys = 1:size(africa, 2)
+xs = Base.axes(africa, 1)
+ys = Base.axes(africa, 2)
 radius = 50
 for x in xs
     for y in ys
@@ -271,8 +271,8 @@ file = "Africa.tif"
 africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
 active = Array{Bool, 2}(fill(0, size(africa)))
 
-xs = 1:size(africa, 1)
-ys = 1:size(africa, 2)
+xs = Base.axes(africa, 1)
+ys = Base.axes(africa, 2)
 radius = 50
 for x in xs
     for y in ys

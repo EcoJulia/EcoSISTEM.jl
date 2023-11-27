@@ -36,17 +36,18 @@ function simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.
 end
 
 """
-    simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, 
-cacheFolder::String, scenario_name::String)
+    simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time,
+              cacheInterval::Unitful.Time, cacheFolder::String,
+              scenario_name::String)
 
 Function to run an ecosystem, `eco` for specified length of times, `duration`,
 for a particular timestep, 'timestep'. A cache interval and folder/file name 
 are specified for saving output.
 """
 function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, 
-  cacheFolder::String, scenario_name::String)
+                   cacheFolder::String, scenario_name::String)
   time_seq = zero(times):timestep:times
-  for i in 1:length(time_seq)
+  for i in eachindex(time_seq)
       update!(eco, timestep);
       # Save cache of abundances
       if mod(time_seq[i], cacheInterval) == zero(time_seq[i])
@@ -127,7 +128,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   record_seq = 0s:interval:times
   time_seq = 0s:timestep:times
   counting = 0
-  for i in 1:length(time_seq)
+  for i in eachindex(time_seq)
     update!(eco, timestep);
     runscenario!(eco, timestep, scenario, time_seq[i]);
     if time_seq[i] in record_seq
@@ -146,7 +147,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   record_seq = ifelse(iseven(size(storage, 3)),timestep:interval:times, 0s:interval:times)
   time_seq = ifelse(iseven(size(storage, 3)), timestep:timestep:times, 0s:timestep:times)
   counting = 0
-  for i in 1:length(time_seq)
+  for i in eachindex(time_seq)
     update!(eco, timestep);
     if time_seq[i] in record_seq
       counting = counting + 1
@@ -165,7 +166,7 @@ function simulate_record_diversity!(storage::AbstractArray,
   record_seq = ifelse(iseven(size(storage, 3)),timestep:interval:times, 0s:interval:times)
   time_seq = ifelse(iseven(size(storage, 3)), timestep:timestep:times, 0s:timestep:times)
   counting = 0
-  for i in 1:length(time_seq)
+  for i in eachindex(time_seq)
     update!(eco, timestep);
     if time_seq[i] in record_seq
       counting = counting + 1
@@ -189,7 +190,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   record_seq = 0s:interval:times
   time_seq = 0s:timestep:times
   counting = 0
-  for i in 1:length(time_seq)
+  for i in eachindex(time_seq)
     update!(eco, timestep);
     if time_seq[i] in record_seq
       counting = counting + 1
@@ -207,7 +208,7 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   record_seq = 0s:interval:times
   time_seq = 0s:timestep:times
   counting = 0
-  for i in 1:length(time_seq)
+  for i in eachindex(time_seq)
       update!(eco, timestep);
       runscenario!(eco, timestep, scenario, time_seq[i]);
       if time_seq[i] in record_seq

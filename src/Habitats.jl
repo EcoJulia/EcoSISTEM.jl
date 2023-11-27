@@ -28,7 +28,7 @@ ycellsize(ah::AbstractHabitat) = Float64(ah.size/km)
 xcells(ah::AbstractHabitat) = size(ah.matrix, 1)
 ycells(ah::AbstractHabitat) = size(ah.matrix, 2)
 indices(ah::AbstractHabitat) =
-    hcat(collect.(convert_coords.(1:length(ah.matrix), xcells(ah)))...)'
+    hcat(collect.(convert_coords.(eachindex(ah.matrix), xcells(ah)))...)'
 indices(ah::AbstractHabitat, idx) = indices(ah)[:, idx]
 coordinates(ah::AbstractHabitat) = indices(ah)
 
@@ -298,7 +298,7 @@ function _identify_clusters!(M::AbstractMatrix)
             count=count+1
             neighbours=neighbours[cluster,:]
             M[x,y]=count
-            map(i->M[neighbours[i,1],neighbours[i,2]]=count, 1:size(neighbours,1))
+            map(i->M[neighbours[i,1],neighbours[i,2]]=count, Base.axes(neighbours,1))
         end
       end
     end
@@ -320,7 +320,7 @@ function _fill_in!(T, M, types, wv)
             neighbours=neighbours[already,:]
             # Find all neighbour traits
             neighbour_traits=map(i->T[neighbours[i,1],neighbours[i,2]],
-             1:size(neighbours,1))
+             Base.axes(neighbours,1))
              # Find which one is counted most often
             ind=argmax(map(x->sum(neighbour_traits.==x), types))
             # Assign this type to the grid square in T
