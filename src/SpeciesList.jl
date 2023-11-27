@@ -133,7 +133,6 @@ function SpeciesList(numspecies::Int64,
               req, phy, movement, params, native)
 end
 
-
 """
     SpeciesList{R <: AbstractRequirement, MO <: AbstractMovement,
       T <: AbstractTypes, P <: AbstractParams}(numspecies::Int64,
@@ -213,30 +212,37 @@ end
 #function _calcsimilarity(ph::PhyloBranches)
 # return ph.Zmatrix
 #end
+
 import Diversity.API: _gettypenames
 function _gettypenames(sl::SpeciesList, input::Bool)
     return _gettypenames(sl.types, input)
 end
+
 import Diversity.API: _counttypes
 function _counttypes(sl::SpeciesList, input::Bool)
     return _counttypes(sl.types, input)
 end
+
 import Diversity.API: _calcsimilarity
 function _calcsimilarity(sl::SpeciesList, a::AbstractArray)
     return _calcsimilarity(sl.types, a)
 end
+
 import Diversity.API: floattypes
 function floattypes(::SpeciesList)
     return Set([Float64])
 end
+
 import Diversity.API: _calcordinariness
 function _calcordinariness(sl::SpeciesList, a::AbstractArray)
     _calcordinariness(sl.types, a, one(eltype(a)))
 end
+
 import Diversity.API: _calcabundance
 function _calcabundance(sl::SpeciesList, a::AbstractArray)
   return _calcabundance(sl.types, a)
 end
+
 import Diversity.API._getdiversityname
 function _getdiversityname(sl::SpeciesList)
     return _getdiversityname(sl.types)

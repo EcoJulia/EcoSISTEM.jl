@@ -6,7 +6,8 @@ using EcoSISTEM.Units
 using Missings
 using RecipesBase
 
-import Diversity: _calcabundance
+using Diversity.API: _calcabundance
+
 """
     Lookup
 
@@ -24,7 +25,6 @@ mutable struct Lookup
   moves::Vector{Int64}
 end
 
-
 """
     Cache
 
@@ -37,7 +37,6 @@ mutable struct Cache
   valid::Bool
 end
 
-
 Lookup(df::DataFrame) = Lookup(df[!, :X], df[!, :Y], df[!, :Prob],
 zeros(Float64, nrow(df)),zeros(Int64, nrow(df)))
 
@@ -47,7 +46,6 @@ function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
     counttypes(sim) == size(realm, 1) &&
     countsubcommunities(part) == size(realm, 2)
 end
-
 
 """
     tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
@@ -59,6 +57,7 @@ function tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
     (eltype(sppl.traits) == eltype(abenv.habitat)) &&
     (iscontinuous(sppl.traits) == iscontinuous(abenv.habitat))
 end
+
 """
     trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
 
@@ -82,6 +81,7 @@ abstract type
         TR <: AbstractTraitRelationship} <: AbstractMetacommunity{Float64, Matrix{Int64},
                                         Matrix{Float64}, SL, Part}
 end
+
 """
     Ecosystem{Part <: AbstractAbiotic} <:
        AbstractEcosystem{Part, SL, TR}
@@ -138,6 +138,7 @@ end
     title --> "Movement kernel (km)"
     xrange(gethabitat(eco)), yrange(gethabitat(eco)), A
 end
+
 """
     Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
         rel::AbstractTraitRelationship)
@@ -180,6 +181,7 @@ function addspecies!(eco::Ecosystem, abun::Int64)
     addrequirement!(eco.spplist.requirement)
     addtypes!(eco.spplist.types)
 end
+
 function addtraits!(tr::GaussTrait)
     append!(tr.mean, tr.mean[end])
     append!(tr.var, tr.var[end])
@@ -240,45 +242,39 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
 end
 
 import Diversity.API: _getabundance
-function _getabundance(eco::AbstractEcosystem, input::Bool)
-    if input
+function _getabundance(eco::AbstractEcosystem, raw::Bool)
+    if raw
         return eco.abundances.matrix
     else
         return _calcabundance(_gettypes(eco), eco.abundances.matrix / sum(eco.abundances.matrix))[1]
     end
 end
 
-
-function _getabundance(cache::CachedEcosystem, input::Bool)
+function _getabundance(cache::CachedEcosystem, raw::Bool)
     if all(ismissing.(cache.abundances.matrix))
         error("Abundances are missing")
     else
         id = findall(.!ismissing.(cache.abundances.matrix))[end]
         abun = cache.abundances.matrix[id]
     end
-    if input
+    
+    if raw
         return abun.matrix
     else
         return abun.matrix / sum(abun.matrix)
     end
-end
-import Diversity.API: _getmetaabundance
-function _getmetaabundance(eco::AbstractEcosystem)
-  return sumoversubcommunities(eco, _getabundance(eco))
-end
-
-function _getmetaabundance(eco::CachedEcosystem)
-  return sumoversubcommunities(eco, _getabundance(eco))
 end
 
 import Diversity.API: _getpartition
 function _getpartition(eco::AbstractEcosystem)
   return eco.abenv
 end
+
 import Diversity.API: _gettypes
 function _gettypes(eco::AbstractEcosystem)
     return eco.spplist
 end
+
 import Diversity.API: _getordinariness!
 function _getordinariness!(eco::AbstractEcosystem)
     if ismissing(eco.ordinariness)
@@ -316,6 +312,7 @@ Function to extract habitat from Ecosystem object.
 function gethabitat(eco::AbstractEcosystem)
   return eco.abenv.habitat
 end
+
 """
     getbudget(eco::Ecosystem)
 
@@ -363,6 +360,7 @@ function getdispersaldist(eco::AbstractEcosystem, sp::Int64)
   dist = eco.spplist.movement.kernels[sp].dist
   return dist
 end
+
 function getdispersaldist(eco::AbstractEcosystem, sp::String)
   num = findall(eco.spplist.names.==sp)[1]
   getdispersaldist(eco, num)
@@ -379,6 +377,7 @@ function getdispersalvar(eco::AbstractEcosystem, sp::Int64)
     var = (eco.spplist.movement.kernels[sp].dist)^2 * pi / 4
     return var
 end
+
 function getdispersalvar(eco::AbstractEcosystem, sp::String)
     num = findall(eco.spplist.names.==sp)[1]
     getdispersalvar(eco, num)
@@ -391,6 +390,7 @@ Function to extract movement lookup table of species from Ecosystem object.
 function getlookup(eco::AbstractEcosystem, sp::Int64)
     return eco.lookup[sp]
 end
+
 function getlookup(eco::AbstractEcosystem, sp::String)
     num = findall(eco.spplist.names.==sp)[1]
     getlookup(eco, num)
@@ -405,14 +405,17 @@ function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, typeof(𝐓^
     eco.abenv.habitat.change = HabitatUpdate(
     eco.abenv.habitat.change.changefun, rate, Unitful.Dimensions{()})
 end
+
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
     eco.abenv.habitat.change = HabitatUpdate(
     eco.abenv.habitat.change.changefun, rate, typeof(dimension(1K)))
 end
+
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝐓^-1})
     eco.abenv.habitat.change = HabitatUpdate(
     eco.abenv.habitat.change.changefun, rate, Unitful.Dimensions{()})
 end
+
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯*𝐓^-1})
     eco.abenv.habitat.change = HabitatUpdate(
     eco.abenv.habitat.change.changefun, rate, typeof(dimension(1K)))
@@ -421,7 +424,6 @@ end
 function resettime!(eco::AbstractEcosystem)
     _resettime!(eco.abenv.habitat)
 end
-
 
 function _symmetric_grid(grid::DataFrame)
    for x in 1:nrow(grid)
@@ -465,6 +467,7 @@ function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
   p = mov.thresh
   return Lookup(_lookup(relsize, m, p, _gaussian_disperse))
 end
+
 function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
     sd = (2 * mov.dist) / sqrt(pi)
     relsize =  _getgridsize(hab) ./ sd
@@ -512,7 +515,6 @@ function _lookup(relSquareSize::Float64, maxGridSize::Int64,
   lookup_tab[!, :Prob] = lookup_tab[!, :Prob]/sum(lookup_tab[!, :Prob])
   lookup_tab
 end
-
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
                 pThresh::Float64, b::Float64, dispersalfn::F
