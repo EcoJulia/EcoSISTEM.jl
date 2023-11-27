@@ -62,11 +62,12 @@ function upresolution(aa::AxisArray{T, 3} where T, rescale::Int64)
     grid = size(aa)
     grid = (grid[1] * rescale -1, grid[2] * rescale - 1, grid[3])
     array = Array{typeof(aa[1]), 3}(undef, grid)
-    map(1:grid[3]) do time
-        for x in 1:size(aa, 1)
-            for y in 1:size(aa, 2)
-        array[(rescale*x-(rescale-1)):(rescale*x),
-            (rescale*y-(rescale - 1)):(rescale*y), time] .= aa[x, y, time]
+    aa_ax = Base.axes(aa)
+    map(aa_ax[3]) do time
+        for x in aa_ax[1]
+            for y in aa_ax[2]
+                array[(rescale * x - (rescale - 1)):(rescale * x),
+                      (rescale * y - (rescale - 1)):(rescale * y), time] .= aa[x, y, time]
             end
         end
     end
