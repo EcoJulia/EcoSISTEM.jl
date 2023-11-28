@@ -13,7 +13,7 @@ using Plots
 using LinearAlgebra
 file = "Africa.tif"
 africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
-active = Array{Bool, 2}(fill(0, size(africa)))
+active = Matrix{Bool}(fill(0, size(africa)))
 
 xs = Base.axes(africa, 1)
 ys = Base.axes(africa, 2)
@@ -189,7 +189,7 @@ using JLD2
 using Printf
 file = "Africa.tif"
 africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
-active = Array{Bool, 2}(fill(0, size(africa)))
+active = Matrix{Bool}(fill(0, size(africa)))
 
 xs = Base.axes(africa, 1)
 ys = Base.axes(africa, 2)
@@ -269,7 +269,7 @@ using Printf
 
 file = "Africa.tif"
 africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
-active = Array{Bool, 2}(fill(0, size(africa)))
+active = Matrix{Bool}(fill(0, size(africa)))
 
 xs = Base.axes(africa, 1)
 ys = Base.axes(africa, 2)

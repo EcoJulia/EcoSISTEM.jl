@@ -63,10 +63,8 @@ function MPIEcosystem(popfun::F, spplist::SpeciesList{T, Req},
     lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), @view getkernels(spplist.movement)[rankspp]))
     nm = zeros(Int64, (sppcounts[rank + 1], numsc))
     totalE = zeros(Float64, (numsc, numrequirements(Req)))
-    MPIEcosystem{typeof(ml), typeof(abenv),
-    typeof(spplist), typeof(rel)}(ml, spplist, abenv, missing, rel,
-    lookup_tab, sppcounts, firstsp, sccounts, firstsc,
-    Cache(nm, totalE, false))
+    MPIEcosystem(ml, spplist, abenv, missing, rel, lookup_tab, sppcounts,
+                 firstsp, sccounts, firstsc, Cache(nm, totalE, false))
 end
 
 function MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
@@ -134,13 +132,14 @@ end
 
 function gather_diversity(eco::MPIEcosystem, divmeasure::F, q) where {F<:Function}
     comm = MPI.COMM_WORLD
+    rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
     div = divmeasure(eco, q)
     totalabun = MPI.Gather(sum(eco.abundances.rows_matrix), 0, comm)
     mpidivs = MPI.Gather(div[!, :diversity], 0, comm)
     if rank == 0
         mpidivs = vcat(reshape(mpidivs, countsubcommunities(eco), totalsize), div[!, :q])
-        div[!, :diversity] .= mapslices(x -> Diversity.powermean(x[:, 1:end-1], 1 - x[:, end], totalabun .* 1.0), mpidivs, dims = 2)[:, 1]
+        div[!, :diversity] .= mapslices(x -> Diversity.powermean(x[:, 1:end-1], 1 .- x[:, end], totalabun .* 1.0), mpidivs, dims = 2)[:, 1]
         return div
     else
         return div

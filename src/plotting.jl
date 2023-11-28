@@ -22,7 +22,7 @@ function plot(eco::Ecosystem, fig=true)
     end
 end
 
-function plot(dat::Array{Float64, 1}, eco::Ecosystem)
+function plot(dat::Vector{Float64}, eco::Ecosystem)
     plot(dat, plot(assem, false))
 end
 
@@ -179,7 +179,7 @@ function plot_reps(abun::Array{Int64, 4}, numSpecies::Int64,
         }
     }"
 end
-function plot_mean(abun::Array{Int64, 4},numSpecies::Int64, grid::Tuple{Int64, Int64})
+function plot_mean(abun::Array{Int64, 4}, numSpecies::Int64, grid::Tuple{Int64, Int64})
     meanabun = reshape(mapslices(mean, abun, dims = [1,3,4])[1,:, 1,1], (numSpecies, grid[1], grid[2]))
     grid = collect(grid)
     @rput meanabun; @rput grid
@@ -204,7 +204,7 @@ function plot_divergence(expected::Vector{Float64}, actual::Vector{Float64})
   info("Divergence = ",KL)
 end
 
-function plot_divergence(combined::Array{Array{Float64, 1}, 1})
+function plot_divergence(combined::Vector{Vector{Float64}})
   expected = combined[1]
   actual = combined[2]
   plot_divergence(expected, actual)
@@ -236,7 +236,7 @@ function _freq_hist(total::Array{Float64}, grd::Array{Float64}, num::Int64)
   R"hist(count_tot, breaks=c(-0.5:(num+0.5)), main=' ', xlab='Abundance')"
 end
 
-function plotdiv(divfun::Function, eco::Ecosystem, qs::Array{Float64, 1})
+function plotdiv(divfun::Function, eco::Ecosystem, qs::Vector{Float64})
   datf = divfun(eco, qs)
   @rput datf
   R"library(ggplot2); library(cowplot)

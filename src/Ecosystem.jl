@@ -32,7 +32,7 @@ Cache houses an integer array of moves made by all species in a timestep for the
 update! function, `netmigration`.
 """
 mutable struct Cache
-  netmigration::Array{Int64, 2}
+  netmigration::Matrix{Int64}
   totalE::Matrix{Float64}
   valid::Bool
 end

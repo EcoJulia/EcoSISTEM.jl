@@ -130,7 +130,7 @@ function SpecialistInvasive(eco::Ecosystem, timestep::Unitful.Time, rate::RateTy
     end
 end
 
-function TempFluct!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity{Float64, 𝚯*𝐓^-1}, currentstep::Unitful.Time, startarray::Array{Unitful.Temperature{Float64}, 2})
+function TempFluct!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity{Float64, 𝚯*𝐓^-1}, currentstep::Unitful.Time, startarray::Matrix{Unitful.Temperature{Float64}})
     v = uconvert(K/year, rate)
     eco.abenv.habitat.matrix .= (v * year) .* sin(collect(-π:π/6:π)[mod(Int64(uconvert(NoUnits, currentstep/timestep)),12) + 1]) .+ startarray
 end

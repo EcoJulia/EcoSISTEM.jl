@@ -6,7 +6,8 @@ import EcoSISTEM: MPIGridLandscape, emptyMPIgridlandscape, synchronise_from_rows
 
 function MPIGridLandscape(sppcounts::Vector{Int32}, sccounts::Vector{Int32},
                           rows_matrix::Matrix{Int64}, cols_vector::Vector{Int64})
-                          rank = MPI.Comm_rank(MPI.COMM_WORLD)
+
+  rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
   totalspp = sum(sppcounts)
   totalsc = sum(sccounts)

@@ -49,12 +49,13 @@ end
 This habitat subtype houses a habitat matrix `matrix` of any units, a grid square size `size` and HabitatUpdate type `change`.
 """
 mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
-  matrix::Array{C, 2}
+  matrix::Matrix{C}
   size::Unitful.Length
   change::HabitatUpdate
 end
 
-iscontinuous(hab::ContinuousHab{C}) where C = true
+iscontinuous(::ContinuousHab) = true
+
 function eltype(hab::ContinuousHab{C}) where C
     return C
 end
@@ -126,7 +127,7 @@ end
 This habitat subtype has a matrix of strings and a float grid square size
 """
 mutable struct DiscreteHab{D} <: AbstractHabitat{D}
-  matrix::Array{D, 2}
+  matrix::Matrix{D}
   size::Unitful.Length
   change::HabitatUpdate
 end

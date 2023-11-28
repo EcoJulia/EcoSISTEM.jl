@@ -133,7 +133,7 @@ end
 
 using EcoSISTEM: getdimension, getboundary, calc_lookup_moves!
 function move!(eco::MPIEcosystem, ::BirthOnlyMovement, sc::Int64, truesp::Int64,
-    grd::Array{Int64, 2}, births::Int64)
+               grd::Matrix{Int64}, births::Int64)
   width, height = getdimension(eco)
   (x, y) = convert_coords(eco, sc, width)
   lookup = getlookup(eco, truesp)

@@ -13,7 +13,7 @@ function convert_coords(i::Int64, width::Int64)
   y = div((i - 1), width)  + 1
   return (x, y)
 end
-function convert_coords(i::Array{Int64, 1}, width::Int64)
+function convert_coords(i::Vector{Int64}, width::Int64)
   x = ((i .- 1) .% width) .+ 1
   y = div.((i .- 1), width)  .+ 1
   return (x, y)
@@ -23,7 +23,7 @@ function convert_coords(x::Int64, y::Int64, width::Int64)
   return i
 end
 
-function convert_coords(x::Array{Int64, 1}, y::Array{Int64, 1}, width::Int64)
+function convert_coords(x::Vector{Int64}, y::Vector{Int64}, width::Int64)
   i = x .+ (width .* (y .- 1))
   return i
 end
@@ -36,7 +36,7 @@ function create_reference(gridsize::Float64)
     x = 360 * (1/gridsize) + 1
     y = 180 * (1/gridsize) + 1
     gridsize = gridsize * °
-    refarray = AxisArray(Array{Int64, 2}(undef, Int(floor(x)), Int(floor(y))),Axis{:longitude}(-180.0°:gridsize:180.0°),Axis{:latitude}(-90.0°:gridsize:90.0°))
+    refarray = AxisArray(Matrix{Int64}(undef, Int(floor(x)), Int(floor(y))),Axis{:longitude}(-180.0°:gridsize:180.0°),Axis{:latitude}(-90.0°:gridsize:90.0°))
     vec(refarray) .= eachindex(refarray)
     return Reference(refarray)
 end
@@ -82,7 +82,7 @@ function upresolution(aa::AxisArray{T, 3} where T, rescale::Int64)
 end
 function upresolution(aa::AxisArray{T, 2} where T, rescale::Int64)
     grid = size(aa) .* rescale .- 1
-    array = Array{typeof(aa[1]), 2}(undef, grid)
+    array = Matrix{typeof(aa[1])}(undef, grid)
     for x in Base.axes(aa, 1) - 1
         for y in Base.axes(aa, 2) - 1
             array[(rescale*x-(rescale-1)):(rescale*x),
@@ -144,7 +144,7 @@ end
 function downresolution(aa::AxisArray{T, 2} where T, rescale::Int64, fn)
     grid = size(aa)
     grid = ceil.(Int64, (grid[1] ./ rescale, grid[2] ./ rescale))
-    array = Array{typeof(aa[1]), 2}(undef, grid)
+    array = Matrix{typeof(aa[1])}(undef, grid)
     for x in Base.axes(array, 1)
         for y in Base.axes(array, 2)
             xcoords = filter(x -> x .<= size(aa, 1), (rescale*x-(rescale-1)):(rescale*x))
@@ -163,7 +163,7 @@ function downresolution(aa::AxisArray{T, 2} where T, rescale::Int64, fn)
         Axis{:latitude}(newlat))
 end
 
-function downresolution!(resized_array::Array{T, 2}, array::Array{T, 2}, rescale::Int64, fn) where T
+function downresolution!(resized_array::Matrix{T}, array::Matrix{T}, rescale::Int64, fn) where T
     Threads.@threads for i in eachindex(resized_array)
         x, y = convert_coords(i, size(resized_array, 1))
         xcoords = filter(x -> x .<= size(array, 1), (rescale*x-(rescale-1)):(rescale*x))
@@ -172,7 +172,7 @@ function downresolution!(resized_array::Array{T, 2}, array::Array{T, 2}, rescale
     end
 end
 
-function downresolution!(resized_array::Array{T, 3}, array::Array{T, 2}, dim::Int64, rescale::Int64, fn) where T
+function downresolution!(resized_array::Array{T, 3}, array::Matrix{T}, dim::Int64, rescale::Int64, fn) where T
     new_dims = size(resized_array, 1) * size(resized_array, 2)
     Threads.@threads for i in 1:new_dims
         x, y = convert_coords(i, size(resized_array, 1))

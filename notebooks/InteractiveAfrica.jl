@@ -58,7 +58,7 @@ end
 begin
 	file = "../examples/Africa.tif"
 	africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
-	active =  Array{Bool, 2}(.!isnan.(africa))
+	active =  Matrix{Bool}(.!isnan.(africa))
 	# Set up initial parameters for ecosystem
 	grd = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
@@ -143,7 +143,7 @@ end
 begin
 	temp = uconvert.(K, africa_temp .* °C)
 	africa_new = Worldclim_bioclim(AxisArray(temp, AxisArrays.axes(africa_temp)))
-	active_new =  Array{Bool, 2}(.!isnan.(africa))
+	active_new =  Matrix{Bool}(.!isnan.(africa))
 	# Set up initial parameters for ecosystem
 	grd_new = size(africa_new.array); req_new= 10.0kJ; individuals_new=3*10^8; area_new = 64e6km^2; totalK_new = 1000.0kJ/km^2
 

@@ -30,7 +30,7 @@ africa_water = Worldclim_bioclim(AxisArray(africa_water .* mm, AxisArrays.axes(a
 bio_africa_water = WaterBudget(africa_water)
 
 # Find which grid cells are land
-active =  Array{Bool, 2}(africa_lc .!= 4)
+active =  Matrix{Bool}(africa_lc .!= 4)
 
 # Set up initial parameters for ecosystem
 numSpecies = 1; grid = size(active); req= 10.0mm; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2

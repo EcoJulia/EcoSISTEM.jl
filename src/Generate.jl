@@ -29,8 +29,8 @@ function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int6
   neighbour_vec=neighbour_vec[remove,:]
   neighbour_vec
 end
-function get_neighbours(mat::Matrix, x_coord::Array{Int64,1},
-     y_coord::Array{Int64,1}, chess::Int64=4)
+function get_neighbours(mat::Matrix, x_coord::Vector{Int64},
+     y_coord::Vector{Int64}, chess::Int64=4)
      neighbours  =map(n -> get_neighbours(mat, x_coord[n], y_coord[n], chess),
       eachindex(x_coord))
       return vcat(neighbours...)
@@ -255,7 +255,7 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64, eco::Ab
 end
 
 """
-    move!(eco::Ecosystem, ::AbstractMovement, i::Int64, sp::Int64, grd::Array{Int64, 2}, abun::Int64)
+    move!(eco::Ecosystem, ::AbstractMovement, i::Int64, sp::Int64, grd::Matrix{Int64, 2}, abun::Int64)
 
 Function to calculate the movement of species `sp` from a given position in the
 landscape `i`, using the lookup table found in the Ecosystem and updating the
@@ -264,7 +264,7 @@ provided, so that movement only takes place as part of the birth process, instea
 of the entire population
 """
 function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, sp::Int64,
-  grd::Array{Int64, 2}, ::Int64)
+  grd::Matrix{Int64}, ::Int64)
   width, height = getdimension(eco)
   (x, y) = convert_coords(eco, i, width)
   lookup = getlookup(eco, sp)
@@ -284,12 +284,12 @@ function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, sp::Int64,
 end
 
 function move!(eco::AbstractEcosystem, ::NoMovement, i::Int64, sp::Int64,
-  grd::Array{Int64, 2}, ::Int64)
+  grd::Matrix{Int64}, ::Int64)
   return eco
 end
 
 function move!(eco::AbstractEcosystem, ::BirthOnlyMovement, i::Int64, sp::Int64,
-    grd::Array{Int64, 2}, births::Int64)
+    grd::Matrix{Int64}, births::Int64)
   width, height = getdimension(eco)
   (x, y) = convert_coords(eco, i, width)
    lookup = getlookup(eco, sp)
