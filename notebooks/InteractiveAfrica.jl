@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.27
+# v0.19.32
 
 using Markdown
 using InteractiveUtils
@@ -144,12 +144,12 @@ begin
 	temp = uconvert.(K, africa_temp .* °C)
 	africa_new = Worldclim_bioclim(AxisArray(temp, AxisArrays.axes(africa_temp)))
 	active_new =  Matrix{Bool}(.!isnan.(africa))
+	
 	# Set up initial parameters for ecosystem
 	grd_new = size(africa_new.array); req_new= 10.0kJ; individuals_new=3*10^8; area_new = 64e6km^2; totalK_new = 1000.0kJ/km^2
 
 	# Set up how much energy each species consumes
 	energy_vec_new = SolarRequirement(fill(req, numSpecies))
-
 
 	# Set rates for birth and death
 	birth_new = 0.6/year
@@ -195,7 +195,7 @@ begin
 
 	mean_abuns = reshape(mean(eco_new.abundances.matrix, dims = 1)[1, :], grd_new)
 	mean_abuns[.!eco_new.abenv.active] .= NaN
-	heatmap(mean_abuns)
+	heatmap(mean_abuns')
 	
 end
 
@@ -228,7 +228,7 @@ Unitful = "~1.17.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.2"
+julia_version = "1.9.4"
 manifest_format = "2.0"
 project_hash = "65385dd5200ce9a5a17af27ead41fc495fa039df"
 
@@ -1019,12 +1019,12 @@ uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
-version = "0.6.3"
+version = "0.6.4"
 
 [[deps.LibCURL_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "7.84.0+0"
+version = "8.4.0+0"
 
 [[deps.LibGit2]]
 deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
@@ -1039,7 +1039,7 @@ version = "14.3.0+1"
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.10.2+0"
+version = "1.11.0+1"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -2090,7 +2090,7 @@ version = "1.3.7+1"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.48.0+0"
+version = "1.52.0+1"
 
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
