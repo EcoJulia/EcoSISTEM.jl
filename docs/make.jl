@@ -23,9 +23,7 @@ makedocs(
         "HPC" => "HPC.md",
         "Data" => "data.md"
         ]
-    ],
-    strict=true,
-    checkdocs=:none,
+    ]
 )
 
 deploydocs(

@@ -3,7 +3,7 @@ import Random: rand, GLOBAL_RNG
 using Random
 
 import Distributions: @check_args, ContinuousUnivariateDistribution,
-rand, params, GLOBAL_RNG, pdf
+rand, params, pdf
 
 """
     Trapezoid{T<:Real} <: ContinuousUnivariateDistribution
@@ -16,17 +16,18 @@ struct Trapezoid{T<:Real} <: ContinuousUnivariateDistribution
     c::T
     d::T
 
-    Trapezoid{T}(a::T, b::T, c::T, d::T) where {T} = new{T}(a, b, c, d)
-end
-function Trapezoid{T}(a::T, b::T, c::T, d::T; check_args::Bool = true) where {T}
-    @check_args Trapezoid (a < d)
-    return Trapezoid{T}(a, b, c, d)
+    function Trapezoid{T}(a::T, b::T, c::T, d::T; check_args::Bool = true) where T
+        @check_args Trapezoid (a < d)
+        return new{T}(a, b, c, d)
+    end
 end 
 
-Trapezoid(a::T, b::T, c::T, d::T; check_args::Bool = true) where {T<:Real} = Trapezoid{T}(a, b, c, d; check_args=check_args)
-Trapezoid(a::Real, b::Real, c::Real, d::Real; check_args::Bool = true) = Trapezoid(promote(a, b, c, d)...; check_args=check_args)
-Trapezoid(a::Integer, b::Integer, c::Integer, d::Integer; check_args::Bool = true) = Trapezoid(Float64(a), Float64(b),
-    Float64(c), Float64(d); check_args=check_args)
+Trapezoid(a::T, b::T, c::T, d::T; check_args::Bool = true) where T <: Real =
+    Trapezoid{T}(a, b, c, d; check_args=check_args)
+Trapezoid(a::Real, b::Real, c::Real, d::Real; check_args::Bool = true) =
+    Trapezoid(promote(a, b, c, d)...; check_args=check_args)
+Trapezoid(a::Integer, b::Integer, c::Integer, d::Integer; check_args::Bool = true) =
+    Trapezoid(Float64(a), Float64(b), Float64(c), Float64(d); check_args=check_args)
 Trapezoid() = Trapezoid(0.0, 0.0, 1.0, 1.0)
 
 params(d::Trapezoid) = (d.a, d.b, d.c, d.d)

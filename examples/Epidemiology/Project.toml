@@ -7,12 +7,3 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
-[compat]
-AxisArrays = "0.4.6"
-DataFrames = "1.0"
-Distributions = "0.25.80"
-Plots = "1.38"
-StatsBase = "0.33"
-Unitful = "1.12"
-julia = "1.6"
