@@ -30,7 +30,7 @@ This scenario type holds a function that acts to fluctuate the environment.
 mutable struct FluctScenario{F<:Function} <: AbstractScenario
         fun::F
         rate::Quantity{Float64, 𝚯*𝐓^-1}
-        startarray::Array{typeof(1.0K), 2}
+        startarray::Matrix{typeof(1.0K)}
 end
 
 """

@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - dev
+    tags:
+      - 'v*'
   schedule:
     - cron: '0 2 * * 0'  # Weekly at 2 AM UTC Sunday
 
@@ -14,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up julia
         uses: julia-actions/setup-julia@v1
         with:

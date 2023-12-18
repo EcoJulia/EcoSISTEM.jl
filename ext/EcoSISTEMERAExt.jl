@@ -1,15 +1,11 @@
-module ERATools
+module EcoSISTEMERAExt
 
-if isdefined(Base, :get_extension)
-    using PyCall
-else
-    using ..PyCall
-end
+using PyCall
 
 # Install python api for Climate Data Store
 run(`$(PyCall.python) -m pip install cdsapi`)
 
-println("Creating ECMWF interface ...")
+@info "Creating ECMWF interface ..."
 
 using EcoSISTEM
 using EcoSISTEM.ClimatePref

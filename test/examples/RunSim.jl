@@ -7,7 +7,7 @@ using Printf
 import EcoSISTEM.runscenario!
 function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
   times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
-  scenario::SC, divfuns::Array{Function, 1}, q::Float64, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String, rep::Int64) where SC <: EcoSISTEM.AbstractScenario
+  scenario::SC, divfuns::Vector{Function}, q::Float64, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String, rep::Int64) where SC <: EcoSISTEM.AbstractScenario
   ustrip(mod(interval,timestep)) == 0.0 || error("Interval must be a multiple of timestep")
   record_seq = 0s:interval:times
   time_seq = 0s:timestep:times

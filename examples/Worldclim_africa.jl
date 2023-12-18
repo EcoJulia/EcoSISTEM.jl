@@ -25,7 +25,7 @@ africa_water = Worldclim_bioclim(AxisArray(africa_water, AxisArrays.axes(africa_
 bio_africa_water = WaterBudget(africa_water)
 
 # Find which grid cells are land
-active =  Array{Bool, 2}(.!isnan.(bio_africa.array))
+active =  Matrix{Bool}(.!isnan.(bio_africa.array))
 
 heatmap(africa_temp')
 

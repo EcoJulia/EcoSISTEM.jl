@@ -82,7 +82,7 @@ water = WaterTimeBudget(rain, 1)
 
 bud = BudgetCollection2(sol, water)
 
-active = Array{Bool, 2}(.!isnan.(sun.array[:, :, 1]))
+active = Matrix{Bool}(.!isnan.(sun.array[:, :, 1]))
 temp = hadAE(tas, sol, active)
 rain = hadAE(rainfall, sol, active)
 #lcae = lcAE(lc, 1000.0kJ/km^2, 242_495km^2)

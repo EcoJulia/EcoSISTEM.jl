@@ -22,7 +22,7 @@ function plot(eco::Ecosystem, fig=true)
     end
 end
 
-function plot(dat::Array{Float64, 1}, eco::Ecosystem)
+function plot(dat::Vector{Float64}, eco::Ecosystem)
     plot(dat, plot(assem, false))
 end
 
@@ -160,9 +160,9 @@ function plot_abun(abun::Array{Int64, 4}, numSpecies::Int64,
 function plot_reps(abun::Array{Int64, 4}, numSpecies::Int64,
   grid::Tuple{Int64, Int64})
   # Plot
-  means = mapslices(mean, abun, 4)
-  upper = means .+ mapslices(std, abun, 4)
-  lower = means .- mapslices(std, abun, 4)
+  means = mapslices(mean, abun, dims = 4)
+  upper = means .+ mapslices(std, abun, dims = 4)
+  lower = means .- mapslices(std, abun, dims = 4)
   summary = [mean, upper, lower]
   gridsize = collect(grid)
   @rput summary
@@ -179,8 +179,8 @@ function plot_reps(abun::Array{Int64, 4}, numSpecies::Int64,
         }
     }"
 end
-function plot_mean(abun::Array{Int64, 4},numSpecies::Int64, grid::Tuple{Int64, Int64})
-    meanabun = reshape(mapslices(mean, abun, [1,3,4])[1,:, 1,1], (numSpecies, grid[1], grid[2]))
+function plot_mean(abun::Array{Int64, 4}, numSpecies::Int64, grid::Tuple{Int64, Int64})
+    meanabun = reshape(mapslices(mean, abun, dims = [1,3,4])[1,:, 1,1], (numSpecies, grid[1], grid[2]))
     grid = collect(grid)
     @rput meanabun; @rput grid
     R"par(mfrow=c(1,1))
@@ -204,20 +204,20 @@ function plot_divergence(expected::Vector{Float64}, actual::Vector{Float64})
   info("Divergence = ",KL)
 end
 
-function plot_divergence(combined::Array{Array{Float64, 1}, 1})
+function plot_divergence(combined::Vector{Vector{Float64}})
   expected = combined[1]
   actual = combined[2]
   plot_divergence(expected, actual)
 end
 
 function freq_hist(grd::Array{Float64, 4}, sq::Int64, num::Int64)
-  total = mapslices(sum, grd , length(size(grd)))
+  total = mapslices(sum, grd, dims = length(size(grd)))
   grd = grd[:, :, :, sq]
   _freq_hist(total, grd, num)
 end
 
 function freq_hist(grd::Array{Float64, 3}, sq::Int64, num::Int64)
-  total = mapslices(sum, grd , length(size(grd)))
+  total = mapslices(sum, grd, dims = length(size(grd)))
   grd = grd[:, :, sq]
   _freq_hist(total, grd, num)
 end
@@ -236,7 +236,7 @@ function _freq_hist(total::Array{Float64}, grd::Array{Float64}, num::Int64)
   R"hist(count_tot, breaks=c(-0.5:(num+0.5)), main=' ', xlab='Abundance')"
 end
 
-function plotdiv(divfun::Function, eco::Ecosystem, qs::Array{Float64, 1})
+function plotdiv(divfun::Function, eco::Ecosystem, qs::Vector{Float64})
   datf = divfun(eco, qs)
   @rput datf
   R"library(ggplot2); library(cowplot)

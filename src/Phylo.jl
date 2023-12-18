@@ -24,12 +24,13 @@ function pair(vec)
   # Calc number of pairs
   npairs=length(vec)-1
   # Create empty array
-  newvec=Array{String}(undef, npairs, 2)
+  newvec=Matrix{String}(undef, npairs, 2)
   # Split into pairs
   for i in collect(1:npairs)
-    newvec[i,:]=vec[i:(i+1)]
+    newvec[i,:] = vec[i:(i+1)]
   end
-  newvec
+
+  return newvec
 end
 
 function root_to_tips(tree)
@@ -37,12 +38,13 @@ function root_to_tips(tree)
   paths = map(tips) do tps
     reverse(nodehistory(tree, tps))
   end
-  paths
+
+  return paths
 end
 
 function arenoderecordsempty(tree::AbstractTree, nodes::Vector{String})
   map(nodes) do nod
-  isempty(getnodedata(tree, nod))
+    isempty(getnodedata(tree, nod))
   end
 end
 
@@ -55,7 +57,7 @@ with a specific switching rate.
 
 """
 function assign_traits!(tree::AbstractTree, switch_rate::Vector{Float64},
-          traits::DataFrame)
+                        traits::DataFrame)
   # Check if tree already assigned
   check = arenoderecordsempty(tree, collect(getnodenames(tree)))
   all(check) || error("Some nodes already assigned traits")
@@ -119,9 +121,9 @@ function assign_traits!(tree::AbstractTree, switch_rate::Vector{Float64},
           while number > 0
             set_node = last(sel_pair)
             newtrait = map(names(traits)) do trt
-                        col = traits[!, trt]
-                        sample(col[col .!= last_label[:, trt]])
-                       end
+              col = traits[!, trt]
+              sample(col[col .!= last_label[:, trt]])
+            end
             newtrait = DataFrame(hcat(newtrait), names(traits))
             setnodedata!(tree, set_node, newtrait)
             last_label = getnodedata(tree, set_node)
@@ -134,7 +136,7 @@ function assign_traits!(tree::AbstractTree, switch_rate::Vector{Float64},
 end
 
 function assign_traits!(tree::AbstractTree, switch_rate::Float64,
-  traits::DataFrame)
+                        traits::DataFrame)
   return assign_traits!(tree, [switch_rate], traits)
 end
 
@@ -151,6 +153,7 @@ function BM(T::Real, σ²::Float64, start::Float64, lab::String="")
     x = rand(Normal(0, sqrt(σ²)),length(t))
     # now compute their cumulative sum
     x = cumsum(append!([start], x))
+
     return x
 end
 
@@ -177,8 +180,8 @@ function assign_traits!(tree::AbstractTree, traits::DataFrame)
   # Sort by distance from root
   root = first(collect(NodeNameIterator(tree, isroot)))
   dist = map(names) do node
-          distance(tree, root, node)
-         end
+    distance(tree, root, node)
+  end
   names = names[sortperm(dist)]
 
   # Loop through nodes in order of appearance
@@ -196,8 +199,8 @@ function assign_traits!(tree::AbstractTree, traits::DataFrame)
 
       # Run BM model on each trait and set record
       newtrait = map(srt, traits[!, :σ²]) do start, sig
-                  last(BM(ln, sig, start))
-                 end
+        last(BM(ln, sig, start))
+      end
       newdat = DataFrame(start = newtrait, σ² = traits[!, :σ²])
       setnodedata!(tree, i, newdat)
 

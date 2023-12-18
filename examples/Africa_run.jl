@@ -13,10 +13,10 @@ using Plots
 using LinearAlgebra
 file = "Africa.tif"
 africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
-active = Array{Bool, 2}(fill(0, size(africa)))
+active = Matrix{Bool}(fill(0, size(africa)))
 
-xs = 1:size(africa, 1)
-ys = 1:size(africa, 2)
+xs = Base.axes(africa, 1)
+ys = Base.axes(africa, 2)
 radius = 50
 for x in xs
     for y in ys
@@ -146,11 +146,11 @@ for i in eachindex(specialist_vars)
     abuns = reshape(abuns[:, :, :, 1], numSpecies, grid[1], grid[2], lensim)
     origin = [rand_start[1], rand_start[2]]
     dest = findall(abuns[2, :, :, end] .> 0)
-    dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
-    velocity[i] = mean(dists) / 100years
+    dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in eachindex(dest)] .* getgridsize(eco)
+    velocity[i] = mean(dists) / 100.0years
     # inst_velocity = map(1:lensim) do t
     #     dest = findall(abuns[2, :, :, t] .> 0)
-    #     dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
+    #     dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in eachindex(dest)] .* getgridsize(eco)
     #     return maximum(dists)/month
     # end
     #velocity[i] = mean(inst_velocity)
@@ -174,8 +174,8 @@ for i in eachindex(specialist_vars)
 end
 
 plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
-    xlab = "Selective advantage", ylab = "Average invasion speed (km/year)",
-    label = "", grid = false)
+     xlab = "Selective advantage", ylab = "Average invasion speed (km/year)",
+     label = "", grid = false)
 Plots.pdf("InvasionCircle.pdf")
 
 
@@ -189,10 +189,10 @@ using JLD2
 using Printf
 file = "Africa.tif"
 africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
-active = Array{Bool, 2}(fill(0, size(africa)))
+active = Matrix{Bool}(fill(0, size(africa)))
 
-xs = 1:size(africa, 1)
-ys = 1:size(africa, 2)
+xs = Base.axes(africa, 1)
+ys = Base.axes(africa, 2)
 radius = 50
 for x in xs
     for y in ys
@@ -269,10 +269,10 @@ using Printf
 
 file = "Africa.tif"
 africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
-active = Array{Bool, 2}(fill(0, size(africa)))
+active = Matrix{Bool}(fill(0, size(africa)))
 
-xs = 1:size(africa, 1)
-ys = 1:size(africa, 2)
+xs = Base.axes(africa, 1)
+ys = Base.axes(africa, 2)
 radius = 50
 for x in xs
     for y in ys

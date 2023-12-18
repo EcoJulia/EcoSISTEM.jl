@@ -17,7 +17,7 @@ using StatsBase
 using Plots
 file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Array{Bool, 2}(.!isnan.(africa'))
+active =  Matrix{Bool}(.!isnan.(africa'))
 
 heatmap(active)
 
@@ -164,7 +164,7 @@ using JLD2
 using Printf
 file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Array{Bool, 2}(.!isnan.(africa'))
+active =  Matrix{Bool}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
 numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
@@ -213,7 +213,7 @@ import EcoSISTEM.simulate!
 function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
   time_seq = 0s:timestep:times
   counting = 0
-  for i in 1:length(time_seq)
+  for i in eachindex(time_seq)
       update!(eco, timestep);
       # Save cache of abundances
       if mod(time_seq[i], cacheInterval) == 0year
@@ -244,7 +244,7 @@ using Printf
 
 file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Array{Bool, 2}(.!isnan.(africa'))
+active =  Matrix{Bool}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
 numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 

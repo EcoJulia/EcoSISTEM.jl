@@ -50,7 +50,7 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
         print(dataset)
     end
 
-    a = Array{txy[1], 2}(undef, txy[2], txy[3])
+    a = Matrix{txy[1]}(undef, txy[2], txy[3])
     read(file) do dataset
         bd = AG.getband(dataset, 1);
         AG.read!(bd, a);
@@ -95,7 +95,7 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles);
     map(eachindex(files)) do count
-    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+    a = Matrix{txy[1]}(undef, txy[2], txy[3]);
     read(files[count]) do dataset
         bd = AG.getband(dataset, 1);
         AG.read!(bd, a);
@@ -155,7 +155,7 @@ function readbioclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles);
     map(eachindex(files)) do count
-    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+    a = Matrix{txy[1]}(undef, txy[2], txy[3]);
     read(files[count]) do dataset
         bd = AG.getband(dataset, 1);
         AG.read!(bd, a);
@@ -220,7 +220,7 @@ for a certain timerange, `dim`, and convert into an axis array.
 """
 function readERA(dir::String, file::String, param::String, dim::Vector{Vector{T}}) where T<: Unitful.Time
     filenames = searchdir(dir, file)
-    newera = Array{AxisArray, 1}(undef, length(filenames))
+    newera = Vector{AxisArray}(undef, length(filenames))
     for i in eachindex(filenames)
         newera[i] = readERA(joinpath(dir, filenames[i]), param, dim[i]).array
     end
@@ -273,7 +273,7 @@ function readCRUTS(dir::String, var_name::String)
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles);
     map(eachindex(files)) do count
-        a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+        a = Matrix{txy[1]}(undef, txy[2], txy[3]);
         read(files[count]) do dataset
             bd = AG.getband(dataset, 1);
             AG.read!(bd, a);
@@ -328,7 +328,7 @@ function readCHELSA_monthly(dir::String, var_name::String,
 
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, ceil(Int64, txy[2]/res),  ceil(Int64, txy[3]/res), numfiles);
-    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+    a = Matrix{txy[1]}(undef, txy[2], txy[3]);
     map(eachindex(files)) do count
         read(files[count]) do dataset
             bd = AG.getband(dataset, 1);
@@ -376,7 +376,7 @@ function readCHELSA_bioclim(dir::String,
 
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, ceil(Int64, txy[2]/res),  ceil(Int64, txy[3]/res), numfiles);
-    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+    a = Matrix{txy[1]}(undef, txy[2], txy[3]);
     map(eachindex(files)) do count
         read(files[count]) do dataset
             bd = AG.getband(dataset, 1);
@@ -427,7 +427,7 @@ function readlc(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
 
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, ceil(Int64, txy[2]/res),  ceil(Int64, txy[3]/res), numfiles);
-    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+    a = Matrix{txy[1]}(undef, txy[2], txy[3]);
     map(eachindex(files)) do count
         read(files[count]) do dataset
             bd = AG.getband(dataset, 1);
