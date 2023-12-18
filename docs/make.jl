@@ -16,9 +16,7 @@ makedocs(
         "Africa" => "africa.md",
         "Data Pipeline" => "pipeline.md"
         ]
-    ],
-    strict=true,
-    checkdocs=:none,
+    ]
 )
 
 deploydocs(
