@@ -134,7 +134,7 @@ if !Sys.iswindows()
         bc = bioclimAE(bio_africa, solar, active)
     end
 
-    @testset "Lancover data" begin
+    @testset "LandCover data" begin
         world = readlc("assets/EarthEnv/LandCover/without_DISCover/")
         world_lc = compressLC(world)
         world_lc = Landcover(world_lc)

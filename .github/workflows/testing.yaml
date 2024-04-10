@@ -17,6 +17,7 @@ jobs:
       matrix:
         julia-version:
           - '1.9'
+          - '1'
         os:
           - ubuntu-latest
           - macOS-latest
@@ -38,6 +39,12 @@ jobs:
         arch: ${{ matrix.arch }}
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
+    - name: Install dependencies
+      run: |
+          import Pkg
+          Pkg.instantiate()
+          Pkg.update()
+      shell: julia --project=. --color=yes {0}
     - name: Running
       uses: julia-actions/julia-runtest@v1
     - name: Process coverage

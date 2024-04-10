@@ -131,6 +131,7 @@ end
     @info "Running from examples folder ..."
     Pkg.activate("../examples")
     Pkg.instantiate()
+    Pkg.update()
     example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
                                            filter(str -> occursin(r"^test_.*\.jl$", str),
                                            readdir("../examples/")))
