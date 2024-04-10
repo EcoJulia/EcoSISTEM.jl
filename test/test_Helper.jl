@@ -1,3 +1,5 @@
+module TestHelper
+
 using EcoSISTEM
 using Test
 using Distributions
@@ -62,4 +64,6 @@ end
         abun2 = zeros(Float64, 3, 3, 4)
         @test_nowarn simulate_record_diversity!(abun1, abun2, eco, times, interval, timestep, qs)
     end
+end
+
 end

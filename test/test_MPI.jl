@@ -1,3 +1,5 @@
+module TestMPI
+
 using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
@@ -120,4 +122,6 @@ rm("data", recursive = true)
 
 if !MPI.Finalized()
     MPI.Finalize()
+end
+
 end

@@ -1,3 +1,5 @@
+module TestEcosystem
+
 using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
@@ -57,4 +59,6 @@ using Diversity
         @test_nowarn getordinariness!(eco)
         @test getordinariness!(eco) == eco.ordinariness
     end
+end
+
 end

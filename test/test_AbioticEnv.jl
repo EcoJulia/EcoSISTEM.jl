@@ -1,3 +1,5 @@
+module TestAbioticEnv
+
 using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
@@ -148,4 +150,6 @@ if !Sys.iswindows()
         solar = SolarBudget(fill(10.0kJ, size(world_lc.array)))
         lc = lcAE(world_lc, solar, active)
     end
+end
+
 end

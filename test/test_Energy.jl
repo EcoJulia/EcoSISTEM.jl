@@ -1,3 +1,5 @@
+module TestEnergy
+
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 using AxisArrays
@@ -159,5 +161,7 @@ end
     @test EcoSISTEM._getbudget(bud) ==  bud.matrix
     @test eltype(bud) == eltype(bud.matrix)
     @test EcoSISTEM._getavailableenergy(bud) == sum(bud.matrix)
+
+end
 
 end

@@ -1,3 +1,5 @@
+module TestMovement
+
 using EcoSISTEM
 using Test
 using Distributions
@@ -30,4 +32,6 @@ using EcoSISTEM.Units
     mov = AlwaysMovement(kernel, NoBoundary())
     @test EcoSISTEM.getkernels(mov) == mov.kernels
     @test EcoSISTEM.getboundary(mov) == mov.boundary
+end
+
 end

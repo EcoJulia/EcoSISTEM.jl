@@ -1,3 +1,5 @@
+module TestScenario
+
 using EcoSISTEM
 using Test
 using Distributions
@@ -33,5 +35,7 @@ include("TestCases.jl")
     # Mutliple scenarios
     multiscenario = MultiScenario(scenario, scenario2)
     @test_nowarn EcoSISTEM.runscenario!(eco, 1month, multiscenario, 1month)
+
+end
 
 end

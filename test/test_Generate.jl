@@ -1,3 +1,5 @@
+module TestGenerate
+
 using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
@@ -27,4 +29,6 @@ include("TestCases.jl")
         10)) == Vector{Int64}
     @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.abenv, eco.spplist), eco.spplist, eco.abenv, eco.relationship)
     @test_nowarn repopulate!(eco)
+end
+
 end

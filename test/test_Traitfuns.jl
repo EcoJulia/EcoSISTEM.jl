@@ -1,3 +1,5 @@
+module TestTraitfuns
+
 using EcoSISTEM
 using Test
 using Distributions
@@ -46,5 +48,7 @@ active = fill(true, grid)
     rel = Unif{typeof(1.0mm)}()
     @test_nowarn EcoSISTEM._traitfun(hab, trts, rel, 1, 1)
     @test getpref(trts, 1) == trts.dist[1, :]
+
+end
 
 end

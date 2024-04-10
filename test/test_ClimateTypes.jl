@@ -1,3 +1,5 @@
+module TestClimateTypes
+
 using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
 using Unitful
@@ -24,4 +26,6 @@ end
 @testset "Reference types" begin
     ref = AxisArray(fill(1, 10, 10), Axis{:latitude}(1:10), Axis{:longitude}(1:10))
     @test_nowarn Reference(ref)
+end
+
 end

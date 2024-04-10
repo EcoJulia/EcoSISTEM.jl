@@ -1,3 +1,5 @@
+module TestReadData
+
 using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
 using Unitful
@@ -45,4 +47,6 @@ if !Sys.iswindows()
 
         @test unit(cr.array[1]) == unit(ch_m.array[1]) == K
     end
+end
+
 end

@@ -1,3 +1,5 @@
+module TestSpeciesList
+
 using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
@@ -50,5 +52,7 @@ using Diversity
 
     # Test
     @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, energy_vec, movement, UniqueTypes(numSpecies), param, native)
+
+end
 
 end

@@ -1,3 +1,5 @@
+module TestHabitatUpdate
+
 using EcoSISTEM
 using Distributions
 using Test
@@ -56,5 +58,7 @@ include("TestCases.jl")
     @test_nowarn EcoSISTEM.budgetupdate!(eco, 1month)
     @test eco.abenv.habitat.time == 2
     @test eco.abenv.budget.time == 2
+
+end
 
 end

@@ -1,3 +1,5 @@
+module TestAdditionalDiversity
+
 using EcoSISTEM
 using Diversity
 using Phylo
@@ -59,4 +61,6 @@ using Test
     @test pd(eco, 1.0)[!, :diversity][1] ≈ sum(map(b -> getlength(eco.spplist.types.tree,b),
                collect(getbranchnames(eco.spplist.types.tree)))) / mean(heightstoroot(eco.spplist.types.tree))
     @test pd(eco, 0.0) == pd(eco, [0.0, 1, 2])
+end
+
 end
