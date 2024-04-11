@@ -1,23 +1,23 @@
-**Table of datasets currently in use by EcoSISTEM.jl**
+# Table of datasets currently in use by EcoSISTEM.jl
 
 Preliminary list of parameters/datasets.
 
 | Name of parameter/ dataset | Description | Value | Source | Other info (e.g. stability) |
 |----------------------------|-------------|-------|--------|-----------------------------|
-|  p_s                          |     Probability of developing symptoms        |      0.96 |  http://gabgoh.github.io/COVID/index.html (From Thibaud's original model)      |                              |
+|  p_s                          |     Probability of developing symptoms        |      0.96 |  [(From Thibaud's original model)](http://gabgoh.github.io/COVID/index.html)      |                              |
 |          p_h                  |       Probability of hospitalisation      |   0.2    |    Guess    |                             |
 |           cfr_home                 |       Case fatality ratio (at home)      |      0.1 |     Guess   |                             |
 |             cfr_hospital               |      Case fatality ratio (at hospital)       |   0.1    |    Guess    |                             |
-|              T_lat              |      Latent period       |    5 days   |      http://gabgoh.github.io/COVID/index.html (From Thibaud's original model)  |                             |
-|               T_asym             |      Asymptomatic period       |   3 days    |    http://gabgoh.github.io/COVID/index.html (From Thibaud's original model)   |                             |
-|              T_sym              |       Symptomatic period      |    5 days   |     http://gabgoh.github.io/COVID/index.html (From Thibaud's original model)   |                             |
-|              T_hosp              |      Hospitalisation period       |   5 days    |   https://www.icnarc.org/Our-Audit/Audits/Cmp/Reports (From Thibaud's original model) |                             |
-|              T_rec              |     Recovery period        |   11 days    |    http://gabgoh.github.io/COVID/index.html (From Thibaud's original model)    |                             |
+|              T_lat              |      Latent period       |    5 days   |      [(From Thibaud's original model)](http://gabgoh.github.io/COVID/index.html)  |                             |
+|               T_asym             |      Asymptomatic period       |   3 days    |    [(From Thibaud's original model)](http://gabgoh.github.io/COVID/index.html)   |                             |
+|              T_sym              |       Symptomatic period      |    5 days   |     [(From Thibaud's original model)](http://gabgoh.github.io/COVID/index.html)   |                             |
+|              T_hosp              |      Hospitalisation period       |   5 days    |   [(From Thibaud's original model)](https://www.icnarc.org/Our-Audit/Audits/Cmp/Reports) |                             |
+|              T_rec              |     Recovery period        |   11 days    |    [(From Thibaud's original model)](http://gabgoh.github.io/COVID/index.html)    |                             |
 |              mu_1              |      Probability of becoming Asymptomatic       |    1/T_lat   |        |                             |
 |              mu_2              |      Probability of becoming Symptomatic       |    p_s * 1/T_asym   |        |                             |
 |              hospitalisation              |       Probability of becoming Hospitalised      |   p_h * 1/T_sym    |        |                             |
 |           sigma_1                 |       Probability of Recovery from Asymptomatic      |    (1 - p_s) * 1/T_asym   |        |                             |
-|           sigma_2                 |     Probability of Recovery from Symptomatic        |    (1 - p_h) * (1 - cfr_home) * 1/T_rec   |        |                             |
+|           sigma_2                 |     Probability of Recovery from Symptomatic        |    (1 - p_h)*(1 - cfr_home)*1/T_rec   |        |                             |
 |           sigma_hospital                 |    Probability of Recovery from Hospital         |   (1 - cfr_hosp) * 1/T_hosp    |        |                             |
 |            death_home                |    Probability of Death at home         |    cfr_home * 2/T_hosp   |        |                             |
 |          death_hospital                  |    Probability of Death at hospital         |   cfr_hosp * 1/T_hosp    |        |                             |

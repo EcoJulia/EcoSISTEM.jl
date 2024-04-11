@@ -6,6 +6,7 @@ makedocs(
     sitename = "EcoSISTEM.jl",
     format=Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true",
+        size_threshold_ignore = ["api.md"]
     ),
     pages = [
         "Home" => "index.md",
@@ -15,8 +16,9 @@ makedocs(
         "Examples" => "examples.md",
         "Africa" => "africa.md",
         "Data Pipeline" => "pipeline.md"
-        ]
-    ]
+        ],
+        "API" => "API.md"
+    ];
 )
 
 deploydocs(
