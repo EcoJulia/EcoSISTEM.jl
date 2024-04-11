@@ -42,7 +42,6 @@ jobs:
     - name: Install dependencies
       run: |
           import Pkg
-          Pkg.instantiate()
           Pkg.update()
       shell: julia --project=. --color=yes {0}
     - name: Running

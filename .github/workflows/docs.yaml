@@ -26,7 +26,6 @@ jobs:
       - name: Install dependencies
         run: |
             import Pkg
-            Pkg.instantiate()
             Pkg.update()
         shell: julia --project=docs --color=yes {0}
       - name: Build and deploy
