@@ -20,13 +20,22 @@ There are substantial changes to the package introduced through the [`dev`][dev-
 This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](CONTRIBUTING.md). We are supported by NERC's Landscape Decisions [small][NERC-small] and [large][NERC-big] maths grants and an [EPSRC][EPSRC-stu] studentship.
 
 ## Introduction to EcoSISTEM
-You can now run through a full introduction to EcoSISTEM with Pluto.jl! To get started:
 
-``` julia
+You can now run through a full introduction to EcoSISTEM with Pluto.jl if you have the source of the package cloned. To get started (if you are in the root of the package, and have that environment loaded):
+
+```julia
 import Pluto
 Pluto.run()
 ```
-This should open a Pluto window in your browser - from there you can type `notebooks\Introduction.jl` in the `Open from file` box. Note that it may be slow on first launch!
+
+This should open a Pluto window in your browser - from there you can type `notebooks/Introduction.jl` in the `Open a notebook` box. You can also test `notebooks/InteractiveAfrica.jl` to see an invasive species in Africa. Note that it may be slow on first launch as it must install packages and in the latter case download climate data from the internet. If you are using a different Julia version you may need to add a block at the start of the examples to update the manifest:
+
+```julia
+begin
+    using Pkg
+    Pkg.update()
+end
+```
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 
