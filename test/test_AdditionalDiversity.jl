@@ -6,9 +6,10 @@ using Phylo
 using Statistics
 using Test
 
+include("TestCases.jl")
+
 @testset "diversity" begin
-    include("TestCases.jl")
-    eco = TestEcosystem()
+    eco = Test1Ecosystem()
 
     Ab = mapslices(sum, eco.abundances.matrix, dims = 2)
     RelAb = Ab / sum(eco.abundances.matrix)

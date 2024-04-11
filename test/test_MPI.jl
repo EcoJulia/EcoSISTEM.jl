@@ -4,8 +4,10 @@ using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 using Distributions
+using Diversity
 using MPI
 using JLD2
+using Test
 
 if !MPI.Initialized()
     MPI.Init()

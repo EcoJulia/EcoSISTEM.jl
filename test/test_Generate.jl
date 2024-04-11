@@ -7,8 +7,9 @@ using Distributions
 using EcoSISTEM.Units
 
 include("TestCases.jl")
+
 @testset "Update functions" begin
-    eco = TestEcosystem()
+    eco = Test1Ecosystem()
     @test_nowarn update!(eco, 1month)
     @test_nowarn EcoSISTEM.calc_lookup_moves!(eco.spplist.movement.boundary, 1, 1, 1, eco, 10)
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.spplist.movement.boundary, 1, 1, 1, eco,

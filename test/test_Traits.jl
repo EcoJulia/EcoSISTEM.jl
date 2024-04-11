@@ -3,7 +3,7 @@ module TestTraits
 using EcoSISTEM
 using Test
 using Distributions
-using Unitful.DefaultSymbols
+using Unitful, Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using Phylo
 using DataFrames

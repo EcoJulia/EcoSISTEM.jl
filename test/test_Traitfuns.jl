@@ -3,8 +3,10 @@ module TestTraitfuns
 using EcoSISTEM
 using Test
 using Distributions
-using Unitful.DefaultSymbols
+using Unitful, Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using EcoSISTEM.ClimatePref
+using AxisArrays
 
 grid = (10, 10)
 area = 25.0km^2

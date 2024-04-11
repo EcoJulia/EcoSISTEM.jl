@@ -8,12 +8,13 @@ using EcoSISTEM.Units
 using Diversity
 
 include("TestCases.jl")
+
 function TempIncrease!(eco::Ecosystem, timestep::Unitful.Time, rate::typeof(1.0K/year))
     resetrate!(eco, rate)
     eco.abenv.habitat.matrix[eco.abenv.habitat.matrix .< 0K] .= 0K
 end
 @testset "Simulate functions" begin
-    eco = TestEcosystem()
+    eco = Test1Ecosystem()
 
     times = 3.0months; burnin = 1.0months; interval = 1.0month
     timestep = 1month

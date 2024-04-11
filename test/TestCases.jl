@@ -6,7 +6,7 @@ using Distributions
 using EcoSISTEM.Units
 using Unitful
 
-function TestEcosystem()
+function Test1Ecosystem()
     numSpecies = 150
     numNiches = 2
 

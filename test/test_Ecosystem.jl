@@ -2,16 +2,16 @@ module TestEcosystem
 
 using EcoSISTEM
 using Test
-using Unitful.DefaultSymbols
+using Unitful, Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
 using Diversity
 
-@testset "Ecosystem" begin
-    include("TestCases.jl")
+include("TestCases.jl")
 
-    @test_nowarn eco = TestEcosystem()
-    eco = TestEcosystem()
+@testset "Ecosystem" begin
+    @test_nowarn eco = Test1Ecosystem()
+    eco = Test1Ecosystem()
     @test sum(eco.abundances.matrix, dims = 2)[:, 1] == eco.spplist.abun
     @test EcoSISTEM.tematch(eco.spplist, eco.abenv) == true
     @test EcoSISTEM.trmatch(eco.spplist, eco.relationship) == true
@@ -44,7 +44,7 @@ using Diversity
     end
     @testset "movement types" begin
         # Test other movement types
-        eco = TestEcosystem()
+        eco = Test1Ecosystem()
         mov = AlwaysMovement(fill(LongTailKernel(10.0km, 10.0, 1e-10), length(eco.spplist.names)), eco.spplist.movement.boundary)
         sppl = SpeciesList{typeof(eco.spplist.traits), typeof(eco.spplist.requirement), typeof(mov), typeof(eco.spplist.types), typeof(eco.spplist.params)}(eco.spplist.names, eco.spplist.traits, eco.spplist.abun, eco.spplist.requirement, eco.spplist.types, mov, eco.spplist.params, eco.spplist.native)
         @test_nowarn Ecosystem(sppl, eco.abenv, eco.relationship)

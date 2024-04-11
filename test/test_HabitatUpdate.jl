@@ -8,8 +8,9 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 
 include("TestCases.jl")
+
 @testset "Habitat update" begin
-    eco = TestEcosystem()
+    eco = Test1Ecosystem()
     @test_nowarn EcoSISTEM.HabitatUpdate(
         EcoSISTEM.NoChange, 0.0/month, Unitful.Dimensions{()})
     @test_nowarn EcoSISTEM.HabitatUpdate(
