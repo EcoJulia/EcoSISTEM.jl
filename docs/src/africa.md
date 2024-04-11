@@ -4,7 +4,7 @@ EcoSISTEM was designed to scale to much larger areas, supporting many more speci
 
 We can also explore the behaviour of selective advantage of specialist species over generalists at these scales. When we introduce a specialist species into an African-sized landscape with an existing generalist, the specialist out-competes the generalist and spreads throughout the continent. The larger the selective advantage of the specialist, the faster it is able to invade and colonise across the landscape (Figure 1). These same dynamics can be seen when we introduce a specialist to the full complement of 50,000 species (Figure 1B-D).
 
-#### SINGLE SPECIES ####
+## SINGLE SPECIES
 
 ```julia
 using EcoSISTEM
@@ -141,7 +141,7 @@ for i in eachindex(specialist_vars)
     dest = findall(abuns[2, :, :, 1] .> 0)
     inst_velocity = map(1:lensim) do t
         dest = findall(abuns[2, :, :, t] .> 0)
-        dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
+        dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in eachindex(dest)] .* getgridsize(eco)
         return maximum(dists)/month
     end
     velocity[i] = mean(inst_velocity)
@@ -151,9 +151,12 @@ plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
     xlab = "Selective advantage", ylab = "Invasion speed (km/month)",
     label = "", grid = false)
 ```
+
 ![](Invasion.svg)
 *Figure 1: Invasive capacity of a specialist plant species versus a generalist. Selective advantage is the difference in niche width between the specialist and generalist, and invasion speed is calculated as the average distance travelled per month by the specialist.*
-#### ONE SPECIALIST VERSUS MANY GENERALISTS ####
+
+## ONE SPECIALIST VERSUS MANY GENERALISTS
+
 ``` julia
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
@@ -231,7 +234,7 @@ eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
 @time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run");
 ```
 
-#### 50,000 SPECIES COEXISTING #####
+## 50,000 SPECIES COEXISTING
 
 ```julia
 using EcoSISTEM

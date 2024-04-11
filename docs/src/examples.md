@@ -10,6 +10,7 @@ Here we describe several properties that the model ecosystem should be able to r
 - Large numbers of species are sustained over large areas.
 
 What follows are several examples of this operating in practice.
+
 ```julia
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -24,10 +25,10 @@ using Diversity
 plotlyjs()
 ```
 
-
 ## 1. Different niche preferences and widths
 
 Here we compare the abundances of species with different temperature preferences and tolerances. On a small patch,we explored the abundance of species given different niche preferences, with all other parameters kept equal. We found that species with niche preference nearer to the 25°C optimum were more abundant, when all species were given the same niche widths. Additionally, when all species had a preference for the 25°C climate and a range of niche widths, those with broader niche widths (generalists) were less abundant than species with narrow (specialists). If the temperature in the ecosystem was then increased by 1°C, those with the narrowest niches went extinct, and the generalists became more abundant, with a preference for those with a niche width of around 1°C as we would expect.
+
 ``` julia
 numSpecies = 100; grd = (10,10); req=(450000.0kJ/m^2, 192.0nm/m^2);
 individuals = 100_000_000; area = 100.0*km^2;
@@ -465,10 +466,10 @@ left_margin = 20.0 *Plots.mm, ylim = (0, 1))
 ![](Abundance.svg)
 *Model testing on island ecosystems. (A) Total abundance of 100 species, with varying resources of water and solar energy across the grid. (B) Total abundance of 100 species, with increasing area size. (C) Total abundance of 100 species, with increasing grid square resolution. (D) Percentage of species survived after 10 years of simulation.*
 
-
 ## 3. Dispersal
 
 Finally, we verify that dispersal is functioning as expected. This figure shows the overall abundance of an island populated with two species at opposite extremes of the ecosystem after ten years of simulation. The species moved faster and further into the unpopulated island centre when they had higher average dispersal distances, though again with some edge effects.
+
 ```julia
 times = 50years; timestep = 1month
 lensim = length(0month:timestep:times)
@@ -536,5 +537,6 @@ for i in 1:4
     clim = (0, 1.5e4), link = :both))
 end
 ```
+
 ![](DispersalSD.svg)
 *Total abundance of two species in island ecosystems after 10 years of simulation, with species populated at opposite sides of the island. Those with higher dispersal distances moved further away from their starting populations at a faster rate. (A) Mean dispersal distance of 0.5km, (B) mean dispersal distance of 1km, (C) Mean dispersal distance of 2km, Mean dispersal distance of 4km.*

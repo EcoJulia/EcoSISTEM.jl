@@ -6,8 +6,11 @@ using Statistics
 """
     convert_coords(i::Int64, width::Int64)
     convert_coords(x::Int64, y::Int64, width::Int64)
+
 Function to convert coordinates from two-dimensional (`x`,`y`) format to one dimension (`i`), or vice versa, using the `width` of the grid. This function can also be applied to arrays of coordinates.
 """
+function convert_coords end
+
 function convert_coords(i::Int64, width::Int64)
   x = ((i - 1) % width) + 1
   y = div((i - 1), width)  + 1
@@ -42,10 +45,12 @@ function create_reference(gridsize::Float64)
 end
 
 """
-    upresolution(data::Union{ERA, Worldclim_monthly, Worldclim_bioclim}, rescale::Int64)
+    upresolution(data::Union{ERA, Worldclim_monthly, Worldclim_bioclim}, rescale::Int64; fn)
 
 Function to increase the resolution of a climate dataset, by a factor, `rescale`.
 """
+function upresolution end
+
 function upresolution(era::ERA, rescale::Int64)
     array = upresolution(era.array, rescale)
     return ERA(array)
@@ -100,10 +105,11 @@ function upresolution(aa::AxisArray{T, 2} where T, rescale::Int64)
 end
 
 """
-    downresolution(data::Union{ERA, Worldclim_monthly, Worldclim_bioclim}, rescale::Int64)
+    downresolution(data::Union{ERA, Worldclim_monthly, Worldclim_bioclim}, rescale::Int64; fn)
 
 Function to decrease the resolution of a climate dataset, by a factor, `rescale`, and aggregation function, `fn`. The aggregation function has a default setting of taking the mean value.
 """
+function downresolution end
 
 function downresolution(era::ERA, rescale::Int64; fn::Function = mean)
     array = downresolution(era.array, rescale, fn)
@@ -162,6 +168,14 @@ function downresolution(aa::AxisArray{T, 2} where T, rescale::Int64, fn)
         Axis{:longitude}(newlon),
         Axis{:latitude}(newlat))
 end
+
+"""
+    downresolution!(resized_array::Matrix{T}, array::Matrix{T}, rescale::Int64, fn)
+    downresolution!(resized_array::Array{T, 3}, array::Matrix{T}, dim::Int64, rescale::Int64, fn)
+
+Function to decrease the resolution of a climate dataset in place, by a factor, `rescale`, and aggregation function, `fn`. The aggregation function has a default setting of taking the mean value.
+"""
+function downresolution! end
 
 function downresolution!(resized_array::Matrix{T}, array::Matrix{T}, rescale::Int64, fn) where T
     Threads.@threads for i in eachindex(resized_array)
