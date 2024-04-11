@@ -6,15 +6,20 @@ using Diversity
 
 println(Threads.nthreads())
 
-numSpecies = 1000; grid = (100, 10); req= 10.0kJ; individuals=10_000_000; area = 400_000.0*km^2; totalK = 100_000.0kJ/km^2
+numSpecies = 1000;
+grid = (100, 10);
+req = 10.0kJ;
+individuals = 10_000_000;
+area = 400_000.0 * km^2;
+totalK = 100_000.0kJ / km^2;
 # Set up initial parameters for ecosystem
 
 # Set up how much energy each species consumes
 energy_vec = SolarRequirement(fill(req, numSpecies))
 
 # Set probabilities
-birth = 0.6/year
-death = 0.6/year
+birth = 0.6 / year
+death = 0.6 / year
 longevity = 1.0
 survival = 0.2
 boost = 1.0
@@ -34,7 +39,7 @@ native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-    movement, param, native)
+                   movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
 abenv = simplehabitatAE(274.0K, grid, totalK, area)
@@ -46,8 +51,12 @@ rel = Gauss{typeof(1.0K)}()
 eco = Ecosystem(sppl, abenv, rel)
 println("Starting...")
 # Simulation Parameters
-burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
-lensim = length(0years:record_interval:times)
+burnin = 5years;
+times = 50years;
+timestep = 1month;
+record_interval = 3months;
+repeats = 1;
+lensim = length((0years):record_interval:times)
 # Burnin
 simulate!(eco, burnin, timestep)
 println("$(mapslices(sum, eco.abundances.matrix, dims = 2)[1:10])")

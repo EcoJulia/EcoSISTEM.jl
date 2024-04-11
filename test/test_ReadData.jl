@@ -1,3 +1,5 @@
+module TestReadData
+
 using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
 using Unitful
@@ -8,12 +10,12 @@ using Test
 if !Sys.iswindows()
     if !isdir("assets")
         mkdir("assets")
+        ENV["RASTERDATASOURCES_PATH"] = "assets"
+        # Download layers of bioclim data and test on all read functions
+        # (essentially all the same file type)
+        getraster(WorldClim{BioClim}, 1:12)
+        getraster(EarthEnv{LandCover})
     end
-    ENV["RASTERDATASOURCES_PATH"] = "assets"
-    # Download layers of bioclim data and test on all read functions
-    # (essentially all the same file type)
-    temp = getraster(WorldClim{BioClim}, 1:12)
-    lc = getraster(EarthEnv{LandCover})
 
     @testset "Reading functions" begin
         @test_nowarn readbioclim("assets/WorldClim/BioClim/")
@@ -31,12 +33,13 @@ if !Sys.iswindows()
         wc = readworldclim("assets/WorldClim/BioClim/")
         ch_b = readCHELSA_bioclim("assets/WorldClim/BioClim/")
 
-        @test unit(bc.array[1]) == unit(wc.array[1]) ==  unit(rf[1]) == unit(ch_b.array[1]) == NoUnits
+        @test unit(bc.array[1]) == unit(wc.array[1]) == unit(rf[1]) ==
+              unit(ch_b.array[1]) == NoUnits
     end
 
-    @testset "Output data 2" begin 
+    @testset "Output data 2" begin
         lc = readlc("assets/EarthEnv/LandCover/without_DISCover/")
-        @test unit(lc[1])== NoUnits
+        @test unit(lc[1]) == NoUnits
     end
 
     @testset "Output data 3" begin
@@ -45,11 +48,6 @@ if !Sys.iswindows()
 
         @test unit(cr.array[1]) == unit(ch_m.array[1]) == K
     end
+end
 
-    if isdir("assets/WorldClim")
-        rm("assets/WorldClim", recursive = true)
-    end
-    if isdir("assets/EarthEnv")
-        rm("assets/EarthEnv", recursive = true)
-    end
 end

@@ -1,3 +1,5 @@
+module TestDemographics
+
 using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
@@ -5,9 +7,9 @@ using EcoSISTEM.Units
 using Unitful
 import EcoSISTEM.equalpop
 
-@testset "Params"  begin
-    birth = 0.6/month
-    death = 0.6/month
+@testset "Params" begin
+    birth = 0.6 / month
+    death = 0.6 / month
     longevity = 1.0
     survival = 0.0
     boost = 1000.0
@@ -19,18 +21,30 @@ import EcoSISTEM.equalpop
     @test length(equalparams.birth) == numSpecies
     @test all(equalparams.birth .== birth)
     @test all(equalparams.death .== death)
-    @test_nowarn param = PopGrowth{typeof(unit(0.0/month))}(fill(birth, 5), fill(death, 5), longevity, survival, boost)
-    @test_nowarn param = NoGrowth{typeof(unit(0.0/month))}(fill(birth, 5), fill(death, 5), longevity, survival, boost)
+    @test_nowarn param = PopGrowth{typeof(unit(0.0 / month))}(fill(birth, 5),
+                                                              fill(death, 5),
+                                                              longevity,
+                                                              survival, boost)
+    @test_nowarn param = NoGrowth{typeof(unit(0.0 / month))}(fill(birth, 5),
+                                                             fill(death, 5),
+                                                             longevity,
+                                                             survival, boost)
 
-    param = PopGrowth{typeof(unit(0.0/month))}(fill(birth, numSpecies), fill(death, numSpecies), longevity, survival, boost)
+    param = PopGrowth{typeof(unit(0.0 / month))}(fill(birth, numSpecies),
+                                                 fill(death, numSpecies),
+                                                 longevity, survival, boost)
     equalparams = equalpop(param, numSpecies)
     @test length(equalparams.birth) == numSpecies
     @test all(equalparams.birth .== birth)
     @test all(equalparams.death .== death)
 
-    param = NoGrowth{typeof(unit(0.0/month))}(fill(birth, numSpecies), fill(death, numSpecies), longevity, survival, boost)
+    param = NoGrowth{typeof(unit(0.0 / month))}(fill(birth, numSpecies),
+                                                fill(death, numSpecies),
+                                                longevity, survival, boost)
     equalparams = equalpop(param, numSpecies)
     @test length(equalparams.birth) == numSpecies
     @test all(equalparams.birth .== birth)
     @test all(equalparams.death .== death)
+end
+
 end

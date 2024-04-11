@@ -16,31 +16,38 @@ if !isdir("assets")
 end
 ENV["RASTERDATASOURCES_PATH"] = "assets"
 getraster(EarthEnv{LandCover})
-world = readlc("assets/EarthEnv/LandCover/without_DISCover/", -180.0°, 180.0°, -56.0°, 90.0°)
+world = readlc("assets/EarthEnv/LandCover/without_DISCover/", -180.0°, 180.0°,
+               -56.0°, 90.0°)
 world = compressLC(world)
-africa_lc = world[-25°.. 50°, -35° .. 40°]
+africa_lc = world[-25° .. 50°, -35° .. 40°]
 bio_africa_lc = Landcover(africa_lc)
 heatmap(africa_lc')
 
 getraster(WorldClim{BioClim})
 world = readbioclim("assets/WorldClim/BioClim/")
-africa_water = world.array[-25°.. 50°, -35° .. 40°, 13]
+africa_water = world.array[-25° .. 50°, -35° .. 40°, 13]
 africa_water = upresolution(africa_water, 2)
-africa_water = Worldclim_bioclim(AxisArray(africa_water .* mm, AxisArrays.axes(africa_water)))
+africa_water = Worldclim_bioclim(AxisArray(africa_water .* mm,
+                                           AxisArrays.axes(africa_water)))
 bio_africa_water = WaterBudget(africa_water)
 
 # Find which grid cells are land
-active =  Array{Bool, 2}(africa_lc .!= 4)
+active = Matrix{Bool}(africa_lc .!= 4)
 
 # Set up initial parameters for ecosystem
-numSpecies = 1; grid = size(active); req= 10.0mm; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
+numSpecies = 1;
+grid = size(active);
+req = 10.0mm;
+individuals = 0;
+area = 64e6km^2;
+totalK = 1000.0kJ / km^2;
 
 # Set up how much water each species consumes
 energy_vec = WaterRequirement(fill(req, numSpecies))
 
 # Set rates for birth and death
-birth = 0.6/year
-death = 0.6/year
+birth = 0.6 / year
+death = 0.6 / year
 longevity = 1.0
 survival = 0.2
 boost = 1.0
@@ -73,8 +80,11 @@ for i in rand_start
 end
 
 # Run simulation
-times = 10years; timestep = 1month; record_interval = 1month; repeats = 1
-lensim = length(0years:record_interval:times)
+times = 10years;
+timestep = 1month;
+record_interval = 1month;
+repeats = 1;
+lensim = length((0years):record_interval:times)
 abuns = zeros(Int64, numSpecies, prod(grid), lensim)
 @time simulate_record!(abuns, eco, times, record_interval, timestep);
 
@@ -85,9 +95,9 @@ abuns = reshape(abuns[1, :, :, 1], grid[1], grid[2], lensim)
 anim = @animate for i in 1:lensim
     africa_abun = Float64.(abuns[:, :, i])
     africa_abun[.!(active)] .= NaN
-    heatmap(africa_abun, clim = (0, maximum(abuns)), 
-    background_color = :lightblue, background_color_outside=:white, 
-    grid = false, color = cgrad(:algae, scale = :exp))
+    heatmap(africa_abun, clim = (0, maximum(abuns)),
+            background_color = :lightblue, background_color_outside = :white,
+            grid = false, color = cgrad(:algae, scale = :exp))
 end
 gif(anim, "examples/Africa.gif", fps = 15)
 
@@ -96,16 +106,16 @@ africa_startabun = Float64.(abuns[:, :, 1])
 africa_startabun[.!(active)] .= NaN
 africa_endabun = Float64.(abuns[:, :, end])
 africa_endabun[.!(active)] .= NaN
-heatmap(africa_startabun', clim = (0, maximum(abuns)), 
-    background_color = :lightblue, background_color_outside=:white, 
-    grid = false, color = cgrad(:algae, scale = :exp), 
-    layout = (@layout [a b; c d]), title = "Start abundance")
-heatmap!(africa_endabun', clim = (0, maximum(abuns)), 
-    background_color = :lightblue, background_color_outside=:white, 
-    grid = false, color = cgrad(:algae, scale = :exp), 
-    subplot = 2, title = "End Abundance")
+heatmap(africa_startabun', clim = (0, maximum(abuns)),
+        background_color = :lightblue, background_color_outside = :white,
+        grid = false, color = cgrad(:algae, scale = :exp),
+        layout = (@layout [a b; c d]), title = "Start abundance")
+heatmap!(africa_endabun', clim = (0, maximum(abuns)),
+         background_color = :lightblue, background_color_outside = :white,
+         grid = false, color = cgrad(:algae, scale = :exp),
+         subplot = 2, title = "End Abundance")
 africa_lc = Float64.(africa_lc.data)
 africa_lc[.!active] .= NaN
 heatmap!(africa_lc', grid = false, subplot = 3, title = "Land Cover")
-africa_water = world.array[-25°.. 50°, -35° .. 40°, 12] 
+africa_water = world.array[-25° .. 50°, -35° .. 40°, 12]
 heatmap!(africa_water', grid = false, subplot = 4, title = "Precipitation")

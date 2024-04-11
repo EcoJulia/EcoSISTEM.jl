@@ -7,10 +7,13 @@ using Phylo
 using DataFrames
 using Diversity
 
-function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(), size = (mean = 1.0m^2, std = 0.0001m^2)) where {A <: EcoSISTEM.AbstractAbiotic, B <: EcoSISTEM.BoundaryCondition}
+function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
+                    size = (mean = 1.0m^2, std = 0.0001m^2)) where
+         {A <: EcoSISTEM.AbstractAbiotic,
+          B <: EcoSISTEM.BoundaryCondition}
     # Set up initial parameters for ecosystem
-    birth = haskey(paramDict, "birth") ? paramDict["birth"] : 0.6/year
-    death = haskey(paramDict, "death") ? paramDict["death"] : 0.6/year
+    birth = haskey(paramDict, "birth") ? paramDict["birth"] : 0.6 / year
+    death = haskey(paramDict, "death") ? paramDict["death"] : 0.6 / year
     l = haskey(paramDict, "l") ? paramDict["l"] : 1.0
     s = haskey(paramDict, "s") ? paramDict["s"] : 0.2
     boost = haskey(paramDict, "boost") ? paramDict["boost"] : 1.0
@@ -36,7 +39,7 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(), size = (mean 
     energy_vec = ReqCollection2(energy_vec1, energy_vec2)
     # Collect model parameters together (in this order!!)
     if length(birth) > 1
-        param = PopGrowth{typeof(unit(birth[1]))}(birth, death, l, s , boost)
+        param = PopGrowth{typeof(unit(birth[1]))}(birth, death, l, s, boost)
     else
         param = EqualPop(birth, death, l, s, boost)
     end
@@ -47,23 +50,28 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(), size = (mean 
 
     traits = GaussTrait(opts, vars)
     native = fill(true, numSpecies + numInvasive)
-    native[(numSpecies+1):end] .= false
+    native[(numSpecies + 1):end] .= false
     if length(individuals) > 1
         abun = [individuals; fill(0, numInvasive)]
     else
-        abun = [rand(Multinomial(individuals, numSpecies)); fill(0, numInvasive)]
+        abun = [rand(Multinomial(individuals, numSpecies));
+                fill(0, numInvasive)]
     end
     sppl = SpeciesList(numSpecies + numInvasive, traits, abun, energy_vec,
-        movement, param, native)
+                       movement, param, native)
     rel = Gauss{typeof(first(paramDict["opts"]))}()
-    eco = Ecosystem(traitpopulate!, sppl, abenv, rel)
+    return eco = Ecosystem(traitpopulate!, sppl, abenv, rel)
 end
 
-function recreate_eco!(eco::Ecosystem, totalK::Tuple{Unitful.Quantity{Float64}, Unitful.Quantity{Float64}}, individuals::Int64)
+function recreate_eco!(eco::Ecosystem,
+                       totalK::Tuple{Unitful.Quantity{Float64},
+                                     Unitful.Quantity{Float64}},
+                       individuals::Int64)
     numSpecies = sum(eco.spplist.native)
     numInvasive = sum(.!eco.spplist.native)
-    eco.spplist.abun = [rand(Multinomial(individuals, numSpecies)); fill(0, numInvasive)]
+    eco.spplist.abun = [rand(Multinomial(individuals, numSpecies));
+                        fill(0, numInvasive)]
     reenergise!(eco, totalK, size(eco.abenv.habitat.matrix))
     eco.abenv.active .= true
-    traitrepopulate!(eco)
+    return traitrepopulate!(eco)
 end

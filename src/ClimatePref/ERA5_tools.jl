@@ -42,6 +42,7 @@ def era5_request(
     })
 """
 
-function retrieve_era5(param::String, from_year::Int64, to_year::Int64, filename::String = "era5"; kws...)
-    py"retrieve_era5"(param, from_year, to_year, filename; kws...)
+function retrieve_era5(param::String, from_year::Int64, to_year::Int64,
+                       filename::String = "era5"; kws...)
+    return py"retrieve_era5"(param, from_year, to_year, filename; kws...)
 end

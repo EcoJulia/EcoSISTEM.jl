@@ -5,7 +5,7 @@ using Unitful: @unit, uconvert
 day = Unitful.d
 week = Unitful.wk
 year = Unitful.yr
-@unit month "month" Month uconvert(Unitful.s, year/12) false
+@unit month "month" Month uconvert(Unitful.s, year / 12) false
 
 const days = day
 const weeks = week
@@ -27,11 +27,11 @@ const December = 11months
 const localunits = Unitful.basefactors
 function __init__()
     merge!(Unitful.basefactors, localunits)
-    Unitful.register(Units)
+    return Unitful.register(Units)
 end
 
 export day, days, week, weeks, month, months, year, years, Rates,
-January, February, March, April, May, June, July, August,
-September, October, November, December
+       January, February, March, April, May, June, July, August,
+       September, October, November, December
 
 end
