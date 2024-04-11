@@ -9,6 +9,10 @@ on:
       - 'v*'
   pull_request:
 
+permissions:
+  actions: write
+  contents: read
+  
 jobs:
   EcoSISTEM-tests:
     runs-on: ${{ matrix.os }}
@@ -33,17 +37,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     - name: Set up julia
-      uses: julia-actions/setup-julia@v1
+      uses: julia-actions/setup-julia@v2
       with:
         version: ${{ matrix.julia-version }}
         arch: ${{ matrix.arch }}
+    - name: Cache
+      uses: julia-actions/cache@v1
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
-    - name: Install dependencies
-      run: |
-          import Pkg
-          Pkg.update()
-      shell: julia --project=. --color=yes {0}
     - name: Running
       uses: julia-actions/julia-runtest@v1
     - name: Process coverage
