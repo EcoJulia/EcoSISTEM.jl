@@ -18,7 +18,6 @@ using EcoSISTEM.Units
     @test_nowarn BirthOnlyMovement(kernel)
     @test_nowarn NoMovement(kernel)
 
-
     kernel = GaussianKernel.(fill(0.2m, numSpecies), 10e-4)
     mov = AlwaysMovement(kernel, NoBoundary())
     @test EcoSISTEM.getkernels(mov) == mov.kernels
@@ -26,7 +25,7 @@ using EcoSISTEM.Units
     mov = BirthOnlyMovement(kernel)
     @test EcoSISTEM.getkernels(mov) == mov.kernels
     @test EcoSISTEM.getboundary(mov) == mov.boundary
-    mov =  NoMovement(kernel)
+    mov = NoMovement(kernel)
     @test EcoSISTEM.getkernels(mov) == mov.kernels
     kernel = LongTailKernel.(fill(0.2m, numSpecies), 1.0, 10e-4)
     mov = AlwaysMovement(kernel, NoBoundary())

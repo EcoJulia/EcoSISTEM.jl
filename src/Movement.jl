@@ -5,7 +5,6 @@ Abstract supertype of movements
 """
 abstract type AbstractMovement end
 
-
 abstract type AbstractKernel end
 
 """
@@ -16,13 +15,14 @@ dispersal variance for a species, `var`, and a threshold, `thresh`, beyond which
 dispersal cannot take place.
 """
 mutable struct GaussianKernel <: AbstractKernel
-  dist::Unitful.Length{Float64}
-  thresh::Float64
+    dist::Unitful.Length{Float64}
+    thresh::Float64
 
-  function GaussianKernel(dispersaldist::Unitful.Length{Float64}, pthresh::Float64)
-    dist = uconvert(km, dispersaldist)
-    new(dist, pthresh)
-  end
+    function GaussianKernel(dispersaldist::Unitful.Length{Float64},
+                            pthresh::Float64)
+        dist = uconvert(km, dispersaldist)
+        return new(dist, pthresh)
+    end
 end
 
 """
@@ -32,14 +32,15 @@ LongTailKernel holds parameters for a movement kernel; a
 dispersal variance for a species, `var`, and a threshold, `thresh`, beyond which dispersal cannot take place.
 """
 mutable struct LongTailKernel <: AbstractKernel
-  dist::Unitful.Length{Float64}
-  shape::Float64
-  thresh::Float64
+    dist::Unitful.Length{Float64}
+    shape::Float64
+    thresh::Float64
 
-  function LongTailKernel(dispersaldist::Unitful.Length{Float64}, shape::Float64, pthresh::Float64)
-    dist = uconvert(km, dispersaldist)
-    new(dist, shape, pthresh)
-  end
+    function LongTailKernel(dispersaldist::Unitful.Length{Float64},
+                            shape::Float64, pthresh::Float64)
+        dist = uconvert(km, dispersaldist)
+        return new(dist, shape, pthresh)
+    end
 end
 
 """
@@ -73,11 +74,12 @@ mutable struct NoBoundary <: BoundaryCondition end
 
 Movement can only happen to individuals that have just been born ("plant-like").
 """
-mutable struct BirthOnlyMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
-  kernels::Vector{K}
-  boundary::B
+mutable struct BirthOnlyMovement{K <: AbstractKernel, B <: BoundaryCondition} <:
+               AbstractMovement
+    kernels::Vector{K}
+    boundary::B
 end
-function BirthOnlyMovement(kernels::Vector{K}) where K <: AbstractKernel
+function BirthOnlyMovement(kernels::Vector{K}) where {K <: AbstractKernel}
     return BirthOnlyMovement{K, NoBoundary}(kernels, NoBoundary())
 end
 
@@ -86,11 +88,12 @@ end
 
 Movement can happen to any individual ("animal-like").
 """
-mutable struct AlwaysMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
-  kernels::Vector{K}
-  boundary::B
+mutable struct AlwaysMovement{K <: AbstractKernel, B <: BoundaryCondition} <:
+               AbstractMovement
+    kernels::Vector{K}
+    boundary::B
 end
-function AlwaysMovement(kernels::Vector{K}) where K <: AbstractKernel
+function AlwaysMovement(kernels::Vector{K}) where {K <: AbstractKernel}
     return AlwaysMovement{K, NoBoundary}(kernels, NoBoundary())
 end
 
@@ -100,7 +103,7 @@ end
 No movement can take place.
 """
 mutable struct NoMovement{K <: AbstractKernel} <: AbstractMovement
-  kernels::Vector{K}
+    kernels::Vector{K}
 end
 
 getkernels(m::BirthOnlyMovement) = m.kernels

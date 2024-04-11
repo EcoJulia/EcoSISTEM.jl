@@ -17,15 +17,20 @@ end
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     println(Threads.nthreads())
-    numSpecies = 100; grid = (10, 10); req= 10.0kJ; individuals=1_000; area = 100.0*km^2; totalK = 100.0kJ/km^2
+    numSpecies = 100
+    grid = (10, 10)
+    req = 10.0kJ
+    individuals = 1_000
+    area = 100.0 * km^2
+    totalK = 100.0kJ / km^2
     # Set up initial parameters for ecosystem
 
     # Set up how much energy each species consumes
     energy_vec = SolarRequirement(fill(req, numSpecies))
 
     # Set probabilities
-    birth = 0.6/year
-    death = 0.6/year
+    birth = 0.6 / year
+    death = 0.6 / year
     longevity = 1.0
     survival = 0.2
     boost = 1.0
@@ -45,7 +50,7 @@ end
     # abun = rand(Multinomial(individuals, numSpecies))
     abun = fill(div(individuals, numSpecies), numSpecies)
     sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-        movement, param, native)
+                       movement, param, native)
 
     # Create abiotic environment - even grid of one temperature
     abenv = simplehabitatAE(274.0K, grid, totalK, area)
@@ -62,8 +67,12 @@ end
     @test eco.firstsc == 1
 
     # Simulation Parameters
-    burnin = 1month; times = 3months; timestep = 1month; record_interval = 1months; repeats = 1
-    lensim = length(0years:record_interval:times)
+    burnin = 1month
+    times = 3months
+    timestep = 1month
+    record_interval = 1months
+    repeats = 1
+    lensim = length((0years):record_interval:times)
     # Burnin
     MPI.Barrier(comm)
     @time simulate!(eco, burnin, timestep)
@@ -96,17 +105,23 @@ end
     mpiexec() do mpirun
         withenv("JULIA_NUM_THREADS" => "4") do
             nprocs = 1
-            cmd(n=nprocs) = `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            function cmd(n = nprocs)
+                return `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            end
             @test success(run(cmd()))
         end
         withenv("JULIA_NUM_THREADS" => "2") do
             nprocs = 2
-            cmd(n=nprocs) = `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            function cmd(n = nprocs)
+                return `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            end
             @test success(run(cmd()))
         end
         withenv("JULIA_NUM_THREADS" => "1") do
             nprocs = 4
-            cmd(n=nprocs) = `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            function cmd(n = nprocs)
+                return `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            end
             @test success(run(cmd()))
         end
     end

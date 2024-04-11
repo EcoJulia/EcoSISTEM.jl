@@ -17,10 +17,10 @@ Type that houses data extracted from Worldclim raster files.
 """
 mutable struct Worldclim_monthly{A <: AxisArray} <: AbstractClimate
     array::A
-    function Worldclim_monthly(array::A) where A <: AxisArray
+    function Worldclim_monthly(array::A) where {A <: AxisArray}
         size(array, 3) == 12 ||
             error("There should be 12 months of data for worldclim")
-        new{A}(array)
+        return new{A}(array)
     end
 end
 
@@ -32,7 +32,6 @@ Type that houses data extracted from Bioclim raster files.
 mutable struct Worldclim_bioclim{A <: AxisArray} <: AbstractClimate
     array::A
 end
-
 
 """
     Landcover <: AbstractClimate
@@ -50,10 +49,10 @@ Type that houses data extracted from ERA raster files.
 """
 mutable struct ERA{A <: AxisArray} <: AbstractClimate
     array::A
-    function ERA(array::A) where A <: AxisArray
-        typeof(collect(AxisArrays.axes(array, 3).val)[1])<: Unitful.Time ||
+    function ERA(array::A) where {A <: AxisArray}
+        typeof(collect(AxisArrays.axes(array, 3).val)[1]) <: Unitful.Time ||
             error("Third dimension of array must be time")
-        new{A}(array)
+        return new{A}(array)
     end
 end
 
@@ -64,10 +63,10 @@ Type that houses data extracted from CERA-20C raster files.
 """
 mutable struct CERA{A <: AxisArray} <: AbstractClimate
     array::A
-    function CERA(array::A) where A <: AxisArray
-        typeof(collect(AxisArrays.axes(array, 3).val)[1])<: Unitful.Time ||
+    function CERA(array::A) where {A <: AxisArray}
+        typeof(collect(AxisArrays.axes(array, 3).val)[1]) <: Unitful.Time ||
             error("Third dimension of array must be time")
-        new{A}(array)
+        return new{A}(array)
     end
 end
 
@@ -87,10 +86,10 @@ Type that houses data extracted from CRUTS raster files.
 """
 mutable struct CRUTS{A <: AxisArray} <: AbstractClimate
     array::A
-    function CRUTS(array::A) where A <: AxisArray
-        typeof(collect(AxisArrays.axes(array, 3).val)[1])<: Unitful.Time ||
+    function CRUTS(array::A) where {A <: AxisArray}
+        typeof(collect(AxisArrays.axes(array, 3).val)[1]) <: Unitful.Time ||
             error("Third dimension of array must be time")
-        new{A}(array)
+        return new{A}(array)
     end
 end
 
@@ -101,10 +100,10 @@ Type that houses data extracted from CHELSA raster files.
 """
 mutable struct CHELSA_monthly{A <: AxisArray} <: AbstractClimate
     array::A
-    function CHELSA_monthly(array::A) where A <: AxisArray
+    function CHELSA_monthly(array::A) where {A <: AxisArray}
         size(array, 3) == 12 ||
             error("There should be 12 months of data for CHELSA")
-        new{A}(array)
+        return new{A}(array)
     end
 end
 

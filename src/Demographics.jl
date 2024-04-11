@@ -18,17 +18,19 @@ requirements and `s` is the survival of species dependent on how well their
 traits reflect the environment.
 """
 mutable struct PopGrowth{U <: Unitful.Units} <: AbstractParams
-      birth::Vector{TimeUnitType{U}}
-      death::Vector{TimeUnitType{U}}
-      longevity::Float64
-      survival::Float64
-      boost::Float64
+    birth::Vector{TimeUnitType{U}}
+    death::Vector{TimeUnitType{U}}
+    longevity::Float64
+    survival::Float64
+    boost::Float64
     function PopGrowth{U}(birth::Vector{TimeUnitType{U}},
-        death::Vector{TimeUnitType{U}},
-        longevity::Float64, survival::Float64, boost::Float64) where {U <: Unitful.Units}
+                          death::Vector{TimeUnitType{U}},
+                          longevity::Float64, survival::Float64,
+                          boost::Float64) where {U <: Unitful.Units}
         #longevity > survival || error("l must be greater than s")
-        longevity >= 0 && survival >= 0 || error("l and s must be greater than zero")
-        new{U}(birth, death, longevity, survival, boost)
+        longevity >= 0 && survival >= 0 ||
+            error("l and s must be greater than zero")
+        return new{U}(birth, death, longevity, survival, boost)
     end
 end
 """
@@ -43,11 +45,11 @@ of a boost the species get from being in an environment with lots of available
 energy.
 """
 mutable struct EqualPop{U <: Unitful.Units} <: AbstractParams
-  birth::TimeUnitType{U}
-  death::TimeUnitType{U}
-  longevity::Float64
-  survival::Float64
-  boost::Float64
+    birth::TimeUnitType{U}
+    death::TimeUnitType{U}
+    longevity::Float64
+    survival::Float64
+    boost::Float64
 end
 
 mutable struct NoGrowth{U <: Unitful.Units} <: AbstractParams
@@ -58,14 +60,15 @@ mutable struct NoGrowth{U <: Unitful.Units} <: AbstractParams
     boost::Float64
 
     function NoGrowth{U}(birth::Vector{TimeUnitType{U}},
-      death::Vector{TimeUnitType{U}},
-      longevity::Float64, survival::Float64, boost::Float64) where {U <: Unitful.Units}
-      #longevity > survival || error("longevity must be greater than survival")
-      longevity >= 0 && survival >= 0 || error("longevity and survival must be greater than zero")
-      new{U}(birth, death, longevity, survival, boost)
+                         death::Vector{TimeUnitType{U}},
+                         longevity::Float64, survival::Float64,
+                         boost::Float64) where {U <: Unitful.Units}
+        #longevity > survival || error("longevity must be greater than survival")
+        longevity >= 0 && survival >= 0 ||
+            error("longevity and survival must be greater than zero")
+        return new{U}(birth, death, longevity, survival, boost)
     end
 end
-
 
 """
     equalpop(params::EqualPop, numspp)
@@ -74,14 +77,15 @@ Function that takes demographic parameters from type `EqualPop` and converts
 them into type `PopGrowth` based on the number of species (`numspp`).
 """
 function equalpop(params::EqualPop, numspp)
-  u = unit(params.birth)
-  PopGrowth{typeof(u)}(fill(params.birth, numspp), fill(params.death, numspp),
-  params.longevity, params.survival, params.boost)
+    u = unit(params.birth)
+    return PopGrowth{typeof(u)}(fill(params.birth, numspp),
+                                fill(params.death, numspp),
+                                params.longevity, params.survival, params.boost)
 end
 function equalpop(params::PopGrowth, numspp)
-  return params
+    return params
 end
 
 function equalpop(params::NoGrowth, numspp)
-  return params
+    return params
 end

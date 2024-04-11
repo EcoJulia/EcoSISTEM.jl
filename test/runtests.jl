@@ -47,7 +47,7 @@ end
 
 extbase = map(file -> replace(file, r"ext_(.*).jl" => s"\1"),
               filter(str -> occursin(r"^ext_.*\.jl$", str), readdir()))
- 
+
 # Identify tests with no matching file
 superfluous = filter(f -> f ∉ filebase, extbase)
 if length(superfluous) > 0
@@ -107,8 +107,8 @@ end
 # test/pkg_Package.jl should validate results against the Package package
 
 pkgbase = map(file -> replace(file, r"pkg_(.*).jl$" => s"\1"),
-                   filter(str -> occursin(r"^pkg_.*\.jl$", str),
-                          readdir()))
+              filter(str -> occursin(r"^pkg_.*\.jl$", str),
+                     readdir()))
 
 if length(pkgbase) > 0
     @info "Cross validation packages:"
@@ -133,8 +133,8 @@ end
     Pkg.instantiate()
     Pkg.update()
     example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
-                                           filter(str -> occursin(r"^test_.*\.jl$", str),
-                                           readdir("../examples/")))
+                           filter(str -> occursin(r"^test_.*\.jl$", str),
+                                  readdir("../examples/")))
     for t in example_testbase
         fn = "../examples/test_$t.jl"
         println("    * Testing $t.jl ...")

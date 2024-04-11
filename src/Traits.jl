@@ -7,7 +7,7 @@ Abstract supertype for all trait types, parameterised by traits of any type `T`.
 """
 abstract type AbstractTraits{T} end
 
-eltype(::AbstractTraits{D}) where D = D
+eltype(::AbstractTraits{D}) where {D} = D
 
 """
     BasicTrait{T} <: AbstractTraits{T}
@@ -24,10 +24,10 @@ iscontinuous(trait::DiscreteTrait) = false
 mutable struct LCtrait{D <: Number} <: AbstractTraits{D}
     vals::Vector{Vector{D}}
 end
-  
+
 iscontinuous(trait::LCtrait) = false
-  
-function LCtrait(vals::Vector{Vector{<: AbstractFloat}})
+
+function LCtrait(vals::Vector{Vector{<:AbstractFloat}})
     return LCtrait{typeof(1.0)}(vals)
 end
 
@@ -50,7 +50,8 @@ end
 Function to evolve a continuous trait along a BinaryTree, `tree` via Brownian motion. Takes in a starting value, `val` and a variance, `var`.
 """
 function ContinuousEvolve(val::Union{Float64, Unitful.Quantity{Float64}},
-    var::Union{Float64, Unitful.Quantity{Float64}}, tree::BinaryTree)
+                          var::Union{Float64, Unitful.Quantity{Float64}},
+                          tree::BinaryTree)
     # Create traits and assign to tips
     numspecies = length(getleafnames(tree))
     trts = DataFrame(start = ustrip(val), σ² = ustrip(var))
@@ -80,7 +81,8 @@ end
 
 iscontinuous(trait::GaussTrait) = true
 
-function GaussTrait(mean::Vector{C}, var::Vector{C}) where C  <: Unitful.Temperature
+function GaussTrait(mean::Vector{C},
+                    var::Vector{C}) where {C <: Unitful.Temperature}
     meanK = uconvert.(K, mean)
     varK = ustrip.(var) .* K
     return GaussTrait{typeof(1.0K)}(meanK, varK)
@@ -122,8 +124,10 @@ mutable struct TraitCollection2{T1, T2} <: AbstractTraits{Tuple{T1, T2}}
     t2::T2
 end
 
-iscontinuous(trait::TraitCollection2) = [iscontinuous(trait.t1),
-                                         iscontinuous(trait.t2)]
+function iscontinuous(trait::TraitCollection2)
+    return [iscontinuous(trait.t1),
+            iscontinuous(trait.t2)]
+end
 
 eltype(trait::TraitCollection2) = [eltype(trait.t1), eltype(trait.t2)]
 
@@ -138,8 +142,12 @@ mutable struct TraitCollection3{T1, T2, T3} <: AbstractTraits{Tuple{T1, T2, T3}}
     t3::T3
 end
 
-iscontinuous(trait::TraitCollection3) = [iscontinuous(trait.t1),
-                                         iscontinuous(trait.t2),
-                                         iscontinuous(trait.t3)]
+function iscontinuous(trait::TraitCollection3)
+    return [iscontinuous(trait.t1),
+            iscontinuous(trait.t2),
+            iscontinuous(trait.t3)]
+end
 
-eltype(trait::TraitCollection3) = [eltype(trait.t1), eltype(trait.t2), eltype(trait.t3)]
+function eltype(trait::TraitCollection3)
+    return [eltype(trait.t1), eltype(trait.t2), eltype(trait.t3)]
+end

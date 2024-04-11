@@ -16,7 +16,7 @@ if !Sys.iswindows()
         getraster(WorldClim{BioClim}, 1:12)
         getraster(EarthEnv{LandCover})
     end
-    
+
     @testset "Reading functions" begin
         @test_nowarn readbioclim("assets/WorldClim/BioClim/")
         @test_nowarn readworldclim("assets/WorldClim/BioClim/")
@@ -33,12 +33,13 @@ if !Sys.iswindows()
         wc = readworldclim("assets/WorldClim/BioClim/")
         ch_b = readCHELSA_bioclim("assets/WorldClim/BioClim/")
 
-        @test unit(bc.array[1]) == unit(wc.array[1]) ==  unit(rf[1]) == unit(ch_b.array[1]) == NoUnits
+        @test unit(bc.array[1]) == unit(wc.array[1]) == unit(rf[1]) ==
+              unit(ch_b.array[1]) == NoUnits
     end
 
-    @testset "Output data 2" begin 
+    @testset "Output data 2" begin
         lc = readlc("assets/EarthEnv/LandCover/without_DISCover/")
-        @test unit(lc[1])== NoUnits
+        @test unit(lc[1]) == NoUnits
     end
 
     @testset "Output data 3" begin

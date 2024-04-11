@@ -14,7 +14,6 @@ using Unitful.DefaultSymbols
     @test_nowarn NoRelContinuous{Int64}()
     @test_nowarn NoRelDiscrete{Int64}()
 
-
     @test Gauss{Unitful.Temperature}()(1.0K, 1.0K, 0.01K) > 0.0
     @test EcoSISTEM.iscontinuous(Gauss{Unitful.Temperature}()) == true
     @test eltype(Gauss{Unitful.Temperature}()) == Unitful.Temperature
@@ -42,24 +41,24 @@ using Unitful.DefaultSymbols
     tr2 = multiplicativeTR2(NoRelContinuous{Int64}(), NoRelDiscrete{Int64}())
     @test EcoSISTEM.iscontinuous(tr2) == [true, false]
     @test eltype(tr2) == [Int64, Int64]
-    tr3 = multiplicativeTR3(NoRelContinuous{Int64}(), NoRelDiscrete{Int64}(), Gauss{Unitful.Temperature}())
+    tr3 = multiplicativeTR3(NoRelContinuous{Int64}(), NoRelDiscrete{Int64}(),
+                            Gauss{Unitful.Temperature}())
     @test EcoSISTEM.iscontinuous(tr3) == [true, false, true]
     @test eltype(tr3) == [Int64, Int64, Unitful.Temperature]
 
     @test EcoSISTEM.combineTR(tr2) == *
     @test EcoSISTEM.combineTR(tr3) == *
 
-
     tr2 = additiveTR2(NoRelContinuous{Int64}(), NoRelDiscrete{Int64}())
     @test EcoSISTEM.iscontinuous(tr2) == [true, false]
     @test eltype(tr2) == [Int64, Int64]
-    tr3 = additiveTR3(NoRelContinuous{Int64}(), NoRelDiscrete{Int64}(), Gauss{Unitful.Temperature}())
+    tr3 = additiveTR3(NoRelContinuous{Int64}(), NoRelDiscrete{Int64}(),
+                      Gauss{Unitful.Temperature}())
     @test EcoSISTEM.iscontinuous(tr3) == [true, false, true]
     @test eltype(tr3) == [Int64, Int64, Unitful.Temperature]
 
     @test EcoSISTEM.combineTR(tr2) == +
     @test EcoSISTEM.combineTR(tr3) == +
-
 end
 
 end

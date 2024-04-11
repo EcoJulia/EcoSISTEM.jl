@@ -10,7 +10,9 @@ run(`$(PyCall.python) -m pip install cdsapi`)
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 
-function EcoSISTEM.ClimatePref.retrieve_era5(param::String, from_year::Int64, to_year::Int64, filename::String = "era5"; kws...)
+function EcoSISTEM.ClimatePref.retrieve_era5(param::String, from_year::Int64,
+                                             to_year::Int64,
+                                             filename::String = "era5"; kws...)
     py"""
     from math import floor
     import cdsapi

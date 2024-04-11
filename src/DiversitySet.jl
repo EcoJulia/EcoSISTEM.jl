@@ -8,12 +8,13 @@ mutable struct DiversitySet
     times::Vector{Unitful.Time}
 end
 
-function DiversitySet(cache::CachedEcosystem, times::Vector{T}) where T <: Unitful.Time
+function DiversitySet(cache::CachedEcosystem,
+                      times::Vector{T}) where {T <: Unitful.Time}
     return DiversitySet(missing, cache.abundances.outputfolder, times)
 end
 
 function updatesimulation!(cache::CachedEcosystem, tm::Unitful.Time)
-    abundances(cache, tm)
+    return abundances(cache, tm)
 end
 
 function gettimes(div::DiversitySet)
@@ -34,5 +35,5 @@ end
 
 import DataFrames.append!
 function append!(div::DiversitySet, dat::DataFrame)
-    append!(div.data, dat)
+    return append!(div.data, dat)
 end
