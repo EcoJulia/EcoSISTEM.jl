@@ -4,7 +4,7 @@ using EcoSISTEM
 makedocs(
     modules = [EcoSISTEM],
     sitename = "EcoSISTEM.jl",
-    format=Documenter.HTML(
+    format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true",
         size_threshold_ignore = ["api.md"]
     ),
@@ -17,8 +17,8 @@ makedocs(
         "Africa" => "africa.md",
         "Data Pipeline" => "pipeline.md"
         ],
-        "API" => "API.md"
-    ];
+        "API" => "api.md"
+    ]
 )
 
 deploydocs(
