@@ -20,21 +20,21 @@ function clearcache(cache::CachedEcosystem)
     files = searchdir(cache.abundances.outputfolder, ".jld2")
     rm.(joinpath.(cache.abundances.outputfolder, files))
     len = length(files)
-    return  "$len files cleared"
+    return "$len files cleared"
 end
-
 
 function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     yr = mod(tm, 1year) == 0year ? Int(ustrip(uconvert(year, tm))) : missing
     if ismissing(cache.abundances.matrix[tm])
         if checkfile(cache.abundances.outputfolder, yr)
             cache.abundances.matrix[tm] = loadfile(cache.abundances.outputfolder,
-                                                    yr, (length(cache.spplist.names),
-                                                    _getdimension(cache.abenv.habitat) ...))
+                                                   yr,
+                                                   (length(cache.spplist.names),
+                                                    _getdimension(cache.abenv.habitat)...))
             seed!(cache.abundances.matrix[tm].seed)
             return tm, cache.abundances.matrix[tm]
         else
-            newtm, abun =  _abundances(cache, tm - cache.abundances.saveinterval)
+            newtm, abun = _abundances(cache, tm - cache.abundances.saveinterval)
             if (newtm > 2 * cache.abundances.saveinterval)
                 cache.abundances.matrix[(newtm - 2 * cache.abundances.saveinterval)] = missing
             end
@@ -44,10 +44,9 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     end
     simulate!(cache, newtm, cache.abundances.saveinterval)
     if !ismissing(yr)
-        @save joinpath(cache.abundances.outputfolder, string(yr, ".jld2")) abuns = SavedLandscape(cache.abundances.matrix[tm])
+        @save joinpath(cache.abundances.outputfolder, string(yr, ".jld2")) abuns=SavedLandscape(cache.abundances.matrix[tm])
     end
-    _abundances(cache, newtm + cache.abundances.saveinterval)
-
+    return _abundances(cache, newtm + cache.abundances.saveinterval)
 end
 
 """

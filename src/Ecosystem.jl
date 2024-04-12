@@ -4,9 +4,10 @@ using DataFrames
 using Unitful
 using EcoSISTEM.Units
 using Missings
-using Plots.RecipesBase
+using RecipesBase
 
-import Diversity: _calcabundance
+using Diversity.API: _calcabundance
+
 """
     Lookup
 
@@ -17,13 +18,12 @@ are initially empty storage and written over by the movement step in update!().
 and `moves` is the number of moves to that grid location in that step.
 """
 mutable struct Lookup
-  x::Vector{Int64}
-  y::Vector{Int64}
-  p::Vector{Float64}
-  pnew::Vector{Float64}
-  moves::Vector{Int64}
+    x::Vector{Int64}
+    y::Vector{Int64}
+    p::Vector{Float64}
+    pnew::Vector{Float64}
+    moves::Vector{Int64}
 end
-
 
 """
     Cache
@@ -32,22 +32,22 @@ Cache houses an integer array of moves made by all species in a timestep for the
 update! function, `netmigration`.
 """
 mutable struct Cache
-  netmigration::Array{Int64, 2}
-  totalE::Matrix{Float64}
-  valid::Bool
+    netmigration::Matrix{Int64}
+    totalE::Matrix{Float64}
+    valid::Bool
 end
 
-
-Lookup(df::DataFrame) = Lookup(df[!, :X], df[!, :Y], df[!, :Prob],
-zeros(Float64, nrow(df)),zeros(Int64, nrow(df)))
+function Lookup(df::DataFrame)
+    return Lookup(df[!, :X], df[!, :Y], df[!, :Prob],
+                  zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))
+end
 
 function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
     realm = _calcabundance(sim, m)
     return typematch(realm, sim, part) &&
-    counttypes(sim) == size(realm, 1) &&
-    countsubcommunities(part) == size(realm, 2)
+           counttypes(sim) == size(realm, 1) &&
+           countsubcommunities(part) == size(realm, 2)
 end
-
 
 """
     tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
@@ -56,9 +56,10 @@ Function to check that the types of a trait list and habitat list are
 the same for a species list (`sppl`) and abiotic environment (`abenv`).
 """
 function tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
-    (eltype(sppl.traits) == eltype(abenv.habitat)) &&
-    (iscontinuous(sppl.traits) == iscontinuous(abenv.habitat))
+    return (eltype(sppl.traits) == eltype(abenv.habitat)) &&
+           (iscontinuous(sppl.traits) == iscontinuous(abenv.habitat))
 end
+
 """
     trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
 
@@ -66,8 +67,8 @@ Function to check that the types of a trait list and trait relationship list are
 the same for a species list (`sppl`) and trait relationship (`traitrel`).
 """
 function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
-    eltype(sppl.traits) == eltype(traitrel) &&
-    (iscontinuous(sppl.traits) == iscontinuous(traitrel))
+    return eltype(sppl.traits) == eltype(traitrel) &&
+           (iscontinuous(sppl.traits) == iscontinuous(traitrel))
 end
 
 """
@@ -77,11 +78,11 @@ end
 
 Abstract supertype for all ecosystem types and a subtype of AbstractMetacommunity.
 """
-abstract type
-    AbstractEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-        TR <: AbstractTraitRelationship} <: AbstractMetacommunity{Float64, Matrix{Int64},
-                                        Matrix{Float64}, SL, Part}
-end
+abstract type AbstractEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+                                TR <: AbstractTraitRelationship} <:
+              AbstractMetacommunity{Float64, Matrix{Int64},
+                                    Matrix{Float64}, SL, Part} end
+
 """
     Ecosystem{Part <: AbstractAbiotic} <:
        AbstractEcosystem{Part, SL, TR}
@@ -94,114 +95,135 @@ and available resources,`abenv`. Finally, there is a slot for the relationship
 between the environment and the characteristics of the species, `relationship`.
 """
 mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-    TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
-  abundances::GridLandscape
-  spplist::SL
-  abenv::Part
-  ordinariness::Union{Matrix{Float64}, Missing}
-  relationship::TR
-  lookup::Vector{Lookup}
-  cache::Cache
+                         TR <: AbstractTraitRelationship} <:
+               AbstractEcosystem{Part, SL, TR}
+    abundances::GridLandscape
+    spplist::SL
+    abenv::Part
+    ordinariness::Union{Matrix{Float64}, Missing}
+    relationship::TR
+    lookup::Vector{Lookup}
+    cache::Cache
 
-  function Ecosystem{Part, SL, TR}(abundances::GridLandscape,
-    spplist::SL, abenv::Part, ordinariness::Union{Matrix{Float64}, Missing},
-    relationship::TR, lookup::Vector{Lookup}, cache::Cache) where {Part <:
-     AbstractAbiotic,
-    SL <: SpeciesList, TR <: AbstractTraitRelationship}
-    tematch(spplist, abenv) || error("Traits do not match habitats")
-    trmatch(spplist, relationship) || error("Traits do not match trait functions")
-    #_mcmatch(abundances.matrix, spplist, abenv) ||
-    #  error("Dimension mismatch")
-    new{Part, SL, TR}(abundances, spplist, abenv, ordinariness, relationship, lookup, cache)
-  end
+    function Ecosystem{Part, SL, TR}(abundances::GridLandscape,
+                                     spplist::SL, abenv::Part,
+                                     ordinariness::Union{Matrix{Float64},
+                                                         Missing},
+                                     relationship::TR, lookup::Vector{Lookup},
+                                     cache::Cache) where {
+                                                          Part <:
+                                                          AbstractAbiotic,
+                                                          SL <: SpeciesList,
+                                                          TR <:
+                                                          AbstractTraitRelationship
+                                                          }
+        tematch(spplist, abenv) || error("Traits do not match habitats")
+        trmatch(spplist, relationship) ||
+            error("Traits do not match trait functions")
+        #_mcmatch(abundances.matrix, spplist, abenv) ||
+        #  error("Dimension mismatch")
+        return new{Part, SL, TR}(abundances, spplist, abenv, ordinariness,
+                                 relationship, lookup, cache)
+    end
 end
 
 @recipe function f(::AbstractMovement, eco::AbstractEcosystem, sp::Int64)
     l = eco.lookup[sp]
     maxX = maximum(l.x)
     maxY = maximum(l.y)
-    x, y = round(Int64, maxX/2), round(Int64, maxY/2)
+    x, y = round(Int64, maxX / 2), round(Int64, maxY / 2)
     # Can't go over maximum dimension
     valid = findall((l.x .> -x) .& (l.y .> -y) .&
-     (l.x .<= (maxX - x)) .& (l.y .<= (maxY - y)))
+                    (l.x .<= (maxX - x)) .& (l.y .<= (maxY - y)))
     probs = l.p[valid]
     probs ./= sum(probs)
     xs = (l.x[valid] .+ x)
     ys = (l.y[valid] .+ y)
     A = zeros(maxX, maxY)
     for i in eachindex(xs)
-      A[xs[i], ys[i]] .= probs[i]
+        A[xs[i], ys[i]] .= probs[i]
     end
-    seriestype  :=  :heatmap
+    seriestype := :heatmap
     grid --> false
     aspect_ratio --> 1
     title --> "Movement kernel (km)"
-    xrange(gethabitat(eco)), yrange(gethabitat(eco)), A
+    return xrange(gethabitat(eco)), yrange(gethabitat(eco)), A
 end
+
 """
     Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
         rel::AbstractTraitRelationship)
 
 Function to create an `Ecosystem` given a species list, an abiotic environment and trait relationship. An optional population function can be added, `popfun`, which defaults to generic random filling of the ecosystem.
 """
-function Ecosystem(popfun::F, spplist::SpeciesList{T, Req}, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship) where {F<:Function, T, Req}
+function Ecosystem(popfun::F, spplist::SpeciesList{T, Req},
+                   abenv::GridAbioticEnv,
+                   rel::AbstractTraitRelationship) where {F <: Function, T, Req}
 
-  # Check there is enough energy to support number of individuals at set up
-  #all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
+    # Check there is enough energy to support number of individuals at set up
+    #all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
     #error("Environment does not have enough energy to support species")
-  # Create matrix landscape of zero abundances
-  ml = emptygridlandscape(abenv, spplist)
-  # Populate this matrix with species abundances
-  popfun(ml, spplist, abenv, rel)
-  # Create lookup table of all moves and their probabilities
-  lookup_tab = collect(map(k -> genlookups(abenv.habitat, k), getkernels(spplist.movement)))
-  nm = zeros(Int64, size(ml.matrix))
-  totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
-  Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist, abenv,
-  missing, rel, lookup_tab, Cache(nm, totalE, false))
+    # Create matrix landscape of zero abundances
+    ml = emptygridlandscape(abenv, spplist)
+    # Populate this matrix with species abundances
+    popfun(ml, spplist, abenv, rel)
+    # Create lookup table of all moves and their probabilities
+    lookup_tab = collect(map(k -> genlookups(abenv.habitat, k),
+                             getkernels(spplist.movement)))
+    nm = zeros(Int64, size(ml.matrix))
+    totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
+    return Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist,
+                                                                  abenv,
+                                                                  missing, rel,
+                                                                  lookup_tab,
+                                                                  Cache(nm,
+                                                                        totalE,
+                                                                        false))
 end
 
 function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
-   rel::AbstractTraitRelationship)
-   return Ecosystem(populate!, spplist, abenv, rel)
+                   rel::AbstractTraitRelationship)
+    return Ecosystem(populate!, spplist, abenv, rel)
 end
 
 function addspecies!(eco::Ecosystem, abun::Int64)
-    eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(1, size(eco.abundances.matrix, 2)))
-    eco.abundances.grid = reshape(eco.abundances.matrix, (counttypes(eco.spplist, true)+1, _getdimension(eco.abenv.habitat)...))
+    eco.abundances.matrix = vcat(eco.abundances.matrix,
+                                 zeros(1, size(eco.abundances.matrix, 2)))
+    eco.abundances.grid = reshape(eco.abundances.matrix,
+                                  (counttypes(eco.spplist, true) + 1,
+                                   _getdimension(eco.abenv.habitat)...))
     repopulate!(eco, abun)
-    push!(eco.spplist.names, string.(counttypes(eco.spplist, true)+1))
+    push!(eco.spplist.names, string.(counttypes(eco.spplist, true) + 1))
     append!(eco.spplist.abun, abun)
     append!(eco.spplist.native, true)
     addtraits!(eco.spplist.traits)
     addmovement!(eco.spplist.movement)
     addparams!(eco.spplist.params)
     addrequirement!(eco.spplist.requirement)
-    addtypes!(eco.spplist.types)
+    return addtypes!(eco.spplist.types)
 end
+
 function addtraits!(tr::GaussTrait)
     append!(tr.mean, tr.mean[end])
-    append!(tr.var, tr.var[end])
+    return append!(tr.var, tr.var[end])
 end
 
 function addtraits!(tr::DiscreteTrait)
-    append!(tr.val, rand(tr.val))
+    return append!(tr.val, rand(tr.val))
 end
 
 addmovement!(mv::AbstractMovement) = push!(mv.kernels, mv.kernels[end])
 
 function addparams!(pr::AbstractParams)
     append!(pr.birth, pr.birth[end])
-    append!(pr.death, pr.death[end])
+    return append!(pr.death, pr.death[end])
 end
 
 addrequirement!(rq::AbstractRequirement) = append!(rq.energy, rq.energy[end])
 
 function addtypes!(ut::UniqueTypes)
-    ut = UniqueTypes(ut.num+1)
+    return ut = UniqueTypes(ut.num + 1)
 end
-
 
 """
     CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
@@ -212,14 +234,15 @@ holds the time period abundances as a CachedGridLandscape, so that they may
 be present or missing.
 """
 mutable struct CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-    TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
-  abundances::CachedGridLandscape
-  spplist::SL
-  abenv::Part
-  ordinariness::Union{Matrix{Float64}, Missing}
-  relationship::TR
-  lookup::Vector{Lookup}
-  cache::Cache
+                               TR <: AbstractTraitRelationship} <:
+               AbstractEcosystem{Part, SL, TR}
+    abundances::CachedGridLandscape
+    spplist::SL
+    abenv::Part
+    ordinariness::Union{Matrix{Float64}, Missing}
+    relationship::TR
+    lookup::Vector{Lookup}
+    cache::Cache
 end
 
 """
@@ -231,54 +254,55 @@ times over which to simulate, `rng`.
 """
 function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
     if size(eco.abenv.habitat, 3) > 1
-        size(eco.abenv.habitat, 3) == length(rng) || error("Time range does not match habitat")
+        size(eco.abenv.habitat, 3) == length(rng) ||
+            error("Time range does not match habitat")
     end
     abundances = CachedGridLandscape(outputfile, rng)
     abundances.matrix[1] = eco.abundances
-  CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist), typeof(eco.relationship)}(abundances,
-  eco.spplist, eco.abenv, eco.ordinariness, eco.relationship, eco.lookup, eco.cache)
+    return CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist),
+                           typeof(eco.relationship)}(abundances,
+                                                     eco.spplist, eco.abenv,
+                                                     eco.ordinariness,
+                                                     eco.relationship,
+                                                     eco.lookup, eco.cache)
 end
 
 import Diversity.API: _getabundance
-function _getabundance(eco::AbstractEcosystem, input::Bool)
-    if input
+function _getabundance(eco::AbstractEcosystem, raw::Bool)
+    if raw
         return eco.abundances.matrix
     else
-        return _calcabundance(_gettypes(eco), eco.abundances.matrix / sum(eco.abundances.matrix))[1]
+        return _calcabundance(_gettypes(eco),
+                              eco.abundances.matrix /
+                              sum(eco.abundances.matrix))[1]
     end
 end
 
-
-function _getabundance(cache::CachedEcosystem, input::Bool)
+function _getabundance(cache::CachedEcosystem, raw::Bool)
     if all(ismissing.(cache.abundances.matrix))
         error("Abundances are missing")
     else
         id = findall(.!ismissing.(cache.abundances.matrix))[end]
         abun = cache.abundances.matrix[id]
     end
-    if input
+
+    if raw
         return abun.matrix
     else
         return abun.matrix / sum(abun.matrix)
     end
 end
-import Diversity.API: _getmetaabundance
-function _getmetaabundance(eco::AbstractEcosystem)
-  return sumoversubcommunities(eco, _getabundance(eco))
-end
-
-function _getmetaabundance(eco::CachedEcosystem)
-  return sumoversubcommunities(eco, _getabundance(eco))
-end
 
 import Diversity.API: _getpartition
 function _getpartition(eco::AbstractEcosystem)
-  return eco.abenv
+    return eco.abenv
 end
+
 import Diversity.API: _gettypes
 function _gettypes(eco::AbstractEcosystem)
     return eco.spplist
 end
+
 import Diversity.API: _getordinariness!
 function _getordinariness!(eco::AbstractEcosystem)
     if ismissing(eco.ordinariness)
@@ -296,7 +320,7 @@ end
 function invalidatecaches!(eco::AbstractEcosystem)
     eco.ordinariness = missing
     eco.cache.netmigration .= 0
-    eco.cache.valid = false
+    return eco.cache.valid = false
 end
 
 """
@@ -305,7 +329,7 @@ end
 Function to extract trait relationships.
 """
 function gettraitrel(eco::AbstractEcosystem)
-  return eco.relationship
+    return eco.relationship
 end
 
 """
@@ -314,8 +338,9 @@ end
 Function to extract habitat from Ecosystem object.
 """
 function gethabitat(eco::AbstractEcosystem)
-  return eco.abenv.habitat
+    return eco.abenv.habitat
 end
+
 """
     getbudget(eco::Ecosystem)
 
@@ -331,7 +356,7 @@ end
 Function to extract size of habitat from Ecosystem object.
 """
 function getsize(eco::AbstractEcosystem)
-  return _getsize(eco.abenv.habitat)
+    return _getsize(eco.abenv.habitat)
 end
 
 """
@@ -340,7 +365,7 @@ end
 Function to extract grid cell size of habitat from Ecosystem object.
 """
 function getgridsize(eco::AbstractEcosystem)
-  return _getgridsize(eco.abenv.habitat)
+    return _getgridsize(eco.abenv.habitat)
 end
 
 """
@@ -360,12 +385,13 @@ Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
 function getdispersaldist(eco::AbstractEcosystem, sp::Int64)
-  dist = eco.spplist.movement.kernels[sp].dist
-  return dist
+    dist = eco.spplist.movement.kernels[sp].dist
+    return dist
 end
+
 function getdispersaldist(eco::AbstractEcosystem, sp::String)
-  num = findall(eco.spplist.names.==sp)[1]
-  getdispersaldist(eco, num)
+    num = findall(eco.spplist.names .== sp)[1]
+    return getdispersaldist(eco, num)
 end
 
 """
@@ -379,9 +405,10 @@ function getdispersalvar(eco::AbstractEcosystem, sp::Int64)
     var = (eco.spplist.movement.kernels[sp].dist)^2 * pi / 4
     return var
 end
+
 function getdispersalvar(eco::AbstractEcosystem, sp::String)
-    num = findall(eco.spplist.names.==sp)[1]
-    getdispersalvar(eco, num)
+    num = findall(eco.spplist.names .== sp)[1]
+    return getdispersalvar(eco, num)
 end
 """
     getlookup(eco::Ecosystem)
@@ -391,9 +418,10 @@ Function to extract movement lookup table of species from Ecosystem object.
 function getlookup(eco::AbstractEcosystem, sp::Int64)
     return eco.lookup[sp]
 end
+
 function getlookup(eco::AbstractEcosystem, sp::String)
-    num = findall(eco.spplist.names.==sp)[1]
-    getlookup(eco, num)
+    num = findall(eco.spplist.names .== sp)[1]
+    return getlookup(eco, num)
 end
 
 """
@@ -401,55 +429,61 @@ end
 
 Function to reset the rate of habitat change for a species.
 """
-function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
-    eco.abenv.habitat.change = HabitatUpdate(
-    eco.abenv.habitat.change.changefun, rate, Unitful.Dimensions{()})
+function resetrate!(eco::AbstractEcosystem,
+                    rate::Quantity{Float64, typeof(𝐓^-1)})
+    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
+                                                    rate,
+                                                    Unitful.Dimensions{()})
 end
-function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
-    eco.abenv.habitat.change = HabitatUpdate(
-    eco.abenv.habitat.change.changefun, rate, typeof(dimension(1K)))
+
+function resetrate!(eco::AbstractEcosystem,
+                    rate::Quantity{Float64, typeof(𝚯 * 𝐓^-1)})
+    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
+                                                    rate, typeof(dimension(1K)))
 end
+
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝐓^-1})
-    eco.abenv.habitat.change = HabitatUpdate(
-    eco.abenv.habitat.change.changefun, rate, Unitful.Dimensions{()})
+    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
+                                                    rate,
+                                                    Unitful.Dimensions{()})
 end
-function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯*𝐓^-1})
-    eco.abenv.habitat.change = HabitatUpdate(
-    eco.abenv.habitat.change.changefun, rate, typeof(dimension(1K)))
+
+function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯 * 𝐓^-1})
+    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
+                                                    rate, typeof(dimension(1K)))
 end
 
 function resettime!(eco::AbstractEcosystem)
-    _resettime!(eco.abenv.habitat)
+    return _resettime!(eco.abenv.habitat)
 end
 
-
 function _symmetric_grid(grid::DataFrame)
-   for x in 1:nrow(grid)
-     if grid[x, 1] != grid[x, 2]
-       push!(grid, hcat(grid[x, 2], grid[x, 1] , grid[x, 3]))
-     end
-   end
-   for x in 1:nrow(grid)
-     if (grid[x, 1] > 0)
-       push!(grid, hcat(-grid[x, 1], grid[x, 2] , grid[x, 3]))
-     end
-     if (grid[x, 2] > 0)
-       push!(grid, hcat(grid[x, 1], -grid[x, 2] , grid[x, 3]))
-     end
-     if (grid[x, 1] > 0 && grid[x, 2] > 0)
-       push!(grid, hcat(-grid[x, 1], -grid[x, 2] , grid[x, 3]))
-     end
-   end
-   grid
- end
+    for x in 1:nrow(grid)
+        if grid[x, 1] != grid[x, 2]
+            push!(grid, hcat(grid[x, 2], grid[x, 1], grid[x, 3]))
+        end
+    end
+    for x in 1:nrow(grid)
+        if (grid[x, 1] > 0)
+            push!(grid, hcat(-grid[x, 1], grid[x, 2], grid[x, 3]))
+        end
+        if (grid[x, 2] > 0)
+            push!(grid, hcat(grid[x, 1], -grid[x, 2], grid[x, 3]))
+        end
+        if (grid[x, 1] > 0 && grid[x, 2] > 0)
+            push!(grid, hcat(-grid[x, 1], -grid[x, 2], grid[x, 3]))
+        end
+    end
+    return grid
+end
 
- # Define gaussian kernel function
+# Define gaussian kernel function
 function _gaussian_disperse(r)
-  exp(-((r[3]-r[1])^2+(r[4]-r[2])^2)) / π
+    return exp(-((r[3] - r[1])^2 + (r[4] - r[2])^2)) / π
 end
 
 function _2Dt_disperse(r, b)
-    return((b - 1)/(π)) * (1 + ((r[3]-r[1])^2+(r[4]-r[2])^2))^-b
+    return ((b - 1) / (π)) * (1 + ((r[3] - r[1])^2 + (r[4] - r[2])^2))^-b
 end
 
 """
@@ -459,97 +493,108 @@ Function to generate lookup tables, which hold information on the probability
 of moving to neighbouring squares.
 """
 function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
-  sd = (2 * mov.dist) / sqrt(pi)
-  relsize =  _getgridsize(hab) ./ sd
-  m = maximum(_getdimension(hab))
-  p = mov.thresh
-  return Lookup(_lookup(relsize, m, p, _gaussian_disperse))
+    sd = (2 * mov.dist) / sqrt(pi)
+    relsize = _getgridsize(hab) ./ sd
+    m = maximum(_getdimension(hab))
+    p = mov.thresh
+    return Lookup(_lookup(relsize, m, p, _gaussian_disperse))
 end
+
 function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
     sd = (2 * mov.dist) / sqrt(pi)
-    relsize =  _getgridsize(hab) ./ sd
+    relsize = _getgridsize(hab) ./ sd
     m = maximum(_getdimension(hab))
     p = mov.thresh
     b = mov.shape
-    return EcoSISTEM.Lookup(EcoSISTEM._lookup(relsize, m, p, b, EcoSISTEM._2Dt_disperse))
+    return EcoSISTEM.Lookup(EcoSISTEM._lookup(relsize, m, p, b,
+                                              EcoSISTEM._2Dt_disperse))
 end
 
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
-                pThresh::Float64, dispersalfn::F) where {F<:Function}
-  # Create empty array
-  lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
+                 pThresh::Float64, dispersalfn::F) where {F <: Function}
+    # Create empty array
+    lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
 
-  # Loop through directions until probability is below threshold
-  k = 0
-  m = 0
-  count = 0
-  while (k <= maxGridSize && m <= maxGridSize)
-    count = count + 1
-    calc_prob = hcubature(r -> dispersalfn(r),
-      [0, 0, k*relSquareSize, m*relSquareSize],
-      [relSquareSize, relSquareSize, (k+1)*relSquareSize, (m+1)*relSquareSize],
-      maxevals= 10000)[1] / relSquareSize^2
-    if m == 0 && calc_prob < pThresh
-      break
+    # Loop through directions until probability is below threshold
+    k = 0
+    m = 0
+    count = 0
+    while (k <= maxGridSize && m <= maxGridSize)
+        count = count + 1
+        calc_prob = hcubature(r -> dispersalfn(r),
+                              [0, 0, k * relSquareSize, m * relSquareSize],
+                              [
+                                  relSquareSize,
+                                  relSquareSize,
+                                  (k + 1) * relSquareSize,
+                                  (m + 1) * relSquareSize
+                              ],
+                              maxevals = 10000)[1] / relSquareSize^2
+        if m == 0 && calc_prob < pThresh
+            break
+        end
+        if count == 1
+            push!(lookup_tab, [k m calc_prob])
+            k = k + 1
+        elseif (calc_prob > pThresh && m <= k)
+            push!(lookup_tab, [k m calc_prob])
+            m = m + 1
+        else
+            m = 0
+            k = k + 1
+        end
     end
-    if count == 1
-      push!(lookup_tab, [k m calc_prob])
-      k = k + 1
-    elseif (calc_prob > pThresh && m <= k)
-      push!(lookup_tab, [k m calc_prob])
-      m = m + 1
-    else
-      m = 0
-      k = k + 1
-    end
-  end
-  # If no probabilities can be calculated, threshold is too high
-  nrow(lookup_tab) != 0 || error("probability threshold too high")
-  # Find all other directions
-  lookup_tab = _symmetric_grid(lookup_tab)
-  #info(sum(lookup_tab[:, 3]))
-  # Normalise
-  lookup_tab[!, :Prob] = lookup_tab[!, :Prob]/sum(lookup_tab[!, :Prob])
-  lookup_tab
+    # If no probabilities can be calculated, threshold is too high
+    nrow(lookup_tab) != 0 || error("probability threshold too high")
+    # Find all other directions
+    lookup_tab = _symmetric_grid(lookup_tab)
+    #info(sum(lookup_tab[:, 3]))
+    # Normalise
+    lookup_tab[!, :Prob] = lookup_tab[!, :Prob] / sum(lookup_tab[!, :Prob])
+    return lookup_tab
 end
 
-
 function _lookup(relSquareSize::Float64, maxGridSize::Int64,
-                pThresh::Float64, b::Float64, dispersalfn::F
-                ) where {F<:Function}
-  # Create empty array
-  lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
+                 pThresh::Float64, b::Float64,
+                 dispersalfn::F) where {F <: Function}
+    # Create empty array
+    lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
 
-  # Loop through directions until probability is below threshold
-  k = 0
-  m = 0
-  count = 0
-  while (k <= maxGridSize && m <= maxGridSize)
-    count = count + 1
-    calc_prob = hcubature(r -> dispersalfn(r, b),
-      [0, 0, k*relSquareSize, m*relSquareSize],
-      [relSquareSize, relSquareSize, (k+1)*relSquareSize, (m+1)*relSquareSize],
-      maxevals=10000)[1] / relSquareSize^2
-    if m == 0 && calc_prob < pThresh
-      break
+    # Loop through directions until probability is below threshold
+    k = 0
+    m = 0
+    count = 0
+    while (k <= maxGridSize && m <= maxGridSize)
+        count = count + 1
+        calc_prob = hcubature(r -> dispersalfn(r, b),
+                              [0, 0, k * relSquareSize, m * relSquareSize],
+                              [
+                                  relSquareSize,
+                                  relSquareSize,
+                                  (k + 1) * relSquareSize,
+                                  (m + 1) * relSquareSize
+                              ],
+                              maxevals = 10000)[1] / relSquareSize^2
+        if m == 0 && calc_prob < pThresh
+            break
+        end
+        if count == 1
+            push!(lookup_tab, [k m calc_prob])
+            k = k + 1
+        elseif (calc_prob > pThresh && m <= k)
+            push!(lookup_tab, [k m calc_prob])
+            m = m + 1
+        else
+            m = 0
+            k = k + 1
+        end
     end
-    if count == 1
-      push!(lookup_tab, [k m calc_prob])
-       k = k + 1
-    elseif (calc_prob > pThresh && m <= k)
-      push!(lookup_tab, [k m calc_prob])
-      m = m + 1
-    else
-      m = 0
-      k = k + 1
-    end
-  end
-  # If no probabilities can be calculated, threshold is too high
-  nrow(lookup_tab) != 0 || error("probability threshold too high")
-  # Find all other directions
-  lookup_tab = _symmetric_grid(lookup_tab)
-  #info(sum(lookup_tab[:, 3]))
-  # Normalise
-  lookup_tab[!, :Prob] = lookup_tab[!, :Prob]/sum(lookup_tab[!, :Prob])
-  lookup_tab
+    # If no probabilities can be calculated, threshold is too high
+    nrow(lookup_tab) != 0 || error("probability threshold too high")
+    # Find all other directions
+    lookup_tab = _symmetric_grid(lookup_tab)
+    #info(sum(lookup_tab[:, 3]))
+    # Normalise
+    lookup_tab[!, :Prob] = lookup_tab[!, :Prob] / sum(lookup_tab[!, :Prob])
+    return lookup_tab
 end

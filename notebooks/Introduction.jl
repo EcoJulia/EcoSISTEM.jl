@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.27
+# v0.19.32
 
 using Markdown
 using InteractiveUtils
@@ -111,14 +111,14 @@ begin
 	# Plot abundances
 	sumabun = sum(abuns, dims = 2)[:, 1, :]
 	floor_plot = zeros(lensim)
-	p1 = plot(sumabun[1,:], ribbon=(sumabun[1,:], floor_plot), 
-		guidefontsize = 16, tickfontsize= 16, size = (1000, 1000), titlefontsize = 16, 
-		grid= false, layout = (2, 1), label = "", titleloc = :left)
+	p1 = plot(sumabun[1,:], ribbon=(sumabun[1,:], floor_plot),
+			  guidefontsize = 16, tickfontsize= 16, size = (1000, 1000), titlefontsize = 16,
+			  grid = false, layout = (2, 1), label = "", titleloc = :left)
 	for i in 2:(numSpecies)
 		before_spp = sum(sumabun[1:(i-1), :], dims = 1)[1, :]
-		p1 = plot!(sumabun[i, :] .+ before_spp, ribbon=(sumabun[i,:], floor_plot), 
-			xlabel="Time", ylabel="Population", label="", 
-			title="A", subplot = 1)
+		p1 = plot!(sumabun[i, :] .+ before_spp, ribbon=(sumabun[i,:], floor_plot),
+				   xlabel="Time", ylabel="Population", label="",
+				   title="A", subplot = 1)
 	end
 	sumabun_space = sum(eco.abundances.matrix, dims = 1)[1, :]
 	p1 = heatmap!(reshape(sumabun_space, grd[1], grd[2]), subplot = 2, 
@@ -270,11 +270,11 @@ md"Phew, that was a lot, but now we can look at some of those pieces of informat
 
 # ╔═╡ b9091796-d377-49c7-8601-a84ec0006f65
 begin
-	p3 = plot(288:0.1:308, pdf(Normal(optima[1]/K, niche_width[1]/K), collect(288:0.1:308)), 
-		label = "", xlabel = "Temperature (K)", ylabel = "Match to environment")
+	p3 = plot(288:0.1:308, pdf.(Normal(optima[1]/K, niche_width[1]/K), collect(288:0.1:308)),
+		      label = "", xlabel = "Temperature (K)", ylabel = "Match to environment")
 	for j in 2:numSpp
-		plot!(288:0.1:308, pdf(Normal(optima[j]/K, niche_width[j]/K), collect(288:0.1:308)), 
-			subplot = 1, label = "")
+		plot!(288:0.1:308, pdf.(Normal(optima[j]/K, niche_width[j]/K), collect(288:0.1:308)),
+			  subplot = 1, label = "")
 	end
 	p3 = vline!([298], colour = :black, label = "Current temperature")
 	p3
@@ -369,7 +369,7 @@ Unitful = "~1.17.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.2"
+julia_version = "1.9.4"
 manifest_format = "2.0"
 project_hash = "0bcabc7e956a803b45bd098deab8b82c81c7770e"
 
@@ -1160,12 +1160,12 @@ uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
-version = "0.6.3"
+version = "0.6.4"
 
 [[deps.LibCURL_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "7.84.0+0"
+version = "8.4.0+0"
 
 [[deps.LibGit2]]
 deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
@@ -1180,7 +1180,7 @@ version = "14.3.0+1"
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.10.2+0"
+version = "1.11.0+1"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -2231,7 +2231,7 @@ version = "1.3.7+1"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.48.0+0"
+version = "1.52.0+1"
 
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
