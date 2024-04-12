@@ -1,5 +1,6 @@
 name: JuliaNightly
 # Nightly Scheduled Julia Nightly Run
+
 on:
   push:
     branches:
@@ -24,5 +25,7 @@ jobs:
           arch: x64
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
+        with:
+          ignore-no-cache: true
       - name: Run tests
         uses: julia-actions/julia-runtest@v1
