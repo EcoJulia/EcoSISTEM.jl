@@ -21,14 +21,35 @@ This package is in beta now, so please raise an issue if you find any problems. 
 
 ## Introduction to EcoSISTEM
 
-You can now run through a full introduction to EcoSISTEM with Pluto.jl if you have the source of the package cloned. To get started (if you are in the root of the package, and have that environment loaded):
+You can now run through a full introduction to EcoSISTEM with Pluto.jl if you have the source of the package cloned. To get started (if you are in the root of the package):
 
 ```julia
-import Pluto
-Pluto.run()
+(EcoSISTEM) pkg> activate --temp
+  Activating new project at `/var/folders/fv/1rqrvwq14ssggm_gc_x4v1cw0000gq/T/jl_IFxVXO`
+
+(jl_IFxVXO) pkg> dev .
+   Resolving package versions...
+    Updating `/private/var/folders/fv/1rqrvwq14ssggm_gc_x4v1cw0000gq/T/jl_IFxVXO/Project.toml`
+  [ed2dc23b] + EcoSISTEM
+    Updating `/private/var/folders/fv/1rqrvwq14ssggm_gc_x4v1cw0000gq/T/jl_IFxVXO/Manifest.toml`
+
+(jl_IFxVXO) pkg> add Pluto
+   Resolving package versions...
+    Updating `/private/var/folders/fv/1rqrvwq14ssggm_gc_x4v1cw0000gq/T/jl_IFxVXO/Project.toml`
+  [c3e4b0f8] + Pluto
+  No Changes to `/private/var/folders/fv/1rqrvwq14ssggm_gc_x4v1cw0000gq/T/jl_IFxVXO/Manifest.toml`
+
+julia> import Pluto
+
+julia> Pluto.run()
+┌ Info: 
+└ Opening http://localhost:1235/?secret=xxxxxxxx in your default browser... ~ have fun!
+┌ Info: 
+│ Press Ctrl+C in this terminal to stop Pluto
+└ 
 ```
 
-This should open a Pluto window in your browser - from there you can type `notebooks/Introduction.jl` in the `Open a notebook` box. You can also test `notebooks/InteractiveAfrica.jl` to see an invasive species in Africa. Note that it may be slow on first launch as it must install packages and in the latter case download climate data from the internet. If you are using a different Julia version you may need to add a block at the start of the examples to update the manifest:
+This should open a Pluto window in your browser - from there you can find `notebooks/Introduction.jl` in the `Open a notebook` box. You can also test `notebooks/InteractiveAfrica.jl` to see an invasive species colonising Africa. Note that it may be slow on first launch as it must install packages and in the latter case download climate data from the internet. If you are using a different Julia version you may need to add a block at the start of the examples to update the manifest:
 
 ```julia
 begin
