@@ -1,3 +1,5 @@
+module TestDist
+
 using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
@@ -7,7 +9,10 @@ using Distributions
 using Random
 
 @testset "Trapeze distribution" begin
-    a = 1; b = 2; c = 3; d = 4
+    a = 1
+    b = 2
+    c = 3
+    d = 4
     dist = Trapezoid(a, b, c, d)
     @test params(dist) == (dist.a, dist.b, dist.c, dist.d)
     @test_nowarn rand(dist)
@@ -16,4 +21,6 @@ using Random
     @test pdf(dist, 4.0) == 0
     @test pdf(dist, 2.0) == 0.5
     @test pdf(dist, 3.0) == 0.5
+end
+
 end

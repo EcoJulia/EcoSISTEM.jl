@@ -27,7 +27,7 @@ active[8, 8] = false
 # This should stop col 2 being trimmed
 active[5, 2] = true
 # Should be trimmed from 10x10 to 6x8
-expected_grid= (6, 8)
+expected_grid = (6, 8)
 expected_active = active[4:9, 2:9]
 # Shouldn't change
 expected_gridlength = 1km
@@ -60,11 +60,9 @@ expected_matrix = fill(fillval, expected_grid)
         @test isequal(M, M_ref)
     end
     @testset "shrink an AxisArray matrix" begin
-        M = AxisArray(
-            rand(grid...);
-            x=Symbol.("x_", 1:grid[1]),
-            y=Symbol.("y_", 1:grid[2]),
-        )
+        M = AxisArray(rand(grid...);
+                      x = Symbol.("x_", 1:grid[1]),
+                      y = Symbol.("y_", 1:grid[2]),)
         M_ref = copy(M)
         M_shrunk = shrink_to_active(M, active)
         @test M_shrunk isa AxisArray

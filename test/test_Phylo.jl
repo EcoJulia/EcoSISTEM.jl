@@ -1,3 +1,5 @@
+module TestPhylo
+
 using Phylo
 using DataFrames
 using EcoSISTEM
@@ -24,4 +26,6 @@ using Test
     @test nrow(get_traits(tree)) == 10
     resettraits!(tree)
     @test_throws ErrorException get_traits(tree)
+end
+
 end

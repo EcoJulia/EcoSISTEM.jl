@@ -6,22 +6,31 @@ using Diversity
 VirusTypes holds information on the virus classes, such as the name of each class, their trait match to the environment, initial abundances and types.
 """
 mutable struct VirusTypes{TR <: AbstractTraits,
-                 T <: AbstractTypes} <: AbstractPathogenTypes
-  names::Vector{String}
-  traits::TR
-  abun::Vector{Int64}
-  types::T
-  force_cats::Vector{Int64}
+                          T <: AbstractTypes} <: AbstractPathogenTypes
+    names::Vector{String}
+    traits::TR
+    abun::Vector{Int64}
+    types::T
+    force_cats::Vector{Int64}
 
-  function VirusTypes{TR, T}(names:: Vector{String}, traits::TR, abun::Vector{Int64}, types::T, force_cats::Vector{Int64}) where {
-                       TR <: AbstractTraits,
-                       T <: AbstractTypes}
-      new{TR, T}(names, traits, abun, types, force_cats)
-  end
-  function VirusTypes{TR, T}(traits::TR, abun::Vector{Int64}, types::T, force_cats::Vector{Int64}) where {TR <: AbstractTraits, T <: AbstractTypes}
-      names = map(x -> "$x", 1:length(abun))
-      new{TR, T}(names, traits, abun, types, force_cats)
-  end
+    function VirusTypes{TR, T}(names::Vector{String}, traits::TR,
+                               abun::Vector{Int64}, types::T,
+                               force_cats::Vector{Int64}) where {
+                                                                 TR <:
+                                                                 AbstractTraits,
+                                                                 T <:
+                                                                 AbstractTypes}
+        return new{TR, T}(names, traits, abun, types, force_cats)
+    end
+    function VirusTypes{TR, T}(traits::TR, abun::Vector{Int64}, types::T,
+                               force_cats::Vector{Int64}) where {
+                                                                 TR <:
+                                                                 AbstractTraits,
+                                                                 T <:
+                                                                 AbstractTypes}
+        names = map(x -> "$x", 1:length(abun))
+        return new{TR, T}(names, traits, abun, types, force_cats)
+    end
 end
 
 """
@@ -30,30 +39,50 @@ end
 HostTypes holds information on the host disease classes, such as the name of each class, their initial abundances and types, as well as how they disperse virus across the landscape.
 """
 mutable struct HostTypes{MO <: AbstractMovement,
-                 T <: AbstractTypes} <: AbstractSpeciesTypes
-  names::Vector{String}
-  abun::Vector{Int64}
-  types::T
-  movement::MO
-  local_balance::Vector{Float64}
-  region_balance::Vector{Float64}
-  susceptible::Vector{Int64}
-  infectious::Vector{Int64}
-  host_to_force::Vector{Int64}
+                         T <: AbstractTypes} <: AbstractSpeciesTypes
+    names::Vector{String}
+    abun::Vector{Int64}
+    types::T
+    movement::MO
+    local_balance::Vector{Float64}
+    region_balance::Vector{Float64}
+    susceptible::Vector{Int64}
+    infectious::Vector{Int64}
+    host_to_force::Vector{Int64}
 
-  function HostTypes{MO, T}(names:: Vector{String}, abun::Vector{Int64}, types::T, movement::MO, local_balance::Vector{Float64}, region_balance::Vector{Float64}, susceptible::Vector{Int64}, infectious::Vector{Int64}, host_to_force::Vector{Int64}) where {
-                       MO <: AbstractMovement,
-                       T <: AbstractTypes}
-      new{MO, T}(names, abun, types, movement, local_balance, region_balance, susceptible, infectious, host_to_force)
-  end
-  function HostTypes{MO, T}(abun::Vector{Int64}, types::T, movement::MO, local_balance::Vector{Float64}, region_balance::Vector{Float64}, susceptible::Vector{Int64}, infectious::Vector{Int64}, host_to_force::Vector{Int64}) where {
-                       MO <: AbstractMovement,
-                       T <: AbstractTypes}
-      names = map(x -> "$x", 1:length(abun))
-      new{MO, T}(names, abun, types, movement, local_balance, region_balance, susceptible, infectious, host_to_force)
-  end
+    function HostTypes{MO, T}(names::Vector{String}, abun::Vector{Int64},
+                              types::T, movement::MO,
+                              local_balance::Vector{Float64},
+                              region_balance::Vector{Float64},
+                              susceptible::Vector{Int64},
+                              infectious::Vector{Int64},
+                              host_to_force::Vector{Int64}) where {
+                                                                   MO <:
+                                                                   AbstractMovement,
+                                                                   T <:
+                                                                   AbstractTypes
+                                                                   }
+        return new{MO, T}(names, abun, types, movement, local_balance,
+                          region_balance, susceptible, infectious,
+                          host_to_force)
+    end
+    function HostTypes{MO, T}(abun::Vector{Int64}, types::T, movement::MO,
+                              local_balance::Vector{Float64},
+                              region_balance::Vector{Float64},
+                              susceptible::Vector{Int64},
+                              infectious::Vector{Int64},
+                              host_to_force::Vector{Int64}) where {
+                                                                   MO <:
+                                                                   AbstractMovement,
+                                                                   T <:
+                                                                   AbstractTypes
+                                                                   }
+        names = map(x -> "$x", 1:length(abun))
+        return new{MO, T}(names, abun, types, movement, local_balance,
+                          region_balance, susceptible, infectious,
+                          host_to_force)
+    end
 end
-
 
 """
     SpeciesList(traits::TR, virus_abun::DataFrame, host_abun::DataFrame,
@@ -63,8 +92,19 @@ end
 Function to create an `SpeciesList` for any type of epidemiological model - creating the correct number of classes and checking dimensions.
 """
 function SpeciesList(traits::TR, virus_abun::DataFrame, host_abun::DataFrame,
-                 movement::MO, transitions::DataFrame, params::NamedTuple,
-                 age_categories::Int64 = 1, movement_balance::NamedTuple = (local_balance = fill(1.0, nrow(host_abun) * age_categories), region_balance = fill(0.0, nrow(host_abun) * age_categories))) where {TR <: AbstractTraits, MO <: AbstractMovement}
+                     movement::MO, transitions::DataFrame, params::NamedTuple,
+                     age_categories::Int64 = 1,
+                     movement_balance::NamedTuple = (local_balance = fill(1.0,
+                                                                          nrow(host_abun) *
+                                                                          age_categories),
+                                                     region_balance = fill(0.0,
+                                                                           nrow(host_abun) *
+                                                                           age_categories))) where {
+                                                                                                    TR <:
+                                                                                                    AbstractTraits,
+                                                                                                    MO <:
+                                                                                                    AbstractMovement
+                                                                                                    }
     # Test for susceptibility/infectiousness categories
     any(host_abun.type .== Infectious) ||
         error("No Infectious disease states")
@@ -75,8 +115,8 @@ function SpeciesList(traits::TR, virus_abun::DataFrame, host_abun::DataFrame,
     row_inf = findall(==(Infectious), host_abun.type)
 
     true_indices = [0; cumsum(length.(host_abun.initial))]
-    idx_sus = vcat([(true_indices[r]+1):true_indices[r+1] for r in row_sus]...)
-    idx_inf = vcat([(true_indices[r]+1):true_indices[r+1] for r in row_inf]...)
+    idx_sus = vcat([(true_indices[r] + 1):true_indices[r + 1] for r in row_sus]...)
+    idx_inf = vcat([(true_indices[r] + 1):true_indices[r + 1] for r in row_inf]...)
     length(idx_sus) == length(row_sus) * age_categories ||
         throw(DimensionMismatch("# susceptible categories is incorrect"))
     length(idx_inf) == length(row_inf) * age_categories ||
@@ -94,7 +134,12 @@ function SpeciesList(traits::TR, virus_abun::DataFrame, host_abun::DataFrame,
     counttypes(ht) == nrow(host_abun) * age_categories ||
         throw(DimensionMismatch("# categories is inconsistent"))
     host_to_force = repeat(1:age_categories, nrow(host_abun))
-    host = HostTypes{typeof(movement), typeof(ht)}(h_names, Int64.(abuns), ht, movement,  movement_balance.local_balance, movement_balance.region_balance, idx_sus, idx_inf, host_to_force)
+    host = HostTypes{typeof(movement), typeof(ht)}(h_names, Int64.(abuns), ht,
+                                                   movement,
+                                                   movement_balance.local_balance,
+                                                   movement_balance.region_balance,
+                                                   idx_sus, idx_inf,
+                                                   host_to_force)
 
     virus_names = virus_abun.name
     vabuns = vcat(virus_abun.initial...)
@@ -112,7 +157,8 @@ function SpeciesList(traits::TR, virus_abun::DataFrame, host_abun::DataFrame,
     force_cats = findall(occursin.("Force", v_names))
 
     vt = UniqueTypes(v_names)
-    virus = VirusTypes{typeof(traits), typeof(vt)}(v_names, traits, vabuns, vt, force_cats)
+    virus = VirusTypes{typeof(traits), typeof(vt)}(v_names, traits, vabuns, vt,
+                                                   force_cats)
 
     transitions[!, :from_ind] = [findfirst(==(transitions[i, :from]), names)
                                  for i in eachindex(transitions[!, :from])]
@@ -123,7 +169,8 @@ function SpeciesList(traits::TR, virus_abun::DataFrame, host_abun::DataFrame,
 
     size(param.transition, 1) == length(h_names) ||
         throw(DimensionMismatch("Transition matrix doesn't match number of disease classes"))
-    return SpeciesList{typeof(host), typeof(virus), typeof(param)}(host, virus, param)
+    return SpeciesList{typeof(host), typeof(virus), typeof(param)}(host, virus,
+                                                                   param)
 end
 
 function getnames(sppl::SpeciesList{A, B, C}) where {A <: HostTypes, B, C}
@@ -131,8 +178,11 @@ function getnames(sppl::SpeciesList{A, B, C}) where {A <: HostTypes, B, C}
 end
 
 import Diversity.API._counttypes
-function _counttypes(el::SpeciesList{A, B, C}, input::Bool) where {A <: HostTypes, B <: VirusTypes, C <: AbstractParams}
-    return _counttypes(el.species.types, input) + _counttypes(el.pathogens.types, input)
+function _counttypes(el::SpeciesList{A, B, C},
+                     input::Bool) where {A <: HostTypes, B <: VirusTypes,
+                                         C <: AbstractParams}
+    return _counttypes(el.species.types, input) +
+           _counttypes(el.pathogens.types, input)
 end
 function _counttypes(hm::HostTypes, input::Bool)
     return Diversity._counttypes(hm.types, input)

@@ -3,30 +3,38 @@ import Random: rand, GLOBAL_RNG
 using Random
 
 import Distributions: @check_args, ContinuousUnivariateDistribution,
-rand, params, GLOBAL_RNG, pdf
+                      rand, params, pdf
 
 """
     Trapezoid{T<:Real} <: ContinuousUnivariateDistribution
 
 Trapezoidal distribution as described at https://en.wikipedia.org/wiki/Trapezoidal_distribution.
 """
-struct Trapezoid{T<:Real} <: ContinuousUnivariateDistribution
+struct Trapezoid{T <: Real} <: ContinuousUnivariateDistribution
     a::T
     b::T
     c::T
     d::T
 
-    Trapezoid{T}(a::T, b::T, c::T, d::T) where {T} = new{T}(a, b, c, d)
+    function Trapezoid{T}(a::T, b::T, c::T, d::T;
+                          check_args::Bool = true) where {T}
+        @check_args Trapezoid (a<d)
+        return new{T}(a, b, c, d)
+    end
 end
-function Trapezoid{T}(a::T, b::T, c::T, d::T; check_args::Bool = true) where {T}
-    @check_args Trapezoid (a < d)
-    return Trapezoid{T}(a, b, c, d)
-end 
 
-Trapezoid(a::T, b::T, c::T, d::T; check_args::Bool = true) where {T<:Real} = Trapezoid{T}(a, b, c, d; check_args=check_args)
-Trapezoid(a::Real, b::Real, c::Real, d::Real; check_args::Bool = true) = Trapezoid(promote(a, b, c, d)...; check_args=check_args)
-Trapezoid(a::Integer, b::Integer, c::Integer, d::Integer; check_args::Bool = true) = Trapezoid(Float64(a), Float64(b),
-    Float64(c), Float64(d); check_args=check_args)
+function Trapezoid(a::T, b::T, c::T, d::T;
+                   check_args::Bool = true) where {T <: Real}
+    return Trapezoid{T}(a, b, c, d; check_args = check_args)
+end
+function Trapezoid(a::Real, b::Real, c::Real, d::Real; check_args::Bool = true)
+    return Trapezoid(promote(a, b, c, d)...; check_args = check_args)
+end
+function Trapezoid(a::Integer, b::Integer, c::Integer, d::Integer;
+                   check_args::Bool = true)
+    return Trapezoid(Float64(a), Float64(b), Float64(c), Float64(d);
+                     check_args = check_args)
+end
 Trapezoid() = Trapezoid(0.0, 0.0, 1.0, 1.0)
 
 params(d::Trapezoid) = (d.a, d.b, d.c, d.d)
@@ -37,16 +45,16 @@ function rand(rng::AbstractRNG, T::Trapezoid)
     c_m_b = c - b
     d_m_c = d - c
     Cϕ = 4 / ((b_m_a * 2) + (c_m_b * 4) + (d_m_c * 2))
-    pi1 = Cϕ * b_m_a/2
+    pi1 = Cϕ * b_m_a / 2
     pi2 = Cϕ * c_m_b
-    pi3 = Cϕ * d_m_c/2
+    pi3 = Cϕ * d_m_c / 2
     u = rand(rng)
     if (u >= 0 && u <= pi1)
-        return a + (u/pi1)^(1/2) * b_m_a
+        return a + (u / pi1)^(1 / 2) * b_m_a
     elseif (u > pi1 && u <= (1 - pi3))
-        return b + ((u - pi1)/pi2) * c_m_b
+        return b + ((u - pi1) / pi2) * c_m_b
     else
-        return d - ((1 - u)/pi3)^(1/2) * d_m_c
+        return d - ((1 - u) / pi3)^(1 / 2) * d_m_c
     end
 end
 
@@ -57,11 +65,11 @@ function pdf(T::Trapezoid, x::Real)
     b_m_a = b - a
     d_m_c = d - c
     if (x >= a && x < b)
-        return (2 / (d_p_c- a_p_b)) * ((x-a)/b_m_a)
+        return (2 / (d_p_c - a_p_b)) * ((x - a) / b_m_a)
     elseif (x >= b && x < c)
-        return (2 / (d_p_c- a_p_b))
-    elseif (x >=c && x <= d)
-        return (2 / (d_p_c- a_p_b)) * ((d-x)/d_m_c)
+        return (2 / (d_p_c - a_p_b))
+    elseif (x >= c && x <= d)
+        return (2 / (d_p_c - a_p_b)) * ((d - x) / d_m_c)
     else
         return 0.0
     end

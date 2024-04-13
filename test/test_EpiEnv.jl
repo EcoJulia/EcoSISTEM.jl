@@ -1,3 +1,5 @@
+module TestEpiEnv
+
 using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
@@ -46,7 +48,7 @@ using AxisArrays
         # This should stop col 2 being trimmed
         active[5, 2] = true
         # Should be trimmed from 10x10 to 6x8
-        expected_grid= (6, 8)
+        expected_grid = (6, 8)
         expected_active = active[4:9, 2:9]
         # Shouldn't change
         expected_gridlength = 1km
@@ -62,4 +64,6 @@ using AxisArrays
             @test epienv.habitat.matrix == expected_matrix
         end
     end
+end
+
 end

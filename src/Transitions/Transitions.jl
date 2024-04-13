@@ -100,8 +100,10 @@ end
 `TransitionList` type which houses information on `setup`, `state`,
 `place` and `winddown` transitions.
 """
-mutable struct TransitionList{T1 <: AbstractSetUp, T2 <: AbstractStateTransition,
-    T3 <: AbstractPlaceTransition, T4 <: AbstractWindDown}
+mutable struct TransitionList{T1 <: AbstractSetUp,
+                              T2 <: AbstractStateTransition,
+                              T3 <: AbstractPlaceTransition,
+                              T4 <: AbstractWindDown}
     setup::Vector{T1}
     state::Vector{T2}
     place::Vector{T3}
@@ -109,20 +111,25 @@ mutable struct TransitionList{T1 <: AbstractSetUp, T2 <: AbstractStateTransition
     placelist::Vector{Vector{Int64}}
 end
 
-function TransitionList(specialise=false)
+function TransitionList(specialise = false)
     if specialise
-        before = Vector{Union{rsubtypes(AbstractSetUp)...}}(undef,0)
-        state_list = Vector{Union{rsubtypes(AbstractStateTransition)...}}(undef,0)
-        place_list = Vector{Union{rsubtypes(AbstractPlaceTransition)...}}(undef,0)
-        after = Vector{Union{rsubtypes(AbstractWindDown)...}}(undef,0)
+        before = Vector{Union{rsubtypes(AbstractSetUp)...}}(undef, 0)
+        state_list = Vector{Union{rsubtypes(AbstractStateTransition)...}}(undef,
+                                                                          0)
+        place_list = Vector{Union{rsubtypes(AbstractPlaceTransition)...}}(undef,
+                                                                          0)
+        after = Vector{Union{rsubtypes(AbstractWindDown)...}}(undef, 0)
     else
-        before = Vector{AbstractSetUp}(undef,0)
-        state_list = Vector{AbstractStateTransition}(undef,0)
-        place_list = Vector{AbstractPlaceTransition}(undef,0)
-        after = Vector{AbstractWindDown}(undef,0)
+        before = Vector{AbstractSetUp}(undef, 0)
+        state_list = Vector{AbstractStateTransition}(undef, 0)
+        place_list = Vector{AbstractPlaceTransition}(undef, 0)
+        after = Vector{AbstractWindDown}(undef, 0)
     end
     placelist = Vector{Vector{Int64}}()
-    return TransitionList{eltype(before), eltype(state_list), eltype(place_list), eltype(after)}(before, state_list, place_list, after, placelist)
+    return TransitionList{eltype(before), eltype(state_list),
+                          eltype(place_list), eltype(after)}(before, state_list,
+                                                             place_list, after,
+                                                             placelist)
 end
 
 function specialise_transition_list(tl::TransitionList)
@@ -130,7 +137,9 @@ function specialise_transition_list(tl::TransitionList)
     state = Vector{Union{unique(typeof.(tl.state))...}}(tl.state)
     place = Vector{Union{unique(typeof.(tl.place))...}}(tl.place)
     winddown = Vector{Union{unique(typeof.(tl.winddown))...}}(tl.winddown)
-    return TransitionList{eltype(setup), eltype(state), eltype(place), eltype(winddown)}(setup, state, place, winddown, tl.placelist)
+    return TransitionList{eltype(setup), eltype(state), eltype(place),
+                          eltype(winddown)}(setup, state, place, winddown,
+                                            tl.placelist)
 end
 
 function rsubtypes(t)
@@ -138,11 +147,12 @@ function rsubtypes(t)
 end
 
 function rsubtypes(types::AbstractVector, out)
-    if isempty(types) 
-        return out 
+    if isempty(types)
+        return out
     else
         sub = subtypes.(types)
-        return rsubtypes(filter(isabstracttype, vcat(sub...)), filter(!isabstracttype, vcat(out, types, sub...))) 
+        return rsubtypes(filter(isabstracttype, vcat(sub...)),
+                         filter(!isabstracttype, vcat(out, types, sub...)))
     end
 end
 
@@ -152,7 +162,7 @@ end
 Add a state transition to the `TransitionList`.
 """
 function addtransition!(tl::TransitionList, rule::AbstractStateTransition)
-    push!(tl.state, rule)
+    return push!(tl.state, rule)
 end
 
 """
@@ -177,7 +187,7 @@ end
 Add a set up transition to the `TransitionList`.
 """
 function addtransition!(tl::TransitionList, rule::AbstractSetUp)
-    push!(tl.setup, rule)
+    return push!(tl.setup, rule)
 end
 
 """
@@ -186,5 +196,5 @@ end
 Add a wind down transition to the `TransitionList`.
 """
 function addtransition!(tl::TransitionList, rule::AbstractWindDown)
-    push!(tl.winddown, rule)
+    return push!(tl.winddown, rule)
 end

@@ -18,12 +18,16 @@ function _run_rule!(eco::Ecosystem, rule::Exposure, timestep::Unitful.Time)
         N = sum_pop(eco.abundances.matrix, loc)
         if N > 0
             env_inf = virus(eco.abundances)[1, loc] /
-                (N^params.freq_vs_density_env)
-            force_inf = (params.age_mixing[age_cat[spp], :] ⋅ virus(eco.abundances)[force_cats, loc]) /
-                (N^params.freq_vs_density_force)
-            expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
+                      (N^params.freq_vs_density_env)
+            force_inf = (params.age_mixing[age_cat[spp], :] ⋅
+                         virus(eco.abundances)[force_cats, loc]) /
+                        (N^params.freq_vs_density_force)
+            expprob = (getprob(rule)[1] * force_inf +
+                       getprob(rule)[2] * env_inf) * timestep
             newexpprob = 1.0 - exp(-expprob)
-            exposures = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
+            exposures = rand(rng,
+                             Binomial(eco.abundances.matrix[spp, loc],
+                                      newexpprob))
             host(eco.abundances)[spp, loc] -= exposures
             host(eco.abundances)[dest, loc] += exposures
         end
@@ -51,14 +55,19 @@ function _run_rule!(eco::Ecosystem, rule::EnvExposure, timestep::Unitful.Time)
         N = sum_pop(eco.abundances.matrix, loc)
         if N > 0
             env = @view get_env(eco.abenv.habitat)[loc]
-            env_transition = env[1] * env_exposure/mean(eco.abenv.habitat.matrix)
+            env_transition = env[1] * env_exposure /
+                             mean(eco.abenv.habitat.matrix)
             env_inf = virus(eco.abundances)[1, loc] /
-                (N^params.freq_vs_density_env)
-            force_inf = env_transition * (params.age_mixing[age_cat[spp], :] ⋅ virus(eco.abundances)[force_cats, loc]) /
-                (N^params.freq_vs_density_force)
-            expprob = (getprob(rule)[1] * force_inf + getprob(rule)[2] * env_inf) * timestep
+                      (N^params.freq_vs_density_env)
+            force_inf = env_transition * (params.age_mixing[age_cat[spp], :] ⋅
+                         virus(eco.abundances)[force_cats, loc]) /
+                        (N^params.freq_vs_density_force)
+            expprob = (getprob(rule)[1] * force_inf +
+                       getprob(rule)[2] * env_inf) * timestep
             newexpprob = 1.0 - exp(-expprob)
-            exposures = rand(rng, Binomial(eco.abundances.matrix[spp, loc], newexpprob))
+            exposures = rand(rng,
+                             Binomial(eco.abundances.matrix[spp, loc],
+                                      newexpprob))
             host(eco.abundances)[spp, loc] -= exposures
             host(eco.abundances)[dest, loc] += exposures
         end
@@ -73,8 +82,10 @@ Stochastic epi transition process for a location, housed inside `rule`,
  for one timestep. Moves from source category, `species` to
 destination category, `destination`.
 """
-function _run_rule!(eco::Ecosystem, rule::Union{Infection, DevelopSymptoms,
-    DeathFromInfection, Recovery}, timestep::Unitful.Time)
+function _run_rule!(eco::Ecosystem,
+                    rule::Union{Infection, DevelopSymptoms,
+                                DeathFromInfection, Recovery},
+                    timestep::Unitful.Time)
     rng = eco.abundances.rngs[Threads.threadid()]
     spp = getspecies(rule)
     dest = getdestination(rule)
@@ -123,14 +134,17 @@ function _run_rule!(eco::Ecosystem, rule::ViralLoad, timestep::Unitful.Time)
     # Calculate how much virus degrades in the environment
     deaths = rand(rng, Binomial(virus(eco.abundances)[1, loc], deathprob))
     # Force of infection on average around half of timestep in environment
-    survivalprob = exp(-deathrate/2.0)
+    survivalprob = exp(-deathrate / 2.0)
 
     # So this much force of infection survives in the environment
     force_cats = eco.spplist.pathogens.force_cats
-    env_virus = rand(rng, Binomial(sum(virus(eco.abundances)[force_cats, loc], dims=1)[1], survivalprob * params.env_virus_scale))
+    env_virus = rand(rng,
+                     Binomial(sum(virus(eco.abundances)[force_cats, loc],
+                                  dims = 1)[1],
+                              survivalprob * params.env_virus_scale))
 
     # Now update virus in environment and force of infection
-    virus(eco.abundances)[1, loc] += env_virus - deaths
+    return virus(eco.abundances)[1, loc] += env_virus - deaths
 end
 
 """
@@ -143,7 +157,7 @@ function _run_rule!(eco::Ecosystem, rule::ForceDisperse)
     spp = getspecies(rule)
     loc = getlocation(rule)
     dist = Poisson(eco.cache.virusmigration[spp, loc])
-    eco.cache.virusmigration[spp, loc] = rand(rng, dist)
+    return eco.cache.virusmigration[spp, loc] = rand(rng, dist)
 end
 
 """
@@ -152,7 +166,7 @@ end
 Seed initial infected individuals.
 """
 function _run_rule!(eco::Ecosystem, rule::SeedInfection, timestep::Unitful.Time)
-    rule.update_fun(eco, eco.abenv.control, timestep)
+    return rule.update_fun(eco, eco.abenv.control, timestep)
 end
 
 """
@@ -160,6 +174,7 @@ end
 
 Update the ecosystem caches.
 """
-function _run_rule!(eco::Ecosystem, rule::UpdateEpiEnvironment, timestep::Unitful.Time)
-    rule.update_fun(eco, timestep)
+function _run_rule!(eco::Ecosystem, rule::UpdateEpiEnvironment,
+                    timestep::Unitful.Time)
+    return rule.update_fun(eco, timestep)
 end

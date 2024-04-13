@@ -3,7 +3,7 @@
 
 Function to extract the transition list from an arbitrary ecosystem.
 """
-function gettransitions(eco::E) where E <: AbstractEcosystem
+function gettransitions(eco::E) where {E <: AbstractEcosystem}
     return eco.transitions
 end
 function gettransitions(eco::CachedEcosystem)
@@ -15,8 +15,8 @@ end
 
 Function to extract trait relationships.
 """
-function gettraitrel(eco::E) where E <: AbstractEcosystem
-  return eco.relationship
+function gettraitrel(eco::E) where {E <: AbstractEcosystem}
+    return eco.relationship
 end
 
 """
@@ -24,15 +24,15 @@ end
 
 Function to extract habitat from Ecosystem object.
 """
-function gethabitat(eco::E) where E <: AbstractEcosystem
-  return eco.abenv.habitat
+function gethabitat(eco::E) where {E <: AbstractEcosystem}
+    return eco.abenv.habitat
 end
 """
     getbudget(eco::Ecosystem)
 
 Function to extract budget from Ecosystem object.
 """
-function getbudget(eco::E) where E <: AbstractEcosystem
+function getbudget(eco::E) where {E <: AbstractEcosystem}
     return _getbudget(eco.abenv.budget)
 end
 
@@ -41,7 +41,7 @@ end
 
 Function to extract species trait preferences from Ecosystem object.
 """
-function getspeciestraits(eco::E) where E <: AbstractEcosystem
+function getspeciestraits(eco::E) where {E <: AbstractEcosystem}
     return _getspeciestraits(eco.spplist)
 end
 
@@ -50,7 +50,7 @@ end
 
 Function to extract pathogen trait preferences from Ecosystem object.
 """
-function getpathogentraits(eco::E) where E <: AbstractEcosystem
+function getpathogentraits(eco::E) where {E <: AbstractEcosystem}
     return _getpathogentraits(eco.spplist)
 end
 
@@ -59,8 +59,8 @@ end
 
 Function to extract size of habitat from Ecosystem object.
 """
-function getsize(eco::E) where E <: AbstractEcosystem
-  return _getsize(eco.abenv.habitat)
+function getsize(eco::E) where {E <: AbstractEcosystem}
+    return _getsize(eco.abenv.habitat)
 end
 
 """
@@ -68,8 +68,8 @@ end
 
 Function to extract grid cell size of habitat from Ecosystem object.
 """
-function getgridsize(eco::E) where E <: AbstractEcosystem
-  return _getgridsize(eco.abenv.habitat)
+function getgridsize(eco::E) where {E <: AbstractEcosystem}
+    return _getgridsize(eco.abenv.habitat)
 end
 
 """
@@ -77,7 +77,7 @@ end
 
 Function to extract dimension of habitat from Ecosystem object.
 """
-function getdimension(eco::E) where E <: AbstractEcosystem
+function getdimension(eco::E) where {E <: AbstractEcosystem}
     return _getdimension(eco.abenv.habitat)
 end
 
@@ -88,10 +88,10 @@ Function to extract average dispersal distance of species from Ecosystem object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
-function getdispersaldist(eco::A, sp::Int64) where A <: AbstractEcosystem
+function getdispersaldist(eco::A, sp::Int64) where {A <: AbstractEcosystem}
     return getdispersaldist(eco.spplist.species.movement, sp)
 end
-function getdispersaldist(eco::A, sp::String) where A <: AbstractEcosystem
+function getdispersaldist(eco::A, sp::String) where {A <: AbstractEcosystem}
     sp = findfirst(eco.spplist.species.names .== sp)
     return getdispersaldist(eco.spplist.species.movement, sp)
 end
@@ -103,10 +103,10 @@ Function to extract dispersal varaince of species from Ecosystem object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
-function getdispersalvar(eco::A, sp::Int64) where A <: AbstractEcosystem
+function getdispersalvar(eco::A, sp::Int64) where {A <: AbstractEcosystem}
     return getdispersalvar(eco.spplist.species.movement, sp)
 end
-function getdispersalvar(eco::A, sp::String) where A <: AbstractEcosystem
+function getdispersalvar(eco::A, sp::String) where {A <: AbstractEcosystem}
     sp = findfirst(eco.spplist.species.names .== sp)
     return getdispersalvar(eco.spplist.species.movement, sp)
 end
@@ -116,7 +116,7 @@ end
 
 Function to extract movement lookup table of species from Ecosystem object.
 """
-function getlookup(eco::A, sp::Int64) where A <: AbstractEcosystem
+function getlookup(eco::A, sp::Int64) where {A <: AbstractEcosystem}
     return _getlookup(eco.lookup, sp)
 end
 
@@ -135,21 +135,25 @@ end
 
 Function to reset the rate of habitat change for a species.
 """
-function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
-    eco.abenv.habitat.change = HabitatUpdate(
-    eco.abenv.habitat.change.changefun, rate, Unitful.Dimensions{()})
+function resetrate!(eco::AbstractEcosystem,
+                    rate::Quantity{Float64, typeof(𝐓^-1)})
+    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
+                                                    rate,
+                                                    Unitful.Dimensions{()})
 end
-function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, typeof(𝚯*𝐓^-1)})
-    eco.abenv.habitat.change = HabitatUpdate(
-    eco.abenv.habitat.change.changefun, rate, typeof(dimension(1K)))
+function resetrate!(eco::AbstractEcosystem,
+                    rate::Quantity{Float64, typeof(𝚯 * 𝐓^-1)})
+    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
+                                                    rate, typeof(dimension(1K)))
 end
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝐓^-1})
-    eco.abenv.habitat.change = HabitatUpdate(
-    eco.abenv.habitat.change.changefun, rate, Unitful.Dimensions{()})
+    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
+                                                    rate,
+                                                    Unitful.Dimensions{()})
 end
-function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯*𝐓^-1})
-    eco.abenv.habitat.change = HabitatUpdate(
-    eco.abenv.habitat.change.changefun, rate, typeof(dimension(1K)))
+function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯 * 𝐓^-1})
+    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
+                                                    rate, typeof(dimension(1K)))
 end
 
 """
@@ -157,8 +161,8 @@ end
 
 Function to reset the time of habitat change for a species.
 """
-function resettime!(eco::E) where E <: AbstractEcosystem
-    _resettime!(eco.abenv.habitat)
+function resettime!(eco::E) where {E <: AbstractEcosystem}
+    return _resettime!(eco.abenv.habitat)
 end
 
 """
@@ -167,38 +171,41 @@ end
 Function to add a species to the Ecosystem.
 """
 function addspecies!(eco::Ecosystem, abun::Int64)
-    eco.abundances.matrix = vcat(eco.abundances.matrix, zeros(1, size(eco.abundances.matrix, 2)))
-    eco.abundances.grid = reshape(eco.abundances.matrix, (counttypes(eco.spplist, true)+1, _getdimension(eco.abenv.habitat)...))
+    eco.abundances.matrix = vcat(eco.abundances.matrix,
+                                 zeros(1, size(eco.abundances.matrix, 2)))
+    eco.abundances.grid = reshape(eco.abundances.matrix,
+                                  (counttypes(eco.spplist, true) + 1,
+                                   _getdimension(eco.abenv.habitat)...))
     repopulate!(eco, abun)
-    push!(eco.spplist.species.names, string.(counttypes(eco.spplist, true)+1))
+    push!(eco.spplist.species.names, string.(counttypes(eco.spplist, true) + 1))
     append!(eco.spplist.species.abun, abun)
     append!(eco.spplist.species.native, true)
     addtraits!(eco.spplist.species.traits)
     addmovement!(eco.spplist.species.movement)
     addparams!(eco.spplist.params)
     addrequirement!(eco.spplist.species.requirement)
-    addtypes!(eco.spplist.species.types)
+    return addtypes!(eco.spplist.species.types)
 end
 function addtraits!(tr::GaussTrait)
     append!(tr.mean, tr.mean[end])
-    append!(tr.var, tr.var[end])
+    return append!(tr.var, tr.var[end])
 end
 
 function addtraits!(tr::DiscreteTrait)
-    append!(tr.val, rand(tr.val))
+    return append!(tr.val, rand(tr.val))
 end
 
 addmovement!(mv::AbstractMovement) = push!(mv.kernels, mv.kernels[end])
 
 function addparams!(pr::AbstractParams)
     append!(pr.birth, pr.birth[end])
-    append!(pr.death, pr.death[end])
+    return append!(pr.death, pr.death[end])
 end
 
 addrequirement!(rq::AbstractRequirement) = append!(rq.energy, rq.energy[end])
 
 function addtypes!(ut::UniqueTypes)
-    ut = UniqueTypes(ut.num+1)
+    return ut = UniqueTypes(ut.num + 1)
 end
 
 """
@@ -206,22 +213,23 @@ end
 
 Function to invalidate Ecosystem caches at the end of a timestep.
 """
-function invalidatecaches!(eco::E) where E <: AbstractEcosystem
-    _invalidatecaches!(eco, eco.cache)
+function invalidatecaches!(eco::E) where {E <: AbstractEcosystem}
+    return _invalidatecaches!(eco, eco.cache)
 end
-function _invalidatecaches!(eco::A, cache::Cache) where A <: AbstractEcosystem
+function _invalidatecaches!(eco::A, cache::Cache) where {A <: AbstractEcosystem}
     eco.ordinariness = missing
     eco.cache.netmigration .= 0
-    eco.cache.valid = false
+    return eco.cache.valid = false
 end
-function _invalidatecaches!(eco::A, cache::PlantCache) where A <: AbstractEcosystem
+function _invalidatecaches!(eco::A,
+                            cache::PlantCache) where {A <: AbstractEcosystem}
     eco.ordinariness = missing
     eco.cache.netmigration .= 0
     eco.cache.seedbank .= 0
-    eco.cache.valid = false
+    return eco.cache.valid = false
 end
 function _invalidatecaches!(eco::Ecosystem, cache::EpiCache)
     eco.ordinariness = missing
     eco.cache.virusmigration .= 0
-    eco.cache.valid = false
+    return eco.cache.valid = false
 end

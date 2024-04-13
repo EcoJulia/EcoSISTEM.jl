@@ -14,13 +14,12 @@ abstract type Abstract1Requirement{Energy} <: AbstractRequirement{Energy} end
 abstract type Abstract2Requirements{Energy} <: AbstractRequirement{Energy} end
 abstract type Abstract3Requirements{Energy} <: AbstractRequirement{Energy} end
 
-numrequirements(::Type{<: Abstract1Requirement}) = 1
-numrequirements(::Type{<: Abstract2Requirements}) = 2
-numrequirements(::Type{<: Abstract3Requirements}) = 3
+numrequirements(::Type{<:Abstract1Requirement}) = 1
+numrequirements(::Type{<:Abstract2Requirements}) = 2
+numrequirements(::Type{<:Abstract3Requirements}) = 3
 
-
-function eltype(::Abstract1Requirement{Energy}) where Energy
-  return Energy
+function eltype(::Abstract1Requirement{Energy}) where {Energy}
+    return Energy
 end
 
 """
@@ -29,20 +28,18 @@ end
 A simple energy requirement is a single float for each species.
 """
 mutable struct SimpleRequirement <: Abstract1Requirement{Float64}
-  energy::Vector{Float64}
-  exchange_rate::Float64
+    energy::Vector{Float64}
+    exchange_rate::Float64
 
-  function SimpleRequirement(energy::Vector{Float64})
-      return new(energy, 1.0)
-  end
+    function SimpleRequirement(energy::Vector{Float64})
+        return new(energy, 1.0)
+    end
 end
-
-
 
 length(req::SimpleRequirement) = length(req.energy)
 
 function _getenergyusage(abun::Vector{Int64}, req::SimpleRequirement)
-    sum(abun .* req.energy)
+    return sum(abun .* req.energy)
 end
 
 """
@@ -51,19 +48,20 @@ end
 A simple energy requirement is a single float for each species.
 """
 mutable struct SizeRequirement <: Abstract1Requirement{Float64}
-  energy::Vector{Float64}
-  pop_mass_rel::Float64
-  area::Unitful.Area
-  exchange_rate::Float64
+    energy::Vector{Float64}
+    pop_mass_rel::Float64
+    area::Unitful.Area
+    exchange_rate::Float64
 
-  function SizeRequirement(energy::Vector{Float64}, pop_mass_rel::Float64, area::Unitful.Area, exchange_rate::Float64 = 1.0)
-      return new(energy, pop_mass_rel, area, exchange_rate)
-  end
+    function SizeRequirement(energy::Vector{Float64}, pop_mass_rel::Float64,
+                             area::Unitful.Area, exchange_rate::Float64 = 1.0)
+        return new(energy, pop_mass_rel, area, exchange_rate)
+    end
 end
 
 length(req::SizeRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SizeRequirement)
-    sum(abun .* req.energy)
+    return sum(abun .* req.energy)
 end
 
 """
@@ -71,18 +69,20 @@ end
 
 A vector of solar energy requirements (kJ) for each species.
 """
-mutable struct SolarRequirement <: Abstract1Requirement{typeof(1.0*kJ)}
-  energy::Vector{typeof(1.0*kJ)}
-  exchange_rate::typeof(1.0/kJ)
+mutable struct SolarRequirement <: Abstract1Requirement{typeof(1.0 * kJ)}
+    energy::Vector{typeof(1.0 * kJ)}
+    exchange_rate::typeof(1.0 / kJ)
 
-  function SolarRequirement(energy::Vector{<: Unitful.Energy{Float64}}, exchange_rate::Unitful.Quantity{Float64} = 1.0/mean(energy))
-      return new(uconvert.(kJ, energy), uconvert(kJ^-1, exchange_rate))
-  end
+    function SolarRequirement(energy::Vector{<:Unitful.Energy{Float64}},
+                              exchange_rate::Unitful.Quantity{Float64} = 1.0 /
+                                                                         mean(energy))
+        return new(uconvert.(kJ, energy), uconvert(kJ^-1, exchange_rate))
+    end
 end
 
 length(req::SolarRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SolarRequirement)
-    sum(abun .* req.energy)
+    return sum(abun .* req.energy)
 end
 
 """
@@ -90,34 +90,38 @@ end
 
 A vector of water requirements (mm) for each species.
 """
-mutable struct WaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
-  energy::Vector{typeof(1.0*mm)}
-  exchange_rate::typeof(1.0/mm)
+mutable struct WaterRequirement <: Abstract1Requirement{typeof(1.0 * mm)}
+    energy::Vector{typeof(1.0 * mm)}
+    exchange_rate::typeof(1.0 / mm)
 
-  function WaterRequirement(energy::Vector{<: Unitful.Length{Float64}}, exchange_rate::Unitful.Quantity{Float64} = 1.0/mean(energy))
-      return new(uconvert.(mm, energy), uconvert.(mm^-1, exchange_rate))
-  end
+    function WaterRequirement(energy::Vector{<:Unitful.Length{Float64}},
+                              exchange_rate::Unitful.Quantity{Float64} = 1.0 /
+                                                                         mean(energy))
+        return new(uconvert.(mm, energy), uconvert.(mm^-1, exchange_rate))
+    end
 end
 length(req::WaterRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::WaterRequirement)
-    sum(abun .* req.energy)
+    return sum(abun .* req.energy)
 end
 
 """
     VolWaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
 A vector of soil water volume requirements (m^3) for each species.
 """
-mutable struct VolWaterRequirement <: Abstract1Requirement{typeof(1.0*m^3)}
-  energy::Vector{typeof(1.0*m^3)}
-  exchange_rate::typeof(1.0/m^3)
+mutable struct VolWaterRequirement <: Abstract1Requirement{typeof(1.0 * m^3)}
+    energy::Vector{typeof(1.0 * m^3)}
+    exchange_rate::typeof(1.0 / m^3)
 
-  function VolWaterRequirement(energy::Vector{<: Unitful.Volume{Float64}}, exchange_rate::Unitful.Quantity{Float64} = 1.0/mean(energy))
-      return new(uconvert.(m^3, energy), uconvert.(m^-3, exchange_rate))
-  end
+    function VolWaterRequirement(energy::Vector{<:Unitful.Volume{Float64}},
+                                 exchange_rate::Unitful.Quantity{Float64} = 1.0 /
+                                                                            mean(energy))
+        return new(uconvert.(m^3, energy), uconvert.(m^-3, exchange_rate))
+    end
 end
 length(req::VolWaterRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::VolWaterRequirement)
-    sum(abun .* req.energy)
+    return sum(abun .* req.energy)
 end
 
 mutable struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
@@ -129,23 +133,26 @@ function eltype(req::ReqCollection2)
     return [eltype(req.r1), eltype(req.r2)]
 end
 function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
-    [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2)]
+    return [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2)]
 end
 
-mutable struct ReqCollection3{R1, R2, R3} <: Abstract3Requirements{Tuple{R1, R2, R3}}
-  r1::R1
-  r2::R2
-  r3::R3
+mutable struct ReqCollection3{R1, R2, R3} <:
+               Abstract3Requirements{Tuple{R1, R2, R3}}
+    r1::R1
+    r2::R2
+    r3::R3
 end
 length(req::ReqCollection3) = length(req.r1.energy)
 function eltype(req::ReqCollection3)
-  return [eltype(req.r1), eltype(req.r2), eltype(req.r3)]
+    return [eltype(req.r1), eltype(req.r2), eltype(req.r3)]
 end
 function _getenergyusage(abun::Vector{Int64}, req::ReqCollection3)
-  [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2), _getenergyusage(abun, req.r3)]
+    return [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2),
+            _getenergyusage(abun, req.r3)]
 end
 
-unitdict= Dict(kJ => "Solar Radiation (kJ)",NoUnits => "Free energy", mm => "Available water (mm)")
+unitdict = Dict(kJ => "Solar Radiation (kJ)", NoUnits => "Free energy",
+                mm => "Available water (mm)")
 """
     AbstractBudget
 
@@ -154,21 +161,21 @@ Abstract supertype for all budget types
 abstract type AbstractBudget{Requirement} end
 abstract type AbstractTimeBudget{Requirement} <: AbstractBudget{Requirement} end
 
-function eltype(::AbstractBudget{Energy}) where Energy
-  return Energy
+function eltype(::AbstractBudget{Energy}) where {Energy}
+    return Energy
 end
 
 function countsubcommunities(ab::AbstractBudget)
-  return _countsubcommunities(ab)
+    return _countsubcommunities(ab)
 end
-@recipe function f(B::AbstractBudget{R}) where R
+@recipe function f(B::AbstractBudget{R}) where {R}
     b = ustrip.(B.matrix)
-    seriestype  :=  :heatmap
+    seriestype := :heatmap
     grid --> false
     aspect_ratio --> 1
     title --> unitdict[unit(R)]
     clims --> (minimum(b) * 0.99, maximum(b) * 1.01)
-    b
+    return b
 end
 """
     SimpleBudget <: AbstractBudget{Float64}
@@ -176,12 +183,11 @@ end
 This budget type has a matrix of floats, representing the energy budget of each subcommunity in the abiotic environment.
 """
 mutable struct SimpleBudget <: AbstractBudget{Float64}
-  matrix::Matrix{Float64}
-
+    matrix::Matrix{Float64}
 end
 
 function _countsubcommunities(bud::SimpleBudget)
-  return length(bud.matrix)
+    return length(bud.matrix)
 end
 function _getbudget(bud::SimpleBudget)
     return bud.matrix
@@ -195,15 +201,15 @@ end
 
 This budget type has a matrix of solar energy units, representing the energy budget of each subcommunity in the abiotic environment at a fixed point in time.
 """
-mutable struct SolarBudget <: AbstractBudget{typeof(1.0*kJ)}
-  matrix::Array{typeof(1.0*kJ), 2}
-  function SolarBudget(mat::Array{typeof(1.0*kJ), 2})
-    mat[isnan.(mat)] .=  0*kJ
-    return new(mat)
-  end
+mutable struct SolarBudget <: AbstractBudget{typeof(1.0 * kJ)}
+    matrix::Matrix{typeof(1.0 * kJ)}
+    function SolarBudget(mat::Matrix{typeof(1.0 * kJ)})
+        mat[isnan.(mat)] .= 0 * kJ
+        return new(mat)
+    end
 end
 function _countsubcommunities(bud::SolarBudget)
-  return length(bud.matrix)
+    return length(bud.matrix)
 end
 
 function _getbudget(bud::SolarBudget)
@@ -219,39 +225,41 @@ end
 This budget type has a matrix of solar energy units, representing the energy budget of each
 subcommunity in the abiotic environment along with which time dimension we are interested in.
 """
-mutable struct SolarTimeBudget <: AbstractTimeBudget{typeof(1.0*kJ)}
-  matrix::Array{typeof(1.0*kJ), 3}
-  time::Int64
-  function SolarTimeBudget(mat::Array{typeof(1.0*kJ), 3}, time::Int64)
-    mat[isnan.(mat)] .=  0*kJ
-    return new(mat, time)
-  end
+mutable struct SolarTimeBudget <: AbstractTimeBudget{typeof(1.0 * kJ)}
+    matrix::Array{typeof(1.0 * kJ), 3}
+    time::Int64
+    function SolarTimeBudget(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
+        mat[isnan.(mat)] .= 0 * kJ
+        return new(mat, time)
+    end
 end
 
 function SolarTimeBudget(wc::Worldclim_monthly, time::Int64)
-  mat = Array(wc.array)
-  mat[isnan.(mat)] .=  zero(eltype(mat))
-  return SolarTimeBudget(mat, time)
+    mat = Array(wc.array)
+    mat[isnan.(mat)] .= zero(eltype(mat))
+    return SolarTimeBudget(mat, time)
 end
 
 function _countsubcommunities(bud::SolarTimeBudget)
-  return length(bud.matrix[:,:,1])
+    return length(bud.matrix[:, :, 1])
 end
 
 function _getbudget(bud::SolarTimeBudget)
     return @view bud.matrix[:, :, bud.time]
 end
+
 function _getavailableenergy(bud::SolarTimeBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
 end
+
 @recipe function f(B::SolarTimeBudget, time::Int64)
     b = ustrip.(B.matrix)
-    seriestype  :=  :heatmap
+    seriestype := :heatmap
     grid --> false
     aspect_ratio --> 1
     title --> unitdict[kJ]
     clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
-    b[:, :, time]
+    return b[:, :, time]
 end
 
 """
@@ -260,22 +268,22 @@ end
 This budget type has a matrix of rainfall energy units, representing the energy budget of each
 subcommunity in the abiotic environment at a fixed point in time.
 """
-mutable struct WaterBudget <: AbstractBudget{typeof(1.0*mm)}
-  matrix::Array{typeof(1.0*mm), 2}
-  function WaterBudget(mat::Array{typeof(1.0*mm), 2})
-    mat[isnan.(mat)] .=  0*mm
-    return new(mat)
-  end
+mutable struct WaterBudget <: AbstractBudget{typeof(1.0mm)}
+    matrix::Matrix{typeof(1.0mm)}
+    function WaterBudget(mat::Matrix{typeof(1.0mm)})
+        mat[isnan.(mat)] .= 0.0mm
+        return new(mat)
+    end
 end
 
 function WaterBudget(bc::Worldclim_bioclim)
-  mat = Matrix(bc.array)
-  mat[isnan.(mat)] .=  zero(eltype(mat))
-  return WaterBudget(mat)
+    mat = Matrix(bc.array)
+    mat[isnan.(mat)] .= zero(eltype(mat))
+    return WaterBudget(mat)
 end
 
 function _countsubcommunities(bud::WaterBudget)
-  return length(bud.matrix)
+    return length(bud.matrix)
 end
 
 function _getbudget(bud::WaterBudget)
@@ -291,23 +299,23 @@ end
 This budget type has a matrix of rainfall units, representing the water budget of each
 subcommunity in the abiotic environment along with which time dimension we are interested in.
 """
-mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0*mm)}
-  matrix::Array{typeof(1.0*mm), 3}
-  time::Int64
-  function WaterTimeBudget(mat::Array{typeof(1.0*mm), 3}, time::Int64)
-    mat[isnan.(mat)] .=  0*mm
-    return new(mat, time)
-  end
+mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0 * mm)}
+    matrix::Array{typeof(1.0 * mm), 3}
+    time::Int64
+    function WaterTimeBudget(mat::Array{typeof(1.0 * mm), 3}, time::Int64)
+        mat[isnan.(mat)] .= 0 * mm
+        return new(mat, time)
+    end
 end
 
 function WaterTimeBudget(wc::Worldclim_monthly, time::Int64)
-  mat = Array(wc.array)
-  mat[isnan.(mat)] .=  zero(eltype(mat))
-  return WaterTimeBudget(mat, time)
+    mat = Array(wc.array)
+    mat[isnan.(mat)] .= zero(eltype(mat))
+    return WaterTimeBudget(mat, time)
 end
 
 function _countsubcommunities(bud::WaterTimeBudget)
-  return length(bud.matrix[:,:,1])
+    return length(bud.matrix[:, :, 1])
 end
 
 function _getbudget(bud::WaterTimeBudget)
@@ -323,15 +331,15 @@ end
 This budget type has a matrix of water volumes, representing the energy budget of each
 subcommunity in the abiotic environment at a fixed point in time.
 """
-mutable struct VolWaterBudget <: AbstractBudget{typeof(1.0*m^3)}
-  matrix::Array{typeof(1.0*m^3), 2}
-  function VolWaterBudget(mat::Array{typeof(1.0*m^3), 2})
-    mat[isnan.(mat)] .=  0*m^3
-    return new(mat)
-  end
+mutable struct VolWaterBudget <: AbstractBudget{typeof(1.0 * m^3)}
+    matrix::Matrix{typeof(1.0 * m^3)}
+    function VolWaterBudget(mat::Matrix{typeof(1.0 * m^3)})
+        mat[isnan.(mat)] .= 0 * m^3
+        return new(mat)
+    end
 end
 function _countsubcommunities(bud::VolWaterBudget)
-  return length(bud.matrix)
+    return length(bud.matrix)
 end
 
 function _getbudget(bud::VolWaterBudget)
@@ -347,17 +355,17 @@ end
 This budget type has a matrix of volumetric soil water units, representing the water budget of each
 subcommunity in the abiotic environment along with which time dimension we are interested in.
 """
-mutable struct VolWaterTimeBudget <: AbstractTimeBudget{typeof(1.0*m^3)}
-  matrix::Array{typeof(1.0*m^3), 3}
-  time::Int64
-  function VolWaterTimeBudget(mat::Array{typeof(1.0*m^3), 3}, time::Int64)
-    mat[isnan.(mat)] .=  0*m^3
-    return new(mat, time)
-  end
+mutable struct VolWaterTimeBudget <: AbstractTimeBudget{typeof(1.0 * m^3)}
+    matrix::Array{typeof(1.0 * m^3), 3}
+    time::Int64
+    function VolWaterTimeBudget(mat::Array{typeof(1.0 * m^3), 3}, time::Int64)
+        mat[isnan.(mat)] .= 0 * m^3
+        return new(mat, time)
+    end
 end
 
 function _countsubcommunities(bud::VolWaterTimeBudget)
-  return length(bud.matrix[:,:,1])
+    return length(bud.matrix[:, :, 1])
 end
 
 function _getbudget(bud::VolWaterTimeBudget)
@@ -369,12 +377,12 @@ end
 
 @recipe function f(B::WaterTimeBudget, time::Int64)
     b = ustrip.(B.matrix)
-    seriestype  :=  :heatmap
+    seriestype := :heatmap
     grid --> false
     aspect_ratio --> 1
     title --> unitdict[mm]
     clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
-    b[:, :, time]
+    return b[:, :, time]
 end
 
 mutable struct BudgetCollection2{B1, B2} <: AbstractBudget{Tuple{B1, B2}}
@@ -386,7 +394,7 @@ function eltype(bud::BudgetCollection2)
     return [eltype(bud.b1), eltype(bud.b2)]
 end
 function _countsubcommunities(bud::BudgetCollection2)
-  return length(bud.b1.matrix[:,:,1])
+    return length(bud.b1.matrix[:, :, 1])
 end
 
 function _getbudget(bud::BudgetCollection2, field::Symbol)
@@ -394,11 +402,10 @@ function _getbudget(bud::BudgetCollection2, field::Symbol)
     return _getbudget(B)
 end
 
-function _getbudget(bud::Bud, field::Symbol) where Bud <: AbstractTimeBudget
+function _getbudget(bud::Bud, field::Symbol) where {Bud <: AbstractTimeBudget}
     B = getfield(bud, field)
     return B.matrix[:, :, B.time]
 end
-
 
 function _getavailableenergy(bud::BudgetCollection2)
     return [_getavailableenergy(bud.b1), _getavailableenergy(bud.b2)]
@@ -417,26 +424,26 @@ end
     end
 end
 
-
-mutable struct BudgetCollection3{B1, B2, B3} <: AbstractBudget{Tuple{B1, B2, B3}}
-  b1::B1
-  b2::B2
-  b3::B3
+mutable struct BudgetCollection3{B1, B2, B3} <:
+               AbstractBudget{Tuple{B1, B2, B3}}
+    b1::B1
+    b2::B2
+    b3::B3
 end
 
 function eltype(bud::BudgetCollection3)
-  return [eltype(bud.b1), eltype(bud.b2), eltype(bud.b3)]
+    return [eltype(bud.b1), eltype(bud.b2), eltype(bud.b3)]
 end
 function _countsubcommunities(bud::BudgetCollection3)
-return length(bud.b1.matrix[:,:,1])
+    return length(bud.b1.matrix[:, :, 1])
 end
 
 function _getbudget(bud::BudgetCollection3, field::Symbol)
-  B = getfield(bud, field)
-  return _getbudget(B)
+    B = getfield(bud, field)
+    return _getbudget(B)
 end
 
-
 function _getavailableenergy(bud::BudgetCollection3)
-  return [_getavailableenergy(bud.b1), _getavailableenergy(bud.b2), _getavailableenergy(bud.b3)]
+    return [_getavailableenergy(bud.b1), _getavailableenergy(bud.b2),
+            _getavailableenergy(bud.b3)]
 end

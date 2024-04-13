@@ -2,10 +2,9 @@
 
 ## Install
 
-The package is registered in the `General` registry on v1.x and so can be installed with `add`. For example on Julia v1.6:
-
-```julia-repl
-(@v1.6) pkg> add EcoSISTEM
+```julia
+using Pkg
+Pkg.add("EcoSISTEM")
 ```
 
 ## Setting up an ecosystem
@@ -15,6 +14,7 @@ The package runs on an `Ecosystem` containing information about species, the `Sp
 ### A simple example
 
 Load required packages
+
 ```julia
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -22,17 +22,21 @@ using Unitful, Unitful.DefaultSymbols
 using Distributions
 using Diversity
 ```
+
 Set up initial parameters for ecosystem
+
 ```julia
 numSpecies = 10; grid = (5, 5); req= 10.0kJ; individuals=1000; area = 1000.0*km^2; totalK = 1.0kJ/km^2
 ```
 
 Set up how much energy each species consumes
-```julias
+
+```julia
 energy_vec = SolarRequirement(fill(req, numSpecies))
 ```
 
 Set rates for birth and death
+
 ```julia
 birth = 0.6/year
 death = 0.6/year
@@ -44,12 +48,14 @@ param = EqualPop(birth, death, longevity, survival, boost)
 ```
 
 Create kernel for movement
+
 ```julia
 kernel = fill(GaussianKernel(10.0km, 10e-10), numSpecies)
 movement = BirthOnlyMovement(kernel, Torus())
 ```
 
 Create species list, including their temperature preferences, seed abundance and native status
+
 ```julia
 opts = fill(274.0K, numSpecies)
 vars = fill(0.5K, numSpecies)
@@ -62,21 +68,25 @@ sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
 ```
 
 Create abiotic environment - even grid of one temperature
+
 ```julia
 abenv = simplehabitatAE(274.0K, grid, totalK, area)
 ```
 
 Set relationship between species and environment (gaussian)
+
 ```julia
 rel = Gauss{typeof(1.0K)}()
 ```
 
 Create ecosystem
+
 ```julia
 eco = Ecosystem(sppl, abenv, rel)
 ```
 
 Run simulation
+
 ```julia
 # EcoSISTEM Parameters
 burnin = 5years; times = 50years; timestep = 1month; record_interval = 3months; repeats = 1
@@ -86,6 +96,7 @@ lensim = length(0years:record_interval:times)
 ```
 
 Plot using SpatialEcology
+
 ```julia
 using SpatialEcology
 plot(eco)

@@ -1,3 +1,5 @@
+module TestMovement
+
 using EcoSISTEM
 using Test
 using Distributions
@@ -16,7 +18,6 @@ using EcoSISTEM.Units
     @test_nowarn BirthOnlyMovement(kernel)
     @test_nowarn NoMovement(kernel)
 
-
     kernel = GaussianKernel.(fill(0.2m, numSpecies), 10e-4)
     mov = AlwaysMovement(kernel, NoBoundary())
     @test EcoSISTEM.getkernels(mov) == mov.kernels
@@ -28,7 +29,7 @@ using EcoSISTEM.Units
     @test EcoSISTEM.getboundary(mov) == mov.boundary
     @test EcoSISTEM.getdispersaldist(mov, 1) == mov.kernels[1].dist
     @test EcoSISTEM.getdispersalvar(mov, 1) == (mov.kernels[1].dist)^2 * pi / 4
-    mov =  NoMovement(kernel)
+    mov = NoMovement(kernel)
     @test EcoSISTEM.getkernels(mov) == mov.kernels
     @test_throws ErrorException EcoSISTEM.getdispersaldist(mov, 1)
     @test_throws ErrorException EcoSISTEM.getdispersalvar(mov, 1)
@@ -36,4 +37,6 @@ using EcoSISTEM.Units
     mov = AlwaysMovement(kernel, NoBoundary())
     @test EcoSISTEM.getkernels(mov) == mov.kernels
     @test EcoSISTEM.getboundary(mov) == mov.boundary
+end
+
 end

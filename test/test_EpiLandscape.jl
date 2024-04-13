@@ -1,3 +1,5 @@
+module TestEpiLandscape
+
 using EcoSISTEM
 using Test
 using Distributions
@@ -8,7 +10,7 @@ import EcoSISTEM: emptyepilandscape
 include("TestCases.jl")
 
 @testset "EpiLandscape" begin
-    epi = TestEpiSystem()
+    epi = Test1EpiSystem()
 
     @test_nowarn emptyepilandscape(epi.abenv, epi.spplist, Int64(1))
     el = emptyepilandscape(epi.abenv, epi.spplist, Int64(1))
@@ -19,4 +21,6 @@ include("TestCases.jl")
     @test sum(el.grid) == sum(el.matrix)
     el.grid[1, 1, 1] += 1
     @test sum(el.grid) == sum(el.matrix)
+end
+
 end
