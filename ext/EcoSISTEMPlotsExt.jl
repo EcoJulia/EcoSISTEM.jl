@@ -1,8 +1,13 @@
+module EcoSISTEMPlotsExt
+
+using EcoSISTEM, EcoSISTEM.ClimatePref
 using RecipesBase
+using Unitful
+using Unitful.DefaultSymbols
 # import Plots: px
 
 # Recipe for plotting ERA data from a particular time period.
-@recipe function f(era::ERA, time::Unitful.Time)
+@recipe function f(era::EcoSISTEM.ERA, time::Unitful.Time)
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
     ind = round(Int64, (tm - yr) / (1 / 12))
@@ -30,7 +35,7 @@ using RecipesBase
     return x, y, A
 end
 
-@recipe function f(era::ERA, time::Unitful.Time, xmin::typeof(1.0°),
+@recipe function f(era::EcoSISTEM.ERA, time::Unitful.Time, xmin::typeof(1.0°),
                    xmax::typeof(1.0°), ymin::typeof(1.0°), ymax::typeof(1.0°))
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
@@ -61,7 +66,7 @@ end
     return x, y, A
 end
 
-@recipe function f(cera::CERA, time::Unitful.Time)
+@recipe function f(cera::EcoSISTEM.CERA, time::Unitful.Time)
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
     ind = round(Int64, (tm - yr) / (1 / 12))
@@ -89,7 +94,7 @@ end
     return x, y, A
 end
 
-@recipe function f(era::CERA, time::Unitful.Time, xmin::typeof(1.0°),
+@recipe function f(era::EcoSISTEM.CERA, time::Unitful.Time, xmin::typeof(1.0°),
                    xmax::typeof(1.0°), ymin::typeof(1.0°), ymax::typeof(1.0°))
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
@@ -212,3 +217,5 @@ Function to plot climate profiles for a vector of species names, `spp_names`, us
 #     end
 #     return hist
 # end
+
+end

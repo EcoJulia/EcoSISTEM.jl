@@ -16,7 +16,7 @@ handle = DataPipeline.initialise()
 
 # Download temperature and precipitation data
 path = link_read!(handle, "AfricaModel/WorldClim")
-newpath = unzip(path)
+newpath = EcoSISTEM.unzip(path)
 world = readbioclim(newpath)
 africa_temp = world.array[-25° .. 50°, -35° .. 40°, 1]
 bio_africa = uconvert.(K, africa_temp .* °C)

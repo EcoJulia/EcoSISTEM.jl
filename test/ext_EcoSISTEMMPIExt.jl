@@ -1,4 +1,4 @@
-module TestMPI
+module ExtEcoSISTEMMPIExt
 
 using EcoSISTEM
 using EcoSISTEM.Units

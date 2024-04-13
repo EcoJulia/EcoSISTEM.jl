@@ -12,7 +12,10 @@ if !Sys.iswindows()
     if !isdir("assets")
         mkdir("assets")
         ENV["RASTERDATASOURCES_PATH"] = "assets"
-        getraster(WorldClim{BioClim}, 1:12)
+        # Download layers of bioclim data and test on all read functions
+        # (essentially all the same file type)
+        getraster(WorldClim{BioClim}, :bio1)
+        getraster(WorldClim{Climate}, :wind; month = 1:12)
         getraster(EarthEnv{LandCover})
     end
 
