@@ -86,7 +86,7 @@ abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
 
-vars = range(0.0001, stop = 5, length = numSpecies) .* K
+vars = collect(range(0.0001, stop = 5, length = numSpecies)) .* K
 opts = fill(298.0K, numSpecies)
 
 av_dist = fill(2.4, numSpecies) .* km
@@ -147,7 +147,7 @@ abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
 
-vars = range(0.0001, stop = 5, length = numSpecies) .* K
+vars = collect(range(0.0001, stop = 5, length = numSpecies)) .* K
 opts = fill(298.0K, numSpecies)
 
 av_dist = fill(2.4, numSpecies) .* km
@@ -259,7 +259,7 @@ endabun = sum(eco.abundances.matrix, dims = 1)
 endabun = reshape(endabun, 10, 10)
 
 heatmap(sol_range./kJ, water_range./mm, endabun, grid = false,
- xlab = "Solar energy", ylab = "Water", size = (1600, 1200),
+ xlab = "Solar energy (kJ)", ylab = "Water (mm)", size = (1600, 1200),
 guidefontsize = 16, tickfontsize= 16, titlefontsize=24,
 margin = 10.0*Plots.mm, legendfontsize = 16, label = "", left_margin = 20.0 * Plots.mm,
 layout = (@layout [a b; c d]), title = "A", titleloc = :left)
@@ -405,7 +405,7 @@ for r in 1:reps
         s = 0.1
         boost = 1.0
 
-        size_mean = rand(Normal(1.0, 0.5), numSpecies) .* m^2
+        size_mean = rand(Normal(1.0, 0.1), numSpecies) .* m^2
         # Set up how much energy each species consumes
         energy_vec1 = SolarRequirement(abs.(req[1] .* size_mean))
         energy_vec2 = WaterRequirement(abs.(req[2] .* size_mean))
@@ -433,7 +433,7 @@ end
 meanSR = dropdims(mean(SR, dims = 2), dims = 2)
 sdSR = dropdims(std(SR, dims = 2), dims = 2)
 
-bar!(string.(species), meanSR ./species, yerr= sdSR ./ species, grid = false, xlab = "Number of species introduced",
+bar!(string.(species), (100 .* meanSR) ./species, yerr= sdSR ./ species, grid = false, xlab = "Number of species introduced",
 ylab = "% Species survived", guidefontsize = 16,
 tickfontsize= 16, titlefontsize=24, margin = 10.0*Plots.mm,
 label = "",  title = "D", subplot = 4, titleloc = :left,

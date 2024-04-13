@@ -1,3 +1,5 @@
+module TestEpiMove
+
 using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
@@ -21,4 +23,6 @@ using DataFrames
     @test typeof(move.regionmoves) <: LongDistance
     @test move.localmoves.kernels == kernel
     @test move.regionmoves.move_record == move_record
+end
+
 end

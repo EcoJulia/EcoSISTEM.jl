@@ -26,7 +26,7 @@ include("TestCases.jl")
     end
 
     @testset "Epi" begin
-        epi = TestEpiSystem()
+        epi = Test1EpiSystem()
         times = 1.0month; burnin = 1.0month; interval = 1.0day
         timestep = 1.0day
         # Run simulation grid

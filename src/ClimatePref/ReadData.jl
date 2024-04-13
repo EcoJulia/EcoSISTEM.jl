@@ -108,7 +108,7 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
         print(dataset)
     end
 
-    a = Array{txy[1], 2}(undef, txy[2], txy[3])
+    a = Matrix{txy[1]}(undef, txy[2], txy[3])
     read(file) do dataset
         bd = AG.getband(dataset, 1);
         AG.read!(bd, a);
@@ -153,7 +153,7 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles);
     map(eachindex(files)) do count
-    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+    a = Matrix{txy[1]}(undef, txy[2], txy[3]);
     read(files[count]) do dataset
         bd = AG.getband(dataset, 1);
         AG.read!(bd, a);
@@ -213,7 +213,7 @@ function readbioclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles);
     map(eachindex(files)) do count
-    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+    a = Matrix{txy[1]}(undef, txy[2], txy[3]);
     read(files[count]) do dataset
         bd = AG.getband(dataset, 1);
         AG.read!(bd, a);
@@ -278,7 +278,7 @@ for a certain timerange, `dim`, and convert into an axis array.
 """
 function readERA(dir::String, file::String, param::String, dim::Vector{Vector{T}}) where T<: Unitful.Time
     filenames = searchdir(dir, file)
-    newera = Array{AxisArray, 1}(undef, length(filenames))
+    newera = Vector{AxisArray}(undef, length(filenames))
     for i in eachindex(filenames)
         newera[i] = readERA(joinpath(dir, filenames[i]), param, dim[i]).array
     end
@@ -331,7 +331,7 @@ function readCRUTS(dir::String, var_name::String)
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles);
     map(eachindex(files)) do count
-        a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+        a = Matrix{txy[1]}(undef, txy[2], txy[3]);
         read(files[count]) do dataset
             bd = AG.getband(dataset, 1);
             AG.read!(bd, a);
@@ -386,7 +386,7 @@ function readCHELSA_monthly(dir::String, var_name::String,
 
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, ceil(Int64, txy[2]/res),  ceil(Int64, txy[3]/res), numfiles);
-    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+    a = Matrix{txy[1]}(undef, txy[2], txy[3]);
     map(eachindex(files)) do count
         read(files[count]) do dataset
             bd = AG.getband(dataset, 1);
@@ -434,7 +434,7 @@ function readCHELSA_bioclim(dir::String,
 
     numfiles = length(files)
     b = Array{txy[1], 3}(undef, ceil(Int64, txy[2]/res),  ceil(Int64, txy[3]/res), numfiles);
-    a = Array{txy[1], 2}(undef, txy[2], txy[3]);
+    a = Matrix{txy[1]}(undef, txy[2], txy[3]);
     map(eachindex(files)) do count
         read(files[count]) do dataset
             bd = AG.getband(dataset, 1);
@@ -456,4 +456,54 @@ function readCHELSA_bioclim(dir::String,
     end;
 
     CHELSA_bioclim(world)
+end
+
+"""
+    readlc(dir::String)
+
+Function to extract all raster files from a specified folder directory,
+and convert into an axis array.
+"""
+function readlc(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°, 
+    xmax::Unitful.Quantity{Float64} = 180.0°,
+    ymin::Unitful.Quantity{Float64} = -90.0°, 
+    ymax::Unitful.Quantity{Float64} = 90.0°;
+    res = 10, fn = x -> round(mean(x)))
+    files = map(searchdir(dir, ".tif")) do files
+        joinpath(dir, files)
+    end
+    txy = [Float32, Int32(1), Int32(1), Float64(1), ""];
+
+    read(files[1]) do dataset
+        txy[1] = AG.pixeltype(AG.getband(dataset, 1))
+        txy[2] = AG.width(AG.getband(dataset, 1))
+        txy[3] = AG.height(AG.getband(dataset, 1))
+        txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
+        txy[5] = AG.getunittype(AG.getband(dataset, 1))
+        print(dataset)
+    end
+
+    numfiles = length(files)
+    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2]/res),  ceil(Int64, txy[3]/res), numfiles);
+    a = Matrix{txy[1]}(undef, txy[2], txy[3]);
+    map(eachindex(files)) do count
+        read(files[count]) do dataset
+            bd = AG.getband(dataset, 1);
+            AG.read!(bd, a);
+        end;
+        downresolution!(b, a, count, res, fn)
+    end
+    lat, long = size(b, 1), size(b, 2);
+    step_lat = (xmax - xmin) / lat;
+    step_lon = (ymax - ymin) / long;
+    unit = 1.0
+    world = AxisArray(b[:, long:-1:1, :] * unit,
+                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat/2.0)),
+                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon/2.0)),
+                       Axis{:var}(1:numfiles));
+    if txy[1] <: AbstractFloat  
+        world[isapprox.(world, txy[4])] *= NaN;
+    end;
+
+    return world
 end

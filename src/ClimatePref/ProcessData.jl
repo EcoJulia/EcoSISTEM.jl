@@ -3,7 +3,7 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using AxisArrays
 using NetCDF
-using .RCall
+using RCall
 using HDF5
 
 """

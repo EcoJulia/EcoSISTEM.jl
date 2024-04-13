@@ -28,7 +28,7 @@ ycellsize(ah::AbstractHabitat) = Float64(ah.size/km)
 xcells(ah::AbstractHabitat) = size(ah.matrix, 1)
 ycells(ah::AbstractHabitat) = size(ah.matrix, 2)
 indices(ah::AbstractHabitat) =
-    hcat(collect.(convert_coords.(1:length(ah.matrix), xcells(ah)))...)'
+    hcat(collect.(convert_coords.(eachindex(ah.matrix), xcells(ah)))...)'
 indices(ah::AbstractHabitat, idx) = indices(ah)[:, idx]
 coordinates(ah::AbstractHabitat) = indices(ah)
 
@@ -49,12 +49,13 @@ end
 This habitat subtype houses a habitat matrix `matrix` of any units, a grid square size `size` and HabitatUpdate type `change`.
 """
 mutable struct ContinuousHab{C <: Number, L <: Unitful.Length} <: AbstractHabitat{C}
-  matrix::Array{C, 2}
+  matrix::Matrix{C}
   size::L
   change::HabitatUpdate
 end
 
-iscontinuous(hab::ContinuousHab{C, L}) where {C, L} = true
+iscontinuous(::ContinuousHab) = true
+
 function eltype(hab::ContinuousHab{C, L}) where {C, L}
     return C
 end
@@ -126,7 +127,7 @@ end
 This habitat subtype has a matrix of strings and a float grid square size
 """
 mutable struct DiscreteHab{D, L <: Unitful.Length} <: AbstractHabitat{D}
-  matrix::Array{D, 2}
+  matrix::Matrix{D}
   size::L
   change::HabitatUpdate
 end
@@ -263,7 +264,7 @@ end
 # Function to create a habitat from a discrete set of types according to the
 # Saura-Martinez-Millan algorithm (2000)
 function _percolate!(M::AbstractMatrix, clumpiness::Real)
-  for i in 1:(length(M))
+  for i in eachindex(M)
     if rand(Uniform(0, 1)) < clumpiness
       M[i]=1
     end
@@ -272,12 +273,11 @@ end
 
 # Function to create clusters from percolated grid
 function _identify_clusters!(M::AbstractMatrix)
-  dimension=size(M)
   # Begin cluster count
   count=1
   # Loop through each grid square in M
-  for x in 1:dimension[1]
-    for y in 1:dimension[2]
+  for x in Base.axes(M, 1)
+    for y in Base.axes(M, 2)
 
       # If square is marked as 1, then apply cluster finding algorithm
       if M[x,y]==1.0
@@ -299,7 +299,7 @@ function _identify_clusters!(M::AbstractMatrix)
             count=count+1
             neighbours=neighbours[cluster,:]
             M[x,y]=count
-            map(i->M[neighbours[i,1],neighbours[i,2]]=count, 1:size(neighbours,1))
+            map(i->M[neighbours[i,1],neighbours[i,2]]=count, Base.axes(neighbours,1))
         end
       end
     end
@@ -307,10 +307,9 @@ function _identify_clusters!(M::AbstractMatrix)
 end
 
 function _fill_in!(T, M, types, wv)
-  dimension = size(M)
   # Loop through grid of clusters
-  for x in 1:dimension[1]
-    for y in 1:dimension[2]
+  for x in Base.axes(M, 1)
+    for y in Base.axes(M, 2)
       # If square is zero then it is yet to be assigned
       if M[x,y]==0
         # Find neighbours of square on string grid
@@ -322,7 +321,7 @@ function _fill_in!(T, M, types, wv)
             neighbours=neighbours[already,:]
             # Find all neighbour traits
             neighbour_traits=map(i->T[neighbours[i,1],neighbours[i,2]],
-             1:size(neighbours,1))
+             Base.axes(neighbours,1))
              # Find which one is counted most often
             ind=argmax(map(x->sum(neighbour_traits.==x), types))
             # Assign this type to the grid square in T

@@ -1,15 +1,17 @@
+module TestEcosystem
+
 using EcoSISTEM
 using Test
-using Unitful.DefaultSymbols
+using Unitful, Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
 using Diversity
 
-@testset "Ecosystem" begin
-    include("TestCases.jl")
+include("TestCases.jl")
 
-    @test_nowarn eco = TestEcosystem()
-    eco = TestEcosystem()
+@testset "Ecosystem" begin
+    @test_nowarn eco = Test1Ecosystem()
+    eco = Test1Ecosystem()
     @test sum(eco.abundances.matrix, dims = 2)[:, 1] == eco.spplist.species.abun
     @test EcoSISTEM.tematch(eco.spplist, eco.abenv) == true
     @test EcoSISTEM.trmatch(eco.spplist, eco.relationship) == true
@@ -40,7 +42,7 @@ using Diversity
     end
     @testset "movement types" begin
         # Test other movement types
-        eco = TestEcosystem()
+        eco = Test1Ecosystem()
         mov = AlwaysMovement(fill(LongTailKernel(10.0km, 10.0, 1e-10), length(eco.spplist.species.names)), eco.spplist.species.movement.boundary)
         species = SpeciesTypes{typeof(eco.spplist.species.traits), typeof(eco.spplist.species.requirement), typeof(mov), typeof(eco.spplist.species.types)}(eco.spplist.species.names, eco.spplist.species.traits, eco.spplist.species.abun, eco.spplist.species.requirement, eco.spplist.species.types, mov, eco.spplist.species.native)
         sppl = SpeciesList{typeof(species), NoPathogen, typeof(eco.spplist.params)}(species, NoPathogen(), eco.spplist.params)
@@ -56,4 +58,6 @@ using Diversity
         @test_nowarn getordinariness!(eco)
         @test getordinariness!(eco) == eco.ordinariness
     end
+end
+
 end

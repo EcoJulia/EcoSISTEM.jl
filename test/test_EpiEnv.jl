@@ -1,3 +1,5 @@
+module TestEpiEnv
+
 using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
@@ -62,4 +64,6 @@ using AxisArrays
             @test epienv.habitat.matrix == expected_matrix
         end
     end
+end
+
 end

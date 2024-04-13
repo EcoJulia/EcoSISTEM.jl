@@ -1,3 +1,5 @@
+module TestEpiParams
+
 using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
@@ -25,4 +27,6 @@ using DataFrames
     @test transition_params.transition_force[2, 1] == beta_force
     @test transition_params.transition_virus[2, 1] == beta_env
     @test transition_params.transition[3, 2] == sigma
+end
+
 end

@@ -1,3 +1,5 @@
+module TestScenario
+
 using EcoSISTEM
 using Test
 using Distributions
@@ -22,7 +24,7 @@ include("TestCases.jl")
 
     # Fluctuating scenario
     eco = TestMultiEcosystem()
-    function TempFluct!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity{Float64, 𝚯*𝐓^-1}, currentstep::Unitful.Time, startarray::Array{typeof(1.0K), 2})
+    function TempFluct!(eco::Ecosystem, timestep::Unitful.Time, rate::Quantity{Float64, 𝚯*𝐓^-1}, currentstep::Unitful.Time, startarray::Matrix{typeof(1.0K)})
         v = uconvert(K/year, rate)
         eco.abenv.habitat.matrix .= (v * year) .* sin(collect(-π:π/6:π)[mod(Int64(uconvert(NoUnits, currentstep/timestep)),12) + 1]) .+ startarray
     end
@@ -33,5 +35,7 @@ include("TestCases.jl")
     # Mutliple scenarios
     multiscenario = MultiScenario(scenario, scenario2)
     @test_nowarn EcoSISTEM.runscenario!(eco, 1month, multiscenario, 1month)
+
+end
 
 end

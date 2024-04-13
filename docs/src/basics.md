@@ -2,10 +2,9 @@
 
 ## Install
 
-The package is registered in the `General` registry on v1.x and so can be installed with `add`. For example on Julia v1.6:
-
-```julia-repl
-(@v1.6) pkg> add EcoSISTEM
+```julia
+using Pkg
+Pkg.add("EcoSISTEM")
 ```
 
 ## Setting up an ecosystem

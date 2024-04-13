@@ -3,8 +3,6 @@ using Unitful
 using EcoSISTEM.Units
 using RecipesBase
 
-import AxisArrays.axes
-
 """
     AbstractClimate
 
@@ -53,7 +51,7 @@ Type that houses data extracted from ERA raster files.
 mutable struct ERA{A <: AxisArray} <: AbstractClimate
     array::A
     function ERA(array::A) where A <: AxisArray
-        typeof(collect(axes(array, 3).val)[1])<: Unitful.Time ||
+        typeof(collect(AxisArrays.axes(array, 3).val)[1])<: Unitful.Time ||
             error("Third dimension of array must be time")
         new{A}(array)
     end
@@ -67,7 +65,7 @@ Type that houses data extracted from CERA-20C raster files.
 mutable struct CERA{A <: AxisArray} <: AbstractClimate
     array::A
     function CERA(array::A) where A <: AxisArray
-        typeof(collect(axes(array, 3).val)[1])<: Unitful.Time ||
+        typeof(collect(AxisArrays.axes(array, 3).val)[1])<: Unitful.Time ||
             error("Third dimension of array must be time")
         new{A}(array)
     end
@@ -90,7 +88,7 @@ Type that houses data extracted from CRUTS raster files.
 mutable struct CRUTS{A <: AxisArray} <: AbstractClimate
     array::A
     function CRUTS(array::A) where A <: AxisArray
-        typeof(collect(axes(array, 3).val)[1])<: Unitful.Time ||
+        typeof(collect(AxisArrays.axes(array, 3).val)[1])<: Unitful.Time ||
             error("Third dimension of array must be time")
         new{A}(array)
     end

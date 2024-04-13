@@ -75,7 +75,7 @@ mutable struct SpeciesTypes{TR <: AbstractTraits,
                        MO <: AbstractMovement,
                        T <: AbstractTypes}
       # Assign names
-      names = map(x -> "$x", 1:length(abun))
+names = map(x -> "$x", eachindex(abun))
       sus = Vector{Union{Missing, Float64}}(undef, length(names))
       new{TR, R, MO, T}(names, traits, abun, req, types,
        movement, native, sus)
@@ -276,6 +276,7 @@ end
 #function _calcsimilarity(ph::PhyloBranches)
 # return ph.Zmatrix
 #end
+
 import Diversity.API: _gettypenames
 function _gettypenames(sl::SpeciesList, input::Bool)
     return _gettypenames(sl.species.types, input)
@@ -289,18 +290,22 @@ import Diversity.API: _calcsimilarity
 function _calcsimilarity(sl::SpeciesList, a::AbstractArray)
     return _calcsimilarity(sl.species.types, a)
 end
+
 import Diversity.API: floattypes
 function floattypes(::SpeciesList)
     return Set([Float64])
 end
+
 import Diversity.API: _calcordinariness
 function _calcordinariness(sl::SpeciesList, a::AbstractArray)
     _calcordinariness(sl.species.types, a, one(eltype(a)))
 end
+
 import Diversity.API: _calcabundance
 function _calcabundance(sl::SpeciesList, a::AbstractArray)
   return _calcabundance(sl.species.types, a)
 end
+
 import Diversity.API._getdiversityname
 function _getdiversityname(sl::SpeciesList)
     return _getdiversityname(sl.species.types)

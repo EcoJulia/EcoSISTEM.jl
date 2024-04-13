@@ -1,3 +1,5 @@
+module TestEpiGenerate
+
 using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
@@ -8,7 +10,7 @@ import EcoSISTEM: epi_update!, virusupdate!, classupdate!, invalidatecaches!
 include("TestCases.jl")
 
 @testset "Episystem" begin
-    epi = TestEpiSystem()
+    epi = Test1EpiSystem()
     totalpops = sum(epi.abundances.matrix, dims = 2)
     @test_nowarn epi_update!(epi, 1day)
     epi_update!(epi, 1day)
@@ -21,4 +23,6 @@ include("TestCases.jl")
     epi = TestEpiLockdown()
     @test_nowarn epi_update!(epi, 1day)
     epi_update!(epi, 1day)
+end
+
 end

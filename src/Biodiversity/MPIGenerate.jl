@@ -1,15 +1,17 @@
-using ..MPI
+using EcoSISTEM
+using MPI
 using LinearAlgebra
+using Distributions
 
-function update!(eco::AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing, specialise = false) where L <: MPIGridLandscape
-    biodiversity_update!(eco, timestep)
+function EcoSISTEM.update!(eco::EcoSISTEM.AbstractEcosystem{L}, timestep::Unitful.Time, ::Nothing, specialise = false) where L <: MPIGridLandscape
+    EcoSISTEM.biodiversity_update!(eco, timestep)
 end
 
 """
     biodiversity_update!(eco::MPIEcosystem, timestep::Unitful.Time)
 Function to update an MPIEcosystem abundances and environment for one timestep.
 """
-function biodiversity_update!(eco::MPIEcosystem, timestep::Unitful.Time)
+function EcoSISTEM.biodiversity_update!(eco::MPIEcosystem, timestep::Unitful.Time)
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
 
@@ -28,7 +30,7 @@ function biodiversity_update!(eco::MPIEcosystem, timestep::Unitful.Time)
         # Loop through grid squares
         for sc in 1:numsc
             # Calculate how much birth and death should be adjusted
-            adjusted_birth, adjusted_death = energy_adjustment(eco, eco.abenv.budget, sc, truesp)
+            adjusted_birth, adjusted_death = EcoSISTEM.energy_adjustment(eco, eco.abenv.budget, sc, truesp)
 
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(eco, sc)
@@ -52,28 +54,28 @@ function biodiversity_update!(eco::MPIEcosystem, timestep::Unitful.Time)
                 eco.abundances.rows_matrix[mpisp, sc] += (births - deaths)
 
                 # Calculate moves and write to cache
-                move!(eco, eco.spplist.species.movement, sc, truesp, eco.cache.netmigration, births)
+                EcoSISTEM.move!(eco, eco.spplist.species.movement, sc, truesp, eco.cache.netmigration, births)
             end
         end
     end
 
     # Update abundances with all movements
     eco.abundances.rows_matrix .+= eco.cache.netmigration
-    synchronise_from_rows!(eco.abundances)
+    EcoSISTEM.synchronise_from_rows!(eco.abundances)
 
     # Invalidate all caches for next update
-    invalidatecaches!(eco)
+    EcoSISTEM.invalidatecaches!(eco)
 
     # Update environment - habitat and energy budgets
-    habitatupdate!(eco, timestep)
-    budgetupdate!(eco, timestep)
+    EcoSISTEM.habitatupdate!(eco, timestep)
+    EcoSISTEM.budgetupdate!(eco, timestep)
 end
 
-function getlookup(eco::MPIEcosystem, sp::Int64)
+function EcoSISTEM.getlookup(eco::MPIEcosystem, sp::Int64)
     return eco.lookup[sp - eco.firstsp + 1]
 end
 
-function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{SpeciesTypes{B, Req, C, D},  E, F}, G}) where {MPIGL <: MPIGridLandscape, A, B, C, D, E, F, G, Req <: Abstract1Requirement}
+function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{SpeciesTypes{B, Req, C, D},  E, F}, G}) where {MPIGL <: MPIGridLandscape, A, B, C, D, E, F, G, Req <: EcoSISTEM.Abstract1Requirement}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
@@ -87,7 +89,7 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{SpeciesTyp
         truesc = eco.firstsc + sc - 1
         eco.cache.totalE[truesc, 1] = 0.0
         spindex = 1
-        for block in 1:length(mats)
+        for block in eachindex(mats)
             nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄[spindex:nextsp]
@@ -98,7 +100,7 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{SpeciesTyp
     eco.cache.valid = true
 end
 
-function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{SpeciesTypes{B, Req, C, D},  E, F}, G}) where {MPIGL <: MPIGridLandscape, A, B, C, D, E, F, G, Req <: Abstract2Requirements}
+function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{SpeciesTypes{B, Req, C, D},  E, F}, G}) where {MPIGL <: MPIGridLandscape, A, B, C, D, E, F, G, Req <: EcoSISTEM.Abstract2Requirements}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
@@ -114,7 +116,7 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{SpeciesTyp
         eco.cache.totalE[truesc, 1] = 0.0
         eco.cache.totalE[truesc, 2] = 0.0
         spindex = 1
-        for block in 1:length(mats)
+        for block in eachindex(mats)
             nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄1[spindex:nextsp]
@@ -127,12 +129,12 @@ function update_energy_usage!(eco::MPIEcosystem{MPIGL, A, SpeciesList{SpeciesTyp
     eco.cache.valid = true
 end
 
-function move!(eco::MPIEcosystem, ::BirthOnlyMovement, sc::Int64, truesp::Int64,
+function EcoSISTEM.move!(eco::MPIEcosystem, ::BirthOnlyMovement, sc::Int64, truesp::Int64,
     grd::Array{Int64, 2}, births::Int64)
-  width, height = getdimension(eco)
-  (x, y) = convert_coords(eco, sc, width)
-  lookup = getlookup(eco, truesp)
-  calc_lookup_moves!(getboundary(eco.spplist.species.movement), x, y, truesp, eco, births)
+  width, height = EcoSISTEM.getdimension(eco)
+  (x, y) = EcoSISTEM.convert_coords(eco, sc, width)
+  lookup = EcoSISTEM.getlookup(eco, truesp)
+  EcoSISTEM.calc_lookup_moves!(EcoSISTEM.getboundary(eco.spplist.species.movement), x, y, truesp, eco, births)
   # Lose moves from current grid square
   mpisp = truesp - eco.firstsp + 1
   grd[mpisp, sc] -= births
@@ -147,12 +149,12 @@ function move!(eco::MPIEcosystem, ::BirthOnlyMovement, sc::Int64, truesp::Int64,
   return eco
 end
 
-function populate!(ml::MPIGridLandscape, spplist::SpeciesList, abenv::AB, rel::R) where {AB <: AbstractAbiotic, R <: AbstractTraitRelationship}
-    dim = _getdimension(abenv.habitat)
+function EcoSISTEM.populate!(ml::MPIGridLandscape, spplist::SpeciesList, abenv::AB, rel::R) where {AB <: EcoSISTEM.AbstractAbiotic, R <: EcoSISTEM.AbstractTraitRelationship}
+    dim = EcoSISTEM._getdimension(abenv.habitat)
     len = dim[1] * dim[2]
     grid = collect(1:len)
     # Set up copy of budget
-    b = reshape(ustrip.(_getbudget(abenv.budget)), size(grid))
+    b = reshape(ustrip.(EcoSISTEM._getbudget(abenv.budget)), size(grid))
     activity = reshape(copy(abenv.active), size(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
@@ -166,15 +168,15 @@ function populate!(ml::MPIGridLandscape, spplist::SpeciesList, abenv::AB, rel::R
     synchronise_from_rows!(ml)
 end
 
-function populate!(ml::MPIGridLandscape, spplist::SpeciesList,
-                   abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}}, rel::R) where {H <: AbstractHabitat, B1 <: AbstractBudget, B2 <: AbstractBudget, R <: AbstractTraitRelationship}
+function EcoSISTEM.populate!(ml::MPIGridLandscape, spplist::SpeciesList,
+                   abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}}, rel::R) where {H <: EcoSISTEM.AbstractHabitat, B1 <: EcoSISTEM.AbstractBudget, B2 <: EcoSISTEM.AbstractBudget, R <: EcoSISTEM.AbstractTraitRelationship}
     # Calculate size of habitat
-    dim = _getdimension(abenv.habitat)
+    dim = EcoSISTEM._getdimension(abenv.habitat)
     len = dim[1] * dim[2]
     grid = collect(1:len)
     # Set up copy of budget
-    b1 = reshape(copy(_getbudget(abenv.budget, :b1)), size(grid))
-    b2 = reshape(copy(_getbudget(abenv.budget, :b2)), size(grid))
+    b1 = reshape(copy(EcoSISTEM._getbudget(abenv.budget, :b1)), size(grid))
+    b2 = reshape(copy(EcoSISTEM._getbudget(abenv.budget, :b2)), size(grid))
     units1 = unit(b1[1])
     units2 = unit(b2[1])
     activity = reshape(copy(abenv.active), size(grid))
@@ -187,5 +189,5 @@ function populate!(ml::MPIGridLandscape, spplist::SpeciesList,
         rand!(Multinomial(abundances[mpisp], B ./ sum(B)),
         (@view ml.rows_matrix[mpisp, :]))
     end
-    synchronise_from_rows!(ml)
+    EcoSISTEM.synchronise_from_rows!(ml)
 end

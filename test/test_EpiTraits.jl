@@ -1,3 +1,5 @@
+module TestEpiTraits
+
 using EcoSISTEM
 using Test
 using Distributions
@@ -8,7 +10,9 @@ import EcoSISTEM: traitfun
 include("TestCases.jl")
 
 @testset "Epi traits" begin
-    epi = TestEpiSystem()
+    epi = Test1EpiSystem()
     @test_nowarn traitfun(epi, 1, 1, epi.spplist.pathogens)
     @test traitfun(epi, 1, 1, epi.spplist.pathogens) == traitfun(epi, 2, 1, epi.spplist.pathogens)
+end
+
 end

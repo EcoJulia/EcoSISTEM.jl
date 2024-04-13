@@ -1,3 +1,5 @@
+module TestMedianGenerator
+
 using EcoSISTEM
 using Distributions
 using Random
@@ -94,3 +96,4 @@ end
 
 end
 
+end

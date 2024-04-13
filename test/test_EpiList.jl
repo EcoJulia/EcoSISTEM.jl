@@ -1,8 +1,12 @@
+module TestEpiList
+
 using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
 using Distributions
+using DataFrames
 using EcoSISTEM.Units
+
 @testset "SpeciesList" begin
     # Set initial population sizes for all pathogen categories
     abun_v = DataFrame([
@@ -54,4 +58,6 @@ using EcoSISTEM.Units
     @test length(epilist.pathogens.names) == length(epilist.pathogens.abun)
     @test length(epilist.pathogens.names) == length(epilist.pathogens.traits.mean)
     @test length(epilist.pathogens.names) == length(epilist.pathogens.traits.var)
+end
+
 end

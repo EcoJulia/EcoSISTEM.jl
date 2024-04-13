@@ -4,6 +4,9 @@
 ```
 
 ```@autodocs
-Modules = [EcoSISTEM]
+Modules = [EcoSISTEM, EcoSISTEM.ClimatePref]
 Private = true
+```
+
+```@index
 ```

@@ -1,3 +1,5 @@
+module TestHabitatUpdate
+
 using EcoSISTEM
 using Distributions
 using Test
@@ -6,8 +8,9 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 
 include("TestCases.jl")
+
 @testset "Habitat update" begin
-    eco = TestEcosystem()
+    eco = Test1Ecosystem()
     @test_nowarn EcoSISTEM.HabitatUpdate(
         EcoSISTEM.NoChange, 0.0/month, Unitful.Dimensions{()})
     @test_nowarn EcoSISTEM.HabitatUpdate(
@@ -56,5 +59,7 @@ include("TestCases.jl")
     @test_nowarn EcoSISTEM.budgetupdate!(eco, 1month)
     @test eco.abenv.habitat.time == 2
     @test eco.abenv.budget.time == 2
+
+end
 
 end

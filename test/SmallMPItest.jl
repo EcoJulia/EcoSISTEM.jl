@@ -1,6 +1,4 @@
 ## Small scale test for MPI Ecosystems
-## Set random number seeds for reproducible results
-
 using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
@@ -12,11 +10,13 @@ using JLD2
 using Test
 
 # Set up MPI and print threads
-MPI.Init()
+if !MPI.Initialized()
+    MPI.Init()
+end
 nthread = Threads.nthreads()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
-println(Threads.nthreads())
+println("Num threads: $nthread")
 
 # Set up initial parameters for ecosystem
 numSpecies = 8; grid = (2, 2); req= 10.0kJ; individuals=1_000; area = 100.0*km^2; totalK = 10000.0kJ/km^2
@@ -57,6 +57,70 @@ abenv.budget.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
 rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
+@test_nowarn MPIEcosystem(sppl, abenv, rel)
+eco = MPIEcosystem(sppl, abenv, rel)
+
+# Artifically fill ecosystem with individuals
+eco.abundances.rows_matrix .= 10
+
+# Set columns vector to zero and check synchronise from rows
+eco.abundances.cols_vector .= 0
+@test_nowarn EcoSISTEM.synchronise_from_rows!(eco.abundances)
+@test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
+
+# Set rows matrix to zero and check synchronise from cols
+eco.abundances.rows_matrix .= 0
+@test_nowarn EcoSISTEM.synchronise_from_cols!(eco.abundances)
+@test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
+
+## Set random number seeds for reproducible results
+# Set random seed to 0 for all rngs
+for i in eachindex(eco.abundances.rngs)
+    eco.abundances.rngs[i] = MersenneTwister(0)
+end
+
+# Simulation Parameters
+burnin = 2years; times = 10years; timestep = 1month; record_interval = 3months; repeats = 1
+lensim = length(0years:record_interval:times)
+
+# Burnin
+MPI.Barrier(comm)
+@test sum(getabundance(eco)) ≈ 1.0
+@test sum(getmetaabundance(eco)) ≈ 1.0
+@test_nowarn simulate!(eco, burnin, timestep)
+@test sum(getabundance(eco)) ≈ 1.0
+@test sum(getmetaabundance(eco)) ≈ 1.0
+
+# Collect full abundance matrix together
+true_abuns = gather_abundance(eco)
+# On root node, print abundances and save out
+if rank == 0
+    print("$(rank):")
+    println(true_abuns)
+    isdir("data") || mkdir("data")
+    @save "data/Test_abuns"*"$nthread.jld2" abuns = true_abuns
+end
+
+water_vec = WaterRequirement(fill(2.0mm, numSpecies))
+total_use = ReqCollection2(energy_vec, water_vec)
+
+sppl = SpeciesList(numSpecies, traits, abun, total_use,
+    movement, param, native)
+
+# Create abiotic environment - even grid of one temperature
+abenv1 = simplehabitatAE(274.0K, grid, totalK, area)
+
+total_mm = 10.0mm/km^2
+abenv2 = simplehabitatAE(274.0K, grid, total_mm, area)
+
+budget = BudgetCollection2(abenv1.budget, abenv2.budget)
+abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(budget)}(abenv1.habitat, abenv1.active, budget, abenv1.names)
+
+# Set relationship between species and environment (gaussian)
+rel = Gauss{typeof(1.0K)}()
+
+# Create ecosystem
+@test_nowarn MPIEcosystem(sppl, abenv, rel)
 eco = MPIEcosystem(sppl, abenv, rel)
 
 # Artifically fill ecosystem with individuals
@@ -65,19 +129,19 @@ sleep(rank)
 
 # Set columns vector to zero and check synchronise from rows
 eco.abundances.cols_vector .= 0
-EcoSISTEM.synchronise_from_rows!(eco.abundances)
+@test_nowarn EcoSISTEM.synchronise_from_rows!(eco.abundances)
 @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
 # Set rows matrix to zero and check synchronise from cols
 eco.abundances.rows_matrix .= 0
-EcoSISTEM.synchronise_from_cols!(eco.abundances)
+@test_nowarn EcoSISTEM.synchronise_from_cols!(eco.abundances)
 @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
+## Set random number seeds for reproducible results
 # Set random seed to 0 for all rngs
-for i in 1:length(eco.abundances.rngs)
+for i in eachindex(eco.abundances.rngs)
     eco.abundances.rngs[i] = MersenneTwister(0)
 end
-
 
 # Simulation Parameters
 burnin = 2years; times = 10years; timestep = 1month; record_interval = 3months; repeats = 1
@@ -85,7 +149,7 @@ lensim = length(0years:record_interval:times)
 
 # Burnin
 MPI.Barrier(comm)
-@time simulate!(eco, burnin, timestep)
+@test_nowarn simulate!(eco, burnin, timestep)
 
 sleep(rank)
 
@@ -95,7 +159,10 @@ true_abuns = gather_abundance(eco)
 if rank == 0
     print("$(rank):")
     println(true_abuns)
+    isdir("data") || mkdir("data")
     @save "data/Test_abuns"*"$nthread.jld2" abuns = true_abuns
 end
 
-MPI.Finalize()
+if !MPI.Finalized()
+    MPI.Finalize()
+end

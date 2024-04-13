@@ -1,7 +1,9 @@
+module TestTraits
+
 using EcoSISTEM
 using Test
 using Distributions
-using Unitful.DefaultSymbols
+using Unitful, Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using Phylo
 using DataFrames
@@ -61,4 +63,6 @@ import EcoSISTEM: DiscreteTrait
         @test all(get_traits(tree)[!, :σ²] .== 0.1)
         @test length(unique(get_traits(tree)[!, :start])) > 1
     end
+end
+
 end

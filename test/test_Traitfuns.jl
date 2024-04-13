@@ -1,8 +1,12 @@
+module TestTraitfuns
+
 using EcoSISTEM
 using Test
 using Distributions
-using Unitful.DefaultSymbols
+using Unitful, Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using EcoSISTEM.ClimatePref
+using AxisArrays
 
 grid = (10, 10)
 area = 25.0km^2
@@ -58,5 +62,7 @@ active = fill(true, grid)
     rel = Unif{typeof(1.0mm)}()
     @test_nowarn EcoSISTEM._traitfun(hab, trts, rel, 1, 1)
     @test getpref(trts, 1) == trts.dist[1, :]
+
+end
 
 end

@@ -15,8 +15,17 @@ env_bool(key, default=false) = haskey(ENV, key) ? lowercase(ENV[key]) ∉ ["0","
 
 include("ClimatePref/ClimatePref.jl")
 
-end
+function unzip end
+export unzip
 
+function processMet end
+function writeMet end
+function MetOfficeDownload end
+function getMetparams end
+function getMetdata end
+export processMet, writeMet, MetOfficeDownload, getMetparams, getMetdata
+
+end
 
 """
     enum: DiseaseState
@@ -35,7 +44,7 @@ export assign_traits!, get_traits, resettraits!, reroot!
 include("Biodiversity/TraitRelationship.jl")
 export TraitRelationship,multiplicativeTR2, multiplicativeTR3, Gauss,
  Match, NoRelContinuous, NoRelDiscrete, Trapeze, Unif,
- additiveTR2, additiveTR3
+ additiveTR2, additiveTR3, LCmatch
 
 include("Biodiversity/Habitats.jl")
 export ContinuousHab,ContinuousTimeHab, DiscreteHab, HabitatCollection2, HabitatCollection3, tempgrad, raingrad
@@ -44,15 +53,15 @@ include("Biodiversity/Energy.jl")
 export SimpleRequirement, SizeRequirement, SolarRequirement, WaterRequirement, VolWaterRequirement, SimpleBudget, SolarBudget, SolarTimeBudget, WaterBudget, VolWaterBudget, WaterTimeBudget, VolWaterTimeBudget, ReqCollection2, ReqCollection3, BudgetCollection2, BudgetCollection3
 
 include("Biodiversity/AbioticEnv.jl")
-export GridAbioticEnv, simplenicheAE, tempgradAE, raingradAE, peakedgradAE, simplehabitatAE, degradedhabitatAE, eraAE, worldclimAE, bioclimAE
+export GridAbioticEnv, simplenicheAE, tempgradAE, raingradAE, peakedgradAE, simplehabitatAE, degradedhabitatAE, eraAE, worldclimAE, bioclimAE, lcAE
 
 include("Biodiversity/Movement.jl")
-export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernel, Torus, Cylinder, NoBoundary
+export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement, NoMovement, getkernels, Torus, Cylinder, NoBoundary
 
 include("Biodiversity/Traits.jl")
-export GaussTrait, DiscreteTrait, TempBin, RainBin,
-TraitCollection2, TraitCollection3, DiscreteEvolve,
-ContinuousEvolve
+export GaussTrait, DiscreteTrait, TempBin,RainBin,
+TraitCollection2, TraitCollection3,DiscreteEvolve,
+ContinuousEvolve, LCtrait
 
 include("Biodiversity/Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth
@@ -114,19 +123,6 @@ export populate!, repopulate!, traitpopulate!, traitrepopulate!, emptypopulate!,
 reenergise!, randomniches, update!, update_birth_move!,
 convert_coords, get_neighbours, update_energy_usage!, seedinfected!
 
-using Requires
-function __init__()
-    @require MPI="da04e1cc-30fd-572f-bb4f-1f8673147195" @eval begin
-        include("Biodiversity/MPILandscape.jl")
-        export MPIGridLandscape
-
-        include("Biodiversity/MPIEcosystem.jl")
-        export MPIEcosystem, gather_abundance, gather_diversity
-
-        include("Biodiversity/MPIGenerate.jl")
-    end
-end
-
 include("Biodiversity/Cache.jl")
 export abundances, clearcache
 
@@ -162,5 +158,51 @@ export run_rule!, update!, simulate!, simulate_record!, generate_storage
 
 # Path into package
 path(paths...) = joinpath(@__DIR__, "..", paths...)
+
+using Random
+
+"""
+    MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
+
+MPIEcosystem abundances housed in the landscape, shared across multiple nodes.
+"""
+mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple} <: AbstractLandscape
+    rows_matrix::Matrix{Int64}
+    cols_vector::Vector{Int64}
+    reshaped_cols::Vector{RA}
+    rows_tuple::NT
+    cols_tuple::NT
+    rngs::Vector{MersenneTwister}
+end
+
+"""
+    MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic,
+                 SL <: SpeciesList, TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
+
+MPIEcosystem houses information on species and their interaction with their environment. It houses all information of a normal `Ecosystem` (see documentation for more details), with additional fields to describe which species are calculated on which machine. This includes: `sppcounts` - a vector of number of species per node, `firstsp` - the identity of the first species held by that particular node.
+"""
+mutable struct MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic, SL <: SpeciesList, TR <: AbstractTraitRelationship} <: AbstractEcosystem{MPIGL, Part, SL, TR, SpeciesLookup, Cache}
+  abundances::MPIGL
+  spplist::SL
+  abenv::Part
+  ordinariness::Union{Matrix{Float64}, Missing}
+  relationship::TR
+  lookup::Vector{Lookup}
+  sppcounts::Vector{Int32}
+  firstsp::Int64
+  sccounts::Vector{Int32}
+  firstsc::Int64
+  cache::Cache
+end
+
+export MPIGridLandscape
+export MPIEcosystem
+function gather_abundance end
+function gather_diversity end
+export gather_abundance, gather_diversity
+function emptyMPIgridlandscape end
+function synchronise_from_rows! end
+function synchronise_from_cols! end
+export emptyMPIgridlandscape, synchronise_from_rows!, synchronise_from_cols!
 
 end

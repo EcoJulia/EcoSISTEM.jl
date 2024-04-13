@@ -6,12 +6,12 @@ using NetCDF
 using IndexedTables
 
 function checkbounds(x::Vector{typeof(1.0°)}, y::Vector{typeof(1.0°)})
-    -180.0 .<= x .<= 180.0 || error("X coordinate is out of bounds")
-    -90.0 .<= x .<= 90.0 || error("Y coordinate is out of bounds")
+    all(-180.0 .< x .<= 180.0) || error("X coordinate is out of bounds")
+    all(-90.0 .<= x .<= 90.0) || error("Y coordinate is out of bounds")
 end
 
 function calculatestep(dat::D, dim::Int64) where {D <: AbstractClimate}
-    return axes(dat.array, dim).val[2] - axes(dat.array, dim).val[1]
+    return AxisArrays.axes(dat.array, dim).val[2] - AxisArrays.axes(dat.array, dim).val[1]
 end
 
 function _extract(x, y, dat, dim::Unitful.Time)
@@ -19,6 +19,7 @@ function _extract(x, y, dat, dim::Unitful.Time)
         (j-thisstep/2)..(j+thisstep/2), dim][1,1,1], x, y)
     return transpose(hcat(res...))
 end
+
 function _extract(x, y, dat, dim::Unitful.Time, step)
     res =  map((i, j) -> wc.array[(i-thisstep/2)..(i+thisstep/2),
         (j-thisstep/2)..(j+thisstep/2), dim][1,1,1], x, y)
@@ -32,8 +33,8 @@ end
 Function to extract values from a worldclim object, at specified x, y locations and
 time, `dim`.
 """
-function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-   wc::Worldclim_monthly, dim::Unitful.Time)
+function extractvalues(x::Vector{typeof(1.0°)}, y::Vector{typeof(1.0°)},
+                       wc::Worldclim_monthly, dim::Unitful.Time)
    checkbounds(x, y)
    thisstep = calculatestep(wc, 1)
    res = map((i, j) -> wc.array[(i-thisstep/2)..(i+thisstep/2),
@@ -49,8 +50,8 @@ end
 Function to extract values from a worldclim object, at specified x, y locations and
 over a range of times, `dim`.
 """
-function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-   wc::Worldclim_monthly, dim::StepRange{typeof(1month)})
+function extractvalues(x::Vector{typeof(1.0°)}, y::Vector{typeof(1.0°)},
+                       wc::Worldclim_monthly, dim::StepRange{typeof(1month)})
    all(x .<= 180.0) && all(x .>= -180.0) ||
    error("X coordinate is out of bounds")
    all(y .< 90.0) && all(y .> -90.0) ||
@@ -60,13 +61,14 @@ function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
                               dim], x, y)
    return transpose(hcat(res...))
 end
+
 """
     extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
         bc::Worldclim_bioclim, dim::Unitful.Time)
 
 Function to extract values from a bioclim object, at specified x, y locations and time, `dim`.
 """
-function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
+function extractvalues(x::Vector{typeof(1.0°)}, y::Vector{typeof(1.0°)},
    bc::Worldclim_bioclim, val::Int64)
    all(x .<= 180.0) && all(x .>= -180.0) ||
    error("X coordinate is out of bounds")
@@ -74,17 +76,18 @@ function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
    error("Y coordinate is out of bounds")
    thisstep = axes(bc.array, 1).val[2] - axes(bc.array, 1).val[1]
    res = map((i, j) -> bc.array[(i - thisstep/2)..(i + thisstep/2),
-                              (j - thisstep/2)..(j + thisstep/2),
-                              val], x, y)
+                                (j - thisstep/2)..(j + thisstep/2),
+                                val], x, y)
    return transpose(hcat(res...))
 end
+
 """
     extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
         bc::Worldclim_bioclim, dim::Unitful.Time)
 
 Function to extract values from a bioclim object, at specified x, y locations and over a time period, `dim`.
 """
-function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
+function extractvalues(x::Vector{typeof(1.0°)}, y::Vector{typeof(1.0°)},
    bc::Worldclim_bioclim, vals::StepRange{Int64})
    all(x .<= 180.0) && all(x .>= -180.0) ||
    error("X coordinate is out of bounds")
@@ -97,7 +100,9 @@ function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
    return transpose(hcat(res...))
 end
 
-function extractvalues(lat::Union{Missing, typeof(1.0°)}, lon::Union{Missing, typeof(1.0°)}, yr::Union{Missing, Int64}, era::ERA)
+function extractvalues(lat::Union{Missing, typeof(1.0°)},
+                       lon::Union{Missing, typeof(1.0°)}, 
+                       yr::Union{Missing, Int64}, era::ERA)
     startyr = ustrip(uconvert(year, axes(era.array)[3].val[1]))
     endyr = ustrip(uconvert(year, axes(era.array)[3].val[end]))
     if any(ismissing.([lat, lon, yr])) || yr < startyr || yr > endyr
@@ -110,13 +115,13 @@ function extractvalues(lat::Union{Missing, typeof(1.0°)}, lon::Union{Missing, t
         time = yr * 1year
         lon += 0.375°
         return era.array[(lon - thisstep1/2)..(lon + thisstep1/2),
-              (lat - thisstep2/2)..(lat + thisstep2/2),
-              time .. (time + 11month)][1,1,:]
+                         (lat - thisstep2/2)..(lat + thisstep2/2),
+                         time..(time + 11month)][1,1,:]
     end
 end
 
-function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-    years::Vector{Int64}, era::ERA)
+function extractvalues(x::Vector{typeof(1.0°)}, y::Vector{typeof(1.0°)},
+                       years::Vector{Int64}, era::ERA)
     all(x .<= 180.0°) && all(x .>= -180.0°) ||
     error("X coordinate is out of bounds")
     all(y .< 90.0°) && all(y .> -90.0°) ||
@@ -137,7 +142,8 @@ function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
     end
 end
 
-function extractvalues(lat::Union{Missing, typeof(1.0°)}, lon::Union{Missing, typeof(1.0°)}, ref::Reference)
+function extractvalues(lat::Union{Missing, typeof(1.0°)},
+                       lon::Union{Missing, typeof(1.0°)}, ref::Reference)
     if any(ismissing.([lat, lon]))
         return NaN .* unit(ref.array[1,1])
     else
@@ -146,12 +152,13 @@ function extractvalues(lat::Union{Missing, typeof(1.0°)}, lon::Union{Missing, t
         thisstep1 = AxisArrays.axes(ref.array, 1).val[2] - AxisArrays.axes(ref.array, 1).val[1]
         thisstep2 = AxisArrays.axes(ref.array, 2).val[2] - AxisArrays.axes(ref.array, 2).val[1]
         return ref.array[(lon - thisstep1/2)..(lon + thisstep1/2),
-              (lat - thisstep2/2)..(lat + thisstep2/2)][1,1]
+                         (lat - thisstep2/2)..(lat + thisstep2/2)][1,1]
     end
 end
 
-function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-    ref::Reference)
+function extractvalues(x::Vector{typeof(1.0°)},
+                       y::Vector{typeof(1.0°)},
+                       ref::Reference)
     all(x .<= 180.0°) && all(x .>= -180.0°) ||
     error("X coordinate is out of bounds")
     all(y .<= 90.0°) && all(y .>= -90.0°) ||
@@ -160,6 +167,6 @@ function extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
     thisstep2 = step(axes(ref.array, 2).val)
     map(x , y) do lon, lat
         return ref.array[(lon - thisstep1/2)..(lon + thisstep1/2),
-              (lat - thisstep2/2)..(lat + thisstep2/2)][1,1]
+                         (lat - thisstep2/2)..(lat + thisstep2/2)][1,1]
     end
 end

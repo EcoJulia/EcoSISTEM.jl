@@ -7,7 +7,7 @@ using EcoSISTEM.Units
 using Unitful
 using DataFrames
 
-function TestEcosystem()
+function Test1Ecosystem()
     numSpecies = 150
     numNiches = 2
 
@@ -75,7 +75,7 @@ function TestMultiEcosystem()
     return eco
 end
 
-function TestEpiSystem()
+function Test1EpiSystem()
     grid = (2, 2)
     area = 10.0km^2
     abenv = simplehabitatAE(298.0K, grid, area, NoControl())

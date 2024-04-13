@@ -1,3 +1,5 @@
+module TestInference
+
 using EcoSISTEM
 using Test
 using Unitful.DefaultSymbols
@@ -47,4 +49,6 @@ using EcoSISTEM.Units
         area = 100.0km^2
         @test_nowarn abuns = SEI3HRD_wrapper(grid_size, area, param, runparams, age_categories)
     end
+end
+
 end

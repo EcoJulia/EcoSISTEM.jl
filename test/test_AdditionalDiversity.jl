@@ -1,12 +1,15 @@
+module TestAdditionalDiversity
+
 using EcoSISTEM
 using Diversity
 using Phylo
 using Statistics
 using Test
 
+include("TestCases.jl")
+
 @testset "diversity" begin
-    include("TestCases.jl")
-    eco = TestEcosystem()
+    eco = Test1Ecosystem()
 
     Ab = mapslices(sum, eco.abundances.matrix, dims = 2)
     RelAb = Ab / sum(eco.abundances.matrix)
@@ -59,4 +62,6 @@ using Test
     @test pd(eco, 1.0)[!, :diversity][1] ≈ sum(map(b -> getlength(eco.spplist.species.types.tree,b),
                collect(getbranchnames(eco.spplist.species.types.tree)))) / mean(heightstoroot(eco.spplist.species.types.tree))
     @test pd(eco, 0.0) == pd(eco, [0.0, 1, 2])
+end
+
 end

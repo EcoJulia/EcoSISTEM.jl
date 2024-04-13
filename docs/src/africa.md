@@ -4,7 +4,7 @@ EcoSISTEM was designed to scale to much larger areas, supporting many more speci
 
 We can also explore the behaviour of selective advantage of specialist species over generalists at these scales. When we introduce a specialist species into an African-sized landscape with an existing generalist, the specialist out-competes the generalist and spreads throughout the continent. The larger the selective advantage of the specialist, the faster it is able to invade and colonise across the landscape (Figure 1). These same dynamics can be seen when we introduce a specialist to the full complement of 50,000 species (Figure 1B-D).
 
-#### SINGLE SPECIES ####
+## SINGLE SPECIES
 
 ```julia
 using EcoSISTEM
@@ -17,7 +17,7 @@ using StatsBase
 using Plots
 file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Array{Bool, 2}(.!isnan.(africa'))
+active =  Matrix{Bool}(.!isnan.(africa'))
 
 heatmap(active)
 
@@ -141,7 +141,7 @@ for i in eachindex(specialist_vars)
     dest = findall(abuns[2, :, :, 1] .> 0)
     inst_velocity = map(1:lensim) do t
         dest = findall(abuns[2, :, :, t] .> 0)
-        dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
+        dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in eachindex(dest)] .* getgridsize(eco)
         return maximum(dists)/month
     end
     velocity[i] = mean(inst_velocity)
@@ -151,9 +151,12 @@ plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
     xlab = "Selective advantage", ylab = "Invasion speed (km/month)",
     label = "", grid = false)
 ```
+
 ![](Invasion.svg)
 *Figure 1: Invasive capacity of a specialist plant species versus a generalist. Selective advantage is the difference in niche width between the specialist and generalist, and invasion speed is calculated as the average distance travelled per month by the specialist.*
-#### ONE SPECIALIST VERSUS MANY GENERALISTS ####
+
+## ONE SPECIALIST VERSUS MANY GENERALISTS
+
 ``` julia
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
@@ -164,7 +167,7 @@ using JLD2
 using Printf
 file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Array{Bool, 2}(.!isnan.(africa'))
+active =  Matrix{Bool}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
 numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
@@ -209,6 +212,19 @@ rel = Gauss{typeof(1.0K)}()
 eco = Ecosystem(sppl, abenv, rel)
 eco.abundances.matrix[50_000, :] .= 0
 
+import EcoSISTEM.simulate!
+function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
+  time_seq = 0s:timestep:times
+  counting = 0
+  for i in eachindex(time_seq)
+      update!(eco, timestep);
+      # Save cache of abundances
+      if mod(time_seq[i], cacheInterval) == 0year
+          @save (joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld2" uconvert(NoUnits,time_seq[i]/cacheInterval))) abun = eco.abundances.matrix
+      end
+  end
+end
+
 # EcoSISTEM Parameters
 burnin = 100years; times = 100years; timestep = 1month; record_interval = 12months;
 lensim = length(0years:record_interval:times)
@@ -218,7 +234,7 @@ eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
 @time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run");
 ```
 
-#### 50,000 SPECIES COEXISTING #####
+## 50,000 SPECIES COEXISTING
 
 ```julia
 using EcoSISTEM
@@ -231,7 +247,7 @@ using Printf
 
 file = "Africa.tif"
 africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Array{Bool, 2}(.!isnan.(africa'))
+active =  Matrix{Bool}(.!isnan.(africa'))
 # Set up initial parameters for ecosystem
 numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 

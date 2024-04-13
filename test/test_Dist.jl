@@ -1,3 +1,5 @@
+module TestDist
+
 using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
@@ -16,4 +18,6 @@ using Random
     @test pdf(dist, 4.0) == 0
     @test pdf(dist, 2.0) == 0.5
     @test pdf(dist, 3.0) == 0.5
+end
+
 end

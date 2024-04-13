@@ -1,3 +1,5 @@
+module TestTraitRelationship
+
 using EcoSISTEM
 using Test
 using Distributions
@@ -57,5 +59,7 @@ using Unitful.DefaultSymbols
 
     @test EcoSISTEM.combineTR(tr2) == +
     @test EcoSISTEM.combineTR(tr3) == +
+
+end
 
 end

@@ -1,5 +1,16 @@
 # NEWS
 
+- v0.2.0
+  - Require Julia v1.9 for extensions
+  - Create package extensions
+  - Update testing
+- v0.1.4
+  - Add in Pluto example
+  - Some Windows fixes
+- v0.1.3
+  - Code restructure
+  - Move to EcoJulia
+  - Add in MPI testing
 - v0.1.2
   - Fix phylogenetic diversity management
 - v0.1.1

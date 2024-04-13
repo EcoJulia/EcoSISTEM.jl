@@ -196,8 +196,8 @@ end
 This budget type has a matrix of solar energy units, representing the energy budget of each subcommunity in the abiotic environment at a fixed point in time.
 """
 mutable struct SolarBudget <: AbstractBudget{typeof(1.0*kJ)}
-  matrix::Array{typeof(1.0*kJ), 2}
-  function SolarBudget(mat::Array{typeof(1.0*kJ), 2})
+  matrix::Matrix{typeof(1.0*kJ)}
+  function SolarBudget(mat::Matrix{typeof(1.0*kJ)})
     mat[isnan.(mat)] .=  0*kJ
     return new(mat)
   end
@@ -241,9 +241,11 @@ end
 function _getbudget(bud::SolarTimeBudget)
     return @view bud.matrix[:, :, bud.time]
 end
+
 function _getavailableenergy(bud::SolarTimeBudget)
     return sum(bud.matrix[.!isnan.(bud.matrix)])
 end
+
 @recipe function f(B::SolarTimeBudget, time::Int64)
     b = ustrip.(B.matrix)
     seriestype  :=  :heatmap
@@ -260,10 +262,10 @@ end
 This budget type has a matrix of rainfall energy units, representing the energy budget of each
 subcommunity in the abiotic environment at a fixed point in time.
 """
-mutable struct WaterBudget <: AbstractBudget{typeof(1.0*mm)}
-  matrix::Array{typeof(1.0*mm), 2}
-  function WaterBudget(mat::Array{typeof(1.0*mm), 2})
-    mat[isnan.(mat)] .=  0*mm
+mutable struct WaterBudget <: AbstractBudget{typeof(1.0mm)}
+  matrix::Matrix{typeof(1.0mm)}
+  function WaterBudget(mat::Matrix{typeof(1.0mm)})
+    mat[isnan.(mat)] .=  0.0mm
     return new(mat)
   end
 end
@@ -324,8 +326,8 @@ This budget type has a matrix of water volumes, representing the energy budget o
 subcommunity in the abiotic environment at a fixed point in time.
 """
 mutable struct VolWaterBudget <: AbstractBudget{typeof(1.0*m^3)}
-  matrix::Array{typeof(1.0*m^3), 2}
-  function VolWaterBudget(mat::Array{typeof(1.0*m^3), 2})
+  matrix::Matrix{typeof(1.0*m^3)}
+  function VolWaterBudget(mat::Matrix{typeof(1.0*m^3)})
     mat[isnan.(mat)] .=  0*m^3
     return new(mat)
   end

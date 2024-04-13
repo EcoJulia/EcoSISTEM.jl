@@ -222,7 +222,12 @@ end
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
   numSpecies = counttypes(eco.spplist)
   gridSize = _countsubcommunities(eco.abenv.habitat)
-  abun = Array{Int64, 4}(undef, numSpecies, gridSize, times, reps)
+  return Array{Int64, 4}(undef, numSpecies, gridSize, times, reps)
+end
+
+function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
+    gridSize = _countsubcommunities(eco.abenv.habitat)
+    return Array{Float64, 4}(undef, gridSize, qs, times, reps)
 end
 
 """

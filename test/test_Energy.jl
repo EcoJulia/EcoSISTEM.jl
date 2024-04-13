@@ -1,3 +1,5 @@
+module TestEnergy
+
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 using AxisArrays
@@ -67,7 +69,7 @@ using EcoSISTEM.Units
     @test length(req) == length(energy_vec1.energy)
 
     # Test SimpleBudget
-    bud = Array{Float64, 2}(undef, 2, 2)
+    bud = Matrix{Float64}(undef, 2, 2)
     fill!(bud, 100.0)
     @test_nowarn SimpleBudget(bud)
     bud = SimpleBudget(bud)
@@ -174,5 +176,7 @@ end
     @test EcoSISTEM._getbudget(bud) ==  bud.matrix
     @test eltype(bud) == eltype(bud.matrix)
     @test EcoSISTEM._getavailableenergy(bud) == sum(bud.matrix)
+
+end
 
 end

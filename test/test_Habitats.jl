@@ -1,3 +1,5 @@
+module TestHabitats
+
 using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
@@ -91,4 +93,6 @@ using AxisArrays
     hab.h2.time = 2
     EcoSISTEM._resettime!(hab)
     @test hab.h2.time == 1
+end
+
 end

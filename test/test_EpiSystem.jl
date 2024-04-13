@@ -1,3 +1,5 @@
+module TestEpiSystem
+
 using EcoSISTEM
 using Test
 using Distributions
@@ -7,7 +9,7 @@ using EcoSISTEM.Units
 include("TestCases.jl")
 
 @testset "Episystem" begin
-    epi = TestEpiSystem()
+    epi = Test1EpiSystem()
 
     @test sum(epi.abundances.matrix, dims = 2)[:, 1] == epi.spplist.species.abun
     @test_nowarn gettraitrel(epi)
@@ -45,4 +47,6 @@ include("TestCases.jl")
         @test loaded_epi isa Ecosystem
         rm("testepi.jlso") # Delete temporary file
     end
+end
+
 end

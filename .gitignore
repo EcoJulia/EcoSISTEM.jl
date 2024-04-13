@@ -141,3 +141,5 @@ __pycache__/
 
 # Simple SDM data
 assets/
+/Manifest.toml
+/.fair

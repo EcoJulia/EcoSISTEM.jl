@@ -1,20 +1,8 @@
-using ..MPI
+using EcoSISTEM
+using MPI
+using Random
 
-"""
-    MPIGridLandscape
-
-MPIEcosystem abundances housed in the landscape, shared across multiple nodes.
-
-"""
-mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple} <: AbstractLandscape
-  rows_matrix::Matrix{Int64}
-  cols_vector::Vector{Int64}
-  reshaped_cols::Vector{RA}
-  rows_tuple::NT
-  cols_tuple::NT
-  rngs::Vector{MersenneTwister}
-
-  function MPIGridLandscape(sppcounts::Vector{Int32}, sccounts::Vector{Int32}, rows_matrix::Matrix{Int64}, cols_vector::Vector{Int64})
+function EcoSISTEM.MPIGridLandscape(sppcounts::Vector{Int32}, sccounts::Vector{Int32}, rows_matrix::Matrix{Int64}, cols_vector::Vector{Int64})
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
     totalspp = sum(sppcounts)
@@ -42,10 +30,9 @@ mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple} <: A
     (cols.last - cols.first + 1) * rows.total == length(cols_vector) ||
       error("cols_vector size mismatch: $(cols.last - cols.first + 1) * $(rows.total) !=$(length(cols_vector))")
 
-    return new{typeof(reshaped_cols[1]), typeof(rows)}(rows_matrix,
+    return MPIGridLandscape{typeof(reshaped_cols[1]), typeof(rows)}(rows_matrix,
       cols_vector, reshaped_cols, rows, cols,
       [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()])
-  end
 end
 
 """
@@ -53,7 +40,7 @@ end
 
 Function to create an empty MPIGridLandscape given information about the MPI setup.
 """
-function emptyMPIgridlandscape(sppcounts::Vector{Int32},
+function EcoSISTEM.emptyMPIgridlandscape(sppcounts::Vector{Int32},
                                sccounts::Vector{Int32})
   rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
@@ -63,13 +50,13 @@ function emptyMPIgridlandscape(sppcounts::Vector{Int32},
   return MPIGridLandscape(sppcounts, sccounts, rows_matrix, cols_vector)
 end
 
-function synchronise_from_rows!(ml::MPIGridLandscape)
+function EcoSISTEM.synchronise_from_rows!(ml::MPIGridLandscape)
   MPI.Alltoallv!(MPI.VBuffer(ml.rows_matrix, ml.rows_tuple.counts),
                  MPI.VBuffer(ml.cols_vector, ml.cols_tuple.counts),
                  MPI.COMM_WORLD)
 end
 
-function synchronise_from_cols!(ml::MPIGridLandscape)
+function EcoSISTEM.synchronise_from_cols!(ml::MPIGridLandscape)
   MPI.Alltoallv!(MPI.VBuffer(ml.cols_vector, ml.cols_tuple.counts),
                  MPI.VBuffer(ml.rows_matrix, ml.rows_tuple.counts),
                  MPI.COMM_WORLD)

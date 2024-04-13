@@ -25,6 +25,7 @@ mutable struct Lookup
   pnew::Vector{Float64}
   moves::Vector{Int64}
 end
+
 Lookup(df::DataFrame) = Lookup(df[!, :X], df[!, :Y], df[!, :Prob],
 zeros(Float64, nrow(df)),zeros(Int64, nrow(df)))
 
@@ -33,7 +34,7 @@ zeros(Float64, nrow(df)),zeros(Int64, nrow(df)))
 
 SpeciesLookup holds `Lookup` information for each species in a vector, `species`.
 """
-mutable struct SpeciesLookup  <: AbstractLookup
+mutable struct SpeciesLookup <: AbstractLookup
     species::Vector{Lookup}
 end
 

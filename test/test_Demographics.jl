@@ -1,3 +1,5 @@
+module TestDemographics
+
 using EcoSISTEM
 using Unitful.DefaultSymbols
 using Test
@@ -33,4 +35,6 @@ import EcoSISTEM.equalpop
     @test length(equalparams.birth) == numSpecies
     @test all(equalparams.birth .== birth)
     @test all(equalparams.death .== death)
+end
+
 end
