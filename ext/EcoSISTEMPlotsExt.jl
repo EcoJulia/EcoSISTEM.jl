@@ -1,10 +1,11 @@
 module EcoSISTEMPlotsExt
 
-using EcoSISTEM, EcoSISTEM.ClimatePref
+using Unitful, Unitful.DefaultSymbols
+using EcoSISTEM, EcoSISTEM.ClimatePref, EcoSISTEM.Units
 using RecipesBase
-using Unitful
-using Unitful.DefaultSymbols
 # import Plots: px
+
+@info "Creating Plots recipes for EcoSISTEM..."
 
 # Recipe for plotting ERA data from a particular time period.
 @recipe function f(era::EcoSISTEM.ERA, time::Unitful.Time)
@@ -35,8 +36,7 @@ using Unitful.DefaultSymbols
     return x, y, A
 end
 
-@recipe function f(era::EcoSISTEM.ERA, time::Unitful.Time, xmin::typeof(1.0°),
-                   xmax::typeof(1.0°), ymin::typeof(1.0°), ymax::typeof(1.0°))
+@recipe function f(era::EcoSISTEM.ERA, time::Unitful.Time, xrange, yrange)
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
     ind = round(Int64, (tm - yr) / (1 / 12))
@@ -55,11 +55,11 @@ end
         "Nov",
         "Dec"
     ][ind + 1]
-    A = transpose(ustrip.(era.array[xmin .. xmax, ymin .. ymax, time]))
+    A = transpose(ustrip.(era.array[xrange, yrange, time]))
     step1 = ustrip(era.array.axes[1].val[2] - era.array.axes[1].val[1])
     step2 = ustrip(era.array.axes[2].val[2] - era.array.axes[2].val[1])
-    x = (ustrip.(xmin) + step1):step1:(ustrip.(xmax) - step1)
-    y = (ustrip.(ymin) + step1):step1:(ustrip.(ymax))
+    x = ustrip(xrange.left):step1:ustrip(xrange.right)
+    y = ustrip(yrange.left):step2:ustrip(yrange.right)
     seriestype := :heatmap
     grid --> false
     title --> "$yr $mnth"

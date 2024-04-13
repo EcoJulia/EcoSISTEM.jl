@@ -30,6 +30,11 @@ git-tree-sha1 = "8168d1cea4d02ae2a36022d8d681d94cbcd69b47"
 uuid = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
 version = "0.10.2"
 
+[[deps.ArgCheck]]
+git-tree-sha1 = "a3a402a35a2f7e0b87828ccabbd5ebfbebe356b4"
+uuid = "dce04be8-c92d-5529-be00-80e4d2c0e197"
+version = "2.3.0"
+
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 version = "1.1.1"
@@ -397,7 +402,7 @@ uuid = "a58aae7d-b440-5a11-b283-399458f99aac"
 version = "0.1.6"
 
 [[deps.EcoSISTEM]]
-deps = ["ArchGDAL", "AxisArrays", "Calculus", "DataFrames", "Dates", "Distributions", "Diversity", "EcoBase", "Feather", "HCubature", "IndexedTables", "Interpolations", "JLD2", "LibGit2", "Libdl", "LinearAlgebra", "Logging", "Markdown", "Measures", "Missings", "NetCDF", "OnlineStats", "Optim", "Phylo", "Printf", "REPL", "Random", "RasterDataSources", "RecipesBase", "SHA", "SpatialEcology", "Statistics", "StatsBase", "Tar", "UUIDs", "Unitful"]
+deps = ["ArchGDAL", "AxisArrays", "Calculus", "DataFrames", "Dates", "Distributions", "Diversity", "EcoBase", "Feather", "HCubature", "IndexedTables", "Interpolations", "JLD2", "LibGit2", "Libdl", "LinearAlgebra", "Logging", "Markdown", "Measures", "Missings", "NetCDF", "OnlineStats", "Optim", "Phylo", "Printf", "REPL", "Random", "RasterDataSources", "RecipesBase", "SHA", "SpatialEcology", "Statistics", "StatsBase", "UUIDs", "Unitful", "ZipArchives"]
 path = ".."
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 version = "0.2.0"
@@ -1950,6 +1955,12 @@ deps = ["Base64", "Dates", "Printf", "StringEncodings"]
 git-tree-sha1 = "e6330e4b731a6af7959673621e91645eb1356884"
 uuid = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 version = "0.4.9"
+
+[[deps.ZipArchives]]
+deps = ["ArgCheck", "CodecZlib", "PrecompileTools", "TranscodingStreams", "Zlib_jll"]
+git-tree-sha1 = "df68e2a6e6c6b668b140efd64c6bbcecf3a5080e"
+uuid = "49080126-0e18-4c2a-b176-c102e4b3760c"
+version = "2.1.0"
 
 [[deps.ZipFile]]
 deps = ["Libdl", "Printf", "Zlib_jll"]

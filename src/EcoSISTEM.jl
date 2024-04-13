@@ -8,11 +8,11 @@ include("ClimatePref/ClimatePref.jl")
 
 # DataPipeline extension
 """
-    EcoSISTEM.unzip(path::String)
+    EcoSISTEM.unziptemp(path::String)
 
-Helper function for the FAIR Data Pipeline to unzip files that are stored as zips.
+Helper function for the FAIR Data Pipeline to unzip files that are stored as zips to a temporary folder.
 """
-function unzip end
+function unziptemp end
 
 include("Dist.jl")
 export Trapezoid
