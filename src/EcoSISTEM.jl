@@ -1,12 +1,18 @@
 module EcoSISTEM
 
-include("units.jl")
+# EcoSISTEM.Units sub-module
+include("Units/Units.jl")
 
-module ClimatePref
-
+# EcoSISTEM.ClimatePref sub-module
 include("ClimatePref/ClimatePref.jl")
 
-end
+# DataPipeline extension
+"""
+    EcoSISTEM.unziptemp(path::String)
+
+Helper function for the FAIR Data Pipeline to unzip files that are stored as zips to a temporary folder.
+"""
+function unziptemp end
 
 include("Dist.jl")
 export Trapezoid

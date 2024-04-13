@@ -2,9 +2,9 @@ module Units
 
 import Unitful
 using Unitful: @unit, uconvert
-day = Unitful.d
-week = Unitful.wk
-year = Unitful.yr
+const day = Unitful.d
+const week = Unitful.wk
+const year = Unitful.yr
 @unit month "month" Month uconvert(Unitful.s, year / 12) false
 
 const days = day
@@ -25,6 +25,7 @@ const November = 10months
 const December = 11months
 
 const localunits = Unitful.basefactors
+
 function __init__()
     merge!(Unitful.basefactors, localunits)
     return Unitful.register(Units)

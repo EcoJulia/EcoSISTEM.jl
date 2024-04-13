@@ -1,16 +1,25 @@
 module EcoSISTEMDataPipelineExt
 
-using DataPipeline
 using EcoSISTEM
-using EcoSISTEM.ClimatePref
-using Tar
+using ZipArchives
 
-@info "Creating data pipeline interface ..."
+@info "Creating data pipeline interface for EcoSISTEM..."
 
-function EcoSISTEM.ClimatePref.unzip(path::String)
-    newpath = joinpath(splitpath(path)[1:(end - 1)])
-    Tar.extract(path, newpath)
-    @info "Unzipped to $newpath"
+function EcoSISTEM.unziptemp(path::String)
+    zr = ZipReader(read(open(path)))
+    newpath = mktempdir()
+    files = zip_names(zr)
+    for file in files
+        if zip_isdir(zr, file)
+            mkdir(joinpath(newpath, file))
+        end
+    end
+    for file in files
+        if !zip_isdir(zr, file)
+            write(joinpath(newpath, file), zip_readentry(zr, file, String))
+        end
+    end
+    @debug "Unzipped to $newpath"
     return newpath
 end
 

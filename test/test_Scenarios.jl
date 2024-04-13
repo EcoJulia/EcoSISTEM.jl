@@ -1,4 +1,4 @@
-module TestScenario
+module TestScenarios
 
 using EcoSISTEM
 using Test

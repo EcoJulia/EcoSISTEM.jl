@@ -1,4 +1,4 @@
-module TestMPI
+module ExtEcoSISTEMMPIExt
 
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -102,28 +102,26 @@ end
     isdir("data") || mkdir("data")
     testdir = @__DIR__
     # Compare 1 thread 4 processes vs. 4 threads 1 process vs. 2 threads 2 processes
-    mpiexec() do mpirun
-        withenv("JULIA_NUM_THREADS" => "4") do
-            nprocs = 1
-            function cmd(n = nprocs)
-                return `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
-            end
-            @test success(run(cmd()))
+    withenv("JULIA_NUM_THREADS" => "4") do
+        nprocs = 1
+        function cmd(n = nprocs)
+            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
         end
-        withenv("JULIA_NUM_THREADS" => "2") do
-            nprocs = 2
-            function cmd(n = nprocs)
-                return `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
-            end
-            @test success(run(cmd()))
+        @test success(run(cmd()))
+    end
+    withenv("JULIA_NUM_THREADS" => "2") do
+        nprocs = 2
+        function cmd(n = nprocs)
+            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
         end
-        withenv("JULIA_NUM_THREADS" => "1") do
-            nprocs = 4
-            function cmd(n = nprocs)
-                return `$mpirun -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
-            end
-            @test success(run(cmd()))
+        @test success(run(cmd()))
+    end
+    withenv("JULIA_NUM_THREADS" => "1") do
+        nprocs = 4
+        function cmd(n = nprocs)
+            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
         end
+        @test success(run(cmd()))
     end
 
     ## All answers should be the same
