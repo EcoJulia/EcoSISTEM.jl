@@ -11,7 +11,9 @@ using HDF5
 
 Function to process Met Office data and transform to same projection / resolution as Scottish demographics.
 """
-function processMet(dir::String, param::String, xmin::Float64 = 5513.0, xmax::Float64 = 470513.0, ymin::Float64 = 530301.5, ymax::Float64 = 1220302.0, res::Int64 = 1000)
+function processMet(dir::String, param::String, xmin::Float64 = 5513.0,
+                    xmax::Float64 = 470513.0, ymin::Float64 = 530301.5,
+                    ymax::Float64 = 1220302.0, res::Int64 = 1000)
     # Alter projection of netcdf data and resample to BNG
     @rput xmin xmax ymin ymax res
     @rput dir
@@ -33,15 +35,16 @@ function processMet(dir::String, param::String, xmin::Float64 = 5513.0, xmax::Fl
     @rget newdat
     @rget x y
     # Reshape output and add units
-    xs = (xmin+res/2:res:xmax)  .* m
+    xs = ((xmin + res / 2):res:xmax) .* m
     ys = (ymin:res:ymax) .* m
     reshaped_dat = reshape(newdat', y, x)
     reshaped_dat = reshaped_dat[:, end:-1:1]
     reshaped_dat = hcat(reshaped_dat, fill(missing, y))
-    reshaped_dat = replace(reshaped_dat, missing=>NaN)
+    reshaped_dat = replace(reshaped_dat, missing => NaN)
     units = ncgetatt(dir, param, "units")
     units = unitdict[units]
-    uk = AxisArray(reshaped_dat .* units, Axis{:longitude}(xs), Axis{:latitude}(ys))
+    uk = AxisArray(reshaped_dat .* units, Axis{:longitude}(xs),
+                   Axis{:latitude}(ys))
     return uk
 end
 
@@ -50,14 +53,16 @@ end
 
 Function to process several files of Met Office data and transform to same projection / resolution as Scottish demographics, and join them together in a 3D AxisArray.
 """
-function processMet(dir::String, file::String, param::String, dim::Vector{T}) where T <: Unitful.Time
+function processMet(dir::String, file::String, param::String,
+                    dim::Vector{T}) where {T <: Unitful.Time}
     filenames = searchdir(dir, file)
     newmet = Array{AxisArray, 1}(undef, length(filenames))
     for i in eachindex(filenames)
         newmet[i] = processMet(joinpath(dir, filenames[i]), param)
     end
-    catmet = cat(dims=3, newmet ...)
-    catmet = AxisArray(catmet, Axis{:longitude}(catmet.axes[1]), Axis{:latitude}(catmet.axes[2]), Axis{:day}(dim))
+    catmet = cat(dims = 3, newmet...)
+    catmet = AxisArray(catmet, Axis{:longitude}(catmet.axes[1]),
+                       Axis{:latitude}(catmet.axes[2]), Axis{:day}(dim))
     return catmet
 end
 
@@ -66,22 +71,17 @@ end
 
 Function to write 3D AxisArray of Met Office climate data `climatearray` to a HDF5 file at outputfile `h5fn` for a specified parameter name `param`.
 """
-function writeMet(climatearray::AxisArray, param::String, h5fn=pwd())
-    axes = (
-        x = string.(axisvalues(climatearray)[1]),
-        y = string.(axisvalues(climatearray)[2]),
-        times = string.(axisvalues(climatearray)[3]),
-        units = string.(unit(climatearray[1]))
-
-    )
+function writeMet(climatearray::AxisArray, param::String, h5fn = pwd())
+    axes = (x = string.(axisvalues(climatearray)[1]),
+            y = string.(axisvalues(climatearray)[2]),
+            times = string.(axisvalues(climatearray)[3]),
+            units = string.(unit(climatearray[1])))
 
     # - initialise HDF5 file
     h5open(h5fn, "w") do fid
         # - create group
         group = g_create(fid, "climate")
-        attrs(group)["Description"] = string(
-            "Contains climate information for each geographic location and time slice."
-        )
+        attrs(group)["Description"] = string("Contains climate information for each geographic location and time slice.")
         group[param] = ustrip.(climatearray)
 
         # fill in axes information

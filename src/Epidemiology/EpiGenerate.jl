@@ -21,21 +21,27 @@ function epi_update!(epi::Ecosystem, timestep::Unitful.Time)
 
     # Update environment - habitat and energy budgets
     habitatupdate!(epi, timestep)
-    applycontrols!(epi, timestep)
+    return applycontrols!(epi, timestep)
 end
 
-function seedinfected!(epi::Ecosystem, controls::NoControl, timestep::Unitful.Time)
+function seedinfected!(epi::Ecosystem, controls::NoControl,
+                       timestep::Unitful.Time)
     return controls
 end
 
-function seedinfected!(epi::Ecosystem, controls::Lockdown, timestep::Unitful.Time)
+function seedinfected!(epi::Ecosystem, controls::Lockdown,
+                       timestep::Unitful.Time)
     rng = epi.abundances.rngs[Threads.threadid()]
-    if (epi.cache.initial_infected > 0) && (controls.current_date < controls.lockdown_date)
-        inf = rand(rng, Poisson(epi.cache.initial_infected * timestep /controls.lockdown_date))
+    if (epi.cache.initial_infected > 0) &&
+       (controls.current_date < controls.lockdown_date)
+        inf = rand(rng,
+                   Poisson(epi.cache.initial_infected * timestep /
+                           controls.lockdown_date))
         sus_id = sample(epi.spplist.species.susceptible, inf)
         exp_id = sus_id .+ length(epi.spplist.species.susceptible)
         summed_exp = sum(host(epi.abundances)[exp_id, :], dims = 1)[1, :]
-        pos = sample(rng, epi.cache.ordered_active, weights(summed_exp[epi.cache.ordered_active]), inf)
+        pos = sample(rng, epi.cache.ordered_active,
+                     weights(summed_exp[epi.cache.ordered_active]), inf)
         for i in 1:inf
             if (host(epi.abundances)[sus_id[i], pos[i]] > 0)
                 host(epi.abundances)[sus_id[i], pos[i]] -= 1
@@ -61,14 +67,17 @@ function virusupdate!(epi::Ecosystem, timestep::Unitful.Time)
 
     # Convert 1D dimension to 2D coordinates with convert_coords(epi, j, width)
     # Check which grid cells are active, only iterate along those
-    activejindices = findall(j -> epi.abenv.active[convert_coords(epi, j, width)...], 1:dims)
+    activejindices = findall(j -> epi.abenv.active[convert_coords(epi, j,
+                                                                  width)...],
+                             1:dims)
     # Loop through grid squares
     function firstloop(i)
         for j in activejindices
             # Calculate how much birth and death should be adjusted
 
             # Calculate effective rates
-            birthrate = params.virus_growth[i] * timestep * host(epi.abundances)[i, j]
+            birthrate = params.virus_growth[i] * timestep *
+                        host(epi.abundances)[i, j]
             births = rand(rng, Poisson(birthrate))
 
             # Spread force of infection over space
@@ -110,25 +119,26 @@ function virusupdate!(epi::Ecosystem, timestep::Unitful.Time)
         deaths = rand(rng, Binomial(virus(epi.abundances)[1, j], deathprob))
 
         # Force of infection on average around half of timestep in environment
-        survivalprob = exp(-deathrate/2.0)
+        survivalprob = exp(-deathrate / 2.0)
 
         # So this much force of infection survives in the environment
-        env_virus = rand(rng, Binomial(Int(sum(vm)), survivalprob * params.env_virus_scale))
+        env_virus = rand(rng,
+                         Binomial(Int(sum(vm)),
+                                  survivalprob * params.env_virus_scale))
 
         # Now update virus in environment and force of infection
         virus(epi.abundances)[1, j] += env_virus - deaths
-        virus(epi.abundances)[force_cats, j] .= vm
+        return virus(epi.abundances)[force_cats, j] .= vm
     end
-
 
     jindices = 1:size(epi.cache.virusmigration, 2)
     threadedjindices = [jindices[j:Threads.nthreads():end]
                         for j in 1:Threads.nthreads()]
     @assert all(sort(unique(vcat(threadedjindices...))) .== jindices)
     Threads.@threads for jrange in threadedjindices
-       for j in jrange
-           secondloop(j)
-       end
+        for j in jrange
+            secondloop(j)
+        end
     end
 end
 
@@ -136,7 +146,7 @@ end
     sum_pop(m::Matrix{Int64}, i::Int64)
 Function to sum a population matrix, `m`, without memory allocation, at a grid location `i`.
 """
-function sum_pop(m::Matrix{R}, i::Int64) where R <: Real
+function sum_pop(m::Matrix{R}, i::Int64) where {R <: Real}
     n = zero(R)
     @inbounds for j in 1:size(m, 1)
         n += m[j, i]
@@ -144,14 +154,13 @@ function sum_pop(m::Matrix{R}, i::Int64) where R <: Real
     return n
 end
 
-function sum_pop(v::Vector{R}) where R <: Real
+function sum_pop(v::Vector{R}) where {R <: Real}
     n = zero(R)
     @inbounds for i in 1:length(v)
         n += v[i]
     end
     return n
 end
-
 
 """
     classupdate!(epi::Ecosystem, timestep::Unitful.Time)
@@ -169,79 +178,89 @@ function classupdate!(epi::Ecosystem, timestep::Unitful.Time)
 
     # Convert 1D dimension to 2D coordinates with convert_coords(epi, j, width)
     # Check which grid cells are active, only iterate along those
-    activejindices = findall(j->epi.abenv.active[convert_coords(epi, j, width)...], 1:dims)
-    threadedjindices = [activejindices[j:Threads.nthreads():end] for j in 1:Threads.nthreads()]
+    activejindices = findall(j -> epi.abenv.active[convert_coords(epi, j,
+                                                                  width)...],
+                             1:dims)
+    threadedjindices = [activejindices[j:Threads.nthreads():end]
+                        for j in 1:Threads.nthreads()]
     @assert all(sort(unique(vcat(threadedjindices...))) .== activejindices)
-    Threads.@threads for jrange in threadedjindices; for j in jrange
-        # will result +=/-= 0 at end of inner loop, so safe to skip
-        iszero(sum_pop(host(epi.abundances), j)) && continue
+    Threads.@threads for jrange in threadedjindices
+        for j in jrange
+            # will result +=/-= 0 at end of inner loop, so safe to skip
+            iszero(sum_pop(host(epi.abundances), j)) && continue
 
-        rng = epi.abundances.rngs[Threads.threadid()]
-        N = sum_pop(epi.abundances.matrix, j)
-        # Loop through classes in chosen square
-        for i in classes
-            # Births
-            births = rand(rng, Binomial(host(epi.abundances)[i, j],
-                                        params.births[i] * timestep))
-            host(epi.abundances)[1, j] += births
+            rng = epi.abundances.rngs[Threads.threadid()]
+            N = sum_pop(epi.abundances.matrix, j)
+            # Loop through classes in chosen square
+            for i in classes
+                # Births
+                births = rand(rng,
+                              Binomial(host(epi.abundances)[i, j],
+                                       params.births[i] * timestep))
+                host(epi.abundances)[1, j] += births
 
-            # Note - transpose transition matrices makes iteration over k faster
-            # Calculate force of inf and env inf
-            for k in 1:size(params.transition_virus, 1)
-                # Skip if there are no people in k at location j
-                iszero(host(epi.abundances)[k, j]) && continue
-                # Skip if there are no transitions from k to i
-                params.transition[i, k] +
+                # Note - transpose transition matrices makes iteration over k faster
+                # Calculate force of inf and env inf
+                for k in 1:size(params.transition_virus, 1)
+                    # Skip if there are no people in k at location j
+                    iszero(host(epi.abundances)[k, j]) && continue
+                    # Skip if there are no transitions from k to i
+                    params.transition[i, k] +
                     params.transition_virus[i, k] +
                     params.transition_force[i, k] > zero(inv(timestep)) ||
-                    continue
+                        continue
 
-                k_age_cat = host_to_force[k]
+                    k_age_cat = host_to_force[k]
 
-                # Environmental infection rate from k to i
-                env_inf = virus(epi.abundances)[1, j] /
-                    (N^params.freq_vs_density_env)
+                    # Environmental infection rate from k to i
+                    env_inf = virus(epi.abundances)[1, j] /
+                              (N^params.freq_vs_density_env)
 
-                # Direct transmission infection rate from k to i
-                force_inf = (params.age_mixing[k_age_cat, :] ⋅
-                             virus(epi.abundances)[force_cats, j]) /
-                    (N^params.freq_vs_density_force)
+                    # Direct transmission infection rate from k to i
+                    force_inf = (params.age_mixing[k_age_cat, :] ⋅
+                                 virus(epi.abundances)[force_cats, j]) /
+                                (N^params.freq_vs_density_force)
 
-                # Add to baseline transitional probabilities from k to i
-                trans_val = params.transition[i, k] +
-                    params.transition_virus[i, k] * env_inf +
-                    params.transition_force[i, k] * force_inf
-                trans_prob = 1.0 - exp(-trans_val * timestep)
+                    # Add to baseline transitional probabilities from k to i
+                    trans_val = params.transition[i, k] +
+                                params.transition_virus[i, k] * env_inf +
+                                params.transition_force[i, k] * force_inf
+                    trans_prob = 1.0 - exp(-trans_val * timestep)
 
-                # Skip if probability is zero
-                iszero(trans_prob) && continue
+                    # Skip if probability is zero
+                    iszero(trans_prob) && continue
 
-                # Make transitions
-                trans = rand(rng,
-                             Binomial(host(epi.abundances)[k, j], trans_prob))
-                host(epi.abundances)[i, j] += trans
-                host(epi.abundances)[k, j] -= trans
+                    # Make transitions
+                    trans = rand(rng,
+                                 Binomial(host(epi.abundances)[k, j],
+                                          trans_prob))
+                    host(epi.abundances)[i, j] += trans
+                    host(epi.abundances)[k, j] -= trans
+                end
             end
         end
-    end; end
-
+    end
 end
 
 """
     populate!(ml::EpiLandscape, spplist::SpeciesList, abenv::EE, rel::R)
 Function to populate an EpiLandscape with information on each disease class in the SpeciesList.
 """
-function populate!(ml::EpiLandscape, spplist::SpeciesList, abenv::EE, rel::R) where {EE <: AbstractEpiEnv, R <: AbstractTraitRelationship}
+function populate!(ml::EpiLandscape, spplist::SpeciesList, abenv::EE,
+                   rel::R) where {EE <: AbstractEpiEnv,
+                                  R <: AbstractTraitRelationship}
     dim = _getdimension(abenv.habitat)
     len = dim[1] * dim[2]
 
     rng = ml.rngs[Threads.threadid()]
     # Loop through classes
     for i in eachindex(spplist.species.abun)
-        rand!(rng, Multinomial(spplist.species.abun[i], len), (@view ml.matrix[i, :]))
+        rand!(rng, Multinomial(spplist.species.abun[i], len),
+              (@view ml.matrix[i, :]))
     end
     for i in eachindex(spplist.pathogens.abun)
-        rand!(rng, Multinomial(spplist.pathogens.abun[i], len), (@view ml.matrix_v[i, :]))
+        rand!(rng, Multinomial(spplist.pathogens.abun[i], len),
+              (@view ml.matrix_v[i, :]))
     end
 end
 
@@ -250,14 +269,16 @@ end
 Function to apply control strategies to an Ecosystem for one timestep.
 """
 function applycontrols!(epi::AbstractEcosystem, timestep::Unitful.Time)
-    _applycontrols!(epi, epi.abenv.control, timestep)
+    return _applycontrols!(epi, epi.abenv.control, timestep)
 end
 
-function _applycontrols!(epi::AbstractEcosystem, controls::NoControl, timestep::Unitful.Time)
+function _applycontrols!(epi::AbstractEcosystem, controls::NoControl,
+                         timestep::Unitful.Time)
     return controls
 end
 
-function _applycontrols!(epi::AbstractEcosystem, controls::Lockdown, timestep::Unitful.Time)
+function _applycontrols!(epi::AbstractEcosystem, controls::Lockdown,
+                         timestep::Unitful.Time)
     if controls.current_date >= controls.lockdown_date
         epi.spplist.species.region_balance .= 0.0
         controls.current_date += timestep
@@ -272,13 +293,15 @@ end
 
 Function to calculate the movement of force of infection `id` from a given position in the landscape `pos`, using the lookup table found in the Ecosystem and updating the movement patterns on a cached grid, `grd`. The number of new virus is provided, so that movement only takes place as part of the generation process.
 """
-function virusmove!(epi::AbstractEcosystem, id::Int64, pos::Int64, grd::Array{Float64, 2}, newvirus::Int64)
+function virusmove!(epi::AbstractEcosystem, id::Int64, pos::Int64,
+                    grd::Array{Float64, 2}, newvirus::Int64)
     # Add in local movements
     localmoves = epi.lookup.locallookup
     local_scale = newvirus * epi.spplist.species.local_balance[id]
     if local_scale > zero(local_scale)
-        for nzi in localmoves.colptr[pos]:(localmoves.colptr[pos+1]-1)
-            grd[id, localmoves.rowval[nzi]] += local_scale * localmoves.nzval[nzi]
+        for nzi in localmoves.colptr[pos]:(localmoves.colptr[pos + 1] - 1)
+            grd[id, localmoves.rowval[nzi]] += local_scale *
+                                               localmoves.nzval[nzi]
         end
     end
 
@@ -286,30 +309,31 @@ function virusmove!(epi::AbstractEcosystem, id::Int64, pos::Int64, grd::Array{Fl
     regionmoves = epi.lookup.regionlookup
     region_scale = newvirus * epi.spplist.species.region_balance[id]
     if region_scale > zero(region_scale)
-        for nzi in regionmoves.colptr[pos]:(regionmoves.colptr[pos+1]-1)
-            grd[id, regionmoves.rowval[nzi]] += region_scale * regionmoves.nzval[nzi]
+        for nzi in regionmoves.colptr[pos]:(regionmoves.colptr[pos + 1] - 1)
+            grd[id, regionmoves.rowval[nzi]] += region_scale *
+                                                regionmoves.nzval[nzi]
         end
     end
 
     return epi
 end
 
-
 """
     ukChange(epi::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
 
 Function to step the uk climate forward by one timestep. Will repeat if time counter becomes greater than the number of dimensions in the habitat.
 """
-function ukChange(epi::Ecosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
+function ukChange(epi::Ecosystem, hab::ContinuousTimeHab,
+                  timestep::Unitful.Time)
     daystep = uconvert(day, timestep)
-    hab.time += round(Int64, daystep/day)
+    hab.time += round(Int64, daystep / day)
     if hab.time > size(hab.matrix, 3)
         hab.time = 1
         @warn "More timesteps than available, have repeated"
     end
 end
 
-function quickmod(x::T, h::T) where {T<:Integer}
+function quickmod(x::T, h::T) where {T <: Integer}
     while !(-1 < x < h)
         if x <= -1
             x += h

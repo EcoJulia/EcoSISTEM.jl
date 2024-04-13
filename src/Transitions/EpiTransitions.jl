@@ -1,4 +1,4 @@
-const DayType = typeof(1.0/day)
+const DayType = typeof(1.0 / day)
 """
     ViralLoad <: AbstractStateTransition
 
@@ -139,7 +139,7 @@ end
 Generic function to extract a habitat matrix from any
 habitat type.
 """
-function get_env(habitat::A) where A <: AbstractHabitat
+function get_env(habitat::A) where {A <: AbstractHabitat}
     return habitat.matrix
 end
 
@@ -180,7 +180,7 @@ function update_virus_cache!(epi::Ecosystem)
             vm[host_to_force[i], j] += epi.cache.virusmigration[i, j]
         end
     end
-    virus(epi.abundances)[force_cats, :] .= vm
+    return virus(epi.abundances)[force_cats, :] .= vm
 end
 
 """
@@ -192,5 +192,5 @@ migration moves and invalidate all caches.
 function update_epi_environment!(epi::Ecosystem, timestep::Unitful.Time)
     update_virus_cache!(epi)
     # Invalidate all caches for next update
-    invalidatecaches!(epi)
+    return invalidatecaches!(epi)
 end

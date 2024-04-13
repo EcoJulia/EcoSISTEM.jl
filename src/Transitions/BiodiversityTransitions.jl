@@ -1,4 +1,4 @@
-const TimeType = typeof(1.0/year)
+const TimeType = typeof(1.0 / year)
 
 """
     BirthProcess <: AbstractStateTransition
@@ -11,13 +11,14 @@ mutable struct BirthProcess <: AbstractStateTransition
     location::Int64
     destination::Int64
     prob::TimeType
-    function BirthProcess(species::Int64, location::Int64, prob::T) where T
+    function BirthProcess(species::Int64, location::Int64, prob::T) where {T}
         prob = uconvert(unit(TimeType), prob)
-        new(species, location, species, prob)
+        return new(species, location, species, prob)
     end
-    function BirthProcess(species::Int64, location::Int64, destination::Int64, prob::T) where T
+    function BirthProcess(species::Int64, location::Int64, destination::Int64,
+                          prob::T) where {T}
         prob = uconvert(unit(TimeType), prob)
-        new(species, location, destination, prob)
+        return new(species, location, destination, prob)
     end
 end
 
@@ -32,13 +33,14 @@ mutable struct GenerateSeed <: AbstractStateTransition
     location::Int64
     destination::Int64
     prob::TimeType
-    function GenerateSeed(species::Int64, location::Int64, prob::T) where T
+    function GenerateSeed(species::Int64, location::Int64, prob::T) where {T}
         prob = uconvert(unit(TimeType), prob)
-        new(species, location, species, prob)
+        return new(species, location, species, prob)
     end
-    function GenerateSeed(species::Int64, location::Int64, destination::Int64, prob::T) where T
+    function GenerateSeed(species::Int64, location::Int64, destination::Int64,
+                          prob::T) where {T}
         prob = uconvert(unit(TimeType), prob)
-        new(species, location, destination, prob)
+        return new(species, location, destination, prob)
     end
 end
 
@@ -51,9 +53,9 @@ mutable struct DeathProcess <: AbstractStateTransition
     species::Int64
     location::Int64
     prob::TimeType
-    function DeathProcess(species::Int64, location::Int64, prob::T) where T
+    function DeathProcess(species::Int64, location::Int64, prob::T) where {T}
         prob = uconvert(unit(TimeType), prob)
-        new(species, location, prob)
+        return new(species, location, prob)
     end
 end
 
@@ -108,5 +110,5 @@ function update_environment!(eco::Ecosystem, timestep::Unitful.Time)
 
     # Update environment - habitat and energy budgets
     habitatupdate!(eco, timestep)
-    budgetupdate!(eco, timestep)
+    return budgetupdate!(eco, timestep)
 end

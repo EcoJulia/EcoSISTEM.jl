@@ -6,100 +6,178 @@ using RecipesBase
 @recipe function f(era::ERA, time::Unitful.Time)
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
-    ind = round(Int64, (tm - yr)/(1/12))
+    ind = round(Int64, (tm - yr) / (1 / 12))
     typeof(ind) <: Int64 || error("NO")
-    mnth = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][ind+1]
+    mnth = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+    ][ind + 1]
     A = transpose(ustrip.(era.array[:, :, time]))
     x = ustrip.(era.array.axes[1].val)
     y = ustrip.(era.array.axes[2].val)
-    seriestype  :=  :heatmap
+    seriestype := :heatmap
     grid --> false
     title --> "$yr $mnth"
-    x, y, A
+    return x, y, A
 end
 
 @recipe function f(era::ERA, time::Unitful.Time, xmin::typeof(1.0°),
-    xmax::typeof(1.0°), ymin::typeof(1.0°), ymax::typeof(1.0°))
+                   xmax::typeof(1.0°), ymin::typeof(1.0°), ymax::typeof(1.0°))
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
-    ind = round(Int64, (tm - yr)/(1/12))
+    ind = round(Int64, (tm - yr) / (1 / 12))
     typeof(ind) <: Int64 || error("NO")
-    mnth = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][ind+1]
+    mnth = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+    ][ind + 1]
     A = transpose(ustrip.(era.array[xmin .. xmax, ymin .. ymax, time]))
     step1 = ustrip(era.array.axes[1].val[2] - era.array.axes[1].val[1])
     step2 = ustrip(era.array.axes[2].val[2] - era.array.axes[2].val[1])
     x = (ustrip.(xmin) + step1):step1:(ustrip.(xmax) - step1)
-    y = (ustrip.(ymin)+ step1):step1:ustrip.(ymax)
-    seriestype  :=  :heatmap
+    y = (ustrip.(ymin) + step1):step1:(ustrip.(ymax))
+    seriestype := :heatmap
     grid --> false
     title --> "$yr $mnth"
-    x, y, A
+    return x, y, A
 end
 
 @recipe function f(cera::CERA, time::Unitful.Time)
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
-    ind = round(Int64, (tm - yr)/(1/12))
+    ind = round(Int64, (tm - yr) / (1 / 12))
     typeof(ind) <: Int64 || error("NO")
-    mnth = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][ind + 1]
+    mnth = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+    ][ind + 1]
     A = transpose(ustrip.(cera.array[:, :, time + 1month]))
     x = ustrip.(cera.array.axes[1].val)
     y = ustrip.(cera.array.axes[2].val)
-    seriestype  :=  :heatmap
+    seriestype := :heatmap
     grid --> false
     title --> "$yr $mnth"
-    x, y, A
+    return x, y, A
 end
 
 @recipe function f(era::CERA, time::Unitful.Time, xmin::typeof(1.0°),
-    xmax::typeof(1.0°), ymin::typeof(1.0°), ymax::typeof(1.0°))
+                   xmax::typeof(1.0°), ymin::typeof(1.0°), ymax::typeof(1.0°))
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
-    ind = round(Int64, (tm - yr)/(1/12))
+    ind = round(Int64, (tm - yr) / (1 / 12))
     typeof(ind) <: Int64 || error("NO")
-    mnth = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][ind+1]
+    mnth = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+    ][ind + 1]
     A = transpose(ustrip.(era.array[xmin .. xmax, ymin .. ymax, time + 1month]))
     step1 = ustrip(era.array.axes[1].val[2] - era.array.axes[1].val[1])
     step2 = ustrip(era.array.axes[2].val[2] - era.array.axes[2].val[1])
-    x = (ustrip.(xmin) + step1):step1:ustrip.(xmax)
-    y = (ustrip.(ymin)+ step1):step1:ustrip.(ymax)
-    seriestype  :=  :heatmap
+    x = (ustrip.(xmin) + step1):step1:(ustrip.(xmax))
+    y = (ustrip.(ymin) + step1):step1:(ustrip.(ymax))
+    seriestype := :heatmap
     grid --> false
     title --> "$yr $mnth"
-    x, y, A
+    return x, y, A
 end
 
 @recipe function f(wc::Worldclim_monthly, time::Unitful.Time)
     ind = (time + 1month) / month
     typeof(ind) <: Int64 || error("NO")
-    mnth = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][ind]
+    mnth = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+    ][ind]
     A = transpose(ustrip.(wc.array[:, :, time + 1month]))
     x = ustrip.(AxisArrays.axes(wc.array, 1).val)
     y = ustrip.(AxisArrays.axes(wc.array, 2).val)
-    seriestype  :=  :heatmap
+    seriestype := :heatmap
     grid --> false
     background_color_inside --> :grey
     title --> "$mnth"
-    x, y, A
+    return x, y, A
 end
 
-@recipe function f(wc::Worldclim_monthly, time::Unitful.Time, xmin::typeof(1.0°),
-    xmax::typeof(1.0°), ymin::typeof(1.0°), ymax::typeof(1.0°))
+@recipe function f(wc::Worldclim_monthly, time::Unitful.Time,
+                   xmin::typeof(1.0°),
+                   xmax::typeof(1.0°), ymin::typeof(1.0°), ymax::typeof(1.0°))
     ind = (time + 1month) / month
     typeof(ind) <: Int64 || error("NO")
-    mnth = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][ind]
+    mnth = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+    ][ind]
     A = transpose(ustrip.(wc.array[xmin .. xmax, ymin .. ymax, time + 1month]))
     step1 = ustrip(wc.array.axes[1].val[2] - wc.array.axes[1].val[1])
     step2 = ustrip(wc.array.axes[2].val[2] - wc.array.axes[2].val[1])
-    x = (ustrip.(xmin)+ step1):step1:ustrip.(xmax)
-    y = (ustrip.(ymin) + step1):step1:ustrip.(ymax)
-    seriestype  :=  :heatmap
+    x = (ustrip.(xmin) + step1):step1:(ustrip.(xmax))
+    y = (ustrip.(ymin) + step1):step1:(ustrip.(ymax))
+    seriestype := :heatmap
     grid --> false
     background_color_inside --> :grey
     title --> "$mnth"
-    x, y, A
+    return x, y, A
 end
-
 
 """
     getprofile(spp_names::Vector{String}, data::IndexedTable, variable_name::String, dims::Tuple{Int64, Int64} = (1,1))

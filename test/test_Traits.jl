@@ -13,7 +13,7 @@ import EcoSISTEM: DiscreteTrait
 @testset "Traits" begin
     numSpecies = 10
     opts = fill(5.0°C, numSpecies)
-    vars = rand(Uniform(0, 25/9), numSpecies)  * °C
+    vars = rand(Uniform(0, 25 / 9), numSpecies) * °C
 
     @testset "gaussian trait" begin
         # Gaussian trait
@@ -38,15 +38,19 @@ import EcoSISTEM: DiscreteTrait
         @test_nowarn RainBin(fill(1, 10, 2))
         @test EcoSISTEM.iscontinuous(RainBin(fill(1, 10, 2))) == true
         @test eltype(RainBin(fill(1, 10, 2))) <: Unitful.Length
-        @test_nowarn TraitCollection2(TempBin(fill(1, 10, 2)), RainBin(fill(1, 10, 2)))
+        @test_nowarn TraitCollection2(TempBin(fill(1, 10, 2)),
+                                      RainBin(fill(1, 10, 2)))
     end
     @testset "multiple traits" begin
         # Multiple traits
         tr2 = TraitCollection2(TempBin(fill(1, 10, 2)), RainBin(fill(1, 10, 2)))
         @test EcoSISTEM.iscontinuous(tr2) == [true, true]
         @test eltype(tr2) == [typeof(1.0K), typeof(1.0mm)]
-        @test_nowarn TraitCollection3(GaussTrait(opts, vars), TempBin(fill(1, 10, 2)), RainBin(fill(1, 10, 2)))
-        tr3 = TraitCollection3(GaussTrait(opts, vars), TempBin(fill(1, 10, 2)), RainBin(fill(1, 10, 2)))
+        @test_nowarn TraitCollection3(GaussTrait(opts, vars),
+                                      TempBin(fill(1, 10, 2)),
+                                      RainBin(fill(1, 10, 2)))
+        tr3 = TraitCollection3(GaussTrait(opts, vars), TempBin(fill(1, 10, 2)),
+                               RainBin(fill(1, 10, 2)))
         @test EcoSISTEM.iscontinuous(tr3) == [true, true, true]
         @test eltype(tr3) == [typeof(1.0K), typeof(1.0K), typeof(1.0mm)]
     end

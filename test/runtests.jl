@@ -47,7 +47,7 @@ end
 
 extbase = map(file -> replace(file, r"ext_(.*).jl" => s"\1"),
               filter(str -> occursin(r"^ext_.*\.jl$", str), readdir()))
- 
+
 # Identify tests with no matching file
 superfluous = filter(f -> f ∉ filebase, extbase)
 if length(superfluous) > 0
@@ -107,8 +107,8 @@ end
 # test/pkg_Package.jl should validate results against the Package package
 
 pkgbase = map(file -> replace(file, r"pkg_(.*).jl$" => s"\1"),
-                   filter(str -> occursin(r"^pkg_.*\.jl$", str),
-                          readdir()))
+              filter(str -> occursin(r"^pkg_.*\.jl$", str),
+                     readdir()))
 
 if length(pkgbase) > 0
     @info "Cross validation packages:"
@@ -129,26 +129,13 @@ end
 @testset "Examples folder" begin
     println()
     @info "Running from examples folder ..."
-    Pkg.activate("../examples")
-    Pkg.instantiate()
-    Pkg.update()
-    example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
-                                           filter(str -> occursin(r"^test_.*\.jl$", str),
-                                           readdir("../examples/")))
-    for t in example_testbase
-        fn = "../examples/test_$t.jl"
-        println("    * Testing $t.jl ...")
-        include(fn)
-    end
-end
-
-@testset "Examples folder" begin
-    println()
-    @info "Running from examples folder ..."
     Pkg.activate("../examples/Transitions")
     Pkg.instantiate()
-    transition_example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),                        filter(str -> occursin(r"^test_.*\.jl$", str),
-                                    readdir("../examples/Transitions")))
+    transition_example_testbase = map(file -> replace(file,
+                                                      r"test_(.*).jl" => s"\1"),
+                                      filter(str -> occursin(r"^test_.*\.jl$",
+                                                             str),
+                                             readdir("../examples/Transitions")))
     for t in transition_example_testbase
         fn = "../examples/Transitions/test_$t.jl"
         println("    * Testing $t.jl ...")
@@ -156,8 +143,9 @@ end
     end
     Pkg.activate("../examples/Biodiversity")
     Pkg.instantiate()
-    biod_example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),                        filter(str -> occursin(r"^test_.*\.jl$", str),
-                                    readdir("../examples/Biodiversity")))
+    biod_example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
+                                filter(str -> occursin(r"^test_.*\.jl$", str),
+                                       readdir("../examples/Biodiversity")))
     for t in biod_example_testbase
         fn = "../examples/Biodiversity/test_$t.jl"
         println("    * Testing $t.jl ...")
@@ -165,8 +153,9 @@ end
     end
     Pkg.activate("../examples/Epidemiology")
     Pkg.instantiate()
-    epi_example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),                        filter(str -> occursin(r"^test_.*\.jl$", str),
-                                    readdir("../examples/Epidemiology")))
+    epi_example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
+                               filter(str -> occursin(r"^test_.*\.jl$", str),
+                                      readdir("../examples/Epidemiology")))
     for t in epi_example_testbase
         fn = "../examples/Epidemiology/test_$t.jl"
         println("    * Testing $t.jl ...")

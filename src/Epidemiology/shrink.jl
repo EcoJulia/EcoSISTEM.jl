@@ -8,7 +8,9 @@ defined by `active`. Returns the shrunk matrix.
 If `active is not provided, automatically determines the active region by masking out
 entries which are `NaN` or `missing`.
 """
-function shrink_to_active(M::AM, active::A) where {AM <: AbstractMatrix, A <: AbstractMatrix{<: Bool}}
+function shrink_to_active(M::AM,
+                          active::A) where {AM <: AbstractMatrix,
+                                            A <: AbstractMatrix{<:Bool}}
     if size(M) != size(active)
         throw(DimensionMismatch("size(M)=$(size(M)) != size(active)=$(size(active))"))
     end
@@ -46,7 +48,7 @@ function shrink_to_active(M::AM) where {AM <: AbstractMatrix}
 end
 
 function shrink_to_active(A::AA) where {AA <: AbstractArray}
-    M = dropdims(sum(Float64.(A), dims=3), dims=3)
+    M = dropdims(sum(Float64.(A), dims = 3), dims = 3)
     M[M .≈ 0.0] .= NaN
     active = .!_inactive.(M)
     return _shrink_to_active(A, active)
@@ -65,27 +67,25 @@ is an AxisArray. If `M` is a normal matrix, the axes of the returned AxisArray a
 selected coordinates.
 """
 function _construct_shrunk_matrix(M::Matrix, row_idxs, col_idxs)::AxisArray
-    return AxisArray(
-        M[row_idxs, col_idxs];
-        row_idxs=row_idxs,
-        col_idxs=col_idxs,
-    )
+    return AxisArray(M[row_idxs, col_idxs];
+                     row_idxs = row_idxs,
+                     col_idxs = col_idxs,)
 end
-function _construct_shrunk_matrix(M::AbstractMatrix, row_idxs, col_idxs)::AxisArray
-     return AxisArray(
-         M[row_idxs, col_idxs];
-         row_idxs=row_idxs,
-         col_idxs=col_idxs,
-     )
- end
+function _construct_shrunk_matrix(M::AbstractMatrix, row_idxs,
+                                  col_idxs)::AxisArray
+    return AxisArray(M[row_idxs, col_idxs];
+                     row_idxs = row_idxs,
+                     col_idxs = col_idxs,)
+end
 
-function _construct_shrunk_matrix(M::AxisArray{T, 3}, row_idxs, col_idxs)::AxisArray{T, 3} where T
+function _construct_shrunk_matrix(M::AxisArray{T, 3}, row_idxs,
+                                  col_idxs)::AxisArray{T, 3} where {T}
     return M[row_idxs, col_idxs, :]
 end
 
 function _construct_shrunk_matrix(M::AxisArray, row_idxs, col_idxs)::AxisArray
     return M[row_idxs, col_idxs]
- end
+end
 
 """
     function convert_population(
@@ -96,10 +96,8 @@ function _construct_shrunk_matrix(M::AxisArray, row_idxs, col_idxs)::AxisArray
 Convert population matrix to Int matrix by filling in the inactive area with 0 population
 and rounding the active area.
 """
-function convert_population(
-    initial_population::Matrix,
-    intnum::U = Int64(1)
-) where U <: Integer
+function convert_population(initial_population::Matrix,
+                            intnum::U = Int64(1)) where {U <: Integer}
     # Don't modify the arg
     initial_population = copy(initial_population)
     active = .!_inactive.(initial_population)
@@ -108,20 +106,16 @@ function convert_population(
     return initial_population
 end
 
-function convert_population(
-    initial_population::AxisArray,
-    intnum::U = Int64(1)
-) where U <: Integer
+function convert_population(initial_population::AxisArray,
+                            intnum::U = Int64(1)) where {U <: Integer}
     # Don't modify the arg
     initial_population = copy(initial_population)
     active = .!_inactive.(initial_population)
     # NOTE: this is a workaround as logical indexing directly on AxisArray leads to
     #   stackoverflow. see issue: https://github.com/JuliaArrays/AxisArrays.jl/issues/179
     initial_population.data[.!active] .= 0
-    return AxisArray(
-        U.(round.(initial_population.data)),
-        initial_population.axes
-    )
+    return AxisArray(U.(round.(initial_population.data)),
+                     initial_population.axes)
 end
 
 """
@@ -130,24 +124,18 @@ end
 Convert populatioin matrix to Int matrix by filling in the inactive area with 0 population
 and rounding the active area.
 """
-function _convert_population(
-    initial_population::Matrix{<:Real},
-    active::AbstractMatrix{Bool}
-)::Matrix{<:Int}
+function _convert_population(initial_population::Matrix{<:Real},
+                             active::AbstractMatrix{Bool})::Matrix{<:Int}
     initial_population[.!active] .= 0
     initial_population = Int.(round.(initial_population))
     return initial_population
 end
 
-function _convert_population(
-    initial_population::AxisArray{<:Real, 2},
-    active::AbstractMatrix{Bool}
-)::AxisArray{<:Int, 2}
+function _convert_population(initial_population::AxisArray{<:Real, 2},
+                             active::AbstractMatrix{Bool})::AxisArray{<:Int, 2}
     # NOTE: this is a workaround as logical indexing directly on AxisArray leads to
     #   stackoverflow. see issue: https://github.com/JuliaArrays/AxisArrays.jl/issues/179
     initial_population.data[.!active] .= 0
-    return AxisArray(
-            Int.(round.(initial_population.data)),
-            initial_population.axes
-        )
+    return AxisArray(Int.(round.(initial_population.data)),
+                     initial_population.axes)
 end

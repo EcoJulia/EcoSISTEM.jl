@@ -17,5 +17,5 @@ function save_epi(file, epi_path)
     global do_save = true
     global save_path = epi_path
     # run file to save epi
-    include(file)
+    return include(file)
 end

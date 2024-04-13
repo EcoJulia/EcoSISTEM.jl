@@ -26,29 +26,44 @@ include("TestCases.jl")
         @test_nowarn gethabitat(eco)
         @test gethabitat(eco) == eco.abenv.habitat
         @test_nowarn getsize(eco)
-        @test getsize(eco) == size(eco.abundances.matrix, 2) .* eco.abenv.habitat.size^2
+        @test getsize(eco) ==
+              size(eco.abundances.matrix, 2) .* eco.abenv.habitat.size^2
         @test_nowarn getgridsize(eco)
         @test getgridsize(eco) == eco.abenv.habitat.size
         @test_nowarn getdispersaldist(eco, 1)
-        @test getdispersaldist(eco, 1) == eco.spplist.species.movement.kernels[1].dist
+        @test getdispersaldist(eco, 1) ==
+              eco.spplist.species.movement.kernels[1].dist
         @test_nowarn getdispersaldist(eco, "1")
-        @test getdispersaldist(eco, "1") == eco.spplist.species.movement.kernels[1].dist
+        @test getdispersaldist(eco, "1") ==
+              eco.spplist.species.movement.kernels[1].dist
         @test_nowarn getdispersalvar(eco, 1)
         @test_nowarn getdispersalvar(eco, "1")
         @test EcoSISTEM.getlookup(eco, 1) == eco.lookup.species[1]
-        @test_nowarn resetrate!(eco, 0.1/s)
-        @test eco.abenv.habitat.change.rate == 0.1/s
+        @test_nowarn resetrate!(eco, 0.1 / s)
+        @test eco.abenv.habitat.change.rate == 0.1 / s
         @test_throws MethodError resettime!(eco)
     end
     @testset "movement types" begin
         # Test other movement types
         eco = Test1Ecosystem()
-        mov = AlwaysMovement(fill(LongTailKernel(10.0km, 10.0, 1e-10), length(eco.spplist.species.names)), eco.spplist.species.movement.boundary)
-        species = SpeciesTypes{typeof(eco.spplist.species.traits), typeof(eco.spplist.species.requirement), typeof(mov), typeof(eco.spplist.species.types)}(eco.spplist.species.names, eco.spplist.species.traits, eco.spplist.species.abun, eco.spplist.species.requirement, eco.spplist.species.types, mov, eco.spplist.species.native)
-        sppl = SpeciesList{typeof(species), NoPathogen, typeof(eco.spplist.params)}(species, NoPathogen(), eco.spplist.params)
+        mov = AlwaysMovement(fill(LongTailKernel(10.0km, 10.0, 1e-10),
+                                  length(eco.spplist.species.names)),
+                             eco.spplist.species.movement.boundary)
+        species = SpeciesTypes{typeof(eco.spplist.species.traits),
+                               typeof(eco.spplist.species.requirement),
+                               typeof(mov), typeof(eco.spplist.species.types)}(eco.spplist.species.names,
+                                                                               eco.spplist.species.traits,
+                                                                               eco.spplist.species.abun,
+                                                                               eco.spplist.species.requirement,
+                                                                               eco.spplist.species.types,
+                                                                               mov,
+                                                                               eco.spplist.species.native)
+        sppl = SpeciesList{typeof(species), NoPathogen,
+                           typeof(eco.spplist.params)}(species, NoPathogen(),
+                                                       eco.spplist.params)
         @test_nowarn Ecosystem(sppl, eco.abenv, eco.relationship)
     end
-    @testset "diversity"  begin
+    @testset "diversity" begin
         # Test Diversity get functions
         @test_nowarn getmetaabundance(eco)
         @test_nowarn getpartition(eco)

@@ -1,12 +1,13 @@
 function _compartment_idx(compartment, names)
     idx = findfirst(occursin.(compartment, names))
-    isnothing(idx) && throw(ArgumentError("Compartment $compartment not in $names"))
+    isnothing(idx) &&
+        throw(ArgumentError("Compartment $compartment not in $names"))
     return idx
 end
 
 function _default_steps(abuns)
     N_steps = size(abuns, 3)
-    return Int.(floor.(range(1, N_steps; length=4)))
+    return Int.(floor.(range(1, N_steps; length = 4)))
 end
 
 """
@@ -34,22 +35,16 @@ Plot heatmaps of `abuns` for `compartment` at `steps`.
 plot_epiheatmaps
 @userplot Plot_EpiHeatmaps
 function _check_args(h)
-    correct_args = (
-        length(h.args) == 2 &&
-        isa(h.args[1], AbstractEcosystem) &&
-        isa(h.args[2], AbstractArray{<:Integer, 3})
-    )
+    correct_args = (length(h.args) == 2 &&
+                    isa(h.args[1], AbstractEcosystem) &&
+                    isa(h.args[2], AbstractArray{<:Integer, 3}))
     if !correct_args
-        throw(ArgumentError(
-            "$(typeof(h)) requires (AbstractEcosystem, abuns); got: $(typeof(h.args))"
-        ))
+        throw(ArgumentError("$(typeof(h)) requires (AbstractEcosystem, abuns); got: $(typeof(h.args))"))
     end
 end
-@recipe function f(
-    h::Plot_EpiHeatmaps;
-    compartment="Exposed",
-    steps=[],
-)
+@recipe function f(h::Plot_EpiHeatmaps;
+                   compartment = "Exposed",
+                   steps = [],)
     _check_args(h)
     epi, abuns = h.args
     idx = _compartment_idx(compartment, epi.spplist.species.names)
@@ -64,7 +59,8 @@ end
     seriescolor --> :heat
 
     subplot = 1
-    gridsize = (size(epi.abenv.habitat.matrix, 1), size(epi.abenv.habitat.matrix, 2))
+    gridsize = (size(epi.abenv.habitat.matrix, 1),
+                size(epi.abenv.habitat.matrix, 2))
     for step in steps
         data = Float64.(reshape(abuns[idx, :, step], gridsize...))
         data[.!epi.abenv.active] .= NaN
@@ -116,7 +112,7 @@ Plot the dynamics of `abuns` summed over space, as a function of time.
 """
 plot_epidynamics
 @userplot Plot_EpiDynamics
-@recipe function f(h::Plot_EpiDynamics; category_map=nothing)
+@recipe function f(h::Plot_EpiDynamics; category_map = nothing)
     _check_args(h)
     epi, abuns = h.args
 

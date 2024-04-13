@@ -2,7 +2,6 @@ using Unitful
 using LinearAlgebra
 using DataFrames
 
-
 """
     EpiParams{U <: Unitful.Units} <: AbstractParams
 
@@ -20,17 +19,33 @@ mutable struct EpiParams{U <: Unitful.Units} <: AbstractParams
     freq_vs_density_env::Float64
     age_mixing::Matrix{Float64}
     env_virus_scale::Float64
-    function EpiParams{U}(transition_dat::DataFrame, births::Vector{TimeUnitType{U}}, virus_growth::Vector{TimeUnitType{U}},
-        virus_decay::TimeUnitType{U}, transition::Matrix{TimeUnitType{U}}, transition_force::Matrix{TimeUnitType{U}}, transition_virus::Matrix{TimeUnitType{U}}, freq_vs_density_force::Float64, freq_vs_density_env::Float64, age_mixing::Matrix{Float64}, env_virus_scale::Float64 = 1.0) where {U <: Unitful.Units}
-        size(transition, 1) == size(transition, 2) || error("Transition matrix should be square.")
-        size(transition, 1) == size(transition_virus, 1) || error("Transition matrices should match dimensions.")
-        size(transition_force, 1) == size(transition_virus, 1) || error("Transition matrices should match dimensions.")
-        new{U}(transition_dat, births, virus_growth, virus_decay, transition, transition_force, transition_virus, freq_vs_density_force, freq_vs_density_env, age_mixing, env_virus_scale)
+    function EpiParams{U}(transition_dat::DataFrame,
+                          births::Vector{TimeUnitType{U}},
+                          virus_growth::Vector{TimeUnitType{U}},
+                          virus_decay::TimeUnitType{U},
+                          transition::Matrix{TimeUnitType{U}},
+                          transition_force::Matrix{TimeUnitType{U}},
+                          transition_virus::Matrix{TimeUnitType{U}},
+                          freq_vs_density_force::Float64,
+                          freq_vs_density_env::Float64,
+                          age_mixing::Matrix{Float64},
+                          env_virus_scale::Float64 = 1.0) where {U <:
+                                                                 Unitful.Units}
+        size(transition, 1) == size(transition, 2) ||
+            error("Transition matrix should be square.")
+        size(transition, 1) == size(transition_virus, 1) ||
+            error("Transition matrices should match dimensions.")
+        size(transition_force, 1) == size(transition_virus, 1) ||
+            error("Transition matrices should match dimensions.")
+        return new{U}(transition_dat, births, virus_growth, virus_decay,
+                      transition, transition_force, transition_virus,
+                      freq_vs_density_force, freq_vs_density_env, age_mixing,
+                      env_virus_scale)
     end
 end
 
-
-function create_transition_matrix(params::NamedTuple, paramDat::DataFrame, age_categories::Int64, nclasses::Int64)
+function create_transition_matrix(params::NamedTuple, paramDat::DataFrame,
+                                  age_categories::Int64, nclasses::Int64)
     # Set up number of classes etc
     tm_size = age_categories * nclasses
     cat_idx = reshape(1:tm_size, age_categories, nclasses)
@@ -41,7 +56,7 @@ function create_transition_matrix(params::NamedTuple, paramDat::DataFrame, age_c
     # Death
     for i in 1:nclasses
         dmat = @view tmat[cat_idx[:, end], cat_idx[:, i]]
-        dmat[diagind(dmat)].= params.death[cat_idx[:, i]]
+        dmat[diagind(dmat)] .= params.death[cat_idx[:, i]]
     end
 
     # Other transitions
@@ -49,13 +64,15 @@ function create_transition_matrix(params::NamedTuple, paramDat::DataFrame, age_c
     from = paramDat[!, :from_ind]
     to = paramDat[!, :to_ind]
     for i in eachindex(to)
-            view_mat = @view tmat[cat_idx[:, to[i]], cat_idx[:, from[i]]]
-            view_mat[diagind(view_mat)] .= ordered_transitions[i]
+        view_mat = @view tmat[cat_idx[:, to[i]], cat_idx[:, from[i]]]
+        view_mat[diagind(view_mat)] .= ordered_transitions[i]
     end
     return tmat
 end
 
-function create_virus_matrix(beta::Vector{TimeUnitType{U}}, age_categories::Int64, nclasses::Int64) where U <: Unitful.Units
+function create_virus_matrix(beta::Vector{TimeUnitType{U}},
+                             age_categories::Int64,
+                             nclasses::Int64) where {U <: Unitful.Units}
     vm_size = age_categories * nclasses
     cat_idx = reshape(1:vm_size, age_categories, nclasses)
     vmat = zeros(eltype(beta), vm_size, vm_size)
@@ -63,11 +80,14 @@ function create_virus_matrix(beta::Vector{TimeUnitType{U}}, age_categories::Int6
     bmat[diagind(bmat)] .= beta
     return vmat
 end
-function create_virus_matrix(beta::TimeUnitType{U}, age_categories::Int64, nclasses::Int64) where U <: Unitful.Units
+function create_virus_matrix(beta::TimeUnitType{U}, age_categories::Int64,
+                             nclasses::Int64) where {U <: Unitful.Units}
     return create_virus_matrix([beta], age_categories, nclasses)
 end
 
-function create_virus_vector(virus_growth::Vector{TimeUnitType{U}}, age_categories::Int64, nclasses::Int64, inf_cat::Vector{Int64}) where U <: Unitful.Units
+function create_virus_vector(virus_growth::Vector{TimeUnitType{U}},
+                             age_categories::Int64, nclasses::Int64,
+                             inf_cat::Vector{Int64}) where {U <: Unitful.Units}
     vm_size = age_categories * nclasses
     cat_idx = reshape(1:vm_size, age_categories, nclasses)
     v_growth = zeros(eltype(virus_growth), vm_size)
@@ -75,7 +95,9 @@ function create_virus_vector(virus_growth::Vector{TimeUnitType{U}}, age_categori
     return v_growth
 end
 
-function create_virus_vector(virus_growth::Matrix{TimeUnitType{U}}, age_categories::Int64, nclasses::Int64, inf_cat::Vector{Int64}) where U <: Unitful.Units
+function create_virus_vector(virus_growth::Matrix{TimeUnitType{U}},
+                             age_categories::Int64, nclasses::Int64,
+                             inf_cat::Vector{Int64}) where {U <: Unitful.Units}
     vm_size = age_categories * nclasses
     cat_idx = reshape(1:vm_size, age_categories, nclasses)
     v_growth = zeros(eltype(virus_growth), vm_size)
@@ -83,8 +105,11 @@ function create_virus_vector(virus_growth::Matrix{TimeUnitType{U}}, age_categori
     return v_growth
 end
 
-function create_virus_vector(virus_growth::TimeUnitType{U}, age_categories::Int64, nclasses::Int64, inf_cat::Vector{Int64}) where U <: Unitful.Units
-    return create_virus_vector([virus_growth], age_categories, nclasses, inf_cat)
+function create_virus_vector(virus_growth::TimeUnitType{U},
+                             age_categories::Int64, nclasses::Int64,
+                             inf_cat::Vector{Int64}) where {U <: Unitful.Units}
+    return create_virus_vector([virus_growth], age_categories, nclasses,
+                               inf_cat)
 end
 
 """
@@ -92,7 +117,8 @@ end
 
 Function to create transition matrix from SIS parameters and return an `EpiParams` type that can be used by the model update.
 """
-function transition(params::NamedTuple, paramDat::DataFrame, nclasses::Int64, inf_cat = [2], age_categories = 1)
+function transition(params::NamedTuple, paramDat::DataFrame, nclasses::Int64,
+                    inf_cat = [2], age_categories = 1)
     # Check for missing params
     if !haskey(params, :freq_vs_density_force)
         params = (; params..., freq_vs_density_force = 1.0)
@@ -109,9 +135,11 @@ function transition(params::NamedTuple, paramDat::DataFrame, nclasses::Int64, in
 
     if paramDat[1, :from] == "Susceptible"
         new_paramDat = paramDat[2:end, :]
-        tmat = create_transition_matrix(params, new_paramDat, age_categories, nclasses)
+        tmat = create_transition_matrix(params, new_paramDat, age_categories,
+                                        nclasses)
     else
-        tmat = create_transition_matrix(params, paramDat, age_categories, nclasses)
+        tmat = create_transition_matrix(params, paramDat, age_categories,
+                                        nclasses)
     end
 
     # Env virus matrix
@@ -121,7 +149,16 @@ function transition(params::NamedTuple, paramDat::DataFrame, nclasses::Int64, in
     vfmat = create_virus_matrix(params.beta_force, age_categories, nclasses)
 
     # Virus growth and decay
-    v_growth = create_virus_vector(params.virus_growth, age_categories, nclasses, inf_cat)
+    v_growth = create_virus_vector(params.virus_growth, age_categories,
+                                   nclasses, inf_cat)
 
-  return EpiParams{typeof(unit(params.beta_force[1]))}(paramDat, params.birth[1:end], v_growth, params.virus_decay, tmat, vfmat, vmat, params.freq_vs_density_force, params.freq_vs_density_env, params.age_mixing, params.env_scale)
+    return EpiParams{typeof(unit(params.beta_force[1]))}(paramDat,
+                                                         params.birth[1:end],
+                                                         v_growth,
+                                                         params.virus_decay,
+                                                         tmat, vfmat, vmat,
+                                                         params.freq_vs_density_force,
+                                                         params.freq_vs_density_env,
+                                                         params.age_mixing,
+                                                         params.env_scale)
 end
