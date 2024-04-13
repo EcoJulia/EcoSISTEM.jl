@@ -13,6 +13,7 @@ if !Sys.iswindows()
         mkdir("assets")
         ENV["RASTERDATASOURCES_PATH"] = "assets"
         getraster(WorldClim{BioClim}, :bio1)
+        getraster(WorldClim{Climate}, :wind; month = 1:12)
         getraster(EarthEnv{LandCover})
     end
 

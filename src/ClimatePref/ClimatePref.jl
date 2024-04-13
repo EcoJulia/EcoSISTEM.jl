@@ -1,5 +1,3 @@
-@warn "This functionality remains under development!"
-
 include("ClimateTypes.jl")
 export Worldclim_monthly, Worldclim_bioclim, ERA, CERA, CRUTS, CHELSA_bioclim,
        CHELSA_monthly, Reference, Landcover
