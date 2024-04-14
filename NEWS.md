@@ -4,6 +4,7 @@
   - Require Julia v1.9 for extensions
   - Create package extensions
   - Update testing
+  - Fix plotting and unzipping code
 - v0.1.4
   - Add in Pluto example
   - Some Windows fixes
