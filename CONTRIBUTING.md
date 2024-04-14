@@ -8,9 +8,9 @@ Thanks for contributing to EcoSISTEM.jl! Please read the below on how best to ma
 
 2. Name the branch `username/featurename` and have fun!
 
-3. When your feature is ready to merge back into the `dev` branch create a PR against `boydorr/EcoSISTEM.jl` **and assign `boydorr/EcoSISTEM-admins` as reviewers**.
+3. When your feature is ready to merge back into the `dev` branch create a PR against `EcoJulia/EcoSISTEM.jl` **and assign `EcoJulia/EcoSISTEM-admins` as reviewers**.
 
-4. Semver will be handled in PRs from `dev` into `master`.
+4. Semver will be handled in PRs from `dev` into `main`.
 
 5. Thanks for your time and effort!
 
