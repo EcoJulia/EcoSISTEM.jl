@@ -94,48 +94,19 @@ export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun,
 
 using Random
 
-"""
-    MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
-
-MPIEcosystem abundances housed in the landscape, shared across multiple nodes.
-"""
-mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
-    rows_matrix::Matrix{Int64}
-    cols_vector::Vector{Int64}
-    reshaped_cols::Vector{RA}
-    rows_tuple::NT
-    cols_tuple::NT
-    rngs::Vector{MersenneTwister}
-end
-
-"""
-    MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic,
-                 SL <: SpeciesList, TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
-
-MPIEcosystem houses information on species and their interaction with their environment. It houses all information of a normal `Ecosystem` (see documentation for more details), with additional fields to describe which species are calculated on which machine. This includes: `sppcounts` - a vector of number of species per node, `firstsp` - the identity of the first species held by that particular node.
-"""
-mutable struct MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic,
-                            SL <: SpeciesList,
-                            TR <: AbstractTraitRelationship} <:
-               AbstractEcosystem{Part, SL, TR}
-    abundances::MPIGL
-    spplist::SL
-    abenv::Part
-    ordinariness::Union{Matrix{Float64}, Missing}
-    relationship::TR
-    lookup::Vector{Lookup}
-    sppcounts::Vector{Int32}
-    firstsp::Int64
-    sccounts::Vector{Int32}
-    firstsc::Int64
-    cache::Cache
-end
-
+abstract type MPIGridLandscape end
 export MPIGridLandscape
+
+abstract type MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic,
+                           SL <: SpeciesList,
+                           TR <: AbstractTraitRelationship} <:
+              AbstractEcosystem{Part, SL, TR} end
 export MPIEcosystem
+
 function gather_abundance end
 function gather_diversity end
 export gather_abundance, gather_diversity
+
 function emptyMPIgridlandscape end
 function synchronise_from_rows! end
 function synchronise_from_cols! end

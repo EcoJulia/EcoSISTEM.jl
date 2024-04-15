@@ -1,5 +1,7 @@
 # NEWS
 
+- v0.2.1
+  - Move MPI structs into extension
 - v0.2.0
   - Require Julia v1.9 for extensions
   - Create package extensions
