@@ -95,16 +95,18 @@ export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun,
 using Random
 
 abstract type MPIGridLandscape end
+export MPIGridLandscape
+
 abstract type MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic,
                            SL <: SpeciesList,
                            TR <: AbstractTraitRelationship} <:
               AbstractEcosystem{Part, SL, TR} end
-
-export MPIGridLandscape
 export MPIEcosystem
+
 function gather_abundance end
 function gather_diversity end
 export gather_abundance, gather_diversity
+
 function emptyMPIgridlandscape end
 function synchronise_from_rows! end
 function synchronise_from_cols! end
