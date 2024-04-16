@@ -17,16 +17,17 @@ struct Trapezoid{T <: Real} <: ContinuousUnivariateDistribution
     c::T
     d::T
 
-    Trapezoid{T}(a::T, b::T, c::T, d::T) where {T <: Real} = new{T}(a, b, c, d)
+    function Trapezoid(a::T, b::T, c::T, d::T;
+                       check_args::Bool = true) where {T <: Real}
+        @check_args Trapezoid (a<d)
+        return new{T}(a, b, c, d)
+    end
 end
-function Trapezoid(a::T, b::T, c::T, d::T;
-                   check_args::Bool = true) where {T <: Real}
-    @check_args Trapezoid (a<d)
-    return Trapezoid{T}(a, b, c, d)
-end
+
 function Trapezoid(a::Real, b::Real, c::Real, d::Real; check_args::Bool = true)
     return Trapezoid(promote(a, b, c, d)...; check_args = check_args)
 end
+
 function Trapezoid(a::Integer, b::Integer, c::Integer, d::Integer;
                    check_args::Bool = true)
     return Trapezoid(Float64(a), Float64(b),
