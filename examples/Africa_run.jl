@@ -25,7 +25,7 @@ using Diversity
 using Diversity.Ecology
 
 const AFRICA_FILE = joinpath(@__DIR__, "Africa.tif")
-const SAVEDIR = "/mnt/scratch/users/rer3h/outputs/Africa"
+const SAVEDIR = "/users/rer3h/localscratch/outputs/Africa"
 mkpath(SAVEDIR)
 
 function get_active_circle(africa, radius)
@@ -290,6 +290,7 @@ function specialist_vs_many(africa, active, num_species = 50_000;
     @time simulate!(eco, burnin, timestep)
     rand_start = rand(findall(active), 1)[1]
     eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
+    mkpath(joinpath(savedir, "specialist"))
     @time simulate!(eco, times, timestep, record_interval,
                     joinpath(savedir, "specialist"), "Africa_run")
     return nothing
@@ -352,6 +353,7 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     record_interval = 12months
     lensim = length((0years):record_interval:times)
     @time simulate!(eco, burnin, timestep)
+    mkpath(joinpath(savedir, "coexist"))
     @time simulate!(eco, times, timestep, record_interval,
                     joinpath(savedir, "coexist"), "Africa_run_coexist")
 
