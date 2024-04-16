@@ -3,16 +3,19 @@ Sys.total_memory() / 1e9 >= 100 ||
 
 #### SINGLE SPECIES ####
 
+using Unitful
+using Unitful.DefaultSymbols
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
-using Unitful
-using Unitful.DefaultSymbols
 using Distances
 using StatsBase
 using Plots
 using LinearAlgebra
 file = "Africa.tif"
+savedir = "/mnt/scratch/users/rer3h/outputs/Africa"
+mkpath(savedir)
+
 africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
 active = Matrix{Bool}(fill(0, size(africa)))
 
@@ -128,6 +131,7 @@ for i in eachindex(specialist_vars)
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, numSpecies)
     vars = [50.0K, specialist_vars[i]]
+    @info "Generalist $(vars[1]), specialist $(vard[2])"
     traits = GaussTrait(opts, vars)
     native = fill(true, numSpecies)
     # abun = rand(Multinomial(individuals, numSpecies))
@@ -153,7 +157,7 @@ for i in eachindex(specialist_vars)
     record_interval = 1month
     repeats = 1
     lensim = length((0years):record_interval:times)
-    simulate!(eco, burnin, timestep)
+    @time simulate!(eco, burnin, timestep)
     eco.abundances.grid[2, rand_start[1], rand_start[2]] = 100
     abuns = zeros(Int64, numSpecies, prod(grid), lensim)
     @time simulate_record!(abuns, eco, times, record_interval, timestep)
@@ -275,7 +279,7 @@ lensim = length((0years):record_interval:times)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
 @time simulate!(eco, times, timestep, record_interval,
-                "/home/claireh/sdc/Africa/specialist2", "Africa_run");
+                joinpath(savedir, "specialist2"), "Africa_run");
 
 #### 50,000 SPECIES COEXISTING #####
 
@@ -356,7 +360,7 @@ record_interval = 12months;
 lensim = length((0years):record_interval:times)
 @time simulate!(eco, burnin, timestep)
 @time simulate!(eco, times, timestep, record_interval,
-                "/home/claireh/sdc/Africa/coexist2", "Africa_run_coexist");
+                joinpath(savedir, "coexist2"), "Africa_run_coexist");
 
 using JLD2
 using Plots
