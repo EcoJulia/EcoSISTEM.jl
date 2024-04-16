@@ -129,7 +129,9 @@ end
 @testset "Examples folder" begin
     println()
     @info "Running from examples folder ..."
-    Pkg.activate("../examples")
+    Pkg.activate(EcoSISTEM.path(dir = "examples"))
+    Pkg.rm(PackageSpec("EcoSISTEM"))
+    Pkg.develop(PackageSpec(path = EcoSISTEM.path(dir = "")))
     Pkg.instantiate()
     Pkg.update()
     example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),
