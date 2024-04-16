@@ -48,7 +48,8 @@ end
 Run a single species model on a circle the size of Africa and save as
 a 100-year animated gif.
 """
-function run_single(africa, active)
+function run_single(africa, active;
+                    savedir = SAVEDIR)
 
     # Set up initial parameters for ecosystem
     num_species = 1
@@ -114,7 +115,7 @@ function run_single(africa, active)
                 background_color_outside = :white, grid = false,
                 color = cgrad(:algae, scale = :exp), aspect_ratio = 1)
     end
-    gif(anim, "Africa.gif", fps = 30)
+    gif(anim, joinpath(savedir, "Africa.gif"), fps = 30)
     return nothing
 end
 
@@ -124,7 +125,8 @@ end
 Run a model of a specialist invading a generalist on a circle the size of
 Africa and save as a pdf.
 """
-function specialist_vs_generalist(africa, active)
+function specialist_vs_generalist(africa, active;
+                                  savedir = SAVEDIR)
     specialist_vars = [0.5K, 1.0K, 5.0K, 10.0K, 25.0K, 50.0K]
     velocity = zeros(typeof(1.0km / year), length(specialist_vars))
     rand_start = rand(findall(active), 1)[1]
