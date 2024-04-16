@@ -1,4 +1,4 @@
-## Test an example runs using the examples project folder
+## Test an example run using the examples project folder
 
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -8,8 +8,6 @@ using Diversity
 using OnlineStats
 using Plots
 using Distributions
-using Diversity
-using Test
 
 ## DIFFERENT OPTS ##
 
@@ -63,4 +61,4 @@ times = 10years;
 timestep = 1month;
 lensim = length((0month):timestep:times)
 
-@test_nowarn simulate!(eco, times, timestep)
+simulate!(eco, times, timestep)

@@ -142,6 +142,6 @@ using Pkg
     for t in example_testbase
         fn = "../examples/test_$t.jl"
         println("    * Testing $t.jl ...")
-        include(fn)
+        @test_nowarn include(fn)
     end
 end
