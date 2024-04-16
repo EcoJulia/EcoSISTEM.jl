@@ -15,7 +15,7 @@ using Distances
 using StatsBase
 using Plots
 using LinearAlgebra
-file = "Africa.tif"
+file = joinpath(@__DIR__, "Africa.tif")
 savedir = "/mnt/scratch/users/rer3h/outputs/Africa"
 mkpath(savedir)
 
