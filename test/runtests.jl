@@ -1,6 +1,5 @@
 using Random
 using Test
-using Pkg
 
 # Identify files in test/ that are testing matching files in src/
 #  - src/Source.jl will be matched by test/test_Source.jl
@@ -126,11 +125,14 @@ if length(pkgbase) > 0
     end
 end
 
+using EcoSISTEM
+using Pkg
+
 @testset "Examples folder" begin
     println()
     @info "Running from examples folder ..."
     Pkg.activate(EcoSISTEM.path(dir = "examples"))
-    Pkg.rm(PackageSpec("EcoSISTEM"))
+    Pkg.rm("EcoSISTEM")
     Pkg.develop(PackageSpec(path = EcoSISTEM.path(dir = "")))
     Pkg.instantiate()
     Pkg.update()
