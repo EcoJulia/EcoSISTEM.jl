@@ -4,3 +4,4 @@
 assets/
 Manifest.toml
 /.fair
+/.JuliaFormatter.toml
