@@ -63,7 +63,7 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
 
                 # Calculate moves and write to cache
                 EcoSISTEM.move!(eco, eco.spplist.movement, sc, truesp,
-                      eco.cache.netmigration, births)
+                                eco.cache.netmigration, births)
             end
         end
     end
@@ -212,7 +212,8 @@ end
 function EcoSISTEM.populate!(ml::MPIGridLandscape,
                              spplist::EcoSISTEM.SpeciesList,
                              abenv::EcoSISTEM.GridAbioticEnv{H,
-                                                   BudgetCollection2{B1, B2}},
+                                                             BudgetCollection2{B1,
+                                                                               B2}},
                              rel::R) where {H <: AbstractHabitat,
                                             B1 <: AbstractBudget,
                                             B2 <: AbstractBudget,

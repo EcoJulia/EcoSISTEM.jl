@@ -46,7 +46,8 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                           sccounts::Vector,
                           firstsc::Int64,
                           cache::EcoSISTEM.Cache) where {MPIGL, Part, SL, TR}
-        EcoSISTEM.tematch(spplist, abenv) || error("Traits do not match habitats")
+        EcoSISTEM.tematch(spplist, abenv) ||
+            error("Traits do not match habitats")
         EcoSISTEM.trmatch(spplist, relationship) ||
             error("Traits do not match trait functions")
         #_mcmatch(abundances.matrix, spplist, abenv) ||
