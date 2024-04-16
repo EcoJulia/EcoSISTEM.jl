@@ -25,12 +25,14 @@ jobs:
           arch: x64
       - name: Install dependencies
         run: |
-            import Pkg
-            Pkg.update()
+            using Pkg
+            Pkg.develop(PackageSpec(path=pwd()))
+            Pkg.add("Documenter")
+            Pkg.instantiate()
         shell: julia --project=docs --color=yes {0}
       - name: Build and deploy
         run: |
-          julia --project=docs/ --color=yes docs/make.jl
+          julia --project=docs --color=yes docs/make.jl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}

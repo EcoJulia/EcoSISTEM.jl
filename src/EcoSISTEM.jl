@@ -1,5 +1,8 @@
 module EcoSISTEM
 
+# Path into package
+path(path...; dir::String = "test") = joinpath(@__DIR__, "..", dir, path...)
+
 # EcoSISTEM.Units sub-module
 include("Units/Units.jl")
 

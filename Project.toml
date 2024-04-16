@@ -1,7 +1,7 @@
 name = "EcoSISTEM"
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 authors = ["Claire Harris <claire.harris@bioss.ac.uk>", "Richard Reeve <Richard.Reeve@glasgow.ac.uk>"]
-version = "0.2.1"
+version = "0.2.2"
 
 [deps]
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"

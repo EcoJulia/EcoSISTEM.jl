@@ -1,5 +1,7 @@
 # NEWS
 
+- v0.2.2
+  - Remove all manifests and associated code
 - v0.2.1
   - Move MPI structs into extension
 - v0.2.0

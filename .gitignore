@@ -2,5 +2,5 @@
 *.jl.*.cov
 *.jl.mem
 assets/
-/Manifest.toml
+Manifest.toml
 /.fair
