@@ -25,7 +25,7 @@ using Diversity
 using Diversity.Ecology
 
 const AFRICA_FILE = joinpath(@__DIR__, "Africa.tif")
-const SAVEDIR = "/users/rer3h/localscratch/outputs/Africa"
+const SAVEDIR = "/mnt/data/project0000/outputs/Africa_run"
 mkpath(SAVEDIR)
 
 function get_active_circle(africa, radius)
