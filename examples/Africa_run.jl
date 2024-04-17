@@ -1,7 +1,7 @@
 @info "Total Memory: $(Sys.total_memory() / 2^30)GB"
 
-Sys.total_memory() / 1e9 >= 100 ||
-    error("You do not have enough memory to run these examples!")
+@assert (Sys.total_memory() / 2^30) >= 100 ||
+        "You do not have enough memory to run these examples!"
 
 @info "Num threads: $(Threads.nthreads())"
 
@@ -415,16 +415,20 @@ heatmap(ACTIVE)
 
 #### SINGLE SPECIES ####
 @info "Run a single species"
+flush(stdout)
 run_single(AFRICA_TIF, ACTIVE)
 
 #### SPECIALIST VERSUS GENERALIST ####
 @info "Run a single specialist against a generalist"
+flush(stdout)
 specialist_vs_generalist(AFRICA_TIF, ACTIVE)
 
 #### SPECIALIST VERSUS MANY GENERALISTS ####
 @info "Run a single specialist against many generalists"
+flush(stdout)
 specialist_vs_many(AFRICA_TIF, ACTIVE)
 
 #### 50,000 SPECIES COEXISTING #####
 @info "Run many generalists"
+flush(stdout)
 run_many(AFRICA_TIF, ACTIVE)
