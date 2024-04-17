@@ -359,8 +359,8 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
 
     @load joinpath(savedir, "coexist", "Africa_run_coexist100.jld2") abun
     meta = Metacommunity(abun)
-    div = norm_sub_alpha(meta, 0)
-    sumabuns = reshape(div[!, :diversity], 100, 100)
+    diver = norm_sub_alpha(meta, 0)
+    sumabuns = reshape(diver[!, :diversity], 100, 100)
 
     heatmap(sumabuns,
             grid = false, color = :algae,
@@ -370,8 +370,8 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
 
     @load joinpath(savedir, "specialist", "Africa_run50.jld2") abun
     meta = Metacommunity(abun)
-    div = norm_sub_alpha(meta, 0)
-    sumabuns = reshape(div[!, :diversity], 100, 100)
+    diver = norm_sub_alpha(meta, 0)
+    sumabuns = reshape(diver[!, :diversity], 100, 100)
     heatmap!(sumabuns,
              background_color = :lightblue,
              background_color_outside = :white,
@@ -382,8 +382,8 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
 
     @load joinpath(savedir, "specialist", "Africa_run100.jld2") abun
     meta = Metacommunity(abun)
-    div = norm_sub_alpha(meta, 0)
-    sumabuns = reshape(div[!, :diversity], 100, 100)
+    diver = norm_sub_alpha(meta, 0)
+    sumabuns = reshape(diver[!, :diversity], 100, 100)
     heatmap!(sumabuns,
              background_color = :lightblue,
              background_color_outside = :white,
