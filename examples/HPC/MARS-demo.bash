@@ -24,5 +24,4 @@ export OMP_NUM_THREADS=1
 export JULIA_NUM_THREADS=128
 
 ############# MY CODE #############
-mkdir -p ~/localscratch/outputs
 julia --project=examples examples/Africa_run.jl

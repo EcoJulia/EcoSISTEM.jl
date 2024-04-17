@@ -1,7 +1,6 @@
 @info "Total Memory: $(Sys.total_memory() / 2^30)GB"
 
-@assert (Sys.total_memory() / 2^30) >= 100 ||
-        "You do not have enough memory to run these examples!"
+@assert (Sys.total_memory() / 2^30)>=100 "You do not have enough memory to run these examples!"
 
 @info "Num threads: $(Threads.nthreads())"
 
