@@ -22,7 +22,7 @@ comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 rank == 0 && println("using: $((time() - start) * s)")
 totMPI = MPI.Comm_size(comm)
-io = open(joinpath(SAVEPATH, "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
+io = open(joinpath(SAVEDIR, "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
           write = true)
 write(io,
       "rank $rank / $totMPI: $(Threads.nthreads()) threads @ $((time() - start) * s)\n")
@@ -74,7 +74,7 @@ rank == 0 && println("Startup: $((time() - start) * s)")
 # Create ecosystem
 eco = MPIEcosystem(sppl, abenv, rel)
 
-io = open(joinpath(SAVEPATH, "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
+io = open(joinpath(SAVEDIR, "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
           append = true)
 sppcounts = sum(eco.abundances.rows_matrix, dims = 2)
 write(io,
@@ -96,7 +96,7 @@ one = time_ns()
 val = simulate!(eco, burnin, timestep)
 two = time_ns()
 
-io = open(joinpath(SAVEPATH, "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
+io = open(joinpath(SAVEDIR, "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
           append = true)
 write(io,
       "time = $(convert(typeof(1.0s), (two - one) * ns)) @ $((time() - start) * s)\n")
@@ -110,7 +110,7 @@ one = time_ns()
 val = @timed simulate!(eco, burnin, timestep)
 two = time_ns()
 
-io = open(joinpath(SAVEPATH, "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
+io = open(joinpath(SAVEDIR, "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
           append = true)
 write(io, "$val @ $((time() - start) * s)\n")
 write(io, "time = $(convert(typeof(1.0s), (two - one) * ns))\n")
