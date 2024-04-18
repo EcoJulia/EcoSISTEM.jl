@@ -1,10 +1,5 @@
 @info "Total Memory: $(Sys.total_memory() / 2^30)GB"
-
 @info "Num threads: $(Threads.nthreads())"
-
-# Instantiate current environment just in case
-import Pkg
-Pkg.instantiate()
 
 start = time()
 using EcoSISTEM
