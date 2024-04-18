@@ -16,9 +16,7 @@
 ############# LOADING MODULES (optional) #############
 module load apps/julia
 module load mpi/openmpi
-cd examples
-julia --project -e 'using MPIPreferences; MPIPreferences.use_system_binary()'
-cd ..
+julia --project=examples -e 'using Pkg; Pkg.instantiate(); Pkg.build("MPI"); using MPI; MPI.install_mpiexecjl(destdir = "bin", force = true)'
 
 ############# ENVIRONMENT #############
 # Set the number of OpenMP threads to 1 to prevent
@@ -28,4 +26,4 @@ export OMP_NUM_THREADS=1
 export JULIA_NUM_THREADS=8
 
 ############# MY CODE #############
-srun -N 4 -n 32 julia --project=examples examples/HPC/MPIRun.jl
+bin/mpiexecjl --project=examples -N 4 -n 32 julia --project=examples examples/HPC/MPIRun.jl
