@@ -4,3 +4,5 @@
 assets/
 Manifest.toml
 /.fair
+/.JuliaFormatter.toml
+/examples/bin/mpiexecjl

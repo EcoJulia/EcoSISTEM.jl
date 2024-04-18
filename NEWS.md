@@ -2,6 +2,7 @@
 
 - v0.2.2
   - Remove all manifests and associated code
+  - Fix MPI example on HPC
 - v0.2.1
   - Move MPI structs into extension
 - v0.2.0
