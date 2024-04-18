@@ -9,7 +9,7 @@ using Diversity
 using JLD2
 using Test
 
-nthread = Threads.nthreads()
+nt = Threads.nthreads()
 @info "Total Memory: $(Sys.total_memory() / 2^30)GB"
 @info "Num threads: $nt"
 
@@ -110,7 +110,7 @@ if rank == 0
     print("$(rank):")
     println(true_abuns)
     isdir("data") || mkdir("data")
-    @save "data/Test_abuns"*"$nthread.jld2" abuns=true_abuns
+    @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
 end
 
 water_vec = WaterRequirement(fill(2.0mm, numSpecies))
@@ -179,7 +179,7 @@ if rank == 0
     print("$(rank):")
     println(true_abuns)
     isdir("data") || mkdir("data")
-    @save "data/Test_abuns"*"$nthread.jld2" abuns=true_abuns
+    @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
 end
 
 if !MPI.Finalized()
