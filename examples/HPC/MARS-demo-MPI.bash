@@ -15,6 +15,7 @@
 
 ############# LOADING MODULES (optional) #############
 module load apps/julia
+module load mpi/openmpi
 
 ############# ENVIRONMENT #############
 # Set the number of OpenMP threads to 1 to prevent
@@ -24,4 +25,4 @@ export OMP_NUM_THREADS=1
 export JULIA_NUM_THREADS=8
 
 ############# MY CODE #############
-julia --project=examples examples/HPC/MPIRun.jl
+mpirun -ppn 8 -n 32 julia --project=examples examples/HPC/MPIRun.jl
