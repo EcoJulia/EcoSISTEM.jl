@@ -28,4 +28,4 @@ export OMP_NUM_THREADS=1
 export JULIA_NUM_THREADS=8
 
 ############# MY CODE #############
-mpirun -N 8 -n 32 julia --project=examples examples/HPC/MPIRun.jl
+srun -N 8 -n 32 julia --project=examples examples/HPC/MPIRun.jl
