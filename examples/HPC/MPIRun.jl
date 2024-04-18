@@ -1,3 +1,6 @@
+using Pkg
+Pkg.instantiate()
+
 @info "Total Memory: $(Sys.total_memory() / 2^30)GB"
 @info "Num threads: $(Threads.nthreads())"
 

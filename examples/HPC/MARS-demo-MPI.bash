@@ -17,7 +17,7 @@
 module load apps/julia
 module load mpi/openmpi
 cd examples
-julia --project -e 'using Pkg; Pkg.instantiate(); using MPIPreferences; MPIPreferences.use_system_binary()'
+julia --project -e 'using MPIPreferences; MPIPreferences.use_system_binary()'
 cd ..
 
 ############# ENVIRONMENT #############

@@ -15,9 +15,6 @@
 
 ############# LOADING MODULES (optional) #############
 module load apps/julia
-cd examples
-julia --project -e 'using Pkg; Pkg.instantiate()'
-cd ..
 
 ############# ENVIRONMENT #############
 # Set the number of OpenMP threads to 1 to prevent
