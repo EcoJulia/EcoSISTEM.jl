@@ -9,18 +9,21 @@ using Diversity
 using JLD2
 using Test
 
+nthread = Threads.nthreads()
+@info "Total Memory: $(Sys.total_memory() / 2^30)GB"
+@info "Num threads: $nt"
+
 # Set up MPI and print threads
 if !MPI.Initialized()
     MPI.Init()
 end
-nthread = Threads.nthreads()
+
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
-println("Num threads: $nthread")
 
 # Set up initial parameters for ecosystem
 numSpecies = 8;
-grid = (2, 2);
+grid = (4, 4);
 req = 10.0kJ;
 individuals = 1_000;
 area = 100.0 * km^2;
