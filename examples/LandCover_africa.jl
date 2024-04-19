@@ -16,16 +16,16 @@ if !isdir("assets")
 end
 ENV["RASTERDATASOURCES_PATH"] = "assets"
 getraster(EarthEnv{LandCover})
-world = readlc("assets/EarthEnv/LandCover/without_DISCover/", -180.0°, 180.0°,
-               -56.0°, 90.0°)
-world = compressLC(world)
+worldlc = readlc("assets/EarthEnv/LandCover/without_DISCover/", -180.0°, 180.0°,
+                 -56.0°, 90.0°)
+world = compressLC(worldlc)
 africa_lc = world[-25° .. 50°, -35° .. 40°]
 bio_africa_lc = Landcover(africa_lc)
 heatmap(africa_lc')
 
 getraster(WorldClim{BioClim})
-world = readbioclim("assets/WorldClim/BioClim/")
-africa_water = world.array[-25° .. 50°, -35° .. 40°, 13]
+worldbc = readbioclim("assets/WorldClim/BioClim/")
+africa_water = worldbc.array[-25° .. 50°, -35° .. 40°, 13]
 africa_water = upresolution(africa_water, 2)
 africa_water = Worldclim_bioclim(AxisArray(africa_water .* mm,
                                            AxisArrays.axes(africa_water)))
@@ -117,5 +117,5 @@ heatmap!(africa_endabun', clim = (0, maximum(abuns)),
 africa_lc = Float64.(africa_lc.data)
 africa_lc[.!active] .= NaN
 heatmap!(africa_lc', grid = false, subplot = 3, title = "Land Cover")
-africa_water = world.array[-25° .. 50°, -35° .. 40°, 12]
+africa_water = world[-25° .. 50°, -35° .. 40°]
 heatmap!(africa_water', grid = false, subplot = 4, title = "Precipitation")

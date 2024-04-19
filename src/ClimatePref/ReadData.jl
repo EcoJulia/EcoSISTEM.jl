@@ -342,7 +342,7 @@ function readCHELSA_monthly(dir::String, var_name::String,
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
-        return downresolution!(b, a, count, res, fn)
+        return downresolution!(b, a, count, res, fn = fn)
     end
     lat, long = size(b, 1), size(b, 2)
     unit = VARDICT[var_name]
@@ -391,7 +391,7 @@ function readCHELSA_bioclim(dir::String,
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
-        return downresolution!(b, a, count, res, fn)
+        return downresolution!(b, a, count, res, fn = fn)
     end
     lat, long = size(b, 1), size(b, 2)
     unit = 1.0
@@ -443,7 +443,7 @@ function readlc(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
-        return downresolution!(b, a, count, res, fn)
+        return downresolution!(b, a, count, res, fn = fn)
     end
     lat, long = size(b, 1), size(b, 2)
     step_lat = (xmax - xmin) / lat

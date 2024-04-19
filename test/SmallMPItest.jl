@@ -9,9 +9,8 @@ using Diversity
 using JLD2
 using Test
 
-nthread = Threads.nthreads()
-@info "Total Memory: $(Sys.total_memory() / 2^30)GB"
-@info "Num threads: $nt"
+nt = Threads.nthreads();
+@info "Total Memory: $(Sys.total_memory() / 2^30)GB, threads: $nt"
 
 # Set up MPI and print threads
 if !MPI.Initialized()
@@ -107,10 +106,8 @@ MPI.Barrier(comm)
 true_abuns = gather_abundance(eco)
 # On root node, print abundances and save out
 if rank == 0
-    print("$(rank):")
-    println(true_abuns)
     isdir("data") || mkdir("data")
-    @save "data/Test_abuns"*"$nthread.jld2" abuns=true_abuns
+    @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
 end
 
 water_vec = WaterRequirement(fill(2.0mm, numSpecies))
@@ -176,10 +173,8 @@ sleep(rank)
 true_abuns = gather_abundance(eco)
 # On root node, print abundances and save out
 if rank == 0
-    print("$(rank):")
-    println(true_abuns)
     isdir("data") || mkdir("data")
-    @save "data/Test_abuns"*"$nthread.jld2" abuns=true_abuns
+    @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
 end
 
 if !MPI.Finalized()
