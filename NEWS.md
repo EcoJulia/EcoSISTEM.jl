@@ -1,5 +1,8 @@
 # NEWS
 
+- v0.2.3
+  - Security fix on unzipping: #140
+  - Minor bugfix on up- and down-scaling images: #139
 - v0.2.2
   - Remove all manifests and associated code
   - Fix MPI example on HPC
