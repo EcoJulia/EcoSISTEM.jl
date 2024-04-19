@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>HPC · EcoSISTEM.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="EcoSISTEM.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">EcoSISTEM.jl</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">Biodiversity</span><ul><li><a class="tocitem" href="../basics/">Basics</a></li><li><a class="tocitem" href="../diversity/">Diversity</a></li><li><a class="tocitem" href="../examples/">Examples</a></li><li><a class="tocitem" href="../africa/">Africa</a></li></ul></li><li><span class="tocitem">Epidemiology</span><ul><li><a class="tocitem" href="../epi/">SCRC</a></li><li><a class="tocitem" href="../model_structure/">Model Structure</a></li><li><a class="tocitem" href="../model_development/">Model Development</a></li><li><a class="tocitem" href="../api/">API</a></li><li class="is-active"><a class="tocitem" href>HPC</a><ul class="internal"><li><a class="tocitem" href="#Project.toml"><span>Project.toml</span></a></li><li><a class="tocitem" href="#Setup-script"><span>Setup script</span></a></li><li><a class="tocitem" href="#Experiment-script"><span>Experiment script</span></a></li><li><a class="tocitem" href="#Submission-script"><span>Submission script</span></a></li><li><a class="tocitem" href="#Further-resources"><span>Further resources</span></a></li></ul></li><li><a class="tocitem" href="../data/">Data</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Epidemiology</a></li><li class="is-active"><a href>HPC</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>HPC</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/EcoJulia/EcoSISTEM.jl/blob/master/docs/src/HPC.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Running-on-DiRAC"><a class="docs-heading-anchor" href="#Running-on-DiRAC">Running on DiRAC</a><a id="Running-on-DiRAC-1"></a><a class="docs-heading-anchor-permalink" href="#Running-on-DiRAC" title="Permalink"></a></h1><p>In order to run EcoSISTEM.jl on DiRAC, it is first necessary to <a href="https://safe.epcc.ed.ac.uk/dirac/">request an account</a> and then to request access to the <code>dc003</code> project. Once that is granted, it is possible to log into the server via ssh at the address</p><pre><code class="language-none">login.hpc.cam.ac.uk</code></pre><p>Julia is already installed on the cluster, so the only things that are needed are a Project.toml file and a Julia script defining and setting up the environment for the experiment, a Julia script with the experiment, and a submission script. Here we give examples using the <a href="https://github.com/ScottishCovidResponse/EcoSISTEM.jl/blob/dev/examples/Epidemiology/Scotland_run.jl">Scottish experiment</a>. The other files needed for this experiment can be found <a href="https://github.com/ScottishCovidResponse/EcoSISTEM.jl/blob/dev/examples/Epidemiology/HPC/">here</a></p><h2 id="Project.toml"><a class="docs-heading-anchor" href="#Project.toml">Project.toml</a><a id="Project.toml-1"></a><a class="docs-heading-anchor-permalink" href="#Project.toml" title="Permalink"></a></h2><p>This file should be enough to setup the environment for the experiment. Thus, it should change depending on the packages required by the experiment script. E.g.:</p><pre><code class="language-julia">name = &quot;RAMP&quot;
+
+[deps]
+AxisArrays = &quot;39de3d68-74b9-583c-8d2d-e117c070f3a9&quot;
+Distributions = &quot;31c24e10-a181-5473-b8eb-7969acd0382f&quot;
+HTTP = &quot;cd3eb016-35fb-5094-929b-558a96fad6f3&quot;
+Plots = &quot;91a5bcdd-55d7-5caf-9e0b-520d859cae80&quot;
+StatsBase = &quot;2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91&quot;
+Unitful = &quot;1986cc42-f94f-5a68-af5c-568840ba703d&quot;
+
+[compat]
+julia = &quot;1.1&quot;
+
+[extras]
+
+[targets]</code></pre><p><strong>This file should not include EcoSISTEM.jl, as it is unregistered.</strong> This will be taken care of by the setup script.</p><h2 id="Setup-script"><a class="docs-heading-anchor" href="#Setup-script">Setup script</a><a id="Setup-script-1"></a><a class="docs-heading-anchor-permalink" href="#Setup-script" title="Permalink"></a></h2><p>This file is responsible for cloning EcoSISTEM.jl, as it is unregistered, and also for instantiating the environment.</p><pre><code class="language-julia">using Pkg
+Pkg.add(PackageSpec(url=&quot;https://github.com/ScottishCovidResponse/EcoSISTEM.jl.git&quot;))
+Pkg.instantiate()</code></pre><h2 id="Experiment-script"><a class="docs-heading-anchor" href="#Experiment-script">Experiment script</a><a id="Experiment-script-1"></a><a class="docs-heading-anchor-permalink" href="#Experiment-script" title="Permalink"></a></h2><p>This file should contain the experiment to be run. There are <a href="https://github.com/ScottishCovidResponse/EcoSISTEM.jl/blob/dev/examples/Epidemiology/">examples</a> available.</p><h2 id="Submission-script"><a class="docs-heading-anchor" href="#Submission-script">Submission script</a><a id="Submission-script-1"></a><a class="docs-heading-anchor-permalink" href="#Submission-script" title="Permalink"></a></h2><p>This file parses options, sets up the local directories and submits the job to the queue.</p><pre><code class="language-sh">#!/bin/bash
+
+# Usage: ./submit_scot --input &lt;scriptfilename&gt; --nprocs &lt;numberofprocesses&gt; --walltime &lt;walltime&gt; --dir &lt;pathtorundir&gt;
+
+set -e
+set -u
+
+while [ $# -gt 0 ]; do
+    if [ $1 = &quot;--input&quot; ]; then
+        inputfile=$2
+        shift 2
+    elif [ $1 == &quot;--samples&quot; ]; then
+        nsamples=$2
+        shift 2
+    elif [ $1 == &quot;--dir&quot; ]; then
+        dir=$2
+        shift 2
+    elif [ $1 == &quot;--nprocs&quot; ]; then
+        nprocs=$2
+        shift 2
+    elif [ $1 == &quot;--walltime&quot; ]; then
+        walltime=$2
+        shift 2
+    else
+        echo &quot;Unrecognised arguments: $*&quot; &gt;&amp;2
+        exit 1
+    fi
+done
+
+jobname=$(basename $dir)
+
+mkdir $dir
+mkdir $dir/Output
+cp $inputfile $dir
+cp Project.toml $dir
+cp setup.jl $dir
+inputbasename=$(basename $inputfile)
+
+cat &gt;$dir/submit.sh &lt;&lt;EOF
+#!/bin/bash
+#SBATCH --job-name $jobname
+#SBATCH --account DIRAC-DC003-CPU
+#SBATCH --ntasks $nprocs
+#SBATCH --time $walltime
+#SBATCH --mail-type ALL
+#SBATCH --no-requeue
+#SBATCH --partition skylake
+#SBATCH --output log.txt
+. /etc/profile.d/modules.sh
+module purge
+module load rhel7/default-peta4
+module load julia/1.4
+export JULIA_NUM_THREADS=$nprocs
+stdbuf -oL -eL julia --project=@. setup.jl
+stdbuf -oL -eL julia --project=@. $inputbasename
+EOF
+
+cd $dir
+chmod u+x submit.sh
+sbatch submit.sh</code></pre><p>Usage example:</p><pre><code class="language-sh">./submit_scot --input Scotland_run.jl --nprocs 6 --walltime 1:00:00 --dir /home/username/run1</code></pre><p>The command above must be run from the directory where <code>submit_scot</code>, <code>Scotland_run.jl</code> (the experiment script in this case), <code>setup.jl</code> and <code>Project.toml</code> are. These will be copied to a new folder at the provided path, <code>/home/username/run1</code>. At that path, a <code>log.txt</code> file will contain the logs of the job. The <code>mail-type ALL</code> option makes it such that an email is sent informing of the conclusion of the job, and it can be changed or removed.</p><h2 id="Further-resources"><a class="docs-heading-anchor" href="#Further-resources">Further resources</a><a id="Further-resources-1"></a><a class="docs-heading-anchor-permalink" href="#Further-resources" title="Permalink"></a></h2><p>More detailed information on the cluster, including further options and commands, can be found <a href="https://docs.hpc.cam.ac.uk/hpc/user-guide/quickstart.html">here</a>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../api/">« API</a><a class="docs-footer-nextpage" href="../data/">Data »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 27 June 2022 16:34">Monday 27 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
