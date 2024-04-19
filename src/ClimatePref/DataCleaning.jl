@@ -16,11 +16,13 @@ function convert_coords(i::Int64, width::Int64)
     y = div((i - 1), width) + 1
     return (x, y)
 end
+
 function convert_coords(i::Vector{Int64}, width::Int64)
     x = ((i .- 1) .% width) .+ 1
     y = div.((i .- 1), width) .+ 1
     return (x, y)
 end
+
 function convert_coords(x::Int64, y::Int64, width::Int64)
     i = x + width * (y - 1)
     return i
@@ -30,6 +32,7 @@ function convert_coords(x::Vector{Int64}, y::Vector{Int64}, width::Int64)
     i = x .+ (width .* (y .- 1))
     return i
 end
+
 """
     create_reference(gridsize::Float64)
 
@@ -57,14 +60,17 @@ function upresolution(era::ERA, rescale::Int64)
     array = upresolution(era.array, rescale)
     return ERA(array)
 end
+
 function upresolution(wc::Worldclim_monthly, rescale::Int64)
     array = upresolution(wc.array, rescale)
     return Worldclim_monthly(array)
 end
+
 function upresolution(bc::Worldclim_bioclim, rescale::Int64)
     array = upresolution(bc.array, rescale)
     return Worldclim_bioclim(array)
 end
+
 function upresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64)
     grid = size(aa)
     grid = (grid[1] .* rescale .- (rescale - 1),
@@ -93,6 +99,7 @@ function upresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64)
             end
         end
     end
+
     lon = aa.axes[1].val
     newlon = range(lon[1], lon[end], grid[1])
     lat = aa.axes[2].val
@@ -102,6 +109,7 @@ function upresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64)
                      Axis{:latitude}(newlat),
                      Axis{:time}(aa.axes[3].val))
 end
+
 function upresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64)
     grid = size(aa) .* rescale .- (rescale - 1)
     array = Matrix{typeof(aa[1])}(undef, grid)
@@ -121,6 +129,7 @@ function upresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64)
             end
         end
     end
+
     lon = aa.axes[1].val
     newlon = range(lon[1], lon[end], grid[1])
     lat = aa.axes[2].val
@@ -142,16 +151,19 @@ function downresolution(era::ERA, rescale::Int64; fn::Function = mean)
     array = downresolution(era.array, rescale, fn = fn)
     return ERA(array)
 end
+
 function downresolution(wc::Worldclim_monthly, rescale::Int64;
                         fn::Function = mean)
     array = downresolution(wc.array, rescale, fn = fn)
     return Worldclim_monthly(array)
 end
+
 function downresolution(bc::Worldclim_bioclim, rescale::Int64;
                         fn::Function = mean)
     array = downresolution(bc.array, rescale, fn = fn)
     return Worldclim_bioclim(array)
 end
+
 function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64,
                         fn::Function = mean)
     grid = size(aa)
@@ -160,12 +172,14 @@ function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64,
     map(1:grid[3]) do t
         for x in Base.axes(array, 1)
             for y in Base.axes(array, 2)
-                xcoords = filter(x -> rescale * (x - 1) + 2 ≤ x ≤
-                                      rescale * (x - 1) + 1 + size(aa, 1),
-                                 round(Int, -rescale / 2):round(Int, rescale / 2))
-                ycoords = filter(y -> rescale * (y - 1) + 2 ≤ y ≤
-                                      rescale * (y - 1) + 1 + size(aa, 2),
-                                 round(Int, -rescale / 2):round(Int, rescale / 2))
+                xcoords = filter(k -> 1 ≤ rescale * (x - 1) + 1 + k ≤
+                                      size(aa, 1),
+                                 round(Int, -rescale / 2):round(Int,
+                                                                rescale / 2))
+                ycoords = filter(k -> 1 ≤ rescale * (y - 1) + 1 + k ≤
+                                      size(aa, 2),
+                                 round(Int, -rescale / 2):round(Int,
+                                                                rescale / 2))
                 xrange = min(-minimum(xcoords), maximum(xcoords))
                 yrange = min(-minimum(ycoords), maximum(ycoords))
                 xcoords = (rescale * (x - 1) + 1) .+ ((-xrange):xrange)
@@ -173,7 +187,7 @@ function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64,
                 array[x, y, t] = fn(filter(!isnan, aa[xcoords, ycoords, t]))
             end
         end
-        end
+    end
     lon = aa.axes[1].val
     newlon = range(lon[1], lon[end], grid[1])
     lat = aa.axes[2].val
@@ -183,6 +197,7 @@ function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64,
                      Axis{:latitude}(newlat),
                      Axis{:time}(aa.axes[3].val))
 end
+
 function downresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64;
                         fn::Function = mean)
     grid = size(aa)
@@ -190,11 +205,9 @@ function downresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64;
     array = Matrix{typeof(aa[1])}(undef, grid)
     for x in Base.axes(array, 1)
         for y in Base.axes(array, 2)
-            xcoords = filter(x -> rescale * (x - 1) + 2 ≤ x ≤
-                                  rescale * (x - 1) + 1 + size(aa, 1),
+            xcoords = filter(k -> 1 ≤ rescale * (x - 1) + 1 + k ≤ size(aa, 1),
                              round(Int, -rescale / 2):round(Int, rescale / 2))
-            ycoords = filter(y -> rescale * (y - 1) + 2 ≤ y ≤
-                                  rescale * (y - 1) + 1 + size(aa, 2),
+            ycoords = filter(k -> 1 ≤ rescale * (y - 1) + 1 + k ≤ size(aa, 2),
                              round(Int, -rescale / 2):round(Int, rescale / 2))
             xrange = min(-minimum(xcoords), maximum(xcoords))
             yrange = min(-minimum(ycoords), maximum(ycoords))
@@ -203,6 +216,7 @@ function downresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64;
             array[x, y] = fn(filter(!isnan, aa[xcoords, ycoords]))
         end
     end
+
     lon = aa.axes[1].val
     newlon = range(lon[1], lon[end], grid[1])
     lat = aa.axes[2].val
@@ -224,10 +238,14 @@ function downresolution!(resized_array::Matrix{T}, array::Matrix{T},
                          rescale::Int64; fn::Function = mean) where {T}
     Threads.@threads for i in eachindex(resized_array)
         x, y = convert_coords(i, size(resized_array, 1))
-        xcoords = filter(x -> x .<= size(array, 1),
-                         (rescale * x - (rescale - 1)):(rescale * x))
-        ycoords = filter(y -> y .<= size(array, 2),
-                         (rescale * y - (rescale - 1)):(rescale * y))
+        xcoords = filter(k -> 1 ≤ rescale * (x - 1) + 1 + k ≤ size(array, 1),
+                         round(Int, -rescale / 2):round(Int, rescale / 2))
+        ycoords = filter(k -> 1 ≤ rescale * (y - 1) + 1 + k ≤ size(array, 2),
+                         round(Int, -rescale / 2):round(Int, rescale / 2))
+        xrange = min(-minimum(xcoords), maximum(xcoords))
+        yrange = min(-minimum(ycoords), maximum(ycoords))
+        xcoords = (rescale * (x - 1) + 1) .+ ((-xrange):xrange)
+        ycoords = (rescale * (y - 1) + 1) .+ ((-yrange):yrange)
         resized_array[x, y] = fn(filter(!isnan, array[xcoords, ycoords]))
     end
 end
