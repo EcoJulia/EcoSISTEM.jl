@@ -9,9 +9,8 @@ using Diversity
 using JLD2
 using Test
 
-nt = Threads.nthreads()
-@info "Total Memory: $(Sys.total_memory() / 2^30)GB"
-@info "Num threads: $nt"
+nt = Threads.nthreads();
+@info "Total Memory: $(Sys.total_memory() / 2^30)GB, threads: $nt"
 
 # Set up MPI and print threads
 if !MPI.Initialized()
@@ -107,8 +106,6 @@ MPI.Barrier(comm)
 true_abuns = gather_abundance(eco)
 # On root node, print abundances and save out
 if rank == 0
-    print("$(rank):")
-    println(true_abuns)
     isdir("data") || mkdir("data")
     @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
 end
@@ -176,8 +173,6 @@ sleep(rank)
 true_abuns = gather_abundance(eco)
 # On root node, print abundances and save out
 if rank == 0
-    print("$(rank):")
-    println(true_abuns)
     isdir("data") || mkdir("data")
     @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
 end
