@@ -2,7 +2,7 @@
 
 ############# SLURM SETTINGS #############
 #SBATCH --account=project0000     # account name (mandatory), if the job runs under a project then it'll be the project name, if not then it should =none
-#SBATCH --job-name=EcoSISTEM-test # some descriptive job name of your choice
+#SBATCH --job-name=MPIRun-4x8x8   # some descriptive job name of your choice
 #SBATCH --output=%x-%j.out        # output file name will contain job name + job ID
 #SBATCH --error=%x-%j.err         # error file name will contain job name + job ID
 #SBATCH --partition=nodes         # which partition to use, default on MARS is “nodes" (or "smp", "gpu", "gpuplus")
