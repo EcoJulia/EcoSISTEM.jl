@@ -12,7 +12,7 @@ using Statistics
 MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
-const SAVEDIR = "/mnt/data/project0000/outputs/MPIRun-$(MPI.Comm_size())x$(Threads.nthreads())"
+const SAVEDIR = "/mnt/data/project0000/outputs/MPIRun-$(MPI.Comm_size(comm))x$(Threads.nthreads())"
 mkpath(SAVEDIR)
 rank == 0 && println("using: $((time() - start) * s)")
 totMPI = MPI.Comm_size(comm)
