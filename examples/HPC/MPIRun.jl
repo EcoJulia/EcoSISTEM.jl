@@ -24,10 +24,10 @@ write(io,
 close(io)
 
 # Set up initial parameters for ecosystem
-numSpecies = 2^27;
-grid = (512, 512);
+numSpecies = 2^17;
+grid = (256, 256);
 req = 1.0kJ;
-individuals = 2^37;
+individuals = 2^27;
 area = 1_000_000.0 * km^2;
 totalK = 1000.0kJ / km^2;
 
