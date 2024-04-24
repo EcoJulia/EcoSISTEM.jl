@@ -10,8 +10,9 @@
 #SBATCH --mem=256G                # memory required per node, in the form of [num][M|G|T]
 #SBATCH --nodes=4                 # number of nodes to allocate, default is 1
 #SBATCH --ntasks=32               # number of Slurm tasks to be launched, increase for multi-process runs ex. MPI
-#SBATCH --cpus-per-task=1         # number of processor cores to be assigned for each task, default is 1, increase for multi-threaded runs
+#SBATCH --cpus-per-task=8         # number of processor cores to be assigned for each task, default is 1, increase for multi-threaded runs
 #SBATCH --ntasks-per-node=8       # number of tasks to be launched on each allocated node
+#SBATCH --threads-per-core=1      # Threads per core
 
 ############# LOADING MODULES (optional) #############
 module load apps/julia
@@ -26,4 +27,4 @@ export OMP_NUM_THREADS=1
 export JULIA_NUM_THREADS=8
 
 ############# MY CODE #############
-bin/mpiexecjl --project=examples -n 32 julia --project=examples examples/HPC/MPIRun.jl
+bin/mpiexecjl --project=examples -n 32 julia -t 8 --project=examples examples/HPC/MPIRun.jl

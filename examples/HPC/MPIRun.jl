@@ -9,12 +9,11 @@ using Distributions
 using MPI
 using Statistics
 
-const SAVEDIR = "/mnt/data/project0000/outputs/MPIRun"
-mkpath(SAVEDIR)
-
 MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
+const SAVEDIR = "/mnt/data/project0000/outputs/MPIRun-$(MPI.Comm_size())x$(Threads.nthreads())"
+mkpath(SAVEDIR)
 rank == 0 && println("using: $((time() - start) * s)")
 totMPI = MPI.Comm_size(comm)
 io = open(joinpath(SAVEDIR,
@@ -25,10 +24,10 @@ write(io,
 close(io)
 
 # Set up initial parameters for ecosystem
-numSpecies = 100_000;
-grid = (100, 100);
+numSpecies = 2^27;
+grid = (512, 512);
 req = 1.0kJ;
-individuals = 1_000_000_000;
+individuals = 2^37;
 area = 1_000_000.0 * km^2;
 totalK = 1000.0kJ / km^2;
 
