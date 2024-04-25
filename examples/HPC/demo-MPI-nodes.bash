@@ -15,6 +15,7 @@
 
 ############# LOADING MODULES (optional) #############
 module load apps/julia
+module load mpi/openmpi
 julia --project=examples -e 'using Pkg; Pkg.instantiate(); Pkg.build("MPI"); using MPI; MPI.install_mpiexecjl(destdir = "bin", force = true)'
 
 ############# ENVIRONMENT #############
