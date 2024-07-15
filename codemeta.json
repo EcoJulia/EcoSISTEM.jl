@@ -31,6 +31,7 @@
     "developmentStatus": "active",
     "issueTracker": "https://github.com/EcoJulia/EcoSISTEM.jl/issues",
     "identifier": "10.5281/zenodo.4705053",
+    "referencePublication": "https://arxiv.org/abs/1911.12257",
     "readme": "https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/README.md",
     "buildInstructions": "https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/README.md",
     "author": [
