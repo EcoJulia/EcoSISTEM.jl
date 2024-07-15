@@ -1,7 +1,7 @@
 name = "EcoSISTEM"
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 author = ["Claire Harris", "Richard Reeve <richard.reeve@glasgow.ac.uk>"]
-version = "0.2.3"
+version = "0.2.4"
 
 [license]
 SPDX = "LGPL-3.0-or-later"
