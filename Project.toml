@@ -1,7 +1,10 @@
 name = "EcoSISTEM"
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
-authors = ["Claire Harris <claire.harris@bioss.ac.uk>", "Richard Reeve <Richard.Reeve@glasgow.ac.uk>"]
-version = "0.2.3"
+author = ["Claire Harris", "Richard Reeve <richard.reeve@glasgow.ac.uk>"]
+version = "0.2.4"
+
+[license]
+SPDX = "LGPL-3.0-or-later"
 
 [deps]
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
@@ -76,7 +79,7 @@ MPI = "0.17.2, 0.18, 0.19, 0.20"
 Markdown = "1.9"
 Measures = "0.3.1"
 Missings = "0.4.5, 1.0"
-NetCDF = "0.10, 0.11"
+NetCDF = "0.10, 0.11, 0.12"
 OnlineStats = "1.5.8"
 Optim = "0.18, 0.19, 0.20, 0.21, 0.22, 1"
 Phylo = "0.4.18, 0.5"
@@ -86,7 +89,7 @@ Printf = "1.9"
 PyCall = "1"
 REPL = "1.9"
 Random = "1.9"
-RasterDataSources = "0.5.6"
+RasterDataSources = "0.5.6, 0.6"
 RecipesBase = "1"
 SHA = "0.7"
 SpatialEcology = "0.9"
@@ -97,6 +100,21 @@ UUIDs = "1.9"
 Unitful = "1.7"
 p7zip_jll = "17"
 julia = "1.9"
+
+[[authors]]
+name = "Claire Harris"
+orcid = "0000-0003-0852-2340"
+email = "Claire.Harris@defra.gov.uk"
+
+    [[authors.affiliation]]
+    ror = "03jwrz939"
+[[authors]]
+name = "Richard Reeve"
+orcid = "0000-0003-2589-8091"
+email = "richard.reeve@glasgow.ac.uk"
+
+    [[authors.affiliation]]
+    ror = "00vtgdb53"
 
 [extras]
 DataPipeline = "9ced6f0a-eb77-43a8-bbd1-bbf3031b0d12"

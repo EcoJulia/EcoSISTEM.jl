@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 ## Small scale test for MPI Ecosystems
 using EcoSISTEM
 using EcoSISTEM.Units

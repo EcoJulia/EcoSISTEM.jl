@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 using IndexedTables
 using AxisArrays
 using Unitful.DefaultSymbols
@@ -267,7 +269,7 @@ end
 function compressLC(lc::AxisArray)
     newLC = AxisArray(zeros(Int64, size(lc, 1), size(lc, 2)),
                       AxisArrays.axes(lc, 1), AxisArrays.axes(lc, 2))
-    for i in Base.axes(lc, 1)
+    Threads.@threads for i in Base.axes(lc, 1)
         for j in Base.axes(lc, 2)
             newLC[i, j] = findmax(lc[i, j, :])[2]
         end

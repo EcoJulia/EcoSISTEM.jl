@@ -30,8 +30,16 @@ jobs:
           - 'release'
         arch:
           - x64
+          - arm64
         experimental:
           - false
+        exclude:
+          - os: macOS-latest
+            arch: x64
+          - os: ubuntu-latest
+            arch: arm64
+          - os: windows-latest
+            arch: arm64
       fail-fast: false
     steps:
     - name: Checkout code

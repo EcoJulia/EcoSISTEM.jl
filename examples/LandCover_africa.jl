@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 #### SINGLE SPECIES ####
 # Code to run single species across Africa with WorldClim data.
 using EcoSISTEM

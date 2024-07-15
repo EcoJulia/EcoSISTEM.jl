@@ -1,0 +1,13 @@
+[deps]
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+EcoSISTEM = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
+Git = "d7ba0133-e1db-5d97-8f8c-041e4b3a1eb2"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
