@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 """
     traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
 

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 using Phylo
 using Distributions
 using DataFrames

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 @info "Total Memory: $(Sys.total_memory() / 2^30)GB"
 @info "Num threads: $(Threads.nthreads())"
 

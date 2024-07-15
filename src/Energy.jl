@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 using EcoSISTEM.ClimatePref
 using RecipesBase
 using Unitful
