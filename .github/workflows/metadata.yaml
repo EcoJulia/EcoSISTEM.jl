@@ -3,19 +3,20 @@ name: Metadata and hygene
 on:
   push:
     branches:
-      - dev
+      - main
     tags:
       - 'v*'
   pull_request:
   workflow_dispatch:
 
+permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
+  actions: write
+  contents: read
+
 jobs:
   metadata:
     name: RSMD - ${{ github.event_name }}
     timeout-minutes: 60
-    permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
-      actions: write
-      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
