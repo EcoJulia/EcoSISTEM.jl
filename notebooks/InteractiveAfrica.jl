@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 ### A Pluto.jl notebook ###
 # v0.19.41
 
