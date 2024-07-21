@@ -1,0 +1,37 @@
+name: Metadata and hygene
+
+on:
+  push:
+    branches:
+      - dev
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  metadata:
+    name: RSMD - ${{ github.event_name }}
+    timeout-minutes: 60
+    permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
+      actions: write
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+          arch: x64
+      - name: Cache
+        uses: julia-actions/cache@v2
+      - name: Build package
+        uses: julia-actions/julia-buildpkg@v1
+      - name: Running
+        uses: julia-actions/julia-runtest@v1
+        env:
+          RSMD_CROSSWALK: TRUE

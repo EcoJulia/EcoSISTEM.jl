@@ -9,12 +9,14 @@ on:
       - 'v*'
   pull_request:
 
-permissions:
+permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
   actions: write
   contents: read
-  
+
 jobs:
   EcoSISTEM-tests:
+    name: Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    timeout-minutes: 60
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}
     strategy:
@@ -50,7 +52,7 @@ jobs:
         version: ${{ matrix.julia-version }}
         arch: ${{ matrix.arch }}
     - name: Cache
-      uses: julia-actions/cache@v1
+      uses: julia-actions/cache@v2
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
     - name: Running
