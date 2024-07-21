@@ -1,5 +1,10 @@
 # NEWS
 
+- v0.2.5
+  - Use ResearchSoftwareMetadata
+  - Add in metadata and code hygene testing
+- v0.2.4
+  - Add metadata and crosswalk
 - v0.2.3
   - Security fix on unzipping: #140
   - Minor bugfix on up- and down-scaling images: #139

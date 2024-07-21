@@ -2,7 +2,7 @@ name = "EcoSISTEM"
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 license = "LGPL-3.0-or-later"
 authors = ["Claire Harris", "Richard Reeve <richard.reeve@glasgow.ac.uk>"]
-version = "0.2.4"
+version = "0.2.5"
 
 [deps]
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
