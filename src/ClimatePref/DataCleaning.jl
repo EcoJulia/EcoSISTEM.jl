@@ -266,13 +266,14 @@ function downresolution!(resized_array::Array{T, 3}, array::Matrix{T},
     end
 end
 
-function compressLC(lc::AxisArray)
-    newLC = AxisArray(zeros(Int64, size(lc, 1), size(lc, 2)),
-                      AxisArrays.axes(lc, 1), AxisArrays.axes(lc, 2))
-    Threads.@threads for i in Base.axes(lc, 1)
-        for j in Base.axes(lc, 2)
-            newLC[i, j] = findmax(lc[i, j, :])[2]
+function compressLC(lc::Landcover)
+    newaa = AxisArray(zeros(Int64, size(lc.array, 1), size(lc.array, 2)),
+                      AxisArrays.axes(lc.array, 1),
+                      AxisArrays.axes(lc.array, 2))
+    Threads.@threads for i in Base.axes(lc.array, 1)
+        for j in Base.axes(lc.array, 2)
+            newaa[i, j] = findmax(lc.array[i, j, :])[2]
         end
     end
-    return newLC
+    return Landcover(newaa)
 end
