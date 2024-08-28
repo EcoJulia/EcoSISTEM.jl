@@ -5,6 +5,7 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using AxisArrays
 using NetCDF
+using RasterDataSources
 
 import Unitful.°, Unitful.°C, Unitful.mm
 import ArchGDAL
@@ -18,6 +19,7 @@ const VARDICT = Dict("bio" => NaN, "prec" => mm,
 const UNITDICT = Dict("K" => K, "m" => m, "J m**-2" => J / m^2,
                       "m**3 m**-3" => m^3)
 const BIODICT = Dict(zip(1:19, [fill(K, 11); fill(kg / m^2, 8)]))
+
 """
     read(f, filename)
 
@@ -43,12 +45,12 @@ searchdir(path, key) = filter(x -> occursin(key, x), readdir(path))
 
 Function to import a selected file from a path string.
 """
-function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
+function readfile(file::String; xmin::Unitful.Quantity{Float64} = -180.0°,
                   xmax::Unitful.Quantity{Float64} = 180.0°,
                   ymin::Unitful.Quantity{Float64} = -90.0°,
-                  ymax::Unitful.Quantity{Float64} = 90.0°)
+                  ymax::Unitful.Quantity{Float64} = 90.0°, cut = nothing)
     txy = [Float64, Int64(1), Int64(1), Float64(1)]
-    #
+
     read(file) do dataset
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
@@ -61,6 +63,7 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
         bd = AG.getband(dataset, 1)
         return AG.read!(bd, a)
     end
+
     lat, long = size(a, 1), size(a, 2)
     step_lat = (xmax - xmin) / lat
     step_long = (ymax - ymin) / long
@@ -70,21 +73,24 @@ function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
                       Axis{:longitude}(ymin:step_long:(ymax - step_long / 2.0)))
 
     if txy[1] <: AbstractFloat
-        world[isapprox.(world, txy[4])] *= NaN
+        @view(world.data[world.data .=== txy[4]]) .*= NaN
+        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
     end
+
+    if !isnothing(cut)
+        world = world[cut.lat, cut.long, :]
+    end
+
     return world
 end
 
 """
-    readworldclim(dir::String)
+    readworldclim(dir::String; cut = nothing)
 
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
-                       xmax::Unitful.Quantity{Float64} = 180.0°,
-                       ymin::Unitful.Quantity{Float64} = -90.0°,
-                       ymax::Unitful.Quantity{Float64} = 90.0°)
+function readworldclim(dir::String; cut = nothing)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -108,7 +114,7 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
         end
         return b[:, :, count] = a
     end
-    lat, long = size(b, 1), size(b, 2)
+
     variables = split(first(files), "_")
     if any(map(v -> v ∈ keys(VARDICT), variables))
         findvar = findfirst(map(v -> v ∈ keys(VARDICT), variables))
@@ -116,34 +122,47 @@ function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     else
         unit = 1.0
     end
+
+    lat, long = size(b, 1), size(b, 2)
+    xmin = -180.0°
+    xmax = 180.0°
+    ymin = -90.0°
+    ymax = 90.0°
     step_lat = (xmax - xmin) / lat
     step_lon = (ymax - ymin) / long
-
     world = AxisArray(b[:, long:-1:1, :] * unit,
                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:time}(1month * (1:numfiles)))
+                      Axis{:time}((1:numfiles) * month))
     if unit == K
         # bugfix
         world .+= uconvert(K, 0.0°C)
     end
     if txy[1] <: AbstractFloat
-        world[isapprox.(world, txy[4])] *= NaN
+        @view(world.data[world.data .=== txy[4]]) .*= NaN
+        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
+    end
+
+    if !isnothing(cut)
+        world = world[cut.lat, cut.long, :]
     end
 
     return Worldclim_monthly(world)
 end
 
 """
-    readbioclim(dir::String)
+    readbioclim(dir::String; cut = nothing)
 
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readbioclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
-                     xmax::Unitful.Quantity{Float64} = 180.0°,
-                     ymin::Unitful.Quantity{Float64} = -90.0°,
-                     ymax::Unitful.Quantity{Float64} = 90.0°)
+function readbioclim(; cut = nothing)
+    getraster(WorldClim{BioClim})
+    path = joinpath(ENV["RASTERDATASOURCES_PATH"], "WorldClim", "BioClim")
+    return readbioclim(path, cut = cut)
+end
+
+function readbioclim(dir::String; cut = nothing)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -168,28 +187,39 @@ function readbioclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
         end
         return b[:, :, count] = a
     end
+    unit = 1.0
+
     lat, long = size(b, 1), size(b, 2)
+    xmin = -180.0°
+    xmax = 180.0°
+    ymin = -90.0°
+    ymax = 90.0°
     step_lat = (xmax - xmin) / lat
     step_lon = (ymax - ymin) / long
-    unit = 1.0
     world = AxisArray(b[:, long:-1:1, :] * unit,
                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
                       Axis{:var}(1:numfiles))
     if txy[1] <: AbstractFloat
-        world[isapprox.(world, txy[4])] *= NaN
+        @view(world.data[world.data .=== txy[4]]) .*= NaN
+        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
     end
+
+    if !isnothing(cut)
+        world = world[cut.lat, cut.long, :]
+    end
+
     return Worldclim_bioclim(world)
 end
 
 """
-    readERA(dir::String, param::String, dim::StepRange(typeof(1month)))
+    readERA(dir::String, param::String, dim::StepRange(typeof(1month)); cut = nothing)
 
 Function to extract a certain parameter, `param`, from an ERA netcdf file,
 for a certain timerange, `dim`, and convert into an axis array.
 """
 function readERA(dir::String, param::String,
-                 dim::Vector{T}) where {T <: Unitful.Time}
+                 dim::Vector{<:Unitful.Time}; cut = nothing)
     lat = reverse(ncread(dir, "latitude"))
     lon = ncread(dir, "longitude")
     units = ncgetatt(dir, param, "units")
@@ -216,24 +246,30 @@ function readERA(dir::String, param::String,
     world = AxisArray(array[:, end:-1:1, :], Axis{:longitude}(lon * °),
                       Axis{:latitude}(lat * °),
                       Axis{:time}(collect(dim)))
+
+    if !isnothing(cut)
+        world = world[cut.lat, cut.long, :]
+    end
+
     return ERA(world)
 end
 
 """
-    readERA(dir::String, file::String, param::String, dim::Vector{Vector{T}})
-        where T<: Unitful.Time
+    readERA(dir::String, file::String, param::String, dim::Vector{Vector{<: Unitful.Time}}; cut = nothing)
 
 Function to extract a certain parameter, `param`, from a directory, `dir`, containing ERA netcdf files,
 for a certain timerange, `dim`, and convert into an axis array.
 """
 function readERA(dir::String, file::String, param::String,
-                 dim::Vector{Vector{T}}) where {T <: Unitful.Time}
+                 dim::Vector{Vector{<:Unitful.Time}}; cut = nothing)
     filenames = searchdir(dir, file)
     newera = Vector{AxisArray}(undef, length(filenames))
     for i in eachindex(filenames)
-        newera[i] = readERA(joinpath(dir, filenames[i]), param, dim[i]).array
+        newera[i] = readERA(joinpath(dir, filenames[i]), param, dim[i],
+                            cut = cut).array
     end
     catera = cat(dims = 3, newera...)
+
     return ERA(catera)
 end
 
@@ -243,7 +279,7 @@ end
 Function to extract a certain parameter, `param`, from an CERA-20C netcdf file,
 and convert into an axis array.
 """
-function readCERA(dir::String, file::String, params::String)
+function readCERA(dir::String, file::String, params::String; cut = nothing)
     filenames = searchdir(dir, file)
     times = collect((1901year + 1month):(1month):(1910year))
     cera = readERA(joinpath(dir, filenames[1]), params,
@@ -253,9 +289,10 @@ function readCERA(dir::String, file::String, params::String)
                        collect(((i - 1) * 120month + 1month):(1month):((i - 1) * 120month + 1year)),
                        collect(((i - 1) * 120month + 1month):(1month):(i * 10year)))
         newcera = readERA(joinpath(dir, filenames[i]), params,
-                          times)
+                          times, cut = cut)
         cera.array = cat(dims = 3, cera.array, newcera.array)
     end
+
     return CERA(cera.array)
 end
 
@@ -265,7 +302,7 @@ end
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readCRUTS(dir::String, var_name::String)
+function readCRUTS(dir::String, var_name::String; cut = nothing)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -289,23 +326,32 @@ function readCRUTS(dir::String, var_name::String)
         end
         return b[:, :, count] = a
     end
-    lat, long = size(b, 1), size(b, 2)
-    unit = VARDICT[var_name]
-    step_lat = 360.0° / lat
-    step_lon = 180.0° / long
 
     numfiles = length(files)
+    unit = VARDICT[var_name]
 
+    lat, long = size(b, 1), size(b, 2)
+    xmin = -180.0°
+    xmax = 180.0°
+    ymin = -90.0°
+    ymax = 90.0°
+    step_lat = (xmax - xmin) / lat
+    step_lon = (ymax - ymin) / long
     world = AxisArray(b .* unit,
-                      Axis{:latitude}((-180.0°):step_lat:(180.0° - step_lat / 2.0)),
-                      Axis{:longitude}((-90.0°):step_lon:(90.0° - step_lat / 2.0)),
-                      Axis{:time}(1month * (1:numfiles)))
+                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
+                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
+                      Axis{:time}((1:numfiles) * month))
     if unit == K
         # bugfix
         world .+= uconvert(K, 0.0°C)
     end
     if txy[1] <: AbstractFloat && !isnothing(txy[4])
-        world[isapprox.(world, txy[4])] *= NaN
+        @view(world.data[world.data .=== txy[4]]) .*= NaN
+        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
+    end
+
+    if !isnothing(cut)
+        world = world[cut.lat, cut.long, :]
     end
 
     return CRUTS(world)
@@ -317,12 +363,8 @@ end
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readCHELSA_monthly(dir::String, var_name::String,
-                            xmin::Unitful.Quantity{Float64} = -180.0°,
-                            xmax::Unitful.Quantity{Float64} = 180.0°,
-                            ymin::Unitful.Quantity{Float64} = -90.0°,
-                            ymax::Unitful.Quantity{Float64} = 90.0°;
-                            res = 1, fn = mean)
+function readCHELSA_monthly(dir::String, var_name::String; res = 1, fn = mean,
+                            cut = nothing)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -346,32 +388,36 @@ function readCHELSA_monthly(dir::String, var_name::String,
         end
         return downresolution!(b, a, count, res, fn = fn)
     end
-    lat, long = size(b, 1), size(b, 2)
     unit = VARDICT[var_name]
+
+    lat, long = size(b, 1), size(b, 2)
+    xmin = -180.0°
+    xmax = 180.0°
+    ymin = -90.0°
+    ymax = 90.0°
     step_lat = (xmax - xmin) / lat
     step_lon = (ymax - ymin) / long
-
     world = AxisArray(b[:, long:-1:1, :] * unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon)),
-                      Axis{:time}((1month):(1month):(numfiles * 1month)))
+                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
+                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
+                      Axis{:time}((1:numfiles) * month))
     if unit == K
         # bugfix
         world .+= uconvert(K, 0.0°C)
     end
     if txy[1] <: AbstractFloat
-        world[isapprox.(world, txy[4])] *= NaN
+        @view(world.data[world.data .=== txy[4]]) .*= NaN
+        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
+    end
+
+    if !isnothing(cut)
+        world = world[cut.lat, cut.long, :]
     end
 
     return CHELSA_monthly(world)
 end
 
-function readCHELSA_bioclim(dir::String,
-                            xmin::Unitful.Quantity{Float64} = -180.0°,
-                            xmax::Unitful.Quantity{Float64} = 180.0°,
-                            ymin::Unitful.Quantity{Float64} = -90.0°,
-                            ymax::Unitful.Quantity{Float64} = 90.0°;
-                            res = 1, fn = mean)
+function readCHELSA_bioclim(dir::String; res = 1, fn = mean, cut = nothing)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -395,17 +441,27 @@ function readCHELSA_bioclim(dir::String,
         end
         return downresolution!(b, a, count, res, fn = fn)
     end
-    lat, long = size(b, 1), size(b, 2)
     unit = 1.0
+
+    lat, long = size(b, 1), size(b, 2)
+    xmin = -180.0°
+    xmax = 180.0°
+    ymin = -90.0°
+    ymax = 90.0°
     step_lat = (xmax - xmin) / lat
     step_lon = (ymax - ymin) / long
-
     world = AxisArray(b[:, long:-1:1, :] * unit,
                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
                       Axis{:var}(1:numfiles))
+
     if txy[1] <: AbstractFloat
-        world[isapprox.(world, txy[4])] *= NaN
+        @view(world.data[world.data .=== txy[4]]) .*= NaN
+        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
+    end
+
+    if !isnothing(cut)
+        world = world[cut.lat, cut.long, :]
     end
 
     return CHELSA_bioclim(world)
@@ -417,11 +473,14 @@ end
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readlc(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
-                xmax::Unitful.Quantity{Float64} = 180.0°,
-                ymin::Unitful.Quantity{Float64} = -90.0°,
-                ymax::Unitful.Quantity{Float64} = 90.0°;
-                res = 10, fn = x -> round(mean(x)))
+function readlc(; res = 10, fn = x -> round(mean(x)), cut = nothing)
+    getraster(EarthEnv{LandCover})
+    path = joinpath(ENV["RASTERDATASOURCES_PATH"], "EarthEnv", "LandCover",
+                    "without_DISCover")
+    return readlc(path, res = res, fn = fn, cut = cut)
+end
+
+function readlc(dir::String; res = 10, fn = x -> round(mean(x)), cut = nothing)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -447,17 +506,27 @@ function readlc(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
         end
         return downresolution!(b, a, count, res, fn = fn)
     end
+    unit = 1.0
+
     lat, long = size(b, 1), size(b, 2)
+    xmin = -180.0°
+    xmax = 180.0°
+    ymin = -56.0°
+    ymax = 90.0°
     step_lat = (xmax - xmin) / lat
     step_lon = (ymax - ymin) / long
-    unit = 1.0
     world = AxisArray(b[:, long:-1:1, :] * unit,
                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
                       Axis{:var}(1:numfiles))
     if txy[1] <: AbstractFloat
-        world[isapprox.(world, txy[4])] *= NaN
+        @view(world.data[world.data .=== txy[4]]) .*= NaN
+        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
     end
 
-    return world
+    if !isnothing(cut)
+        world = world[cut.lat, cut.long, :]
+    end
+
+    return Landcover(world)
 end

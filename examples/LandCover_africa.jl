@@ -17,24 +17,19 @@ if !isdir("assets")
     mkdir("assets")
 end
 ENV["RASTERDATASOURCES_PATH"] = "assets"
-getraster(EarthEnv{LandCover})
-worldlc = readlc("assets/EarthEnv/LandCover/without_DISCover/", -180.0°, 180.0°,
-                 -56.0°, 90.0°)
-world = compressLC(worldlc)
-africa_lc = world[-25° .. 50°, -35° .. 40°]
-bio_africa_lc = Landcover(africa_lc)
-heatmap(africa_lc')
+africa_lc = readlc(cut = (lat = -25° .. 50°, long = -35° .. 40°))
+bio_africa_lc = compressLC(africa_lc)
+heatmap(bio_africa_lc.array')
 
-getraster(WorldClim{BioClim})
-worldbc = readbioclim("assets/WorldClim/BioClim/")
-africa_water = worldbc.array[-25° .. 50°, -35° .. 40°, 13]
+worldbc = readbioclim(cut = (lat = -25° .. 50°, long = -35° .. 40°))
+africa_water = worldbc.array[:, :, 13]
 africa_water = upresolution(africa_water, 2)
 africa_water = Worldclim_bioclim(AxisArray(africa_water .* mm,
                                            AxisArrays.axes(africa_water)))
 bio_africa_water = WaterBudget(africa_water)
 
 # Find which grid cells are land
-active = Matrix{Bool}(africa_lc .!= 4)
+active = Matrix{Bool}(bio_africa_lc.array .!= 4)
 
 # Set up initial parameters for ecosystem
 numSpecies = 1;
@@ -116,8 +111,8 @@ heatmap!(africa_endabun', clim = (0, maximum(abuns)),
          background_color = :lightblue, background_color_outside = :white,
          grid = false, color = cgrad(:algae, scale = :exp),
          subplot = 2, title = "End Abundance")
-africa_lc = Float64.(africa_lc.data)
-africa_lc[.!active] .= NaN
-heatmap!(africa_lc', grid = false, subplot = 3, title = "Land Cover")
-africa_water = world[-25° .. 50°, -35° .. 40°]
-heatmap!(africa_water', grid = false, subplot = 4, title = "Precipitation")
+africa_data = Float64.(bio_africa_lc.array.data)
+africa_data[.!active] .= NaN
+heatmap!(africa_data', grid = false, subplot = 3, title = "Land Cover")
+heatmap!(Float64.(africa_water.array.data / mm)', grid = false, subplot = 4,
+         title = "Precipitation")
