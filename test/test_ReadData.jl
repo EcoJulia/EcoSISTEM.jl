@@ -12,7 +12,6 @@ using Test
 if !Sys.iswindows()
     if !isdir("assets")
         mkdir("assets")
-        ENV["RASTERDATASOURCES_PATH"] = "assets"
         # Download layers of bioclim data and test on all read functions
         # (essentially all the same file type)
         getraster(WorldClim{BioClim}, :bio1)
@@ -20,14 +19,16 @@ if !Sys.iswindows()
         getraster(EarthEnv{LandCover})
     end
 
+    ENV["RASTERDATASOURCES_PATH"] = "assets"
+
     @testset "Reading functions" begin
-        @test_nowarn readbioclim("assets/WorldClim/BioClim/")
+        @test_nowarn readbioclim()
         @test_nowarn readworldclim("assets/WorldClim/Climate/wind/")
         @test_nowarn readCRUTS("assets/WorldClim/BioClim/", "tavg")
         @test_nowarn readCHELSA_monthly("assets/WorldClim/Climate/wind/",
                                         "wind")
         @test_nowarn readCHELSA_bioclim("assets/WorldClim/BioClim/")
-        @test_nowarn readlc("assets/EarthEnv/LandCover/without_DISCover/")
+        @test_nowarn readlc()
         @test_nowarn readfile("assets/WorldClim/BioClim/wc2.1_10m_bio_1.tif")
     end
 
@@ -42,7 +43,7 @@ if !Sys.iswindows()
 
     @testset "Output data 2" begin
         lc = readlc("assets/EarthEnv/LandCover/without_DISCover/")
-        @test unit(lc[1]) == NoUnits
+        @test unit(lc.array[1]) == NoUnits
     end
 
     @testset "Output data 3" begin

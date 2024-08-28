@@ -154,8 +154,7 @@ if !Sys.iswindows()
     @testset "LandCover data" begin
         world = readlc("assets/EarthEnv/LandCover/without_DISCover/")
         world_lc = compressLC(world)
-        world_lc = Landcover(world_lc)
-        active = fill(true, size(world_lc.array))
+        active = fill(true, size(world_lc.array.data))
         totalK = 1000.0kJ / km^2
         area = 100.0km^2
         lc = lcAE(world_lc, totalK, area)
