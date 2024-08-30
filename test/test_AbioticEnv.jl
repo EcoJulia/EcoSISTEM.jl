@@ -11,15 +11,12 @@ using AxisArrays
 using RasterDataSources
 
 if !Sys.iswindows()
-    if !isdir("assets")
-        mkdir("assets")
-        ENV["RASTERDATASOURCES_PATH"] = "assets"
-        # Download layers of bioclim data and test on all read functions
-        # (essentially all the same file type)
-        getraster(WorldClim{BioClim}, :bio1)
-        getraster(WorldClim{Climate}, :wind; month = 1:12)
-        getraster(EarthEnv{LandCover})
-    end
+    ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
+    # Download layers of bioclim data and test on all read functions
+    # (essentially all the same file type)
+    getraster(WorldClim{BioClim}, :bio1)
+    getraster(WorldClim{Climate}, :wind; month = 1:12)
+    getraster(EarthEnv{LandCover})
 
     grid = (5, 5)
     area = 25.0km^2
@@ -152,7 +149,7 @@ if !Sys.iswindows()
     end
 
     @testset "LandCover data" begin
-        world = readlc("assets/EarthEnv/LandCover/without_DISCover/")
+        world = read(EarthEnv{LandCover})
         world_lc = compressLC(world)
         active = fill(true, size(world_lc.array.data))
         totalK = 1000.0kJ / km^2

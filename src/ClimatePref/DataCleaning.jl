@@ -266,7 +266,8 @@ function downresolution!(resized_array::Array{T, 3}, array::Matrix{T},
     end
 end
 
-function compressLC(lc::Landcover)
+function compressLC(lc::ClimateRaster{T, A}) where
+         {T <: RDS.EarthEnv{<:RDS.LandCover}, A}
     newaa = AxisArray(zeros(Int64, size(lc.array, 1), size(lc.array, 2)),
                       AxisArrays.axes(lc.array, 1),
                       AxisArrays.axes(lc.array, 2))
@@ -275,5 +276,5 @@ function compressLC(lc::Landcover)
             newaa[i, j] = findmax(lc.array[i, j, :])[2]
         end
     end
-    return Landcover(newaa)
+    return ClimateRaster(T, newaa)
 end

@@ -13,11 +13,9 @@ using StatsBase
 using Plots
 
 # Download landcover data
-if !isdir("assets")
-    mkdir("assets")
-end
-ENV["RASTERDATASOURCES_PATH"] = "assets"
-africa_lc = readlc(cut = (lat = -25° .. 50°, long = -35° .. 40°))
+ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
+africa_lc = read(EarthEnv{LandCover},
+                 cut = (lat = -25° .. 50°, long = -35° .. 40°))
 bio_africa_lc = compressLC(africa_lc)
 heatmap(bio_africa_lc.array')
 

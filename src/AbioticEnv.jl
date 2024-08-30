@@ -3,11 +3,12 @@
 using Diversity
 using Unitful
 using Unitful.DefaultSymbols
+using Diversity.API
+using RasterDataSources
 using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
 
-using Diversity.API
-
+const RDS = RasterDataSources
 const BUDGETDICT = Dict(kJ => SolarBudget, mm => WaterBudget,
                         NoUnits => SimpleBudget,
                         m^3 => VolWaterBudget)
@@ -467,8 +468,8 @@ import EcoBase.getcoords
 
 getcoords(abenv::GridAbioticEnv) = abenv.habitat
 
-function lcAE(lc::Landcover, maxbud::Unitful.Quantity{Float64},
-              area::Unitful.Area)
+function lcAE(lc::ClimateRaster{T, A}, maxbud::Unitful.Quantity{Float64},
+              area::Unitful.Area) where {T <: RDS.EarthEnv{<:RDS.LandCover}, A}
     dimension = size(lc.array)
     gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -484,8 +485,10 @@ function lcAE(lc::Landcover, maxbud::Unitful.Quantity{Float64},
     budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function lcAE(lc::Landcover, maxbud::Unitful.Quantity{Float64},
-              area::Unitful.Area, active::Matrix{Bool})
+function lcAE(lc::ClimateRaster{T, A}, maxbud::Unitful.Quantity{Float64},
+              area::Unitful.Area,
+              active::Matrix{Bool}) where {T <: RDS.EarthEnv{<:RDS.LandCover}, A
+                                           }
     dimension = size(lc.array)[1:2]
     gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -498,8 +501,9 @@ function lcAE(lc::Landcover, maxbud::Unitful.Quantity{Float64},
     budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function lcAE(lc::Landcover, bud::B,
-              active::Matrix{Bool}) where {B <: AbstractBudget}
+function lcAE(lc::ClimateRaster{T, A}, bud::B,
+              active::Matrix{Bool}) where {T <: RDS.EarthEnv{<:RDS.LandCover},
+                                           A, B <: AbstractBudget}
     gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = DiscreteHab(Array(lc.array), gridsquaresize,

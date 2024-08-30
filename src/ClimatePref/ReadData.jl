@@ -6,11 +6,17 @@ using EcoSISTEM.Units
 using AxisArrays
 using NetCDF
 using RasterDataSources
+const RDS = RasterDataSources
 
 import Unitful.°, Unitful.°C, Unitful.mm
 import ArchGDAL
-import Base.read
 const AG = ArchGDAL
+
+import Base.read
+
+function Base.read(T::Type{<:RDS.RasterDataSource}; kw...)
+    return read(T, RDS.layers(T); kw...)
+end
 
 const VARDICT = Dict("bio" => NaN, "prec" => mm,
                      "srad" => u"kJ" * u"m"^-2 * day^-1, "tavg" => K,
@@ -21,11 +27,11 @@ const UNITDICT = Dict("K" => K, "m" => m, "J m**-2" => J / m^2,
 const BIODICT = Dict(zip(1:19, [fill(K, 11); fill(kg / m^2, 8)]))
 
 """
-    read(f, filename)
+    readag(f, filename)
 
 Function to read raster file into julia.
 """
-function read(f, filename)
+function readag(f, filename)
     return AG.environment() do
         AG.read(filename) do dataset
             return f(dataset)
@@ -51,7 +57,7 @@ function readfile(file::String; xmin::Unitful.Quantity{Float64} = -180.0°,
                   ymax::Unitful.Quantity{Float64} = 90.0°, cut = nothing)
     txy = [Float64, Int64(1), Int64(1), Float64(1)]
 
-    read(file) do dataset
+    readag(file) do dataset
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
         txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
@@ -59,7 +65,7 @@ function readfile(file::String; xmin::Unitful.Quantity{Float64} = -180.0°,
     end
 
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
-    read(file) do dataset
+    readag(file) do dataset
         bd = AG.getband(dataset, 1)
         return AG.read!(bd, a)
     end
@@ -96,7 +102,7 @@ function readworldclim(dir::String; cut = nothing)
     end
     txy = [Float64, Int32(1), Int32(1), Int32(1)]
 
-    read(files[1]) do dataset
+    readag(files[1]) do dataset
         txy[1] = AG.pixeltype(AG.getband(dataset, 1))
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
@@ -108,7 +114,7 @@ function readworldclim(dir::String; cut = nothing)
     b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles)
     map(eachindex(files)) do count
         a = Matrix{txy[1]}(undef, txy[2], txy[3])
-        read(files[count]) do dataset
+        readag(files[count]) do dataset
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
@@ -168,7 +174,7 @@ function readbioclim(dir::String; cut = nothing)
     end
     txy = [Float32, Int32(1), Int32(1), Float64(1), ""]
 
-    read(files[1]) do dataset
+    readag(files[1]) do dataset
         txy[1] = AG.pixeltype(AG.getband(dataset, 1))
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
@@ -181,7 +187,7 @@ function readbioclim(dir::String; cut = nothing)
     b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles)
     map(eachindex(files)) do count
         a = Matrix{txy[1]}(undef, txy[2], txy[3])
-        read(files[count]) do dataset
+        readag(files[count]) do dataset
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
@@ -308,7 +314,7 @@ function readCRUTS(dir::String, var_name::String; cut = nothing)
     end
     txy = [Float64, Int32(1), Int32(1), Float64(1)]
 
-    read(files[1]) do dataset
+    readag(files[1]) do dataset
         txy[1] = Float64
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
@@ -320,7 +326,7 @@ function readCRUTS(dir::String, var_name::String; cut = nothing)
     b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles)
     map(eachindex(files)) do count
         a = Matrix{txy[1]}(undef, txy[2], txy[3])
-        read(files[count]) do dataset
+        readag(files[count]) do dataset
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
@@ -369,7 +375,7 @@ function readCHELSA_monthly(dir::String, var_name::String; res = 1, fn = mean,
         return joinpath(dir, files)
     end
     txy = [Float64, Int32(1), Int32(1), Float64(1)]
-    read(files[1]) do dataset
+    readag(files[1]) do dataset
         txy[1] = Float64
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
@@ -382,7 +388,7 @@ function readCHELSA_monthly(dir::String, var_name::String; res = 1, fn = mean,
                          ceil(Int64, txy[3] / res), numfiles)
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
-        read(files[count]) do dataset
+        readag(files[count]) do dataset
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
@@ -422,7 +428,7 @@ function readCHELSA_bioclim(dir::String; res = 1, fn = mean, cut = nothing)
         return joinpath(dir, files)
     end
     txy = [Float64, Int32(1), Int32(1), Float64(1)]
-    read(files[1]) do dataset
+    readag(files[1]) do dataset
         txy[1] = Float64
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
@@ -435,7 +441,7 @@ function readCHELSA_bioclim(dir::String; res = 1, fn = mean, cut = nothing)
                          ceil(Int64, txy[3] / res), numfiles)
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
-        read(files[count]) do dataset
+        readag(files[count]) do dataset
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
@@ -467,26 +473,28 @@ function readCHELSA_bioclim(dir::String; res = 1, fn = mean, cut = nothing)
     return CHELSA_bioclim(world)
 end
 
+function Base.read(T::Type{<:RDS.EarthEnv{<:RDS.LandCover}}, layers; res = 10,
+                   fn = x -> round(mean(x)), cut = nothing, kw...)
+    getraster(T, layers; kw...)
+    return readlc(T, RDS.rasterpath(T), res = res, fn = fn,
+                  cut = cut)
+end
+
 """
     readlc(dir::String)
 
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readlc(; res = 10, fn = x -> round(mean(x)), cut = nothing)
-    getraster(EarthEnv{LandCover})
-    path = joinpath(ENV["RASTERDATASOURCES_PATH"], "EarthEnv", "LandCover",
-                    "without_DISCover")
-    return readlc(path, res = res, fn = fn, cut = cut)
-end
 
-function readlc(dir::String; res = 10, fn = x -> round(mean(x)), cut = nothing)
+function readlc(::Type{T}, dir::String; res = 10, fn = x -> round(mean(x)),
+                cut = nothing) where {T <: RDS.EarthEnv{<:RDS.LandCover}}
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
     txy = [Float32, Int32(1), Int32(1), Float64(1), ""]
 
-    read(files[1]) do dataset
+    readag(files[1]) do dataset
         txy[1] = AG.pixeltype(AG.getband(dataset, 1))
         txy[2] = AG.width(AG.getband(dataset, 1))
         txy[3] = AG.height(AG.getband(dataset, 1))
@@ -500,7 +508,7 @@ function readlc(dir::String; res = 10, fn = x -> round(mean(x)), cut = nothing)
                          ceil(Int64, txy[3] / res), numfiles)
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
-        read(files[count]) do dataset
+        readag(files[count]) do dataset
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
@@ -528,5 +536,5 @@ function readlc(dir::String; res = 10, fn = x -> round(mean(x)), cut = nothing)
         world = world[cut.lat, cut.long, :]
     end
 
-    return Landcover(world)
+    return ClimateRaster(T, world)
 end

@@ -4,6 +4,8 @@ using AxisArrays
 using Unitful
 using EcoSISTEM.Units
 using RecipesBase
+using RasterDataSources
+const RDS = RasterDataSources
 
 """
     AbstractClimate
@@ -11,6 +13,20 @@ using RecipesBase
 Abstract supertype of all climate data.
 """
 abstract type AbstractClimate end
+
+"""
+    ClimateRaster{<:RDS.RasterDataSource, <: AxisArray} <: AbstractClimate
+
+Type for climate data derived from `RasterDataSource`s.
+"""
+mutable struct ClimateRaster{R <: RDS.RasterDataSource, A <: AxisArray} <:
+               AbstractClimate
+    array::A
+    function ClimateRaster(T::Type{<:RDS.RasterDataSource},
+                           a::A) where {A <: AxisArray}
+        return new{T, A}(a)
+    end
+end
 
 """
     Worldclim_monthly <: AbstractClimate
@@ -32,15 +48,6 @@ end
 Type that houses data extracted from Bioclim raster files.
 """
 mutable struct Worldclim_bioclim{A <: AxisArray} <: AbstractClimate
-    array::A
-end
-
-"""
-    Landcover <: AbstractClimate
-
-Type that houses data extracted from EarthEnv Landcover raster files.
-"""
-mutable struct Landcover{A <: AxisArray} <: AbstractClimate
     array::A
 end
 
