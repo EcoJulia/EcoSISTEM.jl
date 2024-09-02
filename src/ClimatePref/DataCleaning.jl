@@ -237,7 +237,8 @@ Function to decrease the resolution of a climate dataset in place, by a factor, 
 function downresolution! end
 
 function downresolution!(resized_array::Matrix{T}, array::Matrix{T},
-    dim::Int64, rescale::Int64; fn::Function = mean) where {T}
+                         dim::Int64, rescale::Int64;
+                         fn::Function = mean) where {T}
     dim == 1 || error("Accessing invalid 3rd dimension of 2d array")
     return downresolution!(resized_array, array, rescale, fn = fn)
 end
