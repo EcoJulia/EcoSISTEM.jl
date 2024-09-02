@@ -234,7 +234,7 @@ for a certain timerange, `dim`, and convert into an axis array.
 function readERA(dir::String, param::String,
                  dim::Vector{<:Unitful.Time}; cut = nothing)
     lat = reverse(ncread(dir, "latitude"))
-    lon = ncread(dir, "longitude")
+    long = ncread(dir, "longitude")
     units = ncgetatt(dir, param, "units")
     units = UNITDICT[units]
     array = ncread(dir, param)
@@ -248,15 +248,15 @@ function readERA(dir::String, param::String,
     #if typeof(units) <: Unitful.TemperatureUnits
     #    array = uconvert.(°C, array)
     #end
-    if any(lon .== 180)
-        splitval = findall(lon .== 180)[1]
+    if any(long .== 180)
+        splitval = findall(long .== 180)[1]
         firstseg = collect((splitval + 1):size(array, 1))
         secondseg = collect(1:splitval)
         array = array[vcat(firstseg, secondseg), :, :]
-        lon[firstseg] .= 180 .- lon[firstseg]
-        lon = lon[vcat(reverse(firstseg), secondseg)]
+        long[firstseg] .= 180 .- long[firstseg]
+        long = long[vcat(reverse(firstseg), secondseg)]
     end
-    world = AxisArray(array[:, end:-1:1, :], Axis{:longitude}(lon * °),
+    world = AxisArray(array[:, end:-1:1, :], Axis{:longitude}(long * °),
                       Axis{:latitude}(lat * °),
                       Axis{:time}(collect(dim)))
 

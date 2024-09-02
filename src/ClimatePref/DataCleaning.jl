@@ -102,12 +102,12 @@ function upresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64)
         end
     end
 
-    lon = aa.axes[1].val
-    newlon = range(lon[1], lon[end], grid[1])
+    long = aa.axes[1].val
+    newlong = range(long[1], long[end], grid[1])
     lat = aa.axes[2].val
     newlat = range(lat[1], lat[end], grid[2])
     return AxisArray(array,
-                     Axis{:longitude}(newlon),
+                     Axis{:longitude}(newlong),
                      Axis{:latitude}(newlat),
                      Axis{:time}(aa.axes[3].val))
 end
@@ -132,13 +132,13 @@ function upresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64)
         end
     end
 
-    lon = aa.axes[1].val
-    newlon = range(lon[1], lon[end], grid[1])
+    long = aa.axes[1].val
+    newlong = range(long[1], long[end], grid[1])
     lat = aa.axes[2].val
     newlat = range(lat[1], lat[end], grid[2])
 
     return AxisArray(array,
-                     Axis{:longitude}(newlon),
+                     Axis{:longitude}(newlong),
                      Axis{:latitude}(newlat))
 end
 
@@ -160,10 +160,10 @@ function downresolution(wc::Worldclim_monthly, rescale::Int64;
     return Worldclim_monthly(array)
 end
 
-function downresolution(bc::Worldclim_bioclim, rescale::Int64;
-                        fn::Function = mean)
+function downresolution(bc::ClimateRaster{T}, rescale::Int64;
+                        fn::Function = mean) where {T}
     array = downresolution(bc.array, rescale, fn = fn)
-    return Worldclim_bioclim(array)
+    return ClimateRaster(T, array)
 end
 
 function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64,
@@ -190,12 +190,12 @@ function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64,
             end
         end
     end
-    lon = aa.axes[1].val
-    newlon = range(lon[1], lon[end], grid[1])
+    long = aa.axes[1].val
+    newlong = range(long[1], long[end], grid[1])
     lat = aa.axes[2].val
     newlat = range(lat[1], lat[end], grid[2])
     return AxisArray(array,
-                     Axis{:longitude}(newlon),
+                     Axis{:longitude}(newlong),
                      Axis{:latitude}(newlat),
                      Axis{:time}(aa.axes[3].val))
 end
@@ -219,12 +219,12 @@ function downresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64;
         end
     end
 
-    lon = aa.axes[1].val
-    newlon = range(lon[1], lon[end], grid[1])
+    long = aa.axes[1].val
+    newlong = range(long[1], long[end], grid[1])
     lat = aa.axes[2].val
     newlat = range(lat[1], lat[end], grid[2])
     return AxisArray(array,
-                     Axis{:longitude}(newlon),
+                     Axis{:longitude}(newlong),
                      Axis{:latitude}(newlat))
 end
 
@@ -276,5 +276,6 @@ function compressLC(lc::ClimateRaster{T}) where
             newaa[i, j] = findmax(lc.array[i, j, :])[2]
         end
     end
+    
     return ClimateRaster(T, newaa)
 end
