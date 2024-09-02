@@ -12,7 +12,7 @@ export ClimateRaster, Worldclim_monthly, ERA, CERA, CRUTS,
 
 include("ReadData.jl")
 export searchdir, readworldclim, readERA,
-       readCERA, readfile, readCHELSA_monthly, readCHELSA_bioclim, readCRUTS
+       readCERA, readfile, readCHELSA_monthly, readCRUTS
 
 include("ExtractClimate.jl")
 export extractvalues

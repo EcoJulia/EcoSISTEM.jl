@@ -276,6 +276,6 @@ function compressLC(lc::ClimateRaster{T}) where
             newaa[i, j] = findmax(lc.array[i, j, :])[2]
         end
     end
-    
+
     return ClimateRaster(T, newaa)
 end

@@ -9,6 +9,7 @@ using Test
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using RasterDataSources
 
 @testset "Requirement and budget types" begin
     numspecies = 10

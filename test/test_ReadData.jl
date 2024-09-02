@@ -14,15 +14,15 @@ if !Sys.iswindows()
     # Download layers of bioclim data and test on all read functions
     # (essentially all the same file type)
     getraster(WorldClim{BioClim}, :bio1)
-    getraster(WorldClim{Climate}, :wind; month = 1:12)
+    getraster(WorldClim{Climate}, :wind, month = 1:12)
     getraster(EarthEnv{LandCover})
 
     @testset "Reading functions" begin
-        @test_nowarn read(WorldClim{Climate}, :wind)
+        @test_nowarn read(WorldClim{Climate}, :wind, month = 1:12)
         @test_nowarn readCRUTS("assets/WorldClim/BioClim/", "tavg")
         @test_nowarn readCHELSA_monthly("assets/WorldClim/Climate/wind/",
                                         "wind")
-        @test_nowarn read(CHELSA{BioClim})
+        @test_nowarn read(CHELSA{BioClim}, 1)
         @test_nowarn read(EarthEnv{LandCover})
         @test_nowarn readfile("assets/WorldClim/BioClim/wc2.1_10m_bio_1.tif")
     end
@@ -30,7 +30,7 @@ if !Sys.iswindows()
     @testset "Output data" begin
         bc = read(WorldClim{BioClim})
         cr = readCRUTS("assets/WorldClim/BioClim/", "tavg")
-        ch_b = read(CHELSA{BioClim})
+        ch_b = read(CHELSA{BioClim}, 1)
         rf = readfile("assets/WorldClim/BioClim/wc2.1_10m_bio_1.tif")
 
         @test unit(bc.array[1]) == unit(rf[1]) == unit(ch_b.array[1]) == NoUnits
@@ -43,7 +43,7 @@ if !Sys.iswindows()
 
     @testset "Output data 3" begin
         cr = readCRUTS("assets/WorldClim/BioClim/", "tavg")
-        wc = readworldclim("assets/WorldClim/Climate/wind/")
+        wc = read(WorldClim{Climate}, :wind)
         ch_m = readCHELSA_monthly("assets/WorldClim/Climate/wind/", "wind")
 
         @test unit(cr.array[1]) == K
