@@ -52,7 +52,7 @@ function create_reference(gridsize::Float64)
 end
 
 """
-    upresolution(data::Union{ERA, Worldclim_monthly, Worldclim_bioclim}, rescale::Int64; fn)
+    upresolution(data::Union{ERA, Worldclim_monthly, ClimateRaster}, rescale::Int64; fn)
 
 Function to increase the resolution of a climate dataset, by a factor, `rescale`.
 """
@@ -68,9 +68,9 @@ function upresolution(wc::Worldclim_monthly, rescale::Int64)
     return Worldclim_monthly(array)
 end
 
-function upresolution(bc::Worldclim_bioclim, rescale::Int64)
+function upresolution(bc::ClimateRaster{T, A}, rescale::Int64) where {T, A}
     array = upresolution(bc.array, rescale)
-    return Worldclim_bioclim(array)
+    return ClimateRaster(T, array)
 end
 
 function upresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64)
@@ -143,7 +143,7 @@ function upresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64)
 end
 
 """
-    downresolution(data::Union{ERA, Worldclim_monthly, Worldclim_bioclim}, rescale::Int64; fn)
+    downresolution(data::Union{ERA, Worldclim_monthly, ClimateRaster{WorldClim{BioClim}, <: AxisArray}}, rescale::Int64; fn)
 
 Function to decrease the resolution of a climate dataset, by a factor, `rescale`, and aggregation function, `fn`. The aggregation function has a default setting of taking the mean value.
 """
@@ -266,8 +266,8 @@ function downresolution!(resized_array::Array{T, 3}, array::Matrix{T},
     end
 end
 
-function compressLC(lc::ClimateRaster{T, A}) where
-         {T <: RDS.EarthEnv{<:RDS.LandCover}, A}
+function compressLC(lc::ClimateRaster{T}) where
+         {T <: EarthEnv{<:LandCover}}
     newaa = AxisArray(zeros(Int64, size(lc.array, 1), size(lc.array, 2)),
                       AxisArrays.axes(lc.array, 1),
                       AxisArrays.axes(lc.array, 2))

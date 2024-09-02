@@ -18,6 +18,19 @@ function Base.read(T::Type{<:RDS.RasterDataSource}; kw...)
     return read(T, RDS.layers(T); kw...)
 end
 
+function Base.read(T::Type{WorldClim{BioClim}}, layers;
+                   cut = nothing, kw...)
+    getraster(T, layers; kw...)
+    return readbioclim(T, RDS.rasterpath(T), cut = cut)
+end
+
+function Base.read(T::Type{<:EarthEnv{<:LandCover}}, layers; res = 10,
+                   fn = x -> round(mean(x)), cut = nothing, kw...)
+    getraster(T, layers; kw...)
+    return readlc(T, RDS.rasterpath(T), res = res, fn = fn,
+                  cut = cut)
+end
+
 const VARDICT = Dict("bio" => NaN, "prec" => mm,
                      "srad" => u"kJ" * u"m"^-2 * day^-1, "tavg" => K,
                      "tmax" => K, "tmin" => K, "vapr" => u"kPa",
@@ -162,13 +175,7 @@ end
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readbioclim(; cut = nothing)
-    getraster(WorldClim{BioClim})
-    path = joinpath(ENV["RASTERDATASOURCES_PATH"], "WorldClim", "BioClim")
-    return readbioclim(path, cut = cut)
-end
-
-function readbioclim(dir::String; cut = nothing)
+function readbioclim(T::Type{WorldClim{BioClim}}, dir::String; cut = nothing)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -215,7 +222,7 @@ function readbioclim(dir::String; cut = nothing)
         world = world[cut.lat, cut.long, :]
     end
 
-    return Worldclim_bioclim(world)
+    return ClimateRaster(T, world)
 end
 
 """
@@ -423,7 +430,8 @@ function readCHELSA_monthly(dir::String, var_name::String; res = 1, fn = mean,
     return CHELSA_monthly(world)
 end
 
-function readCHELSA_bioclim(dir::String; res = 1, fn = mean, cut = nothing)
+function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, dir::String; res = 1,
+                            fn = mean, cut = nothing)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -470,14 +478,7 @@ function readCHELSA_bioclim(dir::String; res = 1, fn = mean, cut = nothing)
         world = world[cut.lat, cut.long, :]
     end
 
-    return CHELSA_bioclim(world)
-end
-
-function Base.read(T::Type{<:RDS.EarthEnv{<:RDS.LandCover}}, layers; res = 10,
-                   fn = x -> round(mean(x)), cut = nothing, kw...)
-    getraster(T, layers; kw...)
-    return readlc(T, RDS.rasterpath(T), res = res, fn = fn,
-                  cut = cut)
+    return ClimateRaster(T, world)
 end
 
 """
@@ -488,7 +489,7 @@ and convert into an axis array.
 """
 
 function readlc(::Type{T}, dir::String; res = 10, fn = x -> round(mean(x)),
-                cut = nothing) where {T <: RDS.EarthEnv{<:RDS.LandCover}}
+                cut = nothing) where {T <: EarthEnv{<:LandCover}}
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end

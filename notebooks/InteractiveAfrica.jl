@@ -126,13 +126,10 @@ end
 
 # ╔═╡ 7e16f197-874b-482d-80b6-13a62ddda1f7
 begin
-    if !isdir("assets")
-        mkdir("assets")
-    end
-    ENV["RASTERDATASOURCES_PATH"] = "assets"
-    getraster(WorldClim{BioClim})
-    world = readbioclim("assets/WorldClim/BioClim/")
-    africa_temp = world.array[-25° .. 50°, -35° .. 40°, 1]
+    ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
+    africa = read(WorldClim{BioClim}, 1,
+                  cut = (lat = -25° .. 50°, long = -35° .. 40°))
+    africa_temp = africa.array
     plot(africa_temp)
 end
 

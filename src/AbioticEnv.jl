@@ -373,13 +373,14 @@ function worldclimAE(wc::Worldclim_monthly, bud::B,
 end
 
 """
-  bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
+    bioclimAE(bc::ClimateRaster{WorldClim{BioClim}}, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
 
 Function to create a `ContinuousHab`, `SimpleBudget` type abiotic environment from an Wordclim type climate. 
 It either creates a `SimpleBudget` type filled with the maximum budget value `maxbud` or uses a provided budget of type `SolarBudget`. 
 If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
 """
-function bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64},
+function bioclimAE(bc::ClimateRaster{WorldClim{BioClim}},
+                   maxbud::Unitful.Quantity{Float64},
                    area::Unitful.Area{Float64})
     dimension = size(bc.array)[1:2]
     gridsquaresize = bc.array.axes[1].val[2] - bc.array.axes[1].val[1]
@@ -398,7 +399,9 @@ function bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64},
     budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64},
+
+function bioclimAE(bc::ClimateRaster{WorldClim{BioClim}},
+                   maxbud::Unitful.Quantity{Float64},
                    area::Unitful.Area{Float64}, active::Matrix{Bool})
     dimension = size(bc.array)[1:2]
     gridsquaresize = bc.array.axes[1].val[2] - bc.array.axes[1].val[1]
@@ -413,7 +416,8 @@ function bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64},
     budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function bioclimAE(bc::Worldclim_bioclim, bud::B,
+
+function bioclimAE(bc::ClimateRaster{WorldClim{BioClim}}, bud::B,
                    active::Matrix{Bool}) where {B <: AbstractBudget}
     gridsquaresize = bc.array.axes[1].val[2] - bc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -469,7 +473,7 @@ import EcoBase.getcoords
 getcoords(abenv::GridAbioticEnv) = abenv.habitat
 
 function lcAE(lc::ClimateRaster{T, A}, maxbud::Unitful.Quantity{Float64},
-              area::Unitful.Area) where {T <: RDS.EarthEnv{<:RDS.LandCover}, A}
+              area::Unitful.Area) where {T <: EarthEnv{<:LandCover}, A}
     dimension = size(lc.array)
     gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -487,7 +491,7 @@ function lcAE(lc::ClimateRaster{T, A}, maxbud::Unitful.Quantity{Float64},
 end
 function lcAE(lc::ClimateRaster{T, A}, maxbud::Unitful.Quantity{Float64},
               area::Unitful.Area,
-              active::Matrix{Bool}) where {T <: RDS.EarthEnv{<:RDS.LandCover}, A
+              active::Matrix{Bool}) where {T <: EarthEnv{<:LandCover}, A
                                            }
     dimension = size(lc.array)[1:2]
     gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
@@ -502,7 +506,7 @@ function lcAE(lc::ClimateRaster{T, A}, maxbud::Unitful.Quantity{Float64},
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 function lcAE(lc::ClimateRaster{T, A}, bud::B,
-              active::Matrix{Bool}) where {T <: RDS.EarthEnv{<:RDS.LandCover},
+              active::Matrix{Bool}) where {T <: EarthEnv{<:LandCover},
                                            A, B <: AbstractBudget}
     gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km

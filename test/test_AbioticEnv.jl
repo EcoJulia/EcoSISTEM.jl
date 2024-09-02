@@ -134,8 +134,7 @@ if !Sys.iswindows()
     end
 
     @testset "Bioclim data" begin
-        bio_africa = readbioclim("assets/WorldClim/BioClim/")
-        bio_africa = Worldclim_bioclim(bio_africa.array[:, :, 1])
+        bio_africa = read(WorldClim{BioClim}, 1)
         active = fill(true, size(bio_africa.array))
         totalK = 1000.0kJ / km^2
         area = 100.0km^2

@@ -19,11 +19,12 @@ africa_lc = read(EarthEnv{LandCover},
 bio_africa_lc = compressLC(africa_lc)
 heatmap(bio_africa_lc.array')
 
-worldbc = readbioclim(cut = (lat = -25° .. 50°, long = -35° .. 40°))
-africa_water = worldbc.array[:, :, 13]
-africa_water = upresolution(africa_water, 2)
-africa_water = Worldclim_bioclim(AxisArray(africa_water .* mm,
-                                           AxisArrays.axes(africa_water)))
+worldbc = read(WorldClim{BioClim},
+               cut = (lat = -25° .. 50°, long = -35° .. 40°))
+africa_water_aa = upresolution(worldbc.array[:, :, 13], 2)
+africa_water = ClimateRaster(WorldClim{BioClim},
+                             AxisArray(africa_water_aa .* mm,
+                                       AxisArrays.axes(africa_water_aa)))
 bio_africa_water = WaterBudget(africa_water)
 
 # Find which grid cells are land

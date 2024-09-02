@@ -26,7 +26,7 @@ end
 @testset "Bioclim types" begin
     temp = AxisArray(fill(1.0K, 10, 10, 19), Axis{:latitude}(1:10),
                      Axis{:longitude}(1:10), Axis{:vars}(collect(1:19)))
-    @test_nowarn Worldclim_bioclim(temp)
+    @test_nowarn ClimateRaster(WorldClim{BioClim}, temp)
 end
 
 @testset "Reference types" begin

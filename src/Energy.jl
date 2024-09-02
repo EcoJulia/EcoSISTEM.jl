@@ -4,6 +4,8 @@ using EcoSISTEM.ClimatePref
 using RecipesBase
 using Unitful
 using Unitful.DefaultSymbols
+using RasterDataSources
+
 import Base: eltype, length
 """
     Abstract1Requirement{Energy}
@@ -18,7 +20,7 @@ abstract type Abstract2Requirements{Energy} <: AbstractRequirement{Energy} end
 numrequirements(::Type{<:Abstract1Requirement}) = 1
 numrequirements(::Type{<:Abstract2Requirements}) = 2
 
-function eltype(::Abstract1Requirement{Energy}) where {Energy}
+function Base.eltype(::Abstract1Requirement{Energy}) where {Energy}
     return Energy
 end
 
@@ -36,7 +38,7 @@ mutable struct SimpleRequirement <: Abstract1Requirement{Float64}
     end
 end
 
-length(req::SimpleRequirement) = length(req.energy)
+Base.length(req::SimpleRequirement) = length(req.energy)
 
 function _getenergyusage(abun::Vector{Int64}, req::SimpleRequirement)
     return sum(abun .* req.energy)
@@ -59,7 +61,7 @@ mutable struct SizeRequirement <: Abstract1Requirement{Float64}
     end
 end
 
-length(req::SizeRequirement) = length(req.energy)
+Base.length(req::SizeRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SizeRequirement)
     return sum(abun .* req.energy)
 end
@@ -80,7 +82,7 @@ mutable struct SolarRequirement <: Abstract1Requirement{typeof(1.0 * kJ)}
     end
 end
 
-length(req::SolarRequirement) = length(req.energy)
+Base.length(req::SolarRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::SolarRequirement)
     return sum(abun .* req.energy)
 end
@@ -100,7 +102,7 @@ mutable struct WaterRequirement <: Abstract1Requirement{typeof(1.0 * mm)}
         return new(uconvert.(mm, energy), uconvert.(mm^-1, exchange_rate))
     end
 end
-length(req::WaterRequirement) = length(req.energy)
+Base.length(req::WaterRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::WaterRequirement)
     return sum(abun .* req.energy)
 end
@@ -119,7 +121,7 @@ mutable struct VolWaterRequirement <: Abstract1Requirement{typeof(1.0 * m^3)}
         return new(uconvert.(m^3, energy), uconvert.(m^-3, exchange_rate))
     end
 end
-length(req::VolWaterRequirement) = length(req.energy)
+Base.length(req::VolWaterRequirement) = length(req.energy)
 function _getenergyusage(abun::Vector{Int64}, req::VolWaterRequirement)
     return sum(abun .* req.energy)
 end
@@ -128,8 +130,8 @@ mutable struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
     r1::R1
     r2::R2
 end
-length(req::ReqCollection2) = length(req.r1.energy)
-function eltype(req::ReqCollection2)
+Base.length(req::ReqCollection2) = length(req.r1.energy)
+function Base.eltype(req::ReqCollection2)
     return [eltype(req.r1), eltype(req.r2)]
 end
 function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
@@ -146,7 +148,7 @@ Abstract supertype for all budget types
 abstract type AbstractBudget{Requirement} end
 abstract type AbstractTimeBudget{Requirement} <: AbstractBudget{Requirement} end
 
-function eltype(::AbstractBudget{Energy}) where {Energy}
+function Base.eltype(::AbstractBudget{Energy}) where {Energy}
     return Energy
 end
 
@@ -261,7 +263,7 @@ mutable struct WaterBudget <: AbstractBudget{typeof(1.0mm)}
     end
 end
 
-function WaterBudget(bc::Worldclim_bioclim)
+function WaterBudget(bc::ClimateRaster{WorldClim{BioClim}})
     mat = Matrix(bc.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
     return WaterBudget(mat)
@@ -375,7 +377,7 @@ mutable struct BudgetCollection2{B1, B2} <: AbstractBudget{Tuple{B1, B2}}
     b2::B2
 end
 
-function eltype(bud::BudgetCollection2)
+function Base.eltype(bud::BudgetCollection2)
     return [eltype(bud.b1), eltype(bud.b2)]
 end
 function _countsubcommunities(bud::BudgetCollection2)

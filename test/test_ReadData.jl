@@ -18,20 +18,19 @@ if !Sys.iswindows()
     getraster(EarthEnv{LandCover})
 
     @testset "Reading functions" begin
-        @test_nowarn readbioclim()
-        @test_nowarn readworldclim("assets/WorldClim/Climate/wind/")
+        @test_nowarn read(WorldClim{Climate}, :wind)
         @test_nowarn readCRUTS("assets/WorldClim/BioClim/", "tavg")
         @test_nowarn readCHELSA_monthly("assets/WorldClim/Climate/wind/",
                                         "wind")
-        @test_nowarn readCHELSA_bioclim("assets/WorldClim/BioClim/")
+        @test_nowarn read(CHELSA{BioClim})
         @test_nowarn read(EarthEnv{LandCover})
         @test_nowarn readfile("assets/WorldClim/BioClim/wc2.1_10m_bio_1.tif")
     end
 
     @testset "Output data" begin
-        bc = readbioclim("assets/WorldClim/BioClim/")
+        bc = read(WorldClim{BioClim})
         cr = readCRUTS("assets/WorldClim/BioClim/", "tavg")
-        ch_b = readCHELSA_bioclim("assets/WorldClim/BioClim/")
+        ch_b = read(CHELSA{BioClim})
         rf = readfile("assets/WorldClim/BioClim/wc2.1_10m_bio_1.tif")
 
         @test unit(bc.array[1]) == unit(rf[1]) == unit(ch_b.array[1]) == NoUnits

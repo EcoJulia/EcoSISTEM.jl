@@ -7,6 +7,8 @@ using RecipesBase
 using RasterDataSources
 const RDS = RasterDataSources
 
+import Base: size, length, eltype
+
 """
     AbstractClimate
 
@@ -28,6 +30,10 @@ mutable struct ClimateRaster{R <: RDS.RasterDataSource, A <: AxisArray} <:
     end
 end
 
+Base.size(cr::ClimateRaster) = size(cr.array)
+Base.length(cr::ClimateRaster) = length(cr.array)
+Base.eltype(::ClimateRaster{RDS, A}) where {RDS, A} = eltype(A)
+
 """
     Worldclim_monthly <: AbstractClimate
 
@@ -40,15 +46,6 @@ mutable struct Worldclim_monthly{A <: AxisArray} <: AbstractClimate
             error("There should be 12 months of data for worldclim")
         return new{A}(array)
     end
-end
-
-"""
-    Worldclim_bioclim <: AbstractClimate
-
-Type that houses data extracted from Bioclim raster files.
-"""
-mutable struct Worldclim_bioclim{A <: AxisArray} <: AbstractClimate
-    array::A
 end
 
 """
@@ -114,13 +111,4 @@ mutable struct CHELSA_monthly{A <: AxisArray} <: AbstractClimate
             error("There should be 12 months of data for CHELSA")
         return new{A}(array)
     end
-end
-
-"""
-    CHELSA_bioclim <: AbstractClimate
-
-Type that houses data extracted from CHELSA raster files.
-"""
-mutable struct CHELSA_bioclim{A <: AxisArray} <: AbstractClimate
-    array::A
 end
