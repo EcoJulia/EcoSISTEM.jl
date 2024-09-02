@@ -370,7 +370,6 @@ function readCRUTS(dir::String, var_name::String; cut = nothing)
         return b[:, :, count] = a
     end
 
-    numfiles = length(files)
     unit = VARDICT[var_name]
 
     lat, long = size(b, 1), size(b, 2)
@@ -481,8 +480,11 @@ function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, files::Vector{String};
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / scale),
-                         ceil(Int64, txy[3] / scale), numfiles)
+    b = numfiles > 1 ?
+        Array{txy[1], 3}(undef, ceil(Int64, txy[2] / scale),
+                         ceil(Int64, txy[3] / scale), numfiles) :
+        Array{txy[1], 2}(undef, ceil(Int64, txy[2] / scale),
+                         ceil(Int64, txy[3] / scale))
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
         readag(files[count]) do dataset
@@ -500,10 +502,14 @@ function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, files::Vector{String};
     ymax = 90.0°
     step_lat = (xmax - xmin) / lat
     step_lon = (ymax - ymin) / long
-    world = AxisArray(b[:, long:-1:1, :] * unit,
+    world = numfiles > 1 ?
+            AxisArray(b[:, long:-1:1, :] * unit,
                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:var}(1:numfiles))
+                      Axis{:var}(1:numfiles)) :
+            AxisArray(b[:, long:-1:1] * unit,
+                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
+                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)))
 
     if txy[1] <: AbstractFloat
         @view(world.data[world.data .=== txy[4]]) .*= NaN
@@ -548,8 +554,12 @@ function readlc(::Type{T}, files::Vector{String}; scale = 10,
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / scale),
-                         ceil(Int64, txy[3] / scale), numfiles)
+    b = numfiles > 1 ?
+        Array{txy[1], 3}(undef, ceil(Int64, txy[2] / scale),
+                         ceil(Int64, txy[3] / scale), numfiles) :
+        Array{txy[1], 2}(undef, ceil(Int64, txy[2] / scale),
+                         ceil(Int64, txy[3] / scale))
+
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
         readag(files[count]) do dataset
@@ -567,10 +577,14 @@ function readlc(::Type{T}, files::Vector{String}; scale = 10,
     ymax = 90.0°
     step_lat = (xmax - xmin) / lat
     step_lon = (ymax - ymin) / long
-    world = AxisArray(b[:, long:-1:1, :] * unit,
+    world = numfiles > 1 ?
+            AxisArray(b[:, long:-1:1, :] * unit,
                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:var}(1:numfiles))
+                      Axis{:var}(1:numfiles)) :
+            AxisArray(b[:, long:-1:1] * unit,
+                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
+                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)))
     if txy[1] <: AbstractFloat
         @view(world.data[world.data .=== txy[4]]) .*= NaN
         @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
