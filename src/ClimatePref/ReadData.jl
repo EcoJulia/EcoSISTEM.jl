@@ -20,14 +20,26 @@ end
 
 function Base.read(T::Type{WorldClim{BioClim}}, layers;
                    cut = nothing, kw...)
-    getraster(T, layers; kw...)
-    return readbioclim(T, RDS.rasterpath(T), cut = cut)
+    files = getraster(T, layers; kw...)
+    return readbioclim(T, files, cut = cut)
 end
 
-function Base.read(T::Type{<:EarthEnv{<:LandCover}}, layers; res = 10,
+function Base.read(T::Type{WorldClim{Climate}}, layers;
+                   cut = nothing, month = 1:12, kw...)
+    files = getraster(T, layers; month = month, kw...)
+    return readworldclim(T, files, cut = cut)
+end
+
+function Base.read(T::Type{CHELSA{BioClim}}, layers; scale = 1,
+                   fn = mean, cut = nothing, kw...)
+    files = getraster(T, layers; kw...)
+    return readCHELSA_bioclim(T, files, scale = scale, fn = fn, cut = cut)
+end
+
+function Base.read(T::Type{<:EarthEnv{<:LandCover}}, layers; scale = 10,
                    fn = x -> round(mean(x)), cut = nothing, kw...)
-    getraster(T, layers; kw...)
-    return readlc(T, RDS.rasterpath(T), res = res, fn = fn,
+    files = getraster(T, layers; kw...)
+    return readlc(T, files, scale = scale, fn = fn,
                   cut = cut)
 end
 
@@ -109,10 +121,16 @@ end
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readworldclim(dir::String; cut = nothing)
-    files = map(searchdir(dir, ".tif")) do files
-        return joinpath(dir, files)
-    end
+function readworldclim(T::Type{WorldClim{Climate}}, file::String; kw...)
+    return readworldclim(T, [file]; kw...)
+end
+
+function readworldclim(T::Type{WorldClim{Climate}}, files; kw...)
+    return readworldclim(T, [values(files)...]; kw...)
+end
+
+function readworldclim(::Type{WorldClim{Climate}}, files::Vector{String};
+                       cut = nothing)
     txy = [Float64, Int32(1), Int32(1), Int32(1)]
 
     readag(files[1]) do dataset
@@ -170,15 +188,21 @@ function readworldclim(dir::String; cut = nothing)
 end
 
 """
-    readbioclim(dir::String; cut = nothing)
+    readbioclim(T::Type{WorldClim{BioClim}}, files; cut = nothing)
 
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readbioclim(T::Type{WorldClim{BioClim}}, dir::String; cut = nothing)
-    files = map(searchdir(dir, ".tif")) do files
-        return joinpath(dir, files)
-    end
+function readbioclim(T::Type{WorldClim{BioClim}}, file::String; kw...)
+    return readbioclim(T, [file]; kw...)
+end
+
+function readbioclim(T::Type{WorldClim{BioClim}}, files; kw...)
+    return readbioclim(T, [values(files)...]; kw...)
+end
+
+function readbioclim(T::Type{WorldClim{BioClim}}, files::Vector{String};
+                     cut = nothing)
     txy = [Float32, Int32(1), Int32(1), Float64(1), ""]
 
     readag(files[1]) do dataset
@@ -191,7 +215,9 @@ function readbioclim(T::Type{WorldClim{BioClim}}, dir::String; cut = nothing)
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles)
+    b = numfiles > 1 ?
+        Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles) :
+        Array{txy[1], 2}(undef, Int64(txy[2]), Int64(txy[3]))
     map(eachindex(files)) do count
         a = Matrix{txy[1]}(undef, txy[2], txy[3])
         readag(files[count]) do dataset
@@ -209,10 +235,14 @@ function readbioclim(T::Type{WorldClim{BioClim}}, dir::String; cut = nothing)
     ymax = 90.0°
     step_lat = (xmax - xmin) / lat
     step_lon = (ymax - ymin) / long
-    world = AxisArray(b[:, long:-1:1, :] * unit,
+    world = numfiles > 1 ?
+            AxisArray(b[:, long:-1:1, :] * unit,
                       Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
                       Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:var}(1:numfiles))
+                      Axis{:var}(1:numfiles)) :
+            AxisArray(b[:, long:-1:1] * unit,
+                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
+                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)))
     if txy[1] <: AbstractFloat
         @view(world.data[world.data .=== txy[4]]) .*= NaN
         @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
@@ -376,7 +406,7 @@ end
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
-function readCHELSA_monthly(dir::String, var_name::String; res = 1, fn = mean,
+function readCHELSA_monthly(dir::String, var_name::String; scale = 1, fn = mean,
                             cut = nothing)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
@@ -391,15 +421,15 @@ function readCHELSA_monthly(dir::String, var_name::String; res = 1, fn = mean,
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / res),
-                         ceil(Int64, txy[3] / res), numfiles)
+    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / scale),
+                         ceil(Int64, txy[3] / scale), numfiles)
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
         readag(files[count]) do dataset
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
-        return downresolution!(b, a, count, res, fn = fn)
+        return downresolution!(b, a, count, scale, fn = fn)
     end
     unit = VARDICT[var_name]
 
@@ -430,11 +460,17 @@ function readCHELSA_monthly(dir::String, var_name::String; res = 1, fn = mean,
     return CHELSA_monthly(world)
 end
 
-function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, dir::String; res = 1,
+function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, file::String; kw...)
+    return readCHELSA_bioclim(T, [file]; kw...)
+end
+
+function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, files; kw...)
+    return readCHELSA_bioclim(T, [values(files)...]; kw...)
+end
+
+function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, files::Vector{String};
+                            scale = 1,
                             fn = mean, cut = nothing)
-    files = map(searchdir(dir, ".tif")) do files
-        return joinpath(dir, files)
-    end
     txy = [Float64, Int32(1), Int32(1), Float64(1)]
     readag(files[1]) do dataset
         txy[1] = Float64
@@ -445,15 +481,15 @@ function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, dir::String; res = 1,
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / res),
-                         ceil(Int64, txy[3] / res), numfiles)
+    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / scale),
+                         ceil(Int64, txy[3] / scale), numfiles)
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
         readag(files[count]) do dataset
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
-        return downresolution!(b, a, count, res, fn = fn)
+        return downresolution!(b, a, count, scale, fn = fn)
     end
     unit = 1.0
 
@@ -482,17 +518,24 @@ function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, dir::String; res = 1,
 end
 
 """
-    readlc(dir::String)
+    readlc(::Type{<:EarthEnv{<:LandCover}}, files; scale = 10, fn = x -> round(mean(x)),
+           cut = nothing)
 
 Function to extract all raster files from a specified folder directory,
 and convert into an axis array.
 """
+function readlc(::Type{T}, file::String;
+                kw...) where {T <: EarthEnv{<:LandCover}}
+    return readlc(T, [file]; kw...)
+end
 
-function readlc(::Type{T}, dir::String; res = 10, fn = x -> round(mean(x)),
+function readlc(::Type{T}, files; kw...) where {T <: EarthEnv{<:LandCover}}
+    return readlc(T, [values(files)...]; kw...)
+end
+
+function readlc(::Type{T}, files::Vector{String}; scale = 10,
+                fn = x -> round(mean(x)),
                 cut = nothing) where {T <: EarthEnv{<:LandCover}}
-    files = map(searchdir(dir, ".tif")) do files
-        return joinpath(dir, files)
-    end
     txy = [Float32, Int32(1), Int32(1), Float64(1), ""]
 
     readag(files[1]) do dataset
@@ -505,15 +548,15 @@ function readlc(::Type{T}, dir::String; res = 10, fn = x -> round(mean(x)),
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / res),
-                         ceil(Int64, txy[3] / res), numfiles)
+    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / scale),
+                         ceil(Int64, txy[3] / scale), numfiles)
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
         readag(files[count]) do dataset
             bd = AG.getband(dataset, 1)
             return AG.read!(bd, a)
         end
-        return downresolution!(b, a, count, res, fn = fn)
+        return downresolution!(b, a, count, scale, fn = fn)
     end
     unit = 1.0
 
