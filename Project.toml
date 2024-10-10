@@ -89,7 +89,7 @@ Printf = "1.9"
 PyCall = "1"
 REPL = "1.9"
 Random = "1.9"
-RasterDataSources = "0.5.6, 0.6"
+RasterDataSources = "0.5.6, 0.6, 0.7"
 RecipesBase = "1"
 ResearchSoftwareMetadata = "0.1.1"
 SHA = "0.7"
@@ -104,15 +104,15 @@ p7zip_jll = "17"
 
 [[author_details]]
 name = "Claire Harris"
-orcid = "0000-0003-0852-2340"
 email = "Claire.Harris@defra.gov.uk"
+orcid = "0000-0003-0852-2340"
 
     [[author_details.affiliation]]
     ror = "03jwrz939"
 [[author_details]]
 name = "Richard Reeve"
-orcid = "0000-0003-2589-8091"
 email = "richard.reeve@glasgow.ac.uk"
+orcid = "0000-0003-2589-8091"
 
     [[author_details.affiliation]]
     ror = "00vtgdb53"
