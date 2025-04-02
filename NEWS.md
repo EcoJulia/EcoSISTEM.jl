@@ -1,5 +1,7 @@
 # NEWS
 
+- v0.2.6
+  - Compat fixes and resolve Pluto notebook error
 - v0.2.5
   - Use ResearchSoftwareMetadata
   - Add in metadata and code hygene testing
