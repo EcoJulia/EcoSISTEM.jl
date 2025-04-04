@@ -7,13 +7,12 @@ function retrieve_era5 end
 export retrieve_era5
 
 include("ClimateTypes.jl")
-export Worldclim_monthly, Worldclim_bioclim, ERA, CERA, CRUTS, CHELSA_bioclim,
-       CHELSA_monthly, Reference, Landcover
+export ClimateRaster, Worldclim_monthly, ERA, CERA, CRUTS,
+       CHELSA_monthly, Reference
 
 include("ReadData.jl")
-export read, searchdir, readworldclim, readbioclim, readERA,
-       readCERA, readfile, readCHELSA_monthly, readCHELSA_bioclim, readCRUTS,
-       readlc
+export searchdir, readworldclim, readERA,
+       readCERA, readfile, readCHELSA_monthly, readCRUTS
 
 include("ExtractClimate.jl")
 export extractvalues

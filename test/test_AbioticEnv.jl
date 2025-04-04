@@ -11,15 +11,12 @@ using AxisArrays
 using RasterDataSources
 
 if !Sys.iswindows()
-    if !isdir("assets")
-        mkdir("assets")
-        ENV["RASTERDATASOURCES_PATH"] = "assets"
-        # Download layers of bioclim data and test on all read functions
-        # (essentially all the same file type)
-        getraster(WorldClim{BioClim}, :bio1)
-        getraster(WorldClim{Climate}, :wind; month = 1:12)
-        getraster(EarthEnv{LandCover})
-    end
+    ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
+    # Download layers of bioclim data and test on all read functions
+    # (essentially all the same file type)
+    getraster(WorldClim{BioClim}, :bio1)
+    getraster(WorldClim{Climate}, :wind; month = 1:12)
+    getraster(EarthEnv{LandCover})
 
     grid = (5, 5)
     area = 25.0km^2
@@ -137,8 +134,7 @@ if !Sys.iswindows()
     end
 
     @testset "Bioclim data" begin
-        bio_africa = readbioclim("assets/WorldClim/BioClim/")
-        bio_africa = Worldclim_bioclim(bio_africa.array[:, :, 1])
+        bio_africa = read(WorldClim{BioClim}, 1)
         active = fill(true, size(bio_africa.array))
         totalK = 1000.0kJ / km^2
         area = 100.0km^2
@@ -152,10 +148,9 @@ if !Sys.iswindows()
     end
 
     @testset "LandCover data" begin
-        world = readlc("assets/EarthEnv/LandCover/without_DISCover/")
+        world = read(EarthEnv{LandCover})
         world_lc = compressLC(world)
-        world_lc = Landcover(world_lc)
-        active = fill(true, size(world_lc.array))
+        active = fill(true, size(world_lc.array.data))
         totalK = 1000.0kJ / km^2
         area = 100.0km^2
         lc = lcAE(world_lc, totalK, area)

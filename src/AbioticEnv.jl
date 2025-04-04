@@ -3,14 +3,16 @@
 using Diversity
 using Unitful
 using Unitful.DefaultSymbols
+using Diversity.API
+using RasterDataSources
 using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
 
-using Diversity.API
-
-matchdict = Dict(kJ => SolarBudget, mm => WaterBudget, NoUnits => SimpleBudget,
-                 m^3 => VolWaterBudget)
-checkbud(maxbud) = unit(maxbud) in keys(matchdict)
+const RDS = RasterDataSources
+const BUDGETDICT = Dict(kJ => SolarBudget, mm => WaterBudget,
+                        NoUnits => SimpleBudget,
+                        m^3 => VolWaterBudget)
+checkbud(maxbud) = unit(maxbud) in keys(BUDGETDICT)
 function cancel(a::Quantity{<:Real, 𝐌 * 𝐓^-2}, b::Quantity{<:Real, 𝐋^2})
     return uconvert(kJ, a * b)
 end
@@ -87,7 +89,7 @@ function simplenicheAE(numniches::Int64, dimension::Tuple,
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 function simplenicheAE(numniches::Int64, dimension::Tuple,
@@ -142,7 +144,7 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 
@@ -192,7 +194,7 @@ function peakedgradAE(minT::Unitful.Temperature{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 
@@ -233,7 +235,7 @@ function raingradAE(minR::Unitful.Length{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 
@@ -289,7 +291,7 @@ function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64},
@@ -304,7 +306,7 @@ function eraAE(era::ERA, maxbud::Unitful.Quantity{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 function eraAE(era::ERA, bud::B,
@@ -341,7 +343,7 @@ function worldclimAE(wc::Worldclim_monthly, maxbud::Unitful.Quantity{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 function worldclimAE(wc::Worldclim_monthly, maxbud::Unitful.Quantity{Float64},
@@ -356,7 +358,7 @@ function worldclimAE(wc::Worldclim_monthly, maxbud::Unitful.Quantity{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 function worldclimAE(wc::Worldclim_monthly, bud::B,
@@ -371,13 +373,14 @@ function worldclimAE(wc::Worldclim_monthly, bud::B,
 end
 
 """
-  bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
+    bioclimAE(bc::ClimateRaster{WorldClim{BioClim}}, maxbud::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
 
 Function to create a `ContinuousHab`, `SimpleBudget` type abiotic environment from an Wordclim type climate. 
 It either creates a `SimpleBudget` type filled with the maximum budget value `maxbud` or uses a provided budget of type `SolarBudget`. 
 If a Bool matrix of active grid squares is included, `active`, this is used, else one is created with all grid cells active.
 """
-function bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64},
+function bioclimAE(bc::ClimateRaster{WorldClim{BioClim}},
+                   maxbud::Unitful.Quantity{Float64},
                    area::Unitful.Area{Float64})
     dimension = size(bc.array)[1:2]
     gridsquaresize = bc.array.axes[1].val[2] - bc.array.axes[1].val[1]
@@ -393,10 +396,12 @@ function bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64},
+
+function bioclimAE(bc::ClimateRaster{WorldClim{BioClim}},
+                   maxbud::Unitful.Quantity{Float64},
                    area::Unitful.Area{Float64}, active::Matrix{Bool})
     dimension = size(bc.array)[1:2]
     gridsquaresize = bc.array.axes[1].val[2] - bc.array.axes[1].val[1]
@@ -408,10 +413,11 @@ function bioclimAE(bc::Worldclim_bioclim, maxbud::Unitful.Quantity{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function bioclimAE(bc::Worldclim_bioclim, bud::B,
+
+function bioclimAE(bc::ClimateRaster{WorldClim{BioClim}}, bud::B,
                    active::Matrix{Bool}) where {B <: AbstractBudget}
     gridsquaresize = bc.array.axes[1].val[2] - bc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -450,7 +456,7 @@ function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
 
@@ -466,8 +472,8 @@ import EcoBase.getcoords
 
 getcoords(abenv::GridAbioticEnv) = abenv.habitat
 
-function lcAE(lc::Landcover, maxbud::Unitful.Quantity{Float64},
-              area::Unitful.Area)
+function lcAE(lc::ClimateRaster{T, A}, maxbud::Unitful.Quantity{Float64},
+              area::Unitful.Area) where {T <: EarthEnv{<:LandCover}, A}
     dimension = size(lc.array)
     gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -480,11 +486,13 @@ function lcAE(lc::Landcover, maxbud::Unitful.Quantity{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function lcAE(lc::Landcover, maxbud::Unitful.Quantity{Float64},
-              area::Unitful.Area, active::Matrix{Bool})
+function lcAE(lc::ClimateRaster{T, A}, maxbud::Unitful.Quantity{Float64},
+              area::Unitful.Area,
+              active::Matrix{Bool}) where {T <: EarthEnv{<:LandCover}, A
+                                           }
     dimension = size(lc.array)[1:2]
     gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
@@ -494,11 +502,12 @@ function lcAE(lc::Landcover, maxbud::Unitful.Quantity{Float64},
     bud = zeros(typeof(B), dimension)
     fill!(bud, B / (dimension[1] * dimension[2]))
     checkbud(B) || error("Unrecognised unit in budget")
-    budtype = matchdict[unit(B)]
+    budtype = BUDGETDICT[unit(B)]
     return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
 end
-function lcAE(lc::Landcover, bud::B,
-              active::Matrix{Bool}) where {B <: AbstractBudget}
+function lcAE(lc::ClimateRaster{T, A}, bud::B,
+              active::Matrix{Bool}) where {T <: EarthEnv{<:LandCover},
+                                           A, B <: AbstractBudget}
     gridsquaresize = lc.array.axes[1].val[2] - lc.array.axes[1].val[1]
     gridsquaresize = ustrip.(gridsquaresize) * 111.32km
     hab = DiscreteHab(Array(lc.array), gridsquaresize,

@@ -12,13 +12,10 @@ using Unitful.DefaultSymbols
 using StatsBase
 using Plots
 
+ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
 # Download temperature and precipitation data
-if !isdir("assets")
-    mkdir("assets")
-end
-ENV["RASTERDATASOURCES_PATH"] = "assets"
-getraster(WorldClim{BioClim})
-world = readbioclim("assets/WorldClim/BioClim/")
+world = read(WorldClim{BioClim}, 1,
+             cut = (lat = -25° .. 50°, long = -35° .. 40°))
 africa_temp = world.array[-25° .. 50°, -35° .. 40°, 1]
 bio_africa = uconvert.(K, africa_temp .* °C)
 bio_africa = Worldclim_bioclim(AxisArray(bio_africa,

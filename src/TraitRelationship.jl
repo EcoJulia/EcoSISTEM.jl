@@ -2,6 +2,7 @@
 
 using Unitful
 using EcoSISTEM.Units
+
 import Base.eltype
 """
     AbstractTraitRelationship{TR}
@@ -27,8 +28,8 @@ function (::Gauss{TR})(current::TR, opt::TR, var::TR) where {TR}
            exp(-abs(current - opt)^2 / (2 * var^2))
     return pref * unit(current)
 end
-iscontinuous(tr::Gauss{TR}) where {TR} = true
-function eltype(tr::Gauss{TR}) where {TR}
+iscontinuous(tr::Gauss) = true
+function Base.eltype(tr::Gauss{TR}) where {TR}
     return TR
 end
 
@@ -45,8 +46,8 @@ end
 function (::Trapeze{TR})(dist::Trapezoid, current::TR) where {TR}
     return pdf(dist, ustrip(current))
 end
-iscontinuous(tr::Trapeze{TR}) where {TR} = true
-function eltype(tr::Trapeze{TR}) where {TR}
+iscontinuous(tr::Trapeze) = true
+function Base.eltype(tr::Trapeze{TR}) where {TR}
     return TR
 end
 
@@ -63,8 +64,8 @@ end
 function (::Unif{TR})(dist::Uniform, current::TR) where {TR}
     return pdf(dist, uconvert(NoUnits, current / mm))
 end
-iscontinuous(tr::Unif{TR}) where {TR} = true
-function eltype(tr::Unif{TR}) where {TR}
+iscontinuous(tr::Unif) = true
+function Base.eltype(tr::Unif{TR}) where {TR}
     return TR
 end
 
@@ -85,8 +86,8 @@ function (::Match{TR})(niche::TR, pref::TR) where {TR}
         return 0.5
     end
 end
-iscontinuous(tr::Match{TR}) where {TR} = false
-function eltype(tr::Match{TR}) where {TR}
+iscontinuous(tr::Match) = false
+function Base.eltype(tr::Match{TR}) where {TR}
     return TR
 end
 
@@ -99,8 +100,8 @@ function (::LCmatch{TR})(niche::TR, pref::Vector{TR}) where {TR}
         return 0.0
     end
 end
-iscontinuous(tr::LCmatch{TR}) where {TR} = false
-function eltype(tr::LCmatch{TR}) where {TR}
+iscontinuous(tr::LCmatch) = false
+function Base.eltype(::LCmatch{TR}) where {TR}
     return TR
 end
 
@@ -113,11 +114,11 @@ paramaterised on any TR. Returns the value 1.
 """
 mutable struct NoRelContinuous{TR} <: AbstractTraitRelationship{TR}
 end
-function (::NoRelContinuous{TR})(habitat::TR, niche::TR, pref::TR) where {TR}
+function (::NoRelContinuous{TR})(::TR, ::TR, ::TR) where {TR}
     return 1.0
 end
-iscontinuous(tr::NoRelContinuous{TR}) where {TR} = true
-function eltype(tr::NoRelContinuous{TR}) where {TR}
+iscontinuous(tr::NoRelContinuous) = true
+function Base.eltype(tr::NoRelContinuous{TR}) where {TR}
     return TR
 end
 
@@ -133,8 +134,8 @@ end
 function (::NoRelDiscrete{TR})(niche::TR, pref::TR) where {TR}
     return 1.0
 end
-iscontinuous(tr::NoRelDiscrete{TR}) where {TR} = false
-function eltype(tr::NoRelDiscrete{TR}) where {TR}
+iscontinuous(tr::NoRelDiscrete) = false
+function Base.eltype(tr::NoRelDiscrete{TR}) where {TR}
     return TR
 end
 
@@ -150,10 +151,10 @@ mutable struct multiplicativeTR2{TR1, TR2} <:
     tr1::TR1
     tr2::TR2
 end
-function iscontinuous(tr::multiplicativeTR2{TR1, TR2}) where {TR1, TR2}
+function iscontinuous(tr::multiplicativeTR2)
     return [iscontinuous(tr.tr1), iscontinuous(tr.tr2)]
 end
-function eltype(mtr::multiplicativeTR2)
+function Base.eltype(mtr::multiplicativeTR2)
     return [eltype(mtr.tr1), eltype(mtr.tr2)]
 end
 
@@ -170,11 +171,10 @@ mutable struct multiplicativeTR3{TR1, TR2, TR3} <:
     tr2::TR2
     tr3::TR3
 end
-function iscontinuous(tr::multiplicativeTR3{TR1, TR2, TR3}) where {TR1, TR2, TR3
-                                                                   }
+function iscontinuous(tr::multiplicativeTR3)
     return [iscontinuous(tr.tr1), iscontinuous(tr.tr2), iscontinuous(tr.tr3)]
 end
-function eltype(mtr::multiplicativeTR3)
+function Base.eltype(mtr::multiplicativeTR3)
     return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
 end
 
@@ -190,10 +190,10 @@ mutable struct additiveTR2{TR1, TR2} <:
     tr1::TR1
     tr2::TR2
 end
-function iscontinuous(tr::additiveTR2{TR1, TR2}) where {TR1, TR2}
+function iscontinuous(tr::additiveTR2)
     return [iscontinuous(tr.tr1), iscontinuous(tr.tr2)]
 end
-function eltype(mtr::additiveTR2)
+function Base.eltype(mtr::additiveTR2)
     return [eltype(mtr.tr1), eltype(mtr.tr2)]
 end
 
@@ -210,10 +210,10 @@ mutable struct additiveTR3{TR1, TR2, TR3} <:
     tr2::TR2
     tr3::TR3
 end
-function iscontinuous(tr::additiveTR3{TR1, TR2, TR3}) where {TR1, TR2, TR3}
+function iscontinuous(tr::additiveTR3)
     return [iscontinuous(tr.tr1), iscontinuous(tr.tr2), iscontinuous(tr.tr3)]
 end
-function eltype(mtr::additiveTR3)
+function Base.eltype(mtr::additiveTR3)
     return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
 end
 

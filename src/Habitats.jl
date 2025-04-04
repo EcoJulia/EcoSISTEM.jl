@@ -1,16 +1,21 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 using StatsBase
-import Diversity.API._countsubcommunities
-import Diversity.countsubcommunities
+using Diversity
+using Diversity.API
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using RecipesBase
 using EcoBase
+using Measures: AbsoluteLength
+
+import Base.eltype
 import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
                 cells, xrange, yrange, xmax, ymax, indices, coordinates
-using Measures: AbsoluteLength
+import Diversity.API._countsubcommunities
+import Diversity.countsubcommunities
+
 const px = AbsoluteLength(0.254)
 
 """
@@ -20,7 +25,7 @@ Abstract supertype for all habitat types
 """
 abstract type AbstractHabitat{H} <: EcoBase.AbstractGrid end
 
-function countsubcommunities(ah::AbstractHabitat)
+function Diversity.countsubcommunities(ah::AbstractHabitat)
     return _countsubcommunities(ah)
 end
 xmin(ah::AbstractHabitat) = 0
@@ -61,7 +66,7 @@ end
 
 iscontinuous(::ContinuousHab) = true
 
-function eltype(hab::ContinuousHab{C}) where {C}
+function Base.eltype(hab::ContinuousHab{C}) where {C}
     return C
 end
 @recipe function f(H::ContinuousHab{C}) where {C}
@@ -114,24 +119,23 @@ end
     return xrange(H), yrange(H), h[:, :, time]
 end
 
-function iscontinuous(hab::ContinuousTimeHab{C, M}) where {C,
-                                                           M <:
-                                                           AbstractArray{C, 3}}
+function iscontinuous(hab::ContinuousTimeHab{C, M}) where
+         {C, M <: AbstractArray{C, 3}}
     return true
 end
-function eltype(hab::ContinuousTimeHab{C, M}) where {C, M <:
-                                                        AbstractArray{C, 3}}
+function Base.eltype(hab::ContinuousTimeHab{C, M}) where
+         {C, M <: AbstractArray{C, 3}}
     return C
 end
 function _resettime!(hab::ContinuousTimeHab)
     return hab.time = 1
 end
 
-function _countsubcommunities(hab::ContinuousHab)
+function Diversity.API._countsubcommunities(hab::ContinuousHab)
     return length(hab.matrix)
 end
 
-function _countsubcommunities(hab::ContinuousTimeHab)
+function Diversity.API._countsubcommunities(hab::ContinuousTimeHab)
     return length(hab.matrix[:, :, 1])
 end
 
@@ -156,10 +160,10 @@ end
 end
 
 iscontinuous(hab::DiscreteHab) = false
-function eltype(hab::DiscreteHab{D}) where {D}
+function Base.eltype(hab::DiscreteHab{D}) where {D}
     return D
 end
-function _countsubcommunities(hab::DiscreteHab)
+function Diversity.API._countsubcommunities(hab::DiscreteHab)
     return length(hab.matrix)
 end
 
@@ -173,7 +177,7 @@ function _getsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
     return x * y
 end
 import Base.size
-function size(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, d)
+function Base.size(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, d)
     return size(hab.matrix, d)
 end
 
@@ -188,7 +192,7 @@ end
 function iscontinuous(hab::HabitatCollection2{H1, H2}) where {H1, H2}
     return [iscontinuous(hab.h1), iscontinuous(hab.h2)]
 end
-function eltype(hab::HabitatCollection2)
+function Base.eltype(hab::HabitatCollection2)
     return [eltype(hab.h1), eltype(hab.h2)]
 end
 @recipe function f(H::HabitatCollection2{H1, H2}) where {H1, H2}
@@ -219,7 +223,7 @@ function iscontinuous(hab::HabitatCollection3)
     return [iscontinuous(hab.h1),
             iscontinuous(hab.h2), iscontinuous(hab.h3)]
 end
-function eltype(hab::HabitatCollection3)
+function Base.eltype(hab::HabitatCollection3)
     return [eltype(hab.h1), eltype(hab.h2), eltype(hab.h3)]
 end
 
@@ -252,7 +256,7 @@ end
 function _getsize(hab::Union{HabitatCollection2, HabitatCollection3})
     return _getsize(hab.h1)
 end
-function size(hab::Union{HabitatCollection2, HabitatCollection3}, d)
+function Base.size(hab::Union{HabitatCollection2, HabitatCollection3}, d)
     return size(hab.h1, d)
 end
 
@@ -272,10 +276,10 @@ function gethabitat(hab::ContinuousTimeHab, pos::Int64)
     return hab.matrix[x, y, hab.time]
 end
 
-function _countsubcommunities(hab::HabitatCollection2)
+function Diversity.API._countsubcommunities(hab::HabitatCollection2)
     return _countsubcommunities(hab.h1)
 end
-function _countsubcommunities(hab::HabitatCollection3)
+function Diversity.API._countsubcommunities(hab::HabitatCollection3)
     return _countsubcommunities(hab.h1)
 end
 

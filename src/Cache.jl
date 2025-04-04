@@ -26,11 +26,11 @@ function clearcache(cache::CachedEcosystem)
 end
 
 function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
-    yr = mod(tm, 1year) == 0year ? Int(ustrip(uconvert(year, tm))) : missing
+    cal_yr = mod(tm, 1year) == 0year ? Int(ustrip(uconvert(year, tm))) : missing
     if ismissing(cache.abundances.matrix[tm])
-        if checkfile(cache.abundances.outputfolder, yr)
+        if checkfile(cache.abundances.outputfolder, cal_yr)
             cache.abundances.matrix[tm] = loadfile(cache.abundances.outputfolder,
-                                                   yr,
+                                                   cal_yr,
                                                    (length(cache.spplist.names),
                                                     _getdimension(cache.abenv.habitat)...))
             seed!(cache.abundances.matrix[tm].seed)
@@ -45,8 +45,8 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
         return tm, cache.abundances.matrix[tm]
     end
     simulate!(cache, newtm, cache.abundances.saveinterval)
-    if !ismissing(yr)
-        @save joinpath(cache.abundances.outputfolder, string(yr, ".jld2")) abuns=SavedLandscape(cache.abundances.matrix[tm])
+    if !ismissing(cal_yr)
+        @save joinpath(cache.abundances.outputfolder, string(cal_yr, ".jld2")) abuns=SavedLandscape(cache.abundances.matrix[tm])
     end
     return _abundances(cache, newtm + cache.abundances.saveinterval)
 end
