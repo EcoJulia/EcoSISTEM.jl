@@ -99,6 +99,13 @@ export meta_simpson, meta_shannon, meta_speciesrichness, mean_abun,
 
 using Random
 
+include("AMDLandscape.jl")
+export AMDGridLandscape, emptyAMDgridlandscape
+export synchronise_to_gpu!, synchronise_from_gpu!
+include("AMDEcosystem.jl")
+export AMDCache, AMDEcosystem
+include("AMDGenerate.jl")
+
 abstract type MPIGridLandscape end
 export MPIGridLandscape
 

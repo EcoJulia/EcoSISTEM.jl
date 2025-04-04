@@ -8,7 +8,7 @@ using LinearAlgebra
 
 Function to get the neighbours of a grid square in a matrix in 4 or 8 directions
 """
-function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64,
+function get_neighbours(mat::AbstractMatrix, x_coord::Int64, y_coord::Int64,
                         chess::Int64 = 4)
     # Calculate dimensions
     dims = size(mat)
@@ -42,7 +42,7 @@ function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64,
     neighbour_vec = neighbour_vec[remove, :]
     return neighbour_vec
 end
-function get_neighbours(mat::Matrix, x_coord::Vector{Int64},
+function get_neighbours(mat::AbstractMatrix, x_coord::Vector{Int64},
                         y_coord::Vector{Int64}, chess::Int64 = 4)
     neighbours = map(n -> get_neighbours(mat, x_coord[n], y_coord[n], chess),
                      eachindex(x_coord))
@@ -150,14 +150,18 @@ function update_energy_usage!(eco::AbstractEcosystem{A,
     ϵ̄1 = eco.spplist.requirement.r1.energy
     ϵ̄2 = eco.spplist.requirement.r2.energy
 
+    # FIXME: local array created for non GPU version is unnecessary
+    totalE = similar(Array{Float64}, Base.axes(eco.cache.totalE))
+
     # Loop through grid squares
     Threads.@threads for i in Base.axes(eco.abundances.matrix, 2)
         currentabun = @view eco.abundances.matrix[:, i]
-        eco.cache.totalE[i, 1] = (currentabun ⋅ ϵ̄1) *
+        totalE[i, 1] = (currentabun ⋅ ϵ̄1) *
                                  eco.spplist.requirement.r1.exchange_rate
-        eco.cache.totalE[i, 2] = (currentabun ⋅ ϵ̄2) *
+        totalE[i, 2] = (currentabun ⋅ ϵ̄2) *
                                  eco.spplist.requirement.r2.exchange_rate
     end
+    copyto!(eco.cache.totalE, totalE)
     return eco.cache.valid = true
 end
 

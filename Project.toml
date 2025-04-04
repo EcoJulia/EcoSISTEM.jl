@@ -5,6 +5,7 @@ authors = ["Claire Harris", "Richard Reeve <richard.reeve@glasgow.ac.uk>"]
 version = "0.2.6"
 
 [deps]
+AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
 AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
@@ -55,6 +56,7 @@ EcoSISTEMMPIExt = "MPI"
 EcoSISTEMPlotsExt = "Plots"
 
 [compat]
+AMDGPU = "1.2.2"
 ArchGDAL = "0.6, 0.7, 0.8, 0.9, 0.10"
 AxisArrays = "0.4.3"
 Calculus = "0.4.1, 0.5"
@@ -104,15 +106,15 @@ p7zip_jll = "17"
 
 [[author_details]]
 name = "Claire Harris"
-orcid = "0000-0003-0852-2340"
 email = "Claire.Harris@defra.gov.uk"
+orcid = "0000-0003-0852-2340"
 
     [[author_details.affiliation]]
     ror = "03jwrz939"
 [[author_details]]
 name = "Richard Reeve"
-orcid = "0000-0003-2589-8091"
 email = "richard.reeve@glasgow.ac.uk"
+orcid = "0000-0003-2589-8091"
 
     [[author_details.affiliation]]
     ror = "00vtgdb53"
