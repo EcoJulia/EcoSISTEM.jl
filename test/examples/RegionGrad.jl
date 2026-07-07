@@ -15,7 +15,8 @@ area = 10_000.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
 
 habloss = 1.0 / 10year
-scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year),
+scenario = [
+    SimpleScenario(TempIncrease!, 0.0K / 10year),
     SimpleScenario(TempIncrease!, 0.0K / 10year),
     SimpleScenario(GeneralistInvasive, 200.0 / year),
     SimpleScenario(SpecialistInvasive, 200.0 / year),
@@ -23,7 +24,8 @@ scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year),
     SimpleScenario(TempIncrease!, 2.0K / 10year),
     SimpleScenario(TempIncrease!, 3.0K / 10year),
     SimpleScenario(RandHabitatLoss!, habloss),
-    SimpleScenario(ClustHabitatLoss!, habloss)]
+    SimpleScenario(ClustHabitatLoss!, habloss)
+]
 
 divfuns = [
     sorenson,
@@ -42,9 +44,14 @@ divfuns = [
 ]
 q = 1.0
 
-simDict = Dict("times" => 50years, "burnin" => 10year, "interval" => 1month,
-               "timestep" => 1month, "scenarios" => scenario,
-               "divfuns" => divfuns, "q" => q, "reps" => 100)
+simDict = Dict("times" => 50years,
+               "burnin" => 10year,
+               "interval" => 1month,
+               "timestep" => 1month,
+               "scenarios" => scenario,
+               "divfuns" => divfuns,
+               "q" => q,
+               "reps" => 100)
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
 for i in 1:simDict["reps"]
@@ -52,7 +59,9 @@ for i in 1:simDict["reps"]
     abenv2 = tempgradAE(293.0K, 303.0K, grd, totalK[2], area, 0.0K / month)
     bud = BudgetCollection2(abenv1.budget, abenv2.budget)
     abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                           typeof(bud)}(abenv1.habitat, abenv1.active, bud,
+                           typeof(bud)}(abenv1.habitat,
+                                        abenv1.active,
+                                        bud,
                                         abenv1.names)
 
     vars = rand(Uniform(0.75, 2.5), numSpecies + numInvasive) .* K
@@ -65,11 +74,18 @@ for i in 1:simDict["reps"]
                   year
     birth_rates = death_rates
 
-    paramDict = Dict("numSpecies" => numSpecies, "numInvasive" => numInvasive,
-                     "numIndiv" => individuals, "reqs" => req, "opts" => opts,
-                     "vars" => vars, "birth" => birth_rates,
-                     "death" => death_rates, "s" => 1e-3, "boost" => 1.0,
-                     "kernel" => kernel, "totalK" => totalK,
+    paramDict = Dict("numSpecies" => numSpecies,
+                     "numInvasive" => numInvasive,
+                     "numIndiv" => individuals,
+                     "reqs" => req,
+                     "opts" => opts,
+                     "vars" => vars,
+                     "birth" => birth_rates,
+                     "death" => death_rates,
+                     "s" => 1e-3,
+                     "boost" => 1.0,
+                     "kernel" => kernel,
+                     "totalK" => totalK,
                      "bound" => Cylinder())
 
     diver = zeros(length(divfuns), lensim, length(scenario))
