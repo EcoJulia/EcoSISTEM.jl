@@ -40,4 +40,13 @@ include("TestCases.jl")
     @test_nowarn repopulate!(eco)
 end
 
+@testset "Multithreaded reproducibility" begin
+    # Run the reproducibility check in a child process forced to use several
+    # threads, so the parallel `update!` path is exercised even when the parent
+    # test suite is launched single-threaded.
+    script = EcoSISTEM.path("threading_reproducibility.jl")
+    cmd = `$(Base.julia_cmd()) --project=$(Base.active_project()) -t 4 $script`
+    @test success(pipeline(cmd; stdout = stdout, stderr = stderr))
+end
+
 end

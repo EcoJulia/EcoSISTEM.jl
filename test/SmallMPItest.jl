@@ -82,11 +82,8 @@ eco.abundances.rows_matrix .= 0
 @test_nowarn EcoSISTEM.synchronise_from_cols!(eco.abundances)
 @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
-## Set random number seeds for reproducible results
-# Set random seed to 0 for all rngs
-for i in eachindex(eco.abundances.rngs)
-    eco.abundances.rngs[i] = MersenneTwister(0)
-end
+## Set random number seed for reproducible results
+Random.seed!(0)
 
 # Simulation Parameters
 burnin = 2years;
@@ -151,11 +148,8 @@ eco.abundances.rows_matrix .= 0
 @test_nowarn EcoSISTEM.synchronise_from_cols!(eco.abundances)
 @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
-## Set random number seeds for reproducible results
-# Set random seed to 0 for all rngs
-for i in eachindex(eco.abundances.rngs)
-    eco.abundances.rngs[i] = MersenneTwister(0)
-end
+## Set random number seed for reproducible results
+Random.seed!(0)
 
 # Simulation Parameters
 burnin = 2years;
