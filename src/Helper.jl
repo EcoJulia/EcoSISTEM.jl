@@ -9,11 +9,10 @@ using JLD2
 import Diversity.Gamma
 
 """
-    simulate!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
-         timestep::Unitful.Time)
+    simulate!(eco::AbstractEcosystem, times::Unitful.Time, timestep::Unitful.Time)
 
-Function to run an ecosystem, `eco` for specified length of times, `duration`,
-for a particular timestep, 'timestep'.
+Run an ecosystem, `eco` for a specified length of time, `times`, for a
+particular timestep, `timestep`.
 """
 function simulate!(eco::AbstractEcosystem, duration::Unitful.Time,
                    timestep::Unitful.Time)
@@ -24,19 +23,21 @@ function simulate!(eco::AbstractEcosystem, duration::Unitful.Time,
 end
 
 """
-    simulate!(cache::CachedEcosystem,  srt::Unitful.Time, timestep::Unitful.Time)
+    simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.Time)
 
-Function to run a cached ecosystem, `cache` at a specified timepoint, `srt`,
-for a particular timestep, 'timestep'.
+Run a cached ecosystem, `cache` at a specified timepoint, `srt`, for a
+particular timestep, `timestep`.
 """
 function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
                    timestep::Unitful.Time)
     eco = Ecosystem{typeof(cache.abenv), typeof(cache.spplist),
                     typeof(cache.relationship)}(copy(cache.abundances.matrix[srt]),
-                                                cache.spplist, cache.abenv,
+                                                cache.spplist,
+                                                cache.abenv,
                                                 cache.ordinariness,
                                                 cache.relationship,
-                                                cache.lookup, cache.cache)
+                                                cache.lookup,
+                                                cache.cache)
     update!(eco, timestep)
     return cache.abundances.matrix[srt + timestep] = eco.abundances
 end
@@ -46,13 +47,16 @@ end
               cacheInterval::Unitful.Time, cacheFolder::String,
               scenario_name::String)
 
-Function to run an ecosystem, `eco` for specified length of times, `duration`,
-for a particular timestep, 'timestep'. A cache interval and folder/file name 
-are specified for saving output.
+Run an ecosystem, `eco` for specified length of times, `duration`, for a
+particular timestep, 'timestep'. A cache interval and folder/file name are
+specified for saving output.
 """
-function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time,
+function simulate!(eco::Ecosystem,
+                   times::Unitful.Time,
+                   timestep::Unitful.Time,
                    cacheInterval::Unitful.Time,
-                   cacheFolder::String, scenario_name::String)
+                   cacheFolder::String,
+                   scenario_name::String)
     time_seq = zero(times):timestep:times
     for i in eachindex(time_seq)
         update!(eco, timestep)
@@ -67,27 +71,44 @@ function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time,
     end
 end
 
+"""
+    generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
+
+Allocate an integer array of shape `(numSpecies, gridSize, times, reps)` for
+recording species abundances across the ecosystem `eco` over multiple timesteps
+and replicate runs.
+"""
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
     numSpecies = length(eco.spplist.abun)
     gridSize = _countsubcommunities(eco.abenv.habitat)
     return abun = Array{Int64, 4}(undef, numSpecies, gridSize, times, reps)
 end
+
+"""
+    generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
+
+Allocate a float array of shape `(gridSize, qs, times, reps)` for recording
+diversity values across the ecosystem `eco` for `qs` diversity orders over
+multiple timesteps and replicate runs.
+"""
 function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
     gridSize = _countsubcommunities(eco.abenv.habitat)
     return abun = Array{Float64, 4}(undef, gridSize, qs, times, reps)
 end
 
 """
-    simulate_record!(eco::Ecosystem, duration::Unitful.Time, interval::Unitful.Time,
-         timestep::Unitful.Time)
+    simulate_record!(storage::AbstractArray, eco::Ecosystem, times::Unitful.Time,
+         interval::Unitful.Time, timestep::Unitful.Time)
 
-Function to run an ecosystem, `eco` for specified length of times, `duration`,
-for a particular timestep, 'timestep', and time interval for abundances to be
-recorded, `interval`. Optionally, there may also be a scenario by which the
+Run an ecosystem, `eco` for a specified length of time, `times`, for a
+particular timestep, `timestep`, recording abundances into `storage` at each
+time interval `interval`. Optionally, there may also be a scenario by which the
 whole ecosystem is updated, such as removal of habitat patches.
 """
-function simulate_record!(storage::AbstractArray, eco::Ecosystem,
-                          times::Unitful.Time, interval::Unitful.Time,
+function simulate_record!(storage::AbstractArray,
+                          eco::Ecosystem,
+                          times::Unitful.Time,
+                          interval::Unitful.Time,
                           timestep::Unitful.Time)
     ustrip(mod(interval, timestep)) == 0.0 ||
         error("Interval must be a multiple of timestep")
@@ -105,8 +126,19 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
     return storage
 end
 
-function simulate_record!(storage::AbstractArray, eco::Ecosystem,
-                          times::Unitful.Time, interval::Unitful.Time,
+"""
+    simulate_record!(storage::AbstractArray, eco::Ecosystem, times::Unitful.Time,
+         interval::Unitful.Time, timestep::Unitful.Time,
+         scenario::AbstractScenario)
+
+As [`simulate_record!`](@ref), but also runs `scenario` at each timestep to
+modify the ecosystem, allowing simulation of events such as habitat loss or
+climate change.
+"""
+function simulate_record!(storage::AbstractArray,
+                          eco::Ecosystem,
+                          times::Unitful.Time,
+                          interval::Unitful.Time,
                           timestep::Unitful.Time,
                           scenario::AbstractScenario)
     ustrip(mod(interval, timestep)) == 0.0 ||
@@ -128,18 +160,21 @@ end
 
 """
     simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
-      times::Unitful.Time, interval::Unitful.Time,timestep::Unitful.Time,
-      scenario::SimpleScenario, divfun::Function, qs::Float64)
+      times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time,
+      scenario::SimpleScenario, divfun::Function, qs::Vector{Float64})
 
-Function to run an ecosystem, `eco` for specified length of times, `duration`,
-for a particular timestep, 'timestep', and time interval for a diversity to be
-calculated and recorded, `interval`. Optionally, there may also be a scenario by which the
-whole ecosystem is updated, such as removal of habitat patches.
+Run an ecosystem, `eco` for a specified length of time, `times`, for a
+particular timestep, `timestep`, and time interval for a diversity to be
+calculated and recorded, `interval`. Optionally, there may also be a scenario by
+which the whole ecosystem is updated, such as removal of habitat patches.
 """
-function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
-                                    times::Unitful.Time, interval::Unitful.Time,
+function simulate_record_diversity!(storage::AbstractArray,
+                                    eco::Ecosystem,
+                                    times::Unitful.Time,
+                                    interval::Unitful.Time,
                                     timestep::Unitful.Time,
-                                    scenario::SimpleScenario, divfun::F,
+                                    scenario::SimpleScenario,
+                                    divfun::F,
                                     qs::Vector{Float64}) where {F <: Function}
     ustrip(mod(interval, timestep)) == 0.0 ||
         error("Interval must be a multiple of timestep")
@@ -159,8 +194,19 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     return storage
 end
 
-function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
-                                    times::Unitful.Time, interval::Unitful.Time,
+"""
+    simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+      times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time,
+      divfun::Function, qs::Vector{Float64})
+
+As [`simulate_record_diversity!`](@ref) without a scenario. Runs the ecosystem
+for `times` and records the output of `divfun` at each `interval` into
+`storage`.
+"""
+function simulate_record_diversity!(storage::AbstractArray,
+                                    eco::Ecosystem,
+                                    times::Unitful.Time,
+                                    interval::Unitful.Time,
                                     timestep::Unitful.Time,
                                     divfun::F,
                                     qs::Vector{Float64}) where {F <: Function}
@@ -183,9 +229,21 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     end
     return storage
 end
+"""
+    simulate_record_diversity!(storage::AbstractArray, storage2::AbstractArray,
+      eco::Ecosystem, times::Unitful.Time, interval::Unitful.Time,
+      timestep::Unitful.Time, qs::Vector{Float64})
+
+Run an ecosystem `eco` for `times` and record normalised alpha, normalised beta,
+and gamma diversity at each `interval` into two output arrays. `storage`
+receives subcommunity-level diversity (shape: gridSize × 3 × timepoints × qs),
+`storage2` receives metacommunity-level diversity (shape: 3 × timepoints × qs).
+"""
 function simulate_record_diversity!(storage::AbstractArray,
-                                    storage2::AbstractArray, eco::Ecosystem,
-                                    times::Unitful.Time, interval::Unitful.Time,
+                                    storage2::AbstractArray,
+                                    eco::Ecosystem,
+                                    times::Unitful.Time,
+                                    interval::Unitful.Time,
                                     timestep::Unitful.Time,
                                     qs::Vector{Float64})
     ustrip(mod(interval, timestep)) == 0.0 ||
@@ -214,10 +272,22 @@ function simulate_record_diversity!(storage::AbstractArray,
     end
     return storage, storage2
 end
-function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
-                                    times::Unitful.Time, interval::Unitful.Time,
+"""
+    simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+      times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time,
+      divfuns::Array{Function}, q::Float64)
+
+Run an ecosystem `eco` for `times` and record the output of multiple diversity
+functions `divfuns` at a single diversity order `q` at each `interval` into
+`storage`.
+"""
+function simulate_record_diversity!(storage::AbstractArray,
+                                    eco::Ecosystem,
+                                    times::Unitful.Time,
+                                    interval::Unitful.Time,
                                     timestep::Unitful.Time,
-                                    divfuns::Array{Function}, q::Float64)
+                                    divfuns::Array{Function},
+                                    q::Float64)
     ustrip(mod(interval, timestep)) == 0.0 ||
         error("Interval must be a multiple of timestep")
     record_seq = (0s):interval:times
@@ -234,11 +304,22 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     end
     return storage
 end
-function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
-                                    times::Unitful.Time, interval::Unitful.Time,
+"""
+    simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
+      times::Unitful.Time, interval::Unitful.Time, timestep::Unitful.Time,
+      scenario::SimpleScenario, divfuns::Vector{Function}, q::Float64)
+
+As the multiple-function form of [`simulate_record_diversity!`](@ref) but also
+runs `scenario` at each timestep to modify the ecosystem.
+"""
+function simulate_record_diversity!(storage::AbstractArray,
+                                    eco::Ecosystem,
+                                    times::Unitful.Time,
+                                    interval::Unitful.Time,
                                     timestep::Unitful.Time,
                                     scenario::SimpleScenario,
-                                    divfuns::Vector{Function}, q::Float64)
+                                    divfuns::Vector{Function},
+                                    q::Float64)
     ustrip(mod(interval, timestep)) == 0.0 ||
         error("Interval must be a multiple of timestep")
     record_seq = (0s):interval:times

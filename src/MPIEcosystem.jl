@@ -14,11 +14,11 @@ using Missings
         AbstractEcosystem{Part, SL, TR}
 
 MPIEcosystem houses information on species and their interaction with their
-environment. It houses all information of a normal `Ecosystem` (see
+environment. It houses all information of a normal [`Ecosystem`](@ref) (see
 documentation for more details), with additional fields to describe which
-species are calculated on which machine. This includes: `sppcounts` - a
-vector of number of species per node, `firstsp` - the identity of the
-first species held by that particular node.
+species are calculated on which machine. This includes: `sppcounts` - a vector
+of number of species per node, `firstsp` - the identity of the first species
+held by that particular node.
 """
 mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                             Part <: EcoSISTEM.AbstractAbiotic,
@@ -38,9 +38,9 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
     cache::EcoSISTEM.Cache
 
     function MPIEcosystem(abundances::MPIGL,
-                          spplist::SL, abenv::Part,
-                          ordinariness::Union{Matrix{Float64},
-                                              Missing},
+                          spplist::SL,
+                          abenv::Part,
+                          ordinariness::Union{Matrix{Float64}, Missing},
                           relationship::TR,
                           lookup::Vector{EcoSISTEM.Lookup},
                           sppcounts::Vector,
@@ -54,9 +54,16 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
             error("Traits do not match trait functions")
         #_mcmatch(abundances.matrix, spplist, abenv) ||
         #  error("Dimension mismatch")
-        return new{MPIGL, Part, SL, TR}(abundances, spplist, abenv,
-                                        ordinariness, relationship, lookup,
-                                        sppcounts, firstsp, sccounts, firstsc,
+        return new{MPIGL, Part, SL, TR}(abundances,
+                                        spplist,
+                                        abenv,
+                                        ordinariness,
+                                        relationship,
+                                        lookup,
+                                        sppcounts,
+                                        firstsp,
+                                        sccounts,
+                                        firstsc,
                                         cache)
     end
 end
@@ -68,13 +75,13 @@ using EcoSISTEM: getkernels, genlookups, numrequirements
     MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
                  rel::AbstractTraitRelationship)
 
-Function to create an `MPIEcosystem` given a species list, an abiotic
-environment and trait relationship.
+Create an `MPIEcosystem` given a species list, an abiotic environment and trait
+relationship.
 """
-function MPIEcosystem(popfun::F, spplist::EcoSISTEM.SpeciesList{T, Req},
+function MPIEcosystem(popfun::F,
+                      spplist::EcoSISTEM.SpeciesList{T, Req},
                       abenv::EcoSISTEM.GridAbioticEnv,
-                      rel) where
-         {F <: Function, T, Req}
+                      rel) where {F <: Function, T, Req}
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
@@ -104,16 +111,26 @@ function MPIEcosystem(popfun::F, spplist::EcoSISTEM.SpeciesList{T, Req},
                              @view getkernels(spplist.movement)[rankspp]))
     nm = zeros(Int64, (sppcounts[rank + 1], numsc))
     totalE = zeros(Float64, (numsc, numrequirements(Req)))
-    return MPIEcosystem(ml, spplist, abenv, missing, rel, lookup_tab, sppcounts,
-                        firstsp, sccounts, firstsc,
+    return MPIEcosystem(ml,
+                        spplist,
+                        abenv,
+                        missing,
+                        rel,
+                        lookup_tab,
+                        sppcounts,
+                        firstsp,
+                        sccounts,
+                        firstsc,
                         EcoSISTEM.Cache(nm, totalE, false))
 end
 
 function MPIEcosystem(spplist::EcoSISTEM.SpeciesList,
-                      abenv::EcoSISTEM.GridAbioticEnv,
-                      rel)
+                      abenv::EcoSISTEM.GridAbioticEnv, rel)
     return MPIEcosystem(EcoSISTEM.populate!, spplist, abenv, rel)
 end
+@doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
+                                      ::EcoSISTEM.GridAbioticEnv,
+                                      ::Any)
 
 """
     gather_abundance(eco::MPIEcosystem)
@@ -179,6 +196,13 @@ function _calcordinariness(eco::MPIEcosystem)
            relab
 end
 
+"""
+    gather_diversity(eco::MPIEcosystem, divmeasure::F, q) where F <: Function
+
+Gather diversity calculated by `divmeasure` at value `q` from all MPI nodes onto
+the root node (rank 0), combining subcommunity diversity values using a power
+mean weighted by total abundances across nodes.
+"""
 function EcoSISTEM.gather_diversity(eco::MPIEcosystem, divmeasure::F,
                                     q) where {F <: Function}
     comm = MPI.COMM_WORLD
@@ -194,8 +218,10 @@ function EcoSISTEM.gather_diversity(eco::MPIEcosystem, divmeasure::F,
                                                                    1:(end - 1)],
                                                                  1 .- x[:, end],
                                                                  totalabun .*
-                                                                 1.0), mpidivs,
-                                        dims = 2)[:, 1]
+                                                                 1.0),
+                                        mpidivs,
+                                        dims = 2)[:,
+                                                  1]
         return div
     else
         return div

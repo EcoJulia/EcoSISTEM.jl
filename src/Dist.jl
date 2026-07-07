@@ -4,14 +4,15 @@ using Distributions
 import Random: rand
 using Random
 
-import Distributions: @check_args, ContinuousUnivariateDistribution,
-                      rand, params, pdf
+import Distributions: @check_args, ContinuousUnivariateDistribution, rand,
+                      params, pdf
 import Random: GLOBAL_RNG
 
 """
     Trapezoid{T<:Real} <: ContinuousUnivariateDistribution
 
-Trapezoidal distribution as described at https://en.wikipedia.org/wiki/Trapezoidal_distribution.
+Trapezoidal distribution as described at
+https://en.wikipedia.org/wiki/Trapezoidal_distribution.
 """
 struct Trapezoid{T <: Real} <: ContinuousUnivariateDistribution
     a::T
@@ -21,7 +22,9 @@ struct Trapezoid{T <: Real} <: ContinuousUnivariateDistribution
 
     function Trapezoid(a::T, b::T, c::T, d::T;
                        check_args::Bool = true) where {T <: Real}
-        @check_args Trapezoid (a<d)
+        @check_args Trapezoid (a,
+                               a < d,
+                               "First argument `a` must be less than fourth `d` in Trapezoid distribution.")
         return new{T}(a, b, c, d)
     end
 end
@@ -32,8 +35,11 @@ end
 
 function Trapezoid(a::Integer, b::Integer, c::Integer, d::Integer;
                    check_args::Bool = true)
-    return Trapezoid(Float64(a), Float64(b),
-                     Float64(c), Float64(d); check_args = check_args)
+    return Trapezoid(Float64(a),
+                     Float64(b),
+                     Float64(c),
+                     Float64(d);
+                     check_args = check_args)
 end
 Trapezoid() = Trapezoid(0.0, 0.0, 1.0, 1.0)
 

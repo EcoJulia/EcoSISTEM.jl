@@ -12,9 +12,9 @@ abstract type AbstractKernel end
 """
     GaussianKernel <: AbstractKernel
 
-GaussianMovement holds parameters for a gaussian movement kernel; a
-dispersal variance for a species, `var`, and a threshold, `thresh`, beyond which
-dispersal cannot take place.
+GaussianMovement holds parameters for a gaussian movement kernel; a dispersal
+variance for a species, `var`, and a threshold, `thresh`, beyond which dispersal
+cannot take place.
 """
 mutable struct GaussianKernel <: AbstractKernel
     dist::Unitful.Length{Float64}
@@ -30,8 +30,9 @@ end
 """
     LongTailKernel <: AbstractKernel
 
-LongTailKernel holds parameters for a movement kernel; a
-dispersal variance for a species, `var`, and a threshold, `thresh`, beyond which dispersal cannot take place.
+LongTailKernel holds parameters for a movement kernel; a dispersal variance for
+a species, `var`, and a threshold, `thresh`, beyond which dispersal cannot take
+place.
 """
 mutable struct LongTailKernel <: AbstractKernel
     dist::Unitful.Length{Float64}
@@ -39,7 +40,8 @@ mutable struct LongTailKernel <: AbstractKernel
     thresh::Float64
 
     function LongTailKernel(dispersaldist::Unitful.Length{Float64},
-                            shape::Float64, pthresh::Float64)
+                            shape::Float64,
+                            pthresh::Float64)
         dist = uconvert(km, dispersaldist)
         return new(dist, shape, pthresh)
     end
@@ -84,6 +86,8 @@ end
 function BirthOnlyMovement(kernels::Vector{K}) where {K <: AbstractKernel}
     return BirthOnlyMovement{K, NoBoundary}(kernels, NoBoundary())
 end
+@doc (@doc BirthOnlyMovement) BirthOnlyMovement(::Vector{K} where {K <:
+                                                                   AbstractKernel})
 
 """
     AlwaysMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
@@ -98,6 +102,8 @@ end
 function AlwaysMovement(kernels::Vector{K}) where {K <: AbstractKernel}
     return AlwaysMovement{K, NoBoundary}(kernels, NoBoundary())
 end
+@doc (@doc AlwaysMovement) AlwaysMovement(::Vector{K} where {K <:
+                                                             AbstractKernel})
 
 """
     NoMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
@@ -108,9 +114,19 @@ mutable struct NoMovement{K <: AbstractKernel} <: AbstractMovement
     kernels::Vector{K}
 end
 
+"""
+    getkernels(m::AbstractMovement)
+
+Extract the vector of dispersal kernels from a movement type.
+"""
 getkernels(m::BirthOnlyMovement) = m.kernels
 getkernels(m::AlwaysMovement) = m.kernels
 getkernels(m::NoMovement) = m.kernels
 
+"""
+    getboundary(m::AbstractMovement)
+
+Extract the boundary condition from a movement type.
+"""
 getboundary(m::BirthOnlyMovement) = m.boundary
 getboundary(m::AlwaysMovement) = m.boundary

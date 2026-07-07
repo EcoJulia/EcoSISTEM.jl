@@ -6,7 +6,7 @@ using LinearAlgebra
 """
     get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
 
-Function to get the neighbours of a grid square in a matrix in 4 or 8 directions
+Get the neighbours of a grid square in a matrix in 4 or 8 directions
 """
 function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64,
                         chess::Int64 = 4)
@@ -16,19 +16,19 @@ function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64,
         error("Coordinates outside grid")
     # Include 4 directions
     if chess == 4
-        neighbour_vec = [x_coord y_coord-1;
-                         x_coord y_coord+1;
-                         x_coord-1 y_coord;
+        neighbour_vec = [x_coord y_coord-1
+                         x_coord y_coord+1
+                         x_coord-1 y_coord
                          x_coord+1 y_coord]
         # Include 8 directions
     elseif chess == 8
-        neighbour_vec = [x_coord y_coord-1;
-                         x_coord y_coord+1;
-                         x_coord-1 y_coord;
-                         x_coord+1 y_coord;
-                         x_coord-1 y_coord-1;
-                         x_coord-1 y_coord+1;
-                         x_coord+1 y_coord-1;
+        neighbour_vec = [x_coord y_coord-1
+                         x_coord y_coord+1
+                         x_coord-1 y_coord
+                         x_coord+1 y_coord
+                         x_coord-1 y_coord-1
+                         x_coord-1 y_coord+1
+                         x_coord+1 y_coord-1
                          x_coord+1 y_coord+1]
     else
         # Give error if other number chosen than 4 or 8
@@ -36,26 +36,44 @@ function get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64,
     end
     # Remove answers outside of the dimensions of the matrix
     remove = vcat(mapslices(all,
-                            [neighbour_vec .>= 1 neighbour_vec[:, 1] .<=
+                            [
+                             neighbour_vec .>= 1 neighbour_vec[:, 1] .<=
                                                  dims[1] neighbour_vec[:, 2] .<=
-                                                         dims[2]], dims = 2)...)
+                                                         dims[2]],
+                            dims = 2)...)
     neighbour_vec = neighbour_vec[remove, :]
     return neighbour_vec
 end
-function get_neighbours(mat::Matrix, x_coord::Vector{Int64},
-                        y_coord::Vector{Int64}, chess::Int64 = 4)
+"""
+    get_neighbours(mat::Matrix, x_coord::Vector{Int64}, y_coord::Vector{Int64},
+        chess::Int64=4)
+
+As [`get_neighbours`](@ref) but accepts vectors of coordinates and returns the
+combined neighbours for all positions.
+"""
+function get_neighbours(mat::Matrix,
+                        x_coord::Vector{Int64},
+                        y_coord::Vector{Int64},
+                        chess::Int64 = 4)
     neighbours = map(n -> get_neighbours(mat, x_coord[n], y_coord[n], chess),
                      eachindex(x_coord))
     return vcat(neighbours...)
 end
 
+"""
+    update!(eco::AbstractEcosystem, timestep::Unitful.Time)
+
+Dispatch function that selects the appropriate threaded implementation of
+[`update!`](@ref) based on the number of available threads.
+"""
 function update!(eco::AbstractEcosystem, timestep::Unitful.Time)
     return update!(eco, timestep, Val{Threads.nthreads()}())
 end
 
 """
-    update!(eco::Ecosystem, time::Unitful.Time)
-Function to update a ecosystem abundances and environment for one timestep.
+    update!(eco::Ecosystem, timestep::Unitful.Time)
+
+Update an ecosystem's abundances and environment for one timestep.
 """
 function update!(eco::Ecosystem, timestep::Unitful.Time)
 
@@ -118,12 +136,20 @@ end
 
 """
     update_energy_usage!(eco::Ecosystem)
-Function to calculate how much energy has been used up by the current species in each grid square in the ecosystem, `eco`. This function is parameterised on whether the species have one type of energy requirement or two.
+Calculate how much energy has been used up by the current species in each grid
+square in the ecosystem, `eco`. This function is parameterised on whether the
+species have one type of energy requirement or two.
 """
 function update_energy_usage!(eco::AbstractEcosystem{A,
                                                      SpeciesList{Tr, Req, B, C,
-                                                                 D}, E}) where
-         {A, B, C, D, E, Tr, Req <: Abstract1Requirement}
+                                                                 D}, E}) where {A,
+                                                                                B,
+                                                                                C,
+                                                                                D,
+                                                                                E,
+                                                                                Tr,
+                                                                                Req <:
+                                                                                Abstract1Requirement}
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square
@@ -139,8 +165,14 @@ end
 
 function update_energy_usage!(eco::AbstractEcosystem{A,
                                                      SpeciesList{Tr, Req, B, C,
-                                                                 D}, E}) where
-         {A, B, C, D, E, Tr, Req <: Abstract2Requirements}
+                                                                 D}, E}) where {A,
+                                                                                B,
+                                                                                C,
+                                                                                D,
+                                                                                E,
+                                                                                Tr,
+                                                                                Req <:
+                                                                                Abstract2Requirements}
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square
@@ -160,7 +192,9 @@ end
 
 """
     energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, sp::Int64)
-Function to calculate how much birth and death rates should be adjusted by, according to how much energy is available, `bud`, in the grid square, `i`, and how much energy the species, `sp`, requires.
+Calculate how much birth and death rates should be adjusted by, according to how
+much energy is available, `bud`, in the grid square, `i`, and how much energy
+the species, `sp`, requires.
 """
 function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget,
                            i::Int64, sp::Int64)
@@ -173,7 +207,7 @@ function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget,
         K = getbudget(eco)[x, y] * eco.spplist.requirement.exchange_rate
         # Get energy budgets of species in square
         ϵ̄ = eco.spplist.requirement.energy[sp] *
-             eco.spplist.requirement.exchange_rate
+            eco.spplist.requirement.exchange_rate
         E = eco.cache.totalE[i, 1]
         # Traits
         ϵ̄real = 1 / traitfun(eco, i, sp)
@@ -185,8 +219,10 @@ function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget,
     return birth_energy, death_energy
 end
 
-function energy_adjustment(eco::AbstractEcosystem, bud::BudgetCollection2,
-                           i::Int64, sp::Int64)
+function energy_adjustment(eco::AbstractEcosystem,
+                           bud::BudgetCollection2,
+                           i::Int64,
+                           sp::Int64)
     width = getdimension(eco)[1]
     (x, y) = convert_coords(eco, i, width)
     params = eco.spplist.params
@@ -197,9 +233,9 @@ function energy_adjustment(eco::AbstractEcosystem, bud::BudgetCollection2,
     # Get abundances of square we are interested in
     # Get energy budgets of species in square
     ϵ̄1 = eco.spplist.requirement.r1.energy[sp] *
-          eco.spplist.requirement.r1.exchange_rate
+         eco.spplist.requirement.r1.exchange_rate
     ϵ̄2 = eco.spplist.requirement.r2.energy[sp] *
-          eco.spplist.requirement.r2.exchange_rate
+         eco.spplist.requirement.r2.exchange_rate
     E1 = eco.cache.totalE[i, 1]
     E2 = eco.cache.totalE[i, 2]
     ϵ̄real1 = 1 / traitfun(eco, i, sp)
@@ -209,22 +245,27 @@ function energy_adjustment(eco::AbstractEcosystem, bud::BudgetCollection2,
                    (ϵ̄real1 * ϵ̄real2)^-params.survival *
                    min(K1 / E1, K2 / E2, params.boost)
     death_energy = (ϵ̄1 * ϵ̄2)^-params.longevity *
-                   (ϵ̄real1 * ϵ̄real2)^params.survival * max(E1 / K1, E2 / K2)
+                   (ϵ̄real1 * ϵ̄real2)^params.survival *
+                   max(E1 / K1, E2 / K2)
     return birth_energy, death_energy
 end
 
 """
     convert_coords(eco, i::Int64, width::Int64)
     convert_coords(eco, x::Int64, y::Int64, width::Int64)
-Function to convert coordinates from two-dimensional (`x`,`y`) format to one dimension (`i`), or vice versa, using the `width` of the grid. This function can also be applied to arrays of coordinates.
+Convert coordinates from two-dimensional (`x`,`y`) format to one dimension
+(`i`), or vice versa, using the `width` of the grid. This function can also be
+applied to arrays of coordinates.
 """
-function convert_coords(eco::AbstractEcosystem, i::Int64,
+function convert_coords(eco::AbstractEcosystem,
+                        i::Int64,
                         width::Int64 = getdimension(eco)[1])
     x = ((i - 1) % width) + 1
     y = div((i - 1), width) + 1
     return (x, y)
 end
-function convert_coords(eco::AbstractEcosystem, pos::Tuple{Int64, Int64},
+function convert_coords(eco::AbstractEcosystem,
+                        pos::Tuple{Int64, Int64},
                         width::Int64 = getdimension(eco)[1])
     i = pos[1] + width * (pos[2] - 1)
     return i
@@ -242,16 +283,25 @@ end
 """
     calc_lookup_moves!(bound, x::Int64, y::Int64, sp::Int64, eco::Ecosystem, abun::Int64)
 
-Function to calculate the number of moves taken by a species, `sp`, from a specific grid square location (`x`, `y`). There is a boundary condition, `bound`, which determines how the species can move across space (see AbstractBoundary). The total abundance of individuals is given in `abun`, which may be the number of births in the timestep, or total indiviuals.
+Calculate the number of moves taken by a species, `sp`, from a specific grid
+square location (`x`, `y`). There is a boundary condition, `bound`, which
+determines how the species can move across space (see AbstractBoundary). The
+total abundance of individuals is given in `abun`, which may be the number of
+births in the timestep, or total individuals.
 """
-function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, sp::Int64,
-                            eco::AbstractEcosystem, abun::Int64)
+function calc_lookup_moves!(bound::NoBoundary,
+                            x::Int64,
+                            y::Int64,
+                            sp::Int64,
+                            eco::AbstractEcosystem,
+                            abun::Int64)
     lookup = getlookup(eco, sp)
     maxX = getdimension(eco)[1] - x
     maxY = getdimension(eco)[2] - y
     # Can't go over maximum dimension
     for i in eachindex(lookup.x)
-        valid = (-x < lookup.x[i] <= maxX) && (-y < lookup.y[i] <= maxY) &&
+        valid = (-x < lookup.x[i] <= maxX) &&
+                (-y < lookup.y[i] <= maxY) &&
                 (eco.abenv.active[lookup.x[i] + x, lookup.y[i] + y])
 
         lookup.pnew[i] = valid ? lookup.p[i] : 0.0
@@ -261,8 +311,12 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, sp::Int64,
     return rand!(dist, lookup.moves)
 end
 
-function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, sp::Int64,
-                            eco::AbstractEcosystem, abun::Int64)
+function calc_lookup_moves!(bound::Cylinder,
+                            x::Int64,
+                            y::Int64,
+                            sp::Int64,
+                            eco::AbstractEcosystem,
+                            abun::Int64)
     lookup = getlookup(eco, sp)
     maxX = getdimension(eco)[1] - x
     maxY = getdimension(eco)[2] - y
@@ -281,8 +335,12 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, sp::Int64,
     return rand!(dist, lookup.moves)
 end
 
-function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64,
-                            eco::AbstractEcosystem, abun::Int64)
+function calc_lookup_moves!(bound::Torus,
+                            x::Int64,
+                            y::Int64,
+                            sp::Int64,
+                            eco::AbstractEcosystem,
+                            abun::Int64)
     lookup = getlookup(eco, sp)
     maxX = getdimension(eco)[1] - x
     maxY = getdimension(eco)[2] - y
@@ -304,14 +362,18 @@ end
 """
     move!(eco::Ecosystem, ::AbstractMovement, i::Int64, sp::Int64, grd::Matrix{Int64, 2}, abun::Int64)
 
-Function to calculate the movement of species `sp` from a given position in the
-landscape `i`, using the lookup table found in the Ecosystem and updating the
+Calculate the movement of species `sp` from a given position in the landscape
+`i`, using the lookup table found in the [`Ecosystem`](@ref) and updating the
 movement patterns on a cached grid, `grd`. Optionally, a number of births can be
-provided, so that movement only takes place as part of the birth process, instead
-of the entire population
+provided, so that movement only takes place as part of the birth process,
+instead of the entire population
 """
-function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, sp::Int64,
-               grd::Matrix{Int64}, ::Int64)
+function move!(eco::AbstractEcosystem,
+               ::AlwaysMovement,
+               i::Int64,
+               sp::Int64,
+               grd::Matrix{Int64},
+               ::Int64)
     width, height = getdimension(eco)
     (x, y) = convert_coords(eco, i, width)
     lookup = getlookup(eco, sp)
@@ -331,13 +393,21 @@ function move!(eco::AbstractEcosystem, ::AlwaysMovement, i::Int64, sp::Int64,
     return eco
 end
 
-function move!(eco::AbstractEcosystem, ::NoMovement, i::Int64, sp::Int64,
-               grd::Matrix{Int64}, ::Int64)
+function move!(eco::AbstractEcosystem,
+               ::NoMovement,
+               i::Int64,
+               sp::Int64,
+               grd::Matrix{Int64},
+               ::Int64)
     return eco
 end
 
-function move!(eco::AbstractEcosystem, ::BirthOnlyMovement, i::Int64, sp::Int64,
-               grd::Matrix{Int64}, births::Int64)
+function move!(eco::AbstractEcosystem,
+               ::BirthOnlyMovement,
+               i::Int64,
+               sp::Int64,
+               grd::Matrix{Int64},
+               births::Int64)
     width, height = getdimension(eco)
     (x, y) = convert_coords(eco, i, width)
     lookup = getlookup(eco, sp)
@@ -359,10 +429,13 @@ end
     populate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AbstractAbiotic, traits::Bool)
 
-Function to populate a grid landscape given the abundances found in species list according to availability of resources.
+Populate a grid landscape given the abundances found in species list according
+to availability of resources.
 """
 
-function populate!(ml::GridLandscape, spplist::SpeciesList, abenv::AB,
+function populate!(ml::GridLandscape,
+                   spplist::SpeciesList,
+                   abenv::AB,
                    rel::R) where {AB <: AbstractAbiotic,
                                   R <: AbstractTraitRelationship}
     dim = _getdimension(abenv.habitat)
@@ -380,9 +453,11 @@ function populate!(ml::GridLandscape, spplist::SpeciesList, abenv::AB,
     end
 end
 
-function populate!(ml::GridLandscape, spplist::SpeciesList,
+function populate!(ml::GridLandscape,
+                   spplist::SpeciesList,
                    abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}},
-                   rel::R) where {H <: AbstractHabitat, B1 <: AbstractBudget,
+                   rel::R) where {H <: AbstractHabitat,
+                                  B1 <: AbstractBudget,
                                   B2 <: AbstractBudget,
                                   R <: AbstractTraitRelationship}
     # Calculate size of habitat
@@ -407,7 +482,9 @@ end
 
 """
     repopulate!(eco::Ecosystem, abun::Int64)
-Function to repopulate an ecosystem `eco`, with option for including trait preferences. An additional `abun` parameter can be included, in order to repopulate the ecosystem with a specified number of individuals.
+Repopulate an ecosystem `eco`, with option for including trait preferences. An
+additional `abun` parameter can be included, in order to repopulate the
+ecosystem with a specified number of individuals.
 """
 function repopulate!(eco::Ecosystem)
     eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
@@ -435,9 +512,11 @@ end
     traitpopulate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AbstractAbiotic)
 
-Function to populate a grid landscape given the abundances found in species list based upon how well the species traits match their environment.
+Populate a grid landscape given the abundances found in species list based upon
+how well the species traits match their environment.
 """
-function traitpopulate!(ml::GridLandscape, spplist::SpeciesList,
+function traitpopulate!(ml::GridLandscape,
+                        spplist::SpeciesList,
                         abenv::AB,
                         rel::R) where {AB <: AbstractAbiotic,
                                        R <: AbstractTraitRelationship}
@@ -449,7 +528,8 @@ function traitpopulate!(ml::GridLandscape, spplist::SpeciesList,
     minrng = spplist.traits.mean .- spplist.traits.var
     hab = reshape(abenv.habitat.matrix, numsquares)
     probabilities = [_traitfun(abenv.habitat, spplist.traits, rel, i, sp)
-                     for i in 1:numsquares, sp in 1:numspp]
+                     for i in 1:numsquares,
+                         sp in 1:numspp]
     # Loop through species
     for i in eachindex(spplist.abun)
         if spplist.native[i]
@@ -465,7 +545,9 @@ end
 
 """
     repopulate!(eco::Ecosystem, abun::Int64)
-Function to repopulate an ecosystem `eco`, with option for including trait preferences. An additional `abun` parameter can be included, in order to repopulate the ecosystem with a specified number of individuals.
+Repopulate an ecosystem `eco`, with option for including trait preferences. An
+additional `abun` parameter can be included, in order to repopulate the
+ecosystem with a specified number of individuals.
 """
 function traitrepopulate!(eco::Ecosystem)
     eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
@@ -479,7 +561,8 @@ end
     emptypopulate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AB, rel::R) where {AB <: EcoSISTEM.AbstractAbiotic, R <: EcoSISTEM.AbstractTraitRelationship}
 """
-function emptypopulate!(ml::GridLandscape, spplist::SpeciesList,
+function emptypopulate!(ml::GridLandscape,
+                        spplist::SpeciesList,
                         abenv::AB,
                         rel::R) where {AB <: EcoSISTEM.AbstractAbiotic,
                                        R <: EcoSISTEM.AbstractTraitRelationship}
@@ -487,7 +570,8 @@ function emptypopulate!(ml::GridLandscape, spplist::SpeciesList,
 end
 """
     reenergise!(eco::Ecosystem, budget::Union{Float64, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
-Function to refill an ecosystem `eco`, with energy from a budget value, `budget` and a grid size.
+Refill an ecosystem `eco`, with energy from a budget value, `budget` and a grid
+size.
 """
 function reenergise!(eco::Ecosystem,
                      budget::Union{Float64, Unitful.Quantity{Float64}},

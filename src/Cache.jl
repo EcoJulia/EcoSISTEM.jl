@@ -5,20 +5,46 @@ using Missings
 using JLD2
 using Random
 
+"""
+    checkfile(::String, ::Missing)
+
+Check whether a cache file exists for a given timepoint. Always returns `false`
+when the timepoint is `missing`.
+"""
 function checkfile(::String, ::Missing)
     return false
 end
 
+"""
+    checkfile(file::String, tm::Int)
+
+Check whether a JLD2 cache file exists in the folder `file` for timestep `tm`.
+Returns `true` if a matching file is found.
+"""
 function checkfile(file::String, tm::Int)
     return !isempty(searchdir(file, string(tm, ".jld2")))
 end
 
+"""
+    loadfile(file::String, tm::Int, dim::Tuple)
+
+Load a cached [`GridLandscape`](@ref) from the folder `file` for timestep `tm`,
+reshaping the abundance matrix to dimensions `dim`.
+"""
 function loadfile(file::String, tm::Int, dim::Tuple)
     @load joinpath(file, searchdir(file, string(tm, ".jld2"))[1]) abuns
+    # Restore the task-local RNG so the resumed run continues a reproducible stream
     copy!(Random.default_rng(), abuns.rng)
     return GridLandscape(abuns, dim)
 end
 
+"""
+    clearcache(cache::CachedEcosystem)
+
+Delete all JLD2 cache files from the output folder of a
+[`CachedEcosystem`](@ref). Returns a string reporting how many files were
+removed.
+"""
 function clearcache(cache::CachedEcosystem)
     files = searchdir(cache.abundances.outputfolder, ".jld2")
     rm.(joinpath.(cache.abundances.outputfolder, files))
@@ -54,10 +80,9 @@ end
 """
     abundances(cache::CachedEcosystem, tm::Unitful.Time)
 
-Function to extract abundances for an ecosystem, `cache`, at a certain point
-in time, `tm`. If the abundances for that time are missing from the ecosystem,
-then the function checks on disk for the last saved version and simulates
-forward.
+Extract abundances for an ecosystem, `cache`, at a certain point in time, `tm`.
+If the abundances for that time are missing from the ecosystem, then the
+function checks on disk for the last saved version and simulates forward.
 """
 function abundances(cache::CachedEcosystem, tm::Unitful.Time)
     return _abundances(cache, tm)[2]

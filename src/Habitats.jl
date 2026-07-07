@@ -8,8 +8,21 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using RecipesBase
 using EcoBase
-import EcoBase: xmin, ymin, xcellsize, ycellsize, xcells, ycells, cellsize,
-                cells, xrange, yrange, xmax, ymax, indices, coordinates
+import EcoBase:
+                xmin,
+                ymin,
+                xcellsize,
+                ycellsize,
+                xcells,
+                ycells,
+                cellsize,
+                cells,
+                xrange,
+                yrange,
+                xmax,
+                ymax,
+                indices,
+                coordinates
 using Measures: AbsoluteLength
 const px = AbsoluteLength(0.254)
 
@@ -35,12 +48,26 @@ end
 indices(ah::AbstractHabitat, idx) = indices(ah)[:, idx]
 coordinates(ah::AbstractHabitat) = indices(ah)
 
+"""
+    HabitatUpdate{F <: Function, DT}
+
+Stores the update rule for a habitat. `changefun` is the function applied to the
+habitat matrix at each timestep, and `rate` is the rate of change with
+appropriate units.
+"""
 mutable struct HabitatUpdate{F <: Function, DT}
     changefun::F
     rate::DT
 end
 
-function HabitatUpdate(changefun::F, rate::DT,
+"""
+    HabitatUpdate(changefun::F, rate::DT, ::Type{D})
+
+Construct a `HabitatUpdate` with a type-checked rate. Errors if `rate * 1month`
+does not have dimensions `D`.
+"""
+function HabitatUpdate(changefun::F,
+                       rate::DT,
                        ::Type{D}) where {F <: Function, DT,
                                          D <: Unitful.Dimensions}
     typeof(dimension(rate * 1month)) <: D ||
@@ -51,7 +78,8 @@ end
 """
     ContinuousHab{C <: Number} <: AbstractHabitat{C}
 
-This habitat subtype houses a habitat matrix `matrix` of any units, a grid square size `size` and HabitatUpdate type `change`.
+This habitat subtype houses a habitat matrix `matrix` of any units, a grid
+square size `size` and [`HabitatUpdate`](@ref) type `change`.
 """
 mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
     matrix::Matrix{C}
@@ -65,8 +93,10 @@ function eltype(hab::ContinuousHab{C}) where {C}
     return C
 end
 @recipe function f(H::ContinuousHab{C}) where {C}
-    unitdict = Dict(K => "Temperature (K)", °C => "Temperature (°C)",
-                    mm => "Rainfall (mm)", kJ => "Solar Radiation (kJ)")
+    unitdict = Dict(K => "Temperature (K)",
+                    °C => "Temperature (°C)",
+                    mm => "Rainfall (mm)",
+                    kJ => "Solar Radiation (kJ)")
     h = ustrip.(H.matrix)
     seriestype := :heatmap
     grid --> false
@@ -78,8 +108,10 @@ end
     return xrange(H), yrange(H), h
 end
 @recipe function f(H::ContinuousHab{C}) where {C <: Unitful.Temperature}
-    unitdict = Dict(K => "Temperature (K)", °C => "Temperature (°C)",
-                    mm => "Rainfall (mm)", kJ => "Solar Radiation (kJ)")
+    unitdict = Dict(K => "Temperature (K)",
+                    °C => "Temperature (°C)",
+                    mm => "Rainfall (mm)",
+                    kJ => "Solar Radiation (kJ)")
     h = ustrip.(uconvert.(°C, H.matrix))
     seriestype := :heatmap
     grid --> false
@@ -94,7 +126,9 @@ end
 """
     ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <: AbstractHabitat{C}
 
-This habitat subtype houses a habitat matrix `matrix` of any units, the time slice of the habitat matrix currently being operated on `time`, a grid square size `size` and HabitatUpdate type `change`.
+This habitat subtype houses a habitat matrix `matrix` of any units, the time
+slice of the habitat matrix currently being operated on `time`, a grid square
+size `size` and [`HabitatUpdate`](@ref) type `change`.
 """
 mutable struct ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <:
                AbstractHabitat{C}
@@ -119,8 +153,8 @@ function iscontinuous(hab::ContinuousTimeHab{C, M}) where {C,
                                                            AbstractArray{C, 3}}
     return true
 end
-function eltype(hab::ContinuousTimeHab{C, M}) where {C, M <:
-                                                        AbstractArray{C, 3}}
+function eltype(hab::ContinuousTimeHab{C, M}) where {C,
+                                                     M <: AbstractArray{C, 3}}
     return C
 end
 function _resettime!(hab::ContinuousTimeHab)
@@ -136,9 +170,10 @@ function _countsubcommunities(hab::ContinuousTimeHab)
 end
 
 """
-    DiscreteHab <: AbstractHabitat{String}
+    DiscreteHab{D} <: AbstractHabitat{D}
 
-This habitat subtype has a matrix of strings and a float grid square size
+Habitat subtype with a discrete `matrix` of element type `D`, a grid cell
+`size`, and a [`HabitatUpdate`](@ref) rule `change` applied at each timestep.
 """
 mutable struct DiscreteHab{D} <: AbstractHabitat{D}
     matrix::Matrix{D}
@@ -181,6 +216,12 @@ function _getgridsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
     return hab.size
 end
 
+"""
+    HabitatCollection2{H1, H2} <: AbstractHabitat{Tuple{H1, H2}}
+
+Composite habitat pairing two sub-habitats `h1` and `h2`, allowing
+multi-variable abiotic environments (e.g. temperature and rainfall together).
+"""
 mutable struct HabitatCollection2{H1, H2} <: AbstractHabitat{Tuple{H1, H2}}
     h1::H1
     h2::H2
@@ -209,6 +250,11 @@ function _resettime!(hab::HabitatCollection2)
     return _resettime!(hab.h2)
 end
 
+"""
+    HabitatCollection3{H1, H2, H3} <: AbstractHabitat{Tuple{H1, H2, H3}}
+
+Composite habitat combining three sub-habitats `h1`, `h2`, and `h3`.
+"""
 mutable struct HabitatCollection3{H1, H2, H3} <:
                AbstractHabitat{Tuple{H1, H2, H3}}
     h1::H1
@@ -216,8 +262,7 @@ mutable struct HabitatCollection3{H1, H2, H3} <:
     h3::H3
 end
 function iscontinuous(hab::HabitatCollection3)
-    return [iscontinuous(hab.h1),
-            iscontinuous(hab.h2), iscontinuous(hab.h3)]
+    return [iscontinuous(hab.h1), iscontinuous(hab.h2), iscontinuous(hab.h3)]
 end
 function eltype(hab::HabitatCollection3)
     return [eltype(hab.h1), eltype(hab.h2), eltype(hab.h3)]
@@ -260,13 +305,26 @@ function _getgridsize(hab::Union{HabitatCollection2, HabitatCollection3})
     return _getgridsize(hab.h1)
 end
 
+"""
+    gethabitat(hab::H, pos::Int64) where H <: AbstractHabitat
+
+Return the habitat value at 1D grid position `pos`, converting to 2D coordinates
+internally.
+"""
 function gethabitat(hab::H, pos::Int64) where {H <: AbstractHabitat}
     x, y = convert_coords(pos, size(hab.matrix, 1))
     return hab.matrix[x, y]
 end
+@doc (@doc gethabitat) gethabitat(::H, ::Symbol) where {H <: AbstractHabitat}
 function gethabitat(hab::H, field::Symbol) where {H <: AbstractHabitat}
     return getfield(hab, field)
 end
+"""
+    gethabitat(hab::ContinuousTimeHab, pos::Int64)
+
+Return the habitat value at position `pos` for the current time slice of a
+[`ContinuousTimeHab`](@ref).
+"""
 function gethabitat(hab::ContinuousTimeHab, pos::Int64)
     x, y = convert_coords(pos, size(hab.matrix, 1))
     return hab.matrix[x, y, hab.time]
@@ -362,15 +420,18 @@ function _fill_in!(T, M, types, wv)
     end
 end
 """
-    randomniches(dimension::Tuple, types::Vector{String}, clumpiness::Float64, weights::Vector)
+    randomniches(dimension::Tuple, types::Vector{Int64}, clumpiness::Float64,
+        weights::Vector, gridsquaresize::Unitful.Length)
 
-Function to create a `DiscreteHab` habitat of dimension `dimension`, made up of sampled
-string types, `types`, that have a weighting, `weights` and clumpiness parameter,
-`clumpiness`.
+Create a [`DiscreteHab`](@ref) habitat of dimension `dimension`, made up of
+integer niche types `types` with relative weightings `weights` and spatial
+clumpiness controlled by `clumpiness`. Cell size is set by `gridsquaresize`.
 """
-function randomniches(dimension::Tuple, types::Vector{Int64},
+function randomniches(dimension::Tuple,
+                      types::Vector{Int64},
                       clumpiness::Float64,
-                      weights::Vector, gridsquaresize::Unitful.Length)
+                      weights::Vector,
+                      gridsquaresize::Unitful.Length)
     # Check that the proportion of coverage for each type matches the number
     # of types and that they add up to 1
     length(weights) == length(types) ||
@@ -405,7 +466,8 @@ end
     simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
     dim::Tuple{Int64, Int64})
 
-Function to create a `ContinuousHab` habitat of dimension `dim`, with cell `size` and filled value, `val`.
+Create a [`ContinuousHab`](@ref) habitat of dimension `dim`, with cell `size`
+and filled value, `val`.
 """
 function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
                        dim::Tuple{Int64, Int64})
@@ -416,6 +478,12 @@ function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
     return ContinuousHab(M, size, habitatupdate)
 end
 
+"""
+    simplehabitat(val::Float64, size::Unitful.Length, dim::Tuple{Int64, Int64})
+
+Create a dimensionless [`ContinuousHab`](@ref) filled with `val`. Uses
+[`NoChange`](@ref) as the update rule.
+"""
 function simplehabitat(val::Float64, size::Unitful.Length,
                        dim::Tuple{Int64, Int64})
     M = fill(val, dim)
@@ -429,12 +497,13 @@ end
       size::Unitful.Length{Float64},
       dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
 
-Function to create a `ContinuousHab` habitat with a temperature gradient.
+Create a [`ContinuousHab`](@ref) habitat with a temperature gradient.
 """
 function tempgrad(minT::Unitful.Temperature{Float64},
                   maxT::Unitful.Temperature{Float64},
                   size::Unitful.Length{Float64},
-                  dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝚯 * 𝐓^-1})
+                  dim::Tuple{Int64, Int64},
+                  rate::Quantity{Float64, 𝚯 * 𝐓^-1})
     dim[1] > 1 ||
         error("First dimension should be greater than 1 for temperature gradient")
     M = Array{typeof(minT)}(undef, dim)
@@ -448,14 +517,16 @@ function tempgrad(minT::Unitful.Temperature{Float64},
 end
 
 """
-    raingrad(minT::Unitful.Temperature{Float64}, maxT::Unitful.Temperature{Float64},
+    raingrad(minR::Unitful.Length{Float64}, maxR::Unitful.Length{Float64},
       size::Unitful.Length{Float64},
-      dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
+      dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝐋*𝐓^-1})
 
-Function to create a `ContinuousHab` habitat with a rainfall gradient.
+Create a [`ContinuousHab`](@ref) habitat with a rainfall gradient.
 """
-function raingrad(minR::Unitful.Length{Float64}, maxR::Unitful.Length{Float64},
-                  size::Unitful.Length{Float64}, dim::Tuple{Int64, Int64},
+function raingrad(minR::Unitful.Length{Float64},
+                  maxR::Unitful.Length{Float64},
+                  size::Unitful.Length{Float64},
+                  dim::Tuple{Int64, Int64},
                   rate::Quantity{Float64, 𝐋 * 𝐓^-1})
     dim[1] > 1 ||
         error("First dimension should be greater than 1 for temperature gradient")

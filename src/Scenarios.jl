@@ -16,18 +16,23 @@ RateType = typeof(1.0 / year)
 """
     SimpleScenario <: AbstractScenario
 
-This scenario type holds a function that acts to change the entire ecosystem.
+Scenario type that applies a uniform rate of change across the entire ecosystem
+at each timestep. `fun` is the change function called as `fun(eco, timestep,
+rate)`, and `rate` is the magnitude of change per unit time.
 """
 mutable struct SimpleScenario{F <: Function} <: AbstractScenario
     fun::F
-    rate::Union{Quantity{Float64, 𝐓^-1}, Quantity{Float64, 𝚯 * 𝐓^-1},
+    rate::Union{Quantity{Float64, 𝐓^-1},
+                Quantity{Float64, 𝚯 * 𝐓^-1},
                 Quantity{Float64, 𝐋 * 𝐓^-1}}
 end
 
 """
     FluctScenario <: AbstractScenario
 
-This scenario type holds a function that acts to fluctuate the environment.
+Scenario type that fluctuates the environment periodically. `fun` is the
+fluctuation function, `rate` is the rate of temperature change, and `startarray`
+holds the baseline habitat values at the start of the simulation.
 """
 mutable struct FluctScenario{F <: Function} <: AbstractScenario
     fun::F
@@ -38,7 +43,8 @@ end
 """
     MultiScenario{S1 <: AbstractScenario, S2 <: AbstractScenario} <: AbstractScenario
 
-This scenario type holds multiple different scenario types.
+Scenario type that composes two scenarios, applying `sc1` and then `sc2` in
+sequence at each timestep.
 """
 mutable struct MultiScenario{S1 <: AbstractScenario, S2 <: AbstractScenario} <:
                AbstractScenario
@@ -51,20 +57,29 @@ end
 
 This function runs any scenario type for one timestep.
 """
-function runscenario!(eco::Ecosystem, timestep::Unitful.Time,
-                      scenario::SimpleScenario, currentstep::Unitful.Time)
+function runscenario!(eco::Ecosystem,
+                      timestep::Unitful.Time,
+                      scenario::SimpleScenario,
+                      currentstep::Unitful.Time)
     return scenario.fun(eco, timestep, scenario.rate)
 end
 
-function runscenario!(eco::Ecosystem, timestep::Unitful.Time,
-                      scenario::FluctScenario, currentstep::Unitful.Time)
+function runscenario!(eco::Ecosystem,
+                      timestep::Unitful.Time,
+                      scenario::FluctScenario,
+                      currentstep::Unitful.Time)
     return scenario.fun(eco, timestep, scenario.rate, currentstep,
                         scenario.startarray)
 end
 
-function runscenario!(eco::Ecosystem, timestep::Unitful.Time,
-                      scenario::MultiScenario, currentstep::Unitful.Time)
+function runscenario!(eco::Ecosystem,
+                      timestep::Unitful.Time,
+                      scenario::MultiScenario,
+                      currentstep::Unitful.Time)
     scenario.sc1.fun(eco, timestep, scenario.sc1.rate)
-    return scenario.sc2.fun(eco, timestep, scenario.sc2.rate, currentstep,
+    return scenario.sc2.fun(eco,
+                            timestep,
+                            scenario.sc2.rate,
+                            currentstep,
                             scenario.sc2.startarray)
 end
