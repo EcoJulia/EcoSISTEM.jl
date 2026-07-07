@@ -21,13 +21,13 @@ getraster(EarthEnv{LandCover})
 worldlc = readlc("assets/EarthEnv/LandCover/without_DISCover/", -180.0°, 180.0°,
                  -56.0°, 90.0°)
 world = compressLC(worldlc)
-africa_lc = world[-25° .. 50°, -35° .. 40°]
+africa_lc = world[-25°..50°, -35°..40°]
 bio_africa_lc = Landcover(africa_lc)
 heatmap(africa_lc')
 
 getraster(WorldClim{BioClim})
 worldbc = readbioclim("assets/WorldClim/BioClim/")
-africa_water = worldbc.array[-25° .. 50°, -35° .. 40°, 13]
+africa_water = worldbc.array[-25°..50°, -35°..40°, 13]
 africa_water = upresolution(africa_water, 2)
 africa_water = Worldclim_bioclim(AxisArray(africa_water .* mm,
                                            AxisArrays.axes(africa_water)))
@@ -97,9 +97,12 @@ abuns = reshape(abuns[1, :, :, 1], grid[1], grid[2], lensim)
 anim = @animate for i in 1:lensim
     africa_abun = Float64.(abuns[:, :, i])
     africa_abun[.!(active)] .= NaN
-    heatmap(africa_abun, clim = (0, maximum(abuns)),
-            background_color = :lightblue, background_color_outside = :white,
-            grid = false, color = cgrad(:algae, scale = :exp))
+    heatmap(africa_abun,
+            clim = (0, maximum(abuns)),
+            background_color = :lightblue,
+            background_color_outside = :white,
+            grid = false,
+            color = cgrad(:algae, scale = :exp))
 end
 gif(anim, "examples/Africa.gif", fps = 15)
 
@@ -108,16 +111,24 @@ africa_startabun = Float64.(abuns[:, :, 1])
 africa_startabun[.!(active)] .= NaN
 africa_endabun = Float64.(abuns[:, :, end])
 africa_endabun[.!(active)] .= NaN
-heatmap(africa_startabun', clim = (0, maximum(abuns)),
-        background_color = :lightblue, background_color_outside = :white,
-        grid = false, color = cgrad(:algae, scale = :exp),
-        layout = (@layout [a b; c d]), title = "Start abundance")
-heatmap!(africa_endabun', clim = (0, maximum(abuns)),
-         background_color = :lightblue, background_color_outside = :white,
-         grid = false, color = cgrad(:algae, scale = :exp),
-         subplot = 2, title = "End Abundance")
+heatmap(africa_startabun',
+        clim = (0, maximum(abuns)),
+        background_color = :lightblue,
+        background_color_outside = :white,
+        grid = false,
+        color = cgrad(:algae, scale = :exp),
+        layout = (@layout [a b; c d]),
+        title = "Start abundance")
+heatmap!(africa_endabun',
+         clim = (0, maximum(abuns)),
+         background_color = :lightblue,
+         background_color_outside = :white,
+         grid = false,
+         color = cgrad(:algae, scale = :exp),
+         subplot = 2,
+         title = "End Abundance")
 africa_lc = Float64.(africa_lc.data)
 africa_lc[.!active] .= NaN
 heatmap!(africa_lc', grid = false, subplot = 3, title = "Land Cover")
-africa_water = world[-25° .. 50°, -35° .. 40°]
+africa_water = world[-25°..50°, -35°..40°]
 heatmap!(africa_water', grid = false, subplot = 4, title = "Precipitation")
