@@ -41,13 +41,15 @@ using Diversity
     native = fill(true, numSpecies)
     @test_nowarn sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
                                     movement, param, native)
-    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun,
-                                    energy_vec, movement, param, native)
+    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, energy_vec,
+                                    movement, param, native)
 
-    sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-                       movement, param, native)
-    newsppl = SpeciesList{typeof(sppl.traits), typeof(sppl.requirement),
-                          typeof(sppl.movement), typeof(sppl.types),
+    sppl = SpeciesList(numSpecies, traits, abun, energy_vec, movement, param,
+                       native)
+    newsppl = SpeciesList{typeof(sppl.traits),
+                          typeof(sppl.requirement),
+                          typeof(sppl.movement),
+                          typeof(sppl.types),
                           typeof(sppl.params)}(sppl.traits, sppl.abun,
                                                sppl.requirement, sppl.types,
                                                sppl.movement, sppl.params,

@@ -48,10 +48,10 @@ function is_repo_clean(repo_path; strict = false)
     dirty = strict ? statuses : unstaged
 
     # Always report the number of dirty files and any untracked files
-    msg =
-        "Repository $repo_path: $(length(dirty)) file(s) dirty, " *
-        "$(length(untracked)) untracked"
-    isempty(untracked) || (msg *= "\nUntracked files:\n" * join(untracked, "\n"))
+    msg = "Repository $repo_path: $(length(dirty)) file(s) dirty, " *
+          "$(length(untracked)) untracked"
+    isempty(untracked) ||
+        (msg *= "\nUntracked files:\n" * join(untracked, "\n"))
     @info msg
 
     is_clean = isempty(dirty)

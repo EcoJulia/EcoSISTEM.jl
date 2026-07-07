@@ -106,14 +106,13 @@ true_abuns = gather_abundance(eco)
 # On root node, print abundances and save out
 if rank == 0
     isdir("data") || mkdir("data")
-    @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
+    @save "data/Test_abuns" * "$nt.jld2" abuns = true_abuns
 end
 
 water_vec = WaterRequirement(fill(2.0mm, numSpecies))
 total_use = ReqCollection2(energy_vec, water_vec)
 
-sppl = SpeciesList(numSpecies, traits, abun, total_use,
-                   movement, param, native)
+sppl = SpeciesList(numSpecies, traits, abun, total_use, movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
 abenv1 = simplehabitatAE(274.0K, grid, totalK, area)
@@ -170,7 +169,7 @@ true_abuns = gather_abundance(eco)
 # On root node, print abundances and save out
 if rank == 0
     isdir("data") || mkdir("data")
-    @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
+    @save "data/Test_abuns" * "$nt.jld2" abuns = true_abuns
 end
 
 if !MPI.Finalized()

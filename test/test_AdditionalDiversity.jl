@@ -22,8 +22,7 @@ include("TestCases.jl")
     ## TEST meta_simpson
     @test meta_simpson(eco, 1.0)[!, :diversity] ==
           meta_simpson(eco, 2.0)[!, :diversity]
-    @test meta_simpson(eco, 1.0)[!, :diversity][1] ≈
-          sum(RelAb .^ 2)
+    @test meta_simpson(eco, 1.0)[!, :diversity][1] ≈ sum(RelAb .^ 2)
     @test meta_simpson(eco, 1.0)[!, :diversity] ==
           1 ./ meta_gamma(makeunique(eco), 2.0)[!, :diversity]
     @test meta_simpson(eco, 2.0) == meta_simpson(makeunique(eco), 2.0)
@@ -49,8 +48,7 @@ include("TestCases.jl")
     @test mean_abun(eco, 1.0)[!, :diversity] ==
           mean_abun(eco, 0.0)[!, :diversity]
     @test mean_abun(eco, 1.0)[!, :diversity][1] ≈
-          sum(eco.abundances.matrix) ./
-          size(eco.abundances.matrix, 1)
+          sum(eco.abundances.matrix) ./ size(eco.abundances.matrix, 1)
     @test mean_abun(eco, 0.0) == mean_abun(makeunique(eco), 0.0)
     @test mean_abun(eco, 0.0) == mean_abun(eco, [0.0, 1, 2])
 

@@ -102,26 +102,25 @@ end
 @testset "mpirun" begin
     # Keep outputs all one folder 
     isdir("data") || mkdir("data")
-    testdir = @__DIR__
     # Compare 1 thread 4 processes vs. 4 threads 1 process vs. 2 threads 2 processes
     withenv("JULIA_NUM_THREADS" => "4") do
         nprocs = 1
         function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(EcoSISTEM.path("SmallMPItest.jl"))`
         end
         @test success(run(cmd()))
     end
     withenv("JULIA_NUM_THREADS" => "2") do
         nprocs = 2
         function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(EcoSISTEM.path("SmallMPItest.jl"))`
         end
         @test success(run(cmd()))
     end
     withenv("JULIA_NUM_THREADS" => "1") do
         nprocs = 4
         function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(joinpath(testdir, "SmallMPItest.jl"))`
+            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(EcoSISTEM.path("SmallMPItest.jl"))`
         end
         @test success(run(cmd()))
     end

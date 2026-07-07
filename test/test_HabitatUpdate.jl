@@ -46,8 +46,10 @@ include("TestCases.jl")
     @test eco.abenv.budget.time == 2
 
     # Test era update
-    temp = AxisArray(fill(1.0K, 10, 10, 3), Axis{:latitude}(1:10),
-                     Axis{:longitude}(1:10), Axis{:time}(collect(1:3) .* s))
+    temp = AxisArray(fill(1.0K, 10, 10, 3),
+                     Axis{:latitude}(1:10),
+                     Axis{:longitude}(1:10),
+                     Axis{:time}(collect(1:3) .* s))
     eratemp = ERA(temp)
     water = WaterTimeBudget(fill(10.0mm, 10, 10, 3), 1)
     ea = eraAE(eratemp, water, active)

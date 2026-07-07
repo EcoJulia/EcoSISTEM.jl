@@ -14,7 +14,8 @@ include("TestCases.jl")
 @testset "Scenarios" begin
     # Simple scenario
     eco = TestMultiEcosystem()
-    function TempIncrease!(eco::Ecosystem, timestep::Unitful.Time,
+    function TempIncrease!(eco::Ecosystem,
+                           timestep::Unitful.Time,
                            rate::typeof(1.0K / year))
         resetrate!(eco, rate)
         return eco.abenv.habitat.matrix[eco.abenv.habitat.matrix .< 0K] .= 0K
@@ -26,13 +27,16 @@ include("TestCases.jl")
 
     # Fluctuating scenario
     eco = TestMultiEcosystem()
-    function TempFluct!(eco::Ecosystem, timestep::Unitful.Time,
+    function TempFluct!(eco::Ecosystem,
+                        timestep::Unitful.Time,
                         rate::Quantity{Float64, 𝚯 * 𝐓^-1},
                         currentstep::Unitful.Time,
                         startarray::Matrix{typeof(1.0K)})
         v = uconvert(K / year, rate)
         return eco.abenv.habitat.matrix .= (v * year) .*
-                                           sin(collect((-π):(π / 6):π)[mod(Int64(uconvert(NoUnits, currentstep / timestep)), 12) + 1]) .+
+                                           sin(collect((-π):(π / 6):π)[mod(Int64(uconvert(NoUnits,
+                                                                                          currentstep / timestep)),
+                                                                           12) + 1]) .+
                                            startarray
     end
     scenario2 = FluctScenario(TempFluct!, 1.0K / year, eco.abenv.habitat.matrix)
