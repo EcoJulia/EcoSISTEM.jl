@@ -122,24 +122,40 @@ begin
     # Plot abundances
     sumabun = sum(abuns, dims = 2)[:, 1, :]
     floor_plot = zeros(lensim)
-    p1 = plot(sumabun[1, :], ribbon = (sumabun[1, :], floor_plot),
-              guidefontsize = 16, tickfontsize = 16, size = (1000, 1000),
+    p1 = plot(sumabun[1, :],
+              ribbon = (sumabun[1, :], floor_plot),
+              guidefontsize = 16,
+              tickfontsize = 16,
+              size = (1000, 1000),
               titlefontsize = 16,
-              grid = false, layout = (2, 1), label = "", titleloc = :left)
+              grid = false,
+              layout = (2, 1),
+              label = "",
+              titleloc = :left)
     for i in 2:(numSpecies)
         before_spp = sum(sumabun[1:(i - 1), :], dims = 1)[1, :]
         p1 = plot!(sumabun[i, :] .+ before_spp,
                    ribbon = (sumabun[i, :], floor_plot),
-                   xlabel = "Time", ylabel = "Population", label = "",
-                   title = "A", subplot = 1)
+                   xlabel = "Time",
+                   ylabel = "Population",
+                   label = "",
+                   title = "A",
+                   subplot = 1)
     end
     sumabun_space = sum(eco.abundances.matrix, dims = 1)[1, :]
-    p1 = heatmap!(reshape(sumabun_space, grd[1], grd[2]), subplot = 2,
-                  aspect_ratio = 1, axis = false, xlabel = "Grid location",
-                  ylabel = "Grid location", guidefontsize = 16,
+    p1 = heatmap!(reshape(sumabun_space, grd[1], grd[2]),
+                  subplot = 2,
+                  aspect_ratio = 1,
+                  axis = false,
+                  xlabel = "Grid location",
+                  ylabel = "Grid location",
+                  guidefontsize = 16,
                   tickfontsize = 16,
-                  titlefontsize = 16, grid = false,
-                  right_margin = 20.0 * Plots.mm, label = "", title = "B",
+                  titlefontsize = 16,
+                  grid = false,
+                  right_margin = 20.0 * Plots.mm,
+                  label = "",
+                  title = "B",
                   titleloc = :left)
     p1
 end
@@ -179,7 +195,9 @@ begin
     # Let's plot it to see what it looks like
     heatmap(temp_env.habitat.matrix ./ K, clim = (278, 308), title = "Habitat",
             layout = 2)
-    heatmap!(temp_env.budget.matrix ./ mm, title = "Resource", subplot = 2,
+    heatmap!(temp_env.budget.matrix ./ mm,
+             title = "Resource",
+             subplot = 2,
              clim = (100, 200))
 end
 
@@ -192,8 +210,12 @@ Let's try something slightly more adventurous:"
 begin
     # A temperature gradient spanning 10 degrees either side of total temperature from above. We can also give it a rate over which to change over time
     temp_change_rate = 0.2K / month
-    temp_grad_env = tempgradAE(totalT - 10.0K, totalT + 10.0K, grid, totalW,
-                               area_size, temp_change_rate)
+    temp_grad_env = tempgradAE(totalT - 10.0K,
+                               totalT + 10.0K,
+                               grid,
+                               totalW,
+                               area_size,
+                               temp_change_rate)
 
     # Let's plot it to see what it looks like now
     heatmap(temp_grad_env.habitat.matrix' ./ K, clim = (278, 308),
@@ -206,8 +228,12 @@ md"That's better! How about something even fancier?"
 # ╔═╡ 01a11afc-7c9b-41f5-b308-003303dfa72a
 begin
     # A temperature peak spanning 10 degrees either side of total temperature from above. We can also give it a rate over which to change over time
-    temp_peak_env = peakedgradAE(totalT - 10.0K, totalT + 10.0K, grid, totalW,
-                                 area_size, temp_change_rate)
+    temp_peak_env = peakedgradAE(totalT - 10.0K,
+                                 totalT + 10.0K,
+                                 grid,
+                                 totalW,
+                                 area_size,
+                                 temp_change_rate)
 
     # Let's plot it to see what it looks like now
     heatmap(temp_peak_env.habitat.matrix' ./ K, clim = (278, 308),
@@ -292,7 +318,8 @@ begin
     p3 = plot(288:0.1:308,
               pdf.(Normal(optima[1] / K, niche_width[1] / K),
                    collect(288:0.1:308)),
-              label = "", xlabel = "Temperature (K)",
+              label = "",
+              xlabel = "Temperature (K)",
               ylabel = "Match to environment")
     for j in 2:numSpp
         plot!(288:0.1:308,

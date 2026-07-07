@@ -130,7 +130,7 @@ begin
     ENV["RASTERDATASOURCES_PATH"] = "assets"
     getraster(WorldClim{BioClim})
     world = readbioclim("assets/WorldClim/BioClim/")
-    africa_temp = world.array[-25° .. 50°, -35° .. 40°, 1]
+    africa_temp = world.array[-25°..50°, -35°..40°, 1]
     plot(africa_temp)
 end
 
@@ -180,8 +180,13 @@ begin
     trts_new = GaussTrait(opts_new, vars_new)
     native_new = fill(true, numSpecies)
     abun_new = fill(div(individuals_new, numSpecies), numSpecies)
-    sppl_new = SpeciesList(numSpecies, trts_new, abun_new, energy_vec_new,
-                           movement_new, param_new, native_new)
+    sppl_new = SpeciesList(numSpecies,
+                           trts_new,
+                           abun_new,
+                           energy_vec_new,
+                           movement_new,
+                           param_new,
+                           native_new)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
