@@ -9,7 +9,9 @@ using Statistics
     convert_coords(i::Int64, width::Int64)
     convert_coords(x::Int64, y::Int64, width::Int64)
 
-Function to convert coordinates from two-dimensional (`x`,`y`) format to one dimension (`i`), or vice versa, using the `width` of the grid. This function can also be applied to arrays of coordinates.
+Convert coordinates from two-dimensional (`x`,`y`) format to one dimension
+(`i`), or vice versa, using the `width` of the grid. This function can also be
+applied to arrays of coordinates.
 """
 function convert_coords end
 
@@ -38,7 +40,7 @@ end
 """
     create_reference(gridsize::Float64)
 
-Function to create a reference grid array of type `Reference`.
+Create a reference grid array of type [`Reference`](@ref).
 """
 function create_reference(gridsize::Float64)
     x = 360 * (1 / gridsize) + 1
@@ -54,7 +56,7 @@ end
 """
     upresolution(data::Union{ERA, Worldclim_monthly, Worldclim_bioclim}, rescale::Int64; fn)
 
-Function to increase the resolution of a climate dataset, by a factor, `rescale`.
+Increase the resolution of a climate dataset, by a factor, `rescale`.
 """
 function upresolution end
 
@@ -88,14 +90,11 @@ function upresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64)
                     for dy in 0:rescale
                         fy = dy / rescale
                         iy = rescale * y - (rescale - 1)
-                        array[ix + dx, iy + dy, t] = aa[x, y, t] * (1 - fx) *
-                                                     (1 - fy) +
-                                                     aa[x + 1, y, t] * fx *
-                                                     (1 - fy) +
-                                                     aa[x, y + 1, t] *
-                                                     (1 - fx) * fy +
-                                                     aa[x + 1, y + 1, t] * fx *
-                                                     fy
+                        array[ix + dx, iy + dy,
+                              t] = aa[x, y, t] * (1 - fx) * (1 - fy) +
+                                   aa[x + 1, y, t] * fx * (1 - fy) +
+                                   aa[x, y + 1, t] * (1 - fx) * fy +
+                                   aa[x + 1, y + 1, t] * fx * fy
                     end
                 end
             end
@@ -137,15 +136,15 @@ function upresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64)
     lat = aa.axes[2].val
     newlat = range(lat[1], lat[end], grid[2])
 
-    return AxisArray(array,
-                     Axis{:longitude}(newlon),
-                     Axis{:latitude}(newlat))
+    return AxisArray(array, Axis{:longitude}(newlon), Axis{:latitude}(newlat))
 end
 
 """
     downresolution(data::Union{ERA, Worldclim_monthly, Worldclim_bioclim}, rescale::Int64; fn)
 
-Function to decrease the resolution of a climate dataset, by a factor, `rescale`, and aggregation function, `fn`. The aggregation function has a default setting of taking the mean value.
+Decrease the resolution of a climate dataset, by a factor, `rescale`, and
+aggregation function, `fn`. The aggregation function has a default setting of
+taking the mean value.
 """
 function downresolution end
 
@@ -223,21 +222,23 @@ function downresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64;
     newlon = range(lon[1], lon[end], grid[1])
     lat = aa.axes[2].val
     newlat = range(lat[1], lat[end], grid[2])
-    return AxisArray(array,
-                     Axis{:longitude}(newlon),
-                     Axis{:latitude}(newlat))
+    return AxisArray(array, Axis{:longitude}(newlon), Axis{:latitude}(newlat))
 end
 
 """
     downresolution!(resized_array::Matrix{T}, array::Matrix{T}, rescale::Int64, fn)
     downresolution!(resized_array::Array{T, 3}, array::Matrix{T}, dim::Int64, rescale::Int64, fn)
 
-Function to decrease the resolution of a climate dataset in place, by a factor, `rescale`, and aggregation function, `fn`. The aggregation function has a default setting of taking the mean value.
+Decrease the resolution of a climate dataset in place, by a factor, `rescale`,
+and aggregation function, `fn`. The aggregation function has a default setting
+of taking the mean value.
 """
 function downresolution! end
 
-function downresolution!(resized_array::Matrix{T}, array::Matrix{T},
-                         rescale::Int64; fn::Function = mean) where {T}
+function downresolution!(resized_array::Matrix{T},
+                         array::Matrix{T},
+                         rescale::Int64;
+                         fn::Function = mean) where {T}
     Threads.@threads for i in eachindex(resized_array)
         x, y = convert_coords(i, size(resized_array, 1))
         xcoords = filter(k -> 1 ≤ rescale * (x - 1) + 1 + k ≤ size(array, 1),
@@ -252,8 +253,10 @@ function downresolution!(resized_array::Matrix{T}, array::Matrix{T},
     end
 end
 
-function downresolution!(resized_array::Array{T, 3}, array::Matrix{T},
-                         dim::Int64, rescale::Int64;
+function downresolution!(resized_array::Array{T, 3},
+                         array::Matrix{T},
+                         dim::Int64,
+                         rescale::Int64;
                          fn::Function = mean) where {T}
     new_dims = size(resized_array, 1) * size(resized_array, 2)
     Threads.@threads for i in 1:new_dims
@@ -268,7 +271,8 @@ end
 
 function compressLC(lc::AxisArray)
     newLC = AxisArray(zeros(Int64, size(lc, 1), size(lc, 2)),
-                      AxisArrays.axes(lc, 1), AxisArrays.axes(lc, 2))
+                      AxisArrays.axes(lc, 1),
+                      AxisArrays.axes(lc, 2))
     Threads.@threads for i in Base.axes(lc, 1)
         for j in Base.axes(lc, 2)
             newLC[i, j] = findmax(lc[i, j, :])[2]

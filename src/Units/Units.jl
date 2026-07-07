@@ -33,8 +33,26 @@ function __init__()
     return Unitful.register(Units)
 end
 
-export day, days, week, weeks, month, months, year, years, Rates,
-       January, February, March, April, May, June, July, August,
-       September, October, November, December
+export day,
+       days,
+       week,
+       weeks,
+       month,
+       months,
+       year,
+       years,
+       Rates,
+       January,
+       February,
+       March,
+       April,
+       May,
+       June,
+       July,
+       August,
+       September,
+       October,
+       November,
+       December
 
 end
