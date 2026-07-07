@@ -6,7 +6,7 @@ using Random
 
 struct SavedLandscape
     matrix::Matrix{Int64}
-    rngs::Vector{MersenneTwister}
+    rng::Random.Xoshiro
 end
 
 """
@@ -20,17 +20,10 @@ represent species, their abundances and position in the grid).
 mutable struct GridLandscape
     matrix::Matrix{Int64}
     grid::Array{Int64, 3}
-    rngs::Vector{MersenneTwister}
 
     function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
         a = abun
-        return new(a, reshape(a, dimension),
-                   [MersenneTwister(rand(UInt)) for _ in 1:Threads.nthreads()])
-    end
-    function GridLandscape(abun::Matrix{Int64}, dimension::Tuple,
-                           rngs::Vector{MersenneTwister})
-        a = abun
-        return new(a, reshape(a, dimension), rngs)
+        return new(a, reshape(a, dimension))
     end
 end
 import Base.copy
@@ -38,11 +31,11 @@ function copy(gl::GridLandscape)
     return GridLandscape(copy(gl.matrix), size(gl.grid))
 end
 function GridLandscape(sl::SavedLandscape, dimension::Tuple)
-    return GridLandscape(sl.matrix, dimension, sl.rngs)
+    return GridLandscape(sl.matrix, dimension)
 end
 
 function SavedLandscape(gl::GridLandscape)
-    return SavedLandscape(gl.matrix, gl.rngs)
+    return SavedLandscape(gl.matrix, copy(Random.default_rng()))
 end
 
 """

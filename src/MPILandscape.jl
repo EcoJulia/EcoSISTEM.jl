@@ -16,7 +16,6 @@ mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple} <:
     reshaped_cols::Vector{RA}
     rows_tuple::NT
     cols_tuple::NT
-    rngs::Vector{MersenneTwister}
 
     function MPIGridLandscape(sppcounts::Vector{Int32},
                               sccounts::Vector{Int32},
@@ -53,9 +52,7 @@ mutable struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple} <:
         return new{typeof(reshaped_cols[1]), typeof(rows)}(rows_matrix,
                                                            cols_vector,
                                                            reshaped_cols,
-                                                           rows, cols,
-                                                           [MersenneTwister(rand(UInt))
-                                                            for _ in Base.OneTo(Threads.nthreads())])
+                                                           rows, cols)
     end
 end
 

@@ -14,8 +14,9 @@ function checkfile(file::String, tm::Int)
 end
 
 function loadfile(file::String, tm::Int, dim::Tuple)
-    a = @load joinpath(file, searchdir(file, string(tm, ".jld2"))[1]) abuns
-    return GridLandscape(a, dim)
+    @load joinpath(file, searchdir(file, string(tm, ".jld2"))[1]) abuns
+    copy!(Random.default_rng(), abuns.rng)
+    return GridLandscape(abuns, dim)
 end
 
 function clearcache(cache::CachedEcosystem)
@@ -33,7 +34,6 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
                                                    yr,
                                                    (length(cache.spplist.names),
                                                     _getdimension(cache.abenv.habitat)...))
-            seed!(cache.abundances.matrix[tm].seed)
             return tm, cache.abundances.matrix[tm]
         else
             newtm, abun = _abundances(cache, tm - cache.abundances.saveinterval)

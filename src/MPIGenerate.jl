@@ -29,7 +29,6 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     # Loop through species in chosen square
     Threads.@threads for mpisp in 1:eco.sppcounts[rank + 1]
         truesp = eco.firstsp + mpisp - 1
-        rng = eco.abundances.rngs[Threads.threadid()]
         # Loop through grid squares
         for sc in 1:numsc
             # Calculate how much birth and death should be adjusted
@@ -53,11 +52,9 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
                 (newbirthprob >= 0) & (newdeathprob >= 0) ||
                     error("Birth: $newbirthprob \n Death: $newdeathprob \n \n sc: $sc \n sp: $truesp")
                 # Calculate how many births and deaths
-                births = rand(rng,
-                              Poisson(eco.abundances.rows_matrix[mpisp, sc] *
+                births = rand(Poisson(eco.abundances.rows_matrix[mpisp, sc] *
                                       newbirthprob))
-                deaths = rand(rng,
-                              Binomial(eco.abundances.rows_matrix[mpisp, sc],
+                deaths = rand(Binomial(eco.abundances.rows_matrix[mpisp, sc],
                                        newdeathprob))
 
                 # Update population

@@ -70,7 +70,6 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
 
     # Loop through species in chosen square
     Threads.@threads for j in 1:spp
-        rng = eco.abundances.rngs[Threads.threadid()]
         # Loop through grid squares
         for i in 1:dims
             # Calculate how much birth and death should be adjusted
@@ -93,10 +92,8 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
                 (birthrate >= 0) & (deathprob >= 0) ||
                     error("Birth: $birthrate \n Death: $deathprob \n \n i: $i \n j: $j")
                 # Calculate how many births and deaths
-                births = rand(rng,
-                              Poisson(eco.abundances.matrix[j, i] * birthrate))
-                deaths = rand(rng,
-                              Binomial(eco.abundances.matrix[j, i], deathprob))
+                births = rand(Poisson(eco.abundances.matrix[j, i] * birthrate))
+                deaths = rand(Binomial(eco.abundances.matrix[j, i], deathprob))
 
                 # Update population
                 eco.abundances.matrix[j, i] += (births - deaths)
@@ -261,7 +258,7 @@ function calc_lookup_moves!(bound::NoBoundary, x::Int64, y::Int64, sp::Int64,
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    return rand!(eco.abundances.rngs[Threads.threadid()], dist, lookup.moves)
+    return rand!(dist, lookup.moves)
 end
 
 function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, sp::Int64,
@@ -281,7 +278,7 @@ function calc_lookup_moves!(bound::Cylinder, x::Int64, y::Int64, sp::Int64,
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    return rand!(eco.abundances.rngs[Threads.threadid()], dist, lookup.moves)
+    return rand!(dist, lookup.moves)
 end
 
 function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64,
@@ -301,7 +298,7 @@ function calc_lookup_moves!(bound::Torus, x::Int64, y::Int64, sp::Int64,
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    return rand!(eco.abundances.rngs[Threads.threadid()], dist, lookup.moves)
+    return rand!(dist, lookup.moves)
 end
 
 """
