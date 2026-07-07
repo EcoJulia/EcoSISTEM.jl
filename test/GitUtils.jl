@@ -28,8 +28,9 @@ the repository to be *genuinely* clean, with no staged, unstaged or untracked
 changes at all.
 
 Regardless of the result, an informational message (`@info`) always reports how
-many files are staged and lists any untracked files. When the repository is
-considered dirty, the offending files are additionally reported via `@error`.
+many files are dirty (under the selected criterion) and lists any untracked files.
+When the repository is considered dirty, the offending files are additionally
+reported via `@error`.
 
 Return `true` if the repository is clean under the selected criterion, and `false`
 otherwise.
@@ -40,19 +41,18 @@ function is_repo_clean(repo_path; strict = false)
     statuses = readlines(`$(Git.git()) status -s $repo_path`)
 
     untracked = filter(s -> startswith(s, "??"), statuses)
-    staged = filter(s -> !startswith(s, "??") && s[1] != ' ', statuses)
     unstaged = filter(s -> !startswith(s, "??") && s[2] != ' ', statuses)
-
-    # Always report the staged count and any untracked files
-    msg =
-        "Repository $repo_path: $(length(staged)) file(s) staged, " *
-        "$(length(untracked)) untracked"
-    isempty(untracked) || (msg *= "\nUntracked files:\n" * join(untracked, "\n"))
-    @info msg
 
     # Relaxed (default): only unstaged changes to tracked files count as dirty.
     # Strict: any staged, unstaged or untracked change counts.
     dirty = strict ? statuses : unstaged
+
+    # Always report the number of dirty files and any untracked files
+    msg =
+        "Repository $repo_path: $(length(dirty)) file(s) dirty, " *
+        "$(length(untracked)) untracked"
+    isempty(untracked) || (msg *= "\nUntracked files:\n" * join(untracked, "\n"))
+    @info msg
 
     is_clean = isempty(dirty)
     is_clean || @error "Repository not clean:\n" * join(dirty, "\n")
