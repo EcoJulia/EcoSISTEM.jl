@@ -42,7 +42,7 @@ function simulate_record_diversity!(storage::AbstractArray,
                            (@sprintf "%02d" uconvert(NoUnits,
                                                      time_seq[i] /
                                                      cacheInterval)) *
-                           (@sprintf "%03d.jld2" rep)) abun = eco.abundances.matrix
+                           (@sprintf "%03d.jld2" rep)) abun=eco.abundances.matrix
         end
     end
     return storage
@@ -83,7 +83,7 @@ function runsim!(div::Array{Float64, 3},
                                    rep)
         adjusttemp!(eco, scenario[i], simDict["times"])
     end
-    @save (folder * @sprintf "%03d.jld2" rep) div = div
+    @save (folder*@sprintf "%03d.jld2" rep) div=div
     return print(rep, "\n")
 end
 
@@ -139,6 +139,6 @@ function dispersalrun!(div::Array{Float64, 3},
                                    rep)
         adjusttemp!(eco, scenario[i], simDict["times"])
     end
-    @save (folder * @sprintf "%03d.jld2" rep) div = div
+    @save (folder*@sprintf "%03d.jld2" rep) div=div
     return print(rep, "\n")
 end

@@ -9,7 +9,7 @@ using OnlineStats
 using Plots
 plotlyjs()
 
-cachefolder = joinpath(dirname(pathof(EcoSISTEM)), "../test/examples/")
+cachefolder = EcoSISTEM.path("examples/")
 
 ## DIFFERENT TEMPERATURE OPTIMUMS ##
 # 100 species with a range of different niche preferences for temperature. Check those closer to the environmental temperature have a higher abundance.
@@ -89,9 +89,10 @@ diver = zeros(length(divfuns), lensim, length(scenario))
 runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
 
 endabun = mapslices(sum,
-                    @load joinpath(cachefolder, "cache/DiffOpts10001.jld2") abun,
-                                                                            dims = 2)[:,
-                                                                                      1]
+                    @load joinpath(cachefolder,
+                                   "cache/DiffOpts10001.jld2") abun,
+                                                               dims=2)[:,
+                                                                       1]
 temps = map(eachindex(opts)) do i
     return repeat([opts[i]], endabun[i])
 end
@@ -191,9 +192,10 @@ diver = zeros(length(divfuns), lensim, length(scenario))
 runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
 
 endabun = mapslices(sum,
-                    @load joinpath(cachefolder, "cache/DiffVars10001.jld2") abun,
-                                                                            dims = 2)[:,
-                                                                                      1]
+                    @load joinpath(cachefolder,
+                                   "cache/DiffVars10001.jld2") abun,
+                                                               dims=2)[:,
+                                                                       1]
 widths = map(eachindex(vars)) do i
     return repeat([vars[i]], endabun[i])
 end
@@ -294,8 +296,8 @@ runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
 endabun = mapslices(sum,
                     @load joinpath(cachefolder,
                                    "cache/DiffVarsMismatch10001.jld2") abun,
-                                                                       dims = 2)[:,
-                                                                                 1]
+                                                                       dims=2)[:,
+                                                                               1]
 widths = map(eachindex(vars)) do i
     return repeat([vars[i]], endabun[i])
 end
@@ -408,9 +410,9 @@ diver = zeros(length(divfuns), lensim, length(scenario))
 runsim!(diver, abenv, paramDict, simDict, 1, cachefolder, false)
 
 endabun = mapslices(sum,
-                    @load joinpath(cachefolder, "cache/Energy10001.jld2") abun,
-                                                                          dims = 1)[1,
-                                                                                    :]
+                    @load joinpath(cachefolder,
+                                   "cache/Energy10001.jld2") abun,
+                                                             dims=1)[1, :]
 endabun = reshape(endabun, 10, 10)
 
 heatmap(sol_range ./ kJ,
@@ -720,8 +722,8 @@ for i in 1:4
     endabun = mapslices(sum,
                         @load joinpath(cachefolder,
                                        "cache/Dispersal$i" * "10001.jld2") abun,
-                                                                           dims = 1)[1,
-                                                                                     :]
+                                                                           dims=1)[1,
+                                                                                   :]
     endabun = reshape(endabun, 10, 10)
     m = distances[i]
     display(heatmap!(1:10,

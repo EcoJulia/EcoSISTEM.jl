@@ -1,5 +1,9 @@
 # NEWS
 
+- v0.3.0
+  - Tidying up and adding missing documentation
+  - Fix race condition in multithreaded code post Julia 1.9
+  - Update compats
 - v0.2.6
   - Compat fixes and resolve Pluto notebook error
 - v0.2.5

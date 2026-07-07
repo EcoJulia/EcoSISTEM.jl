@@ -148,7 +148,7 @@ function TempFluct!(eco::Ecosystem,
     return eco.abenv.habitat.matrix .= (v * year) .*
                                        sin(collect((-π):(π / 6):π)[mod(Int64(uconvert(NoUnits,
                                                                                       currentstep / timestep)),
-                                                                       12)+1]) .+
+                                                                       12) + 1]) .+
                                        startarray
 end
 
