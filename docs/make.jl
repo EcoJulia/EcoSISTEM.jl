@@ -1,12 +1,20 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
+using Pkg
+"EcoSISTEM" ∈ [p.name for p in values(Pkg.dependencies())] &&
+    Pkg.rm("EcoSISTEM")
+Pkg.develop(path=joinpath(@__DIR__, ".."))
+
 using Documenter
 using EcoSISTEM
 
+DocMeta.setdocmeta!(EcoSISTEM, :DocTestSetup,
+                    :(using EcoSISTEM); recursive = true)
+
 makedocs(modules = [EcoSISTEM],
          sitename = "EcoSISTEM.jl",
-         format = Documenter.HTML(prettyurls = get(ENV, "CI", nothing) ==
-                                               "true",
+         format = Documenter.HTML(canonical = "https://docs.ecojulia.org/EcoSISTEM.jl/stable",
+                                  edit_link = "main",
                                   size_threshold_ignore = ["api.md"]),
          pages = [
              "Home" => "index.md",
