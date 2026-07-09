@@ -3,7 +3,7 @@
 using Pkg
 "EcoSISTEM" ∈ [p.name for p in values(Pkg.dependencies())] &&
     Pkg.rm("EcoSISTEM")
-Pkg.develop(path=joinpath(@__DIR__, ".."))
+Pkg.develop(path = joinpath(@__DIR__, ".."))
 
 using Documenter
 using EcoSISTEM
