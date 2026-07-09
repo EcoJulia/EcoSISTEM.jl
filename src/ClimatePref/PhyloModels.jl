@@ -30,7 +30,7 @@ function varcovar(tree::AbstractTree)
     return V
 end
 
-mutable struct Brownian
+struct Brownian
     optimum::AbstractArray
     se::AbstractArray
     H::AbstractMatrix
@@ -73,7 +73,7 @@ function fitBrownian(tree::AbstractTree,
     return Brownian(opts, se, H, logL)
 end
 
-mutable struct Lambda
+struct Lambda
     optimum::AbstractArray
     se::AbstractArray
     H::AbstractMatrix
