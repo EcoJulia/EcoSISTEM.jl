@@ -17,7 +17,7 @@ abstract type AbstractClimate end
 
 Type that houses data extracted from Worldclim raster files.
 """
-mutable struct Worldclim_monthly{A <: AxisArray} <: AbstractClimate
+struct Worldclim_monthly{A <: AxisArray} <: AbstractClimate
     array::A
     function Worldclim_monthly(array::A) where {A <: AxisArray}
         size(array, 3) == 12 ||
@@ -31,7 +31,7 @@ end
 
 Type that houses data extracted from Bioclim raster files.
 """
-mutable struct Worldclim_bioclim{A <: AxisArray} <: AbstractClimate
+struct Worldclim_bioclim{A <: AxisArray} <: AbstractClimate
     array::A
 end
 
@@ -40,7 +40,7 @@ end
 
 Type that houses data extracted from EarthEnv Landcover raster files.
 """
-mutable struct Landcover{A <: AxisArray} <: AbstractClimate
+struct Landcover{A <: AxisArray} <: AbstractClimate
     array::A
 end
 
@@ -49,7 +49,7 @@ end
 
 Type that houses data extracted from ERA raster files.
 """
-mutable struct ERA{A <: AxisArray} <: AbstractClimate
+struct ERA{A <: AxisArray} <: AbstractClimate
     array::A
     function ERA(array::A) where {A <: AxisArray}
         typeof(collect(AxisArrays.axes(array, 3).val)[1]) <: Unitful.Time ||
@@ -77,7 +77,7 @@ end
 
 Type that houses a reference data array.
 """
-mutable struct Reference{A <: AxisArray} <: AbstractClimate
+struct Reference{A <: AxisArray} <: AbstractClimate
     array::A
 end
 
@@ -86,7 +86,7 @@ end
 
 Type that houses data extracted from CRUTS raster files.
 """
-mutable struct CRUTS{A <: AxisArray} <: AbstractClimate
+struct CRUTS{A <: AxisArray} <: AbstractClimate
     array::A
     function CRUTS(array::A) where {A <: AxisArray}
         typeof(collect(AxisArrays.axes(array, 3).val)[1]) <: Unitful.Time ||
@@ -100,7 +100,7 @@ end
 
 Type that houses data extracted from CHELSA raster files.
 """
-mutable struct CHELSA_monthly{A <: AxisArray} <: AbstractClimate
+struct CHELSA_monthly{A <: AxisArray} <: AbstractClimate
     array::A
     function CHELSA_monthly(array::A) where {A <: AxisArray}
         size(array, 3) == 12 ||
@@ -114,6 +114,6 @@ end
 
 Type that houses data extracted from CHELSA raster files.
 """
-mutable struct CHELSA_bioclim{A <: AxisArray} <: AbstractClimate
+struct CHELSA_bioclim{A <: AxisArray} <: AbstractClimate
     array::A
 end
