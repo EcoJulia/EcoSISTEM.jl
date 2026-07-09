@@ -1,6 +1,11 @@
 name = "EcoSISTEM"
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 license = "LGPL-3.0-or-later"
+description = "Package for running dynamic ecosystem simulations in Julia"
+keywords = ["EcoJulia", "biodiversity", "ecology", "julia", "simulation"]
+category = "ecology"
+development_status = "active"
+publications = ["10.48550/arXiv.1911.12257"]
 authors = ["Claire Harris", "Richard Reeve <richard.reeve@glasgow.ac.uk>"]
 version = "0.3.0"
 
@@ -16,7 +21,6 @@ EcoBase = "a58aae7d-b440-5a11-b283-399458f99aac"
 Feather = "becb17da-46f6-5d3c-ad1b-1c5fe96bc73c"
 HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
 IndexedTables = "6deec6e2-d858-57c5-ab9b-e6ca5bd20e43"
-Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LibGit2 = "76f85450-5226-5b5a-8eaa-529ad045b433"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -67,7 +71,6 @@ Feather = "0.5.7"
 Git = "1"
 HCubature = "1.5.0"
 IndexedTables = "0.12.6, 0.13, 1"
-Interpolations = "0.13.1, 0.14, 0.15, 0.16"
 JLD2 = "0.4.3, 0.5, 0.6"
 JuliaFormatter = "1, 2"
 LibGit2 = "1.9"
