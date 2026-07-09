@@ -360,7 +360,7 @@ function calc_lookup_moves!(bound::Torus,
 end
 
 """
-    move!(eco::Ecosystem, ::AbstractMovement, i::Int64, sp::Int64, grd::Matrix{Int64, 2}, abun::Int64)
+    move!(eco::Ecosystem, ::AbstractMovement, i::Int64, sp::Int64, grd::Matrix{Int64}, abun::Int64)
 
 Calculate the movement of species `sp` from a given position in the landscape
 `i`, using the lookup table found in the [`Ecosystem`](@ref) and updating the
@@ -374,30 +374,15 @@ function move!(eco::AbstractEcosystem,
                sp::Int64,
                grd::Matrix{Int64},
                ::Int64)
-    width, height = getdimension(eco)
-    (x, y) = convert_coords(eco, i, width)
-    lookup = getlookup(eco, sp)
-    full_abun = eco.abundances.matrix[sp, i]
-    calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, sp, eco,
-                       full_abun)
-    # Lose moves from current grid square
-    grd[sp, i] -= full_abun
-    # Map moves to location in grid
-    mov = lookup.moves
-    for i in eachindex(eco.lookup[sp].x)
-        newx = mod(lookup.x[i] + x - 1, width) + 1
-        newy = mod(lookup.y[i] + y - 1, height) + 1
-        loc = convert_coords(eco, (newx, newy), width)
-        grd[sp, loc] += mov[i]
-    end
-    return eco
+    # "Animal-like": the whole current population disperses
+    return _move!(eco, i, sp, grd, eco.abundances.matrix[sp, i])
 end
 
 function move!(eco::AbstractEcosystem,
                ::NoMovement,
-               i::Int64,
-               sp::Int64,
-               grd::Matrix{Int64},
+               ::Int64,
+               ::Int64,
+               ::Matrix{Int64},
                ::Int64)
     return eco
 end
@@ -408,42 +393,75 @@ function move!(eco::AbstractEcosystem,
                sp::Int64,
                grd::Matrix{Int64},
                births::Int64)
+    # "Plant-like": only the newly born individuals disperse
+    return _move!(eco, i, sp, grd, births)
+end
+
+# Common dispersal code: move `amount` individuals of species `sp` from
+# position `i`, scattering them across the landscape according to the
+# species' lookup table.
+function _move!(eco::AbstractEcosystem,
+                i::Int64,
+                sp::Int64,
+                grd::Matrix{Int64},
+                amount::Int64)
     width, height = getdimension(eco)
     (x, y) = convert_coords(eco, i, width)
     lookup = getlookup(eco, sp)
-    calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, sp, eco, births)
+    calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, sp, eco, amount)
     # Lose moves from current grid square
-    grd[sp, i] -= births
+    grd[sp, i] -= amount
     # Map moves to location in grid
     mov = lookup.moves
-    for i in eachindex(lookup.x)
-        newx = mod(lookup.x[i] + x - 1, width) + 1
-        newy = mod(lookup.y[i] + y - 1, height) + 1
+    for j in eachindex(lookup.x)
+        newx = mod(lookup.x[j] + x - 1, width) + 1
+        newy = mod(lookup.y[j] + y - 1, height) + 1
         loc = convert_coords(eco, (newx, newy), width)
-        grd[sp, loc] += mov[i]
+        grd[sp, loc] += mov[j]
     end
     return eco
 end
 
+# Return the two ingredients the population routines share when spreading
+# individuals across the grid:
+#   `grid`     - a vector of the linear indices `1:ncells` of every grid cell,
+#                used both to size/flatten the budget and to sample cell locations;
+#   `activity` - a flattened copy of `abenv.active`, the boolean mask of which cells
+#                are habitable. Callers zero the budget of inactive (`false`) cells so
+#                that no individuals are ever placed outside the active region.
+function _gridactivity(abenv::AbstractAbiotic)
+    dim = _getdimension(abenv.habitat)
+    len = dim[1] * dim[2]
+    grid = collect(1:len)
+    activity = reshape(copy(abenv.active), len)
+    return grid, activity
+end
+
 """
     populate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::AbstractAbiotic, traits::Bool)
+              abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}}, rel)
 
-Populate a grid landscape given the abundances found in species list according
-to availability of resources.
+Populate the grid landscape `ml` by randomly scattering each species' total
+abundance (taken from `spplist.abun`) across the grid cells, choosing each cell
+with probability proportional to its available energy budget. Inactive cells are
+given zero probability, so no individuals are placed outside the habitable
+region.
+
+`rel` is unused by these resource-based methods; it is accepted only so that they
+share a signature with [`traitpopulate!`](@ref) and can be passed
+interchangeably as the population function when constructing an
+[`Ecosystem`](@ref). For a two-budget environment (`BudgetCollection2`) the
+sampling weight of a cell is the product of its two separately normalised
+budgets.
 """
-
 function populate!(ml::GridLandscape,
                    spplist::SpeciesList,
                    abenv::AB,
                    rel::R) where {AB <: AbstractAbiotic,
                                   R <: AbstractTraitRelationship}
-    dim = _getdimension(abenv.habitat)
-    len = dim[1] * dim[2]
-    grid = collect(1:len)
+    grid, activity = _gridactivity(abenv)
     # Set up copy of budget
-    b = reshape(ustrip.(_getbudget(abenv.budget)), size(grid))
-    activity = reshape(copy(abenv.active), size(grid))
+    b = reshape(ustrip.(_getbudget(abenv.budget)), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
     B = b ./ sum(b)
@@ -461,15 +479,12 @@ function populate!(ml::GridLandscape,
                                   B2 <: AbstractBudget,
                                   R <: AbstractTraitRelationship}
     # Calculate size of habitat
-    dim = _getdimension(abenv.habitat)
-    len = dim[1] * dim[2]
-    grid = collect(1:len)
+    grid, activity = _gridactivity(abenv)
     # Set up copy of budget
-    b1 = reshape(copy(_getbudget(abenv.budget, :b1)), size(grid))
-    b2 = reshape(copy(_getbudget(abenv.budget, :b2)), size(grid))
+    b1 = reshape(copy(_getbudget(abenv.budget, :b1)), length(grid))
+    b2 = reshape(copy(_getbudget(abenv.budget, :b2)), length(grid))
     units1 = unit(b1[1])
     units2 = unit(b2[1])
-    activity = reshape(copy(abenv.active), size(grid))
     b1[.!activity] .= 0.0 * units1
     b2[.!activity] .= 0.0 * units2
     B = (b1 ./ sum(b1)) .* (b2 ./ sum(b2))
@@ -481,10 +496,12 @@ function populate!(ml::GridLandscape,
 end
 
 """
+    repopulate!(eco::Ecosystem)
     repopulate!(eco::Ecosystem, abun::Int64)
-Repopulate an ecosystem `eco`, with option for including trait preferences. An
-additional `abun` parameter can be included, in order to repopulate the
-ecosystem with a specified number of individuals.
+
+Repopulate an ecosystem `eco` by redistributing abundances according to resource
+availability. If an `abun` parameter is given, that number of individuals of the
+final species is added at randomly sampled locations instead.
 """
 function repopulate!(eco::Ecosystem)
     eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
@@ -492,14 +509,12 @@ function repopulate!(eco::Ecosystem)
                                         length(eco.spplist.abun)))
     return populate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship)
 end
+
 function repopulate!(eco::Ecosystem, abun::Int64)
-    dim = _getdimension(eco.abenv.habitat)
-    len = dim[1] * dim[2]
-    grid = collect(1:len)
+    grid, activity = _gridactivity(eco.abenv)
     # Set up copy of budget
-    b = reshape(copy(_getbudget(eco.abenv.budget)), size(grid))
+    b = reshape(copy(_getbudget(eco.abenv.budget)), length(grid))
     units = unit(b[1])
-    activity = reshape(copy(eco.abenv.active), size(grid))
     b[.!activity] .= 0.0 * units
     pos = sample(grid[b .> (0 * units)], abun)
     # Add individual to this location
@@ -509,11 +524,19 @@ function repopulate!(eco::Ecosystem, abun::Int64)
 end
 
 """
-    traitpopulate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::AbstractAbiotic)
+    traitpopulate!(ml::GridLandscape, spplist::SpeciesList, abenv::AbstractAbiotic,
+                   rel::AbstractTraitRelationship, rngs::Vector{Random.Xoshiro})
 
-Populate a grid landscape given the abundances found in species list based upon
-how well the species traits match their environment.
+Populate the grid landscape `ml` by scattering each species' total abundance
+(taken from `spplist.abun`) across the grid cells with probability proportional
+to how well the species' traits match each cell's environment, as scored by the
+trait relationship `rel` applied to `spplist.traits` and `abenv.habitat`. Where a
+species matches no cell the distribution falls back to uniform. Only native
+species (those flagged in `spplist.native`) are placed; non-native species are
+left empty.
+
+This is the trait-based counterpart of [`populate!`](@ref), which instead weights
+cells by their available energy budget.
 """
 function traitpopulate!(ml::GridLandscape,
                         spplist::SpeciesList,
@@ -544,10 +567,10 @@ function traitpopulate!(ml::GridLandscape,
 end
 
 """
-    repopulate!(eco::Ecosystem, abun::Int64)
-Repopulate an ecosystem `eco`, with option for including trait preferences. An
-additional `abun` parameter can be included, in order to repopulate the
-ecosystem with a specified number of individuals.
+    traitrepopulate!(eco::Ecosystem)
+
+Repopulate an ecosystem `eco` according to how well species traits match their
+environment, redistributing the total abundance across species at random.
 """
 function traitrepopulate!(eco::Ecosystem)
     eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
@@ -560,6 +583,8 @@ end
 """
     emptypopulate!(ml::GridLandscape, spplist::SpeciesList,
                    abenv::AB, rel::R) where {AB <: EcoSISTEM.AbstractAbiotic, R <: EcoSISTEM.AbstractTraitRelationship}
+
+Placeholder population function that leaves the landscape empty and warns.
 """
 function emptypopulate!(ml::GridLandscape,
                         spplist::SpeciesList,
