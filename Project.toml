@@ -1,13 +1,8 @@
 name = "EcoSISTEM"
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 license = "LGPL-3.0-or-later"
-description = "Package for running dynamic ecosystem simulations in Julia"
-keywords = ["EcoJulia", "biodiversity", "ecology", "julia", "simulation"]
-category = "ecology"
-development_status = "active"
-publications = ["10.48550/arXiv.1911.12257"]
-authors = ["Claire Harris", "Richard Reeve <richard.reeve@glasgow.ac.uk>"]
 version = "0.3.0"
+authors = ["Claire Harris", "Richard Reeve <richard.reeve@glasgow.ac.uk>"]
 
 [deps]
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
@@ -93,7 +88,7 @@ REPL = "1.9"
 Random = "1.9"
 RasterDataSources = "0.5.6, 0.6, 0.7"
 RecipesBase = "1"
-ResearchSoftwareMetadata = "0.1.7"
+ResearchSoftwareMetadata = "0.3.0"
 SHA = "0.7"
 SpatialEcology = "0.9, 0.10"
 Statistics = "1.9"
@@ -103,21 +98,6 @@ UUIDs = "1.9"
 Unitful = "1.12.4"
 julia = "1.9"
 p7zip_jll = "17"
-
-[[author_details]]
-name = "Claire Harris"
-orcid = "0000-0003-0852-2340"
-email = "Claire.Harris@defra.gov.uk"
-
-    [[author_details.affiliation]]
-    ror = "03jwrz939"
-[[author_details]]
-name = "Richard Reeve"
-orcid = "0000-0003-2589-8091"
-email = "richard.reeve@glasgow.ac.uk"
-
-    [[author_details.affiliation]]
-    ror = "00vtgdb53"
 
 [extras]
 Git = "d7ba0133-e1db-5d97-8f8c-041e4b3a1eb2"
@@ -129,6 +109,28 @@ Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 ResearchSoftwareMetadata = "58378933-4625-47fa-851e-05ee27d397bd"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[rsmd]
+keywords = ["EcoJulia", "biodiversity", "ecology", "julia", "simulation"]
+category = "ecology"
+description = "Package for running dynamic ecosystem simulations in Julia"
+development_status = "active"
+publications = ["10.48550/arXiv.1911.12257"]
+
+    [[rsmd.author_details]]
+    name = "Claire Harris"
+    email = "Claire.Harris@defra.gov.uk"
+    orcid = "0000-0003-0852-2340"
+
+        [[rsmd.author_details.affiliation]]
+        ror = "03jwrz939"
+    [[rsmd.author_details]]
+    name = "Richard Reeve"
+    email = "richard.reeve@glasgow.ac.uk"
+    orcid = "0000-0003-2589-8091"
+
+        [[rsmd.author_details.affiliation]]
+        ror = "00vtgdb53"
 
 [targets]
 test = ["Git", "JuliaFormatter", "Logging", "MPI", "OnlineStats", "Pkg", "Plots", "ResearchSoftwareMetadata", "Test"]
