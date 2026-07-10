@@ -23,9 +23,11 @@ totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active, bud,
-                                                            abenv1.names)
+abenv = GridAbioticEnv{typeof(abenv1.habitat),
+                       typeof(bud)}(abenv1.habitat,
+                                    abenv1.active,
+                                    bud,
+                                    abenv1.names)
 
 vars = fill(2.0K, numSpecies)
 opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)

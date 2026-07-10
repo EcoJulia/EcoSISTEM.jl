@@ -6,7 +6,7 @@ Pkg.instantiate()
 @info "Total Memory: $(Sys.total_memory() / 2^30)GB"
 @info "Num threads: $(Threads.nthreads())"
 
-@assert (Sys.total_memory() / 2^30)>=100 "You do not have enough memory to run these examples!"
+@assert (Sys.total_memory() / 2^30) >= 100 "You do not have enough memory to run these examples!"
 
 # Load packages
 using Unitful
@@ -47,8 +47,7 @@ end
 Run a single species model on a circle the size of Africa and save as
 a 100-year animated gif.
 """
-function run_single(africa, active;
-                    savedir = SAVEDIR)
+function run_single(africa, active; savedir = SAVEDIR)
 
     # Set up initial parameters for ecosystem
     num_species = 1
@@ -110,9 +109,13 @@ function run_single(africa, active;
     anim = @animate for i in 1:lensim
         africa_abun = Float64.(abuns[:, :, i])
         africa_abun[.!(active)] .= NaN
-        heatmap(africa_abun, clim = (0, 700_000), background_color = :lightblue,
-                background_color_outside = :white, grid = false,
-                color = cgrad(:algae, scale = :exp), aspect_ratio = 1)
+        heatmap(africa_abun,
+                clim = (0, 700_000),
+                background_color = :lightblue,
+                background_color_outside = :white,
+                grid = false,
+                color = cgrad(:algae, scale = :exp),
+                aspect_ratio = 1)
     end
     gif(anim, joinpath(savedir, "Africa.gif"), fps = 30)
     return nothing
@@ -124,8 +127,7 @@ end
 Run a model of a specialist invading a generalist on a circle the size of
 Africa and save as a pdf.
 """
-function specialist_vs_generalist(africa, active;
-                                  savedir = SAVEDIR)
+function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
     specialist_vars = [0.5K, 1.0K, 5.0K, 10.0K, 25.0K, 50.0K]
     velocity = zeros(typeof(1.0km / year), length(specialist_vars))
     rand_start = rand(findall(active), 1)[1]
@@ -218,9 +220,11 @@ function specialist_vs_generalist(africa, active;
         #     aspect_ratio = 1, subplot = 2)
         # end
         # gif(anim, "examples/Biodiversity/Africa_$i.gif", fps = 30)
-        plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
+        plot(ustrip.(abs.(specialist_vars .- 50.0K)),
+             ustrip.(velocity),
              xlab = "Selective advantage",
-             ylab = "Average invasion speed (km/year)", label = "",
+             ylab = "Average invasion speed (km/year)",
+             label = "",
              grid = false)
         Plots.pdf(joinpath(savedir, "InvasionCircle.pdf"))
     end
@@ -290,8 +294,12 @@ function specialist_vs_many(africa, active, num_species = 50_000;
     rand_start = rand(findall(active), 1)[1]
     eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
     mkpath(joinpath(savedir, "specialist"))
-    @time simulate!(eco, times, timestep, record_interval,
-                    joinpath(savedir, "specialist"), "Africa_run")
+    @time simulate!(eco,
+                    times,
+                    timestep,
+                    record_interval,
+                    joinpath(savedir, "specialist"),
+                    "Africa_run")
     return nothing
 end
 
@@ -353,8 +361,12 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     lensim = length((0years):record_interval:times)
     @time simulate!(eco, burnin, timestep)
     mkpath(joinpath(savedir, "coexist"))
-    @time simulate!(eco, times, timestep, record_interval,
-                    joinpath(savedir, "coexist"), "Africa_run_coexist")
+    @time simulate!(eco,
+                    times,
+                    timestep,
+                    record_interval,
+                    joinpath(savedir, "coexist"),
+                    "Africa_run_coexist")
 
     @load joinpath(savedir, "coexist", "Africa_run_coexist100.jld2") abun
     meta = Metacommunity(abun)
@@ -362,10 +374,14 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     sumabuns = reshape(diver[!, :diversity], 100, 100)
 
     heatmap(sumabuns,
-            grid = false, color = :algae,
-            aspect_ratio = 1, layout = (@layout [a b; c d]),
-            clim = (0, 50_000), margin = 0.5 * Plots.mm,
-            title = "A", titleloc = :left)
+            grid = false,
+            color = :algae,
+            aspect_ratio = 1,
+            layout = (@layout [a b; c d]),
+            clim = (0, 50_000),
+            margin = 0.5 * Plots.mm,
+            title = "A",
+            titleloc = :left)
 
     @load joinpath(savedir, "specialist", "Africa_run50.jld2") abun
     meta = Metacommunity(abun)
@@ -374,10 +390,14 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     heatmap!(sumabuns,
              background_color = :lightblue,
              background_color_outside = :white,
-             grid = false, color = :algae,
-             aspect_ratio = 1, subplot = 2,
-             clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
-             title = "B", titleloc = :left)
+             grid = false,
+             color = :algae,
+             aspect_ratio = 1,
+             subplot = 2,
+             clim = (0, 50_000),
+             right_margin = 2.0 * Plots.mm,
+             title = "B",
+             titleloc = :left)
 
     @load joinpath(savedir, "specialist", "Africa_run100.jld2") abun
     meta = Metacommunity(abun)
@@ -386,10 +406,14 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     heatmap!(sumabuns,
              background_color = :lightblue,
              background_color_outside = :white,
-             grid = false, color = :algae,
-             aspect_ratio = 1, subplot = 3,
-             clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
-             title = "C", titleloc = :left)
+             grid = false,
+             color = :algae,
+             aspect_ratio = 1,
+             subplot = 3,
+             clim = (0, 50_000),
+             right_margin = 2.0 * Plots.mm,
+             title = "C",
+             titleloc = :left)
 
     @load joinpath(savedir, "specialist", "Africa_run50.jld2") abun
     meta = Metacommunity(abun)
@@ -398,10 +422,14 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     heatmap!(sumabuns,
              background_color = :lightblue,
              background_color_outside = :white,
-             grid = false, color = :algae,
-             aspect_ratio = 1, subplot = 4,
+             grid = false,
+             color = :algae,
+             aspect_ratio = 1,
+             subplot = 4,
              right_margin = 2.0 * Plots.mm,
-             title = "D", titleloc = :left, clim = (0, 10))
+             title = "D",
+             titleloc = :left,
+             clim = (0, 10))
     Plots.pdf(joinpath(savedir, "Africa.pdf"))
     return nothing
 end

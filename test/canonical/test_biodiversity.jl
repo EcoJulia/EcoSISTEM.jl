@@ -21,7 +21,8 @@ abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active, bud,
+                                                            abenv1.active,
+                                                            bud,
                                                             abenv1.names)
 
 vars = fill(2.0, numSpecies) .* K
@@ -89,7 +90,8 @@ abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active, bud,
+                                                            abenv1.active,
+                                                            bud,
                                                             abenv1.names)
 
 vars = collect(range(0.0001K, stop = 5.0K, length = numSpecies))
@@ -154,7 +156,8 @@ abenv1 = simplehabitatAE(299.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active, bud,
+                                                            abenv1.active,
+                                                            bud,
                                                             abenv1.names)
 
 vars = collect(range(0.0001K, stop = 5.0K, length = numSpecies))
@@ -222,7 +225,8 @@ abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active, bud,
+                                                            abenv1.active,
+                                                            bud,
                                                             abenv1.names)
 gsize = size(abenv.budget.b1.matrix, 1)
 sol_range = collect(range(0.0kJ, stop = 4.5e11kJ, length = gsize))
@@ -506,8 +510,8 @@ for i in eachindex(distances)
     local traits = GaussTrait(opts, vars)
     local native = fill(true, numSpecies)
     local abun = rand(Multinomial(individuals, numSpecies))
-    local sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-                             movement, param, native)
+    local sppl = SpeciesList(numSpecies, traits, abun, energy_vec, movement,
+                             param, native)
     local rel = Gauss{typeof(first(opts))}()
     local eco = Ecosystem(sppl, abenv, rel)
     eco.abundances.grid[1, :, 1] .= 100.0
@@ -519,7 +523,9 @@ end
 # Test that species disperse further into the middle of the grid with larger dispersal distances
 @test sum(endabuns[:, 1, 1] .> endabuns[:, 1, 2] .> endabuns[:, 1, 3] .>
           endabuns[:, 1, 4]) >= 9
-@test sum(endabuns[:, end, 1] .> endabuns[:, end, 2] .> endabuns[:, end, 3] .>
+@test sum(endabuns[:, end, 1] .>
+          endabuns[:, end, 2] .>
+          endabuns[:, end, 3] .>
           endabuns[:, end, 4]) >= 9
 @test sum(endabuns[:, 5, 1] .< endabuns[:, 5, 2] .< endabuns[:, 5, 3] .<
           endabuns[:, 5, 4]) >= 9

@@ -7,12 +7,17 @@ using JLD2
 using Printf
 
 import EcoSISTEM.runscenario!
-function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
-                                    times::Unitful.Time, interval::Unitful.Time,
+function simulate_record_diversity!(storage::AbstractArray,
+                                    eco::Ecosystem,
+                                    times::Unitful.Time,
+                                    interval::Unitful.Time,
                                     timestep::Unitful.Time,
-                                    scenario::SC, divfuns::Vector{Function},
-                                    q::Float64, cacheInterval::Unitful.Time,
-                                    cacheFolder::String, scenario_name::String,
+                                    scenario::SC,
+                                    divfuns::Vector{Function},
+                                    q::Float64,
+                                    cacheInterval::Unitful.Time,
+                                    cacheFolder::String,
+                                    scenario_name::String,
                                     rep::Int64) where {SC <:
                                                        EcoSISTEM.AbstractScenario}
     ustrip(mod(interval, timestep)) == 0.0 ||
@@ -43,8 +48,12 @@ function simulate_record_diversity!(storage::AbstractArray, eco::Ecosystem,
     return storage
 end
 
-function runsim!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict,
-                 simDict::Dict, rep::Int64, folder::String = "./",
+function runsim!(div::Array{Float64, 3},
+                 abenv::AB,
+                 paramDict::Dict,
+                 simDict::Dict,
+                 rep::Int64,
+                 folder::String = "./",
                  recreate = true) where {AB <: EcoSISTEM.AbstractAbiotic}
     cacheFolder = joinpath(folder, "cache")
     isdir(cacheFolder) || mkdir(cacheFolder)
@@ -60,11 +69,18 @@ function runsim!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict,
         end
         thisstore = view(div, :, :, i)
         simulate!(eco, simDict["burnin"], simDict["timestep"])
-        simulate_record_diversity!(thisstore, eco, simDict["times"],
-                                   simDict["interval"], simDict["timestep"],
-                                   scenario[i], divfuns, q,
-                                   simDict["cacheInterval"], cacheFolder,
-                                   scenario_names[i], rep)
+        simulate_record_diversity!(thisstore,
+                                   eco,
+                                   simDict["times"],
+                                   simDict["interval"],
+                                   simDict["timestep"],
+                                   scenario[i],
+                                   divfuns,
+                                   q,
+                                   simDict["cacheInterval"],
+                                   cacheFolder,
+                                   scenario_names[i],
+                                   rep)
         adjusttemp!(eco, scenario[i], simDict["times"])
     end
     @save (folder*@sprintf "%03d.jld2" rep) div=div
@@ -88,8 +104,11 @@ function adjusttemp!(eco::Ecosystem, scenario::MultiScenario,
     end
 end
 
-function dispersalrun!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict,
-                       simDict::Dict, rep::Int64,
+function dispersalrun!(div::Array{Float64, 3},
+                       abenv::AB,
+                       paramDict::Dict,
+                       simDict::Dict,
+                       rep::Int64,
                        folder::String = "./") where {AB <:
                                                      EcoSISTEM.AbstractAbiotic}
     cacheFolder = joinpath(folder, "cache")
@@ -106,11 +125,18 @@ function dispersalrun!(div::Array{Float64, 3}, abenv::AB, paramDict::Dict,
     for i in eachindex(scenario)
         thisstore = view(div, :, :, i)
         simulate!(eco, simDict["burnin"], simDict["timestep"])
-        simulate_record_diversity!(thisstore, eco, simDict["times"],
-                                   simDict["interval"], simDict["timestep"],
-                                   scenario[i], divfuns, q,
-                                   simDict["cacheInterval"], cacheFolder,
-                                   scenario_names[i], rep)
+        simulate_record_diversity!(thisstore,
+                                   eco,
+                                   simDict["times"],
+                                   simDict["interval"],
+                                   simDict["timestep"],
+                                   scenario[i],
+                                   divfuns,
+                                   q,
+                                   simDict["cacheInterval"],
+                                   cacheFolder,
+                                   scenario_names[i],
+                                   rep)
         adjusttemp!(eco, scenario[i], simDict["times"])
     end
     @save (folder*@sprintf "%03d.jld2" rep) div=div

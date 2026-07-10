@@ -22,9 +22,11 @@ totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active, bud,
-                                                            abenv1.names)
+abenv = GridAbioticEnv{typeof(abenv1.habitat),
+                       typeof(bud)}(abenv1.habitat,
+                                    abenv1.active,
+                                    bud,
+                                    abenv1.names)
 
 vars = fill(2.0, numSpecies) .* K
 opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
@@ -72,12 +74,20 @@ temps = vcat(temps...)
 edges = collect(292.0:1:304) .* K
 h = Hist(edges)
 fit!(h, temps)
-bar(ustrip.(uconvert.(°C, edges)), h.counts,
-    grid = false, xlab = "Temperature preference (°C)",
+bar(ustrip.(uconvert.(°C, edges)),
+    h.counts,
+    grid = false,
+    xlab = "Temperature preference (°C)",
     ylab = "Abundance",
-    guidefontsize = 16, tickfontsize = 16, size = (1200, 1000),
-    titlefontsize = 16, title = "A", titleloc = :left,
-    margin = 10.0 * Plots.mm, label = "", layout = (@layout[a; b c]))
+    guidefontsize = 16,
+    tickfontsize = 16,
+    size = (1200, 1000),
+    titlefontsize = 16,
+    title = "A",
+    titleloc = :left,
+    margin = 10.0 * Plots.mm,
+    label = "",
+    layout = (@layout[a; b c]))
 
 ## DIFFERENT VARS ##
 
@@ -92,7 +102,8 @@ abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
 abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active, bud,
+                                                            abenv1.active,
+                                                            bud,
                                                             abenv1.names)
 
 vars = collect(range(0.0001, stop = 5, length = numSpecies)) .* K
@@ -140,12 +151,21 @@ widths = vcat(widths...)
 edges = collect(0.1:0.2:5) .* K
 h = Hist(edges)
 fit!(h, widths)
-bar!(edges ./ K, h.counts, grid = false,
-     xlab = "Niche width (°C)", ylab = "Abundance",
-     guidefontsize = 16, tickfontsize = 16, titlefontsize = 16,
-     margin = 10.0 * Plots.mm, left_margin = 20.0 * Plots.mm, label = "",
+bar!(edges ./ K,
+     h.counts,
+     grid = false,
+     xlab = "Niche width (°C)",
+     ylab = "Abundance",
+     guidefontsize = 16,
+     tickfontsize = 16,
+     titlefontsize = 16,
+     margin = 10.0 * Plots.mm,
+     left_margin = 20.0 * Plots.mm,
+     label = "",
      subplot = 2,
-     title = "B", titleloc = :left, ylim = (0, 32_000))
+     title = "B",
+     titleloc = :left,
+     ylim = (0, 32_000))
 
 ## DIFFERENT VARS MISMATCH ##
 numSpecies = 100;
@@ -158,9 +178,11 @@ totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 abenv1 = simplehabitatAE(299.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active, bud,
-                                                            abenv1.names)
+abenv = GridAbioticEnv{typeof(abenv1.habitat),
+                       typeof(bud)}(abenv1.habitat,
+                                    abenv1.active,
+                                    bud,
+                                    abenv1.names)
 
 vars = collect(range(0.0001, stop = 5, length = numSpecies)) .* K
 opts = fill(298.0K, numSpecies)
@@ -189,8 +211,8 @@ movement = BirthOnlyMovement(kernel, Torus())
 traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-                   movement, param, native)
+sppl = SpeciesList(numSpecies, traits, abun, energy_vec, movement, param,
+                   native)
 rel = Gauss{typeof(first(opts))}()
 eco = Ecosystem(sppl, abenv, rel)
 
@@ -207,11 +229,20 @@ widths = vcat(widths...)
 edges = collect(0.1:0.2:5) .* K
 h = Hist(edges)
 fit!(h, widths)
-bar!(edges ./ K, h.counts, grid = false,
-     xlab = "Niche width (°C)", ylab = "",
-     guidefontsize = 16, tickfontsize = 16, titlefontsize = 16,
-     margin = 10.0 * Plots.mm, label = "", subplot = 3,
-     title = "C", titleloc = :left, ylim = (0, 32_000))
+bar!(edges ./ K,
+     h.counts,
+     grid = false,
+     xlab = "Niche width (°C)",
+     ylab = "",
+     guidefontsize = 16,
+     tickfontsize = 16,
+     titlefontsize = 16,
+     margin = 10.0 * Plots.mm,
+     label = "",
+     subplot = 3,
+     title = "C",
+     titleloc = :left,
+     ylim = (0, 32_000))
 Plots.pdf("Opt_var_panel.pdf")
 
 ## MORE ENERGY MORE ABUNDANCE ##
@@ -226,9 +257,11 @@ totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
 abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
 bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active, bud,
-                                                            abenv1.names)
+abenv = GridAbioticEnv{typeof(abenv1.habitat),
+                       typeof(bud)}(abenv1.habitat,
+                                    abenv1.active,
+                                    bud,
+                                    abenv1.names)
 gsize = size(abenv.budget.b1.matrix, 1)
 sol_range = collect(range(0.0kJ, stop = 4.5e11kJ, length = gsize))
 map(1:gsize) do seq
@@ -282,12 +315,23 @@ simulate!(eco, times, timestep)
 endabun = sum(eco.abundances.matrix, dims = 1)
 endabun = reshape(endabun, 10, 10)
 
-heatmap(sol_range ./ kJ, water_range ./ mm, endabun, grid = false,
-        xlab = "Solar energy (kJ)", ylab = "Water (mm)", size = (1600, 1200),
-        guidefontsize = 16, tickfontsize = 16, titlefontsize = 24,
-        margin = 10.0 * Plots.mm, legendfontsize = 16, label = "",
+heatmap(sol_range ./ kJ,
+        water_range ./ mm,
+        endabun,
+        grid = false,
+        xlab = "Solar energy (kJ)",
+        ylab = "Water (mm)",
+        size = (1600, 1200),
+        guidefontsize = 16,
+        tickfontsize = 16,
+        titlefontsize = 24,
+        margin = 10.0 * Plots.mm,
+        legendfontsize = 16,
+        label = "",
         left_margin = 20.0 * Plots.mm,
-        layout = (@layout [a b; c d]), title = "A", titleloc = :left)
+        layout = (@layout [a b; c d]),
+        title = "A",
+        titleloc = :left)
 
 ## INVARIANT TO GRID SIZE ##
 times = 10years;
@@ -337,20 +381,28 @@ for i in eachindex(grids)
     traits = GaussTrait(opts, vars)
     native = fill(true, numSpecies)
     abun = rand(Multinomial(individuals, numSpecies))
-    sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
-                       movement, param, native)
+    sppl = SpeciesList(numSpecies, traits, abun, energy_vec, movement, param,
+                       native)
     rel = Gauss{typeof(first(opts))}()
     eco = Ecosystem(sppl, abenv, rel)
     simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
 
-bar!(string.(grids), endabuns,
-     grid = false, xlab = "Number of grid squares",
+bar!(string.(grids),
+     endabuns,
+     grid = false,
+     xlab = "Number of grid squares",
      ylab = "Total abundance",
-     guidefontsize = 16, tickfontsize = 16, titlefontsize = 24,
-     margin = 10.0 * Plots.mm, label = "", left_margin = 20.0 * Plots.mm,
-     subplot = 2, title = "B", titleloc = :left)
+     guidefontsize = 16,
+     tickfontsize = 16,
+     titlefontsize = 24,
+     margin = 10.0 * Plots.mm,
+     label = "",
+     left_margin = 20.0 * Plots.mm,
+     subplot = 2,
+     title = "B",
+     titleloc = :left)
 
 ## ABUNDANCE SCALES WITH AREA ##
 times = 10years;
@@ -408,10 +460,19 @@ for i in eachindex(areas)
     endabuns[i] = sum(eco.abundances.matrix)
 end
 
-bar!(string.(areas), endabuns, grid = false, xlab = "Area (km²)",
-     ylab = "Total abundance", guidefontsize = 16,
-     tickfontsize = 16, titlefontsize = 24, margin = 10.0 * Plots.mm,
-     label = "", subplot = 3, title = "C", titleloc = :left,
+bar!(string.(areas),
+     endabuns,
+     grid = false,
+     xlab = "Area (km²)",
+     ylab = "Total abundance",
+     guidefontsize = 16,
+     tickfontsize = 16,
+     titlefontsize = 24,
+     margin = 10.0 * Plots.mm,
+     label = "",
+     subplot = 3,
+     title = "C",
+     titleloc = :left,
      left_margin = 20.0 * Plots.mm)
 
 ## Sustain large number of species ##
@@ -477,12 +538,22 @@ end
 meanSR = dropdims(mean(SR, dims = 2), dims = 2)
 sdSR = dropdims(std(SR, dims = 2), dims = 2)
 
-bar!(string.(species), (100 .* meanSR) ./ species, yerr = sdSR ./ species,
-     grid = false, xlab = "Number of species introduced",
-     ylab = "% Species survived", guidefontsize = 16,
-     tickfontsize = 16, titlefontsize = 24, margin = 10.0 * Plots.mm,
-     label = "", title = "D", subplot = 4, titleloc = :left,
-     left_margin = 20.0 * Plots.mm, ylim = (0, 1))
+bar!(string.(species),
+     (100 .* meanSR) ./ species,
+     yerr = sdSR ./ species,
+     grid = false,
+     xlab = "Number of species introduced",
+     ylab = "% Species survived",
+     guidefontsize = 16,
+     tickfontsize = 16,
+     titlefontsize = 24,
+     margin = 10.0 * Plots.mm,
+     label = "",
+     title = "D",
+     subplot = 4,
+     titleloc = :left,
+     left_margin = 20.0 * Plots.mm,
+     ylim = (0, 1))
 Plots.pdf("Abundance.pdf")
 ## DISPERSAL ##
 times = 50years;
@@ -542,22 +613,37 @@ for i in eachindex(distances)
     endabuns[:, :, i] = sum(eco.abundances.matrix, dims = 1)
 end
 
-heatmap(grid = false, xlab = "Distance (km)",
-        ylab = "Distance (km)", size = (1200, 800),
-        guidefontsize = 12, tickfontsize = 12, titlefontsize = 18,
-        margin = 10.0 * Plots.mm, legendfontsize = 12, label = "",
-        layout = (@layout [a b; c d]), link = :both)
+heatmap(grid = false,
+        xlab = "Distance (km)",
+        ylab = "Distance (km)",
+        size = (1200, 800),
+        guidefontsize = 12,
+        tickfontsize = 12,
+        titlefontsize = 18,
+        margin = 10.0 * Plots.mm,
+        legendfontsize = 12,
+        label = "",
+        layout = (@layout [a b; c d]),
+        link = :both)
 titles = ["A", "B", "C", "D"]
 for i in 1:4
     m = distances[i]
-    display(heatmap!(1:10, 1:10, endabuns[:, :, i],
-                     grid = false, xlab = "Distance (km)",
+    display(heatmap!(1:10,
+                     1:10,
+                     endabuns[:, :, i],
+                     grid = false,
+                     xlab = "Distance (km)",
                      ylab = "Distance (km)",
-                     guidefontsize = 16, tickfontsize = 16,
-                     titlefontsize = 24, title = titles[i],
+                     guidefontsize = 16,
+                     tickfontsize = 16,
+                     titlefontsize = 24,
+                     title = titles[i],
                      margin = 10.0 * Plots.mm,
-                     label = "", subplot = i, titleloc = :left,
-                     clim = (0, 1.5e4), link = :both))
+                     label = "",
+                     subplot = i,
+                     titleloc = :left,
+                     clim = (0, 1.5e4),
+                     link = :both))
 end
 
 Plots.pdf("DispersalSD.pdf")

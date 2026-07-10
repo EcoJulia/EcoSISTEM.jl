@@ -67,7 +67,7 @@ rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
 @test_nowarn MPIEcosystem(sppl, abenv, rel)
-eco = MPIEcosystem(sppl, abenv, rel)
+eco = MPIEcosystem(sppl, abenv, rel; seed = 0)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
@@ -82,11 +82,9 @@ eco.abundances.rows_matrix .= 0
 @test_nowarn EcoSISTEM.synchronise_from_cols!(eco.abundances)
 @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
-## Set random number seeds for reproducible results
-# Set random seed to 0 for all rngs
-for i in eachindex(eco.abundances.rngs)
-    eco.abundances.rngs[i] = MersenneTwister(0)
-end
+## Reproducibility is provided by the per-species RNG streams seeded in the
+## MPIEcosystem constructor (seed = 0 above), independent of the process/thread
+## split; the global RNG is not used by the simulation.
 
 # Simulation Parameters
 burnin = 2years;
@@ -115,8 +113,7 @@ end
 water_vec = WaterRequirement(fill(2.0mm, numSpecies))
 total_use = ReqCollection2(energy_vec, water_vec)
 
-sppl = SpeciesList(numSpecies, traits, abun, total_use,
-                   movement, param, native)
+sppl = SpeciesList(numSpecies, traits, abun, total_use, movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
 abenv1 = simplehabitatAE(274.0K, grid, totalK, area)
@@ -135,7 +132,7 @@ rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
 @test_nowarn MPIEcosystem(sppl, abenv, rel)
-eco = MPIEcosystem(sppl, abenv, rel)
+eco = MPIEcosystem(sppl, abenv, rel; seed = 0)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
@@ -151,11 +148,9 @@ eco.abundances.rows_matrix .= 0
 @test_nowarn EcoSISTEM.synchronise_from_cols!(eco.abundances)
 @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
-## Set random number seeds for reproducible results
-# Set random seed to 0 for all rngs
-for i in eachindex(eco.abundances.rngs)
-    eco.abundances.rngs[i] = MersenneTwister(0)
-end
+## Reproducibility is provided by the per-species RNG streams seeded in the
+## MPIEcosystem constructor (seed = 0 above), independent of the process/thread
+## split; the global RNG is not used by the simulation.
 
 # Simulation Parameters
 burnin = 2years;

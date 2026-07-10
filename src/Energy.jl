@@ -27,7 +27,7 @@ end
 
 A simple energy requirement is a single float for each species.
 """
-mutable struct SimpleRequirement <: Abstract1Requirement{Float64}
+struct SimpleRequirement <: Abstract1Requirement{Float64}
     energy::Vector{Float64}
     exchange_rate::Float64
 
@@ -47,14 +47,16 @@ end
 
 A simple energy requirement is a single float for each species.
 """
-mutable struct SizeRequirement <: Abstract1Requirement{Float64}
+struct SizeRequirement <: Abstract1Requirement{Float64}
     energy::Vector{Float64}
     pop_mass_rel::Float64
     area::Unitful.Area
     exchange_rate::Float64
 
-    function SizeRequirement(energy::Vector{Float64}, pop_mass_rel::Float64,
-                             area::Unitful.Area, exchange_rate::Float64 = 1.0)
+    function SizeRequirement(energy::Vector{Float64},
+                             pop_mass_rel::Float64,
+                             area::Unitful.Area,
+                             exchange_rate::Float64 = 1.0)
         return new(energy, pop_mass_rel, area, exchange_rate)
     end
 end
@@ -69,7 +71,7 @@ end
 
 A vector of solar energy requirements (kJ) for each species.
 """
-mutable struct SolarRequirement <: Abstract1Requirement{typeof(1.0 * kJ)}
+struct SolarRequirement <: Abstract1Requirement{typeof(1.0 * kJ)}
     energy::Vector{typeof(1.0 * kJ)}
     exchange_rate::typeof(1.0 / kJ)
 
@@ -90,7 +92,7 @@ end
 
 A vector of water requirements (mm) for each species.
 """
-mutable struct WaterRequirement <: Abstract1Requirement{typeof(1.0 * mm)}
+struct WaterRequirement <: Abstract1Requirement{typeof(1.0 * mm)}
     energy::Vector{typeof(1.0 * mm)}
     exchange_rate::typeof(1.0 / mm)
 
@@ -109,7 +111,7 @@ end
     VolWaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
 A vector of soil water volume requirements (m^3) for each species.
 """
-mutable struct VolWaterRequirement <: Abstract1Requirement{typeof(1.0 * m^3)}
+struct VolWaterRequirement <: Abstract1Requirement{typeof(1.0 * m^3)}
     energy::Vector{typeof(1.0 * m^3)}
     exchange_rate::typeof(1.0 / m^3)
 
@@ -124,7 +126,7 @@ function _getenergyusage(abun::Vector{Int64}, req::VolWaterRequirement)
     return sum(abun .* req.energy)
 end
 
-mutable struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
+struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
     r1::R1
     r2::R2
 end
@@ -136,7 +138,8 @@ function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
     return [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2)]
 end
 
-unitdict = Dict(kJ => "Solar Radiation (kJ)", NoUnits => "Free energy",
+unitdict = Dict(kJ => "Solar Radiation (kJ)",
+                NoUnits => "Free energy",
                 mm => "Available water (mm)")
 """
     AbstractBudget
@@ -165,9 +168,10 @@ end
 """
     SimpleBudget <: AbstractBudget{Float64}
 
-This budget type has a matrix of floats, representing the energy budget of each subcommunity in the abiotic environment.
+This budget type has a matrix of floats, representing the energy budget of each
+subcommunity in the abiotic environment.
 """
-mutable struct SimpleBudget <: AbstractBudget{Float64}
+struct SimpleBudget <: AbstractBudget{Float64}
     matrix::Matrix{Float64}
 end
 
@@ -184,9 +188,10 @@ end
 """
     SolarBudget <: AbstractBudget{typeof(1.0*kJ)}
 
-This budget type has a matrix of solar energy units, representing the energy budget of each subcommunity in the abiotic environment at a fixed point in time.
+This budget type has a matrix of solar energy units, representing the energy
+budget of each subcommunity in the abiotic environment at a fixed point in time.
 """
-mutable struct SolarBudget <: AbstractBudget{typeof(1.0 * kJ)}
+struct SolarBudget <: AbstractBudget{typeof(1.0 * kJ)}
     matrix::Matrix{typeof(1.0 * kJ)}
     function SolarBudget(mat::Matrix{typeof(1.0 * kJ)})
         mat[isnan.(mat)] .= 0 * kJ
@@ -207,8 +212,9 @@ end
 """
     SolarTimeBudget <: AbstractBudget{typeof(1.0*kJ)}
 
-This budget type has a matrix of solar energy units, representing the energy budget of each
-subcommunity in the abiotic environment along with which time dimension we are interested in.
+This budget type has a matrix of solar energy units, representing the energy
+budget of each subcommunity in the abiotic environment along with which time
+dimension we are interested in.
 """
 mutable struct SolarTimeBudget <: AbstractTimeBudget{typeof(1.0 * kJ)}
     matrix::Array{typeof(1.0 * kJ), 3}
@@ -250,10 +256,10 @@ end
 """
     WaterBudget <: AbstractBudget{typeof(1.0*mm)}
 
-This budget type has a matrix of rainfall energy units, representing the energy budget of each
-subcommunity in the abiotic environment at a fixed point in time.
+This budget type has a matrix of rainfall energy units, representing the energy
+budget of each subcommunity in the abiotic environment at a fixed point in time.
 """
-mutable struct WaterBudget <: AbstractBudget{typeof(1.0mm)}
+struct WaterBudget <: AbstractBudget{typeof(1.0mm)}
     matrix::Matrix{typeof(1.0mm)}
     function WaterBudget(mat::Matrix{typeof(1.0mm)})
         mat[isnan.(mat)] .= 0.0mm
@@ -281,8 +287,9 @@ end
 """
     WaterTimeBudget <: AbstractBudget{typeof(1.0*mm)}
 
-This budget type has a matrix of rainfall units, representing the water budget of each
-subcommunity in the abiotic environment along with which time dimension we are interested in.
+This budget type has a matrix of rainfall units, representing the water budget
+of each subcommunity in the abiotic environment along with which time dimension
+we are interested in.
 """
 mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0 * mm)}
     matrix::Array{typeof(1.0 * mm), 3}
@@ -313,10 +320,10 @@ end
 """
     VolWaterBudget <: AbstractBudget{typeof(1.0*mm)}
 
-This budget type has a matrix of water volumes, representing the energy budget of each
-subcommunity in the abiotic environment at a fixed point in time.
+This budget type has a matrix of water volumes, representing the energy budget
+of each subcommunity in the abiotic environment at a fixed point in time.
 """
-mutable struct VolWaterBudget <: AbstractBudget{typeof(1.0 * m^3)}
+struct VolWaterBudget <: AbstractBudget{typeof(1.0 * m^3)}
     matrix::Matrix{typeof(1.0 * m^3)}
     function VolWaterBudget(mat::Matrix{typeof(1.0 * m^3)})
         mat[isnan.(mat)] .= 0 * m^3
@@ -337,8 +344,9 @@ end
 """
     VolWaterTimeBudget <: AbstractBudget{typeof(1.0*mm)}
 
-This budget type has a matrix of volumetric soil water units, representing the water budget of each
-subcommunity in the abiotic environment along with which time dimension we are interested in.
+This budget type has a matrix of volumetric soil water units, representing the
+water budget of each subcommunity in the abiotic environment along with which
+time dimension we are interested in.
 """
 mutable struct VolWaterTimeBudget <: AbstractTimeBudget{typeof(1.0 * m^3)}
     matrix::Array{typeof(1.0 * m^3), 3}
@@ -370,7 +378,7 @@ end
     return b[:, :, time]
 end
 
-mutable struct BudgetCollection2{B1, B2} <: AbstractBudget{Tuple{B1, B2}}
+struct BudgetCollection2{B1, B2} <: AbstractBudget{Tuple{B1, B2}}
     b1::B1
     b2::B2
 end

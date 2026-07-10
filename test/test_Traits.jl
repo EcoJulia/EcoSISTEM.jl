@@ -51,7 +51,8 @@ import EcoSISTEM: DiscreteTrait
         @test_nowarn TraitCollection3(GaussTrait(opts, vars),
                                       TempBin(fill(1, 10, 2)),
                                       RainBin(fill(1, 10, 2)))
-        tr3 = TraitCollection3(GaussTrait(opts, vars), TempBin(fill(1, 10, 2)),
+        tr3 = TraitCollection3(GaussTrait(opts, vars),
+                               TempBin(fill(1, 10, 2)),
                                RainBin(fill(1, 10, 2)))
         @test EcoSISTEM.iscontinuous(tr3) == [true, true, true]
         @test eltype(tr3) == [typeof(1.0K), typeof(1.0K), typeof(1.0mm)]

@@ -11,8 +11,8 @@ using Diversity
 
 function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
                     size = (mean = 1.0m^2, std = 0.0001m^2)) where
-         {A <: EcoSISTEM.AbstractAbiotic,
-          B <: EcoSISTEM.BoundaryCondition}
+    {A <: EcoSISTEM.AbstractAbiotic,
+     B <: EcoSISTEM.BoundaryCondition}
     # Set up initial parameters for ecosystem
     birth = haskey(paramDict, "birth") ? paramDict["birth"] : 0.6 / year
     death = haskey(paramDict, "death") ? paramDict["death"] : 0.6 / year
@@ -33,7 +33,8 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
     tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
     units = unit(size.mean)
     trts = ContinuousEvolve(uconvert(NoUnits, size.mean / units),
-                            uconvert(NoUnits, size.std / units), tree)
+                            uconvert(NoUnits, size.std / units),
+                            tree)
 
     energy_vec1 = SolarRequirement(abs.(trts.mean) .* (req[1] * units))
     energy_vec2 = WaterRequirement(abs.(trts.mean) .* (req[2] * units))
@@ -56,11 +57,16 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
     if length(individuals) > 1
         abun = [individuals; fill(0, numInvasive)]
     else
-        abun = [rand(Multinomial(individuals, numSpecies));
+        abun = [rand(Multinomial(individuals, numSpecies))
                 fill(0, numInvasive)]
     end
-    sppl = SpeciesList(numSpecies + numInvasive, traits, abun, energy_vec,
-                       movement, param, native)
+    sppl = SpeciesList(numSpecies + numInvasive,
+                       traits,
+                       abun,
+                       energy_vec,
+                       movement,
+                       param,
+                       native)
     rel = Gauss{typeof(first(paramDict["opts"]))}()
     return eco = Ecosystem(traitpopulate!, sppl, abenv, rel)
 end
@@ -71,7 +77,7 @@ function recreate_eco!(eco::Ecosystem,
                        individuals::Int64)
     numSpecies = sum(eco.spplist.native)
     numInvasive = sum(.!eco.spplist.native)
-    eco.spplist.abun = [rand(Multinomial(individuals, numSpecies));
+    eco.spplist.abun = [rand(Multinomial(individuals, numSpecies))
                         fill(0, numInvasive)]
     reenergise!(eco, totalK, size(eco.abenv.habitat.matrix))
     eco.abenv.active .= true

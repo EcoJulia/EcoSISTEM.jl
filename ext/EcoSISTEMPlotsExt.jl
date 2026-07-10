@@ -30,7 +30,7 @@ const MONTHS = [
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
     ind = round(Int64, (tm - yr) / (1 / 12))
-    typeof(ind) <: Int64 || error("NO")
+    ind isa Int64 || error("NO")
     mnth = MONTHS[ind + 1]
     A = transpose(ustrip.(era.array[:, :, time]))
     x = ustrip.(AxisArrays.axes(era.array, 1).val)
@@ -45,7 +45,7 @@ end
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
     ind = round(Int64, (tm - yr) / (1 / 12))
-    typeof(ind) <: Int64 || error("NO")
+    ind isa Int64 || error("NO")
     mnth = MONTHS[ind + 1]
     A = transpose(ustrip.(era.array[xrange, yrange, time]))
     step1 = ustrip(AxisArrays.axes(era.array, 1).val[2] -
@@ -63,7 +63,7 @@ end
 @recipe function f(wc::Union{Worldclim_monthly, CHELSA_monthly},
                    time::Unitful.Time)
     ind = (time + 1month) / month
-    typeof(ind) <: Int64 || error("NO")
+    ind isa Int64 || error("NO")
     mnth = MONTHS[ind]
     A = transpose(ustrip.(wc.array[:, :, time]))
     x = ustrip.(AxisArrays.axes(wc.array, 1).val)
@@ -78,7 +78,7 @@ end
 @recipe function f(wc::Union{Worldclim_monthly, CHELSA_monthly},
                    time::Unitful.Time, xrange, yrange)
     ind = (time + 1month) / month
-    typeof(ind) <: Int64 || error("NO")
+    ind isa Int64 || error("NO")
     mnth = MONTHS[ind]
     A = transpose(ustrip.(wc.array[xrange, yrange, time]))
     step1 = ustrip(AxisArrays.axes(wc.array, 1).val[2] -

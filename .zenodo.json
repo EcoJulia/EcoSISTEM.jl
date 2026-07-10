@@ -23,6 +23,11 @@
             "scheme": "url",
             "identifier": "https://github.com/EcoJulia/EcoSISTEM.jl",
             "relation": "isOriginalFormOf"
+        },
+        {
+            "scheme": "doi",
+            "identifier": "10.48550/arXiv.1911.12257",
+            "relation": "isSupplementTo"
         }
     ],
     "keywords": [

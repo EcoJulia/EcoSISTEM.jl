@@ -139,29 +139,41 @@ function SpecialistInvasive(eco::Ecosystem, timestep::Unitful.Time,
     end
 end
 
-function TempFluct!(eco::Ecosystem, timestep::Unitful.Time,
+function TempFluct!(eco::Ecosystem,
+                    timestep::Unitful.Time,
                     rate::Quantity{Float64, 𝚯 * 𝐓^-1},
                     currentstep::Unitful.Time,
                     startarray::Matrix{Unitful.Temperature{Float64}})
     v = uconvert(K / year, rate)
     return eco.abenv.habitat.matrix .= (v * year) .*
-                                       sin(collect((-π):(π / 6):π)[mod(Int64(uconvert(NoUnits, currentstep / timestep)), 12) + 1]) .+
+                                       sin(collect((-π):(π / 6):π)[mod(Int64(uconvert(NoUnits,
+                                                                                      currentstep / timestep)),
+                                                                       12) + 1]) .+
                                        startarray
 end
 
-function runscenario!(eco::Ecosystem, timestep::Unitful.Time,
-                      scenario::FluctScenario, currentstep::Unitful.Time)
+function runscenario!(eco::Ecosystem,
+                      timestep::Unitful.Time,
+                      scenario::FluctScenario,
+                      currentstep::Unitful.Time)
     return scenario.fun(eco, timestep, scenario.rate, currentstep,
                         scenario.startarray)
 end
-function runscenario!(eco::Ecosystem, timestep::Unitful.Time,
-                      scenario::SimpleScenario, currentstep::Unitful.Time)
+function runscenario!(eco::Ecosystem,
+                      timestep::Unitful.Time,
+                      scenario::SimpleScenario,
+                      currentstep::Unitful.Time)
     return scenario.fun(eco, timestep, scenario.rate)
 end
 
-function runscenario!(eco::Ecosystem, timestep::Unitful.Time,
-                      scenario::MultiScenario, currentstep::Unitful.Time)
+function runscenario!(eco::Ecosystem,
+                      timestep::Unitful.Time,
+                      scenario::MultiScenario,
+                      currentstep::Unitful.Time)
     scenario.sc1.fun(eco, timestep, scenario.sc1.rate)
-    return scenario.sc2.fun(eco, timestep, scenario.sc2.rate, currentstep,
+    return scenario.sc2.fun(eco,
+                            timestep,
+                            scenario.sc2.rate,
+                            currentstep,
                             scenario.sc2.startarray)
 end

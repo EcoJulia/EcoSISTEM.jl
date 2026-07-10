@@ -7,19 +7,41 @@ using Unitful
 using EcoSISTEM.Units
 using Missings
 using RecipesBase
+using Random
 
 using Diversity.API: _calcabundance
+
+"""
+    makerngs(seed::Integer, n::Integer)
+
+Build a vector of `n` independent, deterministically-seeded random number
+generators, one per species. Species `j` is seeded as `Xoshiro(hash((seed, j)))`
+so its random stream is a pure function of `(seed, j)` — independent of how
+species are distributed across threads or MPI processes. This is what makes
+simulation results reproducible across different thread and process counts (each
+species is always processed by exactly one task on one rank, drawing in a fixed
+cell order). See [`getrng`](@ref).
+
+Note: this per-species scheme is sufficient only because no single species' draws
+are ever split across ranks/tasks. If a species' cells were ever partitioned
+across ranks, a per-`(species, cell)` counter-based generator would be needed
+instead.
+"""
+function makerngs(seed::Integer, n::Integer)
+    return [Random.Xoshiro(hash((seed, j))) for j in 1:n]
+end
 
 """
     Lookup
 
 Lookup houses information on `x`, `y` grid locations and the probability of
 occurrence at the location for the species in question `p`. `pnew` and `moves`
-are initially empty storage and written over by the movement step in update!().
-`pnew` is the recalculated probability based on which directions are available
-and `moves` is the number of moves to that grid location in that step.
+are initially empty storage and written over by the movement step in
+[`update!`](@ref)(). `pnew` is the recalculated probability based on which
+directions are available and `moves` is the number of moves to that grid
+location in that step.
 """
-mutable struct Lookup
+struct Lookup
     x::Vector{Int64}
     y::Vector{Int64}
     p::Vector{Float64}
@@ -31,7 +53,7 @@ end
     Cache
 
 Cache houses an integer array of moves made by all species in a timestep for the
-update! function, `netmigration`.
+[`update!`](@ref) function, `netmigration`.
 """
 mutable struct Cache
     netmigration::Matrix{Int64}
@@ -40,8 +62,11 @@ mutable struct Cache
 end
 
 function Lookup(df::DataFrame)
-    return Lookup(df[!, :X], df[!, :Y], df[!, :Prob],
-                  zeros(Float64, nrow(df)), zeros(Int64, nrow(df)))
+    return Lookup(df[!, :X],
+                  df[!, :Y],
+                  df[!, :Prob],
+                  zeros(Float64, nrow(df)),
+                  zeros(Int64, nrow(df)))
 end
 
 function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
@@ -54,8 +79,8 @@ end
 """
     tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
 
-Function to check that the types of a trait list and habitat list are
-the same for a species list (`sppl`) and abiotic environment (`abenv`).
+Check that the types of a trait list and habitat list are the same for a species
+list (`sppl`) and abiotic environment (`abenv`).
 """
 function tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
     return (eltype(sppl.traits) == eltype(abenv.habitat)) &&
@@ -65,8 +90,8 @@ end
 """
     trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
 
-Function to check that the types of a trait list and trait relationship list are
-the same for a species list (`sppl`) and trait relationship (`traitrel`).
+Check that the types of a trait list and trait relationship list are the same
+for a species list (`sppl`) and trait relationship (`traitrel`).
 """
 function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
     return eltype(sppl.traits) == eltype(traitrel) &&
@@ -78,25 +103,28 @@ end
         TR <: AbstractTraitRelationship} <: AbstractMetacommunity{Float64,
             Matrix{Int64}, Matrix{Float64}, SL, Part}
 
-Abstract supertype for all ecosystem types and a subtype of AbstractMetacommunity.
+Abstract supertype for all ecosystem types and a subtype of
+AbstractMetacommunity.
 """
-abstract type AbstractEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+abstract type AbstractEcosystem{Part <: AbstractAbiotic,
+                                SL <: SpeciesList,
                                 TR <: AbstractTraitRelationship} <:
-              AbstractMetacommunity{Float64, Matrix{Int64},
-                                    Matrix{Float64}, SL, Part} end
+              AbstractMetacommunity{Float64, Matrix{Int64}, Matrix{Float64}, SL,
+                                    Part} end
 
 """
     Ecosystem{Part <: AbstractAbiotic} <:
        AbstractEcosystem{Part, SL, TR}
 
 Ecosystem houses information on species and their interaction with their
-environment. For species, it holds abundances and locations, `abundances`,
-as well as properties such as trait information, `spplist`, and movement types,
-`lookup`. For environments, it provides information on environmental conditions
-and available resources,`abenv`. Finally, there is a slot for the relationship
+environment. For species, it holds abundances and locations, as well as
+properties such as trait information, `spplist`, and movement types, `lookup`.
+For environments, it provides information on environmental conditions and
+available resources,`abenv`. Finally, there is a slot for the relationship
 between the environment and the characteristics of the species, `relationship`.
 """
-mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+mutable struct Ecosystem{Part <: AbstractAbiotic,
+                         SL <: SpeciesList,
                          TR <: AbstractTraitRelationship} <:
                AbstractEcosystem{Part, SL, TR}
     abundances::GridLandscape
@@ -106,26 +134,35 @@ mutable struct Ecosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
     relationship::TR
     lookup::Vector{Lookup}
     cache::Cache
+    rngs::Vector{Random.Xoshiro}
 
     function Ecosystem{Part, SL, TR}(abundances::GridLandscape,
-                                     spplist::SL, abenv::Part,
+                                     spplist::SL,
+                                     abenv::Part,
                                      ordinariness::Union{Matrix{Float64},
                                                          Missing},
-                                     relationship::TR, lookup::Vector{Lookup},
-                                     cache::Cache) where {
-                                                          Part <:
-                                                          AbstractAbiotic,
-                                                          SL <: SpeciesList,
-                                                          TR <:
-                                                          AbstractTraitRelationship
-                                                          }
+                                     relationship::TR,
+                                     lookup::Vector{Lookup},
+                                     cache::Cache,
+                                     rngs::Vector{Random.Xoshiro}) where {Part <:
+                                                                          AbstractAbiotic,
+                                                                          SL <:
+                                                                          SpeciesList,
+                                                                          TR <:
+                                                                          AbstractTraitRelationship}
         tematch(spplist, abenv) || error("Traits do not match habitats")
         trmatch(spplist, relationship) ||
             error("Traits do not match trait functions")
         #_mcmatch(abundances.matrix, spplist, abenv) ||
         #  error("Dimension mismatch")
-        return new{Part, SL, TR}(abundances, spplist, abenv, ordinariness,
-                                 relationship, lookup, cache)
+        return new{Part, SL, TR}(abundances,
+                                 spplist,
+                                 abenv,
+                                 ordinariness,
+                                 relationship,
+                                 lookup,
+                                 cache,
+                                 rngs)
     end
 end
 
@@ -135,8 +172,8 @@ end
     maxY = maximum(l.y)
     x, y = round(Int64, maxX / 2), round(Int64, maxY / 2)
     # Can't go over maximum dimension
-    valid = findall((l.x .> -x) .& (l.y .> -y) .&
-                    (l.x .<= (maxX - x)) .& (l.y .<= (maxY - y)))
+    valid = findall((l.x .> -x) .& (l.y .> -y) .& (l.x .<= (maxX - x)) .&
+                    (l.y .<= (maxY - y)))
     probs = l.p[valid]
     probs ./= sum(probs)
     xs = (l.x[valid] .+ x)
@@ -156,44 +193,72 @@ end
     Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
         rel::AbstractTraitRelationship)
 
-Function to create an `Ecosystem` given a species list, an abiotic environment and trait relationship. An optional population function can be added, `popfun`, which defaults to generic random filling of the ecosystem.
+Create an `Ecosystem` given a species list, an abiotic environment and trait
+relationship. An optional population function can be added, `popfun`, which
+defaults to generic random filling of the ecosystem. A `seed` may be supplied to
+make the run reproducible: it deterministically seeds one random number
+generator per species (see [`makerngs`](@ref)), so results are identical
+regardless of the number of threads used. If no `seed` is given, one is drawn at
+random.
 """
-function Ecosystem(popfun::F, spplist::SpeciesList{T, Req},
+function Ecosystem(popfun::F,
+                   spplist::SpeciesList{T, Req},
                    abenv::GridAbioticEnv,
-                   rel::AbstractTraitRelationship) where {F <: Function, T, Req}
+                   rel::AbstractTraitRelationship;
+                   seed::Integer = rand(UInt64)) where {F <: Function, T, Req}
 
     # Check there is enough energy to support number of individuals at set up
     #all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
     #error("Environment does not have enough energy to support species")
     # Create matrix landscape of zero abundances
     ml = emptygridlandscape(abenv, spplist)
+    # One deterministically-seeded RNG per species, so births/deaths/dispersal
+    # and the initial population draw are reproducible across thread counts
+    rngs = makerngs(seed, size(ml.matrix, 1))
     # Populate this matrix with species abundances
-    popfun(ml, spplist, abenv, rel)
+    popfun(ml, spplist, abenv, rel, rngs)
     # Create lookup table of all moves and their probabilities
     lookup_tab = collect(map(k -> genlookups(abenv.habitat, k),
                              getkernels(spplist.movement)))
     nm = zeros(Int64, size(ml.matrix))
     totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
-    return Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml, spplist,
+    return Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml,
+                                                                  spplist,
                                                                   abenv,
-                                                                  missing, rel,
+                                                                  missing,
+                                                                  rel,
                                                                   lookup_tab,
                                                                   Cache(nm,
                                                                         totalE,
-                                                                        false))
+                                                                        false),
+                                                                  rngs)
 end
 
-function Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
-                   rel::AbstractTraitRelationship)
-    return Ecosystem(populate!, spplist, abenv, rel)
+function Ecosystem(spplist::SpeciesList,
+                   abenv::GridAbioticEnv,
+                   rel::AbstractTraitRelationship;
+                   seed::Integer = rand(UInt64))
+    return Ecosystem(populate!, spplist, abenv, rel; seed = seed)
 end
+@doc (@doc Ecosystem) Ecosystem(::SpeciesList,
+                                ::GridAbioticEnv,
+                                ::AbstractTraitRelationship)
 
+"""
+    addspecies!(eco::Ecosystem, abun::Int64)
+
+Add a new species to an existing [`Ecosystem`](@ref) with initial abundance
+`abun`, copying trait, movement, parameter, requirement, and type information
+from the last existing species.
+"""
 function addspecies!(eco::Ecosystem, abun::Int64)
     eco.abundances.matrix = vcat(eco.abundances.matrix,
                                  zeros(1, size(eco.abundances.matrix, 2)))
     eco.abundances.grid = reshape(eco.abundances.matrix,
                                   (counttypes(eco.spplist, true) + 1,
                                    _getdimension(eco.abenv.habitat)...))
+    # Give the new species its own RNG stream, derived from the previous last one
+    push!(eco.rngs, Random.Xoshiro(rand(eco.rngs[end], UInt64)))
     repopulate!(eco, abun)
     push!(eco.spplist.names, string.(counttypes(eco.spplist, true) + 1))
     append!(eco.spplist.abun, abun)
@@ -231,11 +296,12 @@ end
     CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
         TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
 
-CachedEcosystem houses the same information as Ecosystem (see ?Ecosystem), but
-holds the time period abundances as a CachedGridLandscape, so that they may
-be present or missing.
+CachedEcosystem houses the same information as [`Ecosystem`](@ref) (see
+?Ecosystem), but holds the time period abundances as a
+[`CachedGridLandscape`](@ref), so that they may be present or missing.
 """
-mutable struct CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
+mutable struct CachedEcosystem{Part <: AbstractAbiotic,
+                               SL <: SpeciesList,
                                TR <: AbstractTraitRelationship} <:
                AbstractEcosystem{Part, SL, TR}
     abundances::CachedGridLandscape
@@ -245,28 +311,39 @@ mutable struct CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
     relationship::TR
     lookup::Vector{Lookup}
     cache::Cache
+    rngs::Vector{Random.Xoshiro}
 end
 
 """
-    CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
+    CachedEcosystem(eco::Ecosystem, outputfile::String, times::StepRangeLen;
+                    saveinterval::Unitful.Time = step(times))
 
-Function to create a CachedEcosystem given an existing ecosystem, `eco`,
-output folder to which the simulations are saved, `outputfile`, and a range of
-times over which to simulate, `rng`.
+Create a CachedEcosystem given an existing [`Ecosystem`](@ref), `eco`, an output
+folder to which the simulations are saved, `outputfile`, and a range of times
+over which to simulate, `times`. The step of `times` is the simulation timestep;
+`saveinterval` controls how often checkpoints are written to disk (a multiple of
+the timestep, defaulting to every step). Because the simulation always advances
+by the timestep, results are independent of `saveinterval`.
 """
-function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
+function CachedEcosystem(eco::Ecosystem, outputfile::String,
+                         times::StepRangeLen;
+                         saveinterval::Unitful.Time = step(times))
     if size(eco.abenv.habitat, 3) > 1
-        size(eco.abenv.habitat, 3) == length(rng) ||
+        size(eco.abenv.habitat, 3) == length(times) ||
             error("Time range does not match habitat")
     end
-    abundances = CachedGridLandscape(outputfile, rng)
+    abundances = CachedGridLandscape(outputfile, times;
+                                     saveinterval = saveinterval)
     abundances.matrix[1] = eco.abundances
     return CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist),
                            typeof(eco.relationship)}(abundances,
-                                                     eco.spplist, eco.abenv,
+                                                     eco.spplist,
+                                                     eco.abenv,
                                                      eco.ordinariness,
                                                      eco.relationship,
-                                                     eco.lookup, eco.cache)
+                                                     eco.lookup,
+                                                     eco.cache,
+                                                     eco.rngs)
 end
 
 import Diversity.API: _getabundance
@@ -328,7 +405,7 @@ end
 """
     gettraitrel(eco::Ecosystem)
 
-Function to extract trait relationships.
+Extract trait relationships.
 """
 function gettraitrel(eco::AbstractEcosystem)
     return eco.relationship
@@ -337,7 +414,7 @@ end
 """
     gethabitat(eco::Ecosystem)
 
-Function to extract habitat from Ecosystem object.
+Extract habitat from [`Ecosystem`](@ref) object.
 """
 function gethabitat(eco::AbstractEcosystem)
     return eco.abenv.habitat
@@ -346,7 +423,7 @@ end
 """
     getbudget(eco::Ecosystem)
 
-Function to extract budget from Ecosystem object.
+Extract budget from [`Ecosystem`](@ref) object.
 """
 function getbudget(eco::AbstractEcosystem)
     return _getbudget(eco.abenv.budget)
@@ -355,7 +432,7 @@ end
 """
     getsize(eco::Ecosystem)
 
-Function to extract size of habitat from Ecosystem object.
+Extract size of habitat from [`Ecosystem`](@ref) object.
 """
 function getsize(eco::AbstractEcosystem)
     return _getsize(eco.abenv.habitat)
@@ -364,7 +441,7 @@ end
 """
     getgridsize(eco::Ecosystem)
 
-Function to extract grid cell size of habitat from Ecosystem object.
+Extract grid cell size of habitat from [`Ecosystem`](@ref) object.
 """
 function getgridsize(eco::AbstractEcosystem)
     return _getgridsize(eco.abenv.habitat)
@@ -373,7 +450,7 @@ end
 """
     getdimension(eco::Ecosystem)
 
-Function to extract dimension of habitat from Ecosystem object.
+Extract dimension of habitat from [`Ecosystem`](@ref) object.
 """
 function getdimension(eco::AbstractEcosystem)
     return _getdimension(eco.abenv.habitat)
@@ -382,7 +459,7 @@ end
 """
     getdispersaldist(eco::Ecosystem)
 
-Function to extract average dispersal distance of species from Ecosystem object.
+Extract average dispersal distance of species from [`Ecosystem`](@ref) object.
 Returns a vector of distances, unless a specific species is provided as a String
 or Integer.
 """
@@ -395,13 +472,14 @@ function getdispersaldist(eco::AbstractEcosystem, sp::String)
     num = findall(eco.spplist.names .== sp)[1]
     return getdispersaldist(eco, num)
 end
+@doc (@doc getdispersaldist) getdispersaldist(::AbstractEcosystem, ::String)
 
 """
     getdispersalvar(eco::Ecosystem)
 
-Function to extract dispersal varaince of species from Ecosystem object.
-Returns a vector of distances, unless a specific species is provided as a String
-or Integer.
+Extract dispersal varaince of species from [`Ecosystem`](@ref) object. Returns a
+vector of distances, unless a specific species is provided as a String or
+Integer.
 """
 function getdispersalvar(eco::AbstractEcosystem, sp::Int64)
     var = (eco.spplist.movement.kernels[sp].dist)^2 * pi / 4
@@ -412,10 +490,11 @@ function getdispersalvar(eco::AbstractEcosystem, sp::String)
     num = findall(eco.spplist.names .== sp)[1]
     return getdispersalvar(eco, num)
 end
+@doc (@doc getdispersalvar) getdispersalvar(::AbstractEcosystem, ::String)
 """
     getlookup(eco::Ecosystem)
 
-Function to extract movement lookup table of species from Ecosystem object.
+Extract movement lookup table of species from [`Ecosystem`](@ref) object.
 """
 function getlookup(eco::AbstractEcosystem, sp::Int64)
     return eco.lookup[sp]
@@ -425,11 +504,24 @@ function getlookup(eco::AbstractEcosystem, sp::String)
     num = findall(eco.spplist.names .== sp)[1]
     return getlookup(eco, num)
 end
+@doc (@doc getlookup) getlookup(::AbstractEcosystem, ::String)
+
+"""
+    getrng(eco::AbstractEcosystem, sp::Int64)
+
+Return the per-species random number generator for global species index `sp`.
+Because each species has its own stream and is processed by exactly one task per
+timestep, random draws are both thread-safe and reproducible independent of the
+number of threads or MPI processes (see [`makerngs`](@ref)).
+"""
+function getrng(eco::AbstractEcosystem, sp::Int64)
+    return eco.rngs[sp]
+end
 
 """
     resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
 
-Function to reset the rate of habitat change for a species.
+Reset the rate of habitat change for a species.
 """
 function resetrate!(eco::AbstractEcosystem,
                     rate::Quantity{Float64, typeof(𝐓^-1)})
@@ -491,8 +583,8 @@ end
 """
     genlookups(hab::AbstractHabitat, mov::GaussianMovement)
 
-Function to generate lookup tables, which hold information on the probability
-of moving to neighbouring squares.
+Generate lookup tables, which hold information on the probability of moving to
+neighbouring squares.
 """
 function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
     sd = (2 * mov.dist) / sqrt(pi)
@@ -512,8 +604,10 @@ function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
                                               EcoSISTEM._2Dt_disperse))
 end
 
-function _lookup(relSquareSize::Float64, maxGridSize::Int64,
-                 pThresh::Float64, dispersalfn::F) where {F <: Function}
+function _lookup(relSquareSize::Float64,
+                 maxGridSize::Int64,
+                 pThresh::Float64,
+                 dispersalfn::F) where {F <: Function}
     # Create empty array
     lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
 
@@ -556,8 +650,10 @@ function _lookup(relSquareSize::Float64, maxGridSize::Int64,
     return lookup_tab
 end
 
-function _lookup(relSquareSize::Float64, maxGridSize::Int64,
-                 pThresh::Float64, b::Float64,
+function _lookup(relSquareSize::Float64,
+                 maxGridSize::Int64,
+                 pThresh::Float64,
+                 b::Float64,
                  dispersalfn::F) where {F <: Function}
     # Create empty array
     lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])

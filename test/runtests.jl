@@ -116,8 +116,7 @@ if rsmd == "FALSE"
     # test/pkg_Package.jl should validate results against the Package package
 
     pkgbase = map(file -> replace(file, r"pkg_(.*).jl$" => s"\1"),
-                  filter(str -> occursin(r"^pkg_.*\.jl$", str),
-                         readdir()))
+                  filter(str -> occursin(r"^pkg_.*\.jl$", str), readdir()))
 
     if length(pkgbase) > 0
         @info "Cross validation packages:"
@@ -162,8 +161,7 @@ if rsmd == "TRUE" || !haskey(ENV, "RUNNER_OS") # Crosswalk runner or local testi
 
     # Identify files that are checking package hygene
     cleanbase = map(file -> replace(file, r"clean_(.*).jl$" => s"\1"),
-                    filter(str -> occursin(r"^clean_.*\.jl$", str),
-                           readdir()))
+                    filter(str -> occursin(r"^clean_.*\.jl$", str), readdir()))
 
     if length(cleanbase) > 0
         @info "Crosswalk and clean testing:"

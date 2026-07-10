@@ -11,17 +11,24 @@ import ArchGDAL
 import Base.read
 const AG = ArchGDAL
 
-const VARDICT = Dict("bio" => NaN, "prec" => mm,
-                     "srad" => u"kJ" * u"m"^-2 * day^-1, "tavg" => K,
-                     "tmax" => K, "tmin" => K, "vapr" => u"kPa",
+const VARDICT = Dict("bio" => NaN,
+                     "prec" => mm,
+                     "srad" => u"kJ" * u"m"^-2 * day^-1,
+                     "tavg" => K,
+                     "tmax" => K,
+                     "tmin" => K,
+                     "vapr" => u"kPa",
                      "wind" => u"m" * u"s"^-1)
-const UNITDICT = Dict("K" => K, "m" => m, "J m**-2" => J / m^2,
+const UNITDICT = Dict("K" => K,
+                      "m" => m,
+                      "J m**-2" => J / m^2,
                       "m**3 m**-3" => m^3)
 const BIODICT = Dict(zip(1:19, [fill(K, 11); fill(kg / m^2, 8)]))
+
 """
     read(f, filename)
 
-Function to read raster file into julia.
+Read raster file into julia.
 """
 function read(f, filename)
     return AG.environment() do
@@ -34,16 +41,17 @@ end
 """
     searchdir(path,key)
 
-Function to search a directory `path` using a given `key` string.
+Search a directory `path` using a given `key` string.
 """
 searchdir(path, key) = filter(x -> occursin(key, x), readdir(path))
 
 """
     readfile(file::String)
 
-Function to import a selected file from a path string.
+Import a selected file from a path string.
 """
-function readfile(file::String, xmin::Unitful.Quantity{Float64} = -180.0°,
+function readfile(file::String,
+                  xmin::Unitful.Quantity{Float64} = -180.0°,
                   xmax::Unitful.Quantity{Float64} = 180.0°,
                   ymin::Unitful.Quantity{Float64} = -90.0°,
                   ymax::Unitful.Quantity{Float64} = 90.0°)
@@ -78,10 +86,11 @@ end
 """
     readworldclim(dir::String)
 
-Function to extract all raster files from a specified folder directory,
-and convert into an axis array.
+Extract all raster files from a specified folder directory, and convert into an
+axis array.
 """
-function readworldclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
+function readworldclim(dir::String,
+                       xmin::Unitful.Quantity{Float64} = -180.0°,
                        xmax::Unitful.Quantity{Float64} = 180.0°,
                        ymin::Unitful.Quantity{Float64} = -90.0°,
                        ymax::Unitful.Quantity{Float64} = 90.0°)
@@ -137,10 +146,11 @@ end
 """
     readbioclim(dir::String)
 
-Function to extract all raster files from a specified folder directory,
-and convert into an axis array.
+Extract all raster files from a specified folder directory, and convert into an
+axis array.
 """
-function readbioclim(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
+function readbioclim(dir::String,
+                     xmin::Unitful.Quantity{Float64} = -180.0°,
                      xmax::Unitful.Quantity{Float64} = 180.0°,
                      ymin::Unitful.Quantity{Float64} = -90.0°,
                      ymax::Unitful.Quantity{Float64} = 90.0°)
@@ -185,8 +195,8 @@ end
 """
     readERA(dir::String, param::String, dim::StepRange(typeof(1month)))
 
-Function to extract a certain parameter, `param`, from an ERA netcdf file,
-for a certain timerange, `dim`, and convert into an axis array.
+Extract a certain parameter, `param`, from an ERA netcdf file, for a certain
+timerange, `dim`, and convert into an axis array.
 """
 function readERA(dir::String, param::String,
                  dim::Vector{T}) where {T <: Unitful.Time}
@@ -202,7 +212,7 @@ function readERA(dir::String, param::String,
     array = array .* scale_factor .+ add_offset
 
     # If temperature param, need to convert from Kelvin
-    #if typeof(units) <: Unitful.TemperatureUnits
+    #if units isa Unitful.TemperatureUnits
     #    array = uconvert.(°C, array)
     #end
     if any(lon .== 180)
@@ -213,7 +223,8 @@ function readERA(dir::String, param::String,
         lon[firstseg] .= 180 .- lon[firstseg]
         lon = lon[vcat(reverse(firstseg), secondseg)]
     end
-    world = AxisArray(array[:, end:-1:1, :], Axis{:longitude}(lon * °),
+    world = AxisArray(array[:, end:-1:1, :],
+                      Axis{:longitude}(lon * °),
                       Axis{:latitude}(lat * °),
                       Axis{:time}(collect(dim)))
     return ERA(world)
@@ -221,10 +232,10 @@ end
 
 """
     readERA(dir::String, file::String, param::String, dim::Vector{Vector{T}})
-        where T<: Unitful.Time
+        where T <: Unitful.Time
 
-Function to extract a certain parameter, `param`, from a directory, `dir`, containing ERA netcdf files,
-for a certain timerange, `dim`, and convert into an axis array.
+Extract a certain parameter, `param`, from a directory, `dir`, containing ERA
+netcdf files, for a certain timerange, `dim`, and convert into an axis array.
 """
 function readERA(dir::String, file::String, param::String,
                  dim::Vector{Vector{T}}) where {T <: Unitful.Time}
@@ -240,20 +251,18 @@ end
 """
     readCERA(dir::String, file::String, params::String)
 
-Function to extract a certain parameter, `param`, from an CERA-20C netcdf file,
-and convert into an axis array.
+Extract a certain parameter, `param`, from an CERA-20C netcdf file, and convert
+into an axis array.
 """
 function readCERA(dir::String, file::String, params::String)
     filenames = searchdir(dir, file)
     times = collect((1901year + 1month):(1month):(1910year))
-    cera = readERA(joinpath(dir, filenames[1]), params,
-                   times)
+    cera = readERA(joinpath(dir, filenames[1]), params, times)
     for i in 2:12
         times = 1900year .+ ifelse(i == 12,
                        collect(((i - 1) * 120month + 1month):(1month):((i - 1) * 120month + 1year)),
                        collect(((i - 1) * 120month + 1month):(1month):(i * 10year)))
-        newcera = readERA(joinpath(dir, filenames[i]), params,
-                          times)
+        newcera = readERA(joinpath(dir, filenames[i]), params, times)
         cera.array = cat(dims = 3, cera.array, newcera.array)
     end
     return CERA(cera.array)
@@ -262,8 +271,8 @@ end
 """
     readCRUTS(dir::String)
 
-Function to extract all raster files from a specified folder directory,
-and convert into an axis array.
+Extract all raster files from a specified folder directory, and convert into an
+axis array.
 """
 function readCRUTS(dir::String, var_name::String)
     files = map(searchdir(dir, ".tif")) do files
@@ -314,15 +323,17 @@ end
 """
     readCHELSA_monthly(dir::String)
 
-Function to extract all raster files from a specified folder directory,
-and convert into an axis array.
+Extract all raster files from a specified folder directory, and convert into an
+axis array.
 """
-function readCHELSA_monthly(dir::String, var_name::String,
+function readCHELSA_monthly(dir::String,
+                            var_name::String,
                             xmin::Unitful.Quantity{Float64} = -180.0°,
                             xmax::Unitful.Quantity{Float64} = 180.0°,
                             ymin::Unitful.Quantity{Float64} = -90.0°,
                             ymax::Unitful.Quantity{Float64} = 90.0°;
-                            res = 1, fn = mean)
+                            res = 1,
+                            fn = mean)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -336,8 +347,10 @@ function readCHELSA_monthly(dir::String, var_name::String,
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / res),
-                         ceil(Int64, txy[3] / res), numfiles)
+    b = Array{txy[1], 3}(undef,
+                         ceil(Int64, txy[2] / res),
+                         ceil(Int64, txy[3] / res),
+                         numfiles)
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
         read(files[count]) do dataset
@@ -371,7 +384,8 @@ function readCHELSA_bioclim(dir::String,
                             xmax::Unitful.Quantity{Float64} = 180.0°,
                             ymin::Unitful.Quantity{Float64} = -90.0°,
                             ymax::Unitful.Quantity{Float64} = 90.0°;
-                            res = 1, fn = mean)
+                            res = 1,
+                            fn = mean)
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -385,8 +399,10 @@ function readCHELSA_bioclim(dir::String,
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / res),
-                         ceil(Int64, txy[3] / res), numfiles)
+    b = Array{txy[1], 3}(undef,
+                         ceil(Int64, txy[2] / res),
+                         ceil(Int64, txy[3] / res),
+                         numfiles)
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
         read(files[count]) do dataset
@@ -414,14 +430,16 @@ end
 """
     readlc(dir::String)
 
-Function to extract all raster files from a specified folder directory,
-and convert into an axis array.
+Extract all raster files from a specified folder directory, and convert into an
+axis array.
 """
-function readlc(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
+function readlc(dir::String,
+                xmin::Unitful.Quantity{Float64} = -180.0°,
                 xmax::Unitful.Quantity{Float64} = 180.0°,
                 ymin::Unitful.Quantity{Float64} = -90.0°,
                 ymax::Unitful.Quantity{Float64} = 90.0°;
-                res = 10, fn = x -> round(mean(x)))
+                res = 10,
+                fn = x -> round(mean(x)))
     files = map(searchdir(dir, ".tif")) do files
         return joinpath(dir, files)
     end
@@ -437,8 +455,10 @@ function readlc(dir::String, xmin::Unitful.Quantity{Float64} = -180.0°,
     end
 
     numfiles = length(files)
-    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / res),
-                         ceil(Int64, txy[3] / res), numfiles)
+    b = Array{txy[1], 3}(undef,
+                         ceil(Int64, txy[2] / res),
+                         ceil(Int64, txy[3] / res),
+                         numfiles)
     a = Matrix{txy[1]}(undef, txy[2], txy[3])
     map(eachindex(files)) do count
         read(files[count]) do dataset

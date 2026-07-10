@@ -5,6 +5,12 @@ using Distributions
 using DataFrames
 using Phylo: NodeNameIterator
 
+"""
+    reroot!(tree::AbstractTree, node::String)
+
+Reroot a phylogenetic tree by removing and recreating `node`, then attaching a
+new root node `"NewRoot"` above the original root.
+"""
 function reroot!(tree::AbstractTree, node::String)
     root = getroot(tree)
     deletenode!(tree, node)
@@ -14,6 +20,12 @@ function reroot!(tree::AbstractTree, node::String)
     return createbranch!(tree, "NewRoot", node)
 end
 
+"""
+    resettraits!(tree::AbstractTree)
+
+Clear all node data records in the tree, resetting every node to an empty
+`DataFrame`.
+"""
 function resettraits!(tree::AbstractTree)
     nodes = getnodenames(tree)
     for i in nodes
@@ -21,7 +33,12 @@ function resettraits!(tree::AbstractTree)
     end
 end
 
-# Function to split vector into pairs of numbers
+"""
+    pair(vec)
+
+Split a vector into consecutive overlapping pairs, returning a matrix with one
+pair per row. Used to traverse root-to-tip paths branch by branch.
+"""
 function pair(vec)
     # Calc number of pairs
     npairs = length(vec) - 1
@@ -35,6 +52,12 @@ function pair(vec)
     return newvec
 end
 
+"""
+    root_to_tips(tree)
+
+Return all root-to-tip paths in a phylogenetic tree as a vector of node-name
+vectors, one per tip.
+"""
 function root_to_tips(tree)
     tips = collect(nodenamefilter(isleaf, tree))
     paths = map(tips) do tps
@@ -44,6 +67,12 @@ function root_to_tips(tree)
     return paths
 end
 
+"""
+    arenoderecordsempty(tree::AbstractTree, nodes::Vector{String})
+
+Check whether the node data records are empty for each node in `nodes`. Returns
+a vector of `Bool` values, one per node.
+"""
 function arenoderecordsempty(tree::AbstractTree, nodes::Vector{String})
     map(nodes) do nod
         return isempty(getnodedata(tree, nod))
@@ -54,8 +83,8 @@ end
     assign_traits!(tree::AbstractTree, switch_rate::Vector{Float64},
     traits::Vector{Vector{String}})
 
-Function to evolve categorical functional traits through a phylogenetic tree
-with a specific switching rate.
+Evolve categorical functional traits through a phylogenetic tree with a specific
+switching rate.
 
 """
 function assign_traits!(tree::AbstractTree, switch_rate::Vector{Float64},
@@ -145,7 +174,7 @@ end
 """
     BM(T::Real, σ²::Float64, start::Float64, lab::String="")
 
-Function to evolve a Real value through Brownian motion, with a starting value,
+Evolve a Real value through Brownian motion, with a starting value,
  `start`, and rate, `σ²`.
 
 """
@@ -163,8 +192,8 @@ end
     assign_traits!(tree::AbstractTree, start::Vector{Float64},
       σ²::Vector{Float64})
 
-Function to evolve continuous functional traits through a phylogenetic tree
-through Brownian motion, with a starting value, `start`, and rate, `σ²`.
+Evolve continuous functional traits through a phylogenetic tree through Brownian
+motion, with a starting value, `start`, and rate, `σ²`.
 
 """
 function assign_traits!(tree::AbstractTree, traits::DataFrame)
@@ -213,8 +242,8 @@ end
 """
     get_traits(tree::AbstractTree, tips::Bool=true)
 
-Function to retrieve functional traits assigned to a phylogenetic tree, either
-just tips or all nodes.
+Retrieve functional traits assigned to a phylogenetic tree, either just tips or
+all nodes.
 
 """
 function get_traits(tree::AbstractTree, tips::Bool = true)

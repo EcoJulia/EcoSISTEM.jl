@@ -4,31 +4,40 @@ using Diversity
 
 """
     makeunique(eco::Ecosystem)
-Function to convert type of similarity in SpeciesList to UniqueTypes, i.e. an identity matrix.
+Convert type of similarity in [`SpeciesList`](@ref) to UniqueTypes, i.e. an
+identity matrix.
 """
 function makeunique(eco::Ecosystem)
     sppl = eco.spplist
     spp = length(sppl.names)
     EcoSISTEM.invalidatecaches!(eco)
-    newsppl = SpeciesList{typeof(sppl.traits), typeof(sppl.requirement),
-                          typeof(sppl.movement), UniqueTypes,
+    newsppl = SpeciesList{typeof(sppl.traits),
+                          typeof(sppl.requirement),
+                          typeof(sppl.movement),
+                          UniqueTypes,
                           typeof(sppl.params)}(sppl.names,
-                                               sppl.traits, sppl.abun,
+                                               sppl.traits,
+                                               sppl.abun,
                                                sppl.requirement,
-                                               UniqueTypes(spp), sppl.movement,
-                                               sppl.params, sppl.native)
+                                               UniqueTypes(spp),
+                                               sppl.movement,
+                                               sppl.params,
+                                               sppl.native)
     newsppl.susceptible = sppl.susceptible
     return Ecosystem{typeof(eco.abenv), typeof(newsppl),
                      typeof(eco.relationship)}(eco.abundances,
-                                               newsppl, eco.abenv,
+                                               newsppl,
+                                               eco.abenv,
                                                eco.ordinariness,
-                                               eco.relationship, eco.lookup,
-                                               eco.cache)
+                                               eco.relationship,
+                                               eco.lookup,
+                                               eco.cache,
+                                               eco.rngs)
 end
 
 """
     meta_simpson(eco::Ecosystem, qs::Vector{Float64})
-Function to calculate the Simpson diversity for the entire ecosystem.
+Calculate the Simpson diversity for the entire ecosystem.
 """
 function meta_simpson(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
@@ -46,7 +55,7 @@ end
 
 """
     meta_shannon(eco::Ecosystem, qs::Vector{Float64})
-Function to calculate the Shannon entropy for the entire ecosystem.
+Calculate the Shannon entropy for the entire ecosystem.
 """
 function meta_shannon(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
@@ -64,7 +73,7 @@ end
 
 """
     meta_speciesrichness(eco::Ecosystem, qs::Vector{Float64})
-Function to calculate the species richness for the entire ecosystem.
+Calculate the species richness for the entire ecosystem.
 """
 function meta_speciesrichness(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
@@ -78,7 +87,7 @@ end
 
 """
     mean_abun(eco::Ecosystem, qs::Vector{Float64})
-Function to calculate the mean arithmetic abundance for the entire ecosystem.
+Calculate the mean arithmetic abundance for the entire ecosystem.
 """
 function mean_abun(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
@@ -95,7 +104,7 @@ end
 
 """
     geom_mean_abun(eco::Ecosystem, qs::Vector{Float64})
-Function to calculate the geometric mean abundance for the entire ecosystem.
+Calculate the geometric mean abundance for the entire ecosystem.
 """
 function geom_mean_abun(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
@@ -113,7 +122,7 @@ end
 
 """
     sorenson(eco::Ecosystem, qs::Vector{Float64})
-Function to calculate the Sorenson similarity for the entire ecosystem.
+Calculate the Sorenson similarity for the entire ecosystem.
 """
 function sorenson(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
@@ -131,7 +140,7 @@ end
 
 """
     pd(eco::Ecosystem, qs::Vector{Float64})
-Function to calculate Faith's phylogenetic diversity (PD) for the entire ecosystem.
+Calculate Faith's phylogenetic diversity (PD) for the entire ecosystem.
 """
 function pd(eco::Ecosystem, qs::Vector{Float64})
     PD = meta_gamma(eco, 0.0)

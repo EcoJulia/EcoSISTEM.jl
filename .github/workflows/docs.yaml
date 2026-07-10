@@ -16,24 +16,18 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up julia
-        uses: julia-actions/setup-julia@v2
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
         with:
           version: '1'
-          arch: x64
-      - name: Install dependencies
-        run: |
-            using Pkg
-            Pkg.develop(PackageSpec(path=pwd()))
-            Pkg.add("Documenter")
-            Pkg.instantiate()
+      - uses: julia-actions/cache@v3
+      - name: Configure doc environment
         shell: julia --project=docs --color=yes {0}
-      - name: Build and deploy
         run: |
-          julia --project=docs --color=yes docs/make.jl
+          using Pkg
+          Pkg.develop(PackageSpec(path=pwd()))
+          Pkg.instantiate()
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-docdeploy@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-          GITHUB_EVENT_NAME: push

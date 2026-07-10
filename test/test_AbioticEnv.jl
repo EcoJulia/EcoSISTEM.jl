@@ -96,8 +96,10 @@ if !Sys.iswindows()
 
     @testset "ERA data" begin
         # TEST eraAE
-        temp = AxisArray(fill(1.0K, 10, 10, 3), Axis{:latitude}(1:10),
-                         Axis{:longitude}(1:10), Axis{:time}(collect(1:3) .* s))
+        temp = AxisArray(fill(1.0K, 10, 10, 3),
+                         Axis{:latitude}(1:10),
+                         Axis{:longitude}(1:10),
+                         Axis{:time}(collect(1:3) .* s))
         eratemp = ERA(temp)
         active = fill(true, 10, 10)
         totalK = 1000.0kJ / m^2

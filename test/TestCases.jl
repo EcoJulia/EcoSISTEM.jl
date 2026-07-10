@@ -7,8 +7,16 @@ using Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
 using Unitful
+using Random
 
-function Test1Ecosystem()
+"""
+    Test1Ecosystem(; seed = nothing)
+
+Build a small test ecosystem. If `seed` is supplied, the initial per-species
+abundance totals and the per-species simulation RNGs are both made deterministic,
+so the whole run is reproducible regardless of the number of threads.
+"""
+function Test1Ecosystem(; seed = nothing)
     numSpecies = 150
     numNiches = 2
 
@@ -26,6 +34,8 @@ function Test1Ecosystem()
     totalK = 1000000.0 * kJ / km^2 * numSpecies
     abenv = simplenicheAE(numNiches, grid, totalK, area)
 
+    # Seed the global RNG so the initial abundance totals are also deterministic
+    isnothing(seed) || Random.seed!(seed)
     abun = rand(Multinomial(individuals, numSpecies))
 
     kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
@@ -36,7 +46,8 @@ function Test1Ecosystem()
                        native)
 
     rel = Match{eltype(abenv.habitat)}()
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = isnothing(seed) ? Ecosystem(sppl, abenv, rel) :
+          Ecosystem(sppl, abenv, rel; seed = seed)
     return eco
 end
 

@@ -5,6 +5,14 @@ using Optim
 using Calculus
 
 import Base.show
+
+"""
+    varcovar(tree::AbstractTree)
+
+Compute the phylogenetic variance-covariance matrix from the branch lengths of
+`tree`. The diagonal entries are the root-to-tip distances and the off-diagonal
+entries are the shared root-to-ancestor distances between pairs of tips.
+"""
 function varcovar(tree::AbstractTree)
     tips = collect(nodenamefilter(isleaf, tree))
     root = collect(nodenamefilter(isroot, tree))[1]
@@ -22,7 +30,7 @@ function varcovar(tree::AbstractTree)
     return V
 end
 
-mutable struct Brownian
+struct Brownian
     optimum::AbstractArray
     se::AbstractArray
     H::AbstractMatrix
@@ -41,6 +49,14 @@ function show(io::IO, m::Brownian)
                  "log-likelihood = $roundedLL")
 end
 
+"""
+    fitBrownian(tree::AbstractTree, traits::Vector{F}) where F <: AbstractFloat
+
+Fit a Brownian motion model of trait evolution to `traits` measured at the tips
+of `tree`. Returns a `Brownian` object containing the maximum likelihood
+estimates of the diffusion rate `σ²` and root state `z̄₀`, their standard
+errors, the Hessian, and the log-likelihood.
+"""
 function fitBrownian(tree::AbstractTree,
                      traits::Vector{F} where {F <: AbstractFloat})
     tips = collect(nodenamefilter(isleaf, tree))
@@ -57,7 +73,7 @@ function fitBrownian(tree::AbstractTree,
     return Brownian(opts, se, H, logL)
 end
 
-mutable struct Lambda
+struct Lambda
     optimum::AbstractArray
     se::AbstractArray
     H::AbstractMatrix
@@ -78,6 +94,14 @@ function show(io::IO, m::Lambda)
                  "log-likelihood = $roundedLL")
 end
 
+"""
+    fitLambda(tree::AbstractTree, traits::Vector{F}) where F <: AbstractFloat
+
+Fit Pagel's lambda model of trait evolution to `traits` measured at the tips of
+`tree`. Returns a `Lambda` object containing the maximum likelihood estimates of
+`σ²`, root state `z̄₀`, and phylogenetic signal `λ`, their standard errors, the
+Hessian, and the log-likelihood.
+"""
 function fitLambda(tree::AbstractTree,
                    traits::Vector{F} where {F <: AbstractFloat})
     tips = collect(nodenamefilter(isleaf, tree))
@@ -91,7 +115,8 @@ function fitLambda(tree::AbstractTree,
                 transpose(traits - x[2] * O) * inv(x[1] * V) *
                 (traits - x[2] * O))
     end
-    result = optimize(x -> LL(x, n, V, traits), [0.1, 0.1, 0.2],
+    result = optimize(x -> LL(x, n, V, traits),
+                      [0.1, 0.1, 0.2],
                       [exp(-100), -Inf, 0.0],
                       [Inf, Inf, 1.0])
     opts = Optim.minimizer(result)
