@@ -148,8 +148,8 @@ export populate!,
 
 include("Helper.jl")
 export simulate!,
-       simulate_record!, simulate_record_diversity!, expected_counts,
-       generate_storage
+       simulate_action!, simulate_record!, simulate_record_diversity!,
+       expected_counts, generate_storage
 
 include("Cache.jl")
 export abundances, clearcache

@@ -39,6 +39,17 @@ end
                                "testrun")
         rm("data", recursive = true)
     end
+    @testset "simulate_action" begin
+        # The generic action engine fires the callback once per interval, passing
+        # the 1-based occurrence index, and returns the advanced ecosystem.
+        eco2 = Test1Ecosystem()
+        counts = Int[]
+        result = simulate_action!(eco2, times, interval, timestep) do counting
+            push!(counts, counting)
+        end
+        @test counts == collect(1:length((0.0month):interval:times))
+        @test result === eco2
+    end
     @testset "scenarios" begin
         # Run with scenarios
         eco = TestMultiEcosystem()
