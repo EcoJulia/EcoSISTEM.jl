@@ -32,7 +32,14 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     params = eco.spplist.params
     # Set the overall energy budget of that square
     EcoSISTEM.update_energy_usage!(eco)
-    MPI.Allgatherv!(MPI.VBuffer(eco.cache.totalE, eco.sccounts), comm)
+    # Share per-cell energy usage across ranks. `totalE` is (numsc, numrequirements)
+    # and each rank owns a contiguous block of cells (rows); gather one requirement
+    # column at a time so that multi-requirement environments (where the columns
+    # are not contiguous in the flat buffer) are combined correctly.
+    for r in axes(eco.cache.totalE, 2)
+        MPI.Allgatherv!(MPI.VBuffer(view(eco.cache.totalE, :, r), eco.sccounts),
+                        comm)
+    end
     eco.cache.valid = true
 
     # Loop through species in chosen square
