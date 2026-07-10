@@ -19,7 +19,7 @@ availability. `l` represents the longevity of species based on their energy
 requirements and `s` is the survival of species dependent on how well their
 traits reflect the environment.
 """
-mutable struct PopGrowth{U <: Unitful.Units} <: AbstractParams
+struct PopGrowth{U <: Unitful.Units} <: AbstractParams
     birth::Vector{TimeUnitType{U}}
     death::Vector{TimeUnitType{U}}
     longevity::Float64
@@ -47,7 +47,7 @@ traits reflect the environment. Finally `boost` is used to manipulate how much
 of a boost the species get from being in an environment with lots of available
 energy.
 """
-mutable struct EqualPop{U <: Unitful.Units} <: AbstractParams
+struct EqualPop{U <: Unitful.Units} <: AbstractParams
     birth::TimeUnitType{U}
     death::TimeUnitType{U}
     longevity::Float64
@@ -55,7 +55,7 @@ mutable struct EqualPop{U <: Unitful.Units} <: AbstractParams
     boost::Float64
 end
 
-mutable struct NoGrowth{U <: Unitful.Units} <: AbstractParams
+struct NoGrowth{U <: Unitful.Units} <: AbstractParams
     birth::Vector{TimeUnitType{U}}
     death::Vector{TimeUnitType{U}}
     longevity::Float64

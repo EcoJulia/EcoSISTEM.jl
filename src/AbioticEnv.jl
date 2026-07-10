@@ -41,7 +41,7 @@ Abiotic environment type holding a `habitat` of type `H`, a boolean `active`
 matrix indicating which grid cells are accessible, a `budget` of type `B`
 representing available resources, and a vector of `names` for each subcommunity.
 """
-mutable struct GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
+struct GridAbioticEnv{H, B} <: AbstractAbiotic{H, B}
     habitat::H
     active::Matrix{Bool}
     budget::B
