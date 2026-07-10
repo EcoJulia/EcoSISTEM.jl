@@ -4,7 +4,7 @@
     "applicationCategory": "ecology",
     "codeRepository": "https://github.com/EcoJulia/EcoSISTEM.jl",
     "dateCreated": "2016-11-29",
-    "dateModified": "2026-07-09",
+    "dateModified": "2026-07-10",
     "datePublished": "2021-04-20",
     "description": "Package for running dynamic ecosystem simulations in Julia",
     "downloadUrl": "https://github.com/EcoJulia/EcoSISTEM.jl/archive/refs/tags/v0.3.0.tar.gz",
