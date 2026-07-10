@@ -16,23 +16,25 @@ function checkfile(::String, ::Missing)
 end
 
 """
-    checkfile(file::String, tm::Int)
+    checkfile(file::String, idx::Int)
 
-Check whether a JLD2 cache file exists in the folder `file` for timestep `tm`.
-Returns `true` if a matching file is found.
+Check whether a JLD2 checkpoint file exists in the folder `file` for checkpoint
+index `idx`. Returns `true` if `<idx>.jld2` is present.
 """
-function checkfile(file::String, tm::Int)
-    return !isempty(searchdir(file, string(tm, ".jld2")))
+function checkfile(file::String, idx::Int)
+    return isfile(joinpath(file, string(idx, ".jld2")))
 end
 
 """
-    loadfile(file::String, tm::Int, dim::Tuple)
+    loadfile(cache::CachedEcosystem, file::String, idx::Int, dim::Tuple)
 
-Load a cached [`GridLandscape`](@ref) from the folder `file` for timestep `tm`,
-reshaping the abundance matrix to dimensions `dim`.
+Load a cached [`GridLandscape`](@ref) from the folder `file` for checkpoint index
+`idx`, reshaping the abundance matrix to dimensions `dim`. The saved per-species
+RNG streams are restored into `cache.rngs` so the resumed run continues a
+reproducible random stream.
 """
-function loadfile(file::String, tm::Int, dim::Tuple)
-    @load joinpath(file, searchdir(file, string(tm, ".jld2"))[1]) abuns
+function loadfile(cache::CachedEcosystem, file::String, idx::Int, dim::Tuple)
+    @load joinpath(file, string(idx, ".jld2")) abuns
     # Restore the per-species RNG streams for a reproducible resumed run
     cache.rngs .= copy.(abuns.rngs)
     return GridLandscape(abuns, dim)
@@ -53,29 +55,36 @@ function clearcache(cache::CachedEcosystem)
 end
 
 function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
-    yr = mod(tm, 1year) == 0year ? Int(ustrip(uconvert(year, tm))) : missing
+    timestep = cache.abundances.timestep
+    saveinterval = cache.abundances.saveinterval
+    # Checkpoints are written to disk only at multiples of `saveinterval`,
+    # indexed by how many save intervals have elapsed; the simulation itself
+    # always advances by `timestep`, so results are independent of `saveinterval`.
+    issave = iszero(mod(tm, saveinterval))
+    idx = issave ? Int(round(uconvert(NoUnits, tm / saveinterval))) : missing
     if ismissing(cache.abundances.matrix[tm])
-        if checkfile(cache.abundances.outputfolder, yr)
-            cache.abundances.matrix[tm] = loadfile(cache.abundances.outputfolder,
-                                                   yr,
+        if checkfile(cache.abundances.outputfolder, idx)
+            cache.abundances.matrix[tm] = loadfile(cache,
+                                                   cache.abundances.outputfolder,
+                                                   idx,
                                                    (length(cache.spplist.names),
                                                     _getdimension(cache.abenv.habitat)...))
             return tm, cache.abundances.matrix[tm]
         else
-            newtm, abun = _abundances(cache, tm - cache.abundances.saveinterval)
-            if (newtm > 2 * cache.abundances.saveinterval)
-                cache.abundances.matrix[(newtm - 2 * cache.abundances.saveinterval)] = missing
+            newtm, abun = _abundances(cache, tm - timestep)
+            if (newtm > 2 * timestep)
+                cache.abundances.matrix[(newtm - 2 * timestep)] = missing
             end
         end
     else
         return tm, cache.abundances.matrix[tm]
     end
-    simulate!(cache, newtm, cache.abundances.saveinterval)
-    if !ismissing(yr)
-        @save joinpath(cache.abundances.outputfolder, string(yr, ".jld2")) abuns=SavedLandscape(cache.abundances.matrix[tm],
+    simulate!(cache, newtm, timestep)
+    if issave
+        @save joinpath(cache.abundances.outputfolder, string(idx, ".jld2")) abuns=SavedLandscape(cache.abundances.matrix[tm],
                                                                                                  cache.rngs)
     end
-    return _abundances(cache, newtm + cache.abundances.saveinterval)
+    return _abundances(cache, newtm + timestep)
 end
 
 """
