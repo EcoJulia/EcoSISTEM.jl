@@ -198,37 +198,54 @@ end
 
 """
     energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, sp::Int64)
+
 Calculate how much birth and death rates should be adjusted by, according to how
 much energy is available, `bud`, in the grid square, `i`, and how much energy
 the species, `sp`, requires.
 """
 function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget,
                            i::Int64, sp::Int64)
-    if typeof(eco.spplist.params) <: NoGrowth
-        return 0.0, 0.0
-    else
-        width = getdimension(eco)[1]
-        (x, y) = convert_coords(eco, i, width)
-        params = eco.spplist.params
-        K = getbudget(eco)[x, y] * eco.spplist.requirement.exchange_rate
-        # Get energy budgets of species in square
-        ϵ̄ = eco.spplist.requirement.energy[sp] *
-            eco.spplist.requirement.exchange_rate
-        E = eco.cache.totalE[i, 1]
-        # Traits
-        ϵ̄real = 1 / traitfun(eco, i, sp)
-        # Alter rates by energy available in current pop & own requirements
-        birth_energy = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
-                       min(K / E, params.boost)
-        death_energy = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
-    end
+    # NoGrowth freezes the population
+    eco.spplist.params isa NoGrowth && return (0.0, 0.0)
+
+    # Otherwise adjust birth/death rates by the available energy.
+    return _energy_adjustment(eco, bud, i, sp)
+end
+
+# Birth and death rate multipliers for a single-requirement environment. Weighs
+# the species' own energy requirement (`ϵ̄`) and how well its traits match the cell
+# (`ϵ̄real`) against the energy available in the cell (`K`) relative to the total
+# demand there (`E`): births are boosted when energy is plentiful (`K/E`, capped at
+# `params.boost`) and deaths rise as demand approaches the budget (`E/K`). Called
+# only for growing populations — [`energy_adjustment`](@ref) short-circuits NoGrowth.
+function _energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget,
+                            i::Int64, sp::Int64)
+    params = eco.spplist.params
+    width = getdimension(eco)[1]
+    (x, y) = convert_coords(eco, i, width)
+    K = getbudget(eco)[x, y] * eco.spplist.requirement.exchange_rate
+    # Get energy budgets of species in square
+    ϵ̄ = eco.spplist.requirement.energy[sp] *
+        eco.spplist.requirement.exchange_rate
+    E = eco.cache.totalE[i, 1]
+    # Traits
+    ϵ̄real = 1 / traitfun(eco, i, sp)
+    # Alter rates by energy available in current pop & own requirements
+    birth_energy = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
+                   min(K / E, params.boost)
+    death_energy = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
     return birth_energy, death_energy
 end
 
-function energy_adjustment(eco::AbstractEcosystem,
-                           bud::BudgetCollection2,
-                           i::Int64,
-                           sp::Int64)
+# As above but for a two-requirement environment (e.g. solar energy and water),
+# combining the two budgets. The species is limited by whichever resource is
+# scarcest: births use the `min` of the two availability ratios (`K1/E1`, `K2/E2`,
+# still capped at `params.boost`) and deaths the `max` of the two demand ratios
+# (`E1/K1`, `E2/K2`), so both requirements must be met for the population to grow.
+function _energy_adjustment(eco::AbstractEcosystem,
+                            bud::BudgetCollection2,
+                            i::Int64,
+                            sp::Int64)
     width = getdimension(eco)[1]
     (x, y) = convert_coords(eco, i, width)
     params = eco.spplist.params

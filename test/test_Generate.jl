@@ -4,6 +4,7 @@ module TestGenerate
 
 using EcoSISTEM
 using Test
+using Unitful
 using Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
@@ -39,6 +40,45 @@ include("TestCases.jl")
     @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.abenv, eco.spplist),
                            eco.spplist, eco.abenv, eco.relationship, eco.rngs)
     @test_nowarn repopulate!(eco)
+end
+
+@testset "NoGrowth freezes with one or two budgets" begin
+    # NoGrowth must zero the birth/death adjustment regardless of how many energy
+    # budgets the environment has (the two-budget path previously skipped it).
+    N = 8
+    grid = (4, 4)
+    area = 100.0km^2
+    birth = 0.1 / month
+    nogrowth = NoGrowth{typeof(unit(birth))}(fill(birth, N), fill(birth, N),
+                                             1.0, 0.0, 1.0)
+    traits = GaussTrait(fill(274.0K, N), fill(0.5K, N))
+    movement = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1.0e-3), N))
+    native = fill(true, N)
+    abun = fill(10, N)
+    rel = Gauss{typeof(1.0K)}()
+
+    # single budget
+    sppl1 = SpeciesList(N, traits, abun, SolarRequirement(fill(10.0kJ, N)),
+                        movement, nogrowth, native)
+    abenv1 = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
+    eco1 = Ecosystem(sppl1, abenv1, rel)
+    @test EcoSISTEM.energy_adjustment(eco1, eco1.abenv.budget, 1, 1) ==
+          (0.0, 0.0)
+
+    # two budgets (the previously-buggy path)
+    energy2 = ReqCollection2(SolarRequirement(fill(10.0kJ, N)),
+                             WaterRequirement(fill(2.0mm, N)))
+    sppl2 = SpeciesList(N, traits, abun, energy2, movement, nogrowth, native)
+    aenv1 = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
+    aenv2 = simplehabitatAE(274.0K, grid, 10.0mm / km^2, area)
+    budget = BudgetCollection2(aenv1.budget, aenv2.budget)
+    abenv2 = GridAbioticEnv{typeof(aenv1.habitat), typeof(budget)}(aenv1.habitat,
+                                                                   aenv1.active,
+                                                                   budget,
+                                                                   aenv1.names)
+    eco2 = Ecosystem(sppl2, abenv2, rel)
+    @test EcoSISTEM.energy_adjustment(eco2, eco2.abenv.budget, 1, 1) ==
+          (0.0, 0.0)
 end
 
 @testset "Multithreaded reproducibility" begin
