@@ -125,12 +125,26 @@ end
         @test success(run(cmd()))
     end
 
-    ## All answers should be the same
-    abuns1thread = @load "data/Test_abuns1.jld2" abuns
-    abuns2thread = @load "data/Test_abuns2.jld2" abuns
-    abuns4thread = @load "data/Test_abuns4.jld2" abuns
+    ## All answers should be the same across process/thread splits. Load the
+    ## saved values (note: `@load file var` binds `var` but returns the symbol
+    ## list, so use `load(file, "abuns")` to get the data itself).
+    abuns1thread = load("data/Test_abuns1.jld2", "abuns")
+    abuns2thread = load("data/Test_abuns2.jld2", "abuns")
+    abuns4thread = load("data/Test_abuns4.jld2", "abuns")
 
     @test abuns1thread == abuns2thread == abuns4thread
+
+    ## Same-config repeatability: rerun the 2-thread/2-process config and confirm
+    ## it reproduces its own earlier result. Together with the cross-config test
+    ## above, a failure here distinguishes "not reproducible at all" from "not
+    ## reproducible across configurations".
+    withenv("JULIA_NUM_THREADS" => "2") do
+        nprocs = 2
+        cmd = `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(EcoSISTEM.path("SmallMPItest.jl"))`
+        @test success(run(cmd))
+    end
+    abuns2thread_rerun = load("data/Test_abuns2.jld2", "abuns")
+    @test abuns2thread == abuns2thread_rerun
 end
 
 # Clean up outputs
