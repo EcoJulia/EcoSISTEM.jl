@@ -4,6 +4,13 @@
   - Tidying up and adding missing documentation
   - Fix race condition in multithreaded code post Julia 1.9
   - Update compats
+  - Add tests for CachedEcosystem reproducibility
+  - Add tests for MPIEcosystem reproducibility
+  - Make MPIEcosystem reproducible
+  - Add tests that CachedEcosystem and MPIEcosystem match Ecosystem
+  - Refactor to condense some repeated code
+  - Fix bug in NoGrowth energy use for multiple energy budgets
+  - Fix bug in MPI use of multiple energy budgets
 - v0.2.6
   - Compat fixes and resolve Pluto notebook error
 - v0.2.5
