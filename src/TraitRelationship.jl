@@ -19,7 +19,7 @@ The Gaussian relationship between a continuous trait and its environment,
 paramaterised on any TR.
 
 """
-mutable struct Gauss{TR} <: AbstractTraitRelationship{TR} end
+struct Gauss{TR} <: AbstractTraitRelationship{TR} end
 
 function (::Gauss{TR})(current::TR, opt::TR, var::TR) where {TR}
     pref = (1.0) / sqrt(2 * π * var^2) *
@@ -38,7 +38,7 @@ The relationship between a continuous trait and its environment, paramaterised
 on any TR.
 
 """
-mutable struct Trapeze{TR} <: AbstractTraitRelationship{TR} end
+struct Trapeze{TR} <: AbstractTraitRelationship{TR} end
 
 function (::Trapeze{TR})(dist::Trapezoid, current::TR) where {TR}
     return pdf(dist, ustrip(current))
@@ -55,7 +55,7 @@ The relationship between a continuous trait and its environment, paramaterised
 on any TR.
 
 """
-mutable struct Unif{TR} <: AbstractTraitRelationship{TR} end
+struct Unif{TR} <: AbstractTraitRelationship{TR} end
 
 function (::Unif{TR})(dist::Uniform, current::TR) where {TR}
     return pdf(dist, uconvert(NoUnits, current / mm))
@@ -73,7 +73,7 @@ any TR. Current conditions are matched to a trait preference and checked for a
 match.
 
 """
-mutable struct Match{TR} <: AbstractTraitRelationship{TR} end
+struct Match{TR} <: AbstractTraitRelationship{TR} end
 
 function (::Match{TR})(niche::TR, pref::TR) where {TR}
     if niche == pref
@@ -87,7 +87,7 @@ iscontinuous(tr::Match{TR}) where {TR} = false
 
 eltype(tr::Match{TR}) where {TR} = TR
 
-mutable struct LCmatch{TR} <: AbstractTraitRelationship{TR} end
+struct LCmatch{TR} <: AbstractTraitRelationship{TR} end
 
 function (::LCmatch{TR})(niche::TR, pref::Vector{TR}) where {TR}
     if niche in pref
@@ -108,7 +108,7 @@ The absense of a relationship between a continuous trait and its environment,
 paramaterised on any TR. Returns the value 1.
 
 """
-mutable struct NoRelContinuous{TR} <: AbstractTraitRelationship{TR} end
+struct NoRelContinuous{TR} <: AbstractTraitRelationship{TR} end
 
 function (::NoRelContinuous{TR})(::TR, ::TR, ::TR) where {TR}
     return 1.0
@@ -125,7 +125,7 @@ The absense of a relationship between a discrete trait and its environment,
 paramaterised on any TR. Returns the value 1.
 
 """
-mutable struct NoRelDiscrete{TR} <: AbstractTraitRelationship{TR} end
+struct NoRelDiscrete{TR} <: AbstractTraitRelationship{TR} end
 
 function (::NoRelDiscrete{TR})(::TR, ::TR) where {TR}
     return 1.0
@@ -142,8 +142,8 @@ Type that houses multiple AbstractTraitRelationships for two trait and habitat
 levels.
 
 """
-mutable struct multiplicativeTR2{TR1, TR2} <:
-               AbstractTraitRelationship{Tuple{TR1, TR2}}
+struct multiplicativeTR2{TR1, TR2} <:
+       AbstractTraitRelationship{Tuple{TR1, TR2}}
     tr1::TR1
     tr2::TR2
 end
@@ -162,8 +162,8 @@ Type that houses multiple AbstractTraitRelationships for three trait and habitat
 levels.
 
 """
-mutable struct multiplicativeTR3{TR1, TR2, TR3} <:
-               AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
+struct multiplicativeTR3{TR1, TR2, TR3} <:
+       AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
     tr1::TR1
     tr2::TR2
     tr3::TR3
@@ -185,8 +185,8 @@ Type that houses multiple AbstractTraitRelationships for two trait and habitat
 levels.
 
 """
-mutable struct additiveTR2{TR1, TR2} <:
-               AbstractTraitRelationship{Tuple{TR1, TR2}}
+struct additiveTR2{TR1, TR2} <:
+       AbstractTraitRelationship{Tuple{TR1, TR2}}
     tr1::TR1
     tr2::TR2
 end
@@ -206,8 +206,8 @@ Type that houses multiple AbstractTraitRelationships for three trait and habitat
 levels.
 
 """
-mutable struct additiveTR3{TR1, TR2, TR3} <:
-               AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
+struct additiveTR3{TR1, TR2, TR3} <:
+       AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
     tr1::TR1
     tr2::TR2
     tr3::TR3

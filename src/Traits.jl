@@ -17,13 +17,13 @@ eltype(::AbstractTraits{D}) where {D} = D
 Basic trait type that holds information on a single trait for each species, of
 any type `T`.
 """
-mutable struct DiscreteTrait{D} <: AbstractTraits{D}
+struct DiscreteTrait{D} <: AbstractTraits{D}
     val::Vector{D}
 end
 
 iscontinuous(trait::DiscreteTrait) = false
 
-mutable struct LCtrait{D <: Number} <: AbstractTraits{D}
+struct LCtrait{D <: Number} <: AbstractTraits{D}
     vals::Vector{Vector{D}}
 end
 
@@ -81,7 +81,7 @@ abstract type ContinuousTrait{C <: Number} <: AbstractTraits{C} end
 Trait type that holds Gaussian mean and variance trait information for each
 species, of any number type `C`.
 """
-mutable struct GaussTrait{C <: Number} <: ContinuousTrait{C}
+struct GaussTrait{C <: Number} <: ContinuousTrait{C}
     mean::Vector{C}
     var::Vector{C}
 end
@@ -101,7 +101,7 @@ end
 Trait type that holds binned temperature preference information created through
 ClimatePref. Holds an array of counts per temperature band (°C).
 """
-mutable struct TempBin{C <: Int} <: ContinuousTrait{C}
+struct TempBin{C <: Int} <: ContinuousTrait{C}
     dist::Matrix{C}
 end
 
@@ -115,7 +115,7 @@ eltype(::TempBin) = typeof(1.0K)
 Trait type that holds binned rainfall preference information created through
 ClimatePref. Holds an array of counts per rainfall band (mm).
 """
-mutable struct RainBin{C <: Int} <: ContinuousTrait{C}
+struct RainBin{C <: Int} <: ContinuousTrait{C}
     dist::Matrix{C}
 end
 
@@ -128,7 +128,7 @@ eltype(::RainBin) = typeof(1.0mm)
 
 Trait collection that holds two trait types, `TR1` and `TR2`.
 """
-mutable struct TraitCollection2{T1, T2} <: AbstractTraits{Tuple{T1, T2}}
+struct TraitCollection2{T1, T2} <: AbstractTraits{Tuple{T1, T2}}
     t1::T1
     t2::T2
 end
@@ -144,7 +144,7 @@ eltype(trait::TraitCollection2) = [eltype(trait.t1), eltype(trait.t2)]
 
 Trait collection that holds three trait types, `TR1`, `TR2` and `TR3`.
 """
-mutable struct TraitCollection3{T1, T2, T3} <: AbstractTraits{Tuple{T1, T2, T3}}
+struct TraitCollection3{T1, T2, T3} <: AbstractTraits{Tuple{T1, T2, T3}}
     t1::T1
     t2::T2
     t3::T3
