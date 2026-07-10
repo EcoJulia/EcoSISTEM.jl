@@ -55,7 +55,7 @@ Stores the update rule for a habitat. `changefun` is the function applied to the
 habitat matrix at each timestep, and `rate` is the rate of change with
 appropriate units.
 """
-mutable struct HabitatUpdate{F <: Function, DT}
+struct HabitatUpdate{F <: Function, DT}
     changefun::F
     rate::DT
 end
@@ -222,7 +222,7 @@ end
 Composite habitat pairing two sub-habitats `h1` and `h2`, allowing
 multi-variable abiotic environments (e.g. temperature and rainfall together).
 """
-mutable struct HabitatCollection2{H1, H2} <: AbstractHabitat{Tuple{H1, H2}}
+struct HabitatCollection2{H1, H2} <: AbstractHabitat{Tuple{H1, H2}}
     h1::H1
     h2::H2
 end
@@ -255,8 +255,8 @@ end
 
 Composite habitat combining three sub-habitats `h1`, `h2`, and `h3`.
 """
-mutable struct HabitatCollection3{H1, H2, H3} <:
-               AbstractHabitat{Tuple{H1, H2, H3}}
+struct HabitatCollection3{H1, H2, H3} <:
+       AbstractHabitat{Tuple{H1, H2, H3}}
     h1::H1
     h2::H2
     h3::H3
