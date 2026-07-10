@@ -16,7 +16,7 @@ GaussianMovement holds parameters for a gaussian movement kernel; a dispersal
 variance for a species, `var`, and a threshold, `thresh`, beyond which dispersal
 cannot take place.
 """
-mutable struct GaussianKernel <: AbstractKernel
+struct GaussianKernel <: AbstractKernel
     dist::Unitful.Length{Float64}
     thresh::Float64
 
@@ -34,7 +34,7 @@ LongTailKernel holds parameters for a movement kernel; a dispersal variance for
 a species, `var`, and a threshold, `thresh`, beyond which dispersal cannot take
 place.
 """
-mutable struct LongTailKernel <: AbstractKernel
+struct LongTailKernel <: AbstractKernel
     dist::Unitful.Length{Float64}
     shape::Float64
     thresh::Float64
@@ -59,27 +59,27 @@ abstract type BoundaryCondition end
 
 A cylindrical boundary where species can cross the x boundary but not the y.
 """
-mutable struct Cylinder <: BoundaryCondition end
+struct Cylinder <: BoundaryCondition end
 """
     Torus <: BoundaryCondition
 
 A toroidal boundary where species can cross both boundaries.
 """
-mutable struct Torus <: BoundaryCondition end
+struct Torus <: BoundaryCondition end
 """
     NoBoundary <: BoundaryCondition
 
 A hard boundary where no species can cross.
 """
-mutable struct NoBoundary <: BoundaryCondition end
+struct NoBoundary <: BoundaryCondition end
 
 """
     BirthOnlyMovement{K <: AbstractKernel, B <: BoundaryCondition} <: AbstractMovement
 
 Movement can only happen to individuals that have just been born ("plant-like").
 """
-mutable struct BirthOnlyMovement{K <: AbstractKernel, B <: BoundaryCondition} <:
-               AbstractMovement
+struct BirthOnlyMovement{K <: AbstractKernel, B <: BoundaryCondition} <:
+       AbstractMovement
     kernels::Vector{K}
     boundary::B
 end
@@ -94,8 +94,8 @@ end
 
 Movement can happen to any individual ("animal-like").
 """
-mutable struct AlwaysMovement{K <: AbstractKernel, B <: BoundaryCondition} <:
-               AbstractMovement
+struct AlwaysMovement{K <: AbstractKernel, B <: BoundaryCondition} <:
+       AbstractMovement
     kernels::Vector{K}
     boundary::B
 end
@@ -110,7 +110,7 @@ end
 
 No movement can take place.
 """
-mutable struct NoMovement{K <: AbstractKernel} <: AbstractMovement
+struct NoMovement{K <: AbstractKernel} <: AbstractMovement
     kernels::Vector{K}
 end
 
