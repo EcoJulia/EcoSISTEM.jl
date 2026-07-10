@@ -52,7 +52,7 @@ Type that houses data extracted from ERA raster files.
 struct ERA{A <: AxisArray} <: AbstractClimate
     array::A
     function ERA(array::A) where {A <: AxisArray}
-        typeof(collect(AxisArrays.axes(array, 3).val)[1]) <: Unitful.Time ||
+        collect(AxisArrays.axes(array, 3).val)[1] isa Unitful.Time ||
             error("Third dimension of array must be time")
         return new{A}(array)
     end
@@ -66,7 +66,7 @@ Type that houses data extracted from CERA-20C raster files.
 mutable struct CERA{A <: AxisArray} <: AbstractClimate
     array::A
     function CERA(array::A) where {A <: AxisArray}
-        typeof(collect(AxisArrays.axes(array, 3).val)[1]) <: Unitful.Time ||
+        collect(AxisArrays.axes(array, 3).val)[1] isa Unitful.Time ||
             error("Third dimension of array must be time")
         return new{A}(array)
     end
@@ -89,7 +89,7 @@ Type that houses data extracted from CRUTS raster files.
 struct CRUTS{A <: AxisArray} <: AbstractClimate
     array::A
     function CRUTS(array::A) where {A <: AxisArray}
-        typeof(collect(AxisArrays.axes(array, 3).val)[1]) <: Unitful.Time ||
+        collect(AxisArrays.axes(array, 3).val)[1] isa Unitful.Time ||
             error("Third dimension of array must be time")
         return new{A}(array)
     end

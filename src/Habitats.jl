@@ -70,7 +70,7 @@ function HabitatUpdate(changefun::F,
                        rate::DT,
                        ::Type{D}) where {F <: Function, DT,
                                          D <: Unitful.Dimensions}
-    typeof(dimension(rate * 1month)) <: D ||
+    dimension(rate * 1month) isa D ||
         error("Failed to match types $(rate * 1month) vs $D")
     return HabitatUpdate(changefun, rate)
 end

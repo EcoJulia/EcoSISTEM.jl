@@ -568,7 +568,7 @@ function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
                          maxbud::Unitful.Quantity{Float64},
                          area::Unitful.Area{Float64},
                          active::Matrix{Bool})
-    if typeof(val) <: Unitful.Temperature
+    if val isa Unitful.Temperature
         val = uconvert(K, val)
     end
     area = uconvert(km^2, area)

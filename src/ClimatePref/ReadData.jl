@@ -212,7 +212,7 @@ function readERA(dir::String, param::String,
     array = array .* scale_factor .+ add_offset
 
     # If temperature param, need to convert from Kelvin
-    #if typeof(units) <: Unitful.TemperatureUnits
+    #if units isa Unitful.TemperatureUnits
     #    array = uconvert.(°C, array)
     #end
     if any(lon .== 180)
@@ -232,7 +232,7 @@ end
 
 """
     readERA(dir::String, file::String, param::String, dim::Vector{Vector{T}})
-        where T<: Unitful.Time
+        where T <: Unitful.Time
 
 Extract a certain parameter, `param`, from a directory, `dir`, containing ERA
 netcdf files, for a certain timerange, `dim`, and convert into an axis array.
