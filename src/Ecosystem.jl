@@ -7,8 +7,29 @@ using Unitful
 using EcoSISTEM.Units
 using Missings
 using RecipesBase
+using Random
 
 using Diversity.API: _calcabundance
+
+"""
+    makerngs(seed::Integer, n::Integer)
+
+Build a vector of `n` independent, deterministically-seeded random number
+generators, one per species. Species `j` is seeded as `Xoshiro(hash((seed, j)))`
+so its random stream is a pure function of `(seed, j)` — independent of how
+species are distributed across threads or MPI processes. This is what makes
+simulation results reproducible across different thread and process counts (each
+species is always processed by exactly one task on one rank, drawing in a fixed
+cell order). See [`getrng`](@ref).
+
+Note: this per-species scheme is sufficient only because no single species' draws
+are ever split across ranks/tasks. If a species' cells were ever partitioned
+across ranks, a per-`(species, cell)` counter-based generator would be needed
+instead.
+"""
+function makerngs(seed::Integer, n::Integer)
+    return [Random.Xoshiro(hash((seed, j))) for j in 1:n]
+end
 
 """
     Lookup
@@ -20,7 +41,7 @@ are initially empty storage and written over by the movement step in
 directions are available and `moves` is the number of moves to that grid
 location in that step.
 """
-mutable struct Lookup
+struct Lookup
     x::Vector{Int64}
     y::Vector{Int64}
     p::Vector{Float64}
@@ -113,6 +134,7 @@ mutable struct Ecosystem{Part <: AbstractAbiotic,
     relationship::TR
     lookup::Vector{Lookup}
     cache::Cache
+    rngs::Vector{Random.Xoshiro}
 
     function Ecosystem{Part, SL, TR}(abundances::GridLandscape,
                                      spplist::SL,
@@ -121,11 +143,13 @@ mutable struct Ecosystem{Part <: AbstractAbiotic,
                                                          Missing},
                                      relationship::TR,
                                      lookup::Vector{Lookup},
-                                     cache::Cache) where {Part <:
-                                                          AbstractAbiotic,
-                                                          SL <: SpeciesList,
-                                                          TR <:
-                                                          AbstractTraitRelationship}
+                                     cache::Cache,
+                                     rngs::Vector{Random.Xoshiro}) where {Part <:
+                                                                          AbstractAbiotic,
+                                                                          SL <:
+                                                                          SpeciesList,
+                                                                          TR <:
+                                                                          AbstractTraitRelationship}
         tematch(spplist, abenv) || error("Traits do not match habitats")
         trmatch(spplist, relationship) ||
             error("Traits do not match trait functions")
@@ -137,7 +161,8 @@ mutable struct Ecosystem{Part <: AbstractAbiotic,
                                  ordinariness,
                                  relationship,
                                  lookup,
-                                 cache)
+                                 cache,
+                                 rngs)
     end
 end
 
@@ -170,20 +195,28 @@ end
 
 Create an `Ecosystem` given a species list, an abiotic environment and trait
 relationship. An optional population function can be added, `popfun`, which
-defaults to generic random filling of the ecosystem.
+defaults to generic random filling of the ecosystem. A `seed` may be supplied to
+make the run reproducible: it deterministically seeds one random number
+generator per species (see [`makerngs`](@ref)), so results are identical
+regardless of the number of threads used. If no `seed` is given, one is drawn at
+random.
 """
 function Ecosystem(popfun::F,
                    spplist::SpeciesList{T, Req},
                    abenv::GridAbioticEnv,
-                   rel::AbstractTraitRelationship) where {F <: Function, T, Req}
+                   rel::AbstractTraitRelationship;
+                   seed::Integer = rand(UInt64)) where {F <: Function, T, Req}
 
     # Check there is enough energy to support number of individuals at set up
     #all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
     #error("Environment does not have enough energy to support species")
     # Create matrix landscape of zero abundances
     ml = emptygridlandscape(abenv, spplist)
+    # One deterministically-seeded RNG per species, so births/deaths/dispersal
+    # and the initial population draw are reproducible across thread counts
+    rngs = makerngs(seed, size(ml.matrix, 1))
     # Populate this matrix with species abundances
-    popfun(ml, spplist, abenv, rel)
+    popfun(ml, spplist, abenv, rel, rngs)
     # Create lookup table of all moves and their probabilities
     lookup_tab = collect(map(k -> genlookups(abenv.habitat, k),
                              getkernels(spplist.movement)))
@@ -197,13 +230,15 @@ function Ecosystem(popfun::F,
                                                                   lookup_tab,
                                                                   Cache(nm,
                                                                         totalE,
-                                                                        false))
+                                                                        false),
+                                                                  rngs)
 end
 
 function Ecosystem(spplist::SpeciesList,
                    abenv::GridAbioticEnv,
-                   rel::AbstractTraitRelationship)
-    return Ecosystem(populate!, spplist, abenv, rel)
+                   rel::AbstractTraitRelationship;
+                   seed::Integer = rand(UInt64))
+    return Ecosystem(populate!, spplist, abenv, rel; seed = seed)
 end
 @doc (@doc Ecosystem) Ecosystem(::SpeciesList,
                                 ::GridAbioticEnv,
@@ -222,6 +257,8 @@ function addspecies!(eco::Ecosystem, abun::Int64)
     eco.abundances.grid = reshape(eco.abundances.matrix,
                                   (counttypes(eco.spplist, true) + 1,
                                    _getdimension(eco.abenv.habitat)...))
+    # Give the new species its own RNG stream, derived from the previous last one
+    push!(eco.rngs, Random.Xoshiro(rand(eco.rngs[end], UInt64)))
     repopulate!(eco, abun)
     push!(eco.spplist.names, string.(counttypes(eco.spplist, true) + 1))
     append!(eco.spplist.abun, abun)
@@ -274,21 +311,29 @@ mutable struct CachedEcosystem{Part <: AbstractAbiotic,
     relationship::TR
     lookup::Vector{Lookup}
     cache::Cache
+    rngs::Vector{Random.Xoshiro}
 end
 
 """
-    CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
+    CachedEcosystem(eco::Ecosystem, outputfile::String, times::StepRangeLen;
+                    saveinterval::Unitful.Time = step(times))
 
-Create a CachedEcosystem given an existing [`Ecosystem`](@ref)`, `eco`, output
+Create a CachedEcosystem given an existing [`Ecosystem`](@ref), `eco`, an output
 folder to which the simulations are saved, `outputfile`, and a range of times
-over which to simulate, `rng`.
+over which to simulate, `times`. The step of `times` is the simulation timestep;
+`saveinterval` controls how often checkpoints are written to disk (a multiple of
+the timestep, defaulting to every step). Because the simulation always advances
+by the timestep, results are independent of `saveinterval`.
 """
-function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
+function CachedEcosystem(eco::Ecosystem, outputfile::String,
+                         times::StepRangeLen;
+                         saveinterval::Unitful.Time = step(times))
     if size(eco.abenv.habitat, 3) > 1
-        size(eco.abenv.habitat, 3) == length(rng) ||
+        size(eco.abenv.habitat, 3) == length(times) ||
             error("Time range does not match habitat")
     end
-    abundances = CachedGridLandscape(outputfile, rng)
+    abundances = CachedGridLandscape(outputfile, times;
+                                     saveinterval = saveinterval)
     abundances.matrix[1] = eco.abundances
     return CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist),
                            typeof(eco.relationship)}(abundances,
@@ -297,7 +342,8 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String, rng::StepRangeLen)
                                                      eco.ordinariness,
                                                      eco.relationship,
                                                      eco.lookup,
-                                                     eco.cache)
+                                                     eco.cache,
+                                                     eco.rngs)
 end
 
 import Diversity.API: _getabundance
@@ -459,6 +505,18 @@ function getlookup(eco::AbstractEcosystem, sp::String)
     return getlookup(eco, num)
 end
 @doc (@doc getlookup) getlookup(::AbstractEcosystem, ::String)
+
+"""
+    getrng(eco::AbstractEcosystem, sp::Int64)
+
+Return the per-species random number generator for global species index `sp`.
+Because each species has its own stream and is processed by exactly one task per
+timestep, random draws are both thread-safe and reproducible independent of the
+number of threads or MPI processes (see [`makerngs`](@ref)).
+"""
+function getrng(eco::AbstractEcosystem, sp::Int64)
+    return eco.rngs[sp]
+end
 
 """
     resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})

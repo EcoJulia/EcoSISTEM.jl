@@ -67,7 +67,7 @@ rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
 @test_nowarn MPIEcosystem(sppl, abenv, rel)
-eco = MPIEcosystem(sppl, abenv, rel)
+eco = MPIEcosystem(sppl, abenv, rel; seed = 0)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
@@ -82,8 +82,9 @@ eco.abundances.rows_matrix .= 0
 @test_nowarn EcoSISTEM.synchronise_from_cols!(eco.abundances)
 @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
-## Set random number seed for reproducible results
-Random.seed!(0)
+## Reproducibility is provided by the per-species RNG streams seeded in the
+## MPIEcosystem constructor (seed = 0 above), independent of the process/thread
+## split; the global RNG is not used by the simulation.
 
 # Simulation Parameters
 burnin = 2years;
@@ -131,7 +132,7 @@ rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
 @test_nowarn MPIEcosystem(sppl, abenv, rel)
-eco = MPIEcosystem(sppl, abenv, rel)
+eco = MPIEcosystem(sppl, abenv, rel; seed = 0)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
@@ -147,8 +148,9 @@ eco.abundances.rows_matrix .= 0
 @test_nowarn EcoSISTEM.synchronise_from_cols!(eco.abundances)
 @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
-## Set random number seed for reproducible results
-Random.seed!(0)
+## Reproducibility is provided by the per-species RNG streams seeded in the
+## MPIEcosystem constructor (seed = 0 above), independent of the process/thread
+## split; the global RNG is not used by the simulation.
 
 # Simulation Parameters
 burnin = 2years;

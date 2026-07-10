@@ -7,6 +7,7 @@ using HCubature
 using Unitful
 using EcoSISTEM.Units
 using Missings
+using Random
 
 """
     MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic,
@@ -36,6 +37,7 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
     sccounts::Vector{Int32}
     firstsc::Int64
     cache::EcoSISTEM.Cache
+    rngs::Vector{Random.Xoshiro}
 
     function MPIEcosystem(abundances::MPIGL,
                           spplist::SL,
@@ -47,7 +49,9 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                           firstsp::Int64,
                           sccounts::Vector,
                           firstsc::Int64,
-                          cache::EcoSISTEM.Cache) where {MPIGL, Part, SL, TR}
+                          cache::EcoSISTEM.Cache,
+                          rngs::Vector{Random.Xoshiro}) where {MPIGL, Part, SL,
+                                                               TR}
         EcoSISTEM.tematch(spplist, abenv) ||
             error("Traits do not match habitats")
         EcoSISTEM.trmatch(spplist, relationship) ||
@@ -64,11 +68,12 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                                         firstsp,
                                         sccounts,
                                         firstsc,
-                                        cache)
+                                        cache,
+                                        rngs)
     end
 end
 
-EcoSISTEM.MPIEcosystem(args...) = MPIEcosystem(args...)
+EcoSISTEM.MPIEcosystem(args...; kwargs...) = MPIEcosystem(args...; kwargs...)
 
 using EcoSISTEM: getkernels, genlookups, numrequirements
 """
@@ -81,12 +86,19 @@ relationship.
 function MPIEcosystem(popfun::F,
                       spplist::EcoSISTEM.SpeciesList{T, Req},
                       abenv::EcoSISTEM.GridAbioticEnv,
-                      rel) where {F <: Function, T, Req}
+                      rel;
+                      seed::Integer = rand(UInt64)) where {F <: Function, T,
+                                                           Req}
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
     numspp = length(spplist.names)
     numsc = countsubcommunities(abenv.habitat)
+
+    # One deterministically-seeded RNG per global species, built identically on
+    # every rank, so that species draws are reproducible regardless of how
+    # species and cells are partitioned across processes and threads
+    rngs = EcoSISTEM.makerngs(seed, numspp)
 
     count = div(numspp, totalsize)
     sppcounts = Int32.(fill(count, totalsize))
@@ -104,7 +116,7 @@ function MPIEcosystem(popfun::F,
     ml = EcoSISTEM.emptyMPIgridlandscape(sppcounts, sccounts)
 
     # Populate this matrix with species abundances
-    popfun(ml, spplist, abenv, rel)
+    popfun(ml, spplist, abenv, rel, rngs)
 
     rankspp = firstsp:sppindices[rank + 2]
     lookup_tab = collect(map(k -> genlookups(abenv.habitat, k),
@@ -121,12 +133,14 @@ function MPIEcosystem(popfun::F,
                         firstsp,
                         sccounts,
                         firstsc,
-                        EcoSISTEM.Cache(nm, totalE, false))
+                        EcoSISTEM.Cache(nm, totalE, false),
+                        rngs)
 end
 
 function MPIEcosystem(spplist::EcoSISTEM.SpeciesList,
-                      abenv::EcoSISTEM.GridAbioticEnv, rel)
-    return MPIEcosystem(EcoSISTEM.populate!, spplist, abenv, rel)
+                      abenv::EcoSISTEM.GridAbioticEnv, rel;
+                      seed::Integer = rand(UInt64))
+    return MPIEcosystem(EcoSISTEM.populate!, spplist, abenv, rel; seed = seed)
 end
 @doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
                                       ::EcoSISTEM.GridAbioticEnv,

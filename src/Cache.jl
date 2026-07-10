@@ -33,8 +33,8 @@ reshaping the abundance matrix to dimensions `dim`.
 """
 function loadfile(file::String, tm::Int, dim::Tuple)
     @load joinpath(file, searchdir(file, string(tm, ".jld2"))[1]) abuns
-    # Restore the task-local RNG so the resumed run continues a reproducible stream
-    copy!(Random.default_rng(), abuns.rng)
+    # Restore the per-species RNG streams for a reproducible resumed run
+    cache.rngs .= copy.(abuns.rngs)
     return GridLandscape(abuns, dim)
 end
 
@@ -72,7 +72,8 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     end
     simulate!(cache, newtm, cache.abundances.saveinterval)
     if !ismissing(yr)
-        @save joinpath(cache.abundances.outputfolder, string(yr, ".jld2")) abuns=SavedLandscape(cache.abundances.matrix[tm])
+        @save joinpath(cache.abundances.outputfolder, string(yr, ".jld2")) abuns=SavedLandscape(cache.abundances.matrix[tm],
+                                                                                                 cache.rngs)
     end
     return _abundances(cache, newtm + cache.abundances.saveinterval)
 end

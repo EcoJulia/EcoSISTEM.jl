@@ -31,7 +31,8 @@ function makeunique(eco::Ecosystem)
                                                eco.ordinariness,
                                                eco.relationship,
                                                eco.lookup,
-                                               eco.cache)
+                                               eco.cache,
+                                               eco.rngs)
 end
 
 """

@@ -6,7 +6,7 @@ using Random
 
 struct SavedLandscape
     matrix::Matrix{Int64}
-    rng::Random.Xoshiro
+    rngs::Vector{Random.Xoshiro}
 end
 
 """
@@ -43,14 +43,14 @@ function GridLandscape(sl::SavedLandscape, dimension::Tuple)
 end
 
 """
-    SavedLandscape(gl::GridLandscape)
+    SavedLandscape(gl::GridLandscape, rngs::Vector{Random.Xoshiro})
 
 Convert a [`GridLandscape`](@ref) to a `SavedLandscape` for serialisation,
-preserving the abundance matrix and a snapshot of the current task-local RNG so
-a cached run can be resumed with a reproducible random stream.
+preserving the abundance matrix and a snapshot of the per-species RNG streams
+`rngs` so a cached run can be resumed with a reproducible random stream.
 """
-function SavedLandscape(gl::GridLandscape)
-    return SavedLandscape(gl.matrix, copy(Random.default_rng()))
+function SavedLandscape(gl::GridLandscape, rngs::Vector{Random.Xoshiro})
+    return SavedLandscape(gl.matrix, copy.(rngs))
 end
 
 """
@@ -58,28 +58,37 @@ end
 
 Ecosystem abundances for a cached simulation. `matrix` is an `AxisArray` over
 time where each slot holds either a [`GridLandscape`](@ref) or `missing`.
-`outputfolder` is the path to the folder where JLD2 cache files are written, and
-`saveinterval` is the time between saves.
+`outputfolder` is the path to the folder where JLD2 cache files are written.
+`timestep` is the simulation step (the granularity of the time axis) and
+`saveinterval` is the (possibly coarser) interval at which checkpoints are
+written to disk; it must be a multiple of `timestep`. Because the simulation
+always advances by `timestep`, the results are independent of `saveinterval`.
 """
 mutable struct CachedGridLandscape
     matrix::AxisArray{Union{GridLandscape, Missing}, 1}
     outputfolder::String
     saveinterval::Unitful.Time
+    timestep::Unitful.Time
 end
 
 """
-    CachedGridLandscape(file::String, rng::StepRangeLen)
+    CachedGridLandscape(file::String, times::StepRangeLen;
+                        saveinterval::Unitful.Time = step(times))
 
 Construct a `CachedGridLandscape` backed by the folder `file`, initialising all
-timepoints in the range `rng` to `missing`. The save interval is inferred from
-the step size of `rng`.
+timepoints in the range `times` to `missing`. The simulation timestep is the
+step size of `times`; `saveinterval` sets how often checkpoints are written to
+disk and must be a multiple of the timestep (it defaults to saving every step).
 """
-function CachedGridLandscape(file::String, rng::StepRangeLen)
-    interval = step(rng)
-    v = Vector{Union{GridLandscape, Missing}}(undef, length(rng))
+function CachedGridLandscape(file::String, times::StepRangeLen;
+                             saveinterval::Unitful.Time = step(times))
+    timestep = step(times)
+    iszero(mod(saveinterval, timestep)) ||
+        error("saveinterval ($saveinterval) must be a multiple of the timestep ($timestep)")
+    v = Vector{Union{GridLandscape, Missing}}(undef, length(times))
     fill!(v, missing)
-    a = AxisArray(v, Axis{:time}(rng))
-    return CachedGridLandscape(a, file, interval)
+    a = AxisArray(v, Axis{:time}(times))
+    return CachedGridLandscape(a, file, saveinterval, timestep)
 end
 
 """

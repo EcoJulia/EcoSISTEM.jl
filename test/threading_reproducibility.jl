@@ -1,34 +1,29 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
-## Multithreaded reproducibility check, run as a subprocess so that it is
-## guaranteed to exercise the threaded `update!` path with more than one thread
-## (see the "Multithreaded reproducibility" testset in test_Generate.jl).
+## Run a seeded simulation and save the final abundance matrix to the path given
+## in ARGS[1]. This script is launched as a subprocess with different thread
+## counts by the "Multithreaded reproducibility" testset in test_Generate.jl, so
+## that the parallel `update!` path is genuinely exercised with more than one
+## thread. Because the ecosystem is seeded (one RNG stream per species), the
+## result must be identical regardless of the number of threads used.
 
 using EcoSISTEM
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
-using Random
+using JLD2
 
 include(EcoSISTEM.path("TestCases.jl"))
 
-# Seed before construction: the constructor draws the initial abundances, so the
-# seed must be set first for the whole run to be reproducible.
-function run_sim(seed)
-    Random.seed!(seed)
-    eco = Test1Ecosystem()
-    for _ in 1:50
-        EcoSISTEM.update!(eco, 1month)
-    end
-    return copy(eco.abundances.matrix)
+length(ARGS) >= 1 || error("usage: threading_reproducibility.jl <output.jld2>")
+
+# The seed makes both the initial abundances and the per-species simulation RNGs
+# deterministic, so the whole run is reproducible.
+eco = Test1Ecosystem(seed = 1234)
+for _ in 1:50
+    EcoSISTEM.update!(eco, 1month)
 end
 
-Threads.nthreads() > 1 ||
-    error("reproducibility check must run with more than one thread, got $(Threads.nthreads())")
+matrix = copy(eco.abundances.matrix)
+@save ARGS[1] matrix
 
-a = run_sim(1234)
-b = run_sim(1234)
-
-a == b ||
-    error("Non-reproducible results across seeded repeats with $(Threads.nthreads()) threads")
-
-println("Reproducible across seeded repeats with $(Threads.nthreads()) threads")
+println("Saved reproducibility result with $(Threads.nthreads()) threads to $(ARGS[1])")

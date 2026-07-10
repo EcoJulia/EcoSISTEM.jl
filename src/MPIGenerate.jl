@@ -4,6 +4,7 @@ import EcoSISTEM
 using MPI
 using LinearAlgebra
 using Distributions
+using Random
 
 using EcoSISTEM: AbstractAbiotic, Abstract1Requirement, Abstract2Requirements
 using EcoSISTEM: AbstractHabitat, AbstractBudget, AbstractTraitRelationship
@@ -37,6 +38,9 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     # Loop through species in chosen square
     Threads.@threads for mpisp in 1:eco.sppcounts[rank + 1]
         truesp = eco.firstsp + mpisp - 1
+        # Per-species RNG stream, indexed by global species so draws are
+        # reproducible regardless of the process/thread split
+        rng = EcoSISTEM.getrng(eco, truesp)
         # Loop through grid squares
         for sc in 1:numsc
             # Calculate how much birth and death should be adjusted
@@ -60,9 +64,11 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
                 (newbirthprob >= 0) & (newdeathprob >= 0) ||
                     error("Birth: $newbirthprob \n Death: $newdeathprob \n \n sc: $sc \n sp: $truesp")
                 # Calculate how many births and deaths
-                births = rand(Poisson(eco.abundances.rows_matrix[mpisp, sc] *
+                births = rand(rng,
+                              Poisson(eco.abundances.rows_matrix[mpisp, sc] *
                                       newbirthprob))
-                deaths = rand(Binomial(eco.abundances.rows_matrix[mpisp, sc],
+                deaths = rand(rng,
+                              Binomial(eco.abundances.rows_matrix[mpisp, sc],
                                        newdeathprob))
 
                 # Update population
@@ -237,8 +243,11 @@ from rows to columns across all MPI nodes.
 function EcoSISTEM.populate!(ml::MPIGridLandscape,
                              spplist::EcoSISTEM.SpeciesList,
                              abenv::AB,
-                             rel::R) where {AB <: AbstractAbiotic,
-                                            R <: AbstractTraitRelationship}
+                             rel::R,
+                             rngs::Vector{Random.Xoshiro}) where {AB <:
+                                                                  AbstractAbiotic,
+                                                                  R <:
+                                                                  AbstractTraitRelationship}
     dim = _getdimension(abenv.habitat)
     len = dim[1] * dim[2]
     grid = collect(1:len)
@@ -248,10 +257,11 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
     B = b ./ sum(b)
-    # Loop through species
+    # Loop through owned species, drawing from each species' global RNG stream
     abundances = @view spplist.abun[(ml.rows_tuple.first):(ml.rows_tuple.last)]
     for mpisp in eachindex(abundances)
-        rand!(Multinomial(abundances[mpisp], B),
+        truesp = ml.rows_tuple.first + mpisp - 1
+        rand!(rngs[truesp], Multinomial(abundances[mpisp], B),
               (@view ml.rows_matrix[mpisp, :]))
     end
     return EcoSISTEM.synchronise_from_rows!(ml)
@@ -269,10 +279,15 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
                              abenv::EcoSISTEM.GridAbioticEnv{H,
                                                              BudgetCollection2{B1,
                                                                                B2}},
-                             rel::R) where {H <: AbstractHabitat,
-                                            B1 <: AbstractBudget,
-                                            B2 <: AbstractBudget,
-                                            R <: AbstractTraitRelationship}
+                             rel::R,
+                             rngs::Vector{Random.Xoshiro}) where {H <:
+                                                                  AbstractHabitat,
+                                                                  B1 <:
+                                                                  AbstractBudget,
+                                                                  B2 <:
+                                                                  AbstractBudget,
+                                                                  R <:
+                                                                  AbstractTraitRelationship}
     # Calculate size of habitat
     dim = _getdimension(abenv.habitat)
     len = dim[1] * dim[2]
@@ -286,10 +301,11 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
     b1[.!activity] .= 0.0 * units1
     b2[.!activity] .= 0.0 * units2
     B = (b1 ./ sum(b1)) .* (b2 ./ sum(b2))
-    # Loop through species
+    # Loop through owned species, drawing from each species' global RNG stream
     abundances = @view spplist.abun[(ml.rows_tuple.first):(ml.rows_tuple.last)]
     for mpisp in eachindex(abundances)
-        rand!(Multinomial(abundances[mpisp], B ./ sum(B)),
+        truesp = ml.rows_tuple.first + mpisp - 1
+        rand!(rngs[truesp], Multinomial(abundances[mpisp], B ./ sum(B)),
               (@view ml.rows_matrix[mpisp, :]))
     end
     return EcoSISTEM.synchronise_from_rows!(ml)

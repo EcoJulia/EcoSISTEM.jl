@@ -2,6 +2,7 @@
 
 using StatsBase
 using LinearAlgebra
+using Random
 
 """
     get_neighbours(mat::Matrix, x_coord::Int64, y_coord::Int64, chess::Int64=4)
@@ -88,6 +89,9 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
 
     # Loop through species in chosen square
     Threads.@threads for j in 1:spp
+        # Per-species RNG stream: touched by only this task, and identical
+        # regardless of thread count, so draws are race-free and reproducible
+        rng = getrng(eco, j)
         # Loop through grid squares
         for i in 1:dims
             # Calculate how much birth and death should be adjusted
@@ -110,8 +114,10 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
                 (birthrate >= 0) & (deathprob >= 0) ||
                     error("Birth: $birthrate \n Death: $deathprob \n \n i: $i \n j: $j")
                 # Calculate how many births and deaths
-                births = rand(Poisson(eco.abundances.matrix[j, i] * birthrate))
-                deaths = rand(Binomial(eco.abundances.matrix[j, i], deathprob))
+                births = rand(rng,
+                              Poisson(eco.abundances.matrix[j, i] * birthrate))
+                deaths = rand(rng,
+                              Binomial(eco.abundances.matrix[j, i], deathprob))
 
                 # Update population
                 eco.abundances.matrix[j, i] += (births - deaths)
@@ -308,7 +314,7 @@ function calc_lookup_moves!(bound::NoBoundary,
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    return rand!(dist, lookup.moves)
+    return rand!(getrng(eco, sp), dist, lookup.moves)
 end
 
 function calc_lookup_moves!(bound::Cylinder,
@@ -332,7 +338,7 @@ function calc_lookup_moves!(bound::Cylinder,
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    return rand!(dist, lookup.moves)
+    return rand!(getrng(eco, sp), dist, lookup.moves)
 end
 
 function calc_lookup_moves!(bound::Torus,
@@ -356,7 +362,7 @@ function calc_lookup_moves!(bound::Torus,
     end
     lookup.pnew ./= sum(lookup.pnew)
     dist = Multinomial(abun, lookup.pnew)
-    return rand!(dist, lookup.moves)
+    return rand!(getrng(eco, sp), dist, lookup.moves)
 end
 
 """
@@ -438,14 +444,17 @@ function _gridactivity(abenv::AbstractAbiotic)
 end
 
 """
+    populate!(ml::GridLandscape, spplist::SpeciesList, abenv::AbstractAbiotic,
+              rel::AbstractTraitRelationship, rngs::Vector{Random.Xoshiro})
     populate!(ml::GridLandscape, spplist::SpeciesList,
-              abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}}, rel)
+              abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}}, rel, rngs)
 
 Populate the grid landscape `ml` by randomly scattering each species' total
 abundance (taken from `spplist.abun`) across the grid cells, choosing each cell
 with probability proportional to its available energy budget. Inactive cells are
 given zero probability, so no individuals are placed outside the habitable
-region.
+region. Each species is drawn from its own generator in `rngs`, so the result is
+reproducible and independent of the number of threads or MPI processes.
 
 `rel` is unused by these resource-based methods; it is accepted only so that they
 share a signature with [`traitpopulate!`](@ref) and can be passed
@@ -457,27 +466,31 @@ budgets.
 function populate!(ml::GridLandscape,
                    spplist::SpeciesList,
                    abenv::AB,
-                   rel::R) where {AB <: AbstractAbiotic,
-                                  R <: AbstractTraitRelationship}
+                   rel::R,
+                   rngs::Vector{Random.Xoshiro}) where {AB <: AbstractAbiotic,
+                                                        R <:
+                                                        AbstractTraitRelationship}
     grid, activity = _gridactivity(abenv)
     # Set up copy of budget
     b = reshape(ustrip.(_getbudget(abenv.budget)), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
     B = b ./ sum(b)
-    # Loop through species
+    # Loop through species, drawing from each species' own RNG stream
     for i in eachindex(spplist.abun)
-        rand!(Multinomial(spplist.abun[i], B), (@view ml.matrix[i, :]))
+        rand!(rngs[i], Multinomial(spplist.abun[i], B), (@view ml.matrix[i, :]))
     end
 end
 
 function populate!(ml::GridLandscape,
                    spplist::SpeciesList,
                    abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}},
-                   rel::R) where {H <: AbstractHabitat,
-                                  B1 <: AbstractBudget,
-                                  B2 <: AbstractBudget,
-                                  R <: AbstractTraitRelationship}
+                   rel::R,
+                   rngs::Vector{Random.Xoshiro}) where {H <: AbstractHabitat,
+                                                        B1 <: AbstractBudget,
+                                                        B2 <: AbstractBudget,
+                                                        R <:
+                                                        AbstractTraitRelationship}
     # Calculate size of habitat
     grid, activity = _gridactivity(abenv)
     # Set up copy of budget
@@ -488,9 +501,9 @@ function populate!(ml::GridLandscape,
     b1[.!activity] .= 0.0 * units1
     b2[.!activity] .= 0.0 * units2
     B = (b1 ./ sum(b1)) .* (b2 ./ sum(b2))
-    # Loop through species
+    # Loop through species, drawing from each species' own RNG stream
     for i in eachindex(spplist.abun)
-        rand!(Multinomial(spplist.abun[i], B ./ sum(B)),
+        rand!(rngs[i], Multinomial(spplist.abun[i], B ./ sum(B)),
               (@view ml.matrix[i, :]))
     end
 end
@@ -507,7 +520,8 @@ function repopulate!(eco::Ecosystem)
     eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
     eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
                                         length(eco.spplist.abun)))
-    return populate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship)
+    return populate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship,
+                     eco.rngs)
 end
 
 function repopulate!(eco::Ecosystem, abun::Int64)
@@ -516,7 +530,8 @@ function repopulate!(eco::Ecosystem, abun::Int64)
     b = reshape(copy(_getbudget(eco.abenv.budget)), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
-    pos = sample(grid[b .> (0 * units)], abun)
+    # Draw locations from the last species' own RNG stream
+    pos = sample(getrng(eco, lastindex(eco.rngs)), grid[b .> (0 * units)], abun)
     # Add individual to this location
     map(pos) do p
         return eco.abundances.matrix[end, p] += 1
@@ -541,8 +556,11 @@ cells by their available energy budget.
 function traitpopulate!(ml::GridLandscape,
                         spplist::SpeciesList,
                         abenv::AB,
-                        rel::R) where {AB <: AbstractAbiotic,
-                                       R <: AbstractTraitRelationship}
+                        rel::R,
+                        rngs::Vector{Random.Xoshiro}) where {AB <:
+                                                             AbstractAbiotic,
+                                                             R <:
+                                                             AbstractTraitRelationship}
     # Calculate size of habitat
     dim = _getdimension(abenv.habitat)
     numsquares = dim[1] * dim[2]
@@ -553,13 +571,13 @@ function traitpopulate!(ml::GridLandscape,
     probabilities = [_traitfun(abenv.habitat, spplist.traits, rel, i, sp)
                      for i in 1:numsquares,
                          sp in 1:numspp]
-    # Loop through species
+    # Loop through species, drawing from each species' own RNG stream
     for i in eachindex(spplist.abun)
         if spplist.native[i]
             # Get abundance of species
             probs = probabilities[:, i] ./ sum(probabilities[:, i])
             probs[isnan.(probs)] .= 1 / numsquares
-            abun = rand(Multinomial(spplist.abun[i], probs))
+            abun = rand(rngs[i], Multinomial(spplist.abun[i], probs))
             # Add individual to this location
             ml.matrix[i, :] .+= abun
         end
@@ -577,20 +595,23 @@ function traitrepopulate!(eco::Ecosystem)
     eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
                                         length(eco.spplist.abun)))
     return traitpopulate!(eco.abundances, eco.spplist, eco.abenv,
-                          eco.relationship)
+                          eco.relationship, eco.rngs)
 end
 
 """
-    emptypopulate!(ml::GridLandscape, spplist::SpeciesList,
-                   abenv::AB, rel::R) where {AB <: EcoSISTEM.AbstractAbiotic, R <: EcoSISTEM.AbstractTraitRelationship}
+    emptypopulate!(ml::GridLandscape, spplist::SpeciesList, abenv::AB, rel::R,
+                   rngs::Vector{Random.Xoshiro}) where {AB <: EcoSISTEM.AbstractAbiotic, R <: EcoSISTEM.AbstractTraitRelationship}
 
 Placeholder population function that leaves the landscape empty and warns.
 """
 function emptypopulate!(ml::GridLandscape,
                         spplist::SpeciesList,
                         abenv::AB,
-                        rel::R) where {AB <: EcoSISTEM.AbstractAbiotic,
-                                       R <: EcoSISTEM.AbstractTraitRelationship}
+                        rel::R,
+                        rngs::Vector{Random.Xoshiro}) where {AB <:
+                                                             EcoSISTEM.AbstractAbiotic,
+                                                             R <:
+                                                             EcoSISTEM.AbstractTraitRelationship}
     @warn "Ecosystem not populated!"
 end
 """

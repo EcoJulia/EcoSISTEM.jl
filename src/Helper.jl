@@ -37,7 +37,8 @@ function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
                                                 cache.ordinariness,
                                                 cache.relationship,
                                                 cache.lookup,
-                                                cache.cache)
+                                                cache.cache,
+                                                cache.rngs)
     update!(eco, timestep)
     return cache.abundances.matrix[srt + timestep] = eco.abundances
 end

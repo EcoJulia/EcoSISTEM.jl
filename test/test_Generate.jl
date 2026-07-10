@@ -7,6 +7,7 @@ using Test
 using Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
+using JLD2
 
 include("TestCases.jl")
 
@@ -19,7 +20,7 @@ include("TestCases.jl")
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
     @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.abenv, eco.spplist),
-                           eco.spplist, eco.abenv, eco.relationship)
+                           eco.spplist, eco.abenv, eco.relationship, eco.rngs)
     @test_nowarn repopulate!(eco)
 
     # Test Cylinder
@@ -36,17 +37,32 @@ include("TestCases.jl")
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
     @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.abenv, eco.spplist),
-                           eco.spplist, eco.abenv, eco.relationship)
+                           eco.spplist, eco.abenv, eco.relationship, eco.rngs)
     @test_nowarn repopulate!(eco)
 end
 
 @testset "Multithreaded reproducibility" begin
-    # Run the reproducibility check in a child process forced to use several
-    # threads, so the parallel `update!` path is exercised even when the parent
-    # test suite is launched single-threaded.
+    # A seeded run must give identical results regardless of the number of
+    # threads. Run the same seeded simulation in child processes forced to use
+    # 1, 2 and 4 threads (so the parallel `update!` path is genuinely exercised)
+    # and check that all three final abundance matrices are identical. Running
+    # the 2-thread case twice also confirms same-thread-count repeatability, so a
+    # failure distinguishes "not reproducible at all" from "not reproducible
+    # across thread counts".
     script = EcoSISTEM.path("threading_reproducibility.jl")
-    cmd = `$(Base.julia_cmd()) --project=$(Base.active_project()) -t 4 $script`
-    @test success(pipeline(cmd; stdout = stdout, stderr = stderr))
+    dir = mktempdir()
+    function run_with(nthreads, tag)
+        out = joinpath(dir, "repro_$tag.jld2")
+        cmd = `$(Base.julia_cmd()) --project=$(Base.active_project()) -t $nthreads $script $out`
+        @test success(pipeline(cmd; stdout = stdout, stderr = stderr))
+        return load(out, "matrix")
+    end
+    m1 = run_with(1, "t1")
+    m2 = run_with(2, "t2")
+    m4 = run_with(4, "t4")
+    m2b = run_with(2, "t2b")
+    @test m1 == m2 == m4
+    @test m2 == m2b
 end
 
 end
