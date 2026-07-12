@@ -98,7 +98,7 @@ StatsBase = "0.33.21, 0.34"
 Test = "1.9"
 UUIDs = "1.9"
 Unitful = "1.12.4"
-julia = "1.9"
+julia = "1.11"
 p7zip_jll = "17"
 
 [extras]
