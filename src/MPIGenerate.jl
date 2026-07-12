@@ -42,23 +42,32 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     end
     eco.cache.valid = true
 
-    # Loop through species in chosen square
-    Threads.@threads for mpisp in 1:eco.sppcounts[rank + 1]
-        truesp = eco.firstsp + mpisp - 1
-        # Per-species RNG stream, indexed by global species so draws are
-        # reproducible regardless of the process/thread split
-        rng = EcoSISTEM.getrng(eco, truesp)
+    # Loop through this rank's species in cache-line-sized contiguous blocks
+    # (see `EcoSISTEM.species_blocksize`), cells outside the inner species loop,
+    # so a block's species (adjacent rows of the column-major rows_matrix) are
+    # touched as one cache line. The active/energy gate is per-cell. Each species
+    # is still drawn only by its owning thread, in ascending-cell order, so
+    # per-species RNG streams stay race-free and reproducible.
+    nlocal = eco.sppcounts[rank + 1]
+    block = EcoSISTEM.species_blocksize()
+    nblocks = cld(nlocal, block)
+    Threads.@threads for b in 1:nblocks
+        mpistart = (b - 1) * block + 1
+        mpiend = min(b * block, nlocal)
         # Loop through grid squares
         for sc in 1:numsc
-            # Calculate how much birth and death should be adjusted
-            adjusted_birth, adjusted_death = energy_adjustment(eco,
-                                                               eco.abenv.budget,
-                                                               sc, truesp)
-
             # Convert 1D dimension to 2D coordinates
             (x, y) = EcoSISTEM.convert_coords(eco, sc)
             # Check if grid cell currently active
-            if eco.abenv.active[x, y] && (eco.cache.totalE[sc, 1] > 0)
+            (eco.abenv.active[x, y] && (eco.cache.totalE[sc, 1] > 0)) ||
+                continue
+            for mpisp in mpistart:mpiend
+                truesp = eco.firstsp + mpisp - 1
+                rng = EcoSISTEM.getrng(eco, truesp)
+                # Calculate how much birth and death should be adjusted
+                adjusted_birth, adjusted_death = energy_adjustment(eco,
+                                                                   eco.abenv.budget,
+                                                                   sc, truesp)
 
                 # Calculate effective rates
                 birthprob = params.birth[truesp] * timestep * adjusted_birth

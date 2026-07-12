@@ -87,22 +87,31 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     # Set the overall energy budget of that square
     update_energy_usage!(eco)
 
-    # Loop through species in chosen square
-    Threads.@threads for j in 1:spp
-        # Per-species RNG stream: touched by only this task, and identical
-        # regardless of thread count, so draws are race-free and reproducible
-        rng = getrng(eco, j)
+    # Loop through species in cache-line-sized contiguous blocks (see
+    # `species_blocksize`): each thread owns whole blocks, and the cell loop sits
+    # outside the inner species loop so a block's species — adjacent rows of the
+    # column-major (species, cells) matrix — are touched as one cache line. The
+    # active/energy gate is per-cell, so it lifts outside the species loop. Each
+    # species is still drawn only by its owning thread, in ascending-cell order,
+    # so per-species RNG streams stay race-free and reproducible.
+    block = species_blocksize()
+    nblocks = cld(spp, block)
+    Threads.@threads for b in 1:nblocks
+        jstart = (b - 1) * block + 1
+        jend = min(b * block, spp)
         # Loop through grid squares
         for i in 1:dims
-            # Calculate how much birth and death should be adjusted
-            adjusted_birth, adjusted_death = energy_adjustment(eco,
-                                                               eco.abenv.budget,
-                                                               i, j)
-
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(eco, i, width)
             # Check if grid cell currently active
-            if eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)
+            (eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)) || continue
+            for j in jstart:jend
+                rng = getrng(eco, j)
+                # Calculate how much birth and death should be adjusted
+                adjusted_birth, adjusted_death = energy_adjustment(eco,
+                                                                   eco.abenv.budget,
+                                                                   i, j)
+
                 # Calculate effective rates
                 birthrate = params.birth[j] * timestep * adjusted_birth |>
                             NoUnits
