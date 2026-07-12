@@ -96,7 +96,9 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     # so per-species RNG streams stay race-free and reproducible.
     block = species_blocksize()
     nblocks = cld(spp, block)
-    Threads.@threads for b in 1:nblocks
+    # :greedy hands the cache-line-sized species blocks to cores as they free up
+    # (dynamic load balancing); blocks are independent so results are unchanged.
+    Threads.@threads :greedy for b in 1:nblocks
         jstart = (b - 1) * block + 1
         jend = min(b * block, spp)
         # Loop through grid squares

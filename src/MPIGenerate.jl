@@ -51,7 +51,9 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     nlocal = eco.sppcounts[rank + 1]
     block = EcoSISTEM.species_blocksize()
     nblocks = cld(nlocal, block)
-    Threads.@threads for b in 1:nblocks
+    # :greedy hands the cache-line-sized species blocks to cores as they free up
+    # (dynamic load balancing); blocks are independent so results are unchanged.
+    Threads.@threads :greedy for b in 1:nblocks
         mpistart = (b - 1) * block + 1
         mpiend = min(b * block, nlocal)
         # Loop through grid squares

@@ -1,5 +1,7 @@
 # NEWS
 
+- v0.3.1
+  - Speed up the multithreaded update loop with cache-line-sized species blocks and greedy scheduling
 - v0.3.0
   - Tidying up and adding missing documentation
   - Fix race condition in multithreaded code post Julia 1.9
