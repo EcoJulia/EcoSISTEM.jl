@@ -163,6 +163,30 @@ export meta_simpson,
        pd, makeunique
 
 using Random
+using Hwloc
+
+# Number of contiguous species processed as an inner block in `update!`, sized so
+# a block spans one CPU cache line. The abundance matrix is (species, cells) and
+# column-major, so blocking species this way makes each per-cell access use a
+# whole cache line instead of one element of it. Detected at startup in
+# `__init__`; falls back to a value covering 128-byte lines if detection fails.
+const _SPECIES_BLOCK = Ref(16)
+
+"""
+    species_blocksize()
+
+Number of species iterated together as a contiguous inner block in `update!`,
+chosen so one block spans a CPU cache line (`cachelinesize ÷ sizeof(Int)`).
+"""
+species_blocksize() = _SPECIES_BLOCK[]
+
+function __init__()
+    return _SPECIES_BLOCK[] = try
+        max(1, Hwloc.cachelinesize() ÷ sizeof(Int64))
+    catch
+        16
+    end
+end
 
 abstract type MPIGridLandscape end
 export MPIGridLandscape

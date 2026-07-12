@@ -1,7 +1,7 @@
 name = "EcoSISTEM"
 uuid = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
 license = "LGPL-3.0-or-later"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Claire Harris", "Richard Reeve <richard.reeve@glasgow.ac.uk>"]
 
 [deps]
@@ -15,6 +15,7 @@ Diversity = "d3d5718d-52de-57ab-b67a-eca7fd6175a4"
 EcoBase = "a58aae7d-b440-5a11-b283-399458f99aac"
 Feather = "becb17da-46f6-5d3c-ad1b-1c5fe96bc73c"
 HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
+Hwloc = "0e44f5e4-bd66-52a0-8798-143a42290a1d"
 IndexedTables = "6deec6e2-d858-57c5-ab9b-e6ca5bd20e43"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LibGit2 = "76f85450-5226-5b5a-8eaa-529ad045b433"
@@ -65,6 +66,7 @@ EcoBase = "0.1.6"
 Feather = "0.5.7"
 Git = "1"
 HCubature = "1.5.0"
+Hwloc = "2, 3"
 IndexedTables = "0.12.6, 0.13, 1"
 JLD2 = "0.4.3, 0.5, 0.6"
 JuliaFormatter = "1, 2"
@@ -96,7 +98,7 @@ StatsBase = "0.33.21, 0.34"
 Test = "1.9"
 UUIDs = "1.9"
 Unitful = "1.12.4"
-julia = "1.9"
+julia = "1.11"
 p7zip_jll = "17"
 
 [extras]
