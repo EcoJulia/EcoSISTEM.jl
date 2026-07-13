@@ -9,6 +9,7 @@ using Test
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using RasterDataSources
 
 @testset "Requirement and budget types" begin
     numspecies = 10
@@ -169,7 +170,7 @@ end
 
     water = AxisArray(fill(1.0mm, 10, 10), Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m))
-    wc = Worldclim_bioclim(water)
+    wc = ClimateRaster(WorldClim{BioClim}, water)
     bud = WaterBudget(wc)
     @test_nowarn WaterBudget(wc)
     @test EcoSISTEM._countsubcommunities(bud) == 100

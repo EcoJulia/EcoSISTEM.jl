@@ -4,6 +4,10 @@ using AxisArrays
 using Unitful
 using EcoSISTEM.Units
 using RecipesBase
+using RasterDataSources
+const RDS = RasterDataSources
+
+import Base: size, length, eltype
 
 """
     AbstractClimate
@@ -11,6 +15,24 @@ using RecipesBase
 Abstract supertype of all climate data.
 """
 abstract type AbstractClimate end
+
+"""
+    ClimateRaster{<:RDS.RasterDataSource, <: AxisArray} <: AbstractClimate
+
+Type for climate data derived from `RasterDataSource`s.
+"""
+struct ClimateRaster{R <: RDS.RasterDataSource, A <: AxisArray} <:
+       AbstractClimate
+    array::A
+    function ClimateRaster(T::Type{<:RDS.RasterDataSource},
+                           a::A) where {A <: AxisArray}
+        return new{T, A}(a)
+    end
+end
+
+Base.size(cr::ClimateRaster) = size(cr.array)
+Base.length(cr::ClimateRaster) = length(cr.array)
+Base.eltype(::ClimateRaster{RDS, A}) where {RDS, A} = eltype(A)
 
 """
     Worldclim_monthly <: AbstractClimate
@@ -24,24 +46,6 @@ struct Worldclim_monthly{A <: AxisArray} <: AbstractClimate
             error("There should be 12 months of data for worldclim")
         return new{A}(array)
     end
-end
-
-"""
-    Worldclim_bioclim <: AbstractClimate
-
-Type that houses data extracted from Bioclim raster files.
-"""
-struct Worldclim_bioclim{A <: AxisArray} <: AbstractClimate
-    array::A
-end
-
-"""
-    Landcover <: AbstractClimate
-
-Type that houses data extracted from EarthEnv Landcover raster files.
-"""
-struct Landcover{A <: AxisArray} <: AbstractClimate
-    array::A
 end
 
 """
@@ -109,11 +113,17 @@ struct CHELSA_monthly{A <: AxisArray} <: AbstractClimate
     end
 end
 
-"""
-    CHELSA_bioclim <: AbstractClimate
-
-Type that houses data extracted from CHELSA raster files.
-"""
-struct CHELSA_bioclim{A <: AxisArray} <: AbstractClimate
-    array::A
-end
+# ---------------------------------------------------------------------------
+# Deprecated climate types.
+#
+# Prior to the unified `read`/`ClimateRaster` API these three sources each had
+# their own wrapper type. They are retained as deprecated constructors that
+# forward to the equivalent `ClimateRaster{<:RasterDataSource}` so existing user
+# code keeps working (with a deprecation warning).
+# ---------------------------------------------------------------------------
+@deprecate Worldclim_bioclim(array::AxisArray) ClimateRaster(RDS.WorldClim{RDS.BioClim},
+                                                             array)
+@deprecate CHELSA_bioclim(array::AxisArray) ClimateRaster(RDS.CHELSA{RDS.BioClim},
+                                                          array)
+@deprecate Landcover(array::AxisArray) ClimateRaster(RDS.EarthEnv{RDS.LandCover},
+                                                     array)

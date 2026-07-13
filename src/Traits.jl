@@ -158,6 +158,6 @@ function iscontinuous(trait::TraitCollection3)
     ]
 end
 
-function eltype(trait::TraitCollection3)
+function Base.eltype(trait::TraitCollection3)
     return [eltype(trait.t1), eltype(trait.t2), eltype(trait.t3)]
 end
