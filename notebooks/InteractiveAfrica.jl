@@ -1,25 +1,19 @@
-# SPDX-License-Identifier: LGPL-3.0-or-later
-
 ### A Pluto.jl notebook ###
-# v0.19.41
+# v1.0.3
 
 using Markdown
 using InteractiveUtils
 
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
-    quote
-        local iv = try
-            Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"),
-                                           "AbstractPlutoDingetjes")].Bonds.initial_value
-        catch
-            b -> missing
-        end
+    #! format: off
+    return quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) :
-                             iv(el)
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
+    #! format: on
 end
 
 # ╔═╡ 108951ec-3ecf-4f0c-b5e4-e79d00b1bfac
@@ -119,7 +113,8 @@ begin
     # Run simulation for burnin and then add invasive species
     @time simulate!(eco, burnin, timestep)
     eco.abundances.grid[end, 50, 50] = 100
-    @time simulate_record!(abuns, eco, times, timestep, record_interval)
+    @time simulate_record!(abuns, eco, times, record_interval,
+                           timestep)
 
     plot(eco, clim = (0, numSpecies))
 end
@@ -127,9 +122,9 @@ end
 # ╔═╡ 7e16f197-874b-482d-80b6-13a62ddda1f7
 begin
     ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
-    africa = read(WorldClim{BioClim}, 1,
-                  cut = (lat = -25° .. 50°, long = -35° .. 40°))
-    africa_temp = africa.array
+    africa_bio = read(WorldClim{BioClim}, 1,
+                      cut = (lat = -25° .. 50°, long = -35° .. 40°))
+    africa_temp = africa_bio.array
     plot(africa_temp)
 end
 
@@ -146,8 +141,9 @@ end
 # ╔═╡ ee925e21-b0b6-478e-a3a0-573e8497b9f6
 begin
     temp = uconvert.(K, africa_temp .* °C)
-    africa_new = Worldclim_bioclim(AxisArray(temp,
-                                             AxisArrays.axes(africa_temp)))
+    africa_new = ClimateRaster(WorldClim{BioClim},
+                               AxisArray(temp,
+                                         AxisArrays.axes(africa_temp)))
     active_new = Matrix{Bool}(.!isnan.(africa))
 
     # Set up initial parameters for ecosystem

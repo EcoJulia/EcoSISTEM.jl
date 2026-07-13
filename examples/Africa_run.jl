@@ -159,7 +159,7 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         # Create species list, including their temperature preferences, seed abundance and native status
         opts = fill(274.0K, num_species)
         vars = [50.0K, specialist_vars[i]]
-        @debug "Generalist $(vars[1]), specialist $(vard[2])"
+        @debug "Generalist $(vars[1]), specialist $(vars[2])"
         traits = GaussTrait(opts, vars)
         native = fill(true, num_species)
         # abun = rand(Multinomial(individuals, num_species))
@@ -434,7 +434,8 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     return nothing
 end
 
-const AFRICA_TIF = readfile(AFRICA_FILE, -25.0°, 50.0°, -35.0°, 40.0°)
+const AFRICA_TIF = readfile(AFRICA_FILE, xmin = -25.0°, xmax = 50.0°,
+                            ymin = -35.0°, ymax = 40.0°)
 const RADIUS = 50
 const ACTIVE = get_active_circle(AFRICA_TIF, RADIUS)
 

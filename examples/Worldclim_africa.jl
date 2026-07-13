@@ -13,16 +13,18 @@ using StatsBase
 using Plots
 
 ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
-# Download temperature and precipitation data
-world = read(WorldClim{BioClim}, 1,
+# Download temperature (bioclim layer 1) and precipitation (bioclim layer 12)
+world = read(WorldClim{BioClim}, [1, 12],
              cut = (lat = -25° .. 50°, long = -35° .. 40°))
 africa_temp = world.array[-25° .. 50°, -35° .. 40°, 1]
 bio_africa = uconvert.(K, africa_temp .* °C)
-bio_africa = Worldclim_bioclim(AxisArray(bio_africa,
-                                         AxisArrays.axes(africa_temp)))
-africa_water = world.array[-25° .. 50°, -35° .. 40°, 12] .* mm
-africa_water = Worldclim_bioclim(AxisArray(africa_water,
-                                           AxisArrays.axes(africa_temp)))
+bio_africa = ClimateRaster(WorldClim{BioClim},
+                           AxisArray(bio_africa,
+                                     AxisArrays.axes(africa_temp)))
+africa_water = world.array[-25° .. 50°, -35° .. 40°, 2] .* mm
+africa_water = ClimateRaster(WorldClim{BioClim},
+                             AxisArray(africa_water,
+                                       AxisArrays.axes(africa_temp)))
 bio_africa_water = WaterBudget(africa_water)
 
 # Find which grid cells are land

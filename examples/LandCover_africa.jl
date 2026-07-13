@@ -19,9 +19,10 @@ africa_lc = read(EarthEnv{LandCover},
 bio_africa_lc = compressLC(africa_lc)
 heatmap(bio_africa_lc.array')
 
-worldbc = read(WorldClim{BioClim},
+# Bioclim layer 13 is precipitation of the wettest month
+worldbc = read(WorldClim{BioClim}, 13,
                cut = (lat = -25° .. 50°, long = -35° .. 40°))
-africa_water_aa = upresolution(worldbc.array[:, :, 13], 2)
+africa_water_aa = upresolution(worldbc.array[:, :, 1], 2)
 africa_water = ClimateRaster(WorldClim{BioClim},
                              AxisArray(africa_water_aa .* mm,
                                        AxisArrays.axes(africa_water_aa)))

@@ -1,23 +1,19 @@
 ### A Pluto.jl notebook ###
-# v0.19.41
+# v1.0.3
 
 using Markdown
 using InteractiveUtils
 
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
-    quote
-        local iv = try
-            Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"),
-                                           "AbstractPlutoDingetjes")].Bonds.initial_value
-        catch
-            b -> missing
-        end
+    #! format: off
+    return quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) :
-                             iv(el)
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
+    #! format: on
 end
 
 # ╔═╡ 496434ae-1bc8-4472-8981-2d9fc08b688a
@@ -48,7 +44,7 @@ begin
 
     md"""**Please set model parameters:**
 
-    Number of species: $(spp_slider)
+    Number of species: $spp_slider
 
     Number of grid cells: $grid_slider
     """
@@ -117,7 +113,7 @@ begin
     interval = 1month
     lensim = length((0month):timestep:times)
     abuns = zeros(Int64, numSpecies, prod(grd), lensim)
-    simulate_record!(abuns, eco, times, timestep, interval)
+    simulate_record!(abuns, eco, times, interval, timestep)
 
     # Plot abundances
     sumabun = sum(abuns, dims = 2)[:, 1, :]
@@ -278,8 +274,7 @@ begin
     resource_boost = 1.0
 
     # Let's assume that all species are equal for these parameters
-    parameters = EqualPop(birth_rates, death_rates, longevity, survival,
-                          resource_boost)
+    parameters = EqualPop(birth_rates, death_rates, longevity, survival, resource_boost)
 
     # Now we have to consider movement - let's say the species move an average of 
     # 2.4km according to a Gaussian kernel
@@ -344,7 +339,9 @@ trait_relationship = Gauss{typeof(first(optima))}()
 md"Now we can build our ecosystem! EcoSISTEM is integrated with SpatialEcology.jl, so we can take advantage of their plotting system, by simply calling plot on our `Ecosystem` object. This will show us the species richness over space."
 
 # ╔═╡ ffd5ca3f-00b3-4444-9f89-77062358c439
-example_eco = Ecosystem(species_list, temp_grad_env, trait_relationship)
+begin
+	example_eco = Ecosystem(species_list, temp_grad_env, trait_relationship)
+end
 
 # ╔═╡ 7492f556-957c-48a3-8597-9c7c7ba20547
 begin
@@ -353,13 +350,17 @@ begin
 end
 
 # ╔═╡ ca77e96e-dda3-4c5a-b063-e782535045e5
-plot(example_eco, clim = (0, 10), title = "Species richness")
+begin
+	plot(example_eco, clim = (0, 10), title = "Species richness")
+end
 
 # ╔═╡ 43b32242-7577-4593-b8ea-9f3fcd0cfda5
 md"We can see that all species are present in the grid as we have set it up. Let's simulate it over a 10 year period and monthly timesteps to see what will happen. Remember that we added in a change in temperature over time!"
 
 # ╔═╡ fa1ea836-6750-43d0-b574-d1490ecd6ebf
-simulate!(example_eco, 10year, 1month)
+begin
+	simulate!(example_eco, 10year, 1month)
+end
 
 # ╔═╡ 6b0fb54e-6d52-40ed-87d5-96aff5f3d93d
 plot(example_eco, clim = (0, 10))
@@ -388,8 +389,8 @@ begin
     record_interval = 1month
     len_sim = length((0month):time_step:simulation_time)
     record_abuns = zeros(Int64, numSpp, prod(grid), len_sim)
-    simulate_record!(record_abuns, example_eco, simulation_time, time_step,
-                     record_interval)
+    simulate_record!(record_abuns, example_eco, simulation_time,
+                     record_interval, time_step)
 end
 
 # ╔═╡ 0d0e0197-d826-4f62-943c-79783e5fa701
