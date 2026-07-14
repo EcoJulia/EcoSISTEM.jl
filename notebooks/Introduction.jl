@@ -274,7 +274,8 @@ begin
     resource_boost = 1.0
 
     # Let's assume that all species are equal for these parameters
-    parameters = EqualPop(birth_rates, death_rates, longevity, survival, resource_boost)
+    parameters = EqualPop(birth_rates, death_rates, longevity, survival,
+                          resource_boost)
 
     # Now we have to consider movement - let's say the species move an average of 
     # 2.4km according to a Gaussian kernel
@@ -340,7 +341,7 @@ md"Now we can build our ecosystem! EcoSISTEM is integrated with SpatialEcology.j
 
 # ╔═╡ ffd5ca3f-00b3-4444-9f89-77062358c439
 begin
-	example_eco = Ecosystem(species_list, temp_grad_env, trait_relationship)
+    example_eco = Ecosystem(species_list, temp_grad_env, trait_relationship)
 end
 
 # ╔═╡ 7492f556-957c-48a3-8597-9c7c7ba20547
@@ -351,7 +352,7 @@ end
 
 # ╔═╡ ca77e96e-dda3-4c5a-b063-e782535045e5
 begin
-	plot(example_eco, clim = (0, 10), title = "Species richness")
+    plot(example_eco, clim = (0, 10), title = "Species richness")
 end
 
 # ╔═╡ 43b32242-7577-4593-b8ea-9f3fcd0cfda5
@@ -359,7 +360,7 @@ md"We can see that all species are present in the grid as we have set it up. Let
 
 # ╔═╡ fa1ea836-6750-43d0-b574-d1490ecd6ebf
 begin
-	simulate!(example_eco, 10year, 1month)
+    simulate!(example_eco, 10year, 1month)
 end
 
 # ╔═╡ 6b0fb54e-6d52-40ed-87d5-96aff5f3d93d
