@@ -9,9 +9,7 @@ using Statistics
     convert_coords(i::Int64, width::Int64)
     convert_coords(x::Int64, y::Int64, width::Int64)
 
-Convert coordinates from two-dimensional (`x`,`y`) format to one dimension
-(`i`), or vice versa, using the `width` of the grid. This function can also be
-applied to arrays of coordinates.
+Function to convert coordinates from two-dimensional (`x`,`y`) format to one dimension (`i`), or vice versa, using the `width` of the grid. This function can also be applied to arrays of coordinates.
 """
 function convert_coords end
 
@@ -40,7 +38,7 @@ end
 """
     create_reference(gridsize::Float64)
 
-Create a reference grid array of type [`Reference`](@ref).
+Function to create a reference grid array of type `Reference`.
 """
 function create_reference(gridsize::Float64)
     x = 360 * (1 / gridsize) + 1
@@ -54,9 +52,9 @@ function create_reference(gridsize::Float64)
 end
 
 """
-    upresolution(data::Union{ERA, Worldclim_monthly, Worldclim_bioclim}, rescale::Int64; fn)
+    upresolution(data::Union{ERA, Worldclim_monthly, ClimateRaster}, rescale::Int64; fn)
 
-Increase the resolution of a climate dataset, by a factor, `rescale`.
+Function to increase the resolution of a climate dataset, by a factor, `rescale`.
 """
 function upresolution end
 
@@ -70,9 +68,9 @@ function upresolution(wc::Worldclim_monthly, rescale::Int64)
     return Worldclim_monthly(array)
 end
 
-function upresolution(bc::Worldclim_bioclim, rescale::Int64)
+function upresolution(bc::ClimateRaster{T, A}, rescale::Int64) where {T, A}
     array = upresolution(bc.array, rescale)
-    return Worldclim_bioclim(array)
+    return ClimateRaster(T, array)
 end
 
 function upresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64)
@@ -90,23 +88,26 @@ function upresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64)
                     for dy in 0:rescale
                         fy = dy / rescale
                         iy = rescale * y - (rescale - 1)
-                        array[ix + dx, iy + dy,
-                              t] = aa[x, y, t] * (1 - fx) * (1 - fy) +
-                                   aa[x + 1, y, t] * fx * (1 - fy) +
-                                   aa[x, y + 1, t] * (1 - fx) * fy +
-                                   aa[x + 1, y + 1, t] * fx * fy
+                        array[ix + dx, iy + dy, t] = aa[x, y, t] * (1 - fx) *
+                                                     (1 - fy) +
+                                                     aa[x + 1, y, t] * fx *
+                                                     (1 - fy) +
+                                                     aa[x, y + 1, t] *
+                                                     (1 - fx) * fy +
+                                                     aa[x + 1, y + 1, t] * fx *
+                                                     fy
                     end
                 end
             end
         end
     end
 
-    lon = aa.axes[1].val
-    newlon = range(lon[1], lon[end], grid[1])
+    long = aa.axes[1].val
+    newlong = range(long[1], long[end], grid[1])
     lat = aa.axes[2].val
     newlat = range(lat[1], lat[end], grid[2])
     return AxisArray(array,
-                     Axis{:longitude}(newlon),
+                     Axis{:longitude}(newlong),
                      Axis{:latitude}(newlat),
                      Axis{:time}(aa.axes[3].val))
 end
@@ -131,20 +132,20 @@ function upresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64)
         end
     end
 
-    lon = aa.axes[1].val
-    newlon = range(lon[1], lon[end], grid[1])
+    long = aa.axes[1].val
+    newlong = range(long[1], long[end], grid[1])
     lat = aa.axes[2].val
     newlat = range(lat[1], lat[end], grid[2])
 
-    return AxisArray(array, Axis{:longitude}(newlon), Axis{:latitude}(newlat))
+    return AxisArray(array,
+                     Axis{:longitude}(newlong),
+                     Axis{:latitude}(newlat))
 end
 
 """
-    downresolution(data::Union{ERA, Worldclim_monthly, Worldclim_bioclim}, rescale::Int64; fn)
+    downresolution(data::Union{ERA, Worldclim_monthly, ClimateRaster{WorldClim{BioClim}, <: AxisArray}}, rescale::Int64; fn)
 
-Decrease the resolution of a climate dataset, by a factor, `rescale`, and
-aggregation function, `fn`. The aggregation function has a default setting of
-taking the mean value.
+Function to decrease the resolution of a climate dataset, by a factor, `rescale`, and aggregation function, `fn`. The aggregation function has a default setting of taking the mean value.
 """
 function downresolution end
 
@@ -159,10 +160,10 @@ function downresolution(wc::Worldclim_monthly, rescale::Int64;
     return Worldclim_monthly(array)
 end
 
-function downresolution(bc::Worldclim_bioclim, rescale::Int64;
-                        fn::Function = mean)
+function downresolution(bc::ClimateRaster{T}, rescale::Int64;
+                        fn::Function = mean) where {T}
     array = downresolution(bc.array, rescale, fn = fn)
-    return Worldclim_bioclim(array)
+    return ClimateRaster(T, array)
 end
 
 function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64,
@@ -189,12 +190,12 @@ function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64,
             end
         end
     end
-    lon = aa.axes[1].val
-    newlon = range(lon[1], lon[end], grid[1])
+    long = aa.axes[1].val
+    newlong = range(long[1], long[end], grid[1])
     lat = aa.axes[2].val
     newlat = range(lat[1], lat[end], grid[2])
     return AxisArray(array,
-                     Axis{:longitude}(newlon),
+                     Axis{:longitude}(newlong),
                      Axis{:latitude}(newlat),
                      Axis{:time}(aa.axes[3].val))
 end
@@ -218,27 +219,32 @@ function downresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64;
         end
     end
 
-    lon = aa.axes[1].val
-    newlon = range(lon[1], lon[end], grid[1])
+    long = aa.axes[1].val
+    newlong = range(long[1], long[end], grid[1])
     lat = aa.axes[2].val
     newlat = range(lat[1], lat[end], grid[2])
-    return AxisArray(array, Axis{:longitude}(newlon), Axis{:latitude}(newlat))
+    return AxisArray(array,
+                     Axis{:longitude}(newlong),
+                     Axis{:latitude}(newlat))
 end
 
 """
     downresolution!(resized_array::Matrix{T}, array::Matrix{T}, rescale::Int64, fn)
     downresolution!(resized_array::Array{T, 3}, array::Matrix{T}, dim::Int64, rescale::Int64, fn)
 
-Decrease the resolution of a climate dataset in place, by a factor, `rescale`,
-and aggregation function, `fn`. The aggregation function has a default setting
-of taking the mean value.
+Function to decrease the resolution of a climate dataset in place, by a factor, `rescale`, and aggregation function, `fn`. The aggregation function has a default setting of taking the mean value.
 """
 function downresolution! end
 
-function downresolution!(resized_array::Matrix{T},
-                         array::Matrix{T},
-                         rescale::Int64;
+function downresolution!(resized_array::Matrix{T}, array::Matrix{T},
+                         dim::Int64, rescale::Int64;
                          fn::Function = mean) where {T}
+    dim == 1 || error("Accessing invalid 3rd dimension of 2d array")
+    return downresolution!(resized_array, array, rescale, fn = fn)
+end
+
+function downresolution!(resized_array::Matrix{T}, array::Matrix{T},
+                         rescale::Int64; fn::Function = mean) where {T}
     Threads.@threads for i in eachindex(resized_array)
         x, y = convert_coords(i, size(resized_array, 1))
         xcoords = filter(k -> 1 ≤ rescale * (x - 1) + 1 + k ≤ size(array, 1),
@@ -253,10 +259,8 @@ function downresolution!(resized_array::Matrix{T},
     end
 end
 
-function downresolution!(resized_array::Array{T, 3},
-                         array::Matrix{T},
-                         dim::Int64,
-                         rescale::Int64;
+function downresolution!(resized_array::Array{T, 3}, array::Matrix{T},
+                         dim::Int64, rescale::Int64;
                          fn::Function = mean) where {T}
     new_dims = size(resized_array, 1) * size(resized_array, 2)
     Threads.@threads for i in 1:new_dims
@@ -269,14 +273,16 @@ function downresolution!(resized_array::Array{T, 3},
     end
 end
 
-function compressLC(lc::AxisArray)
-    newLC = AxisArray(zeros(Int64, size(lc, 1), size(lc, 2)),
-                      AxisArrays.axes(lc, 1),
-                      AxisArrays.axes(lc, 2))
-    Threads.@threads for i in Base.axes(lc, 1)
-        for j in Base.axes(lc, 2)
-            newLC[i, j] = findmax(lc[i, j, :])[2]
+function compressLC(lc::ClimateRaster{T}) where
+{T <: EarthEnv{<:LandCover}}
+    newaa = AxisArray(zeros(Int64, size(lc.array, 1), size(lc.array, 2)),
+                      AxisArrays.axes(lc.array, 1),
+                      AxisArrays.axes(lc.array, 2))
+    Threads.@threads for i in Base.axes(lc.array, 1)
+        for j in Base.axes(lc.array, 2)
+            newaa[i, j] = findmax(lc.array[i, j, :])[2]
         end
     end
-    return newLC
+
+    return ClimateRaster(T, newaa)
 end
