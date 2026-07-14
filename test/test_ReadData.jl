@@ -25,7 +25,10 @@ if !Sys.iswindows()
         @test_nowarn readCRUTS("assets/WorldClim/BioClim/", "tavg")
         @test_nowarn readCHELSA_monthly("assets/WorldClim/Climate/wind/",
                                         "wind")
-        @test_nowarn read(CHELSA{BioClim}, 1)
+        # CHELSA bioclim is a 43200×20880 global grid; reading it at full
+        # resolution allocates several ~7 GiB Float64 arrays and OOMs CI.
+        # Downsample to WorldClim's 10-arcmin resolution to keep it bounded.
+        @test_nowarn read(CHELSA{BioClim}, 1, scale = 20)
         @test_nowarn read(EarthEnv{LandCover})
         @test_nowarn readfile("assets/WorldClim/BioClim/wc2.1_10m_bio_1.tif")
     end
@@ -33,7 +36,7 @@ if !Sys.iswindows()
     @testset "Output data" begin
         bc = read(WorldClim{BioClim})
         cr = readCRUTS("assets/WorldClim/BioClim/", "tavg")
-        ch_b = read(CHELSA{BioClim}, 1)
+        ch_b = read(CHELSA{BioClim}, 1, scale = 20)
         rf = readfile("assets/WorldClim/BioClim/wc2.1_10m_bio_1.tif")
 
         @test unit(bc.array[1]) == unit(rf[1]) == unit(ch_b.array[1]) == NoUnits
