@@ -29,7 +29,7 @@ jobs:
           version: '1'
           arch: x64
       - name: Cache
-        uses: julia-actions/cache@v2
+        uses: julia-actions/cache@v3
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
       - name: Running
