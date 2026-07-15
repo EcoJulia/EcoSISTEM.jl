@@ -1,8 +1,11 @@
 # NEWS
 
-- v0.3.1
+- v0.4.0
   - Speed up the multithreaded update loop with cache-line-sized species blocks and greedy scheduling
   - Require Julia v1.11 for greedy scheduling
+  - Simplify interface and clean up code
+  - readfile calls now uses keyword bounds (xmin/xmax/ymin/ymax)
+  - Modernise in-repo climate wrapping from the deprecated Worldclim_bioclim(...) to ClimateRaster(WorldClim{BioClim}, ...)
 - v0.3.0
   - Tidying up and adding missing documentation
   - Fix race condition in multithreaded code post Julia 1.9
