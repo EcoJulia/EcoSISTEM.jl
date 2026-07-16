@@ -31,8 +31,8 @@ include("TestCases.jl")
 
     # Test worldclim update
     temp = AxisArray(fill(1.0K, 10, 10, 12),
-                     Axis{:latitude}(collect(1:10) .* m),
-                     Axis{:longitude}(collect(1:10) .* m),
+                     Axis{:latitude}(collect(1:10) .* km),
+                     Axis{:longitude}(collect(1:10) .* km),
                      Axis{:time}(collect(1:12) .* month))
     wctemp = Worldclim_monthly(temp)
     active = fill(true, 10, 10)

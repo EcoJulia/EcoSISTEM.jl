@@ -3,6 +3,7 @@
 module TestAbioticEnv
 
 using EcoSISTEM
+using Unitful
 using Unitful.DefaultSymbols
 using Test
 using EcoSISTEM.Units
@@ -102,8 +103,8 @@ if !Sys.iswindows()
         totalK = 1000.0kJ / m^2
         area = 100.0km^2
         ea = eraAE(eratemp, totalK, area)
-        @test_nowarn eraAE(eratemp, totalK, area)
-        @test_nowarn eraAE(eratemp, totalK, area, active)
+        @test eraAE(eratemp, totalK, area) isa GridAbioticEnv
+        @test eraAE(eratemp, totalK, area, active) isa GridAbioticEnv
         @test size(ea.habitat.matrix) == size(temp)
         @test EcoSISTEM.getavailableenergy(ea) == totalK * area
         @test ea.active == active
@@ -116,16 +117,16 @@ if !Sys.iswindows()
     @testset "Worldclim data" begin
         # TEST worldclimAE
         temp = AxisArray(fill(1.0K, 10, 10, 12),
-                         Axis{:latitude}(collect(1:10) .* m),
-                         Axis{:longitude}(collect(1:10) .* m),
+                         Axis{:latitude}(collect(1:10) .* km),
+                         Axis{:longitude}(collect(1:10) .* km),
                          Axis{:time}(collect(1:12) .* month))
         wctemp = Worldclim_monthly(temp)
         active = fill(true, 10, 10)
         totalK = 1000.0kJ / m^2
         area = 100.0km^2
         wc = worldclimAE(wctemp, totalK, area)
-        @test_nowarn worldclimAE(wctemp, totalK, area)
-        @test_nowarn worldclimAE(wctemp, totalK, area, active)
+        @test worldclimAE(wctemp, totalK, area) isa GridAbioticEnv
+        @test worldclimAE(wctemp, totalK, area, active) isa GridAbioticEnv
         @test size(wc.habitat.matrix) == size(temp)
         @test EcoSISTEM.getavailableenergy(wc) == totalK * area
         @test wc.active == active
@@ -141,8 +142,8 @@ if !Sys.iswindows()
         totalK = 1000.0kJ / km^2
         area = 100.0km^2
         bc = bioclimAE(bio_africa, totalK, area)
-        @test_nowarn bioclimAE(bio_africa, totalK, area)
-        @test_nowarn bioclimAE(bio_africa, totalK, area, active)
+        @test bioclimAE(bio_africa, totalK, area) isa GridAbioticEnv
+        @test bioclimAE(bio_africa, totalK, area, active) isa GridAbioticEnv
         @test size(bc.habitat.matrix) == size(bio_africa.array)
         @test isapprox(EcoSISTEM.getavailableenergy(bc), totalK * area)
         solar = SolarBudget(fill(10.0kJ, size(bio_africa.array)))
@@ -156,8 +157,8 @@ if !Sys.iswindows()
         totalK = 1000.0kJ / km^2
         area = 100.0km^2
         lc = lcAE(world_lc, totalK, area)
-        @test_nowarn lcAE(world_lc, totalK, area)
-        @test_nowarn lcAE(world_lc, totalK, area, active)
+        @test lcAE(world_lc, totalK, area) isa GridAbioticEnv
+        @test lcAE(world_lc, totalK, area, active) isa GridAbioticEnv
         @test size(lc.habitat.matrix) == size(world_lc.array)
         @test isapprox(EcoSISTEM.getavailableenergy(lc), totalK * area)
         solar = SolarBudget(fill(10.0kJ, size(world_lc.array)))
