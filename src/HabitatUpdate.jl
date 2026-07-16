@@ -86,19 +86,22 @@ function worldclimChange(eco::AbstractEcosystem,
 end
 
 """
-    HabitatLoss(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
+    HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat, timestep::Unitful.Time)
 
 Destroy habitat for one timestep of the ecosystem using [`HabitatUpdate`](@ref)
-information.
+information. The habitat's `change.rate` is a loss rate (per unit time); over
+`timestep` it gives the per-cell probability that an active cell is lost. That many
+active cells are drawn at random and have their budget and abundances zeroed.
 """
 function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat,
                      timestep::Unitful.Time)
-    val = hab.change.rate
-    v = uconvert(unit(timestep)^-1, val)
-    pos = find(eco.abenv.active)
-    smp = sample(pos, jbinom(1, length(pos), ustrip(v))[1])
-    eco.abenv.budget.matrix[smp] = 0.0
-    return eco.abundances.matrix[:, smp] .= 0.0
+    # Loss rate × timestep is the (dimensionless) probability of losing a cell.
+    prob = uconvert(NoUnits, hab.change.rate * timestep)
+    pos = findall(vec(eco.abenv.active))
+    smp = sample(pos, rand(Binomial(length(pos), prob)); replace = false)
+    eco.abenv.budget.matrix[smp] .= zero(eltype(eco.abenv.budget.matrix))
+    eco.abundances.matrix[:, smp] .= 0
+    return eco
 end
 
 """
