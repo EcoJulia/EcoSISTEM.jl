@@ -1,5 +1,37 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
+using Unitful
+using Unitful.DefaultSymbols
+
+# ---------------------------------------------------------------------------
+# Layer roles
+# ---------------------------------------------------------------------------
+# A materialised layer plays one of two roles in a `GridAbioticEnv`: a `Habitat`
+# (an environmental condition matched to species traits) or a `Budget` (a resource
+# consumed by species). The role is a phantom marker used to keep the two
+# type-distinguishable while sharing one storage implementation.
+
+"""
+    Role
+
+Abstract supertype of the layer-role markers [`Habitat`](@ref) and [`Budget`](@ref).
+"""
+abstract type Role end
+
+"""
+    Habitat <: Role
+
+Marker for a layer used as an environmental condition (matched to species traits).
+"""
+struct Habitat <: Role end
+
+"""
+    Budget <: Role
+
+Marker for a layer used as a consumable resource.
+"""
+struct Budget <: Role end
+
 # ---------------------------------------------------------------------------
 # Niche axes
 # ---------------------------------------------------------------------------
