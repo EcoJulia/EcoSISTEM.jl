@@ -44,6 +44,8 @@ mutable struct Trapeze{TR} <: AbstractTraitRelationship{TR}
 end
 
 function (::Trapeze{TR})(dist::Trapezoid, current::TR) where {TR}
+    # `Trapezoid` is `Trapezoid{<:Real}` and its bounds come from bare-number `TempBin`
+    # bins, so it is unitless by construction — strip `current` to evaluate the pdf.
     return pdf(dist, ustrip(current))
 end
 iscontinuous(tr::Trapeze) = true
