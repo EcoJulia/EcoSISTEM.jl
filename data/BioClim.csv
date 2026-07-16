@@ -1,7 +1,7 @@
 Code2,Code,Name,Definition,Units,Scale,Offset
 BIO1,1,Annual Mean Temperature,Mean of the 12 monthly mean temperatures,K,1,0
 BIO2,2,Mean Diurnal Range,Mean of monthly (max temp - min temp),K,1,0
-BIO3,3,Isothermality,(BIO2 / BIO7) x 100,NoUnits,0.01,0
+BIO3,3,Isothermality,(BIO2 / BIO7) x 100,,0.01,0
 BIO4,4,Temperature Seasonality,Standard deviation of monthly mean temperatures x 100,K,0.01,0
 BIO5,5,Max Temperature of Warmest Month,Highest monthly maximum temperature,K,1,0
 BIO6,6,Min Temperature of Coldest Month,Lowest monthly minimum temperature,K,1,0
@@ -13,7 +13,7 @@ BIO11,11,Mean Temperature of Coldest Quarter,Mean temperature of the coldest 3 c
 BIO12,12,Annual Precipitation,Sum of the 12 monthly precipitation totals,mm,1,0
 BIO13,13,Precipitation of Wettest Month,Precipitation of the month with the highest total,mm,1,0
 BIO14,14,Precipitation of Driest Month,Precipitation of the month with the lowest total,mm,1,0
-BIO15,15,Precipitation Seasonality,Coefficient of variation of monthly precipitation (SD / mean x 100),NoUnits,0.01,0
+BIO15,15,Precipitation Seasonality,Coefficient of variation of monthly precipitation (SD / mean x 100),,0.01,0
 BIO16,16,Precipitation of Wettest Quarter,Total precipitation of the wettest 3 consecutive months,mm,1,0
 BIO17,17,Precipitation of Driest Quarter,Total precipitation of the driest 3 consecutive months,mm,1,0
 BIO18,18,Precipitation of Warmest Quarter,Total precipitation of the warmest 3 consecutive months,mm,1,0

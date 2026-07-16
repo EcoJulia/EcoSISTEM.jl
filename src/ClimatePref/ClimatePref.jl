@@ -13,7 +13,7 @@ export ClimateRaster, Worldclim_monthly, ERA, CERA, CRUTS,
 export Worldclim_bioclim, CHELSA_bioclim, Landcover
 
 include("LayerUnits.jl")
-export layerunit
+export layerunit, layeraxis
 
 include("ReadData.jl")
 export searchdir, readworldclim, readERA,

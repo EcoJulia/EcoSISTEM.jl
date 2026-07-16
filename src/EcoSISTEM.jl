@@ -126,7 +126,8 @@ export Ecosystem,
        getbudget,
        addspecies!
 
-export NicheAxis, Temperature, Rainfall, SolarRadiation, VolumetricWater
+export NicheAxis, Temperature, Rainfall, SolarRadiation, VolumetricWater,
+       LandType, Altitude
 include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
 

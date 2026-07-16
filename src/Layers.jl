@@ -30,6 +30,12 @@ struct SolarRadiation <: NicheAxis end
 """    VolumetricWater <: NicheAxis """
 struct VolumetricWater <: NicheAxis end
 
+"""    LandType <: NicheAxis (categorical land-cover / land-use classes) """
+struct LandType <: NicheAxis end
+
+"""    Altitude <: NicheAxis (elevation above sea level) """
+struct Altitude <: NicheAxis end
+
 # --- The NicheAxis interface -----------------------------------------------
 # The small set of hooks that replace unit-based inference of a layer's meaning. Each has a
 # safe default; a built-in or user axis overrides only what applies. The budget/requirement/
@@ -45,6 +51,7 @@ or `nothing` to leave values as-is.
 canonicalunit(::NicheAxis) = nothing
 canonicalunit(::Temperature) = K
 canonicalunit(::Rainfall) = mm
+canonicalunit(::Altitude) = m
 
 """
     budgettype(::NicheAxis)

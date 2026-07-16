@@ -3,7 +3,9 @@
 using CSV
 using Unitful
 using EcoSISTEM.Units
+using EcoSISTEM: NicheAxis
 using RasterDataSources
+using InteractiveUtils
 # `const RDS = RasterDataSources` is already defined for this module in ClimateTypes.jl.
 
 # The dataset subtype wrapped by a `RasterDataSource`, e.g. `WorldClim{BioClim}` →
@@ -14,54 +16,81 @@ function _datasettype(::Type{T}) where {T <: RDS.RasterDataSource}
     return isempty(params) ? T : first(params)
 end
 
-# The layer→unit table shipped in the package `data/` directory for each RasterDataSources
-# dataset type.
-const _LAYERUNIT_FILES = Dict{Type, String}(RDS.BioClim => "BioClim.csv",
-                                            RDS.BioClimPlus => "BioClimPlus.csv",
-                                            RDS.Climate => "Climate.csv",
-                                            RDS.LandCover => "LandCover.csv",
-                                            RDS.Elevation => "Elevation.csv",
-                                            RDS.HabitatHeterogeneity => "HabitatHeterogeneity.csv")
-
-# Cache of parsed `Code`→unit-string maps, keyed by CSV basename. The unit strings are
-# `uparse`d lazily (in `layerunit`) so a malformed entry in one table can only affect
-# the layer that actually uses it.
-const _LAYERUNIT_CACHE = Dict{String, Dict{String, String}}()
-
-function _layerunit_file(T::Type)
-    ds = _datasettype(T)
-    haskey(_LAYERUNIT_FILES, ds) ||
-        return error("No layer-unit table is known for raster source `$T`")
-    return _LAYERUNIT_FILES[ds]
+# The layer table shipped in the package `data/` directory, named by convention after the
+# dataset type (`WorldClim{BioClim}` → `data/BioClim.csv`, `EarthEnv{LandCover}` →
+# `data/LandCover.csv`); the file's presence is what makes a source supported.
+function _layerfile(T::Type)
+    path = pkgdir(@__MODULE__, "data", "$(nameof(_datasettype(T))).csv")
+    isfile(path) ||
+        return error("No layer table for raster source `$T` (expected $(basename(path)) in data/)")
+    return path
 end
 
-function _layerunit_strings(file::String)
-    return get!(_LAYERUNIT_CACHE, file) do
-        table = CSV.File(pkgdir(@__MODULE__, "data", file);
-                         normalizenames = true)
-        strings = Dict{String, String}()
-        for row in table
-            (ismissing(row.Code) || ismissing(row.Units)) && continue
-            strings[string(row.Code)] = String(strip(String(row.Units)))
+# Cache of parsed `Code` → (units, axis) strings, keyed by file path. Blank cells are stored
+# as `""` and interpreted lazily — a blank `Units` ⇒ dimensionless, a blank/absent `Axis` ⇒
+# unclassified — so a malformed entry can only affect the layer that actually uses it.
+const _LAYER_CACHE = Dict{String,
+                          Dict{String,
+                               @NamedTuple{units::String, axis::String}}}()
+
+function _layertable(path::String)
+    return get!(_LAYER_CACHE, path) do
+        table = CSV.File(path; normalizenames = true)
+        cols = propertynames(table)
+        function cell(row, col)
+            return (col in cols && !ismissing(getproperty(row, col))) ?
+                   String(strip(String(getproperty(row, col)))) : ""
         end
-        return strings
+        rows = Dict{String, @NamedTuple{units::String, axis::String}}()
+        for row in table
+            ismissing(row.Code) && continue
+            rows[string(row.Code)] = (units = cell(row, :Units),
+                                      axis = cell(row, :Axis))
+        end
+        return rows
     end
+end
+
+# Resolve an axis name from a table to its `NicheAxis` type by autodiscovery — no registry:
+# any loaded `NicheAxis` subtype with that name works (build-time only).
+function _resolve_axis(name::AbstractString)
+    matches = filter(A -> string(nameof(A)) == name, subtypes(NicheAxis))
+    length(matches) == 1 ||
+        return error("`$name` does not name exactly one loaded `NicheAxis` (found $(length(matches)))")
+    return only(matches)
+end
+
+function _layerrow(T::Type{<:RDS.RasterDataSource}, code)
+    tbl = _layertable(_layerfile(T))
+    key = string(code)
+    haskey(tbl, key) ||
+        return error("Layer `$code` is not in the table for raster source `$T`")
+    return tbl[key]
 end
 
 """
     layerunit(T::Type{<:RasterDataSources.RasterDataSource}, code)
 
-Return the physical unit of the layer identified by `code` in the raster dataset
-`T` (e.g. `layerunit(WorldClim{BioClim}, 1)` is `K`, `layerunit(WorldClim{Climate},
-:srad)` is `kJ m⁻² day⁻¹`). The unit is looked up in the layer table shipped for `T`
-in this directory and parsed with `Unitful.uparse` (so `NoUnits` becomes the
-dimensionless unit). `code` is matched by its string form, so integer layer numbers
-and `Symbol`/`String` layer keys are both accepted.
+Return the physical unit of layer `code` in raster dataset `T` (e.g.
+`layerunit(WorldClim{BioClim}, 1)` is `K`, `layerunit(WorldClim{Climate}, :srad)` is
+`kJ m⁻² day⁻¹`). Looked up in the dataset's shipped `data/` table and parsed with
+`Unitful.uparse`; a **blank** `Units` cell means **dimensionless** (`NoUnits`). `code` is
+matched by its string form, so integer layer numbers and `Symbol`/`String` keys both work.
 """
 function layerunit(T::Type{<:RDS.RasterDataSource}, code)
-    strings = _layerunit_strings(_layerunit_file(T))
-    key = string(code)
-    haskey(strings, key) ||
-        return error("Layer `$code` is not in the unit table for raster source `$T`")
-    return uparse(strings[key], unit_context = [Unitful, Units])
+    u = _layerrow(T, code).units
+    return isempty(u) ? NoUnits : uparse(u, unit_context = [Unitful, Units])
+end
+
+"""
+    layeraxis(T::Type{<:RasterDataSources.RasterDataSource}, code)
+
+Return the [`NicheAxis`](@ref) type declared for layer `code` of dataset `T` in its shipped
+`data/` table, or `nothing` if the `Axis` cell is blank (or absent). A blank axis is an
+*unclassified* layer — documented and unit-bearing, but not modelled as a niche axis; to
+use it, pass an explicit axis when building the layer.
+"""
+function layeraxis(T::Type{<:RDS.RasterDataSource}, code)
+    a = _layerrow(T, code).axis
+    return isempty(a) ? nothing : _resolve_axis(a)
 end

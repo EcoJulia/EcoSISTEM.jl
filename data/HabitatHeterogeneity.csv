@@ -1,15 +1,15 @@
 Order,Name,Code,Measure,Value Range,Relationship with Heterogeneity,Units,Scale,Offset,Data Type (1km),Detailed Units,Definition
-First-order,Coefficient of variation,cv,Normalised dispersion of EVI,>=0,Positive,NoUnits,0.0001,0,UInt16,unitless (EVI-derived),Coefficient of variation
-First-order,Evenness,evenness,Evenness of EVI,0 to 1,Positive,NoUnits,0.0001,0,UInt16,unitless index,Evenness
-First-order,Range,range,Range of EVI,>=0,Positive,NoUnits,0.0001,0,UInt16,EVI units,Range
-First-order,Shannon,shannon,Diversity of EVI,0 to ln(max no. distinct EVI),Positive,NoUnits,0.0001,0,UInt16,unitless index,Shannon
-First-order,Simpson,simpson,Diversity of EVI,0 to 1-1/(max no. distinct EVI),Positive,NoUnits,0.0001,0,UInt16,unitless index,Simpson
-First-order,Standard deviation,std,Dispersion of EVI,>=0,Positive,NoUnits,0.0001,0,UInt16,EVI units,Standard deviation
-Second-order,Contrast,Contrast,Exponentially weighted difference in EVI between adjacent pixels,>=0,Positive,NoUnits,0.0001,0,UInt32,unitless (GLCM),Contrast
-Second-order,Correlation,Correlation,Linear dependency of EVI on adjacent pixels,-1 to 1,Nonlinear,NoUnits,0.0001,0,Int16,unitless (GLCM),Correlation
-Second-order,Dissimilarity,Dissimilarity,Difference in EVI between adjacent pixels,>=0,Positive,NoUnits,0.0001,0,UInt32,unitless (GLCM),Dissimilarity
-Second-order,Entropy,Entropy,Disorderliness of EVI,>=0,Positive,NoUnits,0.0001,0,UInt16,unitless (GLCM),Entropy
-Second-order,Homogeneity,Homogeneity,Similarity of EVI between adjacent pixels,0 to 1,Negative,NoUnits,0.0001,0,UInt16,unitless (GLCM),Homogeneity
-Second-order,Maximum,Maximum,Dominance of EVI combinations between adjacent pixels,0 to 1,Negative,NoUnits,0.0001,0,UInt16,unitless (GLCM),Maximum
-Second-order,Uniformity,Uniformity,Orderliness of EVI,0 to 1,Negative,NoUnits,0.0001,0,UInt16,unitless (GLCM),Uniformity
-Second-order,Variance,Variance,Dispersion of EVI combinations between adjacent pixels,>=0,Positive,NoUnits,0.0001,0,UInt32,unitless (GLCM),Variance
+First-order,Coefficient of variation,cv,Normalised dispersion of EVI,>=0,Positive,,0.0001,0,UInt16,unitless (EVI-derived),Coefficient of variation
+First-order,Evenness,evenness,Evenness of EVI,0 to 1,Positive,,0.0001,0,UInt16,unitless index,Evenness
+First-order,Range,range,Range of EVI,>=0,Positive,,0.0001,0,UInt16,EVI units,Range
+First-order,Shannon,shannon,Diversity of EVI,0 to ln(max no. distinct EVI),Positive,,0.0001,0,UInt16,unitless index,Shannon
+First-order,Simpson,simpson,Diversity of EVI,0 to 1-1/(max no. distinct EVI),Positive,,0.0001,0,UInt16,unitless index,Simpson
+First-order,Standard deviation,std,Dispersion of EVI,>=0,Positive,,0.0001,0,UInt16,EVI units,Standard deviation
+Second-order,Contrast,Contrast,Exponentially weighted difference in EVI between adjacent pixels,>=0,Positive,,0.0001,0,UInt32,unitless (GLCM),Contrast
+Second-order,Correlation,Correlation,Linear dependency of EVI on adjacent pixels,-1 to 1,Nonlinear,,0.0001,0,Int16,unitless (GLCM),Correlation
+Second-order,Dissimilarity,Dissimilarity,Difference in EVI between adjacent pixels,>=0,Positive,,0.0001,0,UInt32,unitless (GLCM),Dissimilarity
+Second-order,Entropy,Entropy,Disorderliness of EVI,>=0,Positive,,0.0001,0,UInt16,unitless (GLCM),Entropy
+Second-order,Homogeneity,Homogeneity,Similarity of EVI between adjacent pixels,0 to 1,Negative,,0.0001,0,UInt16,unitless (GLCM),Homogeneity
+Second-order,Maximum,Maximum,Dominance of EVI combinations between adjacent pixels,0 to 1,Negative,,0.0001,0,UInt16,unitless (GLCM),Maximum
+Second-order,Uniformity,Uniformity,Orderliness of EVI,0 to 1,Negative,,0.0001,0,UInt16,unitless (GLCM),Uniformity
+Second-order,Variance,Variance,Dispersion of EVI combinations between adjacent pixels,>=0,Positive,,0.0001,0,UInt32,unitless (GLCM),Variance
