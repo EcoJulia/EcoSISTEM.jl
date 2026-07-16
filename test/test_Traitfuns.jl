@@ -31,8 +31,8 @@ active = fill(true, grid)
     @test EcoSISTEM.getrelationship(rel, :tr2) == rel.tr2
 
     temp = AxisArray(fill(1.0K, 10, 10, 3),
-                     Axis{:latitude}(1:10),
-                     Axis{:longitude}(1:10),
+                     Axis{:latitude}((1:10) .* °),
+                     Axis{:longitude}((1:10) .* °),
                      Axis{:time}(collect(1:3) .* s))
     eratemp = ERA(temp)
     active = fill(true, 10, 10)
@@ -46,8 +46,8 @@ active = fill(true, grid)
     @test getpref(trts, 1) == trts.dist[1, :]
 
     rain = AxisArray(fill(1.0mm, 10, 10, 3),
-                     Axis{:latitude}(1:10),
-                     Axis{:longitude}(1:10),
+                     Axis{:latitude}((1:10) .* °),
+                     Axis{:longitude}((1:10) .* °),
                      Axis{:time}(collect(1:3) .* s))
     erarain = ERA(rain)
     active = fill(true, 10, 10)

@@ -54,12 +54,15 @@ function NoChange(eco::AbstractEcosystem, hab::AbstractHabitat,
 ChangeLookup = Dict(K => TempChange, NoUnits => NoChange)
 
 """
-    eraChange(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
+    cyclicChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
 
-Step the [`ERA`](@ref) climate forward by one timestep.
+Advance a time-varying (monthly) climate layer by one timestep, wrapping back to the
+first month once the stored time series is exhausted (with a warning). The per-source
+`eraChange`/`worldclimChange` names are aliases of this — the time-step-and-wrap logic is
+identical regardless of source.
 """
-function eraChange(eco::AbstractEcosystem, hab::ContinuousTimeHab,
-                   timestep::Unitful.Time)
+function cyclicChange(eco::AbstractEcosystem, hab::ContinuousTimeHab,
+                      timestep::Unitful.Time)
     monthstep = uconvert(month, timestep)
     hab.time += round(Int64, monthstep / month)
     if hab.time > size(hab.matrix, 3)
@@ -68,37 +71,26 @@ function eraChange(eco::AbstractEcosystem, hab::ContinuousTimeHab,
     end
 end
 
-"""
-    worldclimChange(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
-
-Step the Worldclim climate forward by one timestep.
-"""
-function worldclimChange(eco::AbstractEcosystem,
-                         hab::ContinuousTimeHab,
-                         timestep::Unitful.Time)
-    last = size(hab.matrix, 3)
-    monthstep = convert(typeof(1.0month), timestep)
-    hab.time = hab.time + round(Int64, ustrip(monthstep))
-    if hab.time > last
-        hab.time = 1
-        @warn "More timesteps than available, have repeated"
-    end
-end
+const eraChange = cyclicChange
+const worldclimChange = cyclicChange
 
 """
-    HabitatLoss(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
+    HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat, timestep::Unitful.Time)
 
 Destroy habitat for one timestep of the ecosystem using [`HabitatUpdate`](@ref)
-information.
+information. The habitat's `change.rate` is a loss rate (per unit time); over
+`timestep` it gives the per-cell probability that an active cell is lost. That many
+active cells are drawn at random and have their budget and abundances zeroed.
 """
 function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat,
                      timestep::Unitful.Time)
-    val = hab.change.rate
-    v = uconvert(unit(timestep)^-1, val)
-    pos = find(eco.abenv.active)
-    smp = sample(pos, jbinom(1, length(pos), ustrip(v))[1])
-    eco.abenv.budget.matrix[smp] = 0.0
-    return eco.abundances.matrix[:, smp] .= 0.0
+    # Loss rate × timestep is the (dimensionless) probability of losing a cell.
+    prob = uconvert(NoUnits, hab.change.rate * timestep)
+    pos = findall(vec(eco.abenv.active))
+    smp = sample(pos, rand(Binomial(length(pos), prob)); replace = false)
+    eco.abenv.budget.matrix[smp] .= zero(eltype(eco.abenv.budget.matrix))
+    eco.abundances.matrix[:, smp] .= 0
+    return eco
 end
 
 """
