@@ -82,15 +82,16 @@ Trait type that holds a Gaussian habitat preference for each species, of any num
 type `C`: the optimum `mean` and the standard deviation `sd` (the width of the
 preference curve, which the [`Gauss`](@ref) relationship squares to a variance).
 """
-struct GaussTrait{C <: Number} <: ContinuousTrait{C}
+struct GaussTrait{A <: NicheAxis, C <: Number} <: ContinuousTrait{C}
     mean::Vector{C}
     sd::Vector{C}
 end
 
 iscontinuous(trait::GaussTrait) = true
 
-function GaussTrait(mean::Vector{C},
-                    sd::Vector{C}) where {C <: Unitful.Temperature}
+function GaussTrait(::Type{A}, mean::Vector{C},
+                    sd::Vector{C}) where {A <: NicheAxis,
+                                          C <: Unitful.Temperature}
     # `mean` is an absolute temperature (affine conversion), but `sd` is a temperature
     # interval (a width), so convert it via the scale only: subtracting the affine
     # unit's zero point (`0 * unit`, i.e. `0.0°F`/`0.0°C`/`0.0K`) turns the value into
@@ -98,7 +99,15 @@ function GaussTrait(mean::Vector{C},
     # on the correct K width (e.g. 9°F → 5K, not 9K or an offset).
     meanK = uconvert.(K, mean)
     sdK = uconvert.(K, sd .- 0 * unit(eltype(sd)))
-    return GaussTrait{typeof(1.0K)}(meanK, sdK)
+    return GaussTrait{A, typeof(1.0K)}(meanK, sdK)
+end
+function GaussTrait(::Type{A}, mean::Vector{C},
+                    sd::Vector{C}) where {A <: NicheAxis, C}
+    return GaussTrait{A, C}(mean, sd)
+end
+# Back-compat: no axis given → `Unclassified` (matches positionally, not by axis).
+function GaussTrait(mean::Vector{C}, sd::Vector{C}) where {C}
+    return GaussTrait(Unclassified, mean, sd)
 end
 
 """
