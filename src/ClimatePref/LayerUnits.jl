@@ -14,13 +14,12 @@ function _datasettype(::Type{T}) where {T <: RDS.RasterDataSource}
     return isempty(params) ? T : first(params)
 end
 
-# The layer→unit table shipped alongside this file for each RasterDataSources dataset
-# type. `LandCover` maps to `Landcover.csv` (note the case). Topography also has a
-# table but no RasterDataSources type, so it is not reachable through this map.
+# The layer→unit table shipped in the package `data/` directory for each RasterDataSources
+# dataset type.
 const _LAYERUNIT_FILES = Dict{Type, String}(RDS.BioClim => "BioClim.csv",
                                             RDS.BioClimPlus => "BioClimPlus.csv",
                                             RDS.Climate => "Climate.csv",
-                                            RDS.LandCover => "Landcover.csv",
+                                            RDS.LandCover => "LandCover.csv",
                                             RDS.Elevation => "Elevation.csv",
                                             RDS.HabitatHeterogeneity => "HabitatHeterogeneity.csv")
 
@@ -38,7 +37,8 @@ end
 
 function _layerunit_strings(file::String)
     return get!(_LAYERUNIT_CACHE, file) do
-        table = CSV.File(joinpath(@__DIR__, file); normalizenames = true)
+        table = CSV.File(pkgdir(@__MODULE__, "data", file);
+                         normalizenames = true)
         strings = Dict{String, String}()
         for row in table
             (ismissing(row.Code) || ismissing(row.Units)) && continue
