@@ -8,6 +8,9 @@ path(path...; dir::String = "test") = joinpath(@__DIR__, "..", dir, path...)
 # EcoSISTEM.Units sub-module
 include("Units/Units.jl")
 
+# Layer roles + specs (recipes) — defined early so later modules can build on them.
+include("Layers.jl")
+
 # EcoSISTEM.ClimatePref sub-module
 include("ClimatePref/ClimatePref.jl")
 
@@ -123,6 +126,7 @@ export Ecosystem,
        getbudget,
        addspecies!
 
+export NicheAxis, Temperature, Rainfall, SolarRadiation, VolumetricWater
 include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
 
