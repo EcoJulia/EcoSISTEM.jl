@@ -23,9 +23,9 @@ paramaterised on any TR.
 mutable struct Gauss{TR} <: AbstractTraitRelationship{TR}
 end
 
-function (::Gauss{TR})(current::TR, opt::TR, var::TR) where {TR}
-    pref = (1.0) / sqrt(2 * π * var^2) *
-           exp(-abs(current - opt)^2 / (2 * var^2))
+function (::Gauss{TR})(current::TR, opt::TR, sd::TR) where {TR}
+    pref = (1.0) / sqrt(2 * π * sd^2) *
+           exp(-abs(current - opt)^2 / (2 * sd^2))
     return pref * unit(current)
 end
 iscontinuous(tr::Gauss) = true

@@ -272,7 +272,7 @@ end
 
 function addtraits!(tr::GaussTrait)
     append!(tr.mean, tr.mean[end])
-    return append!(tr.var, tr.var[end])
+    return append!(tr.sd, tr.sd[end])
 end
 
 function addtraits!(tr::DiscreteTrait)

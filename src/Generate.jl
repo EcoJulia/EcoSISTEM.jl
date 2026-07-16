@@ -593,8 +593,8 @@ function traitpopulate!(ml::GridLandscape,
     dim = _getdimension(abenv.habitat)
     numsquares = dim[1] * dim[2]
     numspp = length(spplist.names)
-    maxrng = spplist.traits.mean .+ spplist.traits.var
-    minrng = spplist.traits.mean .- spplist.traits.var
+    maxrng = spplist.traits.mean .+ spplist.traits.sd
+    minrng = spplist.traits.mean .- spplist.traits.sd
     hab = reshape(abenv.habitat.matrix, numsquares)
     probabilities = [_traitfun(abenv.habitat, spplist.traits, rel, i, sp)
                      for i in 1:numsquares,

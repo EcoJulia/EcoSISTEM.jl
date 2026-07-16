@@ -78,21 +78,27 @@ abstract type ContinuousTrait{C <: Number} <: AbstractTraits{C} end
 """
     GaussTrait{C <: Number} <: ContinuousTrait{C}
 
-Trait type that holds Gaussian mean and variance trait information for each
-species, of any number type `C`.
+Trait type that holds a Gaussian habitat preference for each species, of any number
+type `C`: the optimum `mean` and the standard deviation `sd` (the width of the
+preference curve, which the [`Gauss`](@ref) relationship squares to a variance).
 """
 struct GaussTrait{C <: Number} <: ContinuousTrait{C}
     mean::Vector{C}
-    var::Vector{C}
+    sd::Vector{C}
 end
 
 iscontinuous(trait::GaussTrait) = true
 
 function GaussTrait(mean::Vector{C},
-                    var::Vector{C}) where {C <: Unitful.Temperature}
+                    sd::Vector{C}) where {C <: Unitful.Temperature}
+    # `mean` is an absolute temperature (affine conversion), but `sd` is a temperature
+    # interval (a width), so convert it via the scale only: subtracting the affine
+    # unit's zero point (`0 * unit`, i.e. `0.0°F`/`0.0°C`/`0.0K`) turns the value into
+    # its underlying interval before converting to K, so a σ given in °C/°F/K all land
+    # on the correct K width (e.g. 9°F → 5K, not 9K or an offset).
     meanK = uconvert.(K, mean)
-    varK = ustrip.(var) .* K
-    return GaussTrait{typeof(1.0K)}(meanK, varK)
+    sdK = uconvert.(K, sd .- 0 * unit(eltype(sd)))
+    return GaussTrait{typeof(1.0K)}(meanK, sdK)
 end
 
 """

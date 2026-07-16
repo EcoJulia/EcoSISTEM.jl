@@ -22,6 +22,13 @@ import EcoSISTEM: DiscreteTrait
         @test_nowarn GaussTrait(opts, vars)
         @test EcoSISTEM.iscontinuous(GaussTrait(opts, vars)) == true
         @test eltype(GaussTrait(opts, vars)) <: Unitful.Temperature
+        # `sd` is a standard deviation (a temperature interval): it converts by scale
+        # with no affine offset, so a σ of 9°F, 5°C and 5K all give the same 5 K width.
+        @test GaussTrait([300.0u"°F"], [9.0u"°F"]).sd ≈ [5.0K]
+        @test GaussTrait([5.0°C], [5.0°C]).sd == [5.0K]
+        @test GaussTrait([278.15K], [5.0K]).sd == [5.0K]
+        # `mean` is an absolute temperature, so it keeps the affine offset.
+        @test GaussTrait([5.0°C], [5.0°C]).mean == [278.15K]
     end
     @testset "discrete trait" begin
         # Discrete trait

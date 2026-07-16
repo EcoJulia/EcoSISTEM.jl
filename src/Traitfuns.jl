@@ -101,11 +101,11 @@ end
 """
     getpref(traits::GaussTrait, sp::Int64)
 
-Extract the Gaussian habitat preference mean and variance for species `sp` from
-a [`GaussTrait`](@ref). Returns a tuple `(mean, var)`.
+Extract the Gaussian habitat preference optimum (`mean`) and standard deviation
+(`sd`) for species `sp` from a [`GaussTrait`](@ref). Returns a tuple `(mean, sd)`.
 """
 function getpref(traits::GaussTrait, sp::Int64)
-    return traits.mean[sp], traits.var[sp]
+    return traits.mean[sp], traits.sd[sp]
 end
 
 """
