@@ -42,8 +42,8 @@ include("Phylo.jl")
 export assign_traits!, get_traits, resettraits!, reroot!
 
 include("TraitRelationship.jl")
-export TraitRelationship,
-       multiplicativeTR2,
+# `TraitRelationship` — dead export (likely meant `AbstractTraitRelationship`); revisit.
+export multiplicativeTR2,
        multiplicativeTR3,
        Gauss,
        Match,
@@ -91,7 +91,6 @@ export GridAbioticEnv,
        raingradAE,
        peakedgradAE,
        simplehabitatAE,
-       degradedhabitatAE,
        eraAE,
        worldclimAE,
        bioclimAE,
@@ -103,7 +102,7 @@ export GaussianKernel,
        BirthOnlyMovement,
        AlwaysMovement,
        NoMovement,
-       getkernel,
+       getkernels,
        Torus,
        Cylinder,
        NoBoundary
@@ -143,10 +142,10 @@ export Ecosystem,
        addspecies!
 
 include("Traitfuns.jl")
-export TraitFun, getpref, gettraitrel, gethabitat
+export traitfun, getpref, gettraitrel, gethabitat
 
 include("HabitatUpdate.jl")
-export getchangefun, TempChange, RainChange, TempFluct, eraChange,
+export TempChange, RainfallChange, TempFluct, eraChange,
        worldclimChange
 
 include("Scenarios.jl")
@@ -161,14 +160,14 @@ export populate!,
        reenergise!,
        randomniches,
        update!,
-       update_birth_move!,
+# update_birth_move!,  # dead export (maybe meant `move!`?); revisit
        convert_coords,
        get_neighbours
 
 include("Helper.jl")
 export simulate!,
        simulate_action!, simulate_record!, simulate_record_diversity!,
-       expected_counts, generate_storage
+       generate_storage
 
 include("Cache.jl")
 export abundances, clearcache
