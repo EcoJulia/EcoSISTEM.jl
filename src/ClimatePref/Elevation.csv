@@ -1,0 +1,2 @@
+﻿Code,Name,Definition,Units,Scale,Offset,Layers,Temporal Resolution,Notes
+elev,Elevation,Elevation above sea level,m,1.0,0.0,1,Static,Derived from SRTM; distributed alongside climate data but not a climate variable

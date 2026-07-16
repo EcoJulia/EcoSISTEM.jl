@@ -12,6 +12,9 @@ export ClimateRaster, Worldclim_monthly, ERA, CERA, CRUTS,
 # Deprecated climate type names, retained for backward compatibility.
 export Worldclim_bioclim, CHELSA_bioclim, Landcover
 
+include("LayerUnits.jl")
+export layerunit
+
 include("ReadData.jl")
 export searchdir, readworldclim, readERA,
        readCERA, readfile, readCHELSA_monthly, readCRUTS

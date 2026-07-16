@@ -1,0 +1,74 @@
+Group,Code,Name,Units,Scale,Offset,Definition
+Climatology,cmi_max,Maximum monthly climate moisture index,kg*m^-2*month^-1,0.1,0,Climate moisture index of the month with the largest precipitation surplus
+Climatology,cmi_mean,Mean monthly climate moisture index,kg*m^-2*month^-1,0.1,0,Average monthly climate moisture index over one year
+Climatology,cmi_min,Minimum monthly climate moisture index,kg*m^-2*month^-1,0.1,0,Climate moisture index of the month with the largest precipitation deficit
+Climatology,cmi_range,Annual range of monthly climate moisture index,kg*m^-2*month^-1,0.1,0,Difference between maximum and minimum monthly climate moisture index
+Climatology,cmi_01 ... cmi_12,Monthly climate moisture indices,kg*m^-2*month^-1,0.1,0,Climate moisture index for each of the 12 months
+Climatology,fcf,Frost change frequency,NoUnits,1,0,Number of events in which tmin or tmax crosses 0 C
+Climatology,fgd,First day of the growing season (TREELIM),day,1,0,First day of the growing season under the TREELIM model
+Climatology,lgd,Last day of the growing season (TREELIM),day,1,0,Last day of the growing season under the TREELIM model
+Climatology,gsl,Growing season length (TREELIM),day,1,0,Length of the growing season
+Climatology,gsp,Growing season precipitation (TREELIM),kg*m^-2*gsl^-1,0.1,0,Precipitation accumulated over all growing season days
+Climatology,gst,Growing season mean temperature (TREELIM),K,0.1,0,Mean temperature of all growing season days
+Climatology,gdd0,Growing degree days above 0 C,K,0.1,0,Heat sum of all days above 0 C accumulated over one year
+Climatology,gdd5,Growing degree days above 5 C,K,0.1,0,Heat sum of all days above 5 C accumulated over one year
+Climatology,gdd10,Growing degree days above 10 C,K,0.1,0,Heat sum of all days above 10 C accumulated over one year
+Climatology,gdgfgd0,First growing degree day above 0 C,day,1,0,First day of the year above 0 C
+Climatology,gdgfgd5,First growing degree day above 5 C,day,1,0,First day of the year above 5 C
+Climatology,gdgfgd10,First growing degree day above 10 C,day,1,0,First day of the year above 10 C
+Climatology,gddlgd0,Last growing degree day above 0 C,day,1,0,Last day of the year above 0 C
+Climatology,gddlgd5,Last growing degree day above 5 C,day,1,0,Last day of the year above 5 C
+Climatology,gddlgd10,Last growing degree day above 10 C,day,1,0,Last day of the year above 10 C
+Climatology,ngd0,Number of growing degree days above 0 C,day,1,0,Number of days on which tas > 0 C
+Climatology,ngd5,Number of growing degree days above 5 C,day,1,0,Number of days on which tas > 5 C
+Climatology,ngd10,Number of growing degree days above 10 C,day,1,0,Number of days on which tas > 10 C
+Climatology,npp,Net primary productivity (grams of Carbon),g*m^-2*year^-1,0.1,0,Potential NPP calculated with the Miami model (Lieth 1972)
+Climatology,scd,Snow cover days,day,1,0,Number of days with snow cover (TREELIM snowpack implementation)
+Climatology,swe,Snow water equivalent,kg*m^-2*year^-1,0.1,0,Amount of liquid water if the snow were melted
+Climatology,hurs_max,Maximum monthly near-surface relative humidity,NoUnits,0.01,0,Highest monthly near-surface relative humidity
+Climatology,hurs_mean,Mean monthly near-surface relative humidity,NoUnits,0.01,0,Average monthly near-surface relative humidity over one year
+Climatology,hurs_min,Minimum monthly near-surface relative humidity,NoUnits,0.01,0,Lowest monthly near-surface relative humidity
+Climatology,hurs_range,Annual range of monthly near-surface relative humidity,NoUnits,0.01,0,Difference between maximum and minimum near-surface relative humidity
+Climatology,hurs_01 ... hurs_12,Monthly near-surface relative humidity,NoUnits,0.01,0,Near-surface relative humidity for each of the 12 months
+Climatology,clt_max,Maximum monthly total cloud cover,NoUnits,0.01,0,Highest monthly total cloud cover
+Climatology,clt_mean,Mean monthly total cloud cover,NoUnits,0.01,0,Average monthly total cloud cover over one year
+Climatology,clt_min,Minimum monthly total cloud cover,NoUnits,0.01,0,Lowest monthly total cloud cover
+Climatology,clt_range,Annual range of monthly total cloud cover,NoUnits,0.01,0,Difference between maximum and minimum monthly total cloud cover
+Climatology,clt_01 ... clt_12,Monthly total cloud cover,NoUnits,0.01,0,Total cloud cover for each of the 12 months
+Climatology,vpd_max,Maximum monthly vapour pressure deficit,Pa,0.1,0,Highest monthly vapour pressure deficit
+Climatology,vpd_mean,Mean monthly vapour pressure deficit,Pa,0.1,0,Average monthly vapour pressure deficit over one year
+Climatology,vpd_min,Minimum monthly vapour pressure deficit,Pa,0.1,0,Lowest monthly vapour pressure deficit
+Climatology,vpd_range,Annual range of monthly vapour pressure deficit,Pa,0.1,0,Difference between maximum and minimum monthly vapour pressure deficit
+Climatology,vpd_01 ... vpd_12,Monthly vapour pressure deficit,Pa,0.1,0,Vapour pressure deficit for each of the 12 months
+Climatology,pet_penman_max,Maximum monthly potential evapotranspiration,kg*m^-2*month^-1,0.01,0,Highest monthly PET (Penman-Monteith)
+Climatology,pet_penman_mean,Mean monthly potential evapotranspiration,kg*m^-2*month^-1,0.01,0,Average monthly PET over one year (Penman-Monteith)
+Climatology,pet_penman_min,Minimum monthly potential evapotranspiration,kg*m^-2*month^-1,0.01,0,Lowest monthly PET (Penman-Monteith)
+Climatology,pet_penman_range,Annual range of monthly potential evapotranspiration,kg*m^-2,0.01,0,Difference between maximum and minimum monthly PET
+Climatology,pet_penman_01 ... pet_penman_12,Monthly potential evapotranspiration,kg*m^-2*month^-1,0.01,0,PET for each of the 12 months (Penman-Monteith)
+Climatology,rsds_max,Maximum monthly surface downwelling shortwave flux,MJ*m^-2*day^-1,0.001,0,Highest monthly surface downwelling shortwave flux in air
+Climatology,rsds_mean,Mean monthly surface downwelling shortwave flux,MJ*m^-2*day^-1,0.001,0,Average monthly surface downwelling shortwave flux over one year
+Climatology,rsds_min,Minimum monthly surface downwelling shortwave flux,MJ*m^-2*day^-1,0.001,0,Lowest monthly surface downwelling shortwave flux in air
+Climatology,rsds_range,Annual range of monthly surface downwelling shortwave flux,MJ*m^-2*day^-1,0.001,0,Difference between maximum and minimum monthly shortwave flux
+Climatology,rsds_01 ... rsds_12,Monthly surface downwelling shortwave flux,MJ*m^-2*day^-1,0.001,0,Surface downwelling shortwave flux for each of the 12 months (see notes: spec text has a copy-paste error here)
+Climatology,pr_01 ... pr_12,Monthly precipitation amount,kg*m^-2*month^-1,0.1,0,Precipitation amount for each of the 12 months
+Climatology,tas_01 ... tas_12,Mean daily air temperature,K,0.1,0,Mean daily 2 m air temperature for each of the 12 months
+Climatology,tasmax_01 ... tasmax_12,Mean daily maximum air temperature,K,0.1,0,Mean daily maximum 2 m air temperature for each of the 12 months
+Climatology,tasmin_01 ... tasmin_12,Mean daily minimum air temperature,K,0.1,0,Mean daily minimum 2 m air temperature for each of the 12 months
+Climatology,kg0,Koppen-Geiger climate classification,NoUnits,1,0,Koppen-Geiger (Koeppen & Geiger 1936); 31 classes
+Climatology,kg1,Koppen-Geiger climate classification,NoUnits,1,0,Koppen-Geiger without As/Aw differentiation
+Climatology,kg2,Koppen-Geiger climate classification,NoUnits,1,0,Koppen-Geiger after Peel et al. 2007
+Climatology,kg3,Wissmann climate classification,NoUnits,1,0,Wissmann 1939; 22 classes
+Climatology,kg4,Thornthwaite climate classification,NoUnits,1,0,Thornthwaite 1931; 30 classes
+Climatology,kg5,Troll-Pfaffen climate classification,NoUnits,1,0,Troll-Pfaffen (Troll & Paffen 1964); 37 classes
+Monthly time-series,cmi,Climate moisture index,kg*m^-2*month^-1,0.1,0,Precipitation amount minus potential evapotranspiration
+Monthly time-series,hurs,Near-surface relative humidity,NoUnits,0.01,0,Near-surface relative humidity
+Monthly time-series,pet_penman,Potential evapotranspiration,kg*m^-2*month^-1,0.01,0,PET calculated with the Penman-Monteith equation
+Monthly time-series,pr,Precipitation amount,kg*m^-2*month^-1,0.1,0,Precipitation of water in all phases; mass per unit area
+Monthly time-series,rsds,Surface downwelling shortwave flux in air,MJ*m^-2*day^-1,0.001,0,Shortwave flux at the surface; attenuating effects of clouds accounted for
+Monthly time-series,sfcWind,Near-surface wind speed,m*s^-1,0.001,0,Wind speed 10 m above ground
+Monthly time-series,clt,Total cloud cover at surface,NoUnits,0.01,0,Cloud cover across the whole atmospheric column seen from the surface upwards
+Monthly time-series,vpd,Vapour pressure deficit,Pa,0.1,0,Vapour pressure deficit
+Monthly time-series,tas,Mean daily air temperature,K,0.1,0,Mean daily 2 m air temperature from hourly ERA5 data
+Monthly time-series,tasmax,Mean daily maximum air temperature,K,0.1,0,Mean daily maximum 2 m air temperature from hourly ERA5 data
+Monthly time-series,tasmin,Mean daily minimum air temperature,K,0.1,0,Mean daily minimum 2 m air temperature from hourly ERA5 data
+Annual,swb,Site water balance,kg*m-2*year-1,0.1,0,Cumulative water available through the year; capped by soil available water holding capacity
