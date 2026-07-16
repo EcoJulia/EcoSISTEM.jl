@@ -9,7 +9,19 @@ path(path...; dir::String = "test") = joinpath(@__DIR__, "..", dir, path...)
 include("Units/Units.jl")
 
 # Layer roles + specs (recipes) — defined early so later modules can build on them.
-include("Layers.jl")
+include("NicheInfo.jl")
+export NicheAxis, AbstractTemperature, AbstractPrecipitation,
+       MeanTemperature, MinTemperature, MaxTemperature, DiurnalTemperatureRange,
+       TemperatureSeasonality, TemperatureAnnualRange,
+       WettestQuarterTemperature,
+       DriestQuarterTemperature, WarmestQuarterTemperature,
+       ColdestQuarterTemperature,
+       Precipitation, WettestMonthPrecipitation, DriestMonthPrecipitation,
+       WettestQuarterPrecipitation, DriestQuarterPrecipitation,
+       WarmestQuarterPrecipitation, ColdestQuarterPrecipitation,
+       SolarRadiation, WindSpeed, VaporPressure, Isothermality,
+       PrecipitationSeasonality, Heterogeneity, LandType, Altitude,
+       VolumetricWater
 
 # EcoSISTEM.ClimatePref sub-module
 include("ClimatePref/ClimatePref.jl")
@@ -126,18 +138,6 @@ export Ecosystem,
        getbudget,
        addspecies!
 
-export NicheAxis, AbstractTemperature, AbstractPrecipitation,
-       MeanTemperature, MinTemperature, MaxTemperature, DiurnalTemperatureRange,
-       TemperatureSeasonality, TemperatureAnnualRange,
-       WettestQuarterTemperature,
-       DriestQuarterTemperature, WarmestQuarterTemperature,
-       ColdestQuarterTemperature,
-       Precipitation, WettestMonthPrecipitation, DriestMonthPrecipitation,
-       WettestQuarterPrecipitation, DriestQuarterPrecipitation,
-       WarmestQuarterPrecipitation, ColdestQuarterPrecipitation,
-       SolarRadiation, WindSpeed, VaporPressure, Isothermality,
-       PrecipitationSeasonality, Heterogeneity, LandType, Altitude,
-       VolumetricWater
 include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
 
