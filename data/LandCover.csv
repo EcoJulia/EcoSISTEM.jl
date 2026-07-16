@@ -1,13 +1,13 @@
-Code,Name,Units,Scale,Offset,Filename (full version),Filename (reduced version),Definition
-1,Evergreen/Deciduous Needleleaf Trees,,0.01,0,consensus_full_class_1.tif,Consensus_reduced_class_1.tif,Needleleaf tree cover (evergreen and deciduous combined)
-2,Evergreen Broadleaf Trees,,0.01,0,consensus_full_class_2.tif,Consensus_reduced_class_2.tif,Broadleaf trees retaining leaves year-round
-3,Deciduous Broadleaf Trees,,0.01,0,consensus_full_class_3.tif,Consensus_reduced_class_3.tif,Broadleaf trees shedding leaves seasonally
-4,Mixed/Other Trees,,0.01,0,consensus_full_class_4.tif,Consensus_reduced_class_4.tif,Mixed forest and tree cover not assignable to classes 1-3
-5,Shrubs,,0.01,0,consensus_full_class_5.tif,Consensus_reduced_class_5.tif,Woody vegetation below tree height
-6,Herbaceous Vegetation,,0.01,0,consensus_full_class_6.tif,Consensus_reduced_class_6.tif,Natural grasses and non-woody herbaceous cover
-7,Cultivated and Managed Vegetation,,0.01,0,consensus_full_class_7.tif,Consensus_reduced_class_7.tif,Croplands and managed vegetation
-8,Regularly Flooded Vegetation,,0.01,0,consensus_full_class_8.tif,Consensus_reduced_class_8.tif,Wetlands; vegetation subject to regular flooding
-9,Urban/Built-up,,0.01,0,consensus_full_class_9.tif,Consensus_reduced_class_9.tif,Artificial surfaces and built infrastructure
-10,Snow/Ice,,0.01,0,consensus_full_class_10.tif,Consensus_reduced_class_10.tif,Permanent snow and ice
-11,Barren,,0.01,0,consensus_full_class_11.tif,Consensus_reduced_class_11.tif,"Bare soil, rock, sand and sparsely vegetated ground"
-12,Open Water,,0.01,0,consensus_full_class_12.tif,Consensus_reduced_class_12.tif,Permanent open water bodies
+Code,Name,Units,Scale,Offset,Filename (full version),Filename (reduced version),Definition,Axis
+1,Evergreen/Deciduous Needleleaf Trees,,0.01,0,consensus_full_class_1.tif,Consensus_reduced_class_1.tif,Needleleaf tree cover (evergreen and deciduous combined),LandType
+2,Evergreen Broadleaf Trees,,0.01,0,consensus_full_class_2.tif,Consensus_reduced_class_2.tif,Broadleaf trees retaining leaves year-round,LandType
+3,Deciduous Broadleaf Trees,,0.01,0,consensus_full_class_3.tif,Consensus_reduced_class_3.tif,Broadleaf trees shedding leaves seasonally,LandType
+4,Mixed/Other Trees,,0.01,0,consensus_full_class_4.tif,Consensus_reduced_class_4.tif,Mixed forest and tree cover not assignable to classes 1-3,LandType
+5,Shrubs,,0.01,0,consensus_full_class_5.tif,Consensus_reduced_class_5.tif,Woody vegetation below tree height,LandType
+6,Herbaceous Vegetation,,0.01,0,consensus_full_class_6.tif,Consensus_reduced_class_6.tif,Natural grasses and non-woody herbaceous cover,LandType
+7,Cultivated and Managed Vegetation,,0.01,0,consensus_full_class_7.tif,Consensus_reduced_class_7.tif,Croplands and managed vegetation,LandType
+8,Regularly Flooded Vegetation,,0.01,0,consensus_full_class_8.tif,Consensus_reduced_class_8.tif,Wetlands; vegetation subject to regular flooding,LandType
+9,Urban/Built-up,,0.01,0,consensus_full_class_9.tif,Consensus_reduced_class_9.tif,Artificial surfaces and built infrastructure,LandType
+10,Snow/Ice,,0.01,0,consensus_full_class_10.tif,Consensus_reduced_class_10.tif,Permanent snow and ice,LandType
+11,Barren,,0.01,0,consensus_full_class_11.tif,Consensus_reduced_class_11.tif,"Bare soil, rock, sand and sparsely vegetated ground",LandType
+12,Open Water,,0.01,0,consensus_full_class_12.tif,Consensus_reduced_class_12.tif,Permanent open water bodies,LandType

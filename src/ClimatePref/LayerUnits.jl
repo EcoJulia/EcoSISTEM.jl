@@ -51,10 +51,17 @@ function _layertable(path::String)
     end
 end
 
+# All concrete `NicheAxis` types. `subtypes` only returns direct children, so recurse
+# through the abstract intermediates (e.g. `AbstractTemperature`) to reach the leaf axes.
+function _leafaxes(T = NicheAxis)
+    return isabstracttype(T) ?
+           mapreduce(_leafaxes, vcat, subtypes(T); init = Type[]) : [T]
+end
+
 # Resolve an axis name from a table to its `NicheAxis` type by autodiscovery — no registry:
-# any loaded `NicheAxis` subtype with that name works (build-time only).
+# any loaded concrete `NicheAxis` with that name works (build-time only).
 function _resolve_axis(name::AbstractString)
-    matches = filter(A -> string(nameof(A)) == name, subtypes(NicheAxis))
+    matches = filter(A -> string(nameof(A)) == name, _leafaxes())
     length(matches) == 1 ||
         return error("`$name` does not name exactly one loaded `NicheAxis` (found $(length(matches)))")
     return only(matches)

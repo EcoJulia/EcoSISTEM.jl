@@ -126,8 +126,18 @@ export Ecosystem,
        getbudget,
        addspecies!
 
-export NicheAxis, Temperature, Rainfall, SolarRadiation, VolumetricWater,
-       LandType, Altitude
+export NicheAxis, AbstractTemperature, AbstractPrecipitation,
+       MeanTemperature, MinTemperature, MaxTemperature, DiurnalTemperatureRange,
+       TemperatureSeasonality, TemperatureAnnualRange,
+       WettestQuarterTemperature,
+       DriestQuarterTemperature, WarmestQuarterTemperature,
+       ColdestQuarterTemperature,
+       Precipitation, WettestMonthPrecipitation, DriestMonthPrecipitation,
+       WettestQuarterPrecipitation, DriestQuarterPrecipitation,
+       WarmestQuarterPrecipitation, ColdestQuarterPrecipitation,
+       SolarRadiation, WindSpeed, VaporPressure, Isothermality,
+       PrecipitationSeasonality, Heterogeneity, LandType, Altitude,
+       VolumetricWater
 include("Traitfuns.jl")
 export TraitFun, getpref, gettraitrel, gethabitat
 

@@ -53,4 +53,43 @@ using Test
     end
 end
 
+@testset "layeraxis / _resolve_axis" begin
+    # populated Axis columns resolve to the right axis (incl. the hierarchy leaves)
+    @test layeraxis(WorldClim{BioClim}, 1) === MeanTemperature
+    @test layeraxis(WorldClim{BioClim}, 12) === Precipitation
+    @test layeraxis(WorldClim{Climate}, :srad) === SolarRadiation
+    @test layeraxis(EarthEnv{LandCover}, 1) === LandType
+    @test layeraxis(WorldClim{Elevation}, :elev) === Altitude
+    @test layeraxis(EarthEnv{HabitatHeterogeneity}, :shannon) === Heterogeneity
+    # BioClimPlus has no Axis column populated yet ⇒ unclassified
+    @test layeraxis(WorldClim{BioClimPlus}, :cmi_max) === nothing
+    # a name resolves to its concrete NicheAxis by autodiscovery (through abstract groups)
+    @test ClimatePref._resolve_axis("MeanTemperature") === MeanTemperature
+    @test ClimatePref._resolve_axis("Heterogeneity") === Heterogeneity
+    @test ClimatePref._resolve_axis("Altitude") === Altitude
+    # a name that isn't a loaded NicheAxis errors clearly
+    @test_throws ErrorException ClimatePref._resolve_axis("NotAnAxis")
+end
+
+@testset "guard: shipped data/ tables are well-formed" begin
+    datadir = pkgdir(EcoSISTEM, "data")
+    csvs = filter(endswith(".csv"), readdir(datadir))
+    @test !isempty(csvs)
+    for f in csvs
+        base = first(splitext(f))
+        # every table's basename names a real RasterDataSources dataset type
+        @test isdefined(RasterDataSources, Symbol(base))
+        rows = ClimatePref._layertable(joinpath(datadir, f))
+        for (_, cell) in rows
+            # every non-blank Units parses …
+            isempty(cell.units) ||
+                @test uparse(cell.units, unit_context = [Unitful, Units]) isa
+                      Unitful.Units
+            # … and every non-blank Axis resolves to a loaded NicheAxis
+            isempty(cell.axis) ||
+                @test ClimatePref._resolve_axis(cell.axis) <: NicheAxis
+        end
+    end
+end
+
 end

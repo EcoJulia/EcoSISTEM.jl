@@ -1,8 +1,8 @@
-Code,Name,Definition,Units,Scale,Offset,Layers,Temporal Resolution,Notes
-tmin,Minimum Temperature,Average daily minimum temperature for the month,K,1,0,12,Monthly,Available for historical (1970-2000) and CMIP6 future scenarios
-tmax,Maximum Temperature,Average daily maximum temperature for the month,K,1,0,12,Monthly,Available for historical (1970-2000) and CMIP6 future scenarios
-tavg,Average Temperature,Mean of tmin and tmax for the month,K,1,0,12,Monthly,Historical only; not distributed for CMIP6 future data
-prec,Precipitation,Total precipitation for the month,mm,1,0,12,Monthly,Available for historical (1970-2000) and CMIP6 future scenarios
-srad,Solar Radiation,Incident downward shortwave radiation flux,kJ*m^-2*day^-1,1,0,12,Monthly,Historical only
-wind,Wind Speed,Average 10 m wind speed for the month,m*s^-1,1,0,12,Monthly,Historical only
-vapr,Water Vapour Pressure,Average water vapour partial pressure for the month,kPa,1,0,12,Monthly,Historical only
+Code,Name,Definition,Units,Scale,Offset,Layers,Temporal Resolution,Notes,Axis
+tmin,Minimum Temperature,Average daily minimum temperature for the month,K,1,0,12,Monthly,Available for historical (1970-2000) and CMIP6 future scenarios,MinTemperature
+tmax,Maximum Temperature,Average daily maximum temperature for the month,K,1,0,12,Monthly,Available for historical (1970-2000) and CMIP6 future scenarios,MaxTemperature
+tavg,Average Temperature,Mean of tmin and tmax for the month,K,1,0,12,Monthly,Historical only; not distributed for CMIP6 future data,MeanTemperature
+prec,Precipitation,Total precipitation for the month,mm,1,0,12,Monthly,Available for historical (1970-2000) and CMIP6 future scenarios,Precipitation
+srad,Solar Radiation,Incident downward shortwave radiation flux,kJ*m^-2*day^-1,1,0,12,Monthly,Historical only,SolarRadiation
+wind,Wind Speed,Average 10 m wind speed for the month,m*s^-1,1,0,12,Monthly,Historical only,WindSpeed
+vapr,Water Vapour Pressure,Average water vapour partial pressure for the month,kPa,1,0,12,Monthly,Historical only,VaporPressure
