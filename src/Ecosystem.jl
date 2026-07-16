@@ -150,9 +150,22 @@ mutable struct Ecosystem{Part <: AbstractAbiotic,
                                                                           SpeciesList,
                                                                           TR <:
                                                                           AbstractTraitRelationship}
-        tematch(spplist, abenv) || error("Traits do not match habitats")
+        tematch(spplist, abenv) ||
+            error("Species traits and habitat are incompatible: traits are " *
+                  "$(iscontinuous(spplist.traits) ? "continuous" : "discrete") " *
+                  "$(eltype(spplist.traits)), the habitat is " *
+                  "$(iscontinuous(abenv.habitat) ? "continuous" : "discrete") " *
+                  "$(eltype(abenv.habitat)). Pair a continuous trait (e.g. " *
+                  "GaussTrait) with a continuous habitat (simplehabitatAE / " *
+                  "tempgradAE), or a discrete trait (DiscreteTrait) with a " *
+                  "discrete habitat (simplenicheAE).")
         trmatch(spplist, relationship) ||
-            error("Traits do not match trait functions")
+            error("Species traits and the trait relationship are incompatible: " *
+                  "traits are $(iscontinuous(spplist.traits) ? "continuous" : "discrete") " *
+                  "$(eltype(spplist.traits)), the relationship is " *
+                  "$(iscontinuous(relationship) ? "continuous" : "discrete") " *
+                  "$(eltype(relationship)). Use Gauss with continuous traits, or " *
+                  "Match / LCmatch with discrete traits.")
         #_mcmatch(abundances.matrix, spplist, abenv) ||
         #  error("Dimension mismatch")
         return new{Part, SL, TR}(abundances,
@@ -588,7 +601,7 @@ neighbouring squares.
 """
 function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
     sd = (2 * mov.dist) / sqrt(pi)
-    relsize = _getgridsize(hab) ./ sd
+    relsize = uconvert(NoUnits, _getgridsize(hab) / sd)
     m = maximum(_getdimension(hab))
     p = mov.thresh
     return Lookup(_lookup(relsize, m, p, _gaussian_disperse))
@@ -596,7 +609,7 @@ end
 
 function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
     sd = (2 * mov.dist) / sqrt(pi)
-    relsize = _getgridsize(hab) ./ sd
+    relsize = uconvert(NoUnits, _getgridsize(hab) / sd)
     m = maximum(_getdimension(hab))
     p = mov.thresh
     b = mov.shape
