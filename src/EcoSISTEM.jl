@@ -64,6 +64,12 @@ export ContinuousHab,
        tempgrad,
        raingrad
 
+# Materialised layer family (Role × NicheAxis) — additive; sim core rewired onto it
+# over the fold sub-steps.
+include("Layer.jl")
+export AbstractLayer, ContinuousLayer, DiscreteLayer,
+       LayerCollection2, LayerCollection3, Unclassified
+
 include("Energy.jl")
 export SimpleRequirement,
        SizeRequirement,
