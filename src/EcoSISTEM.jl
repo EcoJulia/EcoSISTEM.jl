@@ -55,20 +55,18 @@ export TraitRelationship,
        additiveTR3,
        LCmatch
 
-include("Habitats.jl")
-export ContinuousHab,
-       ContinuousTimeHab,
-       DiscreteHab,
-       HabitatCollection2,
-       HabitatCollection3,
-       tempgrad,
-       raingrad
-
-# Materialised layer family (Role × NicheAxis) — additive; sim core rewired onto it
-# over the fold sub-steps.
+# Materialised layer family (Role × NicheAxis): the AbstractLayer types + HabitatUpdate,
+# with the old *Hab names kept as aliases. Included BEFORE Habitats.jl, whose methods
+# dispatch on those aliases.
 include("Layer.jl")
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
        LayerCollection2, LayerCollection3, Unclassified
+# back-compat habitat aliases over the layer types (defined in Layer.jl)
+export ContinuousHab, ContinuousTimeHab, DiscreteHab,
+       HabitatCollection2, HabitatCollection3
+
+include("Habitats.jl")
+export tempgrad, raingrad
 
 include("Energy.jl")
 export SimpleRequirement,

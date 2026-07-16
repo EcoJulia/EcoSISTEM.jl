@@ -1,16 +1,49 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
+using EcoBase
+using Unitful
+using Unitful.DefaultSymbols
+using EcoSISTEM.Units
+
+# ---------------------------------------------------------------------------
+# Layer dynamics
+# ---------------------------------------------------------------------------
+# (Kept named `HabitatUpdate` for now; renamed `LayerDynamics` when `update!` is unified.)
+
+"""
+    HabitatUpdate{F <: Function, DT}
+
+Stores the update rule for a layer. `changefun` is applied to the layer matrix at each
+timestep, and `rate` is the rate of change with appropriate units.
+"""
+struct HabitatUpdate{F <: Function, DT}
+    changefun::F
+    rate::DT
+end
+
+"""
+    HabitatUpdate(changefun::F, rate::DT, ::Type{D})
+
+Construct a `HabitatUpdate` with a type-checked rate. Errors if `rate * 1month` does not
+have dimensions `D`.
+"""
+function HabitatUpdate(changefun::F, rate::DT,
+                       ::Type{D}) where {F <: Function, DT,
+                                         D <: Unitful.Dimensions}
+    dimension(rate * 1month) isa D ||
+        error("Failed to match types $(rate * 1month) vs $D")
+    return HabitatUpdate(changefun, rate)
+end
+
 # ---------------------------------------------------------------------------
 # AbstractLayer — the materialised, hot-loop grid-layer family
 # ---------------------------------------------------------------------------
-# A materialised layer is `matrix (+ time) + size + dynamics`, tagged with a `Role`
+# A materialised layer is `matrix (+ time) + size + change`, tagged with a `Role`
 # (`Habitat` condition vs `Budget` resource) and a `NicheAxis` (what it measures). It
-# unifies today's `ContinuousHab`/`ContinuousTimeHab`/`DiscreteHab` and the budget structs.
-#
-# ADDITIVE for now: these types are defined but nothing is rewired onto them yet (sub-step 1
-# of the layer fold). The `AbstractHabitat`/`AbstractBudget` aliases and the retargeting of
-# the sim core follow in later sub-steps. `dynamics::HabitatUpdate` reuses the existing
-# dynamics struct (renamed to `LayerDynamics` when `update!` is unified).
+# unifies today's `ContinuousHab`/`ContinuousTimeHab`/`DiscreteHab` (and, from sub-step 3,
+# the budget structs). During the fold the old `*Hab` names below are **aliases** over these
+# types, so existing methods/constructors keep working (defaulting to the `Unclassified`
+# axis) until each path is threaded with its real axis.
 
 abstract type AbstractLayer{R <: Role} <: EcoBase.AbstractGrid end
 
@@ -34,7 +67,7 @@ mutable struct ContinuousLayer{R <: Role, A <: NicheAxis, V <: Number,
     matrix::Arr
     time::Int64
     size::Unitful.Length
-    dynamics::HabitatUpdate
+    change::HabitatUpdate
 end
 
 """
@@ -47,7 +80,7 @@ mutable struct DiscreteLayer{A <: NicheAxis, V, Arr <: AbstractArray{V}} <:
                AbstractLayer{Habitat}
     matrix::Arr
     size::Unitful.Length
-    dynamics::HabitatUpdate
+    change::HabitatUpdate
 end
 
 """
@@ -59,13 +92,62 @@ rainfall). Sub-layer types are kept concrete in named fields for hot-loop type s
 """
 struct LayerCollection2{R <: Role, L1 <: AbstractLayer{R},
                         L2 <: AbstractLayer{R}} <: AbstractLayer{R}
-    l1::L1
-    l2::L2
+    h1::L1
+    h2::L2
 end
 struct LayerCollection3{R <: Role, L1 <: AbstractLayer{R},
                         L2 <: AbstractLayer{R},
                         L3 <: AbstractLayer{R}} <: AbstractLayer{R}
-    l1::L1
-    l2::L2
-    l3::L3
+    h1::L1
+    h2::L2
+    h3::L3
+end
+
+# ---------------------------------------------------------------------------
+# Back-compat aliases + constructors (habitat role)
+# ---------------------------------------------------------------------------
+# `AbstractBudget` is NOT aliased here — it stays Energy.jl's `AbstractBudget{Requirement}`
+# until the budget fold (sub-step 3).
+
+const AbstractHabitat = AbstractLayer{Habitat}
+
+const ContinuousHab{C} = ContinuousLayer{Habitat, A, C, Matrix{C}} where {A}
+const ContinuousTimeHab{C, M <: AbstractArray{C, 3}} = ContinuousLayer{Habitat,
+                                                                       A, C,
+                                                                       M} where {A}
+const DiscreteHab{D} = DiscreteLayer{A, D, Matrix{D}} where {A}
+const HabitatCollection2{H1, H2} = LayerCollection2{Habitat, H1, H2}
+const HabitatCollection3{H1, H2, H3} = LayerCollection3{Habitat, H1, H2, H3}
+
+# Old positional constructors → new layer types, defaulting to the `Unclassified` axis and
+# time = 1 (the axis-aware `materialise` path constructs `ContinuousLayer{Habitat, A}` with
+# the real axis directly).
+function ContinuousHab(matrix::Matrix{C}, size::Unitful.Length,
+                       change::HabitatUpdate) where {C}
+    return ContinuousLayer{Habitat, Unclassified, C, Matrix{C}}(matrix, 1, size,
+                                                                change)
+end
+function ContinuousTimeHab(matrix::AbstractArray{C, 3}, time::Integer,
+                           size::Unitful.Length,
+                           change::HabitatUpdate) where {C}
+    return ContinuousLayer{Habitat, Unclassified, C, typeof(matrix)}(matrix,
+                                                                     time, size,
+                                                                     change)
+end
+function DiscreteHab(matrix::Matrix{D}, size::Unitful.Length,
+                     change::HabitatUpdate) where {D}
+    return DiscreteLayer{Unclassified, D, Matrix{D}}(matrix, size, change)
+end
+
+# The collection aliases fix `R = Habitat` but leave the sub-layer params free, so the
+# auto-generated constructor doesn't cover `HabitatCollection2(l1, l2)`; forward to the bare
+# `LayerCollection` constructor (which infers the role from the sub-layers).
+function HabitatCollection2(l1::AbstractLayer{Habitat},
+                            l2::AbstractLayer{Habitat})
+    return LayerCollection2(l1, l2)
+end
+function HabitatCollection3(l1::AbstractLayer{Habitat},
+                            l2::AbstractLayer{Habitat},
+                            l3::AbstractLayer{Habitat})
+    return LayerCollection3(l1, l2, l3)
 end

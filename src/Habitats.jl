@@ -18,12 +18,9 @@ import Diversity.countsubcommunities
 
 const px = AbsoluteLength(0.254)
 
-"""
-    AbstractHabitat
-
-Abstract supertype for all habitat types
-"""
-abstract type AbstractHabitat{H} <: EcoBase.AbstractGrid end
+# `AbstractHabitat`, the `HabitatUpdate` dynamics, and the `*Hab`/`HabitatCollection` types
+# now live in `Layer.jl` (as `AbstractLayer{Habitat}` + `ContinuousLayer`/… with the old
+# names kept as aliases). The methods below dispatch on those aliases.
 
 function Diversity.countsubcommunities(ah::AbstractHabitat)
     return _countsubcommunities(ah)
@@ -39,45 +36,6 @@ function indices(ah::AbstractHabitat)
 end
 indices(ah::AbstractHabitat, idx) = indices(ah)[:, idx]
 coordinates(ah::AbstractHabitat) = indices(ah)
-
-"""
-    HabitatUpdate{F <: Function, DT}
-
-Stores the update rule for a habitat. `changefun` is the function applied to the
-habitat matrix at each timestep, and `rate` is the rate of change with
-appropriate units.
-"""
-struct HabitatUpdate{F <: Function, DT}
-    changefun::F
-    rate::DT
-end
-
-"""
-    HabitatUpdate(changefun::F, rate::DT, ::Type{D})
-
-Construct a `HabitatUpdate` with a type-checked rate. Errors if `rate * 1month`
-does not have dimensions `D`.
-"""
-function HabitatUpdate(changefun::F,
-                       rate::DT,
-                       ::Type{D}) where {F <: Function, DT,
-                                         D <: Unitful.Dimensions}
-    dimension(rate * 1month) isa D ||
-        error("Failed to match types $(rate * 1month) vs $D")
-    return HabitatUpdate(changefun, rate)
-end
-
-"""
-    ContinuousHab{C <: Number} <: AbstractHabitat{C}
-
-This habitat subtype houses a habitat matrix `matrix` of any units, a grid
-square size `size` and [`HabitatUpdate`](@ref) type `change`.
-"""
-mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
-    matrix::Matrix{C}
-    size::Unitful.Length
-    change::HabitatUpdate
-end
 
 iscontinuous(::ContinuousHab) = true
 
@@ -115,20 +73,6 @@ end
     return xrange(H), yrange(H), h
 end
 
-"""
-    ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <: AbstractHabitat{C}
-
-This habitat subtype houses a habitat matrix `matrix` of any units, the time
-slice of the habitat matrix currently being operated on `time`, a grid square
-size `size` and [`HabitatUpdate`](@ref) type `change`.
-"""
-mutable struct ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <:
-               AbstractHabitat{C}
-    matrix::M
-    time::Int64
-    size::Unitful.Length
-    change::HabitatUpdate
-end
 @recipe function f(H::ContinuousTimeHab{C, M},
                    time::Int64) where {C, M <: AbstractArray{C, 3}}
     h = ustrip.(H.matrix)
@@ -160,17 +104,6 @@ function Diversity.API._countsubcommunities(hab::ContinuousTimeHab)
     return length(hab.matrix[:, :, 1])
 end
 
-"""
-    DiscreteHab{D} <: AbstractHabitat{D}
-
-Habitat subtype with a discrete `matrix` of element type `D`, a grid cell
-`size`, and a [`HabitatUpdate`](@ref) rule `change` applied at each timestep.
-"""
-mutable struct DiscreteHab{D} <: AbstractHabitat{D}
-    matrix::Matrix{D}
-    size::Unitful.Length
-    change::HabitatUpdate
-end
 @recipe function f(H::DiscreteHab{D}) where {D}
     h = ustrip.(H.matrix)
     seriestype := :heatmap
@@ -207,16 +140,6 @@ function _getgridsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
     return hab.size
 end
 
-"""
-    HabitatCollection2{H1, H2} <: AbstractHabitat{Tuple{H1, H2}}
-
-Composite habitat pairing two sub-habitats `h1` and `h2`, allowing
-multi-variable abiotic environments (e.g. temperature and rainfall together).
-"""
-struct HabitatCollection2{H1, H2} <: AbstractHabitat{Tuple{H1, H2}}
-    h1::H1
-    h2::H2
-end
 function iscontinuous(hab::HabitatCollection2{H1, H2}) where {H1, H2}
     return [iscontinuous(hab.h1), iscontinuous(hab.h2)]
 end
@@ -241,17 +164,6 @@ function _resettime!(hab::HabitatCollection2)
     return _resettime!(hab.h2)
 end
 
-"""
-    HabitatCollection3{H1, H2, H3} <: AbstractHabitat{Tuple{H1, H2, H3}}
-
-Composite habitat combining three sub-habitats `h1`, `h2`, and `h3`.
-"""
-struct HabitatCollection3{H1, H2, H3} <:
-       AbstractHabitat{Tuple{H1, H2, H3}}
-    h1::H1
-    h2::H2
-    h3::H3
-end
 function iscontinuous(hab::HabitatCollection3)
     return [iscontinuous(hab.h1), iscontinuous(hab.h2), iscontinuous(hab.h3)]
 end
