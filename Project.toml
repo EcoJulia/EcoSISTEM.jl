@@ -7,6 +7,7 @@ authors = ["Claire Harris", "Richard Reeve <richard.reeve@glasgow.ac.uk>"]
 [deps]
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
 AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -57,6 +58,7 @@ EcoSISTEMPlotsExt = "Plots"
 [compat]
 ArchGDAL = "0.6, 0.7, 0.8, 0.9, 0.10"
 AxisArrays = "0.4.6"
+CSV = "0.10"
 Calculus = "0.4.1, 0.5"
 DataFrames = "0.21.8, 0.22, 1.0"
 Dates = "1.9"
