@@ -140,7 +140,7 @@ function simulate_action!(action!::F,
                           timestep::Unitful.Time;
                           scenario = nothing,
                           offset = false) where {F <: Function}
-    ustrip(mod(interval, timestep)) == 0.0 ||
+    iszero(mod(interval, timestep)) ||
         error("Interval must be a multiple of timestep")
     action_seq = offset ? (timestep:interval:times) : ((0s):interval:times)
     time_seq = offset ? (timestep:timestep:times) : ((0s):timestep:times)
@@ -182,7 +182,7 @@ function simulate_record!(storage::AbstractArray,
                           interval::Unitful.Time,
                           timestep::Unitful.Time,
                           scenario::Union{Nothing, AbstractScenario} = nothing)
-    ustrip(mod(interval, timestep)) == 0.0 ||
+    iszero(mod(interval, timestep)) ||
         error("Interval must be a multiple of timestep")
     record_seq = (0s):interval:times
     time_seq = (0s):timestep:times
