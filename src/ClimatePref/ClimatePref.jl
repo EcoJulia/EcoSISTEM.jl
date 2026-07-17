@@ -7,10 +7,10 @@ function retrieve_era5 end
 export retrieve_era5
 
 include("ClimateTypes.jl")
-export ClimateRaster, Worldclim_monthly, ERA, CERA, CRUTS,
-       CHELSA_monthly, Reference
+export ClimateRaster, ERA, CERA, CRUTS, Reference
 # Deprecated climate type names, retained for backward compatibility.
-export Worldclim_bioclim, CHELSA_bioclim, Landcover
+export Worldclim_bioclim, CHELSA_bioclim, Landcover,
+       Worldclim_monthly, CHELSA_monthly
 
 include("LayerUnits.jl")
 export layerunit, layeraxis

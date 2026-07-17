@@ -35,22 +35,6 @@ Base.length(cr::ClimateRaster) = length(cr.array)
 Base.eltype(::ClimateRaster{RDS, A}) where {RDS, A} = eltype(A)
 
 """
-    Worldclim_monthly <: AbstractClimate
-
-Type that houses data extracted from Worldclim raster files.
-"""
-struct Worldclim_monthly{A <: AxisArray} <: AbstractClimate
-    array::A
-    function Worldclim_monthly(array::A) where {A <: AxisArray}
-        eltype(AxisArrays.axes(array, 3).val) <: Unitful.Time ||
-            error("Third dimension of array must be time")
-        size(array, 3) == 12 ||
-            error("There should be 12 months of data for worldclim")
-        return new{A}(array)
-    end
-end
-
-"""
     ERA <: AbstractClimate
 
 Type that houses data extracted from ERA raster files.
@@ -101,29 +85,16 @@ struct CRUTS{A <: AxisArray} <: AbstractClimate
     end
 end
 
-"""
-    CHELSA_monthly <: AbstractClimate
-
-Type that houses data extracted from CHELSA raster files.
-"""
-struct CHELSA_monthly{A <: AxisArray} <: AbstractClimate
-    array::A
-    function CHELSA_monthly(array::A) where {A <: AxisArray}
-        eltype(AxisArrays.axes(array, 3).val) <: Unitful.Time ||
-            error("Third dimension of array must be time")
-        size(array, 3) == 12 ||
-            error("There should be 12 months of data for CHELSA")
-        return new{A}(array)
-    end
-end
-
 # ---------------------------------------------------------------------------
 # Deprecated climate types.
 #
-# Prior to the unified `read`/`ClimateRaster` API these three sources each had
-# their own wrapper type. They are retained as deprecated constructors that
-# forward to the equivalent `ClimateRaster{<:RasterDataSource}` so existing user
-# code keeps working (with a deprecation warning).
+# Prior to the unified `read`/`ClimateRaster` API these sources each had their
+# own wrapper type. They are retained as deprecated constructors that forward to
+# the equivalent `ClimateRaster{<:RasterDataSource}` so existing user code keeps
+# working (with a deprecation warning). The RasterDataSources-backed monthly
+# series (`Worldclim_monthly`, `CHELSA_monthly`) are `WorldClim{Climate}` /
+# `CHELSA{Climate}`; the 12-month check they used to enforce is dropped (the
+# readers that build them already assemble a 12-month stack).
 # ---------------------------------------------------------------------------
 @deprecate Worldclim_bioclim(array::AxisArray) ClimateRaster(RDS.WorldClim{RDS.BioClim},
                                                              array)
@@ -131,3 +102,7 @@ end
                                                           array)
 @deprecate Landcover(array::AxisArray) ClimateRaster(RDS.EarthEnv{RDS.LandCover},
                                                      array)
+@deprecate Worldclim_monthly(array::AxisArray) ClimateRaster(RDS.WorldClim{RDS.Climate},
+                                                             array)
+@deprecate CHELSA_monthly(array::AxisArray) ClimateRaster(RDS.CHELSA{RDS.Climate},
+                                                          array)
