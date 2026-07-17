@@ -106,8 +106,6 @@ end
 # ---------------------------------------------------------------------------
 # Back-compat aliases + constructors (habitat role)
 # ---------------------------------------------------------------------------
-# `AbstractBudget` is NOT aliased here — it stays Energy.jl's `AbstractBudget{Requirement}`
-# until the budget fold (sub-step 3).
 
 const AbstractHabitat = AbstractLayer{Habitat}
 
@@ -150,4 +148,59 @@ function HabitatCollection3(l1::AbstractLayer{Habitat},
                             l2::AbstractLayer{Habitat},
                             l3::AbstractLayer{Habitat})
     return LayerCollection3(l1, l2, l3)
+end
+
+# ---------------------------------------------------------------------------
+# Back-compat aliases (budget role)
+# ---------------------------------------------------------------------------
+# A budget is a `Budget`-role layer: the old budget structs are aliases over
+# `ContinuousLayer{Budget, axis, V, Arr}` — static budgets are 2-D (`Matrix`), the
+# time-varying `*TimeBudget`s 3-D (`Array`, indexed by `time`). The axis records the
+# resource measured; the (unused) `size` and the `change` rule are filled by the
+# constructors in Energy.jl. `SimpleBudget` (free energy) has no resource axis.
+
+"""
+    AbstractBudget
+
+A resource layer consumed by species — any `Budget`-role [`AbstractLayer`](@ref).
+"""
+const AbstractBudget = AbstractLayer{Budget}
+
+# A time-varying budget: a `Budget`-role continuous layer whose array is 3-D (monthly).
+const AbstractTimeBudget = ContinuousLayer{Budget, A, V,
+                                           Arr} where {A, V,
+                                                       Arr <:
+                                                       AbstractArray{V, 3}}
+
+"""    SimpleBudget — a dimensionless (free-energy) budget, one float per cell. """
+const SimpleBudget = ContinuousLayer{Budget, Unclassified, Float64,
+                                     Matrix{Float64}}
+"""    SolarBudget — a static solar-energy (kJ) budget. """
+const SolarBudget = ContinuousLayer{Budget, SolarRadiation, typeof(1.0 * kJ),
+                                    Matrix{typeof(1.0 * kJ)}}
+"""    WaterBudget — a static available-water (mm) budget. """
+const WaterBudget = ContinuousLayer{Budget, Precipitation, typeof(1.0 * mm),
+                                    Matrix{typeof(1.0 * mm)}}
+"""    VolWaterBudget — a static soil-water-volume (m³) budget. """
+const VolWaterBudget = ContinuousLayer{Budget, VolumetricWater,
+                                       typeof(1.0 * m^3),
+                                       Matrix{typeof(1.0 * m^3)}}
+"""    SolarTimeBudget — a monthly time-varying solar-energy (kJ) budget. """
+const SolarTimeBudget = ContinuousLayer{Budget, SolarRadiation,
+                                        typeof(1.0 * kJ),
+                                        Array{typeof(1.0 * kJ), 3}}
+"""    WaterTimeBudget — a monthly time-varying available-water (mm) budget. """
+const WaterTimeBudget = ContinuousLayer{Budget, Precipitation, typeof(1.0 * mm),
+                                        Array{typeof(1.0 * mm), 3}}
+"""    VolWaterTimeBudget — a monthly time-varying soil-water-volume (m³) budget. """
+const VolWaterTimeBudget = ContinuousLayer{Budget, VolumetricWater,
+                                           typeof(1.0 * m^3),
+                                           Array{typeof(1.0 * m^3), 3}}
+"""    BudgetCollection2{B1, B2} — two budgets over one grid (e.g. solar + water). """
+const BudgetCollection2{B1, B2} = LayerCollection2{Budget, B1, B2}
+
+# As for `HabitatCollection2`, the partially-applied alias has no auto-generated
+# constructor; forward to the bare `LayerCollection2` (which infers the role).
+function BudgetCollection2(b1::AbstractLayer{Budget}, b2::AbstractLayer{Budget})
+    return LayerCollection2(b1, b2)
 end

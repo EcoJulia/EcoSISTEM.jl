@@ -44,29 +44,31 @@ function TempFluct(eco::AbstractEcosystem, hab::ContinuousHab,
 end
 
 """
-    NoChange(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
+    NoChange(eco::AbstractEcosystem, layer::AbstractLayer, timestep::Unitful.Time)
 
-Keep the habitat the same for one timestep of the model.
+Keep a layer (habitat or budget) the same for one timestep of the model.
 """
-function NoChange(eco::AbstractEcosystem, hab::AbstractHabitat,
+function NoChange(eco::AbstractEcosystem, layer::AbstractLayer,
                   timestep::Unitful.Time) end
 
 ChangeLookup = Dict(K => TempChange, NoUnits => NoChange)
 
 """
-    cyclicChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
+    cyclicChange(eco::AbstractEcosystem, layer::ContinuousLayer, timestep::Unitful.Time)
 
-Advance a time-varying (monthly) climate layer by one timestep, wrapping back to the
-first month once the stored time series is exhausted (with a warning). The per-source
-`eraChange`/`worldclimChange` names are aliases of this — the time-step-and-wrap logic is
-identical regardless of source.
+Advance a time-varying (monthly) layer — a climate habitat or a time budget — by one
+timestep, wrapping back to the first month once the stored 3-D time series is exhausted
+(with a warning). The per-source `eraChange`/`worldclimChange` names are aliases of this —
+the time-step-and-wrap logic is identical regardless of source or role.
 """
-function cyclicChange(eco::AbstractEcosystem, hab::ContinuousTimeHab,
-                      timestep::Unitful.Time)
+function cyclicChange(eco::AbstractEcosystem,
+                      layer::ContinuousLayer{R, A, V, Arr},
+                      timestep::Unitful.Time) where {R, A, V,
+                                                     Arr <: AbstractArray{V, 3}}
     monthstep = uconvert(month, timestep)
-    hab.time += round(Int64, monthstep / month)
-    if hab.time > size(hab.matrix, 3)
-        hab.time = 1
+    layer.time += round(Int64, monthstep / month)
+    if layer.time > size(layer.matrix, 3)
+        layer.time = 1
         @warn "More timesteps than available, have repeated"
     end
 end
@@ -93,26 +95,33 @@ function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat,
     return eco
 end
 
+# One update rule for any layer regardless of role: apply its own `change.changefun`
+# (`NoChange` for a static layer, `TempChange`/`cyclicChange`/… for a dynamic one), and
+# recurse into a collection. This unifies the old separate `habitatupdate!`/`budgetupdate!`
+# (static budgets were no-ops; time budgets advanced identically to `cyclicChange`).
+function _layerupdate!(eco::AbstractEcosystem, layer::AbstractLayer,
+                       timestep::Unitful.Time)
+    return layer.change.changefun(eco, layer, timestep)
+end
+function _layerupdate!(eco::AbstractEcosystem, layer::LayerCollection2,
+                       timestep::Unitful.Time)
+    _layerupdate!(eco, layer.one, timestep)
+    return _layerupdate!(eco, layer.two, timestep)
+end
+function _layerupdate!(eco::AbstractEcosystem, layer::LayerCollection3,
+                       timestep::Unitful.Time)
+    _layerupdate!(eco, layer.one, timestep)
+    _layerupdate!(eco, layer.two, timestep)
+    return _layerupdate!(eco, layer.three, timestep)
+end
+
 """
     habitatupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
 
 Update the habitat of an ecosystem for one timestep.
 """
 function habitatupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
-    return _habitatupdate!(eco, eco.abenv.habitat, timestep)
-end
-function _habitatupdate!(eco::AbstractEcosystem,
-                         hab::Union{DiscreteHab, ContinuousHab,
-                                    ContinuousTimeHab},
-                         timestep::Unitful.Time)
-    return hab.change.changefun(eco, hab, timestep)
-end
-
-function _habitatupdate!(eco::AbstractEcosystem,
-                         hab::HabitatCollection2,
-                         timestep::Unitful.Time)
-    _habitatupdate!(eco, hab.h1, timestep)
-    return _habitatupdate!(eco, hab.h2, timestep)
+    return _layerupdate!(eco, eco.abenv.habitat, timestep)
 end
 
 """
@@ -121,63 +130,5 @@ end
 Update the budget of an ecosystem for one timestep.
 """
 function budgetupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
-    return _budgetupdate!(eco, eco.abenv.budget, timestep)
-end
-function _budgetupdate!(eco::AbstractEcosystem,
-                        budget::SimpleBudget,
-                        timestep::Unitful.Time)
-    return budget
-end
-function _budgetupdate!(eco::AbstractEcosystem, budget::SolarBudget,
-                        timestep::Unitful.Time)
-    return budget
-end
-function _budgetupdate!(eco::AbstractEcosystem, budget::WaterBudget,
-                        timestep::Unitful.Time)
-    return budget
-end
-function _budgetupdate!(eco::AbstractEcosystem,
-                        budget::SolarTimeBudget,
-                        timestep::Unitful.Time)
-    monthstep = uconvert(month, timestep)
-    budget.time += round(Int64, monthstep / month)
-    if budget.time > size(budget.matrix, 3)
-        budget.time = 1
-        @warn "More timesteps than available, have repeated"
-    end
-end
-function _budgetupdate!(eco::AbstractEcosystem,
-                        budget::WaterTimeBudget,
-                        timestep::Unitful.Time)
-    monthstep = uconvert(month, timestep)
-    budget.time += round(Int64, monthstep / month)
-    if budget.time > size(budget.matrix, 3)
-        budget.time = 1
-        @warn "More timesteps than available, have repeated"
-    end
-end
-function _budgetupdate!(eco::AbstractEcosystem,
-                        budget::VolWaterTimeBudget,
-                        timestep::Unitful.Time)
-    monthstep = uconvert(month, timestep)
-    budget.time += round(Int64, monthstep / month)
-    if budget.time > size(budget.matrix, 3)
-        budget.time = 1
-        @warn "More timesteps than available, have repeated"
-    end
-end
-
-function _budgetupdate!(eco::AbstractEcosystem,
-                        budget::BudgetCollection2{B1, B2},
-                        timestep::Unitful.Time) where {B1,
-                                                       B2 <: AbstractTimeBudget}
-    budget.b1.time = eco.abenv.habitat.h1.time
-    return budget.b2.time = eco.abenv.habitat.h1.time
-end
-
-function _budgetupdate!(eco::AbstractEcosystem,
-                        budget::BudgetCollection2,
-                        timestep::Unitful.Time)
-    _budgetupdate!(eco, eco.abenv.budget.b1, timestep)
-    return _budgetupdate!(eco, eco.abenv.budget.b2, timestep)
+    return _layerupdate!(eco, eco.abenv.budget, timestep)
 end

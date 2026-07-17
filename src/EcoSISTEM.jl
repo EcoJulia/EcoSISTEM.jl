@@ -62,9 +62,17 @@ export multiplicativeTR2,
 include("Layer.jl")
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
        LayerCollection2, LayerCollection3, Unclassified
-# back-compat habitat aliases over the layer types (defined in Layer.jl)
+# back-compat habitat + budget aliases over the layer types (defined in Layer.jl)
 export ContinuousHab, ContinuousTimeHab, DiscreteHab,
        HabitatCollection2, HabitatCollection3
+export SimpleBudget,
+       SolarBudget,
+       SolarTimeBudget,
+       WaterBudget,
+       VolWaterBudget,
+       WaterTimeBudget,
+       VolWaterTimeBudget,
+       BudgetCollection2
 
 include("Habitats.jl")
 export tempgrad, raingrad
@@ -75,15 +83,7 @@ export SimpleRequirement,
        SolarRequirement,
        WaterRequirement,
        VolWaterRequirement,
-       SimpleBudget,
-       SolarBudget,
-       SolarTimeBudget,
-       WaterBudget,
-       VolWaterBudget,
-       WaterTimeBudget,
-       VolWaterTimeBudget,
-       ReqCollection2,
-       BudgetCollection2
+       ReqCollection2
 
 include("AbioticEnv.jl")
 export GridAbioticEnv,

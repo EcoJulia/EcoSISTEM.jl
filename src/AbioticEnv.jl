@@ -26,6 +26,92 @@ function cancel(a::Quantity{<:Real, 𝐋^3 * 𝐋^-2}, b::Quantity{<:Real, 𝐋^
     return uconvert(m^3, a * b)
 end
 
+# Shared tail of the maximum-budget `*AE` constructors: total the per-area maximum budget
+# `maxbud` over `area`, spread it uniformly across the grid of `active`, pick the budget
+# type from its units, and assemble the `GridAbioticEnv` with habitat `hab`.
+function _maxbudget_env(hab, active::Matrix{Bool},
+                        maxbud::Unitful.Quantity{Float64}, area::Unitful.Area)
+    B = cancel(maxbud, area)
+    checkbud(B) || error("Unrecognised unit in budget")
+    budtype = BUDGETDICT[unit(B)]
+    bud = fill(B / length(active), size(active))
+    return GridAbioticEnv{typeof(hab), budtype}(hab, active, budtype(bud))
+end
+
+# The time-varying (monthly) climate habitat shared by `eraAE`/`worldclimAE`: a
+# `ContinuousTimeHab` starting at month 1 that advances via `cyclicChange`.
+function _timeclimate_hab(array)
+    return ContinuousTimeHab(Array(array), 1, _cellsize(array),
+                             HabitatUpdate(cyclicChange, 0.0 / s,
+                                           Unitful.Dimensions{()}))
+end
+
+# Static (no-dynamics) data habitats shared by `bioclimAE` (continuous) and `lcAE`
+# (discrete land cover).
+function _continuoushab(array)
+    return ContinuousHab(Array(array), _cellsize(array),
+                         HabitatUpdate(NoChange, 0.0 / s,
+                                       Unitful.Dimensions{()}))
+end
+function _discretehab(array)
+    return DiscreteHab(Array(array), _cellsize(array),
+                       HabitatUpdate(NoChange, 0.0 / s))
+end
+
+# Default active mask for a data habitat: every cell active except those that are NaN in
+# the first layer. Returns a `Matrix{Bool}` (matching `_maxbudget_env`).
+function _nanactive(array)
+    active = fill(true, size(array)[1:2])
+    active[isnan.(array[:, :, 1])] .= false
+    return active
+end
+
+# Length of a degree of latitude (≈ constant); a degree of longitude is this
+# times cos(latitude).
+const LONGITUDE_DEGREE_LENGTH = 111.32km / °
+
+"""
+    _cellsize(lats, longs)
+
+Area-preserving physical side of a grid cell whose cell-centre latitudes and
+longitudes are `lats` and `longs`. The behaviour depends on the units of the
+coordinates (multiple dispatch):
+
+  - **Geographic (angle) coordinates** (degrees): the north–south side is
+    `Δlat × 111.32 km`; the east–west side uses the true length of a degree of
+    longitude at the grid's centre latitude, `Δlong × 111.32 km × cos φ`. Returns
+    the geometric mean of the two so that each cell's area is geodetically correct,
+    and reports (`@info`) how much the east–west length varies from the top to the
+    bottom of the grid.
+  - **Projected (length) coordinates** (`m`, `km`, …): the grid is already metric,
+    so there is no spherical adjustment — the cell side is simply
+    `sqrt(Δlat × Δlong)`.
+"""
+function _cellsize(lats, longs)
+    dlat = abs((lats[2] - lats[1]))
+    dlong = abs((longs[2] - longs[1]))
+    φtop, φbot = maximum(lats), minimum(lats)
+    ns = dlat * LONGITUDE_DEGREE_LENGTH
+    ew = dlong * LONGITUDE_DEGREE_LENGTH * cos((φtop + φbot) / 2)
+    ewtop = dlong * LONGITUDE_DEGREE_LENGTH * cos(φtop)
+    ewbot = dlong * LONGITUDE_DEGREE_LENGTH * cos(φbot)
+    isapprox(ewtop, ewbot; rtol = 1.0e-2) ||
+        @info "East–west cell length varies with latitude across this grid: " *
+              "$(round(typeof(1.0km), ewtop, digits = 2)) at $(round(typeof(1.0°), φtop, digits = 1)) (top), " *
+              "$(round(typeof(1.0km), ew, digits = 2)) at the centre, " *
+              "$(round(typeof(1.0km), ewbot, digits = 2)) at $(round(typeof(1.0°), φbot, digits = 1)) (bottom); " *
+              "using the area-preserving cell size $(round(typeof(1.0km), sqrt(ns * ew), digits = 2))."
+    return sqrt(ns * ew)
+end
+# Projected (length) coordinates: already metric, so no spherical adjustment. The
+# result keeps its native length unit; `genlookups` makes the cell-size/dispersal
+# ratio dimensionless explicitly, so no unit normalisation is needed here.
+function _cellsize(lats::AbstractVector{<:Unitful.Length},
+                   longs::AbstractVector{<:Unitful.Length})
+    return sqrt(abs(lats[2] - lats[1]) * abs(longs[2] - longs[1]))
+end
+_cellsize(A) = _cellsize(A.axes[1].val, A.axes[2].val)
+
 """
     AbstractAbiotic{H <: AbstractHabitat, B <: AbstractBudget} <: AbstractPartition
 

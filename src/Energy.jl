@@ -143,271 +143,148 @@ end
 unitdict = Dict(kJ => "Solar Radiation (kJ)",
                 NoUnits => "Free energy",
                 mm => "Available water (mm)")
-"""
-    AbstractBudget
 
-Abstract supertype for all budget types
-"""
-abstract type AbstractBudget{Requirement} end
-abstract type AbstractTimeBudget{Requirement} <: AbstractBudget{Requirement} end
+# ---------------------------------------------------------------------------
+# Budgets — `Budget`-role layers (folded onto `ContinuousLayer{Budget}`)
+# ---------------------------------------------------------------------------
+# The concrete budget names (`SimpleBudget`/`SolarBudget`/… and the time-varying
+# `*TimeBudget`s) are aliases (in Layer.jl) over `ContinuousLayer{Budget, axis, V, Arr}`:
+# a static budget is 2-D (`Matrix`), a time budget 3-D (`Array`, indexed by `time`). The
+# constructors below fill the (unused) `size` and the per-timestep `change` rule and zero
+# NaNs, reproducing the old budget structs. A budget's `size` is never read
+# (geometry/dispersal use the habitat), so a placeholder is stored; `NoChange`/`cyclicChange`
+# live in HabitatUpdate.jl (included later) and resolve at call time.
+const _BUDGET_SIZE = 1.0m
+_budget_static() = HabitatUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
+_budget_cyclic() = HabitatUpdate(cyclicChange, 0.0 / s, Unitful.Dimensions{()})
 
-function Base.eltype(::AbstractBudget{Energy}) where {Energy}
-    return Energy
+Base.eltype(::ContinuousLayer{Budget, A, V}) where {A, V} = V
+function Base.eltype(bud::LayerCollection2{Budget})
+    return [eltype(bud.one), eltype(bud.two)]
 end
 
-function countsubcommunities(ab::AbstractBudget)
-    return _countsubcommunities(ab)
-end
-@recipe function f(B::AbstractBudget{R}) where {R}
-    b = ustrip.(B.matrix)
-    seriestype := :heatmap
-    grid --> false
-    aspect_ratio --> 1
-    title --> unitdict[unit(R)]
-    clims --> (minimum(b) * 0.99, maximum(b) * 1.01)
-    return b
-end
-"""
-    SimpleBudget <: AbstractBudget{Float64}
-
-This budget type has a matrix of floats, representing the energy budget of each
-subcommunity in the abiotic environment.
-"""
-struct SimpleBudget <: AbstractBudget{Float64}
-    matrix::Matrix{Float64}
-end
-
-function _countsubcommunities(bud::SimpleBudget)
+countsubcommunities(ab::AbstractBudget) = _countsubcommunities(ab)
+function _countsubcommunities(bud::ContinuousLayer{Budget, A, V, Arr}) where {A,
+                                                                              V,
+                                                                              Arr <:
+                                                                              AbstractMatrix{V}}
     return length(bud.matrix)
 end
-function _getbudget(bud::SimpleBudget)
+function _countsubcommunities(bud::ContinuousLayer{Budget, A, V, Arr}) where {A,
+                                                                              V,
+                                                                              Arr <:
+                                                                              AbstractArray{V,
+                                                                                            3}}
+    return length(@view bud.matrix[:, :, 1])
+end
+function _countsubcommunities(bud::LayerCollection2{Budget})
+    return _countsubcommunities(bud.one)
+end
+
+# The resource available in each cell: the full matrix (static), or the current time slice.
+function _getbudget(bud::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
+                                                                    Arr <:
+                                                                    AbstractMatrix{V}}
     return bud.matrix
 end
-function _getavailableenergy(bud::SimpleBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-"""
-    SolarBudget <: AbstractBudget{typeof(1.0*kJ)}
-
-This budget type has a matrix of solar energy units, representing the energy
-budget of each subcommunity in the abiotic environment at a fixed point in time.
-"""
-struct SolarBudget <: AbstractBudget{typeof(1.0 * kJ)}
-    matrix::Matrix{typeof(1.0 * kJ)}
-    function SolarBudget(mat::Matrix{typeof(1.0 * kJ)})
-        mat[isnan.(mat)] .= 0 * kJ
-        return new(mat)
-    end
-end
-function _countsubcommunities(bud::SolarBudget)
-    return length(bud.matrix)
-end
-
-function _getbudget(bud::SolarBudget)
-    return bud.matrix
-end
-function _getavailableenergy(bud::SolarBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-"""
-    SolarTimeBudget <: AbstractBudget{typeof(1.0*kJ)}
-
-This budget type has a matrix of solar energy units, representing the energy
-budget of each subcommunity in the abiotic environment along with which time
-dimension we are interested in.
-"""
-mutable struct SolarTimeBudget <: AbstractTimeBudget{typeof(1.0 * kJ)}
-    matrix::Array{typeof(1.0 * kJ), 3}
-    time::Int64
-    function SolarTimeBudget(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
-        mat[isnan.(mat)] .= 0 * kJ
-        return new(mat, time)
-    end
-end
-
-function SolarTimeBudget(wc::Worldclim_monthly, time::Int64)
-    mat = Array(wc.array)
-    mat[isnan.(mat)] .= zero(eltype(mat))
-    return SolarTimeBudget(mat, time)
-end
-
-function _countsubcommunities(bud::SolarTimeBudget)
-    return length(bud.matrix[:, :, 1])
-end
-
-function _getbudget(bud::SolarTimeBudget)
+function _getbudget(bud::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
+                                                                    Arr <:
+                                                                    AbstractArray{V,
+                                                                                  3}}
     return @view bud.matrix[:, :, bud.time]
 end
+function _getbudget(bud::LayerCollection2{Budget}, field::Symbol)
+    return _getbudget(getfield(bud, field))
+end
 
-function _getavailableenergy(bud::SolarTimeBudget)
+function _getavailableenergy(bud::ContinuousLayer{Budget})
     return sum(bud.matrix[.!isnan.(bud.matrix)])
 end
-
-@recipe function f(B::SolarTimeBudget, time::Int64)
-    b = ustrip.(B.matrix)
-    seriestype := :heatmap
-    grid --> false
-    aspect_ratio --> 1
-    title --> unitdict[kJ]
-    clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
-    return b[:, :, time]
+function _getavailableenergy(bud::LayerCollection2{Budget})
+    return [_getavailableenergy(bud.one), _getavailableenergy(bud.two)]
 end
 
-"""
-    WaterBudget <: AbstractBudget{typeof(1.0*mm)}
-
-This budget type has a matrix of rainfall energy units, representing the energy
-budget of each subcommunity in the abiotic environment at a fixed point in time.
-"""
-struct WaterBudget <: AbstractBudget{typeof(1.0mm)}
-    matrix::Matrix{typeof(1.0mm)}
-    function WaterBudget(mat::Matrix{typeof(1.0mm)})
-        mat[isnan.(mat)] .= 0.0mm
-        return new(mat)
-    end
+# --- Constructors reproducing the old per-type budget structs -------------------------
+function SimpleBudget(mat::Matrix{Float64})
+    return ContinuousLayer{Budget, Unclassified, Float64, Matrix{Float64}}(mat,
+                                                                           1,
+                                                                           _BUDGET_SIZE,
+                                                                           _budget_static())
 end
-
+function SolarBudget(mat::Matrix{typeof(1.0 * kJ)})
+    mat[isnan.(mat)] .= 0 * kJ
+    return ContinuousLayer{Budget, SolarRadiation, typeof(1.0 * kJ),
+                           Matrix{typeof(1.0 * kJ)}}(mat, 1, _BUDGET_SIZE,
+                                                     _budget_static())
+end
+function WaterBudget(mat::Matrix{typeof(1.0 * mm)})
+    mat[isnan.(mat)] .= 0.0mm
+    return ContinuousLayer{Budget, Precipitation, typeof(1.0 * mm),
+                           Matrix{typeof(1.0 * mm)}}(mat, 1, _BUDGET_SIZE,
+                                                     _budget_static())
+end
 function WaterBudget(bc::ClimateRaster{WorldClim{BioClim}})
     mat = Matrix(bc.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
     return WaterBudget(mat)
 end
-
-function _countsubcommunities(bud::WaterBudget)
-    return length(bud.matrix)
+function VolWaterBudget(mat::Matrix{typeof(1.0 * m^3)})
+    mat[isnan.(mat)] .= 0 * m^3
+    return ContinuousLayer{Budget, VolumetricWater, typeof(1.0 * m^3),
+                           Matrix{typeof(1.0 * m^3)}}(mat, 1, _BUDGET_SIZE,
+                                                      _budget_static())
 end
-
-function _getbudget(bud::WaterBudget)
-    return bud.matrix
+function SolarTimeBudget(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
+    mat[isnan.(mat)] .= 0 * kJ
+    return ContinuousLayer{Budget, SolarRadiation, typeof(1.0 * kJ),
+                           Array{typeof(1.0 * kJ), 3}}(mat, time, _BUDGET_SIZE,
+                                                       _budget_cyclic())
 end
-function _getavailableenergy(bud::WaterBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
+function SolarTimeBudget(wc::Worldclim_monthly, time::Int64)
+    mat = Array(wc.array)
+    mat[isnan.(mat)] .= zero(eltype(mat))
+    return SolarTimeBudget(mat, time)
 end
-
-"""
-    WaterTimeBudget <: AbstractBudget{typeof(1.0*mm)}
-
-This budget type has a matrix of rainfall units, representing the water budget
-of each subcommunity in the abiotic environment along with which time dimension
-we are interested in.
-"""
-mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0 * mm)}
-    matrix::Array{typeof(1.0 * mm), 3}
-    time::Int64
-    function WaterTimeBudget(mat::Array{typeof(1.0 * mm), 3}, time::Int64)
-        mat[isnan.(mat)] .= 0 * mm
-        return new(mat, time)
-    end
+function WaterTimeBudget(mat::Array{typeof(1.0 * mm), 3}, time::Int64)
+    mat[isnan.(mat)] .= 0 * mm
+    return ContinuousLayer{Budget, Precipitation, typeof(1.0 * mm),
+                           Array{typeof(1.0 * mm), 3}}(mat, time, _BUDGET_SIZE,
+                                                       _budget_cyclic())
 end
-
 function WaterTimeBudget(wc::Worldclim_monthly, time::Int64)
     mat = Array(wc.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
     return WaterTimeBudget(mat, time)
 end
-
-function _countsubcommunities(bud::WaterTimeBudget)
-    return length(bud.matrix[:, :, 1])
+function VolWaterTimeBudget(mat::Array{typeof(1.0 * m^3), 3}, time::Int64)
+    mat[isnan.(mat)] .= 0 * m^3
+    return ContinuousLayer{Budget, VolumetricWater, typeof(1.0 * m^3),
+                           Array{typeof(1.0 * m^3), 3}}(mat, time, _BUDGET_SIZE,
+                                                        _budget_cyclic())
 end
 
-function _getbudget(bud::WaterTimeBudget)
-    return @view bud.matrix[:, :, bud.time]
-end
-function _getavailableenergy(bud::WaterTimeBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-"""
-    VolWaterBudget <: AbstractBudget{typeof(1.0*mm)}
-
-This budget type has a matrix of water volumes, representing the energy budget
-of each subcommunity in the abiotic environment at a fixed point in time.
-"""
-struct VolWaterBudget <: AbstractBudget{typeof(1.0 * m^3)}
-    matrix::Matrix{typeof(1.0 * m^3)}
-    function VolWaterBudget(mat::Matrix{typeof(1.0 * m^3)})
-        mat[isnan.(mat)] .= 0 * m^3
-        return new(mat)
-    end
-end
-function _countsubcommunities(bud::VolWaterBudget)
-    return length(bud.matrix)
-end
-
-function _getbudget(bud::VolWaterBudget)
-    return bud.matrix
-end
-function _getavailableenergy(bud::VolWaterBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-"""
-    VolWaterTimeBudget <: AbstractBudget{typeof(1.0*mm)}
-
-This budget type has a matrix of volumetric soil water units, representing the
-water budget of each subcommunity in the abiotic environment along with which
-time dimension we are interested in.
-"""
-mutable struct VolWaterTimeBudget <: AbstractTimeBudget{typeof(1.0 * m^3)}
-    matrix::Array{typeof(1.0 * m^3), 3}
-    time::Int64
-    function VolWaterTimeBudget(mat::Array{typeof(1.0 * m^3), 3}, time::Int64)
-        mat[isnan.(mat)] .= 0 * m^3
-        return new(mat, time)
-    end
-end
-
-function _countsubcommunities(bud::VolWaterTimeBudget)
-    return length(bud.matrix[:, :, 1])
-end
-
-function _getbudget(bud::VolWaterTimeBudget)
-    return @view bud.matrix[:, :, bud.time]
-end
-function _getavailableenergy(bud::VolWaterTimeBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-@recipe function f(B::WaterTimeBudget, time::Int64)
+# --- Recipes --------------------------------------------------------------------------
+@recipe function f(B::ContinuousLayer{Budget, A, V}) where {A, V}
     b = ustrip.(B.matrix)
     seriestype := :heatmap
     grid --> false
     aspect_ratio --> 1
-    title --> unitdict[mm]
+    title --> unitdict[unit(V)]
+    clims --> (minimum(b) * 0.99, maximum(b) * 1.01)
+    return b
+end
+@recipe function f(B::ContinuousLayer{Budget, A, V, Arr},
+                   time::Int64) where {A, V, Arr <: AbstractArray{V, 3}}
+    b = ustrip.(B.matrix)
+    seriestype := :heatmap
+    grid --> false
+    aspect_ratio --> 1
+    title --> unitdict[unit(V)]
     clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
     return b[:, :, time]
 end
-
-struct BudgetCollection2{B1, B2} <: AbstractBudget{Tuple{B1, B2}}
-    b1::B1
-    b2::B2
-end
-
-function Base.eltype(bud::BudgetCollection2)
-    return [eltype(bud.b1), eltype(bud.b2)]
-end
-function _countsubcommunities(bud::BudgetCollection2)
-    return length(bud.b1.matrix[:, :, 1])
-end
-
-function _getbudget(bud::BudgetCollection2, field::Symbol)
-    B = getfield(bud, field)
-    return _getbudget(B)
-end
-
-function _getbudget(bud::Bud, field::Symbol) where {Bud <: AbstractTimeBudget}
-    B = getfield(bud, field)
-    return B.matrix[:, :, B.time]
-end
-
-function _getavailableenergy(bud::BudgetCollection2)
-    return [_getavailableenergy(bud.b1), _getavailableenergy(bud.b2)]
-end
-
-@recipe function f(H::BudgetCollection2{B1, B2}) where {B1, B2}
-    x, y = B.b1, B.b2
+@recipe function f(H::LayerCollection2{Budget, B1, B2}) where {B1, B2}
+    x, y = H.one, H.two
     layout := 2
     @series begin
         subplot := 1
