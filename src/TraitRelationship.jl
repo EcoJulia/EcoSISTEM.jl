@@ -150,14 +150,14 @@ habitat levels.
 """
 mutable struct multiplicativeTR2{TR1, TR2} <:
                AbstractTraitRelationship{Tuple{TR1, TR2}}
-    tr1::TR1
-    tr2::TR2
+    one::TR1
+    two::TR2
 end
 function iscontinuous(tr::multiplicativeTR2)
-    return [iscontinuous(tr.tr1), iscontinuous(tr.tr2)]
+    return [iscontinuous(tr.one), iscontinuous(tr.two)]
 end
 function Base.eltype(mtr::multiplicativeTR2)
-    return [eltype(mtr.tr1), eltype(mtr.tr2)]
+    return [eltype(mtr.one), eltype(mtr.two)]
 end
 
 """
@@ -169,15 +169,15 @@ habitat levels.
 """
 mutable struct multiplicativeTR3{TR1, TR2, TR3} <:
                AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
-    tr1::TR1
-    tr2::TR2
-    tr3::TR3
+    one::TR1
+    two::TR2
+    three::TR3
 end
 function iscontinuous(tr::multiplicativeTR3)
-    return [iscontinuous(tr.tr1), iscontinuous(tr.tr2), iscontinuous(tr.tr3)]
+    return [iscontinuous(tr.one), iscontinuous(tr.two), iscontinuous(tr.three)]
 end
 function Base.eltype(mtr::multiplicativeTR3)
-    return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
+    return [eltype(mtr.one), eltype(mtr.two), eltype(mtr.three)]
 end
 
 """
@@ -189,14 +189,14 @@ habitat levels.
 """
 mutable struct additiveTR2{TR1, TR2} <:
                AbstractTraitRelationship{Tuple{TR1, TR2}}
-    tr1::TR1
-    tr2::TR2
+    one::TR1
+    two::TR2
 end
 function iscontinuous(tr::additiveTR2)
-    return [iscontinuous(tr.tr1), iscontinuous(tr.tr2)]
+    return [iscontinuous(tr.one), iscontinuous(tr.two)]
 end
 function Base.eltype(mtr::additiveTR2)
-    return [eltype(mtr.tr1), eltype(mtr.tr2)]
+    return [eltype(mtr.one), eltype(mtr.two)]
 end
 
 """
@@ -208,15 +208,15 @@ habitat levels.
 """
 mutable struct additiveTR3{TR1, TR2, TR3} <:
                AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
-    tr1::TR1
-    tr2::TR2
-    tr3::TR3
+    one::TR1
+    two::TR2
+    three::TR3
 end
 function iscontinuous(tr::additiveTR3)
-    return [iscontinuous(tr.tr1), iscontinuous(tr.tr2), iscontinuous(tr.tr3)]
+    return [iscontinuous(tr.one), iscontinuous(tr.two), iscontinuous(tr.three)]
 end
 function Base.eltype(mtr::additiveTR3)
-    return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
+    return [eltype(mtr.one), eltype(mtr.two), eltype(mtr.three)]
 end
 
 """

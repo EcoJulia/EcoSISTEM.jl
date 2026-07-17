@@ -369,19 +369,19 @@ abenv = GridAbioticEnv{typeof(abenv1.habitat),
                                     abenv1.active,
                                     bud,
                                     abenv1.names)
-gsize = size(abenv.budget.b1.matrix, 1)
+gsize = size(abenv.budget.one.matrix, 1)
 sol_range = collect(range(0.0kJ, stop = 4.5e11kJ, length = gsize))
 map(1:gsize) do seq
-    return abenv.budget.b1.matrix[seq, :] .= sol_range[seq]
+    return abenv.budget.one.matrix[seq, :] .= sol_range[seq]
 end
-abenv.budget.b1.matrix
+abenv.budget.one.matrix
 
-gsize = size(abenv.budget.b2.matrix, 1)
+gsize = size(abenv.budget.two.matrix, 1)
 water_range = collect(range(0.0mm, stop = 192mm, length = gsize))
 map(1:gsize) do seq
-    return abenv.budget.b2.matrix[:, seq] .= water_range[seq]
+    return abenv.budget.two.matrix[:, seq] .= water_range[seq]
 end
-abenv.budget.b2.matrix
+abenv.budget.two.matrix
 
 vars = fill(2.0, numSpecies) .* K
 opts = fill(298.0, numSpecies) .* K

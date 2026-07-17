@@ -129,15 +129,15 @@ function _getenergyusage(abun::Vector{Int64}, req::VolWaterRequirement)
 end
 
 struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
-    r1::R1
-    r2::R2
+    one::R1
+    two::R2
 end
-Base.length(req::ReqCollection2) = length(req.r1.energy)
+Base.length(req::ReqCollection2) = length(req.one.energy)
 function Base.eltype(req::ReqCollection2)
-    return [eltype(req.r1), eltype(req.r2)]
+    return [eltype(req.one), eltype(req.two)]
 end
 function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
-    return [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2)]
+    return [_getenergyusage(abun, req.one), _getenergyusage(abun, req.two)]
 end
 
 unitdict = Dict(kJ => "Solar Radiation (kJ)",

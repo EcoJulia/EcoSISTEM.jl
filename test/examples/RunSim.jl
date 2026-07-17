@@ -58,7 +58,8 @@ function runsim!(div::Array{Float64, 3},
     cacheFolder = joinpath(folder, "cache")
     isdir(cacheFolder) || mkdir(cacheFolder)
     eco = create_eco(paramDict, abenv, bound = paramDict["bound"])
-    totalK = (sum(eco.abenv.budget.b1.matrix), sum(eco.abenv.budget.b2.matrix))
+    totalK = (sum(eco.abenv.budget.one.matrix),
+              sum(eco.abenv.budget.two.matrix))
     scenario = simDict["scenarios"]
     scenario_names = simDict["scenario_names"]
     divfuns = simDict["divfuns"]
@@ -114,7 +115,8 @@ function dispersalrun!(div::Array{Float64, 3},
     cacheFolder = joinpath(folder, "cache")
     isdir(cacheFolder) || mkdir(cacheFolder)
     eco = create_eco(paramDict, abenv, bound = paramDict["bound"])
-    totalK = (sum(eco.abenv.budget.b1.matrix), sum(eco.abenv.budget.b2.matrix))
+    totalK = (sum(eco.abenv.budget.one.matrix),
+              sum(eco.abenv.budget.two.matrix))
     scenario = simDict["scenarios"]
     scenario_names = simDict["scenario_names"]
     divfuns = simDict["divfuns"]

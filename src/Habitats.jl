@@ -141,13 +141,13 @@ function _getgridsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
 end
 
 function iscontinuous(hab::HabitatCollection2{H1, H2}) where {H1, H2}
-    return [iscontinuous(hab.h1), iscontinuous(hab.h2)]
+    return [iscontinuous(hab.one), iscontinuous(hab.two)]
 end
 function Base.eltype(hab::HabitatCollection2)
-    return [eltype(hab.h1), eltype(hab.h2)]
+    return [eltype(hab.one), eltype(hab.two)]
 end
 @recipe function f(H::HabitatCollection2{H1, H2}) where {H1, H2}
-    x, y = H.h1, H.h2
+    x, y = H.one, H.two
     layout := 2
     @series begin
         subplot := 1
@@ -160,19 +160,23 @@ end
 end
 
 function _resettime!(hab::HabitatCollection2)
-    _resettime!(hab.h1)
-    return _resettime!(hab.h2)
+    _resettime!(hab.one)
+    return _resettime!(hab.two)
 end
 
 function iscontinuous(hab::HabitatCollection3)
-    return [iscontinuous(hab.h1), iscontinuous(hab.h2), iscontinuous(hab.h3)]
+    return [
+        iscontinuous(hab.one),
+        iscontinuous(hab.two),
+        iscontinuous(hab.three)
+    ]
 end
 function Base.eltype(hab::HabitatCollection3)
-    return [eltype(hab.h1), eltype(hab.h2), eltype(hab.h3)]
+    return [eltype(hab.one), eltype(hab.two), eltype(hab.three)]
 end
 
 @recipe function f(H::HabitatCollection3{H1, H2, H3}) where {H1, H2, H3}
-    x, y, z = H.h1, H.h2, H.h3
+    x, y, z = H.one, H.two, H.three
     layout := 3
     @series begin
         subplot := 1
@@ -189,23 +193,23 @@ end
 end
 
 function _resettime!(hab::HabitatCollection3)
-    _resettime!(hab.h1)
-    _resettime!(hab.h2)
-    return _resettime!(hab.h3)
+    _resettime!(hab.one)
+    _resettime!(hab.two)
+    return _resettime!(hab.three)
 end
 
 function _getdimension(hab::Union{HabitatCollection2, HabitatCollection3})
-    return (size(hab.h1.matrix, 1), size(hab.h2.matrix, 2))
+    return (size(hab.one.matrix, 1), size(hab.two.matrix, 2))
 end
 function _getsize(hab::Union{HabitatCollection2, HabitatCollection3})
-    return _getsize(hab.h1)
+    return _getsize(hab.one)
 end
 function Base.size(hab::Union{HabitatCollection2, HabitatCollection3}, d)
-    return size(hab.h1, d)
+    return size(hab.one, d)
 end
 
 function _getgridsize(hab::Union{HabitatCollection2, HabitatCollection3})
-    return _getgridsize(hab.h1)
+    return _getgridsize(hab.one)
 end
 
 """
@@ -234,10 +238,10 @@ function gethabitat(hab::ContinuousTimeHab, pos::Int64)
 end
 
 function Diversity.API._countsubcommunities(hab::HabitatCollection2)
-    return _countsubcommunities(hab.h1)
+    return _countsubcommunities(hab.one)
 end
 function Diversity.API._countsubcommunities(hab::HabitatCollection3)
-    return _countsubcommunities(hab.h1)
+    return _countsubcommunities(hab.one)
 end
 
 # Function to create a habitat from a discrete set of types according to the

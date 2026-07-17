@@ -193,16 +193,16 @@ function update_energy_usage!(eco::AbstractEcosystem{A,
     !eco.cache.valid || return true
 
     # Get energy budgets of species in square
-    ϵ̄1 = eco.spplist.requirement.r1.energy
-    ϵ̄2 = eco.spplist.requirement.r2.energy
+    ϵ̄1 = eco.spplist.requirement.one.energy
+    ϵ̄2 = eco.spplist.requirement.two.energy
 
     # Loop through grid squares
     Threads.@threads for i in Base.axes(eco.abundances.matrix, 2)
         currentabun = @view eco.abundances.matrix[:, i]
         eco.cache.totalE[i, 1] = (currentabun ⋅ ϵ̄1) *
-                                 eco.spplist.requirement.r1.exchange_rate
+                                 eco.spplist.requirement.one.exchange_rate
         eco.cache.totalE[i, 2] = (currentabun ⋅ ϵ̄2) *
-                                 eco.spplist.requirement.r2.exchange_rate
+                                 eco.spplist.requirement.two.exchange_rate
     end
     return eco.cache.valid = true
 end
@@ -260,16 +260,16 @@ function _energy_adjustment(eco::AbstractEcosystem,
     width = getdimension(eco)[1]
     (x, y) = convert_coords(eco, i, width)
     params = eco.spplist.params
-    K1 = _getbudget(eco.abenv.budget.b1)[x, y] *
-         eco.spplist.requirement.r1.exchange_rate
-    K2 = _getbudget(eco.abenv.budget.b2)[x, y] *
-         eco.spplist.requirement.r2.exchange_rate
+    K1 = _getbudget(eco.abenv.budget.one)[x, y] *
+         eco.spplist.requirement.one.exchange_rate
+    K2 = _getbudget(eco.abenv.budget.two)[x, y] *
+         eco.spplist.requirement.two.exchange_rate
     # Get abundances of square we are interested in
     # Get energy budgets of species in square
-    ϵ̄1 = eco.spplist.requirement.r1.energy[sp] *
-         eco.spplist.requirement.r1.exchange_rate
-    ϵ̄2 = eco.spplist.requirement.r2.energy[sp] *
-         eco.spplist.requirement.r2.exchange_rate
+    ϵ̄1 = eco.spplist.requirement.one.energy[sp] *
+         eco.spplist.requirement.one.exchange_rate
+    ϵ̄2 = eco.spplist.requirement.two.energy[sp] *
+         eco.spplist.requirement.two.exchange_rate
     E1 = eco.cache.totalE[i, 1]
     E2 = eco.cache.totalE[i, 2]
     ϵ̄real1 = 1 / traitfun(eco, i, sp)
@@ -522,8 +522,8 @@ function populate!(ml::GridLandscape,
     # Calculate size of habitat
     grid, activity = _gridactivity(abenv)
     # Set up copy of budget
-    b1 = reshape(copy(_getbudget(abenv.budget, :b1)), length(grid))
-    b2 = reshape(copy(_getbudget(abenv.budget, :b2)), length(grid))
+    b1 = reshape(copy(_getbudget(abenv.budget, :one)), length(grid))
+    b2 = reshape(copy(_getbudget(abenv.budget, :two)), length(grid))
     units1 = unit(b1[1])
     units2 = unit(b2[1])
     b1[.!activity] .= 0.0 * units1
@@ -656,6 +656,6 @@ function reenergise!(eco::Ecosystem,
                      budget::Tuple{Unitful.Quantity{Float64},
                                    Unitful.Quantity{Float64}},
                      grid::Tuple{Int64, Int64})
-    fill!(eco.abenv.budget.b1.matrix, budget[1] / (grid[1] * grid[2]))
-    return fill!(eco.abenv.budget.b2.matrix, budget[2] / (grid[1] * grid[2]))
+    fill!(eco.abenv.budget.one.matrix, budget[1] / (grid[1] * grid[2]))
+    return fill!(eco.abenv.budget.two.matrix, budget[2] / (grid[1] * grid[2]))
 end

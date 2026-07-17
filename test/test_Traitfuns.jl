@@ -25,10 +25,10 @@ active = fill(true, grid)
                             GaussTrait(fill(1.0K, 10), fill(0.1K, 10)))
     rel = multiplicativeTR2(Gauss{Float64}(), Gauss{Unitful.Temperature}())
     @test_nowarn EcoSISTEM._traitfun(hab, trts, rel, 1, 1)
-    @test getpref(trts, :t1) == trts.t1
-    @test getpref(trts, :t2) == trts.t2
-    @test EcoSISTEM.getrelationship(rel, :tr1) == rel.tr1
-    @test EcoSISTEM.getrelationship(rel, :tr2) == rel.tr2
+    @test getpref(trts, :one) == trts.one
+    @test getpref(trts, :two) == trts.two
+    @test EcoSISTEM.getrelationship(rel, :one) == rel.one
+    @test EcoSISTEM.getrelationship(rel, :two) == rel.two
 
     temp = AxisArray(fill(1.0K, 10, 10, 3),
                      Axis{:latitude}((1:10) .* °),
@@ -39,7 +39,7 @@ active = fill(true, grid)
     solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
     ea = eraAE(eratemp, solar, active)
     hab = ea.habitat
-    @test_nowarn EcoSISTEM._traitfun(hab, trts.t2, rel.tr2, 1, 1)
+    @test_nowarn EcoSISTEM._traitfun(hab, trts.two, rel.two, 1, 1)
     trts = TempBin(Array(hcat(fill(collect(1:4), 10)...)'))
     rel = Trapeze{Unitful.Temperature}()
     @test_nowarn EcoSISTEM._traitfun(hab, trts, rel, 1, 1)

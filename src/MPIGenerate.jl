@@ -192,8 +192,8 @@ function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
     # Get energy budgets of species in square
-    ϵ̄1 = eco.spplist.requirement.r1.energy
-    ϵ̄2 = eco.spplist.requirement.r2.energy
+    ϵ̄1 = eco.spplist.requirement.one.energy
+    ϵ̄2 = eco.spplist.requirement.two.energy
     mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
@@ -207,10 +207,10 @@ function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄1[spindex:nextsp]
             eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) *
-                                           eco.spplist.requirement.r1.exchange_rate
+                                           eco.spplist.requirement.one.exchange_rate
             e2 = @view ϵ̄2[spindex:nextsp]
             eco.cache.totalE[truesc, 2] += (currentabun ⋅ e2) *
-                                           eco.spplist.requirement.r2.exchange_rate
+                                           eco.spplist.requirement.two.exchange_rate
             spindex = nextsp + 1
         end
     end
@@ -311,8 +311,8 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
     len = dim[1] * dim[2]
     grid = collect(1:len)
     # Set up copy of budget
-    b1 = reshape(copy(_getbudget(abenv.budget, :b1)), size(grid))
-    b2 = reshape(copy(_getbudget(abenv.budget, :b2)), size(grid))
+    b1 = reshape(copy(_getbudget(abenv.budget, :one)), size(grid))
+    b2 = reshape(copy(_getbudget(abenv.budget, :two)), size(grid))
     units1 = unit(b1[1])
     units2 = unit(b2[1])
     activity = reshape(copy(abenv.active), size(grid))

@@ -137,7 +137,7 @@ using RasterDataSources
     bud = BudgetCollection2(bud1, bud2)
     @test_nowarn BudgetCollection2(bud1, bud2)
     @test EcoSISTEM._countsubcommunities(bud) == 100 * 100
-    @test EcoSISTEM._getbudget(bud, :b1) == bud1.matrix[:, :, 1]
+    @test EcoSISTEM._getbudget(bud, :one) == bud1.matrix[:, :, 1]
     @test eltype(bud) == [typeof(bud1.matrix[1]), typeof(bud2.matrix[1])]
     @test EcoSISTEM._getavailableenergy(bud) ==
           [sum(bud1.matrix), sum(bud2.matrix)]

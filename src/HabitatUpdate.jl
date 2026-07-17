@@ -54,12 +54,15 @@ function NoChange(eco::AbstractEcosystem, hab::AbstractHabitat,
 ChangeLookup = Dict(K => TempChange, NoUnits => NoChange)
 
 """
-    eraChange(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
+    cyclicChange(eco::AbstractEcosystem, hab::ContinuousTimeHab, timestep::Unitful.Time)
 
-Step the [`ERA`](@ref) climate forward by one timestep.
+Advance a time-varying (monthly) climate layer by one timestep, wrapping back to the
+first month once the stored time series is exhausted (with a warning). The per-source
+`eraChange`/`worldclimChange` names are aliases of this — the time-step-and-wrap logic is
+identical regardless of source.
 """
-function eraChange(eco::AbstractEcosystem, hab::ContinuousTimeHab,
-                   timestep::Unitful.Time)
+function cyclicChange(eco::AbstractEcosystem, hab::ContinuousTimeHab,
+                      timestep::Unitful.Time)
     monthstep = uconvert(month, timestep)
     hab.time += round(Int64, monthstep / month)
     if hab.time > size(hab.matrix, 3)
@@ -68,22 +71,8 @@ function eraChange(eco::AbstractEcosystem, hab::ContinuousTimeHab,
     end
 end
 
-"""
-    worldclimChange(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
-
-Step the Worldclim climate forward by one timestep.
-"""
-function worldclimChange(eco::AbstractEcosystem,
-                         hab::ContinuousTimeHab,
-                         timestep::Unitful.Time)
-    last = size(hab.matrix, 3)
-    monthstep = convert(typeof(1.0month), timestep)
-    hab.time = hab.time + round(Int64, ustrip(monthstep))
-    if hab.time > last
-        hab.time = 1
-        @warn "More timesteps than available, have repeated"
-    end
-end
+const eraChange = cyclicChange
+const worldclimChange = cyclicChange
 
 """
     HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat, timestep::Unitful.Time)

@@ -19,8 +19,8 @@ function _traitfun(hab::HabitatCollection2,
                    rel::R,
                    pos::Int64,
                    sp::Int64) where {R <: AbstractTraitRelationship}
-    res1 = _traitfun(hab.h1, trts.t1, rel.tr1, pos, sp)
-    res2 = _traitfun(hab.h2, trts.t2, rel.tr2, pos, sp)
+    res1 = _traitfun(hab.one, trts.one, rel.one, pos, sp)
+    res2 = _traitfun(hab.two, trts.two, rel.two, pos, sp)
     return combineTR(rel)(res1, res2)
 end
 function _traitfun(hab::ContinuousHab,
@@ -73,9 +73,9 @@ function _traitfun(hab::HabitatCollection3,
                    rel::R,
                    pos::Int64,
                    spp::Int64) where {R <: AbstractTraitRelationship}
-    res1 = _traitfun(hab.h1, trts.t1, rel.tr1, pos, spp)
-    res2 = _traitfun(hab.h2, trts.t2, rel.tr2, pos, spp)
-    res3 = _traitfun(hab.h3, trts.t3, rel.tr3, pos, spp)
+    res1 = _traitfun(hab.one, trts.one, rel.one, pos, spp)
+    res2 = _traitfun(hab.two, trts.two, rel.two, pos, spp)
+    res3 = _traitfun(hab.three, trts.three, rel.three, pos, spp)
     return combineTR(rel)(res1, res2, res3)
 end
 

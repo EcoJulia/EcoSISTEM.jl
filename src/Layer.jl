@@ -92,15 +92,15 @@ rainfall). Sub-layer types are kept concrete in named fields for hot-loop type s
 """
 struct LayerCollection2{R <: Role, L1 <: AbstractLayer{R},
                         L2 <: AbstractLayer{R}} <: AbstractLayer{R}
-    h1::L1
-    h2::L2
+    one::L1
+    two::L2
 end
 struct LayerCollection3{R <: Role, L1 <: AbstractLayer{R},
                         L2 <: AbstractLayer{R},
                         L3 <: AbstractLayer{R}} <: AbstractLayer{R}
-    h1::L1
-    h2::L2
-    h3::L3
+    one::L1
+    two::L2
+    three::L3
 end
 
 # ---------------------------------------------------------------------------

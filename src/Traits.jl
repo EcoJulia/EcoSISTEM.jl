@@ -144,15 +144,15 @@ eltype(::RainBin) = typeof(1.0mm)
 Trait collection that holds two trait types, `TR1` and `TR2`.
 """
 struct TraitCollection2{T1, T2} <: AbstractTraits{Tuple{T1, T2}}
-    t1::T1
-    t2::T2
+    one::T1
+    two::T2
 end
 
 function iscontinuous(trait::TraitCollection2)
-    return [iscontinuous(trait.t1), iscontinuous(trait.t2)]
+    return [iscontinuous(trait.one), iscontinuous(trait.two)]
 end
 
-eltype(trait::TraitCollection2) = [eltype(trait.t1), eltype(trait.t2)]
+eltype(trait::TraitCollection2) = [eltype(trait.one), eltype(trait.two)]
 
 """
     TraitCollection3{T1, T2, T3} <: AbstractTraits{Tuple{T1, T2, T3}}
@@ -160,19 +160,19 @@ eltype(trait::TraitCollection2) = [eltype(trait.t1), eltype(trait.t2)]
 Trait collection that holds three trait types, `TR1`, `TR2` and `TR3`.
 """
 struct TraitCollection3{T1, T2, T3} <: AbstractTraits{Tuple{T1, T2, T3}}
-    t1::T1
-    t2::T2
-    t3::T3
+    one::T1
+    two::T2
+    three::T3
 end
 
 function iscontinuous(trait::TraitCollection3)
     return [
-        iscontinuous(trait.t1),
-        iscontinuous(trait.t2),
-        iscontinuous(trait.t3)
+        iscontinuous(trait.one),
+        iscontinuous(trait.two),
+        iscontinuous(trait.three)
     ]
 end
 
 function Base.eltype(trait::TraitCollection3)
-    return [eltype(trait.t1), eltype(trait.t2), eltype(trait.t3)]
+    return [eltype(trait.one), eltype(trait.two), eltype(trait.three)]
 end

@@ -80,13 +80,13 @@ using AxisArrays
     # Test multi habitats
     hab = HabitatCollection2(wc.habitat, ea.habitat)
     @test EcoSISTEM.iscontinuous(hab) == [true, true]
-    @test eltype(hab) == [typeof(hab.h1.matrix[1]), typeof(hab.h2.matrix[1])]
+    @test eltype(hab) == [typeof(hab.one.matrix[1]), typeof(hab.two.matrix[1])]
     @test size(hab, 1) == grid[1]
-    hab.h1.time = 2
+    hab.one.time = 2
     EcoSISTEM._resettime!(hab)
-    @test hab.h1.time == 1
-    @test EcoSISTEM._getgridsize(hab) == hab.h1.size
-    @test isapprox(EcoSISTEM._getsize(hab), hab.h1.size^2 * prod(grid),
+    @test hab.one.time == 1
+    @test EcoSISTEM._getgridsize(hab) == hab.one.size
+    @test isapprox(EcoSISTEM._getsize(hab), hab.one.size^2 * prod(grid),
                    rtol = 1e-5)
     @test EcoSISTEM._getdimension(hab) == grid
     @test EcoSISTEM._countsubcommunities(hab) == prod(grid)
@@ -94,21 +94,21 @@ using AxisArrays
     hab = HabitatCollection3(abenv.habitat, wc.habitat, ea.habitat)
     @test EcoSISTEM.iscontinuous(hab) == [false, true, true]
     @test eltype(hab) == [
-        typeof(hab.h1.matrix[1]),
-        typeof(hab.h2.matrix[1]),
-        typeof(hab.h3.matrix[1])
+        typeof(hab.one.matrix[1]),
+        typeof(hab.two.matrix[1]),
+        typeof(hab.three.matrix[1])
     ]
     @test size(hab, 1) == grid[1]
-    @test EcoSISTEM._getgridsize(hab) == hab.h1.size
-    @test isapprox(EcoSISTEM._getsize(hab), hab.h1.size^2 * prod(grid),
+    @test EcoSISTEM._getgridsize(hab) == hab.one.size
+    @test isapprox(EcoSISTEM._getsize(hab), hab.one.size^2 * prod(grid),
                    rtol = 1e-5)
     @test EcoSISTEM._getdimension(hab) == grid
     @test EcoSISTEM._countsubcommunities(hab) == prod(grid)
 
     hab = HabitatCollection3(wc.habitat, wc.habitat, ea.habitat)
-    hab.h2.time = 2
+    hab.two.time = 2
     EcoSISTEM._resettime!(hab)
-    @test hab.h2.time == 1
+    @test hab.two.time == 1
 end
 
 end

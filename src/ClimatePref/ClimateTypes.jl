@@ -42,6 +42,8 @@ Type that houses data extracted from Worldclim raster files.
 struct Worldclim_monthly{A <: AxisArray} <: AbstractClimate
     array::A
     function Worldclim_monthly(array::A) where {A <: AxisArray}
+        eltype(AxisArrays.axes(array, 3).val) <: Unitful.Time ||
+            error("Third dimension of array must be time")
         size(array, 3) == 12 ||
             error("There should be 12 months of data for worldclim")
         return new{A}(array)
@@ -107,6 +109,8 @@ Type that houses data extracted from CHELSA raster files.
 struct CHELSA_monthly{A <: AxisArray} <: AbstractClimate
     array::A
     function CHELSA_monthly(array::A) where {A <: AxisArray}
+        eltype(AxisArrays.axes(array, 3).val) <: Unitful.Time ||
+            error("Third dimension of array must be time")
         size(array, 3) == 12 ||
             error("There should be 12 months of data for CHELSA")
         return new{A}(array)
