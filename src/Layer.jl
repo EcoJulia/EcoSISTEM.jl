@@ -45,6 +45,14 @@ end
 # types, so existing methods/constructors keep working (defaulting to the `Unclassified`
 # axis) until each path is threaded with its real axis.
 
+"""
+    AbstractLayer{R <: Role}
+
+Abstract supertype of the materialised, hot-loop grid layers, tagged with their
+[`Role`](@ref) (`Habitat` condition or `Budget` resource). Concrete kinds are
+[`ContinuousLayer`](@ref), [`DiscreteLayer`](@ref) and the collections
+[`LayerCollection2`](@ref)/`LayerCollection3`.
+"""
 abstract type AbstractLayer{R <: Role} <: EcoBase.AbstractGrid end
 
 """
@@ -107,14 +115,25 @@ end
 # Back-compat aliases + constructors (habitat role)
 # ---------------------------------------------------------------------------
 
+"""
+    AbstractHabitat
+
+An environmental condition matched to species traits — any `Habitat`-role
+[`AbstractLayer`](@ref).
+"""
 const AbstractHabitat = AbstractLayer{Habitat}
 
+"""    ContinuousHab{C} — a static continuous habitat (a `Habitat`-role [`ContinuousLayer`](@ref) over a `Matrix{C}`). """
 const ContinuousHab{C} = ContinuousLayer{Habitat, A, C, Matrix{C}} where {A}
+"""    ContinuousTimeHab{C, M} — a monthly time-varying continuous habitat (a `Habitat`-role [`ContinuousLayer`](@ref) over a 3-D array). """
 const ContinuousTimeHab{C, M <: AbstractArray{C, 3}} = ContinuousLayer{Habitat,
                                                                        A, C,
                                                                        M} where {A}
+"""    DiscreteHab{D} — a categorical habitat (a [`DiscreteLayer`](@ref), e.g. land cover). """
 const DiscreteHab{D} = DiscreteLayer{A, D, Matrix{D}} where {A}
+"""    HabitatCollection2{H1, H2} — two habitats over one grid (e.g. temperature + rainfall). """
 const HabitatCollection2{H1, H2} = LayerCollection2{Habitat, H1, H2}
+"""    HabitatCollection3{H1, H2, H3} — three habitats over one grid. """
 const HabitatCollection3{H1, H2, H3} = LayerCollection3{Habitat, H1, H2, H3}
 
 # Old positional constructors → new layer types, defaulting to the `Unclassified` axis and

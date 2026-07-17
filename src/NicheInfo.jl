@@ -55,27 +55,44 @@ abstract type NicheAxis end
 # --- Temperature axes (all measured in K) ----------------------------------
 """    AbstractTemperature <: NicheAxis — temperature niche axes (all in K) """
 abstract type AbstractTemperature <: NicheAxis end
-struct MeanTemperature <: AbstractTemperature end            # Climate tavg, BioClim 1
-struct MinTemperature <: AbstractTemperature end             # Climate tmin, BioClim 6
-struct MaxTemperature <: AbstractTemperature end             # Climate tmax, BioClim 5
-struct DiurnalTemperatureRange <: AbstractTemperature end    # BioClim 2
-struct TemperatureSeasonality <: AbstractTemperature end     # BioClim 4
-struct TemperatureAnnualRange <: AbstractTemperature end     # BioClim 7
-struct WettestQuarterTemperature <: AbstractTemperature end  # BioClim 8
-struct DriestQuarterTemperature <: AbstractTemperature end   # BioClim 9
-struct WarmestQuarterTemperature <: AbstractTemperature end  # BioClim 10
-struct ColdestQuarterTemperature <: AbstractTemperature end  # BioClim 11
+"""    MeanTemperature <: AbstractTemperature — annual mean temperature, the mean of the 12 monthly mean temperatures (Climate `tavg`, BioClim 1; K). """
+struct MeanTemperature <: AbstractTemperature end
+"""    MinTemperature <: AbstractTemperature — minimum temperature of the coldest month (Climate `tmin`, BioClim 6; K). """
+struct MinTemperature <: AbstractTemperature end
+"""    MaxTemperature <: AbstractTemperature — maximum temperature of the warmest month (Climate `tmax`, BioClim 5; K). """
+struct MaxTemperature <: AbstractTemperature end
+"""    DiurnalTemperatureRange <: AbstractTemperature — mean diurnal range, the mean of the monthly (max − min) temperatures (BioClim 2; K). """
+struct DiurnalTemperatureRange <: AbstractTemperature end
+"""    TemperatureSeasonality <: AbstractTemperature — temperature seasonality, the standard deviation of the monthly mean temperatures (BioClim 4). """
+struct TemperatureSeasonality <: AbstractTemperature end
+"""    TemperatureAnnualRange <: AbstractTemperature — temperature annual range, the warmest month's max minus the coldest month's min (BioClim 5 − BioClim 6; BioClim 7; K). """
+struct TemperatureAnnualRange <: AbstractTemperature end
+"""    WettestQuarterTemperature <: AbstractTemperature — mean temperature of the wettest 3 consecutive months (BioClim 8; K). """
+struct WettestQuarterTemperature <: AbstractTemperature end
+"""    DriestQuarterTemperature <: AbstractTemperature — mean temperature of the driest 3 consecutive months (BioClim 9; K). """
+struct DriestQuarterTemperature <: AbstractTemperature end
+"""    WarmestQuarterTemperature <: AbstractTemperature — mean temperature of the warmest 3 consecutive months (BioClim 10; K). """
+struct WarmestQuarterTemperature <: AbstractTemperature end
+"""    ColdestQuarterTemperature <: AbstractTemperature — mean temperature of the coldest 3 consecutive months (BioClim 11; K). """
+struct ColdestQuarterTemperature <: AbstractTemperature end
 
 # --- Precipitation axes (all mm; provide a water budget/requirement) --------
 """    AbstractPrecipitation <: NicheAxis — precipitation niche axes (all in mm) """
 abstract type AbstractPrecipitation <: NicheAxis end
-struct Precipitation <: AbstractPrecipitation end                # Climate prec, BioClim 12
-struct WettestMonthPrecipitation <: AbstractPrecipitation end    # BioClim 13
-struct DriestMonthPrecipitation <: AbstractPrecipitation end     # BioClim 14
-struct WettestQuarterPrecipitation <: AbstractPrecipitation end  # BioClim 16
-struct DriestQuarterPrecipitation <: AbstractPrecipitation end   # BioClim 17
-struct WarmestQuarterPrecipitation <: AbstractPrecipitation end  # BioClim 18
-struct ColdestQuarterPrecipitation <: AbstractPrecipitation end  # BioClim 19
+"""    Precipitation <: AbstractPrecipitation — annual precipitation, the sum of the 12 monthly precipitation totals (Climate `prec`, BioClim 12; mm). """
+struct Precipitation <: AbstractPrecipitation end
+"""    WettestMonthPrecipitation <: AbstractPrecipitation — precipitation of the wettest month (BioClim 13; mm). """
+struct WettestMonthPrecipitation <: AbstractPrecipitation end
+"""    DriestMonthPrecipitation <: AbstractPrecipitation — precipitation of the driest month (BioClim 14; mm). """
+struct DriestMonthPrecipitation <: AbstractPrecipitation end
+"""    WettestQuarterPrecipitation <: AbstractPrecipitation — total precipitation of the wettest 3 consecutive months (BioClim 16; mm). """
+struct WettestQuarterPrecipitation <: AbstractPrecipitation end
+"""    DriestQuarterPrecipitation <: AbstractPrecipitation — total precipitation of the driest 3 consecutive months (BioClim 17; mm). """
+struct DriestQuarterPrecipitation <: AbstractPrecipitation end
+"""    WarmestQuarterPrecipitation <: AbstractPrecipitation — total precipitation of the warmest 3 consecutive months (BioClim 18; mm). """
+struct WarmestQuarterPrecipitation <: AbstractPrecipitation end
+"""    ColdestQuarterPrecipitation <: AbstractPrecipitation — total precipitation of the coldest 3 consecutive months (BioClim 19; mm). """
+struct ColdestQuarterPrecipitation <: AbstractPrecipitation end
 
 # --- Standalone axes -------------------------------------------------------
 """    SolarRadiation <: NicheAxis """
