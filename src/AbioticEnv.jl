@@ -430,7 +430,7 @@ function eraAE(era::ERA, bud::B,
 end
 
 """
-   worldclimAE(wc::Worldclim_monthly, maxbud::Unitful.Quantity{Float64},
+   worldclimAE(wc::ClimateRaster{WorldClim{Climate}}, maxbud::Unitful.Quantity{Float64},
      area::Unitful.Area{Float64})
 
 Create a [`ContinuousTimeHab`](@ref), [`SimpleBudget`](@ref) type abiotic
@@ -440,32 +440,32 @@ uses a provided budget of type [`SolarTimeBudget`](@ref). If a Bool matrix of
 active grid squares is included, `active`, this is used, otherwise all grid
 cells are considered active.
 """
-function worldclimAE(wc::Worldclim_monthly,
+function worldclimAE(wc::ClimateRaster{WorldClim{Climate}},
                      maxbud::Unitful.Quantity{Float64},
                      area::Unitful.Area{Float64})
     return _maxbudget_env(_timeclimate_hab(wc.array), _nanactive(wc.array),
                           maxbud, area)
 end
 """
-    worldclimAE(wc::Worldclim_monthly, maxbud::Unitful.Quantity{Float64},
+    worldclimAE(wc::ClimateRaster{WorldClim{Climate}}, maxbud::Unitful.Quantity{Float64},
       area::Unitful.Area{Float64}, active::Matrix{Bool})
 
 As [`worldclimAE`](@ref) with an explicit `active` matrix of grid squares,
 rather than inferring active cells from NaN values in the Worldclim data.
 """
-function worldclimAE(wc::Worldclim_monthly,
+function worldclimAE(wc::ClimateRaster{WorldClim{Climate}},
                      maxbud::Unitful.Quantity{Float64},
                      area::Unitful.Area{Float64},
                      active::Matrix{Bool})
     return _maxbudget_env(_timeclimate_hab(wc.array), active, maxbud, area)
 end
 """
-    worldclimAE(wc::Worldclim_monthly, bud::B, active::Matrix{Bool}) where B <: AbstractTimeBudget
+    worldclimAE(wc::ClimateRaster{WorldClim{Climate}}, bud::B, active::Matrix{Bool}) where B <: AbstractTimeBudget
 
 As [`worldclimAE`](@ref) but accepts a pre-constructed `AbstractTimeBudget`
 object `bud` rather than computing a budget from a maximum value.
 """
-function worldclimAE(wc::Worldclim_monthly,
+function worldclimAE(wc::ClimateRaster{WorldClim{Climate}},
                      bud::B,
                      active::Matrix{Bool}) where {B <: AbstractTimeBudget}
     hab = _timeclimate_hab(wc.array)

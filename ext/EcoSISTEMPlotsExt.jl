@@ -6,6 +6,7 @@ using Unitful, Unitful.DefaultSymbols
 using EcoSISTEM, EcoSISTEM.ClimatePref, EcoSISTEM.Units
 using RecipesBase
 using AxisArrays
+using RasterDataSources
 # import Plots: px
 
 @info "Creating Plots recipes for EcoSISTEM..."
@@ -60,7 +61,8 @@ end
     return x, y, A
 end
 
-@recipe function f(wc::Union{Worldclim_monthly, CHELSA_monthly},
+@recipe function f(wc::ClimateRaster{<:Union{WorldClim{Climate},
+                                             CHELSA{Climate}}},
                    time::Unitful.Time)
     ind = (time + 1month) / month
     ind isa Int64 || error("NO")
@@ -75,7 +77,8 @@ end
     return x, y, A
 end
 
-@recipe function f(wc::Union{Worldclim_monthly, CHELSA_monthly},
+@recipe function f(wc::ClimateRaster{<:Union{WorldClim{Climate},
+                                             CHELSA{Climate}}},
                    time::Unitful.Time, xrange, yrange)
     ind = (time + 1month) / month
     ind isa Int64 || error("NO")

@@ -184,7 +184,7 @@ function readworldclim(::Type{WorldClim{Climate}}, files::Vector{String};
         world = world[cut.lat, cut.long, :]
     end
 
-    return Worldclim_monthly(world)
+    return ClimateRaster(RDS.WorldClim{RDS.Climate}, world)
 end
 
 """
@@ -456,7 +456,7 @@ function readCHELSA_monthly(dir::String, var_name::String; scale = 1, fn = mean,
         world = world[cut.lat, cut.long, :]
     end
 
-    return CHELSA_monthly(world)
+    return ClimateRaster(RDS.CHELSA{RDS.Climate}, world)
 end
 
 function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, file::String; kw...)

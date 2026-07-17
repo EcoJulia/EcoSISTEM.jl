@@ -8,6 +8,7 @@ using Test
 using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
 using AxisArrays
+using RasterDataSources
 
 @testset "Habitats" begin
     grid = (10, 10)
@@ -66,7 +67,7 @@ using AxisArrays
                      Axis{:latitude}(collect(1:10) .* m),
                      Axis{:longitude}(collect(1:10) .* m),
                      Axis{:time}(collect(1:12) .* month))
-    wctemp = Worldclim_monthly(temp)
+    wctemp = ClimateRaster(WorldClim{Climate}, temp)
     active = fill(true, 10, 10)
     solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
     wc = worldclimAE(wctemp, solar, active)

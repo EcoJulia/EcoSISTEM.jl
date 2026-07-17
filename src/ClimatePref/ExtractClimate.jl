@@ -26,13 +26,13 @@ end
 
 """
     extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        wc::Worldclim_monthly, dim::Unitful.Time)
+        wc::ClimateRaster{WorldClim{Climate}}, dim::Unitful.Time)
 
 Function to extract values from a worldclim object, at specified x, y locations and
 time, `dim`.
 """
 function extractvalues(lat::Vector{typeof(1.0°)}, long::Vector{typeof(1.0°)},
-                       wc::Worldclim_monthly, dim::Unitful.Time)
+                       wc::ClimateRaster{WorldClim{Climate}}, dim::Unitful.Time)
     checkbounds(lat, long) || error("Coordinates out of bounds")
     thisstep = calculatestep(wc, 1)
     res = map((i, j) -> wc.array[(i - thisstep / 2) .. (i + thisstep / 2),

@@ -128,6 +128,12 @@ function _getenergyusage(abun::Vector{Int64}, req::VolWaterRequirement)
     return sum(abun .* req.energy)
 end
 
+"""
+    ReqCollection2{R1, R2}
+
+A pair of species resource requirements (e.g. solar energy and water) consumed
+together, to match a two-resource budget.
+"""
 struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
     one::R1
     two::R2
@@ -240,7 +246,7 @@ function SolarTimeBudget(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
                            Array{typeof(1.0 * kJ), 3}}(mat, time, _BUDGET_SIZE,
                                                        _budget_cyclic())
 end
-function SolarTimeBudget(wc::Worldclim_monthly, time::Int64)
+function SolarTimeBudget(wc::ClimateRaster{WorldClim{Climate}}, time::Int64)
     mat = Array(wc.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
     return SolarTimeBudget(mat, time)
@@ -251,7 +257,7 @@ function WaterTimeBudget(mat::Array{typeof(1.0 * mm), 3}, time::Int64)
                            Array{typeof(1.0 * mm), 3}}(mat, time, _BUDGET_SIZE,
                                                        _budget_cyclic())
 end
-function WaterTimeBudget(wc::Worldclim_monthly, time::Int64)
+function WaterTimeBudget(wc::ClimateRaster{WorldClim{Climate}}, time::Int64)
     mat = Array(wc.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
     return WaterTimeBudget(mat, time)

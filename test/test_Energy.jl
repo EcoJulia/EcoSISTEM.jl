@@ -148,7 +148,7 @@ end
                       Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m),
                       Axis{:time}(collect(1:12) .* month))
-    wc = Worldclim_monthly(water)
+    wc = ClimateRaster(WorldClim{Climate}, water)
     bud = WaterTimeBudget(wc, 1)
     @test_nowarn WaterTimeBudget(wc, 1)
     @test EcoSISTEM._countsubcommunities(bud) == 100
@@ -160,7 +160,7 @@ end
                       Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m),
                       Axis{:time}(collect(1:12) .* month))
-    wc = Worldclim_monthly(solar)
+    wc = ClimateRaster(WorldClim{Climate}, solar)
     bud = SolarTimeBudget(wc, 1)
     @test_nowarn SolarTimeBudget(wc, 1)
     @test EcoSISTEM._countsubcommunities(bud) == 100

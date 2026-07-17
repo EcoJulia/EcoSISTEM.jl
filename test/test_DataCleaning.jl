@@ -6,6 +6,7 @@ using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 using AxisArrays
+using RasterDataSources
 using Test
 
 @testset "up- and down-resolution testing" begin

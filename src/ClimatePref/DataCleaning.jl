@@ -52,7 +52,7 @@ function create_reference(gridsize::Float64)
 end
 
 """
-    upresolution(data::Union{ERA, Worldclim_monthly, ClimateRaster}, rescale::Int64; fn)
+    upresolution(data::Union{ERA, ClimateRaster}, rescale::Int64; fn)
 
 Function to increase the resolution of a climate dataset, by a factor, `rescale`.
 """
@@ -61,11 +61,6 @@ function upresolution end
 function upresolution(era::ERA, rescale::Int64)
     array = upresolution(era.array, rescale)
     return ERA(array)
-end
-
-function upresolution(wc::Worldclim_monthly, rescale::Int64)
-    array = upresolution(wc.array, rescale)
-    return Worldclim_monthly(array)
 end
 
 function upresolution(bc::ClimateRaster{T, A}, rescale::Int64) where {T, A}
@@ -143,7 +138,7 @@ function upresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64)
 end
 
 """
-    downresolution(data::Union{ERA, Worldclim_monthly, ClimateRaster{WorldClim{BioClim}, <: AxisArray}}, rescale::Int64; fn)
+    downresolution(data::Union{ERA, ClimateRaster{WorldClim{BioClim}, <: AxisArray}}, rescale::Int64; fn)
 
 Function to decrease the resolution of a climate dataset, by a factor, `rescale`, and aggregation function, `fn`. The aggregation function has a default setting of taking the mean value.
 """
@@ -152,12 +147,6 @@ function downresolution end
 function downresolution(era::ERA, rescale::Int64; fn::Function = mean)
     array = downresolution(era.array, rescale, fn = fn)
     return ERA(array)
-end
-
-function downresolution(wc::Worldclim_monthly, rescale::Int64;
-                        fn::Function = mean)
-    array = downresolution(wc.array, rescale, fn = fn)
-    return Worldclim_monthly(array)
 end
 
 function downresolution(bc::ClimateRaster{T}, rescale::Int64;

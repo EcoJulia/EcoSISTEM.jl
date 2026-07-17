@@ -120,7 +120,7 @@ if !Sys.iswindows()
                          Axis{:latitude}(collect(1:10) .* km),
                          Axis{:longitude}(collect(1:10) .* km),
                          Axis{:time}(collect(1:12) .* month))
-        wctemp = Worldclim_monthly(temp)
+        wctemp = ClimateRaster(WorldClim{Climate}, temp)
         active = fill(true, 10, 10)
         totalK = 1000.0kJ / m^2
         area = 100.0km^2

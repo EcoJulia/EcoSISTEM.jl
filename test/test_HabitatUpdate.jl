@@ -3,11 +3,13 @@
 module TestHabitatUpdate
 
 using EcoSISTEM
+using EcoSISTEM.ClimatePref
 using Distributions
 using Test
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using RasterDataSources
 
 include("TestCases.jl")
 
@@ -34,7 +36,7 @@ include("TestCases.jl")
                      Axis{:latitude}(collect(1:10) .* km),
                      Axis{:longitude}(collect(1:10) .* km),
                      Axis{:time}(collect(1:12) .* month))
-    wctemp = Worldclim_monthly(temp)
+    wctemp = ClimateRaster(WorldClim{Climate}, temp)
     active = fill(true, 10, 10)
     solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
     wc = worldclimAE(wctemp, solar, active)
