@@ -22,7 +22,6 @@ export NicheAxis, AbstractTemperature, AbstractPrecipitation,
        SolarRadiation, WindSpeed, VaporPressure, Isothermality,
        PrecipitationSeasonality, Heterogeneity, LandType, Altitude,
        VolumetricWater
-export SourceSpec, UniformSpec, GradientSpec, PeakedSpec, NicheSpec
 
 # EcoSISTEM.ClimatePref sub-module
 include("ClimatePref/ClimatePref.jl")
