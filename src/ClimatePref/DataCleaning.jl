@@ -145,17 +145,17 @@ Function to decrease the resolution of a climate dataset, by a factor, `rescale`
 function downresolution end
 
 function downresolution(era::ERA, rescale::Int64; fn::Function = mean)
-    array = downresolution(era.array, rescale, fn = fn)
+    array = downresolution(era.array, rescale; fn = fn)
     return ERA(array)
 end
 
 function downresolution(bc::ClimateRaster{T}, rescale::Int64;
                         fn::Function = mean) where {T}
-    array = downresolution(bc.array, rescale, fn = fn)
+    array = downresolution(bc.array, rescale; fn = fn)
     return ClimateRaster(T, array)
 end
 
-function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64,
+function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64;
                         fn::Function = mean)
     grid = size(aa)
     grid = ceil.(Int64, (grid[1] / rescale, grid[2] / rescale, grid[3]))
@@ -229,7 +229,7 @@ function downresolution!(resized_array::Matrix{T}, array::Matrix{T},
                          dim::Int64, rescale::Int64;
                          fn::Function = mean) where {T}
     dim == 1 || error("Accessing invalid 3rd dimension of 2d array")
-    return downresolution!(resized_array, array, rescale, fn = fn)
+    return downresolution!(resized_array, array, rescale; fn = fn)
 end
 
 function downresolution!(resized_array::Matrix{T}, array::Matrix{T},

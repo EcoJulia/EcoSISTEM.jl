@@ -24,4 +24,24 @@ using Test
     @test all(ar2b .≈ ar2)
 end
 
+@testset "wrapper up/down-resolution (ClimateRaster, ERA)" begin
+    arr3 = AxisArray(collect(reshape(1.0:75.0, 5, 5, 3)),
+                     Axis{:latitude}(collect(1:5) .* °),
+                     Axis{:longitude}(collect(1:5) .* °),
+                     Axis{:time}(collect(1:3) .* month))
+    cr3 = ClimateRaster(WorldClim{Climate}, arr3)
+    @test downresolution(cr3, 2) isa ClimateRaster            # default fn = mean
+    @test downresolution(cr3, 2; fn = maximum) isa ClimateRaster
+    @test upresolution(cr3, 2) isa ClimateRaster
+
+    # a 2-D ClimateRaster (bioclim) routes to the keyword 2-D method
+    cr2 = ClimateRaster(WorldClim{BioClim},
+                        AxisArray(collect(reshape(1.0:81.0, 9, 9)),
+                                  Axis{:latitude}(collect(1:9) .* °),
+                                  Axis{:longitude}(collect(1:9) .* °)))
+    @test downresolution(cr2, 2; fn = maximum) isa ClimateRaster
+
+    @test downresolution(ERA(arr3), 2) isa ERA
+end
+
 end
