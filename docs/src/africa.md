@@ -15,9 +15,9 @@ using Unitful.DefaultSymbols
 using Distances
 using StatsBase
 using Plots
-file = "Africa.tif"
-africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Matrix{Bool}(.!isnan.(africa'))
+file = pkgdir(EcoSISTEM, "data", "Africa.tif")
+africa = readfile(file)
+active = Matrix{Bool}(.!isnan.(africa))
 
 heatmap(active)
 
@@ -165,9 +165,9 @@ using Unitful
 using Unitful.DefaultSymbols
 using JLD2
 using Printf
-file = "Africa.tif"
-africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Matrix{Bool}(.!isnan.(africa'))
+file = pkgdir(EcoSISTEM, "data", "Africa.tif")
+africa = readfile(file)
+active = Matrix{Bool}(.!isnan.(africa))
 # Set up initial parameters for ecosystem
 numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
@@ -245,9 +245,9 @@ using Unitful.DefaultSymbols
 using JLD2
 using Printf
 
-file = "Africa.tif"
-africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Matrix{Bool}(.!isnan.(africa'))
+file = pkgdir(EcoSISTEM, "data", "Africa.tif")
+africa = readfile(file)
+active = Matrix{Bool}(.!isnan.(africa))
 # Set up initial parameters for ecosystem
 numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
