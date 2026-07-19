@@ -73,17 +73,37 @@ function _fileunit(file::AbstractString)
     return isnothing(i) ? 1.0 : VARDICT[vars[i]]
 end
 
-# Read a raster file lazily (so large files are streamed, not loaded whole), optionally
-# coarsening it by an integer `scale` factor aggregating each block with `fn` (replaces the
-# old read-time `downresolution!`). `_rastertoaxisarray` then materialises the result. The read
-# is run under a `NullLogger` to drop Rasters' benign metadata warnings (e.g. a nodata value a
-# file declares that its integer eltype can't hold, as in CHELSA's `-99999` UInt16 bands) —
-# proper nodata masking for float layers still happens.
+# Estimated bytes to hold a raster whole in memory. Rasters' own guard compares against *free*
+# memory, which is over-conservative — idle memory is reclaimable / pageable — so we instead gate
+# on a fraction of *total* RAM (below).
+function _readbytes(r)
+    elbytes = try
+        Base.aligned_sizeof(eltype(r))   # handles isbits `Union{Missing, T}` (selector byte incl.)
+    catch
+        sizeof(Float64)                  # conservative fallback
+    end
+    return prod(size(r)) * elbytes
+end
+
+# A raster is read whole (then aggregated in memory) when it fits in this fraction of *total* system
+# RAM; anything larger (e.g. the multi-GB CHELSA bioclim file on a small machine) stays lazy.
+const _READ_WHOLE_FRACTION = 0.5
+
+# Read a raster file, optionally coarsening it by an integer `scale` factor, aggregating each block
+# with `fn` (replaces the old read-time `downresolution!`). The open runs under a `NullLogger` to
+# drop Rasters' benign metadata warnings (e.g. a nodata value a file declares that its integer
+# eltype can't hold, as in CHELSA's `-99999` UInt16 bands); proper nodata masking for float layers
+# still happens. Aggregating a *lazy* (disk-backed) raster reads it window-by-window — slow and
+# hugely allocating — so when it comfortably fits in RAM we read it whole first (~6× faster and far
+# fewer allocations); larger files fall back to the lazy aggregate to stay within memory.
+# `_rastertoaxisarray` then materialises the (small) aggregated result.
 function _readraster(f::AbstractString; scale::Integer = 1, fn = mean)
     r = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
         return Raster(f; lazy = true)
     end
-    return scale > 1 ? Rasters.aggregate(fn, r, scale) : r
+    scale > 1 || return r
+    fits = _readbytes(r) < _READ_WHOLE_FRACTION * Sys.total_memory()
+    return Rasters.aggregate(fn, fits ? read(r; checkmem = false) : r, scale)
 end
 
 # --- per-source read traits -------------------------------------------------
