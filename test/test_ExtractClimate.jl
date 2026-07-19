@@ -103,8 +103,8 @@ end
 @testset "Reference (2-D) and its lat/long convention" begin
     a = ref.array
     @test AxisArrays.axisnames(a) == (:latitude, :longitude)
-    @test extrema(ustrip.(AxisArrays.axisvalues(a)[1])) == (-90.0, 90.0)
-    @test extrema(ustrip.(AxisArrays.axisvalues(a)[2])) == (-180.0, 180.0)
+    @test extrema(AxisArrays.axisvalues(a)[1]) == (-90.0°, 90.0°)
+    @test extrema(AxisArrays.axisvalues(a)[2]) == (-180.0°, 180.0°)
     # scalar extraction indexes lat -> dim 1, long -> dim 2 (longitude 120° round-trips)
     @test extractvalues(30.0°, 120.0°, ref) ==
           a[atvalue(30.0°), atvalue(120.0°)]
