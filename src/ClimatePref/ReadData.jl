@@ -3,13 +3,14 @@
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
-using EcoSISTEM: LatLong
+using EcoSISTEM: LatLong, assetdir
 using AxisArrays
 using CSV
 using RasterDataSources
 const RDS = RasterDataSources
 using Rasters
 using NCDatasets
+using JLD2: jldsave, jldopen
 import Rasters: X, Y, Ti
 
 import Unitful.°, Unitful.°C, Unitful.mm
@@ -89,6 +90,33 @@ end
 # RAM; anything larger (e.g. the multi-GB CHELSA bioclim file on a small machine) stays lazy.
 const _READ_WHOLE_FRACTION = 0.5
 
+# Stable identifier for the aggregation reducer `fn`, used in the aggregate cache key. Anonymous
+# closures (whose `nameof` starts with `#`, and isn't stable across sessions) return `nothing`, so
+# they are not cached.
+function _fnid(fn)
+    n = string(nameof(fn))
+    return startswith(n, "#") ? nothing : Symbol(n)
+end
+
+# Content hash of this file, folded into the aggregate cache key so any change to the reading /
+# aggregation machinery here invalidates the cache — a cached result is only valid for the code that
+# produced it. Evaluated at precompile, so it tracks the source automatically (a change to this file
+# recompiles the module and updates the hash).
+const _AGGCODEHASH = hash(read(@__FILE__, String))
+
+# Path in EcoSISTEM's own scratch subdir (`assetdir()`, not RasterDataSources') where the
+# `scale`-aggregated `unit`-tagged form of source file `f` (with reducer `fn`) is cached as a JLD2
+# `AxisArray`, or `nothing` if `fn` is not cacheable. Keyed on the source's path/size/mtime — a
+# `stat`, deliberately not a read, so a cache hit never touches the multi-GB source — plus `scale`,
+# the reducer id, the unit and `_AGGCODEHASH` (so a machinery change invalidates it).
+function _aggcachepath(f, scale, fn, u)
+    id = _fnid(fn)
+    id === nothing && return nothing
+    key = string(hash((abspath(f), filesize(f), mtime(f), scale, id, string(u),
+                       _AGGCODEHASH)); base = 16)
+    return joinpath(assetdir(), "aggregates", key * ".jld2")
+end
+
 # Read a raster file, optionally coarsening it by an integer `scale` factor, aggregating each block
 # with `fn` (replaces the old read-time `downresolution!`). The open runs under a `NullLogger` to
 # drop Rasters' benign metadata warnings (e.g. a nodata value a file declares that its integer
@@ -124,7 +152,9 @@ _layerunit(::Type{<:WorldClim{Climate}}, files) = _fileunit(first(files))
 _defaultscale(::Type{<:RDS.RasterDataSource}) = 1
 _defaultscale(::Type{<:EarthEnv{<:LandCover}}) = 10
 _defaultfn(::Type{<:RDS.RasterDataSource}) = mean
-_defaultfn(::Type{<:EarthEnv{<:LandCover}}) = x -> round(mean(x))
+# Named (not an anonymous closure) so the aggregate disk cache can key on it via `nameof`.
+_roundmean(x) = round(mean(x))
+_defaultfn(::Type{<:EarthEnv{<:LandCover}}) = _roundmean
 
 # Default keywords forwarded to `getraster` (WorldClim monthly climate needs a month range).
 _getrasterkw(::Type{<:RDS.RasterDataSource}) = (;)
@@ -140,6 +170,29 @@ end
 _filelist(x::AbstractString) = [String(x)]
 _filelist(x) = String[String(f) for f in values(x)]
 
+# The aggregated per-file layer is deterministic in (file, scale, fn, unit); memoise the resulting
+# `AxisArray` to disk (JLD2) in EcoSISTEM's scratch subdir so later reads skip the (slow) `aggregate`.
+# Only caches when `scale > 1` (scale-1 reads are already fast) and `fn` is cacheable (see
+# `_aggcachepath`). Caching the `AxisArray` — not the `Raster` — preserves the exact lat/long axes,
+# which a GeoTIFF round-trip perturbs.
+function _cachedlayer(f, scale, fn, u)
+    scale > 1 ||
+        return _rastertoaxisarray(_readraster(f; scale = scale, fn = fn);
+                                  unit = u)
+    path = _aggcachepath(f, scale, fn, u)
+    if path !== nothing && isfile(path)
+        return jldopen(path, "r") do io
+            return io["layer"]
+        end
+    end
+    layer = _rastertoaxisarray(_readraster(f; scale = scale, fn = fn); unit = u)
+    if path !== nothing
+        mkpath(dirname(path))
+        jldsave(path; layer = layer)
+    end
+    return layer
+end
+
 # Read a resolved set of raster file paths into a `ClimateRaster` of source `T`, applying the
 # per-source unit, third axis and (for °C-stored Kelvin data) the °C→K shift. Shared by `read` and
 # the deprecated `readworldclim`.
@@ -147,8 +200,7 @@ function _readsource(T::Type{<:RDS.RasterDataSource}, files::Vector{String};
                      cut = nothing, scale = _defaultscale(T),
                      fn = _defaultfn(T))
     u = _layerunit(T, files)
-    aas = map(f -> _rastertoaxisarray(_readraster(f; scale = scale, fn = fn);
-                                      unit = u), files)
+    aas = map(f -> _cachedlayer(f, scale, fn, u), files)
     world = _stacklayers(aas, _mkthirdaxis(_thirdaxis(T), length(aas)))
     # WorldClim/CHELSA store temperature in °C; the unit is attached as K, so shift to true Kelvin.
     u == K && (world .+= uconvert(K, 0.0°C))

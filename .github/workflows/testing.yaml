@@ -55,6 +55,19 @@ jobs:
         arch: ${{ matrix.arch }}
     - name: Cache
       uses: julia-actions/cache@v3
+    - name: Cache raster data
+      # julia-actions/cache caches the package depot but not scratchspaces, where the raster
+      # downloads (~850 MB) and aggregated layers (~700 MB) live. Cache them here (tar preserves
+      # mtime, so the aggregate cache — keyed partly on source mtime — still hits). Keyed on the
+      # reader tests, which determine what gets downloaded, with a prefix fallback so the newest is
+      # restored otherwise. Aggregate correctness across code changes is handled in-code via the
+      # cache key's file-content hash, so this key need not track src/ClimatePref/ReadData.jl.
+      uses: actions/cache@v6
+      with:
+        path: ~/.julia/scratchspaces
+        key: rasterdata-${{ runner.os }}-${{ hashFiles('test/test_ReadData.jl', 'test/test_AbioticEnv.jl') }}
+        restore-keys: |
+          rasterdata-${{ runner.os }}-
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
     - name: Running
