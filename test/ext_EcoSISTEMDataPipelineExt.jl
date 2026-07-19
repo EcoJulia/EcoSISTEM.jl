@@ -7,9 +7,10 @@ using EcoSISTEM
 using Test
 
 if !Sys.iswindows()
-    if isdir("assets")
+    if isdir(ENV["RASTERDATASOURCES_PATH"])
         @testset "DataPipeline unziptemp() test" begin
-            # @test isdir(EcoSISTEM.unziptemp("assets/WorldClim/BioClim/zips/wc2.1_10m_bio.zip"))
+            # @test isdir(EcoSISTEM.unziptemp(joinpath(ENV["RASTERDATASOURCES_PATH"],
+            #     "WorldClim", "BioClim", "zips", "wc2.1_10m_bio.zip")))
         end
     end
 end

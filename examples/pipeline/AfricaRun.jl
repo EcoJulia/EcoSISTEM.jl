@@ -19,8 +19,11 @@ handle = DataPipeline.initialise()
 # Download temperature and precipitation data
 path = link_read!(handle, "AfricaModel/WorldClim")
 newpath = EcoSISTEM.unziptemp(path)
-world = readbioclim(newpath)
-africa_temp = world.array[-25°..50°, -35°..40°, 1]
+world = read(WorldClim{BioClim}, [1, 12];
+             cut = EcoSISTEM.ClimatePref.boundingbox("Africa"; round = 5°))
+# `world.array` is a (latitude, longitude, layer) stack cut to Africa: index 1 = bio1 (annual mean
+# temperature), index 2 = bio12 (annual precipitation).
+africa_temp = world.array[:, :, 1]
 bio_africa = uconvert.(K, africa_temp .* °C)
 bio_africa = Worldclim_bioclim(AxisArray(bio_africa,
                                          AxisArrays.axes(africa_temp)))

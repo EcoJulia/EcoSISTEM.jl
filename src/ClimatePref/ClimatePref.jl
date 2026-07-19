@@ -18,6 +18,7 @@ export layerunit, layeraxis
 include("ReadData.jl")
 export searchdir, readworldclim, readERA,
        readCERA, readfile, readCHELSA_monthly, readCRUTS
+public boundingbox
 
 include("ExtractClimate.jl")
 export extractvalues

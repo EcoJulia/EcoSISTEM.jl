@@ -43,6 +43,39 @@ function Base.read(T::Type{<:EarthEnv{<:LandCover}}, layers; scale = 10,
                   cut = cut)
 end
 
+# Snap a `°` coordinate `x` to the nearest multiple of step `r` (a `°` quantity) in direction
+# `dirn` (`floor` = down, `ceil` = up). Applied as floor to the low edge and ceil to the high edge,
+# this always rounds *outward* so a rounded box encloses the exact one.
+_snapout(dirn, x, r) = dirn(uconvert(NoUnits, x / r)) * r
+
+"""
+    boundingbox(region::AbstractString; islands = false, round = false)
+
+Return the geographic bounding box of `region` as a [`LatLong`](@ref) of `°` intervals, ready to
+pass as the `cut` keyword to [`read`](@ref) and the other raster readers. Boxes are read
+from the shipped `data/bounding_boxes.csv` table. `islands = true` selects the island-inclusive
+extent (the table's `Islands` coverage) instead of the mainland one. `round`, when given a degree
+step (e.g. `round = 5°`), snaps the box *outwards* to the nearest multiple of that step so the
+rounded box fully contains the exact one; the default `false` leaves it unrounded.
+"""
+function boundingbox(region::AbstractString; islands::Bool = false,
+                     round = false)
+    coverage = islands ? "Islands" : "Mainland"
+    table = CSV.File(pkgdir(@__MODULE__, "data", "bounding_boxes.csv"))
+    matches = filter(r -> r.Region == region && r.Coverage == coverage, table)
+    isempty(matches) &&
+        error("No bounding box for region \"$region\" ($coverage) in bounding_boxes.csv")
+    row = only(matches)
+    south, north = row.South * °, row.North * °
+    west, east = row.West * °, row.East * °
+    if round !== false
+        south, west = _snapout(floor, south, round),
+                      _snapout(floor, west, round)
+        north, east = _snapout(ceil, north, round), _snapout(ceil, east, round)
+    end
+    return LatLong(south .. north, west .. east)
+end
+
 const VARDICT = Dict("bio" => NaN, "prec" => mm,
                      "srad" => u"kJ" * u"m"^-2 * day^-1, "tavg" => K,
                      "tmax" => K, "tmin" => K, "vapr" => u"kPa",

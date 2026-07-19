@@ -12,14 +12,16 @@ using Unitful.DefaultSymbols
 using StatsBase
 using Plots
 
+# Download landcover data, cut to a rounded bounding box of Africa (from bounding_boxes.csv).
+africa_box = EcoSISTEM.ClimatePref.boundingbox("Africa"; round = 5°)
 africa_lc = read(EarthEnv{LandCover},
-                 cut = (lat = -25° .. 50°, long = -35° .. 40°))
+                 cut = africa_box)
 bio_africa_lc = compressLC(africa_lc)
 heatmap(bio_africa_lc.array')
 
 # Bioclim layer 13 is precipitation of the wettest month
 worldbc = read(WorldClim{BioClim}, 13,
-               cut = (lat = -25° .. 50°, long = -35° .. 40°))
+               cut = africa_box)
 africa_water_aa = upresolution(worldbc.array[:, :, 1], 2)
 africa_water = ClimateRaster(WorldClim{BioClim},
                              AxisArray(africa_water_aa .* mm,

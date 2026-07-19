@@ -12,10 +12,11 @@ using Unitful.DefaultSymbols
 using StatsBase
 using Plots
 
-# Download temperature (bioclim layer 1) and precipitation (bioclim layer 12)
+# Download temperature (bioclim layer 1) and precipitation (bioclim layer 12),
+# cut to a rounded bounding box of Africa (from the shipped bounding_boxes.csv table).
 world = read(WorldClim{BioClim}, [1, 12],
-             cut = (lat = -25° .. 50°, long = -35° .. 40°))
-africa_temp = world.array[-25° .. 50°, -35° .. 40°, 1]
+             cut = EcoSISTEM.ClimatePref.boundingbox("Africa"; round = 5°))
+africa_temp = world.array[:, :, 1]
 bio_africa = uconvert.(K, africa_temp .* °C)
 bio_africa = ClimateRaster(WorldClim{BioClim},
                            AxisArray(bio_africa,

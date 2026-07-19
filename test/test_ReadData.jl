@@ -58,4 +58,23 @@ if !Sys.iswindows()
     end
 end
 
+# `boundingbox` only reads the shipped CSV, so it runs on every platform.
+@testset "Bounding boxes" begin
+    scot = EcoSISTEM.ClimatePref.boundingbox("Scotland")
+    @test minimum(scot.lat) == 54.63° && maximum(scot.lat) == 58.68°
+    @test minimum(scot.long) == -6.23° && maximum(scot.long) == -1.76°
+    # islands = true selects the island-inclusive extent
+    isl = EcoSISTEM.ClimatePref.boundingbox("Scotland"; islands = true)
+    @test maximum(isl.lat) == 60.86° && minimum(isl.long) == -8.65°
+    # round snaps outwards to the nearest multiple, enclosing the exact box
+    rnd = EcoSISTEM.ClimatePref.boundingbox("Scotland"; round = 5°)
+    @test minimum(rnd.lat) == 50° && maximum(rnd.lat) == 60°
+    @test minimum(rnd.long) == -10° && maximum(rnd.long) == 0°
+    @test minimum(rnd.lat) ≤ minimum(scot.lat) &&
+          maximum(rnd.lat) ≥ maximum(scot.lat)
+    @test minimum(rnd.long) ≤ minimum(scot.long) &&
+          maximum(rnd.long) ≥ maximum(scot.long)
+    @test_throws ErrorException EcoSISTEM.ClimatePref.boundingbox("Atlantis")
+end
+
 end
