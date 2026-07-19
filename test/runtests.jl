@@ -154,6 +154,57 @@ if rsmd == "FALSE"
             @test_nowarn include(fn)
         end
     end
+
+    # The notebooks download raster data, so guard on the OS like `test_ReadData.jl` does.
+    if !Sys.iswindows()
+        @testset "Notebooks folder" begin
+            println()
+            @info "Running from notebooks folder ..."
+            notebookdir = pkgdir(EcoSISTEM, "notebooks")
+            notebooks = filter(str -> occursin(r"\.jl$", str),
+                               readdir(notebookdir))
+            # Snapshot the notebook files. Running a Pluto notebook can rewrite it in place with
+            # an embedded Project/Manifest, but the formatter / RSMD hygiene tests require the
+            # tracked files to stay byte-identical — so restore them from this snapshot no matter
+            # what happens below.
+            originals = Dict(nb => read(joinpath(notebookdir, nb), String)
+                             for nb in notebooks)
+            try
+                cd(notebookdir) do
+                    Pkg.activate(notebookdir)
+                    Pkg.rm("EcoSISTEM")
+                    Pkg.develop(PackageSpec(path = pkgdir(EcoSISTEM)))
+                    Pkg.instantiate()
+                    Pkg.update()
+                    for nb in notebooks
+                        println("    * Running $nb ...")
+                        # These are Pluto notebooks: interactive `@bind` widgets evaluate to
+                        # `missing` outside Pluto. Substitute each slider's HTML default value so
+                        # the notebook runs non-interactively, from a temp copy so the tracked
+                        # file is never touched.
+                        runnable = replace(originals[nb],
+                                           r"@bind\s+(\w+)\s+html\"[^\"]*value='([^']*)'[^\"]*\"" =>
+                                               s"\1 = \2")
+                        tmp = joinpath(tempdir(), "ecosistem_nb_" * nb)
+                        write(tmp, runnable)
+                        try
+                            # `@test`, not `@test_nowarn`: notebooks legitimately log (data
+                            # downloads, cell-size info) — we only require they run without error.
+                            @test (include(tmp); true)
+                        finally
+                            rm(tmp; force = true)
+                        end
+                    end
+                end
+            finally
+                # Restore the tracked notebook files (dropping any Pluto-generated
+                # Project/Manifest) so the hygiene tests still see a clean repo.
+                for nb in notebooks
+                    write(joinpath(notebookdir, nb), originals[nb])
+                end
+            end
+        end
+    end
 end
 
 if rsmd == "TRUE" || !haskey(ENV, "RUNNER_OS") # Crosswalk runner or local testing
