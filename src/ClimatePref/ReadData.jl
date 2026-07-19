@@ -232,64 +232,6 @@ function readfile(file::String, xmin, xmax, ymin, ymax)
     return readfile(file; cut = LatLong(ymin .. ymax, xmin .. xmax))
 end
 
-function readworldclim(::Type{WorldClim{Climate}}, files::Vector{String};
-                       cut = nothing)
-    txy = [Float64, Int32(1), Int32(1), Int32(1)]
-
-    readag(files[1]) do dataset
-        txy[1] = AG.pixeltype(AG.getband(dataset, 1))
-        txy[2] = AG.width(AG.getband(dataset, 1))
-        txy[3] = AG.height(AG.getband(dataset, 1))
-        txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
-        return print(dataset)
-    end
-
-    numfiles = length(files)
-    b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles)
-    map(eachindex(files)) do count
-        a = Matrix{txy[1]}(undef, txy[2], txy[3])
-        readag(files[count]) do dataset
-            bd = AG.getband(dataset, 1)
-            return AG.read!(bd, a)
-        end
-        return b[:, :, count] = a
-    end
-
-    variables = split(first(files), "_")
-    if any(map(v -> v ∈ keys(VARDICT), variables))
-        findvar = findfirst(map(v -> v ∈ keys(VARDICT), variables))
-        unit = VARDICT[variables[findvar]]
-    else
-        unit = 1.0
-    end
-
-    lat, long = size(b, 1), size(b, 2)
-    xmin = -180.0°
-    xmax = 180.0°
-    ymin = -90.0°
-    ymax = 90.0°
-    step_lat = (xmax - xmin) / lat
-    step_lon = (ymax - ymin) / long
-    world = AxisArray(b[:, long:-1:1, :] * unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:time}((1:numfiles) * month))
-    if unit == K
-        # bugfix
-        world .+= uconvert(K, 0.0°C)
-    end
-    if txy[1] <: AbstractFloat
-        @view(world.data[world.data .=== txy[4]]) .*= NaN
-        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
-    end
-
-    if !isnothing(cut)
-        world = world[cut.lat, cut.long, :]
-    end
-
-    return ClimateRaster(RDS.WorldClim{RDS.Climate}, world)
-end
-
 """
     readworldclim(T::Type{WorldClim{Climate}}, files; cut = nothing)
 
