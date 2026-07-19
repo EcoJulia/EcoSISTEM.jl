@@ -3,95 +3,85 @@
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using EcoSISTEM: LatLong
 using AxisArrays
 using NetCDF
 using IndexedTables
 
-function checkbounds(lat::Vector{typeof(1.0°)}, long::Vector{typeof(1.0°)})
-    return all(-180.0° .< lat .<= 180.0°) && all(-90.0° .<= long .<= 90.0°)
-end
-
+# Grid step of a climate dataset's `dim`-th coordinate axis.
 function calculatestep(dat::AbstractClimate, dim::Int64)
     return AxisArrays.axes(dat.array, dim).val[2] -
            AxisArrays.axes(dat.array, dim).val[1]
 end
 
-function _extract(lat, long, dat, dim::Unitful.Time, thisstep)
-    res = map((i, j) -> dat[(i - thisstep / 2) .. (i + thisstep / 2),
-                            (j - thisstep / 2) .. (j + thisstep / 2),
-                            dim][1, 1, 1],
-              lat, long)
-    return transpose(hcat(res...))
-end
-
 """
-    extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        wc::ClimateRaster{WorldClim{Climate}}, dim::Unitful.Time)
+    extractvalues(locs::AbstractVector{<:LatLong}, wc::ClimateRaster{WorldClim{Climate}},
+        dim::Unitful.Time)
 
-Function to extract values from a worldclim object, at specified x, y locations and
-time, `dim`.
+Extract values from a worldclim object at the [`LatLong`](@ref) locations `locs` and time `dim`.
 """
-function extractvalues(lat::Vector{typeof(1.0°)}, long::Vector{typeof(1.0°)},
+function extractvalues(locs::AbstractVector{<:LatLong{typeof(1.0°)}},
                        wc::ClimateRaster{WorldClim{Climate}}, dim::Unitful.Time)
-    checkbounds(lat, long) || error("Coordinates out of bounds")
     thisstep = calculatestep(wc, 1)
-    res = map((i, j) -> wc.array[(i - thisstep / 2) .. (i + thisstep / 2),
-                                 (j - thisstep / 2) .. (j + thisstep / 2),
-                                 dim][1, 1, 1], lat, long)
+    res = map(locs) do loc
+        return wc.array[(loc.lat - thisstep / 2) .. (loc.lat + thisstep / 2),
+                        (loc.long - thisstep / 2) .. (loc.long + thisstep / 2),
+                        dim][1, 1, 1]
+    end
     return transpose(hcat(res...))
 end
 
 """
-    extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        bc::ClimateRaster, dim::Unitful.Time)
+    extractvalues(locs::AbstractVector{<:LatLong}, bc::ClimateRaster, val::Int64)
 
-Function to extract values from a bioclim object, at specified lat, long locations and time, `dim`.
+Extract values from a bioclim object at the [`LatLong`](@ref) locations `locs` and variable `val`.
 """
-function extractvalues(lat::Vector{typeof(1.0°)}, long::Vector{typeof(1.0°)},
+function extractvalues(locs::AbstractVector{<:LatLong{typeof(1.0°)}},
                        bc::ClimateRaster, val::Int64)
-    checkbounds(lat, long) || error("Coordinates out of bounds")
-    thisstep = axes(bc.array, 1).val[2] - axes(bc.array, 1).val[1]
-    res = map((i, j) -> bc.array[(i - thisstep / 2) .. (i + thisstep / 2),
-                                 (j - thisstep / 2) .. (j + thisstep / 2),
-                                 val], lat, long)
+    thisstep = AxisArrays.axes(bc.array, 1).val[2] -
+               AxisArrays.axes(bc.array, 1).val[1]
+    res = map(locs) do loc
+        return bc.array[(loc.lat - thisstep / 2) .. (loc.lat + thisstep / 2),
+                        (loc.long - thisstep / 2) .. (loc.long + thisstep / 2),
+                        val]
+    end
     return transpose(hcat(res...))
 end
 
-function extractvalues(lat::Union{Missing, typeof(1.0°)},
-                       long::Union{Missing, typeof(1.0°)},
-                       cal_yr::Union{Missing, Int64}, era::ERA)
+"""
+    extractvalues(loc::LatLong, cal_yr::Int64, era::ERA)
+
+Extract the year `cal_yr` of monthly values from an ERA object at the [`LatLong`](@ref) location
+`loc`, or a NaN-filled vector if the year is outside the data.
+"""
+function extractvalues(loc::LatLong{typeof(1.0°)}, cal_yr::Int64, era::ERA)
     startyr = ustrip(uconvert(year, axes(era.array)[3].val[1]))
     endyr = ustrip(uconvert(year, axes(era.array)[3].val[end]))
-    if any(ismissing.([lat, long, cal_yr])) || cal_yr < startyr ||
-       cal_yr > endyr
+    if cal_yr < startyr || cal_yr > endyr
         return fill(NaN, 12) .* unit(era.array[1, 1, 1])
-    else
-        -180.0° ≤ lat ≤ 180.0° || error("Latitude coordinate is out of bounds")
-        -90.0° < long < 90.0° || error("Longitude coordinate is out of bounds")
-        thisstep1 = AxisArrays.axes(era.array, 1).val[2] -
-                    AxisArrays.axes(era.array, 1).val[1]
-        thisstep2 = AxisArrays.axes(era.array, 2).val[2] -
-                    AxisArrays.axes(era.array, 2).val[1]
-        time = cal_yr * year
-        long += 0.375°
-        return era.array[(long - thisstep1 / 2) .. (long + thisstep1 / 2),
-                         (lat - thisstep2 / 2) .. (lat + thisstep2 / 2),
-                         time .. (time + 11month)][1, 1, :]
     end
+    thisstep1 = AxisArrays.axes(era.array, 1).val[2] -
+                AxisArrays.axes(era.array, 1).val[1]
+    thisstep2 = AxisArrays.axes(era.array, 2).val[2] -
+                AxisArrays.axes(era.array, 2).val[1]
+    time = cal_yr * year
+    long = loc.long + 0.375°
+    return era.array[(long - thisstep1 / 2) .. (long + thisstep1 / 2),
+                     (loc.lat - thisstep2 / 2) .. (loc.lat + thisstep2 / 2),
+                     time .. (time + 11month)][1, 1, :]
 end
 
-function extractvalues(lat::Union{Missing, typeof(1.0°)},
-                       long::Union{Missing, typeof(1.0°)}, ref::Reference)
-    if any(ismissing.([lat, long]))
-        return NaN .* unit(ref.array[1, 1])
-    else
-        -180.0° ≤ lat ≤ 180.0° || error("Latitude coordinate is out of bounds")
-        -90.0° < long < 90.0° || error("Longitude coordinate is out of bounds")
-        thisstep1 = AxisArrays.axes(ref.array, 1).val[2] -
-                    AxisArrays.axes(ref.array, 1).val[1]
-        thisstep2 = AxisArrays.axes(ref.array, 2).val[2] -
-                    AxisArrays.axes(ref.array, 2).val[1]
-        return ref.array[(long - thisstep1 / 2) .. (long + thisstep1 / 2),
-                         (lat - thisstep2 / 2) .. (lat + thisstep2 / 2)][1, 1]
-    end
+"""
+    extractvalues(loc::LatLong, ref::Reference)
+
+Extract the value from a reference object at the [`LatLong`](@ref) location `loc`.
+"""
+function extractvalues(loc::LatLong{typeof(1.0°)}, ref::Reference)
+    thisstep1 = AxisArrays.axes(ref.array, 1).val[2] -
+                AxisArrays.axes(ref.array, 1).val[1]
+    thisstep2 = AxisArrays.axes(ref.array, 2).val[2] -
+                AxisArrays.axes(ref.array, 2).val[1]
+    return ref.array[(loc.long - thisstep1 / 2) .. (loc.long + thisstep1 / 2),
+                     (loc.lat - thisstep2 / 2) .. (loc.lat + thisstep2 / 2)][1,
+                                                                             1]
 end

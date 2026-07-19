@@ -23,6 +23,11 @@ export NicheAxis, AbstractTemperature, AbstractPrecipitation,
        PrecipitationSeasonality, Heterogeneity, LandType, Altitude,
        VolumetricWater
 
+# Geographic coordinate type — used across the ClimatePref sub-module and the main module, so it is
+# defined here (before ClimatePref) rather than inside it.
+include("Coordinates.jl")
+export LatLong
+
 # EcoSISTEM.ClimatePref sub-module
 include("ClimatePref/ClimatePref.jl")
 
