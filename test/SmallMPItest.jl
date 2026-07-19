@@ -106,8 +106,7 @@ MPI.Barrier(comm)
 true_abuns = gather_abundance(eco)
 # On root node, print abundances and save out
 if rank == 0
-    isdir("data") || mkdir("data")
-    @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
+    @save joinpath(ARGS[1], "Test_abuns$nt.jld2") abuns=true_abuns
 end
 
 water_vec = WaterRequirement(fill(2.0mm, numSpecies))
@@ -170,8 +169,7 @@ sleep(rank)
 true_abuns = gather_abundance(eco)
 # On root node, print abundances and save out
 if rank == 0
-    isdir("data") || mkdir("data")
-    @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
+    @save joinpath(ARGS[1], "Test_abuns$nt.jld2") abuns=true_abuns
 end
 
 if !MPI.Finalized()

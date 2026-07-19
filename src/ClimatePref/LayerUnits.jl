@@ -16,11 +16,14 @@ function _datasettype(::Type{T}) where {T <: RDS.RasterDataSource}
     return isempty(params) ? T : first(params)
 end
 
-# The layer table shipped in the package `data/` directory, named by convention after the
-# dataset type (`WorldClim{BioClim}` → `data/BioClim.csv`, `EarthEnv{LandCover}` →
-# `data/LandCover.csv`); the file's presence is what makes a source supported.
+# The layer table shipped in the package `data/RasterDataSources/` directory, named by convention
+# after the dataset type (`WorldClim{BioClim}` → `data/RasterDataSources/BioClim.csv`,
+# `EarthEnv{LandCover}` → `data/RasterDataSources/LandCover.csv`); the file's presence is what
+# makes a source supported. (They live under `RasterDataSources/` to keep them distinct from other
+# shipped data such as `data/bounding_boxes.csv`.)
 function _layerfile(T::Type)
-    path = pkgdir(@__MODULE__, "data", "$(nameof(_datasettype(T))).csv")
+    path = pkgdir(@__MODULE__, "data", "RasterDataSources",
+                  "$(nameof(_datasettype(T))).csv")
     isfile(path) ||
         return error("No layer table for raster source `$T` (expected $(basename(path)) in data/)")
     return path

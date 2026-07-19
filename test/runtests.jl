@@ -82,7 +82,7 @@ if rsmd == "FALSE"
     Random.seed!(1234)
 
     @testset "EcoSISTEM.jl" begin
-        @test isfile(EcoSISTEM.path("runtests.jl"))
+        @test isfile(pkgdir(EcoSISTEM, "test", "runtests.jl"))
         println()
         @info "Running tests for files:"
         for t in testbase
@@ -140,9 +140,9 @@ if rsmd == "FALSE"
     @testset "Examples folder" begin
         println()
         @info "Running from examples folder ..."
-        Pkg.activate(EcoSISTEM.path(dir = "examples"))
+        Pkg.activate(pkgdir(EcoSISTEM, "examples"))
         Pkg.rm("EcoSISTEM")
-        Pkg.develop(PackageSpec(path = EcoSISTEM.path(dir = "")))
+        Pkg.develop(PackageSpec(path = pkgdir(EcoSISTEM)))
         Pkg.instantiate()
         Pkg.update()
         example_testbase = map(file -> replace(file, r"test_(.*).jl" => s"\1"),

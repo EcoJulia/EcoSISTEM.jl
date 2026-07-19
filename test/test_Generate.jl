@@ -89,7 +89,7 @@ end
     # the 2-thread case twice also confirms same-thread-count repeatability, so a
     # failure distinguishes "not reproducible at all" from "not reproducible
     # across thread counts".
-    script = EcoSISTEM.path("threading_reproducibility.jl")
+    script = pkgdir(EcoSISTEM, "test", "threading_reproducibility.jl")
     dir = mktempdir()
     function run_with(nthreads, tag)
         out = joinpath(dir, "repro_$tag.jld2")

@@ -84,7 +84,7 @@ function runsim!(div::Array{Float64, 3},
                                    rep)
         adjusttemp!(eco, scenario[i], simDict["times"])
     end
-    @save (folder*@sprintf "%03d.jld2" rep) div=div
+    @save joinpath(folder, @sprintf("%03d.jld2", rep)) div=div
     return print(rep, "\n")
 end
 
@@ -141,6 +141,6 @@ function dispersalrun!(div::Array{Float64, 3},
                                    rep)
         adjusttemp!(eco, scenario[i], simDict["times"])
     end
-    @save (folder*@sprintf "%03d.jld2" rep) div=div
+    @save joinpath(folder, @sprintf("%03d.jld2", rep)) div=div
     return print(rep, "\n")
 end

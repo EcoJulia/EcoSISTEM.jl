@@ -1,7 +1,6 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
-assets/
 Manifest.toml
 /.fair
 /.JuliaFormatter.toml

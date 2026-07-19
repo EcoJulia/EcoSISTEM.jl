@@ -9,7 +9,7 @@ using OnlineStats
 using Plots
 plotlyjs()
 
-cachefolder = EcoSISTEM.path("examples/")
+cachefolder = mktempdir()
 
 ## DIFFERENT TEMPERATURE OPTIMUMS ##
 # 100 species with a range of different niche preferences for temperature. Check those closer to the environmental temperature have a higher abundance.
@@ -89,10 +89,8 @@ diver = zeros(length(divfuns), lensim, length(scenario))
 runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
 
 endabun = mapslices(sum,
-                    @load joinpath(cachefolder,
-                                   "cache/DiffOpts10001.jld2") abun,
-                                                               dims=2)[:,
-                                                                       1]
+                    @load joinpath(cachefolder, "cache",
+                                   "DiffOpts10001.jld2") abun, dims=2)[:, 1]
 temps = map(eachindex(opts)) do i
     return repeat([opts[i]], endabun[i])
 end

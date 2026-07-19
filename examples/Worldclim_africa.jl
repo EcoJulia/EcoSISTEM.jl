@@ -12,7 +12,6 @@ using Unitful.DefaultSymbols
 using StatsBase
 using Plots
 
-ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
 # Download temperature (bioclim layer 1) and precipitation (bioclim layer 12)
 world = read(WorldClim{BioClim}, [1, 12],
              cut = (lat = -25° .. 50°, long = -35° .. 40°))

@@ -23,7 +23,7 @@ using Printf
 using Diversity
 using Diversity.Ecology
 
-const AFRICA_FILE = joinpath(@__DIR__, "Africa.tif")
+const AFRICA_FILE = pkgdir(EcoSISTEM, "data", "Africa.tif")
 const SAVEDIR = "/mnt/data/project0000/outputs/Africa_run"
 mkpath(SAVEDIR)
 

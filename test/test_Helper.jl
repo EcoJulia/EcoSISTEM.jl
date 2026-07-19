@@ -34,10 +34,11 @@ end
                lensim, 1)
         @test_nowarn simulate!(eco, burnin, timestep)
         @test_nowarn simulate_record!(abun, eco, times, interval, timestep)
-        isdir("data") || mkdir("data")
-        @test_nowarn simulate!(eco, times, interval, timestep, "data",
+        # Write the run's output into a temp dir the OS cleans up, so it never
+        # touches the repo (and no manual `rm` is needed for the hygiene tests).
+        outputdir = mktempdir()
+        @test_nowarn simulate!(eco, times, interval, timestep, outputdir,
                                "testrun")
-        rm("data", recursive = true)
     end
     @testset "simulate_action" begin
         # The generic action engine fires the callback once per interval, passing

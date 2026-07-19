@@ -72,7 +72,7 @@ end
 end
 
 @testset "guard: shipped data/ tables are well-formed" begin
-    datadir = pkgdir(EcoSISTEM, "data")
+    datadir = pkgdir(EcoSISTEM, "data", "RasterDataSources")
     csvs = filter(endswith(".csv"), readdir(datadir))
     @test !isempty(csvs)
     for f in csvs

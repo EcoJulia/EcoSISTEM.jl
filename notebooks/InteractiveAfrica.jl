@@ -55,8 +55,8 @@ end
 
 # ╔═╡ 220e4af6-f228-4b8d-a77e-0ddbf5fc6705
 begin
-    file = "../examples/Africa.tif"
-    africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
+    file = pkgdir(EcoSISTEM, "data", "Africa.tif")
+    africa = readfile(file)
     active = Matrix{Bool}(.!isnan.(africa))
     # Set up initial parameters for ecosystem
     grd = size(africa)
@@ -121,9 +121,9 @@ end
 
 # ╔═╡ 7e16f197-874b-482d-80b6-13a62ddda1f7
 begin
-    ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
     africa_bio = read(WorldClim{BioClim}, 1,
-                      cut = (lat = -25° .. 50°, long = -35° .. 40°))
+                      cut = EcoSISTEM.ClimatePref.boundingbox("Africa";
+                                                              round = 5°))
     africa_temp = africa_bio.array
     plot(africa_temp)
 end

@@ -12,7 +12,6 @@ using AxisArrays
 using RasterDataSources
 
 if !Sys.iswindows()
-    ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
     # Download layers of bioclim data and test on all read functions
     # (essentially all the same file type)
     getraster(WorldClim{BioClim}, :bio1)
