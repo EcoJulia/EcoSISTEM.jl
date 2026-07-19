@@ -97,14 +97,15 @@ function upresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64)
         end
     end
 
-    long = aa.axes[1].val
-    newlong = range(long[1], long[end], grid[1])
-    lat = aa.axes[2].val
-    newlat = range(lat[1], lat[end], grid[2])
+    # Carry the input's axis names through unchanged (rather than hardcoding a lat/long/time
+    # convention), so the resampled result keeps whatever axes it came in with.
+    names = AxisArrays.axisnames(aa)
+    v1 = aa.axes[1].val
+    v2 = aa.axes[2].val
     return AxisArray(array,
-                     Axis{:longitude}(newlong),
-                     Axis{:latitude}(newlat),
-                     Axis{:time}(aa.axes[3].val))
+                     Axis{names[1]}(range(v1[1], v1[end], grid[1])),
+                     Axis{names[2]}(range(v2[1], v2[end], grid[2])),
+                     Axis{names[3]}(aa.axes[3].val))
 end
 
 function upresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64)
@@ -127,14 +128,13 @@ function upresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64)
         end
     end
 
-    long = aa.axes[1].val
-    newlong = range(long[1], long[end], grid[1])
-    lat = aa.axes[2].val
-    newlat = range(lat[1], lat[end], grid[2])
-
+    # Carry the input's axis names through unchanged (see the 3-D method).
+    names = AxisArrays.axisnames(aa)
+    v1 = aa.axes[1].val
+    v2 = aa.axes[2].val
     return AxisArray(array,
-                     Axis{:longitude}(newlong),
-                     Axis{:latitude}(newlat))
+                     Axis{names[1]}(range(v1[1], v1[end], grid[1])),
+                     Axis{names[2]}(range(v2[1], v2[end], grid[2])))
 end
 
 """
@@ -179,14 +179,15 @@ function downresolution(aa::AxisArray{T, 3} where {T}, rescale::Int64;
             end
         end
     end
-    long = aa.axes[1].val
-    newlong = range(long[1], long[end], grid[1])
-    lat = aa.axes[2].val
-    newlat = range(lat[1], lat[end], grid[2])
+    # Carry the input's axis names through unchanged (rather than hardcoding a lat/long/time
+    # convention), so the resampled result keeps whatever axes it came in with.
+    names = AxisArrays.axisnames(aa)
+    v1 = aa.axes[1].val
+    v2 = aa.axes[2].val
     return AxisArray(array,
-                     Axis{:longitude}(newlong),
-                     Axis{:latitude}(newlat),
-                     Axis{:time}(aa.axes[3].val))
+                     Axis{names[1]}(range(v1[1], v1[end], grid[1])),
+                     Axis{names[2]}(range(v2[1], v2[end], grid[2])),
+                     Axis{names[3]}(aa.axes[3].val))
 end
 
 function downresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64;
@@ -208,13 +209,13 @@ function downresolution(aa::AxisArray{T, 2} where {T}, rescale::Int64;
         end
     end
 
-    long = aa.axes[1].val
-    newlong = range(long[1], long[end], grid[1])
-    lat = aa.axes[2].val
-    newlat = range(lat[1], lat[end], grid[2])
+    # Carry the input's axis names through unchanged (see the 3-D method).
+    names = AxisArrays.axisnames(aa)
+    v1 = aa.axes[1].val
+    v2 = aa.axes[2].val
     return AxisArray(array,
-                     Axis{:longitude}(newlong),
-                     Axis{:latitude}(newlat))
+                     Axis{names[1]}(range(v1[1], v1[end], grid[1])),
+                     Axis{names[2]}(range(v2[1], v2[end], grid[2])))
 end
 
 """
