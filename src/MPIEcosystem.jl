@@ -75,6 +75,11 @@ end
 
 EcoSISTEM.MPIEcosystem(args...; kwargs...) = MPIEcosystem(args...; kwargs...)
 
+# With the MPI extension loaded, auto-selection (in `build_ecosystem`) treats the process as
+# distributed only once MPI is initialised and there is more than one rank — so `mpirun -n 1` or a
+# plain `using MPI` still builds a serial `Ecosystem`.
+EcoSISTEM._should_mpi() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
+
 using EcoSISTEM: getkernels, genlookups, numrequirements
 """
     MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
