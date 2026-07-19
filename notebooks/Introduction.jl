@@ -288,8 +288,8 @@ begin
 
     # We must also decide how much water each species needs per timestep
     water_req = (100.0nm / m^2)
-    size = 1.0m^2
-    water_vec = WaterRequirement(fill(water_req * size, numSpp))
+    sz = 1.0m^2
+    water_vec = WaterRequirement(fill(water_req * sz, numSpp))
 
     # Plus, their niche width - the range of habitats they find suitable
     niche_width = fill(2.0, numSpp) .* K
