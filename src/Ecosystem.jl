@@ -538,26 +538,28 @@ Reset the rate of habitat change for a species.
 """
 function resetrate!(eco::AbstractEcosystem,
                     rate::Quantity{Float64, typeof(𝐓^-1)})
-    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
-                                                    rate,
-                                                    Unitful.Dimensions{()})
+    return eco.abenv.habitat.dynamics = HabitatUpdate(eco.abenv.habitat.dynamics.changefun,
+                                                      rate,
+                                                      Unitful.Dimensions{()})
 end
 
 function resetrate!(eco::AbstractEcosystem,
                     rate::Quantity{Float64, typeof(𝚯 * 𝐓^-1)})
-    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
-                                                    rate, typeof(dimension(1K)))
+    return eco.abenv.habitat.dynamics = HabitatUpdate(eco.abenv.habitat.dynamics.changefun,
+                                                      rate,
+                                                      typeof(dimension(1K)))
 end
 
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝐓^-1})
-    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
-                                                    rate,
-                                                    Unitful.Dimensions{()})
+    return eco.abenv.habitat.dynamics = HabitatUpdate(eco.abenv.habitat.dynamics.changefun,
+                                                      rate,
+                                                      Unitful.Dimensions{()})
 end
 
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯 * 𝐓^-1})
-    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
-                                                    rate, typeof(dimension(1K)))
+    return eco.abenv.habitat.dynamics = HabitatUpdate(eco.abenv.habitat.dynamics.changefun,
+                                                      rate,
+                                                      typeof(dimension(1K)))
 end
 
 function resettime!(eco::AbstractEcosystem)

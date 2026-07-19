@@ -11,7 +11,7 @@ Increase the temperature for one timestep of the ecosystem using
 """
 function TempChange(eco::AbstractEcosystem, hab::ContinuousHab,
                     timestep::Unitful.Time)
-    val = hab.change.rate
+    val = hab.dynamics.rate
     v = uconvert(K / unit(timestep), val)
     return hab.matrix .+= v * timestep
 end
@@ -24,7 +24,7 @@ Change the rainfall for one timestep of the ecosystem using
 """
 function RainfallChange(eco::AbstractEcosystem, hab::ContinuousHab,
                         timestep::Unitful.Time)
-    val = hab.change.rate
+    val = hab.dynamics.rate
     v = uconvert(mm / unit(timestep), val)
     return hab.matrix .+= v * timestep
 end
@@ -37,7 +37,7 @@ Fluctuate the temperature for one timestep of the ecosystem using
 """
 function TempFluct(eco::AbstractEcosystem, hab::ContinuousHab,
                    timestep::Unitful.Time)
-    val = hab.change.rate
+    val = hab.dynamics.rate
     v = uconvert(K / unit(timestep), val) * timestep
     offset = v / pi
     return hab.matrix .+= (sin.(hab.matrix ./ offset) .* v)
@@ -80,14 +80,14 @@ const worldclimChange = cyclicChange
     HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat, timestep::Unitful.Time)
 
 Destroy habitat for one timestep of the ecosystem using [`HabitatUpdate`](@ref)
-information. The habitat's `change.rate` is a loss rate (per unit time); over
+information. The habitat's `dynamics.rate` is a loss rate (per unit time); over
 `timestep` it gives the per-cell probability that an active cell is lost. That many
 active cells are drawn at random and have their budget and abundances zeroed.
 """
 function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat,
                      timestep::Unitful.Time)
     # Loss rate × timestep is the (dimensionless) probability of losing a cell.
-    prob = uconvert(NoUnits, hab.change.rate * timestep)
+    prob = uconvert(NoUnits, hab.dynamics.rate * timestep)
     pos = findall(vec(eco.abenv.active))
     smp = sample(pos, rand(Binomial(length(pos), prob)); replace = false)
     eco.abenv.budget.matrix[smp] .= zero(eltype(eco.abenv.budget.matrix))
@@ -95,13 +95,13 @@ function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat,
     return eco
 end
 
-# One update rule for any layer regardless of role: apply its own `change.changefun`
+# One update rule for any layer regardless of role: apply its own `dynamics.changefun`
 # (`NoChange` for a static layer, `TempChange`/`cyclicChange`/… for a dynamic one), and
 # recurse into a collection. This unifies the old separate `habitatupdate!`/`budgetupdate!`
 # (static budgets were no-ops; time budgets advanced identically to `cyclicChange`).
 function _layerupdate!(eco::AbstractEcosystem, layer::AbstractLayer,
                        timestep::Unitful.Time)
-    return layer.change.changefun(eco, layer, timestep)
+    return layer.dynamics.changefun(eco, layer, timestep)
 end
 function _layerupdate!(eco::AbstractEcosystem, layer::LayerCollection2,
                        timestep::Unitful.Time)

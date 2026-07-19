@@ -156,7 +156,7 @@ unitdict = Dict(kJ => "Solar Radiation (kJ)",
 # The concrete budget names (`SimpleBudget`/`SolarBudget`/… and the time-varying
 # `*TimeBudget`s) are aliases (in Layer.jl) over `ContinuousLayer{Budget, axis, V, Arr}`:
 # a static budget is 2-D (`Matrix`), a time budget 3-D (`Array`, indexed by `time`). The
-# constructors below fill the (unused) `size` and the per-timestep `change` rule and zero
+# constructors below fill the (unused) `size` and the per-timestep `dynamics` rule and zero
 # NaNs, reproducing the old budget structs. A budget's `size` is never read
 # (geometry/dispersal use the habitat), so a placeholder is stored; `NoChange`/`cyclicChange`
 # live in HabitatUpdate.jl (included later) and resolve at call time.

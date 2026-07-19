@@ -38,7 +38,7 @@ end
 # ---------------------------------------------------------------------------
 # AbstractLayer — the materialised, hot-loop grid-layer family
 # ---------------------------------------------------------------------------
-# A materialised layer is `matrix (+ time) + size + change`, tagged with a `Role`
+# A materialised layer is `matrix (+ time) + size + dynamics`, tagged with a `Role`
 # (`Habitat` condition vs `Budget` resource) and a `NicheAxis` (what it measures). It
 # unifies today's `ContinuousHab`/`ContinuousTimeHab`/`DiscreteHab` (and, from sub-step 3,
 # the budget structs). During the fold the old `*Hab` names below are **aliases** over these
@@ -75,7 +75,7 @@ mutable struct ContinuousLayer{R <: Role, A <: NicheAxis, V <: Number,
     matrix::Arr
     time::Int64
     size::Unitful.Length
-    change::HabitatUpdate
+    dynamics::HabitatUpdate
 end
 
 """
@@ -88,7 +88,7 @@ mutable struct DiscreteLayer{A <: NicheAxis, V, Arr <: AbstractArray{V}} <:
                AbstractLayer{Habitat}
     matrix::Arr
     size::Unitful.Length
-    change::HabitatUpdate
+    dynamics::HabitatUpdate
 end
 
 """
@@ -140,20 +140,20 @@ const HabitatCollection3{H1, H2, H3} = LayerCollection3{Habitat, H1, H2, H3}
 # time = 1 (the axis-aware `materialise` path constructs `ContinuousLayer{Habitat, A}` with
 # the real axis directly).
 function ContinuousHab(matrix::Matrix{C}, size::Unitful.Length,
-                       change::HabitatUpdate) where {C}
+                       dynamics::HabitatUpdate) where {C}
     return ContinuousLayer{Habitat, Unclassified, C, Matrix{C}}(matrix, 1, size,
-                                                                change)
+                                                                dynamics)
 end
 function ContinuousTimeHab(matrix::AbstractArray{C, 3}, time::Integer,
                            size::Unitful.Length,
-                           change::HabitatUpdate) where {C}
+                           dynamics::HabitatUpdate) where {C}
     return ContinuousLayer{Habitat, Unclassified, C, typeof(matrix)}(matrix,
                                                                      time, size,
-                                                                     change)
+                                                                     dynamics)
 end
 function DiscreteHab(matrix::Matrix{D}, size::Unitful.Length,
-                     change::HabitatUpdate) where {D}
-    return DiscreteLayer{Unclassified, D, Matrix{D}}(matrix, size, change)
+                     dynamics::HabitatUpdate) where {D}
+    return DiscreteLayer{Unclassified, D, Matrix{D}}(matrix, size, dynamics)
 end
 
 # The collection aliases fix `R = Habitat` but leave the sub-layer params free, so the
@@ -175,7 +175,7 @@ end
 # A budget is a `Budget`-role layer: the old budget structs are aliases over
 # `ContinuousLayer{Budget, axis, V, Arr}` — static budgets are 2-D (`Matrix`), the
 # time-varying `*TimeBudget`s 3-D (`Array`, indexed by `time`). The axis records the
-# resource measured; the (unused) `size` and the `change` rule are filled by the
+# resource measured; the (unused) `size` and the `dynamics` rule are filled by the
 # constructors in Energy.jl. `SimpleBudget` (free energy) has no resource axis.
 
 """
