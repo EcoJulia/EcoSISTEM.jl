@@ -44,9 +44,9 @@ function create_reference(gridsize::Float64)
     x = 360 * (1 / gridsize) + 1
     y = 180 * (1 / gridsize) + 1
     gridsize = gridsize * °
-    refarray = AxisArray(Matrix{Int64}(undef, Int(floor(x)), Int(floor(y))),
-                         Axis{:longitude}((-180.0°):gridsize:(180.0°)),
-                         Axis{:latitude}((-90.0°):gridsize:(90.0°)))
+    refarray = AxisArray(Matrix{Int64}(undef, Int(floor(y)), Int(floor(x))),
+                         Axis{:latitude}((-90.0°):gridsize:(90.0°)),
+                         Axis{:longitude}((-180.0°):gridsize:(180.0°)))
     vec(refarray) .= eachindex(refarray)
     return Reference(refarray)
 end

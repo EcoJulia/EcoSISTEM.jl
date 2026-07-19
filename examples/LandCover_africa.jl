@@ -17,7 +17,7 @@ africa_box = EcoSISTEM.ClimatePref.boundingbox("Africa"; round = 5°)
 africa_lc = read(EarthEnv{LandCover},
                  cut = africa_box)
 bio_africa_lc = compressLC(africa_lc)
-heatmap(bio_africa_lc.array')
+heatmap(bio_africa_lc.array)
 
 # Bioclim layer 13 is precipitation of the wettest month
 worldbc = read(WorldClim{BioClim}, 13,
@@ -103,16 +103,16 @@ africa_startabun = Float64.(abuns[:, :, 1])
 africa_startabun[.!(active)] .= NaN
 africa_endabun = Float64.(abuns[:, :, end])
 africa_endabun[.!(active)] .= NaN
-heatmap(africa_startabun', clim = (0, maximum(abuns)),
+heatmap(africa_startabun, clim = (0, maximum(abuns)),
         background_color = :lightblue, background_color_outside = :white,
         grid = false, color = cgrad(:algae, scale = :exp),
         layout = (@layout [a b; c d]), title = "Start abundance")
-heatmap!(africa_endabun', clim = (0, maximum(abuns)),
+heatmap!(africa_endabun, clim = (0, maximum(abuns)),
          background_color = :lightblue, background_color_outside = :white,
          grid = false, color = cgrad(:algae, scale = :exp),
          subplot = 2, title = "End Abundance")
 africa_data = Float64.(bio_africa_lc.array.data)
 africa_data[.!active] .= NaN
-heatmap!(africa_data', grid = false, subplot = 3, title = "Land Cover")
-heatmap!(Float64.(africa_water.array.data / mm)', grid = false, subplot = 4,
+heatmap!(africa_data, grid = false, subplot = 3, title = "Land Cover")
+heatmap!(Float64.(africa_water.array.data / mm), grid = false, subplot = 4,
          title = "Precipitation")

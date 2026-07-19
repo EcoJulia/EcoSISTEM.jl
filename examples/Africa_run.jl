@@ -434,8 +434,7 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     return nothing
 end
 
-const AFRICA_TIF = readfile(AFRICA_FILE, xmin = -25.0°, xmax = 50.0°,
-                            ymin = -35.0°, ymax = 40.0°)
+const AFRICA_TIF = readfile(AFRICA_FILE)
 const RADIUS = 50
 const ACTIVE = get_active_circle(AFRICA_TIF, RADIUS)
 

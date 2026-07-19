@@ -204,7 +204,7 @@ begin
     mean_abuns = reshape(mean(eco_new.abundances.matrix, dims = 1)[1, :],
                          grd_new)
     mean_abuns[.!eco_new.abenv.active] .= NaN
-    heatmap(mean_abuns')
+    heatmap(mean_abuns)
 end
 
 # ╔═╡ Cell order:

@@ -25,17 +25,19 @@ world = read(WorldClim{BioClim}, [1, 12];
 # temperature), index 2 = bio12 (annual precipitation).
 africa_temp = world.array[:, :, 1]
 bio_africa = uconvert.(K, africa_temp .* °C)
-bio_africa = Worldclim_bioclim(AxisArray(bio_africa,
-                                         AxisArrays.axes(africa_temp)))
-africa_water = world.array[-25°..50°, -35°..40°, 12] .* mm
-africa_water = Worldclim_bioclim(AxisArray(africa_water,
-                                           AxisArrays.axes(africa_temp)))
+bio_africa = ClimateRaster(WorldClim{BioClim},
+                           AxisArray(bio_africa,
+                                     AxisArrays.axes(africa_temp)))
+africa_water = world.array[:, :, 2] .* mm
+africa_water = ClimateRaster(WorldClim{BioClim},
+                             AxisArray(africa_water,
+                                       AxisArrays.axes(africa_temp)))
 bio_africa_water = WaterBudget(africa_water)
 
 # Find which grid cells are land
 active = Matrix{Bool}(.!isnan.(bio_africa.array))
 
-heatmap(africa_temp')
+heatmap(africa_temp)
 
 # Set up initial parameters for ecosystem
 numSpecies = 1;
@@ -100,14 +102,14 @@ africa_startabun = Float64.(abuns[:, :, 1])
 africa_startabun[.!(active)] .= NaN
 africa_endabun = Float64.(abuns[:, :, end])
 africa_endabun[.!(active)] .= NaN
-heatmap(africa_startabun',
+heatmap(africa_startabun,
         clim = (0, maximum(abuns)),
         background_color = :lightblue,
         background_color_outside = :white,
         grid = false,
         color = cgrad(:algae, scale = :exp),
         layout = (@layout [a b; c d]))
-heatmap!(africa_endabun',
+heatmap!(africa_endabun,
          clim = (0, maximum(abuns)),
          background_color = :lightblue,
          background_color_outside = :white,
@@ -115,10 +117,10 @@ heatmap!(africa_endabun',
          color = cgrad(:algae, scale = :exp),
          subplot = 2)
 
-africa_temp = world.array[-25°..50°, -35°..40°, 1]
-africa_water = world.array[-25°..50°, -35°..40°, 12]
-heatmap!(africa_temp', grid = false, subplot = 3)
-heatmap!(africa_water', grid = false, subplot = 4)
+africa_temp = world.array[:, :, 1]
+africa_water = world.array[:, :, 2]
+heatmap!(africa_temp, grid = false, subplot = 3)
+heatmap!(africa_water, grid = false, subplot = 4)
 
 path = link_write!(handle, "Africa-plot")
 Plots.pdf(path)
