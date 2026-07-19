@@ -3,6 +3,7 @@
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using EcoSISTEM: LatLong
 using AxisArrays
 using NetCDF
 using RasterDataSources
