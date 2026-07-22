@@ -290,9 +290,8 @@ function addspecies!(eco::Ecosystem, abun::Int64)
     return addtypes!(eco.spplist.types)
 end
 
-function addtraits!(tr::GaussTrait)
-    append!(tr.mean, tr.mean[end])
-    return append!(tr.sd, tr.sd[end])
+function addtraits!(tr::Bin)
+    return push!(tr.dists, tr.dists[end])
 end
 
 function addtraits!(tr::DiscreteTrait)

@@ -4,6 +4,7 @@ module TestSpeciesList
 
 using EcoSISTEM
 using Test
+using Unitful
 using Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
@@ -36,7 +37,7 @@ using Diversity
 
     opts = fill(5.0°C, numSpecies)
     vars = rand(Uniform(0, 25 / 9), numSpecies) * °C
-    traits = GaussTrait(opts, vars)
+    traits = Bin(MeanTemperature, Normal, opts, vars)
     abun = rand(Multinomial(individuals, numSpecies))
     native = fill(true, numSpecies)
     @test_nowarn sppl = SpeciesList(numSpecies, traits, abun, energy_vec,

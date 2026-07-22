@@ -83,11 +83,12 @@ function TestMultiEcosystem()
     energy1 = SolarRequirement(fill(2.0kJ, numSpecies))
     energy2 = WaterRequirement(fill(2.0mm, numSpecies))
     energy = ReqCollection2(energy1, energy2)
-    traits = GaussTrait(fill(10.0K, numSpecies), fill(0.1K, numSpecies))
+    traits = Bin(MeanTemperature, Normal, fill(10.0K, numSpecies),
+                 fill(0.1K, numSpecies))
     sppl = SpeciesList(numSpecies, traits, abun, energy, movement, param,
                        native)
 
-    rel = Gauss{eltype(abenv.habitat)}()
+    rel = DistRel{eltype(abenv.habitat)}()
     eco = Ecosystem(sppl, abenv, rel)
     return eco
 end

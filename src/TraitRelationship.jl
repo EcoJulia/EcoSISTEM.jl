@@ -14,62 +14,28 @@ parameterised on any TR.
 abstract type AbstractTraitRelationship{TR} end
 
 """
-    Gauss{TR} <: AbstractTraitRelationship{TR}
+    DistRel{TR} <: AbstractTraitRelationship{TR}
 
-The Gaussian relationship between a continuous trait and its environment,
-paramaterised on any TR.
-
+The relationship between a [`Bin`](@ref) continuous trait and its environment: the density of the
+trait's response distribution evaluated at the current habitat value, parameterised on any `TR`.
+Works for any `Distributions.ContinuousUnivariateDistribution` (e.g. [`Trapezoid`](@ref) or `Uniform`).
 """
-mutable struct Gauss{TR} <: AbstractTraitRelationship{TR}
+mutable struct DistRel{TR} <: AbstractTraitRelationship{TR}
 end
 
-function (::Gauss{TR})(current::TR, opt::TR, sd::TR) where {TR}
-    pref = (1.0) / sqrt(2 * π * sd^2) *
-           exp(-abs(current - opt)^2 / (2 * sd^2))
-    return pref * unit(current)
-end
-iscontinuous(tr::Gauss) = true
-function Base.eltype(tr::Gauss{TR}) where {TR}
-    return TR
-end
-
-"""
-    Trapeze{TR} <: AbstractTraitRelationship{TR}
-
-The relationship between a continuous trait and its environment,
-paramaterised on any TR.
-
-"""
-mutable struct Trapeze{TR} <: AbstractTraitRelationship{TR}
-end
-
-function (::Trapeze{TR})(dist::Trapezoid, current::TR) where {TR}
-    # `Trapezoid` is `Trapezoid{<:Real}` and its bounds come from bare-number `TempBin`
-    # bins, so it is unitless by construction — strip `current` to evaluate the pdf.
+function (::DistRel{TR})(dist::ContinuousUnivariateDistribution,
+                         current::TR) where {TR}
+    # The distribution's parameters are bare numbers in the axis's canonical unit, and habitats are
+    # stored in that same unit, so strip `current` to a bare number before evaluating the pdf.
     return pdf(dist, ustrip(current))
 end
-iscontinuous(tr::Trapeze) = true
-function Base.eltype(tr::Trapeze{TR}) where {TR}
+iscontinuous(tr::DistRel) = true
+function Base.eltype(tr::DistRel{TR}) where {TR}
     return TR
 end
 
-"""
-    Trapeze{TR} <: AbstractTraitRelationship{TR}
-
-The relationship between a continuous trait and its environment,
-paramaterised on any TR.
-
-"""
-mutable struct Unif{TR} <: AbstractTraitRelationship{TR}
-end
-
-function (::Unif{TR})(dist::Uniform, current::TR) where {TR}
-    return pdf(dist, uconvert(NoUnits, current / mm))
-end
-iscontinuous(tr::Unif) = true
-function Base.eltype(tr::Unif{TR}) where {TR}
-    return TR
-end
+# The deprecated `Gauss`/`Trapeze`/`Unif` relationship shims (all `DistRel` now) live in
+# `src/deprecations.jl`.
 
 """
     Match{TR} <: AbstractTraitRelationship{TR}
@@ -110,7 +76,7 @@ end
 """
     NoRelContinuous{TR} <: AbstractTraitRelationship{TR}
 
-The absense of a relationship between a continuous trait and its environment,
+The absence of a relationship between a continuous trait and its environment,
 paramaterised on any TR. Returns the value 1.
 
 """
@@ -127,7 +93,7 @@ end
 """
     NoRelDiscrete{TR} <: AbstractTraitRelationship{TR}
 
-The absense of a relationship between a discrete trait and its environment,
+The absence of a relationship between a discrete trait and its environment,
 paramaterised on any TR. Returns the value 1.
 
 """

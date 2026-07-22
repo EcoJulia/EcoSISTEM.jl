@@ -24,40 +24,24 @@ function _traitfun(hab::HabitatCollection2,
     return combineTR(rel)(res1, res2)
 end
 function _traitfun(hab::ContinuousHab,
-                   trts::GaussTrait,
+                   trts::Bin,
                    rel::R,
                    pos::Int64,
                    sp::Int64) where {R <: AbstractTraitRelationship}
     h = gethabitat(hab, pos)
-    mean, var = getpref(trts, sp)
-    return rel(h, mean, var)
+    # Static-habitat counterpart of the `ContinuousTimeHab` method below: fetch the species'
+    # pre-built response distribution and evaluate it via `rel` (no per-call construction/allocation).
+    return rel(getdist(trts, sp), h)
 end
 function _traitfun(hab::ContinuousTimeHab,
-                   trts::GaussTrait,
+                   trts::Bin,
                    rel::R,
                    pos::Int64,
                    sp::Int64) where {R <: AbstractTraitRelationship}
     h = gethabitat(hab, pos)
-    mean, var = getpref(trts, sp)
-    return rel(h, mean, var)
-end
-function _traitfun(hab::ContinuousTimeHab,
-                   trts::TempBin,
-                   rel::R,
-                   pos::Int64,
-                   sp::Int64) where {R <: AbstractTraitRelationship}
-    h = gethabitat(hab, pos)
-    (a, b, c, d) = getpref(trts, sp)
-    return rel(Trapezoid(a, b, c, d), h)
-end
-function _traitfun(hab::ContinuousTimeHab,
-                   trts::RainBin,
-                   rel::R,
-                   pos::Int64,
-                   sp::Int64) where {R <: AbstractTraitRelationship}
-    h = gethabitat(hab, pos)
-    (a, b) = getpref(trts, sp)
-    return rel(Uniform(a, b), h)
+    # Fetch the species' pre-built response distribution and evaluate it via `rel` — no per-call
+    # construction or allocation (the distributions were built once when the `Bin` was made).
+    return rel(getdist(trts, sp), h)
 end
 function _traitfun(hab::DiscreteHab,
                    trts::DiscreteTrait,
@@ -99,33 +83,28 @@ function getpref(traits::LCtrait, spp::Int64)
 end
 
 """
-    getpref(traits::GaussTrait, sp::Int64)
+    getdist(traits::Bin, sp::Int64)
 
-Extract the Gaussian habitat preference optimum (`mean`) and standard deviation
-(`sd`) for species `sp` from a [`GaussTrait`](@ref). Returns a tuple `(mean, sd)`.
+Return the pre-built response distribution for species `sp` from a [`Bin`](@ref) trait. This is what
+`_traitfun` uses in the hot loop — a plain vector fetch, no per-call construction or allocation.
 """
-function getpref(traits::GaussTrait, sp::Int64)
-    return traits.mean[sp], traits.sd[sp]
+function getdist(traits::Bin, sp::Int64)
+    return traits.dists[sp]
 end
 
-"""
-    getpref(traits::TempBin, sp::Int64)
-
-Extract the trapezoid distribution parameters `(a, b, c, d)` for species `sp`
-from a [`TempBin`](@ref) trait.
-"""
-function getpref(traits::TempBin, sp::Int64)
-    return traits.dist[sp, :]
-end
+# Per-species niche optima (distribution means) of a `Bin`, as a bare vector in the axis's canonical
+# frame — the accessor the old `GaussTrait.mean` field readers migrate to (e.g. size traits evolved by
+# `ContinuousEvolve`).
+_nichemeans(traits::Bin) = Distributions.mean.(traits.dists)
 
 """
-    getpref(traits::RainBin, sp::Int64)
+    getpref(traits::Bin, sp::Int64)
 
-Extract the uniform distribution parameters `(a, b)` for species `sp` from a
-[`RainBin`](@ref) trait.
+Return the parameters of species `sp`'s response distribution from a [`Bin`](@ref) trait (a
+back-compat shim over [`getdist`](@ref); the parameters are no longer stored separately).
 """
-function getpref(traits::RainBin, sp::Int64)
-    return traits.dist[sp, :]
+function getpref(traits::Bin, sp::Int64)
+    return Distributions.params(getdist(traits, sp))
 end
 
 """

@@ -51,11 +51,11 @@ end
     birth = 0.1 / month
     nogrowth = NoGrowth{typeof(unit(birth))}(fill(birth, N), fill(birth, N),
                                              1.0, 0.0, 1.0)
-    traits = GaussTrait(fill(274.0K, N), fill(0.5K, N))
+    traits = Bin(MeanTemperature, Normal, fill(274.0K, N), fill(0.5K, N))
     movement = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1.0e-3), N))
     native = fill(true, N)
     abun = fill(10, N)
-    rel = Gauss{typeof(1.0K)}()
+    rel = DistRel{typeof(1.0K)}()
 
     # single budget
     sppl1 = SpeciesList(N, traits, abun, SolarRequirement(fill(10.0kJ, N)),

@@ -47,7 +47,7 @@ end
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, numSpecies)
     vars = fill(0.5K, numSpecies)
-    traits = GaussTrait(opts, vars)
+    traits = Bin(MeanTemperature, Normal, opts, vars)
     native = fill(true, numSpecies)
     # abun = rand(Multinomial(individuals, numSpecies))
     abun = fill(div(individuals, numSpecies), numSpecies)
@@ -58,7 +58,7 @@ end
     abenv = simplehabitatAE(274.0K, grid, totalK, area)
 
     # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    rel = DistRel{typeof(1.0K)}()
 
     # build_ecosystem auto-selection: with MPI initialised but a single rank, `:auto` stays serial
     # (Comm_size == 1) while `distributed = true` forces the distributed type — from the same

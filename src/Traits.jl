@@ -64,7 +64,7 @@ function ContinuousEvolve(val::Union{Float64, Unitful.Quantity{Float64}},
     # Get traits from tree
     newtrts = get_traits(tree, true)
     newtrts[!, :start] = newtrts[!, :start] .* unit(val)
-    return GaussTrait(newtrts[!, :start], newtrts[!, :σ²])
+    return Bin(Unclassified, Normal, newtrts[!, :start], newtrts[!, :σ²])
 end
 
 """
@@ -75,68 +75,118 @@ species, of any Number type `C`.
 """
 abstract type ContinuousTrait{C <: Number} <: AbstractTraits{C} end
 
+
 """
-    GaussTrait{C <: Number} <: ContinuousTrait{C}
+    Bin{A <: NicheAxis, C, D} <: ContinuousTrait{C}
 
-Trait type that holds a Gaussian habitat preference for each species, of any number
-type `C`: the optimum `mean` and the standard deviation `sd` (the width of the
-preference curve, which the [`Gauss`](@ref) relationship squares to a variance).
+Trait type holding a **binned** habitat preference for each species on niche axis `A`, as one **built**
+continuous response distribution per species — `dists::Vector{D}`, where `D` is a concrete
+`Distributions.ContinuousUnivariateDistribution` (e.g. `Trapezoid{Float64}` or `Uniform{Float64}`). The
+distributions are built once in the **support frame** `C` — the unit their support/domain is measured in,
+which is also the trait's [`eltype`](@ref) and the unit the matching habitat must be in. In the hot loop the
+[`DistRel`](@ref) relationship fetches `dists[sp]` — see [`getdist`](@ref) — and evaluates the density at
+`ustrip(habitat)`, already a bare number in frame `C`, so there is no per-call conversion or allocation.
 """
-struct GaussTrait{A <: NicheAxis, C <: Number} <: ContinuousTrait{C}
-    mean::Vector{C}
-    sd::Vector{C}
+struct Bin{A <: NicheAxis, C, D} <: ContinuousTrait{C}
+    dists::Vector{D}
 end
 
-iscontinuous(trait::GaussTrait) = true
-
-function GaussTrait(::Type{A}, mean::Vector{C},
-                    sd::Vector{C}) where {A <: NicheAxis,
-                                          C <: Unitful.Temperature}
-    # `mean` is an absolute temperature (affine conversion), but `sd` is a temperature
-    # interval (a width), so convert it via the scale only: subtracting the affine
-    # unit's zero point (`0 * unit`, i.e. `0.0°F`/`0.0°C`/`0.0K`) turns the value into
-    # its underlying interval before converting to K, so a σ given in °C/°F/K all land
-    # on the correct K width (e.g. 9°F → 5K, not 9K or an offset).
-    meanK = uconvert.(K, mean)
-    sdK = uconvert.(K, sd .- 0 * unit(eltype(sd)))
-    return GaussTrait{A, typeof(1.0K)}(meanK, sdK)
-end
-function GaussTrait(::Type{A}, mean::Vector{C},
-                    sd::Vector{C}) where {A <: NicheAxis, C}
-    return GaussTrait{A, C}(mean, sd)
-end
-# Back-compat: no axis given → `Unclassified` (matches positionally, not by axis).
-function GaussTrait(mean::Vector{C}, sd::Vector{C}) where {C}
-    return GaussTrait(Unclassified, mean, sd)
+# Build a `Bin` whose distributions live in the `frame` unit (= its `eltype` / the required habitat unit),
+# reading each row's bare parameters as being in `input_unit` and converting to `frame` *per role* (a
+# location properly/affine, a scale as an interval, a shape dimensionless — see `read_distribution`; a
+# shape-only family is placed via `offset`/`scale`). The single place the storage frame is fixed.
+function _buildbin(::Type{A}, ::Type{D}, mat::AbstractMatrix, input_unit, frame;
+                   offset, scale, probes) where {A <: NicheAxis, D}
+    roles = param_roles_resolved(D; probes = probes)
+    dists = [read_distribution(D, input_unit, mat[sp, :]; canonical = frame,
+                               offset = offset, scale = scale, roles = roles)
+             for sp in Base.axes(mat, 1)]
+    return Bin{A, typeof(1.0 * frame), eltype(dists)}(dists)
 end
 
 """
-    TempBin{C <: Int} <: ContinuousTrait{C}
+    Bin(::Type{A}, ::Type{D}, dist::Matrix; support = canonicalunit(A()),
+        offset = nothing, scale = nothing, probes = …)
 
-Trait type that holds binned temperature preference information created through
-ClimatePref. Holds an array of counts per temperature band (°C).
+Build a [`Bin`](@ref) on axis `A` with response distribution `D` from a **bare** parameter matrix (one
+species per row). `support` is the **frame** the distribution is built in — the unit its support/domain is
+measured in, the trait's `eltype`, and the unit the matching habitat must be in (defaults to the axis's
+canonical unit). The bare numbers are taken to be in that frame. `offset`/`scale` (references in `support`)
+place a *shape-only* distribution (`Beta`, `LogNormal`, …) on the dimensioned axis via a `LocationScale`.
 """
-struct TempBin{C <: Int} <: ContinuousTrait{C}
-    dist::Matrix{C}
+function Bin(::Type{A}, ::Type{D}, dist::Matrix;
+             support = canonicalunit(A()), offset = nothing, scale = nothing,
+             probes = _default_probes(D)) where {A <: NicheAxis, D}
+    dimension(support) == dimension(canonicalunit(A())) ||
+        error("Bin support unit $support and axis $A's canonical unit " *
+              "$(canonicalunit(A())) have different dimensions.")
+    return _buildbin(A, D, dist, support, support; offset = offset,
+                     scale = scale, probes = probes)
 end
 
-iscontinuous(trait::TempBin) = true
-
-eltype(::TempBin) = typeof(1.0K)
-
-"""
-    RainBin{C <: Int} <: ContinuousTrait{C}
-
-Trait type that holds binned rainfall preference information created through
-ClimatePref. Holds an array of counts per rainfall band (mm).
-"""
-struct RainBin{C <: Int} <: ContinuousTrait{C}
-    dist::Matrix{C}
+# Impute the *input* unit of a set of parameter vectors — the unit their (bare) magnitudes are read in:
+# their single shared *dimensioned* unit (dimensionless/shape vectors ignored), or the `support` frame when
+# all bare (so bare vectors are read in the frame, like the matrix constructor). Mixed units error.
+function _impute_input_unit(params, support)
+    us = unique(unit(eltype(v)) for v in params if unit(eltype(v)) !== NoUnits)
+    isempty(us) && return support
+    length(us) == 1 ||
+        error("Bin parameter vectors carry differing units $(us); pass values in one unit.")
+    return only(us)
 end
 
-iscontinuous(trait::RainBin) = true
+"""
+    Bin(::Type{A}, ::Type{D}, params::AbstractVector...; support = canonicalunit(A()),
+        offset = nothing, scale = nothing, probes = …)
 
-eltype(::RainBin) = typeof(1.0mm)
+Build a [`Bin`](@ref) on axis `A` with response distribution `D` from **one (unitful) vector per
+parameter** of `D` — the ergonomic, programmatic counterpart of the `dist::Matrix` constructor (and of the
+old `GaussTrait(A, mean, sd)`). Each `params` vector holds one distribution parameter across species, e.g.
+`Bin(MeanTemperature, Normal, opts, vars)` (a `μ` and a `σ` vector) or
+`Bin(Precipitation, Gamma, shape, scale_vec)`. The vectors' own units are respected (read per role); the
+distribution is built in the `support` **frame** (the unit its support/domain — and the matching habitat —
+is measured in, default canonical), converting the inputs to it. So `support = K` and `support = u"°C"`
+build the *same* preference in the K and °C frames respectively (`pdf(getdist(bin, sp), ustrip(support, x))`
+is correct in each); the frame is the trait's `eltype`, and a Bin only matches a habitat in that same unit.
+All parameter vectors must share a unit (a mixed set errors) and have one entry per species.
+"""
+function Bin(::Type{A}, ::Type{D}, params::AbstractVector...;
+             support = canonicalunit(A()), offset = nothing, scale = nothing,
+             probes = _default_probes(D)) where {A <: NicheAxis, D}
+    isempty(params) && error("Bin needs at least one parameter vector for $D.")
+    n = length(first(params))
+    all(v -> length(v) == n, params) ||
+        error("Bin parameter vectors must all have the same length (one entry per species).")
+    dimension(support) == dimension(canonicalunit(A())) ||
+        error("Bin support unit $support and axis $A's canonical unit " *
+              "$(canonicalunit(A())) have different dimensions.")
+    input_unit = _impute_input_unit(params, support)
+    # A unitful vector → its magnitude in `input_unit` (its role, applied in `_buildbin`, decides position
+    # vs interval); a bare vector passes straight through.
+    cols = map(v -> unit(eltype(v)) === NoUnits ? float.(v) :
+                    ustrip.(input_unit, v),
+               params)
+    return _buildbin(A, D, reduce(hcat, cols), input_unit, support;
+                     offset = offset, scale = scale, probes = probes)
+end
+
+iscontinuous(::Bin) = true
+
+"""    TempBin — a binned temperature preference (a [`Bin`](@ref) on `MeanTemperature`, K frame, with a `Trapezoid` response). """
+const TempBin = Bin{MeanTemperature,
+                    typeof(1.0 * canonicalunit(MeanTemperature())),
+                    Trapezoid{Float64}}
+"""    RainBin — a binned rainfall preference (a [`Bin`](@ref) on `Precipitation`, mm frame, with a `Uniform` response). """
+const RainBin = Bin{Precipitation, typeof(1.0 * canonicalunit(Precipitation())),
+                    Uniform{Float64}}
+
+# Back-compat constructors preserving the old `TempBin(matrix)` / `RainBin(matrix)` call form.
+TempBin(dist::Matrix) = Bin(MeanTemperature, Trapezoid, dist)
+RainBin(dist::Matrix) = Bin(Precipitation, Uniform, dist)
+
+# Convenience: the matching [`DistRel`](@ref) relationship for a `Bin`, taking its `TR` (unit) from the
+# trait's axis — so callers building an ecosystem by hand need not re-type the unit.
+DistRel(t::Bin) = DistRel{eltype(t)}()
 
 """
     TraitCollection2{T1, T2} <: AbstractTraits{Tuple{T1, T2}}

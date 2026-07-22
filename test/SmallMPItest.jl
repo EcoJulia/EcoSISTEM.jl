@@ -51,7 +51,7 @@ movement = BirthOnlyMovement(kernel, NoBoundary())
 # Create species list, including their temperature preferences, seed abundance and native status
 opts = fill(274.0K, numSpecies)
 vars = fill(0.5K, numSpecies)
-traits = GaussTrait(opts, vars)
+traits = Bin(MeanTemperature, Normal, opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
@@ -63,7 +63,7 @@ abenv = simplehabitatAE(274.0K, grid, totalK, area)
 abenv.budget.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
 
 # Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+rel = DistRel{typeof(1.0K)}()
 
 # build_ecosystem auto-selects the type from the live MPI session: >1 rank ⇒ MPIEcosystem, a single
 # rank ⇒ serial Ecosystem (this script runs under mpiexec -n 1, 2 and 4). `sppl`/`abenv`/`rel` are
@@ -137,7 +137,7 @@ abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(budget)}(abenv1.habitat,
                                                                abenv1.names)
 
 # Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+rel = DistRel{typeof(1.0K)}()
 
 # Create ecosystem
 @test_nowarn MPIEcosystem(sppl, abenv, rel)

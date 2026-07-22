@@ -16,6 +16,58 @@ using RasterDataSources
 # matches the current API it forwards to.
 
 @testset "Deprecations" begin
+    @testset "trait line: GaussTrait → Bin" begin
+        opts = fill(5.0K, 4)
+        vars = fill(2.0K, 4)
+        # axis form → the same `Normal` `Bin`
+        @test_deprecated GaussTrait(MeanTemperature, opts, vars)
+        gt = GaussTrait(MeanTemperature, opts, vars)
+        @test gt isa Bin{MeanTemperature}
+        @test params(getdist(gt, 1)) ==
+              params(getdist(Bin(MeanTemperature, Normal, opts, vars), 1))
+
+        # axis-less *bare* form → an `Unclassified` Bin (eltype Float64)
+        @test_deprecated GaussTrait([1.0, 2.0], [0.1, 0.2])
+        gb = GaussTrait([1.0, 2.0], [0.1, 0.2])
+        @test eltype(gb) == Float64
+        @test params(getdist(gb, 1)) ==
+              params(getdist(Bin(Unclassified, Normal, [1.0, 2.0], [0.1, 0.2]),
+                             1))
+
+        # axis-less *unitful* form (doubly deprecated): infers the axis from the unit, and warns about it
+        @test_deprecated GaussTrait(opts, vars)                 # K → MeanTemperature
+        gu = GaussTrait(opts, vars)
+        @test gu isa Bin{MeanTemperature}
+        @test params(getdist(gu, 1)) ==
+              params(getdist(Bin(MeanTemperature, Normal, opts, vars), 1))
+        rain = fill(3.0mm, 4)
+        gr = GaussTrait(rain, fill(1.0mm, 4))                   # mm → Precipitation
+        @test gr isa Bin{Precipitation}
+        # a unit with no canonical axis cannot be inferred — a clear error, not a MethodError
+        @test_throws ErrorException GaussTrait(fill(1.0u"kg", 2),
+                                               fill(1.0u"kg", 2))
+    end
+
+    @testset "trait line: Gauss / Trapeze / Unif → DistRel" begin
+        TR = typeof(1.0K)
+        @test_deprecated Gauss{TR}()
+        @test_deprecated Trapeze{Int64}()
+        @test_deprecated Unif{typeof(1.0mm)}()
+        # the shims share `DistRel`'s 2-argument density functor
+        @test Gauss{TR}()(Normal(1.0, 0.01), 1.0K) ==
+              DistRel{TR}()(Normal(1.0, 0.01), 1.0K)
+        @test Trapeze{Int64}()(Trapezoid(1, 2, 3, 4), 1) ==
+              DistRel{Int64}()(Trapezoid(1, 2, 3, 4), 1)
+        @test Unif{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm) ==
+              DistRel{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm)
+        @test eltype(Gauss{TR}()) == TR
+        @test EcoSISTEM.iscontinuous(Unif{typeof(1.0mm)}()) == true
+
+        # restored legacy 3-argument Gaussian functor `Gauss{TR}()(current, opt, sd)`
+        g = Gauss{TR}()
+        @test ustrip(g(275.0K, 274.0K, 2.0K)) ≈ pdf(Normal(274.0, 2.0), 275.0)
+    end
+
     @testset "climate line: per-source constructors → ClimateRaster" begin
         aa = AxisArray(rand(5, 5),
                        Axis{:latitude}((1:5) .* °),

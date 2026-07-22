@@ -84,4 +84,3 @@ struct CRUTS{A <: AxisArray} <: AbstractClimate
         return new{A}(array)
     end
 end
-
