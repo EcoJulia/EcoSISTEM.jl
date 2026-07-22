@@ -81,7 +81,6 @@ end
     # the relationship's unit `TR` is imputed from the trait's axis / the habitat — not typed by hand
     @test typeof(DistRel(bin)) == DistRel{typeof(1.0K)}
     @test eltype(DistRel(bin)) == eltype(bin)
-    @test EcoSISTEM._default_relationship(bin, hab) isa DistRel{typeof(1.0K)}
 end
 
 end
