@@ -201,7 +201,7 @@ function SpeciesList(numspecies::Int64,
     sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
     # Evolve size as a trait along the tree
     EcoSISTEM.resettraits!(tree)
-    energy = abs.(ContinuousEvolve(mean, var, tree).mean)
+    energy = abs.(_nichemeans(ContinuousEvolve(mean, var, tree)))
     req = SizeRequirement(energy, pop_mass, area)
     # Calculate density from size and relationship
     density = exp.(log.(energy) * pop_mass) ./ km^2

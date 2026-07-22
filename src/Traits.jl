@@ -75,7 +75,6 @@ species, of any Number type `C`.
 """
 abstract type ContinuousTrait{C <: Number} <: AbstractTraits{C} end
 
-
 """
     Bin{A <: NicheAxis, C, D} <: ContinuousTrait{C}
 

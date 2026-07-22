@@ -164,27 +164,30 @@ function simplenicheAE(numniches::Int64,
                        dimension::Tuple,
                        maxbud::Unitful.Quantity{Float64},
                        area::Unitful.Area{Float64},
-                       active::Matrix{Bool})
+                       active::Matrix{Bool};
+                       axis::Type{<:NicheAxis} = Unclassified)
     # Create niches
     niches = collect(1:numniches)
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
-    # Create niche-like environment
-    hab = randomniches(dimension,
-                       niches,
-                       0.5,
-                       fill(1.0 / numniches, numniches),
-                       gridsquaresize)
+    # Create niche-like environment, tagged with its niche axis
+    hab = _reaxis(randomniches(dimension,
+                               niches,
+                               0.5,
+                               fill(1.0 / numniches, numniches),
+                               gridsquaresize), axis)
     # Create empty budget and for now fill with one value
     return _maxbudget_env(hab, active, maxbud, area)
 end
 function simplenicheAE(numniches::Int64,
                        dimension::Tuple,
                        maxbud::Unitful.Quantity{Float64},
-                       area::Unitful.Area{Float64})
+                       area::Unitful.Area{Float64};
+                       axis::Type{<:NicheAxis} = Unclassified)
     active = Matrix{Bool}(undef, dimension)
     fill!(active, true)
-    return simplenicheAE(numniches, dimension, maxbud, area, active)
+    return simplenicheAE(numniches, dimension, maxbud, area, active;
+                         axis = axis)
 end
 @doc (@doc simplenicheAE) simplenicheAE(::Int64,
                                         ::Tuple,
@@ -230,12 +233,13 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
                     maxbud::Unitful.Quantity{Float64},
                     area::Unitful.Area{Float64},
                     rate::Quantity{Float64, 𝚯 * 𝐓^-1},
-                    active::Matrix{Bool})
-    minT = uconvert(K, minT)
-    maxT = uconvert(K, maxT)
+                    active::Matrix{Bool};
+                    axis::Type{<:NicheAxis} = MeanTemperature)
+    minT = _canonical(minT, axis)
+    maxT = _canonical(maxT, axis)
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
-    hab = tempgrad(minT, maxT, gridsquaresize, dimension, rate)
+    hab = _reaxis(tempgrad(minT, maxT, gridsquaresize, dimension, rate), axis)
     return _maxbudget_env(hab, active, maxbud, area)
 end
 
@@ -244,9 +248,11 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
                     dimension::Tuple{Int64, Int64},
                     maxbud::Unitful.Quantity{Float64},
                     area::Unitful.Area{Float64},
-                    rate::Quantity{Float64, 𝚯 * 𝐓^-1})
+                    rate::Quantity{Float64, 𝚯 * 𝐓^-1};
+                    axis::Type{<:NicheAxis} = MeanTemperature)
     active = fill(true, dimension)
-    return tempgradAE(minT, maxT, dimension, maxbud, area, rate, active)
+    return tempgradAE(minT, maxT, dimension, maxbud, area, rate, active;
+                      axis = axis)
 end
 @doc (@doc tempgradAE) tempgradAE(::Unitful.Temperature{Float64},
                                   ::Unitful.Temperature{Float64},
@@ -278,16 +284,17 @@ function peakedgradAE(minT::Unitful.Temperature{Float64},
                       maxbud::Unitful.Quantity{Float64},
                       area::Unitful.Area{Float64},
                       rate::Quantity{Float64, 𝚯 * 𝐓^-1},
-                      active::Matrix{Bool})
-    minT = uconvert(K, minT)
-    maxT = uconvert(K, maxT)
+                      active::Matrix{Bool};
+                      axis::Type{<:NicheAxis} = MeanTemperature)
+    minT = _canonical(minT, axis)
+    maxT = _canonical(maxT, axis)
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
     hab = tempgrad(minT, maxT + (maxT - minT), gridsquaresize, dimension, rate)
     hab.matrix[(ceil(Int, dimension[1] / 2) + 1):end, :] = hab.matrix[floor(Int,
                                                                             dimension[1] / 2):-1:1,
                                                                       :]
-    return _maxbudget_env(hab, active, maxbud, area)
+    return _maxbudget_env(_reaxis(hab, axis), active, maxbud, area)
 end
 
 function peakedgradAE(minT::Unitful.Temperature{Float64},
@@ -295,9 +302,11 @@ function peakedgradAE(minT::Unitful.Temperature{Float64},
                       dimension::Tuple{Int64, Int64},
                       maxbud::Unitful.Quantity{Float64},
                       area::Unitful.Area{Float64},
-                      rate::Quantity{Float64, 𝚯 * 𝐓^-1})
+                      rate::Quantity{Float64, 𝚯 * 𝐓^-1};
+                      axis::Type{<:NicheAxis} = MeanTemperature)
     active = fill(true, dimension)
-    return peakedgradAE(minT, maxT, dimension, maxbud, area, rate, active)
+    return peakedgradAE(minT, maxT, dimension, maxbud, area, rate, active;
+                        axis = axis)
 end
 @doc (@doc peakedgradAE) peakedgradAE(::Unitful.Temperature{Float64},
                                       ::Unitful.Temperature{Float64},
@@ -328,12 +337,13 @@ function raingradAE(minR::Unitful.Length{Float64},
                     maxbud::Unitful.Quantity{Float64},
                     area::Unitful.Area{Float64},
                     rate::Quantity{Float64, 𝐋 * 𝐓^-1},
-                    active::Matrix{Bool})
-    minR = uconvert(mm, minR)
-    maxR = uconvert(mm, maxR)
+                    active::Matrix{Bool};
+                    axis::Type{<:NicheAxis} = Precipitation)
+    minR = _canonical(minR, axis)
+    maxR = _canonical(maxR, axis)
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
-    hab = raingrad(minR, maxR, gridsquaresize, dimension, rate)
+    hab = _reaxis(raingrad(minR, maxR, gridsquaresize, dimension, rate), axis)
     return _maxbudget_env(hab, active, maxbud, area)
 end
 
@@ -351,12 +361,13 @@ function raingradAE(minR::Unitful.Length{Float64},
                     dimension::Tuple{Int64, Int64},
                     area::Unitful.Area{Float64},
                     rate::Quantity{Float64, 𝐋 * 𝐓^-1},
-                    active::Matrix{Bool})
-    minR = uconvert(mm, minR)
-    maxR = uconvert(mm, maxR)
+                    active::Matrix{Bool};
+                    axis::Type{<:NicheAxis} = Precipitation)
+    minR = _canonical(minR, axis)
+    maxR = _canonical(maxR, axis)
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
-    hab = raingrad(minR, maxR, gridsquaresize, dimension, rate)
+    hab = _reaxis(raingrad(minR, maxR, gridsquaresize, dimension, rate), axis)
     bud = WaterBudget(hab.matrix)
     return GridAbioticEnv{typeof(hab), typeof(bud)}(hab, active, bud)
 end
@@ -366,9 +377,11 @@ function raingradAE(minR::Unitful.Length{Float64},
                     dimension::Tuple{Int64, Int64},
                     maxbud::Unitful.Quantity{Float64},
                     area::Unitful.Area{Float64},
-                    rate::Quantity{Float64, 𝐋 * 𝐓^-1})
+                    rate::Quantity{Float64, 𝐋 * 𝐓^-1};
+                    axis::Type{<:NicheAxis} = Precipitation)
     active = fill(true, dimension)
-    return raingradAE(minR, maxR, dimension, maxbud, area, rate, active)
+    return raingradAE(minR, maxR, dimension, maxbud, area, rate, active;
+                      axis = axis)
 end
 @doc (@doc raingradAE) raingradAE(::Unitful.Length{Float64},
                                   ::Unitful.Length{Float64},
@@ -380,9 +393,10 @@ function raingradAE(minR::Unitful.Length{Float64},
                     maxR::Unitful.Length{Float64},
                     dimension::Tuple{Int64, Int64},
                     area::Unitful.Area{Float64},
-                    rate::Quantity{Float64, 𝐋 * 𝐓^-1})
+                    rate::Quantity{Float64, 𝐋 * 𝐓^-1};
+                    axis::Type{<:NicheAxis} = Precipitation)
     active = fill(true, dimension)
-    return raingradAE(minR, maxR, dimension, area, rate, active)
+    return raingradAE(minR, maxR, dimension, area, rate, active; axis = axis)
 end
 @doc (@doc raingradAE) raingradAE(::Unitful.Length{Float64},
                                   ::Unitful.Length{Float64},
@@ -528,22 +542,22 @@ function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
                          dimension::Tuple{Int64, Int64},
                          maxbud::Unitful.Quantity{Float64},
                          area::Unitful.Area{Float64},
-                         active::Matrix{Bool})
-    if val isa Unitful.Temperature
-        val = uconvert(K, val)
-    end
+                         active::Matrix{Bool};
+                         axis::Type{<:NicheAxis} = Unclassified)
+    val = _canonical(val, axis)
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
-    hab = simplehabitat(val, gridsquaresize, dimension)
+    hab = _reaxis(simplehabitat(val, gridsquaresize, dimension), axis)
     return _maxbudget_env(hab, active, maxbud, area)
 end
 
 function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
                          dimension::Tuple{Int64, Int64},
                          maxbud::Unitful.Quantity{Float64},
-                         area::Unitful.Area{Float64})
+                         area::Unitful.Area{Float64};
+                         axis::Type{<:NicheAxis} = Unclassified)
     active = fill(true, dimension)
-    return simplehabitatAE(val, dimension, maxbud, area, active)
+    return simplehabitatAE(val, dimension, maxbud, area, active; axis = axis)
 end
 @doc (@doc simplehabitatAE) simplehabitatAE(::Union{Float64,
                                                     Unitful.Quantity{Float64}},

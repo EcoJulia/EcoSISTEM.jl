@@ -14,8 +14,9 @@ using JLD2: jldsave, jldopen
 import Rasters: X, Y, Ti
 
 import Unitful.°, Unitful.°C, Unitful.mm
+
+# ArchGDAL is needed to register the GDAL backend Rasters uses to read GeoTIFFs.
 import ArchGDAL
-const AG = ArchGDAL
 
 import Base.read
 
@@ -24,8 +25,8 @@ import Base.read
 # (ascending), and an optional dim 3 = `:time` (`(1:n)·month`) or `:var` (`1:n`). Coordinates
 # come from the raster's `Y` (latitude) / `X` (longitude) lookups read from the file metadata —
 # no hardcoded global extent — and missing/nodata cells become `NaN`. `unit` is attached
-# (Unitful); pass `NoUnits` for a dimensionless layer. This replaces the hand-rolled ArchGDAL
-# band loops + fixed `-180°..180°`/`-90°..90°` axes the readers used to build.
+# (Unitful); pass `NoUnits` for a dimensionless layer. This replaces the hand-rolled band loops
+# + fixed `-180°..180°`/`-90°..90°` axes the readers used to build.
 #
 # NB the geographically-correct convention (`:latitude` = `Y`) is a fix: the old readers put the
 # longitude range on the `:latitude` axis (and vice versa) — see the git history / plan.
@@ -294,8 +295,6 @@ function readfile(file::String; cut = nothing, xmin = nothing, xmax = nothing,
     end
     return _applycut(_rastertoaxisarray(_readraster(file)), cut)
 end
-
-
 
 # Roll a lat×long×time ERA `AxisArray` from the ERA5 0–360° longitude convention onto (-180, 180],
 # reordering the data columns so longitude stays ascending — for consistency with the tif readers

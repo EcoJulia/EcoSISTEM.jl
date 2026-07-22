@@ -53,12 +53,12 @@ param = EqualPop(birth, death, long, surv, boost)
 
 movement = BirthOnlyMovement(kernel, Torus())
 
-traits = GaussTrait(opts, vars)
+traits = Bin(MeanTemperature, Normal, opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
                    movement, param, native)
-rel = Gauss{typeof(first(opts))}()
+rel = DistRel{typeof(first(opts))}()
 eco = Ecosystem(sppl, abenv, rel)
 
 times = 10years;

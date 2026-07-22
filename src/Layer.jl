@@ -63,6 +63,10 @@ it still has data and a unit, but is not modelled on a named axis).
 """
 struct Unclassified <: NicheAxis end
 
+# An unclassified axis carries no modelled unit — treat it as dimensionless so axis-less continuous
+# traits (e.g. a `Bin` built from bare data) resolve `canonicalunit`/`eltype` without erroring.
+canonicalunit(::Unclassified) = NoUnits
+
 """
     ContinuousLayer{R <: Role, A <: NicheAxis, V <: Number, Arr <: AbstractArray{V}}
 
