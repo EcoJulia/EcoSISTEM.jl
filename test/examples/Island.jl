@@ -77,7 +77,7 @@ for i in 1:simDict["reps"]
     paramDict = Dict("numSpecies" => numSpecies,
                      "numInvasive" => numInvasive,
                      "numIndiv" => individuals,
-                     "reqs" => dem,
+                     "demand" => dem,
                      "opts" => opts,
                      "vars" => vars,
                      "birth" => birth_rates,
