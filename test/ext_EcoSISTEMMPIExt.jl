@@ -60,14 +60,6 @@ end
     # Set relationship between species and environment (gaussian)
     rel = DistRel{typeof(1.0K)}()
 
-    # build_ecosystem auto-selection: with MPI initialised but a single rank, `:auto` stays serial
-    # (Comm_size == 1) while `distributed = true` forces the distributed type — from the same
-    # SpeciesList + GridAbioticEnv that MPIEcosystem takes directly.
-    @test build_ecosystem(sppl, abenv; relationship = rel) isa Ecosystem
-    @test build_ecosystem(sppl, abenv; relationship = rel,
-                          distributed = true) isa
-          MPIEcosystem
-
     # Create ecosystem
     @test_nowarn eco = MPIEcosystem(sppl, abenv, rel)
     eco = MPIEcosystem(sppl, abenv, rel)

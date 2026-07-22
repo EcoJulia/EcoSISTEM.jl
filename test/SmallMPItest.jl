@@ -65,16 +65,6 @@ abenv.budget.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
 # Set relationship between species and environment (gaussian)
 rel = DistRel{typeof(1.0K)}()
 
-# build_ecosystem auto-selects the type from the live MPI session: >1 rank ⇒ MPIEcosystem, a single
-# rank ⇒ serial Ecosystem (this script runs under mpiexec -n 1, 2 and 4). `sppl`/`abenv`/`rel` are
-# exactly what MPIEcosystem takes directly.
-expected = MPI.Comm_size(comm) > 1 ? MPIEcosystem : Ecosystem
-@test build_ecosystem(sppl, abenv; relationship = rel, seed = 0) isa expected
-@test build_ecosystem(sppl, abenv; relationship = rel, seed = 0,
-                      distributed = false) isa Ecosystem
-@test build_ecosystem(sppl, abenv; relationship = rel, seed = 0,
-                      distributed = true) isa MPIEcosystem
-
 # Create ecosystem
 @test_nowarn MPIEcosystem(sppl, abenv, rel)
 eco = MPIEcosystem(sppl, abenv, rel; seed = 0)

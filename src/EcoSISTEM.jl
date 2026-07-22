@@ -167,7 +167,7 @@ export Ecosystem,
        addspecies!
 
 include("Traitfuns.jl")
-export traitfun, getpref, gettraitrel, gethabitat
+export traitfun, getpref, getdist, gettraitrel, gethabitat
 
 # Deprecated public API (trait line): `GaussTrait` → `Bin`, `Gauss`/`Trapeze`/`Unif` → `DistRel`. Included
 # late, after every type it shims; the shim names stay exported (above). See also
