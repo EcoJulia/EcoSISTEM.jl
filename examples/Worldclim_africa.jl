@@ -59,10 +59,10 @@ movement = AlwaysMovement(kernel, Torus())
 # Create species list, including their temperature preferences, seed abundance and native status
 opts = fill(280.0K, numSpecies)
 vars = fill(10.0K, numSpecies)
-traits = GaussTrait(opts, vars)
+tolerance = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - with temperature and water resource

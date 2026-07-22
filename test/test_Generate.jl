@@ -53,14 +53,15 @@ end
     birth = 0.1 / month
     nogrowth = NoGrowth{typeof(unit(birth))}(fill(birth, N), fill(birth, N),
                                              1.0, 0.0, 1.0)
-    traits = Bin(MeanTemperature, Normal, fill(274.0K, N), fill(0.5K, N))
+    tolerance = NicheTolerance(MeanTemperature, Normal, fill(274.0K, N),
+                               fill(0.5K, N))
     movement = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1.0e-3), N))
     native = fill(true, N)
     abun = fill(10, N)
     rel = DistRel{typeof(1.0K)}()
 
     # single supply
-    sppl1 = SpeciesList(N, traits, abun, SolarDemand(fill(10.0kJ, N)),
+    sppl1 = SpeciesList(N, tolerance, abun, SolarDemand(fill(10.0kJ, N)),
                         movement, nogrowth, native)
     habitat1 = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
     eco1 = Ecosystem(sppl1, habitat1, rel)
@@ -70,7 +71,8 @@ end
     # two supplies (the previously-buggy path)
     resource2 = DemandCollection2(SolarDemand(fill(10.0kJ, N)),
                                   WaterDemand(fill(2.0mm, N)))
-    sppl2 = SpeciesList(N, traits, abun, resource2, movement, nogrowth, native)
+    sppl2 = SpeciesList(N, tolerance, abun, resource2, movement, nogrowth,
+                        native)
     habitat_solar = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
     habitat_water = simplehabitatAE(274.0K, grid, 10.0mm / km^2, area)
     supply = SupplyCollection2(habitat_solar.supply, habitat_water.supply)

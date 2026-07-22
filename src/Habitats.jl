@@ -307,10 +307,10 @@ function _fill_in!(T, M, types, wv)
                 # Check if they have already been assigned
                 already = vcat(mapslices(x -> isassigned(T, x[1], x[2]),
                                          neighbours, dims = 2)...)
-                # If any already assigned then sample from most frequent neighbour traits
+                # If any already assigned then sample from most frequent neighbour types
                 if any(already)
                     neighbours = neighbours[already, :]
-                    # Find all neighbour traits
+                    # Find all neighbour types
                     neighbour_traits = map(i -> T[neighbours[i, 1],
                                                   neighbours[i, 2]],
                                            Base.axes(neighbours, 1))
@@ -319,7 +319,7 @@ function _fill_in!(T, M, types, wv)
                     # Assign this type to the grid square in T
                     T[x, y] = types[ind]
                     # If none are assigned in entire grid already,
-                    # sample randomly from traits
+                    # sample randomly from types
                 elseif all(M .<= 1)
                     T[x, y] = sample(types, wv)
                     # If some are assigned in grid, sample from these

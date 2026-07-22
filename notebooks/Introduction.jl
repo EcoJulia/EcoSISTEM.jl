@@ -95,10 +95,10 @@ begin
     # Habitat preferences
     vars = fill(2.0, numSpecies) .* K
     opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
-    trts = Bin(MeanTemperature, Normal, opts, vars)
+    tolerance = NicheTolerance(MeanTemperature, Normal, opts, vars)
 
     # Species list
-    sppl = SpeciesList(numSpecies, trts, abun, resource_vec,
+    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                        movement, param, native)
 
     # Trait relationship
@@ -265,7 +265,7 @@ begin
 
     # There are also a couple of parameters that should be set about how the species 
     # lifespan relates to their resource consumption (longevity) and how well they 
-    # survive in their current environment based on their traits (survival)
+    # survive in their current environment based on their tolerance (survival)
     longevity = 1.0
     survival = 0.1
 
@@ -299,10 +299,10 @@ begin
 
     # Let's combine these pieces of information together so that each species has a 
     # Gaussian curve representing their match to the current temperature
-    traits = Bin(MeanTemperature, Normal, optima, niche_width)
+    tolerance = NicheTolerance(MeanTemperature, Normal, optima, niche_width)
 
     # Okay, now we are ready for our species list!
-    species_list = SpeciesList(numSpp, traits, start_abuns, water_vec,
+    species_list = SpeciesList(numSpp, tolerance, start_abuns, water_vec,
                                move, parameters, is_native)
 end
 

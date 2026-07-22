@@ -76,11 +76,11 @@ function run_single(africa, active; savedir = SAVEDIR)
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, num_species)
     vars = fill(0.5K, num_species)
-    traits = GaussTrait(opts, vars)
+    tolerance = GaussTrait(opts, vars)
     native = fill(true, num_species)
     # abun = rand(Multinomial(individuals, num_species))
     abun = fill(div(individuals, num_species), num_species)
-    sppl = SpeciesList(num_species, traits, abun, resource_vec,
+    sppl = SpeciesList(num_species, tolerance, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 
@@ -160,11 +160,11 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         opts = fill(274.0K, num_species)
         vars = [50.0K, specialist_vars[i]]
         @debug "Generalist $(vars[1]), specialist $(vars[2])"
-        traits = GaussTrait(opts, vars)
+        tolerance = GaussTrait(opts, vars)
         native = fill(true, num_species)
         # abun = rand(Multinomial(individuals, num_species))
         abun = fill(div(individuals, num_species), num_species)
-        sppl = SpeciesList(num_species, traits, abun, resource_vec,
+        sppl = SpeciesList(num_species, tolerance, abun, resource_vec,
                            movement, param, native)
         sppl.params.birth
 
@@ -266,11 +266,11 @@ function specialist_vs_many(africa, active, num_species = 50_000;
     opts = fill(274.0K, num_species)
     vars = fill(50.0K, num_species)
     vars[50_000] = 0.5K
-    traits = GaussTrait(opts, vars)
+    tolerance = GaussTrait(opts, vars)
     native = fill(true, num_species)
     # abun = rand(Multinomial(individuals, num_species))
     abun = fill(div(individuals, num_species), num_species)
-    sppl = SpeciesList(num_species, traits, abun, resource_vec,
+    sppl = SpeciesList(num_species, tolerance, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 
@@ -336,11 +336,11 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, num_species)
     vars = fill(50.0K, num_species)
-    traits = GaussTrait(opts, vars)
+    tolerance = GaussTrait(opts, vars)
     native = fill(true, num_species)
     # abun = rand(Multinomial(individuals, num_species))
     abun = fill(div(individuals, num_species), num_species)
-    sppl = SpeciesList(num_species, traits, abun, resource_vec,
+    sppl = SpeciesList(num_species, tolerance, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 

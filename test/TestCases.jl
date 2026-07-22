@@ -86,9 +86,9 @@ function TestMultiEcosystem()
     resource1 = SolarDemand(fill(2.0kJ, numSpecies))
     resource2 = WaterDemand(fill(2.0mm, numSpecies))
     resource = DemandCollection2(resource1, resource2)
-    traits = Bin(MeanTemperature, Normal, fill(10.0K, numSpecies),
-                 fill(0.1K, numSpecies))
-    sppl = SpeciesList(numSpecies, traits, abun, resource, movement, param,
+    tolerance = NicheTolerance(MeanTemperature, Normal, fill(10.0K, numSpecies),
+                               fill(0.1K, numSpecies))
+    sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement, param,
                        native)
 
     rel = DistRel{eltype(habitat.regime)}()

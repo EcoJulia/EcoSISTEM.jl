@@ -83,8 +83,8 @@ Check that the types of a trait list and regime list are the same for a species
 list (`sppl`) and abiotic environment (`habitat`).
 """
 function tematch(sppl::SpeciesList, habitat::AbstractHabitat)
-    return (eltype(sppl.traits) == eltype(habitat.regime)) &&
-           (iscontinuous(sppl.traits) == iscontinuous(habitat.regime))
+    return (eltype(sppl.tolerance) == eltype(habitat.regime)) &&
+           (iscontinuous(sppl.tolerance) == iscontinuous(habitat.regime))
 end
 
 """
@@ -94,8 +94,8 @@ Check that the types of a trait list and trait relationship list are the same
 for a species list (`sppl`) and trait relationship (`traitrel`).
 """
 function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
-    return eltype(sppl.traits) == eltype(traitrel) &&
-           (iscontinuous(sppl.traits) == iscontinuous(traitrel))
+    return eltype(sppl.tolerance) == eltype(traitrel) &&
+           (iscontinuous(sppl.tolerance) == iscontinuous(traitrel))
 end
 
 # Format an `iscontinuous(...)` result — a `Bool` for a single trait/regime/relationship, or a
@@ -156,21 +156,21 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                                                           TR <:
                                                                           AbstractTraitRelationship}
         tematch(spplist, habitat) ||
-            error("Species traits and regime are incompatible: traits are " *
-                  "$(_kindlabel(iscontinuous(spplist.traits))) " *
-                  "$(eltype(spplist.traits)), the regime is " *
+            error("Species tolerances and regime are incompatible: tolerances are " *
+                  "$(_kindlabel(iscontinuous(spplist.tolerance))) " *
+                  "$(eltype(spplist.tolerance)), the regime is " *
                   "$(_kindlabel(iscontinuous(habitat.regime))) " *
                   "$(eltype(habitat.regime)). Pair a continuous trait (e.g. " *
-                  "Bin) with a continuous regime (simplehabitatAE / " *
-                  "tempgradAE), or a discrete trait (DiscreteTrait) with a " *
+                  "NicheTolerance) with a continuous regime (simplehabitatAE / " *
+                  "tempgradAE), or a discrete trait (DiscreteTolerance) with a " *
                   "discrete regime (simplenicheAE).")
         trmatch(spplist, relationship) ||
-            error("Species traits and the trait relationship are incompatible: " *
-                  "traits are $(_kindlabel(iscontinuous(spplist.traits))) " *
-                  "$(eltype(spplist.traits)), the relationship is " *
+            error("Species tolerances and the trait relationship are incompatible: " *
+                  "tolerances are $(_kindlabel(iscontinuous(spplist.tolerance))) " *
+                  "$(eltype(spplist.tolerance)), the relationship is " *
                   "$(_kindlabel(iscontinuous(relationship))) " *
-                  "$(eltype(relationship)). Use DistRel with continuous traits, " *
-                  "or Match / LCmatch with discrete traits.")
+                  "$(eltype(relationship)). Use DistRel with continuous tolerances, " *
+                  "or Match / LCmatch with discrete tolerances.")
         _mcmatch(abundances.matrix, spplist, habitat) ||
             error("Dimension mismatch: the abundance matrix " *
                   "($(size(abundances.matrix, 1)) × $(size(abundances.matrix, 2))) " *
@@ -285,18 +285,18 @@ function addspecies!(eco::Ecosystem, abun::Int64)
     push!(eco.spplist.names, string.(counttypes(eco.spplist, true) + 1))
     append!(eco.spplist.abun, abun)
     append!(eco.spplist.native, true)
-    addtraits!(eco.spplist.traits)
+    addtolerance!(eco.spplist.tolerance)
     addmovement!(eco.spplist.movement)
     addparams!(eco.spplist.params)
     adddemand!(eco.spplist.demand)
     return addtypes!(eco.spplist.types)
 end
 
-function addtraits!(tr::Bin)
+function addtolerance!(tr::NicheTolerance)
     return push!(tr.dists, tr.dists[end])
 end
 
-function addtraits!(tr::DiscreteTrait)
+function addtolerance!(tr::DiscreteTolerance)
     return append!(tr.val, rand(tr.val))
 end
 

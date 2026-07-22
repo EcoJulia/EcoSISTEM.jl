@@ -52,7 +52,7 @@ const YEARS = parse(Int, get(ENV, "ECOSISTEM_BENCH_YEARS", "3"))
 const SEED = parse(Int, get(ENV, "ECOSISTEM_BENCH_SEED", "1234"))
 
 # Build the model. Follows the pattern in examples/HPC/MPIRun.jl: a single solar
-# supply with a flat temperature grid, Gaussian thermal traits and birth-driven
+# supply with a flat temperature grid, Gaussian thermal tolerance and birth-driven
 # dispersal on a torus. This keeps the construction identical for the plain and
 # MPI ecosystems so only the container type differs between modes.
 function build_ecosystem(mode::AbstractString)
@@ -76,10 +76,10 @@ function build_ecosystem(mode::AbstractString)
 
     opts = fill(274.0K, NUM_SPECIES)
     vars = fill(0.5K, NUM_SPECIES)
-    traits = GaussTrait(opts, vars)
+    tolerance = GaussTrait(opts, vars)
     native = fill(true, NUM_SPECIES)
     abun = fill(div(individuals, NUM_SPECIES), NUM_SPECIES)
-    sppl = SpeciesList(NUM_SPECIES, traits, abun, resource_vec,
+    sppl = SpeciesList(NUM_SPECIES, tolerance, abun, resource_vec,
                        movement, param, native)
 
     habitat = simplehabitatAE(274.0K, grid, totalK, area)

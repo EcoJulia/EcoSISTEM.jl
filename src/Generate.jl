@@ -227,7 +227,7 @@ function resource_adjustment(eco::AbstractEcosystem, supply::AbstractSupply,
 end
 
 # Birth and death rate multipliers for a single-demand environment. Weighs
-# the species' own resource demand (`ϵ̄`) and how well its traits match the cell
+# the species' own resource demand (`ϵ̄`) and how well its tolerances match the cell
 # (`ϵ̄real`) against the resource available in the cell (`K`) relative to the total
 # demand there (`E`): births are boosted when resource is plentiful (`K/E`, capped at
 # `params.boost`) and deaths rise as demand approaches the supply (`E/K`). Called
@@ -488,7 +488,7 @@ region. Each species is drawn from its own generator in `rngs`, so the result is
 reproducible and independent of the number of threads or MPI processes.
 
 `rel` is unused by these resource-based methods; it is accepted only so that they
-share a signature with [`traitpopulate!`](@ref) and can be passed
+share a signature with [`tolerancepopulate!`](@ref) and can be passed
 interchangeably as the population function when constructing an
 [`Ecosystem`](@ref). For a two-supply environment (`SupplyCollection2`) the
 sampling weight of a cell is the product of its two separately normalised
@@ -570,13 +570,13 @@ function repopulate!(eco::Ecosystem, abun::Int64)
 end
 
 """
-    traitpopulate!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
+    tolerancepopulate!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
                    rel::AbstractTraitRelationship, rngs::Vector{Random.Xoshiro})
 
 Populate the grid landscape `ml` by scattering each species' total abundance
 (taken from `spplist.abun`) across the grid cells with probability proportional
-to how well the species' traits match each cell's environment, as scored by the
-trait relationship `rel` applied to `spplist.traits` and `habitat.regime`. Where a
+to how well the species tolerances match each cell's environment, as scored by the
+trait relationship `rel` applied to `spplist.tolerance` and `habitat.regime`. Where a
 species matches no cell the distribution falls back to uniform. Only native
 species (those flagged in `spplist.native`) are placed; non-native species are
 left empty.
@@ -584,20 +584,20 @@ left empty.
 This is the trait-based counterpart of [`populate!`](@ref), which instead weights
 cells by their available resource supply.
 """
-function traitpopulate!(ml::GridLandscape,
-                        spplist::SpeciesList,
-                        habitat::AB,
-                        rel::R,
-                        rngs::Vector{Random.Xoshiro}) where {AB <:
-                                                             AbstractHabitat,
-                                                             R <:
-                                                             AbstractTraitRelationship}
+function tolerancepopulate!(ml::GridLandscape,
+                            spplist::SpeciesList,
+                            habitat::AB,
+                            rel::R,
+                            rngs::Vector{Random.Xoshiro}) where {AB <:
+                                                                 AbstractHabitat,
+                                                                 R <:
+                                                                 AbstractTraitRelationship}
     # Calculate size of regime
     dim = _getdimension(habitat.regime)
     numsquares = dim[1] * dim[2]
     numspp = length(spplist.names)
     regime = reshape(habitat.regime.matrix, numsquares)
-    probabilities = [_traitfun(habitat.regime, spplist.traits, rel, i, sp)
+    probabilities = [_traitfun(habitat.regime, spplist.tolerance, rel, i, sp)
                      for i in 1:numsquares,
                          sp in 1:numspp]
     # Loop through species, drawing from each species' own RNG stream
@@ -614,17 +614,17 @@ function traitpopulate!(ml::GridLandscape,
 end
 
 """
-    traitrepopulate!(eco::Ecosystem)
+    tolerancerepopulate!(eco::Ecosystem)
 
-Repopulate an ecosystem `eco` according to how well species traits match their
+Repopulate an ecosystem `eco` according to how well species tolerances match their
 environment, redistributing the total abundance across species at random.
 """
-function traitrepopulate!(eco::Ecosystem)
+function tolerancerepopulate!(eco::Ecosystem)
     eco.abundances = emptygridlandscape(eco.habitat, eco.spplist)
     eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
                                         length(eco.spplist.abun)))
-    return traitpopulate!(eco.abundances, eco.spplist, eco.habitat,
-                          eco.relationship, eco.rngs)
+    return tolerancepopulate!(eco.abundances, eco.spplist, eco.habitat,
+                              eco.relationship, eco.rngs)
 end
 
 """

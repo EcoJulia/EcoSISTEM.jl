@@ -132,15 +132,15 @@ export GaussianKernel,
 
 include("Traits.jl")
 export GaussTrait,
-       DiscreteTrait,
-       Bin,
-       TempBin,
-       RainBin,
-       TraitCollection2,
-       TraitCollection3,
+       DiscreteTolerance,
+       NicheTolerance,
+       TempTolerance,
+       RainTolerance,
+       ToleranceCollection2,
+       ToleranceCollection3,
        DiscreteEvolve,
        ContinuousEvolve,
-       LCtrait
+       LCtolerance
 
 include("Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth
@@ -168,7 +168,7 @@ export Ecosystem,
 include("Traitfuns.jl")
 export traitfun, getpref, getdist, gettraitrel, getregime
 
-# Deprecated public API (trait line): `GaussTrait` → `Bin`, `Gauss`/`Trapeze`/`Unif` → `DistRel`. Included
+# Deprecated public API (trait line): `GaussTrait` → `NicheTolerance`, `Gauss`/`Trapeze`/`Unif` → `DistRel`. Included
 # late, after every type it shims; the shim names stay exported (above). See also
 # `src/ClimatePref/deprecations.jl` for the ClimatePref submodule's deprecations.
 include("deprecations.jl")
@@ -183,8 +183,8 @@ export SimpleScenario, FluctScenario, MultiScenario
 include("Generate.jl")
 export populate!,
        repopulate!,
-       traitpopulate!,
-       traitrepopulate!,
+       tolerancepopulate!,
+       tolerancerepopulate!,
        emptypopulate!,
        resupply!,
        randomniches,

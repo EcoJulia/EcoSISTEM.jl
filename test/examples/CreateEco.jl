@@ -32,12 +32,12 @@ function create_eco(paramDict::Dict, habitat::A; bound::B = Torus(),
     names = map(x -> "$x", 1:(numSpecies + numInvasive))
     tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
     units = unit(size.mean)
-    trts = ContinuousEvolve(uconvert(NoUnits, size.mean / units),
-                            uconvert(NoUnits, size.std / units),
-                            tree)
+    tolerance = ContinuousEvolve(uconvert(NoUnits, size.mean / units),
+                                 uconvert(NoUnits, size.std / units),
+                                 tree)
 
-    resource_vec1 = SolarDemand(abs.(trts.mean) .* (demand[1] * units))
-    resource_vec2 = WaterDemand(abs.(trts.mean) .* (demand[2] * units))
+    resource_vec1 = SolarDemand(abs.(tolerance.mean) .* (demand[1] * units))
+    resource_vec2 = WaterDemand(abs.(tolerance.mean) .* (demand[2] * units))
 
     resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     # Collect model parameters together (in this order!!)
@@ -51,7 +51,7 @@ function create_eco(paramDict::Dict, habitat::A; bound::B = Torus(),
 
     movement = BirthOnlyMovement(kernel, bound)
 
-    traits = GaussTrait(opts, vars)
+    tolerance = GaussTrait(opts, vars)
     native = fill(true, numSpecies + numInvasive)
     native[(numSpecies + 1):end] .= false
     if length(individuals) > 1
@@ -61,14 +61,14 @@ function create_eco(paramDict::Dict, habitat::A; bound::B = Torus(),
                 fill(0, numInvasive)]
     end
     sppl = SpeciesList(numSpecies + numInvasive,
-                       traits,
+                       tolerance,
                        abun,
                        resource_vec,
                        movement,
                        param,
                        native)
     rel = Gauss{typeof(first(paramDict["opts"]))}()
-    return eco = Ecosystem(traitpopulate!, sppl, habitat, rel)
+    return eco = Ecosystem(tolerancepopulate!, sppl, habitat, rel)
 end
 
 function recreate_eco!(eco::Ecosystem,
@@ -81,5 +81,5 @@ function recreate_eco!(eco::Ecosystem,
                         fill(0, numInvasive)]
     resupply!(eco, totalK, size(eco.habitat.regime.matrix))
     eco.habitat.active .= true
-    return traitrepopulate!(eco)
+    return tolerancerepopulate!(eco)
 end

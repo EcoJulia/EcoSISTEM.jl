@@ -51,11 +51,11 @@ movement = BirthOnlyMovement(kernel, NoBoundary())
 # Create species list, including their temperature preferences, seed abundance and native status
 opts = fill(274.0K, numSpecies)
 vars = fill(0.5K, numSpecies)
-traits = Bin(MeanTemperature, Normal, opts, vars)
+tolerance = NicheTolerance(MeanTemperature, Normal, opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
@@ -112,7 +112,8 @@ end
 water_vec = WaterDemand(fill(2.0mm, numSpecies))
 total_use = DemandCollection2(resource_vec, water_vec)
 
-sppl = SpeciesList(numSpecies, traits, abun, total_use, movement, param, native)
+sppl = SpeciesList(numSpecies, tolerance, abun, total_use, movement, param,
+                   native)
 
 # Create abiotic environment - even grid of one temperature
 habitat1 = simplehabitatAE(274.0K, grid, totalK, area)

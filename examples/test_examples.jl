@@ -53,10 +53,10 @@ param = EqualPop(birth, death, long, surv, boost)
 
 movement = BirthOnlyMovement(kernel, Torus())
 
-traits = Bin(MeanTemperature, Normal, opts, vars)
+tolerance = NicheTolerance(MeanTemperature, Normal, opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 rel = DistRel{typeof(first(opts))}()
 eco = Ecosystem(sppl, habitat, rel)

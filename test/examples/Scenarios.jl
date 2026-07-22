@@ -104,7 +104,7 @@ function GeneralistInvasive(eco::Ecosystem, timestep::Unitful.Time,
     qual = eco.spplist.native .== false
     invasive = findall(qual)
     natives = findall(.!qual)
-    eco.spplist.traits.var[invasive] .= maximum(eco.spplist.traits.var)
+    eco.spplist.tolerance.var[invasive] .= maximum(eco.spplist.tolerance.var)
     invasive_abun = eco.spplist.abun[invasive]
     avgain = uconvert(NoUnits, rate * timestep)
     for i in eachindex(invasive)
@@ -126,8 +126,9 @@ function SpecialistInvasive(eco::Ecosystem, timestep::Unitful.Time,
     qual = eco.spplist.native .== false
     invasive = findall(qual)
     natives = findall(.!qual)
-    eco.spplist.traits.mean[invasive] .= mean(eco.habitat.regime.matrix[end, :])
-    eco.spplist.traits.var[invasive] .= minimum(eco.spplist.traits.var)
+    eco.spplist.tolerance.mean[invasive] .= mean(eco.habitat.regime.matrix[end,
+                                                                           :])
+    eco.spplist.tolerance.var[invasive] .= minimum(eco.spplist.tolerance.var)
     invasive_abun = eco.spplist.abun[invasive]
     avgain = uconvert(NoUnits, rate * timestep)
     for i in eachindex(invasive)

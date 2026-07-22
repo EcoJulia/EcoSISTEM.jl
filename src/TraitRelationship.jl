@@ -16,7 +16,7 @@ abstract type AbstractTraitRelationship{TR} end
 """
     DistRel{TR} <: AbstractTraitRelationship{TR}
 
-The relationship between a [`Bin`](@ref) continuous trait and its environment: the density of the
+The relationship between a [`NicheTolerance`](@ref) continuous trait and its environment: the density of the
 trait's response distribution evaluated at the current regime value, parameterised on any `TR`.
 Works for any `Distributions.ContinuousUnivariateDistribution` (e.g. [`Trapezoid`](@ref) or `Uniform`).
 """

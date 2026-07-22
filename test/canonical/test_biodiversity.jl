@@ -49,10 +49,10 @@ param = EqualPop(birth, death, longevity, survival, boost)
 
 movement = BirthOnlyMovement(kernel, Torus())
 
-traits = GaussTrait(opts, vars)
+tolerance = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 rel = Gauss{typeof(first(opts))}()
 eco = Ecosystem(sppl, habitat, rel)
@@ -118,10 +118,10 @@ param = EqualPop(birth, death, longevity, survival, boost)
 
 movement = BirthOnlyMovement(kernel, Torus())
 
-traits = GaussTrait(opts, vars)
+tolerance = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 rel = Gauss{typeof(first(opts))}()
 eco = Ecosystem(sppl, habitat, rel)
@@ -184,10 +184,10 @@ param = EqualPop(birth, death, longevity, survival, boost)
 
 movement = BirthOnlyMovement(kernel, Torus())
 
-traits = GaussTrait(opts, vars)
+tolerance = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 rel = Gauss{typeof(first(opts))}()
 eco = Ecosystem(sppl, habitat, rel)
@@ -265,10 +265,10 @@ param = EqualPop(birth, death, longevity, survival, boost)
 
 movement = BirthOnlyMovement(kernel, NoBoundary())
 
-traits = GaussTrait(opts, vars)
+tolerance = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 rel = Gauss{typeof(first(opts))}()
 eco = Ecosystem(sppl, habitat, rel)
@@ -330,10 +330,10 @@ for i in eachindex(grids)
 
     local movement = BirthOnlyMovement(kernel, NoBoundary())
 
-    local traits = GaussTrait(opts, vars)
+    local tolerance = GaussTrait(opts, vars)
     local native = fill(true, numSpecies)
     local abun = rand(Multinomial(individuals, numSpecies))
-    local sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+    local sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                              movement, param, native)
     local rel = Gauss{typeof(first(opts))}()
     local eco = Ecosystem(sppl, habitat, rel)
@@ -389,10 +389,10 @@ for i in eachindex(areas)
 
     local movement = BirthOnlyMovement(kernel, NoBoundary())
 
-    local traits = GaussTrait(opts, vars)
+    local tolerance = GaussTrait(opts, vars)
     local native = fill(true, numSpecies)
     local abun = rand(Multinomial(individuals, numSpecies))
-    local sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+    local sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                              movement, param, native)
     local rel = Gauss{typeof(first(opts))}()
     local eco = Ecosystem(sppl, habitat, rel)
@@ -448,10 +448,10 @@ for i in eachindex(species)
 
     local movement = BirthOnlyMovement(kernel, NoBoundary())
 
-    local traits = GaussTrait(opts, vars)
+    local tolerance = GaussTrait(opts, vars)
     local native = fill(true, numSpecies)
     local abun = rand(Multinomial(individuals, numSpecies))
-    local sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+    local sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                              movement, param, native)
     local rel = Gauss{typeof(first(opts))}()
     local eco = Ecosystem(sppl, habitat, rel)
@@ -507,10 +507,11 @@ for i in eachindex(distances)
 
     local movement = BirthOnlyMovement(kernel, NoBoundary())
 
-    local traits = GaussTrait(opts, vars)
+    local tolerance = GaussTrait(opts, vars)
     local native = fill(true, numSpecies)
     local abun = rand(Multinomial(individuals, numSpecies))
-    local sppl = SpeciesList(numSpecies, traits, abun, resource_vec, movement,
+    local sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
+                             movement,
                              param, native)
     local rel = Gauss{typeof(first(opts))}()
     local eco = Ecosystem(sppl, habitat, rel)

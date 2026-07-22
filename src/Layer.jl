@@ -64,7 +64,7 @@ it still has data and a unit, but is not modelled on a named axis).
 struct Unclassified <: NicheAxis end
 
 # An unclassified axis carries no modelled unit — treat it as dimensionless so axis-less continuous
-# traits (e.g. a `Bin` built from bare data) resolve `canonicalunit`/`eltype` without erroring.
+# tolerances (e.g. a `NicheTolerance` built from bare data) resolve `canonicalunit`/`eltype` without erroring.
 canonicalunit(::Unclassified) = NoUnits
 
 """
@@ -122,7 +122,7 @@ end
 """
     AbstractRegime
 
-An environmental condition matched to species traits — any `Habitat`-role
+An environmental condition matched to species tolerances — any `Habitat`-role
 [`AbstractLayer`](@ref).
 """
 const AbstractRegime = AbstractLayer{Habitat}

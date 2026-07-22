@@ -7,7 +7,7 @@ using Unitful.DefaultSymbols
 # Layer roles
 # ---------------------------------------------------------------------------
 # A materialised layer plays one of two roles in a `GridHabitat`: a `Habitat`
-# (an environmental condition matched to species traits) or a `Budget` (a resource
+# (an environmental condition matched to species tolerances) or a `Budget` (a resource
 # consumed by species). The role is a phantom marker used to keep the two
 # type-distinguishable while sharing one storage implementation.
 
@@ -21,7 +21,7 @@ abstract type Role end
 """
     Habitat <: Role
 
-Marker for a layer used as an environmental condition (matched to species traits).
+Marker for a layer used as an environmental condition (matched to species tolerances).
 """
 struct Habitat <: Role end
 

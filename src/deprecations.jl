@@ -13,9 +13,9 @@
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
-# Trait line: `GaussTrait` → `Bin(A, Normal, …)`
+# Trait line: `GaussTrait` → `NicheTolerance(A, Normal, …)`
 #
-# A Gaussian preference is just the `Normal` case of a `Bin`. The redesign takes
+# A Gaussian preference is just the `Normal` case of a `NicheTolerance`. The redesign takes
 # a trait's unit from its niche axis (not its data), so a *unitful* preference
 # must name an axis; only dimensionless (bare) data may stay axis-less.
 # ---------------------------------------------------------------------------
@@ -25,21 +25,21 @@
 
 !!! warning "Deprecated"
     `GaussTrait` is deprecated and will be removed. A Gaussian preference is just the `Normal` case of a
-    [`Bin`](@ref), so use one directly — `Bin(A, Normal, mean, sd)` (one unitful vector per parameter,
+    [`NicheTolerance`](@ref), so use one directly — `NicheTolerance(A, Normal, mean, sd)` (one unitful vector per parameter,
     `support` imputed). This shim forwards to that. `GaussTrait(::Type{A}, mean, sd)` names the niche axis
     `A` explicitly; the axis-less `GaussTrait(mean, sd)` form takes dimensionless (bare) data as
     `Unclassified`, and — for back-compatibility only — *infers* the axis from a unitful vector's unit
     (temperature → `MeanTemperature`, length → `Precipitation`) with an extra warning, because a
-    [`Bin`](@ref)'s unit must come from its axis, not its data.
+    [`NicheTolerance`](@ref)'s unit must come from its axis, not its data.
 """
 function GaussTrait(::Type{A}, mean::AbstractVector,
                     sd::AbstractVector) where {A <: NicheAxis}
-    Base.depwarn("`GaussTrait` is deprecated; use `Bin($A, Normal, mean, sd)` instead.",
+    Base.depwarn("`GaussTrait` is deprecated; use `NicheTolerance($A, Normal, mean, sd)` instead.",
                  :GaussTrait)
-    return Bin(A, Normal, mean, sd)
+    return NicheTolerance(A, Normal, mean, sd)
 end
 
-# Axis-less bare (dimensionless) form: an `Unclassified` Bin, as before.
+# Axis-less bare (dimensionless) form: an `Unclassified` NicheTolerance, as before.
 function GaussTrait(mean::AbstractVector{<:Real}, sd::AbstractVector)
     return GaussTrait(Unclassified, mean, sd)
 end
@@ -52,7 +52,7 @@ function _axis_from_unit(u)
     dimension(u) == dimension(u"K") && return MeanTemperature
     dimension(u) == dimension(u"mm") && return Precipitation
     return error("Cannot infer a niche axis from unit `$u`; name the axis explicitly, e.g. " *
-                 "`GaussTrait(MeanTemperature, mean, sd)` or `Bin(axis, Normal, mean, sd)`.")
+                 "`GaussTrait(MeanTemperature, mean, sd)` or `NicheTolerance(axis, Normal, mean, sd)`.")
 end
 
 # Axis-less *unitful* form (doubly deprecated): kept working via unit→axis inference so downstream code gets
@@ -63,15 +63,15 @@ function GaussTrait(mean::AbstractVector{<:Unitful.AbstractQuantity},
     axis = _axis_from_unit(u)
     Base.depwarn("`GaussTrait(mean, sd)` with unitful data infers the niche axis from its unit " *
                  "($u → $axis); this meaning-from-unit fallback is deprecated. Name the axis: " *
-                 "`GaussTrait($axis, mean, sd)` or `Bin($axis, Normal, mean, sd)`.",
+                 "`GaussTrait($axis, mean, sd)` or `NicheTolerance($axis, Normal, mean, sd)`.",
                  :GaussTrait)
-    return Bin(axis, Normal, mean, sd)
+    return NicheTolerance(axis, Normal, mean, sd)
 end
 
 # ---------------------------------------------------------------------------
 # Trait line: `Gauss` / `Trapeze` / `Unif` relationships → `DistRel`
 #
-# A Gaussian/trapezoidal/uniform preference is just the `Normal`/`Trapezoid`/`Uniform` case of a `Bin`, so
+# A Gaussian/trapezoidal/uniform preference is just the `Normal`/`Trapezoid`/`Uniform` case of a `NicheTolerance`, so
 # all three relationships are `DistRel` now. Each is kept as a distinct type that warns on construction but
 # shares `DistRel`'s 2-arg density functor, so old hand-built ecosystems still build and evaluate.
 # ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ end
 
 !!! warning "Deprecated"
     `Gauss` is deprecated and will be removed; use [`DistRel`](@ref) instead (a Gaussian preference is the
-    `Normal` case of a [`Bin`](@ref)). This shim shares `DistRel`'s 2-argument density functor and also
+    `Normal` case of a [`NicheTolerance`](@ref)). This shim shares `DistRel`'s 2-argument density functor and also
     retains the legacy 3-argument `(current, opt, sd)` Gaussian call for back-compatibility.
 """
 mutable struct Gauss{TR} <: AbstractTraitRelationship{TR}
@@ -96,7 +96,7 @@ end
 
 !!! warning "Deprecated"
     `Trapeze` is deprecated and will be removed; use [`DistRel`](@ref) instead (it pairs with a `Trapezoid`
-    [`Bin`](@ref)).
+    [`NicheTolerance`](@ref)).
 """
 mutable struct Trapeze{TR} <: AbstractTraitRelationship{TR}
     function Trapeze{TR}() where {TR}
@@ -111,7 +111,7 @@ end
 
 !!! warning "Deprecated"
     `Unif` is deprecated and will be removed; use [`DistRel`](@ref) instead (it pairs with a `Uniform`
-    [`Bin`](@ref)).
+    [`NicheTolerance`](@ref)).
 """
 mutable struct Unif{TR} <: AbstractTraitRelationship{TR}
     function Unif{TR}() where {TR}
@@ -135,7 +135,7 @@ end
 
 # Legacy 3-argument Gaussian functor `Gauss{TR}()(current, opt, sd)`, restored for back-compatibility: the
 # hand-written Gaussian density (a dimensionless `Quantity`) that `Gauss` evaluated before it became a
-# `DistRel` shim. New code should build a `Normal` `Bin` and use `DistRel`'s 2-argument functor instead.
+# `DistRel` shim. New code should build a `Normal` `NicheTolerance` and use `DistRel`'s 2-argument functor instead.
 function (::Gauss{TR})(current::TR, opt::TR, var::TR) where {TR}
     pref = 1.0 / sqrt(2 * π * var^2) *
            exp(-abs(current - opt)^2 / (2 * var^2))
@@ -191,3 +191,17 @@ Base.@deprecate_binding GridAbioticEnv GridHabitat
 
 # `reenergise!` → `resupply!` (v0.4.0 rename; "energy" is a misnomer — the resource isn't always energy)
 @deprecate reenergise! resupply!
+
+# ---------------------------------------------------------------------------
+# Condition line: `Trait`/`Bin` → `Tolerance`/`NicheTolerance` (v0.4.0 rename; the species' condition response)
+# ---------------------------------------------------------------------------
+Base.@deprecate_binding AbstractTraits AbstractTolerance false
+Base.@deprecate_binding ContinuousTrait ContinuousTolerance false
+Base.@deprecate_binding DiscreteTrait DiscreteTolerance
+Base.@deprecate_binding LCtrait LCtolerance
+Base.@deprecate_binding TraitCollection2 ToleranceCollection2
+Base.@deprecate_binding TraitCollection3 ToleranceCollection3
+Base.@deprecate_binding TempBin TempTolerance
+Base.@deprecate_binding RainBin RainTolerance
+@deprecate traitpopulate!(args...) tolerancepopulate!(args...)
+@deprecate traitrepopulate!(args...) tolerancerepopulate!(args...)

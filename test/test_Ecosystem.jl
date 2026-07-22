@@ -18,11 +18,11 @@ include("TestCases.jl")
     @test EcoSISTEM.tematch(eco.spplist, eco.habitat) == true
     @test EcoSISTEM.trmatch(eco.spplist, eco.relationship) == true
 
-    sppl = SpeciesList{typeof(eco.spplist.traits),
+    sppl = SpeciesList{typeof(eco.spplist.tolerance),
                        typeof(eco.spplist.demand),
                        typeof(eco.spplist.movement), UniqueTypes,
                        typeof(eco.spplist.params)}(eco.spplist.names,
-                                                   eco.spplist.traits,
+                                                   eco.spplist.tolerance,
                                                    eco.spplist.abun,
                                                    eco.spplist.demand,
                                                    UniqueTypes(length(eco.spplist.names)),
@@ -61,11 +61,11 @@ include("TestCases.jl")
         mov = AlwaysMovement(fill(LongTailKernel(10.0km, 10.0, 1e-10),
                                   length(eco.spplist.names)),
                              eco.spplist.movement.boundary)
-        sppl = SpeciesList{typeof(eco.spplist.traits),
+        sppl = SpeciesList{typeof(eco.spplist.tolerance),
                            typeof(eco.spplist.demand), typeof(mov),
                            typeof(eco.spplist.types),
                            typeof(eco.spplist.params)}(eco.spplist.names,
-                                                       eco.spplist.traits,
+                                                       eco.spplist.tolerance,
                                                        eco.spplist.abun,
                                                        eco.spplist.demand,
                                                        eco.spplist.types, mov,
@@ -105,12 +105,12 @@ include("TestCases.jl")
                                                               env1.active,
                                                               supply,
                                                               env1.names)
-        traits = TraitCollection2(Bin(MeanTemperature, Normal,
-                                      fill(10.0K, numSpecies),
-                                      fill(0.1K, numSpecies)),
-                                  Bin(Precipitation, Uniform,
-                                      fill(1.0mm, numSpecies),
-                                      fill(5.0mm, numSpecies)))
+        tolerance = ToleranceCollection2(NicheTolerance(MeanTemperature, Normal,
+                                                        fill(10.0K, numSpecies),
+                                                        fill(0.1K, numSpecies)),
+                                         NicheTolerance(Precipitation, Uniform,
+                                                        fill(1.0mm, numSpecies),
+                                                        fill(5.0mm, numSpecies)))
         abun = rand(Multinomial(1000, numSpecies))
         movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, numSpecies),
                                                      10e-4))
@@ -118,7 +118,8 @@ include("TestCases.jl")
         resource = DemandCollection2(SolarDemand(fill(2.0kJ, numSpecies)),
                                      WaterDemand(fill(2.0mm, numSpecies)))
         param = EqualPop(0.6 / month, 0.6 / month, 1.0, 0.0, 1000.0)
-        sppl = SpeciesList(numSpecies, traits, abun, resource, movement, param,
+        sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement,
+                           param,
                            native)
         # the matching relationship is `multiplicativeTR2(...)`; a single `DistRel` mismatches
         badrel = DistRel{typeof(1.0K)}()

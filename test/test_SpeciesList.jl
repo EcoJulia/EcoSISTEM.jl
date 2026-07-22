@@ -37,21 +37,22 @@ using Diversity
 
     opts = fill(5.0°C, numSpecies)
     vars = rand(Uniform(0, 25 / 9), numSpecies) * °C
-    traits = Bin(MeanTemperature, Normal, opts, vars)
+    tolerance = NicheTolerance(MeanTemperature, Normal, opts, vars)
     abun = rand(Multinomial(individuals, numSpecies))
     native = fill(true, numSpecies)
-    @test_nowarn sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
+    @test_nowarn sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                                     movement, param, native)
     @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, resource_vec,
                                     movement, param, native)
 
-    sppl = SpeciesList(numSpecies, traits, abun, resource_vec, movement, param,
+    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec, movement,
+                       param,
                        native)
-    newsppl = SpeciesList{typeof(sppl.traits),
+    newsppl = SpeciesList{typeof(sppl.tolerance),
                           typeof(sppl.demand),
                           typeof(sppl.movement),
                           typeof(sppl.types),
-                          typeof(sppl.params)}(sppl.traits, sppl.abun,
+                          typeof(sppl.params)}(sppl.tolerance, sppl.abun,
                                                sppl.demand, sppl.types,
                                                sppl.movement, sppl.params,
                                                sppl.native)

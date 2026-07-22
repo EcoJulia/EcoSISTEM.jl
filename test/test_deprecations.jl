@@ -16,33 +16,36 @@ using RasterDataSources
 # matches the current API it forwards to.
 
 @testset "Deprecations" begin
-    @testset "trait line: GaussTrait → Bin" begin
+    @testset "trait line: GaussTrait → NicheTolerance" begin
         opts = fill(5.0K, 4)
         vars = fill(2.0K, 4)
-        # axis form → the same `Normal` `Bin`
+        # axis form → the same `Normal` `NicheTolerance`
         @test_deprecated GaussTrait(MeanTemperature, opts, vars)
         gt = GaussTrait(MeanTemperature, opts, vars)
-        @test gt isa Bin{MeanTemperature}
+        @test gt isa NicheTolerance{MeanTemperature}
         @test params(getdist(gt, 1)) ==
-              params(getdist(Bin(MeanTemperature, Normal, opts, vars), 1))
+              params(getdist(NicheTolerance(MeanTemperature, Normal, opts,
+                                            vars), 1))
 
-        # axis-less *bare* form → an `Unclassified` Bin (eltype Float64)
+        # axis-less *bare* form → an `Unclassified` NicheTolerance (eltype Float64)
         @test_deprecated GaussTrait([1.0, 2.0], [0.1, 0.2])
         gb = GaussTrait([1.0, 2.0], [0.1, 0.2])
         @test eltype(gb) == Float64
         @test params(getdist(gb, 1)) ==
-              params(getdist(Bin(Unclassified, Normal, [1.0, 2.0], [0.1, 0.2]),
+              params(getdist(NicheTolerance(Unclassified, Normal, [1.0, 2.0],
+                                            [0.1, 0.2]),
                              1))
 
         # axis-less *unitful* form (doubly deprecated): infers the axis from the unit, and warns about it
         @test_deprecated GaussTrait(opts, vars)                 # K → MeanTemperature
         gu = GaussTrait(opts, vars)
-        @test gu isa Bin{MeanTemperature}
+        @test gu isa NicheTolerance{MeanTemperature}
         @test params(getdist(gu, 1)) ==
-              params(getdist(Bin(MeanTemperature, Normal, opts, vars), 1))
+              params(getdist(NicheTolerance(MeanTemperature, Normal, opts,
+                                            vars), 1))
         rain = fill(3.0mm, 4)
         gr = GaussTrait(rain, fill(1.0mm, 4))                   # mm → Precipitation
-        @test gr isa Bin{Precipitation}
+        @test gr isa NicheTolerance{Precipitation}
         # a unit with no canonical axis cannot be inferred — a clear error, not a MethodError
         @test_throws ErrorException GaussTrait(fill(1.0u"kg", 2),
                                                fill(1.0u"kg", 2))
@@ -148,6 +151,18 @@ using RasterDataSources
         # the condition layer that used to be `AbstractHabitat` is now `AbstractRegime`)
         @test GridAbioticEnv === GridHabitat
         @test EcoSISTEM.AbstractAbiotic === EcoSISTEM.AbstractHabitat
+    end
+
+    @testset "condition line: Trait → Tolerance" begin
+        # the v0.4.0 `*Trait`/`TraitCollection`/`TempBin`/`RainBin` types → the renamed `*Tolerance` types
+        @test DiscreteTrait === DiscreteTolerance
+        @test LCtrait === LCtolerance
+        @test TraitCollection2 === ToleranceCollection2
+        @test TraitCollection3 === ToleranceCollection3
+        @test TempBin === TempTolerance
+        @test RainBin === RainTolerance
+        @test EcoSISTEM.AbstractTraits === EcoSISTEM.AbstractTolerance
+        @test EcoSISTEM.ContinuousTrait === EcoSISTEM.ContinuousTolerance
     end
 end
 
