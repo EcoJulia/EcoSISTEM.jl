@@ -69,11 +69,14 @@ function Lookup(df::DataFrame)
                   zeros(Int64, nrow(df)))
 end
 
+# Check the abundance matrix `m` (species × subcommunities) has one row per species in `sim` and one
+# column per subcommunity in `part`. A pure dimension check: it runs at `Ecosystem` construction, before
+# `populate!`, so the matrix may still be empty — the value/type consistency of a populated metacommunity
+# (`Diversity.mcmatch`, which additionally needs a normalised float abundance) is deliberately not asserted
+# here; trait/habitat and trait/relationship compatibility are covered by `tematch` / `trmatch`.
 function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
-    realm = _calcabundance(sim, m)
-    return typematch(realm, sim, part) &&
-           counttypes(sim) == size(realm, 1) &&
-           countsubcommunities(part) == size(realm, 2)
+    return _counttypes(sim, true) == size(m, 1) &&
+           _countsubcommunities(part) == size(m, 2)
 end
 
 """
@@ -166,8 +169,12 @@ mutable struct Ecosystem{Part <: AbstractAbiotic,
                   "$(iscontinuous(relationship) ? "continuous" : "discrete") " *
                   "$(eltype(relationship)). Use Gauss with continuous traits, or " *
                   "Match / LCmatch with discrete traits.")
-        #_mcmatch(abundances.matrix, spplist, abenv) ||
-        #  error("Dimension mismatch")
+        _mcmatch(abundances.matrix, spplist, abenv) ||
+            error("Dimension mismatch: the abundance matrix " *
+                  "($(size(abundances.matrix, 1)) × $(size(abundances.matrix, 2))) " *
+                  "does not match the $(_counttypes(spplist, true)) species and " *
+                  "$(_countsubcommunities(abenv)) subcommunities of the species " *
+                  "list and environment.")
         return new{Part, SL, TR}(abundances,
                                  spplist,
                                  abenv,

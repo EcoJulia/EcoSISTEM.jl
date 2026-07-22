@@ -56,8 +56,6 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
             error("Traits do not match habitats")
         EcoSISTEM.trmatch(spplist, relationship) ||
             error("Traits do not match trait functions")
-        #_mcmatch(abundances.matrix, spplist, abenv) ||
-        #  error("Dimension mismatch")
         return new{MPIGL, Part, SL, TR}(abundances,
                                         spplist,
                                         abenv,
