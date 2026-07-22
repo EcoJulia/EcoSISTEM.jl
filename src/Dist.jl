@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 using Distributions
-import Random: rand
-using Random
-
 import Distributions: @check_args, ContinuousUnivariateDistribution, rand,
                       params, pdf
-import Random: GLOBAL_RNG
+
+using Unitful
+using Unitful: absoluteunit, NoUnits
+
+using Random
+import Random: rand, GLOBAL_RNG
 
 """
     Trapezoid{T<:Real} <: ContinuousUnivariateDistribution
@@ -23,8 +25,8 @@ struct Trapezoid{T <: Real} <: ContinuousUnivariateDistribution
     function Trapezoid(a::T, b::T, c::T, d::T;
                        check_args::Bool = true) where {T <: Real}
         @check_args Trapezoid (a,
-                               a < d,
-                               "First argument `a` must be less than fourth `d` in Trapezoid distribution.")
+                               a < b < c < d,
+                               "Arguments must satisfy a < b < c < d in Trapezoid distribution.")
         return new{T}(a, b, c, d)
     end
 end
@@ -80,3 +82,9 @@ function pdf(T::Trapezoid, x::Real)
         return 0.0
     end
 end
+
+# Support bounds — a Trapezoid has support [a, d] (so `param_units` can recognise its parameters as
+# positions on the support axis).
+Base.minimum(d::Trapezoid) = d.a
+Base.maximum(d::Trapezoid) = d.d
+
