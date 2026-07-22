@@ -59,6 +59,7 @@ function unziptemp end
 
 include("Dist.jl")
 export Trapezoid
+public read_distribution, param_units
 
 include("Phylo.jl")
 export assign_traits!, get_traits, resettraits!, reroot!
