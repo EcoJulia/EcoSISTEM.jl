@@ -16,7 +16,7 @@ cachefolder = mktempdir()
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+dem = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
@@ -74,7 +74,7 @@ birth_rates = death_rates
 paramDict = Dict("numSpecies" => numSpecies,
                  "numInvasive" => 0,
                  "numIndiv" => individuals,
-                 "reqs" => req,
+                 "reqs" => dem,
                  "opts" => opts,
                  "vars" => vars,
                  "birth" => birth_rates,
@@ -117,7 +117,7 @@ bar(ustrip.(uconvert.(°C, edges)),
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+dem = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
@@ -175,7 +175,7 @@ birth_rates = death_rates
 paramDict = Dict("numSpecies" => numSpecies,
                  "numInvasive" => 0,
                  "numIndiv" => individuals,
-                 "reqs" => req,
+                 "reqs" => dem,
                  "opts" => opts,
                  "vars" => vars,
                  "birth" => birth_rates,
@@ -219,7 +219,7 @@ bar(edges ./ K,
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+dem = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
@@ -277,7 +277,7 @@ birth_rates = death_rates
 paramDict = Dict("numSpecies" => numSpecies,
                  "numInvasive" => 0,
                  "numIndiv" => individuals,
-                 "reqs" => req,
+                 "reqs" => dem,
                  "opts" => opts,
                  "vars" => vars,
                  "birth" => birth_rates,
@@ -322,7 +322,7 @@ bar(edges ./ K,
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+dem = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
@@ -393,7 +393,7 @@ birth_rates = death_rates
 paramDict = Dict("numSpecies" => numSpecies,
                  "numInvasive" => 0,
                  "numIndiv" => individuals,
-                 "reqs" => req,
+                 "reqs" => dem,
                  "opts" => opts,
                  "vars" => vars,
                  "birth" => birth_rates,
@@ -433,7 +433,7 @@ heatmap(sol_range ./ kJ,
 for i in [1, 2, 5, 10]
     numSpecies = 100
     grd = (i, i)
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    dem = (450000.0kJ / m^2, 192.0nm / m^2)
     individuals = 100_000_000
     area = 100.0 * km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
@@ -491,7 +491,7 @@ for i in [1, 2, 5, 10]
     paramDict = Dict("numSpecies" => numSpecies,
                      "numInvasive" => 0,
                      "numIndiv" => individuals,
-                     "reqs" => req,
+                     "reqs" => dem,
                      "opts" => opts,
                      "vars" => vars,
                      "birth" => birth_rates,
@@ -530,7 +530,7 @@ bar(["1", "4", "25", "100"],
 for i in [10.0, 20.0, 50.0, 100.0]
     numSpecies = 100
     grd = (10, 10)
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    dem = (450000.0kJ / m^2, 192.0nm / m^2)
     individuals = 100_000_000
     area = i .* km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
@@ -589,7 +589,7 @@ for i in [10.0, 20.0, 50.0, 100.0]
     paramDict = Dict("numSpecies" => numSpecies,
                      "numInvasive" => 0,
                      "numIndiv" => individuals,
-                     "reqs" => req,
+                     "reqs" => dem,
                      "opts" => opts,
                      "vars" => vars,
                      "birth" => birth_rates,
@@ -629,7 +629,7 @@ distances = [0.5, 1.0, 2.0, 4.0]
 for i in eachindex(distances)
     numSpecies = 2
     grd = (10, 10)
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    dem = (450000.0kJ / m^2, 192.0nm / m^2)
     individuals = 100_000_000
     area = 100.0 * km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
@@ -688,7 +688,7 @@ for i in eachindex(distances)
     paramDict = Dict("numSpecies" => numSpecies,
                      "numInvasive" => 0,
                      "numIndiv" => individuals,
-                     "reqs" => req,
+                     "reqs" => dem,
                      "opts" => opts,
                      "vars" => vars,
                      "birth" => birth_rates,

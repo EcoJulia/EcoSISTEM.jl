@@ -120,6 +120,19 @@ using RasterDataSources
         @test BudgetCollection2 === SupplyCollection2
         @test EcoSISTEM.AbstractBudget === EcoSISTEM.AbstractSupply
     end
+
+    @testset "resource line: Requirement → Demand" begin
+        # the v0.4.0 `*Requirement` types are deprecated aliases of the renamed `*Demand` types
+        @test SimpleRequirement === SimpleDemand
+        @test SizeRequirement === SizeDemand
+        @test SolarRequirement === SolarDemand
+        @test WaterRequirement === WaterDemand
+        @test VolWaterRequirement === VolWaterDemand
+        @test ReqCollection2 === DemandCollection2
+        @test EcoSISTEM.AbstractRequirement === EcoSISTEM.AbstractDemand
+        # and they still construct the same object
+        @test SolarRequirement(fill(2.0kJ, 3)) isa SolarDemand
+    end
 end
 
 end

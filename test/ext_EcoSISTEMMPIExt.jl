@@ -21,14 +21,14 @@ end
     println(Threads.nthreads())
     numSpecies = 100
     grid = (10, 10)
-    req = 10.0kJ
+    dem = 10.0kJ
     individuals = 1_000
     area = 100.0 * km^2
     totalK = 100.0kJ / km^2
     # Set up initial parameters for ecosystem
 
-    # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, numSpecies))
+    # Set up how much resource each species consumes
+    resource_vec = SolarDemand(fill(dem, numSpecies))
 
     # Set probabilities
     birth = 0.6 / year
@@ -51,7 +51,7 @@ end
     native = fill(true, numSpecies)
     # abun = rand(Multinomial(individuals, numSpecies))
     abun = fill(div(individuals, numSpecies), numSpecies)
-    sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                        movement, param, native)
 
     # Create abiotic environment - even grid of one temperature

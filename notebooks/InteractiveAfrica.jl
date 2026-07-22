@@ -60,13 +60,13 @@ begin
     active = Matrix{Bool}(.!isnan.(africa))
     # Set up initial parameters for ecosystem
     grd = size(africa)
-    req = 10.0kJ
+    dem = 10.0kJ
     individuals = 3 * 10^8
     area = 64e6km^2
     totalK = 1000.0kJ / km^2
 
-    # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, numSpecies))
+    # Set up how much resource each species consumes
+    resource_vec = SolarDemand(fill(dem, numSpecies))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -88,7 +88,7 @@ begin
     trts = Bin(MeanTemperature, Normal, opts, vars)
     native = fill(true, numSpecies)
     abun = fill(div(individuals, numSpecies), numSpecies)
-    sppl = SpeciesList(numSpecies, trts, abun, energy_vec,
+    sppl = SpeciesList(numSpecies, trts, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 
@@ -153,8 +153,8 @@ begin
     area_new = 64e6km^2
     totalK_new = 1000.0kJ / km^2
 
-    # Set up how much energy each species consumes
-    energy_vec_new = SolarRequirement(fill(req, numSpecies))
+    # Set up how much resource each species consumes
+    energy_vec_new = SolarDemand(fill(dem, numSpecies))
 
     # Set rates for birth and death
     birth_new = 0.6 / year

@@ -85,12 +85,12 @@ begin
     kernel = GaussianKernel.(av_dist, 10e-10)
     movement = BirthOnlyMovement(kernel, Torus())
 
-    # Resource requirements
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    # Resource demands
+    dem = (450000.0kJ / m^2, 192.0nm / m^2)
     size_mean = 1.0m^2
-    energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-    energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
-    energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
+    resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
+    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 
     # Habitat preferences
     vars = fill(2.0, numSpecies) .* K
@@ -98,7 +98,7 @@ begin
     trts = Bin(MeanTemperature, Normal, opts, vars)
 
     # Species list
-    sppl = SpeciesList(numSpecies, trts, abun, energy_vec,
+    sppl = SpeciesList(numSpecies, trts, abun, resource_vec,
                        movement, param, native)
 
     # Trait relationship
@@ -289,7 +289,7 @@ begin
     # We must also decide how much water each species needs per timestep
     water_req = (100.0nm / m^2)
     sz = 1.0m^2
-    water_vec = WaterRequirement(fill(water_req * sz, numSpp))
+    water_vec = WaterDemand(fill(water_req * sz, numSpp))
 
     # Plus, their niche width - the range of habitats they find suitable
     niche_width = fill(2.0, numSpp) .* K

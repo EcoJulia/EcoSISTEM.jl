@@ -78,7 +78,7 @@ EcoSISTEM.MPIEcosystem(args...; kwargs...) = MPIEcosystem(args...; kwargs...)
 # plain `using MPI` still builds a serial `Ecosystem`.
 EcoSISTEM._should_mpi() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
 
-using EcoSISTEM: getkernels, genlookups, numrequirements
+using EcoSISTEM: getkernels, genlookups, numdemands
 """
     MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
                  rel::AbstractTraitRelationship)
@@ -125,7 +125,7 @@ function MPIEcosystem(popfun::F,
     lookup_tab = collect(map(k -> genlookups(abenv.habitat, k),
                              @view getkernels(spplist.movement)[rankspp]))
     nm = zeros(Int64, (sppcounts[rank + 1], numsc))
-    totalE = zeros(Float64, (numsc, numrequirements(Req)))
+    totalE = zeros(Float64, (numsc, numdemands(Req)))
     return MPIEcosystem(ml,
                         spplist,
                         abenv,

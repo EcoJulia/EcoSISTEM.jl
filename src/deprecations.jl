@@ -157,3 +157,16 @@ Base.@deprecate_binding VolWaterBudget VolWaterSupply
 Base.@deprecate_binding VolWaterTimeBudget VolWaterTimeSupply
 Base.@deprecate_binding BudgetCollection2 SupplyCollection2
 @deprecate getbudget(eco) getsupply(eco)
+
+# ---------------------------------------------------------------------------
+# Resource line: `Requirement` → `Demand` (v0.4.0 rename; the species' resource need)
+# ---------------------------------------------------------------------------
+Base.@deprecate_binding AbstractRequirement AbstractDemand false
+Base.@deprecate_binding Abstract1Requirement Abstract1Demand false
+Base.@deprecate_binding Abstract2Requirements Abstract2Demands false
+Base.@deprecate_binding SimpleRequirement SimpleDemand
+Base.@deprecate_binding SizeRequirement SizeDemand
+Base.@deprecate_binding SolarRequirement SolarDemand
+Base.@deprecate_binding WaterRequirement WaterDemand
+Base.@deprecate_binding VolWaterRequirement VolWaterDemand
+Base.@deprecate_binding ReqCollection2 DemandCollection2

@@ -37,7 +37,7 @@ if !Sys.iswindows()
         @test all(abenv.active)
 
         @test EcoSISTEM._getsubcommunitynames(abenv) == abenv.names
-        @test EcoSISTEM.getavailableenergy(abenv) == sum(abenv.supply.matrix)
+        @test EcoSISTEM.getavailablesupply(abenv) == sum(abenv.supply.matrix)
     end
 
     @testset "temperature gradient" begin
@@ -105,7 +105,7 @@ if !Sys.iswindows()
         @test eraAE(eratemp, totalK, area) isa GridAbioticEnv
         @test eraAE(eratemp, totalK, area, active) isa GridAbioticEnv
         @test size(ea.habitat.matrix) == size(temp)
-        @test EcoSISTEM.getavailableenergy(ea) == totalK * area
+        @test EcoSISTEM.getavailablesupply(ea) == totalK * area
         @test ea.active == active
         @test all(ea.active)
 
@@ -127,7 +127,7 @@ if !Sys.iswindows()
         @test worldclimAE(wctemp, totalK, area) isa GridAbioticEnv
         @test worldclimAE(wctemp, totalK, area, active) isa GridAbioticEnv
         @test size(wc.habitat.matrix) == size(temp)
-        @test EcoSISTEM.getavailableenergy(wc) == totalK * area
+        @test EcoSISTEM.getavailablesupply(wc) == totalK * area
         @test wc.active == active
         @test all(wc.active)
 
@@ -144,7 +144,7 @@ if !Sys.iswindows()
         @test bioclimAE(bio_africa, totalK, area) isa GridAbioticEnv
         @test bioclimAE(bio_africa, totalK, area, active) isa GridAbioticEnv
         @test size(bc.habitat.matrix) == size(bio_africa.array)
-        @test isapprox(EcoSISTEM.getavailableenergy(bc), totalK * area)
+        @test isapprox(EcoSISTEM.getavailablesupply(bc), totalK * area)
         solar = SolarSupply(fill(10.0kJ, size(bio_africa.array)))
         bc = bioclimAE(bio_africa, solar, active)
     end
@@ -159,7 +159,7 @@ if !Sys.iswindows()
         @test lcAE(world_lc, totalK, area) isa GridAbioticEnv
         @test lcAE(world_lc, totalK, area, active) isa GridAbioticEnv
         @test size(lc.habitat.matrix) == size(world_lc.array)
-        @test isapprox(EcoSISTEM.getavailableenergy(lc), totalK * area)
+        @test isapprox(EcoSISTEM.getavailablesupply(lc), totalK * area)
         solar = SolarSupply(fill(10.0kJ, size(world_lc.array)))
         lc = lcAE(world_lc, solar, active)
     end

@@ -43,7 +43,7 @@ include("TestCases.jl")
 end
 
 @testset "NoGrowth freezes with one or two supplies" begin
-    # NoGrowth must zero the birth/death adjustment regardless of how many energy
+    # NoGrowth must zero the birth/death adjustment regardless of how many resource
     # supplies the environment has (the two-supply path previously skipped it).
     N = 8
     grid = (4, 4)
@@ -58,17 +58,17 @@ end
     rel = DistRel{typeof(1.0K)}()
 
     # single supply
-    sppl1 = SpeciesList(N, traits, abun, SolarRequirement(fill(10.0kJ, N)),
+    sppl1 = SpeciesList(N, traits, abun, SolarDemand(fill(10.0kJ, N)),
                         movement, nogrowth, native)
     abenv1 = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
     eco1 = Ecosystem(sppl1, abenv1, rel)
-    @test EcoSISTEM.energy_adjustment(eco1, eco1.abenv.supply, 1, 1) ==
+    @test EcoSISTEM.resource_adjustment(eco1, eco1.abenv.supply, 1, 1) ==
           (0.0, 0.0)
 
     # two supplies (the previously-buggy path)
-    energy2 = ReqCollection2(SolarRequirement(fill(10.0kJ, N)),
-                             WaterRequirement(fill(2.0mm, N)))
-    sppl2 = SpeciesList(N, traits, abun, energy2, movement, nogrowth, native)
+    resource2 = DemandCollection2(SolarDemand(fill(10.0kJ, N)),
+                                  WaterDemand(fill(2.0mm, N)))
+    sppl2 = SpeciesList(N, traits, abun, resource2, movement, nogrowth, native)
     aenv1 = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
     aenv2 = simplehabitatAE(274.0K, grid, 10.0mm / km^2, area)
     supply = SupplyCollection2(aenv1.supply, aenv2.supply)
@@ -77,7 +77,7 @@ end
                                                                    supply,
                                                                    aenv1.names)
     eco2 = Ecosystem(sppl2, abenv2, rel)
-    @test EcoSISTEM.energy_adjustment(eco2, eco2.abenv.supply, 1, 1) ==
+    @test EcoSISTEM.resource_adjustment(eco2, eco2.abenv.supply, 1, 1) ==
           (0.0, 0.0)
 end
 

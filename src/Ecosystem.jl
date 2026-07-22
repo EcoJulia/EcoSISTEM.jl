@@ -229,9 +229,9 @@ function Ecosystem(popfun::F,
                    rel::AbstractTraitRelationship;
                    seed::Integer = rand(UInt64)) where {F <: Function, T, Req}
 
-    # Check there is enough energy to support number of individuals at set up
-    #all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
-    #error("Environment does not have enough energy to support species")
+    # Check there is enough resource to support number of individuals at set up
+    #all(getdemand(spplist) .<= getavailablesupply(abenv)) ||
+    #error("Environment does not have enough resource to support species")
     # Create matrix landscape of zero abundances
     ml = emptygridlandscape(abenv, spplist)
     # One deterministically-seeded RNG per species, so births/deaths/dispersal
@@ -243,7 +243,7 @@ function Ecosystem(popfun::F,
     lookup_tab = collect(map(k -> genlookups(abenv.habitat, k),
                              getkernels(spplist.movement)))
     nm = zeros(Int64, size(ml.matrix))
-    totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
+    totalE = zeros(Float64, (size(ml.matrix, 2), numdemands(Req)))
     return Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml,
                                                                   spplist,
                                                                   abenv,
@@ -270,7 +270,7 @@ end
     addspecies!(eco::Ecosystem, abun::Int64)
 
 Add a new species to an existing [`Ecosystem`](@ref) with initial abundance
-`abun`, copying trait, movement, parameter, requirement, and type information
+`abun`, copying trait, movement, parameter, demand, and type information
 from the last existing species.
 """
 function addspecies!(eco::Ecosystem, abun::Int64)
@@ -288,7 +288,7 @@ function addspecies!(eco::Ecosystem, abun::Int64)
     addtraits!(eco.spplist.traits)
     addmovement!(eco.spplist.movement)
     addparams!(eco.spplist.params)
-    addrequirement!(eco.spplist.requirement)
+    adddemand!(eco.spplist.demand)
     return addtypes!(eco.spplist.types)
 end
 
@@ -307,7 +307,7 @@ function addparams!(pr::AbstractParams)
     return append!(pr.death, pr.death[end])
 end
 
-addrequirement!(rq::AbstractRequirement) = append!(rq.energy, rq.energy[end])
+adddemand!(rq::AbstractDemand) = append!(rq.resource, rq.resource[end])
 
 function addtypes!(ut::UniqueTypes)
     return ut = UniqueTypes(ut.num + 1)

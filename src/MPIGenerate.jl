@@ -6,10 +6,10 @@ using LinearAlgebra
 using Distributions
 using Random
 
-using EcoSISTEM: AbstractAbiotic, Abstract1Requirement, Abstract2Requirements
+using EcoSISTEM: AbstractAbiotic, Abstract1Demand, Abstract2Demands
 using EcoSISTEM: AbstractHabitat, AbstractSupply, AbstractTraitRelationship
 using EcoSISTEM:
-                 energy_adjustment,
+                 resource_adjustment,
                  invalidatecaches!,
                  habitatupdate!,
                  supplyupdate!,
@@ -30,11 +30,11 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     # Calculate dimenions of habitat and number of species
     numsc = countsubcommunities(eco)
     params = eco.spplist.params
-    # Set the overall energy supply of that square
-    EcoSISTEM.update_energy_usage!(eco)
-    # Share per-cell energy usage across ranks. `totalE` is (numsc, numrequirements)
-    # and each rank owns a contiguous block of cells (rows); gather one requirement
-    # column at a time so that multi-requirement environments (where the columns
+    # Set the overall resource supply of that square
+    EcoSISTEM.update_resource_usage!(eco)
+    # Share per-cell resource usage across ranks. `totalE` is (numsc, numdemands)
+    # and each rank owns a contiguous block of cells (rows); gather one demand
+    # column at a time so that multi-demand environments (where the columns
     # are not contiguous in the flat buffer) are combined correctly.
     for r in axes(eco.cache.totalE, 2)
         MPI.Allgatherv!(MPI.VBuffer(view(eco.cache.totalE, :, r), eco.sccounts),
@@ -45,7 +45,7 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     # Loop through this rank's species in cache-line-sized contiguous blocks
     # (see `EcoSISTEM.species_blocksize`), cells outside the inner species loop,
     # so a block's species (adjacent rows of the column-major rows_matrix) are
-    # touched as one cache line. The active/energy gate is per-cell. Each species
+    # touched as one cache line. The active/resource gate is per-cell. Each species
     # is still drawn only by its owning thread, in ascending-cell order, so
     # per-species RNG streams stay race-free and reproducible.
     nlocal = eco.sppcounts[rank + 1]
@@ -67,9 +67,9 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
                 truesp = eco.firstsp + mpisp - 1
                 rng = EcoSISTEM.getrng(eco, truesp)
                 # Calculate how much birth and death should be adjusted
-                adjusted_birth, adjusted_death = energy_adjustment(eco,
-                                                                   eco.abenv.supply,
-                                                                   sc, truesp)
+                adjusted_birth, adjusted_death = resource_adjustment(eco,
+                                                                     eco.abenv.supply,
+                                                                     sc, truesp)
 
                 # Calculate effective rates
                 birthprob = params.birth[truesp] * timestep * adjusted_birth
@@ -110,7 +110,7 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     # Invalidate all caches for next update
     invalidatecaches!(eco)
 
-    # Update environment - habitat and energy supplies
+    # Update environment - habitat and resource supplies
     habitatupdate!(eco, timestep)
     return supplyupdate!(eco, timestep)
 end
@@ -126,30 +126,31 @@ function EcoSISTEM.getlookup(eco::MPIEcosystem, sp::Int64)
 end
 
 """
-    update_energy_usage!(eco::MPIEcosystem)
+    update_resource_usage!(eco::MPIEcosystem)
 
-Update the total energy usage cache for a single-resource `MPIEcosystem`,
-summing each species' abundance × energy requirement across all MPI blocks and
+Update the total resource usage cache for a single-resource `MPIEcosystem`,
+summing each species' abundance × resource demand across all MPI blocks and
 writing results into `eco.cache.totalE`.
 """
-function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
-                                                          EcoSISTEM.SpeciesList{Tr,
-                                                                                Req,
-                                                                                B,
-                                                                                C,
-                                                                                D},
-                                                          E}) where {MPIGL <:
-                                                                     MPIGridLandscape,
-                                                                     A, B, C, D,
-                                                                     E, Tr,
-                                                                     Req <:
-                                                                     Abstract1Requirement}
+function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
+                                                            EcoSISTEM.SpeciesList{Tr,
+                                                                                  Req,
+                                                                                  B,
+                                                                                  C,
+                                                                                  D},
+                                                            E}) where {MPIGL <:
+                                                                       MPIGridLandscape,
+                                                                       A, B, C,
+                                                                       D,
+                                                                       E, Tr,
+                                                                       Req <:
+                                                                       Abstract1Demand}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
-    # Get energy supplies of species in square
-    ϵ̄ = eco.spplist.requirement.energy
+    # Get resource supplies of species in square
+    ϵ̄ = eco.spplist.demand.resource
     mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
@@ -162,7 +163,7 @@ function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄[spindex:nextsp]
             eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) *
-                                           eco.spplist.requirement.exchange_rate
+                                           eco.spplist.demand.exchange_rate
             spindex = nextsp + 1
         end
     end
@@ -170,30 +171,31 @@ function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
 end
 
 """
-    update_energy_usage!(eco::MPIEcosystem)
+    update_resource_usage!(eco::MPIEcosystem)
 
-Two-resource variant of `update_energy_usage!`; updates both columns of
-`eco.cache.totalE` for environments with `Abstract2Requirements`.
+Two-resource variant of `update_resource_usage!`; updates both columns of
+`eco.cache.totalE` for environments with `Abstract2Demands`.
 """
-function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
-                                                          EcoSISTEM.SpeciesList{Tr,
-                                                                                Req,
-                                                                                B,
-                                                                                C,
-                                                                                D},
-                                                          E}) where {MPIGL <:
-                                                                     MPIGridLandscape,
-                                                                     A, B, C, D,
-                                                                     E, Tr,
-                                                                     Req <:
-                                                                     Abstract2Requirements}
+function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
+                                                            EcoSISTEM.SpeciesList{Tr,
+                                                                                  Req,
+                                                                                  B,
+                                                                                  C,
+                                                                                  D},
+                                                            E}) where {MPIGL <:
+                                                                       MPIGridLandscape,
+                                                                       A, B, C,
+                                                                       D,
+                                                                       E, Tr,
+                                                                       Req <:
+                                                                       Abstract2Demands}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
-    # Get energy supplies of species in square
-    ϵ̄1 = eco.spplist.requirement.one.energy
-    ϵ̄2 = eco.spplist.requirement.two.energy
+    # Get resource supplies of species in square
+    ϵ̄1 = eco.spplist.demand.one.resource
+    ϵ̄2 = eco.spplist.demand.two.resource
     mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
@@ -207,10 +209,10 @@ function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄1[spindex:nextsp]
             eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) *
-                                           eco.spplist.requirement.one.exchange_rate
+                                           eco.spplist.demand.one.exchange_rate
             e2 = @view ϵ̄2[spindex:nextsp]
             eco.cache.totalE[truesc, 2] += (currentabun ⋅ e2) *
-                                           eco.spplist.requirement.two.exchange_rate
+                                           eco.spplist.demand.two.exchange_rate
             spindex = nextsp + 1
         end
     end

@@ -23,12 +23,12 @@ using Diversity
 ```
 Set up initial parameters for ecosystem
 ```julia
-numSpecies = 10; grid = (5, 5); req= 10.0kJ; individuals=1000; area = 1000.0*km^2; totalK = 1.0kJ/km^2
+numSpecies = 10; grid = (5, 5); dem= 10.0kJ; individuals=1000; area = 1000.0*km^2; totalK = 1.0kJ/km^2
 ```
 
 Set up how much energy each species consumes
 ```julias
-energy_vec = SolarRequirement(fill(req, numSpecies))
+resource_vec = SolarDemand(fill(dem, numSpecies))
 ```
 
 Set rates for birth and death
@@ -56,7 +56,7 @@ traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
     movement, param, native)
 ```
 

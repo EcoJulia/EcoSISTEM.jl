@@ -19,12 +19,12 @@ include("TestCases.jl")
     @test EcoSISTEM.trmatch(eco.spplist, eco.relationship) == true
 
     sppl = SpeciesList{typeof(eco.spplist.traits),
-                       typeof(eco.spplist.requirement),
+                       typeof(eco.spplist.demand),
                        typeof(eco.spplist.movement), UniqueTypes,
                        typeof(eco.spplist.params)}(eco.spplist.names,
                                                    eco.spplist.traits,
                                                    eco.spplist.abun,
-                                                   eco.spplist.requirement,
+                                                   eco.spplist.demand,
                                                    UniqueTypes(length(eco.spplist.names)),
                                                    eco.spplist.movement,
                                                    eco.spplist.params,
@@ -62,12 +62,12 @@ include("TestCases.jl")
                                   length(eco.spplist.names)),
                              eco.spplist.movement.boundary)
         sppl = SpeciesList{typeof(eco.spplist.traits),
-                           typeof(eco.spplist.requirement), typeof(mov),
+                           typeof(eco.spplist.demand), typeof(mov),
                            typeof(eco.spplist.types),
                            typeof(eco.spplist.params)}(eco.spplist.names,
                                                        eco.spplist.traits,
                                                        eco.spplist.abun,
-                                                       eco.spplist.requirement,
+                                                       eco.spplist.demand,
                                                        eco.spplist.types, mov,
                                                        eco.spplist.params,
                                                        eco.spplist.native)
@@ -115,10 +115,10 @@ include("TestCases.jl")
         movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, numSpecies),
                                                      10e-4))
         native = fill(true, numSpecies)
-        energy = ReqCollection2(SolarRequirement(fill(2.0kJ, numSpecies)),
-                                WaterRequirement(fill(2.0mm, numSpecies)))
+        resource = DemandCollection2(SolarDemand(fill(2.0kJ, numSpecies)),
+                                     WaterDemand(fill(2.0mm, numSpecies)))
         param = EqualPop(0.6 / month, 0.6 / month, 1.0, 0.0, 1000.0)
-        sppl = SpeciesList(numSpecies, traits, abun, energy, movement, param,
+        sppl = SpeciesList(numSpecies, traits, abun, resource, movement, param,
                            native)
         # the matching relationship is `multiplicativeTR2(...)`; a single `DistRel` mismatches
         badrel = DistRel{typeof(1.0K)}()

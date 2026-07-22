@@ -41,8 +41,8 @@ function Test1Ecosystem(; seed = nothing)
     kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, numSpecies)
-    energy = SolarRequirement(fill(2.0kJ, numSpecies))
-    sppl = SpeciesList(numSpecies, numNiches, abun, energy, movement, param,
+    resource = SolarDemand(fill(2.0kJ, numSpecies))
+    sppl = SpeciesList(numSpecies, numNiches, abun, resource, movement, param,
                        native)
 
     rel = Match{eltype(abenv.habitat)}()
@@ -82,12 +82,12 @@ function TestMultiEcosystem()
     kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, numSpecies)
-    energy1 = SolarRequirement(fill(2.0kJ, numSpecies))
-    energy2 = WaterRequirement(fill(2.0mm, numSpecies))
-    energy = ReqCollection2(energy1, energy2)
+    resource1 = SolarDemand(fill(2.0kJ, numSpecies))
+    resource2 = WaterDemand(fill(2.0mm, numSpecies))
+    resource = DemandCollection2(resource1, resource2)
     traits = Bin(MeanTemperature, Normal, fill(10.0K, numSpecies),
                  fill(0.1K, numSpecies))
-    sppl = SpeciesList(numSpecies, traits, abun, energy, movement, param,
+    sppl = SpeciesList(numSpecies, traits, abun, resource, movement, param,
                        native)
 
     rel = DistRel{eltype(abenv.habitat)}()

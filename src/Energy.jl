@@ -8,146 +8,146 @@ using RasterDataSources
 
 import Base: eltype, length
 """
-    Abstract1Requirement{Energy}
+    Abstract1Demand{R}
 
-Abstract supertype for all species energy requirement types, parameterised by
-the type(s) of energy required `Energy`.
+Abstract supertype for all species resource demand types, parameterised by
+the type(s) of resource required `R`.
 """
-abstract type AbstractRequirement{Energy} end
-abstract type Abstract1Requirement{Energy} <: AbstractRequirement{Energy} end
-abstract type Abstract2Requirements{Energy} <: AbstractRequirement{Energy} end
+abstract type AbstractDemand{R} end
+abstract type Abstract1Demand{R} <: AbstractDemand{R} end
+abstract type Abstract2Demands{R} <: AbstractDemand{R} end
 
-numrequirements(::Type{<:Abstract1Requirement}) = 1
-numrequirements(::Type{<:Abstract2Requirements}) = 2
+numdemands(::Type{<:Abstract1Demand}) = 1
+numdemands(::Type{<:Abstract2Demands}) = 2
 
-function Base.eltype(::Abstract1Requirement{Energy}) where {Energy}
-    return Energy
+function Base.eltype(::Abstract1Demand{R}) where {R}
+    return R
 end
 
 """
-    SimpleRequirement <: Abstract1Requirement{Float64}
+    SimpleDemand <: Abstract1Demand{Float64}
 
-A simple energy requirement is a single float for each species.
+A simple resource demand is a single float for each species.
 """
-struct SimpleRequirement <: Abstract1Requirement{Float64}
-    energy::Vector{Float64}
+struct SimpleDemand <: Abstract1Demand{Float64}
+    resource::Vector{Float64}
     exchange_rate::Float64
 
-    function SimpleRequirement(energy::Vector{Float64})
-        return new(energy, 1.0)
+    function SimpleDemand(resource::Vector{Float64})
+        return new(resource, 1.0)
     end
 end
 
-Base.length(req::SimpleRequirement) = length(req.energy)
+Base.length(dem::SimpleDemand) = length(dem.resource)
 
-function _getenergyusage(abun::Vector{Int64}, req::SimpleRequirement)
-    return sum(abun .* req.energy)
+function _getdemand(abun::Vector{Int64}, dem::SimpleDemand)
+    return sum(abun .* dem.resource)
 end
 
 """
-    SizeRequirement <: Abstract1Requirement{Float64}
+    SizeDemand <: Abstract1Demand{Float64}
 
-A simple energy requirement is a single float for each species.
+A simple resource demand is a single float for each species.
 """
-struct SizeRequirement <: Abstract1Requirement{Float64}
-    energy::Vector{Float64}
+struct SizeDemand <: Abstract1Demand{Float64}
+    resource::Vector{Float64}
     pop_mass_rel::Float64
     area::Unitful.Area
     exchange_rate::Float64
 
-    function SizeRequirement(energy::Vector{Float64},
-                             pop_mass_rel::Float64,
-                             area::Unitful.Area,
-                             exchange_rate::Float64 = 1.0)
-        return new(energy, pop_mass_rel, area, exchange_rate)
+    function SizeDemand(resource::Vector{Float64},
+                        pop_mass_rel::Float64,
+                        area::Unitful.Area,
+                        exchange_rate::Float64 = 1.0)
+        return new(resource, pop_mass_rel, area, exchange_rate)
     end
 end
 
-Base.length(req::SizeRequirement) = length(req.energy)
-function _getenergyusage(abun::Vector{Int64}, req::SizeRequirement)
-    return sum(abun .* req.energy)
+Base.length(dem::SizeDemand) = length(dem.resource)
+function _getdemand(abun::Vector{Int64}, dem::SizeDemand)
+    return sum(abun .* dem.resource)
 end
 
 """
-    SolarRequirement <: Abstract1Requirement{typeof(1.0*kJ)}
+    SolarDemand <: Abstract1Demand{typeof(1.0*kJ)}
 
-A vector of solar energy requirements (kJ) for each species.
+A vector of solar resource demands (kJ) for each species.
 """
-struct SolarRequirement <: Abstract1Requirement{typeof(1.0 * kJ)}
-    energy::Vector{typeof(1.0 * kJ)}
+struct SolarDemand <: Abstract1Demand{typeof(1.0 * kJ)}
+    resource::Vector{typeof(1.0 * kJ)}
     exchange_rate::typeof(1.0 / kJ)
 
-    function SolarRequirement(energy::Vector{<:Unitful.Energy{Float64}},
-                              exchange_rate::Unitful.Quantity{Float64} = 1.0 /
-                                                                         mean(energy))
-        return new(uconvert.(kJ, energy), uconvert(kJ^-1, exchange_rate))
+    function SolarDemand(resource::Vector{<:Unitful.Energy{Float64}},
+                         exchange_rate::Unitful.Quantity{Float64} = 1.0 /
+                                                                    mean(resource))
+        return new(uconvert.(kJ, resource), uconvert(kJ^-1, exchange_rate))
     end
 end
 
-Base.length(req::SolarRequirement) = length(req.energy)
-function _getenergyusage(abun::Vector{Int64}, req::SolarRequirement)
-    return sum(abun .* req.energy)
+Base.length(dem::SolarDemand) = length(dem.resource)
+function _getdemand(abun::Vector{Int64}, dem::SolarDemand)
+    return sum(abun .* dem.resource)
 end
 
 """
-    WaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
+    WaterDemand <: Abstract1Demand{typeof(1.0*mm)}
 
-A vector of water requirements (mm) for each species.
+A vector of water demands (mm) for each species.
 """
-struct WaterRequirement <: Abstract1Requirement{typeof(1.0 * mm)}
-    energy::Vector{typeof(1.0 * mm)}
+struct WaterDemand <: Abstract1Demand{typeof(1.0 * mm)}
+    resource::Vector{typeof(1.0 * mm)}
     exchange_rate::typeof(1.0 / mm)
 
-    function WaterRequirement(energy::Vector{<:Unitful.Length{Float64}},
-                              exchange_rate::Unitful.Quantity{Float64} = 1.0 /
-                                                                         mean(energy))
-        return new(uconvert.(mm, energy), uconvert.(mm^-1, exchange_rate))
+    function WaterDemand(resource::Vector{<:Unitful.Length{Float64}},
+                         exchange_rate::Unitful.Quantity{Float64} = 1.0 /
+                                                                    mean(resource))
+        return new(uconvert.(mm, resource), uconvert.(mm^-1, exchange_rate))
     end
 end
-Base.length(req::WaterRequirement) = length(req.energy)
-function _getenergyusage(abun::Vector{Int64}, req::WaterRequirement)
-    return sum(abun .* req.energy)
+Base.length(dem::WaterDemand) = length(dem.resource)
+function _getdemand(abun::Vector{Int64}, dem::WaterDemand)
+    return sum(abun .* dem.resource)
 end
 
 """
-    VolWaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
-A vector of soil water volume requirements (m^3) for each species.
+    VolWaterDemand <: Abstract1Demand{typeof(1.0*mm)}
+A vector of soil water volume demands (m^3) for each species.
 """
-struct VolWaterRequirement <: Abstract1Requirement{typeof(1.0 * m^3)}
-    energy::Vector{typeof(1.0 * m^3)}
+struct VolWaterDemand <: Abstract1Demand{typeof(1.0 * m^3)}
+    resource::Vector{typeof(1.0 * m^3)}
     exchange_rate::typeof(1.0 / m^3)
 
-    function VolWaterRequirement(energy::Vector{<:Unitful.Volume{Float64}},
-                                 exchange_rate::Unitful.Quantity{Float64} = 1.0 /
-                                                                            mean(energy))
-        return new(uconvert.(m^3, energy), uconvert.(m^-3, exchange_rate))
+    function VolWaterDemand(resource::Vector{<:Unitful.Volume{Float64}},
+                            exchange_rate::Unitful.Quantity{Float64} = 1.0 /
+                                                                       mean(resource))
+        return new(uconvert.(m^3, resource), uconvert.(m^-3, exchange_rate))
     end
 end
-Base.length(req::VolWaterRequirement) = length(req.energy)
-function _getenergyusage(abun::Vector{Int64}, req::VolWaterRequirement)
-    return sum(abun .* req.energy)
+Base.length(dem::VolWaterDemand) = length(dem.resource)
+function _getdemand(abun::Vector{Int64}, dem::VolWaterDemand)
+    return sum(abun .* dem.resource)
 end
 
 """
-    ReqCollection2{R1, R2}
+    DemandCollection2{R1, R2}
 
-A pair of species resource requirements (e.g. solar energy and water) consumed
+A pair of species resource demands (e.g. solar resource and water) consumed
 together, to match a two-resource supply.
 """
-struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
+struct DemandCollection2{R1, R2} <: Abstract2Demands{Tuple{R1, R2}}
     one::R1
     two::R2
 end
-Base.length(req::ReqCollection2) = length(req.one.energy)
-function Base.eltype(req::ReqCollection2)
-    return [eltype(req.one), eltype(req.two)]
+Base.length(dem::DemandCollection2) = length(dem.one.resource)
+function Base.eltype(dem::DemandCollection2)
+    return [eltype(dem.one), eltype(dem.two)]
 end
-function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
-    return [_getenergyusage(abun, req.one), _getenergyusage(abun, req.two)]
+function _getdemand(abun::Vector{Int64}, dem::DemandCollection2)
+    return [_getdemand(abun, dem.one), _getdemand(abun, dem.two)]
 end
 
 unitdict = Dict(kJ => "Solar Radiation (kJ)",
-                NoUnits => "Free energy",
+                NoUnits => "Free resource",
                 mm => "Available water (mm)")
 
 # ---------------------------------------------------------------------------
@@ -203,11 +203,11 @@ function _getsupply(sup::LayerCollection2{Budget}, field::Symbol)
     return _getsupply(getfield(sup, field))
 end
 
-function _getavailableenergy(sup::ContinuousLayer{Budget})
+function _getavailablesupply(sup::ContinuousLayer{Budget})
     return sum(sup.matrix[.!isnan.(sup.matrix)])
 end
-function _getavailableenergy(sup::LayerCollection2{Budget})
-    return [_getavailableenergy(sup.one), _getavailableenergy(sup.two)]
+function _getavailablesupply(sup::LayerCollection2{Budget})
+    return [_getavailablesupply(sup.one), _getavailablesupply(sup.two)]
 end
 
 # --- Constructors reproducing the old per-type supply structs -------------------------

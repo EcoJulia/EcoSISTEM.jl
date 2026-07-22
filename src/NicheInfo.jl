@@ -76,7 +76,7 @@ struct WarmestQuarterTemperature <: AbstractTemperature end
 """    ColdestQuarterTemperature <: AbstractTemperature — mean temperature of the coldest 3 consecutive months (BioClim 11; K). """
 struct ColdestQuarterTemperature <: AbstractTemperature end
 
-# --- Precipitation axes (all mm; provide a water supply/requirement) --------
+# --- Precipitation axes (all mm; provide a water supply/demand) --------
 """    AbstractPrecipitation <: NicheAxis — precipitation niche axes (all in mm) """
 abstract type AbstractPrecipitation <: NicheAxis end
 """    Precipitation <: AbstractPrecipitation — annual precipitation, the sum of the 12 monthly precipitation totals (Climate `prec`, BioClim 12; mm). """
@@ -120,7 +120,7 @@ struct VolumetricWater <: NicheAxis end
 # --- The NicheAxis interface -----------------------------------------------
 # The small set of hooks that replace unit-based inference of a layer's meaning. Each has a
 # safe default; a group (via its abstract intermediate) or an individual axis overrides only
-# what applies. The supply/requirement/change types they name live in later-included files
+# what applies. The supply/demand/change types they name live in later-included files
 # and are resolved at call time (nothing here runs at load).
 
 """
@@ -147,15 +147,15 @@ supplytype(::SolarRadiation) = SolarSupply
 supplytype(::VolumetricWater) = VolWaterSupply
 
 """
-    requirementtype(::NicheAxis)
+    demandtype(::NicheAxis)
 
-The `AbstractRequirement` concrete type a species uses to consume this axis' resource, or
+The `AbstractDemand` concrete type a species uses to consume this axis' resource, or
 `nothing` if the axis is not a resource.
 """
-requirementtype(::NicheAxis) = nothing
-requirementtype(::AbstractPrecipitation) = WaterRequirement
-requirementtype(::SolarRadiation) = SolarRequirement
-requirementtype(::VolumetricWater) = VolWaterRequirement
+demandtype(::NicheAxis) = nothing
+demandtype(::AbstractPrecipitation) = WaterDemand
+demandtype(::SolarRadiation) = SolarDemand
+demandtype(::VolumetricWater) = VolWaterDemand
 
 """
     dynamics(::NicheAxis)

@@ -84,14 +84,14 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     params = eco.spplist.params
     width = getdimension(eco)[1]
 
-    # Set the overall energy supply of that square
-    update_energy_usage!(eco)
+    # Set the overall resource supply of that square
+    update_resource_usage!(eco)
 
     # Loop through species in cache-line-sized contiguous blocks (see
     # `species_blocksize`): each thread owns whole blocks, and the cell loop sits
     # outside the inner species loop so a block's species — adjacent rows of the
     # column-major (species, cells) matrix — are touched as one cache line. The
-    # active/energy gate is per-cell, so it lifts outside the species loop. Each
+    # active/resource gate is per-cell, so it lifts outside the species loop. Each
     # species is still drawn only by its owning thread, in ascending-cell order,
     # so per-species RNG streams stay race-free and reproducible.
     block = species_blocksize()
@@ -110,9 +110,9 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
             for j in jstart:jend
                 rng = getrng(eco, j)
                 # Calculate how much birth and death should be adjusted
-                adjusted_birth, adjusted_death = energy_adjustment(eco,
-                                                                   eco.abenv.supply,
-                                                                   i, j)
+                adjusted_birth, adjusted_death = resource_adjustment(eco,
+                                                                     eco.abenv.supply,
+                                                                     i, j)
 
                 # Calculate effective rates
                 birthrate = params.birth[j] * timestep * adjusted_birth |>
@@ -146,135 +146,137 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     # Invalidate all caches for next update
     invalidatecaches!(eco)
 
-    # Update environment - habitat and energy supplies
+    # Update environment - habitat and resource supplies
     habitatupdate!(eco, timestep)
     return supplyupdate!(eco, timestep)
 end
 
 """
-    update_energy_usage!(eco::Ecosystem)
-Calculate how much energy has been used up by the current species in each grid
+    update_resource_usage!(eco::Ecosystem)
+Calculate how much resource has been used up by the current species in each grid
 square in the ecosystem, `eco`. This function is parameterised on whether the
-species have one type of energy requirement or two.
+species have one type of resource demand or two.
 """
-function update_energy_usage!(eco::AbstractEcosystem{A,
-                                                     SpeciesList{Tr, Req, B, C,
-                                                                 D}, E}) where {A,
-                                                                                B,
-                                                                                C,
-                                                                                D,
-                                                                                E,
-                                                                                Tr,
-                                                                                Req <:
-                                                                                Abstract1Requirement}
+function update_resource_usage!(eco::AbstractEcosystem{A,
+                                                       SpeciesList{Tr, Req, B,
+                                                                   C,
+                                                                   D}, E}) where {A,
+                                                                                  B,
+                                                                                  C,
+                                                                                  D,
+                                                                                  E,
+                                                                                  Tr,
+                                                                                  Req <:
+                                                                                  Abstract1Demand}
     !eco.cache.valid || return true
 
-    # Get energy supplies of species in square
-    ϵ̄ = eco.spplist.requirement.energy
+    # Get resource supplies of species in square
+    ϵ̄ = eco.spplist.demand.resource
 
     # Loop through grid squares
     Threads.@threads for i in Base.axes(eco.abundances.matrix, 2)
         eco.cache.totalE[i, 1] = ((@view eco.abundances.matrix[:, i]) ⋅ ϵ̄) *
-                                 eco.spplist.requirement.exchange_rate
+                                 eco.spplist.demand.exchange_rate
     end
     return eco.cache.valid = true
 end
 
-function update_energy_usage!(eco::AbstractEcosystem{A,
-                                                     SpeciesList{Tr, Req, B, C,
-                                                                 D}, E}) where {A,
-                                                                                B,
-                                                                                C,
-                                                                                D,
-                                                                                E,
-                                                                                Tr,
-                                                                                Req <:
-                                                                                Abstract2Requirements}
+function update_resource_usage!(eco::AbstractEcosystem{A,
+                                                       SpeciesList{Tr, Req, B,
+                                                                   C,
+                                                                   D}, E}) where {A,
+                                                                                  B,
+                                                                                  C,
+                                                                                  D,
+                                                                                  E,
+                                                                                  Tr,
+                                                                                  Req <:
+                                                                                  Abstract2Demands}
     !eco.cache.valid || return true
 
-    # Get energy supplies of species in square
-    ϵ̄1 = eco.spplist.requirement.one.energy
-    ϵ̄2 = eco.spplist.requirement.two.energy
+    # Get resource supplies of species in square
+    ϵ̄1 = eco.spplist.demand.one.resource
+    ϵ̄2 = eco.spplist.demand.two.resource
 
     # Loop through grid squares
     Threads.@threads for i in Base.axes(eco.abundances.matrix, 2)
         currentabun = @view eco.abundances.matrix[:, i]
         eco.cache.totalE[i, 1] = (currentabun ⋅ ϵ̄1) *
-                                 eco.spplist.requirement.one.exchange_rate
+                                 eco.spplist.demand.one.exchange_rate
         eco.cache.totalE[i, 2] = (currentabun ⋅ ϵ̄2) *
-                                 eco.spplist.requirement.two.exchange_rate
+                                 eco.spplist.demand.two.exchange_rate
     end
     return eco.cache.valid = true
 end
 
 """
-    energy_adjustment(eco::Ecosystem, sup::AbstractSupply, i::Int64, sp::Int64)
+    resource_adjustment(eco::Ecosystem, sup::AbstractSupply, i::Int64, sp::Int64)
 
 Calculate how much birth and death rates should be adjusted by, according to how
-much energy is available, `sup`, in the grid square, `i`, and how much energy
+much resource is available, `sup`, in the grid square, `i`, and how much resource
 the species, `sp`, requires.
 """
-function energy_adjustment(eco::AbstractEcosystem, sup::AbstractSupply,
-                           i::Int64, sp::Int64)
+function resource_adjustment(eco::AbstractEcosystem, sup::AbstractSupply,
+                             i::Int64, sp::Int64)
     # NoGrowth freezes the population
     eco.spplist.params isa NoGrowth && return (0.0, 0.0)
 
-    # Otherwise adjust birth/death rates by the available energy.
-    return _energy_adjustment(eco, sup, i, sp)
+    # Otherwise adjust birth/death rates by the available resource.
+    return _resource_adjustment(eco, sup, i, sp)
 end
 
-# Birth and death rate multipliers for a single-requirement environment. Weighs
-# the species' own energy requirement (`ϵ̄`) and how well its traits match the cell
-# (`ϵ̄real`) against the energy available in the cell (`K`) relative to the total
-# demand there (`E`): births are boosted when energy is plentiful (`K/E`, capped at
+# Birth and death rate multipliers for a single-demand environment. Weighs
+# the species' own resource demand (`ϵ̄`) and how well its traits match the cell
+# (`ϵ̄real`) against the resource available in the cell (`K`) relative to the total
+# demand there (`E`): births are boosted when resource is plentiful (`K/E`, capped at
 # `params.boost`) and deaths rise as demand approaches the supply (`E/K`). Called
-# only for growing populations — [`energy_adjustment`](@ref) short-circuits NoGrowth.
-function _energy_adjustment(eco::AbstractEcosystem, sup::AbstractSupply,
-                            i::Int64, sp::Int64)
+# only for growing populations — [`resource_adjustment`](@ref) short-circuits NoGrowth.
+function _resource_adjustment(eco::AbstractEcosystem, sup::AbstractSupply,
+                              i::Int64, sp::Int64)
     params = eco.spplist.params
     width = getdimension(eco)[1]
     (x, y) = convert_coords(eco, i, width)
-    K = getsupply(eco)[x, y] * eco.spplist.requirement.exchange_rate
-    # Get energy supplies of species in square
-    ϵ̄ = eco.spplist.requirement.energy[sp] *
-        eco.spplist.requirement.exchange_rate
+    K = getsupply(eco)[x, y] * eco.spplist.demand.exchange_rate
+    # Get resource supplies of species in square
+    ϵ̄ = eco.spplist.demand.resource[sp] *
+        eco.spplist.demand.exchange_rate
     E = eco.cache.totalE[i, 1]
     # Traits
     ϵ̄real = 1 / traitfun(eco, i, sp)
-    # Alter rates by energy available in current pop & own requirements
+    # Alter rates by resource available in current pop & own demands
     birth_energy = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
                    min(K / E, params.boost)
     death_energy = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
     return birth_energy, death_energy
 end
 
-# As above but for a two-requirement environment (e.g. solar energy and water),
+# As above but for a two-demand environment (e.g. solar resource and water),
 # combining the two supplies. The species is limited by whichever resource is
 # scarcest: births use the `min` of the two availability ratios (`K1/E1`, `K2/E2`,
 # still capped at `params.boost`) and deaths the `max` of the two demand ratios
-# (`E1/K1`, `E2/K2`), so both requirements must be met for the population to grow.
-function _energy_adjustment(eco::AbstractEcosystem,
-                            sup::SupplyCollection2,
-                            i::Int64,
-                            sp::Int64)
+# (`E1/K1`, `E2/K2`), so both demands must be met for the population to grow.
+function _resource_adjustment(eco::AbstractEcosystem,
+                              sup::SupplyCollection2,
+                              i::Int64,
+                              sp::Int64)
     width = getdimension(eco)[1]
     (x, y) = convert_coords(eco, i, width)
     params = eco.spplist.params
     K1 = _getsupply(eco.abenv.supply.one)[x, y] *
-         eco.spplist.requirement.one.exchange_rate
+         eco.spplist.demand.one.exchange_rate
     K2 = _getsupply(eco.abenv.supply.two)[x, y] *
-         eco.spplist.requirement.two.exchange_rate
+         eco.spplist.demand.two.exchange_rate
     # Get abundances of square we are interested in
-    # Get energy supplies of species in square
-    ϵ̄1 = eco.spplist.requirement.one.energy[sp] *
-         eco.spplist.requirement.one.exchange_rate
-    ϵ̄2 = eco.spplist.requirement.two.energy[sp] *
-         eco.spplist.requirement.two.exchange_rate
+    # Get resource supplies of species in square
+    ϵ̄1 = eco.spplist.demand.one.resource[sp] *
+         eco.spplist.demand.one.exchange_rate
+    ϵ̄2 = eco.spplist.demand.two.resource[sp] *
+         eco.spplist.demand.two.exchange_rate
     E1 = eco.cache.totalE[i, 1]
     E2 = eco.cache.totalE[i, 2]
     ϵ̄real1 = 1 / traitfun(eco, i, sp)
     ϵ̄real2 = 1 / traitfun(eco, i, sp)
-    # Alter rates by energy available in current pop & own requirements
+    # Alter rates by resource available in current pop & own demands
     birth_energy = (ϵ̄1 * ϵ̄2)^-params.longevity *
                    (ϵ̄real1 * ϵ̄real2)^-params.survival *
                    min(K1 / E1, K2 / E2, params.boost)
@@ -479,7 +481,7 @@ end
 
 Populate the grid landscape `ml` by randomly scattering each species' total
 abundance (taken from `spplist.abun`) across the grid cells, choosing each cell
-with probability proportional to its available energy supply. Inactive cells are
+with probability proportional to its available resource supply. Inactive cells are
 given zero probability, so no individuals are placed outside the habitable
 region. Each species is drawn from its own generator in `rngs`, so the result is
 reproducible and independent of the number of threads or MPI processes.
@@ -579,7 +581,7 @@ species (those flagged in `spplist.native`) are placed; non-native species are
 left empty.
 
 This is the trait-based counterpart of [`populate!`](@ref), which instead weights
-cells by their available energy supply.
+cells by their available resource supply.
 """
 function traitpopulate!(ml::GridLandscape,
                         spplist::SpeciesList,
@@ -642,7 +644,7 @@ function emptypopulate!(ml::GridLandscape,
 end
 """
     reenergise!(eco::Ecosystem, supply::Union{Float64, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
-Refill an ecosystem `eco`, with energy from a supply value, `supply` and a grid
+Refill an ecosystem `eco`, with resource from a supply value, `supply` and a grid
 size.
 """
 function reenergise!(eco::Ecosystem,

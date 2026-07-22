@@ -23,12 +23,12 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
     numSpecies = paramDict["numSpecies"]
     numInvasive = paramDict["numInvasive"]
     individuals = paramDict["numIndiv"]
-    req = paramDict["reqs"]
+    dem = paramDict["reqs"]
     opts = paramDict["opts"]
     vars = paramDict["vars"]
     kernel = paramDict["kernel"]
 
-    # Set up how much energy each species consumes
+    # Set up how much resource each species consumes
     names = map(x -> "$x", 1:(numSpecies + numInvasive))
     tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
     units = unit(size.mean)
@@ -36,10 +36,10 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
                             uconvert(NoUnits, size.std / units),
                             tree)
 
-    energy_vec1 = SolarRequirement(abs.(trts.mean) .* (req[1] * units))
-    energy_vec2 = WaterRequirement(abs.(trts.mean) .* (req[2] * units))
+    resource_vec1 = SolarDemand(abs.(trts.mean) .* (dem[1] * units))
+    resource_vec2 = WaterDemand(abs.(trts.mean) .* (dem[2] * units))
 
-    energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     # Collect model parameters together (in this order!!)
     if length(birth) > 1
         param = PopGrowth{typeof(unit(birth[1]))}(birth, death, l, s, boost)
@@ -63,7 +63,7 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
     sppl = SpeciesList(numSpecies + numInvasive,
                        traits,
                        abun,
-                       energy_vec,
+                       resource_vec,
                        movement,
                        param,
                        native)

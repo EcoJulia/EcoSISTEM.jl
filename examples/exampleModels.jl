@@ -14,7 +14,7 @@ using Diversity
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+dem = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
@@ -41,11 +41,11 @@ s = 0.1
 boost = 1.0
 
 size_mean = 1.0m^2
-# Set up how much energy each species consumes
-energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+# Set up how much resource each species consumes
+resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
 
-energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, l, s, boost)
 
 # Create ecosystem
@@ -55,7 +55,7 @@ movement = BirthOnlyMovement(kernel, Torus())
 traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 rel = Gauss{typeof(first(opts))}()
 eco = Ecosystem(sppl, abenv, rel)
@@ -93,7 +93,7 @@ bar(ustrip.(uconvert.(°C, edges)),
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+dem = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
@@ -119,11 +119,11 @@ s = 0.1
 boost = 1.0
 
 size_mean = 1.0m^2
-# Set up how much energy each species consumes
-energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+# Set up how much resource each species consumes
+resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
 
-energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, l, s, boost)
 
 # Create ecosystem
@@ -133,7 +133,7 @@ movement = BirthOnlyMovement(kernel, Torus())
 traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 rel = Gauss{typeof(first(opts))}()
 eco = Ecosystem(sppl, abenv, rel)
@@ -170,7 +170,7 @@ bar!(edges ./ K,
 ## DIFFERENT VARS MISMATCH ##
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+dem = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
@@ -197,11 +197,11 @@ s = 0.1
 boost = 1.0
 
 size_mean = 1.0m^2
-# Set up how much energy each species consumes
-energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+# Set up how much resource each species consumes
+resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
 
-energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, l, s, boost)
 
 # Create ecosystem
@@ -211,7 +211,7 @@ movement = BirthOnlyMovement(kernel, Torus())
 traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec, movement, param,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec, movement, param,
                    native)
 rel = Gauss{typeof(first(opts))}()
 eco = Ecosystem(sppl, abenv, rel)
@@ -249,7 +249,7 @@ Plots.pdf("Opt_var_panel.pdf")
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+dem = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
@@ -288,11 +288,11 @@ s = 0.1
 boost = 1.0
 
 size_mean = 1.0m^2
-# Set up how much energy each species consumes
-energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+# Set up how much resource each species consumes
+resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
 
-energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, l, s, boost)
 
 # Create ecosystem
@@ -302,7 +302,7 @@ movement = BirthOnlyMovement(kernel, NoBoundary())
 traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 rel = Gauss{typeof(first(opts))}()
 eco = Ecosystem(sppl, abenv, rel)
@@ -319,7 +319,7 @@ heatmap(sol_range ./ kJ,
         water_range ./ mm,
         endabun,
         grid = false,
-        xlab = "Solar energy (kJ)",
+        xlab = "Solar resource (kJ)",
         ylab = "Water (mm)",
         size = (1600, 1200),
         guidefontsize = 16,
@@ -342,7 +342,7 @@ grids = [1, 2, 5, 10]
 for i in eachindex(grids)
     numSpecies = 100
     grd = (grids[i], grids[i])
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    dem = (450000.0kJ / m^2, 192.0nm / m^2)
     individuals = 100_000_000
     area = 100.0 * km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
@@ -367,11 +367,11 @@ for i in eachindex(grids)
     boost = 1.0
 
     size_mean = 1.0m^2
-    # Set up how much energy each species consumes
-    energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-    energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+    # Set up how much resource each species consumes
+    resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
+    resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
 
-    energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     param = EqualPop(birth, death, l, s, boost)
 
     # Create ecosystem
@@ -381,7 +381,7 @@ for i in eachindex(grids)
     traits = GaussTrait(opts, vars)
     native = fill(true, numSpecies)
     abun = rand(Multinomial(individuals, numSpecies))
-    sppl = SpeciesList(numSpecies, traits, abun, energy_vec, movement, param,
+    sppl = SpeciesList(numSpecies, traits, abun, resource_vec, movement, param,
                        native)
     rel = Gauss{typeof(first(opts))}()
     eco = Ecosystem(sppl, abenv, rel)
@@ -413,7 +413,7 @@ areas = [10.0, 20.0, 50.0, 100.0]
 for i in eachindex(areas)
     numSpecies = 100
     grd = (10, 10)
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    dem = (450000.0kJ / m^2, 192.0nm / m^2)
     individuals = 100_000_000
     area = areas[i] .* km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
@@ -438,11 +438,11 @@ for i in eachindex(areas)
     boost = 1.0
 
     size_mean = 1.0m^2
-    # Set up how much energy each species consumes
-    energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-    energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+    # Set up how much resource each species consumes
+    resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
+    resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
 
-    energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     param = EqualPop(birth, death, l, s, boost)
 
     # Create ecosystem
@@ -452,7 +452,7 @@ for i in eachindex(areas)
     traits = GaussTrait(opts, vars)
     native = fill(true, numSpecies)
     abun = rand(Multinomial(individuals, numSpecies))
-    sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                        movement, param, native)
     rel = Gauss{typeof(first(opts))}()
     eco = Ecosystem(sppl, abenv, rel)
@@ -486,7 +486,7 @@ for r in 1:reps
     for i in eachindex(species)
         numSpecies = species[i]
         grd = (10, 10)
-        req = (450000.0kJ / m^2, 192.0nm / m^2)
+        dem = (450000.0kJ / m^2, 192.0nm / m^2)
         individuals = 100_000_000
         area = 100.0km^2
         totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
@@ -511,11 +511,11 @@ for r in 1:reps
         boost = 1.0
 
         size_mean = rand(Normal(1.0, 0.1), numSpecies) .* m^2
-        # Set up how much energy each species consumes
-        energy_vec1 = SolarRequirement(abs.(req[1] .* size_mean))
-        energy_vec2 = WaterRequirement(abs.(req[2] .* size_mean))
+        # Set up how much resource each species consumes
+        resource_vec1 = SolarDemand(abs.(dem[1] .* size_mean))
+        resource_vec2 = WaterDemand(abs.(dem[2] .* size_mean))
 
-        energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+        resource_vec = DemandCollection2(resource_vec1, resource_vec2)
         param = PopGrowth{typeof(unit(birth[1]))}(birth, death, l, s, boost)
 
         # Create ecosystem
@@ -525,7 +525,7 @@ for r in 1:reps
         traits = GaussTrait(opts, vars)
         native = fill(true, numSpecies)
         abun = rand(Multinomial(individuals, numSpecies))
-        sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+        sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                            movement, param, native)
         rel = Gauss{typeof(first(opts))}()
         eco = Ecosystem(sppl, abenv, rel)
@@ -564,7 +564,7 @@ endabuns = zeros(Int64, 10, 10, length(distances))
 for i in eachindex(distances)
     numSpecies = 2
     grd = (10, 10)
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    dem = (450000.0kJ / m^2, 192.0nm / m^2)
     individuals = 0
     area = 100.0km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
@@ -589,11 +589,11 @@ for i in eachindex(distances)
     boost = 1.0
 
     size_mean = 1.0m^2
-    # Set up how much energy each species consumes
-    energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-    energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+    # Set up how much resource each species consumes
+    resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
+    resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
 
-    energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     param = EqualPop(birth, death, l, s, boost)
 
     # Create ecosystem
@@ -603,7 +603,7 @@ for i in eachindex(distances)
     traits = GaussTrait(opts, vars)
     native = fill(true, numSpecies)
     abun = rand(Multinomial(individuals, numSpecies))
-    sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                        movement, param, native)
     rel = Gauss{typeof(first(opts))}()
     eco = Ecosystem(sppl, abenv, rel)

@@ -12,13 +12,13 @@ function makeunique(eco::Ecosystem)
     spp = length(sppl.names)
     EcoSISTEM.invalidatecaches!(eco)
     newsppl = SpeciesList{typeof(sppl.traits),
-                          typeof(sppl.requirement),
+                          typeof(sppl.demand),
                           typeof(sppl.movement),
                           UniqueTypes,
                           typeof(sppl.params)}(sppl.names,
                                                sppl.traits,
                                                sppl.abun,
-                                               sppl.requirement,
+                                               sppl.demand,
                                                UniqueTypes(spp),
                                                sppl.movement,
                                                sppl.params,

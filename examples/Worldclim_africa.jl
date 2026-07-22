@@ -35,13 +35,13 @@ heatmap(africa_temp)
 # Set up initial parameters for ecosystem
 numSpecies = 1;
 grid = size(active);
-req = 0.1mm;
+dem = 0.1mm;
 individuals = 0;
 area = 64e6km^2;
 totalK = 1000.0kJ / km^2;
 
 # Set up how much water each species consumes
-energy_vec = WaterRequirement(fill(req, numSpecies))
+resource_vec = WaterDemand(fill(dem, numSpecies))
 
 # Set rates for birth and death
 birth = 0.6 / year
@@ -62,7 +62,7 @@ vars = fill(10.0K, numSpecies)
 traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - with temperature and water resource

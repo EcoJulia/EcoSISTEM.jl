@@ -18,7 +18,7 @@ function cache_test_eco(seed)
     individuals = 1_000
     totalK = 10000.0kJ / km^2
 
-    energy = SolarRequirement(fill(10.0kJ, numSpecies))
+    resource = SolarDemand(fill(10.0kJ, numSpecies))
     param = EqualPop(0.2 / year, 0.2 / year, 1.0, 0.0, 1.0)
     kernel = fill(GaussianKernel(2.0km, 1.0e-3), numSpecies)
     movement = BirthOnlyMovement(kernel, NoBoundary())
@@ -27,7 +27,7 @@ function cache_test_eco(seed)
     native = fill(true, numSpecies)
     abun = fill(div(individuals, numSpecies), numSpecies)
 
-    sppl = SpeciesList(numSpecies, traits, abun, energy, movement, param,
+    sppl = SpeciesList(numSpecies, traits, abun, resource, movement, param,
                        native)
     abenv = simplehabitatAE(274.0K, grid, totalK, area)
     rel = DistRel{typeof(1.0K)}()

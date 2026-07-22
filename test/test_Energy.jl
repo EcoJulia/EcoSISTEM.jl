@@ -11,63 +11,63 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using RasterDataSources
 
-@testset "Requirement and supply types" begin
+@testset "Demand and supply types" begin
     numspecies = 10
     abun = fill(10, numspecies)
-    # Test SimpleRequirement
-    energy_vec = SimpleRequirement(fill(2.0, numspecies))
-    @test_nowarn energy_vec = SimpleRequirement(fill(2.0, numspecies))
-    @test_nowarn energy_vec = SimpleRequirement(collect(1.0:10.0))
-    @test EcoSISTEM._getenergyusage(abun, energy_vec) ==
-          sum(abun .* energy_vec.energy)
-    @test eltype(energy_vec) == typeof(energy_vec.energy[1])
-    @test length(energy_vec) == length(energy_vec.energy)
-    @test EcoSISTEM.numrequirements(typeof(energy_vec)) == 1
+    # Test SimpleDemand
+    resource_vec = SimpleDemand(fill(2.0, numspecies))
+    @test_nowarn resource_vec = SimpleDemand(fill(2.0, numspecies))
+    @test_nowarn resource_vec = SimpleDemand(collect(1.0:10.0))
+    @test EcoSISTEM._getdemand(abun, resource_vec) ==
+          sum(abun .* resource_vec.resource)
+    @test eltype(resource_vec) == typeof(resource_vec.resource[1])
+    @test length(resource_vec) == length(resource_vec.resource)
+    @test EcoSISTEM.numdemands(typeof(resource_vec)) == 1
 
-    # Test SizeRequirement
-    energy_vec = SizeRequirement(fill(0.2, 10), -0.1, 1000.0km^2)
-    @test_nowarn energy_vec = SizeRequirement(fill(0.2, 10), -0.1, 1000.0km^2)
-    @test EcoSISTEM._getenergyusage(abun, energy_vec) ==
-          sum(abun .* energy_vec.energy)
-    @test EcoSISTEM.numrequirements(typeof(energy_vec)) == 1
-    @test eltype(energy_vec) == typeof(energy_vec.energy[1])
-    @test length(energy_vec) == length(energy_vec.energy)
+    # Test SizeDemand
+    resource_vec = SizeDemand(fill(0.2, 10), -0.1, 1000.0km^2)
+    @test_nowarn resource_vec = SizeDemand(fill(0.2, 10), -0.1, 1000.0km^2)
+    @test EcoSISTEM._getdemand(abun, resource_vec) ==
+          sum(abun .* resource_vec.resource)
+    @test EcoSISTEM.numdemands(typeof(resource_vec)) == 1
+    @test eltype(resource_vec) == typeof(resource_vec.resource[1])
+    @test length(resource_vec) == length(resource_vec.resource)
 
     numSpecies = 10
-    # Test SolarRequirement
-    energy_vec = SolarRequirement(fill(0.2 * kJ, numSpecies))
-    @test_nowarn energy_vec = SolarRequirement(fill(0.2 * kJ, numSpecies))
-    @test EcoSISTEM._getenergyusage(abun, energy_vec) ==
-          sum(abun .* energy_vec.energy)
-    @test EcoSISTEM.numrequirements(typeof(energy_vec)) == 1
-    @test eltype(energy_vec) == typeof(energy_vec.energy[1])
-    @test length(energy_vec) == length(energy_vec.energy)
+    # Test SolarDemand
+    resource_vec = SolarDemand(fill(0.2 * kJ, numSpecies))
+    @test_nowarn resource_vec = SolarDemand(fill(0.2 * kJ, numSpecies))
+    @test EcoSISTEM._getdemand(abun, resource_vec) ==
+          sum(abun .* resource_vec.resource)
+    @test EcoSISTEM.numdemands(typeof(resource_vec)) == 1
+    @test eltype(resource_vec) == typeof(resource_vec.resource[1])
+    @test length(resource_vec) == length(resource_vec.resource)
 
-    # Test WaterRequirement
-    energy_vec = WaterRequirement(fill(0.2 * mm, numSpecies))
-    @test_nowarn energy_vec = WaterRequirement(fill(0.2 * mm, numSpecies))
-    @test EcoSISTEM._getenergyusage(abun, energy_vec) ==
-          sum(abun .* energy_vec.energy)
-    @test EcoSISTEM.numrequirements(typeof(energy_vec)) == 1
-    @test eltype(energy_vec) == typeof(energy_vec.energy[1])
-    @test length(energy_vec) == length(energy_vec.energy)
+    # Test WaterDemand
+    resource_vec = WaterDemand(fill(0.2 * mm, numSpecies))
+    @test_nowarn resource_vec = WaterDemand(fill(0.2 * mm, numSpecies))
+    @test EcoSISTEM._getdemand(abun, resource_vec) ==
+          sum(abun .* resource_vec.resource)
+    @test EcoSISTEM.numdemands(typeof(resource_vec)) == 1
+    @test eltype(resource_vec) == typeof(resource_vec.resource[1])
+    @test length(resource_vec) == length(resource_vec.resource)
 
-    # Test VolWaterRequirement
-    energy_vec = VolWaterRequirement(fill(20.0m^3, numSpecies))
-    @test_nowarn energy_vec = VolWaterRequirement(fill(20.0m^3, numSpecies))
-    @test EcoSISTEM._getenergyusage(abun, energy_vec) ==
-          sum(abun .* energy_vec.energy)
-    @test EcoSISTEM.numrequirements(typeof(energy_vec)) == 1
-    @test eltype(energy_vec) == typeof(energy_vec.energy[1])
-    @test length(energy_vec) == length(energy_vec.energy)
+    # Test VolWaterDemand
+    resource_vec = VolWaterDemand(fill(20.0m^3, numSpecies))
+    @test_nowarn resource_vec = VolWaterDemand(fill(20.0m^3, numSpecies))
+    @test EcoSISTEM._getdemand(abun, resource_vec) ==
+          sum(abun .* resource_vec.resource)
+    @test EcoSISTEM.numdemands(typeof(resource_vec)) == 1
+    @test eltype(resource_vec) == typeof(resource_vec.resource[1])
+    @test length(resource_vec) == length(resource_vec.resource)
 
-    energy_vec1 = SolarRequirement(fill(0.2 * kJ, numSpecies))
-    energy_vec2 = WaterRequirement(fill(0.2 * mm, numSpecies))
-    req = ReqCollection2(energy_vec1, energy_vec2)
-    @test EcoSISTEM.numrequirements(typeof(req)) == 2
-    @test eltype(req) ==
-          [typeof(energy_vec1.energy[1]), typeof(energy_vec2.energy[1])]
-    @test length(req) == length(energy_vec1.energy)
+    resource_vec1 = SolarDemand(fill(0.2 * kJ, numSpecies))
+    resource_vec2 = WaterDemand(fill(0.2 * mm, numSpecies))
+    dem = DemandCollection2(resource_vec1, resource_vec2)
+    @test EcoSISTEM.numdemands(typeof(dem)) == 2
+    @test eltype(dem) ==
+          [typeof(resource_vec1.resource[1]), typeof(resource_vec2.resource[1])]
+    @test length(dem) == length(resource_vec1.resource)
 
     # Test SimpleSupply
     sup = Matrix{Float64}(undef, 2, 2)
@@ -77,7 +77,7 @@ using RasterDataSources
     @test EcoSISTEM._countsubcommunities(sup) == 4
     @test EcoSISTEM._getsupply(sup) == sup.matrix
     @test eltype(sup) == typeof(sup.matrix[1])
-    @test EcoSISTEM._getavailableenergy(sup) == sum(sup.matrix)
+    @test EcoSISTEM._getavailablesupply(sup) == sum(sup.matrix)
 
     # Test SolarSupply
     sol = fill(200.0 * kJ, 100, 100)
@@ -86,7 +86,7 @@ using RasterDataSources
     @test EcoSISTEM._countsubcommunities(sup1) == 100 * 100
     @test EcoSISTEM._getsupply(sup1) == sup1.matrix[:, :, 1]
     @test eltype(sup1) == typeof(sup1.matrix[1])
-    @test EcoSISTEM._getavailableenergy(sup1) == sum(sup1.matrix)
+    @test EcoSISTEM._getavailablesupply(sup1) == sum(sup1.matrix)
 
     # Test WaterSupply
     water = fill(2000.0 * mm, 100, 100)
@@ -95,7 +95,7 @@ using RasterDataSources
     @test EcoSISTEM._countsubcommunities(sup2) == 100 * 100
     @test EcoSISTEM._getsupply(sup2) == sup2.matrix[:, :, 1]
     @test eltype(sup2) == typeof(sup2.matrix[1])
-    @test EcoSISTEM._getavailableenergy(sup2) == sum(sup2.matrix)
+    @test EcoSISTEM._getavailablesupply(sup2) == sum(sup2.matrix)
 
     # Test VolWaterSupply
     water = fill(200.0 * m^3, 100, 100)
@@ -104,7 +104,7 @@ using RasterDataSources
     @test EcoSISTEM._countsubcommunities(sup2) == 100 * 100
     @test EcoSISTEM._getsupply(sup2) == sup2.matrix[:, :, 1]
     @test eltype(sup2) == typeof(sup2.matrix[1])
-    @test EcoSISTEM._getavailableenergy(sup2) == sum(sup2.matrix)
+    @test EcoSISTEM._getavailablesupply(sup2) == sum(sup2.matrix)
 
     # Test SolarTimeSupply
     sol = fill(200.0 * kJ, 100, 100, 10)
@@ -113,7 +113,7 @@ using RasterDataSources
     @test EcoSISTEM._countsubcommunities(sup1) == 100 * 100
     @test EcoSISTEM._getsupply(sup1) == sup1.matrix[:, :, 1]
     @test eltype(sup1) == typeof(sup1.matrix[1])
-    @test EcoSISTEM._getavailableenergy(sup1) == sum(sup1.matrix)
+    @test EcoSISTEM._getavailablesupply(sup1) == sum(sup1.matrix)
 
     # Test WaterTimeSupply
     water = fill(2000.0 * mm, 100, 100, 10)
@@ -122,7 +122,7 @@ using RasterDataSources
     @test EcoSISTEM._countsubcommunities(sup2) == 100 * 100
     @test EcoSISTEM._getsupply(sup2) == sup2.matrix[:, :, 1]
     @test eltype(sup2) == typeof(sup2.matrix[1])
-    @test EcoSISTEM._getavailableenergy(sup2) == sum(sup2.matrix)
+    @test EcoSISTEM._getavailablesupply(sup2) == sum(sup2.matrix)
 
     # Test VolWaterTimeSupply
     water = fill(2000.0 * m^3, 100, 100, 10)
@@ -131,7 +131,7 @@ using RasterDataSources
     @test EcoSISTEM._countsubcommunities(sup3) == 100 * 100
     @test EcoSISTEM._getsupply(sup3) == sup3.matrix[:, :, 1]
     @test eltype(sup3) == typeof(sup3.matrix[1])
-    @test EcoSISTEM._getavailableenergy(sup3) == sum(sup3.matrix)
+    @test EcoSISTEM._getavailablesupply(sup3) == sum(sup3.matrix)
 
     # Test SupplyCollection
     sup = SupplyCollection2(sup1, sup2)
@@ -139,7 +139,7 @@ using RasterDataSources
     @test EcoSISTEM._countsubcommunities(sup) == 100 * 100
     @test EcoSISTEM._getsupply(sup, :one) == sup1.matrix[:, :, 1]
     @test eltype(sup) == [typeof(sup1.matrix[1]), typeof(sup2.matrix[1])]
-    @test EcoSISTEM._getavailableenergy(sup) ==
+    @test EcoSISTEM._getavailablesupply(sup) ==
           [sum(sup1.matrix), sum(sup2.matrix)]
 end
 
@@ -154,7 +154,7 @@ end
     @test EcoSISTEM._countsubcommunities(sup) == 100
     @test EcoSISTEM._getsupply(sup) == sup.matrix[:, :, 1]
     @test eltype(sup) == typeof(sup.matrix[1])
-    @test EcoSISTEM._getavailableenergy(sup) == sum(sup.matrix)
+    @test EcoSISTEM._getavailablesupply(sup) == sum(sup.matrix)
 
     solar = AxisArray(fill(1.0kJ, 10, 10, 12),
                       Axis{:latitude}(collect(1:10) .* m),
@@ -166,7 +166,7 @@ end
     @test EcoSISTEM._countsubcommunities(sup) == 100
     @test EcoSISTEM._getsupply(sup) == sup.matrix[:, :, 1]
     @test eltype(sup) == eltype(sup.matrix)
-    @test EcoSISTEM._getavailableenergy(sup) == sum(sup.matrix)
+    @test EcoSISTEM._getavailablesupply(sup) == sum(sup.matrix)
 
     water = AxisArray(fill(1.0mm, 10, 10), Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m))
@@ -176,7 +176,7 @@ end
     @test EcoSISTEM._countsubcommunities(sup) == 100
     @test EcoSISTEM._getsupply(sup) == sup.matrix
     @test eltype(sup) == eltype(sup.matrix)
-    @test EcoSISTEM._getavailableenergy(sup) == sum(sup.matrix)
+    @test EcoSISTEM._getavailablesupply(sup) == sum(sup.matrix)
 end
 
 end

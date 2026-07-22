@@ -100,12 +100,12 @@ include("Habitats.jl")
 export tempgrad, raingrad
 
 include("Energy.jl")
-export SimpleRequirement,
-       SizeRequirement,
-       SolarRequirement,
-       WaterRequirement,
-       VolWaterRequirement,
-       ReqCollection2
+export SimpleDemand,
+       SizeDemand,
+       SolarDemand,
+       WaterDemand,
+       VolWaterDemand,
+       DemandCollection2
 
 include("AbioticEnv.jl")
 export GridAbioticEnv,

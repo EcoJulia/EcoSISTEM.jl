@@ -52,13 +52,13 @@ function run_single(africa, active; savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     num_species = 1
     grid = size(africa)
-    req = 10.0kJ
+    dem = 10.0kJ
     individuals = 0
     area = 64e6km^2
     totalK = 1000.0kJ / km^2
 
-    # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, num_species))
+    # Set up how much resource each species consumes
+    resource_vec = SolarDemand(fill(dem, num_species))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -80,7 +80,7 @@ function run_single(africa, active; savedir = SAVEDIR)
     native = fill(true, num_species)
     # abun = rand(Multinomial(individuals, num_species))
     abun = fill(div(individuals, num_species), num_species)
-    sppl = SpeciesList(num_species, traits, abun, energy_vec,
+    sppl = SpeciesList(num_species, traits, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 
@@ -135,13 +135,13 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         # Set up initial parameters for ecosystem
         num_species = 2
         grid = size(africa)
-        req = 10.0kJ
+        dem = 10.0kJ
         individuals = 0
         area = 64e6km^2
         totalK = 1000.0kJ / km^2
 
-        # Set up how much energy each species consumes
-        energy_vec = SolarRequirement(fill(req, num_species))
+        # Set up how much resource each species consumes
+        resource_vec = SolarDemand(fill(dem, num_species))
 
         # Set rates for birth and death
         birth = 0.6 / year
@@ -164,7 +164,7 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         native = fill(true, num_species)
         # abun = rand(Multinomial(individuals, num_species))
         abun = fill(div(individuals, num_species), num_species)
-        sppl = SpeciesList(num_species, traits, abun, energy_vec,
+        sppl = SpeciesList(num_species, traits, abun, resource_vec,
                            movement, param, native)
         sppl.params.birth
 
@@ -241,13 +241,13 @@ function specialist_vs_many(africa, active, num_species = 50_000;
                             savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     grid = size(africa)
-    req = 10.0kJ
+    dem = 10.0kJ
     individuals = 3 * 10^8
     area = 64e6km^2
     totalK = 1000.0kJ / km^2
 
-    # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, num_species))
+    # Set up how much resource each species consumes
+    resource_vec = SolarDemand(fill(dem, num_species))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -270,7 +270,7 @@ function specialist_vs_many(africa, active, num_species = 50_000;
     native = fill(true, num_species)
     # abun = rand(Multinomial(individuals, num_species))
     abun = fill(div(individuals, num_species), num_species)
-    sppl = SpeciesList(num_species, traits, abun, energy_vec,
+    sppl = SpeciesList(num_species, traits, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 
@@ -312,13 +312,13 @@ Africa and save as a pdf.
 function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     grid = size(africa)
-    req = 10.0kJ
+    dem = 10.0kJ
     individuals = 3 * 10^8
     area = 64e6km^2
     totalK = 1000.0kJ / km^2
 
-    # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, num_species))
+    # Set up how much resource each species consumes
+    resource_vec = SolarDemand(fill(dem, num_species))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -340,7 +340,7 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     native = fill(true, num_species)
     # abun = rand(Multinomial(individuals, num_species))
     abun = fill(div(individuals, num_species), num_species)
-    sppl = SpeciesList(num_species, traits, abun, energy_vec,
+    sppl = SpeciesList(num_species, traits, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 

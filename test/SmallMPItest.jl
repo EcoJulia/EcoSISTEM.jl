@@ -25,14 +25,14 @@ rank = MPI.Comm_rank(comm)
 # Set up initial parameters for ecosystem
 numSpecies = 8;
 grid = (4, 4);
-req = 10.0kJ;
+dem = 10.0kJ;
 individuals = 1_000;
 area = 100.0 * km^2;
 totalK = 10000.0kJ / km^2;
 
-# Set up how much energy each species consumes
-# energy_vec = SolarRequirement(fill(req, numSpecies))
-energy_vec = SolarRequirement(collect(1:numSpecies) .* 1.0kJ)
+# Set up how much resource each species consumes
+# resource_vec = SolarDemand(fill(dem, numSpecies))
+resource_vec = SolarDemand(collect(1:numSpecies) .* 1.0kJ)
 
 # Set probabilities
 birth = 0.6 / year
@@ -55,7 +55,7 @@ traits = Bin(MeanTemperature, Normal, opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
@@ -109,8 +109,8 @@ if rank == 0
     @save joinpath(ARGS[1], "Test_abuns$nt.jld2") abuns=true_abuns
 end
 
-water_vec = WaterRequirement(fill(2.0mm, numSpecies))
-total_use = ReqCollection2(energy_vec, water_vec)
+water_vec = WaterDemand(fill(2.0mm, numSpecies))
+total_use = DemandCollection2(resource_vec, water_vec)
 
 sppl = SpeciesList(numSpecies, traits, abun, total_use, movement, param, native)
 

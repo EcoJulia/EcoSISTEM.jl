@@ -9,7 +9,7 @@ include("Scenarios.jl")
 numInvasive = 1;
 numSpecies = 10_000;
 grd = (50, 50);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+dem = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 10^10;
 area = 200_000.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
@@ -90,7 +90,7 @@ for i in 1:simDict["reps"]
     paramDict = Dict("numSpecies" => numSpecies,
                      "numInvasive" => numInvasive,
                      "numIndiv" => individuals,
-                     "reqs" => req,
+                     "reqs" => dem,
                      "opts" => opts,
                      "vars" => vars,
                      "birth" => birth_rates,

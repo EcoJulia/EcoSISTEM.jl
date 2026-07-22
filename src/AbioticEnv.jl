@@ -204,12 +204,12 @@ function _getsubcommunitynames(gae::GridAbioticEnv)
 end
 
 """
-    getavailableenergy(gae::GridAbioticEnv)
+    getavailablesupply(gae::GridAbioticEnv)
 
-Return the available energy supply from a [`GridAbioticEnv`](@ref).
+Return the available resource supply from a [`GridAbioticEnv`](@ref).
 """
-function getavailableenergy(gae::GridAbioticEnv)
-    return _getavailableenergy(gae.supply)
+function getavailablesupply(gae::GridAbioticEnv)
+    return _getavailablesupply(gae.supply)
 end
 """
     tempgradAE(minT::Unitful.Temperature{Float64},
