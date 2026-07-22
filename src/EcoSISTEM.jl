@@ -258,7 +258,10 @@ function synchronise_from_rows! end
 function synchronise_from_cols! end
 export emptyMPIgridlandscape, synchronise_from_rows!, synchronise_from_cols!
 
-_use_mpi() = !isnothing(Base.get_extension(@__MODULE__, :EcoSISTEMMPIExt)) && _should_mpi()
+function _use_mpi()
+    return !isnothing(Base.get_extension(@__MODULE__, :EcoSISTEMMPIExt)) &&
+           _should_mpi()
+end
 
 # Whether this process should build a distributed `MPIEcosystem`: the MPI extension overrides this
 # to `MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1`. The default (extension not loaded) is
