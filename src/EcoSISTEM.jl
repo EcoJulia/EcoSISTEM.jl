@@ -65,7 +65,6 @@ include("Phylo.jl")
 export assign_traits!, get_traits, resettraits!, reroot!
 
 include("TraitRelationship.jl")
-# `TraitRelationship` — dead export (likely meant `AbstractTraitRelationship`); revisit.
 export multiplicativeTR2,
        multiplicativeTR3,
        Gauss,
@@ -189,10 +188,7 @@ export populate!,
        emptypopulate!,
        reenergise!,
        randomniches,
-       update!,
-# update_birth_move!,  # dead export (maybe meant `move!`?); revisit
-       convert_coords,
-       get_neighbours
+       update!
 
 include("Helper.jl")
 export simulate!,
