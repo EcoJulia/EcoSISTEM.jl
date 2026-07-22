@@ -14,7 +14,7 @@ include("TestCases.jl")
 function TempIncrease!(eco::Ecosystem, timestep::Unitful.Time,
                        rate::typeof(1.0K / year))
     resetrate!(eco, rate)
-    return eco.abenv.habitat.matrix[eco.abenv.habitat.matrix .< 0K] .= 0K
+    return eco.habitat.regime.matrix[eco.habitat.regime.matrix .< 0K] .= 0K
 end
 @testset "Simulate functions" begin
     eco = Test1Ecosystem()

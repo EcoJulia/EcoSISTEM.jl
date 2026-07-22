@@ -40,7 +40,7 @@ end
 # ---------------------------------------------------------------------------
 # A materialised layer is `matrix (+ time) + size + dynamics`, tagged with a `Role`
 # (`Habitat` condition vs `Budget` resource) and a `NicheAxis` (what it measures). It
-# unifies today's `ContinuousHab`/`ContinuousTimeHab`/`DiscreteHab` (and, from sub-step 3,
+# unifies today's `ContinuousRegime`/`ContinuousTimeRegime`/`DiscreteRegime` (and, from sub-step 3,
 # the supply structs). During the fold the old `*Hab` names below are **aliases** over these
 # types, so existing methods/constructors keep working (defaulting to the `Unclassified`
 # axis) until each path is threaded with its real axis.
@@ -116,60 +116,61 @@ struct LayerCollection3{R <: Role, L1 <: AbstractLayer{R},
 end
 
 # ---------------------------------------------------------------------------
-# Back-compat aliases + constructors (habitat role)
+# Back-compat aliases + constructors (regime role)
 # ---------------------------------------------------------------------------
 
 """
-    AbstractHabitat
+    AbstractRegime
 
 An environmental condition matched to species traits — any `Habitat`-role
 [`AbstractLayer`](@ref).
 """
-const AbstractHabitat = AbstractLayer{Habitat}
+const AbstractRegime = AbstractLayer{Habitat}
 
-"""    ContinuousHab{C} — a static continuous habitat (a `Habitat`-role [`ContinuousLayer`](@ref) over a `Matrix{C}`). """
-const ContinuousHab{C} = ContinuousLayer{Habitat, A, C, Matrix{C}} where {A}
-"""    ContinuousTimeHab{C, M} — a monthly time-varying continuous habitat (a `Habitat`-role [`ContinuousLayer`](@ref) over a 3-D array). """
-const ContinuousTimeHab{C, M <: AbstractArray{C, 3}} = ContinuousLayer{Habitat,
+"""    ContinuousRegime{C} — a static continuous regime (a `Habitat`-role [`ContinuousLayer`](@ref) over a `Matrix{C}`). """
+const ContinuousRegime{C} = ContinuousLayer{Habitat, A, C, Matrix{C}} where {A}
+"""    ContinuousTimeRegime{C, M} — a monthly time-varying continuous regime (a `Habitat`-role [`ContinuousLayer`](@ref) over a 3-D array). """
+const ContinuousTimeRegime{C,
+                           M <: AbstractArray{C, 3}} = ContinuousLayer{Habitat,
                                                                        A, C,
                                                                        M} where {A}
-"""    DiscreteHab{D} — a categorical habitat (a [`DiscreteLayer`](@ref), e.g. land cover). """
-const DiscreteHab{D} = DiscreteLayer{A, D, Matrix{D}} where {A}
-"""    HabitatCollection2{H1, H2} — two habitats over one grid (e.g. temperature + rainfall). """
-const HabitatCollection2{H1, H2} = LayerCollection2{Habitat, H1, H2}
-"""    HabitatCollection3{H1, H2, H3} — three habitats over one grid. """
-const HabitatCollection3{H1, H2, H3} = LayerCollection3{Habitat, H1, H2, H3}
+"""    DiscreteRegime{D} — a categorical regime (a [`DiscreteLayer`](@ref), e.g. land cover). """
+const DiscreteRegime{D} = DiscreteLayer{A, D, Matrix{D}} where {A}
+"""    RegimeCollection2{H1, H2} — two regimes over one grid (e.g. temperature + rainfall). """
+const RegimeCollection2{H1, H2} = LayerCollection2{Habitat, H1, H2}
+"""    RegimeCollection3{H1, H2, H3} — three regimes over one grid. """
+const RegimeCollection3{H1, H2, H3} = LayerCollection3{Habitat, H1, H2, H3}
 
 # Old positional constructors → new layer types, defaulting to the `Unclassified` axis and
 # time = 1 (the axis-aware `materialise` path constructs `ContinuousLayer{Habitat, A}` with
 # the real axis directly).
-function ContinuousHab(matrix::Matrix{C}, size::Unitful.Length,
-                       dynamics::HabitatUpdate) where {C}
+function ContinuousRegime(matrix::Matrix{C}, size::Unitful.Length,
+                          dynamics::HabitatUpdate) where {C}
     return ContinuousLayer{Habitat, Unclassified, C, Matrix{C}}(matrix, 1, size,
                                                                 dynamics)
 end
-function ContinuousTimeHab(matrix::AbstractArray{C, 3}, time::Integer,
-                           size::Unitful.Length,
-                           dynamics::HabitatUpdate) where {C}
+function ContinuousTimeRegime(matrix::AbstractArray{C, 3}, time::Integer,
+                              size::Unitful.Length,
+                              dynamics::HabitatUpdate) where {C}
     return ContinuousLayer{Habitat, Unclassified, C, typeof(matrix)}(matrix,
                                                                      time, size,
                                                                      dynamics)
 end
-function DiscreteHab(matrix::Matrix{D}, size::Unitful.Length,
-                     dynamics::HabitatUpdate) where {D}
+function DiscreteRegime(matrix::Matrix{D}, size::Unitful.Length,
+                        dynamics::HabitatUpdate) where {D}
     return DiscreteLayer{Unclassified, D, Matrix{D}}(matrix, size, dynamics)
 end
 
 # The collection aliases fix `R = Habitat` but leave the sub-layer params free, so the
-# auto-generated constructor doesn't cover `HabitatCollection2(l1, l2)`; forward to the bare
+# auto-generated constructor doesn't cover `RegimeCollection2(l1, l2)`; forward to the bare
 # `LayerCollection` constructor (which infers the role from the sub-layers).
-function HabitatCollection2(l1::AbstractLayer{Habitat},
-                            l2::AbstractLayer{Habitat})
+function RegimeCollection2(l1::AbstractLayer{Habitat},
+                           l2::AbstractLayer{Habitat})
     return LayerCollection2(l1, l2)
 end
-function HabitatCollection3(l1::AbstractLayer{Habitat},
-                            l2::AbstractLayer{Habitat},
-                            l3::AbstractLayer{Habitat})
+function RegimeCollection3(l1::AbstractLayer{Habitat},
+                           l2::AbstractLayer{Habitat},
+                           l3::AbstractLayer{Habitat})
     return LayerCollection3(l1, l2, l3)
 end
 
@@ -222,7 +223,7 @@ const VolWaterTimeSupply = ContinuousLayer{Budget, VolumetricWater,
 """    SupplyCollection2{B1, B2} — two supplies over one grid (e.g. solar + water). """
 const SupplyCollection2{B1, B2} = LayerCollection2{Budget, B1, B2}
 
-# As for `HabitatCollection2`, the partially-applied alias has no auto-generated
+# As for `RegimeCollection2`, the partially-applied alias has no auto-generated
 # constructor; forward to the bare `LayerCollection2` (which infers the role).
 function SupplyCollection2(b1::AbstractLayer{Budget}, b2::AbstractLayer{Budget})
     return LayerCollection2(b1, b2)
@@ -233,10 +234,10 @@ end
 # constructors in `AbioticEnv.jl` and the `build_*`/`materialise` path in `Simplify.jl`)
 # ---------------------------------------------------------------------------
 
-# Canonicalise a habitat *value* (a position) to its layer axis's unit, `canonicalunit(A())`: a unitful
+# Canonicalise a regime *value* (a position) to its layer axis's unit, `canonicalunit(A())`: a unitful
 # value converts (proper affine — canonical units are absolute, so no interval subtlety); a bare value
 # attaches the unit. An axis with no canonical unit (`Unclassified`/dimensionless, `NoUnits`/`nothing`)
-# keeps the value's magnitude but still **absolutises** an affine unit (°C→K) — habitats are always in an
+# keeps the value's magnitude but still **absolutises** an affine unit (°C→K) — regimes are always in an
 # absolute unit, which the downstream dynamics/rate machinery assumes. The single, axis-driven replacement
 # for the old dimension-sniffing conversions.
 function _canonical(x, ::Type{A}) where {A <: NicheAxis}

@@ -78,19 +78,19 @@ abstract type ContinuousTrait{C <: Number} <: AbstractTraits{C} end
 """
     Bin{A <: NicheAxis, C, D} <: ContinuousTrait{C}
 
-Trait type holding a **binned** habitat preference for each species on niche axis `A`, as one **built**
+Trait type holding a **binned** regime preference for each species on niche axis `A`, as one **built**
 continuous response distribution per species — `dists::Vector{D}`, where `D` is a concrete
 `Distributions.ContinuousUnivariateDistribution` (e.g. `Trapezoid{Float64}` or `Uniform{Float64}`). The
 distributions are built once in the **support frame** `C` — the unit their support/domain is measured in,
-which is also the trait's [`eltype`](@ref) and the unit the matching habitat must be in. In the hot loop the
+which is also the trait's [`eltype`](@ref) and the unit the matching regime must be in. In the hot loop the
 [`DistRel`](@ref) relationship fetches `dists[sp]` — see [`getdist`](@ref) — and evaluates the density at
-`ustrip(habitat)`, already a bare number in frame `C`, so there is no per-call conversion or allocation.
+`ustrip(regime)`, already a bare number in frame `C`, so there is no per-call conversion or allocation.
 """
 struct Bin{A <: NicheAxis, C, D} <: ContinuousTrait{C}
     dists::Vector{D}
 end
 
-# Build a `Bin` whose distributions live in the `frame` unit (= its `eltype` / the required habitat unit),
+# Build a `Bin` whose distributions live in the `frame` unit (= its `eltype` / the required regime unit),
 # reading each row's bare parameters as being in `input_unit` and converting to `frame` *per role* (a
 # location properly/affine, a scale as an interval, a shape dimensionless — see `read_distribution`; a
 # shape-only family is placed via `offset`/`scale`). The single place the storage frame is fixed.
@@ -109,7 +109,7 @@ end
 
 Build a [`Bin`](@ref) on axis `A` with response distribution `D` from a **bare** parameter matrix (one
 species per row). `support` is the **frame** the distribution is built in — the unit its support/domain is
-measured in, the trait's `eltype`, and the unit the matching habitat must be in (defaults to the axis's
+measured in, the trait's `eltype`, and the unit the matching regime must be in (defaults to the axis's
 canonical unit). The bare numbers are taken to be in that frame. `offset`/`scale` (references in `support`)
 place a *shape-only* distribution (`Beta`, `LogNormal`, …) on the dimensioned axis via a `LocationScale`.
 """
@@ -143,10 +143,10 @@ parameter** of `D` — the ergonomic, programmatic counterpart of the `dist::Mat
 old `GaussTrait(A, mean, sd)`). Each `params` vector holds one distribution parameter across species, e.g.
 `Bin(MeanTemperature, Normal, opts, vars)` (a `μ` and a `σ` vector) or
 `Bin(Precipitation, Gamma, shape, scale_vec)`. The vectors' own units are respected (read per role); the
-distribution is built in the `support` **frame** (the unit its support/domain — and the matching habitat —
+distribution is built in the `support` **frame** (the unit its support/domain — and the matching regime —
 is measured in, default canonical), converting the inputs to it. So `support = K` and `support = u"°C"`
 build the *same* preference in the K and °C frames respectively (`pdf(getdist(bin, sp), ustrip(support, x))`
-is correct in each); the frame is the trait's `eltype`, and a Bin only matches a habitat in that same unit.
+is correct in each); the frame is the trait's `eltype`, and a Bin only matches a regime in that same unit.
 All parameter vectors must share a unit (a mixed set errors) and have one entry per species.
 """
 function Bin(::Type{A}, ::Type{D}, params::AbstractVector...;

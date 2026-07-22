@@ -14,7 +14,7 @@ using Unitful.DefaultSymbols
     @test_nowarn NoRelContinuous{Int64}()
     @test_nowarn NoRelDiscrete{Int64}()
 
-    # `DistRel` evaluates a distribution's density at the (unit-stripped) habitat value.
+    # `DistRel` evaluates a distribution's density at the (unit-stripped) regime value.
     @test DistRel{Unitful.Temperature}()(Normal(1.0, 0.01), 1.0K) > 0.0
     @test DistRel{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm) == 1.0
     @test DistRel{Int64}()(Trapezoid(1, 2, 3, 4), 1) == 0.0

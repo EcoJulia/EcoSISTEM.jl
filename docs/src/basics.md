@@ -23,12 +23,12 @@ using Diversity
 ```
 Set up initial parameters for ecosystem
 ```julia
-numSpecies = 10; grid = (5, 5); dem= 10.0kJ; individuals=1000; area = 1000.0*km^2; totalK = 1.0kJ/km^2
+numSpecies = 10; grid = (5, 5); demand= 10.0kJ; individuals=1000; area = 1000.0*km^2; totalK = 1.0kJ/km^2
 ```
 
 Set up how much energy each species consumes
 ```julias
-resource_vec = SolarDemand(fill(dem, numSpecies))
+resource_vec = SolarDemand(fill(demand, numSpecies))
 ```
 
 Set rates for birth and death
@@ -62,7 +62,7 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
 
 Create abiotic environment - even grid of one temperature
 ```julia
-abenv = simplehabitatAE(274.0K, grid, totalK, area)
+habitat = simplehabitatAE(274.0K, grid, totalK, area)
 ```
 
 Set relationship between species and environment (gaussian)
@@ -72,7 +72,7 @@ rel = Gauss{typeof(1.0K)}()
 
 Create ecosystem
 ```julia
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, rel)
 ```
 
 Run simulation

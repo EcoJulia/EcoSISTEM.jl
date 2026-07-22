@@ -84,9 +84,9 @@ export multiplicativeTR2,
 include("Layer.jl")
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
        LayerCollection2, LayerCollection3, Unclassified
-# back-compat habitat + supply aliases over the layer types (defined in Layer.jl)
-export ContinuousHab, ContinuousTimeHab, DiscreteHab,
-       HabitatCollection2, HabitatCollection3
+# back-compat regime + supply aliases over the layer types (defined in Layer.jl)
+export ContinuousRegime, ContinuousTimeRegime, DiscreteRegime,
+       RegimeCollection2, RegimeCollection3
 export SimpleSupply,
        SolarSupply,
        SolarTimeSupply,
@@ -108,7 +108,7 @@ export SimpleDemand,
        DemandCollection2
 
 include("AbioticEnv.jl")
-export GridAbioticEnv,
+export GridHabitat,
        simplenicheAE,
        tempgradAE,
        raingradAE,
@@ -155,7 +155,7 @@ include("Ecosystem.jl")
 export Ecosystem,
        CachedEcosystem,
        getsize,
-       gethabitat,
+       getregime,
        gettraitrel,
        getgridsize,
        getdispersaldist,
@@ -166,7 +166,7 @@ export Ecosystem,
        addspecies!
 
 include("Traitfuns.jl")
-export traitfun, getpref, getdist, gettraitrel, gethabitat
+export traitfun, getpref, getdist, gettraitrel, getregime
 
 # Deprecated public API (trait line): `GaussTrait` → `Bin`, `Gauss`/`Trapeze`/`Unif` → `DistRel`. Included
 # late, after every type it shims; the shim names stay exported (above). See also
@@ -186,7 +186,7 @@ export populate!,
        traitpopulate!,
        traitrepopulate!,
        emptypopulate!,
-       reenergise!,
+       resupply!,
        randomniches,
        update!
 
@@ -242,7 +242,7 @@ abstract type MPIGridLandscape end
 export MPIGridLandscape
 
 abstract type MPIEcosystem{MPIGL <: MPIGridLandscape,
-                           Part <: AbstractAbiotic,
+                           Part <: AbstractHabitat,
                            SL <: SpeciesList,
                            TR <: AbstractTraitRelationship} <:
               AbstractEcosystem{Part, SL, TR} end

@@ -8,67 +8,67 @@ trait.
 
 """
 function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
-    hab = eco.abenv.habitat
+    regime = eco.habitat.regime
     trts = eco.spplist.traits
     rel = eco.relationship
-    return _traitfun(hab, trts, rel, pos, sp)
+    return _traitfun(regime, trts, rel, pos, sp)
 end
 
-function _traitfun(hab::HabitatCollection2,
+function _traitfun(regime::RegimeCollection2,
                    trts::TraitCollection2,
                    rel::R,
                    pos::Int64,
                    sp::Int64) where {R <: AbstractTraitRelationship}
-    res1 = _traitfun(hab.one, trts.one, rel.one, pos, sp)
-    res2 = _traitfun(hab.two, trts.two, rel.two, pos, sp)
+    res1 = _traitfun(regime.one, trts.one, rel.one, pos, sp)
+    res2 = _traitfun(regime.two, trts.two, rel.two, pos, sp)
     return combineTR(rel)(res1, res2)
 end
-function _traitfun(hab::ContinuousHab,
+function _traitfun(regime::ContinuousRegime,
                    trts::Bin,
                    rel::R,
                    pos::Int64,
                    sp::Int64) where {R <: AbstractTraitRelationship}
-    h = gethabitat(hab, pos)
-    # Static-habitat counterpart of the `ContinuousTimeHab` method below: fetch the species'
+    h = getregime(regime, pos)
+    # Static-regime counterpart of the `ContinuousTimeRegime` method below: fetch the species'
     # pre-built response distribution and evaluate it via `rel` (no per-call construction/allocation).
     return rel(getdist(trts, sp), h)
 end
-function _traitfun(hab::ContinuousTimeHab,
+function _traitfun(regime::ContinuousTimeRegime,
                    trts::Bin,
                    rel::R,
                    pos::Int64,
                    sp::Int64) where {R <: AbstractTraitRelationship}
-    h = gethabitat(hab, pos)
+    h = getregime(regime, pos)
     # Fetch the species' pre-built response distribution and evaluate it via `rel` — no per-call
     # construction or allocation (the distributions were built once when the `Bin` was made).
     return rel(getdist(trts, sp), h)
 end
-function _traitfun(hab::DiscreteHab,
+function _traitfun(regime::DiscreteRegime,
                    trts::DiscreteTrait,
                    rel::R,
                    pos::Int64,
                    sp::Int64) where {R <: AbstractTraitRelationship}
-    currentniche = gethabitat(hab, pos)
+    currentniche = getregime(regime, pos)
     preference = getpref(trts, sp)
     return rel(currentniche, preference)
 end
-function _traitfun(hab::HabitatCollection3,
+function _traitfun(regime::RegimeCollection3,
                    trts::TraitCollection3,
                    rel::R,
                    pos::Int64,
                    spp::Int64) where {R <: AbstractTraitRelationship}
-    res1 = _traitfun(hab.one, trts.one, rel.one, pos, spp)
-    res2 = _traitfun(hab.two, trts.two, rel.two, pos, spp)
-    res3 = _traitfun(hab.three, trts.three, rel.three, pos, spp)
+    res1 = _traitfun(regime.one, trts.one, rel.one, pos, spp)
+    res2 = _traitfun(regime.two, trts.two, rel.two, pos, spp)
+    res3 = _traitfun(regime.three, trts.three, rel.three, pos, spp)
     return combineTR(rel)(res1, res2, res3)
 end
 
-function _traitfun(hab::DiscreteHab,
+function _traitfun(regime::DiscreteRegime,
                    trts::LCtrait,
                    rel::R,
                    pos::Int64,
                    spp::Int64) where {R <: AbstractTraitRelationship}
-    h = gethabitat(hab, pos)
+    h = getregime(regime, pos)
     vals = getpref(trts, spp)
     return rel(h, vals)
 end

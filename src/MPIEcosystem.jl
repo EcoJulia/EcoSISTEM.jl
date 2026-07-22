@@ -10,7 +10,7 @@ using Missings
 using Random
 
 """
-    MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic,
+    MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractHabitat,
                  SL <: SpeciesList, TR <: AbstractTraitRelationship} <: 
         AbstractEcosystem{Part, SL, TR}
 
@@ -22,13 +22,13 @@ of number of species per node, `firstsp` - the identity of the first species
 held by that particular node.
 """
 mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
-                            Part <: EcoSISTEM.AbstractAbiotic,
+                            Part <: EcoSISTEM.AbstractHabitat,
                             SL <: EcoSISTEM.SpeciesList,
                             TR <: EcoSISTEM.AbstractTraitRelationship} <:
                EcoSISTEM.MPIEcosystem{MPIGL, Part, SL, TR}
     abundances::MPIGL
     spplist::SL
-    abenv::Part
+    habitat::Part
     ordinariness::Union{Matrix{Float64}, Missing}
     relationship::TR
     lookup::Vector{EcoSISTEM.Lookup}
@@ -41,7 +41,7 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
 
     function MPIEcosystem(abundances::MPIGL,
                           spplist::SL,
-                          abenv::Part,
+                          habitat::Part,
                           ordinariness::Union{Matrix{Float64}, Missing},
                           relationship::TR,
                           lookup::Vector{EcoSISTEM.Lookup},
@@ -52,13 +52,13 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                           cache::EcoSISTEM.Cache,
                           rngs::Vector{Random.Xoshiro}) where {MPIGL, Part, SL,
                                                                TR}
-        EcoSISTEM.tematch(spplist, abenv) ||
-            error("Traits do not match habitats")
+        EcoSISTEM.tematch(spplist, habitat) ||
+            error("Traits do not match regimes")
         EcoSISTEM.trmatch(spplist, relationship) ||
             error("Traits do not match trait functions")
         return new{MPIGL, Part, SL, TR}(abundances,
                                         spplist,
-                                        abenv,
+                                        habitat,
                                         ordinariness,
                                         relationship,
                                         lookup,
@@ -80,7 +80,7 @@ EcoSISTEM._should_mpi() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
 
 using EcoSISTEM: getkernels, genlookups, numdemands
 """
-    MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
+    MPIEcosystem(spplist::SpeciesList, habitat::GridHabitat,
                  rel::AbstractTraitRelationship)
 
 Create an `MPIEcosystem` given a species list, an abiotic environment and trait
@@ -88,7 +88,7 @@ relationship.
 """
 function MPIEcosystem(popfun::F,
                       spplist::EcoSISTEM.SpeciesList{T, Req},
-                      abenv::EcoSISTEM.GridAbioticEnv,
+                      habitat::EcoSISTEM.GridHabitat,
                       rel;
                       seed::Integer = rand(UInt64)) where {F <: Function, T,
                                                            Req}
@@ -96,7 +96,7 @@ function MPIEcosystem(popfun::F,
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
     numspp = length(spplist.names)
-    numsc = countsubcommunities(abenv.habitat)
+    numsc = countsubcommunities(habitat.regime)
 
     # One deterministically-seeded RNG per global species, built identically on
     # every rank, so that species draws are reproducible regardless of how
@@ -119,16 +119,16 @@ function MPIEcosystem(popfun::F,
     ml = EcoSISTEM.emptyMPIgridlandscape(sppcounts, sccounts)
 
     # Populate this matrix with species abundances
-    popfun(ml, spplist, abenv, rel, rngs)
+    popfun(ml, spplist, habitat, rel, rngs)
 
     rankspp = firstsp:sppindices[rank + 2]
-    lookup_tab = collect(map(k -> genlookups(abenv.habitat, k),
+    lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
                              @view getkernels(spplist.movement)[rankspp]))
     nm = zeros(Int64, (sppcounts[rank + 1], numsc))
     totalE = zeros(Float64, (numsc, numdemands(Req)))
     return MPIEcosystem(ml,
                         spplist,
-                        abenv,
+                        habitat,
                         missing,
                         rel,
                         lookup_tab,
@@ -141,12 +141,12 @@ function MPIEcosystem(popfun::F,
 end
 
 function MPIEcosystem(spplist::EcoSISTEM.SpeciesList,
-                      abenv::EcoSISTEM.GridAbioticEnv, rel;
+                      habitat::EcoSISTEM.GridHabitat, rel;
                       seed::Integer = rand(UInt64))
-    return MPIEcosystem(EcoSISTEM.populate!, spplist, abenv, rel; seed = seed)
+    return MPIEcosystem(EcoSISTEM.populate!, spplist, habitat, rel; seed = seed)
 end
 @doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
-                                      ::EcoSISTEM.GridAbioticEnv,
+                                      ::EcoSISTEM.GridHabitat,
                                       ::Any)
 
 """

@@ -24,11 +24,11 @@ include("TestCases.jl")
                                          typeof(dimension(1.0mm)))
     @test_nowarn EcoSISTEM.HabitatUpdate(EcoSISTEM.TempFluct, 1.0K / month,
                                          typeof(dimension(1.0K)))
-    @test_nowarn EcoSISTEM.habitatupdate!(eco, 1month)
+    @test_nowarn EcoSISTEM.regimeupdate!(eco, 1month)
     @test_nowarn EcoSISTEM.supplyupdate!(eco, 1month)
 
     eco = TestMultiEcosystem()
-    @test_nowarn EcoSISTEM.habitatupdate!(eco, 1month)
+    @test_nowarn EcoSISTEM.regimeupdate!(eco, 1month)
     @test_nowarn EcoSISTEM.supplyupdate!(eco, 1month)
 
     # Test worldclim update
@@ -42,10 +42,10 @@ include("TestCases.jl")
     wc = worldclimAE(wctemp, solar, active)
     eco = TestMultiEcosystem()
     eco = Ecosystem(eco.spplist, wc, eco.relationship)
-    @test_nowarn EcoSISTEM.habitatupdate!(eco, 1month)
+    @test_nowarn EcoSISTEM.regimeupdate!(eco, 1month)
     @test_nowarn EcoSISTEM.supplyupdate!(eco, 1month)
-    @test eco.abenv.habitat.time == 2
-    @test eco.abenv.supply.time == 2
+    @test eco.habitat.regime.time == 2
+    @test eco.habitat.supply.time == 2
 
     # Test era update
     temp = AxisArray(fill(1.0K, 10, 10, 3),
@@ -57,29 +57,29 @@ include("TestCases.jl")
     ea = eraAE(eratemp, water, active)
     eco = TestMultiEcosystem()
     eco = Ecosystem(eco.spplist, ea, eco.relationship)
-    @test_nowarn EcoSISTEM.habitatupdate!(eco, 1month)
+    @test_nowarn EcoSISTEM.regimeupdate!(eco, 1month)
     @test_nowarn EcoSISTEM.supplyupdate!(eco, 1month)
-    @test eco.abenv.habitat.time == 2
-    @test eco.abenv.supply.time == 2
+    @test eco.habitat.regime.time == 2
+    @test eco.habitat.supply.time == 2
     water = VolWaterTimeSupply(fill(10.0m^3, 10, 10, 3), 1)
     ea = eraAE(eratemp, water, active)
     eco = TestMultiEcosystem()
     eco = Ecosystem(eco.spplist, ea, eco.relationship)
-    @test_nowarn EcoSISTEM.habitatupdate!(eco, 1month)
+    @test_nowarn EcoSISTEM.regimeupdate!(eco, 1month)
     @test_nowarn EcoSISTEM.supplyupdate!(eco, 1month)
-    @test eco.abenv.habitat.time == 2
-    @test eco.abenv.supply.time == 2
+    @test eco.habitat.regime.time == 2
+    @test eco.habitat.supply.time == 2
 end
 
 @testset "Habitat loss" begin
     eco = Test1Ecosystem()
-    # A habitat carrying a HabitatLoss change whose rate destroys every active cell
+    # A regime carrying a HabitatLoss change whose rate destroys every active cell
     # over one timestep (rate * 1month == 1 -> loss probability 1).
     change = EcoSISTEM.HabitatUpdate(EcoSISTEM.HabitatLoss, 1.0 / month,
                                      Unitful.Dimensions{()})
-    losshab = EcoSISTEM.ContinuousHab(fill(1.0K, 10, 10), 1.0km, change)
+    losshab = EcoSISTEM.ContinuousRegime(fill(1.0K, 10, 10), 1.0km, change)
     @test EcoSISTEM.HabitatLoss(eco, losshab, 1month) === eco
-    @test all(iszero, eco.abenv.supply.matrix)
+    @test all(iszero, eco.habitat.supply.matrix)
     @test all(iszero, eco.abundances.matrix)
 end
 

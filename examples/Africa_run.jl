@@ -52,13 +52,13 @@ function run_single(africa, active; savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     num_species = 1
     grid = size(africa)
-    dem = 10.0kJ
+    demand = 10.0kJ
     individuals = 0
     area = 64e6km^2
     totalK = 1000.0kJ / km^2
 
     # Set up how much resource each species consumes
-    resource_vec = SolarDemand(fill(dem, num_species))
+    resource_vec = SolarDemand(fill(demand, num_species))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -85,13 +85,13 @@ function run_single(africa, active; savedir = SAVEDIR)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
     # Set relationship between species and environment (gaussian)
     rel = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, rel)
     rand_start = rand(findall(active), 1)[1]
     eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
@@ -135,13 +135,13 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         # Set up initial parameters for ecosystem
         num_species = 2
         grid = size(africa)
-        dem = 10.0kJ
+        demand = 10.0kJ
         individuals = 0
         area = 64e6km^2
         totalK = 1000.0kJ / km^2
 
         # Set up how much resource each species consumes
-        resource_vec = SolarDemand(fill(dem, num_species))
+        resource_vec = SolarDemand(fill(demand, num_species))
 
         # Set rates for birth and death
         birth = 0.6 / year
@@ -169,13 +169,13 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         sppl.params.birth
 
         # Create abiotic environment - even grid of one temperature
-        abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+        habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
         # Set relationship between species and environment (gaussian)
         rel = Gauss{typeof(1.0K)}()
 
         #Create ecosystem
-        eco = Ecosystem(sppl, abenv, rel)
+        eco = Ecosystem(sppl, habitat, rel)
         eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
         # Simulation Parameters
@@ -241,13 +241,13 @@ function specialist_vs_many(africa, active, num_species = 50_000;
                             savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     grid = size(africa)
-    dem = 10.0kJ
+    demand = 10.0kJ
     individuals = 3 * 10^8
     area = 64e6km^2
     totalK = 1000.0kJ / km^2
 
     # Set up how much resource each species consumes
-    resource_vec = SolarDemand(fill(dem, num_species))
+    resource_vec = SolarDemand(fill(demand, num_species))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -275,13 +275,13 @@ function specialist_vs_many(africa, active, num_species = 50_000;
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
     # Set relationship between species and environment (gaussian)
     rel = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, rel)
     eco.abundances.matrix[50_000, :] .= 0
 
     # Simulation Parameters
@@ -312,13 +312,13 @@ Africa and save as a pdf.
 function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     grid = size(africa)
-    dem = 10.0kJ
+    demand = 10.0kJ
     individuals = 3 * 10^8
     area = 64e6km^2
     totalK = 1000.0kJ / km^2
 
     # Set up how much resource each species consumes
-    resource_vec = SolarDemand(fill(dem, num_species))
+    resource_vec = SolarDemand(fill(demand, num_species))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -345,13 +345,13 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
     # Set relationship between species and environment (gaussian)
     rel = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, rel)
 
     # Simulation Parameters
     burnin = 10years

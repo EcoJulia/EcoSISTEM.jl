@@ -63,84 +63,85 @@ using RasterDataSources
 
     resource_vec1 = SolarDemand(fill(0.2 * kJ, numSpecies))
     resource_vec2 = WaterDemand(fill(0.2 * mm, numSpecies))
-    dem = DemandCollection2(resource_vec1, resource_vec2)
-    @test EcoSISTEM.numdemands(typeof(dem)) == 2
-    @test eltype(dem) ==
+    demand = DemandCollection2(resource_vec1, resource_vec2)
+    @test EcoSISTEM.numdemands(typeof(demand)) == 2
+    @test eltype(demand) ==
           [typeof(resource_vec1.resource[1]), typeof(resource_vec2.resource[1])]
-    @test length(dem) == length(resource_vec1.resource)
+    @test length(demand) == length(resource_vec1.resource)
 
     # Test SimpleSupply
-    sup = Matrix{Float64}(undef, 2, 2)
-    fill!(sup, 100.0)
-    @test_nowarn SimpleSupply(sup)
-    sup = SimpleSupply(sup)
-    @test EcoSISTEM._countsubcommunities(sup) == 4
-    @test EcoSISTEM._getsupply(sup) == sup.matrix
-    @test eltype(sup) == typeof(sup.matrix[1])
-    @test EcoSISTEM._getavailablesupply(sup) == sum(sup.matrix)
+    supply = Matrix{Float64}(undef, 2, 2)
+    fill!(supply, 100.0)
+    @test_nowarn SimpleSupply(supply)
+    supply = SimpleSupply(supply)
+    @test EcoSISTEM._countsubcommunities(supply) == 4
+    @test EcoSISTEM._getsupply(supply) == supply.matrix
+    @test eltype(supply) == typeof(supply.matrix[1])
+    @test EcoSISTEM._getavailablesupply(supply) == sum(supply.matrix)
 
     # Test SolarSupply
     sol = fill(200.0 * kJ, 100, 100)
     @test_nowarn SolarSupply(sol)
-    sup1 = SolarSupply(sol)
-    @test EcoSISTEM._countsubcommunities(sup1) == 100 * 100
-    @test EcoSISTEM._getsupply(sup1) == sup1.matrix[:, :, 1]
-    @test eltype(sup1) == typeof(sup1.matrix[1])
-    @test EcoSISTEM._getavailablesupply(sup1) == sum(sup1.matrix)
+    supply1 = SolarSupply(sol)
+    @test EcoSISTEM._countsubcommunities(supply1) == 100 * 100
+    @test EcoSISTEM._getsupply(supply1) == supply1.matrix[:, :, 1]
+    @test eltype(supply1) == typeof(supply1.matrix[1])
+    @test EcoSISTEM._getavailablesupply(supply1) == sum(supply1.matrix)
 
     # Test WaterSupply
     water = fill(2000.0 * mm, 100, 100)
     @test_nowarn WaterSupply(water)
-    sup2 = WaterSupply(water)
-    @test EcoSISTEM._countsubcommunities(sup2) == 100 * 100
-    @test EcoSISTEM._getsupply(sup2) == sup2.matrix[:, :, 1]
-    @test eltype(sup2) == typeof(sup2.matrix[1])
-    @test EcoSISTEM._getavailablesupply(sup2) == sum(sup2.matrix)
+    supply2 = WaterSupply(water)
+    @test EcoSISTEM._countsubcommunities(supply2) == 100 * 100
+    @test EcoSISTEM._getsupply(supply2) == supply2.matrix[:, :, 1]
+    @test eltype(supply2) == typeof(supply2.matrix[1])
+    @test EcoSISTEM._getavailablesupply(supply2) == sum(supply2.matrix)
 
     # Test VolWaterSupply
     water = fill(200.0 * m^3, 100, 100)
     @test_nowarn VolWaterSupply(water)
-    sup2 = VolWaterSupply(water)
-    @test EcoSISTEM._countsubcommunities(sup2) == 100 * 100
-    @test EcoSISTEM._getsupply(sup2) == sup2.matrix[:, :, 1]
-    @test eltype(sup2) == typeof(sup2.matrix[1])
-    @test EcoSISTEM._getavailablesupply(sup2) == sum(sup2.matrix)
+    supply2 = VolWaterSupply(water)
+    @test EcoSISTEM._countsubcommunities(supply2) == 100 * 100
+    @test EcoSISTEM._getsupply(supply2) == supply2.matrix[:, :, 1]
+    @test eltype(supply2) == typeof(supply2.matrix[1])
+    @test EcoSISTEM._getavailablesupply(supply2) == sum(supply2.matrix)
 
     # Test SolarTimeSupply
     sol = fill(200.0 * kJ, 100, 100, 10)
     @test_nowarn SolarTimeSupply(sol, 1)
-    sup1 = SolarTimeSupply(sol, 1)
-    @test EcoSISTEM._countsubcommunities(sup1) == 100 * 100
-    @test EcoSISTEM._getsupply(sup1) == sup1.matrix[:, :, 1]
-    @test eltype(sup1) == typeof(sup1.matrix[1])
-    @test EcoSISTEM._getavailablesupply(sup1) == sum(sup1.matrix)
+    supply1 = SolarTimeSupply(sol, 1)
+    @test EcoSISTEM._countsubcommunities(supply1) == 100 * 100
+    @test EcoSISTEM._getsupply(supply1) == supply1.matrix[:, :, 1]
+    @test eltype(supply1) == typeof(supply1.matrix[1])
+    @test EcoSISTEM._getavailablesupply(supply1) == sum(supply1.matrix)
 
     # Test WaterTimeSupply
     water = fill(2000.0 * mm, 100, 100, 10)
     @test_nowarn WaterTimeSupply(water, 1)
-    sup2 = WaterTimeSupply(water, 1)
-    @test EcoSISTEM._countsubcommunities(sup2) == 100 * 100
-    @test EcoSISTEM._getsupply(sup2) == sup2.matrix[:, :, 1]
-    @test eltype(sup2) == typeof(sup2.matrix[1])
-    @test EcoSISTEM._getavailablesupply(sup2) == sum(sup2.matrix)
+    supply2 = WaterTimeSupply(water, 1)
+    @test EcoSISTEM._countsubcommunities(supply2) == 100 * 100
+    @test EcoSISTEM._getsupply(supply2) == supply2.matrix[:, :, 1]
+    @test eltype(supply2) == typeof(supply2.matrix[1])
+    @test EcoSISTEM._getavailablesupply(supply2) == sum(supply2.matrix)
 
     # Test VolWaterTimeSupply
     water = fill(2000.0 * m^3, 100, 100, 10)
     @test_nowarn VolWaterTimeSupply(water, 1)
-    sup3 = VolWaterTimeSupply(water, 1)
-    @test EcoSISTEM._countsubcommunities(sup3) == 100 * 100
-    @test EcoSISTEM._getsupply(sup3) == sup3.matrix[:, :, 1]
-    @test eltype(sup3) == typeof(sup3.matrix[1])
-    @test EcoSISTEM._getavailablesupply(sup3) == sum(sup3.matrix)
+    supply3 = VolWaterTimeSupply(water, 1)
+    @test EcoSISTEM._countsubcommunities(supply3) == 100 * 100
+    @test EcoSISTEM._getsupply(supply3) == supply3.matrix[:, :, 1]
+    @test eltype(supply3) == typeof(supply3.matrix[1])
+    @test EcoSISTEM._getavailablesupply(supply3) == sum(supply3.matrix)
 
     # Test SupplyCollection
-    sup = SupplyCollection2(sup1, sup2)
-    @test_nowarn SupplyCollection2(sup1, sup2)
-    @test EcoSISTEM._countsubcommunities(sup) == 100 * 100
-    @test EcoSISTEM._getsupply(sup, :one) == sup1.matrix[:, :, 1]
-    @test eltype(sup) == [typeof(sup1.matrix[1]), typeof(sup2.matrix[1])]
-    @test EcoSISTEM._getavailablesupply(sup) ==
-          [sum(sup1.matrix), sum(sup2.matrix)]
+    supply = SupplyCollection2(supply1, supply2)
+    @test_nowarn SupplyCollection2(supply1, supply2)
+    @test EcoSISTEM._countsubcommunities(supply) == 100 * 100
+    @test EcoSISTEM._getsupply(supply, :one) == supply1.matrix[:, :, 1]
+    @test eltype(supply) ==
+          [typeof(supply1.matrix[1]), typeof(supply2.matrix[1])]
+    @test EcoSISTEM._getavailablesupply(supply) ==
+          [sum(supply1.matrix), sum(supply2.matrix)]
 end
 
 @testset "Worldclim/Bioclim supplies" begin
@@ -149,34 +150,34 @@ end
                       Axis{:longitude}(collect(1:10) .* m),
                       Axis{:time}(collect(1:12) .* month))
     wc = ClimateRaster(WorldClim{Climate}, water)
-    sup = WaterTimeSupply(wc, 1)
+    supply = WaterTimeSupply(wc, 1)
     @test_nowarn WaterTimeSupply(wc, 1)
-    @test EcoSISTEM._countsubcommunities(sup) == 100
-    @test EcoSISTEM._getsupply(sup) == sup.matrix[:, :, 1]
-    @test eltype(sup) == typeof(sup.matrix[1])
-    @test EcoSISTEM._getavailablesupply(sup) == sum(sup.matrix)
+    @test EcoSISTEM._countsubcommunities(supply) == 100
+    @test EcoSISTEM._getsupply(supply) == supply.matrix[:, :, 1]
+    @test eltype(supply) == typeof(supply.matrix[1])
+    @test EcoSISTEM._getavailablesupply(supply) == sum(supply.matrix)
 
     solar = AxisArray(fill(1.0kJ, 10, 10, 12),
                       Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m),
                       Axis{:time}(collect(1:12) .* month))
     wc = ClimateRaster(WorldClim{Climate}, solar)
-    sup = SolarTimeSupply(wc, 1)
+    supply = SolarTimeSupply(wc, 1)
     @test_nowarn SolarTimeSupply(wc, 1)
-    @test EcoSISTEM._countsubcommunities(sup) == 100
-    @test EcoSISTEM._getsupply(sup) == sup.matrix[:, :, 1]
-    @test eltype(sup) == eltype(sup.matrix)
-    @test EcoSISTEM._getavailablesupply(sup) == sum(sup.matrix)
+    @test EcoSISTEM._countsubcommunities(supply) == 100
+    @test EcoSISTEM._getsupply(supply) == supply.matrix[:, :, 1]
+    @test eltype(supply) == eltype(supply.matrix)
+    @test EcoSISTEM._getavailablesupply(supply) == sum(supply.matrix)
 
     water = AxisArray(fill(1.0mm, 10, 10), Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m))
     wc = ClimateRaster(WorldClim{BioClim}, water)
-    sup = WaterSupply(wc)
+    supply = WaterSupply(wc)
     @test_nowarn WaterSupply(wc)
-    @test EcoSISTEM._countsubcommunities(sup) == 100
-    @test EcoSISTEM._getsupply(sup) == sup.matrix
-    @test eltype(sup) == eltype(sup.matrix)
-    @test EcoSISTEM._getavailablesupply(sup) == sum(sup.matrix)
+    @test EcoSISTEM._countsubcommunities(supply) == 100
+    @test EcoSISTEM._getsupply(supply) == supply.matrix
+    @test eltype(supply) == eltype(supply.matrix)
+    @test EcoSISTEM._getavailablesupply(supply) == sum(supply.matrix)
 end
 
 end

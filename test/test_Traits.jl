@@ -77,7 +77,7 @@ import EcoSISTEM: DiscreteTrait
                                       RainBin(repeat([1 2], 10)))
     end
     @testset "support = distribution frame (matrix + vector)" begin
-        # `support` is the frame the distribution is built in (= its eltype = the required habitat unit),
+        # `support` is the frame the distribution is built in (= its eltype = the required regime unit),
         # default the axis's canonical unit; bare matrix numbers are taken as-is *in that frame*.
         @test params(getdist(Bin(Precipitation, Gamma, [2.0 3.0]), 1)) ==
               (2.0, 3.0)                                          # default mm frame
@@ -104,7 +104,7 @@ import EcoSISTEM: DiscreteTrait
         @test getdist(bb, 1) isa Distributions.LocationScale
         # the K and °C frames encode the *same* preference: the density at a physical value is
         # frame-independent when evaluated with `ustrip(support, x)` in each frame (the zero-cost contract,
-        # and what the hot path's `ustrip(current)` does when the habitat is in the frame's unit).
+        # and what the hot path's `ustrip(current)` does when the regime is in the frame's unit).
         bK = Bin(MeanTemperature, Normal, [5.0°C], [2.0°C]; support = K)
         bC = Bin(MeanTemperature, Normal, [5.0°C], [2.0°C]; support = °C)
         @test eltype(bK) == typeof(1.0K)

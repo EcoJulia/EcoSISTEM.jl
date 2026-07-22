@@ -170,3 +170,24 @@ Base.@deprecate_binding SolarRequirement SolarDemand
 Base.@deprecate_binding WaterRequirement WaterDemand
 Base.@deprecate_binding VolWaterRequirement VolWaterDemand
 Base.@deprecate_binding ReqCollection2 DemandCollection2
+
+# ---------------------------------------------------------------------------
+# Condition line: `Habitat`(-role layer) → `Regime` (v0.4.0 rename; the environment's condition layer)
+# ---------------------------------------------------------------------------
+Base.@deprecate_binding ContinuousHab ContinuousRegime
+Base.@deprecate_binding ContinuousTimeHab ContinuousTimeRegime
+Base.@deprecate_binding DiscreteHab DiscreteRegime
+Base.@deprecate_binding HabitatCollection2 RegimeCollection2
+Base.@deprecate_binding HabitatCollection3 RegimeCollection3
+@deprecate gethabitat getregime
+
+# ---------------------------------------------------------------------------
+# Environment container: `AbioticEnv`/`GridAbioticEnv` → `Habitat` (v0.4.0 rename). NB the *condition
+# layer* `AbstractHabitat` was renamed to `AbstractRegime`, freeing `AbstractHabitat` for the environment;
+# v0.4.0's (unexported) `AbstractHabitat` therefore changes meaning — a NEWS breaking note, not a shim.
+# ---------------------------------------------------------------------------
+Base.@deprecate_binding AbstractAbiotic AbstractHabitat false
+Base.@deprecate_binding GridAbioticEnv GridHabitat
+
+# `reenergise!` → `resupply!` (v0.4.0 rename; "energy" is a misnomer — the resource isn't always energy)
+@deprecate reenergise! resupply!

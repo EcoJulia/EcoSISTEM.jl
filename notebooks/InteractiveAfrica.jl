@@ -60,13 +60,13 @@ begin
     active = Matrix{Bool}(.!isnan.(africa))
     # Set up initial parameters for ecosystem
     grd = size(africa)
-    dem = 10.0kJ
+    demand = 10.0kJ
     individuals = 3 * 10^8
     area = 64e6km^2
     totalK = 1000.0kJ / km^2
 
     # Set up how much resource each species consumes
-    resource_vec = SolarDemand(fill(dem, numSpecies))
+    resource_vec = SolarDemand(fill(demand, numSpecies))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -93,13 +93,13 @@ begin
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grd, totalK, area, active)
+    habitat = simplehabitatAE(274.0K, grd, totalK, area, active)
 
     # Set relationship between species and environment (gaussian)
     rel = DistRel{typeof(1.0K)}()
 
     # Create ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, rel)
     eco.abundances.matrix[end, :] .= 0
 
     # Simulation Parameters
@@ -154,7 +154,7 @@ begin
     totalK_new = 1000.0kJ / km^2
 
     # Set up how much resource each species consumes
-    energy_vec_new = SolarDemand(fill(dem, numSpecies))
+    energy_vec_new = SolarDemand(fill(demand, numSpecies))
 
     # Set rates for birth and death
     birth_new = 0.6 / year
@@ -203,7 +203,7 @@ begin
 
     mean_abuns = reshape(mean(eco_new.abundances.matrix, dims = 1)[1, :],
                          grd_new)
-    mean_abuns[.!eco_new.abenv.active] .= NaN
+    mean_abuns[.!eco_new.habitat.active] .= NaN
     heatmap(mean_abuns)
 end
 

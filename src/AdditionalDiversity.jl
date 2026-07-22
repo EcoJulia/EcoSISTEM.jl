@@ -24,10 +24,10 @@ function makeunique(eco::Ecosystem)
                                                sppl.params,
                                                sppl.native)
     newsppl.susceptible = sppl.susceptible
-    return Ecosystem{typeof(eco.abenv), typeof(newsppl),
+    return Ecosystem{typeof(eco.habitat), typeof(newsppl),
                      typeof(eco.relationship)}(eco.abundances,
                                                newsppl,
-                                               eco.abenv,
+                                               eco.habitat,
                                                eco.ordinariness,
                                                eco.relationship,
                                                eco.lookup,

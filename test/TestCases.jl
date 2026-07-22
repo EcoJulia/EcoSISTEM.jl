@@ -32,7 +32,7 @@ function Test1Ecosystem(; seed = nothing)
     area = 10000.0km^2
     individuals = 20000 * numSpecies
     totalK = 1000000.0 * kJ / km^2 * numSpecies
-    abenv = simplenicheAE(numNiches, grid, totalK, area)
+    habitat = simplenicheAE(numNiches, grid, totalK, area)
 
     # Seed the global RNG so the initial abundance totals are also deterministic
     isnothing(seed) || Random.seed!(seed)
@@ -45,9 +45,9 @@ function Test1Ecosystem(; seed = nothing)
     sppl = SpeciesList(numSpecies, numNiches, abun, resource, movement, param,
                        native)
 
-    rel = Match{eltype(abenv.habitat)}()
-    eco = isnothing(seed) ? Ecosystem(sppl, abenv, rel) :
-          Ecosystem(sppl, abenv, rel; seed = seed)
+    rel = Match{eltype(habitat.regime)}()
+    eco = isnothing(seed) ? Ecosystem(sppl, habitat, rel) :
+          Ecosystem(sppl, habitat, rel; seed = seed)
     return eco
 end
 
@@ -67,15 +67,16 @@ function TestMultiEcosystem()
     individuals = 20000 * numSpecies
     totalK1 = 1000000.0 * kJ / km^2 * numSpecies
     totalK2 = 100.0 * mm / km^2 * numSpecies
-    # `axis = MeanTemperature` so the habitat carries `TempChange` dynamics (the `TempIncrease!`/`TempFluct!`
+    # `axis = MeanTemperature` so the regime carries `TempChange` dynamics (the `TempIncrease!`/`TempFluct!`
     # scenarios reset its rate); dynamics now comes from the declared axis, not the value's K unit.
-    abenv1 = simplehabitatAE(10.0K, grid, totalK1, area; axis = MeanTemperature)
-    abenv2 = simplehabitatAE(10.0K, grid, totalK2, area)
-    supply = SupplyCollection2(abenv1.supply, abenv2.supply)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(supply)}(abenv1.habitat,
-                                                                   abenv1.active,
+    habitat1 = simplehabitatAE(10.0K, grid, totalK1, area;
+                               axis = MeanTemperature)
+    habitat2 = simplehabitatAE(10.0K, grid, totalK2, area)
+    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                   habitat1.active,
                                                                    supply,
-                                                                   abenv1.names)
+                                                                   habitat1.names)
 
     abun = rand(Multinomial(individuals, numSpecies))
 
@@ -90,7 +91,7 @@ function TestMultiEcosystem()
     sppl = SpeciesList(numSpecies, traits, abun, resource, movement, param,
                        native)
 
-    rel = DistRel{eltype(abenv.habitat)}()
-    eco = Ecosystem(sppl, abenv, rel)
+    rel = DistRel{eltype(habitat.regime)}()
+    eco = Ecosystem(sppl, habitat, rel)
     return eco
 end

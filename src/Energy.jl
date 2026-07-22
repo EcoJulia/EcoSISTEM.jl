@@ -38,10 +38,10 @@ struct SimpleDemand <: Abstract1Demand{Float64}
     end
 end
 
-Base.length(dem::SimpleDemand) = length(dem.resource)
+Base.length(demand::SimpleDemand) = length(demand.resource)
 
-function _getdemand(abun::Vector{Int64}, dem::SimpleDemand)
-    return sum(abun .* dem.resource)
+function _getdemand(abun::Vector{Int64}, demand::SimpleDemand)
+    return sum(abun .* demand.resource)
 end
 
 """
@@ -63,9 +63,9 @@ struct SizeDemand <: Abstract1Demand{Float64}
     end
 end
 
-Base.length(dem::SizeDemand) = length(dem.resource)
-function _getdemand(abun::Vector{Int64}, dem::SizeDemand)
-    return sum(abun .* dem.resource)
+Base.length(demand::SizeDemand) = length(demand.resource)
+function _getdemand(abun::Vector{Int64}, demand::SizeDemand)
+    return sum(abun .* demand.resource)
 end
 
 """
@@ -84,9 +84,9 @@ struct SolarDemand <: Abstract1Demand{typeof(1.0 * kJ)}
     end
 end
 
-Base.length(dem::SolarDemand) = length(dem.resource)
-function _getdemand(abun::Vector{Int64}, dem::SolarDemand)
-    return sum(abun .* dem.resource)
+Base.length(demand::SolarDemand) = length(demand.resource)
+function _getdemand(abun::Vector{Int64}, demand::SolarDemand)
+    return sum(abun .* demand.resource)
 end
 
 """
@@ -104,9 +104,9 @@ struct WaterDemand <: Abstract1Demand{typeof(1.0 * mm)}
         return new(uconvert.(mm, resource), uconvert.(mm^-1, exchange_rate))
     end
 end
-Base.length(dem::WaterDemand) = length(dem.resource)
-function _getdemand(abun::Vector{Int64}, dem::WaterDemand)
-    return sum(abun .* dem.resource)
+Base.length(demand::WaterDemand) = length(demand.resource)
+function _getdemand(abun::Vector{Int64}, demand::WaterDemand)
+    return sum(abun .* demand.resource)
 end
 
 """
@@ -123,9 +123,9 @@ struct VolWaterDemand <: Abstract1Demand{typeof(1.0 * m^3)}
         return new(uconvert.(m^3, resource), uconvert.(m^-3, exchange_rate))
     end
 end
-Base.length(dem::VolWaterDemand) = length(dem.resource)
-function _getdemand(abun::Vector{Int64}, dem::VolWaterDemand)
-    return sum(abun .* dem.resource)
+Base.length(demand::VolWaterDemand) = length(demand.resource)
+function _getdemand(abun::Vector{Int64}, demand::VolWaterDemand)
+    return sum(abun .* demand.resource)
 end
 
 """
@@ -138,12 +138,12 @@ struct DemandCollection2{R1, R2} <: Abstract2Demands{Tuple{R1, R2}}
     one::R1
     two::R2
 end
-Base.length(dem::DemandCollection2) = length(dem.one.resource)
-function Base.eltype(dem::DemandCollection2)
-    return [eltype(dem.one), eltype(dem.two)]
+Base.length(demand::DemandCollection2) = length(demand.one.resource)
+function Base.eltype(demand::DemandCollection2)
+    return [eltype(demand.one), eltype(demand.two)]
 end
-function _getdemand(abun::Vector{Int64}, dem::DemandCollection2)
-    return [_getdemand(abun, dem.one), _getdemand(abun, dem.two)]
+function _getdemand(abun::Vector{Int64}, demand::DemandCollection2)
+    return [_getdemand(abun, demand.one), _getdemand(abun, demand.two)]
 end
 
 unitdict = Dict(kJ => "Solar Radiation (kJ)",
@@ -158,56 +158,56 @@ unitdict = Dict(kJ => "Solar Radiation (kJ)",
 # a static supply is 2-D (`Matrix`), a time supply 3-D (`Array`, indexed by `time`). The
 # constructors below fill the (unused) `size` and the per-timestep `dynamics` rule and zero
 # NaNs, reproducing the old supply structs. A supply's `size` is never read
-# (geometry/dispersal use the habitat), so a placeholder is stored; `NoChange`/`cyclicChange`
+# (geometry/dispersal use the regime), so a placeholder is stored; `NoChange`/`cyclicChange`
 # live in HabitatUpdate.jl (included later) and resolve at call time.
 const _SUPPLY_SIZE = 1.0m
 _supply_static() = HabitatUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
 _supply_cyclic() = HabitatUpdate(cyclicChange, 0.0 / s, Unitful.Dimensions{()})
 
 Base.eltype(::ContinuousLayer{Budget, A, V}) where {A, V} = V
-function Base.eltype(sup::LayerCollection2{Budget})
-    return [eltype(sup.one), eltype(sup.two)]
+function Base.eltype(supply::LayerCollection2{Budget})
+    return [eltype(supply.one), eltype(supply.two)]
 end
 
 countsubcommunities(ab::AbstractSupply) = _countsubcommunities(ab)
-function _countsubcommunities(sup::ContinuousLayer{Budget, A, V, Arr}) where {A,
-                                                                              V,
-                                                                              Arr <:
-                                                                              AbstractMatrix{V}}
-    return length(sup.matrix)
+function _countsubcommunities(supply::ContinuousLayer{Budget, A, V, Arr}) where {A,
+                                                                                 V,
+                                                                                 Arr <:
+                                                                                 AbstractMatrix{V}}
+    return length(supply.matrix)
 end
-function _countsubcommunities(sup::ContinuousLayer{Budget, A, V, Arr}) where {A,
-                                                                              V,
-                                                                              Arr <:
-                                                                              AbstractArray{V,
-                                                                                            3}}
-    return length(@view sup.matrix[:, :, 1])
+function _countsubcommunities(supply::ContinuousLayer{Budget, A, V, Arr}) where {A,
+                                                                                 V,
+                                                                                 Arr <:
+                                                                                 AbstractArray{V,
+                                                                                               3}}
+    return length(@view supply.matrix[:, :, 1])
 end
-function _countsubcommunities(sup::LayerCollection2{Budget})
-    return _countsubcommunities(sup.one)
+function _countsubcommunities(supply::LayerCollection2{Budget})
+    return _countsubcommunities(supply.one)
 end
 
 # The resource available in each cell: the full matrix (static), or the current time slice.
-function _getsupply(sup::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
-                                                                    Arr <:
-                                                                    AbstractMatrix{V}}
-    return sup.matrix
+function _getsupply(supply::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
+                                                                       Arr <:
+                                                                       AbstractMatrix{V}}
+    return supply.matrix
 end
-function _getsupply(sup::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
-                                                                    Arr <:
-                                                                    AbstractArray{V,
-                                                                                  3}}
-    return @view sup.matrix[:, :, sup.time]
+function _getsupply(supply::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
+                                                                       Arr <:
+                                                                       AbstractArray{V,
+                                                                                     3}}
+    return @view supply.matrix[:, :, supply.time]
 end
-function _getsupply(sup::LayerCollection2{Budget}, field::Symbol)
-    return _getsupply(getfield(sup, field))
+function _getsupply(supply::LayerCollection2{Budget}, field::Symbol)
+    return _getsupply(getfield(supply, field))
 end
 
-function _getavailablesupply(sup::ContinuousLayer{Budget})
-    return sum(sup.matrix[.!isnan.(sup.matrix)])
+function _getavailablesupply(supply::ContinuousLayer{Budget})
+    return sum(supply.matrix[.!isnan.(supply.matrix)])
 end
-function _getavailablesupply(sup::LayerCollection2{Budget})
-    return [_getavailablesupply(sup.one), _getavailablesupply(sup.two)]
+function _getavailablesupply(supply::LayerCollection2{Budget})
+    return [_getavailablesupply(supply.one), _getavailablesupply(supply.two)]
 end
 
 # --- Constructors reproducing the old per-type supply structs -------------------------

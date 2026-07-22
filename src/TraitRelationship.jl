@@ -17,7 +17,7 @@ abstract type AbstractTraitRelationship{TR} end
     DistRel{TR} <: AbstractTraitRelationship{TR}
 
 The relationship between a [`Bin`](@ref) continuous trait and its environment: the density of the
-trait's response distribution evaluated at the current habitat value, parameterised on any `TR`.
+trait's response distribution evaluated at the current regime value, parameterised on any `TR`.
 Works for any `Distributions.ContinuousUnivariateDistribution` (e.g. [`Trapezoid`](@ref) or `Uniform`).
 """
 mutable struct DistRel{TR} <: AbstractTraitRelationship{TR}
@@ -25,7 +25,7 @@ end
 
 function (::DistRel{TR})(dist::ContinuousUnivariateDistribution,
                          current::TR) where {TR}
-    # The distribution's parameters are bare numbers in the axis's canonical unit, and habitats are
+    # The distribution's parameters are bare numbers in the axis's canonical unit, and regimes are
     # stored in that same unit, so strip `current` to a bare number before evaluating the pdf.
     return pdf(dist, ustrip(current))
 end
@@ -111,7 +111,7 @@ end
     multiplicativeTR2{TR1, TR2} <: AbstractTraitRelationship{Tuple{TR1, TR2}}
 
 Type that houses multiple AbstractTraitRelationships for two trait and
-habitat levels.
+regime levels.
 
 """
 mutable struct multiplicativeTR2{TR1, TR2} <:
@@ -130,7 +130,7 @@ end
     multiplicativeTR3{TR1, TR2, TR3} <: AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
 
 Type that houses multiple AbstractTraitRelationships for three trait and
-habitat levels.
+regime levels.
 
 """
 mutable struct multiplicativeTR3{TR1, TR2, TR3} <:
@@ -150,7 +150,7 @@ end
     additiveTR2{TR1, TR2} <: AbstractTraitRelationship{Tuple{TR1, TR2}}
 
 Type that houses multiple AbstractTraitRelationships for two trait and
-habitat levels.
+regime levels.
 
 """
 mutable struct additiveTR2{TR1, TR2} <:
@@ -169,7 +169,7 @@ end
     multiplicativeTR3{TR1, TR2, TR3} <: AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
 
 Type that houses multiple AbstractTraitRelationships for three trait and
-habitat levels.
+regime levels.
 
 """
 mutable struct additiveTR3{TR1, TR2, TR3} <:

@@ -33,7 +33,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
     function SpeciesList{TR, R, MO, T, P}(names::Vector{String},
                                           traits::TR,
                                           abun::Vector{Int64},
-                                          dem::R,
+                                          demand::R,
                                           types::T,
                                           movement::MO,
                                           params::P,
@@ -53,7 +53,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
         return new{TR, R, MO, T, typeof(equal_param)}(names,
                                                       traits,
                                                       abun,
-                                                      dem,
+                                                      demand,
                                                       types,
                                                       movement,
                                                       equal_param,
@@ -62,7 +62,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
     end
     function SpeciesList{TR, R, MO, T, P}(traits::TR,
                                           abun::Vector{Int64},
-                                          dem::R,
+                                          demand::R,
                                           types::T,
                                           movement::MO,
                                           params::P,
@@ -83,7 +83,7 @@ mutable struct SpeciesList{TR <: AbstractTraits,
         return new{TR, R, MO, T, typeof(equal_param)}(names,
                                                       traits,
                                                       abun,
-                                                      dem,
+                                                      demand,
                                                       types,
                                                       movement,
                                                       equal_param,
@@ -94,19 +94,19 @@ end
 
 """
     SpeciesList(numspecies::Int64, numtraits::Int64, abun::Vector{Int64},
-      dem::R, movement::MO, params::P, native::Vector{Bool},
+      demand::R, movement::MO, params::P, native::Vector{Bool},
       switch::Vector{Float64})
 
 Create a `SpeciesList` for `numspecies` species with `numtraits` discrete niche
 traits evolved along a random ultrametric phylogeny. `switch` controls the rate
 of trait change along branches. A `PhyloBranches` similarity structure is
 computed from the tree. Abundances are provided via `abun` and resource
-demands via `dem`.
+demands via `demand`.
 """
 function SpeciesList(numspecies::Int64,
                      numtraits::Int64,
                      abun::Vector{Int64},
-                     dem::R,
+                     demand::R,
                      movement::MO,
                      params::P,
                      native::Vector{Bool},
@@ -130,16 +130,16 @@ function SpeciesList(numspecies::Int64,
     # error out when abun dist and NumberSpecies are not the same (same for resource dist)
     length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
                                             doesn't match number species"))
-    length(dem) == numspecies || throw(DimensionMismatch("Demand vector
+    length(demand) == numspecies || throw(DimensionMismatch("Demand vector
                                             doesn't match number species"))
     return SpeciesList{typeof(sp_trt),
-                       typeof(dem),
+                       typeof(demand),
                        typeof(movement),
                        typeof(phy),
                        typeof(params)}(names,
                                        sp_trt,
                                        abun,
-                                       dem,
+                                       demand,
                                        phy,
                                        movement,
                                        params,
@@ -148,13 +148,13 @@ end
 function SpeciesList(numspecies::Int64,
                      numtraits::Int64,
                      abun::Vector{Int64},
-                     dem::R,
+                     demand::R,
                      movement::MO,
                      params::P,
                      native::Vector{Bool}) where {R <: AbstractDemand,
                                                   MO <: AbstractMovement,
                                                   P <: AbstractParams}
-    return SpeciesList(numspecies, numtraits, abun, dem, movement, params,
+    return SpeciesList(numspecies, numtraits, abun, demand, movement, params,
                        native, [0.5])
 end
 @doc (@doc SpeciesList) SpeciesList(::Int64,
@@ -202,7 +202,7 @@ function SpeciesList(numspecies::Int64,
     # Evolve size as a trait along the tree
     EcoSISTEM.resettraits!(tree)
     resource = abs.(_nichemeans(ContinuousEvolve(mean, var, tree)))
-    dem = SizeDemand(resource, pop_mass, area)
+    demand = SizeDemand(resource, pop_mass, area)
     # Calculate density from size and relationship
     density = exp.(log.(resource) * pop_mass) ./ km^2
     # Multiply density by area to get final population sizes
@@ -213,16 +213,16 @@ function SpeciesList(numspecies::Int64,
     # error out when abunance and NumberSpecies are not the same (same for resource dist)
     length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
                                             doesn't match number species"))
-    length(dem) == numspecies || throw(DimensionMismatch("Demand vector
+    length(demand) == numspecies || throw(DimensionMismatch("Demand vector
                                             doesn't match number species"))
     return SpeciesList{typeof(sp_trt),
-                       typeof(dem),
+                       typeof(demand),
                        typeof(movement),
                        typeof(phy),
                        typeof(params)}(names,
                                        sp_trt,
                                        abun,
-                                       dem,
+                                       demand,
                                        phy,
                                        movement,
                                        params,
@@ -231,7 +231,7 @@ end
 
 """
     SpeciesList(numspecies::Int64, numtraits::Int64, abun::Vector{Int64},
-      dem::R, movement::MO, phy::T, params::P, native::Vector{Bool})
+      demand::R, movement::MO, phy::T, params::P, native::Vector{Bool})
 
 Create a `SpeciesList` with an explicitly supplied similarity structure `phy` of
 type `AbstractTypes`, rather than computing a `PhyloBranches` similarity
@@ -240,7 +240,7 @@ internally. Discrete traits are still evolved along a random ultrametric tree.
 function SpeciesList(numspecies::Int64,
                      numtraits::Int64,
                      abun::Vector{Int64},
-                     dem::R,
+                     demand::R,
                      movement::MO,
                      phy::T,
                      params::P,
@@ -263,16 +263,16 @@ function SpeciesList(numspecies::Int64,
     # error out when abun dist and NumberSpecies are not the same (same for resource dist)
     length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
                                             doesn't match number species"))
-    length(dem) == numspecies || throw(DimensionMismatch("Demand vector
+    length(demand) == numspecies || throw(DimensionMismatch("Demand vector
                                             doesn't match number species"))
     return SpeciesList{typeof(sp_trt),
-                       typeof(dem),
+                       typeof(demand),
                        typeof(movement),
                        typeof(phy),
                        typeof(params)}(names,
                                        sp_trt,
                                        abun,
-                                       dem,
+                                       demand,
                                        phy,
                                        movement,
                                        params,
@@ -280,7 +280,7 @@ function SpeciesList(numspecies::Int64,
 end
 
 """
-    SpeciesList(numspecies::Int64, traits::TR, abun::Vector{Int64}, dem::R,
+    SpeciesList(numspecies::Int64, traits::TR, abun::Vector{Int64}, demand::R,
       movement::MO, params::P, native::Vector{Bool})
 
 Create a `SpeciesList` from an explicitly supplied trait object `traits` of type
@@ -290,7 +290,7 @@ treating all species as maximally distinct.
 function SpeciesList(numspecies::Int64,
                      traits::TR,
                      abun::Vector{Int64},
-                     dem::R,
+                     demand::R,
                      movement::MO,
                      params::P,
                      native::Vector{Bool}) where {TR <: AbstractTraits,
@@ -307,16 +307,16 @@ function SpeciesList(numspecies::Int64,
     # error out when abun dist and NumberSpecies are not the same (same for resource dist)
     length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
                                             doesn't match number species"))
-    length(dem) == numspecies || throw(DimensionMismatch("Demand vector
+    length(demand) == numspecies || throw(DimensionMismatch("Demand vector
                                             doesn't match number species"))
     return SpeciesList{typeof(traits),
-                       typeof(dem),
+                       typeof(demand),
                        typeof(movement),
                        typeof(ty),
                        typeof(params)}(names,
                                        traits,
                                        abun,
-                                       dem,
+                                       demand,
                                        ty,
                                        movement,
                                        params,

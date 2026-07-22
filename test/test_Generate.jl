@@ -20,8 +20,9 @@ include("TestCases.jl")
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.spplist.movement.boundary,
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
-    @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.abenv, eco.spplist),
-                           eco.spplist, eco.abenv, eco.relationship, eco.rngs)
+    @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.habitat,
+                                                        eco.spplist),
+                           eco.spplist, eco.habitat, eco.relationship, eco.rngs)
     @test_nowarn repopulate!(eco)
 
     # Test Cylinder
@@ -37,8 +38,9 @@ include("TestCases.jl")
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.spplist.movement.boundary,
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
-    @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.abenv, eco.spplist),
-                           eco.spplist, eco.abenv, eco.relationship, eco.rngs)
+    @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.habitat,
+                                                        eco.spplist),
+                           eco.spplist, eco.habitat, eco.relationship, eco.rngs)
     @test_nowarn repopulate!(eco)
 end
 
@@ -60,24 +62,24 @@ end
     # single supply
     sppl1 = SpeciesList(N, traits, abun, SolarDemand(fill(10.0kJ, N)),
                         movement, nogrowth, native)
-    abenv1 = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
-    eco1 = Ecosystem(sppl1, abenv1, rel)
-    @test EcoSISTEM.resource_adjustment(eco1, eco1.abenv.supply, 1, 1) ==
+    habitat1 = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
+    eco1 = Ecosystem(sppl1, habitat1, rel)
+    @test EcoSISTEM.resource_adjustment(eco1, eco1.habitat.supply, 1, 1) ==
           (0.0, 0.0)
 
     # two supplies (the previously-buggy path)
     resource2 = DemandCollection2(SolarDemand(fill(10.0kJ, N)),
                                   WaterDemand(fill(2.0mm, N)))
     sppl2 = SpeciesList(N, traits, abun, resource2, movement, nogrowth, native)
-    aenv1 = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
-    aenv2 = simplehabitatAE(274.0K, grid, 10.0mm / km^2, area)
-    supply = SupplyCollection2(aenv1.supply, aenv2.supply)
-    abenv2 = GridAbioticEnv{typeof(aenv1.habitat), typeof(supply)}(aenv1.habitat,
-                                                                   aenv1.active,
-                                                                   supply,
-                                                                   aenv1.names)
-    eco2 = Ecosystem(sppl2, abenv2, rel)
-    @test EcoSISTEM.resource_adjustment(eco2, eco2.abenv.supply, 1, 1) ==
+    habitat_solar = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
+    habitat_water = simplehabitatAE(274.0K, grid, 10.0mm / km^2, area)
+    supply = SupplyCollection2(habitat_solar.supply, habitat_water.supply)
+    habitat2 = GridHabitat{typeof(habitat_solar.regime), typeof(supply)}(habitat_solar.regime,
+                                                                         habitat_solar.active,
+                                                                         supply,
+                                                                         habitat_solar.names)
+    eco2 = Ecosystem(sppl2, habitat2, rel)
+    @test EcoSISTEM.resource_adjustment(eco2, eco2.habitat.supply, 1, 1) ==
           (0.0, 0.0)
 end
 

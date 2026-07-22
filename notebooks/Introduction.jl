@@ -61,13 +61,13 @@ begin
     grd = (numGrid, numGrid)
     area = 100.0 * km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
-    abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    sup = SupplyCollection2(abenv1.supply, abenv2.supply)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat,
-                                                                abenv1.active,
-                                                                sup,
-                                                                abenv1.names)
+    habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
+    habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                   habitat1.active,
+                                                                   supply,
+                                                                   habitat1.names)
 
     # Species characteristics
     individuals = 100_000
@@ -86,10 +86,10 @@ begin
     movement = BirthOnlyMovement(kernel, Torus())
 
     # Resource demands
-    dem = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2, 192.0nm / m^2)
     size_mean = 1.0m^2
-    resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
-    resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
+    resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+    resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
     resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 
     # Habitat preferences
@@ -105,7 +105,7 @@ begin
     rel = DistRel{typeof(first(opts))}()
 
     # Build ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, rel)
 
     # Run simulation
     times = 10years
@@ -168,7 +168,7 @@ If you have taken a peak at the code to plot the results above (by clicking the 
 
 ### _Let's start with the environment_
 
-Something simple perhaps! We'll build a 10 by 10 grid, because in our world everything is gridded. This abiotic environment will house information on the habitat (like climate) and what resources are available (e.g. sunlight and water for the plants). It is its own Julia type, a `GridAbioticEnv`. For a simple example, we'll build a grid of temperature as the habitat and water as the resource:
+Something simple perhaps! We'll build a 10 by 10 grid, because in our world everything is gridded. This abiotic environment will house information on the regime (like climate) and what resources are available (e.g. sunlight and water for the plants). It is its own Julia type, a `GridHabitat`. For a simple example, we'll build a grid of temperature as the regime and water as the resource:
 "
 
 # ╔═╡ 16a70493-683a-45bc-baa0-83e917fa774b
@@ -185,11 +185,11 @@ begin
     # Overall temperature it will be
     totalT = 298.0K
 
-    # Perfect, now we can build a simple habitat!
+    # Perfect, now we can build a simple regime!
     temp_env = simplehabitatAE(totalT, grid, totalW, area_size)
 
     # Let's plot it to see what it looks like
-    heatmap(temp_env.habitat.matrix ./ K, clim = (278, 308), title = "Habitat",
+    heatmap(temp_env.regime.matrix ./ K, clim = (278, 308), title = "Habitat",
             layout = 2)
     heatmap!(temp_env.supply.matrix ./ mm,
              title = "Resource",
@@ -214,7 +214,7 @@ begin
                                temp_change_rate)
 
     # Let's plot it to see what it looks like now
-    heatmap(temp_grad_env.habitat.matrix' ./ K, clim = (278, 308),
+    heatmap(temp_grad_env.regime.matrix' ./ K, clim = (278, 308),
             title = "Habitat")
 end
 
@@ -232,7 +232,7 @@ begin
                                  temp_change_rate)
 
     # Let's plot it to see what it looks like now
-    heatmap(temp_peak_env.habitat.matrix' ./ K, clim = (278, 308),
+    heatmap(temp_peak_env.regime.matrix' ./ K, clim = (278, 308),
             title = "Habitat")
 end
 
@@ -291,7 +291,7 @@ begin
     sz = 1.0m^2
     water_vec = WaterDemand(fill(water_req * sz, numSpp))
 
-    # Plus, their niche width - the range of habitats they find suitable
+    # Plus, their niche width - the range of regimes they find suitable
     niche_width = fill(2.0, numSpp) .* K
 
     # And what is their niche optimum - here we have a range around 25 degrees

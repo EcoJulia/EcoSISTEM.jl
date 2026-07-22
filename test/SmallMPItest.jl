@@ -25,13 +25,13 @@ rank = MPI.Comm_rank(comm)
 # Set up initial parameters for ecosystem
 numSpecies = 8;
 grid = (4, 4);
-dem = 10.0kJ;
+demand = 10.0kJ;
 individuals = 1_000;
 area = 100.0 * km^2;
 totalK = 10000.0kJ / km^2;
 
 # Set up how much resource each species consumes
-# resource_vec = SolarDemand(fill(dem, numSpecies))
+# resource_vec = SolarDemand(fill(demand, numSpecies))
 resource_vec = SolarDemand(collect(1:numSpecies) .* 1.0kJ)
 
 # Set probabilities
@@ -59,15 +59,15 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
-abenv = simplehabitatAE(274.0K, grid, totalK, area)
-abenv.supply.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
+habitat = simplehabitatAE(274.0K, grid, totalK, area)
+habitat.supply.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
 
 # Set relationship between species and environment (gaussian)
 rel = DistRel{typeof(1.0K)}()
 
 # Create ecosystem
-@test_nowarn MPIEcosystem(sppl, abenv, rel)
-eco = MPIEcosystem(sppl, abenv, rel; seed = 0)
+@test_nowarn MPIEcosystem(sppl, habitat, rel)
+eco = MPIEcosystem(sppl, habitat, rel; seed = 0)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
@@ -115,23 +115,23 @@ total_use = DemandCollection2(resource_vec, water_vec)
 sppl = SpeciesList(numSpecies, traits, abun, total_use, movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
-abenv1 = simplehabitatAE(274.0K, grid, totalK, area)
+habitat1 = simplehabitatAE(274.0K, grid, totalK, area)
 
 total_mm = 10.0mm / km^2
-abenv2 = simplehabitatAE(274.0K, grid, total_mm, area)
+habitat2 = simplehabitatAE(274.0K, grid, total_mm, area)
 
-supply = SupplyCollection2(abenv1.supply, abenv2.supply)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(supply)}(abenv1.habitat,
-                                                               abenv1.active,
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                               habitat1.active,
                                                                supply,
-                                                               abenv1.names)
+                                                               habitat1.names)
 
 # Set relationship between species and environment (gaussian)
 rel = DistRel{typeof(1.0K)}()
 
 # Create ecosystem
-@test_nowarn MPIEcosystem(sppl, abenv, rel)
-eco = MPIEcosystem(sppl, abenv, rel; seed = 0)
+@test_nowarn MPIEcosystem(sppl, habitat, rel)
+eco = MPIEcosystem(sppl, habitat, rel; seed = 0)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10

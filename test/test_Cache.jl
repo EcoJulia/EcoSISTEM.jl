@@ -29,9 +29,9 @@ function cache_test_eco(seed)
 
     sppl = SpeciesList(numSpecies, traits, abun, resource, movement, param,
                        native)
-    abenv = simplehabitatAE(274.0K, grid, totalK, area)
+    habitat = simplehabitatAE(274.0K, grid, totalK, area)
     rel = DistRel{typeof(1.0K)}()
-    return Ecosystem(sppl, abenv, rel; seed = seed)
+    return Ecosystem(sppl, habitat, rel; seed = seed)
 end
 
 @testset "CachedEcosystem save/load/resume" begin

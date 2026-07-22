@@ -14,19 +14,19 @@ using Diversity
 
 numSpecies = 100;
 grd = (10, 10);
-dem = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-sup = SupplyCollection2(abenv1.supply, abenv2.supply)
-abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                       typeof(sup)}(abenv1.habitat,
-                                    abenv1.active,
-                                    sup,
-                                    abenv1.names)
+habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime),
+                      typeof(supply)}(habitat1.regime,
+                                      habitat1.active,
+                                      supply,
+                                      habitat1.names)
 
 vars = fill(2.0, numSpecies) .* K
 opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
@@ -42,8 +42,8 @@ boost = 1.0
 
 size_mean = 1.0m^2
 # Set up how much resource each species consumes
-resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
-resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
+resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
 resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, l, s, boost)
@@ -58,7 +58,7 @@ abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, rel)
 
 times = 10years;
 timestep = 1month;
@@ -93,18 +93,18 @@ bar(ustrip.(uconvert.(°C, edges)),
 
 numSpecies = 100;
 grd = (10, 10);
-dem = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-sup = SupplyCollection2(abenv1.supply, abenv2.supply)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat,
-                                                            abenv1.active,
-                                                            sup,
-                                                            abenv1.names)
+habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                               habitat1.active,
+                                                               supply,
+                                                               habitat1.names)
 
 vars = collect(range(0.0001, stop = 5, length = numSpecies)) .* K
 opts = fill(298.0K, numSpecies)
@@ -120,8 +120,8 @@ boost = 1.0
 
 size_mean = 1.0m^2
 # Set up how much resource each species consumes
-resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
-resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
+resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
 resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, l, s, boost)
@@ -136,7 +136,7 @@ abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, rel)
 
 times = 10years;
 timestep = 1month;
@@ -170,19 +170,19 @@ bar!(edges ./ K,
 ## DIFFERENT VARS MISMATCH ##
 numSpecies = 100;
 grd = (10, 10);
-dem = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-abenv1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
-sup = SupplyCollection2(abenv1.supply, abenv2.supply)
-abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                       typeof(sup)}(abenv1.habitat,
-                                    abenv1.active,
-                                    sup,
-                                    abenv1.names)
+habitat1 = simplehabitatAE(299.0K, grd, totalK[1], area)
+habitat2 = simplehabitatAE(299.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime),
+                      typeof(supply)}(habitat1.regime,
+                                      habitat1.active,
+                                      supply,
+                                      habitat1.names)
 
 vars = collect(range(0.0001, stop = 5, length = numSpecies)) .* K
 opts = fill(298.0K, numSpecies)
@@ -198,8 +198,8 @@ boost = 1.0
 
 size_mean = 1.0m^2
 # Set up how much resource each species consumes
-resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
-resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
+resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
 resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, l, s, boost)
@@ -214,7 +214,7 @@ abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, resource_vec, movement, param,
                    native)
 rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, rel)
 
 times = 10years;
 timestep = 1month;
@@ -249,32 +249,32 @@ Plots.pdf("Opt_var_panel.pdf")
 
 numSpecies = 100;
 grd = (10, 10);
-dem = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
 
-abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-sup = SupplyCollection2(abenv1.supply, abenv2.supply)
-abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                       typeof(sup)}(abenv1.habitat,
-                                    abenv1.active,
-                                    sup,
-                                    abenv1.names)
-gsize = size(abenv.supply.one.matrix, 1)
+habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime),
+                      typeof(supply)}(habitat1.regime,
+                                      habitat1.active,
+                                      supply,
+                                      habitat1.names)
+gsize = size(habitat.supply.one.matrix, 1)
 sol_range = collect(range(0.0kJ, stop = 4.5e11kJ, length = gsize))
 map(1:gsize) do seq
-    return abenv.supply.one.matrix[seq, :] .= sol_range[seq]
+    return habitat.supply.one.matrix[seq, :] .= sol_range[seq]
 end
-abenv.supply.one.matrix
+habitat.supply.one.matrix
 
-gsize = size(abenv.supply.two.matrix, 1)
+gsize = size(habitat.supply.two.matrix, 1)
 water_range = collect(range(0.0mm, stop = 192mm, length = gsize))
 map(1:gsize) do seq
-    return abenv.supply.two.matrix[:, seq] .= water_range[seq]
+    return habitat.supply.two.matrix[:, seq] .= water_range[seq]
 end
-abenv.supply.two.matrix
+habitat.supply.two.matrix
 
 vars = fill(2.0, numSpecies) .* K
 opts = fill(298.0, numSpecies) .* K
@@ -289,8 +289,8 @@ boost = 1.0
 
 size_mean = 1.0m^2
 # Set up how much resource each species consumes
-resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
-resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
+resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
 resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, l, s, boost)
@@ -305,7 +305,7 @@ abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, rel)
 
 times = 10years;
 timestep = 1month;
@@ -342,18 +342,18 @@ grids = [1, 2, 5, 10]
 for i in eachindex(grids)
     numSpecies = 100
     grd = (grids[i], grids[i])
-    dem = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2, 192.0nm / m^2)
     individuals = 100_000_000
     area = 100.0 * km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-    abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    sup = SupplyCollection2(abenv1.supply, abenv2.supply)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat,
-                                                                abenv1.active,
-                                                                sup,
-                                                                abenv1.names)
+    habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
+    habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                   habitat1.active,
+                                                                   supply,
+                                                                   habitat1.names)
 
     vars = fill(2.0, numSpecies) .* K
     opts = fill(298.0, numSpecies) .* K
@@ -368,8 +368,8 @@ for i in eachindex(grids)
 
     size_mean = 1.0m^2
     # Set up how much resource each species consumes
-    resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
-    resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
+    resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+    resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
     resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     param = EqualPop(birth, death, l, s, boost)
@@ -384,7 +384,7 @@ for i in eachindex(grids)
     sppl = SpeciesList(numSpecies, traits, abun, resource_vec, movement, param,
                        native)
     rel = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, rel)
     simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
@@ -413,18 +413,18 @@ areas = [10.0, 20.0, 50.0, 100.0]
 for i in eachindex(areas)
     numSpecies = 100
     grd = (10, 10)
-    dem = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2, 192.0nm / m^2)
     individuals = 100_000_000
     area = areas[i] .* km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-    abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    sup = SupplyCollection2(abenv1.supply, abenv2.supply)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat,
-                                                                abenv1.active,
-                                                                sup,
-                                                                abenv1.names)
+    habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
+    habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                   habitat1.active,
+                                                                   supply,
+                                                                   habitat1.names)
 
     vars = fill(2.0, numSpecies) .* K
     opts = fill(298.0, numSpecies) .* K
@@ -439,8 +439,8 @@ for i in eachindex(areas)
 
     size_mean = 1.0m^2
     # Set up how much resource each species consumes
-    resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
-    resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
+    resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+    resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
     resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     param = EqualPop(birth, death, l, s, boost)
@@ -455,7 +455,7 @@ for i in eachindex(areas)
     sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                        movement, param, native)
     rel = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, rel)
     simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
@@ -486,18 +486,18 @@ for r in 1:reps
     for i in eachindex(species)
         numSpecies = species[i]
         grd = (10, 10)
-        dem = (450000.0kJ / m^2, 192.0nm / m^2)
+        demand = (450000.0kJ / m^2, 192.0nm / m^2)
         individuals = 100_000_000
         area = 100.0km^2
         totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-        abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-        abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-        sup = SupplyCollection2(abenv1.supply, abenv2.supply)
-        abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat,
-                                                                    abenv1.active,
-                                                                    sup,
-                                                                    abenv1.names)
+        habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
+        habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+        supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+        habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                       habitat1.active,
+                                                                       supply,
+                                                                       habitat1.names)
 
         vars = rand(Uniform(1.0, 5.0), numSpecies) .* K
         opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
@@ -512,8 +512,8 @@ for r in 1:reps
 
         size_mean = rand(Normal(1.0, 0.1), numSpecies) .* m^2
         # Set up how much resource each species consumes
-        resource_vec1 = SolarDemand(abs.(dem[1] .* size_mean))
-        resource_vec2 = WaterDemand(abs.(dem[2] .* size_mean))
+        resource_vec1 = SolarDemand(abs.(demand[1] .* size_mean))
+        resource_vec2 = WaterDemand(abs.(demand[2] .* size_mean))
 
         resource_vec = DemandCollection2(resource_vec1, resource_vec2)
         param = PopGrowth{typeof(unit(birth[1]))}(birth, death, l, s, boost)
@@ -528,7 +528,7 @@ for r in 1:reps
         sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                            movement, param, native)
         rel = Gauss{typeof(first(opts))}()
-        eco = Ecosystem(sppl, abenv, rel)
+        eco = Ecosystem(sppl, habitat, rel)
         simulate!(eco, times, timestep)
         SR[i, r] = sum(sum(eco.abundances.matrix, dims = 2) .> 0)
         print(".")
@@ -564,18 +564,18 @@ endabuns = zeros(Int64, 10, 10, length(distances))
 for i in eachindex(distances)
     numSpecies = 2
     grd = (10, 10)
-    dem = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2, 192.0nm / m^2)
     individuals = 0
     area = 100.0km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-    abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    sup = SupplyCollection2(abenv1.supply, abenv2.supply)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat,
-                                                                abenv1.active,
-                                                                sup,
-                                                                abenv1.names)
+    habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
+    habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                   habitat1.active,
+                                                                   supply,
+                                                                   habitat1.names)
 
     vars = fill(2.0, numSpecies) .* K
     opts = fill(298.0, numSpecies) .* K
@@ -590,8 +590,8 @@ for i in eachindex(distances)
 
     size_mean = 1.0m^2
     # Set up how much resource each species consumes
-    resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
-    resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
+    resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+    resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
     resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     param = EqualPop(birth, death, l, s, boost)
@@ -606,7 +606,7 @@ for i in eachindex(distances)
     sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                        movement, param, native)
     rel = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, rel)
     eco.abundances.grid[1, :, 1] .= 100.0
     eco.abundances.grid[2, :, 10] .= 100.0
     simulate!(eco, times, timestep)

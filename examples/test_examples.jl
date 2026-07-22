@@ -15,19 +15,19 @@ using Distributions
 
 numSpecies = 100;
 grd = (10, 10);
-dem = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2, 192.0nm / m^2);
 individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-sup = SupplyCollection2(abenv1.supply, abenv2.supply)
-abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                       typeof(sup)}(abenv1.habitat,
-                                    abenv1.active,
-                                    sup,
-                                    abenv1.names)
+habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime),
+                      typeof(supply)}(habitat1.regime,
+                                      habitat1.active,
+                                      supply,
+                                      habitat1.names)
 
 vars = fill(2.0K, numSpecies)
 opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
@@ -43,8 +43,8 @@ boost = 1.0
 
 size_mean = 1.0m^2
 # Set up how much resource each species consumes
-resource_vec1 = SolarDemand(fill(dem[1] * size_mean, numSpecies))
-resource_vec2 = WaterDemand(fill(dem[2] * size_mean, numSpecies))
+resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
 resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, long, surv, boost)
@@ -59,7 +59,7 @@ abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 rel = DistRel{typeof(first(opts))}()
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, rel)
 
 times = 10years;
 timestep = 1month;

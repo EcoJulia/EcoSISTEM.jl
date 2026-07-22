@@ -32,7 +32,7 @@ end
 
 Scenario type that fluctuates the environment periodically. `fun` is the
 fluctuation function, `rate` is the rate of temperature change, and `startarray`
-holds the baseline habitat values at the start of the simulation.
+holds the baseline regime values at the start of the simulation.
 """
 struct FluctScenario{F <: Function} <: AbstractScenario
     fun::F

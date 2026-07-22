@@ -21,14 +21,14 @@ end
     println(Threads.nthreads())
     numSpecies = 100
     grid = (10, 10)
-    dem = 10.0kJ
+    demand = 10.0kJ
     individuals = 1_000
     area = 100.0 * km^2
     totalK = 100.0kJ / km^2
     # Set up initial parameters for ecosystem
 
     # Set up how much resource each species consumes
-    resource_vec = SolarDemand(fill(dem, numSpecies))
+    resource_vec = SolarDemand(fill(demand, numSpecies))
 
     # Set probabilities
     birth = 0.6 / year
@@ -55,17 +55,17 @@ end
                        movement, param, native)
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grid, totalK, area)
+    habitat = simplehabitatAE(274.0K, grid, totalK, area)
 
     # Set relationship between species and environment (gaussian)
     rel = DistRel{typeof(1.0K)}()
 
     # Create ecosystem
-    @test_nowarn eco = MPIEcosystem(sppl, abenv, rel)
-    eco = MPIEcosystem(sppl, abenv, rel)
+    @test_nowarn eco = MPIEcosystem(sppl, habitat, rel)
+    eco = MPIEcosystem(sppl, habitat, rel)
     @test sum(eco.sppcounts) == length(eco.spplist.names)
     @test eco.firstsp == 1
-    @test sum(eco.sccounts) == prod(size(eco.abenv.habitat.matrix))
+    @test sum(eco.sccounts) == prod(size(eco.habitat.regime.matrix))
     @test eco.firstsc == 1
 
     # Simulation Parameters

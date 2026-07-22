@@ -4,54 +4,54 @@ using Unitful
 using Unitful.DefaultSymbols
 
 """
-    TempChange(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
+    TempChange(eco::AbstractEcosystem, regime::ContinuousRegime, timestep::Unitful.Time)
 
 Increase the temperature for one timestep of the ecosystem using
 [`HabitatUpdate`](@ref) information.
 """
-function TempChange(eco::AbstractEcosystem, hab::ContinuousHab,
+function TempChange(eco::AbstractEcosystem, regime::ContinuousRegime,
                     timestep::Unitful.Time)
-    val = hab.dynamics.rate
+    val = regime.dynamics.rate
     v = uconvert(K / unit(timestep), val)
-    return hab.matrix .+= v * timestep
+    return regime.matrix .+= v * timestep
 end
 
 """
-    RainfallChange(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
+    RainfallChange(eco::AbstractEcosystem, regime::ContinuousRegime, timestep::Unitful.Time)
 
 Change the rainfall for one timestep of the ecosystem using
 [`HabitatUpdate`](@ref) information.
 """
-function RainfallChange(eco::AbstractEcosystem, hab::ContinuousHab,
+function RainfallChange(eco::AbstractEcosystem, regime::ContinuousRegime,
                         timestep::Unitful.Time)
-    val = hab.dynamics.rate
+    val = regime.dynamics.rate
     v = uconvert(mm / unit(timestep), val)
-    return hab.matrix .+= v * timestep
+    return regime.matrix .+= v * timestep
 end
 
 """
-    TempFluct(eco::AbstractEcosystem, hab::ContinuousHab, timestep::Unitful.Time)
+    TempFluct(eco::AbstractEcosystem, regime::ContinuousRegime, timestep::Unitful.Time)
 
 Fluctuate the temperature for one timestep of the ecosystem using
 [`HabitatUpdate`](@ref) information.
 """
-function TempFluct(eco::AbstractEcosystem, hab::ContinuousHab,
+function TempFluct(eco::AbstractEcosystem, regime::ContinuousRegime,
                    timestep::Unitful.Time)
-    val = hab.dynamics.rate
+    val = regime.dynamics.rate
     v = uconvert(K / unit(timestep), val) * timestep
     offset = v / pi
-    return hab.matrix .+= (sin.(hab.matrix ./ offset) .* v)
+    return regime.matrix .+= (sin.(regime.matrix ./ offset) .* v)
 end
 
 """
     NoChange(eco::AbstractEcosystem, layer::AbstractLayer, timestep::Unitful.Time)
 
-Keep a layer (habitat or supply) the same for one timestep of the model.
+Keep a layer (regime or supply) the same for one timestep of the model.
 """
 function NoChange(eco::AbstractEcosystem, layer::AbstractLayer,
                   timestep::Unitful.Time) end
 
-# Axis-keyed layer dynamics: a habitat's per-timestep change function is chosen from its niche axis via
+# Axis-keyed layer dynamics: a regime's per-timestep change function is chosen from its niche axis via
 # `dynamics(::NicheAxis)` (default `NoChange`, declared in `NicheInfo.jl`).
 dynamics(::AbstractTemperature) = TempChange
 dynamics(::AbstractPrecipitation) = RainfallChange
@@ -59,7 +59,7 @@ dynamics(::AbstractPrecipitation) = RainfallChange
 """
     cyclicChange(eco::AbstractEcosystem, layer::ContinuousLayer, timestep::Unitful.Time)
 
-Advance a time-varying (monthly) layer — a climate habitat or a time supply — by one
+Advance a time-varying (monthly) layer — a climate regime or a time supply — by one
 timestep, wrapping back to the first month once the stored 3-D time series is exhausted
 (with a warning). The per-source `eraChange`/`worldclimChange` names are aliases of this —
 the time-step-and-wrap logic is identical regardless of source or role.
@@ -80,27 +80,27 @@ const eraChange = cyclicChange
 const worldclimChange = cyclicChange
 
 """
-    HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat, timestep::Unitful.Time)
+    HabitatLoss(eco::AbstractEcosystem, regime::AbstractRegime, timestep::Unitful.Time)
 
-Destroy habitat for one timestep of the ecosystem using [`HabitatUpdate`](@ref)
-information. The habitat's `dynamics.rate` is a loss rate (per unit time); over
+Destroy regime for one timestep of the ecosystem using [`HabitatUpdate`](@ref)
+information. The regime's `dynamics.rate` is a loss rate (per unit time); over
 `timestep` it gives the per-cell probability that an active cell is lost. That many
 active cells are drawn at random and have their supply and abundances zeroed.
 """
-function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat,
+function HabitatLoss(eco::AbstractEcosystem, regime::AbstractRegime,
                      timestep::Unitful.Time)
     # Loss rate × timestep is the (dimensionless) probability of losing a cell.
-    prob = uconvert(NoUnits, hab.dynamics.rate * timestep)
-    pos = findall(vec(eco.abenv.active))
+    prob = uconvert(NoUnits, regime.dynamics.rate * timestep)
+    pos = findall(vec(eco.habitat.active))
     smp = sample(pos, rand(Binomial(length(pos), prob)); replace = false)
-    eco.abenv.supply.matrix[smp] .= zero(eltype(eco.abenv.supply.matrix))
+    eco.habitat.supply.matrix[smp] .= zero(eltype(eco.habitat.supply.matrix))
     eco.abundances.matrix[:, smp] .= 0
     return eco
 end
 
 # One update rule for any layer regardless of role: apply its own `dynamics.changefun`
 # (`NoChange` for a static layer, `TempChange`/`cyclicChange`/… for a dynamic one), and
-# recurse into a collection. This unifies the old separate `habitatupdate!`/`supplyupdate!`
+# recurse into a collection. This unifies the old separate `regimeupdate!`/`supplyupdate!`
 # (static supplies were no-ops; time supplies advanced identically to `cyclicChange`).
 function _layerupdate!(eco::AbstractEcosystem, layer::AbstractLayer,
                        timestep::Unitful.Time)
@@ -119,12 +119,12 @@ function _layerupdate!(eco::AbstractEcosystem, layer::LayerCollection3,
 end
 
 """
-    habitatupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
+    regimeupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
 
-Update the habitat of an ecosystem for one timestep.
+Update the regime of an ecosystem for one timestep.
 """
-function habitatupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
-    return _layerupdate!(eco, eco.abenv.habitat, timestep)
+function regimeupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
+    return _layerupdate!(eco, eco.habitat.regime, timestep)
 end
 
 """
@@ -133,5 +133,5 @@ end
 Update the supply of an ecosystem for one timestep.
 """
 function supplyupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
-    return _layerupdate!(eco, eco.abenv.supply, timestep)
+    return _layerupdate!(eco, eco.habitat.supply, timestep)
 end

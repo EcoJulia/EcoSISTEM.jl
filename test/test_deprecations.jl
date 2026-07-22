@@ -133,6 +133,22 @@ using RasterDataSources
         # and they still construct the same object
         @test SolarRequirement(fill(2.0kJ, 3)) isa SolarDemand
     end
+
+    @testset "condition line: Habitat → Regime" begin
+        # the v0.4.0 `*Hab`/`HabitatCollection*` condition-layer types → the renamed `*Regime` types
+        @test ContinuousHab === ContinuousRegime
+        @test ContinuousTimeHab === ContinuousTimeRegime
+        @test DiscreteHab === DiscreteRegime
+        @test HabitatCollection2 === RegimeCollection2
+        @test HabitatCollection3 === RegimeCollection3
+    end
+
+    @testset "environment container: AbioticEnv → Habitat" begin
+        # the v0.4.0 environment container → the renamed `*Habitat` (which now means the whole environment;
+        # the condition layer that used to be `AbstractHabitat` is now `AbstractRegime`)
+        @test GridAbioticEnv === GridHabitat
+        @test EcoSISTEM.AbstractAbiotic === EcoSISTEM.AbstractHabitat
+    end
 end
 
 end

@@ -6,7 +6,7 @@ using Unitful.DefaultSymbols
 # ---------------------------------------------------------------------------
 # Layer roles
 # ---------------------------------------------------------------------------
-# A materialised layer plays one of two roles in a `GridAbioticEnv`: a `Habitat`
+# A materialised layer plays one of two roles in a `GridHabitat`: a `Habitat`
 # (an environmental condition matched to species traits) or a `Budget` (a resource
 # consumed by species). The role is a phantom marker used to keep the two
 # type-distinguishable while sharing one storage implementation.
@@ -105,7 +105,7 @@ struct VaporPressure <: NicheAxis end
 struct Isothermality <: NicheAxis end
 """    PrecipitationSeasonality <: NicheAxis (dimensionless) """
 struct PrecipitationSeasonality <: NicheAxis end
-"""    Heterogeneity <: NicheAxis (spatial habitat-heterogeneity metrics; dimensionless) """
+"""    Heterogeneity <: NicheAxis (spatial regime-heterogeneity metrics; dimensionless) """
 struct Heterogeneity <: NicheAxis end
 """    LandType <: NicheAxis (categorical land-cover / land-use classes) """
 struct LandType <: NicheAxis end

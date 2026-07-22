@@ -15,7 +15,7 @@ include("TestCases.jl")
     @test_nowarn eco = Test1Ecosystem()
     eco = Test1Ecosystem()
     @test sum(eco.abundances.matrix, dims = 2)[:, 1] == eco.spplist.abun
-    @test EcoSISTEM.tematch(eco.spplist, eco.abenv) == true
+    @test EcoSISTEM.tematch(eco.spplist, eco.habitat) == true
     @test EcoSISTEM.trmatch(eco.spplist, eco.relationship) == true
 
     sppl = SpeciesList{typeof(eco.spplist.traits),
@@ -29,20 +29,20 @@ include("TestCases.jl")
                                                    eco.spplist.movement,
                                                    eco.spplist.params,
                                                    eco.spplist.native)
-    eco = Ecosystem(sppl, eco.abenv, eco.relationship)
+    eco = Ecosystem(sppl, eco.habitat, eco.relationship)
     @test_nowarn addspecies!(eco, 10)
 
     @testset "get functions" begin
         # Test Simulation get functions
         @test_nowarn gettraitrel(eco)
         @test gettraitrel(eco) == eco.relationship
-        @test_nowarn gethabitat(eco)
-        @test gethabitat(eco) == eco.abenv.habitat
+        @test_nowarn getregime(eco)
+        @test getregime(eco) == eco.habitat.regime
         @test_nowarn getsize(eco)
         @test getsize(eco) ==
-              size(eco.abundances.matrix, 2) .* eco.abenv.habitat.size^2
+              size(eco.abundances.matrix, 2) .* eco.habitat.regime.size^2
         @test_nowarn getgridsize(eco)
-        @test getgridsize(eco) == eco.abenv.habitat.size
+        @test getgridsize(eco) == eco.habitat.regime.size
         @test_nowarn getdispersaldist(eco, 1)
         @test getdispersaldist(eco, 1) == eco.spplist.movement.kernels[1].dist
         @test_nowarn getdispersaldist(eco, "1")
@@ -52,7 +52,7 @@ include("TestCases.jl")
         @test EcoSISTEM.getlookup(eco, "1") == eco.lookup[1]
         @test EcoSISTEM.getlookup(eco, 1) == eco.lookup[1]
         @test_nowarn resetrate!(eco, 0.1 / s)
-        @test eco.abenv.habitat.dynamics.rate == 0.1 / s
+        @test eco.habitat.regime.dynamics.rate == 0.1 / s
         @test_throws MethodError resettime!(eco)
     end
     @testset "movement types" begin
@@ -71,13 +71,13 @@ include("TestCases.jl")
                                                        eco.spplist.types, mov,
                                                        eco.spplist.params,
                                                        eco.spplist.native)
-        @test_nowarn Ecosystem(sppl, eco.abenv, eco.relationship)
+        @test_nowarn Ecosystem(sppl, eco.habitat, eco.relationship)
     end
     @testset "diversity" begin
         # Test Diversity get functions
         @test_nowarn getmetaabundance(eco)
         @test_nowarn getpartition(eco)
-        @test getpartition(eco) == eco.abenv
+        @test getpartition(eco) == eco.habitat
         @test_nowarn gettypes(eco)
         @test gettypes(eco) == eco.spplist
         @test_nowarn getordinariness!(eco)
@@ -99,12 +99,12 @@ include("TestCases.jl")
                                axis = MeanTemperature)
         env2 = simplehabitatAE(10.0mm, grid, 100.0mm / km^2, area;
                                axis = Precipitation)
-        habitat = HabitatCollection2(env1.habitat, env2.habitat)   # eltype [K, mm]
+        regime = RegimeCollection2(env1.regime, env2.regime)   # eltype [K, mm]
         supply = SupplyCollection2(env1.supply, env2.supply)
-        abenv = GridAbioticEnv{typeof(habitat), typeof(supply)}(habitat,
-                                                                env1.active,
-                                                                supply,
-                                                                env1.names)
+        habitat = GridHabitat{typeof(regime), typeof(supply)}(regime,
+                                                              env1.active,
+                                                              supply,
+                                                              env1.names)
         traits = TraitCollection2(Bin(MeanTemperature, Normal,
                                       fill(10.0K, numSpecies),
                                       fill(0.1K, numSpecies)),
@@ -123,7 +123,7 @@ include("TestCases.jl")
         # the matching relationship is `multiplicativeTR2(...)`; a single `DistRel` mismatches
         badrel = DistRel{typeof(1.0K)}()
         err = try
-            Ecosystem(sppl, abenv, badrel)
+            Ecosystem(sppl, habitat, badrel)
             nothing
         catch e
             e

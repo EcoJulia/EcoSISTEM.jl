@@ -9,9 +9,9 @@ using Phylo
 using DataFrames
 using Diversity
 
-function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
+function create_eco(paramDict::Dict, habitat::A; bound::B = Torus(),
                     size = (mean = 1.0m^2, std = 0.0001m^2)) where
-    {A <: EcoSISTEM.AbstractAbiotic,
+    {A <: EcoSISTEM.AbstractHabitat,
      B <: EcoSISTEM.BoundaryCondition}
     # Set up initial parameters for ecosystem
     birth = haskey(paramDict, "birth") ? paramDict["birth"] : 0.6 / year
@@ -23,7 +23,7 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
     numSpecies = paramDict["numSpecies"]
     numInvasive = paramDict["numInvasive"]
     individuals = paramDict["numIndiv"]
-    dem = paramDict["demand"]
+    demand = paramDict["demand"]
     opts = paramDict["opts"]
     vars = paramDict["vars"]
     kernel = paramDict["kernel"]
@@ -36,8 +36,8 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
                             uconvert(NoUnits, size.std / units),
                             tree)
 
-    resource_vec1 = SolarDemand(abs.(trts.mean) .* (dem[1] * units))
-    resource_vec2 = WaterDemand(abs.(trts.mean) .* (dem[2] * units))
+    resource_vec1 = SolarDemand(abs.(trts.mean) .* (demand[1] * units))
+    resource_vec2 = WaterDemand(abs.(trts.mean) .* (demand[2] * units))
 
     resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     # Collect model parameters together (in this order!!)
@@ -68,7 +68,7 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
                        param,
                        native)
     rel = Gauss{typeof(first(paramDict["opts"]))}()
-    return eco = Ecosystem(traitpopulate!, sppl, abenv, rel)
+    return eco = Ecosystem(traitpopulate!, sppl, habitat, rel)
 end
 
 function recreate_eco!(eco::Ecosystem,
@@ -79,7 +79,7 @@ function recreate_eco!(eco::Ecosystem,
     numInvasive = sum(.!eco.spplist.native)
     eco.spplist.abun = [rand(Multinomial(individuals, numSpecies))
                         fill(0, numInvasive)]
-    reenergise!(eco, totalK, size(eco.abenv.habitat.matrix))
-    eco.abenv.active .= true
+    resupply!(eco, totalK, size(eco.habitat.regime.matrix))
+    eco.habitat.active .= true
     return traitrepopulate!(eco)
 end

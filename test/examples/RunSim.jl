@@ -49,17 +49,17 @@ function simulate_record_diversity!(storage::AbstractArray,
 end
 
 function runsim!(div::Array{Float64, 3},
-                 abenv::AB,
+                 habitat::AB,
                  paramDict::Dict,
                  simDict::Dict,
                  rep::Int64,
                  folder::String = "./",
-                 recreate = true) where {AB <: EcoSISTEM.AbstractAbiotic}
+                 recreate = true) where {AB <: EcoSISTEM.AbstractHabitat}
     cacheFolder = joinpath(folder, "cache")
     isdir(cacheFolder) || mkdir(cacheFolder)
-    eco = create_eco(paramDict, abenv, bound = paramDict["bound"])
-    totalK = (sum(eco.abenv.supply.one.matrix),
-              sum(eco.abenv.supply.two.matrix))
+    eco = create_eco(paramDict, habitat, bound = paramDict["bound"])
+    totalK = (sum(eco.habitat.supply.one.matrix),
+              sum(eco.habitat.supply.two.matrix))
     scenario = simDict["scenarios"]
     scenario_names = simDict["scenario_names"]
     divfuns = simDict["divfuns"]
@@ -93,7 +93,7 @@ function adjusttemp!(eco::Ecosystem,
                      times::Unitful.Time)
     if scenario.fun == TempIncrease! && scenario.rate > 0.0K / year
         resetrate!(eco, 0.0K / year)
-        eco.abenv.habitat.matrix .-= (scenario.rate * times)
+        eco.habitat.regime.matrix .-= (scenario.rate * times)
     end
 end
 
@@ -101,22 +101,22 @@ function adjusttemp!(eco::Ecosystem, scenario::MultiScenario,
                      times::Unitful.Time)
     if scenario.sc1.fun == TempIncrease! && scenario.sc1.rate > 0.0K / year
         resetrate!(eco, 0.0K / year)
-        eco.abenv.habitat.matrix .-= (scenario.sc1.rate * times)
+        eco.habitat.regime.matrix .-= (scenario.sc1.rate * times)
     end
 end
 
 function dispersalrun!(div::Array{Float64, 3},
-                       abenv::AB,
+                       habitat::AB,
                        paramDict::Dict,
                        simDict::Dict,
                        rep::Int64,
                        folder::String = "./") where {AB <:
-                                                     EcoSISTEM.AbstractAbiotic}
+                                                     EcoSISTEM.AbstractHabitat}
     cacheFolder = joinpath(folder, "cache")
     isdir(cacheFolder) || mkdir(cacheFolder)
-    eco = create_eco(paramDict, abenv, bound = paramDict["bound"])
-    totalK = (sum(eco.abenv.supply.one.matrix),
-              sum(eco.abenv.supply.two.matrix))
+    eco = create_eco(paramDict, habitat, bound = paramDict["bound"])
+    totalK = (sum(eco.habitat.supply.one.matrix),
+              sum(eco.habitat.supply.two.matrix))
     scenario = simDict["scenarios"]
     scenario_names = simDict["scenario_names"]
     divfuns = simDict["divfuns"]

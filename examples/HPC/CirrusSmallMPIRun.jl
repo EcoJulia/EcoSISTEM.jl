@@ -15,14 +15,14 @@ rank = MPI.Comm_rank(comm)
 println(Threads.nthreads())
 numSpecies = 100;
 grid = (50, 50);
-dem = 10.0kJ;
+demand = 10.0kJ;
 individuals = 1_000_000;
 area = 100000.0 * km^2;
 totalK = 100.0kJ / km^2;
 # Set up initial parameters for ecosystem
 
 # Set up how much resource each species consumes
-resource_vec = SolarDemand(fill(dem, numSpecies))
+resource_vec = SolarDemand(fill(demand, numSpecies))
 
 # Set probabilities
 birth = 0.6 / year
@@ -49,13 +49,13 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
-abenv = simplehabitatAE(274.0K, grid, totalK, area)
+habitat = simplehabitatAE(274.0K, grid, totalK, area)
 
 # Set relationship between species and environment (gaussian)
 rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
-eco = MPIEcosystem(sppl, abenv, rel)
+eco = MPIEcosystem(sppl, habitat, rel)
 
 sleep(rank)
 print("$(rank):")

@@ -22,10 +22,10 @@ active = Matrix{Bool}(.!isnan.(africa))
 heatmap(active)
 
 # Set up initial parameters for ecosystem
-numSpecies = 1; grid = size(africa); dem= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
+numSpecies = 1; grid = size(africa); demand= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
 # Set up how much energy each species consumes
-resource_vec = SolarDemand(fill(dem, numSpecies))
+resource_vec = SolarDemand(fill(demand, numSpecies))
 
 
 # Set rates for birth and death
@@ -54,14 +54,14 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
 sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
-abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
 
 # Set relationship between species and environment (gaussian)
 rel = Gauss{typeof(1.0K)}()
 
 #Create ecosystem
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, rel)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
@@ -87,10 +87,10 @@ velocity = zeros(typeof(1.0km/month), length(specialist_vars))
 rand_start = rand(findall(active), 1)[1]
 for i in eachindex(specialist_vars)
     # Set up initial parameters for ecosystem
-    numSpecies = 2; grid = size(africa); dem= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
+    numSpecies = 2; grid = size(africa); demand= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
     # Set up how much energy each species consumes
-    resource_vec = SolarDemand(fill(dem, numSpecies))
+    resource_vec = SolarDemand(fill(demand, numSpecies))
 
 
     # Set rates for birth and death
@@ -119,13 +119,13 @@ for i in eachindex(specialist_vars)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
     # Set relationship between species and environment (gaussian)
     rel = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, rel)
     eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
     # EcoSISTEM Parameters
@@ -169,10 +169,10 @@ file = pkgdir(EcoSISTEM, "data", "Africa.tif")
 africa = readfile(file)
 active = Matrix{Bool}(.!isnan.(africa))
 # Set up initial parameters for ecosystem
-numSpecies = 50_000; grid = size(africa); dem= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
+numSpecies = 50_000; grid = size(africa); demand= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
 # Set up how much energy each species consumes
-resource_vec = SolarDemand(fill(dem, numSpecies))
+resource_vec = SolarDemand(fill(demand, numSpecies))
 
 
 # Set rates for birth and death
@@ -202,14 +202,14 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
 sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
-abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
 
 # Set relationship between species and environment (gaussian)
 rel = Gauss{typeof(1.0K)}()
 
 #Create ecosystem
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, rel)
 eco.abundances.matrix[50_000, :] .= 0
 
 import EcoSISTEM.simulate!
@@ -249,10 +249,10 @@ file = pkgdir(EcoSISTEM, "data", "Africa.tif")
 africa = readfile(file)
 active = Matrix{Bool}(.!isnan.(africa))
 # Set up initial parameters for ecosystem
-numSpecies = 50_000; grid = size(africa); dem= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
+numSpecies = 50_000; grid = size(africa); demand= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
 # Set up how much energy each species consumes
-resource_vec = SolarDemand(fill(dem, numSpecies))
+resource_vec = SolarDemand(fill(demand, numSpecies))
 
 
 # Set rates for birth and death
@@ -281,14 +281,14 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
 sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
-abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
 
 # Set relationship between species and environment (gaussian)
 rel = Gauss{typeof(1.0K)}()
 
 #Create ecosystem
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, rel)
 
 # EcoSISTEM Parameters
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;

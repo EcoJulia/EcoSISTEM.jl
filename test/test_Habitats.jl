@@ -19,32 +19,32 @@ using RasterDataSources
 
     # TEST simplehabitatAE
     fillval = 0.0
-    abenv = simplehabitatAE(fillval, grid, totalK, area)
-    @test EcoSISTEM.iscontinuous(abenv.habitat) == true
-    @test eltype(abenv.habitat) == typeof(abenv.habitat.matrix[1])
-    @test size(abenv.habitat, 1) == grid[1]
-    @test EcoSISTEM.xmin(abenv.habitat) == 0
-    @test EcoSISTEM.ymin(abenv.habitat) == 0
-    @test EcoSISTEM.xcellsize(abenv.habitat) == sqrt(area / prod(grid)) / km
-    @test EcoSISTEM.ycellsize(abenv.habitat) == sqrt(area / prod(grid)) / km
-    @test EcoSISTEM.xcells(abenv.habitat) == size(abenv.habitat, 1)
-    @test EcoSISTEM.ycells(abenv.habitat) == size(abenv.habitat, 2)
-    @test EcoSISTEM.indices(abenv.habitat) ==
-          EcoSISTEM.coordinates(abenv.habitat)
-    @test EcoSISTEM.indices(abenv.habitat, 1) ==
+    habitat = simplehabitatAE(fillval, grid, totalK, area)
+    @test EcoSISTEM.iscontinuous(habitat.regime) == true
+    @test eltype(habitat.regime) == typeof(habitat.regime.matrix[1])
+    @test size(habitat.regime, 1) == grid[1]
+    @test EcoSISTEM.xmin(habitat.regime) == 0
+    @test EcoSISTEM.ymin(habitat.regime) == 0
+    @test EcoSISTEM.xcellsize(habitat.regime) == sqrt(area / prod(grid)) / km
+    @test EcoSISTEM.ycellsize(habitat.regime) == sqrt(area / prod(grid)) / km
+    @test EcoSISTEM.xcells(habitat.regime) == size(habitat.regime, 1)
+    @test EcoSISTEM.ycells(habitat.regime) == size(habitat.regime, 2)
+    @test EcoSISTEM.indices(habitat.regime) ==
+          EcoSISTEM.coordinates(habitat.regime)
+    @test EcoSISTEM.indices(habitat.regime, 1) ==
           repeat(collect(1:grid[1]), grid[2])
 
     # TEST tempgradAE
-    abenv = tempgradAE(-10.0K, 10.0K, grid, totalK, area, 0.01K / month)
-    @test EcoSISTEM.iscontinuous(abenv.habitat) == true
-    @test eltype(abenv.habitat) == typeof(abenv.habitat.matrix[1])
-    @test size(abenv.habitat, 1) == grid[1]
+    habitat = tempgradAE(-10.0K, 10.0K, grid, totalK, area, 0.01K / month)
+    @test EcoSISTEM.iscontinuous(habitat.regime) == true
+    @test eltype(habitat.regime) == typeof(habitat.regime.matrix[1])
+    @test size(habitat.regime, 1) == grid[1]
 
     # TEST simplenicheAE
-    abenv = simplenicheAE(numNiches, grid, totalK, area)
-    @test EcoSISTEM.iscontinuous(abenv.habitat) == false
-    @test eltype(abenv.habitat) == typeof(abenv.habitat.matrix[1])
-    @test size(abenv.habitat, 1) == grid[1]
+    habitat = simplenicheAE(numNiches, grid, totalK, area)
+    @test EcoSISTEM.iscontinuous(habitat.regime) == false
+    @test eltype(habitat.regime) == typeof(habitat.regime.matrix[1])
+    @test size(habitat.regime, 1) == grid[1]
 
     # TEST eraAE
     temp = AxisArray(fill(1.0K, 10, 10, 3),
@@ -55,12 +55,12 @@ using RasterDataSources
     active = fill(true, 10, 10)
     solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
     ea = eraAE(eratemp, solar, active)
-    @test EcoSISTEM.iscontinuous(ea.habitat) == true
-    @test eltype(ea.habitat) == typeof(ea.habitat.matrix[1])
-    ea.habitat.time = 2
-    EcoSISTEM._resettime!(ea.habitat)
-    @test ea.habitat.time == 1
-    @test size(ea.habitat, 1) == grid[1]
+    @test EcoSISTEM.iscontinuous(ea.regime) == true
+    @test eltype(ea.regime) == typeof(ea.regime.matrix[1])
+    ea.regime.time = 2
+    EcoSISTEM._resettime!(ea.regime)
+    @test ea.regime.time == 1
+    @test size(ea.regime, 1) == grid[1]
 
     # TEST worldclimAE
     temp = AxisArray(fill(1.0K, 10, 10, 12),
@@ -71,45 +71,46 @@ using RasterDataSources
     active = fill(true, 10, 10)
     solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
     wc = worldclimAE(wctemp, solar, active)
-    @test EcoSISTEM.iscontinuous(wc.habitat) == true
-    @test eltype(wc.habitat) == typeof(wc.habitat.matrix[1])
-    wc.habitat.time = 2
-    EcoSISTEM._resettime!(wc.habitat)
-    @test wc.habitat.time == 1
-    @test size(wc.habitat, 1) == grid[1]
+    @test EcoSISTEM.iscontinuous(wc.regime) == true
+    @test eltype(wc.regime) == typeof(wc.regime.matrix[1])
+    wc.regime.time = 2
+    EcoSISTEM._resettime!(wc.regime)
+    @test wc.regime.time == 1
+    @test size(wc.regime, 1) == grid[1]
 
-    # Test multi habitats
-    hab = HabitatCollection2(wc.habitat, ea.habitat)
-    @test EcoSISTEM.iscontinuous(hab) == [true, true]
-    @test eltype(hab) == [typeof(hab.one.matrix[1]), typeof(hab.two.matrix[1])]
-    @test size(hab, 1) == grid[1]
-    hab.one.time = 2
-    EcoSISTEM._resettime!(hab)
-    @test hab.one.time == 1
-    @test EcoSISTEM._getgridsize(hab) == hab.one.size
-    @test isapprox(EcoSISTEM._getsize(hab), hab.one.size^2 * prod(grid),
+    # Test multi regimes
+    regime = RegimeCollection2(wc.regime, ea.regime)
+    @test EcoSISTEM.iscontinuous(regime) == [true, true]
+    @test eltype(regime) ==
+          [typeof(regime.one.matrix[1]), typeof(regime.two.matrix[1])]
+    @test size(regime, 1) == grid[1]
+    regime.one.time = 2
+    EcoSISTEM._resettime!(regime)
+    @test regime.one.time == 1
+    @test EcoSISTEM._getgridsize(regime) == regime.one.size
+    @test isapprox(EcoSISTEM._getsize(regime), regime.one.size^2 * prod(grid),
                    rtol = 1e-5)
-    @test EcoSISTEM._getdimension(hab) == grid
-    @test EcoSISTEM._countsubcommunities(hab) == prod(grid)
+    @test EcoSISTEM._getdimension(regime) == grid
+    @test EcoSISTEM._countsubcommunities(regime) == prod(grid)
 
-    hab = HabitatCollection3(abenv.habitat, wc.habitat, ea.habitat)
-    @test EcoSISTEM.iscontinuous(hab) == [false, true, true]
-    @test eltype(hab) == [
-        typeof(hab.one.matrix[1]),
-        typeof(hab.two.matrix[1]),
-        typeof(hab.three.matrix[1])
+    regime = RegimeCollection3(habitat.regime, wc.regime, ea.regime)
+    @test EcoSISTEM.iscontinuous(regime) == [false, true, true]
+    @test eltype(regime) == [
+        typeof(regime.one.matrix[1]),
+        typeof(regime.two.matrix[1]),
+        typeof(regime.three.matrix[1])
     ]
-    @test size(hab, 1) == grid[1]
-    @test EcoSISTEM._getgridsize(hab) == hab.one.size
-    @test isapprox(EcoSISTEM._getsize(hab), hab.one.size^2 * prod(grid),
+    @test size(regime, 1) == grid[1]
+    @test EcoSISTEM._getgridsize(regime) == regime.one.size
+    @test isapprox(EcoSISTEM._getsize(regime), regime.one.size^2 * prod(grid),
                    rtol = 1e-5)
-    @test EcoSISTEM._getdimension(hab) == grid
-    @test EcoSISTEM._countsubcommunities(hab) == prod(grid)
+    @test EcoSISTEM._getdimension(regime) == grid
+    @test EcoSISTEM._countsubcommunities(regime) == prod(grid)
 
-    hab = HabitatCollection3(wc.habitat, wc.habitat, ea.habitat)
-    hab.two.time = 2
-    EcoSISTEM._resettime!(hab)
-    @test hab.two.time == 1
+    regime = RegimeCollection3(wc.regime, wc.regime, ea.regime)
+    regime.two.time = 2
+    EcoSISTEM._resettime!(regime)
+    @test regime.two.time == 1
 end
 
 end

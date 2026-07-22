@@ -78,8 +78,8 @@ Update an ecosystem's abundances and environment for one timestep.
 """
 function update!(eco::Ecosystem, timestep::Unitful.Time)
 
-    # Calculate dimenions of habitat and number of species
-    dims = _countsubcommunities(eco.abenv.habitat)
+    # Calculate dimenions of regime and number of species
+    dims = _countsubcommunities(eco.habitat.regime)
     spp = size(eco.abundances.grid, 1)
     params = eco.spplist.params
     width = getdimension(eco)[1]
@@ -106,12 +106,13 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
             # Convert 1D dimension to 2D coordinates
             (x, y) = convert_coords(eco, i, width)
             # Check if grid cell currently active
-            (eco.abenv.active[x, y] && (eco.cache.totalE[i, 1] > 0)) || continue
+            (eco.habitat.active[x, y] && (eco.cache.totalE[i, 1] > 0)) ||
+                continue
             for j in jstart:jend
                 rng = getrng(eco, j)
                 # Calculate how much birth and death should be adjusted
                 adjusted_birth, adjusted_death = resource_adjustment(eco,
-                                                                     eco.abenv.supply,
+                                                                     eco.habitat.supply,
                                                                      i, j)
 
                 # Calculate effective rates
@@ -146,8 +147,8 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     # Invalidate all caches for next update
     invalidatecaches!(eco)
 
-    # Update environment - habitat and resource supplies
-    habitatupdate!(eco, timestep)
+    # Update environment - regime and resource supplies
+    regimeupdate!(eco, timestep)
     return supplyupdate!(eco, timestep)
 end
 
@@ -210,19 +211,19 @@ function update_resource_usage!(eco::AbstractEcosystem{A,
 end
 
 """
-    resource_adjustment(eco::Ecosystem, sup::AbstractSupply, i::Int64, sp::Int64)
+    resource_adjustment(eco::Ecosystem, supply::AbstractSupply, i::Int64, sp::Int64)
 
 Calculate how much birth and death rates should be adjusted by, according to how
-much resource is available, `sup`, in the grid square, `i`, and how much resource
+much resource is available, `supply`, in the grid square, `i`, and how much resource
 the species, `sp`, requires.
 """
-function resource_adjustment(eco::AbstractEcosystem, sup::AbstractSupply,
+function resource_adjustment(eco::AbstractEcosystem, supply::AbstractSupply,
                              i::Int64, sp::Int64)
     # NoGrowth freezes the population
     eco.spplist.params isa NoGrowth && return (0.0, 0.0)
 
     # Otherwise adjust birth/death rates by the available resource.
-    return _resource_adjustment(eco, sup, i, sp)
+    return _resource_adjustment(eco, supply, i, sp)
 end
 
 # Birth and death rate multipliers for a single-demand environment. Weighs
@@ -231,7 +232,7 @@ end
 # demand there (`E`): births are boosted when resource is plentiful (`K/E`, capped at
 # `params.boost`) and deaths rise as demand approaches the supply (`E/K`). Called
 # only for growing populations — [`resource_adjustment`](@ref) short-circuits NoGrowth.
-function _resource_adjustment(eco::AbstractEcosystem, sup::AbstractSupply,
+function _resource_adjustment(eco::AbstractEcosystem, supply::AbstractSupply,
                               i::Int64, sp::Int64)
     params = eco.spplist.params
     width = getdimension(eco)[1]
@@ -244,10 +245,10 @@ function _resource_adjustment(eco::AbstractEcosystem, sup::AbstractSupply,
     # Traits
     ϵ̄real = 1 / traitfun(eco, i, sp)
     # Alter rates by resource available in current pop & own demands
-    birth_energy = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
-                   min(K / E, params.boost)
-    death_energy = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
-    return birth_energy, death_energy
+    birth_resource = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
+                     min(K / E, params.boost)
+    death_resource = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
+    return birth_resource, death_resource
 end
 
 # As above but for a two-demand environment (e.g. solar resource and water),
@@ -256,15 +257,15 @@ end
 # still capped at `params.boost`) and deaths the `max` of the two demand ratios
 # (`E1/K1`, `E2/K2`), so both demands must be met for the population to grow.
 function _resource_adjustment(eco::AbstractEcosystem,
-                              sup::SupplyCollection2,
+                              supply::SupplyCollection2,
                               i::Int64,
                               sp::Int64)
     width = getdimension(eco)[1]
     (x, y) = convert_coords(eco, i, width)
     params = eco.spplist.params
-    K1 = _getsupply(eco.abenv.supply.one)[x, y] *
+    K1 = _getsupply(eco.habitat.supply.one)[x, y] *
          eco.spplist.demand.one.exchange_rate
-    K2 = _getsupply(eco.abenv.supply.two)[x, y] *
+    K2 = _getsupply(eco.habitat.supply.two)[x, y] *
          eco.spplist.demand.two.exchange_rate
     # Get abundances of square we are interested in
     # Get resource supplies of species in square
@@ -277,13 +278,13 @@ function _resource_adjustment(eco::AbstractEcosystem,
     ϵ̄real1 = 1 / traitfun(eco, i, sp)
     ϵ̄real2 = 1 / traitfun(eco, i, sp)
     # Alter rates by resource available in current pop & own demands
-    birth_energy = (ϵ̄1 * ϵ̄2)^-params.longevity *
-                   (ϵ̄real1 * ϵ̄real2)^-params.survival *
-                   min(K1 / E1, K2 / E2, params.boost)
-    death_energy = (ϵ̄1 * ϵ̄2)^-params.longevity *
-                   (ϵ̄real1 * ϵ̄real2)^params.survival *
-                   max(E1 / K1, E2 / K2)
-    return birth_energy, death_energy
+    birth_resource = (ϵ̄1 * ϵ̄2)^-params.longevity *
+                     (ϵ̄real1 * ϵ̄real2)^-params.survival *
+                     min(K1 / E1, K2 / E2, params.boost)
+    death_resource = (ϵ̄1 * ϵ̄2)^-params.longevity *
+                     (ϵ̄real1 * ϵ̄real2)^params.survival *
+                     max(E1 / K1, E2 / K2)
+    return birth_resource, death_resource
 end
 
 """
@@ -338,7 +339,7 @@ function calc_lookup_moves!(bound::NoBoundary,
     for i in eachindex(lookup.x)
         valid = (-x < lookup.x[i] <= maxX) &&
                 (-y < lookup.y[i] <= maxY) &&
-                (eco.abenv.active[lookup.x[i] + x, lookup.y[i] + y])
+                (eco.habitat.active[lookup.x[i] + x, lookup.y[i] + y])
 
         lookup.pnew[i] = valid ? lookup.p[i] : 0.0
     end
@@ -362,7 +363,7 @@ function calc_lookup_moves!(bound::Cylinder,
                mod(lookup.x[i] + x - 1, getdimension(eco)[1]) + 1
 
         valid = (-y < lookup.y[i] <= maxY) &&
-                (eco.abenv.active[newx, lookup.y[i] + y])
+                (eco.habitat.active[newx, lookup.y[i] + y])
 
         lookup.pnew[i] = valid ? lookup.p[i] : 0.0
     end
@@ -386,7 +387,7 @@ function calc_lookup_moves!(bound::Torus,
                mod(lookup.x[i] + x - 1, getdimension(eco)[1]) + 1
         newy = -y < lookup.y[i] <= maxY ? lookup.y[i] + y :
                mod(lookup.y[i] + y - 1, getdimension(eco)[2]) + 1
-        valid = eco.abenv.active[newx, newy]
+        valid = eco.habitat.active[newx, newy]
 
         lookup.pnew[i] = valid ? lookup.p[i] : 0.0
     end
@@ -462,22 +463,22 @@ end
 # individuals across the grid:
 #   `grid`     - a vector of the linear indices `1:ncells` of every grid cell,
 #                used both to size/flatten the supply and to sample cell locations;
-#   `activity` - a flattened copy of `abenv.active`, the boolean mask of which cells
+#   `activity` - a flattened copy of `habitat.active`, the boolean mask of which cells
 #                are habitable. Callers zero the supply of inactive (`false`) cells so
 #                that no individuals are ever placed outside the active region.
-function _gridactivity(abenv::AbstractAbiotic)
-    dim = _getdimension(abenv.habitat)
+function _gridactivity(habitat::AbstractHabitat)
+    dim = _getdimension(habitat.regime)
     len = dim[1] * dim[2]
     grid = collect(1:len)
-    activity = reshape(copy(abenv.active), len)
+    activity = reshape(copy(habitat.active), len)
     return grid, activity
 end
 
 """
-    populate!(ml::GridLandscape, spplist::SpeciesList, abenv::AbstractAbiotic,
+    populate!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
               rel::AbstractTraitRelationship, rngs::Vector{Random.Xoshiro})
     populate!(ml::GridLandscape, spplist::SpeciesList,
-              abenv::GridAbioticEnv{H, SupplyCollection2{B1, B2}}, rel, rngs)
+              habitat::GridHabitat{H, SupplyCollection2{B1, B2}}, rel, rngs)
 
 Populate the grid landscape `ml` by randomly scattering each species' total
 abundance (taken from `spplist.abun`) across the grid cells, choosing each cell
@@ -495,14 +496,14 @@ supplies.
 """
 function populate!(ml::GridLandscape,
                    spplist::SpeciesList,
-                   abenv::AB,
+                   habitat::AB,
                    rel::R,
-                   rngs::Vector{Random.Xoshiro}) where {AB <: AbstractAbiotic,
+                   rngs::Vector{Random.Xoshiro}) where {AB <: AbstractHabitat,
                                                         R <:
                                                         AbstractTraitRelationship}
-    grid, activity = _gridactivity(abenv)
+    grid, activity = _gridactivity(habitat)
     # Set up copy of supply
-    b = reshape(ustrip.(_getsupply(abenv.supply)), length(grid))
+    b = reshape(ustrip.(_getsupply(habitat.supply)), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
     B = b ./ sum(b)
@@ -514,18 +515,18 @@ end
 
 function populate!(ml::GridLandscape,
                    spplist::SpeciesList,
-                   abenv::GridAbioticEnv{H, SupplyCollection2{B1, B2}},
+                   habitat::GridHabitat{H, SupplyCollection2{B1, B2}},
                    rel::R,
-                   rngs::Vector{Random.Xoshiro}) where {H <: AbstractHabitat,
+                   rngs::Vector{Random.Xoshiro}) where {H <: AbstractRegime,
                                                         B1 <: AbstractSupply,
                                                         B2 <: AbstractSupply,
                                                         R <:
                                                         AbstractTraitRelationship}
-    # Calculate size of habitat
-    grid, activity = _gridactivity(abenv)
+    # Calculate size of regime
+    grid, activity = _gridactivity(habitat)
     # Set up copy of supply
-    b1 = reshape(copy(_getsupply(abenv.supply, :one)), length(grid))
-    b2 = reshape(copy(_getsupply(abenv.supply, :two)), length(grid))
+    b1 = reshape(copy(_getsupply(habitat.supply, :one)), length(grid))
+    b2 = reshape(copy(_getsupply(habitat.supply, :two)), length(grid))
     units1 = unit(b1[1])
     units2 = unit(b2[1])
     b1[.!activity] .= 0.0 * units1
@@ -547,17 +548,17 @@ availability. If an `abun` parameter is given, that number of individuals of the
 final species is added at randomly sampled locations instead.
 """
 function repopulate!(eco::Ecosystem)
-    eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
+    eco.abundances = emptygridlandscape(eco.habitat, eco.spplist)
     eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
                                         length(eco.spplist.abun)))
-    return populate!(eco.abundances, eco.spplist, eco.abenv, eco.relationship,
+    return populate!(eco.abundances, eco.spplist, eco.habitat, eco.relationship,
                      eco.rngs)
 end
 
 function repopulate!(eco::Ecosystem, abun::Int64)
-    grid, activity = _gridactivity(eco.abenv)
+    grid, activity = _gridactivity(eco.habitat)
     # Set up copy of supply
-    b = reshape(copy(_getsupply(eco.abenv.supply)), length(grid))
+    b = reshape(copy(_getsupply(eco.habitat.supply)), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
     # Draw locations from the last species' own RNG stream
@@ -569,13 +570,13 @@ function repopulate!(eco::Ecosystem, abun::Int64)
 end
 
 """
-    traitpopulate!(ml::GridLandscape, spplist::SpeciesList, abenv::AbstractAbiotic,
+    traitpopulate!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
                    rel::AbstractTraitRelationship, rngs::Vector{Random.Xoshiro})
 
 Populate the grid landscape `ml` by scattering each species' total abundance
 (taken from `spplist.abun`) across the grid cells with probability proportional
 to how well the species' traits match each cell's environment, as scored by the
-trait relationship `rel` applied to `spplist.traits` and `abenv.habitat`. Where a
+trait relationship `rel` applied to `spplist.traits` and `habitat.regime`. Where a
 species matches no cell the distribution falls back to uniform. Only native
 species (those flagged in `spplist.native`) are placed; non-native species are
 left empty.
@@ -585,18 +586,18 @@ cells by their available resource supply.
 """
 function traitpopulate!(ml::GridLandscape,
                         spplist::SpeciesList,
-                        abenv::AB,
+                        habitat::AB,
                         rel::R,
                         rngs::Vector{Random.Xoshiro}) where {AB <:
-                                                             AbstractAbiotic,
+                                                             AbstractHabitat,
                                                              R <:
                                                              AbstractTraitRelationship}
-    # Calculate size of habitat
-    dim = _getdimension(abenv.habitat)
+    # Calculate size of regime
+    dim = _getdimension(habitat.regime)
     numsquares = dim[1] * dim[2]
     numspp = length(spplist.names)
-    hab = reshape(abenv.habitat.matrix, numsquares)
-    probabilities = [_traitfun(abenv.habitat, spplist.traits, rel, i, sp)
+    regime = reshape(habitat.regime.matrix, numsquares)
+    probabilities = [_traitfun(habitat.regime, spplist.traits, rel, i, sp)
                      for i in 1:numsquares,
                          sp in 1:numspp]
     # Loop through species, drawing from each species' own RNG stream
@@ -619,43 +620,43 @@ Repopulate an ecosystem `eco` according to how well species traits match their
 environment, redistributing the total abundance across species at random.
 """
 function traitrepopulate!(eco::Ecosystem)
-    eco.abundances = emptygridlandscape(eco.abenv, eco.spplist)
+    eco.abundances = emptygridlandscape(eco.habitat, eco.spplist)
     eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
                                         length(eco.spplist.abun)))
-    return traitpopulate!(eco.abundances, eco.spplist, eco.abenv,
+    return traitpopulate!(eco.abundances, eco.spplist, eco.habitat,
                           eco.relationship, eco.rngs)
 end
 
 """
-    emptypopulate!(ml::GridLandscape, spplist::SpeciesList, abenv::AB, rel::R,
-                   rngs::Vector{Random.Xoshiro}) where {AB <: EcoSISTEM.AbstractAbiotic, R <: EcoSISTEM.AbstractTraitRelationship}
+    emptypopulate!(ml::GridLandscape, spplist::SpeciesList, habitat::AB, rel::R,
+                   rngs::Vector{Random.Xoshiro}) where {AB <: EcoSISTEM.AbstractHabitat, R <: EcoSISTEM.AbstractTraitRelationship}
 
 Placeholder population function that leaves the landscape empty and warns.
 """
 function emptypopulate!(ml::GridLandscape,
                         spplist::SpeciesList,
-                        abenv::AB,
+                        habitat::AB,
                         rel::R,
                         rngs::Vector{Random.Xoshiro}) where {AB <:
-                                                             EcoSISTEM.AbstractAbiotic,
+                                                             EcoSISTEM.AbstractHabitat,
                                                              R <:
                                                              EcoSISTEM.AbstractTraitRelationship}
     @warn "Ecosystem not populated!"
 end
 """
-    reenergise!(eco::Ecosystem, supply::Union{Float64, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
+    resupply!(eco::Ecosystem, supply::Union{Float64, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
 Refill an ecosystem `eco`, with resource from a supply value, `supply` and a grid
 size.
 """
-function reenergise!(eco::Ecosystem,
-                     supply::Union{Float64, Unitful.Quantity{Float64}},
-                     grid::Tuple{Int64, Int64})
-    return fill!(eco.abenv.supply.matrix, supply / (grid[1] * grid[2]))
+function resupply!(eco::Ecosystem,
+                   supply::Union{Float64, Unitful.Quantity{Float64}},
+                   grid::Tuple{Int64, Int64})
+    return fill!(eco.habitat.supply.matrix, supply / (grid[1] * grid[2]))
 end
-function reenergise!(eco::Ecosystem,
-                     supply::Tuple{Unitful.Quantity{Float64},
-                                   Unitful.Quantity{Float64}},
-                     grid::Tuple{Int64, Int64})
-    fill!(eco.abenv.supply.one.matrix, supply[1] / (grid[1] * grid[2]))
-    return fill!(eco.abenv.supply.two.matrix, supply[2] / (grid[1] * grid[2]))
+function resupply!(eco::Ecosystem,
+                   supply::Tuple{Unitful.Quantity{Float64},
+                                 Unitful.Quantity{Float64}},
+                   grid::Tuple{Int64, Int64})
+    fill!(eco.habitat.supply.one.matrix, supply[1] / (grid[1] * grid[2]))
+    return fill!(eco.habitat.supply.two.matrix, supply[2] / (grid[1] * grid[2]))
 end

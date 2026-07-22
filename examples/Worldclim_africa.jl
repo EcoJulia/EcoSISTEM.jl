@@ -35,13 +35,13 @@ heatmap(africa_temp)
 # Set up initial parameters for ecosystem
 numSpecies = 1;
 grid = size(active);
-dem = 0.1mm;
+demand = 0.1mm;
 individuals = 0;
 area = 64e6km^2;
 totalK = 1000.0kJ / km^2;
 
 # Set up how much water each species consumes
-resource_vec = WaterDemand(fill(dem, numSpecies))
+resource_vec = WaterDemand(fill(demand, numSpecies))
 
 # Set rates for birth and death
 birth = 0.6 / year
@@ -66,13 +66,13 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - with temperature and water resource
-abenv = bioclimAE(bio_africa, bio_africa_water, active)
+habitat = bioclimAE(bio_africa, bio_africa_water, active)
 
 # Set relationship between species and environment (gaussian)
 rel = Gauss{typeof(1.0K)}()
 
 # Create ecosystem and fill every active grid square with an individual
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, rel)
 rand_start = findall(active)
 for i in rand_start
     eco.abundances.grid[1, i[1], i[2]] += 1
