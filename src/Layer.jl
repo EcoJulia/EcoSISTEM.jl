@@ -227,3 +227,40 @@ const BudgetCollection2{B1, B2} = LayerCollection2{Budget, B1, B2}
 function BudgetCollection2(b1::AbstractLayer{Budget}, b2::AbstractLayer{Budget})
     return LayerCollection2(b1, b2)
 end
+
+# ---------------------------------------------------------------------------
+# Axis-driven canonicalisation + axis re-tagging (shared by the hand `*AE`
+# constructors in `AbioticEnv.jl` and the `build_*`/`materialise` path in `Simplify.jl`)
+# ---------------------------------------------------------------------------
+
+# Canonicalise a habitat *value* (a position) to its layer axis's unit, `canonicalunit(A())`: a unitful
+# value converts (proper affine — canonical units are absolute, so no interval subtlety); a bare value
+# attaches the unit. An axis with no canonical unit (`Unclassified`/dimensionless, `NoUnits`/`nothing`)
+# keeps the value's magnitude but still **absolutises** an affine unit (°C→K) — habitats are always in an
+# absolute unit, which the downstream dynamics/rate machinery assumes. The single, axis-driven replacement
+# for the old dimension-sniffing conversions.
+function _canonical(x, ::Type{A}) where {A <: NicheAxis}
+    return _tocanon(x, canonicalunit(A()))
+end
+function _tocanon(x, u)
+    return (u === NoUnits || isnothing(u)) ? _absolutise(float(x)) :
+           _tocanon_u(float(x), u)
+end
+_tocanon_u(x::Unitful.AbstractQuantity, u) = uconvert(u, x)
+_tocanon_u(x::Real, u) = x * u
+function _absolutise(x::Unitful.AbstractQuantity)
+    return uconvert(Unitful.absoluteunit(unit(x)), x)
+end
+_absolutise(x::Real) = x
+
+# Re-tag a materialised layer with its niche axis `A` — a phantom type parameter, so this shares the
+# arrays. The low-level constructors build an `Unclassified` layer that this narrows to the real axis.
+function _reaxis(l::ContinuousLayer{Habitat, A0, V, Arr},
+                 ::Type{A}) where {A0, V, Arr, A <: NicheAxis}
+    return ContinuousLayer{Habitat, A, V, Arr}(l.matrix, l.time, l.size,
+                                               l.dynamics)
+end
+function _reaxis(l::DiscreteLayer{A0, V, Arr},
+                 ::Type{A}) where {A0, V, Arr, A <: NicheAxis}
+    return DiscreteLayer{A, V, Arr}(l.matrix, l.size, l.dynamics)
+end

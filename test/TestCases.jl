@@ -67,7 +67,9 @@ function TestMultiEcosystem()
     individuals = 20000 * numSpecies
     totalK1 = 1000000.0 * kJ / km^2 * numSpecies
     totalK2 = 100.0 * mm / km^2 * numSpecies
-    abenv1 = simplehabitatAE(10.0K, grid, totalK1, area)
+    # `axis = MeanTemperature` so the habitat carries `TempChange` dynamics (the `TempIncrease!`/`TempFluct!`
+    # scenarios reset its rate); dynamics now comes from the declared axis, not the value's K unit.
+    abenv1 = simplehabitatAE(10.0K, grid, totalK1, area; axis = MeanTemperature)
     abenv2 = simplehabitatAE(10.0K, grid, totalK2, area)
     budget = BudgetCollection2(abenv1.budget, abenv2.budget)
     abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(budget)}(abenv1.habitat,
