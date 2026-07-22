@@ -26,7 +26,7 @@ africa_water_aa = upresolution(worldbc.array[:, :, 1], 2)
 africa_water = ClimateRaster(WorldClim{BioClim},
                              AxisArray(africa_water_aa .* mm,
                                        AxisArrays.axes(africa_water_aa)))
-bio_africa_water = WaterBudget(africa_water)
+bio_africa_water = WaterSupply(africa_water)
 
 # Find which grid cells are land
 active = Matrix{Bool}(bio_africa_lc.array .!= 4)

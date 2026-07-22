@@ -76,7 +76,7 @@ struct WarmestQuarterTemperature <: AbstractTemperature end
 """    ColdestQuarterTemperature <: AbstractTemperature — mean temperature of the coldest 3 consecutive months (BioClim 11; K). """
 struct ColdestQuarterTemperature <: AbstractTemperature end
 
-# --- Precipitation axes (all mm; provide a water budget/requirement) --------
+# --- Precipitation axes (all mm; provide a water supply/requirement) --------
 """    AbstractPrecipitation <: NicheAxis — precipitation niche axes (all in mm) """
 abstract type AbstractPrecipitation <: NicheAxis end
 """    Precipitation <: AbstractPrecipitation — annual precipitation, the sum of the 12 monthly precipitation totals (Climate `prec`, BioClim 12; mm). """
@@ -120,7 +120,7 @@ struct VolumetricWater <: NicheAxis end
 # --- The NicheAxis interface -----------------------------------------------
 # The small set of hooks that replace unit-based inference of a layer's meaning. Each has a
 # safe default; a group (via its abstract intermediate) or an individual axis overrides only
-# what applies. The budget/requirement/change types they name live in later-included files
+# what applies. The supply/requirement/change types they name live in later-included files
 # and are resolved at call time (nothing here runs at load).
 
 """
@@ -135,16 +135,16 @@ canonicalunit(::AbstractPrecipitation) = mm
 canonicalunit(::Altitude) = m
 
 """
-    budgettype(::NicheAxis)
+    supplytype(::NicheAxis)
 
-The `AbstractBudget` concrete type for this axis when used as a `Budget` resource, or
+The `AbstractSupply` concrete type for this axis when used as a `Budget` resource, or
 `nothing` if the axis is not a consumable resource (so it errors clearly rather than
-silently guessing one if a budget is nonetheless requested).
+silently guessing one if a supply is nonetheless requested).
 """
-budgettype(::NicheAxis) = nothing
-budgettype(::AbstractPrecipitation) = WaterBudget
-budgettype(::SolarRadiation) = SolarBudget
-budgettype(::VolumetricWater) = VolWaterBudget
+supplytype(::NicheAxis) = nothing
+supplytype(::AbstractPrecipitation) = WaterSupply
+supplytype(::SolarRadiation) = SolarSupply
+supplytype(::VolumetricWater) = VolWaterSupply
 
 """
     requirementtype(::NicheAxis)

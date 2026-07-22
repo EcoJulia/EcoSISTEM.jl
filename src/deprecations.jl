@@ -141,3 +141,19 @@ function (::Gauss{TR})(current::TR, opt::TR, var::TR) where {TR}
            exp(-abs(current - opt)^2 / (2 * var^2))
     return pref * unit(current)
 end
+
+# ---------------------------------------------------------------------------
+# Resource line: `Budget` → `Supply` (v0.4.0 rename; the environment's resource layer)
+# ---------------------------------------------------------------------------
+# `AbstractSupply`/`AbstractTimeSupply` are unexported, so their shims don't export either (the `false`).
+Base.@deprecate_binding AbstractBudget AbstractSupply false
+Base.@deprecate_binding AbstractTimeBudget AbstractTimeSupply false
+Base.@deprecate_binding SimpleBudget SimpleSupply
+Base.@deprecate_binding SolarBudget SolarSupply
+Base.@deprecate_binding SolarTimeBudget SolarTimeSupply
+Base.@deprecate_binding WaterBudget WaterSupply
+Base.@deprecate_binding WaterTimeBudget WaterTimeSupply
+Base.@deprecate_binding VolWaterBudget VolWaterSupply
+Base.@deprecate_binding VolWaterTimeBudget VolWaterTimeSupply
+Base.@deprecate_binding BudgetCollection2 SupplyCollection2
+@deprecate getbudget(eco) getsupply(eco)

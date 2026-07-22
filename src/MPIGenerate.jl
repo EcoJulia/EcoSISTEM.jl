@@ -7,14 +7,14 @@ using Distributions
 using Random
 
 using EcoSISTEM: AbstractAbiotic, Abstract1Requirement, Abstract2Requirements
-using EcoSISTEM: AbstractHabitat, AbstractBudget, AbstractTraitRelationship
+using EcoSISTEM: AbstractHabitat, AbstractSupply, AbstractTraitRelationship
 using EcoSISTEM:
                  energy_adjustment,
                  invalidatecaches!,
                  habitatupdate!,
-                 budgetupdate!,
+                 supplyupdate!,
                  BirthOnlyMovement,
-                 BudgetCollection2
+                 SupplyCollection2
 
 """
     update!(eco::MPIEcosystem, timestep::Unitful.Time)
@@ -30,7 +30,7 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     # Calculate dimenions of habitat and number of species
     numsc = countsubcommunities(eco)
     params = eco.spplist.params
-    # Set the overall energy budget of that square
+    # Set the overall energy supply of that square
     EcoSISTEM.update_energy_usage!(eco)
     # Share per-cell energy usage across ranks. `totalE` is (numsc, numrequirements)
     # and each rank owns a contiguous block of cells (rows); gather one requirement
@@ -68,7 +68,7 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
                 rng = EcoSISTEM.getrng(eco, truesp)
                 # Calculate how much birth and death should be adjusted
                 adjusted_birth, adjusted_death = energy_adjustment(eco,
-                                                                   eco.abenv.budget,
+                                                                   eco.abenv.supply,
                                                                    sc, truesp)
 
                 # Calculate effective rates
@@ -110,9 +110,9 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     # Invalidate all caches for next update
     invalidatecaches!(eco)
 
-    # Update environment - habitat and energy budgets
+    # Update environment - habitat and energy supplies
     habitatupdate!(eco, timestep)
-    return budgetupdate!(eco, timestep)
+    return supplyupdate!(eco, timestep)
 end
 
 """
@@ -148,7 +148,7 @@ function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
-    # Get energy budgets of species in square
+    # Get energy supplies of species in square
     ϵ̄ = eco.spplist.requirement.energy
     mats = eco.abundances.reshaped_cols
 
@@ -191,7 +191,7 @@ function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
-    # Get energy budgets of species in square
+    # Get energy supplies of species in square
     ϵ̄1 = eco.spplist.requirement.one.energy
     ϵ̄2 = eco.spplist.requirement.two.energy
     mats = eco.abundances.reshaped_cols
@@ -250,12 +250,12 @@ function EcoSISTEM.move!(eco::MPIEcosystem,
     return eco
 end
 
-using EcoSISTEM: _getdimension, _getbudget
+using EcoSISTEM: _getdimension, _getsupply
 """
     populate!(ml::MPIGridLandscape, spplist::SpeciesList, abenv::AB, rel::R)
 
 Populate an `MPIGridLandscape` by distributing each species' abundance across
-active grid cells proportionally to the available budget, then synchronising
+active grid cells proportionally to the available supply, then synchronising
 from rows to columns across all MPI nodes.
 """
 function EcoSISTEM.populate!(ml::MPIGridLandscape,
@@ -269,8 +269,8 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
     dim = _getdimension(abenv.habitat)
     len = dim[1] * dim[2]
     grid = collect(1:len)
-    # Set up copy of budget
-    b = reshape(ustrip.(_getbudget(abenv.budget)), size(grid))
+    # Set up copy of supply
+    b = reshape(ustrip.(_getsupply(abenv.supply)), size(grid))
     activity = reshape(copy(abenv.active), size(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
@@ -287,32 +287,32 @@ end
 
 """
     populate!(ml::MPIGridLandscape, spplist::SpeciesList,
-        abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}}, rel::R)
+        abenv::GridAbioticEnv{H, SupplyCollection2{B1, B2}}, rel::R)
 
-Two-budget variant of `populate!`; distributes abundances proportionally to the
-product of the two normalised budget fractions.
+Two-supply variant of `populate!`; distributes abundances proportionally to the
+product of the two normalised supply fractions.
 """
 function EcoSISTEM.populate!(ml::MPIGridLandscape,
                              spplist::EcoSISTEM.SpeciesList,
                              abenv::EcoSISTEM.GridAbioticEnv{H,
-                                                             BudgetCollection2{B1,
+                                                             SupplyCollection2{B1,
                                                                                B2}},
                              rel::R,
                              rngs::Vector{Random.Xoshiro}) where {H <:
                                                                   AbstractHabitat,
                                                                   B1 <:
-                                                                  AbstractBudget,
+                                                                  AbstractSupply,
                                                                   B2 <:
-                                                                  AbstractBudget,
+                                                                  AbstractSupply,
                                                                   R <:
                                                                   AbstractTraitRelationship}
     # Calculate size of habitat
     dim = _getdimension(abenv.habitat)
     len = dim[1] * dim[2]
     grid = collect(1:len)
-    # Set up copy of budget
-    b1 = reshape(copy(_getbudget(abenv.budget, :one)), size(grid))
-    b2 = reshape(copy(_getbudget(abenv.budget, :two)), size(grid))
+    # Set up copy of supply
+    b1 = reshape(copy(_getsupply(abenv.supply, :one)), size(grid))
+    b2 = reshape(copy(_getsupply(abenv.supply, :two)), size(grid))
     units1 = unit(b1[1])
     units2 = unit(b2[1])
     activity = reshape(copy(abenv.active), size(grid))

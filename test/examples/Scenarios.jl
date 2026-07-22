@@ -29,8 +29,8 @@ function RainDecrease!(eco::Ecosystem, timestep::Unitful.Time,
     resetrate!(eco, rate)
     eco.abenv.habitat.matrix[eco.abenv.habitat.matrix .< 0mm] .= 0mm
     v = uconvert(mm / unit(timestep), rate)
-    eco.abenv.budget.two.matrix .= v * timestep
-    return eco.abenv.budget.two.matrix[eco.abenv.budget.two.matrix .< 0mm] .= 0mm
+    eco.abenv.supply.two.matrix .= v * timestep
+    return eco.abenv.supply.two.matrix[eco.abenv.supply.two.matrix .< 0mm] .= 0mm
 end
 
 """
@@ -42,11 +42,11 @@ A function that randomly removes a portion of habitat at a certain rate.
 function RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
                           rate::RateType)
     v = uconvert(unit(timestep)^-1, rate)
-    pos = findall(eco.abenv.budget.one.matrix .> 0.0kJ)
+    pos = findall(eco.abenv.supply.one.matrix .> 0.0kJ)
     howmany = jbinom(1, length(pos), ustrip(v))[1]
     smp = sample(pos, howmany)
-    eco.abenv.budget.one.matrix[smp] .= 0.0kJ
-    eco.abenv.budget.two.matrix[smp] .= 0.0mm
+    eco.abenv.supply.one.matrix[smp] .= 0.0kJ
+    eco.abenv.supply.two.matrix[smp] .= 0.0mm
     eco.abundances.grid[:, smp] .= 0.0
     return eco.abenv.active[smp] .= false
 end
@@ -62,33 +62,33 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
                            rate::RateType)
     v = uconvert(unit(timestep)^-1, rate)
     # If no habitat lost then pick starting places
-    if all(eco.abenv.budget.one.matrix .> 0.0kJ)
+    if all(eco.abenv.supply.one.matrix .> 0.0kJ)
         pos = findall(eco.abenv.active)
         howmany = jbinom(1, length(pos), ustrip(v))[1]
         smp = sample(pos, howmany)
-        eco.abenv.budget.one.matrix[smp] .= 0.0kJ
-        eco.abenv.budget.two.matrix[smp] .= 0.0mm
+        eco.abenv.supply.one.matrix[smp] .= 0.0kJ
+        eco.abenv.supply.two.matrix[smp] .= 0.0mm
         eco.abundances.grid[:, smp] .= 0.0
         eco.abenv.active[smp] .= false
         # Else choose from neighbours of squares already lost
     else
-        pos = findall(eco.abenv.budget.one.matrix .== 0.0kJ)
+        pos = findall(eco.abenv.supply.one.matrix .== 0.0kJ)
         howmany = jbinom(1, length(findall(eco.abenv.active)), ustrip(v))[1]
-        width = size(eco.abenv.budget.one.matrix, 1)
+        width = size(eco.abenv.supply.one.matrix, 1)
         x, y = [x[1] for x in pos], [x[2] for x in pos]
-        neighbours = get_neighbours(eco.abenv.budget.one.matrix, x, y, 8)
+        neighbours = get_neighbours(eco.abenv.supply.one.matrix, x, y, 8)
         smp = sample(Base.axes(neighbours, 1), howmany)
         i = convert_coords(neighbours[smp, 1], neighbours[smp, 2], width)
-        eco.abenv.budget.one.matrix[i] .= 0.0kJ
-        eco.abenv.budget.two.matrix[i] .= 0.0mm
+        eco.abenv.supply.one.matrix[i] .= 0.0kJ
+        eco.abenv.supply.two.matrix[i] .= 0.0mm
         eco.abundances.matrix[:, i] .= 0.0
         eco.abenv.active[i] .= false
     end
     # Add in additional start points
     howmany = jbinom(1, 1, ustrip(v))[1]
     smp = sample(pos, howmany)
-    eco.abenv.budget.one.matrix[smp] .= 0.0kJ
-    eco.abenv.budget.two.matrix[smp] .= 0.0mm
+    eco.abenv.supply.one.matrix[smp] .= 0.0kJ
+    eco.abenv.supply.two.matrix[smp] .= 0.0mm
     eco.abundances.grid[:, smp] .= 0.0
     return eco.abenv.active[smp] .= false
 end

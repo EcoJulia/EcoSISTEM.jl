@@ -36,8 +36,8 @@ totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
 
 abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
+sup = SupplyCollection2(abenv1.supply, abenv2.supply)
+abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat, abenv1.active, sup, abenv1.names)
 
 vars = fill(2.0, numSpecies) .* K
 opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
@@ -99,8 +99,8 @@ totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
 
 abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
+sup = SupplyCollection2(abenv1.supply, abenv2.supply)
+abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat, abenv1.active, sup, abenv1.names)
 
 vars = range(0.0001, stop = 5, length = numSpecies) .* K
 opts = fill(298.0K, numSpecies)
@@ -160,8 +160,8 @@ totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
 
 abenv1 = simplehabitatAE(299.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
+sup = SupplyCollection2(abenv1.supply, abenv2.supply)
+abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat, abenv1.active, sup, abenv1.names)
 
 vars = range(0.0001, stop = 5, length = numSpecies) .* K
 opts = fill(298.0K, numSpecies)
@@ -227,21 +227,21 @@ numSpecies = 100; grd = (10,10); req=(450000.0kJ/m^2, 192.0nm/m^2); individuals 
 
 abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
 abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
-gsize = size(abenv.budget.one.matrix, 1)
+sup = SupplyCollection2(abenv1.supply, abenv2.supply)
+abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat, abenv1.active, sup, abenv1.names)
+gsize = size(abenv.supply.one.matrix, 1)
 sol_range = collect(range(0.0kJ, stop = 4.5e11kJ, length = gsize))
  map(1:gsize) do seq
-   abenv.budget.one.matrix[seq, :] .= sol_range[seq]
+   abenv.supply.one.matrix[seq, :] .= sol_range[seq]
  end
-abenv.budget.one.matrix
+abenv.supply.one.matrix
 
-gsize = size(abenv.budget.two.matrix, 1)
+gsize = size(abenv.supply.two.matrix, 1)
 water_range = collect(range(0.0mm, stop = 192mm, length = gsize))
 map(1:gsize) do seq
-    abenv.budget.two.matrix[:, seq] .= water_range[seq]
+    abenv.supply.two.matrix[:, seq] .= water_range[seq]
 end
-abenv.budget.two.matrix
+abenv.supply.two.matrix
 
 vars = fill(2.0, numSpecies) .* K
 opts = fill(298.0, numSpecies) .* K
@@ -301,8 +301,8 @@ for i in eachindex(grids)
 
     abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
     abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
+    sup = SupplyCollection2(abenv1.supply, abenv2.supply)
+    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat, abenv1.active, sup, abenv1.names)
 
     vars = fill(2.0, numSpecies) .* K
     opts = fill(298.0, numSpecies) .* K
@@ -357,8 +357,8 @@ for i in eachindex(areas)
 
     abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
     abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
+    sup = SupplyCollection2(abenv1.supply, abenv2.supply)
+    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat, abenv1.active, sup, abenv1.names)
 
     vars = fill(2.0, numSpecies) .* K
     opts = fill(298.0, numSpecies) .* K
@@ -414,8 +414,8 @@ for r in 1:reps
 
         abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
         abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-        bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-        abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
+        sup = SupplyCollection2(abenv1.supply, abenv2.supply)
+        abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat, abenv1.active, sup, abenv1.names)
 
         vars = rand(Uniform(1.0, 5.0), numSpecies) .* K
         opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
@@ -482,8 +482,8 @@ for i in eachindex(distances)
 
     abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
     abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat, abenv1.active, bud, abenv1.names)
+    sup = SupplyCollection2(abenv1.supply, abenv2.supply)
+    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat, abenv1.active, sup, abenv1.names)
 
     vars = fill(2.0, numSpecies) .* K
     opts = fill(298.0, numSpecies) .* K

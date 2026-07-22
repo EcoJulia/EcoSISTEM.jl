@@ -46,7 +46,7 @@ end
 """
     NoChange(eco::AbstractEcosystem, layer::AbstractLayer, timestep::Unitful.Time)
 
-Keep a layer (habitat or budget) the same for one timestep of the model.
+Keep a layer (habitat or supply) the same for one timestep of the model.
 """
 function NoChange(eco::AbstractEcosystem, layer::AbstractLayer,
                   timestep::Unitful.Time) end
@@ -59,7 +59,7 @@ dynamics(::AbstractPrecipitation) = RainfallChange
 """
     cyclicChange(eco::AbstractEcosystem, layer::ContinuousLayer, timestep::Unitful.Time)
 
-Advance a time-varying (monthly) layer — a climate habitat or a time budget — by one
+Advance a time-varying (monthly) layer — a climate habitat or a time supply — by one
 timestep, wrapping back to the first month once the stored 3-D time series is exhausted
 (with a warning). The per-source `eraChange`/`worldclimChange` names are aliases of this —
 the time-step-and-wrap logic is identical regardless of source or role.
@@ -85,7 +85,7 @@ const worldclimChange = cyclicChange
 Destroy habitat for one timestep of the ecosystem using [`HabitatUpdate`](@ref)
 information. The habitat's `dynamics.rate` is a loss rate (per unit time); over
 `timestep` it gives the per-cell probability that an active cell is lost. That many
-active cells are drawn at random and have their budget and abundances zeroed.
+active cells are drawn at random and have their supply and abundances zeroed.
 """
 function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat,
                      timestep::Unitful.Time)
@@ -93,15 +93,15 @@ function HabitatLoss(eco::AbstractEcosystem, hab::AbstractHabitat,
     prob = uconvert(NoUnits, hab.dynamics.rate * timestep)
     pos = findall(vec(eco.abenv.active))
     smp = sample(pos, rand(Binomial(length(pos), prob)); replace = false)
-    eco.abenv.budget.matrix[smp] .= zero(eltype(eco.abenv.budget.matrix))
+    eco.abenv.supply.matrix[smp] .= zero(eltype(eco.abenv.supply.matrix))
     eco.abundances.matrix[:, smp] .= 0
     return eco
 end
 
 # One update rule for any layer regardless of role: apply its own `dynamics.changefun`
 # (`NoChange` for a static layer, `TempChange`/`cyclicChange`/… for a dynamic one), and
-# recurse into a collection. This unifies the old separate `habitatupdate!`/`budgetupdate!`
-# (static budgets were no-ops; time budgets advanced identically to `cyclicChange`).
+# recurse into a collection. This unifies the old separate `habitatupdate!`/`supplyupdate!`
+# (static supplies were no-ops; time supplies advanced identically to `cyclicChange`).
 function _layerupdate!(eco::AbstractEcosystem, layer::AbstractLayer,
                        timestep::Unitful.Time)
     return layer.dynamics.changefun(eco, layer, timestep)
@@ -128,10 +128,10 @@ function habitatupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
 end
 
 """
-    budgetupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
+    supplyupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
 
-Update the budget of an ecosystem for one timestep.
+Update the supply of an ecosystem for one timestep.
 """
-function budgetupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
-    return _layerupdate!(eco, eco.abenv.budget, timestep)
+function supplyupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
+    return _layerupdate!(eco, eco.abenv.supply, timestep)
 end

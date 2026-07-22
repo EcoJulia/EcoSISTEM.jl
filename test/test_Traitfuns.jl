@@ -38,7 +38,7 @@ active = fill(true, grid)
                      Axis{:time}(collect(1:3) .* s))
     eratemp = ERA(temp)
     active = fill(true, 10, 10)
-    solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
+    solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
     ea = eraAE(eratemp, solar, active)
     hab = ea.habitat
     @test_nowarn EcoSISTEM._traitfun(hab, trts.two, rel.two, 1, 1)
@@ -53,7 +53,7 @@ active = fill(true, grid)
                      Axis{:time}(collect(1:3) .* s))
     erarain = ERA(rain)
     active = fill(true, 10, 10)
-    solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
+    solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
     ea = eraAE(erarain, solar, active)
     hab = ea.habitat
     # a Uniform response takes 2 parameters, so each species' row has 2 entries
@@ -68,7 +68,7 @@ end
                      Axis{:latitude}((1:10) .* °),
                      Axis{:longitude}((1:10) .* °),
                      Axis{:time}(collect(1:3) .* s))
-    solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
+    solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
     hab = eraAE(ERA(temp), solar, fill(true, 10, 10)).habitat
 
     # A Normal response (neither Trapezoid nor Uniform) proves any continuous distribution works.
@@ -81,6 +81,7 @@ end
     # the relationship's unit `TR` is imputed from the trait's axis / the habitat — not typed by hand
     @test typeof(DistRel(bin)) == DistRel{typeof(1.0K)}
     @test eltype(DistRel(bin)) == eltype(bin)
+    @test EcoSISTEM._default_relationship(bin, hab) isa DistRel{typeof(1.0K)}
 end
 
 end

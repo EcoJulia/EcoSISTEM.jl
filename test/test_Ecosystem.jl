@@ -100,10 +100,10 @@ include("TestCases.jl")
         env2 = simplehabitatAE(10.0mm, grid, 100.0mm / km^2, area;
                                axis = Precipitation)
         habitat = HabitatCollection2(env1.habitat, env2.habitat)   # eltype [K, mm]
-        budget = BudgetCollection2(env1.budget, env2.budget)
-        abenv = GridAbioticEnv{typeof(habitat), typeof(budget)}(habitat,
+        supply = SupplyCollection2(env1.supply, env2.supply)
+        abenv = GridAbioticEnv{typeof(habitat), typeof(supply)}(habitat,
                                                                 env1.active,
-                                                                budget,
+                                                                supply,
                                                                 env1.names)
         traits = TraitCollection2(Bin(MeanTemperature, Normal,
                                       fill(10.0K, numSpecies),

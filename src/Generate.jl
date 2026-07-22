@@ -84,7 +84,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     params = eco.spplist.params
     width = getdimension(eco)[1]
 
-    # Set the overall energy budget of that square
+    # Set the overall energy supply of that square
     update_energy_usage!(eco)
 
     # Loop through species in cache-line-sized contiguous blocks (see
@@ -111,7 +111,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
                 rng = getrng(eco, j)
                 # Calculate how much birth and death should be adjusted
                 adjusted_birth, adjusted_death = energy_adjustment(eco,
-                                                                   eco.abenv.budget,
+                                                                   eco.abenv.supply,
                                                                    i, j)
 
                 # Calculate effective rates
@@ -146,9 +146,9 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     # Invalidate all caches for next update
     invalidatecaches!(eco)
 
-    # Update environment - habitat and energy budgets
+    # Update environment - habitat and energy supplies
     habitatupdate!(eco, timestep)
-    return budgetupdate!(eco, timestep)
+    return supplyupdate!(eco, timestep)
 end
 
 """
@@ -169,7 +169,7 @@ function update_energy_usage!(eco::AbstractEcosystem{A,
                                                                                 Abstract1Requirement}
     !eco.cache.valid || return true
 
-    # Get energy budgets of species in square
+    # Get energy supplies of species in square
     ϵ̄ = eco.spplist.requirement.energy
 
     # Loop through grid squares
@@ -192,7 +192,7 @@ function update_energy_usage!(eco::AbstractEcosystem{A,
                                                                                 Abstract2Requirements}
     !eco.cache.valid || return true
 
-    # Get energy budgets of species in square
+    # Get energy supplies of species in square
     ϵ̄1 = eco.spplist.requirement.one.energy
     ϵ̄2 = eco.spplist.requirement.two.energy
 
@@ -208,34 +208,34 @@ function update_energy_usage!(eco::AbstractEcosystem{A,
 end
 
 """
-    energy_adjustment(eco::Ecosystem, bud::AbstractBudget, i::Int64, sp::Int64)
+    energy_adjustment(eco::Ecosystem, sup::AbstractSupply, i::Int64, sp::Int64)
 
 Calculate how much birth and death rates should be adjusted by, according to how
-much energy is available, `bud`, in the grid square, `i`, and how much energy
+much energy is available, `sup`, in the grid square, `i`, and how much energy
 the species, `sp`, requires.
 """
-function energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget,
+function energy_adjustment(eco::AbstractEcosystem, sup::AbstractSupply,
                            i::Int64, sp::Int64)
     # NoGrowth freezes the population
     eco.spplist.params isa NoGrowth && return (0.0, 0.0)
 
     # Otherwise adjust birth/death rates by the available energy.
-    return _energy_adjustment(eco, bud, i, sp)
+    return _energy_adjustment(eco, sup, i, sp)
 end
 
 # Birth and death rate multipliers for a single-requirement environment. Weighs
 # the species' own energy requirement (`ϵ̄`) and how well its traits match the cell
 # (`ϵ̄real`) against the energy available in the cell (`K`) relative to the total
 # demand there (`E`): births are boosted when energy is plentiful (`K/E`, capped at
-# `params.boost`) and deaths rise as demand approaches the budget (`E/K`). Called
+# `params.boost`) and deaths rise as demand approaches the supply (`E/K`). Called
 # only for growing populations — [`energy_adjustment`](@ref) short-circuits NoGrowth.
-function _energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget,
+function _energy_adjustment(eco::AbstractEcosystem, sup::AbstractSupply,
                             i::Int64, sp::Int64)
     params = eco.spplist.params
     width = getdimension(eco)[1]
     (x, y) = convert_coords(eco, i, width)
-    K = getbudget(eco)[x, y] * eco.spplist.requirement.exchange_rate
-    # Get energy budgets of species in square
+    K = getsupply(eco)[x, y] * eco.spplist.requirement.exchange_rate
+    # Get energy supplies of species in square
     ϵ̄ = eco.spplist.requirement.energy[sp] *
         eco.spplist.requirement.exchange_rate
     E = eco.cache.totalE[i, 1]
@@ -249,23 +249,23 @@ function _energy_adjustment(eco::AbstractEcosystem, bud::AbstractBudget,
 end
 
 # As above but for a two-requirement environment (e.g. solar energy and water),
-# combining the two budgets. The species is limited by whichever resource is
+# combining the two supplies. The species is limited by whichever resource is
 # scarcest: births use the `min` of the two availability ratios (`K1/E1`, `K2/E2`,
 # still capped at `params.boost`) and deaths the `max` of the two demand ratios
 # (`E1/K1`, `E2/K2`), so both requirements must be met for the population to grow.
 function _energy_adjustment(eco::AbstractEcosystem,
-                            bud::BudgetCollection2,
+                            sup::SupplyCollection2,
                             i::Int64,
                             sp::Int64)
     width = getdimension(eco)[1]
     (x, y) = convert_coords(eco, i, width)
     params = eco.spplist.params
-    K1 = _getbudget(eco.abenv.budget.one)[x, y] *
+    K1 = _getsupply(eco.abenv.supply.one)[x, y] *
          eco.spplist.requirement.one.exchange_rate
-    K2 = _getbudget(eco.abenv.budget.two)[x, y] *
+    K2 = _getsupply(eco.abenv.supply.two)[x, y] *
          eco.spplist.requirement.two.exchange_rate
     # Get abundances of square we are interested in
-    # Get energy budgets of species in square
+    # Get energy supplies of species in square
     ϵ̄1 = eco.spplist.requirement.one.energy[sp] *
          eco.spplist.requirement.one.exchange_rate
     ϵ̄2 = eco.spplist.requirement.two.energy[sp] *
@@ -459,9 +459,9 @@ end
 # Return the two ingredients the population routines share when spreading
 # individuals across the grid:
 #   `grid`     - a vector of the linear indices `1:ncells` of every grid cell,
-#                used both to size/flatten the budget and to sample cell locations;
+#                used both to size/flatten the supply and to sample cell locations;
 #   `activity` - a flattened copy of `abenv.active`, the boolean mask of which cells
-#                are habitable. Callers zero the budget of inactive (`false`) cells so
+#                are habitable. Callers zero the supply of inactive (`false`) cells so
 #                that no individuals are ever placed outside the active region.
 function _gridactivity(abenv::AbstractAbiotic)
     dim = _getdimension(abenv.habitat)
@@ -475,11 +475,11 @@ end
     populate!(ml::GridLandscape, spplist::SpeciesList, abenv::AbstractAbiotic,
               rel::AbstractTraitRelationship, rngs::Vector{Random.Xoshiro})
     populate!(ml::GridLandscape, spplist::SpeciesList,
-              abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}}, rel, rngs)
+              abenv::GridAbioticEnv{H, SupplyCollection2{B1, B2}}, rel, rngs)
 
 Populate the grid landscape `ml` by randomly scattering each species' total
 abundance (taken from `spplist.abun`) across the grid cells, choosing each cell
-with probability proportional to its available energy budget. Inactive cells are
+with probability proportional to its available energy supply. Inactive cells are
 given zero probability, so no individuals are placed outside the habitable
 region. Each species is drawn from its own generator in `rngs`, so the result is
 reproducible and independent of the number of threads or MPI processes.
@@ -487,9 +487,9 @@ reproducible and independent of the number of threads or MPI processes.
 `rel` is unused by these resource-based methods; it is accepted only so that they
 share a signature with [`traitpopulate!`](@ref) and can be passed
 interchangeably as the population function when constructing an
-[`Ecosystem`](@ref). For a two-budget environment (`BudgetCollection2`) the
+[`Ecosystem`](@ref). For a two-supply environment (`SupplyCollection2`) the
 sampling weight of a cell is the product of its two separately normalised
-budgets.
+supplies.
 """
 function populate!(ml::GridLandscape,
                    spplist::SpeciesList,
@@ -499,8 +499,8 @@ function populate!(ml::GridLandscape,
                                                         R <:
                                                         AbstractTraitRelationship}
     grid, activity = _gridactivity(abenv)
-    # Set up copy of budget
-    b = reshape(ustrip.(_getbudget(abenv.budget)), length(grid))
+    # Set up copy of supply
+    b = reshape(ustrip.(_getsupply(abenv.supply)), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
     B = b ./ sum(b)
@@ -512,18 +512,18 @@ end
 
 function populate!(ml::GridLandscape,
                    spplist::SpeciesList,
-                   abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}},
+                   abenv::GridAbioticEnv{H, SupplyCollection2{B1, B2}},
                    rel::R,
                    rngs::Vector{Random.Xoshiro}) where {H <: AbstractHabitat,
-                                                        B1 <: AbstractBudget,
-                                                        B2 <: AbstractBudget,
+                                                        B1 <: AbstractSupply,
+                                                        B2 <: AbstractSupply,
                                                         R <:
                                                         AbstractTraitRelationship}
     # Calculate size of habitat
     grid, activity = _gridactivity(abenv)
-    # Set up copy of budget
-    b1 = reshape(copy(_getbudget(abenv.budget, :one)), length(grid))
-    b2 = reshape(copy(_getbudget(abenv.budget, :two)), length(grid))
+    # Set up copy of supply
+    b1 = reshape(copy(_getsupply(abenv.supply, :one)), length(grid))
+    b2 = reshape(copy(_getsupply(abenv.supply, :two)), length(grid))
     units1 = unit(b1[1])
     units2 = unit(b2[1])
     b1[.!activity] .= 0.0 * units1
@@ -554,8 +554,8 @@ end
 
 function repopulate!(eco::Ecosystem, abun::Int64)
     grid, activity = _gridactivity(eco.abenv)
-    # Set up copy of budget
-    b = reshape(copy(_getbudget(eco.abenv.budget)), length(grid))
+    # Set up copy of supply
+    b = reshape(copy(_getsupply(eco.abenv.supply)), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
     # Draw locations from the last species' own RNG stream
@@ -579,7 +579,7 @@ species (those flagged in `spplist.native`) are placed; non-native species are
 left empty.
 
 This is the trait-based counterpart of [`populate!`](@ref), which instead weights
-cells by their available energy budget.
+cells by their available energy supply.
 """
 function traitpopulate!(ml::GridLandscape,
                         spplist::SpeciesList,
@@ -641,19 +641,19 @@ function emptypopulate!(ml::GridLandscape,
     @warn "Ecosystem not populated!"
 end
 """
-    reenergise!(eco::Ecosystem, budget::Union{Float64, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
-Refill an ecosystem `eco`, with energy from a budget value, `budget` and a grid
+    reenergise!(eco::Ecosystem, supply::Union{Float64, Unitful.Quantity{Float64}}, grid::Tuple{Int64, Int64})
+Refill an ecosystem `eco`, with energy from a supply value, `supply` and a grid
 size.
 """
 function reenergise!(eco::Ecosystem,
-                     budget::Union{Float64, Unitful.Quantity{Float64}},
+                     supply::Union{Float64, Unitful.Quantity{Float64}},
                      grid::Tuple{Int64, Int64})
-    return fill!(eco.abenv.budget.matrix, budget / (grid[1] * grid[2]))
+    return fill!(eco.abenv.supply.matrix, supply / (grid[1] * grid[2]))
 end
 function reenergise!(eco::Ecosystem,
-                     budget::Tuple{Unitful.Quantity{Float64},
+                     supply::Tuple{Unitful.Quantity{Float64},
                                    Unitful.Quantity{Float64}},
                      grid::Tuple{Int64, Int64})
-    fill!(eco.abenv.budget.one.matrix, budget[1] / (grid[1] * grid[2]))
-    return fill!(eco.abenv.budget.two.matrix, budget[2] / (grid[1] * grid[2]))
+    fill!(eco.abenv.supply.one.matrix, supply[1] / (grid[1] * grid[2]))
+    return fill!(eco.abenv.supply.two.matrix, supply[2] / (grid[1] * grid[2]))
 end

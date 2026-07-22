@@ -71,10 +71,10 @@ function TestMultiEcosystem()
     # scenarios reset its rate); dynamics now comes from the declared axis, not the value's K unit.
     abenv1 = simplehabitatAE(10.0K, grid, totalK1, area; axis = MeanTemperature)
     abenv2 = simplehabitatAE(10.0K, grid, totalK2, area)
-    budget = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(budget)}(abenv1.habitat,
+    supply = SupplyCollection2(abenv1.supply, abenv2.supply)
+    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(supply)}(abenv1.habitat,
                                                                    abenv1.active,
-                                                                   budget,
+                                                                   supply,
                                                                    abenv1.names)
 
     abun = rand(Multinomial(individuals, numSpecies))

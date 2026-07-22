@@ -59,10 +59,10 @@ lensim = length((0month):simDict["interval"]:simDict["times"])
 for i in 1:simDict["reps"]
     abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
     abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
+    sup = SupplyCollection2(abenv1.supply, abenv2.supply)
+    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat,
                                                                 abenv1.active,
-                                                                bud,
+                                                                sup,
                                                                 abenv1.names)
 
     vars = rand(Uniform(1, 5), numSpecies + numInvasive) .* K

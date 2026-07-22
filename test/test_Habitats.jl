@@ -53,7 +53,7 @@ using RasterDataSources
                      Axis{:time}(collect(1:3) .* s))
     eratemp = ERA(temp)
     active = fill(true, 10, 10)
-    solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
+    solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
     ea = eraAE(eratemp, solar, active)
     @test EcoSISTEM.iscontinuous(ea.habitat) == true
     @test eltype(ea.habitat) == typeof(ea.habitat.matrix[1])
@@ -69,7 +69,7 @@ using RasterDataSources
                      Axis{:time}(collect(1:12) .* month))
     wctemp = ClimateRaster(WorldClim{Climate}, temp)
     active = fill(true, 10, 10)
-    solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
+    solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
     wc = worldclimAE(wctemp, solar, active)
     @test EcoSISTEM.iscontinuous(wc.habitat) == true
     @test eltype(wc.habitat) == typeof(wc.habitat.matrix[1])

@@ -105,6 +105,21 @@ using RasterDataSources
             @test size(rw)[3] == 12
         end
     end
+
+    @testset "resource line: Budget → Supply" begin
+        # the v0.4.0 `*Budget` layer types are deprecated aliases of the renamed `*Supply` types.
+        # (`@deprecate_binding` warns via a channel `@test_deprecated` can't capture, so we assert the
+        # binding resolves; the warning still fires under `--depwarn=yes`.)
+        @test SolarBudget === SolarSupply
+        @test WaterBudget === WaterSupply
+        @test VolWaterBudget === VolWaterSupply
+        @test SimpleBudget === SimpleSupply
+        @test SolarTimeBudget === SolarTimeSupply
+        @test WaterTimeBudget === WaterTimeSupply
+        @test VolWaterTimeBudget === VolWaterTimeSupply
+        @test BudgetCollection2 === SupplyCollection2
+        @test EcoSISTEM.AbstractBudget === EcoSISTEM.AbstractSupply
+    end
 end
 
 end

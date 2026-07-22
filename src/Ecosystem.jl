@@ -442,12 +442,12 @@ function gethabitat(eco::AbstractEcosystem)
 end
 
 """
-    getbudget(eco::Ecosystem)
+    getsupply(eco::Ecosystem)
 
-Extract budget from [`Ecosystem`](@ref) object.
+Extract supply from [`Ecosystem`](@ref) object.
 """
-function getbudget(eco::AbstractEcosystem)
-    return _getbudget(eco.abenv.budget)
+function getsupply(eco::AbstractEcosystem)
+    return _getsupply(eco.abenv.supply)
 end
 
 """

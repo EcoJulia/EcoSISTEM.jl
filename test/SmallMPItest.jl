@@ -60,7 +60,7 @@ sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
 
 # Create abiotic environment - even grid of one temperature
 abenv = simplehabitatAE(274.0K, grid, totalK, area)
-abenv.budget.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
+abenv.supply.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
 
 # Set relationship between species and environment (gaussian)
 rel = DistRel{typeof(1.0K)}()
@@ -120,10 +120,10 @@ abenv1 = simplehabitatAE(274.0K, grid, totalK, area)
 total_mm = 10.0mm / km^2
 abenv2 = simplehabitatAE(274.0K, grid, total_mm, area)
 
-budget = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(budget)}(abenv1.habitat,
+supply = SupplyCollection2(abenv1.supply, abenv2.supply)
+abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(supply)}(abenv1.habitat,
                                                                abenv1.active,
-                                                               budget,
+                                                               supply,
                                                                abenv1.names)
 
 # Set relationship between species and environment (gaussian)

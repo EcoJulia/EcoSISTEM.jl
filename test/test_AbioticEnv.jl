@@ -32,12 +32,12 @@ if !Sys.iswindows()
         @test_nowarn simplehabitatAE(fillval, grid, totalK, area, active)
         @test all(abenv.habitat.matrix .== fillval)
         @test size(abenv.habitat.matrix) == grid
-        @test sum(abenv.budget.matrix) == totalK * area
+        @test sum(abenv.supply.matrix) == totalK * area
         @test abenv.active == active
         @test all(abenv.active)
 
         @test EcoSISTEM._getsubcommunitynames(abenv) == abenv.names
-        @test EcoSISTEM.getavailableenergy(abenv) == sum(abenv.budget.matrix)
+        @test EcoSISTEM.getavailableenergy(abenv) == sum(abenv.supply.matrix)
     end
 
     @testset "temperature gradient" begin
@@ -48,7 +48,7 @@ if !Sys.iswindows()
         @test minimum(abenv.habitat.matrix) == -10.0K
         @test maximum(abenv.habitat.matrix) == 10.0K
         @test size(abenv.habitat.matrix) == grid
-        @test sum(abenv.budget.matrix) == totalK * area
+        @test sum(abenv.supply.matrix) == totalK * area
         @test abenv.active == active
         @test all(abenv.active)
     end
@@ -61,7 +61,7 @@ if !Sys.iswindows()
         @test minimum(abenv.habitat.matrix) == -10.0K
         @test maximum(abenv.habitat.matrix) == 10.0K
         @test size(abenv.habitat.matrix) == grid
-        @test sum(abenv.budget.matrix) == totalK * area
+        @test sum(abenv.supply.matrix) == totalK * area
         @test abenv.active == active
         @test all(abenv.active)
     end
@@ -74,7 +74,7 @@ if !Sys.iswindows()
         @test minimum(abenv.habitat.matrix) == 0.0mm
         @test maximum(abenv.habitat.matrix) == 100.0mm
         @test size(abenv.habitat.matrix) == grid
-        @test sum(abenv.budget.matrix) == totalK * area
+        @test sum(abenv.supply.matrix) == totalK * area
         @test abenv.active == active
         @test all(abenv.active)
     end
@@ -86,7 +86,7 @@ if !Sys.iswindows()
         @test_nowarn simplenicheAE(numNiches, grid, totalK, area, active)
         @test maximum(abenv.habitat.matrix) <= numNiches
         @test size(abenv.habitat.matrix) == grid
-        @test sum(abenv.budget.matrix) == totalK * area
+        @test sum(abenv.supply.matrix) == totalK * area
         @test abenv.active == active
         @test all(abenv.active)
     end
@@ -109,7 +109,7 @@ if !Sys.iswindows()
         @test ea.active == active
         @test all(ea.active)
 
-        solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
+        solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
         ea = eraAE(eratemp, solar, active)
     end
 
@@ -131,7 +131,7 @@ if !Sys.iswindows()
         @test wc.active == active
         @test all(wc.active)
 
-        solar = SolarTimeBudget(fill(10.0kJ, 10, 10, 3), 1)
+        solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
         wc = worldclimAE(wctemp, solar, active)
     end
 
@@ -145,7 +145,7 @@ if !Sys.iswindows()
         @test bioclimAE(bio_africa, totalK, area, active) isa GridAbioticEnv
         @test size(bc.habitat.matrix) == size(bio_africa.array)
         @test isapprox(EcoSISTEM.getavailableenergy(bc), totalK * area)
-        solar = SolarBudget(fill(10.0kJ, size(bio_africa.array)))
+        solar = SolarSupply(fill(10.0kJ, size(bio_africa.array)))
         bc = bioclimAE(bio_africa, solar, active)
     end
 
@@ -160,7 +160,7 @@ if !Sys.iswindows()
         @test lcAE(world_lc, totalK, area, active) isa GridAbioticEnv
         @test size(lc.habitat.matrix) == size(world_lc.array)
         @test isapprox(EcoSISTEM.getavailableenergy(lc), totalK * area)
-        solar = SolarBudget(fill(10.0kJ, size(world_lc.array)))
+        solar = SolarSupply(fill(10.0kJ, size(world_lc.array)))
         lc = lcAE(world_lc, solar, active)
     end
 end

@@ -132,7 +132,7 @@ end
     ReqCollection2{R1, R2}
 
 A pair of species resource requirements (e.g. solar energy and water) consumed
-together, to match a two-resource budget.
+together, to match a two-resource supply.
 """
 struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
     one::R1
@@ -151,122 +151,122 @@ unitdict = Dict(kJ => "Solar Radiation (kJ)",
                 mm => "Available water (mm)")
 
 # ---------------------------------------------------------------------------
-# Budgets — `Budget`-role layers (folded onto `ContinuousLayer{Budget}`)
+# Supplies — `Budget`-role layers (folded onto `ContinuousLayer{Budget}`)
 # ---------------------------------------------------------------------------
-# The concrete budget names (`SimpleBudget`/`SolarBudget`/… and the time-varying
-# `*TimeBudget`s) are aliases (in Layer.jl) over `ContinuousLayer{Budget, axis, V, Arr}`:
-# a static budget is 2-D (`Matrix`), a time budget 3-D (`Array`, indexed by `time`). The
+# The concrete supply names (`SimpleSupply`/`SolarSupply`/… and the time-varying
+# `*TimeSupply`s) are aliases (in Layer.jl) over `ContinuousLayer{Budget, axis, V, Arr}`:
+# a static supply is 2-D (`Matrix`), a time supply 3-D (`Array`, indexed by `time`). The
 # constructors below fill the (unused) `size` and the per-timestep `dynamics` rule and zero
-# NaNs, reproducing the old budget structs. A budget's `size` is never read
+# NaNs, reproducing the old supply structs. A supply's `size` is never read
 # (geometry/dispersal use the habitat), so a placeholder is stored; `NoChange`/`cyclicChange`
 # live in HabitatUpdate.jl (included later) and resolve at call time.
-const _BUDGET_SIZE = 1.0m
-_budget_static() = HabitatUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
-_budget_cyclic() = HabitatUpdate(cyclicChange, 0.0 / s, Unitful.Dimensions{()})
+const _SUPPLY_SIZE = 1.0m
+_supply_static() = HabitatUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
+_supply_cyclic() = HabitatUpdate(cyclicChange, 0.0 / s, Unitful.Dimensions{()})
 
 Base.eltype(::ContinuousLayer{Budget, A, V}) where {A, V} = V
-function Base.eltype(bud::LayerCollection2{Budget})
-    return [eltype(bud.one), eltype(bud.two)]
+function Base.eltype(sup::LayerCollection2{Budget})
+    return [eltype(sup.one), eltype(sup.two)]
 end
 
-countsubcommunities(ab::AbstractBudget) = _countsubcommunities(ab)
-function _countsubcommunities(bud::ContinuousLayer{Budget, A, V, Arr}) where {A,
+countsubcommunities(ab::AbstractSupply) = _countsubcommunities(ab)
+function _countsubcommunities(sup::ContinuousLayer{Budget, A, V, Arr}) where {A,
                                                                               V,
                                                                               Arr <:
                                                                               AbstractMatrix{V}}
-    return length(bud.matrix)
+    return length(sup.matrix)
 end
-function _countsubcommunities(bud::ContinuousLayer{Budget, A, V, Arr}) where {A,
+function _countsubcommunities(sup::ContinuousLayer{Budget, A, V, Arr}) where {A,
                                                                               V,
                                                                               Arr <:
                                                                               AbstractArray{V,
                                                                                             3}}
-    return length(@view bud.matrix[:, :, 1])
+    return length(@view sup.matrix[:, :, 1])
 end
-function _countsubcommunities(bud::LayerCollection2{Budget})
-    return _countsubcommunities(bud.one)
+function _countsubcommunities(sup::LayerCollection2{Budget})
+    return _countsubcommunities(sup.one)
 end
 
 # The resource available in each cell: the full matrix (static), or the current time slice.
-function _getbudget(bud::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
+function _getsupply(sup::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
                                                                     Arr <:
                                                                     AbstractMatrix{V}}
-    return bud.matrix
+    return sup.matrix
 end
-function _getbudget(bud::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
+function _getsupply(sup::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
                                                                     Arr <:
                                                                     AbstractArray{V,
                                                                                   3}}
-    return @view bud.matrix[:, :, bud.time]
+    return @view sup.matrix[:, :, sup.time]
 end
-function _getbudget(bud::LayerCollection2{Budget}, field::Symbol)
-    return _getbudget(getfield(bud, field))
-end
-
-function _getavailableenergy(bud::ContinuousLayer{Budget})
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-function _getavailableenergy(bud::LayerCollection2{Budget})
-    return [_getavailableenergy(bud.one), _getavailableenergy(bud.two)]
+function _getsupply(sup::LayerCollection2{Budget}, field::Symbol)
+    return _getsupply(getfield(sup, field))
 end
 
-# --- Constructors reproducing the old per-type budget structs -------------------------
-function SimpleBudget(mat::Matrix{Float64})
+function _getavailableenergy(sup::ContinuousLayer{Budget})
+    return sum(sup.matrix[.!isnan.(sup.matrix)])
+end
+function _getavailableenergy(sup::LayerCollection2{Budget})
+    return [_getavailableenergy(sup.one), _getavailableenergy(sup.two)]
+end
+
+# --- Constructors reproducing the old per-type supply structs -------------------------
+function SimpleSupply(mat::Matrix{Float64})
     return ContinuousLayer{Budget, Unclassified, Float64, Matrix{Float64}}(mat,
                                                                            1,
-                                                                           _BUDGET_SIZE,
-                                                                           _budget_static())
+                                                                           _SUPPLY_SIZE,
+                                                                           _supply_static())
 end
-function SolarBudget(mat::Matrix{typeof(1.0 * kJ)})
+function SolarSupply(mat::Matrix{typeof(1.0 * kJ)})
     mat[isnan.(mat)] .= 0 * kJ
     return ContinuousLayer{Budget, SolarRadiation, typeof(1.0 * kJ),
-                           Matrix{typeof(1.0 * kJ)}}(mat, 1, _BUDGET_SIZE,
-                                                     _budget_static())
+                           Matrix{typeof(1.0 * kJ)}}(mat, 1, _SUPPLY_SIZE,
+                                                     _supply_static())
 end
-function WaterBudget(mat::Matrix{typeof(1.0 * mm)})
+function WaterSupply(mat::Matrix{typeof(1.0 * mm)})
     mat[isnan.(mat)] .= 0.0mm
     return ContinuousLayer{Budget, Precipitation, typeof(1.0 * mm),
-                           Matrix{typeof(1.0 * mm)}}(mat, 1, _BUDGET_SIZE,
-                                                     _budget_static())
+                           Matrix{typeof(1.0 * mm)}}(mat, 1, _SUPPLY_SIZE,
+                                                     _supply_static())
 end
-function WaterBudget(bc::ClimateRaster{WorldClim{BioClim}})
+function WaterSupply(bc::ClimateRaster{WorldClim{BioClim}})
     mat = Matrix(bc.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
-    return WaterBudget(mat)
+    return WaterSupply(mat)
 end
-function VolWaterBudget(mat::Matrix{typeof(1.0 * m^3)})
+function VolWaterSupply(mat::Matrix{typeof(1.0 * m^3)})
     mat[isnan.(mat)] .= 0 * m^3
     return ContinuousLayer{Budget, VolumetricWater, typeof(1.0 * m^3),
-                           Matrix{typeof(1.0 * m^3)}}(mat, 1, _BUDGET_SIZE,
-                                                      _budget_static())
+                           Matrix{typeof(1.0 * m^3)}}(mat, 1, _SUPPLY_SIZE,
+                                                      _supply_static())
 end
-function SolarTimeBudget(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
+function SolarTimeSupply(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
     mat[isnan.(mat)] .= 0 * kJ
     return ContinuousLayer{Budget, SolarRadiation, typeof(1.0 * kJ),
-                           Array{typeof(1.0 * kJ), 3}}(mat, time, _BUDGET_SIZE,
-                                                       _budget_cyclic())
+                           Array{typeof(1.0 * kJ), 3}}(mat, time, _SUPPLY_SIZE,
+                                                       _supply_cyclic())
 end
-function SolarTimeBudget(wc::ClimateRaster{WorldClim{Climate}}, time::Int64)
+function SolarTimeSupply(wc::ClimateRaster{WorldClim{Climate}}, time::Int64)
     mat = Array(wc.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
-    return SolarTimeBudget(mat, time)
+    return SolarTimeSupply(mat, time)
 end
-function WaterTimeBudget(mat::Array{typeof(1.0 * mm), 3}, time::Int64)
+function WaterTimeSupply(mat::Array{typeof(1.0 * mm), 3}, time::Int64)
     mat[isnan.(mat)] .= 0 * mm
     return ContinuousLayer{Budget, Precipitation, typeof(1.0 * mm),
-                           Array{typeof(1.0 * mm), 3}}(mat, time, _BUDGET_SIZE,
-                                                       _budget_cyclic())
+                           Array{typeof(1.0 * mm), 3}}(mat, time, _SUPPLY_SIZE,
+                                                       _supply_cyclic())
 end
-function WaterTimeBudget(wc::ClimateRaster{WorldClim{Climate}}, time::Int64)
+function WaterTimeSupply(wc::ClimateRaster{WorldClim{Climate}}, time::Int64)
     mat = Array(wc.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
-    return WaterTimeBudget(mat, time)
+    return WaterTimeSupply(mat, time)
 end
-function VolWaterTimeBudget(mat::Array{typeof(1.0 * m^3), 3}, time::Int64)
+function VolWaterTimeSupply(mat::Array{typeof(1.0 * m^3), 3}, time::Int64)
     mat[isnan.(mat)] .= 0 * m^3
     return ContinuousLayer{Budget, VolumetricWater, typeof(1.0 * m^3),
-                           Array{typeof(1.0 * m^3), 3}}(mat, time, _BUDGET_SIZE,
-                                                        _budget_cyclic())
+                           Array{typeof(1.0 * m^3), 3}}(mat, time, _SUPPLY_SIZE,
+                                                        _supply_cyclic())
 end
 
 # --- Recipes --------------------------------------------------------------------------

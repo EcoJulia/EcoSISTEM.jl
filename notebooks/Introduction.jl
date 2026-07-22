@@ -63,10 +63,10 @@ begin
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
     abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
     abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
+    sup = SupplyCollection2(abenv1.supply, abenv2.supply)
+    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(sup)}(abenv1.habitat,
                                                                 abenv1.active,
-                                                                bud,
+                                                                sup,
                                                                 abenv1.names)
 
     # Species characteristics
@@ -191,7 +191,7 @@ begin
     # Let's plot it to see what it looks like
     heatmap(temp_env.habitat.matrix ./ K, clim = (278, 308), title = "Habitat",
             layout = 2)
-    heatmap!(temp_env.budget.matrix ./ mm,
+    heatmap!(temp_env.supply.matrix ./ mm,
              title = "Resource",
              subplot = 2,
              clim = (100, 200))
