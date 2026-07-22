@@ -95,14 +95,14 @@ begin
     # Habitat preferences
     vars = fill(2.0, numSpecies) .* K
     opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
-    trts = GaussTrait(opts, vars)
+    trts = Bin(MeanTemperature, Normal, opts, vars)
 
     # Species list
     sppl = SpeciesList(numSpecies, trts, abun, energy_vec,
                        movement, param, native)
 
     # Trait relationship
-    rel = Gauss{typeof(first(opts))}()
+    rel = DistRel{typeof(first(opts))}()
 
     # Build ecosystem
     eco = Ecosystem(sppl, abenv, rel)
@@ -299,7 +299,7 @@ begin
 
     # Let's combine these pieces of information together so that each species has a 
     # Gaussian curve representing their match to the current temperature
-    traits = GaussTrait(optima, niche_width)
+    traits = Bin(MeanTemperature, Normal, optima, niche_width)
 
     # Okay, now we are ready for our species list!
     species_list = SpeciesList(numSpp, traits, start_abuns, water_vec,
@@ -334,7 +334,7 @@ The last thing we need to specify is the relationship between the species and th
 "
 
 # ╔═╡ 41206ea4-77ed-4b87-8acf-8d2a9ee170db
-trait_relationship = Gauss{typeof(first(optima))}()
+trait_relationship = DistRel{typeof(first(optima))}()
 
 # ╔═╡ 1d59bcaa-3670-4765-8981-9e2dd6d99436
 md"Now we can build our ecosystem! EcoSISTEM is integrated with SpatialEcology.jl, so we can take advantage of their plotting system, by simply calling plot on our `Ecosystem` object. This will show us the species richness over space."

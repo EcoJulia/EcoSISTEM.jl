@@ -85,7 +85,7 @@ begin
     opts = fill(274.0K, numSpecies)
     vars = fill(50.0K, numSpecies)
     vars[end] = (1 / niche_width) * K
-    trts = GaussTrait(opts, vars)
+    trts = Bin(MeanTemperature, Normal, opts, vars)
     native = fill(true, numSpecies)
     abun = fill(div(individuals, numSpecies), numSpecies)
     sppl = SpeciesList(numSpecies, trts, abun, energy_vec,
@@ -96,7 +96,7 @@ begin
     abenv = simplehabitatAE(274.0K, grd, totalK, area, active)
 
     # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    rel = DistRel{typeof(1.0K)}()
 
     # Create ecosystem
     eco = Ecosystem(sppl, abenv, rel)
@@ -172,7 +172,7 @@ begin
     # Create species list, including their temperature preferences, seed abundance and native status
     opts_new = fill(meantemp * 1.0K, numSpecies)
     vars_new = fill(5.0K, numSpecies)
-    trts_new = GaussTrait(opts_new, vars_new)
+    trts_new = Bin(MeanTemperature, Normal, opts_new, vars_new)
     native_new = fill(true, numSpecies)
     abun_new = fill(div(individuals_new, numSpecies), numSpecies)
     sppl_new = SpeciesList(numSpecies, trts_new, abun_new, energy_vec_new,
@@ -183,7 +183,7 @@ begin
     abenv_new = bioclimAE(africa_new, totalK_new, area_new)
 
     # Set relationship between species and environment (gaussian)
-    rel_new = Gauss{typeof(1.0K)}()
+    rel_new = DistRel{typeof(1.0K)}()
 
     # Create ecosystem
     eco_new = Ecosystem(sppl_new, abenv_new, rel_new)
