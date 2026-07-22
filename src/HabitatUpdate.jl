@@ -51,7 +51,10 @@ Keep a layer (habitat or budget) the same for one timestep of the model.
 function NoChange(eco::AbstractEcosystem, layer::AbstractLayer,
                   timestep::Unitful.Time) end
 
-ChangeLookup = Dict(K => TempChange, NoUnits => NoChange)
+# Axis-keyed layer dynamics: a habitat's per-timestep change function is chosen from its niche axis via
+# `dynamics(::NicheAxis)` (default `NoChange`, declared in `NicheInfo.jl`).
+dynamics(::AbstractTemperature) = TempChange
+dynamics(::AbstractPrecipitation) = RainfallChange
 
 """
     cyclicChange(eco::AbstractEcosystem, layer::ContinuousLayer, timestep::Unitful.Time)

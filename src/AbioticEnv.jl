@@ -547,7 +547,7 @@ function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
     val = _canonical(val, axis)
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
-    hab = _reaxis(simplehabitat(val, gridsquaresize, dimension), axis)
+    hab = _reaxis(simplehabitat(val, gridsquaresize, dimension, axis), axis)
     return _maxbudget_env(hab, active, maxbud, area)
 end
 

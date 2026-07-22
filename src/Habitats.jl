@@ -371,31 +371,36 @@ end
 
 """
     simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
-    dim::Tuple{Int64, Int64})
+    dim::Tuple{Int64, Int64}, axis::Type{<:NicheAxis} = Unclassified)
 
 Create a [`ContinuousHab`](@ref) habitat of dimension `dim`, with cell `size`
-and filled value, `val`.
+and filled value, `val`, on niche axis `axis`.
 """
 function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
-                       dim::Tuple{Int64, Int64})
+                       dim::Tuple{Int64, Int64},
+                       axis::Type{<:NicheAxis} = Unclassified)
     M = fill(val, dim)
-    func = ChangeLookup[unit(val)]
+    # A static habitat (rate 0); its change function comes from the layer's niche `axis` via
+    # `dynamics(axis)`.
     rate = 0.0 * unit(val) / s
-    habitatupdate = HabitatUpdate(func, rate, typeof(dimension(val)))
+    habitatupdate = HabitatUpdate(dynamics(axis()), rate,
+                                  typeof(dimension(val)))
     return ContinuousHab(M, size, habitatupdate)
 end
 
 """
-    simplehabitat(val::Float64, size::Unitful.Length, dim::Tuple{Int64, Int64})
+    simplehabitat(val::Float64, size::Unitful.Length, dim::Tuple{Int64, Int64},
+    axis::Type{<:NicheAxis} = Unclassified)
 
-Create a dimensionless [`ContinuousHab`](@ref) filled with `val`. Uses
-[`NoChange`](@ref) as the update rule.
+Create a dimensionless [`ContinuousHab`](@ref) filled with `val`. Its update
+rule comes from `axis` via `dynamics(axis)`.
 """
 function simplehabitat(val::Float64, size::Unitful.Length,
-                       dim::Tuple{Int64, Int64})
+                       dim::Tuple{Int64, Int64},
+                       axis::Type{<:NicheAxis} = Unclassified)
     M = fill(val, dim)
-
-    habitatupdate = HabitatUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
+    habitatupdate = HabitatUpdate(dynamics(axis()), 0.0 / s,
+                                  Unitful.Dimensions{()})
     return ContinuousHab(M, size, habitatupdate)
 end
 
