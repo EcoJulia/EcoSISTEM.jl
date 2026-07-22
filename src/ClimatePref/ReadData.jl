@@ -295,27 +295,7 @@ function readfile(file::String; cut = nothing, xmin = nothing, xmax = nothing,
     return _applycut(_rastertoaxisarray(_readraster(file)), cut)
 end
 
-# Deprecated positional extent form `readfile(file, xmin, xmax, ymin, ymax)`; convert to `cut` and
-# forward to the keyword method above.
-function readfile(file::String, xmin, xmax, ymin, ymax)
-    Base.depwarn("`readfile(file, xmin, xmax, ymin, ymax)` is deprecated; pass " *
-                 "`cut = LatLong(ymin .. ymax, xmin .. xmax)` (e.g. from `boundingbox`) " *
-                 "instead.", :readfile)
-    return readfile(file; cut = LatLong(ymin .. ymax, xmin .. xmax))
-end
 
-"""
-    readworldclim(T::Type{WorldClim{Climate}}, files; cut = nothing)
-
-Deprecated — use `read(WorldClim{Climate}, layers; …)` instead, which downloads via `getraster`
-and reads through the same machinery. Retained to read an already-resolved set of monthly climate
-raster file paths.
-"""
-function readworldclim(T::Type{WorldClim{Climate}}, files; cut = nothing)
-    Base.depwarn("`readworldclim` is deprecated; use `read(WorldClim{Climate}, layers; …)`.",
-                 :readworldclim)
-    return _readsource(T, _filelist(files); cut = cut)
-end
 
 # Roll a lat×long×time ERA `AxisArray` from the ERA5 0–360° longitude convention onto (-180, 180],
 # reordering the data columns so longitude stays ascending — for consistency with the tif readers

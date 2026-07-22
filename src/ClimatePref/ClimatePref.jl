@@ -30,4 +30,9 @@ export create_reference, upresolution, downresolution, downresolution!,
 include("PhyloModels.jl")
 export Brownian, Lambda, fitBrownian, fitLambda, varcovar
 
+# Deprecated climate API (constructors + readers), collected last so the types/readers it forwards to are
+# defined. The `@deprecate`d names are (re-)exported by the macro; `readworldclim`/`readfile` are exported
+# above with the live readers.
+include("deprecations.jl")
+
 end

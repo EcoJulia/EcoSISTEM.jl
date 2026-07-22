@@ -166,6 +166,11 @@ export Ecosystem,
 include("Traitfuns.jl")
 export traitfun, getpref, gettraitrel, gethabitat
 
+# Deprecated public API (trait line): `GaussTrait` → `Bin`, `Gauss`/`Trapeze`/`Unif` → `DistRel`. Included
+# late, after every type it shims; the shim names stay exported (above). See also
+# `src/ClimatePref/deprecations.jl` for the ClimatePref submodule's deprecations.
+include("deprecations.jl")
+
 include("HabitatUpdate.jl")
 export TempChange, RainfallChange, TempFluct, eraChange,
        worldclimChange
