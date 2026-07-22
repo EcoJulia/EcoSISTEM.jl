@@ -68,8 +68,8 @@ native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
     movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
@@ -131,8 +131,8 @@ native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
     movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
@@ -192,8 +192,8 @@ native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
     movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
@@ -219,7 +219,7 @@ title = "C", titleloc = :left, ylim = (0, 32_000))
 
 ## 2. Varying resources, grid sizes, areas and number of species
 
-Firstly, we confirmed that abundance depended upon the amount of available resource. Here, we simulated an island ecosystem with two resources, water and sunlight, each on a gradient West to East and South to North, respectively. All species were seeded with the same resource demands and vital rates. Abundance increased in squares with greater amounts of water and sunlight, with some edge effects. Next, we investigated the relationship between abundance and area size. As expected, ecosystems with greater areas could support more individuals, and these abundances were invariant to the resolution of the grid. We also tested in an ecosystem in which species demographic and dispersal rates and resource demands varied. Under these circumstances, some species not favoured for the conditions go extinct, but most species survive to the end of the simulation.
+Firstly, we confirmed that abundance depended upon the amount of available resource. Here, we simulated an island ecosystem with two resources, water and sunlight, each on a gradient West to East and South to North, respectively. All species were seeded with the same resource demands and vital rates. Abundance increased in squares with greater amounts of water and sunlight, with some edge effects. Next, we investigated the nichefit between abundance and area size. As expected, ecosystems with greater areas could support more individuals, and these abundances were invariant to the resolution of the grid. We also tested in an ecosystem in which species demographic and dispersal rates and resource demands varied. Under these circumstances, some species not favoured for the conditions go extinct, but most species survive to the end of the simulation.
 
 ``` julia
 ## MORE ENERGY MORE ABUNDANCE ##
@@ -271,8 +271,8 @@ native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
     movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years; timestep = 1month
 lensim = length(0month:timestep:times)
@@ -332,8 +332,8 @@ for i in eachindex(grids)
     abun = rand(Multinomial(individuals, numSpecies))
     sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
         movement, param, native)
-    rel = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, habitat, rel)
+    nichefit = Gauss{typeof(first(opts))}()
+    eco = Ecosystem(sppl, habitat, nichefit)
     simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
@@ -388,8 +388,8 @@ for i in eachindex(areas)
     abun = rand(Multinomial(individuals, numSpecies))
     sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
         movement, param, native)
-    rel = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, habitat, rel)
+    nichefit = Gauss{typeof(first(opts))}()
+    eco = Ecosystem(sppl, habitat, nichefit)
     simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
@@ -445,8 +445,8 @@ for r in 1:reps
         abun = rand(Multinomial(individuals, numSpecies))
         sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
             movement, param, native)
-        rel = Gauss{typeof(first(opts))}()
-        eco = Ecosystem(sppl, habitat, rel)
+        nichefit = Gauss{typeof(first(opts))}()
+        eco = Ecosystem(sppl, habitat, nichefit)
         simulate!(eco, times, timestep)
         SR[i, r] = sum(sum(eco.abundances.matrix, dims = 2) .> 0)
         print(".")
@@ -513,8 +513,8 @@ for i in eachindex(distances)
     abun = rand(Multinomial(individuals, numSpecies))
     sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
         movement, param, native)
-    rel = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, habitat, rel)
+    nichefit = Gauss{typeof(first(opts))}()
+    eco = Ecosystem(sppl, habitat, nichefit)
     eco.abundances.grid[1, :, 1] .= 100.0
     eco.abundances.grid[2, :, 10] .= 100.0
     simulate!(eco, times, timestep)

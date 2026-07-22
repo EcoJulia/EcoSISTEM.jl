@@ -9,53 +9,54 @@ using Unitful
 using Unitful.DefaultSymbols
 
 @testset "Trait relationships" begin
-    @test_nowarn DistRel{Unitful.Temperature}()
-    @test_nowarn Match{Int64}()
-    @test_nowarn NoRelContinuous{Int64}()
-    @test_nowarn NoRelDiscrete{Int64}()
+    @test_nowarn NicheSuitability{Unitful.Temperature}()
+    @test_nowarn MatchSuitability{Int64}()
+    @test_nowarn NoFitContinuous{Int64}()
+    @test_nowarn NoFitDiscrete{Int64}()
 
-    # `DistRel` evaluates a distribution's density at the (unit-stripped) regime value.
-    @test DistRel{Unitful.Temperature}()(Normal(1.0, 0.01), 1.0K) > 0.0
-    @test DistRel{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm) == 1.0
-    @test DistRel{Int64}()(Trapezoid(1, 2, 3, 4), 1) == 0.0
-    @test EcoSISTEM.iscontinuous(DistRel{Unitful.Temperature}()) == true
-    @test eltype(DistRel{Unitful.Temperature}()) == Unitful.Temperature
+    # `NicheSuitability` evaluates a distribution's density at the (unit-stripped) regime value.
+    @test NicheSuitability{Unitful.Temperature}()(Normal(1.0, 0.01), 1.0K) > 0.0
+    @test NicheSuitability{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm) == 1.0
+    @test NicheSuitability{Int64}()(Trapezoid(1, 2, 3, 4), 1) == 0.0
+    @test EcoSISTEM.iscontinuous(NicheSuitability{Unitful.Temperature}()) ==
+          true
+    @test eltype(NicheSuitability{Unitful.Temperature}()) == Unitful.Temperature
 
-    @test Match{Int64}()(1, 1) == 1.0
-    @test EcoSISTEM.iscontinuous(Match{Int64}()) == false
-    @test eltype(Match{Int64}()) == Int64
+    @test MatchSuitability{Int64}()(1, 1) == 1.0
+    @test EcoSISTEM.iscontinuous(MatchSuitability{Int64}()) == false
+    @test eltype(MatchSuitability{Int64}()) == Int64
 
-    @test NoRelContinuous{Int64}()(1, 1, 1) == 1.0
-    @test EcoSISTEM.iscontinuous(NoRelContinuous{Int64}()) == true
-    @test eltype(NoRelContinuous{Int64}()) == Int64
+    @test NoFitContinuous{Int64}()(1, 1, 1) == 1.0
+    @test EcoSISTEM.iscontinuous(NoFitContinuous{Int64}()) == true
+    @test eltype(NoFitContinuous{Int64}()) == Int64
 
-    @test NoRelDiscrete{Int64}()(1, 1) == 1.0
-    @test EcoSISTEM.iscontinuous(NoRelDiscrete{Int64}()) == false
-    @test eltype(NoRelDiscrete{Int64}()) == Int64
+    @test NoFitDiscrete{Int64}()(1, 1) == 1.0
+    @test EcoSISTEM.iscontinuous(NoFitDiscrete{Int64}()) == false
+    @test eltype(NoFitDiscrete{Int64}()) == Int64
 
-    tr2 = multiplicativeTR2(NoRelContinuous{Int64}(), NoRelDiscrete{Int64}())
+    tr2 = multiplicativeFit2(NoFitContinuous{Int64}(), NoFitDiscrete{Int64}())
     @test EcoSISTEM.iscontinuous(tr2) == [true, false]
     @test eltype(tr2) == [Int64, Int64]
-    tr3 = multiplicativeTR3(NoRelContinuous{Int64}(),
-                            NoRelDiscrete{Int64}(),
-                            DistRel{Unitful.Temperature}())
+    tr3 = multiplicativeFit3(NoFitContinuous{Int64}(),
+                             NoFitDiscrete{Int64}(),
+                             NicheSuitability{Unitful.Temperature}())
     @test EcoSISTEM.iscontinuous(tr3) == [true, false, true]
     @test eltype(tr3) == [Int64, Int64, Unitful.Temperature]
 
-    @test EcoSISTEM.combineTR(tr2) == *
-    @test EcoSISTEM.combineTR(tr3) == *
+    @test EcoSISTEM.combinefit(tr2) == *
+    @test EcoSISTEM.combinefit(tr3) == *
 
-    tr2 = additiveTR2(NoRelContinuous{Int64}(), NoRelDiscrete{Int64}())
+    tr2 = additiveFit2(NoFitContinuous{Int64}(), NoFitDiscrete{Int64}())
     @test EcoSISTEM.iscontinuous(tr2) == [true, false]
     @test eltype(tr2) == [Int64, Int64]
-    tr3 = additiveTR3(NoRelContinuous{Int64}(),
-                      NoRelDiscrete{Int64}(),
-                      DistRel{Unitful.Temperature}())
+    tr3 = additiveFit3(NoFitContinuous{Int64}(),
+                       NoFitDiscrete{Int64}(),
+                       NicheSuitability{Unitful.Temperature}())
     @test EcoSISTEM.iscontinuous(tr3) == [true, false, true]
     @test eltype(tr3) == [Int64, Int64, Unitful.Temperature]
 
-    @test EcoSISTEM.combineTR(tr2) == +
-    @test EcoSISTEM.combineTR(tr3) == +
+    @test EcoSISTEM.combinefit(tr2) == +
+    @test EcoSISTEM.combinefit(tr3) == +
 end
 
 end

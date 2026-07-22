@@ -84,7 +84,7 @@ continuous response distribution per species — `dists::Vector{D}`, where `D` i
 `Distributions.ContinuousUnivariateDistribution` (e.g. `Trapezoid{Float64}` or `Uniform{Float64}`). The
 distributions are built once in the **support frame** `C` — the unit their support/domain is measured in,
 which is also the trait's [`eltype`](@ref) and the unit the matching regime must be in. In the hot loop the
-[`DistRel`](@ref) relationship fetches `dists[sp]` — see [`getdist`](@ref) — and evaluates the density at
+[`NicheSuitability`](@ref) nichefit fetches `dists[sp]` — see [`getdist`](@ref) — and evaluates the density at
 `ustrip(regime)`, already a bare number in frame `C`, so there is no per-call conversion or allocation.
 """
 struct NicheTolerance{A <: NicheAxis, C, D} <: ContinuousTolerance{C}
@@ -191,9 +191,9 @@ const RainTolerance = NicheTolerance{Precipitation,
 TempTolerance(dist::Matrix) = NicheTolerance(MeanTemperature, Trapezoid, dist)
 RainTolerance(dist::Matrix) = NicheTolerance(Precipitation, Uniform, dist)
 
-# Convenience: the matching [`DistRel`](@ref) relationship for a `NicheTolerance`, taking its `TR` (unit) from the
+# Convenience: the matching [`NicheSuitability`](@ref) nichefit for a `NicheTolerance`, taking its `TR` (unit) from the
 # trait's axis — so callers building an ecosystem by hand need not re-type the unit.
-DistRel(t::NicheTolerance) = DistRel{eltype(t)}()
+NicheSuitability(t::NicheTolerance) = NicheSuitability{eltype(t)}()
 
 """
     ToleranceCollection2{T1, T2} <: AbstractTolerance{Tuple{T1, T2}}

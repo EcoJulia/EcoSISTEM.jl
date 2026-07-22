@@ -57,8 +57,8 @@ native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years;
 timestep = 1month;
@@ -135,8 +135,8 @@ native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years;
 timestep = 1month;
@@ -213,8 +213,8 @@ native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec, movement, param,
                    native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years;
 timestep = 1month;
@@ -304,8 +304,8 @@ native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years;
 timestep = 1month;
@@ -384,8 +384,8 @@ for i in eachindex(grids)
     sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec, movement,
                        param,
                        native)
-    rel = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, habitat, rel)
+    nichefit = Gauss{typeof(first(opts))}()
+    eco = Ecosystem(sppl, habitat, nichefit)
     simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
@@ -455,8 +455,8 @@ for i in eachindex(areas)
     abun = rand(Multinomial(individuals, numSpecies))
     sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                        movement, param, native)
-    rel = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, habitat, rel)
+    nichefit = Gauss{typeof(first(opts))}()
+    eco = Ecosystem(sppl, habitat, nichefit)
     simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
@@ -528,8 +528,8 @@ for r in 1:reps
         abun = rand(Multinomial(individuals, numSpecies))
         sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                            movement, param, native)
-        rel = Gauss{typeof(first(opts))}()
-        eco = Ecosystem(sppl, habitat, rel)
+        nichefit = Gauss{typeof(first(opts))}()
+        eco = Ecosystem(sppl, habitat, nichefit)
         simulate!(eco, times, timestep)
         SR[i, r] = sum(sum(eco.abundances.matrix, dims = 2) .> 0)
         print(".")
@@ -606,8 +606,8 @@ for i in eachindex(distances)
     abun = rand(Multinomial(individuals, numSpecies))
     sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                        movement, param, native)
-    rel = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, habitat, rel)
+    nichefit = Gauss{typeof(first(opts))}()
+    eco = Ecosystem(sppl, habitat, nichefit)
     eco.abundances.grid[1, :, 1] .= 100.0
     eco.abundances.grid[2, :, 10] .= 100.0
     simulate!(eco, times, timestep)

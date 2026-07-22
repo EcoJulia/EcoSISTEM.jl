@@ -22,7 +22,7 @@ include("TestCases.jl")
           Vector{Int64}
     @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.habitat,
                                                         eco.spplist),
-                           eco.spplist, eco.habitat, eco.relationship, eco.rngs)
+                           eco.spplist, eco.habitat, eco.nichefit, eco.rngs)
     @test_nowarn repopulate!(eco)
 
     # Test Cylinder
@@ -40,7 +40,7 @@ include("TestCases.jl")
           Vector{Int64}
     @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.habitat,
                                                         eco.spplist),
-                           eco.spplist, eco.habitat, eco.relationship, eco.rngs)
+                           eco.spplist, eco.habitat, eco.nichefit, eco.rngs)
     @test_nowarn repopulate!(eco)
 end
 
@@ -58,13 +58,13 @@ end
     movement = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1.0e-3), N))
     native = fill(true, N)
     abun = fill(10, N)
-    rel = DistRel{typeof(1.0K)}()
+    nichefit = NicheSuitability{typeof(1.0K)}()
 
     # single supply
     sppl1 = SpeciesList(N, tolerance, abun, SolarDemand(fill(10.0kJ, N)),
                         movement, nogrowth, native)
     habitat1 = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
-    eco1 = Ecosystem(sppl1, habitat1, rel)
+    eco1 = Ecosystem(sppl1, habitat1, nichefit)
     @test EcoSISTEM.resource_adjustment(eco1, eco1.habitat.supply, 1, 1) ==
           (0.0, 0.0)
 
@@ -80,7 +80,7 @@ end
                                                                          habitat_solar.active,
                                                                          supply,
                                                                          habitat_solar.names)
-    eco2 = Ecosystem(sppl2, habitat2, rel)
+    eco2 = Ecosystem(sppl2, habitat2, nichefit)
     @test EcoSISTEM.resource_adjustment(eco2, eco2.habitat.supply, 1, 1) ==
           (0.0, 0.0)
 end

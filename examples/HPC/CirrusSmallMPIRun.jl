@@ -51,11 +51,11 @@ sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
 # Create abiotic environment - even grid of one temperature
 habitat = simplehabitatAE(274.0K, grid, totalK, area)
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = Gauss{typeof(1.0K)}()
 
 # Create ecosystem
-eco = MPIEcosystem(sppl, habitat, rel)
+eco = MPIEcosystem(sppl, habitat, nichefit)
 
 sleep(rank)
 print("$(rank):")

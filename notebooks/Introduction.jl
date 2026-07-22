@@ -101,11 +101,11 @@ begin
     sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                        movement, param, native)
 
-    # Trait relationship
-    rel = DistRel{typeof(first(opts))}()
+    # Trait nichefit
+    nichefit = NicheSuitability{typeof(first(opts))}()
 
     # Build ecosystem
-    eco = Ecosystem(sppl, habitat, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
 
     # Run simulation
     times = 10years
@@ -316,7 +316,7 @@ begin
                    collect(288:0.1:308)),
               label = "",
               xlabel = "Temperature (K)",
-              ylabel = "Match to environment")
+              ylabel = "MatchSuitability to environment")
     for j in 2:numSpp
         plot!(288:0.1:308,
               pdf.(Normal(optima[j] / K, niche_width[j] / K),
@@ -330,11 +330,11 @@ end
 # ╔═╡ ccbf7d75-1c1d-43ad-998e-aa033bcd1ebc
 md"### _The final touches ..._
 
-The last thing we need to specify is the relationship between the species and their environment - for this example, let's assume that we want this match to be a Gaussian curve like above.
+The last thing we need to specify is the nichefit between the species and their environment - for this example, let's assume that we want this match to be a Gaussian curve like above.
 "
 
 # ╔═╡ 41206ea4-77ed-4b87-8acf-8d2a9ee170db
-trait_relationship = DistRel{typeof(first(optima))}()
+trait_relationship = NicheSuitability{typeof(first(optima))}()
 
 # ╔═╡ 1d59bcaa-3670-4765-8981-9e2dd6d99436
 md"Now we can build our ecosystem! EcoSISTEM is integrated with SpatialEcology.jl, so we can take advantage of their plotting system, by simply calling plot on our `Ecosystem` object. This will show us the species richness over space."

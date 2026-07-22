@@ -68,11 +68,11 @@ sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
 # Create abiotic environment - with temperature and water resource
 habitat = bioclimAE(bio_africa, bio_africa_water, active)
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = Gauss{typeof(1.0K)}()
 
 # Create ecosystem and fill every active grid square with an individual
-eco = Ecosystem(sppl, habitat, rel)
+eco = Ecosystem(sppl, habitat, nichefit)
 rand_start = findall(active)
 for i in rand_start
     eco.abundances.grid[1, i[1], i[2]] += 1

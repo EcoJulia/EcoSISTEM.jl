@@ -3,7 +3,7 @@
 # ===========================================================================
 # Deprecations — main `EcoSISTEM` module
 #
-# Every deprecated public trait/relationship API is collected here (sorted into
+# Every deprecated public trait/nichefit API is collected here (sorted into
 # sections by context) and included late in `EcoSISTEM.jl`, after all the types
 # it shims. Each shim warns — so downstream code gets a migration message rather
 # than a silent `MethodError` — and forwards to the current API. Mirrored by
@@ -69,59 +69,59 @@ function GaussTrait(mean::AbstractVector{<:Unitful.AbstractQuantity},
 end
 
 # ---------------------------------------------------------------------------
-# Trait line: `Gauss` / `Trapeze` / `Unif` relationships → `DistRel`
+# Trait line: `Gauss` / `Trapeze` / `Unif` relationships → `NicheSuitability`
 #
 # A Gaussian/trapezoidal/uniform preference is just the `Normal`/`Trapezoid`/`Uniform` case of a `NicheTolerance`, so
-# all three relationships are `DistRel` now. Each is kept as a distinct type that warns on construction but
-# shares `DistRel`'s 2-arg density functor, so old hand-built ecosystems still build and evaluate.
+# all three relationships are `NicheSuitability` now. Each is kept as a distinct type that warns on construction but
+# shares `NicheSuitability`'s 2-arg density functor, so old hand-built ecosystems still build and evaluate.
 # ---------------------------------------------------------------------------
 """
-    Gauss{TR} <: AbstractTraitRelationship{TR}
+    Gauss{TR} <: AbstractNicheFit{TR}
 
 !!! warning "Deprecated"
-    `Gauss` is deprecated and will be removed; use [`DistRel`](@ref) instead (a Gaussian preference is the
-    `Normal` case of a [`NicheTolerance`](@ref)). This shim shares `DistRel`'s 2-argument density functor and also
+    `Gauss` is deprecated and will be removed; use [`NicheSuitability`](@ref) instead (a Gaussian preference is the
+    `Normal` case of a [`NicheTolerance`](@ref)). This shim shares `NicheSuitability`'s 2-argument density functor and also
     retains the legacy 3-argument `(current, opt, sd)` Gaussian call for back-compatibility.
 """
-mutable struct Gauss{TR} <: AbstractTraitRelationship{TR}
+mutable struct Gauss{TR} <: AbstractNicheFit{TR}
     function Gauss{TR}() where {TR}
-        Base.depwarn("`Gauss` is deprecated; use `DistRel{TR}()` instead.",
+        Base.depwarn("`Gauss` is deprecated; use `NicheSuitability{TR}()` instead.",
                      :Gauss)
         return new{TR}()
     end
 end
 
 """
-    Trapeze{TR} <: AbstractTraitRelationship{TR}
+    Trapeze{TR} <: AbstractNicheFit{TR}
 
 !!! warning "Deprecated"
-    `Trapeze` is deprecated and will be removed; use [`DistRel`](@ref) instead (it pairs with a `Trapezoid`
+    `Trapeze` is deprecated and will be removed; use [`NicheSuitability`](@ref) instead (it pairs with a `Trapezoid`
     [`NicheTolerance`](@ref)).
 """
-mutable struct Trapeze{TR} <: AbstractTraitRelationship{TR}
+mutable struct Trapeze{TR} <: AbstractNicheFit{TR}
     function Trapeze{TR}() where {TR}
-        Base.depwarn("`Trapeze` is deprecated; use `DistRel{TR}()` instead.",
+        Base.depwarn("`Trapeze` is deprecated; use `NicheSuitability{TR}()` instead.",
                      :Trapeze)
         return new{TR}()
     end
 end
 
 """
-    Unif{TR} <: AbstractTraitRelationship{TR}
+    Unif{TR} <: AbstractNicheFit{TR}
 
 !!! warning "Deprecated"
-    `Unif` is deprecated and will be removed; use [`DistRel`](@ref) instead (it pairs with a `Uniform`
+    `Unif` is deprecated and will be removed; use [`NicheSuitability`](@ref) instead (it pairs with a `Uniform`
     [`NicheTolerance`](@ref)).
 """
-mutable struct Unif{TR} <: AbstractTraitRelationship{TR}
+mutable struct Unif{TR} <: AbstractNicheFit{TR}
     function Unif{TR}() where {TR}
-        Base.depwarn("`Unif` is deprecated; use `DistRel{TR}()` instead.",
+        Base.depwarn("`Unif` is deprecated; use `NicheSuitability{TR}()` instead.",
                      :Unif)
         return new{TR}()
     end
 end
 
-# The deprecated shims share `DistRel`'s density functor + trait interface.
+# The deprecated shims share `NicheSuitability`'s density functor + trait interface.
 for Old in (:Gauss, :Trapeze, :Unif)
     @eval begin
         function (::$Old{TR})(dist::ContinuousUnivariateDistribution,
@@ -135,7 +135,7 @@ end
 
 # Legacy 3-argument Gaussian functor `Gauss{TR}()(current, opt, sd)`, restored for back-compatibility: the
 # hand-written Gaussian density (a dimensionless `Quantity`) that `Gauss` evaluated before it became a
-# `DistRel` shim. New code should build a `Normal` `NicheTolerance` and use `DistRel`'s 2-argument functor instead.
+# `NicheSuitability` shim. New code should build a `Normal` `NicheTolerance` and use `NicheSuitability`'s 2-argument functor instead.
 function (::Gauss{TR})(current::TR, opt::TR, var::TR) where {TR}
     pref = 1.0 / sqrt(2 * π * var^2) *
            exp(-abs(current - opt)^2 / (2 * var^2))
@@ -205,3 +205,17 @@ Base.@deprecate_binding TempBin TempTolerance
 Base.@deprecate_binding RainBin RainTolerance
 @deprecate traitpopulate!(args...) tolerancepopulate!(args...)
 @deprecate traitrepopulate!(args...) tolerancerepopulate!(args...)
+
+# ---------------------------------------------------------------------------
+# Condition line: the matcher `TraitRelationship`/`Match`/… → `NicheFit`/`Suitability` (v0.4.0 rename)
+# ---------------------------------------------------------------------------
+Base.@deprecate_binding AbstractTraitRelationship AbstractNicheFit false
+Base.@deprecate_binding Match MatchSuitability
+Base.@deprecate_binding LCmatch LCsuitability
+Base.@deprecate_binding NoRelContinuous NoFitContinuous
+Base.@deprecate_binding NoRelDiscrete NoFitDiscrete
+Base.@deprecate_binding multiplicativeTR2 multiplicativeFit2
+Base.@deprecate_binding multiplicativeTR3 multiplicativeFit3
+Base.@deprecate_binding additiveTR2 additiveFit2
+Base.@deprecate_binding additiveTR3 additiveFit3
+@deprecate gettraitrel getnichefit

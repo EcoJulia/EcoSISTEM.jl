@@ -88,24 +88,24 @@ function tematch(sppl::SpeciesList, habitat::AbstractHabitat)
 end
 
 """
-    trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
+    nfmatch(sppl::SpeciesList, traitrel::AbstractNicheFit)
 
-Check that the types of a trait list and trait relationship list are the same
-for a species list (`sppl`) and trait relationship (`traitrel`).
+Check that the types of a trait list and trait nichefit list are the same
+for a species list (`sppl`) and trait nichefit (`traitrel`).
 """
-function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
+function nfmatch(sppl::SpeciesList, traitrel::AbstractNicheFit)
     return eltype(sppl.tolerance) == eltype(traitrel) &&
            (iscontinuous(sppl.tolerance) == iscontinuous(traitrel))
 end
 
-# Format an `iscontinuous(...)` result — a `Bool` for a single trait/regime/relationship, or a
+# Format an `iscontinuous(...)` result — a `Bool` for a single trait/regime/nichefit, or a
 # `Vector{Bool}` for a collection — as "continuous"/"discrete" label(s).
 _kindlabel(b::Bool) = b ? "continuous" : "discrete"
 _kindlabel(bs::AbstractVector{Bool}) = "[" * join(_kindlabel.(bs), ", ") * "]"
 
 """
     AbstractEcosystem{Part <: AbstractHabitat, SL <: SpeciesList,
-        TR <: AbstractTraitRelationship} <: AbstractMetacommunity{Float64,
+        TR <: AbstractNicheFit} <: AbstractMetacommunity{Float64,
             Matrix{Int64}, Matrix{Float64}, SL, Part}
 
 Abstract supertype for all ecosystem types and a subtype of
@@ -113,7 +113,7 @@ AbstractMetacommunity.
 """
 abstract type AbstractEcosystem{Part <: AbstractHabitat,
                                 SL <: SpeciesList,
-                                TR <: AbstractTraitRelationship} <:
+                                TR <: AbstractNicheFit} <:
               AbstractMetacommunity{Float64, Matrix{Int64}, Matrix{Float64}, SL,
                                     Part} end
 
@@ -125,18 +125,18 @@ Ecosystem houses information on species and their interaction with their
 environment. For species, it holds abundances and locations, as well as
 properties such as trait information, `spplist`, and movement types, `lookup`.
 For environments, it provides information on environmental conditions and
-available resources,`habitat`. Finally, there is a slot for the relationship
-between the environment and the characteristics of the species, `relationship`.
+available resources,`habitat`. Finally, there is a slot for the nichefit
+between the environment and the characteristics of the species, `nichefit`.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
-                         TR <: AbstractTraitRelationship} <:
+                         TR <: AbstractNicheFit} <:
                AbstractEcosystem{Part, SL, TR}
     abundances::GridLandscape
     spplist::SL
     habitat::Part
     ordinariness::Union{Matrix{Float64}, Missing}
-    relationship::TR
+    nichefit::TR
     lookup::Vector{Lookup}
     cache::Cache
     rngs::Vector{Random.Xoshiro}
@@ -146,7 +146,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                      habitat::Part,
                                      ordinariness::Union{Matrix{Float64},
                                                          Missing},
-                                     relationship::TR,
+                                     nichefit::TR,
                                      lookup::Vector{Lookup},
                                      cache::Cache,
                                      rngs::Vector{Random.Xoshiro}) where {Part <:
@@ -154,7 +154,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                                                           SL <:
                                                                           SpeciesList,
                                                                           TR <:
-                                                                          AbstractTraitRelationship}
+                                                                          AbstractNicheFit}
         tematch(spplist, habitat) ||
             error("Species tolerances and regime are incompatible: tolerances are " *
                   "$(_kindlabel(iscontinuous(spplist.tolerance))) " *
@@ -164,13 +164,13 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                   "NicheTolerance) with a continuous regime (simplehabitatAE / " *
                   "tempgradAE), or a discrete trait (DiscreteTolerance) with a " *
                   "discrete regime (simplenicheAE).")
-        trmatch(spplist, relationship) ||
-            error("Species tolerances and the trait relationship are incompatible: " *
+        nfmatch(spplist, nichefit) ||
+            error("Species tolerances and the trait nichefit are incompatible: " *
                   "tolerances are $(_kindlabel(iscontinuous(spplist.tolerance))) " *
-                  "$(eltype(spplist.tolerance)), the relationship is " *
-                  "$(_kindlabel(iscontinuous(relationship))) " *
-                  "$(eltype(relationship)). Use DistRel with continuous tolerances, " *
-                  "or Match / LCmatch with discrete tolerances.")
+                  "$(eltype(spplist.tolerance)), the nichefit is " *
+                  "$(_kindlabel(iscontinuous(nichefit))) " *
+                  "$(eltype(nichefit)). Use NicheSuitability with continuous tolerances, " *
+                  "or MatchSuitability / LCsuitability with discrete tolerances.")
         _mcmatch(abundances.matrix, spplist, habitat) ||
             error("Dimension mismatch: the abundance matrix " *
                   "($(size(abundances.matrix, 1)) × $(size(abundances.matrix, 2))) " *
@@ -181,7 +181,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                  spplist,
                                  habitat,
                                  ordinariness,
-                                 relationship,
+                                 nichefit,
                                  lookup,
                                  cache,
                                  rngs)
@@ -213,10 +213,10 @@ end
 
 """
     Ecosystem(spplist::SpeciesList, habitat::GridHabitat,
-        rel::AbstractTraitRelationship)
+        nichefit::AbstractNicheFit)
 
 Create an `Ecosystem` given a species list, an abiotic environment and trait
-relationship. An optional population function can be added, `popfun`, which
+nichefit. An optional population function can be added, `popfun`, which
 defaults to generic random filling of the ecosystem. A `seed` may be supplied to
 make the run reproducible: it deterministically seeds one random number
 generator per species (see [`makerngs`](@ref)), so results are identical
@@ -226,7 +226,7 @@ random.
 function Ecosystem(popfun::F,
                    spplist::SpeciesList{T, Req},
                    habitat::GridHabitat,
-                   rel::AbstractTraitRelationship;
+                   nichefit::AbstractNicheFit;
                    seed::Integer = rand(UInt64)) where {F <: Function, T, Req}
 
     # Check there is enough resource to support number of individuals at set up
@@ -238,33 +238,33 @@ function Ecosystem(popfun::F,
     # and the initial population draw are reproducible across thread counts
     rngs = makerngs(seed, size(ml.matrix, 1))
     # Populate this matrix with species abundances
-    popfun(ml, spplist, habitat, rel, rngs)
+    popfun(ml, spplist, habitat, nichefit, rngs)
     # Create lookup table of all moves and their probabilities
     lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
                              getkernels(spplist.movement)))
     nm = zeros(Int64, size(ml.matrix))
     totalE = zeros(Float64, (size(ml.matrix, 2), numdemands(Req)))
-    return Ecosystem{typeof(habitat), typeof(spplist), typeof(rel)}(ml,
-                                                                    spplist,
-                                                                    habitat,
-                                                                    missing,
-                                                                    rel,
-                                                                    lookup_tab,
-                                                                    Cache(nm,
-                                                                          totalE,
-                                                                          false),
-                                                                    rngs)
+    return Ecosystem{typeof(habitat), typeof(spplist), typeof(nichefit)}(ml,
+                                                                         spplist,
+                                                                         habitat,
+                                                                         missing,
+                                                                         nichefit,
+                                                                         lookup_tab,
+                                                                         Cache(nm,
+                                                                               totalE,
+                                                                               false),
+                                                                         rngs)
 end
 
 function Ecosystem(spplist::SpeciesList,
                    habitat::GridHabitat,
-                   rel::AbstractTraitRelationship;
+                   nichefit::AbstractNicheFit;
                    seed::Integer = rand(UInt64))
-    return Ecosystem(populate!, spplist, habitat, rel; seed = seed)
+    return Ecosystem(populate!, spplist, habitat, nichefit; seed = seed)
 end
 @doc (@doc Ecosystem) Ecosystem(::SpeciesList,
                                 ::GridHabitat,
-                                ::AbstractTraitRelationship)
+                                ::AbstractNicheFit)
 
 """
     addspecies!(eco::Ecosystem, abun::Int64)
@@ -315,7 +315,7 @@ end
 
 """
     CachedEcosystem{Part <: AbstractHabitat, SL <: SpeciesList,
-        TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
+        TR <: AbstractNicheFit} <: AbstractEcosystem{Part, SL, TR}
 
 CachedEcosystem houses the same information as [`Ecosystem`](@ref) (see
 ?Ecosystem), but holds the time period abundances as a
@@ -323,13 +323,13 @@ CachedEcosystem houses the same information as [`Ecosystem`](@ref) (see
 """
 mutable struct CachedEcosystem{Part <: AbstractHabitat,
                                SL <: SpeciesList,
-                               TR <: AbstractTraitRelationship} <:
+                               TR <: AbstractNicheFit} <:
                AbstractEcosystem{Part, SL, TR}
     abundances::CachedGridLandscape
     spplist::SL
     habitat::Part
     ordinariness::Union{Matrix{Float64}, Missing}
-    relationship::TR
+    nichefit::TR
     lookup::Vector{Lookup}
     cache::Cache
     rngs::Vector{Random.Xoshiro}
@@ -357,14 +357,14 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String,
                                      saveinterval = saveinterval)
     abundances.matrix[1] = eco.abundances
     return CachedEcosystem{typeof(eco.habitat), typeof(eco.spplist),
-                           typeof(eco.relationship)}(abundances,
-                                                     eco.spplist,
-                                                     eco.habitat,
-                                                     eco.ordinariness,
-                                                     eco.relationship,
-                                                     eco.lookup,
-                                                     eco.cache,
-                                                     eco.rngs)
+                           typeof(eco.nichefit)}(abundances,
+                                                 eco.spplist,
+                                                 eco.habitat,
+                                                 eco.ordinariness,
+                                                 eco.nichefit,
+                                                 eco.lookup,
+                                                 eco.cache,
+                                                 eco.rngs)
 end
 
 import Diversity.API: _getabundance
@@ -424,12 +424,12 @@ function invalidatecaches!(eco::AbstractEcosystem)
 end
 
 """
-    gettraitrel(eco::Ecosystem)
+    getnichefit(eco::Ecosystem)
 
-Extract trait relationships.
+Extract niche fits.
 """
-function gettraitrel(eco::AbstractEcosystem)
-    return eco.relationship
+function getnichefit(eco::AbstractEcosystem)
+    return eco.nichefit
 end
 
 """

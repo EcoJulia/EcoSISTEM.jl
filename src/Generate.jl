@@ -243,7 +243,7 @@ function _resource_adjustment(eco::AbstractEcosystem, supply::AbstractSupply,
         eco.spplist.demand.exchange_rate
     E = eco.cache.totalE[i, 1]
     # Traits
-    ϵ̄real = 1 / traitfun(eco, i, sp)
+    ϵ̄real = 1 / suitability(eco, i, sp)
     # Alter rates by resource available in current pop & own demands
     birth_resource = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
                      min(K / E, params.boost)
@@ -275,8 +275,8 @@ function _resource_adjustment(eco::AbstractEcosystem,
          eco.spplist.demand.two.exchange_rate
     E1 = eco.cache.totalE[i, 1]
     E2 = eco.cache.totalE[i, 2]
-    ϵ̄real1 = 1 / traitfun(eco, i, sp)
-    ϵ̄real2 = 1 / traitfun(eco, i, sp)
+    ϵ̄real1 = 1 / suitability(eco, i, sp)
+    ϵ̄real2 = 1 / suitability(eco, i, sp)
     # Alter rates by resource available in current pop & own demands
     birth_resource = (ϵ̄1 * ϵ̄2)^-params.longevity *
                      (ϵ̄real1 * ϵ̄real2)^-params.survival *
@@ -476,9 +476,9 @@ end
 
 """
     populate!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
-              rel::AbstractTraitRelationship, rngs::Vector{Random.Xoshiro})
+              nichefit::AbstractNicheFit, rngs::Vector{Random.Xoshiro})
     populate!(ml::GridLandscape, spplist::SpeciesList,
-              habitat::GridHabitat{H, SupplyCollection2{B1, B2}}, rel, rngs)
+              habitat::GridHabitat{H, SupplyCollection2{B1, B2}}, nichefit, rngs)
 
 Populate the grid landscape `ml` by randomly scattering each species' total
 abundance (taken from `spplist.abun`) across the grid cells, choosing each cell
@@ -487,7 +487,7 @@ given zero probability, so no individuals are placed outside the habitable
 region. Each species is drawn from its own generator in `rngs`, so the result is
 reproducible and independent of the number of threads or MPI processes.
 
-`rel` is unused by these resource-based methods; it is accepted only so that they
+`nichefit` is unused by these resource-based methods; it is accepted only so that they
 share a signature with [`tolerancepopulate!`](@ref) and can be passed
 interchangeably as the population function when constructing an
 [`Ecosystem`](@ref). For a two-supply environment (`SupplyCollection2`) the
@@ -497,10 +497,10 @@ supplies.
 function populate!(ml::GridLandscape,
                    spplist::SpeciesList,
                    habitat::AB,
-                   rel::R,
+                   nichefit::R,
                    rngs::Vector{Random.Xoshiro}) where {AB <: AbstractHabitat,
                                                         R <:
-                                                        AbstractTraitRelationship}
+                                                        AbstractNicheFit}
     grid, activity = _gridactivity(habitat)
     # Set up copy of supply
     b = reshape(ustrip.(_getsupply(habitat.supply)), length(grid))
@@ -516,12 +516,12 @@ end
 function populate!(ml::GridLandscape,
                    spplist::SpeciesList,
                    habitat::GridHabitat{H, SupplyCollection2{B1, B2}},
-                   rel::R,
+                   nichefit::R,
                    rngs::Vector{Random.Xoshiro}) where {H <: AbstractRegime,
                                                         B1 <: AbstractSupply,
                                                         B2 <: AbstractSupply,
                                                         R <:
-                                                        AbstractTraitRelationship}
+                                                        AbstractNicheFit}
     # Calculate size of regime
     grid, activity = _gridactivity(habitat)
     # Set up copy of supply
@@ -551,7 +551,7 @@ function repopulate!(eco::Ecosystem)
     eco.abundances = emptygridlandscape(eco.habitat, eco.spplist)
     eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
                                         length(eco.spplist.abun)))
-    return populate!(eco.abundances, eco.spplist, eco.habitat, eco.relationship,
+    return populate!(eco.abundances, eco.spplist, eco.habitat, eco.nichefit,
                      eco.rngs)
 end
 
@@ -571,12 +571,12 @@ end
 
 """
     tolerancepopulate!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
-                   rel::AbstractTraitRelationship, rngs::Vector{Random.Xoshiro})
+                   nichefit::AbstractNicheFit, rngs::Vector{Random.Xoshiro})
 
 Populate the grid landscape `ml` by scattering each species' total abundance
 (taken from `spplist.abun`) across the grid cells with probability proportional
 to how well the species tolerances match each cell's environment, as scored by the
-trait relationship `rel` applied to `spplist.tolerance` and `habitat.regime`. Where a
+trait nichefit `nichefit` applied to `spplist.tolerance` and `habitat.regime`. Where a
 species matches no cell the distribution falls back to uniform. Only native
 species (those flagged in `spplist.native`) are placed; non-native species are
 left empty.
@@ -587,17 +587,18 @@ cells by their available resource supply.
 function tolerancepopulate!(ml::GridLandscape,
                             spplist::SpeciesList,
                             habitat::AB,
-                            rel::R,
+                            nichefit::R,
                             rngs::Vector{Random.Xoshiro}) where {AB <:
                                                                  AbstractHabitat,
                                                                  R <:
-                                                                 AbstractTraitRelationship}
+                                                                 AbstractNicheFit}
     # Calculate size of regime
     dim = _getdimension(habitat.regime)
     numsquares = dim[1] * dim[2]
     numspp = length(spplist.names)
     regime = reshape(habitat.regime.matrix, numsquares)
-    probabilities = [_traitfun(habitat.regime, spplist.tolerance, rel, i, sp)
+    probabilities = [_suitability(habitat.regime, spplist.tolerance, nichefit,
+                                  i, sp)
                      for i in 1:numsquares,
                          sp in 1:numspp]
     # Loop through species, drawing from each species' own RNG stream
@@ -624,23 +625,23 @@ function tolerancerepopulate!(eco::Ecosystem)
     eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
                                         length(eco.spplist.abun)))
     return tolerancepopulate!(eco.abundances, eco.spplist, eco.habitat,
-                              eco.relationship, eco.rngs)
+                              eco.nichefit, eco.rngs)
 end
 
 """
-    emptypopulate!(ml::GridLandscape, spplist::SpeciesList, habitat::AB, rel::R,
-                   rngs::Vector{Random.Xoshiro}) where {AB <: EcoSISTEM.AbstractHabitat, R <: EcoSISTEM.AbstractTraitRelationship}
+    emptypopulate!(ml::GridLandscape, spplist::SpeciesList, habitat::AB, nichefit::R,
+                   rngs::Vector{Random.Xoshiro}) where {AB <: EcoSISTEM.AbstractHabitat, R <: EcoSISTEM.AbstractNicheFit}
 
 Placeholder population function that leaves the landscape empty and warns.
 """
 function emptypopulate!(ml::GridLandscape,
                         spplist::SpeciesList,
                         habitat::AB,
-                        rel::R,
+                        nichefit::R,
                         rngs::Vector{Random.Xoshiro}) where {AB <:
                                                              EcoSISTEM.AbstractHabitat,
                                                              R <:
-                                                             EcoSISTEM.AbstractTraitRelationship}
+                                                             EcoSISTEM.AbstractNicheFit}
     @warn "Ecosystem not populated!"
 end
 """

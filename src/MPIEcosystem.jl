@@ -11,7 +11,7 @@ using Random
 
 """
     MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractHabitat,
-                 SL <: SpeciesList, TR <: AbstractTraitRelationship} <: 
+                 SL <: SpeciesList, TR <: AbstractNicheFit} <: 
         AbstractEcosystem{Part, SL, TR}
 
 MPIEcosystem houses information on species and their interaction with their
@@ -24,13 +24,13 @@ held by that particular node.
 mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                             Part <: EcoSISTEM.AbstractHabitat,
                             SL <: EcoSISTEM.SpeciesList,
-                            TR <: EcoSISTEM.AbstractTraitRelationship} <:
+                            TR <: EcoSISTEM.AbstractNicheFit} <:
                EcoSISTEM.MPIEcosystem{MPIGL, Part, SL, TR}
     abundances::MPIGL
     spplist::SL
     habitat::Part
     ordinariness::Union{Matrix{Float64}, Missing}
-    relationship::TR
+    nichefit::TR
     lookup::Vector{EcoSISTEM.Lookup}
     sppcounts::Vector{Int32}
     firstsp::Int64
@@ -43,7 +43,7 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                           spplist::SL,
                           habitat::Part,
                           ordinariness::Union{Matrix{Float64}, Missing},
-                          relationship::TR,
+                          nichefit::TR,
                           lookup::Vector{EcoSISTEM.Lookup},
                           sppcounts::Vector,
                           firstsp::Int64,
@@ -54,13 +54,13 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                                                                TR}
         EcoSISTEM.tematch(spplist, habitat) ||
             error("Traits do not match regimes")
-        EcoSISTEM.trmatch(spplist, relationship) ||
+        EcoSISTEM.nfmatch(spplist, nichefit) ||
             error("Traits do not match trait functions")
         return new{MPIGL, Part, SL, TR}(abundances,
                                         spplist,
                                         habitat,
                                         ordinariness,
-                                        relationship,
+                                        nichefit,
                                         lookup,
                                         sppcounts,
                                         firstsp,
@@ -81,15 +81,15 @@ EcoSISTEM._should_mpi() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
 using EcoSISTEM: getkernels, genlookups, numdemands
 """
     MPIEcosystem(spplist::SpeciesList, habitat::GridHabitat,
-                 rel::AbstractTraitRelationship)
+                 nichefit::AbstractNicheFit)
 
 Create an `MPIEcosystem` given a species list, an abiotic environment and trait
-relationship.
+nichefit.
 """
 function MPIEcosystem(popfun::F,
                       spplist::EcoSISTEM.SpeciesList{T, Req},
                       habitat::EcoSISTEM.GridHabitat,
-                      rel;
+                      nichefit;
                       seed::Integer = rand(UInt64)) where {F <: Function, T,
                                                            Req}
     comm = MPI.COMM_WORLD
@@ -119,7 +119,7 @@ function MPIEcosystem(popfun::F,
     ml = EcoSISTEM.emptyMPIgridlandscape(sppcounts, sccounts)
 
     # Populate this matrix with species abundances
-    popfun(ml, spplist, habitat, rel, rngs)
+    popfun(ml, spplist, habitat, nichefit, rngs)
 
     rankspp = firstsp:sppindices[rank + 2]
     lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
@@ -130,7 +130,7 @@ function MPIEcosystem(popfun::F,
                         spplist,
                         habitat,
                         missing,
-                        rel,
+                        nichefit,
                         lookup_tab,
                         sppcounts,
                         firstsp,
@@ -141,9 +141,10 @@ function MPIEcosystem(popfun::F,
 end
 
 function MPIEcosystem(spplist::EcoSISTEM.SpeciesList,
-                      habitat::EcoSISTEM.GridHabitat, rel;
+                      habitat::EcoSISTEM.GridHabitat, nichefit;
                       seed::Integer = rand(UInt64))
-    return MPIEcosystem(EcoSISTEM.populate!, spplist, habitat, rel; seed = seed)
+    return MPIEcosystem(EcoSISTEM.populate!, spplist, habitat, nichefit;
+                        seed = seed)
 end
 @doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
                                       ::EcoSISTEM.GridHabitat,

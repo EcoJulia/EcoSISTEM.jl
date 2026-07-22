@@ -62,12 +62,13 @@ sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
 habitat = simplehabitatAE(274.0K, grid, totalK, area)
 habitat.supply.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
 
-# Set relationship between species and environment (gaussian)
-rel = DistRel{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = NicheSuitability{typeof(1.0K)}()
+
 
 # Create ecosystem
-@test_nowarn MPIEcosystem(sppl, habitat, rel)
-eco = MPIEcosystem(sppl, habitat, rel; seed = 0)
+@test_nowarn MPIEcosystem(sppl, habitat, nichefit)
+eco = MPIEcosystem(sppl, habitat, nichefit; seed = 0)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
@@ -127,12 +128,12 @@ habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
                                                                supply,
                                                                habitat1.names)
 
-# Set relationship between species and environment (gaussian)
-rel = DistRel{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = NicheSuitability{typeof(1.0K)}()
 
 # Create ecosystem
-@test_nowarn MPIEcosystem(sppl, habitat, rel)
-eco = MPIEcosystem(sppl, habitat, rel; seed = 0)
+@test_nowarn MPIEcosystem(sppl, habitat, nichefit)
+eco = MPIEcosystem(sppl, habitat, nichefit; seed = 0)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10

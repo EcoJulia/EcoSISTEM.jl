@@ -31,14 +31,14 @@ particular timestep, `timestep`.
 function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
                    timestep::Unitful.Time)
     eco = Ecosystem{typeof(cache.habitat), typeof(cache.spplist),
-                    typeof(cache.relationship)}(copy(cache.abundances.matrix[srt]),
-                                                cache.spplist,
-                                                cache.habitat,
-                                                cache.ordinariness,
-                                                cache.relationship,
-                                                cache.lookup,
-                                                cache.cache,
-                                                cache.rngs)
+                    typeof(cache.nichefit)}(copy(cache.abundances.matrix[srt]),
+                                            cache.spplist,
+                                            cache.habitat,
+                                            cache.ordinariness,
+                                            cache.nichefit,
+                                            cache.lookup,
+                                            cache.cache,
+                                            cache.rngs)
     update!(eco, timestep)
     return cache.abundances.matrix[srt + timestep] = eco.abundances
 end

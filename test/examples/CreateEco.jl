@@ -67,8 +67,8 @@ function create_eco(paramDict::Dict, habitat::A; bound::B = Torus(),
                        movement,
                        param,
                        native)
-    rel = Gauss{typeof(first(paramDict["opts"]))}()
-    return eco = Ecosystem(tolerancepopulate!, sppl, habitat, rel)
+    nichefit = Gauss{typeof(first(paramDict["opts"]))}()
+    return eco = Ecosystem(tolerancepopulate!, sppl, habitat, nichefit)
 end
 
 function recreate_eco!(eco::Ecosystem,

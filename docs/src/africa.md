@@ -57,11 +57,11 @@ sppl.params.birth
 habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = Gauss{typeof(1.0K)}()
 
 #Create ecosystem
-eco = Ecosystem(sppl, habitat, rel)
+eco = Ecosystem(sppl, habitat, nichefit)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
@@ -121,11 +121,11 @@ for i in eachindex(specialist_vars)
     # Create abiotic environment - even grid of one temperature
     habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
-    # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, habitat, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
     eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
     # EcoSISTEM Parameters
@@ -205,11 +205,11 @@ sppl.params.birth
 habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = Gauss{typeof(1.0K)}()
 
 #Create ecosystem
-eco = Ecosystem(sppl, habitat, rel)
+eco = Ecosystem(sppl, habitat, nichefit)
 eco.abundances.matrix[50_000, :] .= 0
 
 import EcoSISTEM.simulate!
@@ -284,11 +284,11 @@ sppl.params.birth
 habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = Gauss{typeof(1.0K)}()
 
 #Create ecosystem
-eco = Ecosystem(sppl, habitat, rel)
+eco = Ecosystem(sppl, habitat, nichefit)
 
 # EcoSISTEM Parameters
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;

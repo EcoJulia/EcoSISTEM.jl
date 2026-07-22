@@ -87,11 +87,11 @@ function run_single(africa, active; savedir = SAVEDIR)
     # Create abiotic environment - even grid of one temperature
     habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
-    # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, habitat, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
     rand_start = rand(findall(active), 1)[1]
     eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
@@ -171,11 +171,11 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         # Create abiotic environment - even grid of one temperature
         habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
-        # Set relationship between species and environment (gaussian)
-        rel = Gauss{typeof(1.0K)}()
+        # Set nichefit between species and environment (gaussian)
+        nichefit = Gauss{typeof(1.0K)}()
 
         #Create ecosystem
-        eco = Ecosystem(sppl, habitat, rel)
+        eco = Ecosystem(sppl, habitat, nichefit)
         eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
         # Simulation Parameters
@@ -277,11 +277,11 @@ function specialist_vs_many(africa, active, num_species = 50_000;
     # Create abiotic environment - even grid of one temperature
     habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
-    # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, habitat, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
     eco.abundances.matrix[50_000, :] .= 0
 
     # Simulation Parameters
@@ -347,11 +347,11 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     # Create abiotic environment - even grid of one temperature
     habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
 
-    # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, habitat, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
 
     # Simulation Parameters
     burnin = 10years

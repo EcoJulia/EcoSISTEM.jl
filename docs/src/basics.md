@@ -9,7 +9,7 @@ Pkg.add("EcoSISTEM")
 
 ## Setting up an ecosystem
 
-The package runs on an `Ecosystem` containing information about species, the `SpeciesList`, their environment, `AbioticEnvironment` and the relationship between the two, `TraitRelationship`.
+The package runs on an `Ecosystem` containing information about species, the `SpeciesList`, their environment, `Habitat` and the nichefit between the two, `AbstractNicheFit`.
 
 ### A simple example
 
@@ -65,14 +65,14 @@ Create abiotic environment - even grid of one temperature
 habitat = simplehabitatAE(274.0K, grid, totalK, area)
 ```
 
-Set relationship between species and environment (gaussian)
+Set nichefit between species and environment (gaussian)
 ```julia
-rel = Gauss{typeof(1.0K)}()
+nichefit = Gauss{typeof(1.0K)}()
 ```
 
 Create ecosystem
 ```julia
-eco = Ecosystem(sppl, habitat, rel)
+eco = Ecosystem(sppl, habitat, nichefit)
 ```
 
 Run simulation

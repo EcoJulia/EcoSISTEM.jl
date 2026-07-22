@@ -83,12 +83,12 @@ function build_ecosystem(mode::AbstractString)
                        movement, param, native)
 
     habitat = simplehabitatAE(274.0K, grid, totalK, area)
-    rel = Gauss{typeof(1.0K)}()
+    nichefit = Gauss{typeof(1.0K)}()
 
     if mode == "mpi"
-        return MPIEcosystem(sppl, habitat, rel; seed = SEED)
+        return MPIEcosystem(sppl, habitat, nichefit; seed = SEED)
     else
-        return Ecosystem(sppl, habitat, rel; seed = SEED)
+        return Ecosystem(sppl, habitat, nichefit; seed = SEED)
     end
 end
 

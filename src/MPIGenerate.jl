@@ -7,7 +7,7 @@ using Distributions
 using Random
 
 using EcoSISTEM: AbstractHabitat, Abstract1Demand, Abstract2Demands
-using EcoSISTEM: AbstractRegime, AbstractSupply, AbstractTraitRelationship
+using EcoSISTEM: AbstractRegime, AbstractSupply, AbstractNicheFit
 using EcoSISTEM:
                  resource_adjustment,
                  invalidatecaches!,
@@ -254,7 +254,7 @@ end
 
 using EcoSISTEM: _getdimension, _getsupply
 """
-    populate!(ml::MPIGridLandscape, spplist::SpeciesList, habitat::AB, rel::R)
+    populate!(ml::MPIGridLandscape, spplist::SpeciesList, habitat::AB, nichefit::R)
 
 Populate an `MPIGridLandscape` by distributing each species' abundance across
 active grid cells proportionally to the available supply, then synchronising
@@ -263,11 +263,11 @@ from rows to columns across all MPI nodes.
 function EcoSISTEM.populate!(ml::MPIGridLandscape,
                              spplist::EcoSISTEM.SpeciesList,
                              habitat::AB,
-                             rel::R,
+                             nichefit::R,
                              rngs::Vector{Random.Xoshiro}) where {AB <:
                                                                   AbstractHabitat,
                                                                   R <:
-                                                                  AbstractTraitRelationship}
+                                                                  AbstractNicheFit}
     dim = _getdimension(habitat.regime)
     len = dim[1] * dim[2]
     grid = collect(1:len)
@@ -289,7 +289,7 @@ end
 
 """
     populate!(ml::MPIGridLandscape, spplist::SpeciesList,
-        habitat::GridHabitat{H, SupplyCollection2{B1, B2}}, rel::R)
+        habitat::GridHabitat{H, SupplyCollection2{B1, B2}}, nichefit::R)
 
 Two-supply variant of `populate!`; distributes abundances proportionally to the
 product of the two normalised supply fractions.
@@ -299,7 +299,7 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
                              habitat::EcoSISTEM.GridHabitat{H,
                                                             SupplyCollection2{B1,
                                                                               B2}},
-                             rel::R,
+                             nichefit::R,
                              rngs::Vector{Random.Xoshiro}) where {H <:
                                                                   AbstractRegime,
                                                                   B1 <:
@@ -307,7 +307,7 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
                                                                   B2 <:
                                                                   AbstractSupply,
                                                                   R <:
-                                                                  AbstractTraitRelationship}
+                                                                  AbstractNicheFit}
     # Calculate size of regime
     dim = _getdimension(habitat.regime)
     len = dim[1] * dim[2]

@@ -95,11 +95,11 @@ begin
     # Create abiotic environment - even grid of one temperature
     habitat = simplehabitatAE(274.0K, grd, totalK, area, active)
 
-    # Set relationship between species and environment (gaussian)
-    rel = DistRel{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = NicheSuitability{typeof(1.0K)}()
 
     # Create ecosystem
-    eco = Ecosystem(sppl, habitat, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
     eco.abundances.matrix[end, :] .= 0
 
     # Simulation Parameters
@@ -182,8 +182,8 @@ begin
     # Create abiotic environment - even grid of one temperature
     abenv_new = bioclimAE(africa_new, totalK_new, area_new)
 
-    # Set relationship between species and environment (gaussian)
-    rel_new = DistRel{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    rel_new = NicheSuitability{typeof(1.0K)}()
 
     # Create ecosystem
     eco_new = Ecosystem(sppl_new, abenv_new, rel_new)

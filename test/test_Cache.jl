@@ -31,8 +31,8 @@ function cache_test_eco(seed)
     sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement, param,
                        native)
     habitat = simplehabitatAE(274.0K, grid, totalK, area)
-    rel = DistRel{typeof(1.0K)}()
-    return Ecosystem(sppl, habitat, rel; seed = seed)
+    nichefit = NicheSuitability{typeof(1.0K)}()
+    return Ecosystem(sppl, habitat, nichefit; seed = seed)
 end
 
 @testset "CachedEcosystem save/load/resume" begin

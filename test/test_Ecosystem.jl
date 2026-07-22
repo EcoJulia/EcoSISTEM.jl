@@ -16,7 +16,7 @@ include("TestCases.jl")
     eco = Test1Ecosystem()
     @test sum(eco.abundances.matrix, dims = 2)[:, 1] == eco.spplist.abun
     @test EcoSISTEM.tematch(eco.spplist, eco.habitat) == true
-    @test EcoSISTEM.trmatch(eco.spplist, eco.relationship) == true
+    @test EcoSISTEM.nfmatch(eco.spplist, eco.nichefit) == true
 
     sppl = SpeciesList{typeof(eco.spplist.tolerance),
                        typeof(eco.spplist.demand),
@@ -29,13 +29,13 @@ include("TestCases.jl")
                                                    eco.spplist.movement,
                                                    eco.spplist.params,
                                                    eco.spplist.native)
-    eco = Ecosystem(sppl, eco.habitat, eco.relationship)
+    eco = Ecosystem(sppl, eco.habitat, eco.nichefit)
     @test_nowarn addspecies!(eco, 10)
 
     @testset "get functions" begin
         # Test Simulation get functions
-        @test_nowarn gettraitrel(eco)
-        @test gettraitrel(eco) == eco.relationship
+        @test_nowarn getnichefit(eco)
+        @test getnichefit(eco) == eco.nichefit
         @test_nowarn getregime(eco)
         @test getregime(eco) == eco.habitat.regime
         @test_nowarn getsize(eco)
@@ -71,7 +71,7 @@ include("TestCases.jl")
                                                        eco.spplist.types, mov,
                                                        eco.spplist.params,
                                                        eco.spplist.native)
-        @test_nowarn Ecosystem(sppl, eco.habitat, eco.relationship)
+        @test_nowarn Ecosystem(sppl, eco.habitat, eco.nichefit)
     end
     @testset "diversity" begin
         # Test Diversity get functions
@@ -91,7 +91,7 @@ include("TestCases.jl")
         @test EcoSISTEM._kindlabel([true, false]) == "[continuous, discrete]"
 
         # Build a valid two-variable (temperature + rainfall) collection environment + species, then pass a
-        # mismatched single relationship so `trmatch` fails on the collection path.
+        # mismatched single nichefit so `nfmatch` fails on the collection path.
         numSpecies = 4
         grid = (5, 5)
         area = 10000.0km^2
@@ -121,8 +121,8 @@ include("TestCases.jl")
         sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement,
                            param,
                            native)
-        # the matching relationship is `multiplicativeTR2(...)`; a single `DistRel` mismatches
-        badrel = DistRel{typeof(1.0K)}()
+        # the matching nichefit is `multiplicativeFit2(...)`; a single `NicheSuitability` mismatches
+        badrel = NicheSuitability{typeof(1.0K)}()
         err = try
             Ecosystem(sppl, habitat, badrel)
             nothing

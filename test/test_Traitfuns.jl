@@ -27,12 +27,13 @@ active = fill(true, grid)
                                      NicheTolerance(MeanTemperature, Normal,
                                                     fill(1.0K, 10),
                                                     fill(0.1K, 10)))
-    rel = multiplicativeTR2(DistRel{Float64}(), DistRel{Unitful.Temperature}())
-    @test_nowarn EcoSISTEM._traitfun(regime, tolerance, rel, 1, 1)
+    nichefit = multiplicativeFit2(NicheSuitability{Float64}(),
+                                  NicheSuitability{Unitful.Temperature}())
+    @test_nowarn EcoSISTEM._suitability(regime, tolerance, nichefit, 1, 1)
     @test getpref(tolerance, :one) == tolerance.one
     @test getpref(tolerance, :two) == tolerance.two
-    @test EcoSISTEM.getrelationship(rel, :one) == rel.one
-    @test EcoSISTEM.getrelationship(rel, :two) == rel.two
+    @test EcoSISTEM.getrelationship(nichefit, :one) == nichefit.one
+    @test EcoSISTEM.getrelationship(nichefit, :two) == nichefit.two
 
     temp = AxisArray(fill(1.0K, 10, 10, 3),
                      Axis{:latitude}((1:10) .* °),
@@ -43,10 +44,11 @@ active = fill(true, grid)
     solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
     ea = eraAE(eratemp, solar, active)
     regime = ea.regime
-    @test_nowarn EcoSISTEM._traitfun(regime, tolerance.two, rel.two, 1, 1)
+    @test_nowarn EcoSISTEM._suitability(regime, tolerance.two, nichefit.two, 1,
+                                        1)
     tolerance = TempTolerance(Array(hcat(fill(collect(1:4), 10)...)'))
-    rel = DistRel{Unitful.Temperature}()
-    @test_nowarn EcoSISTEM._traitfun(regime, tolerance, rel, 1, 1)
+    nichefit = NicheSuitability{Unitful.Temperature}()
+    @test_nowarn EcoSISTEM._suitability(regime, tolerance, nichefit, 1, 1)
     @test getpref(tolerance, 1) == params(getdist(tolerance, 1)) ==
           (1.0, 2.0, 3.0, 4.0)
 
@@ -61,8 +63,8 @@ active = fill(true, grid)
     regime = ea.regime
     # a Uniform response takes 2 parameters, so each species' row has 2 entries
     tolerance = RainTolerance(Array(hcat(fill(collect(1:2), 10)...)'))
-    rel = DistRel{typeof(1.0mm)}()
-    @test_nowarn EcoSISTEM._traitfun(regime, tolerance, rel, 1, 1)
+    nichefit = NicheSuitability{typeof(1.0mm)}()
+    @test_nowarn EcoSISTEM._suitability(regime, tolerance, nichefit, 1, 1)
     @test getpref(tolerance, 1) == params(getdist(tolerance, 1)) == (1.0, 2.0)
 end
 
@@ -77,16 +79,18 @@ end
     # A Normal response (neither Trapezoid nor Uniform) proves any continuous distribution works.
     bin = NicheTolerance(MeanTemperature, Normal,
                          Array(hcat(fill([1.0, 2.0], 10)...)'))
-    rel = DistRel{typeof(1.0K)}()
-    @test EcoSISTEM._traitfun(regime, bin, rel, 1, 1) ==
+    nichefit = NicheSuitability{typeof(1.0K)}()
+    @test EcoSISTEM._suitability(regime, bin, nichefit, 1, 1) ==
           pdf(Normal(1.0, 2.0), 1.0)
     # hot-loop type stability (hard constraint): the `D(row...)` splat must not leak Any/Union.
-    @test @inferred(EcoSISTEM._traitfun(regime, bin, rel, 1, 1)) isa Float64
+    @test @inferred(EcoSISTEM._suitability(regime, bin, nichefit, 1, 1)) isa
+          Float64
 
-    # the relationship's unit `TR` is imputed from the trait's axis / the regime — not typed by hand
-    @test typeof(DistRel(bin)) == DistRel{typeof(1.0K)}
-    @test eltype(DistRel(bin)) == eltype(bin)
-    @test EcoSISTEM._default_relationship(bin, regime) isa DistRel{typeof(1.0K)}
+    # the nichefit's unit `TR` is imputed from the trait's axis / the regime — not typed by hand
+    @test typeof(NicheSuitability(bin)) == NicheSuitability{typeof(1.0K)}
+    @test eltype(NicheSuitability(bin)) == eltype(bin)
+    @test EcoSISTEM._default_suitability(bin, regime) isa
+          NicheSuitability{typeof(1.0K)}
 end
 
 end

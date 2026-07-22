@@ -58,8 +58,8 @@ native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
-rel = DistRel{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, rel)
+nichefit = NicheSuitability{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years;
 timestep = 1month;

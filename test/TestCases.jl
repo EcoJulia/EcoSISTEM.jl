@@ -45,9 +45,9 @@ function Test1Ecosystem(; seed = nothing)
     sppl = SpeciesList(numSpecies, numNiches, abun, resource, movement, param,
                        native)
 
-    rel = Match{eltype(habitat.regime)}()
-    eco = isnothing(seed) ? Ecosystem(sppl, habitat, rel) :
-          Ecosystem(sppl, habitat, rel; seed = seed)
+    nichefit = MatchSuitability{eltype(habitat.regime)}()
+    eco = isnothing(seed) ? Ecosystem(sppl, habitat, nichefit) :
+          Ecosystem(sppl, habitat, nichefit; seed = seed)
     return eco
 end
 
@@ -91,7 +91,7 @@ function TestMultiEcosystem()
     sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement, param,
                        native)
 
-    rel = DistRel{eltype(habitat.regime)}()
-    eco = Ecosystem(sppl, habitat, rel)
+    nichefit = NicheSuitability{eltype(habitat.regime)}()
+    eco = Ecosystem(sppl, habitat, nichefit)
     return eco
 end

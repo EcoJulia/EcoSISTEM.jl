@@ -65,18 +65,18 @@ include("Phylo.jl")
 export assign_traits!, get_traits, resettraits!, reroot!
 
 include("TraitRelationship.jl")
-export multiplicativeTR2,
-       multiplicativeTR3,
+export multiplicativeFit2,
+       multiplicativeFit3,
        Gauss,
-       Match,
-       NoRelContinuous,
-       NoRelDiscrete,
-       DistRel,
+       MatchSuitability,
+       NoFitContinuous,
+       NoFitDiscrete,
+       NicheSuitability,
        Trapeze,
        Unif,
-       additiveTR2,
-       additiveTR3,
-       LCmatch
+       additiveFit2,
+       additiveFit3,
+       LCsuitability
 
 # Materialised layer family (Role × NicheAxis): the AbstractLayer types + HabitatUpdate,
 # with the old *Hab names kept as aliases. Included BEFORE Habitats.jl, whose methods
@@ -156,7 +156,7 @@ export Ecosystem,
        CachedEcosystem,
        getsize,
        getregime,
-       gettraitrel,
+       getnichefit,
        getgridsize,
        getdispersaldist,
        getdispersalvar,
@@ -166,9 +166,9 @@ export Ecosystem,
        addspecies!
 
 include("Traitfuns.jl")
-export traitfun, getpref, getdist, gettraitrel, getregime
+export suitability, getpref, getdist, getnichefit, getregime
 
-# Deprecated public API (trait line): `GaussTrait` → `NicheTolerance`, `Gauss`/`Trapeze`/`Unif` → `DistRel`. Included
+# Deprecated public API (trait line): `GaussTrait` → `NicheTolerance`, `Gauss`/`Trapeze`/`Unif` → `NicheSuitability`. Included
 # late, after every type it shims; the shim names stay exported (above). See also
 # `src/ClimatePref/deprecations.jl` for the ClimatePref submodule's deprecations.
 include("deprecations.jl")
@@ -244,7 +244,7 @@ export MPIGridLandscape
 abstract type MPIEcosystem{MPIGL <: MPIGridLandscape,
                            Part <: AbstractHabitat,
                            SL <: SpeciesList,
-                           TR <: AbstractTraitRelationship} <:
+                           TR <: AbstractNicheFit} <:
               AbstractEcosystem{Part, SL, TR} end
 export MPIEcosystem
 

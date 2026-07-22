@@ -203,7 +203,7 @@ function SpeciesList(numspecies::Int64,
     EcoSISTEM.resettraits!(tree)
     resource = abs.(_nichemeans(ContinuousEvolve(mean, var, tree)))
     demand = SizeDemand(resource, pop_mass, area)
-    # Calculate density from size and relationship
+    # Calculate density from size and nichefit
     density = exp.(log.(resource) * pop_mass) ./ km^2
     # Multiply density by area to get final population sizes
     abun = round.(Int64, density * area)

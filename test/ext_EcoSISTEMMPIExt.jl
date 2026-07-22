@@ -57,12 +57,13 @@ end
     # Create abiotic environment - even grid of one temperature
     habitat = simplehabitatAE(274.0K, grid, totalK, area)
 
-    # Set relationship between species and environment (gaussian)
-    rel = DistRel{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = NicheSuitability{typeof(1.0K)}()
+
 
     # Create ecosystem
-    @test_nowarn eco = MPIEcosystem(sppl, habitat, rel)
-    eco = MPIEcosystem(sppl, habitat, rel)
+    @test_nowarn eco = MPIEcosystem(sppl, habitat, nichefit)
+    eco = MPIEcosystem(sppl, habitat, nichefit)
     @test sum(eco.sppcounts) == length(eco.spplist.names)
     @test eco.firstsp == 1
     @test sum(eco.sccounts) == prod(size(eco.habitat.regime.matrix))

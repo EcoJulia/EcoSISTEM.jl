@@ -51,18 +51,18 @@ using RasterDataSources
                                                fill(1.0u"kg", 2))
     end
 
-    @testset "trait line: Gauss / Trapeze / Unif → DistRel" begin
+    @testset "trait line: Gauss / Trapeze / Unif → NicheSuitability" begin
         TR = typeof(1.0K)
         @test_deprecated Gauss{TR}()
         @test_deprecated Trapeze{Int64}()
         @test_deprecated Unif{typeof(1.0mm)}()
-        # the shims share `DistRel`'s 2-argument density functor
+        # the shims share `NicheSuitability`'s 2-argument density functor
         @test Gauss{TR}()(Normal(1.0, 0.01), 1.0K) ==
-              DistRel{TR}()(Normal(1.0, 0.01), 1.0K)
+              NicheSuitability{TR}()(Normal(1.0, 0.01), 1.0K)
         @test Trapeze{Int64}()(Trapezoid(1, 2, 3, 4), 1) ==
-              DistRel{Int64}()(Trapezoid(1, 2, 3, 4), 1)
+              NicheSuitability{Int64}()(Trapezoid(1, 2, 3, 4), 1)
         @test Unif{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm) ==
-              DistRel{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm)
+              NicheSuitability{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm)
         @test eltype(Gauss{TR}()) == TR
         @test EcoSISTEM.iscontinuous(Unif{typeof(1.0mm)}()) == true
 
@@ -163,6 +163,20 @@ using RasterDataSources
         @test RainBin === RainTolerance
         @test EcoSISTEM.AbstractTraits === EcoSISTEM.AbstractTolerance
         @test EcoSISTEM.ContinuousTrait === EcoSISTEM.ContinuousTolerance
+    end
+
+    @testset "condition line: matcher → NicheFit / Suitability" begin
+        # the v0.4.0 matcher types → the renamed `*Fit`/`*Suitability` types (`DistRel` was new this PR,
+        # renamed to `NicheSuitability` with no shim)
+        @test Match === MatchSuitability
+        @test LCmatch === LCsuitability
+        @test NoRelContinuous === NoFitContinuous
+        @test NoRelDiscrete === NoFitDiscrete
+        @test multiplicativeTR2 === multiplicativeFit2
+        @test multiplicativeTR3 === multiplicativeFit3
+        @test additiveTR2 === additiveFit2
+        @test additiveTR3 === additiveFit3
+        @test EcoSISTEM.AbstractTraitRelationship === EcoSISTEM.AbstractNicheFit
     end
 end
 
