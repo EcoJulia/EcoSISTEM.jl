@@ -70,10 +70,7 @@ function Lookup(df::DataFrame)
 end
 
 # Check the abundance matrix `m` (species × subcommunities) has one row per species in `sim` and one
-# column per subcommunity in `part`. A pure dimension check: it runs at `Ecosystem` construction, before
-# `populate!`, so the matrix may still be empty — the value/type consistency of a populated metacommunity
-# (`Diversity.mcmatch`, which additionally needs a normalised float abundance) is deliberately not asserted
-# here; trait/habitat and trait/relationship compatibility are covered by `tematch` / `trmatch`.
+# column per subcommunity in `part`. A pure dimension check.
 function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
     return _counttypes(sim, true) == size(m, 1) &&
            _countsubcommunities(part) == size(m, 2)
@@ -100,6 +97,11 @@ function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
     return eltype(sppl.traits) == eltype(traitrel) &&
            (iscontinuous(sppl.traits) == iscontinuous(traitrel))
 end
+
+# Format an `iscontinuous(...)` result — a `Bool` for a single trait/habitat/relationship, or a
+# `Vector{Bool}` for a collection — as "continuous"/"discrete" label(s).
+_kindlabel(b::Bool) = b ? "continuous" : "discrete"
+_kindlabel(bs::AbstractVector{Bool}) = "[" * join(_kindlabel.(bs), ", ") * "]"
 
 """
     AbstractEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
@@ -155,20 +157,20 @@ mutable struct Ecosystem{Part <: AbstractAbiotic,
                                                                           AbstractTraitRelationship}
         tematch(spplist, abenv) ||
             error("Species traits and habitat are incompatible: traits are " *
-                  "$(iscontinuous(spplist.traits) ? "continuous" : "discrete") " *
+                  "$(_kindlabel(iscontinuous(spplist.traits))) " *
                   "$(eltype(spplist.traits)), the habitat is " *
-                  "$(iscontinuous(abenv.habitat) ? "continuous" : "discrete") " *
+                  "$(_kindlabel(iscontinuous(abenv.habitat))) " *
                   "$(eltype(abenv.habitat)). Pair a continuous trait (e.g. " *
-                  "GaussTrait) with a continuous habitat (simplehabitatAE / " *
+                  "Bin) with a continuous habitat (simplehabitatAE / " *
                   "tempgradAE), or a discrete trait (DiscreteTrait) with a " *
                   "discrete habitat (simplenicheAE).")
         trmatch(spplist, relationship) ||
             error("Species traits and the trait relationship are incompatible: " *
-                  "traits are $(iscontinuous(spplist.traits) ? "continuous" : "discrete") " *
+                  "traits are $(_kindlabel(iscontinuous(spplist.traits))) " *
                   "$(eltype(spplist.traits)), the relationship is " *
-                  "$(iscontinuous(relationship) ? "continuous" : "discrete") " *
-                  "$(eltype(relationship)). Use Gauss with continuous traits, or " *
-                  "Match / LCmatch with discrete traits.")
+                  "$(_kindlabel(iscontinuous(relationship))) " *
+                  "$(eltype(relationship)). Use DistRel with continuous traits, " *
+                  "or Match / LCmatch with discrete traits.")
         _mcmatch(abundances.matrix, spplist, abenv) ||
             error("Dimension mismatch: the abundance matrix " *
                   "($(size(abundances.matrix, 1)) × $(size(abundances.matrix, 2))) " *

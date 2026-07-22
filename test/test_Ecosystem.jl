@@ -83,6 +83,55 @@ include("TestCases.jl")
         @test_nowarn getordinariness!(eco)
         @test getordinariness!(eco) == eco.ordinariness
     end
+    @testset "collection-trait incompatibility message" begin
+        # `iscontinuous` of a collection is a `Vector{Bool}`; the constructor's incompatibility errors must
+        # format that rather than crash on a `Vector{Bool}` in a `?:` (the old bug threw a `TypeError`).
+        @test EcoSISTEM._kindlabel(true) == "continuous"
+        @test EcoSISTEM._kindlabel(false) == "discrete"
+        @test EcoSISTEM._kindlabel([true, false]) == "[continuous, discrete]"
+
+        # Build a valid two-variable (temperature + rainfall) collection environment + species, then pass a
+        # mismatched single relationship so `trmatch` fails on the collection path.
+        numSpecies = 4
+        grid = (5, 5)
+        area = 10000.0km^2
+        env1 = simplehabitatAE(10.0K, grid, 1000.0kJ / km^2, area;
+                               axis = MeanTemperature)
+        env2 = simplehabitatAE(10.0mm, grid, 100.0mm / km^2, area;
+                               axis = Precipitation)
+        habitat = HabitatCollection2(env1.habitat, env2.habitat)   # eltype [K, mm]
+        budget = BudgetCollection2(env1.budget, env2.budget)
+        abenv = GridAbioticEnv{typeof(habitat), typeof(budget)}(habitat,
+                                                                env1.active,
+                                                                budget,
+                                                                env1.names)
+        traits = TraitCollection2(Bin(MeanTemperature, Normal,
+                                      fill(10.0K, numSpecies),
+                                      fill(0.1K, numSpecies)),
+                                  Bin(Precipitation, Uniform,
+                                      fill(1.0mm, numSpecies),
+                                      fill(5.0mm, numSpecies)))
+        abun = rand(Multinomial(1000, numSpecies))
+        movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, numSpecies),
+                                                     10e-4))
+        native = fill(true, numSpecies)
+        energy = ReqCollection2(SolarRequirement(fill(2.0kJ, numSpecies)),
+                                WaterRequirement(fill(2.0mm, numSpecies)))
+        param = EqualPop(0.6 / month, 0.6 / month, 1.0, 0.0, 1000.0)
+        sppl = SpeciesList(numSpecies, traits, abun, energy, movement, param,
+                           native)
+        # the matching relationship is `multiplicativeTR2(...)`; a single `DistRel` mismatches
+        badrel = DistRel{typeof(1.0K)}()
+        err = try
+            Ecosystem(sppl, abenv, badrel)
+            nothing
+        catch e
+            e
+        end
+        @test err isa ErrorException                       # not a TypeError from the message itself
+        @test occursin("incompatible", err.msg)
+        @test !occursin("non-boolean", err.msg)
+    end
 end
 
 end
