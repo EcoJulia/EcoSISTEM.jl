@@ -18,7 +18,7 @@ import Diversity.countsubcommunities
 
 const px = AbsoluteLength(0.254)
 
-# `AbstractRegime`, the `HabitatUpdate` dynamics, and the `*Regime`/`RegimeCollection` condition-layer
+# `AbstractRegime`, the `LayerUpdate` dynamics, and the `*Regime`/`RegimeCollection` condition-layer
 # types now live in `Layer.jl` (as `AbstractLayer{Condition}` + `ContinuousLayer`/…). The methods below
 # dispatch on those; the old `*Hab`/`HabitatCollection` names are deprecated aliases (deprecations.jl).
 
@@ -369,7 +369,7 @@ function randomniches(dimension::Tuple,
         # Fill in undefined squares with most frequent neighbour
         _fill_in!(T, M, types, wv)
     end
-    regimeupdate = HabitatUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
+    regimeupdate = LayerUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
     return DiscreteRegime(T, gridsquaresize, regimeupdate)
 end
 
@@ -387,8 +387,8 @@ function simpleregime(val::Unitful.Quantity, size::Unitful.Length,
     # A static regime (rate 0); its change function comes from the layer's niche `axis` via
     # `dynamics(axis)`.
     rate = 0.0 * unit(val) / s
-    regimeupdate = HabitatUpdate(dynamics(axis()), rate,
-                                 typeof(dimension(val)))
+    regimeupdate = LayerUpdate(dynamics(axis()), rate,
+                               typeof(dimension(val)))
     return ContinuousRegime(M, size, regimeupdate)
 end
 
@@ -403,8 +403,8 @@ function simpleregime(val::Float64, size::Unitful.Length,
                       dim::Tuple{Int64, Int64},
                       axis::Type{<:NicheAxis} = Unclassified)
     M = fill(val, dim)
-    regimeupdate = HabitatUpdate(dynamics(axis()), 0.0 / s,
-                                 Unitful.Dimensions{()})
+    regimeupdate = LayerUpdate(dynamics(axis()), 0.0 / s,
+                               Unitful.Dimensions{()})
     return ContinuousRegime(M, size, regimeupdate)
 end
 
@@ -428,7 +428,7 @@ function tempgrad(minT::Unitful.Temperature{Float64},
     map(1:total) do seq
         return M[seq, :] .= temp_range[seq]
     end
-    regimeupdate = HabitatUpdate(TempChange, rate, typeof(dimension(minT)))
+    regimeupdate = LayerUpdate(TempChange, rate, typeof(dimension(minT)))
     return ContinuousRegime(M, size, regimeupdate)
 end
 
@@ -452,6 +452,6 @@ function raingrad(minR::Unitful.Length{Float64},
     map(1:total) do seq
         return M[seq, :] .= rain_range[seq]
     end
-    regimeupdate = HabitatUpdate(RainfallChange, rate, typeof(dimension(minR)))
+    regimeupdate = LayerUpdate(RainfallChange, rate, typeof(dimension(minR)))
     return ContinuousRegime(M, size, regimeupdate)
 end

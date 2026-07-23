@@ -44,20 +44,20 @@ end
 # `ContinuousTimeRegime` starting at month 1 that advances via `cyclicChange`.
 function _timeclimate_regime(array)
     return ContinuousTimeRegime(Array(array), 1, _cellsize(array),
-                                HabitatUpdate(cyclicChange, 0.0 / s,
-                                              Unitful.Dimensions{()}))
+                                LayerUpdate(cyclicChange, 0.0 / s,
+                                            Unitful.Dimensions{()}))
 end
 
 # Static (no-dynamics) data regimes shared by `bioclimAE` (continuous) and `lcAE`
 # (discrete land cover).
 function _continuousregime(array)
     return ContinuousRegime(Array(array), _cellsize(array),
-                            HabitatUpdate(NoChange, 0.0 / s,
-                                          Unitful.Dimensions{()}))
+                            LayerUpdate(NoChange, 0.0 / s,
+                                        Unitful.Dimensions{()}))
 end
 function _discreteregime(array)
     return DiscreteRegime(Array(array), _cellsize(array),
-                          HabitatUpdate(NoChange, 0.0 / s))
+                          LayerUpdate(NoChange, 0.0 / s))
 end
 
 # Default active mask for a data regime: every cell active except those that are NaN in

@@ -546,28 +546,28 @@ Reset the rate of regime change for a species.
 """
 function resetrate!(eco::AbstractEcosystem,
                     rate::Quantity{Float64, typeof(𝐓^-1)})
-    return eco.habitat.regime.dynamics = HabitatUpdate(eco.habitat.regime.dynamics.changefun,
-                                                       rate,
-                                                       Unitful.Dimensions{()})
+    return eco.habitat.regime.dynamics = LayerUpdate(eco.habitat.regime.dynamics.changefun,
+                                                     rate,
+                                                     Unitful.Dimensions{()})
 end
 
 function resetrate!(eco::AbstractEcosystem,
                     rate::Quantity{Float64, typeof(𝚯 * 𝐓^-1)})
-    return eco.habitat.regime.dynamics = HabitatUpdate(eco.habitat.regime.dynamics.changefun,
-                                                       rate,
-                                                       typeof(dimension(1K)))
+    return eco.habitat.regime.dynamics = LayerUpdate(eco.habitat.regime.dynamics.changefun,
+                                                     rate,
+                                                     typeof(dimension(1K)))
 end
 
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝐓^-1})
-    return eco.habitat.regime.dynamics = HabitatUpdate(eco.habitat.regime.dynamics.changefun,
-                                                       rate,
-                                                       Unitful.Dimensions{()})
+    return eco.habitat.regime.dynamics = LayerUpdate(eco.habitat.regime.dynamics.changefun,
+                                                     rate,
+                                                     Unitful.Dimensions{()})
 end
 
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯 * 𝐓^-1})
-    return eco.habitat.regime.dynamics = HabitatUpdate(eco.habitat.regime.dynamics.changefun,
-                                                       rate,
-                                                       typeof(dimension(1K)))
+    return eco.habitat.regime.dynamics = LayerUpdate(eco.habitat.regime.dynamics.changefun,
+                                                     rate,
+                                                     typeof(dimension(1K)))
 end
 
 function resettime!(eco::AbstractEcosystem)

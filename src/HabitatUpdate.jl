@@ -7,7 +7,7 @@ using Unitful.DefaultSymbols
     TempChange(eco::AbstractEcosystem, regime::ContinuousRegime, timestep::Unitful.Time)
 
 Increase the temperature for one timestep of the ecosystem using
-[`HabitatUpdate`](@ref) information.
+[`LayerUpdate`](@ref) information.
 """
 function TempChange(eco::AbstractEcosystem, regime::ContinuousRegime,
                     timestep::Unitful.Time)
@@ -20,7 +20,7 @@ end
     RainfallChange(eco::AbstractEcosystem, regime::ContinuousRegime, timestep::Unitful.Time)
 
 Change the rainfall for one timestep of the ecosystem using
-[`HabitatUpdate`](@ref) information.
+[`LayerUpdate`](@ref) information.
 """
 function RainfallChange(eco::AbstractEcosystem, regime::ContinuousRegime,
                         timestep::Unitful.Time)
@@ -33,7 +33,7 @@ end
     TempFluct(eco::AbstractEcosystem, regime::ContinuousRegime, timestep::Unitful.Time)
 
 Fluctuate the temperature for one timestep of the ecosystem using
-[`HabitatUpdate`](@ref) information.
+[`LayerUpdate`](@ref) information.
 """
 function TempFluct(eco::AbstractEcosystem, regime::ContinuousRegime,
                    timestep::Unitful.Time)
@@ -82,7 +82,7 @@ const worldclimChange = cyclicChange
 """
     HabitatLoss(eco::AbstractEcosystem, regime::AbstractRegime, timestep::Unitful.Time)
 
-Destroy regime for one timestep of the ecosystem using [`HabitatUpdate`](@ref)
+Destroy regime for one timestep of the ecosystem using [`LayerUpdate`](@ref)
 information. The regime's `dynamics.rate` is a loss rate (per unit time); over
 `timestep` it gives the per-cell probability that an active cell is lost. That many
 active cells are drawn at random and have their supply and abundances zeroed.

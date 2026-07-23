@@ -15,15 +15,15 @@ include("TestCases.jl")
 
 @testset "Condition update" begin
     eco = Test1Ecosystem()
-    @test_nowarn EcoSISTEM.HabitatUpdate(EcoSISTEM.NoChange, 0.0 / month,
-                                         Unitful.Dimensions{()})
-    @test_nowarn EcoSISTEM.HabitatUpdate(EcoSISTEM.TempChange, 1.0K / month,
-                                         typeof(dimension(1.0K)))
-    @test_nowarn EcoSISTEM.HabitatUpdate(EcoSISTEM.RainfallChange,
-                                         1.0mm / month,
-                                         typeof(dimension(1.0mm)))
-    @test_nowarn EcoSISTEM.HabitatUpdate(EcoSISTEM.TempFluct, 1.0K / month,
-                                         typeof(dimension(1.0K)))
+    @test_nowarn EcoSISTEM.LayerUpdate(EcoSISTEM.NoChange, 0.0 / month,
+                                       Unitful.Dimensions{()})
+    @test_nowarn EcoSISTEM.LayerUpdate(EcoSISTEM.TempChange, 1.0K / month,
+                                       typeof(dimension(1.0K)))
+    @test_nowarn EcoSISTEM.LayerUpdate(EcoSISTEM.RainfallChange,
+                                       1.0mm / month,
+                                       typeof(dimension(1.0mm)))
+    @test_nowarn EcoSISTEM.LayerUpdate(EcoSISTEM.TempFluct, 1.0K / month,
+                                       typeof(dimension(1.0K)))
     @test_nowarn EcoSISTEM.regimeupdate!(eco, 1month)
     @test_nowarn EcoSISTEM.supplyupdate!(eco, 1month)
 
@@ -75,8 +75,8 @@ end
     eco = Test1Ecosystem()
     # A regime carrying a HabitatLoss change whose rate destroys every active cell
     # over one timestep (rate * 1month == 1 -> loss probability 1).
-    change = EcoSISTEM.HabitatUpdate(EcoSISTEM.HabitatLoss, 1.0 / month,
-                                     Unitful.Dimensions{()})
+    change = EcoSISTEM.LayerUpdate(EcoSISTEM.HabitatLoss, 1.0 / month,
+                                   Unitful.Dimensions{()})
     losshab = EcoSISTEM.ContinuousRegime(fill(1.0K, 10, 10), 1.0km, change)
     @test EcoSISTEM.HabitatLoss(eco, losshab, 1month) === eco
     @test all(iszero, eco.habitat.supply.matrix)

@@ -161,8 +161,8 @@ unitdict = Dict(kJ => "Solar Radiation (kJ)",
 # (geometry/dispersal use the regime), so a placeholder is stored; `NoChange`/`cyclicChange`
 # live in HabitatUpdate.jl (included later) and resolve at call time.
 const _SUPPLY_SIZE = 1.0m
-_supply_static() = HabitatUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
-_supply_cyclic() = HabitatUpdate(cyclicChange, 0.0 / s, Unitful.Dimensions{()})
+_supply_static() = LayerUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
+_supply_cyclic() = LayerUpdate(cyclicChange, 0.0 / s, Unitful.Dimensions{()})
 
 Base.eltype(::ContinuousLayer{Resource, A, V}) where {A, V} = V
 function Base.eltype(supply::LayerCollection2{Resource})
@@ -171,16 +171,16 @@ end
 
 countsubcommunities(ab::AbstractSupply) = _countsubcommunities(ab)
 function _countsubcommunities(supply::ContinuousLayer{Resource, A, V, Arr}) where {A,
-                                                                                 V,
-                                                                                 Arr <:
-                                                                                 AbstractMatrix{V}}
+                                                                                   V,
+                                                                                   Arr <:
+                                                                                   AbstractMatrix{V}}
     return length(supply.matrix)
 end
 function _countsubcommunities(supply::ContinuousLayer{Resource, A, V, Arr}) where {A,
-                                                                                 V,
-                                                                                 Arr <:
-                                                                                 AbstractArray{V,
-                                                                                               3}}
+                                                                                   V,
+                                                                                   Arr <:
+                                                                                   AbstractArray{V,
+                                                                                                 3}}
     return length(@view supply.matrix[:, :, 1])
 end
 function _countsubcommunities(supply::LayerCollection2{Resource})
@@ -189,14 +189,14 @@ end
 
 # The resource available in each cell: the full matrix (static), or the current time slice.
 function _getsupply(supply::ContinuousLayer{Resource, A, V, Arr}) where {A, V,
-                                                                       Arr <:
-                                                                       AbstractMatrix{V}}
+                                                                         Arr <:
+                                                                         AbstractMatrix{V}}
     return supply.matrix
 end
 function _getsupply(supply::ContinuousLayer{Resource, A, V, Arr}) where {A, V,
-                                                                       Arr <:
-                                                                       AbstractArray{V,
-                                                                                     3}}
+                                                                         Arr <:
+                                                                         AbstractArray{V,
+                                                                                       3}}
     return @view supply.matrix[:, :, supply.time]
 end
 function _getsupply(supply::LayerCollection2{Resource}, field::Symbol)
@@ -213,9 +213,9 @@ end
 # --- Constructors reproducing the old per-type supply structs -------------------------
 function SimpleSupply(mat::Matrix{Float64})
     return ContinuousLayer{Resource, Unclassified, Float64, Matrix{Float64}}(mat,
-                                                                           1,
-                                                                           _SUPPLY_SIZE,
-                                                                           _supply_static())
+                                                                             1,
+                                                                             _SUPPLY_SIZE,
+                                                                             _supply_static())
 end
 function SolarSupply(mat::Matrix{typeof(1.0 * kJ)})
     mat[isnan.(mat)] .= 0 * kJ

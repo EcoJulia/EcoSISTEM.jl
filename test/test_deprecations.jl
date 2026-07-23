@@ -178,6 +178,11 @@ using RasterDataSources
         @test additiveTR3 === additiveFit3
         @test EcoSISTEM.AbstractTraitRelationship === EcoSISTEM.AbstractNicheFit
     end
+
+    @testset "layer dynamics: HabitatUpdate → LayerUpdate" begin
+        # the v0.4.0 (unexported) per-layer update rule → the renamed `LayerUpdate`
+        @test EcoSISTEM.HabitatUpdate === EcoSISTEM.LayerUpdate
+    end
 end
 
 end

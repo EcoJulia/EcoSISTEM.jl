@@ -219,3 +219,9 @@ Base.@deprecate_binding multiplicativeTR3 multiplicativeFit3
 Base.@deprecate_binding additiveTR2 additiveFit2
 Base.@deprecate_binding additiveTR3 additiveFit3
 @deprecate gettraitrel getnichefit
+
+# ---------------------------------------------------------------------------
+# Layer dynamics: `HabitatUpdate` → `LayerUpdate` (v0.4.0 rename; it drives any layer — regime or supply —
+# not just a habitat). Unexported in v0.4.0, so the shim doesn't export either (the `false`).
+# ---------------------------------------------------------------------------
+Base.@deprecate_binding HabitatUpdate LayerUpdate false

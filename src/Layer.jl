@@ -8,31 +8,32 @@ using EcoSISTEM.Units
 # ---------------------------------------------------------------------------
 # Layer dynamics
 # ---------------------------------------------------------------------------
-# (Kept named `HabitatUpdate` for now; renamed `LayerDynamics` when `update!` is unified.)
+# The per-layer update rule. Named `LayerUpdate` (was `HabitatUpdate`) — it drives any layer, regime or
+# supply, not just a habitat.
 
 """
-    HabitatUpdate{F <: Function, DT}
+    LayerUpdate{F <: Function, DT}
 
 Stores the update rule for a layer. `changefun` is applied to the layer matrix at each
 timestep, and `rate` is the rate of change with appropriate units.
 """
-struct HabitatUpdate{F <: Function, DT}
+struct LayerUpdate{F <: Function, DT}
     changefun::F
     rate::DT
 end
 
 """
-    HabitatUpdate(changefun::F, rate::DT, ::Type{D})
+    LayerUpdate(changefun::F, rate::DT, ::Type{D})
 
-Construct a `HabitatUpdate` with a type-checked rate. Errors if `rate * 1month` does not
+Construct a `LayerUpdate` with a type-checked rate. Errors if `rate * 1month` does not
 have dimensions `D`.
 """
-function HabitatUpdate(changefun::F, rate::DT,
-                       ::Type{D}) where {F <: Function, DT,
-                                         D <: Unitful.Dimensions}
+function LayerUpdate(changefun::F, rate::DT,
+                     ::Type{D}) where {F <: Function, DT,
+                                       D <: Unitful.Dimensions}
     dimension(rate * 1month) isa D ||
         error("Failed to match types $(rate * 1month) vs $D")
-    return HabitatUpdate(changefun, rate)
+    return LayerUpdate(changefun, rate)
 end
 
 # ---------------------------------------------------------------------------
@@ -79,7 +80,7 @@ mutable struct ContinuousLayer{R <: Role, A <: NicheAxis, V <: Number,
     matrix::Arr
     time::Int64
     size::Unitful.Length
-    dynamics::HabitatUpdate
+    dynamics::LayerUpdate
 end
 
 """
@@ -92,7 +93,7 @@ mutable struct DiscreteLayer{A <: NicheAxis, V, Arr <: AbstractArray{V}} <:
                AbstractLayer{Condition}
     matrix::Arr
     size::Unitful.Length
-    dynamics::HabitatUpdate
+    dynamics::LayerUpdate
 end
 
 """
@@ -128,7 +129,8 @@ An environmental condition matched to species tolerances — any `Condition`-rol
 const AbstractRegime = AbstractLayer{Condition}
 
 """    ContinuousRegime{C} — a static continuous regime (a `Condition`-role [`ContinuousLayer`](@ref) over a `Matrix{C}`). """
-const ContinuousRegime{C} = ContinuousLayer{Condition, A, C, Matrix{C}} where {A}
+const ContinuousRegime{C} = ContinuousLayer{Condition, A, C,
+                                            Matrix{C}} where {A}
 """    ContinuousTimeRegime{C, M} — a monthly time-varying continuous regime (a `Condition`-role [`ContinuousLayer`](@ref) over a 3-D array). """
 const ContinuousTimeRegime{C,
                            M <: AbstractArray{C, 3}} = ContinuousLayer{Condition,
@@ -145,19 +147,21 @@ const RegimeCollection3{H1, H2, H3} = LayerCollection3{Condition, H1, H2, H3}
 # time = 1 (the axis-aware `materialise` path constructs `ContinuousLayer{Condition, A}` with
 # the real axis directly).
 function ContinuousRegime(matrix::Matrix{C}, size::Unitful.Length,
-                          dynamics::HabitatUpdate) where {C}
-    return ContinuousLayer{Condition, Unclassified, C, Matrix{C}}(matrix, 1, size,
-                                                                dynamics)
+                          dynamics::LayerUpdate) where {C}
+    return ContinuousLayer{Condition, Unclassified, C, Matrix{C}}(matrix, 1,
+                                                                  size,
+                                                                  dynamics)
 end
 function ContinuousTimeRegime(matrix::AbstractArray{C, 3}, time::Integer,
                               size::Unitful.Length,
-                              dynamics::HabitatUpdate) where {C}
+                              dynamics::LayerUpdate) where {C}
     return ContinuousLayer{Condition, Unclassified, C, typeof(matrix)}(matrix,
-                                                                     time, size,
-                                                                     dynamics)
+                                                                       time,
+                                                                       size,
+                                                                       dynamics)
 end
 function DiscreteRegime(matrix::Matrix{D}, size::Unitful.Length,
-                        dynamics::HabitatUpdate) where {D}
+                        dynamics::LayerUpdate) where {D}
     return DiscreteLayer{Unclassified, D, Matrix{D}}(matrix, size, dynamics)
 end
 
@@ -214,7 +218,8 @@ const SolarTimeSupply = ContinuousLayer{Resource, SolarRadiation,
                                         typeof(1.0 * kJ),
                                         Array{typeof(1.0 * kJ), 3}}
 """    WaterTimeSupply — a monthly time-varying available-water (mm) supply. """
-const WaterTimeSupply = ContinuousLayer{Resource, Precipitation, typeof(1.0 * mm),
+const WaterTimeSupply = ContinuousLayer{Resource, Precipitation,
+                                        typeof(1.0 * mm),
                                         Array{typeof(1.0 * mm), 3}}
 """    VolWaterTimeSupply — a monthly time-varying soil-water-volume (m³) supply. """
 const VolWaterTimeSupply = ContinuousLayer{Resource, VolumetricWater,
@@ -225,7 +230,8 @@ const SupplyCollection2{B1, B2} = LayerCollection2{Resource, B1, B2}
 
 # As for `RegimeCollection2`, the partially-applied alias has no auto-generated
 # constructor; forward to the bare `LayerCollection2` (which infers the role).
-function SupplyCollection2(b1::AbstractLayer{Resource}, b2::AbstractLayer{Resource})
+function SupplyCollection2(b1::AbstractLayer{Resource},
+                           b2::AbstractLayer{Resource})
     return LayerCollection2(b1, b2)
 end
 
@@ -259,7 +265,7 @@ _absolutise(x::Real) = x
 function _reaxis(l::ContinuousLayer{Condition, A0, V, Arr},
                  ::Type{A}) where {A0, V, Arr, A <: NicheAxis}
     return ContinuousLayer{Condition, A, V, Arr}(l.matrix, l.time, l.size,
-                                               l.dynamics)
+                                                 l.dynamics)
 end
 function _reaxis(l::DiscreteLayer{A0, V, Arr},
                  ::Type{A}) where {A0, V, Arr, A <: NicheAxis}

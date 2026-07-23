@@ -78,7 +78,7 @@ export multiplicativeFit2,
        additiveFit3,
        LCsuitability
 
-# Materialised layer family (Role × NicheAxis): the AbstractLayer types + HabitatUpdate,
+# Materialised layer family (Role × NicheAxis): the AbstractLayer types + LayerUpdate,
 # with the old *Hab names kept as aliases. Included BEFORE Habitats.jl, whose methods
 # dispatch on those aliases.
 include("Layer.jl")
