@@ -83,7 +83,7 @@ Trait type holding a **binned** regime preference for each species on niche axis
 continuous response distribution per species — `dists::Vector{D}`, where `D` is a concrete
 `Distributions.ContinuousUnivariateDistribution` (e.g. `Trapezoid{Float64}` or `Uniform{Float64}`). The
 distributions are built once in the **support frame** `C` — the unit their support/domain is measured in,
-which is also the trait's [`eltype`](@ref) and the unit the matching regime must be in. In the hot loop the
+which is also the trait's `eltype` and the unit the matching regime must be in. In the hot loop the
 [`NicheSuitability`](@ref) nichefit fetches `dists[sp]` — see [`getdist`](@ref) — and evaluates the density at
 `ustrip(regime)`, already a bare number in frame `C`, so there is no per-call conversion or allocation.
 """

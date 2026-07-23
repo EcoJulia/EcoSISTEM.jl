@@ -322,7 +322,7 @@ end
     param_units(D, support_units; probes = _default_probes(D))
 
 The absolute unit of each parameter of distribution `D` given a support of `support_units`, inferred
-by parameter role (see [`param_roles_resolved`](@ref)): a location or scale parameter carries the
+by parameter role (see `param_roles_resolved`): a location or scale parameter carries the
 **absolute** support unit (K for °C), a rate carries its inverse, and a shape parameter is
 dimensionless — so a shape-only family (`Beta`, `LogNormal`, …) is all-`NoUnits`. This is the
 introspection companion to [`read_distribution`](@ref), which performs the actual (affine-aware)
