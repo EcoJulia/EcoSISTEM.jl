@@ -65,7 +65,6 @@ habitat.supply.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
 # Set nichefit between species and environment (gaussian)
 nichefit = NicheSuitability{typeof(1.0K)}()
 
-
 # Create ecosystem
 @test_nowarn MPIEcosystem(sppl, habitat, nichefit)
 eco = MPIEcosystem(sppl, habitat, nichefit; seed = 0)

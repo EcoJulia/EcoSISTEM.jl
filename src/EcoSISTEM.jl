@@ -166,6 +166,7 @@ export Ecosystem,
        getsupply,
        addspecies!
 
+include("Simplify.jl")
 include("Traitfuns.jl")
 export suitability, getpref, getdist, getnichefit, getregime
 

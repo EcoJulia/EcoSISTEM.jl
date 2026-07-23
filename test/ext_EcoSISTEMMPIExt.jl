@@ -60,7 +60,6 @@ end
     # Set nichefit between species and environment (gaussian)
     nichefit = NicheSuitability{typeof(1.0K)}()
 
-
     # Create ecosystem
     @test_nowarn eco = MPIEcosystem(sppl, habitat, nichefit)
     eco = MPIEcosystem(sppl, habitat, nichefit)
