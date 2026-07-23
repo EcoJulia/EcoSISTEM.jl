@@ -142,7 +142,7 @@ struct GridHabitat{H, B} <: AbstractHabitat{H, B}
                                                                      1:countsubcommunities(regime))) where {H,
                                                                                                             B}
         countsubcommunities(regime) == countsubcommunities(supply) ||
-            error("Habitat and supply must have same dimensions")
+            error("Condition and supply must have same dimensions")
         countsubcommunities(regime) == length(names) ||
             error("Number of subcommunities must match subcommunity names")
         return new{H, B}(regime, active, supply, names)

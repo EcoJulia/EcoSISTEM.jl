@@ -109,8 +109,8 @@ using RasterDataSources
         end
     end
 
-    @testset "resource line: Budget → Supply" begin
-        # the v0.4.0 `*Budget` layer types are deprecated aliases of the renamed `*Supply` types.
+    @testset "resource line: Resource → Supply" begin
+        # the v0.4.0 `*Resource` layer types are deprecated aliases of the renamed `*Supply` types.
         # (`@deprecate_binding` warns via a channel `@test_deprecated` can't capture, so we assert the
         # binding resolves; the warning still fires under `--depwarn=yes`.)
         @test SolarBudget === SolarSupply
@@ -137,7 +137,7 @@ using RasterDataSources
         @test SolarRequirement(fill(2.0kJ, 3)) isa SolarDemand
     end
 
-    @testset "condition line: Habitat → Regime" begin
+    @testset "condition line: Condition → Regime" begin
         # the v0.4.0 `*Hab`/`HabitatCollection*` condition-layer types → the renamed `*Regime` types
         @test ContinuousHab === ContinuousRegime
         @test ContinuousTimeHab === ContinuousTimeRegime
@@ -146,8 +146,8 @@ using RasterDataSources
         @test HabitatCollection3 === RegimeCollection3
     end
 
-    @testset "environment container: AbioticEnv → Habitat" begin
-        # the v0.4.0 environment container → the renamed `*Habitat` (which now means the whole environment;
+    @testset "environment container: AbioticEnv → Condition" begin
+        # the v0.4.0 environment container → the renamed `*Condition` (which now means the whole environment;
         # the condition layer that used to be `AbstractHabitat` is now `AbstractRegime`)
         @test GridAbioticEnv === GridHabitat
         @test EcoSISTEM.AbstractAbiotic === EcoSISTEM.AbstractHabitat

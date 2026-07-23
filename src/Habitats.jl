@@ -19,7 +19,7 @@ import Diversity.countsubcommunities
 const px = AbsoluteLength(0.254)
 
 # `AbstractRegime`, the `HabitatUpdate` dynamics, and the `*Regime`/`RegimeCollection` condition-layer
-# types now live in `Layer.jl` (as `AbstractLayer{Habitat}` + `ContinuousLayer`/…). The methods below
+# types now live in `Layer.jl` (as `AbstractLayer{Condition}` + `ContinuousLayer`/…). The methods below
 # dispatch on those; the old `*Hab`/`HabitatCollection` names are deprecated aliases (deprecations.jl).
 
 function Diversity.countsubcommunities(regime::AbstractRegime)

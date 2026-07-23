@@ -143,7 +143,7 @@ function (::Gauss{TR})(current::TR, opt::TR, var::TR) where {TR}
 end
 
 # ---------------------------------------------------------------------------
-# Resource line: `Budget` → `Supply` (v0.4.0 rename; the environment's resource layer)
+# Resource line: `Resource` → `Supply` (v0.4.0 rename; the environment's resource layer)
 # ---------------------------------------------------------------------------
 # `AbstractSupply`/`AbstractTimeSupply` are unexported, so their shims don't export either (the `false`).
 Base.@deprecate_binding AbstractBudget AbstractSupply false
@@ -172,7 +172,7 @@ Base.@deprecate_binding VolWaterRequirement VolWaterDemand
 Base.@deprecate_binding ReqCollection2 DemandCollection2
 
 # ---------------------------------------------------------------------------
-# Condition line: `Habitat`(-role layer) → `Regime` (v0.4.0 rename; the environment's condition layer)
+# Condition line: `Condition`(-role layer) → `Regime` (v0.4.0 rename; the environment's condition layer)
 # ---------------------------------------------------------------------------
 Base.@deprecate_binding ContinuousHab ContinuousRegime
 Base.@deprecate_binding ContinuousTimeHab ContinuousTimeRegime
@@ -182,7 +182,7 @@ Base.@deprecate_binding HabitatCollection3 RegimeCollection3
 @deprecate gethabitat getregime
 
 # ---------------------------------------------------------------------------
-# Environment container: `AbioticEnv`/`GridAbioticEnv` → `Habitat` (v0.4.0 rename). NB the *condition
+# Environment container: `AbioticEnv`/`GridAbioticEnv` → `Condition` (v0.4.0 rename). NB the *condition
 # layer* `AbstractHabitat` was renamed to `AbstractRegime`, freeing `AbstractHabitat` for the environment;
 # v0.4.0's (unexported) `AbstractHabitat` therefore changes meaning — a NEWS breaking note, not a shim.
 # ---------------------------------------------------------------------------

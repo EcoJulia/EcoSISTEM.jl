@@ -151,10 +151,10 @@ unitdict = Dict(kJ => "Solar Radiation (kJ)",
                 mm => "Available water (mm)")
 
 # ---------------------------------------------------------------------------
-# Supplies — `Budget`-role layers (folded onto `ContinuousLayer{Budget}`)
+# Supplies — `Resource`-role layers (folded onto `ContinuousLayer{Resource}`)
 # ---------------------------------------------------------------------------
 # The concrete supply names (`SimpleSupply`/`SolarSupply`/… and the time-varying
-# `*TimeSupply`s) are aliases (in Layer.jl) over `ContinuousLayer{Budget, axis, V, Arr}`:
+# `*TimeSupply`s) are aliases (in Layer.jl) over `ContinuousLayer{Resource, axis, V, Arr}`:
 # a static supply is 2-D (`Matrix`), a time supply 3-D (`Array`, indexed by `time`). The
 # constructors below fill the (unused) `size` and the per-timestep `dynamics` rule and zero
 # NaNs, reproducing the old supply structs. A supply's `size` is never read
@@ -164,68 +164,68 @@ const _SUPPLY_SIZE = 1.0m
 _supply_static() = HabitatUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
 _supply_cyclic() = HabitatUpdate(cyclicChange, 0.0 / s, Unitful.Dimensions{()})
 
-Base.eltype(::ContinuousLayer{Budget, A, V}) where {A, V} = V
-function Base.eltype(supply::LayerCollection2{Budget})
+Base.eltype(::ContinuousLayer{Resource, A, V}) where {A, V} = V
+function Base.eltype(supply::LayerCollection2{Resource})
     return [eltype(supply.one), eltype(supply.two)]
 end
 
 countsubcommunities(ab::AbstractSupply) = _countsubcommunities(ab)
-function _countsubcommunities(supply::ContinuousLayer{Budget, A, V, Arr}) where {A,
+function _countsubcommunities(supply::ContinuousLayer{Resource, A, V, Arr}) where {A,
                                                                                  V,
                                                                                  Arr <:
                                                                                  AbstractMatrix{V}}
     return length(supply.matrix)
 end
-function _countsubcommunities(supply::ContinuousLayer{Budget, A, V, Arr}) where {A,
+function _countsubcommunities(supply::ContinuousLayer{Resource, A, V, Arr}) where {A,
                                                                                  V,
                                                                                  Arr <:
                                                                                  AbstractArray{V,
                                                                                                3}}
     return length(@view supply.matrix[:, :, 1])
 end
-function _countsubcommunities(supply::LayerCollection2{Budget})
+function _countsubcommunities(supply::LayerCollection2{Resource})
     return _countsubcommunities(supply.one)
 end
 
 # The resource available in each cell: the full matrix (static), or the current time slice.
-function _getsupply(supply::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
+function _getsupply(supply::ContinuousLayer{Resource, A, V, Arr}) where {A, V,
                                                                        Arr <:
                                                                        AbstractMatrix{V}}
     return supply.matrix
 end
-function _getsupply(supply::ContinuousLayer{Budget, A, V, Arr}) where {A, V,
+function _getsupply(supply::ContinuousLayer{Resource, A, V, Arr}) where {A, V,
                                                                        Arr <:
                                                                        AbstractArray{V,
                                                                                      3}}
     return @view supply.matrix[:, :, supply.time]
 end
-function _getsupply(supply::LayerCollection2{Budget}, field::Symbol)
+function _getsupply(supply::LayerCollection2{Resource}, field::Symbol)
     return _getsupply(getfield(supply, field))
 end
 
-function _getavailablesupply(supply::ContinuousLayer{Budget})
+function _getavailablesupply(supply::ContinuousLayer{Resource})
     return sum(supply.matrix[.!isnan.(supply.matrix)])
 end
-function _getavailablesupply(supply::LayerCollection2{Budget})
+function _getavailablesupply(supply::LayerCollection2{Resource})
     return [_getavailablesupply(supply.one), _getavailablesupply(supply.two)]
 end
 
 # --- Constructors reproducing the old per-type supply structs -------------------------
 function SimpleSupply(mat::Matrix{Float64})
-    return ContinuousLayer{Budget, Unclassified, Float64, Matrix{Float64}}(mat,
+    return ContinuousLayer{Resource, Unclassified, Float64, Matrix{Float64}}(mat,
                                                                            1,
                                                                            _SUPPLY_SIZE,
                                                                            _supply_static())
 end
 function SolarSupply(mat::Matrix{typeof(1.0 * kJ)})
     mat[isnan.(mat)] .= 0 * kJ
-    return ContinuousLayer{Budget, SolarRadiation, typeof(1.0 * kJ),
+    return ContinuousLayer{Resource, SolarRadiation, typeof(1.0 * kJ),
                            Matrix{typeof(1.0 * kJ)}}(mat, 1, _SUPPLY_SIZE,
                                                      _supply_static())
 end
 function WaterSupply(mat::Matrix{typeof(1.0 * mm)})
     mat[isnan.(mat)] .= 0.0mm
-    return ContinuousLayer{Budget, Precipitation, typeof(1.0 * mm),
+    return ContinuousLayer{Resource, Precipitation, typeof(1.0 * mm),
                            Matrix{typeof(1.0 * mm)}}(mat, 1, _SUPPLY_SIZE,
                                                      _supply_static())
 end
@@ -236,13 +236,13 @@ function WaterSupply(bc::ClimateRaster{WorldClim{BioClim}})
 end
 function VolWaterSupply(mat::Matrix{typeof(1.0 * m^3)})
     mat[isnan.(mat)] .= 0 * m^3
-    return ContinuousLayer{Budget, VolumetricWater, typeof(1.0 * m^3),
+    return ContinuousLayer{Resource, VolumetricWater, typeof(1.0 * m^3),
                            Matrix{typeof(1.0 * m^3)}}(mat, 1, _SUPPLY_SIZE,
                                                       _supply_static())
 end
 function SolarTimeSupply(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
     mat[isnan.(mat)] .= 0 * kJ
-    return ContinuousLayer{Budget, SolarRadiation, typeof(1.0 * kJ),
+    return ContinuousLayer{Resource, SolarRadiation, typeof(1.0 * kJ),
                            Array{typeof(1.0 * kJ), 3}}(mat, time, _SUPPLY_SIZE,
                                                        _supply_cyclic())
 end
@@ -253,7 +253,7 @@ function SolarTimeSupply(wc::ClimateRaster{WorldClim{Climate}}, time::Int64)
 end
 function WaterTimeSupply(mat::Array{typeof(1.0 * mm), 3}, time::Int64)
     mat[isnan.(mat)] .= 0 * mm
-    return ContinuousLayer{Budget, Precipitation, typeof(1.0 * mm),
+    return ContinuousLayer{Resource, Precipitation, typeof(1.0 * mm),
                            Array{typeof(1.0 * mm), 3}}(mat, time, _SUPPLY_SIZE,
                                                        _supply_cyclic())
 end
@@ -264,13 +264,13 @@ function WaterTimeSupply(wc::ClimateRaster{WorldClim{Climate}}, time::Int64)
 end
 function VolWaterTimeSupply(mat::Array{typeof(1.0 * m^3), 3}, time::Int64)
     mat[isnan.(mat)] .= 0 * m^3
-    return ContinuousLayer{Budget, VolumetricWater, typeof(1.0 * m^3),
+    return ContinuousLayer{Resource, VolumetricWater, typeof(1.0 * m^3),
                            Array{typeof(1.0 * m^3), 3}}(mat, time, _SUPPLY_SIZE,
                                                         _supply_cyclic())
 end
 
 # --- Recipes --------------------------------------------------------------------------
-@recipe function f(B::ContinuousLayer{Budget, A, V}) where {A, V}
+@recipe function f(B::ContinuousLayer{Resource, A, V}) where {A, V}
     b = ustrip.(B.matrix)
     seriestype := :heatmap
     grid --> false
@@ -279,7 +279,7 @@ end
     clims --> (minimum(b) * 0.99, maximum(b) * 1.01)
     return b
 end
-@recipe function f(B::ContinuousLayer{Budget, A, V, Arr},
+@recipe function f(B::ContinuousLayer{Resource, A, V, Arr},
                    time::Int64) where {A, V, Arr <: AbstractArray{V, 3}}
     b = ustrip.(B.matrix)
     seriestype := :heatmap
@@ -289,7 +289,7 @@ end
     clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
     return b[:, :, time]
 end
-@recipe function f(H::LayerCollection2{Budget, B1, B2}) where {B1, B2}
+@recipe function f(H::LayerCollection2{Resource, B1, B2}) where {B1, B2}
     x, y = H.one, H.two
     layout := 2
     @series begin

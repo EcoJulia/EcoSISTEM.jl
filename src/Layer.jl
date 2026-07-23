@@ -39,7 +39,7 @@ end
 # AbstractLayer — the materialised, hot-loop grid-layer family
 # ---------------------------------------------------------------------------
 # A materialised layer is `matrix (+ time) + size + dynamics`, tagged with a `Role`
-# (`Habitat` condition vs `Budget` resource) and a `NicheAxis` (what it measures). It
+# (`Condition` condition vs `Resource` resource) and a `NicheAxis` (what it measures). It
 # unifies today's `ContinuousRegime`/`ContinuousTimeRegime`/`DiscreteRegime` (and, from sub-step 3,
 # the supply structs). During the fold the old `*Hab` names below are **aliases** over these
 # types, so existing methods/constructors keep working (defaulting to the `Unclassified`
@@ -49,7 +49,7 @@ end
     AbstractLayer{R <: Role}
 
 Abstract supertype of the materialised, hot-loop grid layers, tagged with their
-[`Role`](@ref) (`Habitat` condition or `Budget` resource). Concrete kinds are
+[`Role`](@ref) (`Condition` condition or `Resource` resource). Concrete kinds are
 [`ContinuousLayer`](@ref), [`DiscreteLayer`](@ref) and the collections
 [`LayerCollection2`](@ref)/`LayerCollection3`.
 """
@@ -85,11 +85,11 @@ end
 """
     DiscreteLayer{A <: NicheAxis, V, Arr <: AbstractArray{V}}
 
-A discrete (categorical) grid layer on niche axis `A` — always a `Habitat` (there is no
+A discrete (categorical) grid layer on niche axis `A` — always a `Condition` (there is no
 discrete supply).
 """
 mutable struct DiscreteLayer{A <: NicheAxis, V, Arr <: AbstractArray{V}} <:
-               AbstractLayer{Habitat}
+               AbstractLayer{Condition}
     matrix::Arr
     size::Unitful.Length
     dynamics::HabitatUpdate
@@ -122,37 +122,37 @@ end
 """
     AbstractRegime
 
-An environmental condition matched to species tolerances — any `Habitat`-role
+An environmental condition matched to species tolerances — any `Condition`-role
 [`AbstractLayer`](@ref).
 """
-const AbstractRegime = AbstractLayer{Habitat}
+const AbstractRegime = AbstractLayer{Condition}
 
-"""    ContinuousRegime{C} — a static continuous regime (a `Habitat`-role [`ContinuousLayer`](@ref) over a `Matrix{C}`). """
-const ContinuousRegime{C} = ContinuousLayer{Habitat, A, C, Matrix{C}} where {A}
-"""    ContinuousTimeRegime{C, M} — a monthly time-varying continuous regime (a `Habitat`-role [`ContinuousLayer`](@ref) over a 3-D array). """
+"""    ContinuousRegime{C} — a static continuous regime (a `Condition`-role [`ContinuousLayer`](@ref) over a `Matrix{C}`). """
+const ContinuousRegime{C} = ContinuousLayer{Condition, A, C, Matrix{C}} where {A}
+"""    ContinuousTimeRegime{C, M} — a monthly time-varying continuous regime (a `Condition`-role [`ContinuousLayer`](@ref) over a 3-D array). """
 const ContinuousTimeRegime{C,
-                           M <: AbstractArray{C, 3}} = ContinuousLayer{Habitat,
+                           M <: AbstractArray{C, 3}} = ContinuousLayer{Condition,
                                                                        A, C,
                                                                        M} where {A}
 """    DiscreteRegime{D} — a categorical regime (a [`DiscreteLayer`](@ref), e.g. land cover). """
 const DiscreteRegime{D} = DiscreteLayer{A, D, Matrix{D}} where {A}
 """    RegimeCollection2{H1, H2} — two regimes over one grid (e.g. temperature + rainfall). """
-const RegimeCollection2{H1, H2} = LayerCollection2{Habitat, H1, H2}
+const RegimeCollection2{H1, H2} = LayerCollection2{Condition, H1, H2}
 """    RegimeCollection3{H1, H2, H3} — three regimes over one grid. """
-const RegimeCollection3{H1, H2, H3} = LayerCollection3{Habitat, H1, H2, H3}
+const RegimeCollection3{H1, H2, H3} = LayerCollection3{Condition, H1, H2, H3}
 
 # Old positional constructors → new layer types, defaulting to the `Unclassified` axis and
-# time = 1 (the axis-aware `materialise` path constructs `ContinuousLayer{Habitat, A}` with
+# time = 1 (the axis-aware `materialise` path constructs `ContinuousLayer{Condition, A}` with
 # the real axis directly).
 function ContinuousRegime(matrix::Matrix{C}, size::Unitful.Length,
                           dynamics::HabitatUpdate) where {C}
-    return ContinuousLayer{Habitat, Unclassified, C, Matrix{C}}(matrix, 1, size,
+    return ContinuousLayer{Condition, Unclassified, C, Matrix{C}}(matrix, 1, size,
                                                                 dynamics)
 end
 function ContinuousTimeRegime(matrix::AbstractArray{C, 3}, time::Integer,
                               size::Unitful.Length,
                               dynamics::HabitatUpdate) where {C}
-    return ContinuousLayer{Habitat, Unclassified, C, typeof(matrix)}(matrix,
+    return ContinuousLayer{Condition, Unclassified, C, typeof(matrix)}(matrix,
                                                                      time, size,
                                                                      dynamics)
 end
@@ -161,24 +161,24 @@ function DiscreteRegime(matrix::Matrix{D}, size::Unitful.Length,
     return DiscreteLayer{Unclassified, D, Matrix{D}}(matrix, size, dynamics)
 end
 
-# The collection aliases fix `R = Habitat` but leave the sub-layer params free, so the
+# The collection aliases fix `R = Condition` but leave the sub-layer params free, so the
 # auto-generated constructor doesn't cover `RegimeCollection2(l1, l2)`; forward to the bare
 # `LayerCollection` constructor (which infers the role from the sub-layers).
-function RegimeCollection2(l1::AbstractLayer{Habitat},
-                           l2::AbstractLayer{Habitat})
+function RegimeCollection2(l1::AbstractLayer{Condition},
+                           l2::AbstractLayer{Condition})
     return LayerCollection2(l1, l2)
 end
-function RegimeCollection3(l1::AbstractLayer{Habitat},
-                           l2::AbstractLayer{Habitat},
-                           l3::AbstractLayer{Habitat})
+function RegimeCollection3(l1::AbstractLayer{Condition},
+                           l2::AbstractLayer{Condition},
+                           l3::AbstractLayer{Condition})
     return LayerCollection3(l1, l2, l3)
 end
 
 # ---------------------------------------------------------------------------
 # Back-compat aliases (supply role)
 # ---------------------------------------------------------------------------
-# A supply is a `Budget`-role layer: the old supply structs are aliases over
-# `ContinuousLayer{Budget, axis, V, Arr}` — static supplies are 2-D (`Matrix`), the
+# A supply is a `Resource`-role layer: the old supply structs are aliases over
+# `ContinuousLayer{Resource, axis, V, Arr}` — static supplies are 2-D (`Matrix`), the
 # time-varying `*TimeSupply`s 3-D (`Array`, indexed by `time`). The axis records the
 # resource measured; the (unused) `size` and the `dynamics` rule are filled by the
 # constructors in Energy.jl. `SimpleSupply` (free energy) has no resource axis.
@@ -186,46 +186,46 @@ end
 """
     AbstractSupply
 
-A resource layer consumed by species — any `Budget`-role [`AbstractLayer`](@ref).
+A resource layer consumed by species — any `Resource`-role [`AbstractLayer`](@ref).
 """
-const AbstractSupply = AbstractLayer{Budget}
+const AbstractSupply = AbstractLayer{Resource}
 
-# A time-varying supply: a `Budget`-role continuous layer whose array is 3-D (monthly).
-const AbstractTimeSupply = ContinuousLayer{Budget, A, V,
+# A time-varying supply: a `Resource`-role continuous layer whose array is 3-D (monthly).
+const AbstractTimeSupply = ContinuousLayer{Resource, A, V,
                                            Arr} where {A, V,
                                                        Arr <:
                                                        AbstractArray{V, 3}}
 
 """    SimpleSupply — a dimensionless (free-energy) supply, one float per cell. """
-const SimpleSupply = ContinuousLayer{Budget, Unclassified, Float64,
+const SimpleSupply = ContinuousLayer{Resource, Unclassified, Float64,
                                      Matrix{Float64}}
 """    SolarSupply — a static solar-energy (kJ) supply. """
-const SolarSupply = ContinuousLayer{Budget, SolarRadiation, typeof(1.0 * kJ),
+const SolarSupply = ContinuousLayer{Resource, SolarRadiation, typeof(1.0 * kJ),
                                     Matrix{typeof(1.0 * kJ)}}
 """    WaterSupply — a static available-water (mm) supply. """
-const WaterSupply = ContinuousLayer{Budget, Precipitation, typeof(1.0 * mm),
+const WaterSupply = ContinuousLayer{Resource, Precipitation, typeof(1.0 * mm),
                                     Matrix{typeof(1.0 * mm)}}
 """    VolWaterSupply — a static soil-water-volume (m³) supply. """
-const VolWaterSupply = ContinuousLayer{Budget, VolumetricWater,
+const VolWaterSupply = ContinuousLayer{Resource, VolumetricWater,
                                        typeof(1.0 * m^3),
                                        Matrix{typeof(1.0 * m^3)}}
 """    SolarTimeSupply — a monthly time-varying solar-energy (kJ) supply. """
-const SolarTimeSupply = ContinuousLayer{Budget, SolarRadiation,
+const SolarTimeSupply = ContinuousLayer{Resource, SolarRadiation,
                                         typeof(1.0 * kJ),
                                         Array{typeof(1.0 * kJ), 3}}
 """    WaterTimeSupply — a monthly time-varying available-water (mm) supply. """
-const WaterTimeSupply = ContinuousLayer{Budget, Precipitation, typeof(1.0 * mm),
+const WaterTimeSupply = ContinuousLayer{Resource, Precipitation, typeof(1.0 * mm),
                                         Array{typeof(1.0 * mm), 3}}
 """    VolWaterTimeSupply — a monthly time-varying soil-water-volume (m³) supply. """
-const VolWaterTimeSupply = ContinuousLayer{Budget, VolumetricWater,
+const VolWaterTimeSupply = ContinuousLayer{Resource, VolumetricWater,
                                            typeof(1.0 * m^3),
                                            Array{typeof(1.0 * m^3), 3}}
 """    SupplyCollection2{B1, B2} — two supplies over one grid (e.g. solar + water). """
-const SupplyCollection2{B1, B2} = LayerCollection2{Budget, B1, B2}
+const SupplyCollection2{B1, B2} = LayerCollection2{Resource, B1, B2}
 
 # As for `RegimeCollection2`, the partially-applied alias has no auto-generated
 # constructor; forward to the bare `LayerCollection2` (which infers the role).
-function SupplyCollection2(b1::AbstractLayer{Budget}, b2::AbstractLayer{Budget})
+function SupplyCollection2(b1::AbstractLayer{Resource}, b2::AbstractLayer{Resource})
     return LayerCollection2(b1, b2)
 end
 
@@ -256,12 +256,17 @@ _absolutise(x::Real) = x
 
 # Re-tag a materialised layer with its niche axis `A` — a phantom type parameter, so this shares the
 # arrays. The low-level constructors build an `Unclassified` layer that this narrows to the real axis.
-function _reaxis(l::ContinuousLayer{Habitat, A0, V, Arr},
+function _reaxis(l::ContinuousLayer{Condition, A0, V, Arr},
                  ::Type{A}) where {A0, V, Arr, A <: NicheAxis}
-    return ContinuousLayer{Habitat, A, V, Arr}(l.matrix, l.time, l.size,
+    return ContinuousLayer{Condition, A, V, Arr}(l.matrix, l.time, l.size,
                                                l.dynamics)
 end
 function _reaxis(l::DiscreteLayer{A0, V, Arr},
                  ::Type{A}) where {A0, V, Arr, A <: NicheAxis}
     return DiscreteLayer{A, V, Arr}(l.matrix, l.size, l.dynamics)
 end
+
+# Symmetric value accessors for the environment's two layers: a `Regime` supplies a `condition` grid, a
+# `Supply` supplies a `resource` grid (mirroring the species side's `.tolerance` / `.demand`).
+condition(regime::AbstractRegime) = regime.matrix
+resource(supply::AbstractSupply) = supply.matrix

@@ -6,31 +6,31 @@ using Unitful.DefaultSymbols
 # ---------------------------------------------------------------------------
 # Layer roles
 # ---------------------------------------------------------------------------
-# A materialised layer plays one of two roles in a `GridHabitat`: a `Habitat`
-# (an environmental condition matched to species tolerances) or a `Budget` (a resource
+# A materialised layer plays one of two roles in a `GridHabitat`: a `Condition`
+# (an environmental condition matched to species tolerances) or a `Resource` (a resource
 # consumed by species). The role is a phantom marker used to keep the two
 # type-distinguishable while sharing one storage implementation.
 
 """
     Role
 
-Abstract supertype of the layer-role markers [`Habitat`](@ref) and [`Budget`](@ref).
+Abstract supertype of the layer-role markers [`Condition`](@ref) and [`Resource`](@ref).
 """
 abstract type Role end
 
 """
-    Habitat <: Role
+    Condition <: Role
 
 Marker for a layer used as an environmental condition (matched to species tolerances).
 """
-struct Habitat <: Role end
+struct Condition <: Role end
 
 """
-    Budget <: Role
+    Resource <: Role
 
 Marker for a layer used as a consumable resource.
 """
-struct Budget <: Role end
+struct Resource <: Role end
 
 # ---------------------------------------------------------------------------
 # Niche axes
@@ -137,7 +137,7 @@ canonicalunit(::Altitude) = m
 """
     supplytype(::NicheAxis)
 
-The `AbstractSupply` concrete type for this axis when used as a `Budget` resource, or
+The `AbstractSupply` concrete type for this axis when used as a `Resource` resource, or
 `nothing` if the axis is not a consumable resource (so it errors clearly rather than
 silently guessing one if a supply is nonetheless requested).
 """

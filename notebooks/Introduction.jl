@@ -92,7 +92,7 @@ begin
     resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
     resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 
-    # Habitat preferences
+    # Condition preferences
     vars = fill(2.0, numSpecies) .* K
     opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
     tolerance = NicheTolerance(MeanTemperature, Normal, opts, vars)
@@ -189,7 +189,7 @@ begin
     temp_env = simplehabitatAE(totalT, grid, totalW, area_size)
 
     # Let's plot it to see what it looks like
-    heatmap(temp_env.regime.matrix ./ K, clim = (278, 308), title = "Habitat",
+    heatmap(temp_env.regime.matrix ./ K, clim = (278, 308), title = "Condition",
             layout = 2)
     heatmap!(temp_env.supply.matrix ./ mm,
              title = "Resource",
@@ -215,7 +215,7 @@ begin
 
     # Let's plot it to see what it looks like now
     heatmap(temp_grad_env.regime.matrix' ./ K, clim = (278, 308),
-            title = "Habitat")
+            title = "Condition")
 end
 
 # ╔═╡ 8f7b85a1-1e64-4d1a-90f6-55c6307a03cf
@@ -233,7 +233,7 @@ begin
 
     # Let's plot it to see what it looks like now
     heatmap(temp_peak_env.regime.matrix' ./ K, clim = (278, 308),
-            title = "Habitat")
+            title = "Condition")
 end
 
 # ╔═╡ 5928ca0d-479e-4714-acfe-ff2d9c43533e

@@ -13,7 +13,7 @@ using RasterDataSources
 
 include("TestCases.jl")
 
-@testset "Habitat update" begin
+@testset "Condition update" begin
     eco = Test1Ecosystem()
     @test_nowarn EcoSISTEM.HabitatUpdate(EcoSISTEM.NoChange, 0.0 / month,
                                          Unitful.Dimensions{()})
@@ -71,7 +71,7 @@ include("TestCases.jl")
     @test eco.habitat.supply.time == 2
 end
 
-@testset "Habitat loss" begin
+@testset "Condition loss" begin
     eco = Test1Ecosystem()
     # A regime carrying a HabitatLoss change whose rate destroys every active cell
     # over one timestep (rate * 1month == 1 -> loss probability 1).
