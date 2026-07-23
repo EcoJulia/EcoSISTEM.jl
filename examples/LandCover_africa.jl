@@ -14,22 +14,22 @@ using Plots
 
 # Download landcover data, cut to a rounded bounding box of Africa (from bounding_boxes.csv).
 africa_box = EcoSISTEM.ClimatePref.boundingbox("Africa"; round = 5°)
-africa_lc = read(EarthEnv{LandCover},
-                 cut = africa_box)
-bio_africa_lc = compressLC(africa_lc)
-heatmap(bio_africa_lc.array)
+africa_landcover = read(EarthEnv{LandCover},
+                        cut = africa_box)
+bio_africa_landcover = compressLandCover(africa_landcover)
+heatmap(bio_africa_landcover.array)
 
 # Bioclim layer 13 is precipitation of the wettest month
-worldbc = read(WorldClim{BioClim}, 13,
-               cut = africa_box)
-africa_water_aa = upresolution(worldbc.array[:, :, 1], 2)
+worldbioclim = read(WorldClim{BioClim}, 13,
+                    cut = africa_box)
+africa_water_aa = upresolution(worldbioclim.array[:, :, 1], 2)
 africa_water = ClimateRaster(WorldClim{BioClim},
                              AxisArray(africa_water_aa .* mm,
                                        AxisArrays.axes(africa_water_aa)))
 bio_africa_water = WaterSupply(africa_water)
 
 # Find which grid cells are land
-active = Matrix{Bool}(bio_africa_lc.array .!= 4)
+active = Matrix{Bool}(bio_africa_landcover.array .!= 4)
 
 # Set up initial parameters for ecosystem
 numSpecies = 1;
@@ -57,17 +57,17 @@ movement = AlwaysMovement(kernel, Torus())
 
 # Create species list, including their temperature preferences, seed abundance and native status
 opts = fill(collect(1:8), numSpecies)
-tolerance = LCtolerance(opts)
+tolerance = LandCoverTolerance(opts)
 native = fill(true, numSpecies)
 abun = fill(div(individuals, numSpecies), numSpecies)
 sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - with temperature and water resource
-habitat = lcAE(bio_africa_lc, bio_africa_water, active)
+habitat = landcoverhabitat(bio_africa_landcover, bio_africa_water, active)
 
 # Set nichefit between species and environment (gaussian)
-nichefit = LCsuitability{Int64}()
+nichefit = LandCoverSuitability{Int64}()
 
 # Create ecosystem and fill every active grid square with an individual
 eco = Ecosystem(sppl, habitat, nichefit)
@@ -111,7 +111,7 @@ heatmap!(africa_endabun, clim = (0, maximum(abuns)),
          background_color = :lightblue, background_color_outside = :white,
          grid = false, color = cgrad(:algae, scale = :exp),
          subplot = 2, title = "End Abundance")
-africa_data = Float64.(bio_africa_lc.array.data)
+africa_data = Float64.(bio_africa_landcover.array.data)
 africa_data[.!active] .= NaN
 heatmap!(africa_data, grid = false, subplot = 3, title = "Land Cover")
 heatmap!(Float64.(africa_water.array.data / mm), grid = false, subplot = 4,

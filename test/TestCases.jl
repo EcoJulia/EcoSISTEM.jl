@@ -32,7 +32,7 @@ function Test1Ecosystem(; seed = nothing)
     area = 10000.0km^2
     individuals = 20000 * numSpecies
     totalK = 1000000.0 * kJ / km^2 * numSpecies
-    habitat = simplenicheAE(numNiches, grid, totalK, area)
+    habitat = simplenichehabitat(numNiches, grid, totalK, area)
 
     # Seed the global RNG so the initial abundance totals are also deterministic
     isnothing(seed) || Random.seed!(seed)
@@ -69,9 +69,9 @@ function TestMultiEcosystem()
     totalK2 = 100.0 * mm / km^2 * numSpecies
     # `axis = MeanTemperature` so the regime carries `TempChange` dynamics (the `TempIncrease!`/`TempFluct!`
     # scenarios reset its rate); dynamics now comes from the declared axis, not the value's K unit.
-    habitat1 = simplehabitatAE(10.0K, grid, totalK1, area;
-                               axis = MeanTemperature)
-    habitat2 = simplehabitatAE(10.0K, grid, totalK2, area)
+    habitat1 = simplehabitat(10.0K, grid, totalK1, area;
+                             axis = MeanTemperature)
+    habitat2 = simplehabitat(10.0K, grid, totalK2, area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
                                                                    habitat1.active,

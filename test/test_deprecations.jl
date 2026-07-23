@@ -156,7 +156,7 @@ using RasterDataSources
     @testset "condition line: Trait → Tolerance" begin
         # the v0.4.0 `*Trait`/`TraitCollection`/`TempBin`/`RainBin` types → the renamed `*Tolerance` types
         @test DiscreteTrait === DiscreteTolerance
-        @test LCtrait === LCtolerance
+        @test LCtrait === LandCoverTolerance
         @test TraitCollection2 === ToleranceCollection2
         @test TraitCollection3 === ToleranceCollection3
         @test TempBin === TempTolerance
@@ -169,7 +169,7 @@ using RasterDataSources
         # the v0.4.0 matcher types → the renamed `*Fit`/`*Suitability` types (`DistRel` was new this PR,
         # renamed to `NicheSuitability` with no shim)
         @test Match === MatchSuitability
-        @test LCmatch === LCsuitability
+        @test LCmatch === LandCoverSuitability
         @test NoRelContinuous === NoFitContinuous
         @test NoRelDiscrete === NoFitDiscrete
         @test multiplicativeTR2 === multiplicativeFit2
@@ -182,6 +182,61 @@ using RasterDataSources
     @testset "layer dynamics: HabitatUpdate → LayerUpdate" begin
         # the v0.4.0 (unexported) per-layer update rule → the renamed `LayerUpdate`
         @test EcoSISTEM.HabitatUpdate === EcoSISTEM.LayerUpdate
+    end
+
+    @testset "environment constructors: *AE → *habitat" begin
+        # each `*AE` constructor is a deprecated forwarder to its `*habitat` rename; the symbol-form
+        # `@deprecate` warns (captured by `@test_deprecated`) and forwards to the same method, so the
+        # returned habitat matches. All fixtures are in-memory (no downloads).
+        grid = (10, 10)
+        totalK = 1000.0kJ / m^2
+        area = 100.0km^2
+        latkm = Axis{:latitude}(collect(1:10) .* km)
+        longkm = Axis{:longitude}(collect(1:10) .* km)
+
+        # synthetic constructors
+        h = @test_deprecated simplehabitatAE(5.0K, grid, totalK, area)
+        @test h isa GridHabitat
+        @test typeof(h) == typeof(simplehabitat(5.0K, grid, totalK, area))
+        @test (@test_deprecated tempgradAE(-10.0K, 10.0K, grid, totalK, area,
+                                           0.01K / month)) isa GridHabitat
+        @test (@test_deprecated peakedgradAE(-10.0K, 10.0K, grid, totalK, area,
+                                             0.01K / month)) isa GridHabitat
+        @test (@test_deprecated raingradAE(0.0mm, 100.0mm, grid, totalK, area,
+                                           0.01mm / month)) isa GridHabitat
+        @test (@test_deprecated simplenicheAE(4, grid, totalK, area)) isa
+              GridHabitat
+
+        # data constructors (in-memory ERA / ClimateRaster fixtures)
+        eratemp = ERA(AxisArray(fill(1.0K, 10, 10, 3),
+                                Axis{:latitude}((1:10) .* °),
+                                Axis{:longitude}((1:10) .* °),
+                                Axis{:time}(collect(1:3) .* s)))
+        @test (@test_deprecated eraAE(eratemp, totalK, area)) isa GridHabitat
+        worldclim = ClimateRaster(WorldClim{Climate},
+                                  AxisArray(fill(1.0K, 10, 10, 12), latkm,
+                                            longkm,
+                                            Axis{:time}(collect(1:12) .* month)))
+        @test (@test_deprecated worldclimAE(worldclim, totalK, area)) isa
+              GridHabitat
+        bio = ClimateRaster(WorldClim{BioClim},
+                            AxisArray(fill(1.0K, 10, 10), latkm, longkm))
+        @test (@test_deprecated bioclimAE(bio, totalK, area)) isa GridHabitat
+        lcr = ClimateRaster(EarthEnv{LandCover},
+                            AxisArray(fill(1, 10, 10), latkm, longkm))
+        lch = @test_deprecated lcAE(lcr, totalK, area)
+        @test lch isa GridHabitat
+        @test typeof(lch) == typeof(landcoverhabitat(lcr, totalK, area))
+    end
+
+    @testset "land cover: compressLC → compressLandCover" begin
+        latkm = Axis{:latitude}(collect(1:10) .* km)
+        longkm = Axis{:longitude}(collect(1:10) .* km)
+        lcr = ClimateRaster(EarthEnv{LandCover},
+                            AxisArray(rand(10, 10, 5), latkm, longkm,
+                                      Axis{:time}(collect(1:5))))
+        compressed = @test_deprecated compressLC(lcr)
+        @test compressed.array == compressLandCover(lcr).array
     end
 end
 

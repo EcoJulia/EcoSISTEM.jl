@@ -149,9 +149,9 @@ end
                       Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m),
                       Axis{:time}(collect(1:12) .* month))
-    wc = ClimateRaster(WorldClim{Climate}, water)
-    supply = WaterTimeSupply(wc, 1)
-    @test_nowarn WaterTimeSupply(wc, 1)
+    worldclim = ClimateRaster(WorldClim{Climate}, water)
+    supply = WaterTimeSupply(worldclim, 1)
+    @test_nowarn WaterTimeSupply(worldclim, 1)
     @test EcoSISTEM._countsubcommunities(supply) == 100
     @test EcoSISTEM._getsupply(supply) == supply.matrix[:, :, 1]
     @test eltype(supply) == typeof(supply.matrix[1])
@@ -161,9 +161,9 @@ end
                       Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m),
                       Axis{:time}(collect(1:12) .* month))
-    wc = ClimateRaster(WorldClim{Climate}, solar)
-    supply = SolarTimeSupply(wc, 1)
-    @test_nowarn SolarTimeSupply(wc, 1)
+    worldclim = ClimateRaster(WorldClim{Climate}, solar)
+    supply = SolarTimeSupply(worldclim, 1)
+    @test_nowarn SolarTimeSupply(worldclim, 1)
     @test EcoSISTEM._countsubcommunities(supply) == 100
     @test EcoSISTEM._getsupply(supply) == supply.matrix[:, :, 1]
     @test eltype(supply) == eltype(supply.matrix)
@@ -171,9 +171,9 @@ end
 
     water = AxisArray(fill(1.0mm, 10, 10), Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m))
-    wc = ClimateRaster(WorldClim{BioClim}, water)
-    supply = WaterSupply(wc)
-    @test_nowarn WaterSupply(wc)
+    worldclim = ClimateRaster(WorldClim{BioClim}, water)
+    supply = WaterSupply(worldclim)
+    @test_nowarn WaterSupply(worldclim)
     @test EcoSISTEM._countsubcommunities(supply) == 100
     @test EcoSISTEM._getsupply(supply) == supply.matrix
     @test eltype(supply) == eltype(supply.matrix)

@@ -30,7 +30,7 @@ function cache_test_eco(seed)
 
     sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement, param,
                        native)
-    habitat = simplehabitatAE(274.0K, grid, totalK, area)
+    habitat = simplehabitat(274.0K, grid, totalK, area)
     nichefit = NicheSuitability{typeof(1.0K)}()
     return Ecosystem(sppl, habitat, nichefit; seed = seed)
 end

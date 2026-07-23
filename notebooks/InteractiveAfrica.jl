@@ -93,7 +93,7 @@ begin
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    habitat = simplehabitatAE(274.0K, grd, totalK, area, active)
+    habitat = simplehabitat(274.0K, grd, totalK, area, active)
 
     # Set nichefit between species and environment (gaussian)
     nichefit = NicheSuitability{typeof(1.0K)}()
@@ -180,7 +180,7 @@ begin
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv_new = bioclimAE(africa_new, totalK_new, area_new)
+    abenv_new = bioclimhabitat(africa_new, totalK_new, area_new)
 
     # Set nichefit between species and environment (gaussian)
     rel_new = NicheSuitability{typeof(1.0K)}()

@@ -61,7 +61,7 @@ sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
-habitat = simplehabitatAE(274.0K, grid, totalK, area)
+habitat = simplehabitat(274.0K, grid, totalK, area)
 
 # Set nichefit between species and environment (gaussian)
 nichefit = Gauss{typeof(1.0K)}()

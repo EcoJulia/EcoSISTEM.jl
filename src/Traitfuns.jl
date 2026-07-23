@@ -64,7 +64,7 @@ function _suitability(regime::RegimeCollection3,
 end
 
 function _suitability(regime::DiscreteRegime,
-                      tolerance::LCtolerance,
+                      tolerance::LandCoverTolerance,
                       nichefit::R,
                       pos::Int64,
                       spp::Int64) where {R <: AbstractNicheFit}
@@ -74,11 +74,11 @@ function _suitability(regime::DiscreteRegime,
 end
 
 """
-    getpref(tolerance::LCtolerance, spp::Int64)
+    getpref(tolerance::LandCoverTolerance, spp::Int64)
 
-Extract the land cover preference values for species `spp` from an `LCtolerance`.
+Extract the land cover preference values for species `spp` from an `LandCoverTolerance`.
 """
-function getpref(tolerance::LCtolerance, spp::Int64)
+function getpref(tolerance::LandCoverTolerance, spp::Int64)
     return tolerance.vals[spp]
 end
 

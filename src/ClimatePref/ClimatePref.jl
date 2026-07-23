@@ -25,7 +25,7 @@ export extractvalues
 
 include("DataCleaning.jl")
 export create_reference, upresolution, downresolution, downresolution!,
-       compressLC
+       compressLandCover
 
 include("PhyloModels.jl")
 export Brownian, Lambda, fitBrownian, fitLambda, varcovar

@@ -82,7 +82,7 @@ function build_ecosystem(mode::AbstractString)
     sppl = SpeciesList(NUM_SPECIES, tolerance, abun, resource_vec,
                        movement, param, native)
 
-    habitat = simplehabitatAE(274.0K, grid, totalK, area)
+    habitat = simplehabitat(274.0K, grid, totalK, area)
     nichefit = Gauss{typeof(1.0K)}()
 
     if mode == "mpi"

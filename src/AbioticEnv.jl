@@ -40,24 +40,25 @@ function _maxsupply_env(regime, active::Matrix{Bool},
                                                    supplytype(supply))
 end
 
-# The time-varying (monthly) climate regime shared by `eraAE`/`worldclimAE`: a
-# `ContinuousTimeRegime` starting at month 1 that advances via `cyclicChange`.
-function _timeclimate_regime(array)
-    return ContinuousTimeRegime(Array(array), 1, _cellsize(array),
-                                LayerUpdate(cyclicChange, 0.0 / s,
-                                            Unitful.Dimensions{()}))
+# The time-varying (monthly) climate regime shared by `erahabitat`/`worldclimhabitat`: a
+# `ContinuousTimeRegime` starting at month 1 that advances via `cyclicChange`, tagged with niche `axis`.
+function _timeclimate_regime(array, axis::Type{<:NicheAxis} = Unclassified)
+    return _reaxis(ContinuousTimeRegime(Array(array), 1, _cellsize(array),
+                                        LayerUpdate(cyclicChange, 0.0 / s,
+                                                    Unitful.Dimensions{()})),
+                   axis)
 end
 
-# Static (no-dynamics) data regimes shared by `bioclimAE` (continuous) and `lcAE`
-# (discrete land cover).
-function _continuousregime(array)
-    return ContinuousRegime(Array(array), _cellsize(array),
-                            LayerUpdate(NoChange, 0.0 / s,
-                                        Unitful.Dimensions{()}))
+# Static (no-dynamics) data regimes shared by `bioclimhabitat` (continuous) and `landcoverhabitat`
+# (discrete land cover), each tagged with niche `axis`.
+function _continuousregime(array, axis::Type{<:NicheAxis} = Unclassified)
+    return _reaxis(ContinuousRegime(Array(array), _cellsize(array),
+                                    LayerUpdate(NoChange, 0.0 / s,
+                                                Unitful.Dimensions{()})), axis)
 end
-function _discreteregime(array)
-    return DiscreteRegime(Array(array), _cellsize(array),
-                          LayerUpdate(NoChange, 0.0 / s))
+function _discreteregime(array, axis::Type{<:NicheAxis} = Unclassified)
+    return _reaxis(DiscreteRegime(Array(array), _cellsize(array),
+                                  LayerUpdate(NoChange, 0.0 / s)), axis)
 end
 
 # Default active mask for a data regime: every cell active except those that are NaN in
@@ -150,7 +151,7 @@ struct GridHabitat{H, B} <: AbstractHabitat{H, B}
 end
 
 """
-    simplenicheAE(numniches::Int64, dimension::Tuple,
+    simplenichehabitat(numniches::Int64, dimension::Tuple,
                         maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area{Float64},
                         active::Matrix{Bool})
 
@@ -162,12 +163,12 @@ maximum supply value `maxsupply`. If a Bool matrix of active grid squares is
 included, `active`, this is used, else one is created with all grid cells
 active.
 """
-function simplenicheAE(numniches::Int64,
-                       dimension::Tuple,
-                       maxsupply::Unitful.Quantity{Float64},
-                       area::Unitful.Area{Float64},
-                       active::Matrix{Bool};
-                       axis::Type{<:NicheAxis} = Unclassified)
+function simplenichehabitat(numniches::Int64,
+                            dimension::Tuple,
+                            maxsupply::Unitful.Quantity{Float64},
+                            area::Unitful.Area{Float64},
+                            active::Matrix{Bool};
+                            axis::Type{<:NicheAxis} = Unclassified)
     # Create niches
     niches = collect(1:numniches)
     area = uconvert(km^2, area)
@@ -181,20 +182,20 @@ function simplenicheAE(numniches::Int64,
     # Create empty supply and for now fill with one value
     return _maxsupply_env(regime, active, maxsupply, area)
 end
-function simplenicheAE(numniches::Int64,
-                       dimension::Tuple,
-                       maxsupply::Unitful.Quantity{Float64},
-                       area::Unitful.Area{Float64};
-                       axis::Type{<:NicheAxis} = Unclassified)
+function simplenichehabitat(numniches::Int64,
+                            dimension::Tuple,
+                            maxsupply::Unitful.Quantity{Float64},
+                            area::Unitful.Area{Float64};
+                            axis::Type{<:NicheAxis} = Unclassified)
     active = Matrix{Bool}(undef, dimension)
     fill!(active, true)
-    return simplenicheAE(numniches, dimension, maxsupply, area, active;
-                         axis = axis)
+    return simplenichehabitat(numniches, dimension, maxsupply, area, active;
+                              axis = axis)
 end
-@doc (@doc simplenicheAE) simplenicheAE(::Int64,
-                                        ::Tuple,
-                                        ::Unitful.Quantity{Float64},
-                                        ::Unitful.Area{Float64})
+@doc (@doc simplenichehabitat) simplenichehabitat(::Int64,
+                                                  ::Tuple,
+                                                  ::Unitful.Quantity{Float64},
+                                                  ::Unitful.Area{Float64})
 
 import Diversity.API: _countsubcommunities
 function _countsubcommunities(gae::GridHabitat)
@@ -214,7 +215,7 @@ function getavailablesupply(gae::GridHabitat)
     return _getavailablesupply(gae.supply)
 end
 """
-    tempgradAE(minT::Unitful.Temperature{Float64},
+    tempgradhabitat(minT::Unitful.Temperature{Float64},
       maxT::Unitful.Temperature{Float64},
       dimension::Tuple{Int64, Int64}, maxsupply::Unitful.Quantity{Float64},
       area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝚯*𝐓^-1},
@@ -229,14 +230,14 @@ maximum supply value `maxsupply`. The rate of temperature change is specified us
 the parameter `rate`. If a Bool matrix of active grid squares is included,
 `active`, this is used, else one is created with all grid cells active.
 """
-function tempgradAE(minT::Unitful.Temperature{Float64},
-                    maxT::Unitful.Temperature{Float64},
-                    dimension::Tuple{Int64, Int64},
-                    maxsupply::Unitful.Quantity{Float64},
-                    area::Unitful.Area{Float64},
-                    rate::Quantity{Float64, 𝚯 * 𝐓^-1},
-                    active::Matrix{Bool};
-                    axis::Type{<:NicheAxis} = MeanTemperature)
+function tempgradhabitat(minT::Unitful.Temperature{Float64},
+                         maxT::Unitful.Temperature{Float64},
+                         dimension::Tuple{Int64, Int64},
+                         maxsupply::Unitful.Quantity{Float64},
+                         area::Unitful.Area{Float64},
+                         rate::Quantity{Float64, 𝚯 * 𝐓^-1},
+                         active::Matrix{Bool};
+                         axis::Type{<:NicheAxis} = MeanTemperature)
     minT = _canonical(minT, axis)
     maxT = _canonical(maxT, axis)
     area = uconvert(km^2, area)
@@ -246,26 +247,26 @@ function tempgradAE(minT::Unitful.Temperature{Float64},
     return _maxsupply_env(regime, active, maxsupply, area)
 end
 
-function tempgradAE(minT::Unitful.Temperature{Float64},
-                    maxT::Unitful.Temperature{Float64},
-                    dimension::Tuple{Int64, Int64},
-                    maxsupply::Unitful.Quantity{Float64},
-                    area::Unitful.Area{Float64},
-                    rate::Quantity{Float64, 𝚯 * 𝐓^-1};
-                    axis::Type{<:NicheAxis} = MeanTemperature)
+function tempgradhabitat(minT::Unitful.Temperature{Float64},
+                         maxT::Unitful.Temperature{Float64},
+                         dimension::Tuple{Int64, Int64},
+                         maxsupply::Unitful.Quantity{Float64},
+                         area::Unitful.Area{Float64},
+                         rate::Quantity{Float64, 𝚯 * 𝐓^-1};
+                         axis::Type{<:NicheAxis} = MeanTemperature)
     active = fill(true, dimension)
-    return tempgradAE(minT, maxT, dimension, maxsupply, area, rate, active;
-                      axis = axis)
+    return tempgradhabitat(minT, maxT, dimension, maxsupply, area, rate, active;
+                           axis = axis)
 end
-@doc (@doc tempgradAE) tempgradAE(::Unitful.Temperature{Float64},
-                                  ::Unitful.Temperature{Float64},
-                                  ::Tuple{Int64, Int64},
-                                  ::Unitful.Quantity{Float64},
-                                  ::Unitful.Area{Float64},
-                                  ::Quantity{Float64, 𝚯 * 𝐓^-1})
+@doc (@doc tempgradhabitat) tempgradhabitat(::Unitful.Temperature{Float64},
+                                            ::Unitful.Temperature{Float64},
+                                            ::Tuple{Int64, Int64},
+                                            ::Unitful.Quantity{Float64},
+                                            ::Unitful.Area{Float64},
+                                            ::Quantity{Float64, 𝚯 * 𝐓^-1})
 
 """
-    peakedgradAE(minT::Unitful.Temperature{Float64},
+    peakedgradhabitat(minT::Unitful.Temperature{Float64},
        maxT::Unitful.Temperature{Float64},
        dimension::Tuple{Int64, Int64}, maxsupply::Unitful.Quantity{Float64},
        area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝚯*𝐓^-1},
@@ -281,14 +282,14 @@ rate of temperature change is specified using the parameter `rate`. If a Bool
 matrix of active grid squares is included, `active`, this is used, else one is
 created with all grid cells active.
 """
-function peakedgradAE(minT::Unitful.Temperature{Float64},
-                      maxT::Unitful.Temperature{Float64},
-                      dimension::Tuple{Int64, Int64},
-                      maxsupply::Unitful.Quantity{Float64},
-                      area::Unitful.Area{Float64},
-                      rate::Quantity{Float64, 𝚯 * 𝐓^-1},
-                      active::Matrix{Bool};
-                      axis::Type{<:NicheAxis} = MeanTemperature)
+function peakedgradhabitat(minT::Unitful.Temperature{Float64},
+                           maxT::Unitful.Temperature{Float64},
+                           dimension::Tuple{Int64, Int64},
+                           maxsupply::Unitful.Quantity{Float64},
+                           area::Unitful.Area{Float64},
+                           rate::Quantity{Float64, 𝚯 * 𝐓^-1},
+                           active::Matrix{Bool};
+                           axis::Type{<:NicheAxis} = MeanTemperature)
     minT = _canonical(minT, axis)
     maxT = _canonical(maxT, axis)
     area = uconvert(km^2, area)
@@ -302,26 +303,27 @@ function peakedgradAE(minT::Unitful.Temperature{Float64},
     return _maxsupply_env(_reaxis(regime, axis), active, maxsupply, area)
 end
 
-function peakedgradAE(minT::Unitful.Temperature{Float64},
-                      maxT::Unitful.Temperature{Float64},
-                      dimension::Tuple{Int64, Int64},
-                      maxsupply::Unitful.Quantity{Float64},
-                      area::Unitful.Area{Float64},
-                      rate::Quantity{Float64, 𝚯 * 𝐓^-1};
-                      axis::Type{<:NicheAxis} = MeanTemperature)
+function peakedgradhabitat(minT::Unitful.Temperature{Float64},
+                           maxT::Unitful.Temperature{Float64},
+                           dimension::Tuple{Int64, Int64},
+                           maxsupply::Unitful.Quantity{Float64},
+                           area::Unitful.Area{Float64},
+                           rate::Quantity{Float64, 𝚯 * 𝐓^-1};
+                           axis::Type{<:NicheAxis} = MeanTemperature)
     active = fill(true, dimension)
-    return peakedgradAE(minT, maxT, dimension, maxsupply, area, rate, active;
-                        axis = axis)
+    return peakedgradhabitat(minT, maxT, dimension, maxsupply, area, rate,
+                             active;
+                             axis = axis)
 end
-@doc (@doc peakedgradAE) peakedgradAE(::Unitful.Temperature{Float64},
-                                      ::Unitful.Temperature{Float64},
-                                      ::Tuple{Int64, Int64},
-                                      ::Unitful.Quantity{Float64},
-                                      ::Unitful.Area{Float64},
-                                      ::Quantity{Float64, 𝚯 * 𝐓^-1})
+@doc (@doc peakedgradhabitat) peakedgradhabitat(::Unitful.Temperature{Float64},
+                                                ::Unitful.Temperature{Float64},
+                                                ::Tuple{Int64, Int64},
+                                                ::Unitful.Quantity{Float64},
+                                                ::Unitful.Area{Float64},
+                                                ::Quantity{Float64, 𝚯 * 𝐓^-1})
 
 """
-    raingradAE(minR::Unitful.Length{Float64},
+    raingradhabitat(minR::Unitful.Length{Float64},
       maxR::Unitful.Length{Float64},
       dimension::Tuple{Int64, Int64}, maxsupply::Unitful.Quantity{Float64},
       area::Unitful.Area{Float64}, rate::Quantity{Float64, 𝐋*𝐓^-1},
@@ -336,14 +338,14 @@ maximum supply value `maxsupply`. The rate of rainfall change is specified using
 the parameter `rate`. If a Bool matrix of active grid squares is included,
 `active`, this is used, else one is created with all grid cells active.
 """
-function raingradAE(minR::Unitful.Length{Float64},
-                    maxR::Unitful.Length{Float64},
-                    dimension::Tuple{Int64, Int64},
-                    maxsupply::Unitful.Quantity{Float64},
-                    area::Unitful.Area{Float64},
-                    rate::Quantity{Float64, 𝐋 * 𝐓^-1},
-                    active::Matrix{Bool};
-                    axis::Type{<:NicheAxis} = Precipitation)
+function raingradhabitat(minR::Unitful.Length{Float64},
+                         maxR::Unitful.Length{Float64},
+                         dimension::Tuple{Int64, Int64},
+                         maxsupply::Unitful.Quantity{Float64},
+                         area::Unitful.Area{Float64},
+                         rate::Quantity{Float64, 𝐋 * 𝐓^-1},
+                         active::Matrix{Bool};
+                         axis::Type{<:NicheAxis} = Precipitation)
     minR = _canonical(minR, axis)
     maxR = _canonical(maxR, axis)
     area = uconvert(km^2, area)
@@ -354,21 +356,21 @@ function raingradAE(minR::Unitful.Length{Float64},
 end
 
 """
-    raingradAE(minR::Unitful.Length{Float64}, maxR::Unitful.Length{Float64},
+    raingradhabitat(minR::Unitful.Length{Float64}, maxR::Unitful.Length{Float64},
       dimension::Tuple{Int64, Int64}, area::Unitful.Area{Float64},
       rate::Quantity{Float64, 𝐋*𝐓^-1}, active::Matrix{Bool})
 
-As [`raingradAE`](@ref) but uses the rainfall values from the gradient directly
+As [`raingradhabitat`](@ref) but uses the rainfall values from the gradient directly
 as a [`WaterSupply`](@ref), rather than computing a supply from a separate
 `maxsupply` value.
 """
-function raingradAE(minR::Unitful.Length{Float64},
-                    maxR::Unitful.Length{Float64},
-                    dimension::Tuple{Int64, Int64},
-                    area::Unitful.Area{Float64},
-                    rate::Quantity{Float64, 𝐋 * 𝐓^-1},
-                    active::Matrix{Bool};
-                    axis::Type{<:NicheAxis} = Precipitation)
+function raingradhabitat(minR::Unitful.Length{Float64},
+                         maxR::Unitful.Length{Float64},
+                         dimension::Tuple{Int64, Int64},
+                         area::Unitful.Area{Float64},
+                         rate::Quantity{Float64, 𝐋 * 𝐓^-1},
+                         active::Matrix{Bool};
+                         axis::Type{<:NicheAxis} = Precipitation)
     minR = _canonical(minR, axis)
     maxR = _canonical(maxR, axis)
     area = uconvert(km^2, area)
@@ -379,39 +381,40 @@ function raingradAE(minR::Unitful.Length{Float64},
     return GridHabitat{typeof(regime), typeof(supply)}(regime, active, supply)
 end
 
-function raingradAE(minR::Unitful.Length{Float64},
-                    maxR::Unitful.Length{Float64},
-                    dimension::Tuple{Int64, Int64},
-                    maxsupply::Unitful.Quantity{Float64},
-                    area::Unitful.Area{Float64},
-                    rate::Quantity{Float64, 𝐋 * 𝐓^-1};
-                    axis::Type{<:NicheAxis} = Precipitation)
+function raingradhabitat(minR::Unitful.Length{Float64},
+                         maxR::Unitful.Length{Float64},
+                         dimension::Tuple{Int64, Int64},
+                         maxsupply::Unitful.Quantity{Float64},
+                         area::Unitful.Area{Float64},
+                         rate::Quantity{Float64, 𝐋 * 𝐓^-1};
+                         axis::Type{<:NicheAxis} = Precipitation)
     active = fill(true, dimension)
-    return raingradAE(minR, maxR, dimension, maxsupply, area, rate, active;
-                      axis = axis)
+    return raingradhabitat(minR, maxR, dimension, maxsupply, area, rate, active;
+                           axis = axis)
 end
-@doc (@doc raingradAE) raingradAE(::Unitful.Length{Float64},
-                                  ::Unitful.Length{Float64},
-                                  ::Tuple{Int64, Int64},
-                                  ::Unitful.Quantity{Float64},
-                                  ::Unitful.Area{Float64},
-                                  ::Quantity{Float64, 𝐋 * 𝐓^-1})
-function raingradAE(minR::Unitful.Length{Float64},
-                    maxR::Unitful.Length{Float64},
-                    dimension::Tuple{Int64, Int64},
-                    area::Unitful.Area{Float64},
-                    rate::Quantity{Float64, 𝐋 * 𝐓^-1};
-                    axis::Type{<:NicheAxis} = Precipitation)
+@doc (@doc raingradhabitat) raingradhabitat(::Unitful.Length{Float64},
+                                            ::Unitful.Length{Float64},
+                                            ::Tuple{Int64, Int64},
+                                            ::Unitful.Quantity{Float64},
+                                            ::Unitful.Area{Float64},
+                                            ::Quantity{Float64, 𝐋 * 𝐓^-1})
+function raingradhabitat(minR::Unitful.Length{Float64},
+                         maxR::Unitful.Length{Float64},
+                         dimension::Tuple{Int64, Int64},
+                         area::Unitful.Area{Float64},
+                         rate::Quantity{Float64, 𝐋 * 𝐓^-1};
+                         axis::Type{<:NicheAxis} = Precipitation)
     active = fill(true, dimension)
-    return raingradAE(minR, maxR, dimension, area, rate, active; axis = axis)
+    return raingradhabitat(minR, maxR, dimension, area, rate, active;
+                           axis = axis)
 end
-@doc (@doc raingradAE) raingradAE(::Unitful.Length{Float64},
-                                  ::Unitful.Length{Float64},
-                                  ::Tuple{Int64, Int64},
-                                  ::Unitful.Area{Float64},
-                                  ::Quantity{Float64, 𝐋 * 𝐓^-1})
+@doc (@doc raingradhabitat) raingradhabitat(::Unitful.Length{Float64},
+                                            ::Unitful.Length{Float64},
+                                            ::Tuple{Int64, Int64},
+                                            ::Unitful.Area{Float64},
+                                            ::Quantity{Float64, 𝐋 * 𝐓^-1})
 """
-   eraAE(era::ERA, maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
+   erahabitat(era::ERA, maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
 
 Create a [`ContinuousRegime`](@ref), [`SimpleSupply`](@ref) type abiotic
 environment from an ERA type climate. It either creates a [`SimpleSupply`](@ref)
@@ -420,39 +423,43 @@ type [`SolarTimeSupply`](@ref). If a Bool matrix of active grid squares is
 included, `active`, this is used, else one is created with all grid cells
 active.
 """
-function eraAE(era::ERA, maxsupply::Unitful.Quantity{Float64},
-               area::Unitful.Area{Float64})
-    return _maxsupply_env(_timeclimate_regime(era.array), _nanactive(era.array),
+function erahabitat(era::ERA, maxsupply::Unitful.Quantity{Float64},
+                    area::Unitful.Area{Float64};
+                    axis::Type{<:NicheAxis} = Unclassified)
+    return _maxsupply_env(_timeclimate_regime(era.array, axis),
+                          _nanactive(era.array), maxsupply, area)
+end
+"""
+    erahabitat(era::ERA, maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area{Float64},
+      active::Matrix{Bool})
+
+As [`erahabitat`](@ref) with an explicit `active` matrix of grid squares, rather than
+inferring active cells from NaN values in the ERA data.
+"""
+function erahabitat(era::ERA,
+                    maxsupply::Unitful.Quantity{Float64},
+                    area::Unitful.Area{Float64},
+                    active::Matrix{Bool};
+                    axis::Type{<:NicheAxis} = Unclassified)
+    return _maxsupply_env(_timeclimate_regime(era.array, axis), active,
                           maxsupply, area)
 end
 """
-    eraAE(era::ERA, maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area{Float64},
-      active::Matrix{Bool})
+    erahabitat(era::ERA, supply::B, active::Matrix{Bool}) where B <: AbstractTimeSupply
 
-As [`eraAE`](@ref) with an explicit `active` matrix of grid squares, rather than
-inferring active cells from NaN values in the ERA data.
-"""
-function eraAE(era::ERA,
-               maxsupply::Unitful.Quantity{Float64},
-               area::Unitful.Area{Float64},
-               active::Matrix{Bool})
-    return _maxsupply_env(_timeclimate_regime(era.array), active, maxsupply,
-                          area)
-end
-"""
-    eraAE(era::ERA, supply::B, active::Matrix{Bool}) where B <: AbstractTimeSupply
-
-As [`eraAE`](@ref) but accepts a pre-constructed `AbstractTimeSupply` object
+As [`erahabitat`](@ref) but accepts a pre-constructed `AbstractTimeSupply` object
 `supply` rather than computing a supply from a maximum value.
 """
-function eraAE(era::ERA, supply::B,
-               active::Matrix{Bool}) where {B <: AbstractTimeSupply}
-    regime = _timeclimate_regime(era.array)
+function erahabitat(era::ERA, supply::B,
+                    active::Matrix{Bool};
+                    axis::Type{<:NicheAxis} = Unclassified) where {B <:
+                                                                   AbstractTimeSupply}
+    regime = _timeclimate_regime(era.array, axis)
     return GridHabitat{typeof(regime), typeof(supply)}(regime, active, supply)
 end
 
 """
-   worldclimAE(wc::ClimateRaster{WorldClim{Climate}}, maxsupply::Unitful.Quantity{Float64},
+   worldclimhabitat(worldclim::ClimateRaster{WorldClim{Climate}}, maxsupply::Unitful.Quantity{Float64},
      area::Unitful.Area{Float64})
 
 Create a [`ContinuousTimeRegime`](@ref), [`SimpleSupply`](@ref) type abiotic
@@ -462,41 +469,45 @@ uses a provided supply of type [`SolarTimeSupply`](@ref). If a Bool matrix of
 active grid squares is included, `active`, this is used, otherwise all grid
 cells are considered active.
 """
-function worldclimAE(wc::ClimateRaster{WorldClim{Climate}},
-                     maxsupply::Unitful.Quantity{Float64},
-                     area::Unitful.Area{Float64})
-    return _maxsupply_env(_timeclimate_regime(wc.array), _nanactive(wc.array),
+function worldclimhabitat(worldclim::ClimateRaster{WorldClim{Climate}},
+                          maxsupply::Unitful.Quantity{Float64},
+                          area::Unitful.Area{Float64};
+                          axis::Type{<:NicheAxis} = Unclassified)
+    return _maxsupply_env(_timeclimate_regime(worldclim.array, axis),
+                          _nanactive(worldclim.array), maxsupply, area)
+end
+"""
+    worldclimhabitat(worldclim::ClimateRaster{WorldClim{Climate}}, maxsupply::Unitful.Quantity{Float64},
+      area::Unitful.Area{Float64}, active::Matrix{Bool})
+
+As [`worldclimhabitat`](@ref) with an explicit `active` matrix of grid squares,
+rather than inferring active cells from NaN values in the Worldclim data.
+"""
+function worldclimhabitat(worldclim::ClimateRaster{WorldClim{Climate}},
+                          maxsupply::Unitful.Quantity{Float64},
+                          area::Unitful.Area{Float64},
+                          active::Matrix{Bool};
+                          axis::Type{<:NicheAxis} = Unclassified)
+    return _maxsupply_env(_timeclimate_regime(worldclim.array, axis), active,
                           maxsupply, area)
 end
 """
-    worldclimAE(wc::ClimateRaster{WorldClim{Climate}}, maxsupply::Unitful.Quantity{Float64},
-      area::Unitful.Area{Float64}, active::Matrix{Bool})
+    worldclimhabitat(worldclim::ClimateRaster{WorldClim{Climate}}, supply::B, active::Matrix{Bool}) where B <: AbstractTimeSupply
 
-As [`worldclimAE`](@ref) with an explicit `active` matrix of grid squares,
-rather than inferring active cells from NaN values in the Worldclim data.
-"""
-function worldclimAE(wc::ClimateRaster{WorldClim{Climate}},
-                     maxsupply::Unitful.Quantity{Float64},
-                     area::Unitful.Area{Float64},
-                     active::Matrix{Bool})
-    return _maxsupply_env(_timeclimate_regime(wc.array), active, maxsupply,
-                          area)
-end
-"""
-    worldclimAE(wc::ClimateRaster{WorldClim{Climate}}, supply::B, active::Matrix{Bool}) where B <: AbstractTimeSupply
-
-As [`worldclimAE`](@ref) but accepts a pre-constructed `AbstractTimeSupply`
+As [`worldclimhabitat`](@ref) but accepts a pre-constructed `AbstractTimeSupply`
 object `supply` rather than computing a supply from a maximum value.
 """
-function worldclimAE(wc::ClimateRaster{WorldClim{Climate}},
-                     supply::B,
-                     active::Matrix{Bool}) where {B <: AbstractTimeSupply}
-    regime = _timeclimate_regime(wc.array)
+function worldclimhabitat(worldclim::ClimateRaster{WorldClim{Climate}},
+                          supply::B,
+                          active::Matrix{Bool};
+                          axis::Type{<:NicheAxis} = Unclassified) where {B <:
+                                                                         AbstractTimeSupply}
+    regime = _timeclimate_regime(worldclim.array, axis)
     return GridHabitat{typeof(regime), typeof(supply)}(regime, active, supply)
 end
 
 """
-    bioclimAE(bc::ClimateRaster{WorldClim{BioClim}}, maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
+    bioclimhabitat(bioclim::ClimateRaster{WorldClim{BioClim}}, maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area{Float64})
 
 Create a [`ContinuousRegime`](@ref), [`SimpleSupply`](@ref) type abiotic
 environment from a Worldclim type climate. It either creates a
@@ -505,38 +516,44 @@ uses a provided supply of type [`SolarSupply`](@ref). If a Bool matrix of active
 grid squares is included, `active`, this is used, else one is created with all
 grid cells active.
 """
-function bioclimAE(bc::ClimateRaster{WorldClim{BioClim}},
-                   maxsupply::Unitful.Quantity{Float64},
-                   area::Unitful.Area{Float64})
-    return _maxsupply_env(_continuousregime(bc.array), _nanactive(bc.array),
-                          maxsupply, area)
+function bioclimhabitat(bioclim::ClimateRaster{WorldClim{BioClim}},
+                        maxsupply::Unitful.Quantity{Float64},
+                        area::Unitful.Area{Float64};
+                        axis::Type{<:NicheAxis} = Unclassified)
+    return _maxsupply_env(_continuousregime(bioclim.array, axis),
+                          _nanactive(bioclim.array), maxsupply, area)
 end
 """
-    bioclimAE(bc::ClimateRaster{WorldClim{BioClim}}, maxsupply::Unitful.Quantity{Float64},
+    bioclimhabitat(bioclim::ClimateRaster{WorldClim{BioClim}}, maxsupply::Unitful.Quantity{Float64},
       area::Unitful.Area{Float64}, active::Matrix{Bool})
 
-As [`bioclimAE`](@ref) with an explicit `active` matrix of grid squares, rather
+As [`bioclimhabitat`](@ref) with an explicit `active` matrix of grid squares, rather
 than inferring active cells from NaN values in the bioclim data.
 """
-function bioclimAE(bc::ClimateRaster{WorldClim{BioClim}},
-                   maxsupply::Unitful.Quantity{Float64},
-                   area::Unitful.Area{Float64}, active::Matrix{Bool})
-    return _maxsupply_env(_continuousregime(bc.array), active, maxsupply, area)
+function bioclimhabitat(bioclim::ClimateRaster{WorldClim{BioClim}},
+                        maxsupply::Unitful.Quantity{Float64},
+                        area::Unitful.Area{Float64}, active::Matrix{Bool};
+                        axis::Type{<:NicheAxis} = Unclassified)
+    return _maxsupply_env(_continuousregime(bioclim.array, axis), active,
+                          maxsupply,
+                          area)
 end
 """
-    bioclimAE(bc::ClimateRaster{WorldClim{BioClim}}, supply::B, active::Matrix{Bool}) where B <: AbstractSupply
+    bioclimhabitat(bioclim::ClimateRaster{WorldClim{BioClim}}, supply::B, active::Matrix{Bool}) where B <: AbstractSupply
 
-As [`bioclimAE`](@ref) but accepts a pre-constructed [`AbstractSupply`](@ref)
+As [`bioclimhabitat`](@ref) but accepts a pre-constructed [`AbstractSupply`](@ref)
 object `supply` rather than computing a supply from a maximum value.
 """
-function bioclimAE(bc::ClimateRaster{WorldClim{BioClim}}, supply::B,
-                   active::Matrix{Bool}) where {B <: AbstractSupply}
-    regime = _continuousregime(bc.array)
+function bioclimhabitat(bioclim::ClimateRaster{WorldClim{BioClim}}, supply::B,
+                        active::Matrix{Bool};
+                        axis::Type{<:NicheAxis} = Unclassified) where {B <:
+                                                                       AbstractSupply}
+    regime = _continuousregime(bioclim.array, axis)
     return GridHabitat{typeof(regime), typeof(supply)}(regime, active, supply)
 end
 
 """
-    simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
+    simplehabitat(val::Union{Float64, Unitful.Quantity{Float64}},
         dimension::Tuple{Int64, Int64}, maxsupply::Float64, area::Unitful.Area{Float64},
         active::Matrix{Bool})
 
@@ -547,12 +564,12 @@ environment. It creates a [`ContinuousRegime`](@ref) filled with a given value,
 a Bool matrix of active grid squares is included, `active`, this is used, else
 one is created with all grid cells active.
 """
-function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
-                         dimension::Tuple{Int64, Int64},
-                         maxsupply::Unitful.Quantity{Float64},
-                         area::Unitful.Area{Float64},
-                         active::Matrix{Bool};
-                         axis::Type{<:NicheAxis} = Unclassified)
+function simplehabitat(val::Union{Float64, Unitful.Quantity{Float64}},
+                       dimension::Tuple{Int64, Int64},
+                       maxsupply::Unitful.Quantity{Float64},
+                       area::Unitful.Area{Float64},
+                       active::Matrix{Bool};
+                       axis::Type{<:NicheAxis} = Unclassified)
     val = _canonical(val, axis)
     area = uconvert(km^2, area)
     gridsquaresize = sqrt(area / (dimension[1] * dimension[2]))
@@ -560,26 +577,26 @@ function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
     return _maxsupply_env(regime, active, maxsupply, area)
 end
 
-function simplehabitatAE(val::Union{Float64, Unitful.Quantity{Float64}},
-                         dimension::Tuple{Int64, Int64},
-                         maxsupply::Unitful.Quantity{Float64},
-                         area::Unitful.Area{Float64};
-                         axis::Type{<:NicheAxis} = Unclassified)
+function simplehabitat(val::Union{Float64, Unitful.Quantity{Float64}},
+                       dimension::Tuple{Int64, Int64},
+                       maxsupply::Unitful.Quantity{Float64},
+                       area::Unitful.Area{Float64};
+                       axis::Type{<:NicheAxis} = Unclassified)
     active = fill(true, dimension)
-    return simplehabitatAE(val, dimension, maxsupply, area, active; axis = axis)
+    return simplehabitat(val, dimension, maxsupply, area, active; axis = axis)
 end
-@doc (@doc simplehabitatAE) simplehabitatAE(::Union{Float64,
-                                                    Unitful.Quantity{Float64}},
-                                            ::Tuple{Int64, Int64},
-                                            ::Unitful.Quantity{Float64},
-                                            ::Unitful.Area{Float64})
+@doc (@doc simplehabitat) simplehabitat(::Union{Float64,
+                                                Unitful.Quantity{Float64}},
+                                        ::Tuple{Int64, Int64},
+                                        ::Unitful.Quantity{Float64},
+                                        ::Unitful.Area{Float64})
 
 import EcoBase.getcoords
 
 getcoords(habitat::GridHabitat) = habitat.regime
 
 """
-    lcAE(lc::ClimateRaster{<:EarthEnv{<:LandCover}}, maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area)
+    landcoverhabitat(landcover::ClimateRaster{<:EarthEnv{<:LandCover}}, maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area)
 
 Create a [`DiscreteRegime`](@ref), [`SimpleSupply`](@ref) type abiotic environment
 from a land cover [`ClimateRaster`](@ref) dataset. It creates a
@@ -588,32 +605,45 @@ from a land cover [`ClimateRaster`](@ref) dataset. It creates a
 to the given `area`. If a Bool matrix of active grid squares is included,
 `active`, this is used, else one is created with all grid cells active.
 """
-function lcAE(lc::ClimateRaster{T, A}, maxsupply::Unitful.Quantity{Float64},
-              area::Unitful.Area) where {T <: EarthEnv{<:LandCover}, A}
-    return _maxsupply_env(_discreteregime(lc.array), _nanactive(lc.array),
+function landcoverhabitat(landcover::ClimateRaster{T, A},
+                          maxsupply::Unitful.Quantity{Float64},
+                          area::Unitful.Area;
+                          axis::Type{<:NicheAxis} = Unclassified) where {T <:
+                                                                         EarthEnv{<:LandCover},
+                                                                         A}
+    return _maxsupply_env(_discreteregime(landcover.array, axis),
+                          _nanactive(landcover.array), maxsupply, area)
+end
+"""
+    landcoverhabitat(landcover::ClimateRaster{<:EarthEnv{<:LandCover}}, maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area,
+      active::Matrix{Bool})
+
+As [`landcoverhabitat`](@ref) with an explicit `active` matrix of grid squares, rather than
+setting all cells active.
+"""
+function landcoverhabitat(landcover::ClimateRaster{T, A},
+                          maxsupply::Unitful.Quantity{Float64},
+                          area::Unitful.Area,
+                          active::Matrix{Bool};
+                          axis::Type{<:NicheAxis} = Unclassified) where {T <:
+                                                                         EarthEnv{<:LandCover},
+                                                                         A}
+    return _maxsupply_env(_discreteregime(landcover.array, axis), active,
                           maxsupply, area)
 end
 """
-    lcAE(lc::ClimateRaster{<:EarthEnv{<:LandCover}}, maxsupply::Unitful.Quantity{Float64}, area::Unitful.Area,
-      active::Matrix{Bool})
+    landcoverhabitat(landcover::ClimateRaster{<:EarthEnv{<:LandCover}}, supply::B, active::Matrix{Bool}) where B <: AbstractSupply
 
-As [`lcAE`](@ref) with an explicit `active` matrix of grid squares, rather than
-setting all cells active.
-"""
-function lcAE(lc::ClimateRaster{T, A}, maxsupply::Unitful.Quantity{Float64},
-              area::Unitful.Area,
-              active::Matrix{Bool}) where {T <: EarthEnv{<:LandCover}, A}
-    return _maxsupply_env(_discreteregime(lc.array), active, maxsupply, area)
-end
-"""
-    lcAE(lc::ClimateRaster{<:EarthEnv{<:LandCover}}, supply::B, active::Matrix{Bool}) where B <: AbstractSupply
-
-As [`lcAE`](@ref) but accepts a pre-constructed [`AbstractSupply`](@ref) object
+As [`landcoverhabitat`](@ref) but accepts a pre-constructed [`AbstractSupply`](@ref) object
 `supply` rather than computing a supply from a maximum value.
 """
-function lcAE(lc::ClimateRaster{T, A}, supply::B,
-              active::Matrix{Bool}) where {T <: EarthEnv{<:LandCover},
-                                           A, B <: AbstractSupply}
-    regime = _discreteregime(lc.array)
+function landcoverhabitat(landcover::ClimateRaster{T, A}, supply::B,
+                          active::Matrix{Bool};
+                          axis::Type{<:NicheAxis} = Unclassified) where {T <:
+                                                                         EarthEnv{<:LandCover},
+                                                                         A,
+                                                                         B <:
+                                                                         AbstractSupply}
+    regime = _discreteregime(landcover.array, axis)
     return GridHabitat{typeof(regime), B}(regime, active, supply)
 end

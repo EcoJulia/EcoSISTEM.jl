@@ -52,3 +52,9 @@ function readfile(file::String, xmin, xmax, ymin, ymax)
                  "instead.", :readfile)
     return readfile(file; cut = LatLong(ymin .. ymax, xmin .. xmax))
 end
+
+# ---------------------------------------------------------------------------
+# `compressLC` → `compressLandCover` (v0.4.0 rename; the `LC` land-cover abbreviation is expanded, matching
+# RasterDataSources' `LandCover`).
+# ---------------------------------------------------------------------------
+@deprecate compressLC compressLandCover

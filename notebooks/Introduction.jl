@@ -61,8 +61,8 @@ begin
     grd = (numGrid, numGrid)
     area = 100.0 * km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
-    habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+    habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
                                                                    habitat1.active,
@@ -186,7 +186,7 @@ begin
     totalT = 298.0K
 
     # Perfect, now we can build a simple regime!
-    temp_env = simplehabitatAE(totalT, grid, totalW, area_size)
+    temp_env = simplehabitat(totalT, grid, totalW, area_size)
 
     # Let's plot it to see what it looks like
     heatmap(temp_env.regime.matrix ./ K, clim = (278, 308), title = "Condition",
@@ -206,12 +206,12 @@ Let's try something slightly more adventurous:"
 begin
     # A temperature gradient spanning 10 degrees either side of total temperature from above. We can also give it a rate over which to change over time
     temp_change_rate = 0.2K / month
-    temp_grad_env = tempgradAE(totalT - 10.0K,
-                               totalT + 10.0K,
-                               grid,
-                               totalW,
-                               area_size,
-                               temp_change_rate)
+    temp_grad_env = tempgradhabitat(totalT - 10.0K,
+                                    totalT + 10.0K,
+                                    grid,
+                                    totalW,
+                                    area_size,
+                                    temp_change_rate)
 
     # Let's plot it to see what it looks like now
     heatmap(temp_grad_env.regime.matrix' ./ K, clim = (278, 308),
@@ -224,12 +224,12 @@ md"That's better! How about something even fancier?"
 # ╔═╡ 01a11afc-7c9b-41f5-b308-003303dfa72a
 begin
     # A temperature peak spanning 10 degrees either side of total temperature from above. We can also give it a rate over which to change over time
-    temp_peak_env = peakedgradAE(totalT - 10.0K,
-                                 totalT + 10.0K,
-                                 grid,
-                                 totalW,
-                                 area_size,
-                                 temp_change_rate)
+    temp_peak_env = peakedgradhabitat(totalT - 10.0K,
+                                      totalT + 10.0K,
+                                      grid,
+                                      totalW,
+                                      area_size,
+                                      temp_change_rate)
 
     # Let's plot it to see what it looks like now
     heatmap(temp_peak_env.regime.matrix' ./ K, clim = (278, 308),

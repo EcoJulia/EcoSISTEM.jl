@@ -76,7 +76,7 @@ export multiplicativeFit2,
        Unif,
        additiveFit2,
        additiveFit3,
-       LCsuitability
+       LandCoverSuitability
 
 # Materialised layer family (Role × NicheAxis): the AbstractLayer types + LayerUpdate,
 # with the old *Hab names kept as aliases. Included BEFORE Habitats.jl, whose methods
@@ -110,15 +110,15 @@ export SimpleDemand,
 
 include("AbioticEnv.jl")
 export GridHabitat,
-       simplenicheAE,
-       tempgradAE,
-       raingradAE,
-       peakedgradAE,
-       simplehabitatAE,
-       eraAE,
-       worldclimAE,
-       bioclimAE,
-       lcAE
+       simplenichehabitat,
+       tempgradhabitat,
+       raingradhabitat,
+       peakedgradhabitat,
+       simplehabitat,
+       erahabitat,
+       worldclimhabitat,
+       bioclimhabitat,
+       landcoverhabitat
 
 include("Movement.jl")
 export GaussianKernel,
@@ -141,7 +141,7 @@ export GaussTrait,
        ToleranceCollection3,
        DiscreteEvolve,
        ContinuousEvolve,
-       LCtolerance
+       LandCoverTolerance
 
 include("Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth

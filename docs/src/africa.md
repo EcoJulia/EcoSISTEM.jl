@@ -54,7 +54,7 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
 sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
-habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
+habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
 
 # Set nichefit between species and environment (gaussian)
@@ -119,7 +119,7 @@ for i in eachindex(specialist_vars)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
     # Set nichefit between species and environment (gaussian)
     nichefit = Gauss{typeof(1.0K)}()
@@ -202,7 +202,7 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
 sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
-habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
+habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
 
 # Set nichefit between species and environment (gaussian)
@@ -281,7 +281,7 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
 sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
-habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
+habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
 
 # Set nichefit between species and environment (gaussian)

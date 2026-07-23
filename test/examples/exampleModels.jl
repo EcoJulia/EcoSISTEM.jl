@@ -53,8 +53,8 @@ simDict = Dict("times" => 10years,
                "cacheInterval" => 1years)
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
-habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
 supply = SupplyCollection2(habitat1.supply, habitat2.supply)
 habitat = GridHabitat{typeof(habitat1.regime),
                       typeof(supply)}(habitat1.regime,
@@ -154,8 +154,8 @@ simDict = Dict("times" => 10years,
                "cacheInterval" => 1years)
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
-habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
 supply = SupplyCollection2(habitat1.supply, habitat2.supply)
 habitat = GridHabitat{typeof(habitat1.regime),
                       typeof(supply)}(habitat1.regime,
@@ -256,8 +256,8 @@ simDict = Dict("times" => 10years,
                "cacheInterval" => 1years)
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
-habitat1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-habitat2 = simplehabitatAE(299.0K, grd, totalK[2], area)
+habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
 supply = SupplyCollection2(habitat1.supply, habitat2.supply)
 habitat = GridHabitat{typeof(habitat1.regime),
                       typeof(supply)}(habitat1.regime,
@@ -359,8 +359,8 @@ simDict = Dict("times" => 10years,
                "cacheInterval" => 1years)
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
-habitat1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-habitat2 = simplehabitatAE(299.0K, grd, totalK[2], area)
+habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
 supply = SupplyCollection2(habitat1.supply, habitat2.supply)
 habitat = GridHabitat{typeof(habitat1.regime),
                       typeof(supply)}(habitat1.regime,
@@ -470,8 +470,8 @@ for i in [1, 2, 5, 10]
                    "cacheInterval" => 1years)
     lensim = length((0month):simDict["interval"]:simDict["times"])
 
-    habitat1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-    habitat2 = simplehabitatAE(299.0K, grd, totalK[2], area)
+    habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime),
                           typeof(supply)}(habitat1.regime,
@@ -568,8 +568,8 @@ for i in [10.0, 20.0, 50.0, 100.0]
                    "cacheInterval" => 1years)
     lensim = length((0month):simDict["interval"]:simDict["times"])
 
-    habitat1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-    habitat2 = simplehabitatAE(299.0K, grd, totalK[2], area)
+    habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime),
                           typeof(supply)}(habitat1.regime,
@@ -667,8 +667,8 @@ for i in eachindex(distances)
                    "cacheInterval" => 1years)
     lensim = length((0month):simDict["interval"]:simDict["times"])
 
-    habitat1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-    habitat2 = simplehabitatAE(299.0K, grd, totalK[2], area)
+    habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime),
                           typeof(supply)}(habitat1.regime,

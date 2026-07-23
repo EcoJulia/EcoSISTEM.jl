@@ -63,7 +63,7 @@ end
     # single supply
     sppl1 = SpeciesList(N, tolerance, abun, SolarDemand(fill(10.0kJ, N)),
                         movement, nogrowth, native)
-    habitat1 = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
+    habitat1 = simplehabitat(274.0K, grid, 10000.0kJ / km^2, area)
     eco1 = Ecosystem(sppl1, habitat1, nichefit)
     @test EcoSISTEM.resource_adjustment(eco1, eco1.habitat.supply, 1, 1) ==
           (0.0, 0.0)
@@ -73,8 +73,8 @@ end
                                   WaterDemand(fill(2.0mm, N)))
     sppl2 = SpeciesList(N, tolerance, abun, resource2, movement, nogrowth,
                         native)
-    habitat_solar = simplehabitatAE(274.0K, grid, 10000.0kJ / km^2, area)
-    habitat_water = simplehabitatAE(274.0K, grid, 10.0mm / km^2, area)
+    habitat_solar = simplehabitat(274.0K, grid, 10000.0kJ / km^2, area)
+    habitat_water = simplehabitat(274.0K, grid, 10.0mm / km^2, area)
     supply = SupplyCollection2(habitat_solar.supply, habitat_water.supply)
     habitat2 = GridHabitat{typeof(habitat_solar.regime), typeof(supply)}(habitat_solar.regime,
                                                                          habitat_solar.active,

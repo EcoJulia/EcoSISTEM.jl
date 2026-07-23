@@ -25,11 +25,11 @@ if !Sys.iswindows()
     active = fill(true, grid)
 
     @testset "simple regime" begin
-        # TEST simplehabitatAE
+        # TEST simplehabitat
         fillval = 0.0
-        habitat = simplehabitatAE(fillval, grid, totalK, area)
-        @test_nowarn simplehabitatAE(fillval, grid, totalK, area)
-        @test_nowarn simplehabitatAE(fillval, grid, totalK, area, active)
+        habitat = simplehabitat(fillval, grid, totalK, area)
+        @test_nowarn simplehabitat(fillval, grid, totalK, area)
+        @test_nowarn simplehabitat(fillval, grid, totalK, area, active)
         @test all(habitat.regime.matrix .== fillval)
         @test size(habitat.regime.matrix) == grid
         @test sum(habitat.supply.matrix) == totalK * area
@@ -42,10 +42,11 @@ if !Sys.iswindows()
     end
 
     @testset "temperature gradient" begin
-        # TEST tempgradAE
-        habitat = tempgradAE(-10.0K, 10.0K, grid, totalK, area, 0.01K / month)
-        @test_nowarn tempgradAE(-10.0K, 10.0K, grid, totalK, area,
-                                0.01K / month)
+        # TEST tempgradhabitat
+        habitat = tempgradhabitat(-10.0K, 10.0K, grid, totalK, area,
+                                  0.01K / month)
+        @test_nowarn tempgradhabitat(-10.0K, 10.0K, grid, totalK, area,
+                                     0.01K / month)
         @test minimum(habitat.regime.matrix) == -10.0K
         @test maximum(habitat.regime.matrix) == 10.0K
         @test size(habitat.regime.matrix) == grid
@@ -55,10 +56,11 @@ if !Sys.iswindows()
     end
 
     @testset "peaked temperature gradient" begin
-        # TEST peakedgradAE
-        habitat = peakedgradAE(-10.0K, 10.0K, grid, totalK, area, 0.01K / month)
-        @test_nowarn peakedgradAE(-10.0K, 10.0K, grid, totalK, area,
-                                  0.01K / month)
+        # TEST peakedgradhabitat
+        habitat = peakedgradhabitat(-10.0K, 10.0K, grid, totalK, area,
+                                    0.01K / month)
+        @test_nowarn peakedgradhabitat(-10.0K, 10.0K, grid, totalK, area,
+                                       0.01K / month)
         @test minimum(habitat.regime.matrix) == -10.0K
         @test maximum(habitat.regime.matrix) == 10.0K
         @test size(habitat.regime.matrix) == grid
@@ -68,10 +70,11 @@ if !Sys.iswindows()
     end
 
     @testset "rainfall gradient" begin
-        # TEST raingradAE
-        habitat = raingradAE(0.0mm, 100.0mm, grid, totalK, area, 0.01mm / month)
-        @test_nowarn raingradAE(0.0mm, 100.0mm, grid, totalK, area,
-                                0.01mm / month)
+        # TEST raingradhabitat
+        habitat = raingradhabitat(0.0mm, 100.0mm, grid, totalK, area,
+                                  0.01mm / month)
+        @test_nowarn raingradhabitat(0.0mm, 100.0mm, grid, totalK, area,
+                                     0.01mm / month)
         @test minimum(habitat.regime.matrix) == 0.0mm
         @test maximum(habitat.regime.matrix) == 100.0mm
         @test size(habitat.regime.matrix) == grid
@@ -81,10 +84,10 @@ if !Sys.iswindows()
     end
 
     @testset "niche regime" begin
-        # TEST simplenicheAE
-        habitat = simplenicheAE(numNiches, grid, totalK, area)
-        @test_nowarn simplenicheAE(numNiches, grid, totalK, area)
-        @test_nowarn simplenicheAE(numNiches, grid, totalK, area, active)
+        # TEST simplenichehabitat
+        habitat = simplenichehabitat(numNiches, grid, totalK, area)
+        @test_nowarn simplenichehabitat(numNiches, grid, totalK, area)
+        @test_nowarn simplenichehabitat(numNiches, grid, totalK, area, active)
         @test maximum(habitat.regime.matrix) <= numNiches
         @test size(habitat.regime.matrix) == grid
         @test sum(habitat.supply.matrix) == totalK * area
@@ -93,7 +96,7 @@ if !Sys.iswindows()
     end
 
     @testset "ERA data" begin
-        # TEST eraAE
+        # TEST erahabitat
         temp = AxisArray(fill(1.0K, 10, 10, 3),
                          Axis{:latitude}((1:10) .* °),
                          Axis{:longitude}((1:10) .* °),
@@ -102,38 +105,49 @@ if !Sys.iswindows()
         active = fill(true, 10, 10)
         totalK = 1000.0kJ / m^2
         area = 100.0km^2
-        ea = eraAE(eratemp, totalK, area)
-        @test eraAE(eratemp, totalK, area) isa GridHabitat
-        @test eraAE(eratemp, totalK, area, active) isa GridHabitat
-        @test size(ea.regime.matrix) == size(temp)
-        @test EcoSISTEM.getavailablesupply(ea) == totalK * area
-        @test ea.active == active
-        @test all(ea.active)
+        era = erahabitat(eratemp, totalK, area)
+        @test erahabitat(eratemp, totalK, area) isa GridHabitat
+        @test erahabitat(eratemp, totalK, area, active) isa GridHabitat
+        @test size(era.regime.matrix) == size(temp)
+        @test EcoSISTEM.getavailablesupply(era) == totalK * area
+        @test era.active == active
+        @test all(era.active)
+        # the niche `axis` is threaded through onto the built regime (default `Unclassified`)
+        @test EcoSISTEM.axisof(era.regime) === Unclassified
+        @test EcoSISTEM.axisof(erahabitat(eratemp, totalK, area;
+                                          axis = MeanTemperature).regime) ===
+              MeanTemperature
 
         solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
-        ea = eraAE(eratemp, solar, active)
+        era = erahabitat(eratemp, solar, active)
     end
 
     @testset "Worldclim data" begin
-        # TEST worldclimAE
+        # TEST worldclimhabitat
         temp = AxisArray(fill(1.0K, 10, 10, 12),
                          Axis{:latitude}(collect(1:10) .* km),
                          Axis{:longitude}(collect(1:10) .* km),
                          Axis{:time}(collect(1:12) .* month))
-        wctemp = ClimateRaster(WorldClim{Climate}, temp)
+        worldclimtemp = ClimateRaster(WorldClim{Climate}, temp)
         active = fill(true, 10, 10)
         totalK = 1000.0kJ / m^2
         area = 100.0km^2
-        wc = worldclimAE(wctemp, totalK, area)
-        @test worldclimAE(wctemp, totalK, area) isa GridHabitat
-        @test worldclimAE(wctemp, totalK, area, active) isa GridHabitat
-        @test size(wc.regime.matrix) == size(temp)
-        @test EcoSISTEM.getavailablesupply(wc) == totalK * area
-        @test wc.active == active
-        @test all(wc.active)
+        worldclim = worldclimhabitat(worldclimtemp, totalK, area)
+        @test worldclimhabitat(worldclimtemp, totalK, area) isa GridHabitat
+        @test worldclimhabitat(worldclimtemp, totalK, area, active) isa
+              GridHabitat
+        @test size(worldclim.regime.matrix) == size(temp)
+        @test EcoSISTEM.getavailablesupply(worldclim) == totalK * area
+        @test worldclim.active == active
+        @test all(worldclim.active)
+        # the niche `axis` is threaded through onto the built regime (default `Unclassified`)
+        @test EcoSISTEM.axisof(worldclim.regime) === Unclassified
+        @test EcoSISTEM.axisof(worldclimhabitat(worldclimtemp, totalK, area;
+                                                axis = MeanTemperature).regime) ===
+              MeanTemperature
 
         solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
-        wc = worldclimAE(wctemp, solar, active)
+        worldclim = worldclimhabitat(worldclimtemp, solar, active)
     end
 
     @testset "Bioclim data" begin
@@ -141,28 +155,29 @@ if !Sys.iswindows()
         active = fill(true, size(bio_africa.array))
         totalK = 1000.0kJ / km^2
         area = 100.0km^2
-        bc = bioclimAE(bio_africa, totalK, area)
-        @test bioclimAE(bio_africa, totalK, area) isa GridHabitat
-        @test bioclimAE(bio_africa, totalK, area, active) isa GridHabitat
-        @test size(bc.regime.matrix) == size(bio_africa.array)
-        @test isapprox(EcoSISTEM.getavailablesupply(bc), totalK * area)
+        bioclim = bioclimhabitat(bio_africa, totalK, area)
+        @test bioclimhabitat(bio_africa, totalK, area) isa GridHabitat
+        @test bioclimhabitat(bio_africa, totalK, area, active) isa GridHabitat
+        @test size(bioclim.regime.matrix) == size(bio_africa.array)
+        @test isapprox(EcoSISTEM.getavailablesupply(bioclim), totalK * area)
         solar = SolarSupply(fill(10.0kJ, size(bio_africa.array)))
-        bc = bioclimAE(bio_africa, solar, active)
+        bioclim = bioclimhabitat(bio_africa, solar, active)
     end
 
     @testset "LandCover data" begin
         world = read(EarthEnv{LandCover})
-        world_lc = compressLC(world)
-        active = fill(true, size(world_lc.array.data))
+        world_landcover = compressLandCover(world)
+        active = fill(true, size(world_landcover.array.data))
         totalK = 1000.0kJ / km^2
         area = 100.0km^2
-        lc = lcAE(world_lc, totalK, area)
-        @test lcAE(world_lc, totalK, area) isa GridHabitat
-        @test lcAE(world_lc, totalK, area, active) isa GridHabitat
-        @test size(lc.regime.matrix) == size(world_lc.array)
-        @test isapprox(EcoSISTEM.getavailablesupply(lc), totalK * area)
-        solar = SolarSupply(fill(10.0kJ, size(world_lc.array)))
-        lc = lcAE(world_lc, solar, active)
+        landcover = landcoverhabitat(world_landcover, totalK, area)
+        @test landcoverhabitat(world_landcover, totalK, area) isa GridHabitat
+        @test landcoverhabitat(world_landcover, totalK, area, active) isa
+              GridHabitat
+        @test size(landcover.regime.matrix) == size(world_landcover.array)
+        @test isapprox(EcoSISTEM.getavailablesupply(landcover), totalK * area)
+        solar = SolarSupply(fill(10.0kJ, size(world_landcover.array)))
+        landcover = landcoverhabitat(world_landcover, solar, active)
     end
 end
 

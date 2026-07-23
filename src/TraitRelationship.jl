@@ -59,17 +59,17 @@ function Base.eltype(tr::MatchSuitability{TR}) where {TR}
     return TR
 end
 
-mutable struct LCsuitability{TR} <: AbstractNicheFit{TR}
+mutable struct LandCoverSuitability{TR} <: AbstractNicheFit{TR}
 end
-function (::LCsuitability{TR})(niche::TR, pref::Vector{TR}) where {TR}
+function (::LandCoverSuitability{TR})(niche::TR, pref::Vector{TR}) where {TR}
     if niche in pref
         return 1.0
     else
         return 0.0
     end
 end
-iscontinuous(tr::LCsuitability) = false
-function Base.eltype(::LCsuitability{TR}) where {TR}
+iscontinuous(tr::LandCoverSuitability) = false
+function Base.eltype(::LandCoverSuitability{TR}) where {TR}
     return TR
 end
 

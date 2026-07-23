@@ -62,7 +62,7 @@ sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
 
 Create abiotic environment - even grid of one temperature
 ```julia
-habitat = simplehabitatAE(274.0K, grid, totalK, area)
+habitat = simplehabitat(274.0K, grid, totalK, area)
 ```
 
 Set nichefit between species and environment (gaussian)

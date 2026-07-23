@@ -55,7 +55,7 @@ end
                        movement, param, native)
 
     # Create abiotic environment - even grid of one temperature
-    habitat = simplehabitatAE(274.0K, grid, totalK, area)
+    habitat = simplehabitat(274.0K, grid, totalK, area)
 
     # Set nichefit between species and environment (gaussian)
     nichefit = NicheSuitability{typeof(1.0K)}()

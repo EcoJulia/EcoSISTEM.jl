@@ -23,14 +23,14 @@ end
 
 iscontinuous(trait::DiscreteTolerance) = false
 
-struct LCtolerance{D <: Number} <: AbstractTolerance{D}
+struct LandCoverTolerance{D <: Number} <: AbstractTolerance{D}
     vals::Vector{Vector{D}}
 end
 
-iscontinuous(trait::LCtolerance) = false
+iscontinuous(trait::LandCoverTolerance) = false
 
-function LCtolerance(vals::Vector{Vector{<:AbstractFloat}})
-    return LCtolerance{typeof(1.0)}(vals)
+function LandCoverTolerance(vals::Vector{Vector{<:AbstractFloat}})
+    return LandCoverTolerance{typeof(1.0)}(vals)
 end
 
 """

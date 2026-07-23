@@ -161,16 +161,16 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                   "$(eltype(spplist.tolerance)), the regime is " *
                   "$(_kindlabel(iscontinuous(habitat.regime))) " *
                   "$(eltype(habitat.regime)). Pair a continuous trait (e.g. " *
-                  "NicheTolerance) with a continuous regime (simplehabitatAE / " *
-                  "tempgradAE), or a discrete trait (DiscreteTolerance) with a " *
-                  "discrete regime (simplenicheAE).")
+                  "NicheTolerance) with a continuous regime (simplehabitat / " *
+                  "tempgradhabitat), or a discrete trait (DiscreteTolerance) with a " *
+                  "discrete regime (simplenichehabitat).")
         nfmatch(spplist, nichefit) ||
             error("Species tolerances and the trait nichefit are incompatible: " *
                   "tolerances are $(_kindlabel(iscontinuous(spplist.tolerance))) " *
                   "$(eltype(spplist.tolerance)), the nichefit is " *
                   "$(_kindlabel(iscontinuous(nichefit))) " *
                   "$(eltype(nichefit)). Use NicheSuitability with continuous tolerances, " *
-                  "or MatchSuitability / LCsuitability with discrete tolerances.")
+                  "or MatchSuitability / LandCoverSuitability with discrete tolerances.")
         _mcmatch(abundances.matrix, spplist, habitat) ||
             error("Dimension mismatch: the abundance matrix " *
                   "($(size(abundances.matrix, 1)) × $(size(abundances.matrix, 2))) " *

@@ -59,7 +59,7 @@ sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
-habitat = simplehabitatAE(274.0K, grid, totalK, area)
+habitat = simplehabitat(274.0K, grid, totalK, area)
 habitat.supply.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
 
 # Set nichefit between species and environment (gaussian)
@@ -117,10 +117,10 @@ sppl = SpeciesList(numSpecies, tolerance, abun, total_use, movement, param,
                    native)
 
 # Create abiotic environment - even grid of one temperature
-habitat1 = simplehabitatAE(274.0K, grid, totalK, area)
+habitat1 = simplehabitat(274.0K, grid, totalK, area)
 
 total_mm = 10.0mm / km^2
-habitat2 = simplehabitatAE(274.0K, grid, total_mm, area)
+habitat2 = simplehabitat(274.0K, grid, total_mm, area)
 
 supply = SupplyCollection2(habitat1.supply, habitat2.supply)
 habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,

@@ -73,7 +73,7 @@ sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - with temperature and water resource
-habitat = bioclimAE(bio_africa, bio_africa_water, active)
+habitat = bioclimhabitat(bio_africa, bio_africa_water, active)
 
 # Set nichefit between species and environment (gaussian)
 nichefit = Gauss{typeof(1.0K)}()

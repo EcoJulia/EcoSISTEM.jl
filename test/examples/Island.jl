@@ -56,8 +56,8 @@ simDict = Dict("times" => 50years,
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
 for i in 1:simDict["reps"]
-    habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+    habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
                                                                    habitat1.active,

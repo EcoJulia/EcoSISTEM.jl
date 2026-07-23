@@ -85,7 +85,7 @@ function run_single(africa, active; savedir = SAVEDIR)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
     # Set nichefit between species and environment (gaussian)
     nichefit = Gauss{typeof(1.0K)}()
@@ -169,7 +169,7 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         sppl.params.birth
 
         # Create abiotic environment - even grid of one temperature
-        habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
+        habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
         # Set nichefit between species and environment (gaussian)
         nichefit = Gauss{typeof(1.0K)}()
@@ -275,7 +275,7 @@ function specialist_vs_many(africa, active, num_species = 50_000;
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
     # Set nichefit between species and environment (gaussian)
     nichefit = Gauss{typeof(1.0K)}()
@@ -345,7 +345,7 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    habitat = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
     # Set nichefit between species and environment (gaussian)
     nichefit = Gauss{typeof(1.0K)}()

@@ -19,8 +19,8 @@ individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
 supply = SupplyCollection2(habitat1.supply, habitat2.supply)
 habitat = GridHabitat{typeof(habitat1.regime),
                       typeof(supply)}(habitat1.regime,
@@ -98,8 +98,8 @@ individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
 supply = SupplyCollection2(habitat1.supply, habitat2.supply)
 habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
                                                                habitat1.active,
@@ -175,8 +175,8 @@ individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-habitat1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-habitat2 = simplehabitatAE(299.0K, grd, totalK[2], area)
+habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
 supply = SupplyCollection2(habitat1.supply, habitat2.supply)
 habitat = GridHabitat{typeof(habitat1.regime),
                       typeof(supply)}(habitat1.regime,
@@ -254,8 +254,8 @@ individuals = 100_000_000;
 area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
 
-habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
 supply = SupplyCollection2(habitat1.supply, habitat2.supply)
 habitat = GridHabitat{typeof(habitat1.regime),
                       typeof(supply)}(habitat1.regime,
@@ -347,8 +347,8 @@ for i in eachindex(grids)
     area = 100.0 * km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-    habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+    habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
                                                                    habitat1.active,
@@ -419,8 +419,8 @@ for i in eachindex(areas)
     area = areas[i] .* km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-    habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+    habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
                                                                    habitat1.active,
@@ -492,8 +492,8 @@ for r in 1:reps
         area = 100.0km^2
         totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-        habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-        habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+        habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+        habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
         supply = SupplyCollection2(habitat1.supply, habitat2.supply)
         habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
                                                                        habitat1.active,
@@ -570,8 +570,8 @@ for i in eachindex(distances)
     area = 100.0km^2
     totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
 
-    habitat1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    habitat2 = simplehabitatAE(298.0K, grd, totalK[2], area)
+    habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
                                                                    habitat1.active,

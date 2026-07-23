@@ -63,8 +63,8 @@ function upresolution(era::ERA, rescale::Int64)
     return ERA(array)
 end
 
-function upresolution(bc::ClimateRaster{T, A}, rescale::Int64) where {T, A}
-    array = upresolution(bc.array, rescale)
+function upresolution(bioclim::ClimateRaster{T, A}, rescale::Int64) where {T, A}
+    array = upresolution(bioclim.array, rescale)
     return ClimateRaster(T, array)
 end
 
@@ -149,9 +149,9 @@ function downresolution(era::ERA, rescale::Int64; fn::Function = mean)
     return ERA(array)
 end
 
-function downresolution(bc::ClimateRaster{T}, rescale::Int64;
+function downresolution(bioclim::ClimateRaster{T}, rescale::Int64;
                         fn::Function = mean) where {T}
-    array = downresolution(bc.array, rescale; fn = fn)
+    array = downresolution(bioclim.array, rescale; fn = fn)
     return ClimateRaster(T, array)
 end
 
@@ -263,14 +263,15 @@ function downresolution!(resized_array::Array{T, 3}, array::Matrix{T},
     end
 end
 
-function compressLC(lc::ClimateRaster{T}) where
-{T <: EarthEnv{<:LandCover}}
-    newaa = AxisArray(zeros(Int64, size(lc.array, 1), size(lc.array, 2)),
-                      AxisArrays.axes(lc.array, 1),
-                      AxisArrays.axes(lc.array, 2))
-    Threads.@threads for i in Base.axes(lc.array, 1)
-        for j in Base.axes(lc.array, 2)
-            newaa[i, j] = findmax(lc.array[i, j, :])[2]
+function compressLandCover(landcover::ClimateRaster{T}) where
+    {T <: EarthEnv{<:LandCover}}
+    newaa = AxisArray(zeros(Int64, size(landcover.array, 1),
+                            size(landcover.array, 2)),
+                      AxisArrays.axes(landcover.array, 1),
+                      AxisArrays.axes(landcover.array, 2))
+    Threads.@threads for i in Base.axes(landcover.array, 1)
+        for j in Base.axes(landcover.array, 2)
+            newaa[i, j] = findmax(landcover.array[i, j, :])[2]
         end
     end
 

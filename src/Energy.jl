@@ -229,8 +229,8 @@ function WaterSupply(mat::Matrix{typeof(1.0 * mm)})
                            Matrix{typeof(1.0 * mm)}}(mat, 1, _SUPPLY_SIZE,
                                                      _supply_static())
 end
-function WaterSupply(bc::ClimateRaster{WorldClim{BioClim}})
-    mat = Matrix(bc.array)
+function WaterSupply(bioclim::ClimateRaster{WorldClim{BioClim}})
+    mat = Matrix(bioclim.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
     return WaterSupply(mat)
 end
@@ -246,8 +246,9 @@ function SolarTimeSupply(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
                            Array{typeof(1.0 * kJ), 3}}(mat, time, _SUPPLY_SIZE,
                                                        _supply_cyclic())
 end
-function SolarTimeSupply(wc::ClimateRaster{WorldClim{Climate}}, time::Int64)
-    mat = Array(wc.array)
+function SolarTimeSupply(worldclim::ClimateRaster{WorldClim{Climate}},
+                         time::Int64)
+    mat = Array(worldclim.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
     return SolarTimeSupply(mat, time)
 end
@@ -257,8 +258,9 @@ function WaterTimeSupply(mat::Array{typeof(1.0 * mm), 3}, time::Int64)
                            Array{typeof(1.0 * mm), 3}}(mat, time, _SUPPLY_SIZE,
                                                        _supply_cyclic())
 end
-function WaterTimeSupply(wc::ClimateRaster{WorldClim{Climate}}, time::Int64)
-    mat = Array(wc.array)
+function WaterTimeSupply(worldclim::ClimateRaster{WorldClim{Climate}},
+                         time::Int64)
+    mat = Array(worldclim.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
     return WaterTimeSupply(mat, time)
 end

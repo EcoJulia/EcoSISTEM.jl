@@ -95,10 +95,10 @@ include("TestCases.jl")
         numSpecies = 4
         grid = (5, 5)
         area = 10000.0km^2
-        env1 = simplehabitatAE(10.0K, grid, 1000.0kJ / km^2, area;
-                               axis = MeanTemperature)
-        env2 = simplehabitatAE(10.0mm, grid, 100.0mm / km^2, area;
-                               axis = Precipitation)
+        env1 = simplehabitat(10.0K, grid, 1000.0kJ / km^2, area;
+                             axis = MeanTemperature)
+        env2 = simplehabitat(10.0mm, grid, 100.0mm / km^2, area;
+                             axis = Precipitation)
         regime = RegimeCollection2(env1.regime, env2.regime)   # eltype [K, mm]
         supply = SupplyCollection2(env1.supply, env2.supply)
         habitat = GridHabitat{typeof(regime), typeof(supply)}(regime,

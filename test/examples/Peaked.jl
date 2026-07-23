@@ -68,8 +68,10 @@ simDict = Dict("times" => 50years,
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
 for i in 1:simDict["reps"]
-    habitat1 = peakedgradAE(293.0K, 303.0K, grd, totalK[1], area, 0.0K / month)
-    habitat2 = peakedgradAE(293.0K, 303.0K, grd, totalK[2], area, 0.0K / month)
+    habitat1 = peakedgradhabitat(293.0K, 303.0K, grd, totalK[1], area,
+                                 0.0K / month)
+    habitat2 = peakedgradhabitat(293.0K, 303.0K, grd, totalK[2], area,
+                                 0.0K / month)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime),
                           typeof(supply)}(habitat1.regime,

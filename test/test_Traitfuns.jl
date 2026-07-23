@@ -15,10 +15,10 @@ area = 25.0km^2
 totalK = 10000.0kJ / km^2
 active = fill(true, grid)
 @testset "Trait functions" begin
-    # TEST simplehabitatAE
+    # TEST simplehabitat
     fillval = 1.0
-    habitat1 = simplehabitatAE(fillval, grid, totalK, area)
-    habitat2 = tempgradAE(-10.0K, 10.0K, grid, totalK, area, 0.01K / month)
+    habitat1 = simplehabitat(fillval, grid, totalK, area)
+    habitat2 = tempgradhabitat(-10.0K, 10.0K, grid, totalK, area, 0.01K / month)
 
     regime = RegimeCollection2(habitat1.regime, habitat2.regime)
     tolerance = ToleranceCollection2(NicheTolerance(Unclassified, Normal,
@@ -42,7 +42,7 @@ active = fill(true, grid)
     eratemp = ERA(temp)
     active = fill(true, 10, 10)
     solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
-    ea = eraAE(eratemp, solar, active)
+    ea = erahabitat(eratemp, solar, active)
     regime = ea.regime
     @test_nowarn EcoSISTEM._suitability(regime, tolerance.two, nichefit.two, 1,
                                         1)
@@ -59,7 +59,7 @@ active = fill(true, grid)
     erarain = ERA(rain)
     active = fill(true, 10, 10)
     solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
-    ea = eraAE(erarain, solar, active)
+    ea = erahabitat(erarain, solar, active)
     regime = ea.regime
     # a Uniform response takes 2 parameters, so each species' row has 2 entries
     tolerance = RainTolerance(Array(hcat(fill(collect(1:2), 10)...)'))
@@ -74,7 +74,7 @@ end
                      Axis{:longitude}((1:10) .* °),
                      Axis{:time}(collect(1:3) .* s))
     solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
-    regime = eraAE(ERA(temp), solar, fill(true, 10, 10)).regime
+    regime = erahabitat(ERA(temp), solar, fill(true, 10, 10)).regime
 
     # A Normal response (neither Trapezoid nor Uniform) proves any continuous distribution works.
     bin = NicheTolerance(MeanTemperature, Normal,

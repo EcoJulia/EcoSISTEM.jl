@@ -198,7 +198,7 @@ Base.@deprecate_binding GridAbioticEnv GridHabitat
 Base.@deprecate_binding AbstractTraits AbstractTolerance false
 Base.@deprecate_binding ContinuousTrait ContinuousTolerance false
 Base.@deprecate_binding DiscreteTrait DiscreteTolerance
-Base.@deprecate_binding LCtrait LCtolerance
+Base.@deprecate_binding LCtrait LandCoverTolerance
 Base.@deprecate_binding TraitCollection2 ToleranceCollection2
 Base.@deprecate_binding TraitCollection3 ToleranceCollection3
 Base.@deprecate_binding TempBin TempTolerance
@@ -211,7 +211,7 @@ Base.@deprecate_binding RainBin RainTolerance
 # ---------------------------------------------------------------------------
 Base.@deprecate_binding AbstractTraitRelationship AbstractNicheFit false
 Base.@deprecate_binding Match MatchSuitability
-Base.@deprecate_binding LCmatch LCsuitability
+Base.@deprecate_binding LCmatch LandCoverSuitability
 Base.@deprecate_binding NoRelContinuous NoFitContinuous
 Base.@deprecate_binding NoRelDiscrete NoFitDiscrete
 Base.@deprecate_binding multiplicativeTR2 multiplicativeFit2
@@ -225,3 +225,18 @@ Base.@deprecate_binding additiveTR3 additiveFit3
 # not just a habitat). Unexported in v0.4.0, so the shim doesn't export either (the `false`).
 # ---------------------------------------------------------------------------
 Base.@deprecate_binding HabitatUpdate LayerUpdate false
+
+# ---------------------------------------------------------------------------
+# Environment constructors: `*AE` → `*habitat` (v0.4.0 rename; the legacy `AE` "abiotic env" suffix is dropped
+# now that `Habitat` unambiguously means the environment). The symbol-form `@deprecate` forwards args + kwargs
+# and (re-)exports the old name, so every method of each old constructor keeps working with a warning.
+# ---------------------------------------------------------------------------
+@deprecate simplehabitatAE simplehabitat
+@deprecate tempgradAE tempgradhabitat
+@deprecate raingradAE raingradhabitat
+@deprecate peakedgradAE peakedgradhabitat
+@deprecate simplenicheAE simplenichehabitat
+@deprecate eraAE erahabitat
+@deprecate worldclimAE worldclimhabitat
+@deprecate bioclimAE bioclimhabitat
+@deprecate lcAE landcoverhabitat

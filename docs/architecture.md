@@ -155,12 +155,12 @@ classDiagram
     class ContinuousTolerance~C~
     class NicheTolerance~A, C, D~
     class DiscreteTolerance~D~
-    class LCtolerance~D~
+    class LandCoverTolerance~D~
     class ToleranceCollection2~T1, T2~
     class ToleranceCollection3~T1, T2, T3~
     AbstractTolerance  <|-- ContinuousTolerance
     AbstractTolerance  <|-- DiscreteTolerance
-    AbstractTolerance  <|-- LCtolerance
+    AbstractTolerance  <|-- LandCoverTolerance
     AbstractTolerance  <|-- ToleranceCollection2
     AbstractTolerance  <|-- ToleranceCollection3
     ContinuousTolerance <|-- NicheTolerance
@@ -176,7 +176,7 @@ classDiagram
     class AbstractNicheFit~TR~
     class NicheSuitability~TR~
     class MatchSuitability~TR~
-    class LCsuitability~TR~
+    class LandCoverSuitability~TR~
     class NoFitContinuous~TR~
     class NoFitDiscrete~TR~
     class multiplicativeFit2~TR1, TR2~
@@ -185,7 +185,7 @@ classDiagram
     class additiveFit3~TR1, TR2, TR3~
     AbstractNicheFit <|-- NicheSuitability
     AbstractNicheFit <|-- MatchSuitability
-    AbstractNicheFit <|-- LCsuitability
+    AbstractNicheFit <|-- LandCoverSuitability
     AbstractNicheFit <|-- NoFitContinuous
     AbstractNicheFit <|-- NoFitDiscrete
     AbstractNicheFit <|-- multiplicativeFit2
