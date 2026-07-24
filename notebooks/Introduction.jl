@@ -95,7 +95,7 @@ begin
     # Condition preferences
     vars = fill(2.0, numSpecies) .* K
     opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
-    tolerance = NicheTolerance(MeanTemperature, Normal, opts, vars)
+    tolerance = NicheTolerance(Temperature, Normal, opts, vars)
 
     # Species list
     sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
@@ -299,7 +299,7 @@ begin
 
     # Let's combine these pieces of information together so that each species has a 
     # Gaussian curve representing their match to the current temperature
-    tolerance = NicheTolerance(MeanTemperature, Normal, optima, niche_width)
+    tolerance = NicheTolerance(Temperature, Normal, optima, niche_width)
 
     # Okay, now we are ready for our species list!
     species_list = SpeciesList(numSpp, tolerance, start_abuns, water_vec,

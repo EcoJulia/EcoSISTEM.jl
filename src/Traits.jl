@@ -144,10 +144,10 @@ end
 Build a [`NicheTolerance`](@ref) on axis `A` with response distribution `D` from **one (unitful) vector per
 parameter** of `D` — the ergonomic, programmatic counterpart of the `dist::Matrix` constructor (and of the
 old `GaussTrait(A, mean, sd)`). Each `params` vector holds one distribution parameter across species, e.g.
-`NicheTolerance(MeanTemperature, Normal, opts, vars)` (a `μ` and a `σ` vector) or
+`NicheTolerance(Temperature, Normal, opts, vars)` (a `μ` and a `σ` vector) or
 `NicheTolerance(Precipitation, Gamma, shape, scale_vec)`. The vectors' own units are respected (read per role); the
 distribution is built in the `support` **frame** (the unit its support/domain — and the matching regime —
-is measured in, default canonical), converting the inputs to it. So `support = K` and `support = u"°C"`
+is measured in, default canonical), converting the inputs to it. So `support = K` and `support = °C`
 build the *same* preference in the K and °C frames respectively (`pdf(getdist(bin, sp), ustrip(support, x))`
 is correct in each); the frame is the trait's `eltype`, and a NicheTolerance only matches a regime in that same unit.
 All parameter vectors must share a unit (a mixed set errors) and have one entry per species.
@@ -176,10 +176,10 @@ end
 
 iscontinuous(::NicheTolerance) = true
 
-"""    TempTolerance — a binned temperature preference (a [`NicheTolerance`](@ref) on `MeanTemperature`, K frame, with a `Trapezoid` response). """
-const TempTolerance = NicheTolerance{MeanTemperature,
+"""    TempTolerance — a binned temperature preference (a [`NicheTolerance`](@ref) on `Temperature`, K frame, with a `Trapezoid` response). """
+const TempTolerance = NicheTolerance{Temperature,
                                      typeof(1.0 *
-                                            canonicalunit(MeanTemperature())),
+                                            canonicalunit(Temperature())),
                                      Trapezoid{Float64}}
 """    RainTolerance — a binned rainfall preference (a [`NicheTolerance`](@ref) on `Precipitation`, mm frame, with a `Uniform` response). """
 const RainTolerance = NicheTolerance{Precipitation,
@@ -188,7 +188,7 @@ const RainTolerance = NicheTolerance{Precipitation,
                                      Uniform{Float64}}
 
 # Back-compat constructors preserving the old `TempTolerance(matrix)` / `RainTolerance(matrix)` call form.
-TempTolerance(dist::Matrix) = NicheTolerance(MeanTemperature, Trapezoid, dist)
+TempTolerance(dist::Matrix) = NicheTolerance(Temperature, Trapezoid, dist)
 RainTolerance(dist::Matrix) = NicheTolerance(Precipitation, Uniform, dist)
 
 # Convenience: the matching [`NicheSuitability`](@ref) nichefit for a `NicheTolerance`, taking its `TR` (unit) from the

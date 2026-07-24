@@ -10,8 +10,7 @@ using EcoSISTEM.ClimatePref
 
 const RDS = RasterDataSources
 const SUPPLYDICT = Dict(kJ => SolarSupply, mm => WaterSupply,
-                        NoUnits => SimpleSupply,
-                        m^3 => VolWaterSupply)
+                        NoUnits => SimpleSupply)
 checksupply(maxsupply) = unit(maxsupply) in keys(SUPPLYDICT)
 function cancel(a::Quantity{<:Real, 𝐌 * 𝐓^-2}, b::Quantity{<:Real, 𝐋^2})
     return uconvert(kJ, a * b)
@@ -21,9 +20,6 @@ function cancel(a::Quantity{<:Real, 𝐋 * 𝐋^-2}, b::Quantity{<:Real, 𝐋^2}
 end
 function cancel(a::Quantity{<:Real, 𝐋^-2}, b::Quantity{<:Real, 𝐋^2})
     return uconvert(NoUnits, a * b)
-end
-function cancel(a::Quantity{<:Real, 𝐋^3 * 𝐋^-2}, b::Quantity{<:Real, 𝐋^2})
-    return uconvert(m^3, a * b)
 end
 
 # Shared tail of the maximum-supply `*AE` constructors: total the per-area maximum supply
@@ -237,7 +233,7 @@ function tempgradhabitat(minT::Unitful.Temperature{Float64},
                          area::Unitful.Area{Float64},
                          rate::Quantity{Float64, 𝚯 * 𝐓^-1},
                          active::Matrix{Bool};
-                         axis::Type{<:NicheAxis} = MeanTemperature)
+                         axis::Type{<:NicheAxis} = Temperature)
     minT = _canonical(minT, axis)
     maxT = _canonical(maxT, axis)
     area = uconvert(km^2, area)
@@ -253,7 +249,7 @@ function tempgradhabitat(minT::Unitful.Temperature{Float64},
                          maxsupply::Unitful.Quantity{Float64},
                          area::Unitful.Area{Float64},
                          rate::Quantity{Float64, 𝚯 * 𝐓^-1};
-                         axis::Type{<:NicheAxis} = MeanTemperature)
+                         axis::Type{<:NicheAxis} = Temperature)
     active = fill(true, dimension)
     return tempgradhabitat(minT, maxT, dimension, maxsupply, area, rate, active;
                            axis = axis)
@@ -289,7 +285,7 @@ function peakedgradhabitat(minT::Unitful.Temperature{Float64},
                            area::Unitful.Area{Float64},
                            rate::Quantity{Float64, 𝚯 * 𝐓^-1},
                            active::Matrix{Bool};
-                           axis::Type{<:NicheAxis} = MeanTemperature)
+                           axis::Type{<:NicheAxis} = Temperature)
     minT = _canonical(minT, axis)
     maxT = _canonical(maxT, axis)
     area = uconvert(km^2, area)
@@ -309,7 +305,7 @@ function peakedgradhabitat(minT::Unitful.Temperature{Float64},
                            maxsupply::Unitful.Quantity{Float64},
                            area::Unitful.Area{Float64},
                            rate::Quantity{Float64, 𝚯 * 𝐓^-1};
-                           axis::Type{<:NicheAxis} = MeanTemperature)
+                           axis::Type{<:NicheAxis} = Temperature)
     active = fill(true, dimension)
     return peakedgradhabitat(minT, maxT, dimension, maxsupply, area, rate,
                              active;

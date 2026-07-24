@@ -209,10 +209,6 @@ const SolarSupply = ContinuousLayer{Resource, SolarRadiation, typeof(1.0 * kJ),
 """    WaterSupply — a static available-water (mm) supply. """
 const WaterSupply = ContinuousLayer{Resource, Precipitation, typeof(1.0 * mm),
                                     Matrix{typeof(1.0 * mm)}}
-"""    VolWaterSupply — a static soil-water-volume (m³) supply. """
-const VolWaterSupply = ContinuousLayer{Resource, VolumetricWater,
-                                       typeof(1.0 * m^3),
-                                       Matrix{typeof(1.0 * m^3)}}
 """    SolarTimeSupply — a monthly time-varying solar-energy (kJ) supply. """
 const SolarTimeSupply = ContinuousLayer{Resource, SolarRadiation,
                                         typeof(1.0 * kJ),
@@ -221,10 +217,6 @@ const SolarTimeSupply = ContinuousLayer{Resource, SolarRadiation,
 const WaterTimeSupply = ContinuousLayer{Resource, Precipitation,
                                         typeof(1.0 * mm),
                                         Array{typeof(1.0 * mm), 3}}
-"""    VolWaterTimeSupply — a monthly time-varying soil-water-volume (m³) supply. """
-const VolWaterTimeSupply = ContinuousLayer{Resource, VolumetricWater,
-                                           typeof(1.0 * m^3),
-                                           Array{typeof(1.0 * m^3), 3}}
 """    SupplyCollection2{B1, B2} — two supplies over one grid (e.g. solar + water). """
 const SupplyCollection2{B1, B2} = LayerCollection2{Resource, B1, B2}
 

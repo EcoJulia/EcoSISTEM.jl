@@ -96,7 +96,7 @@ include("TestCases.jl")
         grid = (5, 5)
         area = 10000.0km^2
         env1 = simplehabitat(10.0K, grid, 1000.0kJ / km^2, area;
-                             axis = MeanTemperature)
+                             axis = Temperature)
         env2 = simplehabitat(10.0mm, grid, 100.0mm / km^2, area;
                              axis = Precipitation)
         regime = RegimeCollection2(env1.regime, env2.regime)   # eltype [K, mm]
@@ -105,7 +105,7 @@ include("TestCases.jl")
                                                               env1.active,
                                                               supply,
                                                               env1.names)
-        tolerance = ToleranceCollection2(NicheTolerance(MeanTemperature, Normal,
+        tolerance = ToleranceCollection2(NicheTolerance(Temperature, Normal,
                                                         fill(10.0K, numSpecies),
                                                         fill(0.1K, numSpecies)),
                                          NicheTolerance(Precipitation, Uniform,

@@ -53,8 +53,15 @@ function NoChange(eco::AbstractEcosystem, layer::AbstractLayer,
 
 # Axis-keyed layer dynamics: a regime's per-timestep change function is chosen from its niche axis via
 # `dynamics(::NicheAxis)` (default `NoChange`, declared in `NicheInfo.jl`).
-dynamics(::AbstractTemperature) = TempChange
-dynamics(::AbstractPrecipitation) = RainfallChange
+dynamics(::TemperatureAxis) = TempChange
+# The dimensionless / degree-day temperature leaves are not live-changing temperatures, so they
+# override the group default back to NoChange (matching their `canonicalunit` overrides).
+dynamics(::CumulativeHeat) = NoChange
+dynamics(::Isothermality) = NoChange
+dynamics(::FrostChangeFrequency) = NoChange
+# RainfallChange lives on the `Precipitation` leaf (not the topical `PrecipitationAxis`), so the
+# dimensionless `PrecipitationSeasonality` inherits the `NoChange` default.
+dynamics(::Precipitation) = RainfallChange
 
 """
     cyclicChange(eco::AbstractEcosystem, layer::ContinuousLayer, timestep::Unitful.Time)

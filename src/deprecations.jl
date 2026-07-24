@@ -29,7 +29,7 @@
     `support` imputed). This shim forwards to that. `GaussTrait(::Type{A}, mean, sd)` names the niche axis
     `A` explicitly; the axis-less `GaussTrait(mean, sd)` form takes dimensionless (bare) data as
     `Unclassified`, and — for back-compatibility only — *infers* the axis from a unitful vector's unit
-    (temperature → `MeanTemperature`, length → `Precipitation`) with an extra warning, because a
+    (temperature → `Temperature`, length → `Precipitation`) with an extra warning, because a
     [`NicheTolerance`](@ref)'s unit must come from its axis, not its data.
 """
 function GaussTrait(::Type{A}, mean::AbstractVector,
@@ -49,10 +49,10 @@ end
 # the anti-pattern the axis redesign removes, so it is intentionally minimal (temperature/length) and errors
 # for anything else, telling the caller to name the axis.
 function _axis_from_unit(u)
-    dimension(u) == dimension(u"K") && return MeanTemperature
+    dimension(u) == dimension(u"K") && return Temperature
     dimension(u) == dimension(u"mm") && return Precipitation
     return error("Cannot infer a niche axis from unit `$u`; name the axis explicitly, e.g. " *
-                 "`GaussTrait(MeanTemperature, mean, sd)` or `NicheTolerance(axis, Normal, mean, sd)`.")
+                 "`GaussTrait(Temperature, mean, sd)` or `NicheTolerance(axis, Normal, mean, sd)`.")
 end
 
 # Axis-less *unitful* form (doubly deprecated): kept working via unit→axis inference so downstream code gets
@@ -153,8 +153,6 @@ Base.@deprecate_binding SolarBudget SolarSupply
 Base.@deprecate_binding SolarTimeBudget SolarTimeSupply
 Base.@deprecate_binding WaterBudget WaterSupply
 Base.@deprecate_binding WaterTimeBudget WaterTimeSupply
-Base.@deprecate_binding VolWaterBudget VolWaterSupply
-Base.@deprecate_binding VolWaterTimeBudget VolWaterTimeSupply
 Base.@deprecate_binding BudgetCollection2 SupplyCollection2
 @deprecate getbudget(eco) getsupply(eco)
 
@@ -168,7 +166,6 @@ Base.@deprecate_binding SimpleRequirement SimpleDemand
 Base.@deprecate_binding SizeRequirement SizeDemand
 Base.@deprecate_binding SolarRequirement SolarDemand
 Base.@deprecate_binding WaterRequirement WaterDemand
-Base.@deprecate_binding VolWaterRequirement VolWaterDemand
 Base.@deprecate_binding ReqCollection2 DemandCollection2
 
 # ---------------------------------------------------------------------------

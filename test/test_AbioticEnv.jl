@@ -115,8 +115,8 @@ if !Sys.iswindows()
         # the niche `axis` is threaded through onto the built regime (default `Unclassified`)
         @test EcoSISTEM.axisof(era.regime) === Unclassified
         @test EcoSISTEM.axisof(erahabitat(eratemp, totalK, area;
-                                          axis = MeanTemperature).regime) ===
-              MeanTemperature
+                                          axis = Temperature).regime) ===
+              Temperature
 
         solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
         era = erahabitat(eratemp, solar, active)
@@ -143,8 +143,8 @@ if !Sys.iswindows()
         # the niche `axis` is threaded through onto the built regime (default `Unclassified`)
         @test EcoSISTEM.axisof(worldclim.regime) === Unclassified
         @test EcoSISTEM.axisof(worldclimhabitat(worldclimtemp, totalK, area;
-                                                axis = MeanTemperature).regime) ===
-              MeanTemperature
+                                                axis = Temperature).regime) ===
+              Temperature
 
         solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
         worldclim = worldclimhabitat(worldclimtemp, solar, active)

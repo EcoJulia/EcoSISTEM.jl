@@ -85,7 +85,7 @@ begin
     opts = fill(274.0K, numSpecies)
     vars = fill(50.0K, numSpecies)
     vars[end] = (1 / niche_width) * K
-    tolerance = NicheTolerance(MeanTemperature, Normal, opts, vars)
+    tolerance = NicheTolerance(Temperature, Normal, opts, vars)
     native = fill(true, numSpecies)
     abun = fill(div(individuals, numSpecies), numSpecies)
     sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
@@ -172,7 +172,7 @@ begin
     # Create species list, including their temperature preferences, seed abundance and native status
     opts_new = fill(meantemp * 1.0K, numSpecies)
     vars_new = fill(5.0K, numSpecies)
-    trts_new = NicheTolerance(MeanTemperature, Normal, opts_new, vars_new)
+    trts_new = NicheTolerance(Temperature, Normal, opts_new, vars_new)
     native_new = fill(true, numSpecies)
     abun_new = fill(div(individuals_new, numSpecies), numSpecies)
     sppl_new = SpeciesList(numSpecies, trts_new, abun_new, energy_vec_new,

@@ -110,25 +110,6 @@ function _getdemand(abun::Vector{Int64}, demand::WaterDemand)
 end
 
 """
-    VolWaterDemand <: Abstract1Demand{typeof(1.0*mm)}
-A vector of soil water volume demands (m^3) for each species.
-"""
-struct VolWaterDemand <: Abstract1Demand{typeof(1.0 * m^3)}
-    resource::Vector{typeof(1.0 * m^3)}
-    exchange_rate::typeof(1.0 / m^3)
-
-    function VolWaterDemand(resource::Vector{<:Unitful.Volume{Float64}},
-                            exchange_rate::Unitful.Quantity{Float64} = 1.0 /
-                                                                       mean(resource))
-        return new(uconvert.(m^3, resource), uconvert.(m^-3, exchange_rate))
-    end
-end
-Base.length(demand::VolWaterDemand) = length(demand.resource)
-function _getdemand(abun::Vector{Int64}, demand::VolWaterDemand)
-    return sum(abun .* demand.resource)
-end
-
-"""
     DemandCollection2{R1, R2}
 
 A pair of species resource demands (e.g. solar resource and water) consumed
@@ -234,12 +215,6 @@ function WaterSupply(bioclim::ClimateRaster{WorldClim{BioClim}})
     mat[isnan.(mat)] .= zero(eltype(mat))
     return WaterSupply(mat)
 end
-function VolWaterSupply(mat::Matrix{typeof(1.0 * m^3)})
-    mat[isnan.(mat)] .= 0 * m^3
-    return ContinuousLayer{Resource, VolumetricWater, typeof(1.0 * m^3),
-                           Matrix{typeof(1.0 * m^3)}}(mat, 1, _SUPPLY_SIZE,
-                                                      _supply_static())
-end
 function SolarTimeSupply(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
     mat[isnan.(mat)] .= 0 * kJ
     return ContinuousLayer{Resource, SolarRadiation, typeof(1.0 * kJ),
@@ -264,13 +239,6 @@ function WaterTimeSupply(worldclim::ClimateRaster{WorldClim{Climate}},
     mat[isnan.(mat)] .= zero(eltype(mat))
     return WaterTimeSupply(mat, time)
 end
-function VolWaterTimeSupply(mat::Array{typeof(1.0 * m^3), 3}, time::Int64)
-    mat[isnan.(mat)] .= 0 * m^3
-    return ContinuousLayer{Resource, VolumetricWater, typeof(1.0 * m^3),
-                           Array{typeof(1.0 * m^3), 3}}(mat, time, _SUPPLY_SIZE,
-                                                        _supply_cyclic())
-end
-
 # --- Recipes --------------------------------------------------------------------------
 @recipe function f(B::ContinuousLayer{Resource, A, V}) where {A, V}
     b = ustrip.(B.matrix)

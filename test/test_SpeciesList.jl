@@ -37,7 +37,7 @@ using Diversity
 
     opts = fill(5.0°C, numSpecies)
     vars = rand(Uniform(0, 25 / 9), numSpecies) * °C
-    tolerance = NicheTolerance(MeanTemperature, Normal, opts, vars)
+    tolerance = NicheTolerance(Temperature, Normal, opts, vars)
     abun = rand(Multinomial(individuals, numSpecies))
     native = fill(true, numSpecies)
     @test_nowarn sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,

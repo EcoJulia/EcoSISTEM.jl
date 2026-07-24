@@ -45,77 +45,122 @@ struct Resource <: Role end
     NicheAxis
 
 Abstract supertype of the niche-axis markers naming what a layer measures (e.g.
-[`MeanTemperature`](@ref), [`Precipitation`](@ref)), independent of its unit and orthogonal
+[`Temperature`](@ref), [`Precipitation`](@ref)), independent of its unit and orthogonal
 to [`Role`](@ref). Extend it with your own `struct MyAxis <: NicheAxis end`. Related axes are
-grouped under an abstract intermediate ([`AbstractTemperature`](@ref),
-[`AbstractPrecipitation`](@ref)) that carries their shared interface.
+grouped under an abstract intermediate named `…Axis` ([`TemperatureAxis`](@ref),
+[`WaterAxis`](@ref)) that carries their shared interface.
 """
 abstract type NicheAxis end
 
-# --- Temperature axes (all measured in K) ----------------------------------
-"""    AbstractTemperature <: NicheAxis — temperature niche axes (all in K) """
-abstract type AbstractTemperature <: NicheAxis end
-"""    MeanTemperature <: AbstractTemperature — annual mean temperature, the mean of the 12 monthly mean temperatures (Climate `tavg`, BioClim 1; K). """
-struct MeanTemperature <: AbstractTemperature end
-"""    MinTemperature <: AbstractTemperature — minimum temperature of the coldest month (Climate `tmin`, BioClim 6; K). """
-struct MinTemperature <: AbstractTemperature end
-"""    MaxTemperature <: AbstractTemperature — maximum temperature of the warmest month (Climate `tmax`, BioClim 5; K). """
-struct MaxTemperature <: AbstractTemperature end
-"""    DiurnalTemperatureRange <: AbstractTemperature — mean diurnal range, the mean of the monthly (max − min) temperatures (BioClim 2; K). """
-struct DiurnalTemperatureRange <: AbstractTemperature end
-"""    TemperatureSeasonality <: AbstractTemperature — temperature seasonality, the standard deviation of the monthly mean temperatures (BioClim 4). """
-struct TemperatureSeasonality <: AbstractTemperature end
-"""    TemperatureAnnualRange <: AbstractTemperature — temperature annual range, the warmest month's max minus the coldest month's min (BioClim 5 − BioClim 6; BioClim 7; K). """
-struct TemperatureAnnualRange <: AbstractTemperature end
-"""    WettestQuarterTemperature <: AbstractTemperature — mean temperature of the wettest 3 consecutive months (BioClim 8; K). """
-struct WettestQuarterTemperature <: AbstractTemperature end
-"""    DriestQuarterTemperature <: AbstractTemperature — mean temperature of the driest 3 consecutive months (BioClim 9; K). """
-struct DriestQuarterTemperature <: AbstractTemperature end
-"""    WarmestQuarterTemperature <: AbstractTemperature — mean temperature of the warmest 3 consecutive months (BioClim 10; K). """
-struct WarmestQuarterTemperature <: AbstractTemperature end
-"""    ColdestQuarterTemperature <: AbstractTemperature — mean temperature of the coldest 3 consecutive months (BioClim 11; K). """
-struct ColdestQuarterTemperature <: AbstractTemperature end
+# --- Temperature axes ------------------------------------------------------
+# Group default is K; the two dimensionless leaves and the degree-day sum override it (see the
+# `canonicalunit` overrides below). Level, range and seasonality follow the aggregation policy:
+# max/min/mean collapse to one level axis, a range gets its own axis, seasonality (an SD) stays apart.
+"""    TemperatureAxis <: NicheAxis — temperature-related niche axes (K unless a leaf overrides). """
+abstract type TemperatureAxis <: NicheAxis end
+"""    Temperature <: TemperatureAxis — an absolute temperature (annual/monthly/quarter mean, min, max, or growing-season mean; BioClim 1/5/6/8-11, Climate tavg/tmin/tmax/tas/tasmin/tasmax, BioClimPlus gst; K). """
+struct Temperature <: TemperatureAxis end
+"""    TemperatureRange <: TemperatureAxis — a temperature range (max − min): mean diurnal range or annual range (BioClim 2 and 7; K interval). """
+struct TemperatureRange <: TemperatureAxis end
+"""    TemperatureSeasonality <: TemperatureAxis — temperature seasonality, the standard deviation of the monthly mean temperatures (BioClim 4; K). """
+struct TemperatureSeasonality <: TemperatureAxis end
+"""    CumulativeHeat <: TemperatureAxis — accumulated growing degree-days above a threshold (BioClimPlus gdd0/gdd5/gdd10; K·day). """
+struct CumulativeHeat <: TemperatureAxis end
+"""    Isothermality <: TemperatureAxis — isothermality, 100 × (mean diurnal range / annual range) (BioClim 3; dimensionless). """
+struct Isothermality <: TemperatureAxis end
+"""    FrostChangeFrequency <: TemperatureAxis — frost change frequency, the number of days the temperature crosses 0 °C (BioClimPlus fcf; dimensionless). """
+struct FrostChangeFrequency <: TemperatureAxis end
 
-# --- Precipitation axes (all mm; provide a water supply/demand) --------
-"""    AbstractPrecipitation <: NicheAxis — precipitation niche axes (all in mm) """
-abstract type AbstractPrecipitation <: NicheAxis end
-"""    Precipitation <: AbstractPrecipitation — annual precipitation, the sum of the 12 monthly precipitation totals (Climate `prec`, BioClim 12; mm). """
-struct Precipitation <: AbstractPrecipitation end
-"""    WettestMonthPrecipitation <: AbstractPrecipitation — precipitation of the wettest month (BioClim 13; mm). """
-struct WettestMonthPrecipitation <: AbstractPrecipitation end
-"""    DriestMonthPrecipitation <: AbstractPrecipitation — precipitation of the driest month (BioClim 14; mm). """
-struct DriestMonthPrecipitation <: AbstractPrecipitation end
-"""    WettestQuarterPrecipitation <: AbstractPrecipitation — total precipitation of the wettest 3 consecutive months (BioClim 16; mm). """
-struct WettestQuarterPrecipitation <: AbstractPrecipitation end
-"""    DriestQuarterPrecipitation <: AbstractPrecipitation — total precipitation of the driest 3 consecutive months (BioClim 17; mm). """
-struct DriestQuarterPrecipitation <: AbstractPrecipitation end
-"""    WarmestQuarterPrecipitation <: AbstractPrecipitation — total precipitation of the warmest 3 consecutive months (BioClim 18; mm). """
-struct WarmestQuarterPrecipitation <: AbstractPrecipitation end
-"""    ColdestQuarterPrecipitation <: AbstractPrecipitation — total precipitation of the coldest 3 consecutive months (BioClim 19; mm). """
-struct ColdestQuarterPrecipitation <: AbstractPrecipitation end
+# --- Water axes ------------------------------------------------------------
+# `WaterAxis` is the umbrella for everything that measures water in any form. It is a pure grouping
+# node — it carries NO unit or resource of its own, so it can span mm precipitation, kPa/dimensionless
+# humidity and kg·m⁻²[·month⁻¹] fluxes/stocks without conflict; each leaf (or sub-group) declares its own.
+"""    WaterAxis <: NicheAxis — umbrella for all water-measuring niche axes (precipitation, humidity, evapotranspiration, moisture, water stocks). A pure grouping node with no unit or resource of its own. """
+abstract type WaterAxis <: NicheAxis end
+"""    PrecipitationAxis <: WaterAxis — precipitation niche axes. A topical group; the `mm` unit and the water supply/demand live on the [`Precipitation`](@ref) leaf. """
+abstract type PrecipitationAxis <: WaterAxis end
+"""    Precipitation <: PrecipitationAxis — a precipitation amount over a month, quarter or year (BioClim 12-19, Climate prec/pr; mm). Carries the `mm` unit and provides a water supply/demand. """
+struct Precipitation <: PrecipitationAxis end
+"""    PrecipitationSeasonality <: PrecipitationAxis — precipitation seasonality, the coefficient of variation of the monthly precipitation totals (BioClim 15; dimensionless). """
+struct PrecipitationSeasonality <: PrecipitationAxis end
+"""    HumidityAxis <: WaterAxis — atmospheric-water niche axes (vapour pressure, its deficit, relative humidity). """
+abstract type HumidityAxis <: WaterAxis end
+"""    VaporPressure <: HumidityAxis — near-surface water-vapour partial pressure (Climate vapr; kPa). """
+struct VaporPressure <: HumidityAxis end
+"""    VaporPressureDeficitAxis <: HumidityAxis — vapour-pressure-deficit niche axes (level and range). """
+abstract type VaporPressureDeficitAxis <: HumidityAxis end
+"""    VaporPressureDeficit <: VaporPressureDeficitAxis — near-surface vapour pressure deficit (Climate vpd, BioClimPlus vpd_max/mean/min; Pa). """
+struct VaporPressureDeficit <: VaporPressureDeficitAxis end
+"""    VaporPressureDeficitRange <: VaporPressureDeficitAxis — annual range of the monthly vapour pressure deficit (BioClimPlus vpd_range; Pa). """
+struct VaporPressureDeficitRange <: VaporPressureDeficitAxis end
+"""    RelativeHumidityAxis <: HumidityAxis — relative-humidity niche axes (level and range). """
+abstract type RelativeHumidityAxis <: HumidityAxis end
+"""    RelativeHumidity <: RelativeHumidityAxis — near-surface relative humidity (Climate hurs, BioClimPlus hurs_max/mean/min; dimensionless). """
+struct RelativeHumidity <: RelativeHumidityAxis end
+"""    RelativeHumidityRange <: RelativeHumidityAxis — annual range of the monthly relative humidity (BioClimPlus hurs_range; dimensionless). """
+struct RelativeHumidityRange <: RelativeHumidityAxis end
+"""    EvapotranspirationAxis <: WaterAxis — evapotranspiration niche axes (level and range). """
+abstract type EvapotranspirationAxis <: WaterAxis end
+"""    Evapotranspiration <: EvapotranspirationAxis — potential evapotranspiration (Climate pet, BioClimPlus pet_penman_max/mean/min; kg·m⁻²·month⁻¹). """
+struct Evapotranspiration <: EvapotranspirationAxis end
+"""    EvapotranspirationRange <: EvapotranspirationAxis — annual range of the monthly potential evapotranspiration (BioClimPlus pet_penman_range; kg·m⁻²·month⁻¹). """
+struct EvapotranspirationRange <: EvapotranspirationAxis end
+"""    ClimateMoistureAxis <: WaterAxis — climate-moisture-index niche axes (level and range). """
+abstract type ClimateMoistureAxis <: WaterAxis end
+"""    ClimateMoisture <: ClimateMoistureAxis — climate moisture index, precipitation minus potential evapotranspiration (Climate cmi, BioClimPlus cmi_max/mean/min; kg·m⁻²·month⁻¹). """
+struct ClimateMoisture <: ClimateMoistureAxis end
+"""    ClimateMoistureRange <: ClimateMoistureAxis — annual range of the monthly climate moisture index (BioClimPlus cmi_range; kg·m⁻²·month⁻¹). """
+struct ClimateMoistureRange <: ClimateMoistureAxis end
+"""    SnowWaterEquivalent <: WaterAxis — snow water equivalent, the liquid-water amount of the snowpack (BioClimPlus swe; kg·m⁻²). """
+struct SnowWaterEquivalent <: WaterAxis end
+"""    SiteWaterBalance <: WaterAxis — cumulative site water balance over the year, capped by soil water-holding capacity (BioClimPlus swb; kg·m⁻²). """
+struct SiteWaterBalance <: WaterAxis end
+"""    GrowingSeasonPrecipitation <: WaterAxis — precipitation accumulated over the growing season (BioClimPlus gsp; kg·m⁻²). """
+struct GrowingSeasonPrecipitation <: WaterAxis end
 
-# --- Standalone axes -------------------------------------------------------
-"""    SolarRadiation <: NicheAxis """
-struct SolarRadiation <: NicheAxis end
-"""    WindSpeed <: NicheAxis """
-struct WindSpeed <: NicheAxis end
-"""    VaporPressure <: NicheAxis """
-struct VaporPressure <: NicheAxis end
-"""    Isothermality <: NicheAxis (dimensionless) """
-struct Isothermality <: NicheAxis end
-"""    PrecipitationSeasonality <: NicheAxis (dimensionless) """
-struct PrecipitationSeasonality <: NicheAxis end
-"""    Heterogeneity <: NicheAxis (spatial regime-heterogeneity metrics; dimensionless) """
+# --- Solar radiation / wind speed / cloud cover ----------------------------
+"""    SolarRadiationAxis <: NicheAxis — solar-radiation niche axes (level and range). """
+abstract type SolarRadiationAxis <: NicheAxis end
+"""    SolarRadiation <: SolarRadiationAxis — surface downwelling shortwave (solar) radiation flux (Climate srad/rsds, BioClimPlus rsds_max/mean/min). Provides a solar supply/demand. """
+struct SolarRadiation <: SolarRadiationAxis end
+"""    SolarRadiationRange <: SolarRadiationAxis — annual range of the monthly solar radiation flux (BioClimPlus rsds_range). """
+struct SolarRadiationRange <: SolarRadiationAxis end
+"""    WindSpeedAxis <: NicheAxis — wind-speed niche axes (level and range). """
+abstract type WindSpeedAxis <: NicheAxis end
+"""    WindSpeed <: WindSpeedAxis — near-surface (10 m) wind speed (Climate wind/sfcWind, BioClimPlus sfcWind_max/mean/min; m·s⁻¹). """
+struct WindSpeed <: WindSpeedAxis end
+"""    WindSpeedRange <: WindSpeedAxis — annual range of the monthly near-surface wind speed (BioClimPlus sfcWind_range; m·s⁻¹). """
+struct WindSpeedRange <: WindSpeedAxis end
+"""    CloudCoverAxis <: NicheAxis — cloud-cover niche axes (level and range). """
+abstract type CloudCoverAxis <: NicheAxis end
+"""    CloudCover <: CloudCoverAxis — total cloud cover (Climate clt, BioClimPlus clt_max/mean/min; dimensionless). """
+struct CloudCover <: CloudCoverAxis end
+"""    CloudCoverRange <: CloudCoverAxis — annual range of the monthly total cloud cover (BioClimPlus clt_range; dimensionless). """
+struct CloudCoverRange <: CloudCoverAxis end
+
+# --- Day-based, carbon and categorical axes --------------------------------
+"""    DayAxis <: NicheAxis — day-based phenology niche axes (day-of-year positions and day counts; day). """
+abstract type DayAxis <: NicheAxis end
+"""    DayOfYear <: DayAxis — an ordinal day-of-year: first/last growing day or first/last day above a degree-day threshold (BioClimPlus fgd/lgd/gdgfgd*/gddlgd*; day). """
+struct DayOfYear <: DayAxis end
+"""    DayRange <: DayAxis — a count or span of days: growing-season length, snow-cover days or number of days above a threshold (BioClimPlus gsl/scd/ngd*; day). """
+struct DayRange <: DayAxis end
+"""    CarbonAxis <: NicheAxis — carbon-cycle niche axes. """
+abstract type CarbonAxis <: NicheAxis end
+"""    CarbonFlux <: CarbonAxis — net primary productivity, a carbon flux (BioClimPlus npp; g·m⁻²·year⁻¹). """
+struct CarbonFlux <: CarbonAxis end
+"""    TypologyAxis <: NicheAxis — categorical classification niche axes (discrete class labels; dimensionless, used with a `DiscreteRegime`). """
+abstract type TypologyAxis <: NicheAxis end
+"""    LandCoverTypology <: TypologyAxis — categorical land-cover / land-use classes (EarthEnv LandCover 1-12). """
+struct LandCoverTypology <: TypologyAxis end
+"""    ClimateTypology <: TypologyAxis — categorical climate-classification classes (BioClimPlus kg0-5: Köppen-Geiger, Wissmann, Thornthwaite, Troll-Pfaffen). """
+struct ClimateTypology <: TypologyAxis end
+
+# --- Other standalone axes -------------------------------------------------
+"""    Heterogeneity <: NicheAxis — spatial habitat-heterogeneity metrics of EVI (EarthEnv HabitatHeterogeneity; dimensionless). """
 struct Heterogeneity <: NicheAxis end
-"""    LandType <: NicheAxis (categorical land-cover / land-use classes) """
-struct LandType <: NicheAxis end
-"""    Altitude <: NicheAxis (elevation above sea level) """
+"""    Altitude <: NicheAxis — elevation above sea level (WorldClim Elevation; m). """
 struct Altitude <: NicheAxis end
-
-# Retained pending the water-axis design — water spans several dimensions (depth / mass per
-# area / flux / volume) that still need a unified treatment (see the plan).
-"""    VolumetricWater <: NicheAxis """
-struct VolumetricWater <: NicheAxis end
 
 # --- The NicheAxis interface -----------------------------------------------
 # The small set of hooks that replace unit-based inference of a layer's meaning. Each has a
@@ -130,9 +175,17 @@ The unit a layer on this axis is normalised to when materialised (e.g. temperatu
 or `nothing` to leave values as-is.
 """
 canonicalunit(::NicheAxis) = nothing
-canonicalunit(::AbstractTemperature) = K
-canonicalunit(::AbstractPrecipitation) = mm
+# TemperatureAxis defaults to K, covering the three real Kelvin leaves; the two dimensionless
+# leaves and the degree-day sum override it. mm/Water live on the `Precipitation` leaf (not the
+# topical `PrecipitationAxis`), so `PrecipitationSeasonality` inherits nothing.
+canonicalunit(::TemperatureAxis) = K
+canonicalunit(::CumulativeHeat) = K * Unitful.d
+canonicalunit(::Isothermality) = NoUnits
+canonicalunit(::FrostChangeFrequency) = NoUnits
+canonicalunit(::Precipitation) = mm
 canonicalunit(::Altitude) = m
+canonicalunit(::DayAxis) = Unitful.d
+canonicalunit(::TypologyAxis) = NoUnits
 
 """
     supplytype(::NicheAxis)
@@ -142,9 +195,8 @@ The `AbstractSupply` concrete type for this axis when used as a `Resource` resou
 silently guessing one if a supply is nonetheless requested).
 """
 supplytype(::NicheAxis) = nothing
-supplytype(::AbstractPrecipitation) = WaterSupply
+supplytype(::Precipitation) = WaterSupply
 supplytype(::SolarRadiation) = SolarSupply
-supplytype(::VolumetricWater) = VolWaterSupply
 
 """
     demandtype(::NicheAxis)
@@ -153,9 +205,8 @@ The `AbstractDemand` concrete type a species uses to consume this axis' resource
 `nothing` if the axis is not a resource.
 """
 demandtype(::NicheAxis) = nothing
-demandtype(::AbstractPrecipitation) = WaterDemand
+demandtype(::Precipitation) = WaterDemand
 demandtype(::SolarRadiation) = SolarDemand
-demandtype(::VolumetricWater) = VolWaterDemand
 
 """
     dynamics(::NicheAxis)

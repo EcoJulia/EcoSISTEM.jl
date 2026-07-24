@@ -51,7 +51,7 @@ movement = BirthOnlyMovement(kernel, NoBoundary())
 # Create species list, including their temperature preferences, seed abundance and native status
 opts = fill(274.0K, numSpecies)
 vars = fill(0.5K, numSpecies)
-tolerance = NicheTolerance(MeanTemperature, Normal, opts, vars)
+tolerance = NicheTolerance(Temperature, Normal, opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)

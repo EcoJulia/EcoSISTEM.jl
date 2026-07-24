@@ -61,14 +61,6 @@ include("TestCases.jl")
     @test_nowarn EcoSISTEM.supplyupdate!(eco, 1month)
     @test eco.habitat.regime.time == 2
     @test eco.habitat.supply.time == 2
-    water = VolWaterTimeSupply(fill(10.0m^3, 10, 10, 3), 1)
-    ea = erahabitat(eratemp, water, active)
-    eco = TestMultiEcosystem()
-    eco = Ecosystem(eco.spplist, ea, eco.nichefit)
-    @test_nowarn EcoSISTEM.regimeupdate!(eco, 1month)
-    @test_nowarn EcoSISTEM.supplyupdate!(eco, 1month)
-    @test eco.habitat.regime.time == 2
-    @test eco.habitat.supply.time == 2
 end
 
 @testset "Condition loss" begin

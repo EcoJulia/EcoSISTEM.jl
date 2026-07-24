@@ -20,34 +20,34 @@ import EcoSISTEM: DiscreteTolerance
     @testset "gaussian trait (Normal NicheTolerance)" begin
         # A Gaussian preference is a `NicheTolerance` with a `Normal` response on a named axis; the °C input vectors
         # are read per role and built in the default (canonical K) frame.
-        bin = NicheTolerance(MeanTemperature, Normal, opts, vars)
-        @test bin isa NicheTolerance{MeanTemperature}
+        bin = NicheTolerance(Temperature, Normal, opts, vars)
+        @test bin isa NicheTolerance{Temperature}
         @test EcoSISTEM.iscontinuous(bin) == true
         @test eltype(bin) == typeof(1.0K)
         # Params are stored bare in the canonical (K) frame. `σ` is a standard deviation (a temperature
         # *interval*): 9°F, 5°C and 5K all give the same 5 K width; `μ` keeps the affine offset
         # (5°C → 278.15 K).
-        @test params(getdist(NicheTolerance(MeanTemperature, Normal,
+        @test params(getdist(NicheTolerance(Temperature, Normal,
                                             [300.0u"°F"],
                                             [9.0u"°F"]),
                              1))[2] ≈ 5.0
-        @test params(getdist(NicheTolerance(MeanTemperature, Normal, [5.0°C],
+        @test params(getdist(NicheTolerance(Temperature, Normal, [5.0°C],
                                             [5.0°C]), 1))[2] ==
               5.0
-        @test params(getdist(NicheTolerance(MeanTemperature, Normal, [278.15K],
+        @test params(getdist(NicheTolerance(Temperature, Normal, [278.15K],
                                             [5.0K]),
                              1))[2] ==
               5.0
-        @test params(getdist(NicheTolerance(MeanTemperature, Normal, [5.0°C],
+        @test params(getdist(NicheTolerance(Temperature, Normal, [5.0°C],
                                             [5.0°C]), 1))[1] ==
               278.15
     end
     @testset "vector constructor: imputation, bare + mixed units" begin
         # reads the vectors' °C unit, builds in the default (canonical K) frame → identical to the
         # explicit-matrix K form
-        @test params(getdist(NicheTolerance(MeanTemperature, Normal, [5.0°C],
+        @test params(getdist(NicheTolerance(Temperature, Normal, [5.0°C],
                                             [2.0°C]), 1)) ==
-              params(getdist(NicheTolerance(MeanTemperature, Normal,
+              params(getdist(NicheTolerance(Temperature, Normal,
                                             [278.15 2.0];
                                             support = K),
                              1))
@@ -56,11 +56,11 @@ import EcoSISTEM: DiscreteTolerance
                                             [3.0mm]), 1)) ==
               (2.0, 3.0)
         # bare vectors on a dimensioned axis are read in its canonical unit
-        @test params(getdist(NicheTolerance(MeanTemperature, Normal, [274.0],
+        @test params(getdist(NicheTolerance(Temperature, Normal, [274.0],
                                             [2.0]), 1)) ==
               (274.0, 2.0)
         # differing units across parameter vectors error
-        @test_throws ErrorException NicheTolerance(MeanTemperature, Normal,
+        @test_throws ErrorException NicheTolerance(Temperature, Normal,
                                                    [5.0°C],
                                                    [2.0K])
     end
@@ -93,41 +93,41 @@ import EcoSISTEM: DiscreteTolerance
         @test params(getdist(NicheTolerance(Precipitation, Gamma, [2.0 3.0]),
                              1)) ==
               (2.0, 3.0)                                          # default mm frame
-        b = NicheTolerance(MeanTemperature, Normal, [0.0 2.0]; support = u"°C")
+        b = NicheTolerance(Temperature, Normal, [0.0 2.0]; support = °C)
         @test collect(params(getdist(b, 1))) ≈ [0.0, 2.0]        # °C frame, bare as-is
-        @test eltype(b) == typeof(1.0u"°C")
-        @test collect(params(getdist(NicheTolerance(MeanTemperature, Uniform,
+        @test eltype(b) == typeof(1.0°C)
+        @test collect(params(getdist(NicheTolerance(Temperature, Uniform,
                                                     [0.0 10.0];
-                                                    support = u"°C"), 1))) ≈
+                                                    support = °C), 1))) ≈
               [0.0, 10.0]
         # the vector constructor reads the inputs' unit and converts to the `support` frame per role:
         # a location properly (0°C → 273.15 K on a K frame), a scale as an interval (2°C → 2 K).
-        @test collect(params(getdist(NicheTolerance(MeanTemperature, Normal,
+        @test collect(params(getdist(NicheTolerance(Temperature, Normal,
                                                     [0.0°C],
                                                     [2.0°C];
                                                     support = K), 1))) ≈
               [273.15, 2.0]
-        @test collect(params(getdist(NicheTolerance(MeanTemperature, Uniform,
+        @test collect(params(getdist(NicheTolerance(Temperature, Uniform,
                                                     [0.0°C],
                                                     [10.0°C]; support = K), 1))) ≈
               [273.15, 283.15]
         # a support (frame) of the wrong dimension errors
         @test_throws ErrorException NicheTolerance(Precipitation, Gamma,
                                                    [2.0 3.0];
-                                                   support = u"°C")
+                                                   support = °C)
         # a shape-only distribution (Beta) needs offset + scale to be placed on a dimensioned frame
-        @test_throws ErrorException NicheTolerance(MeanTemperature, Beta,
+        @test_throws ErrorException NicheTolerance(Temperature, Beta,
                                                    [2.0 3.0])
-        bb = NicheTolerance(MeanTemperature, Beta, [2.0 3.0]; support = K,
+        bb = NicheTolerance(Temperature, Beta, [2.0 3.0]; support = K,
                             offset = 270.0,
                             scale = 30.0)
         @test getdist(bb, 1) isa Distributions.LocationScale
         # the K and °C frames encode the *same* preference: the density at a physical value is
         # frame-independent when evaluated with `ustrip(support, x)` in each frame (the zero-cost contract,
         # and what the hot path's `ustrip(current)` does when the regime is in the frame's unit).
-        bK = NicheTolerance(MeanTemperature, Normal, [5.0°C], [2.0°C];
+        bK = NicheTolerance(Temperature, Normal, [5.0°C], [2.0°C];
                             support = K)
-        bC = NicheTolerance(MeanTemperature, Normal, [5.0°C], [2.0°C];
+        bC = NicheTolerance(Temperature, Normal, [5.0°C], [2.0°C];
                             support = °C)
         @test eltype(bK) == typeof(1.0K)
         @test eltype(bC) == typeof(1.0°C)
@@ -140,7 +140,7 @@ import EcoSISTEM: DiscreteTolerance
                                    RainTolerance(repeat([1 2], 10)))
         @test EcoSISTEM.iscontinuous(tr2) == [true, true]
         @test eltype(tr2) == [typeof(1.0K), typeof(1.0mm)]
-        gbin = NicheTolerance(MeanTemperature, Normal, opts, vars)
+        gbin = NicheTolerance(Temperature, Normal, opts, vars)
         @test_nowarn ToleranceCollection3(gbin,
                                           TempTolerance(repeat([1 2 3 4], 10)),
                                           RainTolerance(repeat([1 2], 10)))

@@ -8,7 +8,7 @@ field). Type parameters are shown in `<…>` (Mermaid generic notation); their b
 The core idea of the current design is the **layer**: a grid of values tagged with two
 orthogonal phantom markers — a [`Role`](#layers-roles--niche-axes) (how it is *used*:
 a `Condition` matched to tolerances vs a `Resource` consumed) and a `NicheAxis` (*what* it measures, e.g.
-`MeanTemperature`). A layer and its matching trait share the same `NicheAxis`, so
+`Temperature`). A layer and its matching trait share the same `NicheAxis`, so
 "same axis" — not "same unit" — is the matching rule. The `ContinuousRegime`/`*Supply`
 type families are **aliases** over one `AbstractLayer{R, A}` hierarchy.
 
@@ -96,26 +96,27 @@ default for a layer built without a declared axis.
 ```mermaid
 classDiagram
     class NicheAxis
-    class AbstractTemperature
-    class AbstractPrecipitation
-    NicheAxis <|-- AbstractTemperature
-    NicheAxis <|-- AbstractPrecipitation
-    NicheAxis <|-- SolarRadiation
-    NicheAxis <|-- VolumetricWater
-    NicheAxis <|-- LandType
-    NicheAxis <|-- Altitude
-    NicheAxis <|-- WindSpeed
-    NicheAxis <|-- VaporPressure
-    NicheAxis <|-- Isothermality
-    NicheAxis <|-- PrecipitationSeasonality
+    class TemperatureAxis
+    class WaterAxis
+    NicheAxis <|-- TemperatureAxis
+    NicheAxis <|-- WaterAxis
+    NicheAxis <|-- SolarRadiationAxis
+    NicheAxis <|-- WindSpeedAxis
+    NicheAxis <|-- CloudCoverAxis
+    NicheAxis <|-- DayAxis
+    NicheAxis <|-- CarbonAxis
+    NicheAxis <|-- TypologyAxis
     NicheAxis <|-- Heterogeneity
+    NicheAxis <|-- Altitude
     NicheAxis <|-- Unclassified
-    AbstractTemperature <|-- MeanTemperature
-    AbstractTemperature <|-- MinTemperature
-    AbstractTemperature <|-- MaxTemperature
-    AbstractPrecipitation <|-- Precipitation
-    AbstractPrecipitation <|-- WettestMonthPrecipitation
-    AbstractPrecipitation <|-- DriestMonthPrecipitation
+    TemperatureAxis <|-- Temperature
+    TemperatureAxis <|-- TemperatureRange
+    TemperatureAxis <|-- CumulativeHeat
+    WaterAxis <|-- PrecipitationAxis
+    WaterAxis <|-- HumidityAxis
+    WaterAxis <|-- EvapotranspirationAxis
+    PrecipitationAxis <|-- Precipitation
+    TypologyAxis <|-- LandCoverTypology
 ```
 
 Each axis answers a small interface (defaulted, overridden per group) — `canonicalunit`
@@ -139,7 +140,6 @@ and `AbstractSupply = AbstractLayer{Resource}`; `SimpleSupply` (free energy) is 
 | `SimpleSupply` | `ContinuousLayer{Resource, Unclassified, Float64, …}` |
 | `SolarSupply` / `SolarTimeSupply` | `ContinuousLayer{Resource, SolarRadiation, kJ, …}` (2-D / 3-D) |
 | `WaterSupply` / `WaterTimeSupply` | `ContinuousLayer{Resource, Precipitation, mm, …}` |
-| `VolWaterSupply` / `VolWaterTimeSupply` | `ContinuousLayer{Resource, VolumetricWater, m³, …}` |
 | `AbstractTimeSupply` | `ContinuousLayer{Resource, A, V, Arr<:AbstractArray{V,3}}` |
 | `SupplyCollection2` | `LayerCollection2{Resource, …}` |
 
@@ -231,7 +231,6 @@ classDiagram
     Abstract1Demand  <|-- SimpleDemand
     Abstract1Demand  <|-- SolarDemand
     Abstract1Demand  <|-- WaterDemand
-    Abstract1Demand  <|-- VolWaterDemand
     Abstract1Demand  <|-- SizeDemand
     Abstract2Demands <|-- DemandCollection2
 ```
@@ -296,19 +295,20 @@ classDiagram
 - **External supertypes:** `AbstractHabitat <: Diversity.AbstractPartition`,
   `AbstractLayer <: EcoBase.AbstractGrid`, `SpeciesList <: Diversity.AbstractTypes`,
   `AbstractEcosystem <: Diversity.AbstractMetacommunity`.
-- **Roles & axes:** `Role ∈ {Condition, Resource}`. The `NicheAxis` catalogue is
-  `AbstractTemperature` (`MeanTemperature`, `MinTemperature`, `MaxTemperature`,
-  `DiurnalTemperatureRange`, `TemperatureSeasonality`, `TemperatureAnnualRange`,
-  `WettestQuarterTemperature`, `DriestQuarterTemperature`, `WarmestQuarterTemperature`,
-  `ColdestQuarterTemperature`), `AbstractPrecipitation` (`Precipitation`,
-  `WettestMonthPrecipitation`, `DriestMonthPrecipitation`, `WettestQuarterPrecipitation`,
-  `DriestQuarterPrecipitation`, `WarmestQuarterPrecipitation`, `ColdestQuarterPrecipitation`),
-  plus the singletons `SolarRadiation`, `WindSpeed`, `VaporPressure`, `Isothermality`,
-  `PrecipitationSeasonality`, `Heterogeneity`, `LandType`, `Altitude`, `VolumetricWater`,
-  and the default `Unclassified` — extend with `struct MyAxis <: NicheAxis end`.
+- **Roles & axes:** `Role ∈ {Condition, Resource}`. Niche axes are grouped under `XxxAxis`
+  supertypes: `TemperatureAxis` (`Temperature`, `TemperatureRange`, `TemperatureSeasonality`,
+  `CumulativeHeat`, `Isothermality`, `FrostChangeFrequency`); `WaterAxis` → `PrecipitationAxis`
+  (`Precipitation`, `PrecipitationSeasonality`), `HumidityAxis` (`VaporPressure`,
+  `VaporPressureDeficit`(`Range`), `RelativeHumidity`(`Range`)), `EvapotranspirationAxis`,
+  `ClimateMoistureAxis`, plus the `SnowWaterEquivalent`/`SiteWaterBalance`/`GrowingSeasonPrecipitation`
+  leaves; `SolarRadiationAxis`, `WindSpeedAxis`, `CloudCoverAxis` (each level + `…Range`); `DayAxis`
+  (`DayOfYear`, `DayRange`); `CarbonAxis` (`CarbonFlux`); `TypologyAxis` (`LandCoverTypology`,
+  `ClimateTypology`); the singletons `Heterogeneity`, `Altitude`; and the default `Unclassified` —
+  extend with `struct MyAxis <: NicheAxis end`. Level axes carry a `canonicalunit` (temperature `K`,
+  precipitation `mm`) that a layer's actual-unit values are converted to at build time.
 - **Layer aliases:** `AbstractRegime = AbstractLayer{Condition}`,
   `AbstractSupply = AbstractLayer{Resource}`. `ContinuousRegime`/`ContinuousTimeRegime`/`DiscreteRegime`/
-  `RegimeCollection2,3` and `Simple`/`Solar`/`Water`/`VolWater`(`Time`)`Supply`/
+  `RegimeCollection2,3` and `Simple`/`Solar`/`Water`(`Time`)`Supply`/
   `SupplyCollection2` are all `const` aliases over `ContinuousLayer`/`DiscreteLayer`/
   `LayerCollection`.
 - `NicheSuitability` evaluates a `NicheTolerance`'s stored `Distributions.ContinuousUnivariateDistribution`

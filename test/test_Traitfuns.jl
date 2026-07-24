@@ -24,7 +24,7 @@ active = fill(true, grid)
     tolerance = ToleranceCollection2(NicheTolerance(Unclassified, Normal,
                                                     fill(1.0, 10),
                                                     fill(0.1, 10)),
-                                     NicheTolerance(MeanTemperature, Normal,
+                                     NicheTolerance(Temperature, Normal,
                                                     fill(1.0K, 10),
                                                     fill(0.1K, 10)))
     nichefit = multiplicativeFit2(NicheSuitability{Float64}(),
@@ -77,7 +77,7 @@ end
     regime = erahabitat(ERA(temp), solar, fill(true, 10, 10)).regime
 
     # A Normal response (neither Trapezoid nor Uniform) proves any continuous distribution works.
-    bin = NicheTolerance(MeanTemperature, Normal,
+    bin = NicheTolerance(Temperature, Normal,
                          Array(hcat(fill([1.0, 2.0], 10)...)'))
     nichefit = NicheSuitability{typeof(1.0K)}()
     @test EcoSISTEM._suitability(regime, bin, nichefit, 1, 1) ==

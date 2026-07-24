@@ -67,10 +67,10 @@ function TestMultiEcosystem()
     individuals = 20000 * numSpecies
     totalK1 = 1000000.0 * kJ / km^2 * numSpecies
     totalK2 = 100.0 * mm / km^2 * numSpecies
-    # `axis = MeanTemperature` so the regime carries `TempChange` dynamics (the `TempIncrease!`/`TempFluct!`
+    # `axis = Temperature` so the regime carries `TempChange` dynamics (the `TempIncrease!`/`TempFluct!`
     # scenarios reset its rate); dynamics now comes from the declared axis, not the value's K unit.
     habitat1 = simplehabitat(10.0K, grid, totalK1, area;
-                             axis = MeanTemperature)
+                             axis = Temperature)
     habitat2 = simplehabitat(10.0K, grid, totalK2, area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
     habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
@@ -86,7 +86,7 @@ function TestMultiEcosystem()
     resource1 = SolarDemand(fill(2.0kJ, numSpecies))
     resource2 = WaterDemand(fill(2.0mm, numSpecies))
     resource = DemandCollection2(resource1, resource2)
-    tolerance = NicheTolerance(MeanTemperature, Normal, fill(10.0K, numSpecies),
+    tolerance = NicheTolerance(Temperature, Normal, fill(10.0K, numSpecies),
                                fill(0.1K, numSpecies))
     sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement, param,
                        native)

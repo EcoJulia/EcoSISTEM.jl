@@ -77,13 +77,13 @@ const param_units = EcoSISTEM.param_units
     @testset "role_units + param_units (absolute-unit introspection)" begin
         # location/scale carry the ABSOLUTE support unit (K for °C), rate its inverse, shape none
         @test role_units(:location, K) == K
-        @test role_units(:scale, u"°C") == K          # absolute unit of an affine one
+        @test role_units(:scale, °C) == K          # absolute unit of an affine one
         @test role_units(:rate, mm) == inv(mm)
         @test role_units(:shape, K) == NoUnits
         @test_throws ErrorException role_units(:bogus, K)
 
         @test param_units(Normal, K) == [K, K]
-        @test param_units(Normal, u"°C") == [K, K]     # affine → absolute
+        @test param_units(Normal, °C) == [K, K]     # affine → absolute
         @test param_units(Uniform, mm) == [mm, mm]
         @test param_units(Gamma, mm) == [NoUnits, mm]  # shape dimensionless, scale carries it
         # shape-only family: every parameter is dimensionless (regression — Beta must not be
@@ -99,13 +99,13 @@ const param_units = EcoSISTEM.param_units
 
         # location is a position (proper affine), scale is an interval (width): on the default K
         # frame, 0 °C → 273.15 K but a 2 °C width → 2 K
-        @test collect(params(read_distribution(Normal, u"°C", [0.0, 2.0]))) ≈
+        @test collect(params(read_distribution(Normal, °C, [0.0, 2.0]))) ≈
               [273.15, 2.0]
         # in the °C frame the location stays 0, the width still 2
-        @test collect(params(read_distribution(Normal, u"°C", [0.0, 2.0];
-                                               canonical = u"°C"))) ≈ [0.0, 2.0]
+        @test collect(params(read_distribution(Normal, °C, [0.0, 2.0];
+                                               canonical = °C))) ≈ [0.0, 2.0]
         # both Uniform bounds are positions → both shift
-        @test collect(params(read_distribution(Uniform, u"°C", [0.0, 10.0]))) ≈
+        @test collect(params(read_distribution(Uniform, °C, [0.0, 10.0]))) ≈
               [273.15, 283.15]
         # a K frame leaves K inputs unchanged
         @test collect(params(read_distribution(Normal, K, [274.0, 2.0]))) ≈

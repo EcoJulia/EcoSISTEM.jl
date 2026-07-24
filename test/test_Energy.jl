@@ -52,15 +52,6 @@ using RasterDataSources
     @test eltype(resource_vec) == typeof(resource_vec.resource[1])
     @test length(resource_vec) == length(resource_vec.resource)
 
-    # Test VolWaterDemand
-    resource_vec = VolWaterDemand(fill(20.0m^3, numSpecies))
-    @test_nowarn resource_vec = VolWaterDemand(fill(20.0m^3, numSpecies))
-    @test EcoSISTEM._getdemand(abun, resource_vec) ==
-          sum(abun .* resource_vec.resource)
-    @test EcoSISTEM.numdemands(typeof(resource_vec)) == 1
-    @test eltype(resource_vec) == typeof(resource_vec.resource[1])
-    @test length(resource_vec) == length(resource_vec.resource)
-
     resource_vec1 = SolarDemand(fill(0.2 * kJ, numSpecies))
     resource_vec2 = WaterDemand(fill(0.2 * mm, numSpecies))
     demand = DemandCollection2(resource_vec1, resource_vec2)
@@ -97,15 +88,6 @@ using RasterDataSources
     @test eltype(supply2) == typeof(supply2.matrix[1])
     @test EcoSISTEM._getavailablesupply(supply2) == sum(supply2.matrix)
 
-    # Test VolWaterSupply
-    water = fill(200.0 * m^3, 100, 100)
-    @test_nowarn VolWaterSupply(water)
-    supply2 = VolWaterSupply(water)
-    @test EcoSISTEM._countsubcommunities(supply2) == 100 * 100
-    @test EcoSISTEM._getsupply(supply2) == supply2.matrix[:, :, 1]
-    @test eltype(supply2) == typeof(supply2.matrix[1])
-    @test EcoSISTEM._getavailablesupply(supply2) == sum(supply2.matrix)
-
     # Test SolarTimeSupply
     sol = fill(200.0 * kJ, 100, 100, 10)
     @test_nowarn SolarTimeSupply(sol, 1)
@@ -123,15 +105,6 @@ using RasterDataSources
     @test EcoSISTEM._getsupply(supply2) == supply2.matrix[:, :, 1]
     @test eltype(supply2) == typeof(supply2.matrix[1])
     @test EcoSISTEM._getavailablesupply(supply2) == sum(supply2.matrix)
-
-    # Test VolWaterTimeSupply
-    water = fill(2000.0 * m^3, 100, 100, 10)
-    @test_nowarn VolWaterTimeSupply(water, 1)
-    supply3 = VolWaterTimeSupply(water, 1)
-    @test EcoSISTEM._countsubcommunities(supply3) == 100 * 100
-    @test EcoSISTEM._getsupply(supply3) == supply3.matrix[:, :, 1]
-    @test eltype(supply3) == typeof(supply3.matrix[1])
-    @test EcoSISTEM._getavailablesupply(supply3) == sum(supply3.matrix)
 
     # Test SupplyCollection
     supply = SupplyCollection2(supply1, supply2)

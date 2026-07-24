@@ -67,14 +67,6 @@ function _applycut(world, cut)
            world[cut.lat, cut.long, :]
 end
 
-# Physical unit for a WorldClim/CRUTS-style file, from the variable name in its path via `VARDICT`
-# (e.g. `tavg` → K, `prec` → mm); dimensionless (`1.0`) if none matches.
-function _fileunit(file::AbstractString)
-    vars = split(file, "_")
-    i = findfirst(v -> v ∈ keys(VARDICT), vars)
-    return isnothing(i) ? 1.0 : VARDICT[vars[i]]
-end
-
 # Estimated bytes to hold a raster whole in memory. Rasters' own guard compares against *free*
 # memory, which is over-conservative — idle memory is reclaimable / pageable — so we instead gate
 # on a fraction of *total* RAM (below).
@@ -118,18 +110,37 @@ function _aggcachepath(f, scale, fn, u)
     return joinpath(assetdir(), "aggregates", key * ".jld2")
 end
 
+# Mask raw integer-band fill sentinels. GDAL sources (e.g. CHELSA) store a fill at the raw band's
+# `typemax` (or `typemin` for signed types) that the file's *declared* nodata may not capture — CHELSA
+# declares `-99999`, unrepresentable in its `UInt` bands, so the real fill (`0xffffffff` etc.) survives the
+# default scaled read and becomes a spurious huge value (gsp's `0xffffffff` → 4.29e8). Locate those cells in
+# the raw band `raw` and set them `missing` on the scaled raster `r`, lazily (so a disk-backed raster stays
+# lazy). Only integer bands carry such sentinels; float bands rely on the file's declared nodata and pass
+# through unchanged.
+function _mask_int_fills(r, raw)
+    T = nonmissingtype(eltype(raw))
+    T <: Integer || return r
+    fills = T <: Signed ? (typemin(T), typemax(T)) : (typemax(T),)
+    return Rasters.rebuild(r,
+                           broadcast((value,
+                                      rawvalue) -> (!ismissing(rawvalue) &&
+                                                    rawvalue in fills) ?
+                                                   missing : value, r, raw))
+end
+
 # Read a raster file, optionally coarsening it by an integer `scale` factor, aggregating each block
-# with `fn` (replaces the old read-time `downresolution!`). The open runs under a `NullLogger` to
-# drop Rasters' benign metadata warnings (e.g. a nodata value a file declares that its integer
-# eltype can't hold, as in CHELSA's `-99999` UInt16 bands); proper nodata masking for float layers
-# still happens. Aggregating a *lazy* (disk-backed) raster reads it window-by-window — slow and
-# hugely allocating — so when it comfortably fits in RAM we read it whole first (~6× faster and far
-# fewer allocations); larger files fall back to the lazy aggregate to stay within memory.
-# `_rastertoaxisarray` then materialises the (small) aggregated result.
+# with `fn` (replaces the old read-time `downresolution!`). The opens run under a `NullLogger` to drop
+# Rasters' benign metadata warnings (e.g. the `-99999` nodata CHELSA declares for its `UInt` bands, which
+# the eltype can't hold). `_mask_int_fills` then removes the raw integer fill sentinels that declared nodata
+# misses. Aggregating a *lazy* (disk-backed) raster reads it window-by-window — slow and hugely allocating —
+# so when it comfortably fits in RAM we read it whole first (~6× faster and far fewer allocations); larger
+# files fall back to the lazy aggregate to stay within memory. `_rastertoaxisarray` then materialises the
+# (small) aggregated result.
 function _readraster(f::AbstractString; scale::Integer = 1, fn = mean)
-    r = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-        return Raster(f; lazy = true)
+    r, raw = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        return Raster(f; lazy = true), Raster(f; lazy = true, scaled = false)
     end
+    r = _mask_int_fills(r, raw)
     scale > 1 || return r
     fits = _readbytes(r) < _READ_WHOLE_FRACTION * Sys.total_memory()
     return Rasters.aggregate(fn, fits ? read(r; checkmem = false) : r, scale)
@@ -144,10 +155,11 @@ end
 _thirdaxis(::Type{<:RDS.RasterDataSource}) = :var
 _thirdaxis(::Type{<:WorldClim{Climate}}) = :time
 
-# Physical unit attached to the data: none by default; WorldClim monthly climate infers it from the
-# variable name in the filename (via `_fileunit`/`VARDICT`).
+# Physical unit attached to the data by the reader: none — `read` returns the raster's values as bare
+# magnitudes in their actual physical unit (e.g. temperature in °C), and the unit is supplied from the
+# shipped layer table (`layerunit`) when a layer is built. The directory readers below (`_readmonthlydir`)
+# self-attach a unit from `VARDICT` because they have no layer table to defer to.
 _layerunit(::Type{<:RDS.RasterDataSource}, files) = NoUnits
-_layerunit(::Type{<:WorldClim{Climate}}, files) = _fileunit(first(files))
 
 # Default read-time block-aggregation factor + reducer (land cover is coarsened 10× by default).
 _defaultscale(::Type{<:RDS.RasterDataSource}) = 1
@@ -194,17 +206,15 @@ function _cachedlayer(f, scale, fn, u)
     return layer
 end
 
-# Read a resolved set of raster file paths into a `ClimateRaster` of source `T`, applying the
-# per-source unit, third axis and (for °C-stored Kelvin data) the °C→K shift. Shared by `read` and
-# the deprecated `readworldclim`.
+# Read a resolved set of raster file paths into a `ClimateRaster` of source `T`. Values are returned in
+# their actual physical unit as bare magnitudes (`_layerunit` is `NoUnits` for every source); the third
+# axis (bands or a monthly series) comes from `_thirdaxis`. Shared by `read` and the deprecated `readworldclim`.
 function _readsource(T::Type{<:RDS.RasterDataSource}, files::Vector{String};
                      cut = nothing, scale = _defaultscale(T),
                      fn = _defaultfn(T))
     u = _layerunit(T, files)
     aas = map(f -> _cachedlayer(f, scale, fn, u), files)
     world = _stacklayers(aas, _mkthirdaxis(_thirdaxis(T), length(aas)))
-    # WorldClim/CHELSA store temperature in °C; the unit is attached as K, so shift to true Kelvin.
-    u == K && (world .+= uconvert(K, 0.0°C))
     return ClimateRaster(T, _applycut(world, cut))
 end
 
@@ -260,8 +270,8 @@ function boundingbox(region::AbstractString; islands::Bool = false,
 end
 
 const VARDICT = Dict("bio" => NaN, "prec" => mm,
-                     "srad" => u"kJ" * u"m"^-2 * day^-1, "tavg" => K,
-                     "tmax" => K, "tmin" => K, "vapr" => u"kPa",
+                     "srad" => u"kJ" * u"m"^-2 * day^-1, "tavg" => °C,
+                     "tmax" => °C, "tmin" => °C, "vapr" => u"kPa",
                      "wind" => u"m" * u"s"^-1)
 const UNITDICT = Dict("K" => K, "m" => m, "J m**-2" => J / m^2,
                       "m**3 m**-3" => m^3)
@@ -379,9 +389,10 @@ function readCERA(dir::String, file::String, param::String; cut = nothing)
     return CERA(_readeradir(dir, file, param, times; cut = cut))
 end
 
-# Assemble a monthly time series from every `.tif` in `dir`, attaching the unit for `var_name`
-# (via `VARDICT`) and shifting °C→K when that unit is Kelvin. Shared by the directory-based
-# `readCRUTS`/`readCHELSA_monthly`, which differ only in their wrapper type.
+# Assemble a monthly time series from every `.tif` in `dir`, attaching the actual unit for `var_name`
+# (via `VARDICT`; temperatures in °C). These directory readers have no layer table to defer to, so —
+# unlike `read` — they self-attach the unit. Shared by the directory-based `readCRUTS`/`readCHELSA_monthly`,
+# which differ only in their wrapper type.
 function _readmonthlydir(dir::String, var_name::String; scale = 1, fn = mean,
                          cut = nothing)
     files = joinpath.(dir, searchdir(dir, ".tif"))
@@ -389,7 +400,6 @@ function _readmonthlydir(dir::String, var_name::String; scale = 1, fn = mean,
     aas = map(f -> _rastertoaxisarray(_readraster(f; scale = scale, fn = fn);
                                       unit = u), files)
     world = _stacklayers(aas, _mkthirdaxis(:time, length(aas)))
-    u == K && (world .+= uconvert(K, 0.0°C))
     return _applycut(world, cut)
 end
 

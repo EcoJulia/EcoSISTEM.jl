@@ -20,11 +20,11 @@ using RasterDataSources
         opts = fill(5.0K, 4)
         vars = fill(2.0K, 4)
         # axis form → the same `Normal` `NicheTolerance`
-        @test_deprecated GaussTrait(MeanTemperature, opts, vars)
-        gt = GaussTrait(MeanTemperature, opts, vars)
-        @test gt isa NicheTolerance{MeanTemperature}
+        @test_deprecated GaussTrait(Temperature, opts, vars)
+        gt = GaussTrait(Temperature, opts, vars)
+        @test gt isa NicheTolerance{Temperature}
         @test params(getdist(gt, 1)) ==
-              params(getdist(NicheTolerance(MeanTemperature, Normal, opts,
+              params(getdist(NicheTolerance(Temperature, Normal, opts,
                                             vars), 1))
 
         # axis-less *bare* form → an `Unclassified` NicheTolerance (eltype Float64)
@@ -37,11 +37,11 @@ using RasterDataSources
                              1))
 
         # axis-less *unitful* form (doubly deprecated): infers the axis from the unit, and warns about it
-        @test_deprecated GaussTrait(opts, vars)                 # K → MeanTemperature
+        @test_deprecated GaussTrait(opts, vars)                 # K → Temperature
         gu = GaussTrait(opts, vars)
-        @test gu isa NicheTolerance{MeanTemperature}
+        @test gu isa NicheTolerance{Temperature}
         @test params(getdist(gu, 1)) ==
-              params(getdist(NicheTolerance(MeanTemperature, Normal, opts,
+              params(getdist(NicheTolerance(Temperature, Normal, opts,
                                             vars), 1))
         rain = fill(3.0mm, 4)
         gr = GaussTrait(rain, fill(1.0mm, 4))                   # mm → Precipitation
@@ -115,11 +115,9 @@ using RasterDataSources
         # binding resolves; the warning still fires under `--depwarn=yes`.)
         @test SolarBudget === SolarSupply
         @test WaterBudget === WaterSupply
-        @test VolWaterBudget === VolWaterSupply
         @test SimpleBudget === SimpleSupply
         @test SolarTimeBudget === SolarTimeSupply
         @test WaterTimeBudget === WaterTimeSupply
-        @test VolWaterTimeBudget === VolWaterTimeSupply
         @test BudgetCollection2 === SupplyCollection2
         @test EcoSISTEM.AbstractBudget === EcoSISTEM.AbstractSupply
     end
@@ -130,7 +128,6 @@ using RasterDataSources
         @test SizeRequirement === SizeDemand
         @test SolarRequirement === SolarDemand
         @test WaterRequirement === WaterDemand
-        @test VolWaterRequirement === VolWaterDemand
         @test ReqCollection2 === DemandCollection2
         @test EcoSISTEM.AbstractRequirement === EcoSISTEM.AbstractDemand
         # and they still construct the same object

@@ -53,7 +53,7 @@ param = EqualPop(birth, death, long, surv, boost)
 
 movement = BirthOnlyMovement(kernel, Torus())
 
-tolerance = NicheTolerance(MeanTemperature, Normal, opts, vars)
+tolerance = NicheTolerance(Temperature, Normal, opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
 sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,

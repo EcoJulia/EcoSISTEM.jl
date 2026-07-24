@@ -53,7 +53,7 @@ end
     birth = 0.1 / month
     nogrowth = NoGrowth{typeof(unit(birth))}(fill(birth, N), fill(birth, N),
                                              1.0, 0.0, 1.0)
-    tolerance = NicheTolerance(MeanTemperature, Normal, fill(274.0K, N),
+    tolerance = NicheTolerance(Temperature, Normal, fill(274.0K, N),
                                fill(0.5K, N))
     movement = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1.0e-3), N))
     native = fill(true, N)

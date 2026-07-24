@@ -27,18 +27,28 @@ include("Units/Units.jl")
 
 # Layer roles + specs (recipes) — defined early so later modules can build on them.
 include("NicheInfo.jl")
-export NicheAxis, AbstractTemperature, AbstractPrecipitation,
-       MeanTemperature, MinTemperature, MaxTemperature, DiurnalTemperatureRange,
-       TemperatureSeasonality, TemperatureAnnualRange,
-       WettestQuarterTemperature,
-       DriestQuarterTemperature, WarmestQuarterTemperature,
-       ColdestQuarterTemperature,
-       Precipitation, WettestMonthPrecipitation, DriestMonthPrecipitation,
-       WettestQuarterPrecipitation, DriestQuarterPrecipitation,
-       WarmestQuarterPrecipitation, ColdestQuarterPrecipitation,
-       SolarRadiation, WindSpeed, VaporPressure, Isothermality,
-       PrecipitationSeasonality, Heterogeneity, LandType, Altitude,
-       VolumetricWater
+export NicheAxis,
+# grouping supertypes (XxxAxis)
+       TemperatureAxis, WaterAxis, PrecipitationAxis, HumidityAxis,
+       VaporPressureDeficitAxis, RelativeHumidityAxis, EvapotranspirationAxis,
+       ClimateMoistureAxis, SolarRadiationAxis, WindSpeedAxis, CloudCoverAxis,
+       DayAxis, CarbonAxis, TypologyAxis,
+# temperature leaves
+       Temperature, TemperatureRange, TemperatureSeasonality, CumulativeHeat,
+       Isothermality, FrostChangeFrequency,
+# water leaves
+       Precipitation, PrecipitationSeasonality, VaporPressure,
+       VaporPressureDeficit, VaporPressureDeficitRange, RelativeHumidity,
+       RelativeHumidityRange, Evapotranspiration, EvapotranspirationRange,
+       ClimateMoisture, ClimateMoistureRange, SnowWaterEquivalent,
+       SiteWaterBalance, GrowingSeasonPrecipitation,
+# radiation / wind / cloud
+       SolarRadiation, SolarRadiationRange, WindSpeed, WindSpeedRange,
+       CloudCover, CloudCoverRange,
+# day / carbon / typology / other
+       DayOfYear, DayRange, CarbonFlux, LandCoverTypology, ClimateTypology,
+       Heterogeneity, Altitude
+export SourceSpec, UniformSpec, GradientSpec, PeakedSpec, NicheSpec
 
 # Geographic coordinate type — used across the ClimatePref sub-module and the main module, so it is
 # defined here (before ClimatePref) rather than inside it.
@@ -92,9 +102,7 @@ export SimpleSupply,
        SolarSupply,
        SolarTimeSupply,
        WaterSupply,
-       VolWaterSupply,
        WaterTimeSupply,
-       VolWaterTimeSupply,
        SupplyCollection2
 
 include("Habitats.jl")
@@ -105,7 +113,6 @@ export SimpleDemand,
        SizeDemand,
        SolarDemand,
        WaterDemand,
-       VolWaterDemand,
        DemandCollection2
 
 include("AbioticEnv.jl")
@@ -167,6 +174,9 @@ export Ecosystem,
        addspecies!
 
 include("Simplify.jl")
+export build_environment, build_species, build_ecosystem
+export datamask, landmask, circlemask
+
 include("Traitfuns.jl")
 export suitability, getpref, getdist, getnichefit, getregime
 
@@ -176,7 +186,7 @@ export suitability, getpref, getdist, getnichefit, getregime
 include("deprecations.jl")
 
 include("HabitatUpdate.jl")
-export TempChange, RainfallChange, TempFluct, eraChange,
+export TempChange, RainfallChange, TempFluct, cyclicChange, eraChange,
        worldclimChange
 
 include("Scenarios.jl")

@@ -22,7 +22,7 @@ function cache_test_eco(seed)
     param = EqualPop(0.2 / year, 0.2 / year, 1.0, 0.0, 1.0)
     kernel = fill(GaussianKernel(2.0km, 1.0e-3), numSpecies)
     movement = BirthOnlyMovement(kernel, NoBoundary())
-    tolerance = NicheTolerance(MeanTemperature, Normal,
+    tolerance = NicheTolerance(Temperature, Normal,
                                fill(274.0K, numSpecies),
                                fill(0.5K, numSpecies))
     native = fill(true, numSpecies)
