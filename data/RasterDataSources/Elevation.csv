@@ -1,2 +1,2 @@
-﻿Code,Name,Definition,Units,Scale,Offset,Layers,Temporal Resolution,Notes,Axis
-elev,Elevation,Elevation above sea level,m,1.0,0.0,1,Static,Derived from SRTM; distributed alongside climate data but not a climate variable,Altitude
+Code,Axis,OfficialUnit,Units,UnitDimension,Category,IsRate,ValueType,Name,Definition,Source,NumLayers,Temporal Resolution,Notes
+elev,Altitude,m,m,𝐋,instantaneous,false,continuous,Elevation,Elevation above sea level,WorldClim,1,,Derived from SRTM; distributed alongside climate data but not a climate variable

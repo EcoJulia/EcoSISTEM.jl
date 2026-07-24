@@ -1,74 +1,76 @@
-Group,Code,Name,Units,Scale,Offset,Definition
-Climatology,cmi_max,Maximum monthly climate moisture index,kg*m^-2*month^-1,0.1,0,Climate moisture index of the month with the largest precipitation surplus
-Climatology,cmi_mean,Mean monthly climate moisture index,kg*m^-2*month^-1,0.1,0,Average monthly climate moisture index over one year
-Climatology,cmi_min,Minimum monthly climate moisture index,kg*m^-2*month^-1,0.1,0,Climate moisture index of the month with the largest precipitation deficit
-Climatology,cmi_range,Annual range of monthly climate moisture index,kg*m^-2*month^-1,0.1,0,Difference between maximum and minimum monthly climate moisture index
-Climatology,cmi_01 ... cmi_12,Monthly climate moisture indices,kg*m^-2*month^-1,0.1,0,Climate moisture index for each of the 12 months
-Climatology,fcf,Frost change frequency,,1,0,Number of events in which tmin or tmax crosses 0 C
-Climatology,fgd,First day of the growing season (TREELIM),day,1,0,First day of the growing season under the TREELIM model
-Climatology,lgd,Last day of the growing season (TREELIM),day,1,0,Last day of the growing season under the TREELIM model
-Climatology,gsl,Growing season length (TREELIM),day,1,0,Length of the growing season
-Climatology,gsp,Growing season precipitation (TREELIM),kg*m^-2,0.1,0,Precipitation accumulated over all growing season days
-Climatology,gst,Growing season mean temperature (TREELIM),K,0.1,0,Mean temperature of all growing season days
-Climatology,gdd0,Growing degree days above 0 C,K,0.1,0,Heat sum of all days above 0 C accumulated over one year
-Climatology,gdd5,Growing degree days above 5 C,K,0.1,0,Heat sum of all days above 5 C accumulated over one year
-Climatology,gdd10,Growing degree days above 10 C,K,0.1,0,Heat sum of all days above 10 C accumulated over one year
-Climatology,gdgfgd0,First growing degree day above 0 C,day,1,0,First day of the year above 0 C
-Climatology,gdgfgd5,First growing degree day above 5 C,day,1,0,First day of the year above 5 C
-Climatology,gdgfgd10,First growing degree day above 10 C,day,1,0,First day of the year above 10 C
-Climatology,gddlgd0,Last growing degree day above 0 C,day,1,0,Last day of the year above 0 C
-Climatology,gddlgd5,Last growing degree day above 5 C,day,1,0,Last day of the year above 5 C
-Climatology,gddlgd10,Last growing degree day above 10 C,day,1,0,Last day of the year above 10 C
-Climatology,ngd0,Number of growing degree days above 0 C,day,1,0,Number of days on which tas > 0 C
-Climatology,ngd5,Number of growing degree days above 5 C,day,1,0,Number of days on which tas > 5 C
-Climatology,ngd10,Number of growing degree days above 10 C,day,1,0,Number of days on which tas > 10 C
-Climatology,npp,Net primary productivity (grams of Carbon),g*m^-2*year^-1,0.1,0,Potential NPP calculated with the Miami model (Lieth 1972)
-Climatology,scd,Snow cover days,day,1,0,Number of days with snow cover (TREELIM snowpack implementation)
-Climatology,swe,Snow water equivalent,kg*m^-2*year^-1,0.1,0,Amount of liquid water if the snow were melted
-Climatology,hurs_max,Maximum monthly near-surface relative humidity,,0.01,0,Highest monthly near-surface relative humidity
-Climatology,hurs_mean,Mean monthly near-surface relative humidity,,0.01,0,Average monthly near-surface relative humidity over one year
-Climatology,hurs_min,Minimum monthly near-surface relative humidity,,0.01,0,Lowest monthly near-surface relative humidity
-Climatology,hurs_range,Annual range of monthly near-surface relative humidity,,0.01,0,Difference between maximum and minimum near-surface relative humidity
-Climatology,hurs_01 ... hurs_12,Monthly near-surface relative humidity,,0.01,0,Near-surface relative humidity for each of the 12 months
-Climatology,clt_max,Maximum monthly total cloud cover,,0.01,0,Highest monthly total cloud cover
-Climatology,clt_mean,Mean monthly total cloud cover,,0.01,0,Average monthly total cloud cover over one year
-Climatology,clt_min,Minimum monthly total cloud cover,,0.01,0,Lowest monthly total cloud cover
-Climatology,clt_range,Annual range of monthly total cloud cover,,0.01,0,Difference between maximum and minimum monthly total cloud cover
-Climatology,clt_01 ... clt_12,Monthly total cloud cover,,0.01,0,Total cloud cover for each of the 12 months
-Climatology,vpd_max,Maximum monthly vapour pressure deficit,Pa,0.1,0,Highest monthly vapour pressure deficit
-Climatology,vpd_mean,Mean monthly vapour pressure deficit,Pa,0.1,0,Average monthly vapour pressure deficit over one year
-Climatology,vpd_min,Minimum monthly vapour pressure deficit,Pa,0.1,0,Lowest monthly vapour pressure deficit
-Climatology,vpd_range,Annual range of monthly vapour pressure deficit,Pa,0.1,0,Difference between maximum and minimum monthly vapour pressure deficit
-Climatology,vpd_01 ... vpd_12,Monthly vapour pressure deficit,Pa,0.1,0,Vapour pressure deficit for each of the 12 months
-Climatology,pet_penman_max,Maximum monthly potential evapotranspiration,kg*m^-2*month^-1,0.01,0,Highest monthly PET (Penman-Monteith)
-Climatology,pet_penman_mean,Mean monthly potential evapotranspiration,kg*m^-2*month^-1,0.01,0,Average monthly PET over one year (Penman-Monteith)
-Climatology,pet_penman_min,Minimum monthly potential evapotranspiration,kg*m^-2*month^-1,0.01,0,Lowest monthly PET (Penman-Monteith)
-Climatology,pet_penman_range,Annual range of monthly potential evapotranspiration,kg*m^-2,0.01,0,Difference between maximum and minimum monthly PET
-Climatology,pet_penman_01 ... pet_penman_12,Monthly potential evapotranspiration,kg*m^-2*month^-1,0.01,0,PET for each of the 12 months (Penman-Monteith)
-Climatology,rsds_max,Maximum monthly surface downwelling shortwave flux,MJ*m^-2*day^-1,0.001,0,Highest monthly surface downwelling shortwave flux in air
-Climatology,rsds_mean,Mean monthly surface downwelling shortwave flux,MJ*m^-2*day^-1,0.001,0,Average monthly surface downwelling shortwave flux over one year
-Climatology,rsds_min,Minimum monthly surface downwelling shortwave flux,MJ*m^-2*day^-1,0.001,0,Lowest monthly surface downwelling shortwave flux in air
-Climatology,rsds_range,Annual range of monthly surface downwelling shortwave flux,MJ*m^-2*day^-1,0.001,0,Difference between maximum and minimum monthly shortwave flux
-Climatology,rsds_01 ... rsds_12,Monthly surface downwelling shortwave flux,MJ*m^-2*day^-1,0.001,0,Surface downwelling shortwave flux for each of the 12 months (see notes: spec text has a copy-paste error here)
-Climatology,pr_01 ... pr_12,Monthly precipitation amount,kg*m^-2*month^-1,0.1,0,Precipitation amount for each of the 12 months
-Climatology,tas_01 ... tas_12,Mean daily air temperature,K,0.1,0,Mean daily 2 m air temperature for each of the 12 months
-Climatology,tasmax_01 ... tasmax_12,Mean daily maximum air temperature,K,0.1,0,Mean daily maximum 2 m air temperature for each of the 12 months
-Climatology,tasmin_01 ... tasmin_12,Mean daily minimum air temperature,K,0.1,0,Mean daily minimum 2 m air temperature for each of the 12 months
-Climatology,kg0,Koppen-Geiger climate classification,,1,0,Koppen-Geiger (Koeppen & Geiger 1936); 31 classes
-Climatology,kg1,Koppen-Geiger climate classification,,1,0,Koppen-Geiger without As/Aw differentiation
-Climatology,kg2,Koppen-Geiger climate classification,,1,0,Koppen-Geiger after Peel et al. 2007
-Climatology,kg3,Wissmann climate classification,,1,0,Wissmann 1939; 22 classes
-Climatology,kg4,Thornthwaite climate classification,,1,0,Thornthwaite 1931; 30 classes
-Climatology,kg5,Troll-Pfaffen climate classification,,1,0,Troll-Pfaffen (Troll & Paffen 1964); 37 classes
-Monthly time-series,cmi,Climate moisture index,kg*m^-2*month^-1,0.1,0,Precipitation amount minus potential evapotranspiration
-Monthly time-series,hurs,Near-surface relative humidity,,0.01,0,Near-surface relative humidity
-Monthly time-series,pet_penman,Potential evapotranspiration,kg*m^-2*month^-1,0.01,0,PET calculated with the Penman-Monteith equation
-Monthly time-series,pr,Precipitation amount,kg*m^-2*month^-1,0.1,0,Precipitation of water in all phases; mass per unit area
-Monthly time-series,rsds,Surface downwelling shortwave flux in air,MJ*m^-2*day^-1,0.001,0,Shortwave flux at the surface; attenuating effects of clouds accounted for
-Monthly time-series,sfcWind,Near-surface wind speed,m*s^-1,0.001,0,Wind speed 10 m above ground
-Monthly time-series,clt,Total cloud cover at surface,,0.01,0,Cloud cover across the whole atmospheric column seen from the surface upwards
-Monthly time-series,vpd,Vapour pressure deficit,Pa,0.1,0,Vapour pressure deficit
-Monthly time-series,tas,Mean daily air temperature,K,0.1,0,Mean daily 2 m air temperature from hourly ERA5 data
-Monthly time-series,tasmax,Mean daily maximum air temperature,K,0.1,0,Mean daily maximum 2 m air temperature from hourly ERA5 data
-Monthly time-series,tasmin,Mean daily minimum air temperature,K,0.1,0,Mean daily minimum 2 m air temperature from hourly ERA5 data
-Annual,swb,Site water balance,kg*m^-2*year^-1,0.1,0,Cumulative water available through the year; capped by soil available water holding capacity
+Code,Axis,OfficialUnit,Units,UnitDimension,Category,IsRate,ValueType,Name,Definition,Source,NumLayers,Temporal Resolution,Group,Notes
+bio1,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Annual Mean Temperature,Mean of the 12 monthly mean temperatures,CHELSA,1,,Climatology,
+bio2,TemperatureRange,°C,K,𝚯,range,false,continuous,Mean Diurnal Range,Mean of monthly (max temp - min temp),CHELSA,1,,Climatology,
+bio3,Isothermality,°C,,,range,false,continuous,Isothermality,bio2 / bio7,CHELSA,1,,Climatology,
+bio4,TemperatureSeasonality,°C,K,𝚯,range,false,continuous,Temperature Seasonality,Standard deviation of monthly mean temperatures,CHELSA,1,,Climatology,
+bio5,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Max Temperature of Warmest Month,Highest monthly maximum temperature,CHELSA,1,,Climatology,
+bio6,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Min Temperature of Coldest Month,Lowest monthly minimum temperature,CHELSA,1,,Climatology,
+bio7,TemperatureRange,°C,K,𝚯,range,false,continuous,Temperature Annual Range,bio5 - bio6,CHELSA,1,,Climatology,
+bio8,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Mean Temperature of Wettest Quarter,Mean temperature of the wettest 3 consecutive months,CHELSA,1,,Climatology,
+bio9,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Mean Temperature of Driest Quarter,Mean temperature of the driest 3 consecutive months,CHELSA,1,,Climatology,
+bio10,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Mean Temperature of Warmest Quarter,Mean temperature of the warmest 3 consecutive months,CHELSA,1,,Climatology,
+bio11,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Mean Temperature of Coldest Quarter,Mean temperature of the coldest 3 consecutive months,CHELSA,1,,Climatology,
+bio12,Precipitation,kg*m^-2,L*m^-2*yr^-1,𝐋 * 𝐓^-1,rate,true,continuous,Annual Precipitation,Sum of the 12 monthly precipitation totals,CHELSA,1,year,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+bio13,Precipitation,kg*m^-2,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Wettest Month,Precipitation of the month with the highest total,CHELSA,1,month,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+bio14,Precipitation,kg*m^-2,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Driest Month,Precipitation of the month with the lowest total,CHELSA,1,month,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+bio15,PrecipitationSeasonality,°C,,,range,false,continuous,Precipitation Seasonality,Coefficient of variation of monthly precipitation,CHELSA,1,,Climatology,
+bio16,Precipitation,kg*m^-2,L*m^-2*quarter^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Wettest Quarter,Total precipitation of the wettest 3 consecutive months,CHELSA,1,quarter,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+bio17,Precipitation,kg*m^-2,L*m^-2*quarter^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Driest Quarter,Total precipitation of the driest 3 consecutive months,CHELSA,1,quarter,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+bio18,Precipitation,kg*m^-2,L*m^-2*quarter^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Warmest Quarter,Total precipitation of the warmest 3 consecutive months,CHELSA,1,quarter,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+bio19,Precipitation,kg*m^-2,L*m^-2*quarter^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Coldest Quarter,Total precipitation of the coldest 3 consecutive months,CHELSA,1,quarter,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+cmi_max,ClimateMoisture,kg*m^-2*month^-1,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Maximum monthly climate moisture index,Climate moisture index of the month with the largest precipitation surplus,CHELSA,1,month,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+cmi_mean,ClimateMoisture,kg*m^-2*month^-1,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Mean monthly climate moisture index,Average monthly climate moisture index over one year,CHELSA,1,month,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+cmi_min,ClimateMoisture,kg*m^-2*month^-1,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Minimum monthly climate moisture index,Climate moisture index of the month with the largest precipitation deficit,CHELSA,1,month,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+cmi_range,ClimateMoistureRange,kg*m^-2*month^-1,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Annual range of monthly climate moisture index,Difference between maximum and minimum monthly climate moisture index,CHELSA,1,month,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+clt_max,CloudCover,%,,,instantaneous,false,continuous,Maximum monthly total cloud cover,Highest monthly total cloud cover,CHELSA,1,,Climatology,
+clt_mean,CloudCover,%,,,instantaneous,false,continuous,Mean monthly total cloud cover,Average monthly total cloud cover over one year,CHELSA,1,,Climatology,
+clt_min,CloudCover,%,,,instantaneous,false,continuous,Minimum monthly total cloud cover,Lowest monthly total cloud cover,CHELSA,1,,Climatology,
+clt_range,CloudCoverRange,%,,,range,false,continuous,Annual range of monthly total cloud cover,Difference between maximum and minimum monthly total cloud cover,CHELSA,1,,Climatology,
+hurs_max,RelativeHumidity,%,,,instantaneous,false,continuous,Maximum monthly near-surface relative humidity,Highest monthly near-surface relative humidity,CHELSA,1,,Climatology,
+hurs_mean,RelativeHumidity,%,,,instantaneous,false,continuous,Mean monthly near-surface relative humidity,Average monthly near-surface relative humidity over one year,CHELSA,1,,Climatology,
+hurs_min,RelativeHumidity,%,,,instantaneous,false,continuous,Minimum monthly near-surface relative humidity,Lowest monthly near-surface relative humidity,CHELSA,1,,Climatology,
+hurs_range,RelativeHumidityRange,%,,,range,false,continuous,Annual range of monthly near-surface relative humidity,Difference between maximum and minimum near-surface relative humidity,CHELSA,1,,Climatology,
+vpd_max,VaporPressureDeficit,Pa,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,instantaneous,false,continuous,Maximum monthly vapour pressure deficit,Highest monthly vapour pressure deficit,CHELSA,1,,Climatology,
+vpd_mean,VaporPressureDeficit,Pa,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,instantaneous,false,continuous,Mean monthly vapour pressure deficit,Average monthly vapour pressure deficit over one year,CHELSA,1,,Climatology,
+vpd_min,VaporPressureDeficit,Pa,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,instantaneous,false,continuous,Minimum monthly vapour pressure deficit,Lowest monthly vapour pressure deficit,CHELSA,1,,Climatology,
+vpd_range,VaporPressureDeficitRange,Pa,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,range,false,continuous,Annual range of monthly vapour pressure deficit,Difference between maximum and minimum monthly vapour pressure deficit,CHELSA,1,,Climatology,
+pet_penman_max,Evapotranspiration,kg*m^-2*month^-1,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Maximum monthly potential evapotranspiration,Highest monthly PET (Penman-Monteith),CHELSA,1,month,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+pet_penman_mean,Evapotranspiration,kg*m^-2*month^-1,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Mean monthly potential evapotranspiration,Average monthly PET over one year (Penman-Monteith),CHELSA,1,month,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+pet_penman_min,Evapotranspiration,kg*m^-2*month^-1,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Minimum monthly potential evapotranspiration,Lowest monthly PET (Penman-Monteith),CHELSA,1,month,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+pet_penman_range,EvapotranspirationRange,kg*m^-2*month^-1,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Annual range of monthly potential evapotranspiration,Difference between maximum and minimum monthly PET,CHELSA,1,month,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+rsds_max,SolarRadiation,MJ*m^-2*day^-1,MJ*d^-1*m^-2,𝐌 * 𝐓^-3,rate,true,continuous,Maximum monthly surface downwelling shortwave flux,Highest monthly surface downwelling shortwave flux in air,CHELSA,1,day,Climatology,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+rsds_mean,SolarRadiation,MJ*m^-2*day^-1,MJ*d^-1*m^-2,𝐌 * 𝐓^-3,rate,true,continuous,Mean monthly surface downwelling shortwave flux,Average monthly surface downwelling shortwave flux over one year,CHELSA,1,day,Climatology,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+rsds_min,SolarRadiation,MJ*m^-2*day^-1,MJ*d^-1*m^-2,𝐌 * 𝐓^-3,rate,true,continuous,Minimum monthly surface downwelling shortwave flux,Lowest monthly surface downwelling shortwave flux in air,CHELSA,1,day,Climatology,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+rsds_range,SolarRadiationRange,MJ*m^-2*day^-1,MJ*d^-1*m^-2,𝐌 * 𝐓^-3,rate,true,continuous,Annual range of monthly surface downwelling shortwave flux,Difference between maximum and minimum monthly shortwave flux,CHELSA,1,day,Climatology,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+sfcWind_max,WindSpeed,m*s^-1,m*s^-1,𝐋 * 𝐓^-1,instantaneous,false,continuous,Maximum monthly near-surface wind speed,Highest monthly near-surface wind speed,CHELSA,1,,Climatology,
+sfcWind_mean,WindSpeed,m*s^-1,m*s^-1,𝐋 * 𝐓^-1,instantaneous,false,continuous,Mean monthly near-surface wind speed,Average monthly near-surface wind speed over one year,CHELSA,1,,Climatology,
+sfcWind_min,WindSpeed,m*s^-1,m*s^-1,𝐋 * 𝐓^-1,instantaneous,false,continuous,Minimum monthly near-surface wind speed,Lowest monthly near-surface wind speed,CHELSA,1,,Climatology,
+sfcWind_range,WindSpeedRange,m*s^-1,m*s^-1,𝐋 * 𝐓^-1,range,false,continuous,Annual range of monthly near-surface wind speed,Difference between maximum and minimum monthly near-surface wind speed,CHELSA,1,,Climatology,
+fcf,FrostChangeFrequency,,,,count,false,discrete,Frost change frequency,Number of events in which tmin or tmax crosses 0 C,CHELSA,1,,Climatology,
+fgd,DayOfYear,day,d,𝐓,count,false,discrete,First day of the growing season (TREELIM),First day of the growing season under the TREELIM model,CHELSA,1,,Climatology,
+lgd,DayOfYear,day,d,𝐓,count,false,discrete,Last day of the growing season (TREELIM),Last day of the growing season under the TREELIM model,CHELSA,1,,Climatology,
+gsl,DayRange,day,d,𝐓,stock,false,discrete,Growing season length (TREELIM),Length of the growing season,CHELSA,1,,Climatology,
+gsp,GrowingSeasonPrecipitation,kg*m^-2*gsl^-1,L*m^-2,𝐋,stock,false,continuous,Growing season precipitation (TREELIM),Precipitation accumulated over all growing season days,CHELSA,1,,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); gsl is not a fixed physical time unit, so no conversion to it is attempted — repo treats gsp as a plain total, confirmed by downloading gsl+precipitation and checking practical bounds"
+gst,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Growing season mean temperature (TREELIM),Mean temperature of all growing season days,CHELSA,1,,Climatology,
+gdd0,CumulativeHeat,°C,d*K,𝚯 * 𝐓,stock,false,continuous,Growing degree days above 0 C,Heat sum of all days above 0 C accumulated over one year,CHELSA,1,year,Climatology,
+gdd5,CumulativeHeat,°C,d*K,𝚯 * 𝐓,stock,false,continuous,Growing degree days above 5 C,Heat sum of all days above 5 C accumulated over one year,CHELSA,1,year,Climatology,
+gdd10,CumulativeHeat,°C,d*K,𝚯 * 𝐓,stock,false,continuous,Growing degree days above 10 C,Heat sum of all days above 10 C accumulated over one year,CHELSA,1,year,Climatology,
+gdgfgd0,DayOfYear,day,d,𝐓,count,false,discrete,First growing degree day above 0 C,First day of the year above 0 C,CHELSA,1,,Climatology,
+gdgfgd5,DayOfYear,day,d,𝐓,count,false,discrete,First growing degree day above 5 C,First day of the year above 5 C,CHELSA,1,,Climatology,
+gdgfgd10,DayOfYear,day,d,𝐓,count,false,discrete,First growing degree day above 10 C,First day of the year above 10 C,CHELSA,1,,Climatology,
+gddlgd0,DayOfYear,day,d,𝐓,count,false,discrete,Last growing degree day above 0 C,Last day of the year above 0 C,CHELSA,1,,Climatology,
+gddlgd5,DayOfYear,day,d,𝐓,count,false,discrete,Last growing degree day above 5 C,Last day of the year above 5 C,CHELSA,1,,Climatology,
+gddlgd10,DayOfYear,day,d,𝐓,count,false,discrete,Last growing degree day above 10 C,Last day of the year above 10 C,CHELSA,1,,Climatology,
+ngd0,DayRange,day,d,𝐓,count,false,discrete,Number of growing degree days above 0 C,Number of days on which tas > 0 C,CHELSA,1,,Climatology,
+ngd5,DayRange,day,d,𝐓,count,false,discrete,Number of growing degree days above 5 C,Number of days on which tas > 5 C,CHELSA,1,,Climatology,
+ngd10,DayRange,day,d,𝐓,count,false,discrete,Number of growing degree days above 10 C,Number of days on which tas > 10 C,CHELSA,1,,Climatology,
+scd,DayRange,day,d,𝐓,count,false,discrete,Snow cover days,Number of days with snow cover (TREELIM snowpack implementation),CHELSA,1,,Climatology,
+npp,CarbonFlux,g*C*m^-2*year^-1,g*m^-2*yr^-1,𝐌 * 𝐋^-2 * 𝐓^-1,rate,true,continuous,Net primary productivity,Potential NPP calculated with the Miami model (Lieth 1972),CHELSA,1,year,Climatology,
+swe,SnowWaterEquivalent,kg*m^-2*year^-1,L*m^-2,𝐋,stock,false,continuous,Snow water equivalent,Amount of liquid water if the snow were melted,CHELSA,1,year,Climatology,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+kg0,ClimateTypology,,,,categorical,false,categorical,Koppen-Geiger climate classification,Koppen-Geiger (Koeppen & Geiger 1936); 31 classes,CHELSA,1,,Climatology,
+kg1,ClimateTypology,,,,categorical,false,categorical,Koppen-Geiger climate classification,Koppen-Geiger without As/Aw differentiation,CHELSA,1,,Climatology,
+kg2,ClimateTypology,,,,categorical,false,categorical,Koppen-Geiger climate classification,Koppen-Geiger after Peel et al. 2007,CHELSA,1,,Climatology,
+kg3,ClimateTypology,,,,categorical,false,categorical,Wissmann climate classification,Wissmann 1939; 22 classes,CHELSA,1,,Climatology,
+kg4,ClimateTypology,,,,categorical,false,categorical,Thornthwaite climate classification,Thornthwaite 1931; 30 classes,CHELSA,1,,Climatology,
+kg5,ClimateTypology,,,,categorical,false,categorical,Troll-Pfaffen climate classification,Troll-Pfaffen (Troll & Paffen 1964); 37 classes,CHELSA,1,,Climatology,
+swb,SiteWaterBalance,kg*m^-2*year^-1,L*m^-2,𝐋,balance,false,continuous,Site water balance,Cumulative water available through the year; capped by soil available water holding capacity,CHELSA,1,year,Annual,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"

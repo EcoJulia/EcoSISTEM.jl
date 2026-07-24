@@ -1,20 +1,20 @@
-Code2,Code,Name,Definition,Units,Scale,Offset,Axis
-BIO1,1,Annual Mean Temperature,Mean of the 12 monthly mean temperatures,K,1,0,MeanTemperature
-BIO2,2,Mean Diurnal Range,Mean of monthly (max temp - min temp),K,1,0,DiurnalTemperatureRange
-BIO3,3,Isothermality,(BIO2 / BIO7) x 100,,0.01,0,Isothermality
-BIO4,4,Temperature Seasonality,Standard deviation of monthly mean temperatures x 100,K,0.01,0,TemperatureSeasonality
-BIO5,5,Max Temperature of Warmest Month,Highest monthly maximum temperature,K,1,0,MaxTemperature
-BIO6,6,Min Temperature of Coldest Month,Lowest monthly minimum temperature,K,1,0,MinTemperature
-BIO7,7,Temperature Annual Range,BIO5 - BIO6,K,1,0,TemperatureAnnualRange
-BIO8,8,Mean Temperature of Wettest Quarter,Mean temperature of the wettest 3 consecutive months,K,1,0,WettestQuarterTemperature
-BIO9,9,Mean Temperature of Driest Quarter,Mean temperature of the driest 3 consecutive months,K,1,0,DriestQuarterTemperature
-BIO10,10,Mean Temperature of Warmest Quarter,Mean temperature of the warmest 3 consecutive months,K,1,0,WarmestQuarterTemperature
-BIO11,11,Mean Temperature of Coldest Quarter,Mean temperature of the coldest 3 consecutive months,K,1,0,ColdestQuarterTemperature
-BIO12,12,Annual Precipitation,Sum of the 12 monthly precipitation totals,mm,1,0,Precipitation
-BIO13,13,Precipitation of Wettest Month,Precipitation of the month with the highest total,mm,1,0,WettestMonthPrecipitation
-BIO14,14,Precipitation of Driest Month,Precipitation of the month with the lowest total,mm,1,0,DriestMonthPrecipitation
-BIO15,15,Precipitation Seasonality,Coefficient of variation of monthly precipitation (SD / mean x 100),,0.01,0,PrecipitationSeasonality
-BIO16,16,Precipitation of Wettest Quarter,Total precipitation of the wettest 3 consecutive months,mm,1,0,WettestQuarterPrecipitation
-BIO17,17,Precipitation of Driest Quarter,Total precipitation of the driest 3 consecutive months,mm,1,0,DriestQuarterPrecipitation
-BIO18,18,Precipitation of Warmest Quarter,Total precipitation of the warmest 3 consecutive months,mm,1,0,WarmestQuarterPrecipitation
-BIO19,19,Precipitation of Coldest Quarter,Total precipitation of the coldest 3 consecutive months,mm,1,0,ColdestQuarterPrecipitation
+Code,Axis,OfficialUnit,Units,UnitDimension,Category,IsRate,ValueType,Name,Definition,Source,NumLayers,Temporal Resolution,Notes
+1;bio1,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Annual Mean Temperature,Mean of the 12 monthly mean temperatures,WorldClim;CHELSA,1,,
+2;bio2,TemperatureRange,°C,K,𝚯,range,false,continuous,Mean Diurnal Range,Mean of monthly (max temp - min temp),WorldClim;CHELSA,1,,
+3;bio3,Isothermality,°C,,,range,false,continuous,Isothermality,bio2 / bio7,WorldClim;CHELSA,1,,
+4;bio4,TemperatureSeasonality,°C,K,𝚯,range,false,continuous,Temperature Seasonality,Standard deviation of monthly mean temperatures,WorldClim;CHELSA,1,,
+5;bio5,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Max Temperature of Warmest Month,Highest monthly maximum temperature,WorldClim;CHELSA,1,,
+6;bio6,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Min Temperature of Coldest Month,Lowest monthly minimum temperature,WorldClim;CHELSA,1,,
+7;bio7,TemperatureRange,°C,K,𝚯,range,false,continuous,Temperature Annual Range,bio5 - bio6,WorldClim;CHELSA,1,,
+8;bio8,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Mean Temperature of Wettest Quarter,Mean temperature of the wettest 3 consecutive months,WorldClim;CHELSA,1,,
+9;bio9,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Mean Temperature of Driest Quarter,Mean temperature of the driest 3 consecutive months,WorldClim;CHELSA,1,,
+10;bio10,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Mean Temperature of Warmest Quarter,Mean temperature of the warmest 3 consecutive months,WorldClim;CHELSA,1,,
+11;bio11,Temperature,°C,°C,𝚯,instantaneous,false,continuous,Mean Temperature of Coldest Quarter,Mean temperature of the coldest 3 consecutive months,WorldClim;CHELSA,1,,
+12;bio12,Precipitation,kg*m^-2,L*m^-2*yr^-1,𝐋 * 𝐓^-1,rate,true,continuous,Annual Precipitation,Sum of the 12 monthly precipitation totals,WorldClim;CHELSA,1,year,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+13;bio13,Precipitation,kg*m^-2,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Wettest Month,Precipitation of the month with the highest total,WorldClim;CHELSA,1,month,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+14;bio14,Precipitation,kg*m^-2,L*m^-2*month^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Driest Month,Precipitation of the month with the lowest total,WorldClim;CHELSA,1,month,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+15;bio15,PrecipitationSeasonality,°C,,,range,false,continuous,Precipitation Seasonality,Coefficient of variation of monthly precipitation,WorldClim;CHELSA,1,,
+16;bio16,Precipitation,kg*m^-2,L*m^-2*quarter^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Wettest Quarter,Total precipitation of the wettest 3 consecutive months,WorldClim;CHELSA,1,quarter,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+17;bio17,Precipitation,kg*m^-2,L*m^-2*quarter^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Driest Quarter,Total precipitation of the driest 3 consecutive months,WorldClim;CHELSA,1,quarter,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+18;bio18,Precipitation,kg*m^-2,L*m^-2*quarter^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Warmest Quarter,Total precipitation of the warmest 3 consecutive months,WorldClim;CHELSA,1,quarter,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+19;bio19,Precipitation,kg*m^-2,L*m^-2*quarter^-1,𝐋 * 𝐓^-1,rate,true,continuous,Precipitation of Coldest Quarter,Total precipitation of the coldest 3 consecutive months,WorldClim;CHELSA,1,quarter,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
