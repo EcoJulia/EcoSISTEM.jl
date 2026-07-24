@@ -3,158 +3,112 @@
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using EcoSISTEM: LatLong
 using AxisArrays
-using NetCDF
 using IndexedTables
 
-function checkbounds(lat::Vector{typeof(1.0°)}, long::Vector{typeof(1.0°)})
-    return all(-180.0° .< lat .<= 180.0°) && all(-90.0° .<= long .<= 90.0°)
+# Grid step of a climate array's `dim`-th coordinate axis.
+function _axisstep(arr::AxisArray, dim::Int)
+    vals = AxisArrays.axes(arr, dim).val
+    return vals[2] - vals[1]
 end
 
-function calculatestep(dat::AbstractClimate, dim::Int64)
-    return AxisArrays.axes(dat.array, dim).val[2] -
-           AxisArrays.axes(dat.array, dim).val[1]
+# Half-cell intervals selecting the grid cell containing (`lat`, `long`), each using its own axis
+# step — dim 1 = latitude, dim 2 = longitude.
+function _cellselectors(arr::AxisArray, lat::typeof(1.0°), long::typeof(1.0°))
+    dlat = _axisstep(arr, 1) / 2
+    dlong = _axisstep(arr, 2) / 2
+    return (lat - dlat) .. (lat + dlat), (long - dlong) .. (long + dlong)
 end
 
-function _extract(lat, long, dat, dim::Unitful.Time, thisstep)
-    res = map((i, j) -> dat[(i - thisstep / 2) .. (i + thisstep / 2),
-                            (j - thisstep / 2) .. (j + thisstep / 2),
-                            dim][1, 1, 1],
-              lat, long)
-    return transpose(hcat(res...))
-end
-
-"""
-    extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        wc::Worldclim_monthly, dim::Unitful.Time)
-
-Function to extract values from a worldclim object, at specified x, y locations and
-time, `dim`.
-"""
-function extractvalues(lat::Vector{typeof(1.0°)}, long::Vector{typeof(1.0°)},
-                       wc::Worldclim_monthly, dim::Unitful.Time)
-    checkbounds(lat, long) || error("Coordinates out of bounds")
-    thisstep = calculatestep(wc, 1)
-    res = map((i, j) -> wc.array[(i - thisstep / 2) .. (i + thisstep / 2),
-                                 (j - thisstep / 2) .. (j + thisstep / 2),
-                                 dim][1, 1, 1], lat, long)
-    return transpose(hcat(res...))
-end
-
-"""
-    extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        wc::Worldclim_monthly, dim::Unitful.Time)
-
-Function to extract values from a worldclim object, at specified x, y locations and
-over a range of times, `dim`.
-"""
-function extractvalues(lat::Vector{typeof(1.0°)}, long::Vector{typeof(1.0°)},
-                       wc::Worldclim_monthly, dim::StepRange{typeof(1month)})
-    checkbounds(lat, long) || error("Coordinates out of bounds")
-    res = map((i, j) -> wc.array[(i - thisstep / 2) .. (i + thisstep / 2),
-                                 (j - thisstep / 2) .. (j + thisstep / 2),
-                                 dim], lat, long)
-    return transpose(hcat(res...))
-end
-
-"""
-    extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        bc::ClimateRaster, dim::Unitful.Time)
-
-Function to extract values from a bioclim object, at specified lat, long locations and time, `dim`.
-"""
-function extractvalues(lat::Vector{typeof(1.0°)}, long::Vector{typeof(1.0°)},
-                       bc::ClimateRaster, val::Int64)
-    checkbounds(lat, long) || error("Coordinates out of bounds")
-    thisstep = axes(bc.array, 1).val[2] - axes(bc.array, 1).val[1]
-    res = map((i, j) -> bc.array[(i - thisstep / 2) .. (i + thisstep / 2),
-                                 (j - thisstep / 2) .. (j + thisstep / 2),
-                                 val], lat, long)
-    return transpose(hcat(res...))
-end
-
-"""
-    extractvalues(x::Vector{typeof(1.0°)},y::Vector{typeof(1.0°)},
-        bc::ClimateRaster, dim::Unitful.Time)
-
-Function to extract values from a bioclim object, at specified x, y locations and over a time period, `dim`.
-"""
-function extractvalues(lat::Vector{typeof(1.0°)}, long::Vector{typeof(1.0°)},
-                       bc::ClimateRaster, vals::StepRange{Int64})
-    checkbounds(lat, long) || error("Coordinates out of bounds")
-    thisstep = axes(bc.array, 1).val[2] - axes(bc.array, 1).val[1]
-    res = map((i, j) -> bc.array[(i - thisstep / 2) .. (i + thisstep / 2),
-                                 (j - thisstep / 2) .. (j + thisstep / 2),
-                                 start(vals) .. last(vals)][1, 1, :], x, y)
-    return transpose(hcat(res...))
-end
-
-function extractvalues(lat::Union{Missing, typeof(1.0°)},
-                       long::Union{Missing, typeof(1.0°)},
-                       cal_yr::Union{Missing, Int64}, era::ERA)
-    startyr = ustrip(uconvert(year, axes(era.array)[3].val[1]))
-    endyr = ustrip(uconvert(year, axes(era.array)[3].val[end]))
-    if any(ismissing.([lat, long, cal_yr])) || cal_yr < startyr ||
-       cal_yr > endyr
-        return fill(NaN, 12) .* unit(era.array[1, 1, 1])
-    else
-        -180.0° ≤ lat ≤ 180.0° || error("Latitude coordinate is out of bounds")
-        -90.0° < long < 90.0° || error("Longitude coordinate is out of bounds")
-        thisstep1 = AxisArrays.axes(era.array, 1).val[2] -
-                    AxisArrays.axes(era.array, 1).val[1]
-        thisstep2 = AxisArrays.axes(era.array, 2).val[2] -
-                    AxisArrays.axes(era.array, 2).val[1]
-        time = cal_yr * year
-        long += 0.375°
-        return era.array[(long - thisstep1 / 2) .. (long + thisstep1 / 2),
-                         (lat - thisstep2 / 2) .. (lat + thisstep2 / 2),
-                         time .. (time + 11month)][1, 1, :]
-    end
-end
-
-function extractvalues(lat::Vector{typeof(1.0°)}, long::Vector{typeof(1.0°)},
-                       years::Vector{Int64}, era::ERA)
-    checkbounds(lat, long) || error("Coordinates out of bounds")
-    startyr = ustrip(uconvert(year, axes(era.array)[3].val[1]))
-    endyr = ustrip(uconvert(year, axes(era.array)[3].val[end]))
-    thisstep1 = axes(era.array, 1).val[2] - axes(era.array, 1).val[1]
-    thisstep2 = axes(era.array, 2).val[2] - axes(era.array, 2).val[1]
-    map(x, y, years) do lat, long, cal_yr
-        if cal_yr < startyr || cal_yr > endyr
-            return fill(NaN, 12) .* unit(era.array[1, 1, 1])
+# Positions of `requested` third-axis values within `axisvals`. With `strict`, an absent value is an
+# error; otherwise it is skipped (used by the `year` window, which returns whatever exists).
+function _findslices(axisvals, requested; strict::Bool)
+    idxs = Int[]
+    for v in requested
+        i = findfirst(isequal(v), axisvals)
+        if isnothing(i)
+            strict && error("third-axis selector $v not found")
         else
-            time = cal_yr * 1year
-            return Array(era.array[(lat - thisstep1 / 2) .. (lat + thisstep1 / 2),
-                                   (long - thisstep2 / 2) .. (long + thisstep2 / 2),
-                                   time .. (time + 11month)][1, 1, :])
+            push!(idxs, i)
         end
     end
+    return idxs
 end
 
-function extractvalues(lat::Union{Missing, typeof(1.0°)},
-                       long::Union{Missing, typeof(1.0°)}, ref::Reference)
-    if any(ismissing.([lat, long]))
-        return NaN .* unit(ref.array[1, 1])
-    else
-        -180.0° ≤ lat ≤ 180.0° || error("Latitude coordinate is out of bounds")
-        -90.0° < long < 90.0° || error("Longitude coordinate is out of bounds")
-        thisstep1 = AxisArrays.axes(ref.array, 1).val[2] -
-                    AxisArrays.axes(ref.array, 1).val[1]
-        thisstep2 = AxisArrays.axes(ref.array, 2).val[2] -
-                    AxisArrays.axes(ref.array, 2).val[1]
-        return ref.array[(long - thisstep1 / 2) .. (long + thisstep1 / 2),
-                         (lat - thisstep2 / 2) .. (lat + thisstep2 / 2)][1, 1]
+# Resolve the third-axis selection into a tuple of index/selector args to splat (empty for the 2-D
+# `Reference`) plus a flag for whether the result collapses to a single value.
+function _sliceselector(dat::AbstractClimate, slice, year)
+    arr = dat.array
+    if ndims(arr) == 2
+        (slice === Colon() && isnothing(year)) ||
+            error("$(nameof(typeof(dat))) has no third axis to select from")
+        return (), true
     end
+    axisvals = AxisArrays.axes(arr, 3).val
+    if isnothing(year)
+        slice === Colon() && return (Colon(),), false
+        slice isa AbstractVector &&
+            return (_findslices(axisvals, slice; strict = true),), false
+        return (slice,), true      # lone scalar: Int band (positional) or Time (value lookup)
+    end
+    eltype(axisvals) <: Unitful.Time ||
+        error("`year` only applies to a dataset with a time axis")
+    # Calendar year `Y` spans months `Y·12 … Y·12+11` in the `month` unit (12month == year),
+    # matching how ERA/CERA time axes are built. `:` takes the whole year; a month set filters it.
+    # Either way only entries that actually exist are returned (none if the year is out of range).
+    if slice === Colon()
+        return ((year * 12) * month .. (year * 12 + 11) * month,), false
+    end
+    months = slice isa AbstractVector ? slice : (slice,)
+    requested = [(year * 12 + (m - 1)) * month for m in months]
+    return (_findslices(axisvals, requested; strict = false),), false
 end
 
-function extractvalues(lat::Vector{typeof(1.0°)},
-                       long::Vector{typeof(1.0°)},
-                       ref::Reference)
-    checkbounds(lat, long) || error("Coordinates out of bounds")
-    thisstep1 = step(axes(ref.array, 1).val)
-    thisstep2 = step(axes(ref.array, 2).val)
-    map(x, y) do long, lat
-        return ref.array[(long - thisstep1 / 2) .. (long + thisstep1 / 2),
-                         (lat - thisstep2 / 2) .. (lat + thisstep2 / 2)][1, 1]
-    end
+"""
+    extractvalues(lat, long, dat::AbstractClimate, slice = :; year = nothing)
+    extractvalues(lats, longs, dat::AbstractClimate, slice = :; year = nothing)
+    extractvalues(loc::LatLong, dat::AbstractClimate, slice = :; year = nothing)
+    extractvalues(locs, dat::AbstractClimate, slice = :; year = nothing)
+
+Extract the value(s) at the grid cell(s) containing (`lat`, `long`) from a climate dataset.
+
+A location is a [`LatLong`](@ref) point; pass a single one, a vector of them, or the equivalent
+separate `lat`/`long` scalars or `lats`/`longs` vectors (which build the `LatLong`s and forward).
+`slice` chooses along the non-spatial third axis — a month (`Unitful.Time`) or a variable/band index
+(`Int`), depending on the dataset — as a single value (one slice), a vector (those slices), or `:`
+(all slices, the default); it is ignored for the 2-D [`Reference`](@ref). For a dataset with a
+calendar time axis, the `year` keyword selects the entries falling within that calendar year —
+however many exist, none if the year lies outside the data — and `slice` is then read as month
+number(s) within the year.
+
+A single location with a single slice returns a scalar; a single location with several/all slices
+returns a vector; `N` locations return an `N×1` (single slice) or `N×M` matrix.
+"""
+function extractvalues(loc::LatLong{typeof(1.0°)}, dat::AbstractClimate,
+                       slice = Colon(); year = nothing)
+    sel3, single = _sliceselector(dat, slice, year)
+    latsel, longsel = _cellselectors(dat.array, loc.lat, loc.long)
+    cell = dat.array[latsel, longsel, sel3...]
+    return single ? first(cell) : cell.data[1, 1, :]
+end
+
+function extractvalues(locs::AbstractVector{<:LatLong{typeof(1.0°)}},
+                       dat::AbstractClimate, slice = Colon(); year = nothing)
+    return transpose(hcat(map(loc -> extractvalues(loc, dat, slice;
+                                                   year = year),
+                              locs)...))
+end
+
+function extractvalues(lat::typeof(1.0°), long::typeof(1.0°),
+                       dat::AbstractClimate, slice = Colon(); year = nothing)
+    return extractvalues(LatLong(lat, long), dat, slice; year = year)
+end
+
+function extractvalues(lats::AbstractVector{typeof(1.0°)},
+                       longs::AbstractVector{typeof(1.0°)},
+                       dat::AbstractClimate, slice = Colon(); year = nothing)
+    length(lats) == length(longs) ||
+        error("`lats` and `longs` must have the same length")
+    return extractvalues(map(LatLong, lats, longs), dat, slice; year = year)
 end

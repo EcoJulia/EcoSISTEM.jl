@@ -18,73 +18,32 @@ import Diversity.countsubcommunities
 
 const px = AbsoluteLength(0.254)
 
-"""
-    AbstractHabitat
+# `AbstractRegime`, the `LayerUpdate` dynamics, and the `*Regime`/`RegimeCollection` condition-layer
+# types now live in `Layer.jl` (as `AbstractLayer{Condition}` + `ContinuousLayer`/…). The methods below
+# dispatch on those; the old `*Hab`/`HabitatCollection` names are deprecated aliases (deprecations.jl).
 
-Abstract supertype for all habitat types
-"""
-abstract type AbstractHabitat{H} <: EcoBase.AbstractGrid end
-
-function Diversity.countsubcommunities(ah::AbstractHabitat)
-    return _countsubcommunities(ah)
+function Diversity.countsubcommunities(regime::AbstractRegime)
+    return _countsubcommunities(regime)
 end
-xmin(ah::AbstractHabitat) = 0
-ymin(ah::AbstractHabitat) = 0
-xcellsize(ah::AbstractHabitat) = Float64(ah.size / km)
-ycellsize(ah::AbstractHabitat) = Float64(ah.size / km)
-xcells(ah::AbstractHabitat) = size(ah.matrix, 1)
-ycells(ah::AbstractHabitat) = size(ah.matrix, 2)
-function indices(ah::AbstractHabitat)
-    return hcat(collect.(convert_coords.(eachindex(ah.matrix), xcells(ah)))...)'
+xmin(regime::AbstractRegime) = 0
+ymin(regime::AbstractRegime) = 0
+xcellsize(regime::AbstractRegime) = Float64(regime.size / km)
+ycellsize(regime::AbstractRegime) = Float64(regime.size / km)
+xcells(regime::AbstractRegime) = size(regime.matrix, 1)
+ycells(regime::AbstractRegime) = size(regime.matrix, 2)
+function indices(regime::AbstractRegime)
+    return hcat(collect.(convert_coords.(eachindex(regime.matrix),
+                                         xcells(regime)))...)'
 end
-indices(ah::AbstractHabitat, idx) = indices(ah)[:, idx]
-coordinates(ah::AbstractHabitat) = indices(ah)
+indices(regime::AbstractRegime, idx) = indices(regime)[:, idx]
+coordinates(regime::AbstractRegime) = indices(regime)
 
-"""
-    HabitatUpdate{F <: Function, DT}
+iscontinuous(::ContinuousRegime) = true
 
-Stores the update rule for a habitat. `changefun` is the function applied to the
-habitat matrix at each timestep, and `rate` is the rate of change with
-appropriate units.
-"""
-struct HabitatUpdate{F <: Function, DT}
-    changefun::F
-    rate::DT
-end
-
-"""
-    HabitatUpdate(changefun::F, rate::DT, ::Type{D})
-
-Construct a `HabitatUpdate` with a type-checked rate. Errors if `rate * 1month`
-does not have dimensions `D`.
-"""
-function HabitatUpdate(changefun::F,
-                       rate::DT,
-                       ::Type{D}) where {F <: Function, DT,
-                                         D <: Unitful.Dimensions}
-    dimension(rate * 1month) isa D ||
-        error("Failed to match types $(rate * 1month) vs $D")
-    return HabitatUpdate(changefun, rate)
-end
-
-"""
-    ContinuousHab{C <: Number} <: AbstractHabitat{C}
-
-This habitat subtype houses a habitat matrix `matrix` of any units, a grid
-square size `size` and [`HabitatUpdate`](@ref) type `change`.
-"""
-mutable struct ContinuousHab{C <: Number} <: AbstractHabitat{C}
-    matrix::Matrix{C}
-    size::Unitful.Length
-    change::HabitatUpdate
-end
-
-iscontinuous(::ContinuousHab) = true
-
-function Base.eltype(hab::ContinuousHab{C}) where {C}
+function Base.eltype(regime::ContinuousRegime{C}) where {C}
     return C
 end
-@recipe function f(H::ContinuousHab{C}) where {C}
+@recipe function f(H::ContinuousRegime{C}) where {C}
     unitdict = Dict(K => "Temperature (K)",
                     °C => "Temperature (°C)",
                     mm => "Rainfall (mm)",
@@ -99,7 +58,7 @@ end
     clims --> (minimum(h) * 0.99, maximum(h) * 1.01)
     return xrange(H), yrange(H), h
 end
-@recipe function f(H::ContinuousHab{C}) where {C <: Unitful.Temperature}
+@recipe function f(H::ContinuousRegime{C}) where {C <: Unitful.Temperature}
     unitdict = Dict(K => "Temperature (K)",
                     °C => "Temperature (°C)",
                     mm => "Rainfall (mm)",
@@ -115,21 +74,7 @@ end
     return xrange(H), yrange(H), h
 end
 
-"""
-    ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <: AbstractHabitat{C}
-
-This habitat subtype houses a habitat matrix `matrix` of any units, the time
-slice of the habitat matrix currently being operated on `time`, a grid square
-size `size` and [`HabitatUpdate`](@ref) type `change`.
-"""
-mutable struct ContinuousTimeHab{C <: Number, M <: AbstractArray{C, 3}} <:
-               AbstractHabitat{C}
-    matrix::M
-    time::Int64
-    size::Unitful.Length
-    change::HabitatUpdate
-end
-@recipe function f(H::ContinuousTimeHab{C, M},
+@recipe function f(H::ContinuousTimeRegime{C, M},
                    time::Int64) where {C, M <: AbstractArray{C, 3}}
     h = ustrip.(H.matrix)
     seriestype := :heatmap
@@ -140,38 +85,27 @@ end
     return xrange(H), yrange(H), h[:, :, time]
 end
 
-function iscontinuous(hab::ContinuousTimeHab{C, M}) where
+function iscontinuous(regime::ContinuousTimeRegime{C, M}) where
     {C, M <: AbstractArray{C, 3}}
     return true
 end
-function Base.eltype(hab::ContinuousTimeHab{C, M}) where
+function Base.eltype(regime::ContinuousTimeRegime{C, M}) where
     {C, M <: AbstractArray{C, 3}}
     return C
 end
-function _resettime!(hab::ContinuousTimeHab)
-    return hab.time = 1
+function _resettime!(regime::ContinuousTimeRegime)
+    return regime.time = 1
 end
 
-function Diversity.API._countsubcommunities(hab::ContinuousHab)
-    return length(hab.matrix)
+function Diversity.API._countsubcommunities(regime::ContinuousRegime)
+    return length(regime.matrix)
 end
 
-function Diversity.API._countsubcommunities(hab::ContinuousTimeHab)
-    return length(hab.matrix[:, :, 1])
+function Diversity.API._countsubcommunities(regime::ContinuousTimeRegime)
+    return length(regime.matrix[:, :, 1])
 end
 
-"""
-    DiscreteHab{D} <: AbstractHabitat{D}
-
-Habitat subtype with a discrete `matrix` of element type `D`, a grid cell
-`size`, and a [`HabitatUpdate`](@ref) rule `change` applied at each timestep.
-"""
-mutable struct DiscreteHab{D} <: AbstractHabitat{D}
-    matrix::Matrix{D}
-    size::Unitful.Length
-    change::HabitatUpdate
-end
-@recipe function f(H::DiscreteHab{D}) where {D}
+@recipe function f(H::DiscreteRegime{D}) where {D}
     h = ustrip.(H.matrix)
     seriestype := :heatmap
     grid --> false
@@ -181,50 +115,43 @@ end
     return xrange(H), yrange(H), h
 end
 
-iscontinuous(hab::DiscreteHab) = false
-function Base.eltype(hab::DiscreteHab{D}) where {D}
+iscontinuous(regime::DiscreteRegime) = false
+function Base.eltype(regime::DiscreteRegime{D}) where {D}
     return D
 end
-function Diversity.API._countsubcommunities(hab::DiscreteHab)
-    return length(hab.matrix)
+function Diversity.API._countsubcommunities(regime::DiscreteRegime)
+    return length(regime.matrix)
 end
 
-function _getdimension(hab::Union{DiscreteHab, ContinuousHab,
-                                  ContinuousTimeHab})
-    return (size(hab.matrix, 1), size(hab.matrix, 2))
+function _getdimension(regime::Union{DiscreteRegime, ContinuousRegime,
+                                     ContinuousTimeRegime})
+    return (size(regime.matrix, 1), size(regime.matrix, 2))
 end
-function _getsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
-    x = hab.size * size(hab.matrix, 1)
-    y = hab.size * size(hab.matrix, 2)
+function _getsize(regime::Union{DiscreteRegime, ContinuousRegime,
+                                ContinuousTimeRegime})
+    x = regime.size * size(regime.matrix, 1)
+    y = regime.size * size(regime.matrix, 2)
     return x * y
 end
 import Base.size
-function Base.size(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab}, d)
-    return size(hab.matrix, d)
+function Base.size(regime::Union{DiscreteRegime, ContinuousRegime,
+                                 ContinuousTimeRegime}, d)
+    return size(regime.matrix, d)
 end
 
-function _getgridsize(hab::Union{DiscreteHab, ContinuousHab, ContinuousTimeHab})
-    return hab.size
+function _getgridsize(regime::Union{DiscreteRegime, ContinuousRegime,
+                                    ContinuousTimeRegime})
+    return regime.size
 end
 
-"""
-    HabitatCollection2{H1, H2} <: AbstractHabitat{Tuple{H1, H2}}
-
-Composite habitat pairing two sub-habitats `h1` and `h2`, allowing
-multi-variable abiotic environments (e.g. temperature and rainfall together).
-"""
-struct HabitatCollection2{H1, H2} <: AbstractHabitat{Tuple{H1, H2}}
-    h1::H1
-    h2::H2
+function iscontinuous(regime::RegimeCollection2{H1, H2}) where {H1, H2}
+    return [iscontinuous(regime.one), iscontinuous(regime.two)]
 end
-function iscontinuous(hab::HabitatCollection2{H1, H2}) where {H1, H2}
-    return [iscontinuous(hab.h1), iscontinuous(hab.h2)]
+function Base.eltype(regime::RegimeCollection2)
+    return [eltype(regime.one), eltype(regime.two)]
 end
-function Base.eltype(hab::HabitatCollection2)
-    return [eltype(hab.h1), eltype(hab.h2)]
-end
-@recipe function f(H::HabitatCollection2{H1, H2}) where {H1, H2}
-    x, y = H.h1, H.h2
+@recipe function f(H::RegimeCollection2{H1, H2}) where {H1, H2}
+    x, y = H.one, H.two
     layout := 2
     @series begin
         subplot := 1
@@ -236,31 +163,24 @@ end
     end
 end
 
-function _resettime!(hab::HabitatCollection2)
-    _resettime!(hab.h1)
-    return _resettime!(hab.h2)
+function _resettime!(regime::RegimeCollection2)
+    _resettime!(regime.one)
+    return _resettime!(regime.two)
 end
 
-"""
-    HabitatCollection3{H1, H2, H3} <: AbstractHabitat{Tuple{H1, H2, H3}}
-
-Composite habitat combining three sub-habitats `h1`, `h2`, and `h3`.
-"""
-struct HabitatCollection3{H1, H2, H3} <:
-       AbstractHabitat{Tuple{H1, H2, H3}}
-    h1::H1
-    h2::H2
-    h3::H3
+function iscontinuous(regime::RegimeCollection3)
+    return [
+        iscontinuous(regime.one),
+        iscontinuous(regime.two),
+        iscontinuous(regime.three)
+    ]
 end
-function iscontinuous(hab::HabitatCollection3)
-    return [iscontinuous(hab.h1), iscontinuous(hab.h2), iscontinuous(hab.h3)]
-end
-function Base.eltype(hab::HabitatCollection3)
-    return [eltype(hab.h1), eltype(hab.h2), eltype(hab.h3)]
+function Base.eltype(regime::RegimeCollection3)
+    return [eltype(regime.one), eltype(regime.two), eltype(regime.three)]
 end
 
-@recipe function f(H::HabitatCollection3{H1, H2, H3}) where {H1, H2, H3}
-    x, y, z = H.h1, H.h2, H.h3
+@recipe function f(H::RegimeCollection3{H1, H2, H3}) where {H1, H2, H3}
+    x, y, z = H.one, H.two, H.three
     layout := 3
     @series begin
         subplot := 1
@@ -276,59 +196,59 @@ end
     end
 end
 
-function _resettime!(hab::HabitatCollection3)
-    _resettime!(hab.h1)
-    _resettime!(hab.h2)
-    return _resettime!(hab.h3)
+function _resettime!(regime::RegimeCollection3)
+    _resettime!(regime.one)
+    _resettime!(regime.two)
+    return _resettime!(regime.three)
 end
 
-function _getdimension(hab::Union{HabitatCollection2, HabitatCollection3})
-    return (size(hab.h1.matrix, 1), size(hab.h2.matrix, 2))
+function _getdimension(regime::Union{RegimeCollection2, RegimeCollection3})
+    return (size(regime.one.matrix, 1), size(regime.two.matrix, 2))
 end
-function _getsize(hab::Union{HabitatCollection2, HabitatCollection3})
-    return _getsize(hab.h1)
+function _getsize(regime::Union{RegimeCollection2, RegimeCollection3})
+    return _getsize(regime.one)
 end
-function Base.size(hab::Union{HabitatCollection2, HabitatCollection3}, d)
-    return size(hab.h1, d)
+function Base.size(regime::Union{RegimeCollection2, RegimeCollection3}, d)
+    return size(regime.one, d)
 end
 
-function _getgridsize(hab::Union{HabitatCollection2, HabitatCollection3})
-    return _getgridsize(hab.h1)
+function _getgridsize(regime::Union{RegimeCollection2, RegimeCollection3})
+    return _getgridsize(regime.one)
 end
 
 """
-    gethabitat(hab::H, pos::Int64) where H <: AbstractHabitat
+    getregime(regime::H, pos::Int64) where H <: AbstractRegime
 
-Return the habitat value at 1D grid position `pos`, converting to 2D coordinates
+Return the regime value at 1D grid position `pos`, converting to 2D coordinates
 internally.
 """
-function gethabitat(hab::H, pos::Int64) where {H <: AbstractHabitat}
-    x, y = convert_coords(pos, size(hab.matrix, 1))
-    return hab.matrix[x, y]
+function getregime(regime::H, pos::Int64) where {H <: AbstractRegime}
+    x, y = convert_coords(pos, size(regime.matrix, 1))
+    return regime.matrix[x, y]
 end
-@doc (@doc gethabitat) gethabitat(::H, ::Symbol) where {H <: AbstractHabitat}
-function gethabitat(hab::H, field::Symbol) where {H <: AbstractHabitat}
-    return getfield(hab, field)
+@doc (@doc getregime) getregime(::H, ::Symbol) where {H <: AbstractRegime}
+function getregime(regime::H, field::Symbol) where {H <: AbstractRegime}
+    return getfield(regime, field)
 end
 """
-    gethabitat(hab::ContinuousTimeHab, pos::Int64)
+    getregime(regime::ContinuousTimeRegime, pos::Int64)
 
-Return the habitat value at position `pos` for the current time slice of a
-[`ContinuousTimeHab`](@ref).
+Return the regime value at position `pos` for the current time slice of a
+[`ContinuousTimeRegime`](@ref).
 """
-function gethabitat(hab::ContinuousTimeHab, pos::Int64)
-    x, y = convert_coords(pos, size(hab.matrix, 1))
-    return hab.matrix[x, y, hab.time]
+function getregime(regime::ContinuousTimeRegime, pos::Int64)
+    x, y = convert_coords(pos, size(regime.matrix, 1))
+    return regime.matrix[x, y, regime.time]
 end
 
-function Diversity.API._countsubcommunities(hab::HabitatCollection2)
-    return _countsubcommunities(hab.h1)
+function Diversity.API._countsubcommunities(regime::RegimeCollection2)
+    return _countsubcommunities(regime.one)
 end
-function Diversity.API._countsubcommunities(hab::HabitatCollection3)
-    return _countsubcommunities(hab.h1)
+function Diversity.API._countsubcommunities(regime::RegimeCollection3)
+    return _countsubcommunities(regime.one)
 end
 
-# Function to create a habitat from a discrete set of types according to the
+# Function to create a regime from a discrete set of types according to the
 # Saura-Martinez-Millan algorithm (2000)
 function _percolate!(M::AbstractMatrix, clumpiness::Real)
     for i in eachindex(M)
@@ -387,10 +307,10 @@ function _fill_in!(T, M, types, wv)
                 # Check if they have already been assigned
                 already = vcat(mapslices(x -> isassigned(T, x[1], x[2]),
                                          neighbours, dims = 2)...)
-                # If any already assigned then sample from most frequent neighbour traits
+                # If any already assigned then sample from most frequent neighbour types
                 if any(already)
                     neighbours = neighbours[already, :]
-                    # Find all neighbour traits
+                    # Find all neighbour types
                     neighbour_traits = map(i -> T[neighbours[i, 1],
                                                   neighbours[i, 2]],
                                            Base.axes(neighbours, 1))
@@ -399,7 +319,7 @@ function _fill_in!(T, M, types, wv)
                     # Assign this type to the grid square in T
                     T[x, y] = types[ind]
                     # If none are assigned in entire grid already,
-                    # sample randomly from traits
+                    # sample randomly from types
                 elseif all(M .<= 1)
                     T[x, y] = sample(types, wv)
                     # If some are assigned in grid, sample from these
@@ -414,7 +334,7 @@ end
     randomniches(dimension::Tuple, types::Vector{Int64}, clumpiness::Float64,
         weights::Vector, gridsquaresize::Unitful.Length)
 
-Create a [`DiscreteHab`](@ref) habitat of dimension `dimension`, made up of
+Create a [`DiscreteRegime`](@ref) regime of dimension `dimension`, made up of
 integer niche types `types` with relative weightings `weights` and spatial
 clumpiness controlled by `clumpiness`. Cell size is set by `gridsquaresize`.
 """
@@ -426,9 +346,9 @@ function randomniches(dimension::Tuple,
     # Check that the proportion of coverage for each type matches the number
     # of types and that they add up to 1
     length(weights) == length(types) ||
-        error("There must be an area proportion for each type")
-    sum(weights) == 1 || error("Proportion of habitats must add up to 1")
-    # Create weighting from proportion habitats
+        error("There must be a weight for each type")
+    sum(weights) == 1 || error("Weights of regimes must sum to 1")
+    # Create weighting from proportion regimes
     wv = Weights(weights)
 
     # Create an empty grid of the right dimension
@@ -449,38 +369,43 @@ function randomniches(dimension::Tuple,
         # Fill in undefined squares with most frequent neighbour
         _fill_in!(T, M, types, wv)
     end
-    habitatupdate = HabitatUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
-    return DiscreteHab(T, gridsquaresize, habitatupdate)
+    regimeupdate = LayerUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
+    return DiscreteRegime(T, gridsquaresize, regimeupdate)
 end
 
 """
-    simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
-    dim::Tuple{Int64, Int64})
+    simpleregime(val::Unitful.Quantity, size::Unitful.Length,
+    dim::Tuple{Int64, Int64}, axis::Type{<:NicheAxis} = Unclassified)
 
-Create a [`ContinuousHab`](@ref) habitat of dimension `dim`, with cell `size`
-and filled value, `val`.
+Create a [`ContinuousRegime`](@ref) regime of dimension `dim`, with cell `size`
+and filled value, `val`, on niche axis `axis`.
 """
-function simplehabitat(val::Unitful.Quantity, size::Unitful.Length,
-                       dim::Tuple{Int64, Int64})
+function simpleregime(val::Unitful.Quantity, size::Unitful.Length,
+                      dim::Tuple{Int64, Int64},
+                      axis::Type{<:NicheAxis} = Unclassified)
     M = fill(val, dim)
-    func = ChangeLookup[unit(val)]
+    # A static regime (rate 0); its change function comes from the layer's niche `axis` via
+    # `dynamics(axis)`.
     rate = 0.0 * unit(val) / s
-    habitatupdate = HabitatUpdate(func, rate, typeof(dimension(val)))
-    return ContinuousHab(M, size, habitatupdate)
+    regimeupdate = LayerUpdate(dynamics(axis()), rate,
+                               typeof(dimension(val)))
+    return ContinuousRegime(M, size, regimeupdate)
 end
 
 """
-    simplehabitat(val::Float64, size::Unitful.Length, dim::Tuple{Int64, Int64})
+    simpleregime(val::Float64, size::Unitful.Length, dim::Tuple{Int64, Int64},
+    axis::Type{<:NicheAxis} = Unclassified)
 
-Create a dimensionless [`ContinuousHab`](@ref) filled with `val`. Uses
-[`NoChange`](@ref) as the update rule.
+Create a dimensionless [`ContinuousRegime`](@ref) filled with `val`. Its update
+rule comes from `axis` via `dynamics(axis)`.
 """
-function simplehabitat(val::Float64, size::Unitful.Length,
-                       dim::Tuple{Int64, Int64})
+function simpleregime(val::Float64, size::Unitful.Length,
+                      dim::Tuple{Int64, Int64},
+                      axis::Type{<:NicheAxis} = Unclassified)
     M = fill(val, dim)
-
-    habitatupdate = HabitatUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
-    return ContinuousHab(M, size, habitatupdate)
+    regimeupdate = LayerUpdate(dynamics(axis()), 0.0 / s,
+                               Unitful.Dimensions{()})
+    return ContinuousRegime(M, size, regimeupdate)
 end
 
 """
@@ -488,7 +413,7 @@ end
       size::Unitful.Length{Float64},
       dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝚯*𝐓^-1})
 
-Create a [`ContinuousHab`](@ref) habitat with a temperature gradient.
+Create a [`ContinuousRegime`](@ref) regime with a temperature gradient.
 """
 function tempgrad(minT::Unitful.Temperature{Float64},
                   maxT::Unitful.Temperature{Float64},
@@ -503,8 +428,8 @@ function tempgrad(minT::Unitful.Temperature{Float64},
     map(1:total) do seq
         return M[seq, :] .= temp_range[seq]
     end
-    habitatupdate = HabitatUpdate(TempChange, rate, typeof(dimension(minT)))
-    return ContinuousHab(M, size, habitatupdate)
+    regimeupdate = LayerUpdate(TempChange, rate, typeof(dimension(minT)))
+    return ContinuousRegime(M, size, regimeupdate)
 end
 
 """
@@ -512,7 +437,7 @@ end
       size::Unitful.Length{Float64},
       dim::Tuple{Int64, Int64}, rate::Quantity{Float64, 𝐋*𝐓^-1})
 
-Create a [`ContinuousHab`](@ref) habitat with a rainfall gradient.
+Create a [`ContinuousRegime`](@ref) regime with a rainfall gradient.
 """
 function raingrad(minR::Unitful.Length{Float64},
                   maxR::Unitful.Length{Float64},
@@ -527,6 +452,6 @@ function raingrad(minR::Unitful.Length{Float64},
     map(1:total) do seq
         return M[seq, :] .= rain_range[seq]
     end
-    habitatupdate = HabitatUpdate(RainfallChange, rate, typeof(dimension(minR)))
-    return ContinuousHab(M, size, habitatupdate)
+    regimeupdate = LayerUpdate(RainfallChange, rate, typeof(dimension(minR)))
+    return ContinuousRegime(M, size, regimeupdate)
 end

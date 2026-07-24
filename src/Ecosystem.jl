@@ -69,97 +69,119 @@ function Lookup(df::DataFrame)
                   zeros(Int64, nrow(df)))
 end
 
-function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractAbiotic)
-    realm = _calcabundance(sim, m)
-    return typematch(realm, sim, part) &&
-           counttypes(sim) == size(realm, 1) &&
-           countsubcommunities(part) == size(realm, 2)
+# Check the abundance matrix `m` (species × subcommunities) has one row per species in `sppl` and one
+# column per subcommunity in `part`. A pure dimension check.
+function _mcmatch(m::AbstractMatrix, sppl::SpeciesList, part::AbstractHabitat)
+    return _counttypes(sppl, true) == size(m, 1) &&
+           _countsubcommunities(part) == size(m, 2)
 end
 
 """
-    tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
+    tematch(sppl::SpeciesList, habitat::AbstractHabitat)
 
-Check that the types of a trait list and habitat list are the same for a species
-list (`sppl`) and abiotic environment (`abenv`).
+Check that the types of a tolerance list and regime list are the same for a species
+list (`sppl`) and abiotic environment (`habitat`).
 """
-function tematch(sppl::SpeciesList, abenv::AbstractAbiotic)
-    return (eltype(sppl.traits) == eltype(abenv.habitat)) &&
-           (iscontinuous(sppl.traits) == iscontinuous(abenv.habitat))
+function tematch(sppl::SpeciesList, habitat::AbstractHabitat)
+    return (eltype(sppl.tolerance) == eltype(habitat.regime)) &&
+           (iscontinuous(sppl.tolerance) == iscontinuous(habitat.regime))
 end
 
 """
-    trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
+    nfmatch(sppl::SpeciesList, traitrel::AbstractNicheFit)
 
-Check that the types of a trait list and trait relationship list are the same
-for a species list (`sppl`) and trait relationship (`traitrel`).
+Check that the types of a tolerance list and trait nichefit list are the same
+for a species list (`sppl`) and trait nichefit (`traitrel`).
 """
-function trmatch(sppl::SpeciesList, traitrel::AbstractTraitRelationship)
-    return eltype(sppl.traits) == eltype(traitrel) &&
-           (iscontinuous(sppl.traits) == iscontinuous(traitrel))
+function nfmatch(sppl::SpeciesList, traitrel::AbstractNicheFit)
+    return eltype(sppl.tolerance) == eltype(traitrel) &&
+           (iscontinuous(sppl.tolerance) == iscontinuous(traitrel))
 end
 
+# Format an `iscontinuous(...)` result — a `Bool` for a single trait/regime/nichefit, or a
+# `Vector{Bool}` for a collection — as "continuous"/"discrete" label(s).
+_kindlabel(b::Bool) = b ? "continuous" : "discrete"
+_kindlabel(bs::AbstractVector{Bool}) = "[" * join(_kindlabel.(bs), ", ") * "]"
+
 """
-    AbstractEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-        TR <: AbstractTraitRelationship} <: AbstractMetacommunity{Float64,
+    AbstractEcosystem{Part <: AbstractHabitat, SL <: SpeciesList,
+        NF <: AbstractNicheFit} <: AbstractMetacommunity{Float64,
             Matrix{Int64}, Matrix{Float64}, SL, Part}
 
 Abstract supertype for all ecosystem types and a subtype of
 AbstractMetacommunity.
 """
-abstract type AbstractEcosystem{Part <: AbstractAbiotic,
+abstract type AbstractEcosystem{Part <: AbstractHabitat,
                                 SL <: SpeciesList,
-                                TR <: AbstractTraitRelationship} <:
+                                NF <: AbstractNicheFit} <:
               AbstractMetacommunity{Float64, Matrix{Int64}, Matrix{Float64}, SL,
                                     Part} end
 
 """
-    Ecosystem{Part <: AbstractAbiotic} <:
-       AbstractEcosystem{Part, SL, TR}
+    Ecosystem{Part <: AbstractHabitat} <:
+       AbstractEcosystem{Part, SL, NF}
 
 Ecosystem houses information on species and their interaction with their
 environment. For species, it holds abundances and locations, as well as
 properties such as trait information, `spplist`, and movement types, `lookup`.
 For environments, it provides information on environmental conditions and
-available resources,`abenv`. Finally, there is a slot for the relationship
-between the environment and the characteristics of the species, `relationship`.
+available resources,`habitat`. Finally, there is a slot for the nichefit
+between the environment and the characteristics of the species, `nichefit`.
 """
-mutable struct Ecosystem{Part <: AbstractAbiotic,
+mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
-                         TR <: AbstractTraitRelationship} <:
-               AbstractEcosystem{Part, SL, TR}
+                         NF <: AbstractNicheFit} <:
+               AbstractEcosystem{Part, SL, NF}
     abundances::GridLandscape
     spplist::SL
-    abenv::Part
+    habitat::Part
     ordinariness::Union{Matrix{Float64}, Missing}
-    relationship::TR
+    nichefit::NF
     lookup::Vector{Lookup}
     cache::Cache
     rngs::Vector{Random.Xoshiro}
 
-    function Ecosystem{Part, SL, TR}(abundances::GridLandscape,
+    function Ecosystem{Part, SL, NF}(abundances::GridLandscape,
                                      spplist::SL,
-                                     abenv::Part,
+                                     habitat::Part,
                                      ordinariness::Union{Matrix{Float64},
                                                          Missing},
-                                     relationship::TR,
+                                     nichefit::NF,
                                      lookup::Vector{Lookup},
                                      cache::Cache,
                                      rngs::Vector{Random.Xoshiro}) where {Part <:
-                                                                          AbstractAbiotic,
+                                                                          AbstractHabitat,
                                                                           SL <:
                                                                           SpeciesList,
-                                                                          TR <:
-                                                                          AbstractTraitRelationship}
-        tematch(spplist, abenv) || error("Traits do not match habitats")
-        trmatch(spplist, relationship) ||
-            error("Traits do not match trait functions")
-        #_mcmatch(abundances.matrix, spplist, abenv) ||
-        #  error("Dimension mismatch")
-        return new{Part, SL, TR}(abundances,
+                                                                          NF <:
+                                                                          AbstractNicheFit}
+        tematch(spplist, habitat) ||
+            error("Species tolerances and regime are incompatible: tolerances are " *
+                  "$(_kindlabel(iscontinuous(spplist.tolerance))) " *
+                  "$(eltype(spplist.tolerance)), the regime is " *
+                  "$(_kindlabel(iscontinuous(habitat.regime))) " *
+                  "$(eltype(habitat.regime)). Pair a continuous trait (e.g. " *
+                  "NicheTolerance) with a continuous regime (simplehabitat / " *
+                  "tempgradhabitat), or a discrete trait (DiscreteTolerance) with a " *
+                  "discrete regime (simplenichehabitat).")
+        nfmatch(spplist, nichefit) ||
+            error("Species tolerances and the trait nichefit are incompatible: " *
+                  "tolerances are $(_kindlabel(iscontinuous(spplist.tolerance))) " *
+                  "$(eltype(spplist.tolerance)), the nichefit is " *
+                  "$(_kindlabel(iscontinuous(nichefit))) " *
+                  "$(eltype(nichefit)). Use NicheSuitability with continuous tolerances, " *
+                  "or MatchSuitability / LandCoverSuitability with discrete tolerances.")
+        _mcmatch(abundances.matrix, spplist, habitat) ||
+            error("Dimension mismatch: the abundance matrix " *
+                  "($(size(abundances.matrix, 1)) × $(size(abundances.matrix, 2))) " *
+                  "does not match the $(_counttypes(spplist, true)) species and " *
+                  "$(_countsubcommunities(habitat)) subcommunities of the species " *
+                  "list and environment.")
+        return new{Part, SL, NF}(abundances,
                                  spplist,
-                                 abenv,
+                                 habitat,
                                  ordinariness,
-                                 relationship,
+                                 nichefit,
                                  lookup,
                                  cache,
                                  rngs)
@@ -186,15 +208,15 @@ end
     grid --> false
     aspect_ratio --> 1
     title --> "Movement kernel (km)"
-    return xrange(gethabitat(eco)), yrange(gethabitat(eco)), A
+    return xrange(getregime(eco)), yrange(getregime(eco)), A
 end
 
 """
-    Ecosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
-        rel::AbstractTraitRelationship)
+    Ecosystem(spplist::SpeciesList, habitat::GridHabitat,
+        nichefit::AbstractNicheFit)
 
 Create an `Ecosystem` given a species list, an abiotic environment and trait
-relationship. An optional population function can be added, `popfun`, which
+nichefit. An optional population function can be added, `popfun`, which
 defaults to generic random filling of the ecosystem. A `seed` may be supplied to
 make the run reproducible: it deterministically seeds one random number
 generator per species (see [`makerngs`](@ref)), so results are identical
@@ -202,53 +224,53 @@ regardless of the number of threads used. If no `seed` is given, one is drawn at
 random.
 """
 function Ecosystem(popfun::F,
-                   spplist::SpeciesList{T, Req},
-                   abenv::GridAbioticEnv,
-                   rel::AbstractTraitRelationship;
-                   seed::Integer = rand(UInt64)) where {F <: Function, T, Req}
+                   spplist::SpeciesList{T, DM},
+                   habitat::GridHabitat,
+                   nichefit::AbstractNicheFit;
+                   seed::Integer = rand(UInt64)) where {F <: Function, T, DM}
 
-    # Check there is enough energy to support number of individuals at set up
-    #all(getenergyusage(spplist) .<= getavailableenergy(abenv)) ||
-    #error("Environment does not have enough energy to support species")
+    # Check there is enough resource to support number of individuals at set up
+    #all(getdemand(spplist) .<= getavailablesupply(habitat)) ||
+    #error("Environment does not have enough resource to support species")
     # Create matrix landscape of zero abundances
-    ml = emptygridlandscape(abenv, spplist)
+    ml = emptygridlandscape(habitat, spplist)
     # One deterministically-seeded RNG per species, so births/deaths/dispersal
     # and the initial population draw are reproducible across thread counts
     rngs = makerngs(seed, size(ml.matrix, 1))
     # Populate this matrix with species abundances
-    popfun(ml, spplist, abenv, rel, rngs)
+    popfun(ml, spplist, habitat, nichefit, rngs)
     # Create lookup table of all moves and their probabilities
-    lookup_tab = collect(map(k -> genlookups(abenv.habitat, k),
+    lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
                              getkernels(spplist.movement)))
     nm = zeros(Int64, size(ml.matrix))
-    totalE = zeros(Float64, (size(ml.matrix, 2), numrequirements(Req)))
-    return Ecosystem{typeof(abenv), typeof(spplist), typeof(rel)}(ml,
-                                                                  spplist,
-                                                                  abenv,
-                                                                  missing,
-                                                                  rel,
-                                                                  lookup_tab,
-                                                                  Cache(nm,
-                                                                        totalE,
-                                                                        false),
-                                                                  rngs)
+    totalE = zeros(Float64, (size(ml.matrix, 2), numdemands(DM)))
+    return Ecosystem{typeof(habitat), typeof(spplist), typeof(nichefit)}(ml,
+                                                                         spplist,
+                                                                         habitat,
+                                                                         missing,
+                                                                         nichefit,
+                                                                         lookup_tab,
+                                                                         Cache(nm,
+                                                                               totalE,
+                                                                               false),
+                                                                         rngs)
 end
 
 function Ecosystem(spplist::SpeciesList,
-                   abenv::GridAbioticEnv,
-                   rel::AbstractTraitRelationship;
+                   habitat::GridHabitat,
+                   nichefit::AbstractNicheFit;
                    seed::Integer = rand(UInt64))
-    return Ecosystem(populate!, spplist, abenv, rel; seed = seed)
+    return Ecosystem(populate!, spplist, habitat, nichefit; seed = seed)
 end
 @doc (@doc Ecosystem) Ecosystem(::SpeciesList,
-                                ::GridAbioticEnv,
-                                ::AbstractTraitRelationship)
+                                ::GridHabitat,
+                                ::AbstractNicheFit)
 
 """
     addspecies!(eco::Ecosystem, abun::Int64)
 
 Add a new species to an existing [`Ecosystem`](@ref) with initial abundance
-`abun`, copying trait, movement, parameter, requirement, and type information
+`abun`, copying trait, movement, parameter, demand, and type information
 from the last existing species.
 """
 function addspecies!(eco::Ecosystem, abun::Int64)
@@ -256,59 +278,58 @@ function addspecies!(eco::Ecosystem, abun::Int64)
                                  zeros(1, size(eco.abundances.matrix, 2)))
     eco.abundances.grid = reshape(eco.abundances.matrix,
                                   (counttypes(eco.spplist, true) + 1,
-                                   _getdimension(eco.abenv.habitat)...))
+                                   _getdimension(eco.habitat.regime)...))
     # Give the new species its own RNG stream, derived from the previous last one
     push!(eco.rngs, Random.Xoshiro(rand(eco.rngs[end], UInt64)))
     repopulate!(eco, abun)
     push!(eco.spplist.names, string.(counttypes(eco.spplist, true) + 1))
     append!(eco.spplist.abun, abun)
     append!(eco.spplist.native, true)
-    addtraits!(eco.spplist.traits)
+    addtolerance!(eco.spplist.tolerance)
     addmovement!(eco.spplist.movement)
     addparams!(eco.spplist.params)
-    addrequirement!(eco.spplist.requirement)
+    adddemand!(eco.spplist.demand)
     return addtypes!(eco.spplist.types)
 end
 
-function addtraits!(tr::GaussTrait)
-    append!(tr.mean, tr.mean[end])
-    return append!(tr.var, tr.var[end])
+function addtolerance!(tolerance::NicheTolerance)
+    return push!(tolerance.dists, tolerance.dists[end])
 end
 
-function addtraits!(tr::DiscreteTrait)
-    return append!(tr.val, rand(tr.val))
+function addtolerance!(tolerance::DiscreteTolerance)
+    return append!(tolerance.val, rand(tolerance.val))
 end
 
 addmovement!(mv::AbstractMovement) = push!(mv.kernels, mv.kernels[end])
 
-function addparams!(pr::AbstractParams)
-    append!(pr.birth, pr.birth[end])
-    return append!(pr.death, pr.death[end])
+function addparams!(params::AbstractParams)
+    append!(params.birth, params.birth[end])
+    return append!(params.death, params.death[end])
 end
 
-addrequirement!(rq::AbstractRequirement) = append!(rq.energy, rq.energy[end])
+adddemand!(d::AbstractDemand) = append!(d.resource, d.resource[end])
 
 function addtypes!(ut::UniqueTypes)
     return ut = UniqueTypes(ut.num + 1)
 end
 
 """
-    CachedEcosystem{Part <: AbstractAbiotic, SL <: SpeciesList,
-        TR <: AbstractTraitRelationship} <: AbstractEcosystem{Part, SL, TR}
+    CachedEcosystem{Part <: AbstractHabitat, SL <: SpeciesList,
+        NF <: AbstractNicheFit} <: AbstractEcosystem{Part, SL, NF}
 
 CachedEcosystem houses the same information as [`Ecosystem`](@ref) (see
 ?Ecosystem), but holds the time period abundances as a
 [`CachedGridLandscape`](@ref), so that they may be present or missing.
 """
-mutable struct CachedEcosystem{Part <: AbstractAbiotic,
+mutable struct CachedEcosystem{Part <: AbstractHabitat,
                                SL <: SpeciesList,
-                               TR <: AbstractTraitRelationship} <:
-               AbstractEcosystem{Part, SL, TR}
+                               NF <: AbstractNicheFit} <:
+               AbstractEcosystem{Part, SL, NF}
     abundances::CachedGridLandscape
     spplist::SL
-    abenv::Part
+    habitat::Part
     ordinariness::Union{Matrix{Float64}, Missing}
-    relationship::TR
+    nichefit::NF
     lookup::Vector{Lookup}
     cache::Cache
     rngs::Vector{Random.Xoshiro}
@@ -328,22 +349,22 @@ by the timestep, results are independent of `saveinterval`.
 function CachedEcosystem(eco::Ecosystem, outputfile::String,
                          times::StepRangeLen;
                          saveinterval::Unitful.Time = step(times))
-    if size(eco.abenv.habitat, 3) > 1
-        size(eco.abenv.habitat, 3) == length(times) ||
-            error("Time range does not match habitat")
+    if size(eco.habitat.regime, 3) > 1
+        size(eco.habitat.regime, 3) == length(times) ||
+            error("Time range does not match regime")
     end
     abundances = CachedGridLandscape(outputfile, times;
                                      saveinterval = saveinterval)
     abundances.matrix[1] = eco.abundances
-    return CachedEcosystem{typeof(eco.abenv), typeof(eco.spplist),
-                           typeof(eco.relationship)}(abundances,
-                                                     eco.spplist,
-                                                     eco.abenv,
-                                                     eco.ordinariness,
-                                                     eco.relationship,
-                                                     eco.lookup,
-                                                     eco.cache,
-                                                     eco.rngs)
+    return CachedEcosystem{typeof(eco.habitat), typeof(eco.spplist),
+                           typeof(eco.nichefit)}(abundances,
+                                                 eco.spplist,
+                                                 eco.habitat,
+                                                 eco.ordinariness,
+                                                 eco.nichefit,
+                                                 eco.lookup,
+                                                 eco.cache,
+                                                 eco.rngs)
 end
 
 import Diversity.API: _getabundance
@@ -374,7 +395,7 @@ end
 
 import Diversity.API: _getpartition
 function _getpartition(eco::AbstractEcosystem)
-    return eco.abenv
+    return eco.habitat
 end
 
 import Diversity.API: _gettypes
@@ -403,57 +424,57 @@ function invalidatecaches!(eco::AbstractEcosystem)
 end
 
 """
-    gettraitrel(eco::Ecosystem)
+    getnichefit(eco::Ecosystem)
 
-Extract trait relationships.
+Extract niche fits.
 """
-function gettraitrel(eco::AbstractEcosystem)
-    return eco.relationship
+function getnichefit(eco::AbstractEcosystem)
+    return eco.nichefit
 end
 
 """
-    gethabitat(eco::Ecosystem)
+    getregime(eco::Ecosystem)
 
-Extract habitat from [`Ecosystem`](@ref) object.
+Extract regime from [`Ecosystem`](@ref) object.
 """
-function gethabitat(eco::AbstractEcosystem)
-    return eco.abenv.habitat
+function getregime(eco::AbstractEcosystem)
+    return eco.habitat.regime
 end
 
 """
-    getbudget(eco::Ecosystem)
+    getsupply(eco::Ecosystem)
 
-Extract budget from [`Ecosystem`](@ref) object.
+Extract supply from [`Ecosystem`](@ref) object.
 """
-function getbudget(eco::AbstractEcosystem)
-    return _getbudget(eco.abenv.budget)
+function getsupply(eco::AbstractEcosystem)
+    return _getsupply(eco.habitat.supply)
 end
 
 """
     getsize(eco::Ecosystem)
 
-Extract size of habitat from [`Ecosystem`](@ref) object.
+Extract size of regime from [`Ecosystem`](@ref) object.
 """
 function getsize(eco::AbstractEcosystem)
-    return _getsize(eco.abenv.habitat)
+    return _getsize(eco.habitat.regime)
 end
 
 """
     getgridsize(eco::Ecosystem)
 
-Extract grid cell size of habitat from [`Ecosystem`](@ref) object.
+Extract grid cell size of regime from [`Ecosystem`](@ref) object.
 """
 function getgridsize(eco::AbstractEcosystem)
-    return _getgridsize(eco.abenv.habitat)
+    return _getgridsize(eco.habitat.regime)
 end
 
 """
     getdimension(eco::Ecosystem)
 
-Extract dimension of habitat from [`Ecosystem`](@ref) object.
+Extract dimension of regime from [`Ecosystem`](@ref) object.
 """
 function getdimension(eco::AbstractEcosystem)
-    return _getdimension(eco.abenv.habitat)
+    return _getdimension(eco.habitat.regime)
 end
 
 """
@@ -521,34 +542,36 @@ end
 """
     resetrate!(eco::Ecosystem, rate::Quantity{Float64, typeof(𝐓^-1)})
 
-Reset the rate of habitat change for a species.
+Reset the rate of regime change for a species.
 """
 function resetrate!(eco::AbstractEcosystem,
                     rate::Quantity{Float64, typeof(𝐓^-1)})
-    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
-                                                    rate,
-                                                    Unitful.Dimensions{()})
+    return eco.habitat.regime.dynamics = LayerUpdate(eco.habitat.regime.dynamics.changefun,
+                                                     rate,
+                                                     Unitful.Dimensions{()})
 end
 
 function resetrate!(eco::AbstractEcosystem,
                     rate::Quantity{Float64, typeof(𝚯 * 𝐓^-1)})
-    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
-                                                    rate, typeof(dimension(1K)))
+    return eco.habitat.regime.dynamics = LayerUpdate(eco.habitat.regime.dynamics.changefun,
+                                                     rate,
+                                                     typeof(dimension(1K)))
 end
 
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝐓^-1})
-    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
-                                                    rate,
-                                                    Unitful.Dimensions{()})
+    return eco.habitat.regime.dynamics = LayerUpdate(eco.habitat.regime.dynamics.changefun,
+                                                     rate,
+                                                     Unitful.Dimensions{()})
 end
 
 function resetrate!(eco::AbstractEcosystem, rate::Quantity{Float64, 𝚯 * 𝐓^-1})
-    return eco.abenv.habitat.change = HabitatUpdate(eco.abenv.habitat.change.changefun,
-                                                    rate, typeof(dimension(1K)))
+    return eco.habitat.regime.dynamics = LayerUpdate(eco.habitat.regime.dynamics.changefun,
+                                                     rate,
+                                                     typeof(dimension(1K)))
 end
 
 function resettime!(eco::AbstractEcosystem)
-    return _resettime!(eco.abenv.habitat)
+    return _resettime!(eco.habitat.regime)
 end
 
 function _symmetric_grid(grid::DataFrame)
@@ -581,25 +604,25 @@ function _2Dt_disperse(r, b)
 end
 
 """
-    genlookups(hab::AbstractHabitat, mov::GaussianMovement)
+    genlookups(regime::AbstractRegime, kernel::GaussianMovement)
 
 Generate lookup tables, which hold information on the probability of moving to
 neighbouring squares.
 """
-function genlookups(hab::AbstractHabitat, mov::GaussianKernel)
-    sd = (2 * mov.dist) / sqrt(pi)
-    relsize = _getgridsize(hab) ./ sd
-    m = maximum(_getdimension(hab))
-    p = mov.thresh
+function genlookups(regime::AbstractRegime, kernel::GaussianKernel)
+    sd = (2 * kernel.dist) / sqrt(pi)
+    relsize = uconvert(NoUnits, _getgridsize(regime) / sd)
+    m = maximum(_getdimension(regime))
+    p = kernel.thresh
     return Lookup(_lookup(relsize, m, p, _gaussian_disperse))
 end
 
-function genlookups(hab::AbstractHabitat, mov::LongTailKernel)
-    sd = (2 * mov.dist) / sqrt(pi)
-    relsize = _getgridsize(hab) ./ sd
-    m = maximum(_getdimension(hab))
-    p = mov.thresh
-    b = mov.shape
+function genlookups(regime::AbstractRegime, kernel::LongTailKernel)
+    sd = (2 * kernel.dist) / sqrt(pi)
+    relsize = uconvert(NoUnits, _getgridsize(regime) / sd)
+    m = maximum(_getdimension(regime))
+    p = kernel.thresh
+    b = kernel.shape
     return EcoSISTEM.Lookup(EcoSISTEM._lookup(relsize, m, p, b,
                                               EcoSISTEM._2Dt_disperse))
 end

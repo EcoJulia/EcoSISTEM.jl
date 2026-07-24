@@ -2,11 +2,57 @@
 
 module EcoSISTEM
 
-# Path into package
-path(path...; dir::String = "test") = joinpath(@__DIR__, "..", dir, path...)
+using Scratch: get_scratch!
+import RasterDataSources
+
+"""
+    EcoSISTEM.assetdir(mod::Module = EcoSISTEM)
+
+Path to the `mod` subdirectory of EcoSISTEM's single Scratch.jl space, for storing `mod`-related
+files (e.g. downloaded data) outside the repository. Using one EcoSISTEM-owned space with
+per-package subdirectories (rather than a separate space per package) keeps the whole cache under
+EcoSISTEM's lifecycle — created on first use, reclaimed by `Pkg.gc()` when EcoSISTEM is removed.
+`mod` defaults to EcoSISTEM's own subdirectory.
+
+On load, EcoSISTEM sets `RASTERDATASOURCES_PATH` to `assetdir(RasterDataSources)` (in `__init__`).
+"""
+function assetdir(mod::Module = EcoSISTEM)
+    return mkpath(joinpath(get_scratch!(EcoSISTEM, "assets"),
+                           string(nameof(mod))))
+end
+public assetdir
 
 # EcoSISTEM.Units sub-module
 include("Units/Units.jl")
+
+# Layer roles + specs (recipes) — defined early so later modules can build on them.
+include("NicheInfo.jl")
+export NicheAxis,
+# grouping supertypes (XxxAxis)
+       TemperatureAxis, WaterAxis, PrecipitationAxis, HumidityAxis,
+       VaporPressureDeficitAxis, RelativeHumidityAxis, EvapotranspirationAxis,
+       ClimateMoistureAxis, SolarRadiationAxis, WindSpeedAxis, CloudCoverAxis,
+       DayAxis, CarbonAxis, TypologyAxis,
+# temperature leaves
+       Temperature, TemperatureRange, TemperatureSeasonality, CumulativeHeat,
+       Isothermality, FrostChangeFrequency,
+# water leaves
+       Precipitation, PrecipitationSeasonality, VaporPressure,
+       VaporPressureDeficit, VaporPressureDeficitRange, RelativeHumidity,
+       RelativeHumidityRange, Evapotranspiration, EvapotranspirationRange,
+       ClimateMoisture, ClimateMoistureRange, SnowWaterEquivalent,
+       SiteWaterBalance, GrowingSeasonPrecipitation,
+# radiation / wind / cloud
+       SolarRadiation, SolarRadiationRange, WindSpeed, WindSpeedRange,
+       CloudCover, CloudCoverRange,
+# day / carbon / typology / other
+       DayOfYear, DayRange, CarbonFlux, LandCoverTypology, ClimateTypology,
+       Heterogeneity, Altitude
+
+# Geographic coordinate type — used across the ClimatePref sub-module and the main module, so it is
+# defined here (before ClimatePref) rather than inside it.
+include("Coordinates.jl")
+export LatLong
 
 # EcoSISTEM.ClimatePref sub-module
 include("ClimatePref/ClimatePref.jl")
@@ -22,61 +68,63 @@ function unziptemp end
 
 include("Dist.jl")
 export Trapezoid
+public read_distribution, param_units
 
 include("Phylo.jl")
 export assign_traits!, get_traits, resettraits!, reroot!
 
 include("TraitRelationship.jl")
-export TraitRelationship,
-       multiplicativeTR2,
-       multiplicativeTR3,
+export multiplicativeFit2,
+       multiplicativeFit3,
        Gauss,
-       Match,
-       NoRelContinuous,
-       NoRelDiscrete,
+       MatchSuitability,
+       NoFitContinuous,
+       NoFitDiscrete,
+       NicheSuitability,
        Trapeze,
        Unif,
-       additiveTR2,
-       additiveTR3,
-       LCmatch
+       additiveFit2,
+       additiveFit3,
+       LandCoverSuitability
+
+# Materialised layer family (Role × NicheAxis): the AbstractLayer types + LayerUpdate,
+# with the old *Hab names kept as aliases. Included BEFORE Habitats.jl, whose methods
+# dispatch on those aliases.
+include("Layer.jl")
+export condition, resource
+export AbstractLayer, ContinuousLayer, DiscreteLayer,
+       LayerCollection2, LayerCollection3, Unclassified
+# back-compat regime + supply aliases over the layer types (defined in Layer.jl)
+export ContinuousRegime, ContinuousTimeRegime, DiscreteRegime,
+       RegimeCollection2, RegimeCollection3
+export SimpleSupply,
+       SolarSupply,
+       SolarTimeSupply,
+       WaterSupply,
+       WaterTimeSupply,
+       SupplyCollection2
 
 include("Habitats.jl")
-export ContinuousHab,
-       ContinuousTimeHab,
-       DiscreteHab,
-       HabitatCollection2,
-       HabitatCollection3,
-       tempgrad,
-       raingrad
+export tempgrad, raingrad
 
 include("Energy.jl")
-export SimpleRequirement,
-       SizeRequirement,
-       SolarRequirement,
-       WaterRequirement,
-       VolWaterRequirement,
-       SimpleBudget,
-       SolarBudget,
-       SolarTimeBudget,
-       WaterBudget,
-       VolWaterBudget,
-       WaterTimeBudget,
-       VolWaterTimeBudget,
-       ReqCollection2,
-       BudgetCollection2
+export SimpleDemand,
+       SizeDemand,
+       SolarDemand,
+       WaterDemand,
+       DemandCollection2
 
 include("AbioticEnv.jl")
-export GridAbioticEnv,
-       simplenicheAE,
-       tempgradAE,
-       raingradAE,
-       peakedgradAE,
-       simplehabitatAE,
-       degradedhabitatAE,
-       eraAE,
-       worldclimAE,
-       bioclimAE,
-       lcAE
+export GridHabitat,
+       simplenichehabitat,
+       tempgradhabitat,
+       raingradhabitat,
+       peakedgradhabitat,
+       simplehabitat,
+       erahabitat,
+       worldclimhabitat,
+       bioclimhabitat,
+       landcoverhabitat
 
 include("Movement.jl")
 export GaussianKernel,
@@ -84,21 +132,22 @@ export GaussianKernel,
        BirthOnlyMovement,
        AlwaysMovement,
        NoMovement,
-       getkernel,
+       getkernels,
        Torus,
        Cylinder,
        NoBoundary
 
 include("Traits.jl")
 export GaussTrait,
-       DiscreteTrait,
-       TempBin,
-       RainBin,
-       TraitCollection2,
-       TraitCollection3,
+       DiscreteTolerance,
+       NicheTolerance,
+       TempTolerance,
+       RainTolerance,
+       ToleranceCollection2,
+       ToleranceCollection3,
        DiscreteEvolve,
        ContinuousEvolve,
-       LCtrait
+       LandCoverTolerance
 
 include("Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth
@@ -113,21 +162,28 @@ include("Ecosystem.jl")
 export Ecosystem,
        CachedEcosystem,
        getsize,
-       gethabitat,
-       gettraitrel,
+       getregime,
+       getnichefit,
        getgridsize,
        getdispersaldist,
        getdispersalvar,
        resetrate!,
        resettime!,
-       getbudget,
+       getsupply,
        addspecies!
 
+include("Simplify.jl")
+
 include("Traitfuns.jl")
-export TraitFun, getpref, gettraitrel, gethabitat
+export suitability, getpref, getdist, getnichefit, getregime
+
+# Deprecated public API (trait line): `GaussTrait` → `NicheTolerance`, `Gauss`/`Trapeze`/`Unif` → `NicheSuitability`. Included
+# late, after every type it shims; the shim names stay exported (above). See also
+# `src/ClimatePref/deprecations.jl` for the ClimatePref submodule's deprecations.
+include("deprecations.jl")
 
 include("HabitatUpdate.jl")
-export getchangefun, TempChange, RainChange, TempFluct, eraChange,
+export TempChange, RainfallChange, TempFluct, eraChange,
        worldclimChange
 
 include("Scenarios.jl")
@@ -136,20 +192,17 @@ export SimpleScenario, FluctScenario, MultiScenario
 include("Generate.jl")
 export populate!,
        repopulate!,
-       traitpopulate!,
-       traitrepopulate!,
+       tolerancepopulate!,
+       tolerancerepopulate!,
        emptypopulate!,
-       reenergise!,
+       resupply!,
        randomniches,
-       update!,
-       update_birth_move!,
-       convert_coords,
-       get_neighbours
+       update!
 
 include("Helper.jl")
 export simulate!,
        simulate_action!, simulate_record!, simulate_record_diversity!,
-       expected_counts, generate_storage
+       generate_storage
 
 include("Cache.jl")
 export abundances, clearcache
@@ -181,24 +234,43 @@ chosen so one block spans a CPU cache line (`cachelinesize ÷ sizeof(Int)`).
 species_blocksize() = _SPECIES_BLOCK[]
 
 function __init__()
-    return _SPECIES_BLOCK[] = try
+    _SPECIES_BLOCK[] = try
         max(1, Hwloc.cachelinesize() ÷ sizeof(Int64))
     catch
         16
     end
+    # Point RasterDataSources at its own subdirectory of our scratch space (unless the user has
+    # already set RASTERDATASOURCES_PATH), keeping downloads under EcoSISTEM's scratch lifecycle.
+    get!(ENV, "RASTERDATASOURCES_PATH") do
+        return assetdir(RasterDataSources)
+    end
+    return nothing
 end
 
 abstract type MPIGridLandscape end
 export MPIGridLandscape
 
 abstract type MPIEcosystem{MPIGL <: MPIGridLandscape,
-                           Part <: AbstractAbiotic,
+                           Part <: AbstractHabitat,
                            SL <: SpeciesList,
-                           TR <: AbstractTraitRelationship} <:
-              AbstractEcosystem{Part, SL, TR} end
+                           NF <: AbstractNicheFit} <:
+              AbstractEcosystem{Part, SL, NF} end
 export MPIEcosystem
 
+"""
+    gather_abundance(eco::MPIEcosystem)
+
+Gather the full abundances matrix onto the root node.
+"""
 function gather_abundance end
+
+"""
+    gather_diversity(eco::MPIEcosystem, divmeasure::F, q) where F <: Function
+
+Gather diversity calculated by `divmeasure` at value `q` from all MPI nodes onto
+the root node (rank 0), combining subcommunity diversity values using a power
+mean weighted by total abundances across nodes.
+"""
 function gather_diversity end
 export gather_abundance, gather_diversity
 
@@ -206,5 +278,15 @@ function emptyMPIgridlandscape end
 function synchronise_from_rows! end
 function synchronise_from_cols! end
 export emptyMPIgridlandscape, synchronise_from_rows!, synchronise_from_cols!
+
+function _use_mpi()
+    return !isnothing(Base.get_extension(@__MODULE__, :EcoSISTEMMPIExt)) &&
+           _should_mpi()
+end
+
+# Whether this process should build a distributed `MPIEcosystem`: the MPI extension overrides this
+# to `MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1`. The default (extension not loaded) is
+# always false, so the base package builds a serial `Ecosystem` and never references MPI symbols.
+function _should_mpi end
 
 end

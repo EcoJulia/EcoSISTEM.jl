@@ -6,15 +6,15 @@ using LinearAlgebra
 using Distributions
 using Random
 
-using EcoSISTEM: AbstractAbiotic, Abstract1Requirement, Abstract2Requirements
-using EcoSISTEM: AbstractHabitat, AbstractBudget, AbstractTraitRelationship
+using EcoSISTEM: AbstractHabitat, Abstract1Demand, Abstract2Demands
+using EcoSISTEM: AbstractRegime, AbstractSupply, AbstractNicheFit
 using EcoSISTEM:
-                 energy_adjustment,
+                 resource_adjustment,
                  invalidatecaches!,
-                 habitatupdate!,
-                 budgetupdate!,
+                 regimeupdate!,
+                 supplyupdate!,
                  BirthOnlyMovement,
-                 BudgetCollection2
+                 SupplyCollection2
 
 """
     update!(eco::MPIEcosystem, timestep::Unitful.Time)
@@ -27,14 +27,14 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
 
-    # Calculate dimenions of habitat and number of species
+    # Calculate dimenions of regime and number of species
     numsc = countsubcommunities(eco)
     params = eco.spplist.params
-    # Set the overall energy budget of that square
-    EcoSISTEM.update_energy_usage!(eco)
-    # Share per-cell energy usage across ranks. `totalE` is (numsc, numrequirements)
-    # and each rank owns a contiguous block of cells (rows); gather one requirement
-    # column at a time so that multi-requirement environments (where the columns
+    # Set the overall resource supply of that square
+    EcoSISTEM.update_resource_usage!(eco)
+    # Share per-cell resource usage across ranks. `totalE` is (numsc, numdemands)
+    # and each rank owns a contiguous block of cells (rows); gather one demand
+    # column at a time so that multi-demand environments (where the columns
     # are not contiguous in the flat buffer) are combined correctly.
     for r in axes(eco.cache.totalE, 2)
         MPI.Allgatherv!(MPI.VBuffer(view(eco.cache.totalE, :, r), eco.sccounts),
@@ -45,7 +45,7 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     # Loop through this rank's species in cache-line-sized contiguous blocks
     # (see `EcoSISTEM.species_blocksize`), cells outside the inner species loop,
     # so a block's species (adjacent rows of the column-major rows_matrix) are
-    # touched as one cache line. The active/energy gate is per-cell. Each species
+    # touched as one cache line. The active/resource gate is per-cell. Each species
     # is still drawn only by its owning thread, in ascending-cell order, so
     # per-species RNG streams stay race-free and reproducible.
     nlocal = eco.sppcounts[rank + 1]
@@ -61,15 +61,15 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
             # Convert 1D dimension to 2D coordinates
             (x, y) = EcoSISTEM.convert_coords(eco, sc)
             # Check if grid cell currently active
-            (eco.abenv.active[x, y] && (eco.cache.totalE[sc, 1] > 0)) ||
+            (eco.habitat.active[x, y] && (eco.cache.totalE[sc, 1] > 0)) ||
                 continue
             for mpisp in mpistart:mpiend
                 truesp = eco.firstsp + mpisp - 1
                 rng = EcoSISTEM.getrng(eco, truesp)
                 # Calculate how much birth and death should be adjusted
-                adjusted_birth, adjusted_death = energy_adjustment(eco,
-                                                                   eco.abenv.budget,
-                                                                   sc, truesp)
+                adjusted_birth, adjusted_death = resource_adjustment(eco,
+                                                                     eco.habitat.supply,
+                                                                     sc, truesp)
 
                 # Calculate effective rates
                 birthprob = params.birth[truesp] * timestep * adjusted_birth
@@ -110,9 +110,9 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
     # Invalidate all caches for next update
     invalidatecaches!(eco)
 
-    # Update environment - habitat and energy budgets
-    habitatupdate!(eco, timestep)
-    return budgetupdate!(eco, timestep)
+    # Update environment - regime and resource supplies
+    regimeupdate!(eco, timestep)
+    return supplyupdate!(eco, timestep)
 end
 
 """
@@ -126,30 +126,31 @@ function EcoSISTEM.getlookup(eco::MPIEcosystem, sp::Int64)
 end
 
 """
-    update_energy_usage!(eco::MPIEcosystem)
+    update_resource_usage!(eco::MPIEcosystem)
 
-Update the total energy usage cache for a single-resource `MPIEcosystem`,
-summing each species' abundance × energy requirement across all MPI blocks and
+Update the total resource usage cache for a single-resource `MPIEcosystem`,
+summing each species' abundance × resource demand across all MPI blocks and
 writing results into `eco.cache.totalE`.
 """
-function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
-                                                          EcoSISTEM.SpeciesList{Tr,
-                                                                                Req,
-                                                                                B,
-                                                                                C,
-                                                                                D},
-                                                          E}) where {MPIGL <:
-                                                                     MPIGridLandscape,
-                                                                     A, B, C, D,
-                                                                     E, Tr,
-                                                                     Req <:
-                                                                     Abstract1Requirement}
+function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
+                                                            EcoSISTEM.SpeciesList{TL,
+                                                                                  DM,
+                                                                                  B,
+                                                                                  C,
+                                                                                  D},
+                                                            E}) where {MPIGL <:
+                                                                       MPIGridLandscape,
+                                                                       A, B, C,
+                                                                       D,
+                                                                       E, TL,
+                                                                       DM <:
+                                                                       Abstract1Demand}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
-    # Get energy budgets of species in square
-    ϵ̄ = eco.spplist.requirement.energy
+    # Get resource supplies of species in square
+    ϵ̄ = eco.spplist.demand.resource
     mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
@@ -162,7 +163,7 @@ function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄[spindex:nextsp]
             eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) *
-                                           eco.spplist.requirement.exchange_rate
+                                           eco.spplist.demand.exchange_rate
             spindex = nextsp + 1
         end
     end
@@ -170,30 +171,31 @@ function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
 end
 
 """
-    update_energy_usage!(eco::MPIEcosystem)
+    update_resource_usage!(eco::MPIEcosystem)
 
-Two-resource variant of `update_energy_usage!`; updates both columns of
-`eco.cache.totalE` for environments with `Abstract2Requirements`.
+Two-resource variant of `update_resource_usage!`; updates both columns of
+`eco.cache.totalE` for environments with `Abstract2Demands`.
 """
-function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
-                                                          EcoSISTEM.SpeciesList{Tr,
-                                                                                Req,
-                                                                                B,
-                                                                                C,
-                                                                                D},
-                                                          E}) where {MPIGL <:
-                                                                     MPIGridLandscape,
-                                                                     A, B, C, D,
-                                                                     E, Tr,
-                                                                     Req <:
-                                                                     Abstract2Requirements}
+function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
+                                                            EcoSISTEM.SpeciesList{TL,
+                                                                                  DM,
+                                                                                  B,
+                                                                                  C,
+                                                                                  D},
+                                                            E}) where {MPIGL <:
+                                                                       MPIGridLandscape,
+                                                                       A, B, C,
+                                                                       D,
+                                                                       E, TL,
+                                                                       DM <:
+                                                                       Abstract2Demands}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
-    # Get energy budgets of species in square
-    ϵ̄1 = eco.spplist.requirement.r1.energy
-    ϵ̄2 = eco.spplist.requirement.r2.energy
+    # Get resource supplies of species in square
+    ϵ̄1 = eco.spplist.demand.one.resource
+    ϵ̄2 = eco.spplist.demand.two.resource
     mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
@@ -207,10 +209,10 @@ function EcoSISTEM.update_energy_usage!(eco::MPIEcosystem{MPIGL, A,
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄1[spindex:nextsp]
             eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) *
-                                           eco.spplist.requirement.r1.exchange_rate
+                                           eco.spplist.demand.one.exchange_rate
             e2 = @view ϵ̄2[spindex:nextsp]
             eco.cache.totalE[truesc, 2] += (currentabun ⋅ e2) *
-                                           eco.spplist.requirement.r2.exchange_rate
+                                           eco.spplist.demand.two.exchange_rate
             spindex = nextsp + 1
         end
     end
@@ -240,38 +242,38 @@ function EcoSISTEM.move!(eco::MPIEcosystem,
     mpisp = truesp - eco.firstsp + 1
     grd[mpisp, sc] -= births
     # Map moves to location in grid
-    mov = lookup.moves
+    moves = lookup.moves
     for i in eachindex(lookup.x)
         newx = mod(lookup.x[i] + x - 1, width) + 1
         newy = mod(lookup.y[i] + y - 1, height) + 1
         loc = EcoSISTEM.convert_coords(eco, (newx, newy), width)
-        grd[mpisp, loc] += mov[i]
+        grd[mpisp, loc] += moves[i]
     end
     return eco
 end
 
-using EcoSISTEM: _getdimension, _getbudget
+using EcoSISTEM: _getdimension, _getsupply
 """
-    populate!(ml::MPIGridLandscape, spplist::SpeciesList, abenv::AB, rel::R)
+    populate!(ml::MPIGridLandscape, spplist::SpeciesList, habitat::AB, nichefit::R)
 
 Populate an `MPIGridLandscape` by distributing each species' abundance across
-active grid cells proportionally to the available budget, then synchronising
+active grid cells proportionally to the available supply, then synchronising
 from rows to columns across all MPI nodes.
 """
 function EcoSISTEM.populate!(ml::MPIGridLandscape,
                              spplist::EcoSISTEM.SpeciesList,
-                             abenv::AB,
-                             rel::R,
+                             habitat::AB,
+                             nichefit::R,
                              rngs::Vector{Random.Xoshiro}) where {AB <:
-                                                                  AbstractAbiotic,
+                                                                  AbstractHabitat,
                                                                   R <:
-                                                                  AbstractTraitRelationship}
-    dim = _getdimension(abenv.habitat)
+                                                                  AbstractNicheFit}
+    dim = _getdimension(habitat.regime)
     len = dim[1] * dim[2]
     grid = collect(1:len)
-    # Set up copy of budget
-    b = reshape(ustrip.(_getbudget(abenv.budget)), size(grid))
-    activity = reshape(copy(abenv.active), size(grid))
+    # Set up copy of supply
+    b = reshape(ustrip.(_getsupply(habitat.supply)), size(grid))
+    activity = reshape(copy(habitat.active), size(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
     B = b ./ sum(b)
@@ -287,35 +289,35 @@ end
 
 """
     populate!(ml::MPIGridLandscape, spplist::SpeciesList,
-        abenv::GridAbioticEnv{H, BudgetCollection2{B1, B2}}, rel::R)
+        habitat::GridHabitat{H, SupplyCollection2{B1, B2}}, nichefit::R)
 
-Two-budget variant of `populate!`; distributes abundances proportionally to the
-product of the two normalised budget fractions.
+Two-supply variant of `populate!`; distributes abundances proportionally to the
+product of the two normalised supply fractions.
 """
 function EcoSISTEM.populate!(ml::MPIGridLandscape,
                              spplist::EcoSISTEM.SpeciesList,
-                             abenv::EcoSISTEM.GridAbioticEnv{H,
-                                                             BudgetCollection2{B1,
-                                                                               B2}},
-                             rel::R,
+                             habitat::EcoSISTEM.GridHabitat{H,
+                                                            SupplyCollection2{B1,
+                                                                              B2}},
+                             nichefit::R,
                              rngs::Vector{Random.Xoshiro}) where {H <:
-                                                                  AbstractHabitat,
+                                                                  AbstractRegime,
                                                                   B1 <:
-                                                                  AbstractBudget,
+                                                                  AbstractSupply,
                                                                   B2 <:
-                                                                  AbstractBudget,
+                                                                  AbstractSupply,
                                                                   R <:
-                                                                  AbstractTraitRelationship}
-    # Calculate size of habitat
-    dim = _getdimension(abenv.habitat)
+                                                                  AbstractNicheFit}
+    # Calculate size of regime
+    dim = _getdimension(habitat.regime)
     len = dim[1] * dim[2]
     grid = collect(1:len)
-    # Set up copy of budget
-    b1 = reshape(copy(_getbudget(abenv.budget, :b1)), size(grid))
-    b2 = reshape(copy(_getbudget(abenv.budget, :b2)), size(grid))
+    # Set up copy of supply
+    b1 = reshape(copy(_getsupply(habitat.supply, :one)), size(grid))
+    b2 = reshape(copy(_getsupply(habitat.supply, :two)), size(grid))
     units1 = unit(b1[1])
     units2 = unit(b2[1])
-    activity = reshape(copy(abenv.active), size(grid))
+    activity = reshape(copy(habitat.active), size(grid))
     b1[.!activity] .= 0.0 * units1
     b2[.!activity] .= 0.0 * units2
     B = (b1 ./ sum(b1)) .* (b2 ./ sum(b2))

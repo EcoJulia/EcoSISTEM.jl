@@ -12,7 +12,7 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using JLD2
 
-include(EcoSISTEM.path("TestCases.jl"))
+include(pkgdir(EcoSISTEM, "test", "TestCases.jl"))
 
 length(ARGS) >= 1 || error("usage: threading_reproducibility.jl <output.jld2>")
 

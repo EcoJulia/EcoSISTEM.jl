@@ -3,65 +3,283 @@
 using Unitful
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using EcoSISTEM: LatLong, assetdir
 using AxisArrays
-using NetCDF
+using CSV
 using RasterDataSources
 const RDS = RasterDataSources
+using Rasters
+using NCDatasets
+using JLD2: jldsave, jldopen
+import Rasters: X, Y, Ti
 
 import Unitful.°, Unitful.°C, Unitful.mm
+
+# ArchGDAL is needed to register the GDAL backend Rasters uses to read GeoTIFFs.
 import ArchGDAL
-const AG = ArchGDAL
 
 import Base.read
 
-function Base.read(T::Type{<:RDS.RasterDataSource}; kw...)
-    return read(T, RDS.layers(T); kw...)
+# Convert a Rasters raster (2-D `X`/`Y`, or 3-D `X`/`Y` with a band/time dimension) into the
+# `AxisArray` EcoSISTEM uses internally: dim 1 = `:latitude` (ascending), dim 2 = `:longitude`
+# (ascending), and an optional dim 3 = `:time` (`(1:n)·month`) or `:var` (`1:n`). Coordinates
+# come from the raster's `Y` (latitude) / `X` (longitude) lookups read from the file metadata —
+# no hardcoded global extent — and missing/nodata cells become `NaN`. `unit` is attached
+# (Unitful); pass `NoUnits` for a dimensionless layer. This replaces the hand-rolled band loops
+# + fixed `-180°..180°`/`-90°..90°` axes the readers used to build.
+#
+# NB the geographically-correct convention (`:latitude` = `Y`) is a fix: the old readers put the
+# longitude range on the `:latitude` axis (and vice versa) — see the git history / plan.
+function _rastertoaxisarray(ras::Rasters.AbstractRaster; unit = NoUnits,
+                            thirdaxis::Symbol = :time)
+    r = Rasters.replace_missing(ras, NaN)
+    # latitude ascending (GeoTIFF `Y` is usually stored north→south)
+    (first(Rasters.lookup(r, Y)) < last(Rasters.lookup(r, Y))) ||
+        (r = reverse(r; dims = Y))
+    # reorder axes to (latitude, longitude[, band/time])
+    others = filter(d -> !(d isa X || d isa Y), Rasters.dims(r))
+    r = permutedims(r, (Y, X, others...))
+    latv = collect(Rasters.lookup(r, Y)) .* °
+    lonv = collect(Rasters.lookup(r, X)) .* °
+    data = Float64.(Array(r)) .* unit
+    ndims(data) == 2 &&
+        return AxisArray(data, Axis{:latitude}(latv), Axis{:longitude}(lonv))
+    n = size(data, 3)
+    third = thirdaxis === :time ? Axis{:time}((1:n) .* month) : Axis{:var}(1:n)
+    return AxisArray(data, Axis{:latitude}(latv), Axis{:longitude}(lonv), third)
 end
 
-function Base.read(T::Type{WorldClim{BioClim}}, layers;
-                   cut = nothing, kw...)
-    files = getraster(T, layers; kw...)
-    return readbioclim(T, files, cut = cut)
+# Combine per-file 2-D lat×long `AxisArray`s into one layer: a single 2-D array for one file,
+# else a 3-D `AxisArray` stacked along `third` (an `Axis{:var}` or `Axis{:time}`).
+function _stacklayers(aas::AbstractVector, third)
+    length(aas) == 1 && return first(aas)
+    return AxisArray(cat(getfield.(aas, :data)...; dims = 3),
+                     AxisArrays.axes(first(aas))[1],
+                     AxisArrays.axes(first(aas))[2],
+                     third)
 end
 
-function Base.read(T::Type{WorldClim{Climate}}, layers;
-                   cut = nothing, month = 1:12, kw...)
-    files = getraster(T, layers; month = month, kw...)
-    return readworldclim(T, files, cut = cut)
+# Apply the optional `cut` (a `LatLong` of `°` intervals `.lat`, `.long`) to a lat×long[×z] world.
+# With the corrected axis convention `.lat` selects latitude (dim 1) and `.long` longitude (dim 2).
+_applycut(world, ::Nothing) = world
+function _applycut(world, cut)
+    return ndims(world) == 2 ? world[cut.lat, cut.long] :
+           world[cut.lat, cut.long, :]
 end
 
-function Base.read(T::Type{CHELSA{BioClim}}, layers; scale = 1,
-                   fn = mean, cut = nothing, kw...)
-    files = getraster(T, layers; kw...)
-    return readCHELSA_bioclim(T, files, scale = scale, fn = fn, cut = cut)
+# Estimated bytes to hold a raster whole in memory. Rasters' own guard compares against *free*
+# memory, which is over-conservative — idle memory is reclaimable / pageable — so we instead gate
+# on a fraction of *total* RAM (below).
+function _readbytes(r)
+    elbytes = try
+        Base.aligned_sizeof(eltype(r))   # handles isbits `Union{Missing, T}` (selector byte incl.)
+    catch
+        sizeof(Float64)                  # conservative fallback
+    end
+    return prod(size(r)) * elbytes
 end
 
-function Base.read(T::Type{<:EarthEnv{<:LandCover}}, layers; scale = 10,
-                   fn = x -> round(mean(x)), cut = nothing, kw...)
-    files = getraster(T, layers; kw...)
-    return readlc(T, files, scale = scale, fn = fn,
-                  cut = cut)
+# A raster is read whole (then aggregated in memory) when it fits in this fraction of *total* system
+# RAM; anything larger (e.g. the multi-GB CHELSA bioclim file on a small machine) stays lazy.
+const _READ_WHOLE_FRACTION = 0.5
+
+# Stable identifier for the aggregation reducer `fn`, used in the aggregate cache key. Anonymous
+# closures (whose `nameof` starts with `#`, and isn't stable across sessions) return `nothing`, so
+# they are not cached.
+function _fnid(fn)
+    n = string(nameof(fn))
+    return startswith(n, "#") ? nothing : Symbol(n)
 end
 
-const VARDICT = Dict("bio" => NaN, "prec" => mm,
-                     "srad" => u"kJ" * u"m"^-2 * day^-1, "tavg" => K,
-                     "tmax" => K, "tmin" => K, "vapr" => u"kPa",
-                     "wind" => u"m" * u"s"^-1)
-const UNITDICT = Dict("K" => K, "m" => m, "J m**-2" => J / m^2,
-                      "m**3 m**-3" => m^3)
-const BIODICT = Dict(zip(1:19, [fill(K, 11); fill(kg / m^2, 8)]))
+# Content hash of this file, folded into the aggregate cache key so any change to the reading /
+# aggregation machinery here invalidates the cache — a cached result is only valid for the code that
+# produced it. Evaluated at precompile, so it tracks the source automatically (a change to this file
+# recompiles the module and updates the hash).
+const _AGGCODEHASH = hash(read(@__FILE__, String))
 
-"""
-    readag(f, filename)
+# Path in EcoSISTEM's own scratch subdir (`assetdir()`, not RasterDataSources') where the
+# `scale`-aggregated `unit`-tagged form of source file `f` (with reducer `fn`) is cached as a JLD2
+# `AxisArray`, or `nothing` if `fn` is not cacheable. Keyed on the source's path/size/mtime — a
+# `stat`, deliberately not a read, so a cache hit never touches the multi-GB source — plus `scale`,
+# the reducer id, the unit and `_AGGCODEHASH` (so a machinery change invalidates it).
+function _aggcachepath(f, scale, fn, u)
+    id = _fnid(fn)
+    id === nothing && return nothing
+    key = string(hash((abspath(f), filesize(f), mtime(f), scale, id, string(u),
+                       _AGGCODEHASH)); base = 16)
+    return joinpath(assetdir(), "aggregates", key * ".jld2")
+end
 
-Function to read raster file into julia.
-"""
-function readag(f, filename)
-    return AG.environment() do
-        AG.read(filename) do dataset
-            return f(dataset)
+# Mask raw integer-band fill sentinels. GDAL sources (e.g. CHELSA) store a fill at the raw band's
+# `typemax` (or `typemin` for signed types) that the file's *declared* nodata may not capture — CHELSA
+# declares `-99999`, unrepresentable in its `UInt` bands, so the real fill (`0xffffffff` etc.) survives the
+# default scaled read and becomes a spurious huge value (gsp's `0xffffffff` → 4.29e8). Locate those cells in
+# the raw band `raw` and set them `missing` on the scaled raster `r`, lazily (so a disk-backed raster stays
+# lazy). Only integer bands carry such sentinels; float bands rely on the file's declared nodata and pass
+# through unchanged.
+function _mask_int_fills(r, raw)
+    T = nonmissingtype(eltype(raw))
+    T <: Integer || return r
+    fills = T <: Signed ? (typemin(T), typemax(T)) : (typemax(T),)
+    return Rasters.rebuild(r,
+                           broadcast((value,
+                                      rawvalue) -> (!ismissing(rawvalue) &&
+                                                    rawvalue in fills) ?
+                                                   missing : value, r, raw))
+end
+
+# Read a raster file, optionally coarsening it by an integer `scale` factor, aggregating each block
+# with `fn` (replaces the old read-time `downresolution!`). The opens run under a `NullLogger` to drop
+# Rasters' benign metadata warnings (e.g. the `-99999` nodata CHELSA declares for its `UInt` bands, which
+# the eltype can't hold). `_mask_int_fills` then removes the raw integer fill sentinels that declared nodata
+# misses. Aggregating a *lazy* (disk-backed) raster reads it window-by-window — slow and hugely allocating —
+# so when it comfortably fits in RAM we read it whole first (~6× faster and far fewer allocations); larger
+# files fall back to the lazy aggregate to stay within memory. `_rastertoaxisarray` then materialises the
+# (small) aggregated result.
+function _readraster(f::AbstractString; scale::Integer = 1, fn = mean)
+    r, raw = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        return Raster(f; lazy = true), Raster(f; lazy = true, scaled = false)
+    end
+    r = _mask_int_fills(r, raw)
+    scale > 1 || return r
+    fits = _readbytes(r) < _READ_WHOLE_FRACTION * Sys.total_memory()
+    return Rasters.aggregate(fn, fits ? read(r; checkmem = false) : r, scale)
+end
+
+# --- per-source read traits -------------------------------------------------
+# After the Rasters migration the RasterDataSources-backed readers differ in only four small,
+# type-keyed ways; one generic `read` (below) drives them all by dispatching these traits on the
+# source type `T`. Each has a safe default and a per-source override where it actually differs.
+
+# Kind of third axis stacked over a multi-file layer: bands (`:var`) or a monthly series (`:time`).
+_thirdaxis(::Type{<:RDS.RasterDataSource}) = :var
+_thirdaxis(::Type{<:WorldClim{Climate}}) = :time
+
+# Physical unit attached to the data by the reader: none — `read` returns the raster's values as bare
+# magnitudes in their actual physical unit (e.g. temperature in °C), and the unit is supplied from the
+# shipped layer table (`layerunit`) when a layer is built. The directory readers below
+# (`_readmonthlydir`) take a bare directory with no `RasterDataSource` attached, but their `var_name`
+# uses the same short codes as the shipped tables (`tavg`, `wind`, `prec`, …), so they self-attach a
+# unit by deferring to `layerunit` too — `readCHELSA_monthly` against `CHELSA{Climate}`, `readCRUTS`
+# against `WorldClim{Climate}` (CRU TS has no table of its own; its variable names are WorldClim's).
+_layerunit(::Type{<:RDS.RasterDataSource}, files) = NoUnits
+
+# Default read-time block-aggregation factor + reducer (land cover is coarsened 10× by default).
+_defaultscale(::Type{<:RDS.RasterDataSource}) = 1
+_defaultscale(::Type{<:EarthEnv{<:LandCover}}) = 10
+_defaultfn(::Type{<:RDS.RasterDataSource}) = mean
+# Named (not an anonymous closure) so the aggregate disk cache can key on it via `nameof`.
+_roundmean(x) = round(mean(x))
+_defaultfn(::Type{<:EarthEnv{<:LandCover}}) = _roundmean
+
+# Default keywords forwarded to `getraster` (WorldClim monthly climate needs a month range).
+_getrasterkw(::Type{<:RDS.RasterDataSource}) = (;)
+_getrasterkw(::Type{<:WorldClim{Climate}}) = (month = 1:12,)
+
+# Build the stacked third axis of a multi-file layer from its kind and length.
+function _mkthirdaxis(kind::Symbol, n::Integer)
+    return kind === :time ? Axis{:time}((1:n) .* month) : Axis{:var}(1:n)
+end
+
+# Normalise `getraster`'s return (a single path, a vector, or a keyed collection of paths) to a
+# plain `Vector{String}`.
+_filelist(x::AbstractString) = [String(x)]
+_filelist(x) = String[String(f) for f in values(x)]
+
+# The aggregated per-file layer is deterministic in (file, scale, fn, unit); memoise the resulting
+# `AxisArray` to disk (JLD2) in EcoSISTEM's scratch subdir so later reads skip the (slow) `aggregate`.
+# Only caches when `scale > 1` (scale-1 reads are already fast) and `fn` is cacheable (see
+# `_aggcachepath`). Caching the `AxisArray` — not the `Raster` — preserves the exact lat/long axes,
+# which a GeoTIFF round-trip perturbs.
+function _cachedlayer(f, scale, fn, u)
+    scale > 1 ||
+        return _rastertoaxisarray(_readraster(f; scale = scale, fn = fn);
+                                  unit = u)
+    path = _aggcachepath(f, scale, fn, u)
+    if path !== nothing && isfile(path)
+        return jldopen(path, "r") do io
+            return io["layer"]
         end
     end
+    layer = _rastertoaxisarray(_readraster(f; scale = scale, fn = fn); unit = u)
+    if path !== nothing
+        mkpath(dirname(path))
+        jldsave(path; layer = layer)
+    end
+    return layer
+end
+
+# Read a resolved set of raster file paths into a `ClimateRaster` of source `T`. Values are returned in
+# their actual physical unit as bare magnitudes (`_layerunit` is `NoUnits` for every source); the third
+# axis (bands or a monthly series) comes from `_thirdaxis`. Shared by `read` and the deprecated `readworldclim`.
+function _readsource(T::Type{<:RDS.RasterDataSource}, files::Vector{String};
+                     cut = nothing, scale = _defaultscale(T),
+                     fn = _defaultfn(T))
+    u = _layerunit(T, files)
+    aas = map(f -> _cachedlayer(f, scale, fn, u), files)
+    world = _stacklayers(aas, _mkthirdaxis(_thirdaxis(T), length(aas)))
+    return ClimateRaster(T, _applycut(world, cut))
+end
+
+"""
+    read(T::Type{<:RasterDataSource}, layers = RasterDataSources.layers(T);
+         cut = nothing, scale, fn, kw...)
+
+Download (via `getraster`) and read a RasterDataSources layer set into a [`ClimateRaster`](@ref).
+`layers` chooses which layers/variables to read (default: all of them). `cut`, if given, restricts
+the result to a `(lat = a .. b, long = c .. d)` box of `°` intervals. `scale`/`fn` coarsen each
+raster by an integer block-aggregation factor with reducer `fn` (source-specific defaults — e.g.
+`EarthEnv{LandCover}` is aggregated 10×). Any remaining keywords (e.g. `month`) pass through to
+`getraster`.
+"""
+function Base.read(T::Type{<:RDS.RasterDataSource}, layers = RDS.layers(T);
+                   cut = nothing, scale = _defaultscale(T), fn = _defaultfn(T),
+                   kw...)
+    files = _filelist(getraster(T, layers; _getrasterkw(T)..., kw...))
+    return _readsource(T, files; cut = cut, scale = scale, fn = fn)
+end
+
+# Snap a `°` coordinate `x` to the nearest multiple of step `r` (a `°` quantity) in direction
+# `dirn` (`floor` = down, `ceil` = up). Applied as floor to the low edge and ceil to the high edge,
+# this always rounds *outward* so a rounded box encloses the exact one.
+_snapout(dirn, x, r) = dirn(uconvert(NoUnits, x / r)) * r
+
+"""
+    boundingbox(region::AbstractString; islands = false, round = false)
+
+Return the geographic bounding box of `region` as a [`LatLong`](@ref) of `°` intervals, ready to
+pass as the `cut` keyword to [`read`](@ref) and the other raster readers. Boxes are read
+from the shipped `data/bounding_boxes.csv` table. `islands = true` selects the island-inclusive
+extent (the table's `Islands` coverage) instead of the mainland one. `round`, when given a degree
+step (e.g. `round = 5°`), snaps the box *outwards* to the nearest multiple of that step so the
+rounded box fully contains the exact one; the default `false` leaves it unrounded.
+"""
+function boundingbox(region::AbstractString; islands::Bool = false,
+                     round = false)
+    coverage = islands ? "Islands" : "Mainland"
+    table = CSV.File(pkgdir(@__MODULE__, "data", "bounding_boxes.csv"))
+    matches = filter(r -> r.Region == region && r.Coverage == coverage, table)
+    isempty(matches) &&
+        error("No bounding box for region \"$region\" ($coverage) in bounding_boxes.csv")
+    row = only(matches)
+    south, north = row.South * °, row.North * °
+    west, east = row.West * °, row.East * °
+    if round !== false
+        south, west = _snapout(floor, south, round),
+                      _snapout(floor, west, round)
+        north, east = _snapout(ceil, north, round), _snapout(ceil, east, round)
+    end
+    return LatLong(south .. north, west .. east)
+end
+
+# Parse a CF `units` metadata attribute (as read off a netCDF file, e.g. "J m**-2", "m**3 m**-3")
+# into a Unitful unit. CF spells exponentiation `**` (Unitful: `^`) and a bare space means an
+# implicit product (Unitful: `*`); a missing/blank attribute means "no known unit". Mirrors
+# `LayerUnits.jl`'s `uparse(...; unit_context = [Unitful, Units])` used for the shipped CSV tables.
+function _parsecfunit(s::AbstractString)
+    isempty(s) && return NoUnits
+    return uparse(replace(s, "**" => "^", " " => "*");
+                  unit_context = [Unitful, Units])
 end
 
 """
@@ -72,527 +290,144 @@ Function to search a directory `path` using a given `key` string.
 searchdir(path, key) = filter(x -> occursin(key, x), readdir(path))
 
 """
-    readfile(file::String)
+    readfile(file::String; cut = nothing)
 
-Function to import a selected file from a path string.
+Import a raster file from a path string into an `AxisArray`. `cut`, if given, restricts the result
+to a [`LatLong`](@ref) box of `°` intervals (e.g. from `boundingbox`).
 """
-function readfile(file::String; xmin::Unitful.Quantity{Float64} = -180.0°,
-                  xmax::Unitful.Quantity{Float64} = 180.0°,
-                  ymin::Unitful.Quantity{Float64} = -90.0°,
-                  ymax::Unitful.Quantity{Float64} = 90.0°, cut = nothing)
-    txy = [Float64, Int64(1), Int64(1), Float64(1)]
-
-    readag(file) do dataset
-        txy[2] = AG.width(AG.getband(dataset, 1))
-        txy[3] = AG.height(AG.getband(dataset, 1))
-        txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
-        return print(dataset)
+function readfile(file::String; cut = nothing, xmin = nothing, xmax = nothing,
+                  ymin = nothing, ymax = nothing)
+    n = count(!isnothing, (xmin, xmax, ymin, ymax))
+    if n == 4
+        isnothing(cut) ||
+            error("`readfile`: pass either `cut` or the `xmin`/`xmax`/`ymin`/`ymax` extent, not both.")
+        Base.depwarn("The `xmin`/`xmax`/`ymin`/`ymax` keywords are deprecated; they are being used " *
+                     "as `cut = LatLong(ymin .. ymax, xmin .. xmax)`. Pass `cut` (e.g. from " *
+                     "`boundingbox`) instead.", :readfile)
+        cut = LatLong(ymin .. ymax, xmin .. xmax)
+    elseif n != 0
+        error("`readfile` needs all four of `xmin`/`xmax`/`ymin`/`ymax` (deprecated) or none of " *
+              "them; got $n.")
     end
+    return _applycut(_rastertoaxisarray(_readraster(file)), cut)
+end
 
-    a = Matrix{txy[1]}(undef, txy[2], txy[3])
-    readag(file) do dataset
-        bd = AG.getband(dataset, 1)
-        return AG.read!(bd, a)
-    end
-
-    lat, long = size(a, 1), size(a, 2)
-    step_lat = (xmax - xmin) / lat
-    step_long = (ymax - ymin) / long
-
-    world = AxisArray(a[:, long:-1:1],
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_long:(ymax - step_long / 2.0)))
-
-    if txy[1] <: AbstractFloat
-        @view(world.data[world.data .=== txy[4]]) .*= NaN
-        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
-    end
-
-    if !isnothing(cut)
-        world = world[cut.lat, cut.long, :]
-    end
-
-    return world
+# Roll a lat×long×time ERA `AxisArray` from the ERA5 0–360° longitude convention onto (-180, 180],
+# reordering the data columns so longitude stays ascending — for consistency with the tif readers
+# (WorldClim/CHELSA/EarthEnv), which are already on -180..180. A no-op for data already in range.
+function _wraplong180(aa::AxisArray)
+    wrapped = mod.(ustrip.(AxisArrays.axisvalues(aa)[2]) .+ 180, 360) .- 180
+    perm = sortperm(wrapped)
+    return AxisArray(aa.data[:, perm, :], AxisArrays.axes(aa)[1],
+                     Axis{:longitude}(wrapped[perm] .* °),
+                     AxisArrays.axes(aa)[3])
 end
 
 """
-    readworldclim(dir::String; cut = nothing)
+    readERA(file::String, param::String, dim::Vector{<:Unitful.Time}; cut = nothing)
 
-Function to extract all raster files from a specified folder directory,
-and convert into an axis array.
+Read variable `param` from a **single** ERA netCDF `file` and return an [`ERA`](@ref). `dim` is the
+time coordinate attached to the file's layers (one entry per monthly layer); ERA longitudes are
+wrapped onto `(-180°, 180°]`. To read and time-concatenate a whole *directory* of files, use the
+four-argument method below.
 """
-function readworldclim(T::Type{WorldClim{Climate}}, file::String; kw...)
-    return readworldclim(T, [file]; kw...)
-end
-
-function readworldclim(T::Type{WorldClim{Climate}}, files; kw...)
-    return readworldclim(T, [values(files)...]; kw...)
-end
-
-function readworldclim(::Type{WorldClim{Climate}}, files::Vector{String};
-                       cut = nothing)
-    txy = [Float64, Int32(1), Int32(1), Int32(1)]
-
-    readag(files[1]) do dataset
-        txy[1] = AG.pixeltype(AG.getband(dataset, 1))
-        txy[2] = AG.width(AG.getband(dataset, 1))
-        txy[3] = AG.height(AG.getband(dataset, 1))
-        txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
-        return print(dataset)
-    end
-
-    numfiles = length(files)
-    b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles)
-    map(eachindex(files)) do count
-        a = Matrix{txy[1]}(undef, txy[2], txy[3])
-        readag(files[count]) do dataset
-            bd = AG.getband(dataset, 1)
-            return AG.read!(bd, a)
-        end
-        return b[:, :, count] = a
-    end
-
-    variables = split(first(files), "_")
-    if any(map(v -> v ∈ keys(VARDICT), variables))
-        findvar = findfirst(map(v -> v ∈ keys(VARDICT), variables))
-        unit = VARDICT[variables[findvar]]
-    else
-        unit = 1.0
-    end
-
-    lat, long = size(b, 1), size(b, 2)
-    xmin = -180.0°
-    xmax = 180.0°
-    ymin = -90.0°
-    ymax = 90.0°
-    step_lat = (xmax - xmin) / lat
-    step_lon = (ymax - ymin) / long
-    world = AxisArray(b[:, long:-1:1, :] * unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:time}((1:numfiles) * month))
-    if unit == K
-        # bugfix
-        world .+= uconvert(K, 0.0°C)
-    end
-    if txy[1] <: AbstractFloat
-        @view(world.data[world.data .=== txy[4]]) .*= NaN
-        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
-    end
-
-    if !isnothing(cut)
-        world = world[cut.lat, cut.long, :]
-    end
-
-    return Worldclim_monthly(world)
-end
-
-"""
-    readbioclim(T::Type{WorldClim{BioClim}}, files; cut = nothing)
-
-Function to extract all raster files from a specified folder directory,
-and convert into an axis array.
-"""
-function readbioclim(T::Type{WorldClim{BioClim}}, file::String; kw...)
-    return readbioclim(T, [file]; kw...)
-end
-
-function readbioclim(T::Type{WorldClim{BioClim}}, files; kw...)
-    return readbioclim(T, [values(files)...]; kw...)
-end
-
-function readbioclim(T::Type{WorldClim{BioClim}}, files::Vector{String};
-                     cut = nothing)
-    txy = [Float32, Int32(1), Int32(1), Float64(1), ""]
-
-    readag(files[1]) do dataset
-        txy[1] = AG.pixeltype(AG.getband(dataset, 1))
-        txy[2] = AG.width(AG.getband(dataset, 1))
-        txy[3] = AG.height(AG.getband(dataset, 1))
-        txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
-        txy[5] = AG.getunittype(AG.getband(dataset, 1))
-        return print(dataset)
-    end
-
-    numfiles = length(files)
-    b = numfiles > 1 ?
-        Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles) :
-        Array{txy[1], 2}(undef, Int64(txy[2]), Int64(txy[3]))
-    map(eachindex(files)) do count
-        a = Matrix{txy[1]}(undef, txy[2], txy[3])
-        readag(files[count]) do dataset
-            bd = AG.getband(dataset, 1)
-            return AG.read!(bd, a)
-        end
-        return b[:, :, count] = a
-    end
-    unit = 1.0
-
-    lat, long = size(b, 1), size(b, 2)
-    xmin = -180.0°
-    xmax = 180.0°
-    ymin = -90.0°
-    ymax = 90.0°
-    step_lat = (xmax - xmin) / lat
-    step_lon = (ymax - ymin) / long
-    world = numfiles > 1 ?
-            AxisArray(b[:, long:-1:1, :] * unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:var}(1:numfiles)) :
-            AxisArray(b[:, long:-1:1] * unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)))
-    if txy[1] <: AbstractFloat
-        @view(world.data[world.data .=== txy[4]]) .*= NaN
-        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
-    end
-
-    if !isnothing(cut)
-        world = world[cut.lat, cut.long, :]
-    end
-
-    return ClimateRaster(T, world)
-end
-
-"""
-    readERA(dir::String, param::String, dim::StepRange(typeof(1month)); cut = nothing)
-
-Function to extract a certain parameter, `param`, from an ERA netcdf file,
-for a certain timerange, `dim`, and convert into an axis array.
-"""
-function readERA(dir::String, param::String,
+function readERA(file::String, param::String,
                  dim::Vector{<:Unitful.Time}; cut = nothing)
-    lat = reverse(ncread(dir, "latitude"))
-    long = ncread(dir, "longitude")
-    units = ncgetatt(dir, param, "units")
-    units = UNITDICT[units]
-    array = ncread(dir, param)
-    array = array * 1.0
-    array[array .≈ ncgetatt(dir, param, "_FillValue")] .= NaN
-    scale_factor = ncgetatt(dir, param, "scale_factor") * units
-    add_offset = ncgetatt(dir, param, "add_offset") * units
-    array = array .* scale_factor .+ add_offset
-
-    # If temperature param, need to convert from Kelvin
-    #if typeof(units) <: Unitful.TemperatureUnits
-    #    array = uconvert.(°C, array)
-    #end
-    if any(long .== 180)
-        splitval = findall(long .== 180)[1]
-        firstseg = collect((splitval + 1):size(array, 1))
-        secondseg = collect(1:splitval)
-        array = array[vcat(firstseg, secondseg), :, :]
-        long[firstseg] .= 180 .- long[firstseg]
-        long = long[vcat(reverse(firstseg), secondseg)]
-    end
-    world = AxisArray(array[:, end:-1:1, :], Axis{:longitude}(long * °),
-                      Axis{:latitude}(lat * °),
+    # NCDatasets (via Rasters) reads the CF coordinate variables, `units` attribute, and
+    # `scale_factor`/`add_offset`/`_FillValue` automatically — replacing the manual `ncread`/scale/
+    # offset/mask code — and `_rastertoaxisarray` yields the standard (latitude, longitude, time)
+    # layout. The physical unit comes from the variable's `units` attribute, parsed by `_parsecfunit`.
+    # `source = NCDsource()` is forced because CDS/`retrieve_era5` files carry no `.nc` extension,
+    # so Rasters' extension-based backend guess would otherwise fall back to GDAL — which reads the
+    # data but drops the CF coordinates (→ integer indices) and the `units` attribute.
+    ras = Raster(file; name = Symbol(param), source = Rasters.NCDsource())
+    u = _parsecfunit(string(get(Rasters.metadata(ras), "units", "")))
+    aa = _rastertoaxisarray(ras; unit = u)
+    # ERA5 longitudes run 0–360°; roll them onto (-180, 180] to match the other (tif) readers
+    aa = _wraplong180(aa)
+    # replace the file's time coordinate with the caller-supplied `dim`
+    world = AxisArray(aa.data, AxisArrays.axes(aa)[1], AxisArrays.axes(aa)[2],
                       Axis{:time}(collect(dim)))
+    return ERA(_applycut(world, cut))
+end
 
-    if !isnothing(cut)
-        world = world[cut.lat, cut.long, :]
-    end
-
-    return ERA(world)
+# Read the files in `dir` matching `file` via the single-file `readERA`, one per time-vector in
+# `dims`, and concatenate them along time (dim 3). Shared by the directory `readERA`/`readCERA`.
+function _readeradir(dir::String, file::String, param::String, dims;
+                     cut = nothing)
+    filenames = searchdir(dir, file)
+    arrays = [readERA(joinpath(dir, filenames[i]), param, dims[i]; cut = cut).array
+              for i in eachindex(dims)]
+    return cat(arrays...; dims = 3)
 end
 
 """
-    readERA(dir::String, file::String, param::String, dim::Vector{Vector{<: Unitful.Time}}; cut = nothing)
+    readERA(dir::String, file::String, param::String,
+            dim::Vector{<:AbstractVector{<:Unitful.Time}}; cut = nothing)
 
-Function to extract a certain parameter, `param`, from a directory, `dir`, containing ERA netcdf files,
-for a certain timerange, `dim`, and convert into an axis array.
+Read variable `param` from **every** ERA netCDF file in directory `dir` whose name contains `file`,
+concatenating them along time into one [`ERA`](@ref). `dim` gives the time coordinate *per file* — a
+vector of time-vectors, one per matched file (in `readdir` order). This is the multi-file wrapper
+over the single-file three-argument method above.
 """
 function readERA(dir::String, file::String, param::String,
-                 dim::Vector{Vector{<:Unitful.Time}}; cut = nothing)
-    filenames = searchdir(dir, file)
-    newera = Vector{AxisArray}(undef, length(filenames))
-    for i in eachindex(filenames)
-        newera[i] = readERA(joinpath(dir, filenames[i]), param, dim[i],
-                            cut = cut).array
-    end
-    catera = cat(dims = 3, newera...)
-
-    return ERA(catera)
+                 dim::Vector{<:AbstractVector{<:Unitful.Time}}; cut = nothing)
+    return ERA(_readeradir(dir, file, param, dim; cut = cut))
 end
 
 """
-    readCERA(dir::String, file::String, params::String)
+    readCERA(dir::String, file::String, param::String; cut = nothing)
 
-Function to extract a certain parameter, `param`, from an CERA-20C netcdf file,
-and convert into an axis array.
+Read variable `param` from the CERA-20C netCDF files in directory `dir` whose names contain `file`
+— one per decade — and concatenate them along time into a single [`CERA`](@ref). The monthly time
+coordinate for each decade is generated internally; ERA/CERA longitudes are wrapped onto
+`(-180°, 180°]`. Built on the single-file three-argument `readERA` (once per file).
 """
-function readCERA(dir::String, file::String, params::String; cut = nothing)
-    filenames = searchdir(dir, file)
-    times = collect((1901year + 1month):(1month):(1910year))
-    cera = readERA(joinpath(dir, filenames[1]), params,
-                   times)
+function readCERA(dir::String, file::String, param::String; cut = nothing)
+    # one decade-length monthly time vector per file (CERA-20C is archived a decade per file)
+    times = [collect((1901year + 1month):(1month):(1910year))]
     for i in 2:12
-        times = 1900year .+ ifelse(i == 12,
-                       collect(((i - 1) * 120month + 1month):(1month):((i - 1) * 120month + 1year)),
-                       collect(((i - 1) * 120month + 1month):(1month):(i * 10year)))
-        newcera = readERA(joinpath(dir, filenames[i]), params,
-                          times, cut = cut)
-        cera.array = cat(dims = 3, cera.array, newcera.array)
+        push!(times,
+              1900year .+ ifelse(i == 12,
+                     collect(((i - 1) * 120month + 1month):(1month):((i - 1) * 120month + 1year)),
+                     collect(((i - 1) * 120month + 1month):(1month):(i * 10year))))
     end
+    return CERA(_readeradir(dir, file, param, times; cut = cut))
+end
 
-    return CERA(cera.array)
+# Assemble a monthly time series from every `.tif` in `dir`, tagged with the already-resolved unit
+# `u`. Shared by the directory-based `readCRUTS`/`readCHELSA_monthly`, which differ only in their
+# wrapper type and which shipped layer table `u` (from `layerunit`) comes from.
+function _readmonthlydir(dir::String, u; scale = 1, fn = mean, cut = nothing)
+    files = joinpath.(dir, searchdir(dir, ".tif"))
+    aas = map(f -> _rastertoaxisarray(_readraster(f; scale = scale, fn = fn);
+                                      unit = u), files)
+    world = _stacklayers(aas, _mkthirdaxis(:time, length(aas)))
+    return _applycut(world, cut)
 end
 
 """
-    readCRUTS(dir::String)
+    readCRUTS(dir::String, var_name::String; cut = nothing)
 
-Function to extract all raster files from a specified folder directory,
-and convert into an axis array.
+Read every `.tif` in `dir` as a monthly time series of variable `var_name` and return a `CRUTS`.
+`var_name` uses the same short codes as `WorldClim{Climate}`'s shipped layer table (`tavg`, `wind`,
+`prec`, …), which is where the attached unit comes from — CRU TS has no layer table of its own.
 """
 function readCRUTS(dir::String, var_name::String; cut = nothing)
-    files = map(searchdir(dir, ".tif")) do files
-        return joinpath(dir, files)
-    end
-    txy = [Float64, Int32(1), Int32(1), Float64(1)]
-
-    readag(files[1]) do dataset
-        txy[1] = Float64
-        txy[2] = AG.width(AG.getband(dataset, 1))
-        txy[3] = AG.height(AG.getband(dataset, 1))
-        txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
-        return print(dataset)
-    end
-
-    numfiles = length(files)
-    b = Array{txy[1], 3}(undef, Int64(txy[2]), Int64(txy[3]), numfiles)
-    map(eachindex(files)) do count
-        a = Matrix{txy[1]}(undef, txy[2], txy[3])
-        readag(files[count]) do dataset
-            bd = AG.getband(dataset, 1)
-            return AG.read!(bd, a)
-        end
-        return b[:, :, count] = a
-    end
-
-    unit = VARDICT[var_name]
-
-    lat, long = size(b, 1), size(b, 2)
-    xmin = -180.0°
-    xmax = 180.0°
-    ymin = -90.0°
-    ymax = 90.0°
-    step_lat = (xmax - xmin) / lat
-    step_lon = (ymax - ymin) / long
-    world = AxisArray(b .* unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:time}((1:numfiles) * month))
-    if unit == K
-        # bugfix
-        world .+= uconvert(K, 0.0°C)
-    end
-    if txy[1] <: AbstractFloat && !isnothing(txy[4])
-        @view(world.data[world.data .=== txy[4]]) .*= NaN
-        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
-    end
-
-    if !isnothing(cut)
-        world = world[cut.lat, cut.long, :]
-    end
-
-    return CRUTS(world)
+    u = layerunit(RDS.WorldClim{RDS.Climate}, var_name)
+    return CRUTS(_readmonthlydir(dir, u; cut = cut))
 end
 
 """
-    readCHELSA_monthly(dir::String)
+    readCHELSA_monthly(dir::String, var_name::String; scale = 1, fn = mean, cut = nothing)
 
-Function to extract all raster files from a specified folder directory,
-and convert into an axis array.
+Read every `.tif` in `dir` as a monthly time series of variable `var_name` (optionally coarsened by
+`scale`/`fn`) and return a `ClimateRaster{CHELSA{Climate}}`.
 """
 function readCHELSA_monthly(dir::String, var_name::String; scale = 1, fn = mean,
                             cut = nothing)
-    files = map(searchdir(dir, ".tif")) do files
-        return joinpath(dir, files)
-    end
-    txy = [Float64, Int32(1), Int32(1), Float64(1)]
-    readag(files[1]) do dataset
-        txy[1] = Float64
-        txy[2] = AG.width(AG.getband(dataset, 1))
-        txy[3] = AG.height(AG.getband(dataset, 1))
-        txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
-        return print(dataset)
-    end
-
-    numfiles = length(files)
-    b = Array{txy[1], 3}(undef, ceil(Int64, txy[2] / scale),
-                         ceil(Int64, txy[3] / scale), numfiles)
-    a = Matrix{txy[1]}(undef, txy[2], txy[3])
-    map(eachindex(files)) do count
-        readag(files[count]) do dataset
-            bd = AG.getband(dataset, 1)
-            return AG.read!(bd, a)
-        end
-        return downresolution!(b, a, count, scale, fn = fn)
-    end
-    unit = VARDICT[var_name]
-
-    lat, long = size(b, 1), size(b, 2)
-    xmin = -180.0°
-    xmax = 180.0°
-    ymin = -90.0°
-    ymax = 90.0°
-    step_lat = (xmax - xmin) / lat
-    step_lon = (ymax - ymin) / long
-    world = AxisArray(b[:, long:-1:1, :] * unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:time}((1:numfiles) * month))
-    if unit == K
-        # bugfix
-        world .+= uconvert(K, 0.0°C)
-    end
-    if txy[1] <: AbstractFloat
-        @view(world.data[world.data .=== txy[4]]) .*= NaN
-        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
-    end
-
-    if !isnothing(cut)
-        world = world[cut.lat, cut.long, :]
-    end
-
-    return CHELSA_monthly(world)
-end
-
-function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, file::String; kw...)
-    return readCHELSA_bioclim(T, [file]; kw...)
-end
-
-function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, files; kw...)
-    return readCHELSA_bioclim(T, [values(files)...]; kw...)
-end
-
-function readCHELSA_bioclim(T::Type{CHELSA{BioClim}}, files::Vector{String};
-                            scale = 1,
-                            fn = mean, cut = nothing)
-    txy = [Float64, Int32(1), Int32(1), Float64(1)]
-    readag(files[1]) do dataset
-        txy[1] = Float64
-        txy[2] = AG.width(AG.getband(dataset, 1))
-        txy[3] = AG.height(AG.getband(dataset, 1))
-        txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
-        return print(dataset)
-    end
-
-    numfiles = length(files)
-    b = numfiles > 1 ?
-        Array{txy[1], 3}(undef, ceil(Int64, txy[2] / scale),
-                         ceil(Int64, txy[3] / scale), numfiles) :
-        Array{txy[1], 2}(undef, ceil(Int64, txy[2] / scale),
-                         ceil(Int64, txy[3] / scale))
-    a = Matrix{txy[1]}(undef, txy[2], txy[3])
-    map(eachindex(files)) do count
-        readag(files[count]) do dataset
-            bd = AG.getband(dataset, 1)
-            return AG.read!(bd, a)
-        end
-        return downresolution!(b, a, count, scale, fn = fn)
-    end
-    unit = 1.0
-
-    lat, long = size(b, 1), size(b, 2)
-    xmin = -180.0°
-    xmax = 180.0°
-    ymin = -90.0°
-    ymax = 90.0°
-    step_lat = (xmax - xmin) / lat
-    step_lon = (ymax - ymin) / long
-    world = numfiles > 1 ?
-            AxisArray(b[:, long:-1:1, :] * unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:var}(1:numfiles)) :
-            AxisArray(b[:, long:-1:1] * unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)))
-
-    if txy[1] <: AbstractFloat
-        @view(world.data[world.data .=== txy[4]]) .*= NaN
-        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
-    end
-
-    if !isnothing(cut)
-        world = world[cut.lat, cut.long, :]
-    end
-
-    return ClimateRaster(T, world)
-end
-
-"""
-    readlc(::Type{<:EarthEnv{<:LandCover}}, files; scale = 10, fn = x -> round(mean(x)),
-           cut = nothing)
-
-Function to extract all raster files from a specified folder directory,
-and convert into an axis array.
-"""
-function readlc(::Type{T}, file::String;
-                kw...) where {T <: EarthEnv{<:LandCover}}
-    return readlc(T, [file]; kw...)
-end
-
-function readlc(::Type{T}, files; kw...) where {T <: EarthEnv{<:LandCover}}
-    return readlc(T, [values(files)...]; kw...)
-end
-
-function readlc(::Type{T}, files::Vector{String}; scale = 10,
-                fn = x -> round(mean(x)),
-                cut = nothing) where {T <: EarthEnv{<:LandCover}}
-    txy = [Float32, Int32(1), Int32(1), Float64(1), ""]
-
-    readag(files[1]) do dataset
-        txy[1] = AG.pixeltype(AG.getband(dataset, 1))
-        txy[2] = AG.width(AG.getband(dataset, 1))
-        txy[3] = AG.height(AG.getband(dataset, 1))
-        txy[4] = AG.getnodatavalue(AG.getband(dataset, 1))
-        txy[5] = AG.getunittype(AG.getband(dataset, 1))
-        return print(dataset)
-    end
-
-    numfiles = length(files)
-    b = numfiles > 1 ?
-        Array{txy[1], 3}(undef, ceil(Int64, txy[2] / scale),
-                         ceil(Int64, txy[3] / scale), numfiles) :
-        Array{txy[1], 2}(undef, ceil(Int64, txy[2] / scale),
-                         ceil(Int64, txy[3] / scale))
-
-    a = Matrix{txy[1]}(undef, txy[2], txy[3])
-    map(eachindex(files)) do count
-        readag(files[count]) do dataset
-            bd = AG.getband(dataset, 1)
-            return AG.read!(bd, a)
-        end
-        return downresolution!(b, a, count, scale, fn = fn)
-    end
-    unit = 1.0
-
-    lat, long = size(b, 1), size(b, 2)
-    xmin = -180.0°
-    xmax = 180.0°
-    ymin = -56.0°
-    ymax = 90.0°
-    step_lat = (xmax - xmin) / lat
-    step_lon = (ymax - ymin) / long
-    world = numfiles > 1 ?
-            AxisArray(b[:, long:-1:1, :] * unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)),
-                      Axis{:var}(1:numfiles)) :
-            AxisArray(b[:, long:-1:1] * unit,
-                      Axis{:latitude}(xmin:step_lat:(xmax - step_lat / 2.0)),
-                      Axis{:longitude}(ymin:step_lon:(ymax - step_lon / 2.0)))
-    if txy[1] <: AbstractFloat
-        @view(world.data[world.data .=== txy[4]]) .*= NaN
-        @view(world.data[isapprox.(world.data, txy[4])]) .*= NaN
-    end
-
-    if !isnothing(cut)
-        world = world[cut.lat, cut.long, :]
-    end
-
-    return ClimateRaster(T, world)
+    u = layerunit(RDS.CHELSA{RDS.Climate}, var_name)
+    return ClimateRaster(RDS.CHELSA{RDS.Climate},
+                         _readmonthlydir(dir, u; scale = scale, fn = fn,
+                                         cut = cut))
 end

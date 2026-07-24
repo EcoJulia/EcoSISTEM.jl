@@ -12,35 +12,35 @@ using Unitful.DefaultSymbols
 using StatsBase
 using Plots
 
-# Download landcover data
-ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
-africa_lc = read(EarthEnv{LandCover},
-                 cut = (lat = -25° .. 50°, long = -35° .. 40°))
-bio_africa_lc = compressLC(africa_lc)
-heatmap(bio_africa_lc.array')
+# Download landcover data, cut to a rounded bounding box of Africa (from bounding_boxes.csv).
+africa_box = EcoSISTEM.ClimatePref.boundingbox("Africa"; round = 5°)
+africa_landcover = read(EarthEnv{LandCover},
+                        cut = africa_box)
+bio_africa_landcover = compressLandCover(africa_landcover)
+heatmap(bio_africa_landcover.array)
 
 # Bioclim layer 13 is precipitation of the wettest month
-worldbc = read(WorldClim{BioClim}, 13,
-               cut = (lat = -25° .. 50°, long = -35° .. 40°))
-africa_water_aa = upresolution(worldbc.array[:, :, 1], 2)
+worldbioclim = read(WorldClim{BioClim}, 13,
+                    cut = africa_box)
+africa_water_aa = upresolution(worldbioclim.array[:, :, 1], 2)
 africa_water = ClimateRaster(WorldClim{BioClim},
-                             AxisArray(africa_water_aa .* mm,
+                             AxisArray(africa_water_aa .* mm / month,   # bio13: precipitation of the wettest month
                                        AxisArrays.axes(africa_water_aa)))
-bio_africa_water = WaterBudget(africa_water)
+bio_africa_water = WaterSupply(africa_water)
 
 # Find which grid cells are land
-active = Matrix{Bool}(bio_africa_lc.array .!= 4)
+active = Matrix{Bool}(bio_africa_landcover.array .!= 4)
 
 # Set up initial parameters for ecosystem
 numSpecies = 1;
 grid = size(active);
-req = 10.0mm;
+demand = 10.0Unitful.L / day;
 individuals = 0;
 area = 64e6km^2;
-totalK = 1000.0kJ / km^2;
+totalK = 1000.0kJ / km^2 / day;
 
 # Set up how much water each species consumes
-energy_vec = WaterRequirement(fill(req, numSpecies))
+resource_vec = WaterDemand(fill(demand, numSpecies))
 
 # Set rates for birth and death
 birth = 0.6 / year
@@ -57,20 +57,20 @@ movement = AlwaysMovement(kernel, Torus())
 
 # Create species list, including their temperature preferences, seed abundance and native status
 opts = fill(collect(1:8), numSpecies)
-traits = LCtrait(opts)
+tolerance = LandCoverTolerance(opts)
 native = fill(true, numSpecies)
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - with temperature and water resource
-abenv = lcAE(bio_africa_lc, bio_africa_water, active)
+habitat = landcoverhabitat(bio_africa_landcover, bio_africa_water, active)
 
-# Set relationship between species and environment (gaussian)
-rel = LCmatch{Int64}()
+# Set nichefit between species and environment (gaussian)
+nichefit = LandCoverSuitability{Int64}()
 
 # Create ecosystem and fill every active grid square with an individual
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, nichefit)
 rand_start = findall(active)
 for i in rand_start
     eco.abundances.grid[1, i[1], i[2]] += 1
@@ -103,16 +103,17 @@ africa_startabun = Float64.(abuns[:, :, 1])
 africa_startabun[.!(active)] .= NaN
 africa_endabun = Float64.(abuns[:, :, end])
 africa_endabun[.!(active)] .= NaN
-heatmap(africa_startabun', clim = (0, maximum(abuns)),
+heatmap(africa_startabun, clim = (0, maximum(abuns)),
         background_color = :lightblue, background_color_outside = :white,
         grid = false, color = cgrad(:algae, scale = :exp),
         layout = (@layout [a b; c d]), title = "Start abundance")
-heatmap!(africa_endabun', clim = (0, maximum(abuns)),
+heatmap!(africa_endabun, clim = (0, maximum(abuns)),
          background_color = :lightblue, background_color_outside = :white,
          grid = false, color = cgrad(:algae, scale = :exp),
          subplot = 2, title = "End Abundance")
-africa_data = Float64.(bio_africa_lc.array.data)
+africa_data = Float64.(bio_africa_landcover.array.data)
 africa_data[.!active] .= NaN
-heatmap!(africa_data', grid = false, subplot = 3, title = "Land Cover")
-heatmap!(Float64.(africa_water.array.data / mm)', grid = false, subplot = 4,
+heatmap!(africa_data, grid = false, subplot = 3, title = "Land Cover")
+heatmap!(Float64.(africa_water.array.data / (mm / month)), grid = false,
+         subplot = 4,
          title = "Precipitation")

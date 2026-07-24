@@ -4,6 +4,7 @@ module TestSpeciesList
 
 using EcoSISTEM
 using Test
+using Unitful
 using Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
@@ -14,8 +15,8 @@ using Diversity
     numSpecies = 4
     numTraits = 2
 
-    # Set up how much energy each species consumes
-    energy_vec = SimpleRequirement(fill(2.0, numSpecies))
+    # Set up how much resource each species consumes
+    resource_vec = SimpleDemand(fill(2.0, numSpecies))
 
     # Set probabilities
     birth = 6.0 / year
@@ -36,22 +37,23 @@ using Diversity
 
     opts = fill(5.0°C, numSpecies)
     vars = rand(Uniform(0, 25 / 9), numSpecies) * °C
-    traits = GaussTrait(opts, vars)
+    tolerance = NicheTolerance(Temperature, Normal, opts, vars)
     abun = rand(Multinomial(individuals, numSpecies))
     native = fill(true, numSpecies)
-    @test_nowarn sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    @test_nowarn sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                                     movement, param, native)
-    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, energy_vec,
+    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, resource_vec,
                                     movement, param, native)
 
-    sppl = SpeciesList(numSpecies, traits, abun, energy_vec, movement, param,
+    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec, movement,
+                       param,
                        native)
-    newsppl = SpeciesList{typeof(sppl.traits),
-                          typeof(sppl.requirement),
+    newsppl = SpeciesList{typeof(sppl.tolerance),
+                          typeof(sppl.demand),
                           typeof(sppl.movement),
                           typeof(sppl.types),
-                          typeof(sppl.params)}(sppl.traits, sppl.abun,
-                                               sppl.requirement, sppl.types,
+                          typeof(sppl.params)}(sppl.tolerance, sppl.abun,
+                                               sppl.demand, sppl.types,
                                                sppl.movement, sppl.params,
                                                sppl.native)
     @test newsppl.names == sppl.names
@@ -61,7 +63,7 @@ using Diversity
                              movement, param, native, [0.5, 0.5])
 
     # Test
-    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, energy_vec,
+    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, resource_vec,
                                     movement, UniqueTypes(numSpecies), param,
                                     native)
 end

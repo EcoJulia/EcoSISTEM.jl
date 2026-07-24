@@ -14,8 +14,8 @@ using Test
 
     # Assign continuous trait
     tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(10))
-    trts = DataFrame([[1.0], [0.5]], [:start, :σ²])
-    assign_traits!(tree, trts)
+    traits = DataFrame([[1.0], [0.5]], [:start, :σ²])
+    assign_traits!(tree, traits)
     @test nrow(get_traits(tree)) == 10
     resettraits!(tree)
     @test_throws ErrorException get_traits(tree)
@@ -23,8 +23,8 @@ using Test
     # Assign discrete trait
     tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(10))
     switch = [0.5, 0.5]
-    trts = DataFrame(trait1 = collect(1:2))
-    assign_traits!(tree, switch, trts)
+    traits = DataFrame(trait1 = collect(1:2))
+    assign_traits!(tree, switch, traits)
     @test nrow(get_traits(tree)) == 10
     resettraits!(tree)
     @test_throws ErrorException get_traits(tree)

@@ -60,14 +60,14 @@ begin
     # Set up abiotic environment
     grd = (numGrid, numGrid)
     area = 100.0 * km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
-    abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                                abenv1.active,
-                                                                bud,
-                                                                abenv1.names)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
+    habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
+    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                   habitat1.active,
+                                                                   supply,
+                                                                   habitat1.names)
 
     # Species characteristics
     individuals = 100_000
@@ -85,27 +85,27 @@ begin
     kernel = GaussianKernel.(av_dist, 10e-10)
     movement = BirthOnlyMovement(kernel, Torus())
 
-    # Resource requirements
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    # Resource demands
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     size_mean = 1.0m^2
-    energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-    energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
-    energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+    resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
+    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 
-    # Habitat preferences
+    # Condition preferences
     vars = fill(2.0, numSpecies) .* K
     opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
-    trts = GaussTrait(opts, vars)
+    tolerance = NicheTolerance(Temperature, Normal, opts, vars)
 
     # Species list
-    sppl = SpeciesList(numSpecies, trts, abun, energy_vec,
+    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                        movement, param, native)
 
-    # Trait relationship
-    rel = Gauss{typeof(first(opts))}()
+    # Trait nichefit
+    nichefit = NicheSuitability{typeof(first(opts))}()
 
     # Build ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
 
     # Run simulation
     times = 10years
@@ -168,7 +168,7 @@ If you have taken a peak at the code to plot the results above (by clicking the 
 
 ### _Let's start with the environment_
 
-Something simple perhaps! We'll build a 10 by 10 grid, because in our world everything is gridded. This abiotic environment will house information on the habitat (like climate) and what resources are available (e.g. sunlight and water for the plants). It is its own Julia type, a `GridAbioticEnv`. For a simple example, we'll build a grid of temperature as the habitat and water as the resource:
+Something simple perhaps! We'll build a 10 by 10 grid, because in our world everything is gridded. This abiotic environment will house information on the regime (like climate) and what resources are available (e.g. sunlight and water for the plants). It is its own Julia type, a `GridHabitat`. For a simple example, we'll build a grid of temperature as the regime and water as the resource:
 "
 
 # ╔═╡ 16a70493-683a-45bc-baa0-83e917fa774b
@@ -180,18 +180,18 @@ begin
     area_size = 100.0 * km^2
 
     # The total water it will have available
-    totalW = 200.0mm / km^2
+    totalW = 200.0mm / day
 
     # Overall temperature it will be
     totalT = 298.0K
 
-    # Perfect, now we can build a simple habitat!
-    temp_env = simplehabitatAE(totalT, grid, totalW, area_size)
+    # Perfect, now we can build a simple regime!
+    temp_env = simplehabitat(totalT, grid, totalW, area_size)
 
     # Let's plot it to see what it looks like
-    heatmap(temp_env.habitat.matrix ./ K, clim = (278, 308), title = "Habitat",
+    heatmap(temp_env.regime.matrix ./ K, clim = (278, 308), title = "Condition",
             layout = 2)
-    heatmap!(temp_env.budget.matrix ./ mm,
+    heatmap!(temp_env.supply.matrix ./ (mm / day),
              title = "Resource",
              subplot = 2,
              clim = (100, 200))
@@ -206,16 +206,16 @@ Let's try something slightly more adventurous:"
 begin
     # A temperature gradient spanning 10 degrees either side of total temperature from above. We can also give it a rate over which to change over time
     temp_change_rate = 0.2K / month
-    temp_grad_env = tempgradAE(totalT - 10.0K,
-                               totalT + 10.0K,
-                               grid,
-                               totalW,
-                               area_size,
-                               temp_change_rate)
+    temp_grad_env = tempgradhabitat(totalT - 10.0K,
+                                    totalT + 10.0K,
+                                    grid,
+                                    totalW,
+                                    area_size,
+                                    temp_change_rate)
 
     # Let's plot it to see what it looks like now
-    heatmap(temp_grad_env.habitat.matrix' ./ K, clim = (278, 308),
-            title = "Habitat")
+    heatmap(temp_grad_env.regime.matrix' ./ K, clim = (278, 308),
+            title = "Condition")
 end
 
 # ╔═╡ 8f7b85a1-1e64-4d1a-90f6-55c6307a03cf
@@ -224,16 +224,16 @@ md"That's better! How about something even fancier?"
 # ╔═╡ 01a11afc-7c9b-41f5-b308-003303dfa72a
 begin
     # A temperature peak spanning 10 degrees either side of total temperature from above. We can also give it a rate over which to change over time
-    temp_peak_env = peakedgradAE(totalT - 10.0K,
-                                 totalT + 10.0K,
-                                 grid,
-                                 totalW,
-                                 area_size,
-                                 temp_change_rate)
+    temp_peak_env = peakedgradhabitat(totalT - 10.0K,
+                                      totalT + 10.0K,
+                                      grid,
+                                      totalW,
+                                      area_size,
+                                      temp_change_rate)
 
     # Let's plot it to see what it looks like now
-    heatmap(temp_peak_env.habitat.matrix' ./ K, clim = (278, 308),
-            title = "Habitat")
+    heatmap(temp_peak_env.regime.matrix' ./ K, clim = (278, 308),
+            title = "Condition")
 end
 
 # ╔═╡ 5928ca0d-479e-4714-acfe-ff2d9c43533e
@@ -265,7 +265,7 @@ begin
 
     # There are also a couple of parameters that should be set about how the species 
     # lifespan relates to their resource consumption (longevity) and how well they 
-    # survive in their current environment based on their traits (survival)
+    # survive in their current environment based on their tolerance (survival)
     longevity = 1.0
     survival = 0.1
 
@@ -287,11 +287,11 @@ begin
     move = BirthOnlyMovement(gauss_kernel, Torus())
 
     # We must also decide how much water each species needs per timestep
-    water_req = (100.0nm / m^2)
-    size = 1.0m^2
-    water_vec = WaterRequirement(fill(water_req * size, numSpp))
+    water_req = (100.0Unitful.L / m^2 / day)
+    sz = 1.0m^2
+    water_vec = WaterDemand(fill(water_req * sz, numSpp))
 
-    # Plus, their niche width - the range of habitats they find suitable
+    # Plus, their niche width - the range of regimes they find suitable
     niche_width = fill(2.0, numSpp) .* K
 
     # And what is their niche optimum - here we have a range around 25 degrees
@@ -299,10 +299,10 @@ begin
 
     # Let's combine these pieces of information together so that each species has a 
     # Gaussian curve representing their match to the current temperature
-    traits = GaussTrait(optima, niche_width)
+    tolerance = NicheTolerance(Temperature, Normal, optima, niche_width)
 
     # Okay, now we are ready for our species list!
-    species_list = SpeciesList(numSpp, traits, start_abuns, water_vec,
+    species_list = SpeciesList(numSpp, tolerance, start_abuns, water_vec,
                                move, parameters, is_native)
 end
 
@@ -316,7 +316,7 @@ begin
                    collect(288:0.1:308)),
               label = "",
               xlabel = "Temperature (K)",
-              ylabel = "Match to environment")
+              ylabel = "MatchSuitability to environment")
     for j in 2:numSpp
         plot!(288:0.1:308,
               pdf.(Normal(optima[j] / K, niche_width[j] / K),
@@ -330,11 +330,11 @@ end
 # ╔═╡ ccbf7d75-1c1d-43ad-998e-aa033bcd1ebc
 md"### _The final touches ..._
 
-The last thing we need to specify is the relationship between the species and their environment - for this example, let's assume that we want this match to be a Gaussian curve like above.
+The last thing we need to specify is the nichefit between the species and their environment - for this example, let's assume that we want this match to be a Gaussian curve like above.
 "
 
 # ╔═╡ 41206ea4-77ed-4b87-8acf-8d2a9ee170db
-trait_relationship = Gauss{typeof(first(optima))}()
+trait_relationship = NicheSuitability{typeof(first(optima))}()
 
 # ╔═╡ 1d59bcaa-3670-4765-8981-9e2dd6d99436
 md"Now we can build our ecosystem! EcoSISTEM is integrated with SpatialEcology.jl, so we can take advantage of their plotting system, by simply calling plot on our `Ecosystem` object. This will show us the species richness over space."

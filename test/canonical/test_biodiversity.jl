@@ -12,18 +12,18 @@ using Distributions
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
-abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active,
-                                                            bud,
-                                                            abenv1.names)
+habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                               habitat1.active,
+                                                               supply,
+                                                               habitat1.names)
 
 vars = fill(2.0, numSpecies) .* K
 opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
@@ -38,24 +38,24 @@ survival = 0.1
 boost = 1.0
 
 size_mean = 1.0m^2
-# Set up how much energy each species consumes
-energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+# Set up how much resource each species consumes
+resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
-energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, longevity, survival, boost)
 
 # Create ecosystem
 
 movement = BirthOnlyMovement(kernel, Torus())
 
-traits = GaussTrait(opts, vars)
+tolerance = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, abenv, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years;
 timestep = 1month;
@@ -81,18 +81,18 @@ fit!(h, temps)
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
-abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active,
-                                                            bud,
-                                                            abenv1.names)
+habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                               habitat1.active,
+                                                               supply,
+                                                               habitat1.names)
 
 vars = collect(range(0.0001K, stop = 5.0K, length = numSpecies))
 opts = fill(298.0K, numSpecies)
@@ -107,24 +107,24 @@ survival = 0.1
 boost = 1.0
 
 size_mean = 1.0m^2
-# Set up how much energy each species consumes
-energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+# Set up how much resource each species consumes
+resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
-energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, longevity, survival, boost)
 
 # Create ecosystem
 
 movement = BirthOnlyMovement(kernel, Torus())
 
-traits = GaussTrait(opts, vars)
+tolerance = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, abenv, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years;
 timestep = 1month;
@@ -147,18 +147,18 @@ fit!(h, widths)
 ## DIFFERENT VARS MISMATCH ##
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
-abenv1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active,
-                                                            bud,
-                                                            abenv1.names)
+habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                               habitat1.active,
+                                                               supply,
+                                                               habitat1.names)
 
 vars = collect(range(0.0001K, stop = 5.0K, length = numSpecies))
 opts = fill(298.0K, numSpecies)
@@ -173,24 +173,24 @@ survival = 0.1
 boost = 1.0
 
 size_mean = 1.0m^2
-# Set up how much energy each species consumes
-energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+# Set up how much resource each species consumes
+resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
-energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, longevity, survival, boost)
 
 # Create ecosystem
 
 movement = BirthOnlyMovement(kernel, Torus())
 
-traits = GaussTrait(opts, vars)
+tolerance = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, abenv, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years;
 timestep = 1month;
@@ -216,31 +216,32 @@ fit!(h, widths)
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
-abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                            abenv1.active,
-                                                            bud,
-                                                            abenv1.names)
-gsize = size(abenv.budget.b1.matrix, 1)
-sol_range = collect(range(0.0kJ, stop = 4.5e11kJ, length = gsize))
+habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                               habitat1.active,
+                                                               supply,
+                                                               habitat1.names)
+gsize = size(habitat.supply.one.matrix, 1)
+sol_range = collect(range(0.0kJ / day, stop = 4.5e11kJ / day, length = gsize))
 map(1:gsize) do seq
-    return abenv.budget.b1.matrix[seq, :] .= sol_range[seq]
+    return habitat.supply.one.matrix[seq, :] .= sol_range[seq]
 end
-abenv.budget.b1.matrix
+habitat.supply.one.matrix
 
-gsize = size(abenv.budget.b2.matrix, 1)
-water_range = collect(range(0.0mm, stop = 192mm, length = gsize))
+gsize = size(habitat.supply.two.matrix, 1)
+water_range = collect(range(0.0Unitful.L / day, stop = 192Unitful.L / day,
+                            length = gsize))
 map(1:gsize) do seq
-    return abenv.budget.b2.matrix[:, seq] .= water_range[seq]
+    return habitat.supply.two.matrix[:, seq] .= water_range[seq]
 end
-abenv.budget.b2.matrix
+habitat.supply.two.matrix
 
 vars = fill(2.0, numSpecies) .* K
 opts = fill(298.0, numSpecies) .* K
@@ -254,24 +255,24 @@ survival = 0.1
 boost = 1.0
 
 size_mean = 1.0m^2
-# Set up how much energy each species consumes
-energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+# Set up how much resource each species consumes
+resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
-energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+resource_vec = DemandCollection2(resource_vec1, resource_vec2)
 param = EqualPop(birth, death, longevity, survival, boost)
 
 # Create ecosystem
 
 movement = BirthOnlyMovement(kernel, NoBoundary())
 
-traits = GaussTrait(opts, vars)
+tolerance = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
-rel = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, abenv, rel)
+nichefit = Gauss{typeof(first(opts))}()
+eco = Ecosystem(sppl, habitat, nichefit)
 
 times = 10years;
 timestep = 1month;
@@ -294,18 +295,18 @@ grids = [1, 2, 5, 10]
 for i in eachindex(grids)
     local numSpecies = 100
     local grd = (grids[i], grids[i])
-    local req = (450000.0kJ / m^2, 192.0nm / m^2)
+    local demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     local individuals = 100_000_000
     local area = 100.0 * km^2
-    local totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    local totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
-    local abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    local abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    local bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    local abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                                      abenv1.active,
-                                                                      bud,
-                                                                      abenv1.names)
+    local habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+    local habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
+    local supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    local habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                         habitat1.active,
+                                                                         supply,
+                                                                         habitat1.names)
 
     local vars = fill(2.0, numSpecies) .* K
     local opts = fill(298.0, numSpecies) .* K
@@ -319,24 +320,24 @@ for i in eachindex(grids)
     local boost = 1.0
 
     local size_mean = 1.0m^2
-    # Set up how much energy each species consumes
-    local energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-    local energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+    # Set up how much resource each species consumes
+    local resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+    local resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
-    local energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    local resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     local param = EqualPop(birth, death, longevity, survival, boost)
 
     # Create ecosystem
 
     local movement = BirthOnlyMovement(kernel, NoBoundary())
 
-    local traits = GaussTrait(opts, vars)
+    local tolerance = GaussTrait(opts, vars)
     local native = fill(true, numSpecies)
     local abun = rand(Multinomial(individuals, numSpecies))
-    local sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    local sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                              movement, param, native)
-    local rel = Gauss{typeof(first(opts))}()
-    local eco = Ecosystem(sppl, abenv, rel)
+    local nichefit = Gauss{typeof(first(opts))}()
+    local eco = Ecosystem(sppl, habitat, nichefit)
     simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
@@ -353,18 +354,18 @@ areas = [10.0, 20.0, 50.0, 100.0]
 for i in eachindex(areas)
     local numSpecies = 100
     local grd = (10, 10)
-    local req = (450000.0kJ / m^2, 192.0nm / m^2)
+    local demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     local individuals = 100_000_000
     local area = areas[i] .* km^2
-    local totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    local totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
-    local abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    local abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    local bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    local abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                                      abenv1.active,
-                                                                      bud,
-                                                                      abenv1.names)
+    local habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+    local habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
+    local supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    local habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                         habitat1.active,
+                                                                         supply,
+                                                                         habitat1.names)
 
     local vars = fill(2.0, numSpecies) .* K
     local opts = fill(298.0, numSpecies) .* K
@@ -378,24 +379,24 @@ for i in eachindex(areas)
     local boost = 1.0
 
     local size_mean = 1.0m^2
-    # Set up how much energy each species consumes
-    local energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-    local energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+    # Set up how much resource each species consumes
+    local resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+    local resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
-    local energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    local resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     local param = EqualPop(birth, death, longevity, survival, boost)
 
     # Create ecosystem
 
     local movement = BirthOnlyMovement(kernel, NoBoundary())
 
-    local traits = GaussTrait(opts, vars)
+    local tolerance = GaussTrait(opts, vars)
     local native = fill(true, numSpecies)
     local abun = rand(Multinomial(individuals, numSpecies))
-    local sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    local sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                              movement, param, native)
-    local rel = Gauss{typeof(first(opts))}()
-    local eco = Ecosystem(sppl, abenv, rel)
+    local nichefit = Gauss{typeof(first(opts))}()
+    local eco = Ecosystem(sppl, habitat, nichefit)
     simulate!(eco, times, timestep)
     endabuns[i] = sum(eco.abundances.matrix)
 end
@@ -411,18 +412,18 @@ SR = zeros(Float64, length(species))
 for i in eachindex(species)
     local numSpecies = species[i]
     local grd = (10, 10)
-    local req = (450000.0kJ / m^2, 192.0nm / m^2)
+    local demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     local individuals = 100_000_000
     local area = 100.0km^2
-    local totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    local totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
-    local abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    local abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    local bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    local abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                                      abenv1.active,
-                                                                      bud,
-                                                                      abenv1.names)
+    local habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+    local habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
+    local supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    local habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                         habitat1.active,
+                                                                         supply,
+                                                                         habitat1.names)
 
     local vars = rand(Uniform(1.0, 5.0), numSpecies) .* K
     local opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
@@ -436,11 +437,11 @@ for i in eachindex(species)
     local boost = 1.0
 
     local size_mean = rand(Normal(1.0, 0.05), numSpecies) .* m^2
-    # Set up how much energy each species consumes
-    local energy_vec1 = SolarRequirement(abs.(req[1] .* size_mean))
-    local energy_vec2 = WaterRequirement(abs.(req[2] .* size_mean))
+    # Set up how much resource each species consumes
+    local resource_vec1 = SolarDemand(abs.(demand[1] .* size_mean))
+    local resource_vec2 = WaterDemand(abs.(demand[2] .* size_mean))
 
-    local energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    local resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     local param = PopGrowth{typeof(unit(birth[1]))}(birth, death, longevity,
                                                     survival, boost)
 
@@ -448,13 +449,13 @@ for i in eachindex(species)
 
     local movement = BirthOnlyMovement(kernel, NoBoundary())
 
-    local traits = GaussTrait(opts, vars)
+    local tolerance = GaussTrait(opts, vars)
     local native = fill(true, numSpecies)
     local abun = rand(Multinomial(individuals, numSpecies))
-    local sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    local sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                              movement, param, native)
-    local rel = Gauss{typeof(first(opts))}()
-    local eco = Ecosystem(sppl, abenv, rel)
+    local nichefit = Gauss{typeof(first(opts))}()
+    local eco = Ecosystem(sppl, habitat, nichefit)
     simulate!(eco, times, timestep)
     SR[i] = sum(sum(eco.abundances.matrix, dims = 2) .> 0)
 end
@@ -471,18 +472,18 @@ endabuns = zeros(Int64, 10, 10, length(distances))
 for i in eachindex(distances)
     local numSpecies = 2
     local grd = (10, 10)
-    local req = (450000.0kJ / m^2, 192.0nm / m^2)
+    local demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     local individuals = 0
     local area = 100.0km^2
-    local totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    local totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
-    local abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-    local abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-    local bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    local abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(bud)}(abenv1.habitat,
-                                                                      abenv1.active,
-                                                                      bud,
-                                                                      abenv1.names)
+    local habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+    local habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
+    local supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    local habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                                         habitat1.active,
+                                                                         supply,
+                                                                         habitat1.names)
 
     local vars = fill(2.0, numSpecies) .* K
     local opts = fill(298.0, numSpecies) .* K
@@ -496,24 +497,25 @@ for i in eachindex(distances)
     local boost = 1.0
 
     local size_mean = 1.0m^2
-    # Set up how much energy each species consumes
-    local energy_vec1 = SolarRequirement(fill(req[1] * size_mean, numSpecies))
-    local energy_vec2 = WaterRequirement(fill(req[2] * size_mean, numSpecies))
+    # Set up how much resource each species consumes
+    local resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
+    local resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
 
-    local energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    local resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     local param = EqualPop(birth, death, longevity, survival, boost)
 
     # Create ecosystem
 
     local movement = BirthOnlyMovement(kernel, NoBoundary())
 
-    local traits = GaussTrait(opts, vars)
+    local tolerance = GaussTrait(opts, vars)
     local native = fill(true, numSpecies)
     local abun = rand(Multinomial(individuals, numSpecies))
-    local sppl = SpeciesList(numSpecies, traits, abun, energy_vec, movement,
+    local sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
+                             movement,
                              param, native)
-    local rel = Gauss{typeof(first(opts))}()
-    local eco = Ecosystem(sppl, abenv, rel)
+    local nichefit = Gauss{typeof(first(opts))}()
+    local eco = Ecosystem(sppl, habitat, nichefit)
     eco.abundances.grid[1, :, 1] .= 100.0
     eco.abundances.grid[2, :, 10] .= 100.0
     simulate!(eco, times, timestep)

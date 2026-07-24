@@ -30,15 +30,15 @@ particular timestep, `timestep`.
 """
 function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
                    timestep::Unitful.Time)
-    eco = Ecosystem{typeof(cache.abenv), typeof(cache.spplist),
-                    typeof(cache.relationship)}(copy(cache.abundances.matrix[srt]),
-                                                cache.spplist,
-                                                cache.abenv,
-                                                cache.ordinariness,
-                                                cache.relationship,
-                                                cache.lookup,
-                                                cache.cache,
-                                                cache.rngs)
+    eco = Ecosystem{typeof(cache.habitat), typeof(cache.spplist),
+                    typeof(cache.nichefit)}(copy(cache.abundances.matrix[srt]),
+                                            cache.spplist,
+                                            cache.habitat,
+                                            cache.ordinariness,
+                                            cache.nichefit,
+                                            cache.lookup,
+                                            cache.cache,
+                                            cache.rngs)
     update!(eco, timestep)
     return cache.abundances.matrix[srt + timestep] = eco.abundances
 end
@@ -81,7 +81,7 @@ and replicate runs.
 """
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
     numSpecies = length(eco.spplist.abun)
-    gridSize = _countsubcommunities(eco.abenv.habitat)
+    gridSize = _countsubcommunities(eco.habitat.regime)
     return abun = Array{Int64, 4}(undef, numSpecies, gridSize, times, reps)
 end
 
@@ -93,7 +93,7 @@ diversity values across the ecosystem `eco` for `qs` diversity orders over
 multiple timesteps and replicate runs.
 """
 function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
-    gridSize = _countsubcommunities(eco.abenv.habitat)
+    gridSize = _countsubcommunities(eco.habitat.regime)
     return abun = Array{Float64, 4}(undef, gridSize, qs, times, reps)
 end
 
@@ -111,7 +111,7 @@ This is the general engine behind the [`simulate_record!`](@ref) and
 do something they do not.
 
 At each step the ecosystem is advanced with [`update!`](@ref) and, if a `scenario`
-is given, modified with `runscenario!` (e.g. to remove habitat or change climate).
+is given, modified with `runscenario!` (e.g. to remove regime or change climate).
 Whenever the elapsed time falls on a multiple of `interval`, `action!(counting)`
 is called, where `counting` is the 1-based index of that occurrence (handy as a
 storage slot when the action is recording); `interval` must be a whole multiple of
@@ -140,7 +140,7 @@ function simulate_action!(action!::F,
                           timestep::Unitful.Time;
                           scenario = nothing,
                           offset = false) where {F <: Function}
-    ustrip(mod(interval, timestep)) == 0.0 ||
+    iszero(mod(interval, timestep)) ||
         error("Interval must be a multiple of timestep")
     action_seq = offset ? (timestep:interval:times) : ((0s):interval:times)
     time_seq = offset ? (timestep:timestep:times) : ((0s):timestep:times)
@@ -166,7 +166,7 @@ end
 Run an ecosystem, `eco` for a specified length of time, `times`, for a
 particular timestep, `timestep`, recording abundances into `storage` at each
 time interval `interval`. If a `scenario` is given, it is also run at each
-timestep to modify the ecosystem, allowing simulation of events such as habitat
+timestep to modify the ecosystem, allowing simulation of events such as regime
 loss or climate change.
 
 Pre-allocate `storage` with [`generate_storage`](@ref)`(eco, ntimes, reps)`,
@@ -182,7 +182,7 @@ function simulate_record!(storage::AbstractArray,
                           interval::Unitful.Time,
                           timestep::Unitful.Time,
                           scenario::Union{Nothing, AbstractScenario} = nothing)
-    ustrip(mod(interval, timestep)) == 0.0 ||
+    iszero(mod(interval, timestep)) ||
         error("Interval must be a multiple of timestep")
     record_seq = (0s):interval:times
     time_seq = (0s):timestep:times
@@ -230,7 +230,7 @@ in what diversity they record:
     one per column of `storage`.
 
 The `scenario::SimpleScenario` variants additionally apply `scenario` at each
-timestep to modify the ecosystem (e.g. removal of habitat patches).
+timestep to modify the ecosystem (e.g. removal of regime patches).
 
 For the `divfun`/`divfuns` forms, pre-allocate `storage` with
 [`generate_storage`](@ref)`(eco, ncols, ntimes, reps)`, where `ncols` is

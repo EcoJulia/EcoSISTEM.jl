@@ -4,142 +4,142 @@ using Diversity
 using Phylo
 
 """
-    SpeciesList{TR <: AbstractTraits, R <: AbstractRequirement,
+    SpeciesList{TL <: AbstractTolerance, DM <: AbstractDemand,
                 MO <: AbstractMovement, T <: AbstractTypes,
                 P <: AbstractParams} <: AbstractTypes
 
 Species list housing all species-specific information. `names` holds species
-names, `traits` encodes niche preferences, `abun` holds current abundances,
-`requirement` encodes energy needs, `types` holds the similarity structure,
+names, `tolerance` encodes niche preferences, `abun` holds current abundances,
+`demand` encodes resource needs, `types` holds the similarity structure,
 `movement` describes dispersal, `params` holds demographic parameters, `native`
 flags whether each species is native, and `susceptible` holds optional disease
 susceptibility values.
 """
-mutable struct SpeciesList{TR <: AbstractTraits,
-                           R <: AbstractRequirement,
+mutable struct SpeciesList{TL <: AbstractTolerance,
+                           DM <: AbstractDemand,
                            MO <: AbstractMovement,
                            T <: AbstractTypes,
                            P <: AbstractParams} <: AbstractTypes
     names::Vector{String}
-    traits::TR
+    tolerance::TL
     abun::Vector{Int64}
-    requirement::R
+    demand::DM
     types::T
     movement::MO
     params::P
     native::Vector{Bool}
     susceptible::Vector{Union{Missing, Float64}}
 
-    function SpeciesList{TR, R, MO, T, P}(names::Vector{String},
-                                          traits::TR,
-                                          abun::Vector{Int64},
-                                          req::R,
-                                          types::T,
-                                          movement::MO,
-                                          params::P,
-                                          native::Vector{Bool}) where {TR <:
-                                                                       AbstractTraits,
-                                                                       R <:
-                                                                       AbstractRequirement,
-                                                                       MO <:
-                                                                       AbstractMovement,
-                                                                       T <:
-                                                                       AbstractTypes,
-                                                                       P <:
-                                                                       AbstractParams}
+    function SpeciesList{TL, DM, MO, T, P}(names::Vector{String},
+                                           tolerance::TL,
+                                           abun::Vector{Int64},
+                                           demand::DM,
+                                           types::T,
+                                           movement::MO,
+                                           params::P,
+                                           native::Vector{Bool}) where {TL <:
+                                                                        AbstractTolerance,
+                                                                        DM <:
+                                                                        AbstractDemand,
+                                                                        MO <:
+                                                                        AbstractMovement,
+                                                                        T <:
+                                                                        AbstractTypes,
+                                                                        P <:
+                                                                        AbstractParams}
         # Check dimensions
         equal_param = equalpop(params, length(names))
         sus = Vector{Union{Missing, Float64}}(undef, length(names))
-        return new{TR, R, MO, T, typeof(equal_param)}(names,
-                                                      traits,
-                                                      abun,
-                                                      req,
-                                                      types,
-                                                      movement,
-                                                      equal_param,
-                                                      native,
-                                                      sus)
+        return new{TL, DM, MO, T, typeof(equal_param)}(names,
+                                                       tolerance,
+                                                       abun,
+                                                       demand,
+                                                       types,
+                                                       movement,
+                                                       equal_param,
+                                                       native,
+                                                       sus)
     end
-    function SpeciesList{TR, R, MO, T, P}(traits::TR,
-                                          abun::Vector{Int64},
-                                          req::R,
-                                          types::T,
-                                          movement::MO,
-                                          params::P,
-                                          native::Vector{Bool}) where {TR <:
-                                                                       AbstractTraits,
-                                                                       R <:
-                                                                       AbstractRequirement,
-                                                                       MO <:
-                                                                       AbstractMovement,
-                                                                       T <:
-                                                                       AbstractTypes,
-                                                                       P <:
-                                                                       AbstractParams}
+    function SpeciesList{TL, DM, MO, T, P}(tolerance::TL,
+                                           abun::Vector{Int64},
+                                           demand::DM,
+                                           types::T,
+                                           movement::MO,
+                                           params::P,
+                                           native::Vector{Bool}) where {TL <:
+                                                                        AbstractTolerance,
+                                                                        DM <:
+                                                                        AbstractDemand,
+                                                                        MO <:
+                                                                        AbstractMovement,
+                                                                        T <:
+                                                                        AbstractTypes,
+                                                                        P <:
+                                                                        AbstractParams}
         # Assign names
         names = map(x -> "$x", eachindex(abun))
         equal_param = equalpop(params, length(names))
         sus = Vector{Union{Missing, Float64}}(undef, length(names))
-        return new{TR, R, MO, T, typeof(equal_param)}(names,
-                                                      traits,
-                                                      abun,
-                                                      req,
-                                                      types,
-                                                      movement,
-                                                      equal_param,
-                                                      native,
-                                                      sus)
+        return new{TL, DM, MO, T, typeof(equal_param)}(names,
+                                                       tolerance,
+                                                       abun,
+                                                       demand,
+                                                       types,
+                                                       movement,
+                                                       equal_param,
+                                                       native,
+                                                       sus)
     end
 end
 
 """
     SpeciesList(numspecies::Int64, numtraits::Int64, abun::Vector{Int64},
-      req::R, movement::MO, params::P, native::Vector{Bool},
+      demand::DM, movement::MO, params::P, native::Vector{Bool},
       switch::Vector{Float64})
 
 Create a `SpeciesList` for `numspecies` species with `numtraits` discrete niche
-traits evolved along a random ultrametric phylogeny. `switch` controls the rate
+tolerance evolved along a random ultrametric phylogeny. `switch` controls the rate
 of trait change along branches. A `PhyloBranches` similarity structure is
-computed from the tree. Abundances are provided via `abun` and energy
-requirements via `req`.
+computed from the tree. Abundances are provided via `abun` and resource
+demands via `demand`.
 """
 function SpeciesList(numspecies::Int64,
                      numtraits::Int64,
                      abun::Vector{Int64},
-                     req::R,
+                     demand::DM,
                      movement::MO,
                      params::P,
                      native::Vector{Bool},
-                     switch::Vector{Float64}) where {R <: AbstractRequirement,
+                     switch::Vector{Float64}) where {DM <: AbstractDemand,
                                                      MO <: AbstractMovement,
                                                      P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
     # Create tree
     tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
-    # Create traits and assign to tips
-    trts = DataFrame(trait1 = collect(1:numtraits))
-    assign_traits!(tree, switch, trts)
-    # Get traits from tree
-    sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
+    # Create tolerance and assign to tips
+    traits = DataFrame(trait1 = collect(1:numtraits))
+    assign_traits!(tree, switch, traits)
+    # Get tolerance from tree
+    sp_trt = DiscreteTolerance(Array(get_traits(tree, true)[:, 1]))
     # Create similarity matrix (for now identity)
     phy = PhyloBranches(tree)
     # Draw random set of abundances from distribution
     if length(abun) < numspecies
         abun = vcat(abun, repmat([0], numspecies - length(abun)))
     end
-    # error out when abun dist and NumberSpecies are not the same (same for energy dist)
+    # error out when abun dist and NumberSpecies are not the same (same for resource dist)
     length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
                                             doesn't match number species"))
-    length(req) == numspecies || throw(DimensionMismatch("Requirement vector
+    length(demand) == numspecies || throw(DimensionMismatch("Demand vector
                                             doesn't match number species"))
     return SpeciesList{typeof(sp_trt),
-                       typeof(req),
+                       typeof(demand),
                        typeof(movement),
                        typeof(phy),
                        typeof(params)}(names,
                                        sp_trt,
                                        abun,
-                                       req,
+                                       demand,
                                        phy,
                                        movement,
                                        params,
@@ -148,23 +148,23 @@ end
 function SpeciesList(numspecies::Int64,
                      numtraits::Int64,
                      abun::Vector{Int64},
-                     req::R,
+                     demand::DM,
                      movement::MO,
                      params::P,
-                     native::Vector{Bool}) where {R <: AbstractRequirement,
+                     native::Vector{Bool}) where {DM <: AbstractDemand,
                                                   MO <: AbstractMovement,
                                                   P <: AbstractParams}
-    return SpeciesList(numspecies, numtraits, abun, req, movement, params,
+    return SpeciesList(numspecies, numtraits, abun, demand, movement, params,
                        native, [0.5])
 end
 @doc (@doc SpeciesList) SpeciesList(::Int64,
                                     ::Int64,
                                     ::Vector{Int64},
-                                    ::R,
+                                    ::DM,
                                     ::MO,
                                     ::P,
-                                    ::Vector{Bool}) where {R <:
-                                                           AbstractRequirement,
+                                    ::Vector{Bool}) where {DM <:
+                                                           AbstractDemand,
                                                            MO <:
                                                            AbstractMovement,
                                                            P <: AbstractParams}
@@ -176,7 +176,7 @@ end
 
 Create a `SpeciesList` where body size is evolved as a continuous trait along
 the phylogeny via Brownian motion with mean `mean` and variance `var`.
-Abundances and energy requirements are derived from body size and population
+Abundances and resource demands are derived from body size and population
 mass `pop_mass` scaled to `area`. Trait switching rates along the tree are
 controlled by `switch`.
 """
@@ -194,35 +194,35 @@ function SpeciesList(numspecies::Int64,
     names = map(x -> "$x", 1:numspecies)
     # Create tree
     tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
-    # Create traits and assign to tips
-    trts = DataFrame(trait1 = collect(1:numtraits))
-    assign_traits!(tree, switch, trts)
-    # Get traits from tree
-    sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
+    # Create tolerance and assign to tips
+    traits = DataFrame(trait1 = collect(1:numtraits))
+    assign_traits!(tree, switch, traits)
+    # Get tolerance from tree
+    sp_trt = DiscreteTolerance(Array(get_traits(tree, true)[:, 1]))
     # Evolve size as a trait along the tree
     EcoSISTEM.resettraits!(tree)
-    energy = abs.(ContinuousEvolve(mean, var, tree).mean)
-    req = SizeRequirement(energy, pop_mass, area)
-    # Calculate density from size and relationship
-    density = exp.(log.(energy) * pop_mass) ./ km^2
+    resource = abs.(_nichemeans(ContinuousEvolve(mean, var, tree)))
+    demand = SizeDemand(resource, pop_mass, area)
+    # Calculate density from size and nichefit
+    density = exp.(log.(resource) * pop_mass) ./ km^2
     # Multiply density by area to get final population sizes
     abun = round.(Int64, density * area)
     # Create similarity matrix (for now identity)
     phy = PhyloBranches(tree)
     # Draw random set of abundances from distribution
-    # error out when abunance and NumberSpecies are not the same (same for energy dist)
+    # error out when abunance and NumberSpecies are not the same (same for resource dist)
     length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
                                             doesn't match number species"))
-    length(req) == numspecies || throw(DimensionMismatch("Requirement vector
+    length(demand) == numspecies || throw(DimensionMismatch("Demand vector
                                             doesn't match number species"))
     return SpeciesList{typeof(sp_trt),
-                       typeof(req),
+                       typeof(demand),
                        typeof(movement),
                        typeof(phy),
                        typeof(params)}(names,
                                        sp_trt,
                                        abun,
-                                       req,
+                                       demand,
                                        phy,
                                        movement,
                                        params,
@@ -231,48 +231,48 @@ end
 
 """
     SpeciesList(numspecies::Int64, numtraits::Int64, abun::Vector{Int64},
-      req::R, movement::MO, phy::T, params::P, native::Vector{Bool})
+      demand::DM, movement::MO, phy::T, params::P, native::Vector{Bool})
 
 Create a `SpeciesList` with an explicitly supplied similarity structure `phy` of
 type `AbstractTypes`, rather than computing a `PhyloBranches` similarity
-internally. Discrete traits are still evolved along a random ultrametric tree.
+internally. Discrete tolerance are still evolved along a random ultrametric tree.
 """
 function SpeciesList(numspecies::Int64,
                      numtraits::Int64,
                      abun::Vector{Int64},
-                     req::R,
+                     demand::DM,
                      movement::MO,
                      phy::T,
                      params::P,
-                     native::Vector{Bool}) where {R <: AbstractRequirement,
+                     native::Vector{Bool}) where {DM <: AbstractDemand,
                                                   MO <: AbstractMovement,
                                                   T <: AbstractTypes,
                                                   P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
     # Create tree
     tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
-    # Create traits and assign to tips
-    trts = DataFrame(trait1 = collect(1:numtraits))
-    assign_traits!(tree, 0.5, trts)
-    # Get traits from tree
-    sp_trt = DiscreteTrait(Array(get_traits(tree, true)[:, 1]))
+    # Create tolerance and assign to tips
+    traits = DataFrame(trait1 = collect(1:numtraits))
+    assign_traits!(tree, 0.5, traits)
+    # Get tolerance from tree
+    sp_trt = DiscreteTolerance(Array(get_traits(tree, true)[:, 1]))
     # Draw random set of abundances from distribution
     if length(abun) < numspecies
         abun = vcat(abun, repmat([0], numspecies - length(abun)))
     end
-    # error out when abun dist and NumberSpecies are not the same (same for energy dist)
+    # error out when abun dist and NumberSpecies are not the same (same for resource dist)
     length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
                                             doesn't match number species"))
-    length(req) == numspecies || throw(DimensionMismatch("Requirement vector
+    length(demand) == numspecies || throw(DimensionMismatch("Demand vector
                                             doesn't match number species"))
     return SpeciesList{typeof(sp_trt),
-                       typeof(req),
+                       typeof(demand),
                        typeof(movement),
                        typeof(phy),
                        typeof(params)}(names,
                                        sp_trt,
                                        abun,
-                                       req,
+                                       demand,
                                        phy,
                                        movement,
                                        params,
@@ -280,21 +280,21 @@ function SpeciesList(numspecies::Int64,
 end
 
 """
-    SpeciesList(numspecies::Int64, traits::TR, abun::Vector{Int64}, req::R,
+    SpeciesList(numspecies::Int64, tolerance::TL, abun::Vector{Int64}, demand::DM,
       movement::MO, params::P, native::Vector{Bool})
 
-Create a `SpeciesList` from an explicitly supplied trait object `traits` of type
-[`AbstractTraits`](@ref). Uses `UniqueTypes` as the similarity structure,
+Create a `SpeciesList` from an explicitly supplied trait object `tolerance` of type
+[`AbstractTolerance`](@ref). Uses `UniqueTypes` as the similarity structure,
 treating all species as maximally distinct.
 """
 function SpeciesList(numspecies::Int64,
-                     traits::TR,
+                     tolerance::TL,
                      abun::Vector{Int64},
-                     req::R,
+                     demand::DM,
                      movement::MO,
                      params::P,
-                     native::Vector{Bool}) where {TR <: AbstractTraits,
-                                                  R <: AbstractRequirement,
+                     native::Vector{Bool}) where {TL <: AbstractTolerance,
+                                                  DM <: AbstractDemand,
                                                   MO <: AbstractMovement,
                                                   P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
@@ -304,19 +304,19 @@ function SpeciesList(numspecies::Int64,
     if length(abun) < numspecies
         abun = vcat(abun, fill(0, numspecies - length(abun)))
     end
-    # error out when abun dist and NumberSpecies are not the same (same for energy dist)
+    # error out when abun dist and NumberSpecies are not the same (same for resource dist)
     length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
                                             doesn't match number species"))
-    length(req) == numspecies || throw(DimensionMismatch("Requirement vector
+    length(demand) == numspecies || throw(DimensionMismatch("Demand vector
                                             doesn't match number species"))
-    return SpeciesList{typeof(traits),
-                       typeof(req),
+    return SpeciesList{typeof(tolerance),
+                       typeof(demand),
                        typeof(movement),
                        typeof(ty),
                        typeof(params)}(names,
-                                       traits,
+                                       tolerance,
                                        abun,
-                                       req,
+                                       demand,
                                        ty,
                                        movement,
                                        params,
@@ -324,17 +324,17 @@ function SpeciesList(numspecies::Int64,
 end
 
 """
-    getenergyusage(sppl::SpeciesList)
+    getdemand(sppl::SpeciesList)
 
-Return the total energy usage for the species list `sppl`, combining abundances
-with per-species energy requirements.
+Return the total resource usage for the species list `sppl`, combining abundances
+with per-species resource demands.
 """
-function getenergyusage(sppl::SpeciesList)
-    return _getenergyusage(sppl.abun, sppl.requirement)
+function getdemand(sppl::SpeciesList)
+    return _getdemand(sppl.abun, sppl.demand)
 end
 
-function _simmatch(sim::SpeciesList)
-    return _simmatch(sim.types)
+function _simmatch(sppl::SpeciesList)
+    return _simmatch(sppl.types)
 end
 
 #function _calcsimilarity(ut::UniqueTypes)

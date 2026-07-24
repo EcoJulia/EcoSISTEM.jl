@@ -24,8 +24,8 @@ end
                      Axis{:latitude}(1:10),
                      Axis{:longitude}(1:10),
                      Axis{:time}(collect(1:12) .* s))
-    @test_nowarn Worldclim_monthly(temp)
-    @test_nowarn CHELSA_monthly(temp)
+    @test_nowarn ClimateRaster(WorldClim{Climate}, temp)
+    @test_nowarn ClimateRaster(CHELSA{Climate}, temp)
 end
 
 @testset "Bioclim types" begin
