@@ -14,7 +14,7 @@ using Test
     @testset "temperature and precipitation (BioClim)" begin
         @test layerunit(WorldClim{BioClim}, 1) == °C        # annual mean temperature
         @test layerunit(WorldClim{BioClim}, 2) == K            # mean diurnal range
-        @test layerunit(WorldClim{BioClim}, 12) == mm          # annual precipitation
+        @test layerunit(WorldClim{BioClim}, 12) == Unitful.L * m^-2 * year^-1  # annual precipitation
         # dimensionless indices come back as NoUnits
         @test layerunit(WorldClim{BioClim}, 3) == NoUnits      # isothermality
     end
@@ -34,7 +34,7 @@ using Test
     @testset "other tables resolve (BOM, month, elevation)" begin
         @test layerunit(WorldClim{Elevation}, :elev) == m
         @test layerunit(WorldClim{BioClimPlus}, :cmi_max) ==
-              kg * m^-2 * month^-1
+              Unitful.L * m^-2 * month^-1
     end
 
     @testset "_datasettype extracts the wrapped dataset" begin
@@ -52,15 +52,17 @@ using Test
         # BioClim layers take both an int and a `bioN` symbol (`;`-separated `Code` aliases)
         @test layerunit(WorldClim{BioClim}, :bio1) ==
               layerunit(WorldClim{BioClim}, 1) == °C
-        @test layerunit(WorldClim{BioClim}, :bio12) == mm
+        @test layerunit(WorldClim{BioClim}, :bio12) ==
+              Unitful.L * m^-2 * year^-1
         # LandCover takes an int or a descriptive symbol
         @test layerunit(EarthEnv{LandCover}, :open_water) ==
               layerunit(EarthEnv{LandCover}, 12)
         # BioClimPlus documents bio1-19
         @test layerunit(CHELSA{BioClimPlus}, :bio1) == °C
-        # CHELSA{Climate} monthly layers live in Climate.csv; `pr` is now `mm` (not kg m⁻² month⁻¹)
-        @test layerunit(CHELSA{Climate}, :cmi) == kg * m^-2 * month^-1
-        @test layerunit(CHELSA{Climate}, :pr) == mm
+        # CHELSA{Climate} monthly layers live in Climate.csv; water-mass rates canonicalise to
+        # L m⁻² month⁻¹ (litres, not kg, per the water-density identity: 1 kg water ≈ 1 L)
+        @test layerunit(CHELSA{Climate}, :cmi) == Unitful.L * m^-2 * month^-1
+        @test layerunit(CHELSA{Climate}, :pr) == Unitful.L * m^-2 * month^-1
         @test layerunit(CHELSA{Climate}, :tas) == °C
     end
 
@@ -178,11 +180,11 @@ end
           Set([:BioClim, :BioClimPlus])
     @test only(CP.layerinfo(:tas)).sources == ["CHELSA"]   # a CHELSA-only Climate code
 
-    # temporal metadata surfaced from the Layers / Temporal Resolution columns
-    @test CP.layerinfo(WorldClim{Climate}, :tmin).temporal == "Monthly"
+    # temporal metadata surfaced from the NumLayers / Temporal Resolution columns
+    @test CP.layerinfo(WorldClim{Climate}, :tmin).temporal == month
     @test CP.layerinfo(WorldClim{Climate}, :tmin).numlayers == 12
     @test CP.layerinfo(WorldClim{BioClim}, 1).numlayers == 1       # static single layer
-    @test CP.layerinfo(WorldClim{BioClim}, 1).temporal == ""
+    @test CP.layerinfo(WorldClim{BioClim}, 1).temporal === nothing
 
     # layersbyaxis: concrete leaf, and abstract group spanning several axes
     @test Set(x.dataset for x in CP.layersbyaxis(Temperature)) ⊇

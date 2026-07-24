@@ -20,7 +20,7 @@ if !Sys.iswindows()
 
     grid = (5, 5)
     area = 25.0km^2
-    totalK = 10000.0kJ / km^2
+    totalK = 10000.0kJ / km^2 / day
     numNiches = 4
     active = fill(true, grid)
 
@@ -103,13 +103,16 @@ if !Sys.iswindows()
                          Axis{:time}(collect(1:3) .* s))
         eratemp = ERA(temp)
         active = fill(true, 10, 10)
-        totalK = 1000.0kJ / m^2
+        totalK = 1000.0kJ / m^2 / day
         area = 100.0km^2
         era = erahabitat(eratemp, totalK, area)
         @test erahabitat(eratemp, totalK, area) isa GridHabitat
         @test erahabitat(eratemp, totalK, area, active) isa GridHabitat
         @test size(era.regime.matrix) == size(temp)
-        @test EcoSISTEM.getavailablesupply(era) == totalK * area
+        # isapprox not == : Unitful's == doesn't reliably auto-simplify a 3-factor mixed
+        # unit product (kJ*km^2/m^2/day) against its uconverted form, even though both are
+        # dimensionally identical (confirmed directly) — isapprox handles it correctly.
+        @test isapprox(EcoSISTEM.getavailablesupply(era), totalK * area)
         @test era.active == active
         @test all(era.active)
         # the niche `axis` is threaded through onto the built regime (default `Unclassified`)
@@ -118,7 +121,7 @@ if !Sys.iswindows()
                                           axis = Temperature).regime) ===
               Temperature
 
-        solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
+        solar = SolarTimeSupply(fill(10.0kJ / day, 10, 10, 3), 1)
         era = erahabitat(eratemp, solar, active)
     end
 
@@ -130,14 +133,15 @@ if !Sys.iswindows()
                          Axis{:time}(collect(1:12) .* month))
         worldclimtemp = ClimateRaster(WorldClim{Climate}, temp)
         active = fill(true, 10, 10)
-        totalK = 1000.0kJ / m^2
+        totalK = 1000.0kJ / m^2 / day
         area = 100.0km^2
         worldclim = worldclimhabitat(worldclimtemp, totalK, area)
         @test worldclimhabitat(worldclimtemp, totalK, area) isa GridHabitat
         @test worldclimhabitat(worldclimtemp, totalK, area, active) isa
               GridHabitat
         @test size(worldclim.regime.matrix) == size(temp)
-        @test EcoSISTEM.getavailablesupply(worldclim) == totalK * area
+        # isapprox not == : see the "ERA data" testset's comment above.
+        @test isapprox(EcoSISTEM.getavailablesupply(worldclim), totalK * area)
         @test worldclim.active == active
         @test all(worldclim.active)
         # the niche `axis` is threaded through onto the built regime (default `Unclassified`)
@@ -146,21 +150,21 @@ if !Sys.iswindows()
                                                 axis = Temperature).regime) ===
               Temperature
 
-        solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
+        solar = SolarTimeSupply(fill(10.0kJ / day, 10, 10, 3), 1)
         worldclim = worldclimhabitat(worldclimtemp, solar, active)
     end
 
     @testset "Bioclim data" begin
         bio_africa = read(WorldClim{BioClim}, 1)
         active = fill(true, size(bio_africa.array))
-        totalK = 1000.0kJ / km^2
+        totalK = 1000.0kJ / km^2 / day
         area = 100.0km^2
         bioclim = bioclimhabitat(bio_africa, totalK, area)
         @test bioclimhabitat(bio_africa, totalK, area) isa GridHabitat
         @test bioclimhabitat(bio_africa, totalK, area, active) isa GridHabitat
         @test size(bioclim.regime.matrix) == size(bio_africa.array)
         @test isapprox(EcoSISTEM.getavailablesupply(bioclim), totalK * area)
-        solar = SolarSupply(fill(10.0kJ, size(bio_africa.array)))
+        solar = SolarSupply(fill(10.0kJ / day, size(bio_africa.array)))
         bioclim = bioclimhabitat(bio_africa, solar, active)
     end
 
@@ -168,7 +172,7 @@ if !Sys.iswindows()
         world = read(EarthEnv{LandCover})
         world_landcover = compressLandCover(world)
         active = fill(true, size(world_landcover.array.data))
-        totalK = 1000.0kJ / km^2
+        totalK = 1000.0kJ / km^2 / day
         area = 100.0km^2
         landcover = landcoverhabitat(world_landcover, totalK, area)
         @test landcoverhabitat(world_landcover, totalK, area) isa GridHabitat
@@ -176,7 +180,7 @@ if !Sys.iswindows()
               GridHabitat
         @test size(landcover.regime.matrix) == size(world_landcover.array)
         @test isapprox(EcoSISTEM.getavailablesupply(landcover), totalK * area)
-        solar = SolarSupply(fill(10.0kJ, size(world_landcover.array)))
+        solar = SolarSupply(fill(10.0kJ / day, size(world_landcover.array)))
         landcover = landcoverhabitat(world_landcover, solar, active)
     end
 end

@@ -95,9 +95,9 @@ include("TestCases.jl")
         numSpecies = 4
         grid = (5, 5)
         area = 10000.0km^2
-        env1 = simplehabitat(10.0K, grid, 1000.0kJ / km^2, area;
+        env1 = simplehabitat(10.0K, grid, 1000.0kJ / km^2 / day, area;
                              axis = Temperature)
-        env2 = simplehabitat(10.0mm, grid, 100.0mm / km^2, area;
+        env2 = simplehabitat(10.0mm, grid, 100.0mm / day, area;
                              axis = Precipitation)
         regime = RegimeCollection2(env1.regime, env2.regime)   # eltype [K, mm]
         supply = SupplyCollection2(env1.supply, env2.supply)
@@ -115,8 +115,9 @@ include("TestCases.jl")
         movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, numSpecies),
                                                      10e-4))
         native = fill(true, numSpecies)
-        resource = DemandCollection2(SolarDemand(fill(2.0kJ, numSpecies)),
-                                     WaterDemand(fill(2.0mm, numSpecies)))
+        resource = DemandCollection2(SolarDemand(fill(2.0kJ / day, numSpecies)),
+                                     WaterDemand(fill(2.0Unitful.L / day,
+                                                      numSpecies)))
         param = EqualPop(0.6 / month, 0.6 / month, 1.0, 0.0, 1000.0)
         sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement,
                            param,

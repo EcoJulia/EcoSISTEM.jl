@@ -9,10 +9,10 @@ include("Scenarios.jl")
 numInvasive = 1;
 numSpecies = 1000;
 grd = (40, 25);
-demand = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 10^10;
 area = 10_000.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 habloss = 1.0 / 10year
 scenario = [

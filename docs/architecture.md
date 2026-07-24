@@ -122,7 +122,12 @@ classDiagram
 Each axis answers a small interface (defaulted, overridden per group) — `canonicalunit`
 (e.g. temperature → `K`, precipitation → `mm`, altitude → `m`), `dynamics` (the
 per-timestep change function, e.g. temperature → `TempChange`), and `supplytype` /
-`demandtype`. See the Notes for the full catalogue.
+`demandtype`. `canonicalunit` also has a `(::Type{<:Role}, ::NicheAxis)` overload: a
+`Condition`-role reading of an axis (a niche tolerance, a descriptive climatological normal) and
+a `Resource`-role reading of the *same* axis (a literal consumption rate) are legitimately
+different physical questions, not the same value with a time unit bolted on — e.g. `Precipitation`
+is `mm` as a `Condition` but `L/day` as a `Resource`. The 1-arg form remains the default for any
+role/axis without a specific override. See the Notes for the full catalogue.
 
 ## Regime & supply aliases
 
@@ -137,9 +142,9 @@ and `AbstractSupply = AbstractLayer{Resource}`; `SimpleSupply` (free energy) is 
 | `ContinuousTimeRegime{C, M}` | `ContinuousLayer{Condition, A, C, M<:AbstractArray{C,3}}` (monthly) |
 | `DiscreteRegime{D}` | `DiscreteLayer{A, D, Matrix{D}}` |
 | `RegimeCollection2/3` | `LayerCollection2/3{Condition, …}` |
-| `SimpleSupply` | `ContinuousLayer{Resource, Unclassified, Float64, …}` |
-| `SolarSupply` / `SolarTimeSupply` | `ContinuousLayer{Resource, SolarRadiation, kJ, …}` (2-D / 3-D) |
-| `WaterSupply` / `WaterTimeSupply` | `ContinuousLayer{Resource, Precipitation, mm, …}` |
+| `SimpleSupply` | `ContinuousLayer{Resource, Unclassified, typeof(1.0/day), …}` |
+| `SolarSupply` / `SolarTimeSupply` | `ContinuousLayer{Resource, SolarRadiation, typeof(1.0kJ/day), …}` (2-D / 3-D) |
+| `WaterSupply` / `WaterTimeSupply` | `ContinuousLayer{Resource, Precipitation, typeof(1.0L/day), …}` |
 | `AbstractTimeSupply` | `ContinuousLayer{Resource, A, V, Arr<:AbstractArray{V,3}}` |
 | `SupplyCollection2` | `LayerCollection2{Resource, …}` |
 
@@ -305,7 +310,9 @@ classDiagram
   (`DayOfYear`, `DayRange`); `CarbonAxis` (`CarbonFlux`); `TypologyAxis` (`LandCoverTypology`,
   `ClimateTypology`); the singletons `Heterogeneity`, `Altitude`; and the default `Unclassified` —
   extend with `struct MyAxis <: NicheAxis end`. Level axes carry a `canonicalunit` (temperature `K`,
-  precipitation `mm`) that a layer's actual-unit values are converted to at build time.
+  precipitation `mm`) that a layer's actual-unit values are converted to at build time; a
+  `canonicalunit(::Type{<:Role}, ::NicheAxis)` overload gives the `Resource`-role rate form for the
+  same axis where one is defined (e.g. `Precipitation` → `L/day`, `SolarRadiation` → `kJ/day`).
 - **Layer aliases:** `AbstractRegime = AbstractLayer{Condition}`,
   `AbstractSupply = AbstractLayer{Resource}`. `ContinuousRegime`/`ContinuousTimeRegime`/`DiscreteRegime`/
   `RegimeCollection2,3` and `Simple`/`Solar`/`Water`(`Time`)`Supply`/

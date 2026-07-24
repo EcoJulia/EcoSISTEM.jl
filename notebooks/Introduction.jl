@@ -60,7 +60,7 @@ begin
     # Set up abiotic environment
     grd = (numGrid, numGrid)
     area = 100.0 * km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
     habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
     habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
     supply = SupplyCollection2(habitat1.supply, habitat2.supply)
@@ -86,7 +86,7 @@ begin
     movement = BirthOnlyMovement(kernel, Torus())
 
     # Resource demands
-    demand = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     size_mean = 1.0m^2
     resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
     resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
@@ -180,7 +180,7 @@ begin
     area_size = 100.0 * km^2
 
     # The total water it will have available
-    totalW = 200.0mm / km^2
+    totalW = 200.0mm / day
 
     # Overall temperature it will be
     totalT = 298.0K
@@ -191,7 +191,7 @@ begin
     # Let's plot it to see what it looks like
     heatmap(temp_env.regime.matrix ./ K, clim = (278, 308), title = "Condition",
             layout = 2)
-    heatmap!(temp_env.supply.matrix ./ mm,
+    heatmap!(temp_env.supply.matrix ./ (mm / day),
              title = "Resource",
              subplot = 2,
              clim = (100, 200))
@@ -287,7 +287,7 @@ begin
     move = BirthOnlyMovement(gauss_kernel, Torus())
 
     # We must also decide how much water each species needs per timestep
-    water_req = (100.0nm / m^2)
+    water_req = (100.0Unitful.L / m^2 / day)
     sz = 1.0m^2
     water_vec = WaterDemand(fill(water_req * sz, numSpp))
 

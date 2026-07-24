@@ -131,7 +131,7 @@ using RasterDataSources
         @test ReqCollection2 === DemandCollection2
         @test EcoSISTEM.AbstractRequirement === EcoSISTEM.AbstractDemand
         # and they still construct the same object
-        @test SolarRequirement(fill(2.0kJ, 3)) isa SolarDemand
+        @test SolarRequirement(fill(2.0kJ / day, 3)) isa SolarDemand
     end
 
     @testset "condition line: Condition → Regime" begin
@@ -186,7 +186,7 @@ using RasterDataSources
         # `@deprecate` warns (captured by `@test_deprecated`) and forwards to the same method, so the
         # returned habitat matches. All fixtures are in-memory (no downloads).
         grid = (10, 10)
-        totalK = 1000.0kJ / m^2
+        totalK = 1000.0kJ / m^2 / day
         area = 100.0km^2
         latkm = Axis{:latitude}(collect(1:10) .* km)
         longkm = Axis{:longitude}(collect(1:10) .* km)

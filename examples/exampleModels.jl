@@ -14,10 +14,10 @@ using Diversity
 
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
 habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
 habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
@@ -93,10 +93,10 @@ bar(ustrip.(uconvert.(°C, edges)),
 
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
 habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
 habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
@@ -170,10 +170,10 @@ bar!(edges ./ K,
 ## DIFFERENT VARS MISMATCH ##
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
 habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
 habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
@@ -249,10 +249,10 @@ Plots.pdf("Opt_var_panel.pdf")
 
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
 habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
@@ -263,14 +263,15 @@ habitat = GridHabitat{typeof(habitat1.regime),
                                       supply,
                                       habitat1.names)
 gsize = size(habitat.supply.one.matrix, 1)
-sol_range = collect(range(0.0kJ, stop = 4.5e11kJ, length = gsize))
+sol_range = collect(range(0.0kJ / day, stop = 4.5e11kJ / day, length = gsize))
 map(1:gsize) do seq
     return habitat.supply.one.matrix[seq, :] .= sol_range[seq]
 end
 habitat.supply.one.matrix
 
 gsize = size(habitat.supply.two.matrix, 1)
-water_range = collect(range(0.0mm, stop = 192mm, length = gsize))
+water_range = collect(range(0.0Unitful.L / day, stop = 192Unitful.L / day,
+                            length = gsize))
 map(1:gsize) do seq
     return habitat.supply.two.matrix[:, seq] .= water_range[seq]
 end
@@ -315,12 +316,12 @@ simulate!(eco, times, timestep)
 endabun = sum(eco.abundances.matrix, dims = 1)
 endabun = reshape(endabun, 10, 10)
 
-heatmap(sol_range ./ kJ,
-        water_range ./ mm,
+heatmap(sol_range ./ (kJ / day),
+        water_range ./ (Unitful.L / day),
         endabun,
         grid = false,
-        xlab = "Solar resource (kJ)",
-        ylab = "Water (mm)",
+        xlab = "Solar resource (kJ/day)",
+        ylab = "Water (L/day)",
         size = (1600, 1200),
         guidefontsize = 16,
         tickfontsize = 16,
@@ -342,10 +343,10 @@ grids = [1, 2, 5, 10]
 for i in eachindex(grids)
     numSpecies = 100
     grd = (grids[i], grids[i])
-    demand = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     individuals = 100_000_000
     area = 100.0 * km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
     habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
     habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
@@ -414,10 +415,10 @@ areas = [10.0, 20.0, 50.0, 100.0]
 for i in eachindex(areas)
     numSpecies = 100
     grd = (10, 10)
-    demand = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     individuals = 100_000_000
     area = areas[i] .* km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
     habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
     habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
@@ -487,10 +488,10 @@ for r in 1:reps
     for i in eachindex(species)
         numSpecies = species[i]
         grd = (10, 10)
-        demand = (450000.0kJ / m^2, 192.0nm / m^2)
+        demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
         individuals = 100_000_000
         area = 100.0km^2
-        totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+        totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
         habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
         habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
@@ -565,10 +566,10 @@ endabuns = zeros(Int64, 10, 10, length(distances))
 for i in eachindex(distances)
     numSpecies = 2
     grd = (10, 10)
-    demand = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     individuals = 0
     area = 100.0km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
     habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
     habitat2 = simplehabitat(298.0K, grd, totalK[2], area)

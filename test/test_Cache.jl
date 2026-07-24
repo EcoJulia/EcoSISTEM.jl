@@ -16,9 +16,9 @@ function cache_test_eco(seed)
     grid = (4, 4)
     area = 100.0km^2
     individuals = 1_000
-    totalK = 10000.0kJ / km^2
+    totalK = 10000.0kJ / km^2 / day
 
-    resource = SolarDemand(fill(10.0kJ, numSpecies))
+    resource = SolarDemand(fill(10.0kJ / day, numSpecies))
     param = EqualPop(0.2 / year, 0.2 / year, 1.0, 0.0, 1.0)
     kernel = fill(GaussianKernel(2.0km, 1.0e-3), numSpecies)
     movement = BirthOnlyMovement(kernel, NoBoundary())

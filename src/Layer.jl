@@ -68,6 +68,12 @@ struct Unclassified <: NicheAxis end
 # tolerances (e.g. a `NicheTolerance` built from bare data) resolve `canonicalunit`/`eltype` without erroring.
 canonicalunit(::Unclassified) = NoUnits
 
+# The third Resource-role canonical unit (Precipitation/SolarRadiation are in NicheInfo.jl): the
+# free/simple per-individual demand rate. `day^-1`, not `1/day` — the latter is a Quantity, not a
+# Units, breaking every other canonicalunit's uconvert-target contract; matches the literal
+# already used in AbioticEnv.jl's `cancel` third branch.
+canonicalunit(::Type{Resource}, ::Unclassified) = day^-1
+
 """
     ContinuousLayer{R <: Role, A <: NicheAxis, V <: Number, Arr <: AbstractArray{V}}
 
@@ -200,23 +206,27 @@ const AbstractTimeSupply = ContinuousLayer{Resource, A, V,
                                                        Arr <:
                                                        AbstractArray{V, 3}}
 
-"""    SimpleSupply — a dimensionless (free-energy) supply, one float per cell. """
-const SimpleSupply = ContinuousLayer{Resource, Unclassified, Float64,
-                                     Matrix{Float64}}
-"""    SolarSupply — a static solar-energy (kJ) supply. """
-const SolarSupply = ContinuousLayer{Resource, SolarRadiation, typeof(1.0 * kJ),
-                                    Matrix{typeof(1.0 * kJ)}}
-"""    WaterSupply — a static available-water (mm) supply. """
-const WaterSupply = ContinuousLayer{Resource, Precipitation, typeof(1.0 * mm),
-                                    Matrix{typeof(1.0 * mm)}}
-"""    SolarTimeSupply — a monthly time-varying solar-energy (kJ) supply. """
-const SolarTimeSupply = ContinuousLayer{Resource, SolarRadiation,
-                                        typeof(1.0 * kJ),
-                                        Array{typeof(1.0 * kJ), 3}}
-"""    WaterTimeSupply — a monthly time-varying available-water (mm) supply. """
-const WaterTimeSupply = ContinuousLayer{Resource, Precipitation,
-                                        typeof(1.0 * mm),
-                                        Array{typeof(1.0 * mm), 3}}
+# Single source of truth for each Resource rate's element type, derived from `canonicalunit`
+# (NicheInfo.jl / above) rather than re-spelling the literal unit at every alias/constructor site.
+const _SimpleRate = typeof(1.0 * canonicalunit(Resource, Unclassified()))
+const _SolarRate = typeof(1.0 * canonicalunit(Resource, SolarRadiation()))
+const _WaterRate = typeof(1.0 * canonicalunit(Resource, Precipitation()))
+
+"""    SimpleSupply — a free-resource supply rate (`/day`), one float per cell. """
+const SimpleSupply = ContinuousLayer{Resource, Unclassified, _SimpleRate,
+                                     Matrix{_SimpleRate}}
+"""    SolarSupply — a static solar-energy supply rate (`kJ/day`). """
+const SolarSupply = ContinuousLayer{Resource, SolarRadiation, _SolarRate,
+                                    Matrix{_SolarRate}}
+"""    WaterSupply — a static available-water supply rate (`L/day`). """
+const WaterSupply = ContinuousLayer{Resource, Precipitation, _WaterRate,
+                                    Matrix{_WaterRate}}
+"""    SolarTimeSupply — a monthly time-varying solar-energy supply rate (`kJ/day`). """
+const SolarTimeSupply = ContinuousLayer{Resource, SolarRadiation, _SolarRate,
+                                        Array{_SolarRate, 3}}
+"""    WaterTimeSupply — a monthly time-varying available-water supply rate (`L/day`). """
+const WaterTimeSupply = ContinuousLayer{Resource, Precipitation, _WaterRate,
+                                        Array{_WaterRate, 3}}
 """    SupplyCollection2{B1, B2} — two supplies over one grid (e.g. solar + water). """
 const SupplyCollection2{B1, B2} = LayerCollection2{Resource, B1, B2}
 

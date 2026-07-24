@@ -48,7 +48,6 @@ export NicheAxis,
 # day / carbon / typology / other
        DayOfYear, DayRange, CarbonFlux, LandCoverTypology, ClimateTypology,
        Heterogeneity, Altitude
-export SourceSpec, UniformSpec, GradientSpec, PeakedSpec, NicheSpec
 
 # Geographic coordinate type — used across the ClimatePref sub-module and the main module, so it is
 # defined here (before ClimatePref) rather than inside it.
@@ -174,8 +173,6 @@ export Ecosystem,
        addspecies!
 
 include("Simplify.jl")
-export build_environment, build_species, build_ecosystem
-export datamask, landmask, circlemask
 
 include("Traitfuns.jl")
 export suitability, getpref, getdist, getnichefit, getregime
@@ -186,7 +183,7 @@ export suitability, getpref, getdist, getnichefit, getregime
 include("deprecations.jl")
 
 include("HabitatUpdate.jl")
-export TempChange, RainfallChange, TempFluct, cyclicChange, eraChange,
+export TempChange, RainfallChange, TempFluct, eraChange,
        worldclimChange
 
 include("Scenarios.jl")

@@ -16,10 +16,10 @@ cachefolder = mktempdir()
 
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -117,10 +117,10 @@ bar(ustrip.(uconvert.(°C, edges)),
 
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -219,10 +219,10 @@ bar(edges ./ K,
 
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -322,10 +322,10 @@ bar(edges ./ K,
 
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -368,14 +368,15 @@ habitat = GridHabitat{typeof(habitat1.regime),
                                       supply,
                                       habitat1.names)
 gsize = size(habitat.supply.one.matrix, 1)
-sol_range = collect(range(0.0kJ, stop = 4.5e11kJ, length = gsize))
+sol_range = collect(range(0.0kJ / day, stop = 4.5e11kJ / day, length = gsize))
 map(1:gsize) do seq
     return habitat.supply.one.matrix[seq, :] .= sol_range[seq]
 end
 habitat.supply.one.matrix
 
 gsize = size(habitat.supply.two.matrix, 1)
-water_range = collect(range(0.0mm, stop = 192mm, length = gsize))
+water_range = collect(range(0.0Unitful.L / day, stop = 192Unitful.L / day,
+                            length = gsize))
 map(1:gsize) do seq
     return habitat.supply.two.matrix[:, seq] .= water_range[seq]
 end
@@ -413,8 +414,8 @@ endabun = mapslices(sum,
                                                              dims=1)[1, :]
 endabun = reshape(endabun, 10, 10)
 
-heatmap(sol_range ./ kJ,
-        water_range ./ mm,
+heatmap(sol_range ./ (kJ / day),
+        water_range ./ (Unitful.L / day),
         endabun,
         grid = false,
         xlab = "Solar energy",
@@ -433,10 +434,10 @@ heatmap(sol_range ./ kJ,
 for i in [1, 2, 5, 10]
     numSpecies = 100
     grd = (i, i)
-    demand = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     individuals = 100_000_000
     area = 100.0 * km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
     scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -530,10 +531,10 @@ bar(["1", "4", "25", "100"],
 for i in [10.0, 20.0, 50.0, 100.0]
     numSpecies = 100
     grd = (10, 10)
-    demand = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     individuals = 100_000_000
     area = i .* km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
     scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -629,10 +630,10 @@ distances = [0.5, 1.0, 2.0, 4.0]
 for i in eachindex(distances)
     numSpecies = 2
     grd = (10, 10)
-    demand = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     individuals = 100_000_000
     area = 100.0 * km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
     scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 

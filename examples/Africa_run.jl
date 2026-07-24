@@ -52,10 +52,10 @@ function run_single(africa, active; savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     num_species = 1
     grid = size(africa)
-    demand = 10.0kJ
+    demand = 10.0kJ / day
     individuals = 0
     area = 64e6km^2
-    totalK = 1000.0kJ / km^2
+    totalK = 1000.0kJ / km^2 / day
 
     # Set up how much resource each species consumes
     resource_vec = SolarDemand(fill(demand, num_species))
@@ -135,10 +135,10 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         # Set up initial parameters for ecosystem
         num_species = 2
         grid = size(africa)
-        demand = 10.0kJ
+        demand = 10.0kJ / day
         individuals = 0
         area = 64e6km^2
-        totalK = 1000.0kJ / km^2
+        totalK = 1000.0kJ / km^2 / day
 
         # Set up how much resource each species consumes
         resource_vec = SolarDemand(fill(demand, num_species))
@@ -241,10 +241,10 @@ function specialist_vs_many(africa, active, num_species = 50_000;
                             savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     grid = size(africa)
-    demand = 10.0kJ
+    demand = 10.0kJ / day
     individuals = 3 * 10^8
     area = 64e6km^2
-    totalK = 1000.0kJ / km^2
+    totalK = 1000.0kJ / km^2 / day
 
     # Set up how much resource each species consumes
     resource_vec = SolarDemand(fill(demand, num_species))
@@ -312,10 +312,10 @@ Africa and save as a pdf.
 function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     grid = size(africa)
-    demand = 10.0kJ
+    demand = 10.0kJ / day
     individuals = 3 * 10^8
     area = 64e6km^2
-    totalK = 1000.0kJ / km^2
+    totalK = 1000.0kJ / km^2 / day
 
     # Set up how much resource each species consumes
     resource_vec = SolarDemand(fill(demand, num_species))

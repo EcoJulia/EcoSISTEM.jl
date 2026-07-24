@@ -9,31 +9,34 @@ using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
 
 const RDS = RasterDataSources
-const SUPPLYDICT = Dict(kJ => SolarSupply, mm => WaterSupply,
-                        NoUnits => SimpleSupply)
-checksupply(maxsupply) = unit(maxsupply) in keys(SUPPLYDICT)
-function cancel(a::Quantity{<:Real, 𝐌 * 𝐓^-2}, b::Quantity{<:Real, 𝐋^2})
-    return uconvert(kJ, a * b)
+
+# Turn a per-area *rate* (an areal flux — energy/water per unit area per unit time) into an
+# absolute Resource quantity (per cell, not per area) by multiplying by that cell's `area` —
+# dispatched on the input's own dimension, not a `Dict`. Solar's `kJ/m²/day` (𝐌𝐓⁻³) × m²
+# (𝐋²) → `kJ/day` (𝐋²𝐌𝐓⁻³, `Unitful.Power`); water's `L/m²/day` (𝐋𝐓⁻¹) × m² → `L/day`
+# (𝐋³𝐓⁻¹, `VolumeFlow`); the free/simple case is dimensionless-per-area (𝐋⁻²𝐓⁻¹) × m² →
+# a bare rate (𝐓⁻¹). All three verified directly against `dimension(...)` before wiring.
+function cancel(a::Quantity{<:Real, 𝐌 * 𝐓^-3}, b::Quantity{<:Real, 𝐋^2})
+    return uconvert(unit(_SolarRate), a * b)
 end
-function cancel(a::Quantity{<:Real, 𝐋 * 𝐋^-2}, b::Quantity{<:Real, 𝐋^2})
-    return uconvert(mm, a * b)
+function cancel(a::Quantity{<:Real, 𝐋 * 𝐓^-1}, b::Quantity{<:Real, 𝐋^2})
+    return uconvert(unit(_WaterRate), a * b)
 end
-function cancel(a::Quantity{<:Real, 𝐋^-2}, b::Quantity{<:Real, 𝐋^2})
-    return uconvert(NoUnits, a * b)
+function cancel(a::Quantity{<:Real, 𝐋^-2 * 𝐓^-1}, b::Quantity{<:Real, 𝐋^2})
+    return uconvert(unit(_SimpleRate), a * b)
 end
 
 # Shared tail of the maximum-supply `*AE` constructors: total the per-area maximum supply
-# `maxsupply` over `area`, spread it uniformly across the grid of `active`, pick the supply
-# type from its units, and assemble the `GridHabitat` with regime `regime`.
+# `maxsupply` (an areal rate) over `area`, spread it uniformly across the grid of `active`,
+# pick the supply type from its dimension (`supplytype`, dispatched — see `NicheInfo.jl`),
+# and assemble the `GridHabitat` with regime `regime`.
 function _maxsupply_env(regime, active::Matrix{Bool},
                         maxsupply::Unitful.Quantity{Float64},
                         area::Unitful.Area)
     B = cancel(maxsupply, area)
-    checksupply(B) || error("Unrecognised unit in supply")
-    supplytype = SUPPLYDICT[unit(B)]
+    T = supplytype(typeof(B))
     supply = fill(B / length(active), size(active))
-    return GridHabitat{typeof(regime), supplytype}(regime, active,
-                                                   supplytype(supply))
+    return GridHabitat{typeof(regime), T}(regime, active, T(supply))
 end
 
 # The time-varying (monthly) climate regime shared by `erahabitat`/`worldclimhabitat`: a

@@ -13,7 +13,7 @@ using RasterDataSources
 @testset "Habitats" begin
     grid = (10, 10)
     area = 25.0km^2
-    totalK = 10000.0kJ / km^2
+    totalK = 10000.0kJ / km^2 / day
     numNiches = 4
     active = fill(true, grid)
 
@@ -53,7 +53,7 @@ using RasterDataSources
                      Axis{:time}(collect(1:3) .* s))
     eratemp = ERA(temp)
     active = fill(true, 10, 10)
-    solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
+    solar = SolarTimeSupply(fill(10.0kJ / day, 10, 10, 3), 1)
     ea = erahabitat(eratemp, solar, active)
     @test EcoSISTEM.iscontinuous(ea.regime) == true
     @test eltype(ea.regime) == typeof(ea.regime.matrix[1])
@@ -69,7 +69,7 @@ using RasterDataSources
                      Axis{:time}(collect(1:12) .* month))
     worldclimtemp = ClimateRaster(WorldClim{Climate}, temp)
     active = fill(true, 10, 10)
-    solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
+    solar = SolarTimeSupply(fill(10.0kJ / day, 10, 10, 3), 1)
     worldclim = worldclimhabitat(worldclimtemp, solar, active)
     @test EcoSISTEM.iscontinuous(worldclim.regime) == true
     @test eltype(worldclim.regime) == typeof(worldclim.regime.matrix[1])

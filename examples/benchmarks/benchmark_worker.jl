@@ -57,10 +57,10 @@ const SEED = parse(Int, get(ENV, "ECOSISTEM_BENCH_SEED", "1234"))
 # MPI ecosystems so only the container type differs between modes.
 function build_ecosystem(mode::AbstractString)
     grid = (GRID, GRID)
-    demand = 1.0kJ
+    demand = 1.0kJ / day
     individuals = INDIVIDUALS
     area = 1_000_000.0km^2
-    totalK = 1000.0kJ / km^2
+    totalK = 1000.0kJ / km^2 / day
 
     resource_vec = SolarDemand(fill(demand, NUM_SPECIES))
 

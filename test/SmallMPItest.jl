@@ -25,14 +25,14 @@ rank = MPI.Comm_rank(comm)
 # Set up initial parameters for ecosystem
 numSpecies = 8;
 grid = (4, 4);
-demand = 10.0kJ;
+demand = 10.0kJ / day;
 individuals = 1_000;
 area = 100.0 * km^2;
-totalK = 10000.0kJ / km^2;
+totalK = 10000.0kJ / km^2 / day;
 
 # Set up how much resource each species consumes
 # resource_vec = SolarDemand(fill(demand, numSpecies))
-resource_vec = SolarDemand(collect(1:numSpecies) .* 1.0kJ)
+resource_vec = SolarDemand(collect(1:numSpecies) .* 1.0kJ / day)
 
 # Set probabilities
 birth = 0.6 / year
@@ -60,7 +60,8 @@ sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
 
 # Create abiotic environment - even grid of one temperature
 habitat = simplehabitat(274.0K, grid, totalK, area)
-habitat.supply.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
+habitat.supply.matrix .= reshape(10_000.0kJ / day .* collect(1:prod(grid)),
+                                 grid)
 
 # Set nichefit between species and environment (gaussian)
 nichefit = NicheSuitability{typeof(1.0K)}()
@@ -109,7 +110,7 @@ if rank == 0
     @save joinpath(ARGS[1], "Test_abuns$nt.jld2") abuns=true_abuns
 end
 
-water_vec = WaterDemand(fill(2.0mm, numSpecies))
+water_vec = WaterDemand(fill(2.0Unitful.L / day, numSpecies))
 total_use = DemandCollection2(resource_vec, water_vec)
 
 sppl = SpeciesList(numSpecies, tolerance, abun, total_use, movement, param,
@@ -118,7 +119,7 @@ sppl = SpeciesList(numSpecies, tolerance, abun, total_use, movement, param,
 # Create abiotic environment - even grid of one temperature
 habitat1 = simplehabitat(274.0K, grid, totalK, area)
 
-total_mm = 10.0mm / km^2
+total_mm = 10.0mm / day
 habitat2 = simplehabitat(274.0K, grid, total_mm, area)
 
 supply = SupplyCollection2(habitat1.supply, habitat2.supply)

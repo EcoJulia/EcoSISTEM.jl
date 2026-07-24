@@ -15,10 +15,10 @@ using Distributions
 
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
 habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
 habitat2 = simplehabitat(298.0K, grd, totalK[2], area)

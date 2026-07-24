@@ -5,6 +5,7 @@ module TestEnergy
 using EcoSISTEM
 using EcoSISTEM.ClimatePref
 using AxisArrays
+using InteractiveUtils
 using Test
 using Unitful
 using Unitful.DefaultSymbols
@@ -35,8 +36,8 @@ using RasterDataSources
 
     numSpecies = 10
     # Test SolarDemand
-    resource_vec = SolarDemand(fill(0.2 * kJ, numSpecies))
-    @test_nowarn resource_vec = SolarDemand(fill(0.2 * kJ, numSpecies))
+    resource_vec = SolarDemand(fill(0.2 * kJ / day, numSpecies))
+    @test_nowarn resource_vec = SolarDemand(fill(0.2 * kJ / day, numSpecies))
     @test EcoSISTEM._getdemand(abun, resource_vec) ==
           sum(abun .* resource_vec.resource)
     @test EcoSISTEM.numdemands(typeof(resource_vec)) == 1
@@ -44,16 +45,17 @@ using RasterDataSources
     @test length(resource_vec) == length(resource_vec.resource)
 
     # Test WaterDemand
-    resource_vec = WaterDemand(fill(0.2 * mm, numSpecies))
-    @test_nowarn resource_vec = WaterDemand(fill(0.2 * mm, numSpecies))
+    resource_vec = WaterDemand(fill(0.2 * Unitful.L / day, numSpecies))
+    @test_nowarn resource_vec = WaterDemand(fill(0.2 * Unitful.L / day,
+                                                 numSpecies))
     @test EcoSISTEM._getdemand(abun, resource_vec) ==
           sum(abun .* resource_vec.resource)
     @test EcoSISTEM.numdemands(typeof(resource_vec)) == 1
     @test eltype(resource_vec) == typeof(resource_vec.resource[1])
     @test length(resource_vec) == length(resource_vec.resource)
 
-    resource_vec1 = SolarDemand(fill(0.2 * kJ, numSpecies))
-    resource_vec2 = WaterDemand(fill(0.2 * mm, numSpecies))
+    resource_vec1 = SolarDemand(fill(0.2 * kJ / day, numSpecies))
+    resource_vec2 = WaterDemand(fill(0.2 * Unitful.L / day, numSpecies))
     demand = DemandCollection2(resource_vec1, resource_vec2)
     @test EcoSISTEM.numdemands(typeof(demand)) == 2
     @test eltype(demand) ==
@@ -71,7 +73,7 @@ using RasterDataSources
     @test EcoSISTEM._getavailablesupply(supply) == sum(supply.matrix)
 
     # Test SolarSupply
-    sol = fill(200.0 * kJ, 100, 100)
+    sol = fill(200.0 * kJ / day, 100, 100)
     @test_nowarn SolarSupply(sol)
     supply1 = SolarSupply(sol)
     @test EcoSISTEM._countsubcommunities(supply1) == 100 * 100
@@ -80,7 +82,7 @@ using RasterDataSources
     @test EcoSISTEM._getavailablesupply(supply1) == sum(supply1.matrix)
 
     # Test WaterSupply
-    water = fill(2000.0 * mm, 100, 100)
+    water = fill(2000.0 * Unitful.L / day, 100, 100)
     @test_nowarn WaterSupply(water)
     supply2 = WaterSupply(water)
     @test EcoSISTEM._countsubcommunities(supply2) == 100 * 100
@@ -89,7 +91,7 @@ using RasterDataSources
     @test EcoSISTEM._getavailablesupply(supply2) == sum(supply2.matrix)
 
     # Test SolarTimeSupply
-    sol = fill(200.0 * kJ, 100, 100, 10)
+    sol = fill(200.0 * kJ / day, 100, 100, 10)
     @test_nowarn SolarTimeSupply(sol, 1)
     supply1 = SolarTimeSupply(sol, 1)
     @test EcoSISTEM._countsubcommunities(supply1) == 100 * 100
@@ -98,7 +100,7 @@ using RasterDataSources
     @test EcoSISTEM._getavailablesupply(supply1) == sum(supply1.matrix)
 
     # Test WaterTimeSupply
-    water = fill(2000.0 * mm, 100, 100, 10)
+    water = fill(2000.0 * Unitful.L / day, 100, 100, 10)
     @test_nowarn WaterTimeSupply(water, 1)
     supply2 = WaterTimeSupply(water, 1)
     @test EcoSISTEM._countsubcommunities(supply2) == 100 * 100
@@ -118,7 +120,13 @@ using RasterDataSources
 end
 
 @testset "Worldclim/Bioclim supplies" begin
-    water = AxisArray(fill(1.0mm, 10, 10, 12),
+    # The hand constructors take a raw ClimateRaster whose element type is the areal rate
+    # (e.g. `mm/day`) at its own native resolution — `cancel` (dispatched on dimension)
+    # converts it to the absolute `L/day`/`kJ/day` supply value against the grid's cell area,
+    # so the resulting `supply.matrix` values are scaled by that area, not equal to the raw
+    # input; the assertions below compare the built supply against itself, not a hardcoded
+    # number, so they hold regardless of the exact scaling.
+    water = AxisArray(fill(1.0mm / day, 10, 10, 12),
                       Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m),
                       Axis{:time}(collect(1:12) .* month))
@@ -130,7 +138,7 @@ end
     @test eltype(supply) == typeof(supply.matrix[1])
     @test EcoSISTEM._getavailablesupply(supply) == sum(supply.matrix)
 
-    solar = AxisArray(fill(1.0kJ, 10, 10, 12),
+    solar = AxisArray(fill(1.0kJ / m^2 / day, 10, 10, 12),
                       Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m),
                       Axis{:time}(collect(1:12) .* month))
@@ -142,7 +150,8 @@ end
     @test eltype(supply) == eltype(supply.matrix)
     @test EcoSISTEM._getavailablesupply(supply) == sum(supply.matrix)
 
-    water = AxisArray(fill(1.0mm, 10, 10), Axis{:latitude}(collect(1:10) .* m),
+    water = AxisArray(fill(1.0mm / day, 10, 10),
+                      Axis{:latitude}(collect(1:10) .* m),
                       Axis{:longitude}(collect(1:10) .* m))
     worldclim = ClimateRaster(WorldClim{BioClim}, water)
     supply = WaterSupply(worldclim)
@@ -151,6 +160,31 @@ end
     @test EcoSISTEM._getsupply(supply) == supply.matrix
     @test eltype(supply) == eltype(supply.matrix)
     @test EcoSISTEM._getavailablesupply(supply) == sum(supply.matrix)
+end
+
+# All concrete leaves of an abstract type, recursing through intermediate abstract types
+# (mirrors `ClimatePref.LayerUnits._leafaxes`'s pattern for `NicheAxis`).
+function _leaftypes(T)
+    subs = subtypes(T)
+    return isempty(subs) ? [T] : reduce(vcat, _leaftypes.(subs); init = Type[])
+end
+
+# guard: every concrete single-resource Demand type is genuinely rate-dimensioned —
+# `dimension(element) / _basedimension(element) == 𝐓⁻¹` exactly (not merely "any negative
+# time exponent" — energy already embeds 𝐓⁻² in its own definition, see `_basedimension`'s
+# docstring in `NicheInfo.jl`). Catches a future Demand type that doesn't follow the pattern.
+@testset "guard: every Demand type is substance × 𝐓⁻¹" begin
+    sample(::Type{SimpleDemand}) = SimpleDemand(fill(1.0, 3))
+    sample(::Type{SizeDemand}) = SizeDemand(fill(1.0, 3), 1.0, 1.0km^2)
+    sample(::Type{SolarDemand}) = SolarDemand(fill(1.0kJ / day, 3))
+    sample(::Type{WaterDemand}) = WaterDemand(fill(1.0 * Unitful.L / day, 3))
+    concrete = filter(!isabstracttype, _leaftypes(EcoSISTEM.Abstract1Demand))
+    @test !isempty(concrete)
+    for T in concrete
+        d = sample(T)
+        elt = eltype(d)
+        @test dimension(elt) / EcoSISTEM._basedimension(elt) == Unitful.𝐓^-1
+    end
 end
 
 end

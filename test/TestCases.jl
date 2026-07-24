@@ -31,7 +31,7 @@ function Test1Ecosystem(; seed = nothing)
     grid = (10, 10)
     area = 10000.0km^2
     individuals = 20000 * numSpecies
-    totalK = 1000000.0 * kJ / km^2 * numSpecies
+    totalK = 1000000.0 * kJ / km^2 / day * numSpecies
     habitat = simplenichehabitat(numNiches, grid, totalK, area)
 
     # Seed the global RNG so the initial abundance totals are also deterministic
@@ -41,7 +41,7 @@ function Test1Ecosystem(; seed = nothing)
     kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, numSpecies)
-    resource = SolarDemand(fill(2.0kJ, numSpecies))
+    resource = SolarDemand(fill(2.0kJ / day, numSpecies))
     sppl = SpeciesList(numSpecies, numNiches, abun, resource, movement, param,
                        native)
 
@@ -65,8 +65,8 @@ function TestMultiEcosystem()
     grid = (10, 10)
     area = 10000.0km^2
     individuals = 20000 * numSpecies
-    totalK1 = 1000000.0 * kJ / km^2 * numSpecies
-    totalK2 = 100.0 * mm / km^2 * numSpecies
+    totalK1 = 1000000.0 * kJ / km^2 / day * numSpecies
+    totalK2 = 100.0 * mm / day * numSpecies
     # `axis = Temperature` so the regime carries `TempChange` dynamics (the `TempIncrease!`/`TempFluct!`
     # scenarios reset its rate); dynamics now comes from the declared axis, not the value's K unit.
     habitat1 = simplehabitat(10.0K, grid, totalK1, area;
@@ -83,8 +83,8 @@ function TestMultiEcosystem()
     kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, numSpecies)
-    resource1 = SolarDemand(fill(2.0kJ, numSpecies))
-    resource2 = WaterDemand(fill(2.0mm, numSpecies))
+    resource1 = SolarDemand(fill(2.0kJ / day, numSpecies))
+    resource2 = WaterDemand(fill(2.0Unitful.L / day, numSpecies))
     resource = DemandCollection2(resource1, resource2)
     tolerance = NicheTolerance(Temperature, Normal, fill(10.0K, numSpecies),
                                fill(0.1K, numSpecies))

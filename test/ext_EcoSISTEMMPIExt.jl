@@ -21,10 +21,10 @@ end
     println(Threads.nthreads())
     numSpecies = 100
     grid = (10, 10)
-    demand = 10.0kJ
+    demand = 10.0kJ / day
     individuals = 1_000
     area = 100.0 * km^2
-    totalK = 100.0kJ / km^2
+    totalK = 100.0kJ / km^2 / day
     # Set up initial parameters for ecosystem
 
     # Set up how much resource each species consumes

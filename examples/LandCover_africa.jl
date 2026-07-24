@@ -24,7 +24,7 @@ worldbioclim = read(WorldClim{BioClim}, 13,
                     cut = africa_box)
 africa_water_aa = upresolution(worldbioclim.array[:, :, 1], 2)
 africa_water = ClimateRaster(WorldClim{BioClim},
-                             AxisArray(africa_water_aa .* mm,
+                             AxisArray(africa_water_aa .* mm / month,   # bio13: precipitation of the wettest month
                                        AxisArrays.axes(africa_water_aa)))
 bio_africa_water = WaterSupply(africa_water)
 
@@ -34,10 +34,10 @@ active = Matrix{Bool}(bio_africa_landcover.array .!= 4)
 # Set up initial parameters for ecosystem
 numSpecies = 1;
 grid = size(active);
-demand = 10.0mm;
+demand = 10.0Unitful.L / day;
 individuals = 0;
 area = 64e6km^2;
-totalK = 1000.0kJ / km^2;
+totalK = 1000.0kJ / km^2 / day;
 
 # Set up how much water each species consumes
 resource_vec = WaterDemand(fill(demand, numSpecies))
@@ -114,5 +114,6 @@ heatmap!(africa_endabun, clim = (0, maximum(abuns)),
 africa_data = Float64.(bio_africa_landcover.array.data)
 africa_data[.!active] .= NaN
 heatmap!(africa_data, grid = false, subplot = 3, title = "Land Cover")
-heatmap!(Float64.(africa_water.array.data / mm), grid = false, subplot = 4,
+heatmap!(Float64.(africa_water.array.data / (mm / month)), grid = false,
+         subplot = 4,
          title = "Precipitation")

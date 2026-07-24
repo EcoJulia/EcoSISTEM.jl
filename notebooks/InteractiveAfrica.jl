@@ -60,10 +60,10 @@ begin
     active = Matrix{Bool}(.!isnan.(africa))
     # Set up initial parameters for ecosystem
     grd = size(africa)
-    demand = 10.0kJ
+    demand = 10.0kJ / day
     individuals = 3 * 10^8
     area = 64e6km^2
-    totalK = 1000.0kJ / km^2
+    totalK = 1000.0kJ / km^2 / day
 
     # Set up how much resource each species consumes
     resource_vec = SolarDemand(fill(demand, numSpecies))
@@ -148,10 +148,10 @@ begin
 
     # Set up initial parameters for ecosystem
     grd_new = size(africa_new.array)
-    req_new = 10.0kJ
+    req_new = 10.0kJ / day
     individuals_new = 3 * 10^8
     area_new = 64e6km^2
-    totalK_new = 1000.0kJ / km^2
+    totalK_new = 1000.0kJ / km^2 / day
 
     # Set up how much resource each species consumes
     energy_vec_new = SolarDemand(fill(demand, numSpecies))

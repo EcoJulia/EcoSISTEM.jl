@@ -28,10 +28,10 @@ close(io)
 # Set up initial parameters for ecosystem
 numSpecies = 2^16;
 grid = (256, 256);
-demand = 1.0kJ;
+demand = 1.0kJ / day;
 individuals = 2^26;
 area = 1_000_000.0 * km^2;
-totalK = 1000.0kJ / km^2;
+totalK = 1000.0kJ / km^2 / day;
 
 # Set up how much resource each species consumes
 resource_vec = SolarDemand(fill(demand, numSpecies))

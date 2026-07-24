@@ -15,10 +15,10 @@ rank = MPI.Comm_rank(comm)
 println(Threads.nthreads())
 numSpecies = 100;
 grid = (50, 50);
-demand = 10.0kJ;
+demand = 10.0kJ / day;
 individuals = 1_000_000;
 area = 100000.0 * km^2;
-totalK = 100.0kJ / km^2;
+totalK = 100.0kJ / km^2 / day;
 # Set up initial parameters for ecosystem
 
 # Set up how much resource each species consumes

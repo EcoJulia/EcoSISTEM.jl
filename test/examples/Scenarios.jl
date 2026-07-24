@@ -29,8 +29,10 @@ function RainDecrease!(eco::Ecosystem, timestep::Unitful.Time,
     resetrate!(eco, rate)
     eco.habitat.regime.matrix[eco.habitat.regime.matrix .< 0mm] .= 0mm
     v = uconvert(mm / unit(timestep), rate)
-    eco.habitat.supply.two.matrix .= v * timestep
-    return eco.habitat.supply.two.matrix[eco.habitat.supply.two.matrix .< 0mm] .= 0mm
+    depth = v * timestep
+    eco.habitat.supply.two.matrix .= ustrip(depth) * Unitful.L / day
+    return eco.habitat.supply.two.matrix[eco.habitat.supply.two.matrix .< 0.0Unitful.L / day] .= 0.0Unitful.L /
+                                                                                                 day
 end
 
 """
@@ -42,11 +44,11 @@ A function that randomly removes a portion of regime at a certain rate.
 function RandHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
                           rate::RateType)
     v = uconvert(unit(timestep)^-1, rate)
-    pos = findall(eco.habitat.supply.one.matrix .> 0.0kJ)
+    pos = findall(eco.habitat.supply.one.matrix .> 0.0kJ / day)
     howmany = jbinom(1, length(pos), ustrip(v))[1]
     smp = sample(pos, howmany)
-    eco.habitat.supply.one.matrix[smp] .= 0.0kJ
-    eco.habitat.supply.two.matrix[smp] .= 0.0mm
+    eco.habitat.supply.one.matrix[smp] .= 0.0kJ / day
+    eco.habitat.supply.two.matrix[smp] .= 0.0Unitful.L / day
     eco.abundances.grid[:, smp] .= 0.0
     return eco.habitat.active[smp] .= false
 end
@@ -62,33 +64,33 @@ function ClustHabitatLoss!(eco::Ecosystem, timestep::Unitful.Time,
                            rate::RateType)
     v = uconvert(unit(timestep)^-1, rate)
     # If no regime lost then pick starting places
-    if all(eco.habitat.supply.one.matrix .> 0.0kJ)
+    if all(eco.habitat.supply.one.matrix .> 0.0kJ / day)
         pos = findall(eco.habitat.active)
         howmany = jbinom(1, length(pos), ustrip(v))[1]
         smp = sample(pos, howmany)
-        eco.habitat.supply.one.matrix[smp] .= 0.0kJ
-        eco.habitat.supply.two.matrix[smp] .= 0.0mm
+        eco.habitat.supply.one.matrix[smp] .= 0.0kJ / day
+        eco.habitat.supply.two.matrix[smp] .= 0.0Unitful.L / day
         eco.abundances.grid[:, smp] .= 0.0
         eco.habitat.active[smp] .= false
         # Else choose from neighbours of squares already lost
     else
-        pos = findall(eco.habitat.supply.one.matrix .== 0.0kJ)
+        pos = findall(eco.habitat.supply.one.matrix .== 0.0kJ / day)
         howmany = jbinom(1, length(findall(eco.habitat.active)), ustrip(v))[1]
         width = size(eco.habitat.supply.one.matrix, 1)
         x, y = [x[1] for x in pos], [x[2] for x in pos]
         neighbours = get_neighbours(eco.habitat.supply.one.matrix, x, y, 8)
         smp = sample(Base.axes(neighbours, 1), howmany)
         i = convert_coords(neighbours[smp, 1], neighbours[smp, 2], width)
-        eco.habitat.supply.one.matrix[i] .= 0.0kJ
-        eco.habitat.supply.two.matrix[i] .= 0.0mm
+        eco.habitat.supply.one.matrix[i] .= 0.0kJ / day
+        eco.habitat.supply.two.matrix[i] .= 0.0Unitful.L / day
         eco.abundances.matrix[:, i] .= 0.0
         eco.habitat.active[i] .= false
     end
     # Add in additional start points
     howmany = jbinom(1, 1, ustrip(v))[1]
     smp = sample(pos, howmany)
-    eco.habitat.supply.one.matrix[smp] .= 0.0kJ
-    eco.habitat.supply.two.matrix[smp] .= 0.0mm
+    eco.habitat.supply.one.matrix[smp] .= 0.0kJ / day
+    eco.habitat.supply.two.matrix[smp] .= 0.0Unitful.L / day
     eco.abundances.grid[:, smp] .= 0.0
     return eco.habitat.active[smp] .= false
 end

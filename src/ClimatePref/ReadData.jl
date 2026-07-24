@@ -157,8 +157,11 @@ _thirdaxis(::Type{<:WorldClim{Climate}}) = :time
 
 # Physical unit attached to the data by the reader: none — `read` returns the raster's values as bare
 # magnitudes in their actual physical unit (e.g. temperature in °C), and the unit is supplied from the
-# shipped layer table (`layerunit`) when a layer is built. The directory readers below (`_readmonthlydir`)
-# self-attach a unit from `VARDICT` because they have no layer table to defer to.
+# shipped layer table (`layerunit`) when a layer is built. The directory readers below
+# (`_readmonthlydir`) take a bare directory with no `RasterDataSource` attached, but their `var_name`
+# uses the same short codes as the shipped tables (`tavg`, `wind`, `prec`, …), so they self-attach a
+# unit by deferring to `layerunit` too — `readCHELSA_monthly` against `CHELSA{Climate}`, `readCRUTS`
+# against `WorldClim{Climate}` (CRU TS has no table of its own; its variable names are WorldClim's).
 _layerunit(::Type{<:RDS.RasterDataSource}, files) = NoUnits
 
 # Default read-time block-aggregation factor + reducer (land cover is coarsened 10× by default).
@@ -269,12 +272,15 @@ function boundingbox(region::AbstractString; islands::Bool = false,
     return LatLong(south .. north, west .. east)
 end
 
-const VARDICT = Dict("bio" => NaN, "prec" => mm,
-                     "srad" => u"kJ" * u"m"^-2 * day^-1, "tavg" => °C,
-                     "tmax" => °C, "tmin" => °C, "vapr" => u"kPa",
-                     "wind" => u"m" * u"s"^-1)
-const UNITDICT = Dict("K" => K, "m" => m, "J m**-2" => J / m^2,
-                      "m**3 m**-3" => m^3)
+# Parse a CF `units` metadata attribute (as read off a netCDF file, e.g. "J m**-2", "m**3 m**-3")
+# into a Unitful unit. CF spells exponentiation `**` (Unitful: `^`) and a bare space means an
+# implicit product (Unitful: `*`); a missing/blank attribute means "no known unit". Mirrors
+# `LayerUnits.jl`'s `uparse(...; unit_context = [Unitful, Units])` used for the shipped CSV tables.
+function _parsecfunit(s::AbstractString)
+    isempty(s) && return NoUnits
+    return uparse(replace(s, "**" => "^", " " => "*");
+                  unit_context = [Unitful, Units])
+end
 
 """
     searchdir(path,key)
@@ -330,12 +336,12 @@ function readERA(file::String, param::String,
     # NCDatasets (via Rasters) reads the CF coordinate variables, `units` attribute, and
     # `scale_factor`/`add_offset`/`_FillValue` automatically — replacing the manual `ncread`/scale/
     # offset/mask code — and `_rastertoaxisarray` yields the standard (latitude, longitude, time)
-    # layout. The physical unit comes from the variable's `units` attribute via `UNITDICT`.
+    # layout. The physical unit comes from the variable's `units` attribute, parsed by `_parsecfunit`.
     # `source = NCDsource()` is forced because CDS/`retrieve_era5` files carry no `.nc` extension,
     # so Rasters' extension-based backend guess would otherwise fall back to GDAL — which reads the
     # data but drops the CF coordinates (→ integer indices) and the `units` attribute.
     ras = Raster(file; name = Symbol(param), source = Rasters.NCDsource())
-    u = get(UNITDICT, string(get(Rasters.metadata(ras), "units", "")), NoUnits)
+    u = _parsecfunit(string(get(Rasters.metadata(ras), "units", "")))
     aa = _rastertoaxisarray(ras; unit = u)
     # ERA5 longitudes run 0–360°; roll them onto (-180, 180] to match the other (tif) readers
     aa = _wraplong180(aa)
@@ -389,14 +395,11 @@ function readCERA(dir::String, file::String, param::String; cut = nothing)
     return CERA(_readeradir(dir, file, param, times; cut = cut))
 end
 
-# Assemble a monthly time series from every `.tif` in `dir`, attaching the actual unit for `var_name`
-# (via `VARDICT`; temperatures in °C). These directory readers have no layer table to defer to, so —
-# unlike `read` — they self-attach the unit. Shared by the directory-based `readCRUTS`/`readCHELSA_monthly`,
-# which differ only in their wrapper type.
-function _readmonthlydir(dir::String, var_name::String; scale = 1, fn = mean,
-                         cut = nothing)
+# Assemble a monthly time series from every `.tif` in `dir`, tagged with the already-resolved unit
+# `u`. Shared by the directory-based `readCRUTS`/`readCHELSA_monthly`, which differ only in their
+# wrapper type and which shipped layer table `u` (from `layerunit`) comes from.
+function _readmonthlydir(dir::String, u; scale = 1, fn = mean, cut = nothing)
     files = joinpath.(dir, searchdir(dir, ".tif"))
-    u = VARDICT[var_name]
     aas = map(f -> _rastertoaxisarray(_readraster(f; scale = scale, fn = fn);
                                       unit = u), files)
     world = _stacklayers(aas, _mkthirdaxis(:time, length(aas)))
@@ -407,9 +410,12 @@ end
     readCRUTS(dir::String, var_name::String; cut = nothing)
 
 Read every `.tif` in `dir` as a monthly time series of variable `var_name` and return a `CRUTS`.
+`var_name` uses the same short codes as `WorldClim{Climate}`'s shipped layer table (`tavg`, `wind`,
+`prec`, …), which is where the attached unit comes from — CRU TS has no layer table of its own.
 """
 function readCRUTS(dir::String, var_name::String; cut = nothing)
-    return CRUTS(_readmonthlydir(dir, var_name; cut = cut))
+    u = layerunit(RDS.WorldClim{RDS.Climate}, var_name)
+    return CRUTS(_readmonthlydir(dir, u; cut = cut))
 end
 
 """
@@ -420,7 +426,8 @@ Read every `.tif` in `dir` as a monthly time series of variable `var_name` (opti
 """
 function readCHELSA_monthly(dir::String, var_name::String; scale = 1, fn = mean,
                             cut = nothing)
+    u = layerunit(RDS.CHELSA{RDS.Climate}, var_name)
     return ClimateRaster(RDS.CHELSA{RDS.Climate},
-                         _readmonthlydir(dir, var_name; scale = scale, fn = fn,
+                         _readmonthlydir(dir, u; scale = scale, fn = fn,
                                          cut = cut))
 end

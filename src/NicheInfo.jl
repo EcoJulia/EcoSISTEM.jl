@@ -170,11 +170,19 @@ struct Altitude <: NicheAxis end
 
 """
     canonicalunit(::NicheAxis)
+    canonicalunit(::Type{<:Role}, ::NicheAxis)
 
 The unit a layer on this axis is normalised to when materialised (e.g. temperature → `K`),
-or `nothing` to leave values as-is.
+or `nothing` to leave values as-is. The 2-argument form is role-aware: a `Condition` (a
+niche tolerance — a descriptive climatological normal) and a `Resource` (a literal
+consumable pool, replenished over time) can legitimately want a different canonical unit for
+the same axis — e.g. `Precipitation` stays a bare depth (`mm`) as a `Condition`, but is a
+genuine volumetric flow (`L/day`) as a `Resource`. It defaults to the 1-argument form for
+any role/axis combination without a specific override, so existing (implicitly
+`Condition`-role) call sites are unaffected.
 """
 canonicalunit(::NicheAxis) = nothing
+canonicalunit(::Type{<:Role}, A::NicheAxis) = canonicalunit(A)
 # TemperatureAxis defaults to K, covering the three real Kelvin leaves; the two dimensionless
 # leaves and the degree-day sum override it. mm/Water live on the `Precipitation` leaf (not the
 # topical `PrecipitationAxis`), so `PrecipitationSeasonality` inherits nothing.
@@ -186,6 +194,15 @@ canonicalunit(::Precipitation) = mm
 canonicalunit(::Altitude) = m
 canonicalunit(::DayAxis) = Unitful.d
 canonicalunit(::TypologyAxis) = NoUnits
+
+# Resource-role canonical units: only axes with a dedicated Supply type need one (currently
+# Precipitation, SolarRadiation) — a genuine consumption rate, not the Condition-role's bare
+# amount. `day` is the shared canonical timebase (see NEWS/docs): it's the unit solar
+# irradiance is natively defined in, and water is matched to it for consistency, not because
+# water has its own intrinsic daily period. (A third Resource-role override, for the free/simple
+# per-individual case with no physical axis, lives in Layer.jl next to the `Unclassified` axis.)
+canonicalunit(::Type{Resource}, ::Precipitation) = Unitful.L / Unitful.d
+canonicalunit(::Type{Resource}, ::SolarRadiation) = kJ / Unitful.d
 
 """
     supplytype(::NicheAxis)
@@ -207,6 +224,50 @@ The `AbstractDemand` concrete type a species uses to consume this axis' resource
 demandtype(::NicheAxis) = nothing
 demandtype(::Precipitation) = WaterDemand
 demandtype(::SolarRadiation) = SolarDemand
+
+# A genuine, dispatchable dimension (like the built-in `Unitful.Power`) for a volumetric flow
+# rate (L³/T) — Unitful has no named alias for this, unlike energy/time → power.
+Unitful.@derived_dimension VolumeFlow (Unitful.𝐋^3 * Unitful.𝐓^-1)
+
+# `supplytype`/`demandtype` overloaded on a *quantity type* rather than a `NicheAxis`: given a
+# bare Resource-role value (no axis attached — e.g. a user-supplied `supply =`/`resource =`
+# keyword), pick the concrete Supply/Demand type from its physical dimension via ordinary
+# dispatch — no `Dict`, no `if`/`elseif` chain. `Unitful.Power` covers `kJ/day` (energy per
+# time); `VolumeFlow` (above) covers `L/day` (volume per time); anything real and
+# dimensionless is the free/simple case. The fallback method is the "no match" case,
+# resolved the same way `Base.show`'s fallback is — the least specific method in the table,
+# not a separate test-then-error branch.
+supplytype(::Type{<:Unitful.Power}) = SolarSupply
+supplytype(::Type{<:VolumeFlow}) = WaterSupply
+supplytype(::Type{<:Real}) = SimpleSupply
+function supplytype(::Type{T}) where {T}
+    return error("cannot pick a supply type for values of type $T — expected a Power (kJ/day), a VolumeFlow (L/day), or a bare Real (dimensionless).")
+end
+
+demandtype(::Type{<:Unitful.Power}) = SolarDemand
+demandtype(::Type{<:VolumeFlow}) = WaterDemand
+demandtype(::Type{<:Real}) = SimpleDemand
+function demandtype(::Type{T}) where {T}
+    return error("cannot pick a demand type for values of type $T — expected a Power (kJ/day), a VolumeFlow (L/day), or a bare Real (dimensionless).")
+end
+
+"""
+    _basedimension(::Type)
+
+The physical "substance" dimension of a *stored* Resource element type, with its rate
+component removed — e.g. `dimension(kJ)` for `typeof(1.0*kJ/day)`, `dimension(L)` for
+`typeof(1.0*L/day)`, `NoDims` for the free/simple case's bare `typeof(1.0/day)`
+(`Unitful.Frequency`, the built-in T⁻¹ alias — the stored type already carries the rate, not
+a bare `Real`, unlike `supplytype`/`demandtype`'s constructor-input dispatch above). Used
+only by the rate-dimension guard test (`test/test_Energy.jl`): every concrete Demand/Supply
+element type must satisfy `dimension(T) / _basedimension(T) == 𝐓^-1` exactly — a genuine
+rate, not merely "any negative time exponent" (energy already embeds 𝐓^-2 in its own
+definition, so a bare exponent check would be wrong; verified directly: `dimension(kJ/d) /
+dimension(kJ) == 𝐓^-1`).
+"""
+_basedimension(::Type{<:Unitful.Power}) = dimension(kJ)
+_basedimension(::Type{<:VolumeFlow}) = dimension(Unitful.L)
+_basedimension(::Type{<:Unitful.Frequency}) = NoDims
 
 """
     dynamics(::NicheAxis)

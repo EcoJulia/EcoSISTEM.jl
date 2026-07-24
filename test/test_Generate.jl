@@ -61,20 +61,20 @@ end
     nichefit = NicheSuitability{typeof(1.0K)}()
 
     # single supply
-    sppl1 = SpeciesList(N, tolerance, abun, SolarDemand(fill(10.0kJ, N)),
+    sppl1 = SpeciesList(N, tolerance, abun, SolarDemand(fill(10.0kJ / day, N)),
                         movement, nogrowth, native)
-    habitat1 = simplehabitat(274.0K, grid, 10000.0kJ / km^2, area)
+    habitat1 = simplehabitat(274.0K, grid, 10000.0kJ / km^2 / day, area)
     eco1 = Ecosystem(sppl1, habitat1, nichefit)
     @test EcoSISTEM.resource_adjustment(eco1, eco1.habitat.supply, 1, 1) ==
           (0.0, 0.0)
 
     # two supplies (the previously-buggy path)
-    resource2 = DemandCollection2(SolarDemand(fill(10.0kJ, N)),
-                                  WaterDemand(fill(2.0mm, N)))
+    resource2 = DemandCollection2(SolarDemand(fill(10.0kJ / day, N)),
+                                  WaterDemand(fill(2.0Unitful.L / day, N)))
     sppl2 = SpeciesList(N, tolerance, abun, resource2, movement, nogrowth,
                         native)
-    habitat_solar = simplehabitat(274.0K, grid, 10000.0kJ / km^2, area)
-    habitat_water = simplehabitat(274.0K, grid, 10.0mm / km^2, area)
+    habitat_solar = simplehabitat(274.0K, grid, 10000.0kJ / km^2 / day, area)
+    habitat_water = simplehabitat(274.0K, grid, 10.0mm / day, area)
     supply = SupplyCollection2(habitat_solar.supply, habitat_water.supply)
     habitat2 = GridHabitat{typeof(habitat_solar.regime), typeof(supply)}(habitat_solar.regime,
                                                                          habitat_solar.active,

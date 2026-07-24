@@ -12,7 +12,7 @@ using AxisArrays
 
 grid = (10, 10)
 area = 25.0km^2
-totalK = 10000.0kJ / km^2
+totalK = 10000.0kJ / km^2 / day
 active = fill(true, grid)
 @testset "Trait functions" begin
     # TEST simplehabitat
@@ -41,7 +41,7 @@ active = fill(true, grid)
                      Axis{:time}(collect(1:3) .* s))
     eratemp = ERA(temp)
     active = fill(true, 10, 10)
-    solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
+    solar = SolarTimeSupply(fill(10.0kJ / day, 10, 10, 3), 1)
     ea = erahabitat(eratemp, solar, active)
     regime = ea.regime
     @test_nowarn EcoSISTEM._suitability(regime, tolerance.two, nichefit.two, 1,
@@ -58,7 +58,7 @@ active = fill(true, grid)
                      Axis{:time}(collect(1:3) .* s))
     erarain = ERA(rain)
     active = fill(true, 10, 10)
-    solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
+    solar = SolarTimeSupply(fill(10.0kJ / day, 10, 10, 3), 1)
     ea = erahabitat(erarain, solar, active)
     regime = ea.regime
     # a Uniform response takes 2 parameters, so each species' row has 2 entries
@@ -73,7 +73,7 @@ end
                      Axis{:latitude}((1:10) .* °),
                      Axis{:longitude}((1:10) .* °),
                      Axis{:time}(collect(1:3) .* s))
-    solar = SolarTimeSupply(fill(10.0kJ, 10, 10, 3), 1)
+    solar = SolarTimeSupply(fill(10.0kJ / day, 10, 10, 3), 1)
     regime = erahabitat(ERA(temp), solar, fill(true, 10, 10)).regime
 
     # A Normal response (neither Trapezoid nor Uniform) proves any continuous distribution works.

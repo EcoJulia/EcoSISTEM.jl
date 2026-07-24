@@ -25,16 +25,18 @@ function Base.eltype(::Abstract1Demand{R}) where {R}
 end
 
 """
-    SimpleDemand <: Abstract1Demand{Float64}
+    SimpleDemand <: Abstract1Demand{typeof(1.0/day)}
 
-A simple resource demand is a single float for each species.
+A simple resource demand — a per-species free-resource rate for each species, `/day`. Accepts
+a plain `Vector{<:Real}` (auto-tagged `/day`) so the "no units hassle" case stays easy.
 """
-struct SimpleDemand <: Abstract1Demand{Float64}
-    resource::Vector{Float64}
-    exchange_rate::Float64
+struct SimpleDemand <: Abstract1Demand{_SimpleRate}
+    resource::Vector{_SimpleRate}
+    exchange_rate::typeof(1.0 * day)
 
-    function SimpleDemand(resource::Vector{Float64})
-        return new(resource, 1.0)
+    function SimpleDemand(resource::Vector{<:Real},
+                          exchange_rate::Unitful.Quantity{Float64} = 1.0 * day)
+        return new(resource .* unit(_SimpleRate), uconvert(day, exchange_rate))
     end
 end
 
@@ -45,21 +47,25 @@ function _getdemand(abun::Vector{Int64}, demand::SimpleDemand)
 end
 
 """
-    SizeDemand <: Abstract1Demand{Float64}
+    SizeDemand <: Abstract1Demand{typeof(1.0/day)}
 
-A simple resource demand is a single float for each species.
+A resource demand scaled by species size — a per-species free-resource rate for each
+species, `/day` (see [`SimpleDemand`](@ref); `pop_mass_rel`/`area` are used only once, at
+initial-abundance construction time in `SpeciesList`, not by the ongoing demand:supply
+balance).
 """
-struct SizeDemand <: Abstract1Demand{Float64}
-    resource::Vector{Float64}
+struct SizeDemand <: Abstract1Demand{_SimpleRate}
+    resource::Vector{_SimpleRate}
     pop_mass_rel::Float64
     area::Unitful.Area
-    exchange_rate::Float64
+    exchange_rate::typeof(1.0 * day)
 
-    function SizeDemand(resource::Vector{Float64},
+    function SizeDemand(resource::Vector{<:Real},
                         pop_mass_rel::Float64,
                         area::Unitful.Area,
-                        exchange_rate::Float64 = 1.0)
-        return new(resource, pop_mass_rel, area, exchange_rate)
+                        exchange_rate::Unitful.Quantity{Float64} = 1.0 * day)
+        return new(resource .* unit(_SimpleRate), pop_mass_rel, area,
+                   uconvert(day, exchange_rate))
     end
 end
 
@@ -69,18 +75,19 @@ function _getdemand(abun::Vector{Int64}, demand::SizeDemand)
 end
 
 """
-    SolarDemand <: Abstract1Demand{typeof(1.0*kJ)}
+    SolarDemand <: Abstract1Demand{typeof(1.0*kJ/day)}
 
-A vector of solar resource demands (kJ) for each species.
+A vector of per-species solar resource demands, `kJ/day`.
 """
-struct SolarDemand <: Abstract1Demand{typeof(1.0 * kJ)}
-    resource::Vector{typeof(1.0 * kJ)}
-    exchange_rate::typeof(1.0 / kJ)
+struct SolarDemand <: Abstract1Demand{_SolarRate}
+    resource::Vector{_SolarRate}
+    exchange_rate::typeof(inv(oneunit(_SolarRate)))
 
-    function SolarDemand(resource::Vector{<:Unitful.Energy{Float64}},
+    function SolarDemand(resource::Vector{<:Unitful.Power{Float64}},
                          exchange_rate::Unitful.Quantity{Float64} = 1.0 /
                                                                     mean(resource))
-        return new(uconvert.(kJ, resource), uconvert(kJ^-1, exchange_rate))
+        return new(uconvert.(unit(_SolarRate), resource),
+                   uconvert(inv(unit(_SolarRate)), exchange_rate))
     end
 end
 
@@ -90,18 +97,19 @@ function _getdemand(abun::Vector{Int64}, demand::SolarDemand)
 end
 
 """
-    WaterDemand <: Abstract1Demand{typeof(1.0*mm)}
+    WaterDemand <: Abstract1Demand{typeof(1.0*L/day)}
 
-A vector of water demands (mm) for each species.
+A vector of per-species water demands, `L/day`.
 """
-struct WaterDemand <: Abstract1Demand{typeof(1.0 * mm)}
-    resource::Vector{typeof(1.0 * mm)}
-    exchange_rate::typeof(1.0 / mm)
+struct WaterDemand <: Abstract1Demand{_WaterRate}
+    resource::Vector{_WaterRate}
+    exchange_rate::typeof(inv(oneunit(_WaterRate)))
 
-    function WaterDemand(resource::Vector{<:Unitful.Length{Float64}},
+    function WaterDemand(resource::Vector{<:VolumeFlow{Float64}},
                          exchange_rate::Unitful.Quantity{Float64} = 1.0 /
                                                                     mean(resource))
-        return new(uconvert.(mm, resource), uconvert.(mm^-1, exchange_rate))
+        return new(uconvert.(unit(_WaterRate), resource),
+                   uconvert(inv(unit(_WaterRate)), exchange_rate))
     end
 end
 Base.length(demand::WaterDemand) = length(demand.resource)
@@ -127,9 +135,11 @@ function _getdemand(abun::Vector{Int64}, demand::DemandCollection2)
     return [_getdemand(abun, demand.one), _getdemand(abun, demand.two)]
 end
 
-unitdict = Dict(kJ => "Solar Radiation (kJ)",
-                NoUnits => "Free resource",
-                mm => "Available water (mm)")
+# A plot title for a Resource layer's element type, dispatched on its dimension (mirrors
+# `supplytype`/`demandtype` in `NicheInfo.jl`) rather than looked up by unit in a `Dict`.
+_resourcetitle(::Type{<:Unitful.Power}) = "Solar Radiation (kJ/day)"
+_resourcetitle(::Type{<:VolumeFlow}) = "Available water (L/day)"
+_resourcetitle(::Type{<:Real}) = "Free resource"
 
 # ---------------------------------------------------------------------------
 # Supplies — `Resource`-role layers (folded onto `ContinuousLayer{Resource}`)
@@ -192,52 +202,65 @@ function _getavailablesupply(supply::LayerCollection2{Resource})
 end
 
 # --- Constructors reproducing the old per-type supply structs -------------------------
-function SimpleSupply(mat::Matrix{Float64})
-    return ContinuousLayer{Resource, Unclassified, Float64, Matrix{Float64}}(mat,
-                                                                             1,
-                                                                             _SUPPLY_SIZE,
-                                                                             _supply_static())
+# Accepts a plain `Matrix{<:Real}` and auto-tags with `/day`, matching `SimpleDemand`'s same
+# "no units hassle" ergonomics.
+function SimpleSupply(mat::Matrix{<:Real})
+    return SimpleSupply(mat .* unit(_SimpleRate))
 end
-function SolarSupply(mat::Matrix{typeof(1.0 * kJ)})
-    mat[isnan.(mat)] .= 0 * kJ
-    return ContinuousLayer{Resource, SolarRadiation, typeof(1.0 * kJ),
-                           Matrix{typeof(1.0 * kJ)}}(mat, 1, _SUPPLY_SIZE,
-                                                     _supply_static())
+function SimpleSupply(mat::Matrix{_SimpleRate})
+    return ContinuousLayer{Resource, Unclassified, _SimpleRate,
+                           Matrix{_SimpleRate}}(mat, 1, _SUPPLY_SIZE,
+                                                _supply_static())
 end
-function WaterSupply(mat::Matrix{typeof(1.0 * mm)})
-    mat[isnan.(mat)] .= 0.0mm
-    return ContinuousLayer{Resource, Precipitation, typeof(1.0 * mm),
-                           Matrix{typeof(1.0 * mm)}}(mat, 1, _SUPPLY_SIZE,
-                                                     _supply_static())
+function SolarSupply(mat::Matrix{_SolarRate})
+    mat[isnan.(mat)] .= zero(_SolarRate)
+    return ContinuousLayer{Resource, SolarRadiation, _SolarRate,
+                           Matrix{_SolarRate}}(mat, 1, _SUPPLY_SIZE,
+                                               _supply_static())
 end
+function WaterSupply(mat::Matrix{_WaterRate})
+    mat[isnan.(mat)] .= zero(_WaterRate)
+    return ContinuousLayer{Resource, Precipitation, _WaterRate,
+                           Matrix{_WaterRate}}(mat, 1, _SUPPLY_SIZE,
+                                               _supply_static())
+end
+# The raw raster is a per-area rate at its own native reporting period (e.g. `L*m^-2*yr^-1`
+# for `bio12`) — `cancel` dispatches on dimension alone (any native time unit) and converts
+# straight to the canonical absolute `L/day`, against the grid's (area-preserving, see
+# `_cellsize`) cell area; no separate pre-`uconvert` step needed.
 function WaterSupply(bioclim::ClimateRaster{WorldClim{BioClim}})
     mat = Matrix(bioclim.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
-    return WaterSupply(mat)
+    cellarea = _cellsize(bioclim.array)^2
+    return WaterSupply(cancel.(mat, Ref(cellarea)))
 end
-function SolarTimeSupply(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
-    mat[isnan.(mat)] .= 0 * kJ
-    return ContinuousLayer{Resource, SolarRadiation, typeof(1.0 * kJ),
-                           Array{typeof(1.0 * kJ), 3}}(mat, time, _SUPPLY_SIZE,
-                                                       _supply_cyclic())
+function SolarTimeSupply(mat::Array{_SolarRate, 3}, time::Int64)
+    mat[isnan.(mat)] .= zero(_SolarRate)
+    return ContinuousLayer{Resource, SolarRadiation, _SolarRate,
+                           Array{_SolarRate, 3}}(mat, time, _SUPPLY_SIZE,
+                                                 _supply_cyclic())
 end
+# Same per-cell-area treatment as `WaterSupply(::ClimateRaster{WorldClim{BioClim}})` above.
 function SolarTimeSupply(worldclim::ClimateRaster{WorldClim{Climate}},
                          time::Int64)
     mat = Array(worldclim.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
-    return SolarTimeSupply(mat, time)
+    cellarea = _cellsize(worldclim.array)^2
+    return SolarTimeSupply(cancel.(mat, Ref(cellarea)), time)
 end
-function WaterTimeSupply(mat::Array{typeof(1.0 * mm), 3}, time::Int64)
-    mat[isnan.(mat)] .= 0 * mm
-    return ContinuousLayer{Resource, Precipitation, typeof(1.0 * mm),
-                           Array{typeof(1.0 * mm), 3}}(mat, time, _SUPPLY_SIZE,
-                                                       _supply_cyclic())
+function WaterTimeSupply(mat::Array{_WaterRate, 3}, time::Int64)
+    mat[isnan.(mat)] .= zero(_WaterRate)
+    return ContinuousLayer{Resource, Precipitation, _WaterRate,
+                           Array{_WaterRate, 3}}(mat, time, _SUPPLY_SIZE,
+                                                 _supply_cyclic())
 end
+# Same per-cell-area treatment as `WaterSupply(::ClimateRaster{WorldClim{BioClim}})` above.
 function WaterTimeSupply(worldclim::ClimateRaster{WorldClim{Climate}},
                          time::Int64)
     mat = Array(worldclim.array)
     mat[isnan.(mat)] .= zero(eltype(mat))
-    return WaterTimeSupply(mat, time)
+    cellarea = _cellsize(worldclim.array)^2
+    return WaterTimeSupply(cancel.(mat, Ref(cellarea)), time)
 end
 # --- Recipes --------------------------------------------------------------------------
 @recipe function f(B::ContinuousLayer{Resource, A, V}) where {A, V}
@@ -245,7 +268,7 @@ end
     seriestype := :heatmap
     grid --> false
     aspect_ratio --> 1
-    title --> unitdict[unit(V)]
+    title --> _resourcetitle(V)
     clims --> (minimum(b) * 0.99, maximum(b) * 1.01)
     return b
 end
@@ -255,7 +278,7 @@ end
     seriestype := :heatmap
     grid --> false
     aspect_ratio --> 1
-    title --> unitdict[unit(V)]
+    title --> _resourcetitle(V)
     clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
     return b[:, :, time]
 end
