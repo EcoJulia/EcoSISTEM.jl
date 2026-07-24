@@ -28,17 +28,20 @@ function _checkaxis(t, h)
 end
 
 # Infer the trait–environment nichefit from the trait type, checking the niche axes.
-# A `NicheTolerance`'s response distribution is built per-species in `_suitability`, so the nichefit
-# (`NicheSuitability`) is distribution-agnostic — it only needs the regime's unit for its `TR`.
+# A `NicheTolerance`'s response distribution is built per-species in `_suitability`; its nichefit's `TR`
+# is the tolerance's own frame (what the distribution's parameters are actually expressed in) — not the
+# regime's incidental unit, so a genuine tolerance/regime unit disagreement is caught by `tematch`
+# (Ecosystem construction) instead of nichefit silently mirroring whatever the regime happens to be.
 function _default_suitability(t::NicheTolerance, regime)
     _checkaxis(t, regime)
-    return NicheSuitability{eltype(regime)}()
+    return NicheSuitability{eltype(t)}()
 end
-function _default_suitability(::DiscreteTolerance, regime)
-    return MatchSuitability{eltype(regime)}()
+# Same reasoning as the `NicheTolerance` method above: `TR` comes from the tolerance, not the regime.
+function _default_suitability(t::DiscreteTolerance, regime)
+    return MatchSuitability{eltype(t)}()
 end
-function _default_suitability(::LandCoverTolerance, regime)
-    return LandCoverSuitability{eltype(regime)}()
+function _default_suitability(t::LandCoverTolerance, regime)
+    return LandCoverSuitability{eltype(t)}()
 end
 # A collection of tolerances over a matching collection of regimes infers each sub-tolerance's
 # nichefit and combines them multiplicatively.

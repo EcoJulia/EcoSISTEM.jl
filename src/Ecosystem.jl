@@ -79,7 +79,7 @@ end
 """
     tematch(sppl::SpeciesList, habitat::AbstractHabitat)
 
-Check that the types of a trait list and regime list are the same for a species
+Check that the types of a tolerance list and regime list are the same for a species
 list (`sppl`) and abiotic environment (`habitat`).
 """
 function tematch(sppl::SpeciesList, habitat::AbstractHabitat)
@@ -90,7 +90,7 @@ end
 """
     nfmatch(sppl::SpeciesList, traitrel::AbstractNicheFit)
 
-Check that the types of a trait list and trait nichefit list are the same
+Check that the types of a tolerance list and trait nichefit list are the same
 for a species list (`sppl`) and trait nichefit (`traitrel`).
 """
 function nfmatch(sppl::SpeciesList, traitrel::AbstractNicheFit)

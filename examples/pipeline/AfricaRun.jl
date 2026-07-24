@@ -28,7 +28,7 @@ bio_africa = uconvert.(K, africa_temp .* °C)
 bio_africa = ClimateRaster(WorldClim{BioClim},
                            AxisArray(bio_africa,
                                      AxisArrays.axes(africa_temp)))
-africa_water = world.array[:, :, 2] .* mm
+africa_water = world.array[:, :, 2] .* mm / year   # bio12 is an annual total
 africa_water = ClimateRaster(WorldClim{BioClim},
                              AxisArray(africa_water,
                                        AxisArrays.axes(africa_temp)))
@@ -42,10 +42,10 @@ heatmap(africa_temp)
 # Set up initial parameters for ecosystem
 numSpecies = 1;
 grid = size(active);
-demand = 0.1mm;
+demand = 0.1Unitful.L / day;
 individuals = 0;
 area = 64e6km^2;
-totalK = 1000.0kJ / km^2;
+totalK = 1000.0kJ / km^2 / day;
 
 # Set up how much water each species consumes
 resource_vec = WaterDemand(fill(demand, numSpecies))

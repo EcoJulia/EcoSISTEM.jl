@@ -194,6 +194,11 @@ canonicalunit(::Precipitation) = mm
 canonicalunit(::Altitude) = m
 canonicalunit(::DayAxis) = Unitful.d
 canonicalunit(::TypologyAxis) = NoUnits
+# WorldClim's srad is kJ·m⁻²·day⁻¹, CHELSA's rsds*/BioClimPlus's rsds_* are MJ·m⁻²·day⁻¹ — without
+# this override the two sources' regimes are never reconciled to one scale (see _tocanon). kJ matches
+# the existing Resource-role choice below and WorldClim's native scale. SolarRadiationRange shares the
+# same physical unit as the level (an annual range of the same flux), so this lives on the group.
+canonicalunit(::SolarRadiationAxis) = kJ / (m^2 * Unitful.d)
 
 # Resource-role canonical units: only axes with a dedicated Supply type need one (currently
 # Precipitation, SolarRadiation) — a genuine consumption rate, not the Condition-role's bare

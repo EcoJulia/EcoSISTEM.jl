@@ -24,11 +24,18 @@ mutable struct NicheSuitability{TR} <: AbstractNicheFit{TR}
 end
 
 function (::NicheSuitability{TR})(dist::ContinuousUnivariateDistribution,
-                                  current::TR) where {TR}
-    # The distribution's parameters are bare numbers in the axis's canonical unit, and regimes are
-    # stored in that same unit, so strip `current` to a bare number before evaluating the pdf.
-    return pdf(dist, ustrip(current))
+                                  current) where {TR}
+    return pdf(dist, _toframe(TR, current))
 end
+
+# Convert `current` to the frame `TR` expects before stripping. When `TR` is a concrete `Quantity` type
+# (the real case, via `_default_suitability`'s tolerance-derived `TR`), this is a real `uconvert` — so a
+# dimensionally-compatible-but-differently-scaled regime is corrected rather than silently wrong, and a
+# genuinely incompatible dimension still throws, just via `uconvert` instead of dispatch. `TR` can also be
+# an abstract dimension (e.g. `Unitful.Temperature`) or a bare non-quantity type — neither names a single
+# fixed target scale to convert to, so just strip as before.
+_toframe(::Type{TR}, current) where {TR <: Quantity} = ustrip(unit(TR), current)
+_toframe(::Type{TR}, current) where {TR} = ustrip(current)
 iscontinuous(tr::NicheSuitability) = true
 function Base.eltype(tr::NicheSuitability{TR}) where {TR}
     return TR
