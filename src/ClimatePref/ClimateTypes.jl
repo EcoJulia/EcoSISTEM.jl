@@ -30,8 +30,8 @@ struct ClimateRaster{R <: RDS.RasterDataSource, A <: AxisArray} <:
     end
 end
 
-Base.size(cr::ClimateRaster) = size(cr.array)
-Base.length(cr::ClimateRaster) = length(cr.array)
+Base.size(raster::ClimateRaster) = size(raster.array)
+Base.length(raster::ClimateRaster) = length(raster.array)
 Base.eltype(::ClimateRaster{RDS, A}) where {RDS, A} = eltype(A)
 
 """

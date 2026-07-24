@@ -80,7 +80,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
 
     # Calculate dimenions of regime and number of species
     dims = _countsubcommunities(eco.habitat.regime)
-    spp = size(eco.abundances.grid, 1)
+    nspp = size(eco.abundances.grid, 1)
     params = eco.spplist.params
     width = getdimension(eco)[1]
 
@@ -95,12 +95,12 @@ function update!(eco::Ecosystem, timestep::Unitful.Time)
     # species is still drawn only by its owning thread, in ascending-cell order,
     # so per-species RNG streams stay race-free and reproducible.
     block = species_blocksize()
-    nblocks = cld(spp, block)
+    nblocks = cld(nspp, block)
     # :greedy hands the cache-line-sized species blocks to cores as they free up
     # (dynamic load balancing); blocks are independent so results are unchanged.
     Threads.@threads :greedy for b in 1:nblocks
         jstart = (b - 1) * block + 1
-        jend = min(b * block, spp)
+        jend = min(b * block, nspp)
         # Loop through grid squares
         for i in 1:dims
             # Convert 1D dimension to 2D coordinates
@@ -159,15 +159,15 @@ square in the ecosystem, `eco`. This function is parameterised on whether the
 species have one type of resource demand or two.
 """
 function update_resource_usage!(eco::AbstractEcosystem{A,
-                                                       SpeciesList{Tr, Req, B,
+                                                       SpeciesList{TL, DM, B,
                                                                    C,
                                                                    D}, E}) where {A,
                                                                                   B,
                                                                                   C,
                                                                                   D,
                                                                                   E,
-                                                                                  Tr,
-                                                                                  Req <:
+                                                                                  TL,
+                                                                                  DM <:
                                                                                   Abstract1Demand}
     !eco.cache.valid || return true
 
@@ -183,15 +183,15 @@ function update_resource_usage!(eco::AbstractEcosystem{A,
 end
 
 function update_resource_usage!(eco::AbstractEcosystem{A,
-                                                       SpeciesList{Tr, Req, B,
+                                                       SpeciesList{TL, DM, B,
                                                                    C,
                                                                    D}, E}) where {A,
                                                                                   B,
                                                                                   C,
                                                                                   D,
                                                                                   E,
-                                                                                  Tr,
-                                                                                  Req <:
+                                                                                  TL,
+                                                                                  DM <:
                                                                                   Abstract2Demands}
     !eco.cache.valid || return true
 
@@ -449,12 +449,12 @@ function _move!(eco::AbstractEcosystem,
     # Lose moves from current grid square
     grd[sp, i] -= amount
     # Map moves to location in grid
-    mov = lookup.moves
+    moves = lookup.moves
     for j in eachindex(lookup.x)
         newx = mod(lookup.x[j] + x - 1, width) + 1
         newy = mod(lookup.y[j] + y - 1, height) + 1
         loc = convert_coords(eco, (newx, newy), width)
-        grd[sp, loc] += mov[j]
+        grd[sp, loc] += moves[j]
     end
     return eco
 end

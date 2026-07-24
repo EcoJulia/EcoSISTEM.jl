@@ -191,7 +191,7 @@ const RainTolerance = NicheTolerance{Precipitation,
 TempTolerance(dist::Matrix) = NicheTolerance(Temperature, Trapezoid, dist)
 RainTolerance(dist::Matrix) = NicheTolerance(Precipitation, Uniform, dist)
 
-# Convenience: the matching [`NicheSuitability`](@ref) nichefit for a `NicheTolerance`, taking its `TR` (unit) from the
+# Convenience: the matching [`NicheSuitability`](@ref) nichefit for a `NicheTolerance`, taking its `NF` (unit) from the
 # trait's axis — so callers building an ecosystem by hand need not re-type the unit.
 NicheSuitability(t::NicheTolerance) = NicheSuitability{eltype(t)}()
 

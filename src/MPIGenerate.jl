@@ -133,8 +133,8 @@ summing each species' abundance × resource demand across all MPI blocks and
 writing results into `eco.cache.totalE`.
 """
 function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
-                                                            EcoSISTEM.SpeciesList{Tr,
-                                                                                  Req,
+                                                            EcoSISTEM.SpeciesList{TL,
+                                                                                  DM,
                                                                                   B,
                                                                                   C,
                                                                                   D},
@@ -142,8 +142,8 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
                                                                        MPIGridLandscape,
                                                                        A, B, C,
                                                                        D,
-                                                                       E, Tr,
-                                                                       Req <:
+                                                                       E, TL,
+                                                                       DM <:
                                                                        Abstract1Demand}
     !eco.cache.valid || return true
 
@@ -177,8 +177,8 @@ Two-resource variant of `update_resource_usage!`; updates both columns of
 `eco.cache.totalE` for environments with `Abstract2Demands`.
 """
 function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
-                                                            EcoSISTEM.SpeciesList{Tr,
-                                                                                  Req,
+                                                            EcoSISTEM.SpeciesList{TL,
+                                                                                  DM,
                                                                                   B,
                                                                                   C,
                                                                                   D},
@@ -186,8 +186,8 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
                                                                        MPIGridLandscape,
                                                                        A, B, C,
                                                                        D,
-                                                                       E, Tr,
-                                                                       Req <:
+                                                                       E, TL,
+                                                                       DM <:
                                                                        Abstract2Demands}
     !eco.cache.valid || return true
 
@@ -242,12 +242,12 @@ function EcoSISTEM.move!(eco::MPIEcosystem,
     mpisp = truesp - eco.firstsp + 1
     grd[mpisp, sc] -= births
     # Map moves to location in grid
-    mov = lookup.moves
+    moves = lookup.moves
     for i in eachindex(lookup.x)
         newx = mod(lookup.x[i] + x - 1, width) + 1
         newy = mod(lookup.y[i] + y - 1, height) + 1
         loc = EcoSISTEM.convert_coords(eco, (newx, newy), width)
-        grd[mpisp, loc] += mov[i]
+        grd[mpisp, loc] += moves[i]
     end
     return eco
 end

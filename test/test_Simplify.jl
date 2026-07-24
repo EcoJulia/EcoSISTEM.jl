@@ -10,9 +10,9 @@ using AxisArrays
 using RasterDataSources
 using Test
 
-@testset "_default_suitability derives TR from the tolerance for every tolerance kind" begin
+@testset "_default_suitability derives NF from the tolerance for every tolerance kind" begin
     # Generalises the `NicheTolerance` fix: `DiscreteTolerance`/`LandCoverTolerance` must also take their
-    # nichefit's `TR` from the tolerance, not `eltype(regime)` — otherwise nichefit trivially mirrors
+    # nichefit's `NF` from the tolerance, not `eltype(regime)` — otherwise nichefit trivially mirrors
     # whatever the regime happens to be, and a genuine tolerance/regime disagreement goes uncaught.
     disc = DiscreteTolerance(fill(1, 5))
     regime = simplenichehabitat(3, (5, 5), 10000.0kJ / km^2 / day, 25.0km^2).regime

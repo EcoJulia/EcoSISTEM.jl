@@ -52,22 +52,22 @@ using RasterDataSources
     end
 
     @testset "trait line: Gauss / Trapeze / Unif → NicheSuitability" begin
-        TR = typeof(1.0K)
-        @test_deprecated Gauss{TR}()
+        NF = typeof(1.0K)
+        @test_deprecated Gauss{NF}()
         @test_deprecated Trapeze{Int64}()
         @test_deprecated Unif{typeof(1.0mm)}()
         # the shims share `NicheSuitability`'s 2-argument density functor
-        @test Gauss{TR}()(Normal(1.0, 0.01), 1.0K) ==
-              NicheSuitability{TR}()(Normal(1.0, 0.01), 1.0K)
+        @test Gauss{NF}()(Normal(1.0, 0.01), 1.0K) ==
+              NicheSuitability{NF}()(Normal(1.0, 0.01), 1.0K)
         @test Trapeze{Int64}()(Trapezoid(1, 2, 3, 4), 1) ==
               NicheSuitability{Int64}()(Trapezoid(1, 2, 3, 4), 1)
         @test Unif{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm) ==
               NicheSuitability{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm)
-        @test eltype(Gauss{TR}()) == TR
+        @test eltype(Gauss{NF}()) == NF
         @test EcoSISTEM.iscontinuous(Unif{typeof(1.0mm)}()) == true
 
-        # restored legacy 3-argument Gaussian functor `Gauss{TR}()(current, opt, sd)`
-        g = Gauss{TR}()
+        # restored legacy 3-argument Gaussian functor `Gauss{NF}()(current, opt, sd)`
+        g = Gauss{NF}()
         @test ustrip(g(275.0K, 274.0K, 2.0K)) ≈ pdf(Normal(274.0, 2.0), 275.0)
     end
 

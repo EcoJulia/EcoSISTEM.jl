@@ -19,14 +19,14 @@ the core abstraction, then the per-subsystem hierarchies.
 
 ```mermaid
 classDiagram
-    class Ecosystem~Part, SL, TR~
-    class SpeciesList~TR, R, MO, T, P~
+    class Ecosystem~Part, SL, NF~
+    class SpeciesList~TL, DM, MO, T, P~
     class GridHabitat~H, B~
     class AbstractHabitat~H, B~
     class AbstractLayer~R~
     class AbstractTolerance~T~
-    class AbstractDemand~R~
-    class AbstractNicheFit~TR~
+    class AbstractDemand~DM~
+    class AbstractNicheFit~NF~
 
     Ecosystem "1" *-- "1" SpeciesList : spplist
     Ecosystem "1" *-- "1" AbstractHabitat : habitat
@@ -50,12 +50,12 @@ classDiagram
 
 ```mermaid
 classDiagram
-    class AbstractEcosystem~Part, SL, TR~
-    class Ecosystem~Part, SL, TR~
-    class MPIEcosystem~MPIGL, Part, SL, TR~
+    class AbstractEcosystem~Part, SL, NF~
+    class Ecosystem~Part, SL, NF~
+    class MPIEcosystem~MPIGL, Part, SL, NF~
     class AbstractHabitat~H, B~
     class GridHabitat~H, B~
-    class SpeciesList~TR, R, MO, T, P~
+    class SpeciesList~TL, DM, MO, T, P~
     AbstractMetacommunity <|-- AbstractEcosystem
     AbstractEcosystem <|-- Ecosystem
     AbstractEcosystem <|-- MPIEcosystem
@@ -178,16 +178,16 @@ classDiagram
 
 ```mermaid
 classDiagram
-    class AbstractNicheFit~TR~
-    class NicheSuitability~TR~
-    class MatchSuitability~TR~
-    class LandCoverSuitability~TR~
-    class NoFitContinuous~TR~
-    class NoFitDiscrete~TR~
-    class multiplicativeFit2~TR1, TR2~
-    class multiplicativeFit3~TR1, TR2, TR3~
-    class additiveFit2~TR1, TR2~
-    class additiveFit3~TR1, TR2, TR3~
+    class AbstractNicheFit~NF~
+    class NicheSuitability~NF~
+    class MatchSuitability~NF~
+    class LandCoverSuitability~NF~
+    class NoFitContinuous~NF~
+    class NoFitDiscrete~NF~
+    class multiplicativeFit2~NF1, NF2~
+    class multiplicativeFit3~NF1, NF2, NF3~
+    class additiveFit2~NF1, NF2~
+    class additiveFit3~NF1, NF2, NF3~
     AbstractNicheFit <|-- NicheSuitability
     AbstractNicheFit <|-- MatchSuitability
     AbstractNicheFit <|-- LandCoverSuitability
@@ -330,6 +330,6 @@ classDiagram
   `AbstractHabitat{H <: AbstractRegime, B <: AbstractSupply}`,
   `NicheTolerance{A <: NicheAxis, C, D}` with `ContinuousTolerance{C <: Number}`,
   `EqualPop{U <: Unitful.Units}`, `ClimateRaster{R <: RasterDataSource, A <: AxisArray}`,
-  `SpeciesList{TR <: AbstractTolerance, R <: AbstractDemand, MO <: AbstractMovement,
+  `SpeciesList{TL <: AbstractTolerance, DM <: AbstractDemand, MO <: AbstractMovement,
   T <: AbstractTypes, P <: AbstractParams}`.
 ```

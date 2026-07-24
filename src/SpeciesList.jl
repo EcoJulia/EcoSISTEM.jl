@@ -4,7 +4,7 @@ using Diversity
 using Phylo
 
 """
-    SpeciesList{TR <: AbstractTolerance, R <: AbstractDemand,
+    SpeciesList{TL <: AbstractTolerance, DM <: AbstractDemand,
                 MO <: AbstractMovement, T <: AbstractTypes,
                 P <: AbstractParams} <: AbstractTypes
 
@@ -15,86 +15,86 @@ names, `tolerance` encodes niche preferences, `abun` holds current abundances,
 flags whether each species is native, and `susceptible` holds optional disease
 susceptibility values.
 """
-mutable struct SpeciesList{TR <: AbstractTolerance,
-                           R <: AbstractDemand,
+mutable struct SpeciesList{TL <: AbstractTolerance,
+                           DM <: AbstractDemand,
                            MO <: AbstractMovement,
                            T <: AbstractTypes,
                            P <: AbstractParams} <: AbstractTypes
     names::Vector{String}
-    tolerance::TR
+    tolerance::TL
     abun::Vector{Int64}
-    demand::R
+    demand::DM
     types::T
     movement::MO
     params::P
     native::Vector{Bool}
     susceptible::Vector{Union{Missing, Float64}}
 
-    function SpeciesList{TR, R, MO, T, P}(names::Vector{String},
-                                          tolerance::TR,
-                                          abun::Vector{Int64},
-                                          demand::R,
-                                          types::T,
-                                          movement::MO,
-                                          params::P,
-                                          native::Vector{Bool}) where {TR <:
-                                                                       AbstractTolerance,
-                                                                       R <:
-                                                                       AbstractDemand,
-                                                                       MO <:
-                                                                       AbstractMovement,
-                                                                       T <:
-                                                                       AbstractTypes,
-                                                                       P <:
-                                                                       AbstractParams}
+    function SpeciesList{TL, DM, MO, T, P}(names::Vector{String},
+                                           tolerance::TL,
+                                           abun::Vector{Int64},
+                                           demand::DM,
+                                           types::T,
+                                           movement::MO,
+                                           params::P,
+                                           native::Vector{Bool}) where {TL <:
+                                                                        AbstractTolerance,
+                                                                        DM <:
+                                                                        AbstractDemand,
+                                                                        MO <:
+                                                                        AbstractMovement,
+                                                                        T <:
+                                                                        AbstractTypes,
+                                                                        P <:
+                                                                        AbstractParams}
         # Check dimensions
         equal_param = equalpop(params, length(names))
         sus = Vector{Union{Missing, Float64}}(undef, length(names))
-        return new{TR, R, MO, T, typeof(equal_param)}(names,
-                                                      tolerance,
-                                                      abun,
-                                                      demand,
-                                                      types,
-                                                      movement,
-                                                      equal_param,
-                                                      native,
-                                                      sus)
+        return new{TL, DM, MO, T, typeof(equal_param)}(names,
+                                                       tolerance,
+                                                       abun,
+                                                       demand,
+                                                       types,
+                                                       movement,
+                                                       equal_param,
+                                                       native,
+                                                       sus)
     end
-    function SpeciesList{TR, R, MO, T, P}(tolerance::TR,
-                                          abun::Vector{Int64},
-                                          demand::R,
-                                          types::T,
-                                          movement::MO,
-                                          params::P,
-                                          native::Vector{Bool}) where {TR <:
-                                                                       AbstractTolerance,
-                                                                       R <:
-                                                                       AbstractDemand,
-                                                                       MO <:
-                                                                       AbstractMovement,
-                                                                       T <:
-                                                                       AbstractTypes,
-                                                                       P <:
-                                                                       AbstractParams}
+    function SpeciesList{TL, DM, MO, T, P}(tolerance::TL,
+                                           abun::Vector{Int64},
+                                           demand::DM,
+                                           types::T,
+                                           movement::MO,
+                                           params::P,
+                                           native::Vector{Bool}) where {TL <:
+                                                                        AbstractTolerance,
+                                                                        DM <:
+                                                                        AbstractDemand,
+                                                                        MO <:
+                                                                        AbstractMovement,
+                                                                        T <:
+                                                                        AbstractTypes,
+                                                                        P <:
+                                                                        AbstractParams}
         # Assign names
         names = map(x -> "$x", eachindex(abun))
         equal_param = equalpop(params, length(names))
         sus = Vector{Union{Missing, Float64}}(undef, length(names))
-        return new{TR, R, MO, T, typeof(equal_param)}(names,
-                                                      tolerance,
-                                                      abun,
-                                                      demand,
-                                                      types,
-                                                      movement,
-                                                      equal_param,
-                                                      native,
-                                                      sus)
+        return new{TL, DM, MO, T, typeof(equal_param)}(names,
+                                                       tolerance,
+                                                       abun,
+                                                       demand,
+                                                       types,
+                                                       movement,
+                                                       equal_param,
+                                                       native,
+                                                       sus)
     end
 end
 
 """
     SpeciesList(numspecies::Int64, numtraits::Int64, abun::Vector{Int64},
-      demand::R, movement::MO, params::P, native::Vector{Bool},
+      demand::DM, movement::MO, params::P, native::Vector{Bool},
       switch::Vector{Float64})
 
 Create a `SpeciesList` for `numspecies` species with `numtraits` discrete niche
@@ -106,11 +106,11 @@ demands via `demand`.
 function SpeciesList(numspecies::Int64,
                      numtraits::Int64,
                      abun::Vector{Int64},
-                     demand::R,
+                     demand::DM,
                      movement::MO,
                      params::P,
                      native::Vector{Bool},
-                     switch::Vector{Float64}) where {R <: AbstractDemand,
+                     switch::Vector{Float64}) where {DM <: AbstractDemand,
                                                      MO <: AbstractMovement,
                                                      P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
@@ -148,10 +148,10 @@ end
 function SpeciesList(numspecies::Int64,
                      numtraits::Int64,
                      abun::Vector{Int64},
-                     demand::R,
+                     demand::DM,
                      movement::MO,
                      params::P,
-                     native::Vector{Bool}) where {R <: AbstractDemand,
+                     native::Vector{Bool}) where {DM <: AbstractDemand,
                                                   MO <: AbstractMovement,
                                                   P <: AbstractParams}
     return SpeciesList(numspecies, numtraits, abun, demand, movement, params,
@@ -160,10 +160,10 @@ end
 @doc (@doc SpeciesList) SpeciesList(::Int64,
                                     ::Int64,
                                     ::Vector{Int64},
-                                    ::R,
+                                    ::DM,
                                     ::MO,
                                     ::P,
-                                    ::Vector{Bool}) where {R <:
+                                    ::Vector{Bool}) where {DM <:
                                                            AbstractDemand,
                                                            MO <:
                                                            AbstractMovement,
@@ -231,7 +231,7 @@ end
 
 """
     SpeciesList(numspecies::Int64, numtraits::Int64, abun::Vector{Int64},
-      demand::R, movement::MO, phy::T, params::P, native::Vector{Bool})
+      demand::DM, movement::MO, phy::T, params::P, native::Vector{Bool})
 
 Create a `SpeciesList` with an explicitly supplied similarity structure `phy` of
 type `AbstractTypes`, rather than computing a `PhyloBranches` similarity
@@ -240,11 +240,11 @@ internally. Discrete tolerance are still evolved along a random ultrametric tree
 function SpeciesList(numspecies::Int64,
                      numtraits::Int64,
                      abun::Vector{Int64},
-                     demand::R,
+                     demand::DM,
                      movement::MO,
                      phy::T,
                      params::P,
-                     native::Vector{Bool}) where {R <: AbstractDemand,
+                     native::Vector{Bool}) where {DM <: AbstractDemand,
                                                   MO <: AbstractMovement,
                                                   T <: AbstractTypes,
                                                   P <: AbstractParams}
@@ -280,7 +280,7 @@ function SpeciesList(numspecies::Int64,
 end
 
 """
-    SpeciesList(numspecies::Int64, tolerance::TR, abun::Vector{Int64}, demand::R,
+    SpeciesList(numspecies::Int64, tolerance::TL, abun::Vector{Int64}, demand::DM,
       movement::MO, params::P, native::Vector{Bool})
 
 Create a `SpeciesList` from an explicitly supplied trait object `tolerance` of type
@@ -288,13 +288,13 @@ Create a `SpeciesList` from an explicitly supplied trait object `tolerance` of t
 treating all species as maximally distinct.
 """
 function SpeciesList(numspecies::Int64,
-                     tolerance::TR,
+                     tolerance::TL,
                      abun::Vector{Int64},
-                     demand::R,
+                     demand::DM,
                      movement::MO,
                      params::P,
-                     native::Vector{Bool}) where {TR <: AbstractTolerance,
-                                                  R <: AbstractDemand,
+                     native::Vector{Bool}) where {TL <: AbstractTolerance,
+                                                  DM <: AbstractDemand,
                                                   MO <: AbstractMovement,
                                                   P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
@@ -333,8 +333,8 @@ function getdemand(sppl::SpeciesList)
     return _getdemand(sppl.abun, sppl.demand)
 end
 
-function _simmatch(sim::SpeciesList)
-    return _simmatch(sim.types)
+function _simmatch(sppl::SpeciesList)
+    return _simmatch(sppl.types)
 end
 
 #function _calcsimilarity(ut::UniqueTypes)

@@ -56,10 +56,10 @@ function _suitability(regime::RegimeCollection3,
                       tolerance::ToleranceCollection3,
                       nichefit::R,
                       pos::Int64,
-                      spp::Int64) where {R <: AbstractNicheFit}
-    res1 = _suitability(regime.one, tolerance.one, nichefit.one, pos, spp)
-    res2 = _suitability(regime.two, tolerance.two, nichefit.two, pos, spp)
-    res3 = _suitability(regime.three, tolerance.three, nichefit.three, pos, spp)
+                      sp::Int64) where {R <: AbstractNicheFit}
+    res1 = _suitability(regime.one, tolerance.one, nichefit.one, pos, sp)
+    res2 = _suitability(regime.two, tolerance.two, nichefit.two, pos, sp)
+    res3 = _suitability(regime.three, tolerance.three, nichefit.three, pos, sp)
     return combinefit(nichefit)(res1, res2, res3)
 end
 
@@ -67,19 +67,19 @@ function _suitability(regime::DiscreteRegime,
                       tolerance::LandCoverTolerance,
                       nichefit::R,
                       pos::Int64,
-                      spp::Int64) where {R <: AbstractNicheFit}
+                      sp::Int64) where {R <: AbstractNicheFit}
     h = getregime(regime, pos)
-    vals = getpref(tolerance, spp)
+    vals = getpref(tolerance, sp)
     return nichefit(h, vals)
 end
 
 """
-    getpref(tolerance::LandCoverTolerance, spp::Int64)
+    getpref(tolerance::LandCoverTolerance, sp::Int64)
 
-Extract the land cover preference values for species `spp` from an `LandCoverTolerance`.
+Extract the land cover preference values for species `sp` from an `LandCoverTolerance`.
 """
-function getpref(tolerance::LandCoverTolerance, spp::Int64)
-    return tolerance.vals[spp]
+function getpref(tolerance::LandCoverTolerance, sp::Int64)
+    return tolerance.vals[sp]
 end
 
 """

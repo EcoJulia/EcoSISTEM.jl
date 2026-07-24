@@ -86,7 +86,7 @@ end
     @test @inferred(EcoSISTEM._suitability(regime, bin, nichefit, 1, 1)) isa
           Float64
 
-    # the nichefit's unit `TR` is imputed from the trait's axis / the regime — not typed by hand
+    # the nichefit's unit `NF` is imputed from the trait's axis / the regime — not typed by hand
     @test typeof(NicheSuitability(bin)) == NicheSuitability{typeof(1.0K)}
     @test eltype(NicheSuitability(bin)) == eltype(bin)
     @test EcoSISTEM._default_suitability(bin, regime) isa

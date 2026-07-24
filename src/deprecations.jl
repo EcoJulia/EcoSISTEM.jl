@@ -76,67 +76,67 @@ end
 # shares `NicheSuitability`'s 2-arg density functor, so old hand-built ecosystems still build and evaluate.
 # ---------------------------------------------------------------------------
 """
-    Gauss{TR} <: AbstractNicheFit{TR}
+    Gauss{NF} <: AbstractNicheFit{NF}
 
 !!! warning "Deprecated"
     `Gauss` is deprecated and will be removed; use [`NicheSuitability`](@ref) instead (a Gaussian preference is the
     `Normal` case of a [`NicheTolerance`](@ref)). This shim shares `NicheSuitability`'s 2-argument density functor and also
     retains the legacy 3-argument `(current, opt, sd)` Gaussian call for back-compatibility.
 """
-mutable struct Gauss{TR} <: AbstractNicheFit{TR}
-    function Gauss{TR}() where {TR}
-        Base.depwarn("`Gauss` is deprecated; use `NicheSuitability{TR}()` instead.",
+mutable struct Gauss{NF} <: AbstractNicheFit{NF}
+    function Gauss{NF}() where {NF}
+        Base.depwarn("`Gauss` is deprecated; use `NicheSuitability{NF}()` instead.",
                      :Gauss)
-        return new{TR}()
+        return new{NF}()
     end
 end
 
 """
-    Trapeze{TR} <: AbstractNicheFit{TR}
+    Trapeze{NF} <: AbstractNicheFit{NF}
 
 !!! warning "Deprecated"
     `Trapeze` is deprecated and will be removed; use [`NicheSuitability`](@ref) instead (it pairs with a `Trapezoid`
     [`NicheTolerance`](@ref)).
 """
-mutable struct Trapeze{TR} <: AbstractNicheFit{TR}
-    function Trapeze{TR}() where {TR}
-        Base.depwarn("`Trapeze` is deprecated; use `NicheSuitability{TR}()` instead.",
+mutable struct Trapeze{NF} <: AbstractNicheFit{NF}
+    function Trapeze{NF}() where {NF}
+        Base.depwarn("`Trapeze` is deprecated; use `NicheSuitability{NF}()` instead.",
                      :Trapeze)
-        return new{TR}()
+        return new{NF}()
     end
 end
 
 """
-    Unif{TR} <: AbstractNicheFit{TR}
+    Unif{NF} <: AbstractNicheFit{NF}
 
 !!! warning "Deprecated"
     `Unif` is deprecated and will be removed; use [`NicheSuitability`](@ref) instead (it pairs with a `Uniform`
     [`NicheTolerance`](@ref)).
 """
-mutable struct Unif{TR} <: AbstractNicheFit{TR}
-    function Unif{TR}() where {TR}
-        Base.depwarn("`Unif` is deprecated; use `NicheSuitability{TR}()` instead.",
+mutable struct Unif{NF} <: AbstractNicheFit{NF}
+    function Unif{NF}() where {NF}
+        Base.depwarn("`Unif` is deprecated; use `NicheSuitability{NF}()` instead.",
                      :Unif)
-        return new{TR}()
+        return new{NF}()
     end
 end
 
 # The deprecated shims share `NicheSuitability`'s density functor + trait interface.
 for Old in (:Gauss, :Trapeze, :Unif)
     @eval begin
-        function (::$Old{TR})(dist::ContinuousUnivariateDistribution,
-                              current::TR) where {TR}
+        function (::$Old{NF})(dist::ContinuousUnivariateDistribution,
+                              current::NF) where {NF}
             return pdf(dist, ustrip(current))
         end
         iscontinuous(::$Old) = true
-        Base.eltype(::$Old{TR}) where {TR} = TR
+        Base.eltype(::$Old{NF}) where {NF} = NF
     end
 end
 
-# Legacy 3-argument Gaussian functor `Gauss{TR}()(current, opt, sd)`, restored for back-compatibility: the
+# Legacy 3-argument Gaussian functor `Gauss{NF}()(current, opt, sd)`, restored for back-compatibility: the
 # hand-written Gaussian density (a dimensionless `Quantity`) that `Gauss` evaluated before it became a
 # `NicheSuitability` shim. New code should build a `Normal` `NicheTolerance` and use `NicheSuitability`'s 2-argument functor instead.
-function (::Gauss{TR})(current::TR, opt::TR, var::TR) where {TR}
+function (::Gauss{NF})(current::NF, opt::NF, var::NF) where {NF}
     pref = 1.0 / sqrt(2 * π * var^2) *
            exp(-abs(current - opt)^2 / (2 * var^2))
     return pref * unit(current)

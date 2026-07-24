@@ -69,10 +69,10 @@ function Lookup(df::DataFrame)
                   zeros(Int64, nrow(df)))
 end
 
-# Check the abundance matrix `m` (species × subcommunities) has one row per species in `sim` and one
+# Check the abundance matrix `m` (species × subcommunities) has one row per species in `sppl` and one
 # column per subcommunity in `part`. A pure dimension check.
-function _mcmatch(m::AbstractMatrix, sim::SpeciesList, part::AbstractHabitat)
-    return _counttypes(sim, true) == size(m, 1) &&
+function _mcmatch(m::AbstractMatrix, sppl::SpeciesList, part::AbstractHabitat)
+    return _counttypes(sppl, true) == size(m, 1) &&
            _countsubcommunities(part) == size(m, 2)
 end
 
@@ -105,7 +105,7 @@ _kindlabel(bs::AbstractVector{Bool}) = "[" * join(_kindlabel.(bs), ", ") * "]"
 
 """
     AbstractEcosystem{Part <: AbstractHabitat, SL <: SpeciesList,
-        TR <: AbstractNicheFit} <: AbstractMetacommunity{Float64,
+        NF <: AbstractNicheFit} <: AbstractMetacommunity{Float64,
             Matrix{Int64}, Matrix{Float64}, SL, Part}
 
 Abstract supertype for all ecosystem types and a subtype of
@@ -113,13 +113,13 @@ AbstractMetacommunity.
 """
 abstract type AbstractEcosystem{Part <: AbstractHabitat,
                                 SL <: SpeciesList,
-                                TR <: AbstractNicheFit} <:
+                                NF <: AbstractNicheFit} <:
               AbstractMetacommunity{Float64, Matrix{Int64}, Matrix{Float64}, SL,
                                     Part} end
 
 """
     Ecosystem{Part <: AbstractHabitat} <:
-       AbstractEcosystem{Part, SL, TR}
+       AbstractEcosystem{Part, SL, NF}
 
 Ecosystem houses information on species and their interaction with their
 environment. For species, it holds abundances and locations, as well as
@@ -130,30 +130,30 @@ between the environment and the characteristics of the species, `nichefit`.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
-                         TR <: AbstractNicheFit} <:
-               AbstractEcosystem{Part, SL, TR}
+                         NF <: AbstractNicheFit} <:
+               AbstractEcosystem{Part, SL, NF}
     abundances::GridLandscape
     spplist::SL
     habitat::Part
     ordinariness::Union{Matrix{Float64}, Missing}
-    nichefit::TR
+    nichefit::NF
     lookup::Vector{Lookup}
     cache::Cache
     rngs::Vector{Random.Xoshiro}
 
-    function Ecosystem{Part, SL, TR}(abundances::GridLandscape,
+    function Ecosystem{Part, SL, NF}(abundances::GridLandscape,
                                      spplist::SL,
                                      habitat::Part,
                                      ordinariness::Union{Matrix{Float64},
                                                          Missing},
-                                     nichefit::TR,
+                                     nichefit::NF,
                                      lookup::Vector{Lookup},
                                      cache::Cache,
                                      rngs::Vector{Random.Xoshiro}) where {Part <:
                                                                           AbstractHabitat,
                                                                           SL <:
                                                                           SpeciesList,
-                                                                          TR <:
+                                                                          NF <:
                                                                           AbstractNicheFit}
         tematch(spplist, habitat) ||
             error("Species tolerances and regime are incompatible: tolerances are " *
@@ -177,7 +177,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                   "does not match the $(_counttypes(spplist, true)) species and " *
                   "$(_countsubcommunities(habitat)) subcommunities of the species " *
                   "list and environment.")
-        return new{Part, SL, TR}(abundances,
+        return new{Part, SL, NF}(abundances,
                                  spplist,
                                  habitat,
                                  ordinariness,
@@ -224,10 +224,10 @@ regardless of the number of threads used. If no `seed` is given, one is drawn at
 random.
 """
 function Ecosystem(popfun::F,
-                   spplist::SpeciesList{T, Req},
+                   spplist::SpeciesList{T, DM},
                    habitat::GridHabitat,
                    nichefit::AbstractNicheFit;
-                   seed::Integer = rand(UInt64)) where {F <: Function, T, Req}
+                   seed::Integer = rand(UInt64)) where {F <: Function, T, DM}
 
     # Check there is enough resource to support number of individuals at set up
     #all(getdemand(spplist) .<= getavailablesupply(habitat)) ||
@@ -243,7 +243,7 @@ function Ecosystem(popfun::F,
     lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
                              getkernels(spplist.movement)))
     nm = zeros(Int64, size(ml.matrix))
-    totalE = zeros(Float64, (size(ml.matrix, 2), numdemands(Req)))
+    totalE = zeros(Float64, (size(ml.matrix, 2), numdemands(DM)))
     return Ecosystem{typeof(habitat), typeof(spplist), typeof(nichefit)}(ml,
                                                                          spplist,
                                                                          habitat,
@@ -292,22 +292,22 @@ function addspecies!(eco::Ecosystem, abun::Int64)
     return addtypes!(eco.spplist.types)
 end
 
-function addtolerance!(tr::NicheTolerance)
-    return push!(tr.dists, tr.dists[end])
+function addtolerance!(tolerance::NicheTolerance)
+    return push!(tolerance.dists, tolerance.dists[end])
 end
 
-function addtolerance!(tr::DiscreteTolerance)
-    return append!(tr.val, rand(tr.val))
+function addtolerance!(tolerance::DiscreteTolerance)
+    return append!(tolerance.val, rand(tolerance.val))
 end
 
 addmovement!(mv::AbstractMovement) = push!(mv.kernels, mv.kernels[end])
 
-function addparams!(pr::AbstractParams)
-    append!(pr.birth, pr.birth[end])
-    return append!(pr.death, pr.death[end])
+function addparams!(params::AbstractParams)
+    append!(params.birth, params.birth[end])
+    return append!(params.death, params.death[end])
 end
 
-adddemand!(rq::AbstractDemand) = append!(rq.resource, rq.resource[end])
+adddemand!(d::AbstractDemand) = append!(d.resource, d.resource[end])
 
 function addtypes!(ut::UniqueTypes)
     return ut = UniqueTypes(ut.num + 1)
@@ -315,7 +315,7 @@ end
 
 """
     CachedEcosystem{Part <: AbstractHabitat, SL <: SpeciesList,
-        TR <: AbstractNicheFit} <: AbstractEcosystem{Part, SL, TR}
+        NF <: AbstractNicheFit} <: AbstractEcosystem{Part, SL, NF}
 
 CachedEcosystem houses the same information as [`Ecosystem`](@ref) (see
 ?Ecosystem), but holds the time period abundances as a
@@ -323,13 +323,13 @@ CachedEcosystem houses the same information as [`Ecosystem`](@ref) (see
 """
 mutable struct CachedEcosystem{Part <: AbstractHabitat,
                                SL <: SpeciesList,
-                               TR <: AbstractNicheFit} <:
-               AbstractEcosystem{Part, SL, TR}
+                               NF <: AbstractNicheFit} <:
+               AbstractEcosystem{Part, SL, NF}
     abundances::CachedGridLandscape
     spplist::SL
     habitat::Part
     ordinariness::Union{Matrix{Float64}, Missing}
-    nichefit::TR
+    nichefit::NF
     lookup::Vector{Lookup}
     cache::Cache
     rngs::Vector{Random.Xoshiro}
@@ -604,25 +604,25 @@ function _2Dt_disperse(r, b)
 end
 
 """
-    genlookups(regime::AbstractRegime, mov::GaussianMovement)
+    genlookups(regime::AbstractRegime, kernel::GaussianMovement)
 
 Generate lookup tables, which hold information on the probability of moving to
 neighbouring squares.
 """
-function genlookups(regime::AbstractRegime, mov::GaussianKernel)
-    sd = (2 * mov.dist) / sqrt(pi)
+function genlookups(regime::AbstractRegime, kernel::GaussianKernel)
+    sd = (2 * kernel.dist) / sqrt(pi)
     relsize = uconvert(NoUnits, _getgridsize(regime) / sd)
     m = maximum(_getdimension(regime))
-    p = mov.thresh
+    p = kernel.thresh
     return Lookup(_lookup(relsize, m, p, _gaussian_disperse))
 end
 
-function genlookups(regime::AbstractRegime, mov::LongTailKernel)
-    sd = (2 * mov.dist) / sqrt(pi)
+function genlookups(regime::AbstractRegime, kernel::LongTailKernel)
+    sd = (2 * kernel.dist) / sqrt(pi)
     relsize = uconvert(NoUnits, _getgridsize(regime) / sd)
     m = maximum(_getdimension(regime))
-    p = mov.thresh
-    b = mov.shape
+    p = kernel.thresh
+    b = kernel.shape
     return EcoSISTEM.Lookup(EcoSISTEM._lookup(relsize, m, p, b,
                                               EcoSISTEM._2Dt_disperse))
 end

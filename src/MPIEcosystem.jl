@@ -11,8 +11,8 @@ using Random
 
 """
     MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractHabitat,
-                 SL <: SpeciesList, TR <: AbstractNicheFit} <: 
-        AbstractEcosystem{Part, SL, TR}
+                 SL <: SpeciesList, NF <: AbstractNicheFit} <: 
+        AbstractEcosystem{Part, SL, NF}
 
 MPIEcosystem houses information on species and their interaction with their
 environment. It houses all information of a normal [`Ecosystem`](@ref) (see
@@ -24,13 +24,13 @@ held by that particular node.
 mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                             Part <: EcoSISTEM.AbstractHabitat,
                             SL <: EcoSISTEM.SpeciesList,
-                            TR <: EcoSISTEM.AbstractNicheFit} <:
-               EcoSISTEM.MPIEcosystem{MPIGL, Part, SL, TR}
+                            NF <: EcoSISTEM.AbstractNicheFit} <:
+               EcoSISTEM.MPIEcosystem{MPIGL, Part, SL, NF}
     abundances::MPIGL
     spplist::SL
     habitat::Part
     ordinariness::Union{Matrix{Float64}, Missing}
-    nichefit::TR
+    nichefit::NF
     lookup::Vector{EcoSISTEM.Lookup}
     sppcounts::Vector{Int32}
     firstsp::Int64
@@ -43,7 +43,7 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                           spplist::SL,
                           habitat::Part,
                           ordinariness::Union{Matrix{Float64}, Missing},
-                          nichefit::TR,
+                          nichefit::NF,
                           lookup::Vector{EcoSISTEM.Lookup},
                           sppcounts::Vector,
                           firstsp::Int64,
@@ -51,12 +51,12 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                           firstsc::Int64,
                           cache::EcoSISTEM.Cache,
                           rngs::Vector{Random.Xoshiro}) where {MPIGL, Part, SL,
-                                                               TR}
+                                                               NF}
         EcoSISTEM.tematch(spplist, habitat) ||
             error("Traits do not match regimes")
         EcoSISTEM.nfmatch(spplist, nichefit) ||
             error("Traits do not match trait functions")
-        return new{MPIGL, Part, SL, TR}(abundances,
+        return new{MPIGL, Part, SL, NF}(abundances,
                                         spplist,
                                         habitat,
                                         ordinariness,
@@ -87,11 +87,11 @@ Create an `MPIEcosystem` given a species list, an abiotic environment and trait
 nichefit.
 """
 function MPIEcosystem(popfun::F,
-                      spplist::EcoSISTEM.SpeciesList{T, Req},
+                      spplist::EcoSISTEM.SpeciesList{T, DM},
                       habitat::EcoSISTEM.GridHabitat,
                       nichefit;
                       seed::Integer = rand(UInt64)) where {F <: Function, T,
-                                                           Req}
+                                                           DM}
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
@@ -125,7 +125,7 @@ function MPIEcosystem(popfun::F,
     lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
                              @view getkernels(spplist.movement)[rankspp]))
     nm = zeros(Int64, (sppcounts[rank + 1], numsc))
-    totalE = zeros(Float64, (numsc, numdemands(Req)))
+    totalE = zeros(Float64, (numsc, numdemands(DM)))
     return MPIEcosystem(ml,
                         spplist,
                         habitat,
@@ -150,11 +150,6 @@ end
                                       ::EcoSISTEM.GridHabitat,
                                       ::Any)
 
-"""
-    gather_abundance(eco::MPIEcosystem)
-
-Gather full abundances matrix on root node.
-"""
 function EcoSISTEM.gather_abundance(eco::MPIEcosystem)
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
@@ -214,34 +209,29 @@ function _calcordinariness(eco::MPIEcosystem)
            relab
 end
 
-"""
-    gather_diversity(eco::MPIEcosystem, divmeasure::F, q) where F <: Function
-
-Gather diversity calculated by `divmeasure` at value `q` from all MPI nodes onto
-the root node (rank 0), combining subcommunity diversity values using a power
-mean weighted by total abundances across nodes.
-"""
 function EcoSISTEM.gather_diversity(eco::MPIEcosystem, divmeasure::F,
                                     q) where {F <: Function}
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
-    div = divmeasure(eco, q)
+    diversity = divmeasure(eco, q)
     totalabun = MPI.Gather(sum(eco.abundances.rows_matrix), 0, comm)
-    mpidivs = MPI.Gather(div[!, :diversity], 0, comm)
+    mpidivs = MPI.Gather(diversity[!, :diversity], 0, comm)
     if rank == 0
         mpidivs = vcat(reshape(mpidivs, countsubcommunities(eco), totalsize),
-                       div[!, :q])
-        div[!, :diversity] .= mapslices(x -> Diversity.powermean(x[:,
-                                                                   1:(end - 1)],
-                                                                 1 .- x[:, end],
-                                                                 totalabun .*
-                                                                 1.0),
-                                        mpidivs,
-                                        dims = 2)[:,
-                                                  1]
-        return div
+                       diversity[!, :q])
+        diversity[!, :diversity] .= mapslices(x -> Diversity.powermean(x[:,
+                                                                         1:(end - 1)],
+                                                                       1 .-
+                                                                       x[:,
+                                                                         end],
+                                                                       totalabun .*
+                                                                       1.0),
+                                              mpidivs,
+                                              dims = 2)[:,
+                                                        1]
+        return diversity
     else
-        return div
+        return diversity
     end
 end

@@ -9,7 +9,7 @@ identity matrix.
 """
 function makeunique(eco::Ecosystem)
     sppl = eco.spplist
-    spp = length(sppl.names)
+    nspp = length(sppl.names)
     EcoSISTEM.invalidatecaches!(eco)
     newsppl = SpeciesList{typeof(sppl.tolerance),
                           typeof(sppl.demand),
@@ -19,7 +19,7 @@ function makeunique(eco::Ecosystem)
                                                sppl.tolerance,
                                                sppl.abun,
                                                sppl.demand,
-                                               UniqueTypes(spp),
+                                               UniqueTypes(nspp),
                                                sppl.movement,
                                                sppl.params,
                                                sppl.native)
@@ -41,16 +41,16 @@ Calculate the Simpson diversity for the entire ecosystem.
 """
 function meta_simpson(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
-    div = meta_gamma(eco, 2.0)
-    div[!, :diversity] = 1 ./ div[!, :diversity]
-    return div
+    diversity = meta_gamma(eco, 2.0)
+    diversity[!, :diversity] = 1 ./ diversity[!, :diversity]
+    return diversity
 end
 
 function meta_simpson(eco::Ecosystem, qs::Float64)
     eco = makeunique(eco)
-    div = meta_gamma(eco, 2.0)
-    div[!, :diversity] = 1 ./ div[!, :diversity]
-    return div
+    diversity = meta_gamma(eco, 2.0)
+    diversity[!, :diversity] = 1 ./ diversity[!, :diversity]
+    return diversity
 end
 
 """
@@ -59,16 +59,16 @@ Calculate the Shannon entropy for the entire ecosystem.
 """
 function meta_shannon(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
-    div = meta_gamma(eco, 1.0)
-    div[!, :diversity] = log.(div[!, :diversity])
-    return div
+    diversity = meta_gamma(eco, 1.0)
+    diversity[!, :diversity] = log.(diversity[!, :diversity])
+    return diversity
 end
 
 function meta_shannon(eco::Ecosystem, qs::Float64)
     eco = makeunique(eco)
-    div = meta_gamma(eco, 1.0)
-    div[!, :diversity] = log.(div[!, :diversity])
-    return div
+    diversity = meta_gamma(eco, 1.0)
+    diversity[!, :diversity] = log.(diversity[!, :diversity])
+    return diversity
 end
 
 """

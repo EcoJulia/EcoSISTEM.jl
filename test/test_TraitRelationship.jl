@@ -19,7 +19,7 @@ using Unitful.DefaultSymbols
     @test NicheSuitability{typeof(1.0mm)}()(Uniform(1, 2), 1.0mm) == 1.0
     @test NicheSuitability{Int64}()(Trapezoid(1, 2, 3, 4), 1) == 0.0
 
-    # A concrete `TR` forces a real `uconvert`, not a bare strip: a dimensionally-compatible but
+    # A concrete `NF` forces a real `uconvert`, not a bare strip: a dimensionally-compatible but
     # differently-scaled `current` is corrected rather than silently misread (1000.0μm ≡ 1.0mm).
     @test NicheSuitability{typeof(1.0mm)}()(Uniform(1, 2), 1000.0Unitful.μm) ==
           1.0

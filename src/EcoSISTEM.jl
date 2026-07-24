@@ -253,11 +253,24 @@ export MPIGridLandscape
 abstract type MPIEcosystem{MPIGL <: MPIGridLandscape,
                            Part <: AbstractHabitat,
                            SL <: SpeciesList,
-                           TR <: AbstractNicheFit} <:
-              AbstractEcosystem{Part, SL, TR} end
+                           NF <: AbstractNicheFit} <:
+              AbstractEcosystem{Part, SL, NF} end
 export MPIEcosystem
 
+"""
+    gather_abundance(eco::MPIEcosystem)
+
+Gather the full abundances matrix onto the root node.
+"""
 function gather_abundance end
+
+"""
+    gather_diversity(eco::MPIEcosystem, divmeasure::F, q) where F <: Function
+
+Gather diversity calculated by `divmeasure` at value `q` from all MPI nodes onto
+the root node (rank 0), combining subcommunity diversity values using a power
+mean weighted by total abundances across nodes.
+"""
 function gather_diversity end
 export gather_abundance, gather_diversity
 
