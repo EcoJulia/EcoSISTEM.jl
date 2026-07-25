@@ -281,3 +281,113 @@ The default per-timestep change function for a layer on this axis (default
 [`NoChange`](@ref)); overridden per layer at build time.
 """
 dynamics(::NicheAxis) = NoChange
+
+# ---------------------------------------------------------------------------
+# Layer specs (recipes)
+# ---------------------------------------------------------------------------
+# A spec describes *how to produce* a gridded layer without holding any grid data;
+# `materialise(spec, dim, size)` turns it into a layer on a given grid. Specs are
+# build-time only and never appear in the simulation hot loop.
+
+"""
+    AbstractLayerSpec
+
+Abstract supertype of layer recipes. A spec is materialised onto a grid with
+`materialise(spec, dim, size)`; it holds no grid array itself.
+"""
+abstract type AbstractLayerSpec end
+
+"""
+    SourceSpec{C, U}
+
+A lazy descriptor for a data-sourced layer: read layer `code` (an `Int` layer number or a
+`Symbol`/`String` key) from data source `source` (a `RasterDataSources.RasterDataSource`
+type) and attach the physical `unit`. It holds **no** grid array — the read, cut and
+resample happen only when it is materialised onto a grid.
+"""
+struct SourceSpec{C, U} <: AbstractLayerSpec
+    source::Type
+    code::C
+    unit::U
+end
+
+"""
+    AbstractSyntheticSpec <: AbstractLayerSpec
+
+Abstract supertype of the synthetic (generated, non-data) layer specs:
+[`UniformSpec`](@ref), [`GradientSpec`](@ref), [`PeakedSpec`](@ref) and
+[`NicheSpec`](@ref). (Contrast [`SourceSpec`](@ref), which reads from a data source.)
+"""
+abstract type AbstractSyntheticSpec <: AbstractLayerSpec end
+
+"""
+    UniformSpec{A <: NicheAxis, V}
+
+A layer on niche axis `A` with a single constant `value` in every cell (a
+`Unitful.Temperature`, another quantity, or a bare number). Construct with an explicit axis
+(`UniformSpec(Temperature, 298.0K)`) or without one (defaults to `Unclassified`).
+"""
+struct UniformSpec{A <: NicheAxis, V} <: AbstractSyntheticSpec
+    value::V
+end
+function UniformSpec(::Type{A}, value::V) where {A <: NicheAxis, V}
+    return UniformSpec{A, V}(value)
+end
+UniformSpec(value::V) where {V} = UniformSpec{Unclassified, V}(value)
+
+"""
+    GradientSpec{A <: NicheAxis, V, R}
+
+A layer on niche axis `A` with a linear gradient from `low` (bottom) to `high` (top),
+changing over time at `rate` (default `0`).
+"""
+struct GradientSpec{A <: NicheAxis, V, R} <: AbstractSyntheticSpec
+    low::V
+    high::V
+    rate::R
+end
+function GradientSpec(::Type{A}, low::V, high::V,
+                      rate::R) where {A <: NicheAxis, V, R}
+    return GradientSpec{A, V, R}(low, high, rate)
+end
+function GradientSpec(::Type{A}, low, high) where {A <: NicheAxis}
+    return GradientSpec(A, low, high, zero(low) / s)
+end
+function GradientSpec(low::V, high::V, rate::R) where {V, R}
+    return GradientSpec{Unclassified, V, R}(low, high, rate)
+end
+GradientSpec(low, high) = GradientSpec(low, high, zero(low) / s)
+
+"""
+    PeakedSpec{A <: NicheAxis, V, R}
+
+Like [`GradientSpec`](@ref) but the value peaks in the middle of the grid and falls off to
+`low` at both the top and bottom.
+"""
+struct PeakedSpec{A <: NicheAxis, V, R} <: AbstractSyntheticSpec
+    low::V
+    high::V
+    rate::R
+end
+function PeakedSpec(::Type{A}, low::V, high::V,
+                    rate::R) where {A <: NicheAxis, V, R}
+    return PeakedSpec{A, V, R}(low, high, rate)
+end
+function PeakedSpec(::Type{A}, low, high) where {A <: NicheAxis}
+    return PeakedSpec(A, low, high, zero(low) / s)
+end
+function PeakedSpec(low::V, high::V, rate::R) where {V, R}
+    return PeakedSpec{Unclassified, V, R}(low, high, rate)
+end
+PeakedSpec(low, high) = PeakedSpec(low, high, zero(low) / s)
+
+"""
+    NicheSpec{A <: NicheAxis}
+
+A layer on niche axis `A` of `numniches` discrete random niches.
+"""
+struct NicheSpec{A <: NicheAxis} <: AbstractSyntheticSpec
+    numniches::Int64
+end
+NicheSpec(::Type{A}, n::Integer) where {A <: NicheAxis} = NicheSpec{A}(Int64(n))
+NicheSpec(n::Integer) = NicheSpec{Unclassified}(Int64(n))

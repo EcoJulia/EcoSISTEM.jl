@@ -48,6 +48,7 @@ export NicheAxis,
 # day / carbon / typology / other
        DayOfYear, DayRange, CarbonFlux, LandCoverTypology, ClimateTypology,
        Heterogeneity, Altitude
+export SourceSpec, UniformSpec, GradientSpec, PeakedSpec, NicheSpec
 
 # Geographic coordinate type — used across the ClimatePref sub-module and the main module, so it is
 # defined here (before ClimatePref) rather than inside it.
