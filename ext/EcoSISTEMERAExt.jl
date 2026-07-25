@@ -32,11 +32,11 @@ function EcoSISTEM.ClimatePref.retrieve_era5(param::String,
             # Create target file
             target = f'{filename}_{d}'
             print(f'Years: {years_in_decade}\nOutput file: {target}')
-            era5_request(param, request_dates, d, target, **kwargs)
+            era5_request(param, request_dates, target, **kwargs)
     def era5_request(
-            param, request_dates, decade, target,
+            param, request_dates, target,
             stream='moda', modeltype='an', levtype='sfc',
-            grid='0.75/0.75', format='netcdf', step='0-12'):
+            grid='0.75/0.75', format='netcdf'):
 
         server.retrieve('reanalysis-era5-complete', {
             "class": "ea",
@@ -46,9 +46,9 @@ function EcoSISTEM.ClimatePref.retrieve_era5(param::String,
             'type':    modeltype,
             'levtype': levtype,
             'param':   param,
+            'grid':    grid,
             'format':  format,
             'date':    request_dates,
-            'decade':  decade,
         }, target)
     """
     py"retrieve_era5"(param, from_year, to_year, filename; kws...)

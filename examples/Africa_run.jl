@@ -23,7 +23,7 @@ using Printf
 using Diversity
 using Diversity.Ecology
 
-const AFRICA_FILE = joinpath(@__DIR__, "Africa.tif")
+const AFRICA_FILE = pkgdir(EcoSISTEM, "data", "Africa.tif")
 const SAVEDIR = "/mnt/data/project0000/outputs/Africa_run"
 mkpath(SAVEDIR)
 
@@ -52,13 +52,13 @@ function run_single(africa, active; savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     num_species = 1
     grid = size(africa)
-    req = 10.0kJ
+    demand = 10.0kJ / day
     individuals = 0
     area = 64e6km^2
-    totalK = 1000.0kJ / km^2
+    totalK = 1000.0kJ / km^2 / day
 
-    # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, num_species))
+    # Set up how much resource each species consumes
+    resource_vec = SolarDemand(fill(demand, num_species))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -76,22 +76,22 @@ function run_single(africa, active; savedir = SAVEDIR)
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, num_species)
     vars = fill(0.5K, num_species)
-    traits = GaussTrait(opts, vars)
+    tolerance = GaussTrait(opts, vars)
     native = fill(true, num_species)
     # abun = rand(Multinomial(individuals, num_species))
     abun = fill(div(individuals, num_species), num_species)
-    sppl = SpeciesList(num_species, traits, abun, energy_vec,
+    sppl = SpeciesList(num_species, tolerance, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
-    # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
     rand_start = rand(findall(active), 1)[1]
     eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
@@ -135,13 +135,13 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         # Set up initial parameters for ecosystem
         num_species = 2
         grid = size(africa)
-        req = 10.0kJ
+        demand = 10.0kJ / day
         individuals = 0
         area = 64e6km^2
-        totalK = 1000.0kJ / km^2
+        totalK = 1000.0kJ / km^2 / day
 
-        # Set up how much energy each species consumes
-        energy_vec = SolarRequirement(fill(req, num_species))
+        # Set up how much resource each species consumes
+        resource_vec = SolarDemand(fill(demand, num_species))
 
         # Set rates for birth and death
         birth = 0.6 / year
@@ -160,22 +160,22 @@ function specialist_vs_generalist(africa, active; savedir = SAVEDIR)
         opts = fill(274.0K, num_species)
         vars = [50.0K, specialist_vars[i]]
         @debug "Generalist $(vars[1]), specialist $(vars[2])"
-        traits = GaussTrait(opts, vars)
+        tolerance = GaussTrait(opts, vars)
         native = fill(true, num_species)
         # abun = rand(Multinomial(individuals, num_species))
         abun = fill(div(individuals, num_species), num_species)
-        sppl = SpeciesList(num_species, traits, abun, energy_vec,
+        sppl = SpeciesList(num_species, tolerance, abun, resource_vec,
                            movement, param, native)
         sppl.params.birth
 
         # Create abiotic environment - even grid of one temperature
-        abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+        habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
-        # Set relationship between species and environment (gaussian)
-        rel = Gauss{typeof(1.0K)}()
+        # Set nichefit between species and environment (gaussian)
+        nichefit = Gauss{typeof(1.0K)}()
 
         #Create ecosystem
-        eco = Ecosystem(sppl, abenv, rel)
+        eco = Ecosystem(sppl, habitat, nichefit)
         eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
         # Simulation Parameters
@@ -241,13 +241,13 @@ function specialist_vs_many(africa, active, num_species = 50_000;
                             savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     grid = size(africa)
-    req = 10.0kJ
+    demand = 10.0kJ / day
     individuals = 3 * 10^8
     area = 64e6km^2
-    totalK = 1000.0kJ / km^2
+    totalK = 1000.0kJ / km^2 / day
 
-    # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, num_species))
+    # Set up how much resource each species consumes
+    resource_vec = SolarDemand(fill(demand, num_species))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -266,22 +266,22 @@ function specialist_vs_many(africa, active, num_species = 50_000;
     opts = fill(274.0K, num_species)
     vars = fill(50.0K, num_species)
     vars[50_000] = 0.5K
-    traits = GaussTrait(opts, vars)
+    tolerance = GaussTrait(opts, vars)
     native = fill(true, num_species)
     # abun = rand(Multinomial(individuals, num_species))
     abun = fill(div(individuals, num_species), num_species)
-    sppl = SpeciesList(num_species, traits, abun, energy_vec,
+    sppl = SpeciesList(num_species, tolerance, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
-    # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
     eco.abundances.matrix[50_000, :] .= 0
 
     # Simulation Parameters
@@ -312,13 +312,13 @@ Africa and save as a pdf.
 function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     # Set up initial parameters for ecosystem
     grid = size(africa)
-    req = 10.0kJ
+    demand = 10.0kJ / day
     individuals = 3 * 10^8
     area = 64e6km^2
-    totalK = 1000.0kJ / km^2
+    totalK = 1000.0kJ / km^2 / day
 
-    # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, num_species))
+    # Set up how much resource each species consumes
+    resource_vec = SolarDemand(fill(demand, num_species))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -336,22 +336,22 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, num_species)
     vars = fill(50.0K, num_species)
-    traits = GaussTrait(opts, vars)
+    tolerance = GaussTrait(opts, vars)
     native = fill(true, num_species)
     # abun = rand(Multinomial(individuals, num_species))
     abun = fill(div(individuals, num_species), num_species)
-    sppl = SpeciesList(num_species, traits, abun, energy_vec,
+    sppl = SpeciesList(num_species, tolerance, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
-    # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
 
     # Simulation Parameters
     burnin = 10years
@@ -434,8 +434,7 @@ function run_many(africa, active, num_species = 50_000; savedir = SAVEDIR)
     return nothing
 end
 
-const AFRICA_TIF = readfile(AFRICA_FILE, xmin = -25.0°, xmax = 50.0°,
-                            ymin = -35.0°, ymax = 40.0°)
+const AFRICA_TIF = readfile(AFRICA_FILE)
 const RADIUS = 50
 const ACTIVE = get_active_circle(AFRICA_TIF, RADIUS)
 

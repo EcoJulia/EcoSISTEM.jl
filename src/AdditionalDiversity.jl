@@ -9,30 +9,30 @@ identity matrix.
 """
 function makeunique(eco::Ecosystem)
     sppl = eco.spplist
-    spp = length(sppl.names)
+    nspp = length(sppl.names)
     EcoSISTEM.invalidatecaches!(eco)
-    newsppl = SpeciesList{typeof(sppl.traits),
-                          typeof(sppl.requirement),
+    newsppl = SpeciesList{typeof(sppl.tolerance),
+                          typeof(sppl.demand),
                           typeof(sppl.movement),
                           UniqueTypes,
                           typeof(sppl.params)}(sppl.names,
-                                               sppl.traits,
+                                               sppl.tolerance,
                                                sppl.abun,
-                                               sppl.requirement,
-                                               UniqueTypes(spp),
+                                               sppl.demand,
+                                               UniqueTypes(nspp),
                                                sppl.movement,
                                                sppl.params,
                                                sppl.native)
     newsppl.susceptible = sppl.susceptible
-    return Ecosystem{typeof(eco.abenv), typeof(newsppl),
-                     typeof(eco.relationship)}(eco.abundances,
-                                               newsppl,
-                                               eco.abenv,
-                                               eco.ordinariness,
-                                               eco.relationship,
-                                               eco.lookup,
-                                               eco.cache,
-                                               eco.rngs)
+    return Ecosystem{typeof(eco.habitat), typeof(newsppl),
+                     typeof(eco.nichefit)}(eco.abundances,
+                                           newsppl,
+                                           eco.habitat,
+                                           eco.ordinariness,
+                                           eco.nichefit,
+                                           eco.lookup,
+                                           eco.cache,
+                                           eco.rngs)
 end
 
 """
@@ -41,16 +41,16 @@ Calculate the Simpson diversity for the entire ecosystem.
 """
 function meta_simpson(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
-    div = meta_gamma(eco, 2.0)
-    div[!, :diversity] = 1 ./ div[!, :diversity]
-    return div
+    diversity = meta_gamma(eco, 2.0)
+    diversity[!, :diversity] = 1 ./ diversity[!, :diversity]
+    return diversity
 end
 
 function meta_simpson(eco::Ecosystem, qs::Float64)
     eco = makeunique(eco)
-    div = meta_gamma(eco, 2.0)
-    div[!, :diversity] = 1 ./ div[!, :diversity]
-    return div
+    diversity = meta_gamma(eco, 2.0)
+    diversity[!, :diversity] = 1 ./ diversity[!, :diversity]
+    return diversity
 end
 
 """
@@ -59,16 +59,16 @@ Calculate the Shannon entropy for the entire ecosystem.
 """
 function meta_shannon(eco::Ecosystem, qs::Vector{Float64})
     eco = makeunique(eco)
-    div = meta_gamma(eco, 1.0)
-    div[!, :diversity] = log.(div[!, :diversity])
-    return div
+    diversity = meta_gamma(eco, 1.0)
+    diversity[!, :diversity] = log.(diversity[!, :diversity])
+    return diversity
 end
 
 function meta_shannon(eco::Ecosystem, qs::Float64)
     eco = makeunique(eco)
-    div = meta_gamma(eco, 1.0)
-    div[!, :diversity] = log.(div[!, :diversity])
-    return div
+    diversity = meta_gamma(eco, 1.0)
+    diversity[!, :diversity] = log.(diversity[!, :diversity])
+    return diversity
 end
 
 """

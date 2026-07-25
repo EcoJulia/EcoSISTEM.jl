@@ -15,17 +15,17 @@ using Unitful.DefaultSymbols
 using Distances
 using StatsBase
 using Plots
-file = "Africa.tif"
-africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Matrix{Bool}(.!isnan.(africa'))
+file = pkgdir(EcoSISTEM, "data", "Africa.tif")
+africa = readfile(file)
+active = Matrix{Bool}(.!isnan.(africa))
 
 heatmap(active)
 
 # Set up initial parameters for ecosystem
-numSpecies = 1; grid = size(africa); req= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
+numSpecies = 1; grid = size(africa); demand= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
 # Set up how much energy each species consumes
-energy_vec = SolarRequirement(fill(req, numSpecies))
+resource_vec = SolarDemand(fill(demand, numSpecies))
 
 
 # Set rates for birth and death
@@ -49,19 +49,19 @@ traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
     movement, param, native)
 sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
-abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = Gauss{typeof(1.0K)}()
 
 #Create ecosystem
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, nichefit)
 rand_start = rand(findall(active), 1)[1]
 eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
@@ -87,10 +87,10 @@ velocity = zeros(typeof(1.0km/month), length(specialist_vars))
 rand_start = rand(findall(active), 1)[1]
 for i in eachindex(specialist_vars)
     # Set up initial parameters for ecosystem
-    numSpecies = 2; grid = size(africa); req= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
+    numSpecies = 2; grid = size(africa); demand= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
     # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, numSpecies))
+    resource_vec = SolarDemand(fill(demand, numSpecies))
 
 
     # Set rates for birth and death
@@ -114,18 +114,18 @@ for i in eachindex(specialist_vars)
     native = fill(true, numSpecies)
     # abun = rand(Multinomial(individuals, numSpecies))
     abun = fill(div(individuals, numSpecies), numSpecies)
-    sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
         movement, param, native)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+    habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
-    # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = Gauss{typeof(1.0K)}()
 
     #Create ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
     eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
 
     # EcoSISTEM Parameters
@@ -165,14 +165,14 @@ using Unitful
 using Unitful.DefaultSymbols
 using JLD2
 using Printf
-file = "Africa.tif"
-africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Matrix{Bool}(.!isnan.(africa'))
+file = pkgdir(EcoSISTEM, "data", "Africa.tif")
+africa = readfile(file)
+active = Matrix{Bool}(.!isnan.(africa))
 # Set up initial parameters for ecosystem
-numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
+numSpecies = 50_000; grid = size(africa); demand= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
 # Set up how much energy each species consumes
-energy_vec = SolarRequirement(fill(req, numSpecies))
+resource_vec = SolarDemand(fill(demand, numSpecies))
 
 
 # Set rates for birth and death
@@ -197,19 +197,19 @@ traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
     movement, param, native)
 sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
-abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = Gauss{typeof(1.0K)}()
 
 #Create ecosystem
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, nichefit)
 eco.abundances.matrix[50_000, :] .= 0
 
 import EcoSISTEM.simulate!
@@ -245,14 +245,14 @@ using Unitful.DefaultSymbols
 using JLD2
 using Printf
 
-file = "Africa.tif"
-africa = readfile(file, -25°, 50°, -35°, 40°)
-active =  Matrix{Bool}(.!isnan.(africa'))
+file = pkgdir(EcoSISTEM, "data", "Africa.tif")
+africa = readfile(file)
+active = Matrix{Bool}(.!isnan.(africa))
 # Set up initial parameters for ecosystem
-numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
+numSpecies = 50_000; grid = size(africa); demand= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
 
 # Set up how much energy each species consumes
-energy_vec = SolarRequirement(fill(req, numSpecies))
+resource_vec = SolarDemand(fill(demand, numSpecies))
 
 
 # Set rates for birth and death
@@ -276,19 +276,19 @@ traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
     movement, param, native)
 sppl.params.birth
 
 # Create abiotic environment - even grid of one temperature
-abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+habitat = simplehabitat(274.0K, grid, totalK, area, active)
 
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = Gauss{typeof(1.0K)}()
 
 #Create ecosystem
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, nichefit)
 
 # EcoSISTEM Parameters
 burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;

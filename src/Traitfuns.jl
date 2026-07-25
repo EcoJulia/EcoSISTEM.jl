@@ -1,160 +1,139 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 """
-    traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
+    suitability(eco::AbstractEcosystem, pos::Int64, sp::Int64)
 
-Calculate relationship between the current environment and a species' particular
+Calculate nichefit between the current environment and a species' particular
 trait.
 
 """
-function traitfun(eco::AbstractEcosystem, pos::Int64, sp::Int64)
-    hab = eco.abenv.habitat
-    trts = eco.spplist.traits
-    rel = eco.relationship
-    return _traitfun(hab, trts, rel, pos, sp)
+function suitability(eco::AbstractEcosystem, pos::Int64, sp::Int64)
+    regime = eco.habitat.regime
+    tolerance = eco.spplist.tolerance
+    nichefit = eco.nichefit
+    return _suitability(regime, tolerance, nichefit, pos, sp)
 end
 
-function _traitfun(hab::HabitatCollection2,
-                   trts::TraitCollection2,
-                   rel::R,
-                   pos::Int64,
-                   sp::Int64) where {R <: AbstractTraitRelationship}
-    res1 = _traitfun(hab.h1, trts.t1, rel.tr1, pos, sp)
-    res2 = _traitfun(hab.h2, trts.t2, rel.tr2, pos, sp)
-    return combineTR(rel)(res1, res2)
+function _suitability(regime::RegimeCollection2,
+                      tolerance::ToleranceCollection2,
+                      nichefit::R,
+                      pos::Int64,
+                      sp::Int64) where {R <: AbstractNicheFit}
+    res1 = _suitability(regime.one, tolerance.one, nichefit.one, pos, sp)
+    res2 = _suitability(regime.two, tolerance.two, nichefit.two, pos, sp)
+    return combinefit(nichefit)(res1, res2)
 end
-function _traitfun(hab::ContinuousHab,
-                   trts::GaussTrait,
-                   rel::R,
-                   pos::Int64,
-                   sp::Int64) where {R <: AbstractTraitRelationship}
-    h = gethabitat(hab, pos)
-    mean, var = getpref(trts, sp)
-    return rel(h, mean, var)
+function _suitability(regime::ContinuousRegime,
+                      tolerance::NicheTolerance,
+                      nichefit::R,
+                      pos::Int64,
+                      sp::Int64) where {R <: AbstractNicheFit}
+    h = getregime(regime, pos)
+    # Static-regime counterpart of the `ContinuousTimeRegime` method below: fetch the species'
+    # pre-built response distribution and evaluate it via `nichefit` (no per-call construction/allocation).
+    return nichefit(getdist(tolerance, sp), h)
 end
-function _traitfun(hab::ContinuousTimeHab,
-                   trts::GaussTrait,
-                   rel::R,
-                   pos::Int64,
-                   sp::Int64) where {R <: AbstractTraitRelationship}
-    h = gethabitat(hab, pos)
-    mean, var = getpref(trts, sp)
-    return rel(h, mean, var)
+function _suitability(regime::ContinuousTimeRegime,
+                      tolerance::NicheTolerance,
+                      nichefit::R,
+                      pos::Int64,
+                      sp::Int64) where {R <: AbstractNicheFit}
+    h = getregime(regime, pos)
+    # Fetch the species' pre-built response distribution and evaluate it via `nichefit` — no per-call
+    # construction or allocation (the distributions were built once when the `NicheTolerance` was made).
+    return nichefit(getdist(tolerance, sp), h)
 end
-function _traitfun(hab::ContinuousTimeHab,
-                   trts::TempBin,
-                   rel::R,
-                   pos::Int64,
-                   sp::Int64) where {R <: AbstractTraitRelationship}
-    h = gethabitat(hab, pos)
-    (a, b, c, d) = getpref(trts, sp)
-    return rel(Trapezoid(a, b, c, d), h)
+function _suitability(regime::DiscreteRegime,
+                      tolerance::DiscreteTolerance,
+                      nichefit::R,
+                      pos::Int64,
+                      sp::Int64) where {R <: AbstractNicheFit}
+    currentniche = getregime(regime, pos)
+    preference = getpref(tolerance, sp)
+    return nichefit(currentniche, preference)
 end
-function _traitfun(hab::ContinuousTimeHab,
-                   trts::RainBin,
-                   rel::R,
-                   pos::Int64,
-                   sp::Int64) where {R <: AbstractTraitRelationship}
-    h = gethabitat(hab, pos)
-    (a, b) = getpref(trts, sp)
-    return rel(Uniform(a, b), h)
-end
-function _traitfun(hab::DiscreteHab,
-                   trts::DiscreteTrait,
-                   rel::R,
-                   pos::Int64,
-                   sp::Int64) where {R <: AbstractTraitRelationship}
-    currentniche = gethabitat(hab, pos)
-    preference = getpref(trts, sp)
-    return rel(currentniche, preference)
-end
-function _traitfun(hab::HabitatCollection3,
-                   trts::TraitCollection3,
-                   rel::R,
-                   pos::Int64,
-                   spp::Int64) where {R <: AbstractTraitRelationship}
-    res1 = _traitfun(hab.h1, trts.t1, rel.tr1, pos, spp)
-    res2 = _traitfun(hab.h2, trts.t2, rel.tr2, pos, spp)
-    res3 = _traitfun(hab.h3, trts.t3, rel.tr3, pos, spp)
-    return combineTR(rel)(res1, res2, res3)
+function _suitability(regime::RegimeCollection3,
+                      tolerance::ToleranceCollection3,
+                      nichefit::R,
+                      pos::Int64,
+                      sp::Int64) where {R <: AbstractNicheFit}
+    res1 = _suitability(regime.one, tolerance.one, nichefit.one, pos, sp)
+    res2 = _suitability(regime.two, tolerance.two, nichefit.two, pos, sp)
+    res3 = _suitability(regime.three, tolerance.three, nichefit.three, pos, sp)
+    return combinefit(nichefit)(res1, res2, res3)
 end
 
-function _traitfun(hab::DiscreteHab,
-                   trts::LCtrait,
-                   rel::R,
-                   pos::Int64,
-                   spp::Int64) where {R <: AbstractTraitRelationship}
-    h = gethabitat(hab, pos)
-    vals = getpref(trts, spp)
-    return rel(h, vals)
+function _suitability(regime::DiscreteRegime,
+                      tolerance::LandCoverTolerance,
+                      nichefit::R,
+                      pos::Int64,
+                      sp::Int64) where {R <: AbstractNicheFit}
+    h = getregime(regime, pos)
+    vals = getpref(tolerance, sp)
+    return nichefit(h, vals)
 end
 
 """
-    getpref(traits::LCtrait, spp::Int64)
+    getpref(tolerance::LandCoverTolerance, sp::Int64)
 
-Extract the land cover preference values for species `spp` from an `LCtrait`.
+Extract the land cover preference values for species `sp` from an `LandCoverTolerance`.
 """
-function getpref(traits::LCtrait, spp::Int64)
-    return traits.vals[spp]
+function getpref(tolerance::LandCoverTolerance, sp::Int64)
+    return tolerance.vals[sp]
 end
 
 """
-    getpref(traits::GaussTrait, sp::Int64)
+    getdist(tolerance::NicheTolerance, sp::Int64)
 
-Extract the Gaussian habitat preference mean and variance for species `sp` from
-a [`GaussTrait`](@ref). Returns a tuple `(mean, var)`.
+Return the pre-built response distribution for species `sp` from a [`NicheTolerance`](@ref) trait. This is what
+`_suitability` uses in the hot loop — a plain vector fetch, no per-call construction or allocation.
 """
-function getpref(traits::GaussTrait, sp::Int64)
-    return traits.mean[sp], traits.var[sp]
+function getdist(tolerance::NicheTolerance, sp::Int64)
+    return tolerance.dists[sp]
+end
+
+# Per-species niche optima (distribution means) of a `NicheTolerance`, as a bare vector in the axis's canonical
+# frame — the accessor the old `GaussTrait.mean` field readers migrate to (e.g. size tolerance evolved by
+# `ContinuousEvolve`).
+_nichemeans(tolerance::NicheTolerance) = Distributions.mean.(tolerance.dists)
+
+"""
+    getpref(tolerance::NicheTolerance, sp::Int64)
+
+Return the parameters of species `sp`'s response distribution from a [`NicheTolerance`](@ref) trait (a
+back-compat shim over [`getdist`](@ref); the parameters are no longer stored separately).
+"""
+function getpref(tolerance::NicheTolerance, sp::Int64)
+    return Distributions.params(getdist(tolerance, sp))
 end
 
 """
-    getpref(traits::TempBin, sp::Int64)
-
-Extract the trapezoid distribution parameters `(a, b, c, d)` for species `sp`
-from a [`TempBin`](@ref) trait.
-"""
-function getpref(traits::TempBin, sp::Int64)
-    return traits.dist[sp, :]
-end
-
-"""
-    getpref(traits::RainBin, sp::Int64)
-
-Extract the uniform distribution parameters `(a, b)` for species `sp` from a
-[`RainBin`](@ref) trait.
-"""
-function getpref(traits::RainBin, sp::Int64)
-    return traits.dist[sp, :]
-end
-
-"""
-    getpref(traits::DiscreteTrait, sp::Int64)
+    getpref(tolerance::DiscreteTolerance, sp::Int64)
 
 Extract the discrete niche preference value for species `sp` from a
-[`DiscreteTrait`](@ref).
+[`DiscreteTolerance`](@ref).
 """
-function getpref(traits::DiscreteTrait, sp::Int64)
-    return traits.val[sp]
+function getpref(tolerance::DiscreteTolerance, sp::Int64)
+    return tolerance.val[sp]
 end
 
 """
-    getpref(traits::T, field::Symbol) where T <: AbstractTraits
+    getpref(tolerance::T, field::Symbol) where T <: AbstractTolerance
 
 Extract trait preferences for all species in the ecosystem.
 
 """
-function getpref(traits::T, field::Symbol) where {T <: AbstractTraits}
-    return getfield(traits, field)
+function getpref(tolerance::T, field::Symbol) where {T <: AbstractTolerance}
+    return getfield(tolerance, field)
 end
 
 """
-    getrelationship(rel::R, field::Symbol) where R <: AbstractTraitRelationship
+    getrelationship(nichefit::R, field::Symbol) where R <: AbstractNicheFit
 
-Extract the trait relationship of all species in the ecosystem.
+Extract the trait nichefit of all species in the ecosystem.
 
 """
-function getrelationship(rel::R,
-                         field::Symbol) where {R <: AbstractTraitRelationship}
-    return getfield(rel, field)
+function getrelationship(nichefit::R,
+                         field::Symbol) where {R <: AbstractNicheFit}
+    return getfield(nichefit, field)
 end

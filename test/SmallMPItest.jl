@@ -25,14 +25,14 @@ rank = MPI.Comm_rank(comm)
 # Set up initial parameters for ecosystem
 numSpecies = 8;
 grid = (4, 4);
-req = 10.0kJ;
+demand = 10.0kJ / day;
 individuals = 1_000;
 area = 100.0 * km^2;
-totalK = 10000.0kJ / km^2;
+totalK = 10000.0kJ / km^2 / day;
 
-# Set up how much energy each species consumes
-# energy_vec = SolarRequirement(fill(req, numSpecies))
-energy_vec = SolarRequirement(collect(1:numSpecies) .* 1.0kJ)
+# Set up how much resource each species consumes
+# resource_vec = SolarDemand(fill(demand, numSpecies))
+resource_vec = SolarDemand(collect(1:numSpecies) .* 1.0kJ / day)
 
 # Set probabilities
 birth = 0.6 / year
@@ -51,23 +51,24 @@ movement = BirthOnlyMovement(kernel, NoBoundary())
 # Create species list, including their temperature preferences, seed abundance and native status
 opts = fill(274.0K, numSpecies)
 vars = fill(0.5K, numSpecies)
-traits = GaussTrait(opts, vars)
+tolerance = NicheTolerance(Temperature, Normal, opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
-abenv = simplehabitatAE(274.0K, grid, totalK, area)
-abenv.budget.matrix .= reshape(10_000.0kJ .* collect(1:prod(grid)), grid)
+habitat = simplehabitat(274.0K, grid, totalK, area)
+habitat.supply.matrix .= reshape(10_000.0kJ / day .* collect(1:prod(grid)),
+                                 grid)
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = NicheSuitability{typeof(1.0K)}()
 
 # Create ecosystem
-@test_nowarn MPIEcosystem(sppl, abenv, rel)
-eco = MPIEcosystem(sppl, abenv, rel; seed = 0)
+@test_nowarn MPIEcosystem(sppl, habitat, nichefit)
+eco = MPIEcosystem(sppl, habitat, nichefit; seed = 0)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
@@ -106,33 +107,33 @@ MPI.Barrier(comm)
 true_abuns = gather_abundance(eco)
 # On root node, print abundances and save out
 if rank == 0
-    isdir("data") || mkdir("data")
-    @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
+    @save joinpath(ARGS[1], "Test_abuns$nt.jld2") abuns=true_abuns
 end
 
-water_vec = WaterRequirement(fill(2.0mm, numSpecies))
-total_use = ReqCollection2(energy_vec, water_vec)
+water_vec = WaterDemand(fill(2.0Unitful.L / day, numSpecies))
+total_use = DemandCollection2(resource_vec, water_vec)
 
-sppl = SpeciesList(numSpecies, traits, abun, total_use, movement, param, native)
+sppl = SpeciesList(numSpecies, tolerance, abun, total_use, movement, param,
+                   native)
 
 # Create abiotic environment - even grid of one temperature
-abenv1 = simplehabitatAE(274.0K, grid, totalK, area)
+habitat1 = simplehabitat(274.0K, grid, totalK, area)
 
-total_mm = 10.0mm / km^2
-abenv2 = simplehabitatAE(274.0K, grid, total_mm, area)
+total_mm = 10.0mm / day
+habitat2 = simplehabitat(274.0K, grid, total_mm, area)
 
-budget = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat), typeof(budget)}(abenv1.habitat,
-                                                               abenv1.active,
-                                                               budget,
-                                                               abenv1.names)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
+                                                               habitat1.active,
+                                                               supply,
+                                                               habitat1.names)
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = NicheSuitability{typeof(1.0K)}()
 
 # Create ecosystem
-@test_nowarn MPIEcosystem(sppl, abenv, rel)
-eco = MPIEcosystem(sppl, abenv, rel; seed = 0)
+@test_nowarn MPIEcosystem(sppl, habitat, nichefit)
+eco = MPIEcosystem(sppl, habitat, nichefit; seed = 0)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
@@ -170,8 +171,7 @@ sleep(rank)
 true_abuns = gather_abundance(eco)
 # On root node, print abundances and save out
 if rank == 0
-    isdir("data") || mkdir("data")
-    @save "data/Test_abuns"*"$nt.jld2" abuns=true_abuns
+    @save joinpath(ARGS[1], "Test_abuns$nt.jld2") abuns=true_abuns
 end
 
 if !MPI.Finalized()

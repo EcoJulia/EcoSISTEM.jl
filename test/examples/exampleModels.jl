@@ -9,17 +9,17 @@ using OnlineStats
 using Plots
 plotlyjs()
 
-cachefolder = EcoSISTEM.path("examples/")
+cachefolder = mktempdir()
 
 ## DIFFERENT TEMPERATURE OPTIMUMS ##
 # 100 species with a range of different niche preferences for temperature. Check those closer to the environmental temperature have a higher abundance.
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -53,14 +53,14 @@ simDict = Dict("times" => 10years,
                "cacheInterval" => 1years)
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
-abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                       typeof(bud)}(abenv1.habitat,
-                                    abenv1.active,
-                                    bud,
-                                    abenv1.names)
+habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime),
+                      typeof(supply)}(habitat1.regime,
+                                      habitat1.active,
+                                      supply,
+                                      habitat1.names)
 
 vars = fill(2.0, numSpecies) .* K
 opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
@@ -74,7 +74,7 @@ birth_rates = death_rates
 paramDict = Dict("numSpecies" => numSpecies,
                  "numInvasive" => 0,
                  "numIndiv" => individuals,
-                 "reqs" => req,
+                 "demand" => demand,
                  "opts" => opts,
                  "vars" => vars,
                  "birth" => birth_rates,
@@ -86,13 +86,11 @@ paramDict = Dict("numSpecies" => numSpecies,
                  "bound" => Torus())
 
 diver = zeros(length(divfuns), lensim, length(scenario))
-runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
+runsim!(diver, habitat, paramDict, simDict, 1, cachefolder)
 
 endabun = mapslices(sum,
-                    @load joinpath(cachefolder,
-                                   "cache/DiffOpts10001.jld2") abun,
-                                                               dims=2)[:,
-                                                                       1]
+                    @load joinpath(cachefolder, "cache",
+                                   "DiffOpts10001.jld2") abun, dims=2)[:, 1]
 temps = map(eachindex(opts)) do i
     return repeat([opts[i]], endabun[i])
 end
@@ -119,10 +117,10 @@ bar(ustrip.(uconvert.(°C, edges)),
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -156,14 +154,14 @@ simDict = Dict("times" => 10years,
                "cacheInterval" => 1years)
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
-abenv1 = simplehabitatAE(298.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(298.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                       typeof(bud)}(abenv1.habitat,
-                                    abenv1.active,
-                                    bud,
-                                    abenv1.names)
+habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime),
+                      typeof(supply)}(habitat1.regime,
+                                      habitat1.active,
+                                      supply,
+                                      habitat1.names)
 
 vars = range(0.0001, stop = 5, length = numSpecies) .* K
 opts = fill(298.0K, numSpecies)
@@ -177,7 +175,7 @@ birth_rates = death_rates
 paramDict = Dict("numSpecies" => numSpecies,
                  "numInvasive" => 0,
                  "numIndiv" => individuals,
-                 "reqs" => req,
+                 "demand" => demand,
                  "opts" => opts,
                  "vars" => vars,
                  "birth" => birth_rates,
@@ -189,7 +187,7 @@ paramDict = Dict("numSpecies" => numSpecies,
                  "bound" => Torus())
 
 diver = zeros(length(divfuns), lensim, length(scenario))
-runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
+runsim!(diver, habitat, paramDict, simDict, 1, cachefolder)
 
 endabun = mapslices(sum,
                     @load joinpath(cachefolder,
@@ -221,10 +219,10 @@ bar(edges ./ K,
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -258,14 +256,14 @@ simDict = Dict("times" => 10years,
                "cacheInterval" => 1years)
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
-abenv1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                       typeof(bud)}(abenv1.habitat,
-                                    abenv1.active,
-                                    bud,
-                                    abenv1.names)
+habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime),
+                      typeof(supply)}(habitat1.regime,
+                                      habitat1.active,
+                                      supply,
+                                      habitat1.names)
 
 vars = range(0.0001, stop = 5, length = numSpecies) .* K
 opts = fill(298.0K, numSpecies)
@@ -279,7 +277,7 @@ birth_rates = death_rates
 paramDict = Dict("numSpecies" => numSpecies,
                  "numInvasive" => 0,
                  "numIndiv" => individuals,
-                 "reqs" => req,
+                 "demand" => demand,
                  "opts" => opts,
                  "vars" => vars,
                  "birth" => birth_rates,
@@ -291,7 +289,7 @@ paramDict = Dict("numSpecies" => numSpecies,
                  "bound" => Torus())
 
 diver = zeros(length(divfuns), lensim, length(scenario))
-runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
+runsim!(diver, habitat, paramDict, simDict, 1, cachefolder)
 
 endabun = mapslices(sum,
                     @load joinpath(cachefolder,
@@ -324,10 +322,10 @@ bar(edges ./ K,
 
 numSpecies = 100;
 grd = (10, 10);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -361,27 +359,28 @@ simDict = Dict("times" => 10years,
                "cacheInterval" => 1years)
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
-abenv1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
-bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                       typeof(bud)}(abenv1.habitat,
-                                    abenv1.active,
-                                    bud,
-                                    abenv1.names)
-gsize = size(abenv.budget.b1.matrix, 1)
-sol_range = collect(range(0.0kJ, stop = 4.5e11kJ, length = gsize))
+habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
+supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+habitat = GridHabitat{typeof(habitat1.regime),
+                      typeof(supply)}(habitat1.regime,
+                                      habitat1.active,
+                                      supply,
+                                      habitat1.names)
+gsize = size(habitat.supply.one.matrix, 1)
+sol_range = collect(range(0.0kJ / day, stop = 4.5e11kJ / day, length = gsize))
 map(1:gsize) do seq
-    return abenv.budget.b1.matrix[seq, :] .= sol_range[seq]
+    return habitat.supply.one.matrix[seq, :] .= sol_range[seq]
 end
-abenv.budget.b1.matrix
+habitat.supply.one.matrix
 
-gsize = size(abenv.budget.b2.matrix, 1)
-water_range = collect(range(0.0mm, stop = 192mm, length = gsize))
+gsize = size(habitat.supply.two.matrix, 1)
+water_range = collect(range(0.0Unitful.L / day, stop = 192Unitful.L / day,
+                            length = gsize))
 map(1:gsize) do seq
-    return abenv.budget.b2.matrix[:, seq] .= water_range[seq]
+    return habitat.supply.two.matrix[:, seq] .= water_range[seq]
 end
-abenv.budget.b2.matrix
+habitat.supply.two.matrix
 
 vars = fill(2.0, numSpecies) .* K
 opts = fill(298.0, numSpecies) .* K
@@ -395,7 +394,7 @@ birth_rates = death_rates
 paramDict = Dict("numSpecies" => numSpecies,
                  "numInvasive" => 0,
                  "numIndiv" => individuals,
-                 "reqs" => req,
+                 "demand" => demand,
                  "opts" => opts,
                  "vars" => vars,
                  "birth" => birth_rates,
@@ -407,7 +406,7 @@ paramDict = Dict("numSpecies" => numSpecies,
                  "bound" => NoBoundary())
 
 diver = zeros(length(divfuns), lensim, length(scenario))
-runsim!(diver, abenv, paramDict, simDict, 1, cachefolder, false)
+runsim!(diver, habitat, paramDict, simDict, 1, cachefolder, false)
 
 endabun = mapslices(sum,
                     @load joinpath(cachefolder,
@@ -415,8 +414,8 @@ endabun = mapslices(sum,
                                                              dims=1)[1, :]
 endabun = reshape(endabun, 10, 10)
 
-heatmap(sol_range ./ kJ,
-        water_range ./ mm,
+heatmap(sol_range ./ (kJ / day),
+        water_range ./ (Unitful.L / day),
         endabun,
         grid = false,
         xlab = "Solar energy",
@@ -435,10 +434,10 @@ heatmap(sol_range ./ kJ,
 for i in [1, 2, 5, 10]
     numSpecies = 100
     grd = (i, i)
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     individuals = 100_000_000
     area = 100.0 * km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
     scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -472,14 +471,14 @@ for i in [1, 2, 5, 10]
                    "cacheInterval" => 1years)
     lensim = length((0month):simDict["interval"]:simDict["times"])
 
-    abenv1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-    abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
-    bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                           typeof(bud)}(abenv1.habitat,
-                                        abenv1.active,
-                                        bud,
-                                        abenv1.names)
+    habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
+    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    habitat = GridHabitat{typeof(habitat1.regime),
+                          typeof(supply)}(habitat1.regime,
+                                          habitat1.active,
+                                          supply,
+                                          habitat1.names)
 
     vars = fill(2.0, numSpecies) .* K
     opts = fill(298.0, numSpecies) .* K
@@ -493,7 +492,7 @@ for i in [1, 2, 5, 10]
     paramDict = Dict("numSpecies" => numSpecies,
                      "numInvasive" => 0,
                      "numIndiv" => individuals,
-                     "reqs" => req,
+                     "demand" => demand,
                      "opts" => opts,
                      "vars" => vars,
                      "birth" => birth_rates,
@@ -505,7 +504,7 @@ for i in [1, 2, 5, 10]
                      "bound" => Torus())
 
     diver = zeros(length(divfuns), lensim, length(scenario))
-    runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
+    runsim!(diver, habitat, paramDict, simDict, 1, cachefolder)
 end
 
 endabun1 = sum(@load joinpath(cachefolder, "cache/GridSize110001.jld2") abun)
@@ -532,10 +531,10 @@ bar(["1", "4", "25", "100"],
 for i in [10.0, 20.0, 50.0, 100.0]
     numSpecies = 100
     grd = (10, 10)
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     individuals = 100_000_000
     area = i .* km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
     scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -570,14 +569,14 @@ for i in [10.0, 20.0, 50.0, 100.0]
                    "cacheInterval" => 1years)
     lensim = length((0month):simDict["interval"]:simDict["times"])
 
-    abenv1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-    abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
-    bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                           typeof(bud)}(abenv1.habitat,
-                                        abenv1.active,
-                                        bud,
-                                        abenv1.names)
+    habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
+    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    habitat = GridHabitat{typeof(habitat1.regime),
+                          typeof(supply)}(habitat1.regime,
+                                          habitat1.active,
+                                          supply,
+                                          habitat1.names)
 
     vars = fill(2.0, numSpecies) .* K
     opts = fill(298.0, numSpecies) .* K
@@ -591,7 +590,7 @@ for i in [10.0, 20.0, 50.0, 100.0]
     paramDict = Dict("numSpecies" => numSpecies,
                      "numInvasive" => 0,
                      "numIndiv" => individuals,
-                     "reqs" => req,
+                     "demand" => demand,
                      "opts" => opts,
                      "vars" => vars,
                      "birth" => birth_rates,
@@ -603,7 +602,7 @@ for i in [10.0, 20.0, 50.0, 100.0]
                      "bound" => Torus())
 
     diver = zeros(length(divfuns), lensim, length(scenario))
-    runsim!(diver, abenv, paramDict, simDict, 1, cachefolder)
+    runsim!(diver, habitat, paramDict, simDict, 1, cachefolder)
 end
 
 endabun1 = sum(@load joinpath(cachefolder, "cache/Area1010001.jld2") abun)
@@ -631,10 +630,10 @@ distances = [0.5, 1.0, 2.0, 4.0]
 for i in eachindex(distances)
     numSpecies = 2
     grd = (10, 10)
-    req = (450000.0kJ / m^2, 192.0nm / m^2)
+    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     individuals = 100_000_000
     area = 100.0 * km^2
-    totalK = (4.5e11kJ / km^2, 192.0mm / km^2)
+    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
     scenario = [SimpleScenario(TempIncrease!, 0.0K / 10year)]
 
@@ -669,14 +668,14 @@ for i in eachindex(distances)
                    "cacheInterval" => 1years)
     lensim = length((0month):simDict["interval"]:simDict["times"])
 
-    abenv1 = simplehabitatAE(299.0K, grd, totalK[1], area)
-    abenv2 = simplehabitatAE(299.0K, grd, totalK[2], area)
-    bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                           typeof(bud)}(abenv1.habitat,
-                                        abenv1.active,
-                                        bud,
-                                        abenv1.names)
+    habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
+    habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
+    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    habitat = GridHabitat{typeof(habitat1.regime),
+                          typeof(supply)}(habitat1.regime,
+                                          habitat1.active,
+                                          supply,
+                                          habitat1.names)
 
     vars = fill(2.0, numSpecies) .* K
     opts = fill(298.0, numSpecies) .* K
@@ -690,7 +689,7 @@ for i in eachindex(distances)
     paramDict = Dict("numSpecies" => numSpecies,
                      "numInvasive" => 0,
                      "numIndiv" => individuals,
-                     "reqs" => req,
+                     "demand" => demand,
                      "opts" => opts,
                      "vars" => vars,
                      "birth" => birth_rates,
@@ -702,7 +701,7 @@ for i in eachindex(distances)
                      "bound" => NoBoundary())
 
     diver = zeros(length(divfuns), lensim, length(scenario))
-    dispersalrun!(diver, abenv, paramDict, simDict, 1, cachefolder)
+    dispersalrun!(diver, habitat, paramDict, simDict, 1, cachefolder)
 end
 
 display(heatmap(grid = false,

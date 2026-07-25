@@ -8,10 +8,12 @@ const day = Unitful.d
 const week = Unitful.wk
 const year = Unitful.yr
 @unit month "month" Month uconvert(Unitful.s, year / 12) false
+@unit quarter "quarter" Quarter (3 * Units.month) false
 
 const days = day
 const weeks = week
 const months = month
+const quarters = quarter
 const years = year
 const January = 0month
 const February = 1month
@@ -39,6 +41,8 @@ export day,
        weeks,
        month,
        months,
+       quarter,
+       quarters,
        year,
        years,
        Rates,

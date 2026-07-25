@@ -92,14 +92,14 @@ function CachedGridLandscape(file::String, times::StepRangeLen;
 end
 
 """
-    emptygridlandscape(gae::GridAbioticEnv, spplist::SpeciesList)
+    emptygridlandscape(gae::GridHabitat, spplist::SpeciesList)
 
-Create an empty [`GridLandscape`](@ref) given a [`GridAbioticEnv`](@ref) and a
+Create an empty [`GridLandscape`](@ref) given a [`GridHabitat`](@ref) and a
 [`SpeciesList`](@ref).
 """
-function emptygridlandscape(gae::GridAbioticEnv, spplist::SpeciesList)
+function emptygridlandscape(gae::GridHabitat, spplist::SpeciesList)
     mat = zeros(Int64, counttypes(spplist, true), countsubcommunities(gae))
 
-    dimension = (counttypes(spplist, true), _getdimension(gae.habitat)...)
+    dimension = (counttypes(spplist, true), _getdimension(gae.regime)...)
     return GridLandscape(mat, dimension)
 end

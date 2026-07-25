@@ -3,10 +3,11 @@
 module ExtEcoSISTEMPlotsExt
 
 using Unitful, Unitful.DefaultSymbols
-using EcoSISTEM, EcoSISTEM.Units
+using EcoSISTEM, EcoSISTEM.Units, EcoSISTEM.ClimatePref
 using AxisArrays
 using Plots
 using Test
+using RasterDataSources
 
 @testset "Plotting EcoSISTEM items" begin
     temp = AxisArray(fill(1.0K, 11, 11, 21),
@@ -24,10 +25,10 @@ using Test
                      Axis{:latitude}((0°):(1°):(10°)),
                      Axis{:longitude}((0°):(1°):(10°)),
                      Axis{:time}(January:(1month):December))
-    wm = EcoSISTEM.Worldclim_monthly(temp)
+    wm = ClimateRaster(WorldClim{Climate}, temp)
     @test plot(wm, January).n == 1
     @test plot(wm, September, 0° .. 2°, 5° .. 10°).n == 1
-    chelsa = EcoSISTEM.CHELSA_monthly(temp)
+    chelsa = ClimateRaster(CHELSA{Climate}, temp)
     @test plot(chelsa, February).n == 1
     @test plot(chelsa, December, 3° .. 10°, 0° .. 3°).n == 1
 end

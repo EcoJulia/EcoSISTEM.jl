@@ -55,18 +55,18 @@ end
 
 # ╔═╡ 220e4af6-f228-4b8d-a77e-0ddbf5fc6705
 begin
-    file = "../examples/Africa.tif"
-    africa = readfile(file, -25.0°, 50.0°, -35.0°, 40.0°)
+    file = pkgdir(EcoSISTEM, "data", "Africa.tif")
+    africa = readfile(file)
     active = Matrix{Bool}(.!isnan.(africa))
     # Set up initial parameters for ecosystem
     grd = size(africa)
-    req = 10.0kJ
+    demand = 10.0kJ / day
     individuals = 3 * 10^8
     area = 64e6km^2
-    totalK = 1000.0kJ / km^2
+    totalK = 1000.0kJ / km^2 / day
 
-    # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, numSpecies))
+    # Set up how much resource each species consumes
+    resource_vec = SolarDemand(fill(demand, numSpecies))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -85,21 +85,21 @@ begin
     opts = fill(274.0K, numSpecies)
     vars = fill(50.0K, numSpecies)
     vars[end] = (1 / niche_width) * K
-    trts = GaussTrait(opts, vars)
+    tolerance = NicheTolerance(Temperature, Normal, opts, vars)
     native = fill(true, numSpecies)
     abun = fill(div(individuals, numSpecies), numSpecies)
-    sppl = SpeciesList(numSpecies, trts, abun, energy_vec,
+    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                        movement, param, native)
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grd, totalK, area, active)
+    habitat = simplehabitat(274.0K, grd, totalK, area, active)
 
-    # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = NicheSuitability{typeof(1.0K)}()
 
     # Create ecosystem
-    eco = Ecosystem(sppl, abenv, rel)
+    eco = Ecosystem(sppl, habitat, nichefit)
     eco.abundances.matrix[end, :] .= 0
 
     # Simulation Parameters
@@ -121,9 +121,9 @@ end
 
 # ╔═╡ 7e16f197-874b-482d-80b6-13a62ddda1f7
 begin
-    ENV["RASTERDATASOURCES_PATH"] = mkpath("assets")
     africa_bio = read(WorldClim{BioClim}, 1,
-                      cut = (lat = -25° .. 50°, long = -35° .. 40°))
+                      cut = EcoSISTEM.ClimatePref.boundingbox("Africa";
+                                                              round = 5°))
     africa_temp = africa_bio.array
     plot(africa_temp)
 end
@@ -148,13 +148,13 @@ begin
 
     # Set up initial parameters for ecosystem
     grd_new = size(africa_new.array)
-    req_new = 10.0kJ
+    req_new = 10.0kJ / day
     individuals_new = 3 * 10^8
     area_new = 64e6km^2
-    totalK_new = 1000.0kJ / km^2
+    totalK_new = 1000.0kJ / km^2 / day
 
-    # Set up how much energy each species consumes
-    energy_vec_new = SolarRequirement(fill(req, numSpecies))
+    # Set up how much resource each species consumes
+    energy_vec_new = SolarDemand(fill(demand, numSpecies))
 
     # Set rates for birth and death
     birth_new = 0.6 / year
@@ -172,7 +172,7 @@ begin
     # Create species list, including their temperature preferences, seed abundance and native status
     opts_new = fill(meantemp * 1.0K, numSpecies)
     vars_new = fill(5.0K, numSpecies)
-    trts_new = GaussTrait(opts_new, vars_new)
+    trts_new = NicheTolerance(Temperature, Normal, opts_new, vars_new)
     native_new = fill(true, numSpecies)
     abun_new = fill(div(individuals_new, numSpecies), numSpecies)
     sppl_new = SpeciesList(numSpecies, trts_new, abun_new, energy_vec_new,
@@ -180,10 +180,10 @@ begin
     sppl.params.birth
 
     # Create abiotic environment - even grid of one temperature
-    abenv_new = bioclimAE(africa_new, totalK_new, area_new)
+    abenv_new = bioclimhabitat(africa_new, totalK_new, area_new)
 
-    # Set relationship between species and environment (gaussian)
-    rel_new = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    rel_new = NicheSuitability{typeof(1.0K)}()
 
     # Create ecosystem
     eco_new = Ecosystem(sppl_new, abenv_new, rel_new)
@@ -203,8 +203,8 @@ begin
 
     mean_abuns = reshape(mean(eco_new.abundances.matrix, dims = 1)[1, :],
                          grd_new)
-    mean_abuns[.!eco_new.abenv.active] .= NaN
-    heatmap(mean_abuns')
+    mean_abuns[.!eco_new.habitat.active] .= NaN
+    heatmap(mean_abuns)
 end
 
 # ╔═╡ Cell order:

@@ -10,9 +10,9 @@ using Missings
 using Random
 
 """
-    MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractAbiotic,
-                 SL <: SpeciesList, TR <: AbstractTraitRelationship} <: 
-        AbstractEcosystem{Part, SL, TR}
+    MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractHabitat,
+                 SL <: SpeciesList, NF <: AbstractNicheFit} <: 
+        AbstractEcosystem{Part, SL, NF}
 
 MPIEcosystem houses information on species and their interaction with their
 environment. It houses all information of a normal [`Ecosystem`](@ref) (see
@@ -22,15 +22,15 @@ of number of species per node, `firstsp` - the identity of the first species
 held by that particular node.
 """
 mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
-                            Part <: EcoSISTEM.AbstractAbiotic,
+                            Part <: EcoSISTEM.AbstractHabitat,
                             SL <: EcoSISTEM.SpeciesList,
-                            TR <: EcoSISTEM.AbstractTraitRelationship} <:
-               EcoSISTEM.MPIEcosystem{MPIGL, Part, SL, TR}
+                            NF <: EcoSISTEM.AbstractNicheFit} <:
+               EcoSISTEM.MPIEcosystem{MPIGL, Part, SL, NF}
     abundances::MPIGL
     spplist::SL
-    abenv::Part
+    habitat::Part
     ordinariness::Union{Matrix{Float64}, Missing}
-    relationship::TR
+    nichefit::NF
     lookup::Vector{EcoSISTEM.Lookup}
     sppcounts::Vector{Int32}
     firstsp::Int64
@@ -41,9 +41,9 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
 
     function MPIEcosystem(abundances::MPIGL,
                           spplist::SL,
-                          abenv::Part,
+                          habitat::Part,
                           ordinariness::Union{Matrix{Float64}, Missing},
-                          relationship::TR,
+                          nichefit::NF,
                           lookup::Vector{EcoSISTEM.Lookup},
                           sppcounts::Vector,
                           firstsp::Int64,
@@ -51,18 +51,16 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                           firstsc::Int64,
                           cache::EcoSISTEM.Cache,
                           rngs::Vector{Random.Xoshiro}) where {MPIGL, Part, SL,
-                                                               TR}
-        EcoSISTEM.tematch(spplist, abenv) ||
-            error("Traits do not match habitats")
-        EcoSISTEM.trmatch(spplist, relationship) ||
+                                                               NF}
+        EcoSISTEM.tematch(spplist, habitat) ||
+            error("Traits do not match regimes")
+        EcoSISTEM.nfmatch(spplist, nichefit) ||
             error("Traits do not match trait functions")
-        #_mcmatch(abundances.matrix, spplist, abenv) ||
-        #  error("Dimension mismatch")
-        return new{MPIGL, Part, SL, TR}(abundances,
+        return new{MPIGL, Part, SL, NF}(abundances,
                                         spplist,
-                                        abenv,
+                                        habitat,
                                         ordinariness,
-                                        relationship,
+                                        nichefit,
                                         lookup,
                                         sppcounts,
                                         firstsp,
@@ -75,25 +73,30 @@ end
 
 EcoSISTEM.MPIEcosystem(args...; kwargs...) = MPIEcosystem(args...; kwargs...)
 
-using EcoSISTEM: getkernels, genlookups, numrequirements
+# With the MPI extension loaded, auto-selection (in `build_ecosystem`) treats the process as
+# distributed only once MPI is initialised and there is more than one rank — so `mpirun -n 1` or a
+# plain `using MPI` still builds a serial `Ecosystem`.
+EcoSISTEM._should_mpi() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
+
+using EcoSISTEM: getkernels, genlookups, numdemands
 """
-    MPIEcosystem(spplist::SpeciesList, abenv::GridAbioticEnv,
-                 rel::AbstractTraitRelationship)
+    MPIEcosystem(spplist::SpeciesList, habitat::GridHabitat,
+                 nichefit::AbstractNicheFit)
 
 Create an `MPIEcosystem` given a species list, an abiotic environment and trait
-relationship.
+nichefit.
 """
 function MPIEcosystem(popfun::F,
-                      spplist::EcoSISTEM.SpeciesList{T, Req},
-                      abenv::EcoSISTEM.GridAbioticEnv,
-                      rel;
+                      spplist::EcoSISTEM.SpeciesList{T, DM},
+                      habitat::EcoSISTEM.GridHabitat,
+                      nichefit;
                       seed::Integer = rand(UInt64)) where {F <: Function, T,
-                                                           Req}
+                                                           DM}
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
     numspp = length(spplist.names)
-    numsc = countsubcommunities(abenv.habitat)
+    numsc = countsubcommunities(habitat.regime)
 
     # One deterministically-seeded RNG per global species, built identically on
     # every rank, so that species draws are reproducible regardless of how
@@ -116,18 +119,18 @@ function MPIEcosystem(popfun::F,
     ml = EcoSISTEM.emptyMPIgridlandscape(sppcounts, sccounts)
 
     # Populate this matrix with species abundances
-    popfun(ml, spplist, abenv, rel, rngs)
+    popfun(ml, spplist, habitat, nichefit, rngs)
 
     rankspp = firstsp:sppindices[rank + 2]
-    lookup_tab = collect(map(k -> genlookups(abenv.habitat, k),
+    lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
                              @view getkernels(spplist.movement)[rankspp]))
     nm = zeros(Int64, (sppcounts[rank + 1], numsc))
-    totalE = zeros(Float64, (numsc, numrequirements(Req)))
+    totalE = zeros(Float64, (numsc, numdemands(DM)))
     return MPIEcosystem(ml,
                         spplist,
-                        abenv,
+                        habitat,
                         missing,
-                        rel,
+                        nichefit,
                         lookup_tab,
                         sppcounts,
                         firstsp,
@@ -138,19 +141,15 @@ function MPIEcosystem(popfun::F,
 end
 
 function MPIEcosystem(spplist::EcoSISTEM.SpeciesList,
-                      abenv::EcoSISTEM.GridAbioticEnv, rel;
+                      habitat::EcoSISTEM.GridHabitat, nichefit;
                       seed::Integer = rand(UInt64))
-    return MPIEcosystem(EcoSISTEM.populate!, spplist, abenv, rel; seed = seed)
+    return MPIEcosystem(EcoSISTEM.populate!, spplist, habitat, nichefit;
+                        seed = seed)
 end
 @doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
-                                      ::EcoSISTEM.GridAbioticEnv,
+                                      ::EcoSISTEM.GridHabitat,
                                       ::Any)
 
-"""
-    gather_abundance(eco::MPIEcosystem)
-
-Gather full abundances matrix on root node.
-"""
 function EcoSISTEM.gather_abundance(eco::MPIEcosystem)
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
@@ -210,34 +209,29 @@ function _calcordinariness(eco::MPIEcosystem)
            relab
 end
 
-"""
-    gather_diversity(eco::MPIEcosystem, divmeasure::F, q) where F <: Function
-
-Gather diversity calculated by `divmeasure` at value `q` from all MPI nodes onto
-the root node (rank 0), combining subcommunity diversity values using a power
-mean weighted by total abundances across nodes.
-"""
 function EcoSISTEM.gather_diversity(eco::MPIEcosystem, divmeasure::F,
                                     q) where {F <: Function}
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
-    div = divmeasure(eco, q)
+    diversity = divmeasure(eco, q)
     totalabun = MPI.Gather(sum(eco.abundances.rows_matrix), 0, comm)
-    mpidivs = MPI.Gather(div[!, :diversity], 0, comm)
+    mpidivs = MPI.Gather(diversity[!, :diversity], 0, comm)
     if rank == 0
         mpidivs = vcat(reshape(mpidivs, countsubcommunities(eco), totalsize),
-                       div[!, :q])
-        div[!, :diversity] .= mapslices(x -> Diversity.powermean(x[:,
-                                                                   1:(end - 1)],
-                                                                 1 .- x[:, end],
-                                                                 totalabun .*
-                                                                 1.0),
-                                        mpidivs,
-                                        dims = 2)[:,
-                                                  1]
-        return div
+                       diversity[!, :q])
+        diversity[!, :diversity] .= mapslices(x -> Diversity.powermean(x[:,
+                                                                         1:(end - 1)],
+                                                                       1 .-
+                                                                       x[:,
+                                                                         end],
+                                                                       totalabun .*
+                                                                       1.0),
+                                              mpidivs,
+                                              dims = 2)[:,
+                                                        1]
+        return diversity
     else
-        return div
+        return diversity
     end
 end

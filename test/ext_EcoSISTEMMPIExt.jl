@@ -21,14 +21,14 @@ end
     println(Threads.nthreads())
     numSpecies = 100
     grid = (10, 10)
-    req = 10.0kJ
+    demand = 10.0kJ / day
     individuals = 1_000
     area = 100.0 * km^2
-    totalK = 100.0kJ / km^2
+    totalK = 100.0kJ / km^2 / day
     # Set up initial parameters for ecosystem
 
-    # Set up how much energy each species consumes
-    energy_vec = SolarRequirement(fill(req, numSpecies))
+    # Set up how much resource each species consumes
+    resource_vec = SolarDemand(fill(demand, numSpecies))
 
     # Set probabilities
     birth = 0.6 / year
@@ -47,25 +47,25 @@ end
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, numSpecies)
     vars = fill(0.5K, numSpecies)
-    traits = GaussTrait(opts, vars)
+    tolerance = NicheTolerance(Temperature, Normal, opts, vars)
     native = fill(true, numSpecies)
     # abun = rand(Multinomial(individuals, numSpecies))
     abun = fill(div(individuals, numSpecies), numSpecies)
-    sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                        movement, param, native)
 
     # Create abiotic environment - even grid of one temperature
-    abenv = simplehabitatAE(274.0K, grid, totalK, area)
+    habitat = simplehabitat(274.0K, grid, totalK, area)
 
-    # Set relationship between species and environment (gaussian)
-    rel = Gauss{typeof(1.0K)}()
+    # Set nichefit between species and environment (gaussian)
+    nichefit = NicheSuitability{typeof(1.0K)}()
 
     # Create ecosystem
-    @test_nowarn eco = MPIEcosystem(sppl, abenv, rel)
-    eco = MPIEcosystem(sppl, abenv, rel)
+    @test_nowarn eco = MPIEcosystem(sppl, habitat, nichefit)
+    eco = MPIEcosystem(sppl, habitat, nichefit)
     @test sum(eco.sppcounts) == length(eco.spplist.names)
     @test eco.firstsp == 1
-    @test sum(eco.sccounts) == prod(size(eco.abenv.habitat.matrix))
+    @test sum(eco.sccounts) == prod(size(eco.habitat.regime.matrix))
     @test eco.firstsc == 1
 
     # Simulation Parameters
@@ -100,27 +100,28 @@ end
 end
 
 @testset "mpirun" begin
-    # Keep outputs all one folder 
-    isdir("data") || mkdir("data")
+    # Keep the MPI outputs in a temp dir the OS cleans up (no manual `rm` needed for hygiene).
+    # The child `mpiexec` processes read its path as their first command-line argument.
+    datadir = mktempdir()
     # Compare 1 thread 4 processes vs. 4 threads 1 process vs. 2 threads 2 processes
     withenv("JULIA_NUM_THREADS" => "4") do
         nprocs = 1
         function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(EcoSISTEM.path("SmallMPItest.jl"))`
+            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
         end
         @test success(run(cmd()))
     end
     withenv("JULIA_NUM_THREADS" => "2") do
         nprocs = 2
         function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(EcoSISTEM.path("SmallMPItest.jl"))`
+            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
         end
         @test success(run(cmd()))
     end
     withenv("JULIA_NUM_THREADS" => "1") do
         nprocs = 4
         function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(EcoSISTEM.path("SmallMPItest.jl"))`
+            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
         end
         @test success(run(cmd()))
     end
@@ -128,9 +129,9 @@ end
     ## All answers should be the same across process/thread splits. Load the
     ## saved values (note: `@load file var` binds `var` but returns the symbol
     ## list, so use `load(file, "abuns")` to get the data itself).
-    abuns1thread = load("data/Test_abuns1.jld2", "abuns")
-    abuns2thread = load("data/Test_abuns2.jld2", "abuns")
-    abuns4thread = load("data/Test_abuns4.jld2", "abuns")
+    abuns1thread = load(joinpath(datadir, "Test_abuns1.jld2"), "abuns")
+    abuns2thread = load(joinpath(datadir, "Test_abuns2.jld2"), "abuns")
+    abuns4thread = load(joinpath(datadir, "Test_abuns4.jld2"), "abuns")
 
     @test abuns1thread == abuns2thread == abuns4thread
 
@@ -140,15 +141,12 @@ end
     ## reproducible across configurations".
     withenv("JULIA_NUM_THREADS" => "2") do
         nprocs = 2
-        cmd = `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(EcoSISTEM.path("SmallMPItest.jl"))`
+        cmd = `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
         @test success(run(cmd))
     end
-    abuns2thread_rerun = load("data/Test_abuns2.jld2", "abuns")
+    abuns2thread_rerun = load(joinpath(datadir, "Test_abuns2.jld2"), "abuns")
     @test abuns2thread == abuns2thread_rerun
 end
-
-# Clean up outputs
-rm("data", recursive = true)
 
 if !MPI.Finalized()
     MPI.Finalize()

@@ -68,7 +68,7 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
                                                    cache.abundances.outputfolder,
                                                    idx,
                                                    (length(cache.spplist.names),
-                                                    _getdimension(cache.abenv.habitat)...))
+                                                    _getdimension(cache.habitat.regime)...))
             return tm, cache.abundances.matrix[tm]
         else
             newtm, abun = _abundances(cache, tm - timestep)

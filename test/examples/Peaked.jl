@@ -4,15 +4,15 @@ include("CreateEco.jl")
 include("RunSim.jl")
 include("Scenarios.jl")
 
-## Peaked habitat, 10_000 species
+## Peaked regime, 10_000 species
 
 numInvasive = 1;
 numSpecies = 10_000;
 grd = (50, 50);
-req = (450000.0kJ / m^2, 192.0nm / m^2);
+demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
 individuals = 10^10;
 area = 200_000.0 * km^2;
-totalK = (4.5e11kJ / km^2, 192.0mm / km^2);
+totalK = (4.5e11kJ / km^2 / day, 192.0mm / day);
 
 habloss = 1.0 / 10year
 scenario = [
@@ -68,14 +68,16 @@ simDict = Dict("times" => 50years,
 lensim = length((0month):simDict["interval"]:simDict["times"])
 
 for i in 1:simDict["reps"]
-    abenv1 = peakedgradAE(293.0K, 303.0K, grd, totalK[1], area, 0.0K / month)
-    abenv2 = peakedgradAE(293.0K, 303.0K, grd, totalK[2], area, 0.0K / month)
-    bud = BudgetCollection2(abenv1.budget, abenv2.budget)
-    abenv = GridAbioticEnv{typeof(abenv1.habitat),
-                           typeof(bud)}(abenv1.habitat,
-                                        abenv1.active,
-                                        bud,
-                                        abenv1.names)
+    habitat1 = peakedgradhabitat(293.0K, 303.0K, grd, totalK[1], area,
+                                 0.0K / month)
+    habitat2 = peakedgradhabitat(293.0K, 303.0K, grd, totalK[2], area,
+                                 0.0K / month)
+    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
+    habitat = GridHabitat{typeof(habitat1.regime),
+                          typeof(supply)}(habitat1.regime,
+                                          habitat1.active,
+                                          supply,
+                                          habitat1.names)
 
     vars = rand(Uniform(0.75, 2.5), numSpecies + numInvasive) .* K
     opts = rand(Uniform(293.0, 303.0), numSpecies + numInvasive) .* K
@@ -90,7 +92,7 @@ for i in 1:simDict["reps"]
     paramDict = Dict("numSpecies" => numSpecies,
                      "numInvasive" => numInvasive,
                      "numIndiv" => individuals,
-                     "reqs" => req,
+                     "demand" => demand,
                      "opts" => opts,
                      "vars" => vars,
                      "birth" => birth_rates,
@@ -102,6 +104,6 @@ for i in 1:simDict["reps"]
                      "bound" => Torus())
 
     diver = zeros(length(divfuns), lensim, length(scenario))
-    runsim!(diver, abenv, paramDict, simDict, i,
+    runsim!(diver, habitat, paramDict, simDict, i,
             "/media/storage/Chapter3/Continent/Peaked/")
 end

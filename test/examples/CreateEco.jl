@@ -9,9 +9,9 @@ using Phylo
 using DataFrames
 using Diversity
 
-function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
+function create_eco(paramDict::Dict, habitat::A; bound::B = Torus(),
                     size = (mean = 1.0m^2, std = 0.0001m^2)) where
-    {A <: EcoSISTEM.AbstractAbiotic,
+    {A <: EcoSISTEM.AbstractHabitat,
      B <: EcoSISTEM.BoundaryCondition}
     # Set up initial parameters for ecosystem
     birth = haskey(paramDict, "birth") ? paramDict["birth"] : 0.6 / year
@@ -23,23 +23,23 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
     numSpecies = paramDict["numSpecies"]
     numInvasive = paramDict["numInvasive"]
     individuals = paramDict["numIndiv"]
-    req = paramDict["reqs"]
+    demand = paramDict["demand"]
     opts = paramDict["opts"]
     vars = paramDict["vars"]
     kernel = paramDict["kernel"]
 
-    # Set up how much energy each species consumes
+    # Set up how much resource each species consumes
     names = map(x -> "$x", 1:(numSpecies + numInvasive))
     tree = rand(Ultrametric{BinaryTree{DataFrame, DataFrame}}(names))
     units = unit(size.mean)
-    trts = ContinuousEvolve(uconvert(NoUnits, size.mean / units),
-                            uconvert(NoUnits, size.std / units),
-                            tree)
+    tolerance = ContinuousEvolve(uconvert(NoUnits, size.mean / units),
+                                 uconvert(NoUnits, size.std / units),
+                                 tree)
 
-    energy_vec1 = SolarRequirement(abs.(trts.mean) .* (req[1] * units))
-    energy_vec2 = WaterRequirement(abs.(trts.mean) .* (req[2] * units))
+    resource_vec1 = SolarDemand(abs.(tolerance.mean) .* (demand[1] * units))
+    resource_vec2 = WaterDemand(abs.(tolerance.mean) .* (demand[2] * units))
 
-    energy_vec = ReqCollection2(energy_vec1, energy_vec2)
+    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
     # Collect model parameters together (in this order!!)
     if length(birth) > 1
         param = PopGrowth{typeof(unit(birth[1]))}(birth, death, l, s, boost)
@@ -51,7 +51,7 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
 
     movement = BirthOnlyMovement(kernel, bound)
 
-    traits = GaussTrait(opts, vars)
+    tolerance = GaussTrait(opts, vars)
     native = fill(true, numSpecies + numInvasive)
     native[(numSpecies + 1):end] .= false
     if length(individuals) > 1
@@ -61,14 +61,14 @@ function create_eco(paramDict::Dict, abenv::A; bound::B = Torus(),
                 fill(0, numInvasive)]
     end
     sppl = SpeciesList(numSpecies + numInvasive,
-                       traits,
+                       tolerance,
                        abun,
-                       energy_vec,
+                       resource_vec,
                        movement,
                        param,
                        native)
-    rel = Gauss{typeof(first(paramDict["opts"]))}()
-    return eco = Ecosystem(traitpopulate!, sppl, abenv, rel)
+    nichefit = Gauss{typeof(first(paramDict["opts"]))}()
+    return eco = Ecosystem(tolerancepopulate!, sppl, habitat, nichefit)
 end
 
 function recreate_eco!(eco::Ecosystem,
@@ -79,7 +79,7 @@ function recreate_eco!(eco::Ecosystem,
     numInvasive = sum(.!eco.spplist.native)
     eco.spplist.abun = [rand(Multinomial(individuals, numSpecies))
                         fill(0, numInvasive)]
-    reenergise!(eco, totalK, size(eco.abenv.habitat.matrix))
-    eco.abenv.active .= true
-    return traitrepopulate!(eco)
+    resupply!(eco, totalK, size(eco.habitat.regime.matrix))
+    eco.habitat.active .= true
+    return tolerancerepopulate!(eco)
 end

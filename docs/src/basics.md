@@ -9,7 +9,7 @@ Pkg.add("EcoSISTEM")
 
 ## Setting up an ecosystem
 
-The package runs on an `Ecosystem` containing information about species, the `SpeciesList`, their environment, `AbioticEnvironment` and the relationship between the two, `TraitRelationship`.
+The package runs on an `Ecosystem` containing information about species, the `SpeciesList`, their environment, `Habitat` and the nichefit between the two, `AbstractNicheFit`.
 
 ### A simple example
 
@@ -23,12 +23,12 @@ using Diversity
 ```
 Set up initial parameters for ecosystem
 ```julia
-numSpecies = 10; grid = (5, 5); req= 10.0kJ; individuals=1000; area = 1000.0*km^2; totalK = 1.0kJ/km^2
+numSpecies = 10; grid = (5, 5); demand= 10.0kJ; individuals=1000; area = 1000.0*km^2; totalK = 1.0kJ/km^2
 ```
 
 Set up how much energy each species consumes
 ```julias
-energy_vec = SolarRequirement(fill(req, numSpecies))
+resource_vec = SolarDemand(fill(demand, numSpecies))
 ```
 
 Set rates for birth and death
@@ -56,23 +56,23 @@ traits = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
     movement, param, native)
 ```
 
 Create abiotic environment - even grid of one temperature
 ```julia
-abenv = simplehabitatAE(274.0K, grid, totalK, area)
+habitat = simplehabitat(274.0K, grid, totalK, area)
 ```
 
-Set relationship between species and environment (gaussian)
+Set nichefit between species and environment (gaussian)
 ```julia
-rel = Gauss{typeof(1.0K)}()
+nichefit = Gauss{typeof(1.0K)}()
 ```
 
 Create ecosystem
 ```julia
-eco = Ecosystem(sppl, abenv, rel)
+eco = Ecosystem(sppl, habitat, nichefit)
 ```
 
 Run simulation

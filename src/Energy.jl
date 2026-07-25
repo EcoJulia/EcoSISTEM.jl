@@ -8,406 +8,282 @@ using RasterDataSources
 
 import Base: eltype, length
 """
-    Abstract1Requirement{Energy}
+    Abstract1Demand{R}
 
-Abstract supertype for all species energy requirement types, parameterised by
-the type(s) of energy required `Energy`.
+Abstract supertype for all species resource demand types, parameterised by
+the type(s) of resource required `R`.
 """
-abstract type AbstractRequirement{Energy} end
-abstract type Abstract1Requirement{Energy} <: AbstractRequirement{Energy} end
-abstract type Abstract2Requirements{Energy} <: AbstractRequirement{Energy} end
+abstract type AbstractDemand{R} end
+abstract type Abstract1Demand{R} <: AbstractDemand{R} end
+abstract type Abstract2Demands{R} <: AbstractDemand{R} end
 
-numrequirements(::Type{<:Abstract1Requirement}) = 1
-numrequirements(::Type{<:Abstract2Requirements}) = 2
+numdemands(::Type{<:Abstract1Demand}) = 1
+numdemands(::Type{<:Abstract2Demands}) = 2
 
-function Base.eltype(::Abstract1Requirement{Energy}) where {Energy}
-    return Energy
+function Base.eltype(::Abstract1Demand{R}) where {R}
+    return R
 end
 
 """
-    SimpleRequirement <: Abstract1Requirement{Float64}
+    SimpleDemand <: Abstract1Demand{typeof(1.0/day)}
 
-A simple energy requirement is a single float for each species.
+A simple resource demand — a per-species free-resource rate for each species, `/day`. Accepts
+a plain `Vector{<:Real}` (auto-tagged `/day`) so the "no units hassle" case stays easy.
 """
-struct SimpleRequirement <: Abstract1Requirement{Float64}
-    energy::Vector{Float64}
-    exchange_rate::Float64
+struct SimpleDemand <: Abstract1Demand{_SimpleRate}
+    resource::Vector{_SimpleRate}
+    exchange_rate::typeof(1.0 * day)
 
-    function SimpleRequirement(energy::Vector{Float64})
-        return new(energy, 1.0)
+    function SimpleDemand(resource::Vector{<:Real},
+                          exchange_rate::Unitful.Quantity{Float64} = 1.0 * day)
+        return new(resource .* unit(_SimpleRate), uconvert(day, exchange_rate))
     end
 end
 
-Base.length(req::SimpleRequirement) = length(req.energy)
+Base.length(demand::SimpleDemand) = length(demand.resource)
 
-function _getenergyusage(abun::Vector{Int64}, req::SimpleRequirement)
-    return sum(abun .* req.energy)
+function _getdemand(abun::Vector{Int64}, demand::SimpleDemand)
+    return sum(abun .* demand.resource)
 end
 
 """
-    SizeRequirement <: Abstract1Requirement{Float64}
+    SizeDemand <: Abstract1Demand{typeof(1.0/day)}
 
-A simple energy requirement is a single float for each species.
+A resource demand scaled by species size — a per-species free-resource rate for each
+species, `/day` (see [`SimpleDemand`](@ref); `pop_mass_rel`/`area` are used only once, at
+initial-abundance construction time in `SpeciesList`, not by the ongoing demand:supply
+balance).
 """
-struct SizeRequirement <: Abstract1Requirement{Float64}
-    energy::Vector{Float64}
+struct SizeDemand <: Abstract1Demand{_SimpleRate}
+    resource::Vector{_SimpleRate}
     pop_mass_rel::Float64
     area::Unitful.Area
-    exchange_rate::Float64
+    exchange_rate::typeof(1.0 * day)
 
-    function SizeRequirement(energy::Vector{Float64},
-                             pop_mass_rel::Float64,
-                             area::Unitful.Area,
-                             exchange_rate::Float64 = 1.0)
-        return new(energy, pop_mass_rel, area, exchange_rate)
+    function SizeDemand(resource::Vector{<:Real},
+                        pop_mass_rel::Float64,
+                        area::Unitful.Area,
+                        exchange_rate::Unitful.Quantity{Float64} = 1.0 * day)
+        return new(resource .* unit(_SimpleRate), pop_mass_rel, area,
+                   uconvert(day, exchange_rate))
     end
 end
 
-Base.length(req::SizeRequirement) = length(req.energy)
-function _getenergyusage(abun::Vector{Int64}, req::SizeRequirement)
-    return sum(abun .* req.energy)
+Base.length(demand::SizeDemand) = length(demand.resource)
+function _getdemand(abun::Vector{Int64}, demand::SizeDemand)
+    return sum(abun .* demand.resource)
 end
 
 """
-    SolarRequirement <: Abstract1Requirement{typeof(1.0*kJ)}
+    SolarDemand <: Abstract1Demand{typeof(1.0*kJ/day)}
 
-A vector of solar energy requirements (kJ) for each species.
+A vector of per-species solar resource demands, `kJ/day`.
 """
-struct SolarRequirement <: Abstract1Requirement{typeof(1.0 * kJ)}
-    energy::Vector{typeof(1.0 * kJ)}
-    exchange_rate::typeof(1.0 / kJ)
+struct SolarDemand <: Abstract1Demand{_SolarRate}
+    resource::Vector{_SolarRate}
+    exchange_rate::typeof(inv(oneunit(_SolarRate)))
 
-    function SolarRequirement(energy::Vector{<:Unitful.Energy{Float64}},
-                              exchange_rate::Unitful.Quantity{Float64} = 1.0 /
-                                                                         mean(energy))
-        return new(uconvert.(kJ, energy), uconvert(kJ^-1, exchange_rate))
+    function SolarDemand(resource::Vector{<:Unitful.Power{Float64}},
+                         exchange_rate::Unitful.Quantity{Float64} = 1.0 /
+                                                                    mean(resource))
+        return new(uconvert.(unit(_SolarRate), resource),
+                   uconvert(inv(unit(_SolarRate)), exchange_rate))
     end
 end
 
-Base.length(req::SolarRequirement) = length(req.energy)
-function _getenergyusage(abun::Vector{Int64}, req::SolarRequirement)
-    return sum(abun .* req.energy)
+Base.length(demand::SolarDemand) = length(demand.resource)
+function _getdemand(abun::Vector{Int64}, demand::SolarDemand)
+    return sum(abun .* demand.resource)
 end
 
 """
-    WaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
+    WaterDemand <: Abstract1Demand{typeof(1.0*L/day)}
 
-A vector of water requirements (mm) for each species.
+A vector of per-species water demands, `L/day`.
 """
-struct WaterRequirement <: Abstract1Requirement{typeof(1.0 * mm)}
-    energy::Vector{typeof(1.0 * mm)}
-    exchange_rate::typeof(1.0 / mm)
+struct WaterDemand <: Abstract1Demand{_WaterRate}
+    resource::Vector{_WaterRate}
+    exchange_rate::typeof(inv(oneunit(_WaterRate)))
 
-    function WaterRequirement(energy::Vector{<:Unitful.Length{Float64}},
-                              exchange_rate::Unitful.Quantity{Float64} = 1.0 /
-                                                                         mean(energy))
-        return new(uconvert.(mm, energy), uconvert.(mm^-1, exchange_rate))
+    function WaterDemand(resource::Vector{<:VolumeFlow{Float64}},
+                         exchange_rate::Unitful.Quantity{Float64} = 1.0 /
+                                                                    mean(resource))
+        return new(uconvert.(unit(_WaterRate), resource),
+                   uconvert(inv(unit(_WaterRate)), exchange_rate))
     end
 end
-Base.length(req::WaterRequirement) = length(req.energy)
-function _getenergyusage(abun::Vector{Int64}, req::WaterRequirement)
-    return sum(abun .* req.energy)
+Base.length(demand::WaterDemand) = length(demand.resource)
+function _getdemand(abun::Vector{Int64}, demand::WaterDemand)
+    return sum(abun .* demand.resource)
 end
 
 """
-    VolWaterRequirement <: Abstract1Requirement{typeof(1.0*mm)}
-A vector of soil water volume requirements (m^3) for each species.
+    DemandCollection2{R1, R2}
+
+A pair of species resource demands (e.g. solar resource and water) consumed
+together, to match a two-resource supply.
 """
-struct VolWaterRequirement <: Abstract1Requirement{typeof(1.0 * m^3)}
-    energy::Vector{typeof(1.0 * m^3)}
-    exchange_rate::typeof(1.0 / m^3)
-
-    function VolWaterRequirement(energy::Vector{<:Unitful.Volume{Float64}},
-                                 exchange_rate::Unitful.Quantity{Float64} = 1.0 /
-                                                                            mean(energy))
-        return new(uconvert.(m^3, energy), uconvert.(m^-3, exchange_rate))
-    end
+struct DemandCollection2{R1, R2} <: Abstract2Demands{Tuple{R1, R2}}
+    one::R1
+    two::R2
 end
-Base.length(req::VolWaterRequirement) = length(req.energy)
-function _getenergyusage(abun::Vector{Int64}, req::VolWaterRequirement)
-    return sum(abun .* req.energy)
+Base.length(demand::DemandCollection2) = length(demand.one.resource)
+function Base.eltype(demand::DemandCollection2)
+    return [eltype(demand.one), eltype(demand.two)]
+end
+function _getdemand(abun::Vector{Int64}, demand::DemandCollection2)
+    return [_getdemand(abun, demand.one), _getdemand(abun, demand.two)]
 end
 
-struct ReqCollection2{R1, R2} <: Abstract2Requirements{Tuple{R1, R2}}
-    r1::R1
-    r2::R2
-end
-Base.length(req::ReqCollection2) = length(req.r1.energy)
-function Base.eltype(req::ReqCollection2)
-    return [eltype(req.r1), eltype(req.r2)]
-end
-function _getenergyusage(abun::Vector{Int64}, req::ReqCollection2)
-    return [_getenergyusage(abun, req.r1), _getenergyusage(abun, req.r2)]
+# A plot title for a Resource layer's element type, dispatched on its dimension (mirrors
+# `supplytype`/`demandtype` in `NicheInfo.jl`) rather than looked up by unit in a `Dict`.
+_resourcetitle(::Type{<:Unitful.Power}) = "Solar Radiation (kJ/day)"
+_resourcetitle(::Type{<:VolumeFlow}) = "Available water (L/day)"
+_resourcetitle(::Type{<:Real}) = "Free resource"
+
+# ---------------------------------------------------------------------------
+# Supplies — `Resource`-role layers (folded onto `ContinuousLayer{Resource}`)
+# ---------------------------------------------------------------------------
+# The concrete supply names (`SimpleSupply`/`SolarSupply`/… and the time-varying
+# `*TimeSupply`s) are aliases (in Layer.jl) over `ContinuousLayer{Resource, axis, V, Arr}`:
+# a static supply is 2-D (`Matrix`), a time supply 3-D (`Array`, indexed by `time`). The
+# constructors below fill the (unused) `size` and the per-timestep `dynamics` rule and zero
+# NaNs, reproducing the old supply structs. A supply's `size` is never read
+# (geometry/dispersal use the regime), so a placeholder is stored; `NoChange`/`cyclicChange`
+# live in HabitatUpdate.jl (included later) and resolve at call time.
+const _SUPPLY_SIZE = 1.0m
+_supply_static() = LayerUpdate(NoChange, 0.0 / s, Unitful.Dimensions{()})
+_supply_cyclic() = LayerUpdate(cyclicChange, 0.0 / s, Unitful.Dimensions{()})
+
+Base.eltype(::ContinuousLayer{Resource, A, V}) where {A, V} = V
+function Base.eltype(supply::LayerCollection2{Resource})
+    return [eltype(supply.one), eltype(supply.two)]
 end
 
-unitdict = Dict(kJ => "Solar Radiation (kJ)",
-                NoUnits => "Free energy",
-                mm => "Available water (mm)")
-"""
-    AbstractBudget
-
-Abstract supertype for all budget types
-"""
-abstract type AbstractBudget{Requirement} end
-abstract type AbstractTimeBudget{Requirement} <: AbstractBudget{Requirement} end
-
-function Base.eltype(::AbstractBudget{Energy}) where {Energy}
-    return Energy
+countsubcommunities(ab::AbstractSupply) = _countsubcommunities(ab)
+function _countsubcommunities(supply::ContinuousLayer{Resource, A, V, Arr}) where {A,
+                                                                                   V,
+                                                                                   Arr <:
+                                                                                   AbstractMatrix{V}}
+    return length(supply.matrix)
+end
+function _countsubcommunities(supply::ContinuousLayer{Resource, A, V, Arr}) where {A,
+                                                                                   V,
+                                                                                   Arr <:
+                                                                                   AbstractArray{V,
+                                                                                                 3}}
+    return length(@view supply.matrix[:, :, 1])
+end
+function _countsubcommunities(supply::LayerCollection2{Resource})
+    return _countsubcommunities(supply.one)
 end
 
-function countsubcommunities(ab::AbstractBudget)
-    return _countsubcommunities(ab)
+# The resource available in each cell: the full matrix (static), or the current time slice.
+function _getsupply(supply::ContinuousLayer{Resource, A, V, Arr}) where {A, V,
+                                                                         Arr <:
+                                                                         AbstractMatrix{V}}
+    return supply.matrix
 end
-@recipe function f(B::AbstractBudget{R}) where {R}
+function _getsupply(supply::ContinuousLayer{Resource, A, V, Arr}) where {A, V,
+                                                                         Arr <:
+                                                                         AbstractArray{V,
+                                                                                       3}}
+    return @view supply.matrix[:, :, supply.time]
+end
+function _getsupply(supply::LayerCollection2{Resource}, field::Symbol)
+    return _getsupply(getfield(supply, field))
+end
+
+function _getavailablesupply(supply::ContinuousLayer{Resource})
+    return sum(supply.matrix[.!isnan.(supply.matrix)])
+end
+function _getavailablesupply(supply::LayerCollection2{Resource})
+    return [_getavailablesupply(supply.one), _getavailablesupply(supply.two)]
+end
+
+# --- Constructors reproducing the old per-type supply structs -------------------------
+# Accepts a plain `Matrix{<:Real}` and auto-tags with `/day`, matching `SimpleDemand`'s same
+# "no units hassle" ergonomics.
+function SimpleSupply(mat::Matrix{<:Real})
+    return SimpleSupply(mat .* unit(_SimpleRate))
+end
+function SimpleSupply(mat::Matrix{_SimpleRate})
+    return ContinuousLayer{Resource, Unclassified, _SimpleRate,
+                           Matrix{_SimpleRate}}(mat, 1, _SUPPLY_SIZE,
+                                                _supply_static())
+end
+function SolarSupply(mat::Matrix{_SolarRate})
+    mat[isnan.(mat)] .= zero(_SolarRate)
+    return ContinuousLayer{Resource, SolarRadiation, _SolarRate,
+                           Matrix{_SolarRate}}(mat, 1, _SUPPLY_SIZE,
+                                               _supply_static())
+end
+function WaterSupply(mat::Matrix{_WaterRate})
+    mat[isnan.(mat)] .= zero(_WaterRate)
+    return ContinuousLayer{Resource, Precipitation, _WaterRate,
+                           Matrix{_WaterRate}}(mat, 1, _SUPPLY_SIZE,
+                                               _supply_static())
+end
+# The raw raster is a per-area rate at its own native reporting period (e.g. `L*m^-2*yr^-1`
+# for `bio12`) — `cancel` dispatches on dimension alone (any native time unit) and converts
+# straight to the canonical absolute `L/day`, against the grid's (area-preserving, see
+# `_cellsize`) cell area; no separate pre-`uconvert` step needed.
+function WaterSupply(bioclim::ClimateRaster{WorldClim{BioClim}})
+    mat = Matrix(bioclim.array)
+    mat[isnan.(mat)] .= zero(eltype(mat))
+    cellarea = _cellsize(bioclim.array)^2
+    return WaterSupply(cancel.(mat, Ref(cellarea)))
+end
+function SolarTimeSupply(mat::Array{_SolarRate, 3}, time::Int64)
+    mat[isnan.(mat)] .= zero(_SolarRate)
+    return ContinuousLayer{Resource, SolarRadiation, _SolarRate,
+                           Array{_SolarRate, 3}}(mat, time, _SUPPLY_SIZE,
+                                                 _supply_cyclic())
+end
+# Same per-cell-area treatment as `WaterSupply(::ClimateRaster{WorldClim{BioClim}})` above.
+function SolarTimeSupply(worldclim::ClimateRaster{WorldClim{Climate}},
+                         time::Int64)
+    mat = Array(worldclim.array)
+    mat[isnan.(mat)] .= zero(eltype(mat))
+    cellarea = _cellsize(worldclim.array)^2
+    return SolarTimeSupply(cancel.(mat, Ref(cellarea)), time)
+end
+function WaterTimeSupply(mat::Array{_WaterRate, 3}, time::Int64)
+    mat[isnan.(mat)] .= zero(_WaterRate)
+    return ContinuousLayer{Resource, Precipitation, _WaterRate,
+                           Array{_WaterRate, 3}}(mat, time, _SUPPLY_SIZE,
+                                                 _supply_cyclic())
+end
+# Same per-cell-area treatment as `WaterSupply(::ClimateRaster{WorldClim{BioClim}})` above.
+function WaterTimeSupply(worldclim::ClimateRaster{WorldClim{Climate}},
+                         time::Int64)
+    mat = Array(worldclim.array)
+    mat[isnan.(mat)] .= zero(eltype(mat))
+    cellarea = _cellsize(worldclim.array)^2
+    return WaterTimeSupply(cancel.(mat, Ref(cellarea)), time)
+end
+# --- Recipes --------------------------------------------------------------------------
+@recipe function f(B::ContinuousLayer{Resource, A, V}) where {A, V}
     b = ustrip.(B.matrix)
     seriestype := :heatmap
     grid --> false
     aspect_ratio --> 1
-    title --> unitdict[unit(R)]
+    title --> _resourcetitle(V)
     clims --> (minimum(b) * 0.99, maximum(b) * 1.01)
     return b
 end
-"""
-    SimpleBudget <: AbstractBudget{Float64}
-
-This budget type has a matrix of floats, representing the energy budget of each
-subcommunity in the abiotic environment.
-"""
-struct SimpleBudget <: AbstractBudget{Float64}
-    matrix::Matrix{Float64}
-end
-
-function _countsubcommunities(bud::SimpleBudget)
-    return length(bud.matrix)
-end
-function _getbudget(bud::SimpleBudget)
-    return bud.matrix
-end
-function _getavailableenergy(bud::SimpleBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-"""
-    SolarBudget <: AbstractBudget{typeof(1.0*kJ)}
-
-This budget type has a matrix of solar energy units, representing the energy
-budget of each subcommunity in the abiotic environment at a fixed point in time.
-"""
-struct SolarBudget <: AbstractBudget{typeof(1.0 * kJ)}
-    matrix::Matrix{typeof(1.0 * kJ)}
-    function SolarBudget(mat::Matrix{typeof(1.0 * kJ)})
-        mat[isnan.(mat)] .= 0 * kJ
-        return new(mat)
-    end
-end
-function _countsubcommunities(bud::SolarBudget)
-    return length(bud.matrix)
-end
-
-function _getbudget(bud::SolarBudget)
-    return bud.matrix
-end
-function _getavailableenergy(bud::SolarBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-"""
-    SolarTimeBudget <: AbstractBudget{typeof(1.0*kJ)}
-
-This budget type has a matrix of solar energy units, representing the energy
-budget of each subcommunity in the abiotic environment along with which time
-dimension we are interested in.
-"""
-mutable struct SolarTimeBudget <: AbstractTimeBudget{typeof(1.0 * kJ)}
-    matrix::Array{typeof(1.0 * kJ), 3}
-    time::Int64
-    function SolarTimeBudget(mat::Array{typeof(1.0 * kJ), 3}, time::Int64)
-        mat[isnan.(mat)] .= 0 * kJ
-        return new(mat, time)
-    end
-end
-
-function SolarTimeBudget(wc::Worldclim_monthly, time::Int64)
-    mat = Array(wc.array)
-    mat[isnan.(mat)] .= zero(eltype(mat))
-    return SolarTimeBudget(mat, time)
-end
-
-function _countsubcommunities(bud::SolarTimeBudget)
-    return length(bud.matrix[:, :, 1])
-end
-
-function _getbudget(bud::SolarTimeBudget)
-    return @view bud.matrix[:, :, bud.time]
-end
-
-function _getavailableenergy(bud::SolarTimeBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-@recipe function f(B::SolarTimeBudget, time::Int64)
+@recipe function f(B::ContinuousLayer{Resource, A, V, Arr},
+                   time::Int64) where {A, V, Arr <: AbstractArray{V, 3}}
     b = ustrip.(B.matrix)
     seriestype := :heatmap
     grid --> false
     aspect_ratio --> 1
-    title --> unitdict[kJ]
+    title --> _resourcetitle(V)
     clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
     return b[:, :, time]
 end
-
-"""
-    WaterBudget <: AbstractBudget{typeof(1.0*mm)}
-
-This budget type has a matrix of rainfall energy units, representing the energy
-budget of each subcommunity in the abiotic environment at a fixed point in time.
-"""
-struct WaterBudget <: AbstractBudget{typeof(1.0mm)}
-    matrix::Matrix{typeof(1.0mm)}
-    function WaterBudget(mat::Matrix{typeof(1.0mm)})
-        mat[isnan.(mat)] .= 0.0mm
-        return new(mat)
-    end
-end
-
-function WaterBudget(bc::ClimateRaster{WorldClim{BioClim}})
-    mat = Matrix(bc.array)
-    mat[isnan.(mat)] .= zero(eltype(mat))
-    return WaterBudget(mat)
-end
-
-function _countsubcommunities(bud::WaterBudget)
-    return length(bud.matrix)
-end
-
-function _getbudget(bud::WaterBudget)
-    return bud.matrix
-end
-function _getavailableenergy(bud::WaterBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-"""
-    WaterTimeBudget <: AbstractBudget{typeof(1.0*mm)}
-
-This budget type has a matrix of rainfall units, representing the water budget
-of each subcommunity in the abiotic environment along with which time dimension
-we are interested in.
-"""
-mutable struct WaterTimeBudget <: AbstractTimeBudget{typeof(1.0 * mm)}
-    matrix::Array{typeof(1.0 * mm), 3}
-    time::Int64
-    function WaterTimeBudget(mat::Array{typeof(1.0 * mm), 3}, time::Int64)
-        mat[isnan.(mat)] .= 0 * mm
-        return new(mat, time)
-    end
-end
-
-function WaterTimeBudget(wc::Worldclim_monthly, time::Int64)
-    mat = Array(wc.array)
-    mat[isnan.(mat)] .= zero(eltype(mat))
-    return WaterTimeBudget(mat, time)
-end
-
-function _countsubcommunities(bud::WaterTimeBudget)
-    return length(bud.matrix[:, :, 1])
-end
-
-function _getbudget(bud::WaterTimeBudget)
-    return @view bud.matrix[:, :, bud.time]
-end
-function _getavailableenergy(bud::WaterTimeBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-"""
-    VolWaterBudget <: AbstractBudget{typeof(1.0*mm)}
-
-This budget type has a matrix of water volumes, representing the energy budget
-of each subcommunity in the abiotic environment at a fixed point in time.
-"""
-struct VolWaterBudget <: AbstractBudget{typeof(1.0 * m^3)}
-    matrix::Matrix{typeof(1.0 * m^3)}
-    function VolWaterBudget(mat::Matrix{typeof(1.0 * m^3)})
-        mat[isnan.(mat)] .= 0 * m^3
-        return new(mat)
-    end
-end
-function _countsubcommunities(bud::VolWaterBudget)
-    return length(bud.matrix)
-end
-
-function _getbudget(bud::VolWaterBudget)
-    return bud.matrix
-end
-function _getavailableenergy(bud::VolWaterBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-"""
-    VolWaterTimeBudget <: AbstractBudget{typeof(1.0*mm)}
-
-This budget type has a matrix of volumetric soil water units, representing the
-water budget of each subcommunity in the abiotic environment along with which
-time dimension we are interested in.
-"""
-mutable struct VolWaterTimeBudget <: AbstractTimeBudget{typeof(1.0 * m^3)}
-    matrix::Array{typeof(1.0 * m^3), 3}
-    time::Int64
-    function VolWaterTimeBudget(mat::Array{typeof(1.0 * m^3), 3}, time::Int64)
-        mat[isnan.(mat)] .= 0 * m^3
-        return new(mat, time)
-    end
-end
-
-function _countsubcommunities(bud::VolWaterTimeBudget)
-    return length(bud.matrix[:, :, 1])
-end
-
-function _getbudget(bud::VolWaterTimeBudget)
-    return @view bud.matrix[:, :, bud.time]
-end
-function _getavailableenergy(bud::VolWaterTimeBudget)
-    return sum(bud.matrix[.!isnan.(bud.matrix)])
-end
-
-@recipe function f(B::WaterTimeBudget, time::Int64)
-    b = ustrip.(B.matrix)
-    seriestype := :heatmap
-    grid --> false
-    aspect_ratio --> 1
-    title --> unitdict[mm]
-    clims --> (minimum(b[:, :, time]) * 0.99, maximum(b[:, :, time]) * 1.01)
-    return b[:, :, time]
-end
-
-struct BudgetCollection2{B1, B2} <: AbstractBudget{Tuple{B1, B2}}
-    b1::B1
-    b2::B2
-end
-
-function Base.eltype(bud::BudgetCollection2)
-    return [eltype(bud.b1), eltype(bud.b2)]
-end
-function _countsubcommunities(bud::BudgetCollection2)
-    return length(bud.b1.matrix[:, :, 1])
-end
-
-function _getbudget(bud::BudgetCollection2, field::Symbol)
-    B = getfield(bud, field)
-    return _getbudget(B)
-end
-
-function _getbudget(bud::Bud, field::Symbol) where {Bud <: AbstractTimeBudget}
-    B = getfield(bud, field)
-    return B.matrix[:, :, B.time]
-end
-
-function _getavailableenergy(bud::BudgetCollection2)
-    return [_getavailableenergy(bud.b1), _getavailableenergy(bud.b2)]
-end
-
-@recipe function f(H::BudgetCollection2{B1, B2}) where {B1, B2}
-    x, y = B.b1, B.b2
+@recipe function f(H::LayerCollection2{Resource, B1, B2}) where {B1, B2}
+    x, y = H.one, H.two
     layout := 2
     @series begin
         subplot := 1

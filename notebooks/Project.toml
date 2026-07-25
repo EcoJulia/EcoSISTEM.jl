@@ -1,0 +1,11 @@
+[deps]
+AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Diversity = "d3d5718d-52de-57ab-b67a-eca7fd6175a4"
+EcoSISTEM = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
+OnlineStats = "a15396b6-48d5-5d58-9928-6d29437db91e"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
+RasterDataSources = "3cb90ccd-e1b6-4867-9617-4276c8b2ca36"
+SpatialEcology = "348f2d5d-71a3-5ad4-b565-8af070f99681"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"

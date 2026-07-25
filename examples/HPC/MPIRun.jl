@@ -28,13 +28,13 @@ close(io)
 # Set up initial parameters for ecosystem
 numSpecies = 2^16;
 grid = (256, 256);
-req = 1.0kJ;
+demand = 1.0kJ / day;
 individuals = 2^26;
 area = 1_000_000.0 * km^2;
-totalK = 1000.0kJ / km^2;
+totalK = 1000.0kJ / km^2 / day;
 
-# Set up how much energy each species consumes
-energy_vec = SolarRequirement(fill(req, numSpecies))
+# Set up how much resource each species consumes
+resource_vec = SolarDemand(fill(demand, numSpecies))
 
 # Set probabilities
 birth = 0.6 / year
@@ -53,23 +53,23 @@ movement = BirthOnlyMovement(kernel, Torus())
 # Create species list, including their temperature preferences, seed abundance and native status
 opts = fill(274.0K, numSpecies)
 vars = fill(0.5K, numSpecies)
-traits = GaussTrait(opts, vars)
+tolerance = GaussTrait(opts, vars)
 native = fill(true, numSpecies)
 # abun = rand(Multinomial(individuals, numSpecies))
 abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                    movement, param, native)
 
 # Create abiotic environment - even grid of one temperature
-abenv = simplehabitatAE(274.0K, grid, totalK, area)
+habitat = simplehabitat(274.0K, grid, totalK, area)
 
-# Set relationship between species and environment (gaussian)
-rel = Gauss{typeof(1.0K)}()
+# Set nichefit between species and environment (gaussian)
+nichefit = Gauss{typeof(1.0K)}()
 
 rank == 0 && println("Startup: $((time() - start) * s)")
 
 # Create ecosystem
-eco = MPIEcosystem(sppl, abenv, rel)
+eco = MPIEcosystem(sppl, habitat, nichefit)
 
 io = open(joinpath(SAVEDIR,
                    "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),

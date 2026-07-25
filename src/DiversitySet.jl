@@ -33,35 +33,36 @@ function updatesimulation!(cache::CachedEcosystem, tm::Unitful.Time)
 end
 
 """
-    gettimes(div::DiversitySet)
+    gettimes(diversityset::DiversitySet)
 
 Return the timepoints in a [`DiversitySet`](@ref) for which diversity has not
 yet been calculated. If a previously saved Feather file of results is found,
 only times beyond the latest recorded time are returned.
 """
-function gettimes(div::DiversitySet)
-    file = searchdir(div.folder, ".feather")
-    if ismissing(div.data) & isempty(file)
-        return div.times
+function gettimes(diversityset::DiversitySet)
+    file = searchdir(diversityset.folder, ".feather")
+    if ismissing(diversityset.data) & isempty(file)
+        return diversityset.times
     else
-        if ismissing(div.data) & !isempty(file)
-            div.data = Feather.read(joinpath(div.folder, file[1]))
-            div.data[:type_name] = ""
-            div.data[:time] *= 1s
+        if ismissing(diversityset.data) & !isempty(file)
+            diversityset.data = Feather.read(joinpath(diversityset.folder,
+                                                      file[1]))
+            diversityset.data[:type_name] = ""
+            diversityset.data[:time] *= 1s
         end
-        latesttime = maximum(div.data[:time])
-        newtimes = div.times[div.times .> latesttime]
+        latesttime = maximum(diversityset.data[:time])
+        newtimes = diversityset.times[diversityset.times .> latesttime]
         return newtimes
     end
 end
 
 import DataFrames.append!
 """
-    append!(div::DiversitySet, dat::DataFrame)
+    append!(diversityset::DiversitySet, dat::DataFrame)
 
 Append a `DataFrame` of diversity results `dat` to the data stored in a
 [`DiversitySet`](@ref).
 """
-function append!(div::DiversitySet, dat::DataFrame)
-    return append!(div.data, dat)
+function append!(diversityset::DiversitySet, dat::DataFrame)
+    return append!(diversityset.data, dat)
 end

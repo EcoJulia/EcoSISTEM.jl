@@ -5,228 +5,219 @@ using EcoSISTEM.Units
 
 import Base.eltype
 """
-    AbstractTraitRelationship{TR}
+    AbstractNicheFit{NF}
 
 The abstract supertype of relationships between a trait and its environment,
-parameterised on any TR.
+parameterised on any NF.
 
 """
-abstract type AbstractTraitRelationship{TR} end
+abstract type AbstractNicheFit{NF} end
 
 """
-    Gauss{TR} <: AbstractTraitRelationship{TR}
+    NicheSuitability{NF} <: AbstractNicheFit{NF}
 
-The Gaussian relationship between a continuous trait and its environment,
-paramaterised on any TR.
+The nichefit between a [`NicheTolerance`](@ref) continuous trait and its environment: the density of the
+trait's response distribution evaluated at the current regime value, parameterised on any `NF`.
+Works for any `Distributions.ContinuousUnivariateDistribution` (e.g. [`Trapezoid`](@ref) or `Uniform`).
+"""
+mutable struct NicheSuitability{NF} <: AbstractNicheFit{NF}
+end
+
+function (::NicheSuitability{NF})(dist::ContinuousUnivariateDistribution,
+                                  current) where {NF}
+    return pdf(dist, _toframe(NF, current))
+end
+
+# Convert `current` to the frame `NF` expects before stripping. When `NF` is a concrete `Quantity` type
+# (the real case, via `_default_suitability`'s tolerance-derived `NF`), this is a real `uconvert` — so a
+# dimensionally-compatible-but-differently-scaled regime is corrected rather than silently wrong, and a
+# genuinely incompatible dimension still throws, just via `uconvert` instead of dispatch. `NF` can also be
+# an abstract dimension (e.g. `Unitful.Temperature`) or a bare non-quantity type — neither names a single
+# fixed target scale to convert to, so just strip as before.
+_toframe(::Type{NF}, current) where {NF <: Quantity} = ustrip(unit(NF), current)
+_toframe(::Type{NF}, current) where {NF} = ustrip(current)
+iscontinuous(nichefit::NicheSuitability) = true
+function Base.eltype(nichefit::NicheSuitability{NF}) where {NF}
+    return NF
+end
+
+# The deprecated `Gauss`/`Trapeze`/`Unif` nichefit shims (all `NicheSuitability` now) live in
+# `src/deprecations.jl`.
 
 """
-mutable struct Gauss{TR} <: AbstractTraitRelationship{TR}
-end
+    MatchSuitability{NF} <: AbstractNicheFit{NF}
 
-function (::Gauss{TR})(current::TR, opt::TR, var::TR) where {TR}
-    pref = (1.0) / sqrt(2 * π * var^2) *
-           exp(-abs(current - opt)^2 / (2 * var^2))
-    return pref * unit(current)
-end
-iscontinuous(tr::Gauss) = true
-function Base.eltype(tr::Gauss{TR}) where {TR}
-    return TR
-end
-
-"""
-    Trapeze{TR} <: AbstractTraitRelationship{TR}
-
-The relationship between a continuous trait and its environment,
-paramaterised on any TR.
-
-"""
-mutable struct Trapeze{TR} <: AbstractTraitRelationship{TR}
-end
-
-function (::Trapeze{TR})(dist::Trapezoid, current::TR) where {TR}
-    return pdf(dist, ustrip(current))
-end
-iscontinuous(tr::Trapeze) = true
-function Base.eltype(tr::Trapeze{TR}) where {TR}
-    return TR
-end
-
-"""
-    Trapeze{TR} <: AbstractTraitRelationship{TR}
-
-The relationship between a continuous trait and its environment,
-paramaterised on any TR.
-
-"""
-mutable struct Unif{TR} <: AbstractTraitRelationship{TR}
-end
-
-function (::Unif{TR})(dist::Uniform, current::TR) where {TR}
-    return pdf(dist, uconvert(NoUnits, current / mm))
-end
-iscontinuous(tr::Unif) = true
-function Base.eltype(tr::Unif{TR}) where {TR}
-    return TR
-end
-
-"""
-    Match{TR} <: AbstractTraitRelationship{TR}
-
-The relationship between a discrete trait and its environment,
-paramaterised on any TR. Current conditions are matched to a trait preference
+The nichefit between a discrete trait and its environment,
+paramaterised on any NF. Current conditions are matched to a trait preference
 and checked for a match.
 
 """
-mutable struct Match{TR} <: AbstractTraitRelationship{TR}
+mutable struct MatchSuitability{NF} <: AbstractNicheFit{NF}
 end
-function (::Match{TR})(niche::TR, pref::TR) where {TR}
+function (::MatchSuitability{NF})(niche::NF, pref::NF) where {NF}
     if niche == pref
         return 1.0
     else
         return 0.5
     end
 end
-iscontinuous(tr::Match) = false
-function Base.eltype(tr::Match{TR}) where {TR}
-    return TR
+iscontinuous(nichefit::MatchSuitability) = false
+function Base.eltype(nichefit::MatchSuitability{NF}) where {NF}
+    return NF
 end
 
-mutable struct LCmatch{TR} <: AbstractTraitRelationship{TR}
+mutable struct LandCoverSuitability{NF} <: AbstractNicheFit{NF}
 end
-function (::LCmatch{TR})(niche::TR, pref::Vector{TR}) where {TR}
+function (::LandCoverSuitability{NF})(niche::NF, pref::Vector{NF}) where {NF}
     if niche in pref
         return 1.0
     else
         return 0.0
     end
 end
-iscontinuous(tr::LCmatch) = false
-function Base.eltype(::LCmatch{TR}) where {TR}
-    return TR
+iscontinuous(nichefit::LandCoverSuitability) = false
+function Base.eltype(::LandCoverSuitability{NF}) where {NF}
+    return NF
 end
 
 """
-    NoRelContinuous{TR} <: AbstractTraitRelationship{TR}
+    NoFitContinuous{NF} <: AbstractNicheFit{NF}
 
-The absense of a relationship between a continuous trait and its environment,
-paramaterised on any TR. Returns the value 1.
+The absence of a nichefit between a continuous trait and its environment,
+paramaterised on any NF. Returns the value 1.
 
 """
-mutable struct NoRelContinuous{TR} <: AbstractTraitRelationship{TR}
+mutable struct NoFitContinuous{NF} <: AbstractNicheFit{NF}
 end
-function (::NoRelContinuous{TR})(::TR, ::TR, ::TR) where {TR}
+function (::NoFitContinuous{NF})(::NF, ::NF, ::NF) where {NF}
     return 1.0
 end
-iscontinuous(tr::NoRelContinuous) = true
-function Base.eltype(tr::NoRelContinuous{TR}) where {TR}
-    return TR
+iscontinuous(nichefit::NoFitContinuous) = true
+function Base.eltype(nichefit::NoFitContinuous{NF}) where {NF}
+    return NF
 end
 
 """
-    NoRelDiscrete{TR} <: AbstractTraitRelationship{TR}
+    NoFitDiscrete{NF} <: AbstractNicheFit{NF}
 
-The absense of a relationship between a discrete trait and its environment,
-paramaterised on any TR. Returns the value 1.
+The absence of a nichefit between a discrete trait and its environment,
+paramaterised on any NF. Returns the value 1.
 
 """
-mutable struct NoRelDiscrete{TR} <: AbstractTraitRelationship{TR}
+mutable struct NoFitDiscrete{NF} <: AbstractNicheFit{NF}
 end
-function (::NoRelDiscrete{TR})(niche::TR, pref::TR) where {TR}
+function (::NoFitDiscrete{NF})(niche::NF, pref::NF) where {NF}
     return 1.0
 end
-iscontinuous(tr::NoRelDiscrete) = false
-function Base.eltype(tr::NoRelDiscrete{TR}) where {TR}
-    return TR
+iscontinuous(nichefit::NoFitDiscrete) = false
+function Base.eltype(nichefit::NoFitDiscrete{NF}) where {NF}
+    return NF
 end
 
 """
-    multiplicativeTR2{TR1, TR2} <: AbstractTraitRelationship{Tuple{TR1, TR2}}
+    multiplicativeFit2{NF1, NF2} <: AbstractNicheFit{Tuple{NF1, NF2}}
 
-Type that houses multiple AbstractTraitRelationships for two trait and
-habitat levels.
-
-"""
-mutable struct multiplicativeTR2{TR1, TR2} <:
-               AbstractTraitRelationship{Tuple{TR1, TR2}}
-    tr1::TR1
-    tr2::TR2
-end
-function iscontinuous(tr::multiplicativeTR2)
-    return [iscontinuous(tr.tr1), iscontinuous(tr.tr2)]
-end
-function Base.eltype(mtr::multiplicativeTR2)
-    return [eltype(mtr.tr1), eltype(mtr.tr2)]
-end
+Type that houses multiple AbstractNicheFits for two trait and
+regime levels.
 
 """
-    multiplicativeTR3{TR1, TR2, TR3} <: AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
-
-Type that houses multiple AbstractTraitRelationships for three trait and
-habitat levels.
-
-"""
-mutable struct multiplicativeTR3{TR1, TR2, TR3} <:
-               AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
-    tr1::TR1
-    tr2::TR2
-    tr3::TR3
+mutable struct multiplicativeFit2{NF1, NF2} <:
+               AbstractNicheFit{Tuple{NF1, NF2}}
+    one::NF1
+    two::NF2
 end
-function iscontinuous(tr::multiplicativeTR3)
-    return [iscontinuous(tr.tr1), iscontinuous(tr.tr2), iscontinuous(tr.tr3)]
+function iscontinuous(nichefit::multiplicativeFit2)
+    return [iscontinuous(nichefit.one), iscontinuous(nichefit.two)]
 end
-function Base.eltype(mtr::multiplicativeTR3)
-    return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
+function Base.eltype(mnichefit::multiplicativeFit2)
+    return [eltype(mnichefit.one), eltype(mnichefit.two)]
 end
 
 """
-    additiveTR2{TR1, TR2} <: AbstractTraitRelationship{Tuple{TR1, TR2}}
+    multiplicativeFit3{NF1, NF2, NF3} <: AbstractNicheFit{Tuple{NF1, NF2, NF3}}
 
-Type that houses multiple AbstractTraitRelationships for two trait and
-habitat levels.
-
-"""
-mutable struct additiveTR2{TR1, TR2} <:
-               AbstractTraitRelationship{Tuple{TR1, TR2}}
-    tr1::TR1
-    tr2::TR2
-end
-function iscontinuous(tr::additiveTR2)
-    return [iscontinuous(tr.tr1), iscontinuous(tr.tr2)]
-end
-function Base.eltype(mtr::additiveTR2)
-    return [eltype(mtr.tr1), eltype(mtr.tr2)]
-end
+Type that houses multiple AbstractNicheFits for three trait and
+regime levels.
 
 """
-    multiplicativeTR3{TR1, TR2, TR3} <: AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
-
-Type that houses multiple AbstractTraitRelationships for three trait and
-habitat levels.
-
-"""
-mutable struct additiveTR3{TR1, TR2, TR3} <:
-               AbstractTraitRelationship{Tuple{TR1, TR2, TR3}}
-    tr1::TR1
-    tr2::TR2
-    tr3::TR3
+mutable struct multiplicativeFit3{NF1, NF2, NF3} <:
+               AbstractNicheFit{Tuple{NF1, NF2, NF3}}
+    one::NF1
+    two::NF2
+    three::NF3
 end
-function iscontinuous(tr::additiveTR3)
-    return [iscontinuous(tr.tr1), iscontinuous(tr.tr2), iscontinuous(tr.tr3)]
+function iscontinuous(nichefit::multiplicativeFit3)
+    return [
+        iscontinuous(nichefit.one),
+        iscontinuous(nichefit.two),
+        iscontinuous(nichefit.three)
+    ]
 end
-function Base.eltype(mtr::additiveTR3)
-    return [eltype(mtr.tr1), eltype(mtr.tr2), eltype(mtr.tr3)]
+function Base.eltype(mnichefit::multiplicativeFit3)
+    return [
+        eltype(mnichefit.one),
+        eltype(mnichefit.two),
+        eltype(mnichefit.three)
+    ]
 end
 
 """
-    combineTR
+    additiveFit2{NF1, NF2} <: AbstractNicheFit{Tuple{NF1, NF2}}
 
-Function that combines the output of multiple trait relationships, which varies
+Type that houses multiple AbstractNicheFits for two trait and
+regime levels.
+
+"""
+mutable struct additiveFit2{NF1, NF2} <:
+               AbstractNicheFit{Tuple{NF1, NF2}}
+    one::NF1
+    two::NF2
+end
+function iscontinuous(nichefit::additiveFit2)
+    return [iscontinuous(nichefit.one), iscontinuous(nichefit.two)]
+end
+function Base.eltype(mnichefit::additiveFit2)
+    return [eltype(mnichefit.one), eltype(mnichefit.two)]
+end
+
+"""
+    multiplicativeFit3{NF1, NF2, NF3} <: AbstractNicheFit{Tuple{NF1, NF2, NF3}}
+
+Type that houses multiple AbstractNicheFits for three trait and
+regime levels.
+
+"""
+mutable struct additiveFit3{NF1, NF2, NF3} <:
+               AbstractNicheFit{Tuple{NF1, NF2, NF3}}
+    one::NF1
+    two::NF2
+    three::NF3
+end
+function iscontinuous(nichefit::additiveFit3)
+    return [
+        iscontinuous(nichefit.one),
+        iscontinuous(nichefit.two),
+        iscontinuous(nichefit.three)
+    ]
+end
+function Base.eltype(mnichefit::additiveFit3)
+    return [
+        eltype(mnichefit.one),
+        eltype(mnichefit.two),
+        eltype(mnichefit.three)
+    ]
+end
+
+"""
+    combinefit
+
+Function that combines the output of multiple niche fits, which varies
 depending on whether multiplicative, additive etc.
 
 """
-function combineTR(tr::Union{multiplicativeTR2, multiplicativeTR3})
+function combinefit(nichefit::Union{multiplicativeFit2, multiplicativeFit3})
     return *
 end
-function combineTR(tr::Union{additiveTR2, additiveTR3})
+function combinefit(nichefit::Union{additiveFit2, additiveFit3})
     return +
 end
