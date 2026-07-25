@@ -626,3 +626,13 @@ function build_environment(spec::SourceSpec;
                              supply = supply, size = size, active = active)
 end
 
+# The declared niche axis of a data source element, from the shipped layer table (via the
+# source `code`), or `Unclassified` when the source has no table axis — or when the code is
+# unknown (a bare `ClimateRaster`, which has dropped it).
+function _specaxis(spec::SourceSpec)
+    return something(layeraxis(spec.source, spec.code),
+                     Unclassified)
+end
+_specaxis(spec::Tuple) = something(layeraxis(spec[1], spec[2]), Unclassified)
+_specaxis(::ClimateRaster) = Unclassified
+
