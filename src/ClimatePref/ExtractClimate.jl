@@ -36,6 +36,10 @@ function _findslices(axisvals, requested; strict::Bool)
     return idxs
 end
 
+# Coerce a scalar-or-vector selector to a list — dispatched on its type rather than an `isa` branch.
+_aslist(x::AbstractVector) = x
+_aslist(x) = (x,)
+
 # Resolve the third-axis selection into a tuple of index/selector args to splat (empty for the 2-D
 # `Reference`) plus a flag for whether the result collapses to a single value.
 function _sliceselector(dat::AbstractClimate, slice, year)
@@ -60,7 +64,7 @@ function _sliceselector(dat::AbstractClimate, slice, year)
     if slice === Colon()
         return ((year * 12) * month .. (year * 12 + 11) * month,), false
     end
-    months = slice isa AbstractVector ? slice : (slice,)
+    months = _aslist(slice)
     requested = [(year * 12 + (m - 1)) * month for m in months]
     return (_findslices(axisvals, requested; strict = false),), false
 end

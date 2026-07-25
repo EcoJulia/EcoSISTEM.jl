@@ -219,10 +219,13 @@ the species, `sp`, requires.
 """
 function resource_adjustment(eco::AbstractEcosystem, supply::AbstractSupply,
                              i::Int64, sp::Int64)
-    # NoGrowth freezes the population
-    eco.spplist.params isa NoGrowth && return (0.0, 0.0)
+    return _resource_adjustment_bytype(eco.spplist.params, eco, supply, i, sp)
+end
 
-    # Otherwise adjust birth/death rates by the available resource.
+# NoGrowth freezes the population; anything else adjusts birth/death rates by the available
+# resource — dispatched on `params`'s type rather than an `isa` branch in `resource_adjustment`.
+_resource_adjustment_bytype(::NoGrowth, eco, supply, i, sp) = (0.0, 0.0)
+function _resource_adjustment_bytype(::AbstractParams, eco, supply, i, sp)
     return _resource_adjustment(eco, supply, i, sp)
 end
 

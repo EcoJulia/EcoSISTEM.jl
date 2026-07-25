@@ -173,6 +173,8 @@ export Ecosystem,
        addspecies!
 
 include("Simplify.jl")
+export build_environment
+export datamask, landmask, circlemask, shapemask
 
 include("Traitfuns.jl")
 export suitability, getpref, getdist, getnichefit, getregime

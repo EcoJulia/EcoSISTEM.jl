@@ -20,6 +20,11 @@ import ArchGDAL
 
 import Base.read
 
+# Whether a Rasters dimension is one of the two spatial axes — dispatched on its type rather
+# than an `isa` branch, so `_rastertoaxisarray` can filter to the non-spatial (band/time) ones.
+_isspatialdim(::Union{X, Y}) = true
+_isspatialdim(::Rasters.Dimension) = false
+
 # Convert a Rasters raster (2-D `X`/`Y`, or 3-D `X`/`Y` with a band/time dimension) into the
 # `AxisArray` EcoSISTEM uses internally: dim 1 = `:latitude` (ascending), dim 2 = `:longitude`
 # (ascending), and an optional dim 3 = `:time` (`(1:n)·month`) or `:var` (`1:n`). Coordinates
@@ -37,7 +42,7 @@ function _rastertoaxisarray(ras::Rasters.AbstractRaster; unit = NoUnits,
     (first(Rasters.lookup(r, Y)) < last(Rasters.lookup(r, Y))) ||
         (r = reverse(r; dims = Y))
     # reorder axes to (latitude, longitude[, band/time])
-    others = filter(d -> !(d isa X || d isa Y), Rasters.dims(r))
+    others = filter(!_isspatialdim, Rasters.dims(r))
     r = permutedims(r, (Y, X, others...))
     latv = collect(Rasters.lookup(r, Y)) .* °
     lonv = collect(Rasters.lookup(r, X)) .* °
