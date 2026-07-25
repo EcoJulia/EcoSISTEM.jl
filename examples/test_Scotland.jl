@@ -59,19 +59,3 @@ heatmap(long, lat, masked;
         xlabel = "Longitude (°)", ylabel = "Latitude (°)",
         title = "Land cover restricted to the shapefile active area",
         colorbar_title = "% cover", aspect_ratio = 1)
-
-# --- a small simulation using the shapefile as the active area -------------
-# A temperature-driven habitat (WorldClim BioClim 1, annual mean temperature) over the same
-# region, with the active area again coming from the shapefile — the simplest case: read a
-# raster for the data layer, use a shapefile to determine which cells simulate at all.
-tempenv = with_logger(NullLogger()) do
-    return build_environment(WorldClim{BioClim}, 1; region = scotland,
-                             active = scotlandshape,
-                             supply = 5000.0kJ / (km^2 * day))
-end
-
-species = build_species(5; niche = (280.0K, 5.0K), axis = Temperature,
-                        resource = 1.0kJ / day, abundance = 500, seed = 1,
-                        birth = 0.5 / year, death = 0.5 / year)
-eco = build_ecosystem(species, tempenv; seed = 1)
-simulate!(eco, 2months, 1month)
