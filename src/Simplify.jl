@@ -636,3 +636,52 @@ end
 _specaxis(spec::Tuple) = something(layeraxis(spec[1], spec[2]), Unclassified)
 _specaxis(::ClimateRaster) = Unclassified
 
+# Normalise a regime spec to a `ClimateRaster`: a raster is passed through; a
+# `(source, layer[, unit])` tuple or a `SourceSpec` is read and unit-attached as in the
+# single-layer source builder.
+_as_raster(raster::ClimateRaster) = raster
+_as_raster(spec::SourceSpec) = _read(spec)
+_as_raster(spec::Tuple) = _read(SourceSpec(spec...))
+
+_regimecollection(h1, h2) = RegimeCollection2(h1, h2)
+_regimecollection(h1, h2, h3) = RegimeCollection3(h1, h2, h3)
+
+# Resolve the `supply` keyword for a multi-regime env: a tuple of specs becomes a
+# `SupplyCollection2` (there is no `SupplyCollection3`); anything else is a single supply.
+function _resolve_supplies(supply::Tuple, tlat, tlong)
+    return SupplyCollection2(map(b -> _resolve_supply(b, tlat, tlong),
+                                 supply)...)
+end
+_resolve_supplies(supply, tlat, tlong) = _resolve_supply(supply, tlat, tlong)
+
+"""
+    build_environment(regimes::Tuple; supply = nothing, size = nothing,
+        active = nothing, region = nothing)
+
+Build a multi-variable [`GridHabitat`](@ref) from 2 or 3 regime rasters combined
+into a [`RegimeCollection2`](@ref)/[`RegimeCollection3`](@ref). Each element of
+`regimes` is either a [`ClimateRaster`](@ref) or a `(source, layer)` pair (read and
+unit-attached as in the single-layer source builder, optionally `(source, layer, unit)`
+to override). The grid is the intersection of the rasters' extents, resampled onto a
+common grid (`size` to override). `supply` accepts a tuple of supply specs (→ a
+[`SupplyCollection2`](@ref)) or a single spec; `active` behaves as in the other methods.
+"""
+function build_environment(regimes::Tuple{Vararg{Union{ClimateRaster, Tuple,
+                                                       SourceSpec}}};
+                           supply = nothing,
+                           size = nothing,
+                           active = nothing,
+                           region = nothing)
+    2 <= length(regimes) <= 3 ||
+        error("build_environment takes 2 or 3 regime rasters (a RegimeCollection2 or RegimeCollection3); got $(length(regimes)).")
+    rasters = map(_as_raster, regimes)
+    axs = map(_specaxis, regimes)
+    tlat, tlong = _target_grid(rasters; size = size, region = region)
+    regimes = map((raster, ax) -> _dataregime(raster, tlat, tlong, ax), rasters,
+                  axs)
+    regime = _regimecollection(regimes...)
+    supply = _resolve_supplies(supply, tlat, tlong)
+    act = _resolve_active(active, regime, tlat, tlong)
+    return GridHabitat{typeof(regime), typeof(supply)}(regime, act, supply)
+end
+
