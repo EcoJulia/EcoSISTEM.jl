@@ -59,9 +59,9 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
         # Loop through grid squares
         for sc in 1:numsc
             # Convert 1D dimension to 2D coordinates
-            (x, y) = EcoSISTEM.convert_coords(eco, sc)
+            (y, x) = EcoSISTEM.convert_coords(eco, sc)
             # Check if grid cell currently active
-            (eco.habitat.active[x, y] && (eco.cache.totalE[sc, 1] > 0)) ||
+            (eco.habitat.active[y, x] && (eco.cache.totalE[sc, 1] > 0)) ||
                 continue
             for mpisp in mpistart:mpiend
                 truesp = eco.firstsp + mpisp - 1
@@ -233,20 +233,20 @@ function EcoSISTEM.move!(eco::MPIEcosystem,
                          truesp::Int64,
                          grd::Matrix{Int64},
                          births::Int64)
-    width, height = getdimension(eco)
-    (x, y) = EcoSISTEM.convert_coords(eco, sc, width)
+    height, width = getdimension(eco)
+    (y, x) = EcoSISTEM.convert_coords(eco, sc, height)
     lookup = EcoSISTEM.getlookup(eco, truesp)
-    calc_lookup_moves!(getboundary(eco.spplist.movement), x, y, truesp, eco,
+    calc_lookup_moves!(getboundary(eco.spplist.movement), y, x, truesp, eco,
                        births)
     # Lose moves from current grid square
     mpisp = truesp - eco.firstsp + 1
     grd[mpisp, sc] -= births
     # Map moves to location in grid
     moves = lookup.moves
-    for i in eachindex(lookup.x)
-        newx = mod(lookup.x[i] + x - 1, width) + 1
+    for i in eachindex(lookup.y)
         newy = mod(lookup.y[i] + y - 1, height) + 1
-        loc = EcoSISTEM.convert_coords(eco, (newx, newy), width)
+        newx = mod(lookup.x[i] + x - 1, width) + 1
+        loc = EcoSISTEM.convert_coords(eco, (newy, newx), height)
         grd[mpisp, loc] += moves[i]
     end
     return eco

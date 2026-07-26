@@ -27,8 +27,9 @@ using RasterDataSources
     @test EcoSISTEM.ymin(habitat.regime) == 0
     @test EcoSISTEM.xcellsize(habitat.regime) == sqrt(area / prod(grid)) / km
     @test EcoSISTEM.ycellsize(habitat.regime) == sqrt(area / prod(grid)) / km
-    @test EcoSISTEM.xcells(habitat.regime) == size(habitat.regime, 1)
-    @test EcoSISTEM.ycells(habitat.regime) == size(habitat.regime, 2)
+    # dimension 1 of regime.matrix is y (rows), dimension 2 is x (columns)
+    @test EcoSISTEM.xcells(habitat.regime) == size(habitat.regime, 2)
+    @test EcoSISTEM.ycells(habitat.regime) == size(habitat.regime, 1)
     @test EcoSISTEM.indices(habitat.regime) ==
           EcoSISTEM.coordinates(habitat.regime)
     @test EcoSISTEM.indices(habitat.regime, 1) ==

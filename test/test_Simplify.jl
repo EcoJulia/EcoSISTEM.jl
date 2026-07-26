@@ -61,6 +61,17 @@ end
         # extent not a whole number of cells warns
         @test_logs (:warn,) match_mode=:any build_environment((5km, 5km), 2km,
                                                               298.0K)
+
+        # A square extent can't distinguish x from y (both dimensions have the
+        # same count), which is exactly why a historical X/Y mixup between this
+        # synthetic path and the data-driven build_environment path went
+        # undetected. `extent` is documented as (x, y); with a non-square
+        # extent the resulting matrix must be (ny, nx) — dimension 1 = y —
+        # matching the convention used throughout Generate.jl/Habitats.jl, not
+        # (nx, ny).
+        nonsquare = build_environment((12km, 4km), cellsize, 298.0K)
+        @test size(nonsquare.regime.matrix) == (4, 12)
+        @test size(nonsquare.active) == (4, 12)
     end
 
     @testset "dispatch on the regime argument type" begin

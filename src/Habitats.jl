@@ -29,11 +29,13 @@ xmin(regime::AbstractRegime) = 0
 ymin(regime::AbstractRegime) = 0
 xcellsize(regime::AbstractRegime) = Float64(regime.size / km)
 ycellsize(regime::AbstractRegime) = Float64(regime.size / km)
-xcells(regime::AbstractRegime) = size(regime.matrix, 1)
-ycells(regime::AbstractRegime) = size(regime.matrix, 2)
+# dimension 1 of `regime.matrix` is y (rows), dimension 2 is x (columns) —
+# matching the grid convention used throughout `Generate.jl`.
+xcells(regime::AbstractRegime) = size(regime.matrix, 2)
+ycells(regime::AbstractRegime) = size(regime.matrix, 1)
 function indices(regime::AbstractRegime)
     return hcat(collect.(convert_coords.(eachindex(regime.matrix),
-                                         xcells(regime)))...)'
+                                         ycells(regime)))...)'
 end
 indices(regime::AbstractRegime, idx) = indices(regime)[:, idx]
 coordinates(regime::AbstractRegime) = indices(regime)
@@ -129,9 +131,9 @@ function _getdimension(regime::Union{DiscreteRegime, ContinuousRegime,
 end
 function _getsize(regime::Union{DiscreteRegime, ContinuousRegime,
                                 ContinuousTimeRegime})
-    x = regime.size * size(regime.matrix, 1)
-    y = regime.size * size(regime.matrix, 2)
-    return x * y
+    ysize = regime.size * size(regime.matrix, 1)
+    xsize = regime.size * size(regime.matrix, 2)
+    return ysize * xsize
 end
 import Base.size
 function Base.size(regime::Union{DiscreteRegime, ContinuousRegime,
@@ -203,7 +205,7 @@ function _resettime!(regime::RegimeCollection3)
 end
 
 function _getdimension(regime::Union{RegimeCollection2, RegimeCollection3})
-    return (size(regime.one.matrix, 1), size(regime.two.matrix, 2))
+    return (size(regime.one.matrix, 1), size(regime.one.matrix, 2))
 end
 function _getsize(regime::Union{RegimeCollection2, RegimeCollection3})
     return _getsize(regime.one)
@@ -223,8 +225,8 @@ Return the regime value at 1D grid position `pos`, converting to 2D coordinates
 internally.
 """
 function getregime(regime::H, pos::Int64) where {H <: AbstractRegime}
-    x, y = convert_coords(pos, size(regime.matrix, 1))
-    return regime.matrix[x, y]
+    y, x = convert_coords(pos, size(regime.matrix, 1))
+    return regime.matrix[y, x]
 end
 @doc (@doc getregime) getregime(::H, ::Symbol) where {H <: AbstractRegime}
 function getregime(regime::H, field::Symbol) where {H <: AbstractRegime}
@@ -237,8 +239,8 @@ Return the regime value at position `pos` for the current time slice of a
 [`ContinuousTimeRegime`](@ref).
 """
 function getregime(regime::ContinuousTimeRegime, pos::Int64)
-    x, y = convert_coords(pos, size(regime.matrix, 1))
-    return regime.matrix[x, y, regime.time]
+    y, x = convert_coords(pos, size(regime.matrix, 1))
+    return regime.matrix[y, x, regime.time]
 end
 
 function Diversity.API._countsubcommunities(regime::RegimeCollection2)
