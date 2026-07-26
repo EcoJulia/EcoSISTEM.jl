@@ -64,8 +64,11 @@ end
 # ---------------------------------------------------------------------------
 
 # Turn a physical grid extent (x, y lengths) and a cell `size` into an integer
-# `(nx, ny)` cell count, warning if the extent is not close to a whole number of
-# cells. Returns both the cell counts and the total area for the `*AE` builders.
+# `(ny, nx)` cell count — dimension 1 = y, dimension 2 = x, matching the grid
+# convention used throughout `Generate.jl`/`Habitats.jl` (and the data-driven
+# `build_environment` path) — warning if the extent is not close to a whole
+# number of cells. Returns both the cell counts and the total area for the
+# `*AE` builders.
 function _extent_dims(extent::Tuple{<:Unitful.Length, <:Unitful.Length},
                       size::Unitful.Length)
     rx = uconvert(NoUnits, extent[1] / size)
@@ -75,7 +78,7 @@ function _extent_dims(extent::Tuple{<:Unitful.Length, <:Unitful.Length},
     (nx ≥ 1 && ny ≥ 1 && isapprox(rx, nx; rtol = 1.0e-2) &&
      isapprox(ry, ny; rtol = 1.0e-2)) ||
         @warn "Grid extent $(extent[1]) × $(extent[2]) is not close to a whole number of $size cells; using a $nx × $ny grid."
-    return (Int64(nx), Int64(ny)), float(extent[1] * extent[2])
+    return (Int64(ny), Int64(nx)), float(extent[1] * extent[2])
 end
 
 # `_canonical(value, axis)` (axis-driven, in `src/Layer.jl`) canonicalises a regime value to its axis's
@@ -684,4 +687,3 @@ function build_environment(regimes::Tuple{Vararg{Union{ClimateRaster, Tuple,
     act = _resolve_active(active, regime, tlat, tlong)
     return GridHabitat{typeof(regime), typeof(supply)}(regime, act, supply)
 end
-

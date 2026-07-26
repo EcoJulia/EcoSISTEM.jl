@@ -85,6 +85,75 @@ end
           (0.0, 0.0)
 end
 
+@testset "non-square grid: y/x dimension order regression" begin
+    # A square grid cannot detect an X/Y mixup (sizes and indices coincide by
+    # accident). This grid is deliberately asymmetric, so confused code either
+    # throws a BoundsError (indexing a 2-row array with a column-range value up
+    # to 6) or silently reads the wrong cells.
+    N = 4
+    ny, nx = 2, 6
+    grid = (ny, nx)
+    area = 100.0km^2
+
+    # A partial active mask — only column x=1 is active, every row — to check
+    # the active-mask indexing itself corresponds to (y, x), not (x, y):
+    # deliberately asymmetric (not a full row/column/diagonal) so a swap would
+    # show up as reading the wrong cells, not coincidentally the same ones.
+    partial_active = fill(false, ny, nx)
+    partial_active[:, 1] .= true
+    partial_habitat = simplehabitat(274.0K, grid, 10000.0kJ / km^2 / day, area,
+                                    partial_active)
+    @test size(partial_habitat.regime.matrix) == grid
+    @test size(partial_habitat.active) == grid
+    @test all(partial_habitat.active[y, 1] for y in 1:ny)
+    @test all(!partial_habitat.active[y, x] for y in 1:ny, x in 2:nx)
+
+    tolerance = NicheTolerance(Temperature, Normal, fill(274.0K, N),
+                               fill(0.5K, N))
+    param = EqualPop(0.6 / month, 0.6 / month, 1.0, 0.0, 1000.0)
+    kernel = GaussianKernel.(fill(1.0km, N), 1.0e-3)
+    movement = BirthOnlyMovement(kernel)
+    native = fill(true, N)
+    abun = fill(10, N)
+    resource = SolarDemand(fill(2.0kJ / day, N))
+    sppl = SpeciesList(N, tolerance, abun, resource, movement, param, native)
+
+    # A fully-active habitat for exercising calc_lookup_moves!/update! at
+    # extreme y/x coordinates — every cell reachable, so no cell's move
+    # probabilities can go to zero regardless of dimension order.
+    habitat = simplehabitat(274.0K, grid, 10000.0kJ / km^2 / day, area)
+    @test size(habitat.regime.matrix) == grid
+    @test size(habitat.active) == grid
+
+    nichefit = NicheSuitability{eltype(habitat.regime)}()
+    eco = Ecosystem(sppl, habitat, nichefit)
+
+    # getdimension must report (ny, nx) — the actual array shape — not (nx, ny).
+    @test EcoSISTEM.getdimension(eco) == grid
+
+    # Calling calc_lookup_moves! at every combination of extreme y/x coordinates
+    # must not throw — a BoundsError here is exactly what an X/Y mixup produces
+    # on a non-square grid (e.g. checking a y=2-valid offset against nx=6's
+    # bound instead of ny=2's, then indexing a nonexistent row of `active`).
+    for (y, x) in ((1, 1), (ny, 1), (1, nx), (ny, nx))
+        @test_nowarn EcoSISTEM.calc_lookup_moves!(eco.spplist.movement.boundary,
+                                                  y, x, 1, eco, 5)
+        @test_nowarn EcoSISTEM.calc_lookup_moves!(Cylinder(), y, x, 1, eco, 5)
+        @test_nowarn EcoSISTEM.calc_lookup_moves!(Torus(), y, x, 1, eco, 5)
+    end
+
+    # convert_coords must round-trip correctly through the (y,x) convention —
+    # height (dimension 1) is ny, not nx.
+    for i in 1:(ny * nx)
+        (y, x) = EcoSISTEM.convert_coords(eco, i, ny)
+        @test 1 <= y <= ny && 1 <= x <= nx
+        @test EcoSISTEM.convert_coords(y, x, ny) == i
+    end
+
+    # A full timestep must run without error on this asymmetric grid.
+    @test_nowarn update!(eco, 1month)
+end
+
 @testset "Multithreaded reproducibility" begin
     # A seeded run must give identical results regardless of the number of
     # threads. Run the same seeded simulation in child processes forced to use
