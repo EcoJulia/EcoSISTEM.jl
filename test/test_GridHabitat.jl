@@ -519,36 +519,40 @@ end
         # construction is pure — no read/download happens until `GridHabitat` materialises it.
         # Neither combine names an array type: a raster broadcasts and yields a raster, so the
         # mask is `Bool`-valued but still a raster, exactly like a layer combine's result.
-        # Every EarthEnv read here is cut to Europe, and the reason is a hard ceiling rather than
-        # tidiness. A `within` mask cannot be windowed by the study area: it is what DECIDES the
-        # grid, so with no bound of its own the whole world is fetched, compressed and compared --
-        # twice here -- and then a habitat is built on every land cell on earth.
+        # Every EarthEnv read here is cut to Scotland AND read at `scale = 1`, and both halves are
+        # load-bearing. A `within` mask cannot be windowed by the study area -- it is what DECIDES
+        # the grid -- so an unbounded mask fetches, compresses and compares the whole world twice and
+        # then builds a habitat on every land cell on earth: measured at 14.6 GB resident for this
+        # file, against the 16 GB a runner has, and the file peaks at 2.1 GB without this testset.
         #
-        # Measured peak resident for this file, against a GitHub runner's 16 GB: 2.1 GB without this
-        # testset at all, and 14.6 GB with it unbounded. So this testset was the whole of the file's
-        # cost, and it is what shut the Linux runner down and what left macOS with so little free
-        # memory that Rasters refused a later 60 MB read in this same file.
+        # `scale` is the half that is easy to get wrong, so the measurements are recorded. Reading at
+        # the default scale AGGREGATES, and the aggregate cache is keyed on the whole source file
+        # rather than on the window -- so a cut does nothing for it, and a cold cache pays to read all
+        # twelve global bands at full resolution however small the window: 10.6 to 12.2 GB, whatever
+        # scale is asked for. `scale = 1` skips aggregation altogether and reads only the window, so
+        # the cost becomes proportional to the region: 24.3 GB for Europe, 1.8 GB for Scotland.
         #
-        # Europe is chosen for what it contains rather than for its size: the assertions below need
-        # open water, and they need the four classes the nature mask excludes on top of water to be
-        # present somewhere, which coasts, cities, Alpine barren and Scandinavian snow supply. A
-        # region without them would make the second test pass vacuously.
+        # Scotland is chosen for what it contains, not for its size. The assertions need open water,
+        # and they need the classes the nature mask excludes on top of water to be present, or the
+        # second one passes vacuously -- coast and islands, cities, Highland barren and cultivated
+        # ground supply all of them.
         #
-        # `cut` is the right lever and two others are not, both measured rather than assumed.
-        # `cellsize` on the study area does nothing here (12.5 GB, and an error): the mask is
-        # materialised at native resolution to decide the extent, so a coarser target grid arrives
-        # too late. `extent` is refused outright -- it is a size rather than a bounding box, and
-        # naming one beside data layers that carry their own extent is an error by construction.
-        europe = EcoSISTEM.boundingbox("Europe", islands = true)
+        # Two other levers were measured and do not work. `cellsize` on the study area does nothing
+        # (12.5 GB, and an error): the mask is materialised at native resolution to decide the extent,
+        # so a coarser target grid arrives too late. `extent` is refused by construction, being a size
+        # rather than a bounding box.
+        scotland = EcoSISTEM.boundingbox("Scotland", islands = true)
         landmask = ConstructedSpec(
                                    SourceSpec(EarthEnv{LandCover},
-                                              cut = europe),
+                                              cut = scotland,
+                                              scale = 1),
                                    axis = EcoSISTEM.NicheAxis) do lc
             compress_landcover(lc) .!= landcoverclass(:open_water)
         end
         naturemask = ConstructedSpec(
                                      SourceSpec(EarthEnv{LandCover},
-                                                cut = europe),
+                                                cut = scotland,
+                                                scale = 1),
                                      axis = EcoSISTEM.NicheAxis) do lc
             excluded = landcoverclass.((:open_water, :urban_builtup, :barren,
                                         :snow_ice, :cultivated_and_managed))
@@ -562,7 +566,7 @@ end
         # regression oracle for the whole chain: spec -> `read(EarthEnv{LandCover})` ->
         # `compress_landcover` -> combine rule -> `_samplemask`.
         cultivated = SourceSpec(EarthEnv{LandCover}, :cultivated_and_managed,
-                                cut = europe)
+                                cut = scotland, scale = 1)
         lenv = _env(cultivated, SUP, within = landmask)
         @test lenv isa GridHabitat
         @test 0 < count(lenv.active) < length(lenv.active)
