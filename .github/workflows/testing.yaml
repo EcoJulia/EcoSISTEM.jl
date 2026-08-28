@@ -55,21 +55,36 @@ jobs:
         arch: ${{ matrix.arch }}
     - name: Cache
       uses: julia-actions/cache@v3
-    - name: Cache raster data
+    - name: Restore the raster data cache
+      id: rasters
       # julia-actions/cache caches the package depot but not scratchspaces, where the raster
-      # downloads (~850 MB) and aggregated layers (~700 MB) live. Cache them here (tar preserves
-      # mtime, so the aggregate cache — keyed partly on source mtime — still hits). Keyed on every
-      # file that actually triggers a download (getraster/read/readCRUTS/readCHELSA_monthly/download
-      # calls — not just the two reader test files), with a prefix fallback so the newest is restored
-      # otherwise: a restored cache can never be wrong, only incomplete, since getraster/download
-      # each check the file's own existence before fetching — a stale/partial restore just costs a
-      # few more per-file downloads, not incorrect data. Aggregate correctness across code changes is
-      # handled in-code via the cache key's file-content hash, so this key need not track
-      # src/ClimatePref/ReadData.jl.
-      uses: actions/cache@v6
+      # downloads (~850 MB) and aggregated layers (~700 MB) live. Cache them here — tar preserves
+      # mtime, so the aggregate cache, which is keyed partly on source mtime, still hits.
+      #
+      # 🔴 RESTORE AND SAVE ARE SEPARATE STEPS BECAUSE THE SAVE MUST HAPPEN ON A FAILING JOB.
+      # `actions/cache` writes its cache in an implicit post-job step that only runs when the job
+      # succeeded, so a suite that fails for any reason — including running out of time *because*
+      # nothing was cached — can never populate the cache it needed. That is not hypothetical: it is
+      # why every run so far has reported `Cache not found`, re-downloaded ~850 MB, and spent about
+      # a quarter of the macOS job doing it. The explicit save step below carries `if: always()`.
+      #
+      # ⭐ THE KEY IS DELIBERATELY STATIC, and versioned by hand. Content-hashing the files that
+      # trigger downloads was the previous approach and had two faults: it named
+      # `test/test_ReadData.jl` and `test/test_AbioticEnv.jl`, both of which were renamed out of
+      # existence (`hashFiles` contributes nothing for a path that does not exist, so the key silently
+      # stopped tracking anything), and nineteen test files can now trigger a download, so any edit to
+      # any of them would mint a fresh ~1.3 GB cache entry per matrix job and evict the far more
+      # valuable depot caches under the repository's 10 GB ceiling.
+      #
+      # ⚠️ A restored cache can never be wrong, only incomplete: `getraster`/`download` each test the
+      # target file's own existence before fetching, so a partial restore costs a few per-file
+      # downloads rather than giving incorrect data. That is what makes a static key safe — and it is
+      # also the repair route if a save ever lands incomplete. BUMP THE `-v1` SUFFIX to mint a new
+      # entry; there is no need to work out which file changed.
+      uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-${{ hashFiles('test/test_ReadData.jl', 'test/test_AbioticEnv.jl', 'test/test_deprecations.jl', 'examples/ScottishCultivatedLand.jl', 'notebooks/InteractiveAfrica.jl') }}
+        key: rasterdata-${{ runner.os }}-v1
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Build package
@@ -94,6 +109,21 @@ jobs:
       if: always()
       shell: bash
       run: rm -rf ~/.julia/scratchspaces/*/assets/RasterDataSources/*/*/zips
+    - name: Save the raster data cache
+      # ⭐ `if: always()` is the whole point of splitting restore from save — see the restore step.
+      # Skipped on an exact hit, since `actions/cache/save` cannot overwrite a key that already
+      # exists and would only log a warning. `cache-hit` is `true` only for an *exact* match, so a
+      # run that fell back to the `restore-keys` prefix does still save, which is how a cache minted
+      # under an older key version gets promoted to the current one.
+      #
+      # ⚠️ Ordered after the archive discard above, so the 182 MB of zips are gone before the save
+      # reads the directory. With the implicit post-job save this ordering was invisible and only
+      # worked by accident of post steps running last.
+      if: always() && steps.rasters.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.julia/scratchspaces
+        key: rasterdata-${{ runner.os }}-v1
     - name: Process coverage
       if: matrix.os == 'macOS-latest' && matrix.julia-version == '1'
       uses: julia-actions/julia-processcoverage@v1
