@@ -1,15 +1,14 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 using Pkg
-"EcoSISTEM" ∈ [p.name for p in values(Pkg.dependencies())] &&
-    Pkg.rm("EcoSISTEM")
-Pkg.develop(path = joinpath(@__DIR__, ".."))
+Pkg.resolve()
 
 using Documenter
 using EcoSISTEM
+using RasterDataSources
 
 DocMeta.setdocmeta!(EcoSISTEM, :DocTestSetup,
-                    :(using EcoSISTEM); recursive = true)
+                    :(using EcoSISTEM), recursive = true)
 
 makedocs(modules = [EcoSISTEM],
          sitename = "EcoSISTEM.jl",
@@ -20,7 +19,13 @@ makedocs(modules = [EcoSISTEM],
              "Home" => "index.md",
              "Biodiversity" => [
                  "Basics" => "basics.md",
+                 "How the model works" => "model.md",
+                 "Layers" => "layers.md",
+                 "Axes, units and roles" => "units.md",
+                 "Time" => "time.md",
+                 "Interventions" => "interventions.md",
                  "Diversity" => "diversity.md",
+                 "Running at scale" => "scale.md",
                  "Examples" => "examples.md",
                  "Africa" => "africa.md",
                  "Data Pipeline" => "pipeline.md"
