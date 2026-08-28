@@ -519,11 +519,36 @@ end
         # construction is pure — no read/download happens until `GridHabitat` materialises it.
         # Neither combine names an array type: a raster broadcasts and yields a raster, so the
         # mask is `Bool`-valued but still a raster, exactly like a layer combine's result.
-        landmask = ConstructedSpec(EarthEnv{LandCover},
+        # Every EarthEnv read here is cut to Europe, and the reason is a hard ceiling rather than
+        # tidiness. A `within` mask cannot be windowed by the study area: it is what DECIDES the
+        # grid, so with no bound of its own the whole world is fetched, compressed and compared --
+        # twice here -- and then a habitat is built on every land cell on earth.
+        #
+        # Measured peak resident for this file, against a GitHub runner's 16 GB: 2.1 GB without this
+        # testset at all, and 14.6 GB with it unbounded. So this testset was the whole of the file's
+        # cost, and it is what shut the Linux runner down and what left macOS with so little free
+        # memory that Rasters refused a later 60 MB read in this same file.
+        #
+        # Europe is chosen for what it contains rather than for its size: the assertions below need
+        # open water, and they need the four classes the nature mask excludes on top of water to be
+        # present somewhere, which coasts, cities, Alpine barren and Scandinavian snow supply. A
+        # region without them would make the second test pass vacuously.
+        #
+        # `cut` is the right lever and two others are not, both measured rather than assumed.
+        # `cellsize` on the study area does nothing here (12.5 GB, and an error): the mask is
+        # materialised at native resolution to decide the extent, so a coarser target grid arrives
+        # too late. `extent` is refused outright -- it is a size rather than a bounding box, and
+        # naming one beside data layers that carry their own extent is an error by construction.
+        europe = EcoSISTEM.boundingbox("Europe", islands = true)
+        landmask = ConstructedSpec(
+                                   SourceSpec(EarthEnv{LandCover},
+                                              cut = europe),
                                    axis = EcoSISTEM.NicheAxis) do lc
             compress_landcover(lc) .!= landcoverclass(:open_water)
         end
-        naturemask = ConstructedSpec(EarthEnv{LandCover},
+        naturemask = ConstructedSpec(
+                                     SourceSpec(EarthEnv{LandCover},
+                                                cut = europe),
                                      axis = EcoSISTEM.NicheAxis) do lc
             excluded = landcoverclass.((:open_water, :urban_builtup, :barren,
                                         :snow_ice, :cultivated_and_managed))
@@ -536,7 +561,8 @@ end
         # Materialisation — real (small single-class) EarthEnv{LandCover} network read, the
         # regression oracle for the whole chain: spec -> `read(EarthEnv{LandCover})` ->
         # `compress_landcover` -> combine rule -> `_samplemask`.
-        cultivated = SourceSpec(EarthEnv{LandCover}, :cultivated_and_managed)
+        cultivated = SourceSpec(EarthEnv{LandCover}, :cultivated_and_managed,
+                                cut = europe)
         lenv = _env(cultivated, SUP, within = landmask)
         @test lenv isa GridHabitat
         @test 0 < count(lenv.active) < length(lenv.active)

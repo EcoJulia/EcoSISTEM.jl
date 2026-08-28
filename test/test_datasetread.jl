@@ -30,16 +30,25 @@ if !Sys.iswindows()
         @test_nowarn read(WorldClim{Climate}, :wind, month = 1:12)
         @test_nowarn read(CRUTS, winddir, "tavg")
         @test_nowarn read(CHELSA{Climate}, winddir, "wind")
-        # CHELSA bioclim is a 43200×20880 global grid; reading it at full
-        # resolution allocates several ~7 GiB Float64 arrays and OOMs CI.
-        # Downsample to WorldClim's 10-arcmin resolution to keep it bounded.
+        # Every whole-dataset read here is downsampled, and the reason is a hard ceiling rather
+        # than tidiness: a GitHub runner has 16 GB, and one of these files reading at native
+        # resolution took the process to 7.0 GB and the runner to a shutdown signal. Measured peak
+        # RSS for a fresh process, baseline 1.0 GB: CHELSA bioclim is a 43200×20880 global grid and
+        # allocates several ~7 GiB Float64 arrays whole; `EarthEnv{LandCover}` costs 2.2 GB over
+        # baseline at its default scale against 0.3 GB at 40, and is read twice in this file;
+        # `WorldClim{BioClim}` costs 1.5 GB against 0.3 GB at 4.
+        #
+        # `scale` is safe for what these assert -- that the read emits no warning, and that what
+        # comes back is unitless -- since neither is a property of the resolution. A test that does
+        # depend on the grid asks for one layer rather than a whole dataset, so it never reaches
+        # this size.
         @test_nowarn read(CHELSA{BioClim}, 1, scale = 20)
-        @test_nowarn read(EarthEnv{LandCover})
+        @test_nowarn read(EarthEnv{LandCover}, scale = 40)
         @test_nowarn readfile(bio1)
     end
 
     @testset "Output data" begin
-        bioclim = read(WorldClim{BioClim})
+        bioclim = read(WorldClim{BioClim}, scale = 4)
         cr = read(CRUTS, winddir, "tavg")
         ch_b = read(CHELSA{BioClim}, 1, scale = 20)
         rf = readfile(bio1)
@@ -49,7 +58,7 @@ if !Sys.iswindows()
     end
 
     @testset "Output data 2" begin
-        landcover = read(EarthEnv{LandCover})
+        landcover = read(EarthEnv{LandCover}, scale = 40)
         @test unit(landcover.array[1]) == NoUnits
     end
 
