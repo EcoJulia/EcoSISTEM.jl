@@ -150,6 +150,18 @@ export SourceSpec, ConstructedSpec, ShapeSpec
 
 public AbstractLazySpec
 
+# How a layer changes in time: what a series does at its end, how a change value is interpreted,
+# and the recipes a caller writes. `SeriesPolicy` first — `SeriesChange` holds an `AbstractSeriesEnd`.
+include("SeriesPolicy.jl")
+
+# what a series does once elapsed time runs past its last stored slice (the `atend` keyword)
+export ErrorAtEnd, HoldAtEnd, RepeatAtEnd, RevertToLayer
+
+# what a series' time coordinates mean, and so what a run's epoch can do with them (the `calendar`
+# keyword); see `build_ecosystem`'s `epoch`
+export DatedSeries, MonthOfYearSeries, UndatedSeries
+
+public AbstractSeriesEnd, AbstractSeriesCalendar
 include("Layer.jl")
 export condition, resource
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
