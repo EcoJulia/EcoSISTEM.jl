@@ -473,6 +473,10 @@ export Temperature, TemperatureRange, TemperatureSeasonality, CumulativeHeat,
        CarbonFlux,
        LandCoverTypology, SurfaceArea, ClimateTypology, Heterogeneity, Altitude
 
+include("rasters.jl")
+
+public hasdata
+
 
 using Random
 using Hwloc
