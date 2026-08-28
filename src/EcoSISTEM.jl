@@ -123,6 +123,21 @@ public layerinfo, layersbyaxis, layerrate
 # `ClimatePref`, which exported exactly these two. Kept as it was rather than changed in passing;
 # whether the catalogue family should be uniform is a separate question.
 export layeraxis, layerunit
+
+# A raster of climate data, and the specs that lazily read one — including the three unions naming
+# everything a caller may hand to `regime`/`supply`/`within`.
+include("Climate.jl")
+
+# The concrete data-source types, and the readers and sampler that go with them. All were exported by
+# `EcoSISTEM.ClimatePref` before it was dissolved.
+export ERA, CERA, CRUTS
+
+public AbstractClimate
+
+public in_memory_raster
+
+export ClimateRaster
+
 include("Layer.jl")
 export condition, resource
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
