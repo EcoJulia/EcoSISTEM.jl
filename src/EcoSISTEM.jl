@@ -540,9 +540,26 @@ include("MPIEcosystem.jl")
 
 export MPIGridLandscape, MPIEcosystem
 
+# **What the optional extensions supply.** Every hook is declared method-less here and
+# gets its sole method from `ext/`, grouped by the extension that owns it. The mirror of the three
+# `*Interface.jl` files above: those are methods we supply on someone else's generic, this is the
+# generics we declare for someone else to supply. See the file's header for the four things that look
+# like hooks and are deliberately not here.
+include("extensions.jl")
 
+# The whole phylogenetic trait-evolution set is `public` rather than exported.
+# Not because it is machinery — a user running a phylogenetic model calls these — but because it
+# is **on its way out of this package**: the maintainer intends it to move to `Phylo` itself, and
+# `public` de-prioritises it here without withdrawing support meanwhile.
+public assigntraits!, resettraits!, reroot!, gettraits
+public discrete_evolve, continuous_evolve
 
+# The fitted trait-model supertypes, whose concrete subtypes `EcoSISTEMPhyloExt` supplies under the
+# same names. `public`, not exported -- were they exported, `using EcoSISTEM` inside that extension
+# would import the bare names and the concrete definitions could not be written.
+public Brownian
 
+public varcovar, fitbrownian
 
 
 # **THE WORKFLOW, LAST — the counterpart to `Ecology.jl` at the front.** `Ecology.jl` declares
