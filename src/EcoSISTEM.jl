@@ -278,6 +278,18 @@ export PopGrowth, EqualPop, NoGrowth
 
 public AbstractParams
 
+include("Topology.jl")
+
+# The three aliases are the API. They cover three of the four combinations —
+# `EdgeTopology{Periodic, Bounded}` has no name — and the maintainer's rule is that a fourth would get
+# an **exported alias of its own** rather than callers reaching for the underlying type. So the alias
+# layer stays the surface, and what it is built from does not.
+export Torus, Cylinder, Island
+
+public EdgeTopology, Periodic, Bounded
+
+public AbstractTopology, AbstractBoundaryCondition
+
 export SpeciesList
 
 include("Landscape.jl")
