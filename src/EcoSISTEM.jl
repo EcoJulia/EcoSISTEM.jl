@@ -477,6 +477,24 @@ include("rasters.jl")
 
 public hasdata
 
+# Reading a catalogued dataset into a `ClimateRaster`, on top of `rasters.jl`. See that file's own
+# header for why it is not in an extension.
+include("datasetread.jl")
+
+export readfile
+
+# The netCDF branch of the readers -- `read(ERA, ...)` / `read(CERA, ...)`. Separate from
+# `datasetread.jl` because it is the only code here that reads netCDF rather than GeoTIFF.
+include("erareaders.jl")
+
+# Sampling a climate raster at places and times — `extract_values`. Works on any `AbstractClimate`,
+# so it names no data source.
+include("extractclimate.jl")
+
+# `public`, not exported — a debugging aid rather than part of building or running a
+# model, so it is reached for deliberately rather than being in everyone's namespace.
+public extract_values
+
 
 using Random
 using Hwloc
