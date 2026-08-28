@@ -522,16 +522,14 @@ chosen so one block spans a CPU cache line (`cachelinesize ÷ sizeof(Int)`).
 """
 species_blocksize() = _SPECIES_BLOCK[]
 
+# Sized at load rather than compiled in, because a cache line is a property of the machine the run
+# is on. The `try` matters: `Hwloc` cannot answer on every platform, and a wrong block size is a
+# performance question rather than a correctness one, so a failure falls back rather than throwing.
 function __init__()
     _SPECIES_BLOCK[] = try
         max(1, Hwloc.cachelinesize() ÷ sizeof(Int64))
     catch
         16
-    end
-    # Point RasterDataSources at its own subdirectory of our scratch space (unless the user has
-    # already set RASTERDATASOURCES_PATH), keeping downloads under EcoSISTEM's scratch lifecycle.
-    get!(ENV, "RASTERDATASOURCES_PATH") do
-        return assetdir(RasterDataSources)
     end
     return nothing
 end
