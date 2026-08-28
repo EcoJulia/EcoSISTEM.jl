@@ -138,6 +138,18 @@ public in_memory_raster
 
 export ClimateRaster
 
+include("LazySpec.jl")
+
+# **What a layer is, and how one is declared** — the raster type, what may name its source, and the
+# specs. **Before `ClimatePref`, deliberately**: the readers in that submodule construct
+# `ClimateRaster`s, so these must already exist. See the file's own header for the rule that decides
+# what lives here against what stays with the climate data.
+# Exported here, and **re-exported by `ClimatePref`**, so that `using EcoSISTEM.ClimatePref` reaches
+# them too.
+export SourceSpec, ConstructedSpec, ShapeSpec
+
+public AbstractLazySpec
+
 include("Layer.jl")
 export condition, resource
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
