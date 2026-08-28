@@ -362,9 +362,14 @@ include("cellgeometry.jl")
 public getcellareas, getcellsizes, getcellarea, getcellsize, getcellat,
        getgridarea,
        getgridshape, getcellcount
+include("Species.jl")
+
 export SpeciesList
 
+public getdemand
+
 include("Landscape.jl")
+
 export GridLandscape, CachedGridLandscape
 
 include("Ecosystem.jl")
