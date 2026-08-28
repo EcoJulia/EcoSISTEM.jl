@@ -273,9 +273,11 @@ export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement,
 # `getkernels` reaches inside a movement type, which is what writing a new one needs.
 public AbstractMovement, AbstractKernel, getkernels
 include("Demographics.jl")
+
 export PopGrowth, EqualPop, NoGrowth
 
-include("SpeciesList.jl")
+public AbstractParams
+
 export SpeciesList
 
 include("Landscape.jl")
