@@ -3,23 +3,22 @@
 module EcoSISTEM
 
 using Scratch: get_scratch!
-import RasterDataSources
+using Downloads: Downloads
 
-"""
-    EcoSISTEM.assetdir(mod::Module = EcoSISTEM)
+# **The model, before anything else.** Fourteen declarations saying what EcoSISTEM simulates —
+# conditions and resources, the environment's layers and the species' requirements, the fit between
+# them, and the habitat and ecosystem that assemble them. It depends on nothing of ours, so it comes
+# first; everything below is a choice about *how*.
+include("Ecology.jl")
 
-Path to the `mod` subdirectory of EcoSISTEM's single Scratch.jl space, for storing `mod`-related
-files (e.g. downloaded data) outside the repository. Using one EcoSISTEM-owned space with
-per-package subdirectories (rather than a separate space per package) keeps the whole cache under
-EcoSISTEM's lifecycle — created on first use, reclaimed by `Pkg.gc()` when EcoSISTEM is removed.
-`mod` defaults to EcoSISTEM's own subdirectory.
+public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
+       AbstractSupply,
+       AbstractSpecies,
+       AbstractSpeciesRequirement, AbstractTolerance, AbstractDemand,
+       AbstractNicheFit,
+       AbstractEcosystem, AbstractHabitat
 
-On load, EcoSISTEM sets `RASTERDATASOURCES_PATH` to `assetdir(RasterDataSources)` (in `__init__`).
-"""
-function assetdir(mod::Module = EcoSISTEM)
-    return mkpath(joinpath(get_scratch!(EcoSISTEM, "assets"),
-                           string(nameof(mod))))
-end
+
 public assetdir
 
 # EcoSISTEM.Units sub-module
