@@ -14,7 +14,7 @@
 # their own cache-saving step, so the next run downloaded again -- a loop that could not break itself.
 #
 # Most entries call `getraster`, which downloads and returns paths without reading pixels, so they
-# cost a few hundred MB whatever they fetch. The last three deliberately DO read, to precompute the
+# cost a few hundred MB whatever they fetch. Two of them deliberately DO read, to precompute the
 # aggregated forms the tests use: that is the expensive part, at over 10 GB resident, and it is why
 # this job has to exist rather than merely being an optimisation. Nothing else runs here, so the peak
 # has the machine to itself -- in the test job it did not, and the runner was shut down.
@@ -63,15 +63,18 @@ const WANTED = [
     #
     # A windowed read is deliberately absent: `_cachedlayer` bypasses the cache whenever a `cut` is
     # given and reads only the window, so there is nothing to prime.
+    #
+    # CHELSA is absent too, and cannot be added. Its `bio1` is a 43200 x 20880 grid whose aggregate
+    # peaks at 11.7 GB read whole, 10.8 GB through the lazy fallback that exists to be the cheap
+    # path, and 25 GB through the full read pipeline -- none of which fits 16 GB even in a job
+    # running nothing else. This job was killed attempting exactly that. `test_datasetread.jl` skips
+    # those reads on a runner instead.
     "EarthEnv LandCover, aggregated at scale 40" =>
         () -> read(EarthEnv{LandCover},
                    scale = 40),
     "WorldClim BioClim, aggregated at scale 4" =>
         () -> read(WorldClim{BioClim},
                    scale = 4),
-    "CHELSA BioClim 1, aggregated at scale 20" =>
-        () -> read(CHELSA{BioClim}, 1,
-                   scale = 20),
     # Used by `examples/ScottishCultivatedLand.jl`, so it is only reached by
     # `extras_examples`; fetched here for the same reason as the rasters.
     "Scotland land-cover shapefile" =>

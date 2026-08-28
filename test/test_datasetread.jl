@@ -13,6 +13,26 @@ using DimensionalData
 using Statistics
 using Test
 
+# CHELSA's `bio1` is a 43200 x 20880 global grid, and coarsening does NOT bound the cost of reading
+# it: the aggregate consumes the whole file either way. Measured on a development machine -- 11.7 GB
+# peak resident for the bare `Rasters.aggregate` after reading whole, 10.8 GB for the lazy
+# window-by-window fallback that exists to be the cheap path, and 25 GB through this package's full
+# read pipeline. None of that fits the 16 GB a GitHub runner has, even with the machine to itself:
+# the cache-priming job, which runs nothing else at all, was killed attempting exactly this.
+#
+# So the whole-file CHELSA reads run only where there is memory for them. Same predicate and the same
+# reasoning as `heavydata()` in `test/canonical/canonical.jl`, kept local because that lives in a
+# module of its own for the canonical suite; `ECOSISTEM_HEAVY_DATA=true` forces them on anywhere.
+#
+# What CI gives up is stated rather than hidden: the extent assertion below still runs for WorldClim
+# and EarthEnv, but CHELSA is the case that MOTIVATES it -- its origins sit ~1.7% of a cell off the
+# lattice -- so on a runner that particular lattice is unchecked. It is checked locally, and by
+# `test/canonical/`.
+function bigrasters()
+    return haskey(ENV, "ECOSISTEM_HEAVY_DATA") ?
+           ENV["ECOSISTEM_HEAVY_DATA"] == "true" : !haskey(ENV, "RUNNER_OS")
+end
+
 if !Sys.iswindows()
     # `getraster` returns the full path(s) to the downloaded file(s), so use those directly rather
     # than reconstructing RasterDataSources' folder layout. Pre-fetching here (outside the
@@ -42,7 +62,7 @@ if !Sys.iswindows()
         # comes back is unitless -- since neither is a property of the resolution. A test that does
         # depend on the grid asks for one layer rather than a whole dataset, so it never reaches
         # this size.
-        @test_nowarn read(CHELSA{BioClim}, 1, scale = 20)
+        bigrasters() && @test_nowarn read(CHELSA{BioClim}, 1, scale = 20)
         @test_nowarn read(EarthEnv{LandCover}, scale = 40)
         @test_nowarn readfile(bio1)
     end
@@ -50,11 +70,13 @@ if !Sys.iswindows()
     @testset "Output data" begin
         bioclim = read(WorldClim{BioClim}, scale = 4)
         cr = read(CRUTS, winddir, "tavg")
-        ch_b = read(CHELSA{BioClim}, 1, scale = 20)
         rf = readfile(bio1)
 
-        @test unit(bioclim.array[1]) == unit(rf[1]) == unit(ch_b.array[1]) ==
-              NoUnits
+        @test unit(bioclim.array[1]) == unit(rf[1]) == NoUnits
+        if bigrasters()
+            ch_b = read(CHELSA{BioClim}, 1, scale = 20)
+            @test unit(ch_b.array[1]) == NoUnits
+        end
     end
 
     @testset "Output data 2" begin
@@ -161,12 +183,14 @@ if !Sys.iswindows()
     # unsnapped CHELSA still lands on 179.99985967° by −90.00847° and every exact comparison below
     # still fails. Measured, both halves.
     @testset "a read grid lands exactly on its source's stated extent" begin
-        for (a, xs, ys) in ((read(WorldClim{BioClim}, :bio1), (-180°, 180°),
-            (-90°, 90°)),
-            (read(CHELSA{BioClim}, 1, scale = 20), (-180°, 180°),
-            (-90°, 84°)),
-            (read(EarthEnv{LandCover}, 7), (-180°, 180°),
-            (-56°, 90°)))
+        sources = Any[(read(WorldClim{BioClim}, :bio1), (-180°, 180°),
+                       (-90°, 90°)),
+                      (read(EarthEnv{LandCover}, 7), (-180°, 180°),
+                       (-56°, 90°))]
+        bigrasters() && push!(sources,
+              (read(CHELSA{BioClim}, 1, scale = 20),
+               (-180°, 180°), (-90°, 84°)))
+        for (a, xs, ys) in sources
             for (D, (lo, hi)) in ((X, xs), (Y, ys))
                 v = parent(DimensionalData.lookup(a.array, D))
                 # A range, not a vector: exact from three numbers, with no drift to accumulate.
