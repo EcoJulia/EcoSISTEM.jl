@@ -71,30 +71,15 @@ public TemperatureAxis, WaterAxis, PrecipitationAxis, HumidityAxis,
 # `canonicalunit`/`supplytype`/`demandtype`/`bounds` methods behind it stay internal. Exported rather
 # than `public` because it is written, not merely dispatched on.
 export @nicheaxis
+
+# The response-distribution parameter roles, and `Trapezoid`.
 include("Dist.jl")
+
 export Trapezoid
-public read_distribution, param_units
 
-include("Phylo.jl")
-export assign_traits!, get_traits, resettraits!, reroot!
+public read_distribution, paramunits
 
-include("TraitRelationship.jl")
-export multiplicativeFit2,
-       multiplicativeFit3,
-       Gauss,
-       MatchSuitability,
-       NoFitContinuous,
-       NoFitDiscrete,
-       NicheSuitability,
-       Trapeze,
-       Unif,
-       additiveFit2,
-       additiveFit3,
-       LandCoverSuitability
-
-# Materialised layer family (Role × NicheAxis): the AbstractLayer types + LayerUpdate,
-# with the old *Hab names kept as aliases. Included BEFORE Habitats.jl, whose methods
-# dispatch on those aliases.
+public ParamRole
 include("Layer.jl")
 export condition, resource
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
