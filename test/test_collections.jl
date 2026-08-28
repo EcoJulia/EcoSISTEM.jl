@@ -26,6 +26,25 @@ function _env(regime, supply; kw...)
 end
 const SUP = UniformSpec(1.0kJ / (km^2 * day), axis = SolarRadiation)
 
+# Two Julia-version facts this file has to know, both measured on 1.11.9 and 1.12.7.
+#
+# The unrolled fold and zipmap reach zero allocations only from 1.12. On 1.11 `_fold` over ten
+# members costs 16 bytes and a three-way `_zipmap` 32; the recursion is identical, and what changed
+# is that the newer compiler elides the tuple it builds. The assertion is therefore pinned where it
+# holds and SKIPPED where it does not, rather than relaxed to a bound that would pass on both and so
+# catch nothing. `skip` rather than a bare `if`, so the summary reports it as skipped and the gap
+# stays visible.
+const UNROLLSFREE = VERSION >= v"1.12"
+
+# Reaching a field that does not exist throws `FieldError` from 1.12 and a plain `ErrorException`
+# before it. `@static` rather than a ternary because on 1.11 the name `FieldError` does not exist at
+# all, so the untaken branch must not survive to be looked up.
+@static if VERSION >= v"1.12"
+    const NOSUCHFIELD = FieldError
+else
+    const NOSUCHFIELD = ErrorException
+end
+
 # The hot-path allocation measurements, behind a function barrier: `eco` arrives as a typed
 # argument, so the test's own (necessarily type-unstable) local cannot put an allocation on the
 # measurement, and the first call warms the same specialisation the second is measured in.
@@ -50,8 +69,8 @@ end
         @test fold2() == 2.0
         @test fold10() == prod(t10)
         @test zip3() == (1.0, 8.0)
-        @test (@allocated fold10()) == 0
-        @test (@allocated zip3()) == 0
+        @test (@allocated fold10()) == 0 skip = !UNROLLSFREE
+        @test (@allocated zip3()) == 0 skip = !UNROLLSFREE
         @test @inferred(fold10()) isa Float64
         # collections that must line up member for member are rejected when they do not
         @test_throws ErrorException EcoSISTEM._zipmap(+, (1.0, 2.0),
@@ -72,8 +91,8 @@ end
             folded() = EcoSISTEM._fold(+, zipped())
             zipped()
             folded()
-            @test (@allocated zipped()) == 0
-            @test (@allocated folded()) == 0
+            @test (@allocated zipped()) == 0 skip = !UNROLLSFREE
+            @test (@allocated folded()) == 0 skip = !UNROLLSFREE
             @test @inferred(folded()) isa Float64
         end
     end
@@ -103,9 +122,9 @@ end
         @test keys(lc) == (:Temperature, :Precipitation)
         @test NamedTuple(lc) == (Temperature = temp, Precipitation = rain)
         @test propertynames(lc) == (:Temperature, :Precipitation)
-        # A `FieldError`, because member access is plain `getfield` on the backing, whose own
-        # message already names the alternatives.
-        @test_throws FieldError lc.three
+        # Member access is plain `getfield` on the backing, so the error is whichever one Julia
+        # raises for a missing field, and its own message already names the alternatives.
+        @test_throws NOSUCHFIELD lc.three
     end
 
     # **The fallback, and it is what keeps every existing positional call site working.** Two

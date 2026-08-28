@@ -172,7 +172,13 @@ end
     #
     # `hasdata` was a carve-out too until the combine contract was normalised: every combine now
     # returns a `ClimateRaster`, a mask being one whose element type is `Bool`.
-    known_naked = [:readfile]
+    #
+    # VERSION-DEPENDENT, and measured: on Julia 1.11 inference does not surface `readfile`'s
+    # `DimArray` return through `Base.return_types`, so it is not detected and the list is empty.
+    # The named list is what makes that visible — it FAILED on 1.11 rather than passing quietly,
+    # which is the whole point of naming entries instead of counting them. What it also says is that
+    # this check catches strictly less on 1.11 than on 1.12: a real leak could go unreported there.
+    known_naked = VERSION >= v"1.12" ? [:readfile] : Symbol[]
     leaks = Symbol[]
     for n in names(EcoSISTEM, all = false)
         isdefined(EcoSISTEM, n) || continue
