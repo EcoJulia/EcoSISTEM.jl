@@ -340,6 +340,23 @@ public StudyGrid, CellNames
 # The study area — the simulation grid, decided from the layers before anything is built on it.
 export StudyArea
 
+# **The two halves of a simulation, and then the simulation itself.** A `GridHabitat` holds the
+# study area above; an `Ecosystem` holds a habitat, a species list and a landscape of abundances.
+# **Putting layers on a decided grid** — the read cache, `materialise` (inspection) and
+# `_buildonarea` (building), kept in one file because the last two implement the same thing and
+# have drifted apart three times. Placed here, before `GridHabitat.jl` calls `_buildonarea`.
+include("materialise.jl")
+
+public materialise
+
+include("GridHabitat.jl")
+
+# Supported, but not exported: a short name on a package's own concept, of the kind a user is likely
+# to have taken for something else in their own script.
+public totalsupply
+
+export GridHabitat
+
 export SpeciesList
 
 include("Landscape.jl")
