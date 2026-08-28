@@ -69,16 +69,36 @@ jobs:
       uses: actions/cache@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-${{ hashFiles('test/test_ReadData.jl', 'test/test_AbioticEnv.jl', 'test/test_deprecations.jl', 'examples/test_Scotland.jl', 'notebooks/InteractiveAfrica.jl') }}
+        key: rasterdata-${{ runner.os }}-${{ hashFiles('test/test_ReadData.jl', 'test/test_AbioticEnv.jl', 'test/test_deprecations.jl', 'examples/ScottishCultivatedLand.jl', 'notebooks/InteractiveAfrica.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
     - name: Running
+      # ⭐ Coverage instrumentation is a large slowdown and only one job's output is ever used, so it
+      # runs on exactly one matrix entry — macOS, which is the fastest runner here, on the release
+      # Julia. Every other entry runs the same tests uninstrumented.
       uses: julia-actions/julia-runtest@v1
+      with:
+        coverage: ${{ matrix.os == 'macOS-latest' && matrix.julia-version == '1' }}
+    - name: Discard the extracted archives before the cache is saved
+      # ⭐ Worth 182 MB of the ~1 GB raster cache, at no cost. These are the *downloaded archives*,
+      # and RasterDataSources extracts each one and thereafter tests `!isfile(raster_path)` on the
+      # **extracted** tif before fetching anything (`WorldClim/climate.jl:21`) — so the archive is
+      # only ever consulted when its tif is missing, and caching the tifs without it triggers no
+      # re-download.
+      #
+      # ⚠️ Done as a step rather than as a `!`-exclusion in the cache `path`, because
+      # `actions/cache` saves in a post-job step: deleting here is unambiguous, whereas whether a
+      # leading `~` expands inside an exclusion pattern is not.
+      if: always()
+      shell: bash
+      run: rm -rf ~/.julia/scratchspaces/*/assets/RasterDataSources/*/*/zips
     - name: Process coverage
+      if: matrix.os == 'macOS-latest' && matrix.julia-version == '1'
       uses: julia-actions/julia-processcoverage@v1
     - name: Codecov
+      if: matrix.os == 'macOS-latest' && matrix.julia-version == '1'
       uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
