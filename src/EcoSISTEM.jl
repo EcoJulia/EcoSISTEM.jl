@@ -373,55 +373,34 @@ include("Landscape.jl")
 export GridLandscape, CachedGridLandscape
 
 include("Ecosystem.jl")
-export Ecosystem,
-       CachedEcosystem,
-       getsize,
-       getregime,
-       getnichefit,
-       getgridsize,
-       getdispersaldist,
-       getdispersalvar,
-       resetrate!,
-       resettime!,
-       getsupply,
-       addspecies!
 
-include("Simplify.jl")
-export build_environment
-export datamask, landmask, circlemask, shapemask
+public cellregime, cellsupply, speciestolerance, speciesdemand, speciesdispersal
 
-include("Traitfuns.jl")
-export suitability, getpref, getdist, getnichefit, getregime
+public getregime, getsupply, gettolerance
 
-# Deprecated public API (trait line): `GaussTrait` → `NicheTolerance`, `Gauss`/`Trapeze`/`Unif` → `NicheSuitability`. Included
-# late, after every type it shims; the shim names stay exported (above). See also
-# `src/ClimatePref/deprecations.jl` for the ClimatePref submodule's deprecations.
-include("deprecations.jl")
+# The simulation clock is read-only supported API rather than an export — nothing in the package
+# reads it yet, and it is only meaningful alongside the layer-change work built on top of it.
+# `simulationdate` is the same clock read against the run's epoch, and `nothing` without one.
+public simulationtime, simulationdate
 
-include("HabitatUpdate.jl")
-export TempChange, RainfallChange, TempFluct, eraChange,
-       worldclimChange
+export abundances
 
-include("Scenarios.jl")
-export SimpleScenario, FluctScenario, MultiScenario
+# `public`, not exported — a technical operation users reach for occasionally, not
+# part of the everyday vocabulary. Renamed from `clearcache`: it **destroys** the recorded
+# abundances on disk, which the trailing `!` has to say.
+public clearcache!
 
-include("Generate.jl")
-export populate!,
-       repopulate!,
-       tolerancepopulate!,
-       tolerancerepopulate!,
-       emptypopulate!,
-       resupply!,
-       randomniches,
-       update!
+# Unexported. `makeunique` is the plumbing that strips a `SpeciesList`'s similarity so
+# Diversity.jl's classical measures will accept it. Everything else — `faith_pd` now included —
+# comes from Diversity.jl directly; `EcoSISTEMPhyloExt` merely adds the ecosystem methods, since
+# Diversity keys those on a type parameter an `Ecosystem` cannot present.
+public makeunique
 
-include("Helper.jl")
-export simulate!,
-       simulate_action!, simulate_record!, simulate_record_diversity!,
-       generate_storage
+export Ecosystem, CachedEcosystem, resettime!
 
-include("Cache.jl")
-export abundances, clearcache
+# The fifth member of the accessor family, joining `getregime`/`getsupply`/
+# `gettolerance`/`getdemand`, which have always been `public`.
+public getnichefit
 
 include("DiversitySet.jl")
 export DiversitySet, updatesimulation!, gettimes
