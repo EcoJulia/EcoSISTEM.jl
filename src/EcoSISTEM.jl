@@ -285,6 +285,11 @@ function _use_mpi()
     return !isnothing(Base.get_extension(@__MODULE__, :EcoSISTEMMPIExt)) &&
            _should_mpi()
 end
+# **THE WORKFLOW, LAST — the counterpart to `Ecology.jl` at the front.** `Ecology.jl` declares
+# what the model is; this declares what you do with it, in the order you do it: investigate a grid,
+# build the pieces, assemble them, run it. Nothing else lives there — the machinery behind each verb
+# stays with its own concept, and the file says so.
+include("actions.jl")
 
 # Whether this process should build a distributed `MPIEcosystem`: the MPI extension overrides this
 # to `MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1`. The default (extension not loaded) is
