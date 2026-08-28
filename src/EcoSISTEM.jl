@@ -561,6 +561,7 @@ public Brownian
 
 public varcovar, fitbrownian
 
+public landcoverclass
 
 # **THE WORKFLOW, LAST — the counterpart to `Ecology.jl` at the front.** `Ecology.jl` declares
 # what the model is; this declares what you do with it, in the order you do it: investigate a grid,
@@ -568,5 +569,54 @@ public varcovar, fitbrownian
 # stays with its own concept, and the file says so.
 include("actions.jl")
 
+export build_habitat, build_species, build_ecosystem
+
+export investigate_study_area
+
+export simulate!, simulate_action!, simulate_record!,
+       simulate_record_diversity!,
+       generate_storage
+
+# ---------------------------------------------------------------------------
+# Deprecations, PENULTIMATE
+# ---------------------------------------------------------------------------
+# Moved to the end (v0.5.0) so the export/public statements above read as a map of where
+# each live name is defined, uninterrupted by shims. `Base.@deprecate_binding old new`
+# evaluates `new` at include time, so this must follow every file it shims -- being last but
+# one satisfies that by construction rather than by argument.
+include("deprecations.jl")
+
+# ---------------------------------------------------------------------------
+# EcoSISTEM.ClimatePref sub-module, LAST
+# ---------------------------------------------------------------------------
+# **The submodule holds nothing but deprecations, and is scheduled for deletion** once enough time
+# has passed since the release that emptied it. It defines no type and no function of its own: it
+# re-exports names from the main module so that `using EcoSISTEM.ClimatePref` still resolves, and
+# includes its own `deprecations.jl`.
+#
+# Included last because it imports from nearly every file above, and the latest of those —
+# `compress_landcover` and `sourcecrs` — are declared in `extensions.jl`. An earlier include would
+# import bindings that do not exist yet, which Julia treats as a precompile *warning* rather than an
+# error, so it would resolve and warn rather than fail. Nothing in the main module calls into the
+# submodule, so the position is free.
+include("ClimatePref/ClimatePref.jl")
+
+# ---------------------------------------------------------------------------
+# Every abstract type in this package is `public`, not exported
+# ---------------------------------------------------------------------------
+# **The rule, stated once and in one place so it can be checked.** An abstract type here is a
+# *supertype* — something to dispatch on, subtype, or annotate a field with. It is not everyday
+# vocabulary: a user names the concrete leaf (`Temperature`, `Deactivate`, `IncrementBy`), and
+# reaches the supertype only when writing their own subtype or a method over a whole family. `public`
+# says exactly that — supported, documented, but not worth a slot in every `using EcoSISTEM` namespace.
+#
+# **`MPIEcosystem` and `MPIGridLandscape` are the deliberate exceptions, and are exported.** They are
+# abstract only because their concrete subtypes live in the `EcoSISTEMMPIExt` extension, so a user
+# names `MPIEcosystem` itself; and both are released public API.
+#
+# **The declarations themselves are distributed** — each abstract type is made `public` immediately
+# after the include that defines it, so this file reads as a map of where to find things.
+# `test_EcoSISTEM.jl` asserts the rule by **visibility**, not by membership of any one list, so a new
+# hierarchy declared anywhere is covered: it fails rather than silently becoming private or exported.
 
 end
