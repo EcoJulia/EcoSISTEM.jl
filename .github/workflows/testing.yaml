@@ -168,6 +168,31 @@ jobs:
           rasterdata-${{ runner.os }}-
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
+    - name: Start a resource sampler
+      # 🔴 THE LINUX RUNNER IS SHUT DOWN MID-SUITE AND THE LOG DOES NOT SAY WHY. It reports only
+      # `signal 15` and *"the runner has received a shutdown signal"*, roughly two minutes into the
+      # tests, and NOTHING after that point runs — so there is no post step, no `if: always()`, and no
+      # summary that could record the machine's state at the moment it died. This writes that state
+      # to a file continuously instead, so the last line before the kill names the resource that ran
+      # out.
+      #
+      # ⚠️ Worth knowing what it has already ruled out, so the answer is not re-guessed: the rasters
+      # are restored from cache rather than downloaded, and the peak resident of the worst single
+      # process across the whole set measures 6.1 GB against the runner's 16 GB. Memory alone does not
+      # explain it, which is why DISK is sampled here too — `ubuntu-latest` has only 14 GB of it, and
+      # EcoSISTEM writes aggregated layers as it reads.
+      #
+      # Linux and macOS only: `free` is a GNU tool, and the Windows jobs have never shown this.
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        (while true; do
+           echo "=== $(date -u +%H:%M:%S)"
+           df -h / 2>/dev/null | tail -1
+           if command -v free > /dev/null; then free -m | sed -n '2p'; else vm_stat | head -4; fi
+           sleep 5
+         done > "${RUNNER_TEMP}/resources.log" 2>&1) &
+        echo "SAMPLER_PID=$!" >> "$GITHUB_ENV"
     - name: Running
       # ⭐ Coverage instrumentation is a large slowdown and only one job's output is ever used, so it
       # runs on exactly one matrix entry — macOS, which is the fastest runner here, on the release
@@ -175,6 +200,17 @@ jobs:
       uses: julia-actions/julia-runtest@v1
       with:
         coverage: ${{ matrix.os == 'macOS-latest' && matrix.julia-version == '1' }}
+    - name: Report the last resource readings
+      # ⭐ The point of the whole exercise: the tail of this file is the machine's state in the
+      # seconds before it died. `if: always()` is enough here because a step CAN still run after the
+      # test step fails — what it cannot survive is the runner itself being shut down, and in that
+      # case the file is simply lost, which is itself worth knowing.
+      if: always() && runner.os != 'Windows'
+      shell: bash
+      run: |
+        kill "${SAMPLER_PID}" 2> /dev/null || true
+        echo "--- last 40 readings before the end of the test step ---"
+        tail -40 "${RUNNER_TEMP}/resources.log" || echo "(no sampler output)"
     - name: Discard the extracted archives before the cache is saved
       # ⭐ Worth 182 MB of the ~1 GB raster cache, at no cost. These are the *downloaded archives*,
       # and RasterDataSources extracts each one and thereafter tests `!isfile(raster_path)` on the
