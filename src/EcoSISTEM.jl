@@ -357,6 +357,11 @@ public totalsupply
 
 export GridHabitat
 
+include("cellgeometry.jl")
+
+public getcellareas, getcellsizes, getcellarea, getcellsize, getcellat,
+       getgridarea,
+       getgridshape, getcellcount
 export SpeciesList
 
 include("Landscape.jl")
