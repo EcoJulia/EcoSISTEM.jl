@@ -29,7 +29,7 @@
 #     julia --project=examples examples/VaryingClimate.jl
 
 # **A module, deliberately** — `test/extras_examples.jl` includes every top-level example into one
-# module, and more than one of them defines names like `scale()`.
+# module, and more than one of them defines names like `runscale()`.
 module VaryingClimate
 
 using EcoSISTEM

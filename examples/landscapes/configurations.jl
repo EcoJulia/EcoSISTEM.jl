@@ -46,7 +46,7 @@ using Unitful.DefaultSymbols
 #
 # Override in either direction: `ECOSISTEM_SCALE=large` runs the big configurations under the
 # suite, `ECOSISTEM_SCALE=small` keeps a direct run quick.
-scale() = Symbol(get(ENV, "ECOSISTEM_SCALE", "large"))
+runscale() = Symbol(get(ENV, "ECOSISTEM_SCALE", "large"))
 
 """
     CONFIGURATIONS
@@ -94,7 +94,7 @@ const CONFIGURATIONS = (island = (small = (grid = (10, 10), numspecies = 20,
                                            area = 200_000.0km^2)))
 
 # The configuration for one landscape at the scale currently in force.
-_configuration(name) = CONFIGURATIONS[name][scale()]
+_configuration(name) = CONFIGURATIONS[name][runscale()]
 
 # ---------------------------------------------------------------------------
 # The environments

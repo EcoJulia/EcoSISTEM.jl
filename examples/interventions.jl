@@ -10,7 +10,7 @@
 # lost while these are proven.
 
 # **A module, deliberately.** `test/extras_examples.jl` includes every top-level example into
-# **one** module, and more than one of them defines `scale()` and `CONFIGURATIONS`. Julia 1.12
+# **one** module, and more than one of them defines `runscale()` and `CONFIGURATIONS`. Julia 1.12
 # lets a later `const` silently overwrite an earlier one — no warning — so without the wrapper these
 # examples would quietly reconfigure each other depending on the order they happened to run in.
 

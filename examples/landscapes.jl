@@ -13,7 +13,7 @@
 # landscape: at full scale a second run of `peaked` for the sake of an assertion is not cheap.
 
 # **A module, deliberately.** `test/extras_examples.jl` includes every top-level example into
-# **one** module, and more than one of them defines `scale()` and `CONFIGURATIONS`. Julia 1.12
+# **one** module, and more than one of them defines `runscale()` and `CONFIGURATIONS`. Julia 1.12
 # lets a later `const` silently overwrite an earlier one — no warning — so without the wrapper these
 # examples would quietly reconfigure each other depending on the order they happened to run in.
 
@@ -31,7 +31,7 @@ const TIMESTEP = 1.0month_mean_duration
 
 # `println`, not `@info`: logging goes to **stderr**, and `test/extras_examples.jl` wraps each
 # example in `@test_nowarn`, which fails on *any* stderr output rather than only on warnings.
-println("Running the landscapes at $(scale()) scale.")
+println("Running the landscapes at $(runscale()) scale.")
 
 # --- one pass: build and simulate each landscape exactly once ----------------
 results = map(LANDSCAPES) do name

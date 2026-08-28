@@ -61,7 +61,7 @@ with 100,000,000 individuals against the small supply crashed to **124**. At ful
 figure comes out at the published `4.5e11 kJ/km²/day`.
 
 ⚠️ **Every top-level example is a `module`.** `test/extras_examples.jl` includes them all into one
-module, several define `scale()`/`CONFIGURATIONS`, and Julia 1.12 lets a later `const` silently
+module, several define `runscale()`/`CONFIGURATIONS`, and Julia 1.12 lets a later `const` silently
 overwrite an earlier one — so without the wrappers the examples would quietly reconfigure each other
 depending on the order they ran in.
 

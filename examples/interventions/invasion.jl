@@ -18,7 +18,13 @@ using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
-using Distributions
+# Only `Normal` is wanted, and it is named rather than swept in. A blanket `using` of a large
+# package lands every one of its exports in whichever module the example is included into, where any
+# of them may collide with a name already there. That happened: `Distributions` exports `scale`, the
+# helper beside it was called `scale()`, and the clash reached stderr — which the example harness
+# checks is empty. The helper is now `runscale()`, so the collision is gone at its source; naming the
+# import as well keeps the next export from finding the next name.
+using Distributions: Normal
 
 # The native assemblage the invader arrives into — spread evenly along the temperature gradient.
 # `numnative` is one short of the configuration's species count: the invader arriving mid-run

@@ -18,7 +18,7 @@ using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 
-scale() = Symbol(get(ENV, "ECOSISTEM_SCALE", "large"))
+runscale() = Symbol(get(ENV, "ECOSISTEM_SCALE", "large"))
 
 """
     CONFIGURATIONS
@@ -36,7 +36,7 @@ const CONFIGURATIONS = (small = (numspecies = 10, individuals = 10_000),
                                  individuals = 100_000_000))
 
 # The configuration at the scale currently in force.
-configuration() = CONFIGURATIONS[scale()]
+configuration() = CONFIGURATIONS[runscale()]
 
 # **Demand is the published per-individual figure, and supply is derived from it** so that every
 # configuration starts at its carrying capacity. This is not tidiness: scaling the population
