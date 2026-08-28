@@ -66,6 +66,24 @@ zips to a temporary folder.
 """
 function unziptemp end
 
+# The axis machinery, then the axes declared with it. `@nicheaxis` emits methods whose signatures
+# name `Resource`, so `Ecology.jl` — which declares the roles — must already have been included.
+include("nicheaxis_macro.jl")
+
+include("NicheAxis.jl")
+
+# The axis grouping supertypes, declared by `@nicheaxis` above. `public`, not exported: an axis
+# group is what one dispatches on or subtypes; the leaves below are what a user names.
+public TemperatureAxis, WaterAxis, PrecipitationAxis, HumidityAxis,
+       VapourPressureDeficitAxis, RelativeHumidityAxis, EvapotranspirationAxis,
+       ClimateMoistureAxis, SolarRadiationAxis, WindSpeedAxis, CloudCoverAxis,
+       DayAxis,
+       CarbonAxis, TypologyAxis, SpaceAxis
+
+# The declaration macro is the supported way to add an axis, and the only one — the
+# `canonicalunit`/`supplytype`/`demandtype`/`bounds` methods behind it stay internal. Exported rather
+# than `public` because it is written, not merely dispatched on.
+export @nicheaxis
 include("Dist.jl")
 export Trapezoid
 public read_distribution, param_units
