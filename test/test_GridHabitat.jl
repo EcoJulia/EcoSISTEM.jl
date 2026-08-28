@@ -637,8 +637,17 @@ end
         # same polygon, same mask-set extent as the plain-path case above
         @test size(urlenv.active) == (2, 2)
         @test all(urlenv.active)
-        # tidy up the shared cache: this test's fixture has no business persisting there
-        rm(EcoSISTEM.assetpath(urlspec.path))
+        # Tidy up the shared cache: this test's fixture has no business persisting there. Windows
+        # may refuse, and that is not a test failure -- GDAL keeps the dataset's file handle open
+        # past the read, so `unlink` raises EBUSY where the POSIX platforms allow the unlink and
+        # defer the delete. Leaving one small fixture behind in a runner's cache costs nothing, and
+        # throwing here would fail a testset that has already made every assertion it exists for.
+        try
+            rm(EcoSISTEM.assetpath(urlspec.path))
+        catch e
+            e isa Base.IOError || rethrow()
+            @info "Left the cached shapefile fixture in place: $(e.msg)"
+        end
     end
 
     @testset "geodesy: area-preserving cell size + top/bottom report" begin

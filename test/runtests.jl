@@ -74,6 +74,19 @@ get!(ENV, "ECOSISTEM_SCALE", "small")
 # window appear when a person is watching.
 get!(ENV, "GKSwstype", "100")
 
+# **Unit rendering is made the same on every platform, because assertions depend on it.** Unitful
+# decides between `m s^-1` and `m s⁻¹` with
+# `get(ENV, "UNITFUL_FANCY_EXPONENTS", Sys.isapple() ? "true" : "false")` -- so the fancy form is the
+# default on macOS and the plain one on Linux and Windows. Three tests assert an error message or a
+# plot title containing a unit, and so passed on macOS and failed everywhere else; measured on a
+# Windows runner as `"WindSpeed (m s^-1)" == "WindSpeed (m s⁻¹)"`.
+#
+# Set rather than defaulted with `get!`, unlike the two above, and the difference is the point: those
+# are preferences a caller may legitimately override, while the assertions here are only meaningful
+# for one of the two renderings. A caller who set it to `false` would break the suite, so the suite
+# decides.
+ENV["UNITFUL_FANCY_EXPONENTS"] = "true"
+
 requested = map(a -> endswith(a, ".jl") ? a : a * ".jl", ARGS)
 for fn in requested
     isfile(joinpath(@__DIR__, fn)) ||
