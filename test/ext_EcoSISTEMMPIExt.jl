@@ -28,7 +28,7 @@ end
     # Set up initial parameters for ecosystem
 
     # Set up how much resource each species consumes
-    resource_vec = SolarDemand(fill(demand, numSpecies))
+    resource_vec = Demand{SolarRadiation}(fill(demand, numSpecies))
 
     # Set probabilities
     birth = 0.6 / year
@@ -42,7 +42,7 @@ end
 
     # Create kernel for movement
     kernel = fill(GaussianKernel(1.0km, 10e-10), numSpecies)
-    movement = BirthOnlyMovement(kernel, Torus())
+    movement = BirthOnlyMovement(kernel)
 
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, numSpecies)
@@ -54,11 +54,26 @@ end
     sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                        movement, param, native)
 
-    # Create abiotic environment - even grid of one temperature
-    habitat = simplehabitat(274.0K, grid, totalK, area)
+    # Create abiotic environment — an even grid of one temperature. The study area decides the
+    # grid; `GridHabitat` only samples onto it.
+    studyarea = StudyArea(extent = (sqrt(area), sqrt(area)),
+                          cellsize = sqrt(area) / grid[1], verbosity = :silent)
+    habitat = GridHabitat(regime = UniformSpec(274.0K,
+                                               axis = Temperature),
+                          supply = UniformSpec(totalK,
+                                               axis = SolarRadiation),
+                          area = studyarea)
 
     # Set nichefit between species and environment (gaussian)
-    nichefit = NicheSuitability{typeof(1.0K)}()
+    nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
+
+    # build_ecosystem auto-selection: with MPI initialised but a single rank, `:auto` stays serial
+    # (Comm_size == 1) while `distributed = true` forces the distributed type — from the same
+    # SpeciesList + GridHabitat that MPIEcosystem takes directly.
+    @test build_ecosystem(sppl, habitat, nichefit = nichefit) isa Ecosystem
+    @test build_ecosystem(sppl, habitat, nichefit = nichefit,
+                          distributed = true) isa
+          MPIEcosystem
 
     # Create ecosystem
     @test_nowarn eco = MPIEcosystem(sppl, habitat, nichefit)
@@ -69,12 +84,12 @@ end
     @test eco.firstsc == 1
 
     # Simulation Parameters
-    burnin = 1month
-    times = 3months
-    timestep = 1month
-    record_interval = 1months
+    burnin = 1month_mean_duration
+    times = 3month_mean_duration
+    timestep = 1month_mean_duration
+    record_interval = 1month_mean_duration
     repeats = 1
-    lensim = length((0years):record_interval:times)
+    lensim = length((0year):record_interval:times)
     # Burnin
     MPI.Barrier(comm)
     @time simulate!(eco, burnin, timestep)
@@ -95,7 +110,7 @@ end
     @test sum(getweight(eco)) ≈ 1.0
 
     # Gather abundances and check against rows matrix - should be same for 1 process
-    abuns = gather_abundance(eco)
+    abuns = gatherabundance(eco)
     @test abuns == eco.abundances.rows_matrix
 end
 
