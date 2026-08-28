@@ -38,7 +38,9 @@
   - Improvements
     - Climate reading moved onto Rasters.jl: coordinates come from the file's own metadata, a read is
       windowed to the study area rather than pulled in whole and cropped, downloads are cached under
-      `EcoSISTEM.assetdir()`, and a simulation grid can be genuinely projected.
+      `EcoSISTEM.assetdir()`, and a simulation grid can be genuinely projected. A read that asks for a
+      `scale` without a window is the exception: it coarsens the whole file, and memoises the result
+      so that only the first one is slow.
     - Cell size and area can be asked of anything that knows the grid, and a geographic grid answers
       with an angle and a true solid angle rather than a fabricated length — so a supply on a
       latitude/longitude grid is scaled by its own cell's area instead of the whole grid's.

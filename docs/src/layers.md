@@ -297,6 +297,20 @@ window your study area needs, cache it between layers, and take the unit, niche 
 period and value type from the catalogue. An in-memory raster gives all of that up and describes
 itself only by the `axis` you pass.
 
+**One read is not windowed, and it is worth knowing which.** A window comes from the study area, so
+a layer being built onto a grid reads only the cells that grid needs. Two cases have no window to
+use. A mask passed as `within` is what *decides* the grid, so there is nothing to narrow it to yet;
+and a read that asks for a `scale` without a `cut` coarsens the whole source file, because the
+aggregated form is memoised per file rather than per window. For a global dataset that first read is
+expensive -- aggregating the twelve global bands of `EarthEnv{LandCover}` needs upwards of 10 GB of
+memory, whatever `scale` is asked for, since the scale only decides what comes out. Every later read
+of the same file, scale and reducer loads the memoised result instead and is quick.
+
+Give such a read a `cut` when you can, which windows it and skips the memo altogether; a bounding box
+from [`boundingbox`](@ref) is usually enough. The first-read cost is easy to miss precisely because it
+happens once: a second run of the same script is fast, so the machine that has already paid it will
+not show you the problem.
+
 **And `axis` is not optional in spirit, even though it has a default.** A raster carries values
 and possibly a layer code, but no niche axis — nothing about it says whether those numbers are a
 temperature, a rainfall rate or a cover fraction. That is why a bare raster is refused as a regime
