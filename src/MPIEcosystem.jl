@@ -1,237 +1,55 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-
-import EcoSISTEM
-using MPI
-using Diversity
-using HCubature
-using Unitful
-using EcoSISTEM.Units
-using Missings
-using Random
+#
+# The distributed forms. Abstract here because their concrete subtypes live in `EcoSISTEMMPIExt`,
+# and these stubs are where those subtypes are documented: a docstring written inside an extension
+# does not reach the API reference, so the fields below describe what the extension actually builds.
 
 """
-    MPIEcosystem{MPIGL <: MPIGridLandscape, Part <: AbstractHabitat,
-                 SL <: SpeciesList, NF <: AbstractNicheFit} <: 
-        AbstractEcosystem{Part, SL, NF}
+    MPIGridLandscape
 
-MPIEcosystem houses information on species and their interaction with their
-environment. It houses all information of a normal [`Ecosystem`](@ref) (see
-documentation for more details), with additional fields to describe which
-species are calculated on which machine. This includes: `sppcounts` - a vector
-of number of species per node, `firstsp` - the identity of the first species
-held by that particular node.
+An [`MPIEcosystem`](@ref)'s abundances, distributed across MPI ranks; `EcoSISTEMMPIExt` supplies the
+concrete `MPIGridLandscape{RA, NT}`.
+
+The same abundances are held **twice**, partitioned two different ways, because the simulation needs
+a different split at different moments — demographics is per species, dispersal is per cell. The
+synchronise steps copy between the two views.
+
+# Fields
+
+  - `rows_matrix`: this rank's species over *all* grid cells.
+  - `cols_vector`: *all* species over this rank's grid cells, flattened.
+  - `reshaped_cols`: `cols_vector` seen as one species-by-cell view per MPI block, which is what the
+    collective operations address.
+  - `rows_tuple`, `cols_tuple`: how each view is partitioned — `total`, `first`, `last`, and the
+    per-rank `counts`.
 """
-mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
-                            Part <: EcoSISTEM.AbstractHabitat,
-                            SL <: EcoSISTEM.SpeciesList,
-                            NF <: EcoSISTEM.AbstractNicheFit} <:
-               EcoSISTEM.MPIEcosystem{MPIGL, Part, SL, NF}
-    abundances::MPIGL
-    spplist::SL
-    habitat::Part
-    ordinariness::Union{Matrix{Float64}, Missing}
-    nichefit::NF
-    lookup::Vector{EcoSISTEM.Lookup}
-    sppcounts::Vector{Int32}
-    firstsp::Int64
-    sccounts::Vector{Int32}
-    firstsc::Int64
-    cache::EcoSISTEM.Cache
-    rngs::Vector{Random.Xoshiro}
+abstract type MPIGridLandscape end
 
-    function MPIEcosystem(abundances::MPIGL,
-                          spplist::SL,
-                          habitat::Part,
-                          ordinariness::Union{Matrix{Float64}, Missing},
-                          nichefit::NF,
-                          lookup::Vector{EcoSISTEM.Lookup},
-                          sppcounts::Vector,
-                          firstsp::Int64,
-                          sccounts::Vector,
-                          firstsc::Int64,
-                          cache::EcoSISTEM.Cache,
-                          rngs::Vector{Random.Xoshiro}) where {MPIGL, Part, SL,
-                                                               NF}
-        EcoSISTEM.tematch(spplist, habitat) ||
-            error("Traits do not match regimes")
-        EcoSISTEM.nfmatch(spplist, nichefit) ||
-            error("Traits do not match trait functions")
-        return new{MPIGL, Part, SL, NF}(abundances,
-                                        spplist,
-                                        habitat,
-                                        ordinariness,
-                                        nichefit,
-                                        lookup,
-                                        sppcounts,
-                                        firstsp,
-                                        sccounts,
-                                        firstsc,
-                                        cache,
-                                        rngs)
-    end
-end
-
-EcoSISTEM.MPIEcosystem(args...; kwargs...) = MPIEcosystem(args...; kwargs...)
-
-# With the MPI extension loaded, auto-selection (in `build_ecosystem`) treats the process as
-# distributed only once MPI is initialised and there is more than one rank — so `mpirun -n 1` or a
-# plain `using MPI` still builds a serial `Ecosystem`.
-EcoSISTEM._should_mpi() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
-
-using EcoSISTEM: getkernels, genlookups, numdemands
 """
-    MPIEcosystem(spplist::SpeciesList, habitat::GridHabitat,
-                 nichefit::AbstractNicheFit)
+    MPIEcosystem{MPIGL, Part, SL, NF} <: AbstractEcosystem{Part, SL, NF}
 
-Create an `MPIEcosystem` given a species list, an abiotic environment and trait
-nichefit.
+An [`Ecosystem`](@ref) whose abundances are distributed across MPI ranks; `EcoSISTEMMPIExt` supplies
+the concrete `MPIEcosystem`.
+
+Only the abundances are split. The habitat, species list and nichefit are held whole on every rank,
+and four extra fields record which slice of the work this rank owns.
+
+# Fields
+
+  - `abundances`: the distributed [`MPIGridLandscape`](@ref), in place of a `GridLandscape`.
+  - `sppcounts`, `firstsp`: how many species each rank holds, and the first one this rank holds.
+  - `sccounts`, `firstsc`: the same two, for grid cells.
+  - `spplist`, `habitat`, `nichefit`, `lookup`, `cache`, `rngs`, `elapsed`, `seed`, `epoch`: as
+    [`Ecosystem`](@ref), and identical on every rank. The `epoch` must be, or layers built
+    redundantly per rank could phase their series differently.
+
+# Type parameters
+
+  - `MPIGL`: the [`MPIGridLandscape`](@ref) type holding the abundances.
+  - `Part`, `SL`, `NF`: habitat, species list and nichefit, as [`AbstractEcosystem`](@ref).
 """
-function MPIEcosystem(popfun::F,
-                      spplist::EcoSISTEM.SpeciesList{T, DM},
-                      habitat::EcoSISTEM.GridHabitat,
-                      nichefit;
-                      seed::Integer = rand(UInt64)) where {F <: Function, T,
-                                                           DM}
-    comm = MPI.COMM_WORLD
-    rank = MPI.Comm_rank(comm)
-    totalsize = MPI.Comm_size(comm)
-    numspp = length(spplist.names)
-    numsc = countsubcommunities(habitat.regime)
-
-    # One deterministically-seeded RNG per global species, built identically on
-    # every rank, so that species draws are reproducible regardless of how
-    # species and cells are partitioned across processes and threads
-    rngs = EcoSISTEM.makerngs(seed, numspp)
-
-    count = div(numspp, totalsize)
-    sppcounts = Int32.(fill(count, totalsize))
-    sppcounts[1:(numspp - sum(sppcounts))] .+= 1
-    sppindices = vcat([0], cumsum(sppcounts))
-    firstsp = sppindices[rank + 1] + 1
-
-    sccount = div(numsc, totalsize)
-    sccounts = Int32.(fill(sccount, totalsize))
-    sccounts[1:(numsc - sum(sccounts))] .+= 1
-    scindices = vcat([0], cumsum(sccounts))
-    firstsc = scindices[rank + 1] + 1
-
-    # Create matrix landscape of zero abundances
-    ml = EcoSISTEM.emptyMPIgridlandscape(sppcounts, sccounts)
-
-    # Populate this matrix with species abundances
-    popfun(ml, spplist, habitat, nichefit, rngs)
-
-    rankspp = firstsp:sppindices[rank + 2]
-    lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
-                             @view getkernels(spplist.movement)[rankspp]))
-    nm = zeros(Int64, (sppcounts[rank + 1], numsc))
-    totalE = zeros(Float64, (numsc, numdemands(DM)))
-    return MPIEcosystem(ml,
-                        spplist,
-                        habitat,
-                        missing,
-                        nichefit,
-                        lookup_tab,
-                        sppcounts,
-                        firstsp,
-                        sccounts,
-                        firstsc,
-                        EcoSISTEM.Cache(nm, totalE, false),
-                        rngs)
-end
-
-function MPIEcosystem(spplist::EcoSISTEM.SpeciesList,
-                      habitat::EcoSISTEM.GridHabitat, nichefit;
-                      seed::Integer = rand(UInt64))
-    return MPIEcosystem(EcoSISTEM.populate!, spplist, habitat, nichefit;
-                        seed = seed)
-end
-@doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
-                                      ::EcoSISTEM.GridHabitat,
-                                      ::Any)
-
-function EcoSISTEM.gather_abundance(eco::MPIEcosystem)
-    comm = MPI.COMM_WORLD
-    rank = MPI.Comm_rank(comm)
-    true_abuns = zeros(Int64, counttypes(eco), countsubcommunities(eco))
-    if rank == 0
-        output_vbuf = VBuffer(true_abuns,
-                              Int32.(eco.sppcounts .* sum(eco.sccounts)))
-    else
-        output_vbuf = VBuffer(nothing)
-    end
-    MPI.Gatherv!(vcat(eco.abundances.reshaped_cols...)[1:end], output_vbuf, 0,
-                 comm)
-    return true_abuns
-end
-
-import Diversity.API: _getabundance
-using Diversity.API: _calcabundance, _gettypes
-function _getabundance(eco::MPIEcosystem, raw::Bool)
-    if raw
-        return eco.abundances.rows_matrix
-    else
-        return _calcabundance(_gettypes(eco),
-                              eco.abundances.rows_matrix /
-                              sum(eco.abundances.rows_matrix))[1]
-    end
-end
-
-import Diversity.API: _getmetaabundance
-function _getmetaabundance(eco::MPIEcosystem)
-    comm = MPI.COMM_WORLD
-    ab = sum(_getabundance(eco), dims = 2)
-    return MPI.Allgatherv(MPI.VBuffer(ab, eco.sppcounts), comm)
-end
-
-import Diversity.API: _getweight
-function _getweight(eco::MPIEcosystem)
-    comm = MPI.COMM_WORLD
-    w = sum(_getabundance(eco, false), dims = 1)
-    return MPI.Allreduce(w, +, comm)[1, :]
-end
-
-import Diversity.API: _getordinariness!
-function _getordinariness!(eco::MPIEcosystem)
-    if ismissing(eco.ordinariness)
-        eco.ordinariness = _calcordinariness(eco)
-    end
-    return eco.ordinariness
-end
-
-import Diversity.API: _calcordinariness
-using Diversity.API: _calcsimilarity
-function _calcordinariness(eco::MPIEcosystem)
-    relab = getabundance(eco, false)
-    sp_rng = (eco.abundances.rows_tuple.first):(eco.abundances.rows_tuple.last)
-    return _calcsimilarity(eco.spplist.types, one(eltype(relab)))[sp_rng,
-                                                                  sp_rng] *
-           relab
-end
-
-function EcoSISTEM.gather_diversity(eco::MPIEcosystem, divmeasure::F,
-                                    q) where {F <: Function}
-    comm = MPI.COMM_WORLD
-    rank = MPI.Comm_rank(comm)
-    totalsize = MPI.Comm_size(comm)
-    diversity = divmeasure(eco, q)
-    totalabun = MPI.Gather(sum(eco.abundances.rows_matrix), 0, comm)
-    mpidivs = MPI.Gather(diversity[!, :diversity], 0, comm)
-    if rank == 0
-        mpidivs = vcat(reshape(mpidivs, countsubcommunities(eco), totalsize),
-                       diversity[!, :q])
-        diversity[!, :diversity] .= mapslices(x -> Diversity.powermean(x[:,
-                                                                         1:(end - 1)],
-                                                                       1 .-
-                                                                       x[:,
-                                                                         end],
-                                                                       totalabun .*
-                                                                       1.0),
-                                              mpidivs,
-                                              dims = 2)[:,
-                                                        1]
-        return diversity
-    else
-        return diversity
-    end
-end
+abstract type MPIEcosystem{MPIGL <: MPIGridLandscape,
+                           Part <: AbstractHabitat,
+                           SL <: SpeciesList,
+                           NF <: AbstractNicheFit} <:
+              AbstractEcosystem{Part, SL, NF} end
