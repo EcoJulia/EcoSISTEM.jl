@@ -290,6 +290,56 @@ public EdgeTopology, Periodic, Bounded
 
 public AbstractTopology, AbstractBoundaryCondition
 
+# **The study area, and the report that says how its grid was decided.** Both must precede
+# `GridHabitat`, which holds an `area::StudyArea{L}` — a struct field type is resolved when the
+# struct is defined, so the area cannot be declared after the habitat that carries it.
+include("DecisionSource.jl")
+
+public AbstractDecisionSource, GivenByUser, AdoptedFromLayers,
+       NoRealWorldPosition,
+       TakenFromAlignedLayer, AgreedByAllLayers, MeasuredAcrossProjection,
+       RoundedFromMeasurement
+
+include("ReportTerms.jl")
+
+# What a report says about each decision and each layer. `public`, not exported, to match
+# `Problem`/`LayerPlan`/`StudyAreaReport` themselves — these are read off a report, not written.
+public AbstractProblemSeverity, ProblemNotice, ProblemWarning
+
+public AbstractLayerFate, LayerKeptExactly, LayerAggregated, LayerResampled
+
+# `public`, not exported, for the same reason as the neighbours above: a stage is **read off** a
+# report, never written by a caller. This diverges from the usual "abstract type `public`, concrete
+# leaves exported" rule, and deliberately — the rule is about types you *construct*, and nothing
+# outside the package should be constructing a claim that a report is as-built.
+public AbstractReportStage, AsInvestigated, AsBuilt
+
+include("StudyAreaReport.jl")
+
+# The report and its parts are meant to be read programmatically (`report.problems`,
+# `report.layers`), not only printed, so they are supported names rather than internals.
+public StudyAreaReport, LayerPlan, Problem, LayerCache
+include("StudyArea.jl")
+
+# **Ask anything that knows the grid how big it is** — a `StudyArea`, a raster, a layer, a habitat
+# or an ecosystem. One dispatch hub (`_gridyx`) with a method per kind, so there is one answer and
+# one place it comes from. Here because `GridHabitat` is the last type that hub names, and because
+# `Layer.jl`'s `_uniformcellside` calls `getcellsizes` — a forward reference until now.
+# `public`, not exported: supported API reached deliberately, not names wanted in every namespace.
+public getspeciesstorage
+
+# **Same reason again, one level up**: `GridHabitat` holds an `area::StudyArea{L}`, so both the
+# area and the `StudyGrid` its parameter names must exist before `GridHabitat.jl`. `StudyArea.jl`
+# itself cannot move up here — it names `GridHabitat` — so the two type definitions live in this
+# file and every function that decides an area stays below.
+# Neither is ever constructed by a user: a `StudyGrid` is read off a habitat that already exists,
+# and `CellNames` is what its `placenames` hands back. Supported and documented, but not in the
+# `using EcoSISTEM` namespace.
+public StudyGrid, CellNames
+
+# The study area — the simulation grid, decided from the layers before anything is built on it.
+export StudyArea
+
 export SpeciesList
 
 include("Landscape.jl")
