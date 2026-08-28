@@ -87,6 +87,21 @@ include("DataSource.jl")
 # `public`, not exported: the abstract types (the house rule), the code-spelling union, and
 # `in_memory_raster` — a supported pathway for data you already hold, but not one to encourage.
 public EcoSISTEMSource, CODE_TYPE
+include("CombineStage.jl")
+
+export CombineOnTargetGrid, CombineOnSourceGrid
+
+public AbstractCombineStage
+
+# The layer recipes.
+include("Spec.jl")
+
+export UniformSpec, GradientSpec, PeakedSpec, NicheSpec, CircleMaskSpec,
+       SurfaceSpec
+
+public AbstractSpec, AbstractSyntheticSpec, AbstractSyntheticLayerSpec,
+       AbstractSyntheticMaskSpec
+
 include("Layer.jl")
 export condition, resource
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
