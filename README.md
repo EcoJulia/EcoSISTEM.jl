@@ -7,56 +7,86 @@
 
 ## Package for running dynamic ecosystem simulations
 
-### Summary
+**EcoSISTEM** (Ecosystem Simulation through Integrated Species-Trait Environment Modelling) is a
+[Julia](http://www.julialang.org) package for simulating species undergoing birth, death,
+competition and dispersal, under climate and habitat that change over time.
 
-**EcoSISTEM** (Ecosystem Simulation through Integrated Species-Trait Environment Modelling) is a [Julia](http://www.julialang.org) package that provides functionality for simulating species undergoing dynamic biological processes such as birth, death, competition and dispersal, as well as environmental changes in climate and habitat.
+The package was primarily developed for global scale simulations of plant biodiversity. The
+underlying model is described in the arXiv paper [arXiv:1911.12257 (q-bio.QM)][paper-url],
+*Dynamic virtual ecosystems as a tool for detecting large-scale responses of biodiversity to
+environmental and land-use change*.
 
-The package was primarily developed for global scale simulations of plant biodiversity. The underlying model for this is described in the arXiv paper [arXiv:1911.12257 (q-bio.QM)][paper-url],
-*Dynamic virtual ecosystems as a tool for detecting large-scale
-responses of biodiversity to environmental and land-use change*.
+### What the model does
 
-There are substantial changes to the package introduced through the [`dev`][dev-url] branch ([docs][docs-dev-url]), including epidemiological simulations and refactoring of the code base for further flexibility.
+A simulation is a **spatial metacommunity**: abundances per species per cell on a grid, rather
+than individuals. Each cell offers **conditions** a species is more or less suited to, and
+**resources** every species present competes for from a shared pool. Births and deaths respond to
+how the community's total demand compares with what a cell supplies, so a cell's carrying capacity
+is an outcome of who is living there rather than a number set in advance — conditions decide where
+a species can persist, and resources how many of it can.
 
-This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](CONTRIBUTING.md). We are supported by NERC's Landscape Decisions [small][NERC-small] and [large][NERC-big] maths grants and an [EPSRC][EPSRC-stu] studentship.
+The environment is built from layers, which may be uniform, drawn from real climate and land-cover
+data, or made to change over the course of a run. See
+[How the model works](https://docs.ecojulia.org/EcoSISTEM.jl/stable/model/) for the mechanism in
+full.
 
-## Introduction to EcoSISTEM
-
-You can now run through a full introduction to EcoSISTEM with Pluto.jl if you have the source of the package cloned. To get started (if you are in the root of the package):
-
-```julia
-(EcoSISTEM) pkg> activate --temp
-  Activating new project at `/var/folders/fv/1rqrvwq14ssggm_gc_x4v1cw0000gq/T/jl_IFxVXO`
-
-(jl_IFxVXO) pkg> dev .
-   Resolving package versions...
-    Updating `/private/var/folders/fv/1rqrvwq14ssggm_gc_x4v1cw0000gq/T/jl_IFxVXO/Project.toml`
-  [ed2dc23b] + EcoSISTEM
-    Updating `/private/var/folders/fv/1rqrvwq14ssggm_gc_x4v1cw0000gq/T/jl_IFxVXO/Manifest.toml`
-
-(jl_IFxVXO) pkg> add Pluto
-   Resolving package versions...
-    Updating `/private/var/folders/fv/1rqrvwq14ssggm_gc_x4v1cw0000gq/T/jl_IFxVXO/Project.toml`
-  [c3e4b0f8] + Pluto
-  No Changes to `/private/var/folders/fv/1rqrvwq14ssggm_gc_x4v1cw0000gq/T/jl_IFxVXO/Manifest.toml`
-
-julia> import Pluto
-
-julia> Pluto.run()
-┌ Info: 
-└ Opening http://localhost:1235/?secret=xxxxxxxx in your default browser... ~ have fun!
-┌ Info: 
-│ Press Ctrl+C in this terminal to stop Pluto
-└ 
-```
-
-This should open a Pluto window in your browser - from there you can find `notebooks/Introduction.jl` in the `Open a notebook` box. You can also test `notebooks/InteractiveAfrica.jl` to see an invasive species colonising Africa. Note that it may be slow on first launch as it must install packages and in the latter case download climate data from the internet. If you are using a different Julia version you may need to add a block at the start of the examples to update the manifest:
+### Getting started
 
 ```julia
-begin
-    using Pkg
-    Pkg.update()
-end
+using Pkg
+Pkg.add("EcoSISTEM")
 ```
+
+A first simulation needs a grid, an environment on it, a set of species, and a run:
+
+```julia
+using EcoSISTEM, EcoSISTEM.Units
+using Unitful, Unitful.DefaultSymbols
+
+# A synthetic grid, 50 km square, in cells of 10 km
+area = StudyArea(extent = (50km, 50km), cellsize = 10km)
+
+# One condition species are matched to, and one resource they compete for
+env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
+                  supply = UniformSpec(1.0e5kJ / (m^2 * day), axis = SolarRadiation),
+                  area = area)
+
+# Ten species suited to 285 K, sharing 10,000 individuals
+species = build_species(10,
+                        tolerance = (285.0K, 3.0K), toleranceaxis = Temperature,
+                        demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
+                        dispersal = 5.0km,
+                        abundance = 10_000,
+                        seed = 1)
+
+eco = build_ecosystem(species, env)
+simulate!(eco, 10year, 1month_mean_duration)
+
+sum(eco.abundances.matrix)      # individuals still alive
+```
+
+The [documentation][docs-stable-url] walks through this in more detail, and covers what an
+environmental layer means, where climate data comes from, how time works in a simulation, how to
+intervene in a running ecosystem, and how to measure the diversity of the result.
+
+### Interactive introduction
+
+Two Pluto notebooks come with the source, in their own environment. With the repository cloned:
+
+```julia
+julia --project=notebooks -e 'import Pluto; Pluto.run()'
+```
+
+Then open `notebooks/Introduction.jl` for a guided tour, or `notebooks/InteractiveAfrica.jl` to
+watch an invasive species colonise Africa. Both may be slow to start, as the second downloads
+climate data.
+
+### Contributing
+
+This package is in beta now, so please raise an issue if you find any problems. For more
+information on how to contribute, please read [our contributing guidelines](CONTRIBUTING.md). We
+are supported by NERC's Landscape Decisions [small][NERC-small] and [large][NERC-big] maths grants
+and an [EPSRC][EPSRC-stu] studentship.
 
 [paper-url]: https://arxiv.org/abs/1911.12257
 
@@ -78,7 +108,6 @@ end
 [zenodo-img]: https://zenodo.org/badge/251665824.svg
 [zenodo-url]: https://zenodo.org/badge/latestdoi/251665824
 
-[dev-url]: https://github.com/EcoJulia/EcoSISTEM.jl/tree/dev
 [NERC-small]: https://gtr.ukri.org/projects?ref=NE%2FT004193%2F1
 [NERC-big]: https://gtr.ukri.org/projects?ref=NE%2FT010355%2F1
 [EPSRC-stu]: https://gtr.ukri.org/projects?ref=EP%2FM506539%2F1
