@@ -534,51 +534,22 @@ function __init__()
     return nothing
 end
 
-abstract type MPIGridLandscape end
-export MPIGridLandscape
+# **The two documented exceptions to "every abstract type is `public`, never exported"** — both
+# are abstract only because their concrete subtypes live in `EcoSISTEMMPIExt`.
+include("MPIEcosystem.jl")
 
-abstract type MPIEcosystem{MPIGL <: MPIGridLandscape,
-                           Part <: AbstractHabitat,
-                           SL <: SpeciesList,
-                           NF <: AbstractNicheFit} <:
-              AbstractEcosystem{Part, SL, NF} end
-export MPIEcosystem
+export MPIGridLandscape, MPIEcosystem
 
-"""
-    gather_abundance(eco::MPIEcosystem)
 
-Gather the full abundances matrix onto the root node.
-"""
-function gather_abundance end
 
-"""
-    gather_diversity(eco::MPIEcosystem, divmeasure::F, q) where F <: Function
 
-Gather diversity calculated by `divmeasure` at value `q` from all MPI nodes onto
-the root node (rank 0), combining subcommunity diversity values using a power
-mean weighted by total abundances across nodes.
-"""
-function gather_diversity end
-export gather_abundance, gather_diversity
 
-function emptyMPIgridlandscape end
-function synchronise_from_rows! end
-function synchronise_from_cols! end
-export emptyMPIgridlandscape, synchronise_from_rows!, synchronise_from_cols!
 
-function _use_mpi()
-    return !isnothing(Base.get_extension(@__MODULE__, :EcoSISTEMMPIExt)) &&
-           _should_mpi()
-end
 # **THE WORKFLOW, LAST — the counterpart to `Ecology.jl` at the front.** `Ecology.jl` declares
 # what the model is; this declares what you do with it, in the order you do it: investigate a grid,
 # build the pieces, assemble them, run it. Nothing else lives there — the machinery behind each verb
 # stays with its own concept, and the file says so.
 include("actions.jl")
 
-# Whether this process should build a distributed `MPIEcosystem`: the MPI extension overrides this
-# to `MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1`. The default (extension not loaded) is
-# always false, so the base package builds a serial `Ecosystem` and never references MPI symbols.
-function _should_mpi end
 
 end
