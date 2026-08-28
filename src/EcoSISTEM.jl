@@ -113,6 +113,16 @@ public AbstractAccumulationPeriod, ConstantAccumulationPeriod,
        PerSliceAccumulationPeriod,
        PerCellAccumulationPeriod
 
+include("LayerCatalogue.jl")
+
+public LayerRecord, AxisNode
+
+public layerinfo, layersbyaxis, layerrate
+
+# Exported rather than `public`, unlike their three siblings above -- that split is inherited from
+# `ClimatePref`, which exported exactly these two. Kept as it was rather than changed in passing;
+# whether the catalogue family should be uniform is a separate question.
+export layeraxis, layerunit
 include("Layer.jl")
 export condition, resource
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
