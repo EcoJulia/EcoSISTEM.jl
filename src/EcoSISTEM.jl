@@ -428,6 +428,30 @@ export EveryStep, AtTime, AtTimes, BetweenTimes, NeverScheduled
 
 public AbstractSchedule
 
+include("Region.jl")
+
+# where — the region
+export AllCells, ActiveCells, CellMask, RandomCells, SpreadingCells
+
+public AbstractRegion
+
+include("Operation.jl")
+
+# what — the closed set of six operations
+export Deactivate, Reactivate, SetLandCover, SetChange, AddAbundance,
+       RemoveAbundance,
+       AddSpecies
+
+public AbstractOperation
+
+include("Intervention.jl")
+
+# Ecosystem-level intervention: the declarative replacement for the scenario callbacks above, which
+# stay as deprecated shims. Included before `deprecations.jl`, because those shims forward onto it.
+export Intervention, InterventionSet
+
+public applyinterventions!
+
 
 using Random
 using Hwloc
