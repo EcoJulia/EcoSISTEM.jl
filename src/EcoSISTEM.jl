@@ -252,6 +252,17 @@ include("Demand.jl")
 
 export Demand
 
+include("NicheFit.jl")
+
+# Supported but unexported: `nichefitcombine` is how a `CombiningFit` folds its members, which callers
+# need when writing their own, but it is not part of the everyday vocabulary.
+public nichefitcombine
+
+export suitability
+
+export CombiningFit, MultiplicativeFit, CategoricalSuitability, NoFitContinuous,
+       NoFitCategorical, NicheSuitability, AdditiveFit
+
 include("Movement.jl")
 export GaussianKernel,
        LongTailKernel,
