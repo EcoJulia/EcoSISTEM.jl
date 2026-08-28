@@ -80,6 +80,13 @@ export Trapezoid
 public read_distribution, paramunits
 
 public ParamRole
+
+# Where a layer's data comes from, and which grid a combine runs on.
+include("DataSource.jl")
+
+# `public`, not exported: the abstract types (the house rule), the code-spelling union, and
+# `in_memory_raster` — a supported pathway for data you already hold, but not one to encourage.
+public EcoSISTEMSource, CODE_TYPE
 include("Layer.jl")
 export condition, resource
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
