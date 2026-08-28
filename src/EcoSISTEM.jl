@@ -452,6 +452,10 @@ export Intervention, InterventionSet
 
 public applyinterventions!
 
+include("DefaultEcosystem.jl")
+
+export DefaultEcosystem
+
 
 using Random
 using Hwloc
