@@ -232,6 +232,26 @@ public setchange!
 # Checking a run against the series driving it is supported API — `simulate!` calls it before the
 # first step, but it is worth being able to ask before committing to a run.
 public checkcoverage, check_bounds
+
+# **The species side mirrors the layer side member for member**, so it follows straight on: a
+# `Condition` requirement is a tolerance, a `Resource` one a demand, and the fits below say how a
+# tolerance is scored against the regime it is paired with.
+include("SpeciesRequirement.jl")
+
+export SpeciesRequirementCollection
+
+include("Tolerance.jl")
+
+# Reaching inside a tolerance is how you *write* one, not how you run a model.
+public getpref, getdist
+
+export SimpleCategoricalTolerance, NicheTolerance, TempTolerance, RainTolerance
+
+public ContinuousTolerance, AbstractCategoricalTolerance
+include("Demand.jl")
+
+export Demand
+
 include("Movement.jl")
 export GaussianKernel,
        LongTailKernel,
