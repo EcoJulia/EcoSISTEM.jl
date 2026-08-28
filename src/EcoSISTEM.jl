@@ -26,49 +26,32 @@ public CachedAsset
 public assetdir
 
 public assetpath
+
+# The units submodule: the arcminute/arcsecond subdivisions of a degree, and the calendar-month
+# durations. First, because other files depend on it.
 include("Units/Units.jl")
 
-# Layer roles + specs (recipes) — defined early so later modules can build on them.
-include("NicheInfo.jl")
-export NicheAxis,
-# grouping supertypes (XxxAxis)
-       TemperatureAxis, WaterAxis, PrecipitationAxis, HumidityAxis,
-       VaporPressureDeficitAxis, RelativeHumidityAxis, EvapotranspirationAxis,
-       ClimateMoistureAxis, SolarRadiationAxis, WindSpeedAxis, CloudCoverAxis,
-       DayAxis, CarbonAxis, TypologyAxis,
-# temperature leaves
-       Temperature, TemperatureRange, TemperatureSeasonality, CumulativeHeat,
-       Isothermality, FrostChangeFrequency,
-# water leaves
-       Precipitation, PrecipitationSeasonality, VaporPressure,
-       VaporPressureDeficit, VaporPressureDeficitRange, RelativeHumidity,
-       RelativeHumidityRange, Evapotranspiration, EvapotranspirationRange,
-       ClimateMoisture, ClimateMoistureRange, SnowWaterEquivalent,
-       SiteWaterBalance, GrowingSeasonPrecipitation,
-# radiation / wind / cloud
-       SolarRadiation, SolarRadiationRange, WindSpeed, WindSpeedRange,
-       CloudCover, CloudCoverRange,
-# day / carbon / typology / other
-       DayOfYear, DayRange, CarbonFlux, LandCoverTypology, ClimateTypology,
-       Heterogeneity, Altitude
-export SourceSpec, UniformSpec, GradientSpec, PeakedSpec, NicheSpec
-
-# Geographic coordinate type — used across the ClimatePref sub-module and the main module, so it is
-# defined here (before ClimatePref) rather than inside it.
+# The coordinate vocabulary — the two-dimensional position/size family and the geographic point type
+# — used across the `ClimatePref` submodule and the main module, and by `CircleMaskSpec`
+# (`Spec.jl`), so it is defined here, before all of them.
 include("Coordinates.jl")
+
 export LatLong
 
-# EcoSISTEM.ClimatePref sub-module
-include("ClimatePref/ClimatePref.jl")
+# Members of the `get*` accessor family, which is flatcase by design and `public` throughout. Not
+# `lat`/`long`: those are short enough to collide with a local variable and with the English word
+# "long", both of which occur in this repo's own examples.
+public getlat, getlong
 
-# DataPipeline extension
-"""
-    EcoSISTEM.unziptemp(path::String)
+# `public`, not exported. [`LatLong`](@ref) is the type a user names; these are the unit-general
+# forms behind it, reached when writing code that works on projected grids as well as geographic.
+public SpatialLocation, SpatialSize
 
-Helper function for the FAIR Data Pipeline to unzip files that are stored as
-zips to a temporary folder.
-"""
-function unziptemp end
+# `public`, not exported: a named-region lookup is reached for deliberately, and `boundingbox` is a
+# common enough English word that it should not land in every `using EcoSISTEM` namespace.
+public boundingbox
+
+public SpatialKind, Spatial2D
 
 # The axis machinery, then the axes declared with it. `@nicheaxis` emits methods whose signatures
 # name `Resource`, so `Ecology.jl` — which declares the roles — must already have been included.
