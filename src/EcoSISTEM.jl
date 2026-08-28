@@ -418,6 +418,16 @@ include("DiversitySet.jl")
 
 export DiversitySet, updatesimulation!, gettimes
 
+# **Ecosystem-level change — a second mechanism, deliberately separate from a layer change.** An
+# intervention mutates the ecosystem (the active mask, abundances), so it is applied once and
+# identically everywhere; a layer change is a pure function of time and is applied redundantly.
+include("Schedule.jl")
+
+# when — the schedule
+export EveryStep, AtTime, AtTimes, BetweenTimes, NeverScheduled
+
+public AbstractSchedule
+
 
 using Random
 using Hwloc
