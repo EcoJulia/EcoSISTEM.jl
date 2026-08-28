@@ -6,6 +6,11 @@ using EcoSISTEM
 using Pkg
 using ParallelTestRunner: find_tests, parse_args, runtests
 
+# Rasters' pre-read memory guard misreports on a CI runner; see the file for the measurement and for
+# what relaxing it gives up. Included here so the main process is covered, and re-run inside each
+# ParallelTestRunner worker through `init_worker_code` at every `runtests` call in the suite.
+include("checkmem.jl")
+
 # A test argument names one test file to run *instead of* the whole suite:
 #
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["extras_clean.jl"])'
@@ -133,8 +138,9 @@ else
         #
         # **Why set-level rather than per-example.** Each of these activates a *different*
         # environment (`examples/`, `notebooks/`), and one process per set isolates that for free —
-        # no worker init code, no `Pkg.activate` restore dance, and no two examples racing to fetch
-        # the same raster into one cache.
+        # no `Pkg.activate` restore dance, and no two examples racing to fetch the same raster into
+        # one cache. The one thing each worker is told is `checkmem.jl`, which is a property of the
+        # runner rather than of the set.
         #
         # **The download race is handled by the ORDER, not by luck**: `core_test` runs first and
         # `test_GridHabitat.jl`/`test_datasetread.jl` already fetch the big EarthEnv layer the examples
@@ -156,7 +162,8 @@ else
             @info "Running these concurrently: " *
                   join(sort(collect(keys(suite))), ", ")
             println()
-            runtests(EcoSISTEM, parse_args(String[]), testsuite = suite)
+            runtests(EcoSISTEM, parse_args(String[]), testsuite = suite,
+                     init_worker_code = RELAXRASTERMEMCHECK)
         end
     end
 end

@@ -28,6 +28,10 @@ using ParallelTestRunner: find_tests, parse_args, runtests
 include(joinpath(@__DIR__, "canonical", "canonical.jl"))
 using .Canonical
 
+# See `checkmem.jl`. Included here as well as in `runtests.jl` because this file is documented as a
+# standalone script, and passed to the workers below because the guard is per-process.
+include(joinpath(@__DIR__, "checkmem.jl"))
+
 @testset "Canonical results" begin
     dir = joinpath(@__DIR__, "canonical")
     files = sort(filter(f -> startswith(f, "test_") && endswith(f, ".jl"),
@@ -52,7 +56,8 @@ using .Canonical
         # `parse_args(String[])` — see `core_test.jl` for why forwarding `ARGS` runs nothing.
         runtests(EcoSISTEM, parse_args(String[]),
                  testsuite = filter(kv -> startswith(kv.first, "test_"),
-                                    find_tests(dir)))
+                                    find_tests(dir)),
+                 init_worker_code = RELAXRASTERMEMCHECK)
     end
 end
 
