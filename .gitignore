@@ -3,5 +3,4 @@
 *.jl.mem
 Manifest.toml
 /.fair
-/.JuliaFormatter.toml
 mpiexecjl
