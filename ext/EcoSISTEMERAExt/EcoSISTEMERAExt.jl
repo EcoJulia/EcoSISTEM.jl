@@ -2,7 +2,7 @@
 
 module EcoSISTEMERAExt
 
-using EcoSISTEM, EcoSISTEM.ClimatePref
+using EcoSISTEM
 using PyCall
 
 # Install python api for Climate Data Store
@@ -10,11 +10,11 @@ run(`$(PyCall.python) -m pip install cdsapi`)
 
 @info "Creating ECMWF interface for EcoSISTEM..."
 
-function EcoSISTEM.ClimatePref.retrieve_era5(param::String,
-                                             from_year::Int64,
-                                             to_year::Int64,
-                                             filename::String = "era5";
-                                             kws...)
+function EcoSISTEM.retrieve_era5(param::String,
+                                 from_year::Int64,
+                                 to_year::Int64,
+                                 filename::String = "era5";
+                                 kws...)
     py"""
     from math import floor
     import cdsapi
