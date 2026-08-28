@@ -50,7 +50,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v1
+        key: rasterdata-${{ runner.os }}-v2
         lookup-only: true
     - name: Checkout code
       if: steps.probe.outputs.cache-hit != 'true'
@@ -85,7 +85,7 @@ jobs:
       uses: actions/cache/save@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v1
+        key: rasterdata-${{ runner.os }}-v2
 
   EcoSISTEM-tests:
     name: Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -163,7 +163,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v1
+        key: rasterdata-${{ runner.os }}-v2
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Build package
@@ -215,7 +215,7 @@ jobs:
       uses: actions/cache/save@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v1
+        key: rasterdata-${{ runner.os }}-v2
     - name: Process coverage
       if: matrix.os == 'macOS-latest' && matrix.julia-version == '1'
       uses: julia-actions/julia-processcoverage@v1

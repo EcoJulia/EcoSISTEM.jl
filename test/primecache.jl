@@ -13,8 +13,11 @@
 # machine far enough into swap that the Actions agent was shut down. The tests then never reached
 # their own cache-saving step, so the next run downloaded again -- a loop that could not break itself.
 #
-# `getraster` downloads and returns paths; it does not read pixels, so this runs in a few hundred MB
-# whatever it fetches. That is the whole reason a separate job can survive what the test job could not.
+# Most entries call `getraster`, which downloads and returns paths without reading pixels, so they
+# cost a few hundred MB whatever they fetch. The last three deliberately DO read, to precompute the
+# aggregated forms the tests use: that is the expensive part, at over 10 GB resident, and it is why
+# this job has to exist rather than merely being an optimisation. Nothing else runs here, so the peak
+# has the machine to itself -- in the test job it did not, and the runner was shut down.
 #
 # An incomplete list is SAFE, and that is deliberate. `getraster`/`download` each test their own
 # target file's existence before fetching, so anything missed here is simply downloaded by the test
@@ -45,6 +48,30 @@ const WANTED = [
     "EarthEnv HabitatHeterogeneity" =>
         () -> getraster(EarthEnv{HabitatHeterogeneity}),
     "CHELSA BioClim layer 1" => () -> getraster(CHELSA{BioClim}, 1),
+    # These READ rather than download, so that each file's aggregated form is computed here and
+    # cached alongside the rasters.
+    #
+    # A read naming a `scale` and no `cut` aggregates the WHOLE source file, memoised under
+    # `assetdir()/aggregates` keyed on (file, scale, reducer, unit). Measured cold, EarthEnv
+    # LandCover costs 10.6 to 12.2 GB resident -- all twelve global bands at full resolution --
+    # whatever scale is asked for, since the scale only decides what comes out. That is most of a
+    # 16 GB runner, and it is what killed the Linux jobs about ninety seconds into the suite.
+    #
+    # Paying it here fixes it everywhere: each test job restores the memoised result and loads a
+    # JLD2 instead. The scales MUST match the ones the tests ask for, or the key differs and the
+    # work is done again where it cannot be afforded -- `test_datasetread.jl` chooses them.
+    #
+    # A windowed read is deliberately absent: `_cachedlayer` bypasses the cache whenever a `cut` is
+    # given and reads only the window, so there is nothing to prime.
+    "EarthEnv LandCover, aggregated at scale 40" =>
+        () -> read(EarthEnv{LandCover},
+                   scale = 40),
+    "WorldClim BioClim, aggregated at scale 4" =>
+        () -> read(WorldClim{BioClim},
+                   scale = 4),
+    "CHELSA BioClim 1, aggregated at scale 20" =>
+        () -> read(CHELSA{BioClim}, 1,
+                   scale = 20),
     # Used by `examples/ScottishCultivatedLand.jl`, so it is only reached by
     # `extras_examples`; fetched here for the same reason as the rasters.
     "Scotland land-cover shapefile" =>
