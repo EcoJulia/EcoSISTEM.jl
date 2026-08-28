@@ -11,9 +11,11 @@ using Distributions
 using Random
 
 import EcoSISTEM: read_distribution, param_roles_resolved, all_positions,
-                  role_units, param_roles, guess_params
-# `param_units` is public (unexported); reach it through the module.
-const param_units = EcoSISTEM.param_units
+                  role_units, param_roles, guess_params, LocationRole,
+                  ScaleRole,
+                  RateRole, ShapeRole
+# `paramunits` is public (unexported); reach it through the module.
+const paramunits = EcoSISTEM.paramunits
 
 @testset "Dist" begin
     @testset "Trapezoid distribution" begin
@@ -49,15 +51,15 @@ const param_units = EcoSISTEM.param_units
 
     @testset "parameter role resolution" begin
         # location/scale, all-position (bounds), shape/scale, and shape-only families
-        @test param_roles_resolved(Normal) == [:location, :scale]
-        @test param_roles_resolved(Uniform) == [:location, :location]
+        @test param_roles_resolved(Normal) == [LocationRole(), ScaleRole()]
+        @test param_roles_resolved(Uniform) == [LocationRole(), LocationRole()]
         @test param_roles_resolved(Trapezoid) ==
-              [:location, :location, :location, :location]
-        @test param_roles_resolved(Gamma) == [:shape, :scale]
-        @test param_roles_resolved(Beta) == [:shape, :shape]
+              [LocationRole(), LocationRole(), LocationRole(), LocationRole()]
+        @test param_roles_resolved(Gamma) == [ShapeRole(), ScaleRole()]
+        @test param_roles_resolved(Beta) == [ShapeRole(), ShapeRole()]
         # LogNormal/LogitNormal are special-cased to shape-only (log/logit-space params)
-        @test param_roles_resolved(LogNormal) == [:shape, :shape]
-        @test param_roles_resolved(LogitNormal) == [:shape, :shape]
+        @test param_roles_resolved(LogNormal) == [ShapeRole(), ShapeRole()]
+        @test param_roles_resolved(LogitNormal) == [ShapeRole(), ShapeRole()]
 
         # `all_positions`: a bounds family's support moves with its parameters; a fixed-support
         # (Beta) or infinite-support (Normal) family's does not
@@ -70,26 +72,28 @@ const param_units = EcoSISTEM.param_units
         @test guess_params(Gamma) isa Gamma
         # `param_roles` returns the introspection named tuple
         info = param_roles(Normal)
-        @test info.roles == [[:location], [:scale]]
+        @test info.roles == [[LocationRole()], [ScaleRole()]]
         @test info.dist isa Normal
     end
 
-    @testset "role_units + param_units (absolute-unit introspection)" begin
+    @testset "role_units + paramunits (absolute-unit introspection)" begin
         # location/scale carry the ABSOLUTE support unit (K for °C), rate its inverse, shape none
-        @test role_units(:location, K) == K
-        @test role_units(:scale, °C) == K          # absolute unit of an affine one
-        @test role_units(:rate, mm) == inv(mm)
-        @test role_units(:shape, K) == NoUnits
-        @test_throws ErrorException role_units(:bogus, K)
+        @test role_units(LocationRole(), K) == K
+        @test role_units(ScaleRole(), °C) == K          # absolute unit of an affine one
+        @test role_units(RateRole(), mm) == inv(mm)
+        @test role_units(ShapeRole(), K) == NoUnits
+        # `role_units` is genuine multiple dispatch on `ParamRole`, not a Symbol lookup — an
+        # unrecognised "role" is a MethodError, not a hand-rolled error branch.
+        @test_throws MethodError role_units(:bogus, K)
 
-        @test param_units(Normal, K) == [K, K]
-        @test param_units(Normal, °C) == [K, K]     # affine → absolute
-        @test param_units(Uniform, mm) == [mm, mm]
-        @test param_units(Gamma, mm) == [NoUnits, mm]  # shape dimensionless, scale carries it
+        @test paramunits(Normal, K) == [K, K]
+        @test paramunits(Normal, °C) == [K, K]     # affine → absolute
+        @test paramunits(Uniform, mm) == [mm, mm]
+        @test paramunits(Gamma, mm) == [NoUnits, mm]  # shape dimensionless, scale carries it
         # shape-only family: every parameter is dimensionless (regression — Beta must not be
         # mistaken for a bounds family and given [K, K])
-        @test param_units(Beta, K) == [NoUnits, NoUnits]
-        @test param_units(Normal, NoUnits) == [NoUnits, NoUnits]
+        @test paramunits(Beta, K) == [NoUnits, NoUnits]
+        @test paramunits(Normal, NoUnits) == [NoUnits, NoUnits]
     end
 
     @testset "read_distribution (affine-aware value conversion)" begin
@@ -102,7 +106,7 @@ const param_units = EcoSISTEM.param_units
         @test collect(params(read_distribution(Normal, °C, [0.0, 2.0]))) ≈
               [273.15, 2.0]
         # in the °C frame the location stays 0, the width still 2
-        @test collect(params(read_distribution(Normal, °C, [0.0, 2.0];
+        @test collect(params(read_distribution(Normal, °C, [0.0, 2.0],
                                                canonical = °C))) ≈ [0.0, 2.0]
         # both Uniform bounds are positions → both shift
         @test collect(params(read_distribution(Uniform, °C, [0.0, 10.0]))) ≈
@@ -115,7 +119,7 @@ const param_units = EcoSISTEM.param_units
               [2.0, 3.0]
 
         # a shape-only family is placed on the axis via a LocationScale from offset + scale
-        bb = read_distribution(Beta, K, [2.0, 3.0]; offset = 270.0,
+        bb = read_distribution(Beta, K, [2.0, 3.0], offset = 270.0,
                                scale = 30.0)
         @test bb isa Distributions.LocationScale
         @test bb.μ == 270.0

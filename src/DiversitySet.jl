@@ -1,14 +1,31 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
+#
+# A recorded run's diversity measurements, alongside the ecosystem that produced them.
 
-using Feather
 using DataFrames
+using Feather
 using Missings
+using Unitful
 
+"""
+    DiversitySet
+
+Diversity measurements recorded from a [`CachedEcosystem`](@ref) over a run, held alongside the
+folder its cached abundances were written to.
+
+# Fields
+
+  - `data`: the measurements so far, or `missing` before any have been taken.
+  - `folder`: where the cached abundances live, which is also where results are read back from.
+  - `times`: every timepoint diversity is wanted at. [`gettimes`](@ref) narrows this to the ones not
+    yet computed.
+"""
 mutable struct DiversitySet
     data::Union{DataFrame, Missing}
     folder::String
     times::Vector{Unitful.Time}
 end
+# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
 
 """
     DiversitySet(cache::CachedEcosystem, times::Vector{T}) where T <: Unitful.Time
@@ -35,34 +52,26 @@ end
 """
     gettimes(diversityset::DiversitySet)
 
-Return the timepoints in a [`DiversitySet`](@ref) for which diversity has not
-yet been calculated. If a previously saved Feather file of results is found,
-only times beyond the latest recorded time are returned.
+Return the timepoints in a [`DiversitySet`](@ref) for which diversity has not yet been calculated.
+Where a previously saved Feather file of results is found, only times beyond the latest it records
+are returned, so a run can be resumed rather than repeated.
+
+# Arguments
+
+  - `diversityset`: the set to ask, whose `folder` is searched for saved results.
 """
 function gettimes(diversityset::DiversitySet)
-    file = searchdir(diversityset.folder, ".feather")
-    if ismissing(diversityset.data) & isempty(file)
-        return diversityset.times
-    else
-        if ismissing(diversityset.data) & !isempty(file)
-            diversityset.data = Feather.read(joinpath(diversityset.folder,
-                                                      file[1]))
-            diversityset.data[:type_name] = ""
-            diversityset.data[:time] *= 1s
-        end
-        latesttime = maximum(diversityset.data[:time])
-        newtimes = diversityset.times[diversityset.times .> latesttime]
-        return newtimes
+    file = _searchdir(diversityset.folder, ".feather")
+    (ismissing(diversityset.data) && isempty(file)) && return diversityset.times
+    if ismissing(diversityset.data)
+        # A saved file's `time` column is stored bare, so it is given back its unit on the way in and
+        # every comparison below is between `Unitful.Time`s.
+        loaded = DataFrame(Feather.read(joinpath(diversityset.folder,
+                                                 first(file))))
+        loaded[!, :type_name] .= ""
+        loaded[!, :time] = loaded[!, :time] .* 1s
+        diversityset.data = loaded
     end
-end
-
-import DataFrames.append!
-"""
-    append!(diversityset::DiversitySet, dat::DataFrame)
-
-Append a `DataFrame` of diversity results `dat` to the data stored in a
-[`DiversitySet`](@ref).
-"""
-function append!(diversityset::DiversitySet, dat::DataFrame)
-    return append!(diversityset.data, dat)
+    latest = maximum(diversityset.data[!, :time])
+    return diversityset.times[diversityset.times .> latest]
 end

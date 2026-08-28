@@ -1,84 +1,198 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
+#
+# The abundances: one matrix held as both `species × location` and `species × Y × X` views of the
+# same memory, plus the saved and cached forms a recorded run produces.
 
+using DimensionalData
+using DimensionalData.Lookups: NoLookup, Categorical
+using DimensionalData: Ti
 using Missings
-using AxisArrays
 using Random
 
+"""
+    GridLandscape
+
+An ecosystem's abundances: how many individuals of each species are in each cell. The same numbers
+are held under two names, as two views of one block of memory, because the simulation asks two
+different questions of them — the hot loop walks species against flat cells, while inspecting or
+seeding a run wants to say *where*.
+
+Immutable, and that is what makes the two views agree: the only way to change shape is to build a
+new `GridLandscape` and reassign the whole field holding it, so they cannot drift apart.
+
+# Fields
+
+  - `matrix`: a `(Dim{:species}, Dim{:location})` `DimArray` — species against flat grid cell, with
+    no `Y`/`X` structure. The per-timestep access pattern, carrying real species names.
+  - `grid`: a `(Dim{:species}, Y, X)` `DimArray` view of the *same* data. `Y` and `X` are the
+    habitat's own dimensions, so a data-driven habitat's cells carry their real coordinates and a
+    synthetic one's carry `NoLookup`.
+"""
+struct GridLandscape{Am <:
+                     DimensionalData.AbstractDimArray{Int64, 2,
+                                                      <:Tuple{<:Dim{:species},
+                                                              <:Dim{:location}}},
+                     Ag <:
+                     DimensionalData.AbstractDimArray{Int64, 3,
+                                                      <:Tuple{<:Dim{:species},
+                                                              <:Y, <:X}}}
+    matrix::Am
+    grid::Ag
+
+    function GridLandscape(abun::Matrix{Int64}, names::Vector{String},
+                           yx::Tuple{<:Y, <:X})
+        length(names) == size(abun, 1) ||
+            throw(DimensionMismatch("`names` has $(length(names)) entries but `abun` has $(size(abun, 1)) species"))
+        prod(length.(yx)) == size(abun, 2) ||
+            throw(DimensionMismatch("grid `yx` has $(prod(length.(yx))) cells but `abun` has $(size(abun, 2))"))
+        sp = Dim{:species}(Categorical(names))
+        m = DimArray(abun, (sp, Dim{:location}(NoLookup())))
+        g = DimArray(reshape(abun, (length(names), length.(yx)...)),
+                     (sp, yx...))
+        return new{typeof(m), typeof(g)}(m, g)
+    end
+end
+
+"""
+    SavedLandscape
+
+A [`GridLandscape`](@ref) reduced to what has to survive a round trip through disk: the bare
+abundance matrix, without its dimensions, and a snapshot of the per-species random number streams.
+
+The streams are what make a resumed run reproducible — a run draws from one generator per species
+rather than from a shared one, so restoring the abundances alone would restart every stream from
+wherever the loading process happened to be. The dimensions are not saved because the ecosystem being
+restored into already has them.
+
+# Fields
+
+  - `matrix`: the abundances, species by flat grid cell.
+  - `rngs`: one generator state per species, copied at the moment of saving.
+"""
 struct SavedLandscape
     matrix::Matrix{Int64}
     rngs::Vector{Random.Xoshiro}
 end
 
+# `matrix` is annotated ABSTRACTLY ON PURPOSE, and must stay that way. The obvious repair —
+# parameterising the struct on the array type — does not remove the abstraction, it moves it:
+# `CachedEcosystem` declares `abundances::CachedGridLandscape`, which is a concrete annotation only
+# while this type is concrete. Parameterising here makes that a `UnionAll` instead, so the same
+# imprecision reappears one level up, and removing it there would give an exported type a fourth
+# type parameter. Measured, not assumed: `isconcretetype(fieldtype(CachedEcosystem, :abundances))`
+# is `true` as written and `false` once this is parameterised.
+#
+# The cost is bounded because this is the disk-cache landscape: every read is
+# `cache.abundances.matrix[Ti(At(tm))]` on the save/load path, where the I/O dominates. Nothing in
+# the hot loop touches it.
 """
-    GridLandscape
+    CachedGridLandscape
 
-Ecosystem abundances housed in the landscape. `matrix` stores abundances as a
-2-dimensional array (species × grid cells) for computational efficiency, and
-`grid` is a 3-dimensional view of the same data (species × x × y). Random draws
-during simulation use Julia's task-local default RNG, so no generator state is
-stored here.
+A recorded run's abundances over time: one [`GridLandscape`](@ref) per timepoint, or `missing` where
+that point has not been computed yet.
+
+How often checkpoints reach disk is separate from how often the simulation steps, and does not affect
+the answer: the run always advances by `timestep`, so `saveinterval` chooses only how much is kept.
+
+# Fields
+
+  - `matrix`: a `DimArray` over a `Ti` axis holding `GridLandscape`s and `missing`s. Indexed by
+    **time value**, which needs a selector — `matrix[Ti(At(t))]`, not `matrix[t]`, which is
+    positional and an error for a `Unitful.Time`.
+  - `outputfolder`: where the JLD2 cache files are written.
+  - `saveinterval`: how often a checkpoint reaches disk. A multiple of `timestep`.
+  - `timestep`: the simulation step, and the granularity of the time axis.
 """
-mutable struct GridLandscape
-    matrix::Matrix{Int64}
-    grid::Array{Int64, 3}
-
-    function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
-        a = abun
-        return new(a, reshape(a, dimension))
-    end
+struct CachedGridLandscape
+    matrix::DimensionalData.AbstractDimVector{Union{GridLandscape, Missing}}
+    outputfolder::String
+    saveinterval::Unitful.Time
+    timestep::Unitful.Time
 end
-import Base.copy
-function copy(gl::GridLandscape)
-    return GridLandscape(copy(gl.matrix), size(gl.grid))
-end
-"""
-    GridLandscape(sl::SavedLandscape, dimension::Tuple)
+# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
 
-Restore a `GridLandscape` from a [`SavedLandscape`](@ref), reshaping the
-abundance matrix to `dimension`. The saved RNG snapshot is restored separately
-at the load site (see [`loadfile`](@ref)).
+# ---------------------------------------------------------------------------
+# Display
+# ---------------------------------------------------------------------------
+# Without these the default prints the whole abundance matrix twice over — `matrix` and `grid` are
+# two views of one buffer — measured at 291 648 characters on a single line for 12 species over a
+# 60 x 100 grid.
+#
+# The total abundance is a genuine reduction over the data, which every other `show` in the package
+# avoids. It is here deliberately: it is the one number a reader wants from a landscape, and it is a
+# sum over an `Int64` matrix rather than anything allocating. Nothing else here touches the values.
+function Base.show(io::IO, l::GridLandscape)
+    nsp, ny, nx = size(l.grid)
+    return print(io,
+                 "GridLandscape($(nsp) species × $(ny) × $(nx), $(sum(l.matrix)) individuals)")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", l::GridLandscape)
+    nsp, ny, nx = size(l.grid)
+    println(io, "GridLandscape")
+    println(io, "  species   ", nsp)
+    println(io, "  grid      $(ny) × $(nx) cells")
+    print(io, "  total     ", sum(l.matrix), " individuals")
+    return nothing
+end
+
+# Build one from a plain size, for callers with no `SpeciesList` or `GridHabitat` to hand. Species
+# are named by their number, matching `GridHabitat`'s own default-name convention, and `Y`/`X` are
+# fresh `NoLookup` dimensions: there is no CRS to attach, as for any synthetic grid.
+function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
+    names = string.(axes(abun, 1))
+    yx = (Y(NoLookup(Base.OneTo(dimension[2]))),
+          X(NoLookup(Base.OneTo(dimension[3]))))
+    return GridLandscape(abun, names, yx)
+end
+
 """
-function GridLandscape(sl::SavedLandscape, dimension::Tuple)
-    return GridLandscape(sl.matrix, dimension)
+    GridLandscape(sl::SavedLandscape, names::Vector{String}, yx::Tuple{<:Y, <:X})
+
+Restore a `GridLandscape` from a [`SavedLandscape`](@ref), putting its bare abundance matrix back
+onto dimensions.
+
+# Arguments
+
+  - `sl`: the saved abundances.
+  - `names`: the species names, from the ecosystem being restored into.
+  - `yx`: that ecosystem's `Y` and `X` dimensions.
+
+The saved random number streams are restored separately, by the caller that already holds the
+ecosystem to put them in.
+"""
+function GridLandscape(sl::SavedLandscape, names::Vector{String},
+                       yx::Tuple{<:Y, <:X})
+    return GridLandscape(sl.matrix, names, yx)
 end
 
 """
     SavedLandscape(gl::GridLandscape, rngs::Vector{Random.Xoshiro})
 
-Convert a [`GridLandscape`](@ref) to a `SavedLandscape` for serialisation,
-preserving the abundance matrix and a snapshot of the per-species RNG streams
-`rngs` so a cached run can be resumed with a reproducible random stream.
+Reduce a [`GridLandscape`](@ref) to its serialisable form.
+
+# Arguments
+
+  - `gl`: the landscape whose abundances are to be kept.
+  - `rngs`: the ecosystem's per-species generators, copied rather than aliased so that continuing the
+    run does not alter what was saved.
 """
 function SavedLandscape(gl::GridLandscape, rngs::Vector{Random.Xoshiro})
     return SavedLandscape(gl.matrix, copy.(rngs))
 end
 
 """
-    CachedGridLandscape
-
-Ecosystem abundances for a cached simulation. `matrix` is an `AxisArray` over
-time where each slot holds either a [`GridLandscape`](@ref) or `missing`.
-`outputfolder` is the path to the folder where JLD2 cache files are written.
-`timestep` is the simulation step (the granularity of the time axis) and
-`saveinterval` is the (possibly coarser) interval at which checkpoints are
-written to disk; it must be a multiple of `timestep`. Because the simulation
-always advances by `timestep`, the results are independent of `saveinterval`.
-"""
-mutable struct CachedGridLandscape
-    matrix::AxisArray{Union{GridLandscape, Missing}, 1}
-    outputfolder::String
-    saveinterval::Unitful.Time
-    timestep::Unitful.Time
-end
-
-"""
     CachedGridLandscape(file::String, times::StepRangeLen;
                         saveinterval::Unitful.Time = step(times))
 
-Construct a `CachedGridLandscape` backed by the folder `file`, initialising all
-timepoints in the range `times` to `missing`. The simulation timestep is the
-step size of `times`; `saveinterval` sets how often checkpoints are written to
-disk and must be a multiple of the timestep (it defaults to saving every step).
+Construct a `CachedGridLandscape` backed by a folder, with every timepoint still `missing`.
+
+# Arguments
+
+  - `file`: the folder the cache files are written to.
+  - `times`: every timepoint the run will cover. Its step size is the simulation timestep.
+  - `saveinterval`: how often a checkpoint reaches disk. Must be a multiple of the timestep, and
+    defaults to saving every step.
 """
 function CachedGridLandscape(file::String, times::StepRangeLen;
                              saveinterval::Unitful.Time = step(times))
@@ -87,19 +201,17 @@ function CachedGridLandscape(file::String, times::StepRangeLen;
         error("saveinterval ($saveinterval) must be a multiple of the timestep ($timestep)")
     v = Vector{Union{GridLandscape, Missing}}(undef, length(times))
     fill!(v, missing)
-    a = AxisArray(v, Axis{:time}(times))
+    a = DimArray(v, (Ti(times),))
     return CachedGridLandscape(a, file, saveinterval, timestep)
 end
 
 """
-    emptygridlandscape(gae::GridHabitat, spplist::SpeciesList)
+    emptygridlandscape(habitat::GridHabitat, spplist::SpeciesList)
 
-Create an empty [`GridLandscape`](@ref) given a [`GridHabitat`](@ref) and a
-[`SpeciesList`](@ref).
+Create a [`GridLandscape`](@ref) of the right shape with every abundance zero, taking the species
+names from `spplist` and the grid dimensions from `habitat`.
 """
-function emptygridlandscape(gae::GridHabitat, spplist::SpeciesList)
-    mat = zeros(Int64, counttypes(spplist, true), countsubcommunities(gae))
-
-    dimension = (counttypes(spplist, true), _getdimension(gae.regime)...)
-    return GridLandscape(mat, dimension)
+function emptygridlandscape(habitat::GridHabitat, spplist::SpeciesList)
+    mat = zeros(Int64, counttypes(spplist, true), countsubcommunities(habitat))
+    return GridLandscape(mat, spplist.names, dims(habitat.active, (Y, X)))
 end

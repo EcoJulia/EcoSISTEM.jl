@@ -1,542 +1,196 @@
+```@meta
+CurrentModule = EcoSISTEM
+```
+
 # Examples
 
-Here we describe several properties that the model ecosystem should be able to recreate, namely:
+A model of this kind is worth trusting only if it reproduces things already known about
+ecosystems. This page works through several of them:
 
-- Species are more abundant when more resources are available to them.
-- Species' abundances scale with area and are invariant to grid size.
-- Species with larger average dispersal distances can move further and faster across the landscape.
-- Species have a competitive advantage when their niche preference is close to that of the climate.
-- Specialist species with a narrow niche width have a competitive advantage over generalists with a broad niche width, for the same niche preference.
-- Large numbers of species are sustained over large areas.
+- species are commonest where the environment suits them;
+- specialists beat generalists where conditions are constant, but not where they are not;
+- more resource supports more individuals;
+- total abundance depends on the *area* of a landscape, not on how finely it is divided into
+  cells;
+- species with longer dispersal spread further;
+- large pools of species coexist.
 
-What follows are several examples of this operating in practice.
+Every result below is produced by the code shown, on a small landscape that runs in seconds.
+The figures come from the same experiments at full scale — hundreds of species over decades of
+simulated time — and those are asserted as tests in `examples/biodiversity.jl`.
 
-```julia
-using EcoSISTEM
-using EcoSISTEM.Units
-using Unitful
-using Unitful.DefaultSymbols
-using Diversity
-using JLD2
-using OnlineStats
-using Plots
-using Distributions
-using Diversity
-plotlyjs()
+## The setup
+
+One helper builds a uniform landscape, another puts a community on it. Both are ordinary calls
+to [`GridHabitat`](@ref), [`build_species`](@ref) and [`build_ecosystem`](@ref):
+
+```@example examples
+using EcoSISTEM, EcoSISTEM.Units
+using Unitful, Unitful.DefaultSymbols
+
+const SOLAR = 4.5e11kJ / (km^2 * day)          # supplied per unit area, per day
+const WATER = 192.0mm / day
+const NEEDS = (sunlight = 450000.0kJ / day,    # consumed per individual, per day
+               water = 192.0Unitful.L / day)
+
+# A `cells × cells` grid over a square landscape of side `side`, uniform in every respect.
+# `topology` says how the grid's edges join, and it is an **environment** keyword: whether the
+# world wraps is a property of the map, not of the species dispersing over it.
+function uniform_env(cells, side; temperature = 298.0K, topology = Torus())
+    area = StudyArea(extent = (side, side), cellsize = side / cells,
+                     verbosity = :silent)
+    return GridHabitat(regime = UniformSpec(temperature,
+                                                  axis = Temperature),
+                             supply = (sunlight = UniformSpec(SOLAR,
+                                                              axis = SolarRadiation),
+                                       water = UniformSpec(WATER,
+                                                           axis = Precipitation)),
+                             area = area, topology = topology)
+end
+
+# A community of `length(opts)` species, with the given temperature optima and niche widths.
+function community(env, opts, widths; dispersal = 2.4km,
+                   individuals = 10_000_000)
+    species = build_species(length(opts), tolerance = (opts, widths), toleranceaxis = Temperature,
+                            demand = NEEDS, demandaxis = (sunlight = SolarRadiation, water = Precipitation), dispersal = dispersal,
+                            birth = 0.15 / year,
+                            death = 0.15 / year, survival = 0.1,
+                            abundance = individuals, seed = 20260805)
+    return build_ecosystem(species, env; seed = 20260805)
+end
+
+# Run, and report the total abundance of each species across the whole landscape.
+function run_totals(eco; times = 5year)
+    simulate!(eco, times, 1month_mean_duration)
+    return vec(sum(eco.abundances.matrix, dims = 2))
+end
+nothing # hide
 ```
 
-## 1. Different niche preferences and widths
+Both builders take a `seed`, which fixes one random stream per species — so every number on
+this page is reproducible, and independent of how many threads the simulation used.
 
-Here we compare the abundances of species with different temperature preferences and tolerances. On a small patch,we explored the abundance of species given different niche preferences, with all other parameters kept equal. We found that species with niche preference nearer to the 25°C optimum were more abundant, when all species were given the same niche widths. Additionally, when all species had a preference for the 25°C climate and a range of niche widths, those with broader niche widths (generalists) were less abundant than species with narrow (specialists). If the temperature in the ecosystem was then increased by 1°C, those with the narrowest niches went extinct, and the generalists became more abundant, with a preference for those with a niche width of around 1°C as we would expect.
+## Niche preference
 
-``` julia
-numSpecies = 100; grd = (10,10); demand=(450000.0kJ/m^2, 192.0nm/m^2);
-individuals = 100_000_000; area = 100.0*km^2;
-totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
+Fifty species differing only in the temperature they prefer, spread either side of the
+landscape's own 298 K. The species matched to the environment should end up commonest:
 
-habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
-habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
-supply = SupplyCollection2(habitat1.supply, habitat2.supply)
-habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime, habitat1.active, supply, habitat1.names)
+```@example examples
+n = 50
+widths = fill(2.0K, n)
+opts = 298.0K .+ widths .* range(-3, stop = 3, length = n)
 
-vars = fill(2.0, numSpecies) .* K
-opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
+abundance = run_totals(community(uniform_env(10, 10.0km), opts, widths))
 
-av_dist = fill(2.4, numSpecies) .* km
-kernel = GaussianKernel.(av_dist, 10e-10)
-
-death = 0.15/ year
-birth = death
-l = 1.0
-s = 0.1
-boost = 1.0
-
-size_mean = 1.0m^2
-# Set up how much energy each species consumes
-resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
-resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
-
-resource_vec = DemandCollection2(resource_vec1, resource_vec2)
-param = EqualPop(birth, death, l, s , boost)
-
-# Create ecosystem
-
-movement = BirthOnlyMovement(kernel, Torus())
-
-traits = GaussTrait(opts, vars)
-native = fill(true, numSpecies)
-abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-    movement, param, native)
-nichefit = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, nichefit)
-
-times = 10years; timestep = 1month
-lensim = length(0month:timestep:times)
-
-simulate!(eco, times, timestep)
-endabun = eco.abundances.matrix
-temps = map(eachindex(opts)) do i
-    repeat([opts[i]], endabun[i])
-end
-
-temps = vcat(temps...)
-edges = collect(292.0:1:304) .* K
-h = Hist(edges)
-fit!(h, temps)
-bar(ustrip.(uconvert.(°C, edges)), h.counts,
-grid = false, xlab = "Temperature preference (°C)",
-ylab = "Abundance",
-guidefontsize = 16, tickfontsize= 16, size = (1200, 1000),
-titlefontsize = 16, title = "A", titleloc = :left,
-margin = 10.0*Plots.mm, label = "", layout = (@layout[a; b c]))
-
-## DIFFERENT VARS ##
-
-numSpecies = 100; grd = (10,10); demand=(450000.0kJ/m^2, 192.0nm/m^2);
-individuals = 100_000_000; area = 100.0*km^2;
-totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
-
-habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
-habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
-supply = SupplyCollection2(habitat1.supply, habitat2.supply)
-habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime, habitat1.active, supply, habitat1.names)
-
-vars = range(0.0001, stop = 5, length = numSpecies) .* K
-opts = fill(298.0K, numSpecies)
-
-av_dist = fill(2.4, numSpecies) .* km
-kernel = GaussianKernel.(av_dist, 10e-10)
-
-death = 0.15/ year
-birth = death
-l = 1.0
-s = 0.1
-boost = 1.0
-
-size_mean = 1.0m^2
-# Set up how much energy each species consumes
-resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
-resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
-
-resource_vec = DemandCollection2(resource_vec1, resource_vec2)
-param = EqualPop(birth, death, l, s , boost)
-
-# Create ecosystem
-
-movement = BirthOnlyMovement(kernel, Torus())
-
-traits = GaussTrait(opts, vars)
-native = fill(true, numSpecies)
-abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-    movement, param, native)
-nichefit = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, nichefit)
-
-times = 10years; timestep = 1month
-lensim = length(0month:timestep:times)
-
-simulate!(eco, times, timestep)
-endabun = eco.abundances.matrix
-widths = map(eachindex(vars)) do i
-    repeat([vars[i]], endabun[i])
-end
-widths = vcat(widths...)
-edges = collect(0.1:0.2:5) .* K
-h = Hist(edges)
-fit!(h, widths)
-bar!(edges./K, h.counts, grid = false,
-xlab = "Niche width (°C)", ylab = "Abundance",
-guidefontsize = 16, tickfontsize= 16, titlefontsize = 16,
-margin = 10.0*Plots.mm, left_margin = 20.0 * Plots.mm, label = "",
-subplot = 2,
-title = "B", titleloc = :left, ylim = (0, 32_000))
-
-## DIFFERENT VARS MISMATCH ##
-numSpecies = 100; grd = (10,10); demand=(450000.0kJ/m^2, 192.0nm/m^2);
-individuals = 100_000_000; area = 100.0*km^2;
-totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
-
-habitat1 = simplehabitat(299.0K, grd, totalK[1], area)
-habitat2 = simplehabitat(299.0K, grd, totalK[2], area)
-supply = SupplyCollection2(habitat1.supply, habitat2.supply)
-habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime, habitat1.active, supply, habitat1.names)
-
-vars = range(0.0001, stop = 5, length = numSpecies) .* K
-opts = fill(298.0K, numSpecies)
-
-av_dist = fill(2.4, numSpecies) .* km
-kernel = GaussianKernel.(av_dist, 10e-10)
-
-death = 0.15/ year
-birth = death
-l = 1.0
-s = 0.1
-boost = 1.0
-
-size_mean = 1.0m^2
-# Set up how much energy each species consumes
-resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
-resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
-
-resource_vec = DemandCollection2(resource_vec1, resource_vec2)
-param = EqualPop(birth, death, l, s , boost)
-
-# Create ecosystem
-
-movement = BirthOnlyMovement(kernel, Torus())
-
-traits = GaussTrait(opts, vars)
-native = fill(true, numSpecies)
-abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-    movement, param, native)
-nichefit = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, nichefit)
-
-times = 10years; timestep = 1month
-lensim = length(0month:timestep:times)
-
-simulate!(eco, times, timestep)
-endabun = eco.abundances.matrix
-widths = map(eachindex(vars)) do i
-    repeat([vars[i]], endabun[i])
-end
-widths = vcat(widths...)
-edges = collect(0.1:0.2:5) .* K
-h = Hist(edges)
-fit!(h, widths)
-bar!(edges./K, h.counts, grid = false,
-xlab = "Niche width (°C)", ylab = "",
-guidefontsize = 16, tickfontsize= 16, titlefontsize = 16,
-margin = 10.0*Plots.mm, label = "", subplot = 3,
-title = "C", titleloc = :left, ylim = (0, 32_000))
+(matched = sum(abundance[(opts .>= 298.0K) .& (opts .< 299.0K)]),
+ cold = sum(abundance[(opts .>= 292.0K) .& (opts .< 293.0K)]),
+ warm = sum(abundance[(opts .>= 303.0K) .& (opts .< 304.0K)]))
 ```
+
+The species whose optimum sits on the landscape's temperature are the most abundant, and
+abundance falls away in both directions.
+
+## Niche width
+
+Now every species prefers exactly the landscape's temperature, and they differ only in how
+broad a range they tolerate. In a landscape that never varies, a wide niche buys nothing, so
+the specialists should win:
+
+```@example examples
+widths = collect(range(0.05K, stop = 5.0K, length = n))
+opts = fill(298.0K, n)
+
+abundance = run_totals(community(uniform_env(10, 10.0km), opts, widths))
+(narrowest = sum(abundance[1:10]), widest = sum(abundance[(end - 9):end]))
+```
+
+That advantage belongs to the *constant* landscape rather than to specialism as such. Where
+the environment sits away from every species' optimum, the narrowest species are excluded by
+the mismatch while the widest are still too diffuse, and the advantage moves to intermediate
+widths.
 
 ![](Opt_var_panel.svg)
-*Abundance of species across 100km² patch ecosystem with 100 species, (A) with a different temperature preferences and a homogeneous climate of 25°C, (B)  with different niche widths and a temperature preference for 25°C and (C) different niche widths with a shifted homogeneous climate of 26°C.*
 
-## 2. Varying resources, grid sizes, areas and number of species
+*At full scale: (A) abundance against niche optimum, commonest at the environment's own
+temperature; (B) abundance against niche width in a matched environment, favouring
+specialists; (C) the same after a 1 °C shift, where intermediate widths win.*
 
-Firstly, we confirmed that abundance depended upon the amount of available resource. Here, we simulated an island ecosystem with two resources, water and sunlight, each on a gradient West to East and South to North, respectively. All species were seeded with the same resource demands and vital rates. Abundance increased in squares with greater amounts of water and sunlight, with some edge effects. Next, we investigated the nichefit between abundance and area size. As expected, ecosystems with greater areas could support more individuals, and these abundances were invariant to the resolution of the grid. We also tested in an ecosystem in which species demographic and dispersal rates and resource demands varied. Under these circumstances, some species not favoured for the conditions go extinct, but most species survive to the end of the simulation.
+## Resources
 
-``` julia
-## MORE ENERGY MORE ABUNDANCE ##
-numSpecies = 100; grd = (10,10); demand=(450000.0kJ/m^2, 192.0nm/m^2); individuals = 100_000_000; area = 100.0*km^2; totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
+Supply is given per unit area, so a cell's resource is that rate times its area, and a
+species' demand is per individual. A cell supports more individuals when it is given more —
+here a solar supply graded from quarter strength in the west to full strength in the east:
 
-habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
-habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
-supply = SupplyCollection2(habitat1.supply, habitat2.supply)
-habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime, habitat1.active, supply, habitat1.names)
-gsize = size(habitat.supply.one.matrix, 1)
-sol_range = collect(range(0.0kJ, stop = 4.5e11kJ, length = gsize))
- map(1:gsize) do seq
-   habitat.supply.one.matrix[seq, :] .= sol_range[seq]
- end
-habitat.supply.one.matrix
-
-gsize = size(habitat.supply.two.matrix, 1)
-water_range = collect(range(0.0mm, stop = 192mm, length = gsize))
-map(1:gsize) do seq
-    habitat.supply.two.matrix[:, seq] .= water_range[seq]
-end
-habitat.supply.two.matrix
-
-vars = fill(2.0, numSpecies) .* K
-opts = fill(298.0, numSpecies) .* K
-av_dist = fill(2.4, numSpecies) .* km
-kernel = GaussianKernel.(av_dist, 10e-10)
-
-death = 0.15/ year
-birth = death
-l = 1.0
-s = 0.1
-boost = 1.0
-
-size_mean = 1.0m^2
-# Set up how much energy each species consumes
-resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
-resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
-
-resource_vec = DemandCollection2(resource_vec1, resource_vec2)
-param = EqualPop(birth, death, l, s , boost)
-
-# Create ecosystem
-
-movement = BirthOnlyMovement(kernel, NoBoundary())
-
-traits = GaussTrait(opts, vars)
-native = fill(true, numSpecies)
-abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-    movement, param, native)
-nichefit = Gauss{typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, nichefit)
-
-times = 10years; timestep = 1month
-lensim = length(0month:timestep:times)
-
-simulate!(eco, times, timestep)
-endabun = sum(eco.abundances.matrix, dims = 1)
-endabun = reshape(endabun, 10, 10)
-
-heatmap(sol_range./kJ, water_range./mm, endabun, grid = false,
- xlab = "Solar energy", ylab = "Water", size = (1600, 1200),
-guidefontsize = 16, tickfontsize= 16, titlefontsize=24,
-margin = 10.0*Plots.mm, legendfontsize = 16, label = "", left_margin = 20.0 * Plots.mm,
-layout = (@layout [a b; c d]), title = "A", titleloc = :left)
-
-
-
-## INVARIANT TO GRID SIZE ##
-times = 10years; timestep = 1month
-lensim = length(0month:timestep:times)
-endabuns = zeros(Int64, 4)
-grids = [1,2,5,10]
-for i in eachindex(grids)
-    numSpecies = 100; grd = (grids[i],grids[i]); demand=(450000.0kJ/m^2, 192.0nm/m^2);
-    individuals = 100_000_000; area = 100.0*km^2;
-    totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
-
-    habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
-    habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
-    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
-    habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime, habitat1.active, supply, habitat1.names)
-
-    vars = fill(2.0, numSpecies) .* K
-    opts = fill(298.0, numSpecies) .* K
-    av_dist = fill(2.4, numSpecies) .* km
-    kernel = GaussianKernel.(av_dist, 10e-10)
-
-    death = 0.15/ year
-    birth = death
-    l = 1.0
-    s = 0.1
-    boost = 1.0
-
-    size_mean = 1.0m^2
-    # Set up how much energy each species consumes
-    resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
-    resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
-
-    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
-    param = EqualPop(birth, death, l, s , boost)
-
-    # Create ecosystem
-
-    movement = BirthOnlyMovement(kernel, NoBoundary())
-
-    traits = GaussTrait(opts, vars)
-    native = fill(true, numSpecies)
-    abun = rand(Multinomial(individuals, numSpecies))
-    sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-        movement, param, native)
-    nichefit = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, habitat, nichefit)
-    simulate!(eco, times, timestep)
-    endabuns[i] = sum(eco.abundances.matrix)
+```@example examples
+env = uniform_env(10, 10.0km)
+full = env.supply.sunlight.matrix[1, 1]
+for (j, fraction) in enumerate(range(0.25, stop = 1.0, length = 10))
+    env.supply.sunlight.matrix[:, j] .= fraction * full
 end
 
-bar!(string.(grids), endabuns,
-grid = false, xlab = "Number of grid squares",
-ylab = "Total abundance",
-guidefontsize = 16,tickfontsize= 16, titlefontsize=24,
-margin = 10.0*Plots.mm, label = "", left_margin = 20.0 * Plots.mm,
-subplot = 2, title = "B", titleloc = :left)
+eco = community(env, fill(298.0K, n), fill(2.0K, n))
+simulate!(eco, 5year, 1month_mean_duration)
+percell = reshape(sum(eco.abundances.matrix, dims = 1), (10, 10))
+(west = sum(percell[:, 1]), east = sum(percell[:, end]))
+```
 
-## ABUNDANCE SCALES WITH AREA ##
-times = 10years; timestep = 1month
-lensim = length(0month:timestep:times)
-endabuns = zeros(Int64, 4)
-areas = [10.0,20.0,50.0,100.0]
-for i in eachindex(areas)
-    numSpecies = 100; grd = (10,10); demand=(450000.0kJ/m^2, 192.0nm/m^2);
-    individuals = 100_000_000; area = areas[i].*km^2;
-    totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
+The two resources combine by Liebig's law of the minimum — the scarcer one sets the outcome —
+so grading *both* at once would compare cells each limited by whichever happened to be scarcer
+there, and would say nothing about either.
 
-    habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
-    habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
-    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
-    habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime, habitat1.active, supply, habitat1.names)
+## Area and grid resolution
 
-    vars = fill(2.0, numSpecies) .* K
-    opts = fill(298.0, numSpecies) .* K
-    av_dist = fill(2.4, numSpecies) .* km
-    kernel = GaussianKernel.(av_dist, 10e-10)
+Total abundance is a property of the landscape, not of the mesh laid over it. The same 100 km²
+divided into 1, 4, 25 or 100 cells supports the same number of individuals:
 
-    death = 0.15/ year
-    birth = death
-    l = 1.0
-    s = 0.1
-    boost = 1.0
-
-    size_mean = 1.0m^2
-    # Set up how much energy each species consumes
-    resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
-    resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
-
-    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
-    param = EqualPop(birth, death, l, s , boost)
-
-    # Create ecosystem
-
-    movement = BirthOnlyMovement(kernel, NoBoundary())
-
-    traits = GaussTrait(opts, vars)
-    native = fill(true, numSpecies)
-    abun = rand(Multinomial(individuals, numSpecies))
-    sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-        movement, param, native)
-    nichefit = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, habitat, nichefit)
-    simulate!(eco, times, timestep)
-    endabuns[i] = sum(eco.abundances.matrix)
+```@example examples
+opts, widths = fill(298.0K, n), fill(2.0K, n)
+map([1, 2, 5, 10]) do cells
+    sum(run_totals(community(uniform_env(cells, 10.0km;
+                                             topology = Island()),
+                             opts, widths)))
 end
+```
 
-bar!(string.(areas), endabuns, grid = false, xlab = "Area (km²)",
-ylab = "Total abundance", guidefontsize = 16,
-tickfontsize= 16, titlefontsize=24, margin = 10.0*Plots.mm,
-label = "", subplot = 3, title = "C", titleloc = :left,
-left_margin = 20.0 *Plots.mm)
+Make the landscape itself larger and it carries more resource, and so supports more
+individuals:
 
-## Sustain large number of species ##
-times = 10years; timestep = 1month
-lensim = length(0month:timestep:times)
-reps = 10
-species = [100, 500, 1_000, 5_000]
-SR = zeros(Float64, length(species), reps)
-for r in 1:reps
-    for i in eachindex(species)
-        numSpecies = species[i]; grd = (10,10); demand=(450000.0kJ/m^2, 192.0nm/m^2);
-        individuals = 100_000_000; area = 100.0km^2;
-        totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
-
-        habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
-        habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
-        supply = SupplyCollection2(habitat1.supply, habitat2.supply)
-        habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime, habitat1.active, supply, habitat1.names)
-
-        vars = rand(Uniform(1.0, 5.0), numSpecies) .* K
-        opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
-        av_dist = rand(Uniform(0.6, 2.4), numSpecies) .* km
-        kernel = GaussianKernel.(av_dist, 10e-10)
-
-        death = abs.(rand(Normal(0.15, 0.135), numSpecies)) ./year
-        birth = death
-        l = 1.0
-        s = 0.1
-        boost = 1.0
-
-        size_mean = rand(Normal(1.0, 0.5), numSpecies) .* m^2
-        # Set up how much energy each species consumes
-        resource_vec1 = SolarDemand(abs.(demand[1] .* size_mean))
-        resource_vec2 = WaterDemand(abs.(demand[2] .* size_mean))
-
-        resource_vec = DemandCollection2(resource_vec1, resource_vec2)
-        param = PopGrowth{typeof(unit(birth[1]))}(birth, death, l, s , boost)
-
-        # Create ecosystem
-
-        movement = BirthOnlyMovement(kernel, NoBoundary())
-
-        traits = GaussTrait(opts, vars)
-        native = fill(true, numSpecies)
-        abun = rand(Multinomial(individuals, numSpecies))
-        sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-            movement, param, native)
-        nichefit = Gauss{typeof(first(opts))}()
-        eco = Ecosystem(sppl, habitat, nichefit)
-        simulate!(eco, times, timestep)
-        SR[i, r] = sum(sum(eco.abundances.matrix, dims = 2) .> 0)
-        print(".")
-    end
+```@example examples
+map([5.0km, 10.0km, 20.0km]) do side
+    sum(run_totals(community(uniform_env(10, side;
+                                             topology = Island()),
+                             opts, widths)))
 end
-
-meanSR = dropdims(mean(SR, dims = 2), dims = 2)
-sdSR = dropdims(std(SR, dims = 2), dims = 2)
-
-bar!(string.(species), meanSR ./species, yerr= sdSR ./ species, grid = false, xlab = "Number of species introduced",
-ylab = "% Species survived", guidefontsize = 16,
-tickfontsize= 16, titlefontsize=24, margin = 10.0*Plots.mm,
-label = "",  title = "D", subplot = 4, titleloc = :left,
-left_margin = 20.0 *Plots.mm, ylim = (0, 1))
 ```
 
 ![](Abundance.svg)
-*Model testing on island ecosystems. (A) Total abundance of 100 species, with varying resources of water and solar energy across the grid. (B) Total abundance of 100 species, with increasing area size. (C) Total abundance of 100 species, with increasing grid square resolution. (D) Percentage of species survived after 10 years of simulation.*
 
-## 3. Dispersal
+*At full scale: (A) abundance across a landscape with graded water and solar supply;
+(B) abundance against landscape area; (C) abundance against grid resolution; (D) percentage of
+species surviving ten years.*
 
-Finally, we verify that dispersal is functioning as expected. This figure shows the overall abundance of an island populated with two species at opposite extremes of the ecosystem after ten years of simulation. The species moved faster and further into the unpopulated island centre when they had higher average dispersal distances, though again with some edge effects.
+## Dispersal
 
-```julia
-times = 50years; timestep = 1month
-lensim = length(0month:timestep:times)
-distances = [0.5, 1.0, 2.0, 4.0]
-endabuns = zeros(Int64, 10, 10, length(distances))
-for i in eachindex(distances)
-    numSpecies = 2; grd = (10,10); demand=(450000.0kJ/m^2, 192.0nm/m^2);
-    individuals = 0; area = 100.0km^2;
-    totalK = (4.5e11kJ/km^2, 192.0mm/km^2)
-
-    habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
-    habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
-    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
-    habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime, habitat1.active, supply, habitat1.names)
-
-    vars = fill(2.0, numSpecies) .* K
-    opts = fill(298.0, numSpecies) .* K
-    av_dist = fill(distances[i], numSpecies) .* km
-    kernel = GaussianKernel.(av_dist, 10e-10)
-
-    death = 0.15/ year
-    birth = death
-    l = 1.0
-    s = 0.1
-    boost = 1.0
-
-    size_mean = 1.0m^2
-    # Set up how much energy each species consumes
-    resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
-    resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
-
-    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
-    param = EqualPop(birth, death, l, s , boost)
-
-    # Create ecosystem
-
-    movement = BirthOnlyMovement(kernel, NoBoundary())
-
-    traits = GaussTrait(opts, vars)
-    native = fill(true, numSpecies)
-    abun = rand(Multinomial(individuals, numSpecies))
-    sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-        movement, param, native)
-    nichefit = Gauss{typeof(first(opts))}()
-    eco = Ecosystem(sppl, habitat, nichefit)
-    eco.abundances.grid[1, :, 1] .= 100.0
-    eco.abundances.grid[2, :, 10] .= 100.0
-    simulate!(eco, times, timestep)
-    endabuns[:, :, i] = sum(eco.abundances.matrix, dims = 1)
-end
-
-heatmap(grid = false, xlab = "Distance (km)",
-ylab = "Distance (km)", size = (1200, 800),
-guidefontsize = 12,tickfontsize= 12, titlefontsize=18,
-margin = 10.0*Plots.mm, legendfontsize = 12, label = "",
-layout = (@layout [a b; c d]), link = :both)
-titles = ["A", "B", "C", "D"]
-for i in 1:4
-    m = distances[i]
-    display(heatmap!(1:10,1:10, endabuns[:, :, i],
-    grid = false, xlab = "Distance (km)", ylab = "Distance (km)",
-    guidefontsize = 16, tickfontsize= 16,
-    titlefontsize=24, title = titles[i], margin = 10.0*Plots.mm,
-    label = "", subplot = i, titleloc = :left,
-    clim = (0, 1.5e4), link = :both))
-end
-```
+Species with a longer mean dispersal distance spread further and faster. Seeding two species
+on opposite edges of a landscape with no wrap-around boundary, and running for fifty years, a
+wider kernel drains the edges and fills the middle: the edge columns fall as the kernel widens
+while the centre column rises.
 
 ![](DispersalSD.svg)
-*Total abundance of two species in island ecosystems after 10 years of simulation, with species populated at opposite sides of the island. Those with higher dispersal distances moved further away from their starting populations at a faster rate. (A) Mean dispersal distance of 0.5km, (B) mean dispersal distance of 1km, (C) Mean dispersal distance of 2km, Mean dispersal distance of 4km.*
+
+*Total abundance of two species seeded at opposite edges, after simulation, for mean dispersal
+distances of (A) 0.5 km, (B) 1 km, (C) 2 km and (D) 4 km.*
+
+By default a boundary redistributes rather than removes: an individual whose dispersal is aimed
+off the grid, or into an inactive cell, is reallocated among the destinations it *can* reach, so
+no boundary loses individuals. Pass `disperse_safely = false` to any of [`Torus`](@ref),
+[`Cylinder`](@ref) or [`Island`](@ref) — as `Torus(false)` — to make those individuals die
+instead, which is the difference between an animal-dispersed seed, carried somewhere the animal
+can reach, and a wind-dispersed one blown out to sea. Because it is about dead cells rather than
+the map edge, it matters for a torus too, which has no edge but may still contain inactive cells.
+
+## Large species pools
+
+Coexistence here is not an artefact of every species being identical. With randomised niche
+widths, optima, dispersal distances, mortality rates and body sizes, at least 90% of the pool
+survives — and it keeps doing so as the pool grows from 50 species to 500.

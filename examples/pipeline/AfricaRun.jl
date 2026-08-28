@@ -1,128 +1,118 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-
+#
 #### SINGLE SPECIES ####
-# Code to run single species across Africa with WorldClim data.
+# One species across Africa on WorldClim data, with the run **bracketed by the FAIR data pipeline**:
+# inputs are claimed through `link_read!` and the figure is registered with `link_write!`, so the
+# result is traceable to the exact data that produced it. That bracketing is the point of this file —
+# the ecology is deliberately the simplest thing that exercises it.
+#
+# **A `StudyArea` decides a projected grid first, and `GridHabitat` samples onto it.** Building the
+# layers by hand and handing them to `Ecosystem` decides no grid at all, leaving the run on
+# WorldClim's own **geographic** (°) coordinates, which cannot be simulated: a degree cell's real
+# extent changes with latitude while dispersal assumes one uniform cell size.
+#
+# **The pipeline read does real work rather than being decorative.** `link_read!` returned a
+# path that nothing used — the script went on to call `read(WorldClim{BioClim}, …)` and download the
+# data itself. The claimed path is now what the layers are actually read from.
+#
+# **Not runnable without a configured pipeline.** `DataPipeline.initialise()` needs a
+# `config.yaml` and a local registry, so this cannot be part of any automatic run and is not in
+# `examples/` proper. With one:
+#
+#     julia --project=examples examples/pipeline/AfricaRun.jl
+
 using EcoSISTEM
-using EcoSISTEM.ClimatePref
 using EcoSISTEM.Units
 using RasterDataSources
-using AxisArrays
+using Rasters: EPSG
 using Unitful
 using Unitful.DefaultSymbols
-using StatsBase
 using Plots
 using DataPipeline
 
-# Initialise datapipeline
+# --- claim the inputs -------------------------------------------------------------------
+
 handle = DataPipeline.initialise()
 
-# Download temperature and precipitation data
-path = link_read!(handle, "AfricaModel/WorldClim")
-newpath = EcoSISTEM.unziptemp(path)
-world = read(WorldClim{BioClim}, [1, 12];
-             cut = EcoSISTEM.ClimatePref.boundingbox("Africa"; round = 5°))
-# `world.array` is a (latitude, longitude, layer) stack cut to Africa: index 1 = bio1 (annual mean
-# temperature), index 2 = bio12 (annual precipitation).
-africa_temp = world.array[:, :, 1]
-bio_africa = uconvert.(K, africa_temp .* °C)
-bio_africa = ClimateRaster(WorldClim{BioClim},
-                           AxisArray(bio_africa,
-                                     AxisArrays.axes(africa_temp)))
-africa_water = world.array[:, :, 2] .* mm / year   # bio12 is an annual total
-africa_water = ClimateRaster(WorldClim{BioClim},
-                             AxisArray(africa_water,
-                                       AxisArrays.axes(africa_temp)))
-bio_africa_water = WaterSupply(africa_water)
+# The claimed directory is handed to `RasterDataSources` as its download path, so the layers named
+# below resolve to the *pipeline's* copy rather than to one fetched independently. That is what makes
+# the run reproducible from the registry rather than merely repeatable.
+const CLAIMED = EcoSISTEM.unziptemp(link_read!(handle, "AfricaModel/WorldClim"))
+ENV["RASTERDATASOURCES_PATH"] = CLAIMED
 
-# Find which grid cells are land
-active = Matrix{Bool}(.!isnan.(bio_africa.array))
+# --- the layers -------------------------------------------------------------------------
 
-heatmap(africa_temp)
+# Named, not read: bio1 is annual mean temperature and bio12 annual precipitation, and both the
+# unit and the axis come from the shipped catalogue (`data/RasterDataSources/BioClim.csv`) rather
+# than being asserted here — which is what the old `uconvert.(K, africa_temp .* °C)` was doing by
+# hand, and could get wrong.
+const TEMPERATURE = SourceSpec(WorldClim{BioClim}, :bio1)
+const RAINFALL = SourceSpec(WorldClim{BioClim}, :bio12)
 
-# Set up initial parameters for ecosystem
-numSpecies = 1;
-grid = size(active);
-demand = 0.1Unitful.L / day;
-individuals = 0;
-area = 64e6km^2;
-totalK = 1000.0kJ / km^2 / day;
+# --- decide the grid, before anything is built on it ------------------------------------
 
-# Set up how much water each species consumes
-resource_vec = WaterDemand(fill(demand, numSpecies))
+# A projected CRS is required to simulate. EPSG:10592 (WGS 84 / GLANCE Africa) is the package's own
+# advice for this extent. `within` positions the area — WorldClim is global — and the land mask now
+# comes from the layers' own coverage rather than from a hand-built `.!isnan.(…)` matrix.
+const AREA = StudyArea(regime = TEMPERATURE, supply = RAINFALL,
+                       within = EcoSISTEM.boundingbox("Africa"),
+                       crs = EPSG(10592), cellsize = 50.0km)
 
-# Set rates for birth and death
-birth = 0.6 / year
-death = 0.6 / year
-longevity = 1.0
-survival = 0.2
-boost = 1.0
-# Collect model parameters together
-param = EqualPop(birth, death, longevity, survival, boost)
+const ENVIRONMENT = GridHabitat(regime = TEMPERATURE, supply = RAINFALL,
+                                area = AREA)
 
-# Create kernel for movement
-kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
-movement = AlwaysMovement(kernel, Torus())
+# --- one species, tolerant of warmth and limited by water --------------------------------
 
-# Create species list, including their temperature preferences, seed abundance and native status
-opts = fill(280.0K, numSpecies)
-vars = fill(10.0K, numSpecies)
-tolerance = GaussTrait(opts, vars)
-native = fill(true, numSpecies)
-abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                   movement, param, native)
+# The tolerance is a `Temperature` and the demand a `Precipitation`, and each says so: meaning
+# comes from the declared axis, never from the values or their units.
+const SPECIES = build_species(1,
+                              tolerance = (280.0K, 10.0K),
+                              toleranceaxis = Temperature,
+                              demand = 0.1Unitful.L / day,
+                              demandaxis = Precipitation,
+                              dispersal = 15.0km,
+                              movement = AlwaysMovement,
+                              abundance = 20_000,
+                              seed = 1)
 
-# Create abiotic environment - with temperature and water resource
-habitat = bioclimhabitat(bio_africa, bio_africa_water, active)
+const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = 1)
 
-# Set nichefit between species and environment (gaussian)
-nichefit = Gauss{typeof(1.0K)}()
+# --- run, recording monthly --------------------------------------------------------------
 
-# Create ecosystem and fill every active grid square with an individual
-eco = Ecosystem(sppl, habitat, nichefit)
-rand_start = findall(active)
-for i in rand_start
-    eco.abundances.grid[1, i[1], i[2]] += 1
-end
+const YEARS = 10year
+const INTERVAL = 1month_mean_duration
+const LENSIM = length((0year):INTERVAL:YEARS)
 
-# Run simulation
-times = 10years;
-timestep = 1month;
-record_interval = 1month;
-repeats = 1;
-lensim = length((0years):record_interval:times)
-abuns = zeros(Int64, numSpecies, prod(grid), lensim)
-@time simulate_record!(abuns, eco, times, record_interval, timestep);
+abuns = zeros(Int64, 1, length(ENVIRONMENT.active), LENSIM)
+@time simulate_record!(abuns, ECO, YEARS, INTERVAL, INTERVAL)
 
-# Reshape abundances for plotting
-abuns = reshape(abuns[1, :, :, 1], grid[1], grid[2], lensim)
+# --- what happened ------------------------------------------------------------------------
 
-# Plot start and end abundances, next to temperature and rainfall
-africa_startabun = Float64.(abuns[:, :, 1])
-africa_startabun[.!(active)] .= NaN
-africa_endabun = Float64.(abuns[:, :, end])
-africa_endabun[.!(active)] .= NaN
-heatmap(africa_startabun,
-        clim = (0, maximum(abuns)),
-        background_color = :lightblue,
-        background_color_outside = :white,
-        grid = false,
-        color = cgrad(:algae, scale = :exp),
+ny, nx = size(ENVIRONMENT.active)
+frames = reshape(abuns[1, :, :], ny, nx, LENSIM)
+masked(i) = replace(Float64.(frames[:, :, i]), 0.0 => NaN)
+
+println("Africa on a $(ny) × $(nx) grid of 50 km cells ",
+        "($(count(ENVIRONMENT.active)) active) over $(YEARS).")
+println("Total abundance: ", sum(frames[:, :, 1]), " -> ",
+        sum(frames[:, :, end]), ".")
+
+heatmap(masked(1), clim = (0, maximum(frames)),
+        background_color = :lightblue, background_color_outside = :white,
+        grid = false, color = cgrad(:algae, scale = :exp), title = "start",
         layout = (@layout [a b; c d]))
-heatmap!(africa_endabun,
-         clim = (0, maximum(abuns)),
-         background_color = :lightblue,
-         background_color_outside = :white,
-         grid = false,
-         color = cgrad(:algae, scale = :exp),
+heatmap!(masked(LENSIM), clim = (0, maximum(frames)),
+         background_color = :lightblue, background_color_outside = :white,
+         grid = false, color = cgrad(:algae, scale = :exp), title = "end",
          subplot = 2)
+# The layers as they were actually sampled onto the grid — read off the built habitat rather than
+# re-read, so the figure cannot disagree with what the simulation saw.
+heatmap!(Array(ENVIRONMENT.regime.matrix), grid = false,
+         title = "temperature", subplot = 3)
+heatmap!(Array(ENVIRONMENT.supply.matrix), grid = false, title = "rainfall",
+         subplot = 4)
 
-africa_temp = world.array[:, :, 1]
-africa_water = world.array[:, :, 2]
-heatmap!(africa_temp, grid = false, subplot = 3)
-heatmap!(africa_water, grid = false, subplot = 4)
+# --- register the output -------------------------------------------------------------------
 
-path = link_write!(handle, "Africa-plot")
-Plots.pdf(path)
-
+Plots.pdf(link_write!(handle, "Africa-plot"))
 DataPipeline.finalise(handle)

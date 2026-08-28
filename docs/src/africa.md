@@ -1,353 +1,88 @@
 # Virtual plant simulations of Africa
 
-EcoSISTEM was designed to scale to much larger areas, supporting many more species. As an illustrative example, here we simulate up to 50,000 plant species over Africa at an 80km grid scale, with a constant background environment of 25°C. When all species are given an equal fitness in the habitat, all 50,000 can co-exist over long time scales of over 100 years (Figure 2A). This can be run on a workstation with 24 threads in just under 5 hours.
+EcoSISTEM was designed to scale to much larger areas, supporting many more species. As an
+illustrative example, here we simulate up to 50,000 plant species over Africa, with a constant
+background environment. When all species are given an equal fitness in the habitat, all 50,000 can
+co-exist over long time scales of over 100 years (Figure 2A). This can be run on a workstation with
+24 threads in just under 5 hours.
 
-We can also explore the behaviour of selective advantage of specialist species over generalists at these scales. When we introduce a specialist species into an African-sized landscape with an existing generalist, the specialist out-competes the generalist and spreads throughout the continent. The larger the selective advantage of the specialist, the faster it is able to invade and colonise across the landscape (Figure 1). These same dynamics can be seen when we introduce a specialist to the full complement of 50,000 species (Figure 1B-D).
+We can also explore the behaviour of selective advantage of specialist species over generalists at
+these scales. When we introduce a specialist species into an African-sized landscape with an
+existing generalist, the specialist out-competes the generalist and spreads throughout the
+continent. The larger the selective advantage of the specialist, the faster it is able to invade and
+colonise across the landscape (Figure 1). These same dynamics can be seen when we introduce a
+specialist to the full complement of 50,000 species (Figure 1B-D).
 
-## SINGLE SPECIES
+## Running it
 
-```julia
-using EcoSISTEM
-using EcoSISTEM.ClimatePref
-using EcoSISTEM.Units
-using Unitful
-using Unitful.DefaultSymbols
-using Distances
-using StatsBase
-using Plots
-file = pkgdir(EcoSISTEM, "data", "Africa.tif")
-africa = readfile(file)
-active = Matrix{Bool}(.!isnan.(africa))
+The code for these simulations is [`examples/HPC/Africa.jl`][africa-jl]. It is a script rather than
+a listing on this page, and deliberately so: a page of code that nothing runs stops working without
+anyone noticing, and this one had — it was still written against builders that were deprecated and
+against a geographic grid a simulation now refuses.
 
-heatmap(active)
+```sh
+# a smoke test in seconds, at 100 km cells
+ECOSISTEM_SCALE=small julia --project=examples examples/HPC/Africa.jl
 
-# Set up initial parameters for ecosystem
-numSpecies = 1; grid = size(africa); demand= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
+# the real thing, resolution chosen from the memory available
+julia -t 8 --project=examples examples/HPC/Africa.jl
 
-# Set up how much energy each species consumes
-resource_vec = SolarDemand(fill(demand, numSpecies))
-
-
-# Set rates for birth and death
-birth = 0.6/year
-death = 0.6/year
-longevity = 1.0
-survival = 0.0
-boost = 1.0
-# Collect model parameters together
-param = EqualPop(birth, death, longevity, survival, boost)
-
-# Create kernel for movement
-kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
-movement = AlwaysMovement(kernel, Torus())
-
-
-# Create species list, including their temperature preferences, seed abundance and native status
-opts = fill(274.0K, numSpecies)
-vars = fill(0.5K, numSpecies)
-traits = GaussTrait(opts, vars)
-native = fill(true, numSpecies)
-# abun = rand(Multinomial(individuals, numSpecies))
-abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-    movement, param, native)
-sppl.params.birth
-
-# Create abiotic environment - even grid of one temperature
-habitat = simplehabitat(274.0K, grid, totalK, area, active)
-
-
-# Set nichefit between species and environment (gaussian)
-nichefit = Gauss{typeof(1.0K)}()
-
-#Create ecosystem
-eco = Ecosystem(sppl, habitat, nichefit)
-rand_start = rand(findall(active), 1)[1]
-eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
-
-# EcoSISTEM Parameters
-times = 100years; timestep = 1month; record_interval = 1month; repeats = 1
-lensim = length(0years:record_interval:times)
-abuns = zeros(Int64, numSpecies, prod(grid), lensim)
-@time simulate_record!(abuns, eco, times, record_interval, timestep);
-
-abuns = reshape(abuns[1, :, :, 1], grid[1], grid[2], lensim)
-
-anim = @animate for i in 1:lensim
-    africa_abun = Float64.(abuns[:, :, i])
-    africa_abun[.!(active)] .= NaN
-    heatmap(africa_abun, clim = (0, 700_000), background_color = :lightblue, background_color_outside=:white, grid = false, color = cgrad(:algae, scale = :exp), aspect_ratio = 1)
-end
-gif(anim, "examples/Biodiversity/Africa.gif", fps = 30)
-
-#### SPECIALIST VERSUS GENERALIST ####
-
-specialist_vars = [0.5K, 1.0K, 5.0K, 10.0K, 25.0K, 50.0K]
-velocity = zeros(typeof(1.0km/month), length(specialist_vars))
-rand_start = rand(findall(active), 1)[1]
-for i in eachindex(specialist_vars)
-    # Set up initial parameters for ecosystem
-    numSpecies = 2; grid = size(africa); demand= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
-
-    # Set up how much energy each species consumes
-    resource_vec = SolarDemand(fill(demand, numSpecies))
-
-
-    # Set rates for birth and death
-    birth = 0.6/year
-    death = 0.6/year
-    longevity = 1.0
-    survival = 0.1
-    boost = 1.0
-    # Collect model parameters together
-    param = EqualPop(birth, death, longevity, survival, boost)
-
-    # Create kernel for movement
-    kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
-    movement = AlwaysMovement(kernel, Torus())
-
-
-    # Create species list, including their temperature preferences, seed abundance and native status
-    opts = fill(274.0K, numSpecies)
-    vars = [50.0K, specialist_vars[i]]
-    traits = GaussTrait(opts, vars)
-    native = fill(true, numSpecies)
-    # abun = rand(Multinomial(individuals, numSpecies))
-    abun = fill(div(individuals, numSpecies), numSpecies)
-    sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-        movement, param, native)
-    sppl.params.birth
-
-    # Create abiotic environment - even grid of one temperature
-    habitat = simplehabitat(274.0K, grid, totalK, area, active)
-
-    # Set nichefit between species and environment (gaussian)
-    nichefit = Gauss{typeof(1.0K)}()
-
-    #Create ecosystem
-    eco = Ecosystem(sppl, habitat, nichefit)
-    eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
-
-    # EcoSISTEM Parameters
-    burnin = 100years; times = 100years; timestep = 1month; record_interval = 1month; repeats = 1
-    lensim = length(0years:record_interval:times)
-    simulate!(eco, burnin,timestep)
-    eco.abundances.grid[2, rand_start[1], rand_start[2]] = 100
-    abuns = zeros(Int64, numSpecies, prod(grid), lensim)
-    @time simulate_record!(abuns, eco, times, record_interval, timestep);
-
-    abuns = reshape(abuns[:, :, :, 1], numSpecies, grid[1], grid[2], lensim)
-    origin = [rand_start[1], rand_start[2]]
-    dest = findall(abuns[2, :, :, 1] .> 0)
-    inst_velocity = map(1:lensim) do t
-        dest = findall(abuns[2, :, :, t] .> 0)
-        dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in eachindex(dest)] .* getgridsize(eco)
-        return maximum(dists)/month
-    end
-    velocity[i] = mean(inst_velocity)
-end
-
-plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
-    xlab = "Selective advantage", ylab = "Invasion speed (km/month)",
-    label = "", grid = false)
+# across MPI ranks, on a cluster
+mpiexecjl --project=examples -n 32 julia -t 8 --project=examples examples/HPC/Africa.jl
 ```
+
+### It chooses its own resolution
+
+The grid is not fixed. [`examples/HPC/memory.jl`][memory-jl] works out how much memory the run can
+allocate — summed across every node when it is launched under MPI — and the script takes the finest
+Africa grid that fits, from 100 km down to 5 km. Nothing about the cost is written down:
+[`investigate_study_area`](@ref) resolves a candidate grid without building it, and
+`EcoSISTEM.getspeciesstorage` says what one species' abundances would occupy on it.
+
+At 50,000 species that spans a few GiB on a laptop to several TiB across HPC nodes, so the same file
+serves both. 5 km is multi-node only.
+
+!!! note "Recording is the expensive part"
+    At these sizes a *single* recorded timestep can be tens of GiB — more than the run itself holds
+    per rank. The script therefore defaults to keeping nothing, with periodic JLD2 or specific dates
+    as opt-ins. See [`simulate!`](@ref) and [`simulate_action!`](@ref).
 
 ![](Invasion.svg)
-*Figure 1: Invasive capacity of a specialist plant species versus a generalist. Selective advantage is the difference in niche width between the specialist and generalist, and invasion speed is calculated as the average distance travelled per month by the specialist.*
 
-## ONE SPECIALIST VERSUS MANY GENERALISTS
-
-``` julia
-using EcoSISTEM
-using EcoSISTEM.ClimatePref
-using EcoSISTEM.Units
-using Unitful
-using Unitful.DefaultSymbols
-using JLD2
-using Printf
-file = pkgdir(EcoSISTEM, "data", "Africa.tif")
-africa = readfile(file)
-active = Matrix{Bool}(.!isnan.(africa))
-# Set up initial parameters for ecosystem
-numSpecies = 50_000; grid = size(africa); demand= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
-
-# Set up how much energy each species consumes
-resource_vec = SolarDemand(fill(demand, numSpecies))
-
-
-# Set rates for birth and death
-birth = 0.6/year
-death = 0.6/year
-longevity = 1.0
-survival = 0.1
-boost = 1.0
-# Collect model parameters together
-param = EqualPop(birth, death, longevity, survival, boost)
-
-# Create kernel for movement
-kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
-movement = AlwaysMovement(kernel, Torus())
-
-
-# Create species list, including their temperature preferences, seed abundance and native status
-opts = fill(274.0K, numSpecies)
-vars = fill(50.0K, numSpecies)
-vars[50_000] = 0.5K
-traits = GaussTrait(opts, vars)
-native = fill(true, numSpecies)
-# abun = rand(Multinomial(individuals, numSpecies))
-abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-    movement, param, native)
-sppl.params.birth
-
-# Create abiotic environment - even grid of one temperature
-habitat = simplehabitat(274.0K, grid, totalK, area, active)
-
-
-# Set nichefit between species and environment (gaussian)
-nichefit = Gauss{typeof(1.0K)}()
-
-#Create ecosystem
-eco = Ecosystem(sppl, habitat, nichefit)
-eco.abundances.matrix[50_000, :] .= 0
-
-import EcoSISTEM.simulate!
-function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
-  time_seq = 0s:timestep:times
-  counting = 0
-  for i in eachindex(time_seq)
-      update!(eco, timestep);
-      # Save cache of abundances
-      if mod(time_seq[i], cacheInterval) == 0year
-          @save (joinpath(cacheFolder, scenario_name * (@sprintf "%02d.jld2" uconvert(NoUnits,time_seq[i]/cacheInterval))) abun = eco.abundances.matrix
-      end
-  end
-end
-
-# EcoSISTEM Parameters
-burnin = 100years; times = 100years; timestep = 1month; record_interval = 12months;
-lensim = length(0years:record_interval:times)
-@time simulate!(eco, burnin, timestep)
-rand_start = rand(findall(active), 1)[1]
-eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
-@time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run");
-```
-
-## 50,000 SPECIES COEXISTING
-
-```julia
-using EcoSISTEM
-using EcoSISTEM.ClimatePref
-using EcoSISTEM.Units
-using Unitful
-using Unitful.DefaultSymbols
-using JLD2
-using Printf
-
-file = pkgdir(EcoSISTEM, "data", "Africa.tif")
-africa = readfile(file)
-active = Matrix{Bool}(.!isnan.(africa))
-# Set up initial parameters for ecosystem
-numSpecies = 50_000; grid = size(africa); demand= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
-
-# Set up how much energy each species consumes
-resource_vec = SolarDemand(fill(demand, numSpecies))
-
-
-# Set rates for birth and death
-birth = 0.6/year
-death = 0.6/year
-longevity = 1.0
-survival = 0.1
-boost = 1.0
-# Collect model parameters together
-param = EqualPop(birth, death, longevity, survival, boost)
-
-# Create kernel for movement
-kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
-movement = AlwaysMovement(kernel, Torus())
-
-
-# Create species list, including their temperature preferences, seed abundance and native status
-opts = fill(274.0K, numSpecies)
-vars = fill(50.0K, numSpecies)
-traits = GaussTrait(opts, vars)
-native = fill(true, numSpecies)
-# abun = rand(Multinomial(individuals, numSpecies))
-abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, traits, abun, resource_vec,
-    movement, param, native)
-sppl.params.birth
-
-# Create abiotic environment - even grid of one temperature
-habitat = simplehabitat(274.0K, grid, totalK, area, active)
-
-
-# Set nichefit between species and environment (gaussian)
-nichefit = Gauss{typeof(1.0K)}()
-
-#Create ecosystem
-eco = Ecosystem(sppl, habitat, nichefit)
-
-# EcoSISTEM Parameters
-burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
-lensim = length(0years:record_interval:times)
-@time simulate!(eco, burnin, timestep)
-@time simulate!(eco, times, timestep, record_interval, "examples/Biodiversity", "Africa_run_coexist");
-
-using JLD2
-using Plots
-using Diversity
-abuns = @load "examples/Biodiversity/Africa_run_coexist100.jld2" abun
-meta = Metacommunity(abuns)
-div = norm_sub_alpha(meta, 0)
-sumabuns = reshape(div[!, :diversity], 100, 100)
-heatmap(sumabuns,
-    background_color = :lightblue,
-    background_color_outside=:white,
-    grid = false, color = :algae,
-    aspect_ratio = 1, layout = (@layout [a b; c d]),
-    clim = (0, 50_000), margin = 0.5 * Plots.mm,
-    title = "A", titleloc = :left)
-
-abuns = @load "examples/Biodiversity/Africa_run50.jld2" abun
-meta = Metacommunity(abuns)
-div = norm_sub_alpha(meta, 0)
-sumabuns = reshape(div[!, :diversity], 100, 100)
-heatmap!(sumabuns,
-    background_color = :lightblue,
-    background_color_outside=:white,
-    grid = false, color = :algae,
-    aspect_ratio = 1, subplot = 2,
-    clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
-    title = "B", titleloc = :left)
-
-abuns = @load "examples/Biodiversity/Africa_run100.jld2" abun
-meta = Metacommunity(abuns)
-div = norm_sub_alpha(meta, 0)
-sumabuns = reshape(div[!, :diversity], 100, 100)
-heatmap!(sumabuns,
-    background_color = :lightblue,
-    background_color_outside=:white,
-    grid = false, color = :algae,
-    aspect_ratio = 1, subplot = 3,
-    clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
-    title = "C", titleloc = :left)
-
-
-abuns = @load "examples/Biodiversity/Africa_run50.jld2" abun
-meta = Metacommunity(abuns)
-div = norm_sub_rho(meta, 1.0)
-sumabuns = reshape(div[!, :diversity], 100, 100)
-heatmap!(sumabuns,
-    background_color = :lightblue,
-    background_color_outside=:white,
-    grid = false, color = :algae,
-    aspect_ratio = 1, subplot = 4,
-     right_margin = 2.0 * Plots.mm,
-    title = "D", titleloc = :left, clim = (0, 1))
-```
+*Figure 1: invasion of a specialist against generalists, and its speed as a function of selective
+advantage.*
 
 ![](Africa.svg)
-*Figure 2: 100 year simulations of Africa with 50,000 species. (A) Species richness after 100 years of simulation with all species equal. (B) Species richness after 50 years, with one specialist introduced. (C) Species richness after 100 years, with one specialist introduced. (D) Representativeness after 50 years with one specialist introduced (0 is completely unrepresentative of the ecosystem as a whole, 1 is completely representative).*
+
+*Figure 2: 50,000 species coexisting across the continent.*
+
+## Smaller examples of the same machinery
+
+Africa is the scaling demonstration. Each of the pieces it uses is shown on its own, at a size that
+runs in seconds, in [`examples/`][examples]:
+
+| what | where |
+|---|---|
+| a fully synthetic ecosystem, no downloads | [`examples/SimulatedEcosystem.jl`][sim] |
+| real raster + real shapefile coastline | [`examples/ScottishCultivatedLand.jl`][scot] |
+| composing layers into a new axis | [`examples/AvailableGround.jl`][ground] |
+| a climate that warms, and one that cycles | [`examples/VaryingClimate.jl`][varying] |
+| categorical land cover and class-set niches | [`examples/CategoricalLandCover.jl`][categorical] |
+| the same ecology under five landscapes | [`examples/landscapes.jl`][landscapes] |
+| climate change, habitat loss and invasion | [`examples/interventions.jl`][interventions] |
+
+For an interactive version you can drive from a browser, see the
+[`notebooks/InteractiveAfrica.jl`][notebook] Pluto notebook, which runs a much smaller Africa and
+lets you move the species' temperature preference with a slider.
+
+[africa-jl]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/HPC/Africa.jl
+[memory-jl]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/HPC/memory.jl
+[examples]: https://github.com/EcoJulia/EcoSISTEM.jl/tree/main/examples
+[sim]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/SimulatedEcosystem.jl
+[scot]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/ScottishCultivatedLand.jl
+[ground]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/AvailableGround.jl
+[varying]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/VaryingClimate.jl
+[categorical]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/CategoricalLandCover.jl
+[landscapes]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/landscapes.jl
+[interventions]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/interventions.jl
+[notebook]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/notebooks/InteractiveAfrica.jl

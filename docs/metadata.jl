@@ -4,25 +4,19 @@ using Pkg
 
 # Update EcoSISTEM folder packages 
 Pkg.activate(".")
-Pkg.update()
+Pkg.resolve()
 
 # Update examples folder packages
 if isdir("examples")
     if isfile("examples/Project.toml")
         Pkg.activate("examples")
-        Pkg.update()
-        "EcoSISTEM" ∈ [p.name for p in values(Pkg.dependencies())] &&
-            Pkg.rm("EcoSISTEM")
-        Pkg.develop("EcoSISTEM")
+        Pkg.resolve()
     end
 end
 
 # Update docs folder packages
 Pkg.activate("docs")
-Pkg.update()
-"EcoSISTEM" ∈ [p.name for p in values(Pkg.dependencies())] &&
-    Pkg.rm("EcoSISTEM")
-Pkg.develop("EcoSISTEM")
+Pkg.resolve()
 
 # Reformat files in package
 using JuliaFormatter

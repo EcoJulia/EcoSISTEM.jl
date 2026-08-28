@@ -61,13 +61,17 @@ begin
     grd = (numGrid, numGrid)
     area = 100.0 * km^2
     totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
-    habitat1 = simplehabitat(298.0K, grd, totalK[1], area)
-    habitat2 = simplehabitat(298.0K, grd, totalK[2], area)
-    supply = SupplyCollection2(habitat1.supply, habitat2.supply)
-    habitat = GridHabitat{typeof(habitat1.regime), typeof(supply)}(habitat1.regime,
-                                                                   habitat1.active,
-                                                                   supply,
-                                                                   habitat1.names)
+    side = sqrt(area)
+    habitat = GridHabitat(regime = UniformSpec(298.0K,
+                                               axis = Temperature),
+                          supply = (UniformSpec(totalK[1],
+                                                axis = SolarRadiation),
+                                    UniformSpec(totalK[2],
+                                                axis = Precipitation)),
+                          area = StudyArea(extent = (side, side),
+                                           cellsize = side / grd[1],
+                                           verbosity = :silent),
+                          topology = Torus())
 
     # Species characteristics
     individuals = 100_000
@@ -83,14 +87,16 @@ begin
     # Dispersal
     av_dist = fill(2.4, numSpecies) .* km
     kernel = GaussianKernel.(av_dist, 10e-10)
-    movement = BirthOnlyMovement(kernel, Torus())
+    movement = BirthOnlyMovement(kernel)
 
     # Resource demands
     demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
     size_mean = 1.0m^2
-    resource_vec1 = SolarDemand(fill(demand[1] * size_mean, numSpecies))
-    resource_vec2 = WaterDemand(fill(demand[2] * size_mean, numSpecies))
-    resource_vec = DemandCollection2(resource_vec1, resource_vec2)
+    resource_vec1 = Demand{SolarRadiation}(fill(demand[1] * size_mean,
+                                                numSpecies))
+    resource_vec2 = Demand{Precipitation}(fill(demand[2] * size_mean,
+                                               numSpecies))
+    resource_vec = SpeciesRequirementCollection((resource_vec1, resource_vec2))
 
     # Condition preferences
     vars = fill(2.0, numSpecies) .* K
@@ -102,16 +108,16 @@ begin
                        movement, param, native)
 
     # Trait nichefit
-    nichefit = NicheSuitability{typeof(first(opts))}()
+    nichefit = NicheSuitability{Temperature, typeof(first(opts))}()
 
     # Build ecosystem
     eco = Ecosystem(sppl, habitat, nichefit)
 
     # Run simulation
-    times = 10years
-    timestep = 1month
-    interval = 1month
-    lensim = length((0month):timestep:times)
+    times = 10year
+    timestep = 1month_mean_duration
+    interval = 1month_mean_duration
+    lensim = length((0month_mean_duration):timestep:times)
     abuns = zeros(Int64, numSpecies, prod(grd), lensim)
     simulate_record!(abuns, eco, times, interval, timestep)
 
@@ -185,8 +191,20 @@ begin
     # Overall temperature it will be
     totalT = 298.0K
 
-    # Perfect, now we can build a simple regime!
-    temp_env = simplehabitat(totalT, grid, totalW, area_size)
+    # Perfect, now we can build a simple environment! The grid is decided *first*, on its own,
+    # and only then is anything built on it — a square 100 km² split 10 ways each way is 1 km
+    # cells. Nothing here needs a CRS, because a uniform value is generated at whatever shape
+    # it is handed.
+    side = sqrt(area_size)
+    area = StudyArea(extent = (side, side), cellsize = side / grid[1],
+                     verbosity = :silent)
+
+    # Each layer says what it *means* by naming a niche axis — never by its units or values.
+    temp_env = GridHabitat(regime = UniformSpec(totalT,
+                                                axis = Temperature),
+                           supply = UniformSpec(totalW,
+                                                axis = Precipitation),
+                           area = area)
 
     # Let's plot it to see what it looks like
     heatmap(temp_env.regime.matrix ./ K, clim = (278, 308), title = "Condition",
@@ -204,14 +222,20 @@ Let's try something slightly more adventurous:"
 
 # ╔═╡ e1ca4d60-383f-4c2a-945b-c7665b51bff9
 begin
-    # A temperature gradient spanning 10 degrees either side of total temperature from above. We can also give it a rate over which to change over time
-    temp_change_rate = 0.2K / month
-    temp_grad_env = tempgradhabitat(totalT - 10.0K,
-                                    totalT + 10.0K,
-                                    grid,
-                                    totalW,
-                                    area_size,
-                                    temp_change_rate)
+    # A temperature gradient spanning 10 degrees either side of the temperature above. We can also
+    # give it a rate to change at over time, by wrapping the spec in `Varying`: a layer that
+    # varies is not a different type, just an ordinary one plus a rule that is a pure function of
+    # elapsed time. `IncrementBy` accumulates its rate every step.
+    temp_change_rate = 0.2K / month_mean_duration
+    temp_grad_env = GridHabitat(regime = Varying(GradientSpec(totalT -
+                                                              10.0K,
+                                                              totalT +
+                                                              10.0K,
+                                                              axis = Temperature),
+                                                 IncrementBy(temp_change_rate)),
+                                supply = UniformSpec(totalW,
+                                                     axis = Precipitation),
+                                area = area)
 
     # Let's plot it to see what it looks like now
     heatmap(temp_grad_env.regime.matrix' ./ K, clim = (278, 308),
@@ -223,13 +247,18 @@ md"That's better! How about something even fancier?"
 
 # ╔═╡ 01a11afc-7c9b-41f5-b308-003303dfa72a
 begin
-    # A temperature peak spanning 10 degrees either side of total temperature from above. We can also give it a rate over which to change over time
-    temp_peak_env = peakedgradhabitat(totalT - 10.0K,
-                                      totalT + 10.0K,
-                                      grid,
-                                      totalW,
-                                      area_size,
-                                      temp_change_rate)
+    # A temperature *peak* rather than a gradient — hottest in the middle, falling away to either
+    # side — again warming over time. `PeakedSpec` is the shape; everything else is as before, which
+    # is the point: swapping what the landscape looks like changes one spec and nothing around it.
+    temp_peak_env = GridHabitat(regime = Varying(PeakedSpec(totalT -
+                                                            10.0K,
+                                                            totalT +
+                                                            10.0K,
+                                                            axis = Temperature),
+                                                 IncrementBy(temp_change_rate)),
+                                supply = UniformSpec(totalW,
+                                                     axis = Precipitation),
+                                area = area)
 
     # Let's plot it to see what it looks like now
     heatmap(temp_peak_env.regime.matrix' ./ K, clim = (278, 308),
@@ -284,12 +313,12 @@ begin
 
     # Because we are considering plants, let's assume the seed production is combined 
     # with dispersal, so only new seeds move
-    move = BirthOnlyMovement(gauss_kernel, Torus())
+    move = BirthOnlyMovement(gauss_kernel)
 
     # We must also decide how much water each species needs per timestep
     water_req = (100.0Unitful.L / m^2 / day)
     sz = 1.0m^2
-    water_vec = WaterDemand(fill(water_req * sz, numSpp))
+    water_vec = Demand{Precipitation}(fill(water_req * sz, numSpp))
 
     # Plus, their niche width - the range of regimes they find suitable
     niche_width = fill(2.0, numSpp) .* K
@@ -334,7 +363,7 @@ The last thing we need to specify is the nichefit between the species and their 
 "
 
 # ╔═╡ 41206ea4-77ed-4b87-8acf-8d2a9ee170db
-trait_relationship = NicheSuitability{typeof(first(optima))}()
+trait_relationship = NicheSuitability{Temperature, typeof(first(optima))}()
 
 # ╔═╡ 1d59bcaa-3670-4765-8981-9e2dd6d99436
 md"Now we can build our ecosystem! EcoSISTEM is integrated with SpatialEcology.jl, so we can take advantage of their plotting system, by simply calling plot on our `Ecosystem` object. This will show us the species richness over space."
@@ -360,7 +389,7 @@ md"We can see that all species are present in the grid as we have set it up. Let
 
 # ╔═╡ fa1ea836-6750-43d0-b574-d1490ecd6ebf
 begin
-    simulate!(example_eco, 10year, 1month)
+    simulate!(example_eco, 10year, 1month_mean_duration)
 end
 
 # ╔═╡ 6b0fb54e-6d52-40ed-87d5-96aff5f3d93d
@@ -385,12 +414,12 @@ md"The final thing you need to know for this tutorial is that you can store the 
 
 # ╔═╡ 97a3ef6d-e7ff-4851-95b5-c8482e953b70
 begin
-    simulation_time = 10years
-    time_step = 1month
-    record_interval = 1month
-    len_sim = length((0month):time_step:simulation_time)
+    simulationtime = 10year
+    time_step = 1month_mean_duration
+    record_interval = 1month_mean_duration
+    len_sim = length((0month_mean_duration):time_step:simulationtime)
     record_abuns = zeros(Int64, numSpp, prod(grid), len_sim)
-    simulate_record!(record_abuns, example_eco, simulation_time,
+    simulate_record!(record_abuns, example_eco, simulationtime,
                      record_interval, time_step)
 end
 

@@ -20,7 +20,6 @@ end
 begin
     using EcoSISTEM
     using EcoSISTEM.Units
-    using EcoSISTEM.ClimatePref
     using Unitful
     using Unitful.DefaultSymbols
     using Diversity
@@ -30,7 +29,7 @@ begin
     using Diversity
     using SpatialEcology
     using RasterDataSources
-    using AxisArrays
+    using Rasters: ProjString
 end
 
 # ╔═╡ 39b75180-f384-11eb-3449-4f7c2ad25d99
@@ -57,16 +56,40 @@ end
 begin
     file = pkgdir(EcoSISTEM, "data", "Africa.tif")
     africa = readfile(file)
-    active = Matrix{Bool}(.!isnan.(africa))
+
+    # The shipped Africa raster is a *landmask*: real values on land, `NaN` at sea. We hand it to
+    # the study area as a layer so that its own gaps decide which cells are active — no hand-built
+    # `.!isnan.(...)` matrix, and no chance of the mask and the grid disagreeing.
+    #
+    # `in_memory_raster` is how a raster you already hold becomes a layer spec: a raster carries
+    # values but no niche axis, so nothing about it says what its numbers mean. Here they mean
+    # nothing in particular — the raster is a shape — so it stays `Unclassified`.
+    #
+    # It is a *geographic* (WGS 84) raster, and a simulation needs a projected grid: dispersal
+    # assumes one uniform cell size, whereas a degree cell shrinks towards the poles. Giving a
+    # projected `crs` reprojects it onto one.
+    # `readfile` hands back a plain array-with-coordinates; `ClimateRaster` is what pairs it with a
+    # statement of where it came from, and `SyntheticData` is the honest answer for a shipped
+    # landmask that belongs to no catalogued dataset.
+    africa_shape = EcoSISTEM.in_memory_raster(ClimateRaster(EcoSISTEM.SyntheticData,
+                                                            africa),
+                                              axis = EcoSISTEM.NicheAxis)
+    studyarea = StudyArea(regime = africa_shape,
+                          crs = ProjString("+proj=aea +lat_1=20 +lat_2=-23 " *
+                                           "+lat_0=0 +lon_0=25 +datum=WGS84 " *
+                                           "+units=m +no_defs"),
+                          cellsize = 100km, verbosity = :silent)
+    active = studyarea.report.active
+
     # Set up initial parameters for ecosystem
-    grd = size(africa)
+    grd = size(active)
     demand = 10.0kJ / day
     individuals = 3 * 10^8
     area = 64e6km^2
     totalK = 1000.0kJ / km^2 / day
 
     # Set up how much resource each species consumes
-    resource_vec = SolarDemand(fill(demand, numSpecies))
+    resource_vec = Demand{SolarRadiation}(fill(demand, numSpecies))
 
     # Set rates for birth and death
     birth = 0.6 / year
@@ -79,7 +102,7 @@ begin
 
     # Create kernel for movement
     kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
-    movement = AlwaysMovement(kernel, Torus())
+    movement = AlwaysMovement(kernel)
 
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, numSpecies)
@@ -92,22 +115,28 @@ begin
                        movement, param, native)
     sppl.params.birth
 
-    # Create abiotic environment - even grid of one temperature
-    habitat = simplehabitat(274.0K, grd, totalK, area, active)
+    # Create abiotic environment — an even grid of one temperature, on the Africa-shaped grid
+    # decided above. `GridHabitat` chooses nothing: it samples the layers named here onto
+    # the grid the study area already settled, mask and all.
+    habitat = GridHabitat(regime = UniformSpec(274.0K,
+                                               axis = Temperature),
+                          supply = UniformSpec(totalK,
+                                               axis = SolarRadiation),
+                          area = studyarea)
 
     # Set nichefit between species and environment (gaussian)
-    nichefit = NicheSuitability{typeof(1.0K)}()
+    nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
     # Create ecosystem
     eco = Ecosystem(sppl, habitat, nichefit)
     eco.abundances.matrix[end, :] .= 0
 
     # Simulation Parameters
-    burnin = 1years
-    times = 10years
-    timestep = 1month
-    record_interval = 1month
-    lensim = length((0years):record_interval:times)
+    burnin = 1year
+    times = 10year
+    timestep = 1month_mean_duration
+    record_interval = 1month_mean_duration
+    lensim = length((0year):record_interval:times)
     abuns = zeros(numSpecies, prod(grd), lensim)
 
     # Run simulation for burnin and then add invasive species
@@ -116,14 +145,25 @@ begin
     @time simulate_record!(abuns, eco, times, record_interval,
                            timestep)
 
-    plot(eco, clim = (0, numSpecies))
+    # **Not `plot(eco)`.** That recipe throws a `BoundsError` on any grid that is not square —
+    # reproduced on a 4×6 grid, where it reaches for `[5, 1]` — so it worked here only while this
+    # notebook used the shipped 100×100 Africa raster unprojected. Reprojecting onto a real grid
+    # made it 76×67 and the latent transposition surfaced immediately.
+    #
+    # Mean abundance per cell, masked to the active area — the same shape the section below uses,
+    # and one that reads the `(y, x)` grid the right way round.
+    mean_abuns = reshape(mean(eco.abundances.matrix, dims = 1)[1, :], grd)
+    mean_abuns = Float64.(mean_abuns)
+    mean_abuns[.!active] .= NaN
+    heatmap(mean_abuns, title = "Mean abundance per cell", grid = false,
+            background_color = :lightblue)
 end
 
 # ╔═╡ 7e16f197-874b-482d-80b6-13a62ddda1f7
 begin
     africa_bio = read(WorldClim{BioClim}, 1,
-                      cut = EcoSISTEM.ClimatePref.boundingbox("Africa";
-                                                              round = 5°))
+                      cut = EcoSISTEM.boundingbox("Africa",
+                                                  round = 5°))
     africa_temp = africa_bio.array
     plot(africa_temp)
 end
@@ -140,21 +180,29 @@ end
 
 # ╔═╡ ee925e21-b0b6-478e-a3a0-573e8497b9f6
 begin
-    temp = uconvert.(K, africa_temp .* °C)
-    africa_new = ClimateRaster(WorldClim{BioClim},
-                               AxisArray(temp,
-                                         AxisArrays.axes(africa_temp)))
-    active_new = Matrix{Bool}(.!isnan.(africa))
+    # The grid is decided before anything is built on it. Real climate data has to be simulated on a
+    # *projected* grid: dispersal assumes one uniform cell size, whereas a degree grid's cells shrink
+    # towards the poles, so `Ecosystem` refuses a geographic one. Africa Albers Equal Area Conic is
+    # the natural choice for the whole continent — equal-area, so a cell really does mean the same
+    # amount of ground everywhere, which is what the ecology depends on.
+    albers_new = ProjString("+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 " *
+                            "+lon_0=25 +datum=WGS84 +units=m +no_defs")
+    regime_new = SourceSpec(WorldClim{BioClim}, 1)
+    totalK_new = 1000.0kJ / km^2 / day
+    supply_new = UniformSpec(totalK_new, axis = SolarRadiation)
+    studyarea_new = StudyArea(regime = regime_new,
+                              within = EcoSISTEM.boundingbox("Africa",
+                                                             round = 5°),
+                              crs = albers_new, cellsize = 50km,
+                              verbosity = :silent)
 
     # Set up initial parameters for ecosystem
-    grd_new = size(africa_new.array)
+    grd_new = size(studyarea_new.report.active)
     req_new = 10.0kJ / day
     individuals_new = 3 * 10^8
-    area_new = 64e6km^2
-    totalK_new = 1000.0kJ / km^2 / day
 
     # Set up how much resource each species consumes
-    energy_vec_new = SolarDemand(fill(demand, numSpecies))
+    energy_vec_new = Demand{SolarRadiation}(fill(demand, numSpecies))
 
     # Set rates for birth and death
     birth_new = 0.6 / year
@@ -167,7 +215,7 @@ begin
 
     # Create kernel for movement
     kernel_new = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
-    movement_new = AlwaysMovement(kernel, Torus())
+    movement_new = AlwaysMovement(kernel)
 
     # Create species list, including their temperature preferences, seed abundance and native status
     opts_new = fill(meantemp * 1.0K, numSpecies)
@@ -179,21 +227,24 @@ begin
                            movement_new, param_new, native_new)
     sppl.params.birth
 
-    # Create abiotic environment - even grid of one temperature
-    abenv_new = bioclimhabitat(africa_new, totalK_new, area_new)
+    # Build the environment on that decided grid: the regime is the real bio1 temperature layer,
+    # reprojected onto it, and the resource a flat solar supply.
+    abenv_new = GridHabitat(regime = regime_new, supply = supply_new,
+                            area = studyarea_new,
+                            topology = Torus())
 
     # Set nichefit between species and environment (gaussian)
-    rel_new = NicheSuitability{typeof(1.0K)}()
+    rel_new = NicheSuitability{Temperature, typeof(1.0K)}()
 
     # Create ecosystem
     eco_new = Ecosystem(sppl_new, abenv_new, rel_new)
 
     # Simulation Parameters
-    burnin_new = 1years
-    times_new = 10years
+    burnin_new = 1year
+    times_new = 10year
     timestep_new = 1year
     record_interval_new = 1year
-    lensim_new = length((0years):record_interval_new:times_new)
+    lensim_new = length((0year):record_interval_new:times_new)
     abuns_new = zeros(numSpecies, prod(grd_new), lensim_new)
 
     # Run simulation for burnin and then add invasive species

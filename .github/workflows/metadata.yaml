@@ -32,7 +32,8 @@ jobs:
         uses: julia-actions/cache@v3
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
-      - name: Running
-        uses: julia-actions/julia-runtest@v1
-        env:
-          RSMD_CROSSWALK: TRUE
+      - name: Running hygiene tests
+        # Just the hygiene checks, named as a test argument. Going through `Pkg.test` is what
+        # provisions the `test` target's dependencies (Git, JuliaFormatter, ResearchSoftwareMetadata),
+        # which no other invocation supplies.
+        run: julia --project=. -e 'using Pkg; Pkg.test(; test_args = ["extras_clean.jl"])'
