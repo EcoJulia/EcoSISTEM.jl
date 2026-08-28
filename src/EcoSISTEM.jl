@@ -185,6 +185,33 @@ public CombinedChange
 
 public AbstractChangeSpec
 
+include("collections.jl")
+
+# The materialised changes, and `Varying` — whose constructor accepts either a spec or one of these.
+include("LayerChange.jl")
+
+# `NoLayerChange` stays exported because **no spec produces it** — a static layer is
+# written `NoLayerChange()` directly, alongside `IncrementBy(rate)`. The other four are what
+# `_attachchange` materialises a spec into, so the spec is the name a user writes.
+export NoLayerChange
+
+public SteadyLayerChange, PatternedLayerChange, SeriesLayerChange,
+       SumOfLayerChanges
+
+# The default `shape` of a `PatternedChange`. `public` rather than exported: a caller writes a shape
+# far more often than they name the default, and the name is common enough to be worth keeping out
+# of the way of one — but it must be nameable, or the signature advertises something unreachable.
+public sinusoidal
+
+# Declaring a change alongside a layer spec, at the `GridHabitat` boundary
+export Varying
+
+# Installing a change on a layer directly is supported but not exported — the user-facing route is
+# to declare the change alongside the layer when the environment is built.
+public changeunit
+
+public AbstractLayerChange
+
 include("Layer.jl")
 export condition, resource
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
