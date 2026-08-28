@@ -415,12 +415,9 @@ export populate!, repopulate!, populate_by_tolerance!, repopulate_by_tolerance!,
 # nothing outside the package does.
 public update!
 include("DiversitySet.jl")
+
 export DiversitySet, updatesimulation!, gettimes
 
-include("AdditionalDiversity.jl")
-export meta_simpson,
-       meta_shannon, meta_speciesrichness, mean_abun, geom_mean_abun, sorenson,
-       pd, makeunique
 
 using Random
 using Hwloc
