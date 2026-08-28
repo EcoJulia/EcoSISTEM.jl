@@ -162,6 +162,29 @@ export ErrorAtEnd, HoldAtEnd, RepeatAtEnd, RevertToLayer
 export DatedSeries, MonthOfYearSeries, UndatedSeries
 
 public AbstractSeriesEnd, AbstractSeriesCalendar
+
+include("ChangeMode.jl")
+
+# the per-layer change rules a layer can hold (defined in Layer.jl; applied in LayerChange.jl)
+# The change *modes* are derived from a spec, never named — `_changemode(::ReplaceWith)`
+# gives `AbsoluteChange()`, and no public signature takes a mode. They are what a spec becomes.
+public NoChange, AbsoluteChange, RelativeChange, RateChange
+
+public AbstractChangeMode
+
+include("ChangeSpec.jl")
+
+# The layer-change unit contract and the apply/drive methods. Included late — it dispatches on
+# both `AbstractLayer` (Layer.jl) and `AbstractEcosystem` (Ecosystem.jl), and calls `axisof`
+# (Simplify.jl) to name the offending axis when a change's unit does not match its layer.
+export ReplaceWith, OffsetBy, IncrementBy, PatternedChange, SeriesChange
+
+# Adding changes together is spelled `A + B`, so the type that spelling builds is supported but
+# rarely written by hand — `public`, not exported, to keep the name out of the way.
+public CombinedChange
+
+public AbstractChangeSpec
+
 include("Layer.jl")
 export condition, resource
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
