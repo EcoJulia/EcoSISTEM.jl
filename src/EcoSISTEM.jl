@@ -18,10 +18,14 @@ public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
        AbstractNicheFit,
        AbstractEcosystem, AbstractHabitat
 
+# The asset cache's descriptor type, before the two functions below name it.
+include("Asset.jl")
+
+public CachedAsset
 
 public assetdir
 
-# EcoSISTEM.Units sub-module
+public assetpath
 include("Units/Units.jl")
 
 # Layer roles + specs (recipes) — defined early so later modules can build on them.
