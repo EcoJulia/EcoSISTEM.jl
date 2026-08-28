@@ -456,6 +456,23 @@ include("DefaultEcosystem.jl")
 
 export DefaultEcosystem
 
+# `NicheAxis` and the `XxxAxis` grouping supertypes are **not** here: every abstract type in this
+# package is `public` rather than exported, declared together at the end of this file. It is the
+# axis *leaves* below that a user names.
+export Temperature, TemperatureRange, TemperatureSeasonality, CumulativeHeat,
+       Isothermality,
+       FrostChangeFrequency, Precipitation, PrecipitationSeasonality,
+       VapourPressure,
+       VapourPressureDeficit, VapourPressureDeficitRange, RelativeHumidity,
+       RelativeHumidityRange, Evapotranspiration, EvapotranspirationRange,
+       ClimateMoisture,
+       ClimateMoistureRange, SnowWaterEquivalent, SiteWaterBalance,
+       GrowingSeasonPrecipitation, SolarRadiation, SolarRadiationRange,
+       WindSpeed,
+       WindSpeedRange, CloudCover, CloudCoverRange, DayOfYear, DayCount,
+       CarbonFlux,
+       LandCoverTypology, SurfaceArea, ClimateTypology, Heterogeneity, Altitude
+
 
 using Random
 using Hwloc
