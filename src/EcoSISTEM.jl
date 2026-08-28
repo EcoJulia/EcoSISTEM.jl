@@ -402,6 +402,18 @@ export Ecosystem, CachedEcosystem, resettime!
 # `gettolerance`/`getdemand`, which have always been `public`.
 public getnichefit
 
+# **How abundances change** — `populate!` sets them up, `update!` advances them one timestep.
+include("dynamics.jl")
+
+# These five are the shipped values of a *user-selectable strategy*, not machinery: they share
+# one signature so that any of them can be passed to `Ecosystem(popfun, ...)`, and a user may write
+# a sixth. They stay exported.
+export populate!, repopulate!, populate_by_tolerance!, repopulate_by_tolerance!,
+       emptypopulate!
+
+# `update!` is the timestep loop rather than a strategy — `simulate!` calls it, and
+# nothing outside the package does.
+public update!
 include("DiversitySet.jl")
 export DiversitySet, updatesimulation!, gettimes
 
