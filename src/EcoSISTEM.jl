@@ -263,29 +263,15 @@ export suitability
 export CombiningFit, MultiplicativeFit, CategoricalSuitability, NoFitContinuous,
        NoFitCategorical, NicheSuitability, AdditiveFit
 
+# The species' own behaviour and rates, and the grid's edge rule — none of which need the
+# environment, so they sit here rather than beside the habitat that carries the topology.
 include("Movement.jl")
-export GaussianKernel,
-       LongTailKernel,
-       BirthOnlyMovement,
-       AlwaysMovement,
-       NoMovement,
-       getkernels,
-       Torus,
-       Cylinder,
-       NoBoundary
 
-include("Traits.jl")
-export GaussTrait,
-       DiscreteTolerance,
-       NicheTolerance,
-       TempTolerance,
-       RainTolerance,
-       ToleranceCollection2,
-       ToleranceCollection3,
-       DiscreteEvolve,
-       ContinuousEvolve,
-       LandCoverTolerance
+export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement,
+       NoMovement
 
+# `getkernels` reaches inside a movement type, which is what writing a new one needs.
+public AbstractMovement, AbstractKernel, getkernels
 include("Demographics.jl")
 export PopGrowth, EqualPop, NoGrowth
 
