@@ -495,6 +495,14 @@ include("extractclimate.jl")
 # model, so it is reached for deliberately rather than being in everyone's namespace.
 public extract_values
 
+# **Conformance to other packages' generics, LAST.** A method on a generic we do not own is not
+# our API — it is what someone else's interface sees — so it is grouped by that generic's owner and
+# sorted by type, rather than sitting beside each type it is about. Last is safe: method
+# definitions are order-independent and nothing here is called at load time. See
+# `docs/overloads.md` for the cross-reference of every foreign generic this package extends.
+include("BaseInterface.jl")
+include("DiversityInterface.jl")
+include("EcoBaseInterface.jl")
 
 using Random
 using Hwloc
