@@ -213,41 +213,25 @@ public changeunit
 public AbstractLayerChange
 
 include("Layer.jl")
-export condition, resource
-export AbstractLayer, ContinuousLayer, DiscreteLayer,
-       LayerCollection2, LayerCollection3, Unclassified
-# back-compat regime + supply aliases over the layer types (defined in Layer.jl)
-export ContinuousRegime, ContinuousTimeRegime, DiscreteRegime,
-       RegimeCollection2, RegimeCollection3
-export SimpleSupply,
-       SolarSupply,
-       SolarTimeSupply,
-       WaterSupply,
-       WaterTimeSupply,
-       SupplyCollection2
 
-include("Habitats.jl")
-export tempgrad, raingrad
+export ContinuousLayer, CategoricalLayer, LayerCollection
 
-include("Energy.jl")
-export SimpleDemand,
-       SizeDemand,
-       SolarDemand,
-       WaterDemand,
-       DemandCollection2
+# Regime and supply aliases over the layer types, defined in `Layer.jl`. There are no `*Time*`
+# counterparts, because a layer that varies in time is the **same** type as one that does not,
+# differing only in the change it carries.
+export ContinuousRegime, CategoricalRegime
 
-include("AbioticEnv.jl")
-export GridHabitat,
-       simplenichehabitat,
-       tempgradhabitat,
-       raingradhabitat,
-       peakedgradhabitat,
-       simplehabitat,
-       erahabitat,
-       worldclimhabitat,
-       bioclimhabitat,
-       landcoverhabitat
+# **One supply name, parameterised by axis** — `Supply{SolarRadiation}`, never a per-resource alias.
+# The axis is the single declaration of what a supply measures, and its value type follows from
+# `canonicalunit(Resource, axis)`, so an alias per resource would restate in the type what the axis
+# already says.
+export Supply
 
+public setchange!
+
+# Checking a run against the series driving it is supported API — `simulate!` calls it before the
+# first step, but it is worth being able to ask before committing to a run.
+public checkcoverage, check_bounds
 include("Movement.jl")
 export GaussianKernel,
        LongTailKernel,
