@@ -79,6 +79,13 @@ bands for `compress_landcover`.
     `month = 1` just the one. A `SourceSpec` nested inside a [`ConstructedSpec`](@ref) can therefore
     carry its own read options.
 
+    Two of those keywords decide how much is read, and are worth knowing about together. `cut`
+    windows the read, so only the cells inside a bounding box come off disk. `scale` coarsens by an
+    integer factor, and on its own it coarsens the *whole* source file however small a result is
+    wanted, because the aggregated form is memoised per file rather than per window: for a global
+    dataset that first read can need many gigabytes. Give a `scale` a `cut` as well where the whole
+    world is not needed, and the memo is skipped along with the cost.
+
 # Fields
 
   - `source`, `code`, `unit`, `readkw`: as above. `code` is never `nothing` — a whole-dataset spec

@@ -18,12 +18,14 @@ using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
-# Only `Normal` is wanted, and it is named rather than swept in. A blanket `using` of a large
-# package lands every one of its exports in whichever module the example is included into, where any
-# of them may collide with a name already there. That happened: `Distributions` exports `scale`, the
-# helper beside it was called `scale()`, and the clash reached stderr — which the example harness
-# checks is empty. The helper is now `runscale()`, so the collision is gone at its source; naming the
-# import as well keeps the next export from finding the next name.
+# Only `Normal` is wanted, and it is named rather than swept in. A blanket `using` of a large package
+# lands every one of its exports in whichever module the example is included into, where any of them
+# may collide with a name already defined there -- and the example harness checks stderr is empty, so
+# such a collision fails the suite. Naming the import keeps the next export from finding the next
+# name.
+#
+# Worth knowing that a clash here is invisible on a current Julia: 1.11 warns about it and 1.12 does
+# not warn at all, so a collision can pass locally and fail on an older runner.
 using Distributions: Normal
 
 # The native assemblage the invader arrives into — spread evenly along the temperature gradient.
