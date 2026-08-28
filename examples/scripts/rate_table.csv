@@ -1,0 +1,140 @@
+Dataset,Code,Axis,OfficialUnit,Category,Unit,UnitDimension,AccumulationPeriod,AmountPerAreaPerMonth,Dimension,ValueType,Notes
+BioClim,1;bio1,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClim,2;bio2,TemperatureRange,°C,range,K,𝚯,,K,𝚯,continuous,
+BioClim,3;bio3,Isothermality,%,range,%,,,%,,continuous,"ANUCLIM (which both providers cite) defines this as a percentage, and WorldClim publishes no unit for it. Kept as % because this row serves WorldClim AND CHELSA; CHELSA's own table disagrees, and its claim is recorded on the CHELSA-only row in BioClimPlus.csv."
+BioClim,4;bio4,TemperatureSeasonality,°C,range,K,𝚯,,K,𝚯,continuous,WorldClim publishes this as the standard deviation x100 (its own documentation says so); CHELSA gives the unit as degC/100. The values are therefore 100x the declared K.
+BioClim,5;bio5,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClim,6;bio6,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClim,7;bio7,TemperatureRange,°C,range,K,𝚯,,K,𝚯,continuous,
+BioClim,8;bio8,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClim,9;bio9,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClim,10;bio10,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClim,11;bio11,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClim,12;bio12,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,yr,0.08333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+BioClim,13;bio13,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,month_mean_duration,1.0*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+BioClim,14;bio14,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,month_mean_duration,1.0*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+BioClim,15;bio15,PrecipitationSeasonality,%,range,%,,,%,,continuous,"ANUCLIM (which both providers cite) defines this as a percentage, and WorldClim publishes no unit for it. Kept as % because this row serves WorldClim AND CHELSA; CHELSA's own table disagrees, and its claim is recorded on the CHELSA-only row in BioClimPlus.csv."
+BioClim,16;bio16,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,quarter_mean_duration,0.3333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+BioClim,17;bio17,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,quarter_mean_duration,0.3333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+BioClim,18;bio18,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,quarter_mean_duration,0.3333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+BioClim,19;bio19,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,quarter_mean_duration,0.3333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
+BioClimPlus,bio1,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClimPlus,bio2,TemperatureRange,°C,range,K,𝚯,,K,𝚯,continuous,
+BioClimPlus,bio3,Isothermality,°C,range,%,,,%,,continuous,"CHELSA's own table gives °C for isothermality; it is a ratio of two temperature ranges (bio2/bio7) and dimensionless, so their unit column is wrong. Recorded as published — the Units column carries the truth."
+BioClimPlus,bio4,TemperatureSeasonality,°C,range,K,𝚯,,K,𝚯,continuous,
+BioClimPlus,bio5,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClimPlus,bio6,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClimPlus,bio7,TemperatureRange,°C,range,K,𝚯,,K,𝚯,continuous,
+BioClimPlus,bio8,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClimPlus,bio9,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClimPlus,bio10,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClimPlus,bio11,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClimPlus,bio12,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,yr,0.08333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+BioClimPlus,bio13,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,month_mean_duration,1.0*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+BioClimPlus,bio14,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,month_mean_duration,1.0*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+BioClimPlus,bio15,PrecipitationSeasonality,kg*m^-2,range,%,,,%,,continuous,"CHELSA's own table gives kg m-2 for precipitation seasonality while its definition column beside it says 'coefficient of variation (100 x SD / mean)', which is dimensionless. Recorded as published; the Units column carries the truth. Verified by reading their raster: 3.5-225.8, matching WorldClim's 0-229 percentage scale."
+BioClimPlus,bio16,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,quarter_mean_duration,0.3333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+BioClimPlus,bio17,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,quarter_mean_duration,0.3333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+BioClimPlus,bio18,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,quarter_mean_duration,0.3333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+BioClimPlus,bio19,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,quarter_mean_duration,0.3333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+BioClimPlus,cmi_max,ClimateMoisture,kg*m^-2*month^-1,balance,L*m^-2,𝐋,month_mean_duration,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+BioClimPlus,cmi_mean,ClimateMoisture,kg*m^-2*month^-1,balance,L*m^-2,𝐋,month_mean_duration,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+BioClimPlus,cmi_min,ClimateMoisture,kg*m^-2*month^-1,balance,L*m^-2,𝐋,month_mean_duration,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+BioClimPlus,cmi_range,ClimateMoistureRange,kg*m^-2*month^-1,range,L*m^-2,𝐋,month_mean_duration,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+BioClimPlus,clt_max,CloudCover,%,instantaneous,%,,,%,,continuous,
+BioClimPlus,clt_mean,CloudCover,%,instantaneous,%,,,%,,continuous,
+BioClimPlus,clt_min,CloudCover,%,instantaneous,%,,,%,,continuous,
+BioClimPlus,clt_range,CloudCoverRange,%,range,%,,,%,,continuous,
+BioClimPlus,hurs_max,RelativeHumidity,%,instantaneous,%,,,%,,continuous,
+BioClimPlus,hurs_mean,RelativeHumidity,%,instantaneous,%,,,%,,continuous,
+BioClimPlus,hurs_min,RelativeHumidity,%,instantaneous,%,,,%,,continuous,
+BioClimPlus,hurs_range,RelativeHumidityRange,%,range,%,,,%,,continuous,
+BioClimPlus,vpd_max,VapourPressureDeficit,Pa,instantaneous,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,continuous,
+BioClimPlus,vpd_mean,VapourPressureDeficit,Pa,instantaneous,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,continuous,
+BioClimPlus,vpd_min,VapourPressureDeficit,Pa,instantaneous,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,continuous,
+BioClimPlus,vpd_range,VapourPressureDeficitRange,Pa,range,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,continuous,
+BioClimPlus,pet_penman_max,Evapotranspiration,kg*m^-2*month^-1,rate,L*m^-2,𝐋,month_mean_duration,1.0*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+BioClimPlus,pet_penman_mean,Evapotranspiration,kg*m^-2*month^-1,rate,L*m^-2,𝐋,month_mean_duration,1.0*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+BioClimPlus,pet_penman_min,Evapotranspiration,kg*m^-2*month^-1,rate,L*m^-2,𝐋,month_mean_duration,1.0*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+BioClimPlus,pet_penman_range,EvapotranspirationRange,kg*m^-2*month^-1,range,L*m^-2,𝐋,month_mean_duration,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+BioClimPlus,rsds_max,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+BioClimPlus,rsds_mean,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+BioClimPlus,rsds_min,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+BioClimPlus,rsds_range,SolarRadiationRange,MJ*m^-2*day^-1,range,MJ*m^-2,𝐌 * 𝐓^-2,d,MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+BioClimPlus,sfcWind_max,WindSpeed,m*s^-1,instantaneous,m*s^-1,𝐋 * 𝐓^-1,,m*s^-1,𝐋 * 𝐓^-1,continuous,
+BioClimPlus,sfcWind_mean,WindSpeed,m*s^-1,instantaneous,m*s^-1,𝐋 * 𝐓^-1,,m*s^-1,𝐋 * 𝐓^-1,continuous,
+BioClimPlus,sfcWind_min,WindSpeed,m*s^-1,instantaneous,m*s^-1,𝐋 * 𝐓^-1,,m*s^-1,𝐋 * 𝐓^-1,continuous,
+BioClimPlus,sfcWind_range,WindSpeedRange,m*s^-1,range,m*s^-1,𝐋 * 𝐓^-1,,m*s^-1,𝐋 * 𝐓^-1,continuous,
+BioClimPlus,fcf,FrostChangeFrequency,,count,,,,,,discrete,
+BioClimPlus,fgd,DayOfYear,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,lgd,DayOfYear,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,gsl,DayCount,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,gsp,GrowingSeasonPrecipitation,kg*m^-2*gsl^-1,stock,L*m^-2,𝐋,percell=gsl,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); gsl is not a fixed physical time unit, so no conversion to it is attempted — repo treats gsp as a plain total, confirmed by downloading gsl+precipitation and checking practical bounds"
+BioClimPlus,gst,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
+BioClimPlus,gdd0,CumulativeHeat,°C,stock,d*K,𝚯 * 𝐓,yr,d*K,𝚯 * 𝐓,continuous,
+BioClimPlus,gdd5,CumulativeHeat,°C,stock,d*K,𝚯 * 𝐓,yr,d*K,𝚯 * 𝐓,continuous,
+BioClimPlus,gdd10,CumulativeHeat,°C,stock,d*K,𝚯 * 𝐓,yr,d*K,𝚯 * 𝐓,continuous,
+BioClimPlus,gdgfgd0,DayOfYear,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,gdgfgd5,DayOfYear,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,gdgfgd10,DayOfYear,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,gddlgd0,DayOfYear,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,gddlgd5,DayOfYear,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,gddlgd10,DayOfYear,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,ngd0,DayCount,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,ngd5,DayCount,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,ngd10,DayCount,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,scd,DayCount,day,count,d,𝐓,,d,𝐓,discrete,
+BioClimPlus,npp,CarbonFlux,g*C*m^-2*year^-1,rate,g*m^-2,𝐌 * 𝐋^-2,yr,0.08333*g*m^-2,𝐌 * 𝐋^-2,continuous,
+BioClimPlus,swe,SnowWaterEquivalent,kg*m^-2*year^-1,stock,L*m^-2,𝐋,yr,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+BioClimPlus,kg0,ClimateTypology,,categorical,,,,,,categorical,
+BioClimPlus,kg1,ClimateTypology,,categorical,,,,,,categorical,
+BioClimPlus,kg2,ClimateTypology,,categorical,,,,,,categorical,
+BioClimPlus,kg3,ClimateTypology,,categorical,,,,,,categorical,
+BioClimPlus,kg4,ClimateTypology,,categorical,,,,,,categorical,
+BioClimPlus,kg5,ClimateTypology,,categorical,,,,,,categorical,
+BioClimPlus,swb,SiteWaterBalance,kg*m^-2*year^-1,balance,L*m^-2,𝐋,yr,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow. The accumulation period is descriptive only: a capped cumulative is not a plain accumulation, so dividing by the year would not give a meaningful mean rate. Being a balance is NOT the reason — cmi is a balance too and is read as a rate; it is the cap that makes the mean meaningless here"
+Climate,tmin,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,Available for historical (1970-2000) and CMIP6 future scenarios
+Climate,tmax,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,Available for historical (1970-2000) and CMIP6 future scenarios
+Climate,tavg,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,Historical only; not distributed for CMIP6 future data
+Climate,prec,Precipitation,mm,rate,L*m^-2,𝐋,perslice=calendar_month,1.0*L*m^-2,𝐋,continuous,"Available for historical (1970-2000) and CMIP6 future scenarios; kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+Climate,srad,SolarRadiation,kJ*m^-2*day^-1,rate,kJ*m^-2,𝐌 * 𝐓^-2,d,30.44*kJ*m^-2,𝐌 * 𝐓^-2,continuous,Historical only
+Climate,wind,WindSpeed,m*s^-1,instantaneous,m*s^-1,𝐋 * 𝐓^-1,,m*s^-1,𝐋 * 𝐓^-1,continuous,Historical only
+Climate,vapr,VapourPressure,kPa,instantaneous,kPa,𝐌 * 𝐋^-1 * 𝐓^-2,,kPa,𝐌 * 𝐋^-1 * 𝐓^-2,continuous,Historical only
+Climate,tas,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,CHELSA v2.1 (1981-2010)
+Climate,tasmax,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,CHELSA v2.1 (1981-2010)
+Climate,tasmin,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,CHELSA v2.1 (1981-2010)
+Climate,pr,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,perslice=calendar_month,1.0*L*m^-2,𝐋,continuous,"CHELSA v2.1 (1981-2010); kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
+Climate,rsds,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,CHELSA v2.1 (1981-2010); confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+Climate,sfcWind,WindSpeed,m*s^-1,instantaneous,m*s^-1,𝐋 * 𝐓^-1,,m*s^-1,𝐋 * 𝐓^-1,continuous,CHELSA v2.1 (1981-2010)
+Climate,clt,CloudCover,%,instantaneous,%,,,%,,continuous,CHELSA v2.1 (1981-2010)
+Climate,cmi,ClimateMoisture,kg*m^-2*month^-1,balance,L*m^-2,𝐋,perslice=calendar_month,L*m^-2,𝐋,continuous,"CHELSA v2.1 (1981-2010); kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+Climate,hurs,RelativeHumidity,%,instantaneous,%,,,%,,continuous,CHELSA v2.1 (1981-2010)
+Climate,pet,Evapotranspiration,kg*m^-2*month^-1,rate,L*m^-2,𝐋,perslice=calendar_month,1.0*L*m^-2,𝐋,continuous,"CHELSA v2.1 (1981-2010); files are named pet_penman; kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
+Climate,vpd,VapourPressureDeficit,Pa,instantaneous,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,,Pa,𝐌 * 𝐋^-1 * 𝐓^-2,continuous,CHELSA v2.1 (1981-2010)
+Elevation,elev,Altitude,m,instantaneous,m,𝐋,,m,𝐋,continuous,Derived from SRTM; distributed alongside climate data but not a climate variable
+HabitatHeterogeneity,cv,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,evenness,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,range,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,shannon,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,simpson,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,std,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,Contrast;contrast,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,Correlation;correlation,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,Dissimilarity;dissimilarity,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,Entropy;entropy,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,Homogeneity;homogeneity,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,Maximum;maximum,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,Uniformity;uniformity,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+HabitatHeterogeneity,Variance;variance,Heterogeneity,,range,,,,,,continuous,"EarthEnv documents Scale=0.0001 but publishes raw UInt16 with no GeoTIFF scale tag, so nothing applies it; measured, evenness runs 0-9937 against a documented range of 0-1."
+LandCover,1;needleleaf_trees,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,2;evergreen_broadleaf_trees,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,3;deciduous_broadleaf_trees,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,4;other_trees,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,5;shrubs,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,6;herbaceous,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,7;cultivated_and_managed,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,8;regularly_flooded,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,9;urban_builtup,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,10;snow_ice,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,11;barren,SurfaceArea,,instantaneous,%,,,%,,continuous,
+LandCover,12;open_water,SurfaceArea,,instantaneous,%,,,%,,continuous,

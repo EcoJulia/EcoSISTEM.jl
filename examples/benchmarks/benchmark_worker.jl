@@ -21,6 +21,9 @@
 # ECOSISTEM_BENCH_COUNT_TYPE is only an assertion that the worker compiled with the
 # expected count type; the type itself is chosen by run_benchmarks.jl through the
 # EcoSISTEM `count_type` preference (a compile-time setting, not an env var).
+# `EcoSISTEM.Count` exists only on the unmerged `rr/counttype` branch, so on any
+# branch without it the assertion is skipped rather than failed — otherwise this
+# worker cannot run at all there, which is what it did before this was guarded.
 #
 # The individual count defaults to ~1 billion so the simulation is compute-bound
 # from the very first timestep (as the smaller default only becomes after tens of
@@ -28,6 +31,12 @@
 #
 # This is normally launched by `run_benchmarks.jl`, not run directly, but it can
 # be run on its own for a single measurement.
+#
+# The model this builds is unchanged from the one the deprecated `simplehabitat`/`GaussTrait`/
+# `Gauss` construction produced, so timings stay comparable with earlier runs. Verified rather than
+# assumed: same grid, cell size, per-cell supply and active mask; identical tolerance distributions,
+# demand, movement kernels and growth parameters; and a bit-identical abundance matrix after twelve
+# seeded timesteps.
 
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -37,10 +46,18 @@ using Unitful, Unitful.DefaultSymbols
 # by the orchestrator. Fail loudly if this worker did not actually compile with
 # the requested type (e.g. a stale precompile cache), so a benchmark can never
 # silently measure the wrong storage type.
-const EXPECTED_COUNT = get(ENV, "ECOSISTEM_BENCH_COUNT_TYPE", "Int64")
-string(EcoSISTEM.Count) == EXPECTED_COUNT ||
-    error("benchmark worker compiled with EcoSISTEM.Count=$(EcoSISTEM.Count) " *
-          "but expected $EXPECTED_COUNT")
+#
+# Guarded by `isdefined`: the configurable count type is a feature of the unmerged
+# `rr/counttype` branch, and an unguarded `EcoSISTEM.Count` is an outright
+# `UndefVarError` on every branch without it. Checking rather than assuming keeps one
+# worker correct on both — it still fails loudly where the type exists, and simply has
+# nothing to check where it does not.
+if isdefined(EcoSISTEM, :Count)
+    const EXPECTED_COUNT = get(ENV, "ECOSISTEM_BENCH_COUNT_TYPE", "Int64")
+    string(EcoSISTEM.Count) == EXPECTED_COUNT ||
+        error("benchmark worker compiled with EcoSISTEM.Count=$(EcoSISTEM.Count) " *
+              "but expected $EXPECTED_COUNT")
+end
 
 const MODE = get(ENV, "ECOSISTEM_BENCH_MODE", "threaded")
 const GRID = parse(Int, get(ENV, "ECOSISTEM_BENCH_GRID", "100"))
@@ -51,48 +68,48 @@ const INDIVIDUALS = parse(Int,
 const YEARS = parse(Int, get(ENV, "ECOSISTEM_BENCH_YEARS", "3"))
 const SEED = parse(Int, get(ENV, "ECOSISTEM_BENCH_SEED", "1234"))
 
-# Build the model. Follows the pattern in examples/HPC/MPIRun.jl: a single solar
-# supply with a flat temperature grid, Gaussian thermal tolerance and birth-driven
-# dispersal on a torus. This keeps the construction identical for the plain and
-# MPI ecosystems so only the container type differs between modes.
-function build_ecosystem(mode::AbstractString)
-    grid = (GRID, GRID)
-    demand = 1.0kJ / day
-    individuals = INDIVIDUALS
-    area = 1_000_000.0km^2
-    totalK = 1000.0kJ / km^2 / day
+# Build the model: a single solar supply over a flat temperature grid, Gaussian thermal tolerance
+# and birth-driven dispersal on a torus. The construction is identical for the plain and MPI
+# ecosystems — `distributed` alone decides the container — so only that differs between modes.
+#
+# The grid is stated as an extent and a cell size, which is what a `StudyArea` decides a grid from:
+# `AREA` is the total, so each side is its square root and each cell that divided by `GRID`.
+const AREA = 1_000_000.0km^2
+const SIDE = sqrt(AREA)
 
-    resource_vec = SolarDemand(fill(demand, NUM_SPECIES))
+function build_model(mode::AbstractString)
+    # `verbosity = :silent`: this prints one machine-readable result line, and a benchmark has no
+    # use for the grid-decision commentary.
+    area = StudyArea(extent = (SIDE, SIDE), cellsize = SIDE / GRID,
+                     verbosity = :silent)
+    environment = GridHabitat(regime = UniformSpec(274.0K,
+                                                   axis = Temperature),
+                              supply = UniformSpec(1000.0kJ / km^2 / day,
+                                                   axis = SolarRadiation),
+                              area = area)
 
-    birth = 0.6 / year
-    death = 0.6 / year
-    longevity = 1.0
-    survival = 0.2
-    boost = 1.0
-    param = EqualPop(birth, death, longevity, survival, boost)
+    # `abundance` is given as an explicit **even** split rather than the integer total, which
+    # `build_species` would instead divide up at random: every species doing the same work is what
+    # makes a short run a stable speed estimate.
+    species = build_species(NUM_SPECIES,
+                            tolerance = (274.0K, 0.5K),
+                            toleranceaxis = Temperature,
+                            demand = 1.0kJ / day, demandaxis = SolarRadiation,
+                            dispersal = 1.0km, pthresh = 10e-10,
+                            movement = BirthOnlyMovement,
+                            birth = 0.6 / year, death = 0.6 / year,
+                            longevity = 1.0, survival = 0.2, boost = 1.0,
+                            abundance = fill(div(INDIVIDUALS, NUM_SPECIES),
+                                             NUM_SPECIES),
+                            native = true)
 
-    kernel = fill(GaussianKernel(1.0km, 10e-10), NUM_SPECIES)
-    movement = BirthOnlyMovement(kernel, Torus())
-
-    opts = fill(274.0K, NUM_SPECIES)
-    vars = fill(0.5K, NUM_SPECIES)
-    tolerance = GaussTrait(opts, vars)
-    native = fill(true, NUM_SPECIES)
-    abun = fill(div(individuals, NUM_SPECIES), NUM_SPECIES)
-    sppl = SpeciesList(NUM_SPECIES, tolerance, abun, resource_vec,
-                       movement, param, native)
-
-    habitat = simplehabitat(274.0K, grid, totalK, area)
-    nichefit = Gauss{typeof(1.0K)}()
-
-    if mode == "mpi"
-        return MPIEcosystem(sppl, habitat, nichefit; seed = SEED)
-    else
-        return Ecosystem(sppl, habitat, nichefit; seed = SEED)
-    end
+    # `distributed` is forced rather than left at `:auto`, which would build a serial `Ecosystem`
+    # on a single rank and so quietly benchmark the wrong container.
+    return build_ecosystem(species, environment, seed = SEED,
+                           distributed = mode == "mpi")
 end
 
-const TIMESTEP = 1month
+const TIMESTEP = 1month_mean_duration
 
 if MODE == "mpi"
     using MPI
@@ -101,10 +118,10 @@ if MODE == "mpi"
     rank = MPI.Comm_rank(comm)
     procs = MPI.Comm_size(comm)
 
-    eco = build_ecosystem("mpi")
+    eco = build_model("mpi")
 
     # Warm-up run to trigger compilation, then the timed run.
-    simulate!(eco, 2months, TIMESTEP)
+    simulate!(eco, 2month_mean_duration, TIMESTEP)
     MPI.Barrier(comm)
     start = time_ns()
     simulate!(eco, YEARS * year, TIMESTEP)
@@ -116,10 +133,10 @@ if MODE == "mpi"
     end
     MPI.Finalize()
 else
-    eco = build_ecosystem("threaded")
+    eco = build_model("threaded")
 
     # Warm-up run to trigger compilation, then the timed run.
-    simulate!(eco, 2months, TIMESTEP)
+    simulate!(eco, 2month_mean_duration, TIMESTEP)
     start = time_ns()
     simulate!(eco, YEARS * year, TIMESTEP)
     elapsed = (time_ns() - start) / 1e9

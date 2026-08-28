@@ -24,4 +24,4 @@ export OMP_NUM_THREADS=1
 export JULIA_NUM_THREADS=128
 
 ############# MY CODE #############
-julia -t 128 --project=examples examples/Africa_run.jl
+julia -t 128 --project=examples examples/HPC/Africa.jl

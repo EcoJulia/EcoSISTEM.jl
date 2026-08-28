@@ -1,122 +1,167 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-
-@info "Total Memory: $(Sys.total_memory() / 2^30)GB"
-@info "Num threads: $(Threads.nthreads())"
+#
+# **The MPI scaling benchmark**: 65,536 species on a 256 × 256 grid, timed over two identical
+# burn-ins so the first pays for compilation and the second measures the run. Each rank writes its
+# own timing file, so a set of jobs at different process/thread splits can be compared afterwards —
+# which is what `demo-MPI-threads.bash`, `demo-MPI-processes.bash` and `demo-MPI-nodes.bash` launch.
+#
+# **It goes through `StudyArea` → `GridHabitat` → `build_species` → `build_ecosystem`.** Building an
+# environment with a deprecated builder, a hand-assembled `SpeciesList` and a direct `MPIEcosystem`
+# call decides no grid, and such a run cannot start.
+#
+# **The grid is fixed, and checked rather than chosen.** This is a benchmark: the point is to time
+# *this* configuration, so a run that will not fit is an error, not an invitation to shrink. That is
+# `MemoryGuidance.check_memory`, and it is asked **before** anything is allocated — on a batch system
+# an OOM kill an hour in reports only that the job died.
+#
+# At the full size this needs about **128 GiB across the job**, so it wants either a large node or
+# several. Smoke-test the machinery in seconds with `ECOSISTEM_SCALE=small`.
+#
+#     ECOSISTEM_SCALE=small mpiexecjl --project=examples -n 2 julia --project=examples examples/HPC/MPIRun.jl
+#     mpiexecjl --project=examples -n 32 julia -t 8 --project=examples examples/HPC/MPIRun.jl
+#     sbatch examples/HPC/demo-MPI-nodes.bash
+#
+# | variable | default | |
+# |---|---|---|
+# | `ECOSISTEM_SCALE` | `large` | `small` for a fast smoke test |
+# | `ECOSISTEM_MPIRUN_SAVEDIR` | `./MPIRun-<ranks>x<threads>` | where the timing files go |
 
 start = time()
+
 using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
-using Distributions
 using MPI
 using Statistics
 
-MPI.Init()
-comm = MPI.COMM_WORLD
-rank = MPI.Comm_rank(comm)
-const SAVEDIR = "/mnt/data/project0000/outputs/MPIRun-$(MPI.Comm_size(comm))x$(Threads.nthreads())"
-mkpath(SAVEDIR)
-rank == 0 && println("using: $((time() - start) * s)")
-totMPI = MPI.Comm_size(comm)
-io = open(joinpath(SAVEDIR,
-                   "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
-          write = true)
-write(io,
-      "rank $rank / $totMPI: $(Threads.nthreads()) threads @ $((time() - start) * s)\n")
-close(io)
+include(joinpath(@__DIR__, "memory.jl"))
 
-# Set up initial parameters for ecosystem
-numSpecies = 2^16;
-grid = (256, 256);
-demand = 1.0kJ / day;
-individuals = 2^26;
-area = 1_000_000.0 * km^2;
-totalK = 1000.0kJ / km^2 / day;
+MPI.Initialized() || MPI.Init()
+const COMM = MPI.COMM_WORLD
+const RANK = MPI.Comm_rank(COMM)
+const RANKS = MPI.Comm_size(COMM)
+const ISROOT = RANK == 0
 
-# Set up how much resource each species consumes
-resource_vec = SolarDemand(fill(demand, numSpecies))
+@info "Total memory: $(Sys.total_memory() / 2^30) GiB, threads: $(Threads.nthreads())"
 
-# Set probabilities
-birth = 0.6 / year
-death = 0.6 / year
-longevity = 1.0
-survival = 0.2
-boost = 1.0
+# --- configuration ----------------------------------------------------------------------
 
-# Collect model parameters together
-param = EqualPop(birth, death, longevity, survival, boost)
+const SMALL = get(ENV, "ECOSISTEM_SCALE", "large") == "small"
 
-# Create kernel for movement
-kernel = fill(GaussianKernel(1.0km, 10e-10), numSpecies)
-movement = BirthOnlyMovement(kernel, Torus())
+# Species and cells are both powers of two at full size (2^16 each), which divides evenly across
+# any power-of-two rank count — deliberate for a *benchmark*, where an uneven split would add a load
+# imbalance to whatever is being measured. Do not copy that into a test: `test/SmallMPItest.jl`
+# uses 7 species on 77 cells precisely because even division hides partitioning bugs.
+const NUMSPECIES = SMALL ? 64 : 2^16
+const GRID = SMALL ? 16 : 256
+const INDIVIDUALS = SMALL ? 2^16 : 2^26
 
-# Create species list, including their temperature preferences, seed abundance and native status
-opts = fill(274.0K, numSpecies)
-vars = fill(0.5K, numSpecies)
-tolerance = GaussTrait(opts, vars)
-native = fill(true, numSpecies)
-# abun = rand(Multinomial(individuals, numSpecies))
-abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                   movement, param, native)
+# The grid the original expressed as `(256, 256)` cells over `1_000_000 km²` — the same thing said
+# the way a `StudyArea` needs it, as an extent and a cell size.
+const SIDE = SMALL ? 100.0km : 1000.0km
+const CELLSIZE = SIDE / GRID
 
-# Create abiotic environment - even grid of one temperature
-habitat = simplehabitat(274.0K, grid, totalK, area)
+const BURNIN = SMALL ? 1month_mean_duration : 1year
+const TIMESTEP = 1month_mean_duration
 
-# Set nichefit between species and environment (gaussian)
-nichefit = Gauss{typeof(1.0K)}()
+const SAVEDIR = get(ENV, "ECOSISTEM_MPIRUN_SAVEDIR",
+                    joinpath(pwd(),
+                             "MPIRun-$(RANKS)x$(Threads.nthreads())"))
 
-rank == 0 && println("Startup: $((time() - start) * s)")
+ISROOT && println("using: $((time() - start) * s)")
 
-# Create ecosystem
-eco = MPIEcosystem(sppl, habitat, nichefit)
+# --- will it fit? -----------------------------------------------------------------------
 
-io = open(joinpath(SAVEDIR,
-                   "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
-          append = true)
-sppcounts = sum(eco.abundances.rows_matrix, dims = 2)
-write(io,
-      "numspp = $(size(eco.abundances.rows_matrix, 1)) " *
-      "mean = $(mean(sppcounts)) std = $(std(sppcounts)) @ $((time() - start) * s)\n")
-close(io)
+# Collective, and every rank must reach it — see `memory.jl`.
+const BUDGET = MemoryGuidance.memory_budget()
 
-# Simulation Parameters
-burnin = 1years;
-times = 50years;
-timestep = 1month;
-record_interval = 3months;
-repeats = 1;
-lensim = length((0years):record_interval:times)
-# Burnin
-rank == 0 && println("Start first burnin: $((time() - start) * s)")
-MPI.Barrier(comm)
-one = time_ns()
-val = simulate!(eco, burnin, timestep)
-two = time_ns()
+# Costed from the *report*, so nothing is built to find out whether it can be: the analysis behind
+# `investigate_study_area` is the one `StudyArea` would run, and `getspeciesstorage` prices its
+# grid. A synthetic area needs no data at all, so this is free.
+const REPORT = investigate_study_area(extent = (SIDE, SIDE),
+                                      cellsize = CELLSIZE)
 
-io = open(joinpath(SAVEDIR,
-                   "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
-          append = true)
-write(io,
-      "time = $(convert(typeof(1.0s), (two - one) * ns)) @ $((time() - start) * s)\n")
-sppcounts = sum(eco.abundances.rows_matrix, dims = 2)
-write(io,
-      "numspp = $(size(eco.abundances.rows_matrix, 1)) mean = $(mean(sppcounts)) std = $(std(sppcounts))\n")
-close(io)
-rank == 0 && println("Start second burnin: $((time() - start) * s)")
-MPI.Barrier(comm)
-one = time_ns()
-val = @timed simulate!(eco, burnin, timestep)
-two = time_ns()
+if ISROOT
+    MemoryGuidance.describe(BUDGET)
+end
 
-io = open(joinpath(SAVEDIR,
-                   "output-cores$(totMPI*Threads.nthreads())-np$totMPI-$rank.txt"),
-          append = true)
-write(io, "$val @ $((time() - start) * s)\n")
-write(io, "time = $(convert(typeof(1.0s), (two - one) * ns))\n")
-sppcounts = sum(eco.abundances.rows_matrix, dims = 2)
-write(io,
-      "numspp = $(size(eco.abundances.rows_matrix, 1)) mean = $(mean(sppcounts)) std = $(std(sppcounts))\n")
-close(io)
-rank == 0 && println("End second burnin: $((time() - start) * s)")
-MPI.Finalize()
+MemoryGuidance.check_memory(NUMSPECIES,
+                            EcoSISTEM.getspeciesstorage(REPORT),
+                            budget = BUDGET,
+                            what = "MPIRun ($(NUMSPECIES) species on $(GRID) × $(GRID) cells)")
+
+# --- build ------------------------------------------------------------------------------
+
+const AREA = StudyArea(extent = (SIDE, SIDE), cellsize = CELLSIZE,
+                       verbosity = ISROOT ? :normal : :silent)
+
+# A flat environment: one temperature everywhere, one solar supply everywhere. That is the point
+# of a scaling benchmark — nothing about the landscape should vary the work per cell.
+const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
+                                                     axis = Temperature),
+                                supply = UniformSpec(1000.0kJ / km^2 /
+                                                     day,
+                                                     axis = SolarRadiation),
+                                area = AREA)
+
+# `BirthOnlyMovement` is not a stylistic choice here: `AlwaysMovement` is unimplemented under MPI
+# and refuses (see `ext/EcoSISTEMMPIExt/generate.jl`).
+const SPECIES = build_species(NUMSPECIES,
+                              tolerance = (274.0K, 0.5K),
+                              toleranceaxis = Temperature,
+                              demand = 1.0kJ / day,
+                              demandaxis = SolarRadiation,
+                              dispersal = 1.0km,
+                              movement = BirthOnlyMovement,
+                              survival = 0.2,
+                              abundance = INDIVIDUALS,
+                              seed = 1)
+
+ISROOT && println("Startup: $((time() - start) * s)")
+
+const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = 1,
+                            distributed = :auto)
+
+# --- timing -----------------------------------------------------------------------------
+
+# One line per rank per event, appended. Each rank owns its own file, so no rank waits on another to
+# write and the files can be collated afterwards without interleaving.
+function _record(message)
+    mkpath(SAVEDIR)
+    cores = RANKS * Threads.nthreads()
+    open(joinpath(SAVEDIR, "output-cores$(cores)-np$(RANKS)-$(RANK).txt"),
+         append = true) do io
+        return write(io, "$message @ $((time() - start) * s)\n")
+    end
+    return nothing
+end
+
+# How many species this rank holds and how their abundances are spread — the load-balance check the
+# original made, and worth keeping: an uneven partition shows up here before it shows up in a timing.
+#
+# `rows_matrix` exists only on the distributed landscape, so this must ask which it has: a
+# single-rank job (`:auto` makes that serial) otherwise dies here rather than in anything it measures.
+function _describelocal()
+    rows = ECO isa EcoSISTEM.MPIEcosystem ? ECO.abundances.rows_matrix :
+           ECO.abundances.matrix
+    counts = sum(rows, dims = 2)
+    return "numspp = $(size(rows, 1)) mean = $(mean(counts)) std = $(std(counts))"
+end
+
+_record("rank $RANK / $RANKS: $(Threads.nthreads()) threads")
+_record(_describelocal())
+
+# **Two identical burn-ins, and only the second is the measurement.** The first compiles the whole
+# hot loop for these concrete types; timing it would measure the compiler.
+for pass in (:warmup, :measured)
+    ISROOT && println("Start $pass burnin: $((time() - start) * s)")
+    MPI.Barrier(COMM)
+    elapsed = @elapsed simulate!(ECO, BURNIN, TIMESTEP)
+    _record("$pass burnin: time = $(elapsed * s)")
+    _record(_describelocal())
+end
+
+ISROOT && println("End: $((time() - start) * s)")
+ISROOT && println("Timings written to $(SAVEDIR)")
+
+MPI.Barrier(COMM)
