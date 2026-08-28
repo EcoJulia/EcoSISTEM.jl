@@ -102,6 +102,17 @@ export UniformSpec, GradientSpec, PeakedSpec, NicheSpec, CircleMaskSpec,
 public AbstractSpec, AbstractSyntheticSpec, AbstractSyntheticLayerSpec,
        AbstractSyntheticMaskSpec
 
+# A raster of climate data, then the specs that read one.
+# The shipped layer catalogue — dataset-agnostic parsing that `SourceSpec` consults for a layer's
+# unit and axis, so it must precede it.
+include("AccumulationPeriod.jl")
+
+# The catalogue's own vocabulary, moved here with it from `ClimatePref`. `public`, not exported:
+# a record is read off the shipped table, never written by a caller.
+public AbstractAccumulationPeriod, ConstantAccumulationPeriod,
+       PerSliceAccumulationPeriod,
+       PerCellAccumulationPeriod
+
 include("Layer.jl")
 export condition, resource
 export AbstractLayer, ContinuousLayer, DiscreteLayer,
