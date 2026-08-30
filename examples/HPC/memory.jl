@@ -59,7 +59,7 @@ const HEADROOM = 0.85
 #
 # In particular MPI needs no extra allowance for communication. `Alltoallv!` is handed
 # `rows_matrix` and `cols_vector` directly as its send and receive buffers
-# (`ext/EcoSISTEMMPIExt/landscape.jl:94-110`), and `MPI.VBuffer` wraps a pointer rather than copying,
+# (`synchronise_from_rows!`/`synchronise_from_cols!` in `ext/EcoSISTEMMPIExt/Landscape.jl`), and `MPI.VBuffer` wraps a pointer rather than copying,
 # so nothing is allocated at the Julia level; the library's own per-message chunking is bounded and
 # belongs to `HEADROOM` above.
 const SPARE_ARRAYS = 1
