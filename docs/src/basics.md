@@ -77,6 +77,12 @@ species × y × x, which is usually the more useful view:
 size(eco.abundances.grid)
 ```
 
+Both are plain arrays, so they index and reduce as you would expect. Alongside them,
+`eco.abundances.dimmatrix` and `eco.abundances.dimgrid` are labelled views of that same memory,
+carrying the species names and, for `dimgrid`, the grid's real coordinates — so you can ask for a
+species by name or a cell by position rather than by index. They cost nothing to keep: the labels
+are computed on demand, and no data is copied.
+
 ## Recording a run
 
 [`simulate!`](@ref) leaves only the final state. To keep the whole time series, allocate
