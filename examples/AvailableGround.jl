@@ -181,7 +181,8 @@ space = community(env_space)
 both = community(env_both)
 
 function percell(eco)
-    return dropdims(sum(eco.abundances.grid, dims = :species), dims = :species)
+    return dropdims(sum(eco.abundances.dimgrid, dims = :species),
+                    dims = :species)
 end
 total(eco) = sum(eco.abundances.matrix)
 
@@ -207,8 +208,8 @@ println("3. available ground + its light : ", total(both),
 # rather than assumed to be small.
 
 # --- side by side by side ----------------------------------------------------------
-northing = lookup(plain.abundances.grid, Y)
-easting = lookup(plain.abundances.grid, X)
+northing = lookup(plain.abundances.dimgrid, Y)
+easting = lookup(plain.abundances.dimgrid, X)
 
 maps = [(plain, "1. land cover ignored"), (space, "2. available ground"),
     (both, "3. available ground + light")]

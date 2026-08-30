@@ -6,6 +6,9 @@
       reproducibility the design guarantees. This was a bugfix applied to the serial code several years ago forgotten on MPI.
     - `update!` for an abstract ecosystem was faulty but masked by equivalent functions for the
       concrete types. Now unified to a single function.
+    - Fixing v0.5.0 hot loop allocation bug for serial code - revert to pre-v0.5.0 raw arrays for hot
+      loop access to species counts, but keep DimArrays referencing the same memory to keep records
+      of species and locations
   - Internal
     - The distributed code is renamed and rearranged to mirror the serial code file for file and name
       for name, so that the two can be read side by side.

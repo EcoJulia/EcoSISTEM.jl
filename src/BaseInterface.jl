@@ -214,9 +214,9 @@ end
 
 # ══ GridLandscape ══════════════════════════════════════════════════════════════════════════════════
 function Base.copy(gl::GridLandscape)
-    names = parent(DimensionalData.lookup(gl.matrix, Dim{:species}))
-    yx = dims(gl.grid, (Y, X))
-    return GridLandscape(copy(parent(gl.matrix)), names, yx)
+    names = parent(DimensionalData.lookup(gl.dimmatrix, Dim{:species}))
+    yx = dims(gl.dimgrid, (Y, X))
+    return GridLandscape(copy(gl.matrix), names, yx)
 end
 
 Base.hash(k::ReadKey, h::UInt) = hash(k.readkw,

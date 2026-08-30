@@ -132,7 +132,8 @@ eco = build_ecosystem(species, habitat, seed = seed)
 
 # The starting distribution, before anything has moved: `populate!` places individuals in
 # proportion to supply, so this already reflects where the water and light are.
-startgrid = dropdims(sum(eco.abundances.grid, dims = :species), dims = :species)
+startgrid = dropdims(sum(eco.abundances.dimgrid, dims = :species),
+                     dims = :species)
 startmap = Float64.(Array(startgrid))
 startmap[.!active] .= NaN
 heatmap(easting, northing, startmap,
@@ -146,7 +147,8 @@ timestep = 1month_mean_duration
 simulate!(eco, times, timestep)
 endabun = sum(eco.abundances.matrix)
 
-endgrid = dropdims(sum(eco.abundances.grid, dims = :species), dims = :species)
+endgrid = dropdims(sum(eco.abundances.dimgrid, dims = :species),
+                   dims = :species)
 endmap = Float64.(Array(endgrid))
 endmap[.!active] .= NaN
 heatmap(easting, northing, endmap,

@@ -724,9 +724,9 @@ function _addspecies!(eco::AbstractEcosystem, abun::Integer;
                       name = nothing)
     n = counttypes(eco.spplist, true)
     newnames = vcat(eco.spplist.names, isnothing(name) ? string(n + 1) : name)
-    newmat = vcat(parent(eco.abundances.matrix),
+    newmat = vcat(eco.abundances.matrix,
                   zeros(Int64, 1, size(eco.abundances.matrix, 2)))
-    yx = dims(eco.abundances.grid, (Y, X))
+    yx = dims(eco.abundances.dimgrid, (Y, X))
     # `GridLandscape` is immutable — the only way to change shape is to construct a whole new
     # one (via the constructor, which reshape-pairs `.matrix`/`.grid` correctly) and reassign the
     # `Ecosystem` field holding it.

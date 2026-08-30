@@ -22,11 +22,25 @@ new `GridLandscape` and reassign the whole field holding it, so they cannot drif
 
 # Fields
 
-  - `matrix`: a `(Dim{:species}, Dim{:location})` `DimArray` — species against flat grid cell, with
-    no `Y`/`X` structure. The per-timestep access pattern, carrying real species names.
-  - `grid`: a `(Dim{:species}, Y, X)` `DimArray` view of the *same* data. `Y` and `X` are the
-    habitat's own dimensions, so a data-driven habitat's cells carry their real coordinates and a
-    synthetic one's carry `NoLookup`.
+  - `matrix`: species against flat grid cell, with no `Y`/`X` structure — the per-timestep access
+    pattern, and a plain `Matrix{Int64}`.
+  - `grid`: species against `Y` and `X`, a plain `Array{Int64, 3}` sharing `matrix`'s memory.
+  - `dimmatrix`: `matrix` as a `(Dim{:species}, Dim{:location})` `DimArray`, carrying real species
+    names.
+  - `dimgrid`: `grid` as a `(Dim{:species}, Y, X)` `DimArray`. `Y` and `X` are the habitat's own
+    dimensions, so a data-driven habitat's cells carry their real coordinates and a synthetic one's
+    carry `NoLookup`.
+
+**The raw arrays and the labelled views are the same memory, and both are stored on purpose.** The
+hot loop reads `matrix`; asking *which* species or *where* reads `dimmatrix`/`dimgrid`.
+
+**The raw fields are what make the hot loop free, and the reason is not obvious.** `Ecosystem`
+declares `abundances::GridLandscape` — the bare `UnionAll`, an abstract field. Julia can still infer
+a field of that container concretely **provided the field's declared type does not mention the type
+parameters**, which is exactly why `matrix::Matrix{Int64}` is written out rather than left as one of
+the parameters. Measured: reaching the labelled view through the abstract field costs about 176 bytes
+**per cell** and grows with the grid; reading the raw field is **0**. Declaring these two fields in
+terms of `Am`/`Ag` would silently undo that.
 """
 struct GridLandscape{Am <:
                      DimensionalData.AbstractDimArray{Int64, 2,
@@ -36,8 +50,10 @@ struct GridLandscape{Am <:
                      DimensionalData.AbstractDimArray{Int64, 3,
                                                       <:Tuple{<:Dim{:species},
                                                               <:Y, <:X}}}
-    matrix::Am
-    grid::Ag
+    matrix::Matrix{Int64}
+    grid::Array{Int64, 3}
+    dimmatrix::Am
+    dimgrid::Ag
 
     function GridLandscape(abun::Matrix{Int64}, names::Vector{String},
                            yx::Tuple{<:Y, <:X})
@@ -45,11 +61,14 @@ struct GridLandscape{Am <:
             throw(DimensionMismatch("`names` has $(length(names)) entries but `abun` has $(size(abun, 1)) species"))
         prod(length.(yx)) == size(abun, 2) ||
             throw(DimensionMismatch("grid `yx` has $(prod(length.(yx))) cells but `abun` has $(size(abun, 2))"))
+        # `reshape` of an `Array` shares its memory, and a `DimArray` wraps rather than copies, so
+        # all four fields below are views of one buffer. That is what the immutability above is for:
+        # the only way to change shape is to build a new `GridLandscape`, so they cannot drift.
+        g = reshape(abun, (length(names), length.(yx)...))
         sp = Dim{:species}(Categorical(names))
-        m = DimArray(abun, (sp, Dim{:location}(NoLookup())))
-        g = DimArray(reshape(abun, (length(names), length.(yx)...)),
-                     (sp, yx...))
-        return new{typeof(m), typeof(g)}(m, g)
+        dm = DimArray(abun, (sp, Dim{:location}(NoLookup())))
+        dg = DimArray(g, (sp, yx...))
+        return new{typeof(dm), typeof(dg)}(abun, g, dm, dg)
     end
 end
 
