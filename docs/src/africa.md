@@ -15,7 +15,7 @@ specialist to the full complement of 50,000 species (Figure 1B-D).
 
 ## Running it
 
-The code for these simulations is [`examples/HPC/Africa.jl`][africa-jl]. It is a script rather than
+The code for these simulations is [`examples/HPC/Africa.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/HPC/Africa.jl). It is a script rather than
 a listing on this page, and deliberately so: a page of code that nothing runs stops working without
 anyone noticing, and this one had — it was still written against builders that were deprecated and
 against a geographic grid a simulation now refuses.
@@ -33,7 +33,7 @@ mpiexecjl --project=examples -n 32 julia -t 8 --project=examples examples/HPC/Af
 
 ### It chooses its own resolution
 
-The grid is not fixed. [`examples/HPC/memory.jl`][memory-jl] works out how much memory the run can
+The grid is not fixed. [`examples/HPC/memory.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/HPC/memory.jl) works out how much memory the run can
 allocate — summed across every node when it is launched under MPI — and the script takes the finest
 Africa grid that fits, from 100 km down to 5 km. Nothing about the cost is written down:
 [`investigate_study_area`](@ref) resolves a candidate grid without building it, and
@@ -59,30 +59,18 @@ advantage.*
 ## Smaller examples of the same machinery
 
 Africa is the scaling demonstration. Each of the pieces it uses is shown on its own, at a size that
-runs in seconds, in [`examples/`][examples]:
+runs in seconds, in [`examples/`](https://github.com/EcoJulia/EcoSISTEM.jl/tree/main/examples):
 
 | what | where |
 |---|---|
-| a fully synthetic ecosystem, no downloads | [`examples/SimulatedEcosystem.jl`][sim] |
-| real raster + real shapefile coastline | [`examples/ScottishCultivatedLand.jl`][scot] |
-| composing layers into a new axis | [`examples/AvailableGround.jl`][ground] |
-| a climate that warms, and one that cycles | [`examples/VaryingClimate.jl`][varying] |
-| categorical land cover and class-set niches | [`examples/CategoricalLandCover.jl`][categorical] |
-| the same ecology under five landscapes | [`examples/landscapes.jl`][landscapes] |
-| climate change, habitat loss and invasion | [`examples/interventions.jl`][interventions] |
+| a fully synthetic ecosystem, no downloads | [`examples/SimulatedEcosystem.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/SimulatedEcosystem.jl) |
+| real raster + real shapefile coastline | [`examples/ScottishCultivatedLand.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/ScottishCultivatedLand.jl) |
+| composing layers into a new axis | [`examples/AvailableGround.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/AvailableGround.jl) |
+| a climate that warms, and one that cycles | [`examples/VaryingClimate.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/VaryingClimate.jl) |
+| categorical land cover and class-set niches | [`examples/CategoricalLandCover.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/CategoricalLandCover.jl) |
+| the same ecology under five landscapes | [`examples/landscapes.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/landscapes.jl) |
+| climate change, habitat loss and invasion | [`examples/interventions.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/interventions.jl) |
 
 For an interactive version you can drive from a browser, see the
-[`notebooks/InteractiveAfrica.jl`][notebook] Pluto notebook, which runs a much smaller Africa and
+[`notebooks/InteractiveAfrica.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/notebooks/InteractiveAfrica.jl) Pluto notebook, which runs a much smaller Africa and
 lets you move the species' temperature preference with a slider.
-
-[africa-jl]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/HPC/Africa.jl
-[memory-jl]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/HPC/memory.jl
-[examples]: https://github.com/EcoJulia/EcoSISTEM.jl/tree/main/examples
-[sim]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/SimulatedEcosystem.jl
-[scot]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/ScottishCultivatedLand.jl
-[ground]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/AvailableGround.jl
-[varying]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/VaryingClimate.jl
-[categorical]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/CategoricalLandCover.jl
-[landscapes]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/landscapes.jl
-[interventions]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/interventions.jl
-[notebook]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/notebooks/InteractiveAfrica.jl

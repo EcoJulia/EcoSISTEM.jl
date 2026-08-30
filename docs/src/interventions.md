@@ -113,20 +113,15 @@ that same step rather than one step late.
 
 ## Worked examples
 
-[`examples/interventions/`][dir] recreates a published set of scenarios — steady warming and drying,
+[`examples/interventions/`](https://github.com/EcoJulia/EcoSISTEM.jl/tree/main/examples/interventions) recreates a published set of scenarios — steady warming and drying,
 a seasonal cycle, random and clustered habitat loss, land conversion, and generalist and specialist
-invasions — and [`examples/interventions.jl`][runner] runs them as part of the test suite.
-[`examples/models.jl`][models] reuses the same scenarios verbatim, following them through time with a
+invasions — and [`examples/interventions.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/interventions.jl) runs them as part of the test suite.
+[`examples/models.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/models.jl) reuses the same scenarios verbatim, following them through time with a
 full suite of diversity measures.
 
 **Contrast with a layer change**, which is the *other* mechanism: [Time in EcoSISTEM](@ref) and
-[`examples/VaryingClimate.jl`][varying] cover it. The distinction is not stylistic. A layer change is
+[`examples/VaryingClimate.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/VaryingClimate.jl) cover it. The distinction is not stylistic. A layer change is
 a pure function of elapsed time, so it can be applied redundantly on every MPI rank and still agree;
 an intervention *mutates* the ecosystem, so it must be applied once and identically everywhere. That
 is also why the operation set here is closed rather than a callback — a callback could draw from the
 global RNG or write a layer's matrix, and either would silently desynchronise ranks.
-
-[dir]: https://github.com/EcoJulia/EcoSISTEM.jl/tree/main/examples/interventions
-[runner]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/interventions.jl
-[models]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/models.jl
-[varying]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/VaryingClimate.jl

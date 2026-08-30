@@ -341,7 +341,7 @@ the one place that knows.
 
 ## Worked examples
 
-[`examples/VaryingClimate.jl`][varying] runs the three shapes side by side on one landscape and one
+[`examples/VaryingClimate.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/VaryingClimate.jl) runs the three shapes side by side on one landscape and one
 species pool, so the only thing differing between the runs is how the environment moved: a **static**
 control, a **steady drift** (`Varying(spec, IncrementBy(rate))`) and a **seasonal cycle**
 (`Varying(spec, OffsetBy(PatternedChange(...)))`).
@@ -353,12 +353,9 @@ a four-year run at monthly steps advances **49** months rather than 48. What act
 is that a cycle stays bounded by its amplitude however long it runs, while `IncrementBy` grows
 without limit.
 
-[`notebooks/Introduction.jl`][notebook] builds a warming gradient and a warming peak the same way,
+[`notebooks/Introduction.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/notebooks/Introduction.jl) builds a warming gradient and a warming peak the same way,
 with plots, and is the gentler introduction.
 
 A layer change is a pure function of elapsed time. For change that acts on the **ecosystem** —
 abundances, the active mask — see [Interventions](@ref), which is a deliberately separate mechanism
 and explains why.
-
-[varying]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/VaryingClimate.jl
-[notebook]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/notebooks/Introduction.jl
