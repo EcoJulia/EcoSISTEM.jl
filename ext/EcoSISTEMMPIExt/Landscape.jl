@@ -11,6 +11,8 @@
 import EcoSISTEM
 using MPI
 using Random
+using BlockArrays: mortar
+using DimensionalData: DimArray, Dim
 
 """
     MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
@@ -20,16 +22,20 @@ slice of the abundance matrix (species owned by this node × all grid cells).
 `cols_vector` is the flattened column-partitioned view (all species × grid cells
 owned by this node). `reshaped_cols` holds reshaped views per MPI block.
 `rows_tuple` and `cols_tuple` are named tuples with `total`, `first`, `last`,
-and `counts` fields describing the partitioning. Random draws during simulation
-use Julia's task-local default RNG, so no generator state is stored here.
+and `counts` fields describing the partitioning. `dimrows` and `dimcols` are
+labelled views of the same memory, carrying the global species and cell indices
+this rank holds. Random draws during simulation use Julia's task-local default
+RNG, so no generator state is stored here.
 """
-struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple} <:
+struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DC} <:
        EcoSISTEM.MPIGridLandscape
     rows_matrix::Matrix{Int64}
     cols_vector::Vector{Int64}
     reshaped_cols::Vector{RA}
     rows_tuple::NT
     cols_tuple::NT
+    dimrows::DR
+    dimcols::DC
 
     function MPIGridLandscape(sppcounts::Vector{Int32},
                               sccounts::Vector{Int32},
@@ -68,11 +74,31 @@ struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple} <:
         (cols.last - cols.first + 1) * rows.total == length(cols_vector) ||
             error("cols_vector size mismatch: $(cols.last - cols.first + 1) * $(rows.total) !=$(length(cols_vector))")
 
-        return new{typeof(reshaped_cols[1]), typeof(rows)}(rows_matrix,
-                                                           cols_vector,
-                                                           reshaped_cols,
-                                                           rows,
-                                                           cols)
+        # The labelled views. Both are views rather than copies, and both say which slice of the
+        # whole run this rank actually holds -- which matters more here than serially, where the
+        # matrix simply is everything. The labels are global indices: the species names are not
+        # available at this point, and adding them would change a released public signature.
+        dimrows = DimArray(rows_matrix,
+                           (Dim{:species}(firstsp:lastsp),
+                            Dim{:location}(1:totalsc)))
+        # `cols_vector` arrives block-stacked -- one block per contributing rank -- because that is
+        # what `Alltoallv!` produces. `mortar` presents those blocks as one ordinary
+        # `(all species x this rank's cells)` matrix without copying, so a caller need not know.
+        # It is for inspection only: a scalar index has to find its block first, which measured
+        # about eight times the cost of walking `reshaped_cols` directly, so the hot loop keeps
+        # doing that.
+        dimcols = DimArray(mortar(reshape(reshaped_cols, length(reshaped_cols),
+                                          1)),
+                           (Dim{:species}(1:totalspp),
+                            Dim{:location}(firstsc:lastsc)))
+        return new{typeof(reshaped_cols[1]), typeof(rows), typeof(dimrows),
+                   typeof(dimcols)}(rows_matrix,
+                                    cols_vector,
+                                    reshaped_cols,
+                                    rows,
+                                    cols,
+                                    dimrows,
+                                    dimcols)
     end
 end
 

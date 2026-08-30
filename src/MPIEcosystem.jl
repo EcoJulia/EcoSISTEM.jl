@@ -22,6 +22,19 @@ synchronise steps copy between the two views.
     collective operations address.
   - `rows_tuple`, `cols_tuple`: how each view is partitioned — `total`, `first`, `last`, and the
     per-rank `counts`.
+  - `dimrows`: `rows_matrix` labelled with the global species indices this rank owns, against every
+    cell.
+  - `dimcols`: every species against the global cell indices this rank owns. `cols_vector` is stored
+    one block per contributing rank, because that is what the collective produces; this presents
+    those blocks as a single ordinary matrix without copying.
+
+The labelled views matter more here than they do serially, where the matrix simply is the whole run:
+a rank holds only a slice, and these say which one. They are views of the same memory, so a write
+through either is seen by the raw fields and vice versa.
+
+The raw fields are what the simulation uses. A scalar index into `dimcols` has to find its block
+first, which is markedly slower than walking `reshaped_cols`, so it is for inspection rather than
+for the loop.
 """
 abstract type MPIGridLandscape end
 
