@@ -1,5 +1,9 @@
 # NEWS
 
+- v0.5.1
+  - Fixed
+    - A distributed (MPI) run gave different results from a serial one on the same seed, breaking the
+      reproducibility the design guarantees. This was a bugfix applied to the serial code several years ago forgotten on MPI.
 - v0.5.0
   - Removed and deprecated
     - The v0.4.0 vocabulary is renamed onto the ecological distinction between conditions (what a cell

@@ -208,6 +208,28 @@ if rank == 0
     @save joinpath(ARGS[1], "Test_abuns$nt.jld2") abuns=true_abuns
 end
 
+# **Serial is the reference the distributed loop has to reproduce, and nothing else checks it.**
+# The 1/2/4-rank comparison in `ext_EcoSISTEMMPIExt.jl` is MPI against MPI: every one of those runs
+# takes the duplicated hot loop in `ext/EcoSISTEMMPIExt/generate.jl`, so a change made there and not
+# in `src/dynamics.jl` agrees with itself at every rank count and passes. That is exactly how the
+# birth draw stayed pre-2021 in the distributed loop while the serial one was fixed -- the serial
+# loop draws `Poisson(n * rate)`, the MPI loop drew `Poisson(n * (1 - exp(-rate)))`, which also
+# breaks the timestep independence the model requires.
+#
+# Run at one rank only: the partition is trivial there, so a difference is the loop body alone
+# rather than anything about how the work was divided, and the serial answer cannot depend on the
+# rank count anyway. Everything is rebuilt rather than reused -- an `Ecosystem` shares the habitat
+# it is built on, so simulating a second one on the same object would not be independent.
+if MPI.Comm_size(comm) == 1
+    serialsppl = SpeciesList(numSpecies, tolerance, abun, total_use, movement,
+                             param, native)
+    serialeco = Ecosystem(serialsppl, varying_environment(), nichefit, seed = 0)
+    # Matched to the distributed run above, which fills its own abundances the same way.
+    serialeco.abundances.matrix .= 10
+    simulate!(serialeco, burnin, timestep)
+    @test serialeco.abundances.matrix == true_abuns
+end
+
 if !MPI.Finalized()
     MPI.Finalize()
 end

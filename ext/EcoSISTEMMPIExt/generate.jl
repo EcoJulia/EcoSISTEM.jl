@@ -103,23 +103,26 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
                                                                      eco.habitat.supply,
                                                                      sc, truesp)
 
-                # Calculate effective rates
-                birthprob = params.birth[truesp] * timestep * adjusted_birth
-                deathprob = params.death[truesp] * timestep * adjusted_death
+                # Both are per-individual rates over the timestep. Only the death one becomes
+                # a probability: deaths are drawn per individual (Binomial), while births are a
+                # count (Poisson) whose mean is the rate itself. `NoUnits` is needed on the birth
+                # rate because it reaches `Poisson` as a bare number; the death rate is made
+                # dimensionless by `exp`.
+                birthrate = params.birth[truesp] * timestep * adjusted_birth |>
+                            NoUnits
+                deathrate = params.death[truesp] * timestep * adjusted_death
 
-                # Put probabilities into 0 - 1
-                newbirthprob = 1.0 - exp(-birthprob)
-                newdeathprob = 1.0 - exp(-deathprob)
+                deathprob = 1.0 - exp(-deathrate)
 
-                (newbirthprob >= 0) & (newdeathprob >= 0) ||
-                    error("Birth: $newbirthprob \n Death: $newdeathprob \n \n sc: $sc \n sp: $truesp")
+                (birthrate >= 0) & (deathprob >= 0) ||
+                    error("Birth: $birthrate \n Death: $deathprob \n \n sc: $sc \n sp: $truesp")
                 # Calculate how many births and deaths
                 births = rand(rng,
                               Poisson(eco.abundances.rows_matrix[mpisp, sc] *
-                                      newbirthprob))
+                                      birthrate))
                 deaths = rand(rng,
                               Binomial(eco.abundances.rows_matrix[mpisp, sc],
-                                       newdeathprob))
+                                       deathprob))
 
                 # Update population
                 eco.abundances.rows_matrix[mpisp, sc] += (births - deaths)

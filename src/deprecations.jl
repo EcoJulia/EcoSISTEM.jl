@@ -1502,9 +1502,10 @@ export GaussTrait
 # data source already had. That is what makes them usable in a `SourceSpec`.
 #
 # The constructor call is redirected, so `ERA(array)` keeps working with a warning.
-# 🔴 What CANNOT be shimmed is a **type test or a dispatch** — `x isa ERA` was true of a container
-# and is now true of nothing, and `f(::ERA)` no longer matches a read result. Both are recorded in
-# `NEWS.md` as breaking; there is no shim that can make a type mean two things at once.
+# No shim can cover a type test or a dispatch, which is the dangerous half: `x isa ERA`
+# was true of a container and is now true of nothing, and `f(::ERA)` no longer matches a
+# read result. Both are recorded in `NEWS.md` as breaking; there is no shim that can make
+# a type mean two things at once.
 @deprecate ERA(array::DimensionalData.AbstractDimArray) ClimateRaster(ERA,
                                                                       array)
 @deprecate CERA(array::DimensionalData.AbstractDimArray) ClimateRaster(CERA,
