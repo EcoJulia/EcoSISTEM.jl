@@ -39,7 +39,8 @@ using Printf
 # estimate is built on. Serial holds the abundance matrix and `cache.netmigration`
 # (`src/Ecosystem.jl:307`). MPI holds **three**, not two: `rows_matrix` (species-partitioned),
 # `cols_vector` (location-partitioned) and its own `netmigration`, sized like `rows_matrix`
-# (`ext/EcoSISTEMMPIExt/{landscape.jl:20-21, ecosystem.jl:157}`). Each is partitioned across ranks,
+# (`MPIGridLandscape`'s fields in `ext/EcoSISTEMMPIExt/Landscape.jl`, and the `nm` allocation in its
+# `MPIEcosystem` constructor). Each is partitioned across ranks,
 # so each totals `species × cells` over the whole job.
 const SERIAL_ARRAYS = 2
 const MPI_ARRAYS = 3
@@ -59,7 +60,8 @@ const HEADROOM = 0.85
 #
 # In particular MPI needs no extra allowance for communication. `Alltoallv!` is handed
 # `rows_matrix` and `cols_vector` directly as its send and receive buffers
-# (`synchronise_from_rows!`/`synchronise_from_cols!` in `ext/EcoSISTEMMPIExt/Landscape.jl`), and `MPI.VBuffer` wraps a pointer rather than copying,
+# (`synchronise_from_rows!`/`synchronise_from_cols!` in `ext/EcoSISTEMMPIExt/Landscape.jl`), and
+# `MPI.VBuffer` wraps a pointer rather than copying,
 # so nothing is allocated at the Julia level; the library's own per-message chunking is bounded and
 # belongs to `HEADROOM` above.
 const SPARE_ARRAYS = 1

@@ -388,7 +388,7 @@ end
 
 # The abundances this process owns, and the global species index its first row is.
 # **At the point interventions run the landscape is row-partitioned**, so a rank holds whole
-# *species* across **all** cells (`synchronise_from_rows!` has already run — `ext/EcoSISTEMMPIExt/generate.jl`). That
+# *species* across **all** cells (`synchronise_from_rows!` has already run — `ext/EcoSISTEMMPIExt/dynamics.jl`). That
 # is what makes every abundance operation rank-local: a rank clears or adds to its own species at the
 # named cells, every rank does the same, and between them they cover the whole assemblage. No global
 # draw and no partition arithmetic is needed, which is what an earlier reading of the plan assumed.
