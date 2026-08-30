@@ -43,9 +43,9 @@ using ParallelTestRunner: find_tests, parse_args, runtests
                    # `Modules`, so the duplicates are invisible rather than rendered twice.
                    # Listed with real counts, not exempted: a **new** docstring in these files
                    # still fails this test and has to be looked at.
-                   "EcoSISTEMMPIExt/ecosystem.jl" => 2,
-                   "EcoSISTEMMPIExt/generate.jl" => 8,
-                   "EcoSISTEMMPIExt/landscape.jl" => 4)
+                   "EcoSISTEMMPIExt/Ecosystem.jl" => 2,
+                   "EcoSISTEMMPIExt/dynamics.jl" => 8,
+                   "EcoSISTEMMPIExt/Landscape.jl" => 4)
     extdir = joinpath(@__DIR__, "..", "ext")
     for (root, _, files) in walkdir(extdir)
         for file in filter(endswith(".jl"), files)

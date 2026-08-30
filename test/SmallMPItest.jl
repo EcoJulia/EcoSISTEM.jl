@@ -210,7 +210,7 @@ end
 
 # **Serial is the reference the distributed loop has to reproduce, and nothing else checks it.**
 # The 1/2/4-rank comparison in `ext_EcoSISTEMMPIExt.jl` is MPI against MPI: every one of those runs
-# takes the duplicated hot loop in `ext/EcoSISTEMMPIExt/generate.jl`, so a change made there and not
+# takes the duplicated hot loop in `ext/EcoSISTEMMPIExt/dynamics.jl`, so a change made there and not
 # in `src/dynamics.jl` agrees with itself at every rank count and passes. That is exactly how the
 # birth draw stayed pre-2021 in the distributed loop while the serial one was fixed -- the serial
 # loop draws `Poisson(n * rate)`, the MPI loop drew `Poisson(n * (1 - exp(-rate)))`, which also

@@ -64,12 +64,13 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
     params = eco.spplist.params
     # Set the overall resource supply of that square
     EcoSISTEM.update_resource_usage!(eco)
-    # Share per-cell resource usage across ranks. `totalE` is (numsc, numdemands)
+    # Share per-cell resource usage across ranks. `totaldemand` is (numsc, numdemands)
     # and each rank owns a contiguous block of cells (rows); gather one demand
     # column at a time so that multi-demand environments (where the columns
     # are not contiguous in the flat buffer) are combined correctly.
-    for r in axes(eco.cache.totalE, 2)
-        MPI.Allgatherv!(MPI.VBuffer(view(eco.cache.totalE, :, r), eco.sccounts),
+    for r in axes(eco.cache.totaldemand, 2)
+        MPI.Allgatherv!(MPI.VBuffer(view(eco.cache.totaldemand, :, r),
+                                    eco.sccounts),
                         comm)
     end
     eco.cache.valid = true
@@ -86,16 +87,16 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
     # :greedy hands the cache-line-sized species blocks to cores as they free up
     # (dynamic load balancing); blocks are independent so results are unchanged.
     Threads.@threads :greedy for b in 1:nblocks
-        mpistart = (b - 1) * block + 1
-        mpiend = min(b * block, nlocal)
+        spstart = (b - 1) * block + 1
+        spend = min(b * block, nlocal)
         # Loop through grid squares
         for sc in 1:numsc
             # Convert 1D dimension to 2D coordinates
             (y, x) = EcoSISTEM.convert_coords(eco, sc)
             # Check if grid cell currently active
-            (eco.habitat.active[y, x] && (eco.cache.totalE[sc, 1] > 0)) ||
+            (eco.habitat.active[y, x] && (eco.cache.totaldemand[sc, 1] > 0)) ||
                 continue
-            for mpisp in mpistart:mpiend
+            for mpisp in spstart:spend
                 truesp = eco.firstsp + mpisp - 1
                 rng = EcoSISTEM.getrng(eco, truesp)
                 # Calculate how much birth and death should be adjusted
@@ -162,7 +163,8 @@ end
 
 # `AlwaysMovement` is not supported under MPI, and this method exists to say so.
 #
-# The serial method (`src/Generate.jl:511`) is typed on `AbstractEcosystem`, so it catches an
+# The serial `move!(::AbstractEcosystem, ::AlwaysMovement, ...)` in `src/dynamics.jl` is typed on
+# `AbstractEcosystem`, so it catches an
 # `MPIEcosystem` too, and disperses the *whole current population* by reading
 # `eco.abundances.matrix[sp, i]` — a field an `MPIGridLandscape` has not got, since it holds
 # `rows_matrix`/`cols_vector` instead. Without this method that surfaces as a bare `FieldError`
@@ -225,7 +227,7 @@ end
 
 Update the total resource usage cache for a single-resource `MPIEcosystem`,
 summing each species' abundance × resource demand across all MPI blocks and
-writing results into `eco.cache.totalE`.
+writing results into `eco.cache.totaldemand`.
 """
 function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
                                                             EcoSISTEM.SpeciesList{TL,
@@ -251,14 +253,14 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
     # Loop through grid squares
     Threads.@threads for sc in 1:eco.sccounts[rank + 1]
         truesc = eco.firstsc + sc - 1
-        eco.cache.totalE[truesc, 1] = 0.0
+        eco.cache.totaldemand[truesc, 1] = 0.0
         spindex = 1
         for block in eachindex(mats)
             nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
             e1 = @view ϵ̄[spindex:nextsp]
-            eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) *
-                                           eco.spplist.demand.exchange_rate
+            eco.cache.totaldemand[truesc, 1] += (currentabun ⋅ e1) *
+                                                eco.spplist.demand.exchange_rate
             spindex = nextsp + 1
         end
     end
@@ -269,7 +271,7 @@ end
     update_resource_usage!(eco::MPIEcosystem)
 
 Multi-resource variant of `update_resource_usage!`; updates one column of
-`eco.cache.totalE` per member of a [`SpeciesRequirementCollection`](@ref).
+`eco.cache.totaldemand` per member of a [`SpeciesRequirementCollection`](@ref).
 """
 function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
                                                             EcoSISTEM.SpeciesList{TL,
@@ -295,12 +297,13 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
     # Loop through grid squares
     Threads.@threads for sc in 1:eco.sccounts[rank + 1]
         truesc = eco.firstsc + sc - 1
-        EcoSISTEM._zerototaldemand!(eco.cache.totalE, truesc, ds, 1)
+        EcoSISTEM._zerototaldemand!(eco.cache.totaldemand, truesc, ds, 1)
         spindex = 1
         for block in eachindex(mats)
             nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
-            EcoSISTEM._addtotaldemand!(eco.cache.totalE, truesc, currentabun,
+            EcoSISTEM._addtotaldemand!(eco.cache.totaldemand, truesc,
+                                       currentabun,
                                        spindex, nextsp, ds, 1)
             spindex = nextsp + 1
         end
