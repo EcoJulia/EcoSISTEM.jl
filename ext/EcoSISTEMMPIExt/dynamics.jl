@@ -281,7 +281,7 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
                                                                        D,
                                                                        E, TL,
                                                                        DM <:
-                                                                       EcoSISTEM.SpeciesRequirementCollection}
+                                                                       EcoSISTEM.SpeciesRequirementCollection{Resource}}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
