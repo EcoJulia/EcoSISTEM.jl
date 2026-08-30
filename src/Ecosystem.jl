@@ -37,7 +37,7 @@ Cache houses an integer array of moves made by all species in a timestep for the
 """
 mutable struct Cache
     netmigration::Matrix{Int64}
-    totalE::Matrix{Float64}
+    totaldemand::Matrix{Float64}
     # **Scratch for `_getordinariness!`, and it is the difference between 32 bytes and ~1.9 GiB
     # a call.** The ordinariness chain allocates about one `Float64`
     # matrix** of the abundances' shape — on a UK 1 km grid with 1000 species that is **1.86 GiB
@@ -53,9 +53,10 @@ mutable struct Cache
 
     # The scratch is an implementation detail of the cache, not something every construction site
     # should have to know about — so it is derived from `netmigration`'s shape here.
-    function Cache(netmigration::Matrix{Int64}, totalE::Matrix{Float64},
+    function Cache(netmigration::Matrix{Int64}, totaldemand::Matrix{Float64},
                    valid::Bool)
-        return new(netmigration, totalE, similar(netmigration, Float64), valid)
+        return new(netmigration, totaldemand, similar(netmigration, Float64),
+                   valid)
     end
 end
 
@@ -184,14 +185,14 @@ function Ecosystem(popfun::F,
     lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
                              getkernels(spplist.movement)))
     nm = zeros(Int64, size(ml.matrix))
-    totalE = zeros(Float64, (size(ml.matrix, 2), numdemands(DM)))
+    totaldemand = zeros(Float64, (size(ml.matrix, 2), numdemands(DM)))
     return Ecosystem{typeof(habitat), typeof(spplist), typeof(nichefit)}(ml,
                                                                          spplist,
                                                                          habitat,
                                                                          nichefit,
                                                                          lookup_tab,
                                                                          Cache(nm,
-                                                                               totalE,
+                                                                               totaldemand,
                                                                                false),
                                                                          rngs,
                                                                          0.0s,

@@ -327,35 +327,35 @@ end
     @test m2 == m2b
 end
 
-# **`get_neighbours` takes `(y, x)` — row first**, as everything else in the package does, and
+# **`_getneighbours` takes `(y, x)` — row first**, as everything else in the package does, and
 # its parameter *names* must say so: a caller that believes a name over the body passes the column
 # first. On a **square** matrix that is invisible, so every assertion below is on a non-square one.
-@testset "get_neighbours takes (y, x), row first" begin
+@testset "_getneighbours takes (y, x), row first" begin
     M = zeros(5, 3)         # 5 rows, 3 columns — a transposed call goes out of bounds
 
     # The four-neighbourhood of an interior cell, as (row, column) pairs.
-    @test sort(collect(eachrow(EcoSISTEM.get_neighbours(M, 3, 2)))) ==
+    @test sort(collect(eachrow(EcoSISTEM._getneighbours(M, 3, 2)))) ==
           sort([[2, 2], [4, 2], [3, 1], [3, 3]])
     # The asymmetry is the whole point: row 5 exists and column 5 does not.
-    @test EcoSISTEM.get_neighbours(M, 5, 3) isa Matrix{Int}
-    @test_throws ErrorException EcoSISTEM.get_neighbours(M, 3, 5)
+    @test EcoSISTEM._getneighbours(M, 5, 3) isa Matrix{Int}
+    @test_throws ErrorException EcoSISTEM._getneighbours(M, 3, 5)
 
     # Cells off the edge are dropped, so a corner has two orthogonal neighbours and three diagonal.
-    @test size(EcoSISTEM.get_neighbours(M, 1, 1), 1) == 2
-    @test size(EcoSISTEM.get_neighbours(M, 1, 1, 8), 1) == 3
+    @test size(EcoSISTEM._getneighbours(M, 1, 1), 1) == 2
+    @test size(EcoSISTEM._getneighbours(M, 1, 1, 8), 1) == 3
     # …and every pair returned indexes `M` — which is what a transposed call would break.
     for chess in (4, 8), y in Base.axes(M, 1), x in Base.axes(M, 2)
-        ns = EcoSISTEM.get_neighbours(M, y, x, chess)
+        ns = EcoSISTEM._getneighbours(M, y, x, chess)
         @test all(n -> checkbounds(Bool, M, n[1], n[2]), eachrow(ns))
         # A neighbour is one step away in at least one direction and never the cell itself.
         @test all(n -> 0 < abs(n[1] - y) + abs(n[2] - x) <= 2, eachrow(ns))
     end
 
     # The vector form pairs them up positionally, in the same order.
-    @test EcoSISTEM.get_neighbours(M, [1, 5], [1, 3]) ==
-          vcat(EcoSISTEM.get_neighbours(M, 1, 1),
-               EcoSISTEM.get_neighbours(M, 5, 3))
-    @test_throws ErrorException EcoSISTEM.get_neighbours(M, 1, 1, 5)
+    @test EcoSISTEM._getneighbours(M, [1, 5], [1, 3]) ==
+          vcat(EcoSISTEM._getneighbours(M, 1, 1),
+               EcoSISTEM._getneighbours(M, 5, 3))
+    @test_throws ErrorException EcoSISTEM._getneighbours(M, 1, 1, 5)
 end
 
 end

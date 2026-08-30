@@ -24,15 +24,8 @@ abundance totals and the per-species simulation RNGs are both made deterministic
 so the whole run is reproducible regardless of the number of threads.
 """
 function Test1Ecosystem(; seed = nothing)
-    # **Shrunk 2026-08-13**: 150 species on a 10 × 10 grid became 15 on 5 × 7. Work per timestep is
-    # roughly species × cells, so this is ~40× less of it, and this fixture is shared by seven test
-    # files.
-    #
     # **Non-square, and that is not incidental.** The old grid was 10 × 10; a square fixture
-    # cannot see a y/x transposition, which is exactly how `plot(eco)`'s `BoundsError` went unnoticed
-    # (found 2026-08-13 the moment a notebook grid stopped being square) and how `get_neighbours`
-    # once kept x-first parameter names after the index order switched. 5 × 7 costs 35 cells against
-    # a square 5 × 5's 25 — ten cells to keep the property.
+    # cannot see a y/x transposition.
     numSpecies = 15
     numNiches = 2
 

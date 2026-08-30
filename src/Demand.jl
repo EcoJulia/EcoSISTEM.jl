@@ -78,7 +78,7 @@ function Demand{A}(resource::AbstractVector{<:Real}) where {A <:
     return error("a demand on axis $A cannot be built from bare numbers.")   # unreachable
 end
 
-# How many resources a demand asks for — the width of the `totalE` cache, one column per resource.
+# How many resources a demand asks for — the width of the `totaldemand` cache, one column per resource.
 # A single demand asks for one; a collection asks for one per member (a `SpeciesRequirementCollection`
 # below), read straight off the backing's type so the cache is sized without an instance.
 numdemands(::Type{<:Demand}) = 1

@@ -518,7 +518,7 @@ end
 
 # Function to create clusters from percolated grid
 #
-# **The loop runs `(y, x)` — row, then column — and `get_neighbours` is called in that order.**
+# **The loop runs `(y, x)` — row, then column — and `_getneighbours` is called in that order.**
 # Handing it the column first clusters each cell with the neighbours of its transpose, which a square
 # grid cannot distinguish and any other rejects with *"Coordinates outside grid"*. The inner
 # `mapslices` closures take `n` rather than `x`, because an argument named `x` here would shadow the
@@ -533,7 +533,7 @@ function _identifyclusters!(M::AbstractMatrix)
             # If square is marked as 1, then apply cluster finding algorithm
             if M[y, x] == 1.0
                 # Find neighbours of M at this location
-                neighbours = get_neighbours(M, y, x)
+                neighbours = _getneighbours(M, y, x)
                 # Find out if any of the neighbours also have a value of 1, thus, have
                 # not been assigned a cluster yet
                 cluster = vcat(mapslices(n -> M[n[1], n[2]] .== 1, neighbours,
@@ -584,7 +584,7 @@ function _fillin!(T, M, types, wv, assigned::AbstractMatrix{Bool})
             # If square is zero then it is yet to be assigned
             if M[y, x] == 0
                 # Find neighbours of square on string grid
-                neighbours = get_neighbours(T, y, x, 8)
+                neighbours = _getneighbours(T, y, x, 8)
                 # Check if they have already been assigned
                 already = vcat(mapslices(n -> assigned[n[1], n[2]],
                                          neighbours, dims = 2)...)

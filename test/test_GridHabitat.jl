@@ -831,7 +831,7 @@ end
         #
         # **Every area here is deliberately NON-SQUARE**, and they were all square until a second
         # bug was found underneath this one: the niche field's cluster finder called
-        # `get_neighbours(M, y, x)` where the first argument is the *row*, so it read the transposed
+        # `_getneighbours(M, y, x)` where the first argument is the *row*, so it read the transposed
         # neighbourhood on a square grid and threw *"Coordinates outside grid"* on any other. A
         # square fixture cannot see either half of that. (`test_Layer.jl` sweeps the shapes; these
         # are the same property reached through the two public paths.)

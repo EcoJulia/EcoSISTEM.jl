@@ -48,8 +48,8 @@ effect **this** step rather than one step late.
 function update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
 
     # Calculate dimenions of regime and number of species
-    dims = countsubcommunities(eco.habitat.regime)
-    nspp = size(eco.abundances.grid, 1)
+    numsc = countsubcommunities(eco.habitat.regime)
+    numsp = size(eco.abundances.grid, 1)
     params = eco.spplist.params
     height = getgridshape(eco)[1]
 
@@ -64,47 +64,51 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
     # species is still drawn only by its owning thread, in ascending-cell order,
     # so per-species RNG streams stay race-free and reproducible.
     block = species_blocksize()
-    nblocks = cld(nspp, block)
+    nblocks = cld(numsp, block)
     # :greedy hands the cache-line-sized species blocks to cores as they free up
     # (dynamic load balancing); blocks are independent so results are unchanged.
     Threads.@threads :greedy for b in 1:nblocks
-        jstart = (b - 1) * block + 1
-        jend = min(b * block, nspp)
+        spstart = (b - 1) * block + 1
+        spend = min(b * block, numsp)
         # Loop through grid squares
-        for i in 1:dims
+        for sc in 1:numsc
             # Convert 1D dimension to 2D coordinates
-            (y, x) = convert_coords(eco, i, height)
+            (y, x) = convert_coords(eco, sc, height)
             # Check if grid cell currently active
-            (eco.habitat.active[y, x] && (eco.cache.totalE[i, 1] > 0)) ||
+            (eco.habitat.active[y, x] && (eco.cache.totaldemand[sc, 1] > 0)) ||
                 continue
-            for j in jstart:jend
-                rng = getrng(eco, j)
+            for sp in spstart:spend
+                rng = getrng(eco, sp)
                 # Calculate how much birth and death should be adjusted
                 adjusted_birth, adjusted_death = resource_adjustment(eco,
                                                                      eco.habitat.supply,
-                                                                     i, j)
+                                                                     sc, sp)
 
-                # Calculate effective rates
-                birthrate = params.birth[j] * timestep * adjusted_birth |>
+                # Both are per-individual rates over the timestep. Only the death one becomes
+                # a probability: deaths are drawn per individual (Binomial), while births are a
+                # count (Poisson) whose mean is the rate itself. `NoUnits` is needed on the birth
+                # rate because it reaches `Poisson` as a bare number; the death rate is made
+                # dimensionless by `exp`.
+                birthrate = params.birth[sp] * timestep * adjusted_birth |>
                             NoUnits
-                deathparam = params.death[j] * timestep * adjusted_death
+                deathrate = params.death[sp] * timestep * adjusted_death
 
-                # Turn deathparam into probability and cancel units of birthrate
-                deathprob = 1.0 - exp(-deathparam)
+                deathprob = 1.0 - exp(-deathrate)
 
                 (birthrate >= 0) & (deathprob >= 0) ||
-                    error("Birth: $birthrate \n Death: $deathprob \n \n i: $i \n j: $j")
+                    error("Birth: $birthrate \n Death: $deathprob \n \n sc: $sc \n sp: $sp")
                 # Calculate how many births and deaths
                 births = rand(rng,
-                              Poisson(eco.abundances.matrix[j, i] * birthrate))
+                              Poisson(eco.abundances.matrix[sp, sc] * birthrate))
                 deaths = rand(rng,
-                              Binomial(eco.abundances.matrix[j, i], deathprob))
+                              Binomial(eco.abundances.matrix[sp, sc],
+                                       deathprob))
 
                 # Update population
-                eco.abundances.matrix[j, i] += (births - deaths)
+                eco.abundances.matrix[sp, sc] += (births - deaths)
 
                 # Calculate moves and write to cache
-                move!(eco, eco.spplist.movement, i, j, eco.cache.netmigration,
+                move!(eco, eco.spplist.movement, sc, sp, eco.cache.netmigration,
                       births)
             end
         end
@@ -191,9 +195,9 @@ function populate!(ml::GridLandscape,
         return f1 .* f2
     end
     # Loop through species, drawing from each species' own RNG stream
-    for i in eachindex(spplist.abun)
-        rand!(rngs[i], Multinomial(spplist.abun[i], B ./ sum(B)),
-              (@view ml.matrix[i, :]))
+    for sp in eachindex(spplist.abun)
+        rand!(rngs[sp], Multinomial(spplist.abun[sp], B ./ sum(B)),
+              (@view ml.matrix[sp, :]))
     end
 end
 
@@ -255,18 +259,18 @@ function populate_by_tolerance!(ml::GridLandscape,
     numsquares = dim[1] * dim[2]
     numspp = length(spplist.names)
     probabilities = [_suitability(habitat.regime, spplist.tolerance, nichefit,
-                                  i, sp)
-                     for i in 1:numsquares,
+                                  sc, sp)
+                     for sc in 1:numsquares,
                          sp in 1:numspp]
     # Loop through species, drawing from each species' own RNG stream
-    for i in eachindex(spplist.abun)
-        if spplist.native[i]
+    for sp in eachindex(spplist.abun)
+        if spplist.native[sp]
             # Get abundance of species
-            probs = probabilities[:, i] ./ sum(probabilities[:, i])
+            probs = probabilities[:, sp] ./ sum(probabilities[:, sp])
             probs[isnan.(probs)] .= 1 / numsquares
-            abun = rand(rngs[i], Multinomial(spplist.abun[i], probs))
+            abun = rand(rngs[sp], Multinomial(spplist.abun[sp], probs))
             # Add individual to this location
-            ml.matrix[i, :] .+= abun
+            ml.matrix[sp, :] .+= abun
         end
     end
 end
@@ -307,15 +311,11 @@ end
 # otherwise and passes `(x, y)` reads the transposed neighbourhood, which a square grid cannot
 # distinguish and any other grid rejects with *"Coordinates outside grid"* — which is why the
 # parameter names have to say which is which.
-"""
-    get_neighbours(mat::Matrix, y_coord::Int64, x_coord::Int64, chess::Int64=4)
-
-Get the neighbours of a grid square in a matrix in 4 or 8 directions.
-
-The coordinates are `(y, x)` — row first, then column — as everywhere else in the package, and the
-rows of the returned matrix index `mat` in that same order (`mat[n[1], n[2]]`).
-"""
-function get_neighbours(mat::Matrix, y_coord::Int64, x_coord::Int64,
+# Get the neighbours of a grid square in a matrix in 4 or 8 directions.
+#
+# The coordinates are `(y, x)` — row first, then column — as everywhere else in the package, and the
+# rows of the returned matrix index `mat` in that same order (`mat[n[1], n[2]]`).
+function _getneighbours(mat::Matrix, y_coord::Int64, x_coord::Int64,
                         chess::Int64 = 4)
     # Calculate dimensions
     dims = size(mat)
@@ -352,18 +352,13 @@ function get_neighbours(mat::Matrix, y_coord::Int64, x_coord::Int64,
     return neighbour_vec
 end
 
-"""
-    get_neighbours(mat::Matrix, y_coord::Vector{Int64}, x_coord::Vector{Int64},
-        chess::Int64=4)
-
-As [`get_neighbours`](@ref) but accepts vectors of coordinates and returns the
-combined neighbours for all positions.
-"""
-function get_neighbours(mat::Matrix,
+# As the scalar method above, but accepting vectors of coordinates and returning the combined
+# neighbours for all positions.
+function _getneighbours(mat::Matrix,
                         y_coord::Vector{Int64},
                         x_coord::Vector{Int64},
                         chess::Int64 = 4)
-    neighbours = map(n -> get_neighbours(mat, y_coord[n], x_coord[n], chess),
+    neighbours = map(n -> _getneighbours(mat, y_coord[n], x_coord[n], chess),
                      eachindex(y_coord))
     return vcat(neighbours...)
 end
@@ -398,9 +393,10 @@ function update_resource_usage!(eco::AbstractEcosystem{Part,
     ϵ̄ = eco.spplist.demand.resource
 
     # Loop through grid squares
-    Threads.@threads for i in Base.axes(eco.abundances.matrix, 2)
-        eco.cache.totalE[i, 1] = ((@view eco.abundances.matrix[:, i]) ⋅ ϵ̄) *
-                                 eco.spplist.demand.exchange_rate
+    Threads.@threads for sc in Base.axes(eco.abundances.matrix, 2)
+        eco.cache.totaldemand[sc, 1] = ((@view eco.abundances.matrix[:, sc]) ⋅
+                                        ϵ̄) *
+                                       eco.spplist.demand.exchange_rate
     end
     return eco.cache.valid = true
 end
@@ -422,71 +418,73 @@ function update_resource_usage!(eco::AbstractEcosystem{Part,
     ds = values(eco.spplist.demand)
 
     # Loop through grid squares
-    Threads.@threads for i in Base.axes(eco.abundances.matrix, 2)
-        _totaldemand!(eco.cache.totalE, i, (@view eco.abundances.matrix[:, i]),
+    Threads.@threads for sc in Base.axes(eco.abundances.matrix, 2)
+        _totaldemand!(eco.cache.totaldemand, sc,
+                      (@view eco.abundances.matrix[:, sc]),
                       ds,
                       1)
     end
     return eco.cache.valid = true
 end
 
-# The three ways `totalE`'s per-resource columns are written, one column per member of a
+# The three ways `totaldemand`'s per-resource columns are written, one column per member of a
 # a demand collection. Each recurses over the demands rather than looping over them, so the walk is
 # unrolled at compile time and allocates nothing whatever the number of resources. `k` is the
 # column the head of `ds` writes to, so it tracks the recursion.
 #
 # `_totaldemand!` is the whole-cell write used by the shared-memory loop; MPI accumulates a cell's total
 # across species blocks instead, so it needs the `_zerototaldemand!`/`_addtotaldemand!` pair.
-_totaldemand!(totalE, i, abun, ::Tuple{}, k::Int) = nothing
+_totaldemand!(totaldemand, sc, abun, ::Tuple{}, k::Int) = nothing
 
-function _totaldemand!(totalE, i, abun, ds::Tuple, k::Int)
-    totalE[i, k] = (abun ⋅ first(ds).resource) * first(ds).exchange_rate
-    return _totaldemand!(totalE, i, abun, Base.tail(ds), k + 1)
+function _totaldemand!(totaldemand, sc, abun, ds::Tuple, k::Int)
+    totaldemand[sc, k] = (abun ⋅ first(ds).resource) * first(ds).exchange_rate
+    return _totaldemand!(totaldemand, sc, abun, Base.tail(ds), k + 1)
 end
 
 # Clear one cell's demand accumulator, one entry per resource. Written as a recursion over the
 # demand tuple rather than a loop so the resource count is known at compile time and the whole thing
 # unrolls: this runs once per cell per timestep, and must not allocate.
-_zerototaldemand!(totalE, i, ::Tuple{}, k::Int) = nothing
+_zerototaldemand!(totaldemand, sc, ::Tuple{}, k::Int) = nothing
 
-function _zerototaldemand!(totalE, i, ds::Tuple, k::Int)
-    totalE[i, k] = 0.0
-    return _zerototaldemand!(totalE, i, Base.tail(ds), k + 1)
+function _zerototaldemand!(totaldemand, sc, ds::Tuple, k::Int)
+    totaldemand[sc, k] = 0.0
+    return _zerototaldemand!(totaldemand, sc, Base.tail(ds), k + 1)
 end
 
 # Add a block of species' demand into one cell's accumulator, unrolled over the resources exactly as
 # `_zerototaldemand!` is. `from`/`to` are the block this process owns, which is the whole range
 # serially and one rank's share under MPI.
-function _addtotaldemand!(totalE, i, abun, from::Int, to::Int, ::Tuple{},
+function _addtotaldemand!(totaldemand, sc, abun, from::Int, to::Int, ::Tuple{},
                           k::Int)
     return nothing
 end
 
-function _addtotaldemand!(totalE, i, abun, from::Int, to::Int, ds::Tuple,
+function _addtotaldemand!(totaldemand, sc, abun, from::Int, to::Int, ds::Tuple,
                           k::Int)
     ϵ̄ = @view first(ds).resource[from:to]
-    totalE[i, k] += (abun ⋅ ϵ̄) * first(ds).exchange_rate
-    return _addtotaldemand!(totalE, i, abun, from, to, Base.tail(ds), k + 1)
+    totaldemand[sc, k] += (abun ⋅ ϵ̄) * first(ds).exchange_rate
+    return _addtotaldemand!(totaldemand, sc, abun, from, to, Base.tail(ds),
+                            k + 1)
 end
 
 """
-    resource_adjustment(eco::Ecosystem, supply::AbstractSupply, i::Int64, sp::Int64)
+    resource_adjustment(eco::Ecosystem, supply::AbstractSupply, sc::Int64, sp::Int64)
 
 Calculate how much birth and death rates should be adjusted by, according to how
-much resource is available, `supply`, in the grid square, `i`, and how much resource
+much resource is available, `supply`, in the grid square, `sc`, and how much resource
 the species, `sp`, requires.
 """
 function resource_adjustment(eco::AbstractEcosystem, supply::AbstractSupply,
-                             i::Int64, sp::Int64)
-    return _resourceadjustmentbytype(eco.spplist.params, eco, supply, i, sp)
+                             sc::Int64, sp::Int64)
+    return _resourceadjustmentbytype(eco.spplist.params, eco, supply, sc, sp)
 end
 
 # NoGrowth freezes the population; anything else adjusts birth/death rates by the available
 # resource — dispatched on `params`'s type rather than an `isa` branch in `resource_adjustment`.
-_resourceadjustmentbytype(::NoGrowth, eco, supply, i, sp) = (0.0, 0.0)
+_resourceadjustmentbytype(::NoGrowth, eco, supply, sc, sp) = (0.0, 0.0)
 
-function _resourceadjustmentbytype(::AbstractParams, eco, supply, i, sp)
-    return _resourceadjustment(eco, supply, i, sp)
+function _resourceadjustmentbytype(::AbstractParams, eco, supply, sc, sp)
+    return _resourceadjustment(eco, supply, sc, sp)
 end
 
 # Birth and death rate multipliers for a single-demand environment. Weighs
@@ -496,17 +494,17 @@ end
 # `params.boost`) and deaths rise as demand approaches the supply (`E/K`). Called
 # only for growing populations — [`resource_adjustment`](@ref) short-circuits NoGrowth.
 function _resourceadjustment(eco::AbstractEcosystem, supply::AbstractSupply,
-                             i::Int64, sp::Int64)
+                             sc::Int64, sp::Int64)
     params = eco.spplist.params
     height = getgridshape(eco)[1]
-    (y, x) = convert_coords(eco, i, height)
+    (y, x) = convert_coords(eco, sc, height)
     K = _getsupply(eco.habitat.supply)[y, x] * eco.spplist.demand.exchange_rate
     # Get resource supplies of species in square
     ϵ̄ = eco.spplist.demand.resource[sp] *
         eco.spplist.demand.exchange_rate
-    E = eco.cache.totalE[i, 1]
+    E = eco.cache.totaldemand[sc, 1]
     # Traits
-    ϵ̄real = 1 / suitability(eco, i, sp)
+    ϵ̄real = 1 / suitability(eco, sc, sp)
     # Alter rates by resource available in current pop & own demands
     birth_resource = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
                      min(K / E, params.boost)
@@ -542,10 +540,10 @@ end
 # its own answer to find.
 function _resourceadjustment(eco::AbstractEcosystem,
                              supply::LayerCollection{Resource},
-                             i::Int64,
+                             sc::Int64,
                              sp::Int64)
     height = getgridshape(eco)[1]
-    (y, x) = convert_coords(eco, i, height)
+    (y, x) = convert_coords(eco, sc, height)
     params = eco.spplist.params
     ds = values(eco.spplist.demand)
     bs = values(supply)
@@ -558,9 +556,9 @@ function _resourceadjustment(eco::AbstractEcosystem,
     ϵ̄ = _zipmap(ds) do d
         return d.resource[sp] * d.exchange_rate
     end
-    E = ntuple(j -> eco.cache.totalE[i, j], Val(length(ds)))
+    E = ntuple(k -> eco.cache.totaldemand[sc, k], Val(length(ds)))
     # Once, not once per resource — see the note above.
-    ϵ̄real = 1 / suitability(eco, i, sp)
+    ϵ̄real = 1 / suitability(eco, sc, sp)
     # Alter rates by resource available in current pop & own demands
     demanded = _fold(*, ϵ̄)
     birth_resource = demanded^-params.longevity * ϵ̄real^-params.survival *
@@ -571,36 +569,36 @@ function _resourceadjustment(eco::AbstractEcosystem,
 end
 
 """
-    convert_coords(eco, i::Int64, height::Int64)
+    convert_coords(eco, sc::Int64, height::Int64)
     convert_coords(eco, y::Int64, x::Int64, height::Int64)
 Convert coordinates from two-dimensional (`y`,`x`) format to one dimension
-(`i`), or vice versa, using the `height` (dimension 1) of the grid. This
+(`sc`), or vice versa, using the `height` (dimension 1) of the grid. This
 function can also be applied to arrays of coordinates.
 """
 function convert_coords(eco::AbstractEcosystem,
-                        i::Int64,
+                        sc::Int64,
                         height::Int64 = getgridshape(eco)[1])
-    y = ((i - 1) % height) + 1
-    x = div((i - 1), height) + 1
+    y = ((sc - 1) % height) + 1
+    x = div((sc - 1), height) + 1
     return (y, x)
 end
 
 function convert_coords(eco::AbstractEcosystem,
                         pos::Tuple{Int64, Int64},
                         height::Int64 = getgridshape(eco)[1])
-    i = pos[1] + height * (pos[2] - 1)
-    return i
+    sc = pos[1] + height * (pos[2] - 1)
+    return sc
 end
 
-function convert_coords(i::Int64, height::Int64)
-    y = ((i - 1) % height) + 1
-    x = div((i - 1), height) + 1
+function convert_coords(sc::Int64, height::Int64)
+    y = ((sc - 1) % height) + 1
+    x = div((sc - 1), height) + 1
     return (y, x)
 end
 
 function convert_coords(y::Int64, x::Int64, height::Int64)
-    i = y + height * (x - 1)
-    return i
+    sc = y + height * (x - 1)
+    return sc
 end
 
 # Normalise the per-destination weights `lookup.pnew` (already zeroed for every unreachable or
@@ -694,22 +692,22 @@ function calc_lookup_moves!(::EdgeTopology{BCY, BCX},
 end
 
 """
-    move!(eco::Ecosystem, ::AbstractMovement, i::Int64, sp::Int64, grd::Matrix{Int64}, abun::Int64)
+    move!(eco::Ecosystem, ::AbstractMovement, sc::Int64, sp::Int64, grd::Matrix{Int64}, abun::Int64)
 
 Calculate the movement of species `sp` from a given position in the landscape
-`i`, using the lookup table found in the [`Ecosystem`](@ref) and updating the
+`sc`, using the lookup table found in the [`Ecosystem`](@ref) and updating the
 movement patterns on a cached grid, `grd`. Optionally, a number of births can be
 provided, so that movement only takes place as part of the birth process,
 instead of the entire population
 """
 function move!(eco::AbstractEcosystem,
                ::AlwaysMovement,
-               i::Int64,
+               sc::Int64,
                sp::Int64,
                grd::Matrix{Int64},
                ::Int64)
     # "Animal-like": the whole current population disperses
-    return _move!(eco, i, sp, grd, eco.abundances.matrix[sp, i])
+    return _move!(eco, sc, sp, grd, eco.abundances.matrix[sp, sc])
 end
 
 function move!(eco::AbstractEcosystem,
@@ -723,35 +721,35 @@ end
 
 function move!(eco::AbstractEcosystem,
                ::BirthOnlyMovement,
-               i::Int64,
+               sc::Int64,
                sp::Int64,
                grd::Matrix{Int64},
                births::Int64)
     # "Plant-like": only the newly born individuals disperse
-    return _move!(eco, i, sp, grd, births)
+    return _move!(eco, sc, sp, grd, births)
 end
 
 # Common dispersal code: move `amount` individuals of species `sp` from
-# position `i`, scattering them across the landscape according to the
+# position `sc`, scattering them across the landscape according to the
 # species' lookup table.
 function _move!(eco::AbstractEcosystem,
-                i::Int64,
+                sc::Int64,
                 sp::Int64,
                 grd::Matrix{Int64},
                 amount::Int64)
     height, width = getgridshape(eco)
-    (y, x) = convert_coords(eco, i, height)
+    (y, x) = convert_coords(eco, sc, height)
     lookup = getlookup(eco, sp)
     calc_lookup_moves!(eco.habitat.topology, y, x, sp, eco, amount)
     # Lose moves from current grid square
-    grd[sp, i] -= amount
+    grd[sp, sc] -= amount
     # Map moves to location in grid
     moves = lookup.moves
-    for j in eachindex(lookup.y)
-        newy = mod(lookup.y[j] + y - 1, height) + 1
-        newx = mod(lookup.x[j] + x - 1, width) + 1
+    for i in eachindex(lookup.y)
+        newy = mod(lookup.y[i] + y - 1, height) + 1
+        newx = mod(lookup.x[i] + x - 1, width) + 1
         loc = convert_coords(eco, (newy, newx), height)
-        grd[sp, loc] += moves[j]
+        grd[sp, loc] += moves[i]
     end
     return eco
 end
