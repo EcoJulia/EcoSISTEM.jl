@@ -10,6 +10,9 @@
     - The distributed code is renamed and rearranged to mirror the serial code file for file and name
       for name, so that the two can be read side by side.
     - More distributed and serial code redundancy elimination - update_resource_usage!() and move!().
+    - Serial and distributed runs are now pinned to the same blessed results, so a divergence in
+      the distributed code alone is caught at every rank count. The previous check compared
+      distributed runs against each other, and all of them shared the duplicated code.
 - v0.5.0
   - Removed and deprecated
     - The v0.4.0 vocabulary is renamed onto the ecological distinction between conditions (what a cell

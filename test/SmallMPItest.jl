@@ -17,6 +17,9 @@ using Test
 # decomposition looks alike and a partitioning bug cannot show. The field it decomposes varies down
 # `Y` (regime) and across `X` (supply), on a 7 × 12 grid that no rank count divides evenly.
 include(joinpath(@__DIR__, "varyingcase.jl"))
+# For `canonical_reference` only -- the blessed values are READ here, never written.
+include(joinpath(@__DIR__, "canonical", "canonical.jl"))
+using .Canonical
 
 nt = Threads.nthreads();
 @info "Total Memory: $(Sys.total_memory() / 2^30)GB, threads: $nt"
@@ -29,51 +32,12 @@ end
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 
-# Set up initial parameters for ecosystem
-# **7, not 8, and that is the point of this test.** `MPIEcosystem` partitions by species *and* by
-# grid cells, so both need a remainder to exercise the uneven-split paths: 7 species go 2/2/2/1 over
-# four ranks and 4/3 over two, while the shared fixture's 77 cells go 20/19/19/19 and 39/38. With 8
-# species on 84 cells every rank got an identical share and neither split was ever unbalanced.
+# **The fixture is built by `mpifixture_species` in `varyingcase.jl`, not spelled out here.**
+# The canonical `mpi/…` results are blessed from a SERIAL run of that same builder, and those
+# numbers are only evidence about this run if both sides build the identical thing — two
+# spelled-out copies would drift, which is the failure the pinning exists to catch.
 numSpecies = VARYING_SPECIES;
-demand = 10.0kJ / day;
-individuals = 1_000;
-area = 100.0 * km^2;
-totalK = 10000.0kJ / km^2 / day;
-
-# Set up how much resource each species consumes.
-# **Two layers, matching the two supplies of the varying environment.** `build_ecosystem` checks
-# that species demand and environment supply align layer for layer, so a solar-only demand against a
-# solar+water environment is refused — correctly. Defined once here and reused by both species lists
-# below, rather than being rebuilt differently half way down the file.
-resource_vec = Demand{SolarRadiation}(collect(1:numSpecies) .* 1.0kJ / day)
-water_vec = Demand{Precipitation}(fill(2.0Unitful.L / day, numSpecies))
-total_use = SpeciesRequirementCollection((resource_vec, water_vec))
-# Set probabilities
-birth = 0.6 / year
-death = 0.6 / year
-longevity = 1.0
-survival = 0.2
-boost = 100.0
-
-# Collect model parameters together
-param = EqualPop(birth, death, longevity, survival, boost)
-
-# Create kernel for movement
-kernel = fill(GaussianKernel(3.0km, 10e-10), numSpecies)
-movement = BirthOnlyMovement(kernel)
-
-# Create species list, including their temperature preferences, seed abundance and native status
-# Spread across the varying regime's own 288–302 K gradient. A single shared optimum would put
-# every species in the same cells; `fill(274.0K, …)` would put them all outside the environment
-# entirely, and a run where everything dies compares equal across ranks for the wrong reason.
-opts = varying_optima(numSpecies)
-vars = fill(2.0K, numSpecies)
-tolerance = NicheTolerance(Temperature, Normal, opts, vars)
-native = fill(true, numSpecies)
-# abun = rand(Multinomial(individuals, numSpecies))
-abun = fill(div(individuals, numSpecies), numSpecies)
-sppl = SpeciesList(numSpecies, tolerance, abun, total_use,
-                   movement, param, native)
+sppl, tolerance = mpifixture_species()
 
 # **This is the ecosystem the cross-rank comparison actually uses** — it is simulated, gathered
 # and saved below, while the second one further down only exercises the synchronise paths. It must
@@ -152,8 +116,7 @@ if rank == 0
     @save joinpath(ARGS[1], "Test_abuns$nt.jld2") abuns=true_abuns
 end
 
-sppl = SpeciesList(numSpecies, tolerance, abun, total_use, movement, param,
-                   native)
+sppl, tolerance = mpifixture_species()
 
 # The shared varying environment: a temperature gradient down the grid, a solar gradient across it,
 # and a steady warming over the run. Non-square (7 × 12) on purpose.
@@ -221,13 +184,33 @@ end
 # rank count anyway. Everything is rebuilt rather than reused -- an `Ecosystem` shares the habitat
 # it is built on, so simulating a second one on the same object would not be independent.
 if MPI.Comm_size(comm) == 1
-    serialsppl = SpeciesList(numSpecies, tolerance, abun, total_use, movement,
-                             param, native)
-    serialeco = Ecosystem(serialsppl, varying_environment(), nichefit, seed = 0)
-    # Matched to the distributed run above, which fills its own abundances the same way.
-    serialeco.abundances.matrix .= 10
-    simulate!(serialeco, burnin, timestep)
+    serialeco = mpifixture_ecosystem()
+    simulate!(serialeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
     @test serialeco.abundances.matrix == true_abuns
+end
+
+# **And pin BOTH paths to one blessed number, at EVERY rank count.** The comparison above needs a
+# serial run alongside, so it can only happen at one rank; these keys are recorded once by
+# `test/canonical/test_mpifixture.jl` from a serial run and asserted here however many ranks there
+# are. That is what makes a distributed-only divergence visible at 2 and 4 ranks.
+#
+# **Read-only on purpose.** `canonical(...)` would *write* the reference file, and doing that from
+# inside an `mpiexec` child — several of them at once — must never happen. `canonical_reference()`
+# only reads.
+if rank == 0
+    reference = Canonical.canonical_reference()
+    grid = reshape(true_abuns, numSpecies, VARYING_NY, VARYING_NX)
+    for (key, value) in ("mpi/total_abundance" => sum(grid),
+        "mpi/abundance_by_species" => vec(sum(grid, dims = (2, 3))),
+        "mpi/abundance_by_row" => vec(sum(grid, dims = (1, 3))),
+        "mpi/abundance_by_column" => vec(sum(grid, dims = (1, 2))))
+        # A missing key means the canonical set has not been blessed here; say so rather than
+        # passing silently, which would make this whole check vacuous.
+        @test haskey(reference, key)
+        haskey(reference, key) &&
+            @test isapprox(float.(collect(value)), reference[key],
+                           rtol = 1e-8)
+    end
 end
 
 if !MPI.Finalized()
