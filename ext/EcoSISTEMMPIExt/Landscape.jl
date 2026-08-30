@@ -12,7 +12,8 @@ import EcoSISTEM
 using MPI
 using Random
 using BlockArrays: mortar
-using DimensionalData: DimArray, Dim
+using DimensionalData: DimArray, Dim, X, Y
+using DimensionalData.Lookups: Categorical, NoLookup
 
 """
     MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple}
@@ -27,7 +28,8 @@ labelled views of the same memory, carrying the global species and cell indices
 this rank holds. Random draws during simulation use Julia's task-local default
 RNG, so no generator state is stored here.
 """
-struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DC} <:
+struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DG,
+                        DC} <:
        EcoSISTEM.MPIGridLandscape
     rows_matrix::Matrix{Int64}
     cols_vector::Vector{Int64}
@@ -35,12 +37,15 @@ struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DC} <:
     rows_tuple::NT
     cols_tuple::NT
     dimrows::DR
+    dimgrid::DG
     dimcols::DC
 
     function MPIGridLandscape(sppcounts::Vector{Int32},
                               sccounts::Vector{Int32},
                               rows_matrix::Matrix{Int64},
-                              cols_vector::Vector{Int64})
+                              cols_vector::Vector{Int64},
+                              names::Vector{String},
+                              yx::Tuple{<:Y, <:X})
         rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
         totalspp = sum(sppcounts)
@@ -78,45 +83,58 @@ struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DC} <:
         # whole run this rank actually holds -- which matters more here than serially, where the
         # matrix simply is everything. The labels are global indices: the species names are not
         # available at this point, and adding them would change a released public signature.
-        dimrows = DimArray(rows_matrix,
-                           (Dim{:species}(firstsp:lastsp),
-                            Dim{:location}(1:totalsc)))
+        # This rank's species, by name, over every cell -- the direct analogue of the serial
+        # landscape's `dimmatrix`, and its `dimgrid`, which is why there are two of them: `rows`
+        # covers all the cells, so the real Y and X coordinates are available and meaningful.
+        myspecies = Dim{:species}(Categorical(names[firstsp:lastsp]))
+        dimrows = DimArray(rows_matrix, (myspecies, Dim{:location}(NoLookup())))
+        dimgrid = DimArray(reshape(rows_matrix,
+                                   (lastsp - firstsp + 1, length.(yx)...)),
+                           (myspecies, yx...))
         # `cols_vector` arrives block-stacked -- one block per contributing rank -- because that is
         # what `Alltoallv!` produces. `mortar` presents those blocks as one ordinary
         # `(all species x this rank's cells)` matrix without copying, so a caller need not know.
         # It is for inspection only: a scalar index has to find its block first, which measured
         # about eight times the cost of walking `reshaped_cols` directly, so the hot loop keeps
         # doing that.
+        # Every species, by name, over this rank's cells. Those cells are a contiguous run of the
+        # flat ordering rather than a rectangle, so they carry their global indices; there is no
+        # Y/X view of them to give.
         dimcols = DimArray(mortar(reshape(reshaped_cols, length(reshaped_cols),
                                           1)),
-                           (Dim{:species}(1:totalspp),
+                           (Dim{:species}(Categorical(names)),
                             Dim{:location}(firstsc:lastsc)))
         return new{typeof(reshaped_cols[1]), typeof(rows), typeof(dimrows),
-                   typeof(dimcols)}(rows_matrix,
-                                    cols_vector,
-                                    reshaped_cols,
-                                    rows,
-                                    cols,
-                                    dimrows,
-                                    dimcols)
+                   typeof(dimgrid), typeof(dimcols)}(rows_matrix,
+                                                     cols_vector,
+                                                     reshaped_cols,
+                                                     rows,
+                                                     cols,
+                                                     dimrows,
+                                                     dimgrid,
+                                                     dimcols)
     end
 end
 
 EcoSISTEM.MPIGridLandscape(args...) = MPIGridLandscape(args...)
 
 """
-    empty_mpi_gridlandscape(sppcounts::Vector{Int32}, sccounts::Vector{Int32})
+    empty_mpi_gridlandscape(sppcounts::Vector{Int32}, sccounts::Vector{Int32},
+                            names::Vector{String}, yx::Tuple{<:Y, <:X})
 
 Create an empty MPIGridLandscape given information about the MPI setup.
 """
 function EcoSISTEM.empty_mpi_gridlandscape(sppcounts::Vector{Int32},
-                                           sccounts::Vector{Int32})
+                                           sccounts::Vector{Int32},
+                                           names::Vector{String},
+                                           yx::Tuple{<:Y, <:X})
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
     rows_matrix = zeros(Int64, sppcounts[rank + 1], sum(sccounts))
     cols_vector = zeros(Int64, sum(sppcounts) * sccounts[rank + 1])
 
-    return MPIGridLandscape(sppcounts, sccounts, rows_matrix, cols_vector)
+    return MPIGridLandscape(sppcounts, sccounts, rows_matrix, cols_vector,
+                            names, yx)
 end
 
 """

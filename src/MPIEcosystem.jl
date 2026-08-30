@@ -22,11 +22,14 @@ synchronise steps copy between the two views.
     collective operations address.
   - `rows_tuple`, `cols_tuple`: how each view is partitioned — `total`, `first`, `last`, and the
     per-rank `counts`.
-  - `dimrows`: `rows_matrix` labelled with the global species indices this rank owns, against every
-    cell.
-  - `dimcols`: every species against the global cell indices this rank owns. `cols_vector` is stored
-    one block per contributing rank, because that is what the collective produces; this presents
-    those blocks as a single ordinary matrix without copying.
+  - `dimrows`: `rows_matrix` labelled with the names of the species this rank owns, against every
+    cell — the counterpart of a serial landscape's `dimmatrix`.
+  - `dimgrid`: the same species against the habitat's real `Y` and `X`. `rows_matrix` covers every
+    cell, so the map is complete and the coordinates mean what they say.
+  - `dimcols`: every species, by name, against the global indices of the cells this rank owns.
+    `cols_vector` is stored one block per contributing rank, because that is what the collective
+    produces; this presents those blocks as a single ordinary matrix without copying. Those cells
+    are a run of the flat ordering rather than a rectangle, so there is no `Y`/`X` view of them.
 
 The labelled views matter more here than they do serially, where the matrix simply is the whole run:
 a rank holds only a slice, and these say which one. They are views of the same memory, so a write

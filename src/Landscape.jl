@@ -27,9 +27,15 @@ new `GridLandscape` and reassign the whole field holding it, so they cannot drif
   - `grid`: species against `Y` and `X`, a plain `Array{Int64, 3}` sharing `matrix`'s memory.
   - `dimmatrix`: `matrix` as a `(Dim{:species}, Dim{:location})` `DimArray`, carrying real species
     names.
-  - `dimgrid`: `grid` as a `(Dim{:species}, Y, X)` `DimArray`. `Y` and `X` are the habitat's own
-    dimensions, so a data-driven habitat's cells carry their real coordinates and a synthetic one's
-    carry `NoLookup`.
+  - `dimgrid`: `grid` as a `(Dim{:species}, Y, X)` `DimArray`, with `Y` and `X` the habitat's own
+    dimensions — real coordinates as `Unitful` lengths, or degrees on a geographic grid.
+
+`dimmatrix`'s `location` dimension is deliberately a `NoLookup`: a flat cell index has no coordinate
+to carry, and `dimgrid` is where a cell's position is answered.
+
+Every landscape built from a habitat has real coordinates, synthetic or not — a `StudyArea` fixes
+them whether or not any data was read. Only the size-only constructor below, which has no habitat to
+take them from, produces `NoLookup` positions.
 
 **The raw arrays and the labelled views are the same memory, and both are stored on purpose.** The
 hot loop reads `matrix`; asking *which* species or *where* reads `dimmatrix`/`dimgrid`.
@@ -157,7 +163,9 @@ end
 
 # Build one from a plain size, for callers with no `SpeciesList` or `GridHabitat` to hand. Species
 # are named by their number, matching `GridHabitat`'s own default-name convention, and `Y`/`X` are
-# fresh `NoLookup` dimensions: there is no CRS to attach, as for any synthetic grid.
+# fresh `NoLookup` dimensions, because a bare size carries no positions to attach. This is the only
+# route that produces unpositioned cells: a landscape built from a habitat always has real
+# coordinates, since a `StudyArea` decides them whether or not any data was read.
 function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
     names = string.(axes(abun, 1))
     yx = (Y(NoLookup(Base.OneTo(dimension[2]))),
