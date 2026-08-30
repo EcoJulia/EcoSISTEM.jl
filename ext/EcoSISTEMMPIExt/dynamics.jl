@@ -55,6 +55,7 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
     # Calculate dimenions of regime and number of species
     numsc = countsubcommunities(eco)
     params = eco.spplist.params
+    height = getgridshape(eco)[1]
     # Set the overall resource supply of that square
     EcoSISTEM.update_resource_usage!(eco)
     # Share per-cell resource usage across ranks. `totaldemand` is (numsc, numdemands)
@@ -85,7 +86,7 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
         # Loop through grid squares
         for sc in 1:numsc
             # Convert 1D dimension to 2D coordinates
-            (y, x) = EcoSISTEM.convert_coords(eco, sc)
+            (y, x) = EcoSISTEM.convert_coords(eco, sc, height)
             # Check if grid cell currently active
             (eco.habitat.active[y, x] && (eco.cache.totaldemand[sc, 1] > 0)) ||
                 continue
@@ -239,21 +240,22 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
-    # Get resource supplies of species in square
-    ϵ̄ = eco.spplist.demand.resource
+    # The single demand as a one-member tuple, so the accumulation below is the arity-1 case of
+    # exactly the code the multi-resource method runs rather than a hand-rolled lookalike.
+    ds = (eco.spplist.demand,)
     mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
     Threads.@threads for sc in 1:eco.sccounts[rank + 1]
         truesc = eco.firstsc + sc - 1
-        eco.cache.totaldemand[truesc, 1] = 0.0
+        EcoSISTEM._zerototaldemand!(eco.cache.totaldemand, truesc, ds, 1)
         spindex = 1
         for block in eachindex(mats)
             nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
-            e1 = @view ϵ̄[spindex:nextsp]
-            eco.cache.totaldemand[truesc, 1] += (currentabun ⋅ e1) *
-                                                eco.spplist.demand.exchange_rate
+            EcoSISTEM._addtotaldemand!(eco.cache.totaldemand, truesc,
+                                       currentabun,
+                                       spindex, nextsp, ds, 1)
             spindex = nextsp + 1
         end
     end
@@ -353,12 +355,9 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
                                                                   AbstractHabitat,
                                                                   NF <:
                                                                   AbstractNicheFit}
-    dim = getgridshape(habitat)
-    len = dim[1] * dim[2]
-    grid = collect(1:len)
+    grid, activity = EcoSISTEM._gridactivity(habitat)
     # Set up copy of supply
-    b = reshape(parent(ustrip.(_getsupply(habitat.supply))), size(grid))
-    activity = reshape(copy(parent(habitat.active)), size(grid))
+    b = reshape(parent(ustrip.(_getsupply(habitat.supply))), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
     B = b ./ sum(b)
@@ -388,15 +387,11 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
                                                                   AbstractRegime,
                                                                   NF <:
                                                                   AbstractNicheFit}
-    # Calculate size of regime
-    dim = getgridshape(habitat)
-    len = dim[1] * dim[2]
-    grid = collect(1:len)
-    activity = reshape(copy(parent(habitat.active)), size(grid))
+    grid, activity = EcoSISTEM._gridactivity(habitat)
     # Set up a copy of each supply, zeroed outside the active cells and normalised to its own
     # total, then multiply them together so a cell needs every resource to be worth populating.
     fractions = EcoSISTEM._zipmap(values(habitat.supply)) do supply
-        b = reshape(parent(copy(_getsupply(supply))), size(grid))
+        b = reshape(parent(copy(_getsupply(supply))), length(grid))
         b[.!activity] .= zero(eltype(b))
         return b ./ sum(b)
     end

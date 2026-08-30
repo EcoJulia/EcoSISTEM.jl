@@ -4,6 +4,11 @@
   - Fixed
     - A distributed (MPI) run gave different results from a serial one on the same seed, breaking the
       reproducibility the design guarantees. This was a bugfix applied to the serial code several years ago forgotten on MPI.
+    - `update!` for an abstract ecosystem was faulty but masked by equivalent functions for the
+      concrete types. Now unified to a single function.
+  - Internal
+    - The distributed code is renamed and rearranged to mirror the serial code file for file and name
+      for name, so that the two can be read side by side.
 - v0.5.0
   - Removed and deprecated
     - The v0.4.0 vocabulary is renamed onto the ecological distinction between conditions (what a cell
