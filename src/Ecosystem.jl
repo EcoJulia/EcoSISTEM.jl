@@ -305,6 +305,32 @@ function Base.show(io::IO, eco::Ecosystem)
                  ", t = $(eco.elapsed))")
 end
 
+# The cached ecosystem mirrors the plain one, except that its abundances are a series rather than a
+# single landscape -- so the grid shape comes from the habitat, which always has it, rather than
+# from a landscape that may not currently be held.
+function Base.show(io::IO, cache::CachedEcosystem)
+    ny, nx = getgridshape(cache.habitat)
+    return print(io,
+                 "CachedEcosystem($(counttypes(cache.spplist, true)) species, $(ny) × $(nx), ",
+                 _axisnames(getregime(cache.habitat)), " | ",
+                 _axisnames(getsupply(cache.habitat)),
+                 ", $(count(!ismissing, cache.abundances.matrix))/",
+                 "$(length(cache.abundances.matrix)) held)")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", cache::CachedEcosystem)
+    ny, nx = getgridshape(cache.habitat)
+    println(io, "CachedEcosystem")
+    println(io, "  species   ", counttypes(cache.spplist, true))
+    println(io, "  grid      $(ny) × $(nx) cells, ",
+            count(cache.habitat.active), " active")
+    println(io, "  regime    ", sprint(show, getregime(cache.habitat)))
+    println(io, "  supply    ", sprint(show, getsupply(cache.habitat)))
+    println(io, "  cached    ", sprint(show, cache.abundances))
+    print(io, "  clock     t = $(cache.elapsed), seed = $(cache.seed)")
+    return nothing
+end
+
 function Base.show(io::IO, ::MIME"text/plain", eco::Ecosystem)
     nsp, ny, nx = size(eco.abundances.grid)
     println(io, "Ecosystem")

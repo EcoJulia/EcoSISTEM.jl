@@ -160,6 +160,29 @@ function Base.show(io::IO, ::MIME"text/plain", l::GridLandscape)
     return nothing
 end
 
+# A cached landscape is a *series* of them, most of which are usually on disk rather than in
+# memory, so what a reader wants is how many timepoints there are and how many are actually held --
+# not the series itself, whose default dump grows with the length of the run.
+#
+# `count` here walks the timepoint index, not the abundances: one entry per saved step, so a few
+# hundred at most. A `show` must not reduce over the data, and this does not.
+function Base.show(io::IO, cl::CachedGridLandscape)
+    return print(io,
+                 "CachedGridLandscape($(count(!ismissing, cl.matrix))/$(length(cl.matrix)) held, ",
+                 "every $(cl.saveinterval))")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", cl::CachedGridLandscape)
+    held = count(!ismissing, cl.matrix)
+    println(io, "CachedGridLandscape")
+    println(io, "  timepoints  ", length(cl.matrix), ", ", held,
+            " held in memory")
+    println(io, "  saved       every ", cl.saveinterval,
+            ", timestep ", cl.timestep)
+    print(io, "  folder      ", cl.outputfolder)
+    return nothing
+end
+
 """
     GridLandscape(sl::SavedLandscape, names::Vector{String}, grid::StudyGrid)
 
