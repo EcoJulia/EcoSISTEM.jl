@@ -7,7 +7,7 @@
     "dateModified": "2026-08-30",
     "datePublished": "2021-04-20",
     "description": "Package for running dynamic ecosystem simulations in Julia",
-    "downloadUrl": "https://github.com/EcoJulia/EcoSISTEM.jl/archive/refs/tags/v0.5.1.tar.gz",
+    "downloadUrl": "https://github.com/EcoJulia/EcoSISTEM.jl/archive/refs/tags/v0.6.0.tar.gz",
     "keywords": [
         "EcoJulia",
         "biodiversity",
@@ -23,7 +23,7 @@
         "macOS"
     ],
     "programmingLanguage": "julia",
-    "version": "v0.5.1",
+    "version": "v0.6.0",
     "codemeta:contIntegration": {
         "id": "https://github.com/EcoJulia/EcoSISTEM.jl/actions/workflows/testing.yaml"
     },
