@@ -20,19 +20,14 @@ using Random
 """
     update!(eco::AbstractEcosystem, timestep::Unitful.Time)
 
-Dispatch function that selects the appropriate threaded implementation of
-[`update!`](@ref) based on the number of available threads.
+Update an ecosystem's abundances and environment for one timestep, with no intervention scheduled.
+
+`eco` is the ecosystem to advance and `timestep` how far to advance it. Equivalent to
+`update!(eco, timestep, nothing)`: the three-argument method is where the work happens, and each
+concrete ecosystem supplies its own, so this one covers every kind — serial, distributed, and any
+later addition.
 """
 function update!(eco::AbstractEcosystem, timestep::Unitful.Time)
-    return update!(eco, timestep, Val{Threads.nthreads()}())
-end
-
-"""
-    update!(eco::Ecosystem, timestep::Unitful.Time)
-
-Update an ecosystem's abundances and environment for one timestep.
-"""
-function update!(eco::Ecosystem, timestep::Unitful.Time)
     return update!(eco, timestep, nothing)
 end
 

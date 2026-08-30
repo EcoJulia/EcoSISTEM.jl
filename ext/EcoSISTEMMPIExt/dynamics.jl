@@ -30,20 +30,13 @@ using EcoSISTEM:
                  BirthOnlyMovement
 
 """
-    update!(eco::MPIEcosystem, timestep::Unitful.Time)
-
-Update an `MPIEcosystem`'s abundances and environment for one timestep,
-computing births, deaths, and dispersal in parallel across threads and MPI
-nodes.
-"""
-function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
-    return EcoSISTEM.update!(eco, timestep, nothing)
-end
-
-"""
     update!(eco::MPIEcosystem, timestep::Unitful.Time, intervention)
 
-Update a distributed ecosystem for one timestep, applying any scheduled [`Intervention`](@ref).
+Update a distributed ecosystem for one timestep, computing births, deaths and dispersal in parallel
+across threads and MPI ranks, and applying any scheduled [`Intervention`](@ref).
+
+The two-argument form is the generic `update!(::AbstractEcosystem, ::Unitful.Time)` in
+`src/dynamics.jl`, which forwards here with no intervention.
 
  **The schedule/region machinery is already rank-safe**: selections come from the counter-based
 `hash((seed, :intervention, k, step))` stream and the `active` mask and layers are replicated on

@@ -44,7 +44,7 @@ using ParallelTestRunner: find_tests, parse_args, runtests
                    # Listed with real counts, not exempted: a **new** docstring in these files
                    # still fails this test and has to be looked at.
                    "EcoSISTEMMPIExt/Ecosystem.jl" => 2,
-                   "EcoSISTEMMPIExt/dynamics.jl" => 8,
+                   "EcoSISTEMMPIExt/dynamics.jl" => 7,
                    "EcoSISTEMMPIExt/Landscape.jl" => 4)
     extdir = joinpath(@__DIR__, "..", "ext")
     for (root, _, files) in walkdir(extdir)
