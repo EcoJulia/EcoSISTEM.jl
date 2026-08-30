@@ -220,9 +220,9 @@ end
 """
     update_resource_usage!(eco::MPIEcosystem)
 
-Update the total resource usage cache for a single-resource `MPIEcosystem`,
-summing each species' abundance × resource demand across all MPI blocks and
-writing results into `eco.cache.totaldemand`.
+Update the total resource usage cache for an `MPIEcosystem`, summing each species' abundance
+times its resource demand across all MPI blocks and writing one column of `eco.cache.totaldemand`
+per resource.
 """
 function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
                                                             EcoSISTEM.SpeciesList{TL,
@@ -236,58 +236,14 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
                                                                        D,
                                                                        E, TL,
                                                                        DM <:
-                                                                       Demand}
+                                                                       EcoSISTEM.AbstractDemand}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
-    # The single demand as a one-member tuple, so the accumulation below is the arity-1 case of
-    # exactly the code the multi-resource method runs rather than a hand-rolled lookalike.
-    ds = (eco.spplist.demand,)
-    mats = eco.abundances.reshaped_cols
-
-    # Loop through grid squares
-    Threads.@threads for sc in 1:eco.sccounts[rank + 1]
-        truesc = eco.firstsc + sc - 1
-        EcoSISTEM._zerototaldemand!(eco.cache.totaldemand, truesc, ds, 1)
-        spindex = 1
-        for block in eachindex(mats)
-            nextsp = spindex + eco.sppcounts[block] - 1
-            currentabun = @view mats[block][:, sc]
-            EcoSISTEM._addtotaldemand!(eco.cache.totaldemand, truesc,
-                                       currentabun,
-                                       spindex, nextsp, ds, 1)
-            spindex = nextsp + 1
-        end
-    end
-    return eco.cache.valid = true
-end
-
-"""
-    update_resource_usage!(eco::MPIEcosystem)
-
-Multi-resource variant of `update_resource_usage!`; updates one column of
-`eco.cache.totaldemand` per member of a [`SpeciesRequirementCollection`](@ref).
-"""
-function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
-                                                            EcoSISTEM.SpeciesList{TL,
-                                                                                  DM,
-                                                                                  B,
-                                                                                  C,
-                                                                                  D},
-                                                            E}) where {MPIGL <:
-                                                                       MPIGridLandscape,
-                                                                       A, B, C,
-                                                                       D,
-                                                                       E, TL,
-                                                                       DM <:
-                                                                       EcoSISTEM.SpeciesRequirementCollection{Resource}}
-    !eco.cache.valid || return true
-
-    rank = MPI.Comm_rank(MPI.COMM_WORLD)
-
-    # Get resource supplies of species in square
-    ds = values(eco.spplist.demand)
+    # One demand or several, as a tuple: the accumulation below is written once for the
+    # many-resource case and the single-resource case is its arity-1 instance.
+    ds = EcoSISTEM._demandtuple(eco.spplist.demand)
     mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
