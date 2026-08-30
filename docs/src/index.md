@@ -21,5 +21,3 @@ environments that change as a run proceeds; and
 spreading one across MPI ranks.
 
 This package is in beta now, so please raise an issue if you find any problems. For more information on how to contribute, please read [our contributing guidelines](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/CONTRIBUTING.md).
-
-![](Simulation.gif)
