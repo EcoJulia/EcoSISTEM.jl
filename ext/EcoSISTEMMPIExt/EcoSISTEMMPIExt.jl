@@ -22,9 +22,9 @@
 
 module EcoSISTEMMPIExt
 
-include("_Landscape.jl")
+include("Landscape.jl")
 
-include("_Ecosystem.jl")
+include("Ecosystem.jl")
 
 # After `Ecosystem.jl`: these methods dispatch on the concrete `MPIEcosystem` declared there, and a
 # `using` is module-scoped, so this file leans on the imports its neighbours have already run.
