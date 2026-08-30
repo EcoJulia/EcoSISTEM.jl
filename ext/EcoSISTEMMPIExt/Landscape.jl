@@ -23,20 +23,17 @@ slice of the abundance matrix (species owned by this node × all grid cells).
 `cols_vector` is the flattened column-partitioned view (all species × grid cells
 owned by this node). `reshaped_cols` holds reshaped views per MPI block.
 `rows_tuple` and `cols_tuple` are named tuples with `total`, `first`, `last`,
-and `counts` fields describing the partitioning. `dimrows` and `dimcols` are
-labelled views of the same memory, carrying the global species and cell indices
-this rank holds. Random draws during simulation use Julia's task-local default
+and `counts` fields describing the partitioning. `dimgrid` and `dimcols` are
+labelled views of the same memory, naming the species and cells this rank holds. Random draws during simulation use Julia's task-local default
 RNG, so no generator state is stored here.
 """
-struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DG,
-                        DC} <:
+struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DG, DC} <:
        EcoSISTEM.MPIGridLandscape
     rows_matrix::Matrix{Int64}
     cols_vector::Vector{Int64}
     reshaped_cols::Vector{RA}
     rows_tuple::NT
     cols_tuple::NT
-    dimrows::DR
     dimgrid::DG
     dimcols::DC
 
@@ -89,10 +86,15 @@ struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DG,
         # Cell descriptors, computed on demand from the grid: the lookup holds a grid reference
         # and nothing else, so labelling costs the same few bytes at any grid size. `dimcols` takes
         # a view of the same vector, which is how a rank's own cells get their real names.
+        # One labelled view per partition, each in the shape that partition naturally has. The rows
+        # side is this rank's species over *every* cell, so it maps onto the real Y and X; the
+        # columns side is every species over this rank's own cells, which are a run of the flat
+        # ordering rather than a rectangle, so it stays flat and names them instead. There is no
+        # flat twin of `dimgrid`: unlike the serial landscape, which has two raw arrays and gives
+        # each a labelled counterpart, there is only one raw array on this side.
         cells = EcoSISTEM.CellNames(grid)
         yx = (grid.y, grid.x)
         myspecies = Dim{:species}(Categorical(names[firstsp:lastsp]))
-        dimrows = DimArray(rows_matrix, (myspecies, Dim{:location}(cells)))
         dimgrid = DimArray(reshape(rows_matrix,
                                    (lastsp - firstsp + 1, length.(yx)...)),
                            (myspecies, yx...))
@@ -109,15 +111,14 @@ struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DG,
                                           1)),
                            (Dim{:species}(Categorical(names)),
                             Dim{:location}(view(cells, firstsc:lastsc))))
-        return new{typeof(reshaped_cols[1]), typeof(rows), typeof(dimrows),
-                   typeof(dimgrid), typeof(dimcols)}(rows_matrix,
-                                                     cols_vector,
-                                                     reshaped_cols,
-                                                     rows,
-                                                     cols,
-                                                     dimrows,
-                                                     dimgrid,
-                                                     dimcols)
+        return new{typeof(reshaped_cols[1]), typeof(rows), typeof(dimgrid),
+                   typeof(dimcols)}(rows_matrix,
+                                    cols_vector,
+                                    reshaped_cols,
+                                    rows,
+                                    cols,
+                                    dimgrid,
+                                    dimcols)
     end
 end
 

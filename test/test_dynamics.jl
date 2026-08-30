@@ -358,4 +358,62 @@ end
     @test_throws ErrorException EcoSISTEM._getneighbours(M, 1, 1, 5)
 end
 
+# ── The hot loop must not allocate per cell ─────────────────────────────────────────────────────
+#
+# **Why these exist, and why there are two.** A62: `Ecosystem` declares `abundances::GridLandscape`,
+# and when that type gained parameters the bare name became a `UnionAll` -- an abstract field -- so
+# every `eco.abundances.matrix` reached inside a threaded body was boxed. It cost about 176 bytes
+# per cell, grew with the grid, and shipped in v0.5.0 unnoticed for a release.
+#
+# Nothing in the suite could have caught it. The change that caused it was in `Landscape.jl`; the
+# damage was in `dynamics.jl`, whose text never changed. Reading the loop finds nothing.
+#
+# The two checks catch different halves and neither subsumes the other: the first names the boxing
+# directly and fails the moment a type on the path gains a parameter, the second catches any
+# per-cell allocation whatever its cause.
+
+# Accessors at module scope rather than closures, so inference is asked about a stable signature.
+_readmatrix(eco) = eco.abundances.matrix
+_readgrid(eco) = eco.abundances.grid
+_readtotaldemand(eco) = eco.cache.totaldemand
+_readnetmigration(eco) = eco.cache.netmigration
+
+# Behind a function barrier, as `test_collections.jl`'s allocation checks are: `eco` arrives as a
+# typed argument, so the test's own necessarily-unstable local cannot land on the measurement, and
+# the warming call compiles the same specialisation the measured one runs.
+function _usagealloc(eco)
+    eco.cache.valid = false
+    EcoSISTEM.update_resource_usage!(eco)
+    eco.cache.valid = false
+    return @allocated EcoSISTEM.update_resource_usage!(eco)
+end
+
+@testset "the hot loop's reads infer concretely" begin
+    eco = Test1Ecosystem(seed = 1)
+    T = typeof(eco)
+    # **Deliberately NOT `isconcretetype(fieldtype(T, :abundances))`.** That field is still the bare
+    # `GridLandscape` `UnionAll` and is *meant* to be: the landscape holds concrete raw arrays
+    # inside an abstract container, and Julia infers a field through it so long as the field's own
+    # declared type names no type parameter. A field-concreteness walk would fail on the very field
+    # A62 was about, and would have to carve it out -- worse than no check.
+    @test !isconcretetype(fieldtype(T, :abundances))
+    @test Base.return_types(_readmatrix, (T,))[1] === Matrix{Int64}
+    @test Base.return_types(_readgrid, (T,))[1] === Array{Int64, 3}
+    @test Base.return_types(_readtotaldemand, (T,))[1] === Matrix{Float64}
+    @test Base.return_types(_readnetmigration, (T,))[1] === Matrix{Int64}
+end
+
+@testset "the hot loop allocates nothing per cell" begin
+    # Two grids, and the assertion is about the *slope*, not a byte count. `Threads.@threads` has
+    # its own per-loop cost which is constant in the number of cells, so it cancels; a fixed
+    # threshold would instead have to be retuned for every thread count and Julia version.
+    small = Test1Ecosystem(seed = 1, grid = (5, 7))
+    large = Test1Ecosystem(seed = 1, grid = (20, 28))
+    ncells(eco) = size(eco.abundances.matrix, 2)
+    extracells = ncells(large) - ncells(small)
+    @test extracells > 500
+    # Fewer than one byte per additional cell: A62 cost about 176 of them.
+    @test _usagealloc(large) - _usagealloc(small) < extracells
+end
+
 end

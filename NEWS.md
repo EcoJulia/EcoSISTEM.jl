@@ -1,6 +1,22 @@
 # NEWS
 
-- v0.5.1
+- v0.6.0
+  - Breaking
+    - A landscape's `matrix` and `grid` are plain arrays again, as they were before v0.5.0. The
+      labelled views are now `dimmatrix` and `dimgrid`, which share the same memory, so nothing is
+      copied and both are always available.
+    - A `GridLandscape` is built from the `StudyGrid` it sits on rather than from a `(Y, X)` tuple,
+      which is what lets each cell name its own extent. The form taking only a size is gone, since
+      it had no grid to take positions from.
+    - `emptygridlandscape` and `empty_mpi_gridlandscape` are replaced by a single `empty_landscape`.
+      Given a habitat and species list it builds a serial landscape; given the partition as well it
+      builds a distributed one, so the signature says which rather than the name. The old MPI name
+      errors, naming the replacement: it took the partition alone and cannot reach the species names
+      or grid the labelled views need.
+    - `copy` of a landscape is gone. It could not carry the grid its result needs, and its one
+      caller had the habitat to hand anyway.
+    - `BlockArrays` is a new dependency, used to present the distributed column buffer as one
+      ordinary matrix.
   - Fixed
     - A distributed (MPI) run gave different results from a serial one on the same seed, breaking the
       reproducibility the design guarantees. This was a bugfix applied to the serial code several years ago forgotten on MPI.
@@ -16,6 +32,10 @@
     - Serial and distributed runs are now pinned to the same blessed results, so a divergence in
       the distributed code alone is caught at every rank count. The previous check compared
       distributed runs against each other, and all of them shared the duplicated code.
+    - A landscape's flat `location` dimension now names each cell by its extent, computed on demand
+      from the grid. The distributed landscape gains the same kind of labelled views: `dimgrid` for
+      its own species against the real `Y` and `X`, and `dimcols` for every species against its own
+      cells, presented using BlockArrays as a single ordinary matrix without copying.
 - v0.5.0
   - Removed and deprecated
     - The v0.4.0 vocabulary is renamed onto the ecological distinction between conditions (what a cell

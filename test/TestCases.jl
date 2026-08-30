@@ -23,7 +23,7 @@ Build a small test ecosystem. If `seed` is supplied, the initial per-species
 abundance totals and the per-species simulation RNGs are both made deterministic,
 so the whole run is reproducible regardless of the number of threads.
 """
-function Test1Ecosystem(; seed = nothing)
+function Test1Ecosystem(; seed = nothing, grid = (5, 7))
     # **Non-square, and that is not incidental.** The old grid was 10 × 10; a square fixture
     # cannot see a y/x transposition.
     numSpecies = 15
@@ -37,8 +37,8 @@ function Test1Ecosystem(; seed = nothing)
     timestep = 1.0month_mean_duration
     param = EqualPop(birth, death, long, surv, boost)
 
-    # `(ny, nx)` — rows then columns, as everywhere in the package.
-    grid = (5, 7)
+    # `(ny, nx)` — rows then columns, as everywhere in the package. Overridable so a test can
+    # compare two grid sizes, which is how the hot loop's per-cell allocation is measured.
     cellsize = 2.0km
     individuals = 2000 * numSpecies
     totalK = 1000000.0 * kJ / km^2 / day * numSpecies
