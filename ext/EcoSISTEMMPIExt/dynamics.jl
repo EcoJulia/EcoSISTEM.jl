@@ -21,6 +21,7 @@ using Random
 using EcoSISTEM: AbstractHabitat, Demand, SpeciesRequirementCollection
 using EcoSISTEM: AbstractRegime, AbstractSupply, AbstractNicheFit
 using EcoSISTEM: Resource, LayerCollection
+using EcoSISTEM: getgridshape
 using EcoSISTEM:
                  resource_adjustment,
                  invalidatecaches!,
@@ -169,9 +170,9 @@ end
 # newborns, which the MPI loop passes in explicitly as `births`, so it never reads the landscape —
 # and `test/SmallMPItest.jl:63` uses it.
 #
-# A real implementation needs more than the field rename: the count would come from
-# `rows_matrix[mpisp, sc]`, indexed by this rank's **local** species row rather than the global
-# `truesp` the loop passes on.
+# A real implementation is now small: `_landscaperow` already maps the global index onto this rank's
+# row, so the method needs only to read the count from `rows_matrix` at that row and hand it to the
+# shared `_move!`, exactly as the serial `AlwaysMovement` method hands it `abundances.matrix[sp, sc]`.
 function EcoSISTEM.move!(::MPIEcosystem, ::AlwaysMovement, ::Int64, ::Int64,
                          ::Matrix{Int64}, ::Int64)
     return error("`AlwaysMovement` is not supported in a distributed (MPI) run: it disperses " *
@@ -306,40 +307,13 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
     return eco.cache.valid = true
 end
 
-using EcoSISTEM: getgridshape, calc_lookup_moves!
-"""
-    move!(eco::MPIEcosystem, ::BirthOnlyMovement, sc::Int64, truesp::Int64,
-        grd::Matrix{Int64}, births::Int64)
+# This rank holds only its own block of species, so the global species index the hot loop passes
+# maps onto a local row of `rows_matrix` and of `netmigration`. **This one line is the entire
+# difference between the serial dispersal code and the distributed one**, which is why there is no
+# MPI copy of `_move!` -- the serial body in `src/dynamics.jl` serves both.
+EcoSISTEM._landscaperow(eco::MPIEcosystem, sp::Int64) = sp - eco.firstsp + 1
 
-Apply dispersal for `births` new individuals of species `truesp` from grid cell
-`sc` using the [`BirthOnlyMovement`](@ref) kernel, writing net moves into `grd`.
-"""
-function EcoSISTEM.move!(eco::MPIEcosystem,
-                         ::BirthOnlyMovement,
-                         sc::Int64,
-                         truesp::Int64,
-                         grd::Matrix{Int64},
-                         births::Int64)
-    height, width = getgridshape(eco)
-    (y, x) = EcoSISTEM.convert_coords(eco, sc, height)
-    lookup = EcoSISTEM.getlookup(eco, truesp)
-    calc_lookup_moves!(eco.habitat.topology, y, x, truesp, eco,
-                       births)
-    # Lose moves from current grid square
-    mpisp = truesp - eco.firstsp + 1
-    grd[mpisp, sc] -= births
-    # Map moves to location in grid
-    moves = lookup.moves
-    for i in eachindex(lookup.y)
-        newy = mod(lookup.y[i] + y - 1, height) + 1
-        newx = mod(lookup.x[i] + x - 1, width) + 1
-        loc = EcoSISTEM.convert_coords(eco, (newy, newx), height)
-        grd[mpisp, loc] += moves[i]
-    end
-    return eco
-end
-
-using EcoSISTEM: getgridshape, _getsupply
+using EcoSISTEM: _getsupply
 """
     populate!(ml::MPIGridLandscape, spplist::SpeciesList, habitat::AB, nichefit::NF)
 

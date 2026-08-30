@@ -9,6 +9,7 @@
   - Internal
     - The distributed code is renamed and rearranged to mirror the serial code file for file and name
       for name, so that the two can be read side by side.
+    - More distributed code redundancy elimination.
 - v0.5.0
   - Removed and deprecated
     - The v0.4.0 vocabulary is renamed onto the ecological distinction between conditions (what a cell

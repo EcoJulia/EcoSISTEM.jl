@@ -724,6 +724,13 @@ function move!(eco::AbstractEcosystem,
     return _move!(eco, sc, sp, grd, births)
 end
 
+# Which row of the landscape's abundance and migration matrices belongs to species `sp`. Serially
+# that is `sp` itself; a distributed run holds only its own block of species, so the MPI extension
+# maps the global index onto this rank's local row. Written as a hook rather than a branch so that
+# `_move!` below is ONE body serving both, instead of two that have to be kept in step -- which is
+# the failure this whole file's header warns about.
+_landscaperow(::AbstractEcosystem, sp::Int64) = sp
+
 # Common dispersal code: move `amount` individuals of species `sp` from
 # position `sc`, scattering them across the landscape according to the
 # species' lookup table.
@@ -736,15 +743,18 @@ function _move!(eco::AbstractEcosystem,
     (y, x) = convert_coords(eco, sc, height)
     lookup = getlookup(eco, sp)
     calc_lookup_moves!(eco.habitat.topology, y, x, sp, eco, amount)
+    # `grd` is indexed by the row this process owns for `sp`, which is `sp` serially and a
+    # rank-local row under MPI; `lookup` and `calc_lookup_moves!` take the global index either way.
+    row = _landscaperow(eco, sp)
     # Lose moves from current grid square
-    grd[sp, sc] -= amount
+    grd[row, sc] -= amount
     # Map moves to location in grid
     moves = lookup.moves
     for i in eachindex(lookup.y)
         newy = mod(lookup.y[i] + y - 1, height) + 1
         newx = mod(lookup.x[i] + x - 1, width) + 1
         loc = convert_coords(eco, (newy, newx), height)
-        grd[sp, loc] += moves[i]
+        grd[row, loc] += moves[i]
     end
     return eco
 end
