@@ -1309,7 +1309,23 @@ end
 # ---------------------------------------------------------------------------
 @deprecate ContinuousEvolve continuous_evolve
 @deprecate DiscreteEvolve discrete_evolve
-@deprecate emptyMPIgridlandscape empty_mpi_gridlandscape
+# `empty_mpi_gridlandscape` is replaced by `empty_landscape`, whose distributed method is chosen by
+# the presence of the partition rather than by the name. This cannot be a redirecting `@deprecate`:
+# the old signature took the partition alone, and the labelled views the landscape now carries need
+# the habitat and species list, which it has no way to reach. So it errors, naming the replacement.
+function emptyMPIgridlandscape(args...; kwargs...)
+    return error("`emptyMPIgridlandscape` and `empty_mpi_gridlandscape` are replaced by " *
+                 "`empty_landscape(habitat, spplist, sppcounts, sccounts)`, which takes the " *
+                 "habitat and species list rather than the partition alone. The old form cannot " *
+                 "be redirected: it has no way to reach the species names and grid coordinates " *
+                 "the landscape now carries.")
+end
+
+function empty_mpi_gridlandscape(args...; kwargs...)
+    return emptyMPIgridlandscape(args...; kwargs...)
+end
+
+export emptyMPIgridlandscape
 
 # ---------------------------------------------------------------------------
 # Layer time series (v0.5.0): a layer no longer holds a stack and a cursor into it

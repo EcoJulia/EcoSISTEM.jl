@@ -226,14 +226,6 @@ function gatherdiversity end
 export gatherabundance, gatherdiversity
 
 """
-    empty_mpi_gridlandscape(mpigrid, spplist)
-
-Build an empty [`MPIGridLandscape`](@ref) for the given partitioning and species
-list — the distributed counterpart of an empty `GridLandscape`.
-"""
-function empty_mpi_gridlandscape end
-
-"""
     synchronise_from_rows!(mpigrid)
 
 Copy the abundance matrix from its **species-partitioned** view into its
@@ -257,7 +249,7 @@ function synchronise_from_cols! end
 # Every call site is inside `EcoSISTEMMPIExt` — these are hooks the extension implements, not names
 # a user writes. Deliberately not symmetric with `MPIEcosystem` and `MPIGridLandscape`, which stay
 # exported because a user names those types directly.
-public empty_mpi_gridlandscape, synchronise_from_rows!, synchronise_from_cols!
+public empty_landscape, synchronise_from_rows!, synchronise_from_cols!
 
 # --- Detecting it, on the parent's side ------------------------------------
 # Everything below is implemented here rather than declared. It lives with the hooks because it is

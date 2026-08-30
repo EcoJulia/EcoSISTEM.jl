@@ -155,8 +155,7 @@ function MPIEcosystem(popfun::F,
     firstsc = scindices[rank + 1] + 1
 
     # Create matrix landscape of zero abundances
-    ml = EcoSISTEM.empty_mpi_gridlandscape(sppcounts, sccounts, spplist.names,
-                                           dims(habitat.active, (Y, X)))
+    ml = EcoSISTEM.empty_landscape(habitat, spplist, sppcounts, sccounts)
 
     # Populate this matrix with species abundances
     popfun(ml, spplist, habitat, nichefit, rngs)

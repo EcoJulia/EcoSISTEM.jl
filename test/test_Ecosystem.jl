@@ -241,13 +241,29 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
               occursin("Precipitation", swaperr.msg)
     end
 
-    @testset "GridLandscape rejects a wrongly-ordered (Y, X) grid" begin
-        # `GridLandscape.grid` requires a `(Dim{:species}, Y, X)`-ordered `DimArray` — a
-        # wrongly-ordered `yx` is rejected outright (`MethodError`), not a runtime check.
+    @testset "GridLandscape takes its grid from a StudyGrid" begin
+        # A landscape is positioned by the `StudyGrid` it is built on, which is what lets its flat
+        # `location` dimension name each cell by extent. The `(Y, X)` order this used to guard by
+        # `MethodError` is now enforced one level up, by `StudyGrid` itself, so it cannot be got
+        # wrong here at all.
+        area = StudyArea(extent = (2.0km, 3.0km), cellsize = 1.0km,
+                         verbosity = :silent)
+        habitat = GridHabitat(regime = UniformSpec(298.0K, axis = Temperature),
+                              supply = UniformSpec(1.0e11kJ / km^2 / day,
+                                                   axis = SolarRadiation),
+                              area = area, topology = Torus())
+        grid = EcoSISTEM.getcoords(habitat)
         abun = reshape(collect(1:24), 4, 6)
         names = string.(1:4)
-        @test GridLandscape(abun, names, (Y(1:2), X(1:3))) isa GridLandscape
-        @test_throws MethodError GridLandscape(abun, names, (X(1:3), Y(1:2)))
+        gl = GridLandscape(abun, names, grid)
+        @test gl isa GridLandscape
+        # the flat view now says where each cell is, not merely which index it has
+        @test occursin("km",
+                       string(DimensionalData.lookup(gl.dimmatrix, :location)[1]))
+        # and a grid of the wrong size is still refused
+        @test_throws DimensionMismatch GridLandscape(reshape(collect(1:20), 4,
+                                                             5),
+                                                     names, grid)
     end
 end
 

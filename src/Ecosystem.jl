@@ -175,7 +175,7 @@ function Ecosystem(popfun::F,
     #all(_getdemand(spplist.abun, spplist.demand) .<= totalsupply(habitat)) ||
     #error("Environment does not have enough resource to support species")
     # Create matrix landscape of zero abundances
-    ml = emptygridlandscape(habitat, spplist)
+    ml = empty_landscape(habitat, spplist)
     # One deterministically-seeded RNG per species, so births/deaths/dispersal
     # and the initial population draw are reproducible across thread counts
     rngs = makerngs(seed, size(ml.matrix, 1))
@@ -726,11 +726,10 @@ function _addspecies!(eco::AbstractEcosystem, abun::Integer;
     newnames = vcat(eco.spplist.names, isnothing(name) ? string(n + 1) : name)
     newmat = vcat(eco.abundances.matrix,
                   zeros(Int64, 1, size(eco.abundances.matrix, 2)))
-    yx = dims(eco.abundances.dimgrid, (Y, X))
     # `GridLandscape` is immutable — the only way to change shape is to construct a whole new
     # one (via the constructor, which reshape-pairs `.matrix`/`.grid` correctly) and reassign the
-    # `Ecosystem` field holding it.
-    eco.abundances = GridLandscape(newmat, newnames, yx)
+    # `Ecosystem` field holding it. The grid comes from the habitat, which is what it describes.
+    eco.abundances = GridLandscape(newmat, newnames, getcoords(eco.habitat))
     # Give the new species its own RNG stream, derived from `hash((seed, j))` like every other
     # species. Drawing one from an existing species' stream instead would break the scheme twice
     # over: the new stream would depend on how many species had been added rather than on the seed,
@@ -846,8 +845,7 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
                                                            cache.abundances.outputfolder,
                                                            idx,
                                                            cache.spplist.names,
-                                                           dims(cache.habitat.active,
-                                                                (Y, X)))
+                                                           getcoords(cache.habitat))
             return tm, cache.abundances.matrix[Ti(At(tm))]
         else
             newtm, abun = _abundances(cache, tm - timestep)
@@ -1113,11 +1111,11 @@ restored into `cache.rngs` so the resumed run continues a reproducible random
 stream.
 """
 function loadfile(cache::CachedEcosystem, file::String, idx::Int,
-                  names::Vector{String}, yx::Tuple{<:Y, <:X})
+                  names::Vector{String}, grid::StudyGrid)
     @load joinpath(file, string(idx, ".jld2")) abuns
     # Restore the per-species RNG streams for a reproducible resumed run
     cache.rngs .= copy.(abuns.rngs)
-    return GridLandscape(abuns, names, yx)
+    return GridLandscape(abuns, names, grid)
 end
 
 # **There is no ordinariness to invalidate any more.** It is recomputed on demand into

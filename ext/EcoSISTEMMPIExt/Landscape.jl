@@ -12,7 +12,7 @@ import EcoSISTEM
 using MPI
 using Random
 using BlockArrays: mortar
-using DimensionalData: DimArray, Dim, X, Y
+using DimensionalData: DimArray, Dim, X, Y, dims
 using DimensionalData.Lookups: Categorical, NoLookup
 
 """
@@ -45,7 +45,7 @@ struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DG,
                               rows_matrix::Matrix{Int64},
                               cols_vector::Vector{Int64},
                               names::Vector{String},
-                              yx::Tuple{<:Y, <:X})
+                              grid::EcoSISTEM.StudyGrid)
         rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
         totalspp = sum(sppcounts)
@@ -86,8 +86,13 @@ struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DG,
         # This rank's species, by name, over every cell -- the direct analogue of the serial
         # landscape's `dimmatrix`, and its `dimgrid`, which is why there are two of them: `rows`
         # covers all the cells, so the real Y and X coordinates are available and meaningful.
+        # Cell descriptors, computed on demand from the grid: the lookup holds a grid reference
+        # and nothing else, so labelling costs the same few bytes at any grid size. `dimcols` takes
+        # a view of the same vector, which is how a rank's own cells get their real names.
+        cells = EcoSISTEM.CellNames(grid)
+        yx = (grid.y, grid.x)
         myspecies = Dim{:species}(Categorical(names[firstsp:lastsp]))
-        dimrows = DimArray(rows_matrix, (myspecies, Dim{:location}(NoLookup())))
+        dimrows = DimArray(rows_matrix, (myspecies, Dim{:location}(cells)))
         dimgrid = DimArray(reshape(rows_matrix,
                                    (lastsp - firstsp + 1, length.(yx)...)),
                            (myspecies, yx...))
@@ -97,13 +102,13 @@ struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DR, DG,
         # It is for inspection only: a scalar index has to find its block first, which measured
         # about eight times the cost of walking `reshaped_cols` directly, so the hot loop keeps
         # doing that.
-        # Every species, by name, over this rank's cells. Those cells are a contiguous run of the
-        # flat ordering rather than a rectangle, so they carry their global indices; there is no
-        # Y/X view of them to give.
+        # Every species, by name, over this rank's cells -- which carry their real descriptors,
+        # the same ones the serial landscape uses. They are a contiguous run of the flat ordering
+        # rather than a rectangle, so there is no Y/X view of them to give.
         dimcols = DimArray(mortar(reshape(reshaped_cols, length(reshaped_cols),
                                           1)),
                            (Dim{:species}(Categorical(names)),
-                            Dim{:location}(firstsc:lastsc)))
+                            Dim{:location}(view(cells, firstsc:lastsc))))
         return new{typeof(reshaped_cols[1]), typeof(rows), typeof(dimrows),
                    typeof(dimgrid), typeof(dimcols)}(rows_matrix,
                                                      cols_vector,
@@ -118,23 +123,21 @@ end
 
 EcoSISTEM.MPIGridLandscape(args...) = MPIGridLandscape(args...)
 
-"""
-    empty_mpi_gridlandscape(sppcounts::Vector{Int32}, sccounts::Vector{Int32},
-                            names::Vector{String}, yx::Tuple{<:Y, <:X})
-
-Create an empty MPIGridLandscape given information about the MPI setup.
-"""
-function EcoSISTEM.empty_mpi_gridlandscape(sppcounts::Vector{Int32},
-                                           sccounts::Vector{Int32},
-                                           names::Vector{String},
-                                           yx::Tuple{<:Y, <:X})
+# The distributed method of `EcoSISTEM.empty_landscape`: same habitat and species list as the
+# serial one, plus the partition. The names and grid dimensions are derived here exactly as the
+# serial method derives them, rather than being passed in already computed -- which is what stops
+# the two sides drifting apart, and what keeps this signature stable when the derivation changes.
+function EcoSISTEM.empty_landscape(habitat::EcoSISTEM.GridHabitat,
+                                   spplist::EcoSISTEM.SpeciesList,
+                                   sppcounts::Vector{Int32},
+                                   sccounts::Vector{Int32})
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
     rows_matrix = zeros(Int64, sppcounts[rank + 1], sum(sccounts))
     cols_vector = zeros(Int64, sum(sppcounts) * sccounts[rank + 1])
 
     return MPIGridLandscape(sppcounts, sccounts, rows_matrix, cols_vector,
-                            names, yx)
+                            spplist.names, EcoSISTEM.getcoords(habitat))
 end
 
 """

@@ -22,8 +22,8 @@ include("TestCases.jl")
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.habitat.topology,
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
-    @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.habitat,
-                                                        eco.spplist),
+    @test_nowarn populate!(EcoSISTEM.empty_landscape(eco.habitat,
+                                                     eco.spplist),
                            eco.spplist, eco.habitat, eco.nichefit, eco.rngs)
     @test_nowarn repopulate!(eco)
 
@@ -40,8 +40,8 @@ include("TestCases.jl")
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.habitat.topology,
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
-    @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.habitat,
-                                                        eco.spplist),
+    @test_nowarn populate!(EcoSISTEM.empty_landscape(eco.habitat,
+                                                     eco.spplist),
                            eco.spplist, eco.habitat, eco.nichefit, eco.rngs)
     @test_nowarn repopulate!(eco)
 end

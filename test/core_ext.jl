@@ -12,7 +12,7 @@ using Random
 using Test
 using EcoSISTEM
 # `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
-using EcoSISTEM: empty_mpi_gridlandscape, synchronise_from_cols!,
+using EcoSISTEM: empty_landscape, synchronise_from_cols!,
                  synchronise_from_rows!
 using ParallelTestRunner: find_tests, parse_args, runtests
 
@@ -36,7 +36,7 @@ using ParallelTestRunner: find_tests, parse_args, runtests
                    # **Pre-existing and NOT endorsed** — `EcoSISTEMMPIExt` has carried these since
                    # before the rule existed, and moving its files out of `src/` in 3f is what first
                    # put them under this guard. Measured: five names (`MPIEcosystem`,
-                   # `MPIGridLandscape`, `empty_mpi_gridlandscape`, `synchronise_from_cols!`,
+                   # `MPIGridLandscape`, `empty_landscape`, `synchronise_from_cols!`,
                    # `synchronise_from_rows!`) are documented in **both** here and `src/EcoSISTEM.jl`,
                    # and at least one (`rows_matrix`) only here, so it never reaches the manual at
                    # all. Harmless *today* only because this module is not named in `api.md`'s
@@ -45,7 +45,7 @@ using ParallelTestRunner: find_tests, parse_args, runtests
                    # still fails this test and has to be looked at.
                    "EcoSISTEMMPIExt/Ecosystem.jl" => 2,
                    "EcoSISTEMMPIExt/dynamics.jl" => 5,
-                   "EcoSISTEMMPIExt/Landscape.jl" => 4)
+                   "EcoSISTEMMPIExt/Landscape.jl" => 3)
     extdir = joinpath(@__DIR__, "..", "ext")
     for (root, _, files) in walkdir(extdir)
         for file in filter(endswith(".jl"), files)

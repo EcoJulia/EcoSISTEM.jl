@@ -205,7 +205,7 @@ availability. If an `abun` parameter is given, that number of individuals of the
 final species is added at randomly sampled locations instead.
 """
 function repopulate!(eco::Ecosystem)
-    eco.abundances = emptygridlandscape(eco.habitat, eco.spplist)
+    eco.abundances = empty_landscape(eco.habitat, eco.spplist)
     eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
                                         length(eco.spplist.abun)))
     return populate!(eco.abundances, eco.spplist, eco.habitat, eco.nichefit,
@@ -277,7 +277,7 @@ Repopulate an ecosystem `eco` according to how well species tolerances match the
 environment, redistributing the total abundance across species at random.
 """
 function repopulate_by_tolerance!(eco::Ecosystem)
-    eco.abundances = emptygridlandscape(eco.habitat, eco.spplist)
+    eco.abundances = empty_landscape(eco.habitat, eco.spplist)
     eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
                                         length(eco.spplist.abun)))
     return populate_by_tolerance!(eco.abundances, eco.spplist, eco.habitat,

@@ -26,16 +26,14 @@ new `GridLandscape` and reassign the whole field holding it, so they cannot drif
     pattern, and a plain `Matrix{Int64}`.
   - `grid`: species against `Y` and `X`, a plain `Array{Int64, 3}` sharing `matrix`'s memory.
   - `dimmatrix`: `matrix` as a `(Dim{:species}, Dim{:location})` `DimArray`, carrying real species
-    names.
+    names and, for each flat cell, its extent — `[0.0, 1.0) x [0.0, 1.0) km`.
   - `dimgrid`: `grid` as a `(Dim{:species}, Y, X)` `DimArray`, with `Y` and `X` the habitat's own
     dimensions — real coordinates as `Unitful` lengths, or degrees on a geographic grid.
 
-`dimmatrix`'s `location` dimension is deliberately a `NoLookup`: a flat cell index has no coordinate
-to carry, and `dimgrid` is where a cell's position is answered.
-
-Every landscape built from a habitat has real coordinates, synthetic or not — a `StudyArea` fixes
-them whether or not any data was read. Only the size-only constructor below, which has no habitat to
-take them from, produces `NoLookup` positions.
+`dimmatrix`'s cell descriptors are computed on demand from the grid rather than stored: the lookup
+holds a grid reference and nothing else, so it costs the same few bytes whether the grid has a
+hundred cells or a million. Selecting by descriptor scans, so it suits inspection rather than bulk
+work; `dimgrid`'s `Y` and `X` are `Sampled` and select directly.
 
 **The raw arrays and the labelled views are the same memory, and both are stored on purpose.** The
 hot loop reads `matrix`; asking *which* species or *where* reads `dimmatrix`/`dimgrid`.
@@ -62,7 +60,8 @@ struct GridLandscape{Am <:
     dimgrid::Ag
 
     function GridLandscape(abun::Matrix{Int64}, names::Vector{String},
-                           yx::Tuple{<:Y, <:X})
+                           grid::StudyGrid)
+        yx = (grid.y, grid.x)
         length(names) == size(abun, 1) ||
             throw(DimensionMismatch("`names` has $(length(names)) entries but `abun` has $(size(abun, 1)) species"))
         prod(length.(yx)) == size(abun, 2) ||
@@ -72,7 +71,7 @@ struct GridLandscape{Am <:
         # the only way to change shape is to build a new `GridLandscape`, so they cannot drift.
         g = reshape(abun, (length(names), length.(yx)...))
         sp = Dim{:species}(Categorical(names))
-        dm = DimArray(abun, (sp, Dim{:location}(NoLookup())))
+        dm = DimArray(abun, (sp, Dim{:location}(CellNames(grid))))
         dg = DimArray(g, (sp, yx...))
         return new{typeof(dm), typeof(dg)}(abun, g, dm, dg)
     end
@@ -161,20 +160,8 @@ function Base.show(io::IO, ::MIME"text/plain", l::GridLandscape)
     return nothing
 end
 
-# Build one from a plain size, for callers with no `SpeciesList` or `GridHabitat` to hand. Species
-# are named by their number, matching `GridHabitat`'s own default-name convention, and `Y`/`X` are
-# fresh `NoLookup` dimensions, because a bare size carries no positions to attach. This is the only
-# route that produces unpositioned cells: a landscape built from a habitat always has real
-# coordinates, since a `StudyArea` decides them whether or not any data was read.
-function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
-    names = string.(axes(abun, 1))
-    yx = (Y(NoLookup(Base.OneTo(dimension[2]))),
-          X(NoLookup(Base.OneTo(dimension[3]))))
-    return GridLandscape(abun, names, yx)
-end
-
 """
-    GridLandscape(sl::SavedLandscape, names::Vector{String}, yx::Tuple{<:Y, <:X})
+    GridLandscape(sl::SavedLandscape, names::Vector{String}, grid::StudyGrid)
 
 Restore a `GridLandscape` from a [`SavedLandscape`](@ref), putting its bare abundance matrix back
 onto dimensions.
@@ -189,8 +176,8 @@ The saved random number streams are restored separately, by the caller that alre
 ecosystem to put them in.
 """
 function GridLandscape(sl::SavedLandscape, names::Vector{String},
-                       yx::Tuple{<:Y, <:X})
-    return GridLandscape(sl.matrix, names, yx)
+                       grid::StudyGrid)
+    return GridLandscape(sl.matrix, names, grid)
 end
 
 """
@@ -233,12 +220,22 @@ function CachedGridLandscape(file::String, times::StepRangeLen;
 end
 
 """
-    emptygridlandscape(habitat::GridHabitat, spplist::SpeciesList)
+    empty_landscape(habitat::GridHabitat, spplist::SpeciesList)
+    empty_landscape(habitat::GridHabitat, spplist::SpeciesList,
+                    sppcounts::Vector{Int32}, sccounts::Vector{Int32})
 
-Create a [`GridLandscape`](@ref) of the right shape with every abundance zero, taking the species
-names from `spplist` and the grid dimensions from `habitat`.
+Create a landscape of the right shape with every abundance zero, taking the species names from
+`spplist` and the grid from `habitat`.
+
+**The partition is what distinguishes the two.** Given only the habitat and species list this builds
+a [`GridLandscape`](@ref); given `sppcounts` and `sccounts` as well — how many species and how many
+cells each rank owns — the MPI extension builds an [`MPIGridLandscape`](@ref) instead. The extra
+arguments *are* what "distributed" means, so the signature says it rather than the name.
+
+Both take the habitat and species list rather than values derived from them, so that the derivation
+happens in one place and cannot drift between the two.
 """
-function emptygridlandscape(habitat::GridHabitat, spplist::SpeciesList)
+function empty_landscape(habitat::GridHabitat, spplist::SpeciesList)
     mat = zeros(Int64, counttypes(spplist, true), countsubcommunities(habitat))
-    return GridLandscape(mat, spplist.names, dims(habitat.active, (Y, X)))
+    return GridLandscape(mat, spplist.names, getcoords(habitat))
 end
