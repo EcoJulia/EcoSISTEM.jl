@@ -228,7 +228,7 @@ run whatever the rank count.
 # Arguments
 
   - `eco`: the distributed ecosystem.
-  - `divmeasure`: a subcommunity diversity function, such as [`norm_sub_alpha`](@ref).
+  - `divmeasure`: a subcommunity diversity function from Diversity, such as `norm_sub_alpha`.
   - `q`: a single order or a vector of orders.
 
 # Returns
