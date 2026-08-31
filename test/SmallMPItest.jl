@@ -101,13 +101,31 @@ record_interval = 3month_mean_duration;
 repeats = 1;
 lensim = length((0year):record_interval:times)
 
-# Burnin
+# **These replace two assertions that could not fail.** `sum(getabundance(eco)) ≈ 1.0` and the same
+# of `getmetaabundance` were each true of any block normalised by its own total, at any rank count -
+# so they passed while the metaabundance vector was silently only this rank's species (7 at one rank,
+# 4 at two, 2 at four) and the weights summed to the rank count rather than to 1.
+#
+# What is asserted instead: that a whole-metacommunity question is **refused** rather than answered
+# from one rank's block, and that the two quantities which are genuinely global agree with the serial
+# answer whatever the rank count.
+diversityrefusal = "no single rank holds them"
 MPI.Barrier(comm)
-@test sum(getabundance(eco)) ≈ 1.0
+@test_throws diversityrefusal getabundance(eco)
+@test length(getmetaabundance(eco)) == numSpecies
 @test sum(getmetaabundance(eco)) ≈ 1.0
+@test sum(getweight(eco)) ≈ 1.0
+@test length(getweight(eco)) == VARYING_NY * VARYING_NX
+
 @test_nowarn simulate!(eco, burnin, timestep)
-@test sum(getabundance(eco)) ≈ 1.0
+
+# The same after a run, and now with the values pinned rather than only their totals: both are
+# metacommunity quantities, so they must not depend on how the work was divided.
+@test_throws diversityrefusal getabundance(eco)
+@test length(getmetaabundance(eco)) == numSpecies
 @test sum(getmetaabundance(eco)) ≈ 1.0
+@test sum(getweight(eco)) ≈ 1.0
+@test isapprox(sum(Diversity.API._getscale(eco)), 1.0)
 
 # Collect full abundance matrix together
 true_abuns = gatherabundance(eco)
