@@ -118,9 +118,6 @@ end
 
 Any individual may disperse, not only the newly born — animal-like.
 
-Not supported under MPI, which partitions the grid by cell: moving an established individual can
-cross a rank boundary in a way a birth cannot.
-
 # Fields
 
   - `kernels`: one [`AbstractKernel`](@ref) per species.

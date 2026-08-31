@@ -26,9 +26,7 @@ using EcoSISTEM:
                  resource_adjustment,
                  invalidatecaches!,
                  regimeupdate!,
-                 supplyupdate!,
-                 AlwaysMovement,
-                 BirthOnlyMovement
+                 supplyupdate!
 
 """
     update!(eco::MPIEcosystem, timestep::Unitful.Time, intervention)
@@ -156,31 +154,6 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
     return supplyupdate!(eco, timestep)
 end
 
-# `AlwaysMovement` is not supported under MPI, and this method exists to say so.
-#
-# The serial `move!(::AbstractEcosystem, ::AlwaysMovement, ...)` in `src/dynamics.jl` is typed on
-# `AbstractEcosystem`, so it catches an
-# `MPIEcosystem` too, and disperses the *whole current population* by reading
-# `eco.abundances.matrix[sp, i]` — a field an `MPIGridLandscape` has not got, since it holds
-# `rows_matrix`/`cols_vector` instead. Without this method that surfaces as a bare `FieldError`
-# from inside a `Threads.@threads` task on the very first timestep, arriving as a
-# `TaskFailedException` with no hint that the movement type is what chose it.
-#
-# **`BirthOnlyMovement` is unaffected** and is why nothing caught this: it disperses only the
-# newborns, which the MPI loop passes in explicitly as `births`, so it never reads the landscape —
-# and `test/SmallMPItest.jl:63` uses it.
-#
-# A real implementation is now small: `_landscaperow` already maps the global index onto this rank's
-# row, so the method needs only to read the count from `rows_matrix` at that row and hand it to the
-# shared `_move!`, exactly as the serial `AlwaysMovement` method hands it `abundances.matrix[sp, sc]`.
-function EcoSISTEM.move!(::MPIEcosystem, ::AlwaysMovement, ::Int64, ::Int64,
-                         ::Matrix{Int64}, ::Int64)
-    return error("`AlwaysMovement` is not supported in a distributed (MPI) run: it disperses " *
-                 "each species' whole population, which is not available rank-locally. Use " *
-                 "`movement = BirthOnlyMovement` (dispersal at birth only), or run serially with " *
-                 "`build_ecosystem(...; distributed = false)`.")
-end
-
 # **Every operation is rank-safe, including the abundance ones**, because of *when* interventions
 # run: `synchronise_from_rows!` has already put the landscape in its row-partitioned phase, so this
 # rank's `rows_matrix` holds **its own species across all cells**. An abundance write is therefore
@@ -263,11 +236,21 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
     return eco.cache.valid = true
 end
 
-# This rank holds only its own block of species, so the global species index the hot loop passes
-# maps onto a local row of `rows_matrix` and of `netmigration`. **This one line is the entire
-# difference between the serial dispersal code and the distributed one**, which is why there is no
-# MPI copy of `_move!` -- the serial body in `src/dynamics.jl` serves both.
+# **These two hooks are the entire difference between the serial dispersal code and the distributed
+# one**, which is why there is no MPI copy of `move!` or `_move!` — the serial bodies in
+# `src/dynamics.jl` serve both sides.
+#
+# This rank holds only its own block of species, so the global species index the hot loop passes maps
+# onto a local row of `rows_matrix` and of `netmigration`.
 EcoSISTEM._landscaperow(eco::MPIEcosystem, sp::Int64) = sp - eco.firstsp + 1
+
+# And the population `AlwaysMovement` disperses is read from that same rank-local row, where the
+# serial landscape offers a whole `matrix`. Because the row and `netmigration` are both this rank's,
+# moving an established individual between cells needs no more communication than moving a newborn:
+# only the field name differs, never the reach.
+function EcoSISTEM._standingpopulation(eco::MPIEcosystem, sc::Int64, sp::Int64)
+    return eco.abundances.rows_matrix[EcoSISTEM._landscaperow(eco, sp), sc]
+end
 
 using EcoSISTEM: _getsupply
 """

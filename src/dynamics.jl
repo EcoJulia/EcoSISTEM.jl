@@ -671,13 +671,15 @@ function calc_lookup_moves!(::EdgeTopology{BCY, BCX},
 end
 
 """
-    move!(eco::Ecosystem, ::AbstractMovement, sc::Int64, sp::Int64, grd::Matrix{Int64}, abun::Int64)
+    move!(eco::Ecosystem, ::AbstractMovement, sc::Int64, sp::Int64, grd::Matrix{Int64}, births::Int64)
 
 Calculate the movement of species `sp` from a given position in the landscape
 `sc`, using the lookup table found in the [`Ecosystem`](@ref) and updating the
-movement patterns on a cached grid, `grd`. Optionally, a number of births can be
-provided, so that movement only takes place as part of the birth process,
-instead of the entire population
+movement patterns on a cached grid, `grd`. The number of births are passed in
+as `births` so that the movement can be restricted to only the newly born
+individuals, if desired. The movement type is specified by the second argument,
+which can be one of [`AlwaysMovement`](@ref), [`NoMovement`](@ref), or
+[`BirthOnlyMovement`](@ref). Only in the last case is the `births` argument used.
 """
 function move!(eco::AbstractEcosystem,
                ::AlwaysMovement,
@@ -686,7 +688,7 @@ function move!(eco::AbstractEcosystem,
                grd::Matrix{Int64},
                ::Int64)
     # "Animal-like": the whole current population disperses
-    return _move!(eco, sc, sp, grd, eco.abundances.matrix[sp, sc])
+    return _move!(eco, sc, sp, grd, _standingpopulation(eco, sc, sp))
 end
 
 function move!(eco::AbstractEcosystem,
@@ -714,6 +716,15 @@ end
 # `_move!` below is ONE body serving both, instead of two that have to be kept in step -- which is
 # the failure this whole file's header warns about.
 _landscaperow(::AbstractEcosystem, sp::Int64) = sp
+
+# How many individuals of species `sp` are standing in cell `sc` — what `AlwaysMovement` disperses
+# in full, as against the newborns `BirthOnlyMovement` is handed directly. Serially the whole
+# abundance matrix is to hand; a distributed run holds only its own block of species, so the MPI
+# extension reads the same count from its rank-local rows. A hook rather than a branch, for the same
+# reason `_landscaperow` above is one: `move!` stays a single body serving both sides.
+function _standingpopulation(eco::AbstractEcosystem, sc::Int64, sp::Int64)
+    return eco.abundances.matrix[sp, sc]
+end
 
 # Common dispersal code: move `amount` individuals of species `sp` from
 # position `sc`, scattering them across the landscape according to the
