@@ -165,7 +165,12 @@ canonical("simulated/total_abundance", sum(abundances))
 - **Strip units at the call site**: `ustrip(u"mm/d", x)`. A blessed `7.5398` means nothing on its own,
   and stripping explicitly is what pins which unit it is in. The helper refuses a `Quantity` and says
   so.
-- **Name as `file/thing`**, so `reference.toml` sorts by file and a diff stays readable.
+- **Name as `file/thing`**, so `reference.toml` sorts by file and a diff stays readable. The file
+  is written with `TOML.print(..., sorted = true)`, so a key's position depends only on the key
+  set: adding one inserts a single line and moves nothing else. That has to be TOML's own
+  keyword - sorting keys into a `Dict` first cannot work, because a `Dict` does not preserve the
+  order it was built in and hands TOML back its own hash order, which is what this file used to
+  be written in.
 - **Prefer several specific numbers to one summary.** Per-species totals catch a change that
   redistributes abundance while preserving the grand total; a single sum does not. The monthly rate
   vector in `test_realdata.jl` is there for exactly this reason - an annual total would have hidden

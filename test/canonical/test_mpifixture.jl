@@ -43,14 +43,21 @@ include(joinpath(@__DIR__, "..", "varyingcase.jl"))
 # `AlwaysMovement` reads the standing population back out of the landscape through
 # `EcoSISTEM._standingpopulation` - a route no `BirthOnlyMovement` run touches at all. Pinning only
 # the first would leave the second unpinned at every rank count.
-const MPIFIXTURE_MOVEMENTS = ("mpi" => mpifixture_movement(),
-                              "mpi/always" => mpifixture_always())
+# Each case is (key prefix, movement, intervention). The intervention case exists because an
+# intervention is the only thing that writes abundances *after* the dynamics, and so the only thing
+# that can leave the distributed run's two landscape layouts out of step - which a run without one
+# cannot detect however many ranks it uses.
+const MPIFIXTURE_CASES = (("mpi", mpifixture_movement(), nothing),
+                          ("mpi/always", mpifixture_always(), nothing),
+                          ("mpi/intervention", mpifixture_movement(),
+                           mpifixture_intervention()))
 
 @testset "canonical: the distributed fixture, run serially" begin
-    for (prefix, movement) in MPIFIXTURE_MOVEMENTS
+    for (prefix, movement, intervention) in MPIFIXTURE_CASES
         @testset "$prefix" begin
             eco = mpifixture_ecosystem(movement = movement)
-            simulate!(eco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+            simulate!(eco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+                      intervention = intervention)
             abun = eco.abundances.grid              # species × Y × X
 
             canonical("$prefix/total_abundance", sum(abun))

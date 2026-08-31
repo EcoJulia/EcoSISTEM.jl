@@ -102,6 +102,12 @@ end
 
 # Merge one blessed value into the reference file. Read-modify-write per call, for the reason given
 # at `RECORDED` above; the file is small and blessing is rare.
+#
+# `sorted = true` is what keeps the file's ORDER stable, and it has to be `TOML.print`'s own keyword:
+# sorting the keys into a `Dict` first cannot work, because a `Dict` does not preserve the order it
+# was built in and simply hands TOML back its own hash order. A stable order matters because the diff
+# to this file is the deliverable when a blessed value moves - in hash order, adding one key
+# reshuffles unrelated lines and a reviewer cannot see what actually changed.
 function _writethrough(key, plain)
     merged = merge(canonical_reference(), Dict(key => plain))
     _CACHE[] = merged
@@ -110,9 +116,7 @@ function _writethrough(key, plain)
                 "# Blessed canonical results - regenerate with ECOSISTEM_BLESS=true, and read")
         println(io,
                 "# test/canonical/README.md before committing a change to this file.")
-        return TOML.print(io,
-                          Dict(k => merged[k]
-                               for k in sort(collect(keys(merged)))))
+        return TOML.print(io, merged, sorted = true)
     end
     return nothing
 end
@@ -135,9 +139,7 @@ function writereference()
                 "# Blessed canonical results - regenerate with ECOSISTEM_BLESS=true, and read")
         println(io,
                 "# test/canonical/README.md before committing a change to this file.")
-        return TOML.print(io,
-                          Dict(k => merged[k]
-                               for k in sort(collect(keys(merged)))))
+        return TOML.print(io, merged, sorted = true)
     end
     @info "blessed $(length(RECORDED)) canonical value(s) into $(REFERENCE)"
     return nothing
