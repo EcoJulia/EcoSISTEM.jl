@@ -105,18 +105,32 @@ using Diversity.API: _calcsimilarity, _calcabundance
 # similarity, and so wrong for exactly the phylogenetic case a scale exists for.
 # Now: no cache, and **one `_calcabundance` call giving both the processed abundances and the
 # real scale**, as Diversity's own `Metacommunity` does.
-# What stays MPI-specific is the slice: each rank owns a block of species rows, so the
-# similarity matrix is cut to `sp_rng` on both axes before multiplying.
+# **Computed in the COLUMN partition, and that is what makes it right rather than merely faster.**
+# Ordinariness multiplies the similarity matrix by the abundances, so a species' ordinariness in a
+# cell depends on every *other* species in that cell. In the row partition a cell's species are split
+# across ranks, so the similarity matrix had to be cut to this rank's species on both axes - which
+# silently discards every similarity between a species here and a species elsewhere. That is exact
+# for `UniqueTypes`, whose similarity is the identity, and wrong for any phylogeny, where branches
+# are shared across the partition. Every MPI test in the suite uses `UniqueTypes`, so nothing caught
+# it.
+#
+# `parent(dimcols)` is every species over this rank's own cells, so the full similarity matrix
+# applies with no slice at all, and the result needs no communication: a cell's value is complete on
+# the rank that owns it.
+#
+# The blocked array is read from directly rather than materialised: the broadcast into
+# `cache.relativeabun` already copies it once, and materialising first would copy it twice.
+# `Matrix{Float64}(undef, ...)` rather than `similar` because `similar` on a blocked array returns
+# another blocked array, which the cache's declared `Matrix{Float64}` will not hold.
 # The one-argument `_calcordinariness(eco)` method this replaces was not in Diversity's contract
 # at all - that generic is `(types, abundances, scale)`.
 # Fills `cache.relativeabun` in place, exactly as the serial path does - this is where the big
 # runs happen, so the ~1.9 GiB-a-call normalisation matters most here.
 function _getordinariness!(eco::MPIEcosystem)
-    rows = eco.abundances.rows_matrix
-    size(eco.cache.relativeabun) == size(rows) ||
-        (eco.cache.relativeabun = similar(rows, Float64))
-    eco.cache.relativeabun .= rows ./ _globaltotal(eco)
+    cols = parent(eco.abundances.dimcols)
+    size(eco.cache.relativeabun) == size(cols) ||
+        (eco.cache.relativeabun = Matrix{Float64}(undef, size(cols)))
+    eco.cache.relativeabun .= cols ./ _globaltotal(eco)
     processed, scale = _calcabundance(_gettypes(eco), eco.cache.relativeabun)
-    sp_rng = (eco.abundances.rows_tuple.first):(eco.abundances.rows_tuple.last)
-    return _calcsimilarity(eco.spplist, scale)[sp_rng, sp_rng] * processed
+    return _calcsimilarity(eco.spplist, scale) * processed
 end

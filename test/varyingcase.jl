@@ -169,6 +169,58 @@ end
 # it writes `rows_matrix` after the dynamics, so a run that never fires one cannot tell whether
 # `cols_vector` was brought back into step before the next timestep's `update_resource_usage!` reads
 # it. Fires twice, at 3 and 9 months, so the run continues well past each firing.
+# A species list whose similarity structure is a dense `GeneralTypes` matrix rather than the
+# identity, and the only fixture here that can fail on a distributed calculation which drops
+# similarities between species held on different ranks.
+#
+# With `UniqueTypes` - what every other fixture uses - the similarity matrix IS the identity, so its
+# off-diagonal is all zeros and slicing it to one rank's species discards nothing. A calculation that
+# wrongly restricted itself to a rank's own block therefore produced the right answer anyway. Only a
+# non-identity matrix makes that mistake observable, and this is the cheapest way to get one: no
+# phylogeny, no weak dependency, just a matrix.
+#
+# The matrix must be a valid Z: square, entries in `[0, 1]`, symmetric, and **1 on the diagonal** -
+# a species is maximally similar to itself. Diversity's constructor checks only squareness and the
+# range, so the other two are ours to get right.
+#
+# Drawn from its own seeded stream rather than the global one, so the fixture is identical on every
+# rank and in every process - the same requirement as everything else in this file.
+function mpifixture_similarity(numspecies = VARYING_SPECIES)
+    z = rand(MersenneTwister(20260831), numspecies, numspecies)
+    z = (z .+ z') ./ 2
+    for i in 1:numspecies
+        z[i, i] = 1.0
+    end
+    return z
+end
+
+# The `mpifixture_species` list with its `UniqueTypes` replaced by that matrix. Built through the
+# inner constructor because the outer ones all fix the similarity structure themselves: the
+# tolerance-based one hardcodes `UniqueTypes` and the phylogenetic ones build a tree.
+function mpifixture_generalspecies(; numspecies = VARYING_SPECIES,
+                                   movement = mpifixture_movement(numspecies))
+    sppl, tolerance = mpifixture_species(numspecies = numspecies,
+                                         movement = movement)
+    types = GeneralTypes(mpifixture_similarity(numspecies))
+    return SpeciesList{typeof(sppl.tolerance), typeof(sppl.demand),
+                       typeof(sppl.movement), typeof(types),
+                       typeof(sppl.params)}(sppl.names, sppl.tolerance,
+                                            sppl.abun, sppl.demand, types,
+                                            sppl.movement, sppl.params,
+                                            sppl.native), tolerance
+end
+
+# The serial ecosystem built on that dense similarity matrix, filled exactly as the distributed one
+# is. Uses `Ecosystem` directly rather than `build_ecosystem`, which would detect a live MPI session
+# and hand back a distributed ecosystem instead - so this stays serial on whichever rank calls it.
+function mpifixture_generalecosystem(; seed = 0, numspecies = VARYING_SPECIES)
+    sppl, _ = mpifixture_generalspecies(numspecies = numspecies)
+    eco = Ecosystem(sppl, varying_environment(), mpifixture_nichefit(),
+                    seed = seed)
+    eco.abundances.matrix .= MPIFIXTURE_FILL
+    return eco
+end
+
 function mpifixture_intervention()
     return Intervention(AtTimes([3.0month_mean_duration,
                                     9.0month_mean_duration]),

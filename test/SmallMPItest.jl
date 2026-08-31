@@ -277,6 +277,63 @@ iv_abuns = gatherabundance(iveco)
 
 rank == 0 && checkblessed(iv_abuns, "mpi/intervention")
 
+# **Ordinariness is computed in the COLUMN partition**, where a rank owns every species for its own
+# cells, so a cell's value is complete on the rank that owns it and the full species-by-species
+# similarity matrix applies with no slice. Gathering the column blocks must therefore rebuild the
+# serial matrix exactly.
+#
+# In the row partition the similarity matrix had to be cut to this rank's species on both axes,
+# which silently discarded every similarity between a species here and one elsewhere.
+#
+# This check alone cannot see the similarity half: the species list here is `UniqueTypes`, whose
+# similarity matrix is the identity, so the discarded off-diagonal was all zeros and the old code
+# got the right answer anyway. The `GeneralTypes` check below is what covers it - measured, a
+# mutation dropping every off-diagonal similarity leaves this assertion passing and fails that one.
+ordblock = getordinariness!(eco)
+@test size(ordblock, 1) == numSpecies
+@test size(ordblock, 2) ==
+      eco.abundances.cols_tuple.last - eco.abundances.cols_tuple.first + 1
+
+ordcounts = Int32.(size(ordblock, 1) .* eco.sccounts)
+ordfull = similar(vec(ordblock), Int64(sum(ordcounts)))
+MPI.Allgatherv!(vec(ordblock), MPI.VBuffer(ordfull, ordcounts), comm)
+ordgathered = reshape(ordfull, numSpecies, VARYING_NY * VARYING_NX)
+@test sum(ordgathered) ≈ 1.0
+
+# Compared against serial at **every** rank count, not just at one. The serial run is built with
+# `Ecosystem` directly and makes no MPI calls, so any rank can do it; rank 0 does. At a single rank
+# the comparison is weak - a rank owning every species cannot notice a calculation restricted to its
+# own species - so the multi-rank runs are the ones that carry the check.
+if rank == 0
+    ordserial = mpifixture_ecosystem()
+    simulate!(ordserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+    @test ordgathered == getordinariness!(ordserial)
+end
+
+# **The same again with a similarity matrix that is NOT the identity**, which is the only fixture
+# here that can fail on a calculation dropping similarities between species held on different ranks.
+# Ordinariness multiplies the similarity matrix by the abundances, so a species' value in a cell
+# depends on every other species in that cell; restricting the matrix to one rank's species discards
+# every off-diagonal entry crossing the partition. Under `UniqueTypes` those entries are all zero,
+# so the check above passes either way - see `mpifixture_similarity`.
+gensppl, _ = mpifixture_generalspecies()
+geneco = MPIEcosystem(gensppl, varying_environment(), nichefit, seed = 0)
+geneco.abundances.rows_matrix .= MPIFIXTURE_FILL
+MPI.Barrier(comm)
+@test_nowarn simulate!(geneco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+
+genord = getordinariness!(geneco)
+gencounts = Int32.(size(genord, 1) .* geneco.sccounts)
+genfull = similar(vec(genord), Int64(sum(gencounts)))
+MPI.Allgatherv!(vec(genord), MPI.VBuffer(genfull, gencounts), comm)
+gengathered = reshape(genfull, numSpecies, VARYING_NY * VARYING_NX)
+
+if rank == 0
+    genserial = mpifixture_generalecosystem()
+    simulate!(genserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+    @test gengathered ≈ getordinariness!(genserial)
+end
+
 # The two layouts must hold the same data once a timestep has finished. Asserted globally rather than
 # per rank: they are the same data under two decompositions, and only the totals are comparable
 # without reindexing.
