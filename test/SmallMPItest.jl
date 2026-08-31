@@ -197,13 +197,13 @@ end
 # **Read-only on purpose.** `canonical(...)` would *write* the reference file, and doing that from
 # inside an `mpiexec` child — several of them at once — must never happen. `canonical_reference()`
 # only reads.
-if rank == 0
+function checkblessed(abuns, prefix)
     reference = Canonical.canonical_reference()
-    grid = reshape(true_abuns, numSpecies, VARYING_NY, VARYING_NX)
-    for (key, value) in ("mpi/total_abundance" => sum(grid),
-        "mpi/abundance_by_species" => vec(sum(grid, dims = (2, 3))),
-        "mpi/abundance_by_row" => vec(sum(grid, dims = (1, 3))),
-        "mpi/abundance_by_column" => vec(sum(grid, dims = (1, 2))))
+    grid = reshape(abuns, numSpecies, VARYING_NY, VARYING_NX)
+    for (key, value) in ("$prefix/total_abundance" => sum(grid),
+        "$prefix/abundance_by_species" => vec(sum(grid, dims = (2, 3))),
+        "$prefix/abundance_by_row" => vec(sum(grid, dims = (1, 3))),
+        "$prefix/abundance_by_column" => vec(sum(grid, dims = (1, 2))))
         # A missing key means the canonical set has not been blessed here; say so rather than
         # passing silently, which would make this whole check vacuous.
         @test haskey(reference, key)
@@ -211,6 +211,33 @@ if rank == 0
             @test isapprox(float.(collect(value)), reference[key],
                            rtol = 1e-8)
     end
+end
+
+rank == 0 && checkblessed(true_abuns, "mpi")
+
+# **`AlwaysMovement` disperses the standing population, and only a multi-rank run can check it.**
+# It reads that population back out of the landscape through `EcoSISTEM._standingpopulation`, which
+# maps the global species index onto this rank's local row — and at **one** rank that map is the
+# identity, so a run there passes whether or not the mapping is right. Measured: replacing the
+# mapping with the raw global index leaves the 1-rank answer bit-identical and makes 2 ranks die in
+# `Multinomial` on a negative count. That is why this is pinned to a blessed serial number and
+# asserted at every rank count, rather than compared against a serial run at one.
+alwayssppl, _ = mpifixture_species(movement = mpifixture_always())
+alwayseco = MPIEcosystem(alwayssppl, varying_environment(), nichefit, seed = 0)
+alwayseco.abundances.rows_matrix .= MPIFIXTURE_FILL
+MPI.Barrier(comm)
+@test_nowarn simulate!(alwayseco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+always_abuns = gatherabundance(alwayseco)
+
+rank == 0 && checkblessed(always_abuns, "mpi/always")
+
+# The same one-rank equality the birth-only run gets above. It cannot catch a rank-mapping bug (see
+# the note above), but it does catch the loop body diverging from the serial one, which is A22's
+# failure and is invisible to any MPI-against-MPI comparison.
+if MPI.Comm_size(comm) == 1
+    alwaysserial = mpifixture_ecosystem(movement = mpifixture_always())
+    simulate!(alwaysserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+    @test alwaysserial.abundances.matrix == always_abuns
 end
 
 if !MPI.Finalized()

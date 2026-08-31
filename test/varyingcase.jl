@@ -151,7 +151,22 @@ const MPIFIXTURE_FILL = 10
 const MPIFIXTURE_BURNIN = 2year
 const MPIFIXTURE_TIMESTEP = 1month_mean_duration
 
-function mpifixture_species(; numspecies = VARYING_SPECIES)
+# The dispersal kernel both MPI fixtures share. Named once so that `mpifixture_species` and
+# `mpifixture_ecosystem` cannot drift apart in it: the serial run is the reference the distributed
+# one has to reproduce, and a difference here would look exactly like a partitioning bug.
+mpifixture_kernels(numspecies) = fill(GaussianKernel(3.0km, 10e-10), numspecies)
+function mpifixture_movement(numspecies = VARYING_SPECIES)
+    return BirthOnlyMovement(mpifixture_kernels(numspecies))
+end
+# The animal-like counterpart, dispersing the standing population rather than only the newborns.
+# It reaches the distributed loop by a different route — `EcoSISTEM._standingpopulation` rather than
+# the `births` the loop already holds — so pinning only one of the two would leave that route unrun.
+function mpifixture_always(numspecies = VARYING_SPECIES)
+    return AlwaysMovement(mpifixture_kernels(numspecies))
+end
+
+function mpifixture_species(; numspecies = VARYING_SPECIES,
+                            movement = mpifixture_movement(numspecies))
     # Two demands, matching the two supplies of the varying environment: `build_ecosystem` checks
     # that the species and environment sides align layer for layer.
     demand = SpeciesRequirementCollection((Demand{SolarRadiation}(collect(1:numspecies) .*
@@ -160,8 +175,6 @@ function mpifixture_species(; numspecies = VARYING_SPECIES)
                                            Demand{Precipitation}(fill(2.0Unitful.L /
                                                                       day,
                                                                       numspecies))))
-    movement = BirthOnlyMovement(fill(GaussianKernel(3.0km, 10e-10),
-                                      numspecies))
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2, 100.0)
     # Optima spread across the regime's own 288-302 K gradient, so species genuinely sort in space.
     # A shared optimum would put them all in the same cells, and optima outside the environment would
@@ -185,8 +198,9 @@ abundances filled exactly as the MPI test fills its own.
 Simulating this for `MPIFIXTURE_BURNIN` at `MPIFIXTURE_TIMESTEP` and gathering the distributed run
 must give the same abundance matrix, cell for cell, at any rank count.
 """
-function mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES)
-    sppl, _ = mpifixture_species(numspecies = numspecies)
+function mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES,
+                              movement = mpifixture_movement())
+    sppl, _ = mpifixture_species(numspecies = numspecies, movement = movement)
     eco = Ecosystem(sppl, varying_environment(), mpifixture_nichefit(),
                     seed = seed)
     # Filled artificially rather than populated, so the starting state is identical on every rank

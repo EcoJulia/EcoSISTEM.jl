@@ -1,5 +1,11 @@
 # NEWS
 
+- v0.6.1
+  - Added
+    - `AlwaysMovement` now works in a distributed (MPI) run, so all three movement types do. Each
+      rank owns a block of species across the whole grid while the dynamics run, so dispersing an
+      established individual stays rank-local exactly as dispersing a newborn does; only the field
+      the count is read from differed between the two landscapes.
 - v0.6.0
   - Breaking
     - A landscape's `matrix` and `grid` are plain arrays again, as they were before v0.5.0. The
@@ -13,18 +19,16 @@
       builds a distributed one, so the signature says which rather than the name. The old MPI name
       errors, naming the replacement: it took the partition alone and cannot reach the species names
       or grid the labelled views need.
-    - `copy` of a landscape is gone. It could not carry the grid its result needs, and its one
-      caller had the habitat to hand anyway.
-    - `BlockArrays` is a new dependency, used to present the distributed column buffer as one
-      ordinary matrix.
+    - `copy` of a landscape is removed - not needed and hard to reimplement for new landscape fields.
   - Fixed
     - A distributed (MPI) run gave different results from a serial one on the same seed, breaking the
-      reproducibility the design guarantees. This was a bugfix applied to the serial code several years ago forgotten on MPI.
+      reproducibility the design guarantees. This was a bugfix applied to the serial code but
+      missed on MPI.
     - `update!` for an abstract ecosystem was faulty but masked by equivalent functions for the
       concrete types. Now unified to a single function.
     - Fixing v0.5.0 hot loop allocation bug for serial code - revert to pre-v0.5.0 raw arrays for hot
       loop access to species counts, but keep DimArrays referencing the same memory to keep records
-      of species and locations
+      of species and locations.
   - Internal
     - The distributed code is renamed and rearranged to mirror the serial code file for file and name
       for name, so that the two can be read side by side.

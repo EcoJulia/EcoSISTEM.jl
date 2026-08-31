@@ -104,8 +104,8 @@ const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
                                                      axis = SolarRadiation),
                                 area = AREA)
 
-# `BirthOnlyMovement` is not a stylistic choice here: `AlwaysMovement` is unimplemented under MPI
-# and refuses (see `ext/EcoSISTEMMPIExt/dynamics.jl`).
+# `BirthOnlyMovement` is a modelling choice — these are plant-like species, dispersing only as
+# seed. Every movement type runs distributed, so it is not forced by the MPI run.
 const SPECIES = build_species(NUMSPECIES,
                               tolerance = (274.0K, 0.5K),
                               toleranceaxis = Temperature,

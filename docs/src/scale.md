@@ -67,10 +67,18 @@ depending on the ecosystem's own state, would let the ranks drift apart silently
 *does* depend on the ecosystem goes through [Interventions](@ref) instead, which are applied once
 and identically everywhere.
 
+### Movement
+
+All three movement types work distributed. Each rank owns a block of species across the *whole*
+grid while the dynamics run, so an individual dispersing between cells stays rank-local whether it
+is a newborn under [`BirthOnlyMovement`](@ref) or an established individual under
+[`AlwaysMovement`](@ref); [`NoMovement`](@ref) disperses nothing at all.
+
 ### What is not supported
 
-[`AlwaysMovement`](@ref) is not implemented for a distributed run and refuses with a message naming
-both remedies. [`BirthOnlyMovement`](@ref) and [`NoMovement`](@ref) work distributed.
+The [`AddSpecies`](@ref) operation is refused in a distributed run. Species are what the ranks are
+partitioned by, so adding one changes the partition itself, where every other operation acts within
+a rank. Add the species before the run starts, or run that scenario serially.
 
 ## Threads
 
