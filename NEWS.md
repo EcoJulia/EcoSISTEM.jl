@@ -6,10 +6,18 @@
       rank owns a block of species across the whole grid while the dynamics run, so dispersing an
       established individual stays rank-local exactly as dispersing a newborn does; only the field
       the count is read from differed between the two landscapes.
+  - Changed
+    - `getabundance` on a distributed ecosystem refuses rather than returning one rank's block, and
+      names `gatherabundance` instead. Diversity's consumers each reduce that matrix over a different
+      axis, so a block silently answered at least one of them wrongly. The measures built on it
+      refuse too for now, rather than returning numbers that depended on the rank count.
   - Fixed
     - Another inconsistency between serial and distributed code - changing abundances through an
       intervention diverged from the serial run on the same seed because of synchronisation
       order, which is now switched to give a consistent result.
+    - The diversity measures now run distributed, each rank computing the cells it owns against the
+      full similarity matrix, and `gatherdiversity` assembles them into the serial answer on every
+      rank. `_getordinariness!`, `_getmetaabundance`, `_getweight` and `_getscale` now work too.
 - v0.6.0
   - Breaking
     - A landscape's `matrix` and `grid` are plain arrays again, as they were before v0.5.0. The

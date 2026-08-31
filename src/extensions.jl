@@ -217,9 +217,23 @@ function gatherabundance end
 """
     gatherdiversity(eco::MPIEcosystem, divmeasure::F, q) where F <: Function
 
-Gather diversity calculated by `divmeasure` at value `q` from all MPI nodes onto
-the root node (rank 0), combining subcommunity diversity values using a power
-mean weighted by total abundances across nodes.
+Assemble the subcommunity diversity measured by `divmeasure` at order(s) `q` across every rank of a
+distributed ecosystem, returning the whole metacommunity's answer on **all** ranks.
+
+Each rank computes the measure for the cells it owns. Those values are already final -- a cell's
+diversity is a reduction over the species in that cell, and every one of them lives on the rank that
+owns the cell -- so this assembles them rather than combining them, and the result matches a serial
+run whatever the rank count.
+
+# Arguments
+
+  - `eco`: the distributed ecosystem.
+  - `divmeasure`: a subcommunity diversity function, such as [`norm_sub_alpha`](@ref).
+  - `q`: a single order or a vector of orders.
+
+# Returns
+
+  - A `DataFrame` of one row per subcommunity per order, as the serial measure returns.
 """
 function gatherdiversity end
 

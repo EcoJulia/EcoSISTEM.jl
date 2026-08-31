@@ -316,6 +316,29 @@ end
 # depends on every other species in that cell; restricting the matrix to one rank's species discards
 # every off-diagonal entry crossing the partition. Under `UniqueTypes` those entries are all zero,
 # so the check above passes either way - see `mpifixture_similarity`.
+# **The diversity measures themselves, assembled across ranks.** Each rank computes the measure for
+# its own cells - complete, because the column partition puts every species of a cell on one rank -
+# and `gatherdiversity` concatenates rather than combining. So the answer must equal the serial one
+# at every rank count, which is the reproducibility requirement the whole distributed design rests
+# on.
+#
+# `sub_gamma` is included alongside a normalised measure because it divides by the metacommunity
+# ordinariness, a sum over *every* cell: without the `Allreduce` in `_getmetaordinariness!` it would
+# silently use this rank's share of the metacommunity as though it were all of it.
+for divmeasure in (norm_sub_alpha, sub_gamma)
+    for order in (1.0, [0.0, 1.0, 2.0])
+        assembled = gatherdiversity(eco, divmeasure, order)
+        if rank == 0
+            divserial = mpifixture_ecosystem()
+            simulate!(divserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+            wanted = divmeasure(divserial, order)
+            @test assembled[!, :diversity] ≈ wanted[!, :diversity]
+            @test assembled[!, :partition_name] == wanted[!, :partition_name]
+            @test assembled[!, :q] == wanted[!, :q]
+        end
+    end
+end
+
 gensppl, _ = mpifixture_generalspecies()
 geneco = MPIEcosystem(gensppl, varying_environment(), nichefit, seed = 0)
 geneco.abundances.rows_matrix .= MPIFIXTURE_FILL
