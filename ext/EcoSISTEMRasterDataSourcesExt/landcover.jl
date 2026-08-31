@@ -27,7 +27,7 @@ function EcoSISTEM.compress_landcover(landcover::ClimateRaster{T}) where
     # the values do not support. The lineage is carried by the parameter instead.
     #
     # **Nothing here declares that the result is categorical, and nothing should.** That is what
-    # the spec's `axis = LandCoverTypology` says — a `TypologyAxis`, so class codes — and it says it
+    # the spec's `axis = LandCoverTypology` says - a `TypologyAxis`, so class codes - and it says it
     # where the caller can see it. Stamping `valuetype = :categorical` on the raster here would be
     # working around the shipped table having no row for a derived layer; the axis has no such gap.
     return ClimateRaster(_derivedfrom(T), DimArray(codes, yx))

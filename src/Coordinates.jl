@@ -98,7 +98,7 @@ const SpatialSize{T} = Spatial2D{RelativeOffset, T}
 A geographic **point** in Unitful degrees, validated on construction: `LatLong(50.0°, -3.0°)`.
 Latitude must lie in `[-90°, 90°]` and longitude in `(-180°, 180°]`.
 
-A **region** is an `Extents.Extent` rather than one of these — `Extent(Y = (54.6°, 58.7°),
+A **region** is an `Extents.Extent` rather than one of these - `Extent(Y = (54.6°, 58.7°),
 X = (-6.2°, -1.8°))`. That is the bounding-box vocabulary the whole Julia geo ecosystem shares, and
 reusing it beats a parallel type of our own.
 
@@ -157,7 +157,7 @@ resampled: WorldClim's cells are 10 arcminutes, EarthEnv's and CHELSA's 30 arcse
 # Arguments
 
   - `region`: the region's name, as it appears in the shipped `data/bounding_boxes.csv`.
-  - `islands`: `true` for the island-inclusive extent — the table's `Islands` coverage — and `false`,
+  - `islands`: `true` for the island-inclusive extent - the table's `Islands` coverage - and `false`,
     the default, for the mainland one.
   - `round`: an angular step to snap the box **outwards** onto, so the result fully contains the
     exact box. Any angular unit will do: `round = 5°`, `round = 10arcminute`, `round = 30arcsecond`.
@@ -213,7 +213,7 @@ Base.:*(k::Number, d::SpatialSize) = d * k
 Base.:/(d::SpatialSize, k::Number) = SpatialSize(d.y / k, d.x / k)
 
 # --- GeoInterface: a point is a PointTrait geometry. GeoInterface fixes the coordinate order as
-# (X, Y); by convention X = longitude, Y = latitude, so coord 1 = long and coord 2 = lat — the
+# (X, Y); by convention X = longitude, Y = latitude, so coord 1 = long and coord 2 = lat - the
 # only place the lat/long-vs-X/Y reversal lives. Coordinates are stripped to plain degrees. ---
 GeoInterface.isgeometry(::Type{LatLong}) = true
 
@@ -241,7 +241,7 @@ function _checkspatial(::Type{AbsolutePosition}, lat::typeof(1.0°),
     return _checkcoords(lat, long)
 end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # --- Display -----------------------------------------------------------------------------------
 #
@@ -278,15 +278,15 @@ end
 function _checkgeographicextent(e::Extents.Extent)
     y, x = e.Y, e.X
     y[1] ≤ y[2] ||
-        error("Latitude interval is reversed (south > north): got $(y[1]) … $(y[2]).")
+        error("Latitude interval is reversed (south > north): got $(y[1]) ... $(y[2]).")
     x[1] ≤ x[2] ||
-        error("Longitude interval is reversed (west > east): got $(x[1]) … $(x[2]). This is how " *
+        error("Longitude interval is reversed (west > east): got $(x[1]) ... $(x[2]). This is how " *
               "an area crossing the antimeridian (±180°) would be expressed, but EcoSISTEM does " *
-              "not support dateline-crossing regions — split it into two, one either side.")
+              "not support dateline-crossing regions - split it into two, one either side.")
     -90° ≤ y[1] && y[2] ≤ 90° ||
-        error("Latitude interval is out of bounds: got $(y[1]) … $(y[2]).")
+        error("Latitude interval is out of bounds: got $(y[1]) ... $(y[2]).")
     -180° < x[1] && x[2] ≤ 180° ||
-        error("Longitude interval is out of bounds: got $(x[1]) … $(x[2]).")
+        error("Longitude interval is out of bounds: got $(x[1]) ... $(x[2]).")
     return nothing
 end
 
@@ -295,6 +295,6 @@ end
 # this always rounds *outward* so a rounded box encloses the exact one.
 #
 # Converted back to `°` rather than left in `r`'s unit: the step may legitimately be given in
-# arcminutes or arcseconds, but `boundingbox` promises degrees, and `3270.0 ′` — correct, but not
-# degrees — would break that for every caller downstream.
+# arcminutes or arcseconds, but `boundingbox` promises degrees, and `3270.0 ′` - correct, but not
+# degrees - would break that for every caller downstream.
 _snapout(dirn, x, r) = uconvert(°, dirn(uconvert(NoUnits, x / r)) * r)

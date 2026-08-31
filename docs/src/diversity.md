@@ -5,7 +5,7 @@ CurrentModule = EcoSISTEM
 # Integration with Diversity.jl
 
 EcoSISTEM is integrated with the [Diversity](https://github.com/EcoJulia/Diversity.jl)
-package, so diversity measures can be calculated directly on an ecosystem — an
+package, so diversity measures can be calculated directly on an ecosystem - an
 [`Ecosystem`](@ref) *is* a Diversity metacommunity, with one subcommunity per grid cell.
 
 See [The basics of EcoSISTEM.jl](@ref) for how to set one up; the example below builds a small
@@ -26,7 +26,7 @@ eco = build_ecosystem(species, env)
 simulate!(eco, 1year, 1month_mean_duration)
 ```
 
-**Every** grid cell is a subcommunity, including inactive ones — sea off a coastline, or a cell a
+**Every** grid cell is a subcommunity, including inactive ones - sea off a coastline, or a cell a
 [`Deactivate`](@ref) intervention has destroyed. That costs nothing for the metacommunity measures,
 which weight each subcommunity by its share of the total abundance and so give an empty cell zero
 weight; the partitioned results are identical whether or not the empty cells are there. But a
@@ -37,14 +37,14 @@ before asking a per-cell question.
 ```@example diversity
 using Diversity
 
-norm_sub_alpha(eco, 1.0)      # subcommunity measures — one row per grid cell
+norm_sub_alpha(eco, 1.0)      # subcommunity measures - one row per grid cell
 ```
 
 ```@example diversity
-norm_meta_alpha(eco, 1.0)     # or metacommunity measures — one row for the landscape
+norm_meta_alpha(eco, 1.0)     # or metacommunity measures - one row for the landscape
 ```
 
-Any measure takes several values of the viewpoint parameter `q` at once — `0` counts rare and
+Any measure takes several values of the viewpoint parameter `q` at once - `0` counts rare and
 common species alike, and larger values weight towards the commonest:
 
 ```@example diversity

@@ -3,7 +3,7 @@
 #### SINGLE SPECIES ####
 # One species across Africa on WorldClim data, with the run **bracketed by the FAIR data pipeline**:
 # inputs are claimed through `link_read!` and the figure is registered with `link_write!`, so the
-# result is traceable to the exact data that produced it. That bracketing is the point of this file —
+# result is traceable to the exact data that produced it. That bracketing is the point of this file -
 # the ecology is deliberately the simplest thing that exercises it.
 #
 # **A `StudyArea` decides a projected grid first, and `GridHabitat` samples onto it.** Building the
@@ -12,7 +12,7 @@
 # extent changes with latitude while dispersal assumes one uniform cell size.
 #
 # **The pipeline read does real work rather than being decorative.** `link_read!` returned a
-# path that nothing used — the script went on to call `read(WorldClim{BioClim}, …)` and download the
+# path that nothing used - the script went on to call `read(WorldClim{BioClim}, ...)` and download the
 # data itself. The claimed path is now what the layers are actually read from.
 #
 # **Not runnable without a configured pipeline.** `DataPipeline.initialise()` needs a
@@ -44,7 +44,7 @@ ENV["RASTERDATASOURCES_PATH"] = CLAIMED
 
 # Named, not read: bio1 is annual mean temperature and bio12 annual precipitation, and both the
 # unit and the axis come from the shipped catalogue (`data/RasterDataSources/BioClim.csv`) rather
-# than being asserted here — which is what the old `uconvert.(K, africa_temp .* °C)` was doing by
+# than being asserted here - which is what the old `uconvert.(K, africa_temp .* °C)` was doing by
 # hand, and could get wrong.
 const TEMPERATURE = SourceSpec(WorldClim{BioClim}, :bio1)
 const RAINFALL = SourceSpec(WorldClim{BioClim}, :bio12)
@@ -52,8 +52,8 @@ const RAINFALL = SourceSpec(WorldClim{BioClim}, :bio12)
 # --- decide the grid, before anything is built on it ------------------------------------
 
 # A projected CRS is required to simulate. EPSG:10592 (WGS 84 / GLANCE Africa) is the package's own
-# advice for this extent. `within` positions the area — WorldClim is global — and the land mask now
-# comes from the layers' own coverage rather than from a hand-built `.!isnan.(…)` matrix.
+# advice for this extent. `within` positions the area - WorldClim is global - and the land mask now
+# comes from the layers' own coverage rather than from a hand-built `.!isnan.(...)` matrix.
 const AREA = StudyArea(regime = TEMPERATURE, supply = RAINFALL,
                        within = EcoSISTEM.boundingbox("Africa"),
                        crs = EPSG(10592), cellsize = 50.0km)
@@ -105,7 +105,7 @@ heatmap!(masked(LENSIM), clim = (0, maximum(frames)),
          background_color = :lightblue, background_color_outside = :white,
          grid = false, color = cgrad(:algae, scale = :exp), title = "end",
          subplot = 2)
-# The layers as they were actually sampled onto the grid — read off the built habitat rather than
+# The layers as they were actually sampled onto the grid - read off the built habitat rather than
 # re-read, so the figure cannot disagree with what the simulation saw.
 heatmap!(Array(ENVIRONMENT.regime.matrix), grid = false,
          title = "temperature", subplot = 3)

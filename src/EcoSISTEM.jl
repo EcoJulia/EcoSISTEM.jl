@@ -5,7 +5,7 @@ module EcoSISTEM
 using Scratch: get_scratch!
 using Downloads: Downloads
 
-# **The model, before anything else.** Fourteen declarations saying what EcoSISTEM simulates —
+# **The model, before anything else.** Fourteen declarations saying what EcoSISTEM simulates -
 # conditions and resources, the environment's layers and the species' requirements, the fit between
 # them, and the habitat and ecosystem that assemble them. It depends on nothing of ours, so it comes
 # first; everything below is a choice about *how*.
@@ -31,8 +31,8 @@ public assetpath
 # durations. First, because other files depend on it.
 include("Units/Units.jl")
 
-# The coordinate vocabulary — the two-dimensional position/size family and the geographic point type
-# — used across the `ClimatePref` submodule and the main module, and by `CircleMaskSpec`
+# The coordinate vocabulary - the two-dimensional position/size family and the geographic point type
+# - used across the `ClimatePref` submodule and the main module, and by `CircleMaskSpec`
 # (`Spec.jl`), so it is defined here, before all of them.
 include("Coordinates.jl")
 
@@ -54,7 +54,7 @@ public boundingbox
 public SpatialKind, Spatial2D
 
 # The axis machinery, then the axes declared with it. `@nicheaxis` emits methods whose signatures
-# name `Resource`, so `Ecology.jl` — which declares the roles — must already have been included.
+# name `Resource`, so `Ecology.jl` - which declares the roles - must already have been included.
 include("nicheaxis_macro.jl")
 
 include("NicheAxis.jl")
@@ -67,7 +67,7 @@ public TemperatureAxis, WaterAxis, PrecipitationAxis, HumidityAxis,
        DayAxis,
        CarbonAxis, TypologyAxis, SpaceAxis
 
-# The declaration macro is the supported way to add an axis, and the only one — the
+# The declaration macro is the supported way to add an axis, and the only one - the
 # `canonicalunit`/`supplytype`/`demandtype`/`bounds` methods behind it stay internal. Exported rather
 # than `public` because it is written, not merely dispatched on.
 export @nicheaxis
@@ -85,7 +85,7 @@ public ParamRole
 include("DataSource.jl")
 
 # `public`, not exported: the abstract types (the house rule), the code-spelling union, and
-# `in_memory_raster` — a supported pathway for data you already hold, but not one to encourage.
+# `in_memory_raster` - a supported pathway for data you already hold, but not one to encourage.
 public EcoSISTEMSource, CODE_TYPE
 include("CombineStage.jl")
 
@@ -103,7 +103,7 @@ public AbstractSpec, AbstractSyntheticSpec, AbstractSyntheticLayerSpec,
        AbstractSyntheticMaskSpec
 
 # A raster of climate data, then the specs that read one.
-# The shipped layer catalogue — dataset-agnostic parsing that `SourceSpec` consults for a layer's
+# The shipped layer catalogue - dataset-agnostic parsing that `SourceSpec` consults for a layer's
 # unit and axis, so it must precede it.
 include("AccumulationPeriod.jl")
 
@@ -124,7 +124,7 @@ public layerinfo, layersbyaxis, layerrate
 # whether the catalogue family should be uniform is a separate question.
 export layeraxis, layerunit
 
-# A raster of climate data, and the specs that lazily read one — including the three unions naming
+# A raster of climate data, and the specs that lazily read one - including the three unions naming
 # everything a caller may hand to `regime`/`supply`/`within`.
 include("Climate.jl")
 
@@ -140,7 +140,7 @@ export ClimateRaster
 
 include("LazySpec.jl")
 
-# **What a layer is, and how one is declared** — the raster type, what may name its source, and the
+# **What a layer is, and how one is declared** - the raster type, what may name its source, and the
 # specs. **Before `ClimatePref`, deliberately**: the readers in that submodule construct
 # `ClimateRaster`s, so these must already exist. See the file's own header for the rule that decides
 # what lives here against what stays with the climate data.
@@ -151,7 +151,7 @@ export SourceSpec, ConstructedSpec, ShapeSpec
 public AbstractLazySpec
 
 # How a layer changes in time: what a series does at its end, how a change value is interpreted,
-# and the recipes a caller writes. `SeriesPolicy` first — `SeriesChange` holds an `AbstractSeriesEnd`.
+# and the recipes a caller writes. `SeriesPolicy` first - `SeriesChange` holds an `AbstractSeriesEnd`.
 include("SeriesPolicy.jl")
 
 # what a series does once elapsed time runs past its last stored slice (the `atend` keyword)
@@ -166,7 +166,7 @@ public AbstractSeriesEnd, AbstractSeriesCalendar
 include("ChangeMode.jl")
 
 # the per-layer change rules a layer can hold (defined in Layer.jl; applied in LayerChange.jl)
-# The change *modes* are derived from a spec, never named — `_changemode(::ReplaceWith)`
+# The change *modes* are derived from a spec, never named - `_changemode(::ReplaceWith)`
 # gives `AbsoluteChange()`, and no public signature takes a mode. They are what a spec becomes.
 public NoChange, AbsoluteChange, RelativeChange, RateChange
 
@@ -174,23 +174,23 @@ public AbstractChangeMode
 
 include("ChangeSpec.jl")
 
-# The layer-change unit contract and the apply/drive methods. Included late — it dispatches on
+# The layer-change unit contract and the apply/drive methods. Included late - it dispatches on
 # both `AbstractLayer` (Layer.jl) and `AbstractEcosystem` (Ecosystem.jl), and calls `axisof`
 # (Simplify.jl) to name the offending axis when a change's unit does not match its layer.
 export ReplaceWith, OffsetBy, IncrementBy, PatternedChange, SeriesChange
 
 # Adding changes together is spelled `A + B`, so the type that spelling builds is supported but
-# rarely written by hand — `public`, not exported, to keep the name out of the way.
+# rarely written by hand - `public`, not exported, to keep the name out of the way.
 public CombinedChange
 
 public AbstractChangeSpec
 
 include("collections.jl")
 
-# The materialised changes, and `Varying` — whose constructor accepts either a spec or one of these.
+# The materialised changes, and `Varying` - whose constructor accepts either a spec or one of these.
 include("LayerChange.jl")
 
-# `NoLayerChange` stays exported because **no spec produces it** — a static layer is
+# `NoLayerChange` stays exported because **no spec produces it** - a static layer is
 # written `NoLayerChange()` directly, alongside `IncrementBy(rate)`. The other four are what
 # `_attachchange` materialises a spec into, so the spec is the name a user writes.
 export NoLayerChange
@@ -200,13 +200,13 @@ public SteadyLayerChange, PatternedLayerChange, SeriesLayerChange,
 
 # The default `shape` of a `PatternedChange`. `public` rather than exported: a caller writes a shape
 # far more often than they name the default, and the name is common enough to be worth keeping out
-# of the way of one — but it must be nameable, or the signature advertises something unreachable.
+# of the way of one - but it must be nameable, or the signature advertises something unreachable.
 public sinusoidal
 
 # Declaring a change alongside a layer spec, at the `GridHabitat` boundary
 export Varying
 
-# Installing a change on a layer directly is supported but not exported — the user-facing route is
+# Installing a change on a layer directly is supported but not exported - the user-facing route is
 # to declare the change alongside the layer when the environment is built.
 public changeunit
 
@@ -221,7 +221,7 @@ export ContinuousLayer, CategoricalLayer, LayerCollection
 # differing only in the change it carries.
 export ContinuousRegime, CategoricalRegime
 
-# **One supply name, parameterised by axis** — `Supply{SolarRadiation}`, never a per-resource alias.
+# **One supply name, parameterised by axis** - `Supply{SolarRadiation}`, never a per-resource alias.
 # The axis is the single declaration of what a supply measures, and its value type follows from
 # `canonicalunit(Resource, axis)`, so an alias per resource would restate in the type what the axis
 # already says.
@@ -229,7 +229,7 @@ export Supply
 
 public setchange!
 
-# Checking a run against the series driving it is supported API — `simulate!` calls it before the
+# Checking a run against the series driving it is supported API - `simulate!` calls it before the
 # first step, but it is worth being able to ask before committing to a run.
 public checkcoverage, check_bounds
 
@@ -263,7 +263,7 @@ export suitability
 export CombiningFit, MultiplicativeFit, CategoricalSuitability, NoFitContinuous,
        NoFitCategorical, NicheSuitability, AdditiveFit
 
-# The species' own behaviour and rates, and the grid's edge rule — none of which need the
+# The species' own behaviour and rates, and the grid's edge rule - none of which need the
 # environment, so they sit here rather than beside the habitat that carries the topology.
 include("Movement.jl")
 
@@ -280,8 +280,8 @@ public AbstractParams
 
 include("Topology.jl")
 
-# The three aliases are the API. They cover three of the four combinations —
-# `EdgeTopology{Periodic, Bounded}` has no name — and the maintainer's rule is that a fourth would get
+# The three aliases are the API. They cover three of the four combinations -
+# `EdgeTopology{Periodic, Bounded}` has no name - and the maintainer's rule is that a fourth would get
 # an **exported alias of its own** rather than callers reaching for the underlying type. So the alias
 # layer stays the surface, and what it is built from does not.
 export Torus, Cylinder, Island
@@ -291,7 +291,7 @@ public EdgeTopology, Periodic, Bounded
 public AbstractTopology, AbstractBoundaryCondition
 
 # **The study area, and the report that says how its grid was decided.** Both must precede
-# `GridHabitat`, which holds an `area::StudyArea{L}` — a struct field type is resolved when the
+# `GridHabitat`, which holds an `area::StudyArea{L}` - a struct field type is resolved when the
 # struct is defined, so the area cannot be declared after the habitat that carries it.
 include("DecisionSource.jl")
 
@@ -303,14 +303,14 @@ public AbstractDecisionSource, GivenByUser, AdoptedFromLayers,
 include("ReportTerms.jl")
 
 # What a report says about each decision and each layer. `public`, not exported, to match
-# `Problem`/`LayerPlan`/`StudyAreaReport` themselves — these are read off a report, not written.
+# `Problem`/`LayerPlan`/`StudyAreaReport` themselves - these are read off a report, not written.
 public AbstractProblemSeverity, ProblemNotice, ProblemWarning
 
 public AbstractLayerFate, LayerKeptExactly, LayerAggregated, LayerResampled
 
 # `public`, not exported, for the same reason as the neighbours above: a stage is **read off** a
 # report, never written by a caller. This diverges from the usual "abstract type `public`, concrete
-# leaves exported" rule, and deliberately — the rule is about types you *construct*, and nothing
+# leaves exported" rule, and deliberately - the rule is about types you *construct*, and nothing
 # outside the package should be constructing a claim that a report is as-built.
 public AbstractReportStage, AsInvestigated, AsBuilt
 
@@ -321,28 +321,28 @@ include("StudyAreaReport.jl")
 public StudyAreaReport, LayerPlan, Problem, LayerCache
 include("StudyArea.jl")
 
-# **Ask anything that knows the grid how big it is** — a `StudyArea`, a raster, a layer, a habitat
+# **Ask anything that knows the grid how big it is** - a `StudyArea`, a raster, a layer, a habitat
 # or an ecosystem. One dispatch hub (`_gridyx`) with a method per kind, so there is one answer and
 # one place it comes from. Here because `GridHabitat` is the last type that hub names, and because
-# `Layer.jl`'s `_uniformcellside` calls `getcellsizes` — a forward reference until now.
+# `Layer.jl`'s `_uniformcellside` calls `getcellsizes` - a forward reference until now.
 # `public`, not exported: supported API reached deliberately, not names wanted in every namespace.
 public getspeciesstorage
 
 # **Same reason again, one level up**: `GridHabitat` holds an `area::StudyArea{L}`, so both the
 # area and the `StudyGrid` its parameter names must exist before `GridHabitat.jl`. `StudyArea.jl`
-# itself cannot move up here — it names `GridHabitat` — so the two type definitions live in this
+# itself cannot move up here - it names `GridHabitat` - so the two type definitions live in this
 # file and every function that decides an area stays below.
 # Neither is ever constructed by a user: a `StudyGrid` is read off a habitat that already exists,
 # and `CellNames` is what its `placenames` hands back. Supported and documented, but not in the
 # `using EcoSISTEM` namespace.
 public StudyGrid, CellNames
 
-# The study area — the simulation grid, decided from the layers before anything is built on it.
+# The study area - the simulation grid, decided from the layers before anything is built on it.
 export StudyArea
 
 # **The two halves of a simulation, and then the simulation itself.** A `GridHabitat` holds the
 # study area above; an `Ecosystem` holds a habitat, a species list and a landscape of abundances.
-# **Putting layers on a decided grid** — the read cache, `materialise` (inspection) and
+# **Putting layers on a decided grid** - the read cache, `materialise` (inspection) and
 # `_buildonarea` (building), kept in one file because the last two implement the same thing and
 # have drifted apart three times. Placed here, before `GridHabitat.jl` calls `_buildonarea`.
 include("materialise.jl")
@@ -378,20 +378,20 @@ public cellregime, cellsupply, speciestolerance, speciesdemand, speciesdispersal
 
 public getregime, getsupply, gettolerance
 
-# The simulation clock is read-only supported API rather than an export — nothing in the package
+# The simulation clock is read-only supported API rather than an export - nothing in the package
 # reads it yet, and it is only meaningful alongside the layer-change work built on top of it.
 # `simulationdate` is the same clock read against the run's epoch, and `nothing` without one.
 public simulationtime, simulationdate
 
 export abundances
 
-# `public`, not exported — a technical operation users reach for occasionally, not
+# `public`, not exported - a technical operation users reach for occasionally, not
 # part of the everyday vocabulary. Renamed from `clearcache`: it **destroys** the recorded
 # abundances on disk, which the trailing `!` has to say.
 public clearcache!
 
 # Unexported. `makeunique` is the plumbing that strips a `SpeciesList`'s similarity so
-# Diversity.jl's classical measures will accept it. Everything else — `faith_pd` now included —
+# Diversity.jl's classical measures will accept it. Everything else - `faith_pd` now included -
 # comes from Diversity.jl directly; `EcoSISTEMPhyloExt` merely adds the ecosystem methods, since
 # Diversity keys those on a type parameter an `Ecosystem` cannot present.
 public makeunique
@@ -402,7 +402,7 @@ export Ecosystem, CachedEcosystem, resettime!
 # `gettolerance`/`getdemand`, which have always been `public`.
 public getnichefit
 
-# **How abundances change** — `populate!` sets them up, `update!` advances them one timestep.
+# **How abundances change** - `populate!` sets them up, `update!` advances them one timestep.
 include("dynamics.jl")
 
 # These five are the shipped values of a *user-selectable strategy*, not machinery: they share
@@ -411,33 +411,33 @@ include("dynamics.jl")
 export populate!, repopulate!, populate_by_tolerance!, repopulate_by_tolerance!,
        emptypopulate!
 
-# `update!` is the timestep loop rather than a strategy — `simulate!` calls it, and
+# `update!` is the timestep loop rather than a strategy - `simulate!` calls it, and
 # nothing outside the package does.
 public update!
 include("DiversitySet.jl")
 
 export DiversitySet, updatesimulation!, gettimes
 
-# **Ecosystem-level change — a second mechanism, deliberately separate from a layer change.** An
+# **Ecosystem-level change - a second mechanism, deliberately separate from a layer change.** An
 # intervention mutates the ecosystem (the active mask, abundances), so it is applied once and
 # identically everywhere; a layer change is a pure function of time and is applied redundantly.
 include("Schedule.jl")
 
-# when — the schedule
+# when - the schedule
 export EveryStep, AtTime, AtTimes, BetweenTimes, NeverScheduled
 
 public AbstractSchedule
 
 include("Region.jl")
 
-# where — the region
+# where - the region
 export AllCells, ActiveCells, CellMask, RandomCells, SpreadingCells
 
 public AbstractRegion
 
 include("Operation.jl")
 
-# what — the closed set of six operations
+# what - the closed set of six operations
 export Deactivate, Reactivate, SetLandCover, SetChange, AddAbundance,
        RemoveAbundance,
        AddSpecies
@@ -487,16 +487,16 @@ export readfile
 # `datasetread.jl` because it is the only code here that reads netCDF rather than GeoTIFF.
 include("erareaders.jl")
 
-# Sampling a climate raster at places and times — `extract_values`. Works on any `AbstractClimate`,
+# Sampling a climate raster at places and times - `extract_values`. Works on any `AbstractClimate`,
 # so it names no data source.
 include("extractclimate.jl")
 
-# `public`, not exported — a debugging aid rather than part of building or running a
+# `public`, not exported - a debugging aid rather than part of building or running a
 # model, so it is reached for deliberately rather than being in everyone's namespace.
 public extract_values
 
 # **Conformance to other packages' generics, LAST.** A method on a generic we do not own is not
-# our API — it is what someone else's interface sees — so it is grouped by that generic's owner and
+# our API - it is what someone else's interface sees - so it is grouped by that generic's owner and
 # sorted by type, rather than sitting beside each type it is about. Last is safe: method
 # definitions are order-independent and nothing here is called at load time. See
 # `docs/overloads.md` for the cross-reference of every foreign generic this package extends.
@@ -534,7 +534,7 @@ function __init__()
     return nothing
 end
 
-# **The two documented exceptions to "every abstract type is `public`, never exported"** — both
+# **The two documented exceptions to "every abstract type is `public`, never exported"** - both
 # are abstract only because their concrete subtypes live in `EcoSISTEMMPIExt`.
 include("MPIEcosystem.jl")
 
@@ -548,7 +548,7 @@ export MPIGridLandscape, MPIEcosystem
 include("extensions.jl")
 
 # The whole phylogenetic trait-evolution set is `public` rather than exported.
-# Not because it is machinery — a user running a phylogenetic model calls these — but because it
+# Not because it is machinery - a user running a phylogenetic model calls these - but because it
 # is **on its way out of this package**: the maintainer intends it to move to `Phylo` itself, and
 # `public` de-prioritises it here without withdrawing support meanwhile.
 public assigntraits!, resettraits!, reroot!, gettraits
@@ -563,9 +563,9 @@ public varcovar, fitbrownian
 
 public landcoverclass
 
-# **THE WORKFLOW, LAST — the counterpart to `Ecology.jl` at the front.** `Ecology.jl` declares
+# **THE WORKFLOW, LAST - the counterpart to `Ecology.jl` at the front.** `Ecology.jl` declares
 # what the model is; this declares what you do with it, in the order you do it: investigate a grid,
-# build the pieces, assemble them, run it. Nothing else lives there — the machinery behind each verb
+# build the pieces, assemble them, run it. Nothing else lives there - the machinery behind each verb
 # stays with its own concept, and the file says so.
 include("actions.jl")
 
@@ -594,8 +594,8 @@ include("deprecations.jl")
 # re-exports names from the main module so that `using EcoSISTEM.ClimatePref` still resolves, and
 # includes its own `deprecations.jl`.
 #
-# Included last because it imports from nearly every file above, and the latest of those —
-# `compress_landcover` and `sourcecrs` — are declared in `extensions.jl`. An earlier include would
+# Included last because it imports from nearly every file above, and the latest of those -
+# `compress_landcover` and `sourcecrs` - are declared in `extensions.jl`. An earlier include would
 # import bindings that do not exist yet, which Julia treats as a precompile *warning* rather than an
 # error, so it would resolve and warn rather than fail. Nothing in the main module calls into the
 # submodule, so the position is free.
@@ -605,16 +605,16 @@ include("ClimatePref/ClimatePref.jl")
 # Every abstract type in this package is `public`, not exported
 # ---------------------------------------------------------------------------
 # **The rule, stated once and in one place so it can be checked.** An abstract type here is a
-# *supertype* — something to dispatch on, subtype, or annotate a field with. It is not everyday
+# *supertype* - something to dispatch on, subtype, or annotate a field with. It is not everyday
 # vocabulary: a user names the concrete leaf (`Temperature`, `Deactivate`, `IncrementBy`), and
 # reaches the supertype only when writing their own subtype or a method over a whole family. `public`
-# says exactly that — supported, documented, but not worth a slot in every `using EcoSISTEM` namespace.
+# says exactly that - supported, documented, but not worth a slot in every `using EcoSISTEM` namespace.
 #
 # **`MPIEcosystem` and `MPIGridLandscape` are the deliberate exceptions, and are exported.** They are
 # abstract only because their concrete subtypes live in the `EcoSISTEMMPIExt` extension, so a user
 # names `MPIEcosystem` itself; and both are released public API.
 #
-# **The declarations themselves are distributed** — each abstract type is made `public` immediately
+# **The declarations themselves are distributed** - each abstract type is made `public` immediately
 # after the include that defines it, so this file reads as a map of where to find things.
 # `test_EcoSISTEM.jl` asserts the rule by **visibility**, not by membership of any one list, so a new
 # hierarchy declared anywhere is covered: it fails rather than silently becoming private or exported.

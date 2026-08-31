@@ -1,24 +1,24 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# **Africa at whatever resolution this machine can afford.** 50,000 plant species — roughly the real
-# number — over the whole continent, on real WorldClim temperature, run serially or across MPI ranks
+# **Africa at whatever resolution this machine can afford.** 50,000 plant species - roughly the real
+# number - over the whole continent, on real WorldClim temperature, run serially or across MPI ranks
 # without changing a line.
 #
 # **Nothing here asserts a memory figure: it *measures* what is available and picks a resolution to
 # match.** A hardcoded `@assert Sys.total_memory() >= 100GB` guards a run that actually needs about
-# **8 GiB** — measured — so it is out by an order of magnitude and refuses most machines that could
+# **8 GiB** - measured - so it is out by an order of magnitude and refuses most machines that could
 # run it perfectly well.
 #
 # **The grid is chosen, not fixed, and nothing about its size is written down here.**
-# `examples/HPC/memory.jl` works out what this run can allocate — across every node when launched
-# under MPI — and each candidate cell size is costed by asking the package:
+# `examples/HPC/memory.jl` works out what this run can allocate - across every node when launched
+# under MPI - and each candidate cell size is costed by asking the package:
 # `investigate_study_area` resolves the grid without building it, and `getspeciesstorage` says
 # what one species' abundances would occupy on it. The finest that fits wins. So the same file gives
 # a few-GiB run on a laptop and a multi-TiB one across HPC nodes, and there is no table to fall out
 # of date.
 #
 # **5 km is multi-node only.** At 50,000 species it needs over 3 TiB, so no single node reaches it
-# however generous — it is there for an MPI job spanning several.
+# however generous - it is there for an MPI job spanning several.
 #
 # **Not part of the test suite**, and deliberately: `test/extras_examples.jl` runs only top-level
 # `examples/*.jl`. Smoke-test it in seconds with `ECOSISTEM_SCALE=small`, which drops to 200 species
@@ -42,7 +42,7 @@
 
 using EcoSISTEM
 # `simulationtime`/`simulationdate` are `public` but not exported, so `using EcoSISTEM` alone
-# does not bring them into scope — they have to be named.
+# does not bring them into scope - they have to be named.
 using EcoSISTEM: simulationtime, simulationdate
 using EcoSISTEM.Units
 using RasterDataSources
@@ -66,7 +66,7 @@ const ISROOT = RANK == 0
 
 const SMALL = get(ENV, "ECOSISTEM_SCALE", "large") == "small"
 
-# The cell sizes this run may choose between. Only the *sizes* are listed — what each costs is
+# The cell sizes this run may choose between. Only the *sizes* are listed - what each costs is
 # asked of the package below, never written down, because the reprojected extent does not scale
 # linearly with cell size (each grid is rounded outwards to whole cells independently) and a
 # hand-kept table would drift the moment anything about the area changed.
@@ -83,7 +83,7 @@ const SAVEDIR = get(ENV, "ECOSISTEM_AFRICA_SAVEDIR",
                     joinpath(pwd(), "Africa_run"))
 
 # The epoch only matters for `RECORD = :dates`, but is set unconditionally so that
-# `simulationdate` answers at all — without one a run has elapsed time and nothing else.
+# `simulationdate` answers at all - without one a run has elapsed time and nothing else.
 const EPOCH = Dates.Date(2000, 1, 1)
 # Scaled with the run, or a smoke test would finish decades before the first one and `:dates`
 # would appear to work while having saved nothing.
@@ -103,20 +103,20 @@ const SUNLIGHT = UniformSpec(1000.0kJ / km^2 / day, axis = SolarRadiation)
 # `within` positions the area and is not optional: WorldClim is global, so without it the grid
 # would be the world.
 const WITHIN = EcoSISTEM.boundingbox("Africa")
-# A projected CRS is required to simulate — dispersal assumes one uniform cell size, and a degree
+# A projected CRS is required to simulate - dispersal assumes one uniform cell size, and a degree
 # cell's real extent shrinks towards the poles. EPSG:10592 (WGS 84 / GLANCE Africa) is the package's
 # own suggestion for this extent.
 const CRS = EPSG(10592)
 
 # --- decide the grid --------------------------------------------------------------------
 
-# Collective, and every rank must reach it — see `memory.jl`. Called before any `ISROOT` branch
+# Collective, and every rank must reach it - see `memory.jl`. Called before any `ISROOT` branch
 # for exactly that reason.
 const BUDGET = MemoryGuidance.memory_budget()
 
 # What one species' abundances would occupy at `cellsize`, asked of the package rather than
-# calculated here. `investigate_study_area` runs the *same* analysis `StudyArea` would — the report
-# it returns "can never describe a grid other than the one that would be built" — so this cannot drift
+# calculated here. `investigate_study_area` runs the *same* analysis `StudyArea` would - the report
+# it returns "can never describe a grid other than the one that would be built" - so this cannot drift
 # from what the run actually allocates, and it reads no raster data to answer.
 function _perspecies(cellsize)
     report = investigate_study_area(regime = TEMPERATURE, supply = SUNLIGHT,
@@ -139,7 +139,7 @@ function _requestedcellsize()
                  join(CANDIDATES, ", "))
 end
 
-# A smoke run takes the coarsest grid outright rather than the finest that fits — the whole point
+# A smoke run takes the coarsest grid outright rather than the finest that fits - the whole point
 # is to be quick, and on a large machine "what fits" is a grid that takes hours.
 const CHOSEN = let want = _requestedcellsize()
     pool = SMALL ? (maximum(CANDIDATES),) :
@@ -163,7 +163,7 @@ CHOSEN.fits ||
 
 # --- build ------------------------------------------------------------------------------
 
-# The same four inputs the costing above used, now at the chosen resolution — so the grid built
+# The same four inputs the costing above used, now at the chosen resolution - so the grid built
 # here is the one that was priced, not a second opinion about it.
 const AREA = StudyArea(regime = TEMPERATURE, supply = SUNLIGHT, within = WITHIN,
                        crs = CRS, cellsize = CHOSEN.cellsize,
@@ -184,7 +184,7 @@ const SPECIES = build_species(NUMSPECIES,
                               # that is a package bug rather than a preference.** `move!`'s
                               # `AlwaysMovement` method (`src/Generate.jl:511-518`) is typed on
                               # `AbstractEcosystem`, so it catches an `MPIEcosystem` too, and reads
-                              # `eco.abundances.matrix` — which an `MPIGridLandscape` has not got
+                              # `eco.abundances.matrix` - which an `MPIGridLandscape` has not got
                               # (`rows_matrix`/`cols_vector`). It fails on the first timestep of any
                               # distributed run. `test/SmallMPItest.jl:63` uses
                               # `BirthOnlyMovement`, so nothing exercised it.
@@ -208,7 +208,7 @@ end
 # --- recording --------------------------------------------------------------------------
 
 # The abundance matrix as a plain `species × cells` array on the root rank. Collective under MPI,
-# and it allocates a **whole extra copy on rank 0** — at 50,000 species over a 20 km grid that is
+# and it allocates a **whole extra copy on rank 0** - at 50,000 species over a 20 km grid that is
 # 53 GiB on one rank, against a per-rank share of far less. That is why `RECORD = :none` is the
 # default and why the large configurations are not meant to be recorded: the run itself fits when
 # the recording does not.
@@ -229,7 +229,7 @@ function _save(eco, label)
     return nothing
 end
 
-# Run with no recording at all — the only mode the largest configurations can use, and the reason
+# Run with no recording at all - the only mode the largest configurations can use, and the reason
 # `simulate!` without a storage argument exists.
 function _runsilently(eco)
     ISROOT && println("Running $(YEARS) with no recording.")
@@ -250,7 +250,7 @@ end
 # Run recording on specific real dates. The callback fires every timestep and saves when the clock
 # has reached the next target date, which is how an irregular calendar schedule is expressed with
 # only a regular one available. `simulationdate` returns `nothing` without an epoch, so this mode
-# needs one — `EPOCH` above.
+# needs one - `EPOCH` above.
 function _runatdates(eco, dates)
     isnothing(simulationdate(eco)) &&
         error("RECORD = :dates needs an epoch; build the ecosystem with `epoch = ...`.")
@@ -268,7 +268,7 @@ end
 # --- run --------------------------------------------------------------------------------
 
 if ISROOT
-    println("Burn-in $(BURNIN)…")
+    println("Burn-in $(BURNIN)...")
 end
 @time simulate!(ECO, BURNIN, TIMESTEP)
 

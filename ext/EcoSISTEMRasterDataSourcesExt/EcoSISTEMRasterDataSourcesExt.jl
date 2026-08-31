@@ -6,17 +6,17 @@
 # layer machinery what a dataset is, the two read entry points that download, the land-cover
 # operations, the monthly-climate plot recipes, and the deprecations whose signatures name a dataset.
 #
-# **This module is a manifest, as `EcoSISTEMMPIExt` is** — the parts are ordinary files it
+# **This module is a manifest, as `EcoSISTEMMPIExt` is** - the parts are ordinary files it
 # includes, laid out the way `src/EcoSISTEM.jl` is, because one file would be unreadable.
 #
 # **A `#` comment, not a docstring, deliberately.** `docs/src/api.md` names this module in its
-# `@autodocs` list (see below), so a docstring here would be rendered as a public API entry — and
+# `@autodocs` list (see below), so a docstring here would be rendered as a public API entry - and
 # this is maintainer prose about the layout, not something a user needs.
 #
 # **Almost no docstring belongs in here either.** Every public name whose implementation moved
 # keeps its docstring on a method-less stub in the parent, because `@autodocs` cannot otherwise see
 # it. The **one** exception is `Base.read`'s three dataset methods: a stub for them would mean the
-# parent defining `read(::Type, …)`, pirating `Base.read` for every type in Julia. Naming this module
+# parent defining `read(::Type, ...)`, pirating `Base.read` for every type in Julia. Naming this module
 # in `api.md` is what keeps those three in the manual, and it is the only reason it is named there.
 module EcoSISTEMRasterDataSourcesExt
 
@@ -27,14 +27,14 @@ using EcoSISTEM
 using EcoSISTEM.Units
 using EcoSISTEM.Units: _monthindex
 using Dates: Dates
-# Named explicitly because they are `public` or private rather than exported — `using` brings in
+# Named explicitly because they are `public` or private rather than exported - `using` brings in
 # only the exported names, and a moved body calls its neighbours by bare name.
 using EcoSISTEM: AbstractSupply, ClimateRaster, CODE_TYPE, ConstructedSpec,
                  NicheAxis, Supply, NicheAxis, _cellareas, _derivedfrom,
                  cancel, landcoverclass
 using EcoSISTEM: SourceSpec
 using EcoSISTEM: compress_landcover, layerinfo, layerunit, sourcecrs
-# `CRUTS` only: this extension supplies `read(::Type{CRUTS}, …)`, and `ERA`'s readers live in the
+# `CRUTS` only: this extension supplies `read(::Type{CRUTS}, ...)`, and `ERA`'s readers live in the
 # parent's `erareaders.jl` because they need netCDF rather than a catalogued raster source.
 using EcoSISTEM: CRUTS
 # The ONLY remaining reference to the submodule, and it is confined to `deprecations.jl`: five
@@ -63,7 +63,7 @@ using Unitful.DefaultSymbols
 import Base: read
 
 # Point `RasterDataSources` at its own subdirectory of EcoSISTEM's scratch space, keeping downloads
-# under that scratch lifecycle — unless the user has already set `RASTERDATASOURCES_PATH`.
+# under that scratch lifecycle - unless the user has already set `RASTERDATASOURCES_PATH`.
 #
 # **Here rather than in the parent's `__init__`**: the variable configures `RasterDataSources`
 # itself, so it is meaningless until that package is loaded, and setting it from the parent would be

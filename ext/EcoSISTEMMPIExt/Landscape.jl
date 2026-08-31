@@ -5,7 +5,7 @@
 #
 # A rank owns a block of **species rows** and a block of **grid columns**, and the hot loop needs
 # both views: demographics run per species, dispersal per cell. `synchronise_from_rows!` and
-# `synchronise_from_cols!` are how one view is rebuilt from the other, and they are collective — every
+# `synchronise_from_cols!` are how one view is rebuilt from the other, and they are collective - every
 # rank must reach them, in the same order, or the run deadlocks.
 
 import EcoSISTEM

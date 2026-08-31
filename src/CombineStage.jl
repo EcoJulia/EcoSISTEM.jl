@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Which grid a `ConstructedSpec`'s combine runs on — the source's own, or the target the study
+# Which grid a `ConstructedSpec`'s combine runs on - the source's own, or the target the study
 # area decided.
 
 """
@@ -24,7 +24,7 @@ since the ratio of two interpolations is not the interpolation of the ratio. Gro
 rainfall `gsp / gsl` is the case that matters: divided early it is a mean daily rate, divided late
 a total over a mean season length, and those are different quantities.
 
-The layers must share one native grid, checked when they are read — combining across datasets of
+The layers must share one native grid, checked when they are read - combining across datasets of
 different resolutions has no meaning before either is resampled.
 """
 struct CombineOnSourceGrid <: AbstractCombineStage end
@@ -32,7 +32,7 @@ struct CombineOnSourceGrid <: AbstractCombineStage end
 """
     CombineOnTargetGrid <: AbstractCombineStage
 
-Sample every layer onto the study grid first, and combine there — the default, and right whenever
+Sample every layer onto the study grid first, and combine there - the default, and right whenever
 the combine commutes with regridding. It is what keeps `compress_landcover` interpolating the
 per-class *percentages* it is given rather than argmaxing them first and interpolating between the
 resulting class codes, which is meaningless.

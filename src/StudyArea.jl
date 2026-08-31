@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Where the cells actually are — the CRS and the very `Y`/`X` dimensions a habitat's `active` mask
-# is indexed by — and the area that carries both that grid and the report saying how it was decided.
+# Where the cells actually are - the CRS and the very `Y`/`X` dimensions a habitat's `active` mask
+# is indexed by - and the area that carries both that grid and the report saying how it was decided.
 
 using DimensionalData
 
@@ -20,7 +20,7 @@ The geometry of the grid a [`GridHabitat`](@ref) was built on: where its cells a
 and what coordinate reference system they are stated in.
 
 This is the package's [`EcoBase`](https://github.com/EcoJulia/EcoBase.jl) location data, so anything
-that speaks that interface — `EcoBase`, `SpatialEcology`, the plot recipes — can ask a habitat where
+that speaks that interface - `EcoBase`, `SpatialEcology`, the plot recipes - can ask a habitat where
 its cells are. Every answer is **unitful**, in the grid's own units: a projected grid answers in `km`
 (or whatever it was built in) and a geographic one in degrees, neither converted into the other.
 
@@ -32,7 +32,7 @@ Reach it through the habitat's [`StudyArea`](@ref).
 
   - `crs`: the coordinate reference system the coordinates are stated in, or `nothing` for a synthetic
     grid, which has none.
-  - `y`: the grid's `Y` dimension — the **first** array dimension throughout this package.
+  - `y`: the grid's `Y` dimension - the **first** array dimension throughout this package.
   - `x`: the grid's `X` dimension.
 """
 struct StudyGrid{C, YD, XD} <: EcoBase.AbstractGrid
@@ -45,26 +45,26 @@ struct StudyGrid{C, YD, XD} <: EcoBase.AbstractGrid
     # can state where a cell is or how big it is, which is the whole job of this type. The same rule
     # `_checkhascoords` applies to a layer, applied here for the same reason.
     # Cheap enough to be unconditional: it runs once per habitat, never per cell.
-    # It cannot fire on anything a `GridHabitat` can currently be built from — the grid is read
+    # It cannot fire on anything a `GridHabitat` can currently be built from - the grid is read
     # off the **regime**, and no regime constructor accepts `NoLookup` (`_checkhascoords` refuses it);
     # only the deprecated `Supply{A}(::Matrix)` makes such dims, and a supply is not what is read
     # here. So this guards the type's own invariant rather than a live route, and is exercised
-    # directly rather than incidentally — see the `StudyGrid` testsets in `test_Layer.jl`.
+    # directly rather than incidentally - see the `StudyGrid` testsets in `test_Layer.jl`.
     function StudyGrid(crs, y, x)
         for (d, name) in ((y, "Y"), (x, "X"))
             _isreallookup(d) ||
-                error("a `StudyGrid`'s `$name` coordinates are `NoLookup` — bare cell indices, " *
+                error("a `StudyGrid`'s `$name` coordinates are `NoLookup` - bare cell indices, " *
                       "which cannot say where the cells are. This grid came from a habitat built " *
                       "without real coordinates; build it on a `StudyArea`.")
             eltype(parent(DimensionalData.lookup(d))) <: Unitful.Quantity ||
-                error("a `StudyGrid`'s `$name` coordinates must carry a unit — these are bare " *
+                error("a `StudyGrid`'s `$name` coordinates must carry a unit - these are bare " *
                       "numbers, so how far apart the cells are is unstated.")
         end
         return new{typeof(crs), typeof(y), typeof(x)}(crs, y, x)
     end
 end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # The grid an already-built `(Y, X)` array sits on. This is the form every caller in the package
 # uses: the array is the habitat's own `active` mask, so the grid is guaranteed to be the one the
@@ -77,11 +77,11 @@ end
 """
     CellNames{G} <: AbstractVector{String}
 
-The names of a grid's cells — each the cell's own extent — computed on demand rather than stored.
+The names of a grid's cells - each the cell's own extent - computed on demand rather than stored.
 
 **Lazy because the eager form is what a grid this size cannot afford.** Measured on a
 1.2 million-cell grid: storing the names costs ~33 MB, against **8 bytes** for this. That matters
-here specifically — a `GridHabitat`'s `active` mask was deliberately squeezed from 10.3 MB to
+here specifically - a `GridHabitat`'s `active` mask was deliberately squeezed from 10.3 MB to
 0.14 MB for the same reason, and [`getspeciesstorage`](@ref) exists because these runs are bound by
 memory. Nothing in the simulation reads a cell's name; only output does.
 
@@ -102,17 +102,17 @@ end
 Decide the grid a simulation will run on, before anything is built on it.
 
 Nothing is compulsory: the grid is decided from whatever is given, so naming only `regime` means only
-the regime shapes it. **A layer that is not named here can never move or resize the grid** — when
+the regime shapes it. **A layer that is not named here can never move or resize the grid** - when
 [`GridHabitat`](@ref) later samples it, it can only mark cells inactive (and says so). Name a
 layer to let it shape the grid; omit it and it can only subtract.
 
-The optional positional `base` refines an existing area — `StudyArea(area, cellsize = 1km)` — keeping
+The optional positional `base` refines an existing area - `StudyArea(area, cellsize = 1km)` - keeping
 everything not overridden, including its cache of reads, so trying several grids does not re-read the
 data. A [`StudyAreaReport`](@ref) or a [`GridHabitat`](@ref) may be given in its place.
 
 **A habitat's grid is copied rather than re-derived.** A habitat can end up *narrower* than the
 area it was built on, because a layer named only to [`GridHabitat`](@ref) can cost cells the area
-listed as active — and nothing but the habitat's own report records that. So a base whose report is
+listed as active - and nothing but the habitat's own report records that. So a base whose report is
 [`AsBuilt`](@ref), with no other keyword given, is taken **verbatim**: `StudyArea(habitat)` is the
 grid the habitat is actually on, not the one originally investigated. Naming any grid keyword
 alongside re-derives instead, which loses the narrowing; that is deliberate, and not warned about,
@@ -120,20 +120,20 @@ because overriding is an explicit act.
 
 **What is copied is the report, not the built grid.** `StudyArea(habitat)` describes the habitat's
 grid but is itself a *fresh* area with nothing built on it, so its `builtgrid` is `nothing` while its
-report stays [`AsBuilt`](@ref). The two say different things — the report's stage describes what the
-*report* is, `builtgrid` what has been done to *this area* — which is why neither can be derived from
+report stays [`AsBuilt`](@ref). The two say different things - the report's stage describes what the
+*report* is, `builtgrid` what has been done to *this area* - which is why neither can be derived from
 the other.
 
-Keywords are tri-state: `missing` (the default) means "not specified — derive it, or take it from
+Keywords are tri-state: `missing` (the default) means "not specified - derive it, or take it from
 `base`", `nothing` means "explicitly cleared, ignore any inherited value", and any other value is used
 as given.
 
 # Arguments
 
   - `regime`, `supply`: the layers the simulation will use. Naming one here lets it **shape the
-    grid** — its extent, its CRS and its resolution all become candidates. A layer not named here can
+    grid** - its extent, its CRS and its resolution all become candidates. A layer not named here can
     still be used later, but can only mark cells inactive, never move or resize the grid.
-  - `within`: **what positions the area** — a [`ShapeSpec`](@ref), a [`CircleMaskSpec`](@ref), a
+  - `within`: **what positions the area** - a [`ShapeSpec`](@ref), a [`CircleMaskSpec`](@ref), a
     [`LatLong`](@ref) box, or `EcoSISTEM.boundingbox("Scotland")`. It both restricts which cells are
     active and, where it can state an extent, sets the grid's. This is the argument to reach for
     when a global dataset would otherwise give you the globe.
@@ -141,8 +141,8 @@ as given.
     dispersal is expressed against one cell size, which only a projected grid has. Omitted, it is
     adopted from the layers, and a geographic result is warned about.
   - `cellsize`: the length of a cell's side. Omitted, it is taken from the `align` layer's own step.
-  - `extent`: **a size, not a bounding box** — how big the area is, never where it is, given as a
-    `(y, x)` tuple of lengths: north–south first, then east–west, the dimension order used
+  - `extent`: **a size, not a bounding box** - how big the area is, never where it is, given as a
+    `(y, x)` tuple of lengths: north-south first, then east-west, the dimension order used
     throughout the package. It is therefore only meaningful for a *synthetic* area, and combining
     it with data layers is an **error**: those already carry their own extent, and a second
     unanchored size cannot be reconciled with it. Use `within` to position and limit an area built
@@ -150,16 +150,16 @@ as given.
   - `align`: names the layer whose own grid is preserved exactly. By default whichever layer is
     already in the target CRS (finest first), since that one needs no reprojection.
   - `simulate_safely`: whether a cell must be **wholly** inside every layer's data to be simulated.
-    `true` (the default) is the safe reading — a cell the data only partly describes is dropped, and
-    the grid crops inwards rather than carrying it — since nothing can put data where a file has
+    `true` (the default) is the safe reading - a cell the data only partly describes is dropped, and
+    the grid crops inwards rather than carrying it - since nothing can put data where a file has
     none. `false` restores the older rule, under which a cell survives if its centre has a value
     (i.e. if it is more than half covered) and is then given a whole cell's worth of supply over
     ground that is partly missing; that is announced, with a count. The same rule applies to
     layers named only later, at [`GridHabitat`](@ref).
   - `verbosity`: see below.
 
-With no layers that can shape a grid, `extent` and `cellsize` build a synthetic one with no CRS —
-which is also what a *synthetic* layer ([`UniformSpec`](@ref), [`GradientSpec`](@ref), …) needs, since
+With no layers that can shape a grid, `extent` and `cellsize` build a synthetic one with no CRS -
+which is also what a *synthetic* layer ([`UniformSpec`](@ref), [`GradientSpec`](@ref), ...) needs, since
 it is generated at whatever shape it is handed and so has no CRS, extent or resolution to contribute.
 Naming one here is harmless but decides nothing.
 
@@ -169,11 +169,11 @@ and warn about grids that will work but are probably not what you want) or `:ver
 
 # Fields
 
-  - `report`: the [`StudyAreaReport`](@ref) recording how this grid was decided — the CRS, cell
+  - `report`: the [`StudyAreaReport`](@ref) recording how this grid was decided - the CRS, cell
     size and extent it settled on, which layer decided each, and every [`Problem`](@ref) raised on
     the way.
   - `builtgrid`: the [`StudyGrid`](@ref) a [`GridHabitat`](@ref) was built on here, or `nothing`
-    until one has been. `nothing` does **not** mean the grid is undecided — an investigated area
+    until one has been. `nothing` does **not** mean the grid is undecided - an investigated area
     has decided one; that is what investigation is. It means nothing has been *built* on it yet, so
     the cells it lists are a prediction: a layer named only to [`GridHabitat`](@ref) can still
     narrow them.
@@ -182,7 +182,7 @@ struct StudyArea{G <: Union{StudyGrid, Nothing}}
     report::StudyAreaReport
     builtgrid::G
 
-    # The same unions as `investigate_study_area`, which shares this signature — the two are one
+    # The same unions as `investigate_study_area`, which shares this signature - the two are one
     # analysis behind two faces, so a difference between them could only be a mistake.
     function StudyArea(base = missing;
                        regime::Union{LayerInput, Missing, Nothing} = missing,
@@ -194,12 +194,12 @@ struct StudyArea{G <: Union{StudyGrid, Nothing}}
                                               Nothing} = missing,
                        verbosity::Symbol = :normal)
         # **A COPY CONSTRUCTOR, and the stage is what makes it possible.** An `AsBuilt` report
-        # describes a grid a `GridHabitat` was actually built on — its `active` has been narrowed by
+        # describes a grid a `GridHabitat` was actually built on - its `active` has been narrowed by
         # layers the area never saw, and that narrowing is recorded nowhere else. Re-deriving from
         # `specs`/`constraints` would answer the *original* question and hand back the wider,
         # as-investigated mask: measured at **48 cells against the habitat's 46**, silently
         # discarding the narrowing *and* the `Problem` that recorded it.
-        # So an `AsBuilt` base with **no** keyword is taken **verbatim** — that is the whole point
+        # So an `AsBuilt` base with **no** keyword is taken **verbatim** - that is the whole point
         # of copying rather than rebuilding, and it is why `[AREA-PROV]` Part C added the stage.
         # **The copy keeps `AsBuilt`** (user's decision): the flag says what a report *describes*,
         # and resetting it to protect the connotation that "a `StudyArea` is a proposal" would be a
@@ -260,10 +260,10 @@ const _BIG_GRID = 10_000_000
 
 const _HUGE_FACTOR = 1000
 
-# Below this fraction of active cells the grid is mostly dead space — usually a wrong mask or extent.
+# Below this fraction of active cells the grid is mostly dead space - usually a wrong mask or extent.
 const _SPARSE_ACTIVE = 0.05
 
-# Warn when the grid sits substantially outside the ground its CRS was designed for — British
+# Warn when the grid sits substantially outside the ground its CRS was designed for - British
 # National Grid stretched across continental Europe, or one UTM zone spanning several. Such a
 # projection still *computes*, silently, while distorting distance and area badly enough to change
 # what a simulation means, so it is exactly the sort of thing that should not pass unremarked.
@@ -273,7 +273,7 @@ const _SPARSE_ACTIVE = 0.05
 # coastline), and warning on that would be noise.
 const _CRS_OUTSIDE_FRAC = 0.2
 
-# ══ StudyGrid and CellNames ════════════════════════════════════════════════════════════════════════
+# == StudyGrid and CellNames ========================================================================
 function Base.show(io::IO, grid::StudyGrid)
     return print(io, "StudyGrid(", length(grid.y), " × ", length(grid.x),
                  " cells of ", EcoBase.ycellsize(grid), " × ",
@@ -281,7 +281,7 @@ function Base.show(io::IO, grid::StudyGrid)
                  isnothing(grid.crs) ? "" : ", $(_crsname(grid.crs))", ")")
 end
 
-# ══ StudyArea ══════════════════════════════════════════════════════════════════════════════════════
+# == StudyArea ======================================================================================
 function Base.show(io::IO, a::StudyArea)
     ny, nx = Base.size(a.report.active)
     nwarn = count(p -> p.severity isa ProblemWarning, a.report.problems)
@@ -302,15 +302,15 @@ end
 Return the bytes **one** species' abundances occupy on `x`'s grid, or `nothing` where `x` has no grid
 to answer for.
 
-- `x` — anything that knows the grid: a [`StudyArea`](@ref), its [`StudyAreaReport`](@ref), a
+- `x` - anything that knows the grid: a [`StudyArea`](@ref), its [`StudyAreaReport`](@ref), a
   [`GridHabitat`](@ref), an [`Ecosystem`](@ref), a layer, a [`ClimateRaster`](@ref) or a raster.
   A spec that is a rule rather than data has no grid and answers `nothing`.
 
-Multiply by a species count to size a run before building it — which is the point, since it can be
+Multiply by a species count to size a run before building it - which is the point, since it can be
 asked of a `StudyAreaReport` from [`investigate_study_area`](@ref) before anything is constructed.
 
 It counts the **whole** grid, not the active cells: [`GridLandscape`](@ref)'s matrix is allocated
-over all of it, so an inactive cell costs exactly as much as an active one. And it is one array —
+over all of it, so an inactive cell costs exactly as much as an active one. And it is one array -
 a run holds several (abundances and net migration serially, more when distributed), so this is a
 per-array figure to be multiplied, not a total.
 
@@ -328,14 +328,14 @@ end
 #
 # Seven methods, all reading the dimensions rather than a stored number, so there is nothing to
 # disagree with the coordinates. `cellsize`, `cells`, `xmax`/`ymax` and `xrange`/`yrange` are
-# EcoBase's own derivations from these and need nothing here — measured to work unchanged on
+# EcoBase's own derivations from these and need nothing here - measured to work unchanged on
 # unitful values, angular ones included, which is why widening EcoBase was not needed.
 
 # The rank of array position `i` along `d`, counting in **increasing coordinate** order.
 #
 # A raster's `Y` commonly runs north to south, so its array rows descend, while EcoBase's `yrange`
 # ascends by construction (`ymin:ycellsize:ymax`). Ranking rather than handing the array row straight
-# out is what keeps such a grid the right way up once something plots it — the row and the rank agree
+# out is what keeps such a grid the right way up once something plots it - the row and the rank agree
 # on every ascending grid, which is every grid this package builds, and differ on one that arrives
 # from elsewhere.
 function _ascendingrank(d, i::Int)
@@ -347,7 +347,7 @@ end
 
 # --- Naming a cell by where it is ------------------------------------------
 
-# Is this coordinate an angle — i.e. is the grid geographic? Unitful makes angles dimensionless, so
+# Is this coordinate an angle - i.e. is the grid geographic? Unitful makes angles dimensionless, so
 # a coordinate with no dimension but a real unit is one; a metre or a kilometre has a dimension, and
 # a genuinely unitless coordinate is refused by the constructor above.
 _isangular(v) = Unitful.dimension(v) === Unitful.NoDims
@@ -365,7 +365,7 @@ _extentnumber(v, digits) = string(round(Unitful.ustrip(v), digits = digits))
 
 # One cell's half-open extent along one axis, as `[lo, hi)`. `intervalbounds` is locus-blind and
 # order-aware, so this is right whether the grid labels its cells by their corner or their centre and
-# whether the axis ascends or descends — the reason `_cellintervals` uses it too.
+# whether the axis ascends or descends - the reason `_cellintervals` uses it too.
 function _extenttext(d, i::Int, digits::Int)
     bounds = DimensionalData.Lookups.intervalbounds(DimensionalData.lookup(d),
                                                     i)
@@ -374,7 +374,7 @@ function _extenttext(d, i::Int, digits::Int)
            ")"
 end
 
-# The name of cell `i` — its own extent, `Y` first, so a cell can be identified from its name alone
+# The name of cell `i` - its own extent, `Y` first, so a cell can be identified from its name alone
 # rather than only by counting.
 #
 # **Two shapes, because the two kinds of grid read differently.** A geographic grid names its axes
@@ -395,7 +395,7 @@ end
 
 # --- The study area --------------------------------------------------------
 
-# ══ Deciding the grid ══════════════════════════════════════════════════════════════════════════
+# == Deciding the grid ==========================================================================
 #
 # Everything that turns a set of layers into a decided grid: a CRS, an extent, a cell size and
 # an active mask, with a report saying how each was chosen. Sampling layers onto the result is
@@ -405,14 +405,14 @@ end
 
 # Refuse a combine over layers that are not on one grid, before the combine sees them.
 #
-# Combining *reads* is only meaningful where the reads share a lattice. `gsp` and `gsl` do — one
-# dataset, one resolution — but a WorldClim layer against an EarthEnv one does not, and handing
+# Combining *reads* is only meaningful where the reads share a lattice. `gsp` and `gsl` do - one
+# dataset, one resolution - but a WorldClim layer against an EarthEnv one does not, and handing
 # those to a combine either throws something obscure from inside the broadcast or, where the shapes
 # happen to agree, lines up cells describing different ground. The second is the reason this is a
 # guard rather than a comment.
 #
 # Checked here rather than only on the `CombineOnSourceGrid` path, because this route is also how
-# `_analyse` asks a `ConstructedSpec` where it is — so the hazard predates early collapse, and
+# `_analyse` asks a `ConstructedSpec` where it is - so the hazard predates early collapse, and
 # fixing it in one place covers both. `_yxcompatible` is the same agreement test the habitat builder
 # applies to a regime and its supply.
 function _checksourcegrid(spec::ConstructedSpec, layers,
@@ -424,7 +424,7 @@ function _checksourcegrid(spec::ConstructedSpec, layers,
         _yxcompatible(theirs, yx) && continue
         return error("a `ConstructedSpec`'s layers must be on one grid to be combined, but " *
                      "$(_speclabel(spec.layers[idx[i]])) is $(join(length.(theirs), "×")) cells where " *
-                     "$(_speclabel(spec.layers[first(idx)])) is $(join(length.(yx), "×")) — they are " *
+                     "$(_speclabel(spec.layers[first(idx)])) is $(join(length.(yx), "×")) - they are " *
                      "different ground, so combining them cell by cell would be meaningless. Read " *
                      "them as separate layers of the environment (a tuple `regime`/`supply`), " *
                      "which puts each on the study grid first.")
@@ -435,13 +435,13 @@ end
 # --- Windowing: read only the ground the study area can possibly use ---------
 #
 # The point of the exercise: a Scotland-sized area has no use for a global land-cover layer, and
-# reading one costs 1752 × 4320 cells where 76 × 96 would do. The obstacle is an ordering one — the
+# reading one costs 1752 × 4320 cells where 76 × 96 would do. The obstacle is an ordering one - the
 # window must be known *before* the read, but it depends on the target CRS, which is decided from the
 # layers. It is broken by asking each source only for its **CRS**, which a lazy open answers from the
 # file header without touching a pixel (`EcoSISTEM.sourcecrs`), and which the aggregation `scale`
 # cannot affect. Everything else still comes from the real, now much smaller, read.
 
-# A spec's CRS from metadata alone, or `nothing` when it cannot be had without reading — in which
+# A spec's CRS from metadata alone, or `nothing` when it cannot be had without reading - in which
 # case the caller simply does not window. A `ConstructedSpec`'s `combine` is an opaque closure whose
 # output CRS is not predictable from its inputs, so it declines.
 _probecrs(raster::ClimateRaster) = _rastercrs(raster)
@@ -476,7 +476,7 @@ end
 # aggregated exactly; otherwise every target cell straddles source cells and must be interpolated.
 #
 # Exact on an angular lattice, where "is this offset a whole number of cells?" is integer
-# divisibility and needs no tolerance — the same reason `_snap` works on arcseconds. The `_ORIGIN_ATOL`
+# divisibility and needs no tolerance - the same reason `_snap` works on arcseconds. The `_ORIGIN_ATOL`
 # path remains for projected grids, where there is no integer lattice to appeal to.
 function _originaligned(sourceorigin, targetorigin, sourcestep)
     so, to, s = _arcsecs(sourceorigin), _arcsecs(targetorigin),
@@ -488,33 +488,33 @@ function _originaligned(sourceorigin, targetorigin, sourcestep)
     return isapprox(offset, round(offset), atol = _ORIGIN_ATOL)
 end
 
-# An angle as a whole number of arcseconds, or `nothing` if it is not one — either because it is a
+# An angle as a whole number of arcseconds, or `nothing` if it is not one - either because it is a
 # projected coordinate (a length, where arcseconds mean nothing) or because it genuinely does not sit
 # on the arcsecond lattice.
 #
-# Used for *origins* as well as steps, so `0` is a legitimate answer — the equator and the prime
+# Used for *origins* as well as steps, so `0` is a legitimate answer - the equator and the prime
 # meridian are both exactly zero. A sub-arcsecond **step** is still rejected, but by the ULP bound
 # rather than by a zero check: `eps(0.0)` is 5e-324, so only an exactly-zero value passes, and a 0.4
 # arcsec step fails as it must. Callers that divide by the result guard against zero themselves.
 #
 # The comparison cannot be `==`, and this is a property of `Float64` rather than a fudge: a whole
 # number of arcseconds has **no exact `Float64` degree representation**, so a genuine value arrives up
-# to **1 ULP** off. Worse, *which* way it lands depends on how it was built — `uconvert` scales by a
+# to **1 ULP** off. Worse, *which* way it lands depends on how it was built - `uconvert` scales by a
 # precomputed factor and so rounds twice, while a hand-written `n / 3600` rounds once, and the two
 # disagree in the last bit for 29 of the first 3600 counts. Both occur here (`_snaparcsec` produces
 # the first, a caller writing `cellsize = (30 / 3600)°` the second), so an equality test against
 # either one silently rejects values built the other way.
 #
 # The bound below is measured, not chosen: over all 3600 counts and both construction routes the worst
-# deviation is 1.0 ULP, while the nearest *wrong* answer is a whole arcsecond away — relatively
+# deviation is 1.0 ULP, while the nearest *wrong* answer is a whole arcsecond away - relatively
 # 2.8e-4, twelve orders of magnitude further. There is no value this can misclassify.
 #
 # Rounding to an `Int`-valued arcsecond quantity keeps units through the comparison and hands back the
 # plain `Int` that `_stepratio`'s `%`/`÷` arithmetic needs, with no second rounding to get it.
 #
 # `float` is not decoration: `30arcsecond` is an `Int`-valued quantity, and `eps` has no `Integer`
-# method, so an caller writing `cellsize = 30arcsecond` — exactly the idiom these units exist to
-# support — would otherwise hit a bare `MethodError`.
+# method, so an caller writing `cellsize = 30arcsecond` - exactly the idiom these units exist to
+# support - would otherwise hit a bare `MethodError`.
 function _arcsecs(angle)
     _isangle(angle) || return nothing
     n = round(typeof(1arcsecond), angle)
@@ -522,7 +522,7 @@ function _arcsecs(angle)
            ustrip(n) : nothing
 end
 
-# How two cell sizes relate: equal, finer, and — the one that matters — whether the target is a whole
+# How two cell sizes relate: equal, finer, and - the one that matters - whether the target is a whole
 # multiple of the source.
 #
 # Computed on **integer arcseconds** whenever both grids are angular, because the float ratio is not
@@ -545,7 +545,7 @@ function _stepratio(source, target)
             factor = (n > 0 && r == n) ? n : nothing)
 end
 
-# What building `target`-sided cells out of a `source`-sided layer costs — see
+# What building `target`-sided cells out of a `source`-sided layer costs - see
 # [`AbstractLayerFate`](@ref) for the three answers.
 function _resamplecost(samecrs::Bool, source, target, aligned::Bool)
     samecrs || return LayerResampled("it is in a different CRS")
@@ -566,7 +566,7 @@ end
 # the target CRS", since that is the one needing no reprojection, which maximises how many layers
 # survive untouched. Ties are broken by finest resolution, then by the order the layers were given
 # (regime before supply) so the choice is deterministic. Returns `nothing` when no layer matches the
-# target CRS — nothing can then be preserved exactly, and the caller reports that.
+# target CRS - nothing can then be preserved exactly, and the caller reports that.
 function _choosealign(facts, tcrs)
     candidates = filter(f -> _samecrs(f.crs, tcrs), facts)
     isempty(candidates) && return nothing
@@ -581,7 +581,7 @@ end
 # the investigator's report) and used by the "this grid will not survive the simulation" warning.
 #
 # Two honest figures, since the third is not knowable here:
-# * one environment layer is `Float64` per cell — a regime, a supply, one time slice of either;
+# * one environment layer is `Float64` per cell - a regime, a supply, one time slice of either;
 # * abundances are `Int64` per species per cell (`GridLandscape.matrix`; its `grid` field is a
 # *reshape* of the same memory, so it does not double), hence a per-species figure the caller can
 # multiply once a species count exists.
@@ -607,18 +607,18 @@ _intdiv(::typeof(ceil)) = cld
 
 # Snap a bound outwards onto the alignment layer's own cell boundaries, so that every target cell is a
 # whole number of source cells and the layer can be aggregated (or copied) rather than interpolated.
-# `dir` is `floor` for a lower bound and `ceil` for an upper one, so snapping only ever grows the box —
+# `dir` is `floor` for a lower bound and `ceil` for an upper one, so snapping only ever grows the box -
 # shrinking it could drop data the mask asked for.
 #
 # Done in **integer arcseconds** whenever the lattice is angular, because the float form is wrong
-# for the case that matters most: a bound *already on* a cell boundary. `(bound − origin) / step`
+# for the case that matters most: a bound *already on* a cell boundary. `(bound - origin) / step`
 # should then be a whole number, but lands either side of one, so `floor` and `ceil` disagree and the
 # box grows by a spurious cell. Swept over every whole-cell bound of a global 30 arcsec lattice,
 # **7664 of 21601** did that; on integers it is 0. This is not fixed by the origin and step being
-# exact — they already are — because `range` elements in degrees cannot themselves be exact.
+# exact - they already are - because `range` elements in degrees cannot themselves be exact.
 #
 # Whether a *bound* is on the lattice decides which route is exact. When it is, `fld`/`cld` on
-# integers need no tolerance at all. When it is not — a shapefile envelope, a reprojected box — no
+# integers need no tolerance at all. When it is not - a shapefile envelope, a reprojected box - no
 # whole-cell answer exists to be lost, so plain `floor`/`ceil` of the float quotient is right; only
 # the origin and step need be integral to keep the reconstruction exact.
 function _snap(bound, origin, step, dir)
@@ -646,20 +646,20 @@ end
 # The report's one grid-and-mask array: `mask`'s values on `template`'s coordinates.
 #
 # **`BitMatrix`, and it is free here**: the report is never mutated, so the one thing a `BitArray`
-# is bad at — element writes, which are a read-modify-write of a whole `UInt64` word — never happens
+# is bad at - element writes, which are a read-modify-write of a whole `UInt64` word - never happens
 # to it. **`GridHabitat.active` is deliberately NOT backed this way**: interventions write it
 # (`Deactivate`/`Reactivate`), so it stays `Matrix{Bool}`, where a write is a plain byte store. The
 # shared `AbstractDimArray{Bool, 2}` annotation covers both backings, which is why it is abstract.
 #
-# **`rebuild`, not `DimArray(bits, dims(template))` — the data path's template is a
+# **`rebuild`, not `DimArray(bits, dims(template))` - the data path's template is a
 # `Rasters.Raster`, and constructing a plain `DimArray` from its dims SILENTLY DROPS THE CRS.**
 # `_fullycovered` opens with `tcrs = Rasters.crs(target)` and returns "covered everywhere" when that
-# is `nothing`, so the loss did not error — it quietly disabled `simulate_safely`, taking a coverage
+# is `nothing`, so the loss did not error - it quietly disabled `simulate_safely`, taking a coverage
 # count from 4 cells to 9. Caught by `test_StudyArea.jl`'s own assertion; it would have been
 # invisible in a smaller test. `rebuild` keeps the wrapper type, its dims and its metadata, swapping
 # only the payload.
 #
-# The synthetic path passes a bare dims tuple instead — it has no CRS to keep
+# The synthetic path passes a bare dims tuple instead - it has no CRS to keep
 # (`NoRealWorldPosition`), so a plain `DimArray` is right there.
 _activegrid(template::Tuple, mask) = DimArray(BitMatrix(mask), template)
 
@@ -673,7 +673,7 @@ end
 # **Only three fields can differ**, and this is the whole list: `active` (the data branch ANDs the
 # area's mask with each layer's coverage), `problems` (a layer the area never saw can cost cells, and
 # that is learned here), and `layers` (a layer passed to the builder but not named in the area has no
-# `LayerPlan`). Everything else — CRS, cell size, footprint, specs, constraints, every `*source` —
+# `LayerPlan`). Everything else - CRS, cell size, footprint, specs, constraints, every `*source` -
 # was settled before the habitat existed.
 #
 # **The cache is dropped, not carried.** See the field's own comment.
@@ -687,7 +687,7 @@ end
 
 # Gather what the grid decision needs to know about one materialised layer: its extent both in the
 # target CRS (so layers in different CRSs can be positioned against each other at all) and in its
-# **own** (where it is always exact — see `_planbounds` for why that matters).
+# **own** (where it is always exact - see `_planbounds` for why that matters).
 function _layerfacts(name::Symbol, raster::ClimateRaster, tcrs)
     return (name = name, raster = raster, crs = _rastercrs(raster),
             step = _rastercellstep(raster),
@@ -705,10 +705,10 @@ _shapesgrid(::AbstractSyntheticSpec) = false
 _shapesgrid(::Any) = true
 
 # **A zero period must give `NaN`, and plain division does not.** `x/0` is `Inf` in floating
-# point — only `0/0` is `NaN` — and `Inf` is far worse than `NaN` here: `_coverage` marks
+# point - only `0/0` is `NaN` - and `Inf` is far worse than `NaN` here: `_coverage` marks
 # a cell inactive on `NaN`, so an `Inf` sails through as a *valid infinite supply* in a cell that
 # has no growing season at all. Physically absurd, and silent. The design note that this case
-# "needs no policy of its own — the division gives `NaN` and the cell is marked inactive, for free"
+# "needs no policy of its own - the division gives `NaN` and the cell is marked inactive, for free"
 # was simply wrong about the arithmetic; the policy is one line, and this is it.
 function _perperiod(amount, period)
     quotient = amount / period
@@ -717,7 +717,7 @@ end
 
 _expandspecs(spec::Tuple) = map(_unwrapspec, spec)
 
-# A *named* tuple of specs means the same thing, with the caller's names attached — those are what
+# A *named* tuple of specs means the same thing, with the caller's names attached - those are what
 # `_expandednames` reports and aligns by. `NamedTuple <: Tuple` is `false`, so this needs its own
 # method or a named regime would be taken for a single spec.
 _expandspecs(spec::NamedTuple) = map(_unwrapspec, spec)
@@ -725,7 +725,7 @@ _expandspecs(spec::NamedTuple) = map(_unwrapspec, spec)
 _expandspecs(spec) = (_unwrapspec(spec),)
 
 # The name each expanded layer is reported and aligned by: the plain keyword for the usual
-# single-layer case, numbered (`:regime1`, `:regime2`, …) when it is a positional multi-variable
+# single-layer case, numbered (`:regime1`, `:regime2`, ...) when it is a positional multi-variable
 # tuple, which has no names of its own.
 function _layername(name::Symbol, i::Integer, n::Integer)
     return n == 1 ? name :
@@ -733,8 +733,8 @@ function _layername(name::Symbol, i::Integer, n::Integer)
 end
 
 # The names of every layer a `regime`/`supply` argument expands to, in `_expandspecs`'s order. A
-# *named* tuple carries the caller's own names — which is what makes `align = :temperature` and
-# "layer `:rainfall` is resampled" say something recognisable — and anything else falls back to
+# *named* tuple carries the caller's own names - which is what makes `align = :temperature` and
+# "layer `:rainfall` is resampled" say something recognisable - and anything else falls back to
 # the numbering above.
 _expandednames(::Symbol, spec::NamedTuple) = keys(spec)
 
@@ -744,7 +744,7 @@ end
 
 _expandednames(name::Symbol, spec) = (name,)
 
-# `align` given by name — the layer must be one that was actually supplied.
+# `align` given by name - the layer must be one that was actually supplied.
 function _namedalign(facts, align::Symbol)
     i = findfirst(f -> f.name === align, facts)
     isnothing(i) &&
@@ -755,7 +755,7 @@ end
 
 # The extent before snapping: the mask's if it states one (the mask leads), else the layers' shared
 # footprint. Either way it is intersected with every layer, so the grid never covers ground no layer
-# reaches — and where that intersection actually cuts into what the mask asked for, it is reported,
+# reaches - and where that intersection actually cuts into what the mask asked for, it is reported,
 # since nothing later can see it (there is no grid beyond the layers' edge to mark as missing).
 function _planbounds(facts, maskextent, tcrs, cellsize, problems)
     known = [f for f in facts if !isnothing(f.bounds)]
@@ -774,7 +774,7 @@ end
 #
 # The clip happens in the **layer's own** CRS, not the target's. Re-expressing a small local box in
 # a big layer's CRS is well conditioned, whereas re-expressing a *global* layer's four corners in a
-# local projected CRS is meaningless — the corners of the world have no honest British National Grid
+# local projected CRS is meaningless - the corners of the world have no honest British National Grid
 # easting, and the envelope of whatever comes back would carve the study area down to nothing in
 # particular. Done this way round, a layer that simply contains the area cuts nothing at all: the
 # round trip is skipped outright in that case, so the common "the data covers this" path stays exactly
@@ -789,7 +789,7 @@ end
 
 # Report a mask reaching past the ground the layers cover, so the grid had to be clamped to the data.
 # Half a cell of slack, because a mask envelope that covers the outermost cells exactly still sits up
-# to half a cell outside their centres — that is coverage, not a cut.
+# to half a cell outside their centres - that is coverage, not a cut.
 function _maskclamped!(problems, requested::Extents.Extent,
                        achieved::Extents.Extent, cellsize)
     over = maximum(abs,
@@ -819,9 +819,9 @@ function _masklost!(problems, mask, active, cellsize)
 end
 
 # How much ground a cell count covers, as a parenthesised aside. Omitted on a geographic grid, whose
-# ° "cell size" is not a physical length at all — a degree cell's real area varies with latitude, so
-# any figure derived from it here would be invented. In km² once it reaches that scale, since a real
-# grid's raw m² figure runs to ten digits and more.
+# ° "cell size" is not a physical length at all - a degree cell's real area varies with latitude, so
+# any figure derived from it here would be invented. In km^2 once it reaches that scale, since a real
+# grid's raw m^2 figure runs to ten digits and more.
 function _areaphrase(cells, cellsize)
     dimension(cellsize) === 𝐋 || return ""
     raw = cells * cellsize^2
@@ -830,23 +830,23 @@ function _areaphrase(cells, cellsize)
 end
 
 # Sample every layer onto `grid`, intersect the mask with their real coverage, and recut to the
-# result — the same "mask AND coverage, then tighten" rule the environment builder uses. The mask is
+# result - the same "mask AND coverage, then tighten" rule the environment builder uses. The mask is
 # returned alongside the outcome so `_masklost!` can say what the coverage took away from it, and the
 # full-coverage test with it so `_partialcover!` can cost out what `simulate_safely = false` let
 # through. Both are recomputed on each recursion, so all four describe the grid finally returned.
 #
 # **`simulate_safely` decides one `.&`, and that is the whole of it here.** With it a cell has to be
 # wholly inside every layer's footprint to be simulated, so the recut crops inwards to ground the data
-# actually describes; without it the rule is what it has always been — a cell survives if the
-# resampler gave its centre a value, i.e. if it is more than half covered — and such a cell is then
+# actually describes; without it the rule is what it has always been - a cell survives if the
+# resampler gave its centre a value, i.e. if it is more than half covered - and such a cell is then
 # handed a *whole* cell's worth of supply over ground that is partly not there.
 function _coveredgrid(rasters, payload, grid; simulate_safely::Bool)
     # **`categorical = false` here, and it is only ever asked where the values fall, not what they
     # are.** These are the study area's *data layers*, and all this does with them is find which cells
-    # came back non-`NaN` — so the interpolation is never read, and the choice cannot move a class
+    # came back non-`NaN` - so the interpolation is never read, and the choice cannot move a class
     # code. Sampling them as `:mode` instead genuinely changes the answer: nearest-class fills cells
     # that bilinear leaves `NaN`, which moves the coverage, the recut and so the study area's own
-    # size. Measured — three `test_StudyArea` assertions went from equal to `NaN`-bearing.
+    # size. Measured - three `test_StudyArea` assertions went from equal to `NaN`-bearing.
     sampled = map(r -> _sampledata(r, grid, name = "layer",
                                    categorical = false), rasters)
     mask = _rastermaskonly(payload, grid, first(sampled))
@@ -864,7 +864,7 @@ function _coveredgrid(rasters, payload, grid; simulate_safely::Bool)
                         simulate_safely = simulate_safely)
 end
 
-# Say how many cells `simulate_safely = false` let through — cells the simulation will run on although
+# Say how many cells `simulate_safely = false` let through - cells the simulation will run on although
 # the data does not describe all of them, and which are handed a whole cell's worth of supply anyway.
 #
 # **Nothing is said on the `true` path** (user, 2026-08-13): a cell is dropped at the edge of almost
@@ -883,7 +883,7 @@ function _partialcover!(problems, covered::NamedTuple, cellsize,
     return problems
 end
 
-# The non-`NaN` cells of a sampled layer — its real coverage, before any mask is applied. A 3-D
+# The non-`NaN` cells of a sampled layer - its real coverage, before any mask is applied. A 3-D
 # (monthly) read is judged on its first time slice, the convention used throughout.
 function _nanfree(sampled)
     slice = ndims(sampled) == 2 ? sampled : view(sampled, :, :, 1)
@@ -898,10 +898,10 @@ _rastermaskonly(::Nothing, grid, reference) = trues(Base.size(reference)[1:2])
 _rastermaskonly(payload, grid, reference) = _rastermask(payload, nothing, grid)
 
 # The target grid itself. Where the chosen cell size *is* the alignment layer's own step, that layer's
-# grid is **adopted and merely cropped** rather than rebuilt — which is what makes `_resamplecost`'s
+# grid is **adopted and merely cropped** rather than rebuilt - which is what makes `_resamplecost`'s
 # `:exact` verdict true, and what stops a mask narrowing the grid from also shifting every cell by
-# part of a step. Synthesising instead would force *square* cells of the layer's north–south step,
-# silently re-gridding any source whose east–west step differs. Any other cell size is a deliberate
+# part of a step. Synthesising instead would force *square* cells of the layer's north-south step,
+# silently re-gridding any source whose east-west step differs. Any other cell size is a deliberate
 # re-gridding, so it does synthesise.
 function _targetgrid(chosen::Union{NamedTuple, Nothing}, tcrs, bounds,
                      cellsize)
@@ -913,12 +913,12 @@ end
 
 # The contiguous index range of `vals` lying within `[lo, hi]`. A *range*, never `findall`'s vector: a
 # `Y`/`X` lookup is monotone so the hits are contiguous either way, and indexing with a range keeps a
-# `Regular` span where a vector of indices would drop it to `Irregular` — which `Rasters.resample`
+# `Regular` span where a vector of indices would drop it to `Irregular` - which `Rasters.resample`
 # rejects as a `to =` target.
 #
 # Compared in **integer arcseconds** on an angular lattice, for the same reason `_snap` is: a
 # `lo <= v <= hi` test on floats is decided by the last bit. The bounds arrive exactly on the lattice
-# (they come from `_snap`), but a layer's own coordinates need not — aggregating a *cropped* raster
+# (they come from `_snap`), but a layer's own coordinates need not - aggregating a *cropped* raster
 # yields values ~1 ULP from those of the same cells aggregated whole. That is enough for the first
 # and last cell to fail `<=` and be dropped, so a windowed read of a coarsened layer produced a grid
 # two rows and one column smaller than a whole read of it. Integers make the endpoints exact.
@@ -934,7 +934,7 @@ end
 # its cell registration exactly (and needs no span rebuild, so it survives cropping to a single row).
 function _cropgrid(grid, bounds::Extents.Extent)
     ylo, yhi, xlo, xhi = _extentvalues(bounds)
-    # Cell **centres**, asked for by name — this selects the cells whose centre falls in the box,
+    # Cell **centres**, asked for by name - this selects the cells whose centre falls in the box,
     # which is what the message below already describes and what it has always done. Locus-blind:
     # the raw lookup values were only the centres by convention, and stopped being once the grid moved
     # to `Intervals(Start)`.
@@ -952,7 +952,7 @@ end
 #
 # Alignment is only asked about a layer already in the target CRS. Its `bounds` are stated in the
 # *target's* units while its `step` is in its own, so across a reprojection the two are not even
-# dimensionally comparable (degrees against metres) — and the answer would be ignored regardless,
+# dimensionally comparable (degrees against metres) - and the answer would be ignored regardless,
 # since a different CRS always costs a resample.
 function _planfor(f::NamedTuple, tcrs, cellsize, origin)
     same = _samecrs(f.crs, tcrs)
@@ -982,7 +982,7 @@ function _areaofuse(crs)
 end
 
 # Record a problem when the grid reaches outside the CRS's declared area of use. A projection is only
-# accurate within it, and exceeding it distorts silently rather than failing — which is why this is a
+# accurate within it, and exceeding it distorts silently rather than failing - which is why this is a
 # reported problem rather than an error.
 function _crsareaofuse!(problems, tcrs, bounds)
     use = _areaofuse(tcrs)
@@ -1000,8 +1000,8 @@ function _crsareaofuse!(problems, tcrs, bounds)
           Problem(ProblemWarning(), :crs_area_of_use,
                   "$(round(Int, 100 * outside))% of this grid lies outside the area " *
                   "$(_crsname(tcrs)) was defined for ($(use.name); longitude " *
-                  "$(use.west)…$(use.east), latitude $(use.south)…$(use.north)). A projection " *
-                  "used far from its intended ground distorts distance and area badly — " *
+                  "$(use.west)...$(use.east), latitude $(use.south)...$(use.north)). A projection " *
+                  "used far from its intended ground distorts distance and area badly - " *
                   "$(_crsadvice(wgs))."))
     return problems
 end
@@ -1010,14 +1010,14 @@ end
 # rather than one fault per re-run. Mutates `problems`, which the report then owns.
 function _collectproblems!(problems, plans, tcrs, active, fp::NamedTuple,
                            chosen::Union{NamedTuple, Nothing}, bounds)
-    # On a geographic target the bounds are already degrees, so they name the UTM zone directly —
+    # On a geographic target the bounds are already degrees, so they name the UTM zone directly -
     # the same concrete suggestion the metric-`cellsize` error makes, so the fix is one paste either
     # way.
     if !_isprojectedcrs(tcrs)
         push!(problems,
               Problem(ProblemWarning(), :geographic,
                       "this is a geographic (° coordinate) grid, where a cell's physical size " *
-                      "varies with latitude, so it cannot be simulated — `build_ecosystem` " *
+                      "varies with latitude, so it cannot be simulated - `build_ecosystem` " *
                       "requires a projected grid, because dispersal assumes one uniform cell " *
                       "size. To build a metric grid, $(_crsadvice(bounds))."))
     else
@@ -1036,7 +1036,7 @@ function _collectproblems!(problems, plans, tcrs, active, fp::NamedTuple,
                           "to stop the result representing the source."))
     end
     # Degrading the layer you probably care about: something finer than the aligned layer is
-    # resampled. Only layers in the target CRS can be compared — elsewhere a step is stated in
+    # resampled. Only layers in the target CRS can be compared - elsewhere a step is stated in
     # different units, and "finer" has no meaning across degrees and metres.
     if !isnothing(chosen)
         for p in plans
@@ -1052,7 +1052,7 @@ function _collectproblems!(problems, plans, tcrs, active, fp::NamedTuple,
     fp.cells > _BIG_GRID &&
         push!(problems,
               Problem(ProblemWarning(), :grid_too_big,
-                      "this grid may not survive the simulation — $(_footprintmessage(fp))."))
+                      "this grid may not survive the simulation - $(_footprintmessage(fp))."))
     Base.size(active, 1) >= 2 && Base.size(active, 2) >= 2 ||
         push!(problems,
               Problem(ProblemWarning(), :grid_too_small,
@@ -1063,7 +1063,7 @@ function _collectproblems!(problems, plans, tcrs, active, fp::NamedTuple,
         push!(problems,
               Problem(ProblemWarning(), :sparse_active,
                       "only $(round(100 * frac, digits = 1))% of this grid is active, so most of it " *
-                      "is dead space — usually a sign the mask or extent is not what was meant."))
+                      "is dead space - usually a sign the mask or extent is not what was meant."))
     return problems
 end
 
@@ -1092,7 +1092,7 @@ end
 
 # A CRS as a human would name it. `EPSG` objects print as `GeoFormatTypes.EPSG{1}((27700,))`, and a
 # WKT string runs to hundreds of characters, neither of which belongs in a message meant to be read.
-_crsname(::Nothing) = "none — an index grid"
+_crsname(::Nothing) = "none - an index grid"
 
 function _crsname(crs::Rasters.EPSG)
     return "EPSG:" * join(Rasters.GeoFormatTypes.val(crs), ", ")
@@ -1104,12 +1104,12 @@ function _crsname(crs)
     return isnothing(name) ? first(text, 60) : name.captures[1]
 end
 
-# A length floored to one significant figure — 14218.48 m becomes 10 km, 927.66 m becomes 900 m.
+# A length floored to one significant figure - 14218.48 m becomes 10 km, 927.66 m becomes 900 m.
 #
 # Floored, never rounded to nearest, so the chosen grid is never *coarser* than the size measured
 # off the projection and no resolution is lost that the source data carried. The cost is cells: the
-# worst case is a value just under a power of ten (19999 m → 10000 m), which nearly halves the cell
-# edge and so gives ~4× the cells. That is deliberate and visible — the report prints the grid
+# worst case is a value just under a power of ten (19999 m -> 10000 m), which nearly halves the cell
+# edge and so gives ~4× the cells. That is deliberate and visible - the report prints the grid
 # dimensions and the memory both.
 function _floor1sf(size)
     m = ustrip(u"m", uconvert(u"m", size))
@@ -1124,7 +1124,7 @@ end
 # The cell size to actually adopt, given what `_inferredcellsize` measured.
 #
 # Only a `MeasuredAcrossProjection` size is rounded. That one was measured across the projection for a grid that
-# is *synthesised* — no layer is in the target CRS, so every layer is resampled whatever size we pick,
+# is *synthesised* - no layer is in the target CRS, so every layer is resampled whatever size we pick,
 # and rounding forfeits nothing that was not already forfeit. A `GivenByUser` size is the user's, and an
 # `TakenFromAlignedLayer`/`AgreedByAllLayers` one is a real layer's own step, where changing it would destroy the exact
 # alignment that made it worth adopting.
@@ -1143,12 +1143,12 @@ function _roundedcellsize(size, source, problems)
                   "$(round(typeof(1.0u"m"), size, digits = 2)); it has been rounded down to " *
                   "$(_cellsizetext(rounded)) so the grid is described in whole units. Rounding " *
                   "down never coarsens the grid, but it does mean more cells than the measured " *
-                  "size implies — pass `cellsize` to choose your own."))
+                  "size implies - pass `cellsize` to choose your own."))
     return (rounded, RoundedFromMeasurement())
 end
 
 # A cell size as a human would write it. Geographic grids are laid out in whole arcseconds, so a
-# WorldClim cell is 10 arcmin and an EarthEnv one 30 arcsec — but in degrees those read
+# WorldClim cell is 10 arcmin and an EarthEnv one 30 arcsec - but in degrees those read
 # `0.16666666666666666°` and `0.008333333333333333°`, which say nothing to a reader and invite the
 # suspicion that the grid is ragged. Shown in the coarsest subdivision that keeps the number whole.
 # Anything off the arcsecond lattice, and any projected size, is left exactly as it is rather than
@@ -1173,10 +1173,10 @@ end
 function _layerline(p::LayerPlan)
     step = isnothing(p.step) ? "no resolvable cell size" :
            "$(_cellsizetext(p.step)) cells"
-    return "  :$(p.name) — $step, $(_fatephrase(p.kind))"
+    return "  :$(p.name) - $step, $(_fatephrase(p.kind))"
 end
 
-# Public keyword → what `_analyse` expects. `missing` ("not specified") and `nothing` ("explicitly
+# Public keyword -> what `_analyse` expects. `missing` ("not specified") and `nothing` ("explicitly
 # cleared") both mean "no constraint" once there is no base area left to inherit from; they differ
 # only during refinement, which `_inherit` resolves first.
 _constraint(x) = ismissing(x) ? nothing : x
@@ -1186,7 +1186,7 @@ _constraint(x) = ismissing(x) ? nothing : x
 _inherit(given, base) = ismissing(given) ? base : given
 
 # Is this base a report of a grid that was actually *built*, rather than merely investigated? Only
-# such a base can be copied verbatim — everything else has nothing to preserve that re-deriving would
+# such a base can be copied verbatim - everything else has nothing to preserve that re-deriving would
 # not reproduce.
 function _iscopy(base)
     (ismissing(base) || isnothing(base)) && return false
@@ -1194,7 +1194,7 @@ function _iscopy(base)
 end
 
 # **A copied report needs a WORKING cache, and an as-built one has none.** A `GridHabitat`
-# deliberately discards its report's reads (`cache === nothing`, see `StudyAreaReport`) — they were
+# deliberately discards its report's reads (`cache === nothing`, see `StudyAreaReport`) - they were
 # consumed inputs, and keeping them would pin every raster the build touched. But a `StudyArea` is a
 # thing you *build on*, and `_materialisefield` hands `area.report.cache` straight to
 # `_asraster`/`_combineon`, which have methods for a `LayerCache` and none for `nothing`.
@@ -1202,12 +1202,12 @@ end
 # with a synthetic spec worked and with a data-backed one died on a `MethodError` naming a private
 # function. Measured, and it is the whole of the defect.
 # A *fresh, empty* cache rather than the original: the reads are genuinely gone, so this says
-# "nothing cached yet" — which is true, costs one re-read, and is exactly what `_resolveinputs` does
+# "nothing cached yet" - which is true, costs one re-read, and is exactly what `_resolveinputs` does
 # for the re-derive path (`isnothing(old.cache) ? LayerCache() : old.cache`). The copy branch
 # returns early and so bypasses `_resolveinputs` entirely, which is the one place that rule was
 # missed.
-# Nothing the copy exists to preserve is touched — `active`, `problems` and `stage` all carry
-# across — because a read cache is not part of what a report *describes*.
+# Nothing the copy exists to preserve is touched - `active`, `problems` and `stage` all carry
+# across - because a read cache is not part of what a report *describes*.
 function _copyablereport(r::StudyAreaReport)
     isnothing(r.cache) || return r
     return StudyAreaReport(r.crs, r.crssource, r.cellsize, r.cellsizesource,
@@ -1255,7 +1255,7 @@ function _emit(report::StudyAreaReport, verbosity::Symbol)
     verbosity === :normal ||
         error("`verbosity` must be `:silent`, `:normal` or `:verbose` (aliases `:full`, `:debug`); " *
               "got `:$verbosity`.")
-    # Announce every value that was guessed rather than given — the antidote to hidden automation.
+    # Announce every value that was guessed rather than given - the antidote to hidden automation.
     # `NoRealWorldPosition` is not a guess: a synthetic area has no real-world position for a CRS to
     # describe.
     report.crssource isa Union{GivenByUser, NoRealWorldPosition} ||
@@ -1264,7 +1264,7 @@ function _emit(report::StudyAreaReport, verbosity::Symbol)
         @info "study area cell size: $(_cellsizetext(report.cellsize)) ($(_sourcephrase(report.cellsizesource)))."
     isnothing(report.align) ||
         @info "study area aligned to layer `:$(report.align)`, which is kept exactly."
-    # …and every layer the grid costs something.
+    # ...and every layer the grid costs something.
     for p in report.layers
         p.kind isa LayerAggregated &&
             @info "layer `:$(p.name)` is aggregated $(p.kind.factor)× onto the study grid (exact)."
@@ -1281,20 +1281,20 @@ end
 #
 # **The `StudyArea` type itself is declared at the head of this file, well before this point.**
 # `GridHabitat` names an `area::StudyArea{L}` in a **field annotation**, which Julia resolves when the
-# struct is defined, so the type must exist before `GridHabitat.jl` is included — the same constraint
+# struct is defined, so the type must exist before `GridHabitat.jl` is included - the same constraint
 # that put `StudyAreaReport` in a file of its own. Everything that *decides* an area is below.
 
 # --- Inspecting a layer on a decided grid ----------------------------------
 
 # **A member that is itself a tuple is the removed `(source, code)` pair form, and dispatch cannot
-# see it**: `materialise(::Tuple, …)` is the *container* method, so a nested tuple recurses into it
+# see it**: `materialise(::Tuple, ...)` is the *container* method, so a nested tuple recurses into it
 # and reports something about `WorldClim{BioClim}` and `1` as though they were two layers. Checking
 # the member here is what makes the refusal say what is actually wrong.
 _checklayerspec(member::Tuple) = _sourcepairnotaspec(member)
 
 _checklayerspec(member) = member
 
-# Whether `NaN` can be stored in values of this type at all — the mechanical form of the categorical
+# Whether `NaN` can be stored in values of this type at all - the mechanical form of the categorical
 # exception above, which also covers a `Bool`- or `Int`-valued combine that never called itself
 # categorical. A layer that cannot hold `NaN` cannot express "no data" either, so there is nothing to
 # express it with rather than a rule being waived.
@@ -1327,8 +1327,8 @@ end
 
 # Whether a CRS measures its own coordinates as a projected length rather than geographic degrees.
 # Decided by *dimension* of the CRS's declared coordinate unit (via `_crsunit`, reused from
-# `rasters.jl` so there is a single authority on "what unit is this CRS in") — 𝐋 ⇒ projected,
-# dimensionless ⇒ degrees. Dimension rather than an exact unit match, so a CRS in feet (or any other
+# `rasters.jl` so there is a single authority on "what unit is this CRS in") - 𝐋 => projected,
+# dimensionless => degrees. Dimension rather than an exact unit match, so a CRS in feet (or any other
 # length `_crsunit` learns) classifies correctly without touching this.
 _isprojectedcrs(crs) = dimension(_crsunit(crs)) === 𝐋
 
@@ -1365,7 +1365,7 @@ end
 # Excluded from the suggestions rather than merely ranked down, since the whole point is a paste-able
 # answer.
 #
-# Only the *cylindrical* variants — "Mercator (variant A/B)" and "Popular Visualisation Pseudo
+# Only the *cylindrical* variants - "Mercator (variant A/B)" and "Popular Visualisation Pseudo
 # Mercator". **Transverse** and **Oblique** Mercator are different projections that merely share the
 # name: they are near-area-true within the narrow zone they are defined for, and excluding them would
 # throw away almost every good local answer, British National Grid and every UTM zone included.
@@ -1376,7 +1376,7 @@ end
 
 # A projected CRS actually suited to a WGS84 degree extent: the one with the
 # smallest declared area of use that still wholly contains it. "Smallest containing" is what makes
-# the answer specific — British National Grid for Scotland rather than a continental projection — and
+# the answer specific - British National Grid for Scotland rather than a continental projection - and
 # an extent too wide for any local CRS (Kenya spans two UTM zones) falls back to a continental or
 # global one by the same rule, with no special case. `nothing` if the database offers nothing, which
 # should not happen while global equal-area CRSs exist.

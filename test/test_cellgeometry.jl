@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Tests for the grid-inspection accessors in `src/cellgeometry.jl` — `getcellsizes` /
+# Tests for the grid-inspection accessors in `src/cellgeometry.jl` - `getcellsizes` /
 # `getcellareas` / `getgridshape` / `getcellat` / `getspeciesstorage`.
 #
 # Must go through `Pkg.test`: the fixtures name `WorldClim{BioClim}`, a weak dependency.
@@ -12,7 +12,7 @@ module TestCellGeometry
 using EcoSISTEM
 using EcoSISTEM: getspeciesstorage, SpatialLocation,
                  in_memory_raster, SyntheticData
-using EcoSISTEM.Units    # `day` — and `Dates` also exports one, so it must be named
+using EcoSISTEM.Units    # `day` - and `Dates` also exports one, so it must be named
 using Unitful, Unitful.DefaultSymbols
 using DimensionalData
 using DimensionalData: Y, X, dims
@@ -25,8 +25,8 @@ const L = DimensionalData.Lookups
 
 # A geographic fixture, `Intervals(Start)` like everything this package builds.
 #
-# **It spans 0°–85° deliberately.** Over a few degrees `sin` is near-linear, so the mean solid angle
-# and the solid angle *at* the mean latitude agree to several digits — and the assertion that they
+# **It spans 0°-85° deliberately.** Over a few degrees `sin` is near-linear, so the mean solid angle
+# and the solid angle *at* the mean latitude agree to several digits - and the assertion that they
 # differ would pass against an implementation that computed the wrong one. The fixture has to cover
 # enough latitude for the nonlinearity to bite.
 function _geo(lats, longs)
@@ -43,12 +43,12 @@ function _geo(lats, longs)
 end
 
 # The closed form, written out independently of the implementation so the test is a check rather than
-# a restatement: a cell spanning `φ1…φ2` by `dlong` subtends `Δλ · (sin φ₂ − sin φ₁)`.
+# a restatement: a cell spanning `φ1...φ2` by `dlong` subtends `Δλ * (sin φ₂ - sin φ₁)`.
 _Ω(φ1, φ2, dlong) = ustrip(u"rad", dlong) * (sin(φ2) - sin(φ1)) * u"sr"
 
 # A **projected** fixture carrying a real CRS (British National Grid), so the inverse transform has
-# something to transform through. `syn` deliberately has none — a synthetic grid is plain cell
-# indices with no real-world position — which is a different case and tested as one.
+# something to transform through. `syn` deliberately has none - a synthetic grid is plain cell
+# indices with no real-world position - which is a different case and tested as one.
 function _proj(ys, xs)
     mk(D, v) = D(Rasters.Projected(collect(v),
                                    sampling = L.Intervals(L.Start()),
@@ -90,7 +90,7 @@ end
         @test !(metric.x isa EcoSISTEM.Fill)
 
         # Angular from a projected grid is now COMPUTED, by transforming each cell back through
-        # its CRS — see the inverse-transform testset below. `syn` has no CRS at all (a synthetic
+        # its CRS - see the inverse-transform testset below. `syn` has no CRS at all (a synthetic
         # grid is plain cell indices), so there is genuinely nothing to transform through and
         # `nothing` is the answer rather than a gap. It says so silently, as an answer should.
         @test_logs isnothing(EcoSISTEM.getcellsizes(°, syn))
@@ -101,16 +101,16 @@ end
     @testset "areas: a solid angle, NOT the product of the extents" begin
         s = EcoSISTEM.getcellsizes(°, geo)
         angular = EcoSISTEM.getcellareas(°^2, geo)
-        # The defect this testset exists for: `5° × 5°` is `25 °²` as a coordinate product, and
+        # The defect this testset exists for: `5° × 5°` is `25 °^2` as a coordinate product, and
         # that is neither an area nor a solid angle.
         @test mean(angular) != s.y[1, 1] * s.x[1, 1]
-        # The point value, against the closed form — the cell labelled 0° spans 0°–5° under
-        # `Intervals(Start)`, so it is `sin(5°) − sin(0°)`, *not* the centred form.
+        # The point value, against the closed form - the cell labelled 0° spans 0°-5° under
+        # `Intervals(Start)`, so it is `sin(5°) - sin(0°)`, *not* the centred form.
         @test angular[EcoSISTEM.getcellat(geo, SpatialLocation(2.5°, 2.5°))] ≈
               uconvert(°^2, _Ω(0.0°, 5.0°, 5.0°))
         @test angular[EcoSISTEM.getcellat(geo, SpatialLocation(62.5°, 2.5°))] ≈
               uconvert(°^2, _Ω(60.0°, 65.0°, 5.0°))
-        # It shrinks towards the poles — the property that makes it a solid angle at all — and the
+        # It shrinks towards the poles - the property that makes it a solid angle at all - and the
         # field says so directly, where the scalar API needed a location to be asked twice.
         @test issorted(angular[:, 1], rev = true)
         @test !allequal(angular)
@@ -118,15 +118,15 @@ end
         @test allequal(angular[1, :])
     end
 
-    @testset "areas: the mean is total ÷ count, not the value at the mean latitude" begin
-        # The total telescopes — `Σ(sin φᵢ₊₁ − sin φᵢ) = sin φ_top − sin φ_bottom` — so the average
+    @testset "areas: the mean is total / count, not the value at the mean latitude" begin
+        # The total telescopes - `Σ(sin φᵢ₊₁ - sin φᵢ) = sin φ_top - sin φ_bottom` - so the average
         # needs only the outer edges and the row count. Computed here from the fixture's own extent,
         # independently of how the implementation gets there.
         total = _Ω(0.0°, 85.0°, 5.0°)
         angular = EcoSISTEM.getcellareas(°^2, geo)
         @test mean(angular) ≈ uconvert(°^2, total / length(lats))
         # `sin` is nonlinear, so the mean is NOT the solid angle at the mean latitude. This is the
-        # assertion the 0°–85° span exists for: over a few degrees the two agree.
+        # assertion the 0°-85° span exists for: over a few degrees the two agree.
         @test !isapprox(mean(angular),
                         angular[EcoSISTEM.getcellat(geo,
                                                     SpatialLocation(42.5°,
@@ -141,12 +141,12 @@ end
         @test unit(mean(EcoSISTEM.getcellareas(u"sr", geo))) == u"sr"
         @test mean(EcoSISTEM.getcellareas(u"sr", geo)) ≈
               uconvert(u"sr", mean(EcoSISTEM.getcellareas(°^2, geo)))
-        # A length or an angle is a caller mistake, not an unanswerable question — so it errors
+        # A length or an angle is a caller mistake, not an unanswerable question - so it errors
         # rather than returning `nothing`, and the message names the fix. This is what keeps the
         # first argument meaning the *same thing* in both functions: the unit of the answer.
         @test_throws ErrorException EcoSISTEM.getcellareas(km, syn)
         @test_throws ErrorException EcoSISTEM.getcellareas(°, geo)
-        # …while `getcellsizes` is the one that takes a length or an angle.
+        # ...while `getcellsizes` is the one that takes a length or an angle.
         @test EcoSISTEM.getcellsizes(km, syn).y[1, 1] == 10.0km
     end
 
@@ -157,7 +157,7 @@ end
                                                axis = SolarRadiation),
                           area = syn)
         for x in (env, env.regime, env.supply, syn.report, syn)
-            # The supply reads the **grid**, not its own `size` field — which reports `1.0 m` on
+            # The supply reads the **grid**, not its own `size` field - which reports `1.0 m` on
             # every grid, the bug this accessor is here to make unreachable.
             @test EcoSISTEM.getcellsizes(x).y[1, 1] == 10.0km
             @test EcoSISTEM.getgridshape(x) == (6, 6)
@@ -184,7 +184,7 @@ end
                                                                    0.0km))
     end
 
-    # The point of this accessor is that a run can be *sized before it is built* — so the report
+    # The point of this accessor is that a run can be *sized before it is built* - so the report
     # from `investigate_study_area` must give the same figure as the habitat eventually does.
     @testset "per-species storage, asked before and after building" begin
         env = GridHabitat(regime = UniformSpec(290.0K,
@@ -193,14 +193,14 @@ end
                                                axis = SolarRadiation),
                           area = syn)
         # Assert the arithmetic, not merely that the answers agree with each other: 60 km of 10 km
-        # cells each way is 6 × 6 = 36 cells of `Int64`. A y/x mix-up cannot show here and does
-        # not need to — this is a product over the whole grid, so it is symmetric in the two.
+        # cells each way is 6 * 6 = 36 cells of `Int64`. A y/x mix-up cannot show here and does
+        # not need to - this is a product over the whole grid, so it is symmetric in the two.
         @test getspeciesstorage(syn) == 36 * sizeof(Int64)
         @test getspeciesstorage(syn.report) == getspeciesstorage(syn)
         @test getspeciesstorage(env) == getspeciesstorage(syn)
         @test getspeciesstorage(env.regime) == getspeciesstorage(syn)
 
-        # It must not drift from the report's own footprint — they are the same question, and the
+        # It must not drift from the report's own footprint - they are the same question, and the
         # accessor exists so callers need not reach into that field.
         @test getspeciesstorage(syn.report) == syn.report.footprint.perspecies
 
@@ -214,8 +214,8 @@ end
         lazy = ConstructedSpec(() -> nothing, axis = EcoSISTEM.NicheAxis)
 
         # The distinction `force` exists to let a caller act on. A rule adopts whatever grid it is
-        # placed on and so has none — `nothing`. A data-backed spec HAS one, but only reading it,
-        # potentially a download, would say what — `missing`. Collapsing the two would make "we did
+        # placed on and so has none - `nothing`. A data-backed spec HAS one, but only reading it,
+        # potentially a download, would say what - `missing`. Collapsing the two would make "we did
         # not look" indistinguishable from "there is nothing to look at".
         for f in (EcoSISTEM.getgridshape, EcoSISTEM.getcellareas,
             EcoSISTEM.getcellsizes, EcoSISTEM.getcellcount,
@@ -229,8 +229,8 @@ end
         # they never occupy the same position, and each is read by the predicate at its own site.
         @test ismissing(EcoSISTEM.getcellareas(km^2, lazy))
 
-        # A spec describing a computation cannot be read on its own — its grid is decided by the
-        # area it is built with — so `force` says so rather than guessing.
+        # A spec describing a computation cannot be read on its own - its grid is decided by the
+        # area it is built with - so `force` says so rather than guessing.
         @test_throws ErrorException EcoSISTEM.getgridshape(lazy, force = true)
     end
 
@@ -245,7 +245,7 @@ end
 
         # The property that makes this worth computing rather than approximating: a projected
         # cell's ANGULAR extent varies across the grid, even where its projected extent does not.
-        # A single answer would be wrong everywhere it was not taken — which is why the old API
+        # A single answer would be wrong everywhere it was not taken - which is why the old API
         # refused instead of averaging.
         @test !allequal(ang.x)
         # A degree of longitude spans more ground the further south you are, so a fixed-width cell
@@ -277,7 +277,7 @@ end
         @test EcoSISTEM.getcellsize(geo, here).y ==
               EcoSISTEM.getcellsizes(geo).y[EcoSISTEM.getcellat(geo, here)]
 
-        # The whole grid's area is the sum of its cells', which is correct on every projection —
+        # The whole grid's area is the sum of its cells', which is correct on every projection -
         # multiplying one cell by a count would not be.
         @test EcoSISTEM.getgridarea(geo) ≈ sum(EcoSISTEM.getcellareas(geo))
         @test EcoSISTEM.getcellcount(syn) == prod(EcoSISTEM.getgridshape(syn))

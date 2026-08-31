@@ -9,10 +9,10 @@
 #     julia --project docs/typeorder.jl
 #
 # ⚠️ Must go through `Pkg.test` (or have the weak deps loaded) or the extension types are invisible
-# and the audit reports false gaps — the same constraint `docs/architecture.jl` has.
+# and the audit reports false gaps - the same constraint `docs/architecture.jl` has.
 #
-# ⭐ **Why this exists.** The include order in `src/EcoSISTEM.jl` is a real invariant — a struct's
-# field types, its supertype and its type-parameter bounds must all be defined when it is declared —
+# ⭐ **Why this exists.** The include order in `src/EcoSISTEM.jl` is a real invariant - a struct's
+# field types, its supertype and its type-parameter bounds must all be defined when it is declared -
 # and it used to be maintained by hand, defended by comments explaining which file had been hoisted
 # above which. This checks it instead.
 
@@ -81,7 +81,7 @@ function _collect!(n, rel, types, consts)
         nm === nothing || get!(types, nm, (rel, JS.source_line(n)))
     elseif k == JS.K"macrocall" && cs !== nothing && length(cs) >= 2
         # 🔴 Types declared BY A MACRO are invisible to a `struct`/`abstract type` walk, and they are
-        # not a rare case — every niche axis (`@nicheaxis`) and both SimpleTraits markers
+        # not a rare case - every niche axis (`@nicheaxis`) and both SimpleTraits markers
         # (`@traitdef`) arrive this way, 51 types in all. Each names its type in its first argument.
         mac = JS.kind(cs[1]) == JS.K"MacroName" ? string(cs[1]) :
               _headname(cs[1])
@@ -103,7 +103,7 @@ function _collect!(n, rel, types, consts)
 end
 
 # The source as Julia actually sees it: a list of `(file, firstline, lastline)` segments in
-# expansion order. 🔴 A whole-file ranking is NOT enough — `src/EcoSISTEM.jl` declares types *after*
+# expansion order. 🔴 A whole-file ranking is NOT enough - `src/EcoSISTEM.jl` declares types *after*
 # its own includes (`MPIEcosystem`), so its content is interleaved with every file it pulls in.
 function _segments()
     segs = Tuple{String, Int, Int}[]
@@ -137,7 +137,7 @@ function _segments()
     return segs
 end
 
-# Where a declaration sits in that expanded stream — the number a comparison actually needs.
+# Where a declaration sits in that expanded stream - the number a comparison actually needs.
 function _position(segs, rel, line)
     for (i, (f, lo, hi)) in enumerate(segs)
         f == rel && lo <= line <= hi && return i
@@ -145,7 +145,7 @@ function _position(segs, rel, line)
     return nothing
 end
 
-# Every named type mentioned inside a type expression, following a TypeVar to its BOUND — a field
+# Every named type mentioned inside a type expression, following a TypeVar to its BOUND - a field
 # declared as a bare parameter (`habitat::Part where Part <: AbstractHabitat`) carries its real
 # constraint there, and reading only `fieldtypes` would see `Any`.
 function _mentioned(t, acc = Set{Any}())
@@ -167,7 +167,7 @@ function _mentioned(t, acc = Set{Any}())
 end
 
 # 🔴 A struct often declares its own parameters UNBOUNDED and inherits the constraint from its
-# supertype — `struct GridHabitat{H, B, L} <: AbstractHabitat{H, B, L}`, where it is `AbstractHabitat`
+# supertype - `struct GridHabitat{H, B, L} <: AbstractHabitat{H, B, L}`, where it is `AbstractHabitat`
 # that says `H <: AbstractRegime`. Recover those, or every such field reads as depending on nothing.
 function _inheritedbounds(w)
     out = Dict{TypeVar, Any}()
@@ -195,7 +195,7 @@ end
 
 # What must already be defined for `w`'s DECLARATION to compile: its literal supertype, its declared
 # field types and its parameter bounds. ⚠️ Deliberately NOT the concrete implementors of an abstract
-# field type — `Ecosystem` needs `AbstractHabitat`, not `GridHabitat`.
+# field type - `Ecosystem` needs `AbstractHabitat`, not `GridHabitat`.
 function _needs(w, universe)
     out = Set{Any}()
     S = Base.unwrap_unionall(w)
@@ -246,7 +246,7 @@ Audit the include order against what each type's declaration actually needs.
 
 Returns a named tuple:
 
-  - `violations`: a vector of named tuples `(type, file, needs, needsfile)` — a type declared in a
+  - `violations`: a vector of named tuples `(type, file, needs, needsfile)` - a type declared in a
     file that comes *before* the file declaring something it depends on. Should be empty.
   - `unplaced`: names of types whose declaring file could not be found in the source, so nothing
     could be checked about them.
@@ -257,7 +257,7 @@ Returns a named tuple:
 
 ⚠️ **Covers types and `const` type aliases.** A type that names an alias in its *declaration* is
 checked through the alias's own target, since at run time an alias is indistinguishable from what it
-aliases — so the alias's file is checked against its members, and the type's against the real
+aliases - so the alias's file is checked against its members, and the type's against the real
 underlying types.
 """
 function typeorder_report()
@@ -307,7 +307,7 @@ function typeorder_report()
             haskey(at, d) || continue
             nedges += 1
             # A name declared as both a parent abstract and an extension concrete resolves, for a
-            # dependency in `src/`, to the parent's — one wrapper per name would otherwise report a
+            # dependency in `src/`, to the parent's - one wrapper per name would otherwise report a
             # false violation against the extension copy.
             wrappers[d] == wrappers[w] && continue
             if at[d] > at[w]
@@ -354,7 +354,7 @@ function typeorder_report()
         startswith(basename(d[1]), "_") && push!(legacy, nm)
     end
     # 🔴 **A value `const` is NOT a Phase A declaration.** `_WINDOW_PAD`, `px`, `_SUPPLY_SIZE` and the
-    # rest specialise no type — they are tuning constants belonging to the *functions* that read them,
+    # rest specialise no type - they are tuning constants belonging to the *functions* that read them,
     # so they travel in Phase B. Counting them here would give the Phase A ratchet a floor it could
     # never reach. ⭐ A **type alias** does count, and the two are told apart exactly: an alias's
     # binding `isa Type`.
@@ -377,7 +377,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
             " types/aliases, plus ", length(r.legacyvalues),
             " value constants (Phase B)")
     if isempty(r.violations)
-        println("✅ include order is valid — every type follows what its declaration needs")
+        println("✅ include order is valid - every type follows what its declaration needs")
     else
         println("🔴 ", length(r.violations), " violations:")
         for v in r.violations

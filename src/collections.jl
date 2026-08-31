@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 # ---------------------------------------------------------------------------
-# Collections — the shared backing for every "several of these together" family
+# Collections - the shared backing for every "several of these together" family
 # ---------------------------------------------------------------------------
 # `LayerCollection` (`Layer.jl`), `SpeciesRequirementCollection` (`SpeciesRequirement.jl`)
 # and `CombiningFit` (`NicheFit.jl`) are three families of one shape: a
-# single type per family holding its members in one field, `nt`, **always** a `NamedTuple` —
+# single type per family holding its members in one field, `nt`, **always** a `NamedTuple` -
 # carrying either the names the caller wrote or, for a `Tuple` of members, the names derived from
 # each member's own niche axis (`_asnamedtuple`/`_derivenames` below). The arity, the names
 # and every member's concrete type therefore all live in the backing's own type, which is what
 # makes agreement between two collections a compile-time comparison rather than a runtime check.
 #
-# These families implement the **standard container interface** — `keys`, `values`, `iterate`,
-# `getindex`, `pairs`, `merge` and the rest — by forwarding to that backing; the methods are in
+# These families implement the **standard container interface** - `keys`, `values`, `iterate`,
+# `getindex`, `pairs`, `merge` and the rest - by forwarding to that backing; the methods are in
 # `BaseInterface.jl`, which also gives a **leaf** the same interface as a one-member container.
 # `collect` and `eltype` are the two deliberate omissions, for the reasons given there.
 
@@ -24,22 +24,22 @@
 # repeated `NamedTuple` key with no code from us at all.
 #
 # Names come from the members' **axes** wherever those are distinguishable, so two structures that
-# pair correctly — a tolerance against the regime it matches — derive the *same* names and check out
+# pair correctly - a tolerance against the regime it matches - derive the *same* names and check out
 # against one another without the caller writing anything.
 
 # The axis structure a collection carries in its type parameter: a `Tuple` of its members' axes. A
-# `Tuple{...}` **type** rather than a tuple value, so that it can be a type parameter at all — and so
+# `Tuple{...}` **type** rather than a tuple value, so that it can be a type parameter at all - and so
 # that a tolerance collection and a regime collection over the same axes are the same type expression,
 # which is what lets `===` compare them whatever their arity.
 _axisstructure(members::Tuple) = Tuple{map(axisof, members)...}
 
-# **Not the same question as `_axesagree`, and the difference is deliberate — do not unify them.**
+# **Not the same question as `_axesagree`, and the difference is deliberate - do not unify them.**
 # This asks whether two members *of one collection* can be told apart **by name**; `_axesagree` asks
 # whether two *sides* describe the same quantity, where only identity will do. They sit close together
 # and read alike, so a sweep that made either match the other would break the check it was tidying.
 #
 # A `nameof` test is the honest one here, because names **are** `nameof(axis)`: the only pair that
-# cannot be told apart is one yielding the same symbol — the same axis twice, or
+# cannot be told apart is one yielding the same symbol - the same axis twice, or
 # `EcoSISTEM.Temperature` against another module's `Temperature`. A `typeintersect` test would be
 # conservative rather than wrong, but it also calls `SoilTemperature` and `Temperature` a clash, when
 # those name apart perfectly well.
@@ -56,8 +56,8 @@ end
 # The names a positional collection's members get: their axes, always.
 #
 # **Two members on one axis is an error asking for names, never a refusal of the model.** Two
-# temperature layers are legitimate — `CombiningFit`'s own docstring pairs a summer and a winter one,
-# and two identical tolerances correctly give `suit²` — so what cannot be done is *naming them apart*,
+# temperature layers are legitimate - `CombiningFit`'s own docstring pairs a summer and a winter one,
+# and two identical tolerances correctly give `suit^2` - so what cannot be done is *naming them apart*,
 # and the caller is the only one who can say which is which. Numbering them silently would produce a
 # collection whose members no other side could refer to.
 function _derivenames(members::Tuple)
@@ -65,8 +65,8 @@ function _derivenames(members::Tuple)
     _distinctaxes(axes) && return map(nameof, axes)
     dup = _firstduplicate(axes)
     return error("two members of this collection are on the `$(nameof(dup))` niche axis, so they " *
-                 "cannot be told apart by name. Name them yourself with a named tuple — for example " *
-                 "`(summer = …, winter = …)` — which is also what lets the tolerance, regime and " *
+                 "cannot be told apart by name. Name them yourself with a named tuple - for example " *
+                 "`(summer = ..., winter = ...)` - which is also what lets the tolerance, regime and " *
                  "nichefit sides refer to the same layer.")
 end
 
@@ -80,12 +80,12 @@ function _firstduplicate(axes::Tuple)
 end
 
 # The backing every collection stores: a `NamedTuple` either way. A caller's `NamedTuple` is kept
-# exactly as written — naming is theirs to decide, and a derived name must never overwrite one.
+# exactly as written - naming is theirs to decide, and a derived name must never overwrite one.
 _asnamedtuple(nt::NamedTuple) = nt
 _asnamedtuple(t::Tuple) = NamedTuple{_derivenames(t)}(t)
 
-# Rebuild `vals` under collection `c`'s own names. Used by a collection derived from another — a
-# default nichefit built from a tolerance — so that the two carry identical names and check out
+# Rebuild `vals` under collection `c`'s own names. Used by a collection derived from another - a
+# default nichefit built from a tolerance - so that the two carry identical names and check out
 # against one another. Copying the names is what stops the derived collection re-deriving different
 # ones from its own members.
 _likebacking(c, vals::Tuple) = NamedTuple{keys(c)}(vals)
@@ -111,7 +111,7 @@ function _checkbacking(::Type{T}, members::Tuple,
 end
 
 # The single role shared by every member of a collection, checked as the collection is built. A
-# collection mixing condition and resource members has no meaning — and no `Role` to be tagged with —
+# collection mixing condition and resource members has no meaning - and no `Role` to be tagged with -
 # so a disagreement is an error rather than a widening to `Role`.
 #
 # Serves **both** role-parameterised families: `LayerCollection` and `SpeciesRequirementCollection`
@@ -128,37 +128,37 @@ function _sharedrole(::Type{T}, members::Tuple,
 end
 
 # ---------------------------------------------------------------------------
-# Folds — how members are combined on any path that can be hot
+# Folds - how members are combined on any path that can be hot
 # ---------------------------------------------------------------------------
 # Recursive rather than `map` plus `reduce`: measured, `map` stops being unrolled at around seven
 # members and starts allocating, while the recursion stays allocation-free and fully inferred at every
-# arity. `map` is still fine for construction-time work — `eltype`, `iscontinuous`, coverage.
+# arity. `map` is still fine for construction-time work - `eltype`, `iscontinuous`, coverage.
 
 # Combine `f` applied to each member with the binary `op`, right to left. The two-argument form
-# folds the members themselves, which is what most callers want — and it is what lets `op` be
+# folds the members themselves, which is what most callers want - and it is what lets `op` be
 # written as a do-block, since a do-block always binds the *first* argument.
 _fold(op, f, t::Tuple{Any}) = f(t[1])
 _fold(op, f, t::Tuple) = op(f(t[1]), _fold(op, f, Base.tail(t)))
 _fold(op, t::Tuple) = _fold(op, identity, t)
 
 # ---------------------------------------------------------------------------
-# Pairing — what it means for two structures to line up member for member
+# Pairing - what it means for two structures to line up member for member
 # ---------------------------------------------------------------------------
 # A species' tolerances, the environment's regimes and the nichefit between them are three parallel
 # structures, as are a demand and a supply. Each pairing must agree in arity, in the names the caller
-# wrote, and in what each member actually measures — and this is one check over all of that, which
+# wrote, and in what each member actually measures - and this is one check over all of that, which
 # reports **which** member disagrees rather than only that something did.
 #
 # Each family builds its own side, beside its own accessors: a label for the error, the member names,
 # each member's `eltype`, each member's niche axis, and each member's `iscontinuous` where that means
-# anything — `nothing` for the resource side, which has no continuous or categorical distinction.
+# anything - `nothing` for the resource side, which has no continuous or categorical distinction.
 
 # One side of a pairing check, for any member family. One function rather than one per family,
 # because the container interface gives every family the same `keys` and `values`, leaving only two
 # things to vary: the error label, and whether the family distinguishes continuous from categorical.
 #
 # `kinds` is **passed** rather than derived from the `Role`, because `AbstractNicheFit` has no role at
-# all — which is also why the three families cannot sit under one `{Role, Axis}` supertype.
+# all - which is also why the three families cannot sit under one `{Role, Axis}` supertype.
 function _side(x, label::AbstractString, kinds::Bool)
     members = values(x)
     return (label = label, names = keys(x),
@@ -184,7 +184,7 @@ end
 function _checkarity(what, ref::NamedTuple, other::NamedTuple)
     length(ref.names) == length(other.names) ||
         error("$what: the $(ref.label) has $(length(ref.names)) layer(s) but the " *
-              "$(other.label) has $(length(other.names)) — pass one per environment layer.")
+              "$(other.label) has $(length(other.names)) - pass one per environment layer.")
     return nothing
 end
 
@@ -192,13 +192,13 @@ end
 # `NamedTuple`-backed, a collection built from a tuple derives names from its members' axes, and two
 # structures that pair correctly derive the **same** ones without the caller writing anything.
 #
-# So a mismatch here is a real one — different axes, or one side named by hand in a way the other's
-# axes do not produce — and the message says where derived names come from, since a caller who wrote
+# So a mismatch here is a real one - different axes, or one side named by hand in a way the other's
+# axes do not produce - and the message says where derived names come from, since a caller who wrote
 # neither set needs to know what they are being compared against.
 function _checknaming(what, ref::NamedTuple, other::NamedTuple)
     ref.names == other.names ||
         error("$what: the $(ref.label)'s layers are named $(ref.names) but the " *
-              "$(other.label)'s are named $(other.names) — paired structures must carry the same " *
+              "$(other.label)'s are named $(other.names) - paired structures must carry the same " *
               "names in the same order; nothing is reordered for you. Names not written by hand " *
               "are each member's niche axis, so a mismatch here means the two sides are on " *
               "different axes or in a different order.")
@@ -231,19 +231,19 @@ function _checkmembers(what, ref::NamedTuple, other::NamedTuple)
         (isnothing(ref.axes) || isnothing(other.axes) ||
          _axesagree(ref.axes[i], other.axes[i])) ||
             error("$what: layer `$name` is on the `$(nameof(ref.axes[i]))` niche axis in the " *
-                  "$(ref.label) but `$(nameof(other.axes[i]))` in the $(other.label) — paired " *
+                  "$(ref.label) but `$(nameof(other.axes[i]))` in the $(other.label) - paired " *
                   "layers must be on the *same* axis, not merely a compatible unit. Declare " *
                   "the same axis on both sides (a grouping axis such as " *
                   "`EcoSISTEM.TemperatureAxis` is fine, so long as both say it), or check the " *
                   "order of the species niches against the environment layers.")
         ref.types[i] === other.types[i] ||
             error("$what: layer `$name` is $(ref.types[i]) in the $(ref.label) but " *
-                  "$(other.types[i]) in the $(other.label) — the two must measure the same thing " *
+                  "$(other.types[i]) in the $(other.label) - the two must measure the same thing " *
                   "in the same unit.")
         (isnothing(ref.kinds) || isnothing(other.kinds) ||
          ref.kinds[i] == other.kinds[i]) ||
             error("$what: layer `$(ref.names[i])` is $(_kindlabel(ref.kinds[i])) in the " *
-                  "$(ref.label) but $(_kindlabel(other.kinds[i])) in the $(other.label) — pair a " *
+                  "$(ref.label) but $(_kindlabel(other.kinds[i])) in the $(other.label) - pair a " *
                   "continuous trait (e.g. NicheTolerance) with a continuous regime (UniformSpec / " *
                   "GradientSpec / PeakedSpec) and a continuous fit (NicheSuitability), or a " *
                   "categorical trait (SimpleCategoricalTolerance) with a categorical regime " *
@@ -278,11 +278,11 @@ end
 _zipmap(f, a::Tuple, b::Tuple) = _samearity(a, b)
 _zipmap(f, a::Tuple, b::Tuple, c::Tuple) = _samearity(a, b, c)
 
-# The recursion itself — arities already checked by `_zipmap`, so it can index freely.
+# The recursion itself - arities already checked by `_zipmap`, so it can index freely.
 #
 # Recursive rather than `ntuple(..., Val(N))`, and the difference is not cosmetic: measured, the
-# `ntuple` form runs into inference's recursion limiter on the path that matters most — `_suitability`
-# over a collection assembling per-layer results — and widens the whole tuple to `Tuple{Any, Any}`, at
+# `ntuple` form runs into inference's recursion limiter on the path that matters most - `_suitability`
+# over a collection assembling per-layer results - and widens the whole tuple to `Tuple{Any, Any}`, at
 # 288 bytes a call. The recursion infers exactly, at zero.
 _zipped(f, ::Tuple{}) = ()
 _zipped(f, a::Tuple) = (f(a[1]), _zipped(f, Base.tail(a))...)

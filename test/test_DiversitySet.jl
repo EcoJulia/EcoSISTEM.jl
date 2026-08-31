@@ -24,7 +24,7 @@ end
 
 @testset "gettimes with a saved file resumes past the latest recorded time" begin
     mktempdir() do dir
-        # The `time` column is stored bare, as `Feather` wrote it — the unit is reattached on read.
+        # The `time` column is stored bare, as `Feather` wrote it - the unit is reattached on read.
         Feather.write(joinpath(dir, "results.feather"),
                       DataFrame(time = ustrip.(s, [1.0year, 2.0year]),
                                 measure = [0.5, 0.6]))

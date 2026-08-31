@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Canonical results for **ecosystem-level interventions** — the second mechanism of change, and one
+# Canonical results for **ecosystem-level interventions** - the second mechanism of change, and one
 # with no blessed coverage at all before this file.
 #
 # **Why it needs its own canonical run.** An intervention is deliberately *not* a layer change: it
@@ -8,15 +8,15 @@
 # time, so it must be applied once and identically everywhere. Two things that can only be pinned by
 # blessing a result:
 #
-#   - **the selection stream** — `RandomCells` draws from a counter-based stream
+#   - **the selection stream** - `RandomCells` draws from a counter-based stream
 #     `hash((seed, :intervention, k, step))`, so which cells are chosen is reproducible and a change
 #     to that scheme silently redistributes everything;
-#   - **the ordering** — the clock advances, *then* interventions run, *then* layers update, so a
+#   - **the ordering** - the clock advances, *then* interventions run, *then* layers update, so a
 #     `SetChange` bites the same step rather than one late. Moving an intervention either side of the
 #     layer update changes the answer without changing any single component's arithmetic.
 #
 # Runs on the non-square, spatially varying fixture (`test/varyingcase.jl`), so *which* cells are
-# deactivated matters to the outcome — on a uniform grid every choice of cells is equivalent and the
+# deactivated matters to the outcome - on a uniform grid every choice of cells is equivalent and the
 # selection stream could be replaced wholesale without moving a number.
 
 module CanonicalIntervention
@@ -56,7 +56,7 @@ const NCELLS = VARYING_NX * VARYING_NY
     @test count(eco.habitat.active) == NCELLS - 20
 
     # **`Deactivate` kills what lives in the cell, and must**: a deactivated cell is skipped by the
-    # hot loop, so anything left in it would neither breed nor die. Asserted rather than assumed —
+    # hot loop, so anything left in it would neither breed nor die. Asserted rather than assumed -
     # this is a model requirement, not an implementation detail.
     # Indexed through the flat `matrix` (species × location) rather than the 3-D `grid`: the two
     # are views of the same memory, and location is column-major over `(Y, X)`, so the flattened mask
@@ -64,9 +64,9 @@ const NCELLS = VARYING_NX * VARYING_NY
     # subtly wrong.
     deadcells = .!vec(parent(eco.habitat.active))
     @test all(iszero, eco.abundances.matrix[:, deadcells])
-    @test sum(abun) > 0                      # …but the run as a whole survived
+    @test sum(abun) > 0                      # ...but the run as a whole survived
 
-    # The selection must be reproducible from the seed alone — the premise of blessing any of the
+    # The selection must be reproducible from the seed alone - the premise of blessing any of the
     # numbers above.
     second = varying_ecosystem()
     simulate!(second, 2year, 1month_mean_duration,
@@ -75,7 +75,7 @@ const NCELLS = VARYING_NX * VARYING_NY
     @test second.habitat.active == eco.habitat.active
     @test second.abundances.grid == abun
 
-    # …and it must be a *different* selection from a different seed, or "reproducible" would be
+    # ...and it must be a *different* selection from a different seed, or "reproducible" would be
     # satisfied by a constant, which is the failure mode this guards.
     other = varying_ecosystem(seed = 12345)
     simulate!(other, 2year, 1month_mean_duration,

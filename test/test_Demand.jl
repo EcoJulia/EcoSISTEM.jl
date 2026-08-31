@@ -3,7 +3,7 @@
 module TestDemand
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported — a spec is what a user writes,
+# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: SeriesLayerChange
 using Diversity
@@ -25,7 +25,7 @@ using Rasters   # `rasterfixtures.jl` builds genuine `Projected` lookups
     # against a metabolic reading that is not implemented (see the note there). Neither is defined.
     @test !isdefined(EcoSISTEM, :SimpleDemand)
     @test !isdefined(EcoSISTEM, :SizeDemand)
-    # The generic accessors are checked on a real resource demand instead — they are
+    # The generic accessors are checked on a real resource demand instead - they are
     # demand-agnostic, so they need no demand type of their own to exercise them.
     resource_vec = Demand{SolarRadiation}(fill(2.0kJ / day, numspecies))
     @test EcoSISTEM._getdemand(abun, resource_vec) ==
@@ -57,7 +57,7 @@ using Rasters   # `rasterfixtures.jl` builds genuine `Projected` lookups
     @test eltype(resource_vec) == typeof(resource_vec.resource[1])
     @test counttypes(resource_vec) == length(resource_vec.resource)
 
-    # Test Demand{CarbonFlux} — the carbon family's demand side, matched against an `npp`-derived
+    # Test Demand{CarbonFlux} - the carbon family's demand side, matched against an `npp`-derived
     # supply. `mean(resource)` is the default exchange rate, exactly as Solar/Water.
     resource_vec = Demand{CarbonFlux}(fill(0.2 * g / day, numSpecies))
     @test_nowarn resource_vec = Demand{CarbonFlux}(fill(0.2 * g / day,
@@ -81,7 +81,7 @@ using Rasters   # `rasterfixtures.jl` builds genuine `Projected` lookups
     @test counttypes(demand) == length(resource_vec1.resource)
 
     # The free/dimensionless supply is gone (its meaning could only come from its unit), so the
-    # per-cell accessors are exercised on a solar supply instead — they are axis-agnostic.
+    # per-cell accessors are exercised on a solar supply instead - they are axis-agnostic.
     supply = fill(100.0 * EcoSISTEM.canonicalunit(EcoSISTEM.Resource,
                                           SolarRadiation), 2, 2)
     @test_nowarn Supply{SolarRadiation}(supply)
@@ -113,18 +113,18 @@ using Rasters   # `rasterfixtures.jl` builds genuine `Projected` lookups
     @test countsubcommunities(supply3) == 100 * 100
     @test EcoSISTEM._getsupply(supply3) == supply3.matrix
     @test eltype(supply3) == typeof(supply3.matrix[1])
-    # The axis is recorded on the type — `npp` is a resource in its own right, not water or light.
+    # The axis is recorded on the type - `npp` is a resource in its own right, not water or light.
     @test supply3 isa ContinuousLayer{EcoSISTEM.Resource, CarbonFlux}
 
     # **`Supply{A}` leaves its value type free, so the unit guarantee lives in the constructor.**
     # The old per-resource aliases pinned the element type in the signature and got this from
     # dispatch; these four are what replaced that, and each is a different mistake.
     #
-    # 1. A dimensionally-correct value at another scale is **converted**, not refused — which is
-    #    what lets CHELSA's `MJ·m⁻²·d⁻¹` meet WorldClim's `kJ·m⁻²·d⁻¹` on one axis.
+    # 1. A dimensionally-correct value at another scale is **converted**, not refused - which is
+    #    what lets CHELSA's `MJ*m^-2*d^-1` meet WorldClim's `kJ*m^-2*d^-1` on one axis.
     megajoules = Supply{SolarRadiation}(fill(0.2u"MJ/d", 3, 3))
     @test all(==(200.0kJ / day), megajoules.matrix)
-    # …and it is the *same concrete type* as one built canonically, not a parallel MJ-flavoured one.
+    # ...and it is the *same concrete type* as one built canonically, not a parallel MJ-flavoured one.
     @test typeof(megajoules) ===
           typeof(Supply{SolarRadiation}(fill(200.0kJ / day,
                                              3, 3)))
@@ -172,15 +172,15 @@ end
 
 # **Placed before `Worldclim/Bioclim supplies`, though that testset no longer depends on the order.**
 # **Kept as written because the failure mode it names is permanent**: a testset that errors on its
-# first line silently skips every assertion after it — which is how the *only* tests of
-# `Supply{A}(::ClimateRaster)` can go unrun — and a file that errors mid-way still emits a
+# first line silently skips every assertion after it - which is how the *only* tests of
+# `Supply{A}(::ClimateRaster)` can go unrun - and a file that errors mid-way still emits a
 # `Test Summary`, so neither a failure-marker grep nor a summary-presence check can see the loss.
 # Only reading the pass count against what the file contains can.
 include("rasterfixtures.jl")
 
 @testset "supplies scale by each cell's true area on a geographic raster" begin
-    # `Supply{A}(::ClimateRaster)` derives its cell area from the raster's *own* grid — there is no
-    # `StudyArea` in this constructor — so it is the one supply path where the latitude correction
+    # `Supply{A}(::ClimateRaster)` derives its cell area from the raster's *own* grid - there is no
+    # `StudyArea` in this constructor - so it is the one supply path where the latitude correction
     # has to come from the data itself. The pre-existing coverage could not see this: its
     # latitudes were in **metres** (a projected grid), where the correction is exactly 1.0.
     rain = fill(2.0mm / day, 5, 4)                       # non-square, so a Y/X swap shows up
@@ -191,8 +191,8 @@ include("rasterfixtures.jl")
     gsup = Supply{Precipitation}(geo)
     gvals = Array(gsup.matrix)
     @test size(gvals) == (5, 4)
-    @test all(≈(gvals[1, 1]), gvals[1, :])          # constant across X…
-    @test issorted(gvals[:, 1], rev = true)         # …and falling northwards down Y
+    @test all(≈(gvals[1, 1]), gvals[1, :])          # constant across X...
+    @test issorted(gvals[:, 1], rev = true)         # ...and falling northwards down Y
     @test !isapprox(gvals[1, 1], gvals[end, 1], rtol = 0.05)
 
     # Metres: a projected grid is exact already, so every cell gets the same supply.
@@ -207,15 +207,15 @@ end
 # guard: every axis that declares a demand is measured in something the model can divide.
 #
 # **Restated at step 8, because the space resource is the first demand that is NOT a rate.**
-# Asserting `dimension(elt) / _basedimension(elt) == 𝐓⁻¹` of *every* demand holds only while every
-# resource is a flow — energy, water, carbon. A space demand is an **area** (m² per individual) with
+# Asserting `dimension(elt) / _basedimension(elt) == 𝐓^-1` of *every* demand holds only while every
+# resource is a flow - energy, water, carbon. A space demand is an **area** (m^2 per individual) with
 # no time in it at all.
 # **The rule is narrowed, not dropped, and the exception is named rather than tolerated.** What the
-# model actually requires is that supply ÷ demand be a dimensionless, timestep-independent count —
-# which holds for a **flow ÷ flow** (`kJ/day ÷ kJ/day`) and equally for a **stock ÷ stock**
-# (`m² ÷ m²`). What it would *not* survive is mixing the two on one axis, and that is what this now
+# model actually requires is that supply / demand be a dimensionless, timestep-independent count -
+# which holds for a **flow / flow** (`kJ/day / kJ/day`) and equally for a **stock / stock**
+# (`m^2 / m^2`). What it would *not* survive is mixing the two on one axis, and that is what this now
 # checks: each axis is one or the other, consistently, on both sides.
-# Supplies are never depleted — they are recomputed in full each step — so a standing stock needs
+# Supplies are never depleted - they are recomputed in full each step - so a standing stock needs
 # no change to the loop. That is why space fits without one.
 @testset "guard: every declared resource is a flow or a stock, consistently" begin
     allaxes(T = EcoSISTEM.NicheAxis, acc = Type[]) = begin
@@ -237,15 +237,15 @@ end
         d = Demand{A}(fill(1.0 * u, 3))
         @test EcoSISTEM.axisof(d) === A
         elt = eltype(d)
-        # Both sides of an axis share one unit, so the ratio is dimensionless by construction —
+        # Both sides of an axis share one unit, so the ratio is dimensionless by construction -
         # that is what `Supply{A}`/`Demand{A}` buy. What is worth asserting is which *kind* of
         # quantity it is, and that the axis is honest about it.
         if any(==(A), stocks)
             @test dimension(elt) == dimension(m^2)          # a stock: an area, no time
             @test !hasmethod(EcoSISTEM._basedimension, Tuple{Type{elt}})
         else
-            # a genuine rate: `substance × 𝐓⁻¹` exactly, not merely "some negative time exponent"
-            # (energy already embeds 𝐓⁻² in its own definition).
+            # a genuine rate: `substance × 𝐓^-1` exactly, not merely "some negative time exponent"
+            # (energy already embeds 𝐓^-2 in its own definition).
             @test dimension(elt) / EcoSISTEM._basedimension(elt) == Unitful.𝐓^-1
         end
     end
@@ -253,7 +253,7 @@ end
 
 @testset "Worldclim/Bioclim supplies" begin
     # The hand constructors take a raw ClimateRaster whose element type is the areal rate
-    # (e.g. `mm/day`) at its own native resolution — `cancel` (against the axis's canonical
+    # (e.g. `mm/day`) at its own native resolution - `cancel` (against the axis's canonical
     # resource unit) converts it to the absolute `L/day`/`kJ/day` supply value against the cell area,
     # so the resulting `supply.matrix` values are scaled by that area, not equal to the raw
     # input; the assertions below compare the built supply against itself, not a hardcoded

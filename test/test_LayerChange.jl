@@ -3,7 +3,7 @@
 module TestLayerChange
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported — a spec is what a user writes,
+# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: AbsoluteChange, NoChange, PatternedLayerChange, RateChange,
                  RelativeChange, SeriesLayerChange, SteadyLayerChange,
@@ -61,12 +61,12 @@ end
 
     # The two ecosystems above are built from `NicheSpec`/`UniformSpec`, so their layers carry a
     # `SteadyLayerChange`. This third one is the only place either updater is driven on a layer that
-    # actually holds a **series** — which is the whole of what it is here for. What the series itself
+    # actually holds a **series** - which is the whole of what it is here for. What the series itself
     # does with elapsed time is `_seriesindex`'s business and is covered at length below, so none of
     # it is re-asserted through the ecosystem.
     # `Varying(spec, ReplaceWith(SeriesChange(stack)))` is how a spec declares a series, so this
     # needs no raster and no deprecated builder. A supply spec is stated **per area** and
-    # multiplied by the cell area (0.25 km² here), so 40 kJ/km²/day lands as the 10 kJ/day per cell
+    # multiplied by the cell area (0.25 km^2 here), so 40 kJ/km^2/day lands as the 10 kJ/day per cell
     # the fixture it replaces built by hand; the series slices are already per-cell.
     area = StudyArea(extent = (5.0km, 5.0km), cellsize = 0.5km,
                      verbosity = :silent)
@@ -84,8 +84,8 @@ end
     # or the two updates below would be exercising the steady path the cases above already cover.
     @test varying.regime.change isa SeriesLayerChange
     @test varying.supply.change isa SeriesLayerChange
-    # The species list is incidental to what is under test — a series-backed layer advancing by
-    # elapsed time — so it only has to align with this habitat: one `SolarRadiation` demand.
+    # The species list is incidental to what is under test - a series-backed layer advancing by
+    # elapsed time - so it only has to align with this habitat: one `SolarRadiation` demand.
     eco = Ecosystem(_alignedspecies(Demand{SolarRadiation}(fill(2.0kJ / day, 3))),
                     varying,
                     NicheSuitability{EcoSISTEM.axisof(varying.regime),
@@ -104,7 +104,7 @@ end
     @test EcoSISTEM.changeunit(RateChange(), temp) == K / s
 
     # Precipitation is the case this replacement exists to fix. Its canonical unit is a *rate*
-    # (`mm/d`), so a change function hard-coding `mm` — a depth — adds a depth to a rate and throws
+    # (`mm/d`), so a change function hard-coding `mm` - a depth - adds a depth to a rate and throws
     # a bare `DimensionError` even at rate zero.
     rain = _testregime(3.0mm / day, Precipitation)
     @test EcoSISTEM.changeunit(AbsoluteChange(), rain) == mm / day
@@ -115,7 +115,7 @@ end
     EcoSISTEM._layerupdate!(rain, 1.0year, 1.0year)
     @test all(≈(4.0mm / day), rain.matrix)
 
-    # …and a rate that is a depth per time, not a rate per time, is rejected with a message naming
+    # ...and a rate that is a depth per time, not a rate per time, is rejected with a message naming
     # both units rather than a bare DimensionError.
     err = try
         EcoSISTEM.setchange!(rain, IncrementBy(1.0mm / year))
@@ -128,7 +128,7 @@ end
     @test occursin("mm", err.msg)
 
     # The affine case. A relative or rate change is an *interval*, so it is in K even where the
-    # layer holds positions in °C — the layer's unit is absolutised first. Getting this wrong is not
+    # layer holds positions in °C - the layer's unit is absolutised first. Getting this wrong is not
     # merely imprecise: Unitful rejects `10.0°C + 1.0°C` outright with an `AffineError`, so a
     # relative change read in °C would not run at all.
     celsius = _testregime(10.0u"°C", Temperature)
@@ -137,7 +137,7 @@ end
     @test EcoSISTEM.changeunit(RateChange(), celsius) == K / s
     @test_nowarn EcoSISTEM.setchange!(celsius, IncrementBy(1.0K / year))
 
-    # …and it applies without throwing, which is the regression this actually guards.
+    # ...and it applies without throwing, which is the regression this actually guards.
     EcoSISTEM.setchange!(celsius, OffsetBy(PatternedChange(2.0K, 1.0year)))
     @test_nowarn EcoSISTEM._layerupdate!(celsius, 0.25year, 0.25year)
     @test all(≈(12.0u"°C"), celsius.matrix)
@@ -168,7 +168,7 @@ end
     EcoSISTEM._layerupdate!(temp, 1.0year, 1.0year)
     @test all(≈(276.0K), temp.matrix)
 
-    # A pattern is a function of elapsed time, not of the layer's own values — so two layers at the
+    # A pattern is a function of elapsed time, not of the layer's own values - so two layers at the
     # same elapsed time agree however they got there. (The change function this replaces fed the
     # matrix back into `sin`, making it a path-dependent walk.)
     onestep = _testregime(274.0K, Temperature)
@@ -184,7 +184,7 @@ end
     # A quarter of the way round the default sinusoid is its peak.
     @test all(≈(279.0K), onestep.matrix)
 
-    # `AbsoluteChange` — the layer's value *is* the pattern, with no baseline. Reachable with a
+    # `AbsoluteChange` - the layer's value *is* the pattern, with no baseline. Reachable with a
     # shape that returns the whole value rather than a deviation from one.
     absolute = _testregime(274.0K, Temperature)
     EcoSISTEM.setchange!(absolute,
@@ -227,8 +227,8 @@ end
 
 @testset "A shape is valid under every mode" begin
     # Regression: these two dispatched on the shape being *anything*, so under `RateChange` they
-    # were ambiguous with every shape-typed method — one narrowing the shape, the other the mode,
-    # neither more specific. `IncrementBy(PatternedChange(…))`, an oscillating rate, therefore
+    # were ambiguous with every shape-typed method - one narrowing the shape, the other the mode,
+    # neither more specific. `IncrementBy(PatternedChange(...))`, an oscillating rate, therefore
     # always failed despite being documented as valid.
     layer = _testregime(274.0K, Temperature)
     @test EcoSISTEM._attachchange(IncrementBy(PatternedChange(1.0K / year,
@@ -248,7 +248,7 @@ end
     @test EcoSISTEM._attachchange(IncrementBy(0.5K / year), layer) isa
           SteadyLayerChange
     @test_throws ErrorException EcoSISTEM._attachchange(OffsetBy(0.5K), layer)
-    # …and something that is neither a constant nor a known shape says so, rather than reporting a
+    # ...and something that is neither a constant nor a known shape says so, rather than reporting a
     # missing method on an internal.
     err = try
         EcoSISTEM._attachchange(IncrementBy("tomorrow"), layer)
@@ -260,15 +260,15 @@ end
     @test occursin("not a change shape", err.msg)
 end
 
-# **Regression tests for the half-month phase bug — fixed 2026-08-05.** These were written
+# **Regression tests for the half-month phase bug - fixed 2026-08-05.** These were written
 # deliberately failing, against the unfixed behaviour, and passed **unchanged** when the fix landed.
 # That is why their expectations must not be edited: they are the statement of what correct means,
 # written before the code that satisfies them.
 #
 # **The bug they pin.** A monthly series applied every slice half a month early, and slice 1 for half
-# as long as the others. Coordinates are built 1-based (`_mkstackaxis` → `Ti((1:12) .*
+# as long as the others. Coordinates are built 1-based (`_mkstackaxis` -> `Ti((1:12) .*
 # month_mean_duration)`) as slice *identifiers*, `origin` defaults to `first(times)` = 1 month, and
-# the lookup took the **nearest** coordinate — which treats each one as a slice *centre*, so
+# the lookup took the **nearest** coordinate - which treats each one as a slice *centre*, so
 # transitions landed on midpoints instead of month boundaries. The fix (`_current`, `LayerChange.jl`)
 # reads a coordinate as *when its slice becomes current* and floors, with a drift tolerance standing
 # in for what nearest was implicitly buying.
@@ -276,7 +276,7 @@ end
 # **Why it survived so long, and why these tests are sub-monthly**: at `timestep =
 # 1month_mean_duration` every step lands exactly on a stored coordinate, so the right slice was picked
 # every time and the bug was invisible. Every timestep in this repo is `1month_mean_duration`, so
-# nothing exercised it. **A fix verified only at monthly steps would have proved nothing** — keep
+# nothing exercised it. **A fix verified only at monthly steps would have proved nothing** - keep
 # these at sub-monthly elapsed times.
 @testset "a monthly series applies each slice for its whole month" begin
     stack = _teststack(273.0K, 1.0K)
@@ -284,21 +284,21 @@ end
     series = EcoSISTEM._attachchange(ReplaceWith(SeriesChange(stack)), layer)
 
     # Slice `k` represents month `k`, so it should be current for the whole of that month:
-    # elapsed ∈ [(k-1)·month, k·month).
+    # elapsed ∈ [(k-1)*month, k*month).
     monthof(k) = min(12,
                      floor(Int, ustrip(uconvert(month_mean_duration, k))) + 1)
 
-    # These three passed even against the bug — the first half of each month landed correctly.
+    # These three passed even against the bug - the first half of each month landed correctly.
     @test EcoSISTEM._seriesindex(series, 0.0day) == 1
     @test EcoSISTEM._seriesindex(series, 10.0day) == 1
     @test EcoSISTEM._seriesindex(series, 45.0day) == 2
 
     # These are the ones that failed. 20 and 30 days elapsed are still inside the *first* month (a
-    # month being 30.4375 d), so January's slice must still be current — the midpoint rule had already
+    # month being 30.4375 d), so January's slice must still be current - the midpoint rule had already
     # switched to February's at 15.2 d.
     @test EcoSISTEM._seriesindex(series, 20.0day) == 1
     @test EcoSISTEM._seriesindex(series, 30.0day) == 1
-    # …and 60 days is still inside month 2 (which ends at 60.875 d), 90 inside month 3 (91.3 d).
+    # ...and 60 days is still inside month 2 (which ends at 60.875 d), 90 inside month 3 (91.3 d).
     @test EcoSISTEM._seriesindex(series, 60.0day) == 2
     @test EcoSISTEM._seriesindex(series, 90.0day) == 3
 
@@ -308,7 +308,7 @@ end
 
     # The general property, so a fix cannot satisfy the cases above by accident: across a whole year
     # of daily steps, the current slice must always be the month elapsed time actually falls in.
-    # `HoldAtEnd` only so the sweep can reach day 364 — see the coverage bug below for why it
+    # `HoldAtEnd` only so the sweep can reach day 364 - see the coverage bug below for why it
     # otherwise cannot.
     held = EcoSISTEM._attachchange(ReplaceWith(SeriesChange(stack,
                                                             atend = HoldAtEnd())),
@@ -319,14 +319,14 @@ end
     @test isempty(wrong)
 end
 
-# **The same root cause, but this one was loud** — also fixed 2026-08-05, and also written before
+# **The same root cause, but this one was loud** - also fixed 2026-08-05, and also written before
 # the fix. `_seriesreach` added only *half* a gap past the last coordinate, to match the
 # nearest-coordinate rule, so a 12-slice monthly series covered 11.5 months: a full year of simulation
 # against a twelve-month climatology errored with "this series ran out" a fortnight early, and the
 # twelfth slice was never fully reached under the default `ErrorAtEnd`.
 #
 # Kept separate from the phase test above because this one *throws* rather than quietly returning
-# the wrong slice, so it is the symptom a user hits first — and a fix to the lookup alone would have
+# the wrong slice, so it is the symptom a user hits first - and a fix to the lookup alone would have
 # left it standing.
 @testset "a 12-slice monthly series covers a full twelve months" begin
     stack = _teststack(273.0K, 1.0K)
@@ -334,7 +334,7 @@ end
     series = EcoSISTEM._attachchange(ReplaceWith(SeriesChange(stack)), layer)
 
     # `_seriesreach` is an **absolute** time (last slice + half a gap = 12.5 months), not a
-    # duration — subtract `origin` to get the elapsed time actually covered. Comparing the absolute
+    # duration - subtract `origin` to get the elapsed time actually covered. Comparing the absolute
     # value against `12month_mean_duration` passes vacuously, which is exactly the mistake this comment exists to
     # stop the next person repeating.
     covered = EcoSISTEM._seriesreach(series) - series.origin
@@ -409,7 +409,7 @@ end
                                  13.0month_mean_duration) == 2
 
     # An end-of-series policy *is* a type, so anything that is not one is refused by the signature,
-    # where it is written — rather than being looked up from a list of accepted names and reported
+    # where it is written - rather than being looked up from a list of accepted names and reported
     # only once the series runs out.
     @test_throws TypeError SeriesChange(stack, atend = :wrap)
 end
@@ -429,12 +429,12 @@ end
     dated = EcoSISTEM._attachchange(ReplaceWith(SeriesChange(calendar)), layer)
     @test dated isa SeriesLayerChange
     @test dated.calendar == DatedSeries(Dates.DateTime(2000, 1, 1))
-    # Elapsed coordinates run from zero (the first slice) to the real gap to the last — 2000 was a
+    # Elapsed coordinates run from zero (the first slice) to the real gap to the last - 2000 was a
     # leap year, so January to December is 335 days, not eleven mean months.
     @test dated.times[1] == 0.0s
     @test dated.times[end] ≈ uconvert(s, 335.0 * u"d")
     @test dated.origin == 0.0s
-    # …and giving each slice an elapsed time explicitly still overrides the axis, leaving a series
+    # ...and giving each slice an elapsed time explicitly still overrides the axis, leaving a series
     # with no calendar identity at all.
     plain = EcoSISTEM._attachchange(ReplaceWith(SeriesChange(calendar,
                                                              times = (1:12) .*
@@ -444,7 +444,7 @@ end
     @test plain.calendar == UndatedSeries()
 
     # An unevenly spaced series has no period to cycle over (an ERA read is exactly this), so
-    # `:repeat` is refused rather than guessed at — `:hold` remains available.
+    # `:repeat` is refused rather than guessed at - `:hold` remains available.
     uneven = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 20] .* month_mean_duration
     @test_throws ErrorException EcoSISTEM._attachchange(ReplaceWith(SeriesChange(stack,
                                                                                  times = uneven,
@@ -473,7 +473,7 @@ end
 end
 
 @testset "A SeriesLayerChange reads its own time axis, and its mode" begin
-    # A real `Ti` lookup in months is used as given…
+    # A real `Ti` lookup in months is used as given...
     stack = _teststack(273.0K, 1.0K)
     layer = _testregime(274.0K, Temperature)
     real = DimArray(stack,
@@ -483,7 +483,7 @@ end
                                                               atend = RepeatAtEnd())),
                                      layer)
     @test EcoSISTEM._seriesindex(onaxis, 13.0month_mean_duration) == 2
-    # …and elapsed time is measured from the series' own start, so a 1-based axis and a 0-based one
+    # ...and elapsed time is measured from the series' own start, so a 1-based axis and a 0-based one
     # both begin at their first slice rather than one being an off-by-one from the other.
     zerobased = DimArray(stack,
                          (Y(NoLookup()), X(NoLookup()),
@@ -494,7 +494,7 @@ end
                                  13.0month_mean_duration) == 2
 
     # Under `OffsetBy` the slices are an interval added to the layer's captured values, so the same
-    # stack means something different — and, on an affine axis, must be read in `K` not `°C`.
+    # stack means something different - and, on an affine axis, must be read in `K` not `°C`.
     offset = _testregime(274.0K, Temperature)
     deviation = EcoSISTEM._attachchange(OffsetBy(SeriesChange(_teststack(0.0K,
                                                                          1.0K),
@@ -527,13 +527,13 @@ end
     EcoSISTEM._layerupdate!(layer, 14.0month_mean_duration,
                             1.0month_mean_duration)
     @test layer.matrix[1, 1] ≈ 276.0K + 1.2K / year * 14.0month_mean_duration
-    # …and the series has wrapped back to the same slice, so the whole difference is the trend.
+    # ...and the series has wrapped back to the same slice, so the whole difference is the trend.
     @test EcoSISTEM._seriesindex(first(layer.change.parts),
                                  14.0month_mean_duration) ==
           EcoSISTEM._seriesindex(first(layer.change.parts),
                                  2.0month_mean_duration)
 
-    # With no absolute part the sum is relative — read from the layer's captured values.
+    # With no absolute part the sum is relative - read from the layer's captured values.
     relative = _testregime(274.0K, Temperature)
     EcoSISTEM.setchange!(relative,
                          OffsetBy(PatternedChange(5.0K, 1.0year)) +
@@ -549,13 +549,13 @@ end
                   IncrementBy(1.0K / year)).specs) == 3
 
     # `+` is the spelling; the type it builds is supported but *unexported*, for the one case a `+`
-    # chain cannot express — a collection whose length is not known when the code is written.
+    # chain cannot express - a collection whose length is not known when the code is written.
     parts = [ReplaceWith(SeriesChange(stack)), IncrementBy(1.0K / year)]
     @test EcoSISTEM.CombinedChange(parts...).specs ==
           (parts[1] + parts[2]).specs
     @test !Base.isexported(EcoSISTEM, :CombinedChange)
     @test Base.ispublic(EcoSISTEM, :CombinedChange)
-    # …and a sum of one is not a sum at all.
+    # ...and a sum of one is not a sum at all.
     @test_throws ErrorException EcoSISTEM.CombinedChange(parts[1])
 end
 
@@ -563,7 +563,7 @@ end
     layer = _testregime(274.0K, Temperature)
     stack = _teststack(273.0K, 1.0K)
 
-    # Two positions cannot be added — only intervals can be added to a position.
+    # Two positions cannot be added - only intervals can be added to a position.
     err = try
         EcoSISTEM.setchange!(layer,
                              ReplaceWith(SeriesChange(stack)) +
@@ -577,7 +577,7 @@ end
 
     # A rate contributes its *integral*, so it needs one in closed form. A steady rate has one;
     # an oscillating rate would need the integral of its own shape, and approximating it would make
-    # the result depend on the timestep — so it is refused rather than approximated.
+    # the result depend on the timestep - so it is refused rather than approximated.
     err = try
         EcoSISTEM.setchange!(layer,
                              ReplaceWith(SeriesChange(stack)) +
@@ -589,14 +589,14 @@ end
     end
     @test err isa ErrorException
     @test occursin("integral", err.msg)
-    # …and it is refused at attach, not on some later timestep.
+    # ...and it is refused at attach, not on some later timestep.
     @test layer.change isa NoLayerChange
 end
 
 @testset "A series' stored gaps are cleaned with the layer's" begin
     # Regression. A supply's data gaps become "no resource" when it is placed in a habitat, but a
     # series holds the slices it will write on *later* steps. Cleaning only the matrix would let the
-    # first update put the `NaN`s straight back — one step late, and where they reach the resource
+    # first update put the `NaN`s straight back - one step late, and where they reach the resource
     # arithmetic and `populate!`'s supply-weighted placement.
     stack = cat(fill(10.0kJ / day, 3, 3), fill(20.0kJ / day, 3, 3), dims = 3)
     stack[1, 1, :] .= NaN * kJ / day
@@ -610,14 +610,14 @@ end
     @test !EcoSISTEM._hasgaps(cleaned.change)
     @test iszero(cleaned.matrix[1, 1])
 
-    # …and it stays clean once the series actually writes a later slice.
+    # ...and it stays clean once the series actually writes a later slice.
     EcoSISTEM._layerupdate!(cleaned, 1.0month_mean_duration,
                             1.0month_mean_duration)
     @test !any(isnan, cleaned.matrix)
     @test iszero(cleaned.matrix[1, 1])
     @test cleaned.matrix[2, 2] == 20.0kJ / day
 
-    # The original is untouched — cleaning rebuilds rather than reaching back into the caller's
+    # The original is untouched - cleaning rebuilds rather than reaching back into the caller's
     # supply, and that has to hold for the stored slices too.
     @test any(isnan, supply.matrix)
     @test EcoSISTEM._hasgaps(supply.change)
@@ -631,9 +631,9 @@ end
     @test v.spec === spec
     @test v.change === change
 
-    # A layer carries exactly one change, so the wrapper cannot nest…
+    # A layer carries exactly one change, so the wrapper cannot nest...
     @test_throws ErrorException Varying(v, change)
-    # …and it declares a change for one layer, so it cannot wrap a tuple of them. A change is
+    # ...and it declares a change for one layer, so it cannot wrap a tuple of them. A change is
     # checked against a single layer's unit, so one declaration spanning several would mean
     # different things on each.
     err = try
@@ -653,7 +653,7 @@ end
     split = EcoSISTEM._splitvarying((v, spec))
     @test split.spec == (spec, spec)
     @test split.change == (change, nothing)
-    # …and anything unwrapped passes straight through.
+    # ...and anything unwrapped passes straight through.
     @test EcoSISTEM._splitvarying(spec) == (spec = spec, change = nothing)
 end
 
@@ -671,7 +671,7 @@ end
     @test any(p -> p isa SeriesLayerChange, layer.change.parts)
     @test any(p -> p isa SteadyLayerChange, layer.change.parts)
 
-    # …and both halves are live: the slice still advances with elapsed time, and the trend
+    # ...and both halves are live: the slice still advances with elapsed time, and the trend
     # accumulates on top of it rather than being erased by each absolute write.
     EcoSISTEM._layerupdate!(layer, 2.0month_mean_duration,
                             1.0month_mean_duration)
@@ -684,7 +684,7 @@ end
     flat = ContinuousRegime(fill(274.0K, 5, 5), 1.0km, NoLayerChange())
     EcoSISTEM._applydeclared!(flat, IncrementBy(2.0K / year))
     @test flat.change isa SteadyLayerChange
-    # …and declaring nothing leaves it alone.
+    # ...and declaring nothing leaves it alone.
     EcoSISTEM._applydeclared!(flat, nothing)
     @test flat.change isa SteadyLayerChange
 end
@@ -737,8 +737,8 @@ end
     layer = _testregime(274.0K, Temperature)
 
     # What this distinction prevents: a lookup-less stack read as *months of the year*, which makes
-    # a synthetic 10-slice stack silently "months 1 to 10". Monthly is its spacing — that is what the
-    # v0.4.0 stack walk assumes — but it has no calendar identity, so nothing may phase-lock it.
+    # a synthetic 10-slice stack silently "months 1 to 10". Monthly is its spacing - that is what the
+    # v0.4.0 stack walk assumes - but it has no calendar identity, so nothing may phase-lock it.
     bare = EcoSISTEM._attachchange(ReplaceWith(SeriesChange(_teststack(273.0K,
                                                                        1.0K,
                                                                        (5, 5),
@@ -755,7 +755,7 @@ end
                                                            calendar = MonthOfYearSeries())),
                                   layer).calendar == MonthOfYearSeries()
 
-    # …and the claim is checked where it is made: coordinates that are not whole month numbers
+    # ...and the claim is checked where it is made: coordinates that are not whole month numbers
     # from 1 to 12 are not months of the year, whatever the caller says.
     @test_throws ErrorException EcoSISTEM._attachchange(ReplaceWith(SeriesChange(_namedclimatology(),
                                                                                  times = (1:12) .*
@@ -773,7 +773,7 @@ end
     @test shifted.origin == uconvert(s, 3.0month_mean_duration)
 
     # For the other two the epoch fixes the phase, and a second knob for the same thing could only
-    # contradict it — so it is refused at the line that wrote it.
+    # contradict it - so it is refused at the line that wrote it.
     for calendar in (MonthOfYearSeries(), DatedSeries(Dates.DateTime(2000, 1, 1)))
         err = try
             EcoSISTEM._attachchange(ReplaceWith(SeriesChange(_namedclimatology(),
@@ -796,7 +796,7 @@ end
     EcoSISTEM._layerupdate!(layer, 0.0s, 1.0day)
     @test _shownslice(layer) == 1
 
-    # With one, a run starts on the slice for its own month — all twelve of them.
+    # With one, a run starts on the slice for its own month - all twelve of them.
     for month in 1:12
         layer = _climatologylayer()
         EcoSISTEM._repointseries!(layer, Dates.DateTime(2015, month, 1))
@@ -806,7 +806,7 @@ end
 
     # Matching is by month *number*, not by elapsed duration into the year, and this is the case
     # that separates them: the slices are spaced by `month_mean_duration` (30.44 d) so six of them
-    # reach 182.6 days, while the real 1 July is day 181 — matching proportionally would select the
+    # reach 182.6 days, while the real 1 July is day 181 - matching proportionally would select the
     # June slice. Pinned because it is the exact off-by-one the layer-units work found elsewhere.
     @test 6 * 30.4375 > 181
     layer = _climatologylayer()
@@ -818,7 +818,7 @@ end
     EcoSISTEM._layerupdate!(layer, 6.0month_mean_duration, 1.0day)
     @test _shownslice(layer) == 1
 
-    # An undated series is left exactly where it was, epoch or no epoch — nothing to bind to.
+    # An undated series is left exactly where it was, epoch or no epoch - nothing to bind to.
     undated = _climatologylayer(calendar = UndatedSeries())
     origin = undated.change.origin
     EcoSISTEM._repointseries!(undated, Dates.DateTime(2015, 7, 1))
@@ -847,14 +847,14 @@ end
     EcoSISTEM._layerupdate!(layer, 0.0s, 1.0day)
     @test _shownslice(layer) == 4
 
-    # An epoch *before* the series begins is **not** an error — see the dedicated testset below.
+    # An epoch *before* the series begins is **not** an error - see the dedicated testset below.
     # It gives the run a lead-in during which the layer's own values stand, which is a thing to want
     # rather than a mistake. Here it is enough that it is accepted and dates the origin negatively.
     early = build()
     EcoSISTEM._repointseries!(early, Dates.DateTime(2009, 6, 1))
     @test early.change.origin < 0.0s
 
-    # …and a *cyclic* series has no beginning to precede at all, so any date phases it.
+    # ...and a *cyclic* series has no beginning to precede at all, so any date phases it.
     @test EcoSISTEM._repointseries!(_climatologylayer(),
                                     Dates.DateTime(1850, 6, 1)) isa
           EcoSISTEM.AbstractLayer
@@ -900,7 +900,7 @@ end
 end
 
 @testset "A run is checked against the series driving it up front" begin
-    # `ErrorAtEnd` would fail anyway, but at the step it happens — so it is reported before the
+    # `ErrorAtEnd` would fail anyway, but at the step it happens - so it is reported before the
     # first one instead.
     err = try
         EcoSISTEM._checkcoverage(_climatologylayer(atend = ErrorAtEnd()),
@@ -912,7 +912,7 @@ end
     @test err isa ErrorException
     @test occursin("does not cover the run", err.msg)
 
-    # `HoldAtEnd` never fails, which is why it earns a warning instead — with the proportion in
+    # `HoldAtEnd` never fails, which is why it earns a warning instead - with the proportion in
     # it, since that is the number that says whether it was intended.
     held = _climatologylayer(atend = HoldAtEnd())
     @test_logs (:warn, r"80.0% of the simulation") EcoSISTEM._checkcoverage(held,
@@ -927,7 +927,7 @@ end
 
 @testset "A run starts in the state its series describes" begin
     # The defect this closes: a change only reaches a layer's `matrix` when `_applychange!` runs,
-    # and `update!` does that at the *end* of a timestep — so an unprimed series layer spent the
+    # and `update!` does that at the *end* of a timestep - so an unprimed series layer spent the
     # whole of step one holding whatever its builder left behind, and step one's population dynamics
     # ran against an environment nothing had asked for.
     layer = _climatologylayer()
@@ -939,10 +939,10 @@ end
     EcoSISTEM._repointseries!(plain, nothing)
     @test _shownslice(EcoSISTEM._primeseries!(plain, 0.0s)) == 1
 
-    # Priming is idempotent — it evaluates a pure function of elapsed time rather than compounding.
+    # Priming is idempotent - it evaluates a pure function of elapsed time rather than compounding.
     @test _shownslice(EcoSISTEM._primeseries!(plain, 0.0s)) == 1
 
-    # …but a **rate** must not be primed: it accumulates `value × timestep`, and at the start of a
+    # ...but a **rate** must not be primed: it accumulates `value × timestep`, and at the start of a
     # run nothing has accumulated. Priming would add a phantom step of drift before the first step.
     rate = _testregime(274.0K, Temperature)
     EcoSISTEM.setchange!(rate, IncrementBy(2.0K / year))
@@ -960,7 +960,7 @@ end
 
 @testset "A supply cannot go negative" begin
     # Not a policy bolted onto `Resource`: it restates what makes something a resource. A resource
-    # is rival and consumed against a demand, so a negative amount of it has no meaning — which is
+    # is rival and consumed against a demand, so a negative amount of it has no meaning - which is
     # why the rule needs no per-axis opt-in and admits no exceptions.
     negative = Supply{SolarRadiation}(fill(-1.0kJ / day, 3, 3))
     err = try
@@ -971,7 +971,7 @@ end
     end
     @test err isa ErrorException
     @test occursin("negative", err.msg)
-    # …and the message points at the resolution rather than just refusing: a quantity that
+    # ...and the message points at the resolution rather than just refusing: a quantity that
     # genuinely takes both signs is not a supply.
     @test occursin("regime side", err.msg)
     @test EcoSISTEM._checksupplybounds(Supply{SolarRadiation}(fill(1.0kJ / day,
@@ -1001,7 +1001,7 @@ end
                                       ReplaceWith(SeriesChange(stack(5.0kJ /
                                                                      day))))
 
-    # …but a **regime** may go as negative as it likes: the bound is role-level, not universal.
+    # ...but a **regime** may go as negative as it likes: the bound is role-level, not universal.
     regime = _testregime(10.0K, Temperature)
     negativeslices = DimArray(cat((fill(-5.0K, 5, 5) for _ in 1:4)...,
                                   dims = 3),
@@ -1020,11 +1020,11 @@ end
                             1.0month_mean_duration)
     @test all(≈(4.0kJ / day), running.matrix)          # still positive, untouched
 
-    # Warned **once**, not once per step — a supply held at zero would otherwise warn on every
-    # subsequent step and drown a long run's output. A single `(:warn, …)` pattern asserts exactly
+    # Warned **once**, not once per step - a supply held at zero would otherwise warn on every
+    # subsequent step and drown a long run's output. A single `(:warn, ...)` pattern asserts exactly
     # one matching record, so a second warning fails this.
     # Both steps must sit inside **one** `@test_logs`: `maxlog` counts per *logger*, and
-    # `@test_logs` installs a fresh one each time — so splitting them resets the counter and would
+    # `@test_logs` installs a fresh one each time - so splitting them resets the counter and would
     # test nothing. (Found the hard way; the production behaviour was right all along.)
     @test_logs (:warn, r"below zero") begin
         EcoSISTEM._layerupdate!(running, 2.0month_mean_duration,
@@ -1067,16 +1067,16 @@ end
     @test err isa ErrorException
     @test occursin("before the run ends", err.msg)
 
-    # A run that stays in range is untouched — 285 K falling 1 K/yr for 100 years reaches 185 K.
+    # A run that stays in range is untouched - 285 K falling 1 K/yr for 100 years reaches 185 K.
     @test_nowarn simulate!(eco(-1.0K / year), 100.0year, 1.0month_mean_duration)
-    # …and `Temperature` has no ceiling, so warming as far as you like is fine.
+    # ...and `Temperature` has no ceiling, so warming as far as you like is fine.
     @test_nowarn simulate!(eco(1.0K / year), 300.0year, 1.0month_mean_duration)
 
     # The write-site backstop, for a change whose reach cannot be predicted: a `PatternedChange`
     # takes an arbitrary function of elapsed time, so its amplitude does not bound it in general and
     # the pre-flight check deliberately stays silent rather than guessing.
     # This also exercises the **affine** path: the layer holds °C, so absolute zero must be
-    # compared as -273.15 °C — converting the bound, not the values.
+    # compared as -273.15 °C - converting the bound, not the values.
     celsius = _testregime(5.0u"°C", Temperature)
     EcoSISTEM.setchange!(celsius, OffsetBy(PatternedChange(500.0K, 1.0year)))
     err2 = try
@@ -1089,18 +1089,18 @@ end
     @test occursin("physical range", err2.msg)
     @test occursin("-273.15 °C", err2.msg)
 
-    # A **balance** axis is unbounded and must not be refused — this is the case the catalogue's
+    # A **balance** axis is unbounded and must not be refused - this is the case the catalogue's
     # `Category = balance` marker exists to protect.
     balance = _testregime(5.0mm / day, ClimateMoisture)
     EcoSISTEM.setchange!(balance, IncrementBy(-1.0mm / day / year))
-    # One call applies **one timestep**, not `elapsed`-worth of drift — the elapsed argument only
+    # One call applies **one timestep**, not `elapsed`-worth of drift - the elapsed argument only
     # tells the change what its value is *now*, which for a steady rate is constant.
     @test_nowarn EcoSISTEM._layerupdate!(balance, 100.0year, 100.0year)
     @test all(<(0.0mm / day), balance.matrix)      # genuinely negative, and allowed
 end
 
 @testset "Outside its span a series contributes nothing" begin
-    # Slices at months 12–23, so an `origin` of zero gives a year of lead-in before the series has
+    # Slices at months 12-23, so an `origin` of zero gives a year of lead-in before the series has
     # anything to say. 500 K is unmistakably the layer's own.
     stack = DimArray(cat((fill((279.0 + i) * K, 5, 5) for i in 1:12)...,
                          dims = 3),
@@ -1118,7 +1118,7 @@ end
                                         1.0month_mean_duration);
                 shown(l))
 
-    # Before its first slice the layer stands — including at build, which priming must not
+    # Before its first slice the layer stands - including at build, which priming must not
     # overwrite with a slice the series has not reached.
     lead = build(ReplaceWith(SeriesChange(stack,
                                           origin = 0.0month_mean_duration,
@@ -1135,7 +1135,7 @@ end
     @test shown(revert) == 280.0K         # default origin, so no lead-in
     @test at(revert, 11) == 291.0K
     @test at(revert, 12) == 291.0K        # still in force for its own month
-    @test at(revert, 13) == 500.0K        # …and then the layer is back
+    @test at(revert, 13) == 500.0K        # ...and then the layer is back
 
     # The default is untouched: with `origin` defaulting to the first slice, elapsed time can
     # never fall short of it, so no run that does not ask for a lead-in gets one.
@@ -1143,9 +1143,9 @@ end
     @test shown(plain) == 280.0K
     @test at(plain, 12) == 291.0K
 
-    # …but omitting `origin` and passing zero are **not** the same thing, and this is the pairing
+    # ...but omitting `origin` and passing zero are **not** the same thing, and this is the pairing
     # that says so: omitting means "the first slice", zero means "coordinate zero", which is before
-    # it. On an ordinary 1–12 climatology that difference is a whole month of lead-in.
+    # it. On an ordinary 1-12 climatology that difference is a whole month of lead-in.
     ordinary = DimArray(cat((fill((279.0 + i) * K, 5, 5) for i in 1:12)...,
                             dims = 3),
                         (Y(NoLookup()), X(NoLookup()),
@@ -1199,7 +1199,7 @@ end
 end
 
 @testset "Coverage is checked against where the run really ends" begin
-    # `simulate!` takes `length(0s:timestep:duration)` steps — a range including both ends — so a
+    # `simulate!` takes `length(0s:timestep:duration)` steps - a range including both ends - so a
     # twelve-month run in one-month steps advances the clock *thirteen* times. Checking against
     # `duration` would have passed runs that then failed mid-flight, which is precisely what this
     # check exists to pre-empt, so it is checked against the elapsed time the run actually reaches.
@@ -1208,7 +1208,7 @@ end
                                   1.0month_mean_duration) ≈
           uconvert(s, 13.0month_mean_duration)
 
-    # …and it counts from where the clock already is, since `simulate!` does not reset it.
+    # ...and it counts from where the clock already is, since `simulate!` does not reset it.
     EcoSISTEM._advanceclock!(eco, 5.0month_mean_duration)
     @test EcoSISTEM._finalelapsed(eco, 12.0month_mean_duration,
                                   1.0month_mean_duration) ≈

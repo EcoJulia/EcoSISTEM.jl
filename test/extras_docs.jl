@@ -11,7 +11,7 @@
 #
 #     cd test && julia --project=.. extras_docs.jl
 #
-# `runtests.jl` also picks it up automatically, along with every other `test/extras_*.jl` — but only
+# `runtests.jl` also picks it up automatically, along with every other `test/extras_*.jl` - but only
 # after the unit tests have passed, since a failing testset throws before the loop is reached.
 #
 # **A ```@example fence is the single source of truth for "this code is checked".** Documenter runs
@@ -21,7 +21,7 @@
 #
 # This does **not** call Documenter, and cannot: `Documenter` lives in `docs/Project.toml`, not in
 # `Project.toml`'s `test` target, so `makedocs` is unavailable here. The blocks are extracted and run
-# directly instead — which also means an executable block may only `using` packages reachable from the
+# directly instead - which also means an executable block may only `using` packages reachable from the
 # *test* environment (the package's own dependencies, plus the `test` target's extras such as `Plots`).
 #
 # Executable blocks must be **synthetic, or read only rasters the rest of the suite already
@@ -36,7 +36,7 @@ using EcoSISTEM
 
 # The fence languages Documenter *executes* while building a page. `@example` and `@setup` run as
 # scripts (the latter without showing its code); `@repl` runs line by line and shows a prompt. The
-# rest of Documenter's blocks — `@meta`, `@docs`, `@autodocs`, `@index`, `@contents`, `@raw` — are
+# rest of Documenter's blocks - `@meta`, `@docs`, `@autodocs`, `@index`, `@contents`, `@raw` - are
 # directives rather than code, and `jldoctest` is checked against its own recorded output by
 # Documenter itself, so running it here would duplicate that badly (we would execute it but compare
 # nothing).
@@ -44,7 +44,7 @@ const EXECUTED = ("@example", "@setup", "@repl")
 
 # One page's executable code, split into sandboxes **exactly as Documenter groups them**: blocks
 # sharing a name share a module and run in order, while an anonymous block gets a module to itself.
-# Matching that rule is what makes this runner and the docs build agree by construction — a page that
+# Matching that rule is what makes this runner and the docs build agree by construction - a page that
 # passes here for the wrong reason (state leaking between blocks that Documenter keeps apart) would
 # fail there.
 #
@@ -66,7 +66,7 @@ function _sandboxes(path::AbstractString)
                 push!(buffer, line)
             end
         elseif startswith(line, "```")
-            # ```@example name — the language is the first word, the sandbox name the rest.
+            # ```@example name - the language is the first word, the sandbox name the rest.
             spec = split(strip(chopprefix(line, "```")), limit = 2)
             isempty(spec) && continue
             first(spec) in EXECUTED || continue
@@ -96,11 +96,11 @@ end
         sandboxes = _sandboxes(joinpath(docsdir, page))
         isempty(sandboxes) && continue
         total += length(sandboxes)
-        println("    * $page — $(length(sandboxes)) executable block group(s) ...")
+        println("    * $page - $(length(sandboxes)) executable block group(s) ...")
         @testset "$page" begin
             for (name, source) in sandboxes
                 # A fresh, bare module per sandbox: the page must bring its own `using` statements,
-                # which is the point — a page whose imports only work because the test suite had
+                # which is the point - a page whose imports only work because the test suite had
                 # already loaded something is a page a reader cannot follow.
                 sandbox = Module(Symbol("Docs_", replace(page, r"\W" => "_"),
                                         "_",
@@ -114,7 +114,7 @@ end
     end
     # The check that this file is doing anything at all. A regex that quietly matches nothing
     # reports success just as loudly as one that works, and this suite exists precisely because
-    # unexecuted documentation rots invisibly — so a run that executed no code is a failure.
+    # unexecuted documentation rots invisibly - so a run that executed no code is a failure.
     @test total > 0
 end
 

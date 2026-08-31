@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Conformance to `Base`, not our own API — every method this package defines on a `Base` or `Core`
+# Conformance to `Base`, not our own API - every method this package defines on a `Base` or `Core`
 # generic, gathered here rather than beside the type each one is about, and ordered **by type** so
 # that "what does `Base` see when it is handed one of these?" can be answered by reading down. Its
 # siblings are `DiversityInterface.jl` and `EcoBaseInterface.jl`.
@@ -19,17 +19,17 @@
 #     `params`. Those five *are* the `Distributions` interface, and which module owns each generic is
 #     not the useful grouping.
 #   - **`deprecations.jl`** keeps `eltype` for the shims it defines.
-#   - **`ClimatePref`** keeps its own — `size`, `length`, `eltype`, `show`, `read`.
+#   - **`ClimatePref`** keeps its own - `size`, `length`, `eltype`, `show`, `read`.
 #   - **`ext/`** keeps `Base.read`'s dataset methods; an extension cannot be loaded early.
 #
 # Included last, which is safe rather than merely tidy: method definitions are order-independent, and
 # nothing in `src/` calls one of these at load time.
 
-# ═══════════════════════════════════════════════════════════════════════════════════════════════
-# The member-container interface — `AbstractLayer`, `AbstractSpeciesRequirement`, `AbstractNicheFit`
-# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# ===============================================================================================
+# The member-container interface - `AbstractLayer`, `AbstractSpeciesRequirement`, `AbstractNicheFit`
+# ===============================================================================================
 #
-# Every one of these families is "one member, or several members named by their niche axis" — which
+# Every one of these families is "one member, or several members named by their niche axis" - which
 # is exactly what a `NamedTuple` is. So rather than a bespoke accessor trio per family, the
 # collections **forward the standard container interface to their backing** and the leaves implement
 # the same interface as one-member containers. A caller who knows `NamedTuple` already knows this one,
@@ -37,16 +37,16 @@
 #
 # Two members of the interface are deliberately **absent**, and neither is an oversight:
 #
-#   - **`collect`** — not defined here, and not thereby prevented: `iterate` gives Base's generic
+#   - **`collect`** - not defined here, and not thereby prevented: `iterate` gives Base's generic
 #     `collect` for free, so `collect(lc)` works and allocates into an abstractly-typed `Vector`.
 #     There is no way to have iteration without it, so the position is *not encouraged, not defined,
 #     still reachable*, and a caller who wants one is better served by `collect(values(x))`, which
 #     says what it is doing.
-#   - **`eltype`** — a **leaf** property, not a container one. A leaf's `eltype` is the unit frame its
+#   - **`eltype`** - a **leaf** property, not a container one. A leaf's `eltype` is the unit frame its
 #     data is in, and it is what supplies a nichefit's frame parameter; a collection has no single
 #     one, so asking is an error rather than a guess. See the note in `SpeciesRequirement.jl`.
 #
-# The two sides of the interface. `_SingletonsAndCollections` is **not** just the singletons — it is
+# The two sides of the interface. `_SingletonsAndCollections` is **not** just the singletons - it is
 # the three abstract supertypes, so a `LayerCollection` matches it too. `_JustCollections` is a
 # **subtype** of it, so a collection's methods are the more specific ones and win, which is what lets
 # the methods over the wider union read as the plain one-member case.
@@ -113,8 +113,8 @@ Base.lastindex(x::_SingletonsAndCollections) = length(x)
 Base.NamedTuple(x::_SingletonsAndCollections) = _backing(x)
 
 # Named member access, routed through `getindex` so there is one implementation rather than two. That
-# makes it depend on `_backing` using `getfield` — see the warning there, since with `getproperty`
-# this line would recurse — and it keeps a member named `:nt` reachable. `propertynames` agrees with
+# makes it depend on `_backing` using `getfield` - see the warning there, since with `getproperty`
+# this line would recurse - and it keeps a member named `:nt` reachable. `propertynames` agrees with
 # `keys`, because for a collection the properties **are** the members.
 #
 # Deliberately collection-only: for a leaf the properties are its own fields, `matrix`, `size`,
@@ -146,8 +146,8 @@ function Base.merge(a::AbstractNicheFit, b::_SingletonsAndCollections)
     return CombiningFit(nichefitcombine(a), merge(_backing(a), _backing(b)))
 end
 
-# ══ ClimateRaster — the array and broadcast interface ══════════════════════════════════════════════
-# The private helpers these call — `_unwrapped`, `_rastersof`, `_rewrap` — stay beside `ClimateRaster`
+# == ClimateRaster - the array and broadcast interface ==============================================
+# The private helpers these call - `_unwrapped`, `_rastersof`, `_rewrap` - stay beside `ClimateRaster`
 # itself: they are about rebuilding a raster, not about conforming to `Base`.
 Base.size(raster::ClimateRaster) = size(raster.array)
 
@@ -165,7 +165,7 @@ end
 
 Base.eltype(::ClimateRaster{S, C, A}) where {S, C, A} = eltype(A)
 
-# ══ The materialised layers ════════════════════════════════════════════════════════════════════════
+# == The materialised layers ========================================================================
 function Base.eltype(regime::ContinuousRegime{C}) where {C}
     return C
 end
@@ -176,16 +176,16 @@ end
 
 Base.eltype(::ContinuousLayer{Resource, A, V}) where {A, V} = V
 
-# ══ The species requirements ═══════════════════════════════════════════════════════════════════════
+# == The species requirements =======================================================================
 # The species-response type of a leaf. Declared on the two leaf-side abstracts rather than on
-# `AbstractSpeciesRequirement`, which a collection would also match — see the note there.
+# `AbstractSpeciesRequirement`, which a collection would also match - see the note there.
 Base.eltype(::AbstractCategoricalTolerance{A, V}) where {A, V} = V
 
 Base.eltype(::ContinuousTolerance{A, V}) where {A, V} = V
 
 Base.eltype(::Demand{A, V}) where {A, V} = V
 
-# ══ The nichefits ══════════════════════════════════════════════════════════════════════════════════
+# == The nichefits ==================================================================================
 function Base.eltype(nichefit::NicheSuitability{A, V}) where {A, V}
     return V
 end
@@ -224,7 +224,7 @@ Base.IndexStyle(::Type{<:CellNames}) = IndexLinear()
 
 Base.BroadcastStyle(::Type{<:ClimateRaster}) = ClimateRasterStyle()
 
-# A raster combined with anything — a scalar, a plain array, another raster — stays a raster. Only
+# A raster combined with anything - a scalar, a plain array, another raster - stays a raster. Only
 # this ordering is needed: Julia tries the arguments the other way round before giving up.
 function Base.BroadcastStyle(::ClimateRasterStyle, ::Broadcast.BroadcastStyle)
     return ClimateRasterStyle()
@@ -242,10 +242,10 @@ Base.broadcastable(raster::ClimateRaster) = raster
 Base.:+(a::ClimateRaster, b::ClimateRaster) = a .+ b
 Base.:-(a::ClimateRaster, b::ClimateRaster) = a .- b
 
-# ══ AbstractChangeSpec ═════════════════════════════════════════════════════════════════════════════
+# == AbstractChangeSpec =============================================================================
 Base.:+(a::AbstractChangeSpec, b::AbstractChangeSpec) = CombinedChange(a, b)
 
-# ══ The study-area report and its cache ════════════════════════════════════════════════════════════
+# == The study-area report and its cache ============================================================
 # Value equality and hashing are defined explicitly rather than relying on the `===` fallback: the
 # `readkw` `NamedTuple` may hold heap values (a month range, say), for which the default `objectid`
 # hash is identity-based and would miss every cache hit.
@@ -254,7 +254,7 @@ function Base.:(==)(a::ReadKey, b::ReadKey)
 end
 
 # Value equality, because a fate is a value: two are the same if they are the same kind and say the
-# same thing. Not the default — Julia falls back to `===` for a struct, which on `LayerResampled`
+# same thing. Not the default - Julia falls back to `===` for a struct, which on `LayerResampled`
 # compares its `reason` by **reference**, so two separately built reports would disagree about layers
 # they in fact treat identically. `hash` follows, to keep the pair consistent.
 function Base.:(==)(a::AbstractLayerFate, b::AbstractLayerFate)
@@ -262,7 +262,7 @@ function Base.:(==)(a::AbstractLayerFate, b::AbstractLayerFate)
     return all(f -> getfield(a, f) == getfield(b, f), fieldnames(typeof(a)))
 end
 
-# ══ DiversitySet ═══════════════════════════════════════════════════════════════════════════════════
+# == DiversitySet ===================================================================================
 """
     append!(diversityset::DiversitySet, dat::DataFrame)
 
@@ -280,7 +280,7 @@ end
 # ---------------------------------------------------------------------------
 # The backing
 # ---------------------------------------------------------------------------
-# The members as a `NamedTuple` — the **one** place the two sides of the interface differ. A
+# The members as a `NamedTuple` - the **one** place the two sides of the interface differ. A
 # collection *stores* one, reached with `getfield` so that no member name is reserved; a leaf *is* one
 # member, so its backing is built from `keys` and `values`. Everything else above is then a single
 # generic method over `_SingletonsAndCollections`, forwarding to whichever of these returns.
@@ -293,10 +293,10 @@ _backing(x) = NamedTuple{keys(x)}(values(x))
 # `Base.getproperty(c::_JustCollections, ...)` above is defined as `c[name]`, which routes through
 # `getindex` to **this** method and then to the backing `NamedTuple`. Were this to use `getproperty`,
 # that path would call straight back into `getproperty` and recurse forever. The recursion is
-# invisible from either site on its own — it exists only because the two are wired together — so
+# invisible from either site on its own - it exists only because the two are wired together - so
 # change neither without re-reading the other.
 _backing(c::_JustCollections) = getfield(c, :nt)
 
-# Shared body of the two role-carrying `merge`s — the third needs its combining function too, so it
+# Shared body of the two role-carrying `merge`s - the third needs its combining function too, so it
 # cannot use this.
 _mergemembers(::Type{C}, a, b) where {C} = C(merge(_backing(a), _backing(b)))

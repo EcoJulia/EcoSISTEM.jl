@@ -1,20 +1,20 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # Canonical results for the **categorical** branch: a `SimpleCategoricalTolerance` matched against a
-# `CategoricalRegime`. Synthetic throughout, so — like `test_simulated.jl` — nothing here can move
+# `CategoricalRegime`. Synthetic throughout, so - like `test_simulated.jl` - nothing here can move
 # because a download did.
 #
 # **Why this file exists at all.** Until the two categorical tolerances merged, the difference
 # between *soft* exclusion (a species does worse outside its classes) and *hard* exclusion (it cannot
 # live there) was carried by the **type**: `CategoricalTolerance`/`Match` scored 0.5 outside, and
 # `LandCoverTolerance`/`LCmatch` scored 0. It is now a `penalty` **number** on the tolerance, which is
-# far more expressive and correspondingly easier to change by accident — a default, a comparison, or
+# far more expressive and correspondingly easier to change by accident - a default, a comparison, or
 # the exponent it enters the demographics through. Nothing in `canonical/` exercised the categorical
 # branch at all, so every one of those changes would have left `reference.toml` untouched.
 #
 # Two runs, identical but for the penalty, are what makes that detectable: a change that moved both
-# by the same amount would still be caught, and one that collapsed the distinction — the exact failure
-# a wrong default produces — moves them *together*, which the `soft ≠ hard` assertions below refuse.
+# by the same amount would still be caught, and one that collapsed the distinction - the exact failure
+# a wrong default produces - moves them *together*, which the `soft ≠ hard` assertions below refuse.
 
 module CanonicalCategorical
 
@@ -32,7 +32,7 @@ using .Canonical
 # One fixed seed for the whole file, as in `test_simulated.jl`.
 const SEED = 20260817
 
-# **Non-square, and coprime with every plausible split** — 7 species on a 7 × 11 grid of 77 cells.
+# **Non-square, and coprime with every plausible split** - 7 species on a 7 × 11 grid of 77 cells.
 # A square grid has hidden a `(y, x)` transposition in this repository three times, and an
 # evenly-dividing one hid a real `gatherabundance` row/column mismatch.
 const NY, NX = 7, 11
@@ -47,18 +47,18 @@ const AREA = StudyArea(extent = (NY * 1.0km, NX * 1.0km), cellsize = 1.0km,
 # `NicheSpec` lays its niches out by percolation and weighted sampling from the **global** stream,
 # which `Ecosystem`'s own per-species seeding does not cover. Drawing it once, immediately after a
 # `Random.seed!`, is what makes it a fixed input rather than a function of whatever else has run in
-# the process first — and a canonical file is `include`d into a shared process when re-blessing but
+# the process first - and a canonical file is `include`d into a shared process when re-blessing but
 # runs in its own when checking, so "whatever else has run first" genuinely differs between the two.
 #
 # **But each run still gets its OWN habitat, built from this same map.** An `Ecosystem` *shares* its
 # habitat with the caller rather than copying it, so two ecosystems built on one habitat object are
-# not independent: simulating the first leaves state the second then inherits. Measured — sharing
+# not independent: simulating the first leaves state the second then inherits. Measured - sharing
 # one habitat made the soft and hard totals depend on the order the runs were built and simulated in,
 # and on the thread count. Passing the built layer instead is safe, because `GridHabitat` **copies**
 # a supplied layer in (`_ownlayer`) rather than aliasing it.
 #
 # With both in place the fixture is reproducible at 1, 2, 4 and 8 threads and across processes,
-# which is the package's own stated requirement — a result must not depend on how work was divided.
+# which is the package's own stated requirement - a result must not depend on how work was divided.
 const REGIME = begin
     Random.seed!(SEED)
     GridHabitat(regime = NicheSpec(NNICHES, axis = LandCoverTypology),
@@ -69,7 +69,7 @@ const REGIME = begin
 end
 
 # A categorical ecosystem on a fresh habitat carrying the fixed niche map, with each species
-# tolerating one niche. `penalty` is the whole point of the fixture — the weight a species gets in a
+# tolerating one niche. `penalty` is the whole point of the fixture - the weight a species gets in a
 # cell whose class it does not tolerate.
 function categorical_ecosystem(penalty)
     habitat = GridHabitat(regime = REGIME,
@@ -77,9 +77,9 @@ function categorical_ecosystem(penalty)
                                                axis = SolarRadiation),
                           area = AREA,
                           topology = Torus())
-    # Species 1 tolerates niche 1, species 2 niche 2, … cycling round, so every niche has occupants
+    # Species 1 tolerates niche 1, species 2 niche 2, ... cycling round, so every niche has occupants
     # and no species tolerates them all. Written as bare classes rather than sets, which is the
-    # spelling the released `DiscreteTrait` took — the constructor wraps each in a one-element set,
+    # spelling the released `DiscreteTrait` took - the constructor wraps each in a one-element set,
     # and that equivalence is itself part of what this fixture pins.
     classes = [1 + (sp - 1) % NNICHES for sp in 1:NSPECIES]
     tolerance = SimpleCategoricalTolerance(classes, axis = LandCoverTypology,
@@ -89,7 +89,7 @@ function categorical_ecosystem(penalty)
                                          NSPECIES))
     movement = BirthOnlyMovement(GaussianKernel.(fill(2.0km, NSPECIES), 10e-10))
     # `survival` must be non-zero or this fixture is VACUOUS. Suitability enters the demographics
-    # as `suitability^±survival`, and `x^0.0 == 1.0` for every `x` including `Inf` — so at
+    # as `suitability^±survival`, and `x^0.0 == 1.0` for every `x` including `Inf` - so at
     # `survival = 0` the penalty is ignored entirely and the soft and hard runs would be identical.
     # Asserted below rather than merely commented.
     param = EqualPop(0.15 / year, 0.15 / year, 1.0, 0.1, 1.0)
@@ -100,7 +100,7 @@ function categorical_ecosystem(penalty)
                        fill(true, NSPECIES))
     # Through `build_ecosystem` rather than `Ecosystem(..., nichefit)`, so the run also exercises
     # `_defaultsuitability` **inferring** `CategoricalSuitability` and checking the tolerance's axis
-    # against the regime's — a check the categorical branch could not have at all until the merge
+    # against the regime's - a check the categorical branch could not have at all until the merge
     # gave these tolerances an axis.
     return build_ecosystem(sppl, habitat, seed = SEED)
 end
@@ -130,7 +130,7 @@ end
 # while building and simulating one at a time is identical at all four. It is also exactly what
 # `test_simulated.jl` does for its reproducibility check, so it is the supported shape rather than a
 # workaround. Whether two concurrent ecosystems *should* be independent is a real question about
-# the package, recorded separately — this file must not be the thing that answers it.
+# the package, recorded separately - this file must not be the thing that answers it.
 function categorical_run(penalty)
     eco = categorical_ecosystem(penalty)
     cell1 = suitability(eco, 1, 1)
@@ -141,7 +141,7 @@ end
 @testset "canonical: categorical tolerance" begin
     regimemap = copy(REGIME.matrix)
     # **The fixture's INPUT, blessed.** Every number below is conditional on this map, so pinning
-    # the outputs without it would leave the experiment able to change underneath its own results —
+    # the outputs without it would leave the experiment able to change underneath its own results -
     # and the self-consistency checks further down (each run got *this* map) cannot see that, because
     # they compare against the map rather than against a record of it.
     canonical("categorical/regime_map", vec(regimemap))
@@ -150,9 +150,9 @@ end
 
     # **The penalty arithmetic, pinned without any demography at all.** These two numbers are what
     # a change to how `penalty` reaches `suitability` moves, and they move *before* the simulation
-    # does — so if the totals below shift and these do not, the cause is downstream of the tolerance.
+    # does - so if the totals below shift and these do not, the cause is downstream of the tolerance.
     # Cell 1 and species 1: whether species 1 tolerates cell 1's class depends on the seeded niche
-    # map, so which of the two values each is cannot be asserted here — but it is blessed, and the
+    # map, so which of the two values each is cannot be asserted here - but it is blessed, and the
     # `in {1.0, penalty}` property below says it can only ever be one of them.
     canonical("categorical/suitability_soft_cell1", soft.cell1)
     canonical("categorical/suitability_hard_cell1", hard.cell1)
@@ -179,7 +179,7 @@ end
     canonical("categorical/hard_abundance_by_species",
               vec(sum(hardabun, dims = 2)))
 
-    # And the share of each species' abundance in cells it tolerates — the quantity that says the
+    # And the share of each species' abundance in cells it tolerates - the quantity that says the
     # penalty is doing its job spatially rather than merely scaling everything down.
     canonical("categorical/soft_own_niche_share", own_niche_share(soft.eco))
     canonical("categorical/hard_own_niche_share", own_niche_share(hard.eco))
@@ -188,20 +188,20 @@ end
     @test all(>=(0), softabun)
     @test all(>=(0), hardabun)
     @test sum(softabun) > 0
-    # The fixture is only meaningful while `survival` is non-zero — see the constructor.
+    # The fixture is only meaningful while `survival` is non-zero - see the constructor.
     @test soft.eco.spplist.params.survival > 0
 
     # **The assertion this whole file exists for.** Soft and hard exclusion must remain
-    # *distinguishable*: if the penalty stopped reaching the demographics — a wrong default, a
-    # comparison inverted, `survival` set to zero — these two runs would converge, and every blessed
+    # *distinguishable*: if the penalty stopped reaching the demographics - a wrong default, a
+    # comparison inverted, `survival` set to zero - these two runs would converge, and every blessed
     # number above would still move in lockstep and could be re-blessed without anyone noticing.
     @test sum(hardabun) != sum(softabun)
     # Hard exclusion kills what disperses into an intolerable cell, so it must cost abundance.
     @test sum(hardabun) < sum(softabun)
-    # …and must concentrate what survives into each species' own niche.
+    # ...and must concentrate what survives into each species' own niche.
     @test sum(own_niche_share(hard.eco)) > sum(own_niche_share(soft.eco))
 
-    # Each run must have got the *same* niche map — the premise of every comparison here.
+    # Each run must have got the *same* niche map - the premise of every comparison here.
     @test soft.eco.habitat.regime.matrix == regimemap
     @test hard.eco.habitat.regime.matrix == regimemap
 

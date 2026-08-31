@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 # ===========================================================================
-# Deprecations — `ClimatePref` submodule
+# Deprecations - `ClimatePref` submodule
 #
 # (One live deprecation cannot be moved here: the `xmin`/`xmax`/`ymin`/`ymax`
-# keyword branch inside `readfile(file; …)` in `src/datasetread.jl` is part of that
+# keyword branch inside `readfile(file; ...)` in `src/datasetread.jl` is part of that
 # live method's body.)
 # ===========================================================================
 
@@ -13,8 +13,8 @@
 using Statistics
 using DimensionalData: rebuild, lookup
 
-# **Three groups of shims moved to `EcoSISTEMRasterDataSourcesExt`** — the five per-source wrapper
-# constructors (`Worldclim_bioclim` and friends, which forward to a `ClimateRaster{WorldClim{…}}`),
+# **Three groups of shims moved to `EcoSISTEMRasterDataSourcesExt`** - the five per-source wrapper
+# constructors (`Worldclim_bioclim` and friends, which forward to a `ClimateRaster{WorldClim{...}}`),
 # `readworldclim`, and `readCHELSA_monthly`. Each names a `RasterDataSources` type in its signature
 # or its target, so none can be defined without that package; the names stay exported by the
 # submodule regardless.
@@ -29,7 +29,7 @@ using DimensionalData: rebuild, lookup
 # binding must exist; `@deprecate` in the extension resolves `ClimatePref.<name>` at macro-expansion
 # time and needs something to attach to; and a docstring on a name whose only method is in an
 # extension is invisible to `@autodocs` unless it stays in the parent.
-# Calling one without `RasterDataSources` loaded is a `MethodError` naming the function — the same
+# Calling one without `RasterDataSources` loaded is a `MethodError` naming the function - the same
 # behaviour as `retrieve_era5` without `PyCall`.
 # ---------------------------------------------------------------------------
 function Worldclim_bioclim end
@@ -41,7 +41,7 @@ function CHELSA_monthly end
 """
     readworldclim(T::Type{WorldClim{Climate}}, files; cut = nothing)
 
-Deprecated — use `read(WorldClim{Climate}, layers; …)` instead, which downloads via `getraster`
+Deprecated - use `read(WorldClim{Climate}, layers; ...)` instead, which downloads via `getraster`
 and reads through the same machinery. Retained to read an already-resolved set of monthly climate
 raster file paths.
 """
@@ -50,12 +50,12 @@ function readworldclim end
 """
     readCHELSA_monthly(dir::String, var_name::String; scale = 1, fn = mean, cut = nothing)
 
-Deprecated — use `read(CHELSA{Climate}, dir, var_name; scale, fn, cut)` instead.
+Deprecated - use `read(CHELSA{Climate}, dir, var_name; scale, fn, cut)` instead.
 """
 function readCHELSA_monthly end
 
 # ---------------------------------------------------------------------------
-# Readers → the unified `read`/`cut` API
+# Readers -> the unified `read`/`cut` API
 # ---------------------------------------------------------------------------
 # Deprecated positional-extent form `readfile(file, xmin, xmax, ymin, ymax)`; convert to `cut` and forward
 # to the keyword `readfile(file; cut)` method in `src/datasetread.jl`.
@@ -68,22 +68,22 @@ function readfile(file::String, xmin, xmax, ymin, ymax)
 end
 
 # ---------------------------------------------------------------------------
-# Source-named readers → `read(T, ...)` dispatch on the result type
+# Source-named readers -> `read(T, ...)` dispatch on the result type
 #
 # `readCRUTS`/`readCHELSA_monthly`/`readERA`/`readCERA` named themselves after their source instead
-# of using multiple dispatch — the same anti-pattern `_thirdaxis` had (fixed in `datasetread.jl`).
+# of using multiple dispatch - the same anti-pattern `_thirdaxis` had (fixed in `datasetread.jl`).
 # `CRUTS`/`ERA`/`CERA` are already real result types (`src/Climate.jl`), reused here as the `read`
-# dispatch tag (`read(CRUTS, dir, var_name)`, `read(ERA, file, param)`) — Julia doesn't distinguish
+# dispatch tag (`read(CRUTS, dir, var_name)`, `read(ERA, file, param)`) - Julia doesn't distinguish
 # "source type" from "result type" for dispatch, the same `parse(Float64, "3.14")`-shaped idiom.
 # `readCHELSA_monthly` dispatches on the existing `CHELSA{Climate}` source type instead, matching
-# `Base.read(T::Type{<:RDS.RasterDataSource}, ...)` in the same file. `readfile` is *not* included —
+# `Base.read(T::Type{<:RDS.RasterDataSource}, ...)` in the same file. `readfile` is *not* included -
 # it has no result-wrapper type to hang a dispatch tag on, and shadowing `Base.read(::AbstractString)`
 # (raw-bytes read) with a type-punned return value would be confusing, not clarifying.
 # ---------------------------------------------------------------------------
 """
     readCRUTS(dir::String, var_name::String; cut = nothing)
 
-Deprecated — use `read(CRUTS, dir, var_name; cut)` instead.
+Deprecated - use `read(CRUTS, dir, var_name; cut)` instead.
 """
 function readCRUTS(dir::String, var_name::String; cut = nothing)
     Base.depwarn("`readCRUTS` is deprecated; use `read(CRUTS, dir, var_name; cut)`.",
@@ -94,7 +94,7 @@ end
 """
     readERA(file::String, param::String; cut = nothing)
 
-Deprecated — use `read(ERA, file, param; cut)` instead.
+Deprecated - use `read(ERA, file, param; cut)` instead.
 """
 function readERA(file::String, param::String; cut = nothing)
     Base.depwarn("`readERA(file, param; cut)` is deprecated; use `read(ERA, file, param; cut)`.",
@@ -105,7 +105,7 @@ end
 """
     readERA(file::String, param::String, dim::Vector{<:Unitful.Time}; cut = nothing)
 
-Deprecated — use `read(ERA, file, param, dim; cut)` instead.
+Deprecated - use `read(ERA, file, param, dim; cut)` instead.
 """
 function readERA(file::String, param::String, dim::Vector{<:Unitful.Time};
                  cut = nothing)
@@ -118,7 +118,7 @@ end
     readERA(dir::String, file::String, param::String,
             dim::Vector{<:AbstractVector{<:Unitful.Time}}; cut = nothing)
 
-Deprecated — use `read(ERA, dir, file, param, dim; cut)` instead.
+Deprecated - use `read(ERA, dir, file, param, dim; cut)` instead.
 """
 function readERA(dir::String, file::String, param::String,
                  dim::Vector{<:AbstractVector{<:Unitful.Time}}; cut = nothing)
@@ -130,7 +130,7 @@ end
 """
     readCERA(dir::String, file::String, param::String; cut = nothing)
 
-Deprecated — use `read(CERA, dir, file, param; cut)` instead.
+Deprecated - use `read(CERA, dir, file, param; cut)` instead.
 """
 function readCERA(dir::String, file::String, param::String; cut = nothing)
     Base.depwarn("`readCERA` is deprecated; use `read(CERA, dir, file, param; cut)`.",
@@ -139,24 +139,24 @@ function readCERA(dir::String, file::String, param::String; cut = nothing)
 end
 
 # ---------------------------------------------------------------------------
-# `compressLC` → `compress_landcover`: the `LC` abbreviation is expanded, and the name is `snake_case`
+# `compressLC` -> `compress_landcover`: the `LC` abbreviation is expanded, and the name is `snake_case`
 # like every other function. The released name is `compressLC`; the intermediate
 # `compressLandCover` never shipped, so this points straight at the final name and owes no second shim.
 # ---------------------------------------------------------------------------
 @deprecate compressLC compress_landcover
 
 # ---------------------------------------------------------------------------
-# Naming standardisation (v0.5.0): `camelCase` phylogenetic-fit functions → `snake_case`.
+# Naming standardisation (v0.5.0): `camelCase` phylogenetic-fit functions -> `snake_case`.
 # ---------------------------------------------------------------------------
 @deprecate fitBrownian fitbrownian
 
 # ---------------------------------------------------------------------------
-# `fitLambda`/`fitlambda` DELETED (v0.5.0) — not deprecated, and no shim
+# `fitLambda`/`fitlambda` DELETED (v0.5.0) - not deprecated, and no shim
 # ---------------------------------------------------------------------------
 # Pagel's-lambda fitting is gone with no redirect, because it never worked on Julia 1.x and so no
 # user code can depend on a result it never returned. Two independent faults: `varcovar` threw
 # `UndefVarError` on every call from Julia 0.7 (it used `indmax`, removed in 0.7), and `fitLambda`
-# itself threw `ArgumentError: matrix contains Infs or NaNs` — it optimised **with bounds** on
+# itself threw `ArgumentError: matrix contains Infs or NaNs` - it optimised **with bounds** on
 # lambda, so `Optim` used `Fminbox`, which needs a gradient and takes one by finite differences,
 # while the objective's `log(abs(det(x[1] * V)))` underflows for a scaled n x n covariance
 # (`det(0.1 * V)` carries a factor `0.1^n`).
@@ -164,23 +164,23 @@ end
 # `fitbrownian` shares that expression and survives **only** because its optimisation is unbounded:
 # Nelder-Mead needs no gradient, so it never evaluates the objective where it blows up.
 # A working lambda model needs a numerically stable log-determinant (`logdet`, or a Cholesky), which
-# is a modelling decision rather than a repair — see `NEWS.md`.
+# is a modelling decision rather than a repair - see `NEWS.md`.
 # ---------------------------------------------------------------------------
-# `extractvalues` → `extract_values` (v0.5.0): `snake_case` like every other public function, and a
+# `extractvalues` -> `extract_values` (v0.5.0): `snake_case` like every other public function, and a
 # keyword signature in place of four positional methods.
 #
 # **A hand-written shim rather than `@deprecate`, because the *signature* changed too.** A bare
 # `@deprecate extractvalues extract_values` forwards the arguments, so the old positional call would
 # warn and then die on a `MethodError` that says nothing about how to fix it. It cannot forward
 # honestly either: `slice` meant a month, a band index or a layer code depending on the dataset, and
-# `year` needs an epoch to become a date range — the ambiguity the keywords exist to remove is
+# `year` needs an epoch to become a date range - the ambiguity the keywords exist to remove is
 # exactly what makes the translation impossible to do for the caller. So it names the replacement
 # for each old argument and stops.
 # ---------------------------------------------------------------------------
 """
     extractvalues(args...; kwargs...)
 
-Deprecated — use [`extract_values`](@ref), which takes the dataset positionally and everything else
+Deprecated - use [`extract_values`](@ref), which takes the dataset positionally and everything else
 by keyword.
 """
 function extractvalues(args...; kwargs...)
@@ -196,7 +196,7 @@ end
 export extractvalues
 
 # ---------------------------------------------------------------------------
-# **`upresolution` / `downresolution` / `downresolution!` — DEPRECATED, and moved here whole.**
+# **`upresolution` / `downresolution` / `downresolution!` - DEPRECATED, and moved here whole.**
 #
 # **Nothing in the package calls these.** The only caller is the testset that exists to test them:
 # read-time coarsening is done by block aggregation in `datasetread.jl`, and putting two layers onto
@@ -204,14 +204,14 @@ export extractvalues
 #
 # **Rasters.jl has no equivalent**, measured on a 6 by 6 grid of `10i + j`:
 # - `downresolution(x, 2)` and `Rasters.aggregate(mean, x, 2)` give the **same size** `(3, 3)` and
-# **different values** — `[11.0, 13.0, 15.0]` against `[16.5, 18.5, 20.5]`. This takes an
+# **different values** - `[11.0, 13.0, 15.0]` against `[16.5, 18.5, 20.5]`. This takes an
 # *overlapping* window centred on every `rescale`th cell, collapsing to a single cell at the
-# edges; `aggregate` takes *disjoint tiled blocks*. Same shape, different meaning — the
+# edges; `aggregate` takes *disjoint tiled blocks*. Same shape, different meaning - the
 # dangerous kind of near-miss, and why no forwarding shim is possible.
 # - `upresolution(x, 2)` gives **(11, 11)** against `disaggregate`'s **(12, 12)**: this is
 # **bilinear interpolation between cell centres** (`(n - 1) * rescale + 1` points), not the
 # block replication `disaggregate` performs (`n * rescale`).
-# Note the docstring below claims the values "are repeated". That is **wrong** — they are
+# Note the docstring below claims the values "are repeated". That is **wrong** - they are
 # interpolated. Left uncorrected deliberately: it is the released text of a deprecated function.
 #
 # The implementations stay here, working, until the removal decision is taken. Each warns in its
@@ -225,7 +225,7 @@ Function to increase the resolution of a climate dataset, by a factor, `rescale`
 
 # Arguments
 
-  - `data`: the dataset to refine — an [`ERA`](@ref) or a [`ClimateRaster`](@ref).
+  - `data`: the dataset to refine - an [`ERA`](@ref) or a [`ClimateRaster`](@ref).
   - `rescale`: how many output cells each input cell becomes along **each** axis, so `2` gives four
     times as many cells.
   - `fn`: how to fill them. Splitting a cell invents no information: the values are repeated,
@@ -331,10 +331,10 @@ Function to decrease the resolution of a climate dataset, by a factor, `rescale`
 
 # Arguments
 
-  - `data`: the dataset to coarsen — an [`ERA`](@ref) or a [`ClimateRaster`](@ref).
+  - `data`: the dataset to coarsen - an [`ERA`](@ref) or a [`ClimateRaster`](@ref).
   - `rescale`: how many input cells are combined along **each** axis, so `2` combines blocks of
     four.
-  - `fn`: how to combine them, `mean` by default. A mean is meaningless for **class codes** —
+  - `fn`: how to combine them, `mean` by default. A mean is meaningless for **class codes** -
     use a nearest-class rule there, which is what the resampling path does for a layer on a
     a `TypologyAxis`.
 """
@@ -433,7 +433,7 @@ Function to decrease the resolution of a climate dataset in place, by a factor, 
 
 # Arguments
 
-  - `resized_array`: the destination, written in place — its size is what fixes the output grid.
+  - `resized_array`: the destination, written in place - its size is what fixes the output grid.
   - `array`: the source values, one 2-D slice.
   - `dim`: which slice of a 3-D destination to write, for the second form only.
   - `rescale`: how many input cells are combined along each axis.

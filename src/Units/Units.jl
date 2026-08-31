@@ -5,7 +5,7 @@ module Units
 import Unitful
 using Unitful: @unit, uconvert
 
-# Month **numbers** — `January == 1` to `December == 12`, a 1-based ordinal matching the `Ti` axis the
+# Month **numbers** - `January == 1` to `December == 12`, a 1-based ordinal matching the `Ti` axis the
 # readers build. Re-exported from `Dates` so that naming a month needs no `using Dates` at the call
 # site, which matters because `Dates` and this module both export `day`, `week` and `year`: a blanket
 # `using Dates` alongside this one makes all three ambiguous, and someone who only wants to say
@@ -25,14 +25,14 @@ const week = Unitful.wk
 const year = Unitful.yr
 # --- Calendar-month durations -------------------------------------------------------------------
 #
-# How long a named calendar month lasts — the bridge between the duration world above and the calendar
+# How long a named calendar month lasts - the bridge between the duration world above and the calendar
 # world, and what is needed to turn a month's accumulated total into an honest rate.
 #
 # Not general-purpose duration units: use `day`, `week` or `year` for those. These answer "how long
 # did *this slice* accumulate over?", and dividing by the wrong one is a silent error of 1 to 7%.
 #
-# Named `_duration` and never `_length`, because in this package `Unitful.Length` is the 𝐋 dimension —
-# cell sizes, in metres — so a `_length` holding a time would read as a distance.
+# Named `_duration` and never `_length`, because in this package `Unitful.Length` is the 𝐋 dimension -
+# cell sizes, in metres - so a `_length` holding a time would read as a distance.
 #
 # Exact `Rational`s, for the same reason `arcminute` and `arcsecond` below are: `28.25` in floating
 # point would not let the twelve sum to exactly one Julian year, which the tests assert.
@@ -50,25 +50,25 @@ const year = Unitful.yr
 
 # February has three, and deliberately **no bare `february_duration`**: it is the one month whose
 # duration is not a single number, so a bare name would be the only one that silently meant a mean.
-# Which to use is decided by what the data knows — a real date picks one of the first two, and a
+# Which to use is decided by what the data knows - a real date picks one of the first two, and a
 # climatology, where the year is genuinely unknown, the third.
 @unit february_common_year_duration "february_common_year_duration" FebruaryCommonYearDuration 28day false
 @unit february_leap_year_duration "february_leap_year_duration" FebruaryLeapYearDuration 29day false
 @unit february_mean_duration "february_mean_duration" FebruaryMeanDuration (113//4)day false
 
-# The mean month, for a layer whose month is not merely unrecorded but **unknowable** — `bio13` is
+# The mean month, for a layer whose month is not merely unrecorded but **unknowable** - `bio13` is
 # "precipitation of the wettest month", and which month that is varies by cell. Using it is a declared
 # approximation, within 7% of any real month, rather than a fudge: the alternative is to pretend to
 # know something the data does not record.
 #
-# The name says what it is. A plain `month` would be a fixed 30.4375 days — the length of no real
-# calendar month — and a name that reads as though it were exact is precisely what this scheme exists
+# The name says what it is. A plain `month` would be a fixed 30.4375 days - the length of no real
+# calendar month - and a name that reads as though it were exact is precisely what this scheme exists
 # to avoid.
 @unit month_mean_duration "month_mean_duration" MonthMeanDuration (487//16)day false
 
 # The mean quarter, for `bio16` to `bio19`. There is deliberately no `q1_duration` to `q4_duration`,
 # and the catalogue's own wording is why: these layers are the wettest, driest, warmest and coldest
-# quarter, each defined as *any three consecutive months* — a rolling window with twelve possible
+# quarter, each defined as *any three consecutive months* - a rolling window with twelve possible
 # positions, and which one it is varies by cell. A bioclim quarter is therefore not a calendar quarter
 # at all, and is unknowable in exactly the way `bio13`'s month is, so only a mean is honest. A genuine
 # calendar quarter would just be a sum of the month durations above and needs no unit of its own.
@@ -114,7 +114,7 @@ end
 """
     month_duration(date::Union{Dates.Date, Dates.DateTime})
 
-Return the duration of the calendar month a date falls in, using February's **real** length — 29 days
+Return the duration of the calendar month a date falls in, using February's **real** length - 29 days
 in a leap year and 28 otherwise.
 
 This is the form to use whenever the year is known, and the only one that can be right for a dated
@@ -135,8 +135,8 @@ function month_duration(date::Union{Dates.Date, Dates.DateTime})
            february_common_year_duration
 end
 
-# A `Dates.TimeType` that is not one of the two Gregorian types — a `CFTime` calendar, or a bare
-# `Dates.Time` with no month at all — is refused, and refusing is the point.
+# A `Dates.TimeType` that is not one of the two Gregorian types - a `CFTime` calendar, or a bare
+# `Dates.Time` with no month at all - is refused, and refusing is the point.
 #
 # Every alternative would be silently wrong. `Dates.isleapyear` is generic over `TimeType` and applies
 # the **Gregorian** rule, which `CFTime` does not override, so a `DateTimeNoLeap` February 2016 would
@@ -153,17 +153,17 @@ function month_duration(date::Dates.TimeType)
     return error("month_duration only knows Gregorian months, so it takes a `Date` or a " *
                  "`DateTime`; got $(typeof(date)). Every duration it can return is a Gregorian " *
                  "month length, and applying one to another calendar is silently wrong rather " *
-                 "than approximate — a `DateTimeNoLeap` February would be given 29 days, and " *
+                 "than approximate - a `DateTimeNoLeap` February would be given 29 days, and " *
                  "every `DateTime360Day` month 30 or 31 instead of 30.")
 end
 
 # Anything else is refused rather than coerced. A caller holding real dates that flattened them to
-# month numbers somewhere upstream would otherwise get the mean February silently — the exact failure
+# month numbers somewhere upstream would otherwise get the mean February silently - the exact failure
 # the two methods above exist to prevent.
 function month_duration(x)
-    return error("month_duration takes a month number (1–12, February's mean length) or a date " *
+    return error("month_duration takes a month number (1-12, February's mean length) or a date " *
                  "(February's real length, from its year); got $(typeof(x)). If this came from a " *
-                 "dated series, pass the dates rather than month numbers — otherwise February is " *
+                 "dated series, pass the dates rather than month numbers - otherwise February is " *
                  "silently divided by its mean 28.25 days instead of its actual 28 or 29.")
 end
 public month_duration
@@ -171,7 +171,7 @@ public month_duration
 const localunits = Unitful.basefactors
 
 # Unitful requires a module defining its own units to register them at load, and the conversion
-# factors to be merged into its table — a package's units do not survive precompilation otherwise.
+# factors to be merged into its table - a package's units do not survive precompilation otherwise.
 function __init__()
     merge!(Unitful.basefactors, localunits)
     return Unitful.register(Units)
@@ -180,7 +180,7 @@ end
 # The month a monthly slice is being asked for, as a 1-based month number.
 #
 # A month is an ordinal, so the natural way to name one is `January` to `December`, re-exported from
-# `Dates` by this module — `plot(wc, January)` needs no `using Dates`. A duration is accepted too,
+# `Dates` by this module - `plot(wc, January)` needs no `using Dates`. A duration is accepted too,
 # `plot(wc, 1month_mean_duration)`, for a caller who already has one in hand.
 #
 # **1-based, matching the axis the reader actually builds**: `_mkstackaxis` (`src/datasetread.jl`)

@@ -27,8 +27,8 @@ perspecies = EcoSISTEM.getspeciesstorage(report)   # bytes, for ONE species
 
 Two things to know before trusting the number:
 
-  - it is **one array**, and a run holds several — abundances and net migration serially, more when
-    distributed — so multiply by the species count *and* by the number of arrays;
+  - it is **one array**, and a run holds several - abundances and net migration serially, more when
+    distributed - so multiply by the species count *and* by the number of arrays;
   - it counts every cell, active or not, which is why a coarser `cellsize` is the effective lever.
 
 That is how `examples/HPC/Africa.jl` picks its own resolution: it measures the memory available,
@@ -52,7 +52,7 @@ Pass `distributed = true` or `false` to force the choice.
 
 Each rank owns a block of species and a block of grid cells, because the work needs both views: the
 demographics run per species and dispersal runs per cell. Bringing a result back to one rank for
-recording is explicit — `gatherabundance` for the abundances, `gatherdiversity` for a diversity
+recording is explicit - `gatherabundance` for the abundances, `gatherdiversity` for a diversity
 measure.
 
 ### The same seed gives the same answer
@@ -83,7 +83,7 @@ a rank. Add the species before the run starts, or run that scenario serially.
 ## Threads
 
 Threading needs nothing declared: start Julia with `-t` and the per-species loop is shared out.
-The same reproducibility guarantee applies, for the same reason — the random stream is chosen by
+The same reproducibility guarantee applies, for the same reason - the random stream is chosen by
 species, never by which thread happened to take the work.
 
 ```bash
@@ -102,7 +102,7 @@ julia -t 8 --project myrun.jl
 
 ## Where to go next
 
-  - [Virtual plant simulations of Africa](@ref) — a worked continental run, including the
+  - [Virtual plant simulations of Africa](@ref) - a worked continental run, including the
     MPI invocation.
-  - [Interventions](@ref) — ecosystem-level change, and why it is a separate mechanism from
+  - [Interventions](@ref) - ecosystem-level change, and why it is a separate mechanism from
     layer change.

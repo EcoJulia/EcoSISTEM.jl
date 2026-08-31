@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The three answers bound together — when, where and what — and a set of them.
+# The three answers bound together - when, where and what - and a set of them.
 
 using Unitful
 
@@ -19,7 +19,7 @@ using Distributions: Binomial, Poisson
 """
     Intervention(schedule, region, operations...)
 
-A declared change to the **ecosystem** — as against an [`AbstractLayerChange`](@ref), which changes a
+A declared change to the **ecosystem** - as against an [`AbstractLayerChange`](@ref), which changes a
 single layer. The parts answer *when* ([`AbstractSchedule`](@ref)), *where*
 ([`AbstractRegion`](@ref)) and *what* ([`AbstractOperation`](@ref)):
 
@@ -28,7 +28,7 @@ Intervention(AtTime(50year), RandomCells(20), Deactivate())
 Intervention(EveryStep(), AllCells(), SetChange(:rainfall, IncrementBy(-0.1mm/day/year)))
 ```
 
-**Several operations share one resolved region**, applied in the order written — clear an area and
+**Several operations share one resolved region**, applied in the order written - clear an area and
 plant a crop on it, or reactivate a site and restock it:
 
 ```julia
@@ -78,8 +78,8 @@ end
 # Display
 # ---------------------------------------------------------------------------
 # The expression that builds it, as for the specs. The schedule, region and operations are all
-# small fieldless or few-field types that already print as they are written — `AtTime(5.0 yr)`,
-# `RandomCells(20)`, `Deactivate()` — so nesting them costs nothing and keeps the line honest.
+# small fieldless or few-field types that already print as they are written - `AtTime(5.0 yr)`,
+# `RandomCells(20)`, `Deactivate()` - so nesting them costs nothing and keeps the line honest.
 function Base.show(io::IO, i::Intervention)
     ops = join(map(o -> sprint(show, o), i.operations), ", ")
     return print(io,
@@ -101,7 +101,7 @@ function Base.show(io::IO, ::MIME"text/plain", s::InterventionSet)
     return nothing
 end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 using Unitful
 
@@ -121,7 +121,7 @@ using Distributions: Binomial, Poisson
     applyinterventions!(eco::AbstractEcosystem, intervention, elapsed, timestep, step)
 
 Apply every scheduled [`Intervention`](@ref) for the step that has just reached `elapsed`. Called by
-[`update!`](@ref) — after the population dynamics and **before** the layer update, so that a
+[`update!`](@ref) - after the population dynamics and **before** the layer update, so that a
 [`SetChange`](@ref) takes effect in the same step rather than one step late.
 
 **This is also the supported imperative route**: it is the way to act on a running ecosystem
@@ -142,14 +142,14 @@ simulate!(eco, 1year, 1month_mean_duration)     # carries on with the new specie
 the two guarantees the declarative form provides, and `step` is where both bite:
 
   - **Reproducibility.** A selection's random stream is `hash((seed, :intervention, k, step))`, so a
-    `step` you have already used **reuses that stream** — a [`RandomCells`](@ref) region would draw
-    the very same cells again — and a wrong `step` means the run no longer follows from its seed.
+    `step` you have already used **reuses that stream** - a [`RandomCells`](@ref) region would draw
+    the very same cells again - and a wrong `step` means the run no longer follows from its seed.
     Pass the step number the simulation has actually reached.
   - **Determinism across MPI ranks.** An intervention mutates the ecosystem, so it must be applied
     once and identically everywhere. `update!` guarantees that; a hand call does not.
 
-For a *conditional* intervention — one whose firing depends on the state of the run, which no
-schedule can express — prefer [`simulate_action!`](@ref): its callback closes over the ecosystem and
+For a *conditional* intervention - one whose firing depends on the state of the run, which no
+schedule can express - prefer [`simulate_action!`](@ref): its callback closes over the ecosystem and
 runs at a known step, so it can decide and then apply without you tracking `step` by hand.
 """
 function applyinterventions!(eco::AbstractEcosystem, intervention,
@@ -158,7 +158,7 @@ function applyinterventions!(eco::AbstractEcosystem, intervention,
     for (k, iv) in enumerate(_interventions(intervention))
         _fires(iv.schedule, elapsed, timestep) || continue
         rng = _interventionrng(eco, k, step)
-        # Resolved **once**, then every operation acts on the same cells — see `Intervention`.
+        # Resolved **once**, then every operation acts on the same cells - see `Intervention`.
         cells = _regioncells(iv.region, eco, rng, timestep)
         foreach(op -> _applyoperation!(op, eco, cells, rng, timestep),
                 iv.operations)
@@ -169,19 +169,19 @@ end
 # ---------------------------------------------------------------------------
 # Ecosystem-level intervention
 # ---------------------------------------------------------------------------
-# **An intervention is a declaration, not a callback.** The three questions it answers — **when**,
-# **where** and **what** — are each a type, so an intervention can be dispatched on, validated,
+# **An intervention is a declaration, not a callback.** The three questions it answers - **when**,
+# **where** and **what** - are each a type, so an intervention can be dispatched on, validated,
 # reported and reproduced. A function reference could do none of those: two interventions differing
 # only in their function would be the same type, and what either did would be invisible until it ran.
 #
 # This is the same move `AbstractLayerChange` made for layer-level change (see `Layer.jl`), and for
 # the same reason. The two mechanisms are deliberately separate: a *layer* change is a pure function
 # of elapsed time and may be applied redundantly on every MPI rank, whereas an intervention mutates
-# the ecosystem — abundances, the active mask — and so must be applied once, identically, everywhere.
+# the ecosystem - abundances, the active mask - and so must be applied once, identically, everywhere.
 
 # Whether a schedule fires on the step that has just advanced the clock to `elapsed`, having covered
 # `timestep`. The step *covers* `(elapsed - timestep, elapsed]`, and a one-off schedule fires when
-# its instant falls in that half-open window — so it fires exactly once however the steps are sized,
+# its instant falls in that half-open window - so it fires exactly once however the steps are sized,
 # and never falls between two steps.
 _fires(::EveryStep, _, _) = true
 
@@ -199,12 +199,12 @@ function _fires(s::BetweenTimes, elapsed::Unitful.Time, ::Unitful.Time)
     return s.from <= elapsed <= s.to
 end
 
-# `(elapsed - timestep, elapsed]` — half-open below so consecutive steps cannot both claim the same
+# `(elapsed - timestep, elapsed]` - half-open below so consecutive steps cannot both claim the same
 # instant, closed above so an instant landing exactly on a step boundary fires on that step.
 #
 # **The first step is closed at both ends**, or `AtTime(0)` would never fire: the run's first
 # window is `(0, timestep]`, which excludes zero, and a schedule that silently never fires is the
-# worst outcome available — the same failure this whole function exists to avoid at the other end.
+# worst outcome available - the same failure this whole function exists to avoid at the other end.
 # A time at or before the start therefore fires on step one, and only on step one.
 function _reached(t::Unitful.Time, elapsed::Unitful.Time,
                   timestep::Unitful.Time)
@@ -212,7 +212,7 @@ function _reached(t::Unitful.Time, elapsed::Unitful.Time,
     return t > (elapsed - timestep) || elapsed <= timestep
 end
 
-# One intervention answers as a set of one, so the apply path needs no separate leaf case — the same
+# One intervention answers as a set of one, so the apply path needs no separate leaf case - the same
 # shape a bare layer takes against `LayerCollection`.
 _interventions(set::InterventionSet) = set.interventions
 
@@ -225,7 +225,7 @@ _interventions(::Nothing) = ()
 # ---------------------------------------------------------------------------
 # **Reproducibility is the constraint that shapes all of this.** Counter-based per step:
 # `Xoshiro(hash((seed, :intervention, k, step)))` for intervention `k` on step `step`. That
-# generalises the existing per-species `hash((seed, j))` scheme, and buys three things at once —
+# generalises the existing per-species `hash((seed, j))` scheme, and buys three things at once -
 # every MPI rank and every thread computes bit-identical selections without communicating; a run
 # replays exactly from any step; and species streams stay reserved for birth/death/dispersal, so
 # adding an intervention cannot re-phase the demography.
@@ -240,7 +240,7 @@ end
 # **A count may be exact or drawn.** An integer means exactly that many; a **rate** means each
 # candidate is taken independently at that rate over the step, which is a binomial draw and is what a
 # fixed count cannot express. The rate is per unit time, so it is the timestep that turns it into a
-# probability, and a rate high enough to exceed 1 over a step is clamped — "more certain than
+# probability, and a rate high enough to exceed 1 over a step is clamped - "more certain than
 # certain" has no meaning.
 _drawcount(count::Integer, _, _, _) = Int(count)
 
@@ -274,7 +274,7 @@ end
 
 # A contiguous cluster, grown one neighbour at a time. Re-seeds if the cluster is boxed in by
 # inactive cells rather than returning short, so `SpreadingCells(n)` gives `n` cells whenever that
-# many are available at all — otherwise a run's outcome would depend on the shape of the mask in a
+# many are available at all - otherwise a run's outcome would depend on the shape of the mask in a
 # way nobody asked for.
 function _regioncells(r::SpreadingCells, eco::AbstractEcosystem, rng, timestep)
     height = getgridshape(eco)[1]
@@ -315,7 +315,7 @@ end
 # index against.
 function _applyoperation!(::Deactivate, eco::AbstractEcosystem, cells, _, _)
     parent(eco.habitat.active)[cells] .= false
-    # …and everything there dies. See `Deactivate` for why this is not optional.
+    # ...and everything there dies. See `Deactivate` for why this is not optional.
     _ownedabundances(eco).rows[:, cells] .= 0
     return eco
 end
@@ -325,19 +325,19 @@ function _applyoperation!(::Reactivate, eco::AbstractEcosystem, cells, _, _)
     return eco
 end
 
-# The one permitted direct matrix write, and only on a categorical layer — see `SetLandCover`.
+# The one permitted direct matrix write, and only on a categorical layer - see `SetLandCover`.
 function _applyoperation!(op::SetLandCover, eco::AbstractEcosystem, cells, _, _)
     layer = eco.habitat.regime
     layer isa CategoricalLayer ||
         error("`SetLandCover` writes a categorical layer's values directly, which is the only " *
-              "direct write an intervention may make — but this environment's regime is a " *
+              "direct write an intervention may make - but this environment's regime is a " *
               "$(nameof(typeof(layer))). A continuous layer's values belong to its change rule; " *
               "use `SetChange` to alter them.")
     parent(layer.matrix)[cells] .= _landcovercode(op.class)
     return eco
 end
 
-# A layer's change applies to the whole layer, so the region is meaningless here — said rather than
+# A layer's change applies to the whole layer, so the region is meaningless here - said rather than
 # silently ignored, because a caller who wrote one expected it to matter.
 function _applyoperation!(op::SetChange, eco::AbstractEcosystem, cells, _, _)
     length(cells) == length(parent(eco.habitat.active)) ||
@@ -388,7 +388,7 @@ end
 
 # The abundances this process owns, and the global species index its first row is.
 # **At the point interventions run the landscape is row-partitioned**, so a rank holds whole
-# *species* across **all** cells (`synchronise_from_rows!` has already run — `ext/EcoSISTEMMPIExt/dynamics.jl`). That
+# *species* across **all** cells (`synchronise_from_rows!` has already run - `ext/EcoSISTEMMPIExt/dynamics.jl`). That
 # is what makes every abundance operation rank-local: a rank clears or adds to its own species at the
 # named cells, every rank does the same, and between them they cover the whole assemblage. No global
 # draw and no partition arithmetic is needed, which is what an earlier reading of the plan assumed.
@@ -416,7 +416,7 @@ function _targetlayer(eco::AbstractEcosystem, target::Symbol)
                  "$(keys(eco.habitat.supply)).")
 end
 
-# An exact count, or a Poisson draw about a mean rate — an arrival process, which a fixed number
+# An exact count, or a Poisson draw about a mean rate - an arrival process, which a fixed number
 # cannot express.
 _drawnumber(count::Integer, _, _) = Int(count)
 
@@ -433,8 +433,8 @@ function _localrow(eco::AbstractEcosystem, species)
 end
 
 # By index or by name, matching how `getdispersaldist` already accepts either. Defined against the
-# `SpeciesList` as well as the ecosystem, because the public accessors take either — see
-# `Ecosystem.jl` — and a name lookup needs only the names.
+# `SpeciesList` as well as the ecosystem, because the public accessors take either - see
+# `Ecosystem.jl` - and a name lookup needs only the names.
 _speciesindex(::SpeciesList, sp::Integer) = sp
 
 function _speciesindex(spplist::SpeciesList, sp::AbstractString)

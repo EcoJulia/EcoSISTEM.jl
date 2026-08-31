@@ -13,28 +13,28 @@
 # matrix *column*. Getting it the wrong way round transposes every grid plotted through EcoBase, and
 # a square test grid cannot show it.
 #
-# Every definition is written qualified, so the file needs no `import` — only the `using` below,
+# Every definition is written qualified, so the file needs no `import` - only the `using` below,
 # which binds the module name.
 
 using EcoBase
 
-# ══ StudyGrid — the AbstractGrid interface ═════════════════════════════════════════════════════════
+# == StudyGrid - the AbstractGrid interface =========================================================
 # **`xmin`/`ymin` are the smallest coordinate LABEL, not the grid's outer edge.** EcoBase derives
-# `xmax = xmin + xcellsize * (xcells - 1)` — the label of the last cell — so the two must be in the
+# `xmax = xmin + xcellsize * (xcells - 1)` - the label of the last cell - so the two must be in the
 # same space. These grids label cells by their lower corner (`Intervals(Start)`), and these methods
 # stay in that space rather than re-anchoring to a centre or an outer bound.
 EcoBase.xmin(grid::StudyGrid) = minimum(DimensionalData.lookup(grid.x))
 EcoBase.ymin(grid::StudyGrid) = minimum(DimensionalData.lookup(grid.y))
 
 # **Unitful, and in the grid's OWN unit.** A geographic grid's cells are an angle across, so
-# converting to a length here would give `° km⁻¹`: not a length, not an angle, and wrong without
+# converting to a length here would give `° km^-1`: not a length, not an angle, and wrong without
 # complaining. Whoever wants metres asks `getcellsizes` for them.
 EcoBase.xcellsize(grid::StudyGrid) = _axisstep(grid.x)
 EcoBase.ycellsize(grid::StudyGrid) = _axisstep(grid.y)
 
 EcoBase.xcells(grid::StudyGrid) = length(grid.x)
 EcoBase.ycells(grid::StudyGrid) = length(grid.y)
-# Column 1 is x and column 2 is y, per EcoBase — see the header. Rows are in the package's own cell
+# Column 1 is x and column 2 is y, per EcoBase - see the header. Rows are in the package's own cell
 # order, column-major over `(Y, X)` with y fastest, so row `i` describes the same cell as column `i`
 # of a `GridLandscape`'s abundance matrix.
 function EcoBase.indices(grid::StudyGrid)
@@ -52,7 +52,7 @@ end
 EcoBase.indices(grid::StudyGrid, idx::Integer) = EcoBase.indices(grid)[:, idx]
 
 # The real coordinates of each cell, in the same column and cell order as `indices` above. These are
-# the cells' own labels — their lower corners — rather than midpoints reconstructed here, so they
+# the cells' own labels - their lower corners - rather than midpoints reconstructed here, so they
 # line up exactly with `xrange`/`yrange`.
 function EcoBase.coordinates(grid::StudyGrid)
     ylk, xlk = DimensionalData.lookup(grid.y), DimensionalData.lookup(grid.x)
@@ -67,8 +67,8 @@ function EcoBase.coordinates(grid::StudyGrid)
     return out
 end
 
-# ══ GridHabitat — the AbstractPlaces interface, answered from its StudyGrid ════════════════════════
-# The habitat's location data — its `StudyGrid` — which is what makes a `GridHabitat` an
+# == GridHabitat - the AbstractPlaces interface, answered from its StudyGrid ========================
+# The habitat's location data - its `StudyGrid` - which is what makes a `GridHabitat` an
 # `EcoBase.AbstractPlaces` with real coordinates rather than one that fakes its own.
 EcoBase.getcoords(habitat::GridHabitat) = habitat.area.builtgrid
 function EcoBase.coordinates(habitat::GridHabitat)

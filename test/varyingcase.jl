@@ -3,8 +3,8 @@
 # A deliberately **non-uniform, non-square, time-varying** ecosystem fixture, shared by the canonical
 # blessed-result tests and the MPI cross-rank reproducibility test.
 #
-# **Why it exists.** A reproducible-results test — the canonical simulated run and the MPI
-# 1/2/4-rank comparison alike — must not run on a *spatially uniform, temporally static, square*
+# **Why it exists.** A reproducible-results test - the canonical simulated run and the MPI
+# 1/2/4-rank comparison alike - must not run on a *spatially uniform, temporally static, square*
 # environment. Such a fixture is structurally incapable of detecting:
 #
 #   - anything **spatial**, including the `(y, x)` dimension-order class that only a **non-square**
@@ -27,7 +27,7 @@ using Unitful.DefaultSymbols
 using Distributions
 using Random
 
-# **Not square, and — separately — not evenly divisible by any rank count.** Three distinct
+# **Not square, and - separately - not evenly divisible by any rank count.** Three distinct
 # properties, each guarding something different:
 #
 #   - `NX != NY` so a **transposed index** is a shape error rather than a plausible wrong number;
@@ -37,7 +37,7 @@ using Random
 #
 # `MPIEcosystem` partitions by species (rows) **and** grid cells (columns), so both halves need a
 # remainder to put the decomposition under any stress at all. An earlier version of this fixture
-# used 12 × 7 = 84 cells and 8 species — both of which divide exactly by 2 and 4, so every rank got an
+# used 12 × 7 = 84 cells and 8 species - both of which divide exactly by 2 and 4, so every rank got an
 # identical share and the uneven-split paths were never taken.
 const VARYING_NX = 11
 const VARYING_NY = 7
@@ -52,11 +52,11 @@ function varying_area()
                      cellsize = VARYING_CELL, verbosity = :silent)
 end
 
-# A regime that varies in **space** (a north–south temperature gradient) and in **time** (a steady
+# A regime that varies in **space** (a north-south temperature gradient) and in **time** (a steady
 # warming). Both at once is the point: a change that got the spatial orientation right and the clock
 # wrong, or vice versa, moves these numbers.
 #
-# `IncrementBy` is a *rate*, so the total warming over the run is a function of elapsed time — which
+# `IncrementBy` is a *rate*, so the total warming over the run is a function of elapsed time - which
 # is exactly the timestep-independence the model requires, and would break if a change were ever
 # applied per *step* rather than per unit time.
 function varying_regime()
@@ -71,7 +71,7 @@ end
 # **The supply gradient runs across the grid (`orientation = 90°`) while the regime's runs down it
 # (`180°`), and that orthogonality is the whole design.** Measured: the regime takes 7 distinct
 # values (one per row, `Y`) and the supply 11 (one per column, `X`). A transposed index therefore
-# swaps those counts — 11 temperatures and 7 supplies — which is loud, rather than producing a
+# swaps those counts - 11 temperatures and 7 supplies - which is loud, rather than producing a
 # plausible wrong number. On the old square, uniform grid neither could be seen at all.
 function varying_supply()
     return (GradientSpec(3.0e11kJ / km^2 / day, 6.0e11kJ / km^2 / day,
@@ -91,7 +91,7 @@ end
 
 # Species optima spread across the regime's own gradient, so species genuinely sort in space rather
 # than all preferring the same cells. Exposed separately because any ecosystem built on this
-# environment — serial or MPI — needs optima that actually sit inside it.
+# environment - serial or MPI - needs optima that actually sit inside it.
 function varying_optima(numspecies = VARYING_SPECIES)
     return 288.0K .+
            (302.0 - 288.0)K .* range(0.1, stop = 0.9,
@@ -135,11 +135,11 @@ function varying_ecosystem(; seed = 0, numspecies = VARYING_SPECIES)
     return Ecosystem(sppl, env, NicheSuitability(tolerance), seed = seed)
 end
 
-# ── The fixture the serial-versus-distributed pinning uses ──────────────────────────────────────
+# -- The fixture the serial-versus-distributed pinning uses --------------------------------------
 #
-# **Defined once here on purpose.** The blessed `mpi/…` results are only evidence about the
+# **Defined once here on purpose.** The blessed `mpi/...` results are only evidence about the
 # distributed run if the canonical bless and `SmallMPItest.jl` build the *identical* fixture, and two
-# spelled-out copies would drift apart — which is precisely the failure this pinning exists to catch.
+# spelled-out copies would drift apart - which is precisely the failure this pinning exists to catch.
 #
 # Deliberately unlike `varying_species` above: faster rates, a wider kernel and a large `boost`, so a
 # two-year run moves the numbers substantially instead of sitting near its starting state.
@@ -159,8 +159,8 @@ function mpifixture_movement(numspecies = VARYING_SPECIES)
     return BirthOnlyMovement(mpifixture_kernels(numspecies))
 end
 # The animal-like counterpart, dispersing the standing population rather than only the newborns.
-# It reaches the distributed loop by a different route — `EcoSISTEM._standingpopulation` rather than
-# the `births` the loop already holds — so pinning only one of the two would leave that route unrun.
+# It reaches the distributed loop by a different route - `EcoSISTEM._standingpopulation` rather than
+# the `births` the loop already holds - so pinning only one of the two would leave that route unrun.
 function mpifixture_always(numspecies = VARYING_SPECIES)
     return AlwaysMovement(mpifixture_kernels(numspecies))
 end

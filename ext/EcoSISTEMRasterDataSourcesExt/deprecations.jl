@@ -2,14 +2,14 @@
 
 # --- Deprecations whose signatures name a dataset --------------------------------------------------
 #
-# Both halves of the package's RDS-typed deprecations — `ClimatePref`'s per-source wrapper
+# Both halves of the package's RDS-typed deprecations - `ClimatePref`'s per-source wrapper
 # constructors and readers, and the parent's `*habitat` shims. A `@deprecate` or a method that
-# dispatches on `ClimateRaster{WorldClim{…}}` cannot be defined without `RasterDataSources` loaded,
+# dispatches on `ClimateRaster{WorldClim{...}}` cannot be defined without `RasterDataSources` loaded,
 # so the methods are here; the *names* stay exported by the parent, and nothing a user can write
-# disappears — it simply has no method until the package that gives it meaning is loaded.
+# disappears - it simply has no method until the package that gives it meaning is loaded.
 
 # ---------------------------------------------------------------------------
-# Climate types: per-source wrapper constructors → `ClimateRaster{<:RasterDataSource}`
+# Climate types: per-source wrapper constructors -> `ClimateRaster{<:RasterDataSource}`
 #
 # Prior to the unified `read`/`ClimateRaster` API these sources each had their own wrapper type. They are
 # retained as deprecated constructors that forward to the equivalent `ClimateRaster` so existing user code
@@ -18,12 +18,12 @@
 # that build them already assemble a 12-month stack.
 # ---------------------------------------------------------------------------
 # These took an `AxisArray` and forwarded it **verbatim** to `ClimateRaster`, which since the
-# DimensionalData migration accepts only an `AbstractDimArray` — so all five were dead, failing with a
+# DimensionalData migration accepts only an `AbstractDimArray` - so all five were dead, failing with a
 # bare `MethodError` rather than warning and working, and that was hidden inside the suite's expected
 # error count. They now take a `DimArray`: what is deprecated here is the per-source *wrapper type*,
 # not the array type it wraps, and `AxisArrays` is on its way out of the package entirely.
 # `export_old = false` (the trailing `false`) on each: `@deprecate` cannot export a qualified name,
-# and it must not — `ClimatePref` already exports all five, so the macro would be re-exporting them
+# and it must not - `ClimatePref` already exports all five, so the macro would be re-exporting them
 # from an extension module nobody `using`s.
 @deprecate ClimatePref.Worldclim_bioclim(array::DimensionalData.AbstractDimArray) ClimateRaster(RDS.WorldClim{RDS.BioClim},
                                                                                                 array) false
@@ -38,7 +38,7 @@
 
 function ClimatePref.readworldclim(T::Type{WorldClim{Climate}}, files;
                                    cut = nothing)
-    Base.depwarn("`readworldclim` is deprecated; use `read(WorldClim{Climate}, layers; …)`.",
+    Base.depwarn("`readworldclim` is deprecated; use `read(WorldClim{Climate}, layers; ...)`.",
                  :readworldclim)
     return _readsource(T, _filelist(files); cut = cut)
 end
@@ -54,7 +54,7 @@ end
 
 # **There are deliberately no data-backed `*habitat` shims here.** Such a shim built a regime
 # straight from `raster.array` with no resampling, and `GridHabitat` has no parts-taking constructor
-# to assemble one from — a habitat is built from specs plus a `StudyArea`. Their released **names**
+# to assemble one from - a habitat is built from specs plus a `StudyArea`. Their released **names**
 # live in `src/deprecations.jl`, raising an error that names both replacements (`SourceSpec(...)` and
 # `in_memory_raster(...)`); see `_removedbuilder` there. That needs nothing from this extension,
 # which is why this file does not mention them.
@@ -67,8 +67,8 @@ end
 for axis in (:SolarRadiation, :Precipitation)
     # The `ClimateRaster` forms read their stack from a monthly climate source.
     # **Corrected with the live path, deliberately.** This derives its cell area from the *grid*
-    # — unlike `simplehabitat`/`raingradhabitat`, whose area is a caller-supplied total divided
-    # evenly and so has no latitude in it — and WorldClim is geographic, so a scalar area was wrong
+    # - unlike `simplehabitat`/`raingradhabitat`, whose area is a caller-supplied total divided
+    # evenly and so has no latitude in it - and WorldClim is geographic, so a scalar area was wrong
     # here for the same reason it was wrong everywhere else. The v0.4.0 contract these shims
     # reproduce is *which supply type a unit selects*, not how big a cell is, so correcting the area
     # is a bug fix rather than a change of contract; and its live sibling

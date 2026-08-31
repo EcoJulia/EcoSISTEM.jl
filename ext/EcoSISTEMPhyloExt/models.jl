@@ -2,9 +2,9 @@
 
 # --- Phylogenetic trait models ------------------------------------------------------------------------
 #
-# The whole of the phylogenetics: the variance–covariance matrix of a tree, the Brownian/Lambda
+# The whole of the phylogenetics: the variance-covariance matrix of a tree, the Brownian/Lambda
 # fits over it, and the two fitted-model types themselves. `src/extensions.jl` keeps the function
-# stubs, the two abstract supertypes and all the docstrings — `api.md`'s `@autodocs` cannot see into
+# stubs, the two abstract supertypes and all the docstrings - `api.md`'s `@autodocs` cannot see into
 # an extension, so documentation has to live in the parent. Moving code into a fresh module is what
 # compiles it: `varcovar` sat dead since Julia 0.7, calling a long-removed `indmax`, until the move
 # forced it through the compiler.
@@ -45,7 +45,7 @@ function EcoSISTEM.varcovar(tree::AbstractTree)
             V[i, i] = distance(tree, root, tips[i])
             V[j, j] = V[i, i]
             inter = getancestors(tree, tips[i]) ∩ getancestors(tree, tips[j])
-            # **Was `indmax`, which has not existed since Julia 0.7** — so `varcovar` threw an
+            # **Was `indmax`, which has not existed since Julia 0.7** - so `varcovar` threw an
             # `UndefVarError` on every call, and nothing noticed because nothing tests it. Found by
             # moving the function, not caused by it. `argmax` is the documented replacement and
             # returns the index, which is what `inter[common]` below wants.

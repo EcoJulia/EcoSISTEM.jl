@@ -1,19 +1,19 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 # ===========================================================================
-# Deprecations — main `EcoSISTEM` module
+# Deprecations - main `EcoSISTEM` module
 #
 # Every deprecated public trait/nichefit API is collected here (sorted into
 # sections by context) and included late in `EcoSISTEM.jl`, after all the types
-# it shims. Each shim warns — so downstream code gets a migration message rather
-# than a silent `MethodError` — and forwards to the current API. Mirrored by
+# it shims. Each shim warns - so downstream code gets a migration message rather
+# than a silent `MethodError` - and forwards to the current API. Mirrored by
 # `test/test_deprecations.jl`. The `ClimatePref` submodule keeps its own
 # deprecations in `src/ClimatePref/deprecations.jl` (a single file cannot span
 # two modules).
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
-# Trait line: `GaussTrait` → `NicheTolerance(A, Normal, …)`
+# Trait line: `GaussTrait` -> `NicheTolerance(A, Normal, ...)`
 #
 # A Gaussian preference is just the `Normal` case of a `NicheTolerance`. The redesign takes
 # a trait's unit from its niche axis (not its data), so a *unitful* preference
@@ -25,11 +25,11 @@
 
 !!! warning "Deprecated"
     `GaussTrait` is deprecated and will be removed. A Gaussian preference is just the `Normal` case of a
-    [`NicheTolerance`](@ref), so use one directly — `NicheTolerance(A, Normal, mean, sd)` (one unitful vector per parameter,
+    [`NicheTolerance`](@ref), so use one directly - `NicheTolerance(A, Normal, mean, sd)` (one unitful vector per parameter,
     `support` imputed). This shim forwards to that. `GaussTrait(::Type{A}, mean, sd)` names the niche axis
     `A` explicitly; the axis-less `GaussTrait(mean, sd)` form takes dimensionless (bare) data as
-    `NicheAxis`, and — for back-compatibility only — *infers* the axis from a unitful vector's unit
-    (temperature → `Temperature`, precipitation rate → `Precipitation`) with an extra warning, because a
+    `NicheAxis`, and - for back-compatibility only - *infers* the axis from a unitful vector's unit
+    (temperature -> `Temperature`, precipitation rate -> `Precipitation`) with an extra warning, because a
     [`NicheTolerance`](@ref)'s unit must come from its axis, not its data.
 """
 function GaussTrait(::Type{A}, mean::AbstractVector,
@@ -59,21 +59,21 @@ function _axis_from_unit(u)
                  "`GaussTrait(Temperature, mean, sd)` or `NicheTolerance(axis, Normal, mean, sd)`.")
 end
 
-# Axis-less *unitful* form (doubly deprecated): kept working via unit→axis inference so downstream code gets
+# Axis-less *unitful* form (doubly deprecated): kept working via unit->axis inference so downstream code gets
 # a clear migration message instead of a `MethodError`, but the meaning-from-unit inference will be dropped.
 function GaussTrait(mean::AbstractVector{<:Unitful.AbstractQuantity},
                     sd::AbstractVector)
     u = unit(eltype(mean))
     axis = _axis_from_unit(u)
     Base.depwarn("`GaussTrait(mean, sd)` with unitful data infers the niche axis from its unit " *
-                 "($u → $axis); this meaning-from-unit fallback is deprecated. Name the axis: " *
+                 "($u -> $axis); this meaning-from-unit fallback is deprecated. Name the axis: " *
                  "`GaussTrait($axis, mean, sd)` or `NicheTolerance($axis, Normal, mean, sd)`.",
                  :GaussTrait)
     return NicheTolerance(axis, Normal, mean, sd)
 end
 
 # ---------------------------------------------------------------------------
-# Trait line: `Gauss` / `Trapeze` / `Unif` relationships → `NicheSuitability`
+# Trait line: `Gauss` / `Trapeze` / `Unif` relationships -> `NicheSuitability`
 #
 # A Gaussian/trapezoidal/uniform preference is just the `Normal`/`Trapezoid`/`Uniform` case of a `NicheTolerance`, so
 # all three relationships are `NicheSuitability` now. Each is kept as a distinct type that warns on construction but
@@ -149,12 +149,12 @@ end
 # ---------------------------------------------------------------------------
 # Arity-numbered collection aliases (v0.5.0): plumbing for the v0.4.0 shims below, not API
 #
-# Each family now has **one** collection type over a `Tuple` or `NamedTuple` — `LayerCollection`,
-# `SpeciesRequirementCollection`, `CombiningFit` — so an arity in a name says nothing the
+# Each family now has **one** collection type over a `Tuple` or `NamedTuple` - `LayerCollection`,
+# `SpeciesRequirementCollection`, `CombiningFit` - so an arity in a name says nothing the
 # backing's own type does not. The numbered names are *not* released: they were themselves new in
 # v0.5.0 (v0.4.0 had `HabitatCollection2/3`, `BudgetCollection2`, `TraitCollection2/3`,
-# `ReqCollection2`, `multiplicativeTR2/3`, `additiveTR2/3`), so by the usual rule — a name new on the
-# branch is changed outright, no shim — they owe nothing and are simply no longer exported.
+# `ReqCollection2`, `multiplicativeTR2/3`, `additiveTR2/3`), so by the usual rule - a name new on the
+# branch is changed outright, no shim - they owe nothing and are simply no longer exported.
 #
 # They survive here only because the v0.4.0 shims need somewhere to point: `Base.@deprecate_binding`
 # makes `const old = new`, which cannot retarget `HabitatCollection2{H1, H2}` onto
@@ -164,31 +164,31 @@ end
 #
 # Deliberately **no `depwarn` of their own**: the only ways to reach them are through a v0.4.0 shim,
 # which warns already, or by writing `EcoSISTEM.RegimeCollection2` explicitly, which is reaching into
-# internals. Adding one would give a caller of the oldest name two warnings naming each other —
+# internals. Adding one would give a caller of the oldest name two warnings naming each other -
 # exactly what the `*AE` and gradient sections below take care to avoid.
 # ---------------------------------------------------------------------------
 
-"""    RegimeCollection2{M1, M2} — two positional regimes over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
+"""    RegimeCollection2{M1, M2} - two positional regimes over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
 const RegimeCollection2{M1, M2} = LayerCollection{Condition, A,
                                                   NamedTuple{N, Tuple{M1, M2}}} where {A,
                                                                                        N}
-"""    RegimeCollection3{M1, M2, M3} — three positional regimes over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
+"""    RegimeCollection3{M1, M2, M3} - three positional regimes over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
 const RegimeCollection3{M1, M2, M3} = LayerCollection{Condition, A,
                                                       NamedTuple{N,
                                                                  Tuple{M1, M2,
                                                                        M3}}} where {A,
                                                                                     N}
-"""    SupplyCollection2{M1, M2} — two positional supplies over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
+"""    SupplyCollection2{M1, M2} - two positional supplies over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
 const SupplyCollection2{M1, M2} = LayerCollection{Resource, A,
                                                   NamedTuple{N, Tuple{M1, M2}}} where {A,
                                                                                        N}
-"""    ToleranceCollection2{M1, M2} — two positional tolerances. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
+"""    ToleranceCollection2{M1, M2} - two positional tolerances. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
 const ToleranceCollection2{M1, M2} = SpeciesRequirementCollection{Condition, A,
                                                                   NamedTuple{N,
                                                                              Tuple{M1,
                                                                                    M2}}} where {A,
                                                                                                 N}
-"""    ToleranceCollection3{M1, M2, M3} — three positional tolerances. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
+"""    ToleranceCollection3{M1, M2, M3} - three positional tolerances. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
 const ToleranceCollection3{M1, M2, M3} = SpeciesRequirementCollection{Condition,
                                                                       A,
                                                                       NamedTuple{N,
@@ -196,30 +196,30 @@ const ToleranceCollection3{M1, M2, M3} = SpeciesRequirementCollection{Condition,
                                                                                        M2,
                                                                                        M3}}} where {A,
                                                                                                     N}
-"""    DemandCollection2{M1, M2} — two positional demands. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
+"""    DemandCollection2{M1, M2} - two positional demands. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
 const DemandCollection2{M1, M2} = SpeciesRequirementCollection{Resource, A,
                                                                NamedTuple{N,
                                                                           Tuple{M1,
                                                                                 M2}}} where {A,
                                                                                              N}
-"""    MultiplicativeFit2{M1, M2} — two positional nichefits, multiplied. Deprecated plumbing: use [`MultiplicativeFit`](@ref). """
+"""    MultiplicativeFit2{M1, M2} - two positional nichefits, multiplied. Deprecated plumbing: use [`MultiplicativeFit`](@ref). """
 const MultiplicativeFit2{M1, M2} = MultiplicativeFit{A,
                                                      NamedTuple{N,
                                                                 Tuple{M1,
                                                                       M2}}} where {A,
                                                                                    N}
-"""    MultiplicativeFit3{M1, M2, M3} — three positional nichefits, multiplied. Deprecated plumbing: use [`MultiplicativeFit`](@ref). """
+"""    MultiplicativeFit3{M1, M2, M3} - three positional nichefits, multiplied. Deprecated plumbing: use [`MultiplicativeFit`](@ref). """
 const MultiplicativeFit3{M1, M2, M3} = MultiplicativeFit{A,
                                                          NamedTuple{N,
                                                                     Tuple{M1,
                                                                           M2,
                                                                           M3}}} where {A,
                                                                                        N}
-"""    AdditiveFit2{M1, M2} — two positional nichefits, added. Deprecated plumbing: use [`AdditiveFit`](@ref). """
+"""    AdditiveFit2{M1, M2} - two positional nichefits, added. Deprecated plumbing: use [`AdditiveFit`](@ref). """
 const AdditiveFit2{M1, M2} = AdditiveFit{A,
                                          NamedTuple{N, Tuple{M1, M2}}} where {A,
                                                                               N}
-"""    AdditiveFit3{M1, M2, M3} — three positional nichefits, added. Deprecated plumbing: use [`AdditiveFit`](@ref). """
+"""    AdditiveFit3{M1, M2, M3} - three positional nichefits, added. Deprecated plumbing: use [`AdditiveFit`](@ref). """
 const AdditiveFit3{M1, M2, M3} = AdditiveFit{A,
                                              NamedTuple{N,
                                                         Tuple{M1, M2,
@@ -227,7 +227,7 @@ const AdditiveFit3{M1, M2, M3} = AdditiveFit{A,
                                                                            N}
 
 # **Each alias pins the arity and the member types, and leaves the axis structure `A` and the names
-# `N` free** — which is why every one ends `} where {A, N}`. It reads oddly and the shape is
+# `N` free** - which is why every one ends `} where {A, N}`. It reads oddly and the shape is
 # load-bearing: a collection's backing is a `NamedTuple` whose names are derived from its members'
 # **axes**, so an alias cannot state them, and the axis structure is not something a caller of the
 # released API ever knew about.
@@ -236,7 +236,7 @@ const AdditiveFit3{M1, M2, M3} = AdditiveFit{A,
 # `isa MultiplicativeFit2{M2, M1}`, and a three-member one is **not** `isa MultiplicativeFit2`.
 #
 # **Put a member tuple in the axis slot and an alias silently stops matching what its own constructor
-# builds** — which a test comparing only the *bindings*, `additiveTR2 === AdditiveFit2`, cannot catch.
+# builds** - which a test comparing only the *bindings*, `additiveTR2 === AdditiveFit2`, cannot catch.
 # `test_deprecations.jl` has a round-trip testset that uses them as **types**; keep it.
 #
 # Each alias fixes the arity but leaves the member parameters free, so Julia generates no
@@ -253,21 +253,21 @@ AdditiveFit2(f1, f2) = CombiningFit(sum, (f1, f2))
 AdditiveFit3(f1, f2, f3) = CombiningFit(sum, (f1, f2, f3))
 
 # ---------------------------------------------------------------------------
-# Resource line: `Resource` → `Supply` (v0.4.0 rename; the environment's resource layer)
+# Resource line: `Resource` -> `Supply` (v0.4.0 rename; the environment's resource layer)
 # ---------------------------------------------------------------------------
-# **`SimpleBudget` is REMOVED, not shimmed** — the free/dimensionless supply it named no longer
+# **`SimpleBudget` is REMOVED, not shimmed** - the free/dimensionless supply it named no longer
 # exists, so there is nothing to re-point it at. It was exported in v0.4.0, which makes this a
 # breaking removal with a NEWS entry rather than a cleanup. Recorded here, where the shim used to
 # be, so the absence reads as a decision rather than an oversight.
 # These re-point at the **parametric** alias, which was checked before being adopted: a
 # `@deprecate_binding` cannot retarget `HabitatCollection2{H1, H2}` onto `LayerCollection{R, C}`
-# — the only reason the arity-numbered collection names still exist — but `Supply{A}` is a different
+# - the only reason the arity-numbered collection names still exist - but `Supply{A}` is a different
 # shape and does work, so no plumbing alias has to survive here.
 # --- The v0.4.0 coordinate-less supply -------------------------------------
 #
 # **These two exist only for the released `SolarBudget(matrix)` path, and nothing else may use them.**
 # A released budget *was* a bare `Matrix`, so there are no coordinates for a cell size to be derived
-# from and none to attach — which is why such a layer can only report a placeholder size, and why
+# from and none to attach - which is why such a layer can only report a placeholder size, and why
 # nothing built today may take this route.
 #
 # **Kept here rather than deleted**, because `SolarBudget` was an
@@ -275,26 +275,26 @@ AdditiveFit3(f1, f2, f3) = CombiningFit(sum, (f1, f2, f3))
 # released `SolarBudget(mat)` call straight onto the `Matrix` method: removing it would drop released
 # public behaviour with no shim. Here it keeps working, and keeps warning.
 #
-# **A layer built this way still cannot answer `getcellsizes` from its dims** — it has none. That
+# **A layer built this way still cannot answer `getcellsizes` from its dims** - it has none. That
 # is consistent with the rest of this file, which deliberately reproduces pre-projection v0.4.0
 # behaviour (the same reason the `*habitat` builders keep `_cellsize`'s metric conversion).
 _noLookupYX(M::AbstractMatrix) = DimArray(M, (Y(NoLookup()), X(NoLookup())))
 
-# **Reaches the INNER constructor directly, bypassing `_checkhascoords`** — deliberately, and it is
+# **Reaches the INNER constructor directly, bypassing `_checkhascoords`** - deliberately, and it is
 # the only place that may. The outer `Supply{A}(::DimArray)` now refuses `NoLookup` dims; this path
 # has none to give, because a v0.4.0 budget was a bare `Matrix`. So `deprecations.jl` is the sole
 # owner of coordinate-less layers, alongside `_noLookupYX` above.
 # **The ONE route to a coordinate-less layer, and every deprecated path goes through it.** The
 # public constructors refuse `NoLookup` dims (`_checkhascoords`); these reach the *inner* constructor
-# directly, which is legitimate here and nowhere else — a v0.4.0 budget was a bare `Array` and had no
+# directly, which is legitimate here and nowhere else - a v0.4.0 budget was a bare `Array` and had no
 # coordinates to give.
 # **Written as one helper rather than repeated at each site**, because it was first patched into the
-# `Matrix` constructor alone and the **3-D** path (`SolarTimeBudget(stack, time)` → a slice of a
+# `Matrix` constructor alone and the **3-D** path (`SolarTimeBudget(stack, time)` -> a slice of a
 # `NoLookup` stack) still went through the public one and was refused. Caught by
-# `test_deprecations.jl` — 16 new errors, all in this file.
+# `test_deprecations.jl` - 16 new errors, all in this file.
 # **The REGIME half of this pair is gone.** `_legacyregime`/`_legacycategorical` built a v0.4.0
-# layer around a raster's own cells with a *stated* cell size — `_cellsize`'s implicit equal-area
-# projection — and their only callers were the four data-backed builders, which have been removed
+# layer around a raster's own cells with a *stated* cell size - `_cellsize`'s implicit equal-area
+# projection - and their only callers were the four data-backed builders, which have been removed
 # because that is precisely what no longer has an equivalent. `_legacysupply` survives because the
 # `SolarTimeBudget`/`WaterTimeBudget` family still needs it: a v0.4.0 budget was a bare `Matrix` with
 # no coordinates at all, which is a different problem from a raster whose coordinates are geographic.
@@ -317,7 +317,7 @@ Base.@deprecate_binding WaterBudget Supply{Precipitation}
 Base.@deprecate_binding WaterTimeBudget Supply{Precipitation}
 Base.@deprecate_binding BudgetCollection2 SupplyCollection2
 # This forwards to today's `getsupply`, which returns the **layer** rather than v0.4.0's bare
-# value matrix. A shim redirects a name, and the name it redirects to is the current one — pinning
+# value matrix. A shim redirects a name, and the name it redirects to is the current one - pinning
 # the old return type here would make the shim a second implementation, and would put exactly the
 # naked array across the public boundary that `getsupply` was changed to stop handing out.
 @deprecate getbudget(eco) getsupply(eco)
@@ -338,17 +338,17 @@ Base.@deprecate_binding BudgetCollection2 SupplyCollection2
 @deprecate getgridsize(eco) first(getcellsizes(eco).y)
 
 # ---------------------------------------------------------------------------
-# Resource line: `Requirement` → `Demand` (v0.4.0 rename; the species' resource need)
+# Resource line: `Requirement` -> `Demand` (v0.4.0 rename; the species' resource need)
 # ---------------------------------------------------------------------------
-# **`SimpleRequirement` is REMOVED, not shimmed** — the same shape as `SimpleBudget` above, and
+# **`SimpleRequirement` is REMOVED, not shimmed** - the same shape as `SimpleBudget` above, and
 # for the same reason: the free/dimensionless demand it named no longer exists, so there is nothing
 # to re-point it at. It was exported in v0.4.0, which makes this a breaking removal with a NEWS
 # entry. Recorded here, where the shim used to be, so the absence reads as a decision.
-# **`NoBoundary` said the opposite of what it meant**: there are boundaries, on all four sides —
+# **`NoBoundary` said the opposite of what it meant**: there are boundaries, on all four sides -
 # it named the *absence* of wrapping, not the absence of edges. `Island` says it correctly, and the
 # grid's topology is now stated one axis at a time (`EdgeTopology{Bounded, Bounded}`).
 # Owed a shim: `NoBoundary` was **exported in v0.4.0**. `Torus` and `Cylinder` are *not*
-# deprecated — they survive as aliases of the same parametric type, so nothing that used them changes.
+# deprecated - they survive as aliases of the same parametric type, so nothing that used them changes.
 Base.@deprecate_binding NoBoundary Island
 
 Base.@deprecate_binding SolarRequirement Demand{SolarRadiation}
@@ -356,12 +356,12 @@ Base.@deprecate_binding WaterRequirement Demand{Precipitation}
 Base.@deprecate_binding ReqCollection2 DemandCollection2
 
 # ---------------------------------------------------------------------------
-# Condition line: `Condition`(-role layer) → `Regime` (v0.4.0 rename; the environment's condition layer)
+# Condition line: `Condition`(-role layer) -> `Regime` (v0.4.0 rename; the environment's condition layer)
 # ---------------------------------------------------------------------------
 Base.@deprecate_binding ContinuousHab ContinuousRegime
 Base.@deprecate_binding ContinuousTimeHab ContinuousRegime
 # Two renames, one hop. v0.4.0's `DiscreteHab` became `DiscreteRegime`, which v0.5.0 renamed
-# again to `CategoricalRegime` — the layer is categorical (class codes that must not be averaged),
+# again to `CategoricalRegime` - the layer is categorical (class codes that must not be averaged),
 # not "discrete" in the shipped `ValueType` sense, where a day count is discrete and interpolates
 # perfectly well. The shim points straight at the current name rather than chaining through the
 # intermediate one, which never shipped as anything a user could have written.
@@ -371,9 +371,9 @@ Base.@deprecate_binding HabitatCollection3 RegimeCollection3
 @deprecate gethabitat getregime
 
 # ---------------------------------------------------------------------------
-# Environment container: `AbioticEnv`/`GridAbioticEnv` → `Condition` (v0.4.0 rename). NB the *condition
+# Environment container: `AbioticEnv`/`GridAbioticEnv` -> `Condition` (v0.4.0 rename). NB the *condition
 # layer* `AbstractHabitat` was renamed to `AbstractRegime`, freeing `AbstractHabitat` for the environment;
-# v0.4.0's (unexported) `AbstractHabitat` therefore changes meaning — a NEWS breaking note, not a shim.
+# v0.4.0's (unexported) `AbstractHabitat` therefore changes meaning - a NEWS breaking note, not a shim.
 # ---------------------------------------------------------------------------
 Base.@deprecate_binding GridAbioticEnv GridHabitat
 
@@ -387,7 +387,7 @@ Base.@deprecate_binding GridAbioticEnv GridHabitat
 @deprecate searchdir _searchdir
 
 # ---------------------------------------------------------------------------
-# Condition line: `Trait`/`Bin` → `Tolerance`/`NicheTolerance` (v0.4.0 rename; the species' condition response)
+# Condition line: `Trait`/`Bin` -> `Tolerance`/`NicheTolerance` (v0.4.0 rename; the species' condition response)
 # ---------------------------------------------------------------------------
 # **These two are no longer bindings, because the type they named is gone and the one that
 # replaced it needs an argument they did not supply.** `CategoricalTolerance` and
@@ -414,11 +414,11 @@ Base.@deprecate_binding RainBin RainTolerance
 @deprecate traitrepopulate!(args...) repopulate_by_tolerance!(args...)
 
 # ---------------------------------------------------------------------------
-# Condition line: the matcher `TraitRelationship`/`Match`/… → `NicheFit`/`Suitability` (v0.4.0 rename)
+# Condition line: the matcher `TraitRelationship`/`Match`/... -> `NicheFit`/`Suitability` (v0.4.0 rename)
 # ---------------------------------------------------------------------------
 # **Both now name the same type, and that is correct rather than a collision.** `Match` and
 # `LCmatch` differed only in the weight they gave a species outside its classes, which is no longer
-# a property of the fit at all — it moved to the tolerance's `penalty` (see `DiscreteTrait`/`LCtrait`
+# a property of the fit at all - it moved to the tolerance's `penalty` (see `DiscreteTrait`/`LCtrait`
 # above). What is left of either is "score a categorical match", and there is one of those.
 Base.@deprecate_binding Match CategoricalSuitability{NicheAxis}
 Base.@deprecate_binding LCmatch CategoricalSuitability{NicheAxis}
@@ -431,10 +431,10 @@ Base.@deprecate_binding additiveTR3 AdditiveFit3
 @deprecate gettraitrel getnichefit
 
 # ---------------------------------------------------------------------------
-# Layer dynamics: the v0.4.0 change functions → a declared change
+# Layer dynamics: the v0.4.0 change functions -> a declared change
 #
 # **What a shim is owed for, since this file is where it gets inferred from.** A shim is owed only
-# for a released **public** name — one v0.4.0 `export`ed (or declared `public`). Two kinds owe nothing:
+# for a released **public** name - one v0.4.0 `export`ed (or declared `public`). Two kinds owe nothing:
 # a name **new on this branch**, and a released but **unexported** one, because unexported means
 # internal and nothing outside the package could have depended on it.
 # This was got backwards once and cost seventeen shims. `HabitatUpdate`, `habitatupdate!`,
@@ -442,11 +442,11 @@ Base.@deprecate_binding additiveTR3 AdditiveFit3
 # `Abstract1Requirement`, `Abstract2Requirements`, `AbstractAbiotic`, `AbstractTraits`,
 # `ContinuousTrait` and `AbstractTraitRelationship` were all unexported in v0.4.0, and
 # `Abstract2Demands`, `ContinuousTimeRegime`, `AbstractTimeSupply`, `SolarTimeSupply` and
-# `WaterTimeSupply` were never released at all — all seventeen have been removed (2026-08-07).
+# `WaterTimeSupply` were never released at all - all seventeen have been removed (2026-08-07).
 # The failure was *method*, not judgement: the shims already here were read as evidence of a rule
 # and the rule written down to match them, instead of each being checked against the released tag.
-# Check the name itself — `git grep "^ *export" v0.4.0 -- 'src/*.jl'`, remembering that an export list
-# wraps across lines and a naive grep undercounts it badly — never the neighbouring lines.
+# Check the name itself - `git grep "^ *export" v0.4.0 -- 'src/*.jl'`, remembering that an export list
+# wraps across lines and a naive grep undercounts it badly - never the neighbouring lines.
 #
 # `LayerUpdate` (this branch's rename of v0.4.0's unexported `HabitatUpdate`) is replaced by the
 # `AbstractLayerChange` hierarchy (`Layer.jl`), which carries the change's *mode* as a type
@@ -455,8 +455,8 @@ Base.@deprecate_binding additiveTR3 AdditiveFit3
 # constructor mapping each old change function onto its successor.
 # ---------------------------------------------------------------------------
 
-# The v0.4.0 change functions. Each was only ever *named* — stored in a `LayerUpdate` and invoked by
-# the update loop — so the deprecated form keeps the old `(eco, layer, timestep)` signature, warns,
+# The v0.4.0 change functions. Each was only ever *named* - stored in a `LayerUpdate` and invoked by
+# the update loop - so the deprecated form keeps the old `(eco, layer, timestep)` signature, warns,
 # and defers to whatever change the layer now holds. `NoChange` is the one whose name is reused as a
 # type, so its shim is a three-argument constructor.
 
@@ -479,7 +479,7 @@ end
 
 Apply one timestep of `layer`'s own change. Deprecated: a rainfall change is now declared as
 `IncrementBy(rate)`, in the layer's unit per unit time, rather than named as a change function
-that hard-codes `mm` — which stopped being precipitation's unit when it became the rate `mm/d`.
+that hard-codes `mm` - which stopped being precipitation's unit when it became the rate `mm/d`.
 """
 function RainfallChange(eco::AbstractEcosystem, layer::AbstractLayer,
                         timestep::Unitful.Time)
@@ -507,7 +507,7 @@ end
 
 Apply one timestep of `layer`'s own change. Deprecated: walking a stored time series is now the
 layer's declared change rather than a named change function. `eraChange`/`worldclimChange` are
-aliases of this — the logic never differed by source or role.
+aliases of this - the logic never differed by source or role.
 """
 function cyclic_change(eco::AbstractEcosystem, layer::AbstractLayer,
                        timestep::Unitful.Time)
@@ -536,7 +536,7 @@ Destroy regime for one timestep of the ecosystem. The regime's change carries a 
 unit time); over `timestep` it gives the per-cell probability that an active cell is lost. That
 many active cells are drawn at random and have their supply and abundances zeroed.
 
-Deprecated: habitat loss changes the *ecosystem*, not a layer — it never marks the lost cells
+Deprecated: habitat loss changes the *ecosystem*, not a layer - it never marks the lost cells
 inactive, so they stay dispersal targets and can be lost again, and it draws from the global RNG,
 so it neither replays reproducibly nor agrees across MPI ranks. It is superseded by an explicit
 cell-deactivating intervention.
@@ -558,8 +558,8 @@ end
 # Map a v0.4.0 change function to the change type that replaces it. The rate is stored as given
 # rather than converted to the layer's `changeunit`: with no layer in hand this constructor cannot
 # know the unit the rate *should* be in, which is precisely the check the `_attachchange` path adds
-# and this one structurally cannot. Applying it still works — `matrix .+= rate .* timestep`
-# reconciles any per-time unit — it simply is not validated.
+# and this one structurally cannot. Applying it still works - `matrix .+= rate .* timestep`
+# reconciles any per-time unit - it simply is not validated.
 _legacychange(::Type{NoChange}, rate) = NoLayerChange()
 function _legacychange(::typeof(TempChange), rate)
     return SteadyLayerChange{typeof(rate)}(rate)
@@ -578,7 +578,7 @@ function _legacychange(::typeof(TempFluct), rate)
 end
 _legacychange(::typeof(HabitatLoss), rate) = LegacyLoss(rate)
 # `cyclic_change` walked a 3-D layer's own stored stack. There is no layer here to take that stack
-# from — `LayerUpdate` is built before the layer it will drive — so this cannot be materialised into
+# from - `LayerUpdate` is built before the layer it will drive - so this cannot be materialised into
 # a `SeriesLayerChange` and says so. The stack is installed by whichever constructor reads it.
 function _legacychange(::typeof(cyclic_change), rate)
     return error("`cyclic_change` is no longer a change a layer can be given: a stored series now " *
@@ -597,12 +597,12 @@ end
     LayerUpdate(changefun, rate, ::Type{<:Unitful.Dimensions})
 
 Construct the [`AbstractLayerChange`](@ref) that replaces the v0.4.0 change function `changefun`.
-The third argument, a dimension to check `rate` against, is accepted and ignored — a change is now
+The third argument, a dimension to check `rate` against, is accepted and ignored - a change is now
 checked against the layer it is attached to instead.
 """
 function LayerUpdate(changefun, rate)
     Base.depwarn("`LayerUpdate(changefun, rate)` is deprecated; layer change is now an " *
-                 "`AbstractLayerChange` (`NoLayerChange()`, `IncrementBy(rate)`, …) attached to a " *
+                 "`AbstractLayerChange` (`NoLayerChange()`, `IncrementBy(rate)`, ...) attached to a " *
                  "layer, which validates it against that layer's own unit.",
                  :LayerUpdate)
     return _legacychange(changefun, rate)
@@ -611,7 +611,7 @@ function LayerUpdate(changefun, rate, ::Type{<:Unitful.Dimensions})
     return LayerUpdate(changefun, rate)
 end
 
-# `resetrate!` → `setchange!`. The old name could only ever install a constant rate on the *whole*
+# `resetrate!` -> `setchange!`. The old name could only ever install a constant rate on the *whole*
 # regime; `setchange!` takes any change and addresses one layer, so it also reaches a sub-layer of a
 # collection, which `resetrate!` could not. It stays exported, as it was in v0.4.0; `setchange!` is
 # `public` rather than exported, per the convention for new supported API.
@@ -620,14 +620,14 @@ end
                                                          IncrementBy(rate))
 
 # ---------------------------------------------------------------------------
-# Environment constructors: the `*habitat` family → `GridHabitat`
+# Environment constructors: the `*habitat` family -> `GridHabitat`
 #
 # `simplehabitat` / `simplenichehabitat` / `erahabitat` / `worldclimhabitat` / `bioclimhabitat` /
 # `landcoverhabitat` (and the older `*AE` spellings of each) all do the same thing in six shapes:
 # take a *value or a raster*, a grid `dimension`, an `area` and a `maxsupply`, and hand back a
 # finished `GridHabitat`. `GridHabitat(; regime, supply, area)` takes layer **recipes** on a
 # grid that a `StudyArea` has already decided, which is what lets the same layer be inspected,
-# masked, reprojected and compared before anything is built on it — none of which a builder that
+# masked, reprojected and compared before anything is built on it - none of which a builder that
 # invents its own grid from a `dimension` can take part in.
 #
 # The whole family and its private helpers live here as one unit, out of `src/GridHabitat.jl`, which
@@ -637,8 +637,8 @@ end
 # cell, not one total to spread.
 #
 # As with the gradient family, these forward to the private bodies rather than to
-# `GridHabitat`. That is now a choice rather than a blocker: the reason recorded above —
-# that a spec had no way to declare a change — has since gone (`Varying(spec, IncrementBy(rate))`).
+# `GridHabitat`. That is now a choice rather than a blocker: the reason recorded above -
+# that a spec had no way to declare a change - has since gone (`Varying(spec, IncrementBy(rate))`).
 # What remains is that `GridHabitat` would put these on a *different grid*: a `StudyArea`
 # derives cells from an extent and a cell size, where these derive a cell size from `dimension` and
 # `area` and place the layer at no real-world position at all. Forwarding would therefore change
@@ -646,14 +646,14 @@ end
 #
 # The `*AE` names resolve straight onto the shared bodies rather than chaining through their
 # `*habitat` renames, so a caller of the oldest name gets one warning naming the real target, not
-# two naming each other — the same handling as the gradient section.
+# two naming each other - the same handling as the gradient section.
 # ---------------------------------------------------------------------------
 
 # Shared tail of the maximum-supply `*AE` constructors: total the per-area maximum supply
 # `maxsupply` (an areal rate) over `area`, spread it uniformly across the grid of `regime`,
 # pick the supply type from its axis (`supplytype`),
 # and assemble the `GridHabitat` with regime `regime`. `active` is passed through as given (a
-# plain `Matrix{Bool}` or an already-`DimArray` mask) — `GridHabitat`'s own constructor wraps/
+# plain `Matrix{Bool}` or an already-`DimArray` mask) - `GridHabitat`'s own constructor wraps/
 # validates it against `regime`'s grid.
 # The v0.4.0 `BUDGETDICT` in the one place it still belongs: inside the deprecation shims.
 #
@@ -666,22 +666,22 @@ end
 # `NoUnits => SimpleBudget` has **no replacement**: the free supply family was removed, so that
 # case now errors instead of silently building something else.
 # The element type each `cancel` method converts into, derived from `canonicalunit` rather than
-# spelling the literal unit here — so a change to what a resource is measured in cannot leave these
+# spelling the literal unit here - so a change to what a resource is measured in cannot leave these
 # converting to the old one. Moved here from `Layer.jl` (2026-08-20): the three `cancel` methods
 # below are their only callers, and a v0.4.0 conversion belongs with the rest of the shims.
 const _SolarRate = typeof(1.0 * canonicalunit(Resource, SolarRadiation))
 const _WaterRate = typeof(1.0 * canonicalunit(Resource, Precipitation))
 const _CarbonRate = typeof(1.0 * canonicalunit(Resource, CarbonFlux))
 
-# The two-argument, dimension-dispatched `cancel` — v0.4.0's areal-rate × cell-area conversion,
+# The two-argument, dimension-dispatched `cancel` - v0.4.0's areal-rate × cell-area conversion,
 # kept here for the same reason as `_v040supplytype` below and moved beside it (2026-08-09): its
 # only caller is `_maxsupply_env`, and choosing a unit from a unit is exactly what the live path
 # stopped doing. The three-argument axis form in `GridHabitat.jl` is what everything else uses.
-# Verified against `dimension(...)` before wiring: solar's `kJ/m²/day` (𝐌𝐓⁻³) × m² (𝐋²) →
-# `kJ/day` (𝐋²𝐌𝐓⁻³, `Unitful.Power`); water's `L/m²/day` (𝐋𝐓⁻¹) × m² → `L/day` (𝐋³𝐓⁻¹,
-# `VolumeFlow`); carbon's `g/m²/day` (𝐌𝐋⁻²𝐓⁻¹) × m² → `g/day` (𝐌𝐓⁻¹, `Unitful.MassFlow`).
-# `test_rasters.jl`'s wind-speed regression test also asks these directly — deliberately, as
-# proof of what the deleted unit table would have said — so they are not callable only from here.
+# Verified against `dimension(...)` before wiring: solar's `kJ/m^2/day` (𝐌𝐓^-3) × m^2 (𝐋^2) ->
+# `kJ/day` (𝐋^2𝐌𝐓^-3, `Unitful.Power`); water's `L/m^2/day` (𝐋𝐓^-1) × m^2 -> `L/day` (𝐋^3𝐓^-1,
+# `VolumeFlow`); carbon's `g/m^2/day` (𝐌𝐋^-2𝐓^-1) × m^2 -> `g/day` (𝐌𝐓^-1, `Unitful.MassFlow`).
+# `test_rasters.jl`'s wind-speed regression test also asks these directly - deliberately, as
+# proof of what the deleted unit table would have said - so they are not callable only from here.
 function cancel(a::Quantity{<:Real, 𝐌 * 𝐓^-3}, b::Quantity{<:Real, 𝐋^2})
     return uconvert(unit(_SolarRate), a * b)
 end
@@ -708,15 +708,15 @@ end
 # **The bridge from a v0.4.0 grid description to a `StudyArea`, and the reason these shims still
 # work at all.** A v0.4.0 builder states its grid as `(dimension, total area)`; a `StudyArea` states
 # it as `(extent, cellsize)`. Translating here is exact rather than approximate: `_gridgeometry`
-# recovers `sqrt(a / (ny·nx))` from the extent and cell size, which is the very quantity computed
-# below — measured over all five surviving families, bit-identical for three and equal to within
+# recovers `sqrt(a / (ny*nx))` from the extent and cell size, which is the very quantity computed
+# below - measured over all five surviving families, bit-identical for three and equal to within
 # 1e-15 relative for the other two (pure float round-off, the same interpolation reached by a
 # different order of operations).
 #
 # `extent` and `dimension` are both `(y, x)`, so they pass through in order. They used to be crossed
 # here, because `extent` alone was `(x, y)`.
-# This is still `deprecations.jl` stating a cell size rather than deriving one — the exemption
-# `CLAUDE.md` grants this file — but it now states it *through* `StudyArea`, so the grid is described
+# This is still `deprecations.jl` stating a cell size rather than deriving one - the exemption
+# `CLAUDE.md` grants this file - but it now states it *through* `StudyArea`, so the grid is described
 # once and the equal-area arithmetic v0.4.0 depended on is preserved.
 function _v040area(dimension::Tuple{Int64, Int64}, area::Unitful.Area, active)
     cs = sqrt(uconvert(km^2, area) / (dimension[1] * dimension[2]))
@@ -726,7 +726,7 @@ end
 
 # Build a v0.4.0-shaped environment from a *spec* plus the old `(dimension, maxsupply, area)` triple.
 # Replaces the former `_maxsupply_env`, which took an already-built regime and assembled a
-# `GridHabitat` from parts — a construction route that no longer exists, `GridHabitat` now being
+# `GridHabitat` from parts - a construction route that no longer exists, `GridHabitat` now being
 # built from specs and a `StudyArea` alone.
 function _v040env(spec, dimension::Tuple{Int64, Int64}, active,
                   maxsupply::Unitful.Quantity{Float64},
@@ -741,7 +741,7 @@ end
 
 # **The three data-regime helpers that used to be here are gone with the builders that used
 # them** (`_timeclimate_regime`, `_continuousregime`, `_categoricalregime`). They existed to build a
-# regime from a raster's own cells, preserving `_cellsize`'s area-preserving metric conversion — the
+# regime from a raster's own cells, preserving `_cellsize`'s area-preserving metric conversion - the
 # thing that made the data-backed builders unreproducible through a `StudyArea`, and so the reason
 # those builders were removed rather than rerouted.
 
@@ -765,12 +765,12 @@ function _simplenichehabitat(numniches::Int64,
                                axis = axis)
 end
 
-# **The four data-backed environment builders are REMOVED, and only their names remain** — see
+# **The four data-backed environment builders are REMOVED, and only their names remain** - see
 # `_removedbuilder` below for the message and the reasoning. Their implementations built a regime
 # **directly from an in-memory raster with no resampling**, which is not something any construction
 # route still does: a `StudyArea` decides the grid and the data is sampled onto it.
 #
-# Nothing dispatches here any more, so there is no `_erahabitat`/`_worldclimhabitat` body at all —
+# Nothing dispatches here any more, so there is no `_erahabitat`/`_worldclimhabitat` body at all -
 # the generated shims error before reaching one. The declarations that used to be here (three
 # method-less stubs whose methods lived in `EcoSISTEMRasterDataSourcesExt`) are gone with them, and so
 # are those extension methods.
@@ -800,8 +800,8 @@ end
 
 !!! warning "Deprecated"
     Both are deprecated and will be removed; use
-    `GridHabitat(regime = UniformSpec(val; axis), supply = …, area = …)` — or
-    [`NicheSpec`](@ref) in place of [`UniformSpec`](@ref) for the random-niche form — with a
+    `GridHabitat(regime = UniformSpec(val; axis), supply = ..., area = ...)` - or
+    [`NicheSpec`](@ref) in place of [`UniformSpec`](@ref) for the random-niche form - with a
     [`StudyArea`](@ref) deciding the grid. `maxsupply` has no direct equivalent: a supply spec gives
     the resource *per cell*, rather than a total spread across the grid.
 """
@@ -821,7 +821,7 @@ simplehabitat
 
 !!! warning "Deprecated"
     All four are deprecated and will be removed; use
-    `GridHabitat(regime = SourceSpec(source, code), supply = …, area = …)`, with a
+    `GridHabitat(regime = SourceSpec(source, code), supply = ..., area = ...)`, with a
     [`StudyArea`](@ref) deciding the grid from the data's own CRS, extent and resolution. A
     [`ConstructedSpec`](@ref) wraps an already-read [`ClimateRaster`](@ref) where one is in hand.
     Unlike these builders, that route reports what the grid costs each layer, masks and reprojects,
@@ -840,24 +840,24 @@ export simplehabitatAE, simplenicheAE, eraAE, worldclimAE, bioclimAE, lcAE
 # The builders that survive: still deprecated, still working, and now reaching `GridHabitat`
 # through a synthetic `StudyArea` rather than assembling a habitat from parts.
 for (old, since, body, target) in ((:simplehabitat, "v0.5.0", :_simplehabitat,
-    "UniformSpec(val, axis = …)"),
+    "UniformSpec(val, axis = ...)"),
     (:simplehabitatAE, "v0.4.0", :_simplehabitat,
-    "UniformSpec(val, axis = …)"),
+    "UniformSpec(val, axis = ...)"),
     (:simplenichehabitat, "v0.5.0",
     :_simplenichehabitat,
-    "NicheSpec(numniches, axis = …)"),
+    "NicheSpec(numniches, axis = ...)"),
     (:simplenicheAE, "v0.4.0",
     :_simplenichehabitat,
-    "NicheSpec(numniches, axis = …)"))
+    "NicheSpec(numniches, axis = ...)"))
     @eval function $old(args...; kwargs...)
         Base.depwarn("`$($(QuoteNode(old)))` is deprecated (since $($since)); use " *
-                     "`GridHabitat(regime = $($target), supply = …, area = …)` instead, " *
+                     "`GridHabitat(regime = $($target), supply = ..., area = ...)` instead, " *
                      "with a `StudyArea` deciding the grid.", $(QuoteNode(old)))
         return $body(args...; kwargs...)
     end
 end
 
-# **The four data-backed builders are REMOVED — the names remain only to explain themselves.**
+# **The four data-backed builders are REMOVED - the names remain only to explain themselves.**
 #
 # **Why an error rather than a deletion.** Four of these eight names (`eraAE`, `worldclimAE`,
 # `bioclimAE`, `lcAE`) were **exported in v0.4.0**, so a released script calls them. Deleting the
@@ -865,7 +865,7 @@ end
 # do; the name kept, erroring, is the difference between a five-minute fix and an afternoon.
 #
 # **No `Base.depwarn` first, deliberately.** A deprecation warning followed by an error is two
-# messages for one problem, and the warning is the less useful one — these are not deprecated (still
+# messages for one problem, and the warning is the less useful one - these are not deprecated (still
 # working, to be removed later), they are *gone*.
 #
 # **Each message names `in_memory_raster` as well as the `SourceSpec` form.** Every one of these
@@ -874,20 +874,20 @@ end
 function _removedbuilder(name, since, what, sourcespec)
     return error("`$name` has been removed (it was deprecated in $since). It built an environment " *
                  "directly from an in-memory $what, sampling **no** grid: the raster's own cells " *
-                 "became the simulation's cells. Nothing does that now — a `StudyArea` decides the " *
-                 "grid and the data is sampled onto it — so there is no shim that would give the " *
+                 "became the simulation's cells. Nothing does that now - a `StudyArea` decides the " *
+                 "grid and the data is sampled onto it - so there is no shim that would give the " *
                  "same answer, and results from a replacement will differ from v0.4.0's.\n" *
                  "  • Reading from the catalogued source:\n" *
                  "        area = StudyArea(regime = $sourcespec)\n" *
-                 "        env  = GridHabitat(regime = $sourcespec, supply = …, area = area)\n" *
+                 "        env  = GridHabitat(regime = $sourcespec, supply = ..., area = area)\n" *
                  "  • A raster you already hold (what this builder took):\n" *
-                 "        spec = in_memory_raster(raster, axis = …)\n" *
-                 "        env  = GridHabitat(regime = spec, supply = …, area = StudyArea(regime = spec))")
+                 "        spec = in_memory_raster(raster, axis = ...)\n" *
+                 "        env  = GridHabitat(regime = spec, supply = ..., area = StudyArea(regime = spec))")
 end
 
 for (old, since, what, sourcespec) in ((:erahabitat, "v0.5.0", "`ERA` raster",
-    "SourceSpec(…)"),
-    (:eraAE, "v0.4.0", "`ERA` raster", "SourceSpec(…)"),
+    "SourceSpec(...)"),
+    (:eraAE, "v0.4.0", "`ERA` raster", "SourceSpec(...)"),
     (:worldclimhabitat, "v0.5.0", "WorldClim climate raster",
     "SourceSpec(WorldClim{Climate}, code)"),
     (:worldclimAE, "v0.4.0", "WorldClim climate raster",
@@ -906,16 +906,16 @@ for (old, since, what, sourcespec) in ((:erahabitat, "v0.5.0", "`ERA` raster",
 end
 
 # ---------------------------------------------------------------------------
-# The rainfall-gradient builders: `raingrad` / `raingradhabitat` / `raingradAE` → `GridHabitat`
+# The rainfall-gradient builders: `raingrad` / `raingradhabitat` / `raingradAE` -> `GridHabitat`
 #
 # The whole rainfall-gradient family is deprecated together, and its bodies move here out of
 # `src/GridHabitat.jl` and `src/Layer.jl`: `GridHabitat(regime = GradientSpec(low, high;
-# axis = Precipitation), …)` expresses a gradient on any axis, so a rain-specific builder — and
-# the rain-specific generator behind it — earn nothing. `raingrad`'s only callers were
+# axis = Precipitation), ...)` expresses a gradient on any axis, so a rain-specific builder - and
+# the rain-specific generator behind it - earn nothing. `raingrad`'s only callers were
 # `raingradhabitat`'s two real methods, so the pair moves as a unit.
 #
 # These forward to a *private* body rather than to `GridHabitat`, unlike their `*AE`
-# siblings above — because they would land on a **different grid**. A `StudyArea` derives its cells
+# siblings above - because they would land on a **different grid**. A `StudyArea` derives its cells
 # from an extent and a cell size; these builders derive a cell size from `dimension` and `area`, so
 # a literal forward would change results silently. Behaviour is preserved here instead and the
 # warning names the migration target.
@@ -928,7 +928,7 @@ end
 # caller of the oldest name gets one warning naming the real target, not two naming each other.
 #
 # Being wholly inside the deprecated unit is also what lets these be typed for `Precipitation`'s
-# canonical unit — the rate `mm/d` — without touching live code: as `Unitful.Length{Float64}` they
+# canonical unit - the rate `mm/d` - without touching live code: as `Unitful.Length{Float64}` they
 # could not be called on their own default axis at all.
 # ---------------------------------------------------------------------------
 
@@ -958,7 +958,7 @@ end
 
 # The `maxsupply` form: a rainfall gradient regime plus a supply
 # filled from a separate maximum supply value. Which supply that is comes from `maxsupply`'s
-# *unit*, via `_v040supplytype` — the v0.4.0 contract these shims exist to reproduce, and the one
+# *unit*, via `_v040supplytype` - the v0.4.0 contract these shims exist to reproduce, and the one
 # place unit-based inference legitimately survives.
 function _raingradhabitat(minR::Unitful.Quantity{Float64},
                           maxR::Unitful.Quantity{Float64},
@@ -976,13 +976,13 @@ end
 # The water-supply form: the gradient's own rainfall values are the supply, so there is no
 # separate `maxsupply`.
 #
-# **This body was broken before this change, and reachable** — `raingradhabitat(minR, maxR, dim,
+# **This body was broken before this change, and reachable** - `raingradhabitat(minR, maxR, dim,
 # area, rate)` is the exported 5-argument form that lands here. It passed the regime's matrix
 # straight to `WaterSupply`, but the regime holds `Precipitation`'s *condition* unit (`mm/day`, an
 # areal rate) while a supply is `L/day` **per cell**, so the call had no method at all. v0.4.0 could
 # do it because both sides were bare `mm`; the v0.5.0 unit change moved the regime to `mm/day` and
 # the supply to an absolute `L/day`, and this line was not moved with them. No test reaches it,
-# which is why it survived — `raingrad`'s coverage all goes through the `maxsupply` form.
+# which is why it survived - `raingrad`'s coverage all goes through the `maxsupply` form.
 # The fix is what `cancel` exists for and what the other supply paths already do: the areal rate
 # against this grid's own cell area. That is the faithful reading of "the rainfall itself is the
 # water budget" in units where a supply is per cell.
@@ -995,7 +995,7 @@ function _raingradhabitat(minR::Unitful.Quantity{Float64},
                           axis::Type{<:NicheAxis} = Precipitation)
     # The regime spec is used **twice**: once as the Condition and once as the Resource. That is
     # exactly what "the rainfall itself is the water budget" means, and it is what the hand-built
-    # `cancel.(regime.matrix, cellarea, Precipitation)` computed — a supply spec is stated per unit
+    # `cancel.(regime.matrix, cellarea, Precipitation)` computed - a supply spec is stated per unit
     # area and multiplied by the cell area, which is the same arithmetic in one step.
     # Only the regime carries the rate: a declared change belongs to one layer, and it is the
     # *condition* that v0.4.0 drifted.
@@ -1031,8 +1031,8 @@ end
     raingrad(minR, maxR, size, dim, rate)
 
 !!! warning "Deprecated"
-    `raingrad` is deprecated and will be removed. Build the gradient as a layer recipe instead —
-    `GridHabitat(regime = GradientSpec(minR, maxR, axis = Precipitation), …)` — which does
+    `raingrad` is deprecated and will be removed. Build the gradient as a layer recipe instead -
+    `GridHabitat(regime = GradientSpec(minR, maxR, axis = Precipitation), ...)` - which does
     the same job on any niche axis, with `Varying(spec, IncrementBy(rate))` for the rate. This shim
     keeps the old behaviour rather than forwarding, because a `StudyArea` would put the layer on a
     different grid.
@@ -1043,7 +1043,7 @@ function raingrad(minR::Unitful.Quantity{Float64},
                   dim::Tuple{Int64, Int64},
                   rate::Unitful.Quantity{Float64})
     Base.depwarn("`raingrad` is deprecated; use `GridHabitat(regime = " *
-                 "GradientSpec(minR, maxR, axis = Precipitation), …)` instead. " *
+                 "GradientSpec(minR, maxR, axis = Precipitation), ...)` instead. " *
                  "(This shim preserves the old behaviour: a `StudyArea` grid differs.)",
                  :raingrad)
     return _raingrad(minR, maxR, size, dim, rate)
@@ -1054,15 +1054,15 @@ end
 
 !!! warning "Deprecated"
     `raingradhabitat` is deprecated and will be removed; use
-    `GridHabitat(regime = GradientSpec(minR, maxR, axis = Precipitation), supply = …,
-    area = …)` instead. `minR`/`maxR` are Condition values on the [`Precipitation`](@ref) axis,
-    whose canonical unit is the **rate** `mm/d` — an accumulated depth (`mm`) is rejected. Note
+    `GridHabitat(regime = GradientSpec(minR, maxR, axis = Precipitation), supply = ...,
+    area = ...)` instead. `minR`/`maxR` are Condition values on the [`Precipitation`](@ref) axis,
+    whose canonical unit is the **rate** `mm/d` - an accumulated depth (`mm`) is rejected. Note
     declare the rate with `Varying(spec, IncrementBy(rate))`. This shim preserves the old behaviour
     rather than forwarding.
 """
 raingradhabitat
 
-# `raingradAE` (the pre-v0.4.0 name) resolves straight onto the shared body — see the
+# `raingradAE` (the pre-v0.4.0 name) resolves straight onto the shared body - see the
 # one-warning-not-two note above. Exported explicitly because it no longer goes through the
 # symbol-form `@deprecate` that used to re-export it for us; `raingrad`/`raingradhabitat` keep the
 # exports they already have beside their original `include`s.
@@ -1071,7 +1071,7 @@ for (old, since) in ((:raingradhabitat, "v0.5.0"), (:raingradAE, "v0.4.0"))
     @eval function $old(args...; kwargs...)
         Base.depwarn("`$($(QuoteNode(old)))` is deprecated (since $($since)); use " *
                      "`GridHabitat(regime = GradientSpec(minR, maxR, axis = Precipitation), " *
-                     "supply = …, area = …)` instead. (This shim preserves the old behaviour: a " *
+                     "supply = ..., area = ...)` instead. (This shim preserves the old behaviour: a " *
                      "shim preserves the old behaviour.)", $(QuoteNode(old)))
         return _raingradhabitat(args...; kwargs...)
     end
@@ -1079,16 +1079,16 @@ end
 
 # ---------------------------------------------------------------------------
 # The temperature-gradient builders: `tempgrad` / `tempgradhabitat` / `peakedgradhabitat` (and the
-# older `tempgradAE` / `peakedgradAE`) → `GridHabitat`
+# older `tempgradAE` / `peakedgradAE`) -> `GridHabitat`
 #
-# The same treatment as the rainfall-gradient family above, for the same reasons — see that
+# The same treatment as the rainfall-gradient family above, for the same reasons - see that
 # section's comment for the rationale, the private-body forwarding and the one-warning-not-two
 # handling of the `*AE` names. `GradientSpec`/`PeakedSpec` on any niche axis replace them, and
 # `_tempgrad` backs both builders, `peakedgradhabitat` mirroring its
 # lower half to make the peak.
 #
 # Unlike the rain family these are *not* retyped: `Temperature`'s canonical unit is still `K`, so
-# they were never broken — this is a pure move, and their `Unitful.Temperature`/`𝚯𝐓⁻¹` signatures
+# they were never broken - this is a pure move, and their `Unitful.Temperature`/`𝚯𝐓^-1` signatures
 # stay exactly as released.
 # ---------------------------------------------------------------------------
 
@@ -1115,7 +1115,7 @@ function _tempgrad(minT::Unitful.Temperature{Float64},
 end
 
 # A linear temperature gradient plus a supply filled from `maxsupply`, whose type comes from that
-# value's unit — see `_v040supplytype`.
+# value's unit - see `_v040supplytype`.
 function _tempgradhabitat(minT::Unitful.Temperature{Float64},
                           maxT::Unitful.Temperature{Float64},
                           dimension::Tuple{Int64, Int64},
@@ -1168,8 +1168,8 @@ end
     tempgrad(minT, maxT, size, dim, rate)
 
 !!! warning "Deprecated"
-    `tempgrad` is deprecated and will be removed. Build the gradient as a layer recipe instead —
-    `GridHabitat(regime = GradientSpec(minT, maxT, axis = Temperature), …)` — which does the
+    `tempgrad` is deprecated and will be removed. Build the gradient as a layer recipe instead -
+    `GridHabitat(regime = GradientSpec(minT, maxT, axis = Temperature), ...)` - which does the
     same job on any niche axis, with `Varying(spec, IncrementBy(rate))` for the rate. This shim
     keeps the old behaviour rather than forwarding, because a `StudyArea` would put the layer on a
     different grid.
@@ -1180,7 +1180,7 @@ function tempgrad(minT::Unitful.Temperature{Float64},
                   dim::Tuple{Int64, Int64},
                   rate::Quantity{Float64, 𝚯 * 𝐓^-1})
     Base.depwarn("`tempgrad` is deprecated; use `GridHabitat(regime = " *
-                 "GradientSpec(minT, maxT, axis = Temperature), …)` instead. " *
+                 "GradientSpec(minT, maxT, axis = Temperature), ...)` instead. " *
                  "(This shim preserves the old behaviour: a `StudyArea` grid differs.)",
                  :tempgrad)
     return _tempgrad(minT, maxT, size, dim, rate)
@@ -1192,8 +1192,8 @@ end
 
 !!! warning "Deprecated"
     Both are deprecated and will be removed; use
-    `GridHabitat(regime = GradientSpec(minT, maxT, axis = Temperature), supply = …,
-    area = …)` — or [`PeakedSpec`](@ref) in place of [`GradientSpec`](@ref) for the peaked form.
+    `GridHabitat(regime = GradientSpec(minT, maxT, axis = Temperature), supply = ...,
+    area = ...)` - or [`PeakedSpec`](@ref) in place of [`GradientSpec`](@ref) for the peaked form.
     Declare the rate with `Varying(spec, IncrementBy(rate))`. These shims preserve the old behaviour
     rather than forwarding.
 """
@@ -1217,14 +1217,14 @@ for (old, since, body, spec) in ((:tempgradhabitat, "v0.5.0", :_tempgradhabitat,
     @eval function $old(args...; kwargs...)
         Base.depwarn("`$($(QuoteNode(old)))` is deprecated (since $($since)); use " *
                      "`GridHabitat(regime = $($spec)(minT, maxT; axis = Temperature), " *
-                     "supply = …, area = …)` instead. (This shim preserves the old behaviour: a " *
+                     "supply = ..., area = ...)` instead. (This shim preserves the old behaviour: a " *
                      "shim preserves the old behaviour.)", $(QuoteNode(old)))
         return $body(args...; kwargs...)
     end
 end
 
 # ---------------------------------------------------------------------------
-# Member-by-name accessors (v0.5.0): `getregime(r, ::Symbol)` / `getpref(t, ::Symbol)` → `getproperty`
+# Member-by-name accessors (v0.5.0): `getregime(r, ::Symbol)` / `getpref(t, ::Symbol)` -> `getproperty`
 #
 # These existed because a fixed-arity collection's members were reachable no other way. A collection
 # now forwards property access to its backing, so `regime.rainfall` (or `regime.two` on a positional
@@ -1234,7 +1234,7 @@ end
 #
 # Only the `::Symbol` methods are deprecated. Their numeric siblings mean something entirely
 # different and stay: `getregime(regime, pos::Int64)` is the regime *value* in grid cell `pos`, and
-# `getpref(tolerance, sp::Int64)`/`getdist(tolerance, sp::Int64)` are keyed by *species* — all three
+# `getpref(tolerance, sp::Int64)`/`getdist(tolerance, sp::Int64)` are keyed by *species* - all three
 # are hot-loop calls in `_suitability`. Positional member access is `values(lc)[i]`, on the plain
 # tuple, which is where indexing a collection is meant to be spelled out.
 #
@@ -1246,8 +1246,8 @@ end
     getregime(regime::AbstractRegime, name::Symbol)
 
 !!! warning "Deprecated"
-    Deprecated and will be removed; use `getproperty` — `regime.rainfall`, or `regime.two` on a
-    positional collection — or `values`/`NamedTuple` for all of them at once.
+    Deprecated and will be removed; use `getproperty` - `regime.rainfall`, or `regime.two` on a
+    positional collection - or `values`/`NamedTuple` for all of them at once.
     Note `getregime(regime, pos::Int64)` is **not** deprecated and means something different: the
     regime value in grid cell `pos`.
 """
@@ -1262,8 +1262,8 @@ end
     getpref(tolerance::AbstractTolerance, name::Symbol)
 
 !!! warning "Deprecated"
-    Deprecated and will be removed; use `getproperty` — `tolerance.rainfall`, or `tolerance.two` on
-    a positional collection — or `values`/`NamedTuple`. Note
+    Deprecated and will be removed; use `getproperty` - `tolerance.rainfall`, or `tolerance.two` on
+    a positional collection - or `values`/`NamedTuple`. Note
     `getpref(tolerance, sp::Int64)` is **not** deprecated and means something different: species
     `sp`'s own preference.
 """
@@ -1275,11 +1275,11 @@ function getpref(tolerance::T, name::Symbol) where {T <: AbstractTolerance}
 end
 
 # ---------------------------------------------------------------------------
-# Synthetic layer generators (v0.5.0): `randomniches` → `NicheSpec`
+# Synthetic layer generators (v0.5.0): `randomniches` -> `NicheSpec`
 #
 # The same treatment the gradient generators got: a layer is described by a *spec* and materialised
 # onto a decided grid, so a bare generator returning a loose regime has no way to take part. Unlike
-# `tempgrad`/`raingrad`, though, the body does not move here — `NicheSpec` materialises through it
+# `tempgrad`/`raingrad`, though, the body does not move here - `NicheSpec` materialises through it
 # (`_syntheticregime`, `rasters.jl`; `_syntheticniche`, `StudyArea.jl`), so it stays live in
 # `Layer.jl` as `_randomniches` and this is a shim over it.
 # ---------------------------------------------------------------------------
@@ -1288,8 +1288,8 @@ end
     randomniches(dimension, types, clumpiness, weights, gridsquaresize)
 
 !!! warning "Deprecated"
-    `randomniches` is deprecated and will be removed. Describe the layer as a recipe instead —
-    `GridHabitat(regime = NicheSpec(numniches, axis = …), …)` — which places it on the study area's
+    `randomniches` is deprecated and will be removed. Describe the layer as a recipe instead -
+    `GridHabitat(regime = NicheSpec(numniches, axis = ...), ...)` - which places it on the study area's
     decided grid rather than at a dimension passed in by hand.
 """
 function randomniches(dimension::Tuple,
@@ -1298,7 +1298,8 @@ function randomniches(dimension::Tuple,
                       weights::Vector,
                       gridsquaresize::Unitful.Length)
     Base.depwarn("`randomniches` is deprecated; use `GridHabitat(regime = " *
-                 "NicheSpec(numniches, axis = …), …)` instead.", :randomniches)
+                 "NicheSpec(numniches, axis = ...), ...)` instead.",
+                 :randomniches)
     return _randomniches(dimension, types, clumpiness, weights, gridsquaresize)
 end
 
@@ -1331,14 +1332,14 @@ export emptyMPIgridlandscape
 # Layer time series (v0.5.0): a layer no longer holds a stack and a cursor into it
 # ---------------------------------------------------------------------------
 # A layer holds one grid of values; which stored slice that is comes from elapsed time, via a
-# `SeriesLayerChange`. The `*Time*` layer types are therefore gone — a time-varying layer is the same
-# type as a static one — and the constructors that took `(stack, time)` build the pair instead.
+# `SeriesLayerChange`. The `*Time*` layer types are therefore gone - a time-varying layer is the same
+# type as a static one - and the constructors that took `(stack, time)` build the pair instead.
 
 # Build the 2-D layer + series a v0.4.0 3-D layer becomes. The old `time` cursor is honoured rather
 # than dropped: the layer holds the slice it pointed at, and the series is anchored so that elapsed
 # time zero selects that same slice, which is what the cursor meant.
 # Declares `UndatedSeries` explicitly rather than relying on the default. A v0.4.0 stack is a bare
-# cursor into slices with no calendar identity whatever — that is exactly why `origin` is the right
+# cursor into slices with no calendar identity whatever - that is exactly why `origin` is the right
 # knob for it, and `origin` is accepted only for an undated series. Saying so here also means a later
 # change to what an unmarked source infers cannot silently break the shim.
 function _legacyseries!(layer::AbstractLayer, stack, time::Integer)
@@ -1387,7 +1388,7 @@ for (axis, old) in ((:SolarRadiation, :SolarTimeBudget),
     end
 end
 
-# A bare 3-D `Array` carries no grid, so it is wrapped on a fresh `NoLookup` `(Y, X, Ti)` — the
+# A bare 3-D `Array` carries no grid, so it is wrapped on a fresh `NoLookup` `(Y, X, Ti)` - the
 # synthetic case, exactly as the 2-D constructors do. A `DimArray` is already on its own grid.
 _asdimstack(stack::DimensionalData.AbstractDimArray) = stack
 function _asdimstack(stack::AbstractArray{<:Any, 3})
@@ -1398,13 +1399,13 @@ end
 # Ecosystem-level scenarios (v0.5.0): callbacks become declarations
 # ---------------------------------------------------------------------------
 # `AbstractScenario` carried a *function reference*, so nothing about a scenario could be
-# dispatched on, validated, reported or reproduced — and `RandHabitatLoss!`/`ClustHabitatLoss!` drew
+# dispatched on, validated, reported or reproduced - and `RandHabitatLoss!`/`ClustHabitatLoss!` drew
 # from the **global** RNG, which meant no run using one was reproducible and MPI ranks silently
 # diverged. `Intervention(schedule, region, operation)` states the same three things as types.
 #
 # **The old types are GONE** (v0.5.0), not deprecated: `AbstractScenario`, `SimpleScenario`,
 # `FluctScenario`, `MultiScenario` and `runscenario!` are removed outright, with no shim. There was
-# nothing to point one at — a callback cannot be mechanically turned into a declaration, since what
+# nothing to point one at - a callback cannot be mechanically turned into a declaration, since what
 # it does is invisible until it runs, and `Intervention` is a plain struct whose parts are the
 # abstract types (`AbstractSchedule`, `AbstractRegion`, `AbstractOperation`), so the new mechanism
 # has no single supertype standing where the old one stood.
@@ -1424,7 +1425,7 @@ end
     getdispersaldist(eco, sp)
 
 Deprecated. Use [`EcoSISTEM.speciesdispersal`](@ref), which returns the dispersal **kernel** itself
-rather than one of its parameters — more honest (the distance distribution is Rayleigh, not Normal)
+rather than one of its parameters - more honest (the distance distribution is Rayleigh, not Normal)
 and directly reusable as [`AddSpecies`](@ref)' `dispersal` keyword.
 """
 function getdispersaldist(eco::AbstractEcosystem, sp)
@@ -1438,8 +1439,8 @@ end
 
 Deprecated. Use [`EcoSISTEM.speciesdispersal`](@ref).
 
-Its formula did not match the kernel it claimed to describe — see the deferred item on dispersal
-parameterisation in the master plan — which is part of why the replacement returns the kernel and
+Its formula did not match the kernel it claimed to describe - see the deferred item on dispersal
+parameterisation in the master plan - which is part of why the replacement returns the kernel and
 lets the caller read whatever it actually holds.
 """
 function getdispersalvar(eco::AbstractEcosystem, sp)
@@ -1514,7 +1515,7 @@ export GaussTrait
 # The netCDF climate sources became SOURCES rather than CONTAINERS (v0.5.0)
 # ---------------------------------------------------------------------------
 # `ERA`, `CERA` and `CRUTS` used to be struct wrappers holding an array. They are now fieldless
-# `EcoSISTEMSource` markers, and a reader returns a `ClimateRaster{ERA}` — the same shape every other
+# `EcoSISTEMSource` markers, and a reader returns a `ClimateRaster{ERA}` - the same shape every other
 # data source already had. That is what makes them usable in a `SourceSpec`.
 #
 # The constructor call is redirected, so `ERA(array)` keeps working with a warning.

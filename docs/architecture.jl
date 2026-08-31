@@ -2,7 +2,7 @@
 #
 # Keep `docs/architecture.md` honest about the code's type hierarchies.
 #
-# Audit — what the doc gets wrong, and what it has never covered:
+# Audit - what the doc gets wrong, and what it has never covered:
 #
 #     julia --project docs/architecture.jl
 #
@@ -12,12 +12,12 @@
 #
 # 🔴 **`--fix` repairs the DIAGRAMS ONLY. The prose is the valuable half and it cannot see it.**
 # ✅ Measured the day this was written: `docs/architecture.md` declared `class Reference~A~` for a type
-# deleted from `ClimatePref` — *and* said in prose that "`ERA`/`CERA`/`CRUTS`/`Reference` remain for
+# deleted from `ClimatePref` - *and* said in prose that "`ERA`/`CERA`/`CRUTS`/`Reference` remain for
 # their data sources". `--fix` removes the first and leaves the second silently wrong. Always read the
 # text around any block it changes, and treat its output as a diff to review rather than an answer.
 #
 # ⚠️ Run this under the **test** environment (or with the weak deps loaded), or the extension types are
-# invisible and it reports false gaps — `MPIEcosystem`'s concrete subtypes live in `EcoSISTEMMPIExt`.
+# invisible and it reports false gaps - `MPIEcosystem`'s concrete subtypes live in `EcoSISTEMMPIExt`.
 
 module ArchitectureAudit
 
@@ -39,7 +39,7 @@ function ourmodules()
     return mods
 end
 
-# Where a name may legitimately resolve without being ours — the external supertypes we subtype from.
+# Where a name may legitimately resolve without being ours - the external supertypes we subtype from.
 # ⭐ Resolving against real modules rather than keeping a hardcoded whitelist: a name is only "stale"
 # if *nothing* reachable defines it, so an upstream rename shows up as staleness exactly as it should.
 function othermodules()
@@ -65,7 +65,7 @@ function isowntype(m::Module, n::Symbol)
     return u.name.name === n && parentmodule(v) === m
 end
 
-# Is `n` an alias — a binding to a type declared under a different name? ⭐ `const AbstractRegime =
+# Is `n` an alias - a binding to a type declared under a different name? ⭐ `const AbstractRegime =
 # AbstractLayer{Condition}` and `const Torus = EdgeTopology{Periodic, Periodic}` both answer true.
 # The doc names these deliberately, and no `supertype` walk can produce them, so they are collected
 # rather than derived and `--fix` leaves their edges alone.
@@ -82,7 +82,7 @@ end
     architecture_report()
 
 Gather what the code says about its own type hierarchies, and what `docs/architecture.md` says about
-them. Returns a named tuple: `owned` (our type declarations), `aliases`, `children` (parent name →
+them. Returns a named tuple: `owned` (our type declarations), `aliases`, `children` (parent name ->
 child names), `roots` (hierarchy roots with at least one child), `documented` (names appearing in a
 mermaid block), `stale` (documented but resolvable nowhere) and `undocumented` (a root with children
 that no block names).
@@ -95,7 +95,7 @@ function architecture_report()
         isaliastype(m, n) && push!(aliases, n)
     end
 
-    # parent → children in ONE pass over the owned types. ⚠️ Deliberately not `subtypes()`, which
+    # parent -> children in ONE pass over the owned types. ⚠️ Deliberately not `subtypes()`, which
     # rescans every loaded module per call (~0.6 s) and would make this a minute-long job.
     children = Dict{Symbol, Vector{Symbol}}()
     for (n, T) in owned
@@ -105,7 +105,7 @@ function architecture_report()
     end
     foreach(sort!, values(children))
 
-    # A root is an abstract type of ours whose own supertype is not one of ours — so the hierarchy
+    # A root is an abstract type of ours whose own supertype is not one of ours - so the hierarchy
     # starts here as far as this package is concerned, whether or not it continues upstream.
     roots = sort([n
                   for (n, T) in owned
@@ -124,7 +124,7 @@ function architecture_report()
             documented = documented, stale = stale, undocumented = undocumented)
 end
 
-# Every type name a mermaid block mentions — from `class X~P,Q~` declarations and from both sides of
+# Every type name a mermaid block mentions - from `class X~P,Q~` declarations and from both sides of
 # an `A <|-- B` or `A *-- B` edge. ⚠️ Only inside ```mermaid fences: prose names types in backticks
 # constantly, and treating those as declarations would make the audit meaningless.
 function docnames(text::AbstractString)
@@ -169,16 +169,16 @@ function audit(; io = stdout)
     println(io, "  names in mermaid blocks : ", length(r.documented))
     if !isempty(r.stale)
         println(io,
-                "\n🔴 STALE — named in the doc, defined nowhere (deleted or renamed):")
+                "\n🔴 STALE - named in the doc, defined nowhere (deleted or renamed):")
         for n in r.stale
             println(io, "     ", n)
         end
     end
     if !isempty(r.undocumented)
         println(io,
-                "\n⚠️ UNDOCUMENTED — a hierarchy with children that no diagram names:")
+                "\n⚠️ UNDOCUMENTED - a hierarchy with children that no diagram names:")
         for n in r.undocumented
-            println(io, "     ", rpad(n, 30), "→ ", join(r.children[n], ", "))
+            println(io, "     ", rpad(n, 30), "-> ", join(r.children[n], ", "))
         end
     end
     isempty(r.stale) && isempty(r.undocumented) &&
@@ -194,7 +194,7 @@ Repair the **inheritance edges** of every mermaid block in `docs/architecture.md
 only when `write = true`. Returns the number of lines added plus removed.
 
 🔴 **Deliberately minimal, not a re-render.** It only *removes* what is provably wrong and *adds*
-what is provably missing, leaving every other byte alone — so the hand-curated ordering, alignment,
+what is provably missing, leaving every other byte alone - so the hand-curated ordering, alignment,
 `*--` composition edges and alias edges survive, and the diff is small enough to read. A full
 re-render would be easier to write and impossible to review.
 
@@ -205,7 +205,7 @@ What it changes, per block, within the set of types that block already names:
     declarations whose real supertype is a *different* type the block also names;
   - adds an `A <|-- B` edge that follows from `supertype` and is missing.
 
-⚠️ It never touches an edge whose child is an **alias** (`AbstractTolerance`, `Torus`, …): those are
+⚠️ It never touches an edge whose child is an **alias** (`AbstractTolerance`, `Torus`, ...): those are
 written by hand because no `supertype` walk can produce them.
 """
 function regenerate(; write::Bool = false, io = stdout)
@@ -221,7 +221,7 @@ function regenerate(; write::Bool = false, io = stdout)
     # 🔴 **An alias standing in for the real parent is a BETTER spelling, not a wrong one**, and this
     # is what stops the fixer destroying the documentation. The source says
     # `ContinuousTolerance <: AbstractTolerance{A, V}`, but `AbstractTolerance` is an alias, so
-    # `supertype` resolves straight through it to `AbstractSpeciesRequirement` — rewriting the edge
+    # `supertype` resolves straight through it to `AbstractSpeciesRequirement` - rewriting the edge
     # that way would erase the very branch the Tolerances diagram exists to show.
     function namesthesame(parent, real)
         parent in r.aliases || return false
@@ -246,7 +246,7 @@ function regenerate(; write::Bool = false, io = stdout)
                        line)
             cls = match(r"^\s*class\s+([A-Z][A-Za-z0-9_]*)", line)
             if !isnothing(cls) && isstale(Symbol(cls.captures[1]))
-                println(io, "  − ", strip(line), "   (defined nowhere)")
+                println(io, "  - ", strip(line), "   (defined nowhere)")
                 changes += 1
                 continue
             end
@@ -254,12 +254,12 @@ function regenerate(; write::Bool = false, io = stdout)
                 parent, child = Symbol(mm.captures[2]), Symbol(mm.captures[3])
                 real = realparent(child)
                 if isstale(parent) || isstale(child)
-                    println(io, "  − ", strip(line), "   (defined nowhere)")
+                    println(io, "  - ", strip(line), "   (defined nowhere)")
                     changes += 1
                     continue
                 elseif !isnothing(real) && real !== parent && real in scope &&
                        !namesthesame(parent, real)
-                    println(io, "  − ", strip(line),
+                    println(io, "  - ", strip(line),
                             "   (its real supertype is ", real, ")")
                     changes += 1
                     continue
@@ -268,7 +268,7 @@ function regenerate(; write::Bool = false, io = stdout)
             end
             push!(kept, line)
         end
-        # …then anything the code says and the block does not. ⚠️ Only for a block that already
+        # ...then anything the code says and the block does not. ⚠️ Only for a block that already
         # draws inheritance: one with none is a **composition** diagram (the `*--` edges), and adding
         # `<|--` lines to it would bury the picture it was drawn to give.
         isempty(present) &&
@@ -277,7 +277,7 @@ function regenerate(; write::Bool = false, io = stdout)
             real = realparent(child)
             (isnothing(real) || !(real in scope) || (real, child) in present) &&
                 continue
-            # …nor one already drawn through an alias of that same parent.
+            # ...nor one already drawn through an alias of that same parent.
             any(e -> e[2] === child && namesthesame(e[1], real), present) &&
                 continue
             line = "    $real <|-- $child"
@@ -296,7 +296,7 @@ function regenerate(; write::Bool = false, io = stdout)
     new = String(take!(out))
     if write && new != text
         Base.write(DOC, new)
-        println(io, "\n✅ rewrote docs/architecture.md — ", changes,
+        println(io, "\n✅ rewrote docs/architecture.md - ", changes,
                 " line(s) changed.")
         println(io,
                 "🔴 Now READ the prose around each change: `--fix` cannot see it, and a deleted type " *
@@ -306,7 +306,7 @@ function regenerate(; write::Bool = false, io = stdout)
                 "\n✅ every mermaid block's inheritance edges already match the code.")
     else
         println(io, "\n⚠️ ", changes,
-                " line(s) would change — re-run with `--fix` to apply.")
+                " line(s) would change - re-run with `--fix` to apply.")
     end
     return changes
 end

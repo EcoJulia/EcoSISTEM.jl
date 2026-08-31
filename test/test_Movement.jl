@@ -3,7 +3,7 @@
 module TestMovement
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported — a spec is what a user writes,
+# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: Periodic, Bounded, EdgeTopology
 using Test
@@ -39,7 +39,7 @@ using EcoSISTEM.Units
 end
 
 # **The test that would have caught the proposal's original axis order.** `EdgeTopology{BCY, BCX}`
-# is positional, so which parameter is which is invisible at every call site — and the proposal as
+# is positional, so which parameter is which is invisible at every call site - and the proposal as
 # offered had `Cylinder = EdgeTopology{Periodic, Bounded}`, i.e. Y wrapping, when the code
 # measurably wraps X. Asserting it *behaviourally* rather than structurally is what makes this
 # worth keeping: a structural `Cylinder === EdgeTopology{Bounded, Periodic}` restates the definition,
@@ -52,7 +52,7 @@ end
     @test EcoSISTEM._stepto(EcoSISTEM.Periodic, 1, -1, 10) == 10        # wraps to the far side
     @test EcoSISTEM._stepto(EcoSISTEM.Periodic, 10, 1, 10) == 1
 
-    # …then behaviourally, on a **non-square** grid so a Y/X mix-up cannot hide. One species is
+    # ...then behaviourally, on a **non-square** grid so a Y/X mix-up cannot hide. One species is
     # pinned to the first row and the first column; after dispersal, a wrapping axis has carried
     # individuals to the *opposite* end of that axis and a bounded one has not.
     function _reach(topology)
@@ -71,22 +71,22 @@ end
         ny, nx = size(eco.abundances.grid, 2), size(eco.abundances.grid, 3)
         eco.abundances.grid .= 0
         eco.abundances.grid[1, 1, 1] = 100_000        # a corner
-        # `move!(eco, movement, sp, loc, netmigration, abun)` — `loc` is the flat cell index of
+        # `move!(eco, movement, sp, loc, netmigration, abun)` - `loc` is the flat cell index of
         # the corner the individuals were placed in.
         EcoSISTEM.move!(eco, eco.spplist.movement, 1, 1,
                         eco.cache.netmigration, 100_000)
-        # `netmigration` is the **flat** `species × location` cache, not a grid — reshaped here
+        # `netmigration` is the **flat** `species × location` cache, not a grid - reshaped here
         # the same way `GridLandscape` views its own matrix, with Y varying fastest.
         moved = reshape(view(eco.cache.netmigration, 1, :), ny, nx)
         # did anything land at the far end of each axis?
         return (y = sum(moved[ny, :]) > 0, x = sum(moved[:, nx]) > 0)
     end
 
-    # `Cylinder` wraps **x** and not **y** — the assertion the proposal's order would have failed.
+    # `Cylinder` wraps **x** and not **y** - the assertion the proposal's order would have failed.
     cyl = _reach(Cylinder())
     @test cyl.x
     @test !cyl.y
-    # …and the newly expressible mirror image wraps y and not x.
+    # ...and the newly expressible mirror image wraps y and not x.
     flipped = _reach(EdgeTopology(y = Periodic, x = Bounded))
     @test flipped.y
     @test !flipped.x
@@ -100,7 +100,7 @@ end
 @testset "Dispersal into dead cells" begin
     # `disperse_safely` must not be read off the boundary object: that bundles a **grid** property
     # (does the world wrap) with a **species** one (is a disperser aimed at a dead cell
-    # redistributed, or lost). They are separate — the topology is on the habitat, the flag is one
+    # redistributed, or lost). They are separate - the topology is on the habitat, the flag is one
     # entry per species on the movement.
     for T in (Island, Cylinder, Torus)
         @test isempty(fieldnames(T))          # topologies carry no per-species state at all
@@ -115,7 +115,7 @@ end
                                                                            10e-4),
                                                            [true, false])
 
-    # One landscape, one seed, one species set — only the topology and the flag vary.
+    # One landscape, one seed, one species set - only the topology and the flag vary.
     function _total(topology, safely = true; holes = false)
         area = StudyArea(extent = (10.0km, 10.0km), cellsize = 1.0km,
                          verbosity = :silent)
@@ -143,7 +143,7 @@ end
 
     # The flag must be a **no-op when nothing is blocked**, not merely "close". A torus has no
     # edge, so with every cell active there is nothing to lose and the two settings must agree
-    # exactly — which they only do because `_drawmoves!` skips the extra `Binomial` draw when
+    # exactly - which they only do because `_drawmoves!` skips the extra `Binomial` draw when
     # `lost` is zero. Without that guard the draw re-phases the species' RNG stream and the totals
     # diverge (measured: 5883 against 5805) despite identical ecology.
     @test _total(Torus(), true) == _total(Torus(), false)
@@ -158,13 +158,13 @@ end
     @test _total(Cylinder(), false) < _total(Cylinder(), true)
 
     # And the ordering follows the geometry: a torus loses nothing, a cylinder loses its two
-    # north–south edges, and `Island` loses all four.
+    # north-south edges, and `Island` loses all four.
     @test _total(Island(), false) < _total(Cylinder(), false) <
           _total(Torus(), false)
 
     # **The case that makes the flag per-species**: two species on ONE grid, differing only in
     # `disperse_safely`. A flag living on a single boundary object shared by the whole species list
-    # cannot express it — a wind-dispersed species and an animal-dispersed one would have to agree
+    # cannot express it - a wind-dispersed species and an animal-dispersed one would have to agree
     # about what happens to a seed blown off the map.
     area = StudyArea(extent = (10.0km, 10.0km), cellsize = 1.0km,
                      verbosity = :silent)
@@ -182,7 +182,7 @@ end
     eco = build_ecosystem(mixed, env, seed = 1)
     simulate!(eco, 2.0year, 1.0month_mean_duration)
     # The lossy species must end up worse off than the safe one on the *same* grid, under the
-    # same seed — which is only a meaningful comparison because they now genuinely differ.
+    # same seed - which is only a meaningful comparison because they now genuinely differ.
     totals = sum(eco.abundances.matrix, dims = 2)[:, 1]
     @test totals[2] < totals[1]
 end

@@ -22,7 +22,7 @@ A simulation is a **spatial metacommunity**: abundances per species per cell on 
 than individuals. Each cell offers **conditions** a species is more or less suited to, and
 **resources** every species present competes for from a shared pool. Births and deaths respond to
 how the community's total demand compares with what a cell supplies, so a cell's carrying capacity
-is an outcome of who is living there rather than a number set in advance — conditions decide where
+is an outcome of who is living there rather than a number set in advance - conditions decide where
 a species can persist, and resources how many of it can.
 
 The environment is built from layers, which may be uniform, drawn from real climate and land-cover

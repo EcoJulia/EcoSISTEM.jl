@@ -13,7 +13,7 @@ const CELLCOUNT = Union{Integer, Unitful.Quantity{<:Real, 𝐓^-1}}
 """
     AbstractRegion
 
-**Where** an [`Intervention`](@ref) applies — [`AllCells`](@ref), [`ActiveCells`](@ref),
+**Where** an [`Intervention`](@ref) applies - [`AllCells`](@ref), [`ActiveCells`](@ref),
 [`CellMask`](@ref), [`RandomCells`](@ref) or [`SpreadingCells`](@ref).
 
 A region resolves to the linear cell indices an operation should touch. The two random regions draw
@@ -23,10 +23,10 @@ replays exactly.
 """
 abstract type AbstractRegion end
 
-"""    AllCells() <: AbstractRegion — every cell in the grid, active or not. """
+"""    AllCells() <: AbstractRegion - every cell in the grid, active or not. """
 struct AllCells <: AbstractRegion end
 
-"""    ActiveCells() <: AbstractRegion — only the cells currently marked active. """
+"""    ActiveCells() <: AbstractRegion - only the cells currently marked active. """
 struct ActiveCells <: AbstractRegion end
 
 """
@@ -81,7 +81,7 @@ end
 # ---------------------------------------------------------------------------
 # As for the schedules: these nest inside an `Intervention`, and the default prints the whole type
 # signature where the caller wrote `RandomCells(20)`. A `CellMask` reports its shape rather than its
-# contents — the mask is data, and printing it is what these methods exist to prevent.
+# contents - the mask is data, and printing it is what these methods exist to prevent.
 Base.show(io::IO, r::RandomCells) = print(io, "RandomCells($(r.count))")
 function Base.show(io::IO, r::SpreadingCells)
     return print(io, "SpreadingCells($(r.count))")

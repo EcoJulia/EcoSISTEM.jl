@@ -5,7 +5,7 @@
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["core_ext.jl"])'
 #
 # MPI is a weak dependency but *is* installed in the test environment, so `EcoSISTEMMPIExt` loads
-# and `ext_EcoSISTEMMPIExt.jl` launches `SmallMPItest.jl` under `mpiexec` at 1, 2 and 4 ranks — the
+# and `ext_EcoSISTEMMPIExt.jl` launches `SmallMPItest.jl` under `mpiexec` at 1, 2 and 4 ranks - the
 # slowest thing in this set by some way.
 
 using Random
@@ -19,7 +19,7 @@ using ParallelTestRunner: find_tests, parse_args, runtests
 # **Where an extension's docstrings are allowed to live.**
 #
 # `docs/src/api.md` is an `@autodocs` block over the package's own modules, so a docstring inside an
-# extension is invisible to the manual — which is why every public name whose implementation moves to
+# extension is invisible to the manual - which is why every public name whose implementation moves to
 # one leaves its docstring behind on a method-less stub in the parent.
 #
 # **The failure this catches is silent.** Copying a docstring to the stub instead of *moving* it
@@ -30,10 +30,10 @@ using ParallelTestRunner: find_tests, parse_args, runtests
 # and a removed one shrinks the list rather than passing silently.
 @testset "extension docstrings" begin
     # `Base.read`'s dataset methods are the one thing that cannot take a parent stub: the parent
-    # would have to define `read(::Type, …)`, pirating `Base.read` for every type in Julia. They are
+    # would have to define `read(::Type, ...)`, pirating `Base.read` for every type in Julia. They are
     # reached instead by naming their module in `api.md`'s `Modules`.
     allowed = Dict("EcoSISTEMRasterDataSourcesExt/read.jl" => 3,
-                   # **Pre-existing and NOT endorsed** — `EcoSISTEMMPIExt` has carried these since
+                   # **Pre-existing and NOT endorsed** - `EcoSISTEMMPIExt` has carried these since
                    # before the rule existed, and moving its files out of `src/` in 3f is what first
                    # put them under this guard. Measured: five names (`MPIEcosystem`,
                    # `MPIGridLandscape`, `empty_landscape`, `synchronise_from_cols!`,
@@ -52,7 +52,7 @@ using ParallelTestRunner: find_tests, parse_args, runtests
             path = joinpath(root, file)
             rel = replace(relpath(path, extdir), '\\' => '/')
             src = read(path, String)
-            # `#= … =#` blocks are parked code, not documentation
+            # `#= ... =#` blocks are parked code, not documentation
             src = replace(src, r"#=(?:.|\n)*?=#" => "")
             # The `m` flag is load-bearing: without it `^` anchors to the start of the whole
             # string, every count is zero, and the guard silently passes anything.
@@ -67,7 +67,7 @@ end
 let filebase = String[]
     # **Extension *modules*, not every `.jl` under `ext/`.** An extension may be laid out as a
     # single `ext/Name.jl` or as a directory `ext/Name/Name.jl` including further files (see
-    # `EcoSISTEMRasterDataSourcesExt`), and only the module is a thing a test can name — counting its
+    # `EcoSISTEMRasterDataSourcesExt`), and only the module is a thing a test can name - counting its
     # parts would report each one as an untested "extension".
     let extdir = joinpath(@__DIR__, "..", "ext")
         for entry in readdir(extdir)
@@ -118,7 +118,7 @@ let filebase = String[]
 
         # `parse_args(String[])`, **not** `parse_args(ARGS)`: `ARGS` is the `test_args` that
         # selected *this file*, and `filter_tests!` keeps a test only if its name starts with one of
-        # them — so forwarding them filters the suite to empty and reports success over zero tests.
+        # them - so forwarding them filters the suite to empty and reports success over zero tests.
         runtests(EcoSISTEM, parse_args(String[]),
                  testsuite = filter(kv -> startswith(kv.first, "ext_"),
                                     find_tests(@__DIR__)))

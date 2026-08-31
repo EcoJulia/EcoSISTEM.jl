@@ -4,7 +4,7 @@
 #
 # The phylogenetic operations proper: rooting, assigning and reading traits, and evolving them
 # along branches. Every one is the sole method for a hook the parent declares, and every docstring
-# stays on that parent stub — `@autodocs` cannot see inside an extension.
+# stays on that parent stub - `@autodocs` cannot see inside an extension.
 
 function EcoSISTEM.reroot!(tree::AbstractTree, node::String)
     root = getroot(tree)
@@ -209,7 +209,7 @@ function EcoSISTEM.discrete_evolve(numTraits::Int64, tree::BinaryTree,
     traits = DataFrame(trait1 = 1:numTraits)
     assigntraits!(tree, 0.5, traits)
     # Get traits from tree
-    # `penalty = 0.5` pins the released behaviour — see the note in `species_list.jl`: this is a
+    # `penalty = 0.5` pins the released behaviour - see the note in `species_list.jl`: this is a
     # niche label, so being outside it is a disadvantage rather than an exclusion.
     return SimpleCategoricalTolerance(Array(gettraits(tree, true)[:, 1]),
                                       axis = EcoSISTEM.TypologyAxis,

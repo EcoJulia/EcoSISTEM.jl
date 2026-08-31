@@ -104,7 +104,7 @@ end
 EcoSISTEM.MPIEcosystem(args...; kwargs...) = MPIEcosystem(args...; kwargs...)
 
 # With the MPI extension loaded, auto-selection (in `build_ecosystem`) treats the process as
-# distributed only once MPI is initialised and there is more than one rank — so `mpirun -n 1` or a
+# distributed only once MPI is initialised and there is more than one rank - so `mpirun -n 1` or a
 # plain `using MPI` still builds a serial `Ecosystem`.
 EcoSISTEM._should_mpi() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
 
@@ -124,7 +124,7 @@ function MPIEcosystem(popfun::F,
                                                            DM}
     # **First, exactly as in the serial `Ecosystem` constructor and for the same reason.**
     # `genlookups` below divides the regime's cell size by a dispersal distance, so on a geographic
-    # grid (`size` in `°`) it raises `DimensionError: ° km⁻¹` before any tailored message is reached.
+    # grid (`size` in `°`) it raises `DimensionError: ° km^-1` before any tailored message is reached.
     # **This guard was missing here.** It was added to the serial constructor on 2026-08-12, when
     # `[GEO-SIZE]` made a geographic cell size honest and exposed the ordering; the MPI constructor
     # has the identical fault and was overlooked. Nothing caught it because `test/SmallMPItest.jl`
@@ -198,7 +198,7 @@ function EcoSISTEM.gatherabundance(eco::MPIEcosystem)
         # **Counted over the COLUMN partition, because that is what is being sent.**
         # `reshaped_cols` holds *every* species for *this rank's* cells, so a rank contributes
         # `counttypes(eco) * sccounts[rank]` values. The previous
-        # `sppcounts .* sum(sccounts)` — this rank's *species* by *all* cells — is the row
+        # `sppcounts .* sum(sccounts)` - this rank's *species* by *all* cells - is the row
         # partition, and the two agree only when species and cells both divide evenly across the
         # ranks. They always did in the old test fixture (8 species on a 4 × 4 grid), so the
         # mismatch never showed; with 7 species on 77 cells rank 0 sends 273 values while the old

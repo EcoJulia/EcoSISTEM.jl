@@ -42,15 +42,15 @@ end
 @testset "a region is an Extents.Extent, not a LatLong" begin
     # A `LatLong` must be a point and never also a box, told apart by whether its fields hold
     # scalars or intervals. One name for two kinds of thing is what `Spatial2D` exists to stop, and
-    # a bounding box already has a shared vocabulary — so a region is an `Extents.Extent`.
+    # a bounding box already has a shared vocabulary - so a region is an `Extents.Extent`.
     b = Extents.Extent(Y = (54.6°, 58.7°), X = (-6.2°, -1.8°))
     @test b.Y == (54.6°, 58.7°) && b.X == (-6.2°, -1.8°)
-    # The interval form is not merely rejected — it is unconstructible: `LatLong` is pinned to
+    # The interval form is not merely rejected - it is unconstructible: `LatLong` is pinned to
     # `SpatialLocation{typeof(1.0°)}`, so an interval cannot inhabit it. Asserting that needed a
     # whole `IntervalSets` dependency for one marginal check, so it is left to the alias to say.
 
     # `Extents.Extent` is Extents' type, so it has no construction hook for a guard. The check
-    # a box could make on construction is made where a region is *used* instead — the error
+    # a box could make on construction is made where a region is *used* instead - the error
     # survives, only its timing moves.
     ok = EcoSISTEM._checkgeographicextent
     @test isnothing(ok(b))
@@ -63,7 +63,7 @@ end
                                                   X = (170.0°, -170.0°)))
 end
 
-@testset "LatLong point → GeoInterface PointTrait" begin
+@testset "LatLong point -> GeoInterface PointTrait" begin
     p = LatLong(50.0°, -3.0°)
     @test GeoInterface.isgeometry(p)
     @test GeoInterface.geomtrait(p) isa GeoInterface.PointTrait
@@ -76,8 +76,8 @@ end
 end
 
 # `boundingbox` only reads the shipped CSV, so it runs on every platform.
-# `boundingbox` returns an `Extents.Extent`, so its components are `.Y`/`.X` — the shared
-# geo vocabulary — rather than a `LatLong` box's old `.lat`/`.long`.
+# `boundingbox` returns an `Extents.Extent`, so its components are `.Y`/`.X` - the shared
+# geo vocabulary - rather than a `LatLong` box's old `.lat`/`.long`.
 @testset "Bounding boxes" begin
     scot = EcoSISTEM.boundingbox("Scotland")
     @test minimum(scot.Y) == 54.63° && maximum(scot.Y) == 58.68°
@@ -95,7 +95,7 @@ end
           maximum(rnd.X) ≥ maximum(scot.X)
     @test_throws ErrorException EcoSISTEM.boundingbox("Atlantis")
 
-    # `round` takes any angular step, not just whole degrees — snapping to a source's own lattice
+    # `round` takes any angular step, not just whole degrees - snapping to a source's own lattice
     # (WorldClim 10 arcmin, EarthEnv/CHELSA 30 arcsec) is what lets a cut layer be aggregated exactly
     # rather than resampled. The result must still come back in `°` whichever unit the step used:
     # `_snapout` returns `n * r`, so before it converted back this handed out `3270.0 ′`, correct but
@@ -105,7 +105,7 @@ end
     @test minimum(arcmin.Y) == 54.5° && maximum(arcmin.Y) == 59.0°
     @test minimum(arcmin.Y) ≤ minimum(scot.Y)     # still encloses the exact box
     @test maximum(arcmin.Y) ≥ maximum(scot.Y)
-    # …and a degree step expressed as arcminutes agrees exactly with the degree form.
+    # ...and a degree step expressed as arcminutes agrees exactly with the degree form.
     @test EcoSISTEM.boundingbox("Scotland", round = 300arcminute).Y ==
           rnd.Y
 end

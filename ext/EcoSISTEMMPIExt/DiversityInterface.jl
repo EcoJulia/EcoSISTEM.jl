@@ -1,22 +1,22 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Conformance to Diversity.jl's generics for an `MPIEcosystem` — the distributed counterpart of
+# Conformance to Diversity.jl's generics for an `MPIEcosystem` - the distributed counterpart of
 # `src/DiversityInterface.jl`, and here for the same reason it is a separate file there: these are
 # methods **we** supply on **someone else's** generic, which is a different job from declaring our
 # own types, so they do not sit beside them.
 #
 # **Every one of these has a serial twin in `src/DiversityInterface.jl`**, and the pair should be
-# read together — a distributed answer that disagrees with the serial one is a defect whatever else
+# read together - a distributed answer that disagrees with the serial one is a defect whatever else
 # is true of it.
 #
-# Two of them are COLLECTIVE — `_getmetaabundance` calls `Allgatherv` and `_getweight` calls
-# `Allreduce` — so every rank must reach them, in the same order, or the run deadlocks. That
+# Two of them are COLLECTIVE - `_getmetaabundance` calls `Allgatherv` and `_getweight` calls
+# `Allreduce` - so every rank must reach them, in the same order, or the run deadlocks. That
 # constrains where a guard or an early return may be placed, and is invisible when reading the
 # serial file alone.
 
 import Diversity.API: _getabundance
 using Diversity.API: _calcabundance, _gettypes
-# A rank's own share of the abundances, in the **rows** decomposition — this rank's species over
+# A rank's own share of the abundances, in the **rows** decomposition - this rank's species over
 # every cell, which is what a per-species reduction needs. The non-raw form goes through
 # `_calcabundance`, so a phylogeny's species abundances are mapped onto its branches; skipping it
 # would answer a different question for a `PhyloBranches` species list and the same one for
@@ -52,17 +52,17 @@ end
 
 import Diversity.API: _getordinariness!
 using Diversity.API: _calcsimilarity, _calcabundance
-# **`[MPI-DUP]` — this had BOTH problems the serial path had, and a `grep` over `src/` finds
+# **`[MPI-DUP]` - this had BOTH problems the serial path had, and a `grep` over `src/` finds
 # neither.** It cached into `eco.ordinariness` (stale the moment anything mutated the ecosystem),
-# and it hardcoded the scale as `one(eltype(relab))` — right only when the types carry no
+# and it hardcoded the scale as `one(eltype(relab))` - right only when the types carry no
 # similarity, and so wrong for exactly the phylogenetic case a scale exists for.
 # Now: no cache, and **one `_calcabundance` call giving both the processed abundances and the
 # real scale**, as Diversity's own `Metacommunity` does.
 # What stays MPI-specific is the slice: each rank owns a block of species rows, so the
 # similarity matrix is cut to `sp_rng` on both axes before multiplying.
 # The one-argument `_calcordinariness(eco)` method this replaces was not in Diversity's contract
-# at all — that generic is `(types, abundances, scale)`.
-# Fills `cache.relativeabun` in place, exactly as the serial path does — this is where the big
+# at all - that generic is `(types, abundances, scale)`.
+# Fills `cache.relativeabun` in place, exactly as the serial path does - this is where the big
 # runs happen, so the ~1.9 GiB-a-call normalisation matters most here.
 function _getordinariness!(eco::MPIEcosystem)
     rows = eco.abundances.rows_matrix

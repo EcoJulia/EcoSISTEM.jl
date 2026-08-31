@@ -2,7 +2,7 @@
 #
 # Canonical results from **simulated** input: no data is read, so nothing here can change because a
 # download changed. Every number is a pure function of the code plus the seed, which makes this the
-# file that isolates *model* change from *data* change — see README.md.
+# file that isolates *model* change from *data* change - see README.md.
 
 module CanonicalSimulated
 
@@ -18,7 +18,7 @@ include("canonical.jl")
 using .Canonical
 
 # One fixed seed for the whole file. `Ecosystem(...; seed)` builds one deterministic RNG stream per
-# species, so a result is reproducible regardless of thread or MPI-rank count — that independence is
+# species, so a result is reproducible regardless of thread or MPI-rank count - that independence is
 # what makes a blessed number meaningful rather than an artefact of the machine it was recorded on.
 const SEED = 20260804
 
@@ -29,7 +29,7 @@ function testecosystem(; numspecies = 20, grd = (10, 10), area = 100.0km^2,
                        temperature = 298.0K, seed = SEED)
     totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
     # One `GridHabitat` in place of two deprecated `simplehabitat` calls whose regimes were
-    # thrown away. Verified bit-identical — regime, both supplies and the active mask — which is
+    # thrown away. Verified bit-identical - regime, both supplies and the active mask - which is
     # why `reference.toml` does not move.
     side = sqrt(area)
     studyarea = StudyArea(extent = (side, side), cellsize = side / grd[1],
@@ -72,13 +72,13 @@ end
     simulate!(eco, 2year, 1month_mean_duration)
     abun = eco.abundances.matrix
 
-    # Blessed totals. These are the numbers that move when the *model* changes — birth/death
-    # arithmetic, dispersal, the resource ratio — and cannot move because a raster was re-released.
+    # Blessed totals. These are the numbers that move when the *model* changes - birth/death
+    # arithmetic, dispersal, the resource ratio - and cannot move because a raster was re-released.
     canonical("simulated/total_abundance", sum(abun))
     canonical("simulated/occupied_cells", count(>(0), sum(abun, dims = 1)))
     canonical("simulated/species_surviving", count(>(0), sum(abun, dims = 2)))
     # Per-species totals, so a change that preserves the grand total but redistributes it is still
-    # caught — the failure mode a single summary number hides.
+    # caught - the failure mode a single summary number hides.
     canonical("simulated/abundance_by_species", vec(sum(abun, dims = 2)))
 
     # The properties that must hold whatever the blessed numbers are. Kept alongside them

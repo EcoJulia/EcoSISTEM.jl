@@ -2,16 +2,16 @@
 #
 # **The MPI scaling benchmark**: 65,536 species on a 256 × 256 grid, timed over two identical
 # burn-ins so the first pays for compilation and the second measures the run. Each rank writes its
-# own timing file, so a set of jobs at different process/thread splits can be compared afterwards —
+# own timing file, so a set of jobs at different process/thread splits can be compared afterwards -
 # which is what `demo-MPI-threads.bash`, `demo-MPI-processes.bash` and `demo-MPI-nodes.bash` launch.
 #
-# **It goes through `StudyArea` → `GridHabitat` → `build_species` → `build_ecosystem`.** Building an
+# **It goes through `StudyArea` -> `GridHabitat` -> `build_species` -> `build_ecosystem`.** Building an
 # environment with a deprecated builder, a hand-assembled `SpeciesList` and a direct `MPIEcosystem`
 # call decides no grid, and such a run cannot start.
 #
 # **The grid is fixed, and checked rather than chosen.** This is a benchmark: the point is to time
 # *this* configuration, so a run that will not fit is an error, not an invitation to shrink. That is
-# `MemoryGuidance.check_memory`, and it is asked **before** anything is allocated — on a batch system
+# `MemoryGuidance.check_memory`, and it is asked **before** anything is allocated - on a batch system
 # an OOM kill an hour in reports only that the job died.
 #
 # At the full size this needs about **128 GiB across the job**, so it wants either a large node or
@@ -49,14 +49,14 @@ const ISROOT = RANK == 0
 const SMALL = get(ENV, "ECOSISTEM_SCALE", "large") == "small"
 
 # Species and cells are both powers of two at full size (2^16 each), which divides evenly across
-# any power-of-two rank count — deliberate for a *benchmark*, where an uneven split would add a load
+# any power-of-two rank count - deliberate for a *benchmark*, where an uneven split would add a load
 # imbalance to whatever is being measured. Do not copy that into a test: `test/SmallMPItest.jl`
 # uses 7 species on 77 cells precisely because even division hides partitioning bugs.
 const NUMSPECIES = SMALL ? 64 : 2^16
 const GRID = SMALL ? 16 : 256
 const INDIVIDUALS = SMALL ? 2^16 : 2^26
 
-# The grid the original expressed as `(256, 256)` cells over `1_000_000 km²` — the same thing said
+# The grid the original expressed as `(256, 256)` cells over `1_000_000 km^2` - the same thing said
 # the way a `StudyArea` needs it, as an extent and a cell size.
 const SIDE = SMALL ? 100.0km : 1000.0km
 const CELLSIZE = SIDE / GRID
@@ -72,7 +72,7 @@ ISROOT && println("using: $((time() - start) * s)")
 
 # --- will it fit? -----------------------------------------------------------------------
 
-# Collective, and every rank must reach it — see `memory.jl`.
+# Collective, and every rank must reach it - see `memory.jl`.
 const BUDGET = MemoryGuidance.memory_budget()
 
 # Costed from the *report*, so nothing is built to find out whether it can be: the analysis behind
@@ -96,7 +96,7 @@ const AREA = StudyArea(extent = (SIDE, SIDE), cellsize = CELLSIZE,
                        verbosity = ISROOT ? :normal : :silent)
 
 # A flat environment: one temperature everywhere, one solar supply everywhere. That is the point
-# of a scaling benchmark — nothing about the landscape should vary the work per cell.
+# of a scaling benchmark - nothing about the landscape should vary the work per cell.
 const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
                                                      axis = Temperature),
                                 supply = UniformSpec(1000.0kJ / km^2 /
@@ -104,7 +104,7 @@ const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
                                                      axis = SolarRadiation),
                                 area = AREA)
 
-# `BirthOnlyMovement` is a modelling choice — these are plant-like species, dispersing only as
+# `BirthOnlyMovement` is a modelling choice - these are plant-like species, dispersing only as
 # seed. Every movement type runs distributed, so it is not forced by the MPI run.
 const SPECIES = build_species(NUMSPECIES,
                               tolerance = (274.0K, 0.5K),
@@ -136,7 +136,7 @@ function _record(message)
     return nothing
 end
 
-# How many species this rank holds and how their abundances are spread — the load-balance check the
+# How many species this rank holds and how their abundances are spread - the load-balance check the
 # original made, and worth keeping: an uneven partition shows up here before it shows up in a timing.
 #
 # `rows_matrix` exists only on the distributed landscape, so this must ask which it has: a

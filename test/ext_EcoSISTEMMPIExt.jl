@@ -54,7 +54,7 @@ end
     sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                        movement, param, native)
 
-    # Create abiotic environment — an even grid of one temperature. The study area decides the
+    # Create abiotic environment - an even grid of one temperature. The study area decides the
     # grid; `GridHabitat` only samples onto it.
     studyarea = StudyArea(extent = (sqrt(area), sqrt(area)),
                           cellsize = sqrt(area) / grid[1], verbosity = :silent)
@@ -68,7 +68,7 @@ end
     nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
     # build_ecosystem auto-selection: with MPI initialised but a single rank, `:auto` stays serial
-    # (Comm_size == 1) while `distributed = true` forces the distributed type — from the same
+    # (Comm_size == 1) while `distributed = true` forces the distributed type - from the same
     # SpeciesList + GridHabitat that MPIEcosystem takes directly.
     @test build_ecosystem(sppl, habitat, nichefit = nichefit) isa Ecosystem
     @test build_ecosystem(sppl, habitat, nichefit = nichefit,

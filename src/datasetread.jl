@@ -52,7 +52,7 @@ import ArchGDAL
 import Base.read
 
 # How far a step may sit from a whole arcsecond and still be taken as one. The worst real offender is
-# CHELSA's 89.999964 arcsec for 90 — a relative error of 4e-7 — while the smallest *genuine* step
+# CHELSA's 89.999964 arcsec for 90 - a relative error of 4e-7 - while the smallest *genuine* step
 # difference anyone could mean is a whole arcsecond out of the finest grids we see (1 in 30, i.e.
 # 3e-2). Five orders of magnitude of clear water either side, so this discriminates rounding noise
 # from real structure rather than papering over a comparison.
@@ -69,7 +69,7 @@ const _ORIGIN_CELLFRAC = 0.05
 const _READ_WHOLE_FRACTION = 0.5
 
 # Content hash of this file, folded into the aggregate cache key so any change to the reading /
-# aggregation machinery here invalidates the cache — a cached result is only valid for the code that
+# aggregation machinery here invalidates the cache - a cached result is only valid for the code that
 # produced it. Evaluated at precompile, so it tracks the source automatically (a change to this file
 # recompiles the module and updates the hash).
 const _AGGCODEHASH = hash(read(@__FILE__, String))
@@ -82,8 +82,8 @@ Import a raster file from a path string into a `DimArray`.
 # Arguments
 
   - `file`: path to the raster, in any format GDAL reads.
-  - `cut`: a region to restrict the read to as an `Extents.Extent` of `°` intervals — from
-    [`boundingbox`](@ref), say — or `nothing` for the whole file. Applied **lazily**, before the
+  - `cut`: a region to restrict the read to as an `Extents.Extent` of `°` intervals - from
+    [`boundingbox`](@ref), say - or `nothing` for the whole file. Applied **lazily**, before the
     pixels are fetched, so cutting a global layer to one country costs the country rather than the
     globe.
   - `xmin`, `xmax`, `ymin`, `ymax`: **deprecated**, and warn when used. All four together mean
@@ -114,20 +114,20 @@ _isspatialdim(::Union{X, Y}) = true
 _isspatialdim(::Rasters.Dimension) = false
 
 # The sampling locus (`Center`/`Start`/`End`) to build a Y/X lookup with: whatever the source
-# raster's own dimension declares, preserved rather than assumed — confirmed real GDAL files vary
+# raster's own dimension declares, preserved rather than assumed - confirmed real GDAL files vary
 # (the NatureScot HLCM/BNG files declare `Start`; a WGS84 GeoTIFF commonly declares plain
 # `Points`, i.e. no locus at all). A locus mismatch silently shifts every cell's implied bounds by
 # half a pixel, which matters for crop/selection accuracy at the edges.
 #
 # **`Points` is refused rather than defaulted**, and the refusal is the honest form: a point
 # coordinate has no extent, so there is no cell for it to label, and falling back to `Center` would
-# be exactly the assumption it looks like it avoids. No shipped source reaches this — every one
-# declares `Intervals` — so it guards data yet to arrive.
+# be exactly the assumption it looks like it avoids. No shipped source reaches this - every one
+# declares `Intervals` - so it guards data yet to arrive.
 function _locus(sourcedim)
     s = DimensionalData.sampling(sourcedim)
     s isa Intervals ||
         error("this raster's `$(nameof(typeof(sourcedim)))` axis declares `$(nameof(typeof(s)))` " *
-              "sampling, but a spatial axis must declare `Intervals` — a point coordinate has no " *
+              "sampling, but a spatial axis must declare `Intervals` - a point coordinate has no " *
               "extent, so there is no cell for it to label and no honest way to guess one. " *
               "Re-declare the source's sampling, and its locus, to say what ground each " *
               "coordinate covers.")
@@ -136,7 +136,7 @@ end
 
 # Kind of axis stacked when combining multiple files of a single layer/variable: a monthly series
 # (`Ti`) or a band/variable index (`Dim{:layer}`). Returns the *type itself*, not a `:time`/
-# `:layer` Symbol — so `_mkstackaxis` below is genuine multiple dispatch, resolved at compile
+# `:layer` Symbol - so `_mkstackaxis` below is genuine multiple dispatch, resolved at compile
 # time from the statically-known source type `T`, rather than a runtime branch on a value (the
 # `Val(Symbol(...))`-shaped anti-pattern this project avoids, just the value-vs-dispatch mirror of
 # it: a compile-time-knowable choice was being funnelled through a runtime `Symbol` comparison).
@@ -144,7 +144,7 @@ end
 # `EcoSISTEMRasterDataSourcesExt`; this is the fallback they specialise.
 _stackaxis(::Type) = Dim{:layer}
 
-# Build the axis stacked when combining `n` files of a single layer/variable — one method per
+# Build the axis stacked when combining `n` files of a single layer/variable - one method per
 # axis type (see `_stackaxis`), not a runtime branch on a value.
 _mkstackaxis(::Type{Ti}, n::Integer) = Ti((1:n) .* month_mean_duration)
 
@@ -152,7 +152,7 @@ _mkstackaxis(::Type{Ti}, n::Integer) = Ti((1:n) .* month_mean_duration)
 # `Dim{:layer}(layernames)`, a `Vector{Symbol}`, which DimensionalData formats as `Categorical`. A
 # bare `1:n` here would be formatted `Sampled`/`Points` instead, making the axis a **different kind**
 # depending on provenance: `code = 2` would resolve as a *label* against a real read and as a
-# *coordinate on a numeric axis* against this fallback — indistinguishable only because label and
+# *coordinate on a numeric axis* against this fallback - indistinguishable only because label and
 # position coincide when the labels are `1:n`. Declaring it `Categorical` makes a layer code mean one
 # thing everywhere.
 _mkstackaxis(::Type{Dim{:layer}}, n::Integer) = Dim{:layer}(Categorical(1:n))
@@ -160,27 +160,27 @@ _mkstackaxis(::Type{Dim{:layer}}, n::Integer) = Dim{:layer}(Categorical(1:n))
 # The coordinates of a stacked axis, given the *slices actually read* rather than just how many.
 #
 # A monthly `Ti` is labelled with the months it really holds, so `month = 2:4` reads as
-# February–April rather than as the first three months. Falling back to `1:n` there is not a
+# February-April rather than as the first three months. Falling back to `1:n` there is not a
 # harmless mislabel: the plot recipe looks a month up by coordinate (`At(ind * month_mean_duration)`),
 # so a partial read handed `February` the *next* month's grid under February's own name.
 #
-# Only a time axis has this identity — a band index genuinely is `1:n`, so `Dim{:layer}` and any
+# Only a time axis has this identity - a band index genuinely is `1:n`, so `Dim{:layer}` and any
 # future axis take the count-only form. Dispatched on the axis type, like `_mkstackaxis` itself.
 #
 # Uneven requests stay uneven (`month = [1, 6, 12]` really is spaced 1, 6, 12), which is what lets
 # a series hold each slice until the next and lets `RepeatAtEnd` refuse a series with no derivable
-# period — a check that a relabelled-to-`1:n` axis silently passed.
+# period - a check that a relabelled-to-`1:n` axis silently passed.
 function _stackcoords(::Type{Ti}, n::Integer, slices)
     length(slices) == n ||
-        error("read $n file(s) but was asked for $(length(slices)) month(s) ($slices) — the two " *
+        error("read $n file(s) but was asked for $(length(slices)) month(s) ($slices) - the two " *
               "must agree, or the time axis would name each slice after the wrong month.")
     return Ti(collect(slices) .* month_mean_duration)
 end
 
 # `(Ti, n, nothing)` needs its own method, or it is genuinely **ambiguous**: the `Ti` method above
 # is more specific in the first argument and the `::Nothing` one below in the third, so neither wins.
-# A caller reaching `_readsource` without going through `read` — the deprecated `readworldclim`, which
-# is handed its own file list — passes exactly that, and an ambiguity is a call-time error, so it
+# A caller reaching `_readsource` without going through `read` - the deprecated `readworldclim`, which
+# is handed its own file list - passes exactly that, and an ambiguity is a call-time error, so it
 # surfaced only in the suite rather than at load.
 _stackcoords(::Type{Ti}, n::Integer, ::Nothing) = _mkstackaxis(Ti, n)
 
@@ -189,17 +189,17 @@ _stackcoords(A, n::Integer, ::Nothing) = _mkstackaxis(A, n)
 _stackcoords(A, n::Integer, _) = _mkstackaxis(A, n)
 
 # The axis stacked onto a `_rastertodimarray` result: preserve the source raster's own
-# non-spatial dimension when it carries real information worth keeping — confirmed empirically
+# non-spatial dimension when it carries real information worth keeping - confirmed empirically
 # that `Rasters`/`NCDatasets` already decodes a netCDF file's CF `units`/`calendar` time metadata
 # into genuine `Dates.DateTime` values (not approximated fixed-duration ticks) when read via
 # `source = NCDsource()`, so that must not be thrown away and rebuilt as a synthetic
-# `(1:n)·month_mean_duration` sequence. Falls back to a synthetic sequential axis (`_mkstackaxis`) when there is
+# `(1:n)*month_mean_duration` sequence. Falls back to a synthetic sequential axis (`_mkstackaxis`) when there is
 # no source dimension (`nothing`, e.g. stacking bare 2-D files) or it carries no real information
-# of its own (e.g. a plain GDAL `Band` index, itself just `1:n`) — dispatched on the source
+# of its own (e.g. a plain GDAL `Band` index, itself just `1:n`) - dispatched on the source
 # dimension's own type (a `Ti` genuinely carrying `DateTime`s vs. anything else), not an `isa`
 # check, since which case applies is only known from the file's actual runtime structure.
 #
-# Tested on `Dates.TimeType`, never `Dates.AbstractDateTime` — see `_istimeaxis`. The narrower name
+# Tested on `Dates.TimeType`, never `Dates.AbstractDateTime` - see `_istimeaxis`. The narrower name
 # would discard a real `Date` axis and every non-Gregorian `CFTime` one, rebuilding a synthetic
 # `1:n` in their place, which is the silent version of the failure this branch exists to prevent.
 _stackdim(::Nothing, axistype, n) = _mkstackaxis(axistype, n)
@@ -214,12 +214,12 @@ _stackdim(_, axistype, n) = _mkstackaxis(axistype, n)
 # Convert a Rasters raster (2-D `X`/`Y`, or 3-D `X`/`Y` with a band/time dimension) into the
 # `DimArray` EcoSISTEM uses internally: dim 1 = `Y` (latitude/northing, ascending), dim 2 = `X`
 # (longitude/easting, ascending), and an optional dim 3 = `Ti` or `Dim{:layer}` (see `_stackdim`).
-# Coordinates come from the raster's own `Y`/`X` lookups — `Rasters.jl` already computes their
+# Coordinates come from the raster's own `Y`/`X` lookups - `Rasters.jl` already computes their
 # `Regular` span from the file's geotransform, so it's kept as-is (via
 # `parent(Rasters.lookup(...))`, not `collect`-ed into a bare `Vector`) rather than rebuilt by
 # hand. The CRS is preserved (a `Projected` lookup, not stripped to a bare `Sampled`), and the
 # axis unit (`_crsunit`) and sampling locus (`_locus`) are read from the source's own CRS/
-# metadata rather than assumed `°`/`Center` — a British National Grid file's axes are in metres
+# metadata rather than assumed `°`/`Center` - a British National Grid file's axes are in metres
 # with a `Start` locus, not degrees with a `Center` locus, and reading it as though it were WGS84
 # would silently mislabel every coordinate. `unit` (the *data* unit, not the axis unit) is
 # attached; pass `NoUnits` for a dimensionless layer.
@@ -229,9 +229,9 @@ _stackdim(_, axistype, n) = _mkstackaxis(axistype, n)
 # One spatial dimension of a read raster, unit-tagged and with an explicitly **`Regular`** span.
 #
 # The span must be stated, not inferred. `parent(lookup(...))` is a `Vector`, and `AutoSpan` infers
-# `Irregular((nothing, nothing))` from a vector — a span with *no bounds*. Anything that needs real
+# `Irregular((nothing, nothing))` from a vector - a span with *no bounds*. Anything that needs real
 # bounds then fails: `_applycut`'s `Touches` selector compares `nothing < 60.86°` and throws a bare
-# `MethodError`, which is why `read(EarthEnv{LandCover}, …, cut = …)` was broken and the Scotland
+# `MethodError`, which is why `read(EarthEnv{LandCover}, ..., cut = ...)` was broken and the Scotland
 # example had to crop after the read instead. `Rasters.aggregate` is what drops the span in the first
 # place, so a coarsened read hits this and a plain one does not, making it look source-specific.
 #
@@ -240,8 +240,8 @@ _stackdim(_, axistype, n) = _mkstackaxis(axistype, n)
 # describes all of them.
 #
 # The axis is **rebuilt** from `(origin, step, length)` rather than passed through as the file's
-# coordinate vector. Two reasons. The vector accumulates rounding across its length — 43200 additions
-# of an inexact step — so `vals[end]` is not where the grid says it ends; a range is exact by
+# coordinate vector. Two reasons. The vector accumulates rounding across its length - 43200 additions
+# of an inexact step - so `vals[end]` is not where the grid says it ends; a range is exact by
 # construction from three numbers. And it is the natural place to correct a source's own metadata
 # errors, which `_snaparcsec`/`_snaporigin` do for angular axes.
 function _spatialdim(D, r, axisunit, crs)
@@ -258,7 +258,7 @@ end
 # the coordinates.
 #
 # Preferring the source's matters beyond tidiness. Differencing the first two coordinates gives a
-# subtly different `Float64` depending on *where* in the grid you difference — a global WorldClim read
+# subtly different `Float64` depending on *where* in the grid you difference - a global WorldClim read
 # yields 0.1666666666666714° and the same layer cut to Scotland 0.1666666666666643°, because
 # `(a + 2s) - (a + s)` rounds differently for different `a`. Two reads of one file would then disagree
 # on their resolution, and the grids built from them would differ by a cell here and there. The
@@ -273,8 +273,8 @@ end
 
 # A step snapped to a whole arcsecond, where that is plainly what was meant.
 #
-# Every geographic grid this package reads is *intended* to sit on a whole-arcsecond lattice — 43200
-# columns of "0.0083333333°" is exactly 360° of 30 arcsec cells — but some files record it badly:
+# Every geographic grid this package reads is *intended* to sit on a whole-arcsecond lattice - 43200
+# columns of "0.0083333333°" is exactly 360° of 30 arcsec cells - but some files record it badly:
 # CHELSA writes 30 arcsec as 29.99999988 and 90 as 89.999964. Left alone those make every resolution
 # question a matter of tolerance (0.025 / 0.0083333333 is 3.0000000048, not 3); snapped, they divide
 # exactly, so "is this grid a whole multiple of that one?" has a straight yes/no answer.
@@ -282,9 +282,9 @@ end
 # Two deliberate limits. Only *angular* axes: a projected CRS's step is a length, where arcseconds
 # mean nothing. And only where the value is already within `_ARCSEC_RTOL` of a whole arcsecond, so a
 # genuinely finer-than-arcsecond or non-integral grid is left exactly as found rather than silently
-# moved — the `n == 0` case covers sub-arcsecond steps, which must never round to nothing.
+# moved - the `n == 0` case covers sub-arcsecond steps, which must never round to nothing.
 #
-# `round(::Quantity)` without a target type is a trap for angles — Unitful rounds via radians, so
+# `round(::Quantity)` without a target type is a trap for angles - Unitful rounds via radians, so
 # `round(600.0arcsecond)` is `0.0`, a bare `Float64`. The unit must be named.
 #
 # `_arcsecs` (`StudyArea.jl`) is what recognises the result, and the two are only safe as a pair.
@@ -292,7 +292,7 @@ end
 # value you land on depends on the route: `uconvert` scales by a precomputed factor and rounds twice,
 # a hand-written `n / 3600` rounds once, and the two differ in the last bit for 29 of the first 3600
 # counts. `_arcsecs` therefore accepts anything within a few ULP rather than testing equality against
-# one particular reconstruction — see its comment. `test_datasetread.jl` pins the round trip for all
+# one particular reconstruction - see its comment. `test_datasetread.jl` pins the round trip for all
 # 3600 counts by both routes; changing either function without re-running that sweep is how the
 # integer-arcsecond path would silently switch off.
 function _snaparcsec(step)
@@ -306,7 +306,7 @@ end
 # An origin snapped onto the lattice its own cell size implies, where it plainly belongs there.
 #
 # Geographic grids are anchored on the equator and the prime meridian, so a grid of `step`-sized cells
-# should start at a whole multiple of `step` — CHELSA's `bio1` is meant to run −180°…180° by 84°…−90°,
+# should start at a whole multiple of `step` - CHELSA's `bio1` is meant to run -180°...180° by 84°...-90°,
 # and with the step snapped those extents come out exact. What its file actually records is ~0.5
 # arcsec adrift on each axis, which is 1.7% of a 30 arcsec cell (~15 m of a ~900 m cell).
 #
@@ -316,14 +316,14 @@ end
 #
 # Snap to a multiple of the **step**, not to a whole arcsecond. That distinction is the whole
 # correction: `bio1`'s Y origin is 302399.4975 arcsec, which rounds to *83.999722°* at arcsecond
-# granularity — the wrong way, and not a value anyone intended — but to exactly **84°** on its own 30
+# granularity - the wrong way, and not a value anyone intended - but to exactly **84°** on its own 30
 # arcsec lattice. Testing against the arcsecond lattice is what previously made these origins look
 # irretrievably ambiguous.
 #
 # Angular axes only, and only within `_ORIGIN_CELLFRAC` of the lattice. A projected grid has no
-# comparable anchor (and no representation error to fix — whole metres are exact in `Float64`), and a
+# comparable anchor (and no representation error to fix - whole metres are exact in `Float64`), and a
 # grid genuinely registered off-lattice must keep the offset it was given. CHELSA's `clt` stays odd
-# whatever we do — 14401 columns where 14400 would be global, so 360.025° wide — but snapping at least
+# whatever we do - 14401 columns where 14400 would be global, so 360.025° wide - but snapping at least
 # makes that a visible, reproducible overshoot instead of float noise.
 function _snaporigin(origin, step)
     (_isangle(origin) && _isangle(step)) || return origin
@@ -339,7 +339,7 @@ end
 function _rastertodimarray(ras::Rasters.AbstractRaster; unit = NoUnits,
                            stackaxis::Type = Ti)
     r = Rasters.replace_missing(ras, NaN)
-    # latitude/northing ascending (GeoTIFF `Y` is usually stored north→south)
+    # latitude/northing ascending (GeoTIFF `Y` is usually stored north->south)
     (first(Rasters.lookup(r, Y)) < last(Rasters.lookup(r, Y))) ||
         (r = reverse(r, dims = Y))
     # reorder axes to (Y, X[, band/time])
@@ -362,7 +362,7 @@ end
 
 # Apply the optional `cut` (an `Extents.Extent` of `°` bounds) to a lat×long[×z] world.
 # `Touches`, not `Between`/`..`: a crop must be overlap-inclusive (every cell touching the box is
-# kept, e.g. cropping to a region's bounding box must not lose its edge cells) — confirmed
+# kept, e.g. cropping to a region's bounding box must not lose its edge cells) - confirmed
 # empirically that `Between` under `Intervals` sampling instead requires the *whole* cell to lie
 # inside the box, silently dropping edge cells. Indexing only `Y`/`X` leaves any third dimension
 # (time/band) untouched, so no separate 2-D/3-D branch is needed.
@@ -374,7 +374,7 @@ function _applycut(world, cut)
 end
 
 # Estimated bytes to hold a raster whole in memory. Rasters' own guard compares against *free*
-# memory, which is over-conservative — idle memory is reclaimable / pageable — so we instead gate
+# memory, which is over-conservative - idle memory is reclaimable / pageable - so we instead gate
 # on a fraction of *total* RAM (below).
 function _readbytes(r)
     elbytes = try
@@ -395,8 +395,8 @@ end
 
 # Path in EcoSISTEM's own scratch subdir (`assetdir()`, not RasterDataSources') where the
 # `scale`-aggregated `unit`-tagged form of source file `f` (with reducer `fn`) is cached as a JLD2
-# `DimArray`, or `nothing` if `fn` is not cacheable. Keyed on the source's path/size/mtime — a
-# `stat`, deliberately not a read, so a cache hit never touches the multi-GB source — plus `scale`,
+# `DimArray`, or `nothing` if `fn` is not cacheable. Keyed on the source's path/size/mtime - a
+# `stat`, deliberately not a read, so a cache hit never touches the multi-GB source - plus `scale`,
 # the reducer id, the unit and `_AGGCODEHASH` (so a machinery change invalidates it).
 function _aggcachepath(f, scale, fn, u)
     id = _fnid(fn)
@@ -407,9 +407,9 @@ function _aggcachepath(f, scale, fn, u)
 end
 
 # Mask raw integer-band fill sentinels. GDAL sources (e.g. CHELSA) store a fill at the raw band's
-# `typemax` (or `typemin` for signed types) that the file's *declared* nodata may not capture — CHELSA
+# `typemax` (or `typemin` for signed types) that the file's *declared* nodata may not capture - CHELSA
 # declares `-99999`, unrepresentable in its `UInt` bands, so the real fill (`0xffffffff` etc.) survives the
-# default scaled read and becomes a spurious huge value (gsp's `0xffffffff` → 4.29e8). Locate those cells in
+# default scaled read and becomes a spurious huge value (gsp's `0xffffffff` -> 4.29e8). Locate those cells in
 # the raw band `raw` and set them `missing` on the scaled raster `r`, lazily (so a disk-backed raster stays
 # lazy). Only integer bands carry such sentinels; float bands rely on the file's declared nodata and pass
 # through unchanged.
@@ -425,11 +425,11 @@ function _mask_int_fills(r, raw)
 end
 
 # The index range of axis `d` that `[lo, hi]` touches, widened outward to whole `scale`-sized
-# aggregation blocks — or `nothing` when the box selects nothing at all.
+# aggregation blocks - or `nothing` when the box selects nothing at all.
 #
 # The widening is the whole difficulty. `Rasters.aggregate` blocks from index 1, so cropping a
 # raster before aggregating it moves every block boundary and the coarsened cells land somewhere
-# else — read-extent variance reintroduced at the very point it was just eliminated. Starting the
+# else - read-extent variance reintroduced at the very point it was just eliminated. Starting the
 # crop on a block boundary (`i ≡ 1 mod scale`) makes the crop's blocks exactly the uncropped ones, so
 # the aggregated coordinates are identical whatever window was asked for. The end is clamped to the
 # axis length, which leaves the same partial final block a whole-file read would have had.
@@ -446,7 +446,7 @@ end
 #
 # This is purely an optimisation, and deliberately so: `_readsource` still applies `_applycut` to the
 # assembled result, which is idempotent (every surviving cell touches the box, so re-selecting keeps
-# them all). The lazy crop may therefore be conservative without changing any answer — a property
+# them all). The lazy crop may therefore be conservative without changing any answer - a property
 # worth keeping, given how much trouble read-extent variance has caused.
 #
 # Skipped for a projected source: `cut` is a `LatLong` in degrees and such a raster's coordinates
@@ -468,7 +468,7 @@ end
 # with `fn`. The opens run under a `NullLogger` to drop
 # Rasters' benign metadata warnings (e.g. the `-99999` nodata CHELSA declares for its `UInt` bands, which
 # the eltype can't hold). `_mask_int_fills` then removes the raw integer fill sentinels that declared nodata
-# misses. Aggregating a *lazy* (disk-backed) raster reads it window-by-window — slow and hugely allocating —
+# misses. Aggregating a *lazy* (disk-backed) raster reads it window-by-window - slow and hugely allocating -
 # so when it comfortably fits in RAM we read it whole first (~6× faster and far fewer allocations); larger
 # files fall back to the lazy aggregate to stay within memory. `_rastertodimarray` then materialises the
 # (small) aggregated result.
@@ -490,12 +490,12 @@ end
 # dispatching these traits on the source type `T`. Each has a safe default and a per-source
 # override where it actually differs.
 
-# Physical unit attached to the data by the reader: none — `read` returns the raster's values as bare
+# Physical unit attached to the data by the reader: none - `read` returns the raster's values as bare
 # magnitudes in their actual physical unit (e.g. temperature in °C), and the unit is supplied from the
 # shipped layer table (`layerunit`) when a layer is built. The directory readers below
 # (`_readmonthlydir`) take a bare directory with no `RasterDataSource` attached, but their `var_name`
-# uses the same short codes as the shipped tables (`tavg`, `wind`, `prec`, …), so they self-attach a
-# unit by deferring to `layerunit` too — `read(CHELSA{Climate}, dir, var_name)` against
+# uses the same short codes as the shipped tables (`tavg`, `wind`, `prec`, ...), so they self-attach a
+# unit by deferring to `layerunit` too - `read(CHELSA{Climate}, dir, var_name)` against
 # `CHELSA{Climate}`, `read(CRUTS, dir, var_name)` against `WorldClim{Climate}` (CRU TS has no table
 # of its own; its variable names are WorldClim's).
 _layerunit(::Type, files) = NoUnits
@@ -512,7 +512,7 @@ _defaultfn(::Type) = mean
 # aggregation need not afterwards: measured over Scotland at the default 10x, the RMS departure from
 # 100 is 0.466 with a worst case of 3.0 percentage points, against 0.027 and 0.18 for a plain mean.
 #
-# The metric that flatters rounding — more cells summing to exactly 100 — is an artefact of
+# The metric that flatters rounding - more cells summing to exactly 100 - is an artefact of
 # **quantisation** rather than accuracy: rounding snaps most cells onto 100 and throws the rest
 # further off. It matters more than it looks, because the available-ground combine sums **eight** of
 # these bands, so the per-band errors accumulate. And a mean of percentages is legitimately
@@ -523,7 +523,7 @@ _getrasterkw(::Type) = (;)
 
 # Normalise `getraster`'s return (a single path, a per-time vector, or a keyed collection of
 # per-layer paths) to a plain `Vector{String}`. Does *not* handle the multi-layer *and*
-# multi-time case (`Vector{<:NamedTuple}`, one NamedTuple of per-layer paths per time step) —
+# multi-time case (`Vector{<:NamedTuple}`, one NamedTuple of per-layer paths per time step) -
 # that shape needs per-layer grouping first, see `_readmultilayer`/`Base.read`'s dispatch on it.
 _filelist(x::AbstractString) = [String(x)]
 
@@ -532,11 +532,11 @@ _filelist(x) = String[String(f) for f in values(x)]
 # The aggregated per-file layer is deterministic in (file, scale, fn, unit); memoise the resulting
 # `DimArray` to disk (JLD2) in EcoSISTEM's scratch subdir so later reads skip the (slow) `aggregate`.
 # Only caches when `scale > 1` (scale-1 reads are already fast) and `fn` is cacheable (see
-# `_aggcachepath`). Caching the `DimArray` — not the `Raster` — preserves the exact lat/long axes,
+# `_aggcachepath`). Caching the `DimArray` - not the `Raster` - preserves the exact lat/long axes,
 # which a GeoTIFF round-trip perturbs.
 #
-# A windowed read is never cached. The key is (file, scale, fn, unit) — deliberately a `stat`, not
-# a read — and has no room for the window; caching under it would serve one window's data for
+# A windowed read is never cached. The key is (file, scale, fn, unit) - deliberately a `stat`, not
+# a read - and has no room for the window; caching under it would serve one window's data for
 # another's request. Folding the window in was the alternative and is not worth it: the cache exists
 # to skip a slow whole-file `aggregate`, which a window does not do anyway, and a per-window key
 # would fill the cache with near-duplicates.
@@ -558,7 +558,7 @@ function _cachedlayer(f, scale, fn, u; cut = nothing)
     return layer
 end
 
-# The first file `getraster` resolves a source to, whatever shape it returned — a single path, a
+# The first file `getraster` resolves a source to, whatever shape it returned - a single path, a
 # per-time vector, or a keyed collection of named layers. Mirrors `_readraw`'s dispatch on the same
 # three shapes; every file of one source shares a CRS, so the first is representative.
 _firstfile(raw::Vector{<:NamedTuple}) = String(first(values(first(raw))))
@@ -580,12 +580,12 @@ function _readsource(T::Type, files::Vector{String};
     return ClimateRaster(T, _applycut(world, cut))
 end
 
-# Read a `getraster` result shaped `Vector{<:NamedTuple}` — multiple named layers, each with its
+# Read a `getraster` result shaped `Vector{<:NamedTuple}` - multiple named layers, each with its
 # own per-time file list (the shape `getraster` returns for e.g. `layers = [:tmin, :tavg]` with
-# `month = 1:12`) — into one multi-layer `ClimateRaster`. Each layer is read via the ordinary
+# `month = 1:12`) - into one multi-layer `ClimateRaster`. Each layer is read via the ordinary
 # per-layer stacking (so it keeps its own `Ti`/time axis as usual), then the per-layer arrays are
 # combined along a new `Dim{:layer}` axis (the generalised `_stacklayers`) labelled with the
-# layers' own names — `getraster` already returns genuinely canonical `Symbol` keys (the shipped
+# layers' own names - `getraster` already returns genuinely canonical `Symbol` keys (the shipped
 # layer table's own codes), no further name resolution needed here.
 function _readmultilayer(T::Type,
                          raw::Vector{<:NamedTuple};
@@ -603,7 +603,7 @@ function _readmultilayer(T::Type,
     return ClimateRaster(T, _applycut(world, cut))
 end
 
-# Dispatch on the shape `getraster` actually returned — a `NamedTuple` (multiple named layers,
+# Dispatch on the shape `getraster` actually returned - a `NamedTuple` (multiple named layers,
 # one time step) or `Vector{<:NamedTuple}` (multiple named layers, each with its own per-time
 # file list) both need canonical-name per-layer grouping before they can be stacked, so both
 # route through `_readmultilayer` (wrapping a bare `NamedTuple` as a length-1 "time" vector);
@@ -616,7 +616,7 @@ function _readraw(T, raw::Vector{<:NamedTuple}; cut, scale, fn,
 end
 
 # A bare `NamedTuple` is *one* time step wrapped as a length-1 vector, so it has no slice identity
-# to carry however the read was requested — `slices` is deliberately not forwarded.
+# to carry however the read was requested - `slices` is deliberately not forwarded.
 function _readraw(T, raw::NamedTuple; cut, scale, fn, slices = nothing)
     return _readmultilayer(T, [raw], cut = cut, scale = scale,
                            fn = fn)
@@ -627,13 +627,13 @@ function _readraw(T, raw; cut, scale, fn, slices = nothing)
                        fn = fn, slices = slices)
 end
 
-# Divide out any `PublishedScaleFactor` — the layers a provider publishes at a known multiple of its
+# Divide out any `PublishedScaleFactor` - the layers a provider publishes at a known multiple of its
 # own documented unit (see `LayerCatalogue.jl`). **The check runs on the RAW values and the division
 # after**, and that order is the whole of it: correcting first would leave `_checkupstreamscale`
 # looking at values it had just fixed, so it could never fire.
 #
 # Here rather than deeper in the read path because this is the only point that still knows which
-# layer *codes* were asked for — below it, `getraster` has turned them into file paths.
+# layer *codes* were asked for - below it, `getraster` has turned them into file paths.
 function _rescalepublished(T::Type, layers,
                            cr::ClimateRaster)
     a = cr.array

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # **The small MPI smoke test**: 100 species on a 50 × 50 grid, one burn-in, timed. Small enough to
-# run anywhere, so it is what to try first on a new machine or a new MPI build — if this does not
+# run anywhere, so it is what to try first on a new machine or a new MPI build - if this does not
 # work, `MPIRun.jl` will not either, and it fails in seconds rather than after a queue wait.
 #
-# Like its larger sibling, it goes through `StudyArea` → `GridHabitat` → `build_species` →
+# Like its larger sibling, it goes through `StudyArea` -> `GridHabitat` -> `build_species` ->
 # `build_ecosystem`: a deprecated builder with a hand-assembled `SpeciesList` and a direct
 # `MPIEcosystem` call decides no grid, and such a run cannot start.
 #
@@ -14,7 +14,7 @@
 # demos pass.
 #
 # **The grid is fixed and checked, not chosen.** `MemoryGuidance.check_memory` refuses a
-# configuration that cannot fit *before* anything is allocated. At this size it never will refuse —
+# configuration that cannot fit *before* anything is allocated. At this size it never will refuse -
 # which is the point of having it here: the check costs nothing and the habit is what matters when
 # the same lines appear in `MPIRun.jl`, where it does bite.
 #
@@ -42,7 +42,7 @@ const NUMSPECIES = 100
 const GRID = 50
 const INDIVIDUALS = 1_000_000
 
-# `(50, 50)` cells over `100_000 km²`, said the way a `StudyArea` needs it. `sqrt` because the
+# `(50, 50)` cells over `100_000 km^2`, said the way a `StudyArea` needs it. `sqrt` because the
 # original gave a total area and a cell count and left the cell size implicit.
 const SIDE = sqrt(100_000.0km^2)
 const CELLSIZE = SIDE / GRID
@@ -52,7 +52,7 @@ const TIMESTEP = 1month_mean_duration
 
 # --- will it fit? -----------------------------------------------------------------------
 
-# Collective, and every rank must reach it — see `memory.jl`.
+# Collective, and every rank must reach it - see `memory.jl`.
 const BUDGET = MemoryGuidance.memory_budget()
 
 # Priced from the report rather than the built area, so an impossible configuration costs nothing
@@ -79,7 +79,7 @@ const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
                                                      axis = SolarRadiation),
                                 area = AREA)
 
-# `BirthOnlyMovement` is a modelling choice — plant-like species, dispersing only as seed.
+# `BirthOnlyMovement` is a modelling choice - plant-like species, dispersing only as seed.
 # Every movement type runs distributed, so it is not forced by the MPI run.
 const SPECIES = build_species(NUMSPECIES,
                               tolerance = (274.0K, 0.5K),
@@ -97,7 +97,7 @@ const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = 1,
 
 # --- run --------------------------------------------------------------------------------
 
-# How many species this rank holds and how many individuals they have between them — the load-balance
+# How many species this rank holds and how many individuals they have between them - the load-balance
 # check the original printed. `rows_matrix` only exists on the distributed type, so a single-rank
 # run (which `:auto` makes serial) reads the ordinary landscape instead.
 function _localshare(eco)
@@ -107,7 +107,7 @@ function _localshare(eco)
 end
 
 # Reported in rank order through a barrier rather than by sleeping for `rank` seconds, which is
-# what the original did — that cost `RANKS` seconds and still raced whenever a rank was slow.
+# what the original did - that cost `RANKS` seconds and still raced whenever a rank was slow.
 function _reportinturn(message)
     for r in 0:(RANKS - 1)
         r == RANK && println(message)

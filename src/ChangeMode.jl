@@ -17,14 +17,14 @@ A mode is a type parameter of [`AbstractLayerChange`](@ref), so every change dec
 """
 abstract type AbstractChangeMode end
 
-"""    AbsoluteChange <: AbstractChangeMode — a position: the layer's value *is* this, in the layer's unit. """
+"""    AbsoluteChange <: AbstractChangeMode - a position: the layer's value *is* this, in the layer's unit. """
 struct AbsoluteChange <: AbstractChangeMode end
 
-"""    RelativeChange <: AbstractChangeMode — an interval from the layer's captured values, so `K` rather than `°C`. """
+"""    RelativeChange <: AbstractChangeMode - an interval from the layer's captured values, so `K` rather than `°C`. """
 struct RelativeChange <: AbstractChangeMode end
 
-"""    RateChange <: AbstractChangeMode — an interval per unit time, accumulated each step. """
+"""    RateChange <: AbstractChangeMode - an interval per unit time, accumulated each step. """
 struct RateChange <: AbstractChangeMode end
 
-"""    NoChange <: AbstractChangeMode — no values, and so no `changeunit`. """
+"""    NoChange <: AbstractChangeMode - no values, and so no `changeunit`. """
 struct NoChange <: AbstractChangeMode end

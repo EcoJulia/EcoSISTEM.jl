@@ -3,7 +3,7 @@
 module TestStudyArea
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported — a spec is what a user writes,
+# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: SteadyLayerChange
 using EcoSISTEM: LayerCache, ReadKey, _asraster, Problem, _originaligned,
@@ -29,7 +29,7 @@ include("buildfixtures.jl")
 @testset "_analyse" begin
     @testset "a single layer is adopted exactly" begin
         # Nothing specified: the layer's own CRS, its own cell size, and itself as the alignment
-        # layer — so it is copied rather than resampled. This is the case that must never degrade.
+        # layer - so it is copied rather than resampled. This is the case that must never degrade.
         bng = _reg(_bngraster(WorldClim{BioClim}, fill(291.0K, 9, 9)))
         p = _analyse((regime = bng,))
         @test p.crssource isa EcoSISTEM.AdoptedFromLayers
@@ -81,7 +81,7 @@ end
 
 # The whole point of windowing, and the property that makes it safe to have: a study area decided
 # from a *windowed* read must equal one decided from the whole layer. The window is computed before
-# any pixel is read — the target CRS comes from the file header via `sourcecrs` — and padded by
+# any pixel is read - the target CRS comes from the file header via `sourcecrs` - and padded by
 # `_WINDOW_PAD`, because snapping the grid outwards onto cell boundaries, `_atleast2` and resampling
 # all need ground beyond the mask. A window cut exactly to the mask is *not* enough: it comes up one
 # cell short at each snapped edge. Guarded: it needs the real global layers.
@@ -89,7 +89,7 @@ if !Sys.iswindows()
     @testset "windowing the reads does not change the answer" begin
         scot = EcoSISTEM.boundingbox("Scotland", islands = true)
         for (src, code) in ((WorldClim{BioClim}, :bio1),   # scale 1
-            (EarthEnv{LandCover}, 7))      # scale 10 — aggregation blocks
+            (EarthEnv{LandCover}, 7))      # scale 10 - aggregation blocks
             # An already-read raster cannot be windowed, so this is the unwindowed reference.
             whole = EcoSISTEM._read(SourceSpec(src, code))
             ref = investigate_study_area(regime = ConstructedSpec(() -> whole,
@@ -108,14 +108,14 @@ end
 # A multi-layer read is assembled from **per-layer** cache entries, so a whole-dataset request and a
 # single-layer one share what they have in common: without that, a study area with an
 # `EarthEnv{LandCover}` regime and a `SourceSpec(EarthEnv{LandCover}, 7)` supply reads file 7 twice.
-# Narrowing the *key* instead would be wrong — it must describe what was asked for, or one request is
+# Narrowing the *key* instead would be wrong - it must describe what was asked for, or one request is
 # served another's data. Decomposing is possible only because a spec's code list is explicit.
 if !Sys.iswindows()
     @testset "a multi-layer read caches its layers individually" begin
         cache = LayerCache()
         whole = _asraster(SourceSpec(EarthEnv{LandCover}), cache)
         @test length(cache) == 12                 # one entry per layer, not one for the request
-        # …so asking for a single layer afterwards is a hit, adding nothing.
+        # ...so asking for a single layer afterwards is a hit, adding nothing.
         one = _asraster(SourceSpec(EarthEnv{LandCover}, 7), cache)
         @test length(cache) == 12
         @test size(one.array) == size(whole.array)[1:2]
@@ -153,7 +153,7 @@ end
         @test occursin("9 × 9 cells", text)
         @test occursin("kept exactly", text)
         @test occursin("no problems found", text)
-        # …and the same facts are reachable without parsing the text.
+        # ...and the same facts are reachable without parsing the text.
         @test isempty(r.problems)
         @test only(r.layers).kind isa EcoSISTEM.LayerKeptExactly
         @test r.footprint.cells == 81
@@ -175,7 +175,7 @@ end
     end
 
     @testset "a report can be committed to, reusing its cache" begin
-        # The investigate → commit loop: the report is a valid `base`, so accepting what it proposes
+        # The investigate -> commit loop: the report is a valid `base`, so accepting what it proposes
         # needs no re-reading and no restating of the arguments.
         r = investigate_study_area(regime = bng())
         a = StudyArea(r, verbosity = :silent)
@@ -207,7 +207,7 @@ end
         @test kept.constraints.cellsize == 5000.0m
         @test kept.constraints.crs == Rasters.EPSG(27700)
 
-        # `nothing` clears them, so each is derived afresh — the cell size falls back to the
+        # `nothing` clears them, so each is derived afresh - the cell size falls back to the
         # aligned layer's own, and the CRS goes back to being adopted rather than given.
         cleared = investigate_study_area(base, cellsize = nothing,
                                          crs = nothing)
@@ -216,7 +216,7 @@ end
         @test cleared.cellsizesource isa EcoSISTEM.TakenFromAlignedLayer
         @test cleared.crssource isa EcoSISTEM.AdoptedFromLayers
 
-        # …and `StudyArea` does exactly the same with the same arguments.
+        # ...and `StudyArea` does exactly the same with the same arguments.
         a = StudyArea(base, cellsize = nothing, crs = nothing,
                       verbosity = :silent)
         @test a.report.cellsize == cleared.cellsize
@@ -232,7 +232,7 @@ end
     end
 
     @testset "verbosity is presentation only" begin
-        # `:silent` says nothing, `:normal` announces what it guessed, `:verbose` shows the report —
+        # `:silent` says nothing, `:normal` announces what it guessed, `:verbose` shows the report -
         # and all three build the identical grid.
         @test_logs StudyArea(regime = bng(), verbosity = :silent)
         @test_logs (:info,) match_mode=:any StudyArea(regime = bng(),
@@ -313,8 +313,8 @@ end
 
     # **A synthetic area has no latitude, so no latitude correction.** A raw-value accessor that
     # dresses a CRS-less grid's cell *indices* as degrees sends a supply down the geographic branch:
-    # a 1 kJ/(km²·day) rate over 10 km cells then inspects as 100.365 kJ/day where the builder —
-    # which multiplies by a bare `cellsize^2` — says 100.0. Asserted against the **builder** rather
+    # a 1 kJ/(km^2*day) rate over 10 km cells then inspects as 100.365 kJ/day where the builder -
+    # which multiplies by a bare `cellsize^2` - says 100.0. Asserted against the **builder** rather
     # than against 100.0, so the two cannot drift apart in either direction.
     @testset "a synthetic area gets no latitude correction" begin
         area = StudyArea(extent = (90.0km, 90.0km), cellsize = 10.0km,
@@ -327,7 +327,7 @@ end
         @test first(seen.matrix) == 100.0kJ / day
         @test seen.matrix == built.matrix
 
-        # …and a geographic area still gets one, so the guard has not simply turned it off.
+        # ...and a geographic area still gets one, so the guard has not simply turned it off.
         geo = StudyArea(regime = _reg(_testraster(WorldClim{BioClim},
                                                   fill(291.0K, 9, 9),
                                                   lat = (50.0:1.0:58.0) .* °,
@@ -396,27 +396,27 @@ end
                                                axis = EcoSISTEM.NicheAxis,
                                                combinestage = CombineOnSourceGrid()),
                                target, cache)
-        # Division is cell-wise, so the old "cell-wise ⇒ safe to combine late" reading would call
+        # Division is cell-wise, so the old "cell-wise => safe to combine late" reading would call
         # both of these correct. They are not the same number: early is the area-weighted mean of
         # the two cells' daily rates, late the total water over the mean season length.
         @test parent(early.array) != parent(late.array)
-        # Each is exactly its own ordering, spelled out — early combines then sags onto the grid…
+        # Each is exactly its own ordering, spelled out - early combines then sags onto the grid...
         @test parent(early.array) ==
               parent(_sampledata(ratio(water, days), target, name = "layer",
                                  categorical = false))
-        # …late samples each layer and combines there.
+        # ...late samples each layer and combines there.
         @test parent(late.array) ==
               parent(ratio(_materialiseon(wspec, target, cache),
                            _materialiseon(dspec, target, cache)).array)
     end
 
     # **`materialise` must give what the builder gives.** If it read the layers on their own grid
-    # and combined there — `CombineOnSourceGrid`'s ordering — **whatever the spec said**, then on the
+    # and combined there - `CombineOnSourceGrid`'s ordering - **whatever the spec said**, then on the
     # default stage inspecting a layer would show a different field from the one the model uses. The
     # testset above is what makes that observable: the two orderings genuinely differ here.
     @testset "materialise honours combinestage" begin
         # `_materialisefield` reads through the *area's own* cache, not the one the fixtures
-        # preloaded — without this it would try a real read and divide `bio12` by `bio1`'s affine °C.
+        # preloaded - without this it would try a real read and divide `bio12` by `bio1`'s affine °C.
         area.report.cache.reads[ReadKey(wspec)] = water
         area.report.cache.reads[ReadKey(dspec)] = days
         for stage in (CombineOnTargetGrid(), CombineOnSourceGrid())
@@ -427,7 +427,7 @@ end
             viaarea = EcoSISTEM._materialisefield(spec, area)
             @test isequal(parent(viaspec.array), parent(viaarea.values))
         end
-        # …and the two stages still differ, so the equality above is not vacuous.
+        # ...and the two stages still differ, so the equality above is not vacuous.
         onto = _materialiseon(ConstructedSpec(ratio, wspec, dspec,
                                               axis = EcoSISTEM.NicheAxis,
                                               combinestage = CombineOnTargetGrid()),
@@ -441,7 +441,7 @@ end
 
     # **A synthetic layer has no grid of its own, so on the early path it adopts the one the data
     # layers agree on.** That is the whole rule: a generated layer needs shape and orientation, never
-    # coordinates — it can take any grid it is given, it just cannot supply one.
+    # coordinates - it can take any grid it is given, it just cannot supply one.
     @testset "an early combine generates a synthetic layer at the data's grid" begin
         mixed = ConstructedSpec(wspec,
                                 UniformSpec(2.0, axis = EcoSISTEM.NicheAxis),
@@ -455,11 +455,11 @@ end
               parent(_sampledata(ClimateRaster(WorldClim{BioClim},
                                                water.array .* 2.0), target,
                                  name = "l", categorical = false))
-        # …and the synthetic layer really was generated at the source grid, not the target: had it
+        # ...and the synthetic layer really was generated at the source grid, not the target: had it
         # been made at the target the combine would have been 2×2, and this is 4×4 before sampling.
         @test length(water.array) > length(target)
 
-        # **All synthetic is the one case that cannot work** — nothing supplies a grid, and none
+        # **All synthetic is the one case that cannot work** - nothing supplies a grid, and none
         # can be invented.
         allsynth = ConstructedSpec(UniformSpec(1.0, axis = EcoSISTEM.NicheAxis),
                                    UniformSpec(2.0, axis = EcoSISTEM.NicheAxis),
@@ -468,7 +468,7 @@ end
             return a
         end
         @test_throws ErrorException _materialiseon(allsynth, target, cache)
-        # …while a spec with **no** layers is a thunk supplying its own raster, and must still work:
+        # ...while a spec with **no** layers is a thunk supplying its own raster, and must still work:
         # `all` of an empty collection is `true`, which is exactly how that broke once.
         @test_nowarn _materialiseon(_reg(water), target, cache)
     end
@@ -489,7 +489,7 @@ end
     # Sampling the combine's *result* is what finally gives the declared **axis** something to do:
     # it is read before the resample rather than after it, so a derived class-code layer is taken by
     # nearest class instead of interpolated. Codes 1 and 3 in alternating columns make the
-    # difference visible — interpolating them invents a 2, which is a class that occurs nowhere.
+    # difference visible - interpolating them invents a 2, which is a class that occurs nowhere.
     # There is deliberately no separate `valuetype` keyword: the axis says it, and so cannot
     # contradict it.
     @testset "a declared axis reaches the resampler" begin
@@ -506,7 +506,7 @@ end
     end
 
     @testset "a combine's layers must share one grid" begin
-        # The guard is on the read path, so it covers `_analyse` as well as the early collapse —
+        # The guard is on the read path, so it covers `_analyse` as well as the early collapse -
         # a `ConstructedSpec` states its own extent by combining its layers on their own grid.
         other = LayerCache()
         other.reads[ReadKey(wspec)] = water
@@ -547,11 +547,11 @@ end
     end
 
     # The case that matters is a bound **already on** a cell boundary: it must snap to itself, or the
-    # study area silently grows by a spurious cell — and *which* cell you get then depends on how much
+    # study area silently grows by a spurious cell - and *which* cell you get then depends on how much
     # of the layer was read, which is the read-extent variance the exact-lattice work exists to remove.
-    # In float degrees `(bound − origin) / step` lands either side of the whole number it should be, so
+    # In float degrees `(bound - origin) / step` lands either side of the whole number it should be, so
     # `floor` and `ceil` disagree; over a global 30 arcsec lattice that happened for **7664 of 21601**
-    # bounds. Exact origins and steps do not fix it — `range` elements in degrees cannot be exact — but
+    # bounds. Exact origins and steps do not fix it - `range` elements in degrees cannot be exact - but
     # integer arcseconds do. Swept in aggregate: one invariant, not 21601 assertions.
     @testset "a bound already on a cell boundary snaps to itself" begin
         arcsec(n) = uconvert(°, float(n) * EcoSISTEM.Units.arcsecond)
@@ -560,7 +560,7 @@ end
         @test all(EcoSISTEM._snap(b, o, s, floor) ==
                   EcoSISTEM._snap(b, o, s, ceil)
                   for b in onlattice)
-        # …and it snaps to *itself*, not merely to something self-consistent.
+        # ...and it snaps to *itself*, not merely to something self-consistent.
         @test all(EcoSISTEM._snap(b, o, s, floor) == b for b in onlattice)
 
         # A bound genuinely off the lattice must still be grown outwards, never shrunk inwards.
@@ -570,7 +570,7 @@ end
                   EcoSISTEM._snap(b, o, s, ceil)
                   for b in offlattice)
         # Compared in arcseconds rather than by subtracting the two snapped degree values: both sit
-        # near −180°, so differencing them cancels most of their significance and the result cannot
+        # near -180°, so differencing them cancels most of their significance and the result cannot
         # equal the step exactly. "Exactly one cell apart" is only an exact statement on the lattice.
         @test all(EcoSISTEM._arcsecs(EcoSISTEM._snap(b, o, s, ceil)) -
                   EcoSISTEM._arcsecs(EcoSISTEM._snap(b, o, s, floor)) == 30
@@ -597,7 +597,7 @@ end
         # Not a whole multiple: resampled even when aligned.
         @test _resamplecost(true, 100.0m, 250.0m, true) isa
               EcoSISTEM.LayerResampled
-        # Finer target than source — upsampling, which invents detail; the reason says so.
+        # Finer target than source - upsampling, which invents detail; the reason says so.
         up = _resamplecost(true, 500.0m, 100.0m, true)
         @test up isa EcoSISTEM.LayerResampled
         @test occursin("finer", up.reason)
@@ -610,7 +610,7 @@ end
     # Angular grids must be compared as whole arcseconds, not as degrees. Steps reach here already
     # snapped to the arcsecond lattice by `_snaparcsec`, but exact *equality* on those degree floats is
     # not enough: the question `_resamplecost` asks is whether one step is a whole multiple of another,
-    # and the float ratio gets that wrong even for exactly-snapped inputs — 21 arcsec into 7 comes out
+    # and the float ratio gets that wrong even for exactly-snapped inputs - 21 arcsec into 7 comes out
     # as 3.0000000000000004, and a sweep of every pair up to 200 arcsec finds 107 such cases. Each one
     # would be reported as a lossy `:resampled` when it is in fact an exact `:aggregated`. Integer
     # arcseconds answer it outright, so the cases below are the ones a float implementation fails.
@@ -638,18 +638,18 @@ end
         @test EcoSISTEM._arcsecs(arcsec(90)) === 90
     end
 
-    # A cell size may be *written* in whatever angular unit reads best — the whole reason `arcminute`
-    # and `arcsecond` exist — and must still take the exact integer path rather than silently falling
+    # A cell size may be *written* in whatever angular unit reads best - the whole reason `arcminute`
+    # and `arcsecond` exist - and must still take the exact integer path rather than silently falling
     # back to floating point. Unitful cannot answer "is this an angle?" from the dimension (angles
     # are `NoDims`, like a bare number) nor from convertibility (`uconvert(arcsecond, 0.5)` succeeds,
     # reading the number as radians); an angle is what is dimensionless *and* carries a unit.
     @testset "any angular unit is understood, not just degrees" begin
         @test EcoSISTEM._arcsecs(30arcsecond) == 30
         @test EcoSISTEM._arcsecs(10arcminute) == 600
-        @test EcoSISTEM._arcsecs((1 / 6)°) == 600         # …and all agree with each other
+        @test EcoSISTEM._arcsecs((1 / 6)°) == 600         # ...and all agree with each other
         @test EcoSISTEM._arcsecs(30.0arcsecond) ==
               EcoSISTEM._arcsecs(30arcsecond)
-        # `30arcsecond` is an *`Int`* quantity, and `eps` has no `Integer` method — this is the
+        # `30arcsecond` is an *`Int`* quantity, and `eps` has no `Integer` method - this is the
         # literal a caller actually writes, and it threw a bare `MethodError` before `float` was added.
         @test EcoSISTEM._arcsecs(1°) == 3600
         # Not everything dimensionless is an angle, and a length never is.
@@ -674,7 +674,7 @@ end
         @test cst((1 / 120)°) == "30 ″"            # EarthEnv / CHELSA
         @test cst(1.0°) == "1°"
         @test cst(2500.0u"m") == "2500 m"          # no pointless `.0`
-        @test cst(10000.0u"m") == "10 km"          # …and whole km read as km
+        @test cst(10000.0u"m") == "10 km"          # ...and whole km read as km
         @test cst(5km) == "5 km"
         # Anything off the arcsecond lattice keeps its exact value rather than being dressed up.
         @test cst(0.1234°) == string(0.1234°)
@@ -748,7 +748,7 @@ end
         @test use.north≈61.01 atol=0.5
         @test occursin("United Kingdom", use.name)
 
-        # On its home ground, silence — a study area routinely overhangs its CRS's declared box a
+        # On its home ground, silence - a study area routinely overhangs its CRS's declared box a
         # little (BNG's stops at the coastline), and warning on that would be noise.
         quiet = EcoSISTEM.Problem[]
         EcoSISTEM._crsareaofuse!(quiet, bng,
@@ -757,7 +757,7 @@ end
         @test isempty(quiet)
 
         # Stretched across continental Europe it still *computes*, silently distorting distance and
-        # area — exactly the failure that should not pass unremarked.
+        # area - exactly the failure that should not pass unremarked.
         loud = EcoSISTEM.Problem[]
         EcoSISTEM._crsareaofuse!(loud, bng,
                                  Extent(Y = (0.0m, 4.0e6m),
@@ -765,24 +765,24 @@ end
         @test only(loud).code === :crs_area_of_use
         @test occursin("outside the area", only(loud).message)
         @test occursin("EPSG:27700", only(loud).message)
-        # …and it names a better CRS rather than only complaining.
+        # ...and it names a better CRS rather than only complaining.
         @test occursin("crs = Rasters.EPSG(", only(loud).message)
     end
 
-    # The grid convention, and what happens to the remainder — one subject in two halves, so they
+    # The grid convention, and what happens to the remainder - one subject in two halves, so they
     # share a fixture. **Non-square throughout**: the cell count is computed per axis, so a square
-    # fixture cannot see a y/x swap in the `ceil` — the same class of bug as `[NICHE-YX]`.
+    # fixture cannot see a y/x swap in the `ceil` - the same class of bug as `[NICHE-YX]`.
     @testset "the target grid starts on the data's own edge" begin
-        # 7 × 11 cells of 2.5 km, so the data spans 17.5 km north–south by 27.5 km east–west.
+        # 7 × 11 cells of 2.5 km, so the data spans 17.5 km north-south by 27.5 km east-west.
         raw = _bngraster(WorldClim{BioClim}, fill(291.0K, 7, 11),
                          north = (640000.0:2500.0:655000.0) .* m,
                          east = (245000.0:2500.0:270000.0) .* m)
         ns = _reg(raw)
         # A synthesised grid labels its cells by their lower corner and lays down exactly as many as
-        # cover the span — `ceil(span / cellsize)`, with no spare row. Both counts are checked, and
+        # cover the span - `ceil(span / cellsize)`, with no spare row. Both counts are checked, and
         # they differ, so a transposition could not pass.
         p = _analyse((regime = ns,), cellsize = 5000.0m)
-        @test size(p.active) == (3, 5)          # 17.5/5 → 3 whole cells, 27.5/5 → 5
+        @test size(p.active) == (3, 5)          # 17.5/5 -> 3 whole cells, 27.5/5 -> 5
         lk = DimensionalData.lookup(p.active, Y)
         @test DimensionalData.Lookups.locus(DimensionalData.Lookups.sampling(lk)) isa
               DimensionalData.Lookups.Start
@@ -793,7 +793,7 @@ end
         yx = EcoSISTEM._cellintervals(p.active)
         @test all(iv -> e.Y[1] <= iv[1] && iv[2] <= e.Y[2], yx.lat)
         @test all(iv -> e.X[1] <= iv[1] && iv[2] <= e.X[2], yx.long)
-        # …and the first cell begins exactly on the data's own edge, rather than straddling it by
+        # ...and the first cell begins exactly on the data's own edge, rather than straddling it by
         # half a cell as the `Center` labelling did.
         @test first(yx.lat)[1] == e.Y[1]
         @test first(yx.long)[1] == e.X[1]
@@ -821,7 +821,7 @@ end
     end
 
     @testset "simulate_safely decides what happens to the remainder" begin
-        # 9 × 9 of 2.5 km — 22.5 km square, which divides into 4 km and 6 km cells with a remainder
+        # 9 × 9 of 2.5 km - 22.5 km square, which divides into 4 km and 6 km cells with a remainder
         # of 62.5% and 75% of a cell. **Those two are the cases where the rules disagree**: both
         # are more than half covered, so the centre test keeps them and the coverage test does not.
         sq = _reg(_bngraster(WorldClim{BioClim}, fill(291.0K, 9, 9)))
@@ -836,7 +836,7 @@ end
                          simulate_safely = false)
             @test size(b.active) == (loose, loose)
             @test !b.simulate_safely
-            # The looser rule announces itself, costed in cells — it is opting in to simulating
+            # The looser rule announces itself, costed in cells - it is opting in to simulating
             # ground the data does not describe, so it must not be silent.
             note = only([p for p in b.problems if p.code === :partly_covered])
             @test note.severity isa EcoSISTEM.ProblemNotice
@@ -846,7 +846,7 @@ end
             @test count(a.active) < count(b.active)
         end
 
-        # Where the data divides exactly there is no remainder and the two rules agree — the case a
+        # Where the data divides exactly there is no remainder and the two rules agree - the case a
         # tolerance has to survive, since the last cell's far edge is reached by different
         # arithmetic on each side and can differ by an ULP.
         for cell in (2500.0m, 5000.0m)
@@ -876,7 +876,7 @@ end
         @test size(inherited.report.active) == (6, 6)
         @test size(StudyArea(base, simulate_safely = true,
                              verbosity = :silent).report.active) == (5, 5)
-        # `nothing` is not "false" — it discards the inherited value, so the default applies.
+        # `nothing` is not "false" - it discards the inherited value, so the default applies.
         cleared = StudyArea(base, simulate_safely = nothing,
                             verbosity = :silent)
         @test cleared.report.simulate_safely
@@ -890,7 +890,7 @@ end
         # **7 cells of 2 km, not 5 of 2.5 km.** The obvious fixture does *not* discriminate: its
         # footprint ends exactly on a target cell's centre, which the half-open centre test excludes,
         # so both rules answered 4 and the test passed for the wrong reason. Measured: this one
-        # ends at 652 750 m, four-fifths of the way through the third 5 km cell — covered by the
+        # ends at 652 750 m, four-fifths of the way through the third 5 km cell - covered by the
         # centre test, not wholly covered.
         small = _reg(_bngraster(WorldClim{BioClim}, fill(295.0K, 7, 7),
                                 north = (639750.0:2000.0:651750.0) .* m,
@@ -916,16 +916,16 @@ end
         # **Both bounds matter, and I got the longitude wrong once.** Latitude stops at 90° rather
         # than reaching past it, because a cell edge beyond the pole makes PROJ refuse the (wrong-way)
         # transform outright instead of returning the nonsense this test is about. And longitude must
-        # end exactly at **180°**, not past it: measured, labels `−175:10:175` put the last cell's
+        # end exactly at **180°**, not past it: measured, labels `-175:10:175` put the last cell's
         # far edge at **185°**, and that wrap alone changed the bogus envelope from
-        # `256 685…400 000 m` (which excludes most of the grid) to `−101 403…400 000 m` (which
-        # contains all of it) — so the fixture silently stopped reproducing the bug at all.
+        # `256 685...400 000 m` (which excludes most of the grid) to `-101 403...400 000 m` (which
+        # contains all of it) - so the fixture silently stopped reproducing the bug at all.
         global_ = _testraster(WorldClim{BioClim}, fill(290.0K, 14, 36),
                               lat = (-50.0:10.0:80.0) .* °,
                               long = (-180.0:10.0:170.0) .* °)
-        # Every cell is covered — the layer spans the world.
+        # Every cell is covered - the layer spans the world.
         @test all(EcoSISTEM._fullycovered(global_, area.report.active))
-        # **The regression itself, executable** — not a threshold in metres, which would only be a
+        # **The regression itself, executable** - not a threshold in metres, which would only be a
         # number I chose. Asked the wrong way round the footprint is computed in the *target's* CRS,
         # and the very same per-cell test then drops cells the layer plainly covers. This is what
         # deleted 1859 of `ScottishCultivatedLand.jl`'s 3168 active cells, and it is what would come
@@ -937,7 +937,7 @@ end
                                          EcoSISTEM._cellintervals(area.report.active,
                                                                   X), wrongway))
 
-        # …and a layer that genuinely covers only part of the area still says so, so the fix is not
+        # ...and a layer that genuinely covers only part of the area still says so, so the fix is not
         # simply "always true".
         corner = _testraster(WorldClim{BioClim}, fill(290.0K, 3, 3),
                              lat = (55.7:0.05:55.8) .* °,
@@ -947,17 +947,17 @@ end
     end
 
     @testset "Problem's severity is a type, not a name" begin
-        @test Problem(EcoSISTEM.ProblemWarning(), :upsampling, "…").severity isa
+        @test Problem(EcoSISTEM.ProblemWarning(), :upsampling, "...").severity isa
               EcoSISTEM.ProblemWarning
         # An unrecognised severity is refused by the signature, where it is written, rather than by
         # a check inside the constructor listing the names it accepts.
-        @test_throws MethodError Problem(:oops, :upsampling, "…")
+        @test_throws MethodError Problem(:oops, :upsampling, "...")
     end
 end
 
 @testset "LayerCache" begin
     @testset "read identity, not spec identity, is the key" begin
-        # Two separately-constructed specs for the same layer must share one cache entry — keying on
+        # Two separately-constructed specs for the same layer must share one cache entry - keying on
         # the spec objects would read twice.
         a = SourceSpec(WorldClim{BioClim}, :bio1)
         b = SourceSpec(WorldClim{BioClim}, :bio1)
@@ -971,7 +971,7 @@ end
         @test ReadKey(SourceSpec(WorldClim{Climate}, :wind, month = 1:12)) !=
               ReadKey(SourceSpec(WorldClim{Climate}, :wind, month = 1))
 
-        # A heap-allocated read keyword (a range) must still hash by value — the `===`/`objectid`
+        # A heap-allocated read keyword (a range) must still hash by value - the `===`/`objectid`
         # fallback would miss every hit here, which is why `==`/`hash` are defined explicitly.
         k1 = ReadKey(SourceSpec(WorldClim{Climate}, :wind, month = 1:12))
         k2 = ReadKey(SourceSpec(WorldClim{Climate}, :wind, month = 1:12))
@@ -1022,14 +1022,14 @@ end
         raster = _asraster(SourceSpec(WorldClim{BioClim}, :bio1), LayerCache())
         @test_throws ErrorException _asraster(raster, cache)
         @test_throws ErrorException _asraster(raster)
-        # Both entry points refuse it — deciding a grid and building a layer are separate paths,
+        # Both entry points refuse it - deciding a grid and building a layer are separate paths,
         # and a message on only one of them would leave the other failing as a `MethodError`.
         # Building a layer is `materialise`: the builder has no entry point of its own, so this is
         # the one a raster passed as a `regime`/`supply` reaches.
         @test_throws ErrorException materialise(raster,
                                                 StudyArea(regime = _reg(raster),
                                                           verbosity = :silent))
-        # …and the error says what to do rather than naming an internal function.
+        # ...and the error says what to do rather than naming an internal function.
         msg = try
             _asraster(raster, cache)
         catch e
@@ -1045,7 +1045,7 @@ end
     # **The contract is in the signature**, so `methods(GridHabitat)` and the rendered docs
     # both show what a builder takes. The price, taken deliberately: Julia does not dispatch on
     # keyword types, so a wrong `regime`/`supply` is refused by a `TypeError` naming the keyword and
-    # printing the union, not by a message offering a remedy — and no fallback method could improve
+    # printing the union, not by a message offering a remedy - and no fallback method could improve
     # on that, since a second method with the same positional signature replaces the first.
     @testset "regime and supply are typed in the signature" begin
         raster = _asraster(SourceSpec(WorldClim{BioClim}, :bio1), LayerCache())
@@ -1057,11 +1057,11 @@ end
         @test_throws TypeError investigate_study_area(regime = raster)
         @test_throws TypeError GridHabitat(regime = _reg(raster),
                                            supply = raster, area = area)
-        # …including a bare value, the commonest form inherited from v0.4.0.
+        # ...including a bare value, the commonest form inherited from v0.4.0.
         @test_throws TypeError GridHabitat(regime = _reg(raster),
                                            supply = 3.0m / s, area = area)
 
-        # `materialise`'s spec is **positional**, so it *could* refuse by `MethodError` — and it
+        # `materialise`'s spec is **positional**, so it *could* refuse by `MethodError` - and it
         # must not. A positional argument can carry a fallback method where an annotated keyword
         # cannot, so the two cases below get the tailored message and the remedy instead of a method
         # list. Both messages are checked, not just the fact of an error: a bare value and a raster
@@ -1071,7 +1071,7 @@ end
                                                                                   area)
 
         # A signature cannot see inside a container, and a multi-layer regime legitimately is a
-        # tuple — so a bad *element* is still caught later, with the tailored message.
+        # tuple - so a bad *element* is still caught later, with the tailored message.
         err = try
             GridHabitat(regime = (raster, _reg(raster)), supply = sun,
                         area = area)
@@ -1085,7 +1085,7 @@ end
         @test StudyArea(regime = Varying(_reg(raster),
                                          IncrementBy(0.5K / year)),
                         verbosity = :silent) isa StudyArea
-        # …and a pre-built supply is still accepted, because a `Supply{A}` carries its own axis.
+        # ...and a pre-built supply is still accepted, because a `Supply{A}` carries its own axis.
         @test EcoSISTEM.AbstractSupply <:
               Union{EcoSISTEM.LayerInput, EcoSISTEM.AbstractSupply}
     end
@@ -1099,7 +1099,7 @@ end
     @testset "a wrapper is invisible to the study area" begin
         # The regression this guards is silent, not loud. `_probecrs`'s `::Any` fallback returns
         # `nothing` for an unrecognised value, which makes `_probetargetcrs` decline for the *whole*
-        # area, which disables read windowing — every layer then read at full global extent, with no
+        # area, which disables read windowing - every layer then read at full global extent, with no
         # error at all. A change says nothing about the grid, so the two areas must agree exactly.
         naked = StudyArea(regime = bng(), verbosity = :silent)
         wrapped = StudyArea(regime = Varying(bng(), warming),
@@ -1112,8 +1112,8 @@ end
         @test [l.kind for l in wrapped.report.layers] ==
               [l.kind for l in naked.report.layers]
 
-        # …and the same holds for a wrapped *supply*, which passes through the identical
-        # analyse-time funnel (`_expandspecs` → `_shapesgrid` → `_probecrs`).
+        # ...and the same holds for a wrapped *supply*, which passes through the identical
+        # analyse-time funnel (`_expandspecs` -> `_shapesgrid` -> `_probecrs`).
         supplied = StudyArea(regime = bng(),
                              supply = Varying(bng(), warming),
                              verbosity = :silent)
@@ -1133,7 +1133,7 @@ end
         EcoSISTEM._layerupdate!(env.regime, 1.0year, 1.0year)
         @test all(≈(291.5K), env.regime.matrix)
 
-        # A naked spec is untouched — the wrapper is the only way to declare a change.
+        # A naked spec is untouched - the wrapper is the only way to declare a change.
         plain = GridHabitat(regime = bng(), supply = sun, area = area)
         @test plain.regime.change isa NoLayerChange
     end
@@ -1152,7 +1152,7 @@ end
     end
 end
 
-# A layer whose accumulation period is *another layer* — `gsp` over `gsl` — is an amount as a
+# A layer whose accumulation period is *another layer* - `gsp` over `gsl` - is an amount as a
 # regime and a rate as a supply. Only the supply reading needs anything: the spec is rewritten into
 # the division, and that is what makes `gsp` usable as a water supply at all.
 @testset "a per-cell accumulation period desugars in supply position" begin
@@ -1166,7 +1166,7 @@ end
         # `Precipitation`, not `GrowingSeasonPrecipitation`: a Resource-role axis says *which
         # resource*, and water is water. It also matches what `_wrapsupply` builds regardless.
         @test out.axis == Precipitation
-        # Not a preference — division is cell-wise but nonlinear, so it must precede regridding.
+        # Not a preference - division is cell-wise but nonlinear, so it must precede regridding.
         @test out.combinestage isa CombineOnSourceGrid
 
         # Driven by the catalogue's `percell=`, not by the code name: a layer without one is
@@ -1181,7 +1181,7 @@ end
     end
 
     # The arithmetic, on fixtures rather than downloads: the cache is pre-loaded under each
-    # spec's own `ReadKey`, so these name real layers but never touch the disk — the same trick the
+    # spec's own `ReadKey`, so these name real layers but never touch the disk - the same trick the
     # combine-stage tests use, and what lets the grids be chosen for checkable numbers.
     @testset "the division, and the empty-season cell" begin
         east = (245000.0:2500.0:250000.0) .* m
@@ -1198,7 +1198,7 @@ end
         cache.reads[ReadKey(SourceSpec(CHELSA{BioClimPlus}, :gsl))] = days
 
         out = E._desugarsupply(gsp)
-        # `_reg` for the *layer* use only — the cache entries above stay raw rasters.
+        # `_reg` for the *layer* use only - the cache entries above stay raw rasters.
         target = StudyArea(regime = _reg(water), cellsize = 2500.0m,
                            verbosity = :silent).report.active
         got = _materialiseon(out, target, cache)
@@ -1210,11 +1210,11 @@ end
         # coverage check marks it inactive.
         @test all(isnan, vals[:, 3])
         # **This is why `_perperiod` exists and must not be "simplified" back to `./`.** Plain
-        # division gives `Inf`, not `NaN` — only `0/0` is NaN — and `Inf` is far worse, because
+        # division gives `Inf`, not `NaN` - only `0/0` is NaN - and `Inf` is far worse, because
         # nothing masks it: the cell would report an *infinite* water supply and be perfectly valid.
         @test isinf(100.0 / 0.0) && !isnan(100.0 / 0.0)
         @test isnan(EcoSISTEM._perperiod(100.0, 0.0))
-        # …and it is a guard on the divisor, not a blanket NaN: ordinary cells are untouched.
+        # ...and it is a guard on the divisor, not a blanket NaN: ordinary cells are untouched.
         @test EcoSISTEM._perperiod(100.0, 50.0) == 2.0
         # It carries units, so the guard works on the real unitful path too, not just the fixtures.
         @test isnan(ustrip(EcoSISTEM._perperiod(100.0u"L/m^2", 0.0u"d")))
@@ -1224,7 +1224,7 @@ end
 
 # **The reason `build_habitat` can reseed from a habitat at all: the habitat's own as-built grid
 # survives the round trip.** A supply the study area never saw can cost cells, and that narrowing is
-# recorded *nowhere else* — so re-deriving a `StudyArea` from the report's `specs` answers the
+# recorded *nowhere else* - so re-deriving a `StudyArea` from the report's `specs` answers the
 # original question and hands back the wider mask. Measured before the fix at 48 cells against 46.
 # `report.stage` is what makes the two distinguishable, and this is its first real consumer.
 @testset "an as-built area round-trips, narrowing and all" begin
@@ -1248,7 +1248,7 @@ end
     @test count(back.report.active) == count(h.area.report.active)
     @test back.report.stage isa EcoSISTEM.AsBuilt
     @test length(back.report.problems) == length(h.area.report.problems)
-    # …and it survives being copied again, which resetting the stage would have broken.
+    # ...and it survives being copied again, which resetting the stage would have broken.
     @test count(StudyArea(back, verbosity = :silent).report.active) ==
           count(h.area.report.active)
 
@@ -1259,23 +1259,23 @@ end
     @test redone.report.stage isa EcoSISTEM.AsInvestigated
     @test count(redone.report.active) == count(area.report.active)
 
-    # An `AsInvestigated` base is untouched by any of this — nothing was narrowed, so re-deriving
+    # An `AsInvestigated` base is untouched by any of this - nothing was narrowed, so re-deriving
     # reaches the same answer and there is nothing a copy could preserve.
     @test count(StudyArea(area, verbosity = :silent).report.active) ==
           count(area.report.active)
 
-    # …and the whole point: `build_habitat` inherits the narrowed grid, not the wider one.
+    # ...and the whole point: `build_habitat` inherits the narrowed grid, not the wider one.
     rebuilt = build_habitat(h, verbosity = :silent)
     @test count(rebuilt.active) == count(h.active)
 end
 # **An as-built area must still be able to READ DATA, and for a while it could not.** Three
 # decisions composed into a hole: a `GridHabitat` discards its report's reads (`cache === nothing`,
-# deliberately — they are consumed inputs and keeping them pins every raster the build touched); the
+# deliberately - they are consumed inputs and keeping them pins every raster the build touched); the
 # copy constructor above took the report *verbatim*, cache included; and `_materialisefield` hands
 # `area.report.cache` straight to `_asraster`/`_combineon`, which have methods for a `LayerCache`
 # and none for `nothing`.
 # **What made it invisible**: rebuilding with a *synthetic* spec worked perfectly, and so did
-# inheriting everything — a built layer is passed through, never materialised. Only a **data-backed**
+# inheriting everything - a built layer is passed through, never materialised. Only a **data-backed**
 # spec on a habitat-derived area reached the cache at all, and that was the one combination no test
 # covered. All nine gates were green over it.
 @testset "an as-built area can still read data" begin
@@ -1285,14 +1285,14 @@ end
     area = StudyArea(regime = reg, verbosity = :silent)
     h = GridHabitat(regime = reg, supply = sun, area = area)
 
-    # The habitat's own report keeps its reads discarded — that is 6e's decision and it stands.
+    # The habitat's own report keeps its reads discarded - that is 6e's decision and it stands.
     @test isnothing(h.area.report.cache)
     # But a `StudyArea` is a thing you *build on*, so the copy gets a fresh, empty cache: the
     # reads really are gone, and "nothing cached yet" is both true and usable.
     @test StudyArea(h, verbosity = :silent).report.cache isa
           EcoSISTEM.LayerCache
 
-    # The regression itself — this raised `MethodError: no method matching _combineon(…, ::Nothing)`.
+    # The regression itself - this raised `MethodError: no method matching _combineon(..., ::Nothing)`.
     values = fill(2.0kJ / (km^2 * day), 9, 9)
     datasupply = _reg(_bngraster(WorldClim{BioClim}, values),
                       axis = SolarRadiation)
@@ -1300,10 +1300,10 @@ end
     @test reread.supply isa Supply{SolarRadiation}
     @test all(≈(2.0kJ / (km^2 * day) *
                 first(EcoSISTEM.getcellareas(reread))), reread.supply.matrix)
-    # …on the same grid it inherited, which is the point of reseeding from the habitat.
+    # ...on the same grid it inherited, which is the point of reseeding from the habitat.
     @test count(reread.active) == count(h.active)
 
-    # …and the synthetic case still works, which is what passed while the above did not.
+    # ...and the synthetic case still works, which is what passed while the above did not.
     @test build_habitat(h, supply = sun, verbosity = :silent) isa GridHabitat
 end
 

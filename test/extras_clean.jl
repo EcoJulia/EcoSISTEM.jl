@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Run every `test/clean_*.jl` repo-hygiene check — the JuliaFormatter and ResearchSoftwareMetadata
+# Run every `test/clean_*.jl` repo-hygiene check - the JuliaFormatter and ResearchSoftwareMetadata
 # crosswalk gates.
 #
 # On its own:
@@ -9,11 +9,11 @@
 #
 # **Not** runnable as a bare script, and that is a dependency fact rather than an oversight: the
 # checks need `Git`, `JuliaFormatter` and `ResearchSoftwareMetadata`, which are `[extras]` in
-# `Project.toml`'s `test` target, plus package deps like `Phylo` as *direct* deps — a combination only
+# `Project.toml`'s `test` target, plus package deps like `Phylo` as *direct* deps - a combination only
 # `Pkg.test` provisions. Going through it means the environment is right by construction rather than
 # reconstructed here and drifting the moment a dependency changes.
 #
-# `runtests.jl` also picks it up automatically, along with every other `test/extras_*.jl` — but only
+# `runtests.jl` also picks it up automatically, along with every other `test/extras_*.jl` - but only
 # after the unit tests have passed, since a failing testset throws before the loop is reached. There
 # it *skips* on a CI runner, because the dedicated `metadata.yaml` job asks for this file by name and
 # there is no reason for every matrix entry to redo the crosswalk.
@@ -29,7 +29,7 @@ using EcoSISTEM
 
 # Run when this file was asked for by name (`test_args = ["extras_clean.jl"]`, which is what the
 # `metadata.yaml` job passes), and when running locally. Skip on a CI runner that merely reached this
-# as part of the whole suite — no environment variable needed to tell those apart, because "was I
+# as part of the whole suite - no environment variable needed to tell those apart, because "was I
 # asked for?" is the question that actually distinguishes them.
 const ASKED_FOR = any(a -> occursin("extras_clean", a), ARGS)
 
@@ -51,7 +51,7 @@ else
         println()
 
         @testset for c in cleanbase
-            # Relative to *this file*, which `include` resolves against — so the caller's working
+            # Relative to *this file*, which `include` resolves against - so the caller's working
             # directory does not matter.
             fn = joinpath(@__DIR__, "clean_$c.jl")
             println("    * Verifying $c.jl ...")

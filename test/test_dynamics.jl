@@ -52,8 +52,8 @@ end
     # is instead defined as "no move this step": `moves` is zeroed and the species' RNG stream is
     # left untouched (a stranded cell must not consume draws and re-phase every later one).
     #
-    # `update!` cannot reach this today — it only disperses from an *active* cell, and a cell is
-    # always its own kernel's highest-weighted destination — so the guard is exercised directly.
+    # `update!` cannot reach this today - it only disperses from an *active* cell, and a cell is
+    # always its own kernel's highest-weighted destination - so the guard is exercised directly.
     eco = Test1Ecosystem(seed = 4)
     eco.habitat.active .= false
     lookup = EcoSISTEM.getlookup(eco, 1)
@@ -74,7 +74,7 @@ end
 end
 
 @testset "Simulation clock" begin
-    # `update!` advances the ecosystem's own clock by one timestep. Nothing reads it yet — it
+    # `update!` advances the ecosystem's own clock by one timestep. Nothing reads it yet - it
     # exists for the layer-change and intervention work built on top of it.
     eco = Test1Ecosystem(seed = 5)
     @test EcoSISTEM.simulationtime(eco) == 0.0s
@@ -106,7 +106,7 @@ end
     sppl1 = SpeciesList(N, tolerance, abun,
                         Demand{SolarRadiation}(fill(10.0kJ / day, N)),
                         movement, nogrowth, native)
-    # Grid decided first: 100 km² over 4 × 4 is 2.5 km cells.
+    # Grid decided first: 100 km^2 over 4 × 4 is 2.5 km cells.
     habitat1 = GridHabitat(regime = UniformSpec(274.0K,
                                                 axis = Temperature),
                            supply = UniformSpec(10000.0kJ / km^2 / day,
@@ -120,7 +120,7 @@ end
     @test EcoSISTEM.resource_adjustment(eco1, eco1.habitat.supply, 1, 1) ==
           (0.0, 0.0)
 
-    # two supplies — the path that must not skip the adjustment
+    # two supplies - the path that must not skip the adjustment
     resource2 = SpeciesRequirementCollection((Demand{SolarRadiation}(fill(10.0kJ /
                                                                           day,
                                                                           N)),
@@ -146,7 +146,7 @@ end
 
 # Build an ecosystem whose species have *differing* per-capita demands, on a supply that can never
 # limit anything when a second resource is added. The whole shipped corpus uses *scalar* demands,
-# so ϵ̄ = 1 for every species and none of the properties below is observable in it — which is exactly
+# so ϵ̄ = 1 for every species and none of the properties below is observable in it - which is exactly
 # why a multi-resource arithmetic bug survived for years unnoticed.
 function _demandeco(demand, supply, demandaxis = SolarRadiation;
                     tolerance = (280.0K, 5.0K))
@@ -181,13 +181,13 @@ const _SPAREWATER = UniformSpec(1.0e12Unitful.L / (m^2 * day),
     # change moves the wrong thing.
     ratios = [((b, d) = adj(one, sp); b / d) for sp in 1:3]
     @test all(≈(first(ratios)), ratios)
-    # …and the rates themselves genuinely differ, or the test above would be vacuous.
+    # ...and the rates themselves genuinely differ, or the test above would be vacuous.
     @test !≈(first(adj(one, 1)), first(adj(one, 3)))
 
     # REGRESSION GUARD. A second resource that can never limit anything, and that every species
     # demands equally (ϵ̄ = 1, the product's fixed point), must leave birth and death *exactly*
     # unchanged. This failed before 2026-08-06: the suitability term was applied once per resource,
-    # so it moved birth by ×0.5457 and death by ×1.8325 — `suit^∓survival` — for a resource that
+    # so it moved birth by ×0.5457 and death by ×1.8325 - `suit^∓survival` - for a resource that
     # could not possibly matter.
     inert = _demandeco((solar, fill(1.0Unitful.L / day, 3)),
                        (_SOLAR, _SPAREWATER),
@@ -196,9 +196,9 @@ const _SPAREWATER = UniformSpec(1.0e12Unitful.L / (m^2 * day),
         @test all(adj(inert, sp) .≈ adj(one, sp))
     end
 
-    # …but two *genuine* demands compound, which is required: a species needing 2× solar and 2×
+    # ...but two *genuine* demands compound, which is required: a species needing 2× solar and 2×
     # water really is more demanding than one needing 2× solar alone. Here the water demands are
-    # proportional to the solar ones, so ϵ̄ is identical on both resources and `demanded` is ϵ̄².
+    # proportional to the solar ones, so ϵ̄ is identical on both resources and `demanded` is ϵ̄^2.
     twice = _demandeco((solar, [1.0, 2.0, 3.0] .* Unitful.L / day),
                        (_SOLAR, _SPAREWATER),
                        (SolarRadiation, Precipitation))
@@ -209,7 +209,7 @@ const _SPAREWATER = UniformSpec(1.0e12Unitful.L / (m^2 * day),
         # birth and death both carry `demanded^-longevity`, so both scale by ϵ̄^-longevity again.
         @test all(adj(twice, sp) .≈ adj(one, sp) .* ϵ^-longevity)
     end
-    # The average species is the fixed point of that compounding and is *not* a witness to it —
+    # The average species is the fixed point of that compounding and is *not* a witness to it -
     # ϵ̄ = 1 there, so it alone would pass whatever the combining rule.
     @test adj(twice, 2) == adj(one, 2)
 end
@@ -224,14 +224,14 @@ end
     grid = (ny, nx)
     area = 100.0km^2
 
-    # A partial active mask — only column x=1 is active, every row — to check
+    # A partial active mask - only column x=1 is active, every row - to check
     # the active-mask indexing itself corresponds to (y, x), not (x, y):
     # deliberately asymmetric (not a full row/column/diagonal) so a swap would
     # show up as reading the wrong cells, not coincidentally the same ones.
     partial_active = fill(false, ny, nx)
     partial_active[:, 1] .= true
     # **`within` takes the mask directly**, so a deliberately asymmetric one is still
-    # expressible without the deprecated builder's positional `active` argument — which matters
+    # expressible without the deprecated builder's positional `active` argument - which matters
     # here, because a disc or any other shape spec could not make *only column 1* active.
     partial_habitat = GridHabitat(regime = UniformSpec(274.0K,
                                                        axis = Temperature),
@@ -260,7 +260,7 @@ end
     sppl = SpeciesList(N, tolerance, abun, resource, movement, param, native)
 
     # A fully-active habitat for exercising calc_lookup_moves!/update! at
-    # extreme y/x coordinates — every cell reachable, so no cell's move
+    # extreme y/x coordinates - every cell reachable, so no cell's move
     # probabilities can go to zero regardless of dimension order.
     habitat = GridHabitat(regime = UniformSpec(274.0K,
                                                axis = Temperature),
@@ -277,11 +277,11 @@ end
                                 eltype(habitat.regime)}()
     eco = Ecosystem(sppl, habitat, nichefit)
 
-    # getgridshape must report (ny, nx) — the actual array shape — not (nx, ny).
+    # getgridshape must report (ny, nx) - the actual array shape - not (nx, ny).
     @test EcoSISTEM.getgridshape(eco) == grid
 
     # Calling calc_lookup_moves! at every combination of extreme y/x coordinates
-    # must not throw — a BoundsError here is exactly what an X/Y mixup produces
+    # must not throw - a BoundsError here is exactly what an X/Y mixup produces
     # on a non-square grid (e.g. checking a y=2-valid offset against nx=6's
     # bound instead of ny=2's, then indexing a nonexistent row of `active`).
     for (y, x) in ((1, 1), (ny, 1), (1, nx), (ny, nx))
@@ -291,7 +291,7 @@ end
         @test_nowarn EcoSISTEM.calc_lookup_moves!(Torus(), y, x, 1, eco, 5)
     end
 
-    # convert_coords must round-trip correctly through the (y,x) convention —
+    # convert_coords must round-trip correctly through the (y,x) convention -
     # height (dimension 1) is ny, not nx.
     for i in 1:(ny * nx)
         (y, x) = EcoSISTEM.convert_coords(eco, i, ny)
@@ -327,11 +327,11 @@ end
     @test m2 == m2b
 end
 
-# **`_getneighbours` takes `(y, x)` — row first**, as everything else in the package does, and
+# **`_getneighbours` takes `(y, x)` - row first**, as everything else in the package does, and
 # its parameter *names* must say so: a caller that believes a name over the body passes the column
 # first. On a **square** matrix that is invisible, so every assertion below is on a non-square one.
 @testset "_getneighbours takes (y, x), row first" begin
-    M = zeros(5, 3)         # 5 rows, 3 columns — a transposed call goes out of bounds
+    M = zeros(5, 3)         # 5 rows, 3 columns - a transposed call goes out of bounds
 
     # The four-neighbourhood of an interior cell, as (row, column) pairs.
     @test sort(collect(eachrow(EcoSISTEM._getneighbours(M, 3, 2)))) ==
@@ -343,7 +343,7 @@ end
     # Cells off the edge are dropped, so a corner has two orthogonal neighbours and three diagonal.
     @test size(EcoSISTEM._getneighbours(M, 1, 1), 1) == 2
     @test size(EcoSISTEM._getneighbours(M, 1, 1, 8), 1) == 3
-    # …and every pair returned indexes `M` — which is what a transposed call would break.
+    # ...and every pair returned indexes `M` - which is what a transposed call would break.
     for chess in (4, 8), y in Base.axes(M, 1), x in Base.axes(M, 2)
         ns = EcoSISTEM._getneighbours(M, y, x, chess)
         @test all(n -> checkbounds(Bool, M, n[1], n[2]), eachrow(ns))
@@ -358,7 +358,7 @@ end
     @test_throws ErrorException EcoSISTEM._getneighbours(M, 1, 1, 5)
 end
 
-# ── The hot loop must not allocate per cell ─────────────────────────────────────────────────────
+# -- The hot loop must not allocate per cell -----------------------------------------------------
 #
 # **Why these exist, and why there are two.** A62: `Ecosystem` declares `abundances::GridLandscape`,
 # and when that type gained parameters the bare name became a `UnionAll` -- an abstract field -- so

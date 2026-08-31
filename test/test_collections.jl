@@ -17,7 +17,7 @@ using Test
 include("rasterfixtures.jl")
 
 # Wrap an already-in-memory `ClimateRaster` as a lazy layer spec, and build on the grid the layers
-# themselves decide — the same escape hatch `test_GridHabitat.jl` uses, since a multi-layer regime has
+# themselves decide - the same escape hatch `test_GridHabitat.jl` uses, since a multi-layer regime has
 # to be data-backed (a synthetic area has no CRS, so there is nothing to place the data by).
 _area(; kw...) = StudyArea(; verbosity = :silent, kw...)
 function _env(regime, supply; kw...)
@@ -108,10 +108,10 @@ end
     water = Supply{Precipitation}(fill(10.0Unitful.L / day, grid...))
 
     # **A collection built from a plain `Tuple` is named by its members' AXES**, where those are
-    # distinguishable — so this pair is `(:Temperature, :Precipitation)`, not `(:one, :two)`. Two
+    # distinguishable - so this pair is `(:Temperature, :Precipitation)`, not `(:one, :two)`. Two
     # structures that pair correctly therefore derive the *same* names with the caller writing
     # nothing, which is what `_checknaming` compares.
-    # `.one`/`.two` survive only where they *are* the names — see the fallback testset below.
+    # `.one`/`.two` survive only where they *are* the names - see the fallback testset below.
     # Nothing is owed for the change: the `:one`/`:two` scheme is absent from v0.4.0.
     @testset "a positional collection is named by its members' axes" begin
         lc = LayerCollection((temp, rain))
@@ -129,9 +129,9 @@ end
 
     # **The fallback, and it is what keeps every existing positional call site working.** Two
     # Members on the same axis cannot be told apart by name, so the collection **errors and asks
-    # for names** rather than falling back to `:one`/`:two`. The model itself is never refused — a
+    # for names** rather than falling back to `:one`/`:two`. The model itself is never refused - a
     # repeated axis is legitimate (`CombiningFit`'s own docstring pairs a summer and a winter
-    # temperature) — only the *guessing* is. This fell back silently until 2026-08-18; the
+    # temperature) - only the *guessing* is. This fell back silently until 2026-08-18; the
     # fallback made sense when most members had no axis at all, and step A removed that.
     @testset "a repeated axis errors, asking for names" begin
         msg = try
@@ -142,7 +142,7 @@ end
         end
         @test occursin("Temperature", msg) &&
               occursin("cannot be told apart", msg)
-        # …and naming them is the remedy the message gives, so it must work.
+        # ...and naming them is the remedy the message gives, so it must work.
         named = LayerCollection((summer = temp, winter = temp))
         @test keys(named) == (:summer, :winter)
         @test named.summer === temp
@@ -163,7 +163,7 @@ end
         @test values(temp) === (temp,)
         @test values(solar) === (solar,)
         # **Named by its own AXIS**, not by a role label. It read `(:regime,)`/`(:supply,)` until
-        # 2026-08-18, and those could never match the species side's `(:tolerance,)`/`(:demand,)` —
+        # 2026-08-18, and those could never match the species side's `(:tolerance,)`/`(:demand,)` -
         # so single-member pairings had to be *skipped* by the naming check. Both sides now derive
         # the same name from the same axis, and the skip is gone with the labels.
         @test keys(temp) == (:Temperature,)
@@ -173,7 +173,7 @@ end
     @testset "the role is dispatched on, and must agree" begin
         # **The role guarantee lives on the side builders**, which is the one place a mislabelled
         # side would actually do damage. It cannot live in the container interface, which is
-        # role-blind by design — `values(x)` works on either side.
+        # role-blind by design - `values(x)` works on either side.
         @test_throws MethodError EcoSISTEM._regimeside(solar)
         @test_throws MethodError EcoSISTEM._supplyside(temp)
         @test_throws ErrorException LayerCollection((temp, solar))
@@ -190,7 +190,7 @@ end
 
     @testset "the standard container interface" begin
         lc = LayerCollection((temp, rain))
-        # Indexing by position **and** by name, iteration, and the rest — forwarded to the
+        # Indexing by position **and** by name, iteration, and the rest - forwarded to the
         # backing `NamedTuple` (`src/collections.jl`).
         @test lc[1] === temp
         @test lc[:Precipitation] === rain
@@ -211,7 +211,7 @@ end
         @test temp[1] === temp
         @test temp[:Temperature] === temp
         @test NamedTuple(temp) === (Temperature = temp,)
-        # **Iterating a mixed collection must not allocate** — that claim is what the old
+        # **Iterating a mixed collection must not allocate** - that claim is what the old
         # "no container interface" rule rested on, and it was measured backwards: the fold it
         # protected allocated where the loop does not. Guard it so it cannot regress.
         count_members(c) = (n = 0; for _ in c
@@ -231,7 +231,7 @@ end
 
     @testset "tolerances" begin
         tc = SpeciesRequirementCollection((temptol, raintol))
-        # Axis-derived, exactly as the layer side is — which is *why* a tolerance collection and
+        # Axis-derived, exactly as the layer side is - which is *why* a tolerance collection and
         # the regime collection it pairs with check out against one another unaided.
         @test tc.Temperature === temptol
         @test values(tc) === (temptol, raintol)
@@ -272,7 +272,7 @@ end
                                NicheSuitability(raintol)))
         @test f isa EcoSISTEM.CombiningFit
         @test length(values(f)) == 2
-        # Named by AXIS, not by position — a nichefit carries its own axis since D3(a), so a
+        # Named by AXIS, not by position - a nichefit carries its own axis since D3(a), so a
         # `CombiningFit` derives the same names its paired tolerance and regime do. It read
         # `(:one, :two)` until then, because every fit answered the root and so clashed.
         @test keys(f) == (:Temperature, :Precipitation)
@@ -357,8 +357,8 @@ end
         keys4 = (:summer, :wet, :winter, :dry)
         # **Both branches are named now, and they must be**: two of the four layers are on
         # `Temperature` and two on `Precipitation`, so derived names cannot tell them apart and the
-        # collection says so. What the `named` sweep still varies is *which* names — the caller's
-        # own against the fixture's `(:a, :b, :c, :d)` — which is what the pairing check consumes.
+        # collection says so. What the `named` sweep still varies is *which* names - the caller's
+        # own against the fixture's `(:a, :b, :c, :d)` - which is what the pairing check consumes.
         four = _env(named ? NamedTuple{keys4}(values(specs)) : specs, SUP)
         @test length(values(four.regime)) == 4
         @test keys(four.regime) == (named ? keys4 : keys(specs))
@@ -415,7 +415,7 @@ end
     # the per-layer report is keyed by those names too
     @test Set(l.name for l in _area(regime = named).report.layers) ==
           Set((:temperature, :rainfall))
-    # and the numbered fallback is gone once names are given — with both listed in the error
+    # and the numbered fallback is gone once names are given - with both listed in the error
     err = try
         _area(regime = named, align = :regime1)
         nothing
@@ -436,11 +436,11 @@ end
 
 @testset "Hot paths stay allocation-free" begin
     # `_suitability` and `_resourceadjustment` run per cell per species, so the folds have to cost
-    # nothing at either arity — this is the gate that keeps `map`/`reduce` out of them.
+    # nothing at either arity - this is the gate that keeps `map`/`reduce` out of them.
     temp = _bngraster(WorldClim{BioClim}, fill(298.0K, 9, 9))
     rain = _bngraster(WorldClim{BioClim}, fill(50.0mm / day, 9, 9))
     # Named, because the third layer repeats `Temperature` and derived names cannot tell the
-    # two apart — the arity is what this fixture is varying, not the naming.
+    # two apart - the arity is what this fixture is varying, not the naming.
     # A named tuple does not slice, so the arity sweep takes its first `n` members by name.
     _firstn(nt::NamedTuple, n) = NamedTuple{keys(nt)[1:n]}(values(nt)[1:n])
     specs = (a = _reg(temp, axis = Temperature),

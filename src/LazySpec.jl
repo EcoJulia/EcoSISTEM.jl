@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # The data-backed layer recipes: name a catalogued source, a vector file, or a function combining
-# other specs. None holds any data — each is resolved against the target grid at build time.
+# other specs. None holds any data - each is resolved against the target grid at build time.
 
 using DimensionalData
 
@@ -9,7 +9,7 @@ using DimensionalData
     AbstractLazySpec <: AbstractSpec
 
 Abstract supertype of the lazy, data-backed / derived specs. Resolved against the target grid at
-build time and usable in *either* role — a regime/supply layer or an active mask: [`SourceSpec`](@ref)
+build time and usable in *either* role - a regime/supply layer or an active mask: [`SourceSpec`](@ref)
 (read a data source), `ShapeSpec` (a vector file), `ConstructedSpec` (combine child specs by a
 function).
 """
@@ -26,8 +26,8 @@ const LayerSpec = Union{AbstractSyntheticLayerSpec, AbstractLazySpec}
 """
     LayerInput
 
-Type-union of everything a `regime` or `supply` keyword accepts: one [`AbstractSpec`](@ref) — which
-includes a [`Varying`](@ref) wrapping one — or a `Tuple`/`NamedTuple` of them for a multi-layer
+Type-union of everything a `regime` or `supply` keyword accepts: one [`AbstractSpec`](@ref) - which
+includes a [`Varying`](@ref) wrapping one - or a `Tuple`/`NamedTuple` of them for a multi-layer
 environment, a named tuple keeping the caller's names.
 
 **Written into the builders' signatures**, not merely documented, so that `methods(GridHabitat)` and
@@ -42,7 +42,7 @@ read options live in any case.
 
 Two costs, both accepted. Julia does not dispatch on keyword types, so a wrong argument is refused by
 a `TypeError` naming the keyword and printing this union expanded rather than by a message suggesting
-a remedy — and no fallback method can improve on that, since a second method with the same positional
+a remedy - and no fallback method can improve on that, since a second method with the same positional
 signature replaces the first instead of adding to it. And a signature cannot see **inside** a
 container, so an element of a tuple that is not a spec is caught later, by the resolvers.
 """
@@ -62,7 +62,7 @@ const MaskSpec = Union{AbstractSyntheticMaskSpec, AbstractLazySpec}
 Name a layer of a catalogued data source, without reading it. It holds **no** grid array: the read,
 the cut and the resample happen only when it is materialised onto a decided grid.
 
-Passing **no** `code` describes the *whole* dataset — every layer read into one multi-band raster,
+Passing **no** `code` describes the *whole* dataset - every layer read into one multi-band raster,
 which is the form [`ConstructedSpec`](@ref) uses for a bare dataset, such as all the land-cover class
 bands for `compress_landcover`.
 
@@ -88,7 +88,7 @@ bands for `compress_landcover`.
 
 # Fields
 
-  - `source`, `code`, `unit`, `readkw`: as above. `code` is never `nothing` — a whole-dataset spec
+  - `source`, `code`, `unit`, `readkw`: as above. `code` is never `nothing` - a whole-dataset spec
     resolves the dataset's own code list at construction, so every layer's identity is known before
     anything is read and each can keep its own unit. `unit` falls back to `NoUnits` as a neutral
     placeholder where a multi-layer spec's layers disagree.
@@ -104,12 +104,12 @@ struct SourceSpec{A <: NicheAxis, U, K <: NamedTuple} <:
     source::Type
     # One layer, or several. Never `nothing`: `SourceSpec(dataset)` resolves the dataset's own code
     # list here rather than carrying a late-bound "all of them" sentinel, so there is one code shape
-    # instead of three, and every layer's identity is known before anything is read — which is what
+    # instead of three, and every layer's identity is known before anything is read - which is what
     # lets each keep its *own* unit.
     code::Union{CODE_TYPE, Vector{CODE_TYPE}}
     unit::U
     readkw::K   # extra keywords forwarded to `read` at materialise time (e.g. `month = 1:12`)
-    # The sole constructor — defined with the type's own name and taking `axis` as a runtime *type*
+    # The sole constructor - defined with the type's own name and taking `axis` as a runtime *type*
     # argument (see `GradientSpec`'s inner constructor comment), so there is exactly one way to build
     # one. Omitting `code` gives the whole dataset. `unit`/`axis` are resolved in the *body* rather
     # than as signature defaults because their defaults are shipped-table lookups keyed on `code`.
@@ -117,14 +117,14 @@ struct SourceSpec{A <: NicheAxis, U, K <: NamedTuple} <:
     # nested inside a `ConstructedSpec` can specify e.g. its own `month`.
     #
     # A multi-layer spec does **not** error here when its layers disagree on unit or axis, even
-    # though it cannot then honestly claim one. Four of the seven shipped datasets are heterogeneous —
-    # including `WorldClim{BioClim}` (6 units) and `CHELSA{BioClimPlus}` (13 units, 29 axes) — so
+    # though it cannot then honestly claim one. Four of the seven shipped datasets are heterogeneous -
+    # including `WorldClim{BioClim}` (6 units) and `CHELSA{BioClimPlus}` (13 units, 29 axes) - so
     # refusing them at construction would rule out the flagship sources. Its real use is inside a
     # `ConstructedSpec`, where `_parselayers` expands it to one correctly-united spec per layer and
-    # the disagreement never arises. The error belongs where a *single array* is genuinely required —
-    # materialising it directly as a regime or supply — and lives in `_read` accordingly.
+    # the disagreement never arises. The error belongs where a *single array* is genuinely required -
+    # materialising it directly as a regime or supply - and lives in `_read` accordingly.
     #
-    # **Trait-gated on `IsRasterData`, not bounded by `RasterDataSources.RasterDataSource`** —
+    # **Trait-gated on `IsRasterData`, not bounded by `RasterDataSources.RasterDataSource`** -
     # the same treatment `ClimateRaster`'s sole constructor already has, and for the same reason: a
     # `<:` bound names one package, whereas the trait asks the question the code actually cares
     # about and a third party's raster type can answer it in one `@traitimpl` line. It is also what
@@ -150,8 +150,8 @@ end
 # this file, and a method written above its own type's file is silently discarded -- the package
 # still loads, and the call fails later with a bare `MethodError`.
 # Worth the extra method, exactly as on `ClimateRaster`: without it an unmarked source fails with a
-# bare `MethodError` naming `SimpleTraits.Not{IsRasterData{…}}`, which leaks the trait machinery and
-# names no remedy. It also covers the case this file now cares most about — a user who has not
+# bare `MethodError` naming `SimpleTraits.Not{IsRasterData{...}}`, which leaks the trait machinery and
+# names no remedy. It also covers the case this file now cares most about - a user who has not
 # loaded `RasterDataSources` and so cannot name a dataset at all.
 @traitfn function SourceSpec(::Type{S}, args...;
                              kw...) where {S; !IsRasterData{S}}
@@ -179,7 +179,7 @@ and the cell-membership test all happen when it is materialised onto a decided g
 struct ShapeSpec <: EcoSISTEM.AbstractLazySpec
     path::Union{String, EcoSISTEM.CachedAsset}
     layer::Int
-    # A leading URL scheme (`scheme://…`) marks `path` as a download, deferred to a `CachedAsset`;
+    # A leading URL scheme (`scheme://...`) marks `path` as a download, deferred to a `CachedAsset`;
     # anything else is taken to be an already-local path, used as-is.
     function ShapeSpec(path::AbstractString; layer::Integer = 0)
         p = occursin(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path) ?
@@ -201,43 +201,43 @@ ConstructedSpec(EarthEnv{LandCover}, :open_water) do water
 end
 ```
 
-`layers` are given as alternating `dataset, code(s)` — a `RasterDataSources` type followed by an
-`Int`/`Symbol` code, a vector/tuple of codes (several layers), or **no** code (a bare dataset ⇒
+`layers` are given as alternating `dataset, code(s)` - a `RasterDataSources` type followed by an
+`Int`/`Symbol` code, a vector/tuple of codes (several layers), or **no** code (a bare dataset =>
 *all* its layers, e.g. every land-cover class band, passed to `combine` as one multi-band raster);
-a pre-built spec is also accepted directly — including a **synthetic** one, so a combine may mix
+a pre-built spec is also accepted directly - including a **synthetic** one, so a combine may mix
 generated layers with read ones. A bare dataset becomes a whole-dataset spec. With **no** layers,
 `combine` is a nullary thunk that produces the layer itself (reading a source directly, or wrapping
 a literal in-memory array).
 
-**`combine` takes rasters and must return a raster** — one contract, whichever way the spec is later
+**`combine` takes rasters and must return a raster** - one contract, whichever way the spec is later
 used, because that decision is made elsewhere and cannot be known where the combine is written. A
 **mask is simply a raster whose element type is `Bool`**, so the element type still distinguishes the
 two; only the container is fixed.
 
 Nothing has to be wrapped or unwrapped to satisfy that: a raster broadcasts and yields a raster, as
 the example above shows, and `sum(bands)` over a multi-band combine does the same. So a combine names
-**no array type at all**, which is the point — the array type is an implementation detail, and a
+**no array type at all**, which is the point - the array type is an implementation detail, and a
 combine is user code.
 
 Usable as a regime/supply layer or an active mask. Covers what the other specs don't:
 bespoke data, derived layers (anomalies, blends) and thresholded/combined masks. See `hasdata`
 and `landcoverclass` for ready-made combine building blocks. No data is read or downloaded at
-construction — only when materialised onto a grid (`GridHabitat`), mirroring
+construction - only when materialised onto a grid (`GridHabitat`), mirroring
 [`SourceSpec`](@ref); each layer's unit/axis is resolved from the shipped table eagerly, so an
 invalid code errors here rather than at materialise time.
 
-`combinestage` says *when* `combine` runs — after its layers are put on the study grid
+`combinestage` says *when* `combine` runs - after its layers are put on the study grid
 ([`CombineOnTargetGrid`](@ref), the default) or before ([`CombineOnSourceGrid`](@ref)). See
 [`AbstractCombineStage`](@ref) for which a given combine needs.
 
 # Fields
 
-  - `combine`: the rule itself — a function taking one raster per layer (none, for a thunk) and
+  - `combine`: the rule itself - a function taking one raster per layer (none, for a thunk) and
     returning a raster.
   - `layers`: the child specs to materialise and hand it, already normalised; empty for a thunk.
   - `combinestage`: when the combine runs, as above.
 
-`axis` is a **type parameter** rather than a field, as on [`SourceSpec`](@ref) — and on this type it
+`axis` is a **type parameter** rather than a field, as on [`SourceSpec`](@ref) - and on this type it
 is the *only* statement of what the result means, since a derived raster has no layer code to resolve
 one from. That includes whether the result holds class codes: there is no `valuetype` keyword,
 because a `TypologyAxis` says the values are class labels and so must be resampled by nearest class,
@@ -245,9 +245,9 @@ while any other axis says they may be interpolated. A separate declaration could
 axis or contradict it.
 """
 struct ConstructedSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
-    axis::Type{A}  # the niche axis of the produced layer (matched to species tolerances); mask ⇒ ignored
+    axis::Type{A}  # the niche axis of the produced layer (matched to species tolerances); mask => ignored
     combine::F
-    # **`AbstractSpec`, not `Vector{SourceSpec}`** — two things at once. It is what lets this type
+    # **`AbstractSpec`, not `Vector{SourceSpec}`** - two things at once. It is what lets this type
     # live outside `ClimatePref` (a `SourceSpec` is defined *after* this file, so naming it here would
     # be a cycle), and it is what lets a combine take a **synthetic** layer, which the argument parser
     # used to refuse outright. Abstractly typed, which costs nothing here: layers are walked once
@@ -258,12 +258,12 @@ struct ConstructedSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
     # dispatch it costs buys nothing back for multiplying the concrete spec types.
     combinestage::AbstractCombineStage
     # `axis` is a required keyword (as on every other spec); a derived regime layer (e.g. a
-    # temperature anomaly) declares what it measures, while a mask — which is never paired with a
-    # tolerance — says `NicheAxis` to state that it is claiming nothing.
+    # temperature anomaly) declares what it measures, while a mask - which is never paired with a
+    # tolerance - says `NicheAxis` to state that it is claiming nothing.
     #
     # **Whether the result holds class codes comes from `axis`, and is not declared separately.**
     # It matters only alongside `combinestage = CombineOnSourceGrid()`, where the combine's own
-    # result is what gets sampled — on the default path the layers are sampled first, so nothing ever
+    # result is what gets sampled - on the default path the layers are sampled first, so nothing ever
     # interpolates a class code. The two remain independent: `gsp / gsl` must collapse early (a
     # ratio does not commute with regridding) and produces perfectly ordinary continuous values.
     function ConstructedSpec(combine, layerargs...;
@@ -278,17 +278,17 @@ end
 
 # _sharedunit(source, code) / _sharedaxis(source, code)
 #
-# The unit and niche axis a `SourceSpec` takes when its caller does not state them — read from the
+# The unit and niche axis a `SourceSpec` takes when its caller does not state them - read from the
 # shipped catalogue, and for a vector of codes only where they agree.
 #
 # In this file, beside the constructor that asks: the catalogue moved into the parent with it, so
 # there is no submodule boundary left to cross.
 # The unit/axis a spec can honestly claim: a single layer's own, the one its layers agree on, or the
 # neutral value when they do not. `NoUnits`/`NicheAxis` for a disagreeing multi-layer spec is a
-# placeholder, not a claim — such a spec is only materialisable through `_parselayers`, which expands
+# placeholder, not a claim - such a spec is only materialisable through `_parselayers`, which expands
 # it into per-layer specs that each carry the right one, and `_read` refuses it otherwise.
 # **Option C**: `layerunit` answers what the shipped table declares; a `SourceSpec`'s `unit`
-# answers what *materialising it* yields — which, for a layer with an accumulation period whose
+# answers what *materialising it* yields - which, for a layer with an accumulation period whose
 # canonical reading is a rate, is the declared amount per day. The two are different questions and
 # now have different answers, instead of one field quietly meaning both.
 function _sharedunit(source, code::CODE_TYPE)
@@ -300,7 +300,7 @@ function _sharedunit(source, codes::AbstractVector)
     return length(us) == 1 ? only(us) : NoUnits
 end
 # The axis a spec's layers share, or `NicheAxis` where the catalogue names none. A multi-layer spec
-# must resolve to one axis, since a collection built from it is named by axis — so the vector method
+# must resolve to one axis, since a collection built from it is named by axis - so the vector method
 # is where a mixed-axis request is caught.
 function _sharedaxis(source, code::CODE_TYPE)
     return something(layeraxis(source, code), NicheAxis)
@@ -350,11 +350,11 @@ end
 _speclabel(spec::SourceSpec) = "`$(spec.source)` layer `$(spec.code)`"
 
 # A multi-variable `regime`/`supply` is a *tuple* of specs, each of which shapes the grid in its own
-# right. A tuple therefore always means "several layers", at every level — which is why the bare
+# right. A tuple therefore always means "several layers", at every level - which is why the bare
 # `(source, code)` pair form had to go: being itself a tuple, it could be told from a multi-layer
 # regime by nothing but nesting depth. `_sourcepairnotaspec` refuses one and names `SourceSpec`.
 # Each element is also stripped of any `Varying` wrapper: a declared change has no bearing on the
-# grid, so every consumer here — `_probecrs`, `_shapesgrid`, `_asraster` — must see the naked spec.
+# grid, so every consumer here - `_probecrs`, `_shapesgrid`, `_asraster` - must see the naked spec.
 # Unwrapping in this one place covers all of them, and both roles, because they all iterate this
 # output. Without it the wrapper would be *silently accepted* rather than rejected: `_shapesgrid`
 # would misclassify a wrapped synthetic spec as data-shaping, and `_probecrs`'s `::Any` fallback
@@ -362,11 +362,11 @@ _speclabel(spec::SourceSpec) = "`$(spec.source)` layer `$(spec.code)`"
 # **A per-cell accumulation period, desugared.** A layer whose `AccumulationPeriod` is
 # `percell=<code>` (today only `gsp`, growing-season precipitation over `gsl`, growing-season length)
 # holds an *amount*, and the interval it accumulated over varies by cell. As a **regime** that is
-# exactly what is wanted — "how much water over the season" — and nothing needs doing. As a **supply**
+# exactly what is wanted - "how much water over the season" - and nothing needs doing. As a **supply**
 # it must become a rate, which means reading that other layer and dividing.
 #
 # **Driven by the catalogue, never by the code name.** The rewrite fires on
-# `PerCellAccumulationPeriod` wherever it is declared, so a second such layer needs no change here —
+# `PerCellAccumulationPeriod` wherever it is declared, so a second such layer needs no change here -
 # a hard-coded `:gsp` would be exactly the second source of truth this project spent Step 5b removing.
 #
 # **`CombineOnSourceGrid()` is required, not a preference.** Division is cell-wise but *nonlinear*,
@@ -375,17 +375,17 @@ _speclabel(spec::SourceSpec) = "`$(spec.source)` layer `$(spec.code)`"
 # this stage for exactly this consumer.
 #
 # `gsl == 0` needs no policy: the division yields `NaN`, and `_coverage` then marks
-# the cell inactive. A cell with no growing season has no growing-season water — the right answer, free.
+# the cell inactive. A cell with no growing season has no growing-season water - the right answer, free.
 function _desugarsupply(spec::SourceSpec)
     rec = _percellrecord(spec)
     isnothing(rec) && return spec
     divisor = SourceSpec(spec.source, rec.period.code)
     # `Precipitation`, not `GrowingSeasonPrecipitation` (user, 2026-08-05): a Resource-role axis
     # says *which resource*, not which layer it came from, and water is water. The provenance
-    # therefore lives in the spec, not in the built layer — and this now matters, because the built
+    # therefore lives in the spec, not in the built layer - and this now matters, because the built
     # layer is `Supply{Precipitation}` *because the axis said so*, not because its values happened
     # to come out as `L/day`.
-    # A combine is handed `ClimateRaster`s and must return one — the wrapper carries the source and
+    # A combine is handed `ClimateRaster`s and must return one - the wrapper carries the source and
     # code that `_sampledeclared` needs to sample the *result* on the early-collapse path, so dividing
     # the bare arrays and returning that would strip the grid provenance and be refused there.
     source = spec.source
@@ -402,7 +402,7 @@ end
 # A tuple/named tuple of supplies desugars member-wise, keeping its names.
 _desugarsupply(spec::Union{Tuple, NamedTuple}) = map(_desugarsupply, spec)
 
-# Anything else — a synthetic spec, an already-built supply, a `Varying` wrapper — passes through. A
+# Anything else - a synthetic spec, an already-built supply, a `Varying` wrapper - passes through. A
 # `Varying` is left wrapped deliberately: `_expandspecs` unwraps it later for grid decisions, and
 # rewriting inside it here would drop the declared change.
 _desugarsupply(spec) = spec
@@ -426,6 +426,6 @@ end
 function _percellaxis(spec::SourceSpec, rec::LayerRecord)
     rec.axis <: WaterAxis && return Precipitation
     return error("`$(spec.code)` accumulates over the `$(rec.period.code)` layer, so as a supply it " *
-                 "is a rate — but its axis `$(nameof(rec.axis))` has no rate reading defined here. " *
+                 "is a rate - but its axis `$(nameof(rec.axis))` has no rate reading defined here. " *
                  "Add one to `_percellaxis` naming the resource it supplies.")
 end

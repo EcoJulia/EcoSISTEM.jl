@@ -3,7 +3,7 @@
 module TestDeprecations
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported — a spec is what a user writes,
+# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: RateChange, SeriesLayerChange, AbsoluteChange
 # `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
@@ -24,10 +24,10 @@ include("TestCases.jl")
 # matches the current API it forwards to.
 
 @testset "Deprecations" begin
-    @testset "trait line: GaussTrait → NicheTolerance" begin
+    @testset "trait line: GaussTrait -> NicheTolerance" begin
         opts = fill(5.0K, 4)
         vars = fill(2.0K, 4)
-        # axis form → the same `Normal` `NicheTolerance`
+        # axis form -> the same `Normal` `NicheTolerance`
         @test_deprecated GaussTrait(Temperature, opts, vars)
         gt = GaussTrait(Temperature, opts, vars)
         @test gt isa NicheTolerance{Temperature}
@@ -35,7 +35,7 @@ include("TestCases.jl")
               params(getdist(NicheTolerance(Temperature, Normal, opts,
                                             vars), 1))
 
-        # axis-less *bare* form → a root-axis (`EcoSISTEM.NicheAxis`) NicheTolerance (eltype Float64)
+        # axis-less *bare* form -> a root-axis (`EcoSISTEM.NicheAxis`) NicheTolerance (eltype Float64)
         @test_deprecated GaussTrait([1.0, 2.0], [0.1, 0.2])
         gb = GaussTrait([1.0, 2.0], [0.1, 0.2])
         @test eltype(gb) == Float64
@@ -46,21 +46,21 @@ include("TestCases.jl")
                              1))
 
         # axis-less *unitful* form (doubly deprecated): infers the axis from the unit, and warns about it
-        @test_deprecated GaussTrait(opts, vars)                 # K → Temperature
+        @test_deprecated GaussTrait(opts, vars)                 # K -> Temperature
         gu = GaussTrait(opts, vars)
         @test gu isa NicheTolerance{Temperature}
         @test params(getdist(gu, 1)) ==
               params(getdist(NicheTolerance(Temperature, Normal, opts,
                                             vars), 1))
         rain = fill(3.0mm / day, 4)
-        gr = GaussTrait(rain, fill(1.0mm / day, 4))             # mm/d → Precipitation
+        gr = GaussTrait(rain, fill(1.0mm / day, 4))             # mm/d -> Precipitation
         @test gr isa NicheTolerance{Precipitation}
-        # a unit with no canonical axis cannot be inferred — a clear error, not a MethodError
+        # a unit with no canonical axis cannot be inferred - a clear error, not a MethodError
         @test_throws ErrorException GaussTrait(fill(1.0u"kg", 2),
                                                fill(1.0u"kg", 2))
     end
 
-    @testset "trait line: Gauss / Trapeze / Unif → NicheSuitability" begin
+    @testset "trait line: Gauss / Trapeze / Unif -> NicheSuitability" begin
         NF = typeof(1.0K)
         @test_deprecated Gauss{EcoSISTEM.NicheAxis, NF}()
         @test_deprecated Trapeze{EcoSISTEM.NicheAxis, Int64}()
@@ -86,9 +86,9 @@ include("TestCases.jl")
         @test ustrip(g(275.0K, 274.0K, 2.0K)) ≈ pdf(Normal(274.0, 2.0), 275.0)
     end
 
-    @testset "climate line: per-source constructors → ClimateRaster" begin
+    @testset "climate line: per-source constructors -> ClimateRaster" begin
         # A `DimArray`, not an `AxisArray`. What these shims deprecate is the per-source *wrapper
-        # type*, not the array type it wraps — and typing them on `AxisArray` had made all five dead,
+        # type*, not the array type it wraps - and typing them on `AxisArray` had made all five dead,
         # since `ClimateRaster` takes an `AbstractDimArray` after the migration: they failed with a
         # bare `MethodError` instead of warning and working, which is worse than having no shim.
         da = DimArray(rand(5, 5),
@@ -111,7 +111,7 @@ include("TestCases.jl")
     # does (they are unavailable / slow on Windows CI).
     if !Sys.iswindows()
         @testset "climate line: deprecated readers" begin
-            # positional extent (in `°`) → the keyword `cut = Extent(...)` form
+            # positional extent (in `°`) -> the keyword `cut = Extent(...)` form
             bio1 = getraster(WorldClim{BioClim}, :bio1)
             @test_deprecated readfile(bio1, -10°, 10°, -10°, 10°)
             @test isequal(readfile(bio1, -10°, 10°, -10°, 10°),
@@ -119,14 +119,14 @@ include("TestCases.jl")
                                    cut = Extent(Y = (-10°, 10°),
                                                 X = (-10°, 10°))))
 
-            # readworldclim → the same `ClimateRaster` the `read`/`_readsource` path builds
+            # readworldclim -> the same `ClimateRaster` the `read`/`_readsource` path builds
             wind = getraster(WorldClim{Climate}, :wind, month = 1:12)
             @test_deprecated readworldclim(WorldClim{Climate}, wind)
             rw = readworldclim(WorldClim{Climate}, wind)
             @test rw isa ClimateRaster
             @test size(rw)[3] == 12
 
-            # readCRUTS/readCHELSA_monthly/readERA/readCERA → `read(T, ...)` dispatched on the
+            # readCRUTS/readCHELSA_monthly/readERA/readCERA -> `read(T, ...)` dispatched on the
             # result type (CRUTS/ERA/CERA) or source type (CHELSA{Climate}). `CRUTS`/`ClimateRaster`
             # define no `isequal`/`==` of their own (defaults to identity), so compare `.array`,
             # which does compare structurally.
@@ -140,7 +140,7 @@ include("TestCases.jl")
         end
     end
 
-    @testset "resource line: Resource → Supply" begin
+    @testset "resource line: Resource -> Supply" begin
         # the v0.4.0 `*Resource` layer types are deprecated aliases of the renamed `*Supply` types.
         # (`@deprecate_binding` warns via a channel `@test_deprecated` can't capture, so we assert the
         # binding resolves; the warning still fires under `--depwarn=yes`.)
@@ -158,7 +158,7 @@ include("TestCases.jl")
         @test BudgetCollection2 === EcoSISTEM.SupplyCollection2
     end
 
-    @testset "resource line: Requirement → Demand" begin
+    @testset "resource line: Requirement -> Demand" begin
         # the v0.4.0 `*Requirement` types are deprecated aliases of the renamed `*Demand` types
         @test SolarRequirement === Demand{SolarRadiation}
         @test WaterRequirement === Demand{Precipitation}
@@ -167,8 +167,8 @@ include("TestCases.jl")
         @test SolarRequirement(fill(2.0kJ / day, 3)) isa Demand{SolarRadiation}
     end
 
-    @testset "condition line: Condition → Regime" begin
-        # the v0.4.0 `*Hab`/`HabitatCollection*` condition-layer types → the renamed `*Regime` types
+    @testset "condition line: Condition -> Regime" begin
+        # the v0.4.0 `*Hab`/`HabitatCollection*` condition-layer types -> the renamed `*Regime` types
         @test ContinuousHab === ContinuousRegime
         @test ContinuousTimeHab === ContinuousRegime
         @test DiscreteHab === CategoricalRegime
@@ -176,18 +176,18 @@ include("TestCases.jl")
         @test HabitatCollection3 === EcoSISTEM.RegimeCollection3
     end
 
-    @testset "environment container: AbioticEnv → Condition" begin
-        # the v0.4.0 environment container → the renamed `*Condition` (which now means the whole environment;
+    @testset "environment container: AbioticEnv -> Condition" begin
+        # the v0.4.0 environment container -> the renamed `*Condition` (which now means the whole environment;
         # the condition layer that used to be `AbstractHabitat` is now `AbstractRegime`)
         @test GridAbioticEnv === GridHabitat
     end
 
-    @testset "condition line: Trait → Tolerance" begin
-        # the v0.4.0 `*Trait`/`TraitCollection`/`TempBin`/`RainBin` types → the renamed `*Tolerance` types
+    @testset "condition line: Trait -> Tolerance" begin
+        # the v0.4.0 `*Trait`/`TraitCollection`/`TempBin`/`RainBin` types -> the renamed `*Tolerance` types
         # **`DiscreteTrait` and `LCtrait` are no longer BINDINGS**: the two types they named merged
         # into `SimpleCategoricalTolerance`, whose `penalty` carries the distinction their types used
         # to. So each is now a function shim that pins its own released value, and what has to be
-        # asserted is the **behaviour** — an identity test could not tell the two apart, since both
+        # asserted is the **behaviour** - an identity test could not tell the two apart, since both
         # would name the same type.
         soft = @test_deprecated DiscreteTrait([1, 2, 3])
         hard = @test_deprecated LCtrait([[1, 2], [3], [1, 3]])
@@ -195,10 +195,10 @@ include("TestCases.jl")
         @test hard isa SimpleCategoricalTolerance
         # The values that matter: `DiscreteTrait` scored 0.5 outside a species' class and `LCtrait`
         # scored 0.0. A shim that inherited the new `0.0` default would silently turn `DiscreteTrait`'s
-        # soft exclusion into a hard one — the species could no longer live outside its class at all.
+        # soft exclusion into a hard one - the species could no longer live outside its class at all.
         @test soft.penalty == 0.5
         @test hard.penalty == 0.0
-        # …and `DiscreteTrait` took one class per species, which must become a one-element set.
+        # ...and `DiscreteTrait` took one class per species, which must become a one-element set.
         @test EcoSISTEM.getpref(soft, 2) == [2]
         @test EcoSISTEM.getpref(hard, 1) == [1, 2]
         @test TraitCollection2 === EcoSISTEM.ToleranceCollection2
@@ -207,8 +207,8 @@ include("TestCases.jl")
         @test RainBin === RainTolerance
     end
 
-    @testset "condition line: matcher → NicheFit / Suitability" begin
-        # the v0.4.0 matcher types → the renamed `*Fit`/`*Suitability` types (`DistRel` was new this PR,
+    @testset "condition line: matcher -> NicheFit / Suitability" begin
+        # the v0.4.0 matcher types -> the renamed `*Fit`/`*Suitability` types (`DistRel` was new this PR,
         # renamed to `NicheSuitability` with no shim)
         # Both now name the **same** type, and that is the point: they differed only in the weight
         # given outside a species' classes, which is no longer a property of the fit.
@@ -223,7 +223,7 @@ include("TestCases.jl")
     end
 
     # **The round trip, and it is the assertion that was missing.** Comparing the *bindings*
-    # above passes whatever the alias expands to — so when the member tuple silently moved into the
+    # above passes whatever the alias expands to - so when the member tuple silently moved into the
     # axis slot (step C of the type-families work), all nine gates stayed green while every
     # arity-numbered alias stopped matching what its own constructor built. A test that passes
     # either way proves nothing: these use the aliases **as types**.
@@ -236,7 +236,7 @@ include("TestCases.jl")
         @test f2 isa EcoSISTEM.MultiplicativeFit2{typeof(tK), typeof(tP)}
         @test f3 isa EcoSISTEM.MultiplicativeFit3{typeof(tK), typeof(tP),
                                            typeof(tS)}
-        # …and they discriminate: wrong order, and wrong arity, must NOT match
+        # ...and they discriminate: wrong order, and wrong arity, must NOT match
         @test !(f2 isa EcoSISTEM.MultiplicativeFit2{typeof(tP), typeof(tK)})
         @test !(f3 isa EcoSISTEM.MultiplicativeFit2)
         @test !(f2 isa EcoSISTEM.MultiplicativeFit3)
@@ -252,7 +252,7 @@ include("TestCases.jl")
         @test !(r2 isa EcoSISTEM.RegimeCollection2{typeof(rain), typeof(temp)})
     end
 
-    @testset "layer dynamics: LayerUpdate → AbstractLayerChange" begin
+    @testset "layer dynamics: LayerUpdate -> AbstractLayerChange" begin
         # v0.4.0's `HabitatUpdate`, `habitatupdate!` and `budgetupdate!` were **unexported**, so
         # they were internal and owed no shim; theirs were removed 2026-08-07 along with fourteen
         # others. See the rule at the head of `src/deprecations.jl`.
@@ -275,7 +275,7 @@ include("TestCases.jl")
               EcoSISTEM.SteadyLayerChange
         # `cyclic_change` walked a layer's own stored stack; a stored series now lives in the
         # layer's change and is installed from that stack when the layer is built, so there is
-        # nothing for `LayerUpdate` — which never sees a layer — to make of it.
+        # nothing for `LayerUpdate` - which never sees a layer - to make of it.
         @test_throws ErrorException EcoSISTEM.LayerUpdate(cyclic_change,
                                                           0.0 /
                                                           month_mean_duration)
@@ -309,10 +309,10 @@ include("TestCases.jl")
         @test eraChange === cyclic_change
         @test worldclimChange === cyclic_change
 
-        # `resetrate!` → `setchange!`. The old name could only install a constant rate on the whole
+        # `resetrate!` -> `setchange!`. The old name could only install a constant rate on the whole
         # regime; the new one takes any change and addresses one layer, so it also reaches a
         # sub-layer of a collection, which `resetrate!` never could.
-        # (`Test1Ecosystem`'s regime is categorical and dimensionless, so its rate is `𝐓⁻¹`.)
+        # (`Test1Ecosystem`'s regime is categorical and dimensionless, so its rate is `𝐓^-1`.)
         rate = 0.5 / year
         expected = EcoSISTEM._attachchange(IncrementBy(rate),
                                            eco.habitat.regime)
@@ -321,10 +321,10 @@ include("TestCases.jl")
         @test eco.habitat.regime.change == expected
     end
 
-    @testset "rainfall-gradient builders → GridHabitat" begin
+    @testset "rainfall-gradient builders -> GridHabitat" begin
         # `raingrad`/`raingradhabitat`/`raingradAE` are deprecated as a unit and their bodies live
         # in `src/deprecations.jl` (deferred item 11). Behaviour is preserved rather than forwarded
-        # to `GridHabitat`, because `rate` has no equivalent there yet — so this testset is
+        # to `GridHabitat`, because `rate` has no equivalent there yet - so this testset is
         # the old `test_GridHabitat.jl` "rainfall gradient" coverage, moved and warning-checked.
         grid = (5, 5)
         area = 25.0km^2
@@ -362,7 +362,7 @@ include("TestCases.jl")
         @test aeh isa GridHabitat
         @test aeh.regime.matrix == habitat.regime.matrix
 
-        # **The `maxsupply`-less form, which nothing reached until now** — the gradient's own
+        # **The `maxsupply`-less form, which nothing reached until now** - the gradient's own
         # rainfall *is* the supply. It was broken: it handed the regime's `mm/day` (an areal rate,
         # `Precipitation`'s condition unit) straight to a constructor wanting per-cell `L/day`, so
         # it had no method at all. v0.4.0 could, because both sides were bare `mm`; the v0.5.0 unit
@@ -373,16 +373,16 @@ include("TestCases.jl")
                                                month_mean_duration)
         @test own isa GridHabitat
         @test own.supply isa Supply{Precipitation}
-        # The rainfall is converted against this grid's own cell area (25 km² over 25 cells, so
-        # 1 km² each): 100 mm/day over 1 km² is 10⁸ L/day, and the gradient's foot is dry.
+        # The rainfall is converted against this grid's own cell area (25 km^2 over 25 cells, so
+        # 1 km^2 each): 100 mm/day over 1 km^2 is 10^8 L/day, and the gradient's foot is dry.
         @test maximum(own.supply.matrix) ≈ uconvert(Unitful.L / day,
                        100.0mm / day * 1.0km^2)
         @test minimum(own.supply.matrix) == 0.0Unitful.L / day
-        # The regime is untouched by that conversion — it is still the areal rate it was.
+        # The regime is untouched by that conversion - it is still the areal rate it was.
         @test own.regime.matrix == habitat.regime.matrix
     end
 
-    @testset "temperature-gradient builders → GridHabitat" begin
+    @testset "temperature-gradient builders -> GridHabitat" begin
         # `tempgrad`/`tempgradhabitat`/`peakedgradhabitat` (+ the `*AE` names) get the same
         # treatment as the rainfall family above: bodies moved into `src/deprecations.jl`, one
         # warning each, behaviour preserved because `rate` has no `GridHabitat` equivalent.
@@ -422,7 +422,7 @@ include("TestCases.jl")
               ContinuousRegime
     end
 
-    @testset "environment constructors: *AE → *habitat" begin
+    @testset "environment constructors: *AE -> *habitat" begin
         # each `*AE` constructor is a deprecated forwarder to its `*habitat` rename; the symbol-form
         # `@deprecate` warns (captured by `@test_deprecated`) and forwards to the same method, so the
         # returned habitat matches. All fixtures are in-memory (no downloads).
@@ -453,7 +453,7 @@ include("TestCases.jl")
 
     # **The four data-backed builders are REMOVED, and these assert the message rather than the
     # type.** They built a regime straight from a raster's own cells with no resampling, which no
-    # construction route does now — a `StudyArea` decides the grid and the data is sampled onto it —
+    # construction route does now - a `StudyArea` decides the grid and the data is sampled onto it -
     # so there is nothing to redirect to and no shim was written.
     # **Asserting on the message, not just `ErrorException`**, because the message *is* the
     # feature: a released exported name that vanished would give `UndefVarError` and tell the reader
@@ -473,7 +473,7 @@ include("TestCases.jl")
             # `SourceSpec` alone would not answer them.
             @test occursin("in_memory_raster", err.msg)
             @test occursin("StudyArea", err.msg)
-            # …and it must say why, not merely that.
+            # ...and it must say why, not merely that.
             @test occursin("sampling **no** grid", err.msg)
         end
         # The released `*AE` spelling names its own deprecation release, not v0.5.0.
@@ -491,7 +491,7 @@ include("TestCases.jl")
                         end).msg)
     end
 
-    @testset "land cover: compressLC → compress_landcover" begin
+    @testset "land cover: compressLC -> compress_landcover" begin
         latkm = Y(collect(1:10) .* km)
         longkm = X(collect(1:10) .* km)
         lcr = ClimateRaster(EarthEnv{LandCover},
@@ -506,18 +506,18 @@ end
 @testset "layer time series: a stack and a cursor become a SeriesLayerChange" begin
     # A layer used to hold every slice and an index into them. It now holds one slice and carries
     # the stack as a `SeriesLayerChange` indexed by elapsed time, so the `(stack, time)` constructors
-    # build that pair — honouring `time` as the series' origin rather than dropping it.
+    # build that pair - honouring `time` as the series' origin rather than dropping it.
     stack = cat((fill(i * 10.0kJ / day, 4, 4) for i in 1:3)..., dims = 3)
     supply = @test_deprecated SolarTimeBudget(stack, 1)
     @test supply isa Supply{SolarRadiation}
     @test ndims(supply.matrix) == 2
     @test all(==(10.0kJ / day), supply.matrix)
     @test supply.change isa SeriesLayerChange{AbsoluteChange}
-    # elapsed time zero selects the slice the cursor pointed at…
+    # elapsed time zero selects the slice the cursor pointed at...
     @test EcoSISTEM._seriesindex(supply.change, 0.0month_mean_duration) == 1
     @test EcoSISTEM._seriesindex(supply.change, 1.0month_mean_duration) == 2
 
-    # …and a cursor that started part-way through anchors the series there instead.
+    # ...and a cursor that started part-way through anchors the series there instead.
     later = @test_deprecated SolarTimeBudget(stack, 2)
     @test all(==(20.0kJ / day), later.matrix)
     @test EcoSISTEM._seriesindex(later.change, 0.0month_mean_duration) == 2

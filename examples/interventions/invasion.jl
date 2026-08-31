@@ -2,17 +2,17 @@
 #
 # `GeneralistInvasive` and `SpecialistInvasive` from `examples/models/scenarios.jl`, recreated.
 #
-# **An invasive species *arrives*** — it is not present from the start with zero abundance, and it
+# **An invasive species *arrives*** - it is not present from the start with zero abundance, and it
 # does not acquire its niche on arrival. `AddSpecies` says exactly that, carrying the invader's own
 # tolerance, so the recreation is a translation rather than a workaround.
 #
 # **The originals could not do this, and the reason is worth knowing.** Each *mutated an existing
-# species' traits* mid-run — `eco.spplist.tolerance.var[invasive] .= maximum(...)` — because the only
+# species' traits* mid-run - `eco.spplist.tolerance.var[invasive] .= maximum(...)` - because the only
 # way to add a species cloned the last one. Those lines have also been
 # dead since `NicheTolerance` replaced `GaussTrait`: there is no `.var` or `.mean` field to write, so
 # both scenarios throw `FieldError` on their first line and have done for some time.
 #
-# A run that gains a species needs room to record it — see `generate_storage`'s `maxspecies`.
+# A run that gains a species needs room to record it - see `generate_storage`'s `maxspecies`.
 
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -28,7 +28,7 @@ using Unitful.DefaultSymbols
 # not warn at all, so a collision can pass locally and fail on an older runner.
 using Distributions: Normal
 
-# The native assemblage the invader arrives into — spread evenly along the temperature gradient.
+# The native assemblage the invader arrives into - spread evenly along the temperature gradient.
 # `numnative` is one short of the configuration's species count: the invader arriving mid-run
 # makes it up, so the assemblage ends at `numspecies` however the scale is set.
 function invasion_ecosystem(; numnative = configuration().numspecies - 1,

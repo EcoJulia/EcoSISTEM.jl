@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Conformance to Diversity.jl, not our own API — every method this package defines on a `Diversity`,
+# Conformance to Diversity.jl, not our own API - every method this package defines on a `Diversity`,
 # `Diversity.API` or `Diversity.Ecology` generic, ordered **by type**, so that "what does Diversity
 # see when it is handed one of these?" can be answered by reading down. Its siblings are
 # `BaseInterface.jl` and `EcoBaseInterface.jl`.
@@ -11,8 +11,8 @@
 #     `function _calcsimilarity(...)` defines `EcoSISTEM._calcsimilarity` instead of extending
 #     Diversity's. The package loads, every gate passes, and the interface is broken.
 #   * **`SpeciesList` is an `AbstractTypes` that HOLDS the real types**, in `sl.types`, so every
-#     `AbstractTypes` hook has to delegate there. Diversity's defaults are not neutral —
-#     `_hassimilarity` defaults to `true` — so a missing delegation answers plausibly and wrongly. A
+#     `AbstractTypes` hook has to delegate there. Diversity's defaults are not neutral -
+#     `_hassimilarity` defaults to `true` - so a missing delegation answers plausibly and wrongly. A
 #     test sweeps `Diversity.API` rather than listing the hooks, so a new one cannot be forgotten.
 #   * **A call graph cannot see any of this.** A hook's only other mention in the repo is the
 #     `import` line, so every one of them looks dead. Check `docs/overloads.md` before believing a
@@ -23,13 +23,13 @@
 
 using Diversity
 
-# ══ Demand and SpeciesRequirementCollection ════════════════════════════════════════════════════════
+# == Demand and SpeciesRequirementCollection ========================================================
 # `length` on a collection means its **member** count (`src/collections.jl`), so the species count has
 # to be asked for by name, and the name used is Diversity's rather than one of ours. A `Demand` is a
 # per-species vector, so "how many types does this cover" is exactly `counttypes`.
 #
 # Diversity's own dispatch cannot reach a `Demand`, which is not an `EcoBase.AbstractThings`, so this
-# is a method on their generic for our type — the same shape as `countsubcommunities` on a regime and
+# is a method on their generic for our type - the same shape as `countsubcommunities` on a regime and
 # a supply below, and `EcoBase.placenames` on a habitat.
 #
 # The `_counttypes` hook is deliberately not used: it takes `(t, raw::Bool)` everywhere in Diversity,
@@ -41,7 +41,7 @@ function Diversity.counttypes(demand::SpeciesRequirementCollection{Resource})
     return counttypes(first(values(demand)))
 end
 
-# ══ The materialised layers ════════════════════════════════════════════════════════════════════════
+# == The materialised layers ========================================================================
 function Diversity.countsubcommunities(regime::ContinuousRegime)
     return length(regime.matrix)
 end
@@ -61,11 +61,11 @@ function Diversity.countsubcommunities(supply::LayerCollection{Resource})
     return countsubcommunities(first(values(supply)))
 end
 
-# ══ GridHabitat — the subcommunities ═══════════════════════════════════════════════════════════════
+# == GridHabitat - the subcommunities ===============================================================
 function Diversity.API._countsubcommunities(habitat::GridHabitat)
     return countsubcommunities(habitat.regime)
 end
-# A cell is named by **where it is** — its own half-open extent — so a row of a diversity table says
+# A cell is named by **where it is** - its own half-open extent - so a row of a diversity table says
 # which ground it describes rather than only which position it held.
 #
 # Computed on demand rather than stored. On a 1.2 million-cell grid the eager form costs about 33 MB
@@ -75,7 +75,7 @@ function Diversity.API._getsubcommunitynames(habitat::GridHabitat)
     return CellNames(getcoords(habitat))
 end
 
-# ══ SpeciesList — the AbstractTypes hooks, every one delegating to `sl.types` ══════════════════════
+# == SpeciesList - the AbstractTypes hooks, every one delegating to `sl.types` ======================
 function Diversity.API._gettypenames(sl::SpeciesList, input::Bool)
     return _gettypenames(sl.types, input)
 end
@@ -113,7 +113,7 @@ function Diversity.API._calcordinariness(sl::SpeciesList, a::AbstractArray,
 end
 # The extra output columns a wrapped phylogeny contributes. Reached as
 # `getaddedoutput(m) = _getaddedoutput(_gettypes(m))`, so without these the `AbstractThings` defaults
-# — `nothing`, and an empty `Dict` — silently drop them.
+# - `nothing`, and an empty `Dict` - silently drop them.
 Diversity.API._getaddedoutput(sl::SpeciesList) = _getaddedoutput(sl.types)
 Diversity.API._addedoutputcols(sl::SpeciesList) = _addedoutputcols(sl.types)
 function Diversity.API._calcabundance(sl::SpeciesList, a::AbstractArray)
@@ -123,9 +123,9 @@ function Diversity.API._getdiversityname(sl::SpeciesList)
     return _getdiversityname(sl.types)
 end
 
-# ══ AbstractEcosystem — the AbstractMetacommunity hooks ════════════════════════════════════════════
+# == AbstractEcosystem - the AbstractMetacommunity hooks ============================================
 # **Diversity must be handed plain numeric data, never a labelled array.** Its internals are not
-# robust to an arbitrary `DimArray`'s dims — reducing over `Dim{:location}` can fail inside its own
+# robust to an arbitrary `DimArray`'s dims - reducing over `Dim{:location}` can fail inside its own
 # reduction machinery. `GridLandscape.matrix` is a plain `Matrix{Int64}` precisely so that it can be
 # passed straight through here; the labelled views are `dimmatrix`/`dimgrid` and must not be used at
 # this boundary.
@@ -139,7 +139,7 @@ function Diversity.API._getabundance(eco::AbstractEcosystem, raw::Bool)
 end
 # The cached ecosystem answers from its most recent computed slice, and otherwise exactly as the
 # method above: the same plain matrix, the same `_calcabundance`. It must forward through
-# `_gettypes` for the same reason every other hook does — `SpeciesList` holds its `AbstractTypes` in
+# `_gettypes` for the same reason every other hook does - `SpeciesList` holds its `AbstractTypes` in
 # `sl.types`, so a phylogeny's branch abundances only exist once `_calcabundance` has mapped the
 # species onto them. Passing the species abundances straight through is invisible for a
 # `UniqueTypes` list, which `_calcabundance` returns unchanged, and wrong for every phylogeny.
@@ -173,7 +173,7 @@ end
 # `UniqueTypes` array straight through instead of copying it.
 #
 # The shape check is what makes adding a species safe, and it is deliberately a check rather than a
-# hook into `_addspecies!` — nothing then has to remember to keep the two in step.
+# hook into `_addspecies!` - nothing then has to remember to keep the two in step.
 function Diversity.API._getordinariness!(eco::AbstractEcosystem)
     abun = eco.abundances.matrix
     size(eco.cache.relativeabun) == size(abun) ||

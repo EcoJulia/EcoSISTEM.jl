@@ -4,9 +4,9 @@
 # `GridHabitat`/`build_species`/`build_ecosystem`.
 #
 # **The published configuration, unchanged.** Supply is per unit area and demand per unit of
-# plant, so a species' actual demand is `DEMAND .* size` — which is what lets the large-pool
-# experiment give every species its own body size. These are the paper's numbers: 4.5e11 kJ per km²
-# per day against 450,000 kJ per m² per day, so a 1 m² plant needs 450,000 kJ/day and a 1 km² cell
+# plant, so a species' actual demand is `DEMAND .* size` - which is what lets the large-pool
+# experiment give every species its own body size. These are the paper's numbers: 4.5e11 kJ per km^2
+# per day against 450,000 kJ per m^2 per day, so a 1 m^2 plant needs 450,000 kJ/day and a 1 km^2 cell
 # supports a million of them.
 
 using EcoSISTEM
@@ -27,7 +27,7 @@ function _studyarea(cells, area)
                      verbosity = :silent)
 end
 
-# `topology` is an **environment** keyword since step 19 — whether the grid wraps is a property
+# `topology` is an **environment** keyword since step 19 - whether the grid wraps is a property
 # of the map, not of the species dispersing over it. `Torus()` here because these experiments
 # were written against a wrapping grid; the ones that want an edge ask for `Island()`.
 """
@@ -36,7 +36,7 @@ end
 Build a `cells × cells` environment over `area`, uniform in every respect: one temperature
 everywhere, with uniform solar and water supply.
 
- The regime is a **single, unnamed** temperature layer, as the original was — a one-element named
+ The regime is a **single, unnamed** temperature layer, as the original was - a one-element named
 regime is refused, deliberately, since there would be nothing to check it against. The supplies are
 named, so a gradient can say which resource it grades.
 """
@@ -59,7 +59,7 @@ Put `length(opts)` species on `env`, with Gaussian temperature tolerances (`opts
 `widths` the niche widths) and Gaussian dispersal of mean distance `dispersal`.
 
 Every per-species keyword takes a scalar or a length-`n` vector, so an experiment can vary body
-size, dispersal or mortality across the pool without needing a different builder — which is what
+size, dispersal or mortality across the pool without needing a different builder - which is what
 replaced the hand-built `PopGrowth`/`SpeciesRequirementCollection` of the original. `individuals` is a
 **total**, split across species from the seeded stream, so the starting state is identical on every
 run.
@@ -79,7 +79,7 @@ function community(env, opts, widths; dispersal = 2.4km,
     return build_ecosystem(species, env, seed = seed)
 end
 
-# Total abundance per cell, laid back out on the grid — `(y, x)`, as everywhere in the package.
+# Total abundance per cell, laid back out on the grid - `(y, x)`, as everywhere in the package.
 percell(eco) = dropdims(sum(eco.abundances.grid, dims = 1), dims = 1)
 
 # Total abundance per species, summed over the whole landscape.

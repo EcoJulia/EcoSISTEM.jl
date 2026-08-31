@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Canonical results for the fixture the **distributed** test runs — blessed from a **serial** run.
+# Canonical results for the fixture the **distributed** test runs - blessed from a **serial** run.
 #
 # **Why this file exists.** `test/ext_EcoSISTEMMPIExt.jl` compares MPI at 1, 2 and 4 ranks against
 # each other, and every one of those takes the duplicated hot loop in `ext/EcoSISTEMMPIExt/`. A
@@ -11,7 +11,7 @@
 # produces; `test/SmallMPItest.jl` reads the same keys and asserts the gathered distributed matrix
 # against them, read-only, at every rank count.
 #
-# **What that buys, and it is the whole point — it separates three failure modes:**
+# **What that buys, and it is the whole point - it separates three failure modes:**
 #
 #   - serial *and* distributed both move off the blessed value: a **model change**. Explain it, then
 #     re-bless deliberately.
@@ -22,7 +22,7 @@
 #
 # No MPI is needed to bless these: it is a serial run, so this set stays MPI-free and cheap.
 #
-# **Re-blessing `mpi/…` is only ever right when the serial keys moved for a reason already
+# **Re-blessing `mpi/...` is only ever right when the serial keys moved for a reason already
 # understood.** Re-blessing to make a red distributed test green would silently re-admit A22, which
 # is the one thing this file is here to prevent.
 
@@ -41,7 +41,7 @@ include(joinpath(@__DIR__, "..", "varyingcase.jl"))
 # Both movement types are pinned, and by one loop so that the two sets cannot drift apart.
 # `BirthOnlyMovement` hands the distributed loop a count it already holds (`births`), while
 # `AlwaysMovement` reads the standing population back out of the landscape through
-# `EcoSISTEM._standingpopulation` — a route no `BirthOnlyMovement` run touches at all. Pinning only
+# `EcoSISTEM._standingpopulation` - a route no `BirthOnlyMovement` run touches at all. Pinning only
 # the first would leave the second unpinned at every rank count.
 const MPIFIXTURE_MOVEMENTS = ("mpi" => mpifixture_movement(),
                               "mpi/always" => mpifixture_always())

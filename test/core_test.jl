@@ -2,13 +2,13 @@
 #
 # The unit tests: every `test/test_*.jl`, which test the matching `src/*.jl`.
 #
-# Run this set on its own — the longest chunk of the suite, and the one worth isolating:
+# Run this set on its own - the longest chunk of the suite, and the one worth isolating:
 #
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["core_test.jl"])'
 #
 # That is the point of this file existing. Any *single* file could already be named
 # (`test_args = ["test_Layer.jl"]`), but there was no way to say "all the unit tests and nothing
-# else" short of naming all of them — so the only alternative to one file was the whole suite,
+# else" short of naming all of them - so the only alternative to one file was the whole suite,
 # extras included.
 
 using Random
@@ -31,8 +31,8 @@ include(joinpath(@__DIR__, "checkmem.jl"))
 # The set is those that read real rasters, not those that merely allocate: what makes them expensive
 # is holding a downloaded layer, so a file joins this list when it starts naming a dataset, not when
 # it gets slower. Regenerate the candidates with
-# `grep -l "WorldClim{\|EarthEnv{\|CHELSA{" test/*.jl`, which over-reports — most of those touch
-# only a fixture — and keep the ones that actually materialise a layer.
+# `grep -l "WorldClim{\|EarthEnv{\|CHELSA{" test/*.jl`, which over-reports - most of those touch
+# only a fixture - and keep the ones that actually materialise a layer.
 #
 # `:before` rather than the default position, so that test_datasetread performs the downloads while
 # nothing else is running. Several workers fetching into one scratchspace at the same time is the
@@ -40,13 +40,13 @@ include(joinpath(@__DIR__, "checkmem.jl"))
 const SERIALTESTS = ["test_datasetread", "test_rasters", "test_StudyArea",
     "test_deprecations", "test_GridHabitat"]
 
-# Serialising costs real time — measured on a development machine, 2 minutes becomes 7.5 — and buys
+# Serialising costs real time - measured on a development machine, 2 minutes becomes 7.5 - and buys
 # nothing there, because the memory it is rationing is not scarce. So it is off by default and on
 # under a runner, the same shape as `heavydata()` and `runtests.jl`'s Windows skip: the reason to do
 # it is where the tests are running, not anything about the tests.
 #
 # `ECOSISTEM_SERIAL_RASTERS` forces the question either way, which is the remedy when a developer
-# machine does hit the starvation — a laptop with a dozen live workers can report almost no free
+# machine does hit the starvation - a laptop with a dozen live workers can report almost no free
 # memory whatever its true capacity, and the resulting error names Rasters rather than the pool.
 function serialtests()
     haskey(ENV, "ECOSISTEM_SERIAL_RASTERS") &&
@@ -91,7 +91,7 @@ let filebase = String[]
     end
 
     # Seeded here rather than only in `runtests.jl`, or this file run on its own would not be
-    # reproducible — which is most of why it exists.
+    # reproducible - which is most of why it exists.
     Random.seed!(1234)
 
     @testset "Unit tests" begin
@@ -107,7 +107,7 @@ let filebase = String[]
                        find_tests(@__DIR__))
 
         # ParallelTestRunner silently drops a `serial` entry that names nothing in the suite, so a
-        # renamed file would stop being serialised with no signal at all — and the symptom would be
+        # renamed file would stop being serialised with no signal at all - and the symptom would be
         # an out-of-memory kill on a runner, days later and nowhere near the rename. Assert the names
         # instead, so the failure is here and says which one went.
         # Against the full list rather than `serialtests()`, so the names are checked on every run

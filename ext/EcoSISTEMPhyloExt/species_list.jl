@@ -2,8 +2,8 @@
 
 # --- The tree-generating `SpeciesList` constructors --------------------------------------------------
 #
-# These two do not merely *accept* a phylogeny — they **build** one
-# (`rand(Ultrametric{BinaryTree{…}}(names))`) and derive a `PhyloBranches` similarity from it, so
+# These two do not merely *accept* a phylogeny - they **build** one
+# (`rand(Ultrametric{BinaryTree{...}}(names))`) and derive a `PhyloBranches` similarity from it, so
 # they cannot work without `Phylo`. Every other `SpeciesList` constructor is untouched and stays
 # in `src/Species.jl`, including the one `build_species` uses; their docstrings stay there too.
 
@@ -112,26 +112,26 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
 end
 
 # ---------------------------------------------------------------------------
-# PARKED — the size-based `SpeciesList` constructor
+# PARKED - the size-based `SpeciesList` constructor
 # ---------------------------------------------------------------------------
 # **Here rather than in `src/Species.jl` because uncommenting it would need `Phylo`**: it
 # evolves body mass as a continuous trait along a phylogeny, exactly as the two live tree-generating
-# constructors above do. It is *parked*, not dead — see `SizeDemand` in `src/Demand.jl` and
+# constructors above do. It is *parked*, not dead - see `SizeDemand` in `src/Demand.jl` and
 # **A44** in the master plan. Keeping the two halves of that decision together is the point.
 
-# The size-based `SpeciesList` constructor — COMMENTED OUT with `SizeDemand`
+# The size-based `SpeciesList` constructor - COMMENTED OUT with `SizeDemand`
 # ---------------------------------------------------------------------------
 # **Parked, not dead.** This was `SizeDemand`'s only caller and cannot work without it, so the
 # two are commented out together. It evolves body size along the phylogeny and derives both the
 # initial abundances and the demand from it.
 #
-# **The part worth not losing** is the allometry on the `density` line below: the mass–abundance
-# (self-thinning) relation `size^pop_mass / km²`. It is computed here, used once for abundance, and
-# then thrown away — which is exactly the material a metabolic (or footprint) reading of
+# **The part worth not losing** is the allometry on the `density` line below: the mass-abundance
+# (self-thinning) relation `size^pop_mass / km^2`. It is computed here, used once for abundance, and
+# then thrown away - which is exactly the material a metabolic (or footprint) reading of
 # `SizeDemand` would need. See the note above `SizeDemand` in `Demand.jl`, **A44** in the master
 # plan, and **A1** in `~/.claude/plans/ecosistem-axes-units-and-roles.md`.
 #
-# `continuous_evolve`/`assigntraits!`/`resettraits!` are NOT affected — all are public and
+# `continuous_evolve`/`assigntraits!`/`resettraits!` are NOT affected - all are public and
 # used elsewhere; checked before commenting this out.
 #
 # """

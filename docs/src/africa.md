@@ -17,7 +17,7 @@ specialist to the full complement of 50,000 species (Figure 1B-D).
 
 The code for these simulations is [`examples/HPC/Africa.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/HPC/Africa.jl). It is a script rather than
 a listing on this page, and deliberately so: a page of code that nothing runs stops working without
-anyone noticing, and this one had — it was still written against builders that were deprecated and
+anyone noticing, and this one had - it was still written against builders that were deprecated and
 against a geographic grid a simulation now refuses.
 
 ```sh
@@ -34,7 +34,7 @@ mpiexecjl --project=examples -n 32 julia -t 8 --project=examples examples/HPC/Af
 ### It chooses its own resolution
 
 The grid is not fixed. [`examples/HPC/memory.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/HPC/memory.jl) works out how much memory the run can
-allocate — summed across every node when it is launched under MPI — and the script takes the finest
+allocate - summed across every node when it is launched under MPI - and the script takes the finest
 Africa grid that fits, from 100 km down to 5 km. Nothing about the cost is written down:
 [`investigate_study_area`](@ref) resolves a candidate grid without building it, and
 `EcoSISTEM.getspeciesstorage` says what one species' abundances would occupy on it.
@@ -43,7 +43,7 @@ At 50,000 species that spans a few GiB on a laptop to several TiB across HPC nod
 serves both. 5 km is multi-node only.
 
 !!! note "Recording is the expensive part"
-    At these sizes a *single* recorded timestep can be tens of GiB — more than the run itself holds
+    At these sizes a *single* recorded timestep can be tens of GiB - more than the run itself holds
     per rank. The script therefore defaults to keeping nothing, with periodic JLD2 or specific dates
     as opt-ins. See [`simulate!`](@ref) and [`simulate_action!`](@ref).
 

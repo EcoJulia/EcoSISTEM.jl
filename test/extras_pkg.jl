@@ -6,15 +6,15 @@
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["extras_pkg.jl"])'
 #
 # **An extra, not a core set, and the distinction is semantic rather than cosmetic**: the core sets
-# test *this* package against itself, while this one checks it against someone else's — a different
+# test *this* package against itself, while this one checks it against someone else's - a different
 # question, answered against a moving target, and one that only makes sense once the core sets pass.
 # Being an `extras_*` also puts it after them in `runtests.jl`, which is where it belongs.
 #
 # **There are no `pkg_*.jl` files today**, so this set is currently a no-op. It is kept as a named
 # family rather than deleted for two reasons: adding a cross-validation file needs no wiring at all
 # (drop in `pkg_Foo.jl` and it runs), and **this is the set most worth being able to name**,
-# because cross-validation can be *very* slow — it tends to mean extensive randomised dataset
-# comparison — so running it alone, or everything else without it, matters more here than anywhere.
+# because cross-validation can be *very* slow - it tends to mean extensive randomised dataset
+# comparison - so running it alone, or everything else without it, matters more here than anywhere.
 
 using Random
 using Test

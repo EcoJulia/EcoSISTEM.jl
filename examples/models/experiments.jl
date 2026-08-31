@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The experiments themselves — temperature optima, niche widths, resource supply, area, grid
+# The experiments themselves - temperature optima, niche widths, resource supply, area, grid
 # resolution, dispersal distance, large species pools, and the climate/habitat-loss/invasion
 # scenarios.
 #
@@ -9,7 +9,7 @@
 # `examples/interventions/`, which that file includes first.
 #
 # **What distinguishes this from `examples/biodiversity.jl`** is that the same investigations are
-# followed *through time* with a full suite of diversity measures, and plotted — where
+# followed *through time* with a full suite of diversity measures, and plotted - where
 # `biodiversity.jl` asserts the end state. The ecology is the same; the output is a figure rather
 # than a test.
 
@@ -62,9 +62,9 @@ let widths = collect(range(0.0001K, stop = 5.0K, length = NUMSPECIES))
     _savefig(plt, "widths_matched.png")
 end
 
-# --- 3. …and mismatched -------------------------------------------------------
+# --- 3. ...and mismatched -------------------------------------------------------
 # The same species against a landscape 1 K off every optimum. Now the narrowest are excluded by the
-# mismatch and the widest are still too diffuse, so the advantage moves to intermediate widths — the
+# mismatch and the widest are still too diffuse, so the advantage moves to intermediate widths - the
 # one non-monotonic result in the set, and the reason it is worth plotting beside the last one.
 println("  3. niche widths (mismatched) ...")
 let widths = collect(range(0.0001K, stop = 5.0K, length = NUMSPECIES))
@@ -86,11 +86,11 @@ end
 # of the two: rising along the diagonal, and flat along whichever axis is not currently binding.
 #
 # Grading both at once is the point, not a confound. An earlier rewrite of this experiment graded
-# each resource in its own run, on the grounds that varying both "says nothing about either" — that
+# each resource in its own run, on the grounds that varying both "says nothing about either" - that
 # was wrong. It would be right for a single cell, where only the minimum is visible; over a grid that
 # samples every combination, it is exactly what makes the law legible.
 #
-# Both ranges start at zero, so the first row and column are uninhabitable. That is deliberate —
+# Both ranges start at zero, so the first row and column are uninhabitable. That is deliberate -
 # the empty edge is where the surface shows a resource binding absolutely.
 println("  4. resource surface (Liebig's law) ...")
 let env = uniform_environment(CELLS, AREA, topology = Island()),
@@ -107,7 +107,7 @@ let env = uniform_environment(CELLS, AREA, topology = Island()),
     eco = community(env, opts, widths)
     simulate!(eco, 10year, 1month_mean_duration)
 
-    # `percell` is `(y, x)`, and `heatmap(x, y, z)` wants `z` indexed the same way — so water is
+    # `percell` is `(y, x)`, and `heatmap(x, y, z)` wants `z` indexed the same way - so water is
     # the x axis and solar the y, matching how they were written into the layers above.
     plt = heatmap(ustrip.(fractions .* fullwater),
                   ustrip.(fractions .* fullsun),
@@ -148,7 +148,7 @@ let areas = [10.0, 20.0, 50.0, 100.0]
         simulate!(eco, 10year, 1month_mean_duration)
         return sum(eco.abundances.matrix)
     end
-    plt = plot(areas, totals, xlab = "Area (km²)", ylab = "Total abundance",
+    plt = plot(areas, totals, xlab = "Area (km^2)", ylab = "Total abundance",
                legend = false, size = (1200, 800))
     _savefig(plt, "area.png")
 end
@@ -174,7 +174,7 @@ let distances = [0.5, 1.0, 2.0, 4.0] .* km
 end
 
 # --- 8. large species pools ---------------------------------------------------
-# Heterogeneous species — random widths, optima, dispersal, mortality and body size — so that
+# Heterogeneous species - random widths, optima, dispersal, mortality and body size - so that
 # coexistence cannot be an artefact of every species being identical, checked as the pool grows
 # tenfold. Every one of these is a plain per-species vector: the builder takes a scalar or a
 # length-`n` vector for each, so heterogeneity needs no separate code path.
@@ -203,10 +203,10 @@ end
 # --- 9. diversity through time, under each scenario ---------------------------
 # **This is where the scenarios live.** They are declarative `Intervention`s, reused verbatim from
 # `examples/interventions/`, rather than callbacks mutating the ecosystem from inside the recording
-# loop — so the recorder neither knows nor cares that the environment is changing.
+# loop - so the recorder neither knows nor cares that the environment is changing.
 #
 # Each scenario runs on the ecosystem `examples/interventions/` built for it, because an
-# intervention naming a layer (`SetChange(:temperature, …)`) needs that layer to exist. Comparing
+# intervention naming a layer (`SetChange(:temperature, ...)`) needs that layer to exist. Comparing
 # them against a baseline of the *same* ecosystem with no intervention is the meaningful contrast.
 println("  9. diversity through time under each scenario ...")
 let scenarios = (baseline = (climate_ecosystem, nothing),
@@ -230,4 +230,4 @@ let scenarios = (baseline = (climate_ecosystem, nothing),
     end
 end
 
-println("Done — figures are in ", FIGURES)
+println("Done - figures are in ", FIGURES)

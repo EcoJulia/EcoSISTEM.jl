@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 using EcoSISTEM
-# **`Phylo` is a weak dependency**, so the `SpeciesList` constructor below — the one that *builds*
-# a phylogeny rather than taking tolerances directly — lives in `EcoSISTEMPhyloExt` and only exists
+# **`Phylo` is a weak dependency**, so the `SpeciesList` constructor below - the one that *builds*
+# a phylogeny rather than taking tolerances directly - lives in `EcoSISTEMPhyloExt` and only exists
 # once `Phylo` is loaded. Loading it here is what activates that extension for every test file that
 # includes this one.
 # **`import`, not `using`, and that is load-bearing**: extension loading is triggered by the
-# package being *loaded*, either way — but `using Phylo` would also drag its exports into every
+# package being *loaded*, either way - but `using Phylo` would also drag its exports into every
 # includer's namespace, where `Phylo.DiscreteTrait` shadows EcoSISTEM's deprecated binding of the
 # same name. Measured: it broke `test_deprecations`' `DiscreteTrait === SimpleCategoricalTolerance`.
 import Phylo
@@ -37,7 +37,7 @@ function Test1Ecosystem(; seed = nothing, grid = (5, 7))
     timestep = 1.0month_mean_duration
     param = EqualPop(birth, death, long, surv, boost)
 
-    # `(ny, nx)` — rows then columns, as everywhere in the package. Overridable so a test can
+    # `(ny, nx)` - rows then columns, as everywhere in the package. Overridable so a test can
     # compare two grid sizes, which is how the hot loop's per-cell allocation is measured.
     cellsize = 2.0km
     individuals = 2000 * numSpecies
@@ -51,7 +51,7 @@ function Test1Ecosystem(; seed = nothing, grid = (5, 7))
     # `NicheSpec` draws its pattern from the **global** RNG and takes no seed of its own (see the
     # deferred `NicheSpec` seed question). That is unchanged here: the old builder did the same, and
     # `Random.seed!` below still runs *after* the environment is built, so the niche layout was
-    # never part of what `seed` pins. It does not need to be — a run is reproducible because the
+    # never part of what `seed` pins. It does not need to be - a run is reproducible because the
     # habitat is built once and then shared.
     habitat = GridHabitat(regime = NicheSpec(numNiches,
                                              axis = EcoSISTEM.TypologyAxis),

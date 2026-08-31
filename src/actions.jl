@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # HOW TO RUN AN EXPERIMENT. This file is the workflow and nothing else: the verbs a user calls, in the
-# order they call them. It is the last of the model's own files — only `deprecations.jl` and the
-# `ClimatePref` shims load after it — and, like `Ecology.jl`, which is the first, it should be
+# order they call them. It is the last of the model's own files - only `deprecations.jl` and the
+# `ClimatePref` shims load after it - and, like `Ecology.jl`, which is the first, it should be
 # readable on its own by someone who never opens another.
 #
 # `Ecology.jl` says what the model IS. This says what you DO with it:
@@ -18,8 +18,8 @@
 #     generate_storage         allocate the array the two recorders write into
 #
 # WHAT IS NOT HERE, and the test that decides it: these are the verbs a USER calls. Everything the
-# package calls on their behalf stays with its machinery. So `update!` is absent — `simulate!` calls
-# it, and it is `public` rather than exported for that reason — and so is every private helper,
+# package calls on their behalf stays with its machinery. So `update!` is absent - `simulate!` calls
+# it, and it is `public` rather than exported for that reason - and so is every private helper,
 # including the defaults behind the builders
 # (`DefaultEcosystem.jl`) and the grid-decision machinery behind `investigate_study_area`
 # (`StudyArea.jl`).
@@ -50,19 +50,19 @@ using Printf
 using JLD2
 import Diversity.Gamma
 
-# ══ Deciding the grid ══════════════════════════════════════════════════════════════════════════
+# == Deciding the grid ==========================================================================
 
 # `Missing` and `Nothing` are both in the unions and mean **different** things: `missing` is "not
-# given — derive it, or inherit it from `base`", `nothing` is "clear what would have been inherited".
+# given - derive it, or inherit it from `base`", `nothing` is "clear what would have been inherited".
 # Neither is a layer, which is why each has to be admitted explicitly rather than falling out of
 # [`LayerInput`](@ref).
 #
-# **An already-built layer must NOT be accepted here, in either role** — unlike `GridHabitat`,
+# **An already-built layer must NOT be accepted here, in either role** - unlike `GridHabitat`,
 # which takes a built `AbstractSupply`. The difference is what the function does with it: this pair
 # *decides the grid from its layers*, so a layer must be able to answer `_shapesgrid`/`_layerfacts`
 # (extent, CRS, cell size), and a built layer cannot. `GridHabitat` only has to *match* a grid that
 # has already been decided, which a built layer can. Widening the union would give
-# `MethodError: no method matching _asraster(::Supply{…})` — a signature promising what the body
+# `MethodError: no method matching _asraster(::Supply{...})` - a signature promising what the body
 # cannot do, which is worse than not naming the type at all.
 """
     investigate_study_area(base = missing; regime::Union{LayerInput, Missing, Nothing} = missing,
@@ -72,7 +72,7 @@ import Diversity.Gamma
 
 Report what a [`StudyArea`](@ref) built from these arguments would be, without building it.
 
-Takes exactly the arguments [`StudyArea`](@ref) does — see there for what each one decides — so you
+Takes exactly the arguments [`StudyArea`](@ref) does - see there for what each one decides - so you
 can investigate, adjust, and then commit to the result. In brief: `regime`/`supply` are the layers
 allowed to shape the grid, `within` **positions** it, `crs` and `cellsize` fix the projection and
 resolution, `align` names the layer kept exactly, `extent` sizes a *synthetic* area only, and
@@ -104,7 +104,7 @@ function investigate_study_area(base = missing;
     return _analyse(inputs.layers; inputs.constraints..., cache = inputs.cache)
 end
 
-# ══ Building the pieces ════════════════════════════════════════════════════════════════════════
+# == Building the pieces ========================================================================
 
 """
     build_habitat(source = DefaultEcosystem(); regime, supply, area, topology,
@@ -118,12 +118,12 @@ announces every value it chose.
 
   - `source`: where an unnamed input comes from. [`DefaultEcosystem`](@ref) gives a small synthetic
     toy grid; an existing [`GridHabitat`](@ref) gives its own layers, grid and topology, so
-    `build_habitat(habitat, supply = …)` is a rebuild with one thing changed.
-  - `regime`: the **Condition** layer(s) — see [`GridHabitat`](@ref) for what is accepted.
+    `build_habitat(habitat, supply = ...)` is a rebuild with one thing changed.
+  - `regime`: the **Condition** layer(s) - see [`GridHabitat`](@ref) for what is accepted.
   - `supply`: the **Resource** layer(s).
   - `area`: the [`StudyArea`](@ref) that decides the grid. From a habitat this is the grid it was
-    *actually built on*, narrowing included — not the one originally investigated.
-  - `topology`: how the grid's edges join — see [`EdgeTopology`](@ref).
+    *actually built on*, narrowing included - not the one originally investigated.
+  - `topology`: how the grid's edges join - see [`EdgeTopology`](@ref).
   - `verbosity`: `:silent` announces nothing; anything else announces each filled-in value.
 
 ```julia
@@ -135,7 +135,7 @@ function build_habitat(source = DefaultEcosystem();
                        # **`verbosity` must be declared FIRST, because the four below reference
                        # it**: a keyword default may only name keywords declared before it. Defaults
                        # evaluate in declaration order, and one passed explicitly is never evaluated
-                       # — so naming a keyword suppresses exactly its own message.
+                       # - so naming a keyword suppresses exactly its own message.
                        verbosity::Symbol = :normal,
                        regime = _getdefaultvalue(AbstractRegime, source,
                                                  verbosity),
@@ -155,43 +155,43 @@ end
 
 Build a `SpeciesList` of `numspecies` species. `tolerance` (the environmental **Condition** a
 species is matched to) and `demand` (the **Resource** it consumes) are **required**, and so is the
-[`NicheAxis`](@ref) each is measured on — `toleranceaxis` and `demandaxis`. Omitting any of the four
-errors (use `build_species(DefaultEcosystem(); …)` to fill omissions with announced defaults). Every per-species keyword accepts either a scalar (applied to all species) or a
+[`NicheAxis`](@ref) each is measured on - `toleranceaxis` and `demandaxis`. Omitting any of the four
+errors (use `build_species(DefaultEcosystem(); ...)` to fill omissions with announced defaults). Every per-species keyword accepts either a scalar (applied to all species) or a
 length-`numspecies` vector (validated, with a clear error naming the argument on a length
 mismatch):
 
-  - `tolerance = (mean, width)` — Gaussian niche tolerance (a [`NicheTolerance`](@ref) with a `Normal`
+  - `tolerance = (mean, width)` - Gaussian niche tolerance (a [`NicheTolerance`](@ref) with a `Normal`
     response). A tuple of `(mean, width)` pairs, e.g. `((298.0K, 2.0K), (50.0mm, 10.0mm))`, gives one
     tolerance per regime (a [`SpeciesRequirementCollection`](@ref)), to match a
     multi-variable environment.
-  - `toleranceaxis` — the [`NicheAxis`](@ref) the tolerance is on. A `NicheTolerance`'s unit comes
+  - `toleranceaxis` - the [`NicheAxis`](@ref) the tolerance is on. A `NicheTolerance`'s unit comes
     from its axis, so the axis is what says which environmental variable the species responds to and
     in what unit its `(mean, width)` are read. For a per-regime tolerance tuple, pass a matching
     tuple of axes.
-  - `demand` — per-species resource demand rate, in the axis's own unit
+  - `demand` - per-species resource demand rate, in the axis's own unit
     (`Demand{SolarRadiation}` is `kJ/day`, `Demand{Precipitation}` `L/day`,
     `Demand{CarbonFlux}` `g/day`); any scale of the right dimension is converted. A tuple of two
     demands (e.g. `(10.0kJ/day, 5.0L/day)`) gives a [`SpeciesRequirementCollection`](@ref) to match a
     two-resource supply.
-  - `demandaxis` — the [`NicheAxis`](@ref) the demand is on, matching `demand`'s arity as
+  - `demandaxis` - the [`NicheAxis`](@ref) the demand is on, matching `demand`'s arity as
     `toleranceaxis` matches `tolerance`'s.
 
 !!! note "The axis is named, never inferred"
     Both axes used to be guessable: `axis` defaulted to `Temperature`, and a demand's type was
-    chosen from its **unit** (`kJ/day` → solar, and so on). Neither is true now. A unit cannot say
-    what a value *means* — `m/s` and `mm/day` share a dimension, which is how a wind-speed layer
-    once became a water supply — so the axis is the single declaration, on both sides, and it is
+    chosen from its **unit** (`kJ/day` -> solar, and so on). Neither is true now. A unit cannot say
+    what a value *means* - `m/s` and `mm/day` share a dimension, which is how a wind-speed layer
+    once became a water supply - so the axis is the single declaration, on both sides, and it is
     required.
-  - `dispersal` — mean Gaussian dispersal distance, cut off below `pthresh`.
-  - `movement` — the movement type: [`BirthOnlyMovement`](@ref) (default), [`AlwaysMovement`](@ref)
+  - `dispersal` - mean Gaussian dispersal distance, cut off below `pthresh`.
+  - `movement` - the movement type: [`BirthOnlyMovement`](@ref) (default), [`AlwaysMovement`](@ref)
     or [`NoMovement`](@ref).
-  - `disperse_safely` — per species, what becomes of an individual whose dispersal is aimed at a
+  - `disperse_safely` - per species, what becomes of an individual whose dispersal is aimed at a
     **dead cell** (off the grid, or an inactive one): `true` (the default) redistributes it among
     the reachable destinations, `false` loses it. A property of the *disperser*, so it may differ
-    between species — a wind-dispersed seed blown out to sea is gone, an animal-dispersed one is
+    between species - a wind-dispersed seed blown out to sea is gone, an animal-dispersed one is
     not. The **grid's** topology (whether the world wraps) is a different question, answered by
-    `GridHabitat(…, topology = …)`.
-  - `birth`, `death`, `longevity`, `survival`, `boost` — demographic rates
+    `GridHabitat(..., topology = ...)`.
+  - `birth`, `death`, `longevity`, `survival`, `boost` - demographic rates
     (scalar rates give an [`EqualPop`](@ref), vectors a [`PopGrowth`](@ref)).
 
 `abundance` is either a total number of individuals split at random across
@@ -200,7 +200,7 @@ species as native (default all `true`).
 """
 function build_species(numspecies::Integer;
                        tolerance = _require(:tolerance),
-                       # Required *unless* `tolerance` is already built — a pre-built one
+                       # Required *unless* `tolerance` is already built - a pre-built one
                        # carries its own axis, so demanding a second statement of it would be
                        # ceremony that could also disagree.
                        toleranceaxis = nothing,
@@ -225,12 +225,12 @@ function build_species(numspecies::Integer;
     (_prebuilt || !isnothing(toleranceaxis)) || _require(:toleranceaxis)
 
     # **A pre-built tolerance must be checked FIRST**, because the branches below reach inside
-    # `tolerance` with `first(…)`, and on a `NicheTolerance` object that gives
-    # `MethodError: no method matching iterate(::NicheTolerance{…})` — an error naming `iterate`
+    # `tolerance` with `first(...)`, and on a `NicheTolerance` object that gives
+    # `MethodError: no method matching iterate(::NicheTolerance{...})` - an error naming `iterate`
     # rather than the mistake.
     # **And accepting one is better than merely reporting it well**, because it is the only way to
     # build a species against a layer whose frame `build_species` cannot otherwise express: a
-    # tolerance on `NicheAxis` carrying a real unit, say, which `NicheTolerance(…, support = …)`
+    # tolerance on `NicheAxis` carrying a real unit, say, which `NicheTolerance(..., support = ...)`
     # can construct and no combination of keywords here could.
     traits = if tolerance isa AbstractTolerance
         _checktolerancespecies(tolerance, n)
@@ -244,7 +244,7 @@ function build_species(numspecies::Integer;
                values(toleranceaxis) :
                ntuple(_ -> toleranceaxis, length(tolerance))
         # Built positionally, then put back into whichever backing `tolerance` had, so a named
-        # `tolerance = (temperature = …, rainfall = …)` gives a named collection
+        # `tolerance = (temperature = ..., rainfall = ...)` gives a named collection
         # however `axis` was written.
         built = _zipmap(axes, values(tolerance)) do ax, tol
             return _nichetolerance(ax, tol, n)
@@ -258,9 +258,9 @@ function build_species(numspecies::Integer;
                               Float64(pthresh))
     move = movement(kernels, _tofield(disperse_safely, n, "disperse_safely"))
 
-    # A tuple `demand` gives one demand per resource → a collection; the backing is put back
+    # A tuple `demand` gives one demand per resource -> a collection; the backing is put back
     # so a named `demand` gives a named collection. `demandaxis` is zipped against it exactly as
-    # `toleranceaxis` is against `tolerance` — including `_zipmap`'s arity check, so a mismatched
+    # `toleranceaxis` is against `tolerance` - including `_zipmap`'s arity check, so a mismatched
     # pair is refused rather than silently truncated.
     demands = if demand isa Union{Tuple, NamedTuple}
         daxes = demandaxis isa Union{Tuple, NamedTuple} ? values(demandaxis) :
@@ -280,7 +280,7 @@ function build_species(numspecies::Integer;
 end
 
 # As above for `build_species`: default `numspecies`, `tolerance` and `demand` if omitted, announce,
-# then delegate. Any other keyword (dispersal, movement, rates, abundance, …) passes straight through.
+# then delegate. Any other keyword (dispersal, movement, rates, abundance, ...) passes straight through.
 function build_species(::DefaultEcosystem; numspecies = nothing,
                        tolerance = nothing, toleranceaxis = nothing,
                        demand = nothing, demandaxis = nothing,
@@ -320,8 +320,8 @@ end
         nichefit = nothing, seed = nothing, distributed = :auto, epoch = nothing)
 
 Assemble an ecosystem from a `species` list and an `environment`. When
-`nichefit` is not given it is inferred from the trait type (`NicheTolerance` →
-`NicheSuitability`, any `AbstractCategoricalTolerance` → `CategoricalSuitability`). Checks that the
+`nichefit` is not given it is inferred from the trait type (`NicheTolerance` ->
+`NicheSuitability`, any `AbstractCategoricalTolerance` -> `CategoricalSuitability`). Checks that the
 species' resource demand matches the environment's supply before building,
 and passes `seed` through for reproducibility.
 
@@ -330,17 +330,17 @@ distributed `MPIEcosystem` when the MPI extension is loaded and the process is
 running with more than one rank (`MPI.Init()` already called), and a serial
 `Ecosystem` otherwise; `true` forces an `MPIEcosystem` (erroring if the MPI
 extension is not loaded); `false` forces a serial `Ecosystem`. Note that
-auto-selection only covers construction and `simulate!` — under MPI the
+auto-selection only covers construction and `simulate!` - under MPI the
 abundances are partitioned across ranks, so collecting results still needs
 [`gatherabundance`](@ref)/[`gatherdiversity`](@ref).
 
-`epoch` is the real date the run begins — the date elapsed time zero means. It fixes the run's
+`epoch` is the real date the run begins - the date elapsed time zero means. It fixes the run's
 calendar for output (see [`simulationdate`](@ref)) and, more importantly, *phases* every series the
 environment carries: a [`DatedSeries`](@ref) starts at the slice covering the epoch, and a
 [`MonthOfYearSeries`](@ref) climatology at the slice for the epoch's own month, so a run beginning in
 July starts in July rather than in January.
 
-It is resolved the way [`StudyArea`](@ref) resolves a CRS — adopt if unambiguous, ask if not. An
+It is resolved the way [`StudyArea`](@ref) resolves a CRS - adopt if unambiguous, ask if not. An
 explicit `epoch` always wins; otherwise the environment's own series supply it, and if exactly one
 real start date is found it is used and everything else is phased to it. Series that disagree are an
 error naming the candidates, and an environment with no dated series has no epoch at all, which is
@@ -365,8 +365,8 @@ function build_ecosystem(species::SpeciesList, environment::GridHabitat;
                nichefit
     # Resolved and applied *before* the ecosystem is built, because re-pointing rewrites the
     # layers' changes and the ecosystem holds the very same habitat object. Mutating in place is the
-    # existing semantics here — an `Ecosystem` shares its habitat with the caller rather than copying
-    # it — and re-pointing is idempotent, since an origin is computed from the calendar and the epoch
+    # existing semantics here - an `Ecosystem` shares its habitat with the caller rather than copying
+    # it - and re-pointing is idempotent, since an origin is computed from the calendar and the epoch
     # rather than accumulated.
     resolved = _resolveepoch(environment, epoch)
     _repointseries!(environment.regime, resolved)
@@ -399,7 +399,7 @@ function build_ecosystem(::DefaultEcosystem; seed = nothing,
                            distributed = distributed, epoch = epoch)
 end
 
-# ══ Running it ═════════════════════════════════════════════════════════════════════════════════
+# == Running it =================================================================================
 
 """
     simulate!(eco::AbstractEcosystem, times::Unitful.Time, timestep::Unitful.Time)
@@ -483,7 +483,7 @@ and replicate runs.
 
 `maxspecies` defaults to the number of species `eco` starts with, which is what
 a run that never gains one needs. **Raise it to make room for species that
-arrive during the run** — an [`AddSpecies`](@ref) intervention, an invasion — and
+arrive during the run** - an [`AddSpecies`](@ref) intervention, an invasion - and
 the recorder then has somewhere to put them:
 
 ```julia
@@ -500,7 +500,7 @@ function generate_storage(eco::Ecosystem, times::Int64, reps::Int64;
                           maxspecies::Int64 = length(eco.spplist.abun))
     maxspecies >= length(eco.spplist.abun) ||
         error("`maxspecies` is $maxspecies but the ecosystem already has " *
-              "$(length(eco.spplist.abun)) species — the recording has to hold at least what is " *
+              "$(length(eco.spplist.abun)) species - the recording has to hold at least what is " *
               "there before the run starts.")
     gridSize = countsubcommunities(eco.habitat.regime)
     return abun = Array{Int64, 4}(undef, maxspecies, gridSize, times, reps)
@@ -525,7 +525,7 @@ end
 
 Run an ecosystem `eco` up to time `times` in steps of `timestep`, calling the
 user-supplied `action!` at regular intervals so that any periodic task can be
-performed as the simulation proceeds — recording a quantity, logging progress,
+performed as the simulation proceeds - recording a quantity, logging progress,
 applying a management intervention, checking a stopping condition, and so on.
 This is the general engine behind the [`simulate_record!`](@ref) and
 [`simulate_record_diversity!`](@ref) recorders; use it directly when you want to
@@ -535,8 +535,8 @@ At each step the ecosystem is advanced with [`update!`](@ref), which applies any
 [`Intervention`](@ref) passed as `intervention`. Whenever the elapsed time falls on a multiple of `interval`, `action!(counting)`
 is called, where `counting` is the 1-based index of that occurrence (handy as a
 storage slot when the action is recording); `interval` must be a whole multiple of
-`timestep`. Anything the action needs to read or update — the ecosystem, an output
-array, an external counter — is captured by the closure, typically written as a
+`timestep`. Anything the action needs to read or update - the ecosystem, an output
+array, an external counter - is captured by the closure, typically written as a
 `do` block:
 
 ```julia
@@ -591,7 +591,7 @@ where `ntimes = length((0s):interval:times)` is the number of recordings.
 An `intervention` keyword takes an [`Intervention`](@ref) or
 [`InterventionSet`](@ref). If it
 can add species ([`AddSpecies`](@ref)), size `storage` for them with
-`generate_storage(eco, ntimes, reps, maxspecies = …)`: the array is allocated
+`generate_storage(eco, ntimes, reps, maxspecies = ...)`: the array is allocated
 before the run and cannot grow.
 
 To record diversity rather than raw abundances, see
@@ -633,19 +633,19 @@ end
 Run an ecosystem `eco` up to `times` in steps of `timestep`, recording diversity
 into `storage` (and, for the alpha/beta/gamma form, `substorage`/`metastorage`) every `interval`,
 which must be a whole multiple of `timestep`. These are all thin wrappers over
-[`simulate_action!`](@ref) — see it for the recording mechanics — and differ only
+[`simulate_action!`](@ref) - see it for the recording mechanics - and differ only
 in what diversity they record:
 
-  - `divfun, qs` — a single diversity function `divfun` (which returns a
+  - `divfun, qs` - a single diversity function `divfun` (which returns a
     `DataFrame` with a `:diversity` column) evaluated over the diversity orders
     `qs`, reshaped into `storage`;
-  - `substorage, metastorage, …, qs` — normalised alpha, normalised beta and gamma
+  - `substorage, metastorage, ..., qs` - normalised alpha, normalised beta and gamma
     diversity over `qs`; subcommunity-level values are written to `substorage`
     (gridSize × 3 × timepoints × qs) and metacommunity-level values to `metastorage`
     (3 × timepoints × qs). This form returns **both**, as the named tuple
     `(subcommunity = substorage, metacommunity = metastorage)`, so a caller need not
     remember which of the two came first;
-  - `divfuns, q` — several diversity functions at a single diversity order `q`,
+  - `divfuns, q` - several diversity functions at a single diversity order `q`,
     one per column of `storage`.
 
 For the `divfun`/`divfuns` forms, pre-allocate `storage` with

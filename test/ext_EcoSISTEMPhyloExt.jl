@@ -41,7 +41,7 @@ end
 #
 # `varcovar` is the one worth pinning properly, because the other two are built on it and because it
 # has an exact, checkable definition: entry (i, j) is the root-to-tip distance shared by tips i and
-# j — the distance from the root to their most recent common ancestor.
+# j - the distance from the root to their most recent common ancestor.
 @testset "varcovar is the shared-ancestry matrix" begin
     tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(6))
     V = varcovar(tree)
@@ -51,8 +51,8 @@ end
     @test size(V) == (length(tips), length(tips))
     @test issymmetric(V)
 
-    # On an ultrametric tree every tip is the same distance from the root, so the diagonal — each
-    # tip's shared ancestry with itself, i.e. its whole path — is constant. This is what makes the
+    # On an ultrametric tree every tip is the same distance from the root, so the diagonal - each
+    # tip's shared ancestry with itself, i.e. its whole path - is constant. This is what makes the
     # fixture worth being `Ultrametric` rather than any random tree.
     @test all(≈(distance(tree, root, first(tips))), diag(V))
 
@@ -73,7 +73,7 @@ end
 end
 
 # The two fitted models. Their numbers come from an optimiser, so what is pinned is the shape of the
-# answer and the relationship between the two — not coefficients that would re-bless on any change
+# answer and the relationship between the two - not coefficients that would re-bless on any change
 # to `Optim`.
 @testset "fitbrownian returns a usable fitted model" begin
     Random.seed!(20260828)
@@ -89,15 +89,15 @@ end
     @test length(bm.optimum) == 2               # σ² and the root state
     @test all(isfinite, bm.se)
 
-    # Prints as itself rather than as a parameter dump — it defines its own `show`.
+    # Prints as itself rather than as a parameter dump - it defines its own `show`.
     @test occursin("Brownian", sprint(show, bm))
 end
 
-# `fitlambda`, its `Lambda` model and the released `fitLambda` were all DELETED in v0.5.0 — with no
+# `fitlambda`, its `Lambda` model and the released `fitLambda` were all DELETED in v0.5.0 - with no
 # shim, because the function never worked on Julia 1.x and so no result of it can be depended on.
 #
 # Two independent faults: `varcovar` threw `UndefVarError` on every call from Julia 0.7 (`indmax`),
-# and the fit itself threw `ArgumentError: matrix contains Infs or NaNs` — bounded optimisation on
+# and the fit itself threw `ArgumentError: matrix contains Infs or NaNs` - bounded optimisation on
 # lambda meant `Fminbox`, which needs a gradient, and the objective's `log(abs(det(x[1] * V)))`
 # underflows for a scaled n x n covariance. `fitbrownian` shares the expression and survives only
 # because its optimisation is unbounded, so Nelder-Mead never probes where it blows up.

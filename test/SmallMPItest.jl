@@ -12,8 +12,8 @@ using JLD2
 using Test
 
 # The shared non-uniform, non-square, time-varying environment (see `test/varyingcase.jl`).
-# This test compares results across 1/2/4 rank+thread splits — the strongest reproducibility
-# property in the repository — and so must not run on a *uniform, square* grid, where every
+# This test compares results across 1/2/4 rank+thread splits - the strongest reproducibility
+# property in the repository - and so must not run on a *uniform, square* grid, where every
 # decomposition looks alike and a partitioning bug cannot show. The field it decomposes varies down
 # `Y` (regime) and across `X` (supply), on a 7 × 12 grid that no rank count divides evenly.
 include(joinpath(@__DIR__, "varyingcase.jl"))
@@ -33,13 +33,13 @@ comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 
 # **The fixture is built by `mpifixture_species` in `varyingcase.jl`, not spelled out here.**
-# The canonical `mpi/…` results are blessed from a SERIAL run of that same builder, and those
-# numbers are only evidence about this run if both sides build the identical thing — two
+# The canonical `mpi/...` results are blessed from a SERIAL run of that same builder, and those
+# numbers are only evidence about this run if both sides build the identical thing - two
 # spelled-out copies would drift, which is the failure the pinning exists to catch.
 numSpecies = VARYING_SPECIES;
 sppl, tolerance = mpifixture_species()
 
-# **This is the ecosystem the cross-rank comparison actually uses** — it is simulated, gathered
+# **This is the ecosystem the cross-rank comparison actually uses** - it is simulated, gathered
 # and saved below, while the second one further down only exercises the synchronise paths. It must
 # decompose the shared varying field rather than one uniform temperature on a **square** grid: every
 # cell being alike is precisely what stops a partitioning bug showing.
@@ -48,8 +48,8 @@ habitat = varying_environment()
 # Set nichefit between species and environment (gaussian)
 nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
-# build_ecosystem auto-selects the type from the live MPI session: >1 rank ⇒ MPIEcosystem, a single
-# rank ⇒ serial Ecosystem (this script runs under mpiexec -n 1, 2 and 4). `sppl`/`habitat`/`nichefit` are
+# build_ecosystem auto-selects the type from the live MPI session: >1 rank => MPIEcosystem, a single
+# rank => serial Ecosystem (this script runs under mpiexec -n 1, 2 and 4). `sppl`/`habitat`/`nichefit` are
 # exactly what MPIEcosystem takes directly.
 expected = MPI.Comm_size(comm) > 1 ? MPIEcosystem : Ecosystem
 @test build_ecosystem(sppl, habitat, nichefit = nichefit, seed = 0) isa expected
@@ -67,12 +67,12 @@ eco.abundances.rows_matrix .= 10
 
 # **Compared GLOBALLY, not per rank, and that distinction is the whole point of an uneven split.**
 # `synchronise_from_rows!` moves data from the species-partitioned layout to the cell-partitioned
-# one, so the two hold the same values *in total* — but a single rank's share of each is only the
+# one, so the two hold the same values *in total* - but a single rank's share of each is only the
 # same size when both partitions divide evenly. With 7 species over 77 cells on 2 ranks, rank 0 holds
-# 4 × 77 = 3080 by rows and 7 × 39 = 2730 by columns; both are correct.
+# 4 * 77 = 3080 by rows and 7 * 39 = 2730 by columns; both are correct.
 #
-# The per-rank form must not be used: on a fixture where every rank gets an identical share — 8
-# species on a 4 × 4 grid, say — it passes by asserting an artefact of that choice, not the
+# The per-rank form must not be used: on a fixture where every rank gets an identical share - 8
+# species on a 4 × 4 grid, say - it passes by asserting an artefact of that choice, not the
 # invariant.
 allsum(x) = MPI.Allreduce(sum(x), +, comm)
 expected = numSpecies * prod(size(eco.habitat.regime.matrix)) * 10
@@ -133,7 +133,7 @@ eco = MPIEcosystem(sppl, habitat, nichefit, seed = 0)
 eco.abundances.rows_matrix .= 10
 sleep(rank)
 
-# Global again — the second ecosystem's split is just as uneven as the first's (see the note above).
+# Global again - the second ecosystem's split is just as uneven as the first's (see the note above).
 # Set columns vector to zero and check synchronise from rows
 eco.abundances.cols_vector .= 0
 @test_nowarn EcoSISTEM.synchronise_from_rows!(eco.abundances)
@@ -195,7 +195,7 @@ end
 # are. That is what makes a distributed-only divergence visible at 2 and 4 ranks.
 #
 # **Read-only on purpose.** `canonical(...)` would *write* the reference file, and doing that from
-# inside an `mpiexec` child — several of them at once — must never happen. `canonical_reference()`
+# inside an `mpiexec` child - several of them at once - must never happen. `canonical_reference()`
 # only reads.
 function checkblessed(abuns, prefix)
     reference = Canonical.canonical_reference()
@@ -217,7 +217,7 @@ rank == 0 && checkblessed(true_abuns, "mpi")
 
 # **`AlwaysMovement` disperses the standing population, and only a multi-rank run can check it.**
 # It reads that population back out of the landscape through `EcoSISTEM._standingpopulation`, which
-# maps the global species index onto this rank's local row — and at **one** rank that map is the
+# maps the global species index onto this rank's local row - and at **one** rank that map is the
 # identity, so a run there passes whether or not the mapping is right. Measured: replacing the
 # mapping with the raw global index leaves the 1-rank answer bit-identical and makes 2 ranks die in
 # `Multinomial` on a negative count. That is why this is pinned to a blessed serial number and

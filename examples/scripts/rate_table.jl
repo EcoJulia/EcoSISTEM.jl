@@ -5,9 +5,9 @@
 # timestep is one month. Writes `rate_table.csv` alongside this script.
 #
 # **This script reads the catalogue; it does not re-derive it.** Everything except
-# `AmountPerAreaPerMonth` and its dimension is read straight off the `LayerRecord` — unit, axis,
+# `AmountPerAreaPerMonth` and its dimension is read straight off the `LayerRecord` - unit, axis,
 # category, accumulation period, value type, official unit, notes. That is the whole design: an earlier
-# version carried its own hand-written axis→category map, substance table and notes dictionary, and
+# version carried its own hand-written axis->category map, substance table and notes dictionary, and
 # those drifted out of agreement with the shipped tables the moment the catalogue was corrected. A
 # second source of truth for data that already has one is a bug waiting for someone to re-run it.
 #
@@ -19,52 +19,52 @@
 #
 #   - OfficialUnit: the unit as given by the layer's primary reference documentation (CHELSA V2.1 /
 #     CHELSA-BIOCLIM+ technical specifications, or WorldClim's own docs). NOT necessarily the same as
-#     the shipped `Units` cell, and NOT necessarily valid Unitful syntax — e.g. `kg*m^-2*gsl^-1` for
+#     the shipped `Units` cell, and NOT necessarily valid Unitful syntax - e.g. `kg*m^-2*gsl^-1` for
 #     `gsp` and `g*C*m^-2*year^-1` for `npp`, since carbon is not a Unitful dimension and `gsl` is not
 #     a time unit. Read from the catalogue's own `OfficialUnit` column.
 # - Unit / UnitDimension: the shipped `Units` cell and its dimension. Since the accumulation
 #     period was split into its own column, this is the accumulated **amount** (`L*m^-2`), not a rate
-#     — the period is in AccumulationPeriod, and the rate is the two together.
+#     - the period is in AccumulationPeriod, and the rate is the two together.
 #   - AccumulationPeriod: the interval that amount accumulated over, or blank where none applies.
 # - AmountPerAreaPerMonth: the derived figure, and the only reason this script exists. For a
-#     `:rate` it is `amount ÷ its accumulation period × one month` — a genuine `uconvert`, so an annual
+#     `:rate` it is `amount / its accumulation period × one month` - a genuine `uconvert`, so an annual
 #     rate picks up a real ≈0.083 coefficient and a daily flux ≈30.44. Everything else repeats its own
 #     unit unchanged. `uparse`-compatible: a leading numeric coefficient parses fine.
-#   - Dimension: the dimension of AmountPerAreaPerMonth — for `bio19`, with the time dimension resolved
+#   - Dimension: the dimension of AmountPerAreaPerMonth - for `bio19`, with the time dimension resolved
 #     to a concrete month, just `L` (a depth), against UnitDimension's own `L`.
 #
 # ## Why `:stock` and `:balance` are excluded from the per-month conversion
 #
 # They are dimensionally accumulations too, but their reporting window is part of what they MEAN, not a
 # resolution choice the way a month or year is for precipitation/PET/CMI/NPP/solar radiation (those are
-# quantities you could equally well have measured at finer resolution, so "annual ÷ 12" is a genuine if
-# coarse monthly estimate). `:stock` — CumulativeHeat `gdd0/5/10`, GrowingSeasonPrecipitation `gsp` —
+# quantities you could equally well have measured at finer resolution, so "annual / 12" is a genuine if
+# coarse monthly estimate). `:stock` - CumulativeHeat `gdd0/5/10`, GrowingSeasonPrecipitation `gsp` -
 # is a flow integrated up to the point of reading, heat or water accumulated toward a phenological
 # threshold or over a bounded season, analogous to `swe` (a literal physical stock of frozen water).
 # Dividing by 12 would produce a number matching no real month, since the accumulation concentrates in
 # particular parts of the year. `:balance` (SiteWaterBalance `swb`) is different again: a
 # two-directional running balance, **capped by soil water-holding capacity** and able to go negative (a
-# deficit), not a monotonic accumulation — so a mean rate would not be meaningful even if asked for.
+# deficit), not a monotonic accumulation - so a mean rate would not be meaningful even if asked for.
 # `:range` is excluded for the same reason a spread is not a flow.
 #
 # ## Two conventions the shipped tables already encode
 #
-# The **water-density identity** — 1 kg water / 1 m² ≈ 1 L / m² ≈ 1 mm, at ≈1000 kg/m³ — is why every
+# The **water-density identity** - 1 kg water / 1 m^2 ≈ 1 L / m^2 ≈ 1 mm, at ≈1000 kg/m^3 - is why every
 # water-substance layer ships as a volume per area (`L*m^-2`) whatever its documentation says
 # (`kg*m^-2` for CHELSA, `mm` for WorldClim). It is the same identity behind `Precipitation`'s own `mm`
 # canonical unit (`src/NicheInfo.jl`). For evapotranspiration, the moisture index built from it, and
-# snow water equivalent this is a *liquid-water-equivalent* depth, not the substance's own volume —
+# snow water equivalent this is a *liquid-water-equivalent* depth, not the substance's own volume -
 # which is exactly what "snow water equivalent" conventionally means. The conversion is already done in
 # the shipped `Units` cells, so this script performs none; the tables' own `Notes` say where it applies.
 #
 # **`gsp` is treated as a plain total.** Its documentation gives `kg*m^-2*gsl^-1`, normalised by
-# growing-season length, but `gsl` is not a fixed physical time unit — it varies by cell — so no
+# growing-season length, but `gsl` is not a fixed physical time unit - it varies by cell - so no
 # conversion to it is attempted here. The catalogue records that honestly as
 # `AccumulationPeriod = percell=gsl`, and deriving a rate from it needs the `gsl` layer read alongside.
 #
 # ## Running it
 #
-# A manual diagnostic, NOT part of the test suite — its name does not start with `test_`, so
+# A manual diagnostic, NOT part of the test suite - its name does not start with `test_`, so
 # `runtests.jl` does not auto-run it, and nothing else runs `examples/scripts/` either.
 #
 #     julia --project=examples examples/scripts/rate_table.jl
@@ -82,8 +82,8 @@ const SUPERSCRIPT = Dict('⁰' => '0', '¹' => '1', '²' => '2', '³' => '3',
                          '⁻' => '-')
 
 # Convert Unitful's pretty-printed unit/dimension string (space-separated factors, unicode superscript
-# exponents — e.g. "L m⁻² yr⁻¹") into ASCII syntax (e.g. "L*m^-2*yr^-1") parseable by `Unitful.uparse`
-# — the same call `_catalogue()` uses to read the shipped `Units` column, so these cells are usable as
+# exponents - e.g. "L m⁻² yr⁻¹") into ASCII syntax (e.g. "L*m^-2*yr^-1") parseable by `Unitful.uparse`
+# - the same call `_catalogue()` uses to read the shipped `Units` column, so these cells are usable as
 # direct replacements for it. Unitful's short forms (`d`, `yr`) are fine as they stand: `uparse`
 # resolves them through the `Unitful` module in its `unit_context`, which is how the shipped
 # `MJ*d^-1*m^-2` parses today.
@@ -113,7 +113,7 @@ end
 # The duration an accumulation period resolves to for a single-figure report. One method per kind.
 _perioddur(p::CP.ConstantAccumulationPeriod) = p.duration
 # A per-slice month is twelve different divisors; one figure has to pick one, and the mean month is
-# the honest choice — it is the declared approximation `month_mean_duration` exists to be.
+# the honest choice - it is the declared approximation `month_mean_duration` exists to be.
 _perioddur(::CP.PerSliceAccumulationPeriod) = month_mean_duration
 # `percell=gsl` varies by cell, so there is no figure to give without reading that layer.
 _perioddur(::CP.PerCellAccumulationPeriod) = nothing
@@ -133,7 +133,7 @@ function amount_per_month(r, code)
     # on, so the two cases cannot be confused.
     r.category === :rate || return r.unit
     # The one genuine invariant left in this script. It is now *also* enforced at catalogue parse
-    # time by `_checkperiod`, so this should be unreachable — kept because a report that silently
+    # time by `_checkperiod`, so this should be unreachable - kept because a report that silently
     # invents a period would be worse than one that stops.
     isnothing(r.period) &&
         error("`$code` is Category = :rate but declares no AccumulationPeriod; a rate without an " *

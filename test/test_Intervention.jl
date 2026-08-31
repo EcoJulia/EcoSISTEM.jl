@@ -3,7 +3,7 @@
 module TestIntervention
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported — a spec is what a user writes,
+# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: SteadyLayerChange
 using EcoSISTEM.Units
@@ -37,19 +37,19 @@ _active(eco) = count(parent(eco.habitat.active))
     @test !fires(NeverScheduled(), 0.0s)
     @test !fires(NeverScheduled(), 100.0year)
 
-    # A one-off schedule fires on the step that *reaches* its instant — the half-open window
+    # A one-off schedule fires on the step that *reaches* its instant - the half-open window
     # `(elapsed - timestep, elapsed]`. Not an equality test: elapsed time accumulates as a float
     # and a run's steps need not land on the instant exactly, so `==` would silently never fire.
     at = AtTime(5.0month_mean_duration)
     @test !fires(at, 4.0month_mean_duration)
     @test fires(at, 5.0month_mean_duration)          # lands exactly on it
     @test !fires(at, 6.0month_mean_duration)
-    # …and it fires exactly once even when no step lands on it: 5 months falls inside the step that
-    # covers months 4.5→5.5.
+    # ...and it fires exactly once even when no step lands on it: 5 months falls inside the step that
+    # covers months 4.5->5.5.
     @test EcoSISTEM._fires(at, 5.5month_mean_duration, 1.0month_mean_duration)
     @test !EcoSISTEM._fires(at, 4.5month_mean_duration, 1.0month_mean_duration)
 
-    # …and `AtTime(0)` fires on the FIRST step, not never. The first window is `(0, timestep]`,
+    # ...and `AtTime(0)` fires on the FIRST step, not never. The first window is `(0, timestep]`,
     # which excludes zero, so without a closed lower end on step one a schedule at the start would
     # silently never fire at all.
     start = AtTime(0.0s)
@@ -82,7 +82,7 @@ end
     @test length(cells(AllCells())) == 100
     @test length(cells(ActiveCells())) == 100
 
-    # Deactivating half makes the two differ — which is the whole reason both exist.
+    # Deactivating half makes the two differ - which is the whole reason both exist.
     parent(eco.habitat.active)[1:50] .= false
     @test length(cells(AllCells())) == 100
     @test length(cells(ActiveCells())) == 50
@@ -99,13 +99,13 @@ end
     @test length(cells(SpreadingCells(20))) == 20
     @test length(cells(SpreadingCells(500))) == 50
 
-    # A **rate** draws binomially over the step instead of taking a fixed count — the process the
+    # A **rate** draws binomially over the step instead of taking a fixed count - the process the
     # v0.4.0 scenarios had (`jbinom(1, npos, rate)`), which a fixed count cannot express.
     @test length(cells(RandomCells(0.0 / year))) == 0        # certain not to happen
     @test length(cells(RandomCells(1.0e6 / year))) == 50     # clamped at certainty, and at supply
     drawn = cells(RandomCells(0.5 / year))
     @test 0 <= length(drawn) <= 50
-    # …and the draw is reproducible, being keyed on the step rather than the global RNG.
+    # ...and the draw is reproducible, being keyed on the step rather than the global RNG.
     @test cells(RandomCells(0.5 / year)) == drawn
 end
 
@@ -122,7 +122,7 @@ end
     @test _active(eco) == 100
 
     # AddAbundance / RemoveAbundance, on a frozen population so the demography cannot confuse the
-    # arithmetic — `NoGrowth` zeroes birth and death.
+    # arithmetic - `NoGrowth` zeroes birth and death.
     eco2 = _eco()
     before = sum(eco2.abundances.matrix[1, :])
     EcoSISTEM.applyinterventions!(eco2,
@@ -157,7 +157,7 @@ end
                                                               1.0month_mean_duration,
                                                               0)
 
-    # `SetLandCover` is the ONLY direct matrix write, and only on a categorical layer — a
+    # `SetLandCover` is the ONLY direct matrix write, and only on a categorical layer - a
     # continuous layer's values belong to its change rule.
     eco4 = _eco()
     @test_throws ErrorException EcoSISTEM.applyinterventions!(eco4,
@@ -179,7 +179,7 @@ end
                                           SetChange(nothing,
                                                     IncrementBy(1.0K / year))))
     @test eco.habitat.regime.change isa SteadyLayerChange
-    # Warmed already — not still sitting at its initial 285 K waiting for the next step.
+    # Warmed already - not still sitting at its initial 285 K waiting for the next step.
     @test all(>(285.0K), eco.habitat.regime.matrix)
 
     # A named target addresses a sub-layer of a collection; an unknown name says so.
@@ -222,7 +222,7 @@ end
     # Two environments built from one `StudyArea` must not share the **same** `active` array
     # object, which is what the synthetic path does if it passes `area.report.active` straight
     # through without copying. Deactivating cells in one ecosystem then silently deactivates them in
-    # every other — and in the area itself, so the next `GridHabitat` inherits the damage. Harmless
+    # every other - and in the area itself, so the next `GridHabitat` inherits the damage. Harmless
     # until something
     # mutated `active`, which is why it survived until interventions arrived.
     area = StudyArea(extent = (10.0km, 10.0km), cellsize = 1.0km,
@@ -236,7 +236,7 @@ end
     @test !(parent(a.active) === parent(b.active))
     parent(a.active)[1:20] .= false
     @test count(parent(b.active)) == 100
-    @test count(parent(env().active)) == 100   # …and the area itself is undamaged
+    @test count(parent(env().active)) == 100   # ...and the area itself is undamaged
 end
 
 end

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The layer recipes — what a caller writes to declare a layer before anything is built. The
+# The layer recipes - what a caller writes to declare a layer before anything is built. The
 # synthetic ones describe a grid outright; `Varying` wraps any spec to say how it changes in time.
 
 using Unitful
@@ -29,15 +29,15 @@ abstract type AbstractSyntheticSpec <: AbstractSpec end
 """
     AbstractSyntheticLayerSpec <: AbstractSyntheticSpec
 
-Synthetic layer recipes — [`UniformSpec`](@ref), [`GradientSpec`](@ref), [`PeakedSpec`](@ref),
-[`NicheSpec`](@ref) — used as a regime or supply, never as a mask.
+Synthetic layer recipes - [`UniformSpec`](@ref), [`GradientSpec`](@ref), [`PeakedSpec`](@ref),
+[`NicheSpec`](@ref) - used as a regime or supply, never as a mask.
 """
 abstract type AbstractSyntheticLayerSpec <: AbstractSyntheticSpec end
 
 """
     AbstractSyntheticMaskSpec <: AbstractSyntheticSpec
 
-Synthetic active-mask recipes — [`CircleMaskSpec`](@ref) — used only as an `active` mask.
+Synthetic active-mask recipes - [`CircleMaskSpec`](@ref) - used only as an `active` mask.
 """
 abstract type AbstractSyntheticMaskSpec <: AbstractSyntheticSpec end
 
@@ -48,14 +48,14 @@ A layer with a single constant value in every cell.
 
 # Arguments
 
-  - `value`: what every cell holds — a `Unitful` quantity, or a bare number.
+  - `value`: what every cell holds - a `Unitful` quantity, or a bare number.
   - `axis`: the niche axis this layer is on. **Required**: it is what makes the layer matchable
     against a species' tolerances, and no default could be right for every model. Pass
     [`NicheAxis`](@ref) itself for data whose meaning is genuinely not being claimed, such as a mask.
 """
 struct UniformSpec{A <: NicheAxis, V} <: AbstractSyntheticLayerSpec
     value::V
-    # The sole constructor — axis is a keyword (not a leading positional), which is what lets
+    # The sole constructor - axis is a keyword (not a leading positional), which is what lets
     # this collapse to one constructor with no separate no-axis overload.
     function UniformSpec(value::V;
                          axis::Type{A}) where {A <: NicheAxis, V}
@@ -77,7 +77,7 @@ give it a change in time.
   - `axis`: the niche axis this layer is on, as [`UniformSpec`](@ref). Required.
   - `orientation`: which way the gradient runs, as a compass bearing clockwise from North. `0°`, the
     default, runs south to north; `90°` west to east; `180°` north to south; and so on for any
-    bearing between. Must be a real angle `Quantity` — `90°`, or `(pi/2)rad` — since a bare number
+    bearing between. Must be a real angle `Quantity` - `90°`, or `(pi/2)rad` - since a bare number
     would be read as radians by Unitful's own counter-intuitive convention. Stored in degrees, so the
     type is not parametric on the angle unit.
 """
@@ -85,7 +85,7 @@ struct GradientSpec{A <: NicheAxis, V} <: AbstractSyntheticLayerSpec
     low::V
     high::V
     orientation::typeof(1.0°)
-    # The sole constructor — `axis` is a keyword (not a leading positional), which is what lets
+    # The sole constructor - `axis` is a keyword (not a leading positional), which is what lets
     # this collapse to one constructor with no separate no-axis overload, since defining it here
     # suppresses Julia's default inner constructor: `low < high` and the canonicalising
     # `orientation` check can't be bypassed by constructing a `GradientSpec{A, V}` directly.
@@ -103,7 +103,7 @@ end
 """
     PeakedSpec{A <: NicheAxis, V}
 
-A layer whose value peaks — or dips — in the middle of the grid: `inside` at the centre, falling off
+A layer whose value peaks - or dips - in the middle of the grid: `inside` at the centre, falling off
 to `outside` at each end.
 
 As [`GradientSpec`](@ref), the pattern is fixed in space; wrap the spec in [`Varying`](@ref) to give
@@ -137,7 +137,7 @@ end
 """
     NicheSpec{A <: NicheAxis}
 
-A **categorical** layer of randomly assigned niche classes — the synthetic counterpart of a land
+A **categorical** layer of randomly assigned niche classes - the synthetic counterpart of a land
 cover map.
 
 # Arguments
@@ -162,14 +162,14 @@ are not. Resolved onto the grid when the habitat is built.
 # Arguments
 
   - `radius`: how far the circle reaches, as a **physical distance** (`100.0km`) rather than an angle.
-  - `centre`: where it is centred, as a [`LatLong`](@ref). Defaults to the grid's own centre — and on
+  - `centre`: where it is centred, as a [`LatLong`](@ref). Defaults to the grid's own centre - and on
     a **synthetic** grid, which has no real-world coordinates, that default is the only thing
     supported, since a geographic centre could not be placed.
 """
 struct CircleMaskSpec{V <: Unitful.Length} <: AbstractSyntheticMaskSpec
     centre::Union{LatLong, Nothing}   # a lat/long point, or `nothing` for the grid centre
     radius::V
-    # The sole constructor — `V` is inferable from the `radius` keyword's value in the `where`
+    # The sole constructor - `V` is inferable from the `radius` keyword's value in the `where`
     # clause regardless of it being a keyword, so this collapses to one constructor with no
     # separate outer method.
     function CircleMaskSpec(; radius::V,
@@ -182,9 +182,9 @@ end
 # Display
 # ---------------------------------------------------------------------------
 # **A spec's one-liner is the expression that builds it.** A spec is a recipe the user typed, so
-# echoing it back is both the most useful thing to show and self-documenting — it can be pasted
+# echoing it back is both the most useful thing to show and self-documenting - it can be pasted
 # straight into a session. That is a different rule from the layer displays in `Layer.jl`, which
-# describe a built object rather than a recipe, and it is why these carry `axis = …` rather than
+# describe a built object rather than a recipe, and it is why these carry `axis = ...` rather than
 # folding the axis into the type name.
 #
 # Optional arguments appear only when they are not at their default, for the same reason: a printed
@@ -216,7 +216,7 @@ function Base.show(io::IO, spec::CircleMaskSpec)
     return print(io, "CircleMaskSpec(radius = $(spec.radius)$(centre))")
 end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # ---------------------------------------------------------------------------
 # Layer specs (recipes)
@@ -255,7 +255,7 @@ end
 # --- Reading a spec ----------------------------------------------------------
 # What a spec says about itself, asked by the study-area machinery that has to plan around it.
 
-# Does this spec generate its values rather than read them — and so have no grid of its own?
+# Does this spec generate its values rather than read them - and so have no grid of its own?
 _issyntheticspec(::AbstractSyntheticSpec) = true
 
 _issyntheticspec(_) = false
@@ -295,7 +295,7 @@ end
 # Turn a physical grid extent and a cell `size` into an integer `(ny, nx)` cell count, warning if the
 # extent is not close to a whole number of cells. Returns both the cell counts and the total area.
 #
-# The extent is `(y, x)` — north-south first, then east-west — which is the dimension order used
+# The extent is `(y, x)` - north-south first, then east-west - which is the dimension order used
 # everywhere else in the package, and the order of the `(ny, nx)` returned here. A square extent
 # cannot tell the two apart, so only a non-square grid ever exposes a crossing.
 function _extentdims(extent::Tuple{<:Unitful.Length, <:Unitful.Length},
@@ -311,13 +311,13 @@ function _extentdims(extent::Tuple{<:Unitful.Length, <:Unitful.Length},
 end
 
 # Normalised (0 to 1) linear field over `dim` along compass bearing `orientation` (degrees
-# clockwise from North — `0°` runs low row -> high row, `90°` runs low column -> high column
+# clockwise from North - `0°` runs low row -> high row, `90°` runs low column -> high column
 # (west -> east), and so on for any bearing in between). `rowsincreasenorth` says whether
 # increasing row index means increasing latitude: `true` (default) for the synthetic grid's
 # arbitrary index convention (no real `Y` lookup at all, row 1 = south by documented convention);
-# for a *data-driven* grid this must instead reflect the regime's own real `Y` lookup order — a
+# for a *data-driven* grid this must instead reflect the regime's own real `Y` lookup order - a
 # GDAL-sourced raster is conventionally north-up (`Y` stored `ReverseOrdered`, row 1 = north),
-# the opposite of the synthetic convention — see `_rowsincreasenorth`.
+# the opposite of the synthetic convention - see `_rowsincreasenorth`.
 function _gradientfield(dim, orientation, rowsincreasenorth::Bool = true)
     ny, nx = dim
     north, east = cos(orientation), sin(orientation)
@@ -331,20 +331,20 @@ function _gradientfield(dim, orientation, rowsincreasenorth::Bool = true)
 end
 
 # Whether increasing row index in a `(Y, X)` dims tuple corresponds to increasing latitude
-# (north) — see `_gradientfield`'s docstring comment above for why this matters.
+# (north) - see `_gradientfield`'s docstring comment above for why this matters.
 function _rowsincreasenorth(yx)
     return !(DimensionalData.order(yx[1]) isa
              DimensionalData.Lookups.ReverseOrdered)
 end
 
-# Cell counts, total area (km²) and cell side (km) of an (extent, cell-size) grid.
+# Cell counts, total area (km^2) and cell side (km) of an (extent, cell-size) grid.
 function _gridgeometry(extent, size)
     dim, area = _extentdims(extent, size)
     a = uconvert(km^2, float(area))
     return (dim = dim, area = a, cellsize = sqrt(a / (dim[1] * dim[2])))
 end
 
-# Resolve the `active` keyword for a SYNTHETIC (`extent`/`size`-based) grid — one method per
+# Resolve the `active` keyword for a SYNTHETIC (`extent`/`size`-based) grid - one method per
 # recognised kind, mirroring `_rastermask`'s dispatch-per-kind pattern for the data-driven
 # path, but working in cell-index × `cellsize` (Cartesian) rather than lat/long geodesy, since a
 # synthetic grid has no real-world coordinates at all.
@@ -373,12 +373,12 @@ function _resolvesyntheticactive(active, dim, cellsize)
                  "environment; use nothing, a Matrix{Bool}, or CircleMaskSpec(...).")
 end
 
-# A per-cell field of per-area supply-rate values over `dim` — one method per recognised
+# A per-cell field of per-area supply-rate values over `dim` - one method per recognised
 # `AbstractSyntheticSpec` kind (a bare quantity is uniform; `UniformSpec` unwraps its value;
 # `GradientSpec` and `PeakedSpec` reuse `_gradientfield`'s spatial pattern, mirroring how those
-# specs materialise a regime but without any axis tagging — a supply is a `Resource`-role rate, not
+# specs materialise a regime but without any axis tagging - a supply is a `Resource`-role rate, not
 # a `Condition`-role niche value). Reached through `_specfield`, which adds the one kind this family
-# cannot answer for itself — `NicheSpec`, whose values are class codes — so every synthetic layer,
+# cannot answer for itself - `NicheSpec`, whose values are class codes - so every synthetic layer,
 # either role and either kind of study area, is generated here.
 function _syntheticsupplyfield(maxsupply, dim, rowsincreasenorth::Bool = true)
     return fill(float(maxsupply),

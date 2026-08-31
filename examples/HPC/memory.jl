@@ -6,12 +6,12 @@
 # **One helper for both cases.** A laptop run is not started by `mpirun`, so `MPI.Initialized()`
 # is false (or there is a single rank) and the budget is simply this machine's. Under `mpirun`/`srun`
 # with several ranks it becomes the sum across the nodes the job actually landed on. Nothing above
-# has to know which it got — the same call answers both, and reports which it was.
+# has to know which it got - the same call answers both, and reports which it was.
 #
 # **The assumption, stated because it decides the arithmetic**: ranks do *not* share the landscape
 # (each holds its own private slice), and each node is exclusively this job's. The per-rank figure is
 # therefore its node's memory divided by the ranks on that node, and the global figure takes the
-# **minimum** of those — the weakest rank sets the chunk size for a uniformly distributed array, so
+# **minimum** of those - the weakest rank sets the chunk size for a uniformly distributed array, so
 # a heterogeneous allocation is costed at its worst node rather than its average.
 #
 # Include it and ask:
@@ -71,7 +71,7 @@ const SPARE_ARRAYS = 1
 # The memory this process may use on its own node, in bytes. Prefers the batch scheduler's
 # allocation to the machine's physical RAM: a job on a 1 TB node may be held to a fraction of it,
 # and sizing from `Sys.total_memory()` there gets the run OOM-killed rather than slowed down.
-# `Sys.total_memory()` rather than `Sys.total_physical_memory()` for the fallback — it is the one
+# `Sys.total_memory()` rather than `Sys.total_physical_memory()` for the fallback - it is the one
 # documented to respect a Linux control group, which is how the limit usually arrives.
 function _nodememory()
     permb = get(ENV, "SLURM_MEM_PER_NODE", "")
@@ -82,12 +82,12 @@ function _nodememory()
     return parse(Int64, percpu) * parse(Int64, cpus) * 1024^2
 end
 
-# Whether this process is part of a live multi-rank MPI session — the same test the package's own
+# Whether this process is part of a live multi-rank MPI session - the same test the package's own
 # `_should_mpi` makes, so `build_ecosystem(distributed = :auto)` and this agree on which run it is.
 _isdistributed() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
 
-# Measured once and kept. Under MPI `memory_budget` is **collective** — it reduces across
-# `COMM_WORLD` — so calling it again from a subset of ranks (say, inside a `rank == 0` branch) would
+# Measured once and kept. Under MPI `memory_budget` is **collective** - it reduces across
+# `COMM_WORLD` - so calling it again from a subset of ranks (say, inside a `rank == 0` branch) would
 # hang every rank with no error at all. Caching makes every call after the first free and safe to
 # make from anywhere, leaving only the first call needing to be reached by all ranks.
 const _BUDGET = Ref{Union{Nothing, NamedTuple}}(nothing)
@@ -98,12 +98,12 @@ const _BUDGET = Ref{Union{Nothing, NamedTuple}}(nothing)
 Return what this run can plan around, as a named tuple of `total` and `per_rank` bytes, the number
 of `nodes` and `ranks` it spans, and whether it is `distributed`.
 
-Serial runs report this machine alone. Under MPI, ranks are grouped by the memory they share — one
-group per node — and each rank's budget is its node's memory divided by the ranks on it; `per_rank`
+Serial runs report this machine alone. Under MPI, ranks are grouped by the memory they share - one
+group per node - and each rank's budget is its node's memory divided by the ranks on it; `per_rank`
 is the **minimum** across the job and `total` is that minimum times the rank count, so an uneven
 allocation is costed at its weakest node.
 
- **The first call is collective and every rank must reach it** — call it once at startup, before
+ **The first call is collective and every rank must reach it** - call it once at startup, before
 any `rank == 0` branch. The result is cached, so later calls cost nothing and may be made from a
 single rank.
 """
@@ -120,7 +120,7 @@ function memory_budget()
     ranks = MPI.Comm_size(comm)
 
     # Ranks that can share memory are ranks on the same node, for every mainstream MPI
-    # implementation — and unlike counting distinct `MPI.Get_processor_name()` strings, this stays
+    # implementation - and unlike counting distinct `MPI.Get_processor_name()` strings, this stays
     # right where one node runs several containers.
     nodecomm = MPI.Comm_split_type(comm, MPI.COMM_TYPE_SHARED, 0)
     hereranks = MPI.Comm_size(nodecomm)
@@ -149,8 +149,8 @@ end
 """
     required_memory(numspecies, perspecies; distributed)
 
-Return the bytes `numspecies` species would need: every full `species × cells` array the run holds —
-two serially, three under MPI — plus one more as slack.
+Return the bytes `numspecies` species would need: every full `species × cells` array the run holds -
+two serially, three under MPI - plus one more as slack.
 
 `perspecies` is the bytes **one** species' abundances occupy over the whole grid.  Ask the package
 rather than working it out: `investigate_study_area(...).footprint.perspecies` is exactly this
@@ -171,16 +171,16 @@ end
 
 Return the bytes required, or throw if they will not fit in `budget`.
 
-For a run whose grid is **fixed** — a benchmark that must be the size it says, not whatever happens
+For a run whose grid is **fixed** - a benchmark that must be the size it says, not whatever happens
 to fit. Where the size is negotiable, [`choose_cellsize`](@ref) picks one instead.
 
-- `numspecies`, `perspecies` — as for [`required_memory`](@ref); ask the package for the second with
+- `numspecies`, `perspecies` - as for [`required_memory`](@ref); ask the package for the second with
   `investigate_study_area(...)` and `EcoSISTEM.getspeciesstorage`.
-- `budget` — a [`memory_budget`](@ref) result, measured if not given.
-- `what` — how to name the run in the error, so a script with several says which one failed.
+- `budget` - a [`memory_budget`](@ref) result, measured if not given.
+- `what` - how to name the run in the error, so a script with several says which one failed.
 
  Checked **before** anything is allocated, so an impossible configuration is a message rather than
-an OOM kill an hour into a batch job — which is the whole point on a shared machine, where the
+an OOM kill an hour into a batch job - which is the whole point on a shared machine, where the
 scheduler's report says only that the job died.
 """
 function check_memory(numspecies::Integer, perspecies::Integer;
@@ -202,7 +202,7 @@ Return the finest of `candidates` that `numspecies` species will fit in, as a na
 chosen `cellsize`, its `perspecies` bytes, the `required` and `usable` bytes, and whether it `fits`.
 
 `footprint` is called with a cell size and must return the bytes one species' abundances would
-occupy on that grid — `investigate_study_area(...).footprint.perspecies`. It is taken first so it can
+occupy on that grid - `investigate_study_area(...).footprint.perspecies`. It is taken first so it can
 be written as a do-block. Candidates are tried finest first and the first that fits is returned, so
 it is called once per candidate at most. If none fits, the coarsest is returned with `fits = false`
 rather than an error: the caller decides whether to shrink the species pool, ask for more nodes, or
@@ -230,7 +230,7 @@ end
 
 # --- saying so --------------------------------------------------------------------------
 
-# Bytes as GiB to one decimal place — every figure here is a planning estimate, so more precision
+# Bytes as GiB to one decimal place - every figure here is a planning estimate, so more precision
 # than that would be claiming an accuracy the headroom fraction does not have.
 _gib(bytes) = @sprintf("%.1f GiB", bytes / 2^30)
 
@@ -240,7 +240,7 @@ _gib(bytes) = @sprintf("%.1f GiB", bytes / 2^30)
 Print what was detected: serial or distributed, over how many ranks and nodes, the memory it may
 allocate, and how many `species × cells` arrays a run there has to fit into it.
 
- Every rank returns the same figures, so under MPI this should be called from one rank only —
+ Every rank returns the same figures, so under MPI this should be called from one rank only -
 otherwise the report appears once per rank.
 """
 function describe(budget = memory_budget(); io = stdout)
@@ -258,7 +258,7 @@ end
 """
     describe(chosen, numspecies; io = stdout)
 
-Print the outcome of a [`choose_cellsize`](@ref), naming what it picked and what that costs — or, if
+Print the outcome of a [`choose_cellsize`](@ref), naming what it picked and what that costs - or, if
 nothing fitted, saying so rather than letting the run discover it by being killed.
 """
 function describe(chosen::NamedTuple, numspecies::Integer; io = stdout)
@@ -272,7 +272,7 @@ function describe(chosen::NamedTuple, numspecies::Integer; io = stdout)
                 "⚠️ Nothing fits. The coarsest candidate ($(chosen.cellsize)) ",
                 "still needs ", _gib(chosen.required), " of ",
                 _gib(chosen.usable),
-                " — reduce the species pool or ask for more nodes.")
+                " - reduce the species pool or ask for more nodes.")
     end
     return nothing
 end
@@ -295,7 +295,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
         println()
 
         # **A canned illustration, not the real mechanism.** These are the Africa grids as
-        # measured, hardcoded so this file stays standalone — it depends on nothing but MPI and can
+        # measured, hardcoded so this file stays standalone - it depends on nothing but MPI and can
         # be run anywhere. A real script asks the package instead, and
         # `examples/HPC/Africa.jl` is the worked example: `investigate_study_area` resolves the grid
         # and `EcoSISTEM.getspeciesstorage` prices it, so nothing is written down.
@@ -303,7 +303,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
                                   20.0km => 133_650, 50.0km => 21_252,
                                   100.0km => 5_280)
 
-        # `budget` passed rather than defaulted — inside a single-rank branch that is the habit
+        # `budget` passed rather than defaulted - inside a single-rank branch that is the habit
         # worth having, even though the cache above now makes the default safe too.
         numspecies = 50_000
         chosen = MemoryGuidance.choose_cellsize(numspecies, keys(AFRICA_CELLS),

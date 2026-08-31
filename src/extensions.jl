@@ -32,7 +32,7 @@
 #     Only their hooks are here.
 
 # ---------------------------------------------------------------------------
-# EcoSISTEMPhyloExt — requires Phylo
+# EcoSISTEMPhyloExt - requires Phylo
 # ---------------------------------------------------------------------------
 # Everything to do with phylogenies. These are Phylo's concepts rather than EcoSISTEM's, which is why
 # they are grouped here instead of sitting beside `SpeciesList` and the tolerances they were declared
@@ -63,7 +63,7 @@ Evolve functional traits through a phylogenetic tree, writing the result onto th
 tree's node records.
 
 The first two forms evolve **categorical** traits, switching between the values in
-each column of `traits` at `switch_rate` — one rate per trait, or a single rate
+each column of `traits` at `switch_rate` - one rate per trait, or a single rate
 shared by all of them. The third evolves **continuous** traits by Brownian motion,
 and takes a `traits` with a `start` column of initial values and a `σ²` column of
 rates, one row per trait.
@@ -73,7 +73,7 @@ rates, one row per trait.
   - `tree`: the phylogeny to evolve the traits along.
   - `switch_rate`: the rate of categorical trait change along a branch, per trait
     or shared by all of them. Omitted for the Brownian form.
-  - `traits`: the traits to evolve — the categorical values per trait, or the
+  - `traits`: the traits to evolve - the categorical values per trait, or the
     `start`/`σ²` pairs the Brownian form needs.
 """
 function assigntraits! end
@@ -117,7 +117,7 @@ so expected divergence grows with the time two lineages have been apart.
 
 # Fields of the concrete type `EcoSISTEMPhyloExt.Brownian`
 
-  - `optimum`: the maximum-likelihood parameters, `[σ², z̄₀]` — the diffusion
+  - `optimum`: the maximum-likelihood parameters, `[σ², z̄₀]` - the diffusion
     rate and the inferred root state.
   - `se`: their standard errors, from the Hessian; `show` prints each parameter
     with a ±2 SE interval.
@@ -197,7 +197,7 @@ Evolve a Real value through Brownian motion, with a starting value,
 function brownian_motion end
 
 # ---------------------------------------------------------------------------
-# EcoSISTEMMPIExt — requires MPI
+# EcoSISTEMMPIExt - requires MPI
 # ---------------------------------------------------------------------------
 # The distributed hot loop's plumbing. The two abstract types it fills in are in
 # `MPIEcosystem.jl`; what follows is what the extension must implement.
@@ -242,11 +242,11 @@ function synchronise_from_rows! end
     synchronise_from_cols!(mpigrid)
 
 Copy the abundance matrix from its **cell-partitioned** view back into the
-species-partitioned one — the mirror of [`synchronise_from_rows!`](@ref).
+species-partitioned one - the mirror of [`synchronise_from_rows!`](@ref).
 """
 function synchronise_from_cols! end
 
-# Every call site is inside `EcoSISTEMMPIExt` — these are hooks the extension implements, not names
+# Every call site is inside `EcoSISTEMMPIExt` - these are hooks the extension implements, not names
 # a user writes. Deliberately not symmetric with `MPIEcosystem` and `MPIGridLandscape`, which stay
 # exported because a user names those types directly.
 public empty_landscape, synchronise_from_rows!, synchronise_from_cols!
@@ -264,7 +264,7 @@ function _usempi()
            _should_mpi()
 end
 
-# Launcher env-vars set by Open MPI / MPICH / PMIx / Slurm — a cheap "was I started under an MPI
+# Launcher env-vars set by Open MPI / MPICH / PMIx / Slurm - a cheap "was I started under an MPI
 # launcher?" check that needs no MPI dependency. Used only to warn when a run looks distributed but
 # MPI wasn't initialised (which would otherwise silently build one independent serial ecosystem per
 # rank).
@@ -293,7 +293,7 @@ function _resolvedistributed(distributed)
 end
 
 # ---------------------------------------------------------------------------
-# EcoSISTEMERAExt — requires PyCall
+# EcoSISTEMERAExt - requires PyCall
 # ---------------------------------------------------------------------------
 
 """
@@ -305,7 +305,7 @@ The download goes through the CDS Python client, so the method appears only once
 
 # Arguments
 
-  - `args...`, `kwargs...`: forwarded unchanged to the extension's method, which documents them —
+  - `args...`, `kwargs...`: forwarded unchanged to the extension's method, which documents them -
     load `PyCall` and consult `retrieve_era5` again to see the live signature.
 
 The result is an ERA5 netCDF that [`readfile`](@ref)/[`ERA`](@ref) read like any other raster.
@@ -318,7 +318,7 @@ function retrieve_era5 end
 public retrieve_era5
 
 # ---------------------------------------------------------------------------
-# EcoSISTEMRasterDataSourcesExt — requires RasterDataSources
+# EcoSISTEMRasterDataSourcesExt - requires RasterDataSources
 # ---------------------------------------------------------------------------
 
 """
@@ -334,16 +334,16 @@ each cell's dominant class.
     all twelve must be present and in order; look one up by name with
     [`landcoverclass`](@ref EcoSISTEM.landcoverclass) rather than counting.
 
-The result holds land-cover *types* (`1`–`12`, addressable by name with
+The result holds land-cover *types* (`1`-`12`, addressable by name with
 [`landcoverclass`](@ref EcoSISTEM.landcoverclass)), which is a different quantity from its inputs:
-each input band is a fraction of the cell covered by one class — a [`SurfaceArea`](@ref) — while the
-output names which class won. Declaring the spec's `axis = LandCoverTypology` is what says so —
-a `TypologyAxis` holds class labels — and it is why nothing downstream averages between class codes:
+each input band is a fraction of the cell covered by one class - a [`SurfaceArea`](@ref) - while the
+output names which class won. Declaring the spec's `axis = LandCoverTypology` is what says so -
+a `TypologyAxis` holds class labels - and it is why nothing downstream averages between class codes:
 resampling takes the nearest class rather than interpolating, and a regime built from it is a
 `CategoricalRegime`.
 
-**Its niche axis is declared where it is used, not here.** A raster carries no axis of its own —
-only a layer code the shipped catalogue can resolve — and no EarthEnv code means "typology", so say
+**Its niche axis is declared where it is used, not here.** A raster carries no axis of its own -
+only a layer code the shipped catalogue can resolve - and no EarthEnv code means "typology", so say
 so on the spec:
 
 ```julia
@@ -368,7 +368,7 @@ export compress_landcover
     landcoverclass(name::Symbol)
 
 The raw numeric code of the shipped `EarthEnv` land-cover class `name`, looked up by name in the
-shipped table (never a hardcoded number). A building block for land-cover masks — e.g. an argmax of
+shipped table (never a hardcoded number). A building block for land-cover masks - e.g. an argmax of
 all class bands, excluding open water:
 
 ```julia
@@ -387,7 +387,7 @@ function landcoverclass end
 
 Return the coordinate reference system of a source's files without reading any of their data.
 
-The file is opened lazily, so only its header is touched — which is what lets a [`StudyArea`](@ref)
+The file is opened lazily, so only its header is touched - which is what lets a [`StudyArea`](@ref)
 settle its target CRS *before* deciding how much of each layer to read, rather than reading every
 layer whole just to discover where it is. Returns `nothing` for a file that declares no CRS.
 
@@ -399,12 +399,12 @@ splatted in unchanged; the aggregation `scale` in particular cannot affect a CRS
   - `T`: the `RasterDataSources` dataset type.
   - `layers`: which layers to inspect, defaulting to all of the dataset's. Only the first file that
     declares a CRS is needed, so this is rarely worth narrowing.
-  - `kw...`: read keywords, all ignored — see above.
+  - `kw...`: read keywords, all ignored - see above.
 """
 function sourcecrs end
 
 # ---------------------------------------------------------------------------
-# EcoSISTEMDataPipelineExt — requires DataPipeline
+# EcoSISTEMDataPipelineExt - requires DataPipeline
 # ---------------------------------------------------------------------------
 
 # DataPipeline extension

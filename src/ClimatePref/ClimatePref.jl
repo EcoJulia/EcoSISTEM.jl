@@ -98,7 +98,7 @@ export compress_landcover
 
 export Brownian, fitbrownian, varcovar
 
-# The deprecated climate API — constructors and readers — collected last so that everything it
+# The deprecated climate API - constructors and readers - collected last so that everything it
 # forwards to is already defined. The dataset-typed subset (the five per-source wrapper constructors,
 # `readworldclim` and `readCHELSA_monthly`) is in `EcoSISTEMRasterDataSourcesExt` instead, since none
 # of those can be defined without `RasterDataSources`. The names are exported here either way.

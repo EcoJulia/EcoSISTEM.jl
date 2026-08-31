@@ -9,7 +9,7 @@
 #
 # **And a second constraint, which only becomes visible once the first is met**: pairing an EarthEnv
 # land-cover grid with a WorldClim layer *upresolutioned ×2* pairs two grids that are genuinely
-# different grids — the builder refused them with *"`supply`'s grid does not match the regime's
+# different grids - the builder refused them with *"`supply`'s grid does not match the regime's
 # grid"*. The hand-rolled `upresolution` existed precisely to force the two onto a common grid, and
 # a `StudyArea` is the thing that does that properly: both layers are now sampled onto one decided
 # grid, so no resampling has to be arranged by hand and nothing can silently disagree.
@@ -22,7 +22,7 @@ using Unitful
 using Unitful.DefaultSymbols
 using Plots
 
-# The gate — see `Worldclim_africa.jl`.
+# The gate - see `Worldclim_africa.jl`.
 const SMALL = get(ENV, "ECOSISTEM_SCALE", "large") == "small"
 const CELLSIZE = SMALL ? 200.0km : 50.0km
 const YEARS = SMALL ? 2year : 10year
@@ -32,7 +32,7 @@ const YEARS = SMALL ? 2year : 10year
 # **winning class code** per cell. A bare dataset argument (no code) hands the combine the whole
 # multi-band raster, which is exactly what it needs.
 #
-# **`LandCoverTypology`, and the axis is what makes the layer categorical** — not the fact that the
+# **`LandCoverTypology`, and the axis is what makes the layer categorical** - not the fact that the
 # values happen to be integers. Declaring `SurfaceArea` here (a *continuous* axis) canonicalises them
 # to `Float64` and the builder then refuses the pairing outright: *"layer `tolerance` is Int64 in the
 # species tolerance but Float64 in the environment regime"*. That refusal is the axes rule working:
@@ -66,7 +66,7 @@ const LIVEABLE = (:needleleaf_trees, :evergreen_broadleaf_trees,
 
 # A **pre-built** tolerance, which `build_species` accepts as it stands: a land-cover tolerance is
 # a set of acceptable classes, not a mean and a width, so there is no `(mean, width)` form for it and
-# no `toleranceaxis` to give — the tolerance already carries its own meaning. It does still declare
+# no `toleranceaxis` to give - the tolerance already carries its own meaning. It does still declare
 # its `axis`, which is what pairs it with the `LandCoverTypology` regime above.
 tolerance = SimpleCategoricalTolerance([collect(EcoSISTEM.landcoverclass.(LIVEABLE))],
                                        axis = LandCoverTypology)

@@ -8,12 +8,12 @@ the reference for what the package currently implements.
 
 Species are regulated by **competition for a shared pool of resources**: in each cell the demands of
 everything present are summed against what the cell supplies, so births fall and deaths rise as that
-total approaches the supply. Carrying capacity is not a parameter anywhere in the package — it is
+total approaches the supply. Carrying capacity is not a parameter anywhere in the package - it is
 what those two pressures leave behind. Conditions such as temperature decide *where* a species can
 persist; resources decide *how many*.
 
-A simulation is assembled from three things — an environment, a list of species, and the fit
-between them — on a grid decided in advance. [The basics](@ref "The basics of EcoSISTEM.jl")
+A simulation is assembled from three things - an environment, a list of species, and the fit
+between them - on a grid decided in advance. [The basics](@ref "The basics of EcoSISTEM.jl")
 walks through a first run and [How the model works](@ref) explains the population model underneath;
 [Layers, conditions and resources](@ref) covers what an environmental layer means and where
 climate data comes from; [Time in EcoSISTEM](@ref) covers the simulation clock and

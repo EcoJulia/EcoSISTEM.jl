@@ -60,18 +60,18 @@
   - A new interface
     - The grid is decided first: a `StudyArea` fixes extent, cell size and CRS before anything is
       built on it, and `investigate_study_area` reports what a run would cost before you commit to it.
-    - An environment is assembled from spec recipes — `UniformSpec`, `GradientSpec`, `PeakedSpec`,
-      `NicheSpec`, `SourceSpec`, `ConstructedSpec` — by `GridHabitat`, or by `build_habitat`, which
+    - An environment is assembled from spec recipes - `UniformSpec`, `GradientSpec`, `PeakedSpec`,
+      `NicheSpec`, `SourceSpec`, `ConstructedSpec` - by `GridHabitat`, or by `build_habitat`, which
       supplies what you do not name and reports what it chose. Species come from `build_species`, and
       `build_ecosystem` pairs the two sides and checks them against each other.
     - One layer family covers both halves of the environment, parameterised by role (`Condition` or
       `Resource`) and by niche axis, and tolerances and demands mirror it exactly on the species side.
       Everything is named by its niche axis, and a layer pairs only with a requirement on the
-      identical axis. Collections of any of them implement the standard container interface — `keys`,
-      `values`, `pairs`, `iterate`, `getindex` — in place of the bespoke accessors.
+      identical axis. Collections of any of them implement the standard container interface - `keys`,
+      `values`, `pairs`, `iterate`, `getindex` - in place of the bespoke accessors.
     - Environmental change is declared rather than programmed: any layer may carry a layer change,
-      which is a pure function of elapsed time. Change to the ecosystem itself — deactivating cells,
-      adding or removing abundance, introducing a species — is a separate mechanism, `Intervention`,
+      which is a pure function of elapsed time. Change to the ecosystem itself - deactivating cells,
+      adding or removing abundance, introducing a species - is a separate mechanism, `Intervention`,
       scheduled by time and aimed at a region.
     - A run may carry an epoch, the real date its elapsed time zero stands for, and calendar month
       durations replace the old fixed 30.4375-day month.
@@ -82,7 +82,7 @@
       `scale` without a window is the exception: it coarsens the whole file, and memoises the result
       so that only the first one is slow.
     - Cell size and area can be asked of anything that knows the grid, and a geographic grid answers
-      with an angle and a true solid angle rather than a fabricated length — so a supply on a
+      with an angle and a true solid angle rather than a fabricated length - so a supply on a
       latitude/longitude grid is scaled by its own cell's area instead of the whole grid's.
     - Several fixes changed what the model computes: the suitability term was applied once per resource
       in a multi-resource environment; an axis's canonical unit silently moved every equilibrium; a

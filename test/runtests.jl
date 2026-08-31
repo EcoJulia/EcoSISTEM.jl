@@ -18,11 +18,11 @@ include("checkmem.jl")
 # Going through `Pkg.test` rather than running the file directly is the whole point: it is what
 # provisions the test environment. `Git`, `JuliaFormatter` and `ResearchSoftwareMetadata` are
 # `[extras]` in `Project.toml`'s `test` target and nothing else supplies them, so a bare
-# `julia test/extras_clean.jl` dies on `using Git` — while a package dependency like `Phylo` (which
+# `julia test/extras_clean.jl` dies on `using Git` - while a package dependency like `Phylo` (which
 # `clean_ResearchSoftwareMetadata.jl` uses) needs to be a *direct* dep of the active project too.
 # `Pkg.test` gets both right by construction; anything else reconstructs it and drifts.
 #
-# The `.jl` is optional, so `test_args = ["extras_clean"]` works too. Any test file may be named —
+# The `.jl` is optional, so `test_args = ["extras_clean"]` works too. Any test file may be named -
 # `test_Layer.jl` as readily as a whole set.
 #
 # **The suite is eight nameable sets**, which is what lets a full run go in parallel rather than in
@@ -32,16 +32,16 @@ include("checkmem.jl")
 #     extras_canonical  extras_clean  extras_docs  extras_examples  extras_notebooks  extras_pkg
 #
 # The split is semantic: the **core** sets test this package against itself, the **extras** check it
-# against something outside — the examples, the notebooks, the repo's own hygiene, the blessed
+# against something outside - the examples, the notebooks, the repo's own hygiene, the blessed
 # results, another package.
 #
-# `core_test` is by far the longest (32 files, ~10 min) and most others ~1–2 min each, so running them
+# `core_test` is by far the longest (32 files, ~10 min) and most others ~1-2 min each, so running them
 # concurrently takes about as long as `core_test` alone rather than the sum. `extras_pkg` is the
 # exception waiting to happen: cross-validation against another package tends to mean extensive
 # randomised dataset comparison and can be *very* slow, which is exactly why it is separately
 # nameable.
 #
-# **Running them in parallel gives up the ordering guarantee below** — the extras then run even
+# **Running them in parallel gives up the ordering guarantee below** - the extras then run even
 # when the unit tests are failing, so one broken thing reports as several. That is a fair trade when
 # chosen deliberately (the ten minutes are worth more than the duplicate failures), and it is why the
 # sequential order stays the default here rather than the other way round.
@@ -63,19 +63,19 @@ include("checkmem.jl")
 # under the suite. Subprocesses inherit `ENV`, so this reaches spawned workers too.
 get!(ENV, "ECOSISTEM_SCALE", "small")
 
-# **Plots stay headless under the suite, and pop up when you run an example by hand** — the same
+# **Plots stay headless under the suite, and pop up when you run an example by hand** - the same
 # mechanism as `ECOSISTEM_SCALE` above, for the same reason: reaching this file *is* the signal.
 # `GKSwstype = "100"` is GR's null workstation, so a figure is built and discarded instead of opening
 # a window. **A CI runner has no display**, and the suite genuinely draws: two top-level examples,
 # two Pluto notebooks, and (at full scale) `examples/models.jl`.
 #
-# `get!` again, so a caller who has set `GKSwstype` keeps it — and a direct
+# `get!` again, so a caller who has set `GKSwstype` keeps it - and a direct
 # `julia --project=examples examples/AvailableGround.jl` leaves it unset, which is what makes the
 # window appear when a person is watching.
 get!(ENV, "GKSwstype", "100")
 
 # **Unit rendering is made the same on every platform, because assertions depend on it.** Unitful
-# decides between `m s^-1` and `m s⁻¹` with
+# decides between `m s^-1` and `m s^-1` with
 # `get(ENV, "UNITFUL_FANCY_EXPONENTS", Sys.isapple() ? "true" : "false")` -- so the fancy form is the
 # default on macOS and the plain one on Linux and Windows. Three tests assert an error message or a
 # plot title containing a unit, and so passed on macOS and failed everywhere else; measured on a
@@ -124,7 +124,7 @@ else
     end
 
     # **The extras do not run on a Windows CI runner.** They check this package against things
-    # outside it — the examples, the notebooks, the repo's hygiene, the blessed results — and none of
+    # outside it - the examples, the notebooks, the repo's hygiene, the blessed results - and none of
     # that is OS-specific in a way the other runners do not already cover, while Windows is the
     # slowest of the three and was pushing the job past its timeout. `extras_notebooks.jl` already
     # skipped itself there; this generalises that to the whole group rather than to one file.
@@ -150,7 +150,7 @@ else
         # what makes them the ones worth running side by side.
         #
         # **Why set-level rather than per-example.** Each of these activates a *different*
-        # environment (`examples/`, `notebooks/`), and one process per set isolates that for free —
+        # environment (`examples/`, `notebooks/`), and one process per set isolates that for free -
         # no `Pkg.activate` restore dance, and no two examples racing to fetch the same raster into
         # one cache. The one thing each worker is told is `checkmem.jl`, which is a property of the
         # runner rather than of the set.

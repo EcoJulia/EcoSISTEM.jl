@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # HOW ABUNDANCES CHANGE. Everything that writes to an ecosystem's abundance matrix: `populate!` and
-# its relatives, which set it up, and `update!`, which is one timestep of the model — the demographic
+# its relatives, which set it up, and `update!`, which is one timestep of the model - the demographic
 # draws, then dispersal, then the layer changes.
 #
 # `update!` is what `simulate!` calls repeatedly; the order within it is load-bearing and stated at
-# the function itself. Nothing here decides *what* a species needs or *where* it can live — that is
+# the function itself. Nothing here decides *what* a species needs or *where* it can live - that is
 # the species requirements and the niche fit; this is only what those imply for the numbers.
 #
 # The MPI extension **duplicates** `update!`, `move!` and `populate!` rather than calling them, so
@@ -24,7 +24,7 @@ Update an ecosystem's abundances and environment for one timestep, with no inter
 
 `eco` is the ecosystem to advance and `timestep` how far to advance it. Equivalent to
 `update!(eco, timestep, nothing)`: the three-argument method is where the work happens, and each
-concrete ecosystem supplies its own, so this one covers every kind — serial, distributed, and any
+concrete ecosystem supplies its own, so this one covers every kind - serial, distributed, and any
 later addition.
 """
 function update!(eco::AbstractEcosystem, timestep::Unitful.Time)
@@ -37,7 +37,7 @@ end
 Update an ecosystem for one timestep, applying any scheduled [`Intervention`](@ref).
 
 **The ordering is the point.** Interventions run *after* the population dynamics and *before* the
-layer update, with the clock advanced between — so a [`SetChange`](@ref) installed this step takes
+layer update, with the clock advanced between - so a [`SetChange`](@ref) installed this step takes
 effect **this** step rather than one step late.
 """
 function update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
@@ -53,8 +53,8 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
 
     # Loop through species in cache-line-sized contiguous blocks (see
     # `species_blocksize`): each thread owns whole blocks, and the cell loop sits
-    # outside the inner species loop so a block's species — adjacent rows of the
-    # column-major (species, cells) matrix — are touched as one cache line. The
+    # outside the inner species loop so a block's species - adjacent rows of the
+    # column-major (species, cells) matrix - are touched as one cache line. The
     # active/resource gate is per-cell, so it lifts outside the species loop. Each
     # species is still drawn only by its owning thread, in ascending-cell order,
     # so per-species RNG streams stay race-free and reproducible.
@@ -119,7 +119,7 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
     # changing *to*.
     _advanceclock!(eco, timestep)
 
-    # Interventions land here — after the dynamics, after the clock, before the layers — so a
+    # Interventions land here - after the dynamics, after the clock, before the layers - so a
     # `SetChange` installed now is applied by the very next line rather than a step later.
     applyinterventions!(eco, intervention, simulationtime(eco), timestep,
                         _stepnumber(eco, timestep))
@@ -304,11 +304,11 @@ end
 # **The first coordinate is the row**, `y`, matching the `(y, x)` order used throughout: the guard
 # reads `dims[1]` from it and the returned pairs index `mat[n[1], n[2]]`. A caller that believes
 # otherwise and passes `(x, y)` reads the transposed neighbourhood, which a square grid cannot
-# distinguish and any other grid rejects with *"Coordinates outside grid"* — which is why the
+# distinguish and any other grid rejects with *"Coordinates outside grid"* - which is why the
 # parameter names have to say which is which.
 # Get the neighbours of a grid square in a matrix in 4 or 8 directions.
 #
-# The coordinates are `(y, x)` — row first, then column — as everywhere else in the package, and the
+# The coordinates are `(y, x)` - row first, then column - as everywhere else in the package, and the
 # rows of the returned matrix index `mat` in that same order (`mat[n[1], n[2]]`).
 function _getneighbours(mat::Matrix, y_coord::Int64, x_coord::Int64,
                         chess::Int64 = 4)
@@ -459,7 +459,7 @@ function resource_adjustment(eco::AbstractEcosystem, supply::AbstractSupply,
 end
 
 # NoGrowth freezes the population; anything else adjusts birth/death rates by the available
-# resource — dispatched on `params`'s type rather than an `isa` branch in `resource_adjustment`.
+# resource - dispatched on `params`'s type rather than an `isa` branch in `resource_adjustment`.
 _resourceadjustmentbytype(::NoGrowth, eco, supply, sc, sp) = (0.0, 0.0)
 
 function _resourceadjustmentbytype(::AbstractParams, eco, supply, sc, sp)
@@ -471,7 +471,7 @@ end
 # (`ϵ̄real`) against the resource available in the cell (`K`) relative to the total
 # demand there (`E`): births are boosted when resource is plentiful (`K/E`, capped at
 # `params.boost`) and deaths rise as demand approaches the supply (`E/K`). Called
-# only for growing populations — [`resource_adjustment`](@ref) short-circuits NoGrowth.
+# only for growing populations - [`resource_adjustment`](@ref) short-circuits NoGrowth.
 function _resourceadjustment(eco::AbstractEcosystem, supply::AbstractSupply,
                              sc::Int64, sp::Int64)
     params = eco.spplist.params
@@ -505,7 +505,7 @@ end
 #
 #   * **a resource that cannot limit anything would change the answer.** Add a second resource with
 #     infinite supply and identical demand for every species, and birth and death move by
-#     `suit^∓survival` — from an input that by construction cannot matter.
+#     `suit^∓survival` - from an input that by construction cannot matter.
 #   * **it would index one collection by another's length.** Suitability is a **regime** quantity;
 #     the supply count is a **resource** one, and the two have had no arity relationship since layer
 #     collections gained members. Two regimes over one supply would give an exponent of 1, and one
@@ -515,7 +515,7 @@ end
 #
 # `demanded` below is still a **product** over resources, and so fails the first of those tests. That
 # is deliberate rather than overlooked: unlike suitability it has no single obviously right
-# replacement — the limiting resource's demand, a sum, a mean? — so it is a separate question with
+# replacement - the limiting resource's demand, a sum, a mean? - so it is a separate question with
 # its own answer to find.
 function _resourceadjustment(eco::AbstractEcosystem,
                              supply::LayerCollection{Resource},
@@ -527,7 +527,7 @@ function _resourceadjustment(eco::AbstractEcosystem,
     ds = values(eco.spplist.demand)
     bs = values(supply)
     _samearity(ds, bs)
-    # Resource available in the cell, the species' own demand, and the cell's total demand —
+    # Resource available in the cell, the species' own demand, and the cell's total demand -
     # one entry per resource, in the collections' shared order.
     K = _zipmap(bs, ds) do b, d
         return _getsupply(b)[y, x] * d.exchange_rate
@@ -536,7 +536,7 @@ function _resourceadjustment(eco::AbstractEcosystem,
         return d.resource[sp] * d.exchange_rate
     end
     E = ntuple(k -> eco.cache.totaldemand[sc, k], Val(length(ds)))
-    # Once, not once per resource — see the note above.
+    # Once, not once per resource - see the note above.
     ϵ̄real = 1 / suitability(eco, sc, sp)
     # Alter rates by resource available in current pop & own demands
     demanded = _fold(*, ϵ̄)
@@ -587,7 +587,7 @@ end
 # If *no* destination is reachable the weights sum to zero, and normalising would give `NaN`s and a
 # throw from `Multinomial`. That case is defined as "no move this step": `moves` is zeroed and the
 # species' RNG stream is left untouched, so a stranded cell costs no draws and cannot re-phase later
-# ones. Defensive only — it is not actually reachable, because staying put is one of the kernel's
+# ones. Defensive only - it is not actually reachable, because staying put is one of the kernel's
 # own destinations and a cell only disperses while it is itself active (`update!`'s gate above), so
 # the self-offset's weight is always non-zero.
 #
@@ -598,7 +598,7 @@ end
 # the survivor *count* first is what keeps this allocation-free; extending `pnew` with a "lost"
 # category would allocate a vector per call, in the hot loop.
 #
-# The `iszero(lost)` guard is **not** an optimisation — it is what makes the flag a no-op when
+# The `iszero(lost)` guard is **not** an optimisation - it is what makes the flag a no-op when
 # there is nothing to lose. Without it the extra `Binomial` draw would consume from the species' RNG
 # stream and re-phase every later draw, so a `Torus` with no inactive cells would give different
 # results with the flag on and off despite nothing being lost either way. Measured before the guard
@@ -619,7 +619,7 @@ function _drawmoves!(lookup::Lookup, sp::Int64, eco::AbstractEcosystem,
 end
 
 # Resolve one coordinate against its axis's boundary condition. Two tiny methods, dispatched on the
-# condition, so the rule is stated once per axis rather than branched on — which is what lets the
+# condition, so the rule is stated once per axis rather than branched on - which is what lets the
 # three near-identical `calc_lookup_moves!` methods this replaces become one.
 #
 # `Bounded` returns `nothing` for a step off the edge, and the caller reads that as "dead cell";
@@ -636,13 +636,13 @@ end
     calc_lookup_moves!(topology::EdgeTopology, y, x, sp, eco, abun)
 
 Calculate the number of moves taken by a species, `sp`, from a specific grid
-square location (`y`, `x`). `topology` says how the grid's edges join — one
-[`AbstractBoundaryCondition`](@ref) per axis — and the total abundance of
+square location (`y`, `x`). `topology` says how the grid's edges join - one
+[`AbstractBoundaryCondition`](@ref) per axis - and the total abundance of
 individuals to move is `abun`, which may be the number of births in the timestep
 or the total individuals.
 
 **One method for all four topologies.** They differ only in whether each axis wraps, which is the
-two coordinate rules in `_stepto`, so the fourth combination — Y wrapping, X bounded — comes free
+two coordinate rules in `_stepto`, so the fourth combination - Y wrapping, X bounded - comes free
 rather than as a fourth copy.
 """
 function calc_lookup_moves!(::EdgeTopology{BCY, BCX},
@@ -717,7 +717,7 @@ end
 # the failure this whole file's header warns about.
 _landscaperow(::AbstractEcosystem, sp::Int64) = sp
 
-# How many individuals of species `sp` are standing in cell `sc` — what `AlwaysMovement` disperses
+# How many individuals of species `sp` are standing in cell `sc` - what `AlwaysMovement` disperses
 # in full, as against the newborns `BirthOnlyMovement` is handed directly. Serially the whole
 # abundance matrix is to hand; a distributed run holds only its own block of species, so the MPI
 # extension reads the same count from its rank-local rows. A hook rather than a branch, for the same
@@ -766,7 +766,7 @@ function _gridactivity(habitat::AbstractHabitat)
     len = dim[1] * dim[2]
     grid = collect(1:len)
     # `reshape` on a `DimArray` isn't a clean zero-copy operation the way a plain `Array`
-    # reshape is — unwrap via `parent()` first.
+    # reshape is - unwrap via `parent()` first.
     activity = reshape(copy(parent(habitat.active)), len)
     return grid, activity
 end

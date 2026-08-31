@@ -21,7 +21,7 @@ _dem() = Demand{SolarRadiation}(fill(450000.0kJ / m^2 / day * 1.0m^2, NSP))
 # **The guarantee the merge had to preserve, and it is the whole reason the aliases are
 # parametric.** Before `AbstractTolerance` and `AbstractDemand` were merged they were *unrelated*
 # types, so neither could stand in for the other. A single family keyed on `Role` keeps that only if
-# each alias pins its role — a non-parametric alias, or one that forgot the role, would let a demand
+# each alias pins its role - a non-parametric alias, or one that forgot the role, would let a demand
 # satisfy a tolerance annotation with nothing to notice.
 @testset "the role-pinned aliases still refuse each other" begin
     tol, dem = _tol(), _dem()
@@ -29,7 +29,7 @@ _dem() = Demand{SolarRadiation}(fill(450000.0kJ / m^2 / day * 1.0m^2, NSP))
     @test dem isa AbstractDemand
     @test !(dem isa AbstractTolerance)
     @test !(tol isa AbstractDemand)
-    # …at the level of types, which is what a `where` clause and a struct field see.
+    # ...at the level of types, which is what a `where` clause and a struct field see.
     @test typeof(tol) <: AbstractTolerance
     @test !(typeof(dem) <: AbstractTolerance)
     @test !(typeof(tol) <: AbstractDemand)
@@ -41,7 +41,7 @@ _dem() = Demand{SolarRadiation}(fill(450000.0kJ / m^2 / day * 1.0m^2, NSP))
     @test eltype(tol) == typeof(1.0K)
     @test typeof(tol) <: AbstractTolerance{Temperature, typeof(1.0K)}
     @test !(typeof(tol) <: AbstractTolerance{Temperature, Float64})
-    # …and a different axis is refused even at the same eltype, which is the whole point
+    # ...and a different axis is refused even at the same eltype, which is the whole point
     @test !(typeof(tol) <: AbstractTolerance{Precipitation, typeof(1.0K)})
 end
 
@@ -53,7 +53,7 @@ end
     dc = SpeciesRequirementCollection((sun = _dem(),))
     @test tc isa SpeciesRequirementCollection{Condition}
     @test dc isa SpeciesRequirementCollection{Resource}
-    # …and a collection is itself a member of the family whose role it inferred, so the accessors
+    # ...and a collection is itself a member of the family whose role it inferred, so the accessors
     # and the pairing checks reach it through the same alias a single member uses.
     @test tc isa AbstractTolerance
     @test dc isa AbstractDemand
@@ -64,11 +64,11 @@ end
     @test keys(tc) == (:temperature, :rainfall)
     @test length(values(dc)) == 1
     @test keys(dc) == (:sun,)
-    # Members by name, never by index — see `src/collections.jl`.
+    # Members by name, never by index - see `src/collections.jl`.
     @test tc.rainfall === values(tc)[2]
     # A collection built from a plain `Tuple` is named by its members' **axes** where those are
     # distinguishable, so this pair reads the same as the named one above without the caller
-    # writing anything — which is what lets a tolerance and its regime check out unaided.
+    # writing anything - which is what lets a tolerance and its regime check out unaided.
     positional = SpeciesRequirementCollection((_tol(), _rain()))
     @test keys(positional) == (:Temperature, :Precipitation)
     @test positional.Precipitation === values(positional)[2]
@@ -76,7 +76,7 @@ end
 
 # **The guarantee the merge GAINS**, and it must be asserted or it would be easy to ship without
 # it firing at all. Before the merge each collection's `_checkbacking` knew only its own family, so a
-# tolerance among demands was caught as *"not a demand"* and the cross-role case could not arise —
+# tolerance among demands was caught as *"not a demand"* and the cross-role case could not arise -
 # the two collections were different types. Now they are one, so a mixed collection is representable
 # and has to be refused explicitly.
 @testset "a collection mixing roles is refused" begin
@@ -101,7 +101,7 @@ end
 end
 
 # `SpeciesList`'s two type parameters are the place the swap would actually happen, and they are
-# written exactly as they were before the merge — `TL <: AbstractTolerance, DM <: AbstractDemand`.
+# written exactly as they were before the merge - `TL <: AbstractTolerance, DM <: AbstractDemand`.
 # This asserts that spelling still rejects the swap, which is what makes the merge free.
 @testset "SpeciesList still refuses the two sides swapped" begin
     tol, dem = _tol(), _dem()
@@ -110,7 +110,7 @@ end
     param = EqualPop(0.1 / year, 0.1 / year, 1.0, 0.1, 1.0)
     native = fill(true, NSP)
     @test_nowarn SpeciesList(NSP, tol, abun, dem, movement, param, native)
-    # The swap is a `MethodError`, not a runtime check — the signature refuses it.
+    # The swap is a `MethodError`, not a runtime check - the signature refuses it.
     @test_throws MethodError SpeciesList(NSP, dem, abun, tol, movement, param,
                                          native)
 end

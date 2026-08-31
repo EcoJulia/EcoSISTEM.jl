@@ -1,4 +1,4 @@
-# Blessed canonical results — regenerate with ECOSISTEM_BLESS=true, and read
+# Blessed canonical results - regenerate with ECOSISTEM_BLESS=true, and read
 # test/canonical/README.md before committing a change to this file.
 "intervention/abundance_by_column" = [7931.0, 5849.0, 6228.0, 8183.0, 7298.0, 7794.0, 9949.0, 7178.0, 7524.0, 9812.0, 10113.0]
 "simulated/abundance_by_species" = [58722.0, 59952.0, 60732.0, 61695.0, 62636.0, 63078.0, 63640.0, 64642.0, 64572.0, 64818.0, 65209.0, 64510.0, 64440.0, 63522.0, 63185.0, 62720.0, 61541.0, 60517.0, 59623.0, 58865.0]

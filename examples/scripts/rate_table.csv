@@ -20,7 +20,7 @@ BioClim,18;bio18,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,quarter_mean_duration,0.
 BioClim,19;bio19,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,quarter_mean_duration,0.3333*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); WorldClim's own BioClim layers report this in mm; we prefer CHELSA's dimensionally-equivalent kg*m^-2 form here since a single entry serves both sources"
 BioClimPlus,bio1,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
 BioClimPlus,bio2,TemperatureRange,°C,range,K,𝚯,,K,𝚯,continuous,
-BioClimPlus,bio3,Isothermality,°C,range,%,,,%,,continuous,"CHELSA's own table gives °C for isothermality; it is a ratio of two temperature ranges (bio2/bio7) and dimensionless, so their unit column is wrong. Recorded as published — the Units column carries the truth."
+BioClimPlus,bio3,Isothermality,°C,range,%,,,%,,continuous,"CHELSA's own table gives °C for isothermality; it is a ratio of two temperature ranges (bio2/bio7) and dimensionless, so their unit column is wrong. Recorded as published - the Units column carries the truth."
 BioClimPlus,bio4,TemperatureSeasonality,°C,range,K,𝚯,,K,𝚯,continuous,
 BioClimPlus,bio5,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
 BioClimPlus,bio6,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
@@ -57,10 +57,10 @@ BioClimPlus,pet_penman_max,Evapotranspiration,kg*m^-2*month^-1,rate,L*m^-2,𝐋,
 BioClimPlus,pet_penman_mean,Evapotranspiration,kg*m^-2*month^-1,rate,L*m^-2,𝐋,month_mean_duration,1.0*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
 BioClimPlus,pet_penman_min,Evapotranspiration,kg*m^-2*month^-1,rate,L*m^-2,𝐋,month_mean_duration,1.0*L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
 BioClimPlus,pet_penman_range,EvapotranspirationRange,kg*m^-2*month^-1,range,L*m^-2,𝐋,month_mean_duration,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
-BioClimPlus,rsds_max,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
-BioClimPlus,rsds_mean,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
-BioClimPlus,rsds_min,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
-BioClimPlus,rsds_range,SolarRadiationRange,MJ*m^-2*day^-1,range,MJ*m^-2,𝐌 * 𝐓^-2,d,MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+BioClimPlus,rsds_max,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 - not currently fetchable regardless of unit
+BioClimPlus,rsds_mean,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 - not currently fetchable regardless of unit
+BioClimPlus,rsds_min,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 - not currently fetchable regardless of unit
+BioClimPlus,rsds_range,SolarRadiationRange,MJ*m^-2*day^-1,range,MJ*m^-2,𝐌 * 𝐓^-2,d,MJ*m^-2,𝐌 * 𝐓^-2,continuous,confirmed 404 at CHELSA's server as of 2026-07-24 - not currently fetchable regardless of unit
 BioClimPlus,sfcWind_max,WindSpeed,m*s^-1,instantaneous,m*s^-1,𝐋 * 𝐓^-1,,m*s^-1,𝐋 * 𝐓^-1,continuous,
 BioClimPlus,sfcWind_mean,WindSpeed,m*s^-1,instantaneous,m*s^-1,𝐋 * 𝐓^-1,,m*s^-1,𝐋 * 𝐓^-1,continuous,
 BioClimPlus,sfcWind_min,WindSpeed,m*s^-1,instantaneous,m*s^-1,𝐋 * 𝐓^-1,,m*s^-1,𝐋 * 𝐓^-1,continuous,
@@ -69,7 +69,7 @@ BioClimPlus,fcf,FrostChangeFrequency,,count,,,,,,discrete,
 BioClimPlus,fgd,DayOfYear,day,count,d,𝐓,,d,𝐓,discrete,
 BioClimPlus,lgd,DayOfYear,day,count,d,𝐓,,d,𝐓,discrete,
 BioClimPlus,gsl,DayCount,day,count,d,𝐓,,d,𝐓,discrete,
-BioClimPlus,gsp,GrowingSeasonPrecipitation,kg*m^-2*gsl^-1,stock,L*m^-2,𝐋,percell=gsl,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); gsl is not a fixed physical time unit, so no conversion to it is attempted — repo treats gsp as a plain total, confirmed by downloading gsl+precipitation and checking practical bounds"
+BioClimPlus,gsp,GrowingSeasonPrecipitation,kg*m^-2*gsl^-1,stock,L*m^-2,𝐋,percell=gsl,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); gsl is not a fixed physical time unit, so no conversion to it is attempted - repo treats gsp as a plain total, confirmed by downloading gsl+precipitation and checking practical bounds"
 BioClimPlus,gst,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,
 BioClimPlus,gdd0,CumulativeHeat,°C,stock,d*K,𝚯 * 𝐓,yr,d*K,𝚯 * 𝐓,continuous,
 BioClimPlus,gdd5,CumulativeHeat,°C,stock,d*K,𝚯 * 𝐓,yr,d*K,𝚯 * 𝐓,continuous,
@@ -92,7 +92,7 @@ BioClimPlus,kg2,ClimateTypology,,categorical,,,,,,categorical,
 BioClimPlus,kg3,ClimateTypology,,categorical,,,,,,categorical,
 BioClimPlus,kg4,ClimateTypology,,categorical,,,,,,categorical,
 BioClimPlus,kg5,ClimateTypology,,categorical,,,,,,categorical,
-BioClimPlus,swb,SiteWaterBalance,kg*m^-2*year^-1,balance,L*m^-2,𝐋,yr,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow. The accumulation period is descriptive only: a capped cumulative is not a plain accumulation, so dividing by the year would not give a meaningful mean rate. Being a balance is NOT the reason — cmi is a balance too and is read as a rate; it is the cap that makes the mean meaningless here"
+BioClimPlus,swb,SiteWaterBalance,kg*m^-2*year^-1,balance,L*m^-2,𝐋,yr,L*m^-2,𝐋,continuous,"kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow. The accumulation period is descriptive only: a capped cumulative is not a plain accumulation, so dividing by the year would not give a meaningful mean rate. Being a balance is NOT the reason - cmi is a balance too and is read as a rate; it is the cap that makes the mean meaningless here"
 Climate,tmin,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,Available for historical (1970-2000) and CMIP6 future scenarios
 Climate,tmax,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,Available for historical (1970-2000) and CMIP6 future scenarios
 Climate,tavg,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,Historical only; not distributed for CMIP6 future data
@@ -104,7 +104,7 @@ Climate,tas,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,CHELSA v
 Climate,tasmax,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,CHELSA v2.1 (1981-2010)
 Climate,tasmin,Temperature,°C,instantaneous,°C,𝚯,,°C,𝚯,continuous,CHELSA v2.1 (1981-2010)
 Climate,pr,Precipitation,kg*m^-2,rate,L*m^-2,𝐋,perslice=calendar_month,1.0*L*m^-2,𝐋,continuous,"CHELSA v2.1 (1981-2010); kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3)"
-Climate,rsds,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,CHELSA v2.1 (1981-2010); confirmed 404 at CHELSA's server as of 2026-07-24 — not currently fetchable regardless of unit
+Climate,rsds,SolarRadiation,MJ*m^-2*day^-1,rate,MJ*m^-2,𝐌 * 𝐓^-2,d,30.44*MJ*m^-2,𝐌 * 𝐓^-2,continuous,CHELSA v2.1 (1981-2010); confirmed 404 at CHELSA's server as of 2026-07-24 - not currently fetchable regardless of unit
 Climate,sfcWind,WindSpeed,m*s^-1,instantaneous,m*s^-1,𝐋 * 𝐓^-1,,m*s^-1,𝐋 * 𝐓^-1,continuous,CHELSA v2.1 (1981-2010)
 Climate,clt,CloudCover,%,instantaneous,%,,,%,,continuous,CHELSA v2.1 (1981-2010)
 Climate,cmi,ClimateMoisture,kg*m^-2*month^-1,balance,L*m^-2,𝐋,perslice=calendar_month,L*m^-2,𝐋,continuous,"CHELSA v2.1 (1981-2010); kg->L conversion performed using the water-density identity (1 kg/m^2 ≈ 1 L/m^2 ≈ 1 mm, density ~1000 kg/m^3); this is a liquid water equivalent, not the actual density of vapour or snow"
