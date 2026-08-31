@@ -134,7 +134,6 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
 
     # Update abundances with all movements
     eco.abundances.rows_matrix .+= eco.cache.netmigration
-    EcoSISTEM.synchronise_from_rows!(eco.abundances)
 
     # Invalidate all caches for next update
     invalidatecaches!(eco)
@@ -149,25 +148,45 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
                                   EcoSISTEM.simulationtime(eco), timestep,
                                   EcoSISTEM._stepnumber(eco, timestep))
 
+    # **LAST, so that everything which writes `rows_matrix` this timestep is in `cols_vector` before
+    # anything reads it.** The interventions above write abundances, and the *next* timestep opens
+    # with `update_resource_usage!`, which reads the column layout - so a sync placed before them
+    # leaves that read one intervention behind. Measured with an `AddAbundance`: serial totalled
+    # 1752450322 against MPI's 1752458039, at a single rank, and moving this line closed the gap
+    # exactly at 1, 2 and 4 ranks.
+    #
+    # Moving it rather than adding a second sync is deliberate: this is an `Alltoallv`, so a second
+    # one would double the per-timestep communication for nothing. Nothing between the dynamics and
+    # here reads the column layout.
+    #
+    # The invariant every reader can rely on: **`cols_vector` is authoritative at the end of
+    # `update!`**. Diversity measures are asked for between timesteps, which is exactly that point.
+    EcoSISTEM.synchronise_from_rows!(eco.abundances)
+
     # Update environment - regime and resource supplies
     regimeupdate!(eco, timestep)
     return supplyupdate!(eco, timestep)
 end
 
-# **Every operation is rank-safe, including the abundance ones**, because of *when* interventions
-# run: `synchronise_from_rows!` has already put the landscape in its row-partitioned phase, so this
-# rank's `rows_matrix` holds **its own species across all cells**. An abundance write is therefore
-# entirely local - the rank owning that species applies the whole edit, the others do nothing - and
-# `Deactivate`'s clearance is local too, since each rank clears its own species at the same cells.
-# Simpler than the plan's "draw globally, then apply only the entries this rank owns", which was
-# written for a harder problem than the phase ordering actually presents.
+# **Every operation is rank-safe, including the abundance ones**, and the reason is the *layout*
+# rather than the ordering: `rows_matrix` holds this rank's own species across all cells by
+# construction, at every point in the timestep. An abundance write is therefore entirely local - the
+# rank owning that species applies the whole edit, the others do nothing - and `Deactivate`'s
+# clearance is local too, since each rank clears its own species at the same cells. Simpler than the
+# plan's "draw globally, then apply only the entries this rank owns", which was written for a harder
+# problem than the partition actually presents.
+#
+# The locality must be attributed to the layout and not to `synchronise_from_rows!` having run:
+# tying it to the sync makes that call look load-bearing where it is not, and a sync that looks
+# load-bearing here invites being placed *before* the interventions - which leaves the column layout
+# one intervention behind the row layout that the next `update_resource_usage!` reads.
 function EcoSISTEM._ownedabundances(eco::MPIEcosystem)
     return (rows = eco.abundances.rows_matrix, firstspecies = eco.firstsp)
 end
 
 # **`AddSpecies` is the one operation that is genuinely not rank-local**, and the contrast with the
-# abundance operations is the point: those need no partition work at all, because interventions run
-# after `synchronise_from_rows!` when a rank owns whole species across every cell. Adding a species
+# abundance operations is the point: those need no partition work at all, because a rank owns whole
+# species across every cell in `rows_matrix` whenever it is read. Adding a species
 # changes *which species each rank owns* - the partition itself - so it needs the landscape
 # reallocated and redistributed on every rank in step. Refused for now rather than half-done.
 function _checkmpiinterventions(intervention)

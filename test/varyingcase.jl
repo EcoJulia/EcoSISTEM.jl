@@ -165,6 +165,16 @@ function mpifixture_always(numspecies = VARYING_SPECIES)
     return AlwaysMovement(mpifixture_kernels(numspecies))
 end
 
+# An abundance-changing intervention, which is what makes the two landscape layouts able to diverge:
+# it writes `rows_matrix` after the dynamics, so a run that never fires one cannot tell whether
+# `cols_vector` was brought back into step before the next timestep's `update_resource_usage!` reads
+# it. Fires twice, at 3 and 9 months, so the run continues well past each firing.
+function mpifixture_intervention()
+    return Intervention(AtTimes([3.0month_mean_duration,
+                                    9.0month_mean_duration]),
+                        AllCells(), AddAbundance(1, 5))
+end
+
 function mpifixture_species(; numspecies = VARYING_SPECIES,
                             movement = mpifixture_movement(numspecies))
     # Two demands, matching the two supplies of the varying environment: `build_ecosystem` checks

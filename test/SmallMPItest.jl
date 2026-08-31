@@ -240,6 +240,38 @@ if MPI.Comm_size(comm) == 1
     @test alwaysserial.abundances.matrix == always_abuns
 end
 
+# **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
+# the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes
+# `rows_matrix` after the dynamics; the next timestep opens with `update_resource_usage!`, which
+# reads the *column* layout. A sync placed before the interventions leaves that read one intervention
+# behind, and the distributed run then diverges from the serial one.
+#
+# Measured before the sync was moved: with this fixture, serial totalled 1752450322 against MPI's
+# 1752458039 -- at a **single rank**, so it was the ordering rather than the partition. No other test
+# in the suite runs an intervention under MPI at all, which is why nothing caught it.
+ivsppl, _ = mpifixture_species()
+iveco = MPIEcosystem(ivsppl, varying_environment(), nichefit, seed = 0)
+iveco.abundances.rows_matrix .= MPIFIXTURE_FILL
+MPI.Barrier(comm)
+@test_nowarn simulate!(iveco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+                       intervention = mpifixture_intervention())
+iv_abuns = gatherabundance(iveco)
+
+rank == 0 && checkblessed(iv_abuns, "mpi/intervention")
+
+# The two layouts must hold the same data once a timestep has finished. Asserted globally rather than
+# per rank: they are the same data under two decompositions, and only the totals are comparable
+# without reindexing.
+@test MPI.Allreduce(sum(iveco.abundances.rows_matrix), +, comm) ==
+      MPI.Allreduce(sum(iveco.abundances.cols_vector), +, comm)
+
+if MPI.Comm_size(comm) == 1
+    ivserial = mpifixture_ecosystem()
+    simulate!(ivserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+              intervention = mpifixture_intervention())
+    @test ivserial.abundances.matrix == iv_abuns
+end
+
 if !MPI.Finalized()
     MPI.Finalize()
 end

@@ -6,6 +6,10 @@
       rank owns a block of species across the whole grid while the dynamics run, so dispersing an
       established individual stays rank-local exactly as dispersing a newborn does; only the field
       the count is read from differed between the two landscapes.
+  - Fixed
+    - Another inconsistency between serial and distributed code - changing abundances through an
+      intervention diverged from the serial run on the same seed because of synchronisation
+      order, which is now switched to give a consistent result.
 - v0.6.0
   - Breaking
     - A landscape's `matrix` and `grid` are plain arrays again, as they were before v0.5.0. The
