@@ -60,6 +60,17 @@ correctly makes no difference.
 Births are then drawn from a Poisson distribution and deaths from a Binomial, per species per cell,
 from that species' own random stream.
 
+The two draws are not symmetric, and the asymmetry is the point. A birth is a *count*, so the
+Poisson takes the rate itself as its mean: over a step of `δt`, a species with birth rate `b`
+expects `b × δt` offspring per individual. A death is a *per-individual event*, so the Binomial
+takes a probability, which is obtained from the rate as `1 - exp(-rate)` — the chance that an
+exponentially distributed waiting time falls inside the step.
+
+Writing them the same way would break timestep independence. `1 - exp(-x)` is concave, so applying
+it to the birth rate would make twelve monthly steps and one annual step disagree: at a rate of
+0.15 per year, twelve steps give 0.1491 births per individual and one step gives 0.1393, against
+the 0.15 that both should give.
+
 ## The two per-species exponents, and why they are not interchangeable
 
 Two parameters weight those rates, and this is the part most worth knowing:

@@ -153,9 +153,9 @@ println("Per-species final abundance (first $halfspecies = lovers, " *
 # `eco.abundances.grid` is a `(species, Y, X)` `DimArray`; selecting each half by name and
 # summing over species leaves a `(Y, X)` `DimArray` — still real coordinates, so `heatmap` plots
 # it directly, just like the habitat heatmaps above.
-lovers_total = dropdims(sum(eco.abundances.grid[species = 1:halfspecies],
+lovers_total = dropdims(sum(eco.abundances.dimgrid[species = 1:halfspecies],
                             dims = :species), dims = :species)
-haters_total = dropdims(sum(eco.abundances.grid[species = (halfspecies + 1):numspecies],
+haters_total = dropdims(sum(eco.abundances.dimgrid[species = (halfspecies + 1):numspecies],
                             dims = :species), dims = :species)
 heatmap(easting, northing, Array(lovers_total),
         xlabel = "Easting (BNG)", ylabel = "Northing (BNG)",

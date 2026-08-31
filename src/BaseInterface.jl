@@ -212,13 +212,6 @@ function Base.copy(bc::Broadcast.Broadcasted{ClimateRasterStyle})
     return _rewrap(copy(Broadcast.instantiate(_unwrapped(bc))), _rastersof(bc))
 end
 
-# ══ GridLandscape ══════════════════════════════════════════════════════════════════════════════════
-function Base.copy(gl::GridLandscape)
-    names = parent(DimensionalData.lookup(gl.matrix, Dim{:species}))
-    yx = dims(gl.grid, (Y, X))
-    return GridLandscape(copy(parent(gl.matrix)), names, yx)
-end
-
 Base.hash(k::ReadKey, h::UInt) = hash(k.readkw,
                                       hash(k.code, hash(k.source, h)))
 

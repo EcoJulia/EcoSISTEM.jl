@@ -21,6 +21,7 @@ using Random
 using EcoSISTEM: AbstractHabitat, Demand, SpeciesRequirementCollection
 using EcoSISTEM: AbstractRegime, AbstractSupply, AbstractNicheFit
 using EcoSISTEM: Resource, LayerCollection
+using EcoSISTEM: getgridshape
 using EcoSISTEM:
                  resource_adjustment,
                  invalidatecaches!,
@@ -30,20 +31,13 @@ using EcoSISTEM:
                  BirthOnlyMovement
 
 """
-    update!(eco::MPIEcosystem, timestep::Unitful.Time)
-
-Update an `MPIEcosystem`'s abundances and environment for one timestep,
-computing births, deaths, and dispersal in parallel across threads and MPI
-nodes.
-"""
-function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time)
-    return EcoSISTEM.update!(eco, timestep, nothing)
-end
-
-"""
     update!(eco::MPIEcosystem, timestep::Unitful.Time, intervention)
 
-Update a distributed ecosystem for one timestep, applying any scheduled [`Intervention`](@ref).
+Update a distributed ecosystem for one timestep, computing births, deaths and dispersal in parallel
+across threads and MPI ranks, and applying any scheduled [`Intervention`](@ref).
+
+The two-argument form is the generic `update!(::AbstractEcosystem, ::Unitful.Time)` in
+`src/dynamics.jl`, which forwards here with no intervention.
 
  **The schedule/region machinery is already rank-safe**: selections come from the counter-based
 `hash((seed, :intervention, k, step))` stream and the `active` mask and layers are replicated on
@@ -62,14 +56,16 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
     # Calculate dimenions of regime and number of species
     numsc = countsubcommunities(eco)
     params = eco.spplist.params
+    height = getgridshape(eco)[1]
     # Set the overall resource supply of that square
     EcoSISTEM.update_resource_usage!(eco)
-    # Share per-cell resource usage across ranks. `totalE` is (numsc, numdemands)
+    # Share per-cell resource usage across ranks. `totaldemand` is (numsc, numdemands)
     # and each rank owns a contiguous block of cells (rows); gather one demand
     # column at a time so that multi-demand environments (where the columns
     # are not contiguous in the flat buffer) are combined correctly.
-    for r in axes(eco.cache.totalE, 2)
-        MPI.Allgatherv!(MPI.VBuffer(view(eco.cache.totalE, :, r), eco.sccounts),
+    for r in axes(eco.cache.totaldemand, 2)
+        MPI.Allgatherv!(MPI.VBuffer(view(eco.cache.totaldemand, :, r),
+                                    eco.sccounts),
                         comm)
     end
     eco.cache.valid = true
@@ -86,16 +82,16 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
     # :greedy hands the cache-line-sized species blocks to cores as they free up
     # (dynamic load balancing); blocks are independent so results are unchanged.
     Threads.@threads :greedy for b in 1:nblocks
-        mpistart = (b - 1) * block + 1
-        mpiend = min(b * block, nlocal)
+        spstart = (b - 1) * block + 1
+        spend = min(b * block, nlocal)
         # Loop through grid squares
         for sc in 1:numsc
             # Convert 1D dimension to 2D coordinates
-            (y, x) = EcoSISTEM.convert_coords(eco, sc)
+            (y, x) = EcoSISTEM.convert_coords(eco, sc, height)
             # Check if grid cell currently active
-            (eco.habitat.active[y, x] && (eco.cache.totalE[sc, 1] > 0)) ||
+            (eco.habitat.active[y, x] && (eco.cache.totaldemand[sc, 1] > 0)) ||
                 continue
-            for mpisp in mpistart:mpiend
+            for mpisp in spstart:spend
                 truesp = eco.firstsp + mpisp - 1
                 rng = EcoSISTEM.getrng(eco, truesp)
                 # Calculate how much birth and death should be adjusted
@@ -103,23 +99,26 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
                                                                      eco.habitat.supply,
                                                                      sc, truesp)
 
-                # Calculate effective rates
-                birthprob = params.birth[truesp] * timestep * adjusted_birth
-                deathprob = params.death[truesp] * timestep * adjusted_death
+                # Both are per-individual rates over the timestep. Only the death one becomes
+                # a probability: deaths are drawn per individual (Binomial), while births are a
+                # count (Poisson) whose mean is the rate itself. `NoUnits` is needed on the birth
+                # rate because it reaches `Poisson` as a bare number; the death rate is made
+                # dimensionless by `exp`.
+                birthrate = params.birth[truesp] * timestep * adjusted_birth |>
+                            NoUnits
+                deathrate = params.death[truesp] * timestep * adjusted_death
 
-                # Put probabilities into 0 - 1
-                newbirthprob = 1.0 - exp(-birthprob)
-                newdeathprob = 1.0 - exp(-deathprob)
+                deathprob = 1.0 - exp(-deathrate)
 
-                (newbirthprob >= 0) & (newdeathprob >= 0) ||
-                    error("Birth: $newbirthprob \n Death: $newdeathprob \n \n sc: $sc \n sp: $truesp")
+                (birthrate >= 0) & (deathprob >= 0) ||
+                    error("Birth: $birthrate \n Death: $deathprob \n \n sc: $sc \n sp: $truesp")
                 # Calculate how many births and deaths
                 births = rand(rng,
                               Poisson(eco.abundances.rows_matrix[mpisp, sc] *
-                                      newbirthprob))
+                                      birthrate))
                 deaths = rand(rng,
                               Binomial(eco.abundances.rows_matrix[mpisp, sc],
-                                       newdeathprob))
+                                       deathprob))
 
                 # Update population
                 eco.abundances.rows_matrix[mpisp, sc] += (births - deaths)
@@ -159,7 +158,8 @@ end
 
 # `AlwaysMovement` is not supported under MPI, and this method exists to say so.
 #
-# The serial method (`src/Generate.jl:511`) is typed on `AbstractEcosystem`, so it catches an
+# The serial `move!(::AbstractEcosystem, ::AlwaysMovement, ...)` in `src/dynamics.jl` is typed on
+# `AbstractEcosystem`, so it catches an
 # `MPIEcosystem` too, and disperses the *whole current population* by reading
 # `eco.abundances.matrix[sp, i]` — a field an `MPIGridLandscape` has not got, since it holds
 # `rows_matrix`/`cols_vector` instead. Without this method that surfaces as a bare `FieldError`
@@ -170,9 +170,9 @@ end
 # newborns, which the MPI loop passes in explicitly as `births`, so it never reads the landscape —
 # and `test/SmallMPItest.jl:63` uses it.
 #
-# A real implementation needs more than the field rename: the count would come from
-# `rows_matrix[mpisp, sc]`, indexed by this rank's **local** species row rather than the global
-# `truesp` the loop passes on.
+# A real implementation is now small: `_landscaperow` already maps the global index onto this rank's
+# row, so the method needs only to read the count from `rows_matrix` at that row and hand it to the
+# shared `_move!`, exactly as the serial `AlwaysMovement` method hands it `abundances.matrix[sp, sc]`.
 function EcoSISTEM.move!(::MPIEcosystem, ::AlwaysMovement, ::Int64, ::Int64,
                          ::Matrix{Int64}, ::Int64)
     return error("`AlwaysMovement` is not supported in a distributed (MPI) run: it disperses " *
@@ -220,9 +220,9 @@ end
 """
     update_resource_usage!(eco::MPIEcosystem)
 
-Update the total resource usage cache for a single-resource `MPIEcosystem`,
-summing each species' abundance × resource demand across all MPI blocks and
-writing results into `eco.cache.totalE`.
+Update the total resource usage cache for an `MPIEcosystem`, summing each species' abundance
+times its resource demand across all MPI blocks and writing one column of `eco.cache.totaldemand`
+per resource.
 """
 function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
                                                             EcoSISTEM.SpeciesList{TL,
@@ -236,68 +236,26 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
                                                                        D,
                                                                        E, TL,
                                                                        DM <:
-                                                                       Demand}
+                                                                       EcoSISTEM.AbstractDemand}
     !eco.cache.valid || return true
 
     rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
-    # Get resource supplies of species in square
-    ϵ̄ = eco.spplist.demand.resource
+    # One demand or several, as a tuple: the accumulation below is written once for the
+    # many-resource case and the single-resource case is its arity-1 instance.
+    ds = EcoSISTEM._demandtuple(eco.spplist.demand)
     mats = eco.abundances.reshaped_cols
 
     # Loop through grid squares
     Threads.@threads for sc in 1:eco.sccounts[rank + 1]
         truesc = eco.firstsc + sc - 1
-        eco.cache.totalE[truesc, 1] = 0.0
+        EcoSISTEM._zerototaldemand!(eco.cache.totaldemand, truesc, ds, 1)
         spindex = 1
         for block in eachindex(mats)
             nextsp = spindex + eco.sppcounts[block] - 1
             currentabun = @view mats[block][:, sc]
-            e1 = @view ϵ̄[spindex:nextsp]
-            eco.cache.totalE[truesc, 1] += (currentabun ⋅ e1) *
-                                           eco.spplist.demand.exchange_rate
-            spindex = nextsp + 1
-        end
-    end
-    return eco.cache.valid = true
-end
-
-"""
-    update_resource_usage!(eco::MPIEcosystem)
-
-Multi-resource variant of `update_resource_usage!`; updates one column of
-`eco.cache.totalE` per member of a [`SpeciesRequirementCollection`](@ref).
-"""
-function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
-                                                            EcoSISTEM.SpeciesList{TL,
-                                                                                  DM,
-                                                                                  B,
-                                                                                  C,
-                                                                                  D},
-                                                            E}) where {MPIGL <:
-                                                                       MPIGridLandscape,
-                                                                       A, B, C,
-                                                                       D,
-                                                                       E, TL,
-                                                                       DM <:
-                                                                       EcoSISTEM.SpeciesRequirementCollection}
-    !eco.cache.valid || return true
-
-    rank = MPI.Comm_rank(MPI.COMM_WORLD)
-
-    # Get resource supplies of species in square
-    ds = values(eco.spplist.demand)
-    mats = eco.abundances.reshaped_cols
-
-    # Loop through grid squares
-    Threads.@threads for sc in 1:eco.sccounts[rank + 1]
-        truesc = eco.firstsc + sc - 1
-        EcoSISTEM._zerototaldemand!(eco.cache.totalE, truesc, ds, 1)
-        spindex = 1
-        for block in eachindex(mats)
-            nextsp = spindex + eco.sppcounts[block] - 1
-            currentabun = @view mats[block][:, sc]
-            EcoSISTEM._addtotaldemand!(eco.cache.totalE, truesc, currentabun,
+            EcoSISTEM._addtotaldemand!(eco.cache.totaldemand, truesc,
+                                       currentabun,
                                        spindex, nextsp, ds, 1)
             spindex = nextsp + 1
         end
@@ -305,40 +263,13 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
     return eco.cache.valid = true
 end
 
-using EcoSISTEM: getgridshape, calc_lookup_moves!
-"""
-    move!(eco::MPIEcosystem, ::BirthOnlyMovement, sc::Int64, truesp::Int64,
-        grd::Matrix{Int64}, births::Int64)
+# This rank holds only its own block of species, so the global species index the hot loop passes
+# maps onto a local row of `rows_matrix` and of `netmigration`. **This one line is the entire
+# difference between the serial dispersal code and the distributed one**, which is why there is no
+# MPI copy of `_move!` -- the serial body in `src/dynamics.jl` serves both.
+EcoSISTEM._landscaperow(eco::MPIEcosystem, sp::Int64) = sp - eco.firstsp + 1
 
-Apply dispersal for `births` new individuals of species `truesp` from grid cell
-`sc` using the [`BirthOnlyMovement`](@ref) kernel, writing net moves into `grd`.
-"""
-function EcoSISTEM.move!(eco::MPIEcosystem,
-                         ::BirthOnlyMovement,
-                         sc::Int64,
-                         truesp::Int64,
-                         grd::Matrix{Int64},
-                         births::Int64)
-    height, width = getgridshape(eco)
-    (y, x) = EcoSISTEM.convert_coords(eco, sc, height)
-    lookup = EcoSISTEM.getlookup(eco, truesp)
-    calc_lookup_moves!(eco.habitat.topology, y, x, truesp, eco,
-                       births)
-    # Lose moves from current grid square
-    mpisp = truesp - eco.firstsp + 1
-    grd[mpisp, sc] -= births
-    # Map moves to location in grid
-    moves = lookup.moves
-    for i in eachindex(lookup.y)
-        newy = mod(lookup.y[i] + y - 1, height) + 1
-        newx = mod(lookup.x[i] + x - 1, width) + 1
-        loc = EcoSISTEM.convert_coords(eco, (newy, newx), height)
-        grd[mpisp, loc] += moves[i]
-    end
-    return eco
-end
-
-using EcoSISTEM: getgridshape, _getsupply
+using EcoSISTEM: _getsupply
 """
     populate!(ml::MPIGridLandscape, spplist::SpeciesList, habitat::AB, nichefit::NF)
 
@@ -354,12 +285,9 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
                                                                   AbstractHabitat,
                                                                   NF <:
                                                                   AbstractNicheFit}
-    dim = getgridshape(habitat)
-    len = dim[1] * dim[2]
-    grid = collect(1:len)
+    grid, activity = EcoSISTEM._gridactivity(habitat)
     # Set up copy of supply
-    b = reshape(parent(ustrip.(_getsupply(habitat.supply))), size(grid))
-    activity = reshape(copy(parent(habitat.active)), size(grid))
+    b = reshape(parent(ustrip.(_getsupply(habitat.supply))), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
     B = b ./ sum(b)
@@ -389,15 +317,11 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
                                                                   AbstractRegime,
                                                                   NF <:
                                                                   AbstractNicheFit}
-    # Calculate size of regime
-    dim = getgridshape(habitat)
-    len = dim[1] * dim[2]
-    grid = collect(1:len)
-    activity = reshape(copy(parent(habitat.active)), size(grid))
+    grid, activity = EcoSISTEM._gridactivity(habitat)
     # Set up a copy of each supply, zeroed outside the active cells and normalised to its own
     # total, then multiply them together so a cell needs every resource to be worth populating.
     fractions = EcoSISTEM._zipmap(values(habitat.supply)) do supply
-        b = reshape(parent(copy(_getsupply(supply))), size(grid))
+        b = reshape(parent(copy(_getsupply(supply))), length(grid))
         b[.!activity] .= zero(eltype(b))
         return b ./ sum(b)
     end

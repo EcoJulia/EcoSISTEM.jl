@@ -426,7 +426,9 @@ particular timestep, `timestep`.
 function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
                    timestep::Unitful.Time)
     eco = Ecosystem{typeof(cache.habitat), typeof(cache.spplist),
-                    typeof(cache.nichefit)}(copy(cache.abundances.matrix[Ti(At(srt))]),
+                    typeof(cache.nichefit)}(GridLandscape(copy(cache.abundances.matrix[Ti(At(srt))].matrix),
+                                                          cache.spplist.names,
+                                                          getcoords(cache.habitat)),
                                             cache.spplist,
                                             cache.habitat,
                                             cache.nichefit,

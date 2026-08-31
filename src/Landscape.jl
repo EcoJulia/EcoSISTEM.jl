@@ -22,11 +22,29 @@ new `GridLandscape` and reassign the whole field holding it, so they cannot drif
 
 # Fields
 
-  - `matrix`: a `(Dim{:species}, Dim{:location})` `DimArray` — species against flat grid cell, with
-    no `Y`/`X` structure. The per-timestep access pattern, carrying real species names.
-  - `grid`: a `(Dim{:species}, Y, X)` `DimArray` view of the *same* data. `Y` and `X` are the
-    habitat's own dimensions, so a data-driven habitat's cells carry their real coordinates and a
-    synthetic one's carry `NoLookup`.
+  - `matrix`: species against flat grid cell, with no `Y`/`X` structure — the per-timestep access
+    pattern, and a plain `Matrix{Int64}`.
+  - `grid`: species against `Y` and `X`, a plain `Array{Int64, 3}` sharing `matrix`'s memory.
+  - `dimmatrix`: `matrix` as a `(Dim{:species}, Dim{:location})` `DimArray`, carrying real species
+    names and, for each flat cell, its extent — `[0.0, 1.0) x [0.0, 1.0) km`.
+  - `dimgrid`: `grid` as a `(Dim{:species}, Y, X)` `DimArray`, with `Y` and `X` the habitat's own
+    dimensions — real coordinates as `Unitful` lengths, or degrees on a geographic grid.
+
+`dimmatrix`'s cell descriptors are computed on demand from the grid rather than stored: the lookup
+holds a grid reference and nothing else, so it costs the same few bytes whether the grid has a
+hundred cells or a million. Selecting by descriptor scans, so it suits inspection rather than bulk
+work; `dimgrid`'s `Y` and `X` are `Sampled` and select directly.
+
+**The raw arrays and the labelled views are the same memory, and both are stored on purpose.** The
+hot loop reads `matrix`; asking *which* species or *where* reads `dimmatrix`/`dimgrid`.
+
+**The raw fields are what make the hot loop free, and the reason is not obvious.** `Ecosystem`
+declares `abundances::GridLandscape` — the bare `UnionAll`, an abstract field. Julia can still infer
+a field of that container concretely **provided the field's declared type does not mention the type
+parameters**, which is exactly why `matrix::Matrix{Int64}` is written out rather than left as one of
+the parameters. Measured: reaching the labelled view through the abstract field costs about 176 bytes
+**per cell** and grows with the grid; reading the raw field is **0**. Declaring these two fields in
+terms of `Am`/`Ag` would silently undo that.
 """
 struct GridLandscape{Am <:
                      DimensionalData.AbstractDimArray{Int64, 2,
@@ -36,20 +54,26 @@ struct GridLandscape{Am <:
                      DimensionalData.AbstractDimArray{Int64, 3,
                                                       <:Tuple{<:Dim{:species},
                                                               <:Y, <:X}}}
-    matrix::Am
-    grid::Ag
+    matrix::Matrix{Int64}
+    grid::Array{Int64, 3}
+    dimmatrix::Am
+    dimgrid::Ag
 
     function GridLandscape(abun::Matrix{Int64}, names::Vector{String},
-                           yx::Tuple{<:Y, <:X})
+                           grid::StudyGrid)
+        yx = (grid.y, grid.x)
         length(names) == size(abun, 1) ||
             throw(DimensionMismatch("`names` has $(length(names)) entries but `abun` has $(size(abun, 1)) species"))
         prod(length.(yx)) == size(abun, 2) ||
             throw(DimensionMismatch("grid `yx` has $(prod(length.(yx))) cells but `abun` has $(size(abun, 2))"))
+        # `reshape` of an `Array` shares its memory, and a `DimArray` wraps rather than copies, so
+        # all four fields below are views of one buffer. That is what the immutability above is for:
+        # the only way to change shape is to build a new `GridLandscape`, so they cannot drift.
+        g = reshape(abun, (length(names), length.(yx)...))
         sp = Dim{:species}(Categorical(names))
-        m = DimArray(abun, (sp, Dim{:location}(NoLookup())))
-        g = DimArray(reshape(abun, (length(names), length.(yx)...)),
-                     (sp, yx...))
-        return new{typeof(m), typeof(g)}(m, g)
+        dm = DimArray(abun, (sp, Dim{:location}(CellNames(grid))))
+        dg = DimArray(g, (sp, yx...))
+        return new{typeof(dm), typeof(dg)}(abun, g, dm, dg)
     end
 end
 
@@ -136,18 +160,31 @@ function Base.show(io::IO, ::MIME"text/plain", l::GridLandscape)
     return nothing
 end
 
-# Build one from a plain size, for callers with no `SpeciesList` or `GridHabitat` to hand. Species
-# are named by their number, matching `GridHabitat`'s own default-name convention, and `Y`/`X` are
-# fresh `NoLookup` dimensions: there is no CRS to attach, as for any synthetic grid.
-function GridLandscape(abun::Matrix{Int64}, dimension::Tuple)
-    names = string.(axes(abun, 1))
-    yx = (Y(NoLookup(Base.OneTo(dimension[2]))),
-          X(NoLookup(Base.OneTo(dimension[3]))))
-    return GridLandscape(abun, names, yx)
+# A cached landscape is a *series* of them, most of which are usually on disk rather than in
+# memory, so what a reader wants is how many timepoints there are and how many are actually held --
+# not the series itself, whose default dump grows with the length of the run.
+#
+# `count` here walks the timepoint index, not the abundances: one entry per saved step, so a few
+# hundred at most. A `show` must not reduce over the data, and this does not.
+function Base.show(io::IO, cl::CachedGridLandscape)
+    return print(io,
+                 "CachedGridLandscape($(count(!ismissing, cl.matrix))/$(length(cl.matrix)) held, ",
+                 "every $(cl.saveinterval))")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", cl::CachedGridLandscape)
+    held = count(!ismissing, cl.matrix)
+    println(io, "CachedGridLandscape")
+    println(io, "  timepoints  ", length(cl.matrix), ", ", held,
+            " held in memory")
+    println(io, "  saved       every ", cl.saveinterval,
+            ", timestep ", cl.timestep)
+    print(io, "  folder      ", cl.outputfolder)
+    return nothing
 end
 
 """
-    GridLandscape(sl::SavedLandscape, names::Vector{String}, yx::Tuple{<:Y, <:X})
+    GridLandscape(sl::SavedLandscape, names::Vector{String}, grid::StudyGrid)
 
 Restore a `GridLandscape` from a [`SavedLandscape`](@ref), putting its bare abundance matrix back
 onto dimensions.
@@ -162,8 +199,8 @@ The saved random number streams are restored separately, by the caller that alre
 ecosystem to put them in.
 """
 function GridLandscape(sl::SavedLandscape, names::Vector{String},
-                       yx::Tuple{<:Y, <:X})
-    return GridLandscape(sl.matrix, names, yx)
+                       grid::StudyGrid)
+    return GridLandscape(sl.matrix, names, grid)
 end
 
 """
@@ -206,12 +243,22 @@ function CachedGridLandscape(file::String, times::StepRangeLen;
 end
 
 """
-    emptygridlandscape(habitat::GridHabitat, spplist::SpeciesList)
+    empty_landscape(habitat::GridHabitat, spplist::SpeciesList)
+    empty_landscape(habitat::GridHabitat, spplist::SpeciesList,
+                    sppcounts::Vector{Int32}, sccounts::Vector{Int32})
 
-Create a [`GridLandscape`](@ref) of the right shape with every abundance zero, taking the species
-names from `spplist` and the grid dimensions from `habitat`.
+Create a landscape of the right shape with every abundance zero, taking the species names from
+`spplist` and the grid from `habitat`.
+
+**The partition is what distinguishes the two.** Given only the habitat and species list this builds
+a [`GridLandscape`](@ref); given `sppcounts` and `sccounts` as well — how many species and how many
+cells each rank owns — the MPI extension builds an [`MPIGridLandscape`](@ref) instead. The extra
+arguments *are* what "distributed" means, so the signature says it rather than the name.
+
+Both take the habitat and species list rather than values derived from them, so that the derivation
+happens in one place and cannot drift between the two.
 """
-function emptygridlandscape(habitat::GridHabitat, spplist::SpeciesList)
+function empty_landscape(habitat::GridHabitat, spplist::SpeciesList)
     mat = zeros(Int64, counttypes(spplist, true), countsubcommunities(habitat))
-    return GridLandscape(mat, spplist.names, dims(habitat.active, (Y, X)))
+    return GridLandscape(mat, spplist.names, getcoords(habitat))
 end

@@ -414,18 +414,11 @@ Each of the distinctions on this page is demonstrated on its own, at a size that
 
 | | |
 |---|---|
-| **A categorical layer**, and why the *axis* rather than the values decides it — with `SimpleCategoricalTolerance` matching a set of classes and `CategoricalSuitability` inferred from it | [`examples/CategoricalLandCover.jl`][categorical] |
-| **Composing layers into a new axis** — the same land-cover bands read once as available ground and once as usable sunlight, where only the declared `axis` says which is which | [`examples/AvailableGround.jl`][ground] |
-| **A real raster and a real shapefile**, built entirely from lazy specs with no array passed by hand | [`examples/ScottishCultivatedLand.jl`][scot] |
-| **The same layer in both roles** — CHELSA growing-season precipitation as a *condition* and as a *resource*, meaning something different each time | [`examples/other/gsp.jl`][gsp] |
-| **A purely synthetic environment**, needing no data at all | [`examples/SimulatedEcosystem.jl`][sim] |
+| **A categorical layer**, and why the *axis* rather than the values decides it — with `SimpleCategoricalTolerance` matching a set of classes and `CategoricalSuitability` inferred from it | [`examples/CategoricalLandCover.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/CategoricalLandCover.jl) |
+| **Composing layers into a new axis** — the same land-cover bands read once as available ground and once as usable sunlight, where only the declared `axis` says which is which | [`examples/AvailableGround.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/AvailableGround.jl) |
+| **A real raster and a real shapefile**, built entirely from lazy specs with no array passed by hand | [`examples/ScottishCultivatedLand.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/ScottishCultivatedLand.jl) |
+| **The same layer in both roles** — CHELSA growing-season precipitation as a *condition* and as a *resource*, meaning something different each time | [`examples/other/gsp.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/other/gsp.jl) |
+| **A purely synthetic environment**, needing no data at all | [`examples/SimulatedEcosystem.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/SimulatedEcosystem.jl) |
 
 For layers that change as the run proceeds, see [Time in EcoSISTEM](@ref) and
-[`examples/VaryingClimate.jl`][varying].
-
-[categorical]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/CategoricalLandCover.jl
-[ground]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/AvailableGround.jl
-[scot]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/ScottishCultivatedLand.jl
-[gsp]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/other/gsp.jl
-[sim]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/SimulatedEcosystem.jl
-[varying]: https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/VaryingClimate.jl
+[`examples/VaryingClimate.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/examples/VaryingClimate.jl).

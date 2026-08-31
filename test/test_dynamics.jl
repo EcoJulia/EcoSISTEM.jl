@@ -22,8 +22,8 @@ include("TestCases.jl")
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.habitat.topology,
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
-    @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.habitat,
-                                                        eco.spplist),
+    @test_nowarn populate!(EcoSISTEM.empty_landscape(eco.habitat,
+                                                     eco.spplist),
                            eco.spplist, eco.habitat, eco.nichefit, eco.rngs)
     @test_nowarn repopulate!(eco)
 
@@ -40,8 +40,8 @@ include("TestCases.jl")
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.habitat.topology,
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
-    @test_nowarn populate!(EcoSISTEM.emptygridlandscape(eco.habitat,
-                                                        eco.spplist),
+    @test_nowarn populate!(EcoSISTEM.empty_landscape(eco.habitat,
+                                                     eco.spplist),
                            eco.spplist, eco.habitat, eco.nichefit, eco.rngs)
     @test_nowarn repopulate!(eco)
 end
@@ -327,35 +327,93 @@ end
     @test m2 == m2b
 end
 
-# **`get_neighbours` takes `(y, x)` — row first**, as everything else in the package does, and
+# **`_getneighbours` takes `(y, x)` — row first**, as everything else in the package does, and
 # its parameter *names* must say so: a caller that believes a name over the body passes the column
 # first. On a **square** matrix that is invisible, so every assertion below is on a non-square one.
-@testset "get_neighbours takes (y, x), row first" begin
+@testset "_getneighbours takes (y, x), row first" begin
     M = zeros(5, 3)         # 5 rows, 3 columns — a transposed call goes out of bounds
 
     # The four-neighbourhood of an interior cell, as (row, column) pairs.
-    @test sort(collect(eachrow(EcoSISTEM.get_neighbours(M, 3, 2)))) ==
+    @test sort(collect(eachrow(EcoSISTEM._getneighbours(M, 3, 2)))) ==
           sort([[2, 2], [4, 2], [3, 1], [3, 3]])
     # The asymmetry is the whole point: row 5 exists and column 5 does not.
-    @test EcoSISTEM.get_neighbours(M, 5, 3) isa Matrix{Int}
-    @test_throws ErrorException EcoSISTEM.get_neighbours(M, 3, 5)
+    @test EcoSISTEM._getneighbours(M, 5, 3) isa Matrix{Int}
+    @test_throws ErrorException EcoSISTEM._getneighbours(M, 3, 5)
 
     # Cells off the edge are dropped, so a corner has two orthogonal neighbours and three diagonal.
-    @test size(EcoSISTEM.get_neighbours(M, 1, 1), 1) == 2
-    @test size(EcoSISTEM.get_neighbours(M, 1, 1, 8), 1) == 3
+    @test size(EcoSISTEM._getneighbours(M, 1, 1), 1) == 2
+    @test size(EcoSISTEM._getneighbours(M, 1, 1, 8), 1) == 3
     # …and every pair returned indexes `M` — which is what a transposed call would break.
     for chess in (4, 8), y in Base.axes(M, 1), x in Base.axes(M, 2)
-        ns = EcoSISTEM.get_neighbours(M, y, x, chess)
+        ns = EcoSISTEM._getneighbours(M, y, x, chess)
         @test all(n -> checkbounds(Bool, M, n[1], n[2]), eachrow(ns))
         # A neighbour is one step away in at least one direction and never the cell itself.
         @test all(n -> 0 < abs(n[1] - y) + abs(n[2] - x) <= 2, eachrow(ns))
     end
 
     # The vector form pairs them up positionally, in the same order.
-    @test EcoSISTEM.get_neighbours(M, [1, 5], [1, 3]) ==
-          vcat(EcoSISTEM.get_neighbours(M, 1, 1),
-               EcoSISTEM.get_neighbours(M, 5, 3))
-    @test_throws ErrorException EcoSISTEM.get_neighbours(M, 1, 1, 5)
+    @test EcoSISTEM._getneighbours(M, [1, 5], [1, 3]) ==
+          vcat(EcoSISTEM._getneighbours(M, 1, 1),
+               EcoSISTEM._getneighbours(M, 5, 3))
+    @test_throws ErrorException EcoSISTEM._getneighbours(M, 1, 1, 5)
+end
+
+# ── The hot loop must not allocate per cell ─────────────────────────────────────────────────────
+#
+# **Why these exist, and why there are two.** A62: `Ecosystem` declares `abundances::GridLandscape`,
+# and when that type gained parameters the bare name became a `UnionAll` -- an abstract field -- so
+# every `eco.abundances.matrix` reached inside a threaded body was boxed. It cost about 176 bytes
+# per cell, grew with the grid, and shipped in v0.5.0 unnoticed for a release.
+#
+# Nothing in the suite could have caught it. The change that caused it was in `Landscape.jl`; the
+# damage was in `dynamics.jl`, whose text never changed. Reading the loop finds nothing.
+#
+# The two checks catch different halves and neither subsumes the other: the first names the boxing
+# directly and fails the moment a type on the path gains a parameter, the second catches any
+# per-cell allocation whatever its cause.
+
+# Accessors at module scope rather than closures, so inference is asked about a stable signature.
+_readmatrix(eco) = eco.abundances.matrix
+_readgrid(eco) = eco.abundances.grid
+_readtotaldemand(eco) = eco.cache.totaldemand
+_readnetmigration(eco) = eco.cache.netmigration
+
+# Behind a function barrier, as `test_collections.jl`'s allocation checks are: `eco` arrives as a
+# typed argument, so the test's own necessarily-unstable local cannot land on the measurement, and
+# the warming call compiles the same specialisation the measured one runs.
+function _usagealloc(eco)
+    eco.cache.valid = false
+    EcoSISTEM.update_resource_usage!(eco)
+    eco.cache.valid = false
+    return @allocated EcoSISTEM.update_resource_usage!(eco)
+end
+
+@testset "the hot loop's reads infer concretely" begin
+    eco = Test1Ecosystem(seed = 1)
+    T = typeof(eco)
+    # **Deliberately NOT `isconcretetype(fieldtype(T, :abundances))`.** That field is still the bare
+    # `GridLandscape` `UnionAll` and is *meant* to be: the landscape holds concrete raw arrays
+    # inside an abstract container, and Julia infers a field through it so long as the field's own
+    # declared type names no type parameter. A field-concreteness walk would fail on the very field
+    # A62 was about, and would have to carve it out -- worse than no check.
+    @test !isconcretetype(fieldtype(T, :abundances))
+    @test Base.return_types(_readmatrix, (T,))[1] === Matrix{Int64}
+    @test Base.return_types(_readgrid, (T,))[1] === Array{Int64, 3}
+    @test Base.return_types(_readtotaldemand, (T,))[1] === Matrix{Float64}
+    @test Base.return_types(_readnetmigration, (T,))[1] === Matrix{Int64}
+end
+
+@testset "the hot loop allocates nothing per cell" begin
+    # Two grids, and the assertion is about the *slope*, not a byte count. `Threads.@threads` has
+    # its own per-loop cost which is constant in the number of cells, so it cancels; a fixed
+    # threshold would instead have to be retuned for every thread count and Julia version.
+    small = Test1Ecosystem(seed = 1, grid = (5, 7))
+    large = Test1Ecosystem(seed = 1, grid = (20, 28))
+    ncells(eco) = size(eco.abundances.matrix, 2)
+    extracells = ncells(large) - ncells(small)
+    @test extracells > 500
+    # Fewer than one byte per additional cell: A62 cost about 176 of them.
+    @test _usagealloc(large) - _usagealloc(small) < extracells
 end
 
 end

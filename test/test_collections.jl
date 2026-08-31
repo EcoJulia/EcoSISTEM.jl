@@ -243,7 +243,7 @@ end
         @test values(temptol) === (temptol,)
     end
 
-    @testset "demands, and one totalE column per resource" begin
+    @testset "demands, and one totaldemand column per resource" begin
         dc = SpeciesRequirementCollection((Demand{SolarRadiation}(fill(10.0kJ /
                                                                        day, n)),
                                            Demand{Precipitation}(fill(1.0Unitful.L /
@@ -385,7 +385,7 @@ end
                                      axis = SolarRadiation)))
         @test length(values(env3.supply)) == 3
         # The collection is parameterised on its **role** first, so the arity is read off the
-        # second parameter: `numdemands` sizes the `totalE` cache from the type alone, without an
+        # second parameter: `numdemands` sizes the `totaldemand` cache from the type alone, without an
         # instance, and it must keep doing that now that the two collections have merged.
         @test EcoSISTEM.numdemands(EcoSISTEM.SpeciesRequirementCollection{EcoSISTEM.Resource,
                                                                           Tuple{SolarRadiation,
@@ -475,7 +475,7 @@ end
                                               SolarRadiation)[1:nres])
         eco = build_ecosystem(species, env)
         EcoSISTEM.update_resource_usage!(eco)
-        @test size(eco.cache.totalE, 2) == nres
+        @test size(eco.cache.totaldemand, 2) == nres
         @test _adjustalloc(eco) == 0
         @test @inferred(EcoSISTEM._resourceadjustment(eco, eco.habitat.supply,
                                                       1, 1)) isa

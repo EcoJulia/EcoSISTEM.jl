@@ -156,7 +156,7 @@ function _adjust(eco, i, sp)
 end
 
 # `update_resource_usage!` returns early on a valid cache, so it has to be invalidated each time.
-function _totalE(eco)
+function _totaldemand(eco)
     eco.cache.valid = false
     return EcoSISTEM.update_resource_usage!(eco)
 end
@@ -165,12 +165,13 @@ function run()
     @printf("# %s — %d species, %d×%d cells, %d thread(s), min of %d\n", LABEL,
             NSPP, SIDE, SIDE, Threads.nthreads(), REPEATS)
     @printf("%-6s %13s %13s %13s %13s %20s\n", "shape", "simulate!(s)",
-            "suitability(ms)", "adjust(ms)", "totalE(ms)", "abundance hash")
+            "suitability(ms)", "adjust(ms)", "totaldemand(ms)",
+            "abundance hash")
     for (nregimes, nsupplies) in ((1, 1), (2, 1), (1, 2), (2, 2))
         eco = build(nregimes, nsupplies)
         sweep(_suit, eco)                      # compile every path before timing any of it
         sweep(_adjust, eco)
-        _totalE(eco)
+        _totaldemand(eco)
 
         # A separate ecosystem for the hash: `simulate!` mutates, and the timed runs each need a
         # fresh one anyway, so this one is simulated once and its final state hashed.
@@ -185,7 +186,7 @@ function run()
                 string(nregimes, "r", nsupplies, "s"), simulated,
                 1.0e3 * fastest(() -> sweep(_suit, eco)),
                 1.0e3 * fastest(() -> sweep(_adjust, eco)),
-                1.0e3 * fastest(() -> _totalE(eco)),
+                1.0e3 * fastest(() -> _totaldemand(eco)),
                 string(hash(checked.abundances.matrix), base = 16))
     end
     return nothing

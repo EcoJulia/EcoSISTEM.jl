@@ -134,3 +134,63 @@ function varying_ecosystem(; seed = 0, numspecies = VARYING_SPECIES)
     sppl, tolerance = varying_species(numspecies = numspecies, seed = seed)
     return Ecosystem(sppl, env, NicheSuitability(tolerance), seed = seed)
 end
+
+# ── The fixture the serial-versus-distributed pinning uses ──────────────────────────────────────
+#
+# **Defined once here on purpose.** The blessed `mpi/…` results are only evidence about the
+# distributed run if the canonical bless and `SmallMPItest.jl` build the *identical* fixture, and two
+# spelled-out copies would drift apart — which is precisely the failure this pinning exists to catch.
+#
+# Deliberately unlike `varying_species` above: faster rates, a wider kernel and a large `boost`, so a
+# two-year run moves the numbers substantially instead of sitting near its starting state.
+#
+# **Seven species, and that is the point.** `MPIEcosystem` partitions by species *and* by grid cells,
+# so both need a remainder to exercise the uneven-split paths: 7 species go 2/2/2/1 over four ranks
+# and 4/3 over two, while the 77 cells go 20/19/19/19 and 39/38.
+const MPIFIXTURE_FILL = 10
+const MPIFIXTURE_BURNIN = 2year
+const MPIFIXTURE_TIMESTEP = 1month_mean_duration
+
+function mpifixture_species(; numspecies = VARYING_SPECIES)
+    # Two demands, matching the two supplies of the varying environment: `build_ecosystem` checks
+    # that the species and environment sides align layer for layer.
+    demand = SpeciesRequirementCollection((Demand{SolarRadiation}(collect(1:numspecies) .*
+                                                                  1.0kJ /
+                                                                  day),
+                                           Demand{Precipitation}(fill(2.0Unitful.L /
+                                                                      day,
+                                                                      numspecies))))
+    movement = BirthOnlyMovement(fill(GaussianKernel(3.0km, 10e-10),
+                                      numspecies))
+    param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2, 100.0)
+    # Optima spread across the regime's own 288-302 K gradient, so species genuinely sort in space.
+    # A shared optimum would put them all in the same cells, and optima outside the environment would
+    # kill everything -- a run where nothing survives compares equal across ranks for the wrong reason.
+    tolerance = NicheTolerance(Temperature, Normal, varying_optima(numspecies),
+                               fill(2.0K, numspecies))
+    return SpeciesList(numspecies, tolerance,
+                       fill(div(1_000, numspecies), numspecies), demand,
+                       movement,
+                       param, fill(true, numspecies)), tolerance
+end
+
+mpifixture_nichefit() = NicheSuitability{Temperature, typeof(1.0K)}()
+
+"""
+    mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES)
+
+Build the **serial** ecosystem that a distributed run of the same fixture must reproduce, with its
+abundances filled exactly as the MPI test fills its own.
+
+Simulating this for `MPIFIXTURE_BURNIN` at `MPIFIXTURE_TIMESTEP` and gathering the distributed run
+must give the same abundance matrix, cell for cell, at any rank count.
+"""
+function mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES)
+    sppl, _ = mpifixture_species(numspecies = numspecies)
+    eco = Ecosystem(sppl, varying_environment(), mpifixture_nichefit(),
+                    seed = seed)
+    # Filled artificially rather than populated, so the starting state is identical on every rank
+    # without depending on how `populate!` divided the draw.
+    eco.abundances.matrix .= MPIFIXTURE_FILL
+    return eco
+end

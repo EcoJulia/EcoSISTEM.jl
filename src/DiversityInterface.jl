@@ -124,12 +124,13 @@ function Diversity.API._getdiversityname(sl::SpeciesList)
 end
 
 # ══ AbstractEcosystem — the AbstractMetacommunity hooks ════════════════════════════════════════════
-# Diversity's internals are not robust to an arbitrary `DimArray`'s dims — reducing over
-# `Dim{:location}` can fail inside its own reduction machinery — and it only ever wants plain numeric
-# data, so the abundances are unwrapped with `parent()` at this boundary rather than handed over
-# dimensioned.
+# **Diversity must be handed plain numeric data, never a labelled array.** Its internals are not
+# robust to an arbitrary `DimArray`'s dims — reducing over `Dim{:location}` can fail inside its own
+# reduction machinery. `GridLandscape.matrix` is a plain `Matrix{Int64}` precisely so that it can be
+# passed straight through here; the labelled views are `dimmatrix`/`dimgrid` and must not be used at
+# this boundary.
 function Diversity.API._getabundance(eco::AbstractEcosystem, raw::Bool)
-    abun = parent(eco.abundances.matrix)
+    abun = eco.abundances.matrix
     if raw
         return abun
     else
@@ -137,7 +138,7 @@ function Diversity.API._getabundance(eco::AbstractEcosystem, raw::Bool)
     end
 end
 # The cached ecosystem answers from its most recent computed slice, and otherwise exactly as the
-# method above: same `parent()` unwrapping, same `_calcabundance`. It must forward through
+# method above: the same plain matrix, the same `_calcabundance`. It must forward through
 # `_gettypes` for the same reason every other hook does — `SpeciesList` holds its `AbstractTypes` in
 # `sl.types`, so a phylogeny's branch abundances only exist once `_calcabundance` has mapped the
 # species onto them. Passing the species abundances straight through is invisible for a
@@ -150,7 +151,7 @@ function Diversity.API._getabundance(cache::CachedEcosystem, raw::Bool)
         abun = cache.abundances.matrix[id]
     end
 
-    abun = parent(abun.matrix)
+    abun = abun.matrix
     if raw
         return abun
     else
@@ -174,7 +175,7 @@ end
 # The shape check is what makes adding a species safe, and it is deliberately a check rather than a
 # hook into `_addspecies!` — nothing then has to remember to keep the two in step.
 function Diversity.API._getordinariness!(eco::AbstractEcosystem)
-    abun = parent(eco.abundances.matrix)
+    abun = eco.abundances.matrix
     size(eco.cache.relativeabun) == size(abun) ||
         (eco.cache.relativeabun = similar(abun, Float64))
     eco.cache.relativeabun .= abun ./ sum(abun)
@@ -186,6 +187,6 @@ end
 # **normalised** matrix rather than the raw counts, or the scale does not match the abundances it is
 # paired with.
 function Diversity.API._getscale(eco::AbstractEcosystem)
-    abun = parent(eco.abundances.matrix)
+    abun = eco.abundances.matrix
     return _calcabundance(_gettypes(eco), abun / sum(abun))[2]
 end

@@ -80,7 +80,7 @@ const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
                                 area = AREA)
 
 # `BirthOnlyMovement` because `AlwaysMovement` is unimplemented under MPI and refuses — see
-# `ext/EcoSISTEMMPIExt/generate.jl`.
+# `ext/EcoSISTEMMPIExt/dynamics.jl`.
 const SPECIES = build_species(NUMSPECIES,
                               tolerance = (274.0K, 0.5K),
                               toleranceaxis = Temperature,

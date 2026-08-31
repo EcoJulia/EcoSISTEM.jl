@@ -210,11 +210,11 @@ end
 # and the only shape that does.
 #
 # **This is the shape of bug this file was otherwise blind to.** `_identifyclusters!` and
-# `_fillin!` called `get_neighbours(M, y, x)` while its first argument has always been the *row*,
+# `_fillin!` called `_getneighbours(M, y, x)` while its first argument has always been the *row*,
 # left over from the package's x/y → y/x switch. On a square grid the transposition is invisible —
 # it silently reads the neighbours of the transposed cell — and every fixture in this file, and every
 # `NicheSpec` fixture in the suite, was square: `(10, 10)`, `9 × 9`, `60km × 60km`. On any other
-# shape it throws *"Coordinates outside grid"* from inside `get_neighbours`' own bounds check.
+# shape it throws *"Coordinates outside grid"* from inside `_getneighbours`' own bounds check.
 #
 # So the sweep below is the test: **every** shape from 1 to 9 in each dimension, which is cheap
 # (81 grids) and leaves the mistake nowhere to hide. Repeated, because the generator is

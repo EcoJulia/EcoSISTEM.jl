@@ -23,16 +23,9 @@ Build a small test ecosystem. If `seed` is supplied, the initial per-species
 abundance totals and the per-species simulation RNGs are both made deterministic,
 so the whole run is reproducible regardless of the number of threads.
 """
-function Test1Ecosystem(; seed = nothing)
-    # **Shrunk 2026-08-13**: 150 species on a 10 × 10 grid became 15 on 5 × 7. Work per timestep is
-    # roughly species × cells, so this is ~40× less of it, and this fixture is shared by seven test
-    # files.
-    #
+function Test1Ecosystem(; seed = nothing, grid = (5, 7))
     # **Non-square, and that is not incidental.** The old grid was 10 × 10; a square fixture
-    # cannot see a y/x transposition, which is exactly how `plot(eco)`'s `BoundsError` went unnoticed
-    # (found 2026-08-13 the moment a notebook grid stopped being square) and how `get_neighbours`
-    # once kept x-first parameter names after the index order switched. 5 × 7 costs 35 cells against
-    # a square 5 × 5's 25 — ten cells to keep the property.
+    # cannot see a y/x transposition.
     numSpecies = 15
     numNiches = 2
 
@@ -44,8 +37,8 @@ function Test1Ecosystem(; seed = nothing)
     timestep = 1.0month_mean_duration
     param = EqualPop(birth, death, long, surv, boost)
 
-    # `(ny, nx)` — rows then columns, as everywhere in the package.
-    grid = (5, 7)
+    # `(ny, nx)` — rows then columns, as everywhere in the package. Overridable so a test can
+    # compare two grid sizes, which is how the hot loop's per-cell allocation is measured.
     cellsize = 2.0km
     individuals = 2000 * numSpecies
     totalK = 1000000.0 * kJ / km^2 / day * numSpecies

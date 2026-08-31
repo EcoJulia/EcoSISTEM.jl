@@ -17,16 +17,23 @@ makedocs(modules = [EcoSISTEM],
                                   size_threshold_ignore = ["api.md"]),
          pages = [
              "Home" => "index.md",
-             "Biodiversity" => [
+             # Grouped by what a reader is trying to do. The single "Biodiversity" heading this
+             # replaces was a leftover from when the repository had two arms and this was one of
+             # them; everything had since accumulated under the survivor.
+             "Getting started" => [
                  "Basics" => "basics.md",
-                 "How the model works" => "model.md",
+                 "Examples" => "examples.md"
+             ],
+             "Building a model" => [
                  "Layers" => "layers.md",
                  "Axes, units and roles" => "units.md",
                  "Time" => "time.md",
-                 "Interventions" => "interventions.md",
-                 "Diversity" => "diversity.md",
+                 "Interventions" => "interventions.md"
+             ],
+             "How the model works" => "model.md",
+             "Analysing results" => ["Diversity" => "diversity.md"],
+             "Going further" => [
                  "Running at scale" => "scale.md",
-                 "Examples" => "examples.md",
                  "Africa" => "africa.md",
                  "Data Pipeline" => "pipeline.md"
              ],
@@ -36,4 +43,6 @@ makedocs(modules = [EcoSISTEM],
 deploydocs(repo = "github.com/EcoJulia/EcoSISTEM.jl.git",
            push_preview = true,
            devbranch = "main",
-           devurl = "main")
+           # `dev` is the ecosystem convention, and what other people's links assume. This was
+           # `main`, which left every link written the usual way pointing at a stale path.
+           devurl = "dev")
