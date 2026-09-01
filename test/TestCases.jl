@@ -23,10 +23,14 @@ Build a small test ecosystem. If `seed` is supplied, the initial per-species
 abundance totals and the per-species simulation RNGs are both made deterministic,
 so the whole run is reproducible regardless of the number of threads.
 """
-function Test1Ecosystem(; seed = nothing, grid = (5, 7))
+function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15)
     # **Non-square, and that is not incidental.** The old grid was 10 × 10; a square fixture
     # cannot see a y/x transposition.
-    numSpecies = 15
+    #
+    # `numspecies` is overridable for the same reason `grid` is: the hot loop's allocation has to be
+    # shown flat in *both* directions, and a fixture that can only vary one of them can only prove
+    # half of it.
+    numSpecies = numspecies
     numNiches = 2
 
     birth = 0.6 / month_mean_duration
