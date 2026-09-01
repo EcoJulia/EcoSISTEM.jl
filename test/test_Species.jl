@@ -163,20 +163,14 @@ end
     # **Not a list of names - a sweep.** Any `AbstractTypes` hook we do not forward is a silent
     # claim about a similarity structure the list does not own.
     #
-    # `Any` has to be excluded explicitly, and leaving it in is what made this fail on a function
-    # that is not a hook at all: `AbstractTypes <: Any` is true, so an **untyped** first argument
-    # matched the test for "declared on `AbstractTypes` or a supertype of it" and every such helper
-    # in `Diversity.API` was demanded as a forward. `_floatmeet(a, b)` is the one that surfaced it -
-    # it intersects two sets of float types and never sees an `AbstractTypes`.
-    #
-    # What this therefore cannot catch: a genuine hook that Diversity declares with an untyped
-    # argument. Nothing distinguishes one from `_floatmeet`, so such a hook would have to be found
-    # by reading rather than by sweeping. The real chain is
-    # `AbstractTypes <: EcoBase.AbstractThings <: Any`, so a hook declared on either of the first two
-    # is still caught.
+    # **Swept over what `Diversity.API` EXPORTS, which is the authoritative list of extension
+    # points.** The submodule exists for that purpose: it was created before `public` was a keyword,
+    # to mark the names that are private to Diversity but stable for anyone defining a new diversity
+    # type to override. So its exports are precisely the hooks a type like `SpeciesList` is obliged
+    # to answer, declared by the package that owns them rather than inferred here.
     AT = Diversity.API.AbstractTypes
     missing_hooks = Symbol[]
-    for n in names(Diversity.API; all = true)
+    for n in names(Diversity.API)
         isdefined(Diversity.API, n) || continue
         (n === :eval || n === :include) && continue
         f = getfield(Diversity.API, n)
@@ -185,7 +179,7 @@ end
             ps = Base.unwrap_unionall(m.sig).parameters
             length(ps) >= 2 || return false
             t = Base.unwrap_unionall(ps[2])
-            t isa Type && t !== Any && (t === AT || AT <: t)
+            t isa Type && (t === AT || AT <: t)
         end
         takes_types || continue
         ours = any(m -> String(nameof(m.module)) == "EcoSISTEM" &&
