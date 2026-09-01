@@ -3,6 +3,11 @@
 - v0.6.2
   - Fixed
     - Hot loop allocation fix. `GridHabitat` now carries the topology's type as a parameter.
+    - Remote reads through GDAL - a URL given to `ShapeSpec`, or any `/vsicurl/` path - work again
+      on macOS under Julia 1.12, where they had failed with an error naming a null pointer rather
+      than a certificate. That one release builds libcurl against OpenSSL with no certificate roots,
+      where 1.11 uses the system keychain and 1.13 ships roots of its own, so the fix is confined to
+      it and defers to `CURL_CA_BUNDLE`, `SSL_CERT_FILE` and `SSL_CERT_DIR` if you set them.
   - Internal
     - The hot loop's inference check is now a sweep over every field of the types it reaches, and
       the distributed loop gains the same allocation and inference checks, which it had never had.

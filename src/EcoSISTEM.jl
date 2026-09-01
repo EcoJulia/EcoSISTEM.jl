@@ -4,6 +4,8 @@ module EcoSISTEM
 
 using Scratch: get_scratch!
 using Downloads: Downloads
+using NetworkOptions: ca_roots_path
+import ArchGDAL
 
 # **The model, before anything else.** Fourteen declarations saying what EcoSISTEM simulates -
 # conditions and resources, the environment's layers and the species' requirements, the fit between
@@ -522,6 +524,24 @@ chosen so one block spans a CPU cache line (`cachelinesize ÷ sizeof(Int)`).
 """
 species_blocksize() = _SPECIES_BLOCK[]
 
+# Whether GDAL needs to be handed a CA bundle before it can open an HTTPS connection.
+#
+# This is a workaround for another package's platform problem, and it is deliberately as narrow as
+# the measurement that found it: macOS on Julia 1.12, and nothing else. 1.11 builds libcurl against
+# SecureTransport, so it uses the system keychain; 1.13 ships LibCURL 8.18.0, which carries a bundle
+# of its own. Between them sits OpenSSL with no roots at all, where every remote read fails with
+# "unable to get local issuer certificate" - reported by GDAL as `HTTP response code: 0`, which
+# names neither TLS nor configuration and so sends the reader somewhere else entirely.
+#
+# `NetworkOptions.ca_roots()` cannot be the test, tempting though it looks: it is `nothing` on all
+# three versions, because on 1.11 and 1.13 the platform really does supply its own roots. Handing
+# SecureTransport a CA file is worse than useless, so widening this to "wherever `ca_roots()` is
+# nothing" would break 1.11 to fix 1.12.
+#
+# `test_EcoSISTEM.jl` asserts that GDAL still cannot do without it. Delete both when the `julia`
+# compat floor passes 1.12.
+_needscabundle() = Sys.isapple() && v"1.12" <= VERSION < v"1.13"
+
 # Sized at load rather than compiled in, because a cache line is a property of the machine the run
 # is on. The `try` matters: `Hwloc` cannot answer on every platform, and a wrong block size is a
 # performance question rather than a correctness one, so a failure falls back rather than throwing.
@@ -530,6 +550,15 @@ function __init__()
         max(1, Hwloc.cachelinesize() ÷ sizeof(Int64))
     catch
         16
+    end
+    # Only when nothing else has already answered, and with the answer the user would have given.
+    # `CPLGetConfigOption` falls back to the environment, so this defers both to a `CURL_CA_BUNDLE`
+    # the user set and to anything GDAL.jl set for itself; and `ca_roots_path` itself honours
+    # `JULIA_SSL_CA_ROOTS_PATH`, `SSL_CERT_FILE` and `SSL_CERT_DIR` before falling back to Julia's
+    # bundled roots. So it can only ever fill a gap, never override a decision.
+    if _needscabundle() &&
+       isempty(ArchGDAL.GDAL.cplgetconfigoption("CURL_CA_BUNDLE", ""))
+        ArchGDAL.GDAL.cplsetconfigoption("CURL_CA_BUNDLE", ca_roots_path())
     end
     return nothing
 end

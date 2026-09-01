@@ -4,8 +4,10 @@ module TestEcoSISTEM
 
 using EcoSISTEM
 using DimensionalData
+using Downloads: Downloads
 using Hwloc
 using Test
+import ArchGDAL
 
 struct _CacheTestOwner end
 
@@ -395,6 +397,81 @@ end
     # invisible on five functions at once; demanding a bullet would mean parsing the block, and
     # would fail on the shared form `` `units`, `x`, `force` ``.
     @test !_documents(docof(:readfile), :cutting)
+end
+
+# A workaround for another package's platform problem earns its keep only for as long as the
+# problem is there, so this asserts BOTH halves: that GDAL can fetch over HTTPS with whatever
+# `__init__` left in place, and - where the workaround applies - that it still cannot without it.
+#
+# The second assertion is the one that matters. When it fails, upstream has been fixed and
+# `_needscabundle` in `src/EcoSISTEM.jl` should be deleted along with this testset; it is not a
+# regression. Equally, if the first assertion fails somewhere `_needscabundle()` is false, the guard
+# is too narrow and that version needs adding.
+@testset "GDAL's CA bundle - is the workaround still needed?" begin
+    url = "https://raw.githubusercontent.com/EcoJulia/EcoSISTEM.jl/v0.6.0/LICENSE"
+
+    # A real transfer, never just a handle. `vsifopenl` returns a NON-NULL handle for a URL whose
+    # TLS connection then fails, and reads zero bytes from it - so a probe that stops at the handle
+    # reports success for a host GDAL cannot reach at all. Requiring the bytes back is the whole
+    # difference between "GDAL fetched this" and "GDAL opened something".
+    function gdalfetches(url)
+        fp = ArchGDAL.GDAL.vsifopenl("/vsicurl/" * url, "rb")
+        fp == C_NULL && return false
+        try
+            return ArchGDAL.GDAL.vsifreadl(Vector{UInt8}(undef, 16), 1, 16,
+                                           fp) == 16
+        finally
+            ArchGDAL.GDAL.vsifclosel(fp)
+        end
+    end
+
+    # Julia's own downloader is the network oracle. It resolves CA roots correctly on every platform
+    # this package supports, so it separates "this machine is offline" from "GDAL cannot do TLS" -
+    # which is exactly the distinction the assertions below turn on.
+    target = tempname()
+    reachable = try
+        Downloads.download(url, target)
+        isfile(target) && filesize(target) > 0
+    catch
+        false
+    finally
+        rm(target, force = true)
+    end
+
+    if !reachable
+        @info "Skipping the GDAL CA-bundle check: $url is not reachable from here."
+    else
+        @test gdalfetches(url)
+
+        # Only askable when the roots come from us. OpenSSL reads `SSL_CERT_FILE`/`SSL_CERT_DIR`
+        # for itself, below GDAL entirely - measured - so on a machine that sets either, removing
+        # GDAL's own option proves nothing and the canary would report a fix that had not happened.
+        fromenv = filter(k -> haskey(ENV, k),
+                         ["CURL_CA_BUNDLE", "SSL_CERT_FILE", "SSL_CERT_DIR",
+                             "JULIA_SSL_CA_ROOTS_PATH"])
+        if !isempty(fromenv) && EcoSISTEM._needscabundle()
+            @info "Skipping the canary: $(join(fromenv, ", ")) set in the environment, so " *
+                  "GDAL has certificate roots whether or not EcoSISTEM supplies them."
+        elseif EcoSISTEM._needscabundle()
+            saved = ArchGDAL.GDAL.cplgetconfigoption("CURL_CA_BUNDLE", "")
+            still_needed = try
+                # `C_NULL` removes the option outright, where `""` would set it to empty. The cache
+                # has to go too, or the second read is answered from the first one's result.
+                ArchGDAL.GDAL.cplsetconfigoption("CURL_CA_BUNDLE", C_NULL)
+                ArchGDAL.GDAL.vsicurlclearcache()
+                !gdalfetches(url)
+            finally
+                ArchGDAL.GDAL.cplsetconfigoption("CURL_CA_BUNDLE",
+                                                 isempty(saved) ? C_NULL :
+                                                 saved)
+                ArchGDAL.GDAL.vsicurlclearcache()
+            end
+            still_needed ||
+                @warn "GDAL now fetches over HTTPS unaided on $(Sys.MACHINE), Julia $VERSION. " *
+                      "`EcoSISTEM._needscabundle` and this testset can both be deleted."
+            @test still_needed
+        end
+    end
 end
 
 end
