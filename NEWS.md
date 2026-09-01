@@ -1,11 +1,16 @@
 # NEWS
 
+- v0.6.2
+  - Fixed
+    - Hot loop allocation fix. `GridHabitat` now carries the topology's type as a parameter.
+  - Internal
+    - The hot loop's inference check is now a sweep over every field of the types it reaches, and
+      the distributed loop gains the same allocation and inference checks, which it had never had.
 - v0.6.1
   - Added
     - `AlwaysMovement` now works in a distributed (MPI) run, so all three movement types do. Each
       rank owns a block of species across the whole grid while the dynamics run, so dispersing an
-      established individual stays rank-local exactly as dispersing a newborn does; only the field
-      the count is read from differed between the two landscapes.
+      established individual stays rank-local exactly as dispersing a newborn does.
   - Changed
     - `getabundance` on a distributed ecosystem refuses rather than returning one rank's block, and
       names `gatherabundance` instead. Diversity's consumers each reduce that matrix over a different
