@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Canonical results from a **non-uniform, non-square, time-varying** simulated ecosystem — the
+# Canonical results from a **non-uniform, non-square, time-varying** simulated ecosystem - the
 # companion to `test_simulated.jl`, which is uniform, square and static.
 #
 # **This file exists because that one could not break.** Every blessed number in the suite came
@@ -64,8 +64,8 @@ include(joinpath(@__DIR__, "..", "varyingcase.jl"))
           VARYING_NX
 
     # **The warming is analytically predictable, so this blessed number is *checked* rather than
-    # merely reproducible** — the strongest form a canonical entry can take. The spatial mean of a
-    # 288–302 K gradient is 295 K, and `IncrementBy(0.5K/year)` adds 0.5 K per elapsed year.
+    # merely reproducible** - the strongest form a canonical entry can take. The spatial mean of a
+    # 288-302 K gradient is 295 K, and `IncrementBy(0.5K/year)` adds 0.5 K per elapsed year.
     #
     # It is **25** months of warming after 24 steps, and that is the documented behaviour, not an
     # off-by-one: the clock advances *before* the layers change, so the last change sees the time it

@@ -5,7 +5,7 @@ using FillArrays: Fill
 # --- Cell geometry: one question, asked of anything that knows the grid -----
 #
 # **Why these exist.** A cell's size was previously stored on each layer as a scalar `size` field,
-# supplied at construction and therefore able to disagree with the coordinates beside it — which is
+# supplied at construction and therefore able to disagree with the coordinates beside it - which is
 # exactly what happened: every supply reported `1.0 m` whatever its grid. These read the grid itself,
 # so there is one answer and one place it comes from.
 #
@@ -20,24 +20,24 @@ using FillArrays: Fill
 
 Return the size of `x`'s grid in cells, as `(ny, nx)`, or `nothing` where `x` has no grid.
 
-This is how big the grid *is* — how many rows and how many columns — and is what the dispersal and
+This is how big the grid *is* - how many rows and how many columns - and is what the dispersal and
 intervention code needs to turn a flat location index into a `(y, x)` position.
 
-  - `x` — anything that knows the grid, as [`getcellareas`](@ref): a [`StudyArea`](@ref), its report,
+  - `x` - anything that knows the grid, as [`getcellareas`](@ref): a [`StudyArea`](@ref), its report,
     a [`ClimateRaster`](@ref), a raster, a layer or collection, a habitat, or an ecosystem.
-  - `force` — as [`getcellareas`](@ref): read a data-backed spec's data rather than answering
+  - `force` - as [`getcellareas`](@ref): read a data-backed spec's data rather than answering
     `missing`.
 
 `shape` rather than `size` is doing real work in the name. `getcellareas` and [`getgridarea`](@ref)
 are the same quantity at two scales and read as a pair, but a cell's *size* is a length while a
-grid's is a count, so those two should not. `getgridsize` keeps its released meaning — one cell's
-side length — and is deprecated onto it.
+grid's is a count, so those two should not. `getgridsize` keeps its released meaning - one cell's
+side length - and is deprecated onto it.
 
 Deliberately a plain `Tuple` rather than a [`SpatialSize`](@ref): these are counts, with no units and
 no frame, so nothing about them is spatial in the way a distance is.
 
 One method covers everything, because [`getcellareas`](@ref) and the rest route through the same
-`_gridyx` dispatch table — so a habitat answers directly and no caller needs to reach inside it for a
+`_gridyx` dispatch table - so a habitat answers directly and no caller needs to reach inside it for a
 regime.
 
 See also [`getcellcount`](@ref), which is `prod` of this and can exclude inactive cells.
@@ -53,8 +53,8 @@ end
 # Every one of these answers "one value per cell", grid-shaped, so a caller can index it, take its
 # `size`, broadcast over it or reduce it without ever asking whether the quantity happens to be
 # uniform. Where it is, the answer is a `Fill` and costs 24 bytes however large the grid; where it is
-# not, it is materialised. The alternative — an `(ny, 1)` column that broadcasts but cannot be indexed
-# `[i, j]` — would make the shape of the answer depend on the data, which is what these exist to stop.
+# not, it is materialised. The alternative - an `(ny, 1)` column that broadcasts but cannot be indexed
+# `[i, j]` - would make the shape of the answer depend on the data, which is what these exist to stop.
 #
 # Reductions are Base's. There is deliberately no `mean` keyword: `mean(getcellareas(x))` says it
 # better, and `sum` over a mask is how `getgridarea` is built.
@@ -68,12 +68,12 @@ the grid happens to be uniform. Where every cell has the same area the answer is
 costs the same however large the grid; where areas vary -- as they do with latitude on a geographic
 grid -- it is materialised.
 
-  - `units` — the unit to answer in, and **optional**: a length-squared unit (`km^2`) asks for a
+  - `units` - the unit to answer in, and **optional**: a length-squared unit (`km^2`) asks for a
     physical area, `°^2` or `sr` for a true solid angle, and omitting it gives the grid's own.
-  - `x` — anything that knows the grid: a [`StudyArea`](@ref), its report, a
+  - `x` - anything that knows the grid: a [`StudyArea`](@ref), its report, a
     [`ClimateRaster`](@ref), a raster, a layer or collection, a habitat, or an ecosystem. Something
     with no grid answers `nothing`.
-  - `force` — whether to **read the data** to find out. A data-backed spec has a grid, but only
+  - `force` - whether to **read the data** to find out. A data-backed spec has a grid, but only
     reading it would say what, so it answers `missing` rather than `nothing`: the value exists and
     is unknown here. `force = true` performs that read, which may involve a download. Only a
     [`SourceSpec`](@ref) names data that can be read on its own; any other lazy spec describes a
@@ -119,10 +119,10 @@ Return the extent of every cell of `x`'s grid as a [`SpatialSize`](@ref), one va
 Each component is grid-shaped on the same terms as [`getcellareas`](@ref): a `Fill` where the extent
 is uniform, materialised where it is not.
 
-  - `units` — the unit to answer in, and **optional**: a length (`km`, `m`) asks for a metric
+  - `units` - the unit to answer in, and **optional**: a length (`km`, `m`) asks for a metric
     answer, an angle (`°`) for an angular one, and omitting it gives the grid's own. The unit
     chooses the *frame*, not merely a conversion.
-  - `x`, `force` — as [`getcellareas`](@ref).
+  - `x`, `force` - as [`getcellareas`](@ref).
 
 This is not the square root of [`getcellareas`](@ref). On a geographic grid a cell's extent is
 angular and constant while its area is physical and shrinks towards the poles.
@@ -173,8 +173,8 @@ getcellsizes(x; kw...) = getcellsizes(missing, x; kw...)
 Return the `CartesianIndex` of the cell of `x`'s grid that contains `place`, or `nothing` where `x`
 has no grid.
 
-  - `x` — anything that knows the grid, as [`getcellareas`](@ref).
-  - `place` — a [`SpatialLocation`](@ref) (or a [`LatLong`](@ref)) in the grid's own frame.
+  - `x` - anything that knows the grid, as [`getcellareas`](@ref).
+  - `place` - a [`SpatialLocation`](@ref) (or a [`LatLong`](@ref)) in the grid's own frame.
 
 This is the one function that turns a position into a grid position; everything else is then
 indexing, which is why no other accessor takes a location as a keyword.
@@ -199,8 +199,8 @@ Return the area of the single cell of `x`'s grid containing `place`.
 The plural [`getcellareas`](@ref) answers for every cell; this answers for one, and is exactly
 `getcellareas(units, x)[getcellat(x, place)]`.
 
-  - `units` — as [`getcellareas`](@ref).
-  - `x`, `place` — as [`getcellat`](@ref).
+  - `units` - as [`getcellareas`](@ref).
+  - `x`, `place` - as [`getcellat`](@ref).
 
 There is no `force` here: a place has to be stated in the grid's own frame, so a caller who holds one
 already knows the grid. Force the read through [`getcellareas`](@ref) if that is what is wanted.
@@ -220,8 +220,8 @@ Return the extent of the single cell of `x`'s grid containing `place`, as a
 
 The plural [`getcellsizes`](@ref) answers for every cell; this answers for one.
 
-  - `units` — as [`getcellsizes`](@ref).
-  - `x`, `place` — as [`getcellat`](@ref).
+  - `units` - as [`getcellsizes`](@ref).
+  - `x`, `place` - as [`getcellat`](@ref).
 
 There is no `force` here, for the reason given on [`getcellarea`](@ref).
 """
@@ -239,10 +239,10 @@ getcellsize(x, place) = getcellsize(missing, x, place)
 Return the total area of `x`'s grid, or of its active cells only when `active = true`.
 
 This is `sum(getcellareas(x))`, and is correct on every projection because it adds each cell's own
-area rather than multiplying one cell by a count — which would be wrong wherever cells differ.
+area rather than multiplying one cell by a count - which would be wrong wherever cells differ.
 
-  - `units`, `x`, `force` — as [`getcellareas`](@ref).
-  - `active` — count only the cells the study area decided to simulate.
+  - `units`, `x`, `force` - as [`getcellareas`](@ref).
+  - `active` - count only the cells the study area decided to simulate.
 """
 function getgridarea(units, x; active = false, force = false)
     areas = getcellareas(units, x, force = force)
@@ -258,8 +258,8 @@ getgridarea(x; kw...) = getgridarea(missing, x; kw...)
 
 Return how many cells `x`'s grid has, or how many are active when `active = true`.
 
-  - `x`, `force` — as [`getcellareas`](@ref).
-  - `active` — count only the cells the study area decided to simulate.
+  - `x`, `force` - as [`getcellareas`](@ref).
+  - `active` - count only the cells the study area decided to simulate.
 """
 function getcellcount(x; active = false, force = false)
     shape = getgridshape(x, force = force)
@@ -282,7 +282,7 @@ _gridyx(layer::AbstractLayer) = _yx(layer)
 _gridyx(habitat::GridHabitat) = _yx(habitat.regime)
 _gridyx(eco::AbstractEcosystem) = _gridyx(eco.habitat)
 
-# A **synthetic** spec has no grid at all — it is a rule, not data, and adopts whatever grid it is
+# A **synthetic** spec has no grid at all - it is a rule, not data, and adopts whatever grid it is
 # placed on. `nothing` is the honest answer, and it is the same signal `_rastercellstep` already uses
 # for "cannot say", which `_targetcellsize` filters on when deciding a study area's resolution.
 _gridyx(::AbstractSyntheticLayerSpec) = nothing
@@ -297,7 +297,7 @@ _gridyx(::AbstractLazySpec) = missing
 # differenced out of the coordinates.
 #
 # **The declared step is the reliable one**, for the reason `_rastercellstep` records: differencing
-# gives a subtly different `Float64` depending on where in the grid you do it — the same WorldClim
+# gives a subtly different `Float64` depending on where in the grid you do it - the same WorldClim
 # layer read globally and read cut to Scotland differ in the 13th digit. Every grid this package
 # builds carries a `Regular` span (and an index-*range* crop preserves it), so the fallback is for
 # grids that arrive from elsewhere.
@@ -339,9 +339,9 @@ function _celledges(d, i)
     return (lo, lo + step)
 end
 
-# The solid angle of a cell spanning latitudes `φ1…φ2` and `dlong` of longitude, in steradians.
+# The solid angle of a cell spanning latitudes `φ1...φ2` and `dlong` of longitude, in steradians.
 #
-# `Δλ · (sin φ₂ − sin φ₁)` — the exact expression, not a small-angle approximation, and the reason
+# `Δλ * (sin φ₂ - sin φ₁)` - the exact expression, not a small-angle approximation, and the reason
 # a cell's angular area **shrinks towards the poles** while its angular *extent* does not.
 function _solidangle(φ1, φ2, dlong)
     return ustrip(u"rad", dlong) * (sin(φ2) - sin(φ1)) * u"sr"
@@ -349,17 +349,17 @@ end
 
 # Refuse a unit that is not an area, naming the fix.
 #
-# `getcellareas` insists on a real area unit — `km²`, `m²`, `°²`, `sr` — rather than squaring a
+# `getcellareas` insists on a real area unit - `km^2`, `m^2`, `°^2`, `sr` - rather than squaring a
 # base unit for you. `getcellareas(km, x)` is a *caller mistake*, not an unanswerable question, so it
 # errors where `nothing` would swallow a typo; `nothing` stays reserved for "cannot answer".
 # The point is that the first argument means **the same thing in both functions**: the unit the
 # answer comes back in. A `km` that meant kilometres to `getcellsizes` and kilometres-squared to
 # `getcellareas` is the kind of thing that reads fine and confuses later.
 #
-# **The angular set still has to be named, and Unitful gives no way round it.** `°`, `°²` and `sr`
-# are all `NoDims`, so a solid-angle unit cannot be told from an angle by dimension — measured:
+# **The angular set still has to be named, and Unitful gives no way round it.** `°`, `°^2` and `sr`
+# are all `NoDims`, so a solid-angle unit cannot be told from an angle by dimension - measured:
 # `uconvert(°, 1.0sr)` cheerfully returns `57.29577951308232°` rather than refusing. `Unitful.AreaUnits`
-# catches `km²` because that is `𝐋²`; there is no `SolidAngleUnits` to catch `sr`. So this is the same
+# catches `km^2` because that is `𝐋^2`; there is no `SolidAngleUnits` to catch `sr`. So this is the same
 # small hardcoded set as before, repurposed from *squaring* to *validating*.
 function _isareaunit(u)
     return u isa Unitful.AreaUnits || u == u"sr" || u == °^2 ||
@@ -372,7 +372,7 @@ end
 function _checkareaunit(units)
     (ismissing(units) || units isa Unitful.Dimensions || _isareaunit(units)) &&
         return nothing
-    return error("`getcellareas` answers in an area unit, and `$units` is not one — pass " *
+    return error("`getcellareas` answers in an area unit, and `$units` is not one - pass " *
                  "`$(units)^2` if that is what you meant (`km^2`, `°^2`), or `sr` for a solid " *
                  "angle. `getcellsizes` is the one that takes a length or an angle.")
 end
@@ -411,7 +411,7 @@ end
 # that is the answer to the question asked -- as a grid with no CRS at all now gives, silently,
 # because for that grid there is genuinely nothing to transform through.
 function _noangularfromprojected()
-    @warn "`getcellareas` cannot yet give an angular area for a projected grid — that needs each " *
+    @warn "`getcellareas` cannot yet give an angular area for a projected grid - that needs each " *
           "cell's transformed corners fed through a solid angle, which is not implemented. " *
           "`getcellsizes` does answer the matching size question. Ask in an area unit, or omit " *
           "the unit for the grid's own. Returning `nothing`."

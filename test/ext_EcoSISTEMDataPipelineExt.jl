@@ -8,13 +8,13 @@ using Test
 # **This extension cannot be exercised, and this file says so rather than pretending otherwise.**
 #
 # `DataPipeline` is a weak dependency but is **not in the test target**, so `EcoSISTEMDataPipelineExt`
-# never loads under any gate — it is neither precompiled nor run. Adding it is not currently possible
+# never loads under any gate - it is neither precompiled nor run. Adding it is not currently possible
 # either: `Pkg.add("DataPipeline")` into a scratch environment fails outright with unsatisfiable
 # `DiskArrays` against this dependency set. See **A48** in the master plan.
 #
 # What that gap already cost: the extension called `assetdir(DataPipeline)` **without importing
 # `DataPipeline`**, so `unziptemp` threw `UndefVarError` on every call. A trigger package is *loaded*
-# when an extension activates, but its name is only in scope if the module asks — and the module
+# when an extension activates, but its name is only in scope if the module asks - and the module
 # still precompiles, because a function body resolves at call time, so nothing surfaced until the
 # function was finally read.
 #

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The per-species demographic rates — birth and death — as the simulation reads them.
+# The per-species demographic rates - birth and death - as the simulation reads them.
 
 using Unitful
 using Unitful.DefaultSymbols
@@ -15,7 +15,7 @@ exponents and ceilings that say how those rates respond to the environment. [`Eq
 Every subtype carries the same five fields, and two of them are what make the model a niche model:
 
   - `longevity` is the exponent on a species' own resource demand, applied to birth **and** death
-    alike. It therefore sets the *tempo* of turnover — a body-size proxy — and cancels out of the
+    alike. It therefore sets the *tempo* of turnover - a body-size proxy - and cancels out of the
     birth/death ratio, so it does not move where a species can persist.
   - `survival` is the exponent on niche suitability, applied with **opposite** signs to birth and
     death. It does move the ratio, which is what makes it the niche.
@@ -110,7 +110,7 @@ struct NoGrowth{U <: Unitful.Units} <: AbstractParams
     end
 end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 """
     equalpop(params::AbstractParams, numspp)

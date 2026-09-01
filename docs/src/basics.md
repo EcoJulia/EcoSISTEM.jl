@@ -17,7 +17,7 @@ An EcoSISTEM simulation runs on an [`Ecosystem`](@ref), assembled from three thi
 
 | part | built by | holds |
 | --- | --- | --- |
-| the **environment** | [`GridHabitat`](@ref) | what each grid cell offers — conditions species are matched to, and resources they compete for |
+| the **environment** | [`GridHabitat`](@ref) | what each grid cell offers - conditions species are matched to, and resources they compete for |
 | the **species** | [`build_species`](@ref) | what each species needs, how it moves, and how fast it breeds and dies |
 | the **fit** between them | [`build_ecosystem`](@ref) | how well a species' tolerance suits a cell's conditions |
 
@@ -27,7 +27,7 @@ can never move or resize the grid under a simulation that is already set up.
 
 ## A first simulation
 
-Everything below runs as written. Start with the grid — here a synthetic one, 50 km square in
+Everything below runs as written. Start with the grid - here a synthetic one, 50 km square in
 cells of 10 km, with no geography attached:
 
 ```@example basics
@@ -37,8 +37,8 @@ using Unitful, Unitful.DefaultSymbols
 area = StudyArea(extent = (50km, 50km), cellsize = 10km, verbosity = :silent)
 ```
 
-Now the environment. Every cell has the same temperature — a **condition**, which species are
-matched to — and the same solar energy supply, a **resource**, which they compete for:
+Now the environment. Every cell has the same temperature - a **condition**, which species are
+matched to - and the same solar energy supply, a **resource**, which they compete for:
 
 ```@example basics
 env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
@@ -79,7 +79,7 @@ size(eco.abundances.grid)
 
 Both are plain arrays, so they index and reduce as you would expect. Alongside them,
 `eco.abundances.dimmatrix` and `eco.abundances.dimgrid` are labelled views of that same memory,
-carrying the species names and, for `dimgrid`, the grid's real coordinates — so you can ask for a
+carrying the species names and, for `dimgrid`, the grid's real coordinates - so you can ask for a
 species by name or a cell by position rather than by index. They cost nothing to keep: the labels
 are computed on demand, and no data is copied.
 
@@ -98,7 +98,7 @@ simulate_record!(storage, eco, times, interval, timestep)
 size(storage)                       # species × cells × recordings × replicates
 ```
 
-The `interval` must be a whole multiple of the `timestep` — see
+The `interval` must be a whole multiple of the `timestep` - see
 [Time in EcoSISTEM](@ref) for why a year and a day do not qualify.
 
 ## Varying the model
@@ -116,7 +116,7 @@ varied = build_species(10,
 length(varied.tolerance.dists)
 ```
 
-A multi-variable environment is a tuple — several conditions, several resources, or both —
+A multi-variable environment is a tuple - several conditions, several resources, or both -
 and the species then carry a tolerance and a demand for each. Name the members and the two
 sides are matched up by name; leave both sides positional and they are matched by position.
 Naming one side and not the other is rejected rather than guessed at:
@@ -145,7 +145,7 @@ sum(eco2.abundances.matrix)
 ```
 
 Real climate data goes in the same place, as a [`SourceSpec`](@ref) rather than a synthetic
-spec — and the study area should be told about it, so that the grid comes from the data
+spec - and the study area should be told about it, so that the grid comes from the data
 instead of being invented:
 
 ```julia
@@ -159,13 +159,13 @@ env = GridHabitat(regime = SourceSpec(WorldClim{BioClim}, :bio1),
 
 ## Where to go next
 
-- [How the model works](@ref) — the population model underneath: what regulates abundance, where
+- [How the model works](@ref) - the population model underneath: what regulates abundance, where
   carrying capacity comes from, and what `longevity` and `survival` each change. **Worth reading
   before interpreting any output.**
-- [Layers, conditions and resources](@ref) — what a layer means, why temperature is a
+- [Layers, conditions and resources](@ref) - what a layer means, why temperature is a
   condition and light a resource, and how to find out what a dataset can be used for.
-- [Time in EcoSISTEM](@ref) — the simulation clock, choosing a timestep, and environments
+- [Time in EcoSISTEM](@ref) - the simulation clock, choosing a timestep, and environments
   that change as a simulation runs.
-- [Integration with Diversity.jl](@ref) — measuring diversity on a built ecosystem.
-- [Running at scale](@ref "Running a simulation at scale") — sizing a large run before building it,
+- [Integration with Diversity.jl](@ref) - measuring diversity on a built ecosystem.
+- [Running at scale](@ref "Running a simulation at scale") - sizing a large run before building it,
   and spreading one across MPI ranks.

@@ -19,7 +19,7 @@ abstract type ContinuousTolerance{A, V <: Number} <: AbstractTolerance{A, V} end
 """
     AbstractCategoricalTolerance{A, V} <: AbstractTolerance{A, V}
 
-A species' preference among **class labels** — the tolerances matched against a
+A species' preference among **class labels** - the tolerances matched against a
 [`CategoricalRegime`](@ref), where preference is membership rather than a distance.
 
 Defined by what it **answers** rather than by what it stores: *the suitability weight species `sp`
@@ -39,7 +39,7 @@ abstract type AbstractCategoricalTolerance{A, V} <: AbstractTolerance{A, V} end
 One species' response along a continuous niche axis, as a **built** probability distribution: where
 on the axis it does best, and how sharply that falls away.
 
-The distributions are built once, at construction, in a **frame** — the unit their support is
+The distributions are built once, at construction, in a **frame** - the unit their support is
 measured in, which is also the tolerance's `eltype` and the unit the matching regime must be in. In
 the hot loop the [`NicheSuitability`](@ref) nichefit fetches one and evaluates its density at a bare
 number already in that frame, so there is no per-call conversion and no allocation.
@@ -61,7 +61,7 @@ end
 
 """
     NicheTolerance(axis::Type{<:NicheAxis}, ::Type{D}, dist::Matrix; support = _defaultsupport(axis),
-        offset = nothing, scale = nothing, probes = …)
+        offset = nothing, scale = nothing, probes = ...)
 
 Build a [`NicheTolerance`](@ref) from a **bare** parameter matrix, one species per row.
 
@@ -70,7 +70,7 @@ Build a [`NicheTolerance`](@ref) from a **bare** parameter matrix, one species p
   - `axis`: the niche axis the tolerance is on.
   - `D`: the response distribution type to build.
   - `dist`: the parameters, one row per species, as bare numbers read in the `support` frame.
-  - `support`: the **frame** the distributions are built in — the unit their support is measured in,
+  - `support`: the **frame** the distributions are built in - the unit their support is measured in,
     the tolerance's `eltype`, and the unit the matching regime must be in. Defaults to the axis's
     canonical unit.
   - `offset`, `scale`: references in `support`, which place a *shape-only* distribution such as
@@ -88,9 +88,9 @@ end
 
 """
     NicheTolerance(axis::Type{<:NicheAxis}, ::Type{D}, params::AbstractVector...; support = _defaultsupport(axis),
-        offset = nothing, scale = nothing, probes = …)
+        offset = nothing, scale = nothing, probes = ...)
 
-Build a [`NicheTolerance`](@ref) from **one vector per parameter** of the distribution — the
+Build a [`NicheTolerance`](@ref) from **one vector per parameter** of the distribution - the
 programmatic counterpart of the matrix constructor:
 
 ```julia
@@ -98,7 +98,7 @@ NicheTolerance(Temperature, Normal, opts, vars)          # a mu and a sigma vect
 NicheTolerance(Precipitation, Gamma, shape, scale_vec)
 ```
 
-The vectors may carry units, and each is read according to its parameter's **role** — a location
+The vectors may carry units, and each is read according to its parameter's **role** - a location
 converted as a position, a scale as an interval, a shape left dimensionless. So `support = K` and
 `support = °C` build the *same* preference, expressed in each frame.
 
@@ -122,8 +122,8 @@ function NicheTolerance(axis::Type{A}, ::Type{D}, params::AbstractVector...;
         error("NicheTolerance parameter vectors must all have the same length (one entry per species).")
     _checksupport(axis, support)
     input_unit = _imputeinputunit(params, support)
-    # A unitful vector becomes its magnitude in `input_unit` — its role, applied in `_buildniche`,
-    # decides position against interval — while a bare vector passes straight through.
+    # A unitful vector becomes its magnitude in `input_unit` - its role, applied in `_buildniche`,
+    # decides position against interval - while a bare vector passes straight through.
     cols = map(v -> unit(eltype(v)) === NoUnits ? float.(v) :
                     ustrip.(input_unit, v),
                params)
@@ -171,8 +171,8 @@ RainTolerance(dist::Matrix) = NicheTolerance(Precipitation, Uniform, dist)
     SimpleCategoricalTolerance{A <: NicheAxis, V} <: AbstractCategoricalTolerance{A, V}
     SimpleCategoricalTolerance(vals; axis, penalty = 0.0)
 
-The categories each species tolerates on niche axis `A` — one **set of acceptable
-class values per species** — together with the weight a species gets **outside** its
+The categories each species tolerates on niche axis `A` - one **set of acceptable
+class values per species** - together with the weight a species gets **outside** its
 set.
 
 # Fields
@@ -185,7 +185,7 @@ set.
 
 **`penalty` is the whole soft-versus-hard distinction, and it is a number rather than a type.** `0.0`,
 the default, is *hard* exclusion: the species cannot persist outside its classes at all, because a
-zero suitability makes its death rate infinite. `0.5` is *soft* — it does worse there but survives.
+zero suitability makes its death rate infinite. `0.5` is *soft* - it does worse there but survives.
 Anything between is available and means what it says.
 
 **`penalty` interacts with `params.survival`.** Suitability enters the demographics as
@@ -250,7 +250,7 @@ end
 # Display
 # ---------------------------------------------------------------------------
 # The mirror of the layer displays in `Layer.jl`, member for member: same three slots, with
-# **species where a layer has cells**. That symmetry is the point — a tolerance and the regime it is
+# **species where a layer has cells**. That symmetry is the point - a tolerance and the regime it is
 # matched against should read alike, or the pairing the model rests on is invisible at the REPL.
 #
 # Without them the type parameter swamps the content: a 12-species two-axis tolerance collection
@@ -261,28 +261,28 @@ function Base.show(io::IO, t::NicheTolerance)
 end
 
 # `penalty` is shown because it is the whole of the soft/hard distinction, and it is a value rather
-# than a type — so nothing else on the line reveals it.
+# than a type - so nothing else on the line reveals it.
 function Base.show(io::IO, t::SimpleCategoricalTolerance)
     return print(io,
                  "SimpleCategoricalTolerance($(nameof(axisof(t))), $(length(t.vals)) species, ",
                  "penalty $(t.penalty))")
 end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 iscontinuous(trait::AbstractCategoricalTolerance) = false
 
 iscontinuous(::NicheTolerance) = true
 
-# One species' acceptable categories, from either spelling a caller may write: a bare class — the
-# common single-preference case — or a collection of them. Dispatch rather than an `isa` branch,
+# One species' acceptable categories, from either spelling a caller may write: a bare class - the
+# common single-preference case - or a collection of them. Dispatch rather than an `isa` branch,
 # because the two spellings are distinguished by type alone.
 _categoryset(v::AbstractVector) = collect(v)
 
 _categoryset(v) = [v]
 
-# Build a `NicheTolerance` whose distributions live in the `frame` unit — its `eltype`, and the unit
-# the matching regime must be in — reading each row's bare parameters as being in `input_unit` and
+# Build a `NicheTolerance` whose distributions live in the `frame` unit - its `eltype`, and the unit
+# the matching regime must be in - reading each row's bare parameters as being in `input_unit` and
 # converting to `frame` **per role**: a location affinely, a scale as an interval, a shape left
 # dimensionless. See `read_distribution`. The single place the storage frame is fixed.
 function _buildniche(::Type{A}, ::Type{D}, mat::AbstractMatrix, input_unit,
@@ -299,7 +299,7 @@ end
 # axis, but **`NoUnits` for the bare root**, which declares `nothing`. Not because such a tolerance is
 # dimensionless, but because no axis was named, so bare numbers mean "whatever the layer is in".
 #
-# **`::Type{NicheAxis}` exactly, not `::Type{<:NicheAxis}`** — this is the axis-less case, and the
+# **`::Type{NicheAxis}` exactly, not `::Type{<:NicheAxis}`** - this is the axis-less case, and the
 # `<:` form would claim every axis in the package. Same rule as `_checksupport` below, and the one way
 # either could go silently wrong while every same-axis test still passed.
 _defaultsupport(axis::Type{<:NicheAxis}) = canonicalunit(axis)
@@ -313,11 +313,11 @@ _defaultsupport(::Type{NicheAxis}) = NoUnits
 # exception.
 #
 # It deliberately **widens** what is accepted: any `support` is legal here, where the general method
-# compares dimensions against the axis. Unit-bearing axis-less layers are ordinary — a `285.0K` matrix
-# with no axis is the common case — and there is no axis to disagree with the frame, so there is
+# compares dimensions against the axis. Unit-bearing axis-less layers are ordinary - a `285.0K` matrix
+# with no axis is the common case - and there is no axis to disagree with the frame, so there is
 # nothing to check.
 #
-# **`::Type{NicheAxis}` exactly** — see `_defaultsupport` above. Widening this to `<:` would turn the
+# **`::Type{NicheAxis}` exactly** - see `_defaultsupport` above. Widening this to `<:` would turn the
 # support check off for *every* axis, which no test with a declared axis would notice.
 _checksupport(::Type{NicheAxis}, support) = nothing
 
@@ -327,7 +327,7 @@ _checksupport(::Type{NicheAxis}, support) = nothing
 # rather than from here.
 #
 # The two reasons need different remedies, and are told apart by **which method answers**: a
-# deliberate `condition = nothing` — a supply-only axis such as `CarbonFlux` — has its own method,
+# deliberate `condition = nothing` - a supply-only axis such as `CarbonFlux` - has its own method,
 # while an axis nobody has declared falls through to the root fallback. The first is a modelling
 # mistake, matching species against something they consume; the second is a missing declaration.
 function _checksupport(axis, support)
@@ -337,8 +337,8 @@ function _checksupport(axis, support)
                  which(canonicalunit, Tuple{Type{NicheAxis}})
         return error("cannot build a NicheTolerance on axis $axis: " *
                      (stated ?
-                      "it declares `condition = nothing`, so it is not a condition at all — it is a resource species consume, not one they are matched against. Give the species a demand on it instead." :
-                      "no canonical unit is declared for it, so there is no unit to build the tolerance in. Declare one with `@nicheaxis($axis <: …, condition = …)`."))
+                      "it declares `condition = nothing`, so it is not a condition at all - it is a resource species consume, not one they are matched against. Give the species a demand on it instead." :
+                      "no canonical unit is declared for it, so there is no unit to build the tolerance in. Declare one with `@nicheaxis($axis <: ..., condition = ...)`."))
     end
     dimension(support) == dimension(cu) ||
         return error("NicheTolerance support unit $support and axis $axis's canonical unit " *
@@ -346,7 +346,7 @@ function _checksupport(axis, support)
     return nothing
 end
 
-# Impute the **input** unit of a set of parameter vectors — the unit their bare magnitudes are read
+# Impute the **input** unit of a set of parameter vectors - the unit their bare magnitudes are read
 # in. That is their single shared dimensioned unit, ignoring dimensionless shape vectors, or the
 # `support` frame where all of them are bare, so that bare vectors are read in the frame exactly as
 # the matrix constructor reads them. Mixed units are an error.
@@ -363,19 +363,19 @@ end
 # collection implements the standard container interface (`src/collections.jl`), so write `values(x)`,
 # `keys(x)` and `NamedTuple(x)`, which work identically on a leaf as a one-member container.
 
-# The tolerance as a side of a pairing check — see `_checkaligned` (`collections.jl`). This is the
+# The tolerance as a side of a pairing check - see `_checkaligned` (`collections.jl`). This is the
 # **reference** side of the condition line, so it is what the regime and the nichefit are each
 # compared against.
 _toleranceside(t::AbstractTolerance) = _side(t, "species tolerance", true)
 
-# Per-species niche optima — the distribution means — as a bare vector in the tolerance's own frame.
+# Per-species niche optima - the distribution means - as a bare vector in the tolerance's own frame.
 # What a caller reads when it needs the optima themselves rather than the distributions, as
 # `continuous_evolve` does.
 _nichemeans(tolerance::NicheTolerance) = Distributions.mean.(tolerance.dists)
 
 # --- Building a tolerance from what a caller wrote ----------------------------
 
-# A pre-built tolerance must already cover exactly `n` species — it was built elsewhere, so nothing
+# A pre-built tolerance must already cover exactly `n` species - it was built elsewhere, so nothing
 # here can fill it out, and a silent mismatch would pair species with the wrong niches.
 function _checktolerancespecies(tolerance::AbstractTolerance, n::Integer)
     len = length(_nichedists(tolerance))
@@ -385,7 +385,7 @@ function _checktolerancespecies(tolerance::AbstractTolerance, n::Integer)
     return nothing
 end
 
-# Whatever a tolerance stores per species — response distributions for a continuous one, class sets
+# Whatever a tolerance stores per species - response distributions for a continuous one, class sets
 # for a categorical one. Named for the shape rather than the field, so callers that only need "one
 # entry per species" work on either without knowing which they hold.
 _nichedists(t::NicheTolerance) = t.dists

@@ -4,8 +4,8 @@
 # One species across Africa, limited by water, on WorldClim bioclim data.
 #
 # **The grid must be decided before anything is built on it, and projected.** Building the layers by
-# hand — reading rasters, rewrapping their coordinates, and handing the result straight to
-# `Ecosystem` — decides no grid, so the run stays on WorldClim's own **geographic** (°) one. A degree
+# hand - reading rasters, rewrapping their coordinates, and handing the result straight to
+# `Ecosystem` - decides no grid, so the run stays on WorldClim's own **geographic** (°) one. A degree
 # cell's physical size changes with latitude while dispersal assumes a single uniform cell size, so
 # the simulator refuses it, correctly.
 #
@@ -29,7 +29,7 @@ const CELLSIZE = SMALL ? 200.0km : 50.0km
 const YEARS = SMALL ? 2year : 10year
 
 # The two layers, named rather than read: bioclim 1 is annual mean temperature and bioclim 12 annual
-# precipitation. Neither the unit nor the axis is written here — the shipped catalogue
+# precipitation. Neither the unit nor the axis is written here - the shipped catalogue
 # (`data/RasterDataSources/BioClim.csv`) says bio1 is a `Temperature` in °C and bio12 a
 # `Precipitation`, and the layer is canonicalised on that authority rather than on a guess.
 temperature = SourceSpec(WorldClim{BioClim}, :bio1)
@@ -39,14 +39,14 @@ rainfall = SourceSpec(WorldClim{BioClim}, :bio12)
 # **A projected CRS is required to simulate**, and this is the whole reason the old version of
 # this file could not run. `EPSG:10592` (WGS 84 / GLANCE Africa) is the package's *own* advice:
 # ask for this extent without a `crs` and the report names it in the warning it raises.
-# `within` positions the area and is not optional — WorldClim is a global dataset, so without it
+# `within` positions the area and is not optional - WorldClim is a global dataset, so without it
 # the grid is the world. `boundingbox` reads the shipped table, so naming a region costs no download.
 area = StudyArea(regime = temperature, supply = rainfall,
                  within = EcoSISTEM.boundingbox("Africa"),
                  crs = EPSG(10592), cellsize = CELLSIZE,
                  verbosity = :silent)
 
-# `GridHabitat` chooses nothing — it samples the named layers onto the grid just decided.
+# `GridHabitat` chooses nothing - it samples the named layers onto the grid just decided.
 env = GridHabitat(regime = temperature, supply = rainfall, area = area)
 
 # --- one species, tolerant of warmth and limited by water -------------------------

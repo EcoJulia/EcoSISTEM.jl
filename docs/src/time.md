@@ -7,10 +7,10 @@ CurrentModule = EcoSISTEM
 Two clocks meet in an EcoSISTEM simulation. One is the **run's** own: elapsed simulation
 time, advancing one timestep at a time. The other belongs to the **data**: a climate layer
 knows which month each of its slices describes, and over what interval each value
-accumulated. This page covers both, and how they are lined up against each other — which is
+accumulated. This page covers both, and how they are lined up against each other - which is
 what a run's [epoch](@ref "The epoch: giving the run a date") does.
 
-For what a layer *means* — condition or resource, and to which species — see
+For what a layer *means* - condition or resource, and to which species - see
 [Layers, conditions and resources](@ref).
 
 ## The simulation clock
@@ -46,8 +46,8 @@ EcoSISTEM.simulationtime(eco)
 **Every demographic parameter is a rate**, so the timestep is a free choice rather than a
 property of the model. A birth rate of `0.6/year` contributes `0.6/year * timestep` to each
 step's draw, and halving the timestep halves the per-step probability rather than changing
-what a year means. Choose the timestep for numerical reasons — how finely you want events
-resolved, and how much detail your environmental data can actually support — not because the
+what a year means. Choose the timestep for numerical reasons - how finely you want events
+resolved, and how much detail your environmental data can actually support - not because the
 model expects a particular one.
 
 To do something periodically while a simulation runs, use [`simulate_action!`](@ref), which
@@ -62,7 +62,7 @@ totals
 ```
 
 The `interval` must be a whole multiple of the `timestep`, so that the action always lands on
-a step boundary — and this is the first place the next section's distinction bites. A year is
+a step boundary - and this is the first place the next section's distinction bites. A year is
 **not** a whole number of days: `year` is Unitful's Julian year of 365.25 days, so an interval
 of `1year` with a timestep of `1day` is rejected. It divides exactly by
 `month_mean_duration`, which is a twelfth of that same year, so monthly steps are used above.
@@ -83,18 +83,18 @@ which month it means:
 | `april_duration`, `june_duration`, `september_duration`, `november_duration` | 30 days |
 | `february_common_year_duration` / `february_leap_year_duration` / `february_mean_duration` | 28 / 29 / 28.25 days |
 | `year` (Unitful's Julian year, re-exported for reference) | 365.25 days |
-| `month_mean_duration` | 30.4375 days = `year` ÷ 12 |
-| `quarter_mean_duration` | 91.3125 days = `year` ÷ 4 |
+| `month_mean_duration` | 30.4375 days = `year` / 12 |
+| `quarter_mean_duration` | 91.3125 days = `year` / 4 |
 
 The eleven exact months plus February's mean sum to exactly one `year`, so the scheme is
 self-consistent by construction. `EcoSISTEM.Units.month_duration(n)` returns the duration of
-month `n` — take a month by number rather than by assembling its name.
+month `n` - take a month by number rather than by assembling its name.
 
 The last two rows are **declared approximations**, and are honest about it. Some layers
 describe a month or a quarter that cannot be identified: `bio13` is precipitation of the
 *wettest* month, and which month that is varies from cell to cell. There is no single
 calendar month to divide by, so a mean month is used and the name says so. Where the month
-*is* known — the twelve slices of a monthly climate stack — each slice uses its own real
+*is* known - the twelve slices of a monthly climate stack - each slice uses its own real
 duration instead.
 
 `January` through `December` are also available, as the month **numbers** `1` to `12`
@@ -116,7 +116,7 @@ warming = GridHabitat(regime = Varying(UniformSpec(285.0K, axis = Temperature),
 warming.regime.change
 ```
 
-The same wrapper takes a data-backed spec — `Varying(SourceSpec(WorldClim{BioClim}, :bio1),
+The same wrapper takes a data-backed spec - `Varying(SourceSpec(WorldClim{BioClim}, :bio1),
 IncrementBy(0.02K / year))` warms a real temperature layer the same way.
 
 A change is written as a **shape** inside a **recipe**. The shape says what the values are;
@@ -129,8 +129,8 @@ the recipe says how to read them:
 | [`IncrementBy`](@ref) | a rate, accumulated each step | a series, a pattern, or a constant |
 
 The shapes are a bare constant (a steady drift, only with `IncrementBy`),
-[`PatternedChange`](@ref) for an arbitrary function of elapsed time — one sinusoid per
-`timescale` by default, but a ramp, step or sigmoid works equally — and
+[`PatternedChange`](@ref) for an arbitrary function of elapsed time - one sinusoid per
+`timescale` by default, but a ramp, step or sigmoid works equally - and
 [`SeriesChange`](@ref) for a stack of stored slices such as a read climate series. Add
 changes with `+` to drive one layer with several at once, such as a monthly cycle plus a
 multi-year warming trend.
@@ -148,7 +148,7 @@ slice has a time coordinate, and the rule is:
 > A slice is current from its own coordinate until the next slice's coordinate.
 
 The time looked up is `origin + elapsed`, where `origin` is the coordinate that elapsed time
-zero corresponds to — by default the first stored slice, so a series starts at its own
+zero corresponds to - by default the first stored slice, so a series starts at its own
 beginning whatever its axis is anchored to.
 
 Indexing by time rather than by step is what makes a series independent of the timestep: one
@@ -159,25 +159,25 @@ once per call could not do this.
 `atend` decides what happens once elapsed time runs past the last slice:
 [`ErrorAtEnd`](@ref) (the default) says so plainly, [`HoldAtEnd`](@ref) keeps the last slice
 for the rest of the run, [`RepeatAtEnd`](@ref) cycles by a true modulus of the series' own
-period — the right choice for driving a long run from a twelve-month climatology — and
+period - the right choice for driving a long run from a twelve-month climatology - and
 [`RevertToLayer`](@ref) hands the layer back, so it returns to the values it had before the
 series was attached.
 
 There is no matching `atstart`, because before its first slice a series has only one
 sensible reading: **it has not started, so it says nothing and the layer stands.** That
-happens automatically whenever a run begins before its series does — give a series an
+happens automatically whenever a run begins before its series does - give a series an
 `origin` earlier than its first slice, or a run an epoch earlier than a dated series' start,
 and the layer keeps its own values until the data begins. `RevertToLayer` is the same rule
 made available at the far end, where the alternatives are genuine.
 
 Both ends read the same way: **outside its own span a series contributes nothing**, and
-the layer is whatever it would be without it. Each mode expresses that in its own terms —
+the layer is whatever it would be without it. Each mode expresses that in its own terms -
 `ReplaceWith` restores the layer's values, `OffsetBy` offsets by zero, and `IncrementBy`
 accumulates nothing at all.
 
 `simulate!` checks this before the first timestep rather than discovering it part-way
 through, so a run that will outlast its data says so immediately. `ErrorAtEnd` refuses;
-`HoldAtEnd` warns, and quantifies it — a series holding its last slice for 80% of a run is
+`HoldAtEnd` warns, and quantifies it - a series holding its last slice for 80% of a run is
 rarely what was meant.
 
 ### What a series' coordinates mean
@@ -194,8 +194,8 @@ three months into my experiment".
 | [`UndatedSeries`](@ref) | plain offsets | the first slice, or wherever `origin` says |
 
 A source whose lookup holds real dates is a `DatedSeries` and anything else an
-`UndatedSeries`, both worked out for you. A climatology is the case you have to declare —
-`calendar = MonthOfYearSeries()` — because nothing about twelve monthly grids says whether
+`UndatedSeries`, both worked out for you. A climatology is the case you have to declare -
+`calendar = MonthOfYearSeries()` - because nothing about twelve monthly grids says whether
 they are the twelve months of a year or twelve consecutive samples.
 
 `origin` is accepted **only** for an `UndatedSeries`, the one case where nothing else can
@@ -208,7 +208,7 @@ slice is, not merely where zero sits.
 
 Elapsed time on its own says how *long* a run is, not *when* it happens. The epoch is the
 date elapsed zero corresponds to, and it settles both questions that need one: what date to
-report, and — more usefully — **which slice of a seasonal series the run begins on**.
+report, and - more usefully - **which slice of a seasonal series the run begins on**.
 
 Without an epoch a monthly climatology starts at slice one, so every run starts in January.
 That is fine if January is what you meant:
@@ -251,7 +251,7 @@ eco.habitat.regime.matrix[1, 1]        # 286 K: the July slice
 Note that this is the value **at construction**, before any timestep has run:
 `build_ecosystem` writes each series into its layer, so the very first step's births, deaths
 and movement see the environment the series and epoch describe rather than reaching it a
-step late. A *rate* is the exception, and deliberately so — `IncrementBy` accumulates, and
+step late. A *rate* is the exception, and deliberately so - `IncrementBy` accumulates, and
 at the start of a run nothing has accumulated yet.
 
 The run then has a calendar, so it can report a date as well as an elapsed time:
@@ -264,14 +264,14 @@ EcoSISTEM.simulationdate(eco)
 ### Where the epoch comes from
 
 An explicit `epoch` always wins. Left out, it is resolved from the environment's own series
-the same way [`StudyArea`](@ref) resolves a CRS — adopt it if it is unambiguous, ask if it
+the same way [`StudyArea`](@ref) resolves a CRS - adopt it if it is unambiguous, ask if it
 is not:
 
-- **exactly one** dated series → its start date becomes the epoch, and every other series is
+- **exactly one** dated series -> its start date becomes the epoch, and every other series is
   phased to it;
-- **several that disagree** → an error naming the candidates, because no default could be
+- **several that disagree** -> an error naming the candidates, because no default could be
   right;
-- **none at all** → no epoch. `simulationdate` is `nothing`, and the run behaves exactly as
+- **none at all** -> no epoch. `simulationdate` is `nothing`, and the run behaves exactly as
   one that never mentions dates.
 
 An epoch *before* a dated series begins is an error rather than a clamp: `atend` says what
@@ -283,15 +283,15 @@ to do past a series' end, but there are no values before its beginning to hold o
 The catalogue answers two independent questions about a layer's time, in two separate
 columns, and conflating them is the classic way to get a rate wrong:
 
-- **Temporal resolution** — how often the layer is *sampled*. A monthly climate variable has
+- **Temporal resolution** - how often the layer is *sampled*. A monthly climate variable has
   twelve slices; an annual one has a single grid.
-- **Accumulation period** — what interval each value was *measured over*. A month's rainfall
+- **Accumulation period** - what interval each value was *measured over*. A month's rainfall
   total accumulated over that month; a degree-day sum accumulated over a year.
 
 These come apart in both directions. Solar radiation is sampled monthly but is already
 reported as a daily flux, so it accumulates over a **day** while being sampled by month.
 `bio13` is emphatically monthly in character yet arrives as one grid, so it has no sampling
-resolution at all — only an accumulation period.
+resolution at all - only an accumulation period.
 
 An accumulation period takes one of three forms, and the difference matters to the modeller,
 not just to the reader:
@@ -308,18 +308,18 @@ so a stock and a rate carry the same information and nothing hinges on which you
 A **per-cell** period is not. "This species needs 500 mm over the growing season" and "this
 species needs 5 mm a day during the growing season" are *different biological claims*: the
 first is 5 mm/day in a hundred-day season and 2.5 mm/day in a two-hundred-day one. Which one
-you mean has to be decided, because the data cannot decide it for you — which is why
+you mean has to be decided, because the data cannot decide it for you - which is why
 [`GrowingSeasonPrecipitation`](@ref) reads as a total when used as a condition and as a daily
 rate when used as a resource.
 
 Two functions report the two readings, and it is worth knowing which you are looking at:
 [`layerunit`](@ref EcoSISTEM.layerunit) gives the amount the table declares,
 while [`layerrate`](@ref EcoSISTEM.layerrate) gives the unit a read actually
-yields. Monthly precipitation is catalogued as `L m⁻²` and read as `L m⁻² d⁻¹`.
+yields. Monthly precipitation is catalogued as `L m^-2` and read as `L m^-2 d^-1`.
 
 Note that having an accumulation period does not by itself make a layer a rate. The axis
 decides that. Degree-days accumulate over a year, but the heat *sum* is the meaningful
-reading — dividing it would give a mean daily temperature excess that nobody asked for — so
+reading - dividing it would give a mean daily temperature excess that nobody asked for - so
 [`CumulativeHeat`](@ref) keeps its accumulated form. The period says what interval a value
 covers; the axis says which reading means something.
 
@@ -335,7 +335,7 @@ into "the amount per simulated month".
 
 The alternative fails immediately. Suppose a layer stored February's rainfall as an amount
 per step: it would be right for one timestep and wrong for every other, and the timestep is
-not known until [`simulate!`](@ref) is called — long after the environment was built. Storing
+not known until [`simulate!`](@ref) is called - long after the environment was built. Storing
 the rate makes the layer independent of how the run is stepped, and leaves the arithmetic to
 the one place that knows.
 
@@ -347,7 +347,7 @@ control, a **steady drift** (`Varying(spec, IncrementBy(rate))`) and a **seasona
 (`Varying(spec, OffsetBy(PatternedChange(...)))`).
 
 It also asserts what separates them, and the assertion is not the obvious one. A cycle is **not**
-distinguished by "ending where it started" — that holds only at whole periods, and
+distinguished by "ending where it started" - that holds only at whole periods, and
 [`simulate!`](@ref) takes `length((0s):timestep:duration)` steps, an *inclusive* range from zero, so
 a four-year run at monthly steps advances **49** months rather than 48. What actually separates them
 is that a cycle stays bounded by its amplitude however long it runs, while `IncrementBy` grows
@@ -356,6 +356,6 @@ without limit.
 [`notebooks/Introduction.jl`](https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/notebooks/Introduction.jl) builds a warming gradient and a warming peak the same way,
 with plots, and is the gentler introduction.
 
-A layer change is a pure function of elapsed time. For change that acts on the **ecosystem** —
-abundances, the active mask — see [Interventions](@ref), which is a deliberately separate mechanism
+A layer change is a pure function of elapsed time. For change that acts on the **ecosystem** -
+abundances, the active mask - see [Interventions](@ref), which is a deliberately separate mechanism
 and explains why.

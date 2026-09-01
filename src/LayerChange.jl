@@ -16,12 +16,12 @@ using EcoSISTEM.Units
 Abstract supertype of the materialised per-timestep change rules a layer can hold, parameterised
 by the [`AbstractChangeMode`](@ref) that says how to read its values.
 
-A change is applied as a pure function of `(layer, elapsed, timestep)` — never of the ecosystem —
+A change is applied as a pure function of `(layer, elapsed, timestep)` - never of the ecosystem -
 which is what lets MPI apply it redundantly on every rank without diverging.
 """
 abstract type AbstractLayerChange{M <: AbstractChangeMode} end
 
-"""    NoLayerChange <: AbstractLayerChange{NoChange} — the layer never changes. """
+"""    NoLayerChange <: AbstractLayerChange{NoChange} - the layer never changes. """
 struct NoLayerChange <: AbstractLayerChange{NoChange} end
 
 """
@@ -30,8 +30,8 @@ struct NoLayerChange <: AbstractLayerChange{NoChange} end
 A constant rate of change: the layer gains `value * timestep` every step. `value` is a scalar or a
 per-cell matrix, already converted to the layer's `changeunit` when the change was attached.
 
-The mode is fixed to [`RateChange`](@ref) because only a rate accumulates. A constant *value* —
-absolute or relative — writes the same thing every step and is idempotent after the first, which
+The mode is fixed to [`RateChange`](@ref) because only a rate accumulates. A constant *value* -
+absolute or relative - writes the same thing every step and is idempotent after the first, which
 makes it a one-off operation on the ecosystem rather than a per-timestep change of the layer.
 """
 struct SteadyLayerChange{V} <: AbstractLayerChange{RateChange}
@@ -48,7 +48,7 @@ valid.
 
 The phase handed to `shape` is deliberately **not** wrapped into `[0, 1)`. A sinusoid is periodic
 by itself so wrapping would gain nothing, while a sigmoid is not periodic at all and wrapping would
-destroy it. `timescale` is therefore the elapsed time mapping to one unit of `shape`'s argument — a
+destroy it. `timescale` is therefore the elapsed time mapping to one unit of `shape`'s argument - a
 period for a sinusoid, a transition width for a sigmoid.
 
 Under [`RelativeChange`](@ref) the pattern is added to `baseline`, captured from the layer when the
@@ -73,22 +73,22 @@ time until the next slice's, so at `elapsed` the layer takes the last slice at o
 [`RelativeChange`](@ref) the slice is added to the layer's captured values.
 
 `times` holds one time per slice in the same order, and `origin` is the point in that coordinate
-which elapsed time is measured from — the first stored time unless the caller says otherwise, so
+which elapsed time is measured from - the first stored time unless the caller says otherwise, so
 that a series starts at its own beginning whatever its axis is anchored to.
 
-`calendar` records what the coordinates *mean* — see [`AbstractSeriesCalendar`](@ref). It is what
+`calendar` records what the coordinates *mean* - see [`AbstractSeriesCalendar`](@ref). It is what
 [`build_ecosystem`](@ref) reads when it resolves a run's epoch, and what it re-points the series
 against: resolving an epoch rewrites `origin`, leaving the stored slices and the hot path untouched.
 
 **Outside its own span a series contributes nothing**, and the layer is whatever it would be
 without it: before the first slice always, and past the last under [`RevertToLayer`](@ref). `baseline`
-is what that costs — the layer's values as they stood when the change was attached, kept for the
+is what that costs - the layer's values as they stood when the change was attached, kept for the
 modes that need something to fall back *to*.
 
 Indexing by *time* rather than by a step counter is the substance of this type: it makes the result
 independent of the timestep (one twelve-month step and twelve one-month steps land on the same
 slice), which a cursor advanced once per call can never be. `atend` decides what happens past the
-last slice — see [`AbstractSeriesEnd`](@ref).
+last slice - see [`AbstractSeriesEnd`](@ref).
 """
 struct SeriesLayerChange{M <: AbstractChangeMode, E <: AbstractSeriesEnd,
                          C <: AbstractSeriesCalendar, D, B} <:
@@ -104,7 +104,7 @@ end
 """
     SumOfLayerChanges{M <: AbstractChangeMode, P <: Tuple, B} <: AbstractLayerChange{M}
 
-Several changes driving one layer, added together — a stored monthly series plus a multi-year
+Several changes driving one layer, added together - a stored monthly series plus a multi-year
 warming trend, say, where the trend offsets the whole seasonal pattern rather than contradicting it.
 
 Composition is a sum of **values as functions of elapsed time**, evaluated once per step, never a
@@ -112,7 +112,7 @@ sequence of mutations. Chaining the applications instead would silently fail: an
 step erases whatever a rate had accumulated by then.
 
 `M` follows from the parts. A part that is a *position* (a read series) makes the whole an
-[`AbsoluteChange`](@ref) — there can be at most one, since two positions cannot be added — and
+[`AbsoluteChange`](@ref) - there can be at most one, since two positions cannot be added - and
 `parts` keeps it first so the fold adds intervals to it in an order affine units accept. With no
 such part the whole is a [`RelativeChange`](@ref) over the layer's captured `baseline`. A
 [`RateChange`](@ref) part contributes its integral, so it must have one in closed form: a steady
@@ -131,8 +131,8 @@ end
 Carries the loss rate of the deprecated `HabitatLoss` change function. Its mode is
 [`NoChange`](@ref): the rate is a plain per-time probability, in no way the layer's own unit.
 
-**Transitional, and not a layer change at all.** Habitat loss mutates the *ecosystem* — supply
-and abundances — from a layer's change slot, and draws randomly while doing it, so it satisfies
+**Transitional, and not a layer change at all.** Habitat loss mutates the *ecosystem* - supply
+and abundances - from a layer's change slot, and draws randomly while doing it, so it satisfies
 neither invariant the other changes do. It survives only to keep `HabitatLoss` callable, and is
 superseded by an explicit cell-deactivating intervention.
 """
@@ -140,8 +140,8 @@ struct LegacyLoss{V} <: AbstractLayerChange{NoChange}
     rate::V
 end
 
-# `<: AbstractSpec` because a `Varying` *is* a build-time layer recipe — a spec plus the
-# declaration of how it changes — and saying so is what lets `regime`/`supply` be typed
+# `<: AbstractSpec` because a `Varying` *is* a build-time layer recipe - a spec plus the
+# declaration of how it changes - and saying so is what lets `regime`/`supply` be typed
 # `Union{AbstractSpec, Tuple, NamedTuple}` in the builders' own signatures rather than left to a
 # runtime failure. Safe by construction: nothing in the package dispatches on `AbstractSpec`, which
 # is a documentation root, so this can add no method ambiguity and change no existing call.
@@ -153,17 +153,17 @@ Declare that the layer built from `spec` carries `change`. `change` is a change 
 [`AbstractLayerChange`](@ref).
 
 Pass it to `GridHabitat`'s `regime` or `supply` keyword. A `StudyArea` ignores the wrapper
-entirely — a change has no meaning until there is a grid to apply it to, so the area is decided from
+entirely - a change has no meaning until there is a grid to apply it to, so the area is decided from
 the spec alone.
 
 ```julia
 GridHabitat(regime = Varying(SourceSpec(WorldClim{BioClim}, :bio1),
                                    IncrementBy(0.02K/yr)),
-                  supply = GradientSpec(…), area = area)
+                  supply = GradientSpec(...), area = area)
 ```
 
 Each layer names its own change, so a multi-variable regime wraps its *elements*, never the tuple:
-`(Varying(temp, …), rain)`, not `Varying((temp, rain), …)`.
+`(Varying(temp, ...), rain)`, not `Varying((temp, rain), ...)`.
 """
 struct Varying{S, C} <: AbstractSpec
     spec::S
@@ -178,24 +178,24 @@ struct Varying{S, C} <: AbstractSpec
             error("`Varying` declares a change for one layer, so it cannot wrap a tuple of " *
                   "$(length(spec)) of them: a change is checked against a single layer's unit, and " *
                   "one declaration covering several would silently mean different things on each. " *
-                  "Wrap the elements instead — `($(join(fill("…", length(spec)), ", ")))` with " *
+                  "Wrap the elements instead - `($(join(fill("...", length(spec)), ", ")))` with " *
                   "`Varying` on the ones that vary.")
         return new{typeof(spec), typeof(change)}(spec, change)
     end
 end
 
 # What a *constant* shape is: a single value, or one value per cell. Named rather than spelled
-# `Union{…}` at each of its two `_attachshape` methods, because it is the definition that keeps them
-# from colliding with the shape-typed ones — a `PatternedChange` is deliberately neither.
+# `Union{...}` at each of its two `_attachshape` methods, because it is the definition that keeps them
+# from colliding with the shape-typed ones - a `PatternedChange` is deliberately neither.
 const _ConstantShape = Union{Number, AbstractArray}
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # ---------------------------------------------------------------------------
 # The unit contract
 # ---------------------------------------------------------------------------
 # What unit a change's values must be in, decided by the layer it is attached to and the change's
-# mode — never hard-coded per change, which is how a change's unit and its layer's unit drift apart.
+# mode - never hard-coded per change, which is how a change's unit and its layer's unit drift apart.
 
 """
     changeunit(mode::AbstractChangeMode, layer::AbstractLayer)
@@ -207,7 +207,7 @@ The three value-carrying modes are exactly the three answers to "what kind of qu
 
 | mode | the value is | unit on a `°C` layer |
 |---|---|---|
-| [`AbsoluteChange`](@ref) | a position — the layer's value *is* this | `°C` |
+| [`AbsoluteChange`](@ref) | a position - the layer's value *is* this | `°C` |
 | [`RelativeChange`](@ref) | an interval from the layer's captured values | `K` |
 | [`RateChange`](@ref) | an interval per unit time | `K/s` |
 
@@ -244,7 +244,7 @@ end
 _tochangeunit(::NoChange, ::AbstractLayer, x) = x
 
 # ---------------------------------------------------------------------------
-# Change recipes — what a caller writes, before it meets a layer
+# Change recipes - what a caller writes, before it meets a layer
 # ---------------------------------------------------------------------------
 # A recipe names a *shape* and a *mode* but no unit-checked values; `_attachchange` turns it into a
 # materialised `AbstractLayerChange` against the layer it is destined for. Deliberately thin: this
@@ -258,7 +258,7 @@ Return one full sine cycle over a unit of dimensionless `phase`, the default sha
 [`PatternedChange`](@ref) or [`PatternedLayerChange`](@ref).
 
 `phase` is elapsed time divided by the change's `timescale`, so a whole number of timescales returns
-to zero. Any function of a dimensionless phase may be used instead — a sigmoid, a ramp, a step.
+to zero. Any function of a dimensionless phase may be used instead - a sigmoid, a ramp, a step.
 
 # Arguments
 
@@ -267,7 +267,7 @@ to zero. Any function of a dimensionless phase may be used instead — a sigmoid
 sinusoidal(phase) = sinpi(2 * phase)   # `sinpi`, for accuracy at exact half-turns
 
 # `Varying` prints as the two-argument call that builds it, and both halves print through their own
-# compact form — which is the case the two-method `show` split exists for.
+# compact form - which is the case the two-method `show` split exists for.
 function Base.show(io::IO, v::Varying)
     return print(io, "Varying(", sprint(show, v.spec), ", ",
                  sprint(show, v.change), ")")
@@ -306,14 +306,14 @@ function _buildchange(spec::CombinedChange, layer::AbstractLayer)
     return _combineparts(map(s -> _buildchange(s, layer), spec.specs), layer)
 end
 
-# Assemble already-materialised changes into one that sums them. The mode follows from the parts —
-# see `SumOfLayerChanges` — and every part is evaluated once here, at attach, so a part that cannot
+# Assemble already-materialised changes into one that sums them. The mode follows from the parts -
+# see `SumOfLayerChanges` - and every part is evaluated once here, at attach, so a part that cannot
 # contribute a value function of elapsed time says so now rather than on some later timestep.
 function _combineparts(parts::Tuple, layer::AbstractLayer)
     positions = filter(p -> _modeof(p) isa AbsoluteChange, parts)
     length(positions) <= 1 ||
         error("$(length(positions)) of these changes give the layer's value outright, and two " *
-              "positions cannot be added — only intervals can be added to a position. Combine one " *
+              "positions cannot be added - only intervals can be added to a position. Combine one " *
               "`ReplaceWith` with `OffsetBy`/`IncrementBy` changes.")
     # Positions first: the fold is left-to-right, and an affine unit accepts `10.0°C + 1.0K` but
     # not the same sum begun from the interval.
@@ -346,14 +346,14 @@ function _partvalue(change::AbstractLayerChange{NoChange}, _)
                  "nothing for it to contribute to a sum of changes.")
 end
 
-# A bare quantity or matrix under `IncrementBy` is a steady drift — the only mode in which a
+# A bare quantity or matrix under `IncrementBy` is a steady drift - the only mode in which a
 # constant does something new each step.
 function _attachshape(shape::_ConstantShape, mode::RateChange,
                       layer::AbstractLayer)
     value = _tochangeunit(mode, layer, shape)
     return SteadyLayerChange{typeof(value)}(value)
 end
-# …and under the other two it is a one-off, so it is refused here rather than silently installed as
+# ...and under the other two it is a one-off, so it is refused here rather than silently installed as
 # a change that rewrites the same values forever.
 function _attachshape(shape::_ConstantShape, mode::AbstractChangeMode,
                       ::AbstractLayer)
@@ -363,8 +363,8 @@ function _attachshape(shape::_ConstantShape, mode::AbstractChangeMode,
                  "of change, or a shape that varies with time.")
 end
 # These two dispatch on the shape being a *constant*, not on `Any`. Against `Any` they were
-# ambiguous with every shape-typed method under `RateChange` — one method narrowing the shape and
-# the other the mode, neither more specific — so `IncrementBy(PatternedChange(…))`, an oscillating
+# ambiguous with every shape-typed method under `RateChange` - one method narrowing the shape and
+# the other the mode, neither more specific - so `IncrementBy(PatternedChange(...))`, an oscillating
 # rate, always failed despite being documented as valid. Anything that is neither a constant nor a
 # known shape falls through to here.
 function _attachshape(shape, mode::AbstractChangeMode, ::AbstractLayer)
@@ -419,7 +419,7 @@ end
 # well defined if no two slices claim the same instant.
 function _checkseriestimes(given, source)
     ndims(source) == 3 ||
-        error("a series' source must be a stack of slices — a 3-dimensional `(Y, X, Ti)` array — " *
+        error("a series' source must be a stack of slices - a 3-dimensional `(Y, X, Ti)` array - " *
               "but got a $(ndims(source))-dimensional one. A single slice is not a change.")
     length(given) == size(source, 3) ||
         error("a series needs one time per slice, but got $(length(given)) times for " *
@@ -431,8 +431,8 @@ function _checkseriestimes(given, source)
     return resolved
 end
 
-# Times passed explicitly by the caller. Dates are still dates — giving a series real times is the
-# documented way to say when an otherwise undated stack really begins — so they resolve exactly as a
+# Times passed explicitly by the caller. Dates are still dates - giving a series real times is the
+# documented way to say when an otherwise undated stack really begins - so they resolve exactly as a
 # dated lookup would; anything else carries no calendar identity of its own.
 _giventimes(times) = (times = times, calendar = UndatedSeries())
 _giventimes(times::AbstractVector{<:Dates.TimeType}) = _datedtimes(times)
@@ -440,7 +440,7 @@ _giventimes(times::AbstractVector{<:Dates.TimeType}) = _datedtimes(times)
 # A source's own slice times, taken from its `Ti` lookup.
 function _sourcetimes(source::DimensionalData.AbstractDimArray)
     hasdim(source, Ti) ||
-        error("a series' source has no `Ti` dimension to take slice times from — pass `times = ` " *
+        error("a series' source has no `Ti` dimension to take slice times from - pass `times = ` " *
               "explicitly, or read the source with a time axis.")
     return _lookuptimes(DimensionalData.lookup(source, Ti))
 end
@@ -466,13 +466,13 @@ end
 
 # Monthly is the spacing, never the meaning: an axis-less stack gets monthly coordinates for
 # back-compatibility but stays `UndatedSeries`, so no epoch phase-locks it. A 10-slice synthetic
-# stack read as "months 1–10 of the year" was the bug this distinction exists to prevent.
+# stack read as "months 1-10 of the year" was the bug this distinction exists to prevent.
 function _lookuptimes(lookup::NoLookup)
     return (times = eachindex(lookup) .* month_mean_duration,
             calendar = UndatedSeries())
 end
-# Elapsed-time coordinates are genuinely ambiguous — `1, 2, 3` months is equally "the first three
-# months of the year" and "three months into my experiment" — so they infer the reading that phases
+# Elapsed-time coordinates are genuinely ambiguous - `1, 2, 3` months is equally "the first three
+# months of the year" and "three months into my experiment" - so they infer the reading that phases
 # nothing, and a climatology opts in with `calendar = MonthOfYearSeries()`.
 function _lookuptimes(lookup::AbstractVector{<:Unitful.Time})
     return (times = collect(lookup), calendar = UndatedSeries())
@@ -489,7 +489,7 @@ end
 # The zero point of the lookup: the coordinate elapsed time zero corresponds to. `origin` is the
 # knob for an undated series and refused for the other two, where the epoch fixes the phase and a
 # second setting for the same thing could only contradict it.
-# The `(UndatedSeries, ::Nothing)` method is not redundant — without it that call is genuinely
+# The `(UndatedSeries, ::Nothing)` method is not redundant - without it that call is genuinely
 # ambiguous, the general method being more specific in its last argument and the undated one in its
 # first, so neither wins. The same shape as `_stackcoords`'s ambiguity in `datasetread.jl`.
 _seriesorigin(::AbstractSeriesCalendar, times, ::Nothing) = first(times)
@@ -501,7 +501,7 @@ function _seriesorigin(calendar::AbstractSeriesCalendar, times, origin)
                  "run's epoch (see `build_ecosystem`), and an `origin` beside it could only " *
                  "contradict it. `origin` is for an `UndatedSeries`, which has no other way to say " *
                  "where zero sits. To place an undated series at a real date, pass `times = ` as " *
-                 "dates instead — that says what every slice is, not just where zero is.")
+                 "dates instead - that says what every slice is, not just where zero is.")
 end
 
 # A month-of-year series' coordinates have to *be* month numbers, because that is how the epoch
@@ -527,7 +527,7 @@ function _monthnumbers(times)
     return [round(Int, ustrip(NoUnits, t / month_mean_duration)) for t in times]
 end
 
-# A repeating series needs a period, and its period is only defined if its slices are evenly spaced —
+# A repeating series needs a period, and its period is only defined if its slices are evenly spaced -
 # an irregular axis (an ERA read, or explicit irregular `times`) has no turn length to derive, so it
 # is refused rather than guessed at. The other two policies need nothing but an end.
 _checkseriesend(::AbstractSeriesEnd, times) = nothing
@@ -549,24 +549,24 @@ end
 function _checkseriesgrid(slices, layer::AbstractLayer)
     size(slices)[1:2] == size(layer.matrix) ||
         error("a series' slices are $(size(slices)[1:2]) but the layer is " *
-              "$(size(layer.matrix)) — the series is on a different grid.")
+              "$(size(layer.matrix)) - the series is on a different grid.")
     return nothing
 end
 
-# The values a relative change is measured from — a snapshot taken at attach, so the change stays a
+# The values a relative change is measured from - a snapshot taken at attach, so the change stays a
 # pure function of elapsed time rather than compounding on what it wrote last step. The baseline
 # belongs to the *mode*: only a relative change has one.
 _patternbaseline(::RelativeChange, layer::AbstractLayer) = copy(layer.matrix)
 _patternbaseline(::AbstractChangeMode, ::AbstractLayer) = nothing
 
 # A *series* keeps the same snapshot for one further reason, so it needs it under one further mode.
-# Outside its own span a series contributes nothing and the layer stands as it would without it —
+# Outside its own span a series contributes nothing and the layer stands as it would without it -
 # which under `AbsoluteChange` means there has to be something to stand *as*. Without it a lead-in
 # would leave whatever the previous write happened to be, and `RevertToLayer` would have nothing to
 # revert to. `RelativeChange` already keeps it, and `RateChange` needs none: contributing nothing is
 # a zero rate, not a grid.
 # Captured unconditionally rather than only when a lead-in or `RevertToLayer` is in play, because
-# neither is knowable at attach — an epoch rewrites `origin` afterwards (`_repointseries!`) and can
+# neither is knowable at attach - an epoch rewrites `origin` afterwards (`_repointseries!`) and can
 # turn a series with no lead-in into one with a lead-in. It is one grid beside the N a series already
 # stores, so the cost is a fraction of what is there anyway.
 function _seriesbaseline(mode::AbstractChangeMode, layer::AbstractLayer)
@@ -578,7 +578,7 @@ _seriesbaseline(::AbsoluteChange, layer::AbstractLayer) = copy(layer.matrix)
 # ---------------------------------------------------------------------------
 # Applying a change
 # ---------------------------------------------------------------------------
-# A layer change is a pure function of `(layer, elapsed, timestep)` — never of the ecosystem. That
+# A layer change is a pure function of `(layer, elapsed, timestep)` - never of the ecosystem. That
 # is what lets the MPI update loop apply layer changes redundantly on every rank and stay in step:
 # with no ecosystem and no randomness, every rank computes the same thing. `elapsed` is the clock
 # *after* this step's advance (see `update!`), so a change sees the time it is changing to.
@@ -589,7 +589,7 @@ _applychange!(::AbstractLayerChange{NoChange}, ::AbstractLayer, _, _) = nothing
 
 # Each write is followed by `_enforcebounds!`, uniformly rather than only for the rate mode. An
 # absolute *series* is already refused at attach if its stored slices go negative, but a
-# `PatternedLayerChange{AbsoluteChange}` computes its values and cannot be checked ahead of time — so
+# `PatternedLayerChange{AbsoluteChange}` computes its values and cannot be checked ahead of time - so
 # the write sites are the only place that catches every case.
 function _applychange!(change::AbstractLayerChange{AbsoluteChange},
                        layer::AbstractLayer, elapsed::Unitful.Time, _)
@@ -619,7 +619,7 @@ function _changevalue(change::SeriesLayerChange, elapsed::Unitful.Time)
     return view(change.slices, :, :, _seriesindex(change, elapsed))
 end
 
-# Whether a series has anything to say at `t`. Before its first slice it never does — a series that
+# Whether a series has anything to say at `t`. Before its first slice it never does - a series that
 # has not started yet is silent, which needs no policy because there is only one reading of it. Past
 # its last slice it depends on the end policy, and only `RevertToLayer` steps aside.
 function _inspan(change::SeriesLayerChange, t)
@@ -637,15 +637,15 @@ function _atorafterstart(change::SeriesLayerChange, t)
     return (first(times) - t) <= (times[2] - times[1]) * _DRIFT
 end
 
-# Whether a time is still within what the series will answer for. Only `RevertToLayer` has a limit —
-# the others hold, repeat or error, all of which are answers — so the default is `true`.
+# Whether a time is still within what the series will answer for. Only `RevertToLayer` has a limit -
+# the others hold, repeat or error, all of which are answers - so the default is `true`.
 _withinend(::AbstractSeriesEnd, ::SeriesLayerChange, _) = true
 function _withinend(::RevertToLayer, change::SeriesLayerChange, t)
     return t <= _seriesreach(change)
 end
 
 # What a series is worth outside its own span: "nothing", expressed in each mode's own terms. That
-# is why the three `_applychange!` methods need no change at all — writing the captured values,
+# is why the three `_applychange!` methods need no change at all - writing the captured values,
 # adding a zero offset and accumulating a zero rate each leave the layer exactly as it would be with
 # no series attached.
 _outofspan(change::SeriesLayerChange{AbsoluteChange}) = change.baseline
@@ -677,7 +677,7 @@ end
 #
 # Nearest is not a careless choice, though, and its reason has to be honoured rather than dropped: an
 # accumulated elapsed time does not land exactly on a stored coordinate, so a bare floor turns that
-# drift into an off-by-one that only shows up sometimes. `_DRIFT` is the direct answer — a coordinate
+# drift into an off-by-one that only shows up sometimes. `_DRIFT` is the direct answer - a coordinate
 # within a whisker *ahead* of `t` is one `t` has really reached. Nearest was avoiding having to write
 # this tolerance, at the price of a half-step offset nobody had stated.
 #
@@ -700,7 +700,7 @@ end
 # Map a requested time back into the stored range, according to the end-of-series policy.
 # Only ever asked about a time the series *is* in span for: `_changevalue` has already stepped
 # aside otherwise. In particular a time before the first slice never reaches here, so there is no
-# undershoot to clamp — which was once justified by `origin` always defaulting to the first slice,
+# undershoot to clamp - which was once justified by `origin` always defaulting to the first slice,
 # and stopped being true the moment an epoch could rewrite `origin` to something earlier.
 _inrange(::HoldAtEnd, series::SeriesLayerChange, t) = min(t, last(series.times))
 function _inrange(::ErrorAtEnd, series::SeriesLayerChange, t)
@@ -715,7 +715,7 @@ end
 # slice 1. One full turn is the stored span **plus** the gap back round to the start, so a 12-slice
 # monthly series repeats every 12 months rather than every 11. The spacing was checked to be even at
 # attach, so taking the first gap as the step needs no scan here.
-# In span, `RevertToLayer` is the identity — out of span it never gets here, because the series has
+# In span, `RevertToLayer` is the identity - out of span it never gets here, because the series has
 # already stepped aside and given the layer back.
 _inrange(::RevertToLayer, ::SeriesLayerChange, t) = t
 function _inrange(::RepeatAtEnd, series::SeriesLayerChange, t)
@@ -724,10 +724,10 @@ function _inrange(::RepeatAtEnd, series::SeriesLayerChange, t)
     return first(times) + mod(t - first(times), period)
 end
 
-# How far a series reaches: its last slice, plus the **whole** gap that slice is in force for — since
+# How far a series reaches: its last slice, plus the **whole** gap that slice is in force for - since
 # a coordinate is when a slice becomes current, the last one runs for a full step like every other.
 #
-# A **half** gap here — which is what a nearest-coordinate rule would want — would make a 12-slice
+# A **half** gap here - which is what a nearest-coordinate rule would want - would make a 12-slice
 # monthly series cover 11.5 months rather than 12, so a full year of simulation against a twelve-month
 # climatology would error a fortnight early under the default `ErrorAtEnd` and never fully reach the
 # twelfth slice.
@@ -737,7 +737,7 @@ function _seriesreach(series::SeriesLayerChange)
     return last(times) + (last(times) - times[end - 1])
 end
 
-# `LegacyLoss` is `{NoChange}` but is not a no-op, so it needs a method on its own concrete type —
+# `LegacyLoss` is `{NoChange}` but is not a no-op, so it needs a method on its own concrete type -
 # more specific than the blanket `{NoChange}` one above, which would otherwise silently swallow it.
 function _applychange!(::LegacyLoss, ::AbstractLayer, _, _)
     return error("habitat loss cannot be applied as a layer change: it mutates the " *

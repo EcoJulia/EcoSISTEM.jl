@@ -13,7 +13,7 @@ using Distributions
 
 ## DIFFERENT OPTS ##
 
-# **The gate, added 2026-08-13 — this file had none and was the second-slowest thing in
+# **The gate, added 2026-08-13 - this file had none and was the second-slowest thing in
 # `extras_examples` at 36 s, a fifth of the whole run.** It is a *smoke test* of the two-resource
 # path, so under the suite it needs enough individuals to exercise the arithmetic and no more:
 # 100 million of them on 100 cells was buying nothing a million does not. Run it directly (or set
@@ -28,13 +28,13 @@ area = 100.0 * km^2;
 totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
 
 # A `StudyArea` decides the grid, then `GridHabitat` builds on it. With no data-backed layer
-# to shape it, `extent` and `cellsize` give a **synthetic** grid with no CRS — which is exactly what a
+# to shape it, `extent` and `cellsize` give a **synthetic** grid with no CRS - which is exactly what a
 # synthetic `UniformSpec` needs, since it is generated at whatever shape it is handed. A square
-# `area` split `grd[1]` ways gives the same 10x10 grid of 1 km² cells the old `simplehabitat(val, grd,
+# `area` split `grd[1]` ways gives the same 10x10 grid of 1 km^2 cells the old `simplehabitat(val, grd,
 # maxsupply, area)` derived, so nothing about the simulation below changes.
 #
 # `verbosity = :silent` because this example runs under `@test_nowarn`, which fails on *any* stderr
-# output — and the default `:normal` announces each guessed value. Worth knowing outside a test:
+# output - and the default `:normal` announces each guessed value. Worth knowing outside a test:
 # leave it at the default and it tells you what it decided.
 side = sqrt(area)
 studyarea = StudyArea(extent = (side, side), cellsize = side / grd[1],

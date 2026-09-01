@@ -5,7 +5,7 @@
 # **These DUPLICATE the serial implementations in `src/dynamics.jl` rather than calling them**, and
 # that is the file's defining hazard: a rule phrased as "the hot loop" has two places to apply, and a
 # `grep` over `src/` finds only one of them. A change to the demographics, the dispersal step or the
-# resource accounting must be made here as well, or the two diverge silently — a distributed run
+# resource accounting must be made here as well, or the two diverge silently - a distributed run
 # would then disagree with a serial one on the same seed, which is the property the whole design
 # exists to guarantee.
 #
@@ -26,9 +26,7 @@ using EcoSISTEM:
                  resource_adjustment,
                  invalidatecaches!,
                  regimeupdate!,
-                 supplyupdate!,
-                 AlwaysMovement,
-                 BirthOnlyMovement
+                 supplyupdate!
 
 """
     update!(eco::MPIEcosystem, timestep::Unitful.Time, intervention)
@@ -136,7 +134,6 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
 
     # Update abundances with all movements
     eco.abundances.rows_matrix .+= eco.cache.netmigration
-    EcoSISTEM.synchronise_from_rows!(eco.abundances)
 
     # Invalidate all caches for next update
     invalidatecaches!(eco)
@@ -145,63 +142,58 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
     # changing *to*. Every rank advances identically.
     EcoSISTEM._advanceclock!(eco, timestep)
 
-    # Same position as the serial loop: after the dynamics, after the clock, before the layers —
+    # Same position as the serial loop: after the dynamics, after the clock, before the layers -
     # so a `SetChange` bites this step. Every rank runs this identically and independently.
     EcoSISTEM.applyinterventions!(eco, intervention,
                                   EcoSISTEM.simulationtime(eco), timestep,
                                   EcoSISTEM._stepnumber(eco, timestep))
+
+    # **LAST, so that everything which writes `rows_matrix` this timestep is in `cols_vector` before
+    # anything reads it.** The interventions above write abundances, and the *next* timestep opens
+    # with `update_resource_usage!`, which reads the column layout - so a sync placed before them
+    # leaves that read one intervention behind. Measured with an `AddAbundance`: serial totalled
+    # 1752450322 against MPI's 1752458039, at a single rank, and moving this line closed the gap
+    # exactly at 1, 2 and 4 ranks.
+    #
+    # Moving it rather than adding a second sync is deliberate: this is an `Alltoallv`, so a second
+    # one would double the per-timestep communication for nothing. Nothing between the dynamics and
+    # here reads the column layout.
+    #
+    # The invariant every reader can rely on: **`cols_vector` is authoritative at the end of
+    # `update!`**. Diversity measures are asked for between timesteps, which is exactly that point.
+    EcoSISTEM.synchronise_from_rows!(eco.abundances)
 
     # Update environment - regime and resource supplies
     regimeupdate!(eco, timestep)
     return supplyupdate!(eco, timestep)
 end
 
-# `AlwaysMovement` is not supported under MPI, and this method exists to say so.
+# **Every operation is rank-safe, including the abundance ones**, and the reason is the *layout*
+# rather than the ordering: `rows_matrix` holds this rank's own species across all cells by
+# construction, at every point in the timestep. An abundance write is therefore entirely local - the
+# rank owning that species applies the whole edit, the others do nothing - and `Deactivate`'s
+# clearance is local too, since each rank clears its own species at the same cells. Simpler than the
+# plan's "draw globally, then apply only the entries this rank owns", which was written for a harder
+# problem than the partition actually presents.
 #
-# The serial `move!(::AbstractEcosystem, ::AlwaysMovement, ...)` in `src/dynamics.jl` is typed on
-# `AbstractEcosystem`, so it catches an
-# `MPIEcosystem` too, and disperses the *whole current population* by reading
-# `eco.abundances.matrix[sp, i]` — a field an `MPIGridLandscape` has not got, since it holds
-# `rows_matrix`/`cols_vector` instead. Without this method that surfaces as a bare `FieldError`
-# from inside a `Threads.@threads` task on the very first timestep, arriving as a
-# `TaskFailedException` with no hint that the movement type is what chose it.
-#
-# **`BirthOnlyMovement` is unaffected** and is why nothing caught this: it disperses only the
-# newborns, which the MPI loop passes in explicitly as `births`, so it never reads the landscape —
-# and `test/SmallMPItest.jl:63` uses it.
-#
-# A real implementation is now small: `_landscaperow` already maps the global index onto this rank's
-# row, so the method needs only to read the count from `rows_matrix` at that row and hand it to the
-# shared `_move!`, exactly as the serial `AlwaysMovement` method hands it `abundances.matrix[sp, sc]`.
-function EcoSISTEM.move!(::MPIEcosystem, ::AlwaysMovement, ::Int64, ::Int64,
-                         ::Matrix{Int64}, ::Int64)
-    return error("`AlwaysMovement` is not supported in a distributed (MPI) run: it disperses " *
-                 "each species' whole population, which is not available rank-locally. Use " *
-                 "`movement = BirthOnlyMovement` (dispersal at birth only), or run serially with " *
-                 "`build_ecosystem(...; distributed = false)`.")
-end
-
-# **Every operation is rank-safe, including the abundance ones**, because of *when* interventions
-# run: `synchronise_from_rows!` has already put the landscape in its row-partitioned phase, so this
-# rank's `rows_matrix` holds **its own species across all cells**. An abundance write is therefore
-# entirely local — the rank owning that species applies the whole edit, the others do nothing — and
-# `Deactivate`'s clearance is local too, since each rank clears its own species at the same cells.
-# Simpler than the plan's "draw globally, then apply only the entries this rank owns", which was
-# written for a harder problem than the phase ordering actually presents.
+# The locality must be attributed to the layout and not to `synchronise_from_rows!` having run:
+# tying it to the sync makes that call look load-bearing where it is not, and a sync that looks
+# load-bearing here invites being placed *before* the interventions - which leaves the column layout
+# one intervention behind the row layout that the next `update_resource_usage!` reads.
 function EcoSISTEM._ownedabundances(eco::MPIEcosystem)
     return (rows = eco.abundances.rows_matrix, firstspecies = eco.firstsp)
 end
 
 # **`AddSpecies` is the one operation that is genuinely not rank-local**, and the contrast with the
-# abundance operations is the point: those need no partition work at all, because interventions run
-# after `synchronise_from_rows!` when a rank owns whole species across every cell. Adding a species
-# changes *which species each rank owns* — the partition itself — so it needs the landscape
+# abundance operations is the point: those need no partition work at all, because a rank owns whole
+# species across every cell in `rows_matrix` whenever it is read. Adding a species
+# changes *which species each rank owns* - the partition itself - so it needs the landscape
 # reallocated and redistributed on every rank in step. Refused for now rather than half-done.
 function _checkmpiinterventions(intervention)
     for iv in EcoSISTEM._interventions(intervention)
         any(op -> op isa EcoSISTEM.AddSpecies, iv.operations) || continue
         error("`AddSpecies` is not yet supported under MPI. Species are partitioned across ranks, " *
-              "so adding one changes the partition itself — unlike every other operation, which is " *
+              "so adding one changes the partition itself - unlike every other operation, which is " *
               "rank-local. Add the species before the run, or run this scenario serially.")
     end
     return nothing
@@ -263,11 +255,21 @@ function EcoSISTEM.update_resource_usage!(eco::MPIEcosystem{MPIGL, A,
     return eco.cache.valid = true
 end
 
-# This rank holds only its own block of species, so the global species index the hot loop passes
-# maps onto a local row of `rows_matrix` and of `netmigration`. **This one line is the entire
-# difference between the serial dispersal code and the distributed one**, which is why there is no
-# MPI copy of `_move!` -- the serial body in `src/dynamics.jl` serves both.
+# **These two hooks are the entire difference between the serial dispersal code and the distributed
+# one**, which is why there is no MPI copy of `move!` or `_move!` - the serial bodies in
+# `src/dynamics.jl` serve both sides.
+#
+# This rank holds only its own block of species, so the global species index the hot loop passes maps
+# onto a local row of `rows_matrix` and of `netmigration`.
 EcoSISTEM._landscaperow(eco::MPIEcosystem, sp::Int64) = sp - eco.firstsp + 1
+
+# And the population `AlwaysMovement` disperses is read from that same rank-local row, where the
+# serial landscape offers a whole `matrix`. Because the row and `netmigration` are both this rank's,
+# moving an established individual between cells needs no more communication than moving a newborn:
+# only the field name differs, never the reach.
+function EcoSISTEM._standingpopulation(eco::MPIEcosystem, sc::Int64, sp::Int64)
+    return eco.abundances.rows_matrix[EcoSISTEM._landscaperow(eco, sp), sc]
+end
 
 using EcoSISTEM: _getsupply
 """

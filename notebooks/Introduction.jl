@@ -192,14 +192,14 @@ begin
     totalT = 298.0K
 
     # Perfect, now we can build a simple environment! The grid is decided *first*, on its own,
-    # and only then is anything built on it — a square 100 km² split 10 ways each way is 1 km
+    # and only then is anything built on it - a square 100 km^2 split 10 ways each way is 1 km
     # cells. Nothing here needs a CRS, because a uniform value is generated at whatever shape
     # it is handed.
     side = sqrt(area_size)
     area = StudyArea(extent = (side, side), cellsize = side / grid[1],
                      verbosity = :silent)
 
-    # Each layer says what it *means* by naming a niche axis — never by its units or values.
+    # Each layer says what it *means* by naming a niche axis - never by its units or values.
     temp_env = GridHabitat(regime = UniformSpec(totalT,
                                                 axis = Temperature),
                            supply = UniformSpec(totalW,
@@ -247,8 +247,8 @@ md"That's better! How about something even fancier?"
 
 # ╔═╡ 01a11afc-7c9b-41f5-b308-003303dfa72a
 begin
-    # A temperature *peak* rather than a gradient — hottest in the middle, falling away to either
-    # side — again warming over time. `PeakedSpec` is the shape; everything else is as before, which
+    # A temperature *peak* rather than a gradient - hottest in the middle, falling away to either
+    # side - again warming over time. `PeakedSpec` is the shape; everything else is as before, which
     # is the point: swapping what the landscape looks like changes one spec and nothing around it.
     temp_peak_env = GridHabitat(regime = Varying(PeakedSpec(totalT -
                                                             10.0K,

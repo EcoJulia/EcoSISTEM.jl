@@ -16,8 +16,8 @@ ecosystems. This page works through several of them:
 - large pools of species coexist.
 
 Every result below is produced by the code shown, on a small landscape that runs in seconds.
-The figures come from the same experiments at full scale — hundreds of species over decades of
-simulated time — and those are asserted as tests in `examples/biodiversity.jl`.
+The figures come from the same experiments at full scale - hundreds of species over decades of
+simulated time - and those are asserted as tests in `examples/biodiversity.jl`.
 
 ## The setup
 
@@ -67,7 +67,7 @@ end
 nothing # hide
 ```
 
-Both builders take a `seed`, which fixes one random stream per species — so every number on
+Both builders take a `seed`, which fixes one random stream per species - so every number on
 this page is reproducible, and independent of how many threads the simulation used.
 
 ## Niche preference
@@ -118,7 +118,7 @@ specialists; (C) the same after a 1 °C shift, where intermediate widths win.*
 ## Resources
 
 Supply is given per unit area, so a cell's resource is that rate times its area, and a
-species' demand is per individual. A cell supports more individuals when it is given more —
+species' demand is per individual. A cell supports more individuals when it is given more -
 here a solar supply graded from quarter strength in the west to full strength in the east:
 
 ```@example examples
@@ -134,13 +134,13 @@ percell = reshape(sum(eco.abundances.matrix, dims = 1), (10, 10))
 (west = sum(percell[:, 1]), east = sum(percell[:, end]))
 ```
 
-The two resources combine by Liebig's law of the minimum — the scarcer one sets the outcome —
+The two resources combine by Liebig's law of the minimum - the scarcer one sets the outcome -
 so grading *both* at once would compare cells each limited by whichever happened to be scarcer
 there, and would say nothing about either.
 
 ## Area and grid resolution
 
-Total abundance is a property of the landscape, not of the mesh laid over it. The same 100 km²
+Total abundance is a property of the landscape, not of the mesh laid over it. The same 100 km^2
 divided into 1, 4, 25 or 100 cells supports the same number of individuals:
 
 ```@example examples
@@ -184,7 +184,7 @@ distances of (A) 0.5 km, (B) 1 km, (C) 2 km and (D) 4 km.*
 By default a boundary redistributes rather than removes: an individual whose dispersal is aimed
 off the grid, or into an inactive cell, is reallocated among the destinations it *can* reach, so
 no boundary loses individuals. Pass `disperse_safely = false` to any of [`Torus`](@ref),
-[`Cylinder`](@ref) or [`Island`](@ref) — as `Torus(false)` — to make those individuals die
+[`Cylinder`](@ref) or [`Island`](@ref) - as `Torus(false)` - to make those individuals die
 instead, which is the difference between an animal-dispersed seed, carried somewhere the animal
 can reach, and a wind-dispersed one blown out to sea. Because it is about dead cells rather than
 the map edge, it matters for a torus too, which has no edge but may still contain inactive cells.
@@ -193,4 +193,4 @@ the map edge, it matters for a torus too, which has no edge but may still contai
 
 Coexistence here is not an artefact of every species being identical. With randomised niche
 widths, optima, dispersal distances, mortality rates and body sizes, at least 90% of the pool
-survives — and it keeps doing so as the pool grows from 50 species to 500.
+survives - and it keeps doing so as the pool grows from 50 species to 500.

@@ -4,7 +4,7 @@ module EcoSISTEMDataPipelineExt
 
 # `import DataPipeline` is load-bearing and easy to lose: a trigger package is *loaded* when the
 # extension activates, but its name is only in scope if the module asks for it. Without this line
-# `assetdir(DataPipeline)` below is an `UndefVarError` — and the module still precompiles, because a
+# `assetdir(DataPipeline)` below is an `UndefVarError` - and the module still precompiles, because a
 # function body resolves at call time, so the failure appears only when `unziptemp` is finally used.
 import DataPipeline
 import p7zip_jll

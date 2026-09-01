@@ -87,19 +87,19 @@ if !Sys.iswindows()
     # A partial monthly read is labelled with the months it actually holds. Reads only files the
     # `getraster` above already downloaded, so nothing new is fetched.
     #
-    # The axis must carry the months actually read, not be rebuilt from the slice *count* — which
-    # would label `month = 2:4` as 1–3. That is not a cosmetic mislabel: the plot recipe looks a
+    # The axis must carry the months actually read, not be rebuilt from the slice *count* - which
+    # would label `month = 2:4` as 1-3. That is not a cosmetic mislabel: the plot recipe looks a
     # month up by coordinate
     # (`At(ind * month_mean_duration)`), so asking a partial read for February returned **March's**
     # grid under February's name. The last assertion here is that regression, and it is the one that
-    # would have caught it — the others only check the labels.
+    # would have caught it - the others only check the labels.
     # Which axis a multi-file source stacks on decides whether it is a **time series** or a stack
-    # of unrelated bands — and so whether it can drive a layer through time at all.
+    # of unrelated bands - and so whether it can drive a layer through time at all.
     #
     # `CHELSA{Climate}` had no method and fell through to the `Dim{:layer}` fallback, so a
-    # `SourceSpec(CHELSA{Climate}, …)` read through the generic path was **not recognised as a
+    # `SourceSpec(CHELSA{Climate}, ...)` read through the generic path was **not recognised as a
     # series**. It failed silently: twelve monthly files loaded fine, simply as twelve bands. This is
-    # asserted against its siblings rather than alone, because the bug was an omission — a test that
+    # asserted against its siblings rather than alone, because the bug was an omission - a test that
     # only checked CHELSA would not have said whether `Ti` was right or the fallback was wrong.
     @testset "monthly sources stack on time, band sources on layers" begin
         @test EcoSISTEM._stackaxis(WorldClim{Climate}) == Ti
@@ -128,7 +128,7 @@ if !Sys.iswindows()
         @test collect(DimensionalData.lookup(sparse.array, Ti)) ==
               [1, 6, 12] .* month_mean_duration
 
-        # A single month has no series in it, so it stays 2-D and carries no time axis at all —
+        # A single month has no series in it, so it stays 2-D and carries no time axis at all -
         # a deliberate carve-out, since a length-1 `Ti` would change the result's dimensionality and
         # every `ndims == 2` static-vs-series branch downstream with it.
         one = read(WorldClim{Climate}, :wind, month = 2)
@@ -150,7 +150,7 @@ if !Sys.iswindows()
     # A coarsened read must keep bounded spatial dims. An `Irregular((nothing, nothing))` span has
     # no bounds, so anything needing them fails: `_applycut`'s `Touches` selector compares
     # `nothing < 60.86°` and throws a bare `MethodError`, which breaks
-    # `read(EarthEnv{LandCover}, …, cut = …)` outright and forces a whole-globe read and a crop.
+    # `read(EarthEnv{LandCover}, ..., cut = ...)` outright and forces a whole-globe read and a crop.
     # EarthEnv is the only shipped source with `_defaultscale` > 1, which is what made it look
     # source-specific rather than a general consequence of aggregating. Guarded because it needs the
     # real file: the vector-lookup condition that triggers it cannot be reproduced synthetically.
@@ -162,25 +162,25 @@ if !Sys.iswindows()
             @test L.span(dims(whole.array, d)) isa L.Regular
             @test all(!isnothing, L.bounds(dims(whole.array, d)))
         end
-        # The end the fix exists for — this threw a MethodError before it.
+        # The end the fix exists for - this threw a MethodError before it.
         cut = read(EarthEnv{LandCover}, 7, cut = scotland)
         @test size(cut.array, 1) < size(whole.array, 1)
         @test size(cut.array, 2) < size(whole.array, 2)
-        # …and it is a *window*, not a token crop: Scotland is a tiny share of a global layer.
+        # ...and it is a *window*, not a token crop: Scotland is a tiny share of a global layer.
         @test prod(size(cut.array)) < 0.01 * prod(size(whole.array))
     end
 
     # A read grid must land exactly where its source says it does. Two things get it there: the axis is
     # rebuilt as a range from (origin, step, length) rather than carried as the file's coordinate vector
-    # — which accumulates rounding over 43200 entries — and angular origins/steps are snapped onto the
+    # - which accumulates rounding over 43200 entries - and angular origins/steps are snapped onto the
     # lattice the source intends. CHELSA is the case that needs the second: its `bio1` records a step of
     # 29.99999988 arcsec for 30, and origins ~0.5 arcsec (1.7% of a cell) off, so untouched it lands
-    # *near* its documented −180…180 by −90…84 rather than on it. Guarded because it needs the real files.
+    # *near* its documented -180...180 by -90...84 rather than on it. Guarded because it needs the real files.
     # CHELSA is read coarsened here for the same reason as in "Reading functions" above: at full
     # resolution one layer is a 6.7 GiB array whose read pipeline peaks near 39 GB, which starves the
     # other test workers. Coarsening costs the assertion nothing, because block aggregation cannot
-    # clean a lattice — it carries the origin through unchanged and multiplies the step, so an
-    # unsnapped CHELSA still lands on 179.99985967° by −90.00847° and every exact comparison below
+    # clean a lattice - it carries the origin through unchanged and multiplies the step, so an
+    # unsnapped CHELSA still lands on 179.99985967° by -90.00847° and every exact comparison below
     # still fails. Measured, both halves.
     @testset "a read grid lands exactly on its source's stated extent" begin
         sources = Any[(read(WorldClim{BioClim}, :bio1), (-180°, 180°),
@@ -206,14 +206,14 @@ if !Sys.iswindows()
     # equal what cropping after the read gave, cell for cell.
     #
     # The aggregated case is the dangerous one. `Rasters.aggregate` blocks from index 1, so a crop
-    # that does not start on a block boundary moves every coarse cell — read-extent variance
+    # that does not start on a block boundary moves every coarse cell - read-extent variance
     # reintroduced exactly where it was just removed. EarthEnv (`_defaultscale` 10) is the only
     # shipped source that exercises it.
     @testset "a windowed read equals the whole read cropped" begin
         CP = EcoSISTEM
         scot = CP.boundingbox("Scotland", islands = true)
         for (src, code) in ((WorldClim{BioClim}, :bio1),   # scale 1
-            (EarthEnv{LandCover}, 7))      # scale 10 — block alignment
+            (EarthEnv{LandCover}, 7))      # scale 10 - block alignment
             whole = EcoSISTEM._read(SourceSpec(src, code))
             windowed = EcoSISTEM._read(SourceSpec(src, code, cut = scot))
             cropped = EcoSISTEM._applycut(whole.array, scot)
@@ -229,13 +229,13 @@ if !Sys.iswindows()
         end
     end
 
-    # `sourcecrs` answers from the file header alone — a lazy open, no pixels — which is what lets the
+    # `sourcecrs` answers from the file header alone - a lazy open, no pixels - which is what lets the
     # target CRS be settled *before* deciding how much of each layer to read.
     @testset "a source's CRS can be had without reading it" begin
         @test EcoSISTEM.sourcecrs(WorldClim{BioClim}, :bio1) ==
               EcoSISTEM._rastercrs(EcoSISTEM._read(SourceSpec(WorldClim{BioClim},
                                                               :bio1)))
-        # Read keywords a `SourceSpec` may carry are accepted and ignored — `scale` cannot alter a CRS.
+        # Read keywords a `SourceSpec` may carry are accepted and ignored - `scale` cannot alter a CRS.
         @test EcoSISTEM.sourcecrs(WorldClim{BioClim}, :bio1,
                                   scale = 20, cut = nothing) ==
               EcoSISTEM.sourcecrs(WorldClim{BioClim}, :bio1)
@@ -249,14 +249,14 @@ if !Sys.iswindows()
         # the directory readers self-attach the actual unit (temperature now in °C, no hidden K shift)
         @test unit(cr.array[1]) == °C
         @test unit(ch_m.array[1]) == m / s
-        # `read` returns bare magnitudes — the unit lives in the layer table (`layerunit`)
+        # `read` returns bare magnitudes - the unit lives in the layer table (`layerunit`)
         @test unit(worldclim.array[1]) == NoUnits
         @test layerunit(WorldClim{Climate}, :wind) == m / s
     end
 end
 
 # `_snaparcsec` (ReadData) produces angular steps and `_arcsecs` (StudyArea) recognises them, in two
-# different files — so the pairing has to be pinned, not assumed. A whole number of arcseconds has no
+# different files - so the pairing has to be pinned, not assumed. A whole number of arcseconds has no
 # exact `Float64` degree representation, and *which* neighbouring value you land on depends on how it
 # was built: `uconvert` scales by a precomputed factor and rounds twice, a hand-written `n / 3600`
 # rounds once, and the two differ in the last bit for 29 of the first 3600 counts. Both routes occur
@@ -265,7 +265,7 @@ end
 # Asserted in aggregate rather than one `@test` per count: this is a single invariant swept over a
 # large input space, and emitting 10800 assertions for it would swamp the suite's totals and hide any
 # real change in them.
-@testset "every whole arcsecond survives snap → recognise, however it was built" begin
+@testset "every whole arcsecond survives snap -> recognise, however it was built" begin
     snap, arcsecs = EcoSISTEM._snaparcsec, EcoSISTEM._arcsecs
     counts = 1:3600
     # The two constructions that occur in practice: `uconvert` (what `_snaparcsec` itself emits) and a
@@ -273,13 +273,13 @@ end
     # the last bit for 29 of these counts, so both must survive.
     viaunits = [uconvert(°, float(n) * arcsecond) for n in counts]
     manual = [(n / 3600) * ° for n in counts]
-    # …and a CHELSA-style badly-written step (~4e-7 relative error, its real worst case) must be pulled
+    # ...and a CHELSA-style badly-written step (~4e-7 relative error, its real worst case) must be pulled
     # back onto the lattice rather than rejected.
     sloppy = [((n - 4.0e-7 * n) / 3600) * ° for n in counts]
     for built in (viaunits, manual, sloppy)
         @test [arcsecs(snap(s)) for s in built] == collect(counts)
     end
-    # Recognised directly too, not only after a snap — a user-supplied `cellsize` never passes through it.
+    # Recognised directly too, not only after a snap - a user-supplied `cellsize` never passes through it.
     @test [arcsecs(s) for s in viaunits] == collect(counts)
     @test [arcsecs(s) for s in manual] == collect(counts)
     # And nothing *off* the lattice is accepted: a few ULP of slack must not become a tenth of an
@@ -302,7 +302,7 @@ end
     L = DimensionalData.Lookups
     # A **unitless** lookup, because that is what `_blockrange` actually sees: it runs on the raw
     # lazy raster, before `_rastertodimarray` attaches units, which is why `_lazycrop` `ustrip`s the
-    # cut box first. A united fixture is not merely unrealistic here but silently useless —
+    # cut box first. A united fixture is not merely unrealistic here but silently useless -
     # `selectindices` answers a unit mismatch with an *empty range* rather than an error.
     d = X(Rasters.Projected(collect(0.0:1.0:99.0),
                             sampling = L.Intervals(L.Start()),
@@ -313,9 +313,9 @@ end
     # scale 10: the start is pulled back to a block boundary and the end pushed out to one
     r = EcoSISTEM._blockrange(d, 12.0, 15.0, 10)
     @test first(r) == 11 && last(r) == 20
-    @test (first(r) - 1) % 10 == 0        # …the invariant that keeps aggregation blocks aligned
+    @test (first(r) - 1) % 10 == 0        # ...the invariant that keeps aggregation blocks aligned
     @test length(r) % 10 == 0
-    # …and it always contains what scale 1 would have selected, never less
+    # ...and it always contains what scale 1 would have selected, never less
     @test issubset(EcoSISTEM._blockrange(d, 12.0, 15.0, 1), r)
     # a box reaching the far end clamps to the axis rather than running past it
     @test last(EcoSISTEM._blockrange(d, 95.0, 99.0, 10)) == 100
@@ -326,7 +326,7 @@ end
 # An origin is snapped onto the lattice implied by its **own cell size**, not onto whole arcseconds.
 # The distinction is the whole correction rather than a detail: CHELSA `bio1`'s Y origin is 302399.4975
 # arcsec, which at arcsecond granularity rounds *away* from the intended value to 83.999722°, but onto
-# its own 30 arcsec lattice gives exactly 84° — CHELSA's stated northern limit. Testing against the
+# its own 30 arcsec lattice gives exactly 84° - CHELSA's stated northern limit. Testing against the
 # arcsecond lattice is what makes these origins look irretrievably ambiguous. Synthetic, so it runs
 # on every platform.
 @testset "origins snap to the cell lattice, not the arcsecond lattice" begin
@@ -342,12 +342,12 @@ end
     # far outside the tolerance, so it is a registration choice rather than a rounding error.
     off = arcsec(15)
     @test EcoSISTEM._snaporigin(off, arcsec(30)) == off
-    # Projected axes have no such anchor — and whole metres are already exact — so they pass through.
+    # Projected axes have no such anchor - and whole metres are already exact - so they pass through.
     @test EcoSISTEM._snaporigin(245000.0u"m", 2500.0u"m") == 245000.0u"m"
 end
 
 # `_mask_int_fills` removes the raw integer-band fill sentinels (GDAL `typemax`/`typemin`) that a file's
-# declared nodata misses — e.g. CHELSA's `0xffffffff`, which the default scaled read otherwise leaves as a
+# declared nodata misses - e.g. CHELSA's `0xffffffff`, which the default scaled read otherwise leaves as a
 # spurious ~4.29e8. Synthetic (no download), so it runs on every platform.
 @testset "integer-band fill-sentinel masking" begin
     CP = EcoSISTEM
@@ -369,7 +369,7 @@ end
     maskedS = EcoSISTEM._mask_int_fills(r, rawS)
     @test ismissing(maskedS[1, 1]) && ismissing(maskedS[3, 3])
 
-    # a float band carries no such sentinel → returned unchanged
+    # a float band carries no such sentinel -> returned unchanged
     @test EcoSISTEM._mask_int_fills(r, Rasters.Raster(Float32.(A), dims)) === r
 
     # the scale>1 path: aggregate(mean) must propagate the introduced missings, not error
@@ -383,7 +383,7 @@ end
 
 # A GeoTIFF written with no CRS comes back from Rasters as `WellKnownText("")`, not `nothing`, so the
 # a `_crsunit(::Nothing)` fallback alone misses it and `ArchGDAL.importCRS("")` fails with the opaque
-# "Failed to initialize SRS based on WKT string (Corrupt data.)" — which is what an empty-CRS file
+# "Failed to initialize SRS based on WKT string (Corrupt data.)" - which is what an empty-CRS file
 # such as `data/Africa.tif` produces. Synthetic (no download), so it runs on every platform.
 @testset "a blank CRS is treated as an absent one" begin
     CP = EcoSISTEM
@@ -398,7 +398,7 @@ end
     @test !CP._isblankcrs(Rasters.GeoFormatTypes.WellKnownText(Rasters.GeoFormatTypes.CRS(),
                                                                ArchGDAL.toWKT(ArchGDAL.importEPSG(4326))))
 
-    # …so a blank CRS gets the same WGS84 assumption an absent one does, rather than throwing.
+    # ...so a blank CRS gets the same WGS84 assumption an absent one does, rather than throwing.
     @test CP._crsunit(blank) == CP._crsunit(nothing) == °
     @test CP._crsunit(Rasters.EPSG(27700)) == u"m"
 

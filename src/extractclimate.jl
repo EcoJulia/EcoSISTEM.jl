@@ -6,7 +6,7 @@
 #   place     `_axisindexat` (`cellgeometry.jl`) resolves `lat`/`long` against the spatial lookup
 #   time      `_dateindices`, `_monthindices`, `_offsetindices`, `_valueindices`
 #   layer     `_codeindices`
-#   errors    `_requirecoord`, `_refusekeyword` — what makes a wrong keyword say what the dataset
+#   errors    `_requirecoord`, `_refusekeyword` - what makes a wrong keyword say what the dataset
 #             does have, rather than failing inside a lookup
 #
 # It names no data source, working on any `AbstractClimate` whatever produced it, which is why it sits
@@ -31,7 +31,7 @@ using Dates: Dates
 
 Extract the value(s) of a climate dataset at the grid cell(s) containing given place(s).
 
-**The dataset is the only positional argument** — everything else is a keyword, so a bare value is
+**The dataset is the only positional argument** - everything else is a keyword, so a bare value is
 never left to be interpreted by its position. `lat` and `long` are required; every other keyword
 defaults to taking its whole dimension.
 
@@ -48,19 +48,19 @@ rather than the two pairs. Pairing a coordinate list with a per-record date belo
 
 # Arguments
 
-  - `dat`: the dataset to sample — any [`AbstractClimate`](@ref), including a [`ClimateRaster`](@ref)
+  - `dat`: the dataset to sample - any [`AbstractClimate`](@ref), including a [`ClimateRaster`](@ref)
     straight from [`read`](@ref).
-  - `lat`, `long`: **required** — where to sample, as a scalar for one place or a vector for several.
+  - `lat`, `long`: **required** - where to sample, as a scalar for one place or a vector for several.
     The **containing cell** is returned, so a coordinate anywhere inside a cell gives that cell's
     value, and a coordinate off the grid is an error rather than the nearest cell.
-  - `date`: for a dataset on a **calendar** time axis — one `Date` or `DateTime`, a vector of them,
+  - `date`: for a dataset on a **calendar** time axis - one `Date` or `DateTime`, a vector of them,
     or a closed interval, `Date(2000, 1, 1) .. Date(2000, 12, 31)`.
   - `month`: a month number (`March`), several (`[June, July]`) or a range (`March:May`). On a
     **monthly climatology** this names the slice; on a **dated** axis it is a *filter* meaning every
     March across all the years present, so it keeps the time dimension even for a single month, since
     how many slices match is not fixed by the request. Refused on a time axis that is not monthly,
     naming `offset` instead.
-  - `offset`: for a time axis of plain elapsed-time offsets rather than calendar dates — one value, a
+  - `offset`: for a time axis of plain elapsed-time offsets rather than calendar dates - one value, a
     vector, or an interval, in the axis's own units.
   - `code`: which layer of a multi-layer dataset, by its code (`:bio2`, or the number the catalogue
     names it by). A code is a label, so an unknown one is refused rather than read as a position.
@@ -78,9 +78,9 @@ function extract_values(dat::AbstractClimate; lat = _requirecoord(:lat),
 end
 
 # Sentinel default for the two required keywords. Its own message rather than `EcoSISTEM._require`'s,
-# which offers `DefaultEcosystem()` — a builder that has nothing to do with sampling a raster.
+# which offers `DefaultEcosystem()` - a builder that has nothing to do with sampling a raster.
 function _requirecoord(field)
-    return error("the required keyword `$field` was not passed to `extract_values` — a sample has to " *
+    return error("the required keyword `$field` was not passed to `extract_values` - a sample has to " *
                  "be taken *somewhere*, so `lat` and `long` are the only compulsory arguments. Pass " *
                  "a scalar for one place or a vector for several: " *
                  "`extract_values(dat, lat = 55.9°, long = -3.2°)`.")
@@ -101,7 +101,7 @@ function _refusekeyword(field::Symbol, A)
     axis = _extraaxis(A)
     isnothing(axis) &&
         return error("`$field` was passed, but this dataset is a plain (lat, long) grid with no " *
-                     "third axis to select along — it has only `lat` and `long`.")
+                     "third axis to select along - it has only `lat` and `long`.")
     axis === Dim{:layer} &&
         return error("`$field` was passed, but this dataset's third axis is a layer axis, not a " *
                      "time axis. Use `code` to choose a layer " *
@@ -112,7 +112,7 @@ function _refusekeyword(field::Symbol, A)
                  "`offset` for an axis of plain elapsed-time offsets.")
 end
 
-# `date =` — an exact date, a vector of them, or an interval, resolved against a `TimeType` axis.
+# `date =` - an exact date, a vector of them, or an interval, resolved against a `TimeType` axis.
 # Refused on any other: a `Unitful.Time` axis has no calendar, so a date cannot address it, and
 # guessing an epoch is what `MonthOfYearSeries` exists to make a caller state explicitly.
 function _dateindices(A, date)
@@ -121,7 +121,7 @@ function _dateindices(A, date)
     return _valueindices(lookup, date)
 end
 
-# `offset =` — the mirror of `date`, for an axis of plain elapsed-time offsets rather than calendar
+# `offset =` - the mirror of `date`, for an axis of plain elapsed-time offsets rather than calendar
 # dates, which is what a model output or a non-calendar series carries. The same three shapes.
 function _offsetindices(A, offset)
     lookup = DimensionalData.lookup(A, Ti)
@@ -140,7 +140,7 @@ function _valueindices(lookup, iv::Interval)
     return collect(DimensionalData.selectindices(lookup, iv))
 end
 
-# `month =` — a month *number* (`March`), several, or a range. Two axes can answer it, and they answer
+# `month =` - a month *number* (`March`), several, or a range. Two axes can answer it, and they answer
 # it differently, which is the whole reason the keyword exists rather than an axis being sniffed:
 #
 #   * a **monthly climatology** names its slices by month, so the month is a coordinate; and
@@ -172,7 +172,7 @@ _monthset(m::Integer) = (Int(m),)
 
 _monthset(ms) = collect(ms)
 
-# Whether a `Unitful.Time` axis really is a monthly climatology — every coordinate a whole number of
+# Whether a `Unitful.Time` axis really is a monthly climatology - every coordinate a whole number of
 # `month_mean_duration`, within 1 to 12. Checked rather than assumed, because such an axis may equally
 # hold plain offsets: a run on a roughly 30-day timestep produces one that *looks* monthly, and that
 # is exactly where an unguarded `month = March` would pick a wrong slice in silence.
@@ -183,7 +183,7 @@ function _ismonthly(values)
     end
 end
 
-# `code =` — a layer code (`:bio2`, or the `Int` the catalogue names it by), one or several. A code is
+# `code =` - a layer code (`:bio2`, or the `Int` the catalogue names it by), one or several. A code is
 # a **label**, never a position: reads label the axis by code, so a wrong one is refused rather than
 # silently answering with whatever band that number happened to be.
 function _codeindices(A, code)
@@ -228,7 +228,7 @@ end
 #
 # One rule, the same one the spatial axes follow: **a dimension is dropped only when every keyword
 # addressing it named exactly one thing.** So `month = March` alone gives a scalar, while
-# `month = March, date = <a whole year>` gives a one-element vector — the caller asked for a span on
+# `month = March, date = <a whole year>` gives a one-element vector - the caller asked for a span on
 # `date`, and a span is a set even where it turns out to hold one slice. Worth stating because it
 # looks like an inconsistency and is not: the shape follows the request, never the answer's size.
 _intersectselections(sel::Tuple{Any}, _) = only(sel)
@@ -236,7 +236,7 @@ _intersectselections(sel::Tuple{Any}, _) = only(sel)
 function _intersectselections(sels, fields)
     kept = sort(collect(intersect(map(_aslist, sels)...)))
     isempty(kept) &&
-        error("$(join(("`$f`" for f in fields), " and ")) select no slice in common — nothing in " *
+        error("$(join(("`$f`" for f in fields), " and ")) select no slice in common - nothing in " *
               "this dataset satisfies all of them at once.")
     return all(s -> s isa Integer, sels) ? only(kept) : kept
 end

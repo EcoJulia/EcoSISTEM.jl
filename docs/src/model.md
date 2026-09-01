@@ -5,7 +5,7 @@ CurrentModule = EcoSISTEM
 # How the model works
 
 [The basics](@ref "The basics of EcoSISTEM.jl") shows how to assemble and run a simulation. This
-page says what that simulation *is* — the population model underneath, and what each parameter
+page says what that simulation *is* - the population model underneath, and what each parameter
 does to it. It is worth reading before interpreting any output, because two of the parameters
 change quite different things and their names do not say which.
 
@@ -18,7 +18,7 @@ community per cell, drawn from a shared pool of species, which is what makes an
 [Diversity.jl](@ref "Integration with Diversity.jl") means.
 
 Every demographic parameter is a **rate**, so the answer does not depend on how finely you step
-the clock — see [Time in EcoSISTEM](@ref).
+the clock - see [Time in EcoSISTEM](@ref).
 
 ## Two ways a cell matters
 
@@ -27,8 +27,8 @@ along that distinction:
 
 | | the environment holds | each species brings | what it decides |
 | --- | --- | --- | --- |
-| [`Condition`](@ref) | a **regime** — temperature, rainfall, land cover | a **tolerance** | **where** a species can persist |
-| [`Resource`](@ref) | a **supply** — light, water, space | a **demand** | **how many** can persist there |
+| [`Condition`](@ref) | a **regime** - temperature, rainfall, land cover | a **tolerance** | **where** a species can persist |
+| [`Resource`](@ref) | a **supply** - light, water, space | a **demand** | **how many** can persist there |
 
 A condition is a state: every species in the cell experiences the same value, and nothing is
 divided between them. What differs is how well each one copes, which is what its tolerance says.
@@ -41,7 +41,7 @@ of everything present are summed, and that total is set against what the cell su
 In each cell the model holds two numbers: `K`, what the cell supplies, and `E`, the **total**
 demand summed over every species present. Births and deaths are then scaled by their ratio:
 
-  - births rise when resource is plentiful, by `min(K / E, boost)` — the `boost` ceiling stops an
+  - births rise when resource is plentiful, by `min(K / E, boost)` - the `boost` ceiling stops an
     empty cell producing an unbounded birth rate;
   - deaths rise as demand approaches supply, by `E / K`.
 
@@ -52,7 +52,7 @@ is the only route by which species affect one another: there are currently no pa
 predation and no interference, so an assemblage is regulated entirely by what it collectively needs
 against what its surroundings provide.
 
-Where a species draws on several resources at once, the scarcest binds — births take the `min` of
+Where a species draws on several resources at once, the scarcest binds - births take the `min` of
 the availability ratios and deaths the `max` of the demand ratios, so every demand must be met for
 a population to grow. That is Liebig's law of the minimum, and it means an abundant resource
 correctly makes no difference.
@@ -63,7 +63,7 @@ from that species' own random stream.
 The two draws are not symmetric, and the asymmetry is the point. A birth is a *count*, so the
 Poisson takes the rate itself as its mean: over a step of `δt`, a species with birth rate `b`
 expects `b × δt` offspring per individual. A death is a *per-individual event*, so the Binomial
-takes a probability, which is obtained from the rate as `1 - exp(-rate)` — the chance that an
+takes a probability, which is obtained from the rate as `1 - exp(-rate)` - the chance that an
 exponentially distributed waiting time falls inside the step.
 
 Writing them the same way would break timestep independence. `1 - exp(-x)` is concave, so applying
@@ -83,7 +83,7 @@ death ∝ demand^-longevity  *  suitability^+survival  *  (E/K)
 Look at the signs.
 
 **`longevity` carries the same exponent on both rates**, so it cancels from the birth/death ratio
-entirely. It makes a species slow-and-long-lived or fast-and-short-lived — a body-size proxy — and
+entirely. It makes a species slow-and-long-lived or fast-and-short-lived - a body-size proxy - and
 it does **not** change where that species can persist or what abundance it reaches. It sets the
 *tempo* of turnover.
 
@@ -110,10 +110,10 @@ sees them.
 
 Stated so you can tell whether it suits your question:
 
-  - **individuals are not tracked** — there is no age, size or genotype, only counts;
-  - **species do not interact in pairs** — no predation, competition coefficients or interference,
+  - **individuals are not tracked** - there is no age, size or genotype, only counts;
+  - **species do not interact in pairs** - no predation, competition coefficients or interference,
     only shared demand on a common pool;
-  - **dispersal is by kernel** — offspring are placed by distance, with no directed movement or
+  - **dispersal is by kernel** - offspring are placed by distance, with no directed movement or
     habitat selection beyond what suitability already implies.
 
 ## Reproducibility
@@ -125,8 +125,8 @@ thread or many, and serially or across MPI ranks. See
 
 ## Where to go next
 
-  - [Layers, conditions and resources](@ref) — how a layer carries its meaning, and where climate
+  - [Layers, conditions and resources](@ref) - how a layer carries its meaning, and where climate
     data comes from.
-  - [Axes, units and roles: how a layer is classified](@ref) — why a layer's axis, not its unit,
+  - [Axes, units and roles: how a layer is classified](@ref) - why a layer's axis, not its unit,
     says what it is.
-  - [Time in EcoSISTEM](@ref) — the clock, and environments that change as a run proceeds.
+  - [Time in EcoSISTEM](@ref) - the clock, and environments that change as a run proceeds.

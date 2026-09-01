@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # Reading ERA5 and CERA-20C: `read(ERA, ...)`, `read(CERA, ...)`, and the four helpers only they use
-# — `_readera_array` (one variable out of one file), `_readeradir` (a directory of them concatenated
+# - `_readera_array` (one variable out of one file), `_readeradir` (a directory of them concatenated
 # along time), `_parsecfunit` (a CF `units` attribute to a Unitful unit) and `_wraplong180` (ERA
 # longitudes run 0 to 360, and every other reader produces -180 to 180).
 #
@@ -39,11 +39,11 @@ import Base.read
 """
     read(::Type{ERA}, file::String, param::String; cut = nothing)
 
-Read one variable out of a single ERA netCDF file, returning a [`ClimateRaster`](@ref)`{ERA}` —
+Read one variable out of a single ERA netCDF file, returning a [`ClimateRaster`](@ref)`{ERA}` -
 `ERA` names the *source*, and the raster carries the data.
 
-The file's own time coordinate is used as it stands — a genuine `Dates.DateTime` per layer, decoded
-from its CF metadata — and its longitudes are wrapped onto `(-180°, 180°]` to match every other
+The file's own time coordinate is used as it stands - a genuine `Dates.DateTime` per layer, decoded
+from its CF metadata - and its longitudes are wrapped onto `(-180°, 180°]` to match every other
 reader. Use the three-argument method to override the time coordinate instead of trusting it, and the
 four-argument one to read and concatenate a whole directory.
 
@@ -91,7 +91,7 @@ method above.
   - `dir`: the directory to search.
   - `file`: matched against each filename; every file containing it is read, in `readdir` order.
   - `param`: the name of the variable to take out of each.
-  - `dim`: the time coordinate **per file** — a vector of time vectors, one per matched file.
+  - `dim`: the time coordinate **per file** - a vector of time vectors, one per matched file.
   - `cut`: an optional region to crop to.
 """
 function Base.read(::Type{ERA}, dir::AbstractString, file::AbstractString,
@@ -103,8 +103,8 @@ end
 """
     read(::Type{CERA}, dir::String, file::String, param::String; cut = nothing)
 
-Read one variable out of the CERA-20C netCDF files in a directory — the archive is one file per
-decade — concatenate them along time, and return a [`ClimateRaster`](@ref)`{CERA}`.
+Read one variable out of the CERA-20C netCDF files in a directory - the archive is one file per
+decade - concatenate them along time, and return a [`ClimateRaster`](@ref)`{CERA}`.
 
 Unlike the `ERA` readers this needs no `dim`: the monthly time coordinate for each decade is
 generated here, because the archive's layout is known. Longitudes are wrapped onto `(-180°, 180°]` as
@@ -146,7 +146,7 @@ end
 #
 # `order` and `span` are stated rather than left `Auto`, which is what DimensionalData defaults to for
 # a plain `Vector`-backed lookup because it cannot cheaply infer either from an arbitrary vector. An
-# `Auto` span here is not resolved lazily later — it is unindexable: `_slicespan` has no method for
+# `Auto` span here is not resolved lazily later - it is unindexable: `_slicespan` has no method for
 # `AutoSpan` at all, so any later indexing of the result, `_applycut`'s crop included, throws a
 # `MethodError`. `order` is `ForwardOrdered` because `sortperm` has just made it so, and `span` is
 # `Irregular` with explicit edge bounds rather than `Regular` so that nothing assumes perfectly
@@ -176,12 +176,12 @@ end
 # unit comes from the variable's `units` attribute, through `_parsecfunit`.
 #
 # `source = NCDsource()` is forced because a file downloaded from the CDS carries no `.nc` extension,
-# so Rasters' extension-based backend guess falls back to GDAL — which reads the data but drops both
+# so Rasters' extension-based backend guess falls back to GDAL - which reads the data but drops both
 # the CF coordinates, leaving integer indices, and the `units` attribute.
 function _readera_array(file::String, param::String)
     ras = Raster(file, name = Symbol(param), source = Rasters.NCDsource())
     u = _parsecfunit(string(get(Rasters.metadata(ras), "units", "")))
-    # ERA5 longitudes run 0–360°; roll them onto (-180, 180] to match the other (tif) readers
+    # ERA5 longitudes run 0-360°; roll them onto (-180, 180] to match the other (tif) readers
     return _wraplong180(_rastertodimarray(ras, unit = u))
 end
 

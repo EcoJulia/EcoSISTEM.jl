@@ -25,7 +25,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
     eco = Test1Ecosystem()
     @test eco isa Ecosystem
     @test sum(eco.abundances.matrix, dims = 2)[:, 1] == eco.spplist.abun
-    # tolerances, regime and nichefit line up — arity, names, unit and kind, member by member
+    # tolerances, regime and nichefit line up - arity, names, unit and kind, member by member
     @test isnothing(EcoSISTEM._checkaligned("t",
                                             EcoSISTEM._toleranceside(eco.spplist.tolerance),
                                             EcoSISTEM._regimeside(eco.habitat.regime),
@@ -47,7 +47,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                                    eco.spplist.native)
     eco = Ecosystem(sppl, eco.habitat, eco.nichefit)
     # Adding a species mid-run is the `AddSpecies` operation, applied either by declaring an
-    # intervention or — as here — through `applyinterventions!`, the supported imperative route.
+    # intervention or - as here - through `applyinterventions!`, the supported imperative route.
     # `step` must be one the run has actually reached: the selection RNG is keyed on it.
     before = length(eco.spplist.names)
     @test_nowarn EcoSISTEM.applyinterventions!(eco,
@@ -72,7 +72,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         @test_nowarn EcoSISTEM.getgridshape(eco)
         @test EcoSISTEM.getgridshape(eco) == size(eco.habitat.regime.matrix)
         # **No `@test_nowarn` and no log assertion**, deliberately: these are deprecated, so they
-        # warn — but only when `--depwarn=yes`, which `Pkg.test` sets and a direct `include` does
+        # warn - but only when `--depwarn=yes`, which `Pkg.test` sets and a direct `include` does
         # not. Asserting either way makes the test pass in one environment and fail in the other.
         # What matters is that the shims still *work*, so the values are what is pinned.
         @test getdispersaldist(eco, 1) == eco.spplist.movement.kernels[1].dist
@@ -81,7 +81,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
               (eco.spplist.movement.kernels[1].dist)^2 * pi / 4
         @test getdispersalvar(eco, "1") == getdispersalvar(eco, 1)
 
-        # …and what supersedes them: the kernel itself, from either an ecosystem or the species
+        # ...and what supersedes them: the kernel itself, from either an ecosystem or the species
         # list `build_species` returned, by index or by name.
         @test_nowarn EcoSISTEM.speciesdispersal(eco, 1)
         @test EcoSISTEM.speciesdispersal(eco, 1) ===
@@ -97,9 +97,9 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         @test EcoSISTEM.getlookup(eco, "1") == eco.lookup[1]
         @test EcoSISTEM.getlookup(eco, 1) == eco.lookup[1]
         # `setchange!` installs a steady increment, checked against the regime's own unit per
-        # second — here a dimensionless (land-cover) regime, so `s⁻¹`. A rate of the wrong
+        # second - here a dimensionless (land-cover) regime, so `s^-1`. A rate of the wrong
         # dimension for *this* layer is rejected, where the old `resetrate!` methods accepted any
-        # `𝐓⁻¹` or `𝚯 𝐓⁻¹` rate on any regime whatsoever.
+        # `𝐓^-1` or `𝚯 𝐓^-1` rate on any regime whatsoever.
         @test_nowarn EcoSISTEM.setchange!(eco.habitat.regime,
                                           IncrementBy(0.1 / s))
         @test eco.habitat.regime.change ==
@@ -118,7 +118,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
     @testset "movement types" begin
         # Test other movement types
         eco = Test1Ecosystem()
-        # No topology here since step 19 — it belongs to the habitat, not the movement.
+        # No topology here since step 19 - it belongs to the habitat, not the movement.
         mov = AlwaysMovement(fill(LongTailKernel(10.0km, 10.0, 1e-10),
                                   length(eco.spplist.names)))
         sppl = SpeciesList{typeof(eco.spplist.tolerance),
@@ -159,7 +159,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         numSpecies = 4
         grid = (5, 5)
         area = 10000.0km^2
-        # Two regimes *and* two supplies — `GridHabitat` takes a tuple on either side, so the
+        # Two regimes *and* two supplies - `GridHabitat` takes a tuple on either side, so the
         # eltypes still differ ([K, mm/d]) without hand-assembling the collections.
         side = sqrt(area)
         habitat = GridHabitat(regime = (UniformSpec(10.0K,
@@ -229,12 +229,12 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
             e
         end
         @test swaperr isa ErrorException
-        # **The offending layers are named by their AXES**, not by their positions — that is D25
+        # **The offending layers are named by their AXES**, not by their positions - that is D25
         # earning its keep on the error path: the message says *which measurements* disagree rather
         # than which slots, and the reader does not have to count members to find out.
         # **D3(a) moved which check catches this.** A nichefit now carries its own axis, so the
         # swapped fit derives `(:Precipitation, :Temperature)` against the tolerance's
-        # `(:Temperature, :Precipitation)` and the **naming** check fires first — where before, the
+        # `(:Temperature, :Precipitation)` and the **naming** check fires first - where before, the
         # fit had no axis, both sides fell back to positional names, and it reached the per-member
         # check. Caught earlier and by a better question; the axes are still what is named.
         @test occursin("Temperature", swaperr.msg) &&
@@ -268,8 +268,8 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
 end
 
 @testset "_addtypes! keeps the names, and refuses what it cannot extend" begin
-    # Real names are essential: `build_species` yields `"1"`, `"2"`, … , so the bug this guards —
-    # `UniqueTypes(count)` renaming **every existing species** to its index on each `_addspecies!` —
+    # Real names are essential: `build_species` yields `"1"`, `"2"`, ... , so the bug this guards -
+    # `UniqueTypes(count)` renaming **every existing species** to its index on each `_addspecies!` -
     # cannot show itself on a synthetic list.
     named = ["oak", "ash", "elm"]
     types = EcoSISTEM._uniquetypes(named)
@@ -277,7 +277,7 @@ end
     @test gettypenames(grown, true) == [named; "yew"]
     @test counttypes(grown, true) == 4
 
-    # And a species list whose types are not `UniqueTypes` — a phylogeny, in practice — is refused
+    # And a species list whose types are not `UniqueTypes` - a phylogeny, in practice - is refused
     # with the reason rather than falling off the end of dispatch as a `MethodError`.
     @test_throws ErrorException EcoSISTEM._addtypes!(NotUniqueTypes(), "yew")
 end
@@ -306,7 +306,7 @@ function cache_test_eco(seed)
 
     sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement, param,
                        native)
-    # The grid is decided first, then built on: 100 km² over 4 × 4 is 2.5 km cells — the same
+    # The grid is decided first, then built on: 100 km^2 over 4 × 4 is 2.5 km cells - the same
     # `sqrt(area / prod(dimension))` the deprecated builder computed internally.
     studyarea = StudyArea(extent = (sqrt(area), sqrt(area)),
                           cellsize = sqrt(area) / grid[1], verbosity = :silent)
@@ -347,7 +347,7 @@ end
     # Resuming from the cache reproduces the uncached run exactly
     @test resumed.matrix == expected
 
-    # clearcache! removes the saved files — the `!` is owed, it deletes them
+    # clearcache! removes the saved files - the `!` is owed, it deletes them
     @test_nowarn EcoSISTEM.clearcache!(cache2)
     @test isempty(filter(f -> endswith(f, ".jld2"), readdir(dir)))
 end
@@ -395,8 +395,8 @@ end
 
 # **The cached ecosystem must answer diversity questions like any other**, and this is the only
 # testset that asks it one: every other compares abundances or counts files. That gap is how
-# `_getabundance(::CachedEcosystem, …)` can skip `_calcabundance` — the hook `SpeciesList` forwards
-# to `sl.types` through — without anything noticing.
+# `_getabundance(::CachedEcosystem, ...)` can skip `_calcabundance` - the hook `SpeciesList` forwards
+# to `sl.types` through - without anything noticing.
 #
 # **A `UniqueTypes` fixture cannot see it.** `_calcabundance` returns a `UniqueTypes` array
 # unchanged, so the two paths agree exactly and the bug is invisible; it bites only where the types
@@ -412,7 +412,7 @@ end
 
     # The non-vacuity guard: with a `UniqueTypes` list every assertion below is trivially true.
     # Matched by name because `PhyloBranches` lives in `DiversityPhyloExt`, an extension of
-    # Diversity — there is no `Diversity.PhyloBranches` to name.
+    # Diversity - there is no `Diversity.PhyloBranches` to name.
     @test nameof(typeof(eco.spplist.types)) === :PhyloBranches
 
     times = (0.0month_mean_duration):(1.0month_mean_duration):(2.0month_mean_duration)
@@ -427,7 +427,7 @@ end
     @test proccache ≈ proceco
 
     # The assertion the fix is really about: processing maps species onto branches, so the answer is
-    # a *different shape* from the raw abundances. Returning the raw ones — the old behaviour —
+    # a *different shape* from the raw abundances. Returning the raw ones - the old behaviour -
     # would make this test fail on size alone.
     @test size(proccache, 1) > size(rawcache, 1)
 end

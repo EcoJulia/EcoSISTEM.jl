@@ -1,5 +1,23 @@
 # NEWS
 
+- v0.6.1
+  - Added
+    - `AlwaysMovement` now works in a distributed (MPI) run, so all three movement types do. Each
+      rank owns a block of species across the whole grid while the dynamics run, so dispersing an
+      established individual stays rank-local exactly as dispersing a newborn does; only the field
+      the count is read from differed between the two landscapes.
+  - Changed
+    - `getabundance` on a distributed ecosystem refuses rather than returning one rank's block, and
+      names `gatherabundance` instead. Diversity's consumers each reduce that matrix over a different
+      axis, so a block silently answered at least one of them wrongly. The measures built on it
+      refuse too for now, rather than returning numbers that depended on the rank count.
+  - Fixed
+    - Another inconsistency between serial and distributed code - changing abundances through an
+      intervention diverged from the serial run on the same seed because of synchronisation
+      order, which is now switched to give a consistent result.
+    - The diversity measures now run distributed, each rank computing the cells it owns against the
+      full similarity matrix, and `gatherdiversity` assembles them into the serial answer on every
+      rank. `_getordinariness!`, `_getmetaabundance`, `_getweight` and `_getscale` now work too.
 - v0.6.0
   - Breaking
     - A landscape's `matrix` and `grid` are plain arrays again, as they were before v0.5.0. The
@@ -13,18 +31,16 @@
       builds a distributed one, so the signature says which rather than the name. The old MPI name
       errors, naming the replacement: it took the partition alone and cannot reach the species names
       or grid the labelled views need.
-    - `copy` of a landscape is gone. It could not carry the grid its result needs, and its one
-      caller had the habitat to hand anyway.
-    - `BlockArrays` is a new dependency, used to present the distributed column buffer as one
-      ordinary matrix.
+    - `copy` of a landscape is removed - not needed and hard to reimplement for new landscape fields.
   - Fixed
     - A distributed (MPI) run gave different results from a serial one on the same seed, breaking the
-      reproducibility the design guarantees. This was a bugfix applied to the serial code several years ago forgotten on MPI.
+      reproducibility the design guarantees. This was a bugfix applied to the serial code but
+      missed on MPI.
     - `update!` for an abstract ecosystem was faulty but masked by equivalent functions for the
       concrete types. Now unified to a single function.
     - Fixing v0.5.0 hot loop allocation bug for serial code - revert to pre-v0.5.0 raw arrays for hot
       loop access to species counts, but keep DimArrays referencing the same memory to keep records
-      of species and locations
+      of species and locations.
   - Internal
     - The distributed code is renamed and rearranged to mirror the serial code file for file and name
       for name, so that the two can be read side by side.
@@ -56,18 +72,18 @@
   - A new interface
     - The grid is decided first: a `StudyArea` fixes extent, cell size and CRS before anything is
       built on it, and `investigate_study_area` reports what a run would cost before you commit to it.
-    - An environment is assembled from spec recipes — `UniformSpec`, `GradientSpec`, `PeakedSpec`,
-      `NicheSpec`, `SourceSpec`, `ConstructedSpec` — by `GridHabitat`, or by `build_habitat`, which
+    - An environment is assembled from spec recipes - `UniformSpec`, `GradientSpec`, `PeakedSpec`,
+      `NicheSpec`, `SourceSpec`, `ConstructedSpec` - by `GridHabitat`, or by `build_habitat`, which
       supplies what you do not name and reports what it chose. Species come from `build_species`, and
       `build_ecosystem` pairs the two sides and checks them against each other.
     - One layer family covers both halves of the environment, parameterised by role (`Condition` or
       `Resource`) and by niche axis, and tolerances and demands mirror it exactly on the species side.
       Everything is named by its niche axis, and a layer pairs only with a requirement on the
-      identical axis. Collections of any of them implement the standard container interface — `keys`,
-      `values`, `pairs`, `iterate`, `getindex` — in place of the bespoke accessors.
+      identical axis. Collections of any of them implement the standard container interface - `keys`,
+      `values`, `pairs`, `iterate`, `getindex` - in place of the bespoke accessors.
     - Environmental change is declared rather than programmed: any layer may carry a layer change,
-      which is a pure function of elapsed time. Change to the ecosystem itself — deactivating cells,
-      adding or removing abundance, introducing a species — is a separate mechanism, `Intervention`,
+      which is a pure function of elapsed time. Change to the ecosystem itself - deactivating cells,
+      adding or removing abundance, introducing a species - is a separate mechanism, `Intervention`,
       scheduled by time and aimed at a region.
     - A run may carry an epoch, the real date its elapsed time zero stands for, and calendar month
       durations replace the old fixed 30.4375-day month.
@@ -78,7 +94,7 @@
       `scale` without a window is the exception: it coarsens the whole file, and memoises the result
       so that only the first one is slow.
     - Cell size and area can be asked of anything that knows the grid, and a geographic grid answers
-      with an angle and a true solid angle rather than a fabricated length — so a supply on a
+      with an angle and a true solid angle rather than a fabricated length - so a supply on a
       latitude/longitude grid is scaled by its own cell's area instead of the whole grid's.
     - Several fixes changed what the model computes: the suitability term was applied once per resource
       in a multi-resource environment; an axis's canonical unit silently moved every equilibrium; a

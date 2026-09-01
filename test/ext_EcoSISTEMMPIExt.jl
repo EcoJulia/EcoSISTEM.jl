@@ -54,7 +54,7 @@ end
     sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
                        movement, param, native)
 
-    # Create abiotic environment — an even grid of one temperature. The study area decides the
+    # Create abiotic environment - an even grid of one temperature. The study area decides the
     # grid; `GridHabitat` only samples onto it.
     studyarea = StudyArea(extent = (sqrt(area), sqrt(area)),
                           cellsize = sqrt(area) / grid[1], verbosity = :silent)
@@ -68,7 +68,7 @@ end
     nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
     # build_ecosystem auto-selection: with MPI initialised but a single rank, `:auto` stays serial
-    # (Comm_size == 1) while `distributed = true` forces the distributed type — from the same
+    # (Comm_size == 1) while `distributed = true` forces the distributed type - from the same
     # SpeciesList + GridHabitat that MPIEcosystem takes directly.
     @test build_ecosystem(sppl, habitat, nichefit = nichefit) isa Ecosystem
     @test build_ecosystem(sppl, habitat, nichefit = nichefit,
@@ -104,10 +104,21 @@ end
     EcoSISTEM.synchronise_from_cols!(eco.abundances)
     @test sum(eco.abundances.cols_vector) == sum(eco.abundances.rows_matrix)
 
-    @test sum(getabundance(eco)) ≈ 1.0
+    # `getabundance` refuses on a distributed ecosystem whatever the rank count: it asks for the
+    # whole metacommunity's abundances, which no rank holds, and Diversity's consumers each reduce
+    # that matrix over a different axis. The refusal stands even here, where a single rank does
+    # happen to hold everything - an answer that appeared at one rank and vanished at two would be
+    # exactly the kind of rank-dependence the distributed code exists to avoid.
+    @test_throws "no single rank holds them" getabundance(eco)
+
+    # The genuinely global quantities, asserted on their length as well as their total: a sum of one
+    # is true of any block normalised by its own total, which is how the per-species totals came to
+    # cover only the calling rank's species without any test noticing.
+    @test length(getmetaabundance(eco)) == numSpecies
     @test sum(getmetaabundance(eco)) ≈ 1.0
     @test sum(getordinariness!(eco)) ≈ 1.0
     @test sum(getweight(eco)) ≈ 1.0
+    @test length(getweight(eco)) == countsubcommunities(eco)
 
     # Gather abundances and check against rows matrix - should be same for 1 process
     abuns = gatherabundance(eco)

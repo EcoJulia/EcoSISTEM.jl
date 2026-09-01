@@ -31,12 +31,12 @@ using Dates: Dates
     ContinuousLayer{R <: Role, A <: NicheAxis, V <: Number, Arr <: DimensionalData.AbstractDimArray{V, 2}, S <: Unitful.Quantity}
 
 A continuous (numeric) grid layer of role `R` on niche axis `A`, holding a value `matrix`
-(eltype `V`) as a `DimArray` over `(Y, X)` — real `Projected`/`Sampled` lookups for a
+(eltype `V`) as a `DimArray` over `(Y, X)` - real `Projected`/`Sampled` lookups for a
 data-driven source, `NoLookup` for a synthetic one (see `docs/architecture.md`).
 
 A layer holds one grid of values, never a stack of them: a time-varying layer holds the values
 current *now* and carries a [`SeriesLayerChange`](@ref) as its `change`, which decides from elapsed time
-which stored slice that is. The array bound says `2` to keep it that way — the stack and the
+which stored slice that is. The array bound says `2` to keep it that way - the stack and the
 cursor that walked it were what made a layer's own state ambiguous.
 """
 mutable struct ContinuousLayer{R <: Role, A <: NicheAxis, V <: Number,
@@ -49,7 +49,7 @@ mutable struct ContinuousLayer{R <: Role, A <: NicheAxis, V <: Number,
     change::AbstractLayerChange
 end
 
-"""    ContinuousRegime{V} — a static continuous regime (a `Condition`-role [`ContinuousLayer`](@ref) over a `(Y, X)` `DimArray{V}`). """
+"""    ContinuousRegime{V} - a static continuous regime (a `Condition`-role [`ContinuousLayer`](@ref) over a `(Y, X)` `DimArray{V}`). """
 const ContinuousRegime{V} = ContinuousLayer{Condition, A, V, Arr,
                                             S} where {A, S,
                                                       Arr <:
@@ -61,7 +61,7 @@ const ContinuousRegime{V} = ContinuousLayer{Condition, A, V, Arr,
 # Back-compat aliases + constructors (regime role)
 # ---------------------------------------------------------------------------
 
-# Old positional constructors → new layer types, defaulting to the `NicheAxis` axis (the
+# Old positional constructors -> new layer types, defaulting to the `NicheAxis` axis (the
 # axis-aware `materialise` path constructs `ContinuousLayer{Condition, A}` with the real axis
 # directly).
 function ContinuousRegime(matrix::DimArray{C, 2, <:Tuple{<:Y, <:X}},
@@ -72,11 +72,11 @@ function ContinuousRegime(matrix::DimArray{C, 2, <:Tuple{<:Y, <:X}},
                            typeof(size)}(matrix, size, change)
 end
 
-# A plain `Matrix` (no real CRS to attach — the synthetic case) is wrapped onto a fresh
+# A plain `Matrix` (no real CRS to attach - the synthetic case) is wrapped onto a fresh
 # `NoLookup` `(Y, X)` grid, mirroring the `Supply{A}` constructors below.
 # **`Unitful.Quantity`, not `Unitful.Length`, and only because a GEOGRAPHIC grid's cell size is
-# genuinely an angle** (`0.1666…°`). Nothing is being converted: a degree grid really has degree
-# cells, and forcing a metric equivalent here would fabricate a number the grid does not have — the
+# genuinely an angle** (`0.1666...°`). Nothing is being converted: a degree grid really has degree
+# cells, and forcing a metric equivalent here would fabricate a number the grid does not have - the
 # area-preserving size exists to let the *simulator* pretend cells are uniform, which is exactly the
 # pretence `build_ecosystem` refuses to make. The layer's `S` parameter keeps the field concrete
 # and dispatchable, so anything that needs a metric grid can require `S <: Unitful.Length`.
@@ -88,7 +88,7 @@ end
 """
     Supply{A}
 
-A supply of the resource measured on niche axis `A` — a `Resource`-role
+A supply of the resource measured on niche axis `A` - a `Resource`-role
 [`ContinuousLayer`](@ref) over a `(Y, X)` grid: `Supply{SolarRadiation}` (`kJ/day` per cell),
 `Supply{Precipitation}` (`L/day`), `Supply{CarbonFlux}` (`g/day`).
 
@@ -105,7 +105,7 @@ const Supply{A} = ContinuousLayer{Resource, A, V, Arr,
                                             DimArray{V, 2, <:Tuple{<:Y, <:X}}}
 
 # There is deliberately no `_getavailablesupply` here. Totalling a supply needs the habitat's
-# `active` mask — an inactive cell's resource is not available to anything — so it belongs with the
+# `active` mask - an inactive cell's resource is not available to anything - so it belongs with the
 # habitat, and `totalsupply` (`GridHabitat.jl`) is the whole of it. A supply-only version
 # existed, was called by nothing, and quietly became `sum(supply.matrix)` tested against
 # `sum(supply.matrix)`.
@@ -144,7 +144,7 @@ end
 """
     CategoricalLayer{A <: NicheAxis, V, Arr <: DimensionalData.AbstractDimArray{V, 2}, S <: Unitful.Quantity}
 
-A categorical (class-code) grid layer on niche axis `A` — always a `Condition` (there is no
+A categorical (class-code) grid layer on niche axis `A` - always a `Condition` (there is no
 categorical supply). `matrix` is a `DimArray` over `(Y, X)`.
 """
 mutable struct CategoricalLayer{A <: NicheAxis, V,
@@ -156,7 +156,7 @@ mutable struct CategoricalLayer{A <: NicheAxis, V,
     change::AbstractLayerChange
 end
 
-"""    CategoricalRegime{V} — a categorical regime (a [`CategoricalLayer`](@ref), e.g. land cover), a `(Y, X)` `DimArray{V}`. """
+"""    CategoricalRegime{V} - a categorical regime (a [`CategoricalLayer`](@ref), e.g. land cover), a `(Y, X)` `DimArray{V}`. """
 const CategoricalRegime{V} = CategoricalLayer{A, V, Arr,
                                               S} where {A, S,
                                                         Arr <:
@@ -181,7 +181,7 @@ end
     LayerCollection{R <: Role, A, C <: NamedTuple}
 
 Several layers of the same role `R` over one grid (e.g. temperature + rainfall) and over the
-**axis structure** `A`, held by name in a `NamedTuple`, `(Temperature = …, Precipitation = …)`.
+**axis structure** `A`, held by name in a `NamedTuple`, `(Temperature = ..., Precipitation = ...)`.
 Sub-layer types stay concrete in the backing's own type, so the hot loop is exactly as type-stable
 as the fixed-arity named fields it replaces, and the arity is limited only by what the caller
 writes.
@@ -189,7 +189,7 @@ writes.
 **Layers are named by their axis**, so a `Tuple` is accepted and named for you; two layers on
 the **same** axis cannot be told apart that way and are refused, asking for explicit names.
 
-Layers are reached through the standard container interface — `lc.Precipitation`, `lc[1]`,
+Layers are reached through the standard container interface - `lc.Precipitation`, `lc[1]`,
 `lc[:Precipitation]`, `keys`, `values`, `pairs`, `iterate`, `length`, `merge` and `NamedTuple(lc)`,
 all forwarded to the backing (`src/collections.jl`). A **single layer answers identically**, as a
 one-member container.
@@ -201,7 +201,7 @@ struct LayerCollection{R <: Role, A, C <: NamedTuple} <:
     # The sole constructor, so there is exactly one spelling and `R` cannot be got wrong: the role
     # is *read off* the layers rather than chosen, so leaving the generated positional constructors
     # alive would let a caller assert a role its own layers contradict.
-    # Takes a `Tuple` or a `NamedTuple` as it always did — a tuple's names are **derived** here
+    # Takes a `Tuple` or a `NamedTuple` as it always did - a tuple's names are **derived** here
     # (`_asnamedtuple`, `collections.jl`) rather than the two backings being kept apart downstream.
     # `A` is a third parameter rather than being computed in the supertype expression, because
     # Julia refuses that: `<: AbstractLayer{R, first(fieldtypes(C))}` is a `MethodError` on a
@@ -213,12 +213,12 @@ struct LayerCollection{R <: Role, A, C <: NamedTuple} <:
     end
 end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
-# A layer is routinely nested — inside a habitat, inside a collection, inside a vector — so it needs
+# A layer is routinely nested - inside a habitat, inside a collection, inside a vector - so it needs
 # the compact one-liner as much as the multi-line form. Without one the default prints the whole
 # matrix: measured at 50 016 characters for a 60 x 100 regime and 122 007 for a two-member
 # collection, on a single line.
@@ -281,10 +281,10 @@ function Base.show(io::IO, ::MIME"text/plain", c::LayerCollection)
 end
 
 # ---------------------------------------------------------------------------
-# Supplies — `Resource`-role layers (folded onto `ContinuousLayer{Resource}`)
+# Supplies - `Resource`-role layers (folded onto `ContinuousLayer{Resource}`)
 # ---------------------------------------------------------------------------
 # `Supply{A}` (defined in Layer.jl) is an alias over `ContinuousLayer{Resource, A, V, Arr}`, always
-# over `(Y, X)` and with the value type left free — the axis says what the unit is. The
+# over `(Y, X)` and with the value type left free - the axis says what the unit is. The
 # constructors below fill the (unused) `size` and the per-timestep `change` rule and zero
 # NaNs, reproducing the old supply structs. A supply's `size` is never read
 # (geometry/dispersal use the regime), so a placeholder is stored. A supply built here never
@@ -308,7 +308,7 @@ end
 # Coverage: does the run fit the series driving it?
 # ---------------------------------------------------------------------------
 # Reported before the first step rather than discovered during it. `ErrorAtEnd` would fail anyway,
-# but at the step it happens — three years into a fifty-year run, after three years of compute — so
+# but at the step it happens - three years into a fifty-year run, after three years of compute - so
 # saying so up front is the whole value. `HoldAtEnd` never fails, which is exactly why it earns a
 # warning instead: a series pinned at its last slice for most of a run is rarely what was meant, and
 # the *proportion* is the number that tells someone whether they meant it. `RepeatAtEnd` cycles by
@@ -336,7 +336,7 @@ end
 # Most out-of-bounds conditions are **predictable**: a steady rate over a known duration ends at
 # `initial + rate × duration`, and an absolute series' values are all in hand. So they can be reported
 # before the first timestep, exactly as `checkcoverage` reports a series that will not cover the run
-# — which is the difference between "shorten your run" and a simulation that dies three years in.
+# - which is the difference between "shorten your run" and a simulation that dies three years in.
 #
 # Deliberately **partial, and silent where it cannot be sure.** A `PatternedLayerChange` takes an
 # arbitrary user function of elapsed time, so its reach is not bounded by its amplitude in general; a
@@ -363,8 +363,8 @@ function check_bounds(eco::AbstractEcosystem, duration::Unitful.Time,
 end
 
 # The resource available in each cell. A supply holds one grid of values whether or not it varies
-# in time — a time-varying one carries a `SeriesLayerChange` that writes the current slice into that
-# same matrix each step — so there is nothing here to choose between.
+# in time - a time-varying one carries a `SeriesLayerChange` that writes the current slice into that
+# same matrix each step - so there is nothing here to choose between.
 function _getsupply(supply::ContinuousLayer{Resource})
     return supply.matrix
 end
@@ -424,19 +424,19 @@ end
     end
 end
 
-# The methods below dispatch on the `Condition`-role layer types — `AbstractLayer{Condition}`,
-# `ContinuousLayer`, `CategoricalLayer` and `LayerCollection` — which the `*Regime` aliases name. The
+# The methods below dispatch on the `Condition`-role layer types - `AbstractLayer{Condition}`,
+# `ContinuousLayer`, `CategoricalLayer` and `LayerCollection` - which the `*Regime` aliases name. The
 # released `*Hab` and `HabitatCollection2` spellings are deprecated aliases over the same types.
 
 # **One level, not two.** A layer is **not** an `EcoBase.AbstractPlaces`, so Diversity's own
 # `countsubcommunities` could never dispatch here and its `_countsubcommunities` hook would never be
-# called — the indirection would buy nothing. These are methods on Diversity's *public* generic for
+# called - the indirection would buy nothing. These are methods on Diversity's *public* generic for
 # our type, which is the whole extension mechanism. Contrast `GridHabitat`, which genuinely **is**
 # an `AbstractPartition`: there the `_` hook is right, and the public name comes free.
 # **A layer is not a grid**, and there are deliberately no `EcoBase.AbstractGrid` methods on one. It
 # holds values *on* a grid, and cannot answer where its cells are without inventing an origin or
-# dividing its stored size by a unit it may not be in — a geographic layer asked for a metric cell
-# size can only answer `1.0 ° km⁻¹`, which is neither a length nor an angle. [`StudyGrid`](@ref)
+# dividing its stored size by a unit it may not be in - a geographic layer asked for a metric cell
+# size can only answer `1.0 ° km^-1`, which is neither a length nor an angle. [`StudyGrid`](@ref)
 # answers those from the grid's own dimensions instead, and a habitat reaches it through its
 # [`StudyArea`](@ref).
 
@@ -444,12 +444,12 @@ iscontinuous(::ContinuousRegime) = true
 
 iscontinuous(regime::CategoricalRegime) = false
 
-# A plot title for a regime, keyed on its **axis** — the mirror of `_resourcetitle` for the other
+# A plot title for a regime, keyed on its **axis** - the mirror of `_resourcetitle` for the other
 # role, and the same rule as everything else on this path. The fallback names any axis from its own
 # declaration, so a layer on a newly declared axis plots sensibly with no entry added anywhere.
 #
-# **This replaces a `Dict(K => "Temperature (K)", mm => "Rainfall (mm)", …)` keyed on the value's
-# unit** — the exact inference this subproject exists to remove, surviving in the one place nobody
+# **This replaces a `Dict(K => "Temperature (K)", mm => "Rainfall (mm)", ...)` keyed on the value's
+# unit** - the exact inference this subproject exists to remove, surviving in the one place nobody
 # looked. It was broken in three separate ways, all of which the axis form cannot reproduce: the
 # categorical recipe read `unitdict` from a *sibling recipe's local scope*, so plotting any
 # categorical layer threw `UndefVarError`; the continuous one threw `KeyError` for any unit outside
@@ -459,7 +459,7 @@ iscontinuous(regime::CategoricalRegime) = false
 # own name and canonical unit, so one would be a second copy of a fact the declaration already holds.
 _regimetitle(::Type{<:Precipitation}) = "Rainfall (mm/day)"
 
-_regimetitle(::Type{<:SolarRadiation}) = "Solar Radiation (kJ/m²/day)"
+_regimetitle(::Type{<:SolarRadiation}) = "Solar Radiation (kJ/m^2/day)"
 
 function _regimetitle(::Type{A}) where {A <: NicheAxis}
     u = canonicalunit(A)
@@ -467,13 +467,13 @@ function _regimetitle(::Type{A}) where {A <: NicheAxis}
            "$(nameof(A)) ($u)"
 end
 
-# The `(x, y)` coordinate vectors a heatmap wants, read off the layer's own dimensions — `x` named
+# The `(x, y)` coordinate vectors a heatmap wants, read off the layer's own dimensions - `x` named
 # first because that is the order `plot(x, y, z)` takes, while `z` stays `(Y, X)` as everywhere else.
 #
 # **This replaces `xrange(H), yrange(H)`**, EcoBase derivations that worked only while a layer
 # claimed to be a grid. They were built from a fabricated origin of `0` and a cell size divided by
 # `km`, so a geographic layer was plotted against axes that started nowhere in particular and were
-# labelled in `° km⁻¹`. The dims have said where the cells are all along.
+# labelled in `° km^-1`. The dims have said where the cells are all along.
 function _plotaxes(layer::AbstractLayer)
     yx = _yx(layer)
     return (x = parent(DimensionalData.lookup(yx[2])),
@@ -487,16 +487,16 @@ end
 # `s.y` alone is not a shortcut: `_checksimulatable` refuses a non-square grid before any ecosystem
 # exists, so `s.y` and `s.x` are equal here by construction. Dispersal's one-uniform-cell assumption
 # is enforced at the boundary rather than papered over with a geometric mean at the point of use,
-# which `sqrt(dy·dx)` would do invisibly.
+# which `sqrt(dy*dx)` would do invisibly.
 function _uniformcellside(regime::Union{CategoricalRegime, ContinuousRegime})
     s = getcellsizes(regime)
     isnothing(s) &&
-        error("this regime has no cell size, so dispersal cannot be set up on it — " *
+        error("this regime has no cell size, so dispersal cannot be set up on it - " *
               "`_checksimulatable` should have refused it first.")
     side = first(s.y)
     side isa Unitful.Length ||
         error("this regime's cells are $(Unitful.unit(side)) across, not a length, so dispersal " *
-              "cannot be set up on it — `_checksimulatable` should have refused it first.")
+              "cannot be set up on it - `_checksimulatable` should have refused it first.")
     return side
 end
 
@@ -518,11 +518,11 @@ end
 
 # Function to create clusters from percolated grid
 #
-# **The loop runs `(y, x)` — row, then column — and `_getneighbours` is called in that order.**
+# **The loop runs `(y, x)` - row, then column - and `_getneighbours` is called in that order.**
 # Handing it the column first clusters each cell with the neighbours of its transpose, which a square
 # grid cannot distinguish and any other rejects with *"Coordinates outside grid"*. The inner
 # `mapslices` closures take `n` rather than `x`, because an argument named `x` here would shadow the
-# column index — the same confusion one level down.
+# column index - the same confusion one level down.
 function _identifyclusters!(M::AbstractMatrix)
     # Begin cluster count
     count = 1
@@ -560,12 +560,12 @@ function _identifyclusters!(M::AbstractMatrix)
     end
 end
 
-# `(y, x)` — row then column — for the same reason as `_identifyclusters!` above, and it had the
+# `(y, x)` - row then column - for the same reason as `_identifyclusters!` above, and it had the
 # same transposed call.
-# **`assigned` is an EXPLICIT mask, and it must be** — this used `isassigned(T, y, x)`, which
+# **`assigned` is an EXPLICIT mask, and it must be** - this used `isassigned(T, y, x)`, which
 # for an `Array{Int64}` is **always `true`**. `isassigned` reports whether a *reference* slot has been
 # filled, so it means something for an `Array{Any}` and nothing at all for a concrete bits eltype:
-# every index of `Array{Int64}(undef, …)` is "assigned" the moment the array exists.
+# every index of `Array{Int64}(undef, ...)` is "assigned" the moment the array exists.
 # Used that way, **every neighbour counts, including cells never written**, and the tally is taken
 # over **uninitialised memory**: the same seed, single-threaded, gives several different maps across
 # a dozen runs while the RNG stream itself stays byte-identical, so the irreproducibility is not in
@@ -575,7 +575,7 @@ end
 # class list and so still passes any "every value is a valid class" assertion. The property that
 # actually breaks is determinism from a seed, which is what the regression testset asserts.
 # It *looks* like a load problem, since it grows commoner when other test sets run beside it
-# — but a single controlled run reproduced it with no load on one thread. The correlation was real
+# - but a single controlled run reproduced it with no load on one thread. The correlation was real
 # and the causation was not.
 function _fillin!(T, M, types, wv, assigned::AbstractMatrix{Bool})
     # Loop through grid of clusters
@@ -607,7 +607,7 @@ function _fillin!(T, M, types, wv, assigned::AbstractMatrix{Bool})
                 else
                     T[y, x] = sample(T[M .> 1])
                 end
-                # Whichever branch wrote it, the cell is now assigned — this is what the old
+                # Whichever branch wrote it, the cell is now assigned - this is what the old
                 # `isassigned` was trying and failing to say.
                 assigned[y, x] = true
             end
@@ -616,7 +616,7 @@ function _fillin!(T, M, types, wv, assigned::AbstractMatrix{Bool})
 end
 
 # The class codes themselves: a `dimension` grid of integer niche `types` with relative `weights`
-# and spatial clumpiness `clumpiness`. **Values only, and deliberately no cell size** — the
+# and spatial clumpiness `clumpiness`. **Values only, and deliberately no cell size** - the
 # percolation and clustering depend on the grid's *shape* alone, so a cell size cannot affect the
 # pattern. It was previously threaded in only to build the `CategoricalRegime` below, which
 # `_specfield` then discarded via `.matrix`; that vestigial argument was annotated
@@ -700,14 +700,14 @@ function simpleregime(val::Float64, size::Unitful.Length,
                            typeof(size)}(M, size, NoLayerChange())
 end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # ---------------------------------------------------------------------------
 # Driving the layers
 # ---------------------------------------------------------------------------
 
-# Apply one layer's own change, and recurse into a collection. Role-free — it dispatches on the
-# layer's shape, not on whether it is a regime or a supply — so the same two methods drive both.
+# Apply one layer's own change, and recurse into a collection. Role-free - it dispatches on the
+# layer's shape, not on whether it is a regime or a supply - so the same two methods drive both.
 function _layerupdate!(layer::AbstractLayer, elapsed::Unitful.Time,
                        timestep::Unitful.Time)
     return _applychange!(layer.change, layer, elapsed, timestep)
@@ -722,8 +722,8 @@ end
 # The slice a series-carrying layer starts on: the first, which is what elapsed time zero selects.
 _firstslice(stack) = stack[:, :, 1]
 
-# Install a read stack as `layer`'s own time series. The layer holds one slice at a time — the first
-# to begin with — and the series writes whichever slice is current from then on, so a stored series
+# Install a read stack as `layer`'s own time series. The layer holds one slice at a time - the first
+# to begin with - and the series writes whichever slice is current from then on, so a stored series
 # is a layer change like any other rather than a second, parallel mechanism.
 #
 # `RepeatAtEnd`, because a stored stack cycles: a twelve-month climatology is meant to repeat. The
@@ -755,7 +755,7 @@ function supplyupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
     return _layerupdate!(eco.habitat.supply, simulationtime(eco), timestep)
 end
 
-# The elapsed time the run actually finishes at — which is *not* `duration`, and the difference is a
+# The elapsed time the run actually finishes at - which is *not* `duration`, and the difference is a
 # whole timestep. `simulate!` takes `length(0s:timestep:duration)` steps, a range that includes both
 # ends, so a twelve-month run in one-month steps advances the clock thirteen times. It also starts
 # from wherever the clock already is rather than from zero, since `simulate!` does not reset it.
@@ -807,7 +807,7 @@ function _reportcoverage(::ErrorAtEnd, change::SeriesLayerChange, final)
                  "$(uconvert(month_mean_duration, final)). Use `atend = HoldAtEnd()` to " *
                  "keep the last slice, `atend = RepeatAtEnd()` to cycle, a longer series, or a " *
                  "shorter run. (An epoch later than the series' own start shortens what is left of " *
-                 "it — see `build_ecosystem`.)")
+                 "it - see `build_ecosystem`.)")
 end
 
 function _reportcoverage(::HoldAtEnd, change::SeriesLayerChange, final)
@@ -824,7 +824,7 @@ function _reportcoverage(::HoldAtEnd, change::SeriesLayerChange, final)
     return nothing
 end
 
-# How much series is left over at the end of a run of `duration` — negative when the run outlasts it.
+# How much series is left over at the end of a run of `duration` - negative when the run outlasts it.
 function _seriesspare(change::SeriesLayerChange, duration)
     return _seriesreach(change) -
            (change.origin + duration)
@@ -834,7 +834,7 @@ end
 # Priming: the values a run actually starts with
 # ---------------------------------------------------------------------------
 # A layer holds its current values in `matrix` and the rule that drives them in `change`, and a
-# change only reaches `matrix` when `_applychange!` runs — which `update!` does at the *end* of a
+# change only reaches `matrix` when `_applychange!` runs - which `update!` does at the *end* of a
 # timestep, after that step's population dynamics. Left alone, then, a series-driven layer spends the
 # whole of timestep one holding whatever its builder left behind: the spec's own value, or (for a
 # read stack) slice one regardless of what epoch the run was given. The dynamics of the first step
@@ -842,8 +842,8 @@ end
 #
 # Priming closes that: `build_ecosystem` evaluates each change at the run's start, so the
 # environment a simulation begins with is the one its series and epoch describe. It is done there
-# rather than in the `Ecosystem` constructor because that constructor is also reached mid-run — a
-# `CachedEcosystem` step rebuilds an ecosystem at an arbitrary elapsed time — where resetting layers
+# rather than in the `Ecosystem` constructor because that constructor is also reached mid-run - a
+# `CachedEcosystem` step rebuilds an ecosystem at an arbitrary elapsed time - where resetting layers
 # to the start would be plainly wrong.
 
 function _primeseries!(layer::AbstractLayer, elapsed::Unitful.Time)
@@ -859,7 +859,7 @@ end
 # Dispatch is on the change's *mode*, as `_applychange!` does, because what it means to evaluate a
 # change at the start of a run differs by mode rather than by shape. Absolute and relative changes
 # are pure functions of elapsed time, so asking what they say at the start is exactly what the first
-# timestep would have written — and idempotent, since neither compounds on what it wrote last.
+# timestep would have written - and idempotent, since neither compounds on what it wrote last.
 _primechange!(::AbstractLayerChange{NoChange}, ::AbstractLayer, _) = nothing
 
 function _primechange!(change::AbstractLayerChange{AbsoluteChange},
@@ -877,7 +877,7 @@ end
 # A rate is deliberately **not** primed, and this is the one case where priming would be wrong
 # rather than merely unnecessary. A rate accumulates `value × timestep`; at the start of a run no
 # time has passed, so nothing has accumulated. Writing anything here would add a phantom step's worth
-# of drift before the first step — and there is no timestep at build to multiply by in any case.
+# of drift before the first step - and there is no timestep at build to multiply by in any case.
 _primechange!(::AbstractLayerChange{RateChange}, ::AbstractLayer, _) = nothing
 
 _checkreach(::AbstractLayer, _) = nothing
@@ -904,7 +904,7 @@ function _refusereach(layer::AbstractLayer, bound, reach::NamedTuple, outside,
     return error("this change would drive a $(nameof(axisof(layer))) condition $which its physical " *
                  "range before the run ends: the limit is $limit, and over the run the layer " *
                  "reaches $worst. A condition outside its range is impossible rather than merely " *
-                 "exhausted — unlike a supply, which may legitimately run out — so the scenario is " *
+                 "exhausted - unlike a supply, which may legitimately run out - so the scenario is " *
                  "asking for something that cannot happen. Shorten the run, reduce the rate, or " *
                  "bound the change yourself. (Reported before the first timestep rather than at the " *
                  "step it would happen.)")
@@ -928,7 +928,7 @@ function _reach(change::SteadyLayerChange, layer::AbstractLayer,
 end
 
 # An absolute series takes its stored values and nothing else, so its reach is exactly their extremes
-# — plus the layer's own, which stand before the first slice and again under `RevertToLayer`.
+# - plus the layer's own, which stand before the first slice and again under `RevertToLayer`.
 function _reach(change::SeriesLayerChange{AbsoluteChange}, layer::AbstractLayer,
                 _)
     return (lo = min(minimum(change.slices), minimum(layer.matrix)),
@@ -938,21 +938,21 @@ end
 # ---------------------------------------------------------------------------
 # Bounds: a supply cannot be negative
 # ---------------------------------------------------------------------------
-# Not a policy bolted onto `Resource` — it restates what makes something a resource. A resource is
+# Not a policy bolted onto `Resource` - it restates what makes something a resource. A resource is
 # *rival* and consumed against a demand, so a negative amount of it has no meaning. The floor
 # therefore belongs to the layer and is enforced automatically, exactly as `NaN` already is
 # (`_zerogaps`), and no change *operation* needs to exist to express it.
 #
 # The response deliberately differs by *when* the negative appears:
-# * at **build** — a supply layer's own values, or the slices an absolute replacement will write —
+# * at **build** - a supply layer's own values, or the slices an absolute replacement will write -
 # it is the user's data or spec being wrong, and they can fix it, so failing fast is a service;
 # * at **run time** it is emergent (an increment has run the supply down past zero), and aborting a
 # long simulation would be hostile when "you cannot have less than none of a consumable" is the
 # right reading. So it warns once and clamps.
 #
 # Conditions are *not* covered here. Their bounds are axis-level rather than role-level and
-# genuinely discriminate — `ClimateMoisture` and `SiteWaterBalance` are balances and `Altitude` goes
-# below sea level — and both the bound shape (floor only, or a pair?) and the runtime policy (a
+# genuinely discriminate - `ClimateMoisture` and `SiteWaterBalance` are balances and `Altitude` goes
+# below sea level - and both the bound shape (floor only, or a pair?) and the runtime policy (a
 # temperature below absolute zero is impossible rather than exhausted) are still open.
 
 # The values a change is holding to write on some later timestep. Only *stored* values can be checked
@@ -978,7 +978,7 @@ function _checkstoredbounds(change::AbstractLayerChange,
         iszero(neg) ||
             error("this change would set a supply negative: $neg of its $(length(values)) stored " *
                   "values are below zero (the smallest is $(minimum(values))). A supply is a " *
-                  "*resource* — rival, and consumed against a demand — so a negative amount of it " *
+                  "*resource* - rival, and consumed against a demand - so a negative amount of it " *
                   "has no meaning. Fix the data or the spec: if the quantity genuinely takes both " *
                   "signs (a net flux, a balance) it is not a supply, and belongs on the regime side.")
     end
@@ -990,8 +990,8 @@ function _checksupplybounds(supply::AbstractLayer{Resource})
     neg = count(<(zero(eltype(supply.matrix))), supply.matrix)
     iszero(neg) ||
         error("this supply holds $neg negative value(s) (the smallest is " *
-              "$(minimum(supply.matrix))). A supply is a *resource* — rival, and consumed against a " *
-              "demand — so a negative amount of it has no meaning. Fix the data or the spec: if the " *
+              "$(minimum(supply.matrix))). A supply is a *resource* - rival, and consumed against a " *
+              "demand - so a negative amount of it has no meaning. Fix the data or the spec: if the " *
               "quantity genuinely takes both signs (a net flux, a balance) it is not a supply, and " *
               "belongs on the regime side.")
     return supply
@@ -1003,18 +1003,18 @@ function _checksupplybounds(supply::LayerCollection{Resource})
 end
 
 # Hold a supply at its floor after a change has written to it. `count`/`max` over the matrix once
-# per layer per timestep, not per cell per species — this is not the hot loop.
+# per layer per timestep, not per cell per species - this is not the hot loop.
 # `maxlog = 1` is the "warn once" of the agreed policy: one warning per run, not per step or per
 # layer, because a supply held at zero warns on *every* subsequent step and would otherwise drown the
 # output of a long run.
 _enforcebounds!(::AbstractLayer) = nothing
 
 # A **condition** out of bounds is an error, not a clamp, and the asymmetry with supplies is the
-# point rather than an inconsistency. A supply hitting zero is *expected* — resources get consumed,
+# point rather than an inconsistency. A supply hitting zero is *expected* - resources get consumed,
 # and running out is a legitimate ecological outcome. A temperature below absolute zero is not an
 # exhausted quantity but an **impossible** one: it says the scenario is wrong. Clamping it would let
 # a physically nonsensical run continue and produce output that looks like a result.
-# Most such failures are caught *before* the run by `check_bounds` — this is the backstop for the
+# Most such failures are caught *before* the run by `check_bounds` - this is the backstop for the
 # changes whose reach cannot be predicted.
 function _enforcebounds!(layer::AbstractLayer{Condition})
     lo, hi = bounds(axisof(layer))
@@ -1029,14 +1029,14 @@ function _enforcebounds!(layer::AbstractLayer{Resource})
     iszero(neg) && return nothing
     @warn "A change has driven a $(nameof(axisof(layer))) supply below zero in $neg cell(s) " *
           "(the smallest is $(minimum(layer.matrix))); clamping to $floor. A supply is a resource, " *
-          "so it cannot go negative — but running out of one is a legitimate outcome, which is why " *
+          "so it cannot go negative - but running out of one is a legitimate outcome, which is why " *
           "this is a warning rather than an error. Reported once per run." maxlog=1
     layer.matrix .= max.(layer.matrix, floor)
     return nothing
 end
 
 # The bound is converted into the *layer's* unit rather than the values into canonical, so the
-# comparison is one conversion instead of one per cell — and so an **affine** axis is handled by
+# comparison is one conversion instead of one per cell - and so an **affine** axis is handled by
 # Unitful rather than by hand: absolute zero on a `°C` layer converts to `-273.15 °C`, which is what
 # the values must actually be compared against.
 _refuseoutofbounds(::AbstractLayer, ::Nothing, _, _) = nothing
@@ -1048,7 +1048,7 @@ function _refuseoutofbounds(layer::AbstractLayer, bound, outside, which)
     worst = outside(1, 0) ? maximum(layer.matrix) : minimum(layer.matrix)
     return error("a change has driven a $(nameof(axisof(layer))) condition $which its physical " *
                  "range in $bad cell(s): the limit is $limit and the worst value is $worst. Unlike " *
-                 "a supply — which may legitimately run out, and is clamped — a condition outside " *
+                 "a supply - which may legitimately run out, and is clamped - a condition outside " *
                  "its range is impossible rather than exhausted, so this is an error: the scenario " *
                  "asks for something that cannot happen. Shorten the run, reduce the rate, or bound " *
                  "the change yourself.")
@@ -1099,7 +1099,7 @@ end
 # A change cannot be attached to a spec: it is validated against the layer's unit, and a relative
 # change captures the layer's values, neither of which exists until the spec has been materialised
 # on a grid. So a declaration is *carried* next to the spec by `Varying` and applied once the layer
-# is built. Specs themselves stay naked — nothing upstream of `GridHabitat` knows that time
+# is built. Specs themselves stay naked - nothing upstream of `GridHabitat` knows that time
 # variation exists, which is why the same spec can be handed to `StudyArea` (which cares only about
 # the grid) and re-used wrapped at build time without the two drifting apart.
 
@@ -1118,7 +1118,7 @@ _changeof(v::Varying) = v.change
 # both halves are tuples, aligned positionally, so a second element and its change stay together.
 _splitvarying(x) = (spec = _unwrapspec(x), change = _changeof(x))
 
-# A named tuple splits the same way and keeps its names on both halves — `NamedTuple <: Tuple` is
+# A named tuple splits the same way and keeps its names on both halves - `NamedTuple <: Tuple` is
 # `false`, so it needs saying explicitly or it would take the scalar path above.
 function _splitvarying(t::Union{Tuple, NamedTuple})
     return (spec = map(_unwrapspec, t), change = map(_changeof, t))
@@ -1138,8 +1138,8 @@ end
 
 function _applydeclared!(layer::AbstractLayer, change)
     # A layer read from a monthly stack already carries a `SeriesLayerChange`, which is what makes it vary.
-    # A change declared on top of that is *added* to it rather than replacing it — a seasonal
-    # pattern and a multi-year trend offset one another, they do not compete — which is why
+    # A change declared on top of that is *added* to it rather than replacing it - a seasonal
+    # pattern and a multi-year trend offset one another, they do not compete - which is why
     # composition had to exist before this could be anything but an error.
     layer.change isa NoLayerChange && return setchange!(layer, change)
     layer.change = _combineparts((layer.change,
@@ -1151,7 +1151,7 @@ end
 # The simulation epoch
 # ---------------------------------------------------------------------------
 # A run's epoch is the real date its elapsed time zero corresponds to. It is resolved once, by
-# `build_ecosystem`, from the series the environment already carries — never copied into a parallel
+# `build_ecosystem`, from the series the environment already carries - never copied into a parallel
 # structure on the habitat, which would leave two places to say the same thing. Once resolved it is
 # applied *backwards*, by rewriting each series' `origin`: one number per series, after which the
 # hot path indexes by elapsed time exactly as before and does no date arithmetic at all.
@@ -1164,7 +1164,7 @@ end
 # Determinism is load-bearing under MPI: every rank builds the layers redundantly and must land
 # on the same epoch, so this walks the layer structure rather than anything rank-local or hashed.
 # `habitat` is duck-typed on `.regime`/`.supply`, so it takes either a real habitat or the
-# `(regime = …, supply = …)` pair the layer machinery passes around before one exists.
+# `(regime = ..., supply = ...)` pair the layer machinery passes around before one exists.
 function _startdates(habitat::Union{AbstractHabitat, NamedTuple})
     return unique(filter(!isnothing,
                          map(_startdate,
@@ -1228,8 +1228,8 @@ function _repointseries!(layer::LayerCollection, epoch)
     return layer
 end
 
-# Re-express a change against the run's epoch. Only a series moves — its origin is computed from its
-# calendar and the epoch — so everything else is returned untouched, which is what makes re-pointing
+# Re-express a change against the run's epoch. Only a series moves - its origin is computed from its
+# calendar and the epoch - so everything else is returned untouched, which is what makes re-pointing
 # idempotent and safe to apply to a whole environment.
 _repointchange(change::AbstractLayerChange, epoch) = change
 
@@ -1251,7 +1251,7 @@ function _repointchange(change::SumOfLayerChanges{M}, epoch) where {M}
                                                                         change.baseline)
 end
 
-# Where elapsed time zero falls in a series' own coordinate, given the run's epoch — the entirety of
+# Where elapsed time zero falls in a series' own coordinate, given the run's epoch - the entirety of
 # what an epoch does to a series.
 # With no epoch, or for a series with no calendar identity for one to bind to, the series keeps the
 # origin it was built with. An `UndatedSeries` is exactly the case `origin` is the knob for.
@@ -1268,7 +1268,7 @@ end
 # A dated series' coordinates are elapsed time from its own first slice, so the epoch's offset from
 # that same date *is* the coordinate elapsed zero sits at.
 # An epoch *before* the series begins is deliberately not an error. Nothing is invalid: the layer
-# has perfectly good values of its own, and it is only the series that has nothing to say yet — which
+# has perfectly good values of its own, and it is only the series that has nothing to say yet - which
 # is precisely the case the layer stands for. "The record starts in 1970, run from 1950 on the spec's
 # own climatology" is a thing to want, not a mistake. (It was an error while clamping to the first
 # slice was the only alternative, which was silently wrong rather than merely unhelpful.)
@@ -1281,7 +1281,7 @@ end
 
 # A climatology is placed by *calendar month*, not by elapsed duration into the year, and the
 # difference is a whole slice near the boundaries: the coordinates are `n * month_mean_duration`
-# (30.44 d), so six of them reach 182.6 days while the real 1 July is day 181 — matching
+# (30.44 d), so six of them reach 182.6 days while the real 1 July is day 181 - matching
 # proportionally would start a July run on the June slice. Nothing checks whether a slice sits
 # exactly at that month: `_seriesindex` takes the last slice at or before it and `atend` decides the
 # rest, which is what makes a partial climatology (months 2:4, say) behave like any other series.
@@ -1293,20 +1293,20 @@ end
 # ---------------------------------------------------------------------------
 # Layer change
 # ---------------------------------------------------------------------------
-# The per-layer change rule — what a layer does to itself each timestep. Drives any layer, regime or
+# The per-layer change rule - what a layer does to itself each timestep. Drives any layer, regime or
 # supply. The types live here (a layer has a `change` field, so they must precede it); the unit
 # contract and the apply methods are in `LayerChange.jl`, included later.
 #
 # A change carried as a **function reference** could be neither dispatched on nor validated, and each
-# such function would hard-code its own unit — `K` for temperature, `mm` for rainfall — which is
+# such function would hard-code its own unit - `K` for temperature, `mm` for rainfall - which is
 # exactly how a change's unit and its layer's unit drift apart. See `changeunit` in `LayerChange.jl`
 # for the contract that replaces it.
 
 # ---------------------------------------------------------------------------
-# AbstractLayer — the materialised, hot-loop grid-layer family
+# AbstractLayer - the materialised, hot-loop grid-layer family
 # ---------------------------------------------------------------------------
-# A materialised layer is `matrix + size + change`, tagged with a `Role` — `Condition` for a regime,
-# `Resource` for a supply — and a `NicheAxis` saying what it measures. One family covers both sides
+# A materialised layer is `matrix + size + change`, tagged with a `Role` - `Condition` for a regime,
+# `Resource` for a supply - and a `NicheAxis` saying what it measures. One family covers both sides
 # of the environment, so a regime and a supply differ in their role rather than in their machinery.
 
 # **`NicheAxis`, the root, is the default axis.** As the *ancestor* of every real axis it says "I
@@ -1316,31 +1316,31 @@ end
 # **The distinction it existed to draw survives, and is still load-bearing**: `nothing` means *no
 # axis was named*, which is a different statement from *this axis is dimensionless* (`NoUnits`). While
 # both were spelled `NoUnits` the two could not be told apart, and the dimensionless branch of
-# `_tocanon` could not be made strict — `285.0K` on an axis-less layer is the **common** case and had
+# `_tocanon` could not be made strict - `285.0K` on an axis-less layer is the **common** case and had
 # to keep working, so `285.0K` on a genuinely dimensionless axis (`Isothermality`) had to be accepted
 # too. An axis-less layer takes any unit (there is no axis to disagree with it); a
 # declared-dimensionless one refuses.
 # Two deliberate consequences elsewhere, now keyed on the root rather than on a sibling:
 # `_checksupport` needs its own exact-`NicheAxis` method, or an axis-less tolerance is told it
-# "declares `condition = nothing`" — true of the method table, wrong as advice; and `layerrate` stops
+# "declares `condition = nothing`" - true of the method table, wrong as advice; and `layerrate` stops
 # dividing an axis-less layer by its period. The second reaches no shipped data: every row in all
 # six catalogues names a real axis, none is blank.
 
 # The role a layer is on, for `_sharedrole` (`collections.jl`), which both role-parameterised
-# families — layers and species requirements — build their collections through.
+# families - layers and species requirements - build their collections through.
 _roleof(::AbstractLayer{R}) where {R} = R
 
-# A layer's axis structure, straight off the type parameter — an axis for a leaf, a `Tuple` of
+# A layer's axis structure, straight off the type parameter - an axis for a leaf, a `Tuple` of
 # them for a collection. See `AbstractLayer`'s docstring for why the two share one slot.
 axisof(::AbstractLayer{R, A}) where {R, A} = A
 
 # Named access to a collection's layers. Everything is forwarded to the backing, including `:nt`
 # itself, so that a layer *named* `:nt` stays reachable; internal code uses `getfield(lc, :nt)`.
 #
-# **The bulk accessors are gone** — `regimes`/`supplies`, `regime_names`/`supply_names` and
+# **The bulk accessors are gone** - `regimes`/`supplies`, `regime_names`/`supply_names` and
 # `named_regimes`/`named_supplies` were fifteen names across five families saying one thing, and a
 # collection implements the **standard container interface** instead (`src/collections.jl`).
-# Write `values(lc)`, `keys(lc)` and `NamedTuple(lc)`, which work identically on a bare layer —
+# Write `values(lc)`, `keys(lc)` and `NamedTuple(lc)`, which work identically on a bare layer -
 # a leaf being a one-member container.
 
 # The two layer roles as sides of a pairing check (see `_checkaligned`, `collections.jl`). A supply
@@ -1353,14 +1353,14 @@ _supplyside(s::AbstractLayer{Resource}) = _side(s, "environment supply", false)
 # Wrap a plain 2-D array as a `(Y, X)` `DimArray` carrying **real coordinates** derived from the cell
 # size: origin `(0, 0)`, step `size`, `Intervals(Start)`.
 #
-# **This is `_syntheticyx`'s construction, applied to a layer instead of a study area** — and it is
+# **This is `_syntheticyx`'s construction, applied to a layer instead of a study area** - and it is
 # what lets a layer's cell size be *derived from its own dims* rather than stored beside them
 # (`[CELL-DERIVE]`). A grid with no coordinates has nothing for `getcellsizes` to read, which is the
 # whole reason the `.size` field had to be supplied and could therefore lie.
 #
-# **Real coordinates, not a `NoLookup` wrapper.** The reproducibility argument for `NoLookup` — that
+# **Real coordinates, not a `NoLookup` wrapper.** The reproducibility argument for `NoLookup` - that
 # two independently built pairs of the same size compare equal without a shared lookup object being
-# threaded through — holds for a *data-driven* lookup and not for a **derived** one:
+# threaded through - holds for a *data-driven* lookup and not for a **derived** one:
 # `(0:(n - 1)) .* size` is reproducible from `(n, size)` alone, so two layers built independently
 # from the same shape and cell size still compare equal.
 #
@@ -1376,7 +1376,7 @@ function _sizedyx(M::AbstractMatrix, size)
                         Base.size(M), (Y, X)))
 end
 
-# The `(Y, X)` dims of a layer's own array — for a collection, every sub-layer must already
+# The `(Y, X)` dims of a layer's own array - for a collection, every sub-layer must already
 # agree (checked here, not assumed elsewhere) and the one shared value is returned. This is the
 # single source of truth threaded through `GridHabitat`'s construction (active/supply reuse it
 # rather than each independently rebuilding their own).
@@ -1395,17 +1395,17 @@ end
 # non-`NoLookup` provenance, they must also match in value, which catches two independently sourced
 # real-CRS arrays that do not in fact share a grid.
 #
-# A supply or mask deliberately built with no provenance of its own — a pre-built supply from a bare
-# array — is a legitimate pattern rather than a bug, so `NoLookup` on either side falls back to the
+# A supply or mask deliberately built with no provenance of its own - a pre-built supply from a bare
+# array - is a legitimate pattern rather than a bug, so `NoLookup` on either side falls back to the
 # size check alone rather than rejecting the combination.
 # **A layer must be able to say where its cells are.** A `NoLookup` grid carries pure indices, so
 # `getcellsizes` cannot answer for it, `_uniformcellside` cannot set up dispersal, and there is
-# nothing to derive `size` from — the field would have to be *supplied*, which is the second source
+# nothing to derive `size` from - the field would have to be *supplied*, which is the second source
 # of truth this rule exists to remove.
 #
 # **Refused at construction rather than tolerated.** Nothing in the package builds such a layer, since
 # every `Matrix` constructor derives real coordinates, so this can only fire on one assembled by
-# hand — and it is better to hear about that than to carry it. **The one sanctioned exception is
+# hand - and it is better to hear about that than to carry it. **The one sanctioned exception is
 # `deprecations.jl`**, which reproduces the released coordinate-less budgets and reaches the *inner*
 # constructor directly, bypassing this check on purpose.
 # A layer's cell size, read from its own coordinates rather than supplied beside them.
@@ -1414,7 +1414,7 @@ end
 # stored unchecked, it can disagree with the grid the values are actually on and nothing will say so.
 # `_checkhascoords` runs first everywhere this is called, so the dims are always real.
 # Reads the **declared** `Regular` span via `_axisstep`, not a difference of the first two
-# coordinates — see the note there on why differencing drifts in the 13th digit.
+# coordinates - see the note there on why differencing drifts in the 13th digit.
 function _derivecellsize(matrix)
     yx = dims(matrix, (Y, X))
     return _axisstep(yx[1])
@@ -1426,17 +1426,17 @@ function _checkhascoords(matrix)
     yx = dims(matrix, (Y, X))
     all(_isreallookup, yx) ||
         return error("a layer needs real `(Y, X)` coordinates, but this one was given `NoLookup` " *
-                     "dims — bare cell indices, which cannot say how far apart the cells are. " *
+                     "dims - bare cell indices, which cannot say how far apart the cells are. " *
                      "Build it on a `StudyArea`, or pass a matrix and a cell size and let the " *
                      "coordinates be derived.")
     # **And they must carry a unit.** `Y(1:3)` is a real lookup but a unitless one, so the cell
-    # size derived from it would be a bare `1` — which the layer's `S <: Unitful.Quantity` then
+    # size derived from it would be a bare `1` - which the layer's `S <: Unitful.Quantity` then
     # rejects with a `MethodError` naming five type parameters. Caught here instead, where the
     # remedy can be stated. Consistent with what the check is for: a layer must say *where* its
     # cells are, and indices dressed as numbers do not.
     all(d -> eltype(parent(DimensionalData.lookup(d))) <: Unitful.Quantity,
         yx) ||
-        return error("a layer's `(Y, X)` coordinates must carry a unit — these are bare numbers, " *
+        return error("a layer's `(Y, X)` coordinates must carry a unit - these are bare numbers, " *
                      "so how far apart the cells are is unstated. Give the lookups a unit " *
                      "(`Y((0:3)km)`), or pass a matrix and a cell size.")
     return nothing
@@ -1462,8 +1462,8 @@ end
 # A supply is a `Resource`-role layer: the old supply structs are aliases over
 # `ContinuousLayer{Resource, axis, V, Arr}`, all over `(Y, X)`. The axis records the
 # resource measured; the (unused) `size` and the `change` rule are filled by the
-# constructors in Energy.jl. Every supply names its axis — the free/axis-less family is gone. A supply that
-# varies in time is not a separate type — it is one of these carrying a [`SeriesLayerChange`](@ref) change.
+# constructors in Energy.jl. Every supply names its axis - the free/axis-less family is gone. A supply that
+# varies in time is not a separate type - it is one of these carrying a [`SeriesLayerChange`](@ref) change.
 
 # ---------------------------------------------------------------------------
 # Axis-driven canonicalisation + axis re-tagging (shared by the hand `*AE`
@@ -1471,9 +1471,9 @@ end
 # ---------------------------------------------------------------------------
 
 # Canonicalise a regime *value* (a position) to its layer axis's unit, `canonicalunit(A))`: a unitful
-# value converts (proper affine — canonical units are absolute, so no interval subtlety); a bare value
+# value converts (proper affine - canonical units are absolute, so no interval subtlety); a bare value
 # attaches the unit. An axis with no canonical unit (`NicheAxis`/dimensionless, `NoUnits`/`nothing`)
-# keeps the value's magnitude but still **absolutises** an affine unit (°C→K) — regimes are always in an
+# keeps the value's magnitude but still **absolutises** an affine unit (°C->K) - regimes are always in an
 # absolute unit, which the downstream change machinery assumes. The single, axis-driven replacement
 # for the old dimension-sniffing conversions.
 function _canonical(x, axis::Type{<:NicheAxis})
@@ -1481,20 +1481,20 @@ function _canonical(x, axis::Type{<:NicheAxis})
 end
 
 # Three cases, as three methods rather than one branch, because they are three different
-# statements that happen to share an implementation today — and keeping them apart is what lets any
+# statements that happen to share an implementation today - and keeping them apart is what lets any
 # of them change without disturbing the others.
 #
-# 1. `nothing` — the axis has no condition unit: either nobody declared one, or it declared
+# 1. `nothing` - the axis has no condition unit: either nobody declared one, or it declared
 # `condition = nothing` because it is a resource, not a condition. Nothing to check against, so
 # the value passes. **This must stay permissive**: reference layers are exactly the layers with
 # no canonical unit, and making them unbuildable is a proposal already withdrawn twice.
 _tocanon(x, ::Nothing, axis) = _absolutise(float(x))
 
-# 2. The axis declares itself **dimensionless** — meaning a bare **fraction**, so a value that is
+# 2. The axis declares itself **dimensionless** - meaning a bare **fraction**, so a value that is
 # dimensionless but *scaled* (a percentage) is converted rather than passed through.
 # **Why convert here and not leave `%` on the values.** `percent` and `NoUnits` share the
 # dimension `NoDims` and differ only by a factor of 100, so `uconvert(NoUnits, 64.85%)` is exactly
-# `0.6485` — a plain `Float64`, not a `Quantity`. Doing it once, here, is what stops a `%` unit
+# `0.6485` - a plain `Float64`, not a `Quantity`. Doing it once, here, is what stops a `%` unit
 # riding along through every downstream multiplication and needing to be stripped at each use.
 # A **dimensioned** value still passes through, and that hole stays open: `NicheAxis`, the
 # default axis for any layer built without one, also declares `NoUnits`, and unit-bearing
@@ -1519,17 +1519,17 @@ end
 
 _tocanonu(x::Unitful.AbstractQuantity, u) = uconvert(u, x)
 
-# A bare number carries no unit, so nothing can check it — stamping the canonical unit on would
+# A bare number carries no unit, so nothing can check it - stamping the canonical unit on would
 # accept `12` as 12 K from someone who meant 12 °C, silently. Every other route into a layer is
 # checked (`_checkaxisunit` covers every shipped catalogue row *and* every user `axis =` override,
 # and the `AbstractQuantity` method above converts, erroring on a dimension mismatch), so this was
 # the one remaining hole. Measured before closing it: **no test, canonical run, docs example or
-# example script reaches this branch** — `core_test`, `extras_canonical`, `extras_docs` and
+# example script reaches this branch** - `core_test`, `extras_canonical`, `extras_docs` and
 # `extras_examples` all passed unchanged with it erroring, so refusing costs nothing.
 function _tocanonu(x::Real, u)
     return error("a regime value on an axis with canonical unit `$u` must carry a unit: got the " *
                  "bare number $x, which could be anything. Write `$(x)$u` if that is what you " *
-                 "mean — a bare number cannot be checked against the axis.")
+                 "mean - a bare number cannot be checked against the axis.")
 end
 
 # The same quantity on its absolute scale, so an affine temperature becomes kelvin. Widths and bare
@@ -1541,13 +1541,13 @@ end
 
 _absolutise(x::Real) = x
 
-# The `Resource`-role mirror of `_canonical` above: a supply *value* — already a per-cell rate, so
-# `cancel` has done the × area — converted to its axis's canonical resource unit,
+# The `Resource`-role mirror of `_canonical` above: a supply *value* - already a per-cell rate, so
+# `cancel` has done the × area - converted to its axis's canonical resource unit,
 # `canonicalunit(Resource, A)`. Lives here beside the Condition-role conversion because the two are
 # one idea in two roles, and keeping them together is what stops either drifting.
 #
-# **This is where the unit guarantee lives.** `Supply{A}` leaves its value type free — deliberately,
-# since `canonicalunit(Resource, A)` is the single statement of what the unit is — so nothing else
+# **This is where the unit guarantee lives.** `Supply{A}` leaves its value type free - deliberately,
+# since `canonicalunit(Resource, A)` is the single statement of what the unit is - so nothing else
 # checks it, and a per-resource type that pinned the value type would be a second statement of the
 # same fact. Without this check a wrong **dimension** builds happily and then throws a
 # `DimensionError` deep inside the threaded hot loop, nowhere near the call that made the mistake.
@@ -1567,11 +1567,11 @@ function _canonicalresource(values::AbstractArray, axis::Type{<:NicheAxis})
     return uconvert.(_resourceunit(eltype(values), axis), values)
 end
 
-# The canonical resource unit for `axis`, checked against values of type `V` — the two failures a
+# The canonical resource unit for `axis`, checked against values of type `V` - the two failures a
 # supply's values can have, told apart, since they are different mistakes with different fixes.
 # `noun` exists so a **demand** gets the same two checks and says "demand" while doing it: both
 # sides of a resource share one canonical unit (that is what makes them comparable at all), so they
-# must share the check — but a message naming the wrong side sends the reader to the wrong call.
+# must share the check - but a message naming the wrong side sends the reader to the wrong call.
 function _resourceunit(::Type{V}, axis::Type{<:NicheAxis},
                        noun::AbstractString = "supply") where {V}
     isnothing(supplytype(axis)) && _notaresource(axis, noun)
@@ -1587,17 +1587,17 @@ _unitdescription(::Type{V}) where {V} = "`$(unit(V))` ($(dimension(V)))"
 
 _unitdescription(::Type{<:Real}) = "bare numbers, which carry no unit at all"
 
-# The niche axis a layer is tagged with. Only the concrete types carry it — `AbstractLayer{R}` is
-# parameterised by role alone — so anything generic over layers has to ask for it here rather than
+# The niche axis a layer is tagged with. Only the concrete types carry it - `AbstractLayer{R}` is
+# parameterised by role alone - so anything generic over layers has to ask for it here rather than
 # match it in a signature. Used by the Plots recipe to name what it is drawing.
 _layeraxis(::ContinuousLayer{R, A}) where {R, A} = A
 
 _layeraxis(::CategoricalLayer{A}) where {A} = A
 
-# Re-tag a materialised layer with its niche axis `A` — a phantom type parameter, so this shares the
+# Re-tag a materialised layer with its niche axis `A` - a phantom type parameter, so this shares the
 # arrays. The low-level constructors build a root-axis layer that this narrows to the real axis.
 # `S` is carried through explicitly rather than left free: re-tagging changes only the axis, so the
-# cell-size type must survive it — and on a geographic layer that type is an angle, not a length.
+# cell-size type must survive it - and on a geographic layer that type is an angle, not a length.
 function _reaxis(l::ContinuousLayer{Condition, A0, V, Arr, S},
                  ::Type{A}) where {A0, V, Arr, S, A <: NicheAxis}
     return ContinuousLayer{Condition, A, V, Arr, S}(l.matrix, l.size, l.change)

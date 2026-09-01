@@ -12,8 +12,8 @@ using JLD2
 using Test
 
 # The shared non-uniform, non-square, time-varying environment (see `test/varyingcase.jl`).
-# This test compares results across 1/2/4 rank+thread splits — the strongest reproducibility
-# property in the repository — and so must not run on a *uniform, square* grid, where every
+# This test compares results across 1/2/4 rank+thread splits - the strongest reproducibility
+# property in the repository - and so must not run on a *uniform, square* grid, where every
 # decomposition looks alike and a partitioning bug cannot show. The field it decomposes varies down
 # `Y` (regime) and across `X` (supply), on a 7 × 12 grid that no rank count divides evenly.
 include(joinpath(@__DIR__, "varyingcase.jl"))
@@ -33,13 +33,13 @@ comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 
 # **The fixture is built by `mpifixture_species` in `varyingcase.jl`, not spelled out here.**
-# The canonical `mpi/…` results are blessed from a SERIAL run of that same builder, and those
-# numbers are only evidence about this run if both sides build the identical thing — two
+# The canonical `mpi/...` results are blessed from a SERIAL run of that same builder, and those
+# numbers are only evidence about this run if both sides build the identical thing - two
 # spelled-out copies would drift, which is the failure the pinning exists to catch.
 numSpecies = VARYING_SPECIES;
 sppl, tolerance = mpifixture_species()
 
-# **This is the ecosystem the cross-rank comparison actually uses** — it is simulated, gathered
+# **This is the ecosystem the cross-rank comparison actually uses** - it is simulated, gathered
 # and saved below, while the second one further down only exercises the synchronise paths. It must
 # decompose the shared varying field rather than one uniform temperature on a **square** grid: every
 # cell being alike is precisely what stops a partitioning bug showing.
@@ -48,8 +48,8 @@ habitat = varying_environment()
 # Set nichefit between species and environment (gaussian)
 nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
-# build_ecosystem auto-selects the type from the live MPI session: >1 rank ⇒ MPIEcosystem, a single
-# rank ⇒ serial Ecosystem (this script runs under mpiexec -n 1, 2 and 4). `sppl`/`habitat`/`nichefit` are
+# build_ecosystem auto-selects the type from the live MPI session: >1 rank => MPIEcosystem, a single
+# rank => serial Ecosystem (this script runs under mpiexec -n 1, 2 and 4). `sppl`/`habitat`/`nichefit` are
 # exactly what MPIEcosystem takes directly.
 expected = MPI.Comm_size(comm) > 1 ? MPIEcosystem : Ecosystem
 @test build_ecosystem(sppl, habitat, nichefit = nichefit, seed = 0) isa expected
@@ -67,12 +67,12 @@ eco.abundances.rows_matrix .= 10
 
 # **Compared GLOBALLY, not per rank, and that distinction is the whole point of an uneven split.**
 # `synchronise_from_rows!` moves data from the species-partitioned layout to the cell-partitioned
-# one, so the two hold the same values *in total* — but a single rank's share of each is only the
+# one, so the two hold the same values *in total* - but a single rank's share of each is only the
 # same size when both partitions divide evenly. With 7 species over 77 cells on 2 ranks, rank 0 holds
-# 4 × 77 = 3080 by rows and 7 × 39 = 2730 by columns; both are correct.
+# 4 * 77 = 3080 by rows and 7 * 39 = 2730 by columns; both are correct.
 #
-# The per-rank form must not be used: on a fixture where every rank gets an identical share — 8
-# species on a 4 × 4 grid, say — it passes by asserting an artefact of that choice, not the
+# The per-rank form must not be used: on a fixture where every rank gets an identical share - 8
+# species on a 4 × 4 grid, say - it passes by asserting an artefact of that choice, not the
 # invariant.
 allsum(x) = MPI.Allreduce(sum(x), +, comm)
 expected = numSpecies * prod(size(eco.habitat.regime.matrix)) * 10
@@ -101,13 +101,31 @@ record_interval = 3month_mean_duration;
 repeats = 1;
 lensim = length((0year):record_interval:times)
 
-# Burnin
+# **These replace two assertions that could not fail.** `sum(getabundance(eco)) ≈ 1.0` and the same
+# of `getmetaabundance` were each true of any block normalised by its own total, at any rank count -
+# so they passed while the metaabundance vector was silently only this rank's species (7 at one rank,
+# 4 at two, 2 at four) and the weights summed to the rank count rather than to 1.
+#
+# What is asserted instead: that a whole-metacommunity question is **refused** rather than answered
+# from one rank's block, and that the two quantities which are genuinely global agree with the serial
+# answer whatever the rank count.
+diversityrefusal = "no single rank holds them"
 MPI.Barrier(comm)
-@test sum(getabundance(eco)) ≈ 1.0
+@test_throws diversityrefusal getabundance(eco)
+@test length(getmetaabundance(eco)) == numSpecies
 @test sum(getmetaabundance(eco)) ≈ 1.0
+@test sum(getweight(eco)) ≈ 1.0
+@test length(getweight(eco)) == VARYING_NY * VARYING_NX
+
 @test_nowarn simulate!(eco, burnin, timestep)
-@test sum(getabundance(eco)) ≈ 1.0
+
+# The same after a run, and now with the values pinned rather than only their totals: both are
+# metacommunity quantities, so they must not depend on how the work was divided.
+@test_throws diversityrefusal getabundance(eco)
+@test length(getmetaabundance(eco)) == numSpecies
 @test sum(getmetaabundance(eco)) ≈ 1.0
+@test sum(getweight(eco)) ≈ 1.0
+@test isapprox(sum(Diversity.API._getscale(eco)), 1.0)
 
 # Collect full abundance matrix together
 true_abuns = gatherabundance(eco)
@@ -133,7 +151,7 @@ eco = MPIEcosystem(sppl, habitat, nichefit, seed = 0)
 eco.abundances.rows_matrix .= 10
 sleep(rank)
 
-# Global again — the second ecosystem's split is just as uneven as the first's (see the note above).
+# Global again - the second ecosystem's split is just as uneven as the first's (see the note above).
 # Set columns vector to zero and check synchronise from rows
 eco.abundances.cols_vector .= 0
 @test_nowarn EcoSISTEM.synchronise_from_rows!(eco.abundances)
@@ -195,15 +213,15 @@ end
 # are. That is what makes a distributed-only divergence visible at 2 and 4 ranks.
 #
 # **Read-only on purpose.** `canonical(...)` would *write* the reference file, and doing that from
-# inside an `mpiexec` child — several of them at once — must never happen. `canonical_reference()`
+# inside an `mpiexec` child - several of them at once - must never happen. `canonical_reference()`
 # only reads.
-if rank == 0
+function checkblessed(abuns, prefix)
     reference = Canonical.canonical_reference()
-    grid = reshape(true_abuns, numSpecies, VARYING_NY, VARYING_NX)
-    for (key, value) in ("mpi/total_abundance" => sum(grid),
-        "mpi/abundance_by_species" => vec(sum(grid, dims = (2, 3))),
-        "mpi/abundance_by_row" => vec(sum(grid, dims = (1, 3))),
-        "mpi/abundance_by_column" => vec(sum(grid, dims = (1, 2))))
+    grid = reshape(abuns, numSpecies, VARYING_NY, VARYING_NX)
+    for (key, value) in ("$prefix/total_abundance" => sum(grid),
+        "$prefix/abundance_by_species" => vec(sum(grid, dims = (2, 3))),
+        "$prefix/abundance_by_row" => vec(sum(grid, dims = (1, 3))),
+        "$prefix/abundance_by_column" => vec(sum(grid, dims = (1, 2))))
         # A missing key means the canonical set has not been blessed here; say so rather than
         # passing silently, which would make this whole check vacuous.
         @test haskey(reference, key)
@@ -211,6 +229,145 @@ if rank == 0
             @test isapprox(float.(collect(value)), reference[key],
                            rtol = 1e-8)
     end
+end
+
+rank == 0 && checkblessed(true_abuns, "mpi")
+
+# **`AlwaysMovement` disperses the standing population, and only a multi-rank run can check it.**
+# It reads that population back out of the landscape through `EcoSISTEM._standingpopulation`, which
+# maps the global species index onto this rank's local row - and at **one** rank that map is the
+# identity, so a run there passes whether or not the mapping is right. Measured: replacing the
+# mapping with the raw global index leaves the 1-rank answer bit-identical and makes 2 ranks die in
+# `Multinomial` on a negative count. That is why this is pinned to a blessed serial number and
+# asserted at every rank count, rather than compared against a serial run at one.
+alwayssppl, _ = mpifixture_species(movement = mpifixture_always())
+alwayseco = MPIEcosystem(alwayssppl, varying_environment(), nichefit, seed = 0)
+alwayseco.abundances.rows_matrix .= MPIFIXTURE_FILL
+MPI.Barrier(comm)
+@test_nowarn simulate!(alwayseco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+always_abuns = gatherabundance(alwayseco)
+
+rank == 0 && checkblessed(always_abuns, "mpi/always")
+
+# The same one-rank equality the birth-only run gets above. It cannot catch a rank-mapping bug (see
+# the note above), but it does catch the loop body diverging from the serial one, which is A22's
+# failure and is invisible to any MPI-against-MPI comparison.
+if MPI.Comm_size(comm) == 1
+    alwaysserial = mpifixture_ecosystem(movement = mpifixture_always())
+    simulate!(alwaysserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+    @test alwaysserial.abundances.matrix == always_abuns
+end
+
+# **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
+# the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes
+# `rows_matrix` after the dynamics; the next timestep opens with `update_resource_usage!`, which
+# reads the *column* layout. A sync placed before the interventions leaves that read one intervention
+# behind, and the distributed run then diverges from the serial one.
+#
+# Measured before the sync was moved: with this fixture, serial totalled 1752450322 against MPI's
+# 1752458039 -- at a **single rank**, so it was the ordering rather than the partition. No other test
+# in the suite runs an intervention under MPI at all, which is why nothing caught it.
+ivsppl, _ = mpifixture_species()
+iveco = MPIEcosystem(ivsppl, varying_environment(), nichefit, seed = 0)
+iveco.abundances.rows_matrix .= MPIFIXTURE_FILL
+MPI.Barrier(comm)
+@test_nowarn simulate!(iveco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+                       intervention = mpifixture_intervention())
+iv_abuns = gatherabundance(iveco)
+
+rank == 0 && checkblessed(iv_abuns, "mpi/intervention")
+
+# **Ordinariness is computed in the COLUMN partition**, where a rank owns every species for its own
+# cells, so a cell's value is complete on the rank that owns it and the full species-by-species
+# similarity matrix applies with no slice. Gathering the column blocks must therefore rebuild the
+# serial matrix exactly.
+#
+# In the row partition the similarity matrix had to be cut to this rank's species on both axes,
+# which silently discarded every similarity between a species here and one elsewhere.
+#
+# This check alone cannot see the similarity half: the species list here is `UniqueTypes`, whose
+# similarity matrix is the identity, so the discarded off-diagonal was all zeros and the old code
+# got the right answer anyway. The `GeneralTypes` check below is what covers it - measured, a
+# mutation dropping every off-diagonal similarity leaves this assertion passing and fails that one.
+ordblock = getordinariness!(eco)
+@test size(ordblock, 1) == numSpecies
+@test size(ordblock, 2) ==
+      eco.abundances.cols_tuple.last - eco.abundances.cols_tuple.first + 1
+
+ordcounts = Int32.(size(ordblock, 1) .* eco.sccounts)
+ordfull = similar(vec(ordblock), Int64(sum(ordcounts)))
+MPI.Allgatherv!(vec(ordblock), MPI.VBuffer(ordfull, ordcounts), comm)
+ordgathered = reshape(ordfull, numSpecies, VARYING_NY * VARYING_NX)
+@test sum(ordgathered) ≈ 1.0
+
+# Compared against serial at **every** rank count, not just at one. The serial run is built with
+# `Ecosystem` directly and makes no MPI calls, so any rank can do it; rank 0 does. At a single rank
+# the comparison is weak - a rank owning every species cannot notice a calculation restricted to its
+# own species - so the multi-rank runs are the ones that carry the check.
+if rank == 0
+    ordserial = mpifixture_ecosystem()
+    simulate!(ordserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+    @test ordgathered == getordinariness!(ordserial)
+end
+
+# **The same again with a similarity matrix that is NOT the identity**, which is the only fixture
+# here that can fail on a calculation dropping similarities between species held on different ranks.
+# Ordinariness multiplies the similarity matrix by the abundances, so a species' value in a cell
+# depends on every other species in that cell; restricting the matrix to one rank's species discards
+# every off-diagonal entry crossing the partition. Under `UniqueTypes` those entries are all zero,
+# so the check above passes either way - see `mpifixture_similarity`.
+# **The diversity measures themselves, assembled across ranks.** Each rank computes the measure for
+# its own cells - complete, because the column partition puts every species of a cell on one rank -
+# and `gatherdiversity` concatenates rather than combining. So the answer must equal the serial one
+# at every rank count, which is the reproducibility requirement the whole distributed design rests
+# on.
+#
+# `sub_gamma` is included alongside a normalised measure because it divides by the metacommunity
+# ordinariness, a sum over *every* cell: without the `Allreduce` in `_getmetaordinariness!` it would
+# silently use this rank's share of the metacommunity as though it were all of it.
+for divmeasure in (norm_sub_alpha, sub_gamma)
+    for order in (1.0, [0.0, 1.0, 2.0])
+        assembled = gatherdiversity(eco, divmeasure, order)
+        if rank == 0
+            divserial = mpifixture_ecosystem()
+            simulate!(divserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+            wanted = divmeasure(divserial, order)
+            @test assembled[!, :diversity] ≈ wanted[!, :diversity]
+            @test assembled[!, :partition_name] == wanted[!, :partition_name]
+            @test assembled[!, :q] == wanted[!, :q]
+        end
+    end
+end
+
+gensppl, _ = mpifixture_generalspecies()
+geneco = MPIEcosystem(gensppl, varying_environment(), nichefit, seed = 0)
+geneco.abundances.rows_matrix .= MPIFIXTURE_FILL
+MPI.Barrier(comm)
+@test_nowarn simulate!(geneco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+
+genord = getordinariness!(geneco)
+gencounts = Int32.(size(genord, 1) .* geneco.sccounts)
+genfull = similar(vec(genord), Int64(sum(gencounts)))
+MPI.Allgatherv!(vec(genord), MPI.VBuffer(genfull, gencounts), comm)
+gengathered = reshape(genfull, numSpecies, VARYING_NY * VARYING_NX)
+
+if rank == 0
+    genserial = mpifixture_generalecosystem()
+    simulate!(genserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+    @test gengathered ≈ getordinariness!(genserial)
+end
+
+# The two layouts must hold the same data once a timestep has finished. Asserted globally rather than
+# per rank: they are the same data under two decompositions, and only the totals are comparable
+# without reindexing.
+@test MPI.Allreduce(sum(iveco.abundances.rows_matrix), +, comm) ==
+      MPI.Allreduce(sum(iveco.abundances.cols_vector), +, comm)
+
+if MPI.Comm_size(comm) == 1
+    ivserial = mpifixture_ecosystem()
+    simulate!(ivserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+              intervention = mpifixture_intervention())
+    @test ivserial.abundances.matrix == iv_abuns
 end
 
 if !MPI.Finalized()

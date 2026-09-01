@@ -16,8 +16,8 @@ using Random
 
 import Random: rand, GLOBAL_RNG
 
-# The conversion role a distribution's parameter plays — location (position), scale/rate
-# (interval) or shape (dimensionless) — determining how `_readparam`/`role_units` convert its
+# The conversion role a distribution's parameter plays - location (position), scale/rate
+# (interval) or shape (dimensionless) - determining how `_readparam`/`role_units` convert its
 # value.
 """
     ParamRole
@@ -61,7 +61,7 @@ struct Trapezoid{T <: Real} <: ContinuousUnivariateDistribution
     end
 end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # Convenience constructors: `promote` mixed `Real` arguments to a common numeric type, and widen
 # all-`Integer` arguments to `Float64`, before the checked inner constructor.
@@ -87,7 +87,7 @@ Trapezoid() = Trapezoid(0.0, 0.0, 1.0, 1.0)
 const ROLE_ACCESSORS = (LocationRole() => location, ScaleRole() => scale,
                         RateRole() => rate, ShapeRole() => shape)
 
-# Support bounds — a Trapezoid has support [a, d] (so `paramunits` can recognise its parameters as
+# Support bounds - a Trapezoid has support [a, d] (so `paramunits` can recognise its parameters as
 # positions on the support axis).
 Base.minimum(d::Trapezoid) = d.a
 
@@ -102,12 +102,12 @@ Build one species' response distribution of type `D` in the `canonical` (absolut
 # Arguments
 
   - `D`: the distribution type, e.g. `Normal`, `Trapezoid`, `Beta`.
-  - `us`: the **support unit** — the frame `bare`'s magnitudes are read in.
+  - `us`: the **support unit** - the frame `bare`'s magnitudes are read in.
   - `bare`: the distribution's parameters as bare numbers, in that frame.
   - `canonical`: the frame to build in, absolute by default. Absolute matters, because a location
-    converts affinely — 12 °C becomes 285.15 K — while a width does not.
+    converts affinely - 12 °C becomes 285.15 K - while a width does not.
   - `offset`, `scale`: required only for a **shape-only** distribution (no
-    location/scale/rate role — `Beta`, `LogNormal`), which is placed on the
+    location/scale/rate role - `Beta`, `LogNormal`), which is placed on the
     dimensioned axis via `LocationScale` as `dist * scale + offset`. `offset` is a
     reference position, `scale` a reference width.
   - `probes`: the values used to discover each parameter's role; defaults per `D`.
@@ -115,7 +115,7 @@ Build one species' response distribution of type `D` in the `canonical` (absolut
     `param_roles_resolved(D, probes = probes)`, so a caller building many distributions of the same
     type can resolve them once and pass them in rather than paying for the discovery each time.
 
-The roles drive the per-parameter conversion — see [`ParamRole`](@ref) for why a location and a
+The roles drive the per-parameter conversion - see [`ParamRole`](@ref) for why a location and a
 width convert differently.
 """
 function read_distribution(D::Type{<:UnivariateDistribution}, us, bare;
@@ -143,7 +143,7 @@ end
 The absolute unit of each parameter of distribution `D` given a support of `support_units`, inferred
 by parameter role (see `param_roles_resolved`): a location or scale parameter carries the
 **absolute** support unit (K for °C), a rate carries its inverse, and a shape parameter is
-dimensionless — so a shape-only family (`Beta`, `LogNormal`, …) is all-`NoUnits`. This is the
+dimensionless - so a shape-only family (`Beta`, `LogNormal`, ...) is all-`NoUnits`. This is the
 introspection companion to [`read_distribution`](@ref), which performs the actual, affine-aware
 value conversion when a distribution is read from bare parameters.
 
@@ -169,8 +169,8 @@ params(d::Trapezoid) = (d.a, d.b, d.c, d.d)
 
 rand(d::Trapezoid) = rand(GLOBAL_RNG, d)
 
-# Draw a sample by inverse-transform sampling: split `[0, 1]` into the three regions by probability mass —
-# rising `[a, b]`, flat `[b, c]`, falling `[c, d]` — pick the region the uniform draw `u` falls in, then
+# Draw a sample by inverse-transform sampling: split `[0, 1]` into the three regions by probability mass -
+# rising `[a, b]`, flat `[b, c]`, falling `[c, d]` - pick the region the uniform draw `u` falls in, then
 # invert that region's CDF (√-shaped in the triangular tails, linear in the flat middle).
 function rand(rng::AbstractRNG, T::Trapezoid)
     (a, b, c, d) = params(T)
@@ -239,7 +239,7 @@ function guess_params(D::Type{<:UnivariateDistribution}; probes = nothing)
               "pass `probes` explicitly.")
 
     # If the float probes produced integer-typed fields, retry with integer probes to recover clean
-    # parameters — trying every integer/float combination of the parameters (bitmask `j` over `k`
+    # parameters - trying every integer/float combination of the parameters (bitmask `j` over `k`
     # positions). Keep the good float `d` if no integer combination constructs.
     if any(typeof.(getfield.(Ref(d), fieldnames(D))) .<: Ref(Integer)) &&
        !any(typeof.(probes) .<: Ref(Integer))
@@ -296,7 +296,7 @@ function param_roles(D::Type{<:UnivariateDistribution}; probes = nothing)
 end
 
 # Deterministic, well-separated probe values (distinct, increasing, in `(0,1)`) that construct valid
-# instances of the target families — so role detection is reproducible by default. `probes = nothing`
+# instances of the target families - so role detection is reproducible by default. `probes = nothing`
 # falls back to the random probes in `guess_params`.
 function _defaultprobes(D::Type{<:UnivariateDistribution})
     return [k / (length(fieldnames(D)) + 1) for k in eachindex(fieldnames(D))]
@@ -321,7 +321,7 @@ function param_roles_resolved(D::Type{<:UnivariateDistribution};
 end
 
 # LogNormal/LogitNormal expose location/scale accessors, but their parameters live on the log/logit scale
-# (dimensionless) — force `ShapeRole` so they take the shape-only (offset/scale) placement path.
+# (dimensionless) - force `ShapeRole` so they take the shape-only (offset/scale) placement path.
 function param_roles_resolved(::Type{<:LogNormal}; probes = nothing)
     return [ShapeRole(), ShapeRole()]
 end
@@ -331,11 +331,11 @@ function param_roles_resolved(::Type{<:LogitNormal}; probes = nothing)
 end
 
 # Convert one bare parameter value `x`, interpreted in support unit `us`, to a bare number in the target
-# frame `uc`, per role: a location/bound is a *position* (proper affine conversion into `uc` — `0/°C→273.15`
+# frame `uc`, per role: a location/bound is a *position* (proper affine conversion into `uc` - `0/°C->273.15`
 # on a K frame; identity on a °C frame); a scale is an *interval* (a width, whose magnitude is frame-offset
-# independent, so it is stripped in `absoluteunit(uc)` — `1/°C→1`, `1/°F→5/9` — never absolute-converting the
+# independent, so it is stripped in `absoluteunit(uc)` - `1/°C->1`, `1/°F->5/9` - never absolute-converting the
 # width even when the frame `uc` is affine); a rate is `1/absolute(uc)`; a shape is dimensionless. For a
-# non-affine `uc`, `absoluteunit(uc) == uc`; `uc` (not `absoluteunit(us)`) also handles `°F→K`/`cm→mm`.
+# non-affine `uc`, `absoluteunit(uc) == uc`; `uc` (not `absoluteunit(us)`) also handles `°F->K`/`cm->mm`.
 _readparam(::LocationRole, uc, us, x) = ustrip(uc, x * us)
 
 _readparam(::ScaleRole, uc, us, x) = ustrip(absoluteunit(uc), x * us - 0 * us)
@@ -359,8 +359,8 @@ end
 
 _refwidth(uc, us, v::Number) = ustrip(absoluteunit(uc), v * us - 0 * us)
 
-# The ABSOLUTE unit each role's parameter carries (used for validation): location/scale → the absolute
-# support unit (K for °C); rate → its inverse; shape → dimensionless. Everything is absolute — the affine
+# The ABSOLUTE unit each role's parameter carries (used for validation): location/scale -> the absolute
+# support unit (K for °C); rate -> its inverse; shape -> dimensionless. Everything is absolute - the affine
 # handling lives in the value conversion (`_readparam`), not here.
 role_units(::ShapeRole, u) = NoUnits
 
@@ -370,10 +370,10 @@ role_units(::ScaleRole, u) = absoluteunit(u)
 
 role_units(::RateRole, u) = inv(absoluteunit(u))
 
-# Is `D` a "bounds" family — every parameter a *position* on the support axis (Uniform, Trapezoid,
-# TriangularDist, Arcsine, …), so all parameters carry the support's own unit and affine support units are
+# Is `D` a "bounds" family - every parameter a *position* on the support axis (Uniform, Trapezoid,
+# TriangularDist, Arcsine, ...), so all parameters carry the support's own unit and affine support units are
 # fine (positions have well-defined differences)? Detected by **perturbation**: a bounds family's finite
-# support *moves* when a parameter changes, whereas a fixed-support shape family's (Beta, …) does not — so
+# support *moves* when a parameter changes, whereas a fixed-support shape family's (Beta, ...) does not - so
 # Beta's shape params (which merely fall inside `[0,1]`) are not mistaken for bounds.
 function all_positions(D::Type{<:UnivariateDistribution}, info::NamedTuple)
     lo, hi = try
@@ -399,7 +399,7 @@ function all_positions(D::Type{<:UnivariateDistribution}, info::NamedTuple)
             catch
                 (lo, hi)
             end
-            supp2 == (lo, hi) || return true   # a parameter moved the support ⇒ bounds family
+            supp2 == (lo, hi) || return true   # a parameter moved the support => bounds family
         end
     end
     return false

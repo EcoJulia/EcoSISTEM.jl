@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Where a layer's data comes from — the marker hierarchy a spec reads from, and the two
+# Where a layer's data comes from - the marker hierarchy a spec reads from, and the two
 # SimpleTraits markers that say whether a source is raster data and what codes it accepts.
 
 using SimpleTraits
@@ -9,7 +9,7 @@ using SimpleTraits
     EcoSISTEMSource
 
 Abstract supertype of the sources this package defines itself, for rasters that come from no
-dataset — see [`SyntheticData`](@ref) and [`DerivedData`](@ref).
+dataset - see [`SyntheticData`](@ref) and [`DerivedData`](@ref).
 """
 abstract type EcoSISTEMSource end
 
@@ -25,13 +25,13 @@ struct SyntheticData <: EcoSISTEMSource end
 """
     DerivedData{S}
 
-Source of a raster **computed from** `S` but no longer `S` — the result of a [`ConstructedSpec`](@ref)
+Source of a raster **computed from** `S` but no longer `S` - the result of a [`ConstructedSpec`](@ref)
 combine, or of an operation like `compress_landcover` that turns a dataset's layers into a quantity
 that is none of them. Summing eight land-cover bands does not give land cover, and what the result
 *means* comes from the spec's declared `axis` rather than from its inputs, so
 `DerivedData{EarthEnv{LandCover}}` records the lineage without claiming to be it.
 
-**Never write this type out — call `_derivedfrom(S)`**, which is what collapses nesting. Deriving
+**Never write this type out - call `_derivedfrom(S)`**, which is what collapses nesting. Deriving
 from derived data is still just derived data, and no consumer asks how many steps there were; but
 `DerivedData{DerivedData{S}}` stays constructible, so the collapse is that function's job and not
 the type's.
@@ -55,12 +55,12 @@ change here**, which is the point of a trait rather than a supertype bound.
 """
     RasterDataAcceptableCode{S, C}
 
-Trait holding when `C` is a shape in which a layer of source `S` may be *named* — a scalar code, a
+Trait holding when `C` is a shape in which a layer of source `S` may be *named* - a scalar code, a
 vector of them, or `Nothing`.
 
 **This admits a spelling; it does not confirm a layer exists.** Rejecting `:not_a_layer` needs the
 catalogue and happens there. `C` records the *canonical* type a code resolves to, never the shape the
-caller wrote — see [`CODE_TYPE`](@ref).
+caller wrote - see [`CODE_TYPE`](@ref).
 """
 @traitdef RasterDataAcceptableCode{S, C}
 
@@ -68,7 +68,7 @@ caller wrote — see [`CODE_TYPE`](@ref).
     CODE_TYPE
 
 The type of a single `RasterDataSources` layer code **as a caller may write it**: an `Int` layer
-number, a `Symbol` key or a `String`. All three name the same layer — `layerinfo(4)`,
+number, a `Symbol` key or a `String`. All three name the same layer - `layerinfo(4)`,
 `layerinfo(:bio4)` and `layerinfo("bio4")` return one record.
 
 **This is the input vocabulary, not what gets stored.** A [`ClimateRaster`](@ref) resolves whatever

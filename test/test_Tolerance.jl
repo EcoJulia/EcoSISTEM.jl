@@ -28,7 +28,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
         @test eltype(bin) == typeof(1.0K)
         # Params are stored bare in the canonical (K) frame. `σ` is a standard deviation (a temperature
         # *interval*): 9°F, 5°C and 5K all give the same 5 K width; `μ` keeps the affine offset
-        # (5°C → 278.15 K).
+        # (5°C -> 278.15 K).
         @test params(getdist(NicheTolerance(Temperature, Normal,
                                             [300.0u"°F"],
                                             [9.0u"°F"]),
@@ -45,7 +45,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
               278.15
     end
     @testset "vector constructor: imputation, bare + mixed units" begin
-        # reads the vectors' °C unit, builds in the default (canonical K) frame → identical to the
+        # reads the vectors' °C unit, builds in the default (canonical K) frame -> identical to the
         # explicit-matrix K form
         @test params(getdist(NicheTolerance(Temperature, Normal, [5.0°C],
                                             [2.0°C]), 1)) ==
@@ -81,7 +81,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
     # The merge of `CategoricalTolerance` and `LandCoverTolerance`: one type taking either
     # spelling, with the soft/hard distinction demoted from a *type* to a **number**.
     @testset "one categorical tolerance takes either spelling" begin
-        # The two spellings must give the *same* stored shape, or the merge has not happened —
+        # The two spellings must give the *same* stored shape, or the merge has not happened -
         # a single preferred class is a set of size one, which is the whole argument for merging.
         single = SimpleCategoricalTolerance([1, 2, 3],
                                             axis = EcoSISTEM.TypologyAxis)
@@ -124,7 +124,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
                                                 axis = EcoSISTEM.TypologyAxis,
                                                 penalty = 0.0)
 
-        # The merged type carries a niche axis, which neither of its predecessors did — this is
+        # The merged type carries a niche axis, which neither of its predecessors did - this is
         # what lets a categorical tolerance be checked against its regime at all.
         @test EcoSISTEM.axisof(SimpleCategoricalTolerance([1],
                                                           axis = EcoSISTEM.NicheAxis)) ===
@@ -165,7 +165,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
                                                     support = °C), 1))) ≈
               [0.0, 10.0]
         # the vector constructor reads the inputs' unit and converts to the `support` frame per role:
-        # a location properly (0°C → 273.15 K on a K frame), a scale as an interval (2°C → 2 K).
+        # a location properly (0°C -> 273.15 K on a K frame), a scale as an interval (2°C -> 2 K).
         @test collect(params(getdist(NicheTolerance(Temperature, Normal,
                                                     [0.0°C],
                                                     [2.0°C],
@@ -201,7 +201,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
     @testset "multiple tolerance" begin
         # Multiple tolerance
         # **Named**: both deprecated builders put their tolerance on the ROOT axis, so derived
-        # names cannot tell them apart. That is the rule working — two members claiming nothing are
+        # names cannot tell them apart. That is the rule working - two members claiming nothing are
         # exactly as indistinguishable as two claiming the same thing.
         warmth = TempTolerance(repeat([1 2 3 4], 10))
         wet = RainTolerance(repeat([1 2], 10))
@@ -210,7 +210,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
         @test map(eltype, values(tr2)) == (typeof(1.0K), typeof(1.0mm / day))
         gbin = NicheTolerance(Temperature, Normal, opts, vars)
         # **Named** throughout: `gbin` and the deprecated `TempTolerance` are both on a
-        # temperature axis, and `warmth`/`wet` are both on the root — neither pair can be told
+        # temperature axis, and `warmth`/`wet` are both on the root - neither pair can be told
         # apart by a derived name.
         niche = gbin
         @test_nowarn SpeciesRequirementCollection((; niche, warmth, wet))

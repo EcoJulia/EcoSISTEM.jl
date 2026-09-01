@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Canonical results for the fixture the **distributed** test runs — blessed from a **serial** run.
+# Canonical results for the fixture the **distributed** test runs - blessed from a **serial** run.
 #
 # **Why this file exists.** `test/ext_EcoSISTEMMPIExt.jl` compares MPI at 1, 2 and 4 ranks against
 # each other, and every one of those takes the duplicated hot loop in `ext/EcoSISTEMMPIExt/`. A
@@ -11,7 +11,7 @@
 # produces; `test/SmallMPItest.jl` reads the same keys and asserts the gathered distributed matrix
 # against them, read-only, at every rank count.
 #
-# **What that buys, and it is the whole point — it separates three failure modes:**
+# **What that buys, and it is the whole point - it separates three failure modes:**
 #
 #   - serial *and* distributed both move off the blessed value: a **model change**. Explain it, then
 #     re-bless deliberately.
@@ -22,7 +22,7 @@
 #
 # No MPI is needed to bless these: it is a serial run, so this set stays MPI-free and cheap.
 #
-# **Re-blessing `mpi/…` is only ever right when the serial keys moved for a reason already
+# **Re-blessing `mpi/...` is only ever right when the serial keys moved for a reason already
 # understood.** Re-blessing to make a red distributed test green would silently re-admit A22, which
 # is the one thing this file is here to prevent.
 
@@ -38,28 +38,50 @@ include("canonical.jl")
 using .Canonical
 include(joinpath(@__DIR__, "..", "varyingcase.jl"))
 
+# Both movement types are pinned, and by one loop so that the two sets cannot drift apart.
+# `BirthOnlyMovement` hands the distributed loop a count it already holds (`births`), while
+# `AlwaysMovement` reads the standing population back out of the landscape through
+# `EcoSISTEM._standingpopulation` - a route no `BirthOnlyMovement` run touches at all. Pinning only
+# the first would leave the second unpinned at every rank count.
+# Each case is (key prefix, movement, intervention). The intervention case exists because an
+# intervention is the only thing that writes abundances *after* the dynamics, and so the only thing
+# that can leave the distributed run's two landscape layouts out of step - which a run without one
+# cannot detect however many ranks it uses.
+const MPIFIXTURE_CASES = (("mpi", mpifixture_movement(), nothing),
+                          ("mpi/always", mpifixture_always(), nothing),
+                          ("mpi/intervention", mpifixture_movement(),
+                           mpifixture_intervention()))
+
 @testset "canonical: the distributed fixture, run serially" begin
-    eco = mpifixture_ecosystem()
-    simulate!(eco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
-    abun = eco.abundances.grid              # species × Y × X
+    for (prefix, movement, intervention) in MPIFIXTURE_CASES
+        @testset "$prefix" begin
+            eco = mpifixture_ecosystem(movement = movement)
+            simulate!(eco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+                      intervention = intervention)
+            abun = eco.abundances.grid              # species × Y × X
 
-    canonical("mpi/total_abundance", sum(abun))
-    canonical("mpi/abundance_by_species", vec(sum(abun, dims = (2, 3))))
+            canonical("$prefix/total_abundance", sum(abun))
+            canonical("$prefix/abundance_by_species",
+                      vec(sum(abun, dims = (2, 3))))
 
-    # The spatial signatures, blessed separately: a change that moves individuals around the grid
-    # while preserving both the grand total and the per-species totals still moves one of these.
-    # A distributed run partitions by species *and* by cells, so both axes are worth pinning.
-    canonical("mpi/abundance_by_row", vec(sum(abun, dims = (1, 3))))
-    canonical("mpi/abundance_by_column", vec(sum(abun, dims = (1, 2))))
+            # The spatial signatures, blessed separately: a change that moves individuals around the
+            # grid while preserving both the grand total and the per-species totals still moves one
+            # of these. A distributed run partitions by species *and* by cells, so both axes are
+            # worth pinning.
+            canonical("$prefix/abundance_by_row", vec(sum(abun, dims = (1, 3))))
+            canonical("$prefix/abundance_by_column",
+                      vec(sum(abun, dims = (1, 2))))
 
-    # --- properties that must hold whatever the blessed numbers are -----------------------------
-    # A blessed number says *something changed*; a property says *the model is still right*.
-    @test sum(abun) > 0
-    @test all(>=(0), abun)
+            # --- properties that must hold whatever the blessed numbers are ---------------------
+            # A blessed number says *something changed*; a property says *the model is still right*.
+            @test sum(abun) > 0
+            @test all(>=(0), abun)
 
-    # The dimension-order guard: 7 × 11 on purpose, so a transposed index is a shape error rather
-    # than a plausible wrong number.
-    @test size(abun)[2:3] == (VARYING_NY, VARYING_NX)
+            # The dimension-order guard: 7 × 11 on purpose, so a transposed index is a shape error
+            # rather than a plausible wrong number.
+            @test size(abun)[2:3] == (VARYING_NY, VARYING_NX)
+        end
+    end
 end
 
 end

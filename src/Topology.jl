@@ -11,16 +11,16 @@ What happens at **one** edge pair of a grid: [`Periodic`](@ref) (the edges join)
 """
 abstract type AbstractBoundaryCondition end
 
-"""    Bounded <: AbstractBoundaryCondition — this axis does not wrap: it has real edges. """
+"""    Bounded <: AbstractBoundaryCondition - this axis does not wrap: it has real edges. """
 struct Bounded <: AbstractBoundaryCondition end
 
-"""    Periodic <: AbstractBoundaryCondition — this axis wraps: its two edges join. """
+"""    Periodic <: AbstractBoundaryCondition - this axis wraps: its two edges join. """
 struct Periodic <: AbstractBoundaryCondition end
 
 """
     AbstractTopology
 
-The shape of the simulated world — how its edges join, if they join at all.
+The shape of the simulated world - how its edges join, if they join at all.
 
 A property of the **grid**, held and set on [`GridHabitat`](@ref), so every species on one grid
 shares it. The name promises no particular geometry: [`EdgeTopology`](@ref) is a rectangular lattice
@@ -37,13 +37,13 @@ abstract type AbstractTopology end
 
 The topology of a rectangular grid: one [`AbstractBoundaryCondition`](@ref) per axis.
 
-Three of the four combinations have names of their own — [`Torus`](@ref), [`Cylinder`](@ref) and
-[`Island`](@ref) — and those are the usual way to write them. The keyword form is for the fourth,
+Three of the four combinations have names of their own - [`Torus`](@ref), [`Cylinder`](@ref) and
+[`Island`](@ref) - and those are the usual way to write them. The keyword form is for the fourth,
 which has no ecological name.
 
 # Arguments
 
-  - `y`: the boundary condition for the **rows** — northing on a projected grid — given as a type,
+  - `y`: the boundary condition for the **rows** - northing on a projected grid - given as a type,
     `EdgeTopology(y = Periodic, x = Bounded)`.
   - `x`: the same for the **columns**, easting.
 
@@ -60,16 +60,16 @@ struct EdgeTopology{BCY <: AbstractBoundaryCondition,
 
 A toroidal grid: both pairs of edges join, so nothing ever leaves.
 
-True of a synthetic grid. On one with a real-world position it asserts something false — a study
-area is a window on a globe, not a world that wraps — so it is accepted with a warning.
+True of a synthetic grid. On one with a real-world position it asserts something false - a study
+area is a window on a globe, not a world that wraps - so it is accepted with a warning.
 """
 const Torus = EdgeTopology{Periodic, Periodic}
 
 """
     Cylinder = EdgeTopology{Bounded, Periodic}
 
-A cylindrical grid: the **east–west** (X) edges join, the north–south ones do not. The parameter
-order is `{Y, X}`, so `Bounded` comes first — X is the axis that wraps.
+A cylindrical grid: the **east-west** (X) edges join, the north-south ones do not. The parameter
+order is `{Y, X}`, so `Bounded` comes first - X is the axis that wraps.
 
 On a grid with a real-world position a wrapping X is right only where the grid spans the whole
 longitude sweep, and is warned about otherwise. Where it does span it, `Cylinder` is exact rather

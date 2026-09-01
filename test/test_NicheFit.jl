@@ -71,7 +71,7 @@ include("buildfixtures.jl")
           false
     @test eltype(NoFitCategorical{EcoSISTEM.NicheAxis, Int64}()) == Int64
 
-    # **Named**: every fit here is on the root axis, so derived names cannot tell them apart —
+    # **Named**: every fit here is on the root axis, so derived names cannot tell them apart -
     # what is under test is the *combining*, not the naming.
     tr2 = MultiplicativeFit((a = NoFitContinuous{EcoSISTEM.NicheAxis, Int64}(),
                              b = NoFitCategorical{EcoSISTEM.NicheAxis, Int64}()))
@@ -111,14 +111,14 @@ grid = (10, 10)
 area = 25.0km^2
 totalK = 10000.0kJ / km^2 / day
 
-# Grid decided first: 25 km² over 10 × 10 is 0.5 km cells.
+# Grid decided first: 25 km^2 over 10 × 10 is 0.5 km cells.
 studyarea = StudyArea(extent = (sqrt(area), sqrt(area)),
                       cellsize = sqrt(area) / grid[1], verbosity = :silent)
 supply = UniformSpec(totalK, axis = SolarRadiation)
 
 @testset "Trait functions" begin
-    # Every regime in this file is scaffolding. What is under test is `_suitability` — the step
-    # that reads a cell out of a regime and pairs it with a species' tolerance row — and all it
+    # Every regime in this file is scaffolding. What is under test is `_suitability` - the step
+    # that reads a cell out of a regime and pairs it with a species' tolerance row - and all it
     # needs is known values on a known axis, so the simplest spec that gives them is the right one.
     habitat1 = GridHabitat(regime = UniformSpec(1.0,
                                                 axis = EcoSISTEM.NicheAxis),
@@ -141,7 +141,7 @@ supply = UniformSpec(totalK, axis = SolarRadiation)
                                   NicheSuitability{Temperature,
                                                    Unitful.Temperature}()))
     @test_nowarn EcoSISTEM._suitability(regime, tolerance, nichefit, 1, 1)
-    # Members by name — **the axis names**, since neither side was named by hand and the two
+    # Members by name - **the axis names**, since neither side was named by hand and the two
     # axes here (the root and `Temperature`) are distinguishable. It read `.one`/`.two` until
     # 2026-08-18; those were the positional fallback, which now fires for nothing at all.
     @test tolerance.NicheAxis === values(tolerance)[1]
@@ -165,11 +165,11 @@ supply = UniformSpec(totalK, axis = SolarRadiation)
     @test getpref(tolerance, 1) == params(getdist(tolerance, 1)) ==
           (1.0, 2.0, 3.0, 4.0)
 
-    # The fixture this replaces held `1.0mm` — a **length**, where `Precipitation`'s canonical
+    # The fixture this replaces held `1.0mm` - a **length**, where `Precipitation`'s canonical
     # unit is a **rate**. Only the deprecated builder allowed that, by taking its raster verbatim;
     # measured, `GridHabitat` refuses the length outright with a `DimensionError`. So the
     # regime is a rate now and the nichefit is typed to match. The tolerance's own parameters are
-    # unitless — `_suitability` strips before evaluating — so both assertions are unchanged.
+    # unitless - `_suitability` strips before evaluating - so both assertions are unchanged.
     regime = GridHabitat(regime = UniformSpec(1.0mm / day,
                                               axis = Precipitation),
                          supply = supply, area = studyarea).regime
@@ -194,7 +194,7 @@ end
     @test @inferred(EcoSISTEM._suitability(regime, bin, nichefit, 1, 1)) isa
           Float64
 
-    # the nichefit's unit `NF` is imputed from the trait's axis / the regime — not typed by hand
+    # the nichefit's unit `NF` is imputed from the trait's axis / the regime - not typed by hand
     @test typeof(NicheSuitability(bin)) ==
           NicheSuitability{Temperature, typeof(1.0K)}
     @test eltype(NicheSuitability(bin)) == eltype(bin)
@@ -204,10 +204,10 @@ end
 
 @testset "_defaultsuitability derives NF from the tolerance for every tolerance kind" begin
     # Generalises the `NicheTolerance` fix: a `SimpleCategoricalTolerance` must also take its
-    # nichefit's `NF` from the tolerance, not `eltype(regime)` — otherwise nichefit trivially mirrors
+    # nichefit's `NF` from the tolerance, not `eltype(regime)` - otherwise nichefit trivially mirrors
     # whatever the regime happens to be, and a genuine tolerance/regime disagreement goes uncaught.
     disc = SimpleCategoricalTolerance(fill(1, 5), axis = EcoSISTEM.NicheAxis)
-    # Any categorical regime will do here — what is under test is which nichefit a tolerance
+    # Any categorical regime will do here - what is under test is which nichefit a tolerance
     # picks, not the regime's contents.
     regime = GridHabitat(regime = NicheSpec(3, axis = EcoSISTEM.NicheAxis),
                          supply = UniformSpec(10000.0kJ / km^2 / day,
@@ -225,9 +225,9 @@ end
 
     # **The merge's real payoff, and it could not be written before.** Neither
     # `CategoricalTolerance` nor `LandCoverTolerance` carried a niche axis, so a categorical
-    # tolerance could never be checked against the regime it was paired with — only the continuous
+    # tolerance could never be checked against the regime it was paired with - only the continuous
     # branch was. The merged type carries one, so the same mismatch is now refused on both.
-    # `NicheSpec(3)` above is declared on the ROOT axis, and so are the tolerances above — which
+    # `NicheSpec(3)` above is declared on the ROOT axis, and so are the tolerances above - which
     # is why they are accepted: matching is **identity**, and root against root is identity. The
     # root is not a wildcard; a root regime against a `LandCoverTypology` tolerance is refused just
     # as firmly as any other mismatch.
@@ -240,7 +240,7 @@ end
     @test EcoSISTEM._defaultsuitability(SimpleCategoricalTolerance(fill(1, 5),
                                                                    axis = LandCoverTypology),
                                         typed) isa CategoricalSuitability
-    # …and a tolerance on a *different* declared axis is refused, with the same tailored message
+    # ...and a tolerance on a *different* declared axis is refused, with the same tailored message
     # the continuous branch gives.
     @test_throws ErrorException EcoSISTEM._defaultsuitability(SimpleCategoricalTolerance(fill(1,
                                                                                               5),

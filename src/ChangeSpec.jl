@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# How a layer changes in time, as a caller declares it — recipes, before anything is built.
+# How a layer changes in time, as a caller declares it - recipes, before anything is built.
 
 using Unitful
 using Dates: Dates
@@ -8,7 +8,7 @@ using Dates: Dates
 """
     AbstractChangeSpec
 
-Abstract supertype of the change *recipes* — a declared change that has not yet met a layer, and
+Abstract supertype of the change *recipes* - a declared change that has not yet met a layer, and
 so has not yet been unit-checked. Materialised into an [`AbstractLayerChange`](@ref) at attach.
 """
 abstract type AbstractChangeSpec end
@@ -20,7 +20,7 @@ Declare that `shape`'s values are absolute: the layer's value *is* `shape`, in t
 
 # Arguments
 
-  - `shape`: something that genuinely differs from step to step — a [`SeriesChange`](@ref), or a
+  - `shape`: something that genuinely differs from step to step - a [`SeriesChange`](@ref), or a
     [`PatternedChange`](@ref) whose shape returns the full value. A bare constant is rejected,
     because writing the same value every step is a one-off operation on the ecosystem rather than a
     change of the layer.
@@ -33,7 +33,7 @@ end
     OffsetBy(shape)
 
 Declare that `shape`'s values are offsets from the layer's values as they stand when the change is
-attached — an *interval*, so `K` rather than `°C` on a temperature layer.
+attached - an *interval*, so `K` rather than `°C` on a temperature layer.
 
 # Arguments
 
@@ -70,7 +70,7 @@ A shape of elapsed simulation time: `amplitude * shape(elapsed / timescale)`.
   - `amplitude`: what `shape`'s output is scaled by, and where the unit comes from.
   - `timescale`: the elapsed time that maps to one unit of `shape`'s argument. The phase is not
     wrapped, so this is a period for a periodic shape and a transition width for a monotone one.
-  - `shape`: any function of a dimensionless phase — a sigmoid, a ramp, a step. Defaults to
+  - `shape`: any function of a dimensionless phase - a sigmoid, a ramp, a step. Defaults to
     [`sinusoidal`](@ref), one full cycle per `timescale`.
 
 Like [`SeriesChange`](@ref) this is a shape rather than a change in itself: the recipe wrapping it
@@ -83,7 +83,7 @@ struct PatternedChange{F, V, P}
 
     # The sole constructor, so there is one way to build this and it is the documented one. It also
     # has to be the inner one: the fields are ordered `shape` first (it is the type's defining
-    # parameter) while the call takes it last, as a keyword — leaving the generated positional
+    # parameter) while the call takes it last, as a keyword - leaving the generated positional
     # constructor in place would expose that mismatch as a second, silently different spelling.
     function PatternedChange(amplitude, timescale; shape = sinusoidal)
         return new{typeof(shape), typeof(amplitude), typeof(timescale)}(shape,
@@ -96,7 +96,7 @@ end
     SeriesChange(source; times = nothing, origin = nothing, atend = ErrorAtEnd(),
                  calendar = nothing)
 
-A stack of stored slices to be indexed by elapsed simulation time — a read climate series, or any
+A stack of stored slices to be indexed by elapsed simulation time - a read climate series, or any
 `(Y, X, Ti)` array of values.
 
 # Arguments
@@ -107,9 +107,9 @@ A stack of stored slices to be indexed by elapsed simulation time — a read cli
   - `origin`: the point in the series' **own coordinate** that elapsed time zero corresponds to.
     Defaults to the first stored time, so a series starts at its own beginning whatever its axis is
     anchored to.
-  - `atend`: what happens past the last slice — an [`AbstractSeriesEnd`](@ref), one of
+  - `atend`: what happens past the last slice - an [`AbstractSeriesEnd`](@ref), one of
     [`ErrorAtEnd`](@ref) (the default), [`HoldAtEnd`](@ref) or [`RepeatAtEnd`](@ref).
-  - `calendar`: what the coordinates *mean* — an [`AbstractSeriesCalendar`](@ref). A source whose
+  - `calendar`: what the coordinates *mean* - an [`AbstractSeriesCalendar`](@ref). A source whose
     lookup holds real dates is inferred to be a [`DatedSeries`](@ref) and anything else an
     [`UndatedSeries`](@ref). A monthly climatology has to say `calendar = MonthOfYearSeries()` for a
     run's epoch to start it in the right month, because month-of-year coordinates cannot be told
@@ -117,14 +117,14 @@ A stack of stored slices to be indexed by elapsed simulation time — a read cli
 
 **`origin = 0` is not the same as leaving `origin` out**, and the difference is a real one rather
 than a technicality. Omitting it means *start at the first slice*; zero means *the coordinate zero*,
-which on an ordinary monthly climatology — slices at 1 to 12 months — is a month **before** the first
+which on an ordinary monthly climatology - slices at 1 to 12 months - is a month **before** the first
 slice, and a series before its first slice says nothing, so the layer holds its own values for that
 month. Write the lead-in when you want one; leave `origin` out when you mean "from the beginning".
 
 `origin` is accepted only for an [`UndatedSeries`](@ref), the one case where nothing else can set the
 zero point: for the other two the epoch fixes the phase, and a second knob for the same thing could
 only contradict it. To say that an undated series really begins at a particular date, give it real
-`times` rather than an `origin` — that states what every slice is, rather than only where zero sits.
+`times` rather than an `origin` - that states what every slice is, rather than only where zero sits.
 
 Like [`PatternedChange`](@ref) this is a shape, so the mode is named by the recipe wrapping it:
 [`ReplaceWith`](@ref) for stored values the layer takes on, [`OffsetBy`](@ref) for a stored deviation
@@ -156,7 +156,7 @@ end
     spec1 + spec2
     EcoSISTEM.CombinedChange(specs...)
 
-Declare that a layer carries several changes at once, added together — a stored monthly series plus
+Declare that a layer carries several changes at once, added together - a stored monthly series plus
 a multi-year trend, say, where the trend offsets the whole seasonal pattern.
 
 **Write it as a sum.** That is the spelling this exists for, and the only one most callers need:
@@ -166,7 +166,7 @@ ReplaceWith(SeriesChange(monthly)) + IncrementBy(0.02K / year)
 ```
 
 `CombinedChange` is the type a sum builds, and is supported (though unexported, so it needs
-qualifying) for the case a `+` chain cannot express — combining a collection whose length is not
+qualifying) for the case a `+` chain cannot express - combining a collection whose length is not
 known when the code is written:
 
 ```julia
@@ -191,8 +191,8 @@ end
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
-# The same rule as the layer specs: the one-liner is the expression that builds it. These nest —
-# a change spec sits inside a `Varying`, which sits inside a habitat's keyword — so the compact form
+# The same rule as the layer specs: the one-liner is the expression that builds it. These nest -
+# a change spec sits inside a `Varying`, which sits inside a habitat's keyword - so the compact form
 # is the one that matters, and it is why `CombinedChange` prints as the `+` that spells it.
 function Base.show(io::IO, c::ReplaceWith)
     return print(io, "ReplaceWith(", sprint(show, c.shape), ")")

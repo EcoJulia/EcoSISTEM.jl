@@ -8,7 +8,7 @@ using DimensionalData
 using Unitful
 
 # What determines the bytes a source read produces: the dataset, the layer code and the read keywords.
-# Deliberately not the spec object — two different specs asking for the same layer should share one
+# Deliberately not the spec object - two different specs asking for the same layer should share one
 # read, a `ConstructedSpec` closes over a function that can never compare equal, and `SourceSpec`
 # equality would stop holding the moment a `readkw` held a range or an array. Keying on the read also
 # guarantees the cache holds nothing grid-dependent, since a read identity says nothing about any
@@ -71,7 +71,7 @@ One layer's place in a study area: where it is, and what the chosen grid costs i
 
   - `name`: the layer's name.
   - `crs`, `step`, `bounds`: where the layer is, in its **own** coordinates. Stated that way so that
-    the three agree with each other and are exact — an extent re-expressed in a distant CRS need be
+    the three agree with each other and are exact - an extent re-expressed in a distant CRS need be
     neither.
   - `kind`: what the target grid does to it, as an [`AbstractLayerFate`](@ref), which carries the
     aggregation factor or the reason for resampling along with it.
@@ -95,20 +95,20 @@ analysis, so a report can never describe a grid other than the one that would be
 # Fields
 
   - `crs`, `cellsize`, `align`: the grid that was chosen.
-  - `crssource`, `cellsizesource`: where each of those decisions came from — an
+  - `crssource`, `cellsizesource`: where each of those decisions came from - an
     [`AbstractDecisionSource`](@ref), [`GivenByUser`](@ref) if you supplied it, otherwise how it was
     derived. This is what lets the constructor announce everything it guessed.
-  - `active`: **one array answering two questions**. Its coordinates say where the cells are — units,
-    CRS, span, locus — and its values say which of them are simulated.
+  - `active`: **one array answering two questions**. Its coordinates say where the cells are - units,
+    CRS, span, locus - and its values say which of them are simulated.
   - `simulate_safely`: the resolved rule `active` was decided by.
   - `layers`: a [`LayerPlan`](@ref) each, saying what the chosen grid costs that layer.
   - `footprint`: how much memory a run on this grid needs.
   - `problems`: the [`Problem`](@ref)s found on the way.
-  - `specs`, `constraints`: enough to use this report as the base of another — the specs it was
+  - `specs`, `constraints`: enough to use this report as the base of another - the specs it was
     decided from, and the constraints **as given** rather than as resolved.
   - `cache`: the [`LayerCache`](@ref) of reads, or `nothing` on an as-built report, where it has been
     discarded.
-  - `stage`: which of the two kinds of report this is — see [`AbstractReportStage`](@ref).
+  - `stage`: which of the two kinds of report this is - see [`AbstractReportStage`](@ref).
 """
 struct StudyAreaReport
     crs::Any
@@ -118,7 +118,7 @@ struct StudyAreaReport
     align::Union{Symbol, Nothing}
     # The eltype is not load-bearing, which is what lets one array carry both the geometry and the
     # mask: `_sampledata` hands this straight to `Rasters.resample(src, to = ...)`, which reads the
-    # lookups and ignores the payload — `Float64`, `Matrix{Bool}` and `BitMatrix` targets all give
+    # lookups and ignores the payload - `Float64`, `Matrix{Bool}` and `BitMatrix` targets all give
     # `isequal`-identical output. Rasters is fussy about the lookups themselves, `Regular` against
     # `Irregular`, which a `Bool` payload leaves untouched.
     #
@@ -139,7 +139,7 @@ struct StudyAreaReport
     constraints::NamedTuple
     # `nothing` means **discarded**, not "read nothing", and the `Union` exists to keep those two
     # apart: a synthetic area legitimately reports an empty cache, so emptiness alone could not say
-    # which had happened. Discarded because the reads are consumed inputs — keeping them would pin
+    # which had happened. Discarded because the reads are consumed inputs - keeping them would pin
     # every raster a build touched for the life of the run, on every MPI rank, and nothing ever clears
     # the cache.
     cache::Union{LayerCache, Nothing}
@@ -164,7 +164,7 @@ function Base.show(io::IO, ::MIME"text/plain", r::StudyAreaReport)
     println(io, "  crs       $(_crsname(r.crs)) ",
             "($(_sourcephrase(r.crssource)))")
     println(io, "  aligned   ",
-            isnothing(r.align) ? "nothing — no layer is in the target CRS" :
+            isnothing(r.align) ? "nothing - no layer is in the target CRS" :
             ":$(r.align)")
     println(io, "  active    $(count(r.active)) of $(length(r.active)) cells ",
             "($(round(100 * count(r.active) / length(r.active), digits = 1))%)")
@@ -177,7 +177,7 @@ function Base.show(io::IO, ::MIME"text/plain", r::StudyAreaReport)
     # nothing, but a discarded one is a fact about this report that nothing else records.
     isnothing(r.cache) &&
         println(io,
-                "  reads     discarded — the layers were read when this was built, not kept")
+                "  reads     discarded - the layers were read when this was built, not kept")
     if !isempty(r.layers)
         println(io, "\n  layers")
         for p in r.layers
@@ -198,14 +198,14 @@ end
 
 Base.show(io::IO, r::StudyAreaReport) = show(io, MIME"text/plain"(), r)
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # How a severity is tagged in the report's own listing.
 _severitytag(::ProblemNotice) = "info"
 
 _severitytag(::ProblemWarning) = "warn"
 
-# Raise a problem at its own severity — one method each, rather than a conditional on the value.
+# Raise a problem at its own severity - one method each, rather than a conditional on the value.
 _report(::ProblemNotice, message) = @info message
 
 _report(::ProblemWarning, message) = @warn message

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# What a raster of climate data IS — the values, the layer code identifying them, and the
+# What a raster of climate data IS - the values, the layer code identifying them, and the
 # broadcasting that lets a raster be combined like its values and stay a raster.
 
 using DimensionalData
@@ -35,24 +35,24 @@ Type for climate data derived from `RasterDataSource`s.
 
 # Fields
 
-`array` is the grid itself, a `DimensionalData` array over `(Y, X)` — plus a third dimension for a
+`array` is the grid itself, a `DimensionalData` array over `(Y, X)` - plus a third dimension for a
 multi-layer or monthly read. **Prefer to operate on the raster rather than reaching for this**: a
 raster broadcasts and yields a raster, so `lc .!= code` and `sum(bands)` work directly, which is what
 lets a [`ConstructedSpec`](@ref) combine avoid naming an array type at all.
 
-`code` is the layer this holds, when it is one identifiable layer of its source — or `nothing` for a
+`code` is the layer this holds, when it is one identifiable layer of its source - or `nothing` for a
 whole-dataset read or a raster derived by arbitrary arithmetic. It is what lets a *materialised*
 layer still be looked up in the shipped table, which `iscategorical` needs to know whether
 resampling it may interpolate: the answer lives in the `ValueType` column, per layer, and a source
 type alone cannot supply it (BioClimPlus holds all three value types at once).
 
-**Write it however reads best — `4`, `:bio4` or `"bio4"` — and it is stored as the one spelling
+**Write it however reads best - `4`, `:bio4` or `"bio4"` - and it is stored as the one spelling
 that dataset prefers**, via `_preferredcode`. So two rasters of one layer always
 compare equal, and a code naming no layer is refused here rather than surfacing later.
 
 **There is deliberately no `valuetype` field.** Whether the values are class codes or measurements
 is a property of the layer's **niche axis**, and the axis lives on the spec that declares what the
-layer means — see `iscategorical`. A copy stored here could contradict it, which is the one thing a
+layer means - see `iscategorical`. A copy stored here could contradict it, which is the one thing a
 declaration must not be able to do.
 """
 struct ClimateRaster{S, C, A <: DimensionalData.AbstractDimArray} <:
@@ -60,7 +60,7 @@ struct ClimateRaster{S, C, A <: DimensionalData.AbstractDimArray} <:
     array::A
     code::C
     # The sole constructor, and the only door: defining it suppresses Julia's generated
-    # parameterised constructors, so `ClimateRaster{SomeUnmarkedType, …}(…)` has no method. That
+    # parameterised constructors, so `ClimateRaster{SomeUnmarkedType, ...}(...)` has no method. That
     # matters because a trait cannot bound a struct's parameter (`struct T{S; Tr{S}}` is a syntax
     # error), so `S` is free *in the type* and the guarantee lives here instead.
     @traitfn function ClimateRaster(::Type{S}, a::A,
@@ -77,8 +77,8 @@ end
 # --- Broadcasting: a raster behaves like its values and stays a raster -------
 #
 # **This is what lets a `ConstructedSpec` combine be written without naming the array type at
-# all** — `compress_landcover(lc) .!= landcoverclass(:open_water)` rather than
-# `ClimateRaster(EarthEnv{LandCover}, compress_landcover(lc).array .!= …)`. A combine is *user* code,
+# all** - `compress_landcover(lc) .!= landcoverclass(:open_water)` rather than
+# `ClimateRaster(EarthEnv{LandCover}, compress_landcover(lc).array .!= ...)`. A combine is *user* code,
 # and the array type is an implementation detail we intend to stay free to change; requiring it to be
 # named on the way in and constructed on the way out made every such change everyone's problem.
 #
@@ -87,18 +87,18 @@ end
 # what it meant when it was written out by hand.
 struct ClimateRasterStyle <: Broadcast.BroadcastStyle end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # --- What a layer IS, and how one is declared ----------------------------------------------------
 #
 # **Included very early**, so what it declares constrains what it may use: `NicheAxis`
 # (`Ecology.jl`), `SimpleTraits` and `DimensionalData` are all it has. Everything that *reads* a
-# raster — `SourceSpec` (`LazySpec.jl`), the readers (`datasetread.jl`, `erareaders.jl`), the shipped
-# tables (`LayerCatalogue.jl`) — comes later and constructs the types declared here.
+# raster - `SourceSpec` (`LazySpec.jl`), the readers (`datasetread.jl`, `erareaders.jl`), the shipped
+# tables (`LayerCatalogue.jl`) - comes later and constructs the types declared here.
 #
 # **Nothing here names `RasterDataSources`**, which is a weak dependency, and widening
 # `ClimateRaster`'s source parameter onto the `IsRasterData` trait is what makes that possible. The
-# dataset-shaped hooks below — `_codetype`, `_preferredcode`, `_isdatasettype` — are declared here
+# dataset-shaped hooks below - `_codetype`, `_preferredcode`, `_isdatasettype` - are declared here
 # and answered by `EcoSISTEMRasterDataSourcesExt`.
 
 using DimensionalData
@@ -115,8 +115,8 @@ using RecipesBase
 # A raster carries a whole array, so without this the default prints it: measured at 1 757
 # characters for a 5 x 5 synthetic one, and unbounded in the grid.
 #
-# The source and the layer code are what identify a raster — they are the two things that decide
-# what its values *mean* — so both are on the line, with the code omitted where there is none.
+# The source and the layer code are what identify a raster - they are the two things that decide
+# what its values *mean* - so both are on the line, with the code omitted where there is none.
 # Nothing here touches the values.
 # The source is rendered with its parameters intact and its module qualifier dropped. `nameof` will
 # not do: it strips parameters, which collapses `DerivedData{EarthEnv{LandCover}}` to `DerivedData`
@@ -144,8 +144,8 @@ end
 # describe rather than `RasterDataSources`', and that supertype is what grants `IsRasterData`
 # (`@traitimpl IsRasterData{EcoSISTEMSource}` below), so each can name a source in a `SourceSpec`.
 #
-# They stay here rather than in `DataSource.jl` because that file holds the *generic* markers —
-# "synthetic", "derived from" — while these name particular archives, which is climate data's
+# They stay here rather than in `DataSource.jl` because that file holds the *generic* markers -
+# "synthetic", "derived from" - while these name particular archives, which is climate data's
 # business.
 
 """
@@ -163,7 +163,7 @@ struct ERA <: EcoSISTEMSource end
     CERA <: EcoSISTEMSource
 
 The CERA-20C reanalysis archive, as a data source. Read one with
-`read(CERA, dir, file, param)`, which returns a [`ClimateRaster`](@ref)`{CERA}` — the archive is one
+`read(CERA, dir, file, param)`, which returns a [`ClimateRaster`](@ref)`{CERA}` - the archive is one
 file per decade, and the reader concatenates them along time.
 
 Fieldless, as [`ERA`](@ref) is.
@@ -203,19 +203,19 @@ Wrap a raster you already hold as a layer spec, declaring what its values mean.
 study area needs, cache the result between layers, and take the layer's unit, axis, accumulation
 period and value type from the shipped catalogue. An in-memory raster gives all of that up: it is
 read in full by whoever built it, cached nowhere, and describes itself only by the `axis` given
-here. Reach for this when the data genuinely did not come from a catalogued source — something
-computed elsewhere, or read by hand — not as the ordinary way to build a layer.
+here. Reach for this when the data genuinely did not come from a catalogued source - something
+computed elsewhere, or read by hand - not as the ordinary way to build a layer.
 
 **It exists because a raster is refused as a spec, and rightly so**: a raster carries values and
 possibly a layer code, but no niche axis, so nothing about it says whether those numbers are a
 temperature, a rainfall rate or a cover fraction. The spec is where that is declared, which is
-exactly what a raster cannot do — so this is the pathway, and `axis` is the whole of what it adds.
+exactly what a raster cannot do - so this is the pathway, and `axis` is the whole of what it adds.
 
 # Arguments
 
   - `raster`: the [`ClimateRaster`](@ref) to wrap. It is returned by the spec's combine verbatim, so
     it is neither re-read nor re-projected before the study area samples it.
-  - `axis`: the [`NicheAxis`](@ref) the values are on — what makes them matchable against a species'
+  - `axis`: the [`NicheAxis`](@ref) the values are on - what makes them matchable against a species'
     tolerances. Required: pass `NicheAxis` itself for data whose meaning is not being claimed, but a
     layer meant to pair with a tolerance needs a real one.
 """
@@ -230,14 +230,14 @@ end
 # all*; `RasterDataAcceptableCode` asks *is this a plausible shape for a layer name*; and
 # `_preferredcode` asks *which layer is that, and what does this dataset call it*. Conflating
 # them is what the old `S <: RDS.RasterDataSource` bound did: one `<:` answered the first two by
-# accident and could not ask the third at all, so a raster with **no** dataset — a derived layer, a
-# synthetic field, an ECMWF download — had to name a dataset it did not come from, and a code naming
+# accident and could not ask the third at all, so a raster with **no** dataset - a derived layer, a
+# synthetic field, an ECMWF download - had to name a dataset it did not come from, and a code naming
 # no layer was accepted without complaint.
 #
 # **A struct parameter cannot carry a trait bound** (`struct Bad{S; IsRasterData{S}}` is a syntax
 # error), so `ClimateRaster`'s `S` is unconstrained *in the type*. The guarantee comes from the single
 # inner constructor instead: it is the only door, it dispatches on the trait, and defining it
-# suppresses Julia's generated parameterised constructors — so `ClimateRaster{SomethingElse, …}` is
+# suppresses Julia's generated parameterised constructors - so `ClimateRaster{SomethingElse, ...}` is
 # expressible as a type but **unconstructible**.
 
 # `RasterDataSources`' own hierarchy is marked in `EcoSISTEMRasterDataSourcesExt`, which is the only
@@ -249,13 +249,13 @@ end
 
 # _derivedfrom(source)
 #
-# Return the source that a layer derived from `source` should carry — `DerivedData{source}`, or
+# Return the source that a layer derived from `source` should carry - `DerivedData{source}`, or
 # `source` itself when it is already derived.
 #
 # **This is how the collapse is actually enforced, and it must be at the *type* level.** A
 # `DerivedData` is never instantiated: it appears only as [`ClimateRaster`](@ref)'s first type
 # parameter, so a normalising *constructor* would never run and
-# `DerivedData{DerivedData{DerivedData{…}}}` would accumulate one wrapper per operation — silently,
+# `DerivedData{DerivedData{DerivedData{...}}}` would accumulate one wrapper per operation - silently,
 # since each nesting is a perfectly good type. Measured before this existed: three chained
 # broadcasts gave three levels.
 #
@@ -274,7 +274,7 @@ function _derivedfrom(sources...)
         _checkderivable(s)
     end
     # **Sorted, and that is not cosmetic**: without it `lc .+ cl` and `cl .+ lc` would be
-    # different types for the same computation — the argument-order dependence this whole change
+    # different types for the same computation - the argument-order dependence this whole change
     # exists to remove, reappearing one level up. Deduplicated so re-deriving from a source already
     # in the lineage does not grow it.
     origins = sort(collect(Set(Iterators.flatten(_origins(s) for s in sources))),
@@ -293,7 +293,7 @@ end
 end
 
 # Worth the extra method: without it the failure is a bare `MethodError` mentioning
-# `Not{RasterDataAcceptableCode{…}}`, which leaks SimpleTraits' internals and names no remedy.
+# `Not{RasterDataAcceptableCode{...}}`, which leaks SimpleTraits' internals and names no remedy.
 @traitfn function ClimateRaster(::Type{S}, a,
                                 code::C) where {C, S;
                                                 !RasterDataAcceptableCode{S,
@@ -308,42 +308,42 @@ end
 #
 # **Derived from the source package rather than decreed here**, so it cannot drift from it:
 # `eltype(RasterDataSources.layers(T))`, which is an `Int` for BioClim and land cover and a `Symbol`
-# for the rest. **It is therefore per-dataset, not one type for all of them** — the alternative,
+# for the rest. **It is therefore per-dataset, not one type for all of them** - the alternative,
 # canonicalising every dataset to a `Symbol`, would disagree with `RasterDataSources` (and with what
 # this package already stores) for three of its eight datasets.
 #
-# `Nothing` for every source with no layers of its own to name — which is **both** a synthetic field
+# `Nothing` for every source with no layers of its own to name - which is **both** a synthetic field
 # and anything derived. A derived raster is not the layer it came from: the combine is free to change
 # what the values *are*, so inheriting the parent's code would attach that layer's whole catalogue row
-# — its unit, axis and accumulation period — to a quantity none of them describe. `iscategorical` says
-# the same thing: *"a raster with no code at all is different and legitimate — every synthetic or
+# - its unit, axis and accumulation period - to a quantity none of them describe. `iscategorical` says
+# the same thing: *"a raster with no code at all is different and legitimate - every synthetic or
 # derived layer is one"*.
 #
 # **`_codetype(S) === Nothing` is also the "has no catalogue" test**, since a source with no layer
-# codes has no row to look up — one fact, not two.
-# **Codeless unless a source says otherwise.** A source this file has never heard of — a foreign
-# type marked with `IsRasterData` — has no layers we can name, which is the honest default; it says
+# codes has no row to look up - one fact, not two.
+# **Codeless unless a source says otherwise.** A source this file has never heard of - a foreign
+# type marked with `IsRasterData` - has no layers we can name, which is the honest default; it says
 # otherwise with a `_codetype` method of its own. The `RasterDataSources` method lives in
 # `EcoSISTEMRasterDataSourcesExt`, which is the only place that package is visible.
 _codetype(::Type) = Nothing
 
 # _alllayercodes(source)
 #
-# Every layer code `source` has, as a `Vector{CODE_TYPE}` — what a whole-dataset `SourceSpec(dataset)`
+# Every layer code `source` has, as a `Vector{CODE_TYPE}` - what a whole-dataset `SourceSpec(dataset)`
 # expands to, so each layer's identity (and therefore its own unit) is known before anything is read.
 #
 # The exact sibling of `_codetype` above, and for the same reason: the answer is the source
 # package's to give, not ours to decree. The `RasterDataSources` method is
 # `collect(CODE_TYPE, RasterDataSources.layers(T))` and lives in the extension beside it.
-# A source with no layers of its own to name — synthetic, derived, or a foreign type marked with
-# `IsRasterData` but not taught about — cannot answer, and says so rather than returning an empty
+# A source with no layers of its own to name - synthetic, derived, or a foreign type marked with
+# `IsRasterData` but not taught about - cannot answer, and says so rather than returning an empty
 # list, which would silently describe a dataset with nothing in it.
 function _alllayercodes(::Type{S}) where {S}
     return error("`$S` does not say what layers it has, so a whole-dataset spec cannot be " *
                  "expanded; name the layer you want, or give `$S` an `_alllayercodes` method.")
 end
 
-# Is this code *shape* plausible for a raster of source `S` — one code, a list of them, or none?
+# Is this code *shape* plausible for a raster of source `S` - one code, a list of them, or none?
 # `Nothing` is always allowed: even a catalogued source produces uncoded rasters, e.g. a
 # whole-dataset read whose layers are stacked rather than identified singly.
 #
@@ -366,12 +366,12 @@ end
 # **`RasterDataSources` is the authority, and the catalogue is the index into it.** The catalogue
 # records every spelling a layer answers to (`bio4` is `["4", "bio4"]`; the EarthEnv texture measures
 # are `["Contrast", "contrast"]`), and `RasterDataSources.layers` says which of those the package
-# itself uses — `4` for BioClim, `:Contrast` for habitat heterogeneity. So the preferred code is the
+# itself uses - `4` for BioClim, `:Contrast` for habitat heterogeneity. So the preferred code is the
 # alias that appears in `layers`, and it is neither uniformly an `Int` nor uniformly a `Symbol`: it is
 # whatever that dataset natively calls its layers.
 #
 # **Every construction pays the lookup, on purpose.** Skipping it for an already-canonical code
-# would also skip the validation, and reading data is not a hot path — so a code that names nothing is
+# would also skip the validation, and reading data is not a hot path - so a code that names nothing is
 # refused where it is written, rather than surfacing later as an empty read.
 function _preferredcode end
 
@@ -415,38 +415,38 @@ end
 # **Dropping a disagreeing `code` is the point, not a shortcoming.** Adding three land-cover bands
 # gives a quantity that is none of the three, so inheriting one input's code would attach a claim the
 # values cannot support; a `ConstructedSpec`'s own `axis` is what declares what a derived layer means.
-# Agreement is the interesting case anyway — masking a single layer keeps its code, which is what
+# Agreement is the interesting case anyway - masking a single layer keeps its code, which is what
 # leaves a derived **mask** identifiable.
 _sourceof(::ClimateRaster{S}) where {S} = S
 
 function _rewrap(array, rasters::Tuple{ClimateRaster, Vararg{ClimateRaster}})
-    # **Nothing is inherited — not the source, not the code, not the value type.** A combine is
+    # **Nothing is inherited - not the source, not the code, not the value type.** A combine is
     # free to change all three: `argmax` over twelve continuous land-cover bands gives a *class code*,
     # so even a unanimous `:continuous` among its inputs would be the wrong answer for its output.
     # An earlier version kept `code` and `valuetype` "where every input agrees", which is exactly
-    # the reasoning that put a false source on every derived raster — agreement among the inputs says
+    # the reasoning that put a false source on every derived raster - agreement among the inputs says
     # nothing about the output.
     # What a derived layer *is* comes from its spec's declared `axis`; what it came *from* is in
     # `DerivedData`'s parameter.
-    # **`DerivedData{S}`, not `S`** — and agreement is the wrong test for the *source*, which is
+    # **`DerivedData{S}`, not `S`** - and agreement is the wrong test for the *source*, which is
     # why this differs from the two fields above. Every input to `sum(bands)` agrees it is
     # `EarthEnv{LandCover}`, and the sum is still not land cover; multiply those same bands by an
     # incident flux and the result is solar radiation. What a combine produces is a new quantity whose
     # meaning comes from its spec's declared `axis`, so **every** broadcast result is derived,
     # agreement or not. `DerivedData` keeps the lineage without claiming to be the thing.
     # Resampling is the opposite case and must *keep* the source: it moves the same data onto
-    # another grid rather than computing anything — see `_sampledeclared`/`_declare`.
+    # another grid rather than computing anything - see `_sampledeclared`/`_declare`.
     # **Every input's source, not the first one's.** Taking `first(rasters)` made the result depend
-    # on argument order — `lc .+ cl` and `cl .+ lc` disagreed — and silently dropped the other
+    # on argument order - `lc .+ cl` and `cl .+ lc` disagreed - and silently dropped the other
     # lineages.
     return ClimateRaster(_derivedfrom(map(_sourceof, rasters)...), array)
 end
 
-# Is this argument a *dataset type* — one that names a whole catalogued source, and so wants the
+# Is this argument a *dataset type* - one that names a whole catalogued source, and so wants the
 # following argument read as its layer code(s)?
 #
 # **A hook, because the answer needs a weak dependency.** This file cannot name `RasterDataSources`,
-# so `EcoSISTEMRasterDataSourcesExt` supplies the sole `RasterDataSource` methods for both of these —
+# so `EcoSISTEMRasterDataSourcesExt` supplies the sole `RasterDataSource` methods for both of these -
 # the same method-less-hook pattern the package uses for `retrieve_era5`.
 _isdatasettype(_) = false
 
@@ -460,8 +460,8 @@ end
 # Normalise `ConstructedSpec`'s trailing layer arguments to a `Vector{AbstractSpec}`.
 #
 # **Three shapes are accepted**, and the middle one is why this needs a parser rather than a `map`:
-# - any `AbstractSpec` — a `SourceSpec`, a nested `ConstructedSpec`, or a **synthetic** spec;
-# - a dataset type, optionally followed by its code(s) — a scalar, or a vector/tuple giving one
+# - any `AbstractSpec` - a `SourceSpec`, a nested `ConstructedSpec`, or a **synthetic** spec;
+# - a dataset type, optionally followed by its code(s) - a scalar, or a vector/tuple giving one
 # single-layer spec per code; a bare dataset means the whole dataset as one multi-band read;
 # - nothing else.
 #
@@ -499,8 +499,8 @@ end
 # --- A raster on its own grid ------------------------------------------------
 
 # The combined raster put on `target`. Rewrapped as a `ClimateRaster` because `_sampledata` hands
-# back a bare `DimArray`, while everything downstream — `_materialisefield`, and the enclosing
-# combine itself — takes the wrapper; its source and code travel with it.
+# back a bare `DimArray`, while everything downstream - `_materialisefield`, and the enclosing
+# combine itself - takes the wrapper; its source and code travel with it.
 function _sampledeclared(combined::ClimateRaster{S}, target,
                          axis::Type{<:NicheAxis}) where {S}
     return ClimateRaster(S,
@@ -510,7 +510,7 @@ function _sampledeclared(combined::ClimateRaster{S}, target,
                          combined.code)
 end
 
-# A combine whose result is not a `ClimateRaster` — a bare mask or array — has no grid provenance to
+# A combine whose result is not a `ClimateRaster` - a bare mask or array - has no grid provenance to
 # sample *from*, so the early path cannot place it. The late path can, because there each layer was
 # already on the target before the combine ran.
 function _sampledeclared(combined, target, axis)
@@ -522,7 +522,7 @@ function _sampledeclared(combined, target, axis)
 end
 
 # A raster's own `(Y, X)` grid as a `Rasters.Raster` template, carrying its coordinates exactly as
-# the raster states them — an exactly no-op resample for the raster itself.
+# the raster states them - an exactly no-op resample for the raster itself.
 #
 # The coordinates keep their unit, like every other grid's, and `_reproject` undresses them for GDAL
 # at the one boundary that needs it. Stripping them here would make the template the odd one out.
@@ -533,7 +533,7 @@ end
 
 # --- What a raster or a layer stack IS ----------------------------------------
 # One question, asked of whatever the caller happens to be holding: an axis, a dataset and a layer
-# code, a stack of codes, or a raster — answered by `iscategorical` throughout. Only the stack method
+# code, a stack of codes, or a raster - answered by `iscategorical` throughout. Only the stack method
 # can throw, and only because layers that disagree have no answer rather than a `false` one.
 
 # Degrees north (latitude) and east (longitude) of a raster's cell centres.
@@ -552,9 +552,9 @@ end
 # must take the nearest class (`:mode`) instead of interpolating.
 #
 # Named for *categorical*, not "discrete", because the shipped `ValueType` column distinguishes
-# three things and only one of them forbids averaging. Its `discrete` layers — a day-of-year, a count
-# of growing-degree days — are ordinary numbers that average perfectly well; only its `categorical`
-# ones (`kg0`–`kg5`, the Köppen-Geiger/Wissmann/Thornthwaite/Troll-Pfaffen typologies) are class
+# three things and only one of them forbids averaging. Its `discrete` layers - a day-of-year, a count
+# of growing-degree days - are ordinary numbers that average perfectly well; only its `categorical`
+# ones (`kg0`-`kg5`, the Köppen-Geiger/Wissmann/Thornthwaite/Troll-Pfaffen typologies) are class
 # codes whose mean is meaningless. The old name `_isdiscrete` therefore pointed at the wrong half of
 # the split. EarthEnv land cover looks like a counterexample and is not: its bands are each a
 # per-class continuous % cover, categorical only after a reducer such as `compress_landcover`
@@ -563,7 +563,7 @@ end
 # **Whether a layer holds class codes is a property of its AXIS**, so this asks `iscategorical`
 # and nothing declares it separately. Measured across the shipped catalogue: none of its 33 axes
 # carries more than one value type, so a per-layer `valuetype` was always a copy of what the axis
-# already said — and a copy that could contradict it.
+# already said - and a copy that could contradict it.
 #
 # **Two arities, and the difference between them is the whole point.** Asking about a raster alone
 # means "work it out from my own code"; asking with an axis means "the axis is this". A single method
@@ -572,15 +572,15 @@ end
 # there is no magic value left to test for.
 #
 # **`NicheAxis` gets its own method**, which is not the same thing as the sentinel above. It is the
-# *absence* of a named axis rather than a claim that the values are continuous — `iscategorical`'s
-# root fallback is a majority answer, not a declaration — so where real information exists it wins.
+# *absence* of a named axis rather than a claim that the values are continuous - `iscategorical`'s
+# root fallback is a majority answer, not a declaration - so where real information exists it wins.
 # It has to: a `SourceSpec` derives its axis from its codes and falls back to `NicheAxis` when
 # they disagree, so an ordinary multi-layer stack such as `SourceSpec(WorldClim{BioClim})` arrives
 # here carrying it. Answering `false` would bilinearly interpolate the class codes of any
 # all-categorical stack spanning two typologies. A *named* axis stays authoritative.
 #
 # A raster with no code at all cannot answer from the catalogue, and `false` is right rather than an
-# error: nothing about it claims to be class-coded, and a caller who does mean class codes says so —
+# error: nothing about it claims to be class-coded, and a caller who does mean class codes says so -
 # `in_memory_raster(raster, axis = LandCoverTypology)`.
 function iscategorical(raster::ClimateRaster{S}) where {S}
     isnothing(raster.code) && return false
@@ -601,12 +601,12 @@ iscategorical(raster::ClimateRaster, ::Type{NicheAxis}) = iscategorical(raster)
 # Whether a `Ti` axis eltype represents time: either a real calendar coordinate (an anchored source's
 # own dates) or a `Unitful.Time` offset (a climatology's ticks, or a caller-supplied override).
 #
-# **`Dates.TimeType`, never `Dates.AbstractDateTime`** — the narrower name looks right and is not.
-# Julia branches `AbstractTime → TimeType → {AbstractDateTime → DateTime, Date, Time}`, so
+# **`Dates.TimeType`, never `Dates.AbstractDateTime`** - the narrower name looks right and is not.
+# Julia branches `AbstractTime -> TimeType -> {AbstractDateTime -> DateTime, Date, Time}`, so
 # `AbstractDateTime` excludes a plain `Date` (a daily series could not be constructed at all) and
 # every `CFTime` calendar (`AbstractCFDateTime <: Dates.TimeType`), which is how NCDatasets decodes a
 # netCDF whose `calendar` attribute is not Gregorian. `TimeType` is also the level the simulation side
-# already uses — `Ecosystem.epoch`, `DatedSeries.start`, `_giventimes` — so this brings the two into
+# already uses - `Ecosystem.epoch`, `DatedSeries.start`, `_giventimes` - so this brings the two into
 # line rather than widening past them.
 function _istimeaxis(::Type{T}) where {T}
     return T <: Unitful.Time || T <: Dates.TimeType
@@ -616,7 +616,7 @@ end
 #
 # **Here, not in an extension.** A `@recipe` needs only `RecipesBase`, which this package depends
 # on hard, so these are defined unconditionally and are simply inert until a plotting backend is
-# loaded — the same arrangement `src/Ecosystem.jl` and `src/Layer.jl` already use.
+# loaded - the same arrangement `src/Ecosystem.jl` and `src/Layer.jl` already use.
 # **An extension whose content names nothing from its own trigger package is a trap**: its trigger
 # and its dependencies drift apart, and nothing surfaces it until some unrelated change does. A
 # recipe names only `RecipesBase`, so it belongs here.
@@ -659,7 +659,7 @@ end
 end
 
 # **Parked, and needing more than this package has.** Uncommenting `getprofile` would need `Plots`
-# itself, for `histogram` and `px`, **and** `IndexedTables` — neither of which this package depends
+# itself, for `histogram` and `px`, **and** `IndexedTables` - neither of which this package depends
 # on, and a `@recipe` cannot supply either. Kept rather than deleted, as `SizeDemand` is, because it
 # records an intent; but it cannot be revived without deciding how those two arrive.
 #=

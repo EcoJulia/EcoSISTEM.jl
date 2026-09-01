@@ -12,7 +12,7 @@ export is_repo_clean
 Determine whether the git repository at `repo_path` is clean, reporting on its state.
 
 The short-format status (`git status -s`) of the repository is split into three
-categories using the two status columns of each entry — the first column records
+categories using the two status columns of each entry - the first column records
 changes staged in the index, the second records changes in the working tree:
 
   - **staged**: tracked files with changes recorded in the index;

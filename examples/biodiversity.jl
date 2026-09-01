@@ -6,7 +6,7 @@
 # hold more of them, most species should persist, and a longer dispersal kernel should spread a
 # population further across the grid.
 #
-# These are properties, not blessed numbers — the companion to `test/canonical/`, not a member of
+# These are properties, not blessed numbers - the companion to `test/canonical/`, not a member of
 # it. A canonical test pins *what the model produced*; these pin *what the model must never stop
 # doing*, and no re-blessing can silence them.
 #
@@ -16,8 +16,8 @@
 #
 # **It never runs under the test suite or in CI.** `test/extras_examples.jl` does execute every
 # top-level `examples/*.jl`, but `runtests.jl` sets `ECOSISTEM_SCALE=small` and this file skips itself
-# whenever it is set. It is ~20 whole simulations, several of 10–50 simulated years over 100–500
-# species, measured at **3 minutes** — far too slow for a routine gate. Run it deliberately:
+# whenever it is set. It is ~20 whole simulations, several of 10-50 simulated years over 100-500
+# species, measured at **3 minutes** - far too slow for a routine gate. Run it deliberately:
 #
 #     julia --project=examples examples/biodiversity.jl
 #     ECOSISTEM_SCALE=large julia --project -e 'using Pkg; Pkg.test(test_args = ["extras_examples.jl"])'
@@ -25,7 +25,7 @@
 # The second works because `runtests.jl` sets the variable with `get!`, so an explicit value wins.
 #
 # It is seeded throughout and must stay that way. Every assertion below is a statement about a
-# *stochastic* simulation, so an unseeded run fails intermittently — as this file did, in its previous
+# *stochastic* simulation, so an unseeded run fails intermittently - as this file did, in its previous
 # life, with two failures per run and a different two each time. A property test that cries wolf gets
 # ignored, which is worse than not having it.
 
@@ -40,12 +40,12 @@ using Distributions
 using Random
 
 # The gate. `runtests.jl` sets `ECOSISTEM_SCALE=small` for every `Pkg.test` run, so naming this set
-# there is not enough to run it — that is deliberate, because it is far too slow to sit in any routine
+# there is not enough to run it - that is deliberate, because it is far too slow to sit in any routine
 # gate. A bare script run leaves the variable unset (read as full scale), and an explicit
 # `ECOSISTEM_SCALE=large` overrides the suite's default, so both deliberate routes work.
 if get(ENV, "ECOSISTEM_SCALE", "large") == "small"
     # `println`, not `@info`: logging goes to **stderr**, and `test/extras_examples.jl` wraps every
-    # example in `@test_nowarn`, which fails on *any* stderr output rather than only on warnings — so
+    # example in `@test_nowarn`, which fails on *any* stderr output rather than only on warnings - so
     # announcing the skip through the logger fails the very gate the skip exists to keep fast.
     println("Skipping the biodiversity property tests: they are the most expensive thing in the " *
             "repository and never run under the test suite. Set ECOSISTEM_SCALE=large to run them.")
@@ -55,7 +55,7 @@ else
     const SEED = 20260804
 
     # The published configuration: supply is **per unit area**, demand is **per unit of plant**, so a
-    # species' actual demand is `DEMAND .* size`. Keeping demand per m² rather than per individual is
+    # species' actual demand is `DEMAND .* size`. Keeping demand per m^2 rather than per individual is
     # what lets the large-pool test below give every species its own body size.
     const SUPPLY = (sunlight = 4.5e11kJ / (km^2 * day), water = 192.0mm / day)
     const DEMAND = (sunlight = 450000.0kJ / (m^2 * day),
@@ -66,7 +66,7 @@ else
     const AREA = 100.0km^2
 
     # A square study area of total `area`, divided into `cells × cells`. Cell size follows from the
-    # two rather than being fixed — that is what lets the grid-resolution test carve one landscape
+    # two rather than being fixed - that is what lets the grid-resolution test carve one landscape
     # four ways and the area test grow the landscape at a fixed grid.
     function _studyarea(cells, area)
         side = sqrt(area)
@@ -77,7 +77,7 @@ else
     # `topology` is an **environment** keyword since step 19: whether the grid wraps is a property
     # of the map, not of the species dispersing over it. Defaults to `Torus()` here because these
     # experiments were written against a wrapping grid, and several of their assertions depend on
-    # having no edge — the ones that want an edge say so.
+    # having no edge - the ones that want an edge say so.
     """
         uniform_environment(cells, area; temperature = 298.0K)
 
@@ -85,7 +85,7 @@ else
     everywhere, with uniform solar and water supply.
 
     Returned on its own rather than folded into the community builder so that a test can impose a
-    supply gradient on it before the species arrive — see "more resource supports more individuals".
+    supply gradient on it before the species arrive - see "more resource supports more individuals".
     """
     function uniform_environment(cells, area; temperature = 298.0K,
                                  topology = Torus())
@@ -107,7 +107,7 @@ else
 
     Every per-species keyword takes a scalar or a length-`n` vector, so a test can vary body size,
     dispersal or mortality across the pool without a different builder. `individuals` is a **total**,
-    split across species from the seeded stream — so the starting state is identical on every run,
+    split across species from the seeded stream - so the starting state is identical on every run,
     without which none of the assertions here are reproducible.
     """
     function community(env, opts, widths; dispersal = 2.4km,
@@ -177,7 +177,7 @@ else
         @testset "a mismatched regime favours intermediate niche widths" begin
             # The same species, but the environment is 1 K off every optimum. Now the narrowest species
             # are excluded by the mismatch and the widest are still too diffuse, so the peak moves
-            # inwards — the one case in this file where the answer is non-monotonic, and why it is here.
+            # inwards - the one case in this file where the answer is non-monotonic, and why it is here.
             widths = collect(range(0.0001K, stop = 5.0K, length = NUMSPECIES))
             opts = fill(298.0K, NUMSPECIES)
             env = uniform_environment(CELLS, AREA, temperature = 299.0K)
@@ -193,16 +193,16 @@ else
             # is forced by the model, not a stylistic choice: `_resourceadjustment` scales birth by
             # `min(K/E)` over the resources (Liebig's law of the minimum, `src/Generate.jl`), so in a
             # cell where water binds, more solar buys exactly nothing. Grading both at once therefore
-            # ties every cell along the scarce edge — `min(0.25, 0.25) == min(1.0, 0.25)` — and the
+            # ties every cell along the scarce edge - `min(0.25, 0.25) == min(1.0, 0.25)` - and the
             # comparison tests the minimum operator rather than the ecology.
             #
             # The gradient is a **fraction of the environment's own uniform supply**, read back off
-            # the matrix, rather than a hard-coded quantity. The original wrote literals — `192.0 L/day`
-            # for water, against a true per-cell supply of ~1.92e8 L/day once supplies became rates —
+            # the matrix, rather than a hard-coded quantity. The original wrote literals - `192.0 L/day`
+            # for water, against a true per-cell supply of ~1.92e8 L/day once supplies became rates -
             # which made water limiting in every cell, wiped out the entire grid, and left both
             # assertions comparing 0 with 0. Deriving the gradient cannot drift out of step again.
             #
-            # It also runs 0.25 → 1, not 0 → 1: a zero-supply edge is uninhabitable, and `0 < 0` fails
+            # It also runs 0.25 -> 1, not 0 -> 1: a zero-supply edge is uninhabitable, and `0 < 0` fails
             # an increasing-abundance test for a reason that has nothing to do with the property.
             fracs = range(0.25, stop = 1.0, length = CELLS)
             opts, widths = fill(298.0K, NUMSPECIES), fill(2.0K, NUMSPECIES)
@@ -250,7 +250,7 @@ else
         end
 
         @testset "sustains a large number of species" begin
-            # Heterogeneous species — random widths, optima, dispersal, mortality and body size — to
+            # Heterogeneous species - random widths, optima, dispersal, mortality and body size - to
             # check that coexistence is not an artefact of every species being identical, and that it
             # holds as the pool grows tenfold.
             #

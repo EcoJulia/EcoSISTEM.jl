@@ -11,7 +11,7 @@
 
 # **A module, deliberately.** `test/extras_examples.jl` includes every top-level example into
 # **one** module, and more than one of them defines `runscale()` and `CONFIGURATIONS`. Julia 1.12
-# lets a later `const` silently overwrite an earlier one — no warning — so without the wrapper these
+# lets a later `const` silently overwrite an earlier one - no warning - so without the wrapper these
 # examples would quietly reconfigure each other depending on the order they happened to run in.
 
 module Interventions
@@ -47,7 +47,7 @@ let eco = loss_ecosystem()
     @assert iszero(sum(eco.abundances.matrix[:, lost]))
 end
 
-# --- …and it replays exactly, which the original never did --------------------
+# --- ...and it replays exactly, which the original never did --------------------
 let run = () -> begin
         eco = loss_ecosystem()
         simulate!(eco, 1.0year, 1.0month_mean_duration,

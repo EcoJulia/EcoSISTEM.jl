@@ -82,33 +82,33 @@ const paramunits = EcoSISTEM.paramunits
         @test role_units(ScaleRole(), °C) == K          # absolute unit of an affine one
         @test role_units(RateRole(), mm) == inv(mm)
         @test role_units(ShapeRole(), K) == NoUnits
-        # `role_units` is genuine multiple dispatch on `ParamRole`, not a Symbol lookup — an
+        # `role_units` is genuine multiple dispatch on `ParamRole`, not a Symbol lookup - an
         # unrecognised "role" is a MethodError, not a hand-rolled error branch.
         @test_throws MethodError role_units(:bogus, K)
 
         @test paramunits(Normal, K) == [K, K]
-        @test paramunits(Normal, °C) == [K, K]     # affine → absolute
+        @test paramunits(Normal, °C) == [K, K]     # affine -> absolute
         @test paramunits(Uniform, mm) == [mm, mm]
         @test paramunits(Gamma, mm) == [NoUnits, mm]  # shape dimensionless, scale carries it
-        # shape-only family: every parameter is dimensionless (regression — Beta must not be
+        # shape-only family: every parameter is dimensionless (regression - Beta must not be
         # mistaken for a bounds family and given [K, K])
         @test paramunits(Beta, K) == [NoUnits, NoUnits]
         @test paramunits(Normal, NoUnits) == [NoUnits, NoUnits]
     end
 
     @testset "read_distribution (affine-aware value conversion)" begin
-        # no unit ⇒ bare passthrough
+        # no unit => bare passthrough
         @test params(read_distribution(Normal, NoUnits, [1.0, 2.0])) ==
               (1.0, 2.0)
 
         # location is a position (proper affine), scale is an interval (width): on the default K
-        # frame, 0 °C → 273.15 K but a 2 °C width → 2 K
+        # frame, 0 °C -> 273.15 K but a 2 °C width -> 2 K
         @test collect(params(read_distribution(Normal, °C, [0.0, 2.0]))) ≈
               [273.15, 2.0]
         # in the °C frame the location stays 0, the width still 2
         @test collect(params(read_distribution(Normal, °C, [0.0, 2.0],
                                                canonical = °C))) ≈ [0.0, 2.0]
-        # both Uniform bounds are positions → both shift
+        # both Uniform bounds are positions -> both shift
         @test collect(params(read_distribution(Uniform, °C, [0.0, 10.0]))) ≈
               [273.15, 283.15]
         # a K frame leaves K inputs unchanged

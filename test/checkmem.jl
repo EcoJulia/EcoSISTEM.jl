@@ -4,7 +4,7 @@
 #
 # Rasters refuses a read whose result would not fit in memory, and decides that with
 # `Sys.free_memory() > bytes`. On Linux that is a reasonable proxy; on macOS it is not, because
-# `Sys.free_memory()` reports only genuinely *free* pages and macOS keeps almost none — the rest is
+# `Sys.free_memory()` reports only genuinely *free* pages and macOS keeps almost none - the rest is
 # file cache, purgeable and compressed pages, all of which are reclaimable on demand. A GitHub macOS
 # runner reported 54 MB free while refusing a 60 MB read, with ParallelTestRunner having already
 # dropped to a single worker, so this is not a symptom of the suite asking for too much at once.

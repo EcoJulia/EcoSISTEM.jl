@@ -25,7 +25,7 @@ mutable struct DiversitySet
     folder::String
     times::Vector{Unitful.Time}
 end
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 """
     DiversitySet(cache::CachedEcosystem, times::Vector{T}) where T <: Unitful.Time

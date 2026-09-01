@@ -8,8 +8,8 @@ using Dates: Dates
 """
     AbstractSeriesEnd
 
-What a [`SeriesLayerChange`](@ref) does once elapsed simulation time runs past its last stored slice
-— [`ErrorAtEnd`](@ref), [`HoldAtEnd`](@ref), [`RepeatAtEnd`](@ref) or [`RevertToLayer`](@ref).
+What a [`SeriesLayerChange`](@ref) does once elapsed simulation time runs past its last stored
+slice - [`ErrorAtEnd`](@ref), [`HoldAtEnd`](@ref), [`RepeatAtEnd`](@ref) or [`RevertToLayer`](@ref).
 Written as the `atend` keyword of [`SeriesChange`](@ref), and a type rather than a name drawn from a
 list, so an unrecognised policy is refused by the signature where it is written and the behaviours
 are separate methods rather than a branch retaken every step.
@@ -20,20 +20,20 @@ a policy.
 """
 abstract type AbstractSeriesEnd end
 
-"""    ErrorAtEnd <: AbstractSeriesEnd — running past the last slice is an error. The default. """
+"""    ErrorAtEnd <: AbstractSeriesEnd - running past the last slice is an error. The default. """
 struct ErrorAtEnd <: AbstractSeriesEnd end
 
-"""    HoldAtEnd <: AbstractSeriesEnd — the last slice persists for the rest of the simulation. """
+"""    HoldAtEnd <: AbstractSeriesEnd - the last slice persists for the rest of the simulation. """
 struct HoldAtEnd <: AbstractSeriesEnd end
 
-"""    RepeatAtEnd <: AbstractSeriesEnd — the series cycles, by a true modulus of its own period. """
+"""    RepeatAtEnd <: AbstractSeriesEnd - the series cycles, by a true modulus of its own period. """
 struct RepeatAtEnd <: AbstractSeriesEnd end
 
 """
     RevertToLayer <: AbstractSeriesEnd
 
 Past its last slice the series stops driving the layer, which returns to the values it held before
-the series was attached — its own spec's, for a [`ReplaceWith`](@ref) series.
+the series was attached - its own spec's, for a [`ReplaceWith`](@ref) series.
 
 This is the not-yet-started rule of [`AbstractSeriesEnd`](@ref) applied at the far end, where the
 alternatives are genuine. It is also the only end policy for which the layer's own values are still
@@ -45,7 +45,7 @@ struct RevertToLayer <: AbstractSeriesEnd end
     AbstractSeriesCalendar
 
 What kind of time coordinate a [`SeriesLayerChange`](@ref)'s slices carry, and so what a simulation
-epoch is able to do with them — [`DatedSeries`](@ref), [`MonthOfYearSeries`](@ref) or
+epoch is able to do with them - [`DatedSeries`](@ref), [`MonthOfYearSeries`](@ref) or
 [`UndatedSeries`](@ref). Written as the `calendar` keyword of [`SeriesChange`](@ref).
 
 **A series has to say which kind it is; it cannot be inferred from the values.** Coordinates of one,
@@ -74,12 +74,12 @@ end
 """
     MonthOfYearSeries()
 
-Slices are months of the year with the year unknown — a monthly climatology. The epoch selects the
+Slices are months of the year with the year unknown - a monthly climatology. The epoch selects the
 slice matching its **own calendar month**, so a run beginning in July starts on the July slice
 rather than on slice one.
 
 Matching is by **month number**, never by elapsed duration into the year. The slices are spaced by
-`month_mean_duration` (30.44 d), so six of them reach day 182.6 while the real 1 July is day 181 —
+`month_mean_duration` (30.44 d), so six of them reach day 182.6 while the real 1 July is day 181 -
 proportional matching would land a July epoch on the June slice.
 """
 struct MonthOfYearSeries <: AbstractSeriesCalendar end
@@ -87,7 +87,7 @@ struct MonthOfYearSeries <: AbstractSeriesCalendar end
 """
     UndatedSeries()
 
-No calendar identity at all — a synthetic stack, or any series whose coordinates are simply offsets.
+No calendar identity at all - a synthetic stack, or any series whose coordinates are simply offsets.
 There is nothing for an epoch to bind to, so elapsed zero is the first slice unless the series'
 `origin` says otherwise. This is the only calendar for which `origin` is meaningful, and the default
 for any source that does not carry real dates.

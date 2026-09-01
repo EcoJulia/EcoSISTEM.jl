@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# `MPIEcosystem` and the Diversity hooks it must supply.
+# `MPIEcosystem` itself: the type, its constructors, and the accessors that answer from a rank's own
+# block.
 #
 # It mirrors `Ecosystem` field for field, but holds an `MPIGridLandscape` and the rank's own species
-# and cell ranges. `gatherabundance`/`gatherdiversity` are what bring a distributed result back to
-# one rank for recording.
+# and cell ranges.
 #
-# `_getmetaabundance`, `_getweight` and `_getordinariness!` are implementations of **Diversity's**
-# generics, each imported immediately above its own definition. A call graph cannot see their callers,
-# so they read as dead code and are not: deleting one silently breaks the interface for a
-# distributed run.
+# Everything Diversity asks of it - the hooks, and the `gatherabundance`/`gatherdiversity` pair that
+# assemble a whole-metacommunity answer - is in `DiversityInterface.jl` instead, beside the serial
+# file's counterpart.
+#
 
 import EcoSISTEM
 using MPI
@@ -104,7 +104,7 @@ end
 EcoSISTEM.MPIEcosystem(args...; kwargs...) = MPIEcosystem(args...; kwargs...)
 
 # With the MPI extension loaded, auto-selection (in `build_ecosystem`) treats the process as
-# distributed only once MPI is initialised and there is more than one rank — so `mpirun -n 1` or a
+# distributed only once MPI is initialised and there is more than one rank - so `mpirun -n 1` or a
 # plain `using MPI` still builds a serial `Ecosystem`.
 EcoSISTEM._should_mpi() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
 
@@ -124,7 +124,7 @@ function MPIEcosystem(popfun::F,
                                                            DM}
     # **First, exactly as in the serial `Ecosystem` constructor and for the same reason.**
     # `genlookups` below divides the regime's cell size by a dispersal distance, so on a geographic
-    # grid (`size` in `°`) it raises `DimensionError: ° km⁻¹` before any tailored message is reached.
+    # grid (`size` in `°`) it raises `DimensionError: ° km^-1` before any tailored message is reached.
     # **This guard was missing here.** It was added to the serial constructor on 2026-08-12, when
     # `[GEO-SIZE]` made a geographic cell size honest and exposed the ordering; the MPI constructor
     # has the identical fault and was overlooked. Nothing caught it because `test/SmallMPItest.jl`
@@ -189,53 +189,3 @@ end
 @doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
                                       ::EcoSISTEM.GridHabitat,
                                       ::Any)
-
-function EcoSISTEM.gatherabundance(eco::MPIEcosystem)
-    comm = MPI.COMM_WORLD
-    rank = MPI.Comm_rank(comm)
-    true_abuns = zeros(Int64, counttypes(eco), countsubcommunities(eco))
-    if rank == 0
-        # **Counted over the COLUMN partition, because that is what is being sent.**
-        # `reshaped_cols` holds *every* species for *this rank's* cells, so a rank contributes
-        # `counttypes(eco) * sccounts[rank]` values. The previous
-        # `sppcounts .* sum(sccounts)` — this rank's *species* by *all* cells — is the row
-        # partition, and the two agree only when species and cells both divide evenly across the
-        # ranks. They always did in the old test fixture (8 species on a 4 × 4 grid), so the
-        # mismatch never showed; with 7 species on 77 cells rank 0 sends 273 values while the old
-        # expression asked for 308, and `MPI_Gatherv` fails outright.
-        output_vbuf = VBuffer(true_abuns,
-                              Int32.(counttypes(eco) .* eco.sccounts))
-    else
-        output_vbuf = VBuffer(nothing)
-    end
-    MPI.Gatherv!(vcat(eco.abundances.reshaped_cols...)[1:end], output_vbuf, 0,
-                 comm)
-    return true_abuns
-end
-
-function EcoSISTEM.gatherdiversity(eco::MPIEcosystem, divmeasure::F,
-                                   q) where {F <: Function}
-    comm = MPI.COMM_WORLD
-    rank = MPI.Comm_rank(comm)
-    totalsize = MPI.Comm_size(comm)
-    diversity = divmeasure(eco, q)
-    totalabun = MPI.Gather(sum(eco.abundances.rows_matrix), 0, comm)
-    mpidivs = MPI.Gather(diversity[!, :diversity], 0, comm)
-    if rank == 0
-        mpidivs = vcat(reshape(mpidivs, countsubcommunities(eco), totalsize),
-                       diversity[!, :q])
-        diversity[!, :diversity] .= mapslices(x -> Diversity.powermean(x[:,
-                                                                         1:(end - 1)],
-                                                                       1 .-
-                                                                       x[:,
-                                                                         end],
-                                                                       totalabun .*
-                                                                       1.0),
-                                              mpidivs,
-                                              dims = 2)[:,
-                                                        1]
-        return diversity
-    else
-        return diversity
-    end
-end

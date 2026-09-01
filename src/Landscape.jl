@@ -14,7 +14,7 @@ using Random
 
 An ecosystem's abundances: how many individuals of each species are in each cell. The same numbers
 are held under two names, as two views of one block of memory, because the simulation asks two
-different questions of them — the hot loop walks species against flat cells, while inspecting or
+different questions of them - the hot loop walks species against flat cells, while inspecting or
 seeding a run wants to say *where*.
 
 Immutable, and that is what makes the two views agree: the only way to change shape is to build a
@@ -22,13 +22,13 @@ new `GridLandscape` and reassign the whole field holding it, so they cannot drif
 
 # Fields
 
-  - `matrix`: species against flat grid cell, with no `Y`/`X` structure — the per-timestep access
+  - `matrix`: species against flat grid cell, with no `Y`/`X` structure - the per-timestep access
     pattern, and a plain `Matrix{Int64}`.
   - `grid`: species against `Y` and `X`, a plain `Array{Int64, 3}` sharing `matrix`'s memory.
   - `dimmatrix`: `matrix` as a `(Dim{:species}, Dim{:location})` `DimArray`, carrying real species
-    names and, for each flat cell, its extent — `[0.0, 1.0) x [0.0, 1.0) km`.
+    names and, for each flat cell, its extent - `[0.0, 1.0) x [0.0, 1.0) km`.
   - `dimgrid`: `grid` as a `(Dim{:species}, Y, X)` `DimArray`, with `Y` and `X` the habitat's own
-    dimensions — real coordinates as `Unitful` lengths, or degrees on a geographic grid.
+    dimensions - real coordinates as `Unitful` lengths, or degrees on a geographic grid.
 
 `dimmatrix`'s cell descriptors are computed on demand from the grid rather than stored: the lookup
 holds a grid reference and nothing else, so it costs the same few bytes whether the grid has a
@@ -39,7 +39,7 @@ work; `dimgrid`'s `Y` and `X` are `Sampled` and select directly.
 hot loop reads `matrix`; asking *which* species or *where* reads `dimmatrix`/`dimgrid`.
 
 **The raw fields are what make the hot loop free, and the reason is not obvious.** `Ecosystem`
-declares `abundances::GridLandscape` — the bare `UnionAll`, an abstract field. Julia can still infer
+declares `abundances::GridLandscape` - the bare `UnionAll`, an abstract field. Julia can still infer
 a field of that container concretely **provided the field's declared type does not mention the type
 parameters**, which is exactly why `matrix::Matrix{Int64}` is written out rather than left as one of
 the parameters. Measured: reaching the labelled view through the abstract field costs about 176 bytes
@@ -83,7 +83,7 @@ end
 A [`GridLandscape`](@ref) reduced to what has to survive a round trip through disk: the bare
 abundance matrix, without its dimensions, and a snapshot of the per-species random number streams.
 
-The streams are what make a resumed run reproducible — a run draws from one generator per species
+The streams are what make a resumed run reproducible - a run draws from one generator per species
 rather than from a shared one, so restoring the abundances alone would restart every stream from
 wherever the loading process happened to be. The dimensions are not saved because the ecosystem being
 restored into already has them.
@@ -98,8 +98,8 @@ struct SavedLandscape
     rngs::Vector{Random.Xoshiro}
 end
 
-# `matrix` is annotated ABSTRACTLY ON PURPOSE, and must stay that way. The obvious repair —
-# parameterising the struct on the array type — does not remove the abstraction, it moves it:
+# `matrix` is annotated ABSTRACTLY ON PURPOSE, and must stay that way. The obvious repair -
+# parameterising the struct on the array type - does not remove the abstraction, it moves it:
 # `CachedEcosystem` declares `abundances::CachedGridLandscape`, which is a concrete annotation only
 # while this type is concrete. Parameterising here makes that a `UnionAll` instead, so the same
 # imprecision reappears one level up, and removing it there would give an exported type a fourth
@@ -121,7 +121,7 @@ the answer: the run always advances by `timestep`, so `saveinterval` chooses onl
 # Fields
 
   - `matrix`: a `DimArray` over a `Ti` axis holding `GridLandscape`s and `missing`s. Indexed by
-    **time value**, which needs a selector — `matrix[Ti(At(t))]`, not `matrix[t]`, which is
+    **time value**, which needs a selector - `matrix[Ti(At(t))]`, not `matrix[t]`, which is
     positional and an error for a `Unitful.Time`.
   - `outputfolder`: where the JLD2 cache files are written.
   - `saveinterval`: how often a checkpoint reaches disk. A multiple of `timestep`.
@@ -133,13 +133,13 @@ struct CachedGridLandscape
     saveinterval::Unitful.Time
     timestep::Unitful.Time
 end
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
-# Without these the default prints the whole abundance matrix twice over — `matrix` and `grid` are
-# two views of one buffer — measured at 291 648 characters on a single line for 12 species over a
+# Without these the default prints the whole abundance matrix twice over - `matrix` and `grid` are
+# two views of one buffer - measured at 291 648 characters on a single line for 12 species over a
 # 60 x 100 grid.
 #
 # The total abundance is a genuine reduction over the data, which every other `show` in the package
@@ -251,8 +251,8 @@ Create a landscape of the right shape with every abundance zero, taking the spec
 `spplist` and the grid from `habitat`.
 
 **The partition is what distinguishes the two.** Given only the habitat and species list this builds
-a [`GridLandscape`](@ref); given `sppcounts` and `sccounts` as well — how many species and how many
-cells each rank owns — the MPI extension builds an [`MPIGridLandscape`](@ref) instead. The extra
+a [`GridLandscape`](@ref); given `sppcounts` and `sccounts` as well - how many species and how many
+cells each rank owns - the MPI extension builds an [`MPIGridLandscape`](@ref) instead. The extra
 arguments *are* what "distributed" means, so the signature says it rather than the name.
 
 Both take the habitat and species list rather than values derived from them, so that the derivation

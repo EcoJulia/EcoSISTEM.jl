@@ -2,9 +2,9 @@
 
 # Hot-path benchmark for multi-layer environments.
 #
-# Times the three paths whose cost depends on how many layers an environment has — `_suitability`
+# Times the three paths whose cost depends on how many layers an environment has - `_suitability`
 # (per cell, per species), `_resourceadjustment` (likewise) and `update_resource_usage!` (per cell)
-# — plus one end-to-end `simulate!` for context, across four environment shapes:
+# - plus one end-to-end `simulate!` for context, across four environment shapes:
 #
 #     1r1s   bare regime,       bare supply         the commonest case; no collection at all
 #     2r1s   regime collection, bare supply         `_suitability` folds over the layers
@@ -30,7 +30,7 @@
 # ## Comparing two versions of the package
 #
 # The last column is a hash of the final abundance matrix. Every run is seeded, so two versions of
-# EcoSISTEM that compute the same thing print the same hash — which is what makes a *speed*
+# EcoSISTEM that compute the same thing print the same hash - which is what makes a *speed*
 # comparison meaningful rather than a comparison of two different simulations. To measure a change
 # against the code it replaces, extract the committed (or staged) tree somewhere and point a second
 # run at it, with the same manifest so both resolve identical dependency versions:
@@ -45,15 +45,15 @@
 #
 # This script is written against the current API, so it will not run unaltered against a tree
 # older than the one-type-per-family collections (v0.5.0). Four constructors need swapping for their
-# fixed-arity predecessors there, and nothing else: `LayerCollection((a, b))` →
+# fixed-arity predecessors there, and nothing else: `LayerCollection((a, b))` ->
 # `RegimeCollection2(a, b)` for a regime and `SupplyCollection2(a, b)` for a supply,
-# `SpeciesRequirementCollection((a, b))` → `ToleranceCollection2(a, b)`, `SpeciesRequirementCollection((a, b))` →
-# `DemandCollection2(a, b)`, and `MultiplicativeFit((a, b))` → `MultiplicativeFit2(a, b)`. That
+# `SpeciesRequirementCollection((a, b))` -> `ToleranceCollection2(a, b)`, `SpeciesRequirementCollection((a, b))` ->
+# `DemandCollection2(a, b)`, and `MultiplicativeFit((a, b))` -> `MultiplicativeFit2(a, b)`. That
 # variant is what produced the before/after figures recorded in
 # `~/.claude/plans/ecosistem-collection-types.md`.
 #
 # **Do not lift the parameters from `test/TestCases.jl`.** Its fixtures use `survival = 0.0`,
-# which makes the suitability term `ϵ̄real^-0.0 == 1` — so the regime, tolerance and nichefit have no
+# which makes the suitability term `ϵ̄real^-0.0 == 1` - so the regime, tolerance and nichefit have no
 # effect on the dynamics whatsoever, every shape below runs the identical trajectory, and the
 # population explodes past 1e11 within a handful of steps. The values here are `build_species`' own
 # defaults, which keep the run stable and the shapes genuinely different from one another.
@@ -82,10 +82,10 @@ const SEED = 1234
 #
 # These were once built from the layer constructors directly, on the grounds that
 # `GridHabitat` "needs a positioned `StudyArea`, and so a data source, for more than one
-# layer". Measured 2026-08-07: that is not so — it takes a tuple on either side over a synthetic
+# layer". Measured 2026-08-07: that is not so - it takes a tuple on either side over a synthetic
 # area. Going through it means the benchmark measures the shape users actually get.
 #
-# One real difference, and it is why this is worth stating: a bare `ContinuousRegime(…)` declares
+# One real difference, and it is why this is worth stating: a bare `ContinuousRegime(...)` declares
 # no axis, so building one directly gives `EcoSISTEM.NicheAxis` where `GridHabitat` gives it the
 # axis of its spec (`Temperature`/`Precipitation`). That parameter is dispatched on, so a benchmark
 # built the first way measures a shape no real environment has. Both arms are built through the
@@ -124,7 +124,7 @@ function build(nregimes::Int, nsupplies::Int)
     Random.seed!(SEED)
     abun = rand(Multinomial(2000 * NSPP, NSPP))
     movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, NSPP), 1.0e-3))
-    # `build_species`' own defaults — see the warning in the header about `survival = 0.0`.
+    # `build_species`' own defaults - see the warning in the header about `survival = 0.0`.
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2, 1.0)
     species = SpeciesList(NSPP, tolerance, abun, demand, movement, param,
                           fill(true, NSPP))
@@ -162,7 +162,7 @@ function _totaldemand(eco)
 end
 
 function run()
-    @printf("# %s — %d species, %d×%d cells, %d thread(s), min of %d\n", LABEL,
+    @printf("# %s - %d species, %d×%d cells, %d thread(s), min of %d\n", LABEL,
             NSPP, SIDE, SIDE, Threads.nthreads(), REPEATS)
     @printf("%-6s %13s %13s %13s %13s %20s\n", "shape", "simulate!(s)",
             "suitability(ms)", "adjust(ms)", "totaldemand(ms)",

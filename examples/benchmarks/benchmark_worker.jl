@@ -22,7 +22,7 @@
 # expected count type; the type itself is chosen by run_benchmarks.jl through the
 # EcoSISTEM `count_type` preference (a compile-time setting, not an env var).
 # `EcoSISTEM.Count` exists only on the unmerged `rr/counttype` branch, so on any
-# branch without it the assertion is skipped rather than failed — otherwise this
+# branch without it the assertion is skipped rather than failed - otherwise this
 # worker cannot run at all there, which is what it did before this was guarded.
 #
 # The individual count defaults to ~1 billion so the simulation is compute-bound
@@ -50,7 +50,7 @@ using Unitful, Unitful.DefaultSymbols
 # Guarded by `isdefined`: the configurable count type is a feature of the unmerged
 # `rr/counttype` branch, and an unguarded `EcoSISTEM.Count` is an outright
 # `UndefVarError` on every branch without it. Checking rather than assuming keeps one
-# worker correct on both — it still fails loudly where the type exists, and simply has
+# worker correct on both - it still fails loudly where the type exists, and simply has
 # nothing to check where it does not.
 if isdefined(EcoSISTEM, :Count)
     const EXPECTED_COUNT = get(ENV, "ECOSISTEM_BENCH_COUNT_TYPE", "Int64")
@@ -70,7 +70,7 @@ const SEED = parse(Int, get(ENV, "ECOSISTEM_BENCH_SEED", "1234"))
 
 # Build the model: a single solar supply over a flat temperature grid, Gaussian thermal tolerance
 # and birth-driven dispersal on a torus. The construction is identical for the plain and MPI
-# ecosystems — `distributed` alone decides the container — so only that differs between modes.
+# ecosystems - `distributed` alone decides the container - so only that differs between modes.
 #
 # The grid is stated as an extent and a cell size, which is what a `StudyArea` decides a grid from:
 # `AREA` is the total, so each side is its square root and each cell that divided by `GRID`.

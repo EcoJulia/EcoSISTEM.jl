@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # **A categorical environment**, where a cell *is* a land-cover class rather than holding a number.
-# Species are matched to a **set of acceptable classes**, not to an optimum and a width — so this is
+# Species are matched to a **set of acceptable classes**, not to an optimum and a width - so this is
 # the whole other half of the niche machinery from the continuous examples.
 #
 # **The axis is what makes a layer categorical, not the values.** `compress_landcover` collapses
-# EarthEnv's twelve per-class cover fractions into the single winning class *code* per cell — an
-# integer — and it is `axis = LandCoverTypology` that says those integers are **labels**. Declare a
+# EarthEnv's twelve per-class cover fractions into the single winning class *code* per cell - an
+# integer - and it is `axis = LandCoverTypology` that says those integers are **labels**. Declare a
 # continuous axis instead and the same integers are canonicalised to `Float64`, after which the
 # builder refuses the pairing outright: *"layer `tolerance` is Int64 in the species tolerance but
-# Float64 in the environment regime"*. That refusal is the axes rule working — meaning comes from the
+# Float64 in the environment regime"*. That refusal is the axes rule working - meaning comes from the
 # declared axis, never from the values.
 #
 # **The three pieces that differ from a continuous run**, and they follow from each other:
@@ -21,7 +21,7 @@
 # | fit | `NicheSuitability` | `CategoricalSuitability` |
 #
 # Only the tolerance is written here. `build_ecosystem` **infers** the fit from the tolerance type,
-# which is why nothing below names `CategoricalSuitability` — and why getting the axis wrong is caught
+# which is why nothing below names `CategoricalSuitability` - and why getting the axis wrong is caught
 # as a type mismatch rather than as a wrong answer.
 #
 # **Classes by name, never by number.** The numeric codes are an EarthEnv implementation detail;
@@ -30,7 +30,7 @@
 #
 #     julia --project=examples examples/CategoricalLandCover.jl
 
-# **A module, deliberately** — see `examples/README.md`.
+# **A module, deliberately** - see `examples/README.md`.
 module CategoricalLandCover
 
 using EcoSISTEM
@@ -46,7 +46,7 @@ const CELLSIZE = SMALL ? 20.0km : 5.0km
 const YEARS = SMALL ? 2year : 10year
 
 # A bare dataset with no code hands the combine the whole multi-band raster, which is what
-# `compress_landcover` needs — it must see all twelve classes to pick a winner.
+# `compress_landcover` needs - it must see all twelve classes to pick a winner.
 const LANDCOVER = ConstructedSpec(compress_landcover, EarthEnv{LandCover},
                                   axis = LandCoverTypology)
 const SUNLIGHT = UniformSpec(1.0e4kJ / (km^2 * day), axis = SolarRadiation)
@@ -70,7 +70,7 @@ const OPEN = (:herbaceous, :cultivated_and_managed, :regularly_flooded)
 _classes(names) = collect(EcoSISTEM.landcoverclass.(names))
 
 # A **pre-built** tolerance, which `build_species` takes as it stands: a set of classes is not a
-# mean and a width, so there is no `(mean, width)` form for it and no `toleranceaxis` to give — the
+# mean and a width, so there is no `(mean, width)` form for it and no `toleranceaxis` to give - the
 # tolerance already carries its own meaning. It does still declare its `axis`, which is what pairs
 # it with the `LandCoverTypology` regime above.
 const TOLERANCE = SimpleCategoricalTolerance([
@@ -106,7 +106,7 @@ println("After $(YEARS): woodland guild $(WOOD), open-ground guild $(GRASS).")
 # --- what this must show -------------------------------------------------------------------
 
 # The point of a categorical niche: each guild does **better** where the cell's class is one it
-# accepts. Not "occupies only those cells" — dispersal puts individuals into unsuitable cells every
+# accepts. Not "occupies only those cells" - dispersal puts individuals into unsuitable cells every
 # step, where they simply fare badly. A suitability of zero makes a cell a poor place to be, not an
 # unreachable one, so "disjoint occupancy" is a property the model does not claim and does not have.
 #

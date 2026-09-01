@@ -13,7 +13,7 @@ using DataFrames
                 MO <: AbstractMovement, T <: AbstractTypes,
                 P <: AbstractParams} <: AbstractTypes
 
-Everything the simulation knows about the species themselves — the species-side counterpart of a
+Everything the simulation knows about the species themselves - the species-side counterpart of a
 [`GridHabitat`](@ref), and one of the two halves [`build_ecosystem`](@ref) checks against each other
 name for name.
 
@@ -28,7 +28,7 @@ being them, so every `AbstractTypes` question is forwarded there; see `src/Diver
   - `demand`: what each species takes from the shared pool, an [`AbstractDemand`](@ref) matching the
     habitat's supply the same way.
   - `abun`: the abundances a run starts from, before `populate!` scatters them.
-  - `types`: the similarity structure — a `UniqueTypes` where species are maximally distinct, or a
+  - `types`: the similarity structure - a `UniqueTypes` where species are maximally distinct, or a
     `PhyloBranches` derived from a phylogeny.
   - `movement`: which individuals disperse and how far, an [`AbstractMovement`](@ref).
   - `params`: the demographic rates, an [`AbstractParams`](@ref).
@@ -95,7 +95,7 @@ end
 # should answer "what have I got here?" the same way.
 #
 # The similarity structure is named because it is what decides whether a diversity measure means
-# anything — `UniqueTypes` and a phylogeny give different answers to the same question.
+# anything - `UniqueTypes` and a phylogeny give different answers to the same question.
 function Base.show(io::IO, sl::SpeciesList)
     return print(io,
                  "SpeciesList($(length(sl.names)) species, ",
@@ -114,7 +114,7 @@ function Base.show(io::IO, ::MIME"text/plain", sl::SpeciesList)
     return nothing
 end
 
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
 # Outer rather than inner, and that is the point: a constructor belongs inside a `struct` only to
 # reach `new`, and this one derives the default names and delegates. Leaving it inside would imply a
@@ -146,7 +146,7 @@ function SpeciesList{TL, DM, MO, T, P}(tolerance::TL,
 end
 
 # The two tree-generating constructors live in `EcoSISTEMPhyloExt`. They do not merely accept a
-# phylogeny — they build one and derive a `PhyloBranches` similarity from it — so they cannot work
+# phylogeny - they build one and derive a `PhyloBranches` similarity from it - so they cannot work
 # without `Phylo`. Their docstrings stay here, immediately above the stubs, because `api.md`'s
 # `@autodocs` cannot see into an extension.
 #
@@ -167,7 +167,7 @@ phylogeny**, with a `PhyloBranches` similarity structure computed from that tree
 The third form takes a similarity structure explicitly instead of computing one from the tree; the
 tolerances are still evolved along a random ultrametric tree.
 
-**All three forms need `Phylo`** — each builds the tree, or forwards to one that does — so
+**All three forms need `Phylo`** - each builds the tree, or forwards to one that does - so
 `using Phylo` is required and without it the call is a `MethodError`. The implementation is in
 `EcoSISTEMPhyloExt`.
 
@@ -196,7 +196,7 @@ function SpeciesList(numspecies::Int64,
                        native, [0.5])
 end
 # ---------------------------------------------------------------------------
-# The size-based (`SizeDemand`) constructor is parked — still commented out — in
+# The size-based (`SizeDemand`) constructor is parked - still commented out - in
 # `ext/EcoSISTEMPhyloExt/`. It evolves body mass along a phylogeny, so were it ever uncommented it
 # would need `Phylo` like the two constructors above, and keeping it beside them keeps the open
 # decision about `SizeDemand` in one place rather than two. See `src/Demand.jl`.
@@ -261,7 +261,7 @@ getdemand(sppl::SpeciesList) = sppl.demand
 
 # The only route from this package to a `UniqueTypes`, so that a species' name cannot be lost on the
 # way. Diversity offers `UniqueTypes(count)` as well as `UniqueTypes(names)`, and the count form
-# generates `"1"`, `"2"`, ... — right for a genuinely anonymous community, wrong wherever names are
+# generates `"1"`, `"2"`, ... - right for a genuinely anonymous community, wrong wherever names are
 # held, as they always are here. Leaving nothing that can reach the lossy form is what keeps that from
 # happening twice.
 #

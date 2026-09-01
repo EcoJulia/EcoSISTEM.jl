@@ -3,8 +3,8 @@
 # A deliberately **non-uniform, non-square, time-varying** ecosystem fixture, shared by the canonical
 # blessed-result tests and the MPI cross-rank reproducibility test.
 #
-# **Why it exists.** A reproducible-results test — the canonical simulated run and the MPI
-# 1/2/4-rank comparison alike — must not run on a *spatially uniform, temporally static, square*
+# **Why it exists.** A reproducible-results test - the canonical simulated run and the MPI
+# 1/2/4-rank comparison alike - must not run on a *spatially uniform, temporally static, square*
 # environment. Such a fixture is structurally incapable of detecting:
 #
 #   - anything **spatial**, including the `(y, x)` dimension-order class that only a **non-square**
@@ -27,7 +27,7 @@ using Unitful.DefaultSymbols
 using Distributions
 using Random
 
-# **Not square, and — separately — not evenly divisible by any rank count.** Three distinct
+# **Not square, and - separately - not evenly divisible by any rank count.** Three distinct
 # properties, each guarding something different:
 #
 #   - `NX != NY` so a **transposed index** is a shape error rather than a plausible wrong number;
@@ -37,7 +37,7 @@ using Random
 #
 # `MPIEcosystem` partitions by species (rows) **and** grid cells (columns), so both halves need a
 # remainder to put the decomposition under any stress at all. An earlier version of this fixture
-# used 12 × 7 = 84 cells and 8 species — both of which divide exactly by 2 and 4, so every rank got an
+# used 12 × 7 = 84 cells and 8 species - both of which divide exactly by 2 and 4, so every rank got an
 # identical share and the uneven-split paths were never taken.
 const VARYING_NX = 11
 const VARYING_NY = 7
@@ -52,11 +52,11 @@ function varying_area()
                      cellsize = VARYING_CELL, verbosity = :silent)
 end
 
-# A regime that varies in **space** (a north–south temperature gradient) and in **time** (a steady
+# A regime that varies in **space** (a north-south temperature gradient) and in **time** (a steady
 # warming). Both at once is the point: a change that got the spatial orientation right and the clock
 # wrong, or vice versa, moves these numbers.
 #
-# `IncrementBy` is a *rate*, so the total warming over the run is a function of elapsed time — which
+# `IncrementBy` is a *rate*, so the total warming over the run is a function of elapsed time - which
 # is exactly the timestep-independence the model requires, and would break if a change were ever
 # applied per *step* rather than per unit time.
 function varying_regime()
@@ -71,7 +71,7 @@ end
 # **The supply gradient runs across the grid (`orientation = 90°`) while the regime's runs down it
 # (`180°`), and that orthogonality is the whole design.** Measured: the regime takes 7 distinct
 # values (one per row, `Y`) and the supply 11 (one per column, `X`). A transposed index therefore
-# swaps those counts — 11 temperatures and 7 supplies — which is loud, rather than producing a
+# swaps those counts - 11 temperatures and 7 supplies - which is loud, rather than producing a
 # plausible wrong number. On the old square, uniform grid neither could be seen at all.
 function varying_supply()
     return (GradientSpec(3.0e11kJ / km^2 / day, 6.0e11kJ / km^2 / day,
@@ -91,7 +91,7 @@ end
 
 # Species optima spread across the regime's own gradient, so species genuinely sort in space rather
 # than all preferring the same cells. Exposed separately because any ecosystem built on this
-# environment — serial or MPI — needs optima that actually sit inside it.
+# environment - serial or MPI - needs optima that actually sit inside it.
 function varying_optima(numspecies = VARYING_SPECIES)
     return 288.0K .+
            (302.0 - 288.0)K .* range(0.1, stop = 0.9,
@@ -135,11 +135,11 @@ function varying_ecosystem(; seed = 0, numspecies = VARYING_SPECIES)
     return Ecosystem(sppl, env, NicheSuitability(tolerance), seed = seed)
 end
 
-# ── The fixture the serial-versus-distributed pinning uses ──────────────────────────────────────
+# -- The fixture the serial-versus-distributed pinning uses --------------------------------------
 #
-# **Defined once here on purpose.** The blessed `mpi/…` results are only evidence about the
+# **Defined once here on purpose.** The blessed `mpi/...` results are only evidence about the
 # distributed run if the canonical bless and `SmallMPItest.jl` build the *identical* fixture, and two
-# spelled-out copies would drift apart — which is precisely the failure this pinning exists to catch.
+# spelled-out copies would drift apart - which is precisely the failure this pinning exists to catch.
 #
 # Deliberately unlike `varying_species` above: faster rates, a wider kernel and a large `boost`, so a
 # two-year run moves the numbers substantially instead of sitting near its starting state.
@@ -151,7 +151,84 @@ const MPIFIXTURE_FILL = 10
 const MPIFIXTURE_BURNIN = 2year
 const MPIFIXTURE_TIMESTEP = 1month_mean_duration
 
-function mpifixture_species(; numspecies = VARYING_SPECIES)
+# The dispersal kernel both MPI fixtures share. Named once so that `mpifixture_species` and
+# `mpifixture_ecosystem` cannot drift apart in it: the serial run is the reference the distributed
+# one has to reproduce, and a difference here would look exactly like a partitioning bug.
+mpifixture_kernels(numspecies) = fill(GaussianKernel(3.0km, 10e-10), numspecies)
+function mpifixture_movement(numspecies = VARYING_SPECIES)
+    return BirthOnlyMovement(mpifixture_kernels(numspecies))
+end
+# The animal-like counterpart, dispersing the standing population rather than only the newborns.
+# It reaches the distributed loop by a different route - `EcoSISTEM._standingpopulation` rather than
+# the `births` the loop already holds - so pinning only one of the two would leave that route unrun.
+function mpifixture_always(numspecies = VARYING_SPECIES)
+    return AlwaysMovement(mpifixture_kernels(numspecies))
+end
+
+# An abundance-changing intervention, which is what makes the two landscape layouts able to diverge:
+# it writes `rows_matrix` after the dynamics, so a run that never fires one cannot tell whether
+# `cols_vector` was brought back into step before the next timestep's `update_resource_usage!` reads
+# it. Fires twice, at 3 and 9 months, so the run continues well past each firing.
+# A species list whose similarity structure is a dense `GeneralTypes` matrix rather than the
+# identity, and the only fixture here that can fail on a distributed calculation which drops
+# similarities between species held on different ranks.
+#
+# With `UniqueTypes` - what every other fixture uses - the similarity matrix IS the identity, so its
+# off-diagonal is all zeros and slicing it to one rank's species discards nothing. A calculation that
+# wrongly restricted itself to a rank's own block therefore produced the right answer anyway. Only a
+# non-identity matrix makes that mistake observable, and this is the cheapest way to get one: no
+# phylogeny, no weak dependency, just a matrix.
+#
+# The matrix must be a valid Z: square, entries in `[0, 1]`, symmetric, and **1 on the diagonal** -
+# a species is maximally similar to itself. Diversity's constructor checks only squareness and the
+# range, so the other two are ours to get right.
+#
+# Drawn from its own seeded stream rather than the global one, so the fixture is identical on every
+# rank and in every process - the same requirement as everything else in this file.
+function mpifixture_similarity(numspecies = VARYING_SPECIES)
+    z = rand(MersenneTwister(20260831), numspecies, numspecies)
+    z = (z .+ z') ./ 2
+    for i in 1:numspecies
+        z[i, i] = 1.0
+    end
+    return z
+end
+
+# The `mpifixture_species` list with its `UniqueTypes` replaced by that matrix. Built through the
+# inner constructor because the outer ones all fix the similarity structure themselves: the
+# tolerance-based one hardcodes `UniqueTypes` and the phylogenetic ones build a tree.
+function mpifixture_generalspecies(; numspecies = VARYING_SPECIES,
+                                   movement = mpifixture_movement(numspecies))
+    sppl, tolerance = mpifixture_species(numspecies = numspecies,
+                                         movement = movement)
+    types = GeneralTypes(mpifixture_similarity(numspecies))
+    return SpeciesList{typeof(sppl.tolerance), typeof(sppl.demand),
+                       typeof(sppl.movement), typeof(types),
+                       typeof(sppl.params)}(sppl.names, sppl.tolerance,
+                                            sppl.abun, sppl.demand, types,
+                                            sppl.movement, sppl.params,
+                                            sppl.native), tolerance
+end
+
+# The serial ecosystem built on that dense similarity matrix, filled exactly as the distributed one
+# is. Uses `Ecosystem` directly rather than `build_ecosystem`, which would detect a live MPI session
+# and hand back a distributed ecosystem instead - so this stays serial on whichever rank calls it.
+function mpifixture_generalecosystem(; seed = 0, numspecies = VARYING_SPECIES)
+    sppl, _ = mpifixture_generalspecies(numspecies = numspecies)
+    eco = Ecosystem(sppl, varying_environment(), mpifixture_nichefit(),
+                    seed = seed)
+    eco.abundances.matrix .= MPIFIXTURE_FILL
+    return eco
+end
+
+function mpifixture_intervention()
+    return Intervention(AtTimes([3.0month_mean_duration,
+                                    9.0month_mean_duration]),
+                        AllCells(), AddAbundance(1, 5))
+end
+
+function mpifixture_species(; numspecies = VARYING_SPECIES,
+                            movement = mpifixture_movement(numspecies))
     # Two demands, matching the two supplies of the varying environment: `build_ecosystem` checks
     # that the species and environment sides align layer for layer.
     demand = SpeciesRequirementCollection((Demand{SolarRadiation}(collect(1:numspecies) .*
@@ -160,8 +237,6 @@ function mpifixture_species(; numspecies = VARYING_SPECIES)
                                            Demand{Precipitation}(fill(2.0Unitful.L /
                                                                       day,
                                                                       numspecies))))
-    movement = BirthOnlyMovement(fill(GaussianKernel(3.0km, 10e-10),
-                                      numspecies))
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2, 100.0)
     # Optima spread across the regime's own 288-302 K gradient, so species genuinely sort in space.
     # A shared optimum would put them all in the same cells, and optima outside the environment would
@@ -185,8 +260,9 @@ abundances filled exactly as the MPI test fills its own.
 Simulating this for `MPIFIXTURE_BURNIN` at `MPIFIXTURE_TIMESTEP` and gathering the distributed run
 must give the same abundance matrix, cell for cell, at any rank count.
 """
-function mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES)
-    sppl, _ = mpifixture_species(numspecies = numspecies)
+function mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES,
+                              movement = mpifixture_movement())
+    sppl, _ = mpifixture_species(numspecies = numspecies, movement = movement)
     eco = Ecosystem(sppl, varying_environment(), mpifixture_nichefit(),
                     seed = seed)
     # Filled artificially rather than populated, so the starting state is identical on every rank

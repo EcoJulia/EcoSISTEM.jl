@@ -13,14 +13,14 @@ own cell. [`GaussianKernel`](@ref) and [`LongTailKernel`](@ref) are the concrete
 
 A kernel says only *how far and how likely*. What happens when a draw crosses an edge is the grid's
 [`AbstractTopology`](@ref), and what becomes of one aimed at a dead cell is `disperse_safely` on the
-movement — three separate questions, answered by three separate things.
+movement - three separate questions, answered by three separate things.
 """
 abstract type AbstractKernel end
 
 """
     GaussianKernel(dist::Unitful.Length, thresh::Float64)
 
-A dispersal kernel whose distances are Rayleigh distributed — the two-dimensional case of dispersing
+A dispersal kernel whose distances are Rayleigh distributed - the two-dimensional case of dispersing
 a Gaussian displacement in each direction independently.
 
 # Fields
@@ -72,11 +72,11 @@ end
 Which individuals disperse at all: [`BirthOnlyMovement`](@ref) (only the newly born, plant-like),
 [`AlwaysMovement`](@ref) (any individual, animal-like) or [`NoMovement`](@ref) (none).
 
-A movement carries the per-species part of dispersal — one [`AbstractKernel`](@ref) per species, and
+A movement carries the per-species part of dispersal - one [`AbstractKernel`](@ref) per species, and
 one `disperse_safely` flag per species. The grid's own edges are not part of it: they belong to the
 [`GridHabitat`](@ref), because two species on one grid cannot be on different topologies.
 
-`disperse_safely` says what becomes of an individual dispersing into a **dead cell** — one off the
+`disperse_safely` says what becomes of an individual dispersing into a **dead cell** - one off the
 grid, or an inactive one. `true` redistributes it among the reachable destinations as though it had
 never aimed there; `false` loses it, so the share of the kernel pointing at dead cells becomes
 mortality.
@@ -92,7 +92,7 @@ abstract type AbstractMovement end
 """
     BirthOnlyMovement{K <: AbstractKernel} <: AbstractMovement
 
-Only individuals that have just been born disperse — plant-like.
+Only individuals that have just been born disperse - plant-like.
 
 # Fields
 
@@ -116,10 +116,7 @@ end
 """
     AlwaysMovement{K <: AbstractKernel} <: AbstractMovement
 
-Any individual may disperse, not only the newly born — animal-like.
-
-Not supported under MPI, which partitions the grid by cell: moving an established individual can
-cross a rank boundary in a way a birth cannot.
+Any individual may disperse, not only the newly born - animal-like.
 
 # Fields
 
@@ -178,16 +175,16 @@ struct Lookup
     pnew::Vector{Float64}
     moves::Vector{Int64}
 end
-# ══ Functions ══════════════════════════════════════════════════════════════════════════════════
+# == Functions ==================================================================================
 
-# One line, because the default prints all five vectors — measured at 230 320 characters for a
+# One line, because the default prints all five vectors - measured at 230 320 characters for a
 # single species' neighbourhood. What identifies a lookup is how far it reaches, not the numbers in
 # it: the last three fields are scratch rewritten on every cell of every timestep.
 function Base.show(io::IO, l::Lookup)
     return print(io, "Lookup($(length(l.y)) destinations)")
 end
 
-# One flag per kernel, or the two vectors silently describe different species — `zip` would truncate
+# One flag per kernel, or the two vectors silently describe different species - `zip` would truncate
 # and the last species would take a neighbour's setting.
 function _checkdispersesafely(kernels, disperse_safely)
     length(disperse_safely) == length(kernels) ||

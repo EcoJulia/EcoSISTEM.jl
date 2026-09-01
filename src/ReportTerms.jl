@@ -9,18 +9,18 @@ using Unitful
     AbstractLayerFate
 
 What the chosen study grid costs one layer: [`LayerKeptExactly`](@ref), [`LayerAggregated`](@ref) or
-[`LayerResampled`](@ref). Each carries exactly the detail its own case has — the aggregation factor, or
-the reason for resampling — so a field can never be set for a case it means nothing to.
+[`LayerResampled`](@ref). Each carries exactly the detail its own case has - the aggregation factor, or
+the reason for resampling - so a field can never be set for a case it means nothing to.
 """
 abstract type AbstractLayerFate end
 
-"""    LayerKeptExactly <: AbstractLayerFate — the layer is copied onto the grid, cell for cell. """
+"""    LayerKeptExactly <: AbstractLayerFate - the layer is copied onto the grid, cell for cell. """
 struct LayerKeptExactly <: AbstractLayerFate end
 
 """
     LayerAggregated(factor)
 
-The layer is combined `factor` source cells to a target cell — still exact, no interpolation.
+The layer is combined `factor` source cells to a target cell - still exact, no interpolation.
 """
 struct LayerAggregated <: AbstractLayerFate
     factor::Int
@@ -29,7 +29,7 @@ end
 """
     LayerResampled(reason)
 
-The layer is interpolated onto the grid, introducing uncertainty — the thing the whole alignment
+The layer is interpolated onto the grid, introducing uncertainty - the thing the whole alignment
 story exists to avoid. `reason` says why it was unavoidable.
 """
 struct LayerResampled <: AbstractLayerFate
@@ -50,15 +50,15 @@ still lists.
 
 It is therefore also what makes a built report safe to reuse. Any value carrying a report can be a
 [`StudyArea`](@ref)'s `base`, and re-deriving from one would rebuild the *proposed* grid and discard
-that narrowing — so an `AsBuilt` base given no other keyword is copied verbatim instead, which is how
+that narrowing - so an `AsBuilt` base given no other keyword is copied verbatim instead, which is how
 [`build_habitat`](@ref) reseeds a habitat from the grid it is actually on.
 """
 abstract type AbstractReportStage end
 
-"""    AsInvestigated <: AbstractReportStage — an area as proposed: nothing has been built on it yet. """
+"""    AsInvestigated <: AbstractReportStage - an area as proposed: nothing has been built on it yet. """
 struct AsInvestigated <: AbstractReportStage end
 
-"""    AsBuilt <: AbstractReportStage — an area as built: this describes a `GridHabitat` that exists. """
+"""    AsBuilt <: AbstractReportStage - an area as built: this describes a `GridHabitat` that exists. """
 struct AsBuilt <: AbstractReportStage end
 
 """
@@ -70,10 +70,10 @@ written rather than by a check inside the constructor.
 """
 abstract type AbstractProblemSeverity end
 
-"""    ProblemNotice <: AbstractProblemSeverity — something was guessed, or is lossy but expected. """
+"""    ProblemNotice <: AbstractProblemSeverity - something was guessed, or is lossy but expected. """
 struct ProblemNotice <: AbstractProblemSeverity end
 
-"""    ProblemWarning <: AbstractProblemSeverity — it will work, but is probably not what you want. """
+"""    ProblemWarning <: AbstractProblemSeverity - it will work, but is probably not what you want. """
 struct ProblemWarning <: AbstractProblemSeverity end
 
 # --- Saying it in prose ------------------------------------------------------
@@ -84,7 +84,7 @@ _fatephrase(::LayerKeptExactly) = "kept exactly"
 
 _fatephrase(fate::LayerAggregated) = "aggregated $(fate.factor)× (exact)"
 
-_fatephrase(fate::LayerResampled) = "RESAMPLED — $(fate.reason)"
+_fatephrase(fate::LayerResampled) = "RESAMPLED - $(fate.reason)"
 
 # A report's stage, as it appears in its header line.
 _stagephrase(::AsInvestigated) = "as investigated"

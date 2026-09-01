@@ -6,7 +6,7 @@
     CachedAsset(owner::Type, url::AbstractString)
 
 An immutable descriptor for a file downloaded from `url` and cached under
-`EcoSISTEM.assetdir(owner = owner)`. Nothing is downloaded at construction — call
+`EcoSISTEM.assetdir(owner = owner)`. Nothing is downloaded at construction - call
 [`assetpath`](@ref) to get the local path, downloading it into the cache first if it is not there.
 
 # Fields
@@ -35,7 +35,7 @@ removed. `RasterDataSources` is put under it the same way, by the extension's `_
 # Arguments
 
   - `mod`: whose subdirectory to return, defaulting to EcoSISTEM's own.
-  - `owner`: a type to nest a further subdirectory under, so each owner's downloads are separate —
+  - `owner`: a type to nest a further subdirectory under, so each owner's downloads are separate -
     see [`CachedAsset`](@ref).
 """
 function assetdir(mod::Module = EcoSISTEM;

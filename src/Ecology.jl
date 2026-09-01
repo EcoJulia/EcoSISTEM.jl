@@ -6,8 +6,8 @@
 # another.
 #
 # The whole design turns on one distinction. A cell of the world is described in two independent
-# ways: what it is LIKE (a `Condition` — temperature, rainfall, land cover) and what it PROVIDES
-# (a `Resource` — the pool species compete for). Everything else is that distinction, seen from the
+# ways: what it is LIKE (a `Condition` - temperature, rainfall, land cover) and what it PROVIDES
+# (a `Resource` - the pool species compete for). Everything else is that distinction, seen from the
 # environment's side or the species' side:
 #
 #     Role -+- Condition -- environment: a regime  -- species: a tolerance
@@ -27,7 +27,7 @@
 # an environment, with the fit between them).
 #
 # What is NOT here: anything that says *how*. `ContinuousLayer` commits to a numeric grid,
-# `NicheTolerance` to a response distribution, `StudyGrid` to a regular lattice — all are choices of
+# `NicheTolerance` to a response distribution, `StudyGrid` to a regular lattice - all are choices of
 # representation and live with their own machinery. The test is simple: if removing it would change
 # what the model IS rather than how it is computed, it belongs here.
 
@@ -42,9 +42,9 @@ The two ways a cell of the world bears on the species living in it: as a
 [`Condition`](@ref) it must tolerate, or as a [`Resource`](@ref) it competes for.
 
 This distinction is the axis the whole model is built along, and it applies to **both sides at
-once**. The environment states each role as a layer ([`AbstractLayer`](@ref)) — a regime and a
-supply — and each species brings a matching requirement
-([`AbstractSpeciesRequirement`](@ref)) — a tolerance and a demand. A role therefore names a
+once**. The environment states each role as a layer ([`AbstractLayer`](@ref)) - a regime and a
+supply - and each species brings a matching requirement
+([`AbstractSpeciesRequirement`](@ref)) - a tolerance and a demand. A role therefore names a
 *relationship*, not a kind of data: the same temperature grid is a condition because of how species
 meet it, not because of what it contains.
 
@@ -57,7 +57,7 @@ abstract type Role end
 """
     Condition <: Role
 
-What a cell **is like** — temperature, rainfall, land cover, elevation.
+What a cell **is like** - temperature, rainfall, land cover, elevation.
 
 A condition is a state, not a stock. Every species in the cell experiences the same value; nothing
 is divided between them and nothing is used up. What varies is how well each species copes, which is
@@ -65,28 +65,28 @@ what its [`AbstractTolerance`](@ref) says: a species with a narrow tolerance doe
 range of the condition and poorly outside it.
 
 Conditions therefore set **where** a species can persist. They do not, by themselves, limit how many
-individuals a cell can hold — that is what a [`Resource`](@ref) does.
+individuals a cell can hold - that is what a [`Resource`](@ref) does.
 """
 struct Condition <: Role end
 
 """
     Resource <: Role
 
-What a cell **provides** — solar radiation, available water, land.
+What a cell **provides** - solar radiation, available water, land.
 
 A resource is a shared pool that species compete for, and it is what regulates abundance. Each
 species states how much it needs as an [`AbstractDemand`](@ref); the demands of everything present
 are summed, and births fall and deaths rise as that total approaches what the cell supplies. Species
 therefore interact only through this total. Carrying capacity is not a parameter anywhere in the
-model — it emerges from supply divided by demand.
+model - it emerges from supply divided by demand.
 """
 struct Resource <: Role end
 
 """
     NicheAxis
 
-The quantity being measured — [`Temperature`](@ref), [`Precipitation`](@ref),
-[`SolarRadiation`](@ref) — independent of the unit it arrives in and orthogonal to [`Role`](@ref).
+The quantity being measured - [`Temperature`](@ref), [`Precipitation`](@ref),
+[`SolarRadiation`](@ref) - independent of the unit it arrives in and orthogonal to [`Role`](@ref).
 
 An axis is what makes a pairing meaningful: a species' tolerance for temperature is matched against
 the *temperature* regime and nothing else. Both sides of the model carry one, so an
@@ -97,7 +97,7 @@ Paired axes must be identical, not merely compatible: a `SoilTemperature` tolera
 `Temperature` regime.
 
 Extend it with [`@nicheaxis`](@ref). Related axes are grouped under an abstract intermediate named
-`…Axis` ([`TemperatureAxis`](@ref), [`WaterAxis`](@ref)) that carries their shared interface.
+`...Axis` ([`TemperatureAxis`](@ref), [`WaterAxis`](@ref)) that carries their shared interface.
 """
 abstract type NicheAxis end
 
@@ -105,7 +105,7 @@ abstract type NicheAxis end
     AbstractLayer{R <: Role, A}
 
 What the environment holds: one measured quantity, stated for every cell, in one of the two
-[`Role`](@ref)s — a **regime** if it is a [`Condition`](@ref), a **supply** if it is a
+[`Role`](@ref)s - a **regime** if it is a [`Condition`](@ref), a **supply** if it is a
 [`Resource`](@ref).
 
 This is the environment's half of the model. Its counterpart is
@@ -128,7 +128,7 @@ abstract type AbstractLayer{R <: Role, A} end
 """
     AbstractRegime{A}
 
-A **regime**: what the environment is like, on one axis, in every cell — the
+A **regime**: what the environment is like, on one axis, in every cell - the
 [`Condition`](@ref) half of [`AbstractLayer`](@ref).
 
 A species meets a regime with its [`AbstractTolerance`](@ref) on the same axis, and how well the two
@@ -140,7 +140,7 @@ const AbstractRegime{A} = AbstractLayer{Condition, A}
 """
     AbstractSupply{A}
 
-A **supply**: what the environment provides, on one axis, in every cell — the
+A **supply**: what the environment provides, on one axis, in every cell - the
 [`Resource`](@ref) half of [`AbstractLayer`](@ref).
 
 A species meets a supply with its [`AbstractDemand`](@ref) on the same axis. Unlike a regime, a
@@ -161,8 +161,8 @@ and axis for axis:
 
 | role | the environment holds | each species brings |
 |---|---|---|
-| [`Condition`](@ref) | a regime — [`AbstractRegime`](@ref) | a tolerance — [`AbstractTolerance`](@ref) |
-| [`Resource`](@ref) | a supply — [`AbstractSupply`](@ref) | a demand — [`AbstractDemand`](@ref) |
+| [`Condition`](@ref) | a regime - [`AbstractRegime`](@ref) | a tolerance - [`AbstractTolerance`](@ref) |
+| [`Resource`](@ref) | a supply - [`AbstractSupply`](@ref) | a demand - [`AbstractDemand`](@ref) |
 
 `V` is the species' own response type: the type of the values the requirement is stated in, so that
 it can be compared with the layer's. A temperature tolerance carries kelvin, a solar demand
@@ -183,7 +183,7 @@ abstract type AbstractSpeciesRequirement{R <: Role, A, V} end
     AbstractTolerance{A, V}
 
 A **tolerance**: how well a species copes with a [`Condition`](@ref), across the range
-that condition can take — the species-side mirror of [`AbstractRegime`](@ref).
+that condition can take - the species-side mirror of [`AbstractRegime`](@ref).
 
 A tolerance is what decides where a species can persist. Matched against the regime on the same
 axis, it yields that species' suitability in each cell, which raises its death rate where conditions
@@ -199,7 +199,7 @@ const AbstractTolerance{A, V} = AbstractSpeciesRequirement{Condition, A, V}
 """
     AbstractDemand{A, V}
 
-A **demand**: how much of a [`Resource`](@ref) one individual of a species needs — the
+A **demand**: how much of a [`Resource`](@ref) one individual of a species needs - the
 species-side mirror of [`AbstractSupply`](@ref).
 
 Demands are what make species compete. Summed over everything present in a cell and set against what
@@ -220,15 +220,15 @@ How well a species is suited to a cell: the rule that scores a species'
 [`AbstractSpeciesRequirement`](@ref) against the [`AbstractLayer`](@ref) it is matched to.
 
 This closes the triangle. The environment states a value, the species states what it needs, and the
-fit says how well the two agree — a number that raises or lowers that species' birth and death rates
+fit says how well the two agree - a number that raises or lowers that species' birth and death rates
 in that cell. Where several axes are in play, a [`CombiningFit`](@ref) reduces their scores to one.
 
 `A` sits in the same slot here as in [`AbstractLayer`](@ref) and
 [`AbstractSpeciesRequirement`](@ref), so a single signature can require a layer, the requirement
-matched to it and the fit between them to be on the same axis. As there, it is the axis *structure*
-— a single axis for one fit, a `Tuple` of them for a combining one.
+matched to it and the fit between them to be on the same axis. As there, it is the axis
+*structure* - a single axis for one fit, a `Tuple` of them for a combining one.
 
-`V` is the value type the two sides are compared in — the same `V` the requirement carries — so the
+`V` is the value type the two sides are compared in - the same `V` the requirement carries - so the
 fit knows the frame it is working in and a layer's values can be brought into it before scoring.
 """
 abstract type AbstractNicheFit{A, V} end
@@ -246,7 +246,7 @@ what make one species behave differently from another in the same place.
 
 Species do not currently interact directly. Two of them affect one another only by drawing on the
 same resource: their demands are summed against what a cell supplies, and everything present feels
-the result equally. There are currently no pairwise terms — no predation, no interference — so an
+the result equally. There are currently no pairwise terms - no predation, no interference - so an
 assemblage is regulated entirely by what it collectively needs against what its surroundings provide.
 """
 abstract type AbstractSpecies <: AbstractTypes end
@@ -260,7 +260,7 @@ place is like (`H`, an [`AbstractRegime`](@ref)), what it provides (`B`, an
 [`AbstractSupply`](@ref)), and where those places are (`L`).
 
 A habitat is the setting rather than the story. It says that this place is this warm and this wet
-and offers this much light, and that place is different — but it says nothing about who lives there
+and offers this much light, and that place is different - but it says nothing about who lives there
 or how they fare. An [`AbstractEcosystem`](@ref) is what results from putting species into one.
 
 Its conditions and supplies need not be fixed. A habitat can warm, dry out or lose land cover as the
@@ -288,10 +288,10 @@ does is let those abundances change: individuals are born, die and disperse to n
 step by step. Conditions decide **where** a species can persist at all, by making it die faster
 where its surroundings suit it poorly; resources decide **how many** can persist there, because the
 demands of everything present are set against what the place supplies. Nothing sets a carrying
-capacity — it is what those two pressures leave behind.
+capacity - it is what those two pressures leave behind.
 
 An ecosystem is a metacommunity: a set of local communities, one per place, drawn from a shared pool
-of species. Diversity can therefore be asked of it at either level — of a single place, or of the
+of species. Diversity can therefore be asked of it at either level - of a single place, or of the
 landscape as a whole, accounting for the fact that the same species appears in many of them.
 """
 abstract type AbstractEcosystem{Part <: AbstractHabitat,

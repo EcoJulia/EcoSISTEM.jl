@@ -58,12 +58,12 @@ begin
     africa = readfile(file)
 
     # The shipped Africa raster is a *landmask*: real values on land, `NaN` at sea. We hand it to
-    # the study area as a layer so that its own gaps decide which cells are active — no hand-built
+    # the study area as a layer so that its own gaps decide which cells are active - no hand-built
     # `.!isnan.(...)` matrix, and no chance of the mask and the grid disagreeing.
     #
     # `in_memory_raster` is how a raster you already hold becomes a layer spec: a raster carries
     # values but no niche axis, so nothing about it says what its numbers mean. Here they mean
-    # nothing in particular — the raster is a shape — so it stays `Unclassified`.
+    # nothing in particular - the raster is a shape - so it stays `Unclassified`.
     #
     # It is a *geographic* (WGS 84) raster, and a simulation needs a projected grid: dispersal
     # assumes one uniform cell size, whereas a degree cell shrinks towards the poles. Giving a
@@ -115,7 +115,7 @@ begin
                        movement, param, native)
     sppl.params.birth
 
-    # Create abiotic environment — an even grid of one temperature, on the Africa-shaped grid
+    # Create abiotic environment - an even grid of one temperature, on the Africa-shaped grid
     # decided above. `GridHabitat` chooses nothing: it samples the layers named here onto
     # the grid the study area already settled, mask and all.
     habitat = GridHabitat(regime = UniformSpec(274.0K,
@@ -145,12 +145,12 @@ begin
     @time simulate_record!(abuns, eco, times, record_interval,
                            timestep)
 
-    # **Not `plot(eco)`.** That recipe throws a `BoundsError` on any grid that is not square —
-    # reproduced on a 4×6 grid, where it reaches for `[5, 1]` — so it worked here only while this
+    # **Not `plot(eco)`.** That recipe throws a `BoundsError` on any grid that is not square -
+    # reproduced on a 4×6 grid, where it reaches for `[5, 1]` - so it worked here only while this
     # notebook used the shipped 100×100 Africa raster unprojected. Reprojecting onto a real grid
     # made it 76×67 and the latent transposition surfaced immediately.
     #
-    # Mean abundance per cell, masked to the active area — the same shape the section below uses,
+    # Mean abundance per cell, masked to the active area - the same shape the section below uses,
     # and one that reads the `(y, x)` grid the right way round.
     mean_abuns = reshape(mean(eco.abundances.matrix, dims = 1)[1, :], grd)
     mean_abuns = Float64.(mean_abuns)
@@ -183,7 +183,7 @@ begin
     # The grid is decided before anything is built on it. Real climate data has to be simulated on a
     # *projected* grid: dispersal assumes one uniform cell size, whereas a degree grid's cells shrink
     # towards the poles, so `Ecosystem` refuses a geographic one. Africa Albers Equal Area Conic is
-    # the natural choice for the whole continent — equal-area, so a cell really does mean the same
+    # the natural choice for the whole continent - equal-area, so a cell really does mean the same
     # amount of ground everywhere, which is what the ecology depends on.
     albers_new = ProjString("+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 " *
                             "+lon_0=25 +datum=WGS84 +units=m +no_defs")

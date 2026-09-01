@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Tests for `src/materialise.jl` — what inspection shows against what the builder builds.
+# Tests for `src/materialise.jl` - what inspection shows against what the builder builds.
 #
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["test_materialise.jl"])'
 
@@ -23,13 +23,13 @@ include("buildfixtures.jl")
 
 # **`[ONE-PATH]`: `GridHabitat` puts in the habitat exactly what `materialise` shows.**
 # This is a *structural* guard, not a numerical coincidence. A builder running its own near-copy of
-# the inspection chain (`_materialiseon` → `_assemble` → `_resolve_regime`/`_resolve_supply`) drifts
+# the inspection chain (`_materialiseon` -> `_assemble` -> `_resolve_regime`/`_resolve_supply`) drifts
 # from it: three times over, in un-united dims, a hardcoded `Intervals(Start())`, and a `NicheSpec`
 # that `materialise` built and the builder could not. Each
 # was found by accident. The builder now calls `materialise`, so the assertions below can only fail
 # if the two are pulled apart again.
 #
-# Both roles, both kinds of spec (data-backed and synthetic), on both kinds of positioned area —
+# Both roles, both kinds of spec (data-backed and synthetic), on both kinds of positioned area -
 # because the two paths differed *per kind*, so a single case would prove almost nothing.
 # **`NicheSpec` is deliberately absent**: it is stochastic and unseeded (A19), so two
 # materialisations of one spec disagree with each other, never mind with the builder.
@@ -61,8 +61,8 @@ include("buildfixtures.jl")
         @test typeof(env.supply) === typeof(seensup)
     end
 
-    # …including the *mixed* multi-layer regime, where one member is generated at the grid's shape
-    # and the other sampled onto it — the arity and the names both survive the round trip.
+    # ...including the *mixed* multi-layer regime, where one member is generated at the grid's shape
+    # and the other sampled onto it - the arity and the names both survive the round trip.
     area = _area(regime = data)
     env = GridHabitat(regime = (temperature = data, extra = warm),
                       supply = sun, area = area)

@@ -75,20 +75,20 @@ include("buildfixtures.jl")
                                                 timestep, divfuns, 1.0)
 
         qs = collect(1.0:3)
-        # Derived from the ecosystem, not hardcoded. This said `100` — the cell count of the
-        # fixture's old 10 × 10 grid — so shrinking `Test1Ecosystem` silently broke it. The same
+        # Derived from the ecosystem, not hardcoded. This said `100` - the cell count of the
+        # fixture's old 10 × 10 grid - so shrinking `Test1Ecosystem` silently broke it. The same
         # count is what line 56 already asserts `generate_storage` uses.
         abun1 = zeros(Float64, size(eco.abundances.matrix, 2), 3, 3, 4)
         abun2 = zeros(Float64, 3, 3, 4)
         @test_nowarn simulate_record_diversity!(abun1, abun2, eco, times,
                                                 interval, timestep, qs)
-        # Both storages come back, named — the two hold genuinely different things (per-subcommunity
+        # Both storages come back, named - the two hold genuinely different things (per-subcommunity
         # vs metacommunity diversity) and a bare pair said nothing about which was which.
         result = simulate_record_diversity!(abun1, abun2, eco, times, interval,
                                             timestep, qs)
         @test result.subcommunity === abun1
         @test result.metacommunity === abun2
-        # …and it still destructures and indexes positionally, so callers doing either are unaffected.
+        # ...and it still destructures and indexes positionally, so callers doing either are unaffected.
         sub, meta = result
         @test (sub, meta) === (abun1, abun2)
         @test result[1] === abun1
@@ -118,7 +118,7 @@ end
     end
 
     # **A multi-layer regime can be inspected, mixing real and synthetic layers.**
-    # Inspection must not lag the builder — that is the wrong way round for a function whose whole
+    # Inspection must not lag the builder - that is the wrong way round for a function whose whole
     # job is to show what the builder will get. Without this, a tuple falls through to the
     # data-backed path and tries to coerce its first member into a `SourceSpec`, while
     # `GridHabitat` builds exactly such a regime quite happily.
@@ -128,12 +128,12 @@ end
         syn = UniformSpec(50.0mm / day, axis = Precipitation)
         area = _area(regime = real_)
 
-        # Each kind alone, on the same grid — data sampled onto it, synthetic generated at its shape.
+        # Each kind alone, on the same grid - data sampled onto it, synthetic generated at its shape.
         @test size(EcoSISTEM.materialise(real_, area).matrix) == (9, 9)
         @test size(EcoSISTEM.materialise(syn, area).matrix) == (9, 9)
 
-        # …and the two together, which is what `GridHabitat` accepts. Several specs give a
-        # `LayerCollection`, so the members are reached through the collection interface — which
+        # ...and the two together, which is what `GridHabitat` accepts. Several specs give a
+        # `LayerCollection`, so the members are reached through the collection interface - which
         # `regimes` gives identically for one layer or many.
         both = EcoSISTEM.materialise((real_, syn), area)
         @test length(values(both)) == 2
@@ -141,7 +141,7 @@ end
         # A named tuple keeps its names, so members stay identifiable rather than positional.
         named = EcoSISTEM.materialise((temp = real_, rain = syn), area)
         @test keys(NamedTuple(named)) == (:temp, :rain)
-        # …and a role is applied to every member, not just the first.
+        # ...and a role is applied to every member, not just the first.
         @test length(values(EcoSISTEM.materialise((real_, syn), area,
                                                   role = EcoSISTEM.Condition))) ==
               2
@@ -149,8 +149,8 @@ end
 
     # **A pre-built tolerance is accepted, and that is what makes an axis-less united layer
     # matchable at all.** The pre-built case must be tested *before* the single-vs-collection
-    # branches, which reach inside the object with `first(…)`: on a `NicheTolerance` that gives
-    # `MethodError: no method matching iterate(::NicheTolerance{…})`, naming `iterate` rather than
+    # branches, which reach inside the object with `first(...)`: on a `NicheTolerance` that gives
+    # `MethodError: no method matching iterate(::NicheTolerance{...})`, naming `iterate` rather than
     # the mistake.
     @testset "a pre-built tolerance is used as given" begin
         tol = NicheTolerance(Temperature, Normal, [298.0 2.0; 299.0 2.0])
@@ -162,7 +162,7 @@ end
         # second statement of it would be ceremony that could also disagree.
         @test EcoSISTEM.axisof(sp.tolerance) === Temperature
 
-        # It is used **as given**, so it must already cover every species — a silent mismatch
+        # It is used **as given**, so it must already cover every species - a silent mismatch
         # would pair species with the wrong niches.
         @test_throws "must already have one entry per species" build_species(5,
                                                                              tolerance = tol,
@@ -172,7 +172,7 @@ end
                                                                              seed = 1)
 
         # **The case this exists for**: a tolerance in a frame `build_species` cannot express
-        # through keywords — a real unit on `EcoSISTEM.NicheAxis`, where the axis declares none. Before
+        # through keywords - a real unit on `EcoSISTEM.NicheAxis`, where the axis declares none. Before
         # this, a unit-bearing axis-less regime could be built but never matched.
         united = NicheTolerance(EcoSISTEM.NicheAxis, Normal,
                                 [2.0 0.5; 2.1 0.5], support = u"kJ^2")
@@ -180,7 +180,7 @@ end
                             demandaxis = SolarRadiation, abundance = 100,
                             seed = 1).tolerance === united
 
-        # …and the ordinary route is unchanged, axis still required.
+        # ...and the ordinary route is unchanged, axis still required.
         @test_throws "toleranceaxis" build_species(2, tolerance = TOL,
                                                    demand = DEM,
                                                    demandaxis = SolarRadiation,
@@ -199,7 +199,7 @@ end
                             demand = 2.0g / day, demandaxis = CarbonFlux).demand isa
               Demand{CarbonFlux}
 
-        # **The axis decides, and the unit must agree with it** — the check runs the other way
+        # **The axis decides, and the unit must agree with it** - the check runs the other way
         # round from before. A solar-dimensioned demand declared on the water axis is refused,
         # where the old table would simply have built a solar demand and ignored what was written.
         @test_throws "measured in `L d⁻¹`" build_species(4, tolerance = TOL,
@@ -215,7 +215,7 @@ end
                                                           demand = 3.0,
                                                           demandaxis = SolarRadiation)
 
-        # …and omitting the axis is refused outright. That is the point: there must be no route
+        # ...and omitting the axis is refused outright. That is the point: there must be no route
         # by which a demand's meaning can be guessed.
         @test_throws "demandaxis" build_species(4, tolerance = TOL,
                                                 toleranceaxis = Temperature,
@@ -282,7 +282,7 @@ end
                              movement = AlwaysMovement,
                              disperse_safely = [true, false])
         @test safe.movement.disperse_safely == [true, false]
-        # NoMovement accepts and ignores it — nothing disperses, so nothing can be lost
+        # NoMovement accepts and ignores it - nothing disperses, so nothing can be lost
         nomove = build_species(2, tolerance = TOL, toleranceaxis = Temperature,
                                demand = DEM,
                                demandaxis = SolarRadiation,
@@ -393,12 +393,12 @@ end
                         demand = DEM, demandaxis = SolarRadiation,
                         toleranceaxis = Precipitation, seed = 1)
     @test_throws ErrorException build_ecosystem(spP, env, seed = 1)
-    # **The root is an axis like any other, and matching is IDENTITY** — so a `Temperature`
+    # **The root is an axis like any other, and matching is IDENTITY** - so a `Temperature`
     # species against a root-axis environment is now **refused**. This asserted the opposite
     # until 2026-08-18 (*"a default-axis species still matches an axis-less environment"*), and the
     # reversal is the point of the design: `NicheAxis` means *"I claim nothing"*, and a layer that
     # declines to say what it measures must not be silently read as saying whatever the species
-    # happens to need. Both sides on the root is still fine — that is identity — and is asserted
+    # happens to need. Both sides on the root is still fine - that is identity - and is asserted
     # just below.
     rootenv = GridHabitat(regime = GradientSpec(274.0K, 303.0K,
                                                 axis = EcoSISTEM.NicheAxis),
@@ -412,7 +412,7 @@ end
                                                               seed = 1),
                                                 rootenv, seed = 1)
     # The root declares **no canonical unit**, so `toleranceaxis = EcoSISTEM.NicheAxis` with
-    # bare `(288.0K, 5.0K)` parameters is a `DimensionError` — `build_species` reads bare parameters
+    # bare `(288.0K, 5.0K)` parameters is a `DimensionError` - `build_species` reads bare parameters
     # in the axis's own frame, and the root's frame is bare numbers. The documented route is a
     # pre-built tolerance carrying its own `support`, which is what makes a root-on-root pairing
     # expressible at all (see *"Matching a united axis-less layer"* in `docs/src/layers.md`).
@@ -423,8 +423,8 @@ end
                           rootenv, seed = 1) isa Ecosystem
 end
 # **The regression test for `[TF-BYPASS]`, and it must use the EXPLICIT-`nichefit` route.**
-# A caller-supplied `nichefit` walks straight past `_defaultsuitability`, so the inferred route —
-# which already refused this — proves nothing about it. And the two axes must **share a unit**:
+# A caller-supplied `nichefit` walks straight past `_defaultsuitability`, so the inferred route -
+# which already refused this - proves nothing about it. And the two axes must **share a unit**:
 # `Temperature` and `TemperatureRange` are both `K`, so the `eltype` comparison passes them and the
 # axis comparison is the only thing that can catch it. That is precisely the hole: before the axes
 # were compared in `_checkmembers`, this assembled an ecosystem pairing a temperature *range*
@@ -449,7 +449,7 @@ end
     end
     @test occursin("niche axis", msg)
     @test occursin("TemperatureRange", msg) && occursin("Temperature", msg)
-    # …and the same pairing on one axis assembles, so the refusal is about the axes and not the
+    # ...and the same pairing on one axis assembles, so the refusal is about the axes and not the
     # explicit `nichefit`.
     @test build_ecosystem(build_species(2, tolerance = (290.0K, 2.0K),
                                         demand = DEM,
@@ -462,7 +462,7 @@ end
     @test EcoSISTEM._specaxis(SourceSpec(WorldClim{BioClim}, 1)) === Temperature
     @test EcoSISTEM._specaxis(SourceSpec(WorldClim{BioClim}, 12)) ===
           Precipitation
-    # …and a bare `(source, code)` pair is refused, here as everywhere: naming the dataset is what
+    # ...and a bare `(source, code)` pair is refused, here as everywhere: naming the dataset is what
     # `SourceSpec` is for.
     @test_throws ErrorException EcoSISTEM._specaxis((WorldClim{BioClim}, 1))
     # a bare raster has dropped its code, so no axis
@@ -474,7 +474,7 @@ end
     @test EcoSISTEM.axisof(_env(_reg(temp), SUP).regime) ===
           EcoSISTEM.NicheAxis
     # a matched-axis species assembles; a mismatched one is a clear build-time error. Assembly needs a
-    # projected grid (see "geographic grids cannot be simulated"), so this half uses a BNG fixture —
+    # projected grid (see "geographic grids cannot be simulated"), so this half uses a BNG fixture -
     # the axis threading being tested is CRS-independent.
     env = _env(_reg(_bngraster(WorldClim{BioClim}, fill(290.0K, 9, 9)),
                     axis = Temperature), SUP)
@@ -512,9 +512,9 @@ end
     @test_nowarn simulate!(eco, 2month_mean_duration, 1month_mean_duration)
 end
 # **`build_habitat`'s first argument says where an unnamed input comes from**, and the mechanism
-# is that a keyword default may call a function dispatching on an earlier argument — evaluated at
+# is that a keyword default may call a function dispatching on an earlier argument - evaluated at
 # call time, so a keyword that *is* named never evaluates its default and never announces.
-# That is what makes `build_habitat(h, supply = …)` a rebuild-with-one-change: the other three
+# That is what makes `build_habitat(h, supply = ...)` a rebuild-with-one-change: the other three
 # come from `h`, the grid included.
 @testset "build_habitat fills from its source" begin
     toy = build_habitat(verbosity = :silent)
@@ -534,13 +534,13 @@ end
     @test again.regime.matrix == toy.regime.matrix
     @test again.supply.matrix == toy.supply.matrix
     @test again.topology == toy.topology
-    # …and still **copied**, not aliased: the source habitat must not become live simulation
+    # ...and still **copied**, not aliased: the source habitat must not become live simulation
     # state for the new one. That is `materialise`'s `_ownlayer`, reached through the built-layer
     # path this route always takes.
     @test parent(again.regime.matrix) !== parent(toy.regime.matrix)
     @test parent(again.supply.matrix) !== parent(toy.supply.matrix)
 
-    # …with one thing changed, and everything else carried across.
+    # ...with one thing changed, and everything else carried across.
     other = build_habitat(toy, supply = rain, verbosity = :silent)
     @test other.regime.matrix == toy.regime.matrix
     @test other.supply isa Supply{Precipitation}
@@ -549,7 +549,7 @@ end
                         verbosity = :silent).topology isa Torus
 
     # A source that cannot answer says so, rather than raising a `MethodError` on a private
-    # helper — the cost of leaving the first argument untyped so a new source is one added method.
+    # helper - the cost of leaving the first argument untyped so a new source is one added method.
     err = try
         build_habitat(:nonsense)
     catch e

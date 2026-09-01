@@ -6,9 +6,9 @@
 """
     SpeciesRequirementCollection{R <: Role, A, C <: NamedTuple}
 
-Several species requirements of the same role `R` — tolerances over several regime layers, or
-demands over several supplies — over the **axis structure** `A`, held by name in a `NamedTuple`,
-`(Temperature = …, Precipitation = …)`. The species side's counterpart to
+Several species requirements of the same role `R` - tolerances over several regime layers, or
+demands over several supplies - over the **axis structure** `A`, held by name in a `NamedTuple`,
+`(Temperature = ..., Precipitation = ...)`. The species side's counterpart to
 [`LayerCollection`](@ref): its members must line up, name for name and in the same order, with the
 layer collection they are matched against.
 
@@ -19,7 +19,7 @@ on the *same* axis cannot be told apart that way, and are refused rather than si
 cannot be got wrong and a collection mixing a tolerance with a demand is refused instead of being
 tagged with whichever role came first.
 
-Members are reached through the standard container interface — `sr.Precipitation`, `sr[1]`,
+Members are reached through the standard container interface - `sr.Precipitation`, `sr[1]`,
 `sr[:Precipitation]`, `keys`, `values`, `pairs`, `iterate`, `length`, `merge` and `NamedTuple(sr)`.
 A **single requirement answers identically**, as a one-member container.
 
@@ -32,7 +32,7 @@ struct SpeciesRequirementCollection{R <: Role, A, C <: NamedTuple} <:
        AbstractSpeciesRequirement{R, A, C}
     nt::C
 
-    # The sole constructor, so there is exactly one spelling and `R` cannot be got wrong — see the
+    # The sole constructor, so there is exactly one spelling and `R` cannot be got wrong - see the
     # docstring, and `LayerCollection`, which this deliberately mirrors line for line.
     function SpeciesRequirementCollection(members::Union{Tuple, NamedTuple})
         nt = _asnamedtuple(members)
@@ -66,7 +66,7 @@ end
 
 # --- Reading a requirement ----------------------------------------------------
 
-# A requirement's axis structure, straight off the type parameter — the mirror of
+# A requirement's axis structure, straight off the type parameter - the mirror of
 # `axisof(::AbstractLayer{R, A})`.
 axisof(::AbstractSpeciesRequirement{R, A}) where {R, A} = A
 
@@ -75,7 +75,7 @@ _roleof(::AbstractSpeciesRequirement{R}) where {R} = R
 
 # `eltype` is defined on the leaf types (`ContinuousTolerance`, `AbstractCategoricalTolerance`,
 # `Demand`) and never on the abstract. A collection *is* an `AbstractTolerance`, so a method on the
-# abstract would catch one and hand back its whole backing `NamedTuple` as an "element type" —
+# abstract would catch one and hand back its whole backing `NamedTuple` as an "element type" -
 # the third parameter means the element type for a leaf and the members for a collection. A
 # collection has no element type, and asking is a `MethodError` rather than a guess.
 #

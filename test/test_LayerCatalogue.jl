@@ -16,13 +16,13 @@ using Test
     @testset "temperature and precipitation (BioClim)" begin
         @test layerunit(WorldClim{BioClim}, 1) == °C        # annual mean temperature
         @test layerunit(WorldClim{BioClim}, 2) == K            # mean diurnal range
-        # `layerunit` is the **table's** unit — the accumulated amount, with the period split out
+        # `layerunit` is the **table's** unit - the accumulated amount, with the period split out
         # into `AccumulationPeriod`. What a *read* yields is the rate, and that is `SourceSpec.unit`;
         # the two are asserted side by side below so the distinction cannot quietly collapse again.
         @test layerunit(WorldClim{BioClim}, 12) == Unitful.L * m^-2          # annual precipitation
         # A dimensionless index is not necessarily *unscaled*: isothermality is published as a
-        # ratio ×100, so its unit is `percent` and `_tocanon` divides it out to a 0–1 fraction when
-        # a layer is built. Dimension `NoDims` either way — only the scale differs.
+        # ratio ×100, so its unit is `percent` and `_tocanon` divides it out to a 0-1 fraction when
+        # a layer is built. Dimension `NoDims` either way - only the scale differs.
         @test layerunit(WorldClim{BioClim}, 3) == Unitful.percent      # isothermality
         @test dimension(layerunit(WorldClim{BioClim}, 3)) == NoDims
     end
@@ -35,8 +35,8 @@ using Test
     end
 
     @testset "land cover is a dimensionless percentage" begin
-        # Published per-class as 0–100, which `Units = percent` records; the canonical form is the
-        # **fraction**, so a built layer is 0–1 and no `%` unit travels downstream.
+        # Published per-class as 0-100, which `Units = percent` records; the canonical form is the
+        # **fraction**, so a built layer is 0-1 and no `%` unit travels downstream.
         @test layerunit(EarthEnv{LandCover}, 1) == Unitful.percent
         @test layerunit(EarthEnv{LandCover}, 12) == Unitful.percent
         @test dimension(layerunit(EarthEnv{LandCover}, 1)) == NoDims
@@ -69,7 +69,7 @@ using Test
         # BioClimPlus documents bio1-19
         @test layerunit(CHELSA{BioClimPlus}, :bio1) == °C
         # CHELSA{Climate} monthly layers live in Climate.csv; water-mass rates canonicalise to
-        # L m⁻² month⁻¹ (litres, not kg, per the water-density identity: 1 kg water ≈ 1 L)
+        # L m^-2 month^-1 (litres, not kg, per the water-density identity: 1 kg water ≈ 1 L)
         @test layerunit(CHELSA{Climate}, :cmi) == Unitful.L * m^-2
         @test layerunit(CHELSA{Climate}, :pr) == Unitful.L * m^-2
         @test layerunit(CHELSA{Climate}, :tas) == °C
@@ -82,10 +82,10 @@ using Test
 end
 
 # The shipped `ValueType` column is what says whether a layer may be *averaged*, and the split
-# that matters is categorical against the other two — not the everyday sense of the words. A
+# that matters is categorical against the other two - not the everyday sense of the words. A
 # `discrete` layer here is a day-of-year or a count of days: an ordinary number. Only `categorical`
 # marks a class code, whose mean is meaningless, and there are exactly six of those. Until now the
-# column was shipped but parsed away entirely — nothing in `src/` read it — which is why
+# column was shipped but parsed away entirely - nothing in `src/` read it - which is why
 # `_resamplemethod` still interpolates everything.
 @testset "ValueType reaches the catalogue" begin
     CP = EcoSISTEM
@@ -95,7 +95,7 @@ end
     # The only categorical layers in the shipped tables: the climate typologies.
     @test vt("kg0", :BioClimPlus) === :categorical
     @test vt("kg5", :BioClimPlus) === :categorical
-    # `discrete` is numeric and averageable — the case the old `_isdiscrete` name got backwards.
+    # `discrete` is numeric and averageable - the case the old `_isdiscrete` name got backwards.
     @test vt("gsl", :BioClimPlus) === :discrete
     @test vt("scd", :BioClimPlus) === :discrete
     @test vt("bio1", :BioClim) === :continuous
@@ -115,7 +115,7 @@ end
 end
 
 # `Category` is the only machine-readable record of what *kind* of quantity a layer is, and
-# nothing in `src/` reads it yet — which is exactly why it is worth pinning here. A miscategorised
+# nothing in `src/` reads it yet - which is exactly why it is worth pinning here. A miscategorised
 # layer costs nothing today and stops being free the moment anything dispatches on it (§4 of the
 # layer-units plan makes `Category` decide supply-eligibility).
 @testset "Category says what kind of quantity a layer is" begin
@@ -123,7 +123,7 @@ end
     cat(code, dataset) = only(filter(r -> r.dataset === dataset,
                                      CP.layerinfo(code))).category
 
-    # A climate moisture index is precipitation *minus* PET, so it can be negative — a `balance`,
+    # A climate moisture index is precipitation *minus* PET, so it can be negative - a `balance`,
     # never a `rate`. The distinction is what stops a sign-indefinite layer being read as a supply:
     # a negative water supply is meaningless.
     @test cat("cmi", :Climate) === :balance
@@ -131,8 +131,8 @@ end
     @test cat("cmi_mean", :BioClimPlus) === :balance
     @test cat("cmi_min", :BioClimPlus) === :balance
 
-    # …but a *range* of a balance is a spread, not a balance: `max - min` cannot be negative. Every
-    # `*Range`-axis layer is a `range`, whatever the quantity it is a range of — a spread is not a
+    # ...but a *range* of a balance is a spread, not a balance: `max - min` cannot be negative. Every
+    # `*Range`-axis layer is a `range`, whatever the quantity it is a range of - a spread is not a
     # flow, so none of them is supply-eligible either.
     @test cat("cmi_range", :BioClimPlus) === :range
     @test cat("pet_penman_range", :BioClimPlus) === :range
@@ -152,7 +152,7 @@ end
     # accumulation period *by* (`gsp` is precipitation per growing season), and an interval cannot
     # itself be measured over an interval. It was named
     # `DayRange` until 2026-08-04, which put it in that sweep by its name alone while meaning
-    # something else entirely — so the name is pinned here too, and renaming it back would fail this
+    # something else entirely - so the name is pinned here too, and renaming it back would fail this
     # test loudly rather than silently start demanding `:range` of a day count.
     @test !endswith(string(DayCount), "Range")
     @test all(r -> r.category === :count,
@@ -167,7 +167,7 @@ end
 
 # The accumulation period: the interval a value accumulated over, which is what turns a total into
 # an honest rate. It is a *different question* from `temporal` (how often the layer is sampled), and
-# they must not share a column — that is invisible for `prec`, where both are months, and wrong for
+# they must not share a column - that is invisible for `prec`, where both are months, and wrong for
 # `srad`, which is sampled monthly but accumulates per day.
 @testset "AccumulationPeriod" begin
     CP = EcoSISTEM
@@ -187,7 +187,7 @@ end
     for c in ("prec", "pr", "cmi", "pet")
         @test rec(c, :Climate).period isa CP.PerSliceAccumulationPeriod
     end
-    # …and the one whose period is another *layer*, varying by cell.
+    # ...and the one whose period is another *layer*, varying by cell.
     @test rec("gsp", :BioClimPlus).period == CP.PerCellAccumulationPeriod(:gsl)
 
     # `srad`/`rsds` are the rows that prove sampling and accumulation are different questions:
@@ -196,20 +196,20 @@ end
     @test rec("srad", :Climate).temporal == month_mean_duration        # sampled monthly
     @test rec("srad", :Climate).numslices == 12
 
-    # `Temporal Resolution` now means sampling only, so a single-slice layer has none at all — even
+    # `Temporal Resolution` now means sampling only, so a single-slice layer has none at all - even
     # though `bio13` is emphatically a monthly quantity. That is the whole point of the split.
     @test isnothing(rec("bio13", :BioClimPlus).temporal)
     @test rec("bio13", :BioClimPlus).numslices == 1
 
     # The cross-column invariant: a period is declared exactly where something accumulates. This is
-    # what turns ~100 blank cells from "not filled in" into "asserted not to apply" — and it is what
+    # what turns ~100 blank cells from "not filled in" into "asserted not to apply" - and it is what
     # exposed `gsl` being catalogued a `stock` when it is a span between two dates.
     # One assertion, not 139: a per-row `@test` in a loop would bury the suite count in near
-    # duplicates. Collecting the offenders first keeps a failure just as informative — it prints the
-    # codes — while staying a single test.
+    # duplicates. Collecting the offenders first keeps a failure just as informative - it prints the
+    # codes - while staying a single test.
     # `:range` is excluded because it is neither required nor forbidden: a range **inherits**
     # whether it has a period from the quantity it ranges over, so no per-row rule can decide it.
-    # That case is checked against its siblings instead — see the range testset below.
+    # That case is checked against its siblings instead - see the range testset below.
     offenders = [first(r.aliases)
                  for r in CP._catalogue()
                  if r.category !== :range &&
@@ -253,14 +253,14 @@ end
 
 # A range is the difference of two values of what it ranges over, and subtraction preserves both
 # unit and accumulation period. So a `*Range` row must carry `absoluteunit` of its siblings' unit and
-# exactly their period — no judgement about what a range "should" mean, just that subtraction is
+# exactly their period - no judgement about what a range "should" mean, just that subtraction is
 # unit-preserving. The catalogue's own definitions say so outright ("Difference between maximum and
 # minimum monthly X").
 #
 # This is the rule three rows silently broke. `cmi_range`, `pet_penman_range` and `rsds_range` kept
 # a rate's unit with a blank period, having fallen between two steps: the categories were corrected
-# `rate` → `range` while their `Units` cells were deliberately left for later, and the later pass
-# stripped periods from "every row *with* a period" — which, by then, they no longer had.
+# `rate` -> `range` while their `Units` cells were deliberately left for later, and the later pass
+# stripped periods from "every row *with* a period" - which, by then, they no longer had.
 @testset "a range carries its siblings' unit, made absolute, and their period" begin
     CP = EcoSISTEM
     rec(code, dataset) = only(filter(r -> r.dataset === dataset &&
@@ -321,8 +321,8 @@ end
            for s in cat
            if s.dataset == :BioClimPlus && axisname(s) == "ClimateMoisture"]
     # The unit this row actually had was `L*m^-2*month^-1`, which can no longer even be *written*:
-    # `Units.month` is gone, and `u"…month…"` fails to parse. `d^-1` reproduces the shape of the bug —
-    # one spurious time denominator — in a unit that still exists.
+    # `Units.month` is gone, and `u"...month..."` fails to parse. `d^-1` reproduces the shape of the bug -
+    # one spurious time denominator - in a unit that still exists.
     @test_throws ErrorException CP._checkrangerows([fam;
                                                     with(rng, :unit,
                                                          u"L*m^-2*d^-1")])
@@ -337,7 +337,7 @@ end
 
 # Option C, stated directly: the two questions and their two answers. `layerunit` says what the
 # shipped table declares; `SourceSpec.unit` says what materialising it actually yields. Before the
-# accumulation period was split out, one field meant both — which is how a monthly total came to be
+# accumulation period was split out, one field meant both - which is how a monthly total came to be
 # divided by a fixed 30.4375-day month for every month of the year.
 @testset "layerunit is the table's amount; a read yields the rate" begin
     CP = EcoSISTEM
@@ -350,7 +350,7 @@ end
     @test SourceSpec(WorldClim{BioClim}, :bio13).unit ==
           Unitful.L * m^-2 * day^-1
 
-    # Having a period does NOT mean a layer is read as a rate — the **axis** decides that.
+    # Having a period does NOT mean a layer is read as a rate - the **axis** decides that.
     # `CumulativeHeat`'s canonical unit is the heat sum itself, and §4b established heat is a
     # condition rather than a consumable resource, so `gdd0` is never divided into a temperature.
     @test layerunit(CHELSA{BioClimPlus}, :gdd0) == day * K
@@ -384,7 +384,7 @@ end
 
 # **The divisors are the whole point of the subproject**, so they are pinned here directly rather
 # than only through a read: dividing a monthly total by a fixed 30.4375-day month is 7.7% wrong for
-# February, and these numbers are what make it right. No data is downloaded — the divisors come from
+# February, and these numbers are what make it right. No data is downloaded - the divisors come from
 # the catalogue and the calendar, not from any raster.
 @testset "accumulation-period divisors" begin
     CP = EcoSISTEM
@@ -398,7 +398,7 @@ end
 
     # A **partial** read must use the months actually asked for, not 1:n. This is the case the
     # `Ti` axis cannot answer (it would say 1,2,3 for a `month = 2:4` read), and getting it wrong
-    # would divide February's data by January's length — silently, and 9% out.
+    # would divide February's data by January's length - silently, and 9% out.
     @test CP._readdivisors(rec(:Climate, "prec"), 2:4) ≈ [28.25, 31, 30]
     @test CP._readdivisors(rec(:Climate, "prec"), [2]) ≈ [28.25]
 
@@ -464,11 +464,11 @@ end
         @test isdefined(RasterDataSources, Symbol(base))
         rows = EcoSISTEM._layertable(joinpath(datadir, f))
         for (_, cell) in rows
-            # every non-blank Units parses …
+            # every non-blank Units parses ...
             isempty(cell.units) ||
                 @test uparse(cell.units, unit_context = [Unitful, Units]) isa
                       Unitful.Units
-            # … and every non-blank Axis resolves to a loaded NicheAxis
+            # ... and every non-blank Axis resolves to a loaded NicheAxis
             isempty(cell.axis) ||
                 @test EcoSISTEM._resolveaxis(cell.axis) <: NicheAxis
         end
@@ -477,7 +477,7 @@ end
 
 @testset "guard: tables reconcile to RasterDataSources layers(T)" begin
     RDS = RasterDataSources
-    # each shipped table ↔ the RDS source type(s) that map to it (via `_datasettype` → CSV name)
+    # each shipped table ↔ the RDS source type(s) that map to it (via `_datasettype` -> CSV name)
     tablesources = Dict("BioClim" => Any[WorldClim{BioClim}, CHELSA{BioClim}],
                         "BioClimPlus" => Any[CHELSA{BioClimPlus}],
                         "Climate" => Any[WorldClim{Climate}, CHELSA{Climate}],
@@ -486,7 +486,7 @@ end
                             Any[EarthEnv{HabitatHeterogeneity}],
                         "LandCover" => Any[EarthEnv{LandCover}])
     # `ncdf` is listed by `layers(CHELSA{Climate})` but is a spurious RDS entry (no such CHELSA
-    # variable / file), so it is deliberately absent from the table — carve it out here.
+    # variable / file), so it is deliberately absent from the table - carve it out here.
     known_spurious = Set(["ncdf"])
     datadir = pkgdir(EcoSISTEM, "data", "RasterDataSources")
     # every code any source accepts: `layers(T)` plus its `layerkeys(T)` aliases
@@ -546,13 +546,13 @@ end
     # The no-argument form is the whole catalogue, and the reason it exists is the trap on the next
     # line: `layersbyaxis(NicheAxis)` spans every *axis*, but a layer with a blank `Axis` cell has none,
     # so it looks complete and silently is not. Today nothing is unclassified, which is precisely what
-    # makes that easy to miss — so the relationship is asserted rather than the counts.
+    # makes that easy to miss - so the relationship is asserted rather than the counts.
     every = CP.layersbyaxis()
     @test length(every) ==
           length(CP.layersbyaxis(NicheAxis)) + length(CP.layersbyaxis(nothing))
     @test all(isnothing(x.axis) for x in CP.layersbyaxis(nothing))
     @test all(!isnothing(x.axis) for x in CP.layersbyaxis(NicheAxis))
-    # No shipped layer is unclassified today — pinned so that shipping one is a deliberate act that
+    # No shipped layer is unclassified today - pinned so that shipping one is a deliberate act that
     # shows up here, rather than a quiet gap in every axis-based sweep.
     @test isempty(CP.layersbyaxis(nothing))
     @test length(every) == 139
@@ -592,7 +592,7 @@ end
     CP = EcoSISTEM
     catalogue = CP._catalogue()
 
-    # The shipped tables must already satisfy it — this is what the load-time call asserts.
+    # The shipped tables must already satisfy it - this is what the load-time call asserts.
     @test isnothing(CP._checkaxishomogeneity(catalogue))
 
     # Rebuild one record on a well-populated axis with a dimensionally wrong unit, and check it is
@@ -611,13 +611,13 @@ end
     @test occursin("Temperature", err)
     @test occursin(first(victim.aliases), err)
 
-    # Differing *scale* on one axis is legal — it is what `canonicalunit` exists to reconcile —
-    # so `SolarRadiation`'s kJ·m⁻² and MJ·m⁻² rows must NOT be reported.
+    # Differing *scale* on one axis is legal - it is what `canonicalunit` exists to reconcile -
+    # so `SolarRadiation`'s kJ*m^-2 and MJ*m^-2 rows must NOT be reported.
     @test isnothing(CP._checkaxishomogeneity(CP.layersbyaxis(SolarRadiation)))
 end
 
 # Step 12: `pet` and `cmi` are read as flows, so declaring the rate must move the **unit and the
-# values together** — `_readdivisors` asks `layerrate` whether the unit changed, so a declaration that
+# values together** - `_readdivisors` asks `layerrate` whether the unit changed, so a declaration that
 # changed only one of them would be a silent scaling error.
 @testset "pet and cmi read as flows; swb and gsp do not" begin
     CP = EcoSISTEM
@@ -646,14 +646,14 @@ end
 # Axis-name resolution is memoised, and the cache must not change what resolves.
 #
 # Why it exists: `_resolveaxis` runs once per catalogue row, and walking `_leafaxes()` each time
-# costs `subtypes()` all the way down — ~0.6 s a call, 83 s a build. Every axis being abstract is
+# costs `subtypes()` all the way down - ~0.6 s a call, 83 s a build. Every axis being abstract is
 # what makes the walk expensive, since it cannot stop at concrete leaves. Nothing fails without the
 # cache, so the only symptom is slower gates, which is exactly why it needs a test of its own.
 @testset "axis names resolve through the cache" begin
     CP = EcoSISTEM
 
     @test CP._resolveaxis("Temperature") === Temperature
-    @test CP._resolveaxis("Temperature") === Temperature      # …and again, from the cache
+    @test CP._resolveaxis("Temperature") === Temperature      # ...and again, from the cache
     @test CP._resolveaxis("Precipitation") === Precipitation
 
     # An unknown name still errors, and says how many it found.
@@ -668,17 +668,17 @@ end
 # **A failure in this testset is GOOD NEWS**, and the only one in the suite of which that is true.
 #
 # Two providers publish values that are not in the unit they document, and nothing in the file says
-# so — the discrepancy is in the provider's own metadata. `PublishedScaleFactor` in the shipped
+# so - the discrepancy is in the provider's own metadata. `PublishedScaleFactor` in the shipped
 # tables records how many times too large the published values are, so that a **fix upstream** is
 # noticed instead of silently turning any compensation we apply into a second error the other way.
 #
 # So these assertions deliberately pin the **broken** state. If one fails, the provider has
 # probably corrected its data: clear that layer's `PublishedScaleFactor` cell, remove any
-# compensation keyed on it, and re-bless anything downstream — do **not** adjust the threshold here.
+# compensation keyed on it, and re-bless anything downstream - do **not** adjust the threshold here.
 #
 # The catalogue half needs no download and runs everywhere. Only the one *read* costs anything,
 # and it is deliberately the cheapest anomaly available (EarthEnv heterogeneity at 25 km, ~0.6 MB)
-# rather than the most interesting — the runner's time budget is the binding constraint, and the
+# rather than the most interesting - the runner's time budget is the binding constraint, and the
 # runtime check in `read` covers every other dataset for anyone who downloads one.
 @testset "known upstream scaling defects are still present" begin
     CP = EcoSISTEM
@@ -700,20 +700,20 @@ end
     @testset "the published file still needs the factor (one small read)" begin
         # **The pin, taken from the FILE rather than from our own arithmetic.** Dividing a read by
         # 10 000 and then multiplying back would only test our own multiplication; this reads what
-        # EarthEnv actually published. `evenness` is documented `0 to 1` and the file holds 0–9937,
-        # because nothing applies the `Scale = 0.0001` they document — not EarthEnv, not GDAL (their
+        # EarthEnv actually published. `evenness` is documented `0 to 1` and the file holds 0-9937,
+        # because nothing applies the `Scale = 0.0001` they document - not EarthEnv, not GDAL (their
         # GeoTIFFs carry no scale tag, unlike CHELSA's), and until now not us.
         path = RasterDataSources.getraster(EarthEnv{HabitatHeterogeneity},
                                            :evenness)
         rawmax = maximum(skipmissing(Raster(path isa AbstractString ? path :
                                             first(path))))
         # The same **geometric midpoint** the runtime check uses, `√factor × ceiling` = 100 here.
-        # That tolerates the data moving by up to 100× — any ordinary revision — while failing on a
+        # That tolerates the data moving by up to 100× - any ordinary revision - while failing on a
         # rescale. If this fails, EarthEnv has started applying its own scale: clear that layer's
         # `PublishedScaleFactor` cell, and the read-time division disappears with it.
         @test rawmax > sqrt(10_000) * 1.0
 
-        # …and with the factor applied, a read now lands inside the documented range.
+        # ...and with the factor applied, a read now lands inside the documented range.
         vals = filter(isfinite,
                       vec(read(EarthEnv{HabitatHeterogeneity}, :evenness).array))
         @test maximum(vals) <= 1.0
