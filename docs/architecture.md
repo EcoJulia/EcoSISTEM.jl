@@ -34,7 +34,7 @@ abstraction, then the per-subsystem hierarchies.
 classDiagram
     class Ecosystem~Part, SL, NF~
     class SpeciesList~TL, DM, MO, T, P~
-    class GridHabitat~H, B, L~
+    class GridHabitat~H, B, L, T~
     class AbstractHabitat~H, B, L~
     class AbstractLayer~R, A~
     class AbstractSpeciesRequirement~R, A, V~
@@ -82,7 +82,7 @@ classDiagram
     class MPIEcosystem~MPIGL, Part, SL, NF~
     class CachedEcosystem~Part, SL, NF~
     class AbstractHabitat~H, B, L~
-    class GridHabitat~H, B, L~
+    class GridHabitat~H, B, L, T~
     class SpeciesList~TL, DM, MO, T, P~
     AbstractMetacommunity <|-- AbstractEcosystem
     AbstractEcosystem <|-- Ecosystem

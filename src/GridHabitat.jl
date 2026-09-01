@@ -70,7 +70,8 @@ exactly one place.
     `active` is the mask the habitat *started* with, so comparing it against the live `active` above
     says what the simulation has done since.
 """
-struct GridHabitat{H, B, L} <: AbstractHabitat{H, B, L}
+struct GridHabitat{H, B, L, T <: AbstractTopology} <:
+       AbstractHabitat{H, B, L}
     regime::H
     supply::B
     active::DimensionalData.AbstractDimArray{Bool, 2}
@@ -82,7 +83,14 @@ struct GridHabitat{H, B, L} <: AbstractHabitat{H, B, L}
     # `StudyArea` is where a caller chooses otherwise, and where a wrapping choice on a real-world
     # grid earns its warning; this constructor is reached directly only by synthetic and deprecated
     # paths, which have no geography to misstate.
-    topology::AbstractTopology
+    #
+    # **Parameterised, and that is a hot-path requirement to avoid boxing rather than tidiness.**
+    #
+    # `active` above is NOT parameterised, and the contrast is the point: it is just as
+    # abstract, but it costs nothing. Indexing an abstract array dispatches dynamically without
+    # boxing, whereas calling a user-defined generic through an abstract argument must box. An
+    # abstract field is only expensive if something is *called* through it.
+    topology::T
     # **The grid this habitat sits on, and how it was built - one field, because they are one
     # fact.** The `StudyArea` the caller passed belongs to them and may be gone; and the build itself
     # *changes* things that area could not know - a layer passed here but never named when the area
@@ -153,9 +161,8 @@ struct GridHabitat{H, B, L} <: AbstractHabitat{H, B, L}
         # A **new** area, not the caller's: theirs was not built on, and this one may be narrower.
         built = StudyArea(_refinedreport(area.report, parts.active,
                                          parts.problems), grid)
-        return new{typeof(reg), typeof(cleaned), typeof(grid)}(reg, cleaned,
-                                                               act, topology,
-                                                               built)
+        return new{typeof(reg), typeof(cleaned), typeof(grid),
+                   typeof(topology)}(reg, cleaned, act, topology, built)
     end
 end
 
