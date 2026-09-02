@@ -981,19 +981,21 @@ _resolvepath(path::AbstractString) = path
 
 _resolvepath(asset::CachedAsset) = assetpath(asset)
 
-# Read `spec`'s vector file and prepare every feature's geometry, reprojected to WGS84 lat/long
-# (traditional x/y order) if the file's CRS differs (e.g. a British National Grid shapefile) - the
-# work `ShapeSpec` defers from construction time to here
-# (materialise time), mirroring `_read(::SourceSpec)`.
+# One feature of a vector file as `_shape` uses it: the prepared geometry to test cells against, and
+# the envelope that says which cells those are. The element type is written out because a layer mixes
+# `wkbPolygon` and `wkbMultiPolygon` features, so an inferred one keeps only the field names and
+# every access through it becomes a dynamic lookup.
+const _ShapePart = @NamedTuple{prepared::ArchGDAL.IPreparedGeometry,
+                               envelope::ArchGDAL.GDAL.OGREnvelope}
+
+# Read `spec`'s vector file and prepare every feature's geometry in the target grid's own CRS - the
+# work `ShapeSpec` defers from construction to materialise time, mirroring `_read(::SourceSpec)`.
 function _shapegeoms(spec::ShapeSpec, tcrs)
     path = _resolvepath(spec.path)
     vpath = endswith(path, ".zip") ? "/vsizip/" * path : path
     dataset = ArchGDAL.read(vpath)
     lyr = ArchGDAL.getlayer(dataset, spec.layer)
     sr = ArchGDAL.getspatialref(lyr)
-    # Features are reprojected into the *target grid's* CRS (not unconditionally to WGS84 as before),
-    # so the point-in-polygon test below works in whatever coordinates the target uses - degrees for a
-    # geographic grid, metres for a projected one.
     dest = _gdalcrs(tcrs)
     # A missing `.prj` (no CRS metadata) gives a null spatial ref; assume already WGS84 lat/long.
     src = sr.ptr != C_NULL ? sr : _gdalcrs(Rasters.EPSG(4326))
@@ -1010,7 +1012,7 @@ function _shapegeoms(spec::ShapeSpec, tcrs)
         env = ArchGDAL.envelope(geom)
         ylo, yhi = min(ylo, env.MinY), max(yhi, env.MaxY)
         xlo, xhi = min(xlo, env.MinX), max(xhi, env.MaxX)
-        return (prepared = ArchGDAL.preparegeom(geom), envelope = env)
+        return _ShapePart((ArchGDAL.preparegeom(geom), env))
     end
     extent = isempty(geoms) ? nothing :
              _extentof(ylo * u, yhi * u, xlo * u, xhi * u)
@@ -1027,7 +1029,7 @@ function _axiswindow(axis, lo, hi)
         return searchsortedfirst(axis, hi, rev = true):searchsortedlast(axis,
                                                                         lo,
                                                                         rev = true)
-    return eachindex(axis)
+    return firstindex(axis):lastindex(axis)
 end
 
 # Mirrors `_circle`: a cell is active if its centre falls inside any of the shapefile's features.
@@ -1042,11 +1044,12 @@ function _shape(geoms, tlat, tlong)
     # rather than being forced to degrees.
     lats, longs = ustrip.(tlat), ustrip.(tlong)
     for g in geoms
-        is = _axiswindow(lats, g.envelope.MinY, g.envelope.MaxY)
-        js = _axiswindow(longs, g.envelope.MinX, g.envelope.MaxX)
+        prepared, env = g.prepared, g.envelope
+        is = _axiswindow(lats, env.MinY, env.MaxY)
+        js = _axiswindow(longs, env.MinX, env.MaxX)
         for i in is, j in js
             mask[i, j] && continue
-            mask[i, j] = ArchGDAL.contains(g.prepared,
+            mask[i, j] = ArchGDAL.contains(prepared,
                                            ArchGDAL.createpoint(longs[j],
                                                                 lats[i]))
         end
