@@ -370,6 +370,64 @@ if MPI.Comm_size(comm) == 1
     @test ivserial.abundances.matrix == iv_abuns
 end
 
+# **The distributed hot loop's own allocation and inference checks.** `test/test_dynamics.jl` has
+# these for the serial loop, and until now nothing had them for this one - which matters because the
+# distributed `update!` and `update_resource_usage!` are a **separate implementation**, so a serial
+# check cannot speak for them.
+#
+# Every rank must run the measurement, not just rank 0: `update!` is collective, so a rank that
+# skipped it would leave the others waiting inside an `Alltoallv`.
+function _mpiupdatealloc(eco, timestep)
+    EcoSISTEM.update!(eco, timestep)
+    EcoSISTEM.update!(eco, timestep)
+    return @allocated EcoSISTEM.update!(eco, timestep)
+end
+
+function _mpiecosystem(numspecies)
+    sppl, _ = mpifixture_species(numspecies = numspecies)
+    built = MPIEcosystem(sppl, varying_environment(), nichefit, seed = 0)
+    built.abundances.rows_matrix .= MPIFIXTURE_FILL
+    return built
+end
+
+fewalloc = _mpiupdatealloc(_mpiecosystem(VARYING_SPECIES), MPIFIXTURE_TIMESTEP)
+manyalloc = _mpiupdatealloc(_mpiecosystem(8 * VARYING_SPECIES),
+                            MPIFIXTURE_TIMESTEP)
+
+if rank == 0
+    # A slope, as in the serial checks, because the threading and the collectives both cost a
+    # constant per call that cancels from a difference.
+    #
+    # The bound is looser than the serial one's byte-per-species: an `Allgatherv` buffer is sized
+    # from the partition, so at more than one rank the figure wobbles by a couple of hundred bytes
+    # between species counts without any trend. Measured at 8 bytes per cell per species before the
+    # habitat's topology was parameterised, which over these 49 extra species is about 30 kB - so
+    # this bound still catches that by a factor of about seventy.
+    extraspecies = 8 * VARYING_SPECIES - VARYING_SPECIES
+    @test manyalloc - fewalloc < 8 * extraspecies
+
+    # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch` and `active` are
+    # abstract by design and are explained there; anything else must be looked at.
+    mpiabstract = Tuple{Symbol, Symbol}[]
+    for obj in (eco, eco.abundances, eco.habitat, eco.cache)
+        S = typeof(obj)
+        for f in fieldnames(S)
+            isconcretetype(fieldtype(S, f)) && continue
+            (f === :epoch || f === :active) && continue
+            push!(mpiabstract, (nameof(S), f))
+        end
+    end
+    @test mpiabstract == Tuple{Symbol, Symbol}[]
+
+    # And the paths the distributed loop actually reads, which a field walk cannot see: these go
+    # *through* the landscape, whose own container is abstract by design.
+    E = typeof(eco)
+    @test isconcretetype(Base.return_types(e -> e.abundances.rows_matrix, (E,))[1])
+    @test isconcretetype(Base.return_types(e -> e.cache.totaldemand, (E,))[1])
+    @test isconcretetype(Base.return_types(e -> e.cache.netmigration, (E,))[1])
+    @test isconcretetype(Base.return_types(e -> e.habitat.topology, (E,))[1])
+end
+
 if !MPI.Finalized()
     MPI.Finalize()
 end

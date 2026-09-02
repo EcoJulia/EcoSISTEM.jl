@@ -4,6 +4,8 @@ module EcoSISTEM
 
 using Scratch: get_scratch!
 using Downloads: Downloads
+using NetworkOptions: ca_roots_path
+import ArchGDAL
 
 # **The model, before anything else.** Fourteen declarations saying what EcoSISTEM simulates -
 # conditions and resources, the environment's layers and the species' requirements, the fit between
@@ -522,6 +524,18 @@ chosen so one block spans a CPU cache line (`cachelinesize ÷ sizeof(Int)`).
 """
 species_blocksize() = _SPECIES_BLOCK[]
 
+# Whether GDAL must be handed a CA bundle before it can open an HTTPS connection.
+#
+# Only macOS on Julia 1.12 needs one. 1.11 builds libcurl against SecureTransport, which verifies
+# against the system keychain, and 1.13 ships a libcurl carrying its own bundle, so supplying one
+# on either would override a working platform default to no purpose; 1.12 has OpenSSL with nothing
+# to verify against, and every remote read fails. `NetworkOptions.ca_roots()` is `nothing` on all
+# three, so it cannot stand in for this test.
+#
+# `test_EcoSISTEM.jl` asserts that GDAL still cannot manage without this; delete both when the
+# `julia` compat floor passes 1.12.
+_needscabundle() = Sys.isapple() && v"1.12" <= VERSION < v"1.13"
+
 # Sized at load rather than compiled in, because a cache line is a property of the machine the run
 # is on. The `try` matters: `Hwloc` cannot answer on every platform, and a wrong block size is a
 # performance question rather than a correctness one, so a failure falls back rather than throwing.
@@ -530,6 +544,13 @@ function __init__()
         max(1, Hwloc.cachelinesize() ÷ sizeof(Int64))
     catch
         16
+    end
+    # Fills a gap, never overrides a decision: `CPLGetConfigOption` falls back to the environment,
+    # so anything the user or GDAL.jl set wins, and `ca_roots_path` itself honours
+    # `JULIA_SSL_CA_ROOTS_PATH`, `SSL_CERT_FILE` and `SSL_CERT_DIR`.
+    if _needscabundle() &&
+       isempty(ArchGDAL.GDAL.cplgetconfigoption("CURL_CA_BUNDLE", ""))
+        ArchGDAL.GDAL.cplsetconfigoption("CURL_CA_BUNDLE", ca_roots_path())
     end
     return nothing
 end

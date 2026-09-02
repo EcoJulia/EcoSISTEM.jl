@@ -377,6 +377,7 @@ _readmatrix(eco) = eco.abundances.matrix
 _readgrid(eco) = eco.abundances.grid
 _readtotaldemand(eco) = eco.cache.totaldemand
 _readnetmigration(eco) = eco.cache.netmigration
+_readtopology(eco) = eco.habitat.topology
 
 # Behind a function barrier, as `test_collections.jl`'s allocation checks are: `eco` arrives as a
 # typed argument, so the test's own necessarily-unstable local cannot land on the measurement, and
@@ -401,6 +402,59 @@ end
     @test Base.return_types(_readgrid, (T,))[1] === Array{Int64, 3}
     @test Base.return_types(_readtotaldemand, (T,))[1] === Matrix{Float64}
     @test Base.return_types(_readnetmigration, (T,))[1] === Matrix{Int64}
+    # `GridHabitat` is parameterised on its topology for this reason alone. Declared as the bare
+    # `AbstractTopology` it did not infer, so the `calc_lookup_moves!` call in `_move!` dispatched
+    # dynamically and boxed its `Int64` arguments once per species per cell per timestep.
+    @test isconcretetype(Base.return_types(_readtopology, (T,))[1])
+end
+
+# **A sweep, because the checks above are a LIST and a list cannot catch a field it does not name.**
+# That is not hypothetical: `topology` was abstract from the day it was written, cost 240 bytes a
+# cell, and was absent from the list until it was measured - the four paths there were added when
+# `abundances` was fixed, and the next such field simply was not among them.
+#
+# Every entry here must be looked at rather than counted: a new abstract field on any type the loop
+# reaches fails this until it is either fixed or listed with the reason it is safe.
+#
+# This deliberately does NOT subsume the path checks above, and neither subsumes the other. A
+# field walk asks whether the *container* is concrete; the path checks ask whether inference reaches
+# *through* an abstract one. `Ecosystem.abundances` is the case that separates them - abstract by
+# design, and its inner fields infer perfectly.
+const _ABSTRACT_BY_DESIGN = Dict((:Ecosystem, :abundances) =>
+                                     "abstract container by design - its " *
+                                     "inner fields name no type parameter, " *
+                                     "so inference reaches through it. The " *
+                                     "path assertions above are what cover it.",
+                                 (:Ecosystem, :epoch) =>
+                                     "a `Union{Nothing, TimeType}`, because a " *
+                                     "run may have no epoch. Not read in the loop.",
+                                 (:GridHabitat, :active) =>
+                                     "abstract, and measured to cost nothing: " *
+                                     "indexing an abstract array dispatches " *
+                                     "dynamically without boxing, where calling " *
+                                     "a generic through one must box.")
+
+@testset "no new abstract field on the types the hot loop reaches" begin
+    eco = Test1Ecosystem(seed = 1)
+    unexplained = Tuple{Symbol, Symbol}[]
+    for obj in (eco, eco.habitat, eco.spplist, eco.cache)
+        T = typeof(obj)
+        for f in fieldnames(T)
+            isconcretetype(fieldtype(T, f)) && continue
+            haskey(_ABSTRACT_BY_DESIGN, (nameof(T), f)) && continue
+            push!(unexplained, (nameof(T), f))
+        end
+    end
+    @test unexplained == Tuple{Symbol, Symbol}[]
+
+    # And the list may not rot: every entry must still name a field that is actually abstract.
+    stale = [k
+             for k in keys(_ABSTRACT_BY_DESIGN)
+             if !any((eco, eco.habitat, eco.spplist, eco.cache)) do obj
+        nameof(typeof(obj)) == k[1] && k[2] in fieldnames(typeof(obj)) &&
+            !isconcretetype(fieldtype(typeof(obj), k[2]))
+    end]
+    @test stale == []
 end
 
 @testset "the hot loop allocates nothing per cell" begin
@@ -414,6 +468,41 @@ end
     @test extracells > 500
     # Fewer than one byte per additional cell: A62 cost about 176 of them.
     @test _usagealloc(large) - _usagealloc(small) < extracells
+end
+
+# The measured allocation of one whole timestep, warmed first so the figure is the steady state
+# rather than the compilation.
+function _updatealloc(eco, timestep)
+    EcoSISTEM.update!(eco, timestep)
+    EcoSISTEM.update!(eco, timestep)
+    return @allocated EcoSISTEM.update!(eco, timestep)
+end
+
+@testset "a whole timestep allocates nothing per cell or per species" begin
+    # **Both directions, because a fixture that varies one can only prove half of it.** The check
+    # above covers `update_resource_usage!` alone, which never touches the topology - so it stayed
+    # green while a whole timestep cost 240 bytes a cell.
+    #
+    # Slopes rather than byte counts, as above: `Threads.@threads` costs a few hundred bytes per
+    # thread, constant in the problem's size, so it cancels from a difference but would force a
+    # fixed threshold to be retuned per thread count.
+    timestep = 1.0month_mean_duration
+
+    smallgrid = Test1Ecosystem(seed = 1, grid = (5, 7))
+    largegrid = Test1Ecosystem(seed = 1, grid = (20, 28))
+    extracells = size(largegrid.abundances.matrix, 2) -
+                 size(smallgrid.abundances.matrix, 2)
+    @test extracells > 500
+    # Under a byte per added cell. Before the topology was parameterised this was about 240.
+    @test _updatealloc(largegrid, timestep) -
+          _updatealloc(smallgrid, timestep) < extracells
+
+    fewspecies = Test1Ecosystem(seed = 1, numspecies = 10)
+    manyspecies = Test1Ecosystem(seed = 1, numspecies = 80)
+    extraspecies = 80 - 10
+    # And under a byte per added species, where it was about 560.
+    @test _updatealloc(manyspecies, timestep) -
+          _updatealloc(fewspecies, timestep) < extraspecies
 end
 
 end

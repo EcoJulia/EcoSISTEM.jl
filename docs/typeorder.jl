@@ -167,7 +167,7 @@ function _mentioned(t, acc = Set{Any}())
 end
 
 # 🔴 A struct often declares its own parameters UNBOUNDED and inherits the constraint from its
-# supertype - `struct GridHabitat{H, B, L} <: AbstractHabitat{H, B, L}`, where it is `AbstractHabitat`
+# supertype - `struct GridHabitat{H, B, L, T} <: AbstractHabitat{H, B, L}`, where it is `AbstractHabitat`
 # that says `H <: AbstractRegime`. Recover those, or every such field reads as depending on nothing.
 function _inheritedbounds(w)
     out = Dict{TypeVar, Any}()
