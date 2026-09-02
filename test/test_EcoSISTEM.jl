@@ -399,21 +399,17 @@ end
     @test !_documents(docof(:readfile), :cutting)
 end
 
-# A workaround for another package's platform problem earns its keep only for as long as the
-# problem is there, so this asserts BOTH halves: that GDAL can fetch over HTTPS with whatever
-# `__init__` left in place, and - where the workaround applies - that it still cannot without it.
+# Both directions of `_needscabundle` are asserted: that GDAL fetches over HTTPS with whatever
+# `__init__` left in place, and - where it applies - that GDAL cannot without it.
 #
-# The second assertion is the one that matters. When it fails, upstream has been fixed and
-# `_needscabundle` in `src/EcoSISTEM.jl` should be deleted along with this testset; it is not a
-# regression. Equally, if the first assertion fails somewhere `_needscabundle()` is false, the guard
-# is too narrow and that version needs adding.
+# A failure of the second says GDAL no longer needs the help, so `_needscabundle` and this testset
+# should both go. A failure of the first where `_needscabundle()` is false says that version needs
+# adding to it.
 @testset "GDAL's CA bundle - is the workaround still needed?" begin
     url = "https://raw.githubusercontent.com/EcoJulia/EcoSISTEM.jl/v0.6.0/LICENSE"
 
-    # A real transfer, never just a handle. `vsifopenl` returns a NON-NULL handle for a URL whose
-    # TLS connection then fails, and reads zero bytes from it - so a probe that stops at the handle
-    # reports success for a host GDAL cannot reach at all. Requiring the bytes back is the whole
-    # difference between "GDAL fetched this" and "GDAL opened something".
+    # The bytes have to come back, not just a handle: `vsifopenl` succeeds for a URL whose TLS
+    # connection then fails, and reads zero bytes from it.
     function gdalfetches(url)
         fp = ArchGDAL.GDAL.vsifopenl("/vsicurl/" * url, "rb")
         fp == C_NULL && return false
@@ -425,9 +421,8 @@ end
         end
     end
 
-    # Julia's own downloader is the network oracle. It resolves CA roots correctly on every platform
-    # this package supports, so it separates "this machine is offline" from "GDAL cannot do TLS" -
-    # which is exactly the distinction the assertions below turn on.
+    # Julia's own downloader resolves CA roots correctly everywhere, so it distinguishes an offline
+    # machine from a GDAL that cannot do TLS.
     target = tempname()
     reachable = try
         Downloads.download(url, target)
@@ -443,9 +438,8 @@ end
     else
         @test gdalfetches(url)
 
-        # Only askable when the roots come from us. OpenSSL reads `SSL_CERT_FILE`/`SSL_CERT_DIR`
-        # for itself, below GDAL entirely - measured - so on a machine that sets either, removing
-        # GDAL's own option proves nothing and the canary would report a fix that had not happened.
+        # Only askable where the roots come from us: OpenSSL reads `SSL_CERT_FILE`/`SSL_CERT_DIR`
+        # below GDAL, so wherever either is set, removing GDAL's own option proves nothing.
         fromenv = filter(k -> haskey(ENV, k),
                          ["CURL_CA_BUNDLE", "SSL_CERT_FILE", "SSL_CERT_DIR",
                              "JULIA_SSL_CA_ROOTS_PATH"])
@@ -455,8 +449,8 @@ end
         elseif EcoSISTEM._needscabundle()
             saved = ArchGDAL.GDAL.cplgetconfigoption("CURL_CA_BUNDLE", "")
             still_needed = try
-                # `C_NULL` removes the option outright, where `""` would set it to empty. The cache
-                # has to go too, or the second read is answered from the first one's result.
+                # `C_NULL` removes the option, where `""` sets it to empty; and the cache must go
+                # too, or the second read is answered from the first one's result.
                 ArchGDAL.GDAL.cplsetconfigoption("CURL_CA_BUNDLE", C_NULL)
                 ArchGDAL.GDAL.vsicurlclearcache()
                 !gdalfetches(url)
