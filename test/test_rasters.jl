@@ -423,4 +423,63 @@ end
     @test 0 < count(env.active) <= length(env.active)
 end
 
+# `_shape` walks each geometry over the cells inside its own envelope, which makes the answer depend
+# on `searchsorted` being given the axis direction it actually has. A raster's Y commonly descends,
+# and `searchsorted` on a descending axis with an ascending window returns an EMPTY range - so a
+# mistake here empties the mask rather than raising, and only a descending grid shows it.
+@testset "a shape mask does not depend on which way an axis runs" begin
+    # Two squares, so the mask is disjoint and a window that reached the wrong cells would show up
+    # as a filled gap rather than only as a missing block.
+    square(xlo, ylo, xhi, yhi) = ArchGDAL.createpolygon([[(xlo, ylo),
+                                                            (xhi, ylo),
+                                                            (xhi, yhi),
+                                                            (xlo, yhi),
+                                                            (xlo, ylo)]])
+    geoms = map((square(-4.0, 51.0, -2.0, 53.0), square(0.0, 55.0, 1.0, 56.0))) do g
+        return (prepared = ArchGDAL.preparegeom(g),
+                envelope = ArchGDAL.envelope(g))
+    end
+
+    up = collect(50.0:0.25:57.0)
+    long = collect(-6.0:0.25:2.0)
+    ascending = EcoSISTEM._shape(geoms, up, long)
+    descending = EcoSISTEM._shape(geoms, reverse(up), long)
+
+    # Not merely non-empty: both squares are found, and the two runs agree cell for cell once the
+    # descending grid is flipped back.
+    @test count(ascending) > 0
+    @test descending == reverse(ascending, dims = 1)
+    @test count(descending) == count(ascending)
+
+    # Units are stripped whatever they are, so a degrees axis answers identically to a bare one.
+    @test EcoSISTEM._shape(geoms, up .* °, long .* °) == ascending
+
+    # A geometry wholly off the grid contributes nothing, rather than its empty window silently
+    # widening to the whole axis.
+    away = ArchGDAL.createpolygon([[(20.0, 20.0), (21.0, 20.0), (21.0, 21.0),
+                                      (20.0, 21.0),
+                                      (20.0, 20.0)]])
+    offgrid = (prepared = ArchGDAL.preparegeom(away),
+               envelope = ArchGDAL.envelope(away))
+    @test EcoSISTEM._shape((geoms..., offgrid), up, long) == ascending
+    @test !any(EcoSISTEM._shape((offgrid,), up, long))
+
+    # What this does NOT catch: dropping the envelope windowing altogether and testing every cell
+    # is correct, only slow, so it passes here. The assertions above are about the answer, not the
+    # cost. What they do catch is the direction mistake - windowing a descending axis as though it
+    # ascended leaves 0 active cells against the 58 expected.
+end
+
+@testset "_axiswindow reads the axis direction rather than assuming it" begin
+    up = collect(0.0:1.0:10.0)
+    @test EcoSISTEM._axiswindow(up, 2.5, 5.5) == 4:6          # 3.0, 4.0, 5.0
+    @test EcoSISTEM._axiswindow(reverse(up), 2.5, 5.5) == 6:8  # the same three values
+    @test isempty(EcoSISTEM._axiswindow(up, 20.0, 30.0))
+    @test isempty(EcoSISTEM._axiswindow(reverse(up), 20.0, 30.0))
+    # Monotonic in neither direction, so no window can be computed and every index is offered - a
+    # grid axis is always monotonic, but the fallback must not silently drop cells if one is not.
+    @test EcoSISTEM._axiswindow([0.0, 5.0, 1.0], 0.5, 2.0) ==
+          eachindex([0.0, 5.0, 1.0])
+end
+
 end

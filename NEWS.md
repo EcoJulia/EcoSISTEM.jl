@@ -3,6 +3,7 @@
 - v0.6.2
   - Fixed
     - Hot loop allocation fix. `GridHabitat` now carries the topology's type as a parameter.
+    - Speed-up for `ShapeSpec` mask building.
     - Remote reads through GDAL - a URL given to `ShapeSpec`, or any `/vsicurl/` path - work again
       on macOS under Julia 1.12, where they had failed with an error naming a null pointer rather
       than a certificate. That one release builds libcurl against OpenSSL with no certificate roots,
