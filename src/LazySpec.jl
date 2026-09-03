@@ -161,6 +161,21 @@ end
 end
 
 """
+    AbstractShapeSpec
+
+A mask that is a piece of **ground** rather than data - [`ShapeSpec`](@ref) for one given as a vector
+file, [`NaturalEarthSpec`](@ref) for one given by name, [`ConstructedShapeSpec`](@ref) for several
+combined or one transformed.
+
+What these share, and what the abstract type is for, is that they resolve to **geometry** before any
+grid exists. That is what lets them be combined exactly and at no resolution - a study area of your
+own, unioned with a country you named - where combining rasterised masks would have to fix a
+resolution before the study grid had been decided. It is the vector mirror of
+[`ConstructedRasterSpec`](@ref), which composes rasters and so does need a grid.
+"""
+abstract type AbstractShapeSpec <: EcoSISTEM.AbstractLazySpec end
+
+"""
     ShapeSpec(path::AbstractString; layer = 0)
 
 Name an active-area mask taken from the polygons of a vector file, without reading it. It holds
@@ -176,7 +191,7 @@ and the cell-membership test all happen when it is materialised onto a decided g
     is needed.
   - `layer`: which layer of the file, 0-indexed. Every polygon feature in it is used.
 """
-struct ShapeSpec <: EcoSISTEM.AbstractLazySpec
+struct ShapeSpec <: AbstractShapeSpec
     path::Union{String, EcoSISTEM.CachedAsset}
     layer::Int
     # A leading URL scheme (`scheme://...`) marks `path` as a download, deferred to a `CachedAsset`;
@@ -189,7 +204,125 @@ struct ShapeSpec <: EcoSISTEM.AbstractLazySpec
 end
 
 """
-    ConstructedSpec(combine, layers...)
+    NaturalEarthSpec(name::AbstractString; level = nothing, coverage = AllTerritories(),
+                     outline = true)
+
+Name an active-area mask as a **named region** - a country, a continent, an island - without
+reading anything. The polygons are fetched and cut to the grid when the spec is materialised, as for
+[`ShapeSpec`](@ref).
+
+The name is resolved against the shipped region table at construction, so a name that does not exist
+is an error where it was written rather than minutes later mid-build. It is resolved by exactly the
+rule [`boundingbox`](@ref) uses, which is what makes the box that function reports the box this
+spec's shape actually has.
+
+# Arguments
+
+  - `name`: the region's name, matched case-insensitively but otherwise as Natural Earth spells it.
+  - `level`: which kind of region the name means - `"ADMIN"` for a country, `"Physical Island"` for a
+    landmass; `EcoSISTEM.NATURALEARTH_LEVELS` lists them. Only needed where a name means genuinely
+    different ground at different levels, and the error says so when it does.
+  - `coverage`: how much of what the name covers to take - [`AllTerritories`](@ref), the default and
+    what the source itself means by the name, or [`LargestLandmass`](@ref) for the principal landmass
+    alone.
+  - `outline`: `true`, the default, activates only the cells whose centres fall inside the region.
+    `false` activates every cell in the region's bounding box instead, which is the cheaper thing to
+    want when the region is only being used to say *where* to work rather than to mask a coastline.
+"""
+struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
+    level::String
+    name::String
+    coverage::C
+    outline::Bool
+
+    function NaturalEarthSpec(name::AbstractString; level = nothing,
+                              coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
+                              outline::Bool = true)
+        lvl = isnothing(level) ? EcoSISTEM._resolvelevel(name, coverage) :
+              EcoSISTEM._checklevel(level).name
+        row = EcoSISTEM._regionrow(lvl, name)
+        isnothing(row) &&
+            error("No region named \"$name\" at level \"$lvl\". " *
+                  "`EcoSISTEM.NATURALEARTH_LEVELS` lists the levels.")
+        # The source's own spelling is stored, not the caller's: the lookup is case-insensitive, and
+        # what is kept should be what the data says so that `show` and any later report agree with it.
+        return new{typeof(coverage)}(lvl, row.Name, coverage, outline)
+    end
+end
+
+function Base.show(io::IO, s::NaturalEarthSpec)
+    print(io, "NaturalEarthSpec(\"", s.name, "\", level = \"", s.level, "\"")
+    EcoSISTEM._isdefaultcoverage(s.coverage) ||
+        print(io, ", coverage = ", s.coverage)
+    s.outline || print(io, ", outline = false")
+    return print(io, ")")
+end
+
+"""
+    ConstructedShapeSpec(operation, members...; coverage = AllTerritories(), outline = true)
+
+Combine several named regions into one mask - the union of the United Kingdom, Ireland and the Isle
+of Man, or a country with an island group cut out of it.
+
+Regions combine as **geometry**, so the result is exact and carries no resolution of its own: the
+grid is still decided afterwards, and nothing is rasterised twice.
+
+```julia
+# The British Isles, including Shetland - which Natural Earth's own polygon of that name omits
+ConstructedShapeSpec(ShapeUnion(),
+                   NaturalEarthSpec("United Kingdom", coverage = AllTerritories()),
+                   NaturalEarthSpec("Ireland", level = "ADMIN"),
+                   NaturalEarthSpec("Isle of Man", level = "ADMIN"),
+                   coverage = LandmassesAbove(1km^2))     # ...and without Rockall
+```
+
+# Arguments
+
+  - `operation`: how they combine - [`ShapeUnion`](@ref), [`ShapeIntersection`](@ref) or
+    [`ShapeDifference`](@ref), the last taking every later member away from the first.
+  - `members`: two or more region specs, either [`NaturalEarthSpec`](@ref)s or nested
+    `ConstructedShapeSpec`s.
+  - `coverage`: which components of the *result* to keep, applied after the operation -
+    [`AllTerritories`](@ref) by default, since a combination usually means all of what it built.
+  - `outline`: as [`NaturalEarthSpec`](@ref) - `false` activates the result's bounding box instead of
+    its outline.
+"""
+struct ConstructedShapeSpec{O, M <: Tuple,
+                            C <: EcoSISTEM.AbstractCoverage} <:
+       AbstractShapeSpec
+    operation::O
+    members::M
+    coverage::C
+    outline::Bool
+
+    function ConstructedShapeSpec(operation::Union{EcoSISTEM.AbstractShapeOperation,
+                                                   Function},
+                                  members::AbstractShapeSpec...;
+                                  coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
+                                  outline::Bool = true)
+        least = EcoSISTEM._minmembers(operation)
+        length(members) >= least ||
+            throw(ArgumentError("`$operation` needs at least $least shape" *
+                                (least == 1 ? "" : "s") *
+                                "; it was given $(length(members))."))
+        return new{typeof(operation), typeof(members), typeof(coverage)}(operation,
+                                                                         members,
+                                                                         coverage,
+                                                                         outline)
+    end
+end
+
+function Base.show(io::IO, s::ConstructedShapeSpec)
+    print(io, "ConstructedShapeSpec(", s.operation, ", ")
+    join(io, s.members, ", ")
+    EcoSISTEM._isdefaultcoverage(s.coverage) ||
+        print(io, ", coverage = ", s.coverage)
+    s.outline || print(io, ", outline = false")
+    return print(io, ")")
+end
+
+"""
+    ConstructedRasterSpec(combine, layers...)
 
 The universal lazy escape hatch: read each of `layers` onto the working grid, then apply `combine`
 to the resulting rasters. Because `combine` is the **first** argument it can be written as a

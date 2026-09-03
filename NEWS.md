@@ -6,6 +6,27 @@
       almost never denotes one connected piece of ground - "France" includes Guadeloupe, "Norway"
       includes Bouvet Island in the South Atlantic - so a selection either takes everything the name
       covers, or the largest connected pieces of ground it covers.
+    - `NaturalEarthSpec`, which names a study area's active cells as a **region** - a country, a
+      continent, an island - rather than as a file. `StudyArea(within = NaturalEarthSpec("Scotland"))`
+      downloads and cuts the outline when it is built; `outline = false` takes the region's bounding
+      box instead. The name is checked against the shipped table when the spec is written, by the
+      same rule `boundingbox` uses, so the box that function reports is the box the shape has.
+    - `ConstructedShapeSpec`, the vector mirror of `ConstructedRasterSpec`: it composes **geometry**
+      where that one composes rasters, so the result is exact and carries no resolution of its own.
+      Members are any shape specs - a `ShapeSpec` of your own study area, a `NaturalEarthSpec` named
+      by country, or another `ConstructedShapeSpec`. The union of the United Kingdom, Ireland and the
+      Isle of Man reaches Shetland at 60.85, which Natural Earth's own "BRITISH ISLES" polygon cuts
+      off at 59.80.
+
+      Operations are `ShapeUnion`, `ShapeIntersection` and `ShapeDifference` for combining, and
+      `ShapeBuffer`, `ShapeSimplify` and `ShapeConvexHull` for transforming one shape -
+      `ShapeBuffer(50km)` being how "within 50 km of this coastline" is said. As on the raster side
+      an **arbitrary function** is accepted too, so anything ArchGDAL offers is reachable without a
+      new operation type.
+    - `LandmassesAbove`, a third coverage keeping every component at least a given area - the United
+      Kingdom without Rockall, which is 0.031 km2 against a next-smallest of 2.536. `boundingbox`
+      refuses it and says why: the shipped table records the sizes of only the largest few
+      components, so only a built shape can answer it.
   - Changed
     - **`boundingbox` is breaking.** Its `islands::Bool` keyword becomes `coverage`, taking
       `LargestLandmass()` (the default, as `islands = false` was) or `AllTerritories()`; it gains a
@@ -19,6 +40,13 @@
       `boundingbox("United Kingdom", coverage = LargestLandmass())` or the physical island
       `boundingbox("GREAT BRITAIN", level = "Physical Island")`, and `BritishIsles` has to be
       assembled, Natural Earth's own polygon of that name cutting off Shetland.
+
+      **The default coverage is `AllTerritories()`**, which is what Natural Earth means by a name:
+      its "France" is the one that includes Guadeloupe. Taking only the principal landmass is a real
+      choice about which ground is wanted, so it is now written out rather than assumed - the old
+      `islands = false` behaviour is `coverage = LargestLandmass()`. One consequence worth knowing:
+      54 of the 2 444 rows cross the antimeridian, so names like "Russia" and "North America" now
+      have no bounding box under the default and say so, naming `LargestLandmass()` as the remedy.
 
       A name meaning genuinely different ground at different levels is now refused rather than
       guessed at, and the error tabulates what each level would give so that the choice can be made

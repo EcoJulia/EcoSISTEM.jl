@@ -146,7 +146,7 @@ getlat(p::LatLong) = p.y
 # no dataset and reads no raster, and what it returns is the `Extents.Extent` this file deals in.
 
 """
-    boundingbox(region::AbstractString; level = nothing, coverage = LargestLandmass(),
+    boundingbox(region::AbstractString; level = nothing, coverage = AllTerritories(),
                 round = false)
 
 Return a named region's geographic bounding box, as an `Extents.Extent` of `°` intervals ready to
@@ -166,17 +166,21 @@ arcminutes, EarthEnv's and CHELSA's 30 arcseconds.
     genuinely different ground at different levels: "Scotland" is the same box whether asked for as
     a map unit or a map subunit, while "Africa" as a continent stops 54 degrees west of "Africa" as
     a UN region, and naming a level is then required rather than guessed at.
-  - `coverage`: how much of what the name covers to take - [`LargestLandmass`](@ref), the default,
-    for the principal landmass alone, or [`AllTerritories`](@ref) for every scattered territory too.
+  - `coverage`: how much of what the name covers to take - [`AllTerritories`](@ref), the default,
+    for everything the name covers however scattered, or [`LargestLandmass`](@ref) for the principal
+    landmass alone. The default follows the source: Natural Earth's "France" *is* the one that
+    includes Guadeloupe, and taking less than that is a choice the caller should make rather than
+    one made for them.
   - `round`: an angular step to snap the box **outwards** onto, so the result fully contains the
     exact box. Any angular unit will do: `round = 5°`, `round = 10arcminute`,
     `round = 30arcsecond`. The result is in degrees whichever was used. `false`, the default, leaves
     it unrounded.
 """
 function boundingbox(region::AbstractString; level = nothing,
-                     coverage::AbstractCoverage = LargestLandmass(),
+                     coverage::AbstractCoverage = AllTerritories(),
                      round = false)
-    lvl = isnothing(level) ? _resolvelevel(region, coverage) : String(level)
+    lvl = isnothing(level) ? _resolvelevel(region, coverage) :
+          _checklevel(level).name
     row = _regionrow(lvl, region)
     isnothing(row) &&
         error("No region named \"$region\" at level \"$lvl\". " *

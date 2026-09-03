@@ -644,6 +644,25 @@ function _preparemask(active::ShapeSpec, tcrs)
     return (payload = geoms, extent = extent)
 end
 
+# A named region, either as its outline or as the box around it.
+#
+# `outline = false` returns the extent with **no** payload, which is how `_preparemask` already says
+# "restrict the grid to this box, but leave every cell in it active" - the same answer an
+# `Extents.Extent` gives. The geometries are still prepared to get there, which is a little wasted
+# work once per build against a download that dominates it.
+function _preparemask(active::AbstractShapeSpec, tcrs)
+    geoms, extent = _naturalearthgeoms(active, tcrs)
+    # No geometry means no ground, which is never a usable mask and is usually a coverage that
+    # filtered everything out or a combination whose members do not meet. Saying so beats handing
+    # back a grid with no active cells, or an extent at the origin.
+    isempty(geoms) &&
+        error("`$active` selects no ground. A `LandmassesAbove` threshold may have excluded every " *
+              "component, or the members of a combination may not overlap - Natural Earth's " *
+              "physical outlines are drawn per landmass, so a continent's polygon does not " *
+              "contain its offshore islands.")
+    return (payload = active.outline ? geoms : nothing, extent = extent)
+end
+
 # A geographic `Extents.Extent` is *pure* extent: it says where the grid goes and nothing else, so once the grid has
 # been cut to it every cell is inside and there is no payload left to rasterise. Always given in WGS84
 # whatever the target CRS (a lat/long rectangle is not a rectangle in a projected one, so `_bboxin`
@@ -1000,14 +1019,14 @@ const _EQUALAREACRS = Rasters.EPSG(6933)
 #
 # Unlike `_ShapePart` this leaves its geometry field abstract. These are built once when a region is
 # resolved rather than per cell, so the dynamic access costs nothing worth the concrete type.
-const _RegionPart = @NamedTuple{geometry::ArchGDAL.IGeometry,
-                                envelope::ArchGDAL.GDAL.OGREnvelope,
-                                area::typeof(1.0km^2)}
+const _ShapeComponent = @NamedTuple{geometry::ArchGDAL.IGeometry,
+                                    envelope::ArchGDAL.GDAL.OGREnvelope,
+                                    area::typeof(1.0km^2)}
 
 # Every feature of `level`'s file, grouped by the value of its naming attribute and keyed by the
 # lowercased form of it. Each group keeps the source's own spelling of the name alongside.
 #
-# 🔴 This is the ONE place a name becomes geometry: `_selectfeatures` is a lookup into it and
+# This is the ONE place a name becomes geometry: `_selectfeatures` is a lookup into it and
 # `_levelvalues` reads its keys, so the shipped table's generator and a built shape cannot disagree
 # about which features a name covers.
 #
@@ -1091,11 +1110,15 @@ _repairgeom(g) = ArchGDAL.isvalid(g) ? g : ArchGDAL.buffer(g, 0)
 # neighbouring countries that share a border merge into one landmass, so the largest component of a
 # continent is its mainland and not merely its largest country.
 function _dissolve(geoms)
-    isempty(geoms) && return _RegionPart[]
+    # An empty geometry is not a component: a set operation that found no common ground returns
+    # one, and left in it would become a part of zero area whose envelope is the origin - a mask of
+    # nothing, reported as if it were somewhere.
+    present = filter(g -> !ArchGDAL.isempty(g), geoms)
+    isempty(present) && return _ShapeComponent[]
     merged = reduce((a, b) -> ArchGDAL.union(_repairgeom(a), _repairgeom(b)),
-                    geoms)
-    parts = map(_components(merged)) do g
-        return _RegionPart((g, ArchGDAL.envelope(g), _equalarea(g)))
+                    present)
+    parts = map(filter(g -> !ArchGDAL.isempty(g), _components(merged))) do g
+        return _ShapeComponent((g, ArchGDAL.envelope(g), _equalarea(g)))
     end
     return sort!(parts, by = p -> p.area, rev = true)
 end
@@ -1161,10 +1184,16 @@ end
 
 # The components a coverage asks for. `parts` must already be ordered largest first, as `_dissolve`
 # returns them.
-_coverageof(parts::AbstractVector{_RegionPart}, ::AllTerritories) = parts
+_coverageof(parts::AbstractVector{_ShapeComponent}, ::AllTerritories) = parts
 
-function _coverageof(parts::AbstractVector{_RegionPart}, c::LargestLandmass)
+function _coverageof(parts::AbstractVector{_ShapeComponent}, c::LargestLandmass)
     return parts[1:min(c.count, length(parts))]
+end
+
+# Components are ordered largest first, so this is a prefix too - but expressed as a threshold, which
+# is what "everything except the specks" needs when the count is not known in advance.
+function _coverageof(parts::AbstractVector{_ShapeComponent}, c::LandmassesAbove)
+    return filter(p -> p.area >= c.area, parts)
 end
 
 # One feature of a vector file as `_shape` uses it: the prepared geometry to test cells against, and
@@ -1174,35 +1203,151 @@ end
 const _ShapePart = @NamedTuple{prepared::ArchGDAL.IPreparedGeometry,
                                envelope::ArchGDAL.GDAL.OGREnvelope}
 
-# Read `spec`'s vector file and prepare every feature's geometry in the target grid's own CRS - the
-# work `ShapeSpec` defers from construction to materialise time, mirroring `_read(::SourceSpec)`.
-function _shapegeoms(spec::ShapeSpec, tcrs)
-    path = _resolvepath(spec.path)
-    vpath = endswith(path, ".zip") ? "/vsizip/" * path : path
-    dataset = ArchGDAL.read(vpath)
-    lyr = ArchGDAL.getlayer(dataset, spec.layer)
-    sr = ArchGDAL.getspatialref(lyr)
+# Reproject `geoms` from `src` into the target grid's own CRS and prepare each for the per-cell
+# containment test, with the extent they jointly cover.
+#
+# Shared by every route that turns geometry into a mask - a vector file through `ShapeSpec`, a named
+# region through `NaturalEarthSpec` - so the two cannot come to differ in how a geometry reaches a
+# grid.
+#
+# Each geometry is CLONED before being transformed, and that is load-bearing. `transform!` rewrites in place, and
+# `_groupfeatures` hands out geometries it is memoising: transforming those would silently leave the
+# cache holding coordinates in whatever CRS was asked for last, so a second build on a different grid
+# would reproject already-reprojected ground.
+function _preparegeoms(geoms, src, tcrs)
     dest = _gdalcrs(tcrs)
-    # A missing `.prj` (no CRS metadata) gives a null spatial ref; assume already WGS84 lat/long.
-    src = sr.ptr != C_NULL ? sr : _gdalcrs(Rasters.EPSG(4326))
     u = _crsunit(tcrs)
     ylo, yhi, xlo, xhi = Inf, -Inf, Inf, -Inf
     # The envelope is taken *before* `preparegeom` - `ArchGDAL.envelope` on a prepared geometry
     # segfaults - and kept, both for the overall extent here and for `_shape` to window each
     # geometry onto the grid.
-    geoms = map(lyr) do feature
-        geom = ArchGDAL.getgeom(feature)
+    parts = map(geoms) do geom
+        g = ArchGDAL.clone(geom)
         ArchGDAL.createcoordtrans(src, dest) do ct
-            return ArchGDAL.transform!(geom, ct)
+            return ArchGDAL.transform!(g, ct)
         end
-        env = ArchGDAL.envelope(geom)
+        env = ArchGDAL.envelope(g)
         ylo, yhi = min(ylo, env.MinY), max(yhi, env.MaxY)
         xlo, xhi = min(xlo, env.MinX), max(xhi, env.MaxX)
-        return _ShapePart((ArchGDAL.preparegeom(geom), env))
+        return _ShapePart((ArchGDAL.preparegeom(g), env))
     end
-    extent = isempty(geoms) ? nothing :
+    extent = isempty(parts) ? nothing :
              _extentof(ylo * u, yhi * u, xlo * u, xhi * u)
-    return geoms, extent
+    return parts, extent
+end
+
+# Read `spec`'s vector file and prepare every feature's geometry in the target grid's own CRS - the
+# work `ShapeSpec` defers from construction to materialise time, mirroring `_read(::SourceSpec)`.
+# Every geometry in `spec`'s vector file, with the CRS they are in.
+function _readshapefile(spec::ShapeSpec)
+    path = _resolvepath(spec.path)
+    vpath = endswith(path, ".zip") ? "/vsizip/" * path : path
+    dataset = ArchGDAL.read(vpath)
+    lyr = ArchGDAL.getlayer(dataset, spec.layer)
+    sr = ArchGDAL.getspatialref(lyr)
+    # A missing `.prj` (no CRS metadata) gives a null spatial ref; assume already WGS84 lat/long.
+    src = sr.ptr != C_NULL ? sr : _gdalcrs(Rasters.EPSG(4326))
+    return [ArchGDAL.clone(ArchGDAL.getgeom(f)) for f in lyr], src
+end
+
+function _shapegeoms(spec::ShapeSpec, tcrs)
+    geoms, src = _readshapefile(spec)
+    return _preparegeoms(geoms, src, tcrs)
+end
+
+# The components a region spec resolves to, in WGS84 and before any grid exists.
+#
+# For a single name these are the same calls the shipped table's generator makes, which is what keeps
+# a built shape agreeing with the box `boundingbox` reports for it.
+# A vector file's own geometry, dissolved into components in WGS84 so that it can take part in a
+# combination on equal terms with a named region.
+#
+# Every feature is taken: a `ShapeSpec` has no `coverage` field, because a file is already exactly
+# the ground its author meant. Use the enclosing `ConstructedShapeSpec`'s `coverage` to filter the
+# result if some of it is not wanted.
+function _shapecomponents(spec::ShapeSpec)
+    geoms, src = _readshapefile(spec)
+    wgs = _gdalcrs(Rasters.EPSG(4326))
+    ArchGDAL.createcoordtrans(src, wgs) do ct
+        return foreach(g -> ArchGDAL.transform!(g, ct), geoms)
+    end
+    return _dissolve(geoms)
+end
+
+function _shapecomponents(spec::NaturalEarthSpec)
+    return _coverageof(_dissolve(_selectfeatures(_findlevel(spec.level),
+                                                 spec.name)),
+                       spec.coverage)
+end
+
+# A combination resolves its members first, applies the set operation to their geometry, and only
+# then splits the result into components - so the coverage acts on what was built rather than on any
+# member. That order is what makes "the British Isles, dropping anything under a square kilometre"
+# one expression instead of a filter that could only be applied per member.
+function _shapecomponents(spec::ConstructedShapeSpec)
+    combined = _applyshapeop(spec.operation,
+                             map(_shapegeometry, spec.members))
+    return _coverageof(_dissolve([combined]), spec.coverage)
+end
+
+# One geometry for a whole spec, its components merged back together, for use as a member of a
+# combination.
+function _shapegeometry(spec::AbstractShapeSpec)
+    parts = _shapecomponents(spec)
+    isempty(parts) &&
+        error("`$spec` selects no geometry, so it cannot take part in a combination.")
+    return _mergegeoms([p.geometry for p in parts])
+end
+
+function _mergegeoms(gs)
+    return reduce((a, b) -> ArchGDAL.union(_repairgeom(a), _repairgeom(b)), gs)
+end
+
+# One method per operation rather than a branch, so an unsupported one is a `MethodError` naming it.
+_applyshapeop(::ShapeUnion, gs) = _mergegeoms(gs)
+
+function _applyshapeop(::ShapeIntersection, gs)
+    return reduce((a, b) -> ArchGDAL.intersection(_repairgeom(a),
+                                                  _repairgeom(b)),
+                  gs)
+end
+
+function _applyshapeop(::ShapeDifference, gs)
+    return reduce((a, b) -> ArchGDAL.difference(_repairgeom(a), _repairgeom(b)),
+                  gs)
+end
+
+# The transforms take one shape. `buffer` and `simplify` want a plain number in the geometry's own
+# coordinates, which for these is degrees; a length is converted at the equator, where a degree of
+# longitude is widest, so the buffer is never narrower than asked for.
+function _applyshapeop(o::ShapeBuffer, gs)
+    return ArchGDAL.buffer(only(gs), _indegrees(o.distance))
+end
+
+function _applyshapeop(o::ShapeSimplify, gs)
+    return ArchGDAL.simplify(only(gs), _indegrees(o.tolerance))
+end
+
+_applyshapeop(::ShapeConvexHull, gs) = ArchGDAL.convexhull(only(gs))
+
+# A bare function is the escape hatch that mirrors `ConstructedRasterSpec`'s `combine`: it is handed
+# one geometry per member and returns one geometry.
+_applyshapeop(f::Function, gs) = f(gs...)
+
+# A distance as a number of degrees, which is what GDAL's `buffer` and `simplify` want here: these
+# geometries are in WGS84 lat/long, so their coordinates are angles.
+#
+# A length is divided by the length of a degree at the equator - the widest a degree of longitude
+# gets - so a converted distance never under-reaches the one asked for.
+_indegrees(d::Real) = float(d)
+_indegrees(d::Unitful.DimensionlessQuantity) = ustrip(°, uconvert(°, d))
+_indegrees(d::Unitful.Length) = ustrip(NoUnits, d / _degreelength(1°))
+
+# The geometry a region spec resolves to, in the target grid's own CRS. Natural Earth publishes in
+# WGS84 lat/long, so that is the source.
+function _naturalearthgeoms(spec::AbstractShapeSpec, tcrs)
+    return _preparegeoms([p.geometry for p in _shapecomponents(spec)],
+                         _gdalcrs(Rasters.EPSG(4326)), tcrs)
 end
 
 # Which indices of `axis` fall within `[lo, hi]`. A raster's Y commonly descends, and `searchsorted`

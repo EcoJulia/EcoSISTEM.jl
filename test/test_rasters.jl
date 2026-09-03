@@ -408,7 +408,8 @@ end
     # own default of all 12.
     wind = SourceSpec(WorldClim{Climate}, :wind, month = 1:2)
     env = _env(wind, SUP,
-               within = EcoSISTEM.boundingbox("Scotland"))
+               within = EcoSISTEM.boundingbox("Scotland",
+                                              coverage = LargestLandmass()))
     # The regime is a plain 2-D layer holding the current slice; the stack lives in its change,
     # which is what knows how elapsed time picks between the slices.
     @test env.regime isa EcoSISTEM.ContinuousRegime

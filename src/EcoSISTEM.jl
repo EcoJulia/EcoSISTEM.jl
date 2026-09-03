@@ -41,7 +41,12 @@ include("NaturalEarth.jl")
 
 public AbstractCoverage
 
-export AllTerritories, LargestLandmass
+export AllTerritories, LargestLandmass, LandmassesAbove
+
+public AbstractShapeOperation
+
+export ShapeUnion, ShapeIntersection, ShapeDifference,
+       ShapeBuffer, ShapeSimplify, ShapeConvexHull
 
 public NaturalEarthLevel
 
@@ -162,7 +167,10 @@ include("LazySpec.jl")
 # what lives here against what stays with the climate data.
 # Exported here, and **re-exported by `ClimatePref`**, so that `using EcoSISTEM.ClimatePref` reaches
 # them too.
-export SourceSpec, ConstructedSpec, ShapeSpec
+export SourceSpec, ConstructedSpec, ShapeSpec, NaturalEarthSpec,
+       CombinedRegionSpec
+
+public AbstractShapeSpec
 
 public AbstractLazySpec
 

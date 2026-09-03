@@ -473,6 +473,11 @@ rule), the latter further split into layer specs (a regime/supply) and mask spec
 The `LayerSpec`/`MaskSpec` aliases name the specs valid in each role. Only a lazy spec can shape a
 study area: a synthetic one has no CRS, extent or resolution of its own.
 
+`AbstractRegionSpec` is the branch of the lazy specs that names **ground** rather than data - a
+country, a continent, an island - and resolves to geometry before any grid exists. That is what lets
+several of them be combined exactly, at no resolution, which is described under "Named regions"
+above.
+
 ```mermaid
 classDiagram
     class AbstractSpec
@@ -482,6 +487,9 @@ classDiagram
     class AbstractSyntheticMaskSpec
     class SourceSpec~A, U~
     class ShapeSpec
+    class AbstractRegionSpec
+    class NaturalEarthSpec~C~
+    class CombinedRegionSpec~O, M, C~
     class ConstructedSpec~A, F~
     class UniformSpec~A, V~
     class GradientSpec~A, V~
@@ -504,6 +512,9 @@ classDiagram
     AbstractCombineStage <|-- CombineOnTargetGrid
     AbstractCombineStage <|-- CombineOnSourceGrid
     ConstructedSpec "1" *-- "1" AbstractCombineStage : combinestage
+    AbstractLazySpec <|-- AbstractRegionSpec
+    AbstractRegionSpec <|-- CombinedRegionSpec
+    AbstractRegionSpec <|-- NaturalEarthSpec
 ```
 
 Every spec is constructed exactly one way - via its own inner constructor, e.g. `GradientSpec(low,
@@ -566,6 +577,32 @@ It also disposes of the antimeridian for one of the two cases. Natural Earth spl
 the date line, so no single connected component can cross it and a landmass always has an honest
 `West < East`. Only `AllTerritories` can produce a selection spanning the globe - which is where it
 is least surprising, since the territory of the United States genuinely does.
+
+**Several regions combine as geometry, not as rasters.** `AbstractRegionOperation` is the closed set
+of ways they do: `RegionUnion`, `RegionIntersection`, `RegionDifference`.
+
+```mermaid
+classDiagram
+    class AbstractRegionOperation
+    class RegionUnion
+    class RegionIntersection
+    class RegionDifference
+    AbstractRegionOperation <|-- RegionUnion
+    AbstractRegionOperation <|-- RegionIntersection
+    AbstractRegionOperation <|-- RegionDifference
+```
+
+**Why geometry and not rasters.** A union of outlines is exact and carries no resolution of its own,
+so the study grid is still free to be decided afterwards. Combining rasterised masks would have to
+pick a resolution before that decision and would carry two sets of edge effects into the result.
+That is also why a region spec is not a `ConstructedSpec` member: a `ConstructedSpec` composes
+rasters, and its members materialise on their own data's grid, which a geometry does not have.
+
+⚠️ **The outlines are cartographic, and combining them exposes it.** Natural Earth's own
+`BRITISH ISLES` polygon stops at 59.80 and so omits Shetland, where the union of the United Kingdom,
+Ireland and the Isle of Man reaches 60.85. Its physical continents are landmass outlines, so `EUROPE`
+does not contain the British Isles at all - an intersection with it is empty, and is refused rather
+than returned as a grid with nothing active.
 
 **A name is only meaningful with its level.** `NaturalEarthLevel` records which file defines a kind
 of region and which of its attributes carries the name, because the same word means different things

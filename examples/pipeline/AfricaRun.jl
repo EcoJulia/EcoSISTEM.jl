@@ -56,7 +56,8 @@ const RAINFALL = SourceSpec(WorldClim{BioClim}, :bio12)
 # comes from the layers' own coverage rather than from a hand-built `.!isnan.(...)` matrix.
 const AREA = StudyArea(regime = TEMPERATURE, supply = RAINFALL,
                        within = EcoSISTEM.boundingbox("Africa",
-                                                      level = "CONTINENT"),
+                                                      level = "CONTINENT",
+                                                      coverage = LargestLandmass()),
                        crs = EPSG(10592), cellsize = 50.0km)
 
 const ENVIRONMENT = GridHabitat(regime = TEMPERATURE, supply = RAINFALL,

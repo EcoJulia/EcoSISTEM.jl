@@ -42,7 +42,8 @@ rainfall = SourceSpec(WorldClim{BioClim}, :bio12)
 # `within` positions the area and is not optional - WorldClim is a global dataset, so without it
 # the grid is the world. `boundingbox` reads the shipped table, so naming a region costs no download.
 area = StudyArea(regime = temperature, supply = rainfall,
-                 within = EcoSISTEM.boundingbox("Africa", level = "CONTINENT"),
+                 within = EcoSISTEM.boundingbox("Africa", level = "CONTINENT",
+                                                coverage = LargestLandmass()),
                  crs = EPSG(10592), cellsize = CELLSIZE,
                  verbosity = :silent)
 

@@ -49,7 +49,8 @@ rainfall = SourceSpec(WorldClim{BioClim}, :bio13)
 # A **projected** CRS is required to simulate. `EPSG:10592` (WGS 84 / GLANCE Africa) is the
 # package's own advice for this extent. `within` positions the area: both sources are global.
 area = StudyArea(regime = landcover, supply = rainfall,
-                 within = EcoSISTEM.boundingbox("Africa", level = "CONTINENT"),
+                 within = EcoSISTEM.boundingbox("Africa", level = "CONTINENT",
+                                                coverage = LargestLandmass()),
                  crs = EPSG(10592), cellsize = CELLSIZE,
                  verbosity = :silent)
 

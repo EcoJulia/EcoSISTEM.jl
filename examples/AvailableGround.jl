@@ -117,7 +117,8 @@ end
 # 953 × 6 cells over mostly ocean, and every number in the comparison was meaningless.
 # `boundingbox` reads the shipped `data/bounding_boxes.csv`, so naming a region costs no download.
 area = StudyArea(supply = available,
-                 within = EcoSISTEM.boundingbox("Scotland"),
+                 within = EcoSISTEM.boundingbox("Scotland",
+                                                coverage = LargestLandmass()),
                  crs = EPSG(27700), cellsize = CELLSIZE, verbosity = :silent)
 
 # The regime and the tolerances are deliberately dull - this example is about the supplies, so

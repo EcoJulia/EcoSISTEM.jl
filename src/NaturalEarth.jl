@@ -92,6 +92,163 @@ function Base.show(io::IO, c::LargestLandmass)
     return print(io, "LargestLandmass(count = $(c.count))")
 end
 
+"""
+    LandmassesAbove(area)
+
+Take every connected piece of ground the name covers that is at least `area` in size.
+
+This is the coverage for "everything except the specks": the United Kingdom without Rockall, which
+[`LargestLandmass`](@ref) can only express by counting components and so needs to know how many
+there are. Rockall is 0.031 km2 and the next smallest British component is 2.536 km2, an eighty-fold
+gap, so any threshold between them does the same thing.
+
+Unlike the other coverages this one cannot be answered from the shipped region table, which records
+only the largest few components' sizes - so [`boundingbox`](@ref) refuses it, while a spec built onto
+a real grid has the geometry and can.
+
+# Arguments
+
+  - `area`: the smallest component to keep, as a `Unitful` area (`1km^2`, `500u"m^2"`).
+"""
+struct LandmassesAbove{A} <: AbstractCoverage
+    area::A
+
+    function LandmassesAbove(area)
+        dimension(area) == dimension(1.0km^2) ||
+            throw(ArgumentError("LandmassesAbove needs an area, got $(area) which is " *
+                                "$(dimension(area))"))
+        area > zero(area) ||
+            throw(ArgumentError("LandmassesAbove needs a positive area, got $area"))
+        return new{typeof(area)}(area)
+    end
+end
+
+function Base.show(io::IO, c::LandmassesAbove)
+    return print(io, "LandmassesAbove(", c.area, ")")
+end
+
+# Whether a coverage is the one a spec would have taken had none been named, so that `show` prints
+# only what a caller would have to write. One method per coverage rather than a chain of `isa`, so a
+# coverage added later fails here loudly instead of silently printing as the default.
+#
+# The default is `AllTerritories` because that is what Natural Earth means by a name: its "France"
+# is the one including Guadeloupe. Taking only the principal landmass is a real choice about what
+# ground is wanted, so it is the caller's to make and to see written down.
+_isdefaultcoverage(::AllTerritories) = true
+_isdefaultcoverage(::LargestLandmass) = false
+_isdefaultcoverage(::LandmassesAbove) = false
+
+# ---------------------------------------------------------------------------
+# Combining regions
+# ---------------------------------------------------------------------------
+
+"""
+    AbstractShapeOperation
+
+How several named regions combine into one - [`ShapeUnion`](@ref), [`ShapeIntersection`](@ref) or
+[`ShapeDifference`](@ref).
+
+Regions compose as **geometries**, not as rasters. A union of outlines is exact and independent of
+any grid, where combining rasterised masks would have to pick a resolution before the study grid was
+decided and would carry two sets of edge effects into the answer.
+"""
+abstract type AbstractShapeOperation end
+
+"""    ShapeUnion() <: AbstractShapeOperation - every member's ground, merged. """
+struct ShapeUnion <: AbstractShapeOperation end
+
+"""    ShapeIntersection() <: AbstractShapeOperation - only ground common to every member. """
+struct ShapeIntersection <: AbstractShapeOperation end
+
+"""
+    ShapeDifference() <: AbstractShapeOperation
+
+The first member's ground with every later member's removed.
+"""
+struct ShapeDifference <: AbstractShapeOperation end
+
+"""
+    ShapeBuffer(distance)
+
+Grow the shape outwards by `distance`, or shrink it inwards where `distance` is negative.
+
+This is how a study area becomes "within 50 km of this coastline", which no set operation can
+express. It takes one member: a buffer transforms a shape rather than combining several.
+
+⚠️ The distance is applied in the shape's own coordinates, which for Natural Earth are degrees of
+latitude and longitude - so a buffer given as a length is converted at the equator and is narrower
+in east-west terms the further from it the shape lies. Give an angle to say exactly what is meant.
+
+# Arguments
+
+  - `distance`: how far to grow, as a length (`50km`) or an angle (`0.5°`).
+"""
+struct ShapeBuffer{D} <: AbstractShapeOperation
+    distance::D
+
+    function ShapeBuffer(distance)
+        dim = dimension(distance)
+        dim in (dimension(1.0km), NoDims) ||
+            throw(ArgumentError("ShapeBuffer needs a length or an angle, got $distance which is " *
+                                "$dim"))
+        return new{typeof(distance)}(distance)
+    end
+end
+
+"""
+    ShapeSimplify(tolerance)
+
+Replace the outline with a coarser one no further than `tolerance` from it.
+
+Only 1:10m polygons ship, that being the one scale at which a name's box and its shape can agree, so
+this is how a coarser outline is had when a fine one is not wanted - a continent's coastline carries
+tens of thousands of vertices that no continental-resolution grid can use. It takes one member.
+
+# Arguments
+
+  - `tolerance`: how far the simplified outline may depart from the original, as a length or an
+    angle, in the same coordinates [`ShapeBuffer`](@ref) uses.
+"""
+struct ShapeSimplify{D} <: AbstractShapeOperation
+    tolerance::D
+
+    function ShapeSimplify(tolerance)
+        dim = dimension(tolerance)
+        dim in (dimension(1.0km), NoDims) ||
+            throw(ArgumentError("ShapeSimplify needs a length or an angle, got $tolerance which " *
+                                "is $dim"))
+        tolerance > zero(tolerance) ||
+            throw(ArgumentError("ShapeSimplify needs a positive tolerance, got $tolerance"))
+        return new{typeof(tolerance)}(tolerance)
+    end
+end
+
+"""
+    ShapeConvexHull() <: AbstractShapeOperation
+
+The smallest convex outline containing the shape, as a rubber band round it.
+
+Takes one member. Useful for turning a scattered archipelago into the single area it occupies, and
+for smoothing away a coastline's detail without choosing a tolerance.
+"""
+struct ShapeConvexHull <: AbstractShapeOperation end
+
+Base.show(io::IO, o::ShapeBuffer) = print(io, "ShapeBuffer(", o.distance, ")")
+function Base.show(io::IO, o::ShapeSimplify)
+    return print(io, "ShapeSimplify(", o.tolerance, ")")
+end
+
+# How many members an operation takes. The set operations need at least two to mean anything; the
+# transforms act on exactly one. Stated per operation so that the constructor can refuse a wrong
+# count where it was written, rather than failing inside a reduce.
+_minmembers(::AbstractShapeOperation) = 2
+_minmembers(::ShapeBuffer) = 1
+_minmembers(::ShapeSimplify) = 1
+_minmembers(::ShapeConvexHull) = 1
+# A bare function is the escape hatch, mirroring `ConstructedRasterSpec`'s `combine`: it is handed
+# every member's geometry and may do anything with them, so no count can be required.
+_minmembers(::Function) = 1
+
 # ---------------------------------------------------------------------------
 # Levels
 # ---------------------------------------------------------------------------
@@ -162,8 +319,10 @@ const _NE_PHYSICAL = "ne_10m_geography_regions_polys"
 # The landform classes of the physical file, each of which becomes a level. Taken from the file
 # itself rather than from its documentation.
 #
-# "Dragons-be-here" is deliberately absent: its single feature is Null Island at (0, 0), a
-# cartographers' joke, and it would otherwise be offered as a selectable region.
+# "Dragons-be-here" is deliberately absent. Its single feature is Null Island at (0, 0), a
+# cartographers' joke - and a real, valid polygon about a metre across, which is the practical
+# objection rather than the joke: at the table's three decimal places its box rounds to zero width,
+# so it would be the one region in 2 444 with no extent at all.
 const _NE_PHYSICAL_CLASSES = ("Continent", "Island", "Island group",
                               "Range/mtn",
                               "Plateau", "Desert", "Pen/cape", "Peninsula",
@@ -218,11 +377,12 @@ function _buildlevels()
     add("SUBUNIT", _NE_MAP_SUBUNITS, "SUBUNIT", :political,
         "Map subunit, the finest split of a country Natural Earth offers, and what gives the " *
         "constituent countries of the United Kingdom.")
-    add("ISO_A3", _NE_COUNTRIES, "ISO_A3_EH", :code,
+    add("ISO_A3_EH", _NE_COUNTRIES, "ISO_A3_EH", :code,
         "ISO 3166-1 alpha-3 country code, for looking a country up by code rather than by name. " *
-        "Read from the source's ISO_A3_EH field rather than its ISO_A3, which is unset for 22 " *
-        "countries against 14 - France and Norway among the eight it recovers. The 14 that remain " *
-        "have no assigned code, Kosovo and Somaliland among them, and are absent from this level.")
+        "Named for the source field it reads. Natural Earth ships both ISO_A3 and ISO_A3_EH; the " *
+        "latter is unset for 14 countries against the former's 22, France and Norway among the " *
+        "eight it recovers. The 14 that remain have no assigned code - Kosovo and Somaliland among " *
+        "them - and so are absent from this level.")
     append!(levels, map(_physicallevel, _NE_PHYSICAL_CLASSES))
     return levels
 end
@@ -243,6 +403,27 @@ function _findlevel(name::AbstractString)
     i = findfirst(l -> lowercase(l.name) == lowercase(name),
                   NATURALEARTH_LEVELS)
     return isnothing(i) ? nothing : NATURALEARTH_LEVELS[i]
+end
+
+# The level of this name, or an error naming the closest matches.
+#
+# A wrong level otherwise surfaces as "no region named X at level Y", which blames the name when the
+# level is what is wrong. Suggestions are by prefix and substring, which is what turns a reasonable
+# guess at "ISO_A3" into the "ISO_A3_EH" this package actually ships.
+function _checklevel(name::AbstractString)
+    level = _findlevel(name)
+    isnothing(level) || return level
+    lower = lowercase(name)
+    # Matched both ways round, so a guess longer than the real name is caught as well as one that is
+    # shorter: "ISO_A3" finds "ISO_A3_EH", and "SUBUNITS" finds "SUBUNIT".
+    near = [l.name
+            for l in NATURALEARTH_LEVELS
+            if occursin(lower, lowercase(l.name)) ||
+        occursin(lowercase(l.name), lower)]
+    return error("There is no region level called \"$name\"." *
+                 (isempty(near) ? "" :
+                  " Did you mean " * join(near, ", ") * "?") *
+                 " `EcoSISTEM.NATURALEARTH_LEVELS` lists all $(length(NATURALEARTH_LEVELS)).")
 end
 
 # The cached download a level reads from. Several levels share one file, and `CachedAsset` keys the
@@ -303,6 +484,17 @@ function _coveragebox(row, ::AllTerritories, region, lvl)
             wraps = row.Wraps)
 end
 
+# The shipped table records only the largest few components' sizes, so an area threshold cannot be
+# applied to it - the components it would have to test were never written down. A spec built onto a
+# real grid has the geometry and answers this fine, which is what the message points at.
+function _coveragebox(row, c::LandmassesAbove, region, lvl)
+    return error("`boundingbox` cannot answer `$c`: the shipped region table records the sizes of " *
+                 "only the largest $NPARTS components, so it cannot say which of \"$region\" " *
+                 "($lvl) clear $(c.area). Build the shape instead - " *
+                 "`NaturalEarthSpec(\"$region\", level = \"$lvl\", coverage = $c)` - which reads " *
+                 "the geometry.")
+end
+
 function _coveragebox(row, c::LargestLandmass, region, lvl)
     c.count >= row.Parts &&
         return (west = row.West, south = row.South, east = row.East,
@@ -321,6 +513,17 @@ function _coveragebox(row, c::LargestLandmass, region, lvl)
     return (west = west, south = south, east = east, north = north,
             wraps = false)
 end
+
+# The coverage a *level comparison* is made with.
+#
+# Resolving a bare name asks whether the levels would give the same answer, which means reading the
+# shipped table - and `LandmassesAbove` is the one coverage the table cannot answer, since it records
+# the sizes of only the largest few components. Comparing the whole selections instead is the
+# conservative substitute: it is what the threshold will be applied to, so levels that disagree
+# there cannot agree afterwards, and a name whose full extents match at every level is selecting the
+# same ground however it is later filtered.
+_tablecoverage(c::AbstractCoverage) = c
+_tablecoverage(::LandmassesAbove) = AllTerritories()
 
 # Which level a bare name means, for the coverage being asked for.
 #
@@ -342,7 +545,8 @@ function _resolvelevel(name::AbstractString, coverage::AbstractCoverage)
               "`EcoSISTEM.NATURALEARTH_LEVELS` lists the levels a name may be defined at.")
     length(levels) == 1 && return levels[1]
     rows = [_regionrow(l, name) for l in levels]
-    boxes = [_coveragebox(r, coverage, name, l) for (r, l) in zip(rows, levels)]
+    compare = _tablecoverage(coverage)
+    boxes = [_coveragebox(r, compare, name, l) for (r, l) in zip(rows, levels)]
     allequal((b.west, b.south, b.east, b.north) for b in boxes) &&
         return levels[1]
     return error("\"$name\" means different regions at different levels, and the extents they " *

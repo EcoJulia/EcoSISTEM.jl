@@ -6,6 +6,10 @@ using EcoSISTEM
 using EcoSISTEM: NaturalEarthLevel, NATURALEARTH_LEVELS
 using EcoSISTEM: _findlevel, _nesource, _dissolve, _coverageof, _equalarea
 using EcoSISTEM: _regionbox, _regionindex, _regionspath, NPARTS
+using EcoSISTEM: _checklevel, _indegrees, _asraster, _mergegeoms
+using EcoSISTEM: _shapecomponents, _applyshapeop, _naturalearthgeoms,
+                 _preparemask
+import Rasters
 using CSV
 using Unitful
 using Unitful.DefaultSymbols
@@ -51,7 +55,7 @@ end
     cultural = filter(l -> l.category == "cultural", NATURALEARTH_LEVELS)
     @test [l.name for l in cultural] ==
           ["CONTINENT", "REGION_UN", "SUBREGION", "REGION_WB", "SOVEREIGNT",
-        "ADMIN", "GEOUNIT", "SUBUNIT", "ISO_A3"]
+        "ADMIN", "GEOUNIT", "SUBUNIT", "ISO_A3_EH"]
 
     physical = filter(l -> l.category == "physical", NATURALEARTH_LEVELS)
     @test length(physical) == 22
@@ -197,7 +201,7 @@ end
     # Latitude has no seam and is never reinterpreted.
     @test (plain.south, plain.north) == (0.0, 10.0)
     @test isempty(_dissolve(ArchGDAL.IGeometry[])) &&
-          !_regionbox(EcoSISTEM._RegionPart[]).wraps
+          !_regionbox(EcoSISTEM._ShapeComponent[]).wraps
 end
 
 @testset "the shipped region table is well formed" begin
@@ -260,6 +264,281 @@ end
 
     # The table would be pointless if every region had one component; it earns its width.
     @test count(r -> r.Parts > 1, rows) > 500
+end
+
+# Downloading Natural Earth's polygons is a network cost the shipped table exists to avoid, so the
+# geometry tests are guarded the way the heavy raster reads are; `ECOSISTEM_HEAVY_DATA=true` forces
+# them on. Everything above this point - the table, the coverages, the box arithmetic - runs anywhere.
+function geometrytests()
+    return haskey(ENV, "ECOSISTEM_HEAVY_DATA") ?
+           ENV["ECOSISTEM_HEAVY_DATA"] == "true" : !haskey(ENV, "RUNNER_OS")
+end
+
+@testset "a region spec resolves its name when it is written, not when it is built" begin
+    # Validation is against the shipped table, so it costs no download and lands at the call site.
+    @test NaturalEarthSpec("Scotland") isa EcoSISTEM.AbstractShapeSpec
+    @test_throws ErrorException NaturalEarthSpec("Atlantis")
+    @test_throws ErrorException NaturalEarthSpec("Scotland",
+                                                 level = "CONTINENT")
+    # The same rule `boundingbox` uses, which is what makes its box describe this spec's shape.
+    @test_throws ErrorException NaturalEarthSpec("Africa")
+    @test NaturalEarthSpec("Africa", level = "CONTINENT").level == "CONTINENT"
+
+    # The source's own spelling is stored, not the caller's.
+    @test NaturalEarthSpec("great britain", level = "Physical Island").name ==
+          "GREAT BRITAIN"
+
+    # `show` has to round-trip: these nest inside a `StudyArea`, and a coverage silently dropped from
+    # the display would make two different specs print identically.
+    @test sprint(show, NaturalEarthSpec("Scotland")) ==
+          "NaturalEarthSpec(\"Scotland\", level = \"GEOUNIT\")"
+    # A coverage the caller had to write is shown; the default is not, so that what `show` prints is
+    # what would reproduce the spec.
+    for cov in (LargestLandmass(), LargestLandmass(count = 2), LandmassesAbove(1km^2))
+        @test occursin(sprint(show, cov),
+                       sprint(show,
+                              NaturalEarthSpec("Scotland", coverage = cov)))
+    end
+    @test !occursin("coverage",
+                    sprint(show,
+                           NaturalEarthSpec("Scotland",
+                                            coverage = AllTerritories())))
+    @test occursin("outline = false",
+                   sprint(show, NaturalEarthSpec("Scotland", outline = false)))
+end
+
+@testset "LandmassesAbove keeps the components that clear a threshold" begin
+    @test LandmassesAbove(1km^2) isa EcoSISTEM.AbstractCoverage
+    # An area, not a length and not a bare number: caught at construction, where it was written.
+    @test_throws ArgumentError LandmassesAbove(5km)
+    @test_throws ArgumentError LandmassesAbove(0km^2)
+
+    # It filters a component list exactly as the other coverages take a prefix of one.
+    parts = _dissolve([
+                          _box(0, 0, 3, 3),
+                          _box(10, 10, 11, 11),
+                          _box(20, 20, 20.1, 20.1)
+                      ])
+    @test length(parts) == 3
+    kept = _coverageof(parts, LandmassesAbove(parts[2].area))
+    @test length(kept) == 2
+    @test all(p -> p.area >= parts[2].area, kept)
+    @test isempty(_coverageof(parts, LandmassesAbove(1e9km^2)))
+
+    # The shipped table records only the largest few components' sizes, so it cannot answer this and
+    # says so rather than guessing from what it has.
+    @test_throws ErrorException EcoSISTEM.boundingbox("United Kingdom",
+                                                      level = "ADMIN",
+                                                      coverage = LandmassesAbove(1km^2))
+end
+
+@testset "a shape file is a shape spec, so it can join a combination" begin
+    # A vector file and a named region are both geometry, so they combine on equal terms. Written to
+    # a temporary GeoJSON rather than downloaded, so this needs no network.
+    path = joinpath(mktempdir(), "square.geojson")
+    write(path,
+          """{"type":"FeatureCollection","features":[{"type":"Feature","properties":{},
+             "geometry":{"type":"Polygon","coordinates":[[[-5,55],[-3,55],[-3,57],[-5,57],
+             [-5,55]]]}}]}""")
+    file = ShapeSpec(path)
+    @test file isa EcoSISTEM.AbstractShapeSpec
+
+    parts = _shapecomponents(file)
+    @test length(parts) == 1
+    @test parts[1].envelope.MinX ≈ -5.0 && parts[1].envelope.MaxX ≈ -3.0
+
+    # ...and it is accepted as a member, which is the gap this closes.
+    combined = ConstructedShapeSpec(ShapeUnion(), file,
+                                    NaturalEarthSpec("Scotland",
+                                                     coverage = LargestLandmass()))
+    @test combined isa EcoSISTEM.AbstractShapeSpec
+    # A `ConstructedShapeSpec` is itself a shape spec, so it can nest.
+    @test ConstructedShapeSpec(ShapeConvexHull(), combined) isa
+          EcoSISTEM.AbstractShapeSpec
+end
+
+@testset "an operation may be a function, mirroring the raster side" begin
+    a, b = _box(0, 0, 2, 2), _box(1, 0, 3, 2)
+    # The escape hatch: handed one geometry per member, returning one geometry. This is what
+    # `ConstructedRasterSpec`'s `combine` is for rasters, and what the three named operations alone
+    # could not express - ArchGDAL's `symdifference` among them.
+    sym = _applyshapeop((x, y) -> ArchGDAL.symdifference(x, y), [a, b])
+    @test ArchGDAL.geomarea(sym) ≈ 4.0
+
+    ne = NaturalEarthSpec("Scotland")
+    @test ConstructedShapeSpec((x, y) -> x, ne, ne) isa
+          EcoSISTEM.AbstractShapeSpec
+    # A function says nothing about how many shapes it wants, so one is enough.
+    @test ConstructedShapeSpec(gs -> gs, ne) isa EcoSISTEM.AbstractShapeSpec
+end
+
+@testset "the unary operations transform one shape" begin
+    sq = _box(0, 0, 2, 2)
+    # A buffer grows the outline; a negative one shrinks it.
+    @test ArchGDAL.geomarea(_applyshapeop(ShapeBuffer(0.5°), [sq])) > 4.0
+    @test ArchGDAL.geomarea(_applyshapeop(ShapeBuffer(-0.5°), [sq])) < 4.0
+    # A hull of a convex shape is itself; of a scattered pair, the area between them too.
+    @test ArchGDAL.geomarea(_applyshapeop(ShapeConvexHull(), [sq])) ≈ 4.0
+    @test ArchGDAL.geomarea(_applyshapeop(ShapeConvexHull(),
+                                          [_mergegeoms([sq,
+                                                           _box(10, 10, 12, 12)
+                                                       ])])) > 8.0
+    @test ArchGDAL.geomarea(_applyshapeop(ShapeSimplify(0.1°), [sq])) ≈ 4.0
+
+    # A length is converted at the equator, where a degree of longitude is widest, so a buffer never
+    # under-reaches what was asked for.
+    @test _indegrees(0.5°) ≈ 0.5
+    @test _indegrees(50km) ≈ 50 / 111.32 rtol=1e-3
+    @test _indegrees(0.25) == 0.25
+
+    # A distance is a length or an angle; anything else is refused where it was written.
+    @test_throws ArgumentError ShapeBuffer(5km^2)
+    @test_throws ArgumentError ShapeSimplify(5km^2)
+    @test_throws ArgumentError ShapeSimplify(-1°)
+
+    # The transforms take exactly one shape, the set operations at least two, and the constructor
+    # refuses a wrong count rather than failing inside a reduce.
+    ne = NaturalEarthSpec("Scotland")
+    @test ConstructedShapeSpec(ShapeBuffer(0.1°), ne) isa
+          EcoSISTEM.AbstractShapeSpec
+    @test_throws ArgumentError ConstructedShapeSpec(ShapeUnion(), ne)
+end
+
+@testset "a level that does not exist blames the level, and suggests" begin
+    # Otherwise a mistyped level surfaces as "no region named X", which points at the wrong argument.
+    @test _checklevel("ADMIN").name == "ADMIN"
+    @test_throws ErrorException _checklevel("nonsense")
+    # Matched both ways round: the shipped level is `ISO_A3_EH`, and a guess either side finds it.
+    @test occursin("ISO_A3_EH", sprint(showerror, try
+                                           _checklevel("ISO_A3")
+                                       catch e
+                                           e
+                                       end))
+    @test occursin("SUBUNIT", sprint(showerror, try
+                                         _checklevel("SUBUNITS")
+                                     catch e
+                                         e
+                                     end))
+end
+
+@testset "geometry is not a raster, and says which question was meant" begin
+    # A shape has no grid of its own, so it cannot be a `ConstructedRasterSpec` member: choosing a
+    # resolution here would fix one before the study grid was decided. The refusal names the two
+    # things that do want a grid rather than failing as a `MethodError` on a private function.
+    for spec in (ShapeSpec("/tmp/nowhere.shp"), NaturalEarthSpec("Scotland"))
+        err = try
+            _asraster(spec)
+        catch e
+            sprint(showerror, e)
+        end
+        @test occursin("ConstructedShapeSpec", err)
+        @test occursin("within", err)
+    end
+
+    # The released name still resolves, since renaming it was for the mirror rather than a change.
+    @test ConstructedSpec === ConstructedRasterSpec
+end
+
+@testset "regions combine as geometry, before any grid exists" begin
+    @test ShapeUnion() isa EcoSISTEM.AbstractShapeOperation
+    uk = NaturalEarthSpec("United Kingdom", level = "ADMIN")
+    @test_throws ArgumentError ConstructedShapeSpec(ShapeUnion(), uk)
+
+    # The operations act on geometry, so synthetic squares pin them without any download.
+    a, b = _box(0, 0, 2, 2), _box(1, 0, 3, 2)
+    @test ArchGDAL.geomarea(_applyshapeop(ShapeUnion(), [a, b])) ≈ 6.0
+    @test ArchGDAL.geomarea(_applyshapeop(ShapeIntersection(), [a, b])) ≈ 2.0
+    @test ArchGDAL.geomarea(_applyshapeop(ShapeDifference(), [a, b])) ≈ 2.0
+    # Difference takes every later member from the first, so it is not symmetric.
+    @test ArchGDAL.geomarea(_applyshapeop(ShapeDifference(), [b, a])) ≈ 2.0
+    @test ArchGDAL.isempty(_applyshapeop(ShapeIntersection(),
+                                         [a, _box(10, 10, 11, 11)]))
+
+    # An empty result is not a mask of nowhere: `_dissolve` refuses to make a component out of it,
+    # which is what stops an extent being reported at the origin.
+    @test isempty(_dissolve([_applyshapeop(ShapeIntersection(),
+                                           [a, _box(10, 10, 11, 11)])]))
+end
+
+if geometrytests()
+    @testset "a named region becomes a mask that agrees with its box" begin
+        # The property the whole feature exists for: the table's box, which is rounded outwards,
+        # must contain the extent of the shape the same name builds.
+        for (name, level) in (("Scotland", nothing), ("Africa", "CONTINENT"),
+            ("Madagascar", "ADMIN"))
+            spec = isnothing(level) ? NaturalEarthSpec(name) :
+                   NaturalEarthSpec(name, level = level)
+            _, extent = _naturalearthgeoms(spec, Rasters.EPSG(4326))
+            box = isnothing(level) ? EcoSISTEM.boundingbox(name) :
+                  EcoSISTEM.boundingbox(name, level = level)
+            # Both sides stripped to degrees explicitly. A bare number compared against a `°`
+            # quantity is read by Unitful as radians, which compares silently and wrongly.
+            deg(x) = ustrip(°, x)
+            @test deg(minimum(box.X)) <= deg(minimum(extent.X))
+            @test deg(maximum(box.X)) >= deg(maximum(extent.X))
+            @test deg(minimum(box.Y)) <= deg(minimum(extent.Y))
+            @test deg(maximum(box.Y)) >= deg(maximum(extent.Y))
+        end
+    end
+
+    @testset "the British Isles recipe beats the polygon of that name" begin
+        all_ = AllTerritories()
+        uk = NaturalEarthSpec("United Kingdom", level = "ADMIN",
+                              coverage = all_)
+        ie = NaturalEarthSpec("Ireland", level = "ADMIN", coverage = all_)
+        im = NaturalEarthSpec("Isle of Man", level = "ADMIN", coverage = all_)
+        isles = ConstructedShapeSpec(ShapeUnion(), uk, ie, im)
+        _, ext = _naturalearthgeoms(isles, Rasters.EPSG(4326))
+
+        # Natural Earth's own BRITISH ISLES polygon stops at 59.80 and so drops Shetland; the union
+        # of the three countries reaches 60.85 and does not. This is the cartographic-outline
+        # caveat biting on the first composite anyone would reach for.
+        @test ustrip(°, maximum(ext.Y)) > 60.8
+        named = NaturalEarthSpec("BRITISH ISLES",
+                                 level = "Physical Island group",
+                                 coverage = all_)
+        _, namedext = _naturalearthgeoms(named, Rasters.EPSG(4326))
+        @test ustrip(°, maximum(namedext.Y)) < 59.9
+
+        # ...and dropping components under a square kilometre drops exactly Rockall, which is what
+        # moves the western edge from -13.69 to about -10.5.
+        trimmed = ConstructedShapeSpec(ShapeUnion(), uk, ie, im,
+                                       coverage = LandmassesAbove(1km^2))
+        @test length(_shapecomponents(trimmed)) ==
+              length(_shapecomponents(isles)) - 1
+        _, trimext = _naturalearthgeoms(trimmed, Rasters.EPSG(4326))
+        @test ustrip(°, minimum(ext.X)) ≈ -13.69 atol=0.01
+        @test ustrip(°, minimum(trimext.X)) ≈ -10.48 atol=0.01
+    end
+
+    @testset "a spec selecting no ground says so" begin
+        uk = NaturalEarthSpec("United Kingdom", level = "ADMIN")
+        # Natural Earth's physical continents are landmass outlines, so EUROPE does not contain the
+        # British Isles at all - measured, Paris is inside it and central England is not. An empty
+        # intersection must be an error, not a grid with nothing active.
+        eur = NaturalEarthSpec("EUROPE", level = "Physical Continent",
+                               coverage = AllTerritories())
+        @test_throws ErrorException _preparemask(ConstructedShapeSpec(ShapeIntersection(),
+                                                                      uk, eur),
+                                                 Rasters.EPSG(4326))
+        @test_throws ErrorException _preparemask(NaturalEarthSpec("United Kingdom",
+                                                                  level = "ADMIN",
+                                                                  coverage = LandmassesAbove(1e9km^2)),
+                                                 Rasters.EPSG(4326))
+    end
+
+    @testset "outline = false gives the box, with every cell in it active" begin
+        spec = NaturalEarthSpec("Scotland", outline = false)
+        prep = _preparemask(spec, Rasters.EPSG(4326))
+        # No payload is how `_preparemask` already says "restrict the extent, mask nothing".
+        @test isnothing(prep.payload)
+        @test !isnothing(prep.extent)
+        outlined = _preparemask(NaturalEarthSpec("Scotland"),
+                                Rasters.EPSG(4326))
+        @test !isnothing(outlined.payload)
+        # Both describe the same ground, so they agree on where it is.
+        @test prep.extent == outlined.extent
+    end
 end
 
 end
