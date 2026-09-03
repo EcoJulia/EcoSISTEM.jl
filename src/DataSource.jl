@@ -25,7 +25,7 @@ struct SyntheticData <: EcoSISTEMSource end
 """
     DerivedData{S}
 
-Source of a raster **computed from** `S` but no longer `S` - the result of a [`ConstructedSpec`](@ref)
+Source of a raster **computed from** `S` but no longer `S` - the result of a [`ConstructedRasterSpec`](@ref)
 combine, or of an operation like `compress_landcover` that turns a dataset's layers into a quantity
 that is none of them. Summing eight land-cover bands does not give land cover, and what the result
 *means* comes from the spec's declared `axis` rather than from its inputs, so

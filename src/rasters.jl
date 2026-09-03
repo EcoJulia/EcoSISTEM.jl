@@ -46,7 +46,7 @@ import ArchGDAL
 const _CRS_CANDIDATES = Ref{Union{Nothing, Vector{NamedTuple}}}(nothing)
 
 # --- Active-area masks -----------------------------------------------------
-# Data-driven active-area masks are composed with `ConstructedSpec` from a data source plus a
+# Data-driven active-area masks are composed with `ConstructedRasterSpec` from a data source plus a
 # combine rule; `CircleMaskSpec`/`ShapeSpec` are the synthetic/vector mask specs. The two public
 # rules below are reusable building blocks for writing your own combine (`_circle`/`_shapegeoms`+
 # `_shape` remain the private geometry helpers for the synthetic/vector masks).
@@ -54,9 +54,9 @@ const _CRS_CANDIDATES = Ref{Union{Nothing, Vector{NamedTuple}}}(nothing)
 """
     hasdata(layer)
 
-A [`ConstructedSpec`](@ref) combine returning a `Bool` mask of the cells of `layer` that hold data
+A [`ConstructedRasterSpec`](@ref) combine returning a `Bool` mask of the cells of `layer` that hold data
 (are not missing/`NaN`) - the canonical combine-rule example. Pass it a data source to mask that
-source's coverage: `ConstructedSpec(hasdata, WorldClim{BioClim}, 1)`.
+source's coverage: `ConstructedRasterSpec(hasdata, WorldClim{BioClim}, 1)`.
 
 This is about **data coverage**, not about whether a cell is active: it takes a raw
 [`ClimateRaster`](@ref), so it runs *before* any active mask exists - it is one of the rules that
@@ -623,7 +623,7 @@ end
 # Resolve a mask as far as it can be *before* the target grid exists: the `payload` `_rastermask` will
 # need once there is a grid, plus the `extent` the mask implies (`nothing` when it cannot state one, in
 # which case it simply follows the data). Doing this once, here, is what stops a `ShapeSpec`'s file read
-# or a `ConstructedSpec`'s data read happening twice - once to learn the extent and again to rasterise.
+# or a `ConstructedRasterSpec`'s data read happening twice - once to learn the extent and again to rasterise.
 _preparemask(active::Nothing, tcrs) = (payload = nothing, extent = nothing)
 
 # A plain `Matrix{Bool}` carries no coordinates at all, so it can only follow the data.
@@ -673,10 +673,10 @@ function _preparemask(active::Extents.Extent, tcrs)
             extent = _bboxin(Rasters.EPSG(4326), tcrs, active))
 end
 
-# Materialising a `ConstructedSpec` mask yields a `Bool` array on its own real grid, so its extent comes
+# Materialising a `ConstructedRasterSpec` mask yields a `Bool` array on its own real grid, so its extent comes
 # free from that array's dims - and materialising here rather than later avoids reading the (possibly
 # global) source data a second time.
-function _preparemask(active::ConstructedSpec, tcrs)
+function _preparemask(active::ConstructedRasterSpec, tcrs)
     # Unwrapped **here and only here**: the combine's contract is that it hands back a raster, and
     # everything downstream of this point works in plain arrays. The package owns the wrapper, so
     # reaching through it internally is free; what the contract buys is that *user* code never has to.
@@ -686,7 +686,7 @@ end
 
 function _preparemask(active, tcrs)
     return error("unrecognised `within` argument of type $(typeof(active)); use nothing, a " *
-                 "Matrix{Bool}, a LatLong box, or a mask spec (CircleMaskSpec/ShapeSpec/ConstructedSpec).")
+                 "Matrix{Bool}, a LatLong box, or a mask spec (CircleMaskSpec/ShapeSpec/ConstructedRasterSpec).")
 end
 
 # A synthetic unitless target `Rasters.Raster` in `crs`, covering the unitful bounds
@@ -974,8 +974,8 @@ function _specaxis(raster::ClimateRaster{S}) where {S}
     return something(layeraxis(S, raster.code), NicheAxis)
 end
 
-# A `ConstructedSpec` carries the niche axis declared at construction (`NicheAxis` by default).
-_specaxis(spec::ConstructedSpec) = spec.axis
+# A `ConstructedRasterSpec` carries the niche axis declared at construction (`NicheAxis` by default).
+_specaxis(spec::ConstructedRasterSpec) = spec.axis
 
 # Wrap a sampled supply layer as a supply: `cancel` converts the raw per-area rate (at any native
 # time unit) to an absolute per-cell one against `cellarea`, stated in the axis's canonical unit, and
@@ -1388,7 +1388,7 @@ function _shape(geoms, tlat, tlong)
     return Matrix{Bool}(mask)
 end
 
-# Reproject a bare Bool `DimArray` (e.g. from a `ConstructedSpec` mask) onto `target` via
+# Reproject a bare Bool `DimArray` (e.g. from a `ConstructedRasterSpec` mask) onto `target` via
 # `_reproject` - nearest-neighbour (`:near`), since a mask must never blend across a class
 # boundary. `_reproject` works in Float64 (GDAL has no Bool dtype), so round-trip through
 # 0.0/1.0.
@@ -1494,9 +1494,9 @@ function _rastermask(payload::AbstractMatrix{Bool}, regime, target)
     return Matrix{Bool}(payload)
 end
 
-# Materialise a `ConstructedSpec` to a raster/array: read each source spec (`_asraster`) and apply
+# Materialise a `ConstructedRasterSpec` to a raster/array: read each source spec (`_asraster`) and apply
 # `combine` - nullary when there are no sources (the thunk produces the layer directly).
-function _materialiseconstructed(spec::ConstructedSpec)
+function _materialiseconstructed(spec::ConstructedRasterSpec)
     return _combined(spec.combine(map(_asraster, spec.layers)...), spec)
 end
 
@@ -1510,9 +1510,9 @@ end
 #
 # Since a raster now broadcasts, satisfying this takes no extra work: `lc .!= code` and
 # `sum(bands)` are already rasters, so the natural way to write a combine is the correct one.
-function _combined(out, spec::ConstructedSpec)
+function _combined(out, spec::ConstructedRasterSpec)
     out isa ClimateRaster ||
-        error("a `ConstructedSpec` combine must return a `ClimateRaster`, but this one returned a " *
+        error("a `ConstructedRasterSpec` combine must return a `ClimateRaster`, but this one returned a " *
               "$(typeof(out)). A raster broadcasts, so operating on the layers directly gives one " *
               "back - write `lc .!= code` rather than `lc.array .!= code`, and `sum(bands)` rather " *
               "than `ClimateRaster(T, sum(b -> b.array, bands))`.")
@@ -1599,7 +1599,7 @@ function _read(sl::SourceSpec; kw...)
     # three other shipped datasets outright.
     if sl.code isa AbstractVector
         onelayer = "Name the layers you want instead - `SourceSpec($(sl.source), :code)` for " *
-                   "one, or pass a codes vector to `ConstructedSpec`, which reads each on its " *
+                   "one, or pass a codes vector to `ConstructedRasterSpec`, which reads each on its " *
                    "own terms."
         us = unique(layerunit(sl.source, c) for c in sl.code)
         length(us) == 1 ||
@@ -1661,7 +1661,7 @@ function _rasternotaspec(raster)
                  "layer: it carries values and a layer code, but no niche axis, so what it means " *
                  "could only be guessed. Name the data instead - `SourceSpec(source, code)` - or, " *
                  "for a raster you already hold, wrap it in a spec that declares the axis: " *
-                 "`ConstructedSpec(() -> raster; axis = SomeAxis)`.")
+                 "`ConstructedRasterSpec(() -> raster; axis = SomeAxis)`.")
 end
 
 # **A bare `(source, code)` pair is not a spec either, and is refused with the spelling that is.**
@@ -1683,7 +1683,7 @@ function _sourcepairnotaspec(spec)
 end
 
 # Normalise a regime spec to a `ClimateRaster`: a `SourceSpec` is read and unit-attached as in the
-# single-layer source builder. (`ConstructedSpec` layers are always `SourceSpec`s - see
+# single-layer source builder. (`ConstructedRasterSpec` layers are always `SourceSpec`s - see
 # `_parselayers`; a bare-dataset layer is a whole-dataset `SourceSpec`, read via `_read`.)
 _asraster(raster::ClimateRaster) = _rasternotaspec(raster)
 
@@ -1695,8 +1695,21 @@ _asraster(spec::Tuple) = _sourcepairnotaspec(spec)
 # Single-signature GridHabitat (the public spec-based API)
 # ---------------------------------------------------------------------------
 
-# A `ConstructedSpec` as a regime/supply layer: materialise it to a raster (its `combine` result).
-_asraster(spec::ConstructedSpec) = _materialiseconstructed(spec)
+# A `ConstructedRasterSpec` as a regime/supply layer: materialise it to a raster (its `combine` result).
+_asraster(spec::ConstructedRasterSpec) = _materialiseconstructed(spec)
+
+# A shape has no grid, so it cannot become a raster on its own account: a resolution would have to be
+# invented before the study grid had been decided. This is the wrong question rather than a missing
+# method, so it says which question was meant instead of failing as a `MethodError` on a private
+# function.
+function _asraster(spec::AbstractShapeSpec)
+    return error("`$(nameof(typeof(spec)))` is geometry, not a raster, so it cannot be a member " *
+                 "of a `ConstructedRasterSpec`: it has no grid of its own to be read onto, and " *
+                 "choosing one here would fix a resolution before the study grid was decided. " *
+                 "To combine it with other geometry use `ConstructedShapeSpec`, which composes " *
+                 "shapes exactly and at no resolution; to use it as a mask on a grid pass it as " *
+                 "`within` to `StudyArea`.")
+end
 
 # --- Raster-geometry primitives ----------------------------------------------
 # Geometry rather than climate data: what unit a CRS measures in, whether a value is an

@@ -10,7 +10,7 @@ using DimensionalData
 
 Abstract supertype of the lazy, data-backed / derived specs. Resolved against the target grid at
 build time and usable in *either* role - a regime/supply layer or an active mask: [`SourceSpec`](@ref)
-(read a data source), `ShapeSpec` (a vector file), `ConstructedSpec` (combine child specs by a
+(read a data source), `ShapeSpec` (a vector file), `ConstructedRasterSpec` (combine child specs by a
 function).
 """
 abstract type AbstractLazySpec <: AbstractSpec end
@@ -63,7 +63,7 @@ Name a layer of a catalogued data source, without reading it. It holds **no** gr
 the cut and the resample happen only when it is materialised onto a decided grid.
 
 Passing **no** `code` describes the *whole* dataset - every layer read into one multi-band raster,
-which is the form [`ConstructedSpec`](@ref) uses for a bare dataset, such as all the land-cover class
+which is the form [`ConstructedRasterSpec`](@ref) uses for a bare dataset, such as all the land-cover class
 bands for `compress_landcover`.
 
 # Arguments
@@ -76,7 +76,7 @@ bands for `compress_landcover`.
     shipped table, and to [`NicheAxis`](@ref) where the table names none.
   - any other keyword: kept as a pass-through argument for the eventual `read`, so
     `SourceSpec(WorldClim{Climate}, :wind, month = 1:12)` reads the twelve monthly layers and
-    `month = 1` just the one. A `SourceSpec` nested inside a [`ConstructedSpec`](@ref) can therefore
+    `month = 1` just the one. A `SourceSpec` nested inside a [`ConstructedRasterSpec`](@ref) can therefore
     carry its own read options.
 
     Two of those keywords decide how much is read, and are worth knowing about together. `cut`
@@ -114,13 +114,13 @@ struct SourceSpec{A <: NicheAxis, U, K <: NamedTuple} <:
     # one. Omitting `code` gives the whole dataset. `unit`/`axis` are resolved in the *body* rather
     # than as signature defaults because their defaults are shipped-table lookups keyed on `code`.
     # Any keyword other than `axis` is captured as a pass-through read keyword, so a `SourceSpec`
-    # nested inside a `ConstructedSpec` can specify e.g. its own `month`.
+    # nested inside a `ConstructedRasterSpec` can specify e.g. its own `month`.
     #
     # A multi-layer spec does **not** error here when its layers disagree on unit or axis, even
     # though it cannot then honestly claim one. Four of the seven shipped datasets are heterogeneous -
     # including `WorldClim{BioClim}` (6 units) and `CHELSA{BioClimPlus}` (13 units, 29 axes) - so
     # refusing them at construction would rule out the flagship sources. Its real use is inside a
-    # `ConstructedSpec`, where `_parselayers` expands it to one correctly-united spec per layer and
+    # `ConstructedRasterSpec`, where `_parselayers` expands it to one correctly-united spec per layer and
     # the disagreement never arises. The error belongs where a *single array* is genuinely required -
     # materialising it directly as a regime or supply - and lives in `_read` accordingly.
     #
@@ -329,7 +329,7 @@ to the resulting rasters. Because `combine` is the **first** argument it can be 
 do-block:
 
 ```julia
-ConstructedSpec(EarthEnv{LandCover}, :open_water) do water
+ConstructedRasterSpec(EarthEnv{LandCover}, :open_water) do water
     water .< 50   # a mask of cells less than half open water
 end
 ```
@@ -377,7 +377,7 @@ because a `TypologyAxis` says the values are class labels and so must be resampl
 while any other axis says they may be interpolated. A separate declaration could only agree with the
 axis or contradict it.
 """
-struct ConstructedSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
+struct ConstructedRasterSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
     axis::Type{A}  # the niche axis of the produced layer (matched to species tolerances); mask => ignored
     combine::F
     # **`AbstractSpec`, not `Vector{SourceSpec}`** - two things at once. It is what lets this type
@@ -399,10 +399,10 @@ struct ConstructedSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
     # result is what gets sampled - on the default path the layers are sampled first, so nothing ever
     # interpolates a class code. The two remain independent: `gsp / gsl` must collapse early (a
     # ratio does not commute with regridding) and produces perfectly ordinary continuous values.
-    function ConstructedSpec(combine, layerargs...;
-                             axis::Type{A},
-                             combinestage::AbstractCombineStage = CombineOnTargetGrid()) where {A <:
-                                                                                                NicheAxis}
+    function ConstructedRasterSpec(combine, layerargs...;
+                                   axis::Type{A},
+                                   combinestage::AbstractCombineStage = CombineOnTargetGrid()) where {A <:
+                                                                                                      NicheAxis}
         return new{A, typeof(combine)}(axis, combine,
                                        _parselayers(layerargs...),
                                        combinestage)
@@ -448,7 +448,7 @@ end
 # As in `Spec.jl`: the one-liner is the expression that builds it, with optional arguments shown
 # only where they are not at their default.
 #
-# `ConstructedSpec` is the one that cannot follow the rule, and says so: its `combine` is an
+# `ConstructedRasterSpec` is the one that cannot follow the rule, and says so: its `combine` is an
 # arbitrary function with no readable spelling, so the line reports what it is built *from* instead.
 function Base.show(io::IO, spec::SourceSpec{A}) where {A}
     kw = isempty(spec.readkw) ? "" :
@@ -462,13 +462,13 @@ function Base.show(io::IO, spec::ShapeSpec)
     return print(io, "ShapeSpec($(repr(spec.path))$(layer))")
 end
 
-function Base.show(io::IO, spec::ConstructedSpec{A}) where {A}
+function Base.show(io::IO, spec::ConstructedRasterSpec{A}) where {A}
     n = length(spec.layers)
     return print(io,
-                 "ConstructedSpec($(n) layer$(n == 1 ? "" : "s"), axis = $(nameof(A)))")
+                 "ConstructedRasterSpec($(n) layer$(n == 1 ? "" : "s"), axis = $(nameof(A)))")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", spec::ConstructedSpec)
+function Base.show(io::IO, ::MIME"text/plain", spec::ConstructedRasterSpec)
     println(io, sprint(show, spec))
     for l in spec.layers
         println(io, "  ", sprint(show, l))
@@ -522,10 +522,10 @@ function _desugarsupply(spec::SourceSpec)
     # code that `_sampledeclared` needs to sample the *result* on the early-collapse path, so dividing
     # the bare arrays and returning that would strip the grid provenance and be refused there.
     source = spec.source
-    return ConstructedSpec(spec, divisor, axis = _percellaxis(spec, rec),
-                           combinestage = CombineOnSourceGrid()
-                           ) do amount,
-                                period
+    return ConstructedRasterSpec(spec, divisor, axis = _percellaxis(spec, rec),
+                                 combinestage = CombineOnSourceGrid()
+                                 ) do amount,
+                                      period
         return ClimateRaster(source,
                              _perperiod.(amount.array,
                                          period.array))

@@ -8,7 +8,7 @@
 # building            what `GridHabitat`'s constructor calls to assemble the real thing
 #
 # Why one file. `_materialiseon` (building) and `_materialisefield` (inspection) implement the same
-# thing method for method - synthetic, data-backed, `ConstructedSpec`, `ClimateRaster` - differing
+# thing method for method - synthetic, data-backed, `ConstructedRasterSpec`, `ClimateRaster` - differing
 # only in their return wrapper, and they have drifted apart three separate times: united `(Y, X)`
 # dims on one path and not the other, a hardcoded sampling mode, and a `NicheSpec` method one had
 # and the other did not. Each was found by accident. `materialise`'s docstring promises that its
@@ -42,7 +42,7 @@ ReadKey(spec::SourceSpec) = ReadKey(spec.source, spec.code, spec.readkw)
 Put `spec` - or a tuple/named tuple of specs - onto `area`'s grid and hand back the **layer** it
 becomes, so it can be plotted or checked before a simulation is built from it.
 
-Works the same way for every kind of spec - a data source, a `ConstructedSpec`, or a synthetic
+Works the same way for every kind of spec - a data source, a `ConstructedRasterSpec`, or a synthetic
 gradient - so layers can be compared cell for cell on the grid they will actually share. Data-backed
 specs are *sampled onto* the grid and synthetic ones *generated at* its shape, and the members of a
 tuple may be **mixed**. The result is an [`AbstractLayer`](@ref) whose `matrix` is a `(Y, X)` array
@@ -56,7 +56,7 @@ so on a non-rectangular study area the extremes may fall on inactive cells.
 
 # Arguments
 
-  - `spec`: **any** layer spec - a [`SourceSpec`](@ref), a [`ConstructedSpec`](@ref), or a synthetic
+  - `spec`: **any** layer spec - a [`SourceSpec`](@ref), a [`ConstructedRasterSpec`](@ref), or a synthetic
     one ([`UniformSpec`](@ref), [`GradientSpec`](@ref), [`PeakedSpec`](@ref), [`NicheSpec`](@ref)) -
     or a **tuple/named tuple of them** for a multi-layer regime, which is materialised member by
     member and keeps its names. The members may be **mixed**: data-backed specs are *sampled onto*
@@ -144,7 +144,7 @@ end
 # `_asraster` through a cache. The uncached methods stay as they are, so every existing caller is
 # unaffected; these add the memoised path used while resolving a study area.
 #
-# A `ConstructedSpec` is deliberately *not* cached at this level - its `combine` is an opaque
+# A `ConstructedRasterSpec` is deliberately *not* cached at this level - its `combine` is an opaque
 # closure that two separately-built specs can never share, so a top-level entry could never hit.
 # Its children are `SourceSpec`s and *are* cached, which is where the cost actually is.
 #
@@ -178,18 +178,19 @@ _asraster(spec::Tuple, ::LayerCache; cut = nothing) = _sourcepairnotaspec(spec)
 #
 # **All-synthetic is refused, and it is the one case that cannot work.** There is no grid to adopt
 # and none can be invented; the combine has nowhere to happen. Caught here rather than at
-# construction because a `ConstructedSpec` is also reached this way by `_analyse`, so this is the
+# construction because a `ConstructedRasterSpec` is also reached this way by `_analyse`, so this is the
 # choke point both routes pass through.
 #
 # **Order is preserved throughout.** The layers are positional arguments to a combine that is *user*
 # code, so the array handed to it must be in the order they were written, not data-first.
-function _asraster(spec::ConstructedSpec, cache::LayerCache; cut = nothing)
+function _asraster(spec::ConstructedRasterSpec, cache::LayerCache;
+                   cut = nothing)
     issynth = map(_issyntheticspec, spec.layers)
     # `!isempty` first, and it is load-bearing: `all` of an **empty** collection is `true`, so a
     # nullary thunk - a spec with no layers at all, which is what `in_memory_raster` builds - would
     # otherwise be refused for having no grid when it supplies its own raster outright.
     !isempty(issynth) && all(issynth) &&
-        error("a `ConstructedSpec` whose layers are all synthetic has no grid to be combined on: " *
+        error("a `ConstructedRasterSpec` whose layers are all synthetic has no grid to be combined on: " *
               "a generated layer takes its shape from a grid rather than supplying one. Give it at " *
               "least one data layer, or leave the spec on the default `CombineOnTargetGrid`, where " *
               "the study area's grid decides the shape.")
@@ -214,7 +215,7 @@ end
 # A multi-layer read, assembled from **per-layer** cache entries rather than cached whole.
 #
 # The point is that the entries are shared. Keyed on the whole request, a study area whose regime
-# is `ConstructedSpec(EarthEnv{LandCover}) do lc ... end` and whose supply is
+# is `ConstructedRasterSpec(EarthEnv{LandCover}) do lc ... end` and whose supply is
 # `SourceSpec(EarthEnv{LandCover}, 7)` would read file 7 twice: the keys differ, so neither hits.
 # Keyed per layer, the second request finds what the first already read. Narrowing the *key*
 # instead would be wrong - it must describe what was asked for, or one request is served another's
@@ -250,10 +251,10 @@ function _axisname(source, code)
     return isempty(named) ? code : Symbol(first(named))
 end
 
-# Put a **child** spec's data on `target`, combining a nested `ConstructedSpec` **after** its own
+# Put a **child** spec's data on `target`, combining a nested `ConstructedRasterSpec` **after** its own
 # children are sampled rather than before.
 #
-# **This is the `ConstructedSpec` sub-layer path, and only that** - the three kinds a spec's *layers*
+# **This is the `ConstructedRasterSpec` sub-layer path, and only that** - the three kinds a spec's *layers*
 # can be. The builder itself routes through `materialise`, so nothing here duplicates it. It takes a
 # bare `target` grid and a cache rather than a `StudyArea`, which is why it cannot simply *be*
 # `materialise`: on the `CombineOnSourceGrid` path the grid is the layers' own, and `_analyse` reaches
@@ -297,7 +298,7 @@ end
 # genuinely does cover every cell.
 #
 # Wrapped as a code-less `ClimateRaster` on the target's own dims, because that is what a combine
-# takes; the spec's declared axis is what gives it meaning, exactly as for a `ConstructedSpec`.
+# takes; the spec's declared axis is what gives it meaning, exactly as for a `ConstructedRasterSpec`.
 function _materialiseon(spec::AbstractSyntheticLayerSpec, target,
                         ::LayerCache)
     yx = dims(target, (Y, X))
@@ -330,7 +331,7 @@ end
 # - measured, a `_reg(raster)` layer at 4×4 against a synthetic one generated at the target's 2×2
 # is a `DimensionMismatch`. Where the layers were already put on the target, this is a no-op:
 # `_cropto` recognises a raster on the target grid and crops instead of resampling.
-function _materialiseon(spec::ConstructedSpec, target, cache::LayerCache)
+function _materialiseon(spec::ConstructedRasterSpec, target, cache::LayerCache)
     out = _combineon(spec.combinestage, spec, target, cache)
     return ClimateRaster(_sourceof(out),
                          _sampledata(out, target, name = "layer",
@@ -378,7 +379,7 @@ _unitedyx(yx, tcrs) = yx
 # Late: every layer is put on the target grid, and the combine runs there. The default, and today's
 # behaviour exactly - see `_materialiseon` above for why it is the right ordering whenever the
 # combine commutes with regridding.
-function _combineon(::CombineOnTargetGrid, spec::ConstructedSpec, target,
+function _combineon(::CombineOnTargetGrid, spec::ConstructedRasterSpec, target,
                     cache::LayerCache)
     # Nothing to stamp on the result: what it *is* comes from `spec.axis`, and the callers that
     # need to know ask `iscategorical(raster, axis)`. On this path the layers were sampled before
@@ -393,7 +394,7 @@ end
 # **The spec's axis has to travel with it**, and this is the path that needs it: the combine's
 # result is sampled *here*, so whether it holds class codes decides `:mode` against `:bilinear`. A
 # derived layer has no catalogue row, so the axis is the only thing that can say.
-function _combineon(::CombineOnSourceGrid, spec::ConstructedSpec, target,
+function _combineon(::CombineOnSourceGrid, spec::ConstructedRasterSpec, target,
                     cache::LayerCache)
     return _sampledeclared(_asraster(spec, cache), target, spec.axis)
 end
@@ -403,7 +404,7 @@ end
 # because reading too little silently truncates the study area, while reading too much only costs
 # time.
 # Returns the *prepared mask* alongside the window, so it can be reused rather than prepared twice.
-# Preparing a `ShapeSpec` downloads and reads a shapefile and a `ConstructedSpec` reads its source
+# Preparing a `ShapeSpec` downloads and reads a shapefile and a `ConstructedRasterSpec` reads its source
 # layers, so doing it once is the whole reason `_preparemask` exists as a separate step - computing
 # the window must not quietly undo that.
 function _readwindow(within, layers::NamedTuple, crs)
@@ -526,7 +527,7 @@ function _analyse(layers::NamedTuple; within = nothing, crs = nothing,
     # footprint, then snapped outwards onto the alignment layer's cell boundaries so the alignment is
     # real rather than nominal.
     # Reuse the mask `_readwindow` already prepared, when it prepared one against the CRS we
-    # actually settled on. Preparing a `ShapeSpec` reads a shapefile and a `ConstructedSpec` reads its
+    # actually settled on. Preparing a `ShapeSpec` reads a shapefile and a `ConstructedRasterSpec` reads its
     # source layers, so doing it twice would undo a good part of what the windowing just saved.
     prepared = (!isnothing(window.prepared) && _samecrs(window.tcrs, tcrs)) ?
                window.prepared : _preparemask(within, tcrs)
@@ -579,7 +580,7 @@ function _materialisefield(spec, area::StudyArea)
             categorical = categorical)
 end
 
-# **A `ConstructedSpec` goes through `_combineon`, so inspection obeys `combinestage`.**
+# **A `ConstructedRasterSpec` goes through `_combineon`, so inspection obeys `combinestage`.**
 #
 # The generic method above reads every layer on its **own** grid, combines there, and samples the
 # result - which is `CombineOnSourceGrid`'s behaviour. Applied to a spec that says
@@ -594,7 +595,7 @@ end
 # always sampled afterwards for the same reason; this mirrors it.
 # Where the layers *were* sampled first, the second pass is a no-op: `_cropto` recognises a raster
 # already on the target and crops rather than resampling.
-function _materialisefield(spec::ConstructedSpec, area::StudyArea)
+function _materialisefield(spec::ConstructedRasterSpec, area::StudyArea)
     out = _combineon(spec.combinestage, spec, area.report.active,
                      area.report.cache)
     categorical = iscategorical(out, _specaxis(spec))

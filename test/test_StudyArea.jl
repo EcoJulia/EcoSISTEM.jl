@@ -92,8 +92,8 @@ if !Sys.iswindows()
             (EarthEnv{LandCover}, 7))      # scale 10 - aggregation blocks
             # An already-read raster cannot be windowed, so this is the unwindowed reference.
             whole = EcoSISTEM._read(SourceSpec(src, code))
-            ref = investigate_study_area(regime = ConstructedSpec(() -> whole,
-                                                                  axis = EcoSISTEM.NicheAxis),
+            ref = investigate_study_area(regime = ConstructedRasterSpec(() -> whole,
+                                                                        axis = EcoSISTEM.NicheAxis),
                                          within = scot)
             win = investigate_study_area(regime = SourceSpec(src, code),
                                          within = scot)
@@ -339,7 +339,7 @@ end
     end
 end
 
-@testset "when a ConstructedSpec's combine runs" begin
+@testset "when a ConstructedRasterSpec's combine runs" begin
     # A 2.5 km fixture and a 5 km study grid over the same ground, so every target cell is built
     # from a block of source cells and the two orderings have something to disagree about.
     east = (245000.0:2500.0:252500.0) .* m
@@ -374,8 +374,8 @@ end
         # The contract itself, independent of any resampler: how many cells the combine is handed.
         seen = Ref(0)
         function counting(stage)
-            spec = ConstructedSpec(wspec, axis = EcoSISTEM.NicheAxis,
-                                   combinestage = stage) do layer
+            spec = ConstructedRasterSpec(wspec, axis = EcoSISTEM.NicheAxis,
+                                         combinestage = stage) do layer
                 seen[] = length(layer.array)
                 return layer
             end
@@ -388,13 +388,13 @@ end
     end
 
     @testset "a nonlinear combine gives different answers either way" begin
-        late = _materialiseon(ConstructedSpec(ratio, wspec, dspec,
-                                              axis = EcoSISTEM.NicheAxis,
-                                              combinestage = CombineOnTargetGrid()),
+        late = _materialiseon(ConstructedRasterSpec(ratio, wspec, dspec,
+                                                    axis = EcoSISTEM.NicheAxis,
+                                                    combinestage = CombineOnTargetGrid()),
                               target, cache)
-        early = _materialiseon(ConstructedSpec(ratio, wspec, dspec,
-                                               axis = EcoSISTEM.NicheAxis,
-                                               combinestage = CombineOnSourceGrid()),
+        early = _materialiseon(ConstructedRasterSpec(ratio, wspec, dspec,
+                                                     axis = EcoSISTEM.NicheAxis,
+                                                     combinestage = CombineOnSourceGrid()),
                                target, cache)
         # Division is cell-wise, so the old "cell-wise => safe to combine late" reading would call
         # both of these correct. They are not the same number: early is the area-weighted mean of
@@ -420,21 +420,21 @@ end
         area.report.cache.reads[ReadKey(wspec)] = water
         area.report.cache.reads[ReadKey(dspec)] = days
         for stage in (CombineOnTargetGrid(), CombineOnSourceGrid())
-            spec = ConstructedSpec(ratio, wspec, dspec,
-                                   axis = EcoSISTEM.NicheAxis,
-                                   combinestage = stage)
+            spec = ConstructedRasterSpec(ratio, wspec, dspec,
+                                         axis = EcoSISTEM.NicheAxis,
+                                         combinestage = stage)
             viaspec = _materialiseon(spec, target, cache)
             viaarea = EcoSISTEM._materialisefield(spec, area)
             @test isequal(parent(viaspec.array), parent(viaarea.values))
         end
         # ...and the two stages still differ, so the equality above is not vacuous.
-        onto = _materialiseon(ConstructedSpec(ratio, wspec, dspec,
-                                              axis = EcoSISTEM.NicheAxis,
-                                              combinestage = CombineOnTargetGrid()),
+        onto = _materialiseon(ConstructedRasterSpec(ratio, wspec, dspec,
+                                                    axis = EcoSISTEM.NicheAxis,
+                                                    combinestage = CombineOnTargetGrid()),
                               target, cache)
-        src = _materialiseon(ConstructedSpec(ratio, wspec, dspec,
-                                             axis = EcoSISTEM.NicheAxis,
-                                             combinestage = CombineOnSourceGrid()),
+        src = _materialiseon(ConstructedRasterSpec(ratio, wspec, dspec,
+                                                   axis = EcoSISTEM.NicheAxis,
+                                                   combinestage = CombineOnSourceGrid()),
                              target, cache)
         @test !isequal(parent(onto.array), parent(src.array))
     end
@@ -443,10 +443,12 @@ end
     # layers agree on.** That is the whole rule: a generated layer needs shape and orientation, never
     # coordinates - it can take any grid it is given, it just cannot supply one.
     @testset "an early combine generates a synthetic layer at the data's grid" begin
-        mixed = ConstructedSpec(wspec,
-                                UniformSpec(2.0, axis = EcoSISTEM.NicheAxis),
-                                axis = EcoSISTEM.NicheAxis,
-                                combinestage = CombineOnSourceGrid()) do w, u
+        mixed = ConstructedRasterSpec(wspec,
+                                      UniformSpec(2.0,
+                                                  axis = EcoSISTEM.NicheAxis),
+                                      axis = EcoSISTEM.NicheAxis,
+                                      combinestage = CombineOnSourceGrid()
+                                      ) do w, u
             return w .* u
         end
         out = _materialiseon(mixed, target, cache)
@@ -461,10 +463,14 @@ end
 
         # **All synthetic is the one case that cannot work** - nothing supplies a grid, and none
         # can be invented.
-        allsynth = ConstructedSpec(UniformSpec(1.0, axis = EcoSISTEM.NicheAxis),
-                                   UniformSpec(2.0, axis = EcoSISTEM.NicheAxis),
-                                   axis = EcoSISTEM.NicheAxis,
-                                   combinestage = CombineOnSourceGrid()) do a, b
+        allsynth = ConstructedRasterSpec(
+                                         UniformSpec(1.0,
+                                                     axis = EcoSISTEM.NicheAxis),
+                                         UniformSpec(2.0,
+                                                     axis = EcoSISTEM.NicheAxis),
+                                         axis = EcoSISTEM.NicheAxis,
+                                         combinestage = CombineOnSourceGrid()
+                                         ) do a, b
             return a
         end
         @test_throws ErrorException _materialiseon(allsynth, target, cache)
@@ -475,13 +481,13 @@ end
 
     @testset "the default is unchanged" begin
         # Everything already written keeps combining on the target grid, bit for bit.
-        default = _materialiseon(ConstructedSpec(ratio, wspec, dspec,
-                                                 axis = EcoSISTEM.NicheAxis),
+        default = _materialiseon(ConstructedRasterSpec(ratio, wspec, dspec,
+                                                       axis = EcoSISTEM.NicheAxis),
                                  target,
                                  cache)
-        late = _materialiseon(ConstructedSpec(ratio, wspec, dspec,
-                                              axis = EcoSISTEM.NicheAxis,
-                                              combinestage = CombineOnTargetGrid()),
+        late = _materialiseon(ConstructedRasterSpec(ratio, wspec, dspec,
+                                                    axis = EcoSISTEM.NicheAxis,
+                                                    combinestage = CombineOnTargetGrid()),
                               target, cache)
         @test parent(default.array) == parent(late.array)
     end
@@ -495,8 +501,8 @@ end
     @testset "a declared axis reaches the resampler" begin
         codes = fine(repeat([1.0 3.0 1.0 3.0], 4, 1))
         function collapsed(axis)
-            spec = ConstructedSpec(() -> codes, axis = axis,
-                                   combinestage = CombineOnSourceGrid())
+            spec = ConstructedRasterSpec(() -> codes, axis = axis,
+                                         combinestage = CombineOnSourceGrid())
             out = _materialiseon(spec, target, cache)
             return Set(filter(!isnan, vec(parent(out.array))))
         end
@@ -507,7 +513,7 @@ end
 
     @testset "a combine's layers must share one grid" begin
         # The guard is on the read path, so it covers `_analyse` as well as the early collapse -
-        # a `ConstructedSpec` states its own extent by combining its layers on their own grid.
+        # a `ConstructedRasterSpec` states its own extent by combining its layers on their own grid.
         other = LayerCache()
         other.reads[ReadKey(wspec)] = water
         other.reads[ReadKey(dspec)] = _testraster(WorldClim{BioClim},
@@ -517,7 +523,8 @@ end
                                                   long = (245000.0:5000.0:255000.0) .*
                                                          m,
                                                   crs = Rasters.EPSG(27700))
-        spec = ConstructedSpec(ratio, wspec, dspec, axis = EcoSISTEM.NicheAxis)
+        spec = ConstructedRasterSpec(ratio, wspec, dspec,
+                                     axis = EcoSISTEM.NicheAxis)
         err = try
             _asraster(spec, other)
             ""
@@ -999,12 +1006,12 @@ end
         @test length(cache) == 2
     end
 
-    @testset "a ConstructedSpec caches its children, not itself" begin
+    @testset "a ConstructedRasterSpec caches its children, not itself" begin
         # Its `combine` is an opaque closure, so a top-level entry could never be shared; the reads
         # underneath it are where the cost is, and those are cached.
         cache = LayerCache()
-        spec = ConstructedSpec(SourceSpec(WorldClim{BioClim}, :bio1),
-                               axis = EcoSISTEM.NicheAxis) do layer
+        spec = ConstructedRasterSpec(SourceSpec(WorldClim{BioClim}, :bio1),
+                                     axis = EcoSISTEM.NicheAxis) do layer
             return layer
         end
         _asraster(spec, cache)
@@ -1035,7 +1042,7 @@ end
         catch e
             sprint(showerror, e)
         end
-        @test occursin("ConstructedSpec", msg) && occursin("axis", msg)
+        @test occursin("ConstructedRasterSpec", msg) && occursin("axis", msg)
 
         # The wrapped form works, and still needs no cache entry: a nullary combine reads nothing.
         @test _asraster(_reg(raster), cache) === raster
@@ -1067,8 +1074,8 @@ end
         # list. Both messages are checked, not just the fact of an error: a bare value and a raster
         # fail for *different* reasons and name different fixes.
         @test_throws "has no niche axis" materialise(3.0K, area)
-        @test_throws "ConstructedSpec(() -> raster; axis = SomeAxis)" materialise(raster,
-                                                                                  area)
+        @test_throws "ConstructedRasterSpec(() -> raster; axis = SomeAxis)" materialise(raster,
+                                                                                        area)
 
         # A signature cannot see inside a container, and a multi-layer regime legitimately is a
         # tuple - so a bad *element* is still caught later, with the tailored message.
@@ -1078,7 +1085,7 @@ end
         catch e
             sprint(showerror, e)
         end
-        @test occursin("ConstructedSpec", err)
+        @test occursin("ConstructedRasterSpec", err)
 
         # `Varying` is an `AbstractSpec`, which is what keeps `LayerInput` this short.
         @test Varying <: EcoSISTEM.AbstractSpec
@@ -1161,7 +1168,7 @@ end
 
     @testset "the rewrite" begin
         out = E._desugarsupply(gsp)
-        @test out isa ConstructedSpec
+        @test out isa ConstructedRasterSpec
         @test [l.code for l in out.layers] == [:gsp, :gsl]
         # `Precipitation`, not `GrowingSeasonPrecipitation`: a Resource-role axis says *which
         # resource*, and water is water. It also matches what `_wrapsupply` builds regardless.
@@ -1177,7 +1184,7 @@ end
         @test E._desugarsupply(out) === out
         # A tuple desugars member-wise and keeps its names.
         pair = E._desugarsupply((water = gsp, sun = plain))
-        @test pair.water isa ConstructedSpec && pair.sun === plain
+        @test pair.water isa ConstructedRasterSpec && pair.sun === plain
     end
 
     # The arithmetic, on fixtures rather than downloads: the cache is pre-loaded under each

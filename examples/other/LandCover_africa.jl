@@ -38,8 +38,8 @@ const YEARS = SMALL ? 2year : 10year
 # species tolerance but Float64 in the environment regime"*. That refusal is the axes rule working:
 # meaning comes from the declared axis, never from the values, so the axis has to say "these are class
 # labels" for a `SimpleCategoricalTolerance` to match them.
-landcover = ConstructedSpec(compress_landcover, EarthEnv{LandCover},
-                            axis = LandCoverTypology)
+landcover = ConstructedRasterSpec(compress_landcover, EarthEnv{LandCover},
+                                  axis = LandCoverTypology)
 
 # Bioclim 13 is precipitation of the wettest month. Its unit and axis come from the shipped
 # catalogue rather than being written here.

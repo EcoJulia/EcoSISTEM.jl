@@ -38,7 +38,7 @@ Type for climate data derived from `RasterDataSource`s.
 `array` is the grid itself, a `DimensionalData` array over `(Y, X)` - plus a third dimension for a
 multi-layer or monthly read. **Prefer to operate on the raster rather than reaching for this**: a
 raster broadcasts and yields a raster, so `lc .!= code` and `sum(bands)` work directly, which is what
-lets a [`ConstructedSpec`](@ref) combine avoid naming an array type at all.
+lets a [`ConstructedRasterSpec`](@ref) combine avoid naming an array type at all.
 
 `code` is the layer this holds, when it is one identifiable layer of its source - or `nothing` for a
 whole-dataset read or a raster derived by arbitrary arithmetic. It is what lets a *materialised*
@@ -76,7 +76,7 @@ end
 
 # --- Broadcasting: a raster behaves like its values and stays a raster -------
 #
-# **This is what lets a `ConstructedSpec` combine be written without naming the array type at
+# **This is what lets a `ConstructedRasterSpec` combine be written without naming the array type at
 # all** - `compress_landcover(lc) .!= landcoverclass(:open_water)` rather than
 # `ClimateRaster(EarthEnv{LandCover}, compress_landcover(lc).array .!= ...)`. A combine is *user* code,
 # and the array type is an implementation detail we intend to stay free to change; requiring it to be
@@ -221,7 +221,7 @@ exactly what a raster cannot do - so this is the pathway, and `axis` is the whol
 """
 function in_memory_raster(raster::ClimateRaster;
                           axis::Type{<:NicheAxis})
-    return ConstructedSpec(() -> raster, axis = axis)
+    return ConstructedRasterSpec(() -> raster, axis = axis)
 end
 
 # --- Which types may name a raster's source, and how that source names its layers ----------------
@@ -414,7 +414,7 @@ end
 #
 # **Dropping a disagreeing `code` is the point, not a shortcoming.** Adding three land-cover bands
 # gives a quantity that is none of the three, so inheriting one input's code would attach a claim the
-# values cannot support; a `ConstructedSpec`'s own `axis` is what declares what a derived layer means.
+# values cannot support; a `ConstructedRasterSpec`'s own `axis` is what declares what a derived layer means.
 # Agreement is the interesting case anyway - masking a single layer keeps its code, which is what
 # leaves a derived **mask** identifiable.
 _sourceof(::ClimateRaster{S}) where {S} = S
@@ -457,15 +457,15 @@ function _datasetspec(dataset, code)
                  "from it; `_datasetspec` needs a method.")
 end
 
-# Normalise `ConstructedSpec`'s trailing layer arguments to a `Vector{AbstractSpec}`.
+# Normalise `ConstructedRasterSpec`'s trailing layer arguments to a `Vector{AbstractSpec}`.
 #
 # **Three shapes are accepted**, and the middle one is why this needs a parser rather than a `map`:
-# - any `AbstractSpec` - a `SourceSpec`, a nested `ConstructedSpec`, or a **synthetic** spec;
+# - any `AbstractSpec` - a `SourceSpec`, a nested `ConstructedRasterSpec`, or a **synthetic** spec;
 # - a dataset type, optionally followed by its code(s) - a scalar, or a vector/tuple giving one
 # single-layer spec per code; a bare dataset means the whole dataset as one multi-band read;
 # - nothing else.
 #
-# The lookahead is what makes `ConstructedSpec(f, EarthEnv{LandCover}, [:a, :b])` legible, and it
+# The lookahead is what makes `ConstructedRasterSpec(f, EarthEnv{LandCover}, [:a, :b])` legible, and it
 # is also why a following argument that is itself a spec or a type must *not* be eaten as a code.
 function _parselayers(args...)
     layers = AbstractSpec[]
@@ -489,7 +489,7 @@ function _parselayers(args...)
                 i += 1
             end
         else
-            error("ConstructedSpec layer argument $i: expected a layer spec or a dataset type, " *
+            error("ConstructedRasterSpec layer argument $i: expected a layer spec or a dataset type, " *
                   "got $(typeof(a)).")
         end
     end

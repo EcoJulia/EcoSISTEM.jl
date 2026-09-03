@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Which grid a `ConstructedSpec`'s combine runs on - the source's own, or the target the study
+# Which grid a `ConstructedRasterSpec`'s combine runs on - the source's own, or the target the study
 # area decided.
 
 """
     AbstractCombineStage
 
-When a [`ConstructedSpec`](@ref)'s `combine` runs, relative to putting its layers on the study
+When a [`ConstructedRasterSpec`](@ref)'s `combine` runs, relative to putting its layers on the study
 grid: on the target grid ([`CombineOnTargetGrid`](@ref), the default) or on the layers' own
 ([`CombineOnSourceGrid`](@ref)). A type rather than a symbol, so an unrecognised stage is refused
 by the signature where it is written rather than by a check inside the constructor.

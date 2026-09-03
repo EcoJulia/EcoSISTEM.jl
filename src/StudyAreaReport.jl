@@ -9,7 +9,7 @@ using Unitful
 
 # What determines the bytes a source read produces: the dataset, the layer code and the read keywords.
 # Deliberately not the spec object - two different specs asking for the same layer should share one
-# read, a `ConstructedSpec` closes over a function that can never compare equal, and `SourceSpec`
+# read, a `ConstructedRasterSpec` closes over a function that can never compare equal, and `SourceSpec`
 # equality would stop holding the moment a `readkw` held a range or an array. Keying on the read also
 # guarantees the cache holds nothing grid-dependent, since a read identity says nothing about any
 # target grid.

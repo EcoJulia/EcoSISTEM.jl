@@ -823,7 +823,7 @@ simplehabitat
     All four are deprecated and will be removed; use
     `GridHabitat(regime = SourceSpec(source, code), supply = ..., area = ...)`, with a
     [`StudyArea`](@ref) deciding the grid from the data's own CRS, extent and resolution. A
-    [`ConstructedSpec`](@ref) wraps an already-read [`ClimateRaster`](@ref) where one is in hand.
+    [`ConstructedRasterSpec`](@ref) wraps an already-read [`ClimateRaster`](@ref) where one is in hand.
     Unlike these builders, that route reports what the grid costs each layer, masks and reprojects,
     and can be inspected with [`investigate_study_area`](@ref) before anything is built.
 """
@@ -1529,3 +1529,8 @@ export GaussTrait
                                                                        array)
 @deprecate CRUTS(array::DimensionalData.AbstractDimArray) ClimateRaster(CRUTS,
                                                                         array)
+
+# `ConstructedSpec` became `ConstructedRasterSpec` when the vector mirror `ConstructedShapeSpec`
+# was added: the two compose the same way, one over rasters and one over geometry, and neither name
+# said which it was.
+Base.@deprecate_binding ConstructedSpec ConstructedRasterSpec

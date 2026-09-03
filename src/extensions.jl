@@ -361,7 +361,7 @@ only a layer code the shipped catalogue can resolve - and no EarthEnv code means
 so on the spec:
 
 ```julia
-ConstructedSpec(EarthEnv{LandCover}, axis = LandCoverTypology) do lc
+ConstructedRasterSpec(EarthEnv{LandCover}, axis = LandCoverTypology) do lc
     compress_landcover(lc)
 end
 ```
@@ -386,7 +386,7 @@ shipped table (never a hardcoded number). A building block for land-cover masks 
 all class bands, excluding open water:
 
 ```julia
-ConstructedSpec(EarthEnv{LandCover}) do lc
+ConstructedRasterSpec(EarthEnv{LandCover}) do lc
     compress_landcover(lc) .!= landcoverclass(:open_water)
 end
 ```

@@ -412,17 +412,17 @@ end
 # guard rather than a comment.
 #
 # Checked here rather than only on the `CombineOnSourceGrid` path, because this route is also how
-# `_analyse` asks a `ConstructedSpec` where it is - so the hazard predates early collapse, and
+# `_analyse` asks a `ConstructedRasterSpec` where it is - so the hazard predates early collapse, and
 # fixing it in one place covers both. `_yxcompatible` is the same agreement test the habitat builder
 # applies to a regime and its supply.
-function _checksourcegrid(spec::ConstructedSpec, layers,
+function _checksourcegrid(spec::ConstructedRasterSpec, layers,
                           idx = eachindex(layers))
     length(layers) < 2 && return nothing
     yx = dims(first(layers).array, (Y, X))
     for i in 2:length(layers)
         theirs = dims(layers[i].array, (Y, X))
         _yxcompatible(theirs, yx) && continue
-        return error("a `ConstructedSpec`'s layers must be on one grid to be combined, but " *
+        return error("a `ConstructedRasterSpec`'s layers must be on one grid to be combined, but " *
                      "$(_speclabel(spec.layers[idx[i]])) is $(join(length.(theirs), "×")) cells where " *
                      "$(_speclabel(spec.layers[first(idx)])) is $(join(length.(yx), "×")) - they are " *
                      "different ground, so combining them cell by cell would be meaningless. Read " *
@@ -442,7 +442,7 @@ end
 # cannot affect. Everything else still comes from the real, now much smaller, read.
 
 # A spec's CRS from metadata alone, or `nothing` when it cannot be had without reading - in which
-# case the caller simply does not window. A `ConstructedSpec`'s `combine` is an opaque closure whose
+# case the caller simply does not window. A `ConstructedRasterSpec`'s `combine` is an opaque closure whose
 # output CRS is not predictable from its inputs, so it declines.
 _probecrs(raster::ClimateRaster) = _rastercrs(raster)
 

@@ -86,7 +86,7 @@ end
 # Wrap an already-in-memory `ClimateRaster` as a layer spec.
 #
 # **A thin alias for the package's own `in_memory_raster`, deliberately** - never a hand-rolled
-# `ConstructedSpec(() -> r; axis = axis)`, which is the shape that lets a fixture drift away from
+# `ConstructedRasterSpec(() -> r; axis = axis)`, which is the shape that lets a fixture drift away from
 # what the package actually does. Calling the real function means these ~97 uses
 # exercise it rather than a parallel copy of it. The short name is kept because it appears that often.
 _reg(r; axis = EcoSISTEM.NicheAxis) = EcoSISTEM.in_memory_raster(r, axis = axis)

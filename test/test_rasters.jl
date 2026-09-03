@@ -200,14 +200,14 @@ end
     # Mixed units: one array cannot carry °C and mm and m s^-1.
     u = msg(SourceSpec(WorldClim{Climate}))
     @test occursin("different units", u)
-    @test occursin("ConstructedSpec", u)       # the error names the way out
+    @test occursin("ConstructedRasterSpec", u)       # the error names the way out
 
     @test layerunit(CHELSA{BioClimPlus}, :kg0) ==
           layerunit(CHELSA{BioClimPlus}, :fcf)
     c = msg(SourceSpec(CHELSA{BioClimPlus}, [:kg0, :fcf]))
     @test occursin("class codes", c)
     @test occursin("no one resampling method", c)
-    @test occursin("ConstructedSpec", c)       # the same way out
+    @test occursin("ConstructedRasterSpec", c)       # the same way out
 end
 
 # One rule, in one place. Reading a multi-layer `SourceSpec` and asking a raster about itself are
@@ -252,7 +252,7 @@ end
 # Flooded Vegetation, Snow/Ice, Barren) and lost one that is.
 #
 # **There are now TWO independent guards against that, and this testset pins both.**
-#   1. **Ordering** - a `ConstructedSpec` combine runs *after* its children are sampled, so the
+#   1. **Ordering** - a `ConstructedRasterSpec` combine runs *after* its children are sampled, so the
 #      *percentages* are interpolated and the argmax taken afterwards, which keeps each cell's
 #      sub-cell mix and cannot fabricate a class.
 #   2. **Declaration** - `compress_landcover` marks its result `valuetype = :categorical`, so if
@@ -268,8 +268,8 @@ end
     # `axis = LandCoverTypology` because the *result* is a class code, not the cover fraction
     # its inputs are (`SurfaceArea`). A raster carries no axis of its own, so a derived layer's
     # axis is declared on the spec - the same place `AvailableGround.jl` declares `SurfaceArea`.
-    spec = ConstructedSpec(EarthEnv{LandCover},
-                           axis = LandCoverTypology) do lc
+    spec = ConstructedRasterSpec(EarthEnv{LandCover},
+                                 axis = LandCoverTypology) do lc
         return compress_landcover(lc)
     end
     area = StudyArea(regime = spec, within = scot,
@@ -329,8 +329,8 @@ end
     @test !EcoSISTEM.iscategorical(ClimateRaster(CHELSA{BioClimPlus}, arr,
                                                  :kg0), Precipitation)
     # ...and the spec is where that declaration lives.
-    spec = ConstructedSpec(() -> ClimateRaster(WorldClim{BioClim}, arr),
-                           axis = LandCoverTypology)
+    spec = ConstructedRasterSpec(() -> ClimateRaster(WorldClim{BioClim}, arr),
+                                 axis = LandCoverTypology)
     @test spec.axis === LandCoverTypology
     @test EcoSISTEM.iscategorical(spec.axis)
     @test !EcoSISTEM.iscategorical(Temperature)

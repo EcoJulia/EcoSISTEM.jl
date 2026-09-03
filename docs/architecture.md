@@ -473,10 +473,18 @@ rule), the latter further split into layer specs (a regime/supply) and mask spec
 The `LayerSpec`/`MaskSpec` aliases name the specs valid in each role. Only a lazy spec can shape a
 study area: a synthetic one has no CRS, extent or resolution of its own.
 
-`AbstractRegionSpec` is the branch of the lazy specs that names **ground** rather than data - a
-country, a continent, an island - and resolves to geometry before any grid exists. That is what lets
-several of them be combined exactly, at no resolution, which is described under "Named regions"
-above.
+`AbstractShapeSpec` is the branch of the lazy specs that is **ground** rather than data - a shape
+file, a named country, a continent, an island - and resolves to geometry before any grid exists.
+
+⭐ **`ConstructedShapeSpec` and `ConstructedRasterSpec` are mirrors**: each is the "several members
+become one" node for its medium. Three of their differences are forced by that medium and one is
+not, which is worth stating so the asymmetry is not read as an oversight. A raster combination can
+produce a *layer*, so it carries an `axis`; it can run before or after resampling, so it carries a
+`combinestage`. A shape combination can do neither, having no values and no grid - but it gains
+`coverage` and `outline`, which are component-shaped questions a raster cannot ask. **Both take an
+arbitrary function**, so neither is the more capable; the named shape operations exist because
+geometry has a small closed algebra with standard names, where raster combines are arbitrary
+arithmetic.
 
 ```mermaid
 classDiagram
@@ -487,10 +495,10 @@ classDiagram
     class AbstractSyntheticMaskSpec
     class SourceSpec~A, U~
     class ShapeSpec
-    class AbstractRegionSpec
+    class AbstractShapeSpec
     class NaturalEarthSpec~C~
-    class CombinedRegionSpec~O, M, C~
-    class ConstructedSpec~A, F~
+    class ConstructedShapeSpec~O, M, C~
+    class ConstructedRasterSpec~A, F~
     class UniformSpec~A, V~
     class GradientSpec~A, V~
     class PeakedSpec~A, V~
@@ -500,8 +508,7 @@ classDiagram
     AbstractSpec              <|-- AbstractLazySpec
     AbstractSpec              <|-- AbstractSyntheticSpec
     AbstractLazySpec          <|-- SourceSpec
-    AbstractLazySpec          <|-- ShapeSpec
-    AbstractLazySpec          <|-- ConstructedSpec
+    AbstractLazySpec          <|-- ConstructedRasterSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticLayerSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticMaskSpec
     AbstractSyntheticLayerSpec <|-- UniformSpec
@@ -511,20 +518,21 @@ classDiagram
     AbstractSyntheticMaskSpec  <|-- CircleMaskSpec
     AbstractCombineStage <|-- CombineOnTargetGrid
     AbstractCombineStage <|-- CombineOnSourceGrid
-    ConstructedSpec "1" *-- "1" AbstractCombineStage : combinestage
-    AbstractLazySpec <|-- AbstractRegionSpec
-    AbstractRegionSpec <|-- CombinedRegionSpec
-    AbstractRegionSpec <|-- NaturalEarthSpec
+    ConstructedRasterSpec "1" *-- "1" AbstractCombineStage : combinestage
+    AbstractLazySpec <|-- AbstractShapeSpec
+    AbstractShapeSpec <|-- ConstructedShapeSpec
+    AbstractShapeSpec <|-- NaturalEarthSpec
+    AbstractShapeSpec <|-- ShapeSpec
 ```
 
 Every spec is constructed exactly one way - via its own inner constructor, e.g. `GradientSpec(low,
 high; axis)`, `CircleMaskSpec(radius = 4km)`, `ShapeSpec(path)` - with no wrapper functions. A
-data-derived layer or a `within` mask beyond a circle/shape is a `ConstructedSpec`: one or more child
+data-derived layer or a `within` mask beyond a circle/shape is a `ConstructedRasterSpec`: one or more child
 data layers plus a combine rule (do-block first). For example, a land-cover mask excluding open
 water, using the `landcoverclass` lookup by name:
 
 ```julia
-ConstructedSpec(EarthEnv{LandCover}, axis = EcoSISTEM.NicheAxis) do lc
+ConstructedRasterSpec(EarthEnv{LandCover}, axis = EcoSISTEM.NicheAxis) do lc
     compress_landcover(lc) .!= landcoverclass(:open_water)
 end
 ```
@@ -578,24 +586,32 @@ the date line, so no single connected component can cross it and a landmass alwa
 `West < East`. Only `AllTerritories` can produce a selection spanning the globe - which is where it
 is least surprising, since the territory of the United States genuinely does.
 
-**Several regions combine as geometry, not as rasters.** `AbstractRegionOperation` is the closed set
-of ways they do: `RegionUnion`, `RegionIntersection`, `RegionDifference`.
+**Several regions combine as geometry, not as rasters.** `AbstractShapeOperation` names the ways:
+`ShapeUnion`, `ShapeIntersection` and `ShapeDifference` combine two or more shapes, while
+`ShapeBuffer`, `ShapeSimplify` and `ShapeConvexHull` transform exactly one. The set is not closed -
+an arbitrary function is accepted too, so anything the geometry library offers is reachable.
 
 ```mermaid
 classDiagram
-    class AbstractRegionOperation
-    class RegionUnion
-    class RegionIntersection
-    class RegionDifference
-    AbstractRegionOperation <|-- RegionUnion
-    AbstractRegionOperation <|-- RegionIntersection
-    AbstractRegionOperation <|-- RegionDifference
+    class AbstractShapeOperation
+    class ShapeUnion
+    class ShapeIntersection
+    class ShapeDifference
+    class ShapeBuffer~D~
+    class ShapeSimplify~D~
+    class ShapeConvexHull
+    AbstractShapeOperation <|-- ShapeUnion
+    AbstractShapeOperation <|-- ShapeIntersection
+    AbstractShapeOperation <|-- ShapeDifference
+    AbstractShapeOperation <|-- ShapeBuffer
+    AbstractShapeOperation <|-- ShapeSimplify
+    AbstractShapeOperation <|-- ShapeConvexHull
 ```
 
 **Why geometry and not rasters.** A union of outlines is exact and carries no resolution of its own,
 so the study grid is still free to be decided afterwards. Combining rasterised masks would have to
 pick a resolution before that decision and would carry two sets of edge effects into the result.
-That is also why a region spec is not a `ConstructedSpec` member: a `ConstructedSpec` composes
+That is also why a region spec is not a `ConstructedRasterSpec` member: a `ConstructedRasterSpec` composes
 rasters, and its members materialise on their own data's grid, which a geometry does not have.
 
 ⚠️ **The outlines are cartographic, and combining them exposes it.** Natural Earth's own

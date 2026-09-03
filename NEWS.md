@@ -28,6 +28,9 @@
       refuses it and says why: the shipped table records the sizes of only the largest few
       components, so only a built shape can answer it.
   - Changed
+    - **`ConstructedSpec` is now `ConstructedRasterSpec`**, paired with the new
+      `ConstructedShapeSpec`. Neither old name said which medium it composed, and they compose the
+      same way. The old name still resolves, as a deprecated binding.
     - **`boundingbox` is breaking.** Its `islands::Bool` keyword becomes `coverage`, taking
       `LargestLandmass()` (the default, as `islands = false` was) or `AllTerritories()`; it gains a
       `level` keyword saying what kind of region a name means; and its values move, because they now
@@ -139,7 +142,7 @@
     - The grid is decided first: a `StudyArea` fixes extent, cell size and CRS before anything is
       built on it, and `investigate_study_area` reports what a run would cost before you commit to it.
     - An environment is assembled from spec recipes - `UniformSpec`, `GradientSpec`, `PeakedSpec`,
-      `NicheSpec`, `SourceSpec`, `ConstructedSpec` - by `GridHabitat`, or by `build_habitat`, which
+      `NicheSpec`, `SourceSpec`, `ConstructedRasterSpec` - by `GridHabitat`, or by `build_habitat`, which
       supplies what you do not name and reports what it chose. Species come from `build_species`, and
       `build_ecosystem` pairs the two sides and checks them against each other.
     - One layer family covers both halves of the environment, parameterised by role (`Condition` or

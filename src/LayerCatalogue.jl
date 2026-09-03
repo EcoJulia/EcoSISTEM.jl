@@ -558,7 +558,7 @@ function iscategorical(S::Type, codes::AbstractVector)
                  "resampling method and no one kind of regime: class codes must not be " *
                  "interpolated, and measurements should not be reduced to a nearest class. Name " *
                  "the layers you want instead - one code for a single layer, or pass a codes " *
-                 "vector to `ConstructedSpec`, which reads each on its own terms.")
+                 "vector to `ConstructedRasterSpec`, which reads each on its own terms.")
 end
 
 # ---------------------------------------------------------------------------

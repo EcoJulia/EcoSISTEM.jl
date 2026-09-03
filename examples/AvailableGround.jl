@@ -68,9 +68,9 @@ const GROWABLE = (:needleleaf_trees, :evergreen_broadleaf_trees,
 # code, not one stacked array - so the combine takes them as varargs and simply adds them up: a
 # raster behaves like its values and stays a raster, so `sum` is the whole of it and no array type is
 # named. The result carries no layer code, and does not need one - the codes disagree, so summing
-# drops it, and the `axis =` on the `ConstructedSpec` is what declares what the result means.
-available = ConstructedSpec(EarthEnv{LandCover}, collect(GROWABLE),
-                            axis = SurfaceArea) do bands...
+# drops it, and the `axis =` on the `ConstructedRasterSpec` is what declares what the result means.
+available = ConstructedRasterSpec(EarthEnv{LandCover}, collect(GROWABLE),
+                                  axis = SurfaceArea) do bands...
     return sum(bands)
 end
 
@@ -102,8 +102,8 @@ const LIGHTDEMAND = INCIDENT * CELLAREA / LIGHTPERCELL
 # fractions* - dimensionless, on `SurfaceArea`. Multiplying by an incident flux gives a solar flux
 # density, and `axis = SolarRadiation` is what declares that. Nothing in the values could have said
 # it: a fraction times a constant is just a number until an axis gives it a meaning.
-usable_light = ConstructedSpec(EarthEnv{LandCover}, collect(GROWABLE),
-                               axis = SolarRadiation) do bands...
+usable_light = ConstructedRasterSpec(EarthEnv{LandCover}, collect(GROWABLE),
+                                     axis = SolarRadiation) do bands...
     return sum(bands) .* INCIDENT
 end
 

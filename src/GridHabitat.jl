@@ -35,7 +35,7 @@ Build an abiotic environment on an already-decided grid.
 All three inputs are **required**. `regime` (the environmental **Condition** layer) and `supply`
 (the **Resource** layer) are each an [`AbstractSpec`](@ref) - a synthetic layer
 ([`UniformSpec`](@ref)/[`GradientSpec`](@ref)/[`PeakedSpec`](@ref)/[`NicheSpec`](@ref)), a
-[`SourceSpec`](@ref), a [`ConstructedSpec`](@ref), or a tuple of 2-3 of these for a multi-variable
+[`SourceSpec`](@ref), a [`ConstructedRasterSpec`](@ref), or a tuple of 2-3 of these for a multi-variable
 environment. `area` is the [`StudyArea`](@ref) that decided the grid - its CRS, extent, cell size and
 active mask - which is where every geometric choice lives:
 
