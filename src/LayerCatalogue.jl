@@ -437,7 +437,7 @@ end
 # after the dataset type (`WorldClim{BioClim}` -> `data/RasterDataSources/BioClim.csv`,
 # `EarthEnv{LandCover}` -> `data/RasterDataSources/LandCover.csv`); the file's presence is what
 # makes a source supported. (They live under `RasterDataSources/` to keep them distinct from other
-# shipped data such as `data/bounding_boxes.csv`.)
+# shipped data such as `data/NaturalEarth/regions.csv`.)
 function _layerfile(T::Type)
     path = pkgdir(@__MODULE__, "data", "RasterDataSources",
                   "$(nameof(_datasettype(T))).csv")

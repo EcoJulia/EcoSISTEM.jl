@@ -37,7 +37,6 @@ using EcoSISTEM
 using EcoSISTEM.Units
 using RasterDataSources
 using Rasters: EPSG
-using Extents: Extent
 using Unitful
 using Unitful.DefaultSymbols
 
@@ -51,9 +50,16 @@ const LANDCOVER = ConstructedRasterSpec(compress_landcover, EarthEnv{LandCover},
                                         axis = LandCoverTypology)
 const SUNLIGHT = UniformSpec(1.0e4kJ / (km^2 * day), axis = SolarRadiation)
 
-# A small projected box over Britain. Projected because dispersal assumes one uniform cell size.
+# The area is **named** rather than drawn: `boundingbox` reads the shipped region table, so a name
+# costs no download and gives the same extent the shape of that name would. `LargestLandmass()` asks
+# for the principal landmass - the default is everything the name covers, which for Scotland reaches
+# Rockall in the west and Shetland in the north.
+#
+# Projected, because dispersal assumes one uniform cell size, which only a projected grid has.
 const AREA = StudyArea(regime = LANDCOVER, supply = SUNLIGHT,
-                       within = Extent(Y = (54.0°, 58.5°), X = (-6.5°, -1.0°)),
+                       within = EcoSISTEM.boundingbox("Scotland",
+                                                      level = "SUBUNIT",
+                                                      coverage = LargestLandmass()),
                        crs = EPSG(27700), cellsize = CELLSIZE,
                        verbosity = :silent)
 

@@ -27,6 +27,21 @@
       Kingdom without Rockall, which is 0.031 km2 against a next-smallest of 2.536. `boundingbox`
       refuses it and says why: the shipped table records the sizes of only the largest few
       components, so only a built shape can answer it.
+    - `investigate_regions`, which asks which named regions relate to something you have - a
+      coordinate, a raster, a layer, a study area - as `investigate_study_area` reports on a grid
+      before one is built. `Encloses(x)` is the default; `Overlaps(x)` gives regions your data
+      reaches into, ordered by how much ground they share, and `Within(x)` those it covers entirely.
+      A row of the report converts straight into a `NaturalEarthSpec`.
+    - `EcoSISTEM.naturalearth_levels()` and `naturalearth_regions(level)`, which list what exists -
+      the latter with each region's bounding box, area and component count, so a level can be
+      browsed rather than just enumerated.
+    - A "Named regions" documentation page, whose recipes are executed by the test suite.
+    - `examples/NamedRegions.jl`, which finds a study area by name, builds the British Isles from
+      three countries, and simulates on the result.
+    - `data/NaturalEarth/regions.csv`, a table of named regions generated from Natural Earth's
+      1:10m polygons, and the levels that index it (`EcoSISTEM.NATURALEARTH_LEVELS`). `boundingbox`
+      gains about 1 660 names, still answers offline and instantly, and now agrees with the shape the
+      same name gives, both being derived from the same geometry.
   - Changed
     - **`ConstructedSpec` is now `ConstructedRasterSpec`**, paired with the new
       `ConstructedShapeSpec`. Neither old name said which medium it composed, and they compose the

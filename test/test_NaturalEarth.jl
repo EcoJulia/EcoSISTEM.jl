@@ -7,9 +7,13 @@ using EcoSISTEM: NaturalEarthLevel, NATURALEARTH_LEVELS
 using EcoSISTEM: _findlevel, _nesource, _dissolve, _coverageof, _equalarea
 using EcoSISTEM: _regionbox, _regionindex, _regionspath, NPARTS
 using EcoSISTEM: _checklevel, _indegrees, _asraster, _mergegeoms
+using EcoSISTEM: _wgsextent, _overlaparea, investigate_regions,
+                 naturalearth_regions
+using EcoSISTEM: naturalearth_levels, RegionMatch, RegionReport
 using EcoSISTEM: _shapecomponents, _applyshapeop, _naturalearthgeoms,
                  _preparemask
 import Rasters
+import Extents
 using CSV
 using Unitful
 using Unitful.DefaultSymbols
@@ -539,6 +543,195 @@ if geometrytests()
         # Both describe the same ground, so they agree on where it is.
         @test prep.extent == outlined.extent
     end
+end
+
+@testset "the listings answer from the table, with no download" begin
+    @test length(naturalearth_levels()) == length(EcoSISTEM.NATURALEARTH_LEVELS)
+    # A copy, so a caller cannot mutate the package's own table.
+    @test naturalearth_levels() !== EcoSISTEM.NATURALEARTH_LEVELS
+
+    admin = naturalearth_regions("ADMIN")
+    @test length(admin) == 258
+    # A report, so it iterates and indexes, and every row carries the box and area a reader browsing
+    # a level actually wants - not just the name.
+    @test admin isa RegionReport
+    @test first(admin) isa RegionMatch
+    @test issorted([m.name for m in admin])
+    @test "United Kingdom" in [m.name for m in admin]
+    @test all(m -> m.area > 0km^2 && m.parts >= 1, admin)
+    # A listing asked no spatial question, so there is no overlap to report.
+    @test all(m -> isnothing(m.overlap), admin)
+    # ...and a row of it converts straight into a spec, as a query's row does.
+    uk = only(m for m in admin if m.name == "United Kingdom")
+    @test NaturalEarthSpec(uk).level == "ADMIN"
+
+    # `_checklevel`'s error promises this function exists; it must accept what that suggests.
+    @test "FRA" in [m.name for m in naturalearth_regions("ISO_A3_EH")]
+    @test_throws ErrorException naturalearth_regions("ISO_A3")
+
+    # Passing a REGION where a level belongs is the likeliest slip, and saying only "no such level"
+    # is true and useless when the answer is "that is a region, and here is the level it lives at".
+    err = try
+        naturalearth_regions("Sabrina Coast")
+    catch e
+        sprint(showerror, e)
+    end
+    @test occursin("is a region, not a level", err)
+    @test occursin("Physical Coast", err)
+
+    # A typo of a region name matches neither a level nor a region exactly, and is the case that was
+    # most useless before: "Yemn" is a misspelt country, not a misspelt level.
+    typo = try
+        naturalearth_regions("Yemn")
+    catch e
+        sprint(showerror, e)
+    end
+    @test occursin("Yemen", typo)
+    # Every error here points at the *function*, which displays as a readable table, rather than at
+    # the underlying `const`.
+    @test occursin("naturalearth_levels()", typo)
+    @test !occursin("NATURALEARTH_LEVELS", typo)
+
+    # ...and a query resembling nothing says so without inventing a suggestion.
+    nothinglike = try
+        naturalearth_regions("qqqq")
+    catch e
+        sprint(showerror, e)
+    end
+    @test !occursin("Did you mean", nothinglike)
+
+    @test EcoSISTEM._editdistance("Yemn", "Yemen") == 1
+    @test EcoSISTEM._editdistance("abc", "abc") == 0
+    @test EcoSISTEM._editdistance("", "abc") == 3
+end
+
+@testset "a subject's extent is asked polymorphically, and always in degrees" begin
+    @test _wgsextent(Extents.Extent(Y = (1.0, 2.0), X = (3.0, 4.0))).Y ==
+          (1.0, 2.0)
+    # A point is a zero-area extent, which is what makes it answerable at all.
+    pt = _wgsextent(LatLong(55.9°, -3.2°))
+    @test pt.Y[1] == pt.Y[2] && pt.X[1] == pt.X[2]
+    # Something with no grid cannot be asked, and says so rather than giving `nothing` onwards.
+    @test_throws ErrorException _wgsextent(42)
+end
+
+@testset "the three relations, and which accept a point" begin
+    box = Extents.Extent(Y = (54.0°, 58.0°), X = (-6.0°, -2.0°))
+    inside = Extents.Extent(Y = (55.0°, 56.0°), X = (-5.0°, -4.0°))
+    apart = Extents.Extent(Y = (10.0°, 11.0°), X = (10.0°, 11.0°))
+
+    @test Encloses(inside)(box)          # the box encloses the smaller extent
+    @test !Encloses(box)(inside)
+    @test Within(box)(inside)            # the smaller extent lies within the box
+    @test Overlaps(inside)(box)
+    @test !Overlaps(apart)(box)
+    @test Encloses(inside) isa EcoSISTEM.AbstractSpatialRelation
+
+    # 🔴 `Encloses` delegates to `covers`, not `contains`: the two agree on every pair of boxes but
+    # differ on a point, and a point is the one subject only `Encloses` takes. Using `contains`
+    # would make "which regions enclose this coordinate?" silently answer nothing.
+    edinburgh = LatLong(55.95°, -3.19°)
+    @test Encloses(edinburgh)(box)
+    @test !Extents.contains(box, _wgsextent(edinburgh))
+
+    # ...and the other two refuse a point at construction, where it was written, rather than
+    # returning an empty report that reads as "nothing found".
+    @test_throws ErrorException Within(edinburgh)
+    @test_throws ErrorException Overlaps(edinburgh)
+end
+
+@testset "overlap area is a solid angle, not a product of degree spans" begin
+    equator = Extents.Extent(Y = (0.0°, 1.0°), X = (0.0°, 1.0°))
+    arctic = Extents.Extent(Y = (70.0°, 71.0°), X = (0.0°, 1.0°))
+    # The same angular box covers far less ground near the pole, so ordering by a flat product would
+    # rank high latitudes above equatorial ones for the same shared ground.
+    @test _overlaparea(equator, equator) > _overlaparea(arctic, arctic)
+    @test _overlaparea(equator, equator) ≈ 12308km^2 rtol=0.01
+    # Disjoint boxes share nothing.
+    @test _overlaparea(equator,
+                       Extents.Extent(Y = (10.0°, 11.0°), X = (10.0°, 11.0°))) ==
+          0.0km^2
+end
+
+@testset "investigate_regions finds what encloses a point, smallest first" begin
+    report = investigate_regions(LatLong(55.95°, -3.19°), kind = :political)
+    @test report isa RegionReport
+    @test !isempty(report)
+    # A container, so Base does the disambiguating: `only`, `first` and indexing all work.
+    @test first(report) isa RegionMatch
+    @test report[1] === first(report)
+    @test length(collect(report)) == length(report)
+
+    names = [m.name for m in report]
+    @test "Scotland" in names && "United Kingdom" in names
+    # Smallest enclosing first, which is the whole point of the ordering.
+    @test issorted([m.area for m in report])
+    @test first(report).name == "Scotland"
+
+    # Filters narrow at source, which is the first tool for an ambiguous answer.
+    @test all(m -> m.level.kind === :political, report)
+    @test all(m -> m.level.name == "ADMIN",
+              investigate_regions(LatLong(55.95°, -3.19°), level = "ADMIN"))
+    @test length(investigate_regions(LatLong(55.95°, -3.19°), limit = 2)) == 2
+
+    # A match is a subject in its own right, so a row feeds back in: `Encloses` walks up the
+    # hierarchy, `Within` walks down.
+    scotland = first(report)
+    up = investigate_regions(Encloses(scotland), kind = :political)
+    @test "United Kingdom" in [m.name for m in up]
+    # ...and a region never answers a question about itself, `covers` and `within` both being
+    # reflexive. Excluded by identity, never by extent: distinct regions share a box legitimately.
+    @test !any(m -> m.extent == scotland.extent, up)
+end
+
+@testset "a match converts to a spec; a report does not" begin
+    report = investigate_regions(LatLong(55.95°, -3.19°), level = "ADMIN")
+
+    # ⚠️ TWO countries' boxes enclose Edinburgh: the United Kingdom, and **Norway**, whose box runs
+    # west to Jan Mayen and north to Svalbard. That is the box tier being honest rather than wrong,
+    # and it is why `only` is the safe way to take a single answer - it refuses here.
+    @test length(report) == 2
+    @test [m.name for m in report] == ["United Kingdom", "Norway"]
+    @test_throws ArgumentError only(report)
+
+    # `first` is meaningful under `Encloses`, whose order is smallest-enclosing-first.
+    spec = NaturalEarthSpec(first(report))
+    @test spec isa NaturalEarthSpec
+    @test spec.name == "United Kingdom" && spec.level == "ADMIN"
+    # The conversion re-derives nothing, so the spec's shape agrees with the box displayed.
+    @test spec.name == first(report).name
+
+    # `only` does work where the query really is unique.
+    @test NaturalEarthSpec(only(investigate_regions(LatLong(55.95°, -3.19°),
+                                                    level = "SUBUNIT"))).name ==
+          "Scotland"
+
+    # A report may hold several regions, so it names no single spec - and `first` is meaningful for
+    # only one of the three orderings. The error names the three ways to choose.
+    err = try
+        NaturalEarthSpec(report)
+    catch e
+        sprint(showerror, e)
+    end
+    @test occursin("only(report)", err) && occursin("first(report)", err)
+end
+
+@testset "a report says its answer is coarse, every time" begin
+    report = investigate_regions(LatLong(55.95°, -3.19°), limit = 3)
+    shown = sprint(show, MIME"text/plain"(), report)
+    # Stated in the display rather than left to the docstring: a box can be far larger than the
+    # ground it names, and a reader who does not know that will trust the list too far.
+    @test occursin("bounding box", shown)
+    @test occursin("NaturalEarthSpec", shown)
+    # The relation reads as a verb agreeing with its subject.
+    @test occursin("enclose it", shown)
+    @test occursin("lies within it",
+                   sprint(show, MIME"text/plain"(),
+                          investigate_regions(Within(Extents.Extent(Y = (54.6°,
+                                                                         58.7°),
+                                                                    X = (-6.3°,
+                                                                         -1.7°))),
+                                              limit = 1)))
 end
 
 end

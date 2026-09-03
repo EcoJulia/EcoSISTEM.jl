@@ -220,7 +220,7 @@ spec's shape actually has.
 
   - `name`: the region's name, matched case-insensitively but otherwise as Natural Earth spells it.
   - `level`: which kind of region the name means - `"ADMIN"` for a country, `"Physical Island"` for a
-    landmass; `EcoSISTEM.NATURALEARTH_LEVELS` lists them. Only needed where a name means genuinely
+    landmass; `EcoSISTEM.naturalearth_levels()` lists them. Only needed where a name means genuinely
     different ground at different levels, and the error says so when it does.
   - `coverage`: how much of what the name covers to take - [`AllTerritories`](@ref), the default and
     what the source itself means by the name, or [`LargestLandmass`](@ref) for the principal landmass
@@ -243,11 +243,42 @@ struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
         row = EcoSISTEM._regionrow(lvl, name)
         isnothing(row) &&
             error("No region named \"$name\" at level \"$lvl\". " *
-                  "`EcoSISTEM.NATURALEARTH_LEVELS` lists the levels.")
+                  "`EcoSISTEM.naturalearth_levels()` lists the levels.")
         # The source's own spelling is stored, not the caller's: the lookup is case-insensitive, and
         # what is kept should be what the data says so that `show` and any later report agree with it.
         return new{typeof(coverage)}(lvl, row.Name, coverage, outline)
     end
+end
+
+"""
+    NaturalEarthSpec(match::EcoSISTEM.RegionMatch; coverage = AllTerritories(), outline = true)
+
+Turn one match from [`investigate_regions`](@ref) into a spec, without naming it again.
+
+A match already carries the level and the name, which is the whole of a spec's identity, so nothing
+is re-derived and the shape agrees with the box the report displayed.
+
+A *report* cannot be converted, because it may hold several regions. Pick one first - `only(report)`
+asserts there was exactly one, `first(report)` takes the best by the report's own ordering, and
+`report[i]` takes a chosen one.
+"""
+function NaturalEarthSpec(match::EcoSISTEM.RegionMatch;
+                          coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
+                          outline::Bool = true)
+    return NaturalEarthSpec(match.name, level = match.level.name,
+                            coverage = coverage, outline = outline)
+end
+
+# A report is ambiguous by construction, so converting one would have to pick silently. `first` is
+# meaningful under `Encloses`, whose order is smallest-enclosing-first, and not under the other two -
+# it would be right a third of the time. An error naming the three ways to choose beats that, and a
+# `MethodError` would name none of them.
+function NaturalEarthSpec(report::EcoSISTEM.RegionReport; kw...)
+    return error("A `RegionReport` holds $(length(report)) region" *
+                 (length(report) == 1 ? "" : "s") *
+                 ", so it does not name one spec. Choose: `only(report)` asserts there was exactly " *
+                 "one, `first(report)` takes the best by the report's own ordering, `report[i]` " *
+                 "takes the one you want.")
 end
 
 function Base.show(io::IO, s::NaturalEarthSpec)

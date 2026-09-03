@@ -162,7 +162,7 @@ arcminutes, EarthEnv's and CHELSA's 30 arcseconds.
   - `region`: the region's name, matched case-insensitively.
   - `level`: which kind of region the name means - `"ADMIN"` for a country, `"SUBUNIT"` for a
     constituent country, `"Physical Island"` for a landmass, and so on;
-    `EcoSISTEM.NATURALEARTH_LEVELS` lists them all. Optional, and only needed where a name means
+    `EcoSISTEM.naturalearth_levels()` lists them all. Optional, and only needed where a name means
     genuinely different ground at different levels: "Scotland" is the same box whether asked for as
     a map unit or a map subunit, while "Africa" as a continent stops 54 degrees west of "Africa" as
     a UN region, and naming a level is then required rather than guessed at.
@@ -184,7 +184,7 @@ function boundingbox(region::AbstractString; level = nothing,
     row = _regionrow(lvl, region)
     isnothing(row) &&
         error("No region named \"$region\" at level \"$lvl\". " *
-              "`EcoSISTEM.NATURALEARTH_LEVELS` lists the levels.")
+              "`EcoSISTEM.naturalearth_levels()` lists the levels.")
     box = _coveragebox(row, coverage, region, lvl)
     # An `Extents.Extent` states an interval, and an interval cannot run the long way round: a
     # wrapping region written into one would read as empty, or as its own complement. Refusing is

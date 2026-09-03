@@ -115,10 +115,18 @@ end
 # from -19 000 km, which is nonsense outside Britain. `extent` is a **size**, not a bounding box:
 # it says how big, never where. Measured while writing this - without `within` the grid came out
 # 953 × 6 cells over mostly ocean, and every number in the comparison was meaningless.
-# `boundingbox` reads the shipped `data/bounding_boxes.csv`, so naming a region costs no download.
+# A region can be named instead of drawn. `EcoSISTEM.boundingbox("Scotland")` gives its extent from
+# the shipped table at no download; `NaturalEarthSpec("Scotland")` gives its actual coastline, which
+# is what this example uses. `coverage` says how much of the name to take - the default is everything
+# it covers, which for Scotland reaches Rockall and Shetland, so the principal landmass is asked for
+# explicitly.
+# A `NaturalEarthSpec` rather than a box, because this example is about how much ground is
+# *available*: a box over Scotland is largely sea, and every cell of it would be counted. The spec
+# activates only the cells whose centres fall inside the coastline, and sets the extent as a box
+# would. It downloads the polygons once, into `EcoSISTEM.assetdir`.
 area = StudyArea(supply = available,
-                 within = EcoSISTEM.boundingbox("Scotland",
-                                                coverage = LargestLandmass()),
+                 within = NaturalEarthSpec("Scotland", level = "SUBUNIT",
+                                           coverage = LargestLandmass()),
                  crs = EPSG(27700), cellsize = CELLSIZE, verbosity = :silent)
 
 # The regime and the tolerances are deliberately dull - this example is about the supplies, so

@@ -28,7 +28,8 @@ makedocs(modules = [EcoSISTEM],
                  "Layers" => "layers.md",
                  "Axes, units and roles" => "units.md",
                  "Time" => "time.md",
-                 "Interventions" => "interventions.md"
+                 "Interventions" => "interventions.md",
+                 "Named regions" => "regions.md"
              ],
              "How the model works" => "model.md",
              "Analysing results" => ["Diversity" => "diversity.md"],

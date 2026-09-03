@@ -426,6 +426,37 @@ function _gridcrs(x)
     return Rasters.crs(yx[1])
 end
 
+# The lat/long extent of whatever `x` is - the one question every spatial query has to ask of its
+# subject, whatever kind of thing that subject is.
+#
+# Built on `_gridyx`/`_gridcrs`, so the family it accepts is the one `getcellsize` already accepts: a
+# study area or its report, a raster, a layer, a habitat, an ecosystem. A bare `Extents.Extent` and a
+# `LatLong` are answered directly, the point as a zero-area extent.
+#
+# The result is always WGS84 lat/long, because that is what the shipped region table is in. A grid
+# decided in a projected CRS - British National Grid, say - has an extent in metres, and comparing
+# that against a table of degrees would silently compare nothing.
+function _wgsextent(x)
+    yx = _gridyx(x)
+    isnothing(yx) &&
+        return error("`$(typeof(x))` has no grid, so it has no extent to ask a spatial question " *
+                     "about. Pass a study area, a raster, a layer, a habitat, an ecosystem, an " *
+                     "`Extents.Extent` or a `LatLong`.")
+    extent = Extents.Extent(Y = extrema(DimensionalData.val(yx[1])),
+                            X = extrema(DimensionalData.val(yx[2])))
+    crs = _gridcrs(x)
+    isnothing(crs) &&
+        return error("`$(typeof(x))` is on a synthetic grid, which has no real-world position, so " *
+                     "it cannot be compared with a named region.")
+    return _bboxin(crs, Rasters.EPSG(4326), extent)
+end
+
+_wgsextent(e::Extents.Extent) = e
+
+# A point is a zero-area extent, which `Extents` handles: it is contained by a box and overlaps
+# nothing.
+_wgsextent(p::LatLong) = Extents.Extent(Y = (p.y, p.y), X = (p.x, p.x))
+
 # Spread a per-row column across the grid's columns. The varying case is materialised rather than
 # left as an `(ny, 1)` that only broadcasting can use.
 _spreadrows(col, shape) = repeat(reshape(col, :, 1), 1, shape[2])

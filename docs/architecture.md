@@ -620,6 +620,32 @@ Ireland and the Isle of Man reaches 60.85. Its physical continents are landmass 
 does not contain the British Isles at all - an intersection with it is empty, and is refused rather
 than returned as a grid with nothing active.
 
+**Asking which regions relate to what you have** is a third family. `AbstractSpatialRelation` is the
+question - `Encloses`, `Overlaps`, `Within` - and each **carries the thing being asked about**, so
+`Encloses(mylayer)` reads as what it means and there is no argument order to get the wrong way round.
+
+```mermaid
+classDiagram
+    class AbstractSpatialRelation
+    class Encloses~E~
+    class Overlaps~E~
+    class Within~E~
+    AbstractSpatialRelation <|-- Encloses
+    AbstractSpatialRelation <|-- Overlaps
+    AbstractSpatialRelation <|-- Within
+```
+
+They delegate to `Extents`' own predicates, so no predicate code is written here. 🔴 `Encloses` uses
+`covers` rather than `contains`: the two agree on every pair of boxes, which makes the choice look
+free, but they differ on a **point** - `contains` is false for a point inside a box. A point is the
+one subject only `Encloses` accepts, so `contains` would make "which regions enclose this
+coordinate?" silently answer nothing. `Overlaps` and `Within` refuse a point at construction, since
+nothing overlaps a point and nothing lies within one.
+
+⚠️ **The query compares boxes, not outlines**, which is what makes it free and is also its limit.
+Norway's box encloses Edinburgh - it runs west to Jan Mayen and north to Svalbard - so the report
+says so every time it is displayed rather than leaving it to a docstring.
+
 **A name is only meaningful with its level.** `NaturalEarthLevel` records which file defines a kind
 of region and which of its attributes carries the name, because the same word means different things
 at different levels: "Africa" is a grouping of 55 countries at one level and 62 at another, and the

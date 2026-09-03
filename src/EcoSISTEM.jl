@@ -45,6 +45,20 @@ export AllTerritories, LargestLandmass, LandmassesAbove
 
 public AbstractShapeOperation
 
+public AbstractSpatialRelation
+
+export Encloses, Overlaps, Within
+
+public naturalearth_levels
+
+public naturalearth_regions
+
+public investigate_regions
+
+public RegionMatch
+
+public RegionReport
+
 export ShapeUnion, ShapeIntersection, ShapeDifference,
        ShapeBuffer, ShapeSimplify, ShapeConvexHull
 
