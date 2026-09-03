@@ -10,6 +10,29 @@
 # `test/test_deprecations.jl`. The `ClimatePref` submodule keeps its own
 # deprecations in `src/ClimatePref/deprecations.jl` (a single file cannot span
 # two modules).
+#
+# ## Every section says which release deprecated it
+#
+# Sections are grouped by **concept line** - the trait line, the resource line, the builder families
+# - because that is how a reader arrives here, from a name they were using. Each header therefore
+# ends with a `Deprecated in vX.Y.Z` line saying which release the shim belongs to, so that removing
+# a release's worth is a matter of deleting the sections carrying that label. `clean_Deprecations.jl`
+# asserts every section has one.
+#
+# ⚠️ Do not read the version *in a section's title* as that label. A title saying "v0.4.0 rename"
+# describes where the **old name** came from, not when it was deprecated: this file did not exist at
+# v0.4.0: it was created for v0.5.0, which is why almost everything here is labelled v0.5.0.
+#
+# ⚠️ Two things a whole-section delete does not reach, and both fail quietly:
+#
+#   - the `export`/`public` declarations for deprecated names, which are collected in one section of
+#     their own near the foot of this file rather than beside the shims. A stale `export` of a
+#     deleted binding is a precompile *warning*, not an error.
+#   - `test/test_deprecations.jl`, which mirrors this file and must lose the same sections.
+#
+# ⚠️ And one ordering constraint that is not a mistake: the arity-numbered collection aliases are
+# labelled v0.5.0 but sit early, among the v0.4.0-name shims, because those shims point at them.
+# They can only go when the shims that reach them do.
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
@@ -18,6 +41,8 @@
 # A Gaussian preference is just the `Normal` case of a `NicheTolerance`. The redesign takes
 # a trait's unit from its niche axis (not its data), so a *unitful* preference
 # must name an axis; only dimensionless (bare) data may stay axis-less.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 """
     GaussTrait(mean, sd)
@@ -78,6 +103,8 @@ end
 # A Gaussian/trapezoidal/uniform preference is just the `Normal`/`Trapezoid`/`Uniform` case of a `NicheTolerance`, so
 # all three relationships are `NicheSuitability` now. Each is kept as a distinct type that warns on construction but
 # shares `NicheSuitability`'s 2-arg density functor, so old hand-built ecosystems still build and evaluate.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 """
     Gauss{A, V} <: AbstractNicheFit{A, V}
@@ -166,6 +193,8 @@ end
 # which warns already, or by writing `EcoSISTEM.RegimeCollection2` explicitly, which is reaching into
 # internals. Adding one would give a caller of the oldest name two warnings naming each other -
 # exactly what the `*AE` and gradient sections below take care to avoid.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 
 """    RegimeCollection2{M1, M2} - two positional regimes over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
@@ -254,6 +283,8 @@ AdditiveFit3(f1, f2, f3) = CombiningFit(sum, (f1, f2, f3))
 
 # ---------------------------------------------------------------------------
 # Resource line: `Resource` -> `Supply` (v0.4.0 rename; the environment's resource layer)
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # **`SimpleBudget` is REMOVED, not shimmed** - the free/dimensionless supply it named no longer
 # exists, so there is nothing to re-point it at. It was exported in v0.4.0, which makes this a
@@ -339,6 +370,8 @@ Base.@deprecate_binding BudgetCollection2 SupplyCollection2
 
 # ---------------------------------------------------------------------------
 # Resource line: `Requirement` -> `Demand` (v0.4.0 rename; the species' resource need)
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # **`SimpleRequirement` is REMOVED, not shimmed** - the same shape as `SimpleBudget` above, and
 # for the same reason: the free/dimensionless demand it named no longer exists, so there is nothing
@@ -357,6 +390,8 @@ Base.@deprecate_binding ReqCollection2 DemandCollection2
 
 # ---------------------------------------------------------------------------
 # Condition line: `Condition`(-role layer) -> `Regime` (v0.4.0 rename; the environment's condition layer)
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 Base.@deprecate_binding ContinuousHab ContinuousRegime
 Base.@deprecate_binding ContinuousTimeHab ContinuousRegime
@@ -374,6 +409,8 @@ Base.@deprecate_binding HabitatCollection3 RegimeCollection3
 # Environment container: `AbioticEnv`/`GridAbioticEnv` -> `Condition` (v0.4.0 rename). NB the *condition
 # layer* `AbstractHabitat` was renamed to `AbstractRegime`, freeing `AbstractHabitat` for the environment;
 # v0.4.0's (unexported) `AbstractHabitat` therefore changes meaning - a NEWS breaking note, not a shim.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 Base.@deprecate_binding GridAbioticEnv GridHabitat
 
@@ -388,6 +425,8 @@ Base.@deprecate_binding GridAbioticEnv GridHabitat
 
 # ---------------------------------------------------------------------------
 # Condition line: `Trait`/`Bin` -> `Tolerance`/`NicheTolerance` (v0.4.0 rename; the species' condition response)
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # **These two are no longer bindings, because the type they named is gone and the one that
 # replaced it needs an argument they did not supply.** `CategoricalTolerance` and
@@ -415,6 +454,8 @@ Base.@deprecate_binding RainBin RainTolerance
 
 # ---------------------------------------------------------------------------
 # Condition line: the matcher `TraitRelationship`/`Match`/... -> `NicheFit`/`Suitability` (v0.4.0 rename)
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # **Both now name the same type, and that is correct rather than a collision.** `Match` and
 # `LCmatch` differed only in the weight they gave a species outside its classes, which is no longer
@@ -453,6 +494,8 @@ Base.@deprecate_binding additiveTR3 AdditiveFit3
 # parameter and validates its values against the layer's own unit (`changeunit`, `LayerChange.jl`)
 # instead of against a dimension passed in by hand and then discarded. The name survives below as a
 # constructor mapping each old change function onto its successor.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 
 # The v0.4.0 change functions. Each was only ever *named* - stored in a `LayerUpdate` and invoked by
@@ -647,6 +690,8 @@ end
 # The `*AE` names resolve straight onto the shared bodies rather than chaining through their
 # `*habitat` renames, so a caller of the oldest name gets one warning naming the real target, not
 # two naming each other - the same handling as the gradient section.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 
 # Shared tail of the maximum-supply `*AE` constructors: total the per-area maximum supply
@@ -930,6 +975,8 @@ end
 # Being wholly inside the deprecated unit is also what lets these be typed for `Precipitation`'s
 # canonical unit - the rate `mm/d` - without touching live code: as `Unitful.Length{Float64}` they
 # could not be called on their own default axis at all.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 
 # The rainfall-gradient regime itself. `minR`/`maxR` are Condition
@@ -1090,6 +1137,8 @@ end
 # Unlike the rain family these are *not* retyped: `Temperature`'s canonical unit is still `K`, so
 # they were never broken - this is a pure move, and their `Unitful.Temperature`/`𝚯𝐓^-1` signatures
 # stay exactly as released.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 
 # The temperature-gradient regime itself; `_tempgradhabitat` and
@@ -1240,6 +1289,8 @@ end
 #
 # `getrelationship(nichefit, ::Symbol)` was the third of the set. It was never exported, so it owes
 # no shim and has simply gone; use `nichefit.two` or `NamedTuple(nichefit)`.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 
 """
@@ -1282,6 +1333,8 @@ end
 # `tempgrad`/`raingrad`, though, the body does not move here - `NicheSpec` materialises through it
 # (`_syntheticregime`, `rasters.jl`; `_syntheticniche`, `StudyArea.jl`), so it stays live in
 # `Layer.jl` as `_randomniches` and this is a shim over it.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 
 """
@@ -1307,9 +1360,16 @@ end
 # Naming standardisation (v0.5.0): function names that were `CamelCase` (reading as types) or ran
 # an acronym into lowercase are moved to `snake_case`. The symbol-form `@deprecate` forwards
 # args/kwargs and (re-)exports the old name, so callers keep working with a deprecation warning.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 @deprecate ContinuousEvolve continuous_evolve
 @deprecate DiscreteEvolve discrete_evolve
+# ---------------------------------------------------------------------------
+# MPI landscape constructors: `emptyMPIgridlandscape` -> `empty_landscape`
+#
+# Deprecated in v0.6.0.
+# ---------------------------------------------------------------------------
 # `empty_mpi_gridlandscape` is replaced by `empty_landscape`, whose distributed method is chosen by
 # the presence of the partition rather than by the name. This cannot be a redirecting `@deprecate`:
 # the old signature took the partition alone, and the labelled views the landscape now carries need
@@ -1330,6 +1390,8 @@ export emptyMPIgridlandscape
 
 # ---------------------------------------------------------------------------
 # Layer time series (v0.5.0): a layer no longer holds a stack and a cursor into it
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # A layer holds one grid of values; which stored slice that is comes from elapsed time, via a
 # `SeriesLayerChange`. The `*Time*` layer types are therefore gone - a time-varying layer is the same
@@ -1397,6 +1459,8 @@ end
 
 # ---------------------------------------------------------------------------
 # Ecosystem-level scenarios (v0.5.0): callbacks become declarations
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # `AbstractScenario` carried a *function reference*, so nothing about a scenario could be
 # dispatched on, validated, reported or reproduced - and `RandHabitatLoss!`/`ClustHabitatLoss!` drew
@@ -1415,6 +1479,8 @@ end
 
 # ---------------------------------------------------------------------------
 # The accessor interface (v0.5.0): five ambiguously-indexed names become a 2×2
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # Each of the old names took a second argument whose *meaning was invisible in the name*, and they
 # did not all mean the same thing: `getregime(r, 3)` meant cell 3, `getpref(t, 3)` meant species 3.
@@ -1472,6 +1538,8 @@ end
 
 # ---------------------------------------------------------------------------
 # Flatcase conformance, 2026-08-25
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # Public function names are flatcase unless flattening hurts readability, matching the packages
 # EcoSISTEM sits under: Diversity, Phylo and EcoBase are together about 92% flatcase, and Julia's own
@@ -1488,6 +1556,8 @@ end
 
 # ---------------------------------------------------------------------------
 # The deprecated names' own export/public declarations
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # Declared here rather than in `src/EcoSISTEM.jl` (v0.5.0), so that file's declarations read as a
 # map of where each LIVE name is defined. Every name below is a shim defined in this file.
@@ -1513,6 +1583,8 @@ export GaussTrait
 
 # ---------------------------------------------------------------------------
 # The netCDF climate sources became SOURCES rather than CONTAINERS (v0.5.0)
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # `ERA`, `CERA` and `CRUTS` used to be struct wrappers holding an array. They are now fieldless
 # `EcoSISTEMSource` markers, and a reader returns a `ClimateRaster{ERA}` - the same shape every other
@@ -1530,7 +1602,12 @@ export GaussTrait
 @deprecate CRUTS(array::DimensionalData.AbstractDimArray) ClimateRaster(CRUTS,
                                                                         array)
 
-# `ConstructedSpec` became `ConstructedRasterSpec` when the vector mirror `ConstructedShapeSpec`
-# was added: the two compose the same way, one over rasters and one over geometry, and neither name
-# said which it was.
+# ---------------------------------------------------------------------------
+# Spec constructors: `ConstructedSpec` -> `ConstructedRasterSpec`
+#
+# The two compose the same way, one over rasters and one over geometry, and neither name said which
+# it was, so the raster one was renamed when the vector mirror `ConstructedShapeSpec` was added.
+#
+# Deprecated in v0.7.0.
+# ---------------------------------------------------------------------------
 Base.@deprecate_binding ConstructedSpec ConstructedRasterSpec
