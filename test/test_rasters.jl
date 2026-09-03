@@ -264,7 +264,7 @@ end
 # rather than asserting a defect that
 # has been fixed.
 @testset "a land-cover collapse runs after resampling, not before" begin
-    scot = EcoSISTEM.boundingbox("Scotland", islands = true)
+    scot = EcoSISTEM.boundingbox("Scotland", coverage = AllTerritories())
     # `axis = LandCoverTypology` because the *result* is a class code, not the cover fraction
     # its inputs are (`SurfaceArea`). A raster carries no axis of its own, so a derived layer's
     # axis is declared on the spec - the same place `AvailableGround.jl` declares `SurfaceArea`.

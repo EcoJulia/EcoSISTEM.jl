@@ -5,6 +5,8 @@ module TestNaturalEarth
 using EcoSISTEM
 using EcoSISTEM: NaturalEarthLevel, NATURALEARTH_LEVELS
 using EcoSISTEM: _findlevel, _nesource, _dissolve, _coverageof, _equalarea
+using EcoSISTEM: _regionbox, _regionindex, _regionspath, NPARTS
+using CSV
 using Unitful
 using Unitful.DefaultSymbols
 import ArchGDAL
@@ -172,6 +174,92 @@ end
 
     @test isempty(_coverageof(_dissolve(ArchGDAL.IGeometry[]),
                               LargestLandmass()))
+end
+
+@testset "the antimeridian is read off the widest gap, not assumed" begin
+    # A component's envelope is all `_regionbox` sees, so synthetic ones pin the rule exactly.
+    part(w, e) = (geometry = nothing,
+                  envelope = ArchGDAL.GDAL.OGREnvelope(w, e, 0.0, 10.0),
+                  area = 1.0km^2)
+
+    # An ordinary region: the widest empty stretch is the one outside it, so the box is plain.
+    plain = _regionbox([part(0.0, 10.0), part(20.0, 30.0)])
+    @test (plain.west, plain.east) == (0.0, 30.0)
+    @test !plain.wraps
+
+    # One straddling the date line arrives as components either side. Smallest-to-largest would say
+    # -180 to 180, which is true and useless; the tight box runs east from 170 through the line.
+    wrapped = _regionbox([part(170.0, 180.0), part(-180.0, -170.0)])
+    @test (wrapped.west, wrapped.east) == (170.0, -170.0)
+    @test wrapped.wraps
+    @test wrapped.west > wrapped.east      # how RFC 7946 writes a wrapping box
+
+    # Latitude has no seam and is never reinterpreted.
+    @test (plain.south, plain.north) == (0.0, 10.0)
+    @test isempty(_dissolve(ArchGDAL.IGeometry[])) &&
+          !_regionbox(EcoSISTEM._RegionPart[]).wraps
+end
+
+@testset "the shipped region table is well formed" begin
+    rows = collect(CSV.File(_regionspath()))
+    @test length(rows) > 2000
+
+    # A region is identified by its level and its name together, so that pair must be unique: two
+    # rows sharing it would make a lookup silently order-dependent.
+    ids = [(r.Level, lowercase(r.Name)) for r in rows]
+    @test length(unique(ids)) == length(ids)
+
+    # The table and the level table must describe the same set of levels. A level added to the code
+    # and not regenerated, or dropped from the code and left in the table, is a silent gap.
+    inconst = Set(l.name for l in EcoSISTEM.NATURALEARTH_LEVELS)
+    intable = Set(r.Level for r in rows)
+    @test intable ⊆ inconst
+    @test inconst ⊆ intable
+
+    # Each rule collects the rows that break it rather than asserting per row: 2 444 rows would
+    # otherwise contribute tens of thousands of assertions, and a failure that names the offender is
+    # more use than one that only counts.
+    label(r) = r.Level * "/" * r.Name
+    @test isempty([label(r)
+                   for r in rows
+                   if !(-90 <= r.South <= 90 && -90 <= r.North <= 90 &&
+                        -180 <= r.West <= 180 && -180 <= r.East <= 180)])
+    # Latitude has no seam, so south is always below north.
+    @test isempty([label(r) for r in rows if r.South > r.North])
+    # `West > East` is exactly the wrapping case, and `Wraps` must say so rather than leaving a
+    # consumer to infer it from the numbers.
+    @test isempty([label(r) for r in rows if (r.West > r.East) != r.Wraps])
+    @test isempty([label(r) for r in rows if r.Parts < 1 || r.AreaKm2 <= 0])
+end
+
+@testset "a table row describes its own largest components" begin
+    rows = collect(CSV.File(_regionspath()))
+    label(r) = r.Level * "/" * r.Name
+    described(r) = min(NPARTS, r.Parts)
+    areas(r) = [r[Symbol("Part$(i)Area")] for i in 1:described(r)]
+
+    # Components are written largest first, which is what lets `LargestLandmass` take a prefix.
+    @test isempty([label(r) for r in rows if !issorted(areas(r), rev = true)])
+    @test isempty([label(r) for r in rows if !all(>(0), areas(r))])
+
+    # They are components *of* the region, so each sits inside the region's own box - except where
+    # that box wraps, when "inside" is not a comparison of numbers.
+    @test isempty([label(r)
+                   for r in rows
+                   if !r.Wraps &&
+                      any(i -> r[Symbol("Part$(i)West")] < r.West ||
+                               r[Symbol("Part$(i)East")] > r.East,
+                          1:described(r))])
+
+    # Beyond the region's own component count the columns are blank, not zero: a zero would read as
+    # a real component of no area.
+    @test isempty([label(r)
+                   for r in rows
+                   if any(i -> !ismissing(r[Symbol("Part$(i)Area")]),
+                          (described(r) + 1):NPARTS)])
+
+    # The table would be pointless if every region had one component; it earns its width.
+    @test count(r -> r.Parts > 1, rows) > 500
 end
 
 end

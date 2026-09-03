@@ -1004,35 +1004,78 @@ const _RegionPart = @NamedTuple{geometry::ArchGDAL.IGeometry,
                                 envelope::ArchGDAL.GDAL.OGREnvelope,
                                 area::typeof(1.0km^2)}
 
-# Every geometry in `level`'s file whose naming attribute equals `value`.
+# Every feature of `level`'s file, grouped by the value of its naming attribute and keyed by the
+# lowercased form of it. Each group keeps the source's own spelling of the name alongside.
 #
-# Matching is case-insensitive because the physical file's own names are inconsistently cased -
-# `ALLEGHENY PLATEAU` sits beside `Adelie Coast` - so requiring the source's spelling would make
-# some names unreachable in practice. Geometries are cloned: an uncloned one borrows its feature's
-# storage and does not outlive the dataset.
-function _selectfeatures(level::NaturalEarthLevel, value::AbstractString)
-    dataset = ArchGDAL.read("/vsizip/" * assetpath(_nesource(level)))
-    lyr = ArchGDAL.getlayer(dataset, 0)
-    wanted = lowercase(value)
-    geoms = ArchGDAL.IGeometry[]
-    for feature in lyr
-        _fieldmatches(feature, level.field, wanted) || continue
-        isnothing(level.within) ||
-            _fieldmatches(feature, level.within.first,
-                          lowercase(level.within.second)) || continue
-        push!(geoms, ArchGDAL.clone(ArchGDAL.getgeom(feature)))
+# 🔴 This is the ONE place a name becomes geometry: `_selectfeatures` is a lookup into it and
+# `_levelvalues` reads its keys, so the shipped table's generator and a built shape cannot disagree
+# about which features a name covers.
+#
+# Grouped rather than filtered per name because selection is a linear scan - a shapefile carries no
+# attribute index - so answering every name separately costs the scan once per name. Measured on the
+# countries file: the scan is 33 ms of a 58 ms single selection, against 5.6 ms to open the zip, so
+# grouping is where the generator's time is, not caching the open.
+const _REGION_GROUPS = Dict{String,
+                            Dict{String,
+                                 @NamedTuple{name::String,
+                                             geometries::Vector{ArchGDAL.IGeometry}}}}()
+
+# Memoised per level. One level's geometries are held for the process's life, which is a few tens of
+# megabytes for the largest file; a session touches one or two levels, and the shipped region table
+# answers a bounding box without coming here at all.
+function _groupfeatures(level::NaturalEarthLevel)
+    return get!(_REGION_GROUPS, level.name) do
+        dataset = ArchGDAL.read("/vsizip/" * assetpath(_nesource(level)))
+        lyr = ArchGDAL.getlayer(dataset, 0)
+        groups = Dict{String,
+                      @NamedTuple{name::String,
+                                  geometries::Vector{ArchGDAL.IGeometry}}}()
+        for feature in lyr
+            isnothing(level.within) ||
+                _fieldmatches(feature, level.within.first,
+                              lowercase(level.within.second)) || continue
+            name = _fieldvalue(feature, level.field)
+            # "-99" is Natural Earth's unset marker. Left in, it would become a region of its own
+            # holding every unassigned feature - a name that looks real and spans the globe.
+            (isnothing(name) || isempty(name) || name == "-99") && continue
+            group = get!(groups, lowercase(name)) do
+                return (name = name, geometries = ArchGDAL.IGeometry[])
+            end
+            push!(group.geometries, ArchGDAL.clone(ArchGDAL.getgeom(feature)))
+        end
+        return groups
     end
-    return geoms
 end
 
-# Whether `feature`'s `field` holds `wanted`, which must already be lowercased. A field absent from
-# the layer gives an index of -1 rather than raising, and a null cell gives `nothing`; neither
-# matches anything.
-function _fieldmatches(feature, field::AbstractString, wanted::AbstractString)
+# The geometries `value` names at `level`, empty where the name does not exist there - a name absent
+# from a level is a legitimate answer, not an error: the United Kingdom has no map unit of its own.
+#
+# Matching is case-insensitive because the physical file's own names are inconsistently cased -
+# `ALLEGHENY PLATEAU` sits beside `Adelie Coast` - so requiring the source's spelling would make some
+# names unreachable in practice.
+function _selectfeatures(level::NaturalEarthLevel, value::AbstractString)
+    group = get(_groupfeatures(level), lowercase(value), nothing)
+    return isnothing(group) ? ArchGDAL.IGeometry[] : group.geometries
+end
+
+# Every name defined at `level`, in the source's own spelling, sorted for a stable table.
+function _levelvalues(level::NaturalEarthLevel)
+    return sort!([g.name for g in values(_groupfeatures(level))])
+end
+
+# The string in `feature`'s `field`, or `nothing` where the field is absent from the layer or the
+# cell is null. A missing field gives an index of -1 rather than raising.
+function _fieldvalue(feature, field::AbstractString)
     i = ArchGDAL.findfieldindex(feature, field)
-    (isnothing(i) || i < 0) && return false
+    (isnothing(i) || i < 0) && return nothing
     value = ArchGDAL.getfield(feature, i)
-    return !isnothing(value) && lowercase(string(value)) == wanted
+    return isnothing(value) ? nothing : string(value)
+end
+
+# Whether `feature`'s `field` holds `wanted`, which must already be lowercased.
+function _fieldmatches(feature, field::AbstractString, wanted::AbstractString)
+    value = _fieldvalue(feature, field)
+    return !isnothing(value) && lowercase(value) == wanted
 end
 
 # Repair a geometry GEOS would refuse to operate on.
@@ -1073,6 +1116,47 @@ function _equalarea(g)
         return ArchGDAL.transform!(projected, ct)
     end
     return uconvert(km^2, ArchGDAL.geomarea(projected) * m^2)
+end
+
+# The bounding box of a set of components, and whether it crosses the antimeridian.
+#
+# Natural Earth splits its polygons at the date line, so a region reaching across it arrives as
+# components either side and a naive smallest-to-largest longitude spans the globe: the United
+# States would read -179.14 to 179.78, which is true and useless.
+#
+# The east-west extent is therefore taken as the complement of the *widest* longitude gap. Where that
+# gap is the one running the long way round outside the data, the box is ordinary; where the widest
+# gap lies inside it, the box wraps and `west > east`, which is how RFC 7946 writes one. Latitude
+# needs none of this, having no seam.
+function _regionbox(parts)
+    isempty(parts) &&
+        return (west = nothing, south = nothing, east = nothing,
+                north = nothing,
+                wraps = false)
+    south = minimum(p -> p.envelope.MinY, parts)
+    north = maximum(p -> p.envelope.MaxY, parts)
+    spans = sort!([(p.envelope.MinX, p.envelope.MaxX) for p in parts],
+                  by = first)
+    merged = Tuple{Float64, Float64}[]
+    for (lo, hi) in spans
+        if !isempty(merged) && lo <= merged[end][2]
+            merged[end] = (merged[end][1], max(merged[end][2], hi))
+        else
+            push!(merged, (lo, hi))
+        end
+    end
+    lo, hi = merged[1][1], merged[end][2]
+    # The gap outside the data, running the long way round through the date line.
+    widest, atgap = 360.0 - (hi - lo), 0
+    for i in 1:(length(merged) - 1)
+        gap = merged[i + 1][1] - merged[i][2]
+        gap > widest && ((widest, atgap) = (gap, i))
+    end
+    atgap == 0 &&
+        return (west = lo, south = south, east = hi, north = north,
+                wraps = false)
+    return (west = merged[atgap + 1][1], south = south, east = merged[atgap][2],
+            north = north, wraps = true)
 end
 
 # The components a coverage asks for. `parts` must already be ordered largest first, as `_dissolve`

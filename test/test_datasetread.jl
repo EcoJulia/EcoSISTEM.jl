@@ -156,7 +156,8 @@ if !Sys.iswindows()
     # real file: the vector-lookup condition that triggers it cannot be reproduced synthetically.
     @testset "a coarsened read can be cut (Regular span with real bounds)" begin
         L = DimensionalData.Lookups
-        scotland = EcoSISTEM.boundingbox("Scotland", islands = true)
+        scotland = EcoSISTEM.boundingbox("Scotland",
+                                         coverage = AllTerritories())
         whole = read(EarthEnv{LandCover}, 7)
         for d in (Y, X)
             @test L.span(dims(whole.array, d)) isa L.Regular
@@ -211,7 +212,7 @@ if !Sys.iswindows()
     # shipped source that exercises it.
     @testset "a windowed read equals the whole read cropped" begin
         CP = EcoSISTEM
-        scot = CP.boundingbox("Scotland", islands = true)
+        scot = CP.boundingbox("Scotland", coverage = AllTerritories())
         for (src, code) in ((WorldClim{BioClim}, :bio1),   # scale 1
             (EarthEnv{LandCover}, 7))      # scale 10 - block alignment
             whole = EcoSISTEM._read(SourceSpec(src, code))

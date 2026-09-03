@@ -1,11 +1,33 @@
 # NEWS
 
-- v0.6.2
+- v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name
       almost never denotes one connected piece of ground - "France" includes Guadeloupe, "Norway"
       includes Bouvet Island in the South Atlantic - so a selection either takes everything the name
-      covers, or the largest connected pieces of ground it covers. Nothing reads them yet.
+      covers, or the largest connected pieces of ground it covers.
+  - Changed
+    - **`boundingbox` is breaking.** Its `islands::Bool` keyword becomes `coverage`, taking
+      `LargestLandmass()` (the default, as `islands = false` was) or `AllTerritories()`; it gains a
+      `level` keyword saying what kind of region a name means; and its values move, because they now
+      come from Natural Earth rather than from a hand-made file. Mainland extents are within about
+      0.02 degrees of the old ones, but island-inclusive extents can move much further - Scotland's
+      western edge goes from -8.65 to -13.69, which is Rockall.
+
+      Five names are gone, having had no Natural Earth equivalent: `UK` is `"United Kingdom"`,
+      `NI` is `"Northern Ireland"`, `SouthAmerica` is `"South America"`, `GB` is
+      `boundingbox("United Kingdom", coverage = LargestLandmass())` or the physical island
+      `boundingbox("GREAT BRITAIN", level = "Physical Island")`, and `BritishIsles` has to be
+      assembled, Natural Earth's own polygon of that name cutting off Shetland.
+
+      A name meaning genuinely different ground at different levels is now refused rather than
+      guessed at, and the error tabulates what each level would give so that the choice can be made
+      from the message: as a continent "Africa" is 55 countries and as a UN region 62, whose full
+      extents differ by 54 degrees of longitude. The comparison is against the coverage asked for,
+      not the whole selection, so a name is only refused when the answer you actually requested is
+      ambiguous. A name whose levels agree, such as "Scotland", still needs no level. A region
+      crossing the antimeridian is refused too, since an `Extents.Extent` holds an interval and
+      cannot express one.
   - Fixed
     - Hot loop allocation fix. `GridHabitat` now carries the topology's type as a parameter.
     - Speed-up for `ShapeSpec` mask building.

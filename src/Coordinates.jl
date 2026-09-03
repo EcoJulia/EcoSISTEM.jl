@@ -141,38 +141,57 @@ getlat(p::LatLong) = p.y
 @doc (@doc getlat) getlong(p::LatLong) = p.x
 
 # --- Named regions -------------------------------------------------------------------------------
-# A region's geographic extent, looked up by name from the shipped `data/bounding_boxes.csv`. Here
-# rather than with the readers because it is geographic vocabulary, not climate data: it names no
-# dataset and reads no raster, and what it returns is the `Extents.Extent` this file already deals in.
+# A region's geographic extent, looked up by name from the shipped `data/NaturalEarth/regions.csv`.
+# Here rather than with the readers because it is geographic vocabulary, not climate data: it names
+# no dataset and reads no raster, and what it returns is the `Extents.Extent` this file deals in.
 
 """
-    boundingbox(region::AbstractString; islands = false, round = false)
+    boundingbox(region::AbstractString; level = nothing, coverage = LargestLandmass(),
+                round = false)
 
 Return a named region's geographic bounding box, as an `Extents.Extent` of `°` intervals ready to
 pass as the `cut` keyword to [`read`](@ref) and the other raster readers.
 
-Rounding onto a source's own lattice is what lets a layer be **aggregated** exactly rather than
-resampled: WorldClim's cells are 10 arcminutes, EarthEnv's and CHELSA's 30 arcseconds.
+The answer costs no download: it is read from a table generated from Natural Earth's own polygons at
+1:10m, so the box agrees with the shape the same name gives. Rounding onto a source's own lattice is
+what lets a layer be **aggregated** exactly rather than resampled: WorldClim's cells are 10
+arcminutes, EarthEnv's and CHELSA's 30 arcseconds.
 
 # Arguments
 
-  - `region`: the region's name, as it appears in the shipped `data/bounding_boxes.csv`.
-  - `islands`: `true` for the island-inclusive extent - the table's `Islands` coverage - and `false`,
-    the default, for the mainland one.
+  - `region`: the region's name, matched case-insensitively.
+  - `level`: which kind of region the name means - `"ADMIN"` for a country, `"SUBUNIT"` for a
+    constituent country, `"Physical Island"` for a landmass, and so on;
+    `EcoSISTEM.NATURALEARTH_LEVELS` lists them all. Optional, and only needed where a name means
+    genuinely different ground at different levels: "Scotland" is the same box whether asked for as
+    a map unit or a map subunit, while "Africa" as a continent stops 54 degrees west of "Africa" as
+    a UN region, and naming a level is then required rather than guessed at.
+  - `coverage`: how much of what the name covers to take - [`LargestLandmass`](@ref), the default,
+    for the principal landmass alone, or [`AllTerritories`](@ref) for every scattered territory too.
   - `round`: an angular step to snap the box **outwards** onto, so the result fully contains the
-    exact box. Any angular unit will do: `round = 5°`, `round = 10arcminute`, `round = 30arcsecond`.
-    The result is in degrees whichever was used. `false`, the default, leaves it unrounded.
+    exact box. Any angular unit will do: `round = 5°`, `round = 10arcminute`,
+    `round = 30arcsecond`. The result is in degrees whichever was used. `false`, the default, leaves
+    it unrounded.
 """
-function boundingbox(region::AbstractString; islands::Bool = false,
+function boundingbox(region::AbstractString; level = nothing,
+                     coverage::AbstractCoverage = LargestLandmass(),
                      round = false)
-    coverage = islands ? "Islands" : "Mainland"
-    table = CSV.File(pkgdir(@__MODULE__, "data", "bounding_boxes.csv"))
-    matches = filter(r -> r.Region == region && r.Coverage == coverage, table)
-    isempty(matches) &&
-        error("No bounding box for region \"$region\" ($coverage) in bounding_boxes.csv")
-    row = only(matches)
-    south, north = row.South * °, row.North * °
-    west, east = row.West * °, row.East * °
+    lvl = isnothing(level) ? _resolvelevel(region, coverage) : String(level)
+    row = _regionrow(lvl, region)
+    isnothing(row) &&
+        error("No region named \"$region\" at level \"$lvl\". " *
+              "`EcoSISTEM.NATURALEARTH_LEVELS` lists the levels.")
+    box = _coveragebox(row, coverage, region, lvl)
+    # An `Extents.Extent` states an interval, and an interval cannot run the long way round: a
+    # wrapping region written into one would read as empty, or as its own complement. Refusing is
+    # the only honest answer, and the two halves are what a caller needs to proceed.
+    box.wraps &&
+        error("\"$region\" ($lvl) crosses the antimeridian, from $(box.west)° east to " *
+              "$(box.east)°, so it has no bounding box that is a single interval of longitude. " *
+              "Read the two halves separately ($(box.west)° to 180° and -180° to $(box.east)°), " *
+              "or take `coverage = LargestLandmass()`, which cannot wrap.")
+    south, north = box.south * °, box.north * °
+    west, east = box.west * °, box.east * °
     if round !== false
         south, west = _snapout(floor, south, round),
                       _snapout(floor, west, round)

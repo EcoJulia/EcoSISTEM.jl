@@ -18,6 +18,8 @@ using Unitful
 
 using Unitful.DefaultSymbols
 
+using CSV
+
 # ---------------------------------------------------------------------------
 # Coverage
 # ---------------------------------------------------------------------------
@@ -186,6 +188,45 @@ function _physicallevel(class::AbstractString)
                              "FEATURECLA" => class)
 end
 
+# The nine cultural levels and the physical ones, assembled in report order.
+#
+# Written as calls to a local `add` rather than as one array literal: the literal aligns every
+# continuation line to its opening bracket, which put the descriptions past column 100.
+function _buildlevels()
+    levels = NaturalEarthLevel[]
+    function add(name, dataset, field, kind, description)
+        return push!(levels,
+                     NaturalEarthLevel(name, dataset, "cultural", field, kind,
+                                       description, nothing))
+    end
+    add("CONTINENT", _NE_COUNTRIES, "CONTINENT", :political,
+        "Continental grouping of whole countries. It assigns each country entire, so all of " *
+        "Russia falls in Europe; the physical \"Continent\" level is the geographic alternative.")
+    add("REGION_UN", _NE_COUNTRIES, "REGION_UN", :statistical,
+        "Region of the UN geoscheme, the grouping used for UN statistics.")
+    add("SUBREGION", _NE_COUNTRIES, "SUBREGION", :statistical,
+        "Subregion of the UN geoscheme, a division of REGION_UN.")
+    add("REGION_WB", _NE_COUNTRIES, "REGION_WB", :statistical,
+        "Region as the World Bank groups countries.")
+    add("SOVEREIGNT", _NE_SOVEREIGNTY, "SOVEREIGNT", :political,
+        "Sovereign state, taking in every territory it is sovereign over.")
+    add("ADMIN", _NE_COUNTRIES, "ADMIN", :political,
+        "Country as Natural Earth maps it, including overseas departments and remote territories.")
+    add("GEOUNIT", _NE_MAP_UNITS, "GEOUNIT", :political,
+        "Map unit: a country split where its parts are mapped separately, which is what separates " *
+        "metropolitan France from its overseas departments.")
+    add("SUBUNIT", _NE_MAP_SUBUNITS, "SUBUNIT", :political,
+        "Map subunit, the finest split of a country Natural Earth offers, and what gives the " *
+        "constituent countries of the United Kingdom.")
+    add("ISO_A3", _NE_COUNTRIES, "ISO_A3_EH", :code,
+        "ISO 3166-1 alpha-3 country code, for looking a country up by code rather than by name. " *
+        "Read from the source's ISO_A3_EH field rather than its ISO_A3, which is unset for 22 " *
+        "countries against 14 - France and Norway among the eight it recovers. The 14 that remain " *
+        "have no assigned code, Kosovo and Somaliland among them, and are absent from this level.")
+    append!(levels, map(_physicallevel, _NE_PHYSICAL_CLASSES))
+    return levels
+end
+
 """
     NATURALEARTH_LEVELS
 
@@ -194,76 +235,7 @@ Every kind of named region the shipped region table covers, in the order they ar
 The cultural levels come first, coarsest grouping to finest division, then the physical landform
 classes. A level's `name` is what the table's own `Level` column holds.
 """
-const NATURALEARTH_LEVELS = NaturalEarthLevel[NaturalEarthLevel("CONTINENT",
-                                                                _NE_COUNTRIES,
-                                                                "cultural",
-                                                                "CONTINENT",
-                                                                :political,
-                                                                "Continental grouping of whole countries. It assigns each country entire, so " *
-                                                                "all of Russia falls in Europe; the physical \"Continent\" level is the " *
-                                                                "geographic alternative.",
-                                                                nothing),
-                                              NaturalEarthLevel("REGION_UN",
-                                                                _NE_COUNTRIES,
-                                                                "cultural",
-                                                                "REGION_UN",
-                                                                :statistical,
-                                                                "Region of the UN geoscheme, the grouping used for UN statistics.",
-                                                                nothing),
-                                              NaturalEarthLevel("SUBREGION",
-                                                                _NE_COUNTRIES,
-                                                                "cultural",
-                                                                "SUBREGION",
-                                                                :statistical,
-                                                                "Subregion of the UN geoscheme, a division of REGION_UN.",
-                                                                nothing),
-                                              NaturalEarthLevel("REGION_WB",
-                                                                _NE_COUNTRIES,
-                                                                "cultural",
-                                                                "REGION_WB",
-                                                                :statistical,
-                                                                "Region as the World Bank groups countries.",
-                                                                nothing),
-                                              NaturalEarthLevel("SOVEREIGNT",
-                                                                _NE_SOVEREIGNTY,
-                                                                "cultural",
-                                                                "SOVEREIGNT",
-                                                                :political,
-                                                                "Sovereign state, taking in every territory it is sovereign over.",
-                                                                nothing),
-                                              NaturalEarthLevel("ADMIN",
-                                                                _NE_COUNTRIES,
-                                                                "cultural",
-                                                                "ADMIN",
-                                                                :political,
-                                                                "Country as Natural Earth maps it, including overseas departments and " *
-                                                                "remote territories.",
-                                                                nothing),
-                                              NaturalEarthLevel("GEOUNIT",
-                                                                _NE_MAP_UNITS,
-                                                                "cultural",
-                                                                "GEOUNIT",
-                                                                :political,
-                                                                "Map unit: a country split where its parts are mapped separately, which is " *
-                                                                "what separates metropolitan France from its overseas departments.",
-                                                                nothing),
-                                              NaturalEarthLevel("SUBUNIT",
-                                                                _NE_MAP_SUBUNITS,
-                                                                "cultural",
-                                                                "SUBUNIT",
-                                                                :political,
-                                                                "Map subunit, the finest split of a country Natural Earth offers, and what " *
-                                                                "gives the constituent countries of the United Kingdom.",
-                                                                nothing),
-                                              NaturalEarthLevel("ISO_A3",
-                                                                _NE_COUNTRIES,
-                                                                "cultural",
-                                                                "ISO_A3", :code,
-                                                                "ISO 3166-1 alpha-3 country code, for looking a country up by code rather " *
-                                                                "than by name.",
-                                                                nothing),
-                                              map(_physicallevel,
-                                                  _NE_PHYSICAL_CLASSES)...]
+const NATURALEARTH_LEVELS = _buildlevels()
 
 # The level of this name, or `nothing`. Matched case-insensitively because the physical file's own
 # names are inconsistently cased, and a caller cannot be expected to reproduce that.
@@ -280,4 +252,111 @@ function _nesource(level::NaturalEarthLevel)
                 level.dataset * ".zip"),
                "/")
     return CachedAsset(NaturalEarthLevel, url)
+end
+
+# ---------------------------------------------------------------------------
+# The shipped table
+# ---------------------------------------------------------------------------
+
+# How many of the largest components the table describes individually. Kept in step with the
+# generator, `examples/scripts/naturalearth_regions.jl`, which writes that many columns.
+const NPARTS = 5
+
+_regionspath() = pkgdir(@__MODULE__, "data", "NaturalEarth", "regions.csv")
+
+# The parsed table, indexed as level -> lowercased name -> row, and the levels each name appears at.
+#
+# Memoised because a bounding box is looked up per build and re-reading 2 444 rows each time is what
+# would make the lookup cost milliseconds rather than microseconds - the same reason `_layertable`
+# caches the layer catalogue.
+const _REGION_INDEX = Ref{Any}(nothing)
+
+function _regionindex()
+    isnothing(_REGION_INDEX[]) || return _REGION_INDEX[]
+    bylevel = Dict{String, Dict{String, Any}}()
+    bynames = Dict{String, Vector{String}}()
+    for row in CSV.File(_regionspath())
+        get!(bylevel, row.Level, Dict{String, Any}())[lowercase(row.Name)] = row
+        push!(get!(bynames, lowercase(row.Name)) do
+                  return String[]
+              end, row.Level)
+    end
+    _REGION_INDEX[] = (bylevel = bylevel, bynames = bynames)
+    return _REGION_INDEX[]
+end
+
+# The row for a name at a stated level, or `nothing` if the name is not defined there.
+function _regionrow(level::AbstractString, name::AbstractString)
+    byname = get(_regionindex().bylevel, level, nothing)
+    return isnothing(byname) ? nothing : get(byname, lowercase(name), nothing)
+end
+
+# The extent a coverage asks for, out of a table row.
+#
+# `AllTerritories` is the whole selection, which the row states directly. `LargestLandmass` unions
+# the row's largest components, which it carries individually up to `NPARTS`; asking for more than
+# that, but fewer than the region has, is the one question the table cannot answer, since the rest
+# were never written down.
+function _coveragebox(row, ::AllTerritories, region, lvl)
+    return (west = row.West, south = row.South, east = row.East,
+            north = row.North,
+            wraps = row.Wraps)
+end
+
+function _coveragebox(row, c::LargestLandmass, region, lvl)
+    c.count >= row.Parts &&
+        return (west = row.West, south = row.South, east = row.East,
+                north = row.North, wraps = row.Wraps)
+    c.count > NPARTS &&
+        error("\"$region\" ($lvl) has $(row.Parts) separate components, and the shipped table " *
+              "describes only the largest $NPARTS individually, so a box for the largest " *
+              "$(c.count) cannot be given. Ask for $NPARTS or fewer, or for " *
+              "`AllTerritories()`, or build the shape itself.")
+    west = minimum(i -> row[Symbol("Part$(i)West")], 1:(c.count))
+    south = minimum(i -> row[Symbol("Part$(i)South")], 1:(c.count))
+    east = maximum(i -> row[Symbol("Part$(i)East")], 1:(c.count))
+    north = maximum(i -> row[Symbol("Part$(i)North")], 1:(c.count))
+    # A component cannot cross the date line, Natural Earth having split its polygons there, so a
+    # union of components has an honest west-to-east interval however scattered they are.
+    return (west = west, south = south, east = east, north = north,
+            wraps = false)
+end
+
+# Which level a bare name means, for the coverage being asked for.
+#
+# A name may be defined at several levels, and most that are give the *same* answer at all of them -
+# "Scotland" is both a map unit and a map subunit of the same ground - so requiring a level there
+# would be ceremony for nothing. Where they genuinely disagree there is no defensible choice to make
+# on the caller's behalf, and it is an error showing what each would give.
+#
+# The comparison is of the boxes the *requested coverage* produces, not of the whole selections,
+# because that is what the caller will receive. It matters: "Africa" is 55 countries as a continent
+# and 62 as a UN region, whose full extents differ by 54 degrees of longitude - but both have the
+# same principal landmass, so asking for that one is not ambiguous at all and is answered.
+function _resolvelevel(name::AbstractString, coverage::AbstractCoverage)
+    levels = get(_regionindex().bynames, lowercase(name), String[])
+    isempty(levels) &&
+        error("No region named \"$name\" at any level. Names are matched case-insensitively but " *
+              "must otherwise be the source's own - \"United Kingdom\" rather than \"UK\", " *
+              "\"South America\" rather than \"SouthAmerica\". " *
+              "`EcoSISTEM.NATURALEARTH_LEVELS` lists the levels a name may be defined at.")
+    length(levels) == 1 && return levels[1]
+    rows = [_regionrow(l, name) for l in levels]
+    boxes = [_coveragebox(r, coverage, name, l) for (r, l) in zip(rows, levels)]
+    allequal((b.west, b.south, b.east, b.north) for b in boxes) &&
+        return levels[1]
+    return error("\"$name\" means different regions at different levels, and the extents they " *
+                 "give for $coverage disagree:\n" *
+                 _levelchoices(levels, rows, boxes) *
+                 "Name one with `level = \"...\"`.")
+end
+
+# The candidate levels as a table, so that a caller can choose without looking anything up. Each
+# line names the level, the source's own spelling of the name there, and the box it would give.
+function _levelchoices(levels, rows, boxes)
+    width = maximum(length, levels)
+    return join(["    " * rpad(l, width) * "  " * rpad(r.Name, 18) *
+                 "W " * lpad(b.west, 9) * "  S " * lpad(b.south, 8) *
+                 "  E " * lpad(b.east, 9) * "  N " * lpad(b.north, 8) * "\n"
+                 for (l, r, b) in zip(levels, rows, boxes)])
 end

@@ -541,7 +541,8 @@ end
         # (12.5 GB, and an error): the mask is materialised at native resolution to decide the extent,
         # so a coarser target grid arrives too late. `extent` is refused by construction, being a size
         # rather than a bounding box.
-        scotland = EcoSISTEM.boundingbox("Scotland", islands = true)
+        scotland = EcoSISTEM.boundingbox("Scotland",
+                                         coverage = AllTerritories())
         landmask = ConstructedSpec(
                                    SourceSpec(EarthEnv{LandCover},
                                               cut = scotland,

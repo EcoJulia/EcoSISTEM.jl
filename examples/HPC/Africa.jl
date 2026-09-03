@@ -102,7 +102,7 @@ const TEMPERATURE = SourceSpec(WorldClim{BioClim}, :bio1)
 const SUNLIGHT = UniformSpec(1000.0kJ / km^2 / day, axis = SolarRadiation)
 # `within` positions the area and is not optional: WorldClim is global, so without it the grid
 # would be the world.
-const WITHIN = EcoSISTEM.boundingbox("Africa")
+const WITHIN = EcoSISTEM.boundingbox("Africa", level = "CONTINENT")
 # A projected CRS is required to simulate - dispersal assumes one uniform cell size, and a degree
 # cell's real extent shrinks towards the poles. EPSG:10592 (WGS 84 / GLANCE Africa) is the package's
 # own suggestion for this extent.

@@ -87,7 +87,7 @@ end
 # cell short at each snapped edge. Guarded: it needs the real global layers.
 if !Sys.iswindows()
     @testset "windowing the reads does not change the answer" begin
-        scot = EcoSISTEM.boundingbox("Scotland", islands = true)
+        scot = EcoSISTEM.boundingbox("Scotland", coverage = AllTerritories())
         for (src, code) in ((WorldClim{BioClim}, :bio1),   # scale 1
             (EarthEnv{LandCover}, 7))      # scale 10 - aggregation blocks
             # An already-read raster cannot be windowed, so this is the unwindowed reference.

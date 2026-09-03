@@ -55,7 +55,8 @@ const RAINFALL = SourceSpec(WorldClim{BioClim}, :bio12)
 # advice for this extent. `within` positions the area - WorldClim is global - and the land mask now
 # comes from the layers' own coverage rather than from a hand-built `.!isnan.(...)` matrix.
 const AREA = StudyArea(regime = TEMPERATURE, supply = RAINFALL,
-                       within = EcoSISTEM.boundingbox("Africa"),
+                       within = EcoSISTEM.boundingbox("Africa",
+                                                      level = "CONTINENT"),
                        crs = EPSG(10592), cellsize = 50.0km)
 
 const ENVIRONMENT = GridHabitat(regime = TEMPERATURE, supply = RAINFALL,
