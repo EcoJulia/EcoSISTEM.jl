@@ -739,6 +739,41 @@ end
 (r::Overlaps)(region) = Extents.overlaps(region, r.extent)
 (r::Within)(region) = Extents.within(region, r.extent)
 
+# The same three questions asked of real geometry rather than of boxes, for `exact = true`.
+#
+# ArchGDAL has no `covers`, and its `contains` excludes the boundary - the same trap `Extents`
+# sets - so containment is written as "no part of the one lies outside the other", which is exact
+# and boundary-inclusive. ⚠️ And GEOS `overlaps` means *partial* overlap, excluding containment,
+# which is not what `Overlaps` means here: sharing ground is a positive intersection area.
+function _exactencloses(region, subject)
+    return ArchGDAL.isempty(ArchGDAL.difference(subject,
+                                                region))
+end
+
+function (r::Encloses)(region::ArchGDAL.AbstractGeometry)
+    return _exactencloses(region,
+                          _subjectgeometry(r))
+end
+
+function (r::Within)(region::ArchGDAL.AbstractGeometry)
+    return _exactencloses(_subjectgeometry(r), region)
+end
+
+function (r::Overlaps)(region::ArchGDAL.AbstractGeometry)
+    return ArchGDAL.geomarea(ArchGDAL.intersection(region, _subjectgeometry(r))) >
+           0
+end
+
+# The subject as geometry: a rectangle, or a point where the extent has no width. Cached on first
+# use, since every refinement in a query asks for the same one.
+function _subjectgeometry(r::AbstractSpatialRelation)
+    e = r.extent
+    w, s, x, n = ustrip(°, e.X[1]), ustrip(°, e.Y[1]), ustrip(°, e.X[2]),
+                 ustrip(°, e.Y[2])
+    (w == x && s == n) && return ArchGDAL.createpoint(w, s)
+    return ArchGDAL.fromWKT("POLYGON (($w $s, $x $s, $x $n, $w $n, $w $s))")
+end
+
 function Base.show(io::IO, r::AbstractSpatialRelation)
     return print(io, nameof(typeof(r)), "(",
                  r.extent, ")")
@@ -789,11 +824,19 @@ those gives a [`RegionMatch`](@ref), which is what [`NaturalEarthSpec`](@ref) ac
 
   - `relation`: the question that was asked, including what it was asked about.
   - `matches`: the regions that answered it, ordered as described in [`investigate_regions`](@ref).
+  - `exact`: whether the answer was checked against the regions' real outlines rather than their
+    bounding boxes.
+  - `refined`: how many candidates had their geometry fetched to answer it. Zero unless `exact`.
 """
 struct RegionReport{R <: Union{AbstractSpatialRelation, Nothing}, M}
     relation::R
     matches::Vector{M}
+    exact::Bool
+    refined::Int
 end
+
+# A report that was answered from boxes alone, which is every report but an `exact = true` query.
+RegionReport(relation, matches) = RegionReport(relation, matches, false, 0)
 
 Base.length(r::RegionReport) = length(r.matches)
 Base.getindex(r::RegionReport, i) = r.matches[i]
@@ -818,8 +861,8 @@ entirely.
 !!! warning "The answer is about boxes, not outlines"
     Every region is compared by its bounding box, because that is what costs no download. A box can
     be far larger than the ground it names: Chile's spans 43 degrees of longitude because of Easter
-    Island, so a query "overlapping" Chile may share no Chilean land at all. Build the shape with
-    [`NaturalEarthSpec`](@ref) when the difference matters.
+    Island, so a query "overlapping" Chile may share no Chilean land at all. Pass `exact = true` to
+    check against the real outlines instead, or build the shape with [`NaturalEarthSpec`](@ref).
 
 # Arguments
 
@@ -828,34 +871,112 @@ entirely.
   - `kind`: restrict to levels of one sort - `:political`, `:statistical`, `:physical` or `:code`.
   - `limit`: how many matches to keep. A continental query can match hundreds, and the ordering puts
     the useful ones first.
+  - `exact`: check the surviving candidates against the regions' **real outlines** instead of their
+    boxes, which needs the geometry and so downloads. It removes the false positives a box tier
+    cannot avoid - Norway's box encloses Edinburgh, its coastline does not - and reaches the 54
+    regions that cross the antimeridian, which have no box a query can compare at all.
+
+    Refinement is lazy and in box order, stopping as soon as the answer cannot change: refining only
+    ever removes a match or shrinks its overlap, so a confirmed `limit` cannot be displaced by
+    anything later. The report says how many regions it had to fetch.
 """
 function investigate_regions(relation::AbstractSpatialRelation; level = nothing,
-                             kind = nothing, limit::Integer = 20)
+                             kind = nothing, limit::Integer = 20,
+                             exact::Bool = false)
     wanted = isnothing(level) ? nothing : _checklevel(level).name
-    matches = RegionMatch[]
+    candidates = RegionMatch[]
     for l in NATURALEARTH_LEVELS
         isnothing(wanted) || l.name == wanted || continue
         isnothing(kind) || l.kind === kind || continue
         byname = get(_regionindex().bylevel, l.name, nothing)
         isnothing(byname) && continue
         for row in values(byname)
-            # A wrapping row has no box that is a single interval, so it cannot be compared at all.
-            # Skipped rather than guessed at, which is what `boundingbox` does with the same rows.
-            row.Wraps && continue
+            # A wrapping row has no box that is a single interval, so the box tier cannot compare it
+            # at all - it is skipped there, as `boundingbox` skips the same rows. Geometry has no
+            # such problem, Natural Earth having split its polygons at the date line, so `exact`
+            # reaches 54 regions that are otherwise invisible.
             box = _rowextent(row)
-            relation(box) || continue
+            if row.Wraps
+                exact || continue
+            else
+                relation(box) || continue
+            end
             # A region matches itself under `Encloses` and `Within`, both being reflexive. Excluded
             # by identity rather than by extent: distinct regions legitimately share a box, and
             # dropping those would delete real answers.
             _issubject(relation, l, row) && continue
-            push!(matches,
+            push!(candidates,
                   RegionMatch{typeof(box)}(l, row.Name, box, row.AreaKm2 * km^2,
                                            row.Parts,
-                                           _overlaparea(box, relation.extent)))
+                                           _overlaparea(box, relation.extent,
+                                                        row.Wraps)))
         end
     end
-    _ordermatches!(matches, relation)
-    return RegionReport(relation, matches[1:min(limit, length(matches))])
+    _ordermatches!(candidates, relation)
+    exact ||
+        return RegionReport(relation,
+                            candidates[1:min(limit, length(candidates))])
+    return _refineexactly(relation, candidates, limit)
+end
+
+# Refine box matches against real geometry, lazily and in box order, stopping as soon as the answer
+# cannot change.
+#
+# Refinement only ever **removes** a match or **shrinks** its overlap, never the reverse, which is
+# what makes an early stop exact rather than an approximation:
+#
+#   - `Encloses` and `Within` order by the region's own area, which refinement does not touch. Once
+#     `limit` candidates have survived, nothing later in the order can displace them.
+#   - `Overlaps` orders by shared area, which refinement does change - but only downwards, since the
+#     true shared ground lies inside both boxes. So a box overlap bounds the true one, and the scan
+#     can stop once every confirmed match beats the best any remaining candidate could reach.
+#
+# Without this a continental `Overlaps` query would fetch 617 regions' geometry to report 20.
+function _refineexactly(relation, candidates, limit)
+    confirmed = RegionMatch[]
+    refined = 0
+    for m in candidates
+        length(confirmed) >= limit && _canstop(relation, confirmed, m, limit) &&
+            break
+        refined += 1
+        geom = _regiongeometryof(m)
+        relation(geom) || continue
+        push!(confirmed, _withexactoverlap(relation, m, geom))
+        _ordermatches!(confirmed, relation)
+    end
+    return RegionReport(relation, confirmed[1:min(limit, length(confirmed))],
+                        true, refined)
+end
+
+# Whether the scan can stop. For the two area-ordered relations the order is fixed, so having enough
+# is enough; for `Overlaps` the weakest confirmed match must already beat the best the next
+# candidate could possibly turn out to be, which is its box overlap.
+_canstop(::Encloses, confirmed, next, limit) = true
+_canstop(::Within, confirmed, next, limit) = true
+
+function _canstop(::Overlaps, confirmed, next, limit)
+    isnothing(next.overlap) && return false
+    return confirmed[limit].overlap >= next.overlap
+end
+
+# The region's own outline, in WGS84, merged into one geometry.
+#
+# Deliberately not `_dissolve`: that merges, splits into components and measures each one's area on
+# an equal-area projection, and a predicate reads none of that. On a continent it is a transform per
+# component - 858 of them for Asia - for an answer thrown away.
+function _regiongeometryof(m::RegionMatch)
+    return _mergegeoms(_selectfeatures(_findlevel(m.level.name), m.name))
+end
+
+# The match with its overlap replaced by the real shared area, which is what `Overlaps` orders by.
+# The other two order by the region's own area, so the intersection is computed only where it will
+# be read - it costs a geometry operation per candidate.
+_withexactoverlap(relation, m::RegionMatch, geom) = m
+
+function _withexactoverlap(r::Overlaps, m::RegionMatch{E}, geom) where {E}
+    shared = ArchGDAL.intersection(geom, _subjectgeometry(r))
+    return RegionMatch{E}(m.level, m.name, m.extent, m.area, m.parts,
+                          _equalarea(shared))
 end
 
 function investigate_regions(x; kw...)
@@ -884,6 +1005,19 @@ function _overlaparea(a::Extents.Extent, b::Extents.Extent)
     east = min(a.X[2], b.X[2])
     (north < south || east < west) && return 0.0km^2
     return _sphericalboxarea(south, north, west, east)
+end
+
+# A wrapping box is two intervals - west to the date line, and the date line to east - so it is
+# comparable after all, as the sum of its halves.
+#
+# Worth the few lines: without it a wrapping candidate has no overlap to report, and the `exact`
+# scan's stopping rule needs an upper bound on every remaining candidate. One unbounded candidate
+# would force it to refine the rest.
+function _overlaparea(box::Extents.Extent, subject::Extents.Extent, wraps::Bool)
+    wraps || return _overlaparea(box, subject)
+    west = Extents.Extent(Y = box.Y, X = (box.X[1], 180.0°))
+    east = Extents.Extent(Y = box.Y, X = (-180.0°, box.X[2]))
+    return _overlaparea(west, subject) + _overlaparea(east, subject)
 end
 
 # The area of a lat/long box on the sphere: proportional to the longitude span times the difference
@@ -942,12 +1076,17 @@ function Base.show(io::IO, ::MIME"text/plain", r::RegionReport)
         println(io, lpad(m.parts, 6))
     end
     isnothing(r.relation) && return
-    # Said every time rather than left to the docstring: a box can be far larger than the ground it
-    # names, and a reader who does not know that will trust the list too far.
+    # Said every time rather than left to the docstring, and inverted when it no longer applies: a
+    # box can be far larger than the ground it names, and a reader who does not know that will trust
+    # the list too far.
+    r.exact &&
+        return print(io, "\nChecked against the regions' real outlines, ",
+                     r.refined,
+                     " of which were fetched to answer this.")
     return print(io,
                  "\nCompared by bounding box, which costs no download but is coarse - Chile's box " *
-                 "\nspans 43 degrees because of Easter Island. Build the shape with " *
-                 "`NaturalEarthSpec`\nwhen the difference matters.")
+                 "\nspans 43 degrees because of Easter Island. Pass `exact = true` to check " *
+                 "against\nthe real outlines instead.")
 end
 
 # A region's box as four fixed-width columns of degrees, so a column of them lines up and can be

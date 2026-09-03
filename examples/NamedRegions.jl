@@ -56,6 +56,17 @@ println("Norway on the list? ",
         any(m -> m.name == "Norway", ENCLOSING),
         " - its box runs from Jan Mayen to Svalbard.\n")
 
+# `exact = true` settles it by fetching the outlines rather than comparing boxes. It costs a
+# download, so it is opt-in - but it is what turns a plausible list into a true one.
+println("The same question, checked against the real outlines:\n")
+const EXACT = EcoSISTEM.investigate_regions(EDINBURGH, kind = :political,
+                                            limit = 6, exact = true)
+display(EXACT)
+println()
+println("Norway still there? ", any(m -> m.name == "Norway", EXACT),
+        " - its coastline does not reach Edinburgh, only its box did.")
+println("Regions checked to answer that: ", EXACT.refined, "\n")
+
 # Narrowing at source is the first tool: one level, one answer.
 const SCOTLAND = only(EcoSISTEM.investigate_regions(EDINBURGH,
                                                     level = "SUBUNIT"))

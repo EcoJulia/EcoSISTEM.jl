@@ -464,6 +464,41 @@ end
                                            [a, _box(10, 10, 11, 11)])]))
 end
 
+@testset "the exact predicates are boundary-inclusive where the box ones are" begin
+    poly = ArchGDAL.fromWKT("POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))")
+    box = Extents.Extent(Y = (0.0°, 10.0°), X = (0.0°, 10.0°))
+
+    # ArchGDAL has no `covers`, and its `contains` excludes the boundary - the same trap `Extents`
+    # sets, and the same one that made `Encloses` silently answer nothing for a point. Containment is
+    # written as "no part of the one lies outside the other", which has neither problem.
+    @test Encloses(LatLong(5.0°, 5.0°))(poly)
+    @test Encloses(LatLong(5.0°, 0.0°))(poly)      # exactly on the edge
+    @test !Encloses(LatLong(20.0°, 20.0°))(poly)
+    @test !ArchGDAL.contains(poly, ArchGDAL.createpoint(0.0, 5.0))
+
+    inside = Extents.Extent(Y = (2.0°, 4.0°), X = (2.0°, 4.0°))
+    straddling = Extents.Extent(Y = (2.0°, 4.0°), X = (8.0°, 14.0°))
+    @test Encloses(inside)(poly) && !Encloses(straddling)(poly)
+    @test Within(box)(ArchGDAL.fromWKT("POLYGON ((2 2, 4 2, 4 4, 2 4, 2 2))"))
+    # `Overlaps` means sharing ground, which includes containment - unlike GEOS `overlaps`, which
+    # means partial overlap and excludes it.
+    @test Overlaps(inside)(poly) && Overlaps(straddling)(poly)
+    @test !Overlaps(Extents.Extent(Y = (50.0°, 51.0°), X = (50.0°, 51.0°)))(poly)
+end
+
+@testset "a wrapping box is comparable once split at the date line" begin
+    subject = Extents.Extent(Y = (0.0°, 10.0°), X = (170.0°, 179.0°))
+    wrapping = Extents.Extent(Y = (0.0°, 10.0°), X = (175.0°, -175.0°))
+    # Without splitting, a wrapping candidate has no overlap at all - and the exact scan's stopping
+    # rule needs an upper bound on every remaining candidate, so one unbounded candidate would force
+    # it to refine the rest.
+    @test EcoSISTEM._overlaparea(wrapping, subject, true) > 0.0km^2
+    # The two halves are what it sums: 175..180 overlaps the subject, -180..-175 does not.
+    west = Extents.Extent(Y = (0.0°, 10.0°), X = (175.0°, 180.0°))
+    @test EcoSISTEM._overlaparea(wrapping, subject, true) ≈
+          EcoSISTEM._overlaparea(west, subject)
+end
+
 if geometrytests()
     @testset "a named region becomes a mask that agrees with its box" begin
         # The property the whole feature exists for: the table's box, which is rounded outwards,
@@ -529,6 +564,51 @@ if geometrytests()
                                                                   level = "ADMIN",
                                                                   coverage = LandmassesAbove(1e9km^2)),
                                                  Rasters.EPSG(4326))
+    end
+
+    @testset "exact = true checks the real outlines, and drops the false positives" begin
+        coarse = investigate_regions(LatLong(55.95°, -3.19°), kind = :political,
+                                     limit = 5)
+        fine = investigate_regions(LatLong(55.95°, -3.19°), kind = :political,
+                                   limit = 5, exact = true)
+        @test !coarse.exact && fine.exact
+        @test coarse.refined == 0 && fine.refined > 0
+
+        # Norway's *box* encloses Edinburgh - it runs west to Jan Mayen and north to Svalbard - and
+        # its coastline does not. That is the whole point of the exact tier.
+        @test "Norway" in [m.name for m in coarse]
+        @test "Norway" ∉ [m.name for m in fine]
+
+        # ...and every region the exact tier keeps really does contain the point.
+        for m in fine
+            @test Encloses(LatLong(55.95°, -3.19°))(EcoSISTEM._regiongeometryof(m))
+        end
+
+        # A wrapping region has no box that is a single interval, so the box tier cannot see it at
+        # all; geometry can, Natural Earth having split its polygons at the date line.
+        @test any(m -> m.name == "Europe", fine)
+        @test !any(m -> m.name == "Europe", coarse)
+
+        # The report says which tier answered it, rather than leaving the reader to assume.
+        @test occursin("real outlines", sprint(show, MIME"text/plain"(), fine))
+        @test occursin("bounding box", sprint(show, MIME"text/plain"(), coarse))
+    end
+
+    @testset "the exact scan stops as soon as the answer cannot change" begin
+        # Refinement only ever removes a match or shrinks its overlap, so a scan in box order can
+        # stop early and still be exact. Without that, a continental `Overlaps` query would fetch
+        # every one of its 617 box candidates to report 20.
+        africa = EcoSISTEM.boundingbox("Africa", level = "CONTINENT")
+        all = investigate_regions(Overlaps(africa), kind = :political,
+                                  limit = 10^6)
+        @test length(all) > 300
+        few = investigate_regions(Overlaps(africa), kind = :political,
+                                  limit = 5,
+                                  exact = true)
+        @test length(few) == 5
+        @test few.refined < length(all) / 4
+        # Ordered by real shared ground, so each is at least as good as the next.
+        @test issorted([m.overlap for m in few], rev = true)
     end
 
     @testset "outline = false gives the box, with every cell in it active" begin
@@ -722,7 +802,9 @@ end
     # Stated in the display rather than left to the docstring: a box can be far larger than the
     # ground it names, and a reader who does not know that will trust the list too far.
     @test occursin("bounding box", shown)
-    @test occursin("NaturalEarthSpec", shown)
+    # The remedy it names is the one for a coarse *query* - the exact tier - rather than building a
+    # shape, which answers a different question.
+    @test occursin("exact = true", shown)
     # The relation reads as a verb agreeing with its subject.
     @test occursin("enclose it", shown)
     @test occursin("lies within it",

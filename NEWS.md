@@ -32,6 +32,13 @@
       before one is built. `Encloses(x)` is the default; `Overlaps(x)` gives regions your data
       reaches into, ordered by how much ground they share, and `Within(x)` those it covers entirely.
       A row of the report converts straight into a `NaturalEarthSpec`.
+
+      By default regions are compared by **bounding box**, which costs no download and is loose:
+      Norway's box encloses Edinburgh, running west to Jan Mayen and north to Svalbard. `exact = true`
+      checks the survivors against the real outlines instead, which removes those false positives and
+      reaches the 54 regions that cross the antimeridian and so have no comparable box. Refinement is
+      lazy and stops as soon as the answer cannot change, so a query matching 361 regions by box
+      typically fetches a few dozen.
     - `EcoSISTEM.naturalearth_levels()` and `naturalearth_regions(level)`, which list what exists -
       the latter with each region's bounding box, area and component count, so a level can be
       browsed rather than just enumerated.

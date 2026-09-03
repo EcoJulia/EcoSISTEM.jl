@@ -96,10 +96,25 @@ match = only(EcoSISTEM.investigate_regions(LatLong(55.95°, -3.19°), level = "S
 NaturalEarthSpec(match)
 ```
 
-!!! warning "The query compares boxes, not outlines"
-    That is what makes it free, and it is loose. **Norway's box encloses Edinburgh** - it runs west
-    to Jan Mayen and north to Svalbard - so a query at that coordinate lists Norway beside the United
-    Kingdom. Build the shape when the difference matters.
+### Boxes, and then outlines
+
+By default the query compares **bounding boxes**, which is what makes it free - and it is loose.
+**Norway's box encloses Edinburgh**, running west to Jan Mayen and north to Svalbard, so a query at
+that coordinate lists Norway beside the United Kingdom.
+
+`exact = true` checks the survivors against the regions' real outlines instead. It downloads the
+geometry, so it is not free - but it removes those false positives, and it reaches the 54 regions
+that cross the antimeridian, which have no box a query can compare at all:
+
+```julia
+investigate_regions(LatLong(55.95°, -3.19°), kind = :political, exact = true)
+# Norway is gone; CONTINENT Europe, which wraps, appears
+```
+
+Refinement is lazy and in box order, stopping as soon as the answer cannot change - refining only
+ever removes a match or shrinks its overlap, so a confirmed `limit` cannot be displaced by anything
+later. A continental query that matches 361 regions by box typically fetches a few dozen, and the
+report says how many.
 
 ## Using a region as a study area
 
