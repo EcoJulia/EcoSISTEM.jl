@@ -1,6 +1,11 @@
 # NEWS
 
 - v0.6.2
+  - Added
+    - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name
+      almost never denotes one connected piece of ground - "France" includes Guadeloupe, "Norway"
+      includes Bouvet Island in the South Atlantic - so a selection either takes everything the name
+      covers, or the largest connected pieces of ground it covers. Nothing reads them yet.
   - Fixed
     - Hot loop allocation fix. `GridHabitat` now carries the topology's type as a parameter.
     - Speed-up for `ShapeSpec` mask building.

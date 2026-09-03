@@ -527,6 +527,53 @@ the ratio of two interpolations is not the interpolation of the ratio. On that p
 share a native grid (checked when they are read), and a declared `valuetype` is consulted *before*
 the resample, so a derived class-code layer is taken by nearest class rather than interpolated.
 
+## Named regions - how much of a name to take
+
+A region name almost never denotes one connected piece of ground. "France" includes Guadeloupe and
+Martinique, "Norway" includes Bouvet Island in the South Atlantic, and "Chile" includes Easter
+Island, so the extent of everything a name covers can be many times the extent of the ground most
+people mean by it. A **coverage** says which of the two is wanted.
+
+```mermaid
+classDiagram
+    class AbstractCoverage
+    class AllTerritories
+    class LargestLandmass
+    AbstractCoverage <|-- AllTerritories
+    AbstractCoverage <|-- LargestLandmass
+```
+
+**Why a type rather than a flag.** The two answers are not two settings of one switch:
+`LargestLandmass` carries a count of how many components to keep, and `AllTerritories` has nothing
+to count. A `Bool` or a `Symbol` would have to pair the option with a second argument meaningful for
+only one of its values, and would be checked somewhere inside rather than at the call site where it
+was written. As a type each case owns exactly the fields it means something by, and the choice is
+dispatchable, so the two selections are separate methods rather than a branch.
+
+That count is a **keyword**, `LargestLandmass(count = 2)`, where the sibling `RandomCells(20)` takes
+its own positionally. The difference is the type name: a plural one lends a bare number something to
+attach to, and a singular one does not, so an unnamed number here would read as easily as an
+ordinal - the third largest landmass rather than the largest three.
+
+**Largest *component*, not largest *part*.** Components are measured after neighbouring features
+have been dissolved together, which is what makes a landmass spanning several countries come out as
+one thing: the largest component of a continent is its mainland, where its largest *part* would be
+merely its largest country. The same rule delivers France continentale, Great Britain and the
+Scottish mainland without an area threshold or a list of exceptions - and it is why there is no
+third coverage for "everything but the outliers", which is assembled from these two instead.
+
+It also disposes of the antimeridian for one of the two cases. Natural Earth splits its polygons at
+the date line, so no single connected component can cross it and a landmass always has an honest
+`West < East`. Only `AllTerritories` can produce a selection spanning the globe - which is where it
+is least surprising, since the territory of the United States genuinely does.
+
+**A name is only meaningful with its level.** `NaturalEarthLevel` records which file defines a kind
+of region and which of its attributes carries the name, because the same word means different things
+at different levels: "Africa" is a grouping of 55 countries at one level and 62 at another, and the
+cultural `CONTINENT` "Europe" is a list of whole countries reaching the Pacific where the physical
+`Continent` "EUROPE" is a coastline stopping at the Urals. Levels are values in a table rather than
+types, since they are read from the source's own vocabulary and nothing dispatches on them.
+
 ## Coordinates - places and separations
 
 Two-dimensional quantities come in two kinds, and they are different types on purpose. A **position**

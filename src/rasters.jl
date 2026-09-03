@@ -981,6 +981,108 @@ _resolvepath(path::AbstractString) = path
 
 _resolvepath(asset::CachedAsset) = assetpath(asset)
 
+# --- Selecting a named region ---------------------------------------------------------------------
+#
+# Turning a name into geometry, shared by everything that answers a question about a named region.
+# Whatever asks - a bounding box read from the shipped table, or a mask built onto a real grid -
+# comes through here, so a box and the shape it claims to describe cannot disagree.
+
+# The projection component areas are measured on: NSIDC EASE-Grid 2.0 Global, an ellipsoidal
+# cylindrical equal-area system covering the whole globe.
+#
+# It must be reached through `_gdalcrs`, as every transform here is. GDAL 3 gives EPSG:4326 its
+# authority axis order, latitude first, so a transform built with `importEPSG` reads each coordinate
+# pair the wrong way round - which is not an error, merely a different piece of ground: it makes
+# Madagascar 27% too small and France 33% too large.
+const _EQUALAREACRS = Rasters.EPSG(6933)
+
+# One connected piece of a region, with what is needed to order and bound it.
+#
+# Unlike `_ShapePart` this leaves its geometry field abstract. These are built once when a region is
+# resolved rather than per cell, so the dynamic access costs nothing worth the concrete type.
+const _RegionPart = @NamedTuple{geometry::ArchGDAL.IGeometry,
+                                envelope::ArchGDAL.GDAL.OGREnvelope,
+                                area::typeof(1.0km^2)}
+
+# Every geometry in `level`'s file whose naming attribute equals `value`.
+#
+# Matching is case-insensitive because the physical file's own names are inconsistently cased -
+# `ALLEGHENY PLATEAU` sits beside `Adelie Coast` - so requiring the source's spelling would make
+# some names unreachable in practice. Geometries are cloned: an uncloned one borrows its feature's
+# storage and does not outlive the dataset.
+function _selectfeatures(level::NaturalEarthLevel, value::AbstractString)
+    dataset = ArchGDAL.read("/vsizip/" * assetpath(_nesource(level)))
+    lyr = ArchGDAL.getlayer(dataset, 0)
+    wanted = lowercase(value)
+    geoms = ArchGDAL.IGeometry[]
+    for feature in lyr
+        _fieldmatches(feature, level.field, wanted) || continue
+        isnothing(level.within) ||
+            _fieldmatches(feature, level.within.first,
+                          lowercase(level.within.second)) || continue
+        push!(geoms, ArchGDAL.clone(ArchGDAL.getgeom(feature)))
+    end
+    return geoms
+end
+
+# Whether `feature`'s `field` holds `wanted`, which must already be lowercased. A field absent from
+# the layer gives an index of -1 rather than raising, and a null cell gives `nothing`; neither
+# matches anything.
+function _fieldmatches(feature, field::AbstractString, wanted::AbstractString)
+    i = ArchGDAL.findfieldindex(feature, field)
+    (isnothing(i) || i < 0) && return false
+    value = ArchGDAL.getfield(feature, i)
+    return !isnothing(value) && lowercase(string(value)) == wanted
+end
+
+# Repair a geometry GEOS would refuse to operate on.
+#
+# GDAL exposes no `makevalid`, and one of Natural Earth's 258 country outlines (Egypt) is invalid.
+# Buffering by zero is the standard substitute and on that geometry restores validity with the area
+# unchanged to seven figures.
+_repairgeom(g) = ArchGDAL.isvalid(g) ? g : ArchGDAL.buffer(g, 0)
+
+# Merge `geoms` into their connected components, largest first, each with its envelope and its area.
+#
+# Dissolving before splitting is what makes this answer about *ground* rather than about features:
+# neighbouring countries that share a border merge into one landmass, so the largest component of a
+# continent is its mainland and not merely its largest country.
+function _dissolve(geoms)
+    isempty(geoms) && return _RegionPart[]
+    merged = reduce((a, b) -> ArchGDAL.union(_repairgeom(a), _repairgeom(b)),
+                    geoms)
+    parts = map(_components(merged)) do g
+        return _RegionPart((g, ArchGDAL.envelope(g), _equalarea(g)))
+    end
+    return sort!(parts, by = p -> p.area, rev = true)
+end
+
+# The connected pieces of a dissolved geometry. Merging polygons that touch gives a single polygon;
+# merging scattered ones gives a multipolygon whose members are the pieces.
+function _components(g)
+    ArchGDAL.getgeomtype(g) == ArchGDAL.wkbMultiPolygon || return [g]
+    return [ArchGDAL.clone(ArchGDAL.getgeom(g, i))
+            for i in 0:(ArchGDAL.ngeom(g) - 1)]
+end
+
+# The area of a lat/long geometry, measured on an equal-area projection.
+function _equalarea(g)
+    projected = ArchGDAL.clone(g)
+    ArchGDAL.createcoordtrans(_gdalcrs(Rasters.EPSG(4326)),
+                              _gdalcrs(_EQUALAREACRS)) do ct
+        return ArchGDAL.transform!(projected, ct)
+    end
+    return uconvert(km^2, ArchGDAL.geomarea(projected) * m^2)
+end
+
+# The components a coverage asks for. `parts` must already be ordered largest first, as `_dissolve`
+# returns them.
+_coverageof(parts::AbstractVector{_RegionPart}, ::AllTerritories) = parts
+
+function _coverageof(parts::AbstractVector{_RegionPart}, c::LargestLandmass)
+    return parts[1:min(c.count, length(parts))]
+end
+
 # One feature of a vector file as `_shape` uses it: the prepared geometry to test cells against, and
 # the envelope that says which cells those are. The element type is written out because a layer mixes
 # `wkbPolygon` and `wkbMultiPolygon` features, so an inferred one keeps only the field names and

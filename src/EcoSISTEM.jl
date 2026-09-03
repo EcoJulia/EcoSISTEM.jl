@@ -33,6 +33,20 @@ public assetpath
 # durations. First, because other files depend on it.
 include("Units/Units.jl")
 
+# The vocabulary of named geographic regions - how much of a name to take, and which Natural Earth
+# file defines each kind of name. Geographic vocabulary, so it sits with `Coordinates.jl`; it needs
+# only the asset cache above, and must precede `rasters.jl`, which dispatches the selection on the
+# coverage types.
+include("NaturalEarth.jl")
+
+public AbstractCoverage
+
+export AllTerritories, LargestLandmass
+
+public NaturalEarthLevel
+
+public NATURALEARTH_LEVELS
+
 # The coordinate vocabulary - the two-dimensional position/size family and the geographic point type
 # - used across the `ClimatePref` submodule and the main module, and by `CircleMaskSpec`
 # (`Spec.jl`), so it is defined here, before all of them.
