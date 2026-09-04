@@ -570,7 +570,13 @@ species_blocksize() = _SPECIES_BLOCK[]
 #
 # `test_EcoSISTEM.jl` asserts that GDAL still cannot manage without this; delete both when the
 # `julia` compat floor passes 1.12.
-_needscabundle() = Sys.isapple() && v"1.12" <= VERSION < v"1.13"
+# 🔴 The bounds carry a trailing `-` so that they cover PRERELEASES correctly. A prerelease sorts
+# *before* its own release, so `v"1.13.0-rc4" < v"1.13"` is **true** and a plain `< v"1.13"` fires on
+# every 1.13 release candidate - installing a bundle over the working one that release ships.
+# Measured on 1.13.0-rc4, where the canary below duly reported the workaround as unnecessary.
+_brokencurl(version) = v"1.12-" <= version < v"1.13-"
+
+_needscabundle() = Sys.isapple() && _brokencurl(VERSION)
 
 # Sized at load rather than compiled in, because a cache line is a property of the machine the run
 # is on. The `try` matters: `Hwloc` cannot answer on every platform, and a wrong block size is a

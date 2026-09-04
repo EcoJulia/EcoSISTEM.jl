@@ -112,11 +112,13 @@ include("rasterfixtures.jl")
         # a CRS, and `Intervals(Start)` sampling. A hand-rolled `Rasters.Raster` gets neither, and
         # the package refuses both by name: no CRS gives `LOCAL_CS[...UNIT["unknown"]]`, and `Points`
         # sampling has no cell extent to label.
+        # North-up, as a real GeoTIFF is: latitude descends from the top-left corner. Written
+        # south-up, GDAL warns on every file - and the files would then exercise an orientation no
+        # CRU TS release actually has, which is the opposite of what a fixture is for.
         for m in 1:12
-            r = Rasters.Raster(parent(_testraster(WorldClim{Climate},
-                                                  fill(Float32(m), 5, 5)).array),
-                               dims(_testraster(WorldClim{Climate},
-                                                fill(Float32(m), 5, 5)).array))
+            src = _testraster(WorldClim{Climate}, fill(Float32(m), 5, 5),
+                              lat = (4.0:-1.0:0.0) .* °)
+            r = Rasters.Raster(parent(src.array), dims(src.array))
             Rasters.write(joinpath(dir, "cruts_$(lpad(m, 2, '0')).tif"), r,
                           force = true)
         end

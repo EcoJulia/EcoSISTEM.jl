@@ -9,6 +9,10 @@ using Unitful.DefaultSymbols
 using RasterDataSources
 using Rasters
 using ArchGDAL
+# Loads Rasters' affine-transform extension. A raster whose geotransform is rotated or skewed cannot
+# be opened without it, and Rasters says so rather than failing obscurely - but only at read time, so
+# the import has to be here rather than discovered on a runner.
+using CoordinateTransformations
 using DimensionalData
 using Statistics
 using Test

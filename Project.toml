@@ -113,7 +113,7 @@ RasterDataSources = "0.5.6, 0.6, 0.7"
 Rasters = "0.15.0"
 RecipesBase = "1"
 ResearchSoftwareMetadata = "0.3.0"
-SHA = "0.7"
+SHA = "0.7, 1"
 Scratch = "1"
 SimpleTraits = "0.9"
 SpatialEcology = "0.9, 0.10"
@@ -126,6 +126,7 @@ julia = "1.11"
 p7zip_jll = "17"
 
 [extras]
+CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"
 Git = "d7ba0133-e1db-5d97-8f8c-041e4b3a1eb2"
 JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -163,4 +164,4 @@ publications = ["10.48550/arXiv.1911.12257"]
         ror = "00vtgdb53"
 
 [targets]
-test = ["Git", "JuliaFormatter", "Logging", "MPI", "OnlineStats", "ParallelTestRunner", "Phylo", "Pkg", "Plots", "RasterDataSources", "ResearchSoftwareMetadata", "TOML", "Test"]
+test = ["CoordinateTransformations", "Git", "JuliaFormatter", "Logging", "MPI", "OnlineStats", "ParallelTestRunner", "Phylo", "Pkg", "Plots", "RasterDataSources", "ResearchSoftwareMetadata", "TOML", "Test"]
