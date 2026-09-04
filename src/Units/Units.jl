@@ -203,9 +203,14 @@ function _checkmonth(month_number::Integer)
     return Int(month_number)
 end
 
+# `percent` is Unitful's own and is re-exported, not redefined: `LandmassesAbove(5percent)`
+# needs it in scope, and `Unitful.DefaultSymbols` does not carry it.
+using Unitful: percent
+
 export day,
        week,
        year,
+       percent,
        arcminute,
        arcsecond,
        january_duration,

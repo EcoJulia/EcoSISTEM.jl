@@ -23,10 +23,17 @@
       `ShapeBuffer(50km)` being how "within 50 km of this coastline" is said. As on the raster side
       an **arbitrary function** is accepted too, so anything ArchGDAL offers is reachable without a
       new operation type.
-    - `LandmassesAbove`, a third coverage keeping every component at least a given area - the United
-      Kingdom without Rockall, which is 0.031 km2 against a next-smallest of 2.536. `boundingbox`
-      refuses it and says why: the shipped table records the sizes of only the largest few
-      components, so only a built shape can answer it.
+    - `LandmassesAbove`, a third coverage keeping every component that clears a threshold - the
+      United Kingdom without Rockall, which is 0.031 km2 against a next-smallest of 2.536. The
+      threshold is either an area (`1km^2`) or a share of the region's own total (`5percent`), the
+      latter travelling better between regions of different sizes. A bare `0.05` is refused: it is
+      the same quantity as `5percent` but does not say so when read beside `1km^2`. `boundingbox`
+      refuses the whole coverage and says why: the shipped table records the sizes of only the
+      largest few components, so only a built shape can answer it.
+    - Each region now reports its `share` - what fraction of its area its largest component holds -
+      which is what says whether `LargestLandmass()` suits it. New Zealand's is 56%, so asking for
+      its principal landmass returns South Island alone. Derived from the shipped columns, so the
+      table did not grow.
     - `investigate_regions`, which asks which named regions relate to something you have - a
       coordinate, a raster, a layer, a study area - as `investigate_study_area` reports on a grid
       before one is built. `Encloses(x)` is the default; `Overlaps(x)` gives regions your data

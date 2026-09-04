@@ -97,14 +97,14 @@ function Base.show(io::IO, c::LargestLandmass)
 end
 
 """
-    LandmassesAbove(area)
+    LandmassesAbove(threshold)
 
-Take every connected piece of ground the name covers that is at least `area` in size.
+Take every connected piece of ground the name covers that clears `threshold`.
 
 This is the coverage for "everything except the specks": the United Kingdom without Rockall, which
-[`LargestLandmass`](@ref) can only express by counting components and so needs to know how many
-there are. Rockall is 0.031 km2 and the next smallest British component is 2.536 km2, an eighty-fold
-gap, so any threshold between them does the same thing.
+[`LargestLandmass`](@ref) can only express by counting components and so needs to know how many there
+are. Rockall is 0.031 km2 and the next smallest British component is 2.536 km2, an eighty-fold gap,
+so any threshold between them does the same thing.
 
 Unlike the other coverages this one cannot be answered from the shipped region table, which records
 only the largest few components' sizes - so [`boundingbox`](@ref) refuses it, while a spec built onto
@@ -112,23 +112,48 @@ a real grid has the geometry and can.
 
 # Arguments
 
-  - `area`: the smallest component to keep, as a `Unitful` area (`1km^2`, `500u"m^2"`).
-"""
-struct LandmassesAbove{A} <: AbstractCoverage
-    area::A
+  - `threshold`: how big a component must be to be kept, either as an **area** (`1km^2`,
+    `500u"m^2"`) or as a **share of the region's own total** (`5percent`, from `Unitful`). A share is
+    the more portable of the two, since what counts as a speck depends on how big the region is: the
+    same `1km^2` keeps every part of Great Britain and discards most of the Maldives.
 
-    function LandmassesAbove(area)
-        dimension(area) == dimension(1.0km^2) ||
-            throw(ArgumentError("LandmassesAbove needs an area, got $(area) which is " *
-                                "$(dimension(area))"))
-        area > zero(area) ||
-            throw(ArgumentError("LandmassesAbove needs a positive area, got $area"))
-        return new{typeof(area)}(area)
+    A share must be written as a percentage rather than as a bare number. `0.05` and `5percent` are
+    the same quantity, but only one of them says which it means when read beside `1km^2`, and a bare
+    number is refused for that reason.
+"""
+struct LandmassesAbove{T} <: AbstractCoverage
+    threshold::T
+
+    function LandmassesAbove(threshold)
+        threshold isa Unitful.AbstractQuantity ||
+            throw(ArgumentError("LandmassesAbove needs an area or a percentage, got the bare " *
+                                "number $threshold. Write `$(threshold)percent` for a share of " *
+                                "the region's own area, or give an area such as `1km^2`."))
+        isarea = dimension(threshold) == dimension(1.0km^2)
+        isshare = dimension(threshold) == NoDims
+        (isarea || isshare) ||
+            throw(ArgumentError("LandmassesAbove needs an area or a percentage, got $threshold " *
+                                "which is $(dimension(threshold))."))
+        threshold > zero(threshold) ||
+            throw(ArgumentError("LandmassesAbove needs a positive threshold, got $threshold."))
+        isshare && ustrip(NoUnits, threshold) > 1 &&
+            throw(ArgumentError("LandmassesAbove was given a share of $threshold, which is more " *
+                                "than the whole region; nothing can clear it."))
+        return new{typeof(threshold)}(threshold)
     end
 end
 
+# A share is of the region's own total, so it only becomes an area once the components are known.
+# One method per kind rather than a branch, so a threshold that is neither cannot reach here.
+_thresholdarea(c::LandmassesAbove{<:Unitful.Area}, total) = c.threshold
+
+function _thresholdarea(c::LandmassesAbove{<:Unitful.DimensionlessQuantity},
+                        total)
+    return total * ustrip(NoUnits, c.threshold)
+end
+
 function Base.show(io::IO, c::LandmassesAbove)
-    return print(io, "LandmassesAbove(", c.area, ")")
+    return print(io, "LandmassesAbove(", c.threshold, ")")
 end
 
 # Whether a coverage is the one a spec would have taken had none been named, so that `show` prints
@@ -630,7 +655,7 @@ function naturalearth_regions(level::NaturalEarthLevel)
         push!(matches,
               RegionMatch{typeof(box)}(level, row.Name, box,
                                        row.AreaKm2 * km^2,
-                                       row.Parts, nothing))
+                                       row.Parts, _rowshare(row), nothing))
     end
     # By name, because this is for browsing: a reader looking for one knows how it is spelled long
     # before they know how big it is.
@@ -795,6 +820,10 @@ One named region a query found, and enough of it to act on without looking anyth
   - `extent`: its bounding box, in degrees.
   - `area`: the total area of the region, in `km^2`.
   - `parts`: how many separate components it has.
+  - `share`: what fraction of the region's area its **largest** component holds. This is the number
+    that says whether [`LargestLandmass`](@ref) is a sensible answer for the region at all: New
+    Zealand's is 0.56, so asking for its principal landmass silently returns South Island alone, and
+    the Solomon Islands' is 0.20.
   - `overlap`: the area of the box it shares with whatever was asked about, in `km^2`, which is what
     an [`Overlaps`](@ref) report orders by. `nothing` for a listing, which asked about nothing.
 """
@@ -804,6 +833,7 @@ struct RegionMatch{E}
     extent::E
     area::typeof(1.0km^2)
     parts::Int
+    share::Float64
     overlap::Union{typeof(1.0km^2), Nothing}
 end
 
@@ -907,7 +937,7 @@ function investigate_regions(relation::AbstractSpatialRelation; level = nothing,
             _issubject(relation, l, row) && continue
             push!(candidates,
                   RegionMatch{typeof(box)}(l, row.Name, box, row.AreaKm2 * km^2,
-                                           row.Parts,
+                                           row.Parts, _rowshare(row),
                                            _overlaparea(box, relation.extent,
                                                         row.Wraps)))
         end
@@ -975,13 +1005,18 @@ _withexactoverlap(relation, m::RegionMatch, geom) = m
 
 function _withexactoverlap(r::Overlaps, m::RegionMatch{E}, geom) where {E}
     shared = ArchGDAL.intersection(geom, _subjectgeometry(r))
-    return RegionMatch{E}(m.level, m.name, m.extent, m.area, m.parts,
+    return RegionMatch{E}(m.level, m.name, m.extent, m.area, m.parts, m.share,
                           _equalarea(shared))
 end
 
 function investigate_regions(x; kw...)
     return investigate_regions(Encloses(x); kw...)
 end
+
+# What fraction of a region's area its largest component holds, straight from the shipped columns -
+# nothing extra is stored for it. A low share is the warning that `LargestLandmass()` will throw most
+# of the region away.
+_rowshare(row) = row.Part1Area / row.AreaKm2
 
 # The box a table row states, as an `Extents.Extent` of degrees.
 function _rowextent(row)
@@ -1065,7 +1100,7 @@ function Base.show(io::IO, ::MIME"text/plain", r::RegionReport)
     nw = min(30, maximum(m -> length(m.name), r.matches))
     showlevel && print(io, "  ", rpad("level", lw))
     println(io, "  ", rpad("name", nw), "       W       S       E       N",
-            lpad("area/km2", 12), lpad("parts", 6))
+            lpad("area/km2", 12), lpad("parts", 6), lpad("largest", 8))
     for m in r.matches
         showlevel && print(io, "  ", rpad(m.level.name, lw))
         print(io, "  ", rpad(first(m.name, nw), nw))
@@ -1073,7 +1108,13 @@ function Base.show(io::IO, ::MIME"text/plain", r::RegionReport)
         # A whole number of square kilometres, never scientific: a column of areas is read by
         # comparing them, and `4.45995e6` beside `830486.0` cannot be.
         print(io, lpad(round(Int, ustrip(km^2, m.area)), 12))
-        println(io, lpad(m.parts, 6))
+        print(io, lpad(m.parts, 6))
+        # The largest component's share, shown only where it is a warning: a region whose principal
+        # landmass is most of it needs no annotation, and a column of "100%" would bury the cases
+        # that matter.
+        println(io,
+                m.share < 0.9 ? lpad(string(round(Int, 100m.share), "%"), 7) :
+                "")
     end
     isnothing(r.relation) && return
     # Said every time rather than left to the docstring, and inverted when it no longer applies: a

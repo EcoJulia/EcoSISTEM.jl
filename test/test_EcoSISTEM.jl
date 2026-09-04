@@ -278,9 +278,19 @@ _documented_control_() = nothing
         :july_duration, :august_duration, :september_duration,
         :october_duration, :november_duration, :december_duration,
         :month_mean_duration, :quarter_mean_duration,
-        :arcminute, :arcsecond, :day, :week, :year,
-        # Genuine gaps, recorded rather than hidden - pre-existing, and outside this pass.
+        :arcminute, :arcsecond, :day, :week, :year, :percent,
+        # Three more `@deprecate`d shims. `ContinuousEvolve`/`DiscreteEvolve` are the
+        # naming-standardisation redirects; `emptyMPIgridlandscape` is a shim that errors with a
+        # migration message, because its old signature cannot reach what the replacement needs.
+        #
+        # Every `@deprecate`d FUNCTION has to be named here, and that is not laziness:
+        # `Base.isdeprecated` is **false** for all of them, because `@deprecate` creates an ordinary
+        # function carrying a redirect method where only `@deprecate_binding` marks the binding. So
+        # the check cannot find them and the list cannot be replaced by a filter.
         :ContinuousEvolve, :DiscreteEvolve, :emptyMPIgridlandscape]
+    # There are no entries below this point, and that is the finding: every name on the list is a
+    # deprecation shim, and the package currently has **no undocumented public name at all**. A
+    # genuine gap appearing here would have to be added deliberately, which is the point.
     @test isempty(setdiff(undocumented, known))
 
     # **A name can HAVE a docstring that says it is undocumented**, which is the hole the

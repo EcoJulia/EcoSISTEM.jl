@@ -1193,7 +1193,10 @@ end
 # Components are ordered largest first, so this is a prefix too - but expressed as a threshold, which
 # is what "everything except the specks" needs when the count is not known in advance.
 function _coverageof(parts::AbstractVector{_ShapeComponent}, c::LandmassesAbove)
-    return filter(p -> p.area >= c.area, parts)
+    isempty(parts) && return parts
+    # A share is of the region's own total, so the threshold is only an area once the parts are in.
+    threshold = _thresholdarea(c, sum(p -> p.area, parts))
+    return filter(p -> p.area >= threshold, parts)
 end
 
 # One feature of a vector file as `_shape` uses it: the prepared geometry to test cells against, and

@@ -67,8 +67,22 @@ EcoSISTEM.boundingbox("France", level = "ADMIN", coverage = LargestLandmass())
 ```
 
 `LargestLandmass(count = n)` takes the largest `n` - New Zealand's two main islands, Japan's four -
-and `LandmassesAbove(area)` takes everything clearing a threshold, which is how the United Kingdom
-loses Rockall.
+and `LandmassesAbove(threshold)` takes everything clearing a threshold, which is how the United
+Kingdom loses Rockall. The threshold is either an **area** or a **share of the region's own total**:
+
+```julia
+LandmassesAbove(1km^2)     # an absolute size
+LandmassesAbove(5percent)  # ...or a fraction of the region, which travels better between regions
+```
+
+A share must be a percentage rather than a bare number. `0.05` and `5percent` are the same quantity,
+but only one of them says which it means when read beside `1km^2`, so the bare number is refused.
+
+!!! tip "Check the share before asking for the principal landmass"
+    A region's *share* - how much of its area its largest component holds - is what says whether
+    `LargestLandmass()` is a sensible answer for it. New Zealand's is 56%, so asking for its
+    principal landmass silently returns South Island alone; the Solomon Islands' is 20%.
+    `naturalearth_regions` prints the share whenever it is below 90%.
 
 !!! warning "Some regions have no bounding box at all"
     54 of the shipped regions cross the antimeridian, and an interval of longitude cannot describe

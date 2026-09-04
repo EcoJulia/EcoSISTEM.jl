@@ -15,6 +15,7 @@ using EcoSISTEM: _shapecomponents, _applyshapeop, _naturalearthgeoms,
 import Rasters
 import Extents
 using CSV
+using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 import ArchGDAL
@@ -80,6 +81,34 @@ end
     @test all(l -> l.kind in (:political, :statistical, :physical, :code),
               NATURALEARTH_LEVELS)
     @test all(l -> !isempty(l.description), NATURALEARTH_LEVELS)
+end
+
+@testset "a region reports the share its largest component holds" begin
+    admin = naturalearth_regions("ADMIN")
+    share(n) = only(m for m in admin if m.name == n).share
+
+    # The number that says whether `LargestLandmass()` is a sensible answer at all. New Zealand's
+    # principal landmass is barely over half of it, so asking for that alone silently returns South
+    # Island - which the share makes visible where the component count does not.
+    @test share("New Zealand") ≈ 0.56 atol=0.01
+    @test share("Solomon Islands") < 0.25
+    @test share("United Kingdom") > 0.85
+    @test all(m -> 0 < m.share <= 1, admin)
+    # A single-component region is all of itself.
+    @test share("Vatican") ≈ 1.0
+
+    # Derived from the shipped columns rather than stored, so the table did not have to grow for it.
+    @test !occursin("Share", first(readlines(_regionspath())))
+
+    # Shown only where it is a warning: a column of "100%" would bury the cases that matter.
+    shown = sprint(show, MIME"text/plain"(),
+                   EcoSISTEM.RegionReport(nothing,
+                                          [m
+                                           for m in admin
+                                           if m.name in
+                                              ("New Zealand", "Vatican")]))
+    @test occursin("56%", shown)
+    @test !occursin("100%", shown)
 end
 
 @testset "a level is found by name, case-insensitively but unambiguously" begin
@@ -313,9 +342,16 @@ end
 
 @testset "LandmassesAbove keeps the components that clear a threshold" begin
     @test LandmassesAbove(1km^2) isa EcoSISTEM.AbstractCoverage
-    # An area, not a length and not a bare number: caught at construction, where it was written.
+    @test LandmassesAbove(5percent) isa EcoSISTEM.AbstractCoverage
+    # An area or a percentage, and nothing else. A **bare number** is refused although `0.05` and
+    # `5percent` are the same quantity: only one of them says which it means when read beside
+    # `1km^2`.
+    @test_throws ArgumentError LandmassesAbove(0.05)
     @test_throws ArgumentError LandmassesAbove(5km)
     @test_throws ArgumentError LandmassesAbove(0km^2)
+    @test_throws ArgumentError LandmassesAbove(-1percent)
+    # ...and a share larger than the whole region can never be cleared.
+    @test_throws ArgumentError LandmassesAbove(150percent)
 
     # It filters a component list exactly as the other coverages take a prefix of one.
     parts = _dissolve([
@@ -328,6 +364,19 @@ end
     @test length(kept) == 2
     @test all(p -> p.area >= parts[2].area, kept)
     @test isempty(_coverageof(parts, LandmassesAbove(1e9km^2)))
+
+    # A share is of the region's OWN total, so the same threshold means different areas for
+    # different regions - which is the point of offering it, since what counts as a speck depends on
+    # how big the region is.
+    total = sum(p -> p.area, parts)
+    @test EcoSISTEM._thresholdarea(LandmassesAbove(50percent), total) ≈
+          total / 2
+    @test EcoSISTEM._thresholdarea(LandmassesAbove(1km^2), total) == 1km^2
+    # The largest part here is 9/(9+1+0.01) of the whole, so a 50% share keeps only it.
+    @test length(_coverageof(parts, LandmassesAbove(50percent))) == 1
+    @test length(_coverageof(parts, LandmassesAbove(1percent))) == 2
+    @test isempty(_coverageof(EcoSISTEM._ShapeComponent[],
+                              LandmassesAbove(5percent)))
 
     # The shipped table records only the largest few components' sizes, so it cannot answer this and
     # says so rather than guessing from what it has.
@@ -707,7 +756,7 @@ end
     @test !Overlaps(apart)(box)
     @test Encloses(inside) isa EcoSISTEM.AbstractSpatialRelation
 
-    # 🔴 `Encloses` delegates to `covers`, not `contains`: the two agree on every pair of boxes but
+    # `Encloses` delegates to `covers`, not `contains`: the two agree on every pair of boxes but
     # differ on a point, and a point is the one subject only `Encloses` takes. Using `contains`
     # would make "which regions enclose this coordinate?" silently answer nothing.
     edinburgh = LatLong(55.95°, -3.19°)
@@ -767,7 +816,7 @@ end
 @testset "a match converts to a spec; a report does not" begin
     report = investigate_regions(LatLong(55.95°, -3.19°), level = "ADMIN")
 
-    # ⚠️ TWO countries' boxes enclose Edinburgh: the United Kingdom, and **Norway**, whose box runs
+    # TWO countries' boxes enclose Edinburgh: the United Kingdom, and **Norway**, whose box runs
     # west to Jan Mayen and north to Svalbard. That is the box tier being honest rather than wrong,
     # and it is why `only` is the safe way to take a single answer - it refuses here.
     @test length(report) == 2
