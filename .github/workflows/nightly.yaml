@@ -30,7 +30,7 @@ jobs:
       - name: Set up julia
         uses: julia-actions/setup-julia@v3
         with:
-          # ⚠️ `include-all-prereleases` is what makes a bare `1.13` mean "including the release
+          # `include-all-prereleases` is what makes a bare `1.13` mean "including the release
           # candidates", and it defaults to `false` - so without it a version with no stable release
           # yet resolves to nothing and the job fails rather than skipping.
           #
