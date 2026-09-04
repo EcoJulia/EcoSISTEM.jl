@@ -163,6 +163,8 @@ end
 begin
     africa_bio = read(WorldClim{BioClim}, 1,
                       cut = EcoSISTEM.boundingbox("Africa",
+                                                  level = "CONTINENT",
+                                                  coverage = LargestLandmass(),
                                                   round = 5°))
     africa_temp = africa_bio.array
     plot(africa_temp)
@@ -192,6 +194,8 @@ begin
     supply_new = UniformSpec(totalK_new, axis = SolarRadiation)
     studyarea_new = StudyArea(regime = regime_new,
                               within = EcoSISTEM.boundingbox("Africa",
+                                                             level = "CONTINENT",
+                                                             coverage = LargestLandmass(),
                                                              round = 5°),
                               crs = albers_new, cellsize = 50km,
                               verbosity = :silent)

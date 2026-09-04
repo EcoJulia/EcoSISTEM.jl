@@ -29,8 +29,10 @@ module NamedRegions
 
 using EcoSISTEM
 using EcoSISTEM.Units
+using RasterDataSources
 using Rasters: EPSG
 using Unitful, Unitful.DefaultSymbols
+using Distributions
 using Diversity
 using Random
 
@@ -97,7 +99,12 @@ println("  union  : reaches Shetland, and drops Rockall\n")
 # `within` takes the composed spec directly: it both restricts which cells are simulated and sets the
 # grid's extent, so no separate bounding box is needed. The grid is **projected**, which a simulation
 # requires - dispersal is expressed against one cell size, which only a projected grid has.
-const TEMPERATURE = UniformSpec(285.0K, axis = Temperature)
+# A **real** temperature layer, not a synthetic one, and the reason is the whole point of this
+# section. A study area whose layers are all synthetic is a grid "positioned nowhere in particular":
+# its geometry comes from an `extent` *size* and a `cellsize`, and `within` only masks it afterwards.
+# So a named region cannot position such an area at all, and asking it to is an error. Give the area
+# one layer that knows where it is, and the region places the grid.
+const TEMPERATURE = SourceSpec(WorldClim{BioClim}, :bio1)
 const SUNLIGHT = UniformSpec(1.0e4kJ / (km^2 * day), axis = SolarRadiation)
 
 const AREA = StudyArea(regime = TEMPERATURE, supply = SUNLIGHT, within = ISLES,
@@ -110,17 +117,17 @@ const ENVIRONMENT = GridHabitat(regime = TEMPERATURE, supply = SUNLIGHT,
 println("Grid built on the composed region:")
 println("  cells: ", size(ENVIRONMENT.active), "  active: ",
         count(ENVIRONMENT.active), " of ", length(ENVIRONMENT.active))
-println("  cell size: ", getcellsize(ENVIRONMENT), "\n")
+println("  cell size: ", AREA.report.cellsize, "\n")
 
 const SPECIES = build_species(8,
                               tolerance = NicheTolerance(Temperature, Normal,
                                                          fill(285.0K, 8),
                                                          fill(3.0K, 8)),
-                              demand = SimpleDemand(SolarRadiation,
-                                                    fill(1.0kJ / day, 8)))
+                              demand = 5.0kJ / day,
+                              demandaxis = SolarRadiation)
 
 const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = SEED)
-simulate!(ECO, 2years, 1month)
+simulate!(ECO, 2.0year, 1.0month_mean_duration)
 
 println("After two simulated years on the British Isles:")
 println("  total abundance : ", sum(ECO.abundances.matrix))
