@@ -485,7 +485,7 @@ end
 # ---------------------------------------------------------------------------
 
 # How many of the largest components the table describes individually. Kept in step with the
-# generator, `examples/scripts/naturalearth_regions.jl`, which writes that many columns.
+# generator, `data/src/naturalearth_regions.jl`, which writes that many columns.
 const NPARTS = 5
 
 _regionspath() = pkgdir(@__MODULE__, "data", "NaturalEarth", "regions.csv")

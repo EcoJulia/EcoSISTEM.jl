@@ -11,7 +11,7 @@
 #
 # **So it must never be edited by hand.** Correct the generator, or the source, and re-run. A hand
 # edit would be silently reverted by the next regeneration - which is the hazard
-# `examples/scripts/rate_table.jl` was fixed for, and the reason it is the shape copied here.
+# `data/src/rate_table.jl` was fixed for, and the reason it is the shape copied here.
 #
 # ## Why the generator calls the package rather than reimplementing it
 #
@@ -26,7 +26,7 @@
 # Downloads about 25 MB of Natural Earth zips on a cold cache, into `EcoSISTEM.assetdir`, and takes a
 # few minutes. Not part of the test suite.
 #
-#     julia --project=examples examples/scripts/naturalearth_regions.jl
+#     julia --project=data/src data/src/naturalearth_regions.jl
 
 using EcoSISTEM
 using EcoSISTEM: NATURALEARTH_LEVELS, _selectfeatures, _levelvalues, _dissolve,

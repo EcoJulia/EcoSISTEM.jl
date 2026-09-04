@@ -476,7 +476,7 @@ study area: a synthetic one has no CRS, extent or resolution of its own.
 `AbstractShapeSpec` is the branch of the lazy specs that is **ground** rather than data - a shape
 file, a named country, a continent, an island - and resolves to geometry before any grid exists.
 
-⭐ **`ConstructedShapeSpec` and `ConstructedRasterSpec` are mirrors**: each is the "several members
+**`ConstructedShapeSpec` and `ConstructedRasterSpec` are mirrors**: each is the "several members
 become one" node for its medium. Three of their differences are forced by that medium and one is
 not, which is worth stating so the asymmetry is not read as an oversight. A raster combination can
 produce a *layer*, so it carries an `axis`; it can run before or after resampling, so it carries a
@@ -614,7 +614,7 @@ pick a resolution before that decision and would carry two sets of edge effects 
 That is also why a region spec is not a `ConstructedRasterSpec` member: a `ConstructedRasterSpec` composes
 rasters, and its members materialise on their own data's grid, which a geometry does not have.
 
-⚠️ **The outlines are cartographic, and combining them exposes it.** Natural Earth's own
+**The outlines are cartographic, and combining them exposes it.** Natural Earth's own
 `BRITISH ISLES` polygon stops at 59.80 and so omits Shetland, where the union of the United Kingdom,
 Ireland and the Isle of Man reaches 60.85. Its physical continents are landmass outlines, so `EUROPE`
 does not contain the British Isles at all - an intersection with it is empty, and is refused rather
@@ -635,14 +635,14 @@ classDiagram
     AbstractSpatialRelation <|-- Within
 ```
 
-They delegate to `Extents`' own predicates, so no predicate code is written here. 🔴 `Encloses` uses
+They delegate to `Extents`' own predicates, so no predicate code is written here. `Encloses` uses
 `covers` rather than `contains`: the two agree on every pair of boxes, which makes the choice look
 free, but they differ on a **point** - `contains` is false for a point inside a box. A point is the
 one subject only `Encloses` accepts, so `contains` would make "which regions enclose this
 coordinate?" silently answer nothing. `Overlaps` and `Within` refuse a point at construction, since
 nothing overlaps a point and nothing lies within one.
 
-⚠️ **The query compares boxes, not outlines**, which is what makes it free and is also its limit.
+**The query compares boxes, not outlines**, which is what makes it free and is also its limit.
 Norway's box encloses Edinburgh - it runs west to Jan Mayen and north to Svalbard - so the report
 says so every time it is displayed rather than leaving it to a docstring.
 

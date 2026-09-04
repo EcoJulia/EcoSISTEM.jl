@@ -6,10 +6,10 @@
 #
 # or directly, for the report:
 #
-#     julia --project docs/typeorder.jl
+#     julia --project data/src/typeorder.jl
 #
 # ⚠️ Must go through `Pkg.test` (or have the weak deps loaded) or the extension types are invisible
-# and the audit reports false gaps - the same constraint `docs/architecture.jl` has.
+# and the audit reports false gaps - the same constraint `data/src/architecture.jl` has.
 #
 # ⭐ **Why this exists.** The include order in `src/EcoSISTEM.jl` is a real invariant - a struct's
 # field types, its supertype and its type-parameter bounds must all be defined when it is declared -

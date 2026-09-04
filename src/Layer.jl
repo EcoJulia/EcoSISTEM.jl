@@ -32,7 +32,7 @@ using Dates: Dates
 
 A continuous (numeric) grid layer of role `R` on niche axis `A`, holding a value `matrix`
 (eltype `V`) as a `DimArray` over `(Y, X)` - real `Projected`/`Sampled` lookups for a
-data-driven source, `NoLookup` for a synthetic one (see `docs/architecture.md`).
+data-driven source, `NoLookup` for a synthetic one (see `data/architecture.md`).
 
 A layer holds one grid of values, never a stack of them: a time-varying layer holds the values
 current *now* and carries a [`SeriesLayerChange`](@ref) as its `change`, which decides from elapsed time
