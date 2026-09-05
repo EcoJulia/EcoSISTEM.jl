@@ -12,7 +12,7 @@ export Worldclim_bioclim, CHELSA_bioclim, Landcover,
 # dataset-agnostic machinery that types such as `SourceSpec` need, so none of it can sit in a
 # submodule included after them. Each is imported back below, because an `export` or `public` line
 # here can only name something this module can see.
-export SourceSpec, ShapeSpec, ConstructedSpec
+export SourceSpec, ShapeSpec, ConstructedRasterSpec
 public in_memory_raster
 export CombineOnTargetGrid, CombineOnSourceGrid
 public AbstractCombineStage, AbstractClimate, EcoSISTEMSource
@@ -30,7 +30,7 @@ using Dates: Dates
 # The bare module name, so `deprecations.jl` can write `EcoSISTEM.convert_coords`; and the three
 # spec types this module re-exports.
 using EcoSISTEM
-using EcoSISTEM: SourceSpec, ShapeSpec, ConstructedSpec
+using EcoSISTEM: SourceSpec, ShapeSpec, ConstructedRasterSpec
 import Extents
 
 using EcoSISTEM: _crsunit, _isangle, _stacklayers, _isblankcrs
@@ -46,7 +46,8 @@ using EcoSISTEM: extract_values
 # `ext/EcoSISTEMPhyloExt`.
 using EcoSISTEM: Brownian, varcovar, fitbrownian
 using EcoSISTEM: NicheAxis, TemperatureAxis
-using EcoSISTEM: AbstractClimate, ClimateRaster, CODE_TYPE, ConstructedSpec,
+using EcoSISTEM: AbstractClimate, ClimateRaster, CODE_TYPE,
+                 ConstructedRasterSpec,
                  ShapeSpec, AbstractCombineStage, CombineOnTargetGrid,
                  CombineOnSourceGrid, EcoSISTEMSource, SyntheticData,
                  DerivedData, IsRasterData, in_memory_raster

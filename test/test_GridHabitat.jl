@@ -403,10 +403,10 @@ end
 
         # A hand-built raster carries no layer code, so it has **no axis**, and a supply's meaning
         # must never be inferred from `mm/day`'s dimension - two different quantities can share a
-        # unit. Declaring it is required, and is what `ConstructedSpec`'s `axis =` keyword is for.
+        # unit. Declaring it is required, and is what `ConstructedRasterSpec`'s `axis =` keyword is for.
         water = _testraster(WorldClim{BioClim}, fill(50.0mm / day, 5, 5))
         @test _env(_reg(temp),
-                   ConstructedSpec(() -> water, axis = Precipitation)).supply isa
+                   ConstructedRasterSpec(() -> water, axis = Precipitation)).supply isa
               Supply{Precipitation}
         # ...and offering it without one is refused rather than guessed. A `TypeError` rather than
         # an `ErrorException`: `supply` is **typed in the signature**, so the refusal comes from the
@@ -514,8 +514,8 @@ end
         @test off_centre.active[1, 1]        # the corner cell, now inside the circle
     end
 
-    @testset "lazy land-cover mask via ConstructedSpec" begin
-        # A land-cover mask is a `ConstructedSpec` combine over the real EarthEnv{LandCover} data:
+    @testset "lazy land-cover mask via ConstructedRasterSpec" begin
+        # A land-cover mask is a `ConstructedRasterSpec` combine over the real EarthEnv{LandCover} data:
         # construction is pure - no read/download happens until `GridHabitat` materialises it.
         # Neither combine names an array type: a raster broadcasts and yields a raster, so the
         # mask is `Bool`-valued but still a raster, exactly like a layer combine's result.
@@ -541,25 +541,26 @@ end
         # (12.5 GB, and an error): the mask is materialised at native resolution to decide the extent,
         # so a coarser target grid arrives too late. `extent` is refused by construction, being a size
         # rather than a bounding box.
-        scotland = EcoSISTEM.boundingbox("Scotland", islands = true)
-        landmask = ConstructedSpec(
-                                   SourceSpec(EarthEnv{LandCover},
-                                              cut = scotland,
-                                              scale = 1),
-                                   axis = EcoSISTEM.NicheAxis) do lc
+        scotland = EcoSISTEM.boundingbox("Scotland",
+                                         coverage = AllTerritories())
+        landmask = ConstructedRasterSpec(
+                                         SourceSpec(EarthEnv{LandCover},
+                                                    cut = scotland,
+                                                    scale = 1),
+                                         axis = EcoSISTEM.NicheAxis) do lc
             compress_landcover(lc) .!= landcoverclass(:open_water)
         end
-        naturemask = ConstructedSpec(
-                                     SourceSpec(EarthEnv{LandCover},
-                                                cut = scotland,
-                                                scale = 1),
-                                     axis = EcoSISTEM.NicheAxis) do lc
+        naturemask = ConstructedRasterSpec(
+                                           SourceSpec(EarthEnv{LandCover},
+                                                      cut = scotland,
+                                                      scale = 1),
+                                           axis = EcoSISTEM.NicheAxis) do lc
             excluded = landcoverclass.((:open_water, :urban_builtup, :barren,
                                         :snow_ice, :cultivated_and_managed))
             compress_landcover(lc) .∉ Ref(excluded)
         end
-        @test landmask isa EcoSISTEM.ConstructedSpec
-        @test naturemask isa EcoSISTEM.ConstructedSpec
+        @test landmask isa EcoSISTEM.ConstructedRasterSpec
+        @test naturemask isa EcoSISTEM.ConstructedRasterSpec
         @test hasdata isa Function
 
         # Materialisation - real (small single-class) EarthEnv{LandCover} network read, the
@@ -967,8 +968,9 @@ end
         supvals = fill(600.0mm / day, 9, 9)
         supvals[1, :] .= NaN * mm / day      # a missing edge row ...
         supvals[:, 1] .= NaN * mm / day      # ... and a missing edge column
-        holed = ConstructedSpec(() -> _bngraster(WorldClim{BioClim}, supvals),
-                                axis = Precipitation)
+        holed = ConstructedRasterSpec(() -> _bngraster(WorldClim{BioClim},
+                                                       supvals),
+                                      axis = Precipitation)
 
         # Naming the supply lets it shape the grid: its gaps are then part of the coverage the area
         # recuts to, exactly as a regime's are.
@@ -989,9 +991,10 @@ end
         @test count(unshaped.active) == 81 - 17        # but the gaps are inactive
 
         # A supply with no gaps must not restrict anything - the 9 × 9 grid stays whole.
-        whole = ConstructedSpec(() -> _bngraster(WorldClim{BioClim},
-                                                 fill(600.0mm / day, 9, 9)),
-                                axis = Precipitation)
+        whole = ConstructedRasterSpec(() -> _bngraster(WorldClim{BioClim},
+                                                       fill(600.0mm / day, 9,
+                                                            9)),
+                                      axis = Precipitation)
         @test size(_env(_reg(reg), whole).active) == (9, 9)
     end
 

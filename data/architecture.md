@@ -473,6 +473,19 @@ rule), the latter further split into layer specs (a regime/supply) and mask spec
 The `LayerSpec`/`MaskSpec` aliases name the specs valid in each role. Only a lazy spec can shape a
 study area: a synthetic one has no CRS, extent or resolution of its own.
 
+`AbstractShapeSpec` is the branch of the lazy specs that is **ground** rather than data - a shape
+file, a named country, a continent, an island - and resolves to geometry before any grid exists.
+
+**`ConstructedShapeSpec` and `ConstructedRasterSpec` are mirrors**: each is the "several members
+become one" node for its medium. Three of their differences are forced by that medium and one is
+not, which is worth stating so the asymmetry is not read as an oversight. A raster combination can
+produce a *layer*, so it carries an `axis`; it can run before or after resampling, so it carries a
+`combinestage`. A shape combination can do neither, having no values and no grid - but it gains
+`coverage` and `outline`, which are component-shaped questions a raster cannot ask. **Both take an
+arbitrary function**, so neither is the more capable; the named shape operations exist because
+geometry has a small closed algebra with standard names, where raster combines are arbitrary
+arithmetic.
+
 ```mermaid
 classDiagram
     class AbstractSpec
@@ -482,7 +495,10 @@ classDiagram
     class AbstractSyntheticMaskSpec
     class SourceSpec~A, U~
     class ShapeSpec
-    class ConstructedSpec~A, F~
+    class AbstractShapeSpec
+    class NaturalEarthSpec~C~
+    class ConstructedShapeSpec~O, M, C~
+    class ConstructedRasterSpec~A, F~
     class UniformSpec~A, V~
     class GradientSpec~A, V~
     class PeakedSpec~A, V~
@@ -492,8 +508,7 @@ classDiagram
     AbstractSpec              <|-- AbstractLazySpec
     AbstractSpec              <|-- AbstractSyntheticSpec
     AbstractLazySpec          <|-- SourceSpec
-    AbstractLazySpec          <|-- ShapeSpec
-    AbstractLazySpec          <|-- ConstructedSpec
+    AbstractLazySpec          <|-- ConstructedRasterSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticLayerSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticMaskSpec
     AbstractSyntheticLayerSpec <|-- UniformSpec
@@ -503,17 +518,21 @@ classDiagram
     AbstractSyntheticMaskSpec  <|-- CircleMaskSpec
     AbstractCombineStage <|-- CombineOnTargetGrid
     AbstractCombineStage <|-- CombineOnSourceGrid
-    ConstructedSpec "1" *-- "1" AbstractCombineStage : combinestage
+    ConstructedRasterSpec "1" *-- "1" AbstractCombineStage : combinestage
+    AbstractLazySpec <|-- AbstractShapeSpec
+    AbstractShapeSpec <|-- ConstructedShapeSpec
+    AbstractShapeSpec <|-- NaturalEarthSpec
+    AbstractShapeSpec <|-- ShapeSpec
 ```
 
 Every spec is constructed exactly one way - via its own inner constructor, e.g. `GradientSpec(low,
 high; axis)`, `CircleMaskSpec(radius = 4km)`, `ShapeSpec(path)` - with no wrapper functions. A
-data-derived layer or a `within` mask beyond a circle/shape is a `ConstructedSpec`: one or more child
+data-derived layer or a `within` mask beyond a circle/shape is a `ConstructedRasterSpec`: one or more child
 data layers plus a combine rule (do-block first). For example, a land-cover mask excluding open
 water, using the `landcoverclass` lookup by name:
 
 ```julia
-ConstructedSpec(EarthEnv{LandCover}, axis = EcoSISTEM.NicheAxis) do lc
+ConstructedRasterSpec(EarthEnv{LandCover}, axis = EcoSISTEM.NicheAxis) do lc
     compress_landcover(lc) .!= landcoverclass(:open_water)
 end
 ```
@@ -526,6 +545,113 @@ regridding - one that looks beyond its own cell, and equally a cell-wise but **n
 the ratio of two interpolations is not the interpolation of the ratio. On that path the layers must
 share a native grid (checked when they are read), and a declared `valuetype` is consulted *before*
 the resample, so a derived class-code layer is taken by nearest class rather than interpolated.
+
+## Named regions - how much of a name to take
+
+A region name almost never denotes one connected piece of ground. "France" includes Guadeloupe and
+Martinique, "Norway" includes Bouvet Island in the South Atlantic, and "Chile" includes Easter
+Island, so the extent of everything a name covers can be many times the extent of the ground most
+people mean by it. A **coverage** says which of the two is wanted.
+
+```mermaid
+classDiagram
+    class AbstractCoverage
+    class AllTerritories
+    class LargestLandmass
+    AbstractCoverage <|-- AllTerritories
+    AbstractCoverage <|-- LargestLandmass
+```
+
+**Why a type rather than a flag.** The two answers are not two settings of one switch:
+`LargestLandmass` carries a count of how many components to keep, and `AllTerritories` has nothing
+to count. A `Bool` or a `Symbol` would have to pair the option with a second argument meaningful for
+only one of its values, and would be checked somewhere inside rather than at the call site where it
+was written. As a type each case owns exactly the fields it means something by, and the choice is
+dispatchable, so the two selections are separate methods rather than a branch.
+
+That count is a **keyword**, `LargestLandmass(count = 2)`, where the sibling `RandomCells(20)` takes
+its own positionally. The difference is the type name: a plural one lends a bare number something to
+attach to, and a singular one does not, so an unnamed number here would read as easily as an
+ordinal - the third largest landmass rather than the largest three.
+
+**Largest *component*, not largest *part*.** Components are measured after neighbouring features
+have been dissolved together, which is what makes a landmass spanning several countries come out as
+one thing: the largest component of a continent is its mainland, where its largest *part* would be
+merely its largest country. The same rule delivers France continentale, Great Britain and the
+Scottish mainland without an area threshold or a list of exceptions - and it is why there is no
+third coverage for "everything but the outliers", which is assembled from these two instead.
+
+It also disposes of the antimeridian for one of the two cases. Natural Earth splits its polygons at
+the date line, so no single connected component can cross it and a landmass always has an honest
+`West < East`. Only `AllTerritories` can produce a selection spanning the globe - which is where it
+is least surprising, since the territory of the United States genuinely does.
+
+**Several regions combine as geometry, not as rasters.** `AbstractShapeOperation` names the ways:
+`ShapeUnion`, `ShapeIntersection` and `ShapeDifference` combine two or more shapes, while
+`ShapeBuffer`, `ShapeSimplify` and `ShapeConvexHull` transform exactly one. The set is not closed -
+an arbitrary function is accepted too, so anything the geometry library offers is reachable.
+
+```mermaid
+classDiagram
+    class AbstractShapeOperation
+    class ShapeUnion
+    class ShapeIntersection
+    class ShapeDifference
+    class ShapeBuffer~D~
+    class ShapeSimplify~D~
+    class ShapeConvexHull
+    AbstractShapeOperation <|-- ShapeUnion
+    AbstractShapeOperation <|-- ShapeIntersection
+    AbstractShapeOperation <|-- ShapeDifference
+    AbstractShapeOperation <|-- ShapeBuffer
+    AbstractShapeOperation <|-- ShapeSimplify
+    AbstractShapeOperation <|-- ShapeConvexHull
+```
+
+**Why geometry and not rasters.** A union of outlines is exact and carries no resolution of its own,
+so the study grid is still free to be decided afterwards. Combining rasterised masks would have to
+pick a resolution before that decision and would carry two sets of edge effects into the result.
+That is also why a region spec is not a `ConstructedRasterSpec` member: a `ConstructedRasterSpec` composes
+rasters, and its members materialise on their own data's grid, which a geometry does not have.
+
+**The outlines are cartographic, and combining them exposes it.** Natural Earth's own
+`BRITISH ISLES` polygon stops at 59.80 and so omits Shetland, where the union of the United Kingdom,
+Ireland and the Isle of Man reaches 60.85. Its physical continents are landmass outlines, so `EUROPE`
+does not contain the British Isles at all - an intersection with it is empty, and is refused rather
+than returned as a grid with nothing active.
+
+**Asking which regions relate to what you have** is a third family. `AbstractSpatialRelation` is the
+question - `Encloses`, `Overlaps`, `Within` - and each **carries the thing being asked about**, so
+`Encloses(mylayer)` reads as what it means and there is no argument order to get the wrong way round.
+
+```mermaid
+classDiagram
+    class AbstractSpatialRelation
+    class Encloses~E~
+    class Overlaps~E~
+    class Within~E~
+    AbstractSpatialRelation <|-- Encloses
+    AbstractSpatialRelation <|-- Overlaps
+    AbstractSpatialRelation <|-- Within
+```
+
+They delegate to `Extents`' own predicates, so no predicate code is written here. `Encloses` uses
+`covers` rather than `contains`: the two agree on every pair of boxes, which makes the choice look
+free, but they differ on a **point** - `contains` is false for a point inside a box. A point is the
+one subject only `Encloses` accepts, so `contains` would make "which regions enclose this
+coordinate?" silently answer nothing. `Overlaps` and `Within` refuse a point at construction, since
+nothing overlaps a point and nothing lies within one.
+
+**The query compares boxes, not outlines**, which is what makes it free and is also its limit.
+Norway's box encloses Edinburgh - it runs west to Jan Mayen and north to Svalbard - so the report
+says so every time it is displayed rather than leaving it to a docstring.
+
+**A name is only meaningful with its level.** `NaturalEarthLevel` records which file defines a kind
+of region and which of its attributes carries the name, because the same word means different things
+at different levels: "Africa" is a grouping of 55 countries at one level and 62 at another, and the
+cultural `CONTINENT` "Europe" is a list of whole countries reaching the Pacific where the physical
+`Continent` "EUROPE" is a coastline stopping at the Urals. Levels are values in a table rather than
+types, since they are read from the source's own vocabulary and nothing dispatches on them.
 
 ## Coordinates - places and separations
 

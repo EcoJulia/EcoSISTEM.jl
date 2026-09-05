@@ -96,18 +96,18 @@ end
           NoUnits
 end
 
-@testset "ConstructedSpec declares when its combine runs" begin
+@testset "ConstructedRasterSpec declares when its combine runs" begin
     # Nothing is read here - the stage is a property of the spec, resolved at construction.
-    @test ConstructedSpec(() -> nothing, axis = EcoSISTEM.NicheAxis).combinestage isa
+    @test ConstructedRasterSpec(() -> nothing, axis = EcoSISTEM.NicheAxis).combinestage isa
           CombineOnTargetGrid
-    early = ConstructedSpec(() -> nothing, axis = EcoSISTEM.NicheAxis,
-                            combinestage = CombineOnSourceGrid())
+    early = ConstructedRasterSpec(() -> nothing, axis = EcoSISTEM.NicheAxis,
+                                  combinestage = CombineOnSourceGrid())
     @test early.combinestage isa CombineOnSourceGrid
     # A type, not a symbol, so a wrong stage is refused by the signature where it was written
     # rather than by a check that runs later and somewhere else.
-    @test_throws TypeError ConstructedSpec(() -> nothing,
-                                           axis = EcoSISTEM.NicheAxis,
-                                           combinestage = :early)
+    @test_throws TypeError ConstructedRasterSpec(() -> nothing,
+                                                 axis = EcoSISTEM.NicheAxis,
+                                                 combinestage = :early)
     # It is independent of the **axis**: an early combine that produces ordinary numbers (a ratio,
     # say) is on no particular axis, and `combinestage` says nothing about what the values are.
     # There is deliberately no `valuetype` field to assert on: whether a layer holds class codes is
@@ -127,7 +127,7 @@ end
     @test ShapeSpec("relative/shape.zip").path isa String
 end
 
-# **A raster broadcasts and stays a raster**, which is what lets a `ConstructedSpec` combine name
+# **A raster broadcasts and stays a raster**, which is what lets a `ConstructedRasterSpec` combine name
 # no array type - neither `.array` going in nor a constructor coming out. Without it the combine
 # contract could only be met by hand-wrapping, which puts our array type in *user* code.
 @testset "a raster broadcasts and stays a raster" begin

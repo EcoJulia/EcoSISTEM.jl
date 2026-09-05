@@ -27,7 +27,7 @@
 # This is a manual diagnostic, NOT part of the test suite (its name does not start with `test_`, so
 # runtests.jl does not auto-run it).
 #
-#     julia --project=examples examples/scripts/bioclimplus_units.jl
+#     julia --project=data/src data/src/bioclimplus_units.jl
 
 using EcoSISTEM
 using RasterDataSources

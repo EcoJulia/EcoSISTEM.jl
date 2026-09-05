@@ -246,13 +246,13 @@ Three rules follow, and they are the whole of it:
 
 **The useful case is composition.** A layer with no axis is an *ingredient*: a soil-type
 map has no tolerance and no supply of its own, yet it legitimately changes how much of the
-rain is available. Feed it to a [`ConstructedSpec`](@ref) together with a precipitation layer
+rain is available. Feed it to a [`ConstructedRasterSpec`](@ref) together with a precipitation layer
 and declare the **result** on `Precipitation`, and *that* is what carries a tolerance or
 becomes a supply. The axis is a property of the dish, not of the ingredients.
 
 ### What a combine is handed, and what it must give back
 
-A [`ConstructedSpec`](@ref)'s `combine` receives one raster per layer and **must return a
+A [`ConstructedRasterSpec`](@ref)'s `combine` receives one raster per layer and **must return a
 raster**. That is the whole contract, and it does not depend on how the spec is later used:
 a *mask* is simply a raster whose element type is `Bool`.
 
@@ -261,12 +261,12 @@ a raster, so the natural way to write a combine is also the correct one:
 
 ```julia
 # a mask - Bool-valued, still a raster; it claims nothing, so it names the root axis
-ConstructedSpec(EarthEnv{LandCover}, axis = EcoSISTEM.NicheAxis) do lc
+ConstructedRasterSpec(EarthEnv{LandCover}, axis = EcoSISTEM.NicheAxis) do lc
     compress_landcover(lc) .!= landcoverclass(:open_water)
 end
 
 # a derived layer - several bands added together, its meaning declared by `axis`
-ConstructedSpec(EarthEnv{LandCover}, [:shrubs, :herbaceous], axis = SurfaceArea) do bands...
+ConstructedRasterSpec(EarthEnv{LandCover}, [:shrubs, :herbaceous], axis = SurfaceArea) do bands...
     sum(bands)
 end
 ```

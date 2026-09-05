@@ -17,7 +17,7 @@
 #
 # Run it directly; nothing here downloads anything:
 #
-#     julia --project=examples -t 1 examples/benchmarks/collection_hotpaths.jl
+#     julia --project=data/src -t 1 data/src/benchmarks/collection_hotpaths.jl
 #
 # Size and repetition count are read from the environment (all optional):
 #
@@ -37,7 +37,7 @@
 #
 #     git checkout-index -a -f --prefix=/tmp/before/     # or `git worktree add` for a commit
 #     cp Manifest.toml /tmp/before/
-#     julia --project=/tmp/before -t 1 examples/benchmarks/collection_hotpaths.jl
+#     julia --project=/tmp/before -t 1 data/src/benchmarks/collection_hotpaths.jl
 #
 # `checkout-index` only reads the index, so it cannot disturb the working tree. Run single-threaded
 # (`-t 1`) unless threading is what is being measured: the species loop in `update!` is

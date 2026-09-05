@@ -10,7 +10,7 @@ using DimensionalData
 
 Abstract supertype of the lazy, data-backed / derived specs. Resolved against the target grid at
 build time and usable in *either* role - a regime/supply layer or an active mask: [`SourceSpec`](@ref)
-(read a data source), `ShapeSpec` (a vector file), `ConstructedSpec` (combine child specs by a
+(read a data source), `ShapeSpec` (a vector file), `ConstructedRasterSpec` (combine child specs by a
 function).
 """
 abstract type AbstractLazySpec <: AbstractSpec end
@@ -63,7 +63,7 @@ Name a layer of a catalogued data source, without reading it. It holds **no** gr
 the cut and the resample happen only when it is materialised onto a decided grid.
 
 Passing **no** `code` describes the *whole* dataset - every layer read into one multi-band raster,
-which is the form [`ConstructedSpec`](@ref) uses for a bare dataset, such as all the land-cover class
+which is the form [`ConstructedRasterSpec`](@ref) uses for a bare dataset, such as all the land-cover class
 bands for `compress_landcover`.
 
 # Arguments
@@ -76,7 +76,7 @@ bands for `compress_landcover`.
     shipped table, and to [`NicheAxis`](@ref) where the table names none.
   - any other keyword: kept as a pass-through argument for the eventual `read`, so
     `SourceSpec(WorldClim{Climate}, :wind, month = 1:12)` reads the twelve monthly layers and
-    `month = 1` just the one. A `SourceSpec` nested inside a [`ConstructedSpec`](@ref) can therefore
+    `month = 1` just the one. A `SourceSpec` nested inside a [`ConstructedRasterSpec`](@ref) can therefore
     carry its own read options.
 
     Two of those keywords decide how much is read, and are worth knowing about together. `cut`
@@ -114,13 +114,13 @@ struct SourceSpec{A <: NicheAxis, U, K <: NamedTuple} <:
     # one. Omitting `code` gives the whole dataset. `unit`/`axis` are resolved in the *body* rather
     # than as signature defaults because their defaults are shipped-table lookups keyed on `code`.
     # Any keyword other than `axis` is captured as a pass-through read keyword, so a `SourceSpec`
-    # nested inside a `ConstructedSpec` can specify e.g. its own `month`.
+    # nested inside a `ConstructedRasterSpec` can specify e.g. its own `month`.
     #
     # A multi-layer spec does **not** error here when its layers disagree on unit or axis, even
     # though it cannot then honestly claim one. Four of the seven shipped datasets are heterogeneous -
     # including `WorldClim{BioClim}` (6 units) and `CHELSA{BioClimPlus}` (13 units, 29 axes) - so
     # refusing them at construction would rule out the flagship sources. Its real use is inside a
-    # `ConstructedSpec`, where `_parselayers` expands it to one correctly-united spec per layer and
+    # `ConstructedRasterSpec`, where `_parselayers` expands it to one correctly-united spec per layer and
     # the disagreement never arises. The error belongs where a *single array* is genuinely required -
     # materialising it directly as a regime or supply - and lives in `_read` accordingly.
     #
@@ -161,6 +161,21 @@ end
 end
 
 """
+    AbstractShapeSpec
+
+A mask that is a piece of **ground** rather than data - [`ShapeSpec`](@ref) for one given as a vector
+file, [`NaturalEarthSpec`](@ref) for one given by name, [`ConstructedShapeSpec`](@ref) for several
+combined or one transformed.
+
+What these share, and what the abstract type is for, is that they resolve to **geometry** before any
+grid exists. That is what lets them be combined exactly and at no resolution - a study area of your
+own, unioned with a country you named - where combining rasterised masks would have to fix a
+resolution before the study grid had been decided. It is the vector mirror of
+[`ConstructedRasterSpec`](@ref), which composes rasters and so does need a grid.
+"""
+abstract type AbstractShapeSpec <: EcoSISTEM.AbstractLazySpec end
+
+"""
     ShapeSpec(path::AbstractString; layer = 0)
 
 Name an active-area mask taken from the polygons of a vector file, without reading it. It holds
@@ -176,7 +191,7 @@ and the cell-membership test all happen when it is materialised onto a decided g
     is needed.
   - `layer`: which layer of the file, 0-indexed. Every polygon feature in it is used.
 """
-struct ShapeSpec <: EcoSISTEM.AbstractLazySpec
+struct ShapeSpec <: AbstractShapeSpec
     path::Union{String, EcoSISTEM.CachedAsset}
     layer::Int
     # A leading URL scheme (`scheme://...`) marks `path` as a download, deferred to a `CachedAsset`;
@@ -189,14 +204,163 @@ struct ShapeSpec <: EcoSISTEM.AbstractLazySpec
 end
 
 """
-    ConstructedSpec(combine, layers...)
+    NaturalEarthSpec(name::AbstractString; level = nothing, coverage = AllTerritories(),
+                     outline = true)
+
+Name an active-area mask as a **named region** - a country, a continent, an island - without
+reading anything. The polygons are fetched and cut to the grid when the spec is materialised, as for
+[`ShapeSpec`](@ref).
+
+The name is resolved against the shipped region table at construction, so a name that does not exist
+is an error where it was written rather than minutes later mid-build. It is resolved by exactly the
+rule [`boundingbox`](@ref) uses, which is what makes the box that function reports the box this
+spec's shape actually has.
+
+# Arguments
+
+  - `name`: the region's name, matched case-insensitively but otherwise as Natural Earth spells it.
+  - `level`: which kind of region the name means - `"ADMIN"` for a country, `"Physical Island"` for a
+    landmass; `EcoSISTEM.naturalearth_levels()` lists them. Only needed where a name means genuinely
+    different ground at different levels, and the error says so when it does.
+  - `coverage`: how much of what the name covers to take - [`AllTerritories`](@ref), the default and
+    what the source itself means by the name, or [`LargestLandmass`](@ref) for the principal landmass
+    alone.
+  - `outline`: `true`, the default, activates only the cells whose centres fall inside the region.
+    `false` activates every cell in the region's bounding box instead, which is the cheaper thing to
+    want when the region is only being used to say *where* to work rather than to mask a coastline.
+"""
+struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
+    level::String
+    name::String
+    coverage::C
+    outline::Bool
+
+    function NaturalEarthSpec(name::AbstractString; level = nothing,
+                              coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
+                              outline::Bool = true)
+        lvl = isnothing(level) ? EcoSISTEM._resolvelevel(name, coverage) :
+              EcoSISTEM._checklevel(level).name
+        row = EcoSISTEM._regionrow(lvl, name)
+        isnothing(row) &&
+            error("No region named \"$name\" at level \"$lvl\". " *
+                  "`EcoSISTEM.naturalearth_levels()` lists the levels.")
+        # The source's own spelling is stored, not the caller's: the lookup is case-insensitive, and
+        # what is kept should be what the data says so that `show` and any later report agree with it.
+        return new{typeof(coverage)}(lvl, row.Name, coverage, outline)
+    end
+end
+
+"""
+    NaturalEarthSpec(match::EcoSISTEM.RegionMatch; coverage = AllTerritories(), outline = true)
+
+Turn one match from [`investigate_regions`](@ref) into a spec, without naming it again.
+
+A match already carries the level and the name, which is the whole of a spec's identity, so nothing
+is re-derived and the shape agrees with the box the report displayed.
+
+A *report* cannot be converted, because it may hold several regions. Pick one first - `only(report)`
+asserts there was exactly one, `first(report)` takes the best by the report's own ordering, and
+`report[i]` takes a chosen one.
+"""
+function NaturalEarthSpec(match::EcoSISTEM.RegionMatch;
+                          coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
+                          outline::Bool = true)
+    return NaturalEarthSpec(match.name, level = match.level.name,
+                            coverage = coverage, outline = outline)
+end
+
+# A report is ambiguous by construction, so converting one would have to pick silently. `first` is
+# meaningful under `Encloses`, whose order is smallest-enclosing-first, and not under the other two -
+# it would be right a third of the time. An error naming the three ways to choose beats that, and a
+# `MethodError` would name none of them.
+function NaturalEarthSpec(report::EcoSISTEM.RegionReport; kw...)
+    return error("A `RegionReport` holds $(length(report)) region" *
+                 (length(report) == 1 ? "" : "s") *
+                 ", so it does not name one spec. Choose: `only(report)` asserts there was exactly " *
+                 "one, `first(report)` takes the best by the report's own ordering, `report[i]` " *
+                 "takes the one you want.")
+end
+
+function Base.show(io::IO, s::NaturalEarthSpec)
+    print(io, "NaturalEarthSpec(\"", s.name, "\", level = \"", s.level, "\"")
+    EcoSISTEM._isdefaultcoverage(s.coverage) ||
+        print(io, ", coverage = ", s.coverage)
+    s.outline || print(io, ", outline = false")
+    return print(io, ")")
+end
+
+"""
+    ConstructedShapeSpec(operation, members...; coverage = AllTerritories(), outline = true)
+
+Combine several named regions into one mask - the union of the United Kingdom, Ireland and the Isle
+of Man, or a country with an island group cut out of it.
+
+Regions combine as **geometry**, so the result is exact and carries no resolution of its own: the
+grid is still decided afterwards, and nothing is rasterised twice.
+
+```julia
+# The British Isles, including Shetland - which Natural Earth's own polygon of that name omits
+ConstructedShapeSpec(ShapeUnion(),
+                   NaturalEarthSpec("United Kingdom", coverage = AllTerritories()),
+                   NaturalEarthSpec("Ireland", level = "ADMIN"),
+                   NaturalEarthSpec("Isle of Man", level = "ADMIN"),
+                   coverage = LandmassesAbove(1km^2))     # ...and without Rockall
+```
+
+# Arguments
+
+  - `operation`: how they combine - [`ShapeUnion`](@ref), [`ShapeIntersection`](@ref) or
+    [`ShapeDifference`](@ref), the last taking every later member away from the first.
+  - `members`: two or more region specs, either [`NaturalEarthSpec`](@ref)s or nested
+    `ConstructedShapeSpec`s.
+  - `coverage`: which components of the *result* to keep, applied after the operation -
+    [`AllTerritories`](@ref) by default, since a combination usually means all of what it built.
+  - `outline`: as [`NaturalEarthSpec`](@ref) - `false` activates the result's bounding box instead of
+    its outline.
+"""
+struct ConstructedShapeSpec{O, M <: Tuple,
+                            C <: EcoSISTEM.AbstractCoverage} <:
+       AbstractShapeSpec
+    operation::O
+    members::M
+    coverage::C
+    outline::Bool
+
+    function ConstructedShapeSpec(operation::Union{EcoSISTEM.AbstractShapeOperation,
+                                                   Function},
+                                  members::AbstractShapeSpec...;
+                                  coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
+                                  outline::Bool = true)
+        least = EcoSISTEM._minmembers(operation)
+        length(members) >= least ||
+            throw(ArgumentError("`$operation` needs at least $least shape" *
+                                (least == 1 ? "" : "s") *
+                                "; it was given $(length(members))."))
+        return new{typeof(operation), typeof(members), typeof(coverage)}(operation,
+                                                                         members,
+                                                                         coverage,
+                                                                         outline)
+    end
+end
+
+function Base.show(io::IO, s::ConstructedShapeSpec)
+    print(io, "ConstructedShapeSpec(", s.operation, ", ")
+    join(io, s.members, ", ")
+    EcoSISTEM._isdefaultcoverage(s.coverage) ||
+        print(io, ", coverage = ", s.coverage)
+    s.outline || print(io, ", outline = false")
+    return print(io, ")")
+end
+
+"""
+    ConstructedRasterSpec(combine, layers...)
 
 The universal lazy escape hatch: read each of `layers` onto the working grid, then apply `combine`
 to the resulting rasters. Because `combine` is the **first** argument it can be written as a
 do-block:
 
 ```julia
-ConstructedSpec(EarthEnv{LandCover}, :open_water) do water
+ConstructedRasterSpec(EarthEnv{LandCover}, :open_water) do water
     water .< 50   # a mask of cells less than half open water
 end
 ```
@@ -244,7 +408,7 @@ because a `TypologyAxis` says the values are class labels and so must be resampl
 while any other axis says they may be interpolated. A separate declaration could only agree with the
 axis or contradict it.
 """
-struct ConstructedSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
+struct ConstructedRasterSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
     axis::Type{A}  # the niche axis of the produced layer (matched to species tolerances); mask => ignored
     combine::F
     # **`AbstractSpec`, not `Vector{SourceSpec}`** - two things at once. It is what lets this type
@@ -266,10 +430,10 @@ struct ConstructedSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
     # result is what gets sampled - on the default path the layers are sampled first, so nothing ever
     # interpolates a class code. The two remain independent: `gsp / gsl` must collapse early (a
     # ratio does not commute with regridding) and produces perfectly ordinary continuous values.
-    function ConstructedSpec(combine, layerargs...;
-                             axis::Type{A},
-                             combinestage::AbstractCombineStage = CombineOnTargetGrid()) where {A <:
-                                                                                                NicheAxis}
+    function ConstructedRasterSpec(combine, layerargs...;
+                                   axis::Type{A},
+                                   combinestage::AbstractCombineStage = CombineOnTargetGrid()) where {A <:
+                                                                                                      NicheAxis}
         return new{A, typeof(combine)}(axis, combine,
                                        _parselayers(layerargs...),
                                        combinestage)
@@ -315,7 +479,7 @@ end
 # As in `Spec.jl`: the one-liner is the expression that builds it, with optional arguments shown
 # only where they are not at their default.
 #
-# `ConstructedSpec` is the one that cannot follow the rule, and says so: its `combine` is an
+# `ConstructedRasterSpec` is the one that cannot follow the rule, and says so: its `combine` is an
 # arbitrary function with no readable spelling, so the line reports what it is built *from* instead.
 function Base.show(io::IO, spec::SourceSpec{A}) where {A}
     kw = isempty(spec.readkw) ? "" :
@@ -329,13 +493,13 @@ function Base.show(io::IO, spec::ShapeSpec)
     return print(io, "ShapeSpec($(repr(spec.path))$(layer))")
 end
 
-function Base.show(io::IO, spec::ConstructedSpec{A}) where {A}
+function Base.show(io::IO, spec::ConstructedRasterSpec{A}) where {A}
     n = length(spec.layers)
     return print(io,
-                 "ConstructedSpec($(n) layer$(n == 1 ? "" : "s"), axis = $(nameof(A)))")
+                 "ConstructedRasterSpec($(n) layer$(n == 1 ? "" : "s"), axis = $(nameof(A)))")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", spec::ConstructedSpec)
+function Base.show(io::IO, ::MIME"text/plain", spec::ConstructedRasterSpec)
     println(io, sprint(show, spec))
     for l in spec.layers
         println(io, "  ", sprint(show, l))
@@ -389,10 +553,10 @@ function _desugarsupply(spec::SourceSpec)
     # code that `_sampledeclared` needs to sample the *result* on the early-collapse path, so dividing
     # the bare arrays and returning that would strip the grid provenance and be refused there.
     source = spec.source
-    return ConstructedSpec(spec, divisor, axis = _percellaxis(spec, rec),
-                           combinestage = CombineOnSourceGrid()
-                           ) do amount,
-                                period
+    return ConstructedRasterSpec(spec, divisor, axis = _percellaxis(spec, rec),
+                                 combinestage = CombineOnSourceGrid()
+                                 ) do amount,
+                                      period
         return ClimateRaster(source,
                              _perperiod.(amount.array,
                                          period.array))

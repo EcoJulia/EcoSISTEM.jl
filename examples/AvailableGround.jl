@@ -68,9 +68,9 @@ const GROWABLE = (:needleleaf_trees, :evergreen_broadleaf_trees,
 # code, not one stacked array - so the combine takes them as varargs and simply adds them up: a
 # raster behaves like its values and stays a raster, so `sum` is the whole of it and no array type is
 # named. The result carries no layer code, and does not need one - the codes disagree, so summing
-# drops it, and the `axis =` on the `ConstructedSpec` is what declares what the result means.
-available = ConstructedSpec(EarthEnv{LandCover}, collect(GROWABLE),
-                            axis = SurfaceArea) do bands...
+# drops it, and the `axis =` on the `ConstructedRasterSpec` is what declares what the result means.
+available = ConstructedRasterSpec(EarthEnv{LandCover}, collect(GROWABLE),
+                                  axis = SurfaceArea) do bands...
     return sum(bands)
 end
 
@@ -102,8 +102,8 @@ const LIGHTDEMAND = INCIDENT * CELLAREA / LIGHTPERCELL
 # fractions* - dimensionless, on `SurfaceArea`. Multiplying by an incident flux gives a solar flux
 # density, and `axis = SolarRadiation` is what declares that. Nothing in the values could have said
 # it: a fraction times a constant is just a number until an axis gives it a meaning.
-usable_light = ConstructedSpec(EarthEnv{LandCover}, collect(GROWABLE),
-                               axis = SolarRadiation) do bands...
+usable_light = ConstructedRasterSpec(EarthEnv{LandCover}, collect(GROWABLE),
+                                     axis = SolarRadiation) do bands...
     return sum(bands) .* INCIDENT
 end
 
@@ -115,9 +115,18 @@ end
 # from -19 000 km, which is nonsense outside Britain. `extent` is a **size**, not a bounding box:
 # it says how big, never where. Measured while writing this - without `within` the grid came out
 # 953 × 6 cells over mostly ocean, and every number in the comparison was meaningless.
-# `boundingbox` reads the shipped `data/bounding_boxes.csv`, so naming a region costs no download.
+# A region can be named instead of drawn. `EcoSISTEM.boundingbox("Scotland")` gives its extent from
+# the shipped table at no download; `NaturalEarthSpec("Scotland")` gives its actual coastline, which
+# is what this example uses. `coverage` says how much of the name to take - the default is everything
+# it covers, which for Scotland reaches Rockall and Shetland, so the principal landmass is asked for
+# explicitly.
+# A `NaturalEarthSpec` rather than a box, because this example is about how much ground is
+# *available*: a box over Scotland is largely sea, and every cell of it would be counted. The spec
+# activates only the cells whose centres fall inside the coastline, and sets the extent as a box
+# would. It downloads the polygons once, into `EcoSISTEM.assetdir`.
 area = StudyArea(supply = available,
-                 within = EcoSISTEM.boundingbox("Scotland"),
+                 within = NaturalEarthSpec("Scotland", level = "SUBUNIT",
+                                           coverage = LargestLandmass()),
                  crs = EPSG(27700), cellsize = CELLSIZE, verbosity = :silent)
 
 # The regime and the tolerances are deliberately dull - this example is about the supplies, so

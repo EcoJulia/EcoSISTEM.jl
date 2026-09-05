@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Keep `docs/architecture.md` honest about the code's type hierarchies.
+# Keep `data/architecture.md` honest about the code's type hierarchies.
 #
 # Audit - what the doc gets wrong, and what it has never covered:
 #
-#     julia --project docs/architecture.jl
+#     julia --project=data/src data/src/architecture.jl
 #
 # Regenerate the inheritance edges of every mermaid block, in place:
 #
-#     julia --project docs/architecture.jl --fix
+#     julia --project=data/src data/src/architecture.jl --fix
 #
 # 🔴 **`--fix` repairs the DIAGRAMS ONLY. The prose is the valuable half and it cannot see it.**
-# ✅ Measured the day this was written: `docs/architecture.md` declared `class Reference~A~` for a type
+# ✅ Measured the day this was written: `data/architecture.md` declared `class Reference~A~` for a type
 # deleted from `ClimatePref` - *and* said in prose that "`ERA`/`CERA`/`CRUTS`/`Reference` remain for
 # their data sources". `--fix` removes the first and leaves the second silently wrong. Always read the
 # text around any block it changes, and treat its output as a diff to review rather than an answer.
@@ -25,7 +25,7 @@ using EcoSISTEM
 
 export audit, architecture_report, regenerate
 
-const DOC = joinpath(pkgdir(EcoSISTEM), "docs", "architecture.md")
+const DOC = joinpath(pkgdir(EcoSISTEM), "data", "architecture.md")
 
 # The modules whose own declarations the doc is expected to cover. ⭐ Extensions are included when
 # loaded and skipped when not, so a run without the weak deps under-reports rather than lying.
@@ -42,6 +42,12 @@ end
 # Where a name may legitimately resolve without being ours - the external supertypes we subtype from.
 # ⭐ Resolving against real modules rather than keeping a hardcoded whitelist: a name is only "stale"
 # if *nothing* reachable defines it, so an upstream rename shows up as staleness exactly as it should.
+# 🔴🔴 `Base.identify_package` only sees DIRECT dependencies of the active project, so every module
+# named below must be one, or its types silently drop out of `othermodules()` and the edges they
+# carry are reported as stale. ✅ Measured: running under a project where Diversity and EcoBase were
+# merely transitive produced 7 false differences - and `--fix` would have applied them, deleting real
+# inheritance edges from a document the audit exists to protect. Run this under `data/src`, whose
+# Project.toml lists all five, or under the test environment.
 function othermodules()
     mods = Module[Base, Core]
     for name in (:Diversity, :EcoBase, :Distributions, :Unitful, :DimensionalData)
@@ -81,7 +87,7 @@ end
 """
     architecture_report()
 
-Gather what the code says about its own type hierarchies, and what `docs/architecture.md` says about
+Gather what the code says about its own type hierarchies, and what `data/architecture.md` says about
 them. Returns a named tuple: `owned` (our type declarations), `aliases`, `children` (parent name ->
 child names), `roots` (hierarchy roots with at least one child), `documented` (names appearing in a
 mermaid block), `stale` (documented but resolvable nowhere) and `undocumented` (a root with children
@@ -156,13 +162,13 @@ end
 """
     audit(; io = stdout)
 
-Print what `docs/architecture.md` gets wrong and what it has never covered, and return `true` when
+Print what `data/architecture.md` gets wrong and what it has never covered, and return `true` when
 there is nothing to report. ⚠️ A clean audit means the *diagrams* agree with the code; it says nothing
 about whether the prose around them is still true.
 """
 function audit(; io = stdout)
     r = architecture_report()
-    println(io, "docs/architecture.md vs the code")
+    println(io, "data/architecture.md vs the code")
     println(io, "  type declarations found : ", length(r.owned))
     println(io, "  aliases found           : ", length(r.aliases))
     println(io, "  hierarchy roots         : ", length(r.roots))
@@ -190,7 +196,7 @@ end
 """
     regenerate(; write = false, io = stdout)
 
-Repair the **inheritance edges** of every mermaid block in `docs/architecture.md`, writing the file
+Repair the **inheritance edges** of every mermaid block in `data/architecture.md`, writing the file
 only when `write = true`. Returns the number of lines added plus removed.
 
 🔴 **Deliberately minimal, not a re-render.** It only *removes* what is provably wrong and *adds*
@@ -296,7 +302,7 @@ function regenerate(; write::Bool = false, io = stdout)
     new = String(take!(out))
     if write && new != text
         Base.write(DOC, new)
-        println(io, "\n✅ rewrote docs/architecture.md - ", changes,
+        println(io, "\n✅ rewrote data/architecture.md - ", changes,
                 " line(s) changed.")
         println(io,
                 "🔴 Now READ the prose around each change: `--fix` cannot see it, and a deleted type " *

@@ -24,7 +24,7 @@ of that, put it in a subdirectory instead.
 | `landscapes/` | the five landscape configurations the top-level `landscapes.jl` exercises |
 | `models/` | the published experiments and diversity measures, included by the top-level `models.jl` |
 | `other/` | examples that are *not* run - long runs, ones needing data or a cluster, work in progress |
-| `HPC/`, `pipeline/`, `scripts/`, `benchmarks/` | tooling and one-off scripts, not examples |
+| `HPC/`, `pipeline/` | tooling, not examples |
 
 A subdirectory is included by a top-level file when it should be tested - `interventions.jl`
 includes each file in `interventions/`, so that library *is* covered while staying organised. That

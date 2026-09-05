@@ -17,7 +17,7 @@ module TestCleanTypeOrder
 using EcoSISTEM
 using Test
 
-include(joinpath(pkgdir(EcoSISTEM), "docs", "typeorder.jl"))
+include(joinpath(pkgdir(EcoSISTEM), "data", "src", "typeorder.jl"))
 using .TypeOrderAudit
 
 @testset "Type order" begin

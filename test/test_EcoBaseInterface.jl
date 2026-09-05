@@ -39,8 +39,8 @@ function _geographic(; lat = (50.0:0.5:53.0) .* °, long = (0.0:0.5:5.0) .* °)
                               length(long)),
                          lat = lat, long = long)
     area = StudyArea(regime = _reg(raster), verbosity = :silent)
-    return GridHabitat(regime = ConstructedSpec(() -> raster,
-                                                axis = Temperature),
+    return GridHabitat(regime = ConstructedRasterSpec(() -> raster,
+                                                      axis = Temperature),
                        supply = UniformSpec(10.0kJ / m^2 / day,
                                             axis = SolarRadiation),
                        area = area)

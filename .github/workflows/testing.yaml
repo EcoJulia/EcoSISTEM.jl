@@ -17,15 +17,15 @@ jobs:
   # Fetch the rasters the suite reads, in a job that does nothing else, so the job that runs the
   # tests can restore them instead of downloading them.
   #
-  # 🔴 THIS IS ABOUT MEMORY AS MUCH AS TIME. Downloading while the suite is at its peak is what made
+  # THIS IS ABOUT MEMORY AS MUCH AS TIME. Downloading while the suite is at its peak is what made
   # the Linux runner unsurvivable: `test_datasetread.jl` alone reached 7.0 GB resident of the
   # runner's 16 GB, and ~1 GB of concurrent downloads filling the page cache on top of that took the
-  # machine far enough into swap that the Actions agent was sent a shutdown signal. ⚠️ **Nothing after
+  # machine far enough into swap that the Actions agent was sent a shutdown signal. **Nothing after
   # that point runs** - not `if: always()`, not a post step - so the tests never reached their own
   # cache-saving step and the next run downloaded again. The loop could not break itself, which is
   # why breaking it needs a job that is not the test job.
   #
-  # ⭐ `test/primecache.jl` calls `getraster`, which downloads without reading pixels, so this job
+  # `test/primecache.jl` calls `getraster`, which downloads without reading pixels, so this job
   # stays in a few hundred MB whatever it fetches - it survives precisely what the test job could not.
   prime-raster-cache:
     name: Prime the raster cache - ${{ matrix.os }}
@@ -42,7 +42,7 @@ jobs:
           - windows-latest
       fail-fast: false
     steps:
-    # ⭐ `lookup-only` asks whether the key exists WITHOUT downloading the ~1 GB behind it, and every
+    # `lookup-only` asks whether the key exists WITHOUT downloading the ~1 GB behind it, and every
     # step below is skipped when it does. So once a cache exists this whole job is a checkout-free
     # metadata query taking seconds, and only a cold cache pays for Julia, the build and the fetch.
     - name: Is the raster cache already there?
@@ -78,7 +78,7 @@ jobs:
       shell: bash
       run: rm -rf ~/.julia/scratchspaces/*/assets/RasterDataSources/*/*/zips
     - name: Save the raster data cache
-      # ⚠️ `if: always()` so a partly-primed cache is still saved. `primecache.jl` reports a failed
+      # `if: always()` so a partly-primed cache is still saved. `primecache.jl` reports a failed
       # entry rather than throwing, exactly so that one unreachable host does not discard the rest:
       # a gap costs the test job a few downloads, never a wrong answer.
       if: always() && steps.probe.outputs.cache-hit != 'true'
@@ -90,7 +90,7 @@ jobs:
   EcoSISTEM-tests:
     name: Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     needs: prime-raster-cache
-    # ⭐ Priming is an OPTIMISATION, NEVER A GATE. A plain `needs:` would skip the whole test matrix
+    # Priming is an OPTIMISATION, NEVER A GATE. A plain `needs:` would skip the whole test matrix
     # when a prime job failed, which would turn a slow download into no tests at all; `!cancelled()`
     # keeps the dependency's *ordering* - the tests start once priming is done - while dropping its
     # veto. The tests still fetch anything the cache lacks, exactly as before this job existed.
@@ -140,14 +140,19 @@ jobs:
       # downloads (~850 MB) and aggregated layers (~700 MB) live. Cache them here - tar preserves
       # mtime, so the aggregate cache, which is keyed partly on source mtime, still hits.
       #
-      # 🔴 RESTORE AND SAVE ARE SEPARATE STEPS BECAUSE THE SAVE MUST HAPPEN ON A FAILING JOB.
-      # `actions/cache` writes its cache in an implicit post-job step that only runs when the job
-      # succeeded, so a suite that fails for any reason - including running out of time *because*
-      # nothing was cached - can never populate the cache it needed. That is not hypothetical: it is
-      # why every run so far has reported `Cache not found`, re-downloaded ~850 MB, and spent about
-      # a quarter of the macOS job doing it. The explicit save step below carries `if: always()`.
+      # THIS JOB ONLY RESTORES; `prime-raster-cache` is what fills the cache. It used to save
+      # here too, as a fallback - but that step could only ever fire when the prime job had failed
+      # to write the key, since `actions/cache/save` is skipped on an exact hit and the two use the
+      # identical key. Priming made it dead code, so it is gone, along with the archive-discard step
+      # that existed only to run before it.
       #
-      # ⭐ THE KEY IS DELIBERATELY STATIC, and versioned by hand. Content-hashing the files that
+      # The reason the prime job splits restore from save is still live and worth knowing: the
+      # implicit post-job save of `actions/cache` runs only when the job SUCCEEDED, so a suite that
+      # fails for any reason - including running out of time *because* nothing was cached - can
+      # never populate the cache it needed. `prime-raster-cache`'s explicit save carries
+      # `if: always()` for exactly that reason.
+      #
+      # THE KEY IS DELIBERATELY STATIC, and versioned by hand. Content-hashing the files that
       # trigger downloads was the previous approach and had two faults: it named
       # `test/test_ReadData.jl` and `test/test_AbioticEnv.jl`, both of which were renamed out of
       # existence (`hashFiles` contributes nothing for a path that does not exist, so the key silently
@@ -155,7 +160,7 @@ jobs:
       # any of them would mint a fresh ~1.3 GB cache entry per matrix job and evict the far more
       # valuable depot caches under the repository's 10 GB ceiling.
       #
-      # ⚠️ A restored cache can never be wrong, only incomplete: `getraster`/`download` each test the
+      # A restored cache can never be wrong, only incomplete: `getraster`/`download` each test the
       # target file's own existence before fetching, so a partial restore costs a few per-file
       # downloads rather than giving incorrect data. That is what makes a static key safe - and it is
       # also the repair route if a save ever lands incomplete. BUMP THE `-v1` SUFFIX to mint a new
@@ -169,53 +174,25 @@ jobs:
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
     - name: Running
-      # ⭐ Coverage instrumentation is a large slowdown and only one job's output is ever used, so it
+      # Coverage instrumentation is a large slowdown and only one job's output is ever used, so it
       # runs on exactly one matrix entry - macOS, which is the fastest runner here, on the release
       # Julia. Every other entry runs the same tests uninstrumented.
       #
-      # 🔴 `prefix` CARRIES THE RESOURCE SAMPLER, and where it runs is the whole point. The Linux
+      # `prefix` CARRIES THE RESOURCE SAMPLER, and where it runs is the whole point. The Linux
       # runner is shut down about two minutes into the suite with nothing but `signal 15` and
-      # *"the runner has received a shutdown signal"* to show for it. ⚠️ **When that happens the job
+      # *"the runner has received a shutdown signal"* to show for it. **When that happens the job
       # is ABORTED rather than failed, so no further step runs** - not an `if: always()` one, not a
-      # post step. ✅ Measured: an earlier attempt sampled into a file under `RUNNER_TEMP` and printed
+      # post step. Measured: an earlier attempt sampled into a file under `RUNNER_TEMP` and printed
       # it from a later step; the sampler step ran, the reporting step never did, and nothing was
       # recovered.
-      # ⭐ As a `prefix` the sampler wraps the julia invocation, so its output is **this step's own
+      # As a `prefix` the sampler wraps the julia invocation, so its output is **this step's own
       # stdout** - which GitHub streams to the log as it is produced. Every reading is therefore
       # already in the log before the machine is gone. Grep the log for `RES`.
-      # ⚠️ Not on Windows: `free` is GNU-only, and Windows now runs the suite to completion anyway.
+      # Not on Windows: `free` is GNU-only, and Windows now runs the suite to completion anyway.
       uses: julia-actions/julia-runtest@v1
       with:
         coverage: ${{ matrix.os == 'macOS-latest' && matrix.julia-version == '1' }}
         prefix: ${{ runner.os != 'Windows' && format('{0}/.github/sample-resources.sh', github.workspace) || '' }}
-    - name: Discard the extracted archives before the cache is saved
-      # ⭐ Worth 182 MB of the ~1 GB raster cache, at no cost. These are the *downloaded archives*,
-      # and RasterDataSources extracts each one and thereafter tests `!isfile(raster_path)` on the
-      # **extracted** tif before fetching anything (`WorldClim/climate.jl:21`) - so the archive is
-      # only ever consulted when its tif is missing, and caching the tifs without it triggers no
-      # re-download.
-      #
-      # ⚠️ Done as a step rather than as a `!`-exclusion in the cache `path`, because
-      # `actions/cache` saves in a post-job step: deleting here is unambiguous, whereas whether a
-      # leading `~` expands inside an exclusion pattern is not.
-      if: always()
-      shell: bash
-      run: rm -rf ~/.julia/scratchspaces/*/assets/RasterDataSources/*/*/zips
-    - name: Save the raster data cache
-      # ⭐ `if: always()` is the whole point of splitting restore from save - see the restore step.
-      # Skipped on an exact hit, since `actions/cache/save` cannot overwrite a key that already
-      # exists and would only log a warning. `cache-hit` is `true` only for an *exact* match, so a
-      # run that fell back to the `restore-keys` prefix does still save, which is how a cache minted
-      # under an older key version gets promoted to the current one.
-      #
-      # ⚠️ Ordered after the archive discard above, so the 182 MB of zips are gone before the save
-      # reads the directory. With the implicit post-job save this ordering was invisible and only
-      # worked by accident of post steps running last.
-      if: always() && steps.rasters.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v6
-      with:
-        path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v2
     - name: Process coverage
       if: matrix.os == 'macOS-latest' && matrix.julia-version == '1'
       uses: julia-actions/julia-processcoverage@v1

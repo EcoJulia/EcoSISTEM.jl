@@ -1,6 +1,93 @@
 # NEWS
 
-- v0.6.2
+- v0.7.0
+  - Added
+    - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name
+      almost never denotes one connected piece of ground - "France" includes Guadeloupe, "Norway"
+      includes Bouvet Island in the South Atlantic - so a selection either takes everything the name
+      covers, or the largest connected pieces of ground it covers.
+    - `NaturalEarthSpec`, which names a study area's active cells as a **region** - a country, a
+      continent, an island - rather than as a file. `StudyArea(within = NaturalEarthSpec("Scotland"))`
+      downloads and cuts the outline when it is built; `outline = false` takes the region's bounding
+      box instead. The name is checked against the shipped table when the spec is written, by the
+      same rule `boundingbox` uses, so the box that function reports is the box the shape has.
+    - `ConstructedShapeSpec`, the vector mirror of `ConstructedRasterSpec`: it composes **geometry**
+      where that one composes rasters, so the result is exact and carries no resolution of its own.
+      Members are any shape specs - a `ShapeSpec` of your own study area, a `NaturalEarthSpec` named
+      by country, or another `ConstructedShapeSpec`. The union of the United Kingdom, Ireland and the
+      Isle of Man reaches Shetland at 60.85, which Natural Earth's own "BRITISH ISLES" polygon cuts
+      off at 59.80.
+
+      Operations are `ShapeUnion`, `ShapeIntersection` and `ShapeDifference` for combining, and
+      `ShapeBuffer`, `ShapeSimplify` and `ShapeConvexHull` for transforming one shape -
+      `ShapeBuffer(50km)` being how "within 50 km of this coastline" is said. As on the raster side
+      an **arbitrary function** is accepted too, so anything ArchGDAL offers is reachable without a
+      new operation type.
+    - `LandmassesAbove`, a third coverage keeping every component that clears a threshold - the
+      United Kingdom without Rockall, which is 0.031 km2 against a next-smallest of 2.536. The
+      threshold is either an area (`1km^2`) or a share of the region's own total (`5percent`), the
+      latter travelling better between regions of different sizes. A bare `0.05` is refused: it is
+      the same quantity as `5percent` but does not say so when read beside `1km^2`. `boundingbox`
+      refuses the whole coverage and says why: the shipped table records the sizes of only the
+      largest few components, so only a built shape can answer it.
+    - Each region now reports its `share` - what fraction of its area its largest component holds -
+      which is what says whether `LargestLandmass()` suits it. New Zealand's is 56%, so asking for
+      its principal landmass returns South Island alone. Derived from the shipped columns, so the
+      table did not grow.
+    - `investigate_regions`, which asks which named regions relate to something you have - a
+      coordinate, a raster, a layer, a study area - as `investigate_study_area` reports on a grid
+      before one is built. `Encloses(x)` is the default; `Overlaps(x)` gives regions your data
+      reaches into, ordered by how much ground they share, and `Within(x)` those it covers entirely.
+      A row of the report converts straight into a `NaturalEarthSpec`.
+
+      By default regions are compared by **bounding box**, which costs no download and is loose:
+      Norway's box encloses Edinburgh, running west to Jan Mayen and north to Svalbard. `exact = true`
+      checks the survivors against the real outlines instead, which removes those false positives and
+      reaches the 54 regions that cross the antimeridian and so have no comparable box. Refinement is
+      lazy and stops as soon as the answer cannot change, so a query matching 361 regions by box
+      typically fetches a few dozen.
+    - `EcoSISTEM.naturalearth_levels()` and `naturalearth_regions(level)`, which list what exists -
+      the latter with each region's bounding box, area and component count, so a level can be
+      browsed rather than just enumerated.
+    - A "Named regions" documentation page, whose recipes are executed by the test suite.
+    - `examples/NamedRegions.jl`, which finds a study area by name, builds the British Isles from
+      three countries, and simulates on the result.
+    - `data/NaturalEarth/regions.csv`, a table of named regions generated from Natural Earth's
+      1:10m polygons, and the levels that index it (`EcoSISTEM.NATURALEARTH_LEVELS`). `boundingbox`
+      gains about 1 660 names, still answers offline and instantly, and now agrees with the shape the
+      same name gives, both being derived from the same geometry.
+  - Changed
+    - **`ConstructedSpec` is now `ConstructedRasterSpec`**, paired with the new
+      `ConstructedShapeSpec`. Neither old name said which medium it composed, and they compose the
+      same way. The old name still resolves, as a deprecated binding.
+    - **`boundingbox` is breaking.** Its `islands::Bool` keyword becomes `coverage`, taking
+      `LargestLandmass()` (the default, as `islands = false` was) or `AllTerritories()`; it gains a
+      `level` keyword saying what kind of region a name means; and its values move, because they now
+      come from Natural Earth rather than from a hand-made file. Mainland extents are within about
+      0.02 degrees of the old ones, but island-inclusive extents can move much further - Scotland's
+      western edge goes from -8.65 to -13.69, which is Rockall.
+
+      Five names are gone, having had no Natural Earth equivalent: `UK` is `"United Kingdom"`,
+      `NI` is `"Northern Ireland"`, `SouthAmerica` is `"South America"`, `GB` is
+      `boundingbox("United Kingdom", coverage = LargestLandmass())` or the physical island
+      `boundingbox("GREAT BRITAIN", level = "Physical Island")`, and `BritishIsles` has to be
+      assembled, Natural Earth's own polygon of that name cutting off Shetland.
+
+      **The default coverage is `AllTerritories()`**, which is what Natural Earth means by a name:
+      its "France" is the one that includes Guadeloupe. Taking only the principal landmass is a real
+      choice about which ground is wanted, so it is now written out rather than assumed - the old
+      `islands = false` behaviour is `coverage = LargestLandmass()`. One consequence worth knowing:
+      54 of the 2 444 rows cross the antimeridian, so names like "Russia" and "North America" now
+      have no bounding box under the default and say so, naming `LargestLandmass()` as the remedy.
+
+      A name meaning genuinely different ground at different levels is now refused rather than
+      guessed at, and the error tabulates what each level would give so that the choice can be made
+      from the message: as a continent "Africa" is 55 countries and as a UN region 62, whose full
+      extents differ by 54 degrees of longitude. The comparison is against the coverage asked for,
+      not the whole selection, so a name is only refused when the answer you actually requested is
+      ambiguous. A name whose levels agree, such as "Scotland", still needs no level. A region
+      crossing the antimeridian is refused too, since an `Extents.Extent` holds an interval and
+      cannot express one.
   - Fixed
     - Hot loop allocation fix. `GridHabitat` now carries the topology's type as a parameter.
     - Speed-up for `ShapeSpec` mask building.
@@ -84,7 +171,7 @@
     - The grid is decided first: a `StudyArea` fixes extent, cell size and CRS before anything is
       built on it, and `investigate_study_area` reports what a run would cost before you commit to it.
     - An environment is assembled from spec recipes - `UniformSpec`, `GradientSpec`, `PeakedSpec`,
-      `NicheSpec`, `SourceSpec`, `ConstructedSpec` - by `GridHabitat`, or by `build_habitat`, which
+      `NicheSpec`, `SourceSpec`, `ConstructedRasterSpec` - by `GridHabitat`, or by `build_habitat`, which
       supplies what you do not name and reports what it chose. Species come from `build_species`, and
       `build_ecosystem` pairs the two sides and checks them against each other.
     - One layer family covers both halves of the environment, parameterised by role (`Condition` or

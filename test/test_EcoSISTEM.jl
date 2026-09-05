@@ -103,6 +103,11 @@ end
     # live name anyway, so none could contribute an abstract type of its own.
     function ownabstracts(m)
         return filter(names(m, all = true, imported = false)) do n
+            # Compiler-generated bindings are never API and cannot be made `public`. Julia 1.14
+            # surfaces abstract types among them - `#13#val` and friends - where earlier versions
+            # did not, so the sweep must skip them or it demands a visibility declaration for a name
+            # nobody can write.
+            Base.isgensym(n) && return false
             (isdefined(m, n) && !Base.isdeprecated(m, n)) || return false
             v = getfield(m, n)
             return v isa Type && isabstracttype(v) && parentmodule(v) === m
@@ -273,9 +278,19 @@ _documented_control_() = nothing
         :july_duration, :august_duration, :september_duration,
         :october_duration, :november_duration, :december_duration,
         :month_mean_duration, :quarter_mean_duration,
-        :arcminute, :arcsecond, :day, :week, :year,
-        # Genuine gaps, recorded rather than hidden - pre-existing, and outside this pass.
+        :arcminute, :arcsecond, :day, :week, :year, :percent,
+        # Three more `@deprecate`d shims. `ContinuousEvolve`/`DiscreteEvolve` are the
+        # naming-standardisation redirects; `emptyMPIgridlandscape` is a shim that errors with a
+        # migration message, because its old signature cannot reach what the replacement needs.
+        #
+        # Every `@deprecate`d FUNCTION has to be named here, and that is not laziness:
+        # `Base.isdeprecated` is **false** for all of them, because `@deprecate` creates an ordinary
+        # function carrying a redirect method where only `@deprecate_binding` marks the binding. So
+        # the check cannot find them and the list cannot be replaced by a filter.
         :ContinuousEvolve, :DiscreteEvolve, :emptyMPIgridlandscape]
+    # There are no entries below this point, and that is the finding: every name on the list is a
+    # deprecation shim, and the package currently has **no undocumented public name at all**. A
+    # genuine gap appearing here would have to be added deliberately, which is the point.
     @test isempty(setdiff(undocumented, known))
 
     # **A name can HAVE a docstring that says it is undocumented**, which is the hole the
@@ -405,6 +420,20 @@ end
 # A failure of the second says GDAL no longer needs the help, so `_needscabundle` and this testset
 # should both go. A failure of the first where `_needscabundle()` is false says that version needs
 # adding to it.
+@testset "the CA-bundle guard's version bounds cover prereleases" begin
+    # A prerelease sorts *before* its own release, so a plain `VERSION < v"1.13"` is **true** on
+    # 1.13.0-rc4 and the workaround installs itself on a Julia that does not need it. Measured: that
+    # is what happened, and the canary below is what caught it. The trailing `-` on both bounds is
+    # what fixes it, and these assertions are what stop it coming back.
+    @test EcoSISTEM._brokencurl(v"1.12.0")
+    @test EcoSISTEM._brokencurl(v"1.12.7")
+    @test EcoSISTEM._brokencurl(v"1.12.0-rc1")     # a 1.12 prerelease is affected too
+    @test !EcoSISTEM._brokencurl(v"1.11.9")
+    @test !EcoSISTEM._brokencurl(v"1.13.0")
+    @test !EcoSISTEM._brokencurl(v"1.13.0-rc4")    # the case that was wrong
+    @test !EcoSISTEM._brokencurl(v"1.14.0-DEV.3099")
+end
+
 @testset "GDAL's CA bundle - is the workaround still needed?" begin
     url = "https://raw.githubusercontent.com/EcoJulia/EcoSISTEM.jl/v0.6.0/LICENSE"
 

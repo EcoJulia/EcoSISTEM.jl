@@ -1,14 +1,60 @@
 name: JuliaNightly
-# Nightly Scheduled Julia Nightly Run
+# Unreleased Julia, on a schedule.
+#
+# Separate from `testing.yaml` because a failure here is **information rather than a broken build**:
+# it says that an unreleased Julia has changed under us, which is worth knowing early and is not a
+# reason to block a merge.
+#
+# Two cadences, because the two versions answer different questions. The **next release candidate**
+# runs three times a week: it is what users will be on shortly, so a failure there is a deadline.
+# **Nightly** runs weekly: it is further out and noisier, so it is a heads-up rather than a deadline.
+#
+# `workflow_dispatch` deliberately runs **both**, since a manual run is usually asking "where do we
+# stand on unreleased Julia?" rather than about one version.
 
 on:
   schedule:
-    - cron: '0 2 * * 0'  # Weekly at 2 AM UTC Sunday
+    - cron: '0 2 * * 1,3,5'  # Mon/Wed/Fri at 2 AM UTC - the release candidate
+    - cron: '0 2 * * 0'      # Sunday at 2 AM UTC - nightly
   workflow_dispatch:
 
 jobs:
-  test:
-    name: Julia Nightly - Ubuntu - x64
+  prerelease:
+    name: Julia 1.13 prerelease - Ubuntu - x64
+    # A schedule fires the whole workflow, so each job selects the cron it belongs to.
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 2 * * 1,3,5'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up julia
+        uses: julia-actions/setup-julia@v3
+        with:
+          # `include-all-prereleases` is what makes a bare `1.13` mean "including the release
+          # candidates", and it defaults to `false` - so without it a version with no stable release
+          # yet resolves to nothing and the job fails rather than skipping.
+          #
+          # It is worth knowing *why* the bare `1.13` is enough, because the arithmetic looks wrong:
+          # `1.13.0-rc4` sorts BEFORE `1.13.0`, so a range of `>=1.13.0` would exclude it. The flag
+          # changes how the range is desugared, not just which versions are considered - `1.13`
+          # becomes `>=1.13.0-0`, which the release candidates do satisfy. Checked against
+          # node-semver rather than assumed.
+          #
+          # Once 1.13.0 is out this keeps working and simply picks the newest 1.13; move the number
+          # on when 1.14 branches.
+          version: '1.13'
+          include-all-prereleases: true
+          arch: x64
+      - name: Build package
+        uses: julia-actions/julia-buildpkg@v1
+        with:
+          ignore-no-cache: true
+      - name: Run tests
+        uses: julia-actions/julia-runtest@v1
+
+  nightly:
+    name: Julia nightly - Ubuntu - x64
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 2 * * 0'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

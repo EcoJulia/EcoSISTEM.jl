@@ -41,14 +41,17 @@
 # bar chart and a doubling-speedup bar chart.
 #
 # Usage:
-#     julia --project=examples examples/benchmarks/run_benchmarks.jl
-#     ECOSISTEM_BENCH_COUNT_TYPE=Int32 julia --project=examples \
-#         examples/benchmarks/run_benchmarks.jl
+#     julia --project=data/src data/src/benchmarks/run_benchmarks.jl
+#     ECOSISTEM_BENCH_COUNT_TYPE=Int32 julia --project=data/src \
+#         data/src/benchmarks/run_benchmarks.jl
 
 using Printf
 using Plots
 using TOML
 
+# The workers run in `data/src`, the environment these generators share - that is where their
+# dependencies and the `count_type` preference live. It must name a real project, or every worker
+# launch fails with no output of its own to say why.
 const PROJECT = normpath(joinpath(@__DIR__, ".."))
 const WORKER = joinpath(@__DIR__, "benchmark_worker.jl")
 const OUTDIR = get(ENV, "ECOSISTEM_BENCH_OUTDIR", @__DIR__)

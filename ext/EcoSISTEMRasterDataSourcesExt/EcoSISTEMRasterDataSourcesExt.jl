@@ -29,9 +29,8 @@ using EcoSISTEM.Units: _monthindex
 using Dates: Dates
 # Named explicitly because they are `public` or private rather than exported - `using` brings in
 # only the exported names, and a moved body calls its neighbours by bare name.
-using EcoSISTEM: AbstractSupply, ClimateRaster, CODE_TYPE, ConstructedSpec,
-                 NicheAxis, Supply, NicheAxis, _cellareas, _derivedfrom,
-                 cancel, landcoverclass
+using EcoSISTEM: AbstractSupply, ClimateRaster, CODE_TYPE, NicheAxis, Supply,
+                 _cellareas, _derivedfrom, cancel, landcoverclass
 using EcoSISTEM: SourceSpec
 using EcoSISTEM: compress_landcover, layerinfo, layerunit, sourcecrs
 # `CRUTS` only: this extension supplies `read(::Type{CRUTS}, ...)`, and `ERA`'s readers live in the

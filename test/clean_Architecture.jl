@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Does `docs/architecture.md` still describe the types that exist? Run with the other hygiene checks:
+# Does `data/architecture.md` still describe the types that exist? Run with the other hygiene checks:
 #
 #     julia --project -e 'using Pkg; Pkg.test(; test_args = ["extras_clean.jl"])'
 #
@@ -8,14 +8,14 @@
 # audit would then report false gaps.
 #
 # **When this fails, run the fixer AND READ THE PROSE** - see the protocol in `CLAUDE.md`
-# ("Keeping `docs/architecture.md` honest"). The diagrams are the cheap half.
+# ("Keeping `data/architecture.md` honest"). The diagrams are the cheap half.
 
 module TestCleanArchitecture
 
 using EcoSISTEM
 using Test
 
-include(joinpath(pkgdir(EcoSISTEM), "docs", "architecture.jl"))
+include(joinpath(pkgdir(EcoSISTEM), "data", "src", "architecture.jl"))
 using .ArchitectureAudit
 
 @testset "Architecture" begin

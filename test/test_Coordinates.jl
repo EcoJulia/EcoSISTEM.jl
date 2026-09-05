@@ -75,18 +75,35 @@ end
     @test GeoInterface.y(p) == 50.0
 end
 
-# `boundingbox` only reads the shipped CSV, so it runs on every platform.
-# `boundingbox` returns an `Extents.Extent`, so its components are `.Y`/`.X` - the shared
-# geo vocabulary - rather than a `LatLong` box's old `.lat`/`.long`.
+# `boundingbox` only reads the shipped table, so it runs on every platform and needs no network.
+# It returns an `Extents.Extent`, so its components are `.Y`/`.X` - the shared geo vocabulary -
+# rather than a `LatLong` box's old `.lat`/`.long`.
 @testset "Bounding boxes" begin
-    scot = EcoSISTEM.boundingbox("Scotland")
-    @test minimum(scot.Y) == 54.63° && maximum(scot.Y) == 58.68°
-    @test minimum(scot.X) == -6.23° && maximum(scot.X) == -1.76°
-    # islands = true selects the island-inclusive extent
-    isl = EcoSISTEM.boundingbox("Scotland", islands = true)
-    @test maximum(isl.Y) == 60.86° && minimum(isl.X) == -8.65°
+    # The default coverage is everything the name covers, which is what the source means by it: for
+    # Scotland that reaches Rockall in the west and Shetland in the north.
+    isl = EcoSISTEM.boundingbox("Scotland")
+    @test maximum(isl.Y) ≈ 60.85° atol=0.01°
+    @test minimum(isl.X) ≈ -13.69° atol=0.01°
+    @test EcoSISTEM.boundingbox("Scotland", coverage = AllTerritories()) == isl
+
+    # `LargestLandmass` narrows it to the principal landmass - the Scottish mainland.
+    scot = EcoSISTEM.boundingbox("Scotland", coverage = LargestLandmass())
+    @test minimum(scot.Y) ≈ 54.63° atol=0.01°
+    @test maximum(scot.Y) ≈ 58.68° atol=0.01°
+    @test minimum(scot.X) ≈ -6.24° atol=0.01°
+    @test maximum(scot.X) ≈ -1.76° atol=0.01°
+    # Every coverage of a name is contained by `AllTerritories`, which is what "all" has to mean.
+    @test minimum(isl.X) ≤ minimum(scot.X) && maximum(isl.X) ≥ maximum(scot.X)
+    @test minimum(isl.Y) ≤ minimum(scot.Y) && maximum(isl.Y) ≥ maximum(scot.Y)
+
+    # Asking for more landmasses widens the box monotonically, and never past `AllTerritories`.
+    two = EcoSISTEM.boundingbox("Scotland",
+                                coverage = LargestLandmass(count = 2))
+    @test minimum(two.X) ≤ minimum(scot.X) && minimum(two.X) ≥ minimum(isl.X)
+
     # round snaps outwards to the nearest multiple, enclosing the exact box
-    rnd = EcoSISTEM.boundingbox("Scotland", round = 5°)
+    rnd = EcoSISTEM.boundingbox("Scotland", coverage = LargestLandmass(),
+                                round = 5°)
     @test minimum(rnd.Y) == 50° && maximum(rnd.Y) == 60°
     @test minimum(rnd.X) == -10° && maximum(rnd.X) == 0°
     @test minimum(rnd.Y) ≤ minimum(scot.Y) &&
@@ -95,19 +112,41 @@ end
           maximum(rnd.X) ≥ maximum(scot.X)
     @test_throws ErrorException EcoSISTEM.boundingbox("Atlantis")
 
+    # A name meaning different ground at different levels is refused rather than guessed at: as a
+    # continent "Africa" is 55 countries, as a UN region 62, and the two boxes disagree.
+    @test_throws ErrorException EcoSISTEM.boundingbox("Africa")
+    afr = EcoSISTEM.boundingbox("Africa", level = "CONTINENT",
+                                coverage = LargestLandmass())
+    @test minimum(afr.X) ≈ -17.54° atol=0.01°
+    @test maximum(afr.X) ≈ 51.42° atol=0.01°
+    # A name that is unambiguous *in effect* - the same box at every level it appears at - needs no
+    # level, which is why "Scotland" above did not take one.
+    @test EcoSISTEM.boundingbox("Scotland", level = "SUBUNIT") == isl
+    @test EcoSISTEM.boundingbox("Scotland", level = "GEOUNIT") == isl
+
+    # An `Extents.Extent` holds an interval, so a region spanning the date line has no box it could
+    # be given: refused, rather than handed back inside out.
+    @test_throws ErrorException EcoSISTEM.boundingbox("Russia", level = "ADMIN",
+                                                      coverage = AllTerritories())
+    # ...but its principal landmass is a single component, which cannot cross the line.
+    @test maximum(EcoSISTEM.boundingbox("Russia", level = "ADMIN",
+                                        coverage = LargestLandmass()).X) ==
+          180.0°
+
     # `round` takes any angular step, not just whole degrees - snapping to a source's own lattice
     # (WorldClim 10 arcmin, EarthEnv/CHELSA 30 arcsec) is what lets a cut layer be aggregated exactly
     # rather than resampled. The result must still come back in `°` whichever unit the step used:
     # `_snapout` returns `n * r`, so before it converted back this handed out `3270.0 ′`, correct but
     # not what the docstring promises and not what anything downstream expects.
-    arcmin = EcoSISTEM.boundingbox("Scotland", round = 30arcminute)
+    arcmin = EcoSISTEM.boundingbox("Scotland", coverage = LargestLandmass(),
+                                   round = 30arcminute)
     @test unit(minimum(arcmin.Y)) === °
     @test minimum(arcmin.Y) == 54.5° && maximum(arcmin.Y) == 59.0°
     @test minimum(arcmin.Y) ≤ minimum(scot.Y)     # still encloses the exact box
     @test maximum(arcmin.Y) ≥ maximum(scot.Y)
     # ...and a degree step expressed as arcminutes agrees exactly with the degree form.
-    @test EcoSISTEM.boundingbox("Scotland", round = 300arcminute).Y ==
-          rnd.Y
+    @test EcoSISTEM.boundingbox("Scotland", coverage = LargestLandmass(),
+                                round = 300arcminute).Y == rnd.Y
 end
 
 end

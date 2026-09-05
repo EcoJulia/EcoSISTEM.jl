@@ -33,6 +33,39 @@ public assetpath
 # durations. First, because other files depend on it.
 include("Units/Units.jl")
 
+# The vocabulary of named geographic regions - how much of a name to take, and which Natural Earth
+# file defines each kind of name. Geographic vocabulary, so it sits with `Coordinates.jl`; it needs
+# only the asset cache above, and must precede `rasters.jl`, which dispatches the selection on the
+# coverage types.
+include("NaturalEarth.jl")
+
+public AbstractCoverage
+
+export AllTerritories, LargestLandmass, LandmassesAbove
+
+public AbstractShapeOperation
+
+public AbstractSpatialRelation
+
+export Encloses, Overlaps, Within
+
+public naturalearth_levels
+
+public naturalearth_regions
+
+public investigate_regions
+
+public RegionMatch
+
+public RegionReport
+
+export ShapeUnion, ShapeIntersection, ShapeDifference,
+       ShapeBuffer, ShapeSimplify, ShapeConvexHull
+
+public NaturalEarthLevel
+
+public NATURALEARTH_LEVELS
+
 # The coordinate vocabulary - the two-dimensional position/size family and the geographic point type
 # - used across the `ClimatePref` submodule and the main module, and by `CircleMaskSpec`
 # (`Spec.jl`), so it is defined here, before all of them.
@@ -148,7 +181,10 @@ include("LazySpec.jl")
 # what lives here against what stays with the climate data.
 # Exported here, and **re-exported by `ClimatePref`**, so that `using EcoSISTEM.ClimatePref` reaches
 # them too.
-export SourceSpec, ConstructedSpec, ShapeSpec
+export SourceSpec, ConstructedRasterSpec, ShapeSpec, NaturalEarthSpec,
+       ConstructedShapeSpec
+
+public AbstractShapeSpec
 
 public AbstractLazySpec
 
@@ -534,7 +570,13 @@ species_blocksize() = _SPECIES_BLOCK[]
 #
 # `test_EcoSISTEM.jl` asserts that GDAL still cannot manage without this; delete both when the
 # `julia` compat floor passes 1.12.
-_needscabundle() = Sys.isapple() && v"1.12" <= VERSION < v"1.13"
+# 🔴 The bounds carry a trailing `-` so that they cover PRERELEASES correctly. A prerelease sorts
+# *before* its own release, so `v"1.13.0-rc4" < v"1.13"` is **true** and a plain `< v"1.13"` fires on
+# every 1.13 release candidate - installing a bundle over the working one that release ships.
+# Measured on 1.13.0-rc4, where the canary below duly reported the workaround as unnecessary.
+_brokencurl(version) = v"1.12-" <= version < v"1.13-"
+
+_needscabundle() = Sys.isapple() && _brokencurl(VERSION)
 
 # Sized at load rather than compiled in, because a cache line is a property of the machine the run
 # is on. The `try` matters: `Hwloc` cannot answer on every platform, and a wrong block size is a

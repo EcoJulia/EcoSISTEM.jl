@@ -284,7 +284,7 @@ rather than inside it.
 
 ### And a reference layer can still reach the simulation - as an ingredient
 
-It need not stay outside. A [`ConstructedSpec`](@ref) declares the axis of its **result**, not
+It need not stay outside. A [`ConstructedRasterSpec`](@ref) declares the axis of its **result**, not
 of its inputs, so a layer that carries no axis can be *combined into* one that does:
 
 > a soil-type layer has no tolerance and no supply of its own, yet it legitimately changes how

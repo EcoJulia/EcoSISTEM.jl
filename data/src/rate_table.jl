@@ -65,9 +65,9 @@
 # ## Running it
 #
 # A manual diagnostic, NOT part of the test suite - its name does not start with `test_`, so
-# `runtests.jl` does not auto-run it, and nothing else runs `examples/scripts/` either.
+# `runtests.jl` does not auto-run it, and nothing else runs `data/src/` either.
 #
-#     julia --project=examples examples/scripts/rate_table.jl
+#     julia --project=data/src data/src/rate_table.jl
 
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -174,9 +174,9 @@ for r in CP.layersbyaxis()
            ValueType = string(r.valuetype), Notes = r.notes))
 end
 
-CSV.write(joinpath(@__DIR__, "rate_table.csv"), rows)
+CSV.write(joinpath(dirname(@__DIR__), "rate_table.csv"), rows)
 println("wrote ", length(rows), " rows to ",
-        joinpath(@__DIR__, "rate_table.csv"))
+        joinpath(dirname(@__DIR__), "rate_table.csv"))
 println("\n=== RATE rows only (the ones that actually convert) ===")
 for r in rows
     r.Category == "rate" &&

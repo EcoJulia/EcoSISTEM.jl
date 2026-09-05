@@ -211,7 +211,7 @@ end
 
     @testset "nothing, missing and a grid are three different answers" begin
         rule = UniformSpec(290.0K, axis = Temperature)
-        lazy = ConstructedSpec(() -> nothing, axis = EcoSISTEM.NicheAxis)
+        lazy = ConstructedRasterSpec(() -> nothing, axis = EcoSISTEM.NicheAxis)
 
         # The distinction `force` exists to let a caller act on. A rule adopts whatever grid it is
         # placed on and so has none - `nothing`. A data-backed spec HAS one, but only reading it,
