@@ -31,11 +31,10 @@ using Phylo
     death = 6.0 / year
     long = 1.0
     surv = 0.0
-    boost = 1000.0
     timestep = 1.0month_mean_duration
 
     # Collect model parameters together (in this order!!)
-    param = EqualPop(birth, death, long, surv, boost)
+    param = EqualPop(birth, death, long, surv)
 
     individuals = 100
 

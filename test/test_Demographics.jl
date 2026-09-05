@@ -14,11 +14,10 @@ import EcoSISTEM.equalpop
     death = 0.6 / month_mean_duration
     longevity = 1.0
     survival = 0.0
-    boost = 1000.0
     numSpecies = 10
 
-    param = EqualPop(birth, death, longevity, survival, boost)
-    @test_nowarn EqualPop(birth, death, longevity, survival, boost)
+    param = EqualPop(birth, death, longevity, survival)
+    @test_nowarn EqualPop(birth, death, longevity, survival)
     equalparams = equalpop(param, numSpecies)
     @test length(equalparams.birth) == numSpecies
     @test all(equalparams.birth .== birth)
@@ -28,22 +27,20 @@ import EcoSISTEM.equalpop
                                                                             fill(death,
                                                                                  5),
                                                                             longevity,
-                                                                            survival,
-                                                                            boost)
+                                                                            survival)
     @test_nowarn param = NoGrowth{typeof(unit(0.0 / month_mean_duration))}(fill(birth,
                                                                                 5),
                                                                            fill(death,
                                                                                 5),
                                                                            longevity,
-                                                                           survival,
-                                                                           boost)
+                                                                           survival)
 
     param = PopGrowth{typeof(unit(0.0 / month_mean_duration))}(fill(birth,
                                                                     numSpecies),
                                                                fill(death,
                                                                     numSpecies),
                                                                longevity,
-                                                               survival, boost)
+                                                               survival)
     equalparams = equalpop(param, numSpecies)
     @test length(equalparams.birth) == numSpecies
     @test all(equalparams.birth .== birth)
@@ -54,7 +51,7 @@ import EcoSISTEM.equalpop
                                                               fill(death,
                                                                    numSpecies),
                                                               longevity,
-                                                              survival, boost)
+                                                              survival)
     equalparams = equalpop(param, numSpecies)
     @test length(equalparams.birth) == numSpecies
     @test all(equalparams.birth .== birth)

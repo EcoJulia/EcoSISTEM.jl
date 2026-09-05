@@ -94,7 +94,7 @@ end
     area = 100.0km^2
     birth = 0.1 / month_mean_duration
     nogrowth = NoGrowth{typeof(unit(birth))}(fill(birth, N), fill(birth, N),
-                                             1.0, 0.0, 1.0)
+                                             1.0, 0.0)
     tolerance = NicheTolerance(Temperature, Normal, fill(274.0K, N),
                                fill(0.5K, N))
     movement = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1.0e-3), N))
@@ -251,7 +251,7 @@ end
     tolerance = NicheTolerance(Temperature, Normal, fill(274.0K, N),
                                fill(0.5K, N))
     param = EqualPop(0.6 / month_mean_duration, 0.6 / month_mean_duration, 1.0,
-                     0.0, 1000.0)
+                     0.0)
     kernel = GaussianKernel.(fill(1.0km, N), 1.0e-3)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, N)

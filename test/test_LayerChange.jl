@@ -43,9 +43,9 @@ function _alignedspecies(demand)
     tolerance = NicheTolerance(Temperature, Normal, fill(1.0K, n),
                                fill(0.1K, n))
     movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, n), 10.0e-4))
-    # `longevity`/`survival`/`boost` are plain `Float64`s; only the two rates carry a unit.
+    # `longevity`/`survival` are plain `Float64`s; only the two rates carry a unit.
     param = EqualPop(0.1 / month_mean_duration, 0.1 / month_mean_duration, 1.0,
-                     0.1, 0.1)
+                     0.1)
     return SpeciesList(n, tolerance, abun, demand, movement, param,
                        fill(true, n))
 end

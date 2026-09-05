@@ -113,7 +113,7 @@ function varying_species(; numspecies = VARYING_SPECIES, seed = 0)
                                                                       numspecies))))
     movement = BirthOnlyMovement(GaussianKernel.(fill(1.5km, numspecies),
                                                  10e-10))
-    param = EqualPop(0.15 / year, 0.15 / year, 1.0, 0.1, 1.0)
+    param = EqualPop(0.15 / year, 0.15 / year, 1.0, 0.1)
     # Drawn from the *seeded* stream, never the global RNG, or the starting state would differ
     # between runs and nothing downstream could be blessed.
     rng = Random.Xoshiro(seed)
@@ -141,8 +141,8 @@ end
 # distributed run if the canonical bless and `SmallMPItest.jl` build the *identical* fixture, and two
 # spelled-out copies would drift apart - which is precisely the failure this pinning exists to catch.
 #
-# Deliberately unlike `varying_species` above: faster rates, a wider kernel and a large `boost`, so a
-# two-year run moves the numbers substantially instead of sitting near its starting state.
+# Deliberately unlike `varying_species` above: faster rates and a wider kernel, so a two-year run
+# moves the numbers substantially instead of sitting near its starting state.
 #
 # **Seven species, and that is the point.** `MPIEcosystem` partitions by species *and* by grid cells,
 # so both need a remainder to exercise the uneven-split paths: 7 species go 2/2/2/1 over four ranks
@@ -237,7 +237,7 @@ function mpifixture_species(; numspecies = VARYING_SPECIES,
                                            Demand{Precipitation}(fill(2.0Unitful.L /
                                                                       day,
                                                                       numspecies))))
-    param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2, 100.0)
+    param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
     # Optima spread across the regime's own 288-302 K gradient, so species genuinely sort in space.
     # A shared optimum would put them all in the same cells, and optima outside the environment would
     # kill everything -- a run where nothing survives compares equal across ranks for the wrong reason.

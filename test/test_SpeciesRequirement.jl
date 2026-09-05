@@ -107,7 +107,7 @@ end
     tol, dem = _tol(), _dem()
     abun = fill(10, NSP)
     movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, NSP), 10e-4))
-    param = EqualPop(0.1 / year, 0.1 / year, 1.0, 0.1, 1.0)
+    param = EqualPop(0.1 / year, 0.1 / year, 1.0, 0.1)
     native = fill(true, NSP)
     @test_nowarn SpeciesList(NSP, tol, abun, dem, movement, param, native)
     # The swap is a `MethodError`, not a runtime check - the signature refuses it.

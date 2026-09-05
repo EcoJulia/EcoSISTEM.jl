@@ -469,8 +469,9 @@ end
 # Birth and death rate multipliers for a single-demand environment. Weighs
 # the species' own resource demand (`ϵ̄`) and how well its tolerances match the cell
 # (`ϵ̄real`) against the resource available in the cell (`K`) relative to the total
-# demand there (`E`): births are boosted when resource is plentiful (`K/E`, capped at
-# `params.boost`) and deaths rise as demand approaches the supply (`E/K`). Called
+# demand there (`E`): births are boosted when resource is plentiful (`K/E`, capped at 1, so a
+# species reproduces no faster than its baseline rate however plentiful the resource) and deaths
+# rise as demand approaches the supply (`E/K`). Called
 # only for growing populations - [`resource_adjustment`](@ref) short-circuits NoGrowth.
 function _resourceadjustment(eco::AbstractEcosystem, supply::AbstractSupply,
                              sc::Int64, sp::Int64)
@@ -486,14 +487,14 @@ function _resourceadjustment(eco::AbstractEcosystem, supply::AbstractSupply,
     ϵ̄real = 1 / suitability(eco, sc, sp)
     # Alter rates by resource available in current pop & own demands
     birth_resource = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
-                     min(K / E, params.boost)
+                     min(K / E, 1.0)
     death_resource = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
     return birth_resource, death_resource
 end
 
 # As above but for a multi-resource environment (e.g. solar resource and water), combining the
 # supplies. The species is limited by whichever resource is scarcest: births use the `min` of the
-# availability ratios (`K/E`, still capped at `params.boost`) and deaths the `max` of the demand
+# availability ratios (`K/E`, still capped at 1) and deaths the `max` of the demand
 # ratios (`E/K`), so every demand must be met for the population to grow. Per-resource quantities
 # are built and combined by compile-time-unrolled folds, so this stays allocation-free at any arity.
 #
@@ -541,7 +542,7 @@ function _resourceadjustment(eco::AbstractEcosystem,
     # Alter rates by resource available in current pop & own demands
     demanded = _fold(*, ϵ̄)
     birth_resource = demanded^-params.longevity * ϵ̄real^-params.survival *
-                     min(_fold(min, _zipmap(/, K, E)), params.boost)
+                     min(_fold(min, _zipmap(/, K, E)), 1.0)
     death_resource = demanded^-params.longevity * ϵ̄real^params.survival *
                      _fold(max, _zipmap(/, E, K))
     return birth_resource, death_resource

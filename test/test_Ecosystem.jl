@@ -198,7 +198,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                                                             day,
                                                                             numSpecies))))
         param = EqualPop(0.6 / month_mean_duration, 0.6 / month_mean_duration,
-                         1.0, 0.0, 1000.0)
+                         1.0, 0.0)
         sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement,
                            param,
                            native)
@@ -295,7 +295,7 @@ function cache_test_eco(seed)
     totalK = 10000.0kJ / km^2 / day
 
     resource = Demand{SolarRadiation}(fill(10.0kJ / day, numSpecies))
-    param = EqualPop(0.2 / year, 0.2 / year, 1.0, 0.0, 1.0)
+    param = EqualPop(0.2 / year, 0.2 / year, 1.0, 0.0)
     kernel = fill(GaussianKernel(2.0km, 1.0e-3), numSpecies)
     movement = BirthOnlyMovement(kernel)
     tolerance = NicheTolerance(Temperature, Normal,

@@ -885,7 +885,7 @@ classDiagram
 
 **Regulation is exploitative competition for a shared pool; carrying capacity is emergent rather
 than a parameter.** In each cell `E` is the community's *total* demand and `K` the supply; births
-scale by `min(K/E, boost)` and deaths by `E/K`. Species therefore interact **only** through `E` -
+scale by `min(K/E, 1)` and deaths by `E/K`. Species therefore interact **only** through `E` -
 symmetrically, with no pairwise terms.
 
 **Two orthogonal per-species axes, and the sign structure is the whole design:**

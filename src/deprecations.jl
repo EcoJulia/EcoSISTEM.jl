@@ -1611,3 +1611,50 @@ export GaussTrait
 # Deprecated in v0.7.0.
 # ---------------------------------------------------------------------------
 Base.@deprecate_binding ConstructedSpec ConstructedRasterSpec
+
+# ---------------------------------------------------------------------------
+# Demographic parameters: the `boost` field is gone
+#
+# The birth multiplier is `min(K/E, 1)`, as the model is written up: however plentiful the resource,
+# a species reproduces no faster than its baseline rate. `EqualPop`, `PopGrowth` and `NoGrowth`
+# lose their fifth field and `build_species` its keyword. The five-argument constructors and the
+# keyword still work: each warns and discards the value. A value other than 1 changed results in the
+# release that read it, and the warning says so.
+#
+# Deprecated in v0.7.0.
+# ---------------------------------------------------------------------------
+# Warn that a `boost` was given and say what it would have done. `nothing` is the keyword's default
+# and warns nothing.
+_deprecatedboost(::Nothing, name::Symbol) = nothing
+function _deprecatedboost(boost::Real, name::Symbol)
+    tail = boost == 1 ? "" :
+           " A release that read `boost` gave different results for `boost = $boost`, so " *
+           "those runs will not reproduce."
+    Base.depwarn("`boost` is deprecated and ignored: the birth multiplier is capped at 1, so a " *
+                 "species reproduces no faster than its baseline rate however plentiful the " *
+                 "resource. Drop the argument." * tail, name)
+    return nothing
+end
+
+function EqualPop(birth, death, longevity, survival, boost::Real)
+    _deprecatedboost(boost, :EqualPop)
+    return EqualPop(birth, death, longevity, survival)
+end
+
+function PopGrowth{U}(birth::Vector{TimeUnitType{U}},
+                      death::Vector{TimeUnitType{U}},
+                      longevity::Float64,
+                      survival::Float64,
+                      boost::Real) where {U <: Unitful.Units}
+    _deprecatedboost(boost, :PopGrowth)
+    return PopGrowth{U}(birth, death, longevity, survival)
+end
+
+function NoGrowth{U}(birth::Vector{TimeUnitType{U}},
+                     death::Vector{TimeUnitType{U}},
+                     longevity::Float64,
+                     survival::Float64,
+                     boost::Real) where {U <: Unitful.Units}
+    _deprecatedboost(boost, :NoGrowth)
+    return NoGrowth{U}(birth, death, longevity, survival)
+end

@@ -37,9 +37,8 @@ function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15)
     death = 0.6 / month_mean_duration
     long = 1.0
     surv = 0.0
-    boost = 1000.0
     timestep = 1.0month_mean_duration
-    param = EqualPop(birth, death, long, surv, boost)
+    param = EqualPop(birth, death, long, surv)
 
     # `(ny, nx)` - rows then columns, as everywhere in the package. Overridable so a test can
     # compare two grid sizes, which is how the hot loop's per-cell allocation is measured.
@@ -88,9 +87,8 @@ function TestMultiEcosystem()
     death = 0.6 / month_mean_duration
     long = 1.0
     surv = 0.0
-    boost = 1000.0
     timestep = 1.0month_mean_duration
-    param = EqualPop(birth, death, long, surv, boost)
+    param = EqualPop(birth, death, long, surv)
 
     grid = (10, 10)
     area = 10000.0km^2

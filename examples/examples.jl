@@ -60,7 +60,6 @@ death = 0.15 / year
 birth = death
 long = 1.0
 surv = 0.1
-boost = 1.0
 
 size_mean = 1.0m^2
 # Set up how much resource each species consumes
@@ -68,7 +67,7 @@ resource_vec1 = Demand{SolarRadiation}(fill(demand[1] * size_mean, numSpecies))
 resource_vec2 = Demand{Precipitation}(fill(demand[2] * size_mean, numSpecies))
 
 resource_vec = SpeciesRequirementCollection((resource_vec1, resource_vec2))
-param = EqualPop(birth, death, long, surv, boost)
+param = EqualPop(birth, death, long, surv)
 
 # Create ecosystem
 

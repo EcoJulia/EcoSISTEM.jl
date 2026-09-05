@@ -80,8 +80,7 @@ begin
     birth = death
     long = 1.0
     surv = 0.1
-    boost = 1.0
-    param = EqualPop(birth, death, long, surv, boost)
+    param = EqualPop(birth, death, long, surv)
     native = fill(true, numSpecies)
 
     # Dispersal
@@ -298,13 +297,8 @@ begin
     longevity = 1.0
     survival = 0.1
 
-    # Finally, how many times boost can they get to their reproduction from available 
-    # resources?
-    resource_boost = 1.0
-
     # Let's assume that all species are equal for these parameters
-    parameters = EqualPop(birth_rates, death_rates, longevity, survival,
-                          resource_boost)
+    parameters = EqualPop(birth_rates, death_rates, longevity, survival)
 
     # Now we have to consider movement - let's say the species move an average of 
     # 2.4km according to a Gaussian kernel

@@ -1,5 +1,15 @@
 # NEWS
 
+- v0.8.0
+  - Changed
+    - **The `boost` parameter is gone, and the birth multiplier is capped at 1**, as the model is
+      written up: `min(K/E, 1)` rather than `min(K/E, boost)`, so however plentiful the resource a
+      species reproduces no faster than its baseline rate. `EqualPop`, `PopGrowth` and `NoGrowth`
+      lose their fifth field and `build_species` its `boost` keyword; the five-argument
+      constructors and the keyword still work, warn, and discard the value. Results are unchanged
+      for `boost = 1`, which every shipped example used. A larger `boost` did not only shorten
+      the transient: the cap binds at equilibrium wherever a species sits away from its niche
+      optimum, so standing abundances from such runs will not reproduce.
 - v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name
