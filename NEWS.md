@@ -12,6 +12,16 @@
       for `boost = 1`, which every shipped example used. A larger `boost` did not only shorten
       the transient: the cap binds at equilibrium wherever a species sits away from its niche
       optimum, so standing abundances from such runs will not reproduce.
+  - Fixed
+    - `StudyArea(cellsize = 30arcminute)` (or `0.5°`, or `1800arcsecond`) now builds a degree grid
+      of that step on a geographic CRS, where it was refused with a message asserting that a cell
+      size must be a physical length. A length on a geographic grid is still refused, and the
+      message now names the angular spelling as one remedy; an angle on a projected grid is
+      refused in turn. Such a grid can be investigated and built but still not simulated, as
+      before.
+    - `ShapeSpec`'s docstring now says that a URL must name a self-contained file - a zip, GeoJSON
+      or GeoPackage - because only the named file is fetched, so a bare remote `.shp` cannot be
+      read.
 - v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name

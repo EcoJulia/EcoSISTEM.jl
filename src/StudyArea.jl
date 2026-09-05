@@ -140,7 +140,9 @@ as given.
   - `crs`: the coordinate reference system to work in. **A projected CRS is required to simulate**:
     dispersal is expressed against one cell size, which only a projected grid has. Omitted, it is
     adopted from the layers, and a geographic result is warned about.
-  - `cellsize`: the length of a cell's side. Omitted, it is taken from the `align` layer's own step.
+  - `cellsize`: a cell's side - a length (`1km`) on a projected grid, an angle (`30arcminute`,
+    `0.5°`) on a geographic one; the other way round is an error. Omitted, it is taken from the
+    `align` layer's own step.
   - `extent`: **a size, not a bounding box** - how big the area is, never where it is, given as a
     `(y, x)` tuple of lengths: north-south first, then east-west, the dimension order used
     throughout the package. It is therefore only meaningful for a *synthetic* area, and combining

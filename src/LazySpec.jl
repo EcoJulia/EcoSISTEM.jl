@@ -188,7 +188,10 @@ and the cell-membership test all happen when it is materialised onto a decided g
   - `path`: a shapefile, GeoJSON, GeoPackage, or any format GDAL reads. A path ending in `.zip` is
     read directly, with no need to unzip first, and a URL is downloaded into
     `EcoSISTEM.assetdir(owner = ShapeSpec)` as an [`EcoSISTEM.CachedAsset`](@ref) the first time it
-    is needed.
+    is needed. A URL must name a **self-contained** file - a `.zip`, a GeoJSON or a GeoPackage.
+    Only the one named file is fetched, so a bare remote `.shp` cannot be read: its `.shx`, `.dbf`
+    and `.prj` companions never arrive and GDAL refuses the result. Point at the zip the shapefile
+    is published in instead, or download the set by hand and give the local `.shp` path.
   - `layer`: which layer of the file, 0-indexed. Every polygon feature in it is used.
 """
 struct ShapeSpec <: AbstractShapeSpec

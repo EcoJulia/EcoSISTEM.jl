@@ -69,6 +69,37 @@ include("buildfixtures.jl")
         @test :geographic in [pr.code for pr in p.problems]
     end
 
+    # A cell size must be the kind of quantity the grid is laid out in. The fixture is five 1° cells
+    # a side, so the counts below follow from the requested size alone.
+    @testset "an angular cellsize is accepted on a geographic grid, a length is not" begin
+        wgs = _reg(_testraster(WorldClim{BioClim}, fill(291.0K, 5, 5)))
+        p = _analyse((regime = wgs,), cellsize = 30arcminute)
+        @test p.cellsize == 30arcminute
+        @test p.cellsizesource isa EcoSISTEM.GivenByUser
+        @test size(p.active) == (10, 10)
+        @test size(_analyse((regime = wgs,), cellsize = 1.0°).active) == (5, 5)
+        @test size(_analyse((regime = wgs,), cellsize = 3600arcsecond).active) ==
+              (5, 5)
+        @test size(_analyse((regime = wgs,), cellsize = 2.5°).active) == (2, 2)
+        # The three spellings of one degree describe one grid.
+        @test _analyse((regime = wgs,), cellsize = 60arcminute).active ==
+              _analyse((regime = wgs,), cellsize = 1.0°).active
+        # A length still cannot mean anything on a degree grid, and the message says what can.
+        err = try
+            _analyse((regime = wgs,), cellsize = 1km)
+        catch e
+            e
+        end
+        @test err isa ErrorException
+        @test occursin("fixed physical side", err.msg)
+        @test occursin("30arcminute", err.msg)
+        # And an angle cannot mean anything on a projected one.
+        bng = _reg(_bngraster(WorldClim{BioClim}, fill(291.0K, 9, 9)))
+        @test_throws ErrorException _analyse((regime = bng,),
+                                             cellsize = 30arcminute)
+        @test _analyse((regime = bng,), cellsize = 5km).cellsize == 5km
+    end
+
     @testset "a synthetic area needs both extent and cellsize" begin
         p = _analyse(NamedTuple(), extent = (4km, 12km), cellsize = 1km)
         @test isnothing(p.crs)

@@ -691,10 +691,11 @@ end
 
 # A synthetic unitless target `Rasters.Raster` in `crs`, covering the unitful bounds
 # `(ylo..yhi, xlo..xhi)` (given in `crs`'s own coordinate unit) in square cells of side `cellside`.
-# This is the `size =` override's grid - a uniform step the reference's own grid may not have. Only
-# ever built for a *projected* `crs` (`_targetcrs` fails closed otherwise), so `cellside` is a real
-# length in the target's own unit and needs no degree conversion: the old degree-only
-# `_wgs84template` and its 111.32 km/° approximation are gone.
+# This is the `size =` override's grid - a uniform step the reference's own grid may not have.
+# `cellside` is already the kind of quantity the target is laid out in - a length on a projected
+# `crs`, an angle on a geographic one, `_targetcrs` having refused the other pairing - so the only
+# conversion is within that kind (`km` to `m`, `arcminute` to `°`). Nothing here converts degrees
+# to kilometres.
 function _crstemplate(crs, e::Extents.Extent, cellside)
     ylo, yhi, xlo, xhi = _extentvalues(e)
     u = _crsunit(crs)
@@ -751,10 +752,12 @@ end
 
 # The target grid's CRS, by the staged rule: an explicit `crs` wins; else a single projected CRS
 # among the inputs is adopted (so a British National Grid layer combined with WGS84 climate keeps
-# the *projected* grid, not the degree one); else the reference's own CRS. A physical `size` needs a
-# projected target - square metric cells do not exist on a degree grid - so if the resolved CRS is
-# geographic we **fail closed** rather than reviving the 111.32 km/° approximation, and name a
-# concrete CRS (`_crsadvice`) in the error so the fix is one paste away.
+# the *projected* grid, not the degree one); else the reference's own CRS. A `size` must match the
+# kind of grid: a length needs a projected target - square metric cells do not exist on a degree
+# grid - so if the resolved CRS is geographic we **fail closed** rather than reviving the
+# 111.32 km/° approximation, and name a concrete CRS (`_crsadvice`) in the error so the fix is one
+# paste away; an angle (`30arcminute`) needs a geographic target, and is refused on a projected one
+# for the mirror-image reason.
 function _targetcrs(regimes::Tuple, crs, size)
     crss = [_rastercrs(r) for r in regimes]
     resolved = if !isnothing(crs)
@@ -768,14 +771,19 @@ function _targetcrs(regimes::Tuple, crs, size)
                                    1:(i - 1))]
         length(unique_projected) == 1 ? only(unique_projected) : first(crss)
     end
-    if !isnothing(size) && !_isprojectedcrs(resolved)
+    if !isnothing(size) && _isangle(size) && _isprojectedcrs(resolved)
+        error("`cellsize = $size` is an angle, but the target grid is projected, where a cell's " *
+              "side is a length. Pass a length (`cellsize = 1km`), or a geographic `crs` such " *
+              "as `EPSG(4326)` if a degree grid is what is wanted.")
+    elseif !isnothing(size) && !_isangle(size) && !_isprojectedcrs(resolved)
         here = _extentof(_extrema2(_latvals(first(regimes)),
                                    _longvals(first(regimes)))...)
         error("`cellsize = $size` asks for grid cells of a fixed physical side, but the target grid " *
               "is geographic (° coordinates), where a cell's physical size varies with latitude. " *
               "Pass a projected `crs` to build a genuinely metric grid - " *
-              "$(_crsadvice(here)) - or omit `cellsize` to keep " *
-              "the data's own native resolution.")
+              "$(_crsadvice(here)) - or give the cell size as an angle " *
+              "(`cellsize = 30arcminute`), or omit `cellsize` to keep the data's own native " *
+              "resolution.")
     end
     return resolved
 end
