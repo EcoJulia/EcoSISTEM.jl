@@ -184,6 +184,57 @@ function Base.show(io::IO, l::Lookup)
     return print(io, "Lookup($(length(l.y)) destinations)")
 end
 
+# A vector's values as one phrase: the single value where all agree, else `lo to hi`. Quantities
+# and floats are rounded to three digits, so a 2.4 km kernel reads as `2.4 km`.
+function _rangephrase(v)
+    isempty(v) && return "none"
+    lo, hi = extrema(v)
+    lo == hi && return _roundphrase(lo)
+    return _roundphrase(lo) * " to " * _roundphrase(hi)
+end
+function _roundphrase(x::Unitful.Quantity)
+    return string(round(typeof(1.0 * unit(x)), x, digits = 3))
+end
+_roundphrase(x::Real) = string(round(x, digits = 3))
+
+# How many species disperse unsafely, for the compact form: nothing when none do. `NoMovement`
+# carries no flags, so it has nothing to say.
+_unsafephrase(::NoMovement) = ""
+function _unsafephrase(m::AbstractMovement)
+    n = count(!, m.disperse_safely)
+    return n == 0 ? "" : ", $n not disperse_safely"
+end
+
+# The `disperse_safely` line of the display form.
+_safephrase(::NoMovement) = "not applicable, nothing disperses"
+function _safephrase(m::AbstractMovement)
+    n = count(m.disperse_safely)
+    return n == length(m.disperse_safely) ? "all" :
+           "$n of $(length(m.disperse_safely)) species"
+end
+
+# One line, because the default prints every kernel - measured at 34 000 characters for 1000 species,
+# growing with the species count. What identifies a movement is its kind, how many species it covers
+# and how far they reach. Written once on the supertype, since `getkernels` is the whole interface.
+function Base.show(io::IO, m::AbstractMovement)
+    kernels = getkernels(m)
+    return print(io, nameof(typeof(m)), "(", length(kernels), " species, ",
+                 isempty(kernels) ? "no kernels" :
+                 "$(nameof(eltype(kernels))) $(_rangephrase([k.dist for k in kernels]))",
+                 _unsafephrase(m), ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", m::AbstractMovement)
+    kernels = getkernels(m)
+    println(io, nameof(typeof(m)))
+    println(io, "  species          ", length(kernels))
+    println(io, "  kernel           ",
+            isempty(kernels) ? "none" : nameof(eltype(kernels)))
+    println(io, "  dispersal        ", _rangephrase([k.dist for k in kernels]))
+    print(io, "  disperse_safely  ", _safephrase(m))
+    return nothing
+end
+
 # One flag per kernel, or the two vectors silently describe different species - `zip` would truncate
 # and the last species would take a neighbour's setting.
 function _checkdispersesafely(kernels, disperse_safely)

@@ -59,7 +59,7 @@ end
                  for (_, text) in secs
                  for m in eachmatch(r"Deprecated in v\d+\.\d+\.\d+", text))
     @test labels == Set(["Deprecated in v0.5.0", "Deprecated in v0.6.0",
-                  "Deprecated in v0.7.0"])
+                  "Deprecated in v0.7.0", "Deprecated in v0.8.0"])
 end
 
 end

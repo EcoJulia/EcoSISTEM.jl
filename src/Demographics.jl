@@ -104,6 +104,26 @@ end
 
 # == Functions ==================================================================================
 
+# One line, because the default prints both rate vectors in full - measured at 20 000 characters
+# for 1000 species, growing with the species count. `EqualPop` holds two scalars and prints
+# acceptably as it is.
+function Base.show(io::IO, p::Union{PopGrowth, NoGrowth})
+    return print(io, nameof(typeof(p)), "(", length(p.birth),
+                 " species, birth ",
+                 _rangephrase(p.birth), ", death ", _rangephrase(p.death),
+                 ", longevity ", p.longevity, ", survival ", p.survival, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", p::Union{PopGrowth, NoGrowth})
+    println(io, nameof(typeof(p)))
+    println(io, "  species    ", length(p.birth))
+    println(io, "  birth      ", _rangephrase(p.birth))
+    println(io, "  death      ", _rangephrase(p.death))
+    println(io, "  longevity  ", p.longevity)
+    print(io, "  survival   ", p.survival)
+    return nothing
+end
+
 """
     equalpop(params::AbstractParams, numspp)
 

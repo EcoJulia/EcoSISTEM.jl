@@ -1,6 +1,8 @@
 # NEWS
 
 - v0.8.0
+  - Added
+    - `show` methods for some over-long types.
   - Changed
     - **The `boost` parameter is gone, and the birth multiplier is capped at 1**, as the model is
       written up: `min(K/E, 1)` rather than `min(K/E, boost)`, so however plentiful the resource a

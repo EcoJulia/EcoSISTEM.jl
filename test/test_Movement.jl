@@ -187,4 +187,33 @@ end
     @test totals[2] < totals[1]
 end
 
+# The default struct dump printed every kernel: 34 000 characters at 1000 species, growing linearly.
+# What is pinned is that the size is bounded and the identifying facts are present, not the exact
+# text, which is free to improve.
+@testset "movements print bounded, whatever the species count" begin
+    small = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1e-3), 10))
+    big = AlwaysMovement(GaussianKernel.(range(0.5km, 4.0km, length = 1000),
+                                         1e-3),
+                         [i > 3 for i in 1:1000])
+    none = NoMovement(fill(LongTailKernel(2.0km, 2.0, 1e-3), 1000))
+    for m in (small, big, none)
+        @test length(repr(m)) < 120
+        @test length(repr("text/plain", m)) < 200
+        @test occursin(string(nameof(typeof(m))), repr(m))
+        @test occursin("$(length(EcoSISTEM.getkernels(m))) species", repr(m))
+        # Five lines: the type name and four facts.
+        @test count(==('\n'), repr("text/plain", m)) == 4
+    end
+    @test occursin("GaussianKernel 1.0 km", repr(small))
+    @test !occursin("disperse_safely", repr(small))          # all safe: nothing to say
+    @test occursin("0.5 km to 4.0 km", repr(big))
+    @test occursin("3 not disperse_safely", repr(big))
+    @test occursin("997 of 1000 species", repr("text/plain", big))
+    @test occursin("LongTailKernel 2.0 km", repr(none))
+    @test occursin("nothing disperses", repr("text/plain", none))
+    # A movement with no species at all still prints.
+    @test occursin("0 species, no kernels",
+                   repr(BirthOnlyMovement(GaussianKernel[])))
+end
+
 end
