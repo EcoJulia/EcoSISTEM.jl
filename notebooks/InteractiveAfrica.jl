@@ -83,10 +83,10 @@ begin
 
     # Set up initial parameters for ecosystem
     grd = size(active)
-    demand = 10.0kJ / day
+    demand = 10.0kJ / month_mean_duration
     individuals = 3 * 10^8
     area = 64e6km^2
-    totalK = 1000.0kJ / km^2 / day
+    totalK = 1000.0kJ / km^2 / month_mean_duration
 
     # Set up how much resource each species consumes
     resource_vec = Demand{SolarRadiation}(fill(demand, numSpecies))
@@ -189,7 +189,7 @@ begin
     albers_new = ProjString("+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 " *
                             "+lon_0=25 +datum=WGS84 +units=m +no_defs")
     regime_new = SourceSpec(WorldClim{BioClim}, 1)
-    totalK_new = 1000.0kJ / km^2 / day
+    totalK_new = 1000.0kJ / km^2 / month_mean_duration
     supply_new = UniformSpec(totalK_new, axis = SolarRadiation)
     studyarea_new = StudyArea(regime = regime_new,
                               within = EcoSISTEM.boundingbox("Africa",
@@ -201,7 +201,7 @@ begin
 
     # Set up initial parameters for ecosystem
     grd_new = size(studyarea_new.report.active)
-    req_new = 10.0kJ / day
+    req_new = 10.0kJ / month_mean_duration
     individuals_new = 3 * 10^8
 
     # Set up how much resource each species consumes

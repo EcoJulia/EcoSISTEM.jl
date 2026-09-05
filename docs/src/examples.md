@@ -28,10 +28,10 @@ to [`GridHabitat`](@ref), [`build_species`](@ref) and [`build_ecosystem`](@ref):
 using EcoSISTEM, EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 
-const SOLAR = 4.5e11kJ / (km^2 * day)          # supplied per unit area, per day
-const WATER = 192.0mm / day
-const NEEDS = (sunlight = 450000.0kJ / day,    # consumed per individual, per day
-               water = 192.0Unitful.L / day)
+const SOLAR = 4.5e11kJ / (km^2 * month_mean_duration)   # supplied per unit area, per month
+const WATER = 192.0mm / month_mean_duration
+const NEEDS = (sunlight = 450000.0kJ / month_mean_duration,   # consumed per individual, per month
+               water = 192.0Unitful.L / month_mean_duration)
 
 # A `cells × cells` grid over a square landscape of side `side`, uniform in every respect.
 # `topology` says how the grid's edges join, and it is an **environment** keyword: whether the

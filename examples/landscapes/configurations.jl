@@ -100,8 +100,8 @@ _configuration(name) = CONFIGURATIONS[name][runscale()]
 # The environments
 # ---------------------------------------------------------------------------
 # **The energetics are the originals'**, and they are what make a scale change meaningful rather
-# than merely bigger. The original `Island` supplied `4.5e11 kJ/km^2/day` to 100,000,000
-# individuals over 100 km^2, which is 450,000 kJ/day each - so that is the per-individual demand here,
+# than merely bigger. The original `Island` supplied `4.5e11 kJ/km^2/month` to 100,000,000
+# individuals over 100 km^2, which is 450,000 kJ/month each - so that is the per-individual demand here,
 # and the supply is derived from it so that **every configuration starts at its carrying capacity**.
 #
 # Getting this wrong is not subtle but it *is* invisible at one scale. Scaling `individuals` to
@@ -114,7 +114,7 @@ _configuration(name) = CONFIGURATIONS[name][runscale()]
 # scalar. Nothing breaks - no two of them are ever included into one session - but the shared
 # name genuinely misled a sweep that inferred each demand's axis from the constant it was
 # written as, and gave this call a two-member `demandaxis` for a one-member demand.
-const SOLARDEMAND = 4.5e5kJ / day
+const SOLARDEMAND = 4.5e5kJ / month_mean_duration
 _supplydensity(individuals, area) = individuals * SOLARDEMAND / area
 
 # A square study area of the given total area, divided into `grid` cells - so the cell size follows

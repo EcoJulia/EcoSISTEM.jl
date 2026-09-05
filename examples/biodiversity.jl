@@ -57,9 +57,10 @@ else
     # The published configuration: supply is **per unit area**, demand is **per unit of plant**, so a
     # species' actual demand is `DEMAND .* size`. Keeping demand per m^2 rather than per individual is
     # what lets the large-pool test below give every species its own body size.
-    const SUPPLY = (sunlight = 4.5e11kJ / (km^2 * day), water = 192.0mm / day)
-    const DEMAND = (sunlight = 450000.0kJ / (m^2 * day),
-                    water = 192.0Unitful.L / (m^2 * day))
+    const SUPPLY = (sunlight = 4.5e11kJ / (km^2 * month_mean_duration),
+                    water = 192.0mm / month_mean_duration)
+    const DEMAND = (sunlight = 450000.0kJ / (m^2 * month_mean_duration),
+                    water = 192.0Unitful.L / (m^2 * month_mean_duration))
 
     const NUMSPECIES = 100
     const CELLS = 10

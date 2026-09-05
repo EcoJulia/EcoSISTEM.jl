@@ -60,7 +60,8 @@ begin
     # Set up abiotic environment
     grd = (numGrid, numGrid)
     area = 100.0 * km^2
-    totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
+    totalK = (4.5e11kJ / km^2 / month_mean_duration,
+              192.0mm / month_mean_duration)
     side = sqrt(area)
     habitat = GridHabitat(regime = UniformSpec(298.0K,
                                                axis = Temperature),
@@ -89,7 +90,8 @@ begin
     movement = BirthOnlyMovement(kernel)
 
     # Resource demands
-    demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day)
+    demand = (450000.0kJ / m^2 / month_mean_duration,
+              192.0Unitful.L / m^2 / month_mean_duration)
     size_mean = 1.0m^2
     resource_vec1 = Demand{SolarRadiation}(fill(demand[1] * size_mean,
                                                 numSpecies))

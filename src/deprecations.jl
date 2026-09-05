@@ -1621,7 +1621,7 @@ Base.@deprecate_binding ConstructedSpec ConstructedRasterSpec
 # keyword still work: each warns and discards the value. A value other than 1 changed results in the
 # release that read it, and the warning says so.
 #
-# Deprecated in v0.7.0.
+# Deprecated in v0.8.0.
 # ---------------------------------------------------------------------------
 # Warn that a `boost` was given and say what it would have done. `nothing` is the keyword's default
 # and warns nothing.

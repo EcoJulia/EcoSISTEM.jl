@@ -22,10 +22,11 @@ const SMALL = get(ENV, "ECOSISTEM_SCALE", "large") == "small"
 
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
+demand = (450000.0kJ / m^2 / month_mean_duration,
+          192.0Unitful.L / m^2 / month_mean_duration);
 individuals = SMALL ? 1_000_000 : 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
+totalK = (4.5e11kJ / km^2 / month_mean_duration, 192.0mm / month_mean_duration)
 
 # A `StudyArea` decides the grid, then `GridHabitat` builds on it. With no data-backed layer
 # to shape it, `extent` and `cellsize` give a **synthetic** grid with no CRS - which is exactly what a
