@@ -127,7 +127,6 @@ classDiagram
     class LayerCollection~R, A, C~
     Role <|-- Condition
     Role <|-- Resource
-    AbstractGrid   <|-- AbstractLayer
     AbstractLayer  <|-- ContinuousLayer
     AbstractLayer  <|-- CategoricalLayer
     AbstractLayer  <|-- LayerCollection
@@ -777,7 +776,7 @@ records that.
 **A `StudyArea` carries two things, and they answer different questions.** Its `report` records
 *how* the grid was decided; its `builtgrid` is a `StudyGrid` saying *where the cells are* - the CRS
 and the very `Y`/`X` dimensions the habitat's `active` mask is indexed by, never a second copy of
-them. `StudyGrid` is the package's only `EcoBase.AbstractGrid`, so `AbstractHabitat{H, B, L}` passes
+them. `StudyGrid` is the package's only `EcoBase.AbstractRegularGrid`, so `AbstractHabitat{H, B, L}` passes
 it to `AbstractPartition{L}` and anything speaking that interface can ask a habitat where its cells
 are.
 
@@ -977,9 +976,9 @@ per month) and `Dim{:layer}` for everything else.
 ## Notes
 
 - **External supertypes:** `AbstractHabitat <: Diversity.AbstractPartition`,
-  `StudyGrid <: EcoBase.AbstractGrid`, `SpeciesList <: Diversity.AbstractTypes`,
-  `AbstractEcosystem <: Diversity.AbstractMetacommunity`. `AbstractLayer` is deliberately **not** an
-  `EcoBase.AbstractGrid`, because a layer is values *on* a grid rather than a grid itself.
+  `StudyGrid <: EcoBase.AbstractRegularGrid`, `SpeciesList <: Diversity.AbstractTypes`,
+  `AbstractEcosystem <: Diversity.AbstractMetacommunity`. `AbstractLayer` is deliberately **not**
+  `EcoBase.AbstractGridded`, because a layer is values *on* a grid rather than a grid itself.
 
 - **Canonical units.** Level axes carry a `canonicalunit` that a layer's actual-unit values are
   converted to at build time - temperature `K`, **precipitation `mm/day`** (a rate, not a depth),

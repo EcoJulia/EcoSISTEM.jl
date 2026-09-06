@@ -30,7 +30,15 @@
       unchanged, and runs with any other value will not reproduce.
     - `SpatialEcology`, `Proj`, `OnlineStats` and seven standard libraries are no longer
       dependencies; nothing in the package loaded them.
+    - EcoBase 0.2, which answers the whole gridded interface for anything holding a grid, so
+      `xmin`, `xrange`, `xedges`, `indices` and `cellanchor` now work on a `GridHabitat` and on an
+      `Ecosystem` as well as on a `StudyGrid`. `StudyGrid` is an `EcoBase.AbstractRegularGrid`,
+      EcoBase's new name for what it used to call `AbstractGrid`. It declares `YThenX`, so
+      `indices` and `coordinates` now report `(y, x)` columns, the package's own order; ask
+      `XThenY()` for the other.
   - Fixed
+    - A `StudyGrid` declares that it labels cells by their lower corner. EcoBase assumed a centre,
+      so every edge it derived - and every heatmap drawn from those edges - sat half a cell low.
     - An angular `cellsize` such as `30arcminute` is accepted on a geographic grid; a length there,
       and an angle on a projected grid, are refused.
     - `ShapeSpec` documents that a URL must name a self-contained file.

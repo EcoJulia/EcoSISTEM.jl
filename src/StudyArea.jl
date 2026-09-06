@@ -14,7 +14,7 @@ using Rasters
 import Rasters: Projected
 
 """
-    StudyGrid{C, YD, XD} <: EcoBase.AbstractGrid
+    StudyGrid{C, YD, XD} <: EcoBase.AbstractRegularGrid
 
 The geometry of the grid a [`GridHabitat`](@ref) was built on: where its cells are, how big they are
 and what coordinate reference system they are stated in.
@@ -35,7 +35,7 @@ Reach it through the habitat's [`StudyArea`](@ref).
   - `y`: the grid's `Y` dimension - the **first** array dimension throughout this package.
   - `x`: the grid's `X` dimension.
 """
-struct StudyGrid{C, YD, XD} <: EcoBase.AbstractGrid
+struct StudyGrid{C, YD, XD} <: EcoBase.AbstractRegularGrid
     crs::C
     y::YD
     x::XD
@@ -335,7 +335,7 @@ function getspeciesstorage(x)
     return _gridfootprint(length(yx[1]), length(yx[2])).perspecies
 end
 
-# --- The `EcoBase.AbstractGrid` interface ----------------------------------
+# --- The `EcoBase.AbstractRegularGrid` interface ---------------------------
 #
 # Seven methods, all reading the dimensions rather than a stored number, so there is nothing to
 # disagree with the coordinates. `cellsize`, `cells`, `xmax`/`ymax` and `xrange`/`yrange` are
