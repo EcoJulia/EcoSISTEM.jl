@@ -23,6 +23,8 @@
       codes: an integer class list pairs with a layer of float codes.
     - EarthEnv land cover is no longer coarsened 10× by default. A read is at the file's own
       resolution unless it asks for a `scale`, and a study area chooses one from its cell size.
+    - Building a layer onto a study area reads only the grid's own window, and reuses the read
+      the area made when it was decided; it no longer reads the whole file a second time.
     - The `boost` parameter is gone and the birth multiplier is capped at 1, as the model is written
       up. The old constructors and keyword warn and discard it; results with `boost = 1` are
       unchanged, and runs with any other value will not reproduce.

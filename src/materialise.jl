@@ -164,10 +164,36 @@ function _asraster(spec::SourceSpec, cache::LayerCache; cut = nothing,
          merge(spec.readkw, (cut = cut,))
     scale > 1 && !haskey(kw, :scale) && (kw = merge(kw, (scale = scale,)))
     spec.code isa AbstractVector && return _stackcached(spec, cache, kw)
-    return get!(cache.reads, ReadKey(spec.source, spec.code, kw)) do
+    key = ReadKey(spec.source, spec.code, kw)
+    served = _servedread(cache, key)
+    isnothing(served) || return served
+    return get!(cache.reads, key) do
         return _read(spec; kw...)
     end
 end
+
+# A cached read that can serve `key`: the same source, code and read options, whose window is the
+# whole file or contains the one asked for. A whole read serves any window, and a wider window a
+# narrower one; a window never serves a whole read or a wider one. This is what lets a build reuse
+# the analysis's read rather than reading the file again.
+function _servedread(cache::LayerCache, key::ReadKey)
+    haskey(cache.reads, key) && return cache.reads[key]
+    want = get(key.readkw, :cut, nothing)
+    isnothing(want) && return nothing
+    rest = _sanscut(key.readkw)
+    for (k, v) in cache.reads
+        (k.source == key.source && k.code == key.code &&
+         _sanscut(k.readkw) == rest) || continue
+        have = get(k.readkw, :cut, nothing)
+        isnothing(have) && return v
+        (have isa Extents.Extent && want isa Extents.Extent &&
+         Extents.contains(have, want)) && return v
+    end
+    return nothing
+end
+
+# Read options with the window taken out, so two reads can be compared on everything else.
+_sanscut(nt::NamedTuple) = Base.structdiff(nt, NamedTuple{(:cut,)})
 
 # A file read is keyed like a dataset read, so refining an area re-reads nothing and a windowed read
 # is never served for a whole one. The path stands in for the layer code, and the unit and scale
@@ -177,6 +203,8 @@ function _asraster(spec::RasterFileSpec, cache::LayerCache; cut = nothing,
     scale = spec.scale == 1 ? scale : spec.scale
     key = ReadKey(spec.source, _pathtext(spec.path),
                   (cut = cut, unit = spec.unit, scale = scale, fn = spec.fn))
+    served = _servedread(cache, key)
+    isnothing(served) || return served
     return get!(cache.reads, key) do
         return _read(spec, cut = cut, scale = scale)
     end
@@ -281,7 +309,10 @@ function _stackcached(spec::SourceSpec, cache::LayerCache, kw::NamedTuple)
     codes = spec.code
     layers = map(codes) do c
         one = SourceSpec(spec.source, c; kw...)
-        return get!(cache.reads, ReadKey(spec.source, c, kw)) do
+        key = ReadKey(spec.source, c, kw)
+        served = _servedread(cache, key)
+        isnothing(served) || return served
+        return get!(cache.reads, key) do
             return _read(one)
         end
     end
@@ -330,8 +361,9 @@ end
 # interpolations is not the interpolation of the ratio. Either says so with
 # `combinestage = CombineOnSourceGrid()`, and `_combineon` below runs it on the layers' own grid
 # instead.
-function _materialiseon(spec::SourceSpec, target, cache::LayerCache)
-    read = _asraster(spec, cache, scale = _autoscale(spec, target))
+function _materialiseon(spec::SourceSpec, target, cache::LayerCache;
+                        cut = nothing)
+    read = _asraster(spec, cache, cut = cut, scale = _autoscale(spec, target))
     return ClimateRaster(spec.source,
                          _sampledata(read, target, name = "layer",
                                      categorical = iscategorical(read,
@@ -341,8 +373,9 @@ function _materialiseon(spec::SourceSpec, target, cache::LayerCache)
 end
 
 # As for a `SourceSpec`, less the layer code a file does not have.
-function _materialiseon(spec::RasterFileSpec, target, cache::LayerCache)
-    read = _asraster(spec, cache, scale = _autoscale(spec, target))
+function _materialiseon(spec::RasterFileSpec, target, cache::LayerCache;
+                        cut = nothing)
+    read = _asraster(spec, cache, cut = cut, scale = _autoscale(spec, target))
     return ClimateRaster(spec.source,
                          _sampledata(read, target, name = "layer",
                                      categorical = iscategorical(read,
@@ -364,7 +397,7 @@ end
 # Wrapped as a code-less `ClimateRaster` on the target's own dims, because that is what a combine
 # takes; the spec's declared axis is what gives it meaning, exactly as for a `ConstructedRasterSpec`.
 function _materialiseon(spec::AbstractSyntheticLayerSpec, target,
-                        ::LayerCache)
+                        ::LayerCache; cut = nothing)
     yx = dims(target, (Y, X))
     # `_specfield`, not `_syntheticsupplyfield`, so the **whole** synthetic family is reachable -
     # including `NicheSpec`, which the latter answers only through its `fill(float(spec), ...)`
@@ -395,8 +428,9 @@ end
 # - measured, a `_reg(raster)` layer at 4×4 against a synthetic one generated at the target's 2×2
 # is a `DimensionMismatch`. Where the layers were already put on the target, this is a no-op:
 # `_regrid` recognises a raster on the target grid and selects its cells instead of resampling.
-function _materialiseon(spec::ConstructedRasterSpec, target, cache::LayerCache)
-    out = _combineon(spec.combinestage, spec, target, cache)
+function _materialiseon(spec::ConstructedRasterSpec, target, cache::LayerCache;
+                        cut = nothing)
+    out = _combineon(spec.combinestage, spec, target, cache, cut = cut)
     return ClimateRaster(_sourceof(out),
                          _sampledata(out, target, name = "layer",
                                      categorical = iscategorical(out,
@@ -444,12 +478,24 @@ _unitedyx(yx, tcrs) = yx
 # behaviour exactly - see `_materialiseon` above for why it is the right ordering whenever the
 # combine commutes with regridding.
 function _combineon(::CombineOnTargetGrid, spec::ConstructedRasterSpec, target,
-                    cache::LayerCache)
+                    cache::LayerCache; cut = nothing)
     # Nothing to stamp on the result: what it *is* comes from `spec.axis`, and the callers that
     # need to know ask `iscategorical(raster, axis)`. On this path the layers were sampled before
     # the combine ran, so no resampling decision is left to make here at all.
-    return _combined(spec.combine(map(l -> _materialiseon(l, target, cache),
+    return _combined(spec.combine(map(l -> _materialiseon(l, target, cache,
+                                                          cut = cut),
                                       spec.layers)...), spec)
+end
+
+# The WGS84 box a layer is read for when built onto `area`'s grid: the grid's own extent, padded as
+# the analysis pads a mask's, so a build reads what the grid needs rather than the whole file, and
+# the analysis's read, which covers it, is served from the cache. `nothing` for a synthetic area,
+# which has no CRS to place a window in.
+function _buildwindow(area::StudyArea)
+    crs = area.report.crs
+    isnothing(crs) && return nothing
+    extent = _dimsextent(area.report.active, crs)
+    return isnothing(extent) ? nothing : _padded(extent, crs)
 end
 
 # Early: the combine runs on the layers' own shared grid (which `_asraster` has just checked they
@@ -459,8 +505,8 @@ end
 # result is sampled *here*, so whether it holds class codes decides `:mode` against `:bilinear`. A
 # derived layer has no catalogue row, so the axis is the only thing that can say.
 function _combineon(::CombineOnSourceGrid, spec::ConstructedRasterSpec, target,
-                    cache::LayerCache)
-    return _sampledeclared(_asraster(spec, cache), target, spec.axis)
+                    cache::LayerCache; cut = nothing)
+    return _sampledeclared(_asraster(spec, cache, cut = cut), target, spec.axis)
 end
 
 # The WGS84 box worth reading, or `nothing` to read everything. `nothing` whenever the answer is not
@@ -642,7 +688,7 @@ function _materialisefield(spec::AbstractSyntheticLayerSpec, area::StudyArea)
 end
 
 function _materialisefield(spec, area::StudyArea)
-    raster = _asraster(spec, area.report.cache,
+    raster = _asraster(spec, area.report.cache, cut = _buildwindow(area),
                        scale = _autoscale(spec, area.report.active))
     categorical = iscategorical(raster, _specaxis(spec))
     values = _sampledata(raster, area.report.active, name = "layer",
@@ -668,7 +714,7 @@ end
 # already on the target and crops rather than resampling.
 function _materialisefield(spec::ConstructedRasterSpec, area::StudyArea)
     out = _combineon(spec.combinestage, spec, area.report.active,
-                     area.report.cache)
+                     area.report.cache, cut = _buildwindow(area))
     categorical = iscategorical(out, _specaxis(spec))
     values = _sampledata(out, area.report.active, name = "layer",
                          categorical = categorical)

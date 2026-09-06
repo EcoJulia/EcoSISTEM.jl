@@ -265,7 +265,10 @@ end
     # `axis = LandCoverTypology` because the *result* is a class code, not the cover fraction
     # its inputs are (`SurfaceArea`). A raster carries no axis of its own, so a derived layer's
     # axis is declared on the spec - the same place `AvailableGround.jl` declares `SurfaceArea`.
-    spec = ConstructedRasterSpec(EarthEnv{LandCover},
+    # `scale = 10` reads the source at 5 arcminutes, coarser than the 5 km grid, so the collapse
+    # on the target loses no class and the ground-truth comparison below is exact; it also keeps
+    # the whole-globe read this testset makes outside the study area to a few hundred megabytes.
+    spec = ConstructedRasterSpec(SourceSpec(EarthEnv{LandCover}, scale = 10),
                                  axis = LandCoverTypology) do lc
         return compress_landcover(lc)
     end
