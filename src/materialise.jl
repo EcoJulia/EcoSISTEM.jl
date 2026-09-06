@@ -294,7 +294,8 @@ function _materialiseon(spec::SourceSpec, target, cache::LayerCache)
     return ClimateRaster(spec.source,
                          _sampledata(read, target, name = "layer",
                                      categorical = iscategorical(read,
-                                                                 _specaxis(spec))),
+                                                                 _specaxis(spec)),
+                                     fn = _specfn(spec)),
                          spec.code)
 end
 
@@ -304,7 +305,8 @@ function _materialiseon(spec::RasterFileSpec, target, cache::LayerCache)
     return ClimateRaster(spec.source,
                          _sampledata(read, target, name = "layer",
                                      categorical = iscategorical(read,
-                                                                 _specaxis(spec))))
+                                                                 _specaxis(spec)),
+                                     fn = _specfn(spec)))
 end
 
 # **A synthetic spec on a positioned grid - generated at the target's shape, not sampled onto it.**
@@ -596,7 +598,7 @@ function _materialisefield(spec, area::StudyArea)
     raster = _asraster(spec, area.report.cache)
     categorical = iscategorical(raster, _specaxis(spec))
     values = _sampledata(raster, area.report.active, name = "layer",
-                         categorical = categorical)
+                         categorical = categorical, fn = _specfn(spec))
     return (values = _restricttocovered(values, raster, area, categorical),
             categorical = categorical)
 end

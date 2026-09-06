@@ -2,56 +2,27 @@
 
 - v0.8.0
   - Added
-    - `RasterFileSpec(path; axis, unit, source)`, a lazy layer spec for a raster **file** that
-      belongs to no catalogued dataset - a GeoTIFF of your own, by path or URL. It holds only the
-      path: the read is windowed to the study area, cached with the other reads, and resampled onto
-      the grid at build time, exactly as a `SourceSpec` is, where `in_memory_raster` reads eagerly
-      and caches nothing. A `scale` coarsens on read, memoised on disk like a dataset's. `readfile`
-      gains a matching `unit` keyword.
+    - `RasterFileSpec`, a lazy layer spec for a raster file that belongs to no dataset: the read is
+      windowed to the study area, cached, and coarsened on read by `scale`. `readfile` gains `unit`.
     - `show` methods for some over-long types.
   - Changed
-    - **A layer whose cell size is a whole multiple of the study grid's, on the grid's cell
-      boundaries, is now put on the grid by exact block aggregation** - each grid cell holding the
-      mean (or, for class codes, the most frequent class) of the source cells it covers - where it
-      was bilinearly interpolated. The study-area report has always called this case "aggregated
-      (exact)"; it is now true. Values on such grids change accordingly; a grid identical to a
-      layer's own is still selected cell for cell, and any other grid is still resampled as before.
-      The same block aggregation implements the read-time `scale`, so coarsening a layer on read and
-      coarsening it onto the grid give the identical result. Both anchor their blocks at the
-      south-west corner, as the study grid is laid out, so the partial block a coarsening drops is
-      the northern or eastern one; no shipped dataset's extent leaves a partial block at its default
-      scale, so no dataset read changes. Whether a grid cell counts as covered by a layer is now
-      decided explicitly - more than half of the source cells it covers carry data - rather than by
-      whether interpolation happened to return a value.
-    - **A coarsening read (`scale > 1`) now chooses its reducer from the layer's axis.** A layer on
-      a `TypologyAxis` - class codes - is aggregated by the most frequent class in each block, ties
-      to the smallest code, where it was averaged into codes nobody observed; every other axis keeps
-      the mean. This holds for `SourceSpec`, `RasterFileSpec` and `read` alike, and `fn` still
-      overrides it. No shipped default is affected: land cover, the one source coarsened by
-      default, holds fractions and is averaged as before.
-    - **`readfile` returns a `ClimateRaster`**, as every other reader does, rather than the bare
-      array it returned since v0.4.0; the values are the same and sit in `.array`. A new `source`
-      keyword records where the file came from, defaulting to `SyntheticData` for a file that
-      belongs to no catalogued dataset, so `readfile(path)` can be handed straight to
-      `in_memory_raster` without wrapping it first.
-    - **The `boost` parameter is gone, and the birth multiplier is capped at 1**, as the model is
-      written up: `min(K/E, 1)` rather than `min(K/E, boost)`, so however plentiful the resource a
-      species reproduces no faster than its baseline rate. `EqualPop`, `PopGrowth` and `NoGrowth`
-      lose their fifth field and `build_species` its `boost` keyword; the five-argument
-      constructors and the keyword still work, warn, and discard the value. Results are unchanged
-      for `boost = 1`, which every shipped example used. A larger `boost` did not only shorten
-      the transient: the cap binds at equilibrium wherever a species sits away from its niche
-      optimum, so standing abundances from such runs will not reproduce.
+    - Every layer reaches the study grid by aggregation of the source cells covering each grid
+      cell, and nothing is interpolated: exact block aggregation where the grid is an aligned whole
+      multiple of the layer's cells, which the report has always claimed, and nearest-neighbour
+      sampling onto a finer lattice then aggregation otherwise, reprojection included. The
+      read-time `scale` is the same computation. Values on any grid that is not a layer's own
+      change.
+    - A coarsening reduces over the cells that carry data with a reducer chosen from the layer's
+      axis - the mean, or the most frequent class for class codes. A grid cell is covered by a layer
+      when the layer has data at its centre.
+    - `readfile` returns a `ClimateRaster`, with `source` and `unit` keywords.
+    - The `boost` parameter is gone and the birth multiplier is capped at 1, as the model is written
+      up. The old constructors and keyword warn and discard it; results with `boost = 1` are
+      unchanged, and runs with any other value will not reproduce.
   - Fixed
-    - `StudyArea(cellsize = 30arcminute)` (or `0.5°`, or `1800arcsecond`) now builds a degree grid
-      of that step on a geographic CRS, where it was refused with a message asserting that a cell
-      size must be a physical length. A length on a geographic grid is still refused, and the
-      message now names the angular spelling as one remedy; an angle on a projected grid is
-      refused in turn. Such a grid can be investigated and built but still not simulated, as
-      before.
-    - `ShapeSpec`'s docstring now says that a URL must name a self-contained file - a zip, GeoJSON
-      or GeoPackage - because only the named file is fetched, so a bare remote `.shp` cannot be
-      read.
+    - An angular `cellsize` such as `30arcminute` is accepted on a geographic grid; a length there,
+      and an angle on a projected grid, are refused.
+    - `ShapeSpec` documents that a URL must name a self-contained file.
 - v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name

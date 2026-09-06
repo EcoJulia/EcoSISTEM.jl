@@ -451,8 +451,8 @@ function _blockrange(d, lo, hi, scale::Integer)
     i, j = first(idx), last(idx)
     scale > 1 || return i:j
     n = length(d)
-    o = DimensionalData.Lookups.order(DimensionalData.lookup(d)) isa
-        DimensionalData.Lookups.ForwardOrdered ? 0 : n % scale
+    o = _trimoffset(DimensionalData.Lookups.order(DimensionalData.lookup(d)), n,
+                    scale)
     lo_ = max(o + 1, o + 1 + scale * fld(i - o - 1, scale))
     hi_ = min(n, o + scale * cld(j - o, scale))
     return lo_:hi_
@@ -524,40 +524,17 @@ _defaultscale(::Type) = 1
 
 _defaultfn(::Type) = nothing
 
-# The reducer a coarsening read uses: an explicit `fn` as given; otherwise the most frequent class
-# for an axis holding class codes, whose mean would name a class nobody observed, and the mean for
-# any other. Resolved once, before the aggregate cache key is built, so the key names the reducer
-# actually applied.
-_reducer(fn, ::Type{<:NicheAxis}) = fn
+# The axis a dataset read chooses its reducer by: the layers' shared axis from the catalogue, or
+# `NicheAxis` - and so the mean - where they disagree or the catalogue cannot place them, so a
+# layer the catalogue does not know still reads.
+# A read's layers as a code list: several codes collected to the catalogue's code type, one code as
+# it is.
+_codelist(layers::Union{Tuple, AbstractVector}) = collect(CODE_TYPE, layers)
 
-function _reducer(::Nothing, axis::Type{<:NicheAxis})
-    return iscategorical(axis) ? _majorityclass : mean
-end
+_codelist(layer) = layer
 
-# The most frequent value in a block of class codes, ties broken by the smallest code so the answer
-# does not depend on iteration order. Missing and NaN cells are ignored; a block with nothing else
-# is missing. Read-time only, so the allocation per block is of no consequence.
-function _majorityclass(block)
-    counts = Dict{eltype(skipmissing(block)), Int}()
-    for v in skipmissing(block)
-        (v isa AbstractFloat && isnan(v)) && continue
-        counts[v] = get(counts, v, 0) + 1
-    end
-    isempty(counts) && return missing
-    best, bestn = first(counts)
-    for (v, n) in counts
-        (n > bestn || (n == bestn && v < best)) && ((best, bestn) = (v, n))
-    end
-    return best
-end
-
-# The axis a dataset read should choose its reducer by: the layers' shared axis from the catalogue,
-# or `NicheAxis` - and so the mean - where they disagree or the catalogue cannot place them. The
-# fallback reproduces exactly what every read did before the axis was consulted, so a layer the
-# catalogue does not know is read as it always was rather than refused.
 function _readaxis(T::Type, layers)
-    codes = layers isa Union{Tuple, AbstractVector} ?
-            collect(CODE_TYPE, layers) : layers
+    codes = _codelist(layers)
     return try
         _sharedaxis(T, codes)
     catch

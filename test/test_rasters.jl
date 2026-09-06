@@ -105,19 +105,12 @@ end
                                 name = "l")
     @test count(isnan, ustrip.(parent(out))) == 1
 
-    # A grid that does not sit on the layer's cell boundaries declines, so the resample still
-    # happens: a half-cell offset is a genuine resample. (A coarser grid that *does* sit on them is
-    # an exact block aggregation - `test_materialise.jl` pins that.)
-    offset = EcoSISTEM._regrid(r,
-                               EcoSISTEM._owngrid(_testraster(WorldClim{BioClim},
-                                                              fill(1.0, 5,
-                                                                   5),
-                                                              lat = (0.5:1.0:4.5) .*
-                                                                    °,
-                                                              long = (0.0:1.0:4.0) .*
-                                                                     °)),
-                               mean)
-    @test isnothing(offset)
+    # A grid that does not sit on the layer's cell boundaries is not a tiling of it - a half-cell
+    # offset here - so its cells are aggregated from the covering cells rather than selected. (A
+    # coarser grid that *does* sit on them is an exact block aggregation; `test_materialise.jl` pins
+    # that.)
+    @test isnothing(EcoSISTEM._tilerange(collect(0.0:1.0:4.0) .* °,
+                                         collect(0.5:1.0:4.5) .* °, 1))
 
     # Both routes must leave a layer with the *same* dims, or two layers of one collection
     # sampled differently are rejected downstream as being "on different grids" - which is
@@ -160,10 +153,11 @@ end
     @test EcoSISTEM.iscategorical(CHELSA{BioClimPlus}, :kg0)
     @test !EcoSISTEM.iscategorical(CHELSA{BioClimPlus}, :gsl)
 
-    # `_resamplemethod` now takes the answer rather than the raster: whether a layer holds class
-    # codes is a property of its axis, which the raster does not carry.
-    @test EcoSISTEM._resamplemethod(true) === :mode
-    @test EcoSISTEM._resamplemethod(false) === :bilinear
+    # Whether a layer holds class codes is a property of its axis, which the raster does not carry;
+    # the reducer that follows from it is `_reducer`'s to choose, and nothing is interpolated.
+    @test EcoSISTEM._reducer(nothing, LandCoverTypology) ===
+          EcoSISTEM._majorityclass
+    @test EcoSISTEM._reducer(nothing, Temperature) === EcoSISTEM._meanpresent
 
     # A uniformly categorical stack is categorical.
     codes(cs...) = collect(EcoSISTEM.CODE_TYPE, cs)
@@ -299,19 +293,13 @@ end
     # orderings now agree exactly.
     @test issubset(stale, truth)
 
-    # **The axis is what does that, so prove it is not vacuous**: sampling the identical
-    # raster as though it were continuous resamples `:bilinear`, and the five phantom classes
-    # return.
-    # Asserting the *fix* rather than the *bug* - an earlier version of this testset asserted
-    # `!issubset(stale, truth)`, which silently became a statement that the guard was missing.
+    # **The axis is what does that, so prove it is not vacuous**: put the identical raster on the
+    # grid as though it held continuous values and its class codes are *averaged*, which yields
+    # values that are no class at all.
     @test EcoSISTEM.iscategorical(src, LandCoverTypology)
-    @test EcoSISTEM._resamplemethod(true) == :mode
-    @test EcoSISTEM._resamplemethod(false) == :bilinear
-    naive = classes(EcoSISTEM._sampledata(src, target, name = "raw",
-                                          categorical = false))
-    @test !issubset(naive, truth)
-    @test length(setdiff(naive, truth)) >= 4
-    @test !isempty(setdiff(truth, naive))
+    naive = EcoSISTEM._sampledata(src, target, name = "raw",
+                                  categorical = false)
+    @test any(v -> !isinteger(v), filter(!isnan, ustrip.(vec(parent(naive)))))
 end
 
 # **A derived layer says what it holds through its AXIS**, which is the only thing that can

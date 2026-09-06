@@ -175,19 +175,18 @@ end
     @test materialise(biggest,
                       StudyArea(regime = biggest, verbosity = :silent)).matrix ==
           [7 9; 2 3]
-    # The same file on a continuous axis is averaged, as before.
+    # The same file on a continuous axis is averaged.
     asvalues = RasterFileSpec(cpath, axis = EcoSISTEM.NicheAxis, scale = 2)
     @test materialise(asvalues,
                       StudyArea(regime = asvalues, verbosity = :silent)).matrix ≈
           [5.5 7.5; 1.25 2.5]
 
-    # **Route R1 of the regridding pipeline.** A study grid that is a whole multiple of the file's
-    # cells, aligned to them, is an exact block aggregation of the file - what the report has always
-    # called `LayerAggregated(f)` - and not a resample. Three things pin it: the values are the block
-    # means to the last bit; the categorical file aggregates by majority the same way; and coarsening
-    # on read (`scale = f`) then materialising on the file's own lattice gives the **bit-identical**
-    # layer, because both routes are one `_blockaggregate`. That last one is the duplicate-against-
-    # original test: two implementations of one coarsening can only be trusted while they are compared.
+    # A study grid that is a whole multiple of the file's cells, aligned to them, is an exact block
+    # aggregation of the file - what the report calls `LayerAggregated(f)` - and not a resample. Three
+    # things pin it: the values are the block means to the last bit; the categorical file aggregates
+    # by majority the same way; and coarsening on read (`scale = f`) then materialising on the file's
+    # own lattice gives the bit-identical layer, which is what shows the two coarsenings to be one
+    # computation.
     M = ustrip.(K, lazy.matrix)                          # the 5 x 7 file, ascending latitude
     for f in (2,)
         area_f = StudyArea(regime = spec, cellsize = float(f) * °,
@@ -206,6 +205,68 @@ end
                       cellsize = 2.0°, verbosity = :silent)
     @test materialise(RasterFileSpec(cpath, axis = LandCoverTypology), cgrid).matrix ==
           [5 7; 1 2]
+
+    # A grid that is not an aligned whole multiple of the file's cells - here 1.5° cells over 1° data -
+    # is reached by nearest-neighbour sampling onto a lattice `k` times finer (k = 4 for a ratio of
+    # 1.5) and block aggregation by `k`. Pinned against an independent statement of that definition,
+    # written here in plain loops: for each grid cell the `k × k` sample centres, the source cell each
+    # falls in, and the reduction over the present ones. The study area may recut the grid where a
+    # whole outer row or column is uncovered, so the comparison is on the cells both have. A finer
+    # grid repeats each source value; a class-code file takes the majority, and a mask the majority
+    # of its covering cells. Nothing is interpolated.
+    function sampledexpect(M, step, k, reducer)
+        ny, nx = size(M)
+        n1, n2 = ceil(Int, ny / step), ceil(Int, nx / step)
+        out = fill(NaN, n1, n2)
+        for r in 1:n1, c in 1:n2
+            samples = Float64[]
+            total = 0
+            for i in 1:k, j in 1:k
+                y = (r - 1) * step + (i - 0.5) * step / k
+                x = (c - 1) * step + (j - 0.5) * step / k
+                total += 1
+                (0 <= y < ny && 0 <= x < nx) || continue
+                push!(samples, M[floor(Int, y) + 1, floor(Int, x) + 1])
+            end
+            isempty(samples) || (out[r, c] = reducer(samples))
+        end
+        return out
+    end
+    majority(v) = (counts = Dict{Float64, Int}();
+                   foreach(x -> counts[x] = get(counts, x, 0) + 1, v);
+                   minimum(k
+                           for (k, n) in counts if n == maximum(values(counts)))
+                   )
+    shared(A, B) = B[1:size(A, 1), 1:size(A, 2)]
+    a15 = StudyArea(regime = spec, cellsize = 1.5°, verbosity = :silent)
+    @test occursin("not a whole multiple", only(a15.report.layers).kind.reason)
+    regridded = ustrip.(K, parent(materialise(spec, a15).matrix))
+    w15 = sampledexpect(M, 1.5, 4, v -> sum(v) / length(v))
+    @test isequal(regridded, shared(regridded, w15))
+    up = StudyArea(regime = spec, cellsize = 0.5°, verbosity = :silent)
+    @test occursin("repeated", only(up.report.layers).kind.reason)
+    @test ustrip.(K, parent(materialise(spec, up).matrix)) ==
+          repeat(M, inner = (2, 2))
+    Mc = Float64.([1 1 2 3; 1 2 2 3; 5 5 7 7; 5 7 7 9][end:-1:1, :])
+    c15 = StudyArea(regime = RasterFileSpec(cpath, axis = LandCoverTypology),
+                    cellsize = 1.5°, verbosity = :silent)
+    gotc = parent(materialise(RasterFileSpec(cpath, axis = LandCoverTypology),
+                              c15).matrix)
+    @test isequal(gotc, shared(gotc, sampledexpect(Mc, 1.5, 4, majority)))
+    # A Bool mask onto the same 1.5° lattice, straight through `_samplemask`.
+    A = readfile(path, unit = K).array .> 300K
+    t15 = EcoSISTEM._crstemplate(Rasters.EPSG(4326),
+                                 Extent(Y = (50.0°, 55.0°), X = (10.0°, 17.0°)),
+                                 1.5°)
+    @test EcoSISTEM._samplemask(A, t15) ==
+          (sampledexpect(Float64.(parent(A)), 1.5, 4, majority) .> 0.5)
+    # Onto another CRS the same route runs, every cell aggregated from real source values.
+    proj = StudyArea(regime = spec, crs = Rasters.EPSG(3857), cellsize = 100km,
+                     verbosity = :silent)
+    @test occursin("different CRS", only(proj.report.layers).kind.reason)
+    pv = ustrip.(K, parent(materialise(spec, proj).matrix))
+    @test all(!isnan, pv)
+    @test minimum(M) <= minimum(pv) && maximum(pv) <= maximum(M)
 
     # And a habitat builds on it - geographic, so it can be inspected but not simulated.
     h = GridHabitat(regime = spec,

@@ -170,13 +170,11 @@ end
                 (T isa Union && (isdim(T.a) || isdim(T.b))))
 
     # **No carve-outs.** A named list rather than a count, like the other lists in this file, so a
-    # new leak has to be looked at rather than passing silently. `readfile` was the last entry, a
-    # released return type that v0.8.0 changed to a `ClimateRaster`; `hasdata` was one before the
-    # combine contract was normalised so that every combine returns a `ClimateRaster`.
+    # new leak has to be looked at rather than passing silently.
     #
-    # VERSION-DEPENDENT, and measured while `readfile` was still listed: on Julia 1.11 inference did
-    # not surface its `DimArray` return through `Base.return_types`, so the 1.11 run of this check
-    # catches strictly less than the 1.12 run, and a real leak could go unreported there.
+    # VERSION-DEPENDENT: on Julia 1.11 inference does not surface a `DimArray` return through
+    # `Base.return_types`, so the 1.11 run of this check catches strictly less than the 1.12 run, and
+    # a real leak could go unreported there.
     known_naked = Symbol[]
     leaks = Symbol[]
     for n in names(EcoSISTEM, all = false)

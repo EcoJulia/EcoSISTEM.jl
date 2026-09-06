@@ -58,8 +58,8 @@ import EcoSISTEM.equalpop
     @test all(equalparams.death .== death)
 end
 
-# The default struct dump printed both rate vectors in full: 20 000 characters at 1000 species,
-# growing linearly. Bounded size and the identifying facts are what is pinned.
+# A struct dump would print both rate vectors in full. Bounded size and the identifying facts are
+# what is pinned.
 @testset "per-species params print bounded, whatever the species count" begin
     u = typeof(unit(0.6 / year))
     same = PopGrowth{u}(fill(0.6 / year, 1000), fill(0.6 / year, 1000), 1.0,

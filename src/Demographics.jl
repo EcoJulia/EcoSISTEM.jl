@@ -104,9 +104,8 @@ end
 
 # == Functions ==================================================================================
 
-# One line, because the default prints both rate vectors in full - measured at 20 000 characters
-# for 1000 species, growing with the species count. `EqualPop` holds two scalars and prints
-# acceptably as it is.
+# One line, because the default prints both rate vectors in full, tens of thousands of characters at
+# a thousand species. `EqualPop` holds two scalars and prints acceptably as it is.
 function Base.show(io::IO, p::Union{PopGrowth, NoGrowth})
     return print(io, nameof(typeof(p)), "(", length(p.birth),
                  " species, birth ",

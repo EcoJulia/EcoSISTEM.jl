@@ -213,9 +213,9 @@ function _safephrase(m::AbstractMovement)
            "$n of $(length(m.disperse_safely)) species"
 end
 
-# One line, because the default prints every kernel - measured at 34 000 characters for 1000 species,
-# growing with the species count. What identifies a movement is its kind, how many species it covers
-# and how far they reach. Written once on the supertype, since `getkernels` is the whole interface.
+# One line, because the default prints every kernel, tens of thousands of characters at a thousand
+# species. What identifies a movement is its kind, how many species it covers and how far they reach.
+# Written once on the supertype, since `getkernels` is the whole interface.
 function Base.show(io::IO, m::AbstractMovement)
     kernels = getkernels(m)
     return print(io, nameof(typeof(m)), "(", length(kernels), " species, ",

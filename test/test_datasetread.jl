@@ -338,8 +338,9 @@ end
 # The reducer a coarsening read applies is decided from the axis unless given, and the majority
 # reducer must be reproducible: ties go to the smallest code, and missing or NaN cells do not vote.
 @testset "aggregation reducer follows the axis" begin
-    @test EcoSISTEM._reducer(nothing, Temperature) === mean
-    @test EcoSISTEM._reducer(nothing, EcoSISTEM.NicheAxis) === mean
+    @test EcoSISTEM._reducer(nothing, Temperature) === EcoSISTEM._meanpresent
+    @test EcoSISTEM._reducer(nothing, EcoSISTEM.NicheAxis) ===
+          EcoSISTEM._meanpresent
     @test EcoSISTEM._reducer(nothing, LandCoverTypology) ===
           EcoSISTEM._majorityclass
     @test EcoSISTEM._reducer(nothing, ClimateTypology) ===
@@ -349,10 +350,18 @@ end
     @test maj([1, 1, 2]) == 1
     @test maj([2, 3, 2, 3]) == 2                       # a tie goes to the smallest code
     @test maj([7.0, NaN, NaN, 7.0, 9.0]) == 7.0        # NaN does not vote
-    @test maj([missing, 4, missing]) == 4              # nor does missing
-    @test ismissing(maj([missing, missing]))
+    @test maj([missing, 4, missing]) == 4              # nor does missing, however many
+    @test ismissing(maj([missing, missing]))           # nothing present: absent
     @test ismissing(maj(Union{Missing, Float64}[NaN]))
-    # No source pins a reducer any more; the axis decides.
+    # The mean is over the cells present, and absent only where none is.
+    mp = EcoSISTEM._meanpresent
+    @test mp([1.0, 2.0, 3.0, 4.0]) == 2.5
+    @test mp([1.0, NaN, 3.0, 5.0]) == 3.0
+    @test mp([1.0, NaN, NaN, 5.0]) == 3.0
+    @test isnan(mp([NaN, NaN]))
+    @test mp(Union{Missing, Float64}[1.0, missing, missing]) == 1.0
+    @test mp([1.0K, 3.0K, NaN * K]) == 2.0K            # units survive, NaN is absent
+    # No source pins a reducer; the axis decides.
     @test isnothing(EcoSISTEM._defaultfn(WorldClim{BioClim}))
     # The axis a dataset read chooses by comes from the catalogue, `NicheAxis` where it cannot.
     @test EcoSISTEM._readaxis(WorldClim{BioClim}, :bio1) === Temperature

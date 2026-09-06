@@ -187,9 +187,8 @@ end
     @test totals[2] < totals[1]
 end
 
-# The default struct dump printed every kernel: 34 000 characters at 1000 species, growing linearly.
-# What is pinned is that the size is bounded and the identifying facts are present, not the exact
-# text, which is free to improve.
+# A struct dump would print every kernel. What is pinned is that the size is bounded and the
+# identifying facts are present, not the exact text, which is free to improve.
 @testset "movements print bounded, whatever the species count" begin
     small = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1e-3), 10))
     big = AlwaysMovement(GaussianKernel.(range(0.5km, 4.0km, length = 1000),

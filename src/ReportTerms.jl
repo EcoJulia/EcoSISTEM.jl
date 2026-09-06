@@ -29,8 +29,10 @@ end
 """
     LayerResampled(reason)
 
-The layer is interpolated onto the grid, introducing uncertainty - the thing the whole alignment
-story exists to avoid. `reason` says why it was unavoidable.
+The layer is aggregated onto the grid from the source cells covering each of its cells, weighted
+by how much of the cell each covers - not exact, because the grid's cells are not unions of the
+layer's, which is the thing the whole alignment story exists to avoid. `reason` says why it was
+unavoidable.
 """
 struct LayerResampled <: AbstractLayerFate
     reason::String
@@ -84,7 +86,7 @@ _fatephrase(::LayerKeptExactly) = "kept exactly"
 
 _fatephrase(fate::LayerAggregated) = "aggregated $(fate.factor)× (exact)"
 
-_fatephrase(fate::LayerResampled) = "RESAMPLED - $(fate.reason)"
+_fatephrase(fate::LayerResampled) = "REGRIDDED (not exact) - $(fate.reason)"
 
 # A report's stage, as it appears in its header line.
 _stagephrase(::AsInvestigated) = "as investigated"

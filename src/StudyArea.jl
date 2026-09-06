@@ -452,6 +452,17 @@ function _probecrs(spec::SourceSpec)
     return sourcecrs(spec.source, spec.code; spec.readkw...)
 end
 
+# A file's CRS from its header alone - a lazy open fetches no pixels - so the read can be windowed
+# before it happens. A URL is downloaded here if it has not been already, since nothing can be known
+# about it otherwise.
+function _probecrs(spec::RasterFileSpec)
+    r = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        return Rasters.Raster(_resolvepath(spec.path), lazy = true)
+    end
+    crs = Rasters.crs(r)
+    return _isblankcrs(crs) ? nothing : crs
+end
+
 _probecrs(::Any) = nothing
 
 # The target CRS decided without reading anything: an explicit `crs` needs no probe at all, and
@@ -557,7 +568,7 @@ function _resamplecost(samecrs::Bool, source, target, aligned::Bool)
         return LayerResampled("its cell boundaries are offset from the target grid's")
     end
     rel.finer &&
-        return LayerResampled("the target grid is finer than it is, so its values would be interpolated up")
+        return LayerResampled("the target grid is finer than it is, so each of its cells is repeated across the grid cells it covers")
     !isnothing(rel.factor) && aligned && return LayerAggregated(rel.factor)
     return LayerResampled(aligned ?
                           "the target cell size is not a whole multiple of its own" :
@@ -843,14 +854,11 @@ end
 # resampler gave its centre a value, i.e. if it is more than half covered - and such a cell is then
 # handed a *whole* cell's worth of supply over ground that is partly not there.
 function _coveredgrid(rasters, payload, grid; simulate_safely::Bool)
-    # **`categorical = false` here, and it is only ever asked where the values fall, not what they
-    # are.** These are the study area's *data layers*, and all this does with them is find which cells
-    # came back non-`NaN` - so the interpolation is never read, and the choice cannot move a class
-    # code. Sampling them as `:mode` instead genuinely changes the answer: nearest-class fills cells
-    # that bilinear leaves `NaN`, which moves the coverage, the recut and so the study area's own
-    # size. Measured - three `test_StudyArea` assertions went from equal to `NaN`-bearing.
+    # Only *where* each layer has data is asked here, never what the values are: each layer's value
+    # at every cell's centre, so a cell is covered when the layer has data there and `NaN` otherwise.
+    # Half-open, so data ending exactly on a centre does not cover it.
     sampled = map(r -> _sampledata(r, grid, name = "layer",
-                                   categorical = false, fn = _coverage),
+                                   categorical = false, centres = true),
                   rasters)
     mask = _rastermaskonly(payload, grid, first(sampled))
     full = Matrix{Bool}(reduce(.&, map(r -> _fullycovered(r, grid), rasters)))
@@ -1030,8 +1038,9 @@ function _collectproblems!(problems, plans, tcrs, active, fp::NamedTuple,
         p.kind isa LayerResampled && occursin("finer", p.kind.reason) &&
             push!(problems,
                   Problem(ProblemWarning(), :upsampling,
-                          "layer `:$(p.name)` is being interpolated up onto a finer grid than it " *
-                          "has, which invents detail it never measured."))
+                          "layer `:$(p.name)` is being put onto a finer grid than it has: each of " *
+                          "its cells is repeated across the grid cells it covers, which shows no " *
+                          "detail it never measured, but makes the grid look finer than the data."))
         p.kind isa LayerAggregated && p.kind.factor >= _HUGE_FACTOR &&
             push!(problems,
                   Problem(ProblemWarning(), :extreme_aggregation,
