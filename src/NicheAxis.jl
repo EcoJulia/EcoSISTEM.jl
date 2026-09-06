@@ -249,8 +249,6 @@ using Unitful.DefaultSymbols
 """    Altitude <: NicheAxis - elevation above sea level (WorldClim Elevation; m). """
 @nicheaxis(Altitude<:NicheAxis, condition=m, densitywidth=1.0m)
 
-# == Functions ==================================================================================
-
 # ---------------------------------------------------------------------------
 # Layer roles
 # ---------------------------------------------------------------------------
@@ -258,6 +256,8 @@ using Unitful.DefaultSymbols
 # condition matched against species tolerances, or a `Resource`, something species draw on. The role
 # is a phantom marker, which keeps the two type-distinguishable while they share one storage
 # implementation.
+
+# == Functions ==================================================================================
 
 # --- The NicheAxis interface -----------------------------------------------
 # The small set of hooks that say what a layer on an axis means. Each has a safe default, and a group

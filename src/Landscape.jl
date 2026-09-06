@@ -133,7 +133,6 @@ struct CachedGridLandscape
     saveinterval::Unitful.Time
     timestep::Unitful.Time
 end
-# == Functions ==================================================================================
 
 # ---------------------------------------------------------------------------
 # Display
@@ -241,6 +240,8 @@ function CachedGridLandscape(file::String, times::StepRangeLen;
     a = DimArray(v, (Ti(times),))
     return CachedGridLandscape(a, file, saveinterval, timestep)
 end
+
+# == Functions ==================================================================================
 
 """
     empty_landscape(habitat::GridHabitat, spplist::SpeciesList)

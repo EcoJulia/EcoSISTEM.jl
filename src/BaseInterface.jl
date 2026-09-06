@@ -6,20 +6,26 @@
 # siblings are `DiversityInterface.jl` and `EcoBaseInterface.jl`.
 #
 # Every definition is **qualified**, `Base.eltype(...)`, so this file needs no `import` lines.
-# `docs/overloads.md` is the cross-reference, listing every foreign generic this package extends and
-# where.
+# `data/src/overloads.jl` regenerates the cross-reference of every foreign generic this package
+# extends, and where.
 #
-# Four groups of `Base` methods are deliberately **not** here, each because moving it would split a
-# conformance that belongs together:
+# What is NOT here, and the rule that decides it: **a type built to be an interface keeps that
+# interface beside it.** The test is whether the type would have a reason to exist without the
+# interface. Where it would not, the methods are what the type is, and live with it; where it would,
+# they are `Base`'s view of a type whose purpose is elsewhere, and belong here. So:
 #
-#   - **`show` lives beside the type it prints**, in the file that declares it. How a type prints is
-#     part of that type rather than a separate conformance: each method reads the struct's own fields
-#     and its prose explains what those fields mean, so it is unreadable away from them.
-#   - **`Dist.jl`** keeps `rand`, `minimum` and `maximum` on `Trapezoid` beside its `pdf` and
-#     `params`. Those five *are* the `Distributions` interface, and which module owns each generic is
-#     not the useful grouping.
-#   - **`deprecations.jl`** keeps `eltype` for the shims it defines.
-#   - **`ext/`** keeps `Base.read`'s dataset methods; an extension cannot be loaded early.
+#   - `show` lives beside the type it prints, everywhere.
+#   - `Dist.jl` keeps `rand`, `minimum` and `maximum` on `Trapezoid`: it exists to be a Distribution.
+#   - `Coordinates.jl` keeps the affine algebra on `SpatialLocation`/`SpatialSize` and `LatLong`'s
+#     GeoInterface methods; `NaturalEarth.jl` keeps `RegionReport`'s container methods;
+#     `ChangeSpec.jl` keeps `+` on `AbstractChangeSpec`; `StudyArea.jl` keeps `CellNames`'s vector
+#     methods; `StudyAreaReport.jl` keeps `ReadKey`'s equality and hash; `DiversitySet.jl` keeps
+#     `append!`.
+#   - `erareaders.jl` and `ext/` keep `Base.read`'s dataset methods: a source tag exists to be read.
+#   - `deprecations.jl` keeps `eltype` for the shims it defines.
+#
+# The collections' container interface and `ClimateRaster`'s broadcasting are here on the same test:
+# a collection exists to represent its layers, and a raster to carry data, so those are conformance.
 #
 # Included last, which is safe rather than merely tidy: method definitions are order-independent, and
 # nothing in `src/` calls one of these at load time.
@@ -89,8 +95,6 @@ function Base.getindex(x::_SingletonsAndCollections, name::Symbol)
     return getindex(_backing(x), name)
 end
 
-Base.getindex(names::CellNames, i::Int) = _cellname(names.grid, i)
-
 function Base.haskey(x::_SingletonsAndCollections, name::Symbol)
     return haskey(_backing(x), name)
 end
@@ -158,10 +162,6 @@ function Base.size(regime::LayerCollection{Condition}, d)
     return size(first(values(regime)), d)
 end
 
-function Base.size(names::CellNames)
-    return (length(names.grid.y) * length(names.grid.x),)
-end
-
 Base.eltype(::ClimateRaster{S, C, A}) where {S, C, A} = eltype(A)
 
 # == The materialised layers ========================================================================
@@ -211,15 +211,10 @@ function Base.copy(bc::Broadcast.Broadcasted{ClimateRasterStyle})
     return _rewrap(copy(Broadcast.instantiate(_unwrapped(bc))), _rastersof(bc))
 end
 
-Base.hash(k::ReadKey, h::UInt) = hash(k.readkw,
-                                      hash(k.code, hash(k.source, h)))
-
 function Base.hash(fate::AbstractLayerFate, h::UInt)
     return foldl((acc, f) -> hash(getfield(fate, f), acc),
                  fieldnames(typeof(fate)), init = hash(typeof(fate), h))
 end
-
-Base.IndexStyle(::Type{<:CellNames}) = IndexLinear()
 
 Base.BroadcastStyle(::Type{<:ClimateRaster}) = ClimateRasterStyle()
 
@@ -241,17 +236,7 @@ Base.broadcastable(raster::ClimateRaster) = raster
 Base.:+(a::ClimateRaster, b::ClimateRaster) = a .+ b
 Base.:-(a::ClimateRaster, b::ClimateRaster) = a .- b
 
-# == AbstractChangeSpec =============================================================================
-Base.:+(a::AbstractChangeSpec, b::AbstractChangeSpec) = CombinedChange(a, b)
-
-# == The study-area report and its cache ============================================================
-# Value equality and hashing are defined explicitly rather than relying on the `===` fallback: the
-# `readkw` `NamedTuple` may hold heap values (a month range, say), for which the default `objectid`
-# hash is identity-based and would miss every cache hit.
-function Base.:(==)(a::ReadKey, b::ReadKey)
-    return a.source == b.source && a.code == b.code && a.readkw == b.readkw
-end
-
+# == The report terms ==============================================================================
 # Value equality, because a fate is a value: two are the same if they are the same kind and say the
 # same thing. Not the default - Julia falls back to `===` for a struct, which on `LayerResampled`
 # compares its `reason` by **reference**, so two separately built reports would disagree about layers
@@ -259,21 +244,6 @@ end
 function Base.:(==)(a::AbstractLayerFate, b::AbstractLayerFate)
     typeof(a) === typeof(b) || return false
     return all(f -> getfield(a, f) == getfield(b, f), fieldnames(typeof(a)))
-end
-
-# == DiversitySet ===================================================================================
-"""
-    append!(diversityset::DiversitySet, dat::DataFrame)
-
-Append a `DataFrame` of diversity results to the data a [`DiversitySet`](@ref) already holds.
-
-# Arguments
-
-  - `diversityset`: the set to append to.
-  - `dat`: the results, one row per subcommunity per timepoint.
-"""
-function Base.append!(diversityset::DiversitySet, dat::DataFrame)
-    return append!(diversityset.data, dat)
 end
 
 # ---------------------------------------------------------------------------

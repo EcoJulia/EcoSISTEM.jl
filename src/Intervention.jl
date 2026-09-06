@@ -101,8 +101,6 @@ function Base.show(io::IO, ::MIME"text/plain", s::InterventionSet)
     return nothing
 end
 
-# == Functions ==================================================================================
-
 using Unitful
 
 using Unitful.DefaultSymbols
@@ -116,6 +114,8 @@ using Random
 using StatsBase: sample
 
 using Distributions: Binomial, Poisson
+
+# == Functions ==================================================================================
 
 """
     applyinterventions!(eco::AbstractEcosystem, intervention, elapsed, timestep, step)

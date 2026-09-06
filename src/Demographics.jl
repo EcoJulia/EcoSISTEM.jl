@@ -102,8 +102,6 @@ struct NoGrowth{U <: Unitful.Units} <: AbstractParams
     end
 end
 
-# == Functions ==================================================================================
-
 # One line, because the default prints both rate vectors in full, tens of thousands of characters at
 # a thousand species. `EqualPop` holds two scalars and prints acceptably as it is.
 function Base.show(io::IO, p::Union{PopGrowth, NoGrowth})
@@ -122,6 +120,8 @@ function Base.show(io::IO, ::MIME"text/plain", p::Union{PopGrowth, NoGrowth})
     print(io, "  survival   ", p.survival)
     return nothing
 end
+
+# == Functions ==================================================================================
 
 """
     equalpop(params::AbstractParams, numspp)

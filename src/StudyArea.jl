@@ -64,8 +64,6 @@ struct StudyGrid{C, YD, XD} <: EcoBase.AbstractGrid
     end
 end
 
-# == Functions ==================================================================================
-
 # The grid an already-built `(Y, X)` array sits on. This is the form every caller in the package
 # uses: the array is the habitat's own `active` mask, so the grid is guaranteed to be the one the
 # habitat is indexed by rather than a second description of it.
@@ -92,6 +90,15 @@ memory. Nothing in the simulation reads a cell's name; only output does.
 struct CellNames{G <: StudyGrid} <: AbstractVector{String}
     grid::G
 end
+
+# The vector interface: one name per cell, computed at the index rather than stored.
+Base.getindex(names::CellNames, i::Int) = _cellname(names.grid, i)
+
+function Base.size(names::CellNames)
+    return (length(names.grid.y) * length(names.grid.x),)
+end
+
+Base.IndexStyle(::Type{<:CellNames}) = IndexLinear()
 
 """
     StudyArea(base = missing; regime::Union{LayerInput, Missing, Nothing} = missing,
@@ -297,6 +304,8 @@ end
 function Base.show(io::IO, ::MIME"text/plain", a::StudyArea)
     return show(io, MIME"text/plain"(), a.report)
 end
+
+# == Functions ==================================================================================
 
 """
     getspeciesstorage(x)

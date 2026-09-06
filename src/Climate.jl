@@ -85,8 +85,6 @@ end
 # what it meant when it was written out by hand.
 struct ClimateRasterStyle <: Broadcast.BroadcastStyle end
 
-# == Functions ==================================================================================
-
 # --- What a layer IS, and how one is declared ----------------------------------------------------
 #
 # **Included very early**, so what it declares constrains what it may use: `NicheAxis`
@@ -116,11 +114,6 @@ using RecipesBase
 # The source and the layer code are what identify a raster - they are the two things that decide
 # what its values *mean* - so both are on the line, with the code omitted where there is none.
 # Nothing here touches the values.
-# The source is rendered with its parameters intact and its module qualifier dropped. `nameof` will
-# not do: it strips parameters, which collapses `DerivedData{EarthEnv{LandCover}}` to `DerivedData`
-# and so throws away exactly the lineage that type exists to record.
-_sourcename(::Type{S}) where {S} = replace(string(S), "EcoSISTEM." => "")
-
 function Base.show(io::IO, r::ClimateRaster{S}) where {S}
     dims = join(size(r.array), " × ")
     code = isnothing(r.code) ? "" : ", $(repr(r.code))"
@@ -181,16 +174,30 @@ Fieldless, as [`ERA`](@ref) is.
 """
 struct CRUTS <: EcoSISTEMSource end
 
-# The time-axis guard the three container types used to carry in their inner constructors, kept as a
-# function because `ClimateRaster` has no such check and the readers are the only door. Every reader
-# and plot recipe for these sources slices by time, so a third dimension that is not time is a
-# failure later and further away.
-function _timeseriesraster(::Type{S},
-                           array::DimensionalData.AbstractDimArray) where {S}
-    _istimeaxis(eltype(DimensionalData.lookup(array, 3))) ||
-        error("Third dimension of array must be time")
-    return ClimateRaster(S, array)
-end
+# --- Which types may name a raster's source, and how that source names its layers ----------------
+#
+# **Three questions, deliberately kept apart.** `IsRasterData` asks *may this type name a source at
+# all*; `RasterDataAcceptableCode` asks *is this a plausible shape for a layer name*; and
+# `_preferredcode` asks *which layer is that, and what does this dataset call it*. Conflating
+# them is what the old `S <: RDS.RasterDataSource` bound did: one `<:` answered the first two by
+# accident and could not ask the third at all, so a raster with **no** dataset - a derived layer, a
+# synthetic field, an ECMWF download - had to name a dataset it did not come from, and a code naming
+# no layer was accepted without complaint.
+#
+# **A struct parameter cannot carry a trait bound** (`struct Bad{S; IsRasterData{S}}` is a syntax
+# error), so `ClimateRaster`'s `S` is unconstrained *in the type*. The guarantee comes from the single
+# inner constructor instead: it is the only door, it dispatches on the trait, and defining it
+# suppresses Julia's generated parameterised constructors - so `ClimateRaster{SomethingElse, ...}` is
+# expressible as a type but **unconstructible**.
+
+# `RasterDataSources`' own hierarchy is marked in `EcoSISTEMRasterDataSourcesExt`, which is the only
+# place that package is visible. This file marks only what it defines itself.
+
+@traitimpl IsRasterData{EcoSISTEMSource}
+
+@traitimpl RasterDataAcceptableCode{S, C} < - _acceptablecode(S, C)
+
+# == Functions ==================================================================================
 
 """
     in_memory_raster(raster::ClimateRaster; axis)
@@ -222,28 +229,21 @@ function in_memory_raster(raster::ClimateRaster;
     return ConstructedRasterSpec(() -> raster, axis = axis)
 end
 
-# --- Which types may name a raster's source, and how that source names its layers ----------------
-#
-# **Three questions, deliberately kept apart.** `IsRasterData` asks *may this type name a source at
-# all*; `RasterDataAcceptableCode` asks *is this a plausible shape for a layer name*; and
-# `_preferredcode` asks *which layer is that, and what does this dataset call it*. Conflating
-# them is what the old `S <: RDS.RasterDataSource` bound did: one `<:` answered the first two by
-# accident and could not ask the third at all, so a raster with **no** dataset - a derived layer, a
-# synthetic field, an ECMWF download - had to name a dataset it did not come from, and a code naming
-# no layer was accepted without complaint.
-#
-# **A struct parameter cannot carry a trait bound** (`struct Bad{S; IsRasterData{S}}` is a syntax
-# error), so `ClimateRaster`'s `S` is unconstrained *in the type*. The guarantee comes from the single
-# inner constructor instead: it is the only door, it dispatches on the trait, and defining it
-# suppresses Julia's generated parameterised constructors - so `ClimateRaster{SomethingElse, ...}` is
-# expressible as a type but **unconstructible**.
+# The source is rendered with its parameters intact and its module qualifier dropped. `nameof` will
+# not do: it strips parameters, which collapses `DerivedData{EarthEnv{LandCover}}` to `DerivedData`
+# and so throws away exactly the lineage that type exists to record.
+_sourcename(::Type{S}) where {S} = replace(string(S), "EcoSISTEM." => "")
 
-# `RasterDataSources`' own hierarchy is marked in `EcoSISTEMRasterDataSourcesExt`, which is the only
-# place that package is visible. This file marks only what it defines itself.
-
-@traitimpl IsRasterData{EcoSISTEMSource}
-
-@traitimpl RasterDataAcceptableCode{S, C} < - _acceptablecode(S, C)
+# Wrap a netCDF source's array as a raster, refusing one whose third dimension is not time. The
+# readers are the only door: `ClimateRaster` itself makes no such check, and every reader and plot
+# recipe for these sources slices by time, so a third dimension that is not time would fail later
+# and further away.
+function _timeseriesraster(::Type{S},
+                           array::DimensionalData.AbstractDimArray) where {S}
+    _istimeaxis(eltype(DimensionalData.lookup(array, 3))) ||
+        error("Third dimension of array must be time")
+    return ClimateRaster(S, array)
+end
 
 # _derivedfrom(source)
 #
@@ -655,7 +655,6 @@ end
     title --> "$yr $mnth"
     return x, y, A
 end
-
 # **Parked, and needing more than this package has.** Uncommenting `getprofile` would need `Plots`
 # itself, for `histogram` and `px`, **and** `IndexedTables` - neither of which this package depends
 # on, and a `@recipe` cannot supply either. Kept rather than deleted, as `SizeDemand` is, because it

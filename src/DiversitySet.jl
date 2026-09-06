@@ -25,7 +25,6 @@ mutable struct DiversitySet
     folder::String
     times::Vector{Unitful.Time}
 end
-# == Functions ==================================================================================
 
 """
     DiversitySet(cache::CachedEcosystem, times::Vector{T}) where T <: Unitful.Time
@@ -38,6 +37,22 @@ function DiversitySet(cache::CachedEcosystem,
                       times::Vector{T}) where {T <: Unitful.Time}
     return DiversitySet(missing, cache.abundances.outputfolder, times)
 end
+
+"""
+    append!(diversityset::DiversitySet, dat::DataFrame)
+
+Append a `DataFrame` of diversity results to the data a [`DiversitySet`](@ref) already holds.
+
+# Arguments
+
+  - `diversityset`: the set to append to.
+  - `dat`: the results, one row per subcommunity per timepoint.
+"""
+function Base.append!(diversityset::DiversitySet, dat::DataFrame)
+    return append!(diversityset.data, dat)
+end
+
+# == Functions ==================================================================================
 
 """
     updatesimulation!(cache::CachedEcosystem, tm::Unitful.Time)

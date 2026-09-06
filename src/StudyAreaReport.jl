@@ -19,6 +19,15 @@ struct ReadKey
     readkw::NamedTuple
 end
 
+# Value equality and hashing, not the `===` fallback: the `readkw` `NamedTuple` may hold heap values
+# (a month range, say), whose identity-based `objectid` hash would miss every cache hit.
+function Base.:(==)(a::ReadKey, b::ReadKey)
+    return a.source == b.source && a.code == b.code && a.readkw == b.readkw
+end
+
+Base.hash(k::ReadKey, h::UInt) = hash(k.readkw,
+                                      hash(k.code, hash(k.source, h)))
+
 """
     LayerCache()
 

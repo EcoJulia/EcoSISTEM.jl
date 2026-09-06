@@ -4,10 +4,15 @@
 # from a spec and unit-checked against the layer it drives.
 
 using Unitful
+
 using Dates: Dates
+
 using Unitful.DefaultSymbols
+
 using DimensionalData
+
 using DimensionalData.Lookups: NoLookup
+
 using EcoSISTEM.Units
 
 """
@@ -189,6 +194,33 @@ end
 # from colliding with the shape-typed ones - a `PatternedChange` is deliberately neither.
 const _ConstantShape = Union{Number, AbstractArray}
 
+# `Varying` prints as the two-argument call that builds it, and both halves print through their own
+# compact form - which is the case the two-method `show` split exists for.
+function Base.show(io::IO, v::Varying)
+    return print(io, "Varying(", sprint(show, v.spec), ", ",
+                 sprint(show, v.change), ")")
+end
+
+# **A coordinate is when its slice *becomes* current**, so slice `k` is the one in force over
+# `[times[k], times[k+1])` and the index is the last coordinate at or before `t`.
+#
+# **Not a nearest-coordinate rule**, which would treat each coordinate as a slice *centre* and so put
+# every transition at a midpoint, half a step early, leaving the first slice half-length.
+# `_mkstackaxis` builds the coordinates as slice **identifiers**, `Ti((1:12) .* month_mean_duration)`,
+# which is what makes "becomes current" the right reading and "centre" the wrong one.
+#
+# Nearest is not a careless choice, though, and its reason has to be honoured rather than dropped: an
+# accumulated elapsed time does not land exactly on a stored coordinate, so a bare floor turns that
+# drift into an off-by-one that only shows up sometimes. `_DRIFT` is the direct answer - a coordinate
+# within a whisker *ahead* of `t` is one `t` has really reached. Nearest was avoiding having to write
+# this tolerance, at the price of a half-step offset nobody had stated.
+#
+# The whisker is a fraction of the local gap, so it scales with the series and carries its units: for
+# a monthly series it is ~2.5 s, against an accumulated float drift of well under a microsecond over a
+# century of stepping, and against a smallest-plausible timestep of an hour. Comfortably larger than
+# the error it absorbs and comfortably smaller than anything real.
+const _DRIFT = 2^-20
+
 # == Functions ==================================================================================
 
 # ---------------------------------------------------------------------------
@@ -217,31 +249,16 @@ The absolutising in the latter two is load-bearing, not cosmetic: a temperature 
 merely imprecise, it would not run.
 """
 changeunit(::NoChange, ::AbstractLayer) = nothing
+
 changeunit(::AbsoluteChange, layer::AbstractLayer) = unit(eltype(layer.matrix))
+
 function changeunit(::RelativeChange, layer::AbstractLayer)
     return Unitful.absoluteunit(unit(eltype(layer.matrix)))
 end
+
 function changeunit(::RateChange, layer::AbstractLayer)
     return Unitful.absoluteunit(unit(eltype(layer.matrix))) / s
 end
-
-# Convert `x` (a scalar or a per-cell matrix) into the unit `mode` demands of `layer`, once, at
-# attach. This is the check that `LayerUpdate` did not do: it validated the rate against a dimension
-# passed in by hand and then discarded it, never consulting the layer or the change function at all.
-# The error names both units and the layer's axis, because the bare `DimensionError` a raw `uconvert`
-# throws says nothing about which of the two is wrong.
-function _tochangeunit(mode::AbstractChangeMode, layer::AbstractLayer, x)
-    u = changeunit(mode, layer)
-    if dimension(eltype(x)) != dimension(u)
-        error("a $(nameof(typeof(mode))) on a $(nameof(axisof(layer))) layer must be in " *
-              "$u (the layer holds $(unit(eltype(layer.matrix)))), but got " *
-              "$(unit(eltype(x))), which has dimension $(dimension(eltype(x))) " *
-              "rather than $(dimension(u))")
-    end
-    return uconvert.(u, x)
-end
-# A `NoChange` change has no values to convert, so nothing to check against.
-_tochangeunit(::NoChange, ::AbstractLayer, x) = x
 
 # ---------------------------------------------------------------------------
 # Change recipes - what a caller writes, before it meets a layer
@@ -266,23 +283,39 @@ to zero. Any function of a dimensionless phase may be used instead - a sigmoid, 
 """
 sinusoidal(phase) = sinpi(2 * phase)   # `sinpi`, for accuracy at exact half-turns
 
-# `Varying` prints as the two-argument call that builds it, and both halves print through their own
-# compact form - which is the case the two-method `show` split exists for.
-function Base.show(io::IO, v::Varying)
-    return print(io, "Varying(", sprint(show, v.spec), ", ",
-                 sprint(show, v.change), ")")
+# Convert `x` (a scalar or a per-cell matrix) into the unit `mode` demands of `layer`, once, at
+# attach. This is the check that `LayerUpdate` did not do: it validated the rate against a dimension
+# passed in by hand and then discarded it, never consulting the layer or the change function at all.
+# The error names both units and the layer's axis, because the bare `DimensionError` a raw `uconvert`
+# throws says nothing about which of the two is wrong.
+function _tochangeunit(mode::AbstractChangeMode, layer::AbstractLayer, x)
+    u = changeunit(mode, layer)
+    if dimension(eltype(x)) != dimension(u)
+        error("a $(nameof(typeof(mode))) on a $(nameof(axisof(layer))) layer must be in " *
+              "$u (the layer holds $(unit(eltype(layer.matrix)))), but got " *
+              "$(unit(eltype(x))), which has dimension $(dimension(eltype(x))) " *
+              "rather than $(dimension(u))")
+    end
+    return uconvert.(u, x)
 end
+
+# A `NoChange` change has no values to convert, so nothing to check against.
+_tochangeunit(::NoChange, ::AbstractLayer, x) = x
 
 # Nesting a combination inside a combination would mean the same thing as one flat sum, so it is
 # flattened here rather than left to produce two shapes for one meaning.
 _flattenspecs(specs::Tuple) = mapreduce(_asspecs, (a, b) -> (a..., b...), specs)
+
 _asspecs(spec::AbstractChangeSpec) = (spec,)
+
 _asspecs(spec::CombinedChange) = spec.specs
 
 # The mode each recipe fixes. Separate methods rather than a field, so the mode is available as a
 # type and can become a change's type parameter.
 _changemode(::ReplaceWith) = AbsoluteChange()
+
 _changemode(::OffsetBy) = RelativeChange()
+
 _changemode(::IncrementBy) = RateChange()
 
 # The single funnel where a change is attached to a layer: build it, then check the values it will
@@ -301,7 +334,9 @@ end
 function _buildchange(spec::AbstractChangeSpec, layer::AbstractLayer)
     return _attachshape(spec.shape, _changemode(spec), layer)
 end
+
 _buildchange(change::AbstractLayerChange, ::AbstractLayer) = change
+
 function _buildchange(spec::CombinedChange, layer::AbstractLayer)
     return _combineparts(map(s -> _buildchange(s, layer), spec.specs), layer)
 end
@@ -333,7 +368,9 @@ _modeof(::AbstractLayerChange{M}) where {M} = M()
 # What a part contributes to the sum at `elapsed`. For a position or an interval that is just its
 # value; a rate contributes its *integral*, which is why only a steady one qualifies.
 _partvalue(change::AbstractLayerChange, elapsed) = _changevalue(change, elapsed)
+
 _partvalue(change::SteadyLayerChange, elapsed) = change.value .* elapsed
+
 function _partvalue(change::AbstractLayerChange{RateChange}, _)
     return error("a $(nameof(typeof(change))) cannot be combined with other changes: a sum is over " *
                  "values as functions of elapsed time, so a rate contributes its integral. A " *
@@ -341,6 +378,7 @@ function _partvalue(change::AbstractLayerChange{RateChange}, _)
                  "integral of its own shape, which is not generally available, and approximating " *
                  "it would make the result depend on the timestep. Use a steady rate.")
 end
+
 function _partvalue(change::AbstractLayerChange{NoChange}, _)
     return error("a $(nameof(typeof(change))) carries no values in the layer's unit, so there is " *
                  "nothing for it to contribute to a sum of changes.")
@@ -353,6 +391,7 @@ function _attachshape(shape::_ConstantShape, mode::RateChange,
     value = _tochangeunit(mode, layer, shape)
     return SteadyLayerChange{typeof(value)}(value)
 end
+
 # ...and under the other two it is a one-off, so it is refused here rather than silently installed as
 # a change that rewrites the same values forever.
 function _attachshape(shape::_ConstantShape, mode::AbstractChangeMode,
@@ -362,6 +401,7 @@ function _attachshape(shape::_ConstantShape, mode::AbstractChangeMode,
                  "is a one-off operation on the ecosystem. Use `IncrementBy` for a steady rate " *
                  "of change, or a shape that varies with time.")
 end
+
 # These two dispatch on the shape being a *constant*, not on `Any`. Against `Any` they were
 # ambiguous with every shape-typed method under `RateChange` - one method narrowing the shape and
 # the other the mode, neither more specific - so `IncrementBy(PatternedChange(...))`, an oscillating
@@ -372,6 +412,7 @@ function _attachshape(shape, mode::AbstractChangeMode, ::AbstractLayer)
                  "for a steady rate), a `PatternedChange` for a shape of elapsed time, or a " *
                  "`SeriesChange` for a stack of stored slices.")
 end
+
 function _attachshape(shape::PatternedChange, mode::AbstractChangeMode,
                       layer::AbstractLayer)
     amplitude = _tochangeunit(mode, layer, shape.amplitude)
@@ -435,6 +476,7 @@ end
 # documented way to say when an otherwise undated stack really begins - so they resolve exactly as a
 # dated lookup would; anything else carries no calendar identity of its own.
 _giventimes(times) = (times = times, calendar = UndatedSeries())
+
 _giventimes(times::AbstractVector{<:Dates.TimeType}) = _datedtimes(times)
 
 # A source's own slice times, taken from its `Ti` lookup.
@@ -444,6 +486,7 @@ function _sourcetimes(source::DimensionalData.AbstractDimArray)
               "explicitly, or read the source with a time axis.")
     return _lookuptimes(DimensionalData.lookup(source, Ti))
 end
+
 # A bare 3-D array carries no coordinates at all, and monthly is what such a stack has always meant
 # here. Note that only the **spacing** is monthly: the series is still `UndatedSeries`, so nothing
 # phase-locks it to January, and a bare 10-slice stack is ten slices a month apart rather than
@@ -471,16 +514,19 @@ function _lookuptimes(lookup::NoLookup)
     return (times = eachindex(lookup) .* month_mean_duration,
             calendar = UndatedSeries())
 end
+
 # Elapsed-time coordinates are genuinely ambiguous - `1, 2, 3` months is equally "the first three
 # months of the year" and "three months into my experiment" - so they infer the reading that phases
 # nothing, and a climatology opts in with `calendar = MonthOfYearSeries()`.
 function _lookuptimes(lookup::AbstractVector{<:Unitful.Time})
     return (times = collect(lookup), calendar = UndatedSeries())
 end
+
 # A calendar axis is now usable: its dates become elapsed coordinates and its start is kept, so a
 # run's epoch can place it. Before an epoch existed this was rejected outright, since the simulation
 # clock counted from construction and "18 months into the run" named no date.
 _lookuptimes(lookup::AbstractVector{<:Dates.TimeType}) = _datedtimes(lookup)
+
 function _lookuptimes(::AbstractVector{T}) where {T}
     return error("a series' `Ti` lookup holds $T, which is not a time. Pass `times = ` to give " *
                  "each slice an elapsed time explicitly.")
@@ -493,8 +539,11 @@ end
 # ambiguous, the general method being more specific in its last argument and the undated one in its
 # first, so neither wins. The same shape as `_stackcoords`'s ambiguity in `datasetread.jl`.
 _seriesorigin(::AbstractSeriesCalendar, times, ::Nothing) = first(times)
+
 _seriesorigin(::UndatedSeries, times, ::Nothing) = first(times)
+
 _seriesorigin(::UndatedSeries, times, origin) = uconvert(s, float(origin))
+
 function _seriesorigin(calendar::AbstractSeriesCalendar, times, origin)
     return error("`origin` is not accepted for a $(nameof(typeof(calendar))): its slices have a " *
                  "calendar identity of their own, so where elapsed time zero falls is fixed by the " *
@@ -508,6 +557,7 @@ end
 # reads them back. Checked where the calendar is declared rather than at epoch resolution, so a
 # mislabelled series is refused at the line that mislabelled it.
 _checkcalendar(::AbstractSeriesCalendar, times) = nothing
+
 function _checkcalendar(::MonthOfYearSeries, times)
     months = _monthnumbers(times)
     (all(m -> 1 <= m <= 12, months) &&
@@ -531,6 +581,7 @@ end
 # an irregular axis (an ERA read, or explicit irregular `times`) has no turn length to derive, so it
 # is refused rather than guessed at. The other two policies need nothing but an end.
 _checkseriesend(::AbstractSeriesEnd, times) = nothing
+
 function _checkseriesend(::RepeatAtEnd, times)
     length(times) > 1 ||
         error("a single-slice series cannot repeat: one slice has no spacing, so there is no " *
@@ -557,6 +608,7 @@ end
 # pure function of elapsed time rather than compounding on what it wrote last step. The baseline
 # belongs to the *mode*: only a relative change has one.
 _patternbaseline(::RelativeChange, layer::AbstractLayer) = copy(layer.matrix)
+
 _patternbaseline(::AbstractChangeMode, ::AbstractLayer) = nothing
 
 # A *series* keeps the same snapshot for one further reason, so it needs it under one further mode.
@@ -573,6 +625,7 @@ function _seriesbaseline(mode::AbstractChangeMode, layer::AbstractLayer)
     return _patternbaseline(mode,
                             layer)
 end
+
 _seriesbaseline(::AbsoluteChange, layer::AbstractLayer) = copy(layer.matrix)
 
 # ---------------------------------------------------------------------------
@@ -596,11 +649,13 @@ function _applychange!(change::AbstractLayerChange{AbsoluteChange},
     layer.matrix .= _changevalue(change, elapsed)
     return _enforcebounds!(layer)
 end
+
 function _applychange!(change::AbstractLayerChange{RelativeChange},
                        layer::AbstractLayer, elapsed::Unitful.Time, _)
     layer.matrix .= change.baseline .+ _changevalue(change, elapsed)
     return _enforcebounds!(layer)
 end
+
 function _applychange!(change::AbstractLayerChange{RateChange},
                        layer::AbstractLayer, elapsed::Unitful.Time,
                        timestep::Unitful.Time)
@@ -610,10 +665,12 @@ end
 
 # What a change is worth at `elapsed`, before the mode decides what to do with it.
 _changevalue(change::SteadyLayerChange, _) = change.value
+
 function _changevalue(change::PatternedLayerChange, elapsed::Unitful.Time)
     phase = uconvert(NoUnits, elapsed / change.timescale)
     return change.amplitude .* change.shape(phase)
 end
+
 function _changevalue(change::SeriesLayerChange, elapsed::Unitful.Time)
     _inspan(change, change.origin + elapsed) || return _outofspan(change)
     return view(change.slices, :, :, _seriesindex(change, elapsed))
@@ -640,6 +697,7 @@ end
 # Whether a time is still within what the series will answer for. Only `RevertToLayer` has a limit -
 # the others hold, repeat or error, all of which are answers - so the default is `true`.
 _withinend(::AbstractSeriesEnd, ::SeriesLayerChange, _) = true
+
 function _withinend(::RevertToLayer, change::SeriesLayerChange, t)
     return t <= _seriesreach(change)
 end
@@ -649,10 +707,13 @@ end
 # adding a zero offset and accumulating a zero rate each leave the layer exactly as it would be with
 # no series attached.
 _outofspan(change::SeriesLayerChange{AbsoluteChange}) = change.baseline
+
 function _outofspan(change::SeriesLayerChange{RelativeChange})
     return zero(eltype(change.slices))
 end
+
 _outofspan(change::SeriesLayerChange{RateChange}) = zero(eltype(change.slices))
+
 # Summed left to right over parts ordered position-first (see `_combineparts`), and broadcast
 # throughout because a part contributes either one value or one per cell.
 function _changevalue(change::SumOfLayerChanges, elapsed::Unitful.Time)
@@ -667,25 +728,6 @@ function _seriesindex(series::SeriesLayerChange, elapsed::Unitful.Time)
                     _inrange(series.atend, series, series.origin + elapsed))
 end
 
-# **A coordinate is when its slice *becomes* current**, so slice `k` is the one in force over
-# `[times[k], times[k+1])` and the index is the last coordinate at or before `t`.
-#
-# **Not a nearest-coordinate rule**, which would treat each coordinate as a slice *centre* and so put
-# every transition at a midpoint, half a step early, leaving the first slice half-length.
-# `_mkstackaxis` builds the coordinates as slice **identifiers**, `Ti((1:12) .* month_mean_duration)`,
-# which is what makes "becomes current" the right reading and "centre" the wrong one.
-#
-# Nearest is not a careless choice, though, and its reason has to be honoured rather than dropped: an
-# accumulated elapsed time does not land exactly on a stored coordinate, so a bare floor turns that
-# drift into an off-by-one that only shows up sometimes. `_DRIFT` is the direct answer - a coordinate
-# within a whisker *ahead* of `t` is one `t` has really reached. Nearest was avoiding having to write
-# this tolerance, at the price of a half-step offset nobody had stated.
-#
-# The whisker is a fraction of the local gap, so it scales with the series and carries its units: for
-# a monthly series it is ~2.5 s, against an accumulated float drift of well under a microsecond over a
-# century of stepping, and against a smallest-plausible timestep of an hour. Comfortably larger than
-# the error it absorbs and comfortably smaller than anything real.
-const _DRIFT = 2^-20
 # Which stored slice is current at elapsed time `t`: the last one at or before it, clamped to the
 # ends. Clamped rather than refused because running before the first slice or after the last is the
 # `atend` policy's business, and this only says which slice those policies are reasoning about.
@@ -703,6 +745,7 @@ end
 # undershoot to clamp - which was once justified by `origin` always defaulting to the first slice,
 # and stopped being true the moment an epoch could rewrite `origin` to something earlier.
 _inrange(::HoldAtEnd, series::SeriesLayerChange, t) = min(t, last(series.times))
+
 function _inrange(::ErrorAtEnd, series::SeriesLayerChange, t)
     t <= _seriesreach(series) && return t
     return error("this series ran out: the simulation reached " *
@@ -711,6 +754,7 @@ function _inrange(::ErrorAtEnd, series::SeriesLayerChange, t)
                  "`atend = HoldAtEnd()` to keep the last slice, `atend = RepeatAtEnd()` to cycle, or a longer " *
                  "series.")
 end
+
 # A true modulus, which keeps the overshoot: 13 months into a 12-slice series lands on slice 2, not
 # slice 1. One full turn is the stored span **plus** the gap back round to the start, so a 12-slice
 # monthly series repeats every 12 months rather than every 11. The spacing was checked to be even at
@@ -718,6 +762,7 @@ end
 # In span, `RevertToLayer` is the identity - out of span it never gets here, because the series has
 # already stepped aside and given the layer back.
 _inrange(::RevertToLayer, ::SeriesLayerChange, t) = t
+
 function _inrange(::RepeatAtEnd, series::SeriesLayerChange, t)
     times = series.times
     period = last(times) - first(times) + (times[2] - times[1])

@@ -216,15 +216,6 @@ function Base.show(io::IO, spec::CircleMaskSpec)
     return print(io, "CircleMaskSpec(radius = $(spec.radius)$(centre))")
 end
 
-# == Functions ==================================================================================
-
-# ---------------------------------------------------------------------------
-# Layer specs (recipes)
-# ---------------------------------------------------------------------------
-# A spec describes *how to produce* a gridded layer without holding any grid data;
-# `materialise(spec, area)` turns it into a layer on a decided grid. Specs are
-# build-time only and never appear in the simulation hot loop.
-
 """
     SurfaceSpec(fraction = 1.0; axis = SurfaceArea)
 
@@ -251,6 +242,15 @@ function SurfaceSpec(fraction::Real = 1.0;
               "negative; got $fraction.")
     return UniformSpec(float(fraction), axis = axis)
 end
+
+# == Functions ==================================================================================
+
+# ---------------------------------------------------------------------------
+# Layer specs (recipes)
+# ---------------------------------------------------------------------------
+# A spec describes *how to produce* a gridded layer without holding any grid data;
+# `materialise(spec, area)` turns it into a layer on a decided grid. Specs are
+# build-time only and never appear in the simulation hot loop.
 
 # --- Reading a spec ----------------------------------------------------------
 # What a spec says about itself, asked by the study-area machinery that has to plan around it.

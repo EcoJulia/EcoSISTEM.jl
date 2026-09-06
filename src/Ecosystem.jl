@@ -268,16 +268,6 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String,
                                                  eco.epoch)
 end
 
-# The only place `Lookup`'s fields are filled positionally, so the only place their `(y, x)` order
-# has to be got right by hand.
-function Lookup(df::DataFrame)
-    return Lookup(df[!, :Y],
-                  df[!, :X],
-                  df[!, :Prob],
-                  zeros(Float64, nrow(df)),
-                  zeros(Int64, nrow(df)))
-end
-
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
@@ -288,13 +278,6 @@ end
 # environment, so what a reader needs is what the environment offers and what the species are matched
 # against it on: the regime axes it experiences and the supply axes it competes for. `_axisnames`
 # reads them off the layer types, so nothing here touches a value.
-
-# The axes a layer or collection is on, as a `+`-joined string - `Temperature + Precipitation`.
-function _axisnames(l::AbstractLayer)
-    return l isa LayerCollection ?
-           join(map(m -> nameof(axisof(m)), values(l)), " + ") :
-           string(nameof(axisof(l)))
-end
 
 function Base.show(io::IO, eco::Ecosystem)
     nsp, ny, nx = size(eco.abundances.grid)
@@ -346,6 +329,8 @@ function Base.show(io::IO, ::MIME"text/plain", eco::Ecosystem)
     return nothing
 end
 
+# == Functions ==================================================================================
+
 """
     abundances(cache::CachedEcosystem, tm::Unitful.Time)
 
@@ -358,15 +343,6 @@ function abundances(cache::CachedEcosystem, tm::Unitful.Time)
 end
 
 """
-    getnichefit(eco::Ecosystem)
-
-Extract niche fits.
-"""
-function getnichefit(eco::AbstractEcosystem)
-    return eco.nichefit
-end
-
-"""
     resettime!(eco::AbstractEcosystem)
 
 Reset the simulation clock to zero, so that the next timestep is the first.
@@ -376,6 +352,15 @@ its first slice.
 """
 function resettime!(eco::AbstractEcosystem)
     return eco.elapsed = 0.0s
+end
+
+"""
+    getnichefit(eco::Ecosystem)
+
+Extract niche fits.
+"""
+function getnichefit(eco::AbstractEcosystem)
+    return eco.nichefit
 end
 
 """
@@ -684,6 +669,13 @@ function makeunique(eco::Ecosystem)
                                            eco.epoch)
 end
 
+# The axes a layer or collection is on, as a `+`-joined string - `Temperature + Precipitation`.
+function _axisnames(l::AbstractLayer)
+    return l isa LayerCollection ?
+           join(map(m -> nameof(axisof(m)), values(l)), " + ") :
+           string(nameof(axisof(l)))
+end
+
 @recipe function f(::AbstractMovement, eco::AbstractEcosystem, sp::Int64)
     l = eco.lookup[sp]
     maxX = maximum(l.x)
@@ -889,9 +881,6 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     end
     return _abundances(cache, newtm + timestep)
 end
-
-# `getdispersaldist`/`getdispersalvar` moved to `deprecations.jl` - superseded by
-# `speciesdispersal`, which returns the kernel itself.
 
 """
     getlookup(eco::Ecosystem)
@@ -1103,8 +1092,6 @@ end
 function _advanceclock!(eco::AbstractEcosystem, timestep::Unitful.Time)
     return eco.elapsed += uconvert(s, float(timestep))
 end
-
-# == Functions ==================================================================================
 
 """
     checkfile(::String, ::Missing)
