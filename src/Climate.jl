@@ -219,7 +219,9 @@ exactly what a raster cannot do - so this is the pathway, and `axis` is the whol
 # Arguments
 
   - `raster`: the [`ClimateRaster`](@ref) to wrap. It is returned by the spec's combine verbatim, so
-    it is neither re-read nor re-projected before the study area samples it.
+    it is neither re-read nor re-projected before the study area samples it. Its values must be
+    **intensive** - a rate, a density, a state, a fraction - because that sampling averages the
+    cells covering each grid cell, and a count per cell would be read as a density.
   - `axis`: the [`NicheAxis`](@ref) the values are on - what makes them matchable against a species'
     tolerances. Required: pass `NicheAxis` itself for data whose meaning is not being claimed, but a
     layer meant to pair with a tolerance needs a real one.

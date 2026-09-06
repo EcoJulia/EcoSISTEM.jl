@@ -461,6 +461,10 @@ memory, in full and cached nowhere; this holds only the path. Prefer a [`SourceS
 file *is* a layer of a catalogued dataset, since the catalogue then supplies the unit and axis. A file
 has no catalogue, so this spec must be told both.
 
+Its values must be **intensive** - a rate, a density, a state, a fraction - because a layer reaches
+the grid by averaging the cells that cover each grid cell, and a count per cell would be averaged
+too and read as a density. Divide a count by the cell's area before naming the file.
+
 It is a layer spec. To use a file as a `within` mask, say what in it marks a cell active with a
 [`ConstructedRasterSpec`](@ref) over it - `ConstructedRasterSpec(r -> .!isnan.(r), spec, axis = NicheAxis)`.
 

@@ -708,6 +708,10 @@ function _applyrole(f::NamedTuple, ::Type{Condition}, axis, area::StudyArea)
     return _asregime(_canonical.(f.values, Ref(axis)), false, axis)
 end
 
+# Regrid first, then convert, and the order is a requirement: `f.values` are the layer's per-area
+# rate already on the grid, and `_wrapsupply` multiplies each by its own cell's area to give the
+# per-cell total the simulation divides a demand by. Aggregation must act on the intensive rate;
+# per-cell totals averaged across cells of differing area would be weighted wrongly.
 function _applyrole(f::NamedTuple, ::Type{Resource}, axis, area::StudyArea)
     return _wrapsupply(f.values, _inspectioncellareas(area), axis)
 end

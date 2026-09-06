@@ -311,6 +311,17 @@ from [`boundingbox`](@ref) is usually enough. The first-read cost is easy to mis
 happens once: a second run of the same script is fast, so the machine that has already paid it will
 not show you the problem.
 
+**Every layer reaches the grid by aggregation, and nothing is interpolated.** Each grid cell takes
+a reduction of the source cells covering it: the mean for a measurement, the most frequent class for
+class codes, or the function you pass as `fn`. Where the grid is an aligned whole multiple of the
+layer's cells that reduction is exact, and the report says so; anywhere else - a different
+projection, an offset, a ratio that is not whole - the layer is sampled onto a lattice finer than
+the grid and reduced from there, and a grid far coarser than its data is first aggregated exactly
+on the data's own lattice, at read time when the cell size is known before the read. A grid finer
+than the layer repeats each value across the cells it covers. Because the reduction is an average,
+a layer's values must be **intensive** - a rate, a density, a state, a fraction - and a count per
+cell should be divided by the cell's area before it is named as a layer.
+
 **And `axis` is not optional in spirit, even though it has a default.** A raster carries values
 and possibly a layer code, but no niche axis - nothing about it says whether those numbers are a
 temperature, a rainfall rate or a cover fraction. That is why a bare raster is refused as a regime
