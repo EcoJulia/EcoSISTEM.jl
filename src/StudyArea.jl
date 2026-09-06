@@ -850,7 +850,8 @@ function _coveredgrid(rasters, payload, grid; simulate_safely::Bool)
     # that bilinear leaves `NaN`, which moves the coverage, the recut and so the study area's own
     # size. Measured - three `test_StudyArea` assertions went from equal to `NaN`-bearing.
     sampled = map(r -> _sampledata(r, grid, name = "layer",
-                                   categorical = false), rasters)
+                                   categorical = false, fn = _coverage),
+                  rasters)
     mask = _rastermaskonly(payload, grid, first(sampled))
     full = Matrix{Bool}(reduce(.&, map(r -> _fullycovered(r, grid), rasters)))
     usable = mask .& reduce(.&, map(_nanfree, sampled))

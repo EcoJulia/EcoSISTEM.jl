@@ -10,8 +10,8 @@ using DimensionalData
 
 Abstract supertype of the lazy, data-backed / derived specs. Resolved against the target grid at
 build time and usable in *either* role - a regime/supply layer or an active mask: [`SourceSpec`](@ref)
-(read a data source), `ShapeSpec` (a vector file), `ConstructedRasterSpec` (combine child specs by a
-function).
+(read a data source), [`RasterFileSpec`](@ref) (read a raster file that belongs to no dataset),
+`ShapeSpec` (a vector file), `ConstructedRasterSpec` (combine child specs by a function).
 """
 abstract type AbstractLazySpec <: AbstractSpec end
 
@@ -84,7 +84,9 @@ bands for `compress_landcover`.
     integer factor, and on its own it coarsens the *whole* source file however small a result is
     wanted, because the aggregated form is memoised per file rather than per window: for a global
     dataset that first read can need many gigabytes. Give a `scale` a `cut` as well where the whole
-    world is not needed, and the memo is skipped along with the cost.
+    world is not needed, and the memo is skipped along with the cost. How a block is reduced follows
+    the spec's `axis` unless `fn` is given: the most frequent class for a `TypologyAxis`, the mean
+    for any other.
 
 # Fields
 
@@ -443,6 +445,80 @@ struct ConstructedRasterSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
     end
 end
 
+"""
+    RasterFileSpec{A <: NicheAxis, U} <: AbstractLazySpec
+
+Name a raster **file** as a layer, without reading it: a GeoTIFF or anything else GDAL reads, given
+by path or URL, that is not a layer of a catalogued dataset. The read, the cut and the resample happen
+only when it is materialised onto a decided grid, exactly as for a [`SourceSpec`](@ref), so a global
+file costs the window the study area needs rather than the globe, and refining an area re-reads
+nothing.
+
+This is the lazy counterpart of [`in_memory_raster`](@ref): that wraps a raster already read into
+memory, in full and cached nowhere; this holds only the path. Prefer a [`SourceSpec`](@ref) where the
+file *is* a layer of a catalogued dataset, since the catalogue then supplies the unit and axis. A file
+has no catalogue, so this spec must be told both.
+
+It is a layer spec. To use a file as a `within` mask, say what in it marks a cell active with a
+[`ConstructedRasterSpec`](@ref) over it - `ConstructedRasterSpec(r -> .!isnan.(r), spec, axis = NicheAxis)`.
+
+# Arguments
+
+  - `path`: the file, or a URL naming a **self-contained** file (a `.zip` is read directly). A URL
+    is downloaded into `EcoSISTEM.assetdir(owner = RasterFileSpec)` as an
+    [`EcoSISTEM.CachedAsset`](@ref) the first time it is needed.
+  - `axis`: the [`NicheAxis`](@ref) the values are on. Required: pass `NicheAxis` itself for data
+    whose meaning is not being claimed.
+  - `unit`: the physical unit the file's values are in, attached on read. Defaults to `NoUnits`, so
+    a file of temperatures in kelvin needs `unit = K` to become a temperature regime.
+  - `source`: the data source recorded on the raster - [`SyntheticData`](@ref) by default, for a
+    file that belongs to no catalogued dataset.
+  - `scale`: an integer factor to coarsen by on read, each block of `scale × scale` cells becoming
+    one cell; `1`, the default, reads the file at its own resolution. As for a [`SourceSpec`](@ref),
+    a coarsened read of the whole file is memoised on disk, so the cost is paid once per file rather
+    than once per study area.
+  - `fn`: how a block is reduced to one cell. Left unset, the `axis` decides: the most frequent class
+    (ties to the smallest code) for a `TypologyAxis`, whose codes must not be averaged, and the mean
+    for any other. Give a function to override - `maximum`, say.
+
+# Fields
+
+  - `path`, `unit`, `source`, `scale`, `fn`: as above; `path` is a `String` or the
+    [`EcoSISTEM.CachedAsset`](@ref) a URL becomes, and `fn` is `nothing` where the axis decides.
+
+# Type parameters
+
+  - `A`: the niche axis, a type parameter so it can be dispatched on, as on every spec.
+  - `U`: the type of `unit`.
+"""
+struct RasterFileSpec{A <: NicheAxis, U} <: EcoSISTEM.AbstractLazySpec
+    path::Union{String, EcoSISTEM.CachedAsset}
+    unit::U
+    source::Type
+    scale::Int
+    # `nothing` for *decide from the axis*. Untyped beyond that because it is consulted once per
+    # materialisation and never in a hot loop.
+    fn::Union{Nothing, Function}
+    # A leading URL scheme marks `path` as a download, deferred to a `CachedAsset`, exactly as on
+    # `ShapeSpec`; anything else is taken to be an already-local path, used as-is.
+    function RasterFileSpec(path::AbstractString; axis::Type{A}, unit = NoUnits,
+                            source::Type = SyntheticData,
+                            scale::Integer = 1,
+                            fn::Union{Nothing, Function} = nothing) where {A <:
+                                                                           NicheAxis}
+        scale >= 1 ||
+            error("`scale` coarsens by a whole number of cells per side, so it must be at " *
+                  "least 1; got $scale.")
+        p = occursin(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path) ?
+            EcoSISTEM.CachedAsset(RasterFileSpec, path) : String(path)
+        return new{A, typeof(unit)}(p, unit, source, Int(scale), fn)
+    end
+end
+
+# A spec's path as text, for a label or a cache key: the string itself, or a download's URL.
+_pathtext(path::AbstractString) = String(path)
+_pathtext(asset::EcoSISTEM.CachedAsset) = asset.url
+
 # _sharedunit(source, code) / _sharedaxis(source, code)
 #
 # The unit and niche axis a `SourceSpec` takes when its caller does not state them - read from the
@@ -496,6 +572,15 @@ function Base.show(io::IO, spec::ShapeSpec)
     return print(io, "ShapeSpec($(repr(spec.path))$(layer))")
 end
 
+function Base.show(io::IO, spec::RasterFileSpec{A}) where {A}
+    unit = spec.unit === NoUnits ? "" : ", unit = $(spec.unit)"
+    source = spec.source === SyntheticData ? "" : ", source = $(spec.source)"
+    scale = spec.scale == 1 ? "" : ", scale = $(spec.scale)"
+    fn = isnothing(spec.fn) ? "" : ", fn = $(nameof(spec.fn))"
+    return print(io,
+                 "RasterFileSpec($(repr(_pathtext(spec.path)))$(unit)$(source)$(scale)$(fn), axis = $(nameof(A)))")
+end
+
 function Base.show(io::IO, spec::ConstructedRasterSpec{A}) where {A}
     n = length(spec.layers)
     return print(io,
@@ -515,6 +600,7 @@ end
 
 # How a layer is named in that message: the dataset it comes from and the code asked for.
 _speclabel(spec::SourceSpec) = "`$(spec.source)` layer `$(spec.code)`"
+_speclabel(spec::RasterFileSpec) = "file `$(_pathtext(spec.path))`"
 
 # A multi-variable `regime`/`supply` is a *tuple* of specs, each of which shapes the grid in its own
 # right. A tuple therefore always means "several layers", at every level - which is why the bare

@@ -3,7 +3,7 @@
 # GETTING RASTER DATA ONTO A GRID. Everything between a file on disk and a value in the right cell:
 #
 # reading        `_read`, `_asraster`, `_attachunit`, `_applyperiod` - a spec to a `ClimateRaster`
-# reprojection   `_reproject`, `_resample2d`, `_targetcrs`, `_cropto`, `_cellintervals` - the bulk
+# reprojection   `_reproject`, `_resample2d`, `_targetcrs`, `_regrid`, `_cellintervals` - the bulk
 # masks          `_shapegeoms`, `_circle`, `_coverage`, `_rastermask` - which cells are active
 #
 # `materialise.jl` sits directly on top of this and adds the cache and the layer wrapper;
@@ -238,60 +238,118 @@ _resamplemethod(categorical::Bool) = categorical ? :mode : :bilinear
 # to be `Regular`.
 _targetyx(target) = dims(target, (Y, X))
 
-# The contiguous run of `sourcevals` equal to `targetvals`, or `nothing` if the target's coordinates
-# are not simply a stretch of the source's. Exact equality is the right test and not a fragile one:
-# both sides come off the same corrected lattice, and the alignment layer's target is built by
-# cropping that layer's *own* grid, so the values are the identical `Float64`s. Anything else falls
-# back to resampling, which is what happened before.
-function _subgridrange(sourcevals, targetvals)
-    isempty(targetvals) && return nothing
-    i = findfirst(==(first(targetvals)), sourcevals)
-    isnothing(i) && return nothing
-    j = i + length(targetvals) - 1
-    j <= length(sourcevals) || return nothing
-    return view(sourcevals, i:j) == targetvals ? (i:j) : nothing
+# Coarsen `A` by a whole factor `f` per spatial axis: each `f × f` block of cells becomes one cell
+# holding `fn` of them. **The one block-aggregation primitive.** `_readraster` (the read-time `scale`)
+# and `_regrid` (a layer going onto the study grid) both call it, so a layer coarsened on read and one
+# coarsened onto the grid are the same computation. Any further dimension - a monthly stack - is left
+# alone. `f == 1` is the identity. Blocks run from the first cell and a partial block at the far edge
+# is dropped, which is `Rasters.aggregate`'s convention and why `_regrid` crops to whole blocks first.
+function _blockaggregate(A, f::Integer, fn)
+    f == 1 && return A
+    r = A isa Rasters.AbstractRaster ? A : Rasters.Raster(A)
+    return Rasters.aggregate(fn, _anchorsouthwest(r, f), (Y(f), X(f)))
 end
 
-# `raster` cut to `target` by plain indexing, when `target` is literally a sub-grid of it - same CRS,
-# same cells, cell for cell - or `nothing` when it is not and a real resample is needed.
+# Blocks are anchored at the **south-west** corner, because the study grid is: `_crstemplate` lays
+# cells out from the southern and western bounds, so the partial block a coarsening drops is the
+# northern or eastern one. `Rasters.aggregate` blocks from index 1, which on an ascending axis is
+# already the south or west edge; a file is stored north-first, so its leading remainder is trimmed
+# here. Without this the read-time `scale` and the study grid would partition a file whose extent is
+# not a whole number of blocks differently, and `_regrid` could not be their common implementation.
+# `_blockrange` widens a windowed read to the same lattice, so a window arrives already trimmed.
+function _anchorsouthwest(r, f::Integer)
+    for D in (Y, X)
+        n = size(r, D)
+        offset = n % f
+        (offset == 0 ||
+         DimensionalData.Lookups.order(DimensionalData.lookup(r, D)) isa
+         DimensionalData.Lookups.ForwardOrdered) && continue
+        r = r[D((offset + 1):n)]
+    end
+    return r
+end
+
+# The run of `f · n` source cells (starts, ascending) that exactly tile the `n` target cells beginning
+# at `first(targetvals)`, or `nothing` when the target does not begin on a source cell boundary or
+# reaches past the source. Alignment is judged as `_originaligned` judges it - on the arcsecond
+# lattice where there is one, to a tolerance otherwise - and the run's extent follows from both grids
+# being regular, so the cells need not be compared one by one. (`_blockrange`, in `datasetread.jl`,
+# is the read path's window-widening cousin: it works in indices of a lazy file, this in coordinates.)
+function _tilerange(sourcevals, targetvals, f::Integer)
+    (length(sourcevals) >= 2 && !isempty(targetvals)) || return nothing
+    sstep = sourcevals[2] - sourcevals[1]
+    _originaligned(first(sourcevals), first(targetvals), sstep) ||
+        return nothing
+    offset = round(Int,
+                   uconvert(NoUnits,
+                            (first(targetvals) - first(sourcevals)) / sstep))
+    i = offset + 1
+    j = i + f * length(targetvals) - 1
+    (i >= 1 && j <= length(sourcevals)) || return nothing
+    return i:j
+end
+
+# Route R1 of the regridding pipeline: `raster` put on `target` by **exact block aggregation** - when
+# `target` is in `raster`'s CRS, its step is the same whole multiple `f` of `raster`'s on both axes,
+# and its cells begin on `raster`'s cell boundaries. That is precisely the case `_resamplecost`
+# classifies as `LayerAggregated(f)`, or `LayerKeptExactly` at `f == 1`, so the report and what is
+# done to the data agree. Each target cell holds `fn` of the `f × f` source cells it covers; at
+# `f == 1` the cells are simply selected. Returns `nothing` when the target is not such a grid, and
+# the caller resamples instead.
 #
-# This exists because a GDAL warp is **not** a no-op even onto an identical grid, and the
-# difference is not the interpolation itself. Values do pass through untouched (bilinear's weights
-# collapse to (1,0,0,0) on coincident cells; measured max difference 2e-9). What changes is *nodata*:
-# the warp poisons any output cell whose input stencil touches a `NaN`, so the coastline erodes - and
-# precisely which cells that catches depends on GDAL's internal source windowing, which the extent of
-# the read changes. Reading a global layer and reading a window of the same layer therefore produced
-# study areas differing in 138 coastal cells (650 vs 614 active), every one of them adjacent to
-# nodata. Cropping removes the warp entirely, so the answer is invariant *by construction* rather
-# than by GDAL behaving consistently.
+# **Selecting cells rather than warping them is not cosmetic, even at `f == 1`.** A GDAL warp onto an
+# identical grid passes values through (measured max difference 2e-9) but poisons any output cell
+# whose input stencil touches a `NaN`, and which cells that catches depends on GDAL's internal source
+# windowing, which the extent of the read changes: a global read and a windowed read of one layer once
+# gave study areas differing in 138 coastal cells (650 against 614 active). Indexing removes the warp,
+# so the answer is invariant by construction.
 #
-# It also makes the report honest. `_resamplecost` already classifies this case as `:exact` and
-# `StudyAreaReport` prints "kept exactly" - which was false while a warp ran over the layer. The
-# geometric verdict and what is actually done to the data now agree.
-function _cropto(raster::ClimateRaster, target)
+# **Compared with units on, on both sides.** Source and target both carry their coordinate unit, and
+# the alignment arithmetic is unit-aware, so a `km`-labelled source matches an `m`-labelled target of
+# the same ground. Stripping only one side turned an exact crop into a resample for one commit, and
+# moved the grid by a row - `test_StudyArea.jl` (*"windowing the reads does not change the answer"*)
+# is what caught it, and the fork is invisible in the values, showing only in the shape.
+function _regrid(raster::ClimateRaster, target, fn)
     A = raster.array
     yd, xd = dims(A, Y), dims(A, X)
-    tcrs = Rasters.crs(target)
-    _samecrs(Rasters.crs(yd), tcrs) || return nothing
-    # **Compared with units on, on both sides.** Source and target both carry their coordinate unit
-    # and `_subgridrange` only ever tests `==`, which Unitful evaluates across
-    # scales, so a `km`-labelled source matches an `m`-labelled target of the same ground.
-    # **Stripping only the source here was a real bug for exactly one commit**: the target became
-    # unitful while this still bared its own side, so every `==` failed, `_cropto` returned `nothing`,
-    # and an *exact crop* silently became a **resample** - which moved the grid by a row.
-    # Caught by `test_StudyArea.jl:90` (*"windowing the reads does not change the answer"*),
-    # `(37, 47)` against `(38, 47)`. A reminder that the crop/resample fork is invisible in the
-    # result's *values* and only shows in its shape.
-    rows = _subgridrange(parent(DimensionalData.lookup(yd)),
-                         parent(DimensionalData.lookup(target, Y)))
-    cols = _subgridrange(parent(DimensionalData.lookup(xd)),
-                         parent(DimensionalData.lookup(target, X)))
+    _samecrs(Rasters.crs(yd), Rasters.crs(target)) || return nothing
+    sy, sx = parent(DimensionalData.lookup(yd)),
+             parent(DimensionalData.lookup(xd))
+    ty, tx = parent(DimensionalData.lookup(target, Y)),
+             parent(DimensionalData.lookup(target, X))
+    (length(sy) >= 2 && length(sx) >= 2 && length(ty) >= 2 && length(tx) >= 2) ||
+        return nothing
+    ry = _stepratio(_lookupstep(yd), _lookupstep(dims(target, Y)))
+    rx = _stepratio(_lookupstep(xd), _lookupstep(dims(target, X)))
+    (!isnothing(ry.factor) && ry.factor == rx.factor && !ry.finer && !rx.finer) ||
+        return nothing
+    f = ry.factor
+    rows = _tilerange(sy, ty, f)
+    cols = _tilerange(sx, tx, f)
     (isnothing(rows) || isnothing(cols)) && return nothing
-    cropped = A[Y(rows), X(cols)]
+    aggregated = _blockaggregate(A[Y(rows), X(cols)], f, fn)
     yd, xd = _targetyx(target)
-    newdims = map(d -> d isa Y ? yd : d isa X ? xd : d, dims(cropped))
-    return DimArray(parent(cropped), newdims)
+    newdims = map(d -> d isa Y ? yd : d isa X ? xd : d, dims(aggregated))
+    return DimArray(parent(aggregated), newdims)
 end
+
+# A dimension's cell step as its lookup declares it - the `Regular` span, exact from the file's
+# geotransform or the grid's construction - falling back to the difference of its first two
+# coordinates only where no span is declared. Differencing is not good enough for the step test: the
+# rounding in the difference of two coordinates near 60° exceeds the arcsecond tolerance, so a step
+# ratio of exactly 1 read as *not* 1 and an aligned layer fell through to the warp, losing a row.
+function _lookupstep(d)
+    span = DimensionalData.Lookups.span(DimensionalData.lookup(d))
+    span isa DimensionalData.Lookups.Regular &&
+        return abs(DimensionalData.Lookups.val(span))
+    v = parent(DimensionalData.lookup(d))
+    return abs(v[2] - v[1])
+end
+
+# The coverage reducer: a target cell counts as covered when more than half of the source cells it is
+# aggregated from carry data - the definition `_coveredgrid` has always given in words. `1.0` and
+# `NaN`, so `_nanfree` reads the result exactly as it reads a sampled value.
+_coverage(block) = count(!isnan, block) > length(block) / 2 ? 1.0 : NaN
 
 # Reproject `raster` onto `target` (real interpolation/reprojection via `_reproject`, replacing a
 # hand-rolled nearest-neighbour lookup), erroring clearly if `raster` turns out to have no real
@@ -303,16 +361,19 @@ end
 # would fire on exactly the case that classification calls an *exact* aggregation, so the
 # two contradicted each other.
 function _sampledata(raster::ClimateRaster, target; name = "raster",
-                     categorical::Bool)
+                     categorical::Bool, fn = nothing)
+    # The reducer for an exact block aggregation: the caller's, else the axis's - the majority class
+    # for class codes, the mean for values - the same rule `_reducer` applies on the read path.
+    reducer = something(fn, categorical ? _majorityclass : mean)
     # `_reproject` already returns a real `(Y, X[, extra])` `DimArray` - kept as-is (not stripped
     # to a bare `Array`) so the regime/supply built from it carries real CRS provenance, per
     # the `(y, x)` order used throughout.
     # Not `something(...)`: that would evaluate the resample eagerly, which is the whole cost
     # this is here to avoid.
-    cropped = _cropto(raster, target)
-    out = isnothing(cropped) ?
+    exact = _regrid(raster, target, reducer)
+    out = isnothing(exact) ?
           _reproject(Rasters.Raster(raster.array), target,
-                     method = _resamplemethod(categorical)) : cropped
+                     method = _resamplemethod(categorical)) : exact
     any(!isnan, out) ||
         error("$name does not overlap the study area's grid at all - check the layer's real extent " *
               "against the `StudyArea`, and the area's `within`/`crs` if given.")
@@ -972,6 +1033,8 @@ end
 # constructor); a bare `ClimateRaster` has no code left to look up, so `NicheAxis`.
 _specaxis(::SourceSpec{A}) where {A} = A
 
+_specaxis(::RasterFileSpec{A}) where {A} = A
+
 _specaxis(spec::Tuple) = _sourcepairnotaspec(spec)
 
 # A raster read from a source knows its layer, so its axis is a catalogue lookup like any other -
@@ -1583,13 +1646,38 @@ function _attachunit(raster::ClimateRaster{S}, u) where {S}
     return ClimateRaster(S, DimArray(A.data .* u, dims(A)), raster.code)
 end
 
+# Read a `RasterFileSpec` into a unit-attached `ClimateRaster`: the file, by path or download,
+# windowed to `cut` before the pixels are fetched and coarsened by `scale`, on the spec's declared
+# source and unit. Through `_cachedlayer`, the same step a dataset layer takes, so a coarsened read
+# of the whole file is memoised on disk exactly as a dataset's is. No catalogue is consulted; the
+# spec is the only statement of what the file holds.
+function _read(spec::RasterFileSpec{A}; cut = nothing) where {A}
+    layer = _cachedlayer(_resolvepath(spec.path), spec.scale, spec.fn,
+                         spec.unit,
+                         cut = cut, axis = A)
+    return ClimateRaster(spec.source, _applycut(layer, cut))
+end
+
+# A file's CRS from its header alone - a lazy open fetches no pixels - so the read can be windowed
+# before it happens. A URL is downloaded here if it has not been already, since nothing can be known
+# about it otherwise.
+function _probecrs(spec::RasterFileSpec)
+    r = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        return Rasters.Raster(_resolvepath(spec.path), lazy = true)
+    end
+    crs = Rasters.crs(r)
+    return _isblankcrs(crs) ? nothing : crs
+end
+
 # Read a `SourceSpec` into a unit-attached `ClimateRaster` (the eager step deferred by the
 # lazy descriptor). A `nothing` code is a whole-dataset spec - read all layers as one multi-band
 # raster (`read`'s own default), dimensionless. The spec's own `readkw` (e.g. `month = 1:12`, given
 # when it was constructed) forward to `read`, with any keyword passed here overriding them, so a
 # caller can still refine a spec's read without rebuilding it.
-function _read(sl::SourceSpec; kw...)
-    readkw = merge(sl.readkw, NamedTuple(kw))
+function _read(sl::SourceSpec{A}; kw...) where {A}
+    # The spec's own axis decides the aggregation reducer unless the read options say otherwise -
+    # it is the one statement of what the layer holds, whether the catalogue or the caller made it.
+    readkw = merge((axis = A,), sl.readkw, NamedTuple(kw))
     # Can these layers honestly share one array? Refused on two counts, for the same underlying
     # reason: an array has **one** eltype and gets **one** resample method, so its layers must agree
     # on both.
@@ -1699,6 +1787,8 @@ end
 _asraster(raster::ClimateRaster) = _rasternotaspec(raster)
 
 _asraster(spec::SourceSpec) = _read(spec)
+
+_asraster(spec::RasterFileSpec) = _read(spec)
 
 _asraster(spec::Tuple) = _sourcepairnotaspec(spec)
 

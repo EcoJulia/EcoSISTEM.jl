@@ -2,8 +2,38 @@
 
 - v0.8.0
   - Added
+    - `RasterFileSpec(path; axis, unit, source)`, a lazy layer spec for a raster **file** that
+      belongs to no catalogued dataset - a GeoTIFF of your own, by path or URL. It holds only the
+      path: the read is windowed to the study area, cached with the other reads, and resampled onto
+      the grid at build time, exactly as a `SourceSpec` is, where `in_memory_raster` reads eagerly
+      and caches nothing. A `scale` coarsens on read, memoised on disk like a dataset's. `readfile`
+      gains a matching `unit` keyword.
     - `show` methods for some over-long types.
   - Changed
+    - **A layer whose cell size is a whole multiple of the study grid's, on the grid's cell
+      boundaries, is now put on the grid by exact block aggregation** - each grid cell holding the
+      mean (or, for class codes, the most frequent class) of the source cells it covers - where it
+      was bilinearly interpolated. The study-area report has always called this case "aggregated
+      (exact)"; it is now true. Values on such grids change accordingly; a grid identical to a
+      layer's own is still selected cell for cell, and any other grid is still resampled as before.
+      The same block aggregation implements the read-time `scale`, so coarsening a layer on read and
+      coarsening it onto the grid give the identical result. Both anchor their blocks at the
+      south-west corner, as the study grid is laid out, so the partial block a coarsening drops is
+      the northern or eastern one; no shipped dataset's extent leaves a partial block at its default
+      scale, so no dataset read changes. Whether a grid cell counts as covered by a layer is now
+      decided explicitly - more than half of the source cells it covers carry data - rather than by
+      whether interpolation happened to return a value.
+    - **A coarsening read (`scale > 1`) now chooses its reducer from the layer's axis.** A layer on
+      a `TypologyAxis` - class codes - is aggregated by the most frequent class in each block, ties
+      to the smallest code, where it was averaged into codes nobody observed; every other axis keeps
+      the mean. This holds for `SourceSpec`, `RasterFileSpec` and `read` alike, and `fn` still
+      overrides it. No shipped default is affected: land cover, the one source coarsened by
+      default, holds fractions and is averaged as before.
+    - **`readfile` returns a `ClimateRaster`**, as every other reader does, rather than the bare
+      array it returned since v0.4.0; the values are the same and sit in `.array`. A new `source`
+      keyword records where the file came from, defaulting to `SyntheticData` for a file that
+      belongs to no catalogued dataset, so `readfile(path)` can be handed straight to
+      `in_memory_raster` without wrapping it first.
     - **The `boost` parameter is gone, and the birth multiplier is capped at 1**, as the model is
       written up: `min(K/E, 1)` rather than `min(K/E, boost)`, so however plentiful the resource a
       species reproduces no faster than its baseline rate. `EqualPop`, `PopGrowth` and `NoGrowth`

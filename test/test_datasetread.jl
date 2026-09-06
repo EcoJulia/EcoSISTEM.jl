@@ -76,7 +76,8 @@ if !Sys.iswindows()
         cr = read(CRUTS, winddir, "tavg")
         rf = readfile(bio1)
 
-        @test unit(bioclim.array[1]) == unit(rf[1]) == NoUnits
+        @test unit(bioclim.array[1]) == unit(rf.array[1]) == NoUnits
+        @test rf isa EcoSISTEM.ClimateRaster{EcoSISTEM.SyntheticData}
         if bigrasters()
             ch_b = read(CHELSA{BioClim}, 1, scale = 20)
             @test unit(ch_b.array[1]) == NoUnits
@@ -334,6 +335,33 @@ end
 # its own 30 arcsec lattice gives exactly 84° - CHELSA's stated northern limit. Testing against the
 # arcsecond lattice is what makes these origins look irretrievably ambiguous. Synthetic, so it runs
 # on every platform.
+# The reducer a coarsening read applies is decided from the axis unless given, and the majority
+# reducer must be reproducible: ties go to the smallest code, and missing or NaN cells do not vote.
+@testset "aggregation reducer follows the axis" begin
+    @test EcoSISTEM._reducer(nothing, Temperature) === mean
+    @test EcoSISTEM._reducer(nothing, EcoSISTEM.NicheAxis) === mean
+    @test EcoSISTEM._reducer(nothing, LandCoverTypology) ===
+          EcoSISTEM._majorityclass
+    @test EcoSISTEM._reducer(nothing, ClimateTypology) ===
+          EcoSISTEM._majorityclass
+    @test EcoSISTEM._reducer(maximum, LandCoverTypology) === maximum
+    maj = EcoSISTEM._majorityclass
+    @test maj([1, 1, 2]) == 1
+    @test maj([2, 3, 2, 3]) == 2                       # a tie goes to the smallest code
+    @test maj([7.0, NaN, NaN, 7.0, 9.0]) == 7.0        # NaN does not vote
+    @test maj([missing, 4, missing]) == 4              # nor does missing
+    @test ismissing(maj([missing, missing]))
+    @test ismissing(maj(Union{Missing, Float64}[NaN]))
+    # No source pins a reducer any more; the axis decides.
+    @test isnothing(EcoSISTEM._defaultfn(WorldClim{BioClim}))
+    # The axis a dataset read chooses by comes from the catalogue, `NicheAxis` where it cannot.
+    @test EcoSISTEM._readaxis(WorldClim{BioClim}, :bio1) === Temperature
+    @test EcoSISTEM._readaxis(WorldClim{BioClim}, [:bio1, :bio12]) ===
+          EcoSISTEM.NicheAxis
+    @test EcoSISTEM._readaxis(WorldClim{BioClim}, :nosuchlayer) ===
+          EcoSISTEM.NicheAxis
+end
+
 @testset "origins snap to the cell lattice, not the arcsecond lattice" begin
     CP = EcoSISTEM
     arcsec(n) = (n / 3600)°
@@ -418,7 +446,12 @@ end
         return ArchGDAL.setgeotransform!(ds, [0.0, 1.0, 0.0, 4.0, 0.0, -1.0])
     end
     @test CP._isblankcrs(Rasters.crs(Rasters.Raster(path)))
-    a = readfile(path)
+    r = readfile(path)
+    @test r isa EcoSISTEM.ClimateRaster{EcoSISTEM.SyntheticData}
+    # A named source is recorded as given.
+    @test readfile(path, source = WorldClim{BioClim}) isa
+          EcoSISTEM.ClimateRaster{WorldClim{BioClim}}
+    a = r.array
     @test size(a) == (4, 4)
     @test unit(eltype(parent(DimensionalData.lookup(a, Y)))) == °
     @test isnothing(Rasters.crs(DimensionalData.dims(a, Y)))

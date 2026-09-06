@@ -166,6 +166,18 @@ function _asraster(spec::SourceSpec, cache::LayerCache; cut = nothing)
     end
 end
 
+# A file read is keyed like a dataset read, so refining an area re-reads nothing and a windowed read
+# is never served for a whole one. The path stands in for the layer code, and the unit and scale
+# are in the key because each changes what the cached values are.
+function _asraster(spec::RasterFileSpec, cache::LayerCache; cut = nothing)
+    key = ReadKey(spec.source, _pathtext(spec.path),
+                  (cut = cut, unit = spec.unit, scale = spec.scale,
+                   fn = spec.fn))
+    return get!(cache.reads, key) do
+        return _read(spec, cut = cut)
+    end
+end
+
 # The cached twin of `_asraster(::Tuple)` - a `(source, code)` pair, refused with the spelling
 # that replaces it. Both entry points must refuse it, or deciding a grid and building a layer would
 # disagree about what is accepted.
@@ -286,6 +298,15 @@ function _materialiseon(spec::SourceSpec, target, cache::LayerCache)
                          spec.code)
 end
 
+# As for a `SourceSpec`, less the layer code a file does not have.
+function _materialiseon(spec::RasterFileSpec, target, cache::LayerCache)
+    read = _asraster(spec, cache)
+    return ClimateRaster(spec.source,
+                         _sampledata(read, target, name = "layer",
+                                     categorical = iscategorical(read,
+                                                                 _specaxis(spec))))
+end
+
 # **A synthetic spec on a positioned grid - generated at the target's shape, not sampled onto it.**
 # A synthetic layer needs **shape and orientation**, never coordinates, so there is nothing about a
 # real-world grid it cannot be built on: `examples/ScottishCultivatedLand.jl` puts a synthetic solar
@@ -308,7 +329,7 @@ function _materialiseon(spec::AbstractSyntheticLayerSpec, target,
     # and a top-level one alike.
     field = _specfield(spec, length.(yx), _rowsincreasenorth(yx))
     # **United, CRS-bearing dims, not the target template's own.** `target`'s lookups are
-    # deliberately bare numbers, but `_cropto` reads a raster's coordinates with `ustrip(crsunit, ...)`
+    # deliberately bare numbers, but `_regrid` reads a raster's coordinates with `ustrip(crsunit, ...)`
     # - so a raster carrying bare dims fails on the unit rather than being recognised as already on
     # the grid. Rebuilt in the same form a reprojected raster has, which makes the subsequent crop a
     # pure index.
@@ -330,7 +351,7 @@ end
 # *layer of another spec* that matters, because the enclosing combine broadcasts its layers together
 # - measured, a `_reg(raster)` layer at 4×4 against a synthetic one generated at the target's 2×2
 # is a `DimensionMismatch`. Where the layers were already put on the target, this is a no-op:
-# `_cropto` recognises a raster on the target grid and crops instead of resampling.
+# `_regrid` recognises a raster on the target grid and selects its cells instead of resampling.
 function _materialiseon(spec::ConstructedRasterSpec, target, cache::LayerCache)
     out = _combineon(spec.combinestage, spec, target, cache)
     return ClimateRaster(_sourceof(out),
@@ -593,7 +614,7 @@ end
 # sample, so it hands back the combine's own raster on whatever grid that raster has. Measured: a
 # `_reg(raster)` layer came out 4×4 on a 2×2 study area when this step was omitted. The builder has
 # always sampled afterwards for the same reason; this mirrors it.
-# Where the layers *were* sampled first, the second pass is a no-op: `_cropto` recognises a raster
+# Where the layers *were* sampled first, the second pass is a no-op: `_regrid` recognises a raster
 # already on the target and crops rather than resampling.
 function _materialisefield(spec::ConstructedRasterSpec, area::StudyArea)
     out = _combineon(spec.combinestage, spec, area.report.active,

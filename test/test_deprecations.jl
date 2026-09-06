@@ -114,10 +114,10 @@ include("TestCases.jl")
             # positional extent (in `°`) -> the keyword `cut = Extent(...)` form
             bio1 = getraster(WorldClim{BioClim}, :bio1)
             @test_deprecated readfile(bio1, -10°, 10°, -10°, 10°)
-            @test isequal(readfile(bio1, -10°, 10°, -10°, 10°),
+            @test isequal(readfile(bio1, -10°, 10°, -10°, 10°).array,
                           readfile(bio1,
                                    cut = Extent(Y = (-10°, 10°),
-                                                X = (-10°, 10°))))
+                                                X = (-10°, 10°))).array)
 
             # readworldclim -> the same `ClimateRaster` the `read`/`_readsource` path builds
             wind = getraster(WorldClim{Climate}, :wind, month = 1:12)

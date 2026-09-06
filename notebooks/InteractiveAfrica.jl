@@ -55,25 +55,20 @@ end
 # ╔═╡ 220e4af6-f228-4b8d-a77e-0ddbf5fc6705
 begin
     file = pkgdir(EcoSISTEM, "data", "Africa.tif")
-    africa = readfile(file)
 
     # The shipped Africa raster is a *landmask*: real values on land, `NaN` at sea. We hand it to
     # the study area as a layer so that its own gaps decide which cells are active - no hand-built
     # `.!isnan.(...)` matrix, and no chance of the mask and the grid disagreeing.
     #
-    # `in_memory_raster` is how a raster you already hold becomes a layer spec: a raster carries
-    # values but no niche axis, so nothing about it says what its numbers mean. Here they mean
-    # nothing in particular - the raster is a shape - so it stays `Unclassified`.
+    # `RasterFileSpec` names a raster file that belongs to no catalogued dataset, and reads it only
+    # when the study area is built. A file carries values but no niche axis, so nothing about it
+    # says what its numbers mean; here they mean nothing in particular - the raster is a shape - so
+    # the axis is `NicheAxis` itself, claiming nothing.
     #
     # It is a *geographic* (WGS 84) raster, and a simulation needs a projected grid: dispersal
     # assumes one uniform cell size, whereas a degree cell shrinks towards the poles. Giving a
     # projected `crs` reprojects it onto one.
-    # `readfile` hands back a plain array-with-coordinates; `ClimateRaster` is what pairs it with a
-    # statement of where it came from, and `SyntheticData` is the honest answer for a shipped
-    # landmask that belongs to no catalogued dataset.
-    africa_shape = EcoSISTEM.in_memory_raster(ClimateRaster(EcoSISTEM.SyntheticData,
-                                                            africa),
-                                              axis = EcoSISTEM.NicheAxis)
+    africa_shape = RasterFileSpec(file, axis = EcoSISTEM.NicheAxis)
     studyarea = StudyArea(regime = africa_shape,
                           crs = ProjString("+proj=aea +lat_1=20 +lat_2=-23 " *
                                            "+lat_0=0 +lon_0=25 +datum=WGS84 " *

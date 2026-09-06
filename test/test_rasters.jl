@@ -12,6 +12,7 @@
 module TestRasters
 
 using EcoSISTEM
+using Statistics: mean
 # `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: SeriesLayerChange, AbsoluteChange
@@ -86,7 +87,7 @@ end
     own = EcoSISTEM._owngrid(r)
     # The layer onto its own grid: values must come back bit-identical, which a warp does not give.
     whole = EcoSISTEM._sampledata(r, own, name = "l", categorical = false)
-    @test !isnothing(EcoSISTEM._cropto(r, own))
+    @test !isnothing(EcoSISTEM._regrid(r, own, mean))
     @test parent(whole) == parent(r.array)
 
     # ...and onto a sub-grid of itself, it is exactly the corresponding block.
@@ -104,16 +105,18 @@ end
                                 name = "l")
     @test count(isnan, ustrip.(parent(out))) == 1
 
-    # A grid that is *not* a sub-grid of the layer declines, so the resample still happens: a
-    # half-cell offset, and a coarser cell size, are both genuine resamples.
-    offset = EcoSISTEM._cropto(r,
+    # A grid that does not sit on the layer's cell boundaries declines, so the resample still
+    # happens: a half-cell offset is a genuine resample. (A coarser grid that *does* sit on them is
+    # an exact block aggregation - `test_materialise.jl` pins that.)
+    offset = EcoSISTEM._regrid(r,
                                EcoSISTEM._owngrid(_testraster(WorldClim{BioClim},
                                                               fill(1.0, 5,
                                                                    5),
                                                               lat = (0.5:1.0:4.5) .*
                                                                     °,
                                                               long = (0.0:1.0:4.0) .*
-                                                                     °)))
+                                                                     °)),
+                               mean)
     @test isnothing(offset)
 
     # Both routes must leave a layer with the *same* dims, or two layers of one collection
