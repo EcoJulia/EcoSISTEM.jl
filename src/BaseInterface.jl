@@ -9,7 +9,7 @@
 # `docs/overloads.md` is the cross-reference, listing every foreign generic this package extends and
 # where.
 #
-# Five groups of `Base` methods are deliberately **not** here, each because moving it would split a
+# Four groups of `Base` methods are deliberately **not** here, each because moving it would split a
 # conformance that belongs together:
 #
 #   - **`show` lives beside the type it prints**, in the file that declares it. How a type prints is
@@ -19,7 +19,6 @@
 #     `params`. Those five *are* the `Distributions` interface, and which module owns each generic is
 #     not the useful grouping.
 #   - **`deprecations.jl`** keeps `eltype` for the shims it defines.
-#   - **`ClimatePref`** keeps its own - `size`, `length`, `eltype`, `show`, `read`.
 #   - **`ext/`** keeps `Base.read`'s dataset methods; an extension cannot be loaded early.
 #
 # Included last, which is safe rather than merely tidy: method definitions are order-independent, and

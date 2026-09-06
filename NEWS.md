@@ -19,6 +19,8 @@
     - The `boost` parameter is gone and the birth multiplier is capped at 1, as the model is written
       up. The old constructors and keyword warn and discard it; results with `boost = 1` are
       unchanged, and runs with any other value will not reproduce.
+    - `SpatialEcology`, `Proj`, `OnlineStats` and seven standard libraries are no longer
+      dependencies; nothing in the package loaded them.
   - Fixed
     - An angular `cellsize` such as `30arcminute` is accepted on a geographic grid; a length there,
       and an angle on a projected grid, are refused.

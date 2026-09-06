@@ -49,8 +49,6 @@ import Unitful.°, Unitful.°C, Unitful.mm
 # ArchGDAL is needed to register the GDAL backend Rasters uses to read GeoTIFFs.
 import ArchGDAL
 
-import Base.read
-
 # How far a step may sit from a whole arcsecond and still be taken as one. The worst real offender is
 # CHELSA's 89.999964 arcsec for 90 - a relative error of 4e-7 - while the smallest *genuine* step
 # difference anyone could mean is a whole arcsecond out of the finest grids we see (1 in 30, i.e.

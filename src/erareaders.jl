@@ -34,8 +34,6 @@ using NCDatasets
 
 import ArchGDAL
 
-import Base.read
-
 """
     read(::Type{ERA}, file::String, param::String; cut = nothing)
 

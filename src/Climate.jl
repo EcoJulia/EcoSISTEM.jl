@@ -19,8 +19,6 @@ using EcoSISTEM.Units
 
 using EcoSISTEM.Units: _monthindex
 
-import Base: size, length, eltype
-
 """
     AbstractClimate
 
