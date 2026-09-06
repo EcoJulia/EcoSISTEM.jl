@@ -12,8 +12,8 @@
 #
 # It sits in the main module rather than in an extension because it names no climate-data-source
 # package at all: every function here takes a type `T` and file paths,
-# and the dataset-specific methods (`_defaultscale(::Type{<:EarthEnv{<:LandCover}}) = 10` and the
-# rest) live in `EcoSISTEMRasterDataSourcesExt`, which supplies them over these generic helpers.
+# and the dataset-specific methods (`_stackaxis`, `_getrasterkw` and the rest) live in
+# `EcoSISTEMRasterDataSourcesExt`, which supplies them over these generic helpers.
 # Putting the generic half in an extension would have made an extension that names nothing from its
 # own trigger, which stops precompiling the moment that dependency is weakened.
 #
@@ -514,11 +514,10 @@ end
 # of its own; its variable names are WorldClim's).
 _layerunit(::Type, files) = NoUnits
 
-# Default read-time block-aggregation factor (land cover is coarsened 10× by default; that is a fact
-# about `EarthEnv` and lives in the extension) and reducer. `nothing` for the reducer means *decide
-# from the layer's axis* - see `_reducer` - so no source pins one; the note below says why land
-# cover's continuous fractions take a plain `mean`.
-_defaultscale(::Type) = 1
+# Default reducer. `nothing` means *decide from the layer's axis* - see `_reducer` - so no source
+# pins one; the note below says why land cover's continuous fractions take a plain `mean`. There is
+# no default read scale: a read is at the file's own resolution unless it asks for one, and a study
+# area chooses one from its cell size.
 
 _defaultfn(::Type) = nothing
 
@@ -542,7 +541,7 @@ end
 
 # **Land cover aggregates with a plain mean, and must not round.** Rounding each of the twelve
 # per-class bands back to an integer independently means a stack that summed to 100 before
-# aggregation need not afterwards: measured over Scotland at the default 10x, the RMS departure from
+# aggregation need not afterwards: measured over Scotland at 10x, the RMS departure from
 # 100 is 0.466 with a worst case of 3.0 percentage points, against 0.027 and 0.18 for a plain mean.
 #
 # The metric that flatters rounding - more cells summing to exactly 100 - is an artefact of
@@ -606,7 +605,7 @@ _firstfile(raw) = first(_filelist(raw))
 # their actual physical unit as bare magnitudes (`_layerunit` is `NoUnits` for every source); the stacked
 # axis (bands or a monthly series) comes from `_stackaxis`. Shared by `read` and the deprecated `readworldclim`.
 function _readsource(T::Type, files::Vector{String};
-                     cut = nothing, scale = _defaultscale(T),
+                     cut = nothing, scale = 1,
                      fn = _defaultfn(T), slices = nothing, axis = NicheAxis)
     u = _layerunit(T, files)
     aas = map(f -> _cachedlayer(f, scale, fn, u, cut = cut, axis = axis), files)
@@ -624,7 +623,7 @@ end
 # layer table's own codes), no further name resolution needed here.
 function _readmultilayer(T::Type,
                          raw::Vector{<:NamedTuple};
-                         cut = nothing, scale = _defaultscale(T),
+                         cut = nothing, scale = 1,
                          fn = _defaultfn(T), slices = nothing, axis = NicheAxis)
     layernames = collect(keys(first(raw)))
     perlayer = map(layernames) do name

@@ -144,17 +144,17 @@ end
 if !Sys.iswindows()
     @testset "a multi-layer read caches its layers individually" begin
         cache = LayerCache()
-        whole = _asraster(SourceSpec(EarthEnv{LandCover}), cache)
+        whole = _asraster(SourceSpec(EarthEnv{LandCover}, scale = 10), cache)
         @test length(cache) == 12                 # one entry per layer, not one for the request
         # ...so asking for a single layer afterwards is a hit, adding nothing.
-        one = _asraster(SourceSpec(EarthEnv{LandCover}, 7), cache)
+        one = _asraster(SourceSpec(EarthEnv{LandCover}, 7, scale = 10), cache)
         @test length(cache) == 12
         @test size(one.array) == size(whole.array)[1:2]
 
         # Assembling the stack here rather than in `_readmultilayer` must not change it: same data,
         # and the same canonical *names* on the layer axis (`EarthEnv` code 7 has always shown as
         # `:cultivated_and_managed`, never as `7`).
-        direct = EcoSISTEM._read(SourceSpec(EarthEnv{LandCover}))
+        direct = EcoSISTEM._read(SourceSpec(EarthEnv{LandCover}, scale = 10))
         lax(a) = parent(DimensionalData.lookup(a.array,
                                                DimensionalData.Dim{:layer}))
         @test lax(whole) == lax(direct)

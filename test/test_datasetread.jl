@@ -156,20 +156,20 @@ if !Sys.iswindows()
     # no bounds, so anything needing them fails: `_applycut`'s `Touches` selector compares
     # `nothing < 60.86°` and throws a bare `MethodError`, which breaks
     # `read(EarthEnv{LandCover}, ..., cut = ...)` outright and forces a whole-globe read and a crop.
-    # EarthEnv is the only shipped source with `_defaultscale` > 1, which is what made it look
-    # source-specific rather than a general consequence of aggregating. Guarded because it needs the
+    # A coarsened EarthEnv read is what surfaced it, which made it look source-specific rather
+    # than a general consequence of aggregating. Guarded because it needs the
     # real file: the vector-lookup condition that triggers it cannot be reproduced synthetically.
     @testset "a coarsened read can be cut (Regular span with real bounds)" begin
         L = DimensionalData.Lookups
         scotland = EcoSISTEM.boundingbox("Scotland",
                                          coverage = AllTerritories())
-        whole = read(EarthEnv{LandCover}, 7)
+        whole = read(EarthEnv{LandCover}, 7, scale = 10)
         for d in (Y, X)
             @test L.span(dims(whole.array, d)) isa L.Regular
             @test all(!isnothing, L.bounds(dims(whole.array, d)))
         end
         # The end the fix exists for - this threw a MethodError before it.
-        cut = read(EarthEnv{LandCover}, 7, cut = scotland)
+        cut = read(EarthEnv{LandCover}, 7, scale = 10, cut = scotland)
         @test size(cut.array, 1) < size(whole.array, 1)
         @test size(cut.array, 2) < size(whole.array, 2)
         # ...and it is a *window*, not a token crop: Scotland is a tiny share of a global layer.
@@ -191,7 +191,7 @@ if !Sys.iswindows()
     @testset "a read grid lands exactly on its source's stated extent" begin
         sources = Any[(read(WorldClim{BioClim}, :bio1), (-180°, 180°),
                        (-90°, 90°)),
-                      (read(EarthEnv{LandCover}, 7), (-180°, 180°),
+                      (read(EarthEnv{LandCover}, 7, scale = 10), (-180°, 180°),
                        (-56°, 90°))]
         bigrasters() && push!(sources,
               (read(CHELSA{BioClim}, 1, scale = 20),
@@ -213,15 +213,15 @@ if !Sys.iswindows()
     #
     # The aggregated case is the dangerous one. `Rasters.aggregate` blocks from index 1, so a crop
     # that does not start on a block boundary moves every coarse cell - read-extent variance
-    # reintroduced exactly where it was just removed. EarthEnv (`_defaultscale` 10) is the only
-    # shipped source that exercises it.
+    # reintroduced exactly where it was just removed. EarthEnv read at scale 10 exercises it.
     @testset "a windowed read equals the whole read cropped" begin
         CP = EcoSISTEM
         scot = CP.boundingbox("Scotland", coverage = AllTerritories())
-        for (src, code) in ((WorldClim{BioClim}, :bio1),   # scale 1
-            (EarthEnv{LandCover}, 7))      # scale 10 - block alignment
-            whole = EcoSISTEM._read(SourceSpec(src, code))
-            windowed = EcoSISTEM._read(SourceSpec(src, code, cut = scot))
+        for (src, code, scale) in ((WorldClim{BioClim}, :bio1, 1),
+            (EarthEnv{LandCover}, 7, 10))      # block alignment
+            whole = EcoSISTEM._read(SourceSpec(src, code, scale = scale))
+            windowed = EcoSISTEM._read(SourceSpec(src, code, scale = scale,
+                                                  cut = scot))
             cropped = EcoSISTEM._applycut(whole.array, scot)
             @test size(windowed.array) == size(cropped)
             # Coordinates agree to within float noise; aggregating a cropped raster differs from

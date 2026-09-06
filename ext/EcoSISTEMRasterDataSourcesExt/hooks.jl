@@ -85,10 +85,6 @@ end
 EcoSISTEM._stackaxis(::Type{<:RDS.WorldClim{RDS.Climate}}) = Ti
 EcoSISTEM._stackaxis(::Type{<:RDS.CHELSA{RDS.Climate}}) = Ti
 
-# Default read-time block-aggregation factor: land cover is coarsened 10×.
-# Also silent if lost - the read succeeds at full resolution and every downstream number moves.
-EcoSISTEM._defaultscale(::Type{<:RDS.EarthEnv{<:RDS.LandCover}}) = 10
-
 # Default keywords forwarded to `getraster`: WorldClim monthly climate must name its months.
 # The one of the three that fails loudly - `getraster` has no default for `month`, so a read
 # without this is an `UndefKeywordError` rather than a wrong answer.

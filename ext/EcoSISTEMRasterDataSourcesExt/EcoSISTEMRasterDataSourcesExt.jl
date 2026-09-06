@@ -44,7 +44,7 @@ using EcoSISTEM: CRUTS
 using EcoSISTEM: ClimatePref
 # The dataset-reading pipeline moved from `ClimatePref` to `src/datasetread.jl` in v0.5.0, so these
 # are imported from the parent now. `_documentedceiling` and `_isblankcrs` were always the parent's.
-using EcoSISTEM: _defaultfn, _defaultscale, _readaxis, _documentedceiling,
+using EcoSISTEM: _defaultfn, _readaxis, _documentedceiling,
                  _filelist, _firstfile, _getrasterkw, _isblankcrs,
                  _readraw, _readmonthlydir, _readsource,
                  _rescalepublished, _stackaxis
