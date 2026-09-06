@@ -19,12 +19,22 @@ function EcoSISTEM.sourcecrs(T::Type{<:RDS.RasterDataSource},
                              layers = RDS.layers(T);
                              cut = nothing, scale = nothing, fn = nothing,
                              kw...)
-    raw = getraster(T, layers; _getrasterkw(T)..., kw...)
-    r = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+    c = Rasters.crs(EcoSISTEM._lazysource(T, layers; kw...))
+    return _isblankcrs(c) ? nothing : c
+end
+
+# The first file the source resolves to, opened lazily. `nothing` for `layers` means the whole
+# dataset, as it does for a spec without a code. The read options are accepted and ignored, so a
+# spec's stored keywords can be splatted in unchanged.
+function EcoSISTEM._lazysource(T::Type{<:RDS.RasterDataSource},
+                               layers = RDS.layers(T);
+                               cut = nothing, scale = nothing, fn = nothing,
+                               kw...)
+    raw = getraster(T, something(layers, RDS.layers(T));
+                    _getrasterkw(T)..., kw...)
+    return Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
         return Raster(_firstfile(raw); lazy = true)
     end
-    c = Rasters.crs(r)
-    return _isblankcrs(c) ? nothing : c
 end
 
 """

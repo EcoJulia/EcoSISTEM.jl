@@ -86,7 +86,9 @@ bands for `compress_landcover`.
     dataset that first read can need many gigabytes. Give a `scale` a `cut` as well where the whole
     world is not needed, and the memo is skipped along with the cost. How a block is reduced follows
     the spec's `axis` unless `fn` is given: the most frequent class for a `TypologyAxis`, the mean
-    for any other.
+    for any other. On a grid much coarser than the layer the reduction runs in two stages, on the
+    layer's own lattice and then onto the grid: exact for a mean, a maximum or a minimum, and an
+    approximation for the most frequent class.
 
 # Fields
 
@@ -479,7 +481,9 @@ It is a layer spec. To use a file as a `within` mask, say what in it marks a cel
     than once per study area.
   - `fn`: how a block is reduced to one cell. Left unset, the `axis` decides: the most frequent class
     (ties to the smallest code) for a `TypologyAxis`, whose codes must not be averaged, and the mean
-    for any other. Give a function to override - `maximum`, say.
+    for any other. Give a function to override - `maximum`, say. On a grid much coarser than the
+    file the reduction runs in two stages, on the file's own lattice and then onto the grid, so it
+    must compose: a mean, a maximum or a minimum do exactly, the most frequent class approximately.
 
 # Fields
 

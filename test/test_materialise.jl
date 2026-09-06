@@ -268,6 +268,53 @@ end
     @test all(!isnan, pv)
     @test minimum(M) <= minimum(pv) && maximum(pv) <= maximum(M)
 
+    # A grid far coarser than its source - 80.5 m cells over 1 m data, so a ratio of 80.5 - is first
+    # aggregated exactly on the source's own lattice by the whole part of the ratio, and only the
+    # residual is sampled. So each grid cell is the exact mean of an 80 × 80 block, to rounding, where
+    # a bounded fine lattice alone would have seen a sample of the covering cells; the field is
+    # nonlinear so that a subsample and the block mean differ. The report says the first stage
+    # happened.
+    dpath = joinpath(dir, "deep.tif")
+    ArchGDAL.create(dpath, driver = ArchGDAL.getdriver("GTiff"), width = 400,
+                    height = 400, nbands = 1, dtype = Float64) do ds
+        field = [(sin(i / 7) + cos(j / 11))^2 for i in 1:400, j in 1:400]
+        ArchGDAL.write!(ds, permutedims(field), 1)
+        ArchGDAL.setgeotransform!(ds, [0.0, 1.0, 0.0, 400.0, 0.0, -1.0])
+        return ArchGDAL.setproj!(ds,
+                                 ArchGDAL.toWKT(ArchGDAL.importEPSG(3857)))
+    end
+    deep = RasterFileSpec(dpath, axis = Temperature, unit = K)
+    Md = ustrip.(K,
+                 materialise(deep,
+                             StudyArea(regime = deep, verbosity = :silent)).matrix)
+    a80 = StudyArea(regime = deep, cellsize = 80.5m, verbosity = :silent)
+    reason80 = only(a80.report.layers).kind.reason
+    @test occursin("pre-aggregated 80× on its own lattice first", reason80)
+    got80 = ustrip.(K, parent(materialise(deep, a80).matrix))
+    # Four cells a side, not five: the fifth would overhang the data at 400 m, and `simulate_safely`
+    # drops a cell that is not wholly inside every layer.
+    @test size(got80) == (4, 4)
+    for r in 1:4, c in 1:4
+        block = Md[((r - 1) * 80 + 1):(r * 80), ((c - 1) * 80 + 1):(c * 80)]
+        @test got80[r, c] ≈ sum(block) / length(block) rtol = 1e-12
+    end
+    # With `cellsize` known before the read, that first stage is the read itself: the file is
+    # block-aggregated 80× on the way in, so the cache holds one read at that scale, the build reuses
+    # it, and the full-resolution file is never held.
+    keys80 = collect(keys(a80.report.cache.reads))
+    @test length(keys80) == 1
+    @test only(keys80).readkw.scale == 80
+    # Class codes are never pre-aggregated on read, since a majority of block majorities is not the
+    # majority: the 1° class file on a 2° grid is read as it is.
+    @test only(keys(cgrid.report.cache.reads)).readkw.scale == 1
+    # A spec's own `scale` stands; nothing is added to it.
+    @test only(keys(cls.report.cache.reads)).readkw.scale == 2
+    # The residual left after that first stage is below two, so the fine lattice is 2 or 4 cells per
+    # side; a larger factor means the stage was skipped, and is refused.
+    @test EcoSISTEM._oversampling(1.0) == 2
+    @test EcoSISTEM._oversampling(1.5) == 4
+    @test_throws ErrorException EcoSISTEM._oversampling(2.5)
+
     # And a habitat builds on it - geographic, so it can be inspected but not simulated.
     h = GridHabitat(regime = spec,
                     supply = UniformSpec(1.0e5kJ / (m^2 * day),

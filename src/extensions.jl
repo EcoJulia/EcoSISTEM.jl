@@ -420,6 +420,11 @@ splatted in unchanged; the aggregation `scale` in particular cannot affect a CRS
 """
 function sourcecrs end
 
+# The first file of a dataset's layer set, opened lazily - header only, no pixels - so a source's
+# grid can be measured before deciding how much of it to fetch; `sourcecrs` is its CRS alone. The
+# extension supplies the sole method.
+function _lazysource end
+
 # ---------------------------------------------------------------------------
 # EcoSISTEMDataPipelineExt - requires DataPipeline
 # ---------------------------------------------------------------------------

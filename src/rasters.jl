@@ -266,7 +266,10 @@ end
 
 # The most frequent value in a block of class codes, ties broken by the smallest code so the answer
 # does not depend on iteration order. Read-time and build-time only, so the allocation per block is
-# of no consequence.
+# of no consequence. Applied in two stages by `_regridsampled` it is an approximation: the majority
+# of block majorities can differ from the majority over every covering cell. An exact class on a much
+# coarser grid comes from expanding the codes to one fraction band per class, whose means compose,
+# and taking the most frequent class once at the end.
 function _majorityclass(block)
     _anypresent(block) || return _absentvalue(block)
     counts = Dict{nonmissingtype(eltype(block)), Int}()
@@ -375,7 +378,7 @@ _bare(A::AbstractArray{<:Unitful.Quantity}) = ustrip.(A)
 _bare(A::AbstractArray) = A
 
 function _regridbare(raster::ClimateRaster, A, target, fn, centres::Bool)
-    centres && return _regridsampled(raster, A, target, fn, 1)
+    centres && return _regridsampled(raster, A, target, fn, centres = true)
     yd, xd = dims(A, Y), dims(A, X)
     _samecrs(Rasters.crs(yd), Rasters.crs(target)) ||
         return _regridsampled(raster, A, target, fn)
@@ -397,17 +400,27 @@ function _regridbare(raster::ClimateRaster, A, target, fn, centres::Bool)
     return _ontarget(_blockaggregate(A[Y(rows), X(cols)], f, fn), target)
 end
 
-# The route for a grid that is not an aligned whole multiple of the source's cells: sample the source
-# nearest-neighbour onto a lattice `k` times finer than `target`, then block-aggregate by `k` with
-# `fn`. Every fine cell carries a real source value, so this is an area-weighted aggregation of the
-# covering source cells to `k²` samples per target cell, for any reducer; a finer target comes out
-# as repetition, every fine cell of a target cell lying in one source cell. `A` is `raster`'s array
-# with its unit taken off; `raster` is needed for the step across a change of CRS. At `k = 1` the
-# target itself is the sampling lattice and nothing is aggregated.
-function _regridsampled(raster::ClimateRaster, A, target, fn,
-                        k::Integer = _oversampling(raster, target))
-    fine = k == 1 ? target : _finetemplate(target, k)
-    sampled = _reproject(Rasters.Raster(A), fine)
+# The route for a grid that is not an aligned whole multiple of the source's cells, in two stages.
+# First the source is block-aggregated on its own lattice by the whole part of the step ratio, which
+# is exact and leaves it at most twice as fine as the target. Then it is sampled nearest-neighbour
+# onto a lattice `k` times finer than `target` and block-aggregated by `k` with `fn`: every fine
+# cell carries a real source value, so this is an area-weighted aggregation of the covering cells
+# to `k²` samples per target cell, for any reducer, and a finer target comes out as repetition. The
+# first stage is what keeps `k` small however coarse the grid; without it a grid eighty times
+# coarser than its source would either need a fine lattice of 25 000 cells per target cell or, capped,
+# see a fraction of the covering cells. `fn` is applied at both stages, so it must compose: a mean,
+# a maximum or a minimum do exactly, the most frequent class only approximately. `A` is `raster`'s
+# array with its unit taken off; `raster` is needed for the step across a change of CRS. With
+# `centres` the target itself is the sampling lattice and nothing is aggregated: each cell takes the
+# source value at its centre.
+function _regridsampled(raster::ClimateRaster, A, target, fn;
+                        centres::Bool = false)
+    centres && return _ontarget(_reproject(Rasters.Raster(A), target), target)
+    ratio = _stepratioacross(raster, target)
+    p = isnothing(ratio) ? 1 : max(1, floor(Int, ratio))
+    coarse = _blockaggregate(A, p, fn)
+    k = _oversampling(isnothing(ratio) ? 1.0 : ratio / p)
+    sampled = _reproject(Rasters.Raster(coarse), _finetemplate(target, k))
     return _ontarget(_blockaggregate(sampled, k, fn), target)
 end
 
@@ -425,18 +438,25 @@ _replaceyx(::X, yd, xd) = xd
 
 _replaceyx(d, yd, xd) = d
 
-# Fine samples per target cell side: twice the ratio of the target's step to the source's, so every
-# contributing source cell is sampled at least twice per axis, kept between 2 and 16 - beyond that
-# the fine lattice grows as the square while the accuracy does not, and a much finer source is
-# better pre-aggregated on read. Across a change of CRS the source cell is measured in the target's
-# units by `_stepacross`.
-function _oversampling(raster::ClimateRaster, target)
+# The target's step over the source's, as a plain number - measured across a change of CRS by
+# `_stepacross` - or `nothing` where the source is too small to measure.
+function _stepratioacross(raster::ClimateRaster, target)
     tcrs = Rasters.crs(target)
     tstep = _lookupstep(dims(target, Y))
     sstep = _samecrs(_rastercrs(raster), tcrs) ?
             _lookupstep(dims(raster.array, Y)) : _stepacross(raster, tcrs)
-    isnothing(sstep) && return 2
-    return clamp(2 * ceil(Int, uconvert(NoUnits, tstep / sstep)), 2, 16)
+    isnothing(sstep) && return nothing
+    return uconvert(NoUnits, tstep / sstep)
+end
+
+# Fine samples per target cell side for the residual step ratio left after pre-aggregation: twice
+# the ratio rounded up, so every contributing source cell is sampled at least twice per axis. The
+# residual is below two, so this is 2 or 4; anything larger means the pre-aggregation was skipped.
+function _oversampling(residual::Real)
+    k = 2 * ceil(Int, residual)
+    2 <= k <= 4 ||
+        error("an oversampling factor of $k means the source was not pre-aggregated first")
+    return k
 end
 
 # A template `k` times finer than `target` that tiles it exactly: `k` fine cells per target cell on
@@ -1020,13 +1040,19 @@ end
 # centre is not every cell. It is a *starting* resolution, announced as such, and any user who needs
 # an exact one passes `cellsize`.
 function _stepacross(raster::ClimateRaster, tcrs)
-    lat, long = _latvals(raster), _longvals(raster)
+    return _stepacross(_rastercrs(raster), _latvals(raster), _longvals(raster),
+                       tcrs)
+end
+
+# The same from a CRS and its two coordinate vectors, so a file opened lazily can be measured
+# before it is read.
+function _stepacross(crs, lat, long, tcrs)
     (length(lat) > 1 && length(long) > 1) || return nothing
     dlat, dlong = lat[2] - lat[1], long[2] - long[1]
     i, j = cld(length(lat), 2), cld(length(long), 2)
     y0, x0 = lat[i], long[j]
     y1, x1 = y0 + dlat, x0 + dlong
-    cell = _bboxin(_rastercrs(raster), tcrs,
+    cell = _bboxin(crs, tcrs,
                    _extentof(min(y0, y1), max(y0, y1), min(x0, x1),
                              max(x0, x1)))
     return sqrt(abs(cell.Y[2] - cell.Y[1]) * abs(cell.X[2] - cell.X[1]))
@@ -1779,9 +1805,9 @@ end
 # source and unit. Through `_cachedlayer`, the same step a dataset layer takes, so a coarsened read
 # of the whole file is memoised on disk exactly as a dataset's is. No catalogue is consulted; the
 # spec is the only statement of what the file holds.
-function _read(spec::RasterFileSpec{A}; cut = nothing) where {A}
-    layer = _cachedlayer(_resolvepath(spec.path), spec.scale, spec.fn,
-                         spec.unit,
+function _read(spec::RasterFileSpec{A}; cut = nothing,
+               scale = spec.scale) where {A}
+    layer = _cachedlayer(_resolvepath(spec.path), scale, spec.fn, spec.unit,
                          cut = cut, axis = A)
     return ClimateRaster(spec.source, _applycut(layer, cut))
 end

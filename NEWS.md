@@ -10,8 +10,8 @@
       cell, and nothing is interpolated: exact block aggregation where the grid is an aligned whole
       multiple of the layer's cells, which the report has always claimed, and nearest-neighbour
       sampling onto a finer lattice then aggregation otherwise, reprojection included. The
-      read-time `scale` is the same computation. Values on any grid that is not a layer's own
-      change.
+      read-time `scale` is the same computation, and a layer far finer than the grid is read
+      pre-aggregated by it. Values on any grid that is not a layer's own change.
     - A coarsening reduces over the cells that carry data with a reducer chosen from the layer's
       axis - the mean, or the most frequent class for class codes. A grid cell is covered by a layer
       when the layer has data at its centre.

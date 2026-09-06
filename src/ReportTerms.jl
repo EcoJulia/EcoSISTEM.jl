@@ -32,7 +32,9 @@ end
 The layer is aggregated onto the grid from the source cells covering each of its cells, weighted
 by how much of the cell each covers - not exact, because the grid's cells are not unions of the
 layer's, which is the thing the whole alignment story exists to avoid. `reason` says why it was
-unavoidable.
+unavoidable. Where the grid is at least twice as coarse as the layer, the layer is first aggregated
+exactly on its own lattice by the whole part of the ratio and only the residual is sampled; `reason`
+says so too.
 """
 struct LayerResampled <: AbstractLayerFate
     reason::String
