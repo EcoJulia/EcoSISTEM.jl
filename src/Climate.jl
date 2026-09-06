@@ -231,6 +231,91 @@ function in_memory_raster(raster::ClimateRaster;
     return ConstructedRasterSpec(() -> raster, axis = axis)
 end
 
+"""
+    class_fractions(raster::ClimateRaster; codes = nothing)
+
+Expand a raster of class codes into one band per class, `1.0` where a cell is that class and `0.0`
+where it is not, so that regridding the bands gives the fraction of each grid cell in each class.
+
+Class codes cannot be averaged, and the most frequent class of a coarse cell taken in two stages -
+first on the data's own lattice, then onto the grid - is not the most frequent class of the cells
+covering it. Fractions have neither problem: their means compose, so a stack of them reaches any
+grid exactly as a measurement does, and [`dominant_class`](@ref) then takes the most frequent
+class once, at the end. Used as the combine of a [`ConstructedRasterSpec`](@ref) on the source
+grid, with `dominant_class` as a second spec's combine on the target grid, the two regrid a class
+layer by the plurality of its covering cells:
+
+```julia
+fractions = ConstructedRasterSpec(class_fractions, codes, axis = EcoSISTEM.NicheAxis,
+                                  combinestage = CombineOnSourceGrid())
+regime = ConstructedRasterSpec(dominant_class, fractions, axis = LandCoverTypology)
+```
+
+The bands lie along `Dim{:layer}`, labelled by code in ascending order, and an absent cell is
+absent in every band, so it drops out of every mean. This is the shape `EarthEnv{LandCover}` arrives
+in natively, as twelve cover fractions, which is why [`compress_landcover`](@ref) is
+`dominant_class` on that source. The result carries [`DerivedData`](@ref) of the input's source.
+
+# Arguments
+
+  - `raster`: a two-dimensional [`ClimateRaster`](@ref) of class codes.
+  - `codes`: the classes to make bands for, in any order; by default every code present in the
+    raster. Give an axis's full list where stacks from different windows must share their bands.
+"""
+function class_fractions(raster::ClimateRaster{S}; codes = nothing) where {S}
+    A = raster.array
+    ndims(A) == 2 ||
+        error("`class_fractions` takes a raster of class codes with `(Y, X)` dimensions only; " *
+              "this one has $(ndims(A)). A stack of bands is what it produces, not what it takes.")
+    labels = isnothing(codes) ?
+             sort!(unique(v for v in parent(A) if !_absent(v))) :
+             sort!(unique(collect(codes)))
+    isempty(labels) &&
+        error("`class_fractions` found no class codes: every cell is absent.")
+    stack = cat((_indicator(parent(A), c) for c in labels)..., dims = 3)
+    layer = Dim{:layer}(DimensionalData.Lookups.Categorical(labels))
+    return ClimateRaster(_derivedfrom(S), DimArray(stack, (dims(A)..., layer)))
+end
+
+"""
+    dominant_class(raster::ClimateRaster)
+
+Collapse one band per class into a single layer of class codes: each cell takes the class whose
+band is largest there, the most frequent class where the bands are fractions, with ties to the
+smallest code, and is absent where no band has a value.
+
+The bands lie along `Dim{:layer}`. Where its labels are numbers they are the codes, as
+[`class_fractions`](@ref) builds them; where they are names the code is the band's position, which
+is `EarthEnv{LandCover}`'s convention of twelve classes in a fixed order. The result carries
+[`DerivedData`](@ref) of the input's source and no layer code, since it is computed from the bands
+rather than being any one of them, and says nothing about being categorical: the spec's `axis`
+does that.
+
+# Arguments
+
+  - `raster`: a [`ClimateRaster`](@ref) with a `Dim{:layer}` dimension of class bands.
+"""
+function dominant_class(raster::ClimateRaster{S}) where {S}
+    A = raster.array
+    hasdim(A, Dim{:layer}) ||
+        error("`dominant_class` needs one band per class along `Dim{:layer}`, as " *
+              "`class_fractions` builds; this raster has no such dimension.")
+    labels = collect(DimensionalData.lookup(A, Dim{:layer}))
+    codes = all(l -> l isa Number, labels) ? Float64.(labels) :
+            Float64.(eachindex(labels))
+    order = sortperm(codes)
+    yx = dims(A, (Y, X))
+    bands = parent(dims(A) == (yx..., dims(A, Dim{:layer})) ? A :
+                   permutedims(A, (Y, X, Dim{:layer})))
+    out = Matrix{Float64}(undef, size(bands, 1), size(bands, 2))
+    Threads.@threads for j in axes(bands, 2)
+        for i in axes(bands, 1)
+            out[i, j] = _dominant(view(bands, i, j, :), codes, order)
+        end
+    end
+    return ClimateRaster(_derivedfrom(S), DimArray(out, yx))
+end
+
 # The source is rendered with its parameters intact and its module qualifier dropped. `nameof` will
 # not do: it strips parameters, which collapses `DerivedData{EarthEnv{LandCover}}` to `DerivedData`
 # and so throws away exactly the lineage that type exists to record.
@@ -699,3 +784,21 @@ function getprofile(spp_names::Vector{String}, data::IndexedTable, var::Symbol,
     return hist
 end
 =#
+
+# One class's band: 1.0 in a cell of that class, 0.0 in any other cell that has a value, NaN where
+# the cell is absent, so an absent cell stays out of every band's mean.
+function _indicator(A::AbstractArray, code)
+    return [_absent(v) ? NaN : Float64(v == code) for v in A]
+end
+
+# The code whose band is largest among the bands with a value, taken in ascending code order so a
+# tie goes to the smallest code; NaN where no band has a value.
+function _dominant(values, codes, order)
+    best, bestvalue = NaN, -Inf
+    for k in order
+        v = values[k]
+        _absent(v) && continue
+        v > bestvalue && ((best, bestvalue) = (codes[k], v))
+    end
+    return best
+end

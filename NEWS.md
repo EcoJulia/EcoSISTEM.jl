@@ -5,6 +5,9 @@
     - `RasterFileSpec`, a lazy layer spec for a raster file that belongs to no dataset: the read is
       windowed to the study area, cached, and coarsened on read by `scale`. `readfile` gains `unit`.
     - `show` methods for some over-long types.
+    - `class_fractions` and `dominant_class`, which nested as two `ConstructedRasterSpec`s regrid
+      a layer of class codes by the plurality of the covering cells. `compress_landcover` is
+      `dominant_class` on EarthEnv, and a cell with no data is now absent rather than class 1.
   - Changed
     - Every layer reaches the study grid by aggregation of the source cells covering each grid
       cell, and nothing is interpolated: exact block aggregation where the grid is an aligned whole
@@ -16,6 +19,8 @@
       axis - the mean, or the most frequent class for class codes. A grid cell is covered by a layer
       when the layer has data at its centre.
     - `readfile` returns a `ClimateRaster`, with `source` and `unit` keywords.
+    - A categorical tolerance and its regime no longer need the same numeric type for their
+      codes: an integer class list pairs with a layer of float codes.
     - The `boost` parameter is gone and the birth multiplier is capped at 1, as the model is written
       up. The old constructors and keyword warn and discard it; results with `boost = 1` are
       unchanged, and runs with any other value will not reproduce.

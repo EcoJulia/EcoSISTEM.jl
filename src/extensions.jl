@@ -342,7 +342,8 @@ public retrieve_era5
     compress_landcover(landcover::ClimateRaster{<:EarthEnv{<:LandCover}})
 
 Collapse EarthEnv's twelve per-class cover fractions into a single layer of **class codes**, taking
-each cell's dominant class.
+each cell's dominant class. It is [`dominant_class`](@ref) on that source: a cell with no data in
+any band is absent in the result, and a tie goes to the lowest-numbered class.
 
 # Arguments
 

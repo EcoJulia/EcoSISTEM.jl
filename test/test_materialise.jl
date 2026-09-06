@@ -315,6 +315,48 @@ end
     @test EcoSISTEM._oversampling(1.5) == 4
     @test_throws ErrorException EcoSISTEM._oversampling(2.5)
 
+    # Class codes regridded by composition: fractions on the source grid, sampled as means, then
+    # the dominant class once on the target. On the 1.5° lattice it is exactly the majority of the
+    # same sixteen samples that the direct route takes, ties to the smallest code included.
+    inner15 = ConstructedRasterSpec(EcoSISTEM.class_fractions,
+                                    RasterFileSpec(cpath,
+                                                   axis = LandCoverTypology),
+                                    axis = EcoSISTEM.NicheAxis,
+                                    combinestage = CombineOnSourceGrid())
+    outer15 = ConstructedRasterSpec(EcoSISTEM.dominant_class, inner15,
+                                    axis = LandCoverTypology)
+    comp15 = StudyArea(regime = outer15, cellsize = 1.5°, verbosity = :silent)
+    gotcomp = parent(materialise(outer15, comp15).matrix)
+    @test isequal(gotcomp, shared(gotcomp, sampledexpect(Mc, 1.5, 4, majority)))
+    # Where the grid is far coarser than the codes the two routes part: the direct route takes a
+    # majority of block majorities, the composition the plurality of the covering cells. Twelve 1°
+    # columns in three blocks of four - all class 1, then 9 of 16 class 1 in each block, then all
+    # class 2 - on 4.5° cells: the second cell draws three fine samples from the middle block and
+    # one from the last, so the direct route says 1 (three block majorities of 1 against one of 2)
+    # while the fractions say 2 (0.42 of class 1 against 0.58 of class 2).
+    wpath = joinpath(dir, "wide.tif")
+    ArchGDAL.create(wpath, driver = ArchGDAL.getdriver("GTiff"), width = 12,
+                    height = 12, nbands = 1, dtype = Float32) do ds
+        block = Float32[1 1 1 1; 1 1 1 2; 1 1 2 2; 2 2 2 2]
+        wide = hcat(ones(Float32, 12, 4), repeat(block, 3, 1),
+                    fill(2.0f0, 12, 4))
+        ArchGDAL.write!(ds, permutedims(wide), 1)
+        ArchGDAL.setgeotransform!(ds, [10.0, 1.0, 0.0, 62.0, 0.0, -1.0])
+        return ArchGDAL.setproj!(ds,
+                                 ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
+    end
+    direct = RasterFileSpec(wpath, axis = LandCoverTypology)
+    a45 = StudyArea(regime = direct, cellsize = 4.5°, verbosity = :silent)
+    @test occursin("pre-aggregated 4×", only(a45.report.layers).kind.reason)
+    @test parent(materialise(direct, a45).matrix) == [1 1; 1 1]
+    inner45 = ConstructedRasterSpec(EcoSISTEM.class_fractions, direct,
+                                    axis = EcoSISTEM.NicheAxis,
+                                    combinestage = CombineOnSourceGrid())
+    outer45 = ConstructedRasterSpec(EcoSISTEM.dominant_class, inner45,
+                                    axis = LandCoverTypology)
+    c45 = StudyArea(regime = outer45, cellsize = 4.5°, verbosity = :silent)
+    @test parent(materialise(outer45, c45).matrix) == [1 2; 1 2]
+
     # And a habitat builds on it - geographic, so it can be inspected but not simulated.
     h = GridHabitat(regime = spec,
                     supply = UniformSpec(1.0e5kJ / (m^2 * day),

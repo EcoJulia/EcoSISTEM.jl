@@ -283,4 +283,43 @@ end
     @test plot(cera, 2020year, 1° .. 4°, 5° .. 10°).n == 1
 end
 
+# A raster of class codes expands to one 0/1 band per class, labelled by code in ascending order,
+# with an absent cell absent in every band; the dominant class reads the code off the label, ties
+# to the smallest code, and is absent where no band has a value. The two are inverses on codes.
+@testset "class fractions and the dominant class" begin
+    codes = Float64[1 1 2 3; 1 2 2 3; 5 5 7 7; 5 7 7 NaN]
+    r = ClimateRaster(EcoSISTEM.SyntheticData,
+                      DimArray(codes, (Y(1:4), X(1:4))))
+    f = EcoSISTEM.class_fractions(r)
+    @test collect(DimensionalData.lookup(f.array, Dim{:layer})) ==
+          [1, 2, 3, 5, 7]
+    @test size(f.array) == (4, 4, 5)
+    @test f.array[1, 1, 1] == 1.0 && f.array[1, 1, 2] == 0.0
+    @test all(isnan, f.array[4, 4, :])
+    @test f isa ClimateRaster{EcoSISTEM.DerivedData{EcoSISTEM.SyntheticData}}
+    @test isnothing(f.code)
+    back = EcoSISTEM.dominant_class(f)
+    @test isequal(Array(back.array), codes)
+    # A fixed code list gives empty bands and the same round trip.
+    g = EcoSISTEM.class_fractions(r, codes = [7, 9, 1, 2, 3, 5])
+    @test collect(DimensionalData.lookup(g.array, Dim{:layer})) ==
+          [1, 2, 3, 5, 7, 9]
+    @test all(iszero, filter(!isnan, g.array[:, :, 6]))
+    @test isequal(Array(EcoSISTEM.dominant_class(g).array), codes)
+    # Ties go to the smallest code, absence is absence, and a band label is the code.
+    bands = cat([0.5 0.0; NaN 0.2], [0.5 1.0; NaN 0.2], dims = 3)
+    tie = ClimateRaster(EcoSISTEM.SyntheticData,
+                        DimArray(bands, (Y(1:2), X(1:2), Dim{:layer}([3, 9]))))
+    d = EcoSISTEM.dominant_class(tie)
+    @test d.array[1, 1] == 3 && d.array[1, 2] == 9 && d.array[2, 2] == 3
+    @test isnan(d.array[2, 1])
+    # Named bands fall back to the band's position, EarthEnv's convention.
+    named = ClimateRaster(EcoSISTEM.SyntheticData,
+                          DimArray(bands,
+                                   (Y(1:2), X(1:2), Dim{:layer}([:a, :b]))))
+    @test Array(EcoSISTEM.dominant_class(named).array)[1, 2] == 2
+    @test_throws ErrorException EcoSISTEM.dominant_class(r)
+    @test_throws ErrorException EcoSISTEM.class_fractions(f)
+end
+
 end

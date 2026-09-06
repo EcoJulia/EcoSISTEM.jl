@@ -169,7 +169,7 @@ export ERA, CERA, CRUTS
 
 public AbstractClimate
 
-public in_memory_raster
+public in_memory_raster, class_fractions, dominant_class
 
 export ClimateRaster
 

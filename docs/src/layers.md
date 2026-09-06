@@ -320,7 +320,12 @@ the grid and reduced from there, and a grid far coarser than its data is first a
 on the data's own lattice, at read time when the cell size is known before the read. A grid finer
 than the layer repeats each value across the cells it covers. Because the reduction is an average,
 a layer's values must be **intensive** - a rate, a density, a state, a fraction - and a count per
-cell should be divided by the cell's area before it is named as a layer.
+cell should be divided by the cell's area before it is named as a layer. Class codes on a grid much
+coarser than their data are the one case the two-stage reduction only approximates, since a
+majority of block majorities is not the majority of the covering cells; nesting
+[`class_fractions`](@ref EcoSISTEM.class_fractions) on the source grid inside
+[`dominant_class`](@ref EcoSISTEM.dominant_class) on the target regrids them by the plurality of
+the covering cells instead.
 
 **And `axis` is not optional in spirit, even though it has a default.** A raster carries values
 and possibly a layer code, but no niche axis - nothing about it says whether those numbers are a
