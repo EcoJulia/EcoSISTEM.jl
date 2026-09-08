@@ -58,9 +58,11 @@ if !Sys.iswindows()
         # than tidiness: a GitHub runner has 16 GB, and one of these files reading at native
         # resolution took the process to 7.0 GB and the runner to a shutdown signal. Measured peak
         # RSS for a fresh process, baseline 1.0 GB: CHELSA bioclim is a 43200×20880 global grid and
-        # allocates several ~7 GiB Float64 arrays whole; `EarthEnv{LandCover}` costs 2.2 GB over
-        # baseline at its default scale against 0.3 GB at 40, and is read twice in this file;
-        # `WorldClim{BioClim}` costs 1.5 GB against 0.3 GB at 4.
+        # allocates several ~7 GiB Float64 arrays whole; one `EarthEnv{LandCover}` band read at
+        # its own resolution costs 26 GB, and aggregating cold costs 8.5 GB for one band and
+        # 11.6 GB for all twelve whatever the scale, since the scale only decides what comes out.
+        # What makes these reads affordable on a runner is the aggregate cache `primecache.jl`
+        # fills: a primed read costs 0.3 GB. `WorldClim{BioClim}` costs 1.5 GB against 0.3 GB at 4.
         #
         # `scale` is safe for what these assert -- that the read emits no warning, and that what
         # comes back is unitless -- since neither is a property of the resolution. A test that does

@@ -119,14 +119,18 @@ end
 if !Sys.iswindows()
     @testset "windowing the reads does not change the answer" begin
         scot = EcoSISTEM.boundingbox("Scotland", coverage = AllTerritories())
-        for (src, code) in ((WorldClim{BioClim}, :bio1),   # scale 1
-            (EarthEnv{LandCover}, 7))      # scale 10 - aggregation blocks
+        # The land cover is read at `scale = 10`, said explicitly: the whole-globe reference below
+        # costs 27 GB resident at the file's own resolution against 8.5 GB cold at ten, and a
+        # runner primes the tenfold aggregate so it costs nothing there.
+        for (src, code, scale) in ((WorldClim{BioClim}, :bio1, 1),
+            (EarthEnv{LandCover}, 7, 10))      # aggregation blocks
             # An already-read raster cannot be windowed, so this is the unwindowed reference.
-            whole = EcoSISTEM._read(SourceSpec(src, code))
+            whole = EcoSISTEM._read(SourceSpec(src, code, scale = scale))
             ref = investigate_study_area(regime = ConstructedRasterSpec(() -> whole,
                                                                         axis = EcoSISTEM.NicheAxis),
                                          within = scot)
-            win = investigate_study_area(regime = SourceSpec(src, code),
+            win = investigate_study_area(regime = SourceSpec(src, code,
+                                                             scale = scale),
                                          within = scot)
             @test size(win.active) == size(ref.active)
             @test win.active == ref.active

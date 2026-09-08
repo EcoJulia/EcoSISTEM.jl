@@ -59,7 +59,13 @@ const WANTED = [
     #
     # Paying it here fixes it everywhere: each test job restores the memoised result and loads a
     # JLD2 instead. The scales MUST match the ones the tests ask for, or the key differs and the
-    # work is done again where it cannot be afforded -- `test_datasetread.jl` chooses them.
+    # work is done again where it cannot be afforded: `test_datasetread.jl` reads at 40 and
+    # `test_StudyArea.jl` and `test_datasetread.jl` at 10, single bands included, since a
+    # twelve-band read is cached one band at a time.
+    #
+    # The key also carries a hash of `src/datasetread.jl`, so every change to that file makes every
+    # cached aggregate stale. The workflow keys the runner's cache on the same file for that reason;
+    # without it a test job aggregates cold and is killed.
     #
     # A windowed read is deliberately absent: `_cachedlayer` bypasses the cache whenever a `cut` is
     # given and reads only the window, so there is nothing to prime.
@@ -72,6 +78,9 @@ const WANTED = [
     "EarthEnv LandCover, aggregated at scale 40" =>
         () -> read(EarthEnv{LandCover},
                    scale = 40),
+    "EarthEnv LandCover, aggregated at scale 10" =>
+        () -> read(EarthEnv{LandCover},
+                   scale = 10),
     "WorldClim BioClim, aggregated at scale 4" =>
         () -> read(WorldClim{BioClim},
                    scale = 4),
