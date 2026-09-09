@@ -269,6 +269,14 @@ function regenerate(; write::Bool = false, io = stdout)
                             "   (its real supertype is ", real, ")")
                     changes += 1
                     continue
+                elseif isnothing(real) && haskey(r.owned, child)
+                    # A declaration of ours whose supertype is `Any` has no parent to draw, so any
+                    # edge into it is wrong - including one whose stated parent is a foreign name
+                    # that still resolves, which the staleness test above cannot see.
+                    println(io, "  - ", strip(line),
+                            "   (its real supertype is Any)")
+                    changes += 1
+                    continue
                 end
                 push!(present, (parent, child))
             end

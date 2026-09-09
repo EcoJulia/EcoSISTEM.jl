@@ -62,8 +62,6 @@ function Base.show(io::IO, d::Demand)
                  "Demand{$(nameof(axisof(d)))}($(length(d.resource)) species, $(unit(eltype(d))))")
 end
 
-# == Functions ==================================================================================
-
 # A bare-number vector is refused here rather than by the inner constructor's signature. Left to
 # dispatch it gives a `MethodError` naming `Vector{Float64}` - true, but saying nothing about what is
 # wrong. Routing it through the same check a united vector takes gets it the same sentence, naming
@@ -77,6 +75,8 @@ function Demand{A}(resource::AbstractVector{<:Real}) where {A <:
     _resourceunit(eltype(resource), A, "demand")
     return error("a demand on axis $A cannot be built from bare numbers.")   # unreachable
 end
+
+# == Functions ==================================================================================
 
 # How many resources a demand asks for - the width of the `totaldemand` cache, one column per resource.
 # A single demand asks for one; a collection asks for one per member (a `SpeciesRequirementCollection`

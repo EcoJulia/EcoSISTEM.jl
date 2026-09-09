@@ -15,7 +15,7 @@
 #     `_hassimilarity` defaults to `true` - so a missing delegation answers plausibly and wrongly. A
 #     test sweeps `Diversity.API` rather than listing the hooks, so a new one cannot be forgotten.
 #   * **A call graph cannot see any of this.** A hook's only other mention in the repo is the
-#     `import` line, so every one of them looks dead. Check `docs/overloads.md` before believing a
+#     `import` line, so every one of them looks dead. Run `data/src/overloads.jl` before believing a
 #     dead-code report.
 #
 # `EcoSISTEMMPIExt` and `EcoSISTEMPhyloExt` carry six more, which cannot live here: an extension is

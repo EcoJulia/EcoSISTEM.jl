@@ -150,7 +150,7 @@ end
 """
     build_species(numspecies::Integer; tolerance, toleranceaxis, demand, demandaxis, dispersal = 10.0km,
         pthresh = 1.0e-9, movement = BirthOnlyMovement, disperse_safely = true, birth = 0.6/year,
-        death = 0.6/year, longevity = 1.0, survival = 0.2, boost = 1.0,
+        death = 0.6/year, longevity = 1.0, survival = 0.2,
         abundance = 1000 * numspecies, native = true, seed = nothing)
 
 Build a `SpeciesList` of `numspecies` species. `tolerance` (the environmental **Condition** a
@@ -191,8 +191,9 @@ mismatch):
     between species - a wind-dispersed seed blown out to sea is gone, an animal-dispersed one is
     not. The **grid's** topology (whether the world wraps) is a different question, answered by
     `GridHabitat(..., topology = ...)`.
-  - `birth`, `death`, `longevity`, `survival`, `boost` - demographic rates
-    (scalar rates give an [`EqualPop`](@ref), vectors a [`PopGrowth`](@ref)).
+  - `birth`, `death`, `longevity`, `survival` - demographic rates
+    (scalar rates give an [`EqualPop`](@ref), vectors a [`PopGrowth`](@ref)). `boost` is
+    deprecated and ignored: the birth multiplier is capped at 1.
 
 `abundance` is either a total number of individuals split at random across
 species (seedable via `seed`) or an explicit per-species vector. `native` marks
@@ -214,7 +215,7 @@ function build_species(numspecies::Integer;
                        death = 0.6 / year,
                        longevity::Real = 1.0,
                        survival::Real = 0.2,
-                       boost::Real = 1.0,
+                       boost = nothing,
                        abundance = 1000 * numspecies,
                        native = true,
                        seed = nothing)
@@ -272,7 +273,8 @@ function build_species(numspecies::Integer;
     else
         _demand(demandaxis, _tofield(demand, n, "demand"))
     end
-    param = _params(birth, death, longevity, survival, boost, n)
+    _deprecatedboost(boost, :build_species)
+    param = _params(birth, death, longevity, survival, n)
     nat = _tofield(native, n, "native")
     abun = _abundances(abundance, n, seed)
 

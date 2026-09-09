@@ -41,8 +41,8 @@ of everything present are summed, and that total is set against what the cell su
 In each cell the model holds two numbers: `K`, what the cell supplies, and `E`, the **total**
 demand summed over every species present. Births and deaths are then scaled by their ratio:
 
-  - births rise when resource is plentiful, by `min(K / E, boost)` - the `boost` ceiling stops an
-    empty cell producing an unbounded birth rate;
+  - births rise when resource is plentiful, by `min(K / E, 1)` - capped so that a species never
+    reproduces faster than its baseline rate, however empty the cell;
   - deaths rise as demand approaches supply, by `E / K`.
 
 **There is no carrying-capacity parameter anywhere in the package.** A cell fills until births and
@@ -76,7 +76,7 @@ the 0.15 that both should give.
 Two parameters weight those rates, and this is the part most worth knowing:
 
 ```julia
-birth ∝ demand^-longevity  *  suitability^-survival  *  min(K/E, boost)
+birth ∝ demand^-longevity  *  suitability^-survival  *  min(K/E, 1)
 death ∝ demand^-longevity  *  suitability^+survival  *  (E/K)
 ```
 

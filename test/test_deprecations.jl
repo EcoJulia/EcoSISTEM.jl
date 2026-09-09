@@ -114,10 +114,10 @@ include("TestCases.jl")
             # positional extent (in `°`) -> the keyword `cut = Extent(...)` form
             bio1 = getraster(WorldClim{BioClim}, :bio1)
             @test_deprecated readfile(bio1, -10°, 10°, -10°, 10°)
-            @test isequal(readfile(bio1, -10°, 10°, -10°, 10°),
+            @test isequal(readfile(bio1, -10°, 10°, -10°, 10°).array,
                           readfile(bio1,
                                    cut = Extent(Y = (-10°, 10°),
-                                                X = (-10°, 10°))))
+                                                X = (-10°, 10°))).array)
 
             # readworldclim -> the same `ClimateRaster` the `read`/`_readsource` path builds
             wind = getraster(WorldClim{Climate}, :wind, month = 1:12)
@@ -615,6 +615,25 @@ end
     @test old_err isa ErrorException
     @test occursin("extract_values", old_err.msg)
     @test occursin("year", old_err.msg)      # names what replaced each old argument
+end
+
+@testset "demographics: boost is gone, the birth cap is 1" begin
+    birth = fill(0.6 / year, 3)
+    death = fill(0.6 / year, 3)
+    U = typeof(unit(first(birth)))
+    # Each five-argument form warns and gives the four-field value.
+    @test_deprecated EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2, 1.0)
+    @test_deprecated PopGrowth{U}(birth, death, 1.0, 0.2, 100.0)
+    @test_deprecated NoGrowth{U}(birth, death, 1.0, 0.2, 1.0)
+    @test EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2, 1.0) ==
+          EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
+    @test fieldnames(EqualPop) == (:birth, :death, :longevity, :survival)
+    @test fieldnames(PopGrowth) == fieldnames(EqualPop)
+    @test fieldnames(NoGrowth) == fieldnames(EqualPop)
+    # The keyword warns too, and the default does not.
+    @test_deprecated build_species(DefaultEcosystem(), boost = 10.0,
+                                   verbosity = :silent)
+    @test_nowarn build_species(DefaultEcosystem(), verbosity = :silent)
 end
 
 end

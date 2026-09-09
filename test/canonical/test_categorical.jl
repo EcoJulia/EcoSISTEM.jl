@@ -92,7 +92,7 @@ function categorical_ecosystem(penalty)
     # as `suitability^±survival`, and `x^0.0 == 1.0` for every `x` including `Inf` - so at
     # `survival = 0` the penalty is ignored entirely and the soft and hard runs would be identical.
     # Asserted below rather than merely commented.
-    param = EqualPop(0.15 / year, 0.15 / year, 1.0, 0.1, 1.0)
+    param = EqualPop(0.15 / year, 0.15 / year, 1.0, 0.1)
 
     rng = Random.Xoshiro(SEED)
     abun = rand(rng, Multinomial(70_000, NSPECIES))

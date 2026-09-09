@@ -42,19 +42,31 @@ jobs:
           - windows-latest
       fail-fast: false
     steps:
+    # Checked out before the probe, because the key hashes a source file - see the test job's
+    # restore step for why that one file is in the key.
+    - name: Checkout code
+      uses: actions/checkout@v7
     # `lookup-only` asks whether the key exists WITHOUT downloading the ~1 GB behind it, and every
-    # step below is skipped when it does. So once a cache exists this whole job is a checkout-free
-    # metadata query taking seconds, and only a cold cache pays for Julia, the build and the fetch.
+    # step below is skipped when it does. So once a cache exists this whole job is a metadata query
+    # taking seconds, and only a cold cache pays for Julia, the build and the fetch.
     - name: Is the raster cache already there?
       id: probe
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v2
+        key: rasterdata-${{ runner.os }}-v2-${{ hashFiles('src/datasetread.jl') }}
         lookup-only: true
-    - name: Checkout code
+    # A miss is usually the aggregation code having changed, which stales the cached aggregates
+    # but not the ~850 MB of downloads. An older entry supplies the downloads, so only the
+    # aggregates are recomputed; a wholly cold runner gets nothing here and fetches everything.
+    - name: Restore the downloads from an older entry
       if: steps.probe.outputs.cache-hit != 'true'
-      uses: actions/checkout@v7
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.julia/scratchspaces
+        key: rasterdata-${{ runner.os }}-v2-${{ hashFiles('src/datasetread.jl') }}
+        restore-keys: |
+          rasterdata-${{ runner.os }}-
     - name: Set up julia
       if: steps.probe.outputs.cache-hit != 'true'
       uses: julia-actions/setup-julia@v3
@@ -85,7 +97,7 @@ jobs:
       uses: actions/cache/save@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v2
+        key: rasterdata-${{ runner.os }}-v2-${{ hashFiles('src/datasetread.jl') }}
 
   EcoSISTEM-tests:
     name: Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -152,23 +164,31 @@ jobs:
       # never populate the cache it needed. `prime-raster-cache`'s explicit save carries
       # `if: always()` for exactly that reason.
       #
-      # THE KEY IS DELIBERATELY STATIC, and versioned by hand. Content-hashing the files that
-      # trigger downloads was the previous approach and had two faults: it named
+      # THE KEY IS STATIC BUT FOR ONE FILE, and versioned by hand. Content-hashing the files that
+      # trigger downloads was an earlier approach and had two faults: it named
       # `test/test_ReadData.jl` and `test/test_AbioticEnv.jl`, both of which were renamed out of
       # existence (`hashFiles` contributes nothing for a path that does not exist, so the key silently
       # stopped tracking anything), and nineteen test files can now trigger a download, so any edit to
       # any of them would mint a fresh ~1.3 GB cache entry per matrix job and evict the far more
       # valuable depot caches under the repository's 10 GB ceiling.
       #
+      # The one file in the key is `src/datasetread.jl`, because the aggregate cache it fills is
+      # keyed on a hash of that file's text: any edit there makes every cached aggregate stale, and a
+      # test job then aggregates cold - 11.6 GB resident for the twelve land-cover bands, which is
+      # what killed the Linux jobs two minutes into the suite. Keying on the same file makes the
+      # prime job recompute the aggregates whenever they can no longer be served. That file changes
+      # rarely, and it cannot be renamed away unnoticed: `test/primecache.jl` says so beside the
+      # reads it primes.
+      #
       # A restored cache can never be wrong, only incomplete: `getraster`/`download` each test the
       # target file's own existence before fetching, so a partial restore costs a few per-file
-      # downloads rather than giving incorrect data. That is what makes a static key safe - and it is
-      # also the repair route if a save ever lands incomplete. BUMP THE `-v1` SUFFIX to mint a new
-      # entry; there is no need to work out which file changed.
+      # downloads rather than giving incorrect data. That is what makes the static part safe - and
+      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v2` SUFFIX to mint
+      # a new entry; there is no need to work out which file changed.
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v2
+        key: rasterdata-${{ runner.os }}-v2-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Build package

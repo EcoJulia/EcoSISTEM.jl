@@ -58,9 +58,11 @@ if !Sys.iswindows()
         # than tidiness: a GitHub runner has 16 GB, and one of these files reading at native
         # resolution took the process to 7.0 GB and the runner to a shutdown signal. Measured peak
         # RSS for a fresh process, baseline 1.0 GB: CHELSA bioclim is a 43200×20880 global grid and
-        # allocates several ~7 GiB Float64 arrays whole; `EarthEnv{LandCover}` costs 2.2 GB over
-        # baseline at its default scale against 0.3 GB at 40, and is read twice in this file;
-        # `WorldClim{BioClim}` costs 1.5 GB against 0.3 GB at 4.
+        # allocates several ~7 GiB Float64 arrays whole; one `EarthEnv{LandCover}` band read at
+        # its own resolution costs 26 GB, and aggregating cold costs 8.5 GB for one band and
+        # 11.6 GB for all twelve whatever the scale, since the scale only decides what comes out.
+        # What makes these reads affordable on a runner is the aggregate cache `primecache.jl`
+        # fills: a primed read costs 0.3 GB. `WorldClim{BioClim}` costs 1.5 GB against 0.3 GB at 4.
         #
         # `scale` is safe for what these assert -- that the read emits no warning, and that what
         # comes back is unitless -- since neither is a property of the resolution. A test that does
@@ -76,7 +78,8 @@ if !Sys.iswindows()
         cr = read(CRUTS, winddir, "tavg")
         rf = readfile(bio1)
 
-        @test unit(bioclim.array[1]) == unit(rf[1]) == NoUnits
+        @test unit(bioclim.array[1]) == unit(rf.array[1]) == NoUnits
+        @test rf isa EcoSISTEM.ClimateRaster{EcoSISTEM.SyntheticData}
         if bigrasters()
             ch_b = read(CHELSA{BioClim}, 1, scale = 20)
             @test unit(ch_b.array[1]) == NoUnits
@@ -155,20 +158,20 @@ if !Sys.iswindows()
     # no bounds, so anything needing them fails: `_applycut`'s `Touches` selector compares
     # `nothing < 60.86°` and throws a bare `MethodError`, which breaks
     # `read(EarthEnv{LandCover}, ..., cut = ...)` outright and forces a whole-globe read and a crop.
-    # EarthEnv is the only shipped source with `_defaultscale` > 1, which is what made it look
-    # source-specific rather than a general consequence of aggregating. Guarded because it needs the
+    # A coarsened EarthEnv read is what surfaced it, which made it look source-specific rather
+    # than a general consequence of aggregating. Guarded because it needs the
     # real file: the vector-lookup condition that triggers it cannot be reproduced synthetically.
     @testset "a coarsened read can be cut (Regular span with real bounds)" begin
         L = DimensionalData.Lookups
         scotland = EcoSISTEM.boundingbox("Scotland",
                                          coverage = AllTerritories())
-        whole = read(EarthEnv{LandCover}, 7)
+        whole = read(EarthEnv{LandCover}, 7, scale = 10)
         for d in (Y, X)
             @test L.span(dims(whole.array, d)) isa L.Regular
             @test all(!isnothing, L.bounds(dims(whole.array, d)))
         end
         # The end the fix exists for - this threw a MethodError before it.
-        cut = read(EarthEnv{LandCover}, 7, cut = scotland)
+        cut = read(EarthEnv{LandCover}, 7, scale = 10, cut = scotland)
         @test size(cut.array, 1) < size(whole.array, 1)
         @test size(cut.array, 2) < size(whole.array, 2)
         # ...and it is a *window*, not a token crop: Scotland is a tiny share of a global layer.
@@ -190,7 +193,7 @@ if !Sys.iswindows()
     @testset "a read grid lands exactly on its source's stated extent" begin
         sources = Any[(read(WorldClim{BioClim}, :bio1), (-180°, 180°),
                        (-90°, 90°)),
-                      (read(EarthEnv{LandCover}, 7), (-180°, 180°),
+                      (read(EarthEnv{LandCover}, 7, scale = 10), (-180°, 180°),
                        (-56°, 90°))]
         bigrasters() && push!(sources,
               (read(CHELSA{BioClim}, 1, scale = 20),
@@ -212,15 +215,15 @@ if !Sys.iswindows()
     #
     # The aggregated case is the dangerous one. `Rasters.aggregate` blocks from index 1, so a crop
     # that does not start on a block boundary moves every coarse cell - read-extent variance
-    # reintroduced exactly where it was just removed. EarthEnv (`_defaultscale` 10) is the only
-    # shipped source that exercises it.
+    # reintroduced exactly where it was just removed. EarthEnv read at scale 10 exercises it.
     @testset "a windowed read equals the whole read cropped" begin
         CP = EcoSISTEM
         scot = CP.boundingbox("Scotland", coverage = AllTerritories())
-        for (src, code) in ((WorldClim{BioClim}, :bio1),   # scale 1
-            (EarthEnv{LandCover}, 7))      # scale 10 - block alignment
-            whole = EcoSISTEM._read(SourceSpec(src, code))
-            windowed = EcoSISTEM._read(SourceSpec(src, code, cut = scot))
+        for (src, code, scale) in ((WorldClim{BioClim}, :bio1, 1),
+            (EarthEnv{LandCover}, 7, 10))      # block alignment
+            whole = EcoSISTEM._read(SourceSpec(src, code, scale = scale))
+            windowed = EcoSISTEM._read(SourceSpec(src, code, scale = scale,
+                                                  cut = scot))
             cropped = EcoSISTEM._applycut(whole.array, scot)
             @test size(windowed.array) == size(cropped)
             # Coordinates agree to within float noise; aggregating a cropped raster differs from
@@ -334,6 +337,42 @@ end
 # its own 30 arcsec lattice gives exactly 84° - CHELSA's stated northern limit. Testing against the
 # arcsecond lattice is what makes these origins look irretrievably ambiguous. Synthetic, so it runs
 # on every platform.
+# The reducer a coarsening read applies is decided from the axis unless given, and the majority
+# reducer must be reproducible: ties go to the smallest code, and missing or NaN cells do not vote.
+@testset "aggregation reducer follows the axis" begin
+    @test EcoSISTEM._reducer(nothing, Temperature) === EcoSISTEM._meanpresent
+    @test EcoSISTEM._reducer(nothing, EcoSISTEM.NicheAxis) ===
+          EcoSISTEM._meanpresent
+    @test EcoSISTEM._reducer(nothing, LandCoverTypology) ===
+          EcoSISTEM._majorityclass
+    @test EcoSISTEM._reducer(nothing, ClimateTypology) ===
+          EcoSISTEM._majorityclass
+    @test EcoSISTEM._reducer(maximum, LandCoverTypology) === maximum
+    maj = EcoSISTEM._majorityclass
+    @test maj([1, 1, 2]) == 1
+    @test maj([2, 3, 2, 3]) == 2                       # a tie goes to the smallest code
+    @test maj([7.0, NaN, NaN, 7.0, 9.0]) == 7.0        # NaN does not vote
+    @test maj([missing, 4, missing]) == 4              # nor does missing, however many
+    @test ismissing(maj([missing, missing]))           # nothing present: absent
+    @test ismissing(maj(Union{Missing, Float64}[NaN]))
+    # The mean is over the cells present, and absent only where none is.
+    mp = EcoSISTEM._meanpresent
+    @test mp([1.0, 2.0, 3.0, 4.0]) == 2.5
+    @test mp([1.0, NaN, 3.0, 5.0]) == 3.0
+    @test mp([1.0, NaN, NaN, 5.0]) == 3.0
+    @test isnan(mp([NaN, NaN]))
+    @test mp(Union{Missing, Float64}[1.0, missing, missing]) == 1.0
+    @test mp([1.0K, 3.0K, NaN * K]) == 2.0K            # units survive, NaN is absent
+    # No source pins a reducer; the axis decides.
+    @test isnothing(EcoSISTEM._defaultfn(WorldClim{BioClim}))
+    # The axis a dataset read chooses by comes from the catalogue, `NicheAxis` where it cannot.
+    @test EcoSISTEM._readaxis(WorldClim{BioClim}, :bio1) === Temperature
+    @test EcoSISTEM._readaxis(WorldClim{BioClim}, [:bio1, :bio12]) ===
+          EcoSISTEM.NicheAxis
+    @test EcoSISTEM._readaxis(WorldClim{BioClim}, :nosuchlayer) ===
+          EcoSISTEM.NicheAxis
+end
+
 @testset "origins snap to the cell lattice, not the arcsecond lattice" begin
     CP = EcoSISTEM
     arcsec(n) = (n / 3600)°
@@ -418,7 +457,12 @@ end
         return ArchGDAL.setgeotransform!(ds, [0.0, 1.0, 0.0, 4.0, 0.0, -1.0])
     end
     @test CP._isblankcrs(Rasters.crs(Rasters.Raster(path)))
-    a = readfile(path)
+    r = readfile(path)
+    @test r isa EcoSISTEM.ClimateRaster{EcoSISTEM.SyntheticData}
+    # A named source is recorded as given.
+    @test readfile(path, source = WorldClim{BioClim}) isa
+          EcoSISTEM.ClimateRaster{WorldClim{BioClim}}
+    a = r.array
     @test size(a) == (4, 4)
     @test unit(eltype(parent(DimensionalData.lookup(a, Y)))) == °
     @test isnothing(Rasters.crs(DimensionalData.dims(a, Y)))

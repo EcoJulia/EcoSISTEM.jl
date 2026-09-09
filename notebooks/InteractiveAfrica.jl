@@ -55,25 +55,20 @@ end
 # ╔═╡ 220e4af6-f228-4b8d-a77e-0ddbf5fc6705
 begin
     file = pkgdir(EcoSISTEM, "data", "Africa.tif")
-    africa = readfile(file)
 
     # The shipped Africa raster is a *landmask*: real values on land, `NaN` at sea. We hand it to
     # the study area as a layer so that its own gaps decide which cells are active - no hand-built
     # `.!isnan.(...)` matrix, and no chance of the mask and the grid disagreeing.
     #
-    # `in_memory_raster` is how a raster you already hold becomes a layer spec: a raster carries
-    # values but no niche axis, so nothing about it says what its numbers mean. Here they mean
-    # nothing in particular - the raster is a shape - so it stays `Unclassified`.
+    # `RasterFileSpec` names a raster file that belongs to no catalogued dataset, and reads it only
+    # when the study area is built. A file carries values but no niche axis, so nothing about it
+    # says what its numbers mean; here they mean nothing in particular - the raster is a shape - so
+    # the axis is `NicheAxis` itself, claiming nothing.
     #
     # It is a *geographic* (WGS 84) raster, and a simulation needs a projected grid: dispersal
     # assumes one uniform cell size, whereas a degree cell shrinks towards the poles. Giving a
     # projected `crs` reprojects it onto one.
-    # `readfile` hands back a plain array-with-coordinates; `ClimateRaster` is what pairs it with a
-    # statement of where it came from, and `SyntheticData` is the honest answer for a shipped
-    # landmask that belongs to no catalogued dataset.
-    africa_shape = EcoSISTEM.in_memory_raster(ClimateRaster(EcoSISTEM.SyntheticData,
-                                                            africa),
-                                              axis = EcoSISTEM.NicheAxis)
+    africa_shape = RasterFileSpec(file, axis = EcoSISTEM.NicheAxis)
     studyarea = StudyArea(regime = africa_shape,
                           crs = ProjString("+proj=aea +lat_1=20 +lat_2=-23 " *
                                            "+lat_0=0 +lon_0=25 +datum=WGS84 " *
@@ -83,10 +78,10 @@ begin
 
     # Set up initial parameters for ecosystem
     grd = size(active)
-    demand = 10.0kJ / day
+    demand = 10.0kJ / month_mean_duration
     individuals = 3 * 10^8
     area = 64e6km^2
-    totalK = 1000.0kJ / km^2 / day
+    totalK = 1000.0kJ / km^2 / month_mean_duration
 
     # Set up how much resource each species consumes
     resource_vec = Demand{SolarRadiation}(fill(demand, numSpecies))
@@ -96,9 +91,8 @@ begin
     death = 0.6 / year
     longevity = 1.0
     survival = 0.1
-    boost = 1.0
     # Collect model parameters together
-    param = EqualPop(birth, death, longevity, survival, boost)
+    param = EqualPop(birth, death, longevity, survival)
 
     # Create kernel for movement
     kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
@@ -190,7 +184,7 @@ begin
     albers_new = ProjString("+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 " *
                             "+lon_0=25 +datum=WGS84 +units=m +no_defs")
     regime_new = SourceSpec(WorldClim{BioClim}, 1)
-    totalK_new = 1000.0kJ / km^2 / day
+    totalK_new = 1000.0kJ / km^2 / month_mean_duration
     supply_new = UniformSpec(totalK_new, axis = SolarRadiation)
     studyarea_new = StudyArea(regime = regime_new,
                               within = EcoSISTEM.boundingbox("Africa",
@@ -202,7 +196,7 @@ begin
 
     # Set up initial parameters for ecosystem
     grd_new = size(studyarea_new.report.active)
-    req_new = 10.0kJ / day
+    req_new = 10.0kJ / month_mean_duration
     individuals_new = 3 * 10^8
 
     # Set up how much resource each species consumes
@@ -213,9 +207,8 @@ begin
     death_new = 0.6 / year
     longevity_new = 1.0
     survival_new = 0.1
-    boost_new = 1.0
     # Collect model parameters together
-    param_new = EqualPop(birth, death, longevity, survival, boost)
+    param_new = EqualPop(birth, death, longevity, survival)
 
     # Create kernel for movement
     kernel_new = fill(GaussianKernel(15.0km, 10e-10), numSpecies)

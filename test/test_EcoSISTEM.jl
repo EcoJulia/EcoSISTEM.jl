@@ -169,23 +169,13 @@ end
                (T <: DimensionalData.AbstractDimArray ||
                 (T isa Union && (isdim(T.a) || isdim(T.b))))
 
-    # **One carve-out, and it is a released API constraint rather than an oversight.** `readfile`
-    # returns a bare `DimArray` and has done since v0.4.0, when it was exported by
-    # `EcoSISTEM.ClimatePref`; the check only walks `EcoSISTEM` and `EcoSISTEM.Units`, so it never saw
-    # it. Dissolving that submodule moved `readfile` into the parent and exported it there, which is
-    # what surfaced this. Changing what it returns would break released code, so it is recorded here
-    # instead of hidden - a named exception, like the other lists in this file, so it has to be looked
-    # at rather than passing silently.
+    # **No carve-outs.** A named list rather than a count, like the other lists in this file, so a
+    # new leak has to be looked at rather than passing silently.
     #
-    # `hasdata` was a carve-out too until the combine contract was normalised: every combine now
-    # returns a `ClimateRaster`, a mask being one whose element type is `Bool`.
-    #
-    # VERSION-DEPENDENT, and measured: on Julia 1.11 inference does not surface `readfile`'s
-    # `DimArray` return through `Base.return_types`, so it is not detected and the list is empty.
-    # The named list is what makes that visible - it FAILED on 1.11 rather than passing quietly,
-    # which is the whole point of naming entries instead of counting them. What it also says is that
-    # this check catches strictly less on 1.11 than on 1.12: a real leak could go unreported there.
-    known_naked = VERSION >= v"1.12" ? [:readfile] : Symbol[]
+    # VERSION-DEPENDENT: on Julia 1.11 inference does not surface a `DimArray` return through
+    # `Base.return_types`, so the 1.11 run of this check catches strictly less than the 1.12 run, and
+    # a real leak could go unreported there.
+    known_naked = Symbol[]
     leaks = Symbol[]
     for n in names(EcoSISTEM, all = false)
         isdefined(EcoSISTEM, n) || continue

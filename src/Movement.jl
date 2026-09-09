@@ -5,6 +5,8 @@
 
 using Unitful
 
+using DataFrames: DataFrame, nrow
+
 """
     AbstractKernel
 
@@ -151,6 +153,16 @@ struct NoMovement{K <: AbstractKernel} <: AbstractMovement
     kernels::Vector{K}
 end
 
+# Accepts (and ignores) a `disperse_safely` vector, so `NoMovement` can be constructed the same way
+# as `BirthOnlyMovement`/`AlwaysMovement` when the movement type is chosen as a value and called
+# uniformly (`movement(kernels, disperse_safely)`). Nothing disperses, so nothing can be lost.
+function NoMovement(kernels::Vector{K},
+                    ::AbstractVector{Bool}) where {K <: AbstractKernel}
+    return NoMovement(kernels)
+end
+@doc (@doc NoMovement) NoMovement(::Vector{K} where {K <: AbstractKernel},
+                                  ::AbstractVector{Bool})
+
 """
     Lookup
 
@@ -175,7 +187,16 @@ struct Lookup
     pnew::Vector{Float64}
     moves::Vector{Int64}
 end
-# == Functions ==================================================================================
+
+# The only place `Lookup`'s fields are filled positionally, so the only place their `(y, x)` order
+# has to be got right by hand.
+function Lookup(df::DataFrame)
+    return Lookup(df[!, :Y],
+                  df[!, :X],
+                  df[!, :Prob],
+                  zeros(Float64, nrow(df)),
+                  zeros(Int64, nrow(df)))
+end
 
 # One line, because the default prints all five vectors - measured at 230 320 characters for a
 # single species' neighbourhood. What identifies a lookup is how far it reaches, not the numbers in
@@ -184,25 +205,29 @@ function Base.show(io::IO, l::Lookup)
     return print(io, "Lookup($(length(l.y)) destinations)")
 end
 
-# One flag per kernel, or the two vectors silently describe different species - `zip` would truncate
-# and the last species would take a neighbour's setting.
-function _checkdispersesafely(kernels, disperse_safely)
-    length(disperse_safely) == length(kernels) ||
-        error("`disperse_safely` has $(length(disperse_safely)) entries but there are " *
-              "$(length(kernels)) dispersal kernels: it is a per-species setting, so it needs one " *
-              "entry per species (or a single value applied to all).")
+# One line, because the default prints every kernel, tens of thousands of characters at a thousand
+# species. What identifies a movement is its kind, how many species it covers and how far they reach.
+# Written once on the supertype, since `getkernels` is the whole interface.
+function Base.show(io::IO, m::AbstractMovement)
+    kernels = getkernels(m)
+    return print(io, nameof(typeof(m)), "(", length(kernels), " species, ",
+                 isempty(kernels) ? "no kernels" :
+                 "$(nameof(eltype(kernels))) $(_rangephrase([k.dist for k in kernels]))",
+                 _unsafephrase(m), ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", m::AbstractMovement)
+    kernels = getkernels(m)
+    println(io, nameof(typeof(m)))
+    println(io, "  species          ", length(kernels))
+    println(io, "  kernel           ",
+            isempty(kernels) ? "none" : nameof(eltype(kernels)))
+    println(io, "  dispersal        ", _rangephrase([k.dist for k in kernels]))
+    print(io, "  disperse_safely  ", _safephrase(m))
     return nothing
 end
 
-# Accepts (and ignores) a `disperse_safely` vector, so `NoMovement` can be constructed the same way
-# as `BirthOnlyMovement`/`AlwaysMovement` when the movement type is chosen as a value and called
-# uniformly (`movement(kernels, disperse_safely)`). Nothing disperses, so nothing can be lost.
-function NoMovement(kernels::Vector{K},
-                    ::AbstractVector{Bool}) where {K <: AbstractKernel}
-    return NoMovement(kernels)
-end
-@doc (@doc NoMovement) NoMovement(::Vector{K} where {K <: AbstractKernel},
-                                  ::AbstractVector{Bool})
+# == Functions ==================================================================================
 
 """
     getkernels(m::AbstractMovement)
@@ -222,3 +247,42 @@ at a dead cell. `NoMovement` answers `true`, since nothing disperses and so noth
 dispersesafely(m::BirthOnlyMovement, sp::Integer) = m.disperse_safely[sp]
 dispersesafely(m::AlwaysMovement, sp::Integer) = m.disperse_safely[sp]
 dispersesafely(::NoMovement, ::Integer) = true
+
+# A vector's values as one phrase: the single value where all agree, else `lo to hi`. Quantities
+# and floats are rounded to three digits, so a 2.4 km kernel reads as `2.4 km`.
+function _rangephrase(v)
+    isempty(v) && return "none"
+    lo, hi = extrema(v)
+    lo == hi && return _roundphrase(lo)
+    return _roundphrase(lo) * " to " * _roundphrase(hi)
+end
+function _roundphrase(x::Unitful.Quantity)
+    return string(round(typeof(1.0 * unit(x)), x, digits = 3))
+end
+_roundphrase(x::Real) = string(round(x, digits = 3))
+
+# How many species disperse unsafely, for the compact form: nothing when none do. `NoMovement`
+# carries no flags, so it has nothing to say.
+_unsafephrase(::NoMovement) = ""
+function _unsafephrase(m::AbstractMovement)
+    n = count(!, m.disperse_safely)
+    return n == 0 ? "" : ", $n not disperse_safely"
+end
+
+# The `disperse_safely` line of the display form.
+_safephrase(::NoMovement) = "not applicable, nothing disperses"
+function _safephrase(m::AbstractMovement)
+    n = count(m.disperse_safely)
+    return n == length(m.disperse_safely) ? "all" :
+           "$n of $(length(m.disperse_safely)) species"
+end
+
+# One flag per kernel, or the two vectors silently describe different species - `zip` would truncate
+# and the last species would take a neighbour's setting.
+function _checkdispersesafely(kernels, disperse_safely)
+    length(disperse_safely) == length(kernels) ||
+        error("`disperse_safely` has $(length(disperse_safely)) entries but there are " *
+              "$(length(kernels)) dispersal kernels: it is a per-species setting, so it needs one " *
+              "entry per species (or a single value applied to all).")
+    return nothing
+end

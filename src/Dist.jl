@@ -61,8 +61,6 @@ struct Trapezoid{T <: Real} <: ContinuousUnivariateDistribution
     end
 end
 
-# == Functions ==================================================================================
-
 # Convenience constructors: `promote` mixed `Real` arguments to a common numeric type, and widen
 # all-`Integer` arguments to `Float64`, before the checked inner constructor.
 function Trapezoid(a::Real, b::Real, c::Real, d::Real; check_args::Bool = true)
@@ -92,6 +90,8 @@ const ROLE_ACCESSORS = (LocationRole() => location, ScaleRole() => scale,
 Base.minimum(d::Trapezoid) = d.a
 
 Base.maximum(d::Trapezoid) = d.d
+
+# == Functions ==================================================================================
 
 """
     read_distribution(D, us, bare; canonical = absoluteunit(us), offset = nothing,

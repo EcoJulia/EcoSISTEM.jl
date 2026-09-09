@@ -114,8 +114,6 @@ function Base.show(io::IO, ::MIME"text/plain", sl::SpeciesList)
     return nothing
 end
 
-# == Functions ==================================================================================
-
 # Outer rather than inner, and that is the point: a constructor belongs inside a `struct` only to
 # reach `new`, and this one derives the default names and delegates. Leaving it inside would imply a
 # second route to `new` when there is only one.
@@ -253,6 +251,8 @@ function SpeciesList(numspecies::Int64,
                                        params,
                                        native)
 end
+
+# == Functions ==================================================================================
 
 # The species-side half of the four-way accessor family; the docstring covering both methods lives
 # with the family in `Ecosystem.jl`. This returns the **demand** itself. The total resource usage is

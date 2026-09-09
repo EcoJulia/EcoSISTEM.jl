@@ -15,6 +15,7 @@ only the required inputs you do not care about while passing the rest explicitly
 struct DefaultEcosystem end
 
 # == Functions ==================================================================================
+
 #
 # Filling in what a caller did not name. Every method dispatches on `DefaultEcosystem` or on the
 # `GridHabitat` a rebuild takes its values from: the builders in `actions.jl` state the workflow, and

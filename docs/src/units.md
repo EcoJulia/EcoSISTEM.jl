@@ -327,9 +327,9 @@ To declare an axis that measures something new, give it a unit - and say which r
 
 ### Axes whose values are class labels
 
-`categorical = true` says an axis holds **class codes** rather than measurements, so a layer on it is
-resampled by nearest class instead of being interpolated - averaging two land-cover codes gives a
-third code that means something else entirely.
+`categorical = true` says an axis holds **class codes** rather than measurements, so a layer on it
+reaches a grid by the most frequent class among the cells covering each grid cell, never by their
+mean - averaging two land-cover codes gives a third code that means something else entirely.
 
 ```@example units
 (EcoSISTEM.iscategorical(LandCoverTypology), EcoSISTEM.iscategorical(Temperature))
@@ -341,7 +341,7 @@ default is `false`, so an axis that says nothing anywhere up its chain of parent
 
 `categorical` is independent of the roles above, and in particular **combines with `reference`**: a
 land-cover layer carried purely as ground truth is still put on a grid, and still must not be
-interpolated between its classes. This is where it differs from `bounds` - a bound is *stated in* a
+averaged between its classes. This is where it differs from `bounds` - a bound is *stated in* a
 unit, so an axis that declares none has nothing to state one in, whereas how values may be combined
 matters whether or not a species responds to them.
 

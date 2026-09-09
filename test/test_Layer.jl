@@ -54,12 +54,13 @@ using DimensionalData: DimArray, X, Y, Ti
     # `coordinates` gives real coordinates, never the *indices* verbatim.
     @test EcoBase.coordinates(gridof) != EcoBase.indices(gridof)
     @test EcoBase.coordinates(gridof)[1, :] == [0.0km, 0.0km]
-    # And column 1 is **x**, which is EcoBase's order and the opposite of this package's - so the
-    # x index is the one that repeats in blocks, since the package's cell order runs y fastest.
+    # Column 1 is **y**, the order the grid declares and the package's own, so the y index is the
+    # one that runs fastest, and the x index repeats in blocks.
+    @test EcoBase.coordinateorder(gridof) == EcoBase.YThenX()
     @test EcoBase.indices(gridof, 1) ==
-          repeat(collect(1:grid[2]), inner = grid[1])
-    @test EcoBase.indices(gridof, 2) ==
           repeat(collect(1:grid[1]), outer = grid[2])
+    @test EcoBase.indices(gridof, 2) ==
+          repeat(collect(1:grid[2]), inner = grid[1])
 
     # A temperature gradient that warms: `GradientSpec` is the shape, `Varying(..., IncrementBy)`
     # the rate - the two stated separately rather than bundled into one builder's argument list.

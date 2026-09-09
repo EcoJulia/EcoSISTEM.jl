@@ -483,4 +483,16 @@ end
     end
 end
 
+# A measurement must agree in type and unit exactly; class codes are compared by value, so an
+# integer class list pairs with a layer of float codes and only a categorical pair is let through.
+@testset "paired types agree exactly, except numeric class codes" begin
+    @test EcoSISTEM._typesagree(Float64, Float64, false)
+    @test !EcoSISTEM._typesagree(Int64, Float64, false)
+    @test EcoSISTEM._typesagree(Int64, Float64, true)
+    @test !EcoSISTEM._typesagree(Int64, String, true)
+    @test !EcoSISTEM._categoricalpair(nothing, (false,), 1)
+    @test !EcoSISTEM._categoricalpair((true,), (false,), 1)
+    @test EcoSISTEM._categoricalpair((false,), (false,), 1)
+end
+
 end

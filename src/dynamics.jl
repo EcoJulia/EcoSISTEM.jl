@@ -17,117 +17,7 @@ using LinearAlgebra
 
 using Random
 
-"""
-    update!(eco::AbstractEcosystem, timestep::Unitful.Time)
-
-Update an ecosystem's abundances and environment for one timestep, with no intervention scheduled.
-
-`eco` is the ecosystem to advance and `timestep` how far to advance it. Equivalent to
-`update!(eco, timestep, nothing)`: the three-argument method is where the work happens, and each
-concrete ecosystem supplies its own, so this one covers every kind - serial, distributed, and any
-later addition.
-"""
-function update!(eco::AbstractEcosystem, timestep::Unitful.Time)
-    return update!(eco, timestep, nothing)
-end
-
-"""
-    update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
-
-Update an ecosystem for one timestep, applying any scheduled [`Intervention`](@ref).
-
-**The ordering is the point.** Interventions run *after* the population dynamics and *before* the
-layer update, with the clock advanced between - so a [`SetChange`](@ref) installed this step takes
-effect **this** step rather than one step late.
-"""
-function update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
-
-    # Calculate dimenions of regime and number of species
-    numsc = countsubcommunities(eco.habitat.regime)
-    numsp = size(eco.abundances.grid, 1)
-    params = eco.spplist.params
-    height = getgridshape(eco)[1]
-
-    # Set the overall resource supply of that square
-    update_resource_usage!(eco)
-
-    # Loop through species in cache-line-sized contiguous blocks (see
-    # `species_blocksize`): each thread owns whole blocks, and the cell loop sits
-    # outside the inner species loop so a block's species - adjacent rows of the
-    # column-major (species, cells) matrix - are touched as one cache line. The
-    # active/resource gate is per-cell, so it lifts outside the species loop. Each
-    # species is still drawn only by its owning thread, in ascending-cell order,
-    # so per-species RNG streams stay race-free and reproducible.
-    block = species_blocksize()
-    nblocks = cld(numsp, block)
-    # :greedy hands the cache-line-sized species blocks to cores as they free up
-    # (dynamic load balancing); blocks are independent so results are unchanged.
-    Threads.@threads :greedy for b in 1:nblocks
-        spstart = (b - 1) * block + 1
-        spend = min(b * block, numsp)
-        # Loop through grid squares
-        for sc in 1:numsc
-            # Convert 1D dimension to 2D coordinates
-            (y, x) = convert_coords(eco, sc, height)
-            # Check if grid cell currently active
-            (eco.habitat.active[y, x] && (eco.cache.totaldemand[sc, 1] > 0)) ||
-                continue
-            for sp in spstart:spend
-                rng = getrng(eco, sp)
-                # Calculate how much birth and death should be adjusted
-                adjusted_birth, adjusted_death = resource_adjustment(eco,
-                                                                     eco.habitat.supply,
-                                                                     sc, sp)
-
-                # Both are per-individual rates over the timestep. Only the death one becomes
-                # a probability: deaths are drawn per individual (Binomial), while births are a
-                # count (Poisson) whose mean is the rate itself. `NoUnits` is needed on the birth
-                # rate because it reaches `Poisson` as a bare number; the death rate is made
-                # dimensionless by `exp`.
-                birthrate = params.birth[sp] * timestep * adjusted_birth |>
-                            NoUnits
-                deathrate = params.death[sp] * timestep * adjusted_death
-
-                deathprob = 1.0 - exp(-deathrate)
-
-                (birthrate >= 0) & (deathprob >= 0) ||
-                    error("Birth: $birthrate \n Death: $deathprob \n \n sc: $sc \n sp: $sp")
-                # Calculate how many births and deaths
-                births = rand(rng,
-                              Poisson(eco.abundances.matrix[sp, sc] * birthrate))
-                deaths = rand(rng,
-                              Binomial(eco.abundances.matrix[sp, sc],
-                                       deathprob))
-
-                # Update population
-                eco.abundances.matrix[sp, sc] += (births - deaths)
-
-                # Calculate moves and write to cache
-                move!(eco, eco.spplist.movement, sc, sp, eco.cache.netmigration,
-                      births)
-            end
-        end
-    end
-
-    # Update abundances with all movements
-    eco.abundances.matrix .+= eco.cache.netmigration
-
-    # Invalidate all caches for next update
-    invalidatecaches!(eco)
-
-    # Advance the simulation clock before the layers change, so a layer sees the time it is
-    # changing *to*.
-    _advanceclock!(eco, timestep)
-
-    # Interventions land here - after the dynamics, after the clock, before the layers - so a
-    # `SetChange` installed now is applied by the very next line rather than a step later.
-    applyinterventions!(eco, intervention, simulationtime(eco), timestep,
-                        _stepnumber(eco, timestep))
-
-    # Update environment - regime and resource supplies
-    regimeupdate!(eco, timestep)
-    return supplyupdate!(eco, timestep)
-end
+# == Functions ==================================================================================
 
 """
     populate!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
@@ -301,6 +191,118 @@ function emptypopulate!(ml::GridLandscape,
     @warn "Ecosystem not populated!"
 end
 
+"""
+    update!(eco::AbstractEcosystem, timestep::Unitful.Time)
+
+Update an ecosystem's abundances and environment for one timestep, with no intervention scheduled.
+
+`eco` is the ecosystem to advance and `timestep` how far to advance it. Equivalent to
+`update!(eco, timestep, nothing)`: the three-argument method is where the work happens, and each
+concrete ecosystem supplies its own, so this one covers every kind - serial, distributed, and any
+later addition.
+"""
+function update!(eco::AbstractEcosystem, timestep::Unitful.Time)
+    return update!(eco, timestep, nothing)
+end
+
+"""
+    update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
+
+Update an ecosystem for one timestep, applying any scheduled [`Intervention`](@ref).
+
+**The ordering is the point.** Interventions run *after* the population dynamics and *before* the
+layer update, with the clock advanced between - so a [`SetChange`](@ref) installed this step takes
+effect **this** step rather than one step late.
+"""
+function update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
+
+    # Calculate dimenions of regime and number of species
+    numsc = countsubcommunities(eco.habitat.regime)
+    numsp = size(eco.abundances.grid, 1)
+    params = eco.spplist.params
+    height = getgridshape(eco)[1]
+
+    # Set the overall resource supply of that square
+    update_resource_usage!(eco)
+
+    # Loop through species in cache-line-sized contiguous blocks (see
+    # `species_blocksize`): each thread owns whole blocks, and the cell loop sits
+    # outside the inner species loop so a block's species - adjacent rows of the
+    # column-major (species, cells) matrix - are touched as one cache line. The
+    # active/resource gate is per-cell, so it lifts outside the species loop. Each
+    # species is still drawn only by its owning thread, in ascending-cell order,
+    # so per-species RNG streams stay race-free and reproducible.
+    block = species_blocksize()
+    nblocks = cld(numsp, block)
+    # :greedy hands the cache-line-sized species blocks to cores as they free up
+    # (dynamic load balancing); blocks are independent so results are unchanged.
+    Threads.@threads :greedy for b in 1:nblocks
+        spstart = (b - 1) * block + 1
+        spend = min(b * block, numsp)
+        # Loop through grid squares
+        for sc in 1:numsc
+            # Convert 1D dimension to 2D coordinates
+            (y, x) = convert_coords(eco, sc, height)
+            # Check if grid cell currently active
+            (eco.habitat.active[y, x] && (eco.cache.totaldemand[sc, 1] > 0)) ||
+                continue
+            for sp in spstart:spend
+                rng = getrng(eco, sp)
+                # Calculate how much birth and death should be adjusted
+                adjusted_birth, adjusted_death = resource_adjustment(eco,
+                                                                     eco.habitat.supply,
+                                                                     sc, sp)
+
+                # Both are per-individual rates over the timestep. Only the death one becomes
+                # a probability: deaths are drawn per individual (Binomial), while births are a
+                # count (Poisson) whose mean is the rate itself. `NoUnits` is needed on the birth
+                # rate because it reaches `Poisson` as a bare number; the death rate is made
+                # dimensionless by `exp`.
+                birthrate = params.birth[sp] * timestep * adjusted_birth |>
+                            NoUnits
+                deathrate = params.death[sp] * timestep * adjusted_death
+
+                deathprob = 1.0 - exp(-deathrate)
+
+                (birthrate >= 0) & (deathprob >= 0) ||
+                    error("Birth: $birthrate \n Death: $deathprob \n \n sc: $sc \n sp: $sp")
+                # Calculate how many births and deaths
+                births = rand(rng,
+                              Poisson(eco.abundances.matrix[sp, sc] * birthrate))
+                deaths = rand(rng,
+                              Binomial(eco.abundances.matrix[sp, sc],
+                                       deathprob))
+
+                # Update population
+                eco.abundances.matrix[sp, sc] += (births - deaths)
+
+                # Calculate moves and write to cache
+                move!(eco, eco.spplist.movement, sc, sp, eco.cache.netmigration,
+                      births)
+            end
+        end
+    end
+
+    # Update abundances with all movements
+    eco.abundances.matrix .+= eco.cache.netmigration
+
+    # Invalidate all caches for next update
+    invalidatecaches!(eco)
+
+    # Advance the simulation clock before the layers change, so a layer sees the time it is
+    # changing *to*.
+    _advanceclock!(eco, timestep)
+
+    # Interventions land here - after the dynamics, after the clock, before the layers - so a
+    # `SetChange` installed now is applied by the very next line rather than a step later.
+    applyinterventions!(eco, intervention, simulationtime(eco), timestep,
+                        _stepnumber(eco, timestep))
+
+    # Update environment - regime and resource supplies
+    regimeupdate!(eco, timestep)
+    return supplyupdate!(eco, timestep)
+end
+
 # **The first coordinate is the row**, `y`, matching the `(y, x)` order used throughout: the guard
 # reads `dims[1]` from it and the returned pairs index `mat[n[1], n[2]]`. A caller that believes
 # otherwise and passes `(x, y)` reads the transposed neighbourhood, which a square grid cannot
@@ -469,8 +471,9 @@ end
 # Birth and death rate multipliers for a single-demand environment. Weighs
 # the species' own resource demand (`ϵ̄`) and how well its tolerances match the cell
 # (`ϵ̄real`) against the resource available in the cell (`K`) relative to the total
-# demand there (`E`): births are boosted when resource is plentiful (`K/E`, capped at
-# `params.boost`) and deaths rise as demand approaches the supply (`E/K`). Called
+# demand there (`E`): births are boosted when resource is plentiful (`K/E`, capped at 1, so a
+# species reproduces no faster than its baseline rate however plentiful the resource) and deaths
+# rise as demand approaches the supply (`E/K`). Called
 # only for growing populations - [`resource_adjustment`](@ref) short-circuits NoGrowth.
 function _resourceadjustment(eco::AbstractEcosystem, supply::AbstractSupply,
                              sc::Int64, sp::Int64)
@@ -486,14 +489,14 @@ function _resourceadjustment(eco::AbstractEcosystem, supply::AbstractSupply,
     ϵ̄real = 1 / suitability(eco, sc, sp)
     # Alter rates by resource available in current pop & own demands
     birth_resource = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
-                     min(K / E, params.boost)
+                     min(K / E, 1.0)
     death_resource = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
     return birth_resource, death_resource
 end
 
 # As above but for a multi-resource environment (e.g. solar resource and water), combining the
 # supplies. The species is limited by whichever resource is scarcest: births use the `min` of the
-# availability ratios (`K/E`, still capped at `params.boost`) and deaths the `max` of the demand
+# availability ratios (`K/E`, still capped at 1) and deaths the `max` of the demand
 # ratios (`E/K`), so every demand must be met for the population to grow. Per-resource quantities
 # are built and combined by compile-time-unrolled folds, so this stays allocation-free at any arity.
 #
@@ -541,7 +544,7 @@ function _resourceadjustment(eco::AbstractEcosystem,
     # Alter rates by resource available in current pop & own demands
     demanded = _fold(*, ϵ̄)
     birth_resource = demanded^-params.longevity * ϵ̄real^-params.survival *
-                     min(_fold(min, _zipmap(/, K, E)), params.boost)
+                     min(_fold(min, _zipmap(/, K, E)), 1.0)
     death_resource = demanded^-params.longevity * ϵ̄real^params.survival *
                      _fold(max, _zipmap(/, E, K))
     return birth_resource, death_resource

@@ -50,10 +50,12 @@ function allmodules()
     return seen
 end
 
+# Under the package's own `src/` or `ext/` - not any path containing `/src/`, which would count this
+# script's own functions in `data/src/` as foreign generics and list them as pirates.
 function inrepo(m)
-    return startswith(String(m.file), ROOT) &&
-           (occursin("/src/", String(m.file)) ||
-            occursin("/ext/", String(m.file)))
+    f = String(m.file)
+    return startswith(f, joinpath(ROOT, "src", "")) ||
+           startswith(f, joinpath(ROOT, "ext", ""))
 end
 
 # Does any argument type of `m` belong to us? If none does, the method is type piracy.
@@ -124,18 +126,22 @@ const NOTES = Dict(:Base => """
 
                ⚠️ **`eltype` is deliberately NOT in that set.** It is a **leaf** property — the unit frame a layer's
                data is in, and what supplies a nichefit's frame parameter — so a collection has no single one and
-               asking is an error rather than a guess. Its fourteen methods are all on leaves.
+               asking is an error rather than a guess. Its fifteen methods are on leaves, and on `ClimateRaster`.
 
                ⭐ **`ClimateRaster` opts in to broadcasting** (`size` `axes` `ndims` `length` `broadcastable`
-               `BroadcastStyle` `copy` `+` `-`, all in `src/Climate.jl`). That is what lets a `ConstructedRasterSpec`
-               combine name no array type on either side — `compress_landcover(lc) .!= landcoverclass(:open_water)`
-               goes in and a raster comes out.
+               `BroadcastStyle` `copy` `+` `-`, in `src/BaseInterface.jl` - conformance rather than what a raster
+               is for, so only the rebuilding helpers sit beside the type). That is what lets
+               a `ConstructedRasterSpec` combine name no array type on either side —
+               `compress_landcover(lc) .!= landcoverclass(:open_water)` goes in and a raster comes out.
 
-               ⭐ **`show` is two methods per type**, plain and `MIME"text/plain"`, for the seven types a user
-               actually sees printed.
+               ⭐ **`show` is where the methods are**: a compact one-liner and, for the types a user meets nested
+               or at the REPL, a `MIME"text/plain"` display, each beside its type rather than here — the one
+               `Base` family the interface file does not gather.
 
-               ⭐ **`hash` and `==` travel together**, on `ReadKey` (a cache key, so it must) and on
-               `AbstractLayerFate`.
+               ⭐ **`hash` and `==` travel together**, on `ReadKey` (a cache key, so it must, beside its type in
+               `src/StudyAreaReport.jl`) and on `AbstractLayerFate`. A type built to be an interface keeps that
+               interface beside it, which is also why `+` on `AbstractChangeSpec`, `CellNames`' vector methods and
+               `DiversitySet`'s `append!` are not in `src/BaseInterface.jl`.
                """,
                    :Diversity => """
                🔴 **The `Diversity.API` hooks split exactly along the `[TF-FORWARD]` rule**: `SpeciesList <:
@@ -159,11 +165,19 @@ const NOTES = Dict(:Base => """
                🔴 **Two types only, and that is the point.** These methods used to sit on `AbstractRegime` as well,
                where `xmin`/`ymin` were hardcoded `0` and `xcellsize` was `Float64(size / km)` — so a geographic grid
                answered `1.0 ° km⁻¹`, silently. **A layer is not a grid**; `StudyGrid` is, and it is the package's
-               only `EcoBase.AbstractGrid`.
+               only `EcoBase.AbstractRegularGrid`.
 
-               ⚠️ **EcoBase's `indices`/`coordinates` are `(x, y)` columns — the opposite order to this package.**
-               Read `EcoBase.convert_to_image`, which uses `indices(grd, 1)` as the matrix *column*. The old
-               implementation transposed every grid plotted through EcoBase.
+               ⭐ **`indices`/`coordinates` report `(y, x)` columns, the package's own order, and the grid declares
+               it**: `coordinateorder(::StudyGrid) = YThenX()`. EcoBase reorders from that declaration for anyone
+               asking `XThenY()`, its own `convert_to_image` included. Its default is `XThenY()`, so the declaration
+               is load-bearing: drop it and every plot transposes, invisibly on a square grid. `cellanchor` is the
+               other declaration, `CellCorner()`, since a cell's label is its lower corner. Every other method here
+               is a primitive that EcoBase leaves as an error stub on a bare `AbstractRegularGrid`, so none is
+               redundant.
+
+               ⭐ **Four methods on `GridHabitat`, and four is all it owes.** EcoBase answers every gridded question
+               for anything holding gridded location data and for an assemblage of such places, so `xmin`, `xrange`,
+               `xedges`, `indices` and `cellanchor` reach a habitat and an `Ecosystem` with nothing forwarded here.
                """,
                    :GeoInterface => """
                ⭐ All four are on `LatLong`, declaring a coordinate pair to be a point so that anything speaking

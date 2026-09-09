@@ -18,6 +18,8 @@ using Unitful, Unitful.DefaultSymbols
 using Test
 
 include("rasterfixtures.jl")
+# For the ecosystem in the lifting testset - a habitat is not the only thing that answers for a grid.
+include("TestCases.jl")
 
 # **Non-square on purpose, and not evenly divisible either** - 11 rows of y against 7 columns of
 # x. Every `(y, x)` mix-up this package has had was invisible on a square grid.
@@ -56,7 +58,9 @@ end
     @test hab.area isa StudyArea{typeof(grid)}
     @test hab isa EcoSISTEM.AbstractHabitat{<:Any, <:Any, typeof(grid)}
     # ...and it really is EcoBase's location data, not merely shaped like it.
-    @test grid isa EcoBase.AbstractGrid
+    @test grid isa EcoBase.AbstractRegularGrid
+    # ...and so also gridded, which is the level carrying the index contract.
+    @test grid isa EcoBase.AbstractGridded
     @test grid isa EcoBase.AbstractLocationData
 
     # **The same dimension objects `active` is indexed by, not a copy** - the rule that stops a
@@ -78,6 +82,9 @@ end
     @test EcoBase.xcellsize(grid) == CELL
     @test EcoBase.ycellsize(grid) == CELL
     @test EcoBase.cellsize(grid) == (CELL, CELL)
+    # `cells` comes in the grid's declared order, y first, as `cellsize` would were the cells not
+    # square.
+    @test EcoBase.cells(grid) == (ny, nx)
     # `xmin`/`ymin` are read, not fabricated. This grid starts at zero, so the assertion that
     # carries the information is the *geographic* one below - here the point is that the units and
     # EcoBase's own derivations survive.
@@ -108,31 +115,99 @@ end
     @test !isnothing(grid.crs)
 end
 
-@testset "indices and coordinates use EcoBase's (x, y) column order" begin
+# **A cell's label is its lower corner, and EcoBase has to be told**: it assumes a centre otherwise,
+# and then every edge it derives sits half a cell low. Nothing throws either way, so the assertions
+# below are the only thing standing between a correct grid and a plot half a cell out.
+@testset "the grid declares that it labels cells by their corner" begin
+    hab = _projected()
+    grid = EcoBase.getcoords(hab)
+    nx = EcoBase.xcells(grid)
+
+    @test EcoBase.cellanchor(grid) == EcoBase.CellCorner()
+
+    # The edges run from the first label, not from half a cell below it, and there is one more of
+    # them than there are cells - the extra being the far side of the last one.
+    xe = EcoBase.xedges(grid)
+    @test length(xe) == nx + 1
+    @test first(xe) == EcoBase.xmin(grid)
+    @test last(xe) == EcoBase.xmin(grid) + nx * CELL
+
+    # The declaration does not move the coordinates the grid reports: `xrange` is still the labels,
+    # which is what `coordinates` is indexed by.
+    @test collect(EcoBase.xrange(grid)) == collect((0:(nx - 1)) .* CELL)
+    @test EcoBase.xrange(grid) == EcoBase.xrange(grid, EcoBase.CellCorner())
+
+    # What it does move is the centres, which is what a heatmap is drawn on.
+    @test EcoBase.xrange(grid, EcoBase.CellCentre()) ==
+          EcoBase.xrange(grid) .+ CELL / 2
+end
+
+# EcoBase answers every gridded question for anything holding gridded location data, and for an
+# assemblage of such places, so a habitat and the ecosystem over it get the whole surface from the
+# grid without this package forwarding a line of it. These assertions are what says that reaches
+# *these* types rather than only EcoBase's own.
+@testset "a habitat and an ecosystem answer for their grid" begin
+    hab = _projected()
+    eco = Test1Ecosystem()
+    for (holder, grid) in ((hab, EcoBase.getcoords(hab)),
+                           (eco, EcoBase.getcoords(EcoBase.places(eco))))
+        @test EcoBase.xmin(holder) == EcoBase.xmin(grid)
+        @test EcoBase.ymin(holder) == EcoBase.ymin(grid)
+        @test EcoBase.xcells(holder) == EcoBase.xcells(grid)
+        @test EcoBase.ycells(holder) == EcoBase.ycells(grid)
+        @test EcoBase.xcellsize(holder) == EcoBase.xcellsize(grid)
+        @test EcoBase.cellanchor(holder) == EcoBase.CellCorner()
+        @test EcoBase.coordinateorder(holder) == EcoBase.YThenX()
+        @test EcoBase.xrange(holder) == EcoBase.xrange(grid)
+        @test EcoBase.xedges(holder) == EcoBase.xedges(grid)
+        @test EcoBase.xmax(holder) == EcoBase.xmax(grid)
+        @test EcoBase.indices(holder) == EcoBase.indices(grid)
+        @test EcoBase.indices(holder, 1) == EcoBase.indices(grid, 1)
+        @test EcoBase.coordinates(holder) == EcoBase.coordinates(grid)
+    end
+end
+
+@testset "indices and coordinates report (y, x) columns, and say so" begin
     hab = _projected()
     grid = EcoBase.getcoords(hab)
     ny, nx = Base.size(hab.active)
     idx = EcoBase.indices(grid)
     @test Base.size(idx) == (ny * nx, 2)
-    # **Column 1 is x, column 2 is y** - the opposite order to the rest of this package, and
-    # EcoBase's convention rather than a slip: `convert_to_image` uses `indices(grd, 1)` as the
-    # matrix *column*. The old implementation handed out `(y, x)` rows, so anything plotting through
-    # EcoBase transposed the grid - invisible on a square one.
-    @test maximum(idx[:, 1]) == nx
-    @test maximum(idx[:, 2]) == ny
+    # **Column 1 is y, column 2 is x**, the order the whole package uses, and the grid declares it:
+    # EcoBase's default is `XThenY()`, so a grid that said nothing would be read the wrong way round
+    # by everything that reorders from the declaration, `convert_to_image` included.
+    @test EcoBase.coordinateorder(grid) == EcoBase.YThenX()
+    @test maximum(idx[:, 1]) == ny
+    @test maximum(idx[:, 2]) == nx
     @test EcoBase.indices(grid, 1) == idx[:, 1]
     @test EcoBase.indices(grid, 2) == idx[:, 2]
     # Rows are in the package's own cell order - column-major over `(Y, X)`, y fastest - so cell 2
     # is the next one *down* the first column, not along the first row.
     @test idx[1, :] == [1, 1]
-    @test idx[2, :] == [1, 2]
-    @test idx[ny + 1, :] == [2, 1]
+    @test idx[2, :] == [2, 1]
+    @test idx[ny + 1, :] == [1, 2]
 
     coords = EcoBase.coordinates(grid)
     @test Base.size(coords) == (ny * nx, 2)
     @test coords[1, :] == [0.0km, 0.0km]
-    @test coords[2, :] == [0.0km, CELL]
-    @test coords[ny + 1, :] == [CELL, 0.0km]
+    @test coords[2, :] == [CELL, 0.0km]
+    @test coords[ny + 1, :] == [0.0km, CELL]
+
+    # Anyone wanting x first asks for it, and gets the same rows with the columns swapped.
+    @test EcoBase.indices(grid, EcoBase.XThenY()) == idx[:, [2, 1]]
+    @test EcoBase.indices(grid, 1, EcoBase.XThenY()) == idx[:, 2]
+    @test EcoBase.coordinates(grid, EcoBase.XThenY()) == coords[:, [2, 1]]
+    # ...and at the centre rather than the corner, half a cell on.
+    @test EcoBase.coordinates(grid, EcoBase.YThenX(), EcoBase.CellCentre()) ==
+          coords .+ CELL / 2
+
+    # **The orientation that matters**: EcoBase's own image conversion asks for x first, and a
+    # non-square grid shows whether it came out the right way round. Cell `i` sits at row
+    # `idx[i, 1]`, column `idx[i, 2]`.
+    img = EcoBase.convert_to_image(collect(1.0:(ny * nx)), grid)
+    @test Base.size(img) == (ny, nx)
+    @test img[1, 1] == 1.0 && img[2, 1] == 2.0 && img[1, 2] == ny + 1
+    @test all(img[idx[i, 1], idx[i, 2]] == i for i in 1:(ny * nx))
 end
 
 # A raster's `Y` commonly runs north to south, so its array rows descend while EcoBase's `yrange`
@@ -149,16 +224,16 @@ end
     @test EcoBase.ycellsize(grid) == 0.5°
     # ...and array row 1, which holds the *largest* latitude, ranks last.
     idx = EcoBase.indices(grid)
-    @test idx[1, 2] == EcoBase.ycells(grid)
-    @test idx[EcoBase.ycells(grid), 2] == 1
+    @test idx[1, 1] == EcoBase.ycells(grid)
+    @test idx[EcoBase.ycells(grid), 1] == 1
 
     # **The invariant that ties `indices` and `coordinates` together**, and the one that would
     # catch a rank applied to one but not the other: a cell's coordinate is exactly the entry its own
     # index picks out of `yrange`. It holds whichever way the array runs, which is the whole point.
     coords = EcoBase.coordinates(grid)
     yr, xr = collect(EcoBase.yrange(grid)), collect(EcoBase.xrange(grid))
-    @test all(coords[i, 2] ≈ yr[idx[i, 2]] for i in Base.axes(idx, 1))
-    @test all(coords[i, 1] ≈ xr[idx[i, 1]] for i in Base.axes(idx, 1))
+    @test all(coords[i, 1] ≈ yr[idx[i, 1]] for i in Base.axes(idx, 1))
+    @test all(coords[i, 2] ≈ xr[idx[i, 2]] for i in Base.axes(idx, 1))
 end
 
 @testset "cells are named by where they are" begin
@@ -258,8 +333,8 @@ end
 # `AbstractRegime` is what lets them fabricate an origin and a cell size it does not have.
 @testset "a layer is not an EcoBase grid" begin
     hab = _projected()
-    @test !(hab.regime isa EcoBase.AbstractGrid)
-    @test !(EcoSISTEM.AbstractLayer <: EcoBase.AbstractGrid)
+    @test !(hab.regime isa EcoBase.AbstractGridded)
+    @test !(EcoSISTEM.AbstractLayer <: EcoBase.AbstractGridded)
     @test_throws Exception EcoBase.xcellsize(hab.regime)
 end
 

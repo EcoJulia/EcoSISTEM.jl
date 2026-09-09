@@ -35,10 +35,9 @@ end
     death = 0.6 / year
     longevity = 1.0
     survival = 0.2
-    boost = 1.0
 
     # Collect model parameters together
-    param = EqualPop(birth, death, longevity, survival, boost)
+    param = EqualPop(birth, death, longevity, survival)
 
     # Create kernel for movement
     kernel = fill(GaussianKernel(1.0km, 10e-10), numSpecies)

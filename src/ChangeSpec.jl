@@ -188,6 +188,9 @@ struct CombinedChange{S <: Tuple} <: AbstractChangeSpec
     end
 end
 
+# `a + b` spells a `CombinedChange`, which is how a caller writes one.
+Base.:+(a::AbstractChangeSpec, b::AbstractChangeSpec) = CombinedChange(a, b)
+
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------

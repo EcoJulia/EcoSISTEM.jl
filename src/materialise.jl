@@ -153,23 +153,102 @@ end
 # read of the same layer are genuinely different results, and returning one for the other would hand
 # back the wrong ground. A `cut` the spec already carries always wins, so an explicit user window is
 # never silently widened or narrowed.
-function _asraster(raster::ClimateRaster, ::LayerCache; cut = nothing)
+function _asraster(raster::ClimateRaster, ::LayerCache; cut = nothing,
+                   scale::Integer = 1)
     return _rasternotaspec(raster)
 end
 
-function _asraster(spec::SourceSpec, cache::LayerCache; cut = nothing)
+function _asraster(spec::SourceSpec, cache::LayerCache; cut = nothing,
+                   scale::Integer = 1)
     kw = (isnothing(cut) || haskey(spec.readkw, :cut)) ? spec.readkw :
          merge(spec.readkw, (cut = cut,))
+    scale > 1 && !haskey(kw, :scale) && (kw = merge(kw, (scale = scale,)))
     spec.code isa AbstractVector && return _stackcached(spec, cache, kw)
-    return get!(cache.reads, ReadKey(spec.source, spec.code, kw)) do
+    key = ReadKey(spec.source, spec.code, kw)
+    served = _servedread(cache, key)
+    isnothing(served) || return served
+    return get!(cache.reads, key) do
         return _read(spec; kw...)
     end
 end
 
+# A cached read that can serve `key`: the same source, code and read options, whose window is the
+# whole file or contains the one asked for. A whole read serves any window, and a wider window a
+# narrower one; a window never serves a whole read or a wider one. This is what lets a build reuse
+# the analysis's read rather than reading the file again.
+function _servedread(cache::LayerCache, key::ReadKey)
+    haskey(cache.reads, key) && return cache.reads[key]
+    want = get(key.readkw, :cut, nothing)
+    isnothing(want) && return nothing
+    rest = _sanscut(key.readkw)
+    for (k, v) in cache.reads
+        (k.source == key.source && k.code == key.code &&
+         _sanscut(k.readkw) == rest) || continue
+        have = get(k.readkw, :cut, nothing)
+        isnothing(have) && return v
+        (have isa Extents.Extent && want isa Extents.Extent &&
+         Extents.contains(have, want)) && return v
+    end
+    return nothing
+end
+
+# Read options with the window taken out, so two reads can be compared on everything else.
+_sanscut(nt::NamedTuple) = Base.structdiff(nt, NamedTuple{(:cut,)})
+
+# A file read is keyed like a dataset read, so refining an area re-reads nothing and a windowed read
+# is never served for a whole one. The path stands in for the layer code, and the unit and scale
+# are in the key because each changes what the cached values are.
+function _asraster(spec::RasterFileSpec, cache::LayerCache; cut = nothing,
+                   scale::Integer = 1)
+    scale = spec.scale == 1 ? scale : spec.scale
+    key = ReadKey(spec.source, _pathtext(spec.path),
+                  (cut = cut, unit = spec.unit, scale = scale, fn = spec.fn))
+    served = _servedread(cache, key)
+    isnothing(served) || return served
+    return get!(cache.reads, key) do
+        return _read(spec, cut = cut, scale = scale)
+    end
+end
+
+# How coarsely to read a file-backed layer for a grid of `cellsize` in `tcrs`: the whole part of
+# the grid's step over the layer's, measured from the file's header, so a layer far finer than the
+# grid is block-aggregated exactly on its own lattice by the read and never held at full
+# resolution; `_regridsampled` then finds at most a factor of two left to do. `1` - read as
+# declared - for a spec that sets its own `scale`, for class codes (a two-stage majority is not
+# the majority; see `_majorityclass`), and wherever the ratio is below two or cannot be measured.
+function _autoscale(spec::Union{SourceSpec, RasterFileSpec}, tcrs, cellsize)
+    (_ownscale(spec) || iscategorical(_specaxis(spec)) || isnothing(tcrs) ||
+     isnothing(cellsize)) && return 1
+    grid = _lazygrid(spec)
+    isnothing(grid) && return 1
+    step = _samecrs(grid.crs, tcrs) ? _gridstep(grid.y) :
+           _stepacross(grid.crs, grid.y, grid.x, tcrs)
+    (isnothing(step) || dimension(step) != dimension(cellsize)) && return 1
+    ratio = uconvert(NoUnits, cellsize / step)
+    return ratio < 2 ? 1 : floor(Int, ratio)
+end
+
+_autoscale(::Any, tcrs, cellsize) = 1
+
+# The same for a decided grid, which knows its own CRS and step.
+function _autoscale(spec, target)
+    return _autoscale(spec, Rasters.crs(target), _lookupstep(dims(target, Y)))
+end
+
+# Whether the spec states a read scale of its own, which stands.
+_ownscale(spec::SourceSpec) = haskey(spec.readkw, :scale)
+
+_ownscale(spec::RasterFileSpec) = spec.scale != 1
+
+# A lookup's step, or `nothing` for a single cell.
+_gridstep(v) = length(v) > 1 ? abs(v[2] - v[1]) : nothing
+
 # The cached twin of `_asraster(::Tuple)` - a `(source, code)` pair, refused with the spelling
 # that replaces it. Both entry points must refuse it, or deciding a grid and building a layer would
 # disagree about what is accepted.
-_asraster(spec::Tuple, ::LayerCache; cut = nothing) = _sourcepairnotaspec(spec)
+function _asraster(spec::Tuple, ::LayerCache; cut = nothing, scale::Integer = 1)
+    return _sourcepairnotaspec(spec)
+end
 
 # **Two passes, because a synthetic layer has no grid of its own to be read on.** The data layers
 # are read first and must agree (`_checksourcegrid`); the synthetic ones are then generated **at the
@@ -183,8 +262,10 @@ _asraster(spec::Tuple, ::LayerCache; cut = nothing) = _sourcepairnotaspec(spec)
 #
 # **Order is preserved throughout.** The layers are positional arguments to a combine that is *user*
 # code, so the array handed to it must be in the order they were written, not data-first.
+# `scale` is accepted and ignored: a combine's members are read on their own grids, and coarsening
+# them before a combine that may not commute with it would change what it computes.
 function _asraster(spec::ConstructedRasterSpec, cache::LayerCache;
-                   cut = nothing)
+                   cut = nothing, scale::Integer = 1)
     issynth = map(_issyntheticspec, spec.layers)
     # `!isempty` first, and it is load-bearing: `all` of an **empty** collection is `true`, so a
     # nullary thunk - a spec with no layers at all, which is what `in_memory_raster` builds - would
@@ -228,7 +309,10 @@ function _stackcached(spec::SourceSpec, cache::LayerCache, kw::NamedTuple)
     codes = spec.code
     layers = map(codes) do c
         one = SourceSpec(spec.source, c; kw...)
-        return get!(cache.reads, ReadKey(spec.source, c, kw)) do
+        key = ReadKey(spec.source, c, kw)
+        served = _servedread(cache, key)
+        isnothing(served) || return served
+        return get!(cache.reads, key) do
             return _read(one)
         end
     end
@@ -277,13 +361,26 @@ end
 # interpolations is not the interpolation of the ratio. Either says so with
 # `combinestage = CombineOnSourceGrid()`, and `_combineon` below runs it on the layers' own grid
 # instead.
-function _materialiseon(spec::SourceSpec, target, cache::LayerCache)
-    read = _asraster(spec, cache)
+function _materialiseon(spec::SourceSpec, target, cache::LayerCache;
+                        cut = nothing)
+    read = _asraster(spec, cache, cut = cut, scale = _autoscale(spec, target))
     return ClimateRaster(spec.source,
                          _sampledata(read, target, name = "layer",
                                      categorical = iscategorical(read,
-                                                                 _specaxis(spec))),
+                                                                 _specaxis(spec)),
+                                     fn = _specfn(spec)),
                          spec.code)
+end
+
+# As for a `SourceSpec`, less the layer code a file does not have.
+function _materialiseon(spec::RasterFileSpec, target, cache::LayerCache;
+                        cut = nothing)
+    read = _asraster(spec, cache, cut = cut, scale = _autoscale(spec, target))
+    return ClimateRaster(spec.source,
+                         _sampledata(read, target, name = "layer",
+                                     categorical = iscategorical(read,
+                                                                 _specaxis(spec)),
+                                     fn = _specfn(spec)))
 end
 
 # **A synthetic spec on a positioned grid - generated at the target's shape, not sampled onto it.**
@@ -300,7 +397,7 @@ end
 # Wrapped as a code-less `ClimateRaster` on the target's own dims, because that is what a combine
 # takes; the spec's declared axis is what gives it meaning, exactly as for a `ConstructedRasterSpec`.
 function _materialiseon(spec::AbstractSyntheticLayerSpec, target,
-                        ::LayerCache)
+                        ::LayerCache; cut = nothing)
     yx = dims(target, (Y, X))
     # `_specfield`, not `_syntheticsupplyfield`, so the **whole** synthetic family is reachable -
     # including `NicheSpec`, which the latter answers only through its `fill(float(spec), ...)`
@@ -308,7 +405,7 @@ function _materialiseon(spec::AbstractSyntheticLayerSpec, target,
     # and a top-level one alike.
     field = _specfield(spec, length.(yx), _rowsincreasenorth(yx))
     # **United, CRS-bearing dims, not the target template's own.** `target`'s lookups are
-    # deliberately bare numbers, but `_cropto` reads a raster's coordinates with `ustrip(crsunit, ...)`
+    # deliberately bare numbers, but `_regrid` reads a raster's coordinates with `ustrip(crsunit, ...)`
     # - so a raster carrying bare dims fails on the unit rather than being recognised as already on
     # the grid. Rebuilt in the same form a reprojected raster has, which makes the subsequent crop a
     # pure index.
@@ -330,9 +427,10 @@ end
 # *layer of another spec* that matters, because the enclosing combine broadcasts its layers together
 # - measured, a `_reg(raster)` layer at 4×4 against a synthetic one generated at the target's 2×2
 # is a `DimensionMismatch`. Where the layers were already put on the target, this is a no-op:
-# `_cropto` recognises a raster on the target grid and crops instead of resampling.
-function _materialiseon(spec::ConstructedRasterSpec, target, cache::LayerCache)
-    out = _combineon(spec.combinestage, spec, target, cache)
+# `_regrid` recognises a raster on the target grid and selects its cells instead of resampling.
+function _materialiseon(spec::ConstructedRasterSpec, target, cache::LayerCache;
+                        cut = nothing)
+    out = _combineon(spec.combinestage, spec, target, cache, cut = cut)
     return ClimateRaster(_sourceof(out),
                          _sampledata(out, target, name = "layer",
                                      categorical = iscategorical(out,
@@ -380,12 +478,24 @@ _unitedyx(yx, tcrs) = yx
 # behaviour exactly - see `_materialiseon` above for why it is the right ordering whenever the
 # combine commutes with regridding.
 function _combineon(::CombineOnTargetGrid, spec::ConstructedRasterSpec, target,
-                    cache::LayerCache)
+                    cache::LayerCache; cut = nothing)
     # Nothing to stamp on the result: what it *is* comes from `spec.axis`, and the callers that
     # need to know ask `iscategorical(raster, axis)`. On this path the layers were sampled before
     # the combine ran, so no resampling decision is left to make here at all.
-    return _combined(spec.combine(map(l -> _materialiseon(l, target, cache),
+    return _combined(spec.combine(map(l -> _materialiseon(l, target, cache,
+                                                          cut = cut),
                                       spec.layers)...), spec)
+end
+
+# The WGS84 box a layer is read for when built onto `area`'s grid: the grid's own extent, padded as
+# the analysis pads a mask's, so a build reads what the grid needs rather than the whole file, and
+# the analysis's read, which covers it, is served from the cache. `nothing` for a synthetic area,
+# which has no CRS to place a window in.
+function _buildwindow(area::StudyArea)
+    crs = area.report.crs
+    isnothing(crs) && return nothing
+    extent = _dimsextent(area.report.active, crs)
+    return isnothing(extent) ? nothing : _padded(extent, crs)
 end
 
 # Early: the combine runs on the layers' own shared grid (which `_asraster` has just checked they
@@ -395,8 +505,8 @@ end
 # result is sampled *here*, so whether it holds class codes decides `:mode` against `:bilinear`. A
 # derived layer has no catalogue row, so the axis is the only thing that can say.
 function _combineon(::CombineOnSourceGrid, spec::ConstructedRasterSpec, target,
-                    cache::LayerCache)
-    return _sampledeclared(_asraster(spec, cache), target, spec.axis)
+                    cache::LayerCache; cut = nothing)
+    return _sampledeclared(_asraster(spec, cache, cut = cut), target, spec.axis)
 end
 
 # The WGS84 box worth reading, or `nothing` to read everything. `nothing` whenever the answer is not
@@ -443,12 +553,16 @@ end
 # Materialise every named layer through the cache, dropping the ones not given and the ones that
 # cannot shape a grid. Order matters: it is the tie-break for `_choosealign`, so `regime`
 # deliberately comes before `supply`.
+# With the target's CRS and cell size known before the read, a layer far finer than the grid is
+# read pre-aggregated (`_autoscale`), and the factor travels with it so the report can say so.
 function _materialiselayers(layers::NamedTuple, cache::LayerCache;
-                            cut = nothing)
-    return [(name = nm, raster = _asraster(s, cache, cut = cut))
+                            cut = nothing, tcrs = nothing, cellsize = nothing)
+    return [(name = nm, prescale = p,
+             raster = _asraster(s, cache, cut = cut, scale = p))
             for (n, spec) in pairs(layers) if !isnothing(spec)
             for (nm, s) in zip(_expandednames(n, spec), _expandspecs(spec))
-            if _shapesgrid(s)]
+            if _shapesgrid(s)
+            for p in (_autoscale(s, tcrs, cellsize),)]
 end
 
 # Decide the grid for a study area and report what it costs.
@@ -471,7 +585,8 @@ function _analyse(layers::NamedTuple; within = nothing, crs = nothing,
     safely = isnothing(simulate_safely) ? true : simulate_safely
     # Window the reads before making them: only the ground this area could possibly use is read.
     window = _readwindow(within, layers, crs)
-    materialised = _materialiselayers(layers, cache, cut = window.cut)
+    materialised = _materialiselayers(layers, cache, cut = window.cut,
+                                      tcrs = window.tcrs, cellsize = cellsize)
 
     # A synthetic area - no layers at all - is decided entirely by `extent` and `cellsize`.
     isempty(materialised) &&
@@ -499,7 +614,8 @@ function _analyse(layers::NamedTuple; within = nothing, crs = nothing,
     # input CRS is adopted, else the first layer's own.
     tcrs = _targetcrs(rasters, crs, cellsize)
     crssource = isnothing(crs) ? AdoptedFromLayers() : GivenByUser()
-    facts = [_layerfacts(m.name, m.raster, tcrs) for m in materialised]
+    facts = [_layerfacts(m.name, m.raster, tcrs, prescale = m.prescale)
+             for m in materialised]
 
     # Stage 2: which layer is preserved exactly. An explicit `align` names a layer; otherwise the rule
     # is "whichever is already in the target CRS" (finest first, then given order).
@@ -572,10 +688,11 @@ function _materialisefield(spec::AbstractSyntheticLayerSpec, area::StudyArea)
 end
 
 function _materialisefield(spec, area::StudyArea)
-    raster = _asraster(spec, area.report.cache)
+    raster = _asraster(spec, area.report.cache, cut = _buildwindow(area),
+                       scale = _autoscale(spec, area.report.active))
     categorical = iscategorical(raster, _specaxis(spec))
     values = _sampledata(raster, area.report.active, name = "layer",
-                         categorical = categorical)
+                         categorical = categorical, fn = _specfn(spec))
     return (values = _restricttocovered(values, raster, area, categorical),
             categorical = categorical)
 end
@@ -593,11 +710,11 @@ end
 # sample, so it hands back the combine's own raster on whatever grid that raster has. Measured: a
 # `_reg(raster)` layer came out 4×4 on a 2×2 study area when this step was omitted. The builder has
 # always sampled afterwards for the same reason; this mirrors it.
-# Where the layers *were* sampled first, the second pass is a no-op: `_cropto` recognises a raster
+# Where the layers *were* sampled first, the second pass is a no-op: `_regrid` recognises a raster
 # already on the target and crops rather than resampling.
 function _materialisefield(spec::ConstructedRasterSpec, area::StudyArea)
     out = _combineon(spec.combinestage, spec, area.report.active,
-                     area.report.cache)
+                     area.report.cache, cut = _buildwindow(area))
     categorical = iscategorical(out, _specaxis(spec))
     values = _sampledata(out, area.report.active, name = "layer",
                          categorical = categorical)
@@ -637,6 +754,10 @@ function _applyrole(f::NamedTuple, ::Type{Condition}, axis, area::StudyArea)
     return _asregime(_canonical.(f.values, Ref(axis)), false, axis)
 end
 
+# Regrid first, then convert, and the order is a requirement: `f.values` are the layer's per-area
+# rate already on the grid, and `_wrapsupply` multiplies each by its own cell's area to give the
+# per-cell total the simulation divides a demand by. Aggregation must act on the intensive rate;
+# per-cell totals averaged across cells of differing area would be weighted wrongly.
 function _applyrole(f::NamedTuple, ::Type{Resource}, axis, area::StudyArea)
     return _wrapsupply(f.values, _inspectioncellareas(area), axis)
 end

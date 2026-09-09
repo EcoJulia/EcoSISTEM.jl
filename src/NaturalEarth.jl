@@ -92,6 +92,7 @@ end
 # These nest inside a spec and a report, where the default `show` prints the whole type signature
 # for what the caller wrote as `LargestLandmass()`.
 Base.show(io::IO, ::AllTerritories) = print(io, "AllTerritories()")
+
 function Base.show(io::IO, c::LargestLandmass)
     return print(io, "LargestLandmass(count = $(c.count))")
 end
@@ -143,29 +144,9 @@ struct LandmassesAbove{T} <: AbstractCoverage
     end
 end
 
-# A share is of the region's own total, so it only becomes an area once the components are known.
-# One method per kind rather than a branch, so a threshold that is neither cannot reach here.
-_thresholdarea(c::LandmassesAbove{<:Unitful.Area}, total) = c.threshold
-
-function _thresholdarea(c::LandmassesAbove{<:Unitful.DimensionlessQuantity},
-                        total)
-    return total * ustrip(NoUnits, c.threshold)
-end
-
 function Base.show(io::IO, c::LandmassesAbove)
     return print(io, "LandmassesAbove(", c.threshold, ")")
 end
-
-# Whether a coverage is the one a spec would have taken had none been named, so that `show` prints
-# only what a caller would have to write. One method per coverage rather than a chain of `isa`, so a
-# coverage added later fails here loudly instead of silently printing as the default.
-#
-# The default is `AllTerritories` because that is what Natural Earth means by a name: its "France"
-# is the one including Guadeloupe. Taking only the principal landmass is a real choice about what
-# ground is wanted, so it is the caller's to make and to see written down.
-_isdefaultcoverage(::AllTerritories) = true
-_isdefaultcoverage(::LargestLandmass) = false
-_isdefaultcoverage(::LandmassesAbove) = false
 
 # ---------------------------------------------------------------------------
 # Combining regions
@@ -263,20 +244,10 @@ for smoothing away a coastline's detail without choosing a tolerance.
 struct ShapeConvexHull <: AbstractShapeOperation end
 
 Base.show(io::IO, o::ShapeBuffer) = print(io, "ShapeBuffer(", o.distance, ")")
+
 function Base.show(io::IO, o::ShapeSimplify)
     return print(io, "ShapeSimplify(", o.tolerance, ")")
 end
-
-# How many members an operation takes. The set operations need at least two to mean anything; the
-# transforms act on exactly one. Stated per operation so that the constructor can refuse a wrong
-# count where it was written, rather than failing inside a reduce.
-_minmembers(::AbstractShapeOperation) = 2
-_minmembers(::ShapeBuffer) = 1
-_minmembers(::ShapeSimplify) = 1
-_minmembers(::ShapeConvexHull) = 1
-# A bare function is the escape hatch, mirroring `ConstructedRasterSpec`'s `combine`: it is handed
-# every member's geometry and may do anything with them, so no count can be required.
-_minmembers(::Function) = 1
 
 # ---------------------------------------------------------------------------
 # Levels
@@ -340,9 +311,13 @@ end
 # constituent countries. Several attributes name a region on the same file, so a file appears once
 # per attribute worth selecting on.
 const _NE_COUNTRIES = "ne_10m_admin_0_countries"
+
 const _NE_MAP_UNITS = "ne_10m_admin_0_map_units"
+
 const _NE_MAP_SUBUNITS = "ne_10m_admin_0_map_subunits"
+
 const _NE_SOVEREIGNTY = "ne_10m_admin_0_sovereignty"
+
 const _NE_PHYSICAL = "ne_10m_geography_regions_polys"
 
 # The landform classes of the physical file, each of which becomes a level. Taken from the file
@@ -359,6 +334,431 @@ const _NE_PHYSICAL_CLASSES = ("Continent", "Island", "Island group",
                               "Foothills", "Basin", "Valley", "Gorge",
                               "Depression", "Delta", "Coast", "Tundra",
                               "Wetlands", "Lake")
+
+# ---------------------------------------------------------------------------
+# The shipped table
+# ---------------------------------------------------------------------------
+
+# How many of the largest components the table describes individually. Kept in step with the
+# generator, `data/src/naturalearth_regions.jl`, which writes that many columns.
+const NPARTS = 5
+
+# The parsed table, indexed as level -> lowercased name -> row, and the levels each name appears at.
+#
+# Memoised because a bounding box is looked up per build and re-reading 2 444 rows each time is what
+# would make the lookup cost milliseconds rather than microseconds - the same reason `_layertable`
+# caches the layer catalogue.
+const _REGION_INDEX = Ref{Any}(nothing)
+
+# ---------------------------------------------------------------------------
+# Spatial relations
+# ---------------------------------------------------------------------------
+
+"""
+    AbstractSpatialRelation
+
+How a named region may relate to something you have - [`Encloses`](@ref), [`Overlaps`](@ref) or
+[`Within`](@ref).
+
+A relation **carries the thing being asked about**, so `Encloses(mylayer)` reads as what it means and
+there is no argument order to get the wrong way round. It is callable, taking a region's extent and
+answering whether the relation holds, which also makes it usable directly as a filter.
+"""
+abstract type AbstractSpatialRelation end
+
+"""
+    Encloses(x)
+
+Regions that completely contain `x`.
+
+Answers *"which named regions is my data inside?"*, and is the relation
+[`investigate_regions`](@ref) uses when none is named. It is the only one that accepts a **point**,
+since nothing can lie within a point and nothing overlaps one.
+
+# Arguments
+
+  - `x`: what to ask about - a study area or its report, a raster, a layer, a habitat, an ecosystem,
+    an `Extents.Extent`, a [`LatLong`](@ref), or a match from an earlier report.
+"""
+struct Encloses{E} <: AbstractSpatialRelation
+    extent::E
+
+    Encloses(x) = new{typeof(_wgsextent(x))}(_wgsextent(x))
+end
+
+"""
+    Overlaps(x)
+
+Regions that share real ground with `x`.
+
+Answers *"which regions does my data reach into?"*. Sharing only a boundary does not count, which is
+the whole difference from a bare intersection test: a region touching your data along an edge
+contains none of it, and `boundingbox(..., round = ...)` snaps boxes onto a lattice, so that case is
+reachable rather than theoretical.
+
+# Arguments
+
+  - `x`: as [`Encloses`](@ref), but not a point - a point has no area to share.
+"""
+struct Overlaps{E} <: AbstractSpatialRelation
+    extent::E
+
+    function Overlaps(x)
+        return new{typeof(_areaextent(x, "Overlaps"))}(_areaextent(x,
+                                                                   "Overlaps"))
+    end
+end
+
+"""
+    Within(x)
+
+Regions that lie completely inside `x`.
+
+Answers *"which regions can I simulate in full with the data I have?"* - the converse of
+[`Encloses`](@ref), and what walks *down* a hierarchy where that walks up.
+
+# Arguments
+
+  - `x`: as [`Encloses`](@ref), but not a point - no region fits inside a point.
+"""
+struct Within{E} <: AbstractSpatialRelation
+    extent::E
+
+    Within(x) = new{typeof(_areaextent(x, "Within"))}(_areaextent(x, "Within"))
+end
+
+# Delegated to `Extents`, whose predicates are the documented API for exactly this.
+#
+# `Encloses` uses `covers`, NOT `contains`. The two agree on every pair of boxes, which is what makes
+# the choice look free - but they differ on a **point**: `contains` is false for a point inside a
+# box, `covers` is true. Since a point is the one subject only `Encloses` accepts, `contains` would
+# make the commonest query - "which regions enclose this coordinate?" - silently answer nothing.
+(r::Encloses)(region) = Extents.covers(region, r.extent)
+
+(r::Overlaps)(region) = Extents.overlaps(region, r.extent)
+
+(r::Within)(region) = Extents.within(region, r.extent)
+
+function (r::Encloses)(region::ArchGDAL.AbstractGeometry)
+    return _exactencloses(region,
+                          _subjectgeometry(r))
+end
+
+function (r::Within)(region::ArchGDAL.AbstractGeometry)
+    return _exactencloses(_subjectgeometry(r), region)
+end
+
+function (r::Overlaps)(region::ArchGDAL.AbstractGeometry)
+    return ArchGDAL.geomarea(ArchGDAL.intersection(region, _subjectgeometry(r))) >
+           0
+end
+
+function Base.show(io::IO, r::AbstractSpatialRelation)
+    return print(io, nameof(typeof(r)), "(",
+                 r.extent, ")")
+end
+
+# ---------------------------------------------------------------------------
+# The query
+# ---------------------------------------------------------------------------
+
+"""
+    RegionMatch
+
+One named region a query found, and enough of it to act on without looking anything else up.
+
+# Fields
+
+  - `level`: which kind of region it is, as [`NaturalEarthLevel`](@ref).
+  - `name`: the source's own spelling of the name.
+  - `extent`: its bounding box, in degrees.
+  - `area`: the total area of the region, in `km^2`.
+  - `parts`: how many separate components it has.
+  - `share`: what fraction of the region's area its **largest** component holds. This is the number
+    that says whether [`LargestLandmass`](@ref) is a sensible answer for the region at all: New
+    Zealand's is 0.56, so asking for its principal landmass silently returns South Island alone, and
+    the Solomon Islands' is 0.20.
+  - `overlap`: the area of the box it shares with whatever was asked about, in `km^2`, which is what
+    an [`Overlaps`](@ref) report orders by. `nothing` for a listing, which asked about nothing.
+"""
+struct RegionMatch{E}
+    level::NaturalEarthLevel
+    name::String
+    extent::E
+    area::typeof(1.0km^2)
+    parts::Int
+    share::Float64
+    overlap::Union{typeof(1.0km^2), Nothing}
+end
+
+"""
+    RegionReport
+
+What [`investigate_regions`](@ref) found: the matching regions, in order, and the question asked.
+
+A report is a container - it iterates, indexes and has a length - so `only(report)` asserts that the
+answer was unique, `first(report)` takes the best one and `report[i]` takes a chosen one. Any of
+those gives a [`RegionMatch`](@ref), which is what [`NaturalEarthSpec`](@ref) accepts.
+
+# Fields
+
+  - `relation`: the question that was asked, including what it was asked about.
+  - `matches`: the regions that answered it, ordered as described in [`investigate_regions`](@ref).
+  - `exact`: whether the answer was checked against the regions' real outlines rather than their
+    bounding boxes.
+  - `refined`: how many candidates had their geometry fetched to answer it. Zero unless `exact`.
+"""
+struct RegionReport{R <: Union{AbstractSpatialRelation, Nothing}, M}
+    relation::R
+    matches::Vector{M}
+    exact::Bool
+    refined::Int
+end
+
+# A report that was answered from boxes alone, which is every report but an `exact = true` query.
+RegionReport(relation, matches) = RegionReport(relation, matches, false, 0)
+
+Base.length(r::RegionReport) = length(r.matches)
+
+Base.getindex(r::RegionReport, i) = r.matches[i]
+
+Base.iterate(r::RegionReport, s...) = iterate(r.matches, s...)
+
+Base.isempty(r::RegionReport) = isempty(r.matches)
+
+Base.eltype(::Type{RegionReport{R, M}}) where {R, M} = M
+
+Base.lastindex(r::RegionReport) = lastindex(r.matches)
+
+function Base.show(io::IO, m::RegionMatch)
+    return print(io, "RegionMatch(", m.level.name, " \"", m.name, "\")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", m::RegionMatch)
+    println(io, "RegionMatch \"", m.name, "\" at level ", m.level.name, " (",
+            m.level.kind, ")")
+    println(io, "  extent: ", m.extent)
+    return print(io, "  area: ", round(typeof(1.0km^2), m.area, digits = 0),
+                 " in ",
+                 m.parts, " part", m.parts == 1 ? "" : "s")
+end
+
+function Base.show(io::IO, r::RegionReport)
+    return print(io, "RegionReport(", length(r), " matches)")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", r::RegionReport)
+    isempty(r) && return print(io, _emptydescription(r.relation))
+    println(io, length(r), " named region", length(r) == 1 ? "" : "s", " ",
+            _headline(r.relation, length(r) != 1), ", ",
+            _orderdescription(r.relation), ":")
+    # The level column is dropped where every row shares one, which is what a listing is: repeating
+    # it down the page would say nothing and crowd out the extent.
+    levels = unique(m -> m.level.name, r.matches)
+    showlevel = length(levels) > 1
+    lw = showlevel ? maximum(m -> length(m.level.name), r.matches) : 0
+    nw = min(30, maximum(m -> length(m.name), r.matches))
+    showlevel && print(io, "  ", rpad("level", lw))
+    println(io, "  ", rpad("name", nw), "       W       S       E       N",
+            lpad("area/km2", 12), lpad("parts", 6), lpad("largest", 8))
+    for m in r.matches
+        showlevel && print(io, "  ", rpad(m.level.name, lw))
+        print(io, "  ", rpad(first(m.name, nw), nw))
+        print(io, "  ", _boxcolumns(m.extent))
+        # A whole number of square kilometres, never scientific: a column of areas is read by
+        # comparing them, and `4.45995e6` beside `830486.0` cannot be.
+        print(io, lpad(round(Int, ustrip(km^2, m.area)), 12))
+        print(io, lpad(m.parts, 6))
+        # The largest component's share, shown only where it is a warning: a region whose principal
+        # landmass is most of it needs no annotation, and a column of "100%" would bury the cases
+        # that matter.
+        println(io,
+                m.share < 0.9 ? lpad(string(round(Int, 100m.share), "%"), 7) :
+                "")
+    end
+    isnothing(r.relation) && return
+    # Said every time rather than left to the docstring, and inverted when it no longer applies: a
+    # box can be far larger than the ground it names, and a reader who does not know that will trust
+    # the list too far.
+    r.exact &&
+        return print(io, "\nChecked against the regions' real outlines, ",
+                     r.refined,
+                     " of which were fetched to answer this.")
+    return print(io,
+                 "\nCompared by bounding box, which costs no download but is coarse - Chile's box " *
+                 "\nspans 43 degrees because of Easter Island. Pass `exact = true` to check " *
+                 "against\nthe real outlines instead.")
+end
+
+# == Functions ==================================================================================
+
+# ---------------------------------------------------------------------------
+# Discovery
+# ---------------------------------------------------------------------------
+
+"""
+    naturalearth_levels()
+
+Return every kind of named region there is, as a vector of [`NaturalEarthLevel`](@ref)s.
+
+A name means nothing without its level - "Africa" is a continent of 55 countries and a UN region of
+62 - so this is where to look before naming one. Each entry says which file defines it, which
+attribute carries the name, what sort of division it is, and where it is likely to surprise.
+"""
+naturalearth_levels() = copy(NATURALEARTH_LEVELS)
+
+"""
+    naturalearth_regions(level)
+
+Return every region defined at `level`, sorted by name, with the extent and area of each.
+
+Reads the shipped table, so it costs no download. What comes back is a [`RegionReport`](@ref), the
+same thing [`investigate_regions`](@ref) returns: it displays as a table, it iterates and indexes,
+and any row of it converts straight into a [`NaturalEarthSpec`](@ref). The names alone are
+`[m.name for m in naturalearth_regions(level)]`.
+
+Names are matched case-insensitively wherever they are used, so the spelling here is for display
+rather than something to reproduce exactly.
+
+# Arguments
+
+  - `level`: the level to list, as a name (`"ADMIN"`) or a [`NaturalEarthLevel`](@ref). An unknown
+    one is an error suggesting the closest matches.
+"""
+function naturalearth_regions(level::AbstractString)
+    return naturalearth_regions(_checklevel(level))
+end
+
+function naturalearth_regions(level::NaturalEarthLevel)
+    byname = get(_regionindex().bylevel, level.name, nothing)
+    matches = RegionMatch[]
+    isnothing(byname) || for row in values(byname)
+        box = _rowextent(row)
+        push!(matches,
+              RegionMatch{typeof(box)}(level, row.Name, box,
+                                       row.AreaKm2 * km^2,
+                                       row.Parts, _rowshare(row), nothing))
+    end
+    # By name, because this is for browsing: a reader looking for one knows how it is spelled long
+    # before they know how big it is.
+    sort!(matches, by = m -> m.name)
+    return RegionReport(nothing, matches)
+end
+
+"""
+    investigate_regions(x; level = nothing, kind = nothing, limit = 20)
+    investigate_regions(relation::AbstractSpatialRelation; ...)
+
+Find the named regions that relate to `x`, as [`investigate_study_area`](@ref) reports on a grid
+before one is built.
+
+Given anything with a position - a study area, a raster, a layer, a habitat, an ecosystem, an
+`Extents.Extent`, a [`LatLong`](@ref) or an earlier match - this asks which of the 2 444 shipped
+regions [`Encloses`](@ref) it. Name a relation instead to ask a different question:
+[`Overlaps`](@ref) for regions your data reaches into, [`Within`](@ref) for regions your data covers
+entirely.
+
+!!! warning "The answer is about boxes, not outlines"
+    Every region is compared by its bounding box, because that is what costs no download. A box can
+    be far larger than the ground it names: Chile's spans 43 degrees of longitude because of Easter
+    Island, so a query "overlapping" Chile may share no Chilean land at all. Pass `exact = true` to
+    check against the real outlines instead, or build the shape with [`NaturalEarthSpec`](@ref).
+
+# Arguments
+
+  - `x`: what to ask about, or a relation carrying it.
+  - `level`: restrict to one level, by name. `EcoSISTEM.naturalearth_levels()` lists them.
+  - `kind`: restrict to levels of one sort - `:political`, `:statistical`, `:physical` or `:code`.
+  - `limit`: how many matches to keep. A continental query can match hundreds, and the ordering puts
+    the useful ones first.
+  - `exact`: check the surviving candidates against the regions' **real outlines** instead of their
+    boxes, which needs the geometry and so downloads. It removes the false positives a box tier
+    cannot avoid - Norway's box encloses Edinburgh, its coastline does not - and reaches the 54
+    regions that cross the antimeridian, which have no box a query can compare at all.
+
+    Refinement is lazy and in box order, stopping as soon as the answer cannot change: refining only
+    ever removes a match or shrinks its overlap, so a confirmed `limit` cannot be displaced by
+    anything later. The report says how many regions it had to fetch.
+"""
+function investigate_regions(relation::AbstractSpatialRelation; level = nothing,
+                             kind = nothing, limit::Integer = 20,
+                             exact::Bool = false)
+    wanted = isnothing(level) ? nothing : _checklevel(level).name
+    candidates = RegionMatch[]
+    for l in NATURALEARTH_LEVELS
+        isnothing(wanted) || l.name == wanted || continue
+        isnothing(kind) || l.kind === kind || continue
+        byname = get(_regionindex().bylevel, l.name, nothing)
+        isnothing(byname) && continue
+        for row in values(byname)
+            # A wrapping row has no box that is a single interval, so the box tier cannot compare it
+            # at all - it is skipped there, as `boundingbox` skips the same rows. Geometry has no
+            # such problem, Natural Earth having split its polygons at the date line, so `exact`
+            # reaches 54 regions that are otherwise invisible.
+            box = _rowextent(row)
+            if row.Wraps
+                exact || continue
+            else
+                relation(box) || continue
+            end
+            # A region matches itself under `Encloses` and `Within`, both being reflexive. Excluded
+            # by identity rather than by extent: distinct regions legitimately share a box, and
+            # dropping those would delete real answers.
+            _issubject(relation, l, row) && continue
+            push!(candidates,
+                  RegionMatch{typeof(box)}(l, row.Name, box, row.AreaKm2 * km^2,
+                                           row.Parts, _rowshare(row),
+                                           _overlaparea(box, relation.extent,
+                                                        row.Wraps)))
+        end
+    end
+    _ordermatches!(candidates, relation)
+    exact ||
+        return RegionReport(relation,
+                            candidates[1:min(limit, length(candidates))])
+    return _refineexactly(relation, candidates, limit)
+end
+
+function investigate_regions(x; kw...)
+    return investigate_regions(Encloses(x); kw...)
+end
+
+# A share is of the region's own total, so it only becomes an area once the components are known.
+# One method per kind rather than a branch, so a threshold that is neither cannot reach here.
+_thresholdarea(c::LandmassesAbove{<:Unitful.Area}, total) = c.threshold
+
+function _thresholdarea(c::LandmassesAbove{<:Unitful.DimensionlessQuantity},
+                        total)
+    return total * ustrip(NoUnits, c.threshold)
+end
+
+# Whether a coverage is the one a spec would have taken had none been named, so that `show` prints
+# only what a caller would have to write. One method per coverage rather than a chain of `isa`, so a
+# coverage added later fails here loudly instead of silently printing as the default.
+#
+# The default is `AllTerritories` because that is what Natural Earth means by a name: its "France"
+# is the one including Guadeloupe. Taking only the principal landmass is a real choice about what
+# ground is wanted, so it is the caller's to make and to see written down.
+_isdefaultcoverage(::AllTerritories) = true
+
+_isdefaultcoverage(::LargestLandmass) = false
+
+_isdefaultcoverage(::LandmassesAbove) = false
+
+# How many members an operation takes. The set operations need at least two to mean anything; the
+# transforms act on exactly one. Stated per operation so that the constructor can refuse a wrong
+# count where it was written, rather than failing inside a reduce.
+_minmembers(::AbstractShapeOperation) = 2
+
+_minmembers(::ShapeBuffer) = 1
+
+_minmembers(::ShapeSimplify) = 1
+
+_minmembers(::ShapeConvexHull) = 1
+
+# A bare function is the escape hatch, mirroring `ConstructedRasterSpec`'s `combine`: it is handed
+# every member's geometry and may do anything with them, so no count can be required.
+_minmembers(::Function) = 1
 
 # A physical level: one landform class of the shared physical layer, selected on `FEATURECLA`.
 #
@@ -480,22 +880,7 @@ function _nesource(level::NaturalEarthLevel)
     return CachedAsset(NaturalEarthLevel, url)
 end
 
-# ---------------------------------------------------------------------------
-# The shipped table
-# ---------------------------------------------------------------------------
-
-# How many of the largest components the table describes individually. Kept in step with the
-# generator, `data/src/naturalearth_regions.jl`, which writes that many columns.
-const NPARTS = 5
-
 _regionspath() = pkgdir(@__MODULE__, "data", "NaturalEarth", "regions.csv")
-
-# The parsed table, indexed as level -> lowercased name -> row, and the levels each name appears at.
-#
-# Memoised because a bounding box is looked up per build and re-reading 2 444 rows each time is what
-# would make the lookup cost milliseconds rather than microseconds - the same reason `_layertable`
-# caches the layer catalogue.
-const _REGION_INDEX = Ref{Any}(nothing)
 
 function _regionindex()
     isnothing(_REGION_INDEX[]) || return _REGION_INDEX[]
@@ -568,6 +953,7 @@ end
 # there cannot agree afterwards, and a name whose full extents match at every level is selecting the
 # same ground however it is later filtered.
 _tablecoverage(c::AbstractCoverage) = c
+
 _tablecoverage(::LandmassesAbove) = AllTerritories()
 
 # Which level a bare name means, for the coverage being asked for.
@@ -610,136 +996,6 @@ function _levelchoices(levels, rows, boxes)
                  for (l, r, b) in zip(levels, rows, boxes)])
 end
 
-# ---------------------------------------------------------------------------
-# Discovery
-# ---------------------------------------------------------------------------
-
-"""
-    naturalearth_levels()
-
-Return every kind of named region there is, as a vector of [`NaturalEarthLevel`](@ref)s.
-
-A name means nothing without its level - "Africa" is a continent of 55 countries and a UN region of
-62 - so this is where to look before naming one. Each entry says which file defines it, which
-attribute carries the name, what sort of division it is, and where it is likely to surprise.
-"""
-naturalearth_levels() = copy(NATURALEARTH_LEVELS)
-
-"""
-    naturalearth_regions(level)
-
-Return every region defined at `level`, sorted by name, with the extent and area of each.
-
-Reads the shipped table, so it costs no download. What comes back is a [`RegionReport`](@ref), the
-same thing [`investigate_regions`](@ref) returns: it displays as a table, it iterates and indexes,
-and any row of it converts straight into a [`NaturalEarthSpec`](@ref). The names alone are
-`[m.name for m in naturalearth_regions(level)]`.
-
-Names are matched case-insensitively wherever they are used, so the spelling here is for display
-rather than something to reproduce exactly.
-
-# Arguments
-
-  - `level`: the level to list, as a name (`"ADMIN"`) or a [`NaturalEarthLevel`](@ref). An unknown
-    one is an error suggesting the closest matches.
-"""
-function naturalearth_regions(level::AbstractString)
-    return naturalearth_regions(_checklevel(level))
-end
-
-function naturalearth_regions(level::NaturalEarthLevel)
-    byname = get(_regionindex().bylevel, level.name, nothing)
-    matches = RegionMatch[]
-    isnothing(byname) || for row in values(byname)
-        box = _rowextent(row)
-        push!(matches,
-              RegionMatch{typeof(box)}(level, row.Name, box,
-                                       row.AreaKm2 * km^2,
-                                       row.Parts, _rowshare(row), nothing))
-    end
-    # By name, because this is for browsing: a reader looking for one knows how it is spelled long
-    # before they know how big it is.
-    sort!(matches, by = m -> m.name)
-    return RegionReport(nothing, matches)
-end
-
-# ---------------------------------------------------------------------------
-# Spatial relations
-# ---------------------------------------------------------------------------
-
-"""
-    AbstractSpatialRelation
-
-How a named region may relate to something you have - [`Encloses`](@ref), [`Overlaps`](@ref) or
-[`Within`](@ref).
-
-A relation **carries the thing being asked about**, so `Encloses(mylayer)` reads as what it means and
-there is no argument order to get the wrong way round. It is callable, taking a region's extent and
-answering whether the relation holds, which also makes it usable directly as a filter.
-"""
-abstract type AbstractSpatialRelation end
-
-"""
-    Encloses(x)
-
-Regions that completely contain `x`.
-
-Answers *"which named regions is my data inside?"*, and is the relation
-[`investigate_regions`](@ref) uses when none is named. It is the only one that accepts a **point**,
-since nothing can lie within a point and nothing overlaps one.
-
-# Arguments
-
-  - `x`: what to ask about - a study area or its report, a raster, a layer, a habitat, an ecosystem,
-    an `Extents.Extent`, a [`LatLong`](@ref), or a match from an earlier report.
-"""
-struct Encloses{E} <: AbstractSpatialRelation
-    extent::E
-
-    Encloses(x) = new{typeof(_wgsextent(x))}(_wgsextent(x))
-end
-
-"""
-    Overlaps(x)
-
-Regions that share real ground with `x`.
-
-Answers *"which regions does my data reach into?"*. Sharing only a boundary does not count, which is
-the whole difference from a bare intersection test: a region touching your data along an edge
-contains none of it, and `boundingbox(..., round = ...)` snaps boxes onto a lattice, so that case is
-reachable rather than theoretical.
-
-# Arguments
-
-  - `x`: as [`Encloses`](@ref), but not a point - a point has no area to share.
-"""
-struct Overlaps{E} <: AbstractSpatialRelation
-    extent::E
-
-    function Overlaps(x)
-        return new{typeof(_areaextent(x, "Overlaps"))}(_areaextent(x,
-                                                                   "Overlaps"))
-    end
-end
-
-"""
-    Within(x)
-
-Regions that lie completely inside `x`.
-
-Answers *"which regions can I simulate in full with the data I have?"* - the converse of
-[`Encloses`](@ref), and what walks *down* a hierarchy where that walks up.
-
-# Arguments
-
-  - `x`: as [`Encloses`](@ref), but not a point - no region fits inside a point.
-"""
-struct Within{E} <: AbstractSpatialRelation
-    extent::E
-
-    Within(x) = new{typeof(_areaextent(x, "Within"))}(_areaextent(x, "Within"))
-end
-
 # The subject's extent, refused if it has no area.
 #
 # `Overlaps` and `Within` are both empty for a point - measured, a point does not even overlap
@@ -754,16 +1010,6 @@ function _areaextent(x, what::AbstractString)
     return extent
 end
 
-# Delegated to `Extents`, whose predicates are the documented API for exactly this.
-#
-# `Encloses` uses `covers`, NOT `contains`. The two agree on every pair of boxes, which is what makes
-# the choice look free - but they differ on a **point**: `contains` is false for a point inside a
-# box, `covers` is true. Since a point is the one subject only `Encloses` accepts, `contains` would
-# make the commonest query - "which regions enclose this coordinate?" - silently answer nothing.
-(r::Encloses)(region) = Extents.covers(region, r.extent)
-(r::Overlaps)(region) = Extents.overlaps(region, r.extent)
-(r::Within)(region) = Extents.within(region, r.extent)
-
 # The same three questions asked of real geometry rather than of boxes, for `exact = true`.
 #
 # ArchGDAL has no `covers`, and its `contains` excludes the boundary - the same trap `Extents`
@@ -773,20 +1019,6 @@ end
 function _exactencloses(region, subject)
     return ArchGDAL.isempty(ArchGDAL.difference(subject,
                                                 region))
-end
-
-function (r::Encloses)(region::ArchGDAL.AbstractGeometry)
-    return _exactencloses(region,
-                          _subjectgeometry(r))
-end
-
-function (r::Within)(region::ArchGDAL.AbstractGeometry)
-    return _exactencloses(_subjectgeometry(r), region)
-end
-
-function (r::Overlaps)(region::ArchGDAL.AbstractGeometry)
-    return ArchGDAL.geomarea(ArchGDAL.intersection(region, _subjectgeometry(r))) >
-           0
 end
 
 # The subject as geometry: a rectangle, or a point where the extent has no width. Cached on first
@@ -799,155 +1031,9 @@ function _subjectgeometry(r::AbstractSpatialRelation)
     return ArchGDAL.fromWKT("POLYGON (($w $s, $x $s, $x $n, $w $n, $w $s))")
 end
 
-function Base.show(io::IO, r::AbstractSpatialRelation)
-    return print(io, nameof(typeof(r)), "(",
-                 r.extent, ")")
-end
-
-# ---------------------------------------------------------------------------
-# The query
-# ---------------------------------------------------------------------------
-
-"""
-    RegionMatch
-
-One named region a query found, and enough of it to act on without looking anything else up.
-
-# Fields
-
-  - `level`: which kind of region it is, as [`NaturalEarthLevel`](@ref).
-  - `name`: the source's own spelling of the name.
-  - `extent`: its bounding box, in degrees.
-  - `area`: the total area of the region, in `km^2`.
-  - `parts`: how many separate components it has.
-  - `share`: what fraction of the region's area its **largest** component holds. This is the number
-    that says whether [`LargestLandmass`](@ref) is a sensible answer for the region at all: New
-    Zealand's is 0.56, so asking for its principal landmass silently returns South Island alone, and
-    the Solomon Islands' is 0.20.
-  - `overlap`: the area of the box it shares with whatever was asked about, in `km^2`, which is what
-    an [`Overlaps`](@ref) report orders by. `nothing` for a listing, which asked about nothing.
-"""
-struct RegionMatch{E}
-    level::NaturalEarthLevel
-    name::String
-    extent::E
-    area::typeof(1.0km^2)
-    parts::Int
-    share::Float64
-    overlap::Union{typeof(1.0km^2), Nothing}
-end
-
 # A match is a subject in its own right, so a report's row feeds straight back into a new query:
 # `Encloses(match)` walks up the hierarchy and `Within(match)` walks down.
 _wgsextent(m::RegionMatch) = m.extent
-
-"""
-    RegionReport
-
-What [`investigate_regions`](@ref) found: the matching regions, in order, and the question asked.
-
-A report is a container - it iterates, indexes and has a length - so `only(report)` asserts that the
-answer was unique, `first(report)` takes the best one and `report[i]` takes a chosen one. Any of
-those gives a [`RegionMatch`](@ref), which is what [`NaturalEarthSpec`](@ref) accepts.
-
-# Fields
-
-  - `relation`: the question that was asked, including what it was asked about.
-  - `matches`: the regions that answered it, ordered as described in [`investigate_regions`](@ref).
-  - `exact`: whether the answer was checked against the regions' real outlines rather than their
-    bounding boxes.
-  - `refined`: how many candidates had their geometry fetched to answer it. Zero unless `exact`.
-"""
-struct RegionReport{R <: Union{AbstractSpatialRelation, Nothing}, M}
-    relation::R
-    matches::Vector{M}
-    exact::Bool
-    refined::Int
-end
-
-# A report that was answered from boxes alone, which is every report but an `exact = true` query.
-RegionReport(relation, matches) = RegionReport(relation, matches, false, 0)
-
-Base.length(r::RegionReport) = length(r.matches)
-Base.getindex(r::RegionReport, i) = r.matches[i]
-Base.iterate(r::RegionReport, s...) = iterate(r.matches, s...)
-Base.isempty(r::RegionReport) = isempty(r.matches)
-Base.eltype(::Type{RegionReport{R, M}}) where {R, M} = M
-Base.lastindex(r::RegionReport) = lastindex(r.matches)
-
-"""
-    investigate_regions(x; level = nothing, kind = nothing, limit = 20)
-    investigate_regions(relation::AbstractSpatialRelation; ...)
-
-Find the named regions that relate to `x`, as [`investigate_study_area`](@ref) reports on a grid
-before one is built.
-
-Given anything with a position - a study area, a raster, a layer, a habitat, an ecosystem, an
-`Extents.Extent`, a [`LatLong`](@ref) or an earlier match - this asks which of the 2 444 shipped
-regions [`Encloses`](@ref) it. Name a relation instead to ask a different question:
-[`Overlaps`](@ref) for regions your data reaches into, [`Within`](@ref) for regions your data covers
-entirely.
-
-!!! warning "The answer is about boxes, not outlines"
-    Every region is compared by its bounding box, because that is what costs no download. A box can
-    be far larger than the ground it names: Chile's spans 43 degrees of longitude because of Easter
-    Island, so a query "overlapping" Chile may share no Chilean land at all. Pass `exact = true` to
-    check against the real outlines instead, or build the shape with [`NaturalEarthSpec`](@ref).
-
-# Arguments
-
-  - `x`: what to ask about, or a relation carrying it.
-  - `level`: restrict to one level, by name. `EcoSISTEM.naturalearth_levels()` lists them.
-  - `kind`: restrict to levels of one sort - `:political`, `:statistical`, `:physical` or `:code`.
-  - `limit`: how many matches to keep. A continental query can match hundreds, and the ordering puts
-    the useful ones first.
-  - `exact`: check the surviving candidates against the regions' **real outlines** instead of their
-    boxes, which needs the geometry and so downloads. It removes the false positives a box tier
-    cannot avoid - Norway's box encloses Edinburgh, its coastline does not - and reaches the 54
-    regions that cross the antimeridian, which have no box a query can compare at all.
-
-    Refinement is lazy and in box order, stopping as soon as the answer cannot change: refining only
-    ever removes a match or shrinks its overlap, so a confirmed `limit` cannot be displaced by
-    anything later. The report says how many regions it had to fetch.
-"""
-function investigate_regions(relation::AbstractSpatialRelation; level = nothing,
-                             kind = nothing, limit::Integer = 20,
-                             exact::Bool = false)
-    wanted = isnothing(level) ? nothing : _checklevel(level).name
-    candidates = RegionMatch[]
-    for l in NATURALEARTH_LEVELS
-        isnothing(wanted) || l.name == wanted || continue
-        isnothing(kind) || l.kind === kind || continue
-        byname = get(_regionindex().bylevel, l.name, nothing)
-        isnothing(byname) && continue
-        for row in values(byname)
-            # A wrapping row has no box that is a single interval, so the box tier cannot compare it
-            # at all - it is skipped there, as `boundingbox` skips the same rows. Geometry has no
-            # such problem, Natural Earth having split its polygons at the date line, so `exact`
-            # reaches 54 regions that are otherwise invisible.
-            box = _rowextent(row)
-            if row.Wraps
-                exact || continue
-            else
-                relation(box) || continue
-            end
-            # A region matches itself under `Encloses` and `Within`, both being reflexive. Excluded
-            # by identity rather than by extent: distinct regions legitimately share a box, and
-            # dropping those would delete real answers.
-            _issubject(relation, l, row) && continue
-            push!(candidates,
-                  RegionMatch{typeof(box)}(l, row.Name, box, row.AreaKm2 * km^2,
-                                           row.Parts, _rowshare(row),
-                                           _overlaparea(box, relation.extent,
-                                                        row.Wraps)))
-        end
-    end
-    _ordermatches!(candidates, relation)
-    exact ||
-        return RegionReport(relation,
-                            candidates[1:min(limit, length(candidates))])
-    return _refineexactly(relation, candidates, limit)
-end
 
 # Refine box matches against real geometry, lazily and in box order, stopping as soon as the answer
 # cannot change.
@@ -982,6 +1068,7 @@ end
 # is enough; for `Overlaps` the weakest confirmed match must already beat the best the next
 # candidate could possibly turn out to be, which is its box overlap.
 _canstop(::Encloses, confirmed, next, limit) = true
+
 _canstop(::Within, confirmed, next, limit) = true
 
 function _canstop(::Overlaps, confirmed, next, limit)
@@ -1007,10 +1094,6 @@ function _withexactoverlap(r::Overlaps, m::RegionMatch{E}, geom) where {E}
     shared = ArchGDAL.intersection(geom, _subjectgeometry(r))
     return RegionMatch{E}(m.level, m.name, m.extent, m.area, m.parts, m.share,
                           _equalarea(shared))
-end
-
-function investigate_regions(x; kw...)
-    return investigate_regions(Encloses(x); kw...)
 end
 
 # What fraction of a region's area its largest component holds, straight from the shipped columns -
@@ -1067,68 +1150,10 @@ end
 # you almost always want. The other two have no such natural "best", so they order by how much
 # ground they share with the subject, largest first.
 _ordermatches!(matches, ::Encloses) = sort!(matches, by = m -> m.area)
+
 _ordermatches!(matches, ::Overlaps) = sort!(matches, by = m -> -m.overlap)
+
 _ordermatches!(matches, ::Within) = sort!(matches, by = m -> -m.area)
-
-function Base.show(io::IO, m::RegionMatch)
-    return print(io, "RegionMatch(", m.level.name, " \"", m.name, "\")")
-end
-
-function Base.show(io::IO, ::MIME"text/plain", m::RegionMatch)
-    println(io, "RegionMatch \"", m.name, "\" at level ", m.level.name, " (",
-            m.level.kind, ")")
-    println(io, "  extent: ", m.extent)
-    return print(io, "  area: ", round(typeof(1.0km^2), m.area, digits = 0),
-                 " in ",
-                 m.parts, " part", m.parts == 1 ? "" : "s")
-end
-
-function Base.show(io::IO, r::RegionReport)
-    return print(io, "RegionReport(", length(r), " matches)")
-end
-
-function Base.show(io::IO, ::MIME"text/plain", r::RegionReport)
-    isempty(r) && return print(io, _emptydescription(r.relation))
-    println(io, length(r), " named region", length(r) == 1 ? "" : "s", " ",
-            _headline(r.relation, length(r) != 1), ", ",
-            _orderdescription(r.relation), ":")
-    # The level column is dropped where every row shares one, which is what a listing is: repeating
-    # it down the page would say nothing and crowd out the extent.
-    levels = unique(m -> m.level.name, r.matches)
-    showlevel = length(levels) > 1
-    lw = showlevel ? maximum(m -> length(m.level.name), r.matches) : 0
-    nw = min(30, maximum(m -> length(m.name), r.matches))
-    showlevel && print(io, "  ", rpad("level", lw))
-    println(io, "  ", rpad("name", nw), "       W       S       E       N",
-            lpad("area/km2", 12), lpad("parts", 6), lpad("largest", 8))
-    for m in r.matches
-        showlevel && print(io, "  ", rpad(m.level.name, lw))
-        print(io, "  ", rpad(first(m.name, nw), nw))
-        print(io, "  ", _boxcolumns(m.extent))
-        # A whole number of square kilometres, never scientific: a column of areas is read by
-        # comparing them, and `4.45995e6` beside `830486.0` cannot be.
-        print(io, lpad(round(Int, ustrip(km^2, m.area)), 12))
-        print(io, lpad(m.parts, 6))
-        # The largest component's share, shown only where it is a warning: a region whose principal
-        # landmass is most of it needs no annotation, and a column of "100%" would bury the cases
-        # that matter.
-        println(io,
-                m.share < 0.9 ? lpad(string(round(Int, 100m.share), "%"), 7) :
-                "")
-    end
-    isnothing(r.relation) && return
-    # Said every time rather than left to the docstring, and inverted when it no longer applies: a
-    # box can be far larger than the ground it names, and a reader who does not know that will trust
-    # the list too far.
-    r.exact &&
-        return print(io, "\nChecked against the regions' real outlines, ",
-                     r.refined,
-                     " of which were fetched to answer this.")
-    return print(io,
-                 "\nCompared by bounding box, which costs no download but is coarse - Chile's box " *
-                 "\nspans 43 degrees because of Easter Island. Pass `exact = true` to check " *
-                 "against\nthe real outlines instead.")
-end
 
 # A region's box as four fixed-width columns of degrees, so a column of them lines up and can be
 # read down.
@@ -1140,8 +1165,11 @@ function _boxcolumns(e)
 end
 
 _orderdescription(::Nothing) = "by name"
+
 _orderdescription(::Encloses) = "smallest first"
+
 _orderdescription(::Overlaps) = "most overlap first"
+
 _orderdescription(::Within) = "largest first"
 
 # The relation as a verb agreeing with its subject, so a report reads as a sentence rather than as a
@@ -1149,13 +1177,17 @@ _orderdescription(::Within) = "largest first"
 # What the report is a report *of*. A listing asked no question, so it names the level instead of a
 # relation.
 _headline(rel, plural) = _relationverb(rel, plural) * " it"
+
 _headline(::Nothing, plural) = "at this level"
 
 _emptydescription(rel) = "No named region " * _relationverb(rel, false) * " it."
+
 _emptydescription(::Nothing) = "No named regions at this level."
 
 _relationverb(::Encloses, plural) = plural ? "enclose" : "encloses"
+
 _relationverb(::Overlaps, plural) = plural ? "overlap" : "overlaps"
+
 _relationverb(::Within, plural) = plural ? "lie within" : "lies within"
 
 # Region names close enough to `lower` to be worth offering, by edit distance. Only ever reached on

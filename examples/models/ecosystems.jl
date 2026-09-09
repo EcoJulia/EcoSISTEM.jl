@@ -6,17 +6,18 @@
 # **The published configuration, unchanged.** Supply is per unit area and demand per unit of
 # plant, so a species' actual demand is `DEMAND .* size` - which is what lets the large-pool
 # experiment give every species its own body size. These are the paper's numbers: 4.5e11 kJ per km^2
-# per day against 450,000 kJ per m^2 per day, so a 1 m^2 plant needs 450,000 kJ/day and a 1 km^2 cell
-# supports a million of them.
+# per month against 450,000 kJ per m^2 per month, so a 1 m^2 plant needs 450,000 kJ/month and a 1 km^2
+# cell supports a million of them.
 
 using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 
-const SUPPLY = (sunlight = 4.5e11kJ / (km^2 * day), water = 192.0mm / day)
-const DEMAND = (sunlight = 450000.0kJ / (m^2 * day),
-                water = 192.0Unitful.L / (m^2 * day))
+const SUPPLY = (sunlight = 4.5e11kJ / (km^2 * month_mean_duration),
+                water = 192.0mm / month_mean_duration)
+const DEMAND = (sunlight = 450000.0kJ / (m^2 * month_mean_duration),
+                water = 192.0Unitful.L / (m^2 * month_mean_duration))
 
 # A square study area of total `area`, divided into `cells × cells`. Cell size follows from the
 # two rather than being fixed, which is what lets the grid-resolution experiment carve one landscape

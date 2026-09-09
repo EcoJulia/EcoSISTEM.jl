@@ -213,8 +213,6 @@ struct LayerCollection{R <: Role, A, C <: NamedTuple} <:
     end
 end
 
-# == Functions ==================================================================================
-
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
@@ -246,14 +244,6 @@ end
 function Base.show(io::IO, l::CategoricalLayer)
     ny, nx = size(l.matrix)
     return print(io, "CategoricalRegime($(nameof(axisof(l))), $(ny) × $(nx))")
-end
-
-# One member, as it appears inside a collection's summary: its axis, and its unit where it has one.
-# The stored name is shown only when it differs from the axis, since a derived name repeats it.
-function _membersummary(name::Symbol, l::AbstractLayer)
-    axis = nameof(axisof(l))
-    u = l isa CategoricalLayer ? "" : " $(unit(eltype(l)))"
-    return name === axis ? "$(axis)$(u)" : "$(name): $(axis)$(u)"
 end
 
 function Base.show(io::IO, c::LayerCollection{R}) where {R}
@@ -292,6 +282,8 @@ end
 const _SUPPLY_SIZE = 1.0m
 
 const px = AbsoluteLength(0.254)
+
+# == Functions ==================================================================================
 
 """
     setchange!(layer::AbstractLayer, spec)
@@ -360,6 +352,14 @@ function check_bounds(eco::AbstractEcosystem, duration::Unitful.Time,
         return _checkreach(layer, final)
     end
     return nothing
+end
+
+# One member, as it appears inside a collection's summary: its axis, and its unit where it has one.
+# The stored name is shown only when it differs from the axis, since a derived name repeats it.
+function _membersummary(name::Symbol, l::AbstractLayer)
+    axis = nameof(axisof(l))
+    u = l isa CategoricalLayer ? "" : " $(unit(eltype(l)))"
+    return name === axis ? "$(axis)$(u)" : "$(name): $(axis)$(u)"
 end
 
 # The resource available in each cell. A supply holds one grid of values whether or not it varies
@@ -433,12 +433,12 @@ end
 # called - the indirection would buy nothing. These are methods on Diversity's *public* generic for
 # our type, which is the whole extension mechanism. Contrast `GridHabitat`, which genuinely **is**
 # an `AbstractPartition`: there the `_` hook is right, and the public name comes free.
-# **A layer is not a grid**, and there are deliberately no `EcoBase.AbstractGrid` methods on one. It
-# holds values *on* a grid, and cannot answer where its cells are without inventing an origin or
-# dividing its stored size by a unit it may not be in - a geographic layer asked for a metric cell
-# size can only answer `1.0 ° km^-1`, which is neither a length nor an angle. [`StudyGrid`](@ref)
-# answers those from the grid's own dimensions instead, and a habitat reaches it through its
-# [`StudyArea`](@ref).
+# **A layer is not a grid**, and there are deliberately no `EcoBase.AbstractRegularGrid` methods on
+# one. It holds values *on* a grid, and cannot answer where its cells are without inventing an
+# origin or dividing its stored size by a unit it may not be in - a geographic layer asked for a
+# metric cell size can only answer `1.0 ° km^-1`, which is neither a length nor an angle.
+# [`StudyGrid`](@ref) answers those from the grid's own dimensions instead, and a habitat reaches it
+# through its [`StudyArea`](@ref).
 
 iscontinuous(::ContinuousRegime) = true
 
@@ -699,8 +699,6 @@ function simpleregime(val::Float64, size::Unitful.Length,
     return ContinuousLayer{Condition, A, typeof(val), typeof(M),
                            typeof(size)}(M, size, NoLayerChange())
 end
-
-# == Functions ==================================================================================
 
 # ---------------------------------------------------------------------------
 # Driving the layers

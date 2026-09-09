@@ -12,8 +12,8 @@
 #
 # It sits in the main module rather than in an extension because it names no climate-data-source
 # package at all: every function here takes a type `T` and file paths,
-# and the dataset-specific methods (`_defaultscale(::Type{<:EarthEnv{<:LandCover}}) = 10` and the
-# rest) live in `EcoSISTEMRasterDataSourcesExt`, which supplies them over these generic helpers.
+# and the dataset-specific methods (`_stackaxis`, `_getrasterkw` and the rest) live in
+# `EcoSISTEMRasterDataSourcesExt`, which supplies them over these generic helpers.
 # Putting the generic half in an extension would have made an extension that names nothing from its
 # own trigger, which stops precompiling the moment that dependency is weakened.
 #
@@ -49,8 +49,6 @@ import Unitful.°, Unitful.°C, Unitful.mm
 # ArchGDAL is needed to register the GDAL backend Rasters uses to read GeoTIFFs.
 import ArchGDAL
 
-import Base.read
-
 # How far a step may sit from a whole arcsecond and still be taken as one. The worst real offender is
 # CHELSA's 89.999964 arcsec for 90 - a relative error of 4e-7 - while the smallest *genuine* step
 # difference anyone could mean is a whole arcsecond out of the finest grids we see (1 in 30, i.e.
@@ -75,13 +73,19 @@ const _READ_WHOLE_FRACTION = 0.5
 const _AGGCODEHASH = hash(read(@__FILE__, String))
 
 """
-    readfile(file::String; cut = nothing)
+    readfile(file::String; source = SyntheticData, unit = NoUnits, cut = nothing)
 
-Import a raster file from a path string into a `DimArray`.
+Import a raster file from a path string as a [`ClimateRaster`](@ref), the same type the dataset
+`read` methods return, so that anything that takes a raster takes this one.
 
 # Arguments
 
   - `file`: path to the raster, in any format GDAL reads.
+  - `source`: the data source the raster is recorded as coming from - a dataset type such as
+    `WorldClim{BioClim}` where the file is a layer of one, or the default [`SyntheticData`](@ref)
+    for a file that belongs to no catalogued dataset, such as a mask or a hand-made layer.
+  - `unit`: the physical unit to attach to the values, which the file itself cannot state. Defaults
+    to `NoUnits`, leaving them as bare magnitudes.
   - `cut`: a region to restrict the read to as an `Extents.Extent` of `°` intervals - from
     [`boundingbox`](@ref), say - or `nothing` for the whole file. Applied **lazily**, before the
     pixels are fetched, so cutting a global layer to one country costs the country rather than the
@@ -90,8 +94,9 @@ Import a raster file from a path string into a `DimArray`.
     `cut = Extent(Y = (ymin, ymax), X = (xmin, xmax))`; passing some of them, or passing them
     alongside `cut`, is an error. Pass `cut` instead.
 """
-function readfile(file::String; cut = nothing, xmin = nothing, xmax = nothing,
-                  ymin = nothing, ymax = nothing)
+function readfile(file::String; source::Type = SyntheticData, unit = NoUnits,
+                  cut = nothing, xmin = nothing, xmax = nothing, ymin = nothing,
+                  ymax = nothing)
     n = count(!isnothing, (xmin, xmax, ymin, ymax))
     if n == 4
         isnothing(cut) ||
@@ -104,7 +109,10 @@ function readfile(file::String; cut = nothing, xmin = nothing, xmax = nothing,
         error("`readfile` needs all four of `xmin`/`xmax`/`ymin`/`ymax` (deprecated) or none of " *
               "them; got $n.")
     end
-    return _applycut(_rastertodimarray(_readraster(file)), cut)
+    return ClimateRaster(source,
+                         _applycut(_rastertodimarray(_readraster(file),
+                                                     unit = unit),
+                                   cut))
 end
 
 # Whether a Rasters dimension is one of the two spatial axes, so `_rastertodimarray` can
@@ -427,19 +435,25 @@ end
 # The index range of axis `d` that `[lo, hi]` touches, widened outward to whole `scale`-sized
 # aggregation blocks - or `nothing` when the box selects nothing at all.
 #
-# The widening is the whole difficulty. `Rasters.aggregate` blocks from index 1, so cropping a
-# raster before aggregating it moves every block boundary and the coarsened cells land somewhere
-# else - read-extent variance reintroduced at the very point it was just eliminated. Starting the
-# crop on a block boundary (`i ≡ 1 mod scale`) makes the crop's blocks exactly the uncropped ones, so
-# the aggregated coordinates are identical whatever window was asked for. The end is clamped to the
-# axis length, which leaves the same partial final block a whole-file read would have had.
+# The widening is the whole difficulty. Cropping a raster before aggregating it moves every block
+# boundary and the coarsened cells land somewhere else - read-extent variance reintroduced at the very
+# point it was just eliminated. Starting and ending the crop on block boundaries makes the crop's
+# blocks exactly the uncropped ones, so the aggregated coordinates are identical whatever window was
+# asked for. The lattice is the one `_blockaggregate` uses: anchored at the south-west corner, so on
+# a north-first axis the boundaries sit `length(d) % scale` cells in from index 1 (the partial block
+# is the northern one, as it is for the study grid), and on an ascending axis at index 1.
 function _blockrange(d, lo, hi, scale::Integer)
     idx = DimensionalData.Lookups.selectindices(DimensionalData.lookup(d),
                                                 Rasters.Touches(lo, hi))
     isempty(idx) && return nothing
     i, j = first(idx), last(idx)
     scale > 1 || return i:j
-    return (1 + scale * fld(i - 1, scale)):min(length(d), scale * cld(j, scale))
+    n = length(d)
+    o = _trimoffset(DimensionalData.Lookups.order(DimensionalData.lookup(d)), n,
+                    scale)
+    lo_ = max(o + 1, o + 1 + scale * fld(i - o - 1, scale))
+    hi_ = min(n, o + scale * cld(j - o, scale))
+    return lo_:hi_
 end
 
 # Crop a *lazy* raster to `cut` before anything materialises, so only the window is read off disk.
@@ -481,7 +495,7 @@ function _readraster(f::AbstractString; scale::Integer = 1, fn = mean,
     r = _lazycrop(r, cut, scale)
     scale > 1 || return r
     fits = _readbytes(r) < _READ_WHOLE_FRACTION * Sys.total_memory()
-    return Rasters.aggregate(fn, fits ? read(r, checkmem = false) : r, scale)
+    return _blockaggregate(fits ? read(r, checkmem = false) : r, scale, fn)
 end
 
 # --- per-source read traits -------------------------------------------------
@@ -500,16 +514,34 @@ end
 # of its own; its variable names are WorldClim's).
 _layerunit(::Type, files) = NoUnits
 
-# Default read-time block-aggregation factor + reducer (land cover is coarsened 10× by default).
-# Land cover's 10× default is a fact about `EarthEnv` and lives in the extension, with the note
-# below on why the reducer is a plain `mean`.
-_defaultscale(::Type) = 1
+# Default reducer. `nothing` means *decide from the layer's axis* - see `_reducer` - so no source
+# pins one; the note below says why land cover's continuous fractions take a plain `mean`. There is
+# no default read scale: a read is at the file's own resolution unless it asks for one, and a study
+# area chooses one from its cell size.
 
-_defaultfn(::Type) = mean
+_defaultfn(::Type) = nothing
+
+# The axis a dataset read chooses its reducer by: the layers' shared axis from the catalogue, or
+# `NicheAxis` - and so the mean - where they disagree or the catalogue cannot place them, so a
+# layer the catalogue does not know still reads.
+# A read's layers as a code list: several codes collected to the catalogue's code type, one code as
+# it is.
+_codelist(layers::Union{Tuple, AbstractVector}) = collect(CODE_TYPE, layers)
+
+_codelist(layer) = layer
+
+function _readaxis(T::Type, layers)
+    codes = _codelist(layers)
+    return try
+        _sharedaxis(T, codes)
+    catch
+        NicheAxis
+    end
+end
 
 # **Land cover aggregates with a plain mean, and must not round.** Rounding each of the twelve
 # per-class bands back to an integer independently means a stack that summed to 100 before
-# aggregation need not afterwards: measured over Scotland at the default 10x, the RMS departure from
+# aggregation need not afterwards: measured over Scotland at 10x, the RMS departure from
 # 100 is 0.466 with a worst case of 3.0 percentage points, against 0.027 and 0.18 for a plain mean.
 #
 # The metric that flatters rounding - more cells summing to exactly 100 - is an artefact of
@@ -540,7 +572,9 @@ _filelist(x) = String[String(f) for f in values(x)]
 # another's request. Folding the window in was the alternative and is not worth it: the cache exists
 # to skip a slow whole-file `aggregate`, which a window does not do anyway, and a per-window key
 # would fill the cache with near-duplicates.
-function _cachedlayer(f, scale, fn, u; cut = nothing)
+function _cachedlayer(f, scale, fn, u; cut = nothing,
+                      axis::Type{<:NicheAxis} = NicheAxis)
+    fn = _reducer(fn, axis)
     (scale > 1 && isnothing(cut)) ||
         return _rastertodimarray(_readraster(f, scale = scale, fn = fn,
                                              cut = cut), unit = u)
@@ -571,10 +605,10 @@ _firstfile(raw) = first(_filelist(raw))
 # their actual physical unit as bare magnitudes (`_layerunit` is `NoUnits` for every source); the stacked
 # axis (bands or a monthly series) comes from `_stackaxis`. Shared by `read` and the deprecated `readworldclim`.
 function _readsource(T::Type, files::Vector{String};
-                     cut = nothing, scale = _defaultscale(T),
-                     fn = _defaultfn(T), slices = nothing)
+                     cut = nothing, scale = 1,
+                     fn = _defaultfn(T), slices = nothing, axis = NicheAxis)
     u = _layerunit(T, files)
-    aas = map(f -> _cachedlayer(f, scale, fn, u, cut = cut), files)
+    aas = map(f -> _cachedlayer(f, scale, fn, u, cut = cut, axis = axis), files)
     world = _stacklayers(aas,
                          _stackcoords(_stackaxis(T), length(aas), slices))
     return ClimateRaster(T, _applycut(world, cut))
@@ -589,13 +623,14 @@ end
 # layer table's own codes), no further name resolution needed here.
 function _readmultilayer(T::Type,
                          raw::Vector{<:NamedTuple};
-                         cut = nothing, scale = _defaultscale(T),
-                         fn = _defaultfn(T), slices = nothing)
+                         cut = nothing, scale = 1,
+                         fn = _defaultfn(T), slices = nothing, axis = NicheAxis)
     layernames = collect(keys(first(raw)))
     perlayer = map(layernames) do name
         files = String[String(nt[name]) for nt in raw]
         u = _layerunit(T, files)
-        aas = map(f -> _cachedlayer(f, scale, fn, u, cut = cut), files)
+        aas = map(f -> _cachedlayer(f, scale, fn, u, cut = cut, axis = axis),
+                  files)
         return _stacklayers(aas,
                             _stackcoords(_stackaxis(T), length(aas), slices))
     end
@@ -610,21 +645,22 @@ end
 # every other shape (a single path, or a per-time vector for one already-named layer) has no
 # layer names to preserve and flattens directly via `_filelist`.
 function _readraw(T, raw::Vector{<:NamedTuple}; cut, scale, fn,
-                  slices = nothing)
+                  slices = nothing, axis = NicheAxis)
     return _readmultilayer(T, raw, cut = cut,
-                           scale = scale, fn = fn, slices = slices)
+                           scale = scale, fn = fn, slices = slices, axis = axis)
 end
 
 # A bare `NamedTuple` is *one* time step wrapped as a length-1 vector, so it has no slice identity
 # to carry however the read was requested - `slices` is deliberately not forwarded.
-function _readraw(T, raw::NamedTuple; cut, scale, fn, slices = nothing)
+function _readraw(T, raw::NamedTuple; cut, scale, fn, slices = nothing,
+                  axis = NicheAxis)
     return _readmultilayer(T, [raw], cut = cut, scale = scale,
-                           fn = fn)
+                           fn = fn, axis = axis)
 end
 
-function _readraw(T, raw; cut, scale, fn, slices = nothing)
+function _readraw(T, raw; cut, scale, fn, slices = nothing, axis = NicheAxis)
     return _readsource(T, _filelist(raw), cut = cut, scale = scale,
-                       fn = fn, slices = slices)
+                       fn = fn, slices = slices, axis = axis)
 end
 
 # Divide out any `PublishedScaleFactor` - the layers a provider publishes at a known multiple of its

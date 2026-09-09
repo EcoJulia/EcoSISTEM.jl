@@ -99,7 +99,8 @@ const SAVE_DATES = [Dates.Date(2000 + y, 1, 1)
 # These come **before** the grid is chosen, because choosing it means costing each candidate, and
 # costing one means resolving the area these very layers would land on.
 const TEMPERATURE = SourceSpec(WorldClim{BioClim}, :bio1)
-const SUNLIGHT = UniformSpec(1000.0kJ / km^2 / day, axis = SolarRadiation)
+const SUNLIGHT = UniformSpec(1000.0kJ / km^2 / month_mean_duration,
+                             axis = SolarRadiation)
 # `within` positions the area and is not optional: WorldClim is global, so without it the grid
 # would be the world.
 const WITHIN = EcoSISTEM.boundingbox("Africa", level = "CONTINENT",
@@ -178,17 +179,9 @@ const ENVIRONMENT = GridHabitat(regime = TEMPERATURE, supply = SUNLIGHT,
 const SPECIES = build_species(NUMSPECIES,
                               tolerance = (274.0K, 50.0K),
                               toleranceaxis = Temperature,
-                              demand = 10.0kJ / day,
+                              demand = 10.0kJ / month_mean_duration,
                               demandaxis = SolarRadiation,
                               dispersal = 15.0km,
-                              # **`BirthOnlyMovement`, not the original's `AlwaysMovement`, and
-                              # that is a package bug rather than a preference.** `move!`'s
-                              # `AlwaysMovement` method (`src/Generate.jl:511-518`) is typed on
-                              # `AbstractEcosystem`, so it catches an `MPIEcosystem` too, and reads
-                              # `eco.abundances.matrix` - which an `MPIGridLandscape` has not got
-                              # (`rows_matrix`/`cols_vector`). It fails on the first timestep of any
-                              # distributed run. `test/SmallMPItest.jl:63` uses
-                              # `BirthOnlyMovement`, so nothing exercised it.
                               movement = BirthOnlyMovement,
                               survival = 0.1,
                               abundance = SMALL ? 10^6 : 3 * 10^8,

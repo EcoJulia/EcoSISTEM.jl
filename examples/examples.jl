@@ -22,10 +22,11 @@ const SMALL = get(ENV, "ECOSISTEM_SCALE", "large") == "small"
 
 numSpecies = 100;
 grd = (10, 10);
-demand = (450000.0kJ / m^2 / day, 192.0Unitful.L / m^2 / day);
+demand = (450000.0kJ / m^2 / month_mean_duration,
+          192.0Unitful.L / m^2 / month_mean_duration);
 individuals = SMALL ? 1_000_000 : 100_000_000;
 area = 100.0 * km^2;
-totalK = (4.5e11kJ / km^2 / day, 192.0mm / day)
+totalK = (4.5e11kJ / km^2 / month_mean_duration, 192.0mm / month_mean_duration)
 
 # A `StudyArea` decides the grid, then `GridHabitat` builds on it. With no data-backed layer
 # to shape it, `extent` and `cellsize` give a **synthetic** grid with no CRS - which is exactly what a
@@ -60,7 +61,6 @@ death = 0.15 / year
 birth = death
 long = 1.0
 surv = 0.1
-boost = 1.0
 
 size_mean = 1.0m^2
 # Set up how much resource each species consumes
@@ -68,7 +68,7 @@ resource_vec1 = Demand{SolarRadiation}(fill(demand[1] * size_mean, numSpecies))
 resource_vec2 = Demand{Precipitation}(fill(demand[2] * size_mean, numSpecies))
 
 resource_vec = SpeciesRequirementCollection((resource_vec1, resource_vec2))
-param = EqualPop(birth, death, long, surv, boost)
+param = EqualPop(birth, death, long, surv)
 
 # Create ecosystem
 

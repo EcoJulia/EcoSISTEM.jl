@@ -236,7 +236,8 @@ function _checkmembers(what, ref::NamedTuple, other::NamedTuple)
                   "the same axis on both sides (a grouping axis such as " *
                   "`EcoSISTEM.TemperatureAxis` is fine, so long as both say it), or check the " *
                   "order of the species niches against the environment layers.")
-        ref.types[i] === other.types[i] ||
+        _typesagree(ref.types[i], other.types[i],
+                    _categoricalpair(ref.kinds, other.kinds, i)) ||
             error("$what: layer `$name` is $(ref.types[i]) in the $(ref.label) but " *
                   "$(other.types[i]) in the $(other.label) - the two must measure the same thing " *
                   "in the same unit.")
@@ -250,6 +251,22 @@ function _checkmembers(what, ref::NamedTuple, other::NamedTuple)
                   "(NicheSpec) and a categorical fit (CategoricalSuitability).")
     end
     return nothing
+end
+
+# Measurements must be the same type, the same thing in the same unit. Class codes are compared by
+# value, so two numeric code types pair where the member is categorical: an integer class list
+# against a layer of float codes, which is what a file of codes reads as and what a dominant class
+# is. A test rather than dispatch on purpose: written as methods it takes four, two of them
+# near-identical diagonals, because Julia ranks a `Real` pair above a general `Type{A}, Type{A}`.
+function _typesagree(a::Type, b::Type, categorical::Bool)
+    return a === b || (categorical && a <: Real && b <: Real)
+end
+
+# Whether member `i` holds class codes on both sides that say; a side that says nothing decides
+# nothing.
+function _categoricalpair(refkinds, otherkinds, i::Integer)
+    (isnothing(refkinds) || isnothing(otherkinds)) && return false
+    return !refkinds[i] && !otherkinds[i]
 end
 
 # "continuous"/"categorical" for an `iscontinuous` answer.

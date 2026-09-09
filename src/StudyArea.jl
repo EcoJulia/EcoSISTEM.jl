@@ -14,7 +14,7 @@ using Rasters
 import Rasters: Projected
 
 """
-    StudyGrid{C, YD, XD} <: EcoBase.AbstractGrid
+    StudyGrid{C, YD, XD} <: EcoBase.AbstractRegularGrid
 
 The geometry of the grid a [`GridHabitat`](@ref) was built on: where its cells are, how big they are
 and what coordinate reference system they are stated in.
@@ -35,7 +35,7 @@ Reach it through the habitat's [`StudyArea`](@ref).
   - `y`: the grid's `Y` dimension - the **first** array dimension throughout this package.
   - `x`: the grid's `X` dimension.
 """
-struct StudyGrid{C, YD, XD} <: EcoBase.AbstractGrid
+struct StudyGrid{C, YD, XD} <: EcoBase.AbstractRegularGrid
     crs::C
     y::YD
     x::XD
@@ -64,8 +64,6 @@ struct StudyGrid{C, YD, XD} <: EcoBase.AbstractGrid
     end
 end
 
-# == Functions ==================================================================================
-
 # The grid an already-built `(Y, X)` array sits on. This is the form every caller in the package
 # uses: the array is the habitat's own `active` mask, so the grid is guaranteed to be the one the
 # habitat is indexed by rather than a second description of it.
@@ -92,6 +90,15 @@ memory. Nothing in the simulation reads a cell's name; only output does.
 struct CellNames{G <: StudyGrid} <: AbstractVector{String}
     grid::G
 end
+
+# The vector interface: one name per cell, computed at the index rather than stored.
+Base.getindex(names::CellNames, i::Int) = _cellname(names.grid, i)
+
+function Base.size(names::CellNames)
+    return (length(names.grid.y) * length(names.grid.x),)
+end
+
+Base.IndexStyle(::Type{<:CellNames}) = IndexLinear()
 
 """
     StudyArea(base = missing; regime::Union{LayerInput, Missing, Nothing} = missing,
@@ -140,7 +147,9 @@ as given.
   - `crs`: the coordinate reference system to work in. **A projected CRS is required to simulate**:
     dispersal is expressed against one cell size, which only a projected grid has. Omitted, it is
     adopted from the layers, and a geographic result is warned about.
-  - `cellsize`: the length of a cell's side. Omitted, it is taken from the `align` layer's own step.
+  - `cellsize`: a cell's side - a length (`1km`) on a projected grid, an angle (`30arcminute`,
+    `0.5°`) on a geographic one; the other way round is an error. Omitted, it is taken from the
+    `align` layer's own step.
   - `extent`: **a size, not a bounding box** - how big the area is, never where it is, given as a
     `(y, x)` tuple of lengths: north-south first, then east-west, the dimension order used
     throughout the package. It is therefore only meaningful for a *synthetic* area, and combining
@@ -296,6 +305,8 @@ function Base.show(io::IO, ::MIME"text/plain", a::StudyArea)
     return show(io, MIME"text/plain"(), a.report)
 end
 
+# == Functions ==================================================================================
+
 """
     getspeciesstorage(x)
 
@@ -324,7 +335,7 @@ function getspeciesstorage(x)
     return _gridfootprint(length(yx[1]), length(yx[2])).perspecies
 end
 
-# --- The `EcoBase.AbstractGrid` interface ----------------------------------
+# --- The `EcoBase.AbstractRegularGrid` interface ---------------------------
 #
 # Seven methods, all reading the dimensions rather than a stored number, so there is nothing to
 # disagree with the coordinates. `cellsize`, `cells`, `xmax`/`ymax` and `xrange`/`yrange` are
@@ -450,7 +461,46 @@ function _probecrs(spec::SourceSpec)
     return sourcecrs(spec.source, spec.code; spec.readkw...)
 end
 
+# A file's CRS from its header alone - a lazy open fetches no pixels - so the read can be windowed
+# before it happens. A URL is downloaded here if it has not been already, since nothing can be known
+# about it otherwise.
+function _probecrs(spec::RasterFileSpec)
+    r = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        return Rasters.Raster(_resolvepath(spec.path), lazy = true)
+    end
+    crs = Rasters.crs(r)
+    return _isblankcrs(crs) ? nothing : crs
+end
+
 _probecrs(::Any) = nothing
+
+# A file-backed spec's grid from its header alone - the CRS and the two coordinate vectors, in the
+# CRS's unit - or `nothing` where it cannot be had without reading. What `_autoscale` measures a
+# layer's cell against a target with, before deciding how coarsely to read it.
+function _lazygrid(spec::RasterFileSpec)
+    r = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        return Rasters.Raster(_resolvepath(spec.path), lazy = true)
+    end
+    return _gridof(r)
+end
+
+function _lazygrid(spec::SourceSpec)
+    hasmethod(_lazysource, Tuple{typeof(spec.source), typeof(spec.code)}) ||
+        return nothing
+    r = _lazysource(spec.source, spec.code; spec.readkw...)
+    return isnothing(r) ? nothing : _gridof(r)
+end
+
+_lazygrid(::Any) = nothing
+
+# The CRS and unit-dressed coordinate vectors of a lazily opened raster, or `nothing` without a CRS.
+function _gridof(r)
+    crs = Rasters.crs(r)
+    _isblankcrs(crs) && return nothing
+    u = _crsunit(crs)
+    return (crs = crs, y = parent(DimensionalData.lookup(r, Y)) .* u,
+            x = parent(DimensionalData.lookup(r, X)) .* u)
+end
 
 # The target CRS decided without reading anything: an explicit `crs` needs no probe at all, and
 # otherwise the same staged rule `_targetcrs` applies, fed from headers. `nothing` if any layer
@@ -547,19 +597,30 @@ end
 
 # What building `target`-sided cells out of a `source`-sided layer costs - see
 # [`AbstractLayerFate`](@ref) for the three answers.
-function _resamplecost(samecrs::Bool, source, target, aligned::Bool)
-    samecrs || return LayerResampled("it is in a different CRS")
+function _resamplecost(samecrs::Bool, source, target, aligned::Bool;
+                       ratio = nothing)
+    samecrs ||
+        return LayerResampled(_preaggregated("it is in a different CRS", ratio))
     rel = _stepratio(source, target)
     if rel.equal
         aligned && return LayerKeptExactly()
         return LayerResampled("its cell boundaries are offset from the target grid's")
     end
     rel.finer &&
-        return LayerResampled("the target grid is finer than it is, so its values would be interpolated up")
+        return LayerResampled("the target grid is finer than it is, so each of its cells is repeated across the grid cells it covers")
     !isnothing(rel.factor) && aligned && return LayerAggregated(rel.factor)
-    return LayerResampled(aligned ?
-                          "the target cell size is not a whole multiple of its own" :
-                          "its cell boundaries are offset from the target grid's")
+    return LayerResampled(_preaggregated(aligned ?
+                                         "the target cell size is not a whole multiple of its own" :
+                                         "its cell boundaries are offset from the target grid's",
+                                         ratio))
+end
+
+# A resampling's reason, with the exact first stage added where the grid is at least twice as coarse
+# as the layer: `_regridsampled` block-aggregates the layer on its own lattice by the whole part of
+# the ratio before sampling the residual, and the report should say so.
+function _preaggregated(reason::AbstractString, ratio)
+    (isnothing(ratio) || ratio < 2) && return reason
+    return "$reason; pre-aggregated $(floor(Int, ratio))× on its own lattice first"
 end
 
 # Pick the layer whose grid is preserved exactly. The rule (user's choice) is "whichever is already in
@@ -688,9 +749,14 @@ end
 # Gather what the grid decision needs to know about one materialised layer: its extent both in the
 # target CRS (so layers in different CRSs can be positioned against each other at all) and in its
 # **own** (where it is always exact - see `_planbounds` for why that matters).
-function _layerfacts(name::Symbol, raster::ClimateRaster, tcrs)
+# `prescale` is the factor the raster was block-aggregated by on read, so `step` is the layer's own
+# and `readstep` the one the grid will be built from.
+function _layerfacts(name::Symbol, raster::ClimateRaster, tcrs;
+                     prescale::Integer = 1)
+    readstep = _rastercellstep(raster)
     return (name = name, raster = raster, crs = _rastercrs(raster),
-            step = _rastercellstep(raster),
+            step = isnothing(readstep) ? nothing : readstep / prescale,
+            readstep = readstep, prescale = prescale,
             bounds = _dimsextent(raster.array, tcrs),
             native = _dimsextent(raster.array, nothing))
 end
@@ -841,14 +907,12 @@ end
 # resampler gave its centre a value, i.e. if it is more than half covered - and such a cell is then
 # handed a *whole* cell's worth of supply over ground that is partly not there.
 function _coveredgrid(rasters, payload, grid; simulate_safely::Bool)
-    # **`categorical = false` here, and it is only ever asked where the values fall, not what they
-    # are.** These are the study area's *data layers*, and all this does with them is find which cells
-    # came back non-`NaN` - so the interpolation is never read, and the choice cannot move a class
-    # code. Sampling them as `:mode` instead genuinely changes the answer: nearest-class fills cells
-    # that bilinear leaves `NaN`, which moves the coverage, the recut and so the study area's own
-    # size. Measured - three `test_StudyArea` assertions went from equal to `NaN`-bearing.
+    # Only *where* each layer has data is asked here, never what the values are: each layer's value
+    # at every cell's centre, so a cell is covered when the layer has data there and `NaN` otherwise.
+    # Half-open, so data ending exactly on a centre does not cover it.
     sampled = map(r -> _sampledata(r, grid, name = "layer",
-                                   categorical = false), rasters)
+                                   categorical = false, centres = true),
+                  rasters)
     mask = _rastermaskonly(payload, grid, first(sampled))
     full = Matrix{Bool}(reduce(.&, map(r -> _fullycovered(r, grid), rasters)))
     usable = mask .& reduce(.&, map(_nanfree, sampled))
@@ -956,12 +1020,37 @@ end
 # since a different CRS always costs a resample.
 function _planfor(f::NamedTuple, tcrs, cellsize, origin)
     same = _samecrs(f.crs, tcrs)
-    aligned = same && !isnothing(origin) && !isnothing(f.step) &&
-              _originaligned(f.bounds.Y[1], first(origin), f.step)
+    aligned = same && !isnothing(origin) && !isnothing(f.readstep) &&
+              _originaligned(f.bounds.Y[1], first(origin), f.readstep)
     cost = isnothing(f.step) ?
            LayerResampled("it has no resolvable cell size") :
-           _resamplecost(same, f.step, cellsize, aligned)
+           _composefate(_resamplecost(same, f.readstep, cellsize, aligned,
+                                      ratio = _planratio(f, same, tcrs,
+                                                         cellsize)),
+                        f.prescale)
     return LayerPlan(f.name, f.crs, f.step, f.native, cost)
+end
+
+# The target's step over the layer's own, as the whole pipeline will measure it: directly in the
+# same CRS, across the projection otherwise, and undoing any coarsening the read already did;
+# `nothing` where it cannot be measured.
+function _planratio(f::NamedTuple, same::Bool, tcrs, cellsize)
+    step = same ? f.step : _stepacross(f.raster, tcrs)
+    isnothing(step) && return nothing
+    same || (step = step / f.prescale)
+    return uconvert(NoUnits, cellsize / step)
+end
+
+# A fate found on the raster as read, composed with the exact block aggregation the read did first:
+# two nested exact aggregations are one, by the product of their factors.
+_composefate(fate::AbstractLayerFate, prescale::Integer) = fate
+
+function _composefate(::LayerKeptExactly, prescale::Integer)
+    return prescale == 1 ? LayerKeptExactly() : LayerAggregated(prescale)
+end
+
+function _composefate(fate::LayerAggregated, prescale::Integer)
+    return LayerAggregated(prescale * fate.factor)
 end
 
 # The warnings, all of which describe grids that work but are probably not what was wanted. They are
@@ -1027,8 +1116,9 @@ function _collectproblems!(problems, plans, tcrs, active, fp::NamedTuple,
         p.kind isa LayerResampled && occursin("finer", p.kind.reason) &&
             push!(problems,
                   Problem(ProblemWarning(), :upsampling,
-                          "layer `:$(p.name)` is being interpolated up onto a finer grid than it " *
-                          "has, which invents detail it never measured."))
+                          "layer `:$(p.name)` is being put onto a finer grid than it has: each of " *
+                          "its cells is repeated across the grid cells it covers, which shows no " *
+                          "detail it never measured, but makes the grid look finer than the data."))
         p.kind isa LayerAggregated && p.kind.factor >= _HUGE_FACTOR &&
             push!(problems,
                   Problem(ProblemWarning(), :extreme_aggregation,

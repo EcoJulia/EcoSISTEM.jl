@@ -3,6 +3,9 @@
 # ===========================================================================
 # Deprecations - `ClimatePref` submodule
 #
+# Sections are labelled `Deprecated in vX.Y.Z` and ordered newest release first, as in
+# `src/deprecations.jl`, so a release's worth is deleted from the foot of the file.
+#
 # (One live deprecation cannot be moved here: the `xmin`/`xmax`/`ymin`/`ymax`
 # keyword branch inside `readfile(file; ...)` in `src/datasetread.jl` is part of that
 # live method's body.)
@@ -31,6 +34,8 @@ using DimensionalData: rebuild, lookup
 # extension is invisible to `@autodocs` unless it stays in the parent.
 # Calling one without `RasterDataSources` loaded is a `MethodError` naming the function - the same
 # behaviour as `retrieve_era5` without `PyCall`.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 function Worldclim_bioclim end
 function CHELSA_bioclim end
@@ -56,6 +61,8 @@ function readCHELSA_monthly end
 
 # ---------------------------------------------------------------------------
 # Readers -> the unified `read`/`cut` API
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # Deprecated positional-extent form `readfile(file, xmin, xmax, ymin, ymax)`; convert to `cut` and forward
 # to the keyword `readfile(file; cut)` method in `src/datasetread.jl`.
@@ -79,6 +86,8 @@ end
 # `Base.read(T::Type{<:RDS.RasterDataSource}, ...)` in the same file. `readfile` is *not* included -
 # it has no result-wrapper type to hang a dispatch tag on, and shadowing `Base.read(::AbstractString)`
 # (raw-bytes read) with a type-punned return value would be confusing, not clarifying.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 """
     readCRUTS(dir::String, var_name::String; cut = nothing)
@@ -142,16 +151,22 @@ end
 # `compressLC` -> `compress_landcover`: the `LC` abbreviation is expanded, and the name is `snake_case`
 # like every other function. The released name is `compressLC`; the intermediate
 # `compressLandCover` never shipped, so this points straight at the final name and owes no second shim.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 @deprecate compressLC compress_landcover
 
 # ---------------------------------------------------------------------------
 # Naming standardisation (v0.5.0): `camelCase` phylogenetic-fit functions -> `snake_case`.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 @deprecate fitBrownian fitbrownian
 
 # ---------------------------------------------------------------------------
 # `fitLambda`/`fitlambda` DELETED (v0.5.0) - not deprecated, and no shim
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 # Pagel's-lambda fitting is gone with no redirect, because it never worked on Julia 1.x and so no
 # user code can depend on a result it never returned. Two independent faults: `varcovar` threw
@@ -176,6 +191,8 @@ end
 # `year` needs an epoch to become a date range - the ambiguity the keywords exist to remove is
 # exactly what makes the translation impossible to do for the caller. So it names the replacement
 # for each old argument and stops.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 """
     extractvalues(args...; kwargs...)
@@ -216,6 +233,8 @@ export extractvalues
 #
 # The implementations stay here, working, until the removal decision is taken. Each warns in its
 # innermost method, so a call through an `ERA`/`ClimateRaster` wrapper warns once, not twice.
+#
+# Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
 
 """

@@ -3,8 +3,8 @@
 # ===========================================================================
 # Deprecations - main `EcoSISTEM` module
 #
-# Every deprecated public trait/nichefit API is collected here (sorted into
-# sections by context) and included late in `EcoSISTEM.jl`, after all the types
+# Every deprecated public API is collected here, in sections, and included late in
+# `EcoSISTEM.jl`, after all the types
 # it shims. Each shim warns - so downstream code gets a migration message rather
 # than a silent `MethodError` - and forwards to the current API. Mirrored by
 # `test/test_deprecations.jl`. The `ClimatePref` submodule keeps its own
@@ -13,11 +13,13 @@
 #
 # ## Every section says which release deprecated it
 #
-# Sections are grouped by **concept line** - the trait line, the resource line, the builder families
-# - because that is how a reader arrives here, from a name they were using. Each header therefore
-# ends with a `Deprecated in vX.Y.Z` line saying which release the shim belongs to, so that removing
-# a release's worth is a matter of deleting the sections carrying that label. `clean_Deprecations.jl`
-# asserts every section has one.
+# Each section header ends with a `Deprecated in vX.Y.Z` line saying which release the shim belongs
+# to, and **the sections are ordered newest release first**, so the oldest deprecations sit at the
+# foot of the file and dropping a release's worth is deleting from the bottom up to the first
+# section carrying a newer label. Within one release the sections are grouped by concept line - the
+# trait line, the resource line, the builder families - because that is how a reader arrives here,
+# from a name they were using. `clean_Deprecations.jl` asserts every section has a label and that
+# the labels never get newer going down the file.
 #
 # ⚠️ Do not read the version *in a section's title* as that label. A title saying "v0.4.0 rename"
 # describes where the **old name** came from, not when it was deprecated: this file did not exist at
@@ -34,6 +36,86 @@
 # labelled v0.5.0 but sit early, among the v0.4.0-name shims, because those shims point at them.
 # They can only go when the shims that reach them do.
 # ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Demographic parameters: the `boost` field is gone
+#
+# The birth multiplier is `min(K/E, 1)`, as the model is written up: however plentiful the resource,
+# a species reproduces no faster than its baseline rate. `EqualPop`, `PopGrowth` and `NoGrowth`
+# lose their fifth field and `build_species` its keyword. The five-argument constructors and the
+# keyword still work: each warns and discards the value. A value other than 1 changed results in the
+# release that read it, and the warning says so.
+#
+# Deprecated in v0.8.0.
+# ---------------------------------------------------------------------------
+# Warn that a `boost` was given and say what it would have done. `nothing` is the keyword's default
+# and warns nothing.
+_deprecatedboost(::Nothing, name::Symbol) = nothing
+function _deprecatedboost(boost::Real, name::Symbol)
+    tail = boost == 1 ? "" :
+           " A release that read `boost` gave different results for `boost = $boost`, so " *
+           "those runs will not reproduce."
+    Base.depwarn("`boost` is deprecated and ignored: the birth multiplier is capped at 1, so a " *
+                 "species reproduces no faster than its baseline rate however plentiful the " *
+                 "resource. Drop the argument." * tail, name)
+    return nothing
+end
+
+function EqualPop(birth, death, longevity, survival, boost::Real)
+    _deprecatedboost(boost, :EqualPop)
+    return EqualPop(birth, death, longevity, survival)
+end
+
+function PopGrowth{U}(birth::Vector{TimeUnitType{U}},
+                      death::Vector{TimeUnitType{U}},
+                      longevity::Float64,
+                      survival::Float64,
+                      boost::Real) where {U <: Unitful.Units}
+    _deprecatedboost(boost, :PopGrowth)
+    return PopGrowth{U}(birth, death, longevity, survival)
+end
+
+function NoGrowth{U}(birth::Vector{TimeUnitType{U}},
+                     death::Vector{TimeUnitType{U}},
+                     longevity::Float64,
+                     survival::Float64,
+                     boost::Real) where {U <: Unitful.Units}
+    _deprecatedboost(boost, :NoGrowth)
+    return NoGrowth{U}(birth, death, longevity, survival)
+end
+
+# ---------------------------------------------------------------------------
+# Spec constructors: `ConstructedSpec` -> `ConstructedRasterSpec`
+#
+# The two compose the same way, one over rasters and one over geometry, and neither name said which
+# it was, so the raster one was renamed when the vector mirror `ConstructedShapeSpec` was added.
+#
+# Deprecated in v0.7.0.
+# ---------------------------------------------------------------------------
+Base.@deprecate_binding ConstructedSpec ConstructedRasterSpec
+
+# ---------------------------------------------------------------------------
+# MPI landscape constructors: `emptyMPIgridlandscape` -> `empty_landscape`
+#
+# Deprecated in v0.6.0.
+# ---------------------------------------------------------------------------
+# `empty_mpi_gridlandscape` is replaced by `empty_landscape`, whose distributed method is chosen by
+# the presence of the partition rather than by the name. This cannot be a redirecting `@deprecate`:
+# the old signature took the partition alone, and the labelled views the landscape now carries need
+# the habitat and species list, which it has no way to reach. So it errors, naming the replacement.
+function emptyMPIgridlandscape(args...; kwargs...)
+    return error("`emptyMPIgridlandscape` and `empty_mpi_gridlandscape` are replaced by " *
+                 "`empty_landscape(habitat, spplist, sppcounts, sccounts)`, which takes the " *
+                 "habitat and species list rather than the partition alone. The old form cannot " *
+                 "be redirected: it has no way to reach the species names and grid coordinates " *
+                 "the landscape now carries.")
+end
+
+function empty_mpi_gridlandscape(args...; kwargs...)
+    return emptyMPIgridlandscape(args...; kwargs...)
+end
+
+export emptyMPIgridlandscape
 
 # ---------------------------------------------------------------------------
 # Trait line: `GaussTrait` -> `NicheTolerance(A, Normal, ...)`
@@ -1365,28 +1447,6 @@ end
 # ---------------------------------------------------------------------------
 @deprecate ContinuousEvolve continuous_evolve
 @deprecate DiscreteEvolve discrete_evolve
-# ---------------------------------------------------------------------------
-# MPI landscape constructors: `emptyMPIgridlandscape` -> `empty_landscape`
-#
-# Deprecated in v0.6.0.
-# ---------------------------------------------------------------------------
-# `empty_mpi_gridlandscape` is replaced by `empty_landscape`, whose distributed method is chosen by
-# the presence of the partition rather than by the name. This cannot be a redirecting `@deprecate`:
-# the old signature took the partition alone, and the labelled views the landscape now carries need
-# the habitat and species list, which it has no way to reach. So it errors, naming the replacement.
-function emptyMPIgridlandscape(args...; kwargs...)
-    return error("`emptyMPIgridlandscape` and `empty_mpi_gridlandscape` are replaced by " *
-                 "`empty_landscape(habitat, spplist, sppcounts, sccounts)`, which takes the " *
-                 "habitat and species list rather than the partition alone. The old form cannot " *
-                 "be redirected: it has no way to reach the species names and grid coordinates " *
-                 "the landscape now carries.")
-end
-
-function empty_mpi_gridlandscape(args...; kwargs...)
-    return emptyMPIgridlandscape(args...; kwargs...)
-end
-
-export emptyMPIgridlandscape
 
 # ---------------------------------------------------------------------------
 # Layer time series (v0.5.0): a layer no longer holds a stack and a cursor into it
@@ -1601,13 +1661,3 @@ export GaussTrait
                                                                        array)
 @deprecate CRUTS(array::DimensionalData.AbstractDimArray) ClimateRaster(CRUTS,
                                                                         array)
-
-# ---------------------------------------------------------------------------
-# Spec constructors: `ConstructedSpec` -> `ConstructedRasterSpec`
-#
-# The two compose the same way, one over rasters and one over geometry, and neither name said which
-# it was, so the raster one was renamed when the vector mirror `ConstructedShapeSpec` was added.
-#
-# Deprecated in v0.7.0.
-# ---------------------------------------------------------------------------
-Base.@deprecate_binding ConstructedSpec ConstructedRasterSpec

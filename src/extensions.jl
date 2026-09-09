@@ -21,6 +21,9 @@
 # This mirrors `BaseInterface.jl`/`DiversityInterface.jl`/`EcoBaseInterface.jl`, which hold methods
 # we supply on someone else's generic; here are the generics we declare for someone else to supply.
 #
+# Grouped by extension, and within each section a type comes first, then the exported hooks, then the
+# `public` ones, then the private ones - the package's file order, applied per section.
+#
 # Three things that look like they belong here and do not:
 #
 #   - `canonicalunit`, `bounds`, `supplytype` and `demandtype` (`nicheaxis_macro.jl`) are forward
@@ -37,6 +40,29 @@
 # Everything to do with phylogenies. These are Phylo's concepts rather than EcoSISTEM's, which is why
 # they are grouped here instead of sitting beside `SpeciesList` and the tolerances they were declared
 # next to.
+
+# Declared abstract because a struct cannot be stubbed the way a function can: the extension supplies
+# the sole concrete subtype under the same name, as `MPIEcosystem` does. They must stay `public`
+# rather than exported, or `using EcoSISTEM` inside the extension would import the bare names and the
+# concrete definitions could not be written.
+"""
+    Brownian
+
+A fitted Brownian-motion model of trait evolution, as returned by
+[`fitbrownian`](@ref). Under it a trait wanders at random along every branch,
+so expected divergence grows with the time two lineages have been apart.
+
+# Fields of the concrete type `EcoSISTEMPhyloExt.Brownian`
+
+  - `optimum`: the maximum-likelihood parameters, `[σ², z̄₀]` - the diffusion
+    rate and the inferred root state.
+  - `se`: their standard errors, from the Hessian; `show` prints each parameter
+    with a ±2 SE interval.
+  - `H`: the Hessian of the negative log-likelihood at the optimum.
+  - `LL`: the log-likelihood there, for comparison against a competing model
+    fitted to the same trait.
+"""
+abstract type Brownian end
 
 """
     reroot!(tree::AbstractTree, node::String)
@@ -103,29 +129,6 @@ Evolve a continuous trait along a BinaryTree, `tree` via Brownian motion. Takes
 in a starting value, `val` and a variance, `var`.
 """
 function continuous_evolve end
-
-# Declared abstract because a struct cannot be stubbed the way a function can: the extension supplies
-# the sole concrete subtype under the same name, as `MPIEcosystem` does. They must stay `public`
-# rather than exported, or `using EcoSISTEM` inside the extension would import the bare names and the
-# concrete definitions could not be written.
-"""
-    Brownian
-
-A fitted Brownian-motion model of trait evolution, as returned by
-[`fitbrownian`](@ref). Under it a trait wanders at random along every branch,
-so expected divergence grows with the time two lineages have been apart.
-
-# Fields of the concrete type `EcoSISTEMPhyloExt.Brownian`
-
-  - `optimum`: the maximum-likelihood parameters, `[σ², z̄₀]` - the diffusion
-    rate and the inferred root state.
-  - `se`: their standard errors, from the Hessian; `show` prints each parameter
-    with a ±2 SE interval.
-  - `H`: the Hessian of the negative log-likelihood at the optimum.
-  - `LL`: the log-likelihood there, for comparison against a competing model
-    fitted to the same trait.
-"""
-abstract type Brownian end
 
 """
     varcovar(tree::AbstractTree)
@@ -202,11 +205,6 @@ function brownian_motion end
 # The distributed hot loop's plumbing. The two abstract types it fills in are in
 # `MPIEcosystem.jl`; what follows is what the extension must implement.
 
-# Whether this process should build a distributed `MPIEcosystem`. The MPI extension supplies the sole
-# method, `MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1`; with the extension absent there is
-# no method at all, which is why `_usempi` below checks for it before asking.
-function _should_mpi end
-
 """
     gatherabundance(eco::MPIEcosystem)
 
@@ -264,6 +262,11 @@ function synchronise_from_cols! end
 # a user writes. Deliberately not symmetric with `MPIEcosystem` and `MPIGridLandscape`, which stay
 # exported because a user names those types directly.
 public empty_landscape, synchronise_from_rows!, synchronise_from_cols!
+
+# Whether this process should build a distributed `MPIEcosystem`. The MPI extension supplies the sole
+# method, `MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1`; with the extension absent there is
+# no method at all, which is why `_usempi` below checks for it before asking.
+function _should_mpi end
 
 # --- Detecting it, on the parent's side ------------------------------------
 # Everything below is implemented here rather than declared. It lives with the hooks because it is
@@ -339,7 +342,8 @@ public retrieve_era5
     compress_landcover(landcover::ClimateRaster{<:EarthEnv{<:LandCover}})
 
 Collapse EarthEnv's twelve per-class cover fractions into a single layer of **class codes**, taking
-each cell's dominant class.
+each cell's dominant class. It is [`dominant_class`](@ref) on that source: a cell with no data in
+any band is absent in the result, and a tie goes to the lowest-numbered class.
 
 # Arguments
 
@@ -416,6 +420,11 @@ splatted in unchanged; the aggregation `scale` in particular cannot affect a CRS
   - `kw...`: read keywords, all ignored - see above.
 """
 function sourcecrs end
+
+# The first file of a dataset's layer set, opened lazily - header only, no pixels - so a source's
+# grid can be measured before deciding how much of it to fetch; `sourcecrs` is its CRS alone. The
+# extension supplies the sole method.
+function _lazysource end
 
 # ---------------------------------------------------------------------------
 # EcoSISTEMDataPipelineExt - requires DataPipeline

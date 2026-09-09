@@ -69,6 +69,37 @@ include("buildfixtures.jl")
         @test :geographic in [pr.code for pr in p.problems]
     end
 
+    # A cell size must be the kind of quantity the grid is laid out in. The fixture is five 1° cells
+    # a side, so the counts below follow from the requested size alone.
+    @testset "an angular cellsize is accepted on a geographic grid, a length is not" begin
+        wgs = _reg(_testraster(WorldClim{BioClim}, fill(291.0K, 5, 5)))
+        p = _analyse((regime = wgs,), cellsize = 30arcminute)
+        @test p.cellsize == 30arcminute
+        @test p.cellsizesource isa EcoSISTEM.GivenByUser
+        @test size(p.active) == (10, 10)
+        @test size(_analyse((regime = wgs,), cellsize = 1.0°).active) == (5, 5)
+        @test size(_analyse((regime = wgs,), cellsize = 3600arcsecond).active) ==
+              (5, 5)
+        @test size(_analyse((regime = wgs,), cellsize = 2.5°).active) == (2, 2)
+        # The three spellings of one degree describe one grid.
+        @test _analyse((regime = wgs,), cellsize = 60arcminute).active ==
+              _analyse((regime = wgs,), cellsize = 1.0°).active
+        # A length still cannot mean anything on a degree grid, and the message says what can.
+        err = try
+            _analyse((regime = wgs,), cellsize = 1km)
+        catch e
+            e
+        end
+        @test err isa ErrorException
+        @test occursin("fixed physical side", err.msg)
+        @test occursin("30arcminute", err.msg)
+        # And an angle cannot mean anything on a projected one.
+        bng = _reg(_bngraster(WorldClim{BioClim}, fill(291.0K, 9, 9)))
+        @test_throws ErrorException _analyse((regime = bng,),
+                                             cellsize = 30arcminute)
+        @test _analyse((regime = bng,), cellsize = 5km).cellsize == 5km
+    end
+
     @testset "a synthetic area needs both extent and cellsize" begin
         p = _analyse(NamedTuple(), extent = (4km, 12km), cellsize = 1km)
         @test isnothing(p.crs)
@@ -88,14 +119,18 @@ end
 if !Sys.iswindows()
     @testset "windowing the reads does not change the answer" begin
         scot = EcoSISTEM.boundingbox("Scotland", coverage = AllTerritories())
-        for (src, code) in ((WorldClim{BioClim}, :bio1),   # scale 1
-            (EarthEnv{LandCover}, 7))      # scale 10 - aggregation blocks
+        # The land cover is read at `scale = 10`, said explicitly: the whole-globe reference below
+        # costs 27 GB resident at the file's own resolution against 8.5 GB cold at ten, and a
+        # runner primes the tenfold aggregate so it costs nothing there.
+        for (src, code, scale) in ((WorldClim{BioClim}, :bio1, 1),
+            (EarthEnv{LandCover}, 7, 10))      # aggregation blocks
             # An already-read raster cannot be windowed, so this is the unwindowed reference.
-            whole = EcoSISTEM._read(SourceSpec(src, code))
+            whole = EcoSISTEM._read(SourceSpec(src, code, scale = scale))
             ref = investigate_study_area(regime = ConstructedRasterSpec(() -> whole,
                                                                         axis = EcoSISTEM.NicheAxis),
                                          within = scot)
-            win = investigate_study_area(regime = SourceSpec(src, code),
+            win = investigate_study_area(regime = SourceSpec(src, code,
+                                                             scale = scale),
                                          within = scot)
             @test size(win.active) == size(ref.active)
             @test win.active == ref.active
@@ -113,17 +148,17 @@ end
 if !Sys.iswindows()
     @testset "a multi-layer read caches its layers individually" begin
         cache = LayerCache()
-        whole = _asraster(SourceSpec(EarthEnv{LandCover}), cache)
+        whole = _asraster(SourceSpec(EarthEnv{LandCover}, scale = 10), cache)
         @test length(cache) == 12                 # one entry per layer, not one for the request
         # ...so asking for a single layer afterwards is a hit, adding nothing.
-        one = _asraster(SourceSpec(EarthEnv{LandCover}, 7), cache)
+        one = _asraster(SourceSpec(EarthEnv{LandCover}, 7, scale = 10), cache)
         @test length(cache) == 12
         @test size(one.array) == size(whole.array)[1:2]
 
         # Assembling the stack here rather than in `_readmultilayer` must not change it: same data,
         # and the same canonical *names* on the layer axis (`EarthEnv` code 7 has always shown as
         # `:cultivated_and_managed`, never as `7`).
-        direct = EcoSISTEM._read(SourceSpec(EarthEnv{LandCover}))
+        direct = EcoSISTEM._read(SourceSpec(EarthEnv{LandCover}, scale = 10))
         lax(a) = parent(DimensionalData.lookup(a.array,
                                                DimensionalData.Dim{:layer}))
         @test lax(whole) == lax(direct)

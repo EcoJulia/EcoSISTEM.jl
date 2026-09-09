@@ -127,7 +127,6 @@ classDiagram
     class LayerCollection~R, A, C~
     Role <|-- Condition
     Role <|-- Resource
-    AbstractGrid   <|-- AbstractLayer
     AbstractLayer  <|-- ContinuousLayer
     AbstractLayer  <|-- CategoricalLayer
     AbstractLayer  <|-- LayerCollection
@@ -476,6 +475,10 @@ study area: a synthetic one has no CRS, extent or resolution of its own.
 `AbstractShapeSpec` is the branch of the lazy specs that is **ground** rather than data - a shape
 file, a named country, a continent, an island - and resolves to geometry before any grid exists.
 
+`SourceSpec` and `RasterFileSpec` are the two ways of naming raster data to be read: a layer of a
+catalogued dataset, whose unit and axis the catalogue supplies, or a file that belongs to no dataset,
+which must be told both. Each holds a name and no data, and reads through the same cache.
+
 **`ConstructedShapeSpec` and `ConstructedRasterSpec` are mirrors**: each is the "several members
 become one" node for its medium. Three of their differences are forced by that medium and one is
 not, which is worth stating so the asymmetry is not read as an oversight. A raster combination can
@@ -494,6 +497,7 @@ classDiagram
     class AbstractSyntheticLayerSpec
     class AbstractSyntheticMaskSpec
     class SourceSpec~A, U~
+    class RasterFileSpec~A, U~
     class ShapeSpec
     class AbstractShapeSpec
     class NaturalEarthSpec~C~
@@ -508,6 +512,7 @@ classDiagram
     AbstractSpec              <|-- AbstractLazySpec
     AbstractSpec              <|-- AbstractSyntheticSpec
     AbstractLazySpec          <|-- SourceSpec
+    AbstractLazySpec          <|-- RasterFileSpec
     AbstractLazySpec          <|-- ConstructedRasterSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticLayerSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticMaskSpec
@@ -771,7 +776,7 @@ records that.
 **A `StudyArea` carries two things, and they answer different questions.** Its `report` records
 *how* the grid was decided; its `builtgrid` is a `StudyGrid` saying *where the cells are* - the CRS
 and the very `Y`/`X` dimensions the habitat's `active` mask is indexed by, never a second copy of
-them. `StudyGrid` is the package's only `EcoBase.AbstractGrid`, so `AbstractHabitat{H, B, L}` passes
+them. `StudyGrid` is the package's only `EcoBase.AbstractRegularGrid`, so `AbstractHabitat{H, B, L}` passes
 it to `AbstractPartition{L}` and anything speaking that interface can ask a habitat where its cells
 are.
 
@@ -885,7 +890,7 @@ classDiagram
 
 **Regulation is exploitative competition for a shared pool; carrying capacity is emergent rather
 than a parameter.** In each cell `E` is the community's *total* demand and `K` the supply; births
-scale by `min(K/E, boost)` and deaths by `E/K`. Species therefore interact **only** through `E` -
+scale by `min(K/E, 1)` and deaths by `E/K`. Species therefore interact **only** through `E` -
 symmetrically, with no pairwise terms.
 
 **Two orthogonal per-species axes, and the sign structure is the whole design:**
@@ -971,9 +976,9 @@ per month) and `Dim{:layer}` for everything else.
 ## Notes
 
 - **External supertypes:** `AbstractHabitat <: Diversity.AbstractPartition`,
-  `StudyGrid <: EcoBase.AbstractGrid`, `SpeciesList <: Diversity.AbstractTypes`,
-  `AbstractEcosystem <: Diversity.AbstractMetacommunity`. `AbstractLayer` is deliberately **not** an
-  `EcoBase.AbstractGrid`, because a layer is values *on* a grid rather than a grid itself.
+  `StudyGrid <: EcoBase.AbstractRegularGrid`, `SpeciesList <: Diversity.AbstractTypes`,
+  `AbstractEcosystem <: Diversity.AbstractMetacommunity`. `AbstractLayer` is deliberately **not**
+  `EcoBase.AbstractGridded`, because a layer is values *on* a grid rather than a grid itself.
 
 - **Canonical units.** Level axes carry a `canonicalunit` that a layer's actual-unit values are
   converted to at build time - temperature `K`, **precipitation `mm/day`** (a rate, not a depth),

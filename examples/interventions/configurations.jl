@@ -49,7 +49,7 @@ configuration() = CONFIGURATIONS[runscale()]
 # definition silently overwrite the first - no warning at all - so an unprefixed `DEMAND` here
 # replaced the models' one and broke its `map(d -> d .* sizes, DEMAND)`. Measured, not guessed.
 const _AREA = 100.0km^2
-const _DEMAND = 4.5e5kJ / day
+const _DEMAND = 4.5e5kJ / month_mean_duration
 intervention_demand() = _DEMAND
 supply_density(individuals) = individuals * _DEMAND / _AREA
 

@@ -1,5 +1,50 @@
 # NEWS
 
+- v0.8.0
+  - Added
+    - `RasterFileSpec`, a lazy layer spec for a raster file that belongs to no dataset: the read is
+      windowed to the study area, cached, and coarsened on read by `scale`. `readfile` gains `unit`.
+    - `show` methods for some over-long types.
+    - `class_fractions` and `dominant_class`, which nested as two `ConstructedRasterSpec`s regrid
+      a layer of class codes by the plurality of the covering cells. `compress_landcover` is
+      `dominant_class` on EarthEnv, and a cell with no data is now absent rather than class 1.
+    - `examples/paper.jl`, which writes the paper's computational figures (3, 5, 6, 7, 8 and 9)
+      as PDFs from the package's own examples, at the published scale when run directly and from
+      a small run under the test suite.
+  - Changed
+    - Every layer reaches the study grid by aggregation of the source cells covering each grid
+      cell, and nothing is interpolated: exact block aggregation where the grid is an aligned whole
+      multiple of the layer's cells, which the report has always claimed, and nearest-neighbour
+      sampling onto a finer lattice then aggregation otherwise, reprojection included. The
+      read-time `scale` is the same computation, and a layer far finer than the grid is read
+      pre-aggregated by it. Values on any grid that is not a layer's own change.
+    - A coarsening reduces over the cells that carry data with a reducer chosen from the layer's
+      axis - the mean, or the most frequent class for class codes. A grid cell is covered by a layer
+      when the layer has data at its centre.
+    - `readfile` returns a `ClimateRaster`, with `source` and `unit` keywords.
+    - A categorical tolerance and its regime no longer need the same numeric type for their
+      codes: an integer class list pairs with a layer of float codes.
+    - EarthEnv land cover is no longer coarsened 10× by default. A read is at the file's own
+      resolution unless it asks for a `scale`, and a study area chooses one from its cell size.
+    - Building a layer onto a study area reads only the grid's own window, and reuses the read
+      the area made when it was decided; it no longer reads the whole file a second time.
+    - The `boost` parameter is gone and the birth multiplier is capped at 1, as the model is written
+      up. The old constructors and keyword warn and discard it; results with `boost = 1` are
+      unchanged, and runs with any other value will not reproduce.
+    - `SpatialEcology`, `Proj`, `OnlineStats` and seven standard libraries are no longer
+      dependencies; nothing in the package loaded them.
+    - EcoBase 0.2, which answers the whole gridded interface for anything holding a grid, so
+      `xmin`, `xrange`, `xedges`, `indices` and `cellanchor` now work on a `GridHabitat` and on an
+      `Ecosystem` as well as on a `StudyGrid`. `StudyGrid` is an `EcoBase.AbstractRegularGrid`,
+      EcoBase's new name for what it used to call `AbstractGrid`. It declares `YThenX`, so
+      `indices` and `coordinates` now report `(y, x)` columns, the package's own order; ask
+      `XThenY()` for the other.
+  - Fixed
+    - A `StudyGrid` declares that it labels cells by their lower corner. EcoBase assumed a centre,
+      so every edge it derived - and every heatmap drawn from those edges - sat half a cell low.
+    - An angular `cellsize` such as `30arcminute` is accepted on a geographic grid; a length there,
+      and an angle on a projected grid, are refused.
+    - `ShapeSpec` documents that a URL must name a self-contained file.
 - v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name

@@ -8,11 +8,11 @@ using Unitful.DefaultSymbols
 """
     AbstractParams
 
-The demographic rates a simulation runs on: a per-species birth rate and death rate, plus the three
-exponents and ceilings that say how those rates respond to the environment. [`EqualPop`](@ref),
+The demographic rates a simulation runs on: a per-species birth rate and death rate, plus the two
+exponents that say how those rates respond to the environment. [`EqualPop`](@ref),
 [`PopGrowth`](@ref) and [`NoGrowth`](@ref) are the concrete forms.
 
-Every subtype carries the same five fields, and two of them are what make the model a niche model:
+Every subtype carries the same four fields, and two of them are what make the model a niche model:
 
   - `longevity` is the exponent on a species' own resource demand, applied to birth **and** death
     alike. It therefore sets the *tempo* of turnover - a body-size proxy - and cancels out of the
@@ -40,14 +40,12 @@ known.
 
   - `birth`, `death`: the rates, per unit time, the same for every species.
   - `longevity`, `survival`: the two exponents described in [`AbstractParams`](@ref).
-  - `boost`: the ceiling on the birth multiplier where resources are abundant.
 """
 struct EqualPop{U <: Unitful.Units} <: AbstractParams
     birth::TimeUnitType{U}
     death::TimeUnitType{U}
     longevity::Float64
     survival::Float64
-    boost::Float64
 end
 
 """
@@ -59,22 +57,19 @@ Demographic rates given per species: the general form, and what the hot loop rea
 
   - `birth`, `death`: one rate per species, per unit time.
   - `longevity`, `survival`: the two exponents described in [`AbstractParams`](@ref).
-  - `boost`: the ceiling on the birth multiplier where resources are abundant.
 """
 struct PopGrowth{U <: Unitful.Units} <: AbstractParams
     birth::Vector{TimeUnitType{U}}
     death::Vector{TimeUnitType{U}}
     longevity::Float64
     survival::Float64
-    boost::Float64
     function PopGrowth{U}(birth::Vector{TimeUnitType{U}},
                           death::Vector{TimeUnitType{U}},
                           longevity::Float64,
-                          survival::Float64,
-                          boost::Float64) where {U <: Unitful.Units}
+                          survival::Float64) where {U <: Unitful.Units}
         longevity >= 0 && survival >= 0 ||
             error("longevity and survival must not be negative")
-        return new{U}(birth, death, longevity, survival, boost)
+        return new{U}(birth, death, longevity, survival)
     end
 end
 
@@ -90,24 +85,40 @@ rates and the environment does not modulate them.
   - `birth`, `death`: one rate per species, per unit time.
   - `longevity`, `survival`: the two exponents described in [`AbstractParams`](@ref). Carried so
     that the same parameters can be reused with a growing model, but not read while growth is off.
-  - `boost`: the ceiling on the birth multiplier where resources are abundant, likewise unread.
 """
 struct NoGrowth{U <: Unitful.Units} <: AbstractParams
     birth::Vector{TimeUnitType{U}}
     death::Vector{TimeUnitType{U}}
     longevity::Float64
     survival::Float64
-    boost::Float64
 
     function NoGrowth{U}(birth::Vector{TimeUnitType{U}},
                          death::Vector{TimeUnitType{U}},
                          longevity::Float64,
-                         survival::Float64,
-                         boost::Float64) where {U <: Unitful.Units}
+                         survival::Float64) where {U <: Unitful.Units}
         longevity >= 0 && survival >= 0 ||
             error("longevity and survival must not be negative")
-        return new{U}(birth, death, longevity, survival, boost)
+        return new{U}(birth, death, longevity, survival)
     end
+end
+
+# One line, because the default prints both rate vectors in full, tens of thousands of characters at
+# a thousand species. `EqualPop` holds two scalars and prints acceptably as it is.
+function Base.show(io::IO, p::Union{PopGrowth, NoGrowth})
+    return print(io, nameof(typeof(p)), "(", length(p.birth),
+                 " species, birth ",
+                 _rangephrase(p.birth), ", death ", _rangephrase(p.death),
+                 ", longevity ", p.longevity, ", survival ", p.survival, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", p::Union{PopGrowth, NoGrowth})
+    println(io, nameof(typeof(p)))
+    println(io, "  species    ", length(p.birth))
+    println(io, "  birth      ", _rangephrase(p.birth))
+    println(io, "  death      ", _rangephrase(p.death))
+    println(io, "  longevity  ", p.longevity)
+    print(io, "  survival   ", p.survival)
+    return nothing
 end
 
 # == Functions ==================================================================================
@@ -124,8 +135,7 @@ function equalpop(params::EqualPop, numspp)
     return PopGrowth{typeof(u)}(fill(params.birth, numspp),
                                 fill(params.death, numspp),
                                 params.longevity,
-                                params.survival,
-                                params.boost)
+                                params.survival)
 end
 function equalpop(params::PopGrowth, numspp)
     return params
@@ -137,15 +147,14 @@ end
 
 # Choose the parameter type from the shape of what was passed: scalar rates give an `EqualPop`, a
 # vector of either gives a `PopGrowth` of `n` species.
-function _params(birth, death, longevity, survival, boost, n::Integer)
+function _params(birth, death, longevity, survival, n::Integer)
     if birth isa AbstractVector || death isa AbstractVector
         b = float.(_tofield(birth, n, "birth"))
         d = float.(_tofield(death, n, "death"))
         u = unit(first(b))
-        return PopGrowth{typeof(u)}(b, d, Float64(longevity), Float64(survival),
-                                    Float64(boost))
+        return PopGrowth{typeof(u)}(b, d, Float64(longevity), Float64(survival))
     else
         return EqualPop(float(birth), float(death), Float64(longevity),
-                        Float64(survival), Float64(boost))
+                        Float64(survival))
     end
 end

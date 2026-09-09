@@ -23,8 +23,6 @@ Works for any `Distributions.ContinuousUnivariateDistribution` (e.g. [`Trapezoid
 struct NicheSuitability{A, V} <: AbstractNicheFit{A, V}
 end
 
-# == Functions ==================================================================================
-
 # The `pdf` is a **density**, so it carries `1/x` and its stripped value depends on the frame.
 # Multiplying by the axis's fixed physical `densitywidth`, expressed in that same frame, makes the
 # result a dimensionless weight that is invariant to the axis's canonical unit - see
@@ -35,8 +33,6 @@ function (::NicheSuitability{A, V})(dist::ContinuousUnivariateDistribution,
                                     current) where {A, V}
     return pdf(dist, _toframe(V, current)) * _densityscale(A, V)
 end
-
-# == Functions ==================================================================================
 
 # Convenience: the matching [`NicheSuitability`](@ref) nichefit for a `NicheTolerance`, taking its `V` (unit) from the
 # trait's axis - so callers building an ecosystem by hand need not re-type the unit.
@@ -165,6 +161,8 @@ MultiplicativeFit(fits::Union{Tuple, NamedTuple}) = CombiningFit(prod, fits)
 const AdditiveFit{A, C} = CombiningFit{A, typeof(sum), C}
 
 AdditiveFit(fits::Union{Tuple, NamedTuple}) = CombiningFit(sum, fits)
+
+# == Functions ==================================================================================
 
 # --- Scoring a species against a cell ---------------------------------------
 # The nichefit's own job. Every method dispatches on an `AbstractEcosystem`, or on a layer and a

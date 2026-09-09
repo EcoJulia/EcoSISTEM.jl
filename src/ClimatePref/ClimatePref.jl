@@ -54,7 +54,6 @@ using EcoSISTEM: AbstractClimate, ClimateRaster, CODE_TYPE,
 using EcoSISTEM.Units: _monthindex
 using RecipesBase
 using SimpleTraits
-import Base: size, length, eltype
 # `import`, not `using`: `deprecations.jl` below **extends** `readfile` with the deprecated
 # positional-extent method, and a `using`-imported name cannot be extended.
 import EcoSISTEM: readfile
