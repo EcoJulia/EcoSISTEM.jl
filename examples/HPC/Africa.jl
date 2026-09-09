@@ -182,14 +182,6 @@ const SPECIES = build_species(NUMSPECIES,
                               demand = 10.0kJ / month_mean_duration,
                               demandaxis = SolarRadiation,
                               dispersal = 15.0km,
-                              # **`BirthOnlyMovement`, not the original's `AlwaysMovement`, and
-                              # that is a package bug rather than a preference.** `move!`'s
-                              # `AlwaysMovement` method (`src/Generate.jl:511-518`) is typed on
-                              # `AbstractEcosystem`, so it catches an `MPIEcosystem` too, and reads
-                              # `eco.abundances.matrix` - which an `MPIGridLandscape` has not got
-                              # (`rows_matrix`/`cols_vector`). It fails on the first timestep of any
-                              # distributed run. `test/SmallMPItest.jl:63` uses
-                              # `BirthOnlyMovement`, so nothing exercised it.
                               movement = BirthOnlyMovement,
                               survival = 0.1,
                               abundance = SMALL ? 10^6 : 3 * 10^8,

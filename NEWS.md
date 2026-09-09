@@ -8,6 +8,9 @@
     - `class_fractions` and `dominant_class`, which nested as two `ConstructedRasterSpec`s regrid
       a layer of class codes by the plurality of the covering cells. `compress_landcover` is
       `dominant_class` on EarthEnv, and a cell with no data is now absent rather than class 1.
+    - `examples/paper.jl`, which writes the paper's computational figures (3, 5, 6, 7, 8 and 9)
+      as PDFs from the package's own examples, at the published scale when run directly and from
+      a small run under the test suite.
   - Changed
     - Every layer reaches the study grid by aggregation of the source cells covering each grid
       cell, and nothing is interpolated: exact block aggregation where the grid is an aligned whole

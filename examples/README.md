@@ -23,6 +23,7 @@ of that, put it in a subdirectory instead.
 | `interventions/` | the scenario library the top-level `interventions.jl` exercises |
 | `landscapes/` | the five landscape configurations the top-level `landscapes.jl` exercises |
 | `models/` | the published experiments and diversity measures, included by the top-level `models.jl` |
+| `paper/` | the paper's computational figures, included by the top-level `paper.jl` |
 | `other/` | examples that are *not* run - long runs, ones needing data or a cluster, work in progress |
 | `HPC/`, `pipeline/` | tooling, not examples |
 
@@ -43,11 +44,17 @@ explicit `ECOSISTEM_SCALE=large` wins even under the suite.
 | `interventions.jl` | 10 species, 10,000 individuals | the published 100 species, 100,000,000 individuals |
 | `biodiversity.jl` | **skipped entirely** | ~20 whole simulations, ~3 min |
 | `models.jl` | **skipped entirely** | 10-50-year runs that draw figures |
+| `paper.jl` | a few species and years, the same six figures | the published experiments in full: hours, and the continent needs a large machine |
 | everything else | runs as written | runs as written |
 
 `biodiversity.jl` and `models.jl` skip rather than shrink because there is no smaller version of
 them worth running - they are the most expensive things in the repository. They are still top-level
 files, so they *are* found by the test suite; they simply decline to run.
+
+**`paper.jl` writes the paper's figures**, as PDFs under the filenames its LaTeX source includes,
+so that what the paper shows is produced by code under test. It never skips: the suite draws every
+figure from a small run. `ECOSISTEM_PAPER_FIGURES` names a subset to draw, and the output
+directory is the script's first argument. `paper/README.md` has the full instructions.
 
 **`biodiversity.jl` and `models.jl` investigate the same ecology to different ends**: the first
 asserts the end state as property tests, the second follows the same experiments *through time* with
