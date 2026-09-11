@@ -243,6 +243,23 @@ end
                                                      abundance = [1, 2, 3, 4])
     end
 
+    @testset "names" begin
+        anon = build_species(3, tolerance = TOL, toleranceaxis = Temperature,
+                             demand = DEM, demandaxis = SolarRadiation)
+        @test anon.names == ["1", "2", "3"]
+        binomials = ["Quercus robur", "Fagus sylvatica", "Betula pendula"]
+        named = build_species(3, tolerance = TOL, toleranceaxis = Temperature,
+                              demand = DEM, demandaxis = SolarRadiation,
+                              names = binomials)
+        @test named.names == binomials
+        @test gettypenames(named.types, true) == binomials
+        @test_throws DimensionMismatch build_species(3, tolerance = TOL,
+                                                     toleranceaxis = Temperature,
+                                                     demand = DEM,
+                                                     demandaxis = SolarRadiation,
+                                                     names = ["a", "b"])
+    end
+
     @testset "tolerance and demand are required" begin
         @test_throws ErrorException build_species(2, demand = DEM,
                                                   demandaxis = SolarRadiation)

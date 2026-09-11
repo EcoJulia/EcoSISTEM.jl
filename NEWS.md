@@ -5,6 +5,8 @@
     - `RasterFileSpec`, a lazy layer spec for a raster file that belongs to no dataset: the read is
       windowed to the study area, cached, and coarsened on read by `scale`. `readfile` gains `unit`.
     - `show` methods for some over-long types.
+    - `build_species` and the direct `SpeciesList` constructor take `names`, so species can carry
+      real names; the names label their Diversity types too.
     - `class_fractions` and `dominant_class`, which nested as two `ConstructedRasterSpec`s regrid
       a layer of class codes by the plurality of the covering cells. `compress_landcover` is
       `dominant_class` on EarthEnv, and a cell with no data is now absent rather than class 1.

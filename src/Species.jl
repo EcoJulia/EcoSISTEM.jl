@@ -201,7 +201,7 @@ end
 
 """
     SpeciesList(numspecies::Int64, tolerance::TL, abun::Vector{Int64}, demand::DM,
-      movement::MO, params::P, native::Vector{Bool})
+      movement::MO, params::P, native::Vector{Bool}; names = nothing)
 
 Create a `SpeciesList` from tolerances supplied directly, rather than evolved along a phylogeny.
 Species are treated as maximally distinct, with a `UniqueTypes` similarity structure.
@@ -215,6 +215,9 @@ Species are treated as maximally distinct, with a `UniqueTypes` similarity struc
   - `movement`: which individuals disperse and how far.
   - `params`: the demographic rates.
   - `native`: whether each species is native.
+  - `names`: one name per species, unique, as a vector of strings. Left unset, the species are
+    named `"1"` to `"numspecies"`. The names label the species' Diversity types as well, so a
+    diversity measure reports them.
 """
 function SpeciesList(numspecies::Int64,
                      tolerance::TL,
@@ -222,13 +225,15 @@ function SpeciesList(numspecies::Int64,
                      demand::DM,
                      movement::MO,
                      params::P,
-                     native::Vector{Bool}) where {TL <: AbstractTolerance,
-                                                  DM <: AbstractDemand,
-                                                  MO <: AbstractMovement,
-                                                  P <: AbstractParams}
-    names = map(x -> "$x", 1:numspecies)
-    # Create similarity matrix (for now identity)
-    ty = UniqueTypes(numspecies)
+                     native::Vector{Bool};
+                     names = nothing) where {TL <: AbstractTolerance,
+                                             DM <: AbstractDemand,
+                                             MO <: AbstractMovement,
+                                             P <: AbstractParams}
+    names = _speciesnames(names, numspecies)
+    # Species are maximally distinct, and the types carry the names so that nothing downstream
+    # can lose them.
+    ty = _uniquetypes(names)
     # Draw random set of abundances from distribution
     if length(abun) < numspecies
         abun = vcat(abun, fill(0, numspecies - length(abun)))
@@ -273,6 +278,21 @@ function _uniquetypes(names::AbstractVector{<:AbstractString})
 end
 
 # --- Per-species fields from what a caller wrote ------------------------------
+
+# The species' names as a `Vector{String}`: `"1"` to `"n"` when none were given, else the caller's
+# vector checked for length and for uniqueness, since a duplicate name would make every lookup by
+# name (`AddAbundance`, `AddSpecies`, the storage recorders) answer for the first of them only.
+_speciesnames(::Nothing, n::Integer) = map(string, 1:n)
+
+function _speciesnames(names::AbstractVector{<:AbstractString}, n::Integer)
+    length(names) == n ||
+        throw(DimensionMismatch("`names` has $(length(names)) entries but there are $n species"))
+    allunique(names) ||
+        throw(ArgumentError("`names` must be unique; " *
+                            "$(join(repr.(unique(filter(x -> count(==(x), names) > 1, names))), ", ")) " *
+                            "appear more than once"))
+    return collect(String, names)
+end
 
 # Turn a per-species argument into a length-`n` vector: a scalar is filled to
 # every species, a vector is passed through after checking it has exactly `n`

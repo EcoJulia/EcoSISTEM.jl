@@ -151,7 +151,7 @@ end
     build_species(numspecies::Integer; tolerance, toleranceaxis, demand, demandaxis, dispersal = 10.0km,
         pthresh = 1.0e-9, movement = BirthOnlyMovement, disperse_safely = true, birth = 0.6/year,
         death = 0.6/year, longevity = 1.0, survival = 0.2,
-        abundance = 1000 * numspecies, native = true, seed = nothing)
+        abundance = 1000 * numspecies, native = true, names = nothing, seed = nothing)
 
 Build a `SpeciesList` of `numspecies` species. `tolerance` (the environmental **Condition** a
 species is matched to) and `demand` (the **Resource** it consumes) are **required**, and so is the
@@ -197,7 +197,9 @@ mismatch):
 
 `abundance` is either a total number of individuals split at random across
 species (seedable via `seed`) or an explicit per-species vector. `native` marks
-species as native (default all `true`).
+species as native (default all `true`). `names` gives the species their names, one unique string
+each - binomials, say - which also label their Diversity types; left unset they are `"1"` to
+`"numspecies"`.
 """
 function build_species(numspecies::Integer;
                        tolerance = _require(:tolerance),
@@ -218,6 +220,7 @@ function build_species(numspecies::Integer;
                        boost = nothing,
                        abundance = 1000 * numspecies,
                        native = true,
+                       names = nothing,
                        seed = nothing)
     n = Int64(numspecies)
     _prebuilt = tolerance isa AbstractTolerance ||
@@ -278,7 +281,8 @@ function build_species(numspecies::Integer;
     nat = _tofield(native, n, "native")
     abun = _abundances(abundance, n, seed)
 
-    return SpeciesList(n, traits, abun, demands, move, param, nat)
+    return SpeciesList(n, traits, abun, demands, move, param, nat,
+                       names = names)
 end
 
 # As above for `build_species`: default `numspecies`, `tolerance` and `demand` if omitted, announce,
