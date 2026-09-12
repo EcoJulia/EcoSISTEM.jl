@@ -22,9 +22,9 @@
     - The aggregate cache is keyed by a SHA-256 digest, for the same reason, and each entry is
       written whole before it is visible. Every existing entry is re-primed on first use.
     - The supply and dispersal weights that a random draw is normalised by are summed with
-      `foldl` rather than `sum`, whose `@simd` lets the compiler reorder the additions when a
-      loop vectorises, so a run gives the same numbers whatever flags it was compiled with;
-      `Pkg.test` on Julia 1.13 no longer passes `--check-bounds=yes`, which is what exposed it.
+      KahanSummation's `sum_kbn`, a compensated sum that returns the correctly rounded total,
+      rather than `sum`, whose `@simd` lets the compiler reorder the additions when a loop
+      vectorises. This is essential for reproducibility, but for speed we should revert to sum().
     - Tested on Julia 1.13; the continuous integration matrix runs 1.11, 1.12 and the latest release,
       and the type-order audit reads 1.13's parser as well as 1.12's.
     - Every layer reaches the study grid by aggregation of the source cells covering each grid

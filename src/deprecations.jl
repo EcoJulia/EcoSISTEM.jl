@@ -280,62 +280,72 @@ end
 # ---------------------------------------------------------------------------
 
 """    RegimeCollection2{M1, M2} - two positional regimes over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
-const RegimeCollection2{M1, M2} = LayerCollection{Condition, A,
-                                                  NamedTuple{N, Tuple{M1, M2}}} where {A,
-                                                                                       N}
-"""    RegimeCollection3{M1, M2, M3} - three positional regimes over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
-const RegimeCollection3{M1, M2, M3} = LayerCollection{Condition, A,
-                                                      NamedTuple{N,
-                                                                 Tuple{M1, M2,
-                                                                       M3}}} where {A,
-                                                                                    N}
-"""    SupplyCollection2{M1, M2} - two positional supplies over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
-const SupplyCollection2{M1, M2} = LayerCollection{Resource, A,
-                                                  NamedTuple{N, Tuple{M1, M2}}} where {A,
-                                                                                       N}
-"""    ToleranceCollection2{M1, M2} - two positional tolerances. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
-const ToleranceCollection2{M1, M2} = SpeciesRequirementCollection{Condition, A,
-                                                                  NamedTuple{N,
-                                                                             Tuple{M1,
-                                                                                   M2}}} where {A,
-                                                                                                N}
-"""    ToleranceCollection3{M1, M2, M3} - three positional tolerances. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
-const ToleranceCollection3{M1, M2, M3} = SpeciesRequirementCollection{Condition,
-                                                                      A,
-                                                                      NamedTuple{N,
-                                                                                 Tuple{M1,
-                                                                                       M2,
-                                                                                       M3}}} where {A,
-                                                                                                    N}
-"""    DemandCollection2{M1, M2} - two positional demands. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
-const DemandCollection2{M1, M2} = SpeciesRequirementCollection{Resource, A,
-                                                               NamedTuple{N,
-                                                                          Tuple{M1,
-                                                                                M2}}} where {A,
-                                                                                             N}
-"""    MultiplicativeFit2{M1, M2} - two positional nichefits, multiplied. Deprecated plumbing: use [`MultiplicativeFit`](@ref). """
-const MultiplicativeFit2{M1, M2} = MultiplicativeFit{A,
-                                                     NamedTuple{N,
-                                                                Tuple{M1,
-                                                                      M2}}} where {A,
+const RegimeCollection2{M1,
+                        M2} = LayerCollection{Condition, A,
+                                              NamedTuple{N, Tuple{M1, M2}}} where {A,
                                                                                    N}
+"""    RegimeCollection3{M1, M2, M3} - three positional regimes over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
+const RegimeCollection3{M1, M2,
+                        M3} = LayerCollection{Condition, A,
+                                              NamedTuple{N,
+                                                         Tuple{M1, M2,
+                                                               M3}}} where {A,
+                                                                            N}
+"""    SupplyCollection2{M1, M2} - two positional supplies over one grid. Deprecated plumbing: use [`LayerCollection`](@ref). """
+const SupplyCollection2{M1,
+                        M2} = LayerCollection{Resource, A,
+                                              NamedTuple{N, Tuple{M1, M2}}} where {A,
+                                                                                   N}
+"""    ToleranceCollection2{M1, M2} - two positional tolerances. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
+const ToleranceCollection2{M1,
+                           M2} = SpeciesRequirementCollection{Condition, A,
+                                                              NamedTuple{N,
+                                                                         Tuple{M1,
+                                                                               M2}}} where {A,
+                                                                                            N}
+"""    ToleranceCollection3{M1, M2, M3} - three positional tolerances. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
+const ToleranceCollection3{M1, M2,
+                           M3} = SpeciesRequirementCollection{Condition,
+                                                              A,
+                                                              NamedTuple{N,
+                                                                         Tuple{M1,
+                                                                               M2,
+                                                                               M3}}} where {A,
+                                                                                            N}
+"""    DemandCollection2{M1, M2} - two positional demands. Deprecated plumbing: use [`SpeciesRequirementCollection`](@ref). """
+const DemandCollection2{M1,
+                        M2} = SpeciesRequirementCollection{Resource, A,
+                                                           NamedTuple{N,
+                                                                      Tuple{M1,
+                                                                            M2}}} where {A,
+                                                                                         N}
+"""    MultiplicativeFit2{M1, M2} - two positional nichefits, multiplied. Deprecated plumbing: use [`MultiplicativeFit`](@ref). """
+const MultiplicativeFit2{M1,
+                         M2} = MultiplicativeFit{A,
+                                                 NamedTuple{N,
+                                                            Tuple{M1,
+                                                                  M2}}} where {A,
+                                                                               N}
 """    MultiplicativeFit3{M1, M2, M3} - three positional nichefits, multiplied. Deprecated plumbing: use [`MultiplicativeFit`](@ref). """
-const MultiplicativeFit3{M1, M2, M3} = MultiplicativeFit{A,
-                                                         NamedTuple{N,
-                                                                    Tuple{M1,
-                                                                          M2,
-                                                                          M3}}} where {A,
-                                                                                       N}
+const MultiplicativeFit3{M1, M2,
+                         M3} = MultiplicativeFit{A,
+                                                 NamedTuple{N,
+                                                            Tuple{M1,
+                                                                  M2,
+                                                                  M3}}} where {A,
+                                                                               N}
 """    AdditiveFit2{M1, M2} - two positional nichefits, added. Deprecated plumbing: use [`AdditiveFit`](@ref). """
-const AdditiveFit2{M1, M2} = AdditiveFit{A,
-                                         NamedTuple{N, Tuple{M1, M2}}} where {A,
-                                                                              N}
+const AdditiveFit2{M1,
+                   M2} = AdditiveFit{A,
+                                     NamedTuple{N, Tuple{M1, M2}}} where {A,
+                                                                          N}
 """    AdditiveFit3{M1, M2, M3} - three positional nichefits, added. Deprecated plumbing: use [`AdditiveFit`](@ref). """
-const AdditiveFit3{M1, M2, M3} = AdditiveFit{A,
-                                             NamedTuple{N,
-                                                        Tuple{M1, M2,
-                                                              M3}}} where {A,
-                                                                           N}
+const AdditiveFit3{M1, M2,
+                   M3} = AdditiveFit{A,
+                                     NamedTuple{N,
+                                                Tuple{M1, M2,
+                                                      M3}}} where {A,
+                                                                   N}
 
 # **Each alias pins the arity and the member types, and leaves the axis structure `A` and the names
 # `N` free** - which is why every one ends `} where {A, N}`. It reads oddly and the shape is

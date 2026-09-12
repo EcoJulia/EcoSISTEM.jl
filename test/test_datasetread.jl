@@ -193,8 +193,13 @@ if !Sys.iswindows()
     @testset "a read grid lands exactly on its source's stated extent" begin
         sources = Any[(read(WorldClim{BioClim}, :bio1), (-180°, 180°),
                        (-90°, 90°)),
-                      (read(EarthEnv{LandCover}, 7, scale = 10), (-180°, 180°),
-                       (-56°, 90°))]
+                      (read(EarthEnv{LandCover},
+                            7,
+                            scale = 10),
+                       (-180°,
+                        180°),
+                       (-56°,
+                        90°))]
         bigrasters() && push!(sources,
               (read(CHELSA{BioClim}, 1, scale = 20),
                (-180°, 180°), (-90°, 84°)))

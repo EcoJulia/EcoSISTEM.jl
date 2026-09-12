@@ -52,7 +52,7 @@ include("buildfixtures.jl")
         eco2 = Test1Ecosystem()
         counts = Int[]
         result = simulate_action!(eco2, times, interval, timestep) do counting
-            push!(counts, counting)
+            return push!(counts, counting)
         end
         @test counts ==
               collect(1:length((0.0month_mean_duration):interval:times))

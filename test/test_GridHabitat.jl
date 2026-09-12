@@ -548,7 +548,7 @@ end
                                                     cut = scotland,
                                                     scale = 1),
                                          axis = EcoSISTEM.NicheAxis) do lc
-            compress_landcover(lc) .!= landcoverclass(:open_water)
+            return compress_landcover(lc) .!= landcoverclass(:open_water)
         end
         naturemask = ConstructedRasterSpec(
                                            SourceSpec(EarthEnv{LandCover},
@@ -557,7 +557,7 @@ end
                                            axis = EcoSISTEM.NicheAxis) do lc
             excluded = landcoverclass.((:open_water, :urban_builtup, :barren,
                                         :snow_ice, :cultivated_and_managed))
-            compress_landcover(lc) .∉ Ref(excluded)
+            return compress_landcover(lc) .∉ Ref(excluded)
         end
         @test landmask isa EcoSISTEM.ConstructedRasterSpec
         @test naturemask isa EcoSISTEM.ConstructedRasterSpec
@@ -633,8 +633,8 @@ end
                 end
                 ArchGDAL.copy(layer, dataset = dataset)
             end
-            ArchGDAL.createlayer(makelayer, name = "test",
-                                 geom = ArchGDAL.wkbPolygon)
+            return ArchGDAL.createlayer(makelayer, name = "test",
+                                        geom = ArchGDAL.wkbPolygon)
         end
         urlspec = ShapeSpec("file://" * geojsonpath)
         @test urlspec.path isa EcoSISTEM.CachedAsset
@@ -1135,9 +1135,10 @@ end
         # `_cellareas` reads an array's own dims now, asking each axis for what it means -
         # midpoints for the nominal size, intervals for the latitude correction (`[LOCUS-BLIND]`) -
         # so the fixture is a raster rather than two coordinate vectors.
-        grid(la, lo) = _testraster(WorldClim{BioClim},
-                                   fill(291.0K, length(la), length(lo)),
-                                   lat = la, long = lo).array
+        grid(la,
+             lo) = _testraster(WorldClim{BioClim},
+                               fill(291.0K, length(la), length(lo)),
+                               lat = la, long = lo).array
         areas = EcoSISTEM._cellareas(grid(lats, longs))
 
         # A column, not a full matrix and not a scalar: it must broadcast across X (and across a
@@ -1191,10 +1192,11 @@ end
         # (`[LOCUS-BLIND]`): the *same cells* described `Intervals(Start)` and `Intervals(Center)`
         # must give identical answers from every accessor. A raw `parent(lookup(...))` would not.
         L = DimensionalData.Lookups
-        mk(loc, v) = Y(Rasters.Projected(collect(v), crs = Rasters.EPSG(27700),
-                                         order = L.ForwardOrdered(),
-                                         span = L.Regular(10.0km),
-                                         sampling = L.Intervals(loc)))
+        mk(loc,
+           v) = Y(Rasters.Projected(collect(v), crs = Rasters.EPSG(27700),
+                                    order = L.ForwardOrdered(),
+                                    span = L.Regular(10.0km),
+                                    sampling = L.Intervals(loc)))
         st = DimArray(zeros(3),
                       (mk(L.Start(), range(0.0km, step = 10.0km,
                                            length = 3)),))

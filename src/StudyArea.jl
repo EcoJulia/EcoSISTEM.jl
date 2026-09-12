@@ -527,8 +527,9 @@ end
 # divisibility and needs no tolerance - the same reason `_snap` works on arcseconds. The `_ORIGIN_ATOL`
 # path remains for projected grids, where there is no integer lattice to appeal to.
 function _originaligned(sourceorigin, targetorigin, sourcestep)
-    so, to, s = _arcsecs(sourceorigin), _arcsecs(targetorigin),
-                _arcsecs(sourcestep)
+    so, to,
+    s = _arcsecs(sourceorigin), _arcsecs(targetorigin),
+        _arcsecs(sourcestep)
     if !isnothing(so) && !isnothing(to) && !isnothing(s) && !iszero(s)
         return (to - so) % s == 0
     end
@@ -1058,8 +1059,9 @@ end
 # OSR, so no dependency beyond ArchGDAL). `nothing` when the database declares none.
 function _areaofuse(crs)
     return ArchGDAL.importCRS(crs, order = :trad) do sr
-        w, s, e, n = Ref{Cdouble}(), Ref{Cdouble}(), Ref{Cdouble}(),
-                     Ref{Cdouble}()
+        w, s, e,
+        n = Ref{Cdouble}(), Ref{Cdouble}(), Ref{Cdouble}(),
+            Ref{Cdouble}()
         name = Ref{Cstring}()
         ArchGDAL.GDAL.osrgetareaofuse(sr.ptr, w, s, e, n, name) == 1 ||
             return nothing

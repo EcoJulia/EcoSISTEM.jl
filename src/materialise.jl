@@ -622,7 +622,8 @@ function _analyse(layers::NamedTuple; within = nothing, crs = nothing,
 
     # Stage 3: the cell size. An explicit `cellsize` wins; else the alignment layer's own step; else
     # the existing unanimity rule (which fails closed on disagreement).
-    cs, cssource = if !isnothing(cellsize)
+    cs,
+    cssource = if !isnothing(cellsize)
         (cellsize, GivenByUser())
     elseif !isnothing(chosen) && !isnothing(chosen.step)
         (chosen.step, TakenFromAlignedLayer())

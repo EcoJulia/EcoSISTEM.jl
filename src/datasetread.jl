@@ -493,7 +493,8 @@ end
 # (small) aggregated result.
 function _readraster(f::AbstractString; scale::Integer = 1, fn = mean,
                      cut = nothing)
-    r, raw = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+    r,
+    raw = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
         return Raster(f, lazy = true), Raster(f, lazy = true, scaled = false)
     end
     r = _mask_int_fills(r, raw)

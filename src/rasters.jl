@@ -382,10 +382,12 @@ function _regridbare(raster::ClimateRaster, A, target, fn, centres::Bool)
     yd, xd = dims(A, Y), dims(A, X)
     _samecrs(Rasters.crs(yd), Rasters.crs(target)) ||
         return _regridsampled(raster, A, target, fn)
-    sy, sx = parent(DimensionalData.lookup(yd)),
-             parent(DimensionalData.lookup(xd))
-    ty, tx = parent(DimensionalData.lookup(target, Y)),
-             parent(DimensionalData.lookup(target, X))
+    sy,
+    sx = parent(DimensionalData.lookup(yd)),
+         parent(DimensionalData.lookup(xd))
+    ty,
+    tx = parent(DimensionalData.lookup(target, Y)),
+         parent(DimensionalData.lookup(target, X))
     (length(sy) >= 2 && length(sx) >= 2 && length(ty) >= 2 && length(tx) >= 2) ||
         return _regridsampled(raster, A, target, fn)
     ry = _stepratio(_lookupstep(yd), _lookupstep(dims(target, Y)))
@@ -465,8 +467,9 @@ end
 # `ceil` over a span could gain or lose a fine row to rounding.
 function _finetemplate(target, k::Integer)
     yd, xd = _targetyx(target)
-    ys, xs = parent(DimensionalData.lookup(yd)),
-             parent(DimensionalData.lookup(xd))
+    ys,
+    xs = parent(DimensionalData.lookup(yd)),
+         parent(DimensionalData.lookup(xd))
     sy, sx = _lookupstep(yd) / k, _lookupstep(xd) / k
     crs = Rasters.crs(target)
     start = DimensionalData.Lookups.Intervals(DimensionalData.Lookups.Start())
@@ -609,12 +612,14 @@ end
 # axis-aligned case and slightly under-states a rotated one, which is why the caller documents the
 # result as the cell's extent along each axis rather than its bounding box.
 function _angularextents(yx, crs)
-    ys, xs = parent(DimensionalData.lookup(yx[1])),
-             parent(DimensionalData.lookup(yx[2]))
+    ys,
+    xs = parent(DimensionalData.lookup(yx[1])),
+         parent(DimensionalData.lookup(yx[2]))
     dy, dx = _axisstep(yx[1]), _axisstep(yx[2])
     ny, nx = length(ys), length(xs)
-    ey, ex = Matrix{typeof(1.0°)}(undef, ny, nx),
-             Matrix{typeof(1.0°)}(undef, ny, nx)
+    ey,
+    ex = Matrix{typeof(1.0°)}(undef, ny, nx),
+         Matrix{typeof(1.0°)}(undef, ny, nx)
     ArchGDAL.createcoordtrans(_gdalcrs(crs),
                               _gdalcrs(Rasters.EPSG(4326))) do ct
         for i in 1:ny, j in 1:nx
@@ -1531,8 +1536,9 @@ end
 _applyshapeop(::ShapeUnion, gs) = _mergegeoms(gs)
 
 function _applyshapeop(::ShapeIntersection, gs)
-    return reduce((a, b) -> ArchGDAL.intersection(_repairgeom(a),
-                                                  _repairgeom(b)),
+    return reduce((a,
+                   b) -> ArchGDAL.intersection(_repairgeom(a),
+                                               _repairgeom(b)),
                   gs)
 end
 
@@ -1581,9 +1587,10 @@ function _axiswindow(axis, lo, hi)
     issorted(axis) &&
         return searchsortedfirst(axis, lo):searchsortedlast(axis, hi)
     issorted(axis, rev = true) &&
-        return searchsortedfirst(axis, hi, rev = true):searchsortedlast(axis,
-                                                                        lo,
-                                                                        rev = true)
+        return searchsortedfirst(axis, hi,
+                                 rev = true):searchsortedlast(axis,
+                                                              lo,
+                                                              rev = true)
     return firstindex(axis):lastindex(axis)
 end
 

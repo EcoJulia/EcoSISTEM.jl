@@ -870,7 +870,9 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
         else
             newtm, abun = _abundances(cache, tm - timestep)
             if (newtm > 2 * timestep)
-                cache.abundances.matrix[Ti(At(newtm - 2 * timestep))] = missing
+                cache.abundances.matrix[Ti(At(newtm -
+                                              2 *
+                                              timestep))] = missing
             end
         end
     else

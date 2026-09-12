@@ -199,8 +199,9 @@ end
 # tolerance-based one hardcodes `UniqueTypes` and the phylogenetic ones build a tree.
 function mpifixture_generalspecies(; numspecies = VARYING_SPECIES,
                                    movement = mpifixture_movement(numspecies))
-    sppl, tolerance = mpifixture_species(numspecies = numspecies,
-                                         movement = movement)
+    sppl,
+    tolerance = mpifixture_species(numspecies = numspecies,
+                                   movement = movement)
     types = GeneralTypes(mpifixture_similarity(numspecies))
     return SpeciesList{typeof(sppl.tolerance), typeof(sppl.demand),
                        typeof(sppl.movement), typeof(types),

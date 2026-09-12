@@ -483,7 +483,8 @@ end
                                                   axis = EcoSISTEM.NicheAxis),
                                       axis = EcoSISTEM.NicheAxis,
                                       combinestage = CombineOnSourceGrid()
-                                      ) do w, u
+                                      ) do w,
+                                           u
             return w .* u
         end
         out = _materialiseon(mixed, target, cache)
@@ -505,7 +506,8 @@ end
                                                      axis = EcoSISTEM.NicheAxis),
                                          axis = EcoSISTEM.NicheAxis,
                                          combinestage = CombineOnSourceGrid()
-                                         ) do a, b
+                                         ) do a,
+                                              b
             return a
         end
         @test_throws ErrorException _materialiseon(allsynth, target, cache)
@@ -843,11 +845,12 @@ end
         # The coverage test itself must be blind to the labelling, or the rule would travel with
         # the convention it was chosen alongside. The *same cells*, described both ways.
         L = DimensionalData.Lookups
-        mk(loc, D, v) = D(Rasters.Projected(collect(v),
-                                            crs = Rasters.EPSG(27700),
-                                            order = L.ForwardOrdered(),
-                                            span = L.Regular(5000.0m),
-                                            sampling = L.Intervals(loc)))
+        mk(loc, D,
+           v) = D(Rasters.Projected(collect(v),
+                                    crs = Rasters.EPSG(27700),
+                                    order = L.ForwardOrdered(),
+                                    span = L.Regular(5000.0m),
+                                    sampling = L.Intervals(loc)))
         norths = range(e.Y[1], step = 5000.0m, length = 4)
         easts = range(e.X[1], step = 5000.0m, length = 6)
         gs = Rasters.Raster(zeros(4, 6),

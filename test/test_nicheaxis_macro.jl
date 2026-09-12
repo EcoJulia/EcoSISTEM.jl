@@ -350,8 +350,9 @@ end
     interface = (EcoSISTEM.canonicalunit, EcoSISTEM.bounds,
                  EcoSISTEM.supplytype, EcoSISTEM.demandtype)
     # The method serving the root *is* "nobody has declared anything for this axis".
-    isfallback(f, A) = which(f, Tuple{Type{A}}) ===
-                       which(f, Tuple{Type{EcoSISTEM.NicheAxis}})
+    isfallback(f,
+               A) = which(f, Tuple{Type{A}}) ===
+                    which(f, Tuple{Type{EcoSISTEM.NicheAxis}})
 
     for f in interface, A in axes
         # No axis may fail to dispatch at all.

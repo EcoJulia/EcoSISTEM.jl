@@ -387,12 +387,14 @@ function downresolution(aa::DimensionalData.AbstractDimArray{T, 3} where {T},
             for y in Base.axes(array, 2)
                 xcoords = filter(k -> 1 ≤ rescale * (x - 1) + 1 + k ≤
                                       size(aa, 1),
-                                 round(Int, -rescale / 2):round(Int,
-                                                                rescale / 2))
+                                 round(Int,
+                                       -rescale / 2):round(Int,
+                                                           rescale / 2))
                 ycoords = filter(k -> 1 ≤ rescale * (y - 1) + 1 + k ≤
                                       size(aa, 2),
-                                 round(Int, -rescale / 2):round(Int,
-                                                                rescale / 2))
+                                 round(Int,
+                                       -rescale / 2):round(Int,
+                                                           rescale / 2))
                 xrange = min(-minimum(xcoords), maximum(xcoords))
                 yrange = min(-minimum(ycoords), maximum(ycoords))
                 xcoords = (rescale * (x - 1) + 1) .+ ((-xrange):xrange)

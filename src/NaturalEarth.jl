@@ -1025,8 +1025,9 @@ end
 # use, since every refinement in a query asks for the same one.
 function _subjectgeometry(r::AbstractSpatialRelation)
     e = r.extent
-    w, s, x, n = ustrip(°, e.X[1]), ustrip(°, e.Y[1]), ustrip(°, e.X[2]),
-                 ustrip(°, e.Y[2])
+    w, s, x,
+    n = ustrip(°, e.X[1]), ustrip(°, e.Y[1]), ustrip(°, e.X[2]),
+        ustrip(°, e.Y[2])
     (w == x && s == n) && return ArchGDAL.createpoint(w, s)
     return ArchGDAL.fromWKT("POLYGON (($w $s, $x $s, $x $n, $w $n, $w $s))")
 end

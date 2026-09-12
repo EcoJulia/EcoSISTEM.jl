@@ -46,11 +46,14 @@ reason. Values moved by up to a few percent; nothing structural changed.
 passes `--check-bounds=yes` on 1.12 and not on 1.13; with it off, `sum` vectorises and reassociates
 its floating-point additions, the supply-grid sum that `populate!` normalises by moved a last bit,
 one founder landed in a different cell, and the two-year `varying` total was 120824 against 120701.
-The sums that feed a draw are now `foldl(+, x)`, whose order is promised (`dot` was
-measured order-preserving and stays), so every flag on every version gives 120701, which is what
-this file holds - no further re-bless was needed.
+The sums that feed a draw are now KahanSummation's `sum_kbn`, whose result is the correctly rounded
+total and so one number whatever the order, flags or machine (`dot` was measured order-preserving
+and stays). ✅ That total is what the vectorised `sum` had given every real run: `varying` is
+120824 under both flags, so the second re-bless of the day moved the simulated keys from the
+sequential-order values back to the values production had been computing all along.
 🔴 **A canonical failure that appears only under one set of flags is this class of defect**: find
-the `sum`, `mean` or `@simd` on the path to the draw, never bless per flag.
+the `sum`, `mean` or `@simd` on the path to the draw, never bless per flag. `foldl` is not the
+answer either: it fixes the order but is not correctly rounded, so it holds only for one order.
 
 **2026-08-15 - `simulated/total_abundance` and `simulated/abundance_by_species` were re-blessed for a
 reason that was not a model change**, and the episode is recorded here because the next one will look

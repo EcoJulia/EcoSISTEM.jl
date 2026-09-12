@@ -434,11 +434,12 @@ end
 @testset "a shape mask does not depend on which way an axis runs" begin
     # Two disjoint squares, so a window reaching the wrong cells shows as a filled gap rather than
     # only as a missing block.
-    square(xlo, ylo, xhi, yhi) = ArchGDAL.createpolygon([[(xlo, ylo),
-                                                            (xhi, ylo),
-                                                            (xhi, yhi),
-                                                            (xlo, yhi),
-                                                            (xlo, ylo)]])
+    square(xlo, ylo, xhi,
+           yhi) = ArchGDAL.createpolygon([[(xlo, ylo),
+                                             (xhi, ylo),
+                                             (xhi, yhi),
+                                             (xlo, yhi),
+                                             (xlo, ylo)]])
     geoms = map((square(-4.0, 51.0, -2.0, 53.0), square(0.0, 55.0, 1.0, 56.0))) do g
         return (prepared = ArchGDAL.preparegeom(g),
                 envelope = ArchGDAL.envelope(g))

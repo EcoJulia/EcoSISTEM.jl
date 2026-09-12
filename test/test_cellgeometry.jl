@@ -30,11 +30,12 @@ const L = DimensionalData.Lookups
 # differ would pass against an implementation that computed the wrong one. The fixture has to cover
 # enough latitude for the nonlinearity to bite.
 function _geo(lats, longs)
-    mk(D, v) = D(Rasters.Projected(collect(v),
-                                   sampling = L.Intervals(L.Start()),
-                                   crs = Rasters.EPSG(4326),
-                                   order = L.ForwardOrdered(),
-                                   span = L.Regular(v[2] - v[1])))
+    mk(D,
+       v) = D(Rasters.Projected(collect(v),
+                                sampling = L.Intervals(L.Start()),
+                                crs = Rasters.EPSG(4326),
+                                order = L.ForwardOrdered(),
+                                span = L.Regular(v[2] - v[1])))
     r = ClimateRaster(SyntheticData,
                       DimArray(fill(290.0K, length(lats), length(longs)),
                                (mk(Y, lats), mk(X, longs))))
@@ -50,11 +51,12 @@ _Ω(φ1, φ2, dlong) = ustrip(u"rad", dlong) * (sin(φ2) - sin(φ1)) * u"sr"
 # something to transform through. `syn` deliberately has none - a synthetic grid is plain cell
 # indices with no real-world position - which is a different case and tested as one.
 function _proj(ys, xs)
-    mk(D, v) = D(Rasters.Projected(collect(v),
-                                   sampling = L.Intervals(L.Start()),
-                                   crs = Rasters.EPSG(27700),
-                                   order = L.ForwardOrdered(),
-                                   span = L.Regular(v[2] - v[1])))
+    mk(D,
+       v) = D(Rasters.Projected(collect(v),
+                                sampling = L.Intervals(L.Start()),
+                                crs = Rasters.EPSG(27700),
+                                order = L.ForwardOrdered(),
+                                span = L.Regular(v[2] - v[1])))
     r = ClimateRaster(EcoSISTEM.SyntheticData,
                       DimArray(fill(290.0K, length(ys), length(xs)),
                                (mk(Y, ys), mk(X, xs))))

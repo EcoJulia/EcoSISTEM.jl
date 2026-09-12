@@ -197,8 +197,9 @@ function boundingbox(region::AbstractString; level = nothing,
     south, north = box.south * °, box.north * °
     west, east = box.west * °, box.east * °
     if round !== false
-        south, west = _snapout(floor, south, round),
-                      _snapout(floor, west, round)
+        south,
+        west = _snapout(floor, south, round),
+               _snapout(floor, west, round)
         north, east = _snapout(ceil, north, round), _snapout(ceil, east, round)
     end
     return Extents.Extent(Y = (south, north), X = (west, east))

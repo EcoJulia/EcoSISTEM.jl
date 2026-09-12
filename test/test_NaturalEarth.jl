@@ -105,8 +105,8 @@ end
                    EcoSISTEM.RegionReport(nothing,
                                           [m
                                            for m in admin
-                                           if m.name in
-                                              ("New Zealand", "Vatican")]))
+                                           if m.name in ("New Zealand",
+                                               "Vatican")]))
     @test occursin("56%", shown)
     @test !occursin("100%", shown)
 end
@@ -215,9 +215,10 @@ end
 
 @testset "the antimeridian is read off the widest gap, not assumed" begin
     # A component's envelope is all `_regionbox` sees, so synthetic ones pin the rule exactly.
-    part(w, e) = (geometry = nothing,
-                  envelope = ArchGDAL.GDAL.OGREnvelope(w, e, 0.0, 10.0),
-                  area = 1.0km^2)
+    part(w,
+         e) = (geometry = nothing,
+               envelope = ArchGDAL.GDAL.OGREnvelope(w, e, 0.0, 10.0),
+               area = 1.0km^2)
 
     # An ordinary region: the widest empty stretch is the one outside it, so the box is plain.
     plain = _regionbox([part(0.0, 10.0), part(20.0, 30.0)])

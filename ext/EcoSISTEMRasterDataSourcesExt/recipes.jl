@@ -29,7 +29,8 @@ end
     ind = _monthindex(time)
     mnth = Dates.monthabbr(ind)
     A = transpose(ustrip.(wc.array[Y(xrange), X(yrange),
-                                   Ti(At(ind * month_mean_duration))]))
+                                   Ti(At(ind *
+                                         month_mean_duration))]))
     step1 = ustrip(parent(DimensionalData.lookup(wc.array, 1))[2] -
                    parent(DimensionalData.lookup(wc.array, 1))[1])
     step2 = ustrip(parent(DimensionalData.lookup(wc.array, 2))[2] -

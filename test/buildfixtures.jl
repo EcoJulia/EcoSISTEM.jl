@@ -22,8 +22,8 @@ function _testshapefile(x1, y1, x2, y2; sr = nothing)
                                       (x1, y2),
                                       (x1, y1)
                                   ]])
-    ArchGDAL.create(path, driver = ArchGDAL.getdriver("ESRI Shapefile")
-                    ) do dataset
+    ArchGDAL.create(path,
+                    driver = ArchGDAL.getdriver("ESRI Shapefile")) do dataset
         makelayer = layer -> begin
             ArchGDAL.addfeature(layer) do feature
                 return ArchGDAL.setgeom!(feature, poly)

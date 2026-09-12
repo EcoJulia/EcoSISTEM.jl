@@ -745,7 +745,8 @@ end
 function _normdim(s::AbstractString)
     plain = replace(s,
                     r"[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+" =>
-                        m -> "^" * map(c -> _SUPERSCRIPTS[c], m))
+                        m -> "^" *
+                             map(c -> _SUPERSCRIPTS[c], m))
     factors = filter(!isempty, strip.(split(plain, r"[*\s]+")))
     return sort(String.(factors))
 end
@@ -902,8 +903,9 @@ function _checkaxishomogeneity(catalogue)
         isnothing(r.axis) && continue
         f = get!(first_on, r.axis, r)
         f === r && continue
-        rate, frate = layerrate(r.unit, r.period, r.axis),
-                      layerrate(f.unit, f.period, f.axis)
+        rate,
+        frate = layerrate(r.unit, r.period, r.axis),
+                layerrate(f.unit, f.period, f.axis)
         dimension(rate) == dimension(frate) ||
             error("layers `$(first(f.aliases))` and `$(first(r.aliases))` are both on axis " *
                   "$(nameof(r.axis)) but resolve to different dimensions - $frate " *
@@ -959,8 +961,9 @@ function _catalogue()
         cols = propertynames(table)
         _checkschema(dataset, cols)
         # `string` (not `String`) so numeric columns like `NumSlices` (an Int) convert too
-        cell(row, col) = (col in cols && !ismissing(getproperty(row, col))) ?
-                         String(strip(string(getproperty(row, col)))) : ""
+        cell(row,
+             col) = (col in cols && !ismissing(getproperty(row, col))) ?
+                    String(strip(string(getproperty(row, col)))) : ""
         splitsemis(s) = filter(!isempty, String.(strip.(split(s, ";"))))
         for row in table
             ismissing(row.Code) && continue

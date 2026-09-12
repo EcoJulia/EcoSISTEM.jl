@@ -89,8 +89,9 @@ end
 # `_resamplemethod` still interpolates everything.
 @testset "ValueType reaches the catalogue" begin
     CP = EcoSISTEM
-    vt(code, dataset) = only(filter(r -> r.dataset === dataset,
-                                    CP.layerinfo(code))).valuetype
+    vt(code,
+       dataset) = only(filter(r -> r.dataset === dataset,
+                              CP.layerinfo(code))).valuetype
 
     # The only categorical layers in the shipped tables: the climate typologies.
     @test vt("kg0", :BioClimPlus) === :categorical
@@ -120,8 +121,9 @@ end
 # layer-units plan makes `Category` decide supply-eligibility).
 @testset "Category says what kind of quantity a layer is" begin
     CP = EcoSISTEM
-    cat(code, dataset) = only(filter(r -> r.dataset === dataset,
-                                     CP.layerinfo(code))).category
+    cat(code,
+        dataset) = only(filter(r -> r.dataset === dataset,
+                               CP.layerinfo(code))).category
 
     # A climate moisture index is precipitation *minus* PET, so it can be negative - a `balance`,
     # never a `rate`. The distinction is what stops a sign-indefinite layer being read as a supply:
@@ -171,9 +173,10 @@ end
 # `srad`, which is sampled monthly but accumulates per day.
 @testset "AccumulationPeriod" begin
     CP = EcoSISTEM
-    rec(code, dataset) = only(filter(r -> r.dataset === dataset &&
-                                          first(r.aliases) == code,
-                                     CP._catalogue()))
+    rec(code,
+        dataset) = only(filter(r -> r.dataset === dataset &&
+                                    first(r.aliases) == code,
+                               CP._catalogue()))
 
     # A constant period is a real, parseable unit.
     @test rec("gdd0", :BioClimPlus).period ==
@@ -263,9 +266,10 @@ end
 # stripped periods from "every row *with* a period" - which, by then, they no longer had.
 @testset "a range carries its siblings' unit, made absolute, and their period" begin
     CP = EcoSISTEM
-    rec(code, dataset) = only(filter(r -> r.dataset === dataset &&
-                                          first(r.aliases) == code,
-                                     CP._catalogue()))
+    rec(code,
+        dataset) = only(filter(r -> r.dataset === dataset &&
+                                    first(r.aliases) == code,
+                               CP._catalogue()))
     axisname(r) = isnothing(r.axis) ? "" : String(nameof(r.axis))
     cat = CP._catalogue()
     ranges = [r for r in cat if endswith(axisname(r), "Range")]
@@ -313,9 +317,10 @@ end
 
     # And the check bites. Rebuilding one record with one field changed is the whole negative test:
     # if `_checkrangerows` accepted these, the shipped tables passing it would mean nothing.
-    with(r, field, value) = CP.LayerRecord((f === field ? value :
-                                            getfield(r, f)
-                                            for f in fieldnames(CP.LayerRecord))...)
+    with(r, field,
+         value) = CP.LayerRecord((f === field ? value :
+                                  getfield(r, f)
+                                  for f in fieldnames(CP.LayerRecord))...)
     rng = rec("cmi_range", :BioClimPlus)
     fam = [s
            for s in cat
@@ -388,8 +393,9 @@ end
 # the catalogue and the calendar, not from any raster.
 @testset "accumulation-period divisors" begin
     CP = EcoSISTEM
-    rec(ds, c) = only(filter(r -> r.dataset === ds && string(c) in r.aliases,
-                             CP._catalogue()))
+    rec(ds,
+        c) = only(filter(r -> r.dataset === ds && string(c) in r.aliases,
+                         CP._catalogue()))
 
     # Per-slice: one divisor per month, in days, February at its 28.25-day mean.
     d = CP._readdivisors(rec(:Climate, "prec"), 1:12)
@@ -577,8 +583,9 @@ end
     tempaxis = CP.layeraxes(TemperatureAxis)
     @test tempaxis.axis === TemperatureAxis
     @test any(c -> c.axis === Temperature, tempaxis.children)
-    @test "Annual Mean Temperature" in
-          only(c for c in tempaxis.children if c.axis === Temperature).names
+    @test "Annual Mean Temperature" in only(c
+               for c in tempaxis.children
+               if c.axis === Temperature).names
 
     # public but NOT exported
     @test :layerinfo in names(EcoSISTEM, all = false)

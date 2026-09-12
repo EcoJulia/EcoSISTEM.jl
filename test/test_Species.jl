@@ -92,8 +92,9 @@ end
     demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
     movement = AlwaysMovement(GaussianKernel.(fill(2.0km, n), 10e-4))
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
-    build(; kw...) = SpeciesList(n, tolerance, fill(100, n), demand, movement,
-                                 param, fill(true, n); kw...)
+    build(;
+          kw...) = SpeciesList(n, tolerance, fill(100, n), demand, movement,
+                               param, fill(true, n); kw...)
     # Unset, the names are the positions, and the types say the same.
     anon = build()
     @test anon.names == ["1", "2", "3"]
@@ -201,7 +202,7 @@ end
             ps = Base.unwrap_unionall(m.sig).parameters
             length(ps) >= 2 || return false
             t = Base.unwrap_unionall(ps[2])
-            t isa Type && (t === AT || AT <: t)
+            return t isa Type && (t === AT || AT <: t)
         end
         takes_types || continue
         ours = any(m -> String(nameof(m.module)) == "EcoSISTEM" &&
