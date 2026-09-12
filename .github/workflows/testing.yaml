@@ -54,7 +54,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v2-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
         lookup-only: true
     # A miss is usually the aggregation code having changed, which stales the cached aggregates
     # but not the ~850 MB of downloads. An older entry supplies the downloads, so only the
@@ -64,7 +64,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v2-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Set up julia
@@ -97,7 +97,7 @@ jobs:
       uses: actions/cache/save@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v2-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
 
   EcoSISTEM-tests:
     name: Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -116,6 +116,7 @@ jobs:
       matrix:
         julia-version:
           - '1.11'
+          - '1.12'
           - '1'
         os:
           - ubuntu-latest
@@ -173,7 +174,7 @@ jobs:
       # valuable depot caches under the repository's 10 GB ceiling.
       #
       # The one file in the key is `src/datasetread.jl`, because the aggregate cache it fills is
-      # keyed on a hash of that file's text: any edit there makes every cached aggregate stale, and a
+      # keyed on a digest of that file's text: any edit there makes every cached aggregate stale, and a
       # test job then aggregates cold - 11.6 GB resident for the twelve land-cover bands, which is
       # what killed the Linux jobs two minutes into the suite. Keying on the same file makes the
       # prime job recompute the aggregates whenever they can no longer be served. That file changes
@@ -183,12 +184,12 @@ jobs:
       # A restored cache can never be wrong, only incomplete: `getraster`/`download` each test the
       # target file's own existence before fetching, so a partial restore costs a few per-file
       # downloads rather than giving incorrect data. That is what makes the static part safe - and
-      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v2` SUFFIX to mint
+      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v3` SUFFIX to mint
       # a new entry; there is no need to work out which file changed.
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v2-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Build package
