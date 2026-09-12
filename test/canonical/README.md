@@ -42,6 +42,16 @@ results there (30 of 104 canonical checks moved, every data-read check held) and
 comparison failed at every rank count. Streams now seed through `Xoshiro`'s own seeding, identical on
 1.11, 1.12 and 1.13 (`test_Ecosystem.jl` pins the first draws), so this is the last re-bless for that
 reason. Values moved by up to a few percent; nothing structural changed.
+⚠️ **The same day exposed a second dependence, on compiler flags rather than on Julia.** `Pkg.test`
+passes `--check-bounds=yes` on 1.12 and not on 1.13; with it off, `sum` vectorises and reassociates
+its floating-point additions, the supply-grid sum that `populate!` normalises by moved a last bit,
+one founder landed in a different cell, and the two-year `varying` total was 120824 against 120701.
+The sums that feed a draw are now `foldl(+, x)`, whose order is promised (`dot` was
+measured order-preserving and stays), so every flag on every version gives 120701, which is what
+this file holds - no further re-bless was needed.
+🔴 **A canonical failure that appears only under one set of flags is this class of defect**: find
+the `sum`, `mean` or `@simd` on the path to the draw, never bless per flag.
+
 **2026-08-15 - `simulated/total_abundance` and `simulated/abundance_by_species` were re-blessed for a
 reason that was not a model change**, and the episode is recorded here because the next one will look
 identical from the outside.

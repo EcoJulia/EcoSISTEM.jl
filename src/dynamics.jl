@@ -51,7 +51,8 @@ function populate!(ml::GridLandscape,
     b = reshape(parent(ustrip.(_getsupply(habitat.supply))), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
-    B = b ./ sum(b)
+    # `foldl` for the order: `sum` may reassociate once vectorised, and these weights feed a draw.
+    B = b ./ foldl(+, b)
     # Loop through species, drawing from each species' own RNG stream. Three per-species things
     # walked in lockstep, so there is no index to keep: `eachrow` yields exactly the writable
     # `@view ml.matrix[i, :]` that `rand!` needs.
@@ -74,14 +75,14 @@ function populate!(ml::GridLandscape,
     fractions = _zipmap(values(habitat.supply)) do supply
         b = reshape(parent(copy(_getsupply(supply))), length(grid))
         b[.!activity] .= zero(eltype(b))
-        return b ./ sum(b)
+        return b ./ foldl(+, b)
     end
     B = _fold(fractions) do f1, f2
         return f1 .* f2
     end
     # Loop through species, drawing from each species' own RNG stream
     for sp in eachindex(spplist.abun)
-        rand!(rngs[sp], Multinomial(spplist.abun[sp], B ./ sum(B)),
+        rand!(rngs[sp], Multinomial(spplist.abun[sp], B ./ foldl(+, B)),
               (@view ml.matrix[sp, :]))
     end
 end
@@ -609,7 +610,8 @@ end
 function _drawmoves!(lookup::Lookup, sp::Int64, eco::AbstractEcosystem,
                      abun::Int64, disperse_safely::Bool = true,
                      lost::Float64 = 0.0)
-    total = sum(lookup.pnew)
+    # `foldl` for the order: `sum` may reassociate once vectorised, and `pnew` feeds the draw.
+    total = foldl(+, lookup.pnew)
     if iszero(total)
         fill!(lookup.moves, 0)
         return lookup.moves

@@ -292,7 +292,8 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
     b = reshape(parent(ustrip.(_getsupply(habitat.supply))), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
-    B = b ./ sum(b)
+    # `foldl` for the order: `sum` may reassociate once vectorised, and these weights feed a draw.
+    B = b ./ foldl(+, b)
     # Loop through owned species, drawing from each species' global RNG stream
     abundances = @view spplist.abun[(ml.rows_tuple.first):(ml.rows_tuple.last)]
     for mpisp in eachindex(abundances)
@@ -325,7 +326,7 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
     fractions = EcoSISTEM._zipmap(values(habitat.supply)) do supply
         b = reshape(parent(copy(_getsupply(supply))), length(grid))
         b[.!activity] .= zero(eltype(b))
-        return b ./ sum(b)
+        return b ./ foldl(+, b)
     end
     B = EcoSISTEM._fold(fractions) do f1, f2
         return f1 .* f2
@@ -334,7 +335,8 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
     abundances = @view spplist.abun[(ml.rows_tuple.first):(ml.rows_tuple.last)]
     for mpisp in eachindex(abundances)
         truesp = ml.rows_tuple.first + mpisp - 1
-        rand!(rngs[truesp], Multinomial(abundances[mpisp], B ./ sum(B)),
+        rand!(rngs[truesp],
+              Multinomial(abundances[mpisp], B ./ foldl(+, B)),
               (@view ml.rows_matrix[mpisp, :]))
     end
     return EcoSISTEM.synchronise_from_rows!(ml)
