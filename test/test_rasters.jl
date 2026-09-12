@@ -395,6 +395,16 @@ end
     @test EcoSISTEM._specaxis(t) === Temperature
     # the whole-dataset (no-code) form takes them too
     @test SourceSpec(EarthEnv{LandCover}, month = 3).readkw == (month = 3,)
+    # The read options common to every source are fields, not read keywords, and a catalogued spec
+    # resolves its own files.
+    @test SourceSpec === RasterSpec
+    opts = SourceSpec(WorldClim{BioClim}, 1, scale = 4, fn = maximum)
+    @test opts isa RasterSpec{Temperature}
+    @test opts.scale == 4 && opts.fn === maximum && isnothing(opts.cut)
+    @test opts.readkw == NamedTuple()
+    @test isnothing(opts.files)
+    @test isnothing(t.scale)
+    @test_throws ErrorException SourceSpec(WorldClim{BioClim}, 1, scale = 0)
 
     # ...and the keywords really do reach `read` through `GridHabitat`. This is the
     # regression test: A1 deleted the only method that forwarded read keywords, so `month` became

@@ -31,7 +31,25 @@ using DimensionalData
 
 using Unitful
 
-ReadKey(spec::SourceSpec) = ReadKey(spec.source, spec.code, spec.readkw)
+# The key a read of `spec` is cached under: by default for the spec's own read options, or for the
+# window and scale actually read at, where a caller's apply wherever the spec states none. A
+# catalogued read is keyed on the source, the code and its read options, the window and scale
+# among them where they are stated or, for the scale, chosen above 1; a file read on the source,
+# the file's path in place of a code, and the window, unit, scale and reducer, since each changes
+# what the cached values are.
+function ReadKey(spec::RasterSpec; cut = spec.cut, scale = spec.scale)
+    isnothing(spec.files) ||
+        return ReadKey(spec.source, _pathtext(only(spec.files)),
+                       (cut = cut, unit = spec.unit,
+                        scale = something(scale, 1),
+                        fn = spec.fn))
+    kw = spec.readkw
+    isnothing(cut) || (kw = merge(kw, (cut = cut,)))
+    (isnothing(scale) || (scale == 1 && isnothing(spec.scale))) ||
+        (kw = merge(kw, (scale = scale,)))
+    isnothing(spec.fn) || (kw = merge(kw, (fn = spec.fn,)))
+    return ReadKey(spec.source, spec.code, kw)
+end
 
 # `::AbstractSpec` rather than the full [`LayerInput`](@ref): the tuple/named-tuple forms are the
 # *separate* method below, so admitting them here would make the two ambiguous.
@@ -158,17 +176,17 @@ function _asraster(raster::ClimateRaster, ::LayerCache; cut = nothing,
     return _rasternotaspec(raster)
 end
 
-function _asraster(spec::SourceSpec, cache::LayerCache; cut = nothing,
+function _asraster(spec::RasterSpec, cache::LayerCache; cut = nothing,
                    scale::Integer = 1)
-    kw = (isnothing(cut) || haskey(spec.readkw, :cut)) ? spec.readkw :
-         merge(spec.readkw, (cut = cut,))
-    scale > 1 && !haskey(kw, :scale) && (kw = merge(kw, (scale = scale,)))
-    spec.code isa AbstractVector && return _stackcached(spec, cache, kw)
-    key = ReadKey(spec.source, spec.code, kw)
+    # The spec's own window and scale stand; the caller's apply where it states none.
+    cut = isnothing(spec.cut) ? cut : spec.cut
+    scale = isnothing(spec.scale) ? scale : spec.scale
+    spec.code isa AbstractVector && return _stackcached(spec, cache, cut, scale)
+    key = ReadKey(spec, cut = cut, scale = scale)
     served = _servedread(cache, key)
     isnothing(served) || return served
     return get!(cache.reads, key) do
-        return _read(spec; kw...)
+        return _read(spec, cut = cut, scale = scale)
     end
 end
 
@@ -195,28 +213,13 @@ end
 # Read options with the window taken out, so two reads can be compared on everything else.
 _sanscut(nt::NamedTuple) = Base.structdiff(nt, NamedTuple{(:cut,)})
 
-# A file read is keyed like a dataset read, so refining an area re-reads nothing and a windowed read
-# is never served for a whole one. The path stands in for the layer code, and the unit and scale
-# are in the key because each changes what the cached values are.
-function _asraster(spec::RasterFileSpec, cache::LayerCache; cut = nothing,
-                   scale::Integer = 1)
-    scale = spec.scale == 1 ? scale : spec.scale
-    key = ReadKey(spec.source, _pathtext(spec.path),
-                  (cut = cut, unit = spec.unit, scale = scale, fn = spec.fn))
-    served = _servedread(cache, key)
-    isnothing(served) || return served
-    return get!(cache.reads, key) do
-        return _read(spec, cut = cut, scale = scale)
-    end
-end
-
 # How coarsely to read a file-backed layer for a grid of `cellsize` in `tcrs`: the whole part of
 # the grid's step over the layer's, measured from the file's header, so a layer far finer than the
 # grid is block-aggregated exactly on its own lattice by the read and never held at full
 # resolution; `_regridsampled` then finds at most a factor of two left to do. `1` - read as
 # declared - for a spec that sets its own `scale`, for class codes (a two-stage majority is not
 # the majority; see `_majorityclass`), and wherever the ratio is below two or cannot be measured.
-function _autoscale(spec::Union{SourceSpec, RasterFileSpec}, tcrs, cellsize)
+function _autoscale(spec::RasterSpec, tcrs, cellsize)
     (_ownscale(spec) || iscategorical(_specaxis(spec)) || isnothing(tcrs) ||
      isnothing(cellsize)) && return 1
     grid = _lazygrid(spec)
@@ -236,9 +239,7 @@ function _autoscale(spec, target)
 end
 
 # Whether the spec states a read scale of its own, which stands.
-_ownscale(spec::SourceSpec) = haskey(spec.readkw, :scale)
-
-_ownscale(spec::RasterFileSpec) = spec.scale != 1
+_ownscale(spec::RasterSpec) = !isnothing(spec.scale)
 
 # A lookup's step, or `nothing` for a single cell.
 _gridstep(v) = length(v) > 1 ? abs(v[2] - v[1]) : nothing
@@ -305,15 +306,16 @@ end
 #
 # Only reached for a spec whose layers can share one array; `_read` refuses the rest, and this
 # path goes through `_read` per layer, so each keeps its own correct unit before stacking.
-function _stackcached(spec::SourceSpec, cache::LayerCache, kw::NamedTuple)
+function _stackcached(spec::RasterSpec, cache::LayerCache, cut, scale)
     codes = spec.code
     layers = map(codes) do c
-        one = SourceSpec(spec.source, c; kw...)
-        key = ReadKey(spec.source, c, kw)
+        one = SourceSpec(spec.source, c; cut = cut, scale = spec.scale,
+                         fn = spec.fn, spec.readkw...)
+        key = ReadKey(one, cut = cut, scale = scale)
         served = _servedread(cache, key)
         isnothing(served) || return served
         return get!(cache.reads, key) do
-            return _read(one)
+            return _read(one, cut = cut, scale = scale)
         end
     end
     length(layers) == 1 && return only(layers)
@@ -361,7 +363,7 @@ end
 # interpolations is not the interpolation of the ratio. Either says so with
 # `combinestage = CombineOnSourceGrid()`, and `_combineon` below runs it on the layers' own grid
 # instead.
-function _materialiseon(spec::SourceSpec, target, cache::LayerCache;
+function _materialiseon(spec::RasterSpec, target, cache::LayerCache;
                         cut = nothing)
     read = _asraster(spec, cache, cut = cut, scale = _autoscale(spec, target))
     return ClimateRaster(spec.source,
@@ -370,17 +372,6 @@ function _materialiseon(spec::SourceSpec, target, cache::LayerCache;
                                                                  _specaxis(spec)),
                                      fn = _specfn(spec)),
                          spec.code)
-end
-
-# As for a `SourceSpec`, less the layer code a file does not have.
-function _materialiseon(spec::RasterFileSpec, target, cache::LayerCache;
-                        cut = nothing)
-    read = _asraster(spec, cache, cut = cut, scale = _autoscale(spec, target))
-    return ClimateRaster(spec.source,
-                         _sampledata(read, target, name = "layer",
-                                     categorical = iscategorical(read,
-                                                                 _specaxis(spec)),
-                                     fn = _specfn(spec)))
 end
 
 # **A synthetic spec on a positioned grid - generated at the target's shape, not sampled onto it.**

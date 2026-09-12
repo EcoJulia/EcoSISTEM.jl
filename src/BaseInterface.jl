@@ -99,7 +99,7 @@ function Base.haskey(x::_SingletonsAndCollections, name::Symbol)
     return haskey(_backing(x), name)
 end
 
-Base.haskey(c::LayerCache, spec::SourceSpec) = haskey(c.reads, ReadKey(spec))
+Base.haskey(c::LayerCache, spec::RasterSpec) = haskey(c.reads, ReadKey(spec))
 
 function Base.get(x::_SingletonsAndCollections, name::Symbol, default)
     return get(_backing(x), name, default)

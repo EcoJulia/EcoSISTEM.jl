@@ -90,14 +90,19 @@ end
                                  ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
     end
     spec = RasterFileSpec(path, axis = Temperature, unit = K)
-    @test spec isa RasterFileSpec{Temperature}
+    # One spec type for raster data, whichever spelling built it: a file spec names its file and
+    # has no code, a catalogued one the reverse.
+    @test spec isa RasterSpec{Temperature}
     @test spec.source === EcoSISTEM.SyntheticData
+    @test spec.files == [path]
+    @test isnothing(spec.code)
+    @test isnothing(spec.scale)
     @test occursin("RasterFileSpec(", repr(spec))
     @test occursin("unit = K", repr(spec))
     @test occursin("axis = Temperature", repr(spec))
     # A URL is deferred to a cached download, as on `ShapeSpec`; nothing is fetched here.
-    @test RasterFileSpec("https://example.org/a.tif",
-                         axis = EcoSISTEM.NicheAxis).path isa
+    @test only(RasterFileSpec("https://example.org/a.tif",
+                              axis = EcoSISTEM.NicheAxis).files) isa
           EcoSISTEM.CachedAsset
 
     # The file shapes the grid, and the layer is the one the eager route gives.

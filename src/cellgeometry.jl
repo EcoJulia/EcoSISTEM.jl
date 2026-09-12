@@ -391,10 +391,10 @@ function _resolvegrid(spec::AbstractLazySpec, force::Bool)
     return _forcedgrid(spec)
 end
 
-# Read a data-backed spec to find its grid. Only a `SourceSpec` names data that can be read on its
+# Read a data-backed spec to find its grid. Only a `RasterSpec` names data that can be read on its
 # own; the others describe a computation whose grid comes from the area they are built on, so there
 # is nothing to read in isolation and the study area is the only thing that can answer.
-_forcedgrid(spec::SourceSpec) = _gridyx(_read(spec).array)
+_forcedgrid(spec::RasterSpec) = _gridyx(_read(spec).array)
 function _forcedgrid(spec::AbstractLazySpec)
     return error("`force = true` cannot read a $(nameof(typeof(spec))) on its own: it describes a " *
                  "computation over inputs, and the grid it lands on is decided by the `StudyArea` " *

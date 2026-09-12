@@ -5,13 +5,15 @@
 
 using DimensionalData
 
+import Extents
+
 """
     AbstractLazySpec <: AbstractSpec
 
 Abstract supertype of the lazy, data-backed / derived specs. Resolved against the target grid at
-build time and usable in *either* role - a regime/supply layer or an active mask: [`SourceSpec`](@ref)
-(read a data source), [`RasterFileSpec`](@ref) (read a raster file that belongs to no dataset),
-`ShapeSpec` (a vector file), `ConstructedRasterSpec` (combine child specs by a function).
+build time and usable in *either* role - a regime/supply layer or an active mask: [`RasterSpec`](@ref)
+(read raster data - a catalogued layer, or a file that belongs to no dataset), `ShapeSpec` (a
+vector file), `ConstructedRasterSpec` (combine child specs by a function).
 """
 abstract type AbstractLazySpec <: AbstractSpec end
 
@@ -57,14 +59,93 @@ Type-union of everything accepted as an `active` mask: a synthetic mask spec
 const MaskSpec = Union{AbstractSyntheticMaskSpec, AbstractLazySpec}
 
 """
-    SourceSpec{A <: NicheAxis, U, K <: NamedTuple}
+    RasterSpec{A <: NicheAxis, U} <: AbstractLazySpec
 
-Name a layer of a catalogued data source, without reading it. It holds **no** grid array: the read,
-the cut and the resample happen only when it is materialised onto a decided grid.
+Name raster data to be read, without reading it - a layer of a catalogued data source, written
+`SourceSpec(source, code; ...)`, or a raster file that belongs to no dataset, written
+`RasterFileSpec(path; axis, ...)`. It holds **no** grid array: the read, the cut and the resample
+happen only when it is materialised onto a decided grid, so a global file costs the window the
+study area needs rather than the globe, and refining an area re-reads nothing.
+
+Three things say what is read. **What** the data is: the `source` type and the `code` of the
+layer, which is what the shipped catalogue is keyed on for a unit and an axis, and which the caller
+may override; a file that belongs to no dataset has no code, so it must be told both. **Where** the
+files are: an explicit list, or `nothing` for a source that resolves its own, as a catalogued
+dataset does. And **how** it is read: `cut` windows the read to a box, `scale` coarsens by a
+whole number of cells a side, and `fn` says how a block is reduced.
+
+# Fields
+
+  - `source`: the data source, a type marked [`EcoSISTEM.IsRasterData`](@ref) - a dataset such
+    as `WorldClim{BioClim}`, or [`SyntheticData`](@ref) for a file that belongs to no dataset.
+  - `code`: which layer of the source, as one [`CODE_TYPE`](@ref) or a vector of them; `nothing`
+    for a bare file, and never for a catalogued source, since a whole-dataset spec resolves the
+    dataset's own code list at construction so that every layer's identity is known before
+    anything is read and each can keep its own unit.
+  - `files`: the files to read, each a local path or the [`EcoSISTEM.CachedAsset`](@ref) a URL
+    becomes; `nothing` where the source resolves them itself.
+  - `unit`: the physical unit attached on read. `NoUnits` where a multi-layer spec's layers
+    disagree, as a neutral placeholder, and for a file given none.
+  - `cut`: an `Extents.Extent` of `°` intervals to window the read to, or `nothing` for all of it.
+    Applied before the pixels are fetched, so cutting a global layer to one country costs the
+    country.
+  - `scale`: an integer factor to coarsen by on read, each block of `scale × scale` cells becoming
+    one, or `nothing` where the study area may choose one to suit its grid. A stated scale, `1`
+    included, stands. A coarsened read of a whole file is memoised on disk, so the cost is paid
+    once per file rather than once per study area; a `cut` alongside skips the memo and the cost.
+  - `fn`: how a block is reduced to one cell, or `nothing` for the axis to decide - the most
+    frequent class (ties to the smallest code) for a `TypologyAxis`, whose codes must not be
+    averaged, and the mean for any other. On a grid much coarser than the layer the reduction
+    runs in two stages, on the layer's own lattice and then onto the grid, so it must compose: a
+    mean, a maximum or a minimum do exactly, the most frequent class approximately.
+  - `readkw`: keywords the source needs to resolve its files, kept for the eventual read -
+    `month = 1:12` for a monthly climatology, say. A spec nested inside a
+    [`ConstructedRasterSpec`](@ref) can therefore carry its own read options.
+
+# Type parameters
+
+  - `A`: the niche axis, which is what matches the layer to species niches. A type parameter
+    rather than a field because it is dispatched on, which is what lets a layer's meaning be
+    checked at compile time rather than looked up.
+  - `U`: the type of `unit`.
+"""
+struct RasterSpec{A <: NicheAxis, U} <: EcoSISTEM.AbstractLazySpec
+    source::Type
+    code::Union{Nothing, CODE_TYPE, Vector{CODE_TYPE}}
+    files::Union{Nothing, Vector{Union{String, EcoSISTEM.CachedAsset}}}
+    unit::U
+    cut::Union{Nothing, Extents.Extent}
+    scale::Union{Nothing, Int}
+    # `nothing` for *decide from the axis*. Untyped beyond that because it is consulted once per
+    # materialisation and never in a hot loop.
+    fn::Union{Nothing, Function}
+    readkw::NamedTuple
+
+    # The one route to `new`. The two spellings, `SourceSpec` and `RasterFileSpec`, decide the
+    # fields and come here; the checks that hold whichever spelling was used live here with it.
+    function RasterSpec{A, U}(source::Type, code, files, unit::U, cut,
+                              scale::Union{Nothing, Integer}, fn,
+                              readkw::NamedTuple) where {A <: NicheAxis, U}
+        (isnothing(scale) || scale >= 1) ||
+            error("`scale` coarsens by a whole number of cells per side, so it must be at " *
+                  "least 1; got $scale.")
+        isnothing(files) || !isempty(files) ||
+            error("`files` names no file; give at least one path or URL.")
+        return new{A, U}(source, code, files, unit, cut,
+                         isnothing(scale) ? nothing : Int(scale), fn, readkw)
+    end
+end
+
+"""
+    SourceSpec(source, code = nothing, unit = nothing; axis, cut = nothing, scale = nothing,
+               fn = nothing, readkw...)
+
+Name a layer of a catalogued data source, without reading it, as a [`RasterSpec`](@ref) whose
+`files` the source resolves for itself.
 
 Passing **no** `code` describes the *whole* dataset - every layer read into one multi-band raster,
-which is the form [`ConstructedRasterSpec`](@ref) uses for a bare dataset, such as all the land-cover class
-bands for `compress_landcover`.
+which is the form [`ConstructedRasterSpec`](@ref) uses for a bare dataset, such as all the
+land-cover class bands for `compress_landcover`.
 
 # Arguments
 
@@ -74,85 +155,53 @@ bands for `compress_landcover`.
   - `unit`: the physical unit to attach on read. Defaults to the layer's own, from the shipped table.
   - `axis`: the niche axis, which is what matches the layer to species niches. Defaults from the
     shipped table, and to [`NicheAxis`](@ref) where the table names none.
-  - any other keyword: kept as a pass-through argument for the eventual `read`, so
+  - `cut`, `scale`, `fn`: the read options, as the [`RasterSpec`](@ref) fields of those names. Give
+    a `scale` a `cut` as well where the whole world is not needed: on its own a `scale` coarsens the
+    *whole* source file however small a result is wanted, because the aggregated form is memoised
+    per file, and for a global dataset that first read can need many gigabytes.
+  - any other keyword: kept as a pass-through argument for the eventual read, so
     `SourceSpec(WorldClim{Climate}, :wind, month = 1:12)` reads the twelve monthly layers and
-    `month = 1` just the one. A `SourceSpec` nested inside a [`ConstructedRasterSpec`](@ref) can therefore
-    carry its own read options.
-
-    Two of those keywords decide how much is read, and are worth knowing about together. `cut`
-    windows the read, so only the cells inside a bounding box come off disk. `scale` coarsens by an
-    integer factor, and on its own it coarsens the *whole* source file however small a result is
-    wanted, because the aggregated form is memoised per file rather than per window: for a global
-    dataset that first read can need many gigabytes. Give a `scale` a `cut` as well where the whole
-    world is not needed, and the memo is skipped along with the cost. How a block is reduced follows
-    the spec's `axis` unless `fn` is given: the most frequent class for a `TypologyAxis`, the mean
-    for any other. On a grid much coarser than the layer the reduction runs in two stages, on the
-    layer's own lattice and then onto the grid: exact for a mean, a maximum or a minimum, and an
-    approximation for the most frequent class.
-
-# Fields
-
-  - `source`, `code`, `unit`, `readkw`: as above. `code` is never `nothing` - a whole-dataset spec
-    resolves the dataset's own code list at construction, so every layer's identity is known before
-    anything is read and each can keep its own unit. `unit` falls back to `NoUnits` as a neutral
-    placeholder where a multi-layer spec's layers disagree.
-
-# Type parameters
-
-  - `A`: the niche axis. A type parameter rather than a field because it is dispatched on, which is
-    what lets a layer's meaning be checked at compile time rather than looked up.
-  - `U`, `K`: the types of `unit` and `readkw`.
+    `month = 1` just the one.
 """
-struct SourceSpec{A <: NicheAxis, U, K <: NamedTuple} <:
-       EcoSISTEM.AbstractLazySpec
-    source::Type
-    # One layer, or several. Never `nothing`: `SourceSpec(dataset)` resolves the dataset's own code
-    # list here rather than carrying a late-bound "all of them" sentinel, so there is one code shape
-    # instead of three, and every layer's identity is known before anything is read - which is what
-    # lets each keep its *own* unit.
-    code::Union{CODE_TYPE, Vector{CODE_TYPE}}
-    unit::U
-    readkw::K   # extra keywords forwarded to `read` at materialise time (e.g. `month = 1:12`)
-    # The sole constructor - defined with the type's own name and taking `axis` as a runtime *type*
-    # argument (see `GradientSpec`'s inner constructor comment), so there is exactly one way to build
-    # one. Omitting `code` gives the whole dataset. `unit`/`axis` are resolved in the *body* rather
-    # than as signature defaults because their defaults are shipped-table lookups keyed on `code`.
-    # Any keyword other than `axis` is captured as a pass-through read keyword, so a `SourceSpec`
-    # nested inside a `ConstructedRasterSpec` can specify e.g. its own `month`.
-    #
-    # A multi-layer spec does **not** error here when its layers disagree on unit or axis, even
-    # though it cannot then honestly claim one. Four of the seven shipped datasets are heterogeneous -
-    # including `WorldClim{BioClim}` (6 units) and `CHELSA{BioClimPlus}` (13 units, 29 axes) - so
-    # refusing them at construction would rule out the flagship sources. Its real use is inside a
-    # `ConstructedRasterSpec`, where `_parselayers` expands it to one correctly-united spec per layer and
-    # the disagreement never arises. The error belongs where a *single array* is genuinely required -
-    # materialising it directly as a regime or supply - and lives in `_read` accordingly.
-    #
-    # **Trait-gated on `IsRasterData`, not bounded by `RasterDataSources.RasterDataSource`** -
-    # the same treatment `ClimateRaster`'s sole constructor already has, and for the same reason: a
-    # `<:` bound names one package, whereas the trait asks the question the code actually cares
-    # about and a third party's raster type can answer it in one `@traitimpl` line. It is also what
-    # lets this struct stay here while `RasterDataSources` is a weak dependency.
-    @traitfn function SourceSpec(::Type{S},
-                                 code::Union{CODE_TYPE,
-                                             AbstractVector{<:CODE_TYPE},
-                                             Nothing} = nothing,
-                                 unit = nothing;
-                                 axis::Union{Type{<:NicheAxis}, Nothing} = nothing,
-                                 readkw...) where {S; IsRasterData{S}}
-        source = S
-        c = isnothing(code) ? EcoSISTEM._alllayercodes(source) :
-            code isa AbstractVector ? collect(CODE_TYPE, code) : code
-        u = !isnothing(unit) ? unit : _sharedunit(source, c)
-        a = !isnothing(axis) ? axis : _sharedaxis(source, c)
-        kw = NamedTuple(readkw)
-        return new{a, typeof(u), typeof(kw)}(source, c, u, kw)
-    end
+const SourceSpec = RasterSpec
+
+# Defined with the type's alias name and taking `axis` as a runtime *type* argument (see
+# `GradientSpec`'s inner constructor comment). Omitting `code` gives the whole dataset. `unit`/`axis`
+# are resolved in the *body* rather than as signature defaults because their defaults are
+# shipped-table lookups keyed on `code`. The three read options are named so that they land in
+# their own fields; any keyword after them is captured as a pass-through read keyword.
+#
+# A multi-layer spec does **not** error here when its layers disagree on unit or axis, even
+# though it cannot then honestly claim one. Four of the seven shipped datasets are heterogeneous -
+# including `WorldClim{BioClim}` (6 units) and `CHELSA{BioClimPlus}` (13 units, 29 axes) - so
+# refusing them at construction would rule out the flagship sources. Its real use is inside a
+# `ConstructedRasterSpec`, where `_parselayers` expands it to one correctly-united spec per layer and
+# the disagreement never arises. The error belongs where a *single array* is genuinely required -
+# materialising it directly as a regime or supply - and lives in `_read` accordingly.
+#
+# **Trait-gated on `IsRasterData`, not bounded by `RasterDataSources.RasterDataSource`** -
+# the same treatment `ClimateRaster`'s sole constructor already has, and for the same reason: a
+# `<:` bound names one package, whereas the trait asks the question the code actually cares
+# about and a third party's raster type can answer it in one `@traitimpl` line. It is also what
+# lets this struct stay here while `RasterDataSources` is a weak dependency.
+@traitfn function SourceSpec(::Type{S},
+                             code::Union{CODE_TYPE,
+                                         AbstractVector{<:CODE_TYPE},
+                                         Nothing} = nothing,
+                             unit = nothing;
+                             axis::Union{Type{<:NicheAxis}, Nothing} = nothing,
+                             cut = nothing,
+                             scale::Union{Nothing, Integer} = nothing,
+                             fn::Union{Nothing, Function} = nothing,
+                             readkw...) where {S; IsRasterData{S}}
+    c = isnothing(code) ? EcoSISTEM._alllayercodes(S) :
+        code isa AbstractVector ? collect(CODE_TYPE, code) : code
+    u = !isnothing(unit) ? unit : _sharedunit(S, c)
+    a = !isnothing(axis) ? axis : _sharedaxis(S, c)
+    return RasterSpec{a, typeof(u)}(S, c, nothing, u, cut, scale, fn,
+                                    NamedTuple(readkw))
 end
 
-# Must be defined here rather than beside `ERA`/`CERA` in `Climate.jl`: `SourceSpec` is declared in
-# this file, and a method written above its own type's file is silently discarded -- the package
-# still loads, and the call fails later with a bare `MethodError`.
 # Worth the extra method, exactly as on `ClimateRaster`: without it an unmarked source fails with a
 # bare `MethodError` naming `SimpleTraits.Not{IsRasterData{...}}`, which leaks the trait machinery and
 # names no remedy. It also covers the case this file now cares most about - a user who has not
@@ -448,13 +497,13 @@ struct ConstructedRasterSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
 end
 
 """
-    RasterFileSpec{A <: NicheAxis, U} <: AbstractLazySpec
+    RasterFileSpec(path::AbstractString; axis, unit = NoUnits, source = SyntheticData,
+                   cut = nothing, scale = nothing, fn = nothing)
 
 Name a raster **file** as a layer, without reading it: a GeoTIFF or anything else GDAL reads, given
-by path or URL, that is not a layer of a catalogued dataset. The read, the cut and the resample happen
-only when it is materialised onto a decided grid, exactly as for a [`SourceSpec`](@ref), so a global
-file costs the window the study area needs rather than the globe, and refining an area re-reads
-nothing.
+by path or URL, that is not a layer of a catalogued dataset. Builds a [`RasterSpec`](@ref) whose
+`files` is that one file and whose `code` is `nothing`, so it is read, cut and resampled exactly as
+a [`SourceSpec`](@ref) is.
 
 This is the lazy counterpart of [`in_memory_raster`](@ref): that wraps a raster already read into
 memory, in full and cached nowhere; this holds only the path. Prefer a [`SourceSpec`](@ref) where the
@@ -471,7 +520,7 @@ It is a layer spec. To use a file as a `within` mask, say what in it marks a cel
 # Arguments
 
   - `path`: the file, or a URL naming a **self-contained** file (a `.zip` is read directly). A URL
-    is downloaded into `EcoSISTEM.assetdir(owner = RasterFileSpec)` as an
+    is downloaded into `EcoSISTEM.assetdir(owner = RasterSpec)` as an
     [`EcoSISTEM.CachedAsset`](@ref) the first time it is needed.
   - `axis`: the [`NicheAxis`](@ref) the values are on. Required: pass `NicheAxis` itself for data
     whose meaning is not being claimed.
@@ -479,48 +528,20 @@ It is a layer spec. To use a file as a `within` mask, say what in it marks a cel
     a file of temperatures in kelvin needs `unit = K` to become a temperature regime.
   - `source`: the data source recorded on the raster - [`SyntheticData`](@ref) by default, for a
     file that belongs to no catalogued dataset.
-  - `scale`: an integer factor to coarsen by on read, each block of `scale × scale` cells becoming
-    one cell; `1`, the default, reads the file at its own resolution. As for a [`SourceSpec`](@ref),
-    a coarsened read of the whole file is memoised on disk, so the cost is paid once per file rather
-    than once per study area.
-  - `fn`: how a block is reduced to one cell. Left unset, the `axis` decides: the most frequent class
-    (ties to the smallest code) for a `TypologyAxis`, whose codes must not be averaged, and the mean
-    for any other. Give a function to override - `maximum`, say. On a grid much coarser than the
-    file the reduction runs in two stages, on the file's own lattice and then onto the grid, so it
-    must compose: a mean, a maximum or a minimum do exactly, the most frequent class approximately.
-
-# Fields
-
-  - `path`, `unit`, `source`, `scale`, `fn`: as above; `path` is a `String` or the
-    [`EcoSISTEM.CachedAsset`](@ref) a URL becomes, and `fn` is `nothing` where the axis decides.
-
-# Type parameters
-
-  - `A`: the niche axis, a type parameter so it can be dispatched on, as on every spec.
-  - `U`: the type of `unit`.
+  - `cut`, `scale`, `fn`: the read options, as the [`RasterSpec`](@ref) fields of those names.
 """
-struct RasterFileSpec{A <: NicheAxis, U} <: EcoSISTEM.AbstractLazySpec
-    path::Union{String, EcoSISTEM.CachedAsset}
-    unit::U
-    source::Type
-    scale::Int
-    # `nothing` for *decide from the axis*. Untyped beyond that because it is consulted once per
-    # materialisation and never in a hot loop.
-    fn::Union{Nothing, Function}
+function RasterFileSpec(path::AbstractString; axis::Type{A}, unit = NoUnits,
+                        source::Type = SyntheticData, cut = nothing,
+                        scale::Union{Nothing, Integer} = nothing,
+                        fn::Union{Nothing, Function} = nothing) where {A <:
+                                                                       NicheAxis}
     # A leading URL scheme marks `path` as a download, deferred to a `CachedAsset`, exactly as on
     # `ShapeSpec`; anything else is taken to be an already-local path, used as-is.
-    function RasterFileSpec(path::AbstractString; axis::Type{A}, unit = NoUnits,
-                            source::Type = SyntheticData,
-                            scale::Integer = 1,
-                            fn::Union{Nothing, Function} = nothing) where {A <:
-                                                                           NicheAxis}
-        scale >= 1 ||
-            error("`scale` coarsens by a whole number of cells per side, so it must be at " *
-                  "least 1; got $scale.")
-        p = occursin(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path) ?
-            EcoSISTEM.CachedAsset(RasterFileSpec, path) : String(path)
-        return new{A, typeof(unit)}(p, unit, source, Int(scale), fn)
-    end
+    p = occursin(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path) ?
+        EcoSISTEM.CachedAsset(RasterSpec, path) : String(path)
+    return RasterSpec{A, typeof(unit)}(source, nothing,
+                                       Union{String, EcoSISTEM.CachedAsset}[p],
+                                       unit, cut, scale, fn, NamedTuple())
 end
 
 # A spec's path as text, for a label or a cache key: the string itself, or a download's URL.
@@ -568,25 +589,27 @@ end
 #
 # `ConstructedRasterSpec` is the one that cannot follow the rule, and says so: its `combine` is an
 # arbitrary function with no readable spelling, so the line reports what it is built *from* instead.
-function Base.show(io::IO, spec::SourceSpec{A}) where {A}
-    kw = isempty(spec.readkw) ? "" :
-         ", " * join(("$(k) = $(v)" for (k, v) in pairs(spec.readkw)), ", ")
-    return print(io,
-                 "SourceSpec($(spec.source), $(repr(spec.code))$(kw), axis = $(nameof(A)))")
+function Base.show(io::IO, spec::RasterSpec{A}) where {A}
+    opts = String[]
+    isnothing(spec.cut) || push!(opts, "cut = $(spec.cut)")
+    isnothing(spec.scale) || push!(opts, "scale = $(spec.scale)")
+    isnothing(spec.fn) || push!(opts, "fn = $(nameof(spec.fn))")
+    if isnothing(spec.files)
+        kw = ["$(k) = $(v)" for (k, v) in pairs(spec.readkw)]
+        return print(io, "SourceSpec($(spec.source), $(repr(spec.code))",
+                     join(", " .* vcat(kw, opts)), ", axis = $(nameof(A)))")
+    end
+    path = length(spec.files) == 1 ? repr(_pathtext(only(spec.files))) :
+           "files = " * repr(_pathtext.(spec.files))
+    unit = spec.unit === NoUnits ? "" : ", unit = $(spec.unit)"
+    source = spec.source === SyntheticData ? "" : ", source = $(spec.source)"
+    return print(io, "RasterFileSpec(", path, unit, source,
+                 join(", " .* opts), ", axis = $(nameof(A)))")
 end
 
 function Base.show(io::IO, spec::ShapeSpec)
     layer = iszero(spec.layer) ? "" : ", layer = $(spec.layer)"
     return print(io, "ShapeSpec($(repr(spec.path))$(layer))")
-end
-
-function Base.show(io::IO, spec::RasterFileSpec{A}) where {A}
-    unit = spec.unit === NoUnits ? "" : ", unit = $(spec.unit)"
-    source = spec.source === SyntheticData ? "" : ", source = $(spec.source)"
-    scale = spec.scale == 1 ? "" : ", scale = $(spec.scale)"
-    fn = isnothing(spec.fn) ? "" : ", fn = $(nameof(spec.fn))"
-    return print(io,
-                 "RasterFileSpec($(repr(_pathtext(spec.path)))$(unit)$(source)$(scale)$(fn), axis = $(nameof(A)))")
 end
 
 function Base.show(io::IO, spec::ConstructedRasterSpec{A}) where {A}
@@ -607,8 +630,10 @@ end
 # A per-cell supply is rewritten into a combine here, before any grid is decided.
 
 # How a layer is named in that message: the dataset it comes from and the code asked for.
-_speclabel(spec::SourceSpec) = "`$(spec.source)` layer `$(spec.code)`"
-_speclabel(spec::RasterFileSpec) = "file `$(_pathtext(spec.path))`"
+function _speclabel(spec::RasterSpec)
+    isnothing(spec.files) || return "file `$(_pathtext(first(spec.files)))`"
+    return "`$(spec.source)` layer `$(spec.code)`"
+end
 
 # A multi-variable `regime`/`supply` is a *tuple* of specs, each of which shapes the grid in its own
 # right. A tuple therefore always means "several layers", at every level - which is why the bare
@@ -637,7 +662,7 @@ _speclabel(spec::RasterFileSpec) = "file `$(_pathtext(spec.path))`"
 #
 # `gsl == 0` needs no policy: the division yields `NaN`, and `_coverage` then marks
 # the cell inactive. A cell with no growing season has no growing-season water - the right answer, free.
-function _desugarsupply(spec::SourceSpec)
+function _desugarsupply(spec::RasterSpec)
     rec = _percellrecord(spec)
     isnothing(rec) && return spec
     divisor = SourceSpec(spec.source, rec.period.code)
@@ -671,7 +696,7 @@ _desugarsupply(spec) = spec
 # The catalogue record for `spec` when it declares a per-cell period, else `nothing`. Multi-code specs
 # are declined rather than guessed at: a per-cell period is a property of one layer, and a stacked
 # read has no single divisor.
-function _percellrecord(spec::SourceSpec)
+function _percellrecord(spec::RasterSpec)
     spec.code isa CODE_TYPE || return nothing
     rec = try
         layerinfo(spec.source, spec.code)
@@ -684,7 +709,7 @@ end
 # The niche axis a per-cell layer's *rate* reading belongs to. Only water exists today; anything else
 # is refused by name rather than silently given the wrong axis, since guessing here would build a
 # supply of the wrong resource.
-function _percellaxis(spec::SourceSpec, rec::LayerRecord)
+function _percellaxis(spec::RasterSpec, rec::LayerRecord)
     rec.axis <: WaterAxis && return Precipitation
     return error("`$(spec.code)` accumulates over the `$(rec.period.code)` layer, so as a supply it " *
                  "is a rate - but its axis `$(nameof(rec.axis))` has no rate reading defined here. " *

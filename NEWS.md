@@ -2,8 +2,10 @@
 
 - v0.8.0
   - Added
-    - `RasterFileSpec`, a lazy layer spec for a raster file that belongs to no dataset: the read is
-      windowed to the study area, cached, and coarsened on read by `scale`. `readfile` gains `unit`.
+    - `RasterSpec`, one lazy spec for raster data, written `SourceSpec(source, code)` for a
+      catalogued layer and `RasterFileSpec(path; axis)` for a file that belongs to no dataset. The
+      read options `cut`, `scale` and `fn` are its fields for either spelling; the read is windowed
+      to the study area, cached, and coarsened on read by `scale`. `readfile` gains `unit`.
     - `show` methods for some over-long types.
     - `build_species` and the direct `SpeciesList` constructor take `names`, so species can carry
       real names; the names label their Diversity types too.

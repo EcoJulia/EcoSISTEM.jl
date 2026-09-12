@@ -181,7 +181,7 @@ include("LazySpec.jl")
 # what lives here against what stays with the climate data.
 # Exported here, and **re-exported by `ClimatePref`**, so that `using EcoSISTEM.ClimatePref` reaches
 # them too.
-export SourceSpec, RasterFileSpec, ConstructedRasterSpec, ShapeSpec,
+export RasterSpec, SourceSpec, RasterFileSpec, ConstructedRasterSpec, ShapeSpec,
        NaturalEarthSpec, ConstructedShapeSpec
 
 public AbstractShapeSpec

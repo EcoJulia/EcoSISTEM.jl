@@ -1176,16 +1176,12 @@ end
 # The declared niche axis of a data source element: a `SourceSpec` already carries its own
 # (resolved from the shipped layer table at construction time, unless overridden - see its
 # constructor); a bare `ClimateRaster` has no code left to look up, so `NicheAxis`.
-_specaxis(::SourceSpec{A}) where {A} = A
+_specaxis(::RasterSpec{A}) where {A} = A
 
-_specaxis(::RasterFileSpec{A}) where {A} = A
-
-# The reducer a spec asks for, or `nothing` where its axis decides: `RasterFileSpec` carries it as a
-# field, `SourceSpec` as the `fn` read option, and no other spec has one. What the read-time `scale`
-# uses is what the study grid uses, so a caller's choice holds at both coarsening sites.
-_specfn(spec::RasterFileSpec) = spec.fn
-
-_specfn(spec::SourceSpec) = get(spec.readkw, :fn, nothing)
+# The reducer a spec asks for, or `nothing` where its axis decides; no other spec has one. What the
+# read-time `scale` uses is what the study grid uses, so a caller's choice holds at both coarsening
+# sites.
+_specfn(spec::RasterSpec) = spec.fn
 
 _specfn(::Any) = nothing
 
@@ -1800,27 +1796,28 @@ function _attachunit(raster::ClimateRaster{S}, u) where {S}
     return ClimateRaster(S, DimArray(A.data .* u, dims(A)), raster.code)
 end
 
-# Read a `RasterFileSpec` into a unit-attached `ClimateRaster`: the file, by path or download,
-# windowed to `cut` before the pixels are fetched and coarsened by `scale`, on the spec's declared
-# source and unit. Through `_cachedlayer`, the same step a dataset layer takes, so a coarsened read
-# of the whole file is memoised on disk exactly as a dataset's is. No catalogue is consulted; the
-# spec is the only statement of what the file holds.
-function _read(spec::RasterFileSpec{A}; cut = nothing,
-               scale = spec.scale) where {A}
-    layer = _cachedlayer(_resolvepath(spec.path), scale, spec.fn, spec.unit,
-                         cut = cut, axis = A)
-    return ClimateRaster(spec.source, _applycut(layer, cut))
-end
-
-# Read a `SourceSpec` into a unit-attached `ClimateRaster` (the eager step deferred by the
-# lazy descriptor). A `nothing` code is a whole-dataset spec - read all layers as one multi-band
-# raster (`read`'s own default), dimensionless. The spec's own `readkw` (e.g. `month = 1:12`, given
-# when it was constructed) forward to `read`, with any keyword passed here overriding them, so a
-# caller can still refine a spec's read without rebuilding it.
-function _read(sl::SourceSpec{A}; kw...) where {A}
+# Read a `RasterSpec` into a unit-attached `ClimateRaster` (the eager step deferred by the lazy
+# descriptor). The spec's own read options are the defaults; a keyword passed here overrides them,
+# so a caller can refine a spec's read without rebuilding it.
+#
+# A spec naming its files reads them itself through `_cachedlayer` - the same step a dataset layer
+# takes, so a coarsened read of a whole file is memoised on disk exactly as a dataset's is - with no
+# catalogue consulted: the spec is the only statement of what the file holds. A catalogued spec
+# hands its source and code to the dataset `read`, with its source-specific keywords.
+function _read(spec::RasterSpec{A}; cut = spec.cut, scale = spec.scale,
+               fn = spec.fn, kw...) where {A}
+    if !isnothing(spec.files)
+        length(spec.files) == 1 ||
+            error("reading several files as one layer is not yet supported; name one file.")
+        layer = _cachedlayer(_resolvepath(only(spec.files)),
+                             something(scale, 1),
+                             fn, spec.unit, cut = cut, axis = A)
+        return ClimateRaster(spec.source, _applycut(layer, cut))
+    end
     # The spec's own axis decides the aggregation reducer unless the read options say otherwise -
     # it is the one statement of what the layer holds, whether the catalogue or the caller made it.
-    readkw = merge((axis = A,), sl.readkw, NamedTuple(kw))
+    readkw = merge((axis = A, cut = cut, scale = something(scale, 1), fn = fn),
+                   spec.readkw, NamedTuple(kw))
     # Can these layers honestly share one array? Refused on two counts, for the same underlying
     # reason: an array has **one** eltype and gets **one** resample method, so its layers must agree
     # on both.
@@ -1839,26 +1836,26 @@ function _read(sl::SourceSpec{A}; kw...) where {A}
     # Both are checked here, at the point a single array is actually demanded and before anything is
     # downloaded, rather than at construction, where they would rule out `WorldClim{BioClim}` and
     # three other shipped datasets outright.
-    if sl.code isa AbstractVector
-        onelayer = "Name the layers you want instead - `SourceSpec($(sl.source), :code)` for " *
+    if spec.code isa AbstractVector
+        onelayer = "Name the layers you want instead - `SourceSpec($(spec.source), :code)` for " *
                    "one, or pass a codes vector to `ConstructedRasterSpec`, which reads each on its " *
                    "own terms."
-        us = unique(layerunit(sl.source, c) for c in sl.code)
+        us = unique(layerunit(spec.source, c) for c in spec.code)
         length(us) == 1 ||
-            error("`SourceSpec($(sl.source))` covers $(length(sl.code)) layers with " *
+            error("`SourceSpec($(spec.source))` covers $(length(spec.code)) layers with " *
                   "$(length(us)) different units ($(join(us, ", "))), so they cannot be read " *
                   "into one array without losing them. " * onelayer)
         # Called for its refusal: the vector method throws on a stack that mixes class codes with
         # measurements, which is the rule stated once rather than restated here.
-        iscategorical(sl.source, sl.code)
+        iscategorical(spec.source, spec.code)
     end
-    raw = read(sl.source, sl.code; readkw...)
+    raw = read(spec.source, spec.code; readkw...)
     # Tag the materialised raster with the layer it came from. This is the single point at which a
     # spec becomes data, and the only place that still knows the code - after this the raster is
     # passed around on its own and the shipped table can no longer be consulted for it, which is
     # exactly why `iscategorical` answers `false` for a raster carrying no code.
-    data = _applyperiod(raw.array, sl, readkw)
-    return _attachunit(ClimateRaster(sl.source, data, sl.code), sl.unit)
+    data = _applyperiod(raw.array, spec, readkw)
+    return _attachunit(ClimateRaster(spec.source, data, spec.code), spec.unit)
 end
 
 # Divide a freshly-read array by the interval each of its slices accumulated over, so the values are
@@ -1875,7 +1872,7 @@ end
 #
 # A layer with no period, a per-cell period, or one whose canonical reading is the accumulated amount
 # itself (a heat sum) is returned untouched.
-function _applyperiod(array, sl::SourceSpec, readkw::NamedTuple)
+function _applyperiod(array, sl::RasterSpec, readkw::NamedTuple)
     sl.code isa AbstractVector && return array          # multi-band: no single period applies
     rec = layerinfo(sl.source, sl.code)
     months = get(readkw, :month, axes(array, ndims(array)))
@@ -1929,9 +1926,7 @@ end
 # `_parselayers`; a bare-dataset layer is a whole-dataset `SourceSpec`, read via `_read`.)
 _asraster(raster::ClimateRaster) = _rasternotaspec(raster)
 
-_asraster(spec::SourceSpec) = _read(spec)
-
-_asraster(spec::RasterFileSpec) = _read(spec)
+_asraster(spec::RasterSpec) = _read(spec)
 
 _asraster(spec::Tuple) = _sourcepairnotaspec(spec)
 
