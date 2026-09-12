@@ -475,9 +475,11 @@ study area: a synthetic one has no CRS, extent or resolution of its own.
 `AbstractShapeSpec` is the branch of the lazy specs that is **ground** rather than data - a shape
 file, a named country, a continent, an island - and resolves to geometry before any grid exists.
 
-`SourceSpec` and `RasterFileSpec` are the two ways of naming raster data to be read: a layer of a
-catalogued dataset, whose unit and axis the catalogue supplies, or a file that belongs to no dataset,
-which must be told both. Each holds a name and no data, and reads through the same cache.
+`RasterSpec` names raster data to be read, and has two spellings: `SourceSpec(source, code)` for a
+layer of a catalogued dataset, whose unit and axis the catalogue supplies and whose files the source
+resolves, and `RasterFileSpec(path; axis)` for a file that belongs to no dataset, which must be told
+both. `SourceSpec` is an alias of the type and `RasterFileSpec` a factory; either way the spec holds
+a name and no data, its read options (`cut`, `scale`, `fn`) as fields, and reads through one cache.
 
 **`ConstructedShapeSpec` and `ConstructedRasterSpec` are mirrors**: each is the "several members
 become one" node for its medium. Three of their differences are forced by that medium and one is
@@ -496,8 +498,7 @@ classDiagram
     class AbstractSyntheticSpec
     class AbstractSyntheticLayerSpec
     class AbstractSyntheticMaskSpec
-    class SourceSpec~A, U~
-    class RasterFileSpec~A, U~
+    class RasterSpec~A, U~
     class ShapeSpec
     class AbstractShapeSpec
     class NaturalEarthSpec~C~
@@ -511,8 +512,7 @@ classDiagram
     class AbstractCombineStage
     AbstractSpec              <|-- AbstractLazySpec
     AbstractSpec              <|-- AbstractSyntheticSpec
-    AbstractLazySpec          <|-- SourceSpec
-    AbstractLazySpec          <|-- RasterFileSpec
+    AbstractLazySpec          <|-- RasterSpec
     AbstractLazySpec          <|-- ConstructedRasterSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticLayerSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticMaskSpec
