@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Reading ERA5 and CERA-20C: `read(ERA, ...)`, `read(CERA, ...)`, and the four helpers only they use
-# - `_readera_array` (one variable out of one file), `_readeradir` (a directory of them concatenated
-# along time), `_parsecfunit` (a CF `units` attribute to a Unitful unit) and `_wraplong180` (ERA
-# longitudes run 0 to 360, and every other reader produces -180 to 180).
+# Reading ERA5 and CERA-20C: `read(ERA, ...)`, `read(CERA, ...)`, and the helpers only they use -
+# `_readera_array` (one variable out of one file), `_readeratimed` (the same with the time axis
+# replaced), `_readeradir` (a directory of them concatenated along time), `_parsecfunit` (a CF
+# `units` attribute to a Unitful unit) and `_wraplong180` (a file whose longitudes run 0 to 360
+# rolled onto -180 to 180, which every other reader produces). Which backend opens a file and
+# whether its longitudes need rolling come from the source's `datasets.csv` row.
 #
 # Separate from `datasetread.jl` because this is the only code in the package that reads netCDF:
 # everything else arrives as GeoTIFF through a catalogued data source.
@@ -53,7 +55,8 @@ four-argument one to read and concatenate a whole directory.
 """
 function Base.read(::Type{ERA}, file::AbstractString, param::AbstractString;
                    cut = nothing)
-    return _timeseriesraster(ERA, _applycut(_readera_array(file, param), cut))
+    return _timeseriesraster(ERA,
+                             _applycut(_readera_array(ERA, file, param), cut))
 end
 
 """
@@ -71,9 +74,8 @@ As the two-argument method, but with the file's own time coordinate overridden. 
 """
 function Base.read(::Type{ERA}, file::AbstractString, param::AbstractString,
                    dim::Vector{<:Unitful.Time}; cut = nothing)
-    aa = _readera_array(file, param)
-    world = DimArray(aa.data, (dims(aa, Y), dims(aa, X), Ti(collect(dim))))
-    return _timeseriesraster(ERA, _applycut(world, cut))
+    return _timeseriesraster(ERA,
+                             _readeratimed(ERA, file, param, dim, cut = cut))
 end
 
 """
@@ -95,7 +97,8 @@ method above.
 function Base.read(::Type{ERA}, dir::AbstractString, file::AbstractString,
                    param::AbstractString,
                    dim::Vector{<:AbstractVector{<:Unitful.Time}}; cut = nothing)
-    return _timeseriesraster(ERA, _readeradir(dir, file, param, dim, cut = cut))
+    return _timeseriesraster(ERA,
+                             _readeradir(ERA, dir, file, param, dim, cut = cut))
 end
 
 """
@@ -126,8 +129,14 @@ function Base.read(::Type{CERA}, dir::AbstractString, file::AbstractString,
                      collect(((i - 1) * 120month_mean_duration + 1month_mean_duration):(1month_mean_duration):(i * 10year))))
     end
     return _timeseriesraster(CERA,
-                             _readeradir(dir, file, param, times, cut = cut))
+                             _readeradir(CERA, dir, file, param, times,
+                                         cut = cut))
 end
+
+# Spellings some providers give a unit that Unitful does not know, each mapped to the one it does:
+# NOAA PSL writes kelvin `degK` and kilograms `Kg`. Whole tokens only, so `Kg` inside a longer name
+# is left alone.
+const _CFUNIT_ALIASES = (r"\bdegK\b" => "K", r"\bKg\b" => "kg")
 
 # Parse a CF `units` attribute, as read off a netCDF file ("J m**-2", "m**3 m**-3"), into a Unitful
 # unit. CF spells exponentiation `**` where Unitful spells it `^`, and a bare space is an implicit
@@ -135,9 +144,18 @@ end
 # `LayerCatalogue.jl` uses for the shipped CSV tables, so the two agree on what a unit string means.
 function _parsecfunit(s::AbstractString)
     isempty(s) && return NoUnits
-    return uparse(replace(s, "**" => "^", " " => "*"),
+    return uparse(replace(s, _CFUNIT_ALIASES..., "**" => "^", " " => "*"),
                   unit_context = [Unitful, Units])
 end
+
+# Whether a file's longitudes need rolling onto (-180, 180]: yes when its dataset's row says the
+# files run 0 to 360, no when it says -180 to 180, and where the row is blank the file decides -
+# any longitude beyond 180 means the 0 to 360 convention.
+function _needswrap(::Nothing, aa)
+    return maximum(ustrip.(parent(DimensionalData.lookup(aa, X)))) > 180
+end
+
+_needswrap(range::Tuple, aa) = ustrip(°, range[2]) > 180
 
 # Roll a `(Y, X, Ti)` ERA array from the 0 to 360 degree longitude convention onto (-180, 180],
 # reordering the data columns so that longitude stays ascending. Data already in range is unchanged.
@@ -173,25 +191,37 @@ end
 # dates and `_rastertodimarray` preserves it rather than rebuilding a synthetic one. The physical
 # unit comes from the variable's `units` attribute, through `_parsecfunit`.
 #
-# `source = NCDsource()` is forced because a file downloaded from the CDS carries no `.nc` extension,
-# so Rasters' extension-based backend guess falls back to GDAL - which reads the data but drops both
-# the CF coordinates, leaving integer indices, and the `units` attribute.
-function _readera_array(file::String, param::String)
-    ras = Raster(file, name = Symbol(param), source = Rasters.NCDsource())
+# The backend is the one the source's `datasets.csv` row names rather than one guessed from the
+# filename, because a file downloaded from the CDS carries no `.nc` extension and the guess then
+# falls back to GDAL, which reads the data but drops both the CF coordinates and the `units`
+# attribute. The row's other header facts are checked against the file before anything is used.
+function _readera_array(T::Type, file::String, param::String)
+    rec = datasetinfo(T)
+    ras = _centresampled(Raster(file, name = Symbol(param),
+                                source = _rasterssource(rec.format)))
+    _checkcatalogue(rec, ras)
     u = _parsecfunit(string(get(Rasters.metadata(ras), "units", "")))
-    # ERA5 longitudes run 0-360°; roll them onto (-180, 180] to match the other (tif) readers
-    return _wraplong180(_rastertodimarray(ras, unit = u))
+    aa = _rastertodimarray(ras, unit = u)
+    return _needswrap(rec.longituderange, aa) ? _wraplong180(aa) : aa
 end
 
-# Read the files in `dir` matching `file` via the single-file `read(ERA, ...)`, one per time-vector
-# in `times`, and concatenate them along time (dim 3). Shared by the directory `ERA`/`CERA` readers.
-# Not `dims`, which would shadow `DimensionalData.dims` in a body that also passes `dims` as a
-# keyword to `cat`.
-function _readeradir(dir::String, file::String, param::String, times;
+# One file with its time coordinate replaced by `dim`, one entry per layer. Shared by the timed
+# `read(ERA, ...)` and the directory reader.
+function _readeratimed(T::Type, file::String, param::String,
+                       dim::AbstractVector{<:Unitful.Time}; cut = nothing)
+    aa = _readera_array(T, file, param)
+    world = DimArray(aa.data, (dims(aa, Y), dims(aa, X), Ti(collect(dim))))
+    return _applycut(world, cut)
+end
+
+# Read the files in `dir` matching `file`, one per time-vector in `times`, and concatenate them
+# along time (dim 3). Shared by the directory `ERA`/`CERA` readers. Not `dims`, which would shadow
+# `DimensionalData.dims` in a body that also passes `dims` as a keyword to `cat`.
+function _readeradir(T::Type, dir::String, file::String, param::String, times;
                      cut = nothing)
     filenames = _searchdir(dir, file)
-    arrays = [read(ERA, joinpath(dir, filenames[i]), param, times[i],
-                   cut = cut).array
+    arrays = [_readeratimed(T, joinpath(dir, filenames[i]), param, times[i],
+                            cut = cut)
               for i in eachindex(times)]
     return cat(arrays..., dims = 3)
 end

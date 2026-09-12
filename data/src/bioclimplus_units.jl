@@ -12,7 +12,7 @@
 # file's declared nodata misses) - before the fix gsp's `0xffffffff` fill leaked as ~4.29e8.
 #
 # **Both questions are SETTLED, and this script is the evidence behind the answers rather than an
-# open investigation.** `data/RasterDataSources/BioClimPlus.csv` records them:
+# open investigation.** `data/catalogue/BioClimPlus.csv` records them:
 #
 #   * `gsp` ships as `L*m^-2` with `AccumulationPeriod = percell=gsl` - a seasonal total, as Part A
 # concludes. Confirmed empirically 2026-07-23.

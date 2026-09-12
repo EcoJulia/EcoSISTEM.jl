@@ -11,9 +11,10 @@
 # caching   `_cachedlayer`, `_aggcachepath`, `_fnid`
 #
 # It sits in the main module rather than in an extension because it names no climate-data-source
-# package at all: every function here takes a type `T` and file paths,
-# and the dataset-specific methods (`_stackaxis`, `_getrasterkw` and the rest) live in
-# `EcoSISTEMRasterDataSourcesExt`, which supplies them over these generic helpers.
+# package at all: every function here takes a type `T` and file paths. What differs between
+# datasets comes from the shipped catalogue (`_stackaxis`, `_checkcatalogue`) or, for the one fact
+# that is about `getraster` rather than the data (`_getrasterkw`), from
+# `EcoSISTEMRasterDataSourcesExt`, which supplies it over these generic helpers.
 # Putting the generic half in an extension would have made an extension that names nothing from its
 # own trigger, which stops precompiling the moment that dependency is weakened.
 #
@@ -146,14 +147,11 @@ function _locus(sourcedim)
 end
 
 # Kind of axis stacked when combining multiple files of a single layer/variable: a monthly series
-# (`Ti`) or a band/variable index (`Dim{:layer}`). Returns the *type itself*, not a `:time`/
-# `:layer` Symbol - so `_mkstackaxis` below is genuine multiple dispatch, resolved at compile
-# time from the statically-known source type `T`, rather than a runtime branch on a value (the
-# `Val(Symbol(...))`-shaped anti-pattern this project avoids, just the value-vs-dispatch mirror of
-# it: a compile-time-knowable choice was being funnelled through a runtime `Symbol` comparison).
-# The per-dataset methods (WorldClim's and CHELSA's monthly climate stack on `Ti`) are in
-# `EcoSISTEMRasterDataSourcesExt`; this is the fallback they specialise.
-_stackaxis(::Type) = Dim{:layer}
+# (`Ti`) or a band/variable index (`Dim{:layer}`), read off the shipped catalogue - a source whose
+# layer table declares a temporal resolution is a series. Returns the *type itself*, not a
+# `:time`/`:layer` Symbol, so `_mkstackaxis` below is genuine multiple dispatch on the axis type
+# rather than a runtime branch on a value.
+_stackaxis(T::Type) = _hastimeaxis(T) ? Ti : Dim{:layer}
 
 # Build the axis stacked when combining `n` files of a single layer/variable - one method per
 # axis type (see `_stackaxis`), not a runtime branch on a value.
@@ -491,6 +489,86 @@ end
 # so when it comfortably fits in RAM we read it whole first (~6× faster and far fewer allocations); larger
 # files fall back to the lazy aggregate to stay within memory. `_rastertodimarray` then materialises the
 # (small) aggregated result.
+# A netCDF coordinate variable with no `bounds` marks the point each value applies to, so Rasters
+# declares its axes `Points`; on a regular grid that point is the centre of a cell one step wide,
+# which is how every consumer of a reanalysis grid reads it, and what the spatial-axis check in
+# `_locus` requires to be said out loud. Axes already declaring intervals are left alone.
+function _centresampled(ras)
+    pointed = filter(D -> DimensionalData.Lookups.sampling(Rasters.lookup(ras,
+                                                                          D)) isa
+                          DimensionalData.Lookups.Points, (X, Y))
+    isempty(pointed) && return ras
+    return Rasters.set(ras,
+                       (D =>
+                            DimensionalData.Lookups.Intervals(DimensionalData.Lookups.Center())
+                        for D in pointed)...)
+end
+
+# The Rasters backend a catalogued format is opened with. Chosen from the row rather than sniffed
+# from the filename, because a file downloaded from the CDS carries no extension and the sniff
+# then falls back to GDAL, which drops a netCDF file's CF coordinates and `units`.
+function _rasterssource(format::Symbol)
+    return format === :netCDF ? Rasters.NCDsource() :
+           Rasters.GDALsource()
+end
+
+# Check a just-opened raster of source `T` against what `datasets.csv` records about `T`, and
+# refuse the read, naming the table, where they disagree. Only the header facts the file itself
+# states are compared - its longitude convention, CRS, cell size and extent - and only where the row
+# records them, a blank cell meaning the file is the authority. A source with no row is not checked.
+_checkcatalogue(T::Type, ras) = _checkcatalogue(_datasetrecord(T), ras)
+
+_checkcatalogue(::Nothing, ras) = nothing
+
+function _checkcatalogue(rec::DatasetRecord, ras)
+    c = Rasters.crs(ras)
+    crs = (isnothing(c) || _isblankcrs(c)) ? nothing : c
+    axisunit = _crsunit(crs)
+    xs, ys = Rasters.bounds(dims(ras, X)), Rasters.bounds(dims(ras, Y))
+    xstep, ystep = _lookupstep(dims(ras, X)), _lookupstep(dims(ras, Y))
+    # Bounds are compared to within one cell, which covers a provider whose origin sits a fraction
+    # of a cell off the lattice (CHELSA) and a lookup whose bounds are cell centres rather than edges.
+    disagree(what) = error("a `$(rec.dataset)` file disagrees with `$(_DATASETS_FILE)`: $what. " *
+                           "Correct the row, or blank the cell so the file is trusted.")
+    if !isnothing(crs) && !isnothing(rec.crs) && !_samecrs(rec.crs, crs)
+        disagree("its CRS is not the recorded $(_crsname(rec.crs))")
+    end
+    if !isnothing(rec.longituderange) && axisunit == °
+        lo, hi = ustrip(°, rec.longituderange[1]),
+                 ustrip(°, rec.longituderange[2])
+        (xs[1] >= lo - xstep && xs[2] <= hi + xstep) ||
+            disagree("its longitudes run $(xs[1]) to $(xs[2]) where the recorded convention " *
+                     "is $lo to $hi")
+    end
+    if !isnothing(rec.resolution)
+        listed = [ustrip(axisunit, r)
+                  for r in rec.resolution
+                  if dimension(r) == dimension(1axisunit)]
+        # A resolution in the other kind of unit cannot be compared without a latitude, so a row
+        # listing only lengths says nothing about a file in degrees, and the reverse.
+        if !isempty(listed) &&
+           !any(r -> isapprox(r, xstep, rtol = 1e-3) &&
+                     isapprox(r, ystep, rtol = 1e-3), listed)
+            disagree("its cells are $xstep by $ystep $axisunit where the recorded resolutions " *
+                     "are $(join(listed, ", ")) $axisunit")
+        end
+    end
+    if !isnothing(rec.extent) && axisunit == °
+        ey = ustrip.(°, rec.extent.Y)
+        ex = ustrip.(°, rec.extent.X)
+        # The extent is recorded on (-180, 180], so a file in the 0 to 360 convention is compared
+        # after rolling: its ground east of 180 lies west of -180 on the recorded axis.
+        xparts = xs[2] <= 180 + xstep ? ((xs[1], xs[2]),) :
+                 xs[1] >= 180 - xstep ? ((xs[1] - 360, xs[2] - 360),) :
+                 ((xs[1], 180.0), (-180.0, xs[2] - 360))
+        (ys[1] >= ey[1] - ystep && ys[2] <= ey[2] + ystep &&
+         all(x -> x[1] >= ex[1] - xstep && x[2] <= ex[2] + xstep, xparts)) ||
+            disagree("it covers Y $(ys[1]) to $(ys[2]), X $(xs[1]) to $(xs[2]) where the " *
+                     "recorded extent is Y $(ey[1]) to $(ey[2]), X $(ex[1]) to $(ex[2])")
+    end
+    return nothing
+end
+
 function _readraster(f::AbstractString; scale::Integer = 1, fn = mean,
                      cut = nothing)
     r,
@@ -617,6 +695,7 @@ _firstfile(raw) = first(_filelist(raw))
 function _readsource(T::Type, files::Vector{String};
                      cut = nothing, scale = 1,
                      fn = _defaultfn(T), slices = nothing, axis = NicheAxis)
+    _checkcatalogue(T, _lazyopen(first(files)))
     u = _layerunit(T, files)
     aas = map(f -> _cachedlayer(f, scale, fn, u, cut = cut, axis = axis), files)
     world = _stacklayers(aas,
@@ -635,6 +714,7 @@ function _readmultilayer(T::Type,
                          raw::Vector{<:NamedTuple};
                          cut = nothing, scale = 1,
                          fn = _defaultfn(T), slices = nothing, axis = NicheAxis)
+    _checkcatalogue(T, _lazyopen(_firstfile(raw)))
     layernames = collect(keys(first(raw)))
     perlayer = map(layernames) do name
         files = String[String(nt[name]) for nt in raw]

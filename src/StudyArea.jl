@@ -459,13 +459,18 @@ _probecrs(raster::ClimateRaster) = _rastercrs(raster)
 
 # A spec naming its files answers from the first file's header - a lazy open fetches no pixels, so
 # the read can be windowed before it happens; a URL is downloaded here if it has not been already,
-# since nothing can be known about it otherwise. A catalogued source answers through `sourcecrs`.
+# since nothing can be known about it otherwise. A source that can be asked answers through
+# `sourcecrs`, in the representation its files carry; one that cannot answers from its
+# `datasets.csv` row, or declines.
 function _probecrs(spec::RasterSpec)
     if !isnothing(spec.files)
         crs = Rasters.crs(_lazyopen(_resolvepath(first(spec.files))))
         return _isblankcrs(crs) ? nothing : crs
     end
-    return sourcecrs(spec.source, spec.code; spec.readkw...)
+    hasmethod(sourcecrs, Tuple{typeof(spec.source), typeof(spec.code)}) &&
+        return sourcecrs(spec.source, spec.code; spec.readkw...)
+    rec = _datasetrecord(spec.source)
+    return isnothing(rec) ? nothing : rec.crs
 end
 
 # A raster opened for its header alone, its pixels left on disk, and GDAL's chatter silenced.

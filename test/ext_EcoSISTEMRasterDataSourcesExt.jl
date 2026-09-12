@@ -62,11 +62,14 @@ include("rasterfixtures.jl")
 
     @testset "the catalogue stays in the parent, keyed on any Type" begin
         # These are `EcoSISTEM.ClimatePref`'s own, not the extension's - they use their argument
-        # only to find a shipped CSV. The extension supplies just the one per-dataset correction.
+        # only to find a shipped CSV, the per-dataset corrections included.
         @test layerunit(WorldClim{BioClim}, 1) == u"°C"
         @test layerinfo(WorldClim{Climate}, :srad).unit == u"kJ*m^-2"
-        @test EcoSISTEM._documentedceiling(WorldClim{BioClim}, 1) == 100.0
+        @test EcoSISTEM._documentedceiling(WorldClim{BioClim}, 4) == 100.0
+        @test EcoSISTEM._documentedceiling(WorldClim{BioClim}, 1) == 1.0
         @test EcoSISTEM._documentedceiling(EarthEnv{LandCover}, 1) == 1.0
+        @test EcoSISTEM.datasetinfo(WorldClim{BioClim}).fetch === :getraster
+        @test EcoSISTEM._stackaxis(WorldClim{Climate}) == Ti
         # An unknown type is refused by the table lookup, naming the file it looked for.
         @test_throws ErrorException layerunit(Int, 1)
     end

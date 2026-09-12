@@ -1,14 +1,22 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# One row of the shipped layer catalogue, and a node of the axis tree the discovery helpers print.
+# One row of the shipped layer catalogue, one row of its datasets table, and a node of the axis
+# tree the discovery helpers print.
 
 using Unitful
+
+using Unitful.DefaultSymbols
 
 using CSV
 
 using .Units
 
 using InteractiveUtils
+
+using Extents
+
+# For the CRS a dataset row declares; the raster machinery proper is in `rasters.jl`.
+using Rasters: Rasters
 
 """
     LayerRecord
@@ -32,7 +40,16 @@ It is divided out on read, so values arrive at the order of magnitude the source
 claims. It lives in the catalogue rather than in code deliberately: the correction is then visible
 to `layerinfo` as documentation *and* applied as behaviour, instead of being buried in a reader.
 The test guarding it is **inverted** - it fires when the upstream data is *repaired*, since a test
-asserting the data is still broken is what tells us the workaround can go.
+asserting the data is still broken is what tells us the workaround can go. `documentedceiling` is
+its companion: the largest value the layer's documented unit could plausibly reach, from the
+`DocumentedCeiling` column, or `nothing` where the table says none. It is what tells a layer that
+is *still* published at `publishedscale` from one that has since been corrected, and so is only set
+where `publishedscale` is.
+
+`verticalextent` is where above or below the surface the layer is measured, from the
+`VerticalExtent` column: a single signed height (`2m` for a 2 metre air temperature) or a
+`from..to` pair for a layer of ground (`-7cm..0cm` for the top soil layer), heights positive upward,
+or `nothing` for a surface value. Every reanalysis has one; it is recorded, not checked.
 
 The remaining fields carry the rest of the shipped table so that **no column is dead data**:
 `officialunit` (the source's own documented unit string, against which `unit` is our Unitful
@@ -89,6 +106,49 @@ struct LayerRecord
     # they agree (the overwhelming majority). Recorded per layer because it is a property of that
     # provider's data, and discoverable through `layerinfo` rather than buried in code.
     publishedscale::Union{Rational{Int}, Nothing}
+    documentedceiling::Union{Float64, Nothing}
+    verticalextent::Union{Nothing, Unitful.Quantity,
+                          Tuple{Unitful.Quantity, Unitful.Quantity}}
+end
+
+"""
+    DatasetRecord
+
+A dataset's row of the shipped `datasets.csv`: the fixed facts about a whole data source that no
+layer row carries, returned by [`datasetinfo`](@ref).
+
+  - `dataset`: the source type as it is written - `WorldClim{BioClim}`, `CHELSA{Climate}`, `ERA`.
+  - `format`: how the files are encoded, `:GeoTIFF` or `:netCDF`, which chooses the backend that
+    opens them.
+  - `longituderange`: the longitude convention the files use, `(-180°, 180°)` or `(0°, 360°)`, or
+    `nothing` to read it off each file.
+  - `crs`: the coordinate reference system, an `EPSG` code or a `WellKnownText`, or `nothing`.
+  - `resolution`: the cell sizes the provider offers, each a length or an angle, or `nothing`.
+  - `extent`: the ground the dataset covers, an `Extents.Extent` of `Y`/`X` bounds in degrees, or
+    `nothing`.
+  - `fetch`: how files are obtained - `:getraster` (through `RasterDataSources`), `:cds` (a
+    Copernicus request), `:https` (a plain download) or `:none` (they must be given).
+  - `url`, `doi`, `licence`, `version`, `notes`: provenance, blank where unknown.
+
+**A blank cell means ask the file**, so every field but `dataset`, `format` and `fetch` may be
+`nothing`. **A recorded fact the file can contradict is checked on the first read** of that
+dataset - `longituderange`, `crs`, `resolution` and `extent` are header facts, compared against the
+file's own and refused, naming the table, when they disagree. Provenance and `format` are not
+checked: a wrong format fails to open on its own.
+"""
+struct DatasetRecord
+    dataset::String
+    format::Symbol
+    longituderange::Union{Nothing, Tuple{Unitful.Quantity, Unitful.Quantity}}
+    crs::Any
+    resolution::Union{Nothing, Vector{Unitful.Quantity}}
+    extent::Union{Nothing, Extents.Extent}
+    fetch::Symbol
+    url::String
+    doi::String
+    licence::String
+    version::String
+    notes::String
 end
 
 """
@@ -152,6 +212,18 @@ const _PERIOD_INHERITED_CATEGORIES = (:range,)
 # becomes `aliases`. Cached in `_CATALOGUE`.
 const _CATALOGUE = LayerRecord[]
 
+# The per-dataset table, read once. Its file sits beside the layer tables and is the one `.csv` in
+# the directory that is not a layer table, so both walks name it.
+const _DATASETS_FILE = "datasets.csv"
+
+const _DATASETS = DatasetRecord[]
+
+# The closed vocabularies of the two `datasets.csv` columns that choose behaviour: `Format` picks
+# the backend a file is opened with, `Fetch` the hook that resolves files.
+const _FORMATS = (:GeoTIFF, :netCDF)
+
+const _FETCHES = (:getraster, :cds, :https, :none)
+
 # The `ValueType` column as a checked `Symbol`. Errors rather than defaulting on an unrecognised
 # value: a typo silently becoming "safe to interpolate" would mangle a class-code layer without
 # anyone noticing, which is exactly the failure this column exists to prevent. A blank cell is a
@@ -195,6 +267,16 @@ const _REQUIRED_COLUMNS = (:Code, :Axis, :OfficialUnit, :Units, :UnitDimension,
 # what it *documents* - see `LayerRecord.publishedscale`. It is optional and lives only in the tables
 # that need it, so an empty cell is not an invitation to guess: it means nothing is known.
 # Add it to any table where such a defect is found, and record the evidence in `Notes`.
+# Two more columns any layer table may carry: `VerticalExtent` (where above or below the surface a
+# layer is measured) and `DocumentedCeiling` (the largest value its documented unit reaches, set only
+# beside a `PublishedScaleFactor`) - see `LayerRecord`.
+const _GENERIC_OPTIONAL_COLUMNS = (:VerticalExtent, :DocumentedCeiling)
+
+# The exact column set of `datasets.csv`, refused on a mismatch as the layer tables are.
+const _DATASET_COLUMNS = (:Dataset, :Format, :LongitudeRange, :CRS, :Resolution,
+                          :Extent, :Fetch, :URL, :DOI, :Licence, :Version,
+                          :Notes)
+
 const _OPTIONAL_COLUMNS = Dict(:BioClimPlus => (:Group,),
                                :HabitatHeterogeneity => (:Order,
                                 :PublishedScaleFactor),
@@ -376,6 +458,164 @@ function layerinfo(code::Union{Integer, Symbol, AbstractString})
 end
 
 """
+    datasetinfo(T::Type)
+
+Return the [`DatasetRecord`](@ref) for data source `T` from the shipped `datasets.csv`: its file
+format, longitude convention, coordinate reference system, resolutions, extent, how its files are
+fetched, and its provenance. Errors, naming the table, for a source with no row.
+
+# Arguments
+
+  - `T`: the data source type, written as it is spelled - `WorldClim{BioClim}`, `ERA`.
+"""
+function datasetinfo(T::Type)
+    r = _datasetrecord(T)
+    isnothing(r) &&
+        return error("`$T` has no row in `$(_DATASETS_FILE)` (looked for `$(_datasetkey(T))`).")
+    return r
+end
+
+# The `datasets.csv` row for a source, or `nothing` where it has none - for the readers, which
+# treat an unrecorded source as one about which nothing is known rather than as an error.
+function _datasetrecord(T::Type)
+    key = _datasetkey(T)
+    for r in _datasets()
+        r.dataset == key && return r
+    end
+    return nothing
+end
+
+# How a source type is spelled in `datasets.csv`: its own name with its parameters' names,
+# `WorldClim{BioClim}` or `ERA`, and never a module prefix, so the key does not depend on what the
+# caller has loaded. A parameter left free is not written - `EarthEnv{LandCover}` names the
+# `LandCover{X}` family as a whole, and is spelled that way.
+function _datasetkey(T::Type)
+    base = Base.unwrap_unionall(T)
+    params = filter(p -> !(p isa TypeVar), collect(base.parameters))
+    name = string(base.name.name)
+    isempty(params) && return name
+    return name * "{" * join((_datasetkey(p) for p in params), ",") * "}"
+end
+
+_datasetkey(x) = string(x)
+
+# Every row of `datasets.csv`, read once and memoised, each cell parsed into its typed field and
+# refused when it cannot be.
+function _datasets()
+    isempty(_DATASETS) || return _DATASETS
+    path = joinpath(_cataloguedir(), _DATASETS_FILE)
+    table = CSV.File(path, normalizenames = true)
+    cols = propertynames(table)
+    _checkdatasetschema(cols)
+    cell(row, col) = ismissing(getproperty(row, col)) ? "" :
+                     String(strip(string(getproperty(row, col))))
+    for row in table
+        name = cell(row, :Dataset)
+        isempty(name) && continue
+        push!(_DATASETS,
+              DatasetRecord(name, _parseformat(cell(row, :Format), name),
+                            _parselongituderange(cell(row, :LongitudeRange),
+                                                 name),
+                            _parsecrs(cell(row, :CRS)),
+                            _parseresolution(cell(row, :Resolution), name),
+                            _parseextent(cell(row, :Extent), name),
+                            _parsefetch(cell(row, :Fetch), name),
+                            cell(row, :URL), cell(row, :DOI),
+                            cell(row, :Licence), cell(row, :Version),
+                            cell(row, :Notes)))
+    end
+    allunique(r.dataset for r in _DATASETS) ||
+        error("$_DATASETS_FILE names a dataset twice.")
+    return _DATASETS
+end
+
+# `datasets.csv` must have exactly its columns, for the reason `_checkschema` gives.
+function _checkdatasetschema(cols)
+    missingcols = setdiff(_DATASET_COLUMNS, cols)
+    isempty(missingcols) ||
+        return error("$_DATASETS_FILE is missing column(s) $(join(missingcols, ", ")).")
+    extra = setdiff(cols, _DATASET_COLUMNS)
+    isempty(extra) ||
+        return error("$_DATASETS_FILE has unexpected column(s) $(join(extra, ", ")); " *
+                     "add them to `_DATASET_COLUMNS` and `DatasetRecord`, or remove them.")
+    return nothing
+end
+
+# A `Format` cell as one of `_FORMATS`; required, since it chooses how a file is opened.
+function _parseformat(s::AbstractString, name)
+    v = Symbol(s)
+    v in _FORMATS ||
+        return error("dataset `$name` has `Format` = `$s`; expected one of $(join(_FORMATS, ", ")).")
+    return v
+end
+
+# A `Fetch` cell as one of `_FETCHES`; blank means `:none`, files must be given.
+function _parsefetch(s::AbstractString, name)
+    isempty(s) && return :none
+    v = Symbol(s)
+    v in _FETCHES ||
+        return error("dataset `$name` has `Fetch` = `$s`; expected one of $(join(_FETCHES, ", ")).")
+    return v
+end
+
+# A `LongitudeRange` cell, `-180..180` or `0..360`, as a pair of angles; blank means ask the file.
+function _parselongituderange(s::AbstractString, name)
+    isempty(s) && return nothing
+    m = match(r"^\s*(-?[0-9.]+)\s*\.\.\s*(-?[0-9.]+)\s*$", s)
+    isnothing(m) &&
+        return error("dataset `$name` has `LongitudeRange` = `$s`; write `-180..180` or `0..360`.")
+    lo, hi = parse(Float64, m[1]) * °, parse(Float64, m[2]) * °
+    hi - lo == 360° ||
+        return error("dataset `$name` has `LongitudeRange` = `$s`, which does not span 360 degrees.")
+    return (lo, hi)
+end
+
+# A `CRS` cell: an `EPSG:code`, else taken as well-known text; blank means ask the file.
+function _parsecrs(s::AbstractString)
+    isempty(s) && return nothing
+    m = match(r"^EPSG:(\d+)$"i, s)
+    isnothing(m) || return Rasters.EPSG(parse(Int, m[1]))
+    return Rasters.WellKnownText(Rasters.GeoFormatTypes.CRS(), s)
+end
+
+# A `Resolution` cell: `;`-separated cell sizes, each a length or an angle; blank means ask the file.
+function _parseresolution(s::AbstractString, name)
+    isempty(s) && return nothing
+    qs = Unitful.Quantity[]
+    for part in split(s, ";")
+        q = uparse(strip(part), unit_context = [Unitful, Units])
+        (dimension(q) == Unitful.𝐋 || dimension(q) == dimension(°)) ||
+            error("dataset `$name` has `Resolution` part `$part`, which is neither a length nor " *
+                  "an angle.")
+        push!(qs, q)
+    end
+    return qs
+end
+
+# An `Extent` cell, `Y=(a,b);X=(c,d)` in degrees, as an `Extents.Extent`; blank means ask the file.
+function _parseextent(s::AbstractString, name)
+    isempty(s) && return nothing
+    m = match(r"^\s*Y\s*=\s*\(\s*(-?[0-9.]+)\s*,\s*(-?[0-9.]+)\s*\)\s*;\s*X\s*=\s*\(\s*(-?[0-9.]+)\s*,\s*(-?[0-9.]+)\s*\)\s*$",
+              s)
+    isnothing(m) &&
+        return error("dataset `$name` has `Extent` = `$s`; write `Y=(a,b);X=(c,d)` in degrees.")
+    y = (parse(Float64, m[1]) * °, parse(Float64, m[2]) * °)
+    x = (parse(Float64, m[3]) * °, parse(Float64, m[4]) * °)
+    (y[1] < y[2] && x[1] < x[2]) ||
+        return error("dataset `$name` has `Extent` = `$s`, whose bounds are not ascending.")
+    return Extents.Extent(Y = y, X = x)
+end
+
+# Whether a source's files stack along time: `Ti` when any layer of its table declares a temporal
+# resolution (WorldClim's and CHELSA's monthly climate, the reanalyses), `Dim{:layer}` otherwise,
+# and for a source with no table at all. What `_stackaxis` answers from.
+function _hastimeaxis(T::Type)
+    _haslayertable(T) || return false
+    ds = nameof(_datasettype(T))
+    return any(r -> r.dataset === ds && !isnothing(r.temporal), _catalogue())
+end
+
+"""
     layersbyaxis(A::Type{<:NicheAxis})
     layersbyaxis(::Nothing)
     layersbyaxis()
@@ -433,16 +673,24 @@ function _datasettype(::Type{T}) where {T}
     return isempty(params) ? T : first(params)
 end
 
-# The layer table shipped in the package `data/RasterDataSources/` directory, named by convention
-# after the dataset type (`WorldClim{BioClim}` -> `data/RasterDataSources/BioClim.csv`,
-# `EarthEnv{LandCover}` -> `data/RasterDataSources/LandCover.csv`); the file's presence is what
-# makes a source supported. (They live under `RasterDataSources/` to keep them distinct from other
-# shipped data such as `data/NaturalEarth/regions.csv`.)
+# The directory of shipped tables: one layer table per dataset type, and `datasets.csv`.
+_cataloguedir() = pkgdir(@__MODULE__, "data", "catalogue")
+
+# Where the layer table for a source would be, whether or not it exists: `data/catalogue/`, named
+# after the dataset type (`WorldClim{BioClim}` -> `BioClim.csv`, `EarthEnv{LandCover}` ->
+# `LandCover.csv`, `ERA` -> `ERA.csv`).
+function _layerpath(T::Type)
+    return joinpath(_cataloguedir(), "$(nameof(_datasettype(T))).csv")
+end
+
+# Whether a source ships a layer table; its presence is what makes a source supported.
+_haslayertable(T::Type) = isfile(_layerpath(T))
+
+# The layer table shipped for a source, or an error naming the file it looked for.
 function _layerfile(T::Type)
-    path = pkgdir(@__MODULE__, "data", "RasterDataSources",
-                  "$(nameof(_datasettype(T))).csv")
+    path = _layerpath(T)
     isfile(path) ||
-        return error("No layer table for raster source `$T` (expected $(basename(path)) in data/)")
+        return error("No layer table for raster source `$T` (expected $(basename(path)) in data/catalogue/)")
     return path
 end
 
@@ -593,6 +841,36 @@ function _parsepublishedscale(s::AbstractString, code)
     return v // 1
 end
 
+# Parse a `DocumentedCeiling` cell: a positive number, or `nothing` where blank or the table has no
+# such column.
+function _parsedocumentedceiling(s::Union{Nothing, AbstractString}, code)
+    (isnothing(s) || isempty(s)) && return nothing
+    v = tryparse(Float64, s)
+    (isnothing(v) || v <= 0) &&
+        return error("layer `$code` has `DocumentedCeiling` = `$s`, which is not a positive " *
+                     "number; it is the largest value the layer's documented unit reaches.")
+    return v
+end
+
+# Parse a `VerticalExtent` cell: one signed height (`2m`), a `from..to` pair (`-7cm..0cm`), or
+# `nothing` where blank or absent. Each part must be a length or a pressure, the two ways a level
+# is stated.
+function _parseverticalextent(s::Union{Nothing, AbstractString}, code)
+    (isnothing(s) || isempty(s)) && return nothing
+    parts = split(s, "..")
+    length(parts) in (1, 2) ||
+        return error("layer `$code` has `VerticalExtent` = `$s`; write one height (`2m`) or a " *
+                     "`from..to` pair (`-7cm..0cm`).")
+    qs = map(parts) do part
+        q = uparse(strip(part), unit_context = [Unitful, Units])
+        dimension(q) in (Unitful.𝐋, dimension(u"Pa")) ||
+            error("layer `$code` has `VerticalExtent` part `$part`, which is neither a length " *
+                  "nor a pressure.")
+        return q
+    end
+    return length(qs) == 1 ? only(qs) : (qs[1], qs[2])
+end
+
 # The recorded discrepancy for a layer, or `nothing`. Reads the catalogue, so it is visible through
 # `layerinfo` rather than hidden here - which is the point of it being a column at all.
 # Tolerant of an unknown code: this runs on every read, and a caller may legitimately name a layer
@@ -637,9 +915,18 @@ function _checkupstreamscale(T::Type, code, values)
 end
 
 # The largest value the layer's documented unit could reach, used only to tell "still scaled" from
-# "now corrected". Deliberately crude: only layers with a genuine documented ceiling can be
-# checked at all, and `PublishedScaleFactor` is only set on those.
-_documentedceiling(::Type, code) = 1.0
+# "now corrected": the table's `DocumentedCeiling`, or `1.0` where none is recorded - a deliberately
+# crude default, since only layers with a genuine documented ceiling can be checked at all, and
+# `PublishedScaleFactor` is only set on those. Tolerant of an unknown code, as `_publishedscale` is.
+function _documentedceiling(T::Type, code)
+    ds = nameof(_datasettype(T))
+    key = string(code)
+    for r in _catalogue()
+        (r.dataset === ds && key in r.aliases) &&
+            return something(r.documentedceiling, 1.0)
+    end
+    return 1.0
+end
 
 # Every ~1000th element, so the cost is independent of raster size.
 function _stridedsample(values)
@@ -831,7 +1118,8 @@ end
 # Both halves matter: a renamed header reads as blank everywhere it is used rather than failing, and
 # an unexpected column is usually a rename that half-happened.
 function _checkschema(dataset::Symbol, cols)
-    allowed = (_REQUIRED_COLUMNS..., get(_OPTIONAL_COLUMNS, dataset, ())...)
+    allowed = (_REQUIRED_COLUMNS..., _GENERIC_OPTIONAL_COLUMNS...,
+               get(_OPTIONAL_COLUMNS, dataset, ())...)
     missingcols = setdiff(_REQUIRED_COLUMNS, cols)
     isempty(missingcols) ||
         return error("$dataset.csv is missing required column(s) $(join(missingcols, ", ")); " *
@@ -954,8 +1242,9 @@ end
 # directory is walked, so a dataset is in the catalogue exactly when its file is there.
 function _catalogue()
     isempty(_CATALOGUE) || return _CATALOGUE
-    datadir = pkgdir(@__MODULE__, "data", "RasterDataSources")
-    for f in sort(filter(endswith(".csv"), readdir(datadir)))
+    datadir = _cataloguedir()
+    for f in sort(filter(f -> endswith(f, ".csv") && f != _DATASETS_FILE,
+                         readdir(datadir)))
         dataset = Symbol(first(splitext(f)))
         table = CSV.File(joinpath(datadir, f), normalizenames = true)
         cols = propertynames(table)
@@ -996,6 +1285,10 @@ function _catalogue()
                               optional(:Group), optional(:Order),
                               _parsepublishedscale(cell(row,
                                                         :PublishedScaleFactor),
+                                                   code),
+                              _parsedocumentedceiling(optional(:DocumentedCeiling),
+                                                      code),
+                              _parseverticalextent(optional(:VerticalExtent),
                                                    code)))
         end
     end

@@ -25,7 +25,7 @@
 # as a type mismatch rather than as a wrong answer.
 #
 # **Classes by name, never by number.** The numeric codes are an EarthEnv implementation detail;
-# the shipped catalogue (`data/RasterDataSources/LandCover.csv`) maps names to them and
+# the shipped catalogue (`data/catalogue/LandCover.csv`) maps names to them and
 # `EcoSISTEM.landcoverclass` is the lookup.
 #
 #     julia --project=examples examples/CategoricalLandCover.jl

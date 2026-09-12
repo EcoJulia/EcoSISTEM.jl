@@ -57,7 +57,7 @@ const YEARS = SMALL ? 2year : 20year
 # would silently claim all of it as available.
 #
 # Classes are named, never numbered - the numeric codes are an EarthEnv implementation detail and
-# the shipped catalogue (`data/RasterDataSources/LandCover.csv`) is what maps names to them.
+# the shipped catalogue (`data/catalogue/LandCover.csv`) is what maps names to them.
 const GROWABLE = (:needleleaf_trees, :evergreen_broadleaf_trees,
                   :deciduous_broadleaf_trees, :other_trees, :shrubs,
                   :herbaceous, :cultivated_and_managed, :regularly_flooded)

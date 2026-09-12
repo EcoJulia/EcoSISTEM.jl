@@ -15,6 +15,8 @@ using ArchGDAL
 using CoordinateTransformations
 using DimensionalData
 using Statistics
+using Dates: Dates
+import NCDatasets
 using Test
 
 # CHELSA's `bio1` is a 43200 x 20880 global grid, and coarsening does NOT bound the cost of reading
@@ -101,16 +103,15 @@ if !Sys.iswindows()
     # grid under February's name. The last assertion here is that regression, and it is the one that
     # would have caught it - the others only check the labels.
     # Which axis a multi-file source stacks on decides whether it is a **time series** or a stack
-    # of unrelated bands - and so whether it can drive a layer through time at all.
-    #
-    # `CHELSA{Climate}` had no method and fell through to the `Dim{:layer}` fallback, so a
-    # `SourceSpec(CHELSA{Climate}, ...)` read through the generic path was **not recognised as a
-    # series**. It failed silently: twelve monthly files loaded fine, simply as twelve bands. This is
-    # asserted against its siblings rather than alone, because the bug was an omission - a test that
-    # only checked CHELSA would not have said whether `Ti` was right or the fallback was wrong.
+    # of unrelated bands - and so whether it can drive a layer through time at all. It is read off
+    # the shipped catalogue: a source whose layer table declares a temporal resolution is a series.
+    # A source silently read as bands loads fine - twelve monthly files, simply as twelve bands - so
+    # this is asserted against its siblings rather than alone: a test of one source cannot say
+    # whether `Ti` is right or the fallback is wrong.
     @testset "monthly sources stack on time, band sources on layers" begin
         @test EcoSISTEM._stackaxis(WorldClim{Climate}) == Ti
         @test EcoSISTEM._stackaxis(CHELSA{Climate}) == Ti
+        @test EcoSISTEM._stackaxis(EcoSISTEM.ERA) == Ti
         # Only the `Climate` layers are monthly. A source's *bioclim* variables are one file per
         # variable, so they must keep stacking on `Dim{:layer}`.
         @test EcoSISTEM._stackaxis(CHELSA{BioClim}) == Dim{:layer}
@@ -118,6 +119,8 @@ if !Sys.iswindows()
               Dim{:layer}
         @test EcoSISTEM._stackaxis(EarthEnv{LandCover}) ==
               Dim{:layer}
+        # A source with no table at all is a stack of bands.
+        @test EcoSISTEM._stackaxis(Int) == Dim{:layer}
     end
 
     @testset "a partial monthly read knows which months it holds" begin
@@ -434,6 +437,80 @@ end
 # a `_crsunit(::Nothing)` fallback alone misses it and `ArchGDAL.importCRS("")` fails with the opaque
 # "Failed to initialize SRS based on WKT string (Corrupt data.)" - which is what an empty-CRS file
 # such as `data/Africa.tif` produces. Synthetic (no download), so it runs on every platform.
+# A CF netCDF file shaped like an ERA5 download from the Copernicus Data Store: two variables on a
+# 6 x 8 grid, twelve monthly `DateTime`s, a `units` attribute each, 0-360 longitudes, and no
+# filename extension - which is what forces the backend to come from the catalogue rather than
+# from the name. Values encode their own position so a roll of the longitude axis can be checked.
+function _erafixture(dir)
+    path = joinpath(dir, "era5_fixture")
+    NCDatasets.NCDataset(path, "c") do ds
+        NCDatasets.defDim(ds, "longitude", 8)
+        NCDatasets.defDim(ds, "latitude", 6)
+        NCDatasets.defDim(ds, "valid_time", 12)
+        lon = NCDatasets.defVar(ds, "longitude", Float64, ("longitude",),
+                                attrib = ["units" => "degrees_east"])
+        lon[:] = 0.0:45.0:315.0
+        lat = NCDatasets.defVar(ds, "latitude", Float64, ("latitude",),
+                                attrib = ["units" => "degrees_north"])
+        lat[:] = 75.0:-30.0:-75.0
+        t = NCDatasets.defVar(ds, "valid_time", Int64, ("valid_time",),
+                              attrib = ["units" => "seconds since 1970-01-01",
+                                  "calendar" => "proleptic_gregorian",
+                                  "standard_name" => "time"])
+        t[:] = Dates.DateTime.(1990, 1:12, 1)
+        v = NCDatasets.defVar(ds, "t2m", Float32,
+                              ("longitude", "latitude", "valid_time"),
+                              attrib = ["units" => "K",
+                                  "long_name" => "2 metre temperature"])
+        v[:, :, :] = [Float32(270 + i + 10j + 100k)
+                      for i in 1:8, j in 1:6, k in 1:12]
+        p = NCDatasets.defVar(ds, "tp", Float32,
+                              ("longitude", "latitude", "valid_time"),
+                              attrib = ["units" => "m"])
+        p[:, :, :] = fill(0.001f0, 8, 6, 12)
+        return nothing
+    end
+    return path
+end
+
+@testset "an ERA netCDF file reads through its catalogue row" begin
+    path = _erafixture(mktempdir())
+    cr = read(EcoSISTEM.ERA, path, "t2m")
+    @test cr isa ClimateRaster{EcoSISTEM.ERA}
+    # The unit is the file's own `units` attribute, the time axis its own dates.
+    @test Unitful.unit(eltype(cr.array)) == K
+    @test collect(lookup(cr.array, Ti)) == Dates.DateTime.(1990, 1:12, 1)
+    # The row leaves the longitude convention to the file, whose 0-360 longitudes are rolled onto
+    # (-180, 180] with the data columns following: the cell written at 180 degrees east is the one
+    # now labelled -180, and the axis ends ascending.
+    xs = collect(lookup(cr.array, X))
+    @test xs == (-180.0:45.0:135.0) .* °
+    @test collect(lookup(cr.array, Y)) == (-75.0:30.0:75.0) .* °
+    @test ustrip(cr.array[Y(At(-75.0°)), X(At(-180.0°)), Ti(1)]) ==
+          270 + 5 + 10 * 6 + 100
+    @test ustrip(cr.array[Y(At(75.0°)), X(At(0.0°)), Ti(12)]) ==
+          270 + 1 + 10 + 1200
+    @test Unitful.unit(eltype(read(EcoSISTEM.ERA, path, "tp").array)) == m
+    # The timed forms replace the file's dates with elapsed times, file by file.
+    timed = read(EcoSISTEM.ERA, path, "t2m",
+                 collect((1:12) .* month_mean_duration))
+    @test collect(lookup(timed.array, Ti)) == (1:12) .* month_mean_duration
+    both = read(EcoSISTEM.ERA, dirname(path), "era5_fixture", "t2m",
+                [collect((1:12) .* month_mean_duration)])
+    @test size(both.array, 3) == 12
+end
+
+@testset "CF unit spellings" begin
+    E = EcoSISTEM
+    @test E._parsecfunit("J m**-2") == u"J*m^-2"
+    @test E._parsecfunit("m**3 m**-3") == u"m^3*m^-3"
+    @test E._parsecfunit("") == NoUnits
+    # The two spellings NOAA PSL uses that Unitful does not: `degK` and `Kg`. Named here because
+    # the alias table is what makes them parse; nothing else does.
+    @test E._parsecfunit("degK") == u"K"
+    @test E._parsecfunit("Kg/m^2/s") == u"kg/m^2/s"
+end
+
 @testset "a blank CRS is treated as an absent one" begin
     CP = EcoSISTEM
     blank = Rasters.GeoFormatTypes.WellKnownText(Rasters.GeoFormatTypes.CRS(),

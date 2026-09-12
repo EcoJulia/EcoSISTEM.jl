@@ -150,9 +150,9 @@ public AbstractAccumulationPeriod, ConstantAccumulationPeriod,
 
 include("LayerCatalogue.jl")
 
-public LayerRecord, AxisNode
+public LayerRecord, AxisNode, DatasetRecord
 
-public layerinfo, layersbyaxis, layerrate
+public layerinfo, layersbyaxis, layerrate, datasetinfo
 
 # Exported rather than `public`, unlike their three siblings above -- that split is inherited from
 # `ClimatePref`, which exported exactly these two. Kept as it was rather than changed in passing;

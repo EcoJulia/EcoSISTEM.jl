@@ -43,7 +43,7 @@ ENV["RASTERDATASOURCES_PATH"] = CLAIMED
 # --- the layers -------------------------------------------------------------------------
 
 # Named, not read: bio1 is annual mean temperature and bio12 annual precipitation, and both the
-# unit and the axis come from the shipped catalogue (`data/RasterDataSources/BioClim.csv`) rather
+# unit and the axis come from the shipped catalogue (`data/catalogue/BioClim.csv`) rather
 # than being asserted here - which is what the old `uconvert.(K, africa_temp .* °C)` was doing by
 # hand, and could get wrong.
 const TEMPERATURE = SourceSpec(WorldClim{BioClim}, :bio1)

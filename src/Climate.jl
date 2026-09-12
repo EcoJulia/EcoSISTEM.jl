@@ -412,6 +412,19 @@ end
 # `EcoSISTEMRasterDataSourcesExt`, which is the only place that package is visible.
 _codetype(::Type) = Nothing
 
+# The package's own sources answer from their shipped layer tables: one with a table of its own
+# (`ERA`, `CERA`) names its layers by the table's `Code` spelling, a `String`; one without
+# (`SyntheticData`, anything derived, `CRUTS`, which borrows WorldClim's) has no codes to name.
+# `nameof(S)` rather than `_datasettype`, so `DerivedData{ERA}` does not inherit ERA's table.
+function _codetype(::Type{S}) where {S <: EcoSISTEMSource}
+    return _ownlayertable(S) ? String : Nothing
+end
+
+# Whether one of the package's own sources ships a layer table under its own name.
+function _ownlayertable(::Type{S}) where {S}
+    return isfile(joinpath(_cataloguedir(), "$(nameof(S)).csv"))
+end
+
 # _alllayercodes(source)
 #
 # Every layer code `source` has, as a `Vector{CODE_TYPE}` - what a whole-dataset `SourceSpec(dataset)`
@@ -424,6 +437,20 @@ _codetype(::Type) = Nothing
 # `IsRasterData` but not taught about - cannot answer, and says so rather than returning an empty
 # list, which would silently describe a dataset with nothing in it.
 function _alllayercodes(::Type{S}) where {S}
+    return _nolayercodes(S)
+end
+
+# The package's own sources list their table's codes, in table order; a source without a table
+# cannot answer, as above.
+function _alllayercodes(::Type{S}) where {S <: EcoSISTEMSource}
+    _ownlayertable(S) || return _nolayercodes(S)
+    ds = nameof(S)
+    return collect(CODE_TYPE,
+                   (first(r.aliases) for r in _catalogue() if r.dataset === ds))
+end
+
+# The refusal shared by every source that cannot name its layers.
+function _nolayercodes(S)
     return error("`$S` does not say what layers it has, so a whole-dataset spec cannot be " *
                  "expanded; name the layer you want, or give `$S` an `_alllayercodes` method.")
 end
@@ -469,12 +496,31 @@ end
 # The `::_codetype(S)` annotation is what keeps the constructor inferable: without it the stored
 # parameter depends on a value the compiler cannot see, and `ClimateRaster`'s return type is `Any`.
 function _preferredcode(::Type{S}, code) where {S}
-    _codetype(S) === Nothing &&
-        error("a `$S` raster holds no layer codes, so it cannot be given `$(repr(code))`. " *
-              "A derived or synthetic layer is identified by its spec's `axis`, not by a code.")
+    _codetype(S) === Nothing && _refusecode(S, code)
     # Reachable only if a source declares a `_codetype` without a way to resolve a spelling to it.
     return error("`$S` declares its layer codes as `$(_codetype(S))` but supplies no way to " *
                  "resolve one; `_preferredcode` needs a method.")
+end
+
+# The package's own sources resolve a code through their table, to its first spelling. The
+# `::Nothing` and vector methods are repeated for the same reason the extension repeats them: a
+# method on the source alone and one on the code alone are equally specific.
+_preferredcode(::Type{<:EcoSISTEMSource}, ::Nothing) = nothing
+
+function _preferredcode(::Type{S},
+                        codes::AbstractVector) where {S <: EcoSISTEMSource}
+    return [_preferredcode(S, c) for c in codes]
+end
+
+function _preferredcode(::Type{S}, code) where {S <: EcoSISTEMSource}
+    _codetype(S) === Nothing && _refusecode(S, code)
+    return first(layerinfo(S, code).aliases)::String
+end
+
+# The refusal for a code given to a source that holds none.
+function _refusecode(S, code)
+    return error("a `$S` raster holds no layer codes, so it cannot be given `$(repr(code))`. " *
+                 "A derived or synthetic layer is identified by its spec's `axis`, not by a code.")
 end
 
 # Replace every raster in a broadcast tree by its array, leaving the tree's shape untouched.
