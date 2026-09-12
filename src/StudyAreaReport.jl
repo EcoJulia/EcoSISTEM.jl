@@ -7,26 +7,31 @@ using DimensionalData
 
 using Unitful
 
-# What determines the bytes a source read produces: the dataset, the layer code and the read keywords.
-# Deliberately not the spec object - two different specs asking for the same layer should share one
-# read, a `ConstructedRasterSpec` closes over a function that can never compare equal, and `SourceSpec`
-# equality would stop holding the moment a `readkw` held a range or an array. Keying on the read also
+# What determines the bytes a raster read produces: the source, the layer code, the files where they
+# were given rather than resolved by the source, and the read options - the window, unit, scale and
+# reducer, and the source's own keywords - each of which changes the values. Deliberately not the
+# spec object - two different specs asking for the same layer should share one read, a
+# `ConstructedRasterSpec` closes over a function that can never compare equal, and spec equality
+# would stop holding the moment a `readkw` held a range or an array. Keying on the read also
 # guarantees the cache holds nothing grid-dependent, since a read identity says nothing about any
 # target grid.
 struct ReadKey
     source::Type
-    code::Union{CODE_TYPE, Vector{CODE_TYPE}}
+    code::Union{Nothing, CODE_TYPE, Vector{CODE_TYPE}}
+    files::Union{Nothing, Vector{String}}    # as text, so a download's URL and a local path compare
     readkw::NamedTuple
 end
 
 # Value equality and hashing, not the `===` fallback: the `readkw` `NamedTuple` may hold heap values
 # (a month range, say), whose identity-based `objectid` hash would miss every cache hit.
 function Base.:(==)(a::ReadKey, b::ReadKey)
-    return a.source == b.source && a.code == b.code && a.readkw == b.readkw
+    return a.source == b.source && a.code == b.code && a.files == b.files &&
+           a.readkw == b.readkw
 end
 
-Base.hash(k::ReadKey, h::UInt) = hash(k.readkw,
-                                      hash(k.code, hash(k.source, h)))
+function Base.hash(k::ReadKey, h::UInt)
+    return hash(k.readkw, hash(k.files, hash(k.code, hash(k.source, h))))
+end
 
 """
     LayerCache()

@@ -117,7 +117,8 @@ end
     # Read once, through the cache, keyed on the path and the unit.
     keys_ = collect(keys(area.report.cache.reads))
     @test length(keys_) == 1
-    @test only(keys_).code == path
+    @test only(keys_).files == [path]
+    @test isnothing(only(keys_).code)
     @test only(keys_).readkw.unit == K
 
     # A `within` box windows the read before the pixels are fetched, and narrows the grid.

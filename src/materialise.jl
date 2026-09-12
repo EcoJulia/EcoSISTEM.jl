@@ -32,23 +32,15 @@ using DimensionalData
 using Unitful
 
 # The key a read of `spec` is cached under: by default for the spec's own read options, or for the
-# window and scale actually read at, where a caller's apply wherever the spec states none. A
-# catalogued read is keyed on the source, the code and its read options, the window and scale
-# among them where they are stated or, for the scale, chosen above 1; a file read on the source,
-# the file's path in place of a code, and the window, unit, scale and reducer, since each changes
-# what the cached values are.
+# window and scale actually read at, where a caller's apply wherever the spec states none. One shape
+# for every spec: the window, unit, scale and reducer are always in the key, an unstated scale
+# reading as `1`, so that a spec differing in any of them - a `unit` override on a catalogued layer
+# included - is never served another's values.
 function ReadKey(spec::RasterSpec; cut = spec.cut, scale = spec.scale)
-    isnothing(spec.files) ||
-        return ReadKey(spec.source, _pathtext(only(spec.files)),
-                       (cut = cut, unit = spec.unit,
-                        scale = something(scale, 1),
-                        fn = spec.fn))
-    kw = spec.readkw
-    isnothing(cut) || (kw = merge(kw, (cut = cut,)))
-    (isnothing(scale) || (scale == 1 && isnothing(spec.scale))) ||
-        (kw = merge(kw, (scale = scale,)))
-    isnothing(spec.fn) || (kw = merge(kw, (fn = spec.fn,)))
-    return ReadKey(spec.source, spec.code, kw)
+    files = isnothing(spec.files) ? nothing : _pathtext.(spec.files)
+    return ReadKey(spec.source, spec.code, files,
+                   (cut = cut, unit = spec.unit, scale = something(scale, 1),
+                    fn = spec.fn, spec.readkw...))
 end
 
 # `::AbstractSpec` rather than the full [`LayerInput`](@ref): the tuple/named-tuple forms are the
@@ -201,7 +193,7 @@ function _servedread(cache::LayerCache, key::ReadKey)
     rest = _sanscut(key.readkw)
     for (k, v) in cache.reads
         (k.source == key.source && k.code == key.code &&
-         _sanscut(k.readkw) == rest) || continue
+         k.files == key.files && _sanscut(k.readkw) == rest) || continue
         have = get(k.readkw, :cut, nothing)
         isnothing(have) && return v
         (have isa Extents.Extent && want isa Extents.Extent &&

@@ -589,22 +589,35 @@ end
 #
 # `ConstructedRasterSpec` is the one that cannot follow the rule, and says so: its `combine` is an
 # arbitrary function with no readable spelling, so the line reports what it is built *from* instead.
-function Base.show(io::IO, spec::RasterSpec{A}) where {A}
+# One-liner is the spelling that rebuilds the spec, which the files decide: `SourceSpec(...)` for a
+# spec whose source resolves them, `RasterFileSpec(...)` for one that names them. Dispatched on the
+# `files` field rather than branched, so each spelling is its own method.
+Base.show(io::IO, spec::RasterSpec) = _showspec(io, spec, spec.files)
+
+# The read options a spec states, as `name = value` for either spelling.
+function _readoptions(spec::RasterSpec)
     opts = String[]
     isnothing(spec.cut) || push!(opts, "cut = $(spec.cut)")
     isnothing(spec.scale) || push!(opts, "scale = $(spec.scale)")
     isnothing(spec.fn) || push!(opts, "fn = $(nameof(spec.fn))")
-    if isnothing(spec.files)
-        kw = ["$(k) = $(v)" for (k, v) in pairs(spec.readkw)]
-        return print(io, "SourceSpec($(spec.source), $(repr(spec.code))",
-                     join(", " .* vcat(kw, opts)), ", axis = $(nameof(A)))")
-    end
-    path = length(spec.files) == 1 ? repr(_pathtext(only(spec.files))) :
-           "files = " * repr(_pathtext.(spec.files))
+    return opts
+end
+
+function _showspec(io::IO, spec::RasterSpec{A}, ::Nothing) where {A}
+    kw = ["$(k) = $(v)" for (k, v) in pairs(spec.readkw)]
+    return print(io, "SourceSpec($(spec.source), $(repr(spec.code))",
+                 join(", " .* vcat(kw, _readoptions(spec))),
+                 ", axis = $(nameof(A)))")
+end
+
+function _showspec(io::IO, spec::RasterSpec{A},
+                   files::AbstractVector) where {A}
+    path = length(files) == 1 ? repr(_pathtext(only(files))) :
+           "files = " * repr(_pathtext.(files))
     unit = spec.unit === NoUnits ? "" : ", unit = $(spec.unit)"
     source = spec.source === SyntheticData ? "" : ", source = $(spec.source)"
     return print(io, "RasterFileSpec(", path, unit, source,
-                 join(", " .* opts), ", axis = $(nameof(A)))")
+                 join(", " .* _readoptions(spec)), ", axis = $(nameof(A)))")
 end
 
 function Base.show(io::IO, spec::ShapeSpec)
@@ -629,10 +642,15 @@ end
 # --- Desugaring and labelling a spec -----------------------------------------
 # A per-cell supply is rewritten into a combine here, before any grid is decided.
 
-# How a layer is named in that message: the dataset it comes from and the code asked for.
-function _speclabel(spec::RasterSpec)
-    isnothing(spec.files) || return "file `$(_pathtext(first(spec.files)))`"
+# How a layer is named in that message: the dataset and the code asked for, or the file named.
+_speclabel(spec::RasterSpec) = _speclabel(spec, spec.files)
+
+function _speclabel(spec::RasterSpec, ::Nothing)
     return "`$(spec.source)` layer `$(spec.code)`"
+end
+
+function _speclabel(::RasterSpec, files::AbstractVector)
+    return "file `$(_pathtext(first(files)))`"
 end
 
 # A multi-variable `regime`/`supply` is a *tuple* of specs, each of which shapes the grid in its own
