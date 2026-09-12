@@ -42,6 +42,8 @@ import Rasters: Projected
 
 using JLD2: jldsave, jldopen
 
+using SHA: sha256
+
 import Rasters: X, Y, Ti
 
 import Unitful.°, Unitful.°C, Unitful.mm
@@ -66,11 +68,12 @@ const _ORIGIN_CELLFRAC = 0.05
 # RAM; anything larger (e.g. the multi-GB CHELSA bioclim file on a small machine) stays lazy.
 const _READ_WHOLE_FRACTION = 0.5
 
-# Content hash of this file, folded into the aggregate cache key so any change to the reading /
+# Content digest of this file, folded into the aggregate cache key so any change to the reading /
 # aggregation machinery here invalidates the cache - a cached result is only valid for the code that
 # produced it. Evaluated at precompile, so it tracks the source automatically (a change to this file
-# recompiles the module and updates the hash).
-const _AGGCODEHASH = hash(read(@__FILE__, String))
+# recompiles the module and updates the digest). SHA-256 rather than `hash`: `Base.hash` changes its
+# values between Julia versions, and a cache primed under one Julia must serve every other.
+const _AGGCODEHASH = bytes2hex(sha256(read(@__FILE__)))
 
 """
     readfile(file::String; source = SyntheticData, unit = NoUnits, cut = nothing)
@@ -405,12 +408,14 @@ end
 # `scale`-aggregated `unit`-tagged form of source file `f` (with reducer `fn`) is cached as a JLD2
 # `DimArray`, or `nothing` if `fn` is not cacheable. Keyed on the source's path/size/mtime - a
 # `stat`, deliberately not a read, so a cache hit never touches the multi-GB source - plus `scale`,
-# the reducer id, the unit and `_AGGCODEHASH` (so a machinery change invalidates it).
+# the reducer id, the unit and `_AGGCODEHASH` (so a machinery change invalidates it). Digested with
+# SHA-256, never `Base.hash`, whose values change between Julia versions: the same file must map
+# to the same entry under every Julia, or a cache primed by one is invisible to the next.
 function _aggcachepath(f, scale, fn, u)
     id = _fnid(fn)
     isnothing(id) && return nothing
-    key = string(hash((abspath(f), filesize(f), mtime(f), scale, id, string(u),
-                       _AGGCODEHASH)), base = 16)
+    key = bytes2hex(sha256(join((abspath(f), filesize(f), mtime(f), scale, id,
+                                 string(u), _AGGCODEHASH), '\0')))[1:16]
     return joinpath(assetdir(), "aggregates", key * ".jld2")
 end
 
@@ -587,7 +592,11 @@ function _cachedlayer(f, scale, fn, u; cut = nothing,
     layer = _rastertodimarray(_readraster(f, scale = scale, fn = fn), unit = u)
     if !isnothing(path)
         mkpath(dirname(path))
-        jldsave(path, layer = layer)
+        # Written beside the target and renamed into place: parallel processes prime the same layer
+        # at once, and one must never open the other's half-written file.
+        part = path * ".part-" * string(getpid())
+        jldsave(part, layer = layer)
+        mv(part, path, force = true)
     end
     return layer
 end

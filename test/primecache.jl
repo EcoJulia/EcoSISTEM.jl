@@ -63,7 +63,7 @@ const WANTED = [
     # `test_StudyArea.jl` and `test_datasetread.jl` at 10, single bands included, since a
     # twelve-band read is cached one band at a time.
     #
-    # The key also carries a hash of `src/datasetread.jl`, so every change to that file makes every
+    # The key also carries a digest of `src/datasetread.jl`, so every change to that file makes every
     # cached aggregate stale. The workflow keys the runner's cache on the same file for that reason;
     # without it a test job aggregates cold and is killed.
     #

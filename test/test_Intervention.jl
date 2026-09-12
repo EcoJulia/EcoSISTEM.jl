@@ -187,7 +187,7 @@ end
 end
 
 @testset "Interventions are reproducible and order-stable" begin
-    # Counter-based per step (`hash((seed, :intervention, k, step))`), so a run replays exactly and
+    # Counter-based per step (seeded from `(seed, :intervention, k, step)`), so a run replays exactly and
     # every MPI rank and thread computes the same selection without communicating. v0.4.0's
     # `RandHabitatLoss!` drew from the **global** RNG and could not be reproduced at all.
     run() = begin

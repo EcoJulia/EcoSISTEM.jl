@@ -16,6 +16,13 @@
       as PDFs from the package's own examples, at the published scale when run directly and from
       a small run under the test suite.
   - Changed
+    - Random streams are seeded through the generator's own seeding rather than `Base.hash`, whose
+      values change between Julia versions, so a run reproduces from its seed on every Julia. A
+      seed's results differ from earlier releases, once; the canonical references are re-blessed.
+    - The aggregate cache is keyed by a SHA-256 digest, for the same reason, and each entry is
+      written whole before it is visible. Every existing entry is re-primed on first use.
+    - Tested on Julia 1.13; the continuous integration matrix runs 1.11, 1.12 and the latest release,
+      and the type-order audit reads 1.13's parser as well as 1.12's.
     - Every layer reaches the study grid by aggregation of the source cells covering each grid
       cell, and nothing is interpolated: exact block aggregation where the grid is an aligned whole
       multiple of the layer's cells, which the report has always claimed, and nearest-neighbour

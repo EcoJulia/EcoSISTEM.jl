@@ -705,12 +705,14 @@ end
     makerngs(seed::Integer, n::Integer)
 
 Build a vector of `n` independent, deterministically-seeded random number
-generators, one per species. Species `j` is seeded as `Xoshiro(hash((seed, j)))`
-so its random stream is a pure function of `(seed, j)` - independent of how
-species are distributed across threads or MPI processes. This is what makes
-simulation results reproducible across different thread and process counts (each
-species is always processed by exactly one task on one rank, drawing in a fixed
-cell order). See [`getrng`](@ref).
+generators, one per species. Species `j` is seeded from the pair `(seed, j)`
+through the generator's own seeding, `Xoshiro(UInt64[seed, j])`, so its random
+stream is a pure function of `(seed, j)` - independent of how species are
+distributed across threads or MPI processes, and the same on every Julia version,
+since `Base.hash`, whose values change between versions, is never involved. This
+is what makes simulation results reproducible across different thread and process
+counts (each species is always processed by exactly one task on one rank, drawing
+in a fixed cell order) and across Julia releases. See [`getrng`](@ref).
 
 Note: this per-species scheme is sufficient only because no single species' draws
 are ever split across ranks/tasks. If a species' cells were ever partitioned
@@ -718,13 +720,13 @@ across ranks, a per-`(species, cell)` counter-based generator would be needed
 instead.
 """
 function makerngs(seed::Integer, n::Integer)
-    return [Random.Xoshiro(hash((seed, j))) for j in 1:n]
+    return [Random.Xoshiro(UInt64[seed % UInt64, j]) for j in 1:n]
 end
 
 # Narrow a user-supplied seed of any integer type to the `UInt64` the ecosystem stores. `%` rather
-# than `UInt64(...)`, so a negative seed reinterprets rather than throwing - `seed` is only ever
-# hashed, never used as a magnitude. NB the *stored* value is not what `makerngs` hashes (that keeps
-# the caller's own value and type), so narrowing here cannot perturb the species streams.
+# than `UInt64(...)`, so a negative seed reinterprets rather than throwing - `seed` only ever seeds
+# a stream, it is never used as a magnitude. `makerngs` narrows the same way, so the stored seed
+# and the one the species streams derive from are one value.
 _storedseed(seed::Integer) = seed % UInt64
 
 # Check the abundance matrix `m` (species × subcommunities) has one row per species in `sppl` and one
@@ -748,11 +750,11 @@ function _addspecies!(eco::AbstractEcosystem, abun::Integer;
     # one (via the constructor, which reshape-pairs `.matrix`/`.grid` correctly) and reassign the
     # `Ecosystem` field holding it. The grid comes from the habitat, which is what it describes.
     eco.abundances = GridLandscape(newmat, newnames, getcoords(eco.habitat))
-    # Give the new species its own RNG stream, derived from `hash((seed, j))` like every other
-    # species. Drawing one from an existing species' stream instead would break the scheme twice
-    # over: the new stream would depend on how many species had been added rather than on the seed,
-    # and the draw would re-phase the demography of the species it came from.
-    push!(eco.rngs, Random.Xoshiro(hash((eco.seed, n + 1))))
+    # Give the new species its own RNG stream, seeded from `(seed, j)` like every other species.
+    # Drawing one from an existing species' stream instead would break the scheme twice over: the
+    # new stream would depend on how many species had been added rather than on the seed, and the
+    # draw would re-phase the demography of the species it came from.
+    push!(eco.rngs, Random.Xoshiro(UInt64[eco.seed, n + 1]))
     repopulate!(eco, abun)
     push!(eco.spplist.names, isnothing(name) ? string(n + 1) : name)
     append!(eco.spplist.abun, abun)

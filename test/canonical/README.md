@@ -35,6 +35,13 @@ bless it.
 
 ### ⚠️ A dependency can move the numbers without the model changing
 
+**2026-09-11 - every simulated value was re-blessed, once, for a change in how a seed becomes a
+stream.** Species and intervention streams were seeded from `Base.hash`, whose values change between
+Julia versions: 1.13 changed them for integers, tuples and strings, so the same seed gave different
+results there (30 of 104 canonical checks moved, every data-read check held) and the MPI blessed
+comparison failed at every rank count. Streams now seed through `Xoshiro`'s own seeding, identical on
+1.11, 1.12 and 1.13 (`test_Ecosystem.jl` pins the first draws), so this is the last re-bless for that
+reason. Values moved by up to a few percent; nothing structural changed.
 **2026-08-15 - `simulated/total_abundance` and `simulated/abundance_by_species` were re-blessed for a
 reason that was not a model change**, and the episode is recorded here because the next one will look
 identical from the outside.

@@ -38,7 +38,7 @@ The two-argument form is the generic `update!(::AbstractEcosystem, ::Unitful.Tim
 `src/dynamics.jl`, which forwards here with no intervention.
 
  **The schedule/region machinery is already rank-safe**: selections come from the counter-based
-`hash((seed, :intervention, k, step))` stream and the `active` mask and layers are replicated on
+stream seeded from `(seed, :intervention, k, step)` and the `active` mask and layers are replicated on
 every rank, so every rank computes the same cells and makes the same edit without communicating.
 
  **All six operations work**, including the abundance ones: by the time interventions run the
