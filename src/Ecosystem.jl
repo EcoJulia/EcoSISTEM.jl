@@ -206,9 +206,12 @@ function Ecosystem(spplist::SpeciesList,
     return Ecosystem(populate!, spplist, habitat, nichefit, seed = seed)
 end
 
-@doc (@doc Ecosystem) Ecosystem(::SpeciesList,
-                                ::GridHabitat,
-                                ::AbstractNicheFit)
+# The constructor's own docstring, looked up by signature: `@doc Ecosystem` would return the type's
+# docstring and the constructor's together, which the documentation build cannot render as one.
+@doc (@doc Ecosystem(::Function, ::SpeciesList, ::GridHabitat,
+                     ::AbstractNicheFit)) Ecosystem(::SpeciesList,
+                                                    ::GridHabitat,
+                                                    ::AbstractNicheFit)
 
 """
     CachedEcosystem{Part <: AbstractHabitat, SL <: SpeciesList,

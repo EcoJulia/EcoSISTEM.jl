@@ -57,6 +57,20 @@ So the read unit is not always the stored unit:
  read   = EcoSISTEM.layerrate(rec.unit, rec.period, rec.axis))
 ```
 
+Two more columns fold a provider's way of stating a quantity into the axis's. **`VerticalExtent`**
+says where a layer is measured, and for a layer of ground it is what turns a *fraction* into an
+amount: ERA5's soil water is a volume of water per volume of soil in the top 7 cm, so the read
+multiplies by that thickness and a spec of it is in centimetres of water. And a mass of water per
+area on a water axis is read as a depth by the density of water, so 20CRv3's precipitation rate in
+`kg m^-2 s^-1` reads as `m s^-1`, which is `mm/day` a conversion away.
+
+```@example units
+sw = EcoSISTEM.layerinfo(ERA, "swvl1")
+(stored = sw.unit, over = sw.verticalextent,
+ read = SourceSpec(ERA, "swvl1", file = "era5_swvl1.nc").unit,
+ rain = SourceSpec(TwentyCR, "prate", file = "prate.mon.mean.nc").unit)
+```
+
 !!! warning "The division is decided by the axis, not by the period"
     Having an accumulation period does **not** mean a layer is read as a rate. The period says
     *what interval this accumulated over*; the axis says *which reading is canonical*.
