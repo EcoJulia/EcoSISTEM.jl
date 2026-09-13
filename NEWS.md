@@ -28,6 +28,19 @@
       envelope and area, largest first - before any grid exists. `ShapeSpec` takes the same
       `coverage` and `outline` as a named region, so a file's smaller pieces can be dropped or its
       box taken.
+    - Every file the package fetches gets a provenance record beside it, `<file>.provenance.toml`:
+      the URL or the Climate Data Store request and job, when it was fetched, its size and SHA-256
+      checksum, and the dataset's DOI, licence, version and citation from the catalogue.
+      `provenance(path)` and `provenance(spec)` read them back as `InputRecord`s, the one shape a
+      record of any published input takes; `verifyassets(spec)` checks present files against
+      their checksums. Nothing in a record names a machine, a user or a key.
+    - `fetchfiles(spec)` fetches everything a spec reads without reading it, for a node with a
+      network before a run on nodes without one; `dryrun = true` lists what would be fetched.
+    - `CDSRequest(ERA, code; years, path)` and `era5requests(code, years; dir)` build Climate Data
+      Store requests from catalogue codes, one file per decade; `CDSRequest` is public.
+    - `CachedAsset` takes a `path`, so a download can land in a project's own directory.
+    - `datasets.csv` gains `Citation`, the text a paper prints for each dataset, resolved from its
+      DOI, and `ERA.csv` gains `Request`, the Climate Data Store's name for each layer.
     - `SoilVolume` and `SoilWaterVolume` axes. ERA5's `swvl1` reads on the second: a volumetric
       fraction over a layer whose catalogue row gives its thickness is a depth of water, and times
       the cell area a volume, so a stock is a supply as `SurfaceArea` already is.
@@ -50,6 +63,11 @@
       KahanSummation's `sum_kbn`, a compensated sum that returns the correctly rounded total,
       rather than `sum`, whose `@simd` lets the compiler reorder the additions when a loop
       vectorises. This is essential for reproducibility, but for speed we should revert to sum().
+    - A download interrupted part way is resumed by the next run rather than restarted, and two
+      processes asking for one file - the ranks of an MPI run - fetch it once, the others waiting
+      on the first's lock. A directory read of a netCDF archive keeps only the files holding the
+      layer's variable, so one directory may hold every variable.
+    - `TOML` and `FileWatching` are dependencies.
     - Tested on Julia 1.13; the continuous integration matrix runs 1.11, 1.12 and the latest release,
       and the type-order audit reads 1.13's parser as well as 1.12's.
     - Every layer reaches the study grid by aggregation of the source cells covering each grid

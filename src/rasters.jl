@@ -1844,6 +1844,122 @@ function Base.read(spec::RasterSpec; cut = spec.cut, scale = spec.scale,
                      fn = fn)
 end
 
+"""
+    fetchfiles(spec::RasterSpec; dryrun = false)
+    fetchfiles(specs; dryrun = false)
+
+Fetch every file a spec reads that is not there yet, reading nothing, and return their local paths
+in the spec's order - the step to run on a node with a network before a run on nodes without one.
+A vector of specs is fetched spec by spec.
+
+# Arguments
+
+  - `spec`, `specs`: what to fetch for.
+  - `dryrun`: `true` fetches nothing and instead returns, per file, a named tuple of the `entry`,
+    whether it is `present`, and its `bytes` where the server states them (a plain download's
+    `Content-Length`; a Climate Data Store request cannot say), so a user on a slow link can decide.
+    A source that resolves its own files through RasterDataSources is reported as one entry with
+    no size.
+"""
+function fetchfiles(spec::RasterSpec; dryrun::Bool = false)
+    dryrun || return _fetchedpaths(spec, spec.files)
+    isnothing(spec.files) &&
+        return [(entry = spec.source, present = nothing, bytes = nothing)]
+    return [_dryrunentry(entry) for entry in spec.files]
+end
+
+function fetchfiles(specs::AbstractVector; dryrun::Bool = false)
+    return reduce(vcat, (fetchfiles(s, dryrun = dryrun) for s in specs),
+                  init = dryrun ? Any[] : String[])
+end
+
+# The local paths of a spec's files, fetched where missing: named entries through `assetpath`, a
+# source's own through its fetch hook.
+function _fetchedpaths(spec::RasterSpec, files::AbstractVector)
+    return String.(_resolvepath.(files))
+end
+
+function _fetchedpaths(spec::RasterSpec, ::Nothing)
+    readkw = (; _getrasterkw(spec.source)..., spec.readkw...)
+    return _allfiles(_fetchfiles(spec.source, spec.code; readkw...))
+end
+
+# Every path in whatever shape a fetch hook returned: one, a vector, or named layers per time.
+function _allfiles(raw::Vector{<:NamedTuple})
+    return String[String(p) for nt in raw for p in values(nt)]
+end
+
+_allfiles(raw) = _filelist(raw)
+
+# One file's dry-run report: where it would land, whether it is there, and what the server says
+# it weighs.
+function _dryrunentry(entry)
+    path = _localpath(entry)
+    return (entry = entry, present = isfile(path), bytes = _remotesize(entry))
+end
+
+# Where an entry lives, or would, without fetching it.
+_localpath(path::AbstractString) = String(path)
+
+function _localpath(asset::CachedAsset)
+    return something(asset.path,
+                     joinpath(assetdir(owner = asset.owner),
+                              basename(asset.url)))
+end
+
+_localpath(request::CDSRequest) = request.path
+
+# The size a server states for a download, from a `HEAD`, or `nothing` where it states none or
+# the entry is not a plain download.
+function _remotesize(asset::CachedAsset)
+    response = try
+        Downloads.request(asset.url, method = "HEAD",
+                          downloader = _http11downloader(), throw = false)
+    catch
+        return nothing
+    end
+    i = findfirst(h -> lowercase(first(h)) == "content-length",
+                  response.headers)
+    return isnothing(i) ? nothing :
+           tryparse(Int, String(last(response.headers[i])))
+end
+
+_remotesize(::Any) = nothing
+
+function provenance(spec::RasterSpec)
+    entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
+    return Union{Nothing, InputRecord}[provenance(_localpath(e))
+                                       for e in entries]
+end
+
+"""
+    verifyassets(spec::RasterSpec)
+
+Check every file a spec reads that is present against the checksum its provenance record holds,
+erroring on the first that differs - a truncated or replaced copy - and return how many were
+checked. A file with no record has nothing to check against and is skipped; nothing is fetched.
+
+# Arguments
+
+  - `spec`: the spec whose files to check.
+"""
+function verifyassets(spec::RasterSpec)
+    entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
+    checked = 0
+    for path in _localpath.(entries)
+        (isfile(path) && isfile(_sidecarpath(path))) || continue
+        _verifyfile(path)
+        checked += 1
+    end
+    return checked
+end
+
+# The files a source has on disk for a spec that resolves its own, fetching nothing.
+function _presentfiles(spec::RasterSpec)
+    readkw = (; _getrasterkw(spec.source)..., spec.readkw...)
+    return _localfiles(spec.source, spec.code; readkw...)
+end
+
 # A spec naming its files reads them itself: each through `_cachedlayer` - the same step a dataset
 # layer takes, so a coarsened read of a whole file is memoised on disk exactly as a dataset's is -
 # with the backend and the variable name the source's row and code decide, its magnitudes expressed

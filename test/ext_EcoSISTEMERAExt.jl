@@ -56,6 +56,27 @@ end
                                  months = 6:7)["month"] == ["06", "07"]
 end
 
+@testset "a request is built from a catalogued code, and split by decade" begin
+    r = CDSRequest(EcoSISTEM.ERA, "t2m", years = 1990:1999,
+                   area = [40, -25, -36, 56], path = "era5_t2m_1990s.nc")
+    @test r.dataset == EcoSISTEM._ERA5_MONTHLY && r.path == "era5_t2m_1990s.nc"
+    @test r.request ==
+          EcoSISTEM._era5request("2m_temperature", 1990:1999,
+                                 area = [40, -25, -36, 56])
+    # A code the table does not know is refused by the catalogue lookup itself.
+    @test_throws ErrorException CDSRequest(EcoSISTEM.ERA, "t2m_no_such",
+                                           years = 1990:1990, path = "x")
+    rs = EcoSISTEM.era5requests("tp", 1985:2004, dir = "d")
+    @test length(rs) == 3
+    @test [basename(q.path) for q in rs] ==
+          ["era5_tp_1980s.nc", "era5_tp_1990s.nc", "era5_tp_2000s.nc"]
+    @test rs[1].request["year"] == string.(1985:1989)
+    @test rs[3].request["year"] == string.(2000:2004)
+    # The requests are a spec's files as they stand.
+    spec = SourceSpec(EcoSISTEM.ERA, "tp", files = rs)
+    @test length(spec.files) == 3
+end
+
 @testset "a live fetch, where a CDS key is present" begin
     if cdsfetch()
         dir = mktempdir()
@@ -67,6 +88,13 @@ end
         path = assetpath(r)
         @test isfile(path)
         @test !isfile(path * ".part")
+        # The fetch wrote the file's provenance: the request as sent, the CDS job, the row's DOI.
+        rec = provenance(path)
+        @test rec.dataset == "ERA" && rec.code == "t2m"
+        @test rec.request["variable"] == ["2m_temperature"] &&
+              !isnothing(rec.job)
+        @test rec.doi == "10.24381/cds.f17050d7" && !isnothing(rec.sha256)
+        @test !occursin(homedir(), read(EcoSISTEM._sidecarpath(path), String))
         # The file reads through the same row as any other ERA5 file - no extension on its name.
         cr = read(SourceSpec(EcoSISTEM.ERA, "t2m", file = path))
         @test size(cr.array, 3) == 1

@@ -256,7 +256,7 @@ function _specfiles(S, code, files, file, directory)
         error("give one of `files`, `file` or `directory`, not $given of them.")
     isnothing(files) || return _fileentry.(collect(files))
     isnothing(file) || return [_fileentry(file)]
-    isnothing(directory) || return _directoryfiles(S, directory)
+    isnothing(directory) || return _directoryfiles(S, code, directory)
     return _httpsfile(S, code)
 end
 
@@ -281,8 +281,10 @@ end
 # The raster files in `dir`, in name order, which is the time order every archive read this way
 # names them in. Filtered by the extension the source's catalogue row implies - a netCDF file may
 # also carry none, as a Climate Data Store download does - so a directory holding the files and
-# their provenance sidecars reads cleanly; a source with no row takes every regular file.
-function _directoryfiles(S, dir::AbstractString)
+# their provenance sidecars reads cleanly; a source with no row takes every regular file. A netCDF
+# directory is filtered further to the files whose header holds the code's variable, since one
+# directory commonly holds every variable of an archive.
+function _directoryfiles(S, code, dir::AbstractString)
     isdir(dir) || error("`directory = $(repr(dir))` is not a directory.")
     rec = EcoSISTEM._datasetrecord(S)
     exts = isnothing(rec) ? nothing :
@@ -292,11 +294,26 @@ function _directoryfiles(S, dir::AbstractString)
         isfile(joinpath(dir, f)) || return false
         return isnothing(exts) || lowercase(last(splitext(f))) in exts
     end
+    if !isnothing(rec) && rec.format === :netCDF && code isa CODE_TYPE
+        names = filter(f -> _holdsvariable(joinpath(dir, f), Symbol(code)),
+                       names)
+    end
     isempty(names) &&
         error("`directory = $(repr(dir))` holds no " *
               (isnothing(exts) ? "files" : join(exts, "/") * " files") *
-              " for `$S`.")
+              (code isa CODE_TYPE ? " holding `$code`" : "") * " for `$S`.")
     return _fileentry.(joinpath.(dir, names))
+end
+
+# Whether a netCDF file holds a variable of that name: a header open, no pixels, and a file that
+# cannot be opened as one does not.
+function _holdsvariable(path::AbstractString, name::Symbol)
+    return try
+        EcoSISTEM._lazyopen(path, source = Rasters.NCDsource(), name = name)
+        true
+    catch
+        false
+    end
 end
 
 # A source that does not fetch its own files must be told where they are, and is refused here,

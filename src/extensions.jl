@@ -418,6 +418,13 @@ function _lazysource end
 # fetches.
 function _fetchfiles end
 
+# Where a source's files for `code` would be on disk, fetching nothing: the paths that exist, for
+# `provenance` and `verifyassets`, which must never cost a download. The extension answers from
+# RasterDataSources' own path rule; a source with no method has no files to report.
+function _localfiles end
+
+_localfiles(::Type, code; kw...) = String[]
+
 # ---------------------------------------------------------------------------
 # EcoSISTEMDataPipelineExt - requires DataPipeline
 # ---------------------------------------------------------------------------

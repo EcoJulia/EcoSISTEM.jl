@@ -56,7 +56,9 @@ checked.
 
 `file` is where the layer's file is fetched from, for a source whose `datasets.csv` row says its
 files come by plain `https` download - a URL from the `File` column - or `nothing` where the table
-has no such column or the cell is blank.
+has no such column or the cell is blank. `request` is the name the layer goes by in a request to
+the source's service - the Climate Data Store's `2m_temperature` for ERA5's `t2m`, from the
+`Request` column - or `nothing` likewise; [`EcoSISTEM.CDSRequest`](@ref) builds a request from it.
 
 The remaining fields carry the rest of the shipped table so that **no column is dead data**:
 `officialunit` (the source's own documented unit string, against which `unit` is our Unitful
@@ -117,6 +119,7 @@ struct LayerRecord
     verticalextent::Union{Nothing, Unitful.Quantity,
                           Tuple{Unitful.Quantity, Unitful.Quantity}}
     file::Union{Nothing, String}
+    request::Union{Nothing, String}
 end
 
 """
@@ -136,7 +139,8 @@ layer row carries, returned by [`datasetinfo`](@ref).
     `nothing`.
   - `fetch`: how files are obtained - `:getraster` (through `RasterDataSources`), `:cds` (a
     Copernicus request), `:https` (a plain download) or `:none` (they must be given).
-  - `url`, `doi`, `licence`, `version`, `notes`: provenance, blank where unknown.
+  - `url`, `doi`, `licence`, `version`, `citation`, `notes`: provenance, blank where unknown;
+    `citation` is the text a paper prints for the dataset, as the DOI resolves to it.
 
 **A blank cell means ask the file**, so every field but `dataset`, `format` and `fetch` may be
 `nothing`. **A recorded fact the file can contradict is checked on the first read** of that
@@ -156,6 +160,7 @@ struct DatasetRecord
     doi::String
     licence::String
     version::String
+    citation::String
     notes::String
 end
 
@@ -275,16 +280,18 @@ const _REQUIRED_COLUMNS = (:Code, :Axis, :OfficialUnit, :Units, :UnitDimension,
 # what it *documents* - see `LayerRecord.publishedscale`. It is optional and lives only in the tables
 # that need it, so an empty cell is not an invitation to guess: it means nothing is known.
 # Add it to any table where such a defect is found, and record the evidence in `Notes`.
-# Three more columns any layer table may carry: `VerticalExtent` (where above or below the surface a
+# Four more columns any layer table may carry: `VerticalExtent` (where above or below the surface a
 # layer is measured), `DocumentedCeiling` (the largest value its documented unit reaches, set only
-# beside a `PublishedScaleFactor`) and `File` (the URL a layer of an `https`-fetched source is
-# downloaded from) - see `LayerRecord`.
-const _GENERIC_OPTIONAL_COLUMNS = (:VerticalExtent, :DocumentedCeiling, :File)
+# beside a `PublishedScaleFactor`), `File` (the URL a layer of an `https`-fetched source is
+# downloaded from) and `Request` (the layer's name in a request to the source's service) - see
+# `LayerRecord`.
+const _GENERIC_OPTIONAL_COLUMNS = (:VerticalExtent, :DocumentedCeiling, :File,
+                                   :Request)
 
 # The exact column set of `datasets.csv`, refused on a mismatch as the layer tables are.
 const _DATASET_COLUMNS = (:Dataset, :Format, :LongitudeRange, :CRS, :Resolution,
                           :Extent, :Fetch, :URL, :DOI, :Licence, :Version,
-                          :Notes)
+                          :Citation, :Notes)
 
 const _OPTIONAL_COLUMNS = Dict(:BioClimPlus => (:Group,),
                                :HabitatHeterogeneity => (:Order,
@@ -484,6 +491,24 @@ function datasetinfo(T::Type)
     return r
 end
 
+# The layer of source `T` whose `File` is `url`, or whose `Request` name is `name`, or `nothing`:
+# how a fetched file is matched back to the layer it is, for its provenance record.
+function _layerbyfile(T::Type, url::AbstractString)
+    ds = _tablename(T)
+    for r in _catalogue()
+        (r.dataset === ds && r.file == url) && return r
+    end
+    return nothing
+end
+
+function _layerbyrequest(T::Type, name::AbstractString)
+    ds = _tablename(T)
+    for r in _catalogue()
+        (r.dataset === ds && r.request == name) && return r
+    end
+    return nothing
+end
+
 # The `datasets.csv` row for a source, or `nothing` where it has none - for the readers, which
 # treat an unrecorded source as one about which nothing is known rather than as an error.
 function _datasetrecord(T::Type)
@@ -513,7 +538,10 @@ _datasetkey(x) = string(x)
 function _datasets()
     isempty(_DATASETS) || return _DATASETS
     path = joinpath(_cataloguedir(), _DATASETS_FILE)
-    table = CSV.File(path, normalizenames = true)
+    # `Version` is text - "3", "2.1" - and must not be read as a number, which would print 20CRv3's
+    # as "3.0" in every provenance record.
+    table = CSV.File(path, normalizenames = true,
+                     types = Dict(:Version => String))
     cols = propertynames(table)
     _checkdatasetschema(cols)
     cell(row, col) = ismissing(getproperty(row, col)) ? "" :
@@ -531,7 +559,7 @@ function _datasets()
                             _parsefetch(cell(row, :Fetch), name),
                             cell(row, :URL), cell(row, :DOI),
                             cell(row, :Licence), cell(row, :Version),
-                            cell(row, :Notes)))
+                            cell(row, :Citation), cell(row, :Notes)))
     end
     allunique(r.dataset for r in _DATASETS) ||
         error("$_DATASETS_FILE names a dataset twice.")
@@ -1342,6 +1370,7 @@ function _catalogue()
             # dimension column must agree with the unit, and the unit must be usable on its axis.
             optional(col) = col in cols ? cell(row, col) : nothing
             url = optional(:File)
+            request = optional(:Request)
             vertical = _parseverticalextent(optional(:VerticalExtent), code)
             _checkperiod(period, category, code, unit, _thickness(vertical),
                          axis)
@@ -1363,7 +1392,9 @@ function _catalogue()
                               _parsedocumentedceiling(optional(:DocumentedCeiling),
                                                       code),
                               vertical,
-                              (isnothing(url) || isempty(url)) ? nothing : url))
+                              (isnothing(url) || isempty(url)) ? nothing : url,
+                              (isnothing(request) || isempty(request)) ?
+                              nothing : request))
         end
     end
     # After the loop, not inside it: a range row is checked against its siblings, which may sit

@@ -602,6 +602,20 @@ end
     @test tcr.extent ==
           Extents.Extent(Y = (-90.0°, 90.0°), X = (-180.0°, 180.0°))
     @test !isempty(tcr.licence) && tcr.doi == "10.1002/qj.3598"
+    @test tcr.version == "3" && wc.version == "2.1"     # text, never a number
+    # Every row carries the citation a paper prints, resolved from its DOI.
+    for r in E._datasets()
+        @test !isempty(r.citation) && occursin(r.doi, r.citation)
+    end
+    # ERA5's layers name the variable a Climate Data Store request asks for, and both columns
+    # can be looked up backwards, which is how a fetched file is matched to its layer.
+    @test E.layerinfo(ERA, "t2m").request == "2m_temperature"
+    @test isnothing(E.layerinfo(TwentyCR, "air").request)
+    @test E._layerbyrequest(ERA, "total_precipitation").aliases == ["tp"]
+    @test isnothing(E._layerbyrequest(ERA, "no_such_variable"))
+    @test E._layerbyfile(TwentyCR, E.layerinfo(TwentyCR, "soilw").file).aliases ==
+          ["soilw"]
+    @test isnothing(E._layerbyfile(TwentyCR, "https://example.org/x.nc"))
 end
 
 @testset "the first-read check refuses a file that contradicts its row" begin
@@ -622,6 +636,7 @@ end
                                                                                             res,
                                                                                             ext,
                                                                                             :none,
+                                                                                            "",
                                                                                             "",
                                                                                             "",
                                                                                             "",

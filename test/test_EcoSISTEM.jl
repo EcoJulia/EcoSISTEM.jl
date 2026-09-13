@@ -38,12 +38,11 @@ end
 
 @testset "a failed download leaves no cache residue" begin
     # `isfile(path)` is `assetpath`'s only cache check, so anything left at that path after a failure
-    # would be served as valid forever. This test does *not* distinguish the temp-then-rename
-    # implementation from writing straight to the destination: `Downloads.download` already deletes
-    # its output on any raised error (`ArgTools.arg_write`'s bare `catch`), so both satisfy it. The
-    # case the rename actually guards - a process killed outright mid-transfer - cannot be simulated
-    # in-process. What is locked in here is the observable invariant: after a failure there is
-    # neither a cache entry nor a stray temporary, and the asset still recovers afterwards.
+    # would be served as valid forever. A transfer that received some bytes keeps its part file for
+    # the next run to resume from - that case is `test_Asset.jl`'s - but one that received nothing
+    # has nothing to resume, and an empty part file would read as a download in progress. What is
+    # locked in here is the observable invariant: after a failure with nothing received there is
+    # neither a cache entry nor a stray part file, and the asset still recovers afterwards.
     missing_src = tempname()                       # deliberately never created
     asset = EcoSISTEM.CachedAsset(_CacheTestOwner, "file://" * missing_src)
     dir = EcoSISTEM.assetdir(owner = _CacheTestOwner)

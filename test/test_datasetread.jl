@@ -700,6 +700,33 @@ end
     @test unit(eltype(supply.matrix)) == m^3
 end
 
+@testset "a spec's files can be fetched, listed and checked without reading them" begin
+    E = EcoSISTEM
+    path = _twentycrfixture(mktempdir())
+    spec = SourceSpec(TwentyCR, "air", file = path)
+    # A named file is already there: nothing to fetch, its path comes back, and a dry run says so.
+    @test E.fetchfiles(spec) == [path]
+    @test E.fetchfiles([spec, spec]) == [path, path]
+    dry = only(E.fetchfiles(spec, dryrun = true))
+    @test dry.entry == path && dry.present && isnothing(dry.bytes)
+    # A file this package never fetched has no record, and nothing to verify.
+    @test provenance(spec) == [nothing]
+    @test E.verifyassets(spec) == 0
+    # A source that resolves its own files reports as one entry, fetching nothing.
+    @test only(E.fetchfiles(SourceSpec(WorldClim{BioClim}, :bio1),
+                            dryrun = true)).entry ===
+          WorldClim{BioClim}
+    # A directory holding several archives' files keeps only those with the code's variable.
+    dir = mktempdir()
+    era = _erafixture(dir)
+    tcr = _twentycrfixture(dir)
+    @test only(SourceSpec(E.ERA, "t2m", directory = dir).files) == era
+    @test only(SourceSpec(TwentyCR, "air", directory = dir).files) == tcr
+    # `tp` is in the ERA fixture, so a 20CRv3 read of it would take that file; `ssr` is in
+    # neither.
+    @test_throws "holding `ssr`" SourceSpec(E.ERA, "ssr", directory = dir)
+end
+
 @testset "a 20CRv3 layer names its own download" begin
     E = EcoSISTEM
     # Nothing is fetched at construction: the spec's one file is the layer's URL, owned by the

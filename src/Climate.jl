@@ -154,6 +154,59 @@ Fieldless: a source names *where data came from*, and the data itself lives in t
 struct ERA <: EcoSISTEMSource end
 
 """
+    CDSRequest(::Type{ERA}, code; years, path, months = 1:12, area = nothing)
+
+Build the Climate Data Store request for one ERA5 monthly-means layer from its catalogue `code`,
+to be fetched into `path` on first use: `CDSRequest(ERA, "t2m", years = 1990:1999, path =
+"era5_t2m_1990s.nc")`. The CDS's own name for the variable comes from the `ERA` table's `Request`
+column, so a code with none is refused.
+
+# Arguments
+
+  - `code`: the layer, as the `ERA` table spells it.
+  - `years`: the years to ask for, a range or a vector.
+  - `path`: where the file lives once fetched.
+  - `months`: the months of each year, `1:12` by default.
+  - `area`: `(north, west, south, east)` in degrees to cut to, or `nothing` for the globe.
+"""
+function EcoSISTEM.CDSRequest(::Type{ERA}, code; years, path::AbstractString,
+                              months = 1:12, area = nothing)
+    rec = layerinfo(ERA, code)
+    isnothing(rec.request) &&
+        error("the `ERA` table names no Climate Data Store variable for `$code`, so no request " *
+              "can be built for it.")
+    return CDSRequest(_ERA5_MONTHLY,
+                      _era5request(rec.request, years, months = months,
+                                   area = area), path)
+end
+
+"""
+    era5requests(code, years; dir, per = 10, months = 1:12, area = nothing)
+
+Build the [`EcoSISTEM.CDSRequest`](@ref)s that fetch one ERA5 monthly-means layer over `years`
+as one file per `per` years - a decade each by default, which is the size the Climate Data Store
+serves comfortably - each written to `dir` as `era5_<code>_<decade>s.nc`, in time order, so
+the result is a spec's `files`: `SourceSpec(ERA, "t2m", files = era5requests("t2m", 1940:2025,
+dir = "data/era5"))`.
+
+# Arguments
+
+  - `code`: the layer, as the `ERA` table spells it.
+  - `years`: every year wanted.
+  - `dir`: the directory the files go in.
+  - `per`: how many years each request covers.
+  - `months`, `area`: as for [`EcoSISTEM.CDSRequest`](@ref).
+"""
+function era5requests(code, years; dir::AbstractString, per::Integer = 10,
+                      months = 1:12, area = nothing)
+    ys = sort(unique(collect(years)))
+    return [CDSRequest(ERA, code, years = filter(y -> fld(y, per) == b, ys),
+                       months = months, area = area,
+                       path = joinpath(dir, "era5_$(code)_$(b * per)s.nc"))
+            for b in unique(fld.(ys, per))]
+end
+
+"""
     CERA <: EcoSISTEMSource
 
 The CERA-20C reanalysis archive, as a data source: one netCDF file per decade, named as for

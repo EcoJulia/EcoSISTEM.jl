@@ -3,6 +3,10 @@
 module EcoSISTEM
 
 using Scratch: get_scratch!
+using FileWatching: mkpidlock
+using TOML: TOML
+using SHA: SHA
+using Dates: Dates
 using Downloads: Downloads
 using NetworkOptions: ca_roots_path
 import ArchGDAL
@@ -20,14 +24,18 @@ public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
        AbstractNicheFit,
        AbstractEcosystem, AbstractHabitat
 
-# The asset cache's descriptor type, before the two functions below name it.
+# The asset cache's descriptor types, before the functions below name them, and the record of
+# where an input came from, which every fetch writes.
 include("Asset.jl")
+include("Provenance.jl")
 
-public CachedAsset
+public CachedAsset, CDSRequest, InputRecord
 
 public assetdir
 
-public assetpath
+public assetpath, fetchfiles, verifyassets
+
+export provenance
 
 # The units submodule: the arcminute/arcsecond subdivisions of a degree, and the calendar-month
 # durations. First, because other files depend on it.
