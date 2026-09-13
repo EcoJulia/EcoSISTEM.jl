@@ -89,7 +89,7 @@ struct ClimateRasterStyle <: Broadcast.BroadcastStyle end
 #
 # **Included very early**, so what it declares constrains what it may use: `NicheAxis`
 # (`Ecology.jl`), `SimpleTraits` and `DimensionalData` are all it has. Everything that *reads* a
-# raster - `SourceSpec` (`LazySpec.jl`), the readers (`datasetread.jl`, `erareaders.jl`), the shipped
+# raster - `SourceSpec` (`LazySpec.jl`), the reader (`datasetread.jl`, `rasters.jl`), the shipped
 # tables (`LayerCatalogue.jl`) - comes later and constructs the types declared here.
 #
 # **Nothing here names `RasterDataSources`**, which is a weak dependency, and widening
@@ -129,7 +129,7 @@ function Base.show(io::IO, ::MIME"text/plain", r::ClimateRaster{S}) where {S}
 end
 
 # --- The netCDF climate sources ----------------------------------------------
-# `ERA`, `CERA` and `CRUTS` are **data sources**, not containers: a reader returns a
+# `ERA`, `CERA`, `TwentyCR` and `CRUTS` are **data sources**, not containers: a reader returns a
 # `ClimateRaster{ERA}`, exactly as it returns a `ClimateRaster{WorldClim{BioClim}}` for a
 # RasterDataSources dataset. They are `EcoSISTEMSource` subtypes because the archives are ours to
 # describe rather than `RasterDataSources`', and that supertype is what grants `IsRasterData`
@@ -142,8 +142,11 @@ end
 """
     ERA <: EcoSISTEMSource
 
-The ERA5 reanalysis archive, as a data source. Read one with
-`read(ERA, file, param)`, which returns a [`ClimateRaster`](@ref)`{ERA}`.
+The ERA5 reanalysis archive, as a data source: monthly means on single levels, one netCDF file
+per variable per decade as the Climate Data Store serves them. Name a layer with
+`SourceSpec(ERA, "t2m", file = path)` - or `files = decades` in time order, or a
+[`EcoSISTEM.CDSRequest`](@ref) entry fetched on first use - and `read` it, or build on it, like any
+other; the `ERA` layer table supplies the unit, axis and accumulation period.
 
 Fieldless: a source names *where data came from*, and the data itself lives in the
 [`ClimateRaster`](@ref) that carries it.
@@ -151,21 +154,96 @@ Fieldless: a source names *where data came from*, and the data itself lives in t
 struct ERA <: EcoSISTEMSource end
 
 """
+    CDSRequest(::Type{ERA}, code; years, path, months = 1:12, area = nothing)
+
+Build the Climate Data Store request for one ERA5 monthly-means layer from its catalogue `code`,
+to be fetched into `path` on first use: `CDSRequest(ERA, "t2m", years = 1990:1999, path =
+"era5_t2m_1990s.nc")`. The CDS's own name for the variable comes from the `ERA` table's `Request`
+column, so a code with none is refused.
+
+# Arguments
+
+  - `code`: the layer, as the `ERA` table spells it.
+  - `years`: the years to ask for, a range or a vector.
+  - `path`: where the file lives once fetched.
+  - `months`: the months of each year, `1:12` by default.
+  - `area`: `(north, west, south, east)` in degrees to cut to, or `nothing` for the globe.
+"""
+function EcoSISTEM.CDSRequest(::Type{ERA}, code; years, path::AbstractString,
+                              months = 1:12, area = nothing)
+    rec = layerinfo(ERA, code)
+    isnothing(rec.request) &&
+        error("the `ERA` table names no Climate Data Store variable for `$code`, so no request " *
+              "can be built for it.")
+    return CDSRequest(_ERA5_MONTHLY,
+                      _era5request(rec.request, years, months = months,
+                                   area = area), path)
+end
+
+"""
+    era5requests(code, years; dir, per = 10, months = 1:12, area = nothing)
+
+Build the [`EcoSISTEM.CDSRequest`](@ref)s that fetch one ERA5 monthly-means layer over `years`
+as one file per `per` years - a decade each by default, which is the size the Climate Data Store
+serves comfortably - each written to `dir` as `era5_<code>_<decade>s.nc`, in time order, so
+the result is a spec's `files`: `SourceSpec(ERA, "t2m", files = era5requests("t2m", 1940:2025,
+dir = "data/era5"))`. A block that does not fill its decade - the current one, or the first of a
+span - is named by the years it holds instead, `era5_<code>_2020-2025.nc`, so that asking for a
+later year names a new file rather than finding the old one present and stopping there.
+
+# Arguments
+
+  - `code`: the layer, as the `ERA` table spells it.
+  - `years`: every year wanted.
+  - `dir`: the directory the files go in.
+  - `per`: how many years each request covers.
+  - `months`, `area`: as for [`EcoSISTEM.CDSRequest`](@ref).
+"""
+function era5requests(code, years; dir::AbstractString, per::Integer = 10,
+                      months = 1:12, area = nothing)
+    ys = sort(unique(collect(years)))
+    requests = CDSRequest[]
+    for b in unique(fld.(ys, per))
+        block = filter(y -> fld(y, per) == b, ys)
+        whole = length(block) == per
+        name = whole ? "era5_$(code)_$(b * per)s.nc" :
+               "era5_$(code)_$(first(block))-$(last(block)).nc"
+        push!(requests,
+              CDSRequest(ERA, code, years = block, months = months,
+                         area = area, path = joinpath(dir, name)))
+    end
+    return requests
+end
+
+"""
     CERA <: EcoSISTEMSource
 
-The CERA-20C reanalysis archive, as a data source. Read one with
-`read(CERA, dir, file, param)`, which returns a [`ClimateRaster`](@ref)`{CERA}` - the archive is one
-file per decade, and the reader concatenates them along time.
+The CERA-20C reanalysis archive, as a data source: one netCDF file per decade, named as for
+[`ERA`](@ref) - `SourceSpec(CERA, "t2m", files = decades)`, joined along time on read.
 
 Fieldless, as [`ERA`](@ref) is.
 """
 struct CERA <: EcoSISTEMSource end
 
 """
+    TwentyCR <: EcoSISTEMSource
+
+The NOAA-CIRES-DOE Twentieth Century Reanalysis, version 3 (20CRv3), as a data source: monthly
+means from 1806 to 2015 on a regular 1 degree grid, one netCDF file per variable as the NOAA
+Physical Sciences Laboratory serves them. Name a layer with `SourceSpec(TwentyCR, "air")` and the
+file is fetched into the asset cache on first use, some hundreds of megabytes each, or point at a
+copy you hold with `file = path`; the `TwentyCR` layer table supplies the unit, axis and, for the
+soil moisture layer, which of the file's four soil layers to take.
+
+Fieldless, as [`ERA`](@ref) is.
+"""
+struct TwentyCR <: EcoSISTEMSource end
+
+"""
     CRUTS <: EcoSISTEMSource
 
-The CRU TS archive, as a data source. Read one with `read(CRUTS, dir, var_name)`, which returns a
-[`ClimateRaster`](@ref)`{CRUTS}`.
+The CRU TS archive, as a data source: a directory of monthly GeoTIFFs, named with
+`SourceSpec(CRUTS, "tavg", directory = dir)` and read as one series in file-name order.
 
 CRU TS has no layer table of its own, so its variable codes and units are taken from
 `WorldClim{Climate}`'s.
@@ -200,7 +278,7 @@ struct CRUTS <: EcoSISTEMSource end
 # == Functions ==================================================================================
 
 """
-    in_memory_raster(raster::ClimateRaster; axis)
+    in_memory_raster(raster::ClimateRaster; axis, atend = RepeatAtEnd(), calendar = nothing)
 
 Wrap a raster you already hold as a layer spec, declaring what its values mean.
 
@@ -225,10 +303,15 @@ exactly what a raster cannot do - so this is the pathway, and `axis` is the whol
   - `axis`: the [`NicheAxis`](@ref) the values are on - what makes them matchable against a species'
     tolerances. Required: pass `NicheAxis` itself for data whose meaning is not being claimed, but a
     layer meant to pair with a tolerance needs a real one.
+  - `atend`, `calendar`: for a raster with a time axis, what the series it becomes does past its
+    last slice and what its coordinates mean, as on [`SourceSpec`](@ref).
 """
 function in_memory_raster(raster::ClimateRaster;
-                          axis::Type{<:NicheAxis})
-    return ConstructedRasterSpec(() -> raster, axis = axis)
+                          axis::Type{<:NicheAxis},
+                          atend::AbstractSeriesEnd = RepeatAtEnd(),
+                          calendar::Union{Nothing, AbstractSeriesCalendar} = nothing)
+    return ConstructedRasterSpec(() -> raster, axis = axis, atend = atend,
+                                 calendar = calendar)
 end
 
 """
@@ -412,6 +495,24 @@ end
 # `EcoSISTEMRasterDataSourcesExt`, which is the only place that package is visible.
 _codetype(::Type) = Nothing
 
+# The package's own sources answer from their shipped layer tables: one with a table (`ERA`,
+# `CERA`, `TwentyCR`, and `CRUTS` through WorldClim's) names its layers by the table's `Code` spelling, a
+# `String`; one without (`SyntheticData`, anything derived) has no codes to name.
+function _codetype(::Type{S}) where {S <: EcoSISTEMSource}
+    return _ownlayertable(S) ? String : Nothing
+end
+
+# The table one of the package's own sources reads: its own name, so that `DerivedData{ERA}` does
+# not inherit ERA's table. `CRUTS` is the exception, below.
+_tablename(::Type{S}) where {S <: EcoSISTEMSource} = nameof(S)
+
+# CRU TS has no table of its own: its variables are read under WorldClim's monthly-climate codes and
+# units, which is what its reader has always attached.
+_tablename(::Type{CRUTS}) = :Climate
+
+# Whether one of the package's own sources reads a layer table.
+_ownlayertable(::Type{S}) where {S} = isfile(_layerpath(S))
+
 # _alllayercodes(source)
 #
 # Every layer code `source` has, as a `Vector{CODE_TYPE}` - what a whole-dataset `SourceSpec(dataset)`
@@ -424,6 +525,20 @@ _codetype(::Type) = Nothing
 # `IsRasterData` but not taught about - cannot answer, and says so rather than returning an empty
 # list, which would silently describe a dataset with nothing in it.
 function _alllayercodes(::Type{S}) where {S}
+    return _nolayercodes(S)
+end
+
+# The package's own sources list their table's codes, in table order; a source without a table
+# cannot answer, as above.
+function _alllayercodes(::Type{S}) where {S <: EcoSISTEMSource}
+    _ownlayertable(S) || return _nolayercodes(S)
+    ds = _tablename(S)
+    return collect(CODE_TYPE,
+                   (first(r.aliases) for r in _catalogue() if r.dataset === ds))
+end
+
+# The refusal shared by every source that cannot name its layers.
+function _nolayercodes(S)
     return error("`$S` does not say what layers it has, so a whole-dataset spec cannot be " *
                  "expanded; name the layer you want, or give `$S` an `_alllayercodes` method.")
 end
@@ -469,12 +584,31 @@ end
 # The `::_codetype(S)` annotation is what keeps the constructor inferable: without it the stored
 # parameter depends on a value the compiler cannot see, and `ClimateRaster`'s return type is `Any`.
 function _preferredcode(::Type{S}, code) where {S}
-    _codetype(S) === Nothing &&
-        error("a `$S` raster holds no layer codes, so it cannot be given `$(repr(code))`. " *
-              "A derived or synthetic layer is identified by its spec's `axis`, not by a code.")
+    _codetype(S) === Nothing && _refusecode(S, code)
     # Reachable only if a source declares a `_codetype` without a way to resolve a spelling to it.
     return error("`$S` declares its layer codes as `$(_codetype(S))` but supplies no way to " *
                  "resolve one; `_preferredcode` needs a method.")
+end
+
+# The package's own sources resolve a code through their table, to its first spelling. The
+# `::Nothing` and vector methods are repeated for the same reason the extension repeats them: a
+# method on the source alone and one on the code alone are equally specific.
+_preferredcode(::Type{<:EcoSISTEMSource}, ::Nothing) = nothing
+
+function _preferredcode(::Type{S},
+                        codes::AbstractVector) where {S <: EcoSISTEMSource}
+    return [_preferredcode(S, c) for c in codes]
+end
+
+function _preferredcode(::Type{S}, code) where {S <: EcoSISTEMSource}
+    _codetype(S) === Nothing && _refusecode(S, code)
+    return first(layerinfo(S, code).aliases)::String
+end
+
+# The refusal for a code given to a source that holds none.
+function _refusecode(S, code)
+    return error("a `$S` raster holds no layer codes, so it cannot be given `$(repr(code))`. " *
+                 "A derived or synthetic layer is identified by its spec's `axis`, not by a code.")
 end
 
 # Replace every raster in a broadcast tree by its array, leaving the tree's shape untouched.
@@ -679,8 +813,9 @@ iscategorical(raster::ClimateRaster, ::Type{NicheAxis}) = iscategorical(raster)
 # ---------------------------------------------------------------------------
 # The concrete data-source types
 # ---------------------------------------------------------------------------
-# `ERA`, `CERA` and `CRUTS` are siblings of `ClimateRaster` under `AbstractClimate`, so they live
-# beside it; their readers are in `erareaders.jl`. The plot recipes travel with the types they plot,
+# `ERA`, `CERA`, `TwentyCR` and `CRUTS` are siblings of `ClimateRaster` under `AbstractClimate`, so
+# they live beside it; a `SourceSpec` naming one reads through `read(::RasterSpec)`, the netCDF backend and
+# the layer table chosen by the source's catalogue row. The plot recipes travel with the types they plot,
 # as they do for `Ecosystem` and `Layer`.
 
 # Whether a `Ti` axis eltype represents time: either a real calendar coordinate (an anchored source's
@@ -709,8 +844,9 @@ end
 # The monthly-climate recipes (`ClimateRaster{WorldClim{Climate}}`/`{CHELSA{Climate}}`) are in
 # `EcoSISTEMRasterDataSourcesExt`, with everything else keyed on a dataset.
 
-# Recipe for plotting ERA and CERA data from a particular time period.
-@recipe function f(era::ClimateRaster{<:Union{ERA, CERA}}, time::Unitful.Time)
+# Recipe for plotting a reanalysis raster at a particular time.
+@recipe function f(era::ClimateRaster{<:Union{ERA, CERA, TwentyCR}},
+                   time::Unitful.Time)
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
     ind = round(Int64, (tm - yr) / (1 / 12))
@@ -724,8 +860,8 @@ end
     return x, y, A
 end
 
-@recipe function f(era::ClimateRaster{<:Union{ERA, CERA}}, time::Unitful.Time,
-                   xrange, yrange)
+@recipe function f(era::ClimateRaster{<:Union{ERA, CERA, TwentyCR}},
+                   time::Unitful.Time, xrange, yrange)
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
     ind = round(Int64, (tm - yr) / (1 / 12))

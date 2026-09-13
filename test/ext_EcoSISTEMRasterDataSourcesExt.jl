@@ -62,11 +62,14 @@ include("rasterfixtures.jl")
 
     @testset "the catalogue stays in the parent, keyed on any Type" begin
         # These are `EcoSISTEM.ClimatePref`'s own, not the extension's - they use their argument
-        # only to find a shipped CSV. The extension supplies just the one per-dataset correction.
+        # only to find a shipped CSV, the per-dataset corrections included.
         @test layerunit(WorldClim{BioClim}, 1) == u"°C"
         @test layerinfo(WorldClim{Climate}, :srad).unit == u"kJ*m^-2"
-        @test EcoSISTEM._documentedceiling(WorldClim{BioClim}, 1) == 100.0
+        @test EcoSISTEM._documentedceiling(WorldClim{BioClim}, 4) == 100.0
+        @test EcoSISTEM._documentedceiling(WorldClim{BioClim}, 1) == 1.0
         @test EcoSISTEM._documentedceiling(EarthEnv{LandCover}, 1) == 1.0
+        @test EcoSISTEM.datasetinfo(WorldClim{BioClim}).fetch === :getraster
+        @test EcoSISTEM._stackaxis(WorldClim{Climate}) == Ti
         # An unknown type is refused by the table lookup, naming the file it looked for.
         @test_throws ErrorException layerunit(Int, 1)
     end
@@ -105,7 +108,7 @@ include("rasterfixtures.jl")
     #
     # Synthetic files, so this runs on every platform and downloads nothing: what is asserted is
     # the seam, not CRU TS's own data.
-    @testset "read(CRUTS, dir, var) gives a ClimateRaster carrying the source" begin
+    @testset "a CRU TS directory reads as a ClimateRaster carrying the source" begin
         dir = mktempdir()
         # Twelve monthly `.tif`s, which is the shape `_readmonthlydir` expects. Built through the
         # shared `_testraster` fixture rather than by hand, so they carry what a real GeoTIFF does -
@@ -122,7 +125,7 @@ include("rasterfixtures.jl")
             Rasters.write(joinpath(dir, "cruts_$(lpad(m, 2, '0')).tif"), r,
                           force = true)
         end
-        cr = read(CRUTS, dir, "tavg")
+        cr = read(SourceSpec(CRUTS, "tavg", directory = dir))
 
         # **A raster carrying the source in its parameter, not a container type of its own** - the
         # shape every other data source already had, and what makes `CRUTS` nameable as a source.

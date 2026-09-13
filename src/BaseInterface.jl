@@ -21,7 +21,8 @@
 #     `ChangeSpec.jl` keeps `+` on `AbstractChangeSpec`; `StudyArea.jl` keeps `CellNames`'s vector
 #     methods; `StudyAreaReport.jl` keeps `ReadKey`'s equality and hash; `DiversitySet.jl` keeps
 #     `append!`.
-#   - `erareaders.jl` and `ext/` keep `Base.read`'s dataset methods: a source tag exists to be read.
+#   - `rasters.jl` keeps `read(::RasterSpec)`: a spec exists to be read. The dataset-typed `read`
+#     methods are deprecation shims, in `ClimatePref/deprecations.jl` and `ext/`.
 #   - `deprecations.jl` keeps `eltype` for the shims it defines.
 #
 # The collections' container interface and `ClimateRaster`'s broadcasting are here on the same test:
@@ -99,7 +100,7 @@ function Base.haskey(x::_SingletonsAndCollections, name::Symbol)
     return haskey(_backing(x), name)
 end
 
-Base.haskey(c::LayerCache, spec::SourceSpec) = haskey(c.reads, ReadKey(spec))
+Base.haskey(c::LayerCache, spec::RasterSpec) = haskey(c.reads, ReadKey(spec))
 
 function Base.get(x::_SingletonsAndCollections, name::Symbol, default)
     return get(_backing(x), name, default)

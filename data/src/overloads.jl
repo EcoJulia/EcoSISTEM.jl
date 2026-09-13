@@ -15,7 +15,8 @@
 using EcoSISTEM, MPI, Phylo, RasterDataSources
 
 const ROOT = pkgdir(EcoSISTEM)
-pkgmod(name, uuid) = Base.loaded_modules[Base.PkgId(Base.UUID(uuid), name)]
+pkgmod(name, uuid) = Base.loaded_modules[Base.PkgId(Base.UUID(uuid),
+                                                    name)]
 
 function ourmodules()
     mods = Any[EcoSISTEM, EcoSISTEM.ClimatePref, EcoSISTEM.Units]

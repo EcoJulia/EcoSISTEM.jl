@@ -1,14 +1,22 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# One row of the shipped layer catalogue, and a node of the axis tree the discovery helpers print.
+# One row of the shipped layer catalogue, one row of its datasets table, and a node of the axis
+# tree the discovery helpers print.
 
 using Unitful
+
+using Unitful.DefaultSymbols
 
 using CSV
 
 using .Units
 
 using InteractiveUtils
+
+using Extents
+
+# For the CRS a dataset row declares; the raster machinery proper is in `rasters.jl`.
+using Rasters: Rasters
 
 """
     LayerRecord
@@ -32,7 +40,25 @@ It is divided out on read, so values arrive at the order of magnitude the source
 claims. It lives in the catalogue rather than in code deliberately: the correction is then visible
 to `layerinfo` as documentation *and* applied as behaviour, instead of being buried in a reader.
 The test guarding it is **inverted** - it fires when the upstream data is *repaired*, since a test
-asserting the data is still broken is what tells us the workaround can go.
+asserting the data is still broken is what tells us the workaround can go. `documentedceiling` is
+its companion: the largest value the layer's documented unit could plausibly reach, from the
+`DocumentedCeiling` column, or `nothing` where the table says none. It is what tells a layer that
+is *still* published at `publishedscale` from one that has since been corrected, and so is only set
+where `publishedscale` is.
+
+`verticalextent` is where above or below the surface the layer is measured, from the
+`VerticalExtent` column: a single signed height (`2m` for a 2 metre air temperature) or a
+`from..to` pair for a layer of ground (`-7cm..0cm` for the top soil layer), heights positive upward,
+or `nothing` for a surface value. Every reanalysis has one. A range on a layer whose values are a
+fraction of the layer's volume is what turns that fraction into a depth on read, and on a file
+holding several soil layers it is what selects the one to take; otherwise it is recorded, not
+checked.
+
+`file` is where the layer's file is fetched from, for a source whose `datasets.csv` row says its
+files come by plain `https` download - a URL from the `File` column - or `nothing` where the table
+has no such column or the cell is blank. `request` is the name the layer goes by in a request to
+the source's service - the Climate Data Store's `2m_temperature` for ERA5's `t2m`, from the
+`Request` column - or `nothing` likewise; [`EcoSISTEM.CDSRequest`](@ref) builds a request from it.
 
 The remaining fields carry the rest of the shipped table so that **no column is dead data**:
 `officialunit` (the source's own documented unit string, against which `unit` is our Unitful
@@ -89,6 +115,53 @@ struct LayerRecord
     # they agree (the overwhelming majority). Recorded per layer because it is a property of that
     # provider's data, and discoverable through `layerinfo` rather than buried in code.
     publishedscale::Union{Rational{Int}, Nothing}
+    documentedceiling::Union{Float64, Nothing}
+    verticalextent::Union{Nothing, Unitful.Quantity,
+                          Tuple{Unitful.Quantity, Unitful.Quantity}}
+    file::Union{Nothing, String}
+    request::Union{Nothing, String}
+end
+
+"""
+    DatasetRecord
+
+A dataset's row of the shipped `datasets.csv`: the fixed facts about a whole data source that no
+layer row carries, returned by [`datasetinfo`](@ref).
+
+  - `dataset`: the source type as it is written - `WorldClim{BioClim}`, `CHELSA{Climate}`, `ERA`.
+  - `format`: how the files are encoded, `:GeoTIFF` or `:netCDF`, which chooses the backend that
+    opens them.
+  - `longituderange`: the longitude convention the files use, `(-180°, 180°)` or `(0°, 360°)`, or
+    `nothing` to read it off each file.
+  - `crs`: the coordinate reference system, an `EPSG` code or a `WellKnownText`, or `nothing`.
+  - `resolution`: the cell sizes the provider offers, each a length or an angle, or `nothing`.
+  - `extent`: the ground the dataset covers, an `Extents.Extent` of `Y`/`X` bounds in degrees, or
+    `nothing`.
+  - `fetch`: how files are obtained - `:getraster` (through `RasterDataSources`), `:cds` (a
+    Copernicus request), `:https` (a plain download) or `:none` (they must be given).
+  - `url`, `doi`, `licence`, `version`, `citation`, `notes`: provenance, blank where unknown;
+    `citation` is the text a paper prints for the dataset, as the DOI resolves to it.
+
+**A blank cell means ask the file**, so every field but `dataset`, `format` and `fetch` may be
+`nothing`. **A recorded fact the file can contradict is checked on the first read** of that
+dataset - `longituderange`, `crs`, `resolution` and `extent` are header facts, compared against the
+file's own and refused, naming the table, when they disagree. Provenance and `format` are not
+checked: a wrong format fails to open on its own.
+"""
+struct DatasetRecord
+    dataset::String
+    format::Symbol
+    longituderange::Union{Nothing, Tuple{Unitful.Quantity, Unitful.Quantity}}
+    crs::Any
+    resolution::Union{Nothing, Vector{Unitful.Quantity}}
+    extent::Union{Nothing, Extents.Extent}
+    fetch::Symbol
+    url::String
+    doi::String
+    licence::String
+    version::String
+    citation::String
+    notes::String
 end
 
 """
@@ -152,6 +225,18 @@ const _PERIOD_INHERITED_CATEGORIES = (:range,)
 # becomes `aliases`. Cached in `_CATALOGUE`.
 const _CATALOGUE = LayerRecord[]
 
+# The per-dataset table, read once. Its file sits beside the layer tables and is the one `.csv` in
+# the directory that is not a layer table, so both walks name it.
+const _DATASETS_FILE = "datasets.csv"
+
+const _DATASETS = DatasetRecord[]
+
+# The closed vocabularies of the two `datasets.csv` columns that choose behaviour: `Format` picks
+# the backend a file is opened with, `Fetch` the hook that resolves files.
+const _FORMATS = (:GeoTIFF, :netCDF)
+
+const _FETCHES = (:getraster, :cds, :https, :none)
+
 # The `ValueType` column as a checked `Symbol`. Errors rather than defaulting on an unrecognised
 # value: a typo silently becoming "safe to interpolate" would mangle a class-code layer without
 # anyone noticing, which is exactly the failure this column exists to prevent. A blank cell is a
@@ -195,6 +280,19 @@ const _REQUIRED_COLUMNS = (:Code, :Axis, :OfficialUnit, :Units, :UnitDimension,
 # what it *documents* - see `LayerRecord.publishedscale`. It is optional and lives only in the tables
 # that need it, so an empty cell is not an invitation to guess: it means nothing is known.
 # Add it to any table where such a defect is found, and record the evidence in `Notes`.
+# Four more columns any layer table may carry: `VerticalExtent` (where above or below the surface a
+# layer is measured), `DocumentedCeiling` (the largest value its documented unit reaches, set only
+# beside a `PublishedScaleFactor`), `File` (the URL a layer of an `https`-fetched source is
+# downloaded from) and `Request` (the layer's name in a request to the source's service) - see
+# `LayerRecord`.
+const _GENERIC_OPTIONAL_COLUMNS = (:VerticalExtent, :DocumentedCeiling, :File,
+                                   :Request)
+
+# The exact column set of `datasets.csv`, refused on a mismatch as the layer tables are.
+const _DATASET_COLUMNS = (:Dataset, :Format, :LongitudeRange, :CRS, :Resolution,
+                          :Extent, :Fetch, :URL, :DOI, :Licence, :Version,
+                          :Citation, :Notes)
+
 const _OPTIONAL_COLUMNS = Dict(:BioClimPlus => (:Group,),
                                :HabitatHeterogeneity => (:Order,
                                 :PublishedScaleFactor),
@@ -359,7 +457,7 @@ The two forms differ in **return type**, not just in scope: name the dataset whe
 record, and omit it when you want to see where a code appears.
 """
 function layerinfo(T::Type, code)
-    ds = nameof(_datasettype(T))
+    ds = _tablename(T)
     key = string(code)
     for r in _catalogue()
         (r.dataset === ds && key in r.aliases) && return r
@@ -373,6 +471,185 @@ function layerinfo(code::Union{Integer, Symbol, AbstractString})
     isempty(recs) &&
         return error("No layer with code `$code` in any shipped table.")
     return recs
+end
+
+"""
+    datasetinfo(T::Type)
+
+Return the [`DatasetRecord`](@ref) for data source `T` from the shipped `datasets.csv`: its file
+format, longitude convention, coordinate reference system, resolutions, extent, how its files are
+fetched, and its provenance. Errors, naming the table, for a source with no row.
+
+# Arguments
+
+  - `T`: the data source type, written as it is spelled - `WorldClim{BioClim}`, `ERA`.
+"""
+function datasetinfo(T::Type)
+    r = _datasetrecord(T)
+    isnothing(r) &&
+        return error("`$T` has no row in `$(_DATASETS_FILE)` (looked for `$(_datasetkey(T))`).")
+    return r
+end
+
+# The layer of source `T` whose `File` is `url`, or whose `Request` name is `name`, or `nothing`:
+# how a fetched file is matched back to the layer it is, for its provenance record.
+function _layerbyfile(T::Type, url::AbstractString)
+    ds = _tablename(T)
+    for r in _catalogue()
+        (r.dataset === ds && r.file == url) && return r
+    end
+    return nothing
+end
+
+function _layerbyrequest(T::Type, name::AbstractString)
+    ds = _tablename(T)
+    for r in _catalogue()
+        (r.dataset === ds && r.request == name) && return r
+    end
+    return nothing
+end
+
+# The `datasets.csv` row for a source, or `nothing` where it has none - for the readers, which
+# treat an unrecorded source as one about which nothing is known rather than as an error.
+function _datasetrecord(T::Type)
+    key = _datasetkey(T)
+    for r in _datasets()
+        r.dataset == key && return r
+    end
+    return nothing
+end
+
+# How a source type is spelled in `datasets.csv`: its own name with its parameters' names,
+# `WorldClim{BioClim}` or `ERA`, and never a module prefix, so the key does not depend on what the
+# caller has loaded. A parameter left free is not written - `EarthEnv{LandCover}` names the
+# `LandCover{X}` family as a whole, and is spelled that way.
+function _datasetkey(T::Type)
+    base = Base.unwrap_unionall(T)
+    params = filter(p -> !(p isa TypeVar), collect(base.parameters))
+    name = string(base.name.name)
+    isempty(params) && return name
+    return name * "{" * join((_datasetkey(p) for p in params), ",") * "}"
+end
+
+_datasetkey(x) = string(x)
+
+# Every row of `datasets.csv`, read once and memoised, each cell parsed into its typed field and
+# refused when it cannot be.
+function _datasets()
+    isempty(_DATASETS) || return _DATASETS
+    path = joinpath(_cataloguedir(), _DATASETS_FILE)
+    # `Version` is text - "3", "2.1" - and must not be read as a number, which would print 20CRv3's
+    # as "3.0" in every provenance record.
+    table = CSV.File(path, normalizenames = true,
+                     types = Dict(:Version => String))
+    cols = propertynames(table)
+    _checkdatasetschema(cols)
+    cell(row, col) = ismissing(getproperty(row, col)) ? "" :
+                     String(strip(string(getproperty(row, col))))
+    for row in table
+        name = cell(row, :Dataset)
+        isempty(name) && continue
+        push!(_DATASETS,
+              DatasetRecord(name, _parseformat(cell(row, :Format), name),
+                            _parselongituderange(cell(row, :LongitudeRange),
+                                                 name),
+                            _parsecrs(cell(row, :CRS)),
+                            _parseresolution(cell(row, :Resolution), name),
+                            _parseextent(cell(row, :Extent), name),
+                            _parsefetch(cell(row, :Fetch), name),
+                            cell(row, :URL), cell(row, :DOI),
+                            cell(row, :Licence), cell(row, :Version),
+                            cell(row, :Citation), cell(row, :Notes)))
+    end
+    allunique(r.dataset for r in _DATASETS) ||
+        error("$_DATASETS_FILE names a dataset twice.")
+    return _DATASETS
+end
+
+# `datasets.csv` must have exactly its columns, for the reason `_checkschema` gives.
+function _checkdatasetschema(cols)
+    missingcols = setdiff(_DATASET_COLUMNS, cols)
+    isempty(missingcols) ||
+        return error("$_DATASETS_FILE is missing column(s) $(join(missingcols, ", ")).")
+    extra = setdiff(cols, _DATASET_COLUMNS)
+    isempty(extra) ||
+        return error("$_DATASETS_FILE has unexpected column(s) $(join(extra, ", ")); " *
+                     "add them to `_DATASET_COLUMNS` and `DatasetRecord`, or remove them.")
+    return nothing
+end
+
+# A `Format` cell as one of `_FORMATS`; required, since it chooses how a file is opened.
+function _parseformat(s::AbstractString, name)
+    v = Symbol(s)
+    v in _FORMATS ||
+        return error("dataset `$name` has `Format` = `$s`; expected one of $(join(_FORMATS, ", ")).")
+    return v
+end
+
+# A `Fetch` cell as one of `_FETCHES`; blank means `:none`, files must be given.
+function _parsefetch(s::AbstractString, name)
+    isempty(s) && return :none
+    v = Symbol(s)
+    v in _FETCHES ||
+        return error("dataset `$name` has `Fetch` = `$s`; expected one of $(join(_FETCHES, ", ")).")
+    return v
+end
+
+# A `LongitudeRange` cell, `-180..180` or `0..360`, as a pair of angles; blank means ask the file.
+function _parselongituderange(s::AbstractString, name)
+    isempty(s) && return nothing
+    m = match(r"^\s*(-?[0-9.]+)\s*\.\.\s*(-?[0-9.]+)\s*$", s)
+    isnothing(m) &&
+        return error("dataset `$name` has `LongitudeRange` = `$s`; write `-180..180` or `0..360`.")
+    lo, hi = parse(Float64, m[1]) * °, parse(Float64, m[2]) * °
+    hi - lo == 360° ||
+        return error("dataset `$name` has `LongitudeRange` = `$s`, which does not span 360 degrees.")
+    return (lo, hi)
+end
+
+# A `CRS` cell: an `EPSG:code`, else taken as well-known text; blank means ask the file.
+function _parsecrs(s::AbstractString)
+    isempty(s) && return nothing
+    m = match(r"^EPSG:(\d+)$"i, s)
+    isnothing(m) || return Rasters.EPSG(parse(Int, m[1]))
+    return Rasters.WellKnownText(Rasters.GeoFormatTypes.CRS(), s)
+end
+
+# A `Resolution` cell: `;`-separated cell sizes, each a length or an angle; blank means ask the file.
+function _parseresolution(s::AbstractString, name)
+    isempty(s) && return nothing
+    qs = Unitful.Quantity[]
+    for part in split(s, ";")
+        q = uparse(strip(part), unit_context = [Unitful, Units])
+        (dimension(q) == Unitful.𝐋 || dimension(q) == dimension(°)) ||
+            error("dataset `$name` has `Resolution` part `$part`, which is neither a length nor " *
+                  "an angle.")
+        push!(qs, q)
+    end
+    return qs
+end
+
+# An `Extent` cell, `Y=(a,b);X=(c,d)` in degrees, as an `Extents.Extent`; blank means ask the file.
+function _parseextent(s::AbstractString, name)
+    isempty(s) && return nothing
+    m = match(r"^\s*Y\s*=\s*\(\s*(-?[0-9.]+)\s*,\s*(-?[0-9.]+)\s*\)\s*;\s*X\s*=\s*\(\s*(-?[0-9.]+)\s*,\s*(-?[0-9.]+)\s*\)\s*$",
+              s)
+    isnothing(m) &&
+        return error("dataset `$name` has `Extent` = `$s`; write `Y=(a,b);X=(c,d)` in degrees.")
+    y = (parse(Float64, m[1]) * °, parse(Float64, m[2]) * °)
+    x = (parse(Float64, m[3]) * °, parse(Float64, m[4]) * °)
+    (y[1] < y[2] && x[1] < x[2]) ||
+        return error("dataset `$name` has `Extent` = `$s`, whose bounds are not ascending.")
+    return Extents.Extent(Y = y, X = x)
+end
+
+# Whether a source's files stack along time: `Ti` when any layer of its table declares a temporal
+# resolution (WorldClim's and CHELSA's monthly climate, the reanalyses), `Dim{:layer}` otherwise,
+# and for a source with no table at all. What `_stackaxis` answers from.
+function _hastimeaxis(T::Type)
+    _haslayertable(T) || return false
+    ds = _tablename(T)
+    return any(r -> r.dataset === ds && !isnothing(r.temporal), _catalogue())
 end
 
 """
@@ -433,16 +710,27 @@ function _datasettype(::Type{T}) where {T}
     return isempty(params) ? T : first(params)
 end
 
-# The layer table shipped in the package `data/RasterDataSources/` directory, named by convention
-# after the dataset type (`WorldClim{BioClim}` -> `data/RasterDataSources/BioClim.csv`,
-# `EarthEnv{LandCover}` -> `data/RasterDataSources/LandCover.csv`); the file's presence is what
-# makes a source supported. (They live under `RasterDataSources/` to keep them distinct from other
-# shipped data such as `data/NaturalEarth/regions.csv`.)
+# The directory of shipped tables: one layer table per dataset type, and `datasets.csv`.
+_cataloguedir() = pkgdir(@__MODULE__, "data", "catalogue")
+
+# The layer table a source reads, as the `dataset` a `LayerRecord` carries: the dataset type's
+# name (`WorldClim{BioClim}` -> `:BioClim`, `EarthEnv{LandCover}` -> `:LandCover`), or the
+# source's own for one of this package's (`ERA` -> `:ERA`). A source that borrows another's table
+# says so with a method of its own.
+_tablename(T::Type) = nameof(_datasettype(T))
+
+# Where the layer table for a source would be, whether or not it exists: `data/catalogue/`, named
+# after the table (`BioClim.csv`, `LandCover.csv`, `ERA.csv`).
+_layerpath(T::Type) = joinpath(_cataloguedir(), "$(_tablename(T)).csv")
+
+# Whether a source ships a layer table; its presence is what makes a source supported.
+_haslayertable(T::Type) = isfile(_layerpath(T))
+
+# The layer table shipped for a source, or an error naming the file it looked for.
 function _layerfile(T::Type)
-    path = pkgdir(@__MODULE__, "data", "RasterDataSources",
-                  "$(nameof(_datasettype(T))).csv")
+    path = _layerpath(T)
     isfile(path) ||
-        return error("No layer table for raster source `$T` (expected $(basename(path)) in data/)")
+        return error("No layer table for raster source `$T` (expected $(basename(path)) in data/catalogue/)")
     return path
 end
 
@@ -593,12 +881,42 @@ function _parsepublishedscale(s::AbstractString, code)
     return v // 1
 end
 
+# Parse a `DocumentedCeiling` cell: a positive number, or `nothing` where blank or the table has no
+# such column.
+function _parsedocumentedceiling(s::Union{Nothing, AbstractString}, code)
+    (isnothing(s) || isempty(s)) && return nothing
+    v = tryparse(Float64, s)
+    (isnothing(v) || v <= 0) &&
+        return error("layer `$code` has `DocumentedCeiling` = `$s`, which is not a positive " *
+                     "number; it is the largest value the layer's documented unit reaches.")
+    return v
+end
+
+# Parse a `VerticalExtent` cell: one signed height (`2m`), a `from..to` pair (`-7cm..0cm`), or
+# `nothing` where blank or absent. Each part must be a length or a pressure, the two ways a level
+# is stated.
+function _parseverticalextent(s::Union{Nothing, AbstractString}, code)
+    (isnothing(s) || isempty(s)) && return nothing
+    parts = split(s, "..")
+    length(parts) in (1, 2) ||
+        return error("layer `$code` has `VerticalExtent` = `$s`; write one height (`2m`) or a " *
+                     "`from..to` pair (`-7cm..0cm`).")
+    qs = map(parts) do part
+        q = uparse(strip(part), unit_context = [Unitful, Units])
+        dimension(q) in (Unitful.𝐋, dimension(u"Pa")) ||
+            error("layer `$code` has `VerticalExtent` part `$part`, which is neither a length " *
+                  "nor a pressure.")
+        return q
+    end
+    return length(qs) == 1 ? only(qs) : (qs[1], qs[2])
+end
+
 # The recorded discrepancy for a layer, or `nothing`. Reads the catalogue, so it is visible through
 # `layerinfo` rather than hidden here - which is the point of it being a column at all.
 # Tolerant of an unknown code: this runs on every read, and a caller may legitimately name a layer
 # that has no catalogue row (a hand-built raster). A missing row means nothing is known, not an error.
 function _publishedscale(T::Type, code)
-    ds = nameof(_datasettype(T))
+    ds = _tablename(T)
     key = string(code)
     for r in _catalogue()
         (r.dataset === ds && key in r.aliases) && return r.publishedscale
@@ -637,9 +955,18 @@ function _checkupstreamscale(T::Type, code, values)
 end
 
 # The largest value the layer's documented unit could reach, used only to tell "still scaled" from
-# "now corrected". Deliberately crude: only layers with a genuine documented ceiling can be
-# checked at all, and `PublishedScaleFactor` is only set on those.
-_documentedceiling(::Type, code) = 1.0
+# "now corrected": the table's `DocumentedCeiling`, or `1.0` where none is recorded - a deliberately
+# crude default, since only layers with a genuine documented ceiling can be checked at all, and
+# `PublishedScaleFactor` is only set on those. Tolerant of an unknown code, as `_publishedscale` is.
+function _documentedceiling(T::Type, code)
+    ds = _tablename(T)
+    key = string(code)
+    for r in _catalogue()
+        (r.dataset === ds && key in r.aliases) &&
+            return something(r.documentedceiling, 1.0)
+    end
+    return 1.0
+end
 
 # Every ~1000th element, so the cost is independent of raster size.
 function _stridedsample(values)
@@ -689,12 +1016,27 @@ function _periodcode(rhs)
     return all(isdigit, rhs) ? parse(Int, rhs) : Symbol(rhs)
 end
 
+# Whether a rate layer's unit already reads, on its axis, as the axis's canonical rate - a
+# precipitation rate in `kg m^-2 s^-1`, a radiation flux in `W m^-2` - so that no accumulation
+# period is there to divide out. Decided against the axis and never from the unit alone: an energy
+# per area carries a negative power of time in its own dimension and still accumulates.
+function _alreadyrate(unit, thickness, axis)
+    isnothing(axis) && return false
+    cu = something(canonicalunit(axis), canonicalunit(Resource, axis),
+                   Some(nothing))
+    isnothing(cu) && return false
+    return dimension(_foldedunit(unit, thickness, axis)) == dimension(cu)
+end
+
 # A layer that accumulates over an interval must say which interval, and one that does not must not
 # claim one. Both directions are checked here because the `Category` and `AccumulationPeriod`
 # columns are written by hand and a mismatch between them is invisible until a rate comes out wrong.
-function _checkperiod(period, category, code)
+# A rate stated per unit time already (`_alreadyrate`) accumulates over nothing and declares no
+# period.
+function _checkperiod(period, category, code, unit, thickness, axis)
     category in _PERIOD_INHERITED_CATEGORIES && return nothing
-    needed = category in _PERIOD_CATEGORIES
+    needed = category in _PERIOD_CATEGORIES &&
+             !(category === :rate && _alreadyrate(unit, thickness, axis))
     if needed && isnothing(period)
         return error("layer `$code` has Category = :$category, which accumulates over an " *
                      "interval, but its AccumulationPeriod is blank - say what interval, or " *
@@ -745,7 +1087,8 @@ end
 function _normdim(s::AbstractString)
     plain = replace(s,
                     r"[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+" =>
-                        m -> "^" * map(c -> _SUPERSCRIPTS[c], m))
+                        m -> "^" *
+                             map(c -> _SUPERSCRIPTS[c], m))
     factors = filter(!isempty, strip.(split(plain, r"[*\s]+")))
     return sort(String.(factors))
 end
@@ -805,7 +1148,49 @@ end
 # (𝐋) while `Precipitation`'s canonical unit is `mm/day` (𝐋𝐓^-1) - dimensionally different, yet both
 # right. It is `layerrate` that reconciles them, so that is what has to be checked; comparing the raw
 # cell would now reject every accumulating layer in the tables.
-function _checkaxisunit(u, period, axis, code)
+# The thickness of the layer a `VerticalExtent` spans, or `nothing` where it names a level or
+# nothing at all.
+_thickness(extent::Tuple) = abs(extent[2] - extent[1])
+
+_thickness(::Any) = nothing
+
+_thickness(rec::LayerRecord) = _thickness(rec.verticalextent)
+
+# The density of water, which turns a mass of water per area into a depth of it.
+const _WATER_DENSITY = 1000.0 * Unitful.kg / Unitful.m^3
+
+# How a table unit is read on its axis, as the unit the read yields and the factor the read
+# multiplies the values by: a **volumetric fraction over a layer of known thickness**, on an axis
+# whose canonical reading is a length, is read as the depth of water that fraction of the thickness
+# is (unit the thickness's own, factor its magnitude); a **mass of water per area**, on a water
+# axis, as the depth of water that mass is (by `_WATER_DENSITY`). Any other unit is returned as it
+# is with a factor of one. The exact sibling of `layerrate`, for the vertical extent and the
+# substance rather than the accumulation period.
+function _fold(u, thickness, axis)
+    isnothing(axis) && return (unit = u, factor = 1.0)
+    cu = canonicalunit(axis)
+    isnothing(cu) && return (unit = u, factor = 1.0)
+    if !isnothing(thickness) && dimension(u) == NoDims &&
+       dimension(cu) == Unitful.𝐋
+        return (unit = unit(thickness), factor = float(ustrip(thickness)))
+    elseif axis <: WaterAxis &&
+           dimension(u) == dimension(cu) * dimension(_WATER_DENSITY)
+        q = (1.0 * u) / _WATER_DENSITY
+        return (unit = unit(q), factor = ustrip(q))
+    end
+    return (unit = u, factor = 1.0)
+end
+
+_foldedunit(u, thickness, axis) = _fold(u, thickness, axis).unit
+
+# The factor a read of a catalogued layer multiplies its values by after any accumulation period
+# is divided out - one for most layers.
+function _foldfactor(rec::LayerRecord)
+    return _fold(layerrate(rec.unit, rec.period, rec.axis), _thickness(rec),
+                 rec.axis).factor
+end
+
+function _checkaxisunit(u, period, axis, code, thickness = nothing)
     isnothing(axis) && return nothing
     # **Deliberately the Condition unit only, NOT `layerrate`'s Resource fallback** - I tried that
     # and it is wrong. A catalogue row states an **areal flux density** (`npp` is `g*m^-2`), while a
@@ -816,13 +1201,14 @@ function _checkaxisunit(u, period, axis, code)
     # question the Resource unit cannot answer.
     cu = canonicalunit(axis)
     isnothing(cu) && return nothing
-    r = layerrate(u, period, axis)
+    r = _foldedunit(layerrate(u, period, axis), thickness, axis)
     dimension(r) == dimension(cu) ||
         return error("layer `$code` resolves to unit $r but its axis $(nameof(axis))'s canonical " *
                      "unit $cu has a different dimension ($(dimension(r)) vs $(dimension(cu))); " *
                      "one of the two is wrong." *
                      (r === u ? "" :
-                      " (The table declares $u, which its accumulation period turns into $r.)"))
+                      " (The table declares $u, which its accumulation period, vertical " *
+                      "extent or substance turns into $r.)"))
     return nothing
 end
 
@@ -830,7 +1216,8 @@ end
 # Both halves matter: a renamed header reads as blank everywhere it is used rather than failing, and
 # an unexpected column is usually a rename that half-happened.
 function _checkschema(dataset::Symbol, cols)
-    allowed = (_REQUIRED_COLUMNS..., get(_OPTIONAL_COLUMNS, dataset, ())...)
+    allowed = (_REQUIRED_COLUMNS..., _GENERIC_OPTIONAL_COLUMNS...,
+               get(_OPTIONAL_COLUMNS, dataset, ())...)
     missingcols = setdiff(_REQUIRED_COLUMNS, cols)
     isempty(missingcols) ||
         return error("$dataset.csv is missing required column(s) $(join(missingcols, ", ")); " *
@@ -894,16 +1281,18 @@ _periodwording(p) = _periodphrase(p)
 # Grouped across **all** datasets, unlike `_checkrangerows` which groups within one: reconciling
 # WorldClim's `kJ*m^-2` with CHELSA's `MJ*m^-2` on one axis is the point, and a per-dataset grouping
 # would never see the pair. **Dimensions, not units** - differing *scale* on one axis is legal, and
-# reconciling it is what `canonicalunit` is for. Compared after `layerrate`, for the same reason
-# `_checkaxisunit` is: a monthly total and a daily rate are both right and differ dimensionally.
+# reconciling it is what `canonicalunit` is for. Compared after `layerrate` and the fold, for the
+# same reason `_checkaxisunit` is: a monthly total and a daily rate are both right and differ
+# dimensionally, as do a depth of water and the mass of it.
 function _checkaxishomogeneity(catalogue)
     first_on = Dict{Type, LayerRecord}()
+    resolved(x) = _foldedunit(layerrate(x.unit, x.period, x.axis),
+                              _thickness(x), x.axis)
     for r in catalogue
         isnothing(r.axis) && continue
         f = get!(first_on, r.axis, r)
         f === r && continue
-        rate, frate = layerrate(r.unit, r.period, r.axis),
-                      layerrate(f.unit, f.period, f.axis)
+        rate, frate = resolved(r), resolved(f)
         dimension(rate) == dimension(frate) ||
             error("layers `$(first(f.aliases))` and `$(first(r.aliases))` are both on axis " *
                   "$(nameof(r.axis)) but resolve to different dimensions - $frate " *
@@ -952,15 +1341,17 @@ end
 # directory is walked, so a dataset is in the catalogue exactly when its file is there.
 function _catalogue()
     isempty(_CATALOGUE) || return _CATALOGUE
-    datadir = pkgdir(@__MODULE__, "data", "RasterDataSources")
-    for f in sort(filter(endswith(".csv"), readdir(datadir)))
+    datadir = _cataloguedir()
+    for f in sort(filter(f -> endswith(f, ".csv") && f != _DATASETS_FILE,
+                         readdir(datadir)))
         dataset = Symbol(first(splitext(f)))
         table = CSV.File(joinpath(datadir, f), normalizenames = true)
         cols = propertynames(table)
         _checkschema(dataset, cols)
         # `string` (not `String`) so numeric columns like `NumSlices` (an Int) convert too
-        cell(row, col) = (col in cols && !ismissing(getproperty(row, col))) ?
-                         String(strip(string(getproperty(row, col)))) : ""
+        cell(row,
+             col) = (col in cols && !ismissing(getproperty(row, col))) ?
+                    String(strip(string(getproperty(row, col)))) : ""
         splitsemis(s) = filter(!isempty, String.(strip.(split(s, ";"))))
         for row in table
             ismissing(row.Code) && continue
@@ -977,10 +1368,14 @@ function _catalogue()
             period = _parseperiod(cell(row, :AccumulationPeriod))
             # The three cross-checks: a period is declared exactly where one applies, the duplicated
             # dimension column must agree with the unit, and the unit must be usable on its axis.
-            _checkperiod(period, category, code)
-            _checkunitdimension(cell(row, :UnitDimension), unit, code)
-            _checkaxisunit(unit, period, axis, code)
             optional(col) = col in cols ? cell(row, col) : nothing
+            url = optional(:File)
+            request = optional(:Request)
+            vertical = _parseverticalextent(optional(:VerticalExtent), code)
+            _checkperiod(period, category, code, unit, _thickness(vertical),
+                         axis)
+            _checkunitdimension(cell(row, :UnitDimension), unit, code)
+            _checkaxisunit(unit, period, axis, code, _thickness(vertical))
             push!(_CATALOGUE,
                   LayerRecord(dataset, aliases, cell(row, :Name),
                               cell(row, :Definition), unit, axis,
@@ -993,7 +1388,13 @@ function _catalogue()
                               optional(:Group), optional(:Order),
                               _parsepublishedscale(cell(row,
                                                         :PublishedScaleFactor),
-                                                   code)))
+                                                   code),
+                              _parsedocumentedceiling(optional(:DocumentedCeiling),
+                                                      code),
+                              vertical,
+                              (isnothing(url) || isempty(url)) ? nothing : url,
+                              (isnothing(request) || isempty(request)) ?
+                              nothing : request))
         end
     end
     # After the loop, not inside it: a range row is checked against its siblings, which may sit

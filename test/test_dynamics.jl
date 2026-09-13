@@ -179,7 +179,8 @@ const _SPAREWATER = UniformSpec(1.0e12Unitful.L / (m^2 * day),
     # ratio: demand sets the *tempo* of turnover, not the equilibrium. Only suitability (opposite
     # signs) moves the balance. Pinned because it is what tells you which term to look at when a
     # change moves the wrong thing.
-    ratios = [((b, d) = adj(one, sp); b / d) for sp in 1:3]
+    ratios = [((b, d) = adj(one, sp); b / d)
+              for sp in 1:3]
     @test all(≈(first(ratios)), ratios)
     # ...and the rates themselves genuinely differ, or the test above would be vacuous.
     @test !≈(first(adj(one, 1)), first(adj(one, 3)))
@@ -420,15 +421,18 @@ end
 # field walk asks whether the *container* is concrete; the path checks ask whether inference reaches
 # *through* an abstract one. `Ecosystem.abundances` is the case that separates them - abstract by
 # design, and its inner fields infer perfectly.
-const _ABSTRACT_BY_DESIGN = Dict((:Ecosystem, :abundances) =>
+const _ABSTRACT_BY_DESIGN = Dict((:Ecosystem,
+                                  :abundances) =>
                                      "abstract container by design - its " *
                                      "inner fields name no type parameter, " *
                                      "so inference reaches through it. The " *
                                      "path assertions above are what cover it.",
-                                 (:Ecosystem, :epoch) =>
+                                 (:Ecosystem,
+                                  :epoch) =>
                                      "a `Union{Nothing, TimeType}`, because a " *
                                      "run may have no epoch. Not read in the loop.",
-                                 (:GridHabitat, :active) =>
+                                 (:GridHabitat,
+                                  :active) =>
                                      "abstract, and measured to cost nothing: " *
                                      "indexing an abstract array dispatches " *
                                      "dynamically without boxing, where calling " *
@@ -451,8 +455,8 @@ const _ABSTRACT_BY_DESIGN = Dict((:Ecosystem, :abundances) =>
     stale = [k
              for k in keys(_ABSTRACT_BY_DESIGN)
              if !any((eco, eco.habitat, eco.spplist, eco.cache)) do obj
-        nameof(typeof(obj)) == k[1] && k[2] in fieldnames(typeof(obj)) &&
-            !isconcretetype(fieldtype(typeof(obj), k[2]))
+        return nameof(typeof(obj)) == k[1] && k[2] in fieldnames(typeof(obj)) &&
+               !isconcretetype(fieldtype(typeof(obj), k[2]))
     end]
     @test stale == []
 end

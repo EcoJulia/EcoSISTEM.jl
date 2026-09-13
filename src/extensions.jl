@@ -310,29 +310,14 @@ function _resolvedistributed(distributed)
 end
 
 # ---------------------------------------------------------------------------
-# EcoSISTEMERAExt - requires PyCall
+# EcoSISTEMERAExt - requires CDSAPI
 # ---------------------------------------------------------------------------
 
-"""
-    retrieve_era5(args...; kwargs...)
-
-Download ERA5 reanalysis data from the Copernicus Climate Data Store.
-
-The download goes through the CDS Python client, so the method appears only once `PyCall` is loaded.
-
-# Arguments
-
-  - `args...`, `kwargs...`: forwarded unchanged to the extension's method, which documents them -
-    load `PyCall` and consult `retrieve_era5` again to see the live signature.
-
-The result is an ERA5 netCDF that [`readfile`](@ref)/[`ERA`](@ref) read like any other raster.
-"""
-function retrieve_era5 end
-
-# `public` rather than exported because it is on its way out: the package will move to `CDSAPI.jl`,
-# JuliaClimate's native interface to the same Copernicus service, which removes the `PyCall`
-# dependency this hook exists to bridge. Supported until then.
-public retrieve_era5
+# Fetch a `CDSRequest`'s file from the Climate Data Store into its `path`, through CDSAPI's client.
+# The extension supplies the sole method; a request whose file already exists never reaches it
+# (`assetpath`), and one whose file does not is refused there with the remedy when the extension
+# is not loaded.
+function _fetchcds end
 
 # ---------------------------------------------------------------------------
 # EcoSISTEMRasterDataSourcesExt - requires RasterDataSources
@@ -425,6 +410,20 @@ function sourcecrs end
 # grid can be measured before deciding how much of it to fetch; `sourcecrs` is its CRS alone. The
 # extension supplies the sole method.
 function _lazysource end
+
+# The files a catalogued source's layers are in, fetched if need be, in the shape the source
+# package returns them - one path, a per-time vector of paths, or a keyed collection of named
+# layers' paths - `code` being `nothing` for every layer and `kw` the source's own keywords
+# (`month = 1:12`). The extension supplies the sole method, so a read never names the package that
+# fetches.
+function _fetchfiles end
+
+# Where a source's files for `code` would be on disk, fetching nothing: the paths that exist, for
+# `provenance` and `verifyassets`, which must never cost a download. The extension answers from
+# RasterDataSources' own path rule; a source with no method has no files to report.
+function _localfiles end
+
+_localfiles(::Type, code; kw...) = String[]
 
 # ---------------------------------------------------------------------------
 # EcoSISTEMDataPipelineExt - requires DataPipeline

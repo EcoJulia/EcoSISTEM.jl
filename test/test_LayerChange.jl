@@ -1113,10 +1113,11 @@ end
         layer
     end
     shown(l) = l.matrix[1, 1]
-    at(l, m) = (
-                EcoSISTEM._layerupdate!(l, m * month_mean_duration,
-                                        1.0month_mean_duration);
-                shown(l))
+    at(l,
+       m) = (
+             EcoSISTEM._layerupdate!(l, m * month_mean_duration,
+                                     1.0month_mean_duration);
+             shown(l))
 
     # Before its first slice the layer stands - including at build, which priming must not
     # overwrite with a slice the series has not reached.

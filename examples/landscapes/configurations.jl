@@ -213,19 +213,24 @@ function landscape(name::Symbol; scaling = _configuration(name),
         # `false` is `disperse_safely` - dispersers aimed off the edge are lost, not reflected
         # back inland. Without it an "island" behaves exactly like a patch (see the header).
         (even_environment(grid = grid, area = area, supply = supply,
-                          topology = Island()), false)
+                          topology = Island()),
+         false)
     elseif name === :patch
         (even_environment(grid = grid, area = area, supply = supply,
-                          topology = Torus()), true)
+                          topology = Torus()),
+         true)
     elseif name === :region_even
         (even_environment(grid = grid, area = area, supply = supply,
-                          topology = Cylinder()), true)
+                          topology = Cylinder()),
+         true)
     elseif name === :region_gradient
         (gradient_environment(grid = grid, area = area, supply = supply,
-                              topology = Cylinder()), true)
+                              topology = Cylinder()),
+         true)
     elseif name === :peaked
         (peaked_environment(grid = grid, area = area, supply = supply,
-                            topology = Torus()), true)
+                            topology = Torus()),
+         true)
     else
         error("unknown landscape `$name`; the five are :island, :patch, :region_even, " *
               ":region_gradient and :peaked.")

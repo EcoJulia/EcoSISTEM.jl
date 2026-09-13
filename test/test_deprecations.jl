@@ -133,10 +133,36 @@ include("TestCases.jl")
             winddir = dirname(first(wind))
             @test_deprecated readCRUTS(winddir, "tavg")
             @test isequal(readCRUTS(winddir, "tavg").array,
-                          read(CRUTS, winddir, "tavg").array)
+                          read(SourceSpec(CRUTS, "tavg", directory = winddir)).array)
             @test_deprecated readCHELSA_monthly(winddir, "wind")
             @test isequal(readCHELSA_monthly(winddir, "wind").array,
                           read(CHELSA{Climate}, winddir, "wind").array)
+        end
+
+        # The dataset-typed `read` methods and `readfile` are spellings of a `RasterSpec` read now,
+        # each kept for one release. `read(T, layers)` keeps its old contract - bare magnitudes -
+        # so it is compared to the spec form with the unit stripped.
+        @testset "dataset-typed reads -> read(::RasterSpec)" begin
+            wind = getraster(WorldClim{Climate}, :wind, month = 1:12)
+            bio1 = getraster(WorldClim{BioClim}, :bio1)
+            @test_deprecated read(WorldClim{Climate}, :wind, month = 1:2)
+            @test isequal(read(WorldClim{Climate}, :wind, month = 1:2).array,
+                          ustrip.(read(SourceSpec(WorldClim{Climate}, :wind,
+                                                  month = 1:2)).array))
+            winddir = dirname(first(wind))
+            @test_deprecated read(CRUTS, winddir, "tavg")
+            @test isequal(read(CRUTS, winddir, "tavg").array,
+                          read(SourceSpec(CRUTS, "tavg", directory = winddir)).array)
+            # The CHELSA directory reader keeps its own body: a directory of another provider's
+            # files is not checked against CHELSA's catalogue row, as a spec would be.
+            @test_deprecated read(CHELSA{Climate}, winddir, "wind")
+            @test unit(read(CHELSA{Climate}, winddir, "wind").array[1]) == m / s
+            @test_deprecated readfile(bio1)
+            @test isequal(readfile(bio1).array,
+                          read(RasterFileSpec(bio1,
+                                              axis = EcoSISTEM.NicheAxis)).array)
+            @test_deprecated readfile(bio1, unit = K)
+            @test unit(readfile(bio1, unit = K).array[1]) == K
         end
     end
 

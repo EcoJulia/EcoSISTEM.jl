@@ -188,6 +188,7 @@ classDiagram
     WaterAxis <|-- SnowWaterEquivalent
     WaterAxis <|-- SiteWaterBalance
     WaterAxis <|-- GrowingSeasonPrecipitation
+    WaterAxis <|-- SoilWaterVolume
     PrecipitationAxis <|-- Precipitation
     PrecipitationAxis <|-- PrecipitationSeasonality
     HumidityAxis <|-- VapourPressure
@@ -213,6 +214,7 @@ classDiagram
     TypologyAxis <|-- LandCoverTypology
     TypologyAxis <|-- ClimateTypology
     SpaceAxis <|-- SurfaceArea
+    SpaceAxis <|-- SoilVolume
 ```
 
 Each axis answers a small interface (defaulted, overridden per group) - `canonicalunit` and
@@ -240,9 +242,11 @@ and `AbstractSupply = AbstractLayer{Resource}`.
 
 **There is one supply name, parameterised by its axis** - `Supply{SolarRadiation}` (`kJ/day` per
 cell), `Supply{Precipitation}` (`L/day`), `Supply{CarbonFlux}` (`g/day`), `Supply{SurfaceArea}` (`m^2`,
-asked for with [`SurfaceSpec`](@ref)). The last is the only resource that is a **stock** rather
-than a flow - a fraction of ground, not a rate - which the model needs nothing special for, since
-supplies are recomputed in full each step rather than depleted. **Demands mirror it exactly**:
+asked for with [`SurfaceSpec`](@ref)), `Supply{SoilVolume}` and `Supply{SoilWaterVolume}` (`m^3`).
+The last three are **stocks** rather than flows - ground, soil, and the water standing in the
+soil, not rates - which the model needs nothing special for, since supplies are recomputed in full
+each step rather than depleted: every supply is a per-cell capacity along its axis, and a stock
+and a flux regulate identically through the ratio of demand to supply. **Demands mirror it exactly**:
 `Demand{A}`, one type parameterised by the same axes, in the same units. It leaves the *value* type
 free on purpose: `canonicalunit(Resource, A)` is the single statement of what a supply is measured
 in, so pinning it in the type as well would restate it. There are deliberately no per-resource
@@ -474,10 +478,18 @@ study area: a synthetic one has no CRS, extent or resolution of its own.
 
 `AbstractShapeSpec` is the branch of the lazy specs that is **ground** rather than data - a shape
 file, a named country, a continent, an island - and resolves to geometry before any grid exists.
+Every shape spec carries a `coverage`, which of the connected pieces of that ground to take, and an
+`outline`, whether to mask by the pieces or by the box around them; `read(spec)` gives the pieces.
 
-`SourceSpec` and `RasterFileSpec` are the two ways of naming raster data to be read: a layer of a
-catalogued dataset, whose unit and axis the catalogue supplies, or a file that belongs to no dataset,
-which must be told both. Each holds a name and no data, and reads through the same cache.
+`RasterSpec` names raster data to be read, and has two spellings: `SourceSpec(source, code)` for a
+layer of a catalogued dataset, whose unit and axis the catalogue supplies and whose files the source
+resolves - or, with `file`, `files` or `directory`, files the caller names, which the catalogue
+still describes - and `RasterFileSpec(path; axis)` for a file that belongs to no dataset, which must
+be told both. `SourceSpec` is an alias of the type and `RasterFileSpec` a factory; either way the
+spec holds a name and no data, its read options (`cut`, `scale`, `fn`) and how its files become one
+series (`times`, `atend`, `calendar`) as fields, and `read(spec)` is the one read, through one
+cache. A file entry is a path, a URL cached on first use, or a `CDSRequest` fetched from the Climate
+Data Store on first use; the catalogue's per-dataset row says which backend opens it.
 
 **`ConstructedShapeSpec` and `ConstructedRasterSpec` are mirrors**: each is the "several members
 become one" node for its medium. Three of their differences are forced by that medium and one is
@@ -496,9 +508,8 @@ classDiagram
     class AbstractSyntheticSpec
     class AbstractSyntheticLayerSpec
     class AbstractSyntheticMaskSpec
-    class SourceSpec~A, U~
-    class RasterFileSpec~A, U~
-    class ShapeSpec
+    class RasterSpec~A, U~
+    class ShapeSpec~C~
     class AbstractShapeSpec
     class NaturalEarthSpec~C~
     class ConstructedShapeSpec~O, M, C~
@@ -511,8 +522,7 @@ classDiagram
     class AbstractCombineStage
     AbstractSpec              <|-- AbstractLazySpec
     AbstractSpec              <|-- AbstractSyntheticSpec
-    AbstractLazySpec          <|-- SourceSpec
-    AbstractLazySpec          <|-- RasterFileSpec
+    AbstractLazySpec          <|-- RasterSpec
     AbstractLazySpec          <|-- ConstructedRasterSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticLayerSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticMaskSpec
@@ -950,18 +960,20 @@ classDiagram
     EcoSISTEMSource <|-- DerivedData
     EcoSISTEMSource <|-- ERA
     EcoSISTEMSource <|-- CERA
+    EcoSISTEMSource <|-- TwentyCR
     EcoSISTEMSource <|-- CRUTS
 ```
 
 `SyntheticData` marks values the package generated; `DerivedData{S}` records that a raster was
 *computed from* `S` without claiming to be it, which is what keeps a combine's provenance honest.
-`ERA`, `CERA` and `CRUTS` name the three netCDF archives the package reads itself - they are
+`ERA`, `CERA`, `TwentyCR` and `CRUTS` name the four archives the package reads itself - they are
 `EcoSISTEMSource` rather than RasterDataSources datasets because those archives are ours to
 describe.
 
 Every `EcoSISTEMSource` satisfies the `IsRasterData` trait, which is what admits it to a
-`SourceSpec`. Reading one of the three netCDF archives goes through a guard that refuses a third
-dimension which is not time, since every reader and plot recipe for them slices by time.
+`SourceSpec`. Reading one of the reanalysis archives goes through a guard that refuses a third
+dimension which is not time, since every reader and plot recipe for them slices by time; a file
+holding several soil layers has that fourth axis selected down to one before it is read.
 
 **`AbstractAccumulationPeriod` is what turns a total into a rate.** A monthly precipitation total
 is `mm` over *that month*, so converting it to the canonical `mm/day` needs to know how long the

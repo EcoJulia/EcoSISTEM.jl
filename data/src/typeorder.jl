@@ -73,6 +73,20 @@ function _declarations()
     end
     return (types = types, consts = consts)
 end
+# The name a macro call is made with, `"@nicheaxis"`, whichever way the parser spells it: Julia
+# 1.12's JuliaSyntax gives a `MacroName` leaf whose text carries the `@`; 1.13's gives a `macro_name`
+# node holding an `Identifier` without it. Kinds are compared as strings because `K"..."` refuses
+# a kind the running Julia does not define, at parse time, so naming both would load on neither.
+function _macroname(node)
+    k = string(JS.kind(node))
+    k == "MacroName" && return string(node)
+    if k == "macro_name"
+        cs = JS.children(node)
+        (cs === nothing || isempty(cs)) || return "@" * string(cs[1])
+    end
+    return _headname(node)
+end
+
 function _collect!(n, rel, types, consts)
     k = JS.kind(n)
     cs = JS.children(n)
@@ -83,8 +97,7 @@ function _collect!(n, rel, types, consts)
         # 🔴 Types declared BY A MACRO are invisible to a `struct`/`abstract type` walk, and they are
         # not a rare case - every niche axis (`@nicheaxis`) and both SimpleTraits markers
         # (`@traitdef`) arrive this way, 51 types in all. Each names its type in its first argument.
-        mac = JS.kind(cs[1]) == JS.K"MacroName" ? string(cs[1]) :
-              _headname(cs[1])
+        mac = _macroname(cs[1])
         if mac in ("@nicheaxis", "@traitdef")
             nm = _headname(cs[2])
             nm === nothing || get!(types, nm, (rel, JS.source_line(n)))

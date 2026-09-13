@@ -2,9 +2,53 @@
 
 - v0.8.0
   - Added
-    - `RasterFileSpec`, a lazy layer spec for a raster file that belongs to no dataset: the read is
-      windowed to the study area, cached, and coarsened on read by `scale`. `readfile` gains `unit`.
+    - `RasterSpec`, one lazy spec for raster data, written `SourceSpec(source, code)` for a
+      catalogued layer and `RasterFileSpec(path; axis)` for a file that belongs to no dataset. The
+      read options `cut`, `scale` and `fn` are its fields for either spelling; the read is windowed
+      to the study area, cached, and coarsened on read by `scale`.
+    - `read(spec)` on any `RasterSpec`, the one way to read raster data: a catalogued layer is
+      downloaded and read with its unit attached, a file of your own read as it is, and
+      `SourceSpec(ERA, "t2m", file = path)` or `SourceSpec(CRUTS, "tavg", directory = dir)` read
+      files you already hold as the layer the catalogue describes. A spec takes `times`, `atend`
+      and `calendar`, so a stack of monthly files reads as a dated series.
+    - ERA5 and CERA-20C are read from netCDF through the catalogue, unit and accumulation period
+      included; a file on the 0 to 360 longitude convention is rolled to -180 to 180 on read.
+    - The catalogue is two tables: one layer table per dataset, and `datasets.csv` (read by
+      `datasetinfo`) with each dataset's format, longitude convention, CRS, resolutions, extent,
+      fetch route and provenance. A recorded header fact is checked against the first file read.
+      Layer rows gain `VerticalExtent` and `DocumentedCeiling`.
+    - `CDSRequest`, a file fetched from the Copernicus Climate Data Store on first use and kept,
+      as an entry of a spec's `files`. The `EcoSISTEMERAExt` extension loads on `CDSAPI` rather
+      than `PyCall`, and is tested.
+    - `TwentyCR`, the 20CRv3 monthly reanalysis from 1806 to 2015 on a 1 degree grid: five
+      catalogued layers, each fetched from NOAA PSL into the asset cache on first use, the soil
+      moisture layer's top soil level selected by its catalogue row, and a precipitation rate
+      stated as a mass of water per area read as a depth by the density of water.
+    - `read(spec)` on any shape spec, giving the connected pieces of ground it names - geometry,
+      envelope and area, largest first - before any grid exists. `ShapeSpec` takes the same
+      `coverage` and `outline` as a named region, so a file's smaller pieces can be dropped or its
+      box taken.
+    - Every file the package fetches gets a provenance record beside it, `<file>.provenance.toml`:
+      the URL or the Climate Data Store request and job, when it was fetched, its size and SHA-256
+      checksum, and the dataset's DOI, licence, version and citation from the catalogue.
+      `provenance(path)` and `provenance(spec)` read them back as `InputRecord`s, the one shape a
+      record of any published input takes; `verifyassets(spec)` checks present files against
+      their checksums. A file already present when first used is recorded too, without a fetch
+      time; a record another program wrote under the same name is left alone and reports nothing.
+      Nothing in a record names a machine, a user or a key.
+    - `fetchfiles(spec)` fetches everything a spec reads without reading it, for a node with a
+      network before a run on nodes without one; `dryrun = true` lists what would be fetched.
+    - `CDSRequest(ERA, code; years, path)` and `era5requests(code, years; dir)` build Climate Data
+      Store requests from catalogue codes, one file per decade; `CDSRequest` is public.
+    - `CachedAsset` takes a `path`, so a download can land in a project's own directory.
+    - `datasets.csv` gains `Citation`, the text a paper prints for each dataset, resolved from its
+      DOI, and `ERA.csv` gains `Request`, the Climate Data Store's name for each layer.
+    - `SoilVolume` and `SoilWaterVolume` axes. ERA5's `swvl1` reads on the second: a volumetric
+      fraction over a layer whose catalogue row gives its thickness is a depth of water, and times
+      the cell area a volume, so a stock is a supply as `SurfaceArea` already is.
     - `show` methods for some over-long types.
+    - `build_species` and the direct `SpeciesList` constructor take `names`, so species can carry
+      real names; the names label their Diversity types too.
     - `class_fractions` and `dominant_class`, which nested as two `ConstructedRasterSpec`s regrid
       a layer of class codes by the plurality of the covering cells. `compress_landcover` is
       `dominant_class` on EarthEnv, and a cell with no data is now absent rather than class 1.
@@ -12,6 +56,22 @@
       as PDFs from the package's own examples, at the published scale when run directly and from
       a small run under the test suite.
   - Changed
+    - Random streams are seeded through the generator's own seeding rather than `Base.hash`, whose
+      values change between Julia versions, so a run reproduces from its seed on every Julia. A
+      seed's results differ from earlier releases, once; the canonical references are re-blessed.
+    - The aggregate cache is keyed by a SHA-256 digest, for the same reason, and each entry is
+      written whole before it is visible. Every existing entry is re-primed on first use.
+    - The supply and dispersal weights that a random draw is normalised by are summed with
+      KahanSummation's `sum_kbn`, a compensated sum that returns the correctly rounded total,
+      rather than `sum`, whose `@simd` lets the compiler reorder the additions when a loop
+      vectorises. This is essential for reproducibility, but for speed we should revert to sum().
+    - A download interrupted part way is resumed by the next run rather than restarted, and two
+      processes asking for one file - the ranks of an MPI run - fetch it once, the others waiting
+      on the first's lock. A directory read of a netCDF archive keeps only the files holding the
+      layer's variable, so one directory may hold every variable.
+    - `TOML` and `FileWatching` are dependencies.
+    - Tested on Julia 1.13; the continuous integration matrix runs 1.11, 1.12 and the latest release,
+      and the type-order audit reads 1.13's parser as well as 1.12's.
     - Every layer reaches the study grid by aggregation of the source cells covering each grid
       cell, and nothing is interpolated: exact block aggregation where the grid is an aligned whole
       multiple of the layer's cells, which the report has always claimed, and nearest-neighbour
@@ -21,7 +81,6 @@
     - A coarsening reduces over the cells that carry data with a reducer chosen from the layer's
       axis - the mean, or the most frequent class for class codes. A grid cell is covered by a layer
       when the layer has data at its centre.
-    - `readfile` returns a `ClimateRaster`, with `source` and `unit` keywords.
     - A categorical tolerance and its regime no longer need the same numeric type for their
       codes: an integer class list pairs with a layer of float codes.
     - EarthEnv land cover is no longer coarsened 10× by default. A read is at the file's own
@@ -45,6 +104,14 @@
     - An angular `cellsize` such as `30arcminute` is accepted on a geographic grid; a length there,
       and an angle on a projected grid, are refused.
     - `ShapeSpec` documents that a URL must name a self-contained file.
+  - Deprecated
+    - `read(WorldClim{BioClim}, layers; ...)` and `read(CHELSA{Climate}, dir, var)`, which extended
+      `Base.read` on types this package does not own. `read(SourceSpec(...))` replaces both and
+      attaches the layer's unit, where the old forms returned bare magnitudes.
+    - `read(ERA, file, param, ...)`, `read(CERA, ...)`, `read(CRUTS, dir, var)` and `readfile`:
+      write `SourceSpec(source, code, file = path)` or `directory = dir` for the first three and
+      `RasterFileSpec(path; axis)` for the last, and `read` the spec.
+    - `retrieve_era5`: name the download as a `CDSRequest` instead, one per decade file.
 - v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name

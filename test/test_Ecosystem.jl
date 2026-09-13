@@ -5,6 +5,7 @@ module TestEcosystem
 using EcoSISTEM
 # `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
 using EcoSISTEM: getnichefit, update!
+using Random: Random
 using EcoSISTEM: getregime
 using Test
 using Unitful, Unitful.DefaultSymbols
@@ -430,6 +431,18 @@ end
     # a *different shape* from the raw abundances. Returning the raw ones - the old behaviour -
     # would make this test fail on size alone.
     @test size(proccache, 1) > size(rawcache, 1)
+end
+
+@testset "random streams are the same on every Julia" begin
+    # The values are what `makerngs` and an intervention stream produced on Julia 1.11, 1.12 and
+    # 1.13 alike. They pin the seeding, not the generator: a change to how a seed becomes a stream
+    # moves every simulated result, so it must be deliberate and re-blessed.
+    rngs = EcoSISTEM.makerngs(1, 2)
+    @test rand(rngs[1]) == 0.28619725452917066
+    @test rand(rngs[2]) == 0.7359933946383496
+    @test rand(only(EcoSISTEM.makerngs(-7, 1))) == 0.865857507919501
+    @test rand(Random.Xoshiro(UInt64[1, EcoSISTEM._INTERVENTION_STREAM, 2, 3])) ==
+          0.7352753752006671
 end
 
 end

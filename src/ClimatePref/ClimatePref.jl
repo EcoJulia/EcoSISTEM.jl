@@ -19,71 +19,40 @@ public AbstractCombineStage, AbstractClimate, EcoSISTEMSource
 public CODE_TYPE
 
 # A `using` is module-scoped, so every name any file in this submodule needs is stated here rather
-# than inherited from a neighbour's imports. A geographic region is an `Extents.Extent`:
-# `boundingbox` returns one and `cut` takes one.
+# than inherited from a neighbour's imports. Only the deprecations live here now, so what is
+# imported is what they forward to, plus every name this module re-exports or declares public -
+# an `export` or `public` line can only name something the module can see.
 using DimensionalData
-using Rasters
 using Unitful
-using Unitful.DefaultSymbols
-using EcoSISTEM.Units
-using Dates: Dates
-# The bare module name, so `deprecations.jl` can write `EcoSISTEM.convert_coords`; and the three
-# spec types this module re-exports.
+# The bare module name, so `deprecations.jl` can write `EcoSISTEM.convert_coords`; a geographic
+# region is an `Extents.Extent`, which the deprecated positional-extent readers build.
 using EcoSISTEM
-using EcoSISTEM: SourceSpec, ShapeSpec, ConstructedRasterSpec
 import Extents
 
-using EcoSISTEM: _crsunit, _isangle, _stacklayers, _isblankcrs
-# The shared "which index contains this coordinate" helper, from `src/cellgeometry.jl`.
-using EcoSISTEM: _axisindexat
-# Three pieces of the dataset-reading pipeline (`src/datasetread.jl`), called by the `ERA`/`CERA`
-# readers and by `boundingbox` below.
-using EcoSISTEM: _applycut, _locus, _rastertodimarray
-using EcoSISTEM: boundingbox
-using EcoSISTEM: ERA, CERA, CRUTS, _istimeaxis
-using EcoSISTEM: extract_values
-# The phylogenetic trait models: declared in `src/extensions.jl`, implemented in
-# `ext/EcoSISTEMPhyloExt`.
+# Re-exported: the spec types, the raster types and their sources, the combine stages.
+using EcoSISTEM: SourceSpec, ShapeSpec, ConstructedRasterSpec, in_memory_raster
+using EcoSISTEM: AbstractClimate, ClimateRaster, CODE_TYPE, ERA, CERA, CRUTS,
+                 EcoSISTEMSource, AbstractCombineStage, CombineOnTargetGrid,
+                 CombineOnSourceGrid
+# Re-exported: the region vocabulary and the phylogenetic trait models (declared in
+# `src/extensions.jl`, implemented in `ext/EcoSISTEMPhyloExt`).
+using EcoSISTEM: boundingbox, extract_values
 using EcoSISTEM: Brownian, varcovar, fitbrownian
-using EcoSISTEM: NicheAxis, TemperatureAxis
-using EcoSISTEM: AbstractClimate, ClimateRaster, CODE_TYPE,
-                 ConstructedRasterSpec,
-                 ShapeSpec, AbstractCombineStage, CombineOnTargetGrid,
-                 CombineOnSourceGrid, EcoSISTEMSource, SyntheticData,
-                 DerivedData, IsRasterData, in_memory_raster
-using EcoSISTEM.Units: _monthindex
-using RecipesBase
-using SimpleTraits
 # `import`, not `using`: `deprecations.jl` below **extends** `readfile` with the deprecated
 # positional-extent method, and a `using`-imported name cannot be extended.
 import EcoSISTEM: readfile
-# Declared in `src/extensions.jl` with their `EcoSISTEMRasterDataSourcesExt` methods, so that the
-# whole extension's surface sits in one place. Re-exported below.
+# Re-exported: the two hooks declared in `src/extensions.jl` with their
+# `EcoSISTEMRasterDataSourcesExt` methods, and the catalogue's public surface.
 using EcoSISTEM: compress_landcover, sourcecrs
-using EcoSISTEM: LayerRecord, AxisNode, AbstractAccumulationPeriod,
+using EcoSISTEM: LayerRecord, AxisNode, DatasetRecord,
+                 AbstractAccumulationPeriod,
                  ConstantAccumulationPeriod, PerSliceAccumulationPeriod,
                  PerCellAccumulationPeriod
-using EcoSISTEM: _CATEGORIES, _OPTIONAL_COLUMNS, _PERIOD_CATEGORIES,
-                 _PERIOD_INHERITED_CATEGORIES,
-                 _PERSLICE_PERIODS, _REQUIRED_COLUMNS, _SUPERSCRIPTS,
-                 _VALUETYPES,
-                 _axischain, _axisnames, _axisnode, _catalogue,
-                 _checkaxishomogeneity, _checkaxisunit, _checkperiod,
-                 _checkrangerows,
-                 _checkschema, _checkunitdimension, _checkupstreamscale,
-                 _datasettype,
-                 _documentedceiling, _layerfile, _layerrow, _layertable,
-                 _leafaxes, _normdim, _parsecategory, _parseperiod,
-                 _parsepublishedscale, _parsetemporal, _parsevaluetype,
-                 _periodcode,
-                 _perioddivisors, _periodphrase, _periodsagree, _periodwording,
-                 _persliceperiod, _publishedscale, _readdivisors,
-                 _refreshaxisnames!,
-                 _resolveaxis, _showtree, _stridedsample, _unitstr,
-                 layeraxes, layeraxis, layerinfo, layerrate,
-                 layersbyaxis, layerunit, partition_eq, _sharedunit, _sharedaxis
+using EcoSISTEM: datasetinfo, layeraxes, layeraxis, layerinfo, layerrate,
+                 layersbyaxis, layerunit
 export layerunit, layeraxis
 public layerinfo, layersbyaxis, layeraxes, LayerRecord, AxisNode
+public datasetinfo, DatasetRecord
 public layerrate
 public AbstractAccumulationPeriod, ConstantAccumulationPeriod,
        PerSliceAccumulationPeriod, PerCellAccumulationPeriod

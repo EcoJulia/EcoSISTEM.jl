@@ -10,7 +10,7 @@ using EcoSISTEM: _checklevel, _indegrees, _asraster, _mergegeoms
 using EcoSISTEM: _wgsextent, _overlaparea, investigate_regions,
                  naturalearth_regions
 using EcoSISTEM: naturalearth_levels, RegionMatch, RegionReport
-using EcoSISTEM: _shapecomponents, _applyshapeop, _naturalearthgeoms,
+using EcoSISTEM: _shapecomponents, _applyshapeop, _shapegeoms,
                  _preparemask
 import Rasters
 import Extents
@@ -105,8 +105,8 @@ end
                    EcoSISTEM.RegionReport(nothing,
                                           [m
                                            for m in admin
-                                           if m.name in
-                                              ("New Zealand", "Vatican")]))
+                                           if m.name in ("New Zealand",
+                                               "Vatican")]))
     @test occursin("56%", shown)
     @test !occursin("100%", shown)
 end
@@ -215,9 +215,10 @@ end
 
 @testset "the antimeridian is read off the widest gap, not assumed" begin
     # A component's envelope is all `_regionbox` sees, so synthetic ones pin the rule exactly.
-    part(w, e) = (geometry = nothing,
-                  envelope = ArchGDAL.GDAL.OGREnvelope(w, e, 0.0, 10.0),
-                  area = 1.0km^2)
+    part(w,
+         e) = (geometry = nothing,
+               envelope = ArchGDAL.GDAL.OGREnvelope(w, e, 0.0, 10.0),
+               area = 1.0km^2)
 
     # An ordinary region: the widest empty stretch is the one outside it, so the box is plain.
     plain = _regionbox([part(0.0, 10.0), part(20.0, 30.0)])
@@ -399,6 +400,12 @@ end
     parts = _shapecomponents(file)
     @test length(parts) == 1
     @test parts[1].envelope.MinX ≈ -5.0 && parts[1].envelope.MaxX ≈ -3.0
+    # `read` is the public face of the same resolution: the pieces of ground, largest first, each
+    # with its geometry, envelope and area.
+    pieces = read(file)
+    @test pieces == parts
+    @test only(pieces).area > 0km^2 &&
+          ArchGDAL.geomarea(only(pieces).geometry) ≈ 4.0
 
     # ...and it is accepted as a member, which is the gap this closes.
     combined = ConstructedShapeSpec(ShapeUnion(), file,
@@ -408,6 +415,47 @@ end
     # A `ConstructedShapeSpec` is itself a shape spec, so it can nest.
     @test ConstructedShapeSpec(ShapeConvexHull(), combined) isa
           EcoSISTEM.AbstractShapeSpec
+end
+
+@testset "a file takes the same coverage and outline as a named region" begin
+    # Two squares of very different size in one file: the coverage decides how many pieces the
+    # file is, exactly as it does for a name, and `outline = false` gives the box with no
+    # polygons left to test cells against.
+    path = joinpath(mktempdir(), "two.geojson")
+    write(path,
+          """{"type":"FeatureCollection","features":[
+             {"type":"Feature","properties":{},"geometry":{"type":"Polygon",
+              "coordinates":[[[-5,55],[-3,55],[-3,57],[-5,57],[-5,55]]]}},
+             {"type":"Feature","properties":{},"geometry":{"type":"Polygon",
+              "coordinates":[[[0,50],[0.1,50],[0.1,50.1],[0,50.1],[0,50]]]}}]}""")
+    whole = ShapeSpec(path)
+    @test length(read(whole)) == 2
+    @test whole.coverage isa AllTerritories && whole.outline
+    main = ShapeSpec(path, coverage = LargestLandmass())
+    @test length(read(main)) == 1
+    @test only(read(main)).envelope.MinX ≈ -5.0
+    @test length(read(ShapeSpec(path, coverage = LandmassesAbove(1000km^2)))) ==
+          1
+    @test isempty(read(ShapeSpec(path, coverage = LandmassesAbove(10^6 * km^2))))
+    @test_throws "selects no ground" _preparemask(ShapeSpec(path,
+                                                            coverage = LandmassesAbove(10^6 *
+                                                                                       km^2)),
+                                                  Rasters.EPSG(4326))
+    # The whole file's box covers both squares; a box alone has no payload.
+    box = _preparemask(ShapeSpec(path, outline = false), Rasters.EPSG(4326))
+    @test isnothing(box.payload)
+    @test box.extent.X[1] ≈ -5.0° && box.extent.X[2] ≈ 0.1°
+    @test box.extent.Y[1] ≈ 50.0° && box.extent.Y[2] ≈ 57.0°
+    outlined = _preparemask(main, Rasters.EPSG(4326))
+    @test length(outlined.payload) == 1
+    @test outlined.extent.X[2] ≈ -3.0°
+    # A combination of two files reads to what it builds.
+    both = ConstructedShapeSpec(ShapeUnion(), main, ShapeSpec(path))
+    @test length(read(both)) == 2
+    @test string(main) ==
+          "ShapeSpec($(repr(path)), coverage = $(LargestLandmass()))"
+    @test string(ShapeSpec(path, outline = false)) ==
+          "ShapeSpec($(repr(path)), outline = false)"
 end
 
 @testset "an operation may be a function, mirroring the raster side" begin
@@ -556,7 +604,7 @@ if geometrytests()
             ("Madagascar", "ADMIN"))
             spec = isnothing(level) ? NaturalEarthSpec(name) :
                    NaturalEarthSpec(name, level = level)
-            _, extent = _naturalearthgeoms(spec, Rasters.EPSG(4326))
+            _, extent = _shapegeoms(spec, Rasters.EPSG(4326))
             box = isnothing(level) ? EcoSISTEM.boundingbox(name) :
                   EcoSISTEM.boundingbox(name, level = level)
             # Both sides stripped to degrees explicitly. A bare number compared against a `°`
@@ -576,7 +624,7 @@ if geometrytests()
         ie = NaturalEarthSpec("Ireland", level = "ADMIN", coverage = all_)
         im = NaturalEarthSpec("Isle of Man", level = "ADMIN", coverage = all_)
         isles = ConstructedShapeSpec(ShapeUnion(), uk, ie, im)
-        _, ext = _naturalearthgeoms(isles, Rasters.EPSG(4326))
+        _, ext = _shapegeoms(isles, Rasters.EPSG(4326))
 
         # Natural Earth's own BRITISH ISLES polygon stops at 59.80 and so drops Shetland; the union
         # of the three countries reaches 60.85 and does not. This is the cartographic-outline
@@ -585,7 +633,7 @@ if geometrytests()
         named = NaturalEarthSpec("BRITISH ISLES",
                                  level = "Physical Island group",
                                  coverage = all_)
-        _, namedext = _naturalearthgeoms(named, Rasters.EPSG(4326))
+        _, namedext = _shapegeoms(named, Rasters.EPSG(4326))
         @test ustrip(°, maximum(namedext.Y)) < 59.9
 
         # ...and dropping components under a square kilometre drops exactly Rockall, which is what
@@ -594,7 +642,7 @@ if geometrytests()
                                        coverage = LandmassesAbove(1km^2))
         @test length(_shapecomponents(trimmed)) ==
               length(_shapecomponents(isles)) - 1
-        _, trimext = _naturalearthgeoms(trimmed, Rasters.EPSG(4326))
+        _, trimext = _shapegeoms(trimmed, Rasters.EPSG(4326))
         @test ustrip(°, minimum(ext.X)) ≈ -13.69 atol=0.01
         @test ustrip(°, minimum(trimext.X)) ≈ -10.48 atol=0.01
     end

@@ -3,6 +3,10 @@
 module EcoSISTEM
 
 using Scratch: get_scratch!
+using FileWatching: mkpidlock
+using TOML: TOML
+using SHA: SHA
+using Dates: Dates
 using Downloads: Downloads
 using NetworkOptions: ca_roots_path
 import ArchGDAL
@@ -20,14 +24,18 @@ public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
        AbstractNicheFit,
        AbstractEcosystem, AbstractHabitat
 
-# The asset cache's descriptor type, before the two functions below name it.
+# The asset cache's descriptor types, before the functions below name them, and the record of
+# where an input came from, which every fetch writes.
 include("Asset.jl")
+include("Provenance.jl")
 
-public CachedAsset
+public CachedAsset, CDSRequest, InputRecord
 
 public assetdir
 
-public assetpath
+public assetpath, fetchfiles, verifyassets
+
+export provenance
 
 # The units submodule: the arcminute/arcsecond subdivisions of a degree, and the calendar-month
 # durations. First, because other files depend on it.
@@ -150,9 +158,9 @@ public AbstractAccumulationPeriod, ConstantAccumulationPeriod,
 
 include("LayerCatalogue.jl")
 
-public LayerRecord, AxisNode
+public LayerRecord, AxisNode, DatasetRecord
 
-public layerinfo, layersbyaxis, layerrate
+public layerinfo, layersbyaxis, layerrate, datasetinfo
 
 # Exported rather than `public`, unlike their three siblings above -- that split is inherited from
 # `ClimatePref`, which exported exactly these two. Kept as it was rather than changed in passing;
@@ -161,11 +169,23 @@ export layeraxis, layerunit
 
 # A raster of climate data, and the specs that lazily read one - including the three unions naming
 # everything a caller may hand to `regime`/`supply`/`within`.
+# How a series behaves past its last slice and what its time coordinates mean. Before
+# `Climate.jl` and `LazySpec.jl`, because `in_memory_raster` and `RasterSpec` take an
+# `AbstractSeriesEnd` and a calendar, as `SeriesChange` does.
+include("SeriesPolicy.jl")
+
+# what a series does once elapsed time runs past its last stored slice (the `atend` keyword)
+export ErrorAtEnd, HoldAtEnd, RepeatAtEnd, RevertToLayer
+
+# what a series' time coordinates mean, and so what a run's epoch can do with them (the `calendar`
+# keyword); see `build_ecosystem`'s `epoch`
+export DatedSeries, MonthOfYearSeries, UndatedSeries
+
 include("Climate.jl")
 
 # The concrete data-source types, and the readers and sampler that go with them. All were exported by
 # `EcoSISTEM.ClimatePref` before it was dissolved.
-export ERA, CERA, CRUTS
+export ERA, CERA, TwentyCR, CRUTS
 
 public AbstractClimate
 
@@ -181,23 +201,14 @@ include("LazySpec.jl")
 # what lives here against what stays with the climate data.
 # Exported here, and **re-exported by `ClimatePref`**, so that `using EcoSISTEM.ClimatePref` reaches
 # them too.
-export SourceSpec, RasterFileSpec, ConstructedRasterSpec, ShapeSpec,
+export RasterSpec, SourceSpec, RasterFileSpec, ConstructedRasterSpec, ShapeSpec,
        NaturalEarthSpec, ConstructedShapeSpec
 
 public AbstractShapeSpec
 
 public AbstractLazySpec
 
-# How a layer changes in time: what a series does at its end, how a change value is interpreted,
-# and the recipes a caller writes. `SeriesPolicy` first - `SeriesChange` holds an `AbstractSeriesEnd`.
-include("SeriesPolicy.jl")
-
-# what a series does once elapsed time runs past its last stored slice (the `atend` keyword)
-export ErrorAtEnd, HoldAtEnd, RepeatAtEnd, RevertToLayer
-
-# what a series' time coordinates mean, and so what a run's epoch can do with them (the `calendar`
-# keyword); see `build_ecosystem`'s `epoch`
-export DatedSeries, MonthOfYearSeries, UndatedSeries
+# How a layer changes in time: how a change value is interpreted, and the recipes a caller writes.
 
 public AbstractSeriesEnd, AbstractSeriesCalendar
 
@@ -509,7 +520,8 @@ export Temperature, TemperatureRange, TemperatureSeasonality, CumulativeHeat,
        WindSpeed,
        WindSpeedRange, CloudCover, CloudCoverRange, DayOfYear, DayCount,
        CarbonFlux,
-       LandCoverTypology, SurfaceArea, ClimateTypology, Heterogeneity, Altitude
+       LandCoverTypology, SurfaceArea, SoilVolume, SoilWaterVolume,
+       ClimateTypology, Heterogeneity, Altitude
 
 include("rasters.jl")
 
@@ -520,10 +532,6 @@ public hasdata
 include("datasetread.jl")
 
 export readfile
-
-# The netCDF branch of the readers -- `read(ERA, ...)` / `read(CERA, ...)`. Separate from
-# `datasetread.jl` because it is the only code here that reads netCDF rather than GeoTIFF.
-include("erareaders.jl")
 
 # Sampling a climate raster at places and times - `extract_values`. Works on any `AbstractClimate`,
 # so it names no data source.

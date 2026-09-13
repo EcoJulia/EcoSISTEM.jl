@@ -45,6 +45,7 @@ synthetically. The role-specific aliases are the names you will normally write:
 | [`Supply`](@ref)`{SolarRadiation}` | resource | `kJ/day` per cell |
 | [`Supply`](@ref)`{Precipitation}` | resource | `L/day` per cell |
 | [`Supply`](@ref)`{CarbonFlux}` | resource | `g/day` per cell |
+| [`Supply`](@ref)`{SurfaceArea}`, `{SoilVolume}`, `{SoilWaterVolume}` | resource | a stock - `m^2` or `m^3` per cell |
 
 A layer holds **one** grid of values: the ones current now. A layer that varies in time is
 not a different type - it is one of these carrying a change rule that decides, from the
@@ -159,6 +160,8 @@ A generous or irrelevant resource therefore costs nothing but is also doing noth
 | water | `mm/day` (that is, `L/m^2/day`) | [`Supply`](@ref)`{Precipitation}`, `L/day` | `Demand{Precipitation}`, `L/day` |
 | carbon | `g/m^2/day` | [`Supply`](@ref)`{CarbonFlux}`, `g/day` | `Demand{CarbonFlux}`, `g/day` |
 | space | a **fraction** of the cell, 0-1 | [`Supply`](@ref)`{SurfaceArea}`, `m^2` | `Demand{SurfaceArea}`, `m^2` |
+| soil | a depth of soil, `m` | [`Supply`](@ref)`{SoilVolume}`, `m^3` | `Demand{SoilVolume}`, `m^3` |
+| soil water | a depth of water in the soil, `mm` | [`Supply`](@ref)`{SoilWaterVolume}`, `m^3` | `Demand{SoilWaterVolume}`, `m^3` |
 
 An areal rate becomes an absolute per-cell one by multiplying by the cell's area, so a
 coarser grid gives each cell more of everything, as it should. On the species side
@@ -173,13 +176,19 @@ The unit is still **checked** against the axis - a `L/day` demand declared on
 `SolarRadiation` is refused - it just no longer *decides*. A **bare number is refused** too: it
 carries no unit to check, and there is no free/dimensionless resource left for it to mean.
 
-**Space is the odd one out, deliberately.** It is the only resource that is a *stock* rather
-than a flow: a fraction of ground, not a rate of anything. The ratio the model needs stays a
-dimensionless count either way (`m^2 / m^2` as much as `kJ/day / kJ/day`), and supplies are
-recomputed in full each timestep rather than depleted, so a standing stock needs no change to
-the loop. Ask for one with [`SurfaceSpec`](@ref) - `SurfaceSpec()` for the whole cell,
-`SurfaceSpec(0.4)` for a partly-available one. The twelve EarthEnv land-cover bands are space
-layers too: each is the proportion of a cell covered by one class.
+**The last three are stocks, deliberately.** Space, soil and soil water are amounts present
+rather than rates of anything. The ratio the model needs stays a dimensionless count either way
+(`m^2 / m^2` as much as `kJ/day / kJ/day`), and supplies are currently recomputed in full each
+timestep rather than depleted, so a standing stock needs no change to the loop. Ask for space
+with [`SurfaceSpec`](@ref) - `SurfaceSpec()` for the whole cell, `SurfaceSpec(0.4)` for a
+partly-available one; the twelve EarthEnv land-cover bands are space layers too, each the
+proportion of a cell covered by one class. Soil water comes from the reanalyses: ERA5's `swvl1`
+and 20CRv3's `soilw` are published as a *fraction* of a soil layer's volume, and the catalogue
+records how thick that layer is, so a read gives the depth of water it holds - 0.3 over 7 cm is
+21 mm - and a supply is that depth times the cell's area.
+
+Every supply is a proxy for the capacity it measures, so two proxies for one thing double count:
+precipitation and soil water are both water, and offering both is a choice to make deliberately.
 
 Water uses `mm/day` for its areal form because a millimetre of rain over a square metre is a
 litre - a depth per unit time *is* a volume flow per unit area. Solar radiation and carbon
@@ -281,21 +290,81 @@ it, because a combine is free to change what the values are - summing eight land
 a quantity that is none of them, and multiplying them by an incident flux gives solar radiation.
 Its meaning comes from the spec's `axis`, exactly as for any other layer.
 
+## Where the data comes from
+
+A layer read from data is named by a [`SourceSpec`](@ref): a **source** and a layer **code**.
+Nothing is read when it is written; the read happens when a grid needs it, windowed to that grid,
+and the catalogue supplies everything else - the unit, the niche axis, the accumulation period,
+and how the source's files are obtained.
+
+```@example sources
+using EcoSISTEM, RasterDataSources
+
+SourceSpec(WorldClim{BioClim}, :bio1)
+```
+
+The sources fall into two kinds:
+
+| source | data | how its files arrive |
+| --- | --- | --- |
+| `WorldClim{BioClim}`, `WorldClim{Climate}`, `WorldClim{Elevation}`, `CHELSA{BioClim}`, `CHELSA{BioClimPlus}`, `CHELSA{Climate}`, `EarthEnv{LandCover}`, `EarthEnv{HabitatHeterogeneity}` | the RasterDataSources datasets | downloaded by RasterDataSources on first use, so `using RasterDataSources` |
+| [`ERA`](@ref) | ERA5 monthly means | a file you hold, or a [`EcoSISTEM.CDSRequest`](@ref) fetched from the Climate Data Store on first use (`using CDSAPI`, and a key in `~/.cdsapirc`) |
+| [`CERA`](@ref) | CERA-20C monthly means | files you hold |
+| [`TwentyCR`](@ref) | 20CRv3 monthly means, 1806 to 2015 | fetched from NOAA PSL on first use, or a file you hold |
+| [`CRUTS`](@ref) | CRU TS | a directory of monthly GeoTIFFs you hold |
+
+A file you hold is named alongside the code - `file = path` for one, `files = [...]` for several
+in time order, `directory = dir` for a directory read in name order - and the catalogue still
+describes it, so a netCDF variable arrives with its unit, its axis and, where the file carries
+one, its dates:
+
+```@example sources
+SourceSpec(ERA, "t2m", file = "era5_t2m_1990s.nc", atend = HoldAtEnd())
+```
+
+What the catalogue records about a whole source - its grid, its longitude convention, how it is
+fetched, its licence - is [`datasetinfo`](@ref EcoSISTEM.datasetinfo), and the first file read of
+a source is checked against it:
+
+```@example sources
+rec = EcoSISTEM.datasetinfo(TwentyCR)
+(fetch = rec.fetch, resolution = rec.resolution, extent = rec.extent, doi = rec.doi)
+```
+
+`read(spec)` reads what a spec names into a [`ClimateRaster`](@ref) on the source's own grid, for
+inspection; a study area reads only the window it needs, so a whole global layer read this way
+can be large.
+
+Every file the package fetches gets a provenance record written beside it - where it came from,
+the request that produced it, when, its checksum, and the dataset's DOI, licence and citation -
+and [`provenance`](@ref) reads those records back, for a file or for everything a spec reads, as
+[`InputRecord`](@ref EcoSISTEM.InputRecord)s. [`fetchfiles`](@ref EcoSISTEM.fetchfiles) fetches
+a spec's files without reading them, which is how to get data onto a machine whose compute nodes
+have no network, and [`verifyassets`](@ref EcoSISTEM.verifyassets) checks present files against
+their recorded checksums.
+
 ## Data you already hold
 
-Everything above names a *source* and lets EcoSISTEM read it. Sometimes you have the data
-already - computed elsewhere, or read by hand - and there is a pathway for that, though it is
-not the one to reach for first:
+Everything above names a *source* and lets EcoSISTEM read it. A file that belongs to no
+catalogued dataset - a raster you computed elsewhere, or one from a provider the catalogue does
+not know - is named the same way, and read the same way, by a [`RasterFileSpec`](@ref); since no
+table describes it, it must be told its axis, and its unit where the file states none:
 
 ```julia
+regime = RasterFileSpec("mysite_temperature.tif", axis = Temperature, unit = K)
+```
 
+Data already in memory has a pathway too, though it is not the one to reach for first:
+
+```julia
 regime = in_memory_raster(my_raster, axis = Temperature)
 ```
 
 **Prefer naming the source where you can.** A [`SourceSpec`](@ref) lets EcoSISTEM read only the
 window your study area needs, cache it between layers, and take the unit, niche axis, accumulation
-period and value type from the catalogue. An in-memory raster gives all of that up and describes
-itself only by the `axis` you pass.
+period and value type from the catalogue; a [`RasterFileSpec`](@ref) keeps the windowed, cached
+read and gives up the catalogue. An in-memory raster gives all of that up and describes itself
+only by the `axis` you pass.
 
 **One read is not windowed, and it is worth knowing which.** A window comes from the study area, so
 a layer being built onto a grid reads only the cells that grid needs. Two cases have no window to
@@ -327,10 +396,10 @@ majority of block majorities is not the majority of the covering cells; nesting
 [`dominant_class`](@ref EcoSISTEM.dominant_class) on the target regrids them by the plurality of
 the covering cells instead.
 
-**And `axis` is not optional in spirit, even though it has a default.** A raster carries values
-and possibly a layer code, but no niche axis - nothing about it says whether those numbers are a
-temperature, a rainfall rate or a cover fraction. That is why a bare raster is refused as a regime
-or a supply, and why this function exists: it is the place the declaration goes.
+**And `axis` is required, on both.** A raster carries values and possibly a layer code, but no
+niche axis - nothing about it says whether those numbers are a temperature, a rainfall rate or a
+cover fraction. That is why a bare raster is refused as a regime or a supply, and why these two
+exist: they are the place the declaration goes.
 
 ## Investigating the catalogue
 
@@ -361,7 +430,9 @@ abstract group, or nothing at all:
 ```
 
 None of this reads a raster: the catalogue is shipped with the package, so a layer can be
-looked up before any data is downloaded.
+looked up before any data is downloaded. It is two kinds of table - one of layers per dataset,
+which these functions read, and one row per dataset of the facts no layer carries, which
+[`datasetinfo`](@ref EcoSISTEM.datasetinfo) reads.
 
 [`layeraxes`](@ref EcoSISTEM.layeraxes) returns the axis hierarchy itself, which
 is the quickest way to see what axes exist before drilling into one. And two functions
@@ -389,7 +460,7 @@ The answer is **not** the `category` column. A layer can be catalogued `rate` an
 condition: degree-day sums and evaporative demand are both rates, and neither is a resource.
 
 What decides it is whether the axis **declares a supply type** - a statement, in code, that
-species compete for this. Four axes do:
+species compete for this. Six axes do:
 
 | axis | as a resource |
 | --- | --- |
@@ -397,6 +468,8 @@ species compete for this. Four axes do:
 | [`SolarRadiation`](@ref) | [`Supply`](@ref)`{SolarRadiation}`, `kJ/day` |
 | [`CarbonFlux`](@ref) | [`Supply`](@ref)`{CarbonFlux}`, `g/day` |
 | [`SurfaceArea`](@ref) | [`Supply`](@ref)`{SurfaceArea}`, `m^2` |
+| [`SoilVolume`](@ref) | [`Supply`](@ref)`{SoilVolume}`, `m^3` |
+| [`SoilWaterVolume`](@ref) | [`Supply`](@ref)`{SoilWaterVolume}`, `m^3` |
 
 Everything else is a condition, and asking for it as a supply reports that clearly rather
 than guessing a resource type. [`CumulativeHeat`](@ref) and [`Evapotranspiration`](@ref) are

@@ -119,6 +119,17 @@ warming.regime.change
 The same wrapper takes a data-backed spec - `Varying(SourceSpec(WorldClim{BioClim}, :bio1),
 IncrementBy(0.02K / year))` warms a real temperature layer the same way.
 
+A spec whose data is already a series needs no wrapper. A monthly climate read from
+`WorldClim{Climate}`, or a reanalysis read from netCDF files carrying their own dates, is a
+[`SeriesChange`](@ref) as it stands, and the spec carries what a series needs to say about itself:
+`atend` for what happens past the last slice, `calendar` for what its coordinates mean, and `times`
+to replace the coordinates the files give it.
+
+```julia
+SourceSpec(ERA, "t2m", files = decades, atend = HoldAtEnd())      # dated, from the files
+SourceSpec(WorldClim{Climate}, :tavg, calendar = MonthOfYearSeries())   # a climatology
+```
+
 A change is written as a **shape** inside a **recipe**. The shape says what the values are;
 the recipe says how to read them:
 
@@ -155,6 +166,14 @@ Indexing by time rather than by step is what makes a series independent of the t
 twelve-month step and twelve one-month steps land on the same slice, and a daily step
 through a monthly series holds each slice for the whole of its own month. A cursor advanced
 once per call could not do this.
+
+!!! warning "A dated monthly series stepped by the mean month skips months"
+    The timestep does not yet know the calendar. Real months are 28 to 31 days long, so a run
+    stepping by `month_mean_duration` from a 1 January epoch never puts a step boundary in
+    February: it sees January twice and skips February, every year. This is a known defect,
+    not a design; until a calendar-aware step exists, step by a duration whose boundaries fall
+    in every month - a week, a day - or give the spec a uniform `times` axis if what you want
+    is one slice per step.
 
 `atend` decides what happens once elapsed time runs past the last slice:
 [`ErrorAtEnd`](@ref) (the default) says so plainly, [`HoldAtEnd`](@ref) keeps the last slice

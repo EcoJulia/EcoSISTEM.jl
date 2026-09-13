@@ -32,6 +32,23 @@ end
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 
+# Every rank asks for the same download at once: one fetches it, the others wait on its lock and
+# then find the file, so the bytes travel once and nothing is corrupted. A `file://` source, so no
+# network; the shared directory is made on rank 0 and its name sent round.
+@testset "one rank fetches an asset the others wait for" begin
+    shared = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
+    source = joinpath(shared, "source.bin")
+    rank == 0 && write(source, rand(UInt8, 4096))
+    MPI.Barrier(comm)
+    dest = joinpath(shared, "fetched.bin")
+    p = EcoSISTEM.assetpath(EcoSISTEM.CachedAsset(TwentyCR, "file://" * source,
+                                                  path = dest))
+    MPI.Barrier(comm)
+    @test p == dest && read(dest) == read(source)
+    @test isfile(dest * ".provenance.toml")
+    @test !isfile(dest * ".part") && !isfile(dest * ".lock")
+end
+
 # **The fixture is built by `mpifixture_species` in `varyingcase.jl`, not spelled out here.**
 # The canonical `mpi/...` results are blessed from a SERIAL run of that same builder, and those
 # numbers are only evidence about this run if both sides build the identical thing - two

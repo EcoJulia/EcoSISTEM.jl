@@ -32,9 +32,8 @@ const JS = Base.JuliaSyntax
 function _headname(n)
     k = JS.kind(n)
     cs = JS.children(n)
-    if k in
-       (JS.K"where", JS.K"::", JS.K"call", JS.K"curly", JS.K"<:", JS.K"quote",
-        JS.K"parens")
+    if k in (JS.K"where", JS.K"::", JS.K"call", JS.K"curly", JS.K"<:",
+        JS.K"quote", JS.K"parens")
         return (cs === nothing || isempty(cs)) ? nothing : _headname(cs[1])
     elseif k == JS.K"."
         return nothing

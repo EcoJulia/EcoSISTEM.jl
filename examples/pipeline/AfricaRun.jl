@@ -11,9 +11,9 @@
 # WorldClim's own **geographic** (°) coordinates, which cannot be simulated: a degree cell's real
 # extent changes with latitude while dispersal assumes one uniform cell size.
 #
-# **The pipeline read does real work rather than being decorative.** `link_read!` returned a
-# path that nothing used - the script went on to call `read(WorldClim{BioClim}, ...)` and download the
-# data itself. The claimed path is now what the layers are actually read from.
+# **The pipeline read does real work rather than being decorative.** The path `link_read!`
+# returns is what the layers are read from; a script that claimed a pipeline path and then
+# downloaded the data itself would record provenance it did not use.
 #
 # **Not runnable without a configured pipeline.** `DataPipeline.initialise()` needs a
 # `config.yaml` and a local registry, so this cannot be part of any automatic run and is not in
@@ -43,7 +43,7 @@ ENV["RASTERDATASOURCES_PATH"] = CLAIMED
 # --- the layers -------------------------------------------------------------------------
 
 # Named, not read: bio1 is annual mean temperature and bio12 annual precipitation, and both the
-# unit and the axis come from the shipped catalogue (`data/RasterDataSources/BioClim.csv`) rather
+# unit and the axis come from the shipped catalogue (`data/catalogue/BioClim.csv`) rather
 # than being asserted here - which is what the old `uconvert.(K, africa_temp .* °C)` was doing by
 # hand, and could get wrong.
 const TEMPERATURE = SourceSpec(WorldClim{BioClim}, :bio1)

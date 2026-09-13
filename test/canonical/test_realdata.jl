@@ -31,7 +31,7 @@ const SITE = (lat = 55.95°, long = -3.19°)
 cellat(a) = a[Y(Near(SITE.lat)), X(Near(SITE.long))]
 
 @testset "canonical: real monthly climate" begin
-    prec = EcoSISTEM._read(SourceSpec(WorldClim{Climate}, :prec))
+    prec = read(SourceSpec(WorldClim{Climate}, :prec))
     rateunit = Unitful.L / Unitful.m^2 / Unitful.d
 
     # The blessed rates, month by month. Twelve numbers rather than a summary precisely because the
@@ -43,7 +43,12 @@ cellat(a) = a[Y(Near(SITE.lat)), X(Near(SITE.long))]
     # The February/January ratio, which is the bug's own signature: it depends *only* on the two
     # divisors, so it is identical for every cell on Earth and cannot drift with the data. If someone
     # reinstates a fixed month, this is the number that moves - from 31/28.25 back to 1.
-    raw = read(WorldClim{Climate}, :prec)
+    # The undivided amounts, read below the point at which the period applies.
+    raw = EcoSISTEM._readraw(WorldClim{Climate},
+                             EcoSISTEM._fetchfiles(WorldClim{Climate}, :prec,
+                                                   month = 1:12);
+                             cut = nothing, scale = 1, fn = nothing,
+                             slices = 1:12)
     rawm = collect(cellat(raw.array))
     febjan = (monthly[2] / monthly[1]) / (rawm[2] / rawm[1])
     canonical("realdata/feb_jan_divisor_ratio", febjan)
@@ -62,8 +67,10 @@ cellat(a) = a[Y(Near(SITE.lat)), X(Near(SITE.long))]
 
     # A constant-period layer, which must convert by exactly the declared period - the contrast that
     # shows the per-slice divisor applies only where the catalogue says it should.
-    bio13 = EcoSISTEM._read(SourceSpec(WorldClim{BioClim}, :bio13))
-    rawb = read(WorldClim{BioClim}, :bio13)
+    bio13 = read(SourceSpec(WorldClim{BioClim}, :bio13))
+    rawb = EcoSISTEM._readraw(WorldClim{BioClim},
+                              EcoSISTEM._fetchfiles(WorldClim{BioClim}, :bio13);
+                              cut = nothing, scale = 1, fn = nothing)
     b, rb = ustrip(rateunit, cellat(bio13.array)), cellat(rawb.array)
     canonical("realdata/bio13_rate", b)
     @test b ≈ rb / 30.4375 rtol=1e-8
@@ -92,21 +99,21 @@ else
 
         # **Divides**: potential evapotranspiration is a flow - evaporative demand happens
         # continuously, so the accumulated total over its period is a meaningful mean daily rate.
-        pet = EcoSISTEM._read(SourceSpec(CHELSA{BioClimPlus}, :pet_penman_mean))
+        pet = read(SourceSpec(CHELSA{BioClimPlus}, :pet_penman_mean))
         canonical("realdata/pet_rate", ustrip(rateunit, cellat(pet.array)))
         @test unit(eltype(pet.array)) == rateunit
 
         # **Does not divide**: a heat sum, where the accumulated total *is* the quantity a species
         # is matched against. Dividing would give a mean daily excess nobody asked for.
-        gdd0 = EcoSISTEM._read(SourceSpec(CHELSA{BioClimPlus}, :gdd0))
+        gdd0 = read(SourceSpec(CHELSA{BioClimPlus}, :gdd0))
         canonical("realdata/gdd0_sum",
                   ustrip(Unitful.K * Unitful.d, cellat(gdd0.array)))
         @test unit(eltype(gdd0.array)) == Unitful.K * Unitful.d
 
         # **The pair that proves `Category` does not decide it**: `cmi` is a `balance` and divides,
         # `swb` is a `balance` and does not - a capped cumulative is not a flow.
-        cmi = EcoSISTEM._read(SourceSpec(CHELSA{BioClimPlus}, :cmi_mean))
-        swb = EcoSISTEM._read(SourceSpec(CHELSA{BioClimPlus}, :swb))
+        cmi = read(SourceSpec(CHELSA{BioClimPlus}, :cmi_mean))
+        swb = read(SourceSpec(CHELSA{BioClimPlus}, :swb))
         canonical("realdata/cmi_rate", ustrip(rateunit, cellat(cmi.array)))
         canonical("realdata/swb_amount",
                   ustrip(Unitful.L / Unitful.m^2, cellat(swb.array)))

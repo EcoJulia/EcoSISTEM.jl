@@ -85,6 +85,30 @@ end
 # nothing and calls fell through to Diversity's *"not implemented"* fallback. Invisible in the
 # suite, because the only thing that needs it is a species-restricted `view` - which nothing here
 # exercised. These assert the delegation by the route that actually broke.
+@testset "names" begin
+    n = 3
+    tolerance = NicheTolerance(Temperature, Normal, fill(298.0K, n),
+                               fill(2.0K, n))
+    demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
+    movement = AlwaysMovement(GaussianKernel.(fill(2.0km, n), 10e-4))
+    param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
+    build(;
+          kw...) = SpeciesList(n, tolerance, fill(100, n), demand, movement,
+                               param, fill(true, n); kw...)
+    # Unset, the names are the positions, and the types say the same.
+    anon = build()
+    @test anon.names == ["1", "2", "3"]
+    @test gettypenames(anon.types, true) == anon.names
+    # Given, they are kept verbatim and label the types, so a diversity measure reports them.
+    binomials = ["Quercus robur", "Fagus sylvatica", "Betula pendula"]
+    named = build(names = binomials)
+    @test named.names == binomials
+    @test named.names !== binomials
+    @test gettypenames(named.types, true) == binomials
+    @test_throws DimensionMismatch build(names = binomials[1:2])
+    @test_throws ArgumentError build(names = ["a", "b", "a"])
+end
+
 @testset "Diversity API hooks delegate to the wrapped types" begin
     species = build_species(EcoSISTEM.DefaultEcosystem(), verbosity = :silent)
     habitat = build_habitat(EcoSISTEM.DefaultEcosystem(), verbosity = :silent)
@@ -178,7 +202,7 @@ end
             ps = Base.unwrap_unionall(m.sig).parameters
             length(ps) >= 2 || return false
             t = Base.unwrap_unionall(ps[2])
-            t isa Type && (t === AT || AT <: t)
+            return t isa Type && (t === AT || AT <: t)
         end
         takes_types || continue
         ours = any(m -> String(nameof(m.module)) == "EcoSISTEM" &&

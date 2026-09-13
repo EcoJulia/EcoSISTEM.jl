@@ -7,6 +7,8 @@ using Unitful
 using Unitful.DefaultSymbols
 using DimensionalData
 using DimensionalData.Lookups: NoLookup
+using LinearAlgebra: ⋅
+using KahanSummation: sum_kbn
 
 """
     Demand{A <: NicheAxis, V, X} <: AbstractDemand{A, V}
@@ -37,6 +39,14 @@ struct Demand{A <: NicheAxis, V, X} <: AbstractDemand{A, V}
     resource::Vector{V}
     exchange_rate::X
 
+    # `sum_kbn`, not `mean`: `sum` is written with `@simd`, so the compiler may reassociate the
+    # floating-point additions when the loop vectorises, and whether it vectorises depends on how
+    # the code was compiled (`--check-bounds=yes` stops it) and on the machine's vector width. A
+    # quantity that feeds a random draw must be the same however and wherever the code was
+    # compiled, or a run reproduces only where it was blessed. A compensated sum returns the
+    # correctly rounded total, which is one number whatever the order of addition. For speed
+    # we should revert to sum().
+    #
     # The axis is the only declaration of the unit, exactly as on the supply side: the value type
     # follows from `canonicalunit(Resource, A)` rather than being pinned in the type, so the axis and
     # the unit cannot be two statements that disagree.
@@ -45,9 +55,9 @@ struct Demand{A <: NicheAxis, V, X} <: AbstractDemand{A, V}
     # `_resourceunit` refuses a wrong dimension **and** an axis that is not a resource, naming which
     # of the two mistakes it is.
     function Demand{A}(resource::AbstractVector{<:Unitful.Quantity{Float64}},
-                       exchange_rate::Unitful.Quantity{Float64} = 1.0 /
-                                                                  mean(resource)) where {A <:
-                                                                                         NicheAxis}
+                       exchange_rate::Unitful.Quantity{Float64} = length(resource) /
+                                                                  sum_kbn(resource)) where {A <:
+                                                                                            NicheAxis}
         u = _resourceunit(eltype(resource), A, "demand")
         r = collect(uconvert.(u, resource))
         x = uconvert(inv(u), exchange_rate)
@@ -86,7 +96,7 @@ numdemands(::Type{<:Demand}) = 1
 # A cell's total demand for one resource: each species' per-individual need times how many are
 # there. This is the `E` the hot loop divides supply by, and the reason `getdemand` returns the
 # demand itself rather than a number - the total is a different question, asked here.
-_getdemand(abun::Vector{Int64}, demand::Demand) = sum(abun .* demand.resource)
+_getdemand(abun::Vector{Int64}, demand::Demand) = abun ⋅ demand.resource
 
 # The niche axis a demand is stated on - the counterpart of `axisof` for a supply, and what
 # `_checkaligned` would use to compare the two sides by axis rather than by stored unit.

@@ -15,6 +15,7 @@
 import EcoSISTEM
 using MPI
 using LinearAlgebra
+using KahanSummation: sum_kbn
 using Distributions
 using Random
 
@@ -38,7 +39,7 @@ The two-argument form is the generic `update!(::AbstractEcosystem, ::Unitful.Tim
 `src/dynamics.jl`, which forwards here with no intervention.
 
  **The schedule/region machinery is already rank-safe**: selections come from the counter-based
-`hash((seed, :intervention, k, step))` stream and the `active` mask and layers are replicated on
+stream seeded from `(seed, :intervention, k, step)` and the `active` mask and layers are replicated on
 every rank, so every rank computes the same cells and makes the same edit without communicating.
 
  **All six operations work**, including the abundance ones: by the time interventions run the
@@ -93,9 +94,10 @@ function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
                 truesp = eco.firstsp + mpisp - 1
                 rng = EcoSISTEM.getrng(eco, truesp)
                 # Calculate how much birth and death should be adjusted
-                adjusted_birth, adjusted_death = resource_adjustment(eco,
-                                                                     eco.habitat.supply,
-                                                                     sc, truesp)
+                adjusted_birth,
+                adjusted_death = resource_adjustment(eco,
+                                                     eco.habitat.supply,
+                                                     sc, truesp)
 
                 # Both are per-individual rates over the timestep. Only the death one becomes
                 # a probability: deaths are drawn per individual (Binomial), while births are a
@@ -292,7 +294,9 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
     b = reshape(parent(ustrip.(_getsupply(habitat.supply))), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
-    B = b ./ sum(b)
+    # A compensated sum, for the correctly rounded total: `sum` may reassociate once vectorised,
+    # and this sum affects reproducibility. For speed, we should revert to sum().
+    B = b ./ sum_kbn(b)
     # Loop through owned species, drawing from each species' global RNG stream
     abundances = @view spplist.abun[(ml.rows_tuple.first):(ml.rows_tuple.last)]
     for mpisp in eachindex(abundances)
@@ -325,7 +329,7 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
     fractions = EcoSISTEM._zipmap(values(habitat.supply)) do supply
         b = reshape(parent(copy(_getsupply(supply))), length(grid))
         b[.!activity] .= zero(eltype(b))
-        return b ./ sum(b)
+        return b ./ sum_kbn(b)
     end
     B = EcoSISTEM._fold(fractions) do f1, f2
         return f1 .* f2
@@ -334,7 +338,8 @@ function EcoSISTEM.populate!(ml::MPIGridLandscape,
     abundances = @view spplist.abun[(ml.rows_tuple.first):(ml.rows_tuple.last)]
     for mpisp in eachindex(abundances)
         truesp = ml.rows_tuple.first + mpisp - 1
-        rand!(rngs[truesp], Multinomial(abundances[mpisp], B ./ sum(B)),
+        rand!(rngs[truesp],
+              Multinomial(abundances[mpisp], B ./ sum_kbn(B)),
               (@view ml.rows_matrix[mpisp, :]))
     end
     return EcoSISTEM.synchronise_from_rows!(ml)

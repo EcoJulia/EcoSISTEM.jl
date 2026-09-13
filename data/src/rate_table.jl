@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Report every shipped layer `Code` (across all `data/RasterDataSources/*.csv` tables) with the one
+# Report every shipped layer `Code` (across all `data/catalogue/*.csv` tables) with the one
 # quantity the catalogue does **not** store: how much a cell actually receives per unit area if the
 # timestep is one month. Writes `rate_table.csv` alongside this script.
 #

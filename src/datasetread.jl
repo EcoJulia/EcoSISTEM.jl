@@ -11,9 +11,10 @@
 # caching   `_cachedlayer`, `_aggcachepath`, `_fnid`
 #
 # It sits in the main module rather than in an extension because it names no climate-data-source
-# package at all: every function here takes a type `T` and file paths,
-# and the dataset-specific methods (`_stackaxis`, `_getrasterkw` and the rest) live in
-# `EcoSISTEMRasterDataSourcesExt`, which supplies them over these generic helpers.
+# package at all: every function here takes a type `T` and file paths. What differs between
+# datasets comes from the shipped catalogue (`_stackaxis`, `_checkcatalogue`) or, for the one fact
+# that is about `getraster` rather than the data (`_getrasterkw`), from
+# `EcoSISTEMRasterDataSourcesExt`, which supplies it over these generic helpers.
 # Putting the generic half in an extension would have made an extension that names nothing from its
 # own trigger, which stops precompiling the moment that dependency is weakened.
 #
@@ -35,12 +36,14 @@ using Rasters
 
 using DimensionalData
 
-using DimensionalData.Lookups: Sampled, Categorical, Intervals, Center,
-                               locus, ForwardOrdered, Irregular, Regular
+using DimensionalData.Lookups: Sampled, Categorical, Intervals, Center, locus,
+                               ForwardOrdered, Irregular, Regular, Points
 
 import Rasters: Projected
 
 using JLD2: jldsave, jldopen
+
+using SHA: sha256
 
 import Rasters: X, Y, Ti
 
@@ -48,6 +51,11 @@ import Unitful.°, Unitful.°C, Unitful.mm
 
 # ArchGDAL is needed to register the GDAL backend Rasters uses to read GeoTIFFs.
 import ArchGDAL
+
+# Imported for a SIDE EFFECT and referencing no symbol: NCDatasets registers the netCDF backend
+# Rasters opens a reanalysis file with, as ArchGDAL registers the GDAL one. It must not be removed
+# in an unused-import pass; the loss only shows up as a data-dependent read failure.
+using NCDatasets
 
 # How far a step may sit from a whole arcsecond and still be taken as one. The worst real offender is
 # CHELSA's 89.999964 arcsec for 90 - a relative error of 4e-7 - while the smallest *genuine* step
@@ -66,54 +74,12 @@ const _ORIGIN_CELLFRAC = 0.05
 # RAM; anything larger (e.g. the multi-GB CHELSA bioclim file on a small machine) stays lazy.
 const _READ_WHOLE_FRACTION = 0.5
 
-# Content hash of this file, folded into the aggregate cache key so any change to the reading /
+# Content digest of this file, folded into the aggregate cache key so any change to the reading /
 # aggregation machinery here invalidates the cache - a cached result is only valid for the code that
 # produced it. Evaluated at precompile, so it tracks the source automatically (a change to this file
-# recompiles the module and updates the hash).
-const _AGGCODEHASH = hash(read(@__FILE__, String))
-
-"""
-    readfile(file::String; source = SyntheticData, unit = NoUnits, cut = nothing)
-
-Import a raster file from a path string as a [`ClimateRaster`](@ref), the same type the dataset
-`read` methods return, so that anything that takes a raster takes this one.
-
-# Arguments
-
-  - `file`: path to the raster, in any format GDAL reads.
-  - `source`: the data source the raster is recorded as coming from - a dataset type such as
-    `WorldClim{BioClim}` where the file is a layer of one, or the default [`SyntheticData`](@ref)
-    for a file that belongs to no catalogued dataset, such as a mask or a hand-made layer.
-  - `unit`: the physical unit to attach to the values, which the file itself cannot state. Defaults
-    to `NoUnits`, leaving them as bare magnitudes.
-  - `cut`: a region to restrict the read to as an `Extents.Extent` of `°` intervals - from
-    [`boundingbox`](@ref), say - or `nothing` for the whole file. Applied **lazily**, before the
-    pixels are fetched, so cutting a global layer to one country costs the country rather than the
-    globe.
-  - `xmin`, `xmax`, `ymin`, `ymax`: **deprecated**, and warn when used. All four together mean
-    `cut = Extent(Y = (ymin, ymax), X = (xmin, xmax))`; passing some of them, or passing them
-    alongside `cut`, is an error. Pass `cut` instead.
-"""
-function readfile(file::String; source::Type = SyntheticData, unit = NoUnits,
-                  cut = nothing, xmin = nothing, xmax = nothing, ymin = nothing,
-                  ymax = nothing)
-    n = count(!isnothing, (xmin, xmax, ymin, ymax))
-    if n == 4
-        isnothing(cut) ||
-            error("`readfile`: pass either `cut` or the `xmin`/`xmax`/`ymin`/`ymax` extent, not both.")
-        Base.depwarn("The `xmin`/`xmax`/`ymin`/`ymax` keywords are deprecated; they are being used " *
-                     "as `cut = Extent(Y = (ymin, ymax), X = (xmin, xmax))`. Pass `cut` (e.g. from " *
-                     "`boundingbox`) instead.", :readfile)
-        cut = Extents.Extent(Y = (ymin, ymax), X = (xmin, xmax))
-    elseif n != 0
-        error("`readfile` needs all four of `xmin`/`xmax`/`ymin`/`ymax` (deprecated) or none of " *
-              "them; got $n.")
-    end
-    return ClimateRaster(source,
-                         _applycut(_rastertodimarray(_readraster(file),
-                                                     unit = unit),
-                                   cut))
-end
+# recompiles the module and updates the digest). SHA-256 rather than `hash`: `Base.hash` changes its
+# values between Julia versions, and a cache primed under one Julia must serve every other.
+const _AGGCODEHASH = bytes2hex(sha256(read(@__FILE__)))
 
 # Whether a Rasters dimension is one of the two spatial axes, so `_rastertodimarray` can
 # filter to the non-spatial (band/time) ones.
@@ -143,14 +109,11 @@ function _locus(sourcedim)
 end
 
 # Kind of axis stacked when combining multiple files of a single layer/variable: a monthly series
-# (`Ti`) or a band/variable index (`Dim{:layer}`). Returns the *type itself*, not a `:time`/
-# `:layer` Symbol - so `_mkstackaxis` below is genuine multiple dispatch, resolved at compile
-# time from the statically-known source type `T`, rather than a runtime branch on a value (the
-# `Val(Symbol(...))`-shaped anti-pattern this project avoids, just the value-vs-dispatch mirror of
-# it: a compile-time-knowable choice was being funnelled through a runtime `Symbol` comparison).
-# The per-dataset methods (WorldClim's and CHELSA's monthly climate stack on `Ti`) are in
-# `EcoSISTEMRasterDataSourcesExt`; this is the fallback they specialise.
-_stackaxis(::Type) = Dim{:layer}
+# (`Ti`) or a band/variable index (`Dim{:layer}`), read off the shipped catalogue - a source whose
+# layer table declares a temporal resolution is a series. Returns the *type itself*, not a
+# `:time`/`:layer` Symbol, so `_mkstackaxis` below is genuine multiple dispatch on the axis type
+# rather than a runtime branch on a value.
+_stackaxis(T::Type) = _hastimeaxis(T) ? Ti : Dim{:layer}
 
 # Build the axis stacked when combining `n` files of a single layer/variable - one method per
 # axis type (see `_stackaxis`), not a runtime branch on a value.
@@ -344,8 +307,12 @@ end
 # A `Rasters.Raster` as the plain `DimArray` this package stores, with missing values as `NaN`,
 # latitude ascending and the unit attached. This is the one boundary where Rasters' representation is
 # converted to ours, so a change in what a layer holds is a change here and nowhere else.
+# `expressedin`: the unit the bare magnitudes are wanted in. A file that states its own unit (a
+# netCDF `units` attribute) is converted into it, so a kelvin file read for a Celsius table arrives
+# in Celsius; a file stating none, as a GeoTIFF does, is taken to be in it already. `nothing`
+# takes every file's magnitudes as they are.
 function _rastertodimarray(ras::Rasters.AbstractRaster; unit = NoUnits,
-                           stackaxis::Type = Ti)
+                           stackaxis::Type = Ti, expressedin = nothing)
     r = Rasters.replace_missing(ras, NaN)
     # latitude/northing ascending (GeoTIFF `Y` is usually stored north->south)
     (first(Rasters.lookup(r, Y)) < last(Rasters.lookup(r, Y))) ||
@@ -361,11 +328,123 @@ function _rastertodimarray(ras::Rasters.AbstractRaster; unit = NoUnits,
     axisunit = _crsunit(crs)
     ydim = _spatialdim(Y, r, axisunit, crs)
     xdim = _spatialdim(X, r, axisunit, crs)
-    data = Float64.(Array(r)) .* unit
+    data = _expressed(Float64.(Array(r)), _fileunit(ras), expressedin) .* unit
     ndims(data) == 2 && return DimArray(data, (ydim, xdim))
     stackdim = _stackdim(isempty(others) ? nothing : first(others), stackaxis,
                          size(data, 3))
     return DimArray(data, (ydim, xdim, stackdim))
+end
+
+# Bare magnitudes in `wanted`, given the unit the file states them in: converted where both are
+# known, and taken as they are where either is not.
+function _expressed(data, fileunit, wanted)
+    (isnothing(wanted) || wanted === NoUnits || fileunit === NoUnits) &&
+        return data
+    return ustrip.(wanted, data .* fileunit)
+end
+
+# The unit a file states for its values - a CF `units` attribute - or `NoUnits` where it states
+# none, as a GeoTIFF does.
+_fileunit(ras) = _parsecfunit(_metadatum(ras, "units"))
+
+# A raster's metadata entry as text, blank where the file carries no metadata at all.
+function _metadatum(ras, key)
+    m = Rasters.metadata(ras)
+    m isa DimensionalData.Lookups.NoMetadata && return ""
+    return string(get(m, key, ""))
+end
+
+# Spellings some providers give a unit that Unitful does not know, each mapped to the one it does:
+# NOAA PSL writes kelvin `degK`, kilograms `Kg`, and a fraction `frac.`, which is no unit at all.
+# Whole tokens only, so `Kg` inside a longer name is left alone.
+const _CFUNIT_ALIASES = (r"\bdegK\b" => "K", r"\bKg\b" => "kg",
+                         r"^\s*frac\.\s*$" => "")
+
+# Parse a CF `units` attribute, as read off a netCDF file ("J m**-2", "m**3 m**-3"), into a Unitful
+# unit. CF spells exponentiation `**` where Unitful spells it `^`, and a bare space is an implicit
+# product; a missing or blank attribute, or one an alias empties, means no known unit. The same
+# `unit_context` as `LayerCatalogue.jl` uses for the shipped CSV tables, so the two agree on what a
+# unit string means.
+function _parsecfunit(s::AbstractString)
+    s = replace(s, _CFUNIT_ALIASES...)
+    isempty(s) && return NoUnits
+    return uparse(replace(s, "**" => "^", " " => "*"),
+                  unit_context = [Unitful, Units])
+end
+
+# Whether a file's longitudes need rolling onto (-180, 180]: yes when its dataset's row says the
+# files run 0 to 360, no when it says -180 to 180, and where the row is blank the file decides -
+# any longitude beyond 180 means the 0 to 360 convention.
+function _needswrap(::Nothing, aa)
+    return maximum(ustrip.(parent(DimensionalData.lookup(aa, X)))) > 180
+end
+
+_needswrap(range::Tuple, aa) = ustrip(°, range[2]) > 180
+
+# Roll a `(Y, X[, third])` array from the 0 to 360 degree longitude convention onto (-180, 180],
+# reordering the data columns so that longitude stays ascending.
+#
+# `order` and `span` are stated rather than left `Auto`, which is what DimensionalData defaults to for
+# a plain `Vector`-backed lookup because it cannot cheaply infer either from an arbitrary vector. An
+# `Auto` span here is not resolved lazily later - it is unindexable: `_slicespan` has no method for
+# `AutoSpan` at all, so any later indexing of the result, `_applycut`'s crop included, throws a
+# `MethodError`. `order` is `ForwardOrdered` because `sortperm` has just made it so, and `span` is
+# `Irregular` with explicit edge bounds rather than `Regular` so that nothing assumes perfectly
+# uniform spacing survived the wrap.
+function _wraplong180(aa::DimArray)
+    xdim = dims(aa, X)
+    lonvals = parent(DimensionalData.lookup(aa, X))
+    wrapped = mod.(ustrip.(lonvals) .+ 180, 360) .- 180
+    perm = sortperm(wrapped)
+    sortedlon = wrapped[perm] .* °
+    lo = length(sortedlon) > 1 ? sortedlon[2] - sortedlon[1] :
+         zero(eltype(sortedlon))
+    hi = length(sortedlon) > 1 ? sortedlon[end] - sortedlon[end - 1] :
+         zero(eltype(sortedlon))
+    newx = X(Projected(sortedlon, sampling = Intervals(_locus(xdim)),
+                       crs = Rasters.crs(xdim), order = ForwardOrdered(),
+                       span = Irregular((first(sortedlon) - lo / 2,
+                                         last(sortedlon) + hi / 2))))
+    others = dims(aa)[3:end]
+    index = ntuple(i -> i == 2 ? perm : Colon(), ndims(aa))
+    return rebuild(aa, data = aa.data[index...],
+                   dims = (dims(aa, Y), newx, others...))
+end
+
+# One array from the arrays a spec's files read to, in time. Files carrying a third axis of their
+# own (a netCDF series each) are joined along it; single-slice files are stacked into one, labelled
+# by `times` where given and by monthly ordinals otherwise. `times` replaces whatever the files
+# said, one per slice.
+function _stackfiles(layers::AbstractVector, times)
+    if ndims(first(layers)) == 3
+        world = length(layers) == 1 ? only(layers) :
+                _withtime(cat((parent(l) for l in layers)..., dims = 3),
+                          first(layers),
+                          reduce(vcat,
+                                 (collect(DimensionalData.lookup(l, Ti))
+                                  for l in layers)))
+    elseif length(layers) == 1 && isnothing(times)
+        return only(layers)
+    else
+        world = _withtime(cat((parent(l) for l in layers)..., dims = 3),
+                          first(layers),
+                          isnothing(times) ?
+                          collect((1:length(layers)) .* month_mean_duration) :
+                          collect(times))
+    end
+    isnothing(times) && return world
+    length(times) == size(world, 3) ||
+        error("`times` names $(length(times)) time(s) for $(size(world, 3)) slice(s); give " *
+              "one per slice.")
+    return _withtime(parent(world), world, collect(times))
+end
+
+# `data` on `like`'s spatial dims with a time axis of `coords`, as a file's own time axis is
+# carried: points, irregular, ascending.
+function _withtime(data, like, coords::AbstractVector)
+    tdim = Ti(Sampled(coords, order = ForwardOrdered(), span = Irregular(),
+                      sampling = Points()))
+    return DimArray(data, (dims(like, Y), dims(like, X), tdim))
 end
 
 # Apply the optional `cut` (an `Extents.Extent` of `°` bounds) to a lat×long[×z] world.
@@ -405,12 +484,16 @@ end
 # `scale`-aggregated `unit`-tagged form of source file `f` (with reducer `fn`) is cached as a JLD2
 # `DimArray`, or `nothing` if `fn` is not cacheable. Keyed on the source's path/size/mtime - a
 # `stat`, deliberately not a read, so a cache hit never touches the multi-GB source - plus `scale`,
-# the reducer id, the unit and `_AGGCODEHASH` (so a machinery change invalidates it).
-function _aggcachepath(f, scale, fn, u)
+# the reducer id, the unit and `_AGGCODEHASH` (so a machinery change invalidates it). Digested with
+# SHA-256, never `Base.hash`, whose values change between Julia versions: the same file must map
+# to the same entry under every Julia, or a cache primed by one is invisible to the next.
+function _aggcachepath(f, scale, fn, u, name, level, expressedin)
     id = _fnid(fn)
     isnothing(id) && return nothing
-    key = string(hash((abspath(f), filesize(f), mtime(f), scale, id, string(u),
-                       _AGGCODEHASH)), base = 16)
+    key = bytes2hex(sha256(join((abspath(f), filesize(f), mtime(f), scale, id,
+                                 string(u), string(name), string(level),
+                                 string(expressedin), _AGGCODEHASH),
+                                '\0')))[1:16]
     return joinpath(assetdir(), "aggregates", key * ".jld2")
 end
 
@@ -470,6 +553,9 @@ _lazycrop(r, ::Nothing, ::Integer) = r
 
 function _lazycrop(r, cut, scale::Integer)
     _crsunit(Rasters.crs(r)) === ° || return r
+    # A file in the 0 to 360 convention is rolled onto -180 to 180 after reading, so a window
+    # stated on that axis cannot be applied to it beforehand.
+    maximum(parent(DimensionalData.lookup(r, X))) > 180 && return r
     rows = _blockrange(dims(r, Y), ustrip(°, cut.Y[1]),
                        ustrip(°, cut.Y[2]), scale)
     cols = _blockrange(dims(r, X), ustrip(°, cut.X[1]),
@@ -486,12 +572,128 @@ end
 # so when it comfortably fits in RAM we read it whole first (~6× faster and far fewer allocations); larger
 # files fall back to the lazy aggregate to stay within memory. `_rastertodimarray` then materialises the
 # (small) aggregated result.
-function _readraster(f::AbstractString; scale::Integer = 1, fn = mean,
-                     cut = nothing)
-    r, raw = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-        return Raster(f, lazy = true), Raster(f, lazy = true, scaled = false)
+# A netCDF coordinate variable with no `bounds` marks the point each value applies to, so Rasters
+# declares its axes `Points`; on a regular grid that point is the centre of a cell one step wide,
+# which is how every consumer of a reanalysis grid reads it, and what the spatial-axis check in
+# `_locus` requires to be said out loud. Axes already declaring intervals are left alone.
+function _centresampled(ras)
+    pointed = filter(D -> DimensionalData.Lookups.sampling(Rasters.lookup(ras,
+                                                                          D)) isa
+                          DimensionalData.Lookups.Points, (X, Y))
+    isempty(pointed) && return ras
+    return Rasters.set(ras,
+                       (D =>
+                            DimensionalData.Lookups.Intervals(DimensionalData.Lookups.Center())
+                        for D in pointed)...)
+end
+
+# One level of a raster holding several - a netCDF variable on a `level` axis, which Rasters maps
+# to `Z` - as a lazy view, so nothing but that level is ever read. `level` is the depth of the
+# level to take as the file states it, positive downward, in any length unit; the axis's own
+# `units` attribute converts it. A raster with no `Z` axis is returned as it is, `level` or not,
+# since a file holding one layer has nothing to select; one with a `Z` axis and no `level` is
+# refused, naming the levels, because a stack of soil layers is not a series in time and reading
+# it as one would be wrong silently.
+function _selectlevel(r, level)
+    Rasters.hasdim(r, Z) || return r
+    zs = Rasters.lookup(r, Z)
+    isnothing(level) &&
+        error("`$(Rasters.name(r))` has a `level` axis of $(length(zs)) levels " *
+              "($(join(parent(zs), ", "))) and no level was selected: name the layer through a " *
+              "catalogued source whose row gives a `VerticalExtent` range, which selects the " *
+              "level at its top.")
+    zunit = _parsecfunit(string(get(DimensionalData.metadata(dims(r, Z)),
+                                    "units", "")))
+    zunit === NoUnits &&
+        error("`$(Rasters.name(r))` has a `level` axis with no `units` attribute, so the " *
+              "level $level cannot be found on it.")
+    wanted = ustrip(zunit, level)
+    i = findfirst(z -> isapprox(z, wanted, atol = 1e-6 * max(1.0, abs(wanted))),
+                  parent(zs))
+    isnothing(i) &&
+        error("`$(Rasters.name(r))` has levels $(join(parent(zs), ", ")) $zunit, none of which " *
+              "is the $level its catalogue row selects.")
+    return view(r, Z(i))
+end
+
+# The Rasters backend a catalogued format is opened with. Chosen from the row rather than sniffed
+# from the filename, because a file downloaded from the CDS carries no extension and the sniff
+# then falls back to GDAL, which drops a netCDF file's CF coordinates and `units`.
+function _rasterssource(format::Symbol)
+    return format === :netCDF ? Rasters.NCDsource() :
+           Rasters.GDALsource()
+end
+
+# Check a just-opened raster of source `T` against what `datasets.csv` records about `T`, and
+# refuse the read, naming the table, where they disagree. Only the header facts the file itself
+# states are compared - its longitude convention, CRS, cell size and extent - and only where the row
+# records them, a blank cell meaning the file is the authority. A source with no row is not checked.
+_checkcatalogue(T::Type, ras) = _checkcatalogue(_datasetrecord(T), ras)
+
+_checkcatalogue(::Nothing, ras) = nothing
+
+function _checkcatalogue(rec::DatasetRecord, ras)
+    c = Rasters.crs(ras)
+    crs = (isnothing(c) || _isblankcrs(c)) ? nothing : c
+    axisunit = _crsunit(crs)
+    xs, ys = Rasters.bounds(dims(ras, X)), Rasters.bounds(dims(ras, Y))
+    xstep, ystep = _lookupstep(dims(ras, X)), _lookupstep(dims(ras, Y))
+    # Bounds are compared to within one cell, which covers a provider whose origin sits a fraction
+    # of a cell off the lattice (CHELSA) and a lookup whose bounds are cell centres rather than edges.
+    disagree(what) = error("a `$(rec.dataset)` file disagrees with `$(_DATASETS_FILE)`: $what. " *
+                           "Correct the row, or blank the cell so the file is trusted.")
+    if !isnothing(crs) && !isnothing(rec.crs) && !_samecrs(rec.crs, crs)
+        disagree("its CRS is not the recorded $(_crsname(rec.crs))")
     end
-    r = _mask_int_fills(r, raw)
+    if !isnothing(rec.longituderange) && axisunit == °
+        lo, hi = ustrip(°, rec.longituderange[1]),
+                 ustrip(°, rec.longituderange[2])
+        (xs[1] >= lo - xstep && xs[2] <= hi + xstep) ||
+            disagree("its longitudes run $(xs[1]) to $(xs[2]) where the recorded convention " *
+                     "is $lo to $hi")
+    end
+    if !isnothing(rec.resolution)
+        listed = [ustrip(axisunit, r)
+                  for r in rec.resolution
+                  if dimension(r) == dimension(1axisunit)]
+        # A resolution in the other kind of unit cannot be compared without a latitude, so a row
+        # listing only lengths says nothing about a file in degrees, and the reverse.
+        if !isempty(listed) &&
+           !any(r -> isapprox(r, xstep, rtol = 1e-3) &&
+                     isapprox(r, ystep, rtol = 1e-3), listed)
+            disagree("its cells are $xstep by $ystep $axisunit where the recorded resolutions " *
+                     "are $(join(listed, ", ")) $axisunit")
+        end
+    end
+    if !isnothing(rec.extent) && axisunit == °
+        ey = ustrip.(°, rec.extent.Y)
+        ex = ustrip.(°, rec.extent.X)
+        # The extent is recorded on (-180, 180], so a file in the 0 to 360 convention is compared
+        # after rolling: its ground east of 180 lies west of -180 on the recorded axis.
+        xparts = xs[2] <= 180 + xstep ? ((xs[1], xs[2]),) :
+                 xs[1] >= 180 - xstep ? ((xs[1] - 360, xs[2] - 360),) :
+                 ((xs[1], 180.0), (-180.0, xs[2] - 360))
+        (ys[1] >= ey[1] - ystep && ys[2] <= ey[2] + ystep &&
+         all(x -> x[1] >= ex[1] - xstep && x[2] <= ex[2] + xstep, xparts)) ||
+            disagree("it covers Y $(ys[1]) to $(ys[2]), X $(xs[1]) to $(xs[2]) where the " *
+                     "recorded extent is Y $(ey[1]) to $(ey[2]), X $(ex[1]) to $(ex[2])")
+    end
+    return nothing
+end
+
+# `source` and `name` open the file as `_lazyopen` does: the backend the catalogue names, and the
+# variable to take from a netCDF file.
+function _readraster(f::AbstractString; scale::Integer = 1, fn = mean,
+                     cut = nothing, source = nothing, name = nothing,
+                     level = nothing)
+    r,
+    raw = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        return _selectlevel(Raster(f, lazy = true, source = source,
+                                   name = name), level),
+               _selectlevel(Raster(f, lazy = true, scaled = false,
+                                   source = source, name = name), level)
+    end
+    r = _centresampled(_mask_int_fills(r, raw))
     r = _lazycrop(r, cut, scale)
     scale > 1 || return r
     fits = _readbytes(r) < _READ_WHOLE_FRACTION * Sys.total_memory()
@@ -573,21 +775,31 @@ _filelist(x) = String[String(f) for f in values(x)]
 # to skip a slow whole-file `aggregate`, which a window does not do anyway, and a per-window key
 # would fill the cache with near-duplicates.
 function _cachedlayer(f, scale, fn, u; cut = nothing,
-                      axis::Type{<:NicheAxis} = NicheAxis)
+                      axis::Type{<:NicheAxis} = NicheAxis, source = nothing,
+                      name = nothing, level = nothing, expressedin = nothing)
     fn = _reducer(fn, axis)
     (scale > 1 && isnothing(cut)) ||
         return _rastertodimarray(_readraster(f, scale = scale, fn = fn,
-                                             cut = cut), unit = u)
-    path = _aggcachepath(f, scale, fn, u)
+                                             cut = cut, source = source,
+                                             name = name, level = level),
+                                 unit = u, expressedin = expressedin)
+    path = _aggcachepath(f, scale, fn, u, name, level, expressedin)
     if !isnothing(path) && isfile(path)
         return jldopen(path, "r") do io
             return io["layer"]
         end
     end
-    layer = _rastertodimarray(_readraster(f, scale = scale, fn = fn), unit = u)
+    layer = _rastertodimarray(_readraster(f, scale = scale, fn = fn,
+                                          source = source, name = name,
+                                          level = level),
+                              unit = u, expressedin = expressedin)
     if !isnothing(path)
         mkpath(dirname(path))
-        jldsave(path, layer = layer)
+        # Written beside the target and renamed into place: parallel processes prime the same layer
+        # at once, and one must never open the other's half-written file.
+        part = path * ".part-" * string(getpid())
+        jldsave(part, layer = layer)
+        mv(part, path, force = true)
     end
     return layer
 end
@@ -607,6 +819,7 @@ _firstfile(raw) = first(_filelist(raw))
 function _readsource(T::Type, files::Vector{String};
                      cut = nothing, scale = 1,
                      fn = _defaultfn(T), slices = nothing, axis = NicheAxis)
+    _checkcatalogue(T, _lazyopen(first(files)))
     u = _layerunit(T, files)
     aas = map(f -> _cachedlayer(f, scale, fn, u, cut = cut, axis = axis), files)
     world = _stacklayers(aas,
@@ -625,6 +838,7 @@ function _readmultilayer(T::Type,
                          raw::Vector{<:NamedTuple};
                          cut = nothing, scale = 1,
                          fn = _defaultfn(T), slices = nothing, axis = NicheAxis)
+    _checkcatalogue(T, _lazyopen(_firstfile(raw)))
     layernames = collect(keys(first(raw)))
     perlayer = map(layernames) do name
         files = String[String(nt[name]) for nt in raw]

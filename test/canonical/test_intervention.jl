@@ -9,7 +9,7 @@
 # blessing a result:
 #
 #   - **the selection stream** - `RandomCells` draws from a counter-based stream
-#     `hash((seed, :intervention, k, step))`, so which cells are chosen is reproducible and a change
+#     seeded from `(seed, :intervention, k, step)`, so which cells are chosen is reproducible and a change
 #     to that scheme silently redistributes everything;
 #   - **the ordering** - the clock advances, *then* interventions run, *then* layers update, so a
 #     `SetChange` bites the same step rather than one late. Moving an intervention either side of the

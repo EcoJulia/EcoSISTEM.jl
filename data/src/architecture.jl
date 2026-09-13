@@ -96,8 +96,12 @@ that no block names).
 function architecture_report()
     owned = Dict{Symbol, Type}()
     aliases = Set{Symbol}()
+    # The parent's declaration wins a name an extension declares too: `ourmodules()` lists the
+    # parent first, and `EcoSISTEMMPIExt`'s concrete `MPIEcosystem` sits under the parent's abstract
+    # `MPIEcosystem`, so letting the later module overwrite the earlier would report the abstract
+    # type's edge as `MPIEcosystem <|-- MPIEcosystem` whenever the MPI extension happens to be loaded.
     for m in ourmodules(), n in names(m, all = true, imported = false)
-        isowntype(m, n) && (owned[n] = getfield(m, n))
+        isowntype(m, n) && !haskey(owned, n) && (owned[n] = getfield(m, n))
         isaliastype(m, n) && push!(aliases, n)
     end
 

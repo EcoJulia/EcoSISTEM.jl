@@ -57,35 +57,11 @@ function EcoSISTEM._datasetspec(dataset::Type{<:RDS.RasterDataSource}, code)
     return SourceSpec(dataset, code)
 end
 
-# --- Catalogue: the one entry keyed on a concrete dataset ------------------------------------------
+# --- The one per-dataset fact that is about `getraster` rather than about the data --------------
 #
-# The rest of `LayerCatalogue.jl` stays in the parent, because it uses its `Type` argument only to find
-# a shipped CSV. This is the single exception - a per-dataset correction, and therefore a fact about
-# `RasterDataSources` rather than about the catalogue's shape. The parent's `::Type` fallback of 1.0
-# stays where it is; this adds to it.
-function EcoSISTEM._documentedceiling(::Type{<:RDS.WorldClim{<:RDS.BioClim}},
-                                      code)
-    return 100.0
-end
-
-# --- Per-dataset facts the readers dispatch on ------------------------------------------------------
-#
-# **These are the specialisations of `datasetread.jl`'s fallbacks, and two of the three fail SILENTLY
-# if they go missing** - which is exactly what happened while this extension was being built: they
-# were deleted from the parent with only a comment saying they had moved here, and `extras_canonical`
-# (the one gate that reads real data) is what caught it.
-
-# Kind of axis stacked when combining multiple files of one layer: a monthly series (`Ti`) rather
-# than the `Dim{:layer}` band index the parent defaults to.
-# CHELSA's `Climate` layers are the same shape as WorldClim's - one file per month - so they stack
-# on `Ti` too. Without this method they fall through to the `Dim{:layer}` fallback and are read as
-# twelve unrelated *bands*, which means a `SourceSpec(CHELSA{Climate}, ...)` is **not recognised as a
-# series at all** and cannot drive a layer through time. It fails silently: the data loads, it
-# simply is not a time series.
-EcoSISTEM._stackaxis(::Type{<:RDS.WorldClim{RDS.Climate}}) = Ti
-EcoSISTEM._stackaxis(::Type{<:RDS.CHELSA{RDS.Climate}}) = Ti
-
-# Default keywords forwarded to `getraster`: WorldClim monthly climate must name its months.
-# The one of the three that fails loudly - `getraster` has no default for `month`, so a read
-# without this is an `UndefKeywordError` rather than a wrong answer.
+# Everything the readers need to know about a dataset - which axis its files stack on, the
+# ceiling behind a published-scale check, its CRS and extent - is in the shipped catalogue, keyed
+# on the type alone, so the parent answers it. What remains here is a fact about this package's
+# `getraster`: WorldClim monthly climate must name its months, since `getraster` has no default for
+# `month` and a read without one is an `UndefKeywordError`.
 EcoSISTEM._getrasterkw(::Type{<:RDS.WorldClim{RDS.Climate}}) = (month = 1:12,)

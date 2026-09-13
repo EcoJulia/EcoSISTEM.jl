@@ -230,7 +230,13 @@ end
 
     # The axes whose resource is a **stock** rather than a flow, named explicitly so that adding
     # another is a deliberate act rather than a silently weakened guard.
-    stocks = (SurfaceArea,)
+    stocks = (SurfaceArea, SoilVolume, SoilWaterVolume)
+    # The exponent of time in a dimension: zero for a stock, negative for a flow.
+    timeexponent(d) = sum((Unitful.power(x)
+                           for x in typeof(d).parameters[1]
+                           if Unitful.name(x) == :Time), init = 0)
+    @test timeexponent(dimension(m^2)) == 0
+    @test timeexponent(dimension(kJ / day)) == -3
 
     for A in resourceaxes
         u = EcoSISTEM.canonicalunit(EcoSISTEM.Resource, A)
@@ -241,7 +247,7 @@ end
         # that is what `Supply{A}`/`Demand{A}` buy. What is worth asserting is which *kind* of
         # quantity it is, and that the axis is honest about it.
         if any(==(A), stocks)
-            @test dimension(elt) == dimension(m^2)          # a stock: an area, no time
+            @test timeexponent(dimension(elt)) == 0         # a stock: an amount, no time
             @test !hasmethod(EcoSISTEM._basedimension, Tuple{Type{elt}})
         else
             # a genuine rate: `substance × 𝐓^-1` exactly, not merely "some negative time exponent"

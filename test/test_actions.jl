@@ -52,7 +52,7 @@ include("buildfixtures.jl")
         eco2 = Test1Ecosystem()
         counts = Int[]
         result = simulate_action!(eco2, times, interval, timestep) do counting
-            push!(counts, counting)
+            return push!(counts, counting)
         end
         @test counts ==
               collect(1:length((0.0month_mean_duration):interval:times))
@@ -241,6 +241,23 @@ end
                                                      demand = DEM,
                                                      demandaxis = SolarRadiation,
                                                      abundance = [1, 2, 3, 4])
+    end
+
+    @testset "names" begin
+        anon = build_species(3, tolerance = TOL, toleranceaxis = Temperature,
+                             demand = DEM, demandaxis = SolarRadiation)
+        @test anon.names == ["1", "2", "3"]
+        binomials = ["Quercus robur", "Fagus sylvatica", "Betula pendula"]
+        named = build_species(3, tolerance = TOL, toleranceaxis = Temperature,
+                              demand = DEM, demandaxis = SolarRadiation,
+                              names = binomials)
+        @test named.names == binomials
+        @test gettypenames(named.types, true) == binomials
+        @test_throws DimensionMismatch build_species(3, tolerance = TOL,
+                                                     toleranceaxis = Temperature,
+                                                     demand = DEM,
+                                                     demandaxis = SolarRadiation,
+                                                     names = ["a", "b"])
     end
 
     @testset "tolerance and demand are required" begin

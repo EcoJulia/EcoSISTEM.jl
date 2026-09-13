@@ -141,8 +141,8 @@ simulate!(eco, 1year, 1month_mean_duration)     # carries on with the new specie
 **Prefer declaring an intervention and passing it to `simulate!`.** Calling this yourself gives up
 the two guarantees the declarative form provides, and `step` is where both bite:
 
-  - **Reproducibility.** A selection's random stream is `hash((seed, :intervention, k, step))`, so a
-    `step` you have already used **reuses that stream** - a [`RandomCells`](@ref) region would draw
+  - **Reproducibility.** A selection's random stream is seeded from `(seed, :intervention, k,
+    step)`, so a `step` you have already used **reuses that stream** - a [`RandomCells`](@ref) region would draw
     the very same cells again - and a wrong `step` means the run no longer follows from its seed.
     Pass the step number the simulation has actually reached.
   - **Determinism across MPI ranks.** An intervention mutates the ecosystem, so it must be applied
@@ -223,18 +223,25 @@ _interventions(::Nothing) = ()
 # ---------------------------------------------------------------------------
 # Applying an intervention
 # ---------------------------------------------------------------------------
-# **Reproducibility is the constraint that shapes all of this.** Counter-based per step:
-# `Xoshiro(hash((seed, :intervention, k, step)))` for intervention `k` on step `step`. That
-# generalises the existing per-species `hash((seed, j))` scheme, and buys three things at once -
-# every MPI rank and every thread computes bit-identical selections without communicating; a run
-# replays exactly from any step; and species streams stay reserved for birth/death/dispersal, so
-# adding an intervention cannot re-phase the demography.
+# **Reproducibility is the constraint that shapes all of this.** Counter-based per step: a stream
+# seeded from `(seed, :intervention, k, step)` for intervention `k` on step `step`. That
+# generalises the per-species `(seed, j)` scheme, and buys three things at once - every MPI rank and
+# every thread computes bit-identical selections without communicating; a run replays exactly from
+# any step; and species streams stay reserved for birth/death/dispersal, so adding an intervention
+# cannot re-phase the demography.
 #
 
+# The word standing for `:intervention` in a stream's seed - "inter" in ASCII - so that an
+# intervention's seed can never coincide with a species' `(seed, j)`. A literal rather than
+# `hash(:intervention)`, because `Base.hash` changes between Julia versions and the seed must not.
+const _INTERVENTION_STREAM = 0x696e746572
+
 # The stream for intervention `k` on the step reaching `elapsed`. Keyed on the *step number*, not
-# on elapsed time: a float is a poor hash key, and the step index is what "replay from step n" means.
+# on elapsed time: a float is a poor seed, and the step index is what "replay from step n" means.
+# Seeded through the generator's own seeding, never `Base.hash`, so the stream is the same on every
+# Julia version.
 function _interventionrng(eco::AbstractEcosystem, k::Integer, step::Integer)
-    return Random.Xoshiro(hash((eco.seed, :intervention, k, step)))
+    return Random.Xoshiro(UInt64[eco.seed, _INTERVENTION_STREAM, k, step])
 end
 
 # **A count may be exact or drawn.** An integer means exactly that many; a **rate** means each

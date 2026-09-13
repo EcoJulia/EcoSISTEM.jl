@@ -457,19 +457,33 @@ end
 # output CRS is not predictable from its inputs, so it declines.
 _probecrs(raster::ClimateRaster) = _rastercrs(raster)
 
-function _probecrs(spec::SourceSpec)
-    return sourcecrs(spec.source, spec.code; spec.readkw...)
+# A spec naming its files answers from the first file's header - a lazy open fetches no pixels, so
+# the read can be windowed before it happens; a URL is downloaded here if it has not been already,
+# since nothing can be known about it otherwise. A source that can be asked answers through
+# `sourcecrs`, in the representation its files carry; one that cannot answers from its
+# `datasets.csv` row, or declines.
+function _probecrs(spec::RasterSpec)
+    if !isnothing(spec.files)
+        crs = Rasters.crs(_lazyopen(_resolvepath(first(spec.files));
+                                    _openkw(spec)...))
+        return _isblankcrs(crs) ? nothing : crs
+    end
+    hasmethod(sourcecrs, Tuple{typeof(spec.source), typeof(spec.code)}) &&
+        return sourcecrs(spec.source, spec.code; spec.readkw...)
+    rec = _datasetrecord(spec.source)
+    return isnothing(rec) ? nothing : rec.crs
 end
 
-# A file's CRS from its header alone - a lazy open fetches no pixels - so the read can be windowed
-# before it happens. A URL is downloaded here if it has not been already, since nothing can be known
-# about it otherwise.
-function _probecrs(spec::RasterFileSpec)
-    r = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-        return Rasters.Raster(_resolvepath(spec.path), lazy = true)
+# A raster opened for its header alone, its pixels left on disk, and GDAL's chatter silenced.
+# `source` names the backend where the filename cannot (a netCDF file without an extension),
+# `name` the variable to take from a netCDF file and `level` the level to take from a variable
+# holding several; all `nothing` for a file opened as it looks.
+function _lazyopen(path::AbstractString; source = nothing, name = nothing,
+                   level = nothing)
+    return Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+        return _selectlevel(Rasters.Raster(path, lazy = true, source = source,
+                                           name = name), level)
     end
-    crs = Rasters.crs(r)
-    return _isblankcrs(crs) ? nothing : crs
 end
 
 _probecrs(::Any) = nothing
@@ -477,14 +491,10 @@ _probecrs(::Any) = nothing
 # A file-backed spec's grid from its header alone - the CRS and the two coordinate vectors, in the
 # CRS's unit - or `nothing` where it cannot be had without reading. What `_autoscale` measures a
 # layer's cell against a target with, before deciding how coarsely to read it.
-function _lazygrid(spec::RasterFileSpec)
-    r = Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-        return Rasters.Raster(_resolvepath(spec.path), lazy = true)
-    end
-    return _gridof(r)
-end
-
-function _lazygrid(spec::SourceSpec)
+function _lazygrid(spec::RasterSpec)
+    isnothing(spec.files) ||
+        return _gridof(_lazyopen(_resolvepath(first(spec.files));
+                                 _openkw(spec)...))
     hasmethod(_lazysource, Tuple{typeof(spec.source), typeof(spec.code)}) ||
         return nothing
     r = _lazysource(spec.source, spec.code; spec.readkw...)
@@ -529,8 +539,9 @@ end
 # divisibility and needs no tolerance - the same reason `_snap` works on arcseconds. The `_ORIGIN_ATOL`
 # path remains for projected grids, where there is no integer lattice to appeal to.
 function _originaligned(sourceorigin, targetorigin, sourcestep)
-    so, to, s = _arcsecs(sourceorigin), _arcsecs(targetorigin),
-                _arcsecs(sourcestep)
+    so, to,
+    s = _arcsecs(sourceorigin), _arcsecs(targetorigin),
+        _arcsecs(sourcestep)
     if !isnothing(so) && !isnothing(to) && !isnothing(s) && !iszero(s)
         return (to - so) % s == 0
     end
@@ -1060,8 +1071,9 @@ end
 # OSR, so no dependency beyond ArchGDAL). `nothing` when the database declares none.
 function _areaofuse(crs)
     return ArchGDAL.importCRS(crs, order = :trad) do sr
-        w, s, e, n = Ref{Cdouble}(), Ref{Cdouble}(), Ref{Cdouble}(),
-                     Ref{Cdouble}()
+        w, s, e,
+        n = Ref{Cdouble}(), Ref{Cdouble}(), Ref{Cdouble}(),
+            Ref{Cdouble}()
         name = Ref{Cstring}()
         ArchGDAL.GDAL.osrgetareaofuse(sr.ptr, w, s, e, n, name) == 1 ||
             return nothing

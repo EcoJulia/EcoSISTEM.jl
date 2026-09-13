@@ -30,7 +30,7 @@ const YEARS = SMALL ? 2year : 10year
 
 # The two layers, named rather than read: bioclim 1 is annual mean temperature and bioclim 12 annual
 # precipitation. Neither the unit nor the axis is written here - the shipped catalogue
-# (`data/RasterDataSources/BioClim.csv`) says bio1 is a `Temperature` in °C and bio12 a
+# (`data/catalogue/BioClim.csv`) says bio1 is a `Temperature` in °C and bio12 a
 # `Precipitation`, and the layer is canonicalised on that authority rather than on a guess.
 temperature = SourceSpec(WorldClim{BioClim}, :bio1)
 rainfall = SourceSpec(WorldClim{BioClim}, :bio12)

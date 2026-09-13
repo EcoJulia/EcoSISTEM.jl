@@ -162,11 +162,12 @@ end
 # Figure 8 from the saved maps: q = 0 at the three times, q = 1 at the last, where the invasive's
 # dominance by abundance reaches well beyond the core it has cleared of generalists.
 function continent_figure(maps, nspecies)
-    panel(m, title; clim) = heatmap(m, c = :algae, clim = clim,
-                                    aspect_ratio = 1,
-                                    background_color_inside = :lightblue,
-                                    ticks = false, title = title,
-                                    titleloc = :left)
+    panel(m, title;
+          clim) = heatmap(m, c = :algae, clim = clim,
+                          aspect_ratio = 1,
+                          background_color_inside = :lightblue,
+                          ticks = false, title = title,
+                          titleloc = :left)
     return plot(panel(maps.burnin.alpha0, "A", clim = (0, nspecies)),
                 panel(maps.halfway.alpha0, "B", clim = (0, nspecies)),
                 panel(maps.final.alpha0, "C", clim = (0, nspecies)),

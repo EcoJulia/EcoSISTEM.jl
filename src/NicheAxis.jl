@@ -64,6 +64,15 @@ using Unitful.DefaultSymbols
            resource=Unitful.L/Unitful.d, supply=Supply{Precipitation},
            demand=Demand{Precipitation},
            bounds=(0.0mm/Unitful.d, nothing), densitywidth=1.0mm/Unitful.d)
+# **A water stock, read as a depth over the cell.** A reanalysis publishes it as a volumetric
+# fraction of a soil layer (`m^3 m^-3`); the catalogue row's `VerticalExtent` gives the layer's
+# thickness, and the read multiplies the two, so 0.3 of a 7 cm layer is 21 mm of water - comparable
+# across datasets whose layers differ, and, times the cell's area, the m^3 standing in the cell.
+# The soil itself is `SoilVolume`, under the space family.
+"""    SoilWaterVolume <: WaterAxis - the water standing in a soil layer, as a depth over the cell (mm; ERA5 swvl1, 20CRv3 soilw); a supply of m^3 per cell. """
+@nicheaxis(SoilWaterVolume<:WaterAxis, condition=mm, resource=m^3,
+           supply=Supply{SoilWaterVolume}, demand=Demand{SoilWaterVolume},
+           bounds=(0.0mm, nothing), densitywidth=1.0mm)
 """    PrecipitationSeasonality <: PrecipitationAxis - precipitation seasonality, the coefficient of variation of the monthly precipitation totals (BioClim 15; dimensionless). """
 @nicheaxis(PrecipitationSeasonality<:PrecipitationAxis, condition=NoUnits,
            densitywidth=1.0NoUnits)
@@ -228,9 +237,9 @@ using Unitful.DefaultSymbols
 #
 # **One axis per stratum, not one axis with a stratum parameter**, because the strata do not share
 # a dimension: surface and canopy are areas (m^2/m^2 -> m^2), soil is a volume (m^3/m^2 -> m^3). A single
-# axis cannot carry two canonical units. `CanopyArea`/`SoilVolume` are not declared yet; the family
-# exists so they can be added without disturbing anything.
-"""    SpaceAxis <: NicheAxis - the physical space niche axes: ground surface now, canopy and soil later. """
+# axis cannot carry two canonical units. `CanopyArea` is not declared yet; the family exists so it
+# can be added without disturbing anything.
+"""    SpaceAxis <: NicheAxis - the physical space niche axes: ground surface and soil; canopy later. """
 @nicheaxis(SpaceAxis <: NicheAxis)
 # `bounds = (0.0, 1.0)` is safe **only because axis bounds are consulted for the `Condition` role
 # alone** - measured: `_enforcebounds!`'s `Resource` method clamps at zero and never reads them. So a
@@ -240,6 +249,14 @@ using Unitful.DefaultSymbols
 @nicheaxis(SurfaceArea<:SpaceAxis, condition=NoUnits, resource=m^2,
            supply=Supply{SurfaceArea}, demand=Demand{SurfaceArea},
            bounds=(0.0, 1.0), densitywidth=1.0NoUnits)
+# **The soil itself, not the water in it** - that is `SoilWaterVolume`, under the water family. A
+# cell's rooting space is its soil depth times its area, so the layer holds a depth and `cancel`
+# makes the volume, exactly as a surface layer holds a fraction and `cancel` makes the area. A stock,
+# like the surface: nothing about it is per unit time.
+"""    SoilVolume <: SpaceAxis - the soil available for rooting, as a depth of soil over a cell (m); a supply of m^3 per cell. """
+@nicheaxis(SoilVolume<:SpaceAxis, condition=m, resource=m^3,
+           supply=Supply{SoilVolume}, demand=Demand{SoilVolume},
+           bounds=(0.0m, nothing), densitywidth=1.0m)
 
 # --- Other standalone axes -------------------------------------------------
 """    Heterogeneity <: NicheAxis - spatial habitat-heterogeneity metrics of EVI (EarthEnv HabitatHeterogeneity; dimensionless). """

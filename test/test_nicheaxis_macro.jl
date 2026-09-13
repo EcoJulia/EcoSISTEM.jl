@@ -266,6 +266,25 @@ end
     end
 end
 
+@testset "the two soil axes: a stock of soil, and a stock of the water in it" begin
+    E = EcoSISTEM
+    # Soil is space, read as a depth of soil over the cell; the water in it is a water stock, read
+    # as a depth of water. Each is a supply of cubic metres per cell, as the surface is one of
+    # square metres: a stock regulates exactly as a flux does.
+    @test SoilVolume <: E.SpaceAxis && SoilWaterVolume <: E.WaterAxis
+    @test E.canonicalunit(SoilVolume) == m
+    @test E.canonicalunit(E.Resource, SoilVolume) == m^3
+    @test E.supplytype(SoilVolume) === E.Supply{SoilVolume}
+    @test E.canonicalunit(SoilWaterVolume) == mm
+    @test E.canonicalunit(E.Resource, SoilWaterVolume) == m^3
+    @test E.supplytype(SoilWaterVolume) === E.Supply{SoilWaterVolume}
+    @test E.bounds(SoilVolume) == (0.0m, nothing)
+    @test E.bounds(SoilWaterVolume) == (0.0mm, nothing)
+    # A depth over a cell times the cell's area is the stock, in the axis's resource unit.
+    @test E.cancel(21.0mm, 4.0km^2, SoilWaterVolume) ≈ 84000.0m^3
+    @test E.cancel(0.5m, 4.0km^2, SoilVolume) ≈ 2.0e6m^3
+end
+
 @testset "bounds" begin
     b = EcoSISTEM.bounds
 
@@ -350,8 +369,9 @@ end
     interface = (EcoSISTEM.canonicalunit, EcoSISTEM.bounds,
                  EcoSISTEM.supplytype, EcoSISTEM.demandtype)
     # The method serving the root *is* "nobody has declared anything for this axis".
-    isfallback(f, A) = which(f, Tuple{Type{A}}) ===
-                       which(f, Tuple{Type{EcoSISTEM.NicheAxis}})
+    isfallback(f,
+               A) = which(f, Tuple{Type{A}}) ===
+                    which(f, Tuple{Type{EcoSISTEM.NicheAxis}})
 
     for f in interface, A in axes
         # No axis may fail to dispatch at all.

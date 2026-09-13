@@ -3,7 +3,9 @@
 module TestDatasetread
 
 using EcoSISTEM
+using EcoSISTEM: materialise, in_memory_raster
 using EcoSISTEM.Units
+import Extents
 using Unitful
 using Unitful.DefaultSymbols
 using RasterDataSources
@@ -15,6 +17,8 @@ using ArchGDAL
 using CoordinateTransformations
 using DimensionalData
 using Statistics
+using Dates: Dates
+import NCDatasets
 using Test
 
 # CHELSA's `bio1` is a 43200 x 20880 global grid, and coarsening does NOT bound the cost of reading
@@ -51,9 +55,8 @@ if !Sys.iswindows()
     winddir = dirname(first(wind))
 
     @testset "Reading functions" begin
-        @test_nowarn read(WorldClim{Climate}, :wind, month = 1:12)
-        @test_nowarn read(CRUTS, winddir, "tavg")
-        @test_nowarn read(CHELSA{Climate}, winddir, "wind")
+        @test_nowarn read(SourceSpec(WorldClim{Climate}, :wind, month = 1:12))
+        @test_nowarn read(SourceSpec(CRUTS, "tavg", directory = winddir))
         # Every whole-dataset read here is downsampled, and the reason is a hard ceiling rather
         # than tidiness: a GitHub runner has 16 GB, and one of these files reading at native
         # resolution took the process to 7.0 GB and the runner to a shutdown signal. Measured peak
@@ -68,27 +71,33 @@ if !Sys.iswindows()
         # comes back is unitless -- since neither is a property of the resolution. A test that does
         # depend on the grid asks for one layer rather than a whole dataset, so it never reaches
         # this size.
-        bigrasters() && @test_nowarn read(CHELSA{BioClim}, 1, scale = 20)
-        @test_nowarn read(EarthEnv{LandCover}, scale = 40)
-        @test_nowarn readfile(bio1)
+        bigrasters() &&
+            @test_nowarn read(SourceSpec(CHELSA{BioClim}, 1, scale = 20))
+        @test_nowarn read(SourceSpec(EarthEnv{LandCover}, scale = 40))
+        @test_nowarn read(RasterFileSpec(bio1, axis = EcoSISTEM.NicheAxis))
     end
 
     @testset "Output data" begin
-        bioclim = read(WorldClim{BioClim}, scale = 4)
-        cr = read(CRUTS, winddir, "tavg")
-        rf = readfile(bio1)
+        # A read carries the layer's unit from the table; a bare file carries what it was told.
+        bio1r = read(SourceSpec(WorldClim{BioClim}, 1, scale = 4))
+        cr = read(SourceSpec(CRUTS, "tavg", directory = winddir))
+        rf = read(RasterFileSpec(bio1, axis = EcoSISTEM.NicheAxis))
 
-        @test unit(bioclim.array[1]) == unit(rf.array[1]) == NoUnits
+        @test unit(bio1r.array[1]) == °C
+        @test unit(rf.array[1]) == NoUnits
         @test rf isa EcoSISTEM.ClimateRaster{EcoSISTEM.SyntheticData}
+        # A whole dataset of differing units is not one array.
+        @test_throws "different units" read(SourceSpec(WorldClim{BioClim},
+                                                       scale = 4))
         if bigrasters()
-            ch_b = read(CHELSA{BioClim}, 1, scale = 20)
-            @test unit(ch_b.array[1]) == NoUnits
+            ch_b = read(SourceSpec(CHELSA{BioClim}, 1, scale = 20))
+            @test unit(ch_b.array[1]) == °C
         end
     end
 
     @testset "Output data 2" begin
-        landcover = read(EarthEnv{LandCover}, scale = 40)
-        @test unit(landcover.array[1]) == NoUnits
+        landcover = read(SourceSpec(EarthEnv{LandCover}, scale = 40))
+        @test unit(landcover.array[1]) == percent      # the table's unit for every class
     end
 
     # A partial monthly read is labelled with the months it actually holds. Reads only files the
@@ -101,16 +110,15 @@ if !Sys.iswindows()
     # grid under February's name. The last assertion here is that regression, and it is the one that
     # would have caught it - the others only check the labels.
     # Which axis a multi-file source stacks on decides whether it is a **time series** or a stack
-    # of unrelated bands - and so whether it can drive a layer through time at all.
-    #
-    # `CHELSA{Climate}` had no method and fell through to the `Dim{:layer}` fallback, so a
-    # `SourceSpec(CHELSA{Climate}, ...)` read through the generic path was **not recognised as a
-    # series**. It failed silently: twelve monthly files loaded fine, simply as twelve bands. This is
-    # asserted against its siblings rather than alone, because the bug was an omission - a test that
-    # only checked CHELSA would not have said whether `Ti` was right or the fallback was wrong.
+    # of unrelated bands - and so whether it can drive a layer through time at all. It is read off
+    # the shipped catalogue: a source whose layer table declares a temporal resolution is a series.
+    # A source silently read as bands loads fine - twelve monthly files, simply as twelve bands - so
+    # this is asserted against its siblings rather than alone: a test of one source cannot say
+    # whether `Ti` is right or the fallback is wrong.
     @testset "monthly sources stack on time, band sources on layers" begin
         @test EcoSISTEM._stackaxis(WorldClim{Climate}) == Ti
         @test EcoSISTEM._stackaxis(CHELSA{Climate}) == Ti
+        @test EcoSISTEM._stackaxis(EcoSISTEM.ERA) == Ti
         # Only the `Climate` layers are monthly. A source's *bioclim* variables are one file per
         # variable, so they must keep stacking on `Dim{:layer}`.
         @test EcoSISTEM._stackaxis(CHELSA{BioClim}) == Dim{:layer}
@@ -118,11 +126,13 @@ if !Sys.iswindows()
               Dim{:layer}
         @test EcoSISTEM._stackaxis(EarthEnv{LandCover}) ==
               Dim{:layer}
+        # A source with no table at all is a stack of bands.
+        @test EcoSISTEM._stackaxis(Int) == Dim{:layer}
     end
 
     @testset "a partial monthly read knows which months it holds" begin
-        full = read(WorldClim{Climate}, :wind, month = 1:12)
-        part = read(WorldClim{Climate}, :wind, month = 2:4)
+        full = read(SourceSpec(WorldClim{Climate}, :wind, month = 1:12))
+        part = read(SourceSpec(WorldClim{Climate}, :wind, month = 2:4))
 
         @test collect(DimensionalData.lookup(full.array, Ti)) ==
               (1:12) .* month_mean_duration
@@ -131,14 +141,14 @@ if !Sys.iswindows()
 
         # An uneven request stays uneven, which is what lets a series hold each slice until the next
         # rather than pretending the months are consecutive.
-        sparse = read(WorldClim{Climate}, :wind, month = [1, 6, 12])
+        sparse = read(SourceSpec(WorldClim{Climate}, :wind, month = [1, 6, 12]))
         @test collect(DimensionalData.lookup(sparse.array, Ti)) ==
               [1, 6, 12] .* month_mean_duration
 
         # A single month has no series in it, so it stays 2-D and carries no time axis at all -
         # a deliberate carve-out, since a length-1 `Ti` would change the result's dimensionality and
         # every `ndims == 2` static-vs-series branch downstream with it.
-        one = read(WorldClim{Climate}, :wind, month = 2)
+        one = read(SourceSpec(WorldClim{Climate}, :wind, month = 2))
         @test ndims(one.array) == 2
         @test isnothing(DimensionalData.dims(one.array, Ti))
 
@@ -165,13 +175,14 @@ if !Sys.iswindows()
         L = DimensionalData.Lookups
         scotland = EcoSISTEM.boundingbox("Scotland",
                                          coverage = AllTerritories())
-        whole = read(EarthEnv{LandCover}, 7, scale = 10)
+        whole = read(SourceSpec(EarthEnv{LandCover}, 7, scale = 10))
         for d in (Y, X)
             @test L.span(dims(whole.array, d)) isa L.Regular
             @test all(!isnothing, L.bounds(dims(whole.array, d)))
         end
         # The end the fix exists for - this threw a MethodError before it.
-        cut = read(EarthEnv{LandCover}, 7, scale = 10, cut = scotland)
+        cut = read(SourceSpec(EarthEnv{LandCover}, 7, scale = 10),
+                   cut = scotland)
         @test size(cut.array, 1) < size(whole.array, 1)
         @test size(cut.array, 2) < size(whole.array, 2)
         # ...and it is a *window*, not a token crop: Scotland is a tiny share of a global layer.
@@ -191,12 +202,12 @@ if !Sys.iswindows()
     # unsnapped CHELSA still lands on 179.99985967° by -90.00847° and every exact comparison below
     # still fails. Measured, both halves.
     @testset "a read grid lands exactly on its source's stated extent" begin
-        sources = Any[(read(WorldClim{BioClim}, :bio1), (-180°, 180°),
-                       (-90°, 90°)),
-                      (read(EarthEnv{LandCover}, 7, scale = 10), (-180°, 180°),
-                       (-56°, 90°))]
+        sources = Any[(read(SourceSpec(WorldClim{BioClim}, :bio1)),
+                       (-180°, 180°), (-90°, 90°)),
+                      (read(SourceSpec(EarthEnv{LandCover}, 7, scale = 10)),
+                       (-180°, 180°), (-56°, 90°))]
         bigrasters() && push!(sources,
-              (read(CHELSA{BioClim}, 1, scale = 20),
+              (read(SourceSpec(CHELSA{BioClim}, 1, scale = 20)),
                (-180°, 180°), (-90°, 84°)))
         for (a, xs, ys) in sources
             for (D, (lo, hi)) in ((X, xs), (Y, ys))
@@ -221,9 +232,9 @@ if !Sys.iswindows()
         scot = CP.boundingbox("Scotland", coverage = AllTerritories())
         for (src, code, scale) in ((WorldClim{BioClim}, :bio1, 1),
             (EarthEnv{LandCover}, 7, 10))      # block alignment
-            whole = EcoSISTEM._read(SourceSpec(src, code, scale = scale))
-            windowed = EcoSISTEM._read(SourceSpec(src, code, scale = scale,
-                                                  cut = scot))
+            whole = read(SourceSpec(src, code, scale = scale))
+            windowed = read(SourceSpec(src, code, scale = scale,
+                                       cut = scot))
             cropped = EcoSISTEM._applycut(whole.array, scot)
             @test size(windowed.array) == size(cropped)
             # Coordinates agree to within float noise; aggregating a cropped raster differs from
@@ -241,8 +252,8 @@ if !Sys.iswindows()
     # target CRS be settled *before* deciding how much of each layer to read.
     @testset "a source's CRS can be had without reading it" begin
         @test EcoSISTEM.sourcecrs(WorldClim{BioClim}, :bio1) ==
-              EcoSISTEM._rastercrs(EcoSISTEM._read(SourceSpec(WorldClim{BioClim},
-                                                              :bio1)))
+              EcoSISTEM._rastercrs(read(SourceSpec(WorldClim{BioClim},
+                                                   :bio1)))
         # Read keywords a `SourceSpec` may carry are accepted and ignored - `scale` cannot alter a CRS.
         @test EcoSISTEM.sourcecrs(WorldClim{BioClim}, :bio1,
                                   scale = 20, cut = nothing) ==
@@ -250,15 +261,12 @@ if !Sys.iswindows()
     end
 
     @testset "Output data 3" begin
-        cr = read(CRUTS, winddir, "tavg")
-        worldclim = read(WorldClim{Climate}, :wind)
-        ch_m = read(CHELSA{Climate}, winddir, "wind")
+        cr = read(SourceSpec(CRUTS, "tavg", directory = winddir))
+        worldclim = read(SourceSpec(WorldClim{Climate}, :wind))
 
-        # the directory readers self-attach the actual unit (temperature now in °C, no hidden K shift)
+        # Every read carries the unit the layer table declares, however the files were named.
         @test unit(cr.array[1]) == °C
-        @test unit(ch_m.array[1]) == m / s
-        # `read` returns bare magnitudes - the unit lives in the layer table (`layerunit`)
-        @test unit(worldclim.array[1]) == NoUnits
+        @test unit(worldclim.array[1]) == m / s
         @test layerunit(WorldClim{Climate}, :wind) == m / s
     end
 end
@@ -429,6 +437,364 @@ end
 # a `_crsunit(::Nothing)` fallback alone misses it and `ArchGDAL.importCRS("")` fails with the opaque
 # "Failed to initialize SRS based on WKT string (Corrupt data.)" - which is what an empty-CRS file
 # such as `data/Africa.tif` produces. Synthetic (no download), so it runs on every platform.
+# A CF netCDF file shaped like an ERA5 download from the Copernicus Data Store: two variables on a
+# 6 x 8 grid, twelve monthly `DateTime`s, a `units` attribute each, 0-360 longitudes, and no
+# filename extension - which is what forces the backend to come from the catalogue rather than
+# from the name. Values encode their own position so a roll of the longitude axis can be checked.
+function _erafixture(dir)
+    path = joinpath(dir, "era5_fixture")
+    NCDatasets.NCDataset(path, "c") do ds
+        NCDatasets.defDim(ds, "longitude", 8)
+        NCDatasets.defDim(ds, "latitude", 6)
+        NCDatasets.defDim(ds, "valid_time", 12)
+        lon = NCDatasets.defVar(ds, "longitude", Float64, ("longitude",),
+                                attrib = ["units" => "degrees_east"])
+        lon[:] = 0.0:45.0:315.0
+        lat = NCDatasets.defVar(ds, "latitude", Float64, ("latitude",),
+                                attrib = ["units" => "degrees_north"])
+        lat[:] = 75.0:-30.0:-75.0
+        t = NCDatasets.defVar(ds, "valid_time", Int64, ("valid_time",),
+                              attrib = ["units" => "seconds since 1970-01-01",
+                                  "calendar" => "proleptic_gregorian",
+                                  "standard_name" => "time"])
+        t[:] = Dates.DateTime.(1990, 1:12, 1)
+        v = NCDatasets.defVar(ds, "t2m", Float32,
+                              ("longitude", "latitude", "valid_time"),
+                              attrib = ["units" => "K",
+                                  "long_name" => "2 metre temperature"])
+        v[:, :, :] = [Float32(270 + i + 10j + 100k)
+                      for i in 1:8, j in 1:6, k in 1:12]
+        p = NCDatasets.defVar(ds, "tp", Float32,
+                              ("longitude", "latitude", "valid_time"),
+                              attrib = ["units" => "m"])
+        p[:, :, :] = fill(0.001f0, 8, 6, 12)
+        w = NCDatasets.defVar(ds, "swvl1", Float32,
+                              ("longitude", "latitude", "valid_time"),
+                              attrib = ["units" => "m**3 m**-3"])
+        w[:, :, :] = fill(0.3f0, 8, 6, 12)
+        return nothing
+    end
+    return path
+end
+
+@testset "an ERA netCDF file reads through its catalogue row" begin
+    E = EcoSISTEM
+    path = _erafixture(mktempdir())
+    spec = SourceSpec(E.ERA, "t2m", file = path)
+    @test spec.unit == K && E._specaxis(spec) === Temperature
+    cr = read(spec)
+    @test cr isa ClimateRaster{E.ERA}
+    # The unit is the table's, the time axis the file's own dates.
+    @test Unitful.unit(eltype(cr.array)) == K
+    @test collect(lookup(cr.array, Ti)) == Dates.DateTime.(1990, 1:12, 1)
+    # The row leaves the longitude convention to the file, whose 0-360 longitudes are rolled onto
+    # (-180, 180] with the data columns following: the cell written at 180 degrees east is the one
+    # now labelled -180, and the axis ends ascending.
+    xs = collect(lookup(cr.array, X))
+    @test xs == (-180.0:45.0:135.0) .* °
+    @test collect(lookup(cr.array, Y)) == (-75.0:30.0:75.0) .* °
+    @test ustrip(cr.array[Y(At(-75.0°)), X(At(-180.0°)), Ti(1)]) ==
+          270 + 5 + 10 * 6 + 100
+    @test ustrip(cr.array[Y(At(75.0°)), X(At(0.0°)), Ti(12)]) ==
+          270 + 1 + 10 + 1200
+    # A window on the rolled axis is applied after the roll, and a coarsened read aggregates the
+    # slices' cells.
+    cut = Extents.Extent(Y = (-80.0°, 0.0°), X = (-100.0°, 0.0°))
+    windowed = read(spec, cut = cut)
+    @test size(windowed.array)[1:2] == (4, 3)      # every cell the window touches
+    @test size(read(spec, scale = 2).array) == (3, 4, 12)
+    # `tp` accumulates per day, so the read is the rate the table declares, not the file's depth.
+    @test Unitful.unit(eltype(read(SourceSpec(E.ERA, "tp", file = path)).array)) ==
+          u"m/d"
+    # A file stating its unit is converted to the table's; the fixture agrees with it, so the
+    # conversion is exercised on the array directly.
+    ras = Rasters.Raster(path, name = :t2m, source = Rasters.NCDsource())
+    celsius = E._rastertodimarray(E._centresampled(ras), expressedin = °C)
+    @test maximum(celsius) ≈ ustrip(°C, maximum(ras) * K)
+    # `times` replaces the file's dates, one per slice, and refuses any other count.
+    timed = read(SourceSpec(E.ERA, "t2m", file = path,
+                            times = collect((1:12) .* month_mean_duration)))
+    @test collect(lookup(timed.array, Ti)) == (1:12) .* month_mean_duration
+    @test_throws "one per slice" read(SourceSpec(E.ERA, "t2m", file = path,
+                                                 times = [1month_mean_duration]))
+    # A directory is its files in name order, joined along time.
+    two = mktempdir()
+    cp(path, joinpath(two, "era5_a"))
+    cp(path, joinpath(two, "era5_b"))
+    write(joinpath(two, "era5_a.provenance.toml"), "written = true\n")
+    dirspec = SourceSpec(E.ERA, "t2m", directory = two)
+    # A netCDF file may carry no extension, as a CDS download does; the sidecar is not one.
+    @test length(dirspec.files) == 2
+    joined = read(dirspec)
+    @test size(joined.array, 3) == 24
+    @test joined.array == read(SourceSpec(E.ERA, "t2m",
+                          files = [joinpath(two, "era5_a"),
+                              joinpath(two, "era5_b")])).array
+    # The dataset-typed readers are the same reads spelled the old way.
+    @test read(E.ERA, path, "t2m").array == cr.array
+    @test collect(lookup(read(E.ERA, path, "t2m",
+                              collect((1:12) .* month_mean_duration)).array,
+                         Ti)) == (1:12) .* month_mean_duration
+    both = read(E.ERA, dirname(path), "era5_fixture", "t2m",
+                [collect((1:12) .* month_mean_duration)])
+    @test size(both.array, 3) == 12
+    # A source that does not fetch its own files must be told where they are.
+    @test_throws "file = path" SourceSpec(E.ERA, "t2m")
+    @test_throws "not $(2) of them" SourceSpec(E.ERA, "t2m", file = path,
+                                               files = [path])
+end
+
+@testset "a dated series carries its policy from the spec to the layer" begin
+    E = EcoSISTEM
+    path = _erafixture(mktempdir())
+    area = StudyArea(regime = SourceSpec(E.ERA, "t2m", file = path,
+                                         atend = HoldAtEnd()),
+                     cellsize = 45.0°, verbosity = :silent)
+    # Real month starts are unevenly spaced, so the default `RepeatAtEnd` cannot derive a period
+    # from them and says so.
+    @test_throws "evenly spaced" materialise(SourceSpec(E.ERA, "t2m",
+                                                        file = path), area)
+    layer = materialise(SourceSpec(E.ERA, "t2m", file = path,
+                                   atend = HoldAtEnd()), area)
+    @test layer.change isa E.SeriesLayerChange
+    @test layer.change.atend isa HoldAtEnd
+    @test layer.change.calendar isa DatedSeries
+    # A volumetric fraction over a 7 cm layer reads as a depth of water - 21 mm - so it is a
+    # regime in the axis's canonical unit and, times the cell's area, a supply of cubic metres.
+    water = SourceSpec(E.ERA, "swvl1", file = path, atend = HoldAtEnd())
+    @test Unitful.unit(eltype(read(water).array)) == cm
+    @test ustrip(read(water).array[1, 1, 1]) ≈ 0.3 * 7 rtol=1e-6
+    regime = materialise(water, area, role = EcoSISTEM.Condition)
+    @test Unitful.unit(eltype(regime.matrix)) == mm
+    @test all(v -> isapprox(v, 21.0mm, rtol = 1e-6), regime.matrix)
+    supply = materialise(water, area, role = EcoSISTEM.Resource)
+    @test supply isa EcoSISTEM.Supply{SoilWaterVolume}
+    @test Unitful.unit(eltype(supply.matrix)) == m^3
+    @test isapprox(supply.matrix[1, 1],
+                   0.021m * EcoSISTEM.getcellareas(m^2, area)[1, 1],
+                   rtol = 1e-6)
+    # The same policy reaches a derived stack through `in_memory_raster`.
+    derived = materialise(in_memory_raster(read(SourceSpec(E.ERA, "t2m",
+                                                           file = path)),
+                                           axis = Temperature,
+                                           atend = ErrorAtEnd()), area)
+    @test derived.change.atend isa ErrorAtEnd
+end
+
+# A CF netCDF file shaped like a 20CRv3 monthly-means file from the NOAA Physical Sciences
+# Laboratory: the five catalogued variables on a 1 degree grid running right round the globe in
+# the 0 to 360 convention (a rolled longitude axis is only contiguous when the file is), six
+# rows of latitude, three monthly `DateTime`s from 1806 in `hours since 1800-1-1`, PSL's unit
+# spellings (`degK`, `kg/m^2/s`, `W/m^2`, `frac.`), and `soilw` on a `level` axis of four layer
+# tops in cm. Values encode their position and, for `soilw`, their level, so the roll and the
+# level selection can both be checked.
+function _twentycrfixture(dir)
+    path = joinpath(dir, "twentycr_fixture.nc")
+    NCDatasets.NCDataset(path, "c") do ds
+        NCDatasets.defDim(ds, "lon", 360)
+        NCDatasets.defDim(ds, "lat", 6)
+        NCDatasets.defDim(ds, "level", 4)
+        NCDatasets.defDim(ds, "time", 3)
+        lon = NCDatasets.defVar(ds, "lon", Float32, ("lon",),
+                                attrib = ["units" => "degrees_east",
+                                    "axis" => "X"])
+        lon[:] = 0.0f0:1.0f0:359.0f0
+        lat = NCDatasets.defVar(ds, "lat", Float32, ("lat",),
+                                attrib = ["units" => "degrees_north",
+                                    "axis" => "Y"])
+        lat[:] = -3.0f0:1.0f0:2.0f0
+        lev = NCDatasets.defVar(ds, "level", Float32, ("level",),
+                                attrib = ["units" => "cm", "axis" => "Z",
+                                    "coordinate_defines" => "top of layer"])
+        lev[:] = Float32[0, 10, 40, 100]
+        t = NCDatasets.defVar(ds, "time", Float64, ("time",),
+                              attrib = [
+                                  "units" => "hours since 1800-1-1 00:00:0.0",
+                                  "standard_name" => "time", "axis" => "T"])
+        t[:] = Dates.DateTime.(1806, 1:3, 1)
+        surface(name, units, f) = begin
+            v = NCDatasets.defVar(ds, name, Float32, ("lon", "lat", "time"),
+                                  attrib = ["units" => units])
+            v[:, :, :] = [Float32(f(i, j, k))
+                          for i in 1:360, j in 1:6, k in 1:3]
+        end
+        surface("air", "degK", (i, j, k) -> 270 + i + 10j + 100k)
+        surface("prate", "kg/m^2/s", (i, j, k) -> 2e-5)
+        surface("dswrf", "W/m^2", (i, j, k) -> 200 + i)
+        surface("uswrf", "W/m^2", (i, j, k) -> 50 + i)
+        w = NCDatasets.defVar(ds, "soilw", Float32,
+                              ("lon", "lat", "level", "time"),
+                              attrib = ["units" => "frac."])
+        w[:, :, :, :] = [Float32(0.1 * l)
+                         for i in 1:360, j in 1:6, l in 1:4, k in 1:3]
+        return nothing
+    end
+    return path
+end
+
+@testset "a 20CRv3 netCDF file reads through its catalogue row" begin
+    E = EcoSISTEM
+    path = _twentycrfixture(mktempdir())
+    # A named file is read in place of the download the row would otherwise fetch, and the
+    # catalogue's header facts - 1 degree cells, 0 to 360 longitudes - agree with it.
+    air = read(SourceSpec(TwentyCR, "air", file = path))
+    @test air isa ClimateRaster{TwentyCR}
+    @test size(air.array) == (6, 360, 3)
+    @test unit(eltype(air.array)) == K
+    @test collect(lookup(air.array, Ti)) == Dates.DateTime.(1806, 1:3, 1)
+    # Rolled onto -180 to 180: the columns east of 180 now lead, in ascending order.
+    lons = ustrip.(parent(lookup(air.array, X)))
+    @test lons == collect(-180.0:1.0:179.0)
+    # The value at (lat -3, lon 180) was written at i = 181, j = 1, k = 1.
+    @test ustrip(air.array[Y(At(-3.0°)), X(At(-180.0°)), Ti(1)]) ≈
+          270 + 181 + 10 + 100
+    # A precipitation rate stated as a mass of water per area per second reads as a depth per
+    # second by the density of water, and converts to the axis's canonical unit from there.
+    rain = read(SourceSpec(TwentyCR, "prate", file = path))
+    @test unit(eltype(rain.array)) == m / s
+    @test ustrip(rain.array[1, 1, 1]) ≈ 2e-8 rtol=1e-6
+    @test uconvert(mm / day, rain.array[1, 1, 1]) ≈ 1.728mm / day rtol=1e-6
+    # A flux already per unit time is divided by nothing.
+    down = read(SourceSpec(TwentyCR, "dswrf", file = path))
+    @test unit(eltype(down.array)) == W / m^2
+    @test ustrip(down.array[Y(1), X(At(176.0°)), Ti(1)]) ≈ 200 + 177
+    # The soil moisture layer selects the file's top level - the row's vertical extent runs
+    # -10 cm to 0 cm, so the level at 0 cm - and reads as a depth of water, the fraction times
+    # the 10 cm thickness. Level 1 holds 0.1, so every cell is 1 cm of water.
+    soil = read(SourceSpec(TwentyCR, "soilw", file = path))
+    @test size(soil.array) == (6, 360, 3)
+    @test unit(eltype(soil.array)) == cm
+    @test all(v -> isapprox(v, 1.0cm, rtol = 1e-6), soil.array)
+    # Selecting a level that the file does not hold, or none on a file that has them, is refused
+    # rather than read as a series in time.
+    r = Rasters.Raster(path, lazy = true, source = Rasters.NCDsource(),
+                       name = :soilw)
+    @test_throws "no level was selected" E._selectlevel(r, nothing)
+    @test_throws "no level was selected" E._lazyopen(path,
+                                                     source = Rasters.NCDsource(),
+                                                     name = :soilw)
+    @test_throws "none of which" E._selectlevel(r, 5cm)
+    @test size(E._selectlevel(r, 0.4m)) == (360, 6, 3)
+    @test isnothing(E._openkw(SourceSpec(TwentyCR, "air", file = path)).level)
+    @test E._openkw(SourceSpec(TwentyCR, "soilw", file = path)).level == 0cm
+    # The whole series materialises on a matching grid as a dated regime, and the soil water
+    # as a stock supply.
+    area = StudyArea(regime = SourceSpec(TwentyCR, "air", file = path,
+                                         atend = HoldAtEnd()),
+                     cellsize = 1.0°, verbosity = :silent)
+    # A cell-centred global layer reaches half a cell past 180 either way, so the grid keeps the
+    # 358 whole-degree columns it covers completely and the two half columns at the antimeridian
+    # go; each grid cell holds the layer cell it is labelled by.
+    @test E.getgridshape(area) == (6, 358)
+    layer = materialise(SourceSpec(TwentyCR, "air", file = path,
+                                   atend = HoldAtEnd()), area)
+    @test layer.change isa E.SeriesLayerChange
+    @test layer.change.calendar isa DatedSeries
+    @test ustrip.(parent(lookup(layer.matrix, X)))[1:3] ==
+          [-179.0, -178.0, -177.0]
+    @test ustrip.(layer.matrix[1, 1:3]) ≈ [270 + i + 10 + 100 for i in 182:184]
+    supply = materialise(SourceSpec(TwentyCR, "soilw", file = path,
+                                    atend = HoldAtEnd()), area,
+                         role = E.Resource)
+    @test supply isa E.Supply{SoilWaterVolume}
+    @test unit(eltype(supply.matrix)) == m^3
+end
+
+@testset "a spec's files can be fetched, listed and checked without reading them" begin
+    E = EcoSISTEM
+    path = _twentycrfixture(mktempdir())
+    spec = SourceSpec(TwentyCR, "air", file = path)
+    # A named file is already there: nothing to fetch, its path comes back, and a dry run says so.
+    @test E.fetchfiles(spec) == [path]
+    @test E.fetchfiles([spec, spec]) == [path, path]
+    dry = only(E.fetchfiles(spec, dryrun = true))
+    @test dry.entry == path && dry.present && isnothing(dry.bytes)
+    # A file this package never fetched has no record, and nothing to verify - until it is used
+    # through an asset, when it is recorded as present.
+    @test provenance(spec) == [nothing]
+    @test E.verifyassets(spec) == 0
+    # A source that resolves its own files reports as one entry, fetching nothing.
+    @test only(E.fetchfiles(SourceSpec(WorldClim{BioClim}, :bio1),
+                            dryrun = true)).entry ===
+          WorldClim{BioClim}
+    # A directory holding several archives' files keeps only those with the code's variable.
+    dir = mktempdir()
+    era = _erafixture(dir)
+    tcr = _twentycrfixture(dir)
+    @test only(SourceSpec(E.ERA, "t2m", directory = dir).files) == era
+    @test only(SourceSpec(TwentyCR, "air", directory = dir).files) == tcr
+    # `tp` is in the ERA fixture, so a 20CRv3 read of it would take that file; `ssr` is in
+    # neither.
+    @test_throws "holding `ssr`" SourceSpec(E.ERA, "ssr", directory = dir)
+end
+
+@testset "a 20CRv3 layer names its own download" begin
+    E = EcoSISTEM
+    # Nothing is fetched at construction: the spec's one file is the layer's URL, owned by the
+    # source so its cache directory is its own.
+    spec = SourceSpec(TwentyCR, "air")
+    @test length(spec.files) == 1
+    asset = only(spec.files)
+    @test asset isa E.CachedAsset && asset.owner === TwentyCR
+    @test asset.url ==
+          "https://downloads.psl.noaa.gov/Datasets/20thC_ReanV3/Monthlies/2mSI-MO/air.2m.mon.mean.nc"
+    @test E.layerinfo(TwentyCR, "soilw").file ==
+          "https://downloads.psl.noaa.gov/Datasets/20thC_ReanV3/Monthlies/subsfcSI-MO/soilw.mon.mean.nc"
+    @test isnothing(E.layerinfo(E.ERA, "t2m").file)
+    @test E.layerinfo(TwentyCR, "soilw").verticalextent == (-10cm, 0cm)
+    # A named copy takes precedence over the download.
+    @test only(SourceSpec(TwentyCR, "air", file = "air.nc").files) == "air.nc"
+end
+
+# The real 20CRv3 files, where a checkout holds them: the directory `ECOSISTEM_TWENTYCR_DIR`
+# names, or the dependent package's own download beside this one. Never on a runner, and never
+# fetched here - each file is several hundred megabytes.
+function twentycrdir()
+    haskey(ENV, "RUNNER_OS") && return nothing
+    dir = get(ENV, "ECOSISTEM_TWENTYCR_DIR",
+              joinpath(dirname(pkgdir(EcoSISTEM)), "Africa_plants", "data",
+                       "twentycr", "SI-MO"))
+    return isfile(joinpath(dir, "soilw.mon.mean.nc")) ? dir : nothing
+end
+
+if !isnothing(twentycrdir())
+    @testset "the real 20CRv3 soil moisture file reads as catalogued" begin
+        E = EcoSISTEM
+        dir = twentycrdir()
+        spec = SourceSpec(TwentyCR, "soilw",
+                          file = joinpath(dir, "soilw.mon.mean.nc"),
+                          atend = HoldAtEnd())
+        # The header check passes against the row, and the level view keeps the read to one
+        # layer of the four.
+        cr = read(spec)
+        @test size(cr.array) == (181, 360, 2520)
+        @test unit(eltype(cr.array)) == cm
+        ts = lookup(cr.array, Ti)
+        @test first(ts) == Dates.DateTime(1806, 1, 1) &&
+              last(ts) == Dates.DateTime(2015, 12, 1)
+        lons = ustrip.(parent(lookup(cr.array, X)))
+        @test first(lons) == -180.0 && last(lons) == 179.0
+        # A fraction of at most one over a 10 cm layer is at most 10 cm of water; the sea is
+        # missing and reads as NaN.
+        finite = filter(isfinite, ustrip.(cr.array[:, :, 1]))
+        @test !isempty(finite) && maximum(finite) <= 10.05 &&
+              minimum(finite) >= 0
+    end
+end
+
+@testset "CF unit spellings" begin
+    E = EcoSISTEM
+    @test E._parsecfunit("J m**-2") == u"J*m^-2"
+    @test E._parsecfunit("m**3 m**-3") == u"m^3*m^-3"
+    @test E._parsecfunit("") == NoUnits
+    # The two spellings NOAA PSL uses that Unitful does not: `degK` and `Kg`. Named here because
+    # the alias table is what makes them parse; nothing else does.
+    @test E._parsecfunit("degK") == u"K"
+    @test E._parsecfunit("Kg/m^2/s") == u"kg/m^2/s"
+    @test E._parsecfunit("kg/m^2/s") == u"kg/m^2/s"
+    @test E._parsecfunit("frac.") == NoUnits
+end
+
 @testset "a blank CRS is treated as an absent one" begin
     CP = EcoSISTEM
     blank = Rasters.GeoFormatTypes.WellKnownText(Rasters.GeoFormatTypes.CRS(),
@@ -457,10 +823,12 @@ end
         return ArchGDAL.setgeotransform!(ds, [0.0, 1.0, 0.0, 4.0, 0.0, -1.0])
     end
     @test CP._isblankcrs(Rasters.crs(Rasters.Raster(path)))
-    r = readfile(path)
+    r = read(RasterFileSpec(path, axis = EcoSISTEM.NicheAxis))
     @test r isa EcoSISTEM.ClimateRaster{EcoSISTEM.SyntheticData}
-    # A named source is recorded as given.
-    @test readfile(path, source = WorldClim{BioClim}) isa
+    # A named source is recorded as given - provenance, not a claim the file is a layer of that
+    # dataset, so the dataset's catalogue row is not checked against it.
+    @test read(RasterFileSpec(path, axis = EcoSISTEM.NicheAxis,
+                              source = WorldClim{BioClim})) isa
           EcoSISTEM.ClimateRaster{WorldClim{BioClim}}
     a = r.array
     @test size(a) == (4, 4)

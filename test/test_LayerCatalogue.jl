@@ -5,6 +5,11 @@ module TestLayerCatalogue
 using EcoSISTEM
 # Abstract types are `public`, not exported, so `using EcoSISTEM` does not bring them in.
 using EcoSISTEM: NicheAxis, TemperatureAxis, WaterAxis, PrecipitationAxis
+using EcoSISTEM: ERA, CERA, TwentyCR, CRUTS, EcoSISTEMSource, SyntheticData,
+                 DerivedData
+using DimensionalData
+using DimensionalData.Lookups: Intervals, Start, ForwardOrdered, Regular
+using Extents
 using EcoSISTEM.Units
 using RasterDataSources
 using Rasters
@@ -89,8 +94,9 @@ end
 # `_resamplemethod` still interpolates everything.
 @testset "ValueType reaches the catalogue" begin
     CP = EcoSISTEM
-    vt(code, dataset) = only(filter(r -> r.dataset === dataset,
-                                    CP.layerinfo(code))).valuetype
+    vt(code,
+       dataset) = only(filter(r -> r.dataset === dataset,
+                              CP.layerinfo(code))).valuetype
 
     # The only categorical layers in the shipped tables: the climate typologies.
     @test vt("kg0", :BioClimPlus) === :categorical
@@ -120,8 +126,9 @@ end
 # layer-units plan makes `Category` decide supply-eligibility).
 @testset "Category says what kind of quantity a layer is" begin
     CP = EcoSISTEM
-    cat(code, dataset) = only(filter(r -> r.dataset === dataset,
-                                     CP.layerinfo(code))).category
+    cat(code,
+        dataset) = only(filter(r -> r.dataset === dataset,
+                               CP.layerinfo(code))).category
 
     # A climate moisture index is precipitation *minus* PET, so it can be negative - a `balance`,
     # never a `rate`. The distinction is what stops a sign-indefinite layer being read as a supply:
@@ -171,9 +178,10 @@ end
 # `srad`, which is sampled monthly but accumulates per day.
 @testset "AccumulationPeriod" begin
     CP = EcoSISTEM
-    rec(code, dataset) = only(filter(r -> r.dataset === dataset &&
-                                          first(r.aliases) == code,
-                                     CP._catalogue()))
+    rec(code,
+        dataset) = only(filter(r -> r.dataset === dataset &&
+                                    first(r.aliases) == code,
+                               CP._catalogue()))
 
     # A constant period is a real, parseable unit.
     @test rec("gdd0", :BioClimPlus).period ==
@@ -209,13 +217,22 @@ end
     # codes - while staying a single test.
     # `:range` is excluded because it is neither required nor forbidden: a range **inherits**
     # whether it has a period from the quantity it ranges over, so no per-row rule can decide it.
-    # That case is checked against its siblings instead - see the range testset below.
+    # That case is checked against its siblings instead - see the range testset below. A rate
+    # stated per unit time already (`W m^-2`, `kg m^-2 s^-1`) is the one rate that declares no
+    # period, and is named rather than counted.
+    alreadyrates = ["prate", "dswrf", "uswrf"]
     offenders = [first(r.aliases)
                  for r in CP._catalogue()
                  if r.category !== :range &&
-        (r.category in (:rate, :stock, :balance)) !=
-        !isnothing(r.period)]
+                        !(first(r.aliases) in alreadyrates) &&
+                        (r.category in (:rate, :stock, :balance)) !=
+                        !isnothing(r.period)]
     @test isempty(offenders)
+    for code in alreadyrates
+        r = rec(code, :TwentyCR)
+        @test r.category === :rate && isnothing(r.period)
+        @test CP._alreadyrate(r.unit, nothing, r.axis)
+    end
     @test isnothing(rec("gsl", :BioClimPlus).period)     # a count, so no period
     @test isnothing(rec("tmin", :Climate).period)        # instantaneous, but still sampled monthly
     @test rec("tmin", :Climate).temporal == month_mean_duration
@@ -233,9 +250,24 @@ end
     @test_throws ErrorException CP._parseperiod("persplice=calendar_month")
     @test_throws ErrorException CP._parseperiod("percell=")
     # Both directions of the invariant are enforced, not just the missing one.
-    @test_throws ErrorException CP._checkperiod(nothing, :rate, "x")
+    @test_throws ErrorException CP._checkperiod(nothing, :rate, "x", mm,
+                                                nothing, Precipitation)
     @test_throws ErrorException CP._checkperiod(CP.ConstantAccumulationPeriod(year),
-                                                :instantaneous, "x")
+                                                :instantaneous, "x", K,
+                                                nothing, Temperature)
+    # A rate stated per unit time already has nothing to divide out, so it declares no period, and
+    # one declared there is refused; the decision is made against the axis, since an energy per
+    # area carries a negative power of time of its own and still accumulates.
+    @test isnothing(CP._checkperiod(nothing, :rate, "x", W * m^-2, nothing,
+                                    SolarRadiation))
+    @test isnothing(CP._checkperiod(nothing, :rate, "x", kg * m^-2 * s^-1,
+                                    nothing, Precipitation))
+    @test_throws ErrorException CP._checkperiod(CP.ConstantAccumulationPeriod(day),
+                                                :rate, "x", W * m^-2, nothing,
+                                                SolarRadiation)
+    @test_throws ErrorException CP._checkperiod(nothing, :rate, "x",
+                                                MJ * m^-2, nothing,
+                                                SolarRadiation)
 
     # `IsRate` is gone: it said exactly `category === :rate` in every row, and two columns holding
     # one fact is how they drift apart.
@@ -263,9 +295,10 @@ end
 # stripped periods from "every row *with* a period" - which, by then, they no longer had.
 @testset "a range carries its siblings' unit, made absolute, and their period" begin
     CP = EcoSISTEM
-    rec(code, dataset) = only(filter(r -> r.dataset === dataset &&
-                                          first(r.aliases) == code,
-                                     CP._catalogue()))
+    rec(code,
+        dataset) = only(filter(r -> r.dataset === dataset &&
+                                    first(r.aliases) == code,
+                               CP._catalogue()))
     axisname(r) = isnothing(r.axis) ? "" : String(nameof(r.axis))
     cat = CP._catalogue()
     ranges = [r for r in cat if endswith(axisname(r), "Range")]
@@ -313,9 +346,10 @@ end
 
     # And the check bites. Rebuilding one record with one field changed is the whole negative test:
     # if `_checkrangerows` accepted these, the shipped tables passing it would mean nothing.
-    with(r, field, value) = CP.LayerRecord((f === field ? value :
-                                            getfield(r, f)
-                                            for f in fieldnames(CP.LayerRecord))...)
+    with(r, field,
+         value) = CP.LayerRecord((f === field ? value :
+                                  getfield(r, f)
+                                  for f in fieldnames(CP.LayerRecord))...)
     rng = rec("cmi_range", :BioClimPlus)
     fam = [s
            for s in cat
@@ -388,8 +422,9 @@ end
 # the catalogue and the calendar, not from any raster.
 @testset "accumulation-period divisors" begin
     CP = EcoSISTEM
-    rec(ds, c) = only(filter(r -> r.dataset === ds && string(c) in r.aliases,
-                             CP._catalogue()))
+    rec(ds,
+        c) = only(filter(r -> r.dataset === ds && string(c) in r.aliases,
+                         CP._catalogue()))
 
     # Per-slice: one divisor per month, in days, February at its 28.25-day mean.
     d = CP._readdivisors(rec(:Climate, "prec"), 1:12)
@@ -454,14 +489,22 @@ end
     @test_throws ErrorException EcoSISTEM._resolveaxis("NotAnAxis")
 end
 
+# The type a `datasets.csv` row names, resolved where both `RasterDataSources`' and this package's
+# own sources are visible.
+_datasetnamed(name) = Core.eval(@__MODULE__, Meta.parse(name))
+
 @testset "guard: shipped data/ tables are well-formed" begin
-    datadir = pkgdir(EcoSISTEM, "data", "RasterDataSources")
-    csvs = filter(endswith(".csv"), readdir(datadir))
+    datadir = pkgdir(EcoSISTEM, "data", "catalogue")
+    csvs = filter(f -> endswith(f, ".csv") && f != "datasets.csv",
+                  readdir(datadir))
     @test !isempty(csvs)
     for f in csvs
         base = first(splitext(f))
-        # every table's basename names a real RasterDataSources dataset type
-        @test isdefined(RasterDataSources, Symbol(base))
+        # every table's basename names a real RasterDataSources dataset type, or one of this
+        # package's own sources
+        @test isdefined(RasterDataSources, Symbol(base)) ||
+              (isdefined(EcoSISTEM, Symbol(base)) &&
+               getfield(EcoSISTEM, Symbol(base)) <: EcoSISTEMSource)
         rows = EcoSISTEM._layertable(joinpath(datadir, f))
         for (_, cell) in rows
             # every non-blank Units parses ...
@@ -488,7 +531,7 @@ end
     # `ncdf` is listed by `layers(CHELSA{Climate})` but is a spurious RDS entry (no such CHELSA
     # variable / file), so it is deliberately absent from the table - carve it out here.
     known_spurious = Set(["ncdf"])
-    datadir = pkgdir(EcoSISTEM, "data", "RasterDataSources")
+    datadir = pkgdir(EcoSISTEM, "data", "catalogue")
     # every code any source accepts: `layers(T)` plus its `layerkeys(T)` aliases
     accepted(T) = union(Set(string(c) for c in RDS.layers(T)),
                         Set(string(c)
@@ -504,6 +547,221 @@ end
         # exactly reconciled: every fetchable code is documented, and no phantom rows exist
         @test acc == csvcodes
     end
+end
+
+@testset "guard: datasets.csv reconciles to the layer tables" begin
+    E = EcoSISTEM
+    rows = E._datasets()
+    @test length(rows) == 12
+    for r in rows
+        # every row names a loaded source type, spelled as the loader spells it back
+        T = _datasetnamed(r.dataset)
+        @test T <: RasterDataSources.RasterDataSource || T <: EcoSISTEMSource
+        @test E._datasetkey(T) == r.dataset
+        # a fetchable row is a RasterDataSources type; the package's own sources are not
+        @test (r.fetch === :getraster) ==
+              (T <: RasterDataSources.RasterDataSource)
+    end
+    # every source with a layer table has a row, RasterDataSources' and this package's own alike
+    for T in (WorldClim{BioClim}, WorldClim{Climate}, WorldClim{Elevation},
+        CHELSA{BioClim}, CHELSA{BioClimPlus}, CHELSA{Climate},
+        EarthEnv{LandCover}, EarthEnv{HabitatHeterogeneity}, ERA, CERA,
+        TwentyCR)
+        @test E._haslayertable(T)
+        @test E.datasetinfo(T) isa E.DatasetRecord
+    end
+    # and an unknown source is refused, naming the table
+    @test_throws "datasets.csv" E.datasetinfo(Int)
+    @test isnothing(E._datasetrecord(Int))
+end
+
+@testset "datasetinfo answers the fixed facts about a source" begin
+    E = EcoSISTEM
+    wc = E.datasetinfo(WorldClim{BioClim})
+    @test wc.format === :GeoTIFF
+    @test wc.fetch === :getraster
+    @test wc.crs == Rasters.EPSG(4326)
+    @test wc.longituderange == (-180.0°, 180.0°)
+    @test length(wc.resolution) == 4 && 30arcsecond in wc.resolution
+    @test wc.extent ==
+          Extents.Extent(Y = (-90.0°, 90.0°), X = (-180.0°, 180.0°))
+    @test !isempty(wc.doi) && !isempty(wc.url)
+    # Blank means ask the file: the CDS serves any grid, so no resolution or longitude convention
+    # is recorded for ERA5, and CRU TS is read from files the user has converted themselves.
+    era = E.datasetinfo(ERA)
+    @test era.format === :netCDF && era.fetch === :cds
+    @test isnothing(era.resolution) && isnothing(era.longituderange)
+    @test era.crs == Rasters.EPSG(4326)
+    cru = E.datasetinfo(CRUTS)
+    @test cru.fetch === :none && isnothing(cru.crs) && isnothing(cru.extent)
+    # 20CRv3 is one fixed product, so everything about it is recorded and checked.
+    tcr = E.datasetinfo(TwentyCR)
+    @test tcr.format === :netCDF && tcr.fetch === :https
+    @test tcr.longituderange == (0.0°, 360.0°) && tcr.resolution == [1.0°]
+    @test tcr.crs == Rasters.EPSG(4326)
+    @test tcr.extent ==
+          Extents.Extent(Y = (-90.0°, 90.0°), X = (-180.0°, 180.0°))
+    @test !isempty(tcr.licence) && tcr.doi == "10.1002/qj.3598"
+    @test tcr.version == "3" && wc.version == "2.1"     # text, never a number
+    # Every row carries the citation a paper prints, resolved from its DOI.
+    for r in E._datasets()
+        @test !isempty(r.citation) && occursin(r.doi, r.citation)
+    end
+    # ERA5's layers name the variable a Climate Data Store request asks for, and both columns
+    # can be looked up backwards, which is how a fetched file is matched to its layer.
+    @test E.layerinfo(ERA, "t2m").request == "2m_temperature"
+    @test isnothing(E.layerinfo(TwentyCR, "air").request)
+    @test E._layerbyrequest(ERA, "total_precipitation").aliases == ["tp"]
+    @test isnothing(E._layerbyrequest(ERA, "no_such_variable"))
+    @test E._layerbyfile(TwentyCR, E.layerinfo(TwentyCR, "soilw").file).aliases ==
+          ["soilw"]
+    @test isnothing(E._layerbyfile(TwentyCR, "https://example.org/x.nc"))
+end
+
+@testset "the first-read check refuses a file that contradicts its row" begin
+    E = EcoSISTEM
+    # A global 10-degree WGS84 grid, built in memory so nothing is downloaded.
+    xd = X(Rasters.Projected(-180.0:10.0:170.0, sampling = Intervals(Start()),
+                             crs = Rasters.EPSG(4326), order = ForwardOrdered(),
+                             span = Regular(10.0)))
+    yd = Y(Rasters.Projected(-90.0:10.0:80.0, sampling = Intervals(Start()),
+                             crs = Rasters.EPSG(4326), order = ForwardOrdered(),
+                             span = Regular(10.0)))
+    ras = Rasters.Raster(zeros(36, 18), (xd, yd))
+    row(; crs = Rasters.EPSG(4326), res = [10.0°], lon = (-180.0°, 180.0°),
+        ext = Extents.Extent(Y = (-90.0°, 90.0°), X = (-180.0°, 180.0°))) = E.DatasetRecord("Fixture",
+                                                                                            :GeoTIFF,
+                                                                                            lon,
+                                                                                            crs,
+                                                                                            res,
+                                                                                            ext,
+                                                                                            :none,
+                                                                                            "",
+                                                                                            "",
+                                                                                            "",
+                                                                                            "",
+                                                                                            "",
+                                                                                            "")
+    @test isnothing(E._checkcatalogue(row(), ras))
+    # Every cell blank: nothing to contradict.
+    @test isnothing(E._checkcatalogue(row(crs = nothing, res = nothing,
+                                          lon = nothing, ext = nothing), ras))
+    # A source with no row at all is not checked.
+    @test isnothing(E._checkcatalogue(Int, ras))
+    # Each recorded header fact, mis-stated, is refused naming the table.
+    @test_throws "datasets.csv" E._checkcatalogue(row(crs = Rasters.EPSG(27700)),
+                                                  ras)
+    @test_throws "resolutions" E._checkcatalogue(row(res = [5.0°]), ras)
+    @test_throws "convention" E._checkcatalogue(row(lon = (0.0°, 360.0°)), ras)
+    @test_throws "extent" E._checkcatalogue(row(ext = Extents.Extent(Y = (-60.0°,
+                                                                          90.0°),
+                                                                     X = (-180.0°,
+                                                                          180.0°))),
+                                            ras)
+    # Within a cell is close enough: an extent one cell narrower than the file passes, since a
+    # provider's origin can sit a fraction of a cell off its documented lattice.
+    @test isnothing(E._checkcatalogue(row(ext = Extents.Extent(Y = (-85.0°,
+                                                                    90.0°),
+                                                               X = (-180.0°,
+                                                                    180.0°))),
+                                      ras))
+    # A file in the 0 to 360 convention is compared to the extent after rolling, so a global one
+    # is within a global extent, and one straddling 180 is too.
+    xe = X(Rasters.Projected(0.0:10.0:350.0, sampling = Intervals(Start()),
+                             crs = Rasters.EPSG(4326), order = ForwardOrdered(),
+                             span = Regular(10.0)))
+    @test isnothing(E._checkcatalogue(row(lon = nothing),
+                                      Rasters.Raster(zeros(36, 18), (xe, yd))))
+    xw = X(Rasters.Projected(100.0:10.0:200.0, sampling = Intervals(Start()),
+                             crs = Rasters.EPSG(4326), order = ForwardOrdered(),
+                             span = Regular(10.0)))
+    @test isnothing(E._checkcatalogue(row(lon = nothing),
+                                      Rasters.Raster(zeros(11, 18), (xw, yd))))
+    @test_throws "extent" E._checkcatalogue(row(lon = nothing,
+                                                ext = Extents.Extent(Y = (-90.0°,
+                                                                          90.0°),
+                                                                     X = (-180.0°,
+                                                                          0.0°))),
+                                            Rasters.Raster(zeros(11, 18),
+                                                           (xw, yd)))
+    # What it does not catch: a resolution recorded in the other kind of unit cannot be compared
+    # to this file without a latitude, so it is skipped rather than refused.
+    @test isnothing(E._checkcatalogue(row(res = [1.0km]), ras))
+end
+
+@testset "VerticalExtent and DocumentedCeiling reach the records" begin
+    E = EcoSISTEM
+    @test E.layerinfo(ERA, "t2m").verticalextent == 2m
+    @test isnothing(E.layerinfo(ERA, "tp").verticalextent)
+    # A volumetric fraction over a layer of known thickness reads as a depth over the cell, in the
+    # thickness's own unit: the soil-water rows sit on a length axis and span 7 cm.
+    sw = E.layerinfo(ERA, "swvl1")
+    @test sw.axis === SoilWaterVolume
+    @test sw.unit == NoUnits && sw.verticalextent == (-7cm, 0cm)
+    @test E._thickness(sw) == 7cm
+    @test isnothing(E._thickness(E.layerinfo(ERA, "t2m")))
+    @test E._foldedunit(NoUnits, 7cm, SoilWaterVolume) == cm
+    @test E._fold(NoUnits, 7cm, SoilWaterVolume).factor == 7.0
+    @test E._foldedunit(NoUnits, nothing, SoilWaterVolume) == NoUnits    # no extent: as it is
+    @test E._foldedunit(K, 7cm, Temperature) == K                        # not a fraction
+    @test E._foldedunit(NoUnits, 7cm, SurfaceArea) == NoUnits            # an area axis, not a length
+    @test E._foldfactor(sw) == 7.0
+    @test E._foldfactor(E.layerinfo(ERA, "t2m")) == 1.0
+    @test SourceSpec(ERA, "swvl1", file = "era5_swvl1.nc").unit == cm
+    # A mass of water per area on a water axis reads as a depth by the density of water, so a
+    # precipitation rate stated in kg m^-2 s^-1 reads as m s^-1 at a thousandth of its value; the
+    # same unit on an axis that is not water is left alone, as is a mass that is not per area.
+    massflux = kg * m^-2 * s^-1
+    @test E._foldedunit(massflux, nothing, Precipitation) == m / s
+    @test E._fold(massflux, nothing, Precipitation).factor ≈ 1e-3
+    @test E._foldedunit(massflux, nothing, Temperature) == massflux
+    @test E._foldedunit(kg * s^-1, nothing, Precipitation) == kg * s^-1
+    @test E._parseverticalextent("-7cm..0cm", "x") == (-7cm, 0cm)
+    @test E._parseverticalextent("500hPa", "x") == 500hPa
+    @test isnothing(E._parseverticalextent(nothing, "x"))
+    @test_throws ErrorException E._parseverticalextent("7K", "x")
+    @test_throws ErrorException E._parseverticalextent("1m..2m..3m", "x")
+    # The ceiling is set only where a published scale is, and both providers of `bio4` publish
+    # it a hundredfold.
+    @test E.layerinfo(WorldClim{BioClim}, 4).documentedceiling == 100.0
+    @test isnothing(E.layerinfo(WorldClim{BioClim}, 1).documentedceiling)
+    @test E._documentedceiling(WorldClim{BioClim}, 4) == 100.0
+    @test E._documentedceiling(CHELSA{BioClim}, 4) == 100.0
+    @test E._documentedceiling(WorldClim{BioClim}, 1) == 1.0
+    @test E._documentedceiling(Int, 1) == 1.0
+    @test_throws ErrorException E._parsedocumentedceiling("-1", "x")
+end
+
+@testset "the package's own sources name their layers from their tables" begin
+    E = EcoSISTEM
+    @test E._codetype(ERA) === String
+    @test E._codetype(CERA) === String
+    # No table of its own: CRU TS borrows WorldClim's through its reader, and derived or synthetic
+    # data has no layers to name, whatever it derives from.
+    # CRU TS reads under WorldClim's monthly-climate table, so it names those layers.
+    @test E._codetype(CRUTS) === String
+    @test string.(E._alllayercodes(CRUTS)) ==
+          [first(r.aliases) for r in E._catalogue() if r.dataset === :Climate]
+    @test E._stackaxis(CRUTS) == Ti
+    @test E._codetype(SyntheticData) === Nothing
+    @test E._codetype(DerivedData{ERA}) === Nothing
+    @test E._alllayercodes(ERA) == ["t2m", "tp", "ssr", "swvl1"]
+    @test E._preferredcode(ERA, "tp") == "tp"
+    @test isnothing(E._preferredcode(ERA, nothing))
+    @test E._preferredcode(ERA, ["tp", "t2m"]) == ["tp", "t2m"]
+    @test_throws ErrorException E._preferredcode(ERA, "t3m")
+    @test_throws ErrorException E._preferredcode(SyntheticData, "t2m")
+    # A location is required, since ERA5 files are not fetched for the caller; the file is not
+    # touched at construction.
+    spec = SourceSpec(ERA, "t2m", file = "era5_t2m.nc")
+    @test_throws "file = path" SourceSpec(ERA, "t2m")
+    @test spec.unit == K
+    @test EcoSISTEM._specaxis(spec) === Temperature
+    # The CDS `tp` is a depth per day, and its row says so.
+    tp = E.layerinfo(ERA, "tp")
+    @test E.layerrate(tp.unit, tp.period, tp.axis) == u"m/d"
+    # A code the two reanalyses share resolves to both tables when no dataset is named.
+    @test sort([r.dataset for r in E.layerinfo("t2m")]) == [:CERA, :ERA]
 end
 
 @testset "catalogue query helpers (layerinfo / layersbyaxis / layeraxes)" begin
@@ -552,13 +810,13 @@ end
           length(CP.layersbyaxis(NicheAxis)) + length(CP.layersbyaxis(nothing))
     @test all(isnothing(x.axis) for x in CP.layersbyaxis(nothing))
     @test all(!isnothing(x.axis) for x in CP.layersbyaxis(NicheAxis))
-    # No shipped layer is unclassified today - pinned so that shipping one is a deliberate act that
+    # No shipped layer is unclassified - pinned so that shipping one is a deliberate act that
     # shows up here, rather than a quiet gap in every axis-based sweep.
     @test isempty(CP.layersbyaxis(nothing))
-    @test length(every) == 139
+    @test length(every) == 152          # 139 RasterDataSources layers, ERA5's and CERA-20C's four each, 20CRv3's five
     # A copy, not the cached vector: sorting the result in place must not corrupt later lookups.
     sort!(every, by = x -> first(x.aliases))
-    @test length(CP.layersbyaxis()) == 139
+    @test length(CP.layersbyaxis()) == 152
 
     # layeraxes: nested tree of NicheAxis subtypes down to the concrete leaves, each leaf
     # carrying the names of the shipped layers that use it
@@ -577,8 +835,9 @@ end
     tempaxis = CP.layeraxes(TemperatureAxis)
     @test tempaxis.axis === TemperatureAxis
     @test any(c -> c.axis === Temperature, tempaxis.children)
-    @test "Annual Mean Temperature" in
-          only(c for c in tempaxis.children if c.axis === Temperature).names
+    @test "Annual Mean Temperature" in only(c
+               for c in tempaxis.children
+               if c.axis === Temperature).names
 
     # public but NOT exported
     @test :layerinfo in names(EcoSISTEM, all = false)

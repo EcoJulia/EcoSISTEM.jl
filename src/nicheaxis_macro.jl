@@ -342,8 +342,10 @@ macro nicheaxis(args...)
     end
     if isresource
         push!(out.args,
-              :($M.canonicalunit(::Type{$M.Resource},
-                                 ::Type{<:$name}) = $(opts[:resource])))
+              :(function $M.canonicalunit(::Type{$M.Resource},
+                                          ::Type{<:$name})
+                    return $(opts[:resource])
+                end))
         push!(out.args, :($M.supplytype(::Type{<:$name}) = $(opts[:supply])))
         push!(out.args, :($M.demandtype(::Type{<:$name}) = $(opts[:demand])))
     end

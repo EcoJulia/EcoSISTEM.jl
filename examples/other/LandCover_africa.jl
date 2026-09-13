@@ -58,7 +58,7 @@ env = GridHabitat(regime = landcover, supply = rainfall, area = area)
 
 # --- one species, living on the vegetated classes ---------------------------------
 # **Classes by name, never by number.** The numeric codes are an EarthEnv implementation detail;
-# the shipped catalogue (`data/RasterDataSources/LandCover.csv`) maps names to them, and
+# the shipped catalogue (`data/catalogue/LandCover.csv`) maps names to them, and
 # `EcoSISTEM.landcoverclass` is the lookup (`public`, not exported). The old version wrote `collect(1:8)`, which silently depended on
 # those eight codes staying in that order.
 const LIVEABLE = (:needleleaf_trees, :evergreen_broadleaf_trees,

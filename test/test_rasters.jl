@@ -164,7 +164,7 @@ end
     @test EcoSISTEM.iscategorical(ClimateRaster(CHELSA{BioClimPlus}, arr,
                                                 codes(:kg0, :kg1)))
     # A *mixed* stack has no correct answer - every caller picks one behaviour for the whole
-    # array - so it errors rather than returning either. `_read` calls the same method before
+    # array - so it errors rather than returning either. `read` calls the same method before
     # downloading anything (below), so reaching it here means the raster was assembled some other
     # way. This is the one method of `iscategorical` that can throw.
     mixed = ClimateRaster(CHELSA{BioClimPlus}, arr, codes(:kg0, :bio3))
@@ -190,7 +190,7 @@ end
 @testset "layers that cannot share one array are refused" begin
     msg(spec) =
         try
-            (EcoSISTEM._read(spec); "")
+            (read(spec); "")
         catch e
             sprint(showerror, e)
         end
@@ -227,7 +227,7 @@ end
                              crs = Rasters.EPSG(4326))))
     arr = DimArray(fill(1.0, 5, 5), d)
     bad = collect(EcoSISTEM.CODE_TYPE, [:kg0, :fcf])
-    msgs = map([() -> EcoSISTEM._read(SourceSpec(S, bad)),
+    msgs = map([() -> read(SourceSpec(S, bad)),
                    () -> EcoSISTEM.iscategorical(ClimateRaster(S, arr, bad))]) do f
         try
             f()
@@ -395,6 +395,16 @@ end
     @test EcoSISTEM._specaxis(t) === Temperature
     # the whole-dataset (no-code) form takes them too
     @test SourceSpec(EarthEnv{LandCover}, month = 3).readkw == (month = 3,)
+    # The read options common to every source are fields, not read keywords, and a catalogued spec
+    # resolves its own files.
+    @test SourceSpec === RasterSpec
+    opts = SourceSpec(WorldClim{BioClim}, 1, scale = 4, fn = maximum)
+    @test opts isa RasterSpec{Temperature}
+    @test opts.scale == 4 && opts.fn === maximum && isnothing(opts.cut)
+    @test opts.readkw == NamedTuple()
+    @test isnothing(opts.files)
+    @test isnothing(t.scale)
+    @test_throws ErrorException SourceSpec(WorldClim{BioClim}, 1, scale = 0)
 
     # ...and the keywords really do reach `read` through `GridHabitat`. This is the
     # regression test: A1 deleted the only method that forwarded read keywords, so `month` became
@@ -424,11 +434,12 @@ end
 @testset "a shape mask does not depend on which way an axis runs" begin
     # Two disjoint squares, so a window reaching the wrong cells shows as a filled gap rather than
     # only as a missing block.
-    square(xlo, ylo, xhi, yhi) = ArchGDAL.createpolygon([[(xlo, ylo),
-                                                            (xhi, ylo),
-                                                            (xhi, yhi),
-                                                            (xlo, yhi),
-                                                            (xlo, ylo)]])
+    square(xlo, ylo, xhi,
+           yhi) = ArchGDAL.createpolygon([[(xlo, ylo),
+                                             (xhi, ylo),
+                                             (xhi, yhi),
+                                             (xlo, yhi),
+                                             (xlo, ylo)]])
     geoms = map((square(-4.0, 51.0, -2.0, 53.0), square(0.0, 55.0, 1.0, 56.0))) do g
         return (prepared = ArchGDAL.preparegeom(g),
                 envelope = ArchGDAL.envelope(g))

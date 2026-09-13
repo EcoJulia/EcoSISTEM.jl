@@ -100,7 +100,7 @@ own cells, so the crop would be planted somewhere other than the cleared ground.
 
 ## Reproducibility
 
-Selections come from a **counter-based** stream - `hash((seed, :intervention, k, step))` - which
+Selections come from a **counter-based** stream, seeded from `(seed, :intervention, k, step)`, which
 generalises the per-species scheme. So a run replays exactly, every MPI rank and thread computes the
 same selection without communicating, and species streams stay reserved for birth, death and
 dispersal, meaning adding an intervention cannot re-phase the demography.

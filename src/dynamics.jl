@@ -15,6 +15,8 @@ using StatsBase
 
 using LinearAlgebra
 
+using KahanSummation: sum_kbn
+
 using Random
 
 # == Functions ==================================================================================
@@ -51,7 +53,9 @@ function populate!(ml::GridLandscape,
     b = reshape(parent(ustrip.(_getsupply(habitat.supply))), length(grid))
     units = unit(b[1])
     b[.!activity] .= 0.0 * units
-    B = b ./ sum(b)
+    # A compensated sum, for the correctly rounded total: `sum` may reassociate once vectorised,
+    # and this sum affects reproducibility. For speed, we should revert to sum().
+    B = b ./ sum_kbn(b)
     # Loop through species, drawing from each species' own RNG stream. Three per-species things
     # walked in lockstep, so there is no index to keep: `eachrow` yields exactly the writable
     # `@view ml.matrix[i, :]` that `rand!` needs.
@@ -74,14 +78,14 @@ function populate!(ml::GridLandscape,
     fractions = _zipmap(values(habitat.supply)) do supply
         b = reshape(parent(copy(_getsupply(supply))), length(grid))
         b[.!activity] .= zero(eltype(b))
-        return b ./ sum(b)
+        return b ./ sum_kbn(b)
     end
     B = _fold(fractions) do f1, f2
         return f1 .* f2
     end
     # Loop through species, drawing from each species' own RNG stream
     for sp in eachindex(spplist.abun)
-        rand!(rngs[sp], Multinomial(spplist.abun[sp], B ./ sum(B)),
+        rand!(rngs[sp], Multinomial(spplist.abun[sp], B ./ sum_kbn(B)),
               (@view ml.matrix[sp, :]))
     end
 end
@@ -249,9 +253,10 @@ function update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
             for sp in spstart:spend
                 rng = getrng(eco, sp)
                 # Calculate how much birth and death should be adjusted
-                adjusted_birth, adjusted_death = resource_adjustment(eco,
-                                                                     eco.habitat.supply,
-                                                                     sc, sp)
+                adjusted_birth,
+                adjusted_death = resource_adjustment(eco,
+                                                     eco.habitat.supply,
+                                                     sc, sp)
 
                 # Both are per-individual rates over the timestep. Only the death one becomes
                 # a probability: deaths are drawn per individual (Binomial), while births are a
@@ -609,7 +614,9 @@ end
 function _drawmoves!(lookup::Lookup, sp::Int64, eco::AbstractEcosystem,
                      abun::Int64, disperse_safely::Bool = true,
                      lost::Float64 = 0.0)
-    total = sum(lookup.pnew)
+    # A compensated sum, for the correctly rounded total: `sum` may reassociate once vectorised,
+    # and this sum affects reproducibility. For speed, we should revert to sum().
+    total = sum_kbn(lookup.pnew)
     if iszero(total)
         fill!(lookup.moves, 0)
         return lookup.moves
