@@ -19,7 +19,8 @@ using SimpleTraits: SimpleTraits, istrait
 @testset "ECMWF sources build rasters, and satisfy IsRasterData" begin
     temp = DimArray(fill(1.0K, 10, 10, 3),
                     (Y(1:10), X(1:10), Ti(collect(1:3) .* s)))
-    for S in (EcoSISTEM.ERA, EcoSISTEM.CERA, EcoSISTEM.CRUTS)
+    for S in (EcoSISTEM.ERA, EcoSISTEM.CERA, EcoSISTEM.TwentyCR,
+        EcoSISTEM.CRUTS)
         @test istrait(EcoSISTEM.IsRasterData{S})
         r = EcoSISTEM._timeseriesraster(S, temp)
         @test r isa ClimateRaster
@@ -40,7 +41,8 @@ end
     dated = DimArray(fill(1.0K, 10, 10, 3),
                      (Y(1:10), X(1:10),
                       Ti([Date(2000, 1, 1), Date(2000, 1, 2), Date(2000, 1, 3)])))
-    for S in (EcoSISTEM.ERA, EcoSISTEM.CERA, EcoSISTEM.CRUTS)
+    for S in (EcoSISTEM.ERA, EcoSISTEM.CERA, EcoSISTEM.TwentyCR,
+        EcoSISTEM.CRUTS)
         @test_nowarn EcoSISTEM._timeseriesraster(S, dated)
     end
     # ...and the predicate is a widening rather than a removal: a third axis that is not time still

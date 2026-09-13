@@ -177,7 +177,7 @@ include("Climate.jl")
 
 # The concrete data-source types, and the readers and sampler that go with them. All were exported by
 # `EcoSISTEM.ClimatePref` before it was dissolved.
-export ERA, CERA, CRUTS
+export ERA, CERA, TwentyCR, CRUTS
 
 public AbstractClimate
 

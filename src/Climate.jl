@@ -129,7 +129,7 @@ function Base.show(io::IO, ::MIME"text/plain", r::ClimateRaster{S}) where {S}
 end
 
 # --- The netCDF climate sources ----------------------------------------------
-# `ERA`, `CERA` and `CRUTS` are **data sources**, not containers: a reader returns a
+# `ERA`, `CERA`, `TwentyCR` and `CRUTS` are **data sources**, not containers: a reader returns a
 # `ClimateRaster{ERA}`, exactly as it returns a `ClimateRaster{WorldClim{BioClim}}` for a
 # RasterDataSources dataset. They are `EcoSISTEMSource` subtypes because the archives are ours to
 # describe rather than `RasterDataSources`', and that supertype is what grants `IsRasterData`
@@ -162,6 +162,20 @@ The CERA-20C reanalysis archive, as a data source: one netCDF file per decade, n
 Fieldless, as [`ERA`](@ref) is.
 """
 struct CERA <: EcoSISTEMSource end
+
+"""
+    TwentyCR <: EcoSISTEMSource
+
+The NOAA-CIRES-DOE Twentieth Century Reanalysis, version 3 (20CRv3), as a data source: monthly
+means from 1806 to 2015 on a regular 1 degree grid, one netCDF file per variable as the NOAA
+Physical Sciences Laboratory serves them. Name a layer with `SourceSpec(TwentyCR, "air")` and the
+file is fetched into the asset cache on first use, some hundreds of megabytes each, or point at a
+copy you hold with `file = path`; the `TwentyCR` layer table supplies the unit, axis and, for the
+soil moisture layer, which of the file's four soil layers to take.
+
+Fieldless, as [`ERA`](@ref) is.
+"""
+struct TwentyCR <: EcoSISTEMSource end
 
 """
     CRUTS <: EcoSISTEMSource
@@ -419,10 +433,9 @@ end
 # `EcoSISTEMRasterDataSourcesExt`, which is the only place that package is visible.
 _codetype(::Type) = Nothing
 
-# The package's own sources answer from their shipped layer tables: one with a table of its own
-# (`ERA`, `CERA`) names its layers by the table's `Code` spelling, a `String`; one without
-# (`SyntheticData`, anything derived, `CRUTS`, which borrows WorldClim's) has no codes to name.
-# `nameof(S)` rather than `_datasettype`, so `DerivedData{ERA}` does not inherit ERA's table.
+# The package's own sources answer from their shipped layer tables: one with a table (`ERA`,
+# `CERA`, `TwentyCR`, and `CRUTS` through WorldClim's) names its layers by the table's `Code` spelling, a
+# `String`; one without (`SyntheticData`, anything derived) has no codes to name.
 function _codetype(::Type{S}) where {S <: EcoSISTEMSource}
     return _ownlayertable(S) ? String : Nothing
 end
@@ -769,8 +782,9 @@ end
 # The monthly-climate recipes (`ClimateRaster{WorldClim{Climate}}`/`{CHELSA{Climate}}`) are in
 # `EcoSISTEMRasterDataSourcesExt`, with everything else keyed on a dataset.
 
-# Recipe for plotting ERA and CERA data from a particular time period.
-@recipe function f(era::ClimateRaster{<:Union{ERA, CERA}}, time::Unitful.Time)
+# Recipe for plotting a reanalysis raster at a particular time.
+@recipe function f(era::ClimateRaster{<:Union{ERA, CERA, TwentyCR}},
+                   time::Unitful.Time)
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
     ind = round(Int64, (tm - yr) / (1 / 12))
@@ -784,8 +798,8 @@ end
     return x, y, A
 end
 
-@recipe function f(era::ClimateRaster{<:Union{ERA, CERA}}, time::Unitful.Time,
-                   xrange, yrange)
+@recipe function f(era::ClimateRaster{<:Union{ERA, CERA, TwentyCR}},
+                   time::Unitful.Time, xrange, yrange)
     tm = ustrip.(uconvert(year, time))
     yr = floor(Int64, tm)
     ind = round(Int64, (tm - yr) / (1 / 12))

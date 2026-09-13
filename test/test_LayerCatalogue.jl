@@ -5,7 +5,8 @@ module TestLayerCatalogue
 using EcoSISTEM
 # Abstract types are `public`, not exported, so `using EcoSISTEM` does not bring them in.
 using EcoSISTEM: NicheAxis, TemperatureAxis, WaterAxis, PrecipitationAxis
-using EcoSISTEM: ERA, CERA, CRUTS, EcoSISTEMSource, SyntheticData, DerivedData
+using EcoSISTEM: ERA, CERA, TwentyCR, CRUTS, EcoSISTEMSource, SyntheticData,
+                 DerivedData
 using DimensionalData
 using DimensionalData.Lookups: Intervals, Start, ForwardOrdered, Regular
 using Extents
@@ -227,6 +228,11 @@ end
                         (r.category in (:rate, :stock, :balance)) !=
                         !isnothing(r.period)]
     @test isempty(offenders)
+    for code in alreadyrates
+        r = rec(code, :TwentyCR)
+        @test r.category === :rate && isnothing(r.period)
+        @test CP._alreadyrate(r.unit, nothing, r.axis)
+    end
     @test isnothing(rec("gsl", :BioClimPlus).period)     # a count, so no period
     @test isnothing(rec("tmin", :Climate).period)        # instantaneous, but still sampled monthly
     @test rec("tmin", :Climate).temporal == month_mean_duration
@@ -559,8 +565,9 @@ end
     # every source with a layer table has a row, RasterDataSources' and this package's own alike
     for T in (WorldClim{BioClim}, WorldClim{Climate}, WorldClim{Elevation},
         CHELSA{BioClim}, CHELSA{BioClimPlus}, CHELSA{Climate},
-        EarthEnv{LandCover}, EarthEnv{HabitatHeterogeneity}, ERA, CERA)
-        @test E._haslayertable(T) || T === CRUTS
+        EarthEnv{LandCover}, EarthEnv{HabitatHeterogeneity}, ERA, CERA,
+        TwentyCR)
+        @test E._haslayertable(T)
         @test E.datasetinfo(T) isa E.DatasetRecord
     end
     # and an unknown source is refused, naming the table
@@ -587,6 +594,14 @@ end
     @test era.crs == Rasters.EPSG(4326)
     cru = E.datasetinfo(CRUTS)
     @test cru.fetch === :none && isnothing(cru.crs) && isnothing(cru.extent)
+    # 20CRv3 is one fixed product, so everything about it is recorded and checked.
+    tcr = E.datasetinfo(TwentyCR)
+    @test tcr.format === :netCDF && tcr.fetch === :https
+    @test tcr.longituderange == (0.0°, 360.0°) && tcr.resolution == [1.0°]
+    @test tcr.crs == Rasters.EPSG(4326)
+    @test tcr.extent ==
+          Extents.Extent(Y = (-90.0°, 90.0°), X = (-180.0°, 180.0°))
+    @test !isempty(tcr.licence) && tcr.doi == "10.1002/qj.3598"
 end
 
 @testset "the first-read check refuses a file that contradicts its row" begin
