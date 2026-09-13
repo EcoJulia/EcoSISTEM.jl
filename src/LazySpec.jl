@@ -342,12 +342,13 @@ resolution before the study grid had been decided. It is the vector mirror of
 abstract type AbstractShapeSpec <: EcoSISTEM.AbstractLazySpec end
 
 """
-    ShapeSpec(path::AbstractString; layer = 0)
+    ShapeSpec(path::AbstractString; layer = 0, coverage = AllTerritories(), outline = true)
 
 Name an active-area mask taken from the polygons of a vector file, without reading it. It holds
-**no** geometry: the read, any download, the per-feature reprojection into the target grid's own CRS
-and the cell-membership test all happen when it is materialised onto a decided grid, as for
-[`SourceSpec`](@ref).
+**no** geometry: the read, any download, the dissolve of its features into connected pieces of
+ground, the reprojection into the target grid's own CRS and the cell-membership test all happen
+when it is materialised onto a decided grid, as for [`SourceSpec`](@ref); `read(spec)` gives the
+pieces themselves.
 
 # Arguments
 
@@ -359,16 +360,27 @@ and the cell-membership test all happen when it is materialised onto a decided g
     and `.prj` companions never arrive and GDAL refuses the result. Point at the zip the shapefile
     is published in instead, or download the set by hand and give the local `.shp` path.
   - `layer`: which layer of the file, 0-indexed. Every polygon feature in it is used.
+  - `coverage`: how much of the ground the file covers to take, once its features are dissolved
+    into connected pieces - [`AllTerritories`](@ref), the default and everything the file holds,
+    [`LargestLandmass`](@ref) for the principal piece, or [`LandmassesAbove`](@ref) for every
+    piece clearing a threshold.
+  - `outline`: `true`, the default, activates only the cells whose centres fall inside the
+    file's polygons. `false` activates every cell in their bounding box instead, as for
+    [`NaturalEarthSpec`](@ref).
 """
-struct ShapeSpec <: AbstractShapeSpec
+struct ShapeSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
     path::Union{String, EcoSISTEM.CachedAsset}
     layer::Int
+    coverage::C
+    outline::Bool
     # A leading URL scheme (`scheme://...`) marks `path` as a download, deferred to a `CachedAsset`;
     # anything else is taken to be an already-local path, used as-is.
-    function ShapeSpec(path::AbstractString; layer::Integer = 0)
+    function ShapeSpec(path::AbstractString; layer::Integer = 0,
+                       coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
+                       outline::Bool = true)
         p = occursin(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path) ?
             EcoSISTEM.CachedAsset(ShapeSpec, path) : String(path)
-        return new(p, Int(layer))
+        return new{typeof(coverage)}(p, Int(layer), coverage, outline)
     end
 end
 
@@ -461,11 +473,13 @@ end
 """
     ConstructedShapeSpec(operation, members...; coverage = AllTerritories(), outline = true)
 
-Combine several named regions into one mask - the union of the United Kingdom, Ireland and the Isle
-of Man, or a country with an island group cut out of it.
+Combine several shapes into one mask - the union of the United Kingdom, Ireland and the Isle of
+Man, a country with an island group cut out of it, or a study area of your own buffered by a
+distance - or transform one.
 
-Regions combine as **geometry**, so the result is exact and carries no resolution of its own: the
-grid is still decided afterwards, and nothing is rasterised twice.
+Shapes combine as **geometry**, so the result is exact and carries no resolution of its own: the
+grid is still decided afterwards, and nothing is rasterised twice; `read(spec)` gives the pieces
+of ground the result is.
 
 ```julia
 # The British Isles, including Shetland - which Natural Earth's own polygon of that name omits
@@ -479,9 +493,12 @@ ConstructedShapeSpec(ShapeUnion(),
 # Arguments
 
   - `operation`: how they combine - [`ShapeUnion`](@ref), [`ShapeIntersection`](@ref) or
-    [`ShapeDifference`](@ref), the last taking every later member away from the first.
-  - `members`: two or more region specs, either [`NaturalEarthSpec`](@ref)s or nested
-    `ConstructedShapeSpec`s.
+    [`ShapeDifference`](@ref), the last taking every later member away from the first, each
+    wanting two or more members; or how one is transformed - [`ShapeBuffer`](@ref),
+    [`ShapeSimplify`](@ref) or [`ShapeConvexHull`](@ref), each wanting exactly one; or a function
+    handed one geometry per member and returning one.
+  - `members`: any shape specs - a [`ShapeSpec`](@ref) of your own, a [`NaturalEarthSpec`](@ref),
+    or a nested `ConstructedShapeSpec` - as many as the operation wants.
   - `coverage`: which components of the *result* to keep, applied after the operation -
     [`AllTerritories`](@ref) by default, since a combination usually means all of what it built.
   - `outline`: as [`NaturalEarthSpec`](@ref) - `false` activates the result's bounding box instead of
@@ -772,8 +789,12 @@ function _showspec(io::IO, spec::RasterSpec{A},
 end
 
 function Base.show(io::IO, spec::ShapeSpec)
-    layer = iszero(spec.layer) ? "" : ", layer = $(spec.layer)"
-    return print(io, "ShapeSpec($(repr(spec.path))$(layer))")
+    print(io, "ShapeSpec(", repr(spec.path))
+    iszero(spec.layer) || print(io, ", layer = ", spec.layer)
+    EcoSISTEM._isdefaultcoverage(spec.coverage) ||
+        print(io, ", coverage = ", spec.coverage)
+    spec.outline || print(io, ", outline = false")
+    return print(io, ")")
 end
 
 function Base.show(io::IO, spec::ConstructedRasterSpec{A}) where {A}

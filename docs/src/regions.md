@@ -158,7 +158,8 @@ ConstructedShapeSpec(ShapeUnion(), uk, ireland, man)
 ```
 
 Members may be any shape spec, including a `ShapeSpec` of your own study area and another
-`ConstructedShapeSpec`. Operations are `ShapeUnion`, `ShapeIntersection` and `ShapeDifference` for
+`ConstructedShapeSpec`; a `ShapeSpec` takes the same `coverage` and `outline` as a named region, and
+`read(spec)` of any shape spec gives the pieces of ground it is, largest first. Operations are `ShapeUnion`, `ShapeIntersection` and `ShapeDifference` for
 combining two or more, and `ShapeBuffer`, `ShapeSimplify` and `ShapeConvexHull` for transforming
 exactly one:
 

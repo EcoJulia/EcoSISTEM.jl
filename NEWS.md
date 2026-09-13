@@ -24,6 +24,10 @@
       catalogued layers, each fetched from NOAA PSL into the asset cache on first use, the soil
       moisture layer's top soil level selected by its catalogue row, and a precipitation rate
       stated as a mass of water per area read as a depth by the density of water.
+    - `read(spec)` on any shape spec, giving the connected pieces of ground it names - geometry,
+      envelope and area, largest first - before any grid exists. `ShapeSpec` takes the same
+      `coverage` and `outline` as a named region, so a file's smaller pieces can be dropped or its
+      box taken.
     - `SoilVolume` and `SoilWaterVolume` axes. ERA5's `swvl1` reads on the second: a volumetric
       fraction over a layer whose catalogue row gives its thickness is a depth of water, and times
       the cell area a volume, so a stock is a supply as `SurfaceArea` already is.

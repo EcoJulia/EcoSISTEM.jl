@@ -478,6 +478,8 @@ study area: a synthetic one has no CRS, extent or resolution of its own.
 
 `AbstractShapeSpec` is the branch of the lazy specs that is **ground** rather than data - a shape
 file, a named country, a continent, an island - and resolves to geometry before any grid exists.
+Every shape spec carries a `coverage`, which of the connected pieces of that ground to take, and an
+`outline`, whether to mask by the pieces or by the box around them; `read(spec)` gives the pieces.
 
 `RasterSpec` names raster data to be read, and has two spellings: `SourceSpec(source, code)` for a
 layer of a catalogued dataset, whose unit and axis the catalogue supplies and whose files the source
@@ -507,7 +509,7 @@ classDiagram
     class AbstractSyntheticLayerSpec
     class AbstractSyntheticMaskSpec
     class RasterSpec~A, U~
-    class ShapeSpec
+    class ShapeSpec~C~
     class AbstractShapeSpec
     class NaturalEarthSpec~C~
     class ConstructedShapeSpec~O, M, C~

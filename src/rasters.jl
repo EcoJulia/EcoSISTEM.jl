@@ -844,27 +844,23 @@ function _preparemask(active::CircleMaskSpec, tcrs)
     return (payload = active, extent = _circleextent(active, tcrs))
 end
 
-function _preparemask(active::ShapeSpec, tcrs)
-    geoms, extent = _shapegeoms(active, tcrs)
-    return (payload = geoms, extent = extent)
-end
-
-# A named region, either as its outline or as the box around it.
+# A shape - a vector file, a named region, a combination - either as its outline or as the box
+# around it.
 #
 # `outline = false` returns the extent with **no** payload, which is how `_preparemask` already says
 # "restrict the grid to this box, but leave every cell in it active" - the same answer an
 # `Extents.Extent` gives. The geometries are still prepared to get there, which is a little wasted
-# work once per build against a download that dominates it.
+# work once per build against a read or download that dominates it.
 function _preparemask(active::AbstractShapeSpec, tcrs)
-    geoms, extent = _naturalearthgeoms(active, tcrs)
+    geoms, extent = _shapegeoms(active, tcrs)
     # No geometry means no ground, which is never a usable mask and is usually a coverage that
-    # filtered everything out or a combination whose members do not meet. Saying so beats handing
-    # back a grid with no active cells, or an extent at the origin.
+    # filtered everything out, a combination whose members do not meet, or a file with no polygon
+    # in it. Saying so beats handing back a grid with no active cells, or an extent at the origin.
     isempty(geoms) &&
         error("`$active` selects no ground. A `LandmassesAbove` threshold may have excluded every " *
-              "component, or the members of a combination may not overlap - Natural Earth's " *
-              "physical outlines are drawn per landmass, so a continent's polygon does not " *
-              "contain its offshore islands.")
+              "component, a file may hold no polygon, or the members of a combination may not " *
+              "overlap - Natural Earth's physical outlines are drawn per landmass, so a " *
+              "continent's polygon does not contain its offshore islands.")
     return (payload = active.outline ? geoms : nothing, extent = extent)
 end
 
@@ -1469,9 +1465,8 @@ function _preparegeoms(geoms, src, tcrs)
     return parts, extent
 end
 
-# Read `spec`'s vector file and prepare every feature's geometry in the target grid's own CRS - the
-# work `ShapeSpec` defers from construction to materialise time, mirroring `read(::RasterSpec)`.
-# Every geometry in `spec`'s vector file, with the CRS they are in.
+# Every geometry in `spec`'s vector file, with the CRS they are in - the read `ShapeSpec` defers
+# from construction.
 function _readshapefile(spec::ShapeSpec)
     path = _resolvepath(spec.path)
     vpath = endswith(path, ".zip") ? "/vsizip/" * path : path
@@ -1483,29 +1478,41 @@ function _readshapefile(spec::ShapeSpec)
     return [ArchGDAL.clone(ArchGDAL.getgeom(f)) for f in lyr], src
 end
 
-function _shapegeoms(spec::ShapeSpec, tcrs)
-    geoms, src = _readshapefile(spec)
-    return _preparegeoms(geoms, src, tcrs)
-end
+"""
+    read(spec::AbstractShapeSpec)
 
-# The components a region spec resolves to, in WGS84 and before any grid exists.
+Read the ground a shape spec names - a vector file's polygons, a named region's, or what a
+combination of shapes builds - as the connected pieces it is, in WGS84 and before any grid
+exists: the eager step the spec defers. Each piece is a named tuple of its `geometry` (an
+`ArchGDAL` geometry), its `envelope` (the bounding box GDAL reports for it) and its `area` in
+square kilometres, ordered largest first, after the spec's `coverage` has said which to keep.
+
+Building a study area resolves a shape through this, so calling it directly is for inspection -
+to see how many pieces a name is, or how large the one a `coverage` would drop is.
+
+# Arguments
+
+  - `spec`: what to read.
+"""
+Base.read(spec::AbstractShapeSpec) = _shapecomponents(spec)
+
+# The components a shape spec resolves to, in WGS84 and before any grid exists: one method per
+# leaf, and what `read` returns.
 #
-# For a single name these are the same calls the shipped table's generator makes, which is what keeps
-# a built shape agreeing with the box `boundingbox` reports for it.
 # A vector file's own geometry, dissolved into components in WGS84 so that it can take part in a
-# combination on equal terms with a named region.
-#
-# Every feature is taken: a `ShapeSpec` has no `coverage` field, because a file is already exactly
-# the ground its author meant. Use the enclosing `ConstructedShapeSpec`'s `coverage` to filter the
-# result if some of it is not wanted.
+# combination on equal terms with a named region, then filtered by the spec's coverage as a named
+# region's is.
 function _shapecomponents(spec::ShapeSpec)
     geoms, src = _readshapefile(spec)
     wgs = _gdalcrs(Rasters.EPSG(4326))
     ArchGDAL.createcoordtrans(src, wgs) do ct
         return foreach(g -> ArchGDAL.transform!(g, ct), geoms)
     end
-    return _dissolve(geoms)
+    return _coverageof(_dissolve(geoms), spec.coverage)
 end
+
+# For a single name these are the same calls the shipped table's generator makes, which is what
+# keeps a built shape agreeing with the box `boundingbox` reports for it.
 
 function _shapecomponents(spec::NaturalEarthSpec)
     return _coverageof(_dissolve(_selectfeatures(_findlevel(spec.level),
@@ -1577,9 +1584,10 @@ _indegrees(d::Real) = float(d)
 _indegrees(d::Unitful.DimensionlessQuantity) = ustrip(°, uconvert(°, d))
 _indegrees(d::Unitful.Length) = ustrip(NoUnits, d / _degreelength(1°))
 
-# The geometry a region spec resolves to, in the target grid's own CRS. Natural Earth publishes in
-# WGS84 lat/long, so that is the source.
-function _naturalearthgeoms(spec::AbstractShapeSpec, tcrs)
+# The geometry a shape spec resolves to, prepared in the target grid's own CRS, with the extent it
+# covers. Every shape's components are in WGS84 - a file's are reprojected there on read - so that
+# is the source; a file already in the target CRS makes the round trip once per build.
+function _shapegeoms(spec::AbstractShapeSpec, tcrs)
     return _preparegeoms([p.geometry for p in _shapecomponents(spec)],
                          _gdalcrs(Rasters.EPSG(4326)), tcrs)
 end
@@ -1715,8 +1723,8 @@ function _rastermask(payload::CircleMaskSpec, regime, target)
     return _circle(payload, yx.lat, yx.long, Rasters.crs(target))
 end
 
-# `_preparemask(::ShapeSpec, ...)` already read and reprojected the geometries, so the payload is the
-# vector of prepared geometries and their envelopes - nothing is re-read here.
+# `_preparemask(::AbstractShapeSpec, ...)` already read and reprojected the geometries, so the
+# payload is the vector of prepared geometries and their envelopes - nothing is re-read here.
 function _rastermask(payload::AbstractVector, regime, target)
     yx = _cellcentres(target)
     return _shape(payload, yx.lat, yx.long)
