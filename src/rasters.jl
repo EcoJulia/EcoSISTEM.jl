@@ -1937,7 +1937,8 @@ end
 
 Check every file a spec reads that is present against the checksum its provenance record holds,
 erroring on the first that differs - a truncated or replaced copy - and return how many were
-checked. A file with no record has nothing to check against and is skipped; nothing is fetched.
+checked. A file with no record, or whose record carries no checksum, has nothing to check
+against and is not counted; nothing is fetched.
 
 # Arguments
 
@@ -1947,9 +1948,8 @@ function verifyassets(spec::RasterSpec)
     entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
     checked = 0
     for path in _localpath.(entries)
-        (isfile(path) && isfile(_sidecarpath(path))) || continue
-        _verifyfile(path)
-        checked += 1
+        isfile(path) || continue
+        checked += _verifyfile(path)
     end
     return checked
 end

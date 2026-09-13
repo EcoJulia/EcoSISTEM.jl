@@ -20,8 +20,11 @@ using Test
     shown = sprint(show, MIME("text/plain"), r)
     @test occursin("InputRecord (species)", shown) && occursin("doi", shown) &&
           !occursin("url", shown)
-    # A role outside the closed set, or an absolute path, is refused where it was written.
+    # A role outside the closed set, or an absolute path, is refused where it was written; the
+    # set covers what a run is seeded from and restarted from as well as what it is built from.
     @test_throws ArgumentError InputRecord(role = :weather, dataset = "x")
+    @test InputRecord(role = :abundance, dataset = "GBIF").role === :abundance
+    @test InputRecord(role = :state, dataset = "burn-in.jld2").role === :state
     @test_throws ArgumentError InputRecord(role = :habitat, dataset = "x",
                                            path = joinpath(homedir(), "x.nc"))
     # A request body is kept as sent, keys as strings.
@@ -63,6 +66,7 @@ end
     write(cds, "x")
     write(EcoSISTEM._sidecarpath(cds),
           """
+          writer = "EcoSISTEM 0.8.0"
           role = "habitat"
           file = "era5_t2m_1990s.nc"
           dataset = "reanalysis-era5-single-levels-monthly-means"
@@ -76,6 +80,33 @@ end
     c = provenance(cds)
     @test c.dataset == "ERA" && c.job == "50fb750a-172d-4af8-ab53-9f7dff9d73d2"
     @test c.request["variable"] == ["2m_temperature"]
+    # A sidecar another program wrote under the same name - prose in `role`, a sentence in
+    # `source` - is neither read nor overwritten: it reports nothing, once with a warning.
+    foreign = joinpath(dir, "air.2m.mon.mean.nc")
+    write(foreign, "x")
+    text = """
+           source = "NOAA PSL, 20th Century Reanalysis V3 monthly means"
+           role = "2 m air temperature (K)"
+           writer = "data/src/twentycr_download.jl"
+           """
+    write(EcoSISTEM._sidecarpath(foreign), text)
+    @test_logs (:warn, r"was not written by EcoSISTEM") match_mode=:any (@test isnothing(provenance(foreign)))
+    @test read(EcoSISTEM._sidecarpath(foreign), String) == text
+    # ...and a present file with no sidecar at all is recorded on first use, without a fetch time,
+    # so a copy fetched by hand still ends up with a record.
+    held = joinpath(dir, "held.bin")
+    write(held, "held")
+    asset = EcoSISTEM.CachedAsset(TwentyCR, "https://example.org/held.bin",
+                                  path = held)
+    @test EcoSISTEM.assetpath(asset) == held
+    h = provenance(held)
+    @test h.url == "https://example.org/held.bin" && isnothing(h.fetched)
+    @test h.sha256 == EcoSISTEM._sha256(held) && h.bytes == 4
+    # The foreign sidecar stays foreign through the same route.
+    @test EcoSISTEM.assetpath(EcoSISTEM.CachedAsset(TwentyCR,
+                                                    "https://example.org/air.nc",
+                                                    path = foreign)) == foreign
+    @test read(EcoSISTEM._sidecarpath(foreign), String) == text
 end
 
 end

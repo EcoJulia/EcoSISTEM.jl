@@ -17,7 +17,9 @@ write one for anything it could not have known about.
 
   - `role`: which part of the system the input entered by - `:habitat` for a layer, `:region` for a
     shape or a named region's outline, `:species`, `:phylogeny`, `:dispersal`, `:demography` or
-    `:intervention` for what you attached, `:software` for the package itself.
+    `:intervention` for what you attached, `:abundance` for records a starting population was
+    placed from, `:state` for a saved run a forward run starts from, `:software` for the package
+    itself.
   - `dataset`: the source's name - a catalogue key such as `TwentyCR` or `WorldClim{BioClim}`, or
     your own name for a dataset of yours.
   - `code`: which layer of the source, where the input is one.
@@ -72,7 +74,8 @@ end
 
 # The parts of the system a published input can enter by.
 const _INPUT_ROLES = (:habitat, :region, :species, :phylogeny, :dispersal,
-                      :demography, :intervention, :software)
+                      :demography, :intervention, :abundance, :state,
+                      :software)
 
 # An optional text field, `nothing` kept, anything else as a `String`.
 _optstring(x) = isnothing(x) ? nothing : string(x)
@@ -83,6 +86,11 @@ _optdate(::Nothing) = nothing
 _optdate(t::Dates.DateTime) = t
 
 _optdate(s::AbstractString) = Dates.DateTime(chopsuffix(String(s), "Z"))
+
+# Whether a parsed sidecar is one this package wrote: its `writer` says so.
+function _ourrecord(t::AbstractDict)
+    return startswith(string(get(t, "writer", "")), "EcoSISTEM")
+end
 
 function Base.show(io::IO, r::InputRecord)
     print(io, "InputRecord(", r.role, ", ", repr(r.dataset))
@@ -116,8 +124,9 @@ end
 Return what is known about where an input came from.
 
 For a file, the [`InputRecord`](@ref) its provenance sidecar holds - written beside every file this
-package fetched, as `<file>.provenance.toml` - or `nothing` for a file with none, which is one it
-never fetched.
+package fetched or first used, as `<file>.provenance.toml` - or `nothing` for a file with none. A
+sidecar of that name that this package did not write is left alone and reports `nothing` too, with
+a warning saying so, since its fields mean whatever its writer meant.
 
 For a raster spec, one entry per file the spec reads, in order: the file's record, or `nothing`
 where the file is absent or has no record. Nothing is fetched to answer; use
@@ -134,9 +143,17 @@ function provenance(path::AbstractString)
 end
 
 # A sidecar's TOML as an `InputRecord`: the keys the writers use, any it does not know left behind.
+# A sidecar another program wrote under the same name is not read: its `role` may be prose and its
+# `source` a sentence, so a record built from it would be wrong in ways no reader could see.
 function _readsidecar(sidecar::AbstractString)
     t = TOML.parsefile(sidecar)
     field(k) = get(t, k, nothing)
+    _ourrecord(t) || begin
+        @warn "`$(basename(sidecar))` was not written by EcoSISTEM (writer: "*
+              "$(repr(field("writer")))), so it is left alone and reports nothing; delete or "*
+              "rename it to have the file recorded on its next use." maxlog=1 _id=Symbol(sidecar)
+        return nothing
+    end
     return InputRecord(role = Symbol(something(field("role"), "habitat")),
                        dataset = something(field("source"), field("dataset"),
                                            "file"),

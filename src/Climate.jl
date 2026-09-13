@@ -187,7 +187,9 @@ Build the [`EcoSISTEM.CDSRequest`](@ref)s that fetch one ERA5 monthly-means laye
 as one file per `per` years - a decade each by default, which is the size the Climate Data Store
 serves comfortably - each written to `dir` as `era5_<code>_<decade>s.nc`, in time order, so
 the result is a spec's `files`: `SourceSpec(ERA, "t2m", files = era5requests("t2m", 1940:2025,
-dir = "data/era5"))`.
+dir = "data/era5"))`. A block that does not fill its decade - the current one, or the first of a
+span - is named by the years it holds instead, `era5_<code>_2020-2025.nc`, so that asking for a
+later year names a new file rather than finding the old one present and stopping there.
 
 # Arguments
 
@@ -200,10 +202,17 @@ dir = "data/era5"))`.
 function era5requests(code, years; dir::AbstractString, per::Integer = 10,
                       months = 1:12, area = nothing)
     ys = sort(unique(collect(years)))
-    return [CDSRequest(ERA, code, years = filter(y -> fld(y, per) == b, ys),
-                       months = months, area = area,
-                       path = joinpath(dir, "era5_$(code)_$(b * per)s.nc"))
-            for b in unique(fld.(ys, per))]
+    requests = CDSRequest[]
+    for b in unique(fld.(ys, per))
+        block = filter(y -> fld(y, per) == b, ys)
+        whole = length(block) == per
+        name = whole ? "era5_$(code)_$(b * per)s.nc" :
+               "era5_$(code)_$(first(block))-$(last(block)).nc"
+        push!(requests,
+              CDSRequest(ERA, code, years = block, months = months,
+                         area = area, path = joinpath(dir, name)))
+    end
+    return requests
 end
 
 """

@@ -66,12 +66,18 @@ end
     # A code the table does not know is refused by the catalogue lookup itself.
     @test_throws ErrorException CDSRequest(EcoSISTEM.ERA, "t2m_no_such",
                                            years = 1990:1990, path = "x")
+    # A whole decade is named as one; a partial block by its years, so that asking later for
+    # one more year names a new file instead of finding the old one and stopping.
     rs = EcoSISTEM.era5requests("tp", 1985:2004, dir = "d")
     @test length(rs) == 3
     @test [basename(q.path) for q in rs] ==
-          ["era5_tp_1980s.nc", "era5_tp_1990s.nc", "era5_tp_2000s.nc"]
+          ["era5_tp_1985-1989.nc", "era5_tp_1990s.nc", "era5_tp_2000-2004.nc"]
     @test rs[1].request["year"] == string.(1985:1989)
     @test rs[3].request["year"] == string.(2000:2004)
+    @test basename(only(EcoSISTEM.era5requests("tp", 2020:2025, dir = "d")).path) ==
+          "era5_tp_2020-2025.nc"
+    @test basename(only(EcoSISTEM.era5requests("tp", 2020:2026, dir = "d")).path) ==
+          "era5_tp_2020-2026.nc"
     # The requests are a spec's files as they stand.
     spec = SourceSpec(EcoSISTEM.ERA, "tp", files = rs)
     @test length(spec.files) == 3

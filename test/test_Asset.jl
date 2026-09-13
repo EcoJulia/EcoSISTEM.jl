@@ -126,9 +126,19 @@ end
     close(site.server)
     @test assetpath(asset) == dest
     @test assetpath(asset, verify = true) == dest
-    # A replaced file fails verification by its checksum.
+    # A replaced file fails verification by its checksum, and verification says what it checked.
+    @test E._verifyfile(dest)
     write(dest, rand(UInt8, 10_000))
     @test_throws "does not match the checksum" assetpath(asset, verify = true)
+    # A record with no checksum, or none of ours, is nothing to check against.
+    bare = joinpath(dir, "bare.bin")
+    write(bare, "x")
+    @test !E._verifyfile(bare)
+    write(E._sidecarpath(bare),
+          "writer = \"EcoSISTEM 0.8.0\"\nfile = \"bare.bin\"\n")
+    @test !E._verifyfile(bare)
+    write(E._sidecarpath(bare), "writer = \"someone else\"\nsha256 = \"00\"\n")
+    @test !E._verifyfile(bare)
     # An asset with no path lands in its owner's cache directory under the URL's name.
     @test E._localpath(CachedAsset(TwentyCR, "https://example.org/x/y.nc")) ==
           joinpath(E.assetdir(owner = TwentyCR), "y.nc")

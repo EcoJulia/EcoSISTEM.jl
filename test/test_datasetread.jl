@@ -709,7 +709,8 @@ end
     @test E.fetchfiles([spec, spec]) == [path, path]
     dry = only(E.fetchfiles(spec, dryrun = true))
     @test dry.entry == path && dry.present && isnothing(dry.bytes)
-    # A file this package never fetched has no record, and nothing to verify.
+    # A file this package never fetched has no record, and nothing to verify - until it is used
+    # through an asset, when it is recorded as present.
     @test provenance(spec) == [nothing]
     @test E.verifyassets(spec) == 0
     # A source that resolves its own files reports as one entry, fetching nothing.

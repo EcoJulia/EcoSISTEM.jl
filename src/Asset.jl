@@ -114,6 +114,10 @@ function assetpath(asset::CachedAsset; verify::Bool = false)
                      joinpath(assetdir(owner = asset.owner),
                               basename(asset.url)))
     if isfile(path)
+        _recordpresent(path) do
+            record = _assetrecord(asset, path, nothing)
+            return record
+        end
         verify && _verifyfile(path)
         return path
     end
@@ -135,6 +139,9 @@ end
 
 function assetpath(request::CDSRequest; verify::Bool = false)
     if isfile(request.path)
+        _recordpresent(request.path) do
+            return _requestrecord(request, request.path, nothing)
+        end
         verify && _verifyfile(request.path)
         return request.path
     end
@@ -229,6 +236,17 @@ end
 # `.provenance.toml` after it, beside it.
 _sidecarpath(path::AbstractString) = path * ".provenance.toml"
 
+# Record a file that is already present when it is first used and has no sidecar - one fetched
+# before records were written, or by hand - with everything but a fetch time, which is not known.
+# A sidecar that is there already, ours or another program's, is left as it is.
+function _recordpresent(record::Function, path::AbstractString)
+    isfile(_sidecarpath(path)) && return nothing
+    r = record()
+    delete!(r, "fetched")
+    _writesidecar(path, r)
+    return nothing
+end
+
 # Write `record` as the provenance sidecar of `path`, in TOML, keys sorted so two records of one
 # file diff cleanly.
 function _writesidecar(path::AbstractString, record::AbstractDict)
@@ -241,18 +259,19 @@ end
 # The SHA-256 digest of a file, as hex.
 _sha256(path::AbstractString) = bytes2hex(open(SHA.sha256, path))
 
-# Check a present file against the checksum its sidecar records, erroring on a mismatch; a file
-# with no sidecar, or a record with no checksum, has nothing to check against and passes.
+# Check a present file against the checksum its sidecar records, erroring on a mismatch, and say
+# whether there was one to check: a file with no sidecar, one this package did not write, or a
+# record with no checksum has nothing to check against and passes unchecked.
 function _verifyfile(path::AbstractString)
-    isfile(_sidecarpath(path)) || return nothing
+    isfile(_sidecarpath(path)) || return false
     record = TOML.parsefile(_sidecarpath(path))
-    haskey(record, "sha256") || return nothing
+    (_ourrecord(record) && haskey(record, "sha256")) || return false
     actual = _sha256(path)
     actual == record["sha256"] ||
         error("`$(basename(path))` does not match the checksum its provenance record holds: " *
               "recorded $(record["sha256"]), found $actual. The file has been truncated or " *
               "replaced since it was fetched; delete it to fetch it again.")
-    return nothing
+    return true
 end
 
 # The fields every fetched file's record carries: who wrote it, when, the file's name (never its
@@ -286,15 +305,18 @@ end
 
 # The provenance record of a file fetched over https: the URL asked for and the one the server
 # answered from, and the validators it sent, plus the catalogue's facts where the owner is a
-# source and the URL is one of its layers' files.
+# source and the URL is one of its layers' files. `response` is `nothing` for a file recorded
+# when already present, which then carries the URL alone.
 function _assetrecord(asset::CachedAsset, path::AbstractString, response)
     rec = _datasetrecord(asset.owner)
     record = _baserecord(path, isnothing(rec) ? :region : :habitat)
     record["url"] = asset.url
-    response.url == asset.url || (record["final_url"] = response.url)
-    for (name, key) in (("etag", "etag"), ("last-modified", "last_modified"))
-        i = findfirst(h -> lowercase(first(h)) == name, response.headers)
-        isnothing(i) || (record[key] = String(last(response.headers[i])))
+    if !isnothing(response)
+        response.url == asset.url || (record["final_url"] = response.url)
+        for (name, key) in (("etag", "etag"), ("last-modified", "last_modified"))
+            i = findfirst(h -> lowercase(first(h)) == name, response.headers)
+            isnothing(i) || (record[key] = String(last(response.headers[i])))
+        end
     end
     isnothing(rec) ||
         merge!(record,

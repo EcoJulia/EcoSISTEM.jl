@@ -33,7 +33,9 @@
       checksum, and the dataset's DOI, licence, version and citation from the catalogue.
       `provenance(path)` and `provenance(spec)` read them back as `InputRecord`s, the one shape a
       record of any published input takes; `verifyassets(spec)` checks present files against
-      their checksums. Nothing in a record names a machine, a user or a key.
+      their checksums. A file already present when first used is recorded too, without a fetch
+      time; a record another program wrote under the same name is left alone and reports nothing.
+      Nothing in a record names a machine, a user or a key.
     - `fetchfiles(spec)` fetches everything a spec reads without reading it, for a node with a
       network before a run on nodes without one; `dryrun = true` lists what would be fetched.
     - `CDSRequest(ERA, code; years, path)` and `era5requests(code, years; dir)` build Climate Data
