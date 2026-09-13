@@ -5,7 +5,24 @@
     - `RasterSpec`, one lazy spec for raster data, written `SourceSpec(source, code)` for a
       catalogued layer and `RasterFileSpec(path; axis)` for a file that belongs to no dataset. The
       read options `cut`, `scale` and `fn` are its fields for either spelling; the read is windowed
-      to the study area, cached, and coarsened on read by `scale`. `readfile` gains `unit`.
+      to the study area, cached, and coarsened on read by `scale`.
+    - `read(spec)` on any `RasterSpec`, the one way to read raster data: a catalogued layer is
+      downloaded and read with its unit attached, a file of your own read as it is, and
+      `SourceSpec(ERA, "t2m", file = path)` or `SourceSpec(CRUTS, "tavg", directory = dir)` read
+      files you already hold as the layer the catalogue describes. A spec takes `times`, `atend`
+      and `calendar`, so a stack of monthly files reads as a dated series.
+    - ERA5 and CERA-20C are read from netCDF through the catalogue, unit and accumulation period
+      included; a file on the 0 to 360 longitude convention is rolled to -180 to 180 on read.
+    - The catalogue is two tables: one layer table per dataset, and `datasets.csv` (read by
+      `datasetinfo`) with each dataset's format, longitude convention, CRS, resolutions, extent,
+      fetch route and provenance. A recorded header fact is checked against the first file read.
+      Layer rows gain `VerticalExtent` and `DocumentedCeiling`.
+    - `CDSRequest`, a file fetched from the Copernicus Climate Data Store on first use and kept,
+      as an entry of a spec's `files`. The `EcoSISTEMERAExt` extension loads on `CDSAPI` rather
+      than `PyCall`, and is tested.
+    - `SoilVolume` and `SoilWaterVolume` axes. ERA5's `swvl1` reads on the second: a volumetric
+      fraction over a layer whose catalogue row gives its thickness is a depth of water, and times
+      the cell area a volume, so a stock is a supply as `SurfaceArea` already is.
     - `show` methods for some over-long types.
     - `build_species` and the direct `SpeciesList` constructor take `names`, so species can carry
       real names; the names label their Diversity types too.
@@ -36,7 +53,6 @@
     - A coarsening reduces over the cells that carry data with a reducer chosen from the layer's
       axis - the mean, or the most frequent class for class codes. A grid cell is covered by a layer
       when the layer has data at its centre.
-    - `readfile` returns a `ClimateRaster`, with `source` and `unit` keywords.
     - A categorical tolerance and its regime no longer need the same numeric type for their
       codes: an integer class list pairs with a layer of float codes.
     - EarthEnv land cover is no longer coarsened 10× by default. A read is at the file's own
@@ -60,6 +76,14 @@
     - An angular `cellsize` such as `30arcminute` is accepted on a geographic grid; a length there,
       and an angle on a projected grid, are refused.
     - `ShapeSpec` documents that a URL must name a self-contained file.
+  - Deprecated
+    - `read(WorldClim{BioClim}, layers; ...)` and `read(CHELSA{Climate}, dir, var)`, which extended
+      `Base.read` on types this package does not own. `read(SourceSpec(...))` replaces both and
+      attaches the layer's unit, where the old forms returned bare magnitudes.
+    - `read(ERA, file, param, ...)`, `read(CERA, ...)`, `read(CRUTS, dir, var)` and `readfile`:
+      write `SourceSpec(source, code, file = path)` or `directory = dir` for the first three and
+      `RasterFileSpec(path; axis)` for the last, and `read` the spec.
+    - `retrieve_era5`: name the download as a `CDSRequest` instead, one per decade file.
 - v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name

@@ -40,7 +40,7 @@ function ReadKey(spec::RasterSpec; cut = spec.cut, scale = spec.scale)
     files = isnothing(spec.files) ? nothing : _pathtext.(spec.files)
     return ReadKey(spec.source, spec.code, files,
                    (cut = cut, unit = spec.unit, scale = something(scale, 1),
-                    fn = spec.fn, spec.readkw...))
+                    fn = spec.fn, times = spec.times, spec.readkw...))
 end
 
 # `::AbstractSpec` rather than the full [`LayerInput`](@ref): the tuple/named-tuple forms are the
@@ -178,7 +178,7 @@ function _asraster(spec::RasterSpec, cache::LayerCache; cut = nothing,
     served = _servedread(cache, key)
     isnothing(served) || return served
     return get!(cache.reads, key) do
-        return _read(spec, cut = cut, scale = scale)
+        return read(spec, cut = cut, scale = scale)
     end
 end
 
@@ -301,13 +301,15 @@ end
 function _stackcached(spec::RasterSpec, cache::LayerCache, cut, scale)
     codes = spec.code
     layers = map(codes) do c
-        one = SourceSpec(spec.source, c; cut = cut, scale = spec.scale,
-                         fn = spec.fn, spec.readkw...)
+        one = SourceSpec(spec.source, c; files = spec.files, cut = cut,
+                         scale = spec.scale, fn = spec.fn, times = spec.times,
+                         atend = spec.atend, calendar = spec.calendar,
+                         spec.readkw...)
         key = ReadKey(one, cut = cut, scale = scale)
         served = _servedread(cache, key)
         isnothing(served) || return served
         return get!(cache.reads, key) do
-            return _read(one, cut = cut, scale = scale)
+            return read(one, cut = cut, scale = scale)
         end
     end
     length(layers) == 1 && return only(layers)
@@ -668,7 +670,7 @@ function _materialisefield(spec::AbstractSyntheticLayerSpec, area::StudyArea)
     field = _specfield(spec, length.(yx), _rowsincreasenorth(yx))
     # **United dims, so a synthetic layer and a data layer on one area agree** - see `_unitedyx`.
     return (values = DimArray(field, _unitedyx(yx, area.report.crs)),
-            categorical = spec isa NicheSpec)
+            categorical = spec isa NicheSpec, series = _seriespolicy(spec))
 end
 
 function _materialisefield(spec, area::StudyArea)
@@ -678,7 +680,7 @@ function _materialisefield(spec, area::StudyArea)
     values = _sampledata(raster, area.report.active, name = "layer",
                          categorical = categorical, fn = _specfn(spec))
     return (values = _restricttocovered(values, raster, area, categorical),
-            categorical = categorical)
+            categorical = categorical, series = _seriespolicy(spec))
 end
 
 # **A `ConstructedRasterSpec` goes through `_combineon`, so inspection obeys `combinestage`.**
@@ -703,7 +705,7 @@ function _materialisefield(spec::ConstructedRasterSpec, area::StudyArea)
     values = _sampledata(out, area.report.active, name = "layer",
                          categorical = categorical)
     return (values = _restricttocovered(values, out, area, categorical),
-            categorical = categorical)
+            categorical = categorical, series = _seriespolicy(spec))
 end
 
 # **This is what carries `simulate_safely` into `GridHabitat`** (user, 2026-08-13: *"it
@@ -729,13 +731,13 @@ end
 # **This IS the builder's final step, not merely the same shape as it.** `GridHabitat` calls
 # `materialise`, so there is one chain and nothing left for inspection and building to agree about.
 function _applyrole(f::NamedTuple, ::Missing, axis, area::StudyArea)
-    return _asregime(f.values, f.categorical, axis)
+    return _asregime(f.values, f.categorical, axis, f.series)
 end
 
 function _applyrole(f::NamedTuple, ::Type{Condition}, axis, area::StudyArea)
     f.categorical &&
-        return _asregime(f.values, true, axis)
-    return _asregime(_canonical.(f.values, Ref(axis)), false, axis)
+        return _asregime(f.values, true, axis, f.series)
+    return _asregime(_canonical.(f.values, Ref(axis)), false, axis, f.series)
 end
 
 # Regrid first, then convert, and the order is a requirement: `f.values` are the layer's per-area
@@ -743,7 +745,7 @@ end
 # per-cell total the simulation divides a demand by. Aggregation must act on the intensive rate;
 # per-cell totals averaged across cells of differing area would be weighted wrongly.
 function _applyrole(f::NamedTuple, ::Type{Resource}, axis, area::StudyArea)
-    return _wrapsupply(f.values, _inspectioncellareas(area), axis)
+    return _wrapsupply(f.values, _inspectioncellareas(area), axis, f.series)
 end
 
 # The area of each of `area`'s cells, as `cancel` needs it to turn a per-area rate into a per-cell

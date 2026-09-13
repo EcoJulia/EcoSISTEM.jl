@@ -564,7 +564,7 @@ end
         @test hasdata isa Function
 
         # Materialisation - real (small single-class) EarthEnv{LandCover} network read, the
-        # regression oracle for the whole chain: spec -> `read(EarthEnv{LandCover})` ->
+        # regression oracle for the whole chain: spec -> `read(SourceSpec(EarthEnv{LandCover}))` ->
         # `compress_landcover` -> combine rule -> `_samplemask`.
         cultivated = SourceSpec(EarthEnv{LandCover}, :cultivated_and_managed,
                                 cut = scotland, scale = 1)

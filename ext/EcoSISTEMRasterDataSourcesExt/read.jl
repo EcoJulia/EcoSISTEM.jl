@@ -1,16 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
-# --- Reading real datasets ------------------------------------------------------------------------
+# --- What RasterDataSources answers about a dataset's files ---------------------------------------
 #
-# **Only the parts of `src/datasetread.jl` that genuinely need `RasterDataSources` are
-# here** - the two entry points that call `getraster` (so the download is theirs), and the two
-# directory readers that name a concrete dataset. The other ~870 lines of that file are generic
-# raster plumbing (CRS units, extents, arcsecond snapping, block aggregation, stacking) which the
-# parent needs for every raster it handles, whatever its provenance, and which stayed put.
-#
-# `read(::Type{CRUTS}, ...)` is here for a reason worth knowing: **CRU TS has no layer table of its
-# own** and borrows `WorldClim{Climate}`'s, so naming that table means naming a `RasterDataSources`
-# type. Reading CRU TS therefore needs this extension even though CRU TS is not one of its datasets.
+# The three hooks whose sole methods need `getraster`: where a dataset's files are (`_fetchfiles`,
+# which downloads them on first use), the first of them opened lazily (`_lazysource`), and its CRS
+# (`sourcecrs`). Reading is the parent's - `read(::RasterSpec)` in `src/rasters.jl` - and never
+# names this package; a spec's files reach it through `_fetchfiles`.
 
 # **Documented on the stub in `src/datasetread.jl`, not here** - and it was briefly
 # documented in *both*, which rendered two `sourcecrs` entries with the same HTML anchor. A name that
@@ -37,62 +32,7 @@ function EcoSISTEM._lazysource(T::Type{<:RDS.RasterDataSource},
     end
 end
 
-"""
-    read(T::Type{<:RasterDataSource}, layers = RasterDataSources.layers(T);
-         cut = nothing, scale, fn, kw...)
-
-Download (via `getraster`) and read a RasterDataSources layer set into a [`ClimateRaster`](@ref).
-`layers` chooses which layers/variables to read (default: all of them); a vector of *distinct
-same-unit* layers (e.g. `[:tmin, :tavg, :tmax]`) is read into one `Dim{:layer}`-stacked array
-rather than being conflated with a time axis. `cut`, if given, restricts the result to a
-`Extents.Extent(Y = (a, b), X = (c, d))` of `°` bounds. `scale` coarsens each raster by an integer
-block-aggregation factor, `1` reading it at its own resolution, reducing each block with `fn`; left unset, the reducer follows the layers' `axis` - the most frequent
-class for one holding class codes, the mean otherwise - and `axis` itself defaults to what the
-shipped catalogue says the layers are. Any remaining keywords (e.g. `month`) pass through to
-`getraster`.
-"""
-function Base.read(T::Type{<:RDS.RasterDataSource}, layers = RDS.layers(T);
-                   cut = nothing, scale = 1, fn = _defaultfn(T),
-                   axis = _readaxis(T, layers), kw...)
-    # Merged once and reused, because this is the only point at which *which* months were asked
-    # for is known: `getraster` turns them into paths and the months are gone. `_getrasterkw`
-    # supplies the source's own default (WorldClim monthly climate is `month = 1:12`), which the
-    # caller's `kw` overrides - so this is the effective request either way, and it is what labels
-    # the time axis. Without it a partial read is labelled `1:n` and names each slice after the
-    # wrong month.
-    rasterkw = (; _getrasterkw(T)..., kw...)
-    raw = getraster(T, layers; rasterkw...)
-    out = _readraw(T, raw; cut = cut, scale = scale, fn = fn,
-                   slices = get(rasterkw, :month, nothing), axis = axis)
-    return _rescalepublished(T, layers, out)
-end
-
-"""
-    read(::Type{CRUTS}, dir::String, var_name::String; cut = nothing)
-
-Read every `.tif` in `dir` as a monthly time series of variable `var_name`, returning a
-[`ClimateRaster`](@ref)`{CRUTS}` - `CRUTS` names the *source*, and the raster carries the data.
-`var_name` uses the same short codes as `WorldClim{Climate}`'s shipped layer table (`tavg`, `wind`,
-`prec`, ...), which is where the attached unit comes from - CRU TS has no layer table of its own.
-"""
-function Base.read(::Type{CRUTS}, dir::AbstractString, var_name::AbstractString;
-                   cut = nothing)
-    u = layerunit(RDS.WorldClim{RDS.Climate}, var_name)
-    return EcoSISTEM._timeseriesraster(CRUTS,
-                                       _readmonthlydir(dir, u; cut = cut))
-end
-
-"""
-    read(T::Type{CHELSA{Climate}}, dir::String, var_name::String; scale = 1, fn = mean, cut = nothing)
-
-Read every `.tif` in `dir` as a monthly time series of variable `var_name` (optionally coarsened by
-`scale`/`fn`) and return a `ClimateRaster{CHELSA{Climate}}`.
-"""
-function Base.read(T::Type{RDS.CHELSA{RDS.Climate}}, dir::AbstractString,
-                   var_name::AbstractString; scale = 1, fn = mean,
-                   cut = nothing)
-    u = layerunit(T, var_name)
-    return ClimateRaster(T,
-                         _readmonthlydir(dir, u; scale = scale, fn = fn,
-                                         cut = cut))
+# Where a dataset's layers are, through `getraster`, which downloads them on first use.
+function EcoSISTEM._fetchfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
+    return getraster(T, something(code, RDS.layers(T)); kw...)
 end

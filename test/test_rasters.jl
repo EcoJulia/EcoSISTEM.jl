@@ -164,7 +164,7 @@ end
     @test EcoSISTEM.iscategorical(ClimateRaster(CHELSA{BioClimPlus}, arr,
                                                 codes(:kg0, :kg1)))
     # A *mixed* stack has no correct answer - every caller picks one behaviour for the whole
-    # array - so it errors rather than returning either. `_read` calls the same method before
+    # array - so it errors rather than returning either. `read` calls the same method before
     # downloading anything (below), so reaching it here means the raster was assembled some other
     # way. This is the one method of `iscategorical` that can throw.
     mixed = ClimateRaster(CHELSA{BioClimPlus}, arr, codes(:kg0, :bio3))
@@ -190,7 +190,7 @@ end
 @testset "layers that cannot share one array are refused" begin
     msg(spec) =
         try
-            (EcoSISTEM._read(spec); "")
+            (read(spec); "")
         catch e
             sprint(showerror, e)
         end
@@ -227,7 +227,7 @@ end
                              crs = Rasters.EPSG(4326))))
     arr = DimArray(fill(1.0, 5, 5), d)
     bad = collect(EcoSISTEM.CODE_TYPE, [:kg0, :fcf])
-    msgs = map([() -> EcoSISTEM._read(SourceSpec(S, bad)),
+    msgs = map([() -> read(SourceSpec(S, bad)),
                    () -> EcoSISTEM.iscategorical(ClimateRaster(S, arr, bad))]) do f
         try
             f()

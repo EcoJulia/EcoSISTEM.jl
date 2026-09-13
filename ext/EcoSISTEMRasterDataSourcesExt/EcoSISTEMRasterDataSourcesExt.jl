@@ -33,9 +33,6 @@ using EcoSISTEM: AbstractSupply, ClimateRaster, CODE_TYPE, NicheAxis, Supply,
                  _cellareas, _derivedfrom, cancel, landcoverclass
 using EcoSISTEM: SourceSpec
 using EcoSISTEM: compress_landcover, layerinfo, layerunit, sourcecrs
-# `CRUTS` only: this extension supplies `read(::Type{CRUTS}, ...)`, and `ERA`'s readers live in the
-# parent's `erareaders.jl` because they need netCDF rather than a catalogued raster source.
-using EcoSISTEM: CRUTS
 # The ONLY remaining reference to the submodule, and it is confined to `deprecations.jl`: five
 # deprecated per-source wrappers (`Worldclim_bioclim` and friends) plus `readworldclim` and
 # `readCHELSA_monthly` are declared in `ClimatePref/deprecations.jl`, which is where the deprecations

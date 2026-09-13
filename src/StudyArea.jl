@@ -464,7 +464,8 @@ _probecrs(raster::ClimateRaster) = _rastercrs(raster)
 # `datasets.csv` row, or declines.
 function _probecrs(spec::RasterSpec)
     if !isnothing(spec.files)
-        crs = Rasters.crs(_lazyopen(_resolvepath(first(spec.files))))
+        crs = Rasters.crs(_lazyopen(_resolvepath(first(spec.files));
+                                    _openkw(spec)...))
         return _isblankcrs(crs) ? nothing : crs
     end
     hasmethod(sourcecrs, Tuple{typeof(spec.source), typeof(spec.code)}) &&
@@ -474,9 +475,14 @@ function _probecrs(spec::RasterSpec)
 end
 
 # A raster opened for its header alone, its pixels left on disk, and GDAL's chatter silenced.
-function _lazyopen(path::AbstractString)
+# `source` names the backend where the filename cannot (a netCDF file without an extension),
+# `name` the variable to take from a netCDF file and `level` the level to take from a variable
+# holding several; all `nothing` for a file opened as it looks.
+function _lazyopen(path::AbstractString; source = nothing, name = nothing,
+                   level = nothing)
     return Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-        return Rasters.Raster(path, lazy = true)
+        return _selectlevel(Rasters.Raster(path, lazy = true, source = source,
+                                           name = name), level)
     end
 end
 
@@ -487,7 +493,8 @@ _probecrs(::Any) = nothing
 # layer's cell against a target with, before deciding how coarsely to read it.
 function _lazygrid(spec::RasterSpec)
     isnothing(spec.files) ||
-        return _gridof(_lazyopen(_resolvepath(first(spec.files))))
+        return _gridof(_lazyopen(_resolvepath(first(spec.files));
+                                 _openkw(spec)...))
     hasmethod(_lazysource, Tuple{typeof(spec.source), typeof(spec.code)}) ||
         return nothing
     r = _lazysource(spec.source, spec.code; spec.readkw...)

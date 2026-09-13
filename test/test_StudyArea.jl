@@ -125,7 +125,7 @@ if !Sys.iswindows()
         for (src, code, scale) in ((WorldClim{BioClim}, :bio1, 1),
             (EarthEnv{LandCover}, 7, 10))      # aggregation blocks
             # An already-read raster cannot be windowed, so this is the unwindowed reference.
-            whole = EcoSISTEM._read(SourceSpec(src, code, scale = scale))
+            whole = read(SourceSpec(src, code, scale = scale))
             ref = investigate_study_area(regime = ConstructedRasterSpec(() -> whole,
                                                                         axis = EcoSISTEM.NicheAxis),
                                          within = scot)
@@ -158,7 +158,7 @@ if !Sys.iswindows()
         # Assembling the stack here rather than in `_readmultilayer` must not change it: same data,
         # and the same canonical *names* on the layer axis (`EarthEnv` code 7 has always shown as
         # `:cultivated_and_managed`, never as `7`).
-        direct = EcoSISTEM._read(SourceSpec(EarthEnv{LandCover}, scale = 10))
+        direct = read(SourceSpec(EarthEnv{LandCover}, scale = 10))
         lax(a) = parent(DimensionalData.lookup(a.array,
                                                DimensionalData.Dim{:layer}))
         @test lax(whole) == lax(direct)
@@ -389,7 +389,7 @@ end
     ratio(a, b) = ClimateRaster(WorldClim{BioClim}, a.array ./ b.array)
 
     # The cache is pre-loaded with the fixtures rather than reading anything: `_asraster` hits
-    # it before `_read`, so the two `SourceSpec`s below name real layers but never touch the disk.
+    # it before `read`, so the two `SourceSpec`s below name real layers but never touch the disk.
     # That is what lets an ordering test use grids chosen for the arithmetic rather than whatever
     # WorldClim happens to ship.
     cache = LayerCache()

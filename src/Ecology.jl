@@ -79,6 +79,12 @@ species states how much it needs as an [`AbstractDemand`](@ref); the demands of 
 are summed, and births fall and deaths rise as that total approaches what the cell supplies. Species
 therefore interact only through this total. Carrying capacity is not a parameter anywhere in the
 model - it emerges from supply divided by demand.
+
+A supply is a **per-cell capacity in whatever quantity measures it** - a flux, such as light or
+rain per day, or a stock, such as ground or the water standing in the soil - and each is a proxy
+for the capacity along its axis rather than a thing that is used up: the model currently draws
+nothing down, so a stock and a flux regulate in exactly the same way, through the ratio of demand
+to supply. Both are therefore admissible, and an axis says which it provides in its `resource` unit.
 """
 struct Resource <: Role end
 

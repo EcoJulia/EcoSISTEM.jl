@@ -49,7 +49,14 @@ where `publishedscale` is.
 `verticalextent` is where above or below the surface the layer is measured, from the
 `VerticalExtent` column: a single signed height (`2m` for a 2 metre air temperature) or a
 `from..to` pair for a layer of ground (`-7cm..0cm` for the top soil layer), heights positive upward,
-or `nothing` for a surface value. Every reanalysis has one; it is recorded, not checked.
+or `nothing` for a surface value. Every reanalysis has one. A range on a layer whose values are a
+fraction of the layer's volume is what turns that fraction into a depth on read, and on a file
+holding several soil layers it is what selects the one to take; otherwise it is recorded, not
+checked.
+
+`file` is where the layer's file is fetched from, for a source whose `datasets.csv` row says its
+files come by plain `https` download - a URL from the `File` column - or `nothing` where the table
+has no such column or the cell is blank.
 
 The remaining fields carry the rest of the shipped table so that **no column is dead data**:
 `officialunit` (the source's own documented unit string, against which `unit` is our Unitful
@@ -109,6 +116,7 @@ struct LayerRecord
     documentedceiling::Union{Float64, Nothing}
     verticalextent::Union{Nothing, Unitful.Quantity,
                           Tuple{Unitful.Quantity, Unitful.Quantity}}
+    file::Union{Nothing, String}
 end
 
 """
@@ -267,10 +275,11 @@ const _REQUIRED_COLUMNS = (:Code, :Axis, :OfficialUnit, :Units, :UnitDimension,
 # what it *documents* - see `LayerRecord.publishedscale`. It is optional and lives only in the tables
 # that need it, so an empty cell is not an invitation to guess: it means nothing is known.
 # Add it to any table where such a defect is found, and record the evidence in `Notes`.
-# Two more columns any layer table may carry: `VerticalExtent` (where above or below the surface a
-# layer is measured) and `DocumentedCeiling` (the largest value its documented unit reaches, set only
-# beside a `PublishedScaleFactor`) - see `LayerRecord`.
-const _GENERIC_OPTIONAL_COLUMNS = (:VerticalExtent, :DocumentedCeiling)
+# Three more columns any layer table may carry: `VerticalExtent` (where above or below the surface a
+# layer is measured), `DocumentedCeiling` (the largest value its documented unit reaches, set only
+# beside a `PublishedScaleFactor`) and `File` (the URL a layer of an `https`-fetched source is
+# downloaded from) - see `LayerRecord`.
+const _GENERIC_OPTIONAL_COLUMNS = (:VerticalExtent, :DocumentedCeiling, :File)
 
 # The exact column set of `datasets.csv`, refused on a mismatch as the layer tables are.
 const _DATASET_COLUMNS = (:Dataset, :Format, :LongitudeRange, :CRS, :Resolution,
@@ -441,7 +450,7 @@ The two forms differ in **return type**, not just in scope: name the dataset whe
 record, and omit it when you want to see where a code appears.
 """
 function layerinfo(T::Type, code)
-    ds = nameof(_datasettype(T))
+    ds = _tablename(T)
     key = string(code)
     for r in _catalogue()
         (r.dataset === ds && key in r.aliases) && return r
@@ -611,7 +620,7 @@ end
 # and for a source with no table at all. What `_stackaxis` answers from.
 function _hastimeaxis(T::Type)
     _haslayertable(T) || return false
-    ds = nameof(_datasettype(T))
+    ds = _tablename(T)
     return any(r -> r.dataset === ds && !isnothing(r.temporal), _catalogue())
 end
 
@@ -676,12 +685,15 @@ end
 # The directory of shipped tables: one layer table per dataset type, and `datasets.csv`.
 _cataloguedir() = pkgdir(@__MODULE__, "data", "catalogue")
 
+# The layer table a source reads, as the `dataset` a `LayerRecord` carries: the dataset type's
+# name (`WorldClim{BioClim}` -> `:BioClim`, `EarthEnv{LandCover}` -> `:LandCover`), or the
+# source's own for one of this package's (`ERA` -> `:ERA`). A source that borrows another's table
+# says so with a method of its own.
+_tablename(T::Type) = nameof(_datasettype(T))
+
 # Where the layer table for a source would be, whether or not it exists: `data/catalogue/`, named
-# after the dataset type (`WorldClim{BioClim}` -> `BioClim.csv`, `EarthEnv{LandCover}` ->
-# `LandCover.csv`, `ERA` -> `ERA.csv`).
-function _layerpath(T::Type)
-    return joinpath(_cataloguedir(), "$(nameof(_datasettype(T))).csv")
-end
+# after the table (`BioClim.csv`, `LandCover.csv`, `ERA.csv`).
+_layerpath(T::Type) = joinpath(_cataloguedir(), "$(_tablename(T)).csv")
 
 # Whether a source ships a layer table; its presence is what makes a source supported.
 _haslayertable(T::Type) = isfile(_layerpath(T))
@@ -876,7 +888,7 @@ end
 # Tolerant of an unknown code: this runs on every read, and a caller may legitimately name a layer
 # that has no catalogue row (a hand-built raster). A missing row means nothing is known, not an error.
 function _publishedscale(T::Type, code)
-    ds = nameof(_datasettype(T))
+    ds = _tablename(T)
     key = string(code)
     for r in _catalogue()
         (r.dataset === ds && key in r.aliases) && return r.publishedscale
@@ -919,7 +931,7 @@ end
 # crude default, since only layers with a genuine documented ceiling can be checked at all, and
 # `PublishedScaleFactor` is only set on those. Tolerant of an unknown code, as `_publishedscale` is.
 function _documentedceiling(T::Type, code)
-    ds = nameof(_datasettype(T))
+    ds = _tablename(T)
     key = string(code)
     for r in _catalogue()
         (r.dataset === ds && key in r.aliases) &&
@@ -976,12 +988,27 @@ function _periodcode(rhs)
     return all(isdigit, rhs) ? parse(Int, rhs) : Symbol(rhs)
 end
 
+# Whether a rate layer's unit already reads, on its axis, as the axis's canonical rate - a
+# precipitation rate in `kg m^-2 s^-1`, a radiation flux in `W m^-2` - so that no accumulation
+# period is there to divide out. Decided against the axis and never from the unit alone: an energy
+# per area carries a negative power of time in its own dimension and still accumulates.
+function _alreadyrate(unit, thickness, axis)
+    isnothing(axis) && return false
+    cu = something(canonicalunit(axis), canonicalunit(Resource, axis),
+                   Some(nothing))
+    isnothing(cu) && return false
+    return dimension(_foldedunit(unit, thickness, axis)) == dimension(cu)
+end
+
 # A layer that accumulates over an interval must say which interval, and one that does not must not
 # claim one. Both directions are checked here because the `Category` and `AccumulationPeriod`
 # columns are written by hand and a mismatch between them is invisible until a rate comes out wrong.
-function _checkperiod(period, category, code)
+# A rate stated per unit time already (`_alreadyrate`) accumulates over nothing and declares no
+# period.
+function _checkperiod(period, category, code, unit, thickness, axis)
     category in _PERIOD_INHERITED_CATEGORIES && return nothing
-    needed = category in _PERIOD_CATEGORIES
+    needed = category in _PERIOD_CATEGORIES &&
+             !(category === :rate && _alreadyrate(unit, thickness, axis))
     if needed && isnothing(period)
         return error("layer `$code` has Category = :$category, which accumulates over an " *
                      "interval, but its AccumulationPeriod is blank - say what interval, or " *
@@ -1093,7 +1120,49 @@ end
 # (𝐋) while `Precipitation`'s canonical unit is `mm/day` (𝐋𝐓^-1) - dimensionally different, yet both
 # right. It is `layerrate` that reconciles them, so that is what has to be checked; comparing the raw
 # cell would now reject every accumulating layer in the tables.
-function _checkaxisunit(u, period, axis, code)
+# The thickness of the layer a `VerticalExtent` spans, or `nothing` where it names a level or
+# nothing at all.
+_thickness(extent::Tuple) = abs(extent[2] - extent[1])
+
+_thickness(::Any) = nothing
+
+_thickness(rec::LayerRecord) = _thickness(rec.verticalextent)
+
+# The density of water, which turns a mass of water per area into a depth of it.
+const _WATER_DENSITY = 1000.0 * Unitful.kg / Unitful.m^3
+
+# How a table unit is read on its axis, as the unit the read yields and the factor the read
+# multiplies the values by: a **volumetric fraction over a layer of known thickness**, on an axis
+# whose canonical reading is a length, is read as the depth of water that fraction of the thickness
+# is (unit the thickness's own, factor its magnitude); a **mass of water per area**, on a water
+# axis, as the depth of water that mass is (by `_WATER_DENSITY`). Any other unit is returned as it
+# is with a factor of one. The exact sibling of `layerrate`, for the vertical extent and the
+# substance rather than the accumulation period.
+function _fold(u, thickness, axis)
+    isnothing(axis) && return (unit = u, factor = 1.0)
+    cu = canonicalunit(axis)
+    isnothing(cu) && return (unit = u, factor = 1.0)
+    if !isnothing(thickness) && dimension(u) == NoDims &&
+       dimension(cu) == Unitful.𝐋
+        return (unit = unit(thickness), factor = float(ustrip(thickness)))
+    elseif axis <: WaterAxis &&
+           dimension(u) == dimension(cu) * dimension(_WATER_DENSITY)
+        q = (1.0 * u) / _WATER_DENSITY
+        return (unit = unit(q), factor = ustrip(q))
+    end
+    return (unit = u, factor = 1.0)
+end
+
+_foldedunit(u, thickness, axis) = _fold(u, thickness, axis).unit
+
+# The factor a read of a catalogued layer multiplies its values by after any accumulation period
+# is divided out - one for most layers.
+function _foldfactor(rec::LayerRecord)
+    return _fold(layerrate(rec.unit, rec.period, rec.axis), _thickness(rec),
+                 rec.axis).factor
+end
+
+function _checkaxisunit(u, period, axis, code, thickness = nothing)
     isnothing(axis) && return nothing
     # **Deliberately the Condition unit only, NOT `layerrate`'s Resource fallback** - I tried that
     # and it is wrong. A catalogue row states an **areal flux density** (`npp` is `g*m^-2`), while a
@@ -1104,13 +1173,14 @@ function _checkaxisunit(u, period, axis, code)
     # question the Resource unit cannot answer.
     cu = canonicalunit(axis)
     isnothing(cu) && return nothing
-    r = layerrate(u, period, axis)
+    r = _foldedunit(layerrate(u, period, axis), thickness, axis)
     dimension(r) == dimension(cu) ||
         return error("layer `$code` resolves to unit $r but its axis $(nameof(axis))'s canonical " *
                      "unit $cu has a different dimension ($(dimension(r)) vs $(dimension(cu))); " *
                      "one of the two is wrong." *
                      (r === u ? "" :
-                      " (The table declares $u, which its accumulation period turns into $r.)"))
+                      " (The table declares $u, which its accumulation period, vertical " *
+                      "extent or substance turns into $r.)"))
     return nothing
 end
 
@@ -1183,17 +1253,18 @@ _periodwording(p) = _periodphrase(p)
 # Grouped across **all** datasets, unlike `_checkrangerows` which groups within one: reconciling
 # WorldClim's `kJ*m^-2` with CHELSA's `MJ*m^-2` on one axis is the point, and a per-dataset grouping
 # would never see the pair. **Dimensions, not units** - differing *scale* on one axis is legal, and
-# reconciling it is what `canonicalunit` is for. Compared after `layerrate`, for the same reason
-# `_checkaxisunit` is: a monthly total and a daily rate are both right and differ dimensionally.
+# reconciling it is what `canonicalunit` is for. Compared after `layerrate` and the fold, for the
+# same reason `_checkaxisunit` is: a monthly total and a daily rate are both right and differ
+# dimensionally, as do a depth of water and the mass of it.
 function _checkaxishomogeneity(catalogue)
     first_on = Dict{Type, LayerRecord}()
+    resolved(x) = _foldedunit(layerrate(x.unit, x.period, x.axis),
+                              _thickness(x), x.axis)
     for r in catalogue
         isnothing(r.axis) && continue
         f = get!(first_on, r.axis, r)
         f === r && continue
-        rate,
-        frate = layerrate(r.unit, r.period, r.axis),
-                layerrate(f.unit, f.period, f.axis)
+        rate, frate = resolved(r), resolved(f)
         dimension(rate) == dimension(frate) ||
             error("layers `$(first(f.aliases))` and `$(first(r.aliases))` are both on axis " *
                   "$(nameof(r.axis)) but resolve to different dimensions - $frate " *
@@ -1269,10 +1340,13 @@ function _catalogue()
             period = _parseperiod(cell(row, :AccumulationPeriod))
             # The three cross-checks: a period is declared exactly where one applies, the duplicated
             # dimension column must agree with the unit, and the unit must be usable on its axis.
-            _checkperiod(period, category, code)
-            _checkunitdimension(cell(row, :UnitDimension), unit, code)
-            _checkaxisunit(unit, period, axis, code)
             optional(col) = col in cols ? cell(row, col) : nothing
+            url = optional(:File)
+            vertical = _parseverticalextent(optional(:VerticalExtent), code)
+            _checkperiod(period, category, code, unit, _thickness(vertical),
+                         axis)
+            _checkunitdimension(cell(row, :UnitDimension), unit, code)
+            _checkaxisunit(unit, period, axis, code, _thickness(vertical))
             push!(_CATALOGUE,
                   LayerRecord(dataset, aliases, cell(row, :Name),
                               cell(row, :Definition), unit, axis,
@@ -1288,8 +1362,8 @@ function _catalogue()
                                                    code),
                               _parsedocumentedceiling(optional(:DocumentedCeiling),
                                                       code),
-                              _parseverticalextent(optional(:VerticalExtent),
-                                                   code)))
+                              vertical,
+                              (isnothing(url) || isempty(url)) ? nothing : url))
         end
     end
     # After the loop, not inside it: a range row is checked against its siblings, which may sit

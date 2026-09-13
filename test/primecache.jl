@@ -76,14 +76,13 @@ const WANTED = [
     # running nothing else. This job was killed attempting exactly that. `test_datasetread.jl` skips
     # those reads on a runner instead.
     "EarthEnv LandCover, aggregated at scale 40" =>
-        () -> read(EarthEnv{LandCover},
-                   scale = 40),
+        () -> read(SourceSpec(EarthEnv{LandCover}, scale = 40)),
     "EarthEnv LandCover, aggregated at scale 10" =>
-        () -> read(EarthEnv{LandCover},
-                   scale = 10),
+        () -> read(SourceSpec(EarthEnv{LandCover}, scale = 10)),
+    # One layer at a time: the layers' units differ, so the whole dataset is not one array.
     "WorldClim BioClim, aggregated at scale 4" =>
-        () -> read(WorldClim{BioClim},
-                   scale = 4),
+        () -> foreach(c -> read(SourceSpec(WorldClim{BioClim}, c, scale = 4)),
+                      EcoSISTEM._alllayercodes(WorldClim{BioClim})),
     # Used by `examples/ScottishCultivatedLand.jl`, so it is only reached by
     # `extras_examples`; fetched here for the same reason as the rasters.
     "Scotland land-cover shapefile" =>

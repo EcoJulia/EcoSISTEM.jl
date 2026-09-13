@@ -29,10 +29,7 @@ using ParallelTestRunner: find_tests, parse_args, runtests
 # The exception list is by **file and count**, not a total, so a new docstring has to be looked at
 # and a removed one shrinks the list rather than passing silently.
 @testset "extension docstrings" begin
-    # `Base.read`'s dataset methods are the one thing that cannot take a parent stub: the parent
-    # would have to define `read(::Type, ...)`, pirating `Base.read` for every type in Julia. They are
-    # reached instead by naming their module in `api.md`'s `Modules`.
-    allowed = Dict("EcoSISTEMRasterDataSourcesExt/read.jl" => 3,
+    allowed = Dict(
                    # **Pre-existing and NOT endorsed** - `EcoSISTEMMPIExt` has carried these since
                    # before the rule existed, and moving its files out of `src/` in 3f is what first
                    # put them under this guard. Measured: five names (`MPIEcosystem`,

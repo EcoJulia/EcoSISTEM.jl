@@ -108,7 +108,7 @@ include("rasterfixtures.jl")
     #
     # Synthetic files, so this runs on every platform and downloads nothing: what is asserted is
     # the seam, not CRU TS's own data.
-    @testset "read(CRUTS, dir, var) gives a ClimateRaster carrying the source" begin
+    @testset "a CRU TS directory reads as a ClimateRaster carrying the source" begin
         dir = mktempdir()
         # Twelve monthly `.tif`s, which is the shape `_readmonthlydir` expects. Built through the
         # shared `_testraster` fixture rather than by hand, so they carry what a real GeoTIFF does -
@@ -125,7 +125,7 @@ include("rasterfixtures.jl")
             Rasters.write(joinpath(dir, "cruts_$(lpad(m, 2, '0')).tif"), r,
                           force = true)
         end
-        cr = read(CRUTS, dir, "tavg")
+        cr = read(SourceSpec(CRUTS, "tavg", directory = dir))
 
         # **A raster carrying the source in its parameter, not a container type of its own** - the
         # shape every other data source already had, and what makes `CRUTS` nameable as a source.

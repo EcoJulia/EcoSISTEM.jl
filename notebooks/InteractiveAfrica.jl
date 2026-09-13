@@ -155,12 +155,12 @@ end
 
 # ╔═╡ 7e16f197-874b-482d-80b6-13a62ddda1f7
 begin
-    africa_bio = read(WorldClim{BioClim}, 1,
-                      cut = EcoSISTEM.boundingbox("Africa",
-                                                  level = "CONTINENT",
-                                                  coverage = LargestLandmass(),
-                                                  round = 5°))
-    africa_temp = africa_bio.array
+    africa_bio = read(SourceSpec(WorldClim{BioClim}, 1,
+                                 cut = EcoSISTEM.boundingbox("Africa",
+                                                             level = "CONTINENT",
+                                                             coverage = LargestLandmass(),
+                                                             round = 5°)))
+    africa_temp = ustrip.(africa_bio.array)
     plot(africa_temp)
 end
 

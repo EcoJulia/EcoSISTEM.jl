@@ -15,6 +15,76 @@
 # file would satisfy this one invisibly and break the moment that file changed.
 using Statistics
 using DimensionalData: rebuild, lookup
+using EcoSISTEM: NicheAxis, _searchdir
+using EcoSISTEM.Units
+
+# ---------------------------------------------------------------------------
+# `read` on the package's own source types -> `read(::RasterSpec)`
+#
+# `read(ERA, file, param)` and the rest named the files positionally; a `SourceSpec` names them
+# with `file`, `files` or `directory` and reads the same way, so each is that spelling plus a
+# warning. The CERA archive's decade time vectors, which the reader generated, are `_ceratimes`.
+#
+# Deprecated in v0.8.0.
+# ---------------------------------------------------------------------------
+function Base.read(::Type{CRUTS}, dir::AbstractString, var_name::AbstractString;
+                   cut = nothing)
+    Base.depwarn("`read(CRUTS, dir, var_name; cut)` is deprecated; read " *
+                 "`SourceSpec(CRUTS, var_name, directory = dir)` instead.",
+                 :read)
+    return read(SourceSpec(CRUTS, var_name, directory = dir), cut = cut)
+end
+
+function Base.read(::Type{ERA}, file::AbstractString, param::AbstractString;
+                   cut = nothing)
+    Base.depwarn("`read(ERA, file, param; cut)` is deprecated; read " *
+                 "`SourceSpec(ERA, param, file = file)` instead.", :read)
+    return read(SourceSpec(ERA, param, file = file), cut = cut)
+end
+
+function Base.read(::Type{ERA}, file::AbstractString, param::AbstractString,
+                   dim::Vector{<:Unitful.Time}; cut = nothing)
+    Base.depwarn("`read(ERA, file, param, dim; cut)` is deprecated; read " *
+                 "`SourceSpec(ERA, param, file = file, times = dim)` instead.",
+                 :read)
+    return read(SourceSpec(ERA, param, file = file, times = dim), cut = cut)
+end
+
+function Base.read(::Type{ERA}, dir::AbstractString, file::AbstractString,
+                   param::AbstractString,
+                   dim::Vector{<:AbstractVector{<:Unitful.Time}}; cut = nothing)
+    Base.depwarn("`read(ERA, dir, file, param, dim; cut)` is deprecated; read " *
+                 "`SourceSpec(ERA, param, files = matches, times = reduce(vcat, dim))` " *
+                 "instead.", :read)
+    files = joinpath.(dir, _searchdir(dir, file))
+    return read(SourceSpec(ERA, param, files = files,
+                           times = reduce(vcat, dim)),
+                cut = cut)
+end
+
+function Base.read(::Type{CERA}, dir::AbstractString, file::AbstractString,
+                   param::AbstractString; cut = nothing)
+    Base.depwarn("`read(CERA, dir, file, param; cut)` is deprecated; read " *
+                 "`SourceSpec(CERA, param, files = decades, times = ...)` instead.",
+                 :read)
+    files = joinpath.(dir, _searchdir(dir, file))
+    return read(SourceSpec(CERA, param, files = files, times = _ceratimes()),
+                cut = cut)
+end
+
+# The monthly elapsed-time coordinates the CERA reader labelled the archive with: 1901 to 2010,
+# one decade of `month_mean_duration` steps per file.
+function _ceratimes()
+    times = collect((1901year + 1month_mean_duration):(1month_mean_duration):(1910year))
+    for i in 2:12
+        append!(times,
+                1900year .+
+                ifelse(i == 12,
+                       collect(((i - 1) * 120month_mean_duration + 1month_mean_duration):(1month_mean_duration):((i - 1) * 120month_mean_duration + 1year)),
+                       collect(((i - 1) * 120month_mean_duration + 1month_mean_duration):(1month_mean_duration):(i * 10year))))
+    end
+    return times
+end
 
 # **Three groups of shims moved to `EcoSISTEMRasterDataSourcesExt`** - the five per-source wrapper
 # constructors (`Worldclim_bioclim` and friends, which forward to a `ClimateRaster{WorldClim{...}}`),
@@ -32,8 +102,7 @@ using DimensionalData: rebuild, lookup
 # binding must exist; `@deprecate` in the extension resolves `ClimatePref.<name>` at macro-expansion
 # time and needs something to attach to; and a docstring on a name whose only method is in an
 # extension is invisible to `@autodocs` unless it stays in the parent.
-# Calling one without `RasterDataSources` loaded is a `MethodError` naming the function - the same
-# behaviour as `retrieve_era5` without `PyCall`.
+# Calling one without `RasterDataSources` loaded is a `MethodError` naming the function.
 #
 # Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
@@ -64,14 +133,16 @@ function readCHELSA_monthly end
 #
 # Deprecated in v0.5.0.
 # ---------------------------------------------------------------------------
-# Deprecated positional-extent form `readfile(file, xmin, xmax, ymin, ymax)`; convert to `cut` and forward
-# to the keyword `readfile(file; cut)` method in `src/datasetread.jl`.
+# Deprecated positional-extent form `readfile(file, xmin, xmax, ymin, ymax)`; the extent becomes
+# a `cut` on a `RasterFileSpec` naming the file.
 function readfile(file::String, xmin, xmax, ymin, ymax)
-    Base.depwarn("`readfile(file, xmin, xmax, ymin, ymax)` is deprecated; pass " *
-                 "`cut = Extent(Y = (ymin, ymax), X = (xmin, xmax))` (e.g. from `boundingbox`) " *
-                 "instead.", :readfile)
-    return readfile(file,
-                    cut = Extents.Extent(Y = (ymin, ymax), X = (xmin, xmax)))
+    Base.depwarn("`readfile(file, xmin, xmax, ymin, ymax)` is deprecated; read " *
+                 "`RasterFileSpec(file, axis = NicheAxis, cut = Extent(Y = (ymin, ymax), " *
+                 "X = (xmin, xmax)))` (the extent e.g. from `boundingbox`) instead.",
+                 :readfile)
+    return read(RasterFileSpec(file, axis = NicheAxis,
+                               cut = Extents.Extent(Y = (ymin, ymax),
+                                                    X = (xmin, xmax))))
 end
 
 # ---------------------------------------------------------------------------
@@ -95,9 +166,9 @@ end
 Deprecated - use `read(CRUTS, dir, var_name; cut)` instead.
 """
 function readCRUTS(dir::String, var_name::String; cut = nothing)
-    Base.depwarn("`readCRUTS` is deprecated; use `read(CRUTS, dir, var_name; cut)`.",
+    Base.depwarn("`readCRUTS` is deprecated; read `SourceSpec(CRUTS, var_name, directory = dir)`.",
                  :readCRUTS)
-    return read(CRUTS, dir, var_name, cut = cut)
+    return read(SourceSpec(CRUTS, var_name, directory = dir), cut = cut)
 end
 
 """
@@ -106,9 +177,9 @@ end
 Deprecated - use `read(ERA, file, param; cut)` instead.
 """
 function readERA(file::String, param::String; cut = nothing)
-    Base.depwarn("`readERA(file, param; cut)` is deprecated; use `read(ERA, file, param; cut)`.",
-                 :readERA)
-    return read(ERA, file, param, cut = cut)
+    Base.depwarn("`readERA(file, param; cut)` is deprecated; read " *
+                 "`SourceSpec(ERA, param, file = file)`.", :readERA)
+    return read(SourceSpec(ERA, param, file = file), cut = cut)
 end
 
 """
@@ -118,9 +189,10 @@ Deprecated - use `read(ERA, file, param, dim; cut)` instead.
 """
 function readERA(file::String, param::String, dim::Vector{<:Unitful.Time};
                  cut = nothing)
-    Base.depwarn("`readERA(file, param, dim; cut)` is deprecated; use " *
-                 "`read(ERA, file, param, dim; cut)`.", :readERA)
-    return read(ERA, file, param, dim, cut = cut)
+    Base.depwarn("`readERA(file, param, dim; cut)` is deprecated; read " *
+                 "`SourceSpec(ERA, param, file = file, times = dim)`.",
+                 :readERA)
+    return read(SourceSpec(ERA, param, file = file, times = dim), cut = cut)
 end
 
 """
@@ -131,9 +203,13 @@ Deprecated - use `read(ERA, dir, file, param, dim; cut)` instead.
 """
 function readERA(dir::String, file::String, param::String,
                  dim::Vector{<:AbstractVector{<:Unitful.Time}}; cut = nothing)
-    Base.depwarn("`readERA(dir, file, param, dim; cut)` is deprecated; use " *
-                 "`read(ERA, dir, file, param, dim; cut)`.", :readERA)
-    return read(ERA, dir, file, param, dim, cut = cut)
+    Base.depwarn("`readERA(dir, file, param, dim; cut)` is deprecated; read " *
+                 "`SourceSpec(ERA, param, files = matches, times = reduce(vcat, dim))`.",
+                 :readERA)
+    files = joinpath.(dir, _searchdir(dir, file))
+    return read(SourceSpec(ERA, param, files = files,
+                           times = reduce(vcat, dim)),
+                cut = cut)
 end
 
 """
@@ -142,9 +218,12 @@ end
 Deprecated - use `read(CERA, dir, file, param; cut)` instead.
 """
 function readCERA(dir::String, file::String, param::String; cut = nothing)
-    Base.depwarn("`readCERA` is deprecated; use `read(CERA, dir, file, param; cut)`.",
+    Base.depwarn("`readCERA` is deprecated; read " *
+                 "`SourceSpec(CERA, param, files = decades, times = ...)`.",
                  :readCERA)
-    return read(CERA, dir, file, param, cut = cut)
+    files = joinpath.(dir, _searchdir(dir, file))
+    return read(SourceSpec(CERA, param, files = files, times = _ceratimes()),
+                cut = cut)
 end
 
 # ---------------------------------------------------------------------------

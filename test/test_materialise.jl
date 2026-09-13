@@ -110,7 +110,9 @@ end
     @test size(area.report.active) == (5, 7)
     @test area.report.cellsize == 1.0°
     lazy = materialise(spec, area)
-    eager = materialise(EcoSISTEM.in_memory_raster(readfile(path, unit = K),
+    eager = materialise(EcoSISTEM.in_memory_raster(read(RasterFileSpec(path,
+                                                                       axis = EcoSISTEM.NicheAxis,
+                                                                       unit = K)),
                                                    axis = Temperature), area)
     @test lazy.matrix == eager.matrix
     @test eltype(lazy.matrix) <: Unitful.Temperature
@@ -153,10 +155,11 @@ end
     @test materialise(coarse, carea).matrix ≈
           [326.5 328.5 330.5; 306.5 308.5 310.5]K
     @test only(keys(carea.report.cache.reads)).readkw.scale == 2
+    # Memoised as bare magnitudes expressed in the spec's unit, which is attached on read.
     @test isfile(EcoSISTEM._aggcachepath(path, 2,
                                          EcoSISTEM._reducer(nothing,
                                                             Temperature),
-                                         K))
+                                         NoUnits, nothing, nothing, K))
 
     # A file of class codes must not be averaged: on a `TypologyAxis` the reducer is the most
     # frequent class, ties to the smallest code, and `fn` overrides it. Rows are given top to bottom
@@ -174,7 +177,7 @@ end
     cls = StudyArea(regime = classes, verbosity = :silent)
     @test materialise(classes, cls).matrix == [5 7; 1 2]     # {2,3,2,3} ties to 2
     @test isfile(EcoSISTEM._aggcachepath(cpath, 2, EcoSISTEM._majorityclass,
-                                         NoUnits))
+                                         NoUnits, nothing, nothing, NoUnits))
     biggest = RasterFileSpec(cpath, axis = LandCoverTypology, scale = 2,
                              fn = maximum)
     @test occursin("fn = maximum", repr(biggest))
@@ -260,7 +263,8 @@ end
                               c15).matrix)
     @test isequal(gotc, shared(gotc, sampledexpect(Mc, 1.5, 4, majority)))
     # A Bool mask onto the same 1.5° lattice, straight through `_samplemask`.
-    A = readfile(path, unit = K).array .> 300K
+    A = read(RasterFileSpec(path, axis = EcoSISTEM.NicheAxis, unit = K)).array .>
+        300K
     t15 = EcoSISTEM._crstemplate(Rasters.EPSG(4326),
                                  Extent(Y = (50.0°, 55.0°), X = (10.0°, 17.0°)),
                                  1.5°)

@@ -216,12 +216,16 @@ end
     # codes - while staying a single test.
     # `:range` is excluded because it is neither required nor forbidden: a range **inherits**
     # whether it has a period from the quantity it ranges over, so no per-row rule can decide it.
-    # That case is checked against its siblings instead - see the range testset below.
+    # That case is checked against its siblings instead - see the range testset below. A rate
+    # stated per unit time already (`W m^-2`, `kg m^-2 s^-1`) is the one rate that declares no
+    # period, and is named rather than counted.
+    alreadyrates = ["prate", "dswrf", "uswrf"]
     offenders = [first(r.aliases)
                  for r in CP._catalogue()
                  if r.category !== :range &&
-        (r.category in (:rate, :stock, :balance)) !=
-        !isnothing(r.period)]
+                        !(first(r.aliases) in alreadyrates) &&
+                        (r.category in (:rate, :stock, :balance)) !=
+                        !isnothing(r.period)]
     @test isempty(offenders)
     @test isnothing(rec("gsl", :BioClimPlus).period)     # a count, so no period
     @test isnothing(rec("tmin", :Climate).period)        # instantaneous, but still sampled monthly
@@ -240,9 +244,24 @@ end
     @test_throws ErrorException CP._parseperiod("persplice=calendar_month")
     @test_throws ErrorException CP._parseperiod("percell=")
     # Both directions of the invariant are enforced, not just the missing one.
-    @test_throws ErrorException CP._checkperiod(nothing, :rate, "x")
+    @test_throws ErrorException CP._checkperiod(nothing, :rate, "x", mm,
+                                                nothing, Precipitation)
     @test_throws ErrorException CP._checkperiod(CP.ConstantAccumulationPeriod(year),
-                                                :instantaneous, "x")
+                                                :instantaneous, "x", K,
+                                                nothing, Temperature)
+    # A rate stated per unit time already has nothing to divide out, so it declares no period, and
+    # one declared there is refused; the decision is made against the axis, since an energy per
+    # area carries a negative power of time of its own and still accumulates.
+    @test isnothing(CP._checkperiod(nothing, :rate, "x", W * m^-2, nothing,
+                                    SolarRadiation))
+    @test isnothing(CP._checkperiod(nothing, :rate, "x", kg * m^-2 * s^-1,
+                                    nothing, Precipitation))
+    @test_throws ErrorException CP._checkperiod(CP.ConstantAccumulationPeriod(day),
+                                                :rate, "x", W * m^-2, nothing,
+                                                SolarRadiation)
+    @test_throws ErrorException CP._checkperiod(nothing, :rate, "x",
+                                                MJ * m^-2, nothing,
+                                                SolarRadiation)
 
     # `IsRate` is gone: it said exactly `category === :rate` in every row, and two columns holding
     # one fact is how they drift apart.
@@ -527,7 +546,7 @@ end
 @testset "guard: datasets.csv reconciles to the layer tables" begin
     E = EcoSISTEM
     rows = E._datasets()
-    @test length(rows) == 11
+    @test length(rows) == 12
     for r in rows
         # every row names a loaded source type, spelled as the loader spells it back
         T = _datasetnamed(r.dataset)
@@ -644,6 +663,29 @@ end
     E = EcoSISTEM
     @test E.layerinfo(ERA, "t2m").verticalextent == 2m
     @test isnothing(E.layerinfo(ERA, "tp").verticalextent)
+    # A volumetric fraction over a layer of known thickness reads as a depth over the cell, in the
+    # thickness's own unit: the soil-water rows sit on a length axis and span 7 cm.
+    sw = E.layerinfo(ERA, "swvl1")
+    @test sw.axis === SoilWaterVolume
+    @test sw.unit == NoUnits && sw.verticalextent == (-7cm, 0cm)
+    @test E._thickness(sw) == 7cm
+    @test isnothing(E._thickness(E.layerinfo(ERA, "t2m")))
+    @test E._foldedunit(NoUnits, 7cm, SoilWaterVolume) == cm
+    @test E._fold(NoUnits, 7cm, SoilWaterVolume).factor == 7.0
+    @test E._foldedunit(NoUnits, nothing, SoilWaterVolume) == NoUnits    # no extent: as it is
+    @test E._foldedunit(K, 7cm, Temperature) == K                        # not a fraction
+    @test E._foldedunit(NoUnits, 7cm, SurfaceArea) == NoUnits            # an area axis, not a length
+    @test E._foldfactor(sw) == 7.0
+    @test E._foldfactor(E.layerinfo(ERA, "t2m")) == 1.0
+    @test SourceSpec(ERA, "swvl1", file = "era5_swvl1.nc").unit == cm
+    # A mass of water per area on a water axis reads as a depth by the density of water, so a
+    # precipitation rate stated in kg m^-2 s^-1 reads as m s^-1 at a thousandth of its value; the
+    # same unit on an axis that is not water is left alone, as is a mass that is not per area.
+    massflux = kg * m^-2 * s^-1
+    @test E._foldedunit(massflux, nothing, Precipitation) == m / s
+    @test E._fold(massflux, nothing, Precipitation).factor ≈ 1e-3
+    @test E._foldedunit(massflux, nothing, Temperature) == massflux
+    @test E._foldedunit(kg * s^-1, nothing, Precipitation) == kg * s^-1
     @test E._parseverticalextent("-7cm..0cm", "x") == (-7cm, 0cm)
     @test E._parseverticalextent("500hPa", "x") == 500hPa
     @test isnothing(E._parseverticalextent(nothing, "x"))
@@ -666,17 +708,23 @@ end
     @test E._codetype(CERA) === String
     # No table of its own: CRU TS borrows WorldClim's through its reader, and derived or synthetic
     # data has no layers to name, whatever it derives from.
-    @test E._codetype(CRUTS) === Nothing
+    # CRU TS reads under WorldClim's monthly-climate table, so it names those layers.
+    @test E._codetype(CRUTS) === String
+    @test string.(E._alllayercodes(CRUTS)) ==
+          [first(r.aliases) for r in E._catalogue() if r.dataset === :Climate]
+    @test E._stackaxis(CRUTS) == Ti
     @test E._codetype(SyntheticData) === Nothing
     @test E._codetype(DerivedData{ERA}) === Nothing
-    @test E._alllayercodes(ERA) == ["t2m", "tp", "ssr"]
-    @test_throws ErrorException E._alllayercodes(CRUTS)
+    @test E._alllayercodes(ERA) == ["t2m", "tp", "ssr", "swvl1"]
     @test E._preferredcode(ERA, "tp") == "tp"
     @test isnothing(E._preferredcode(ERA, nothing))
     @test E._preferredcode(ERA, ["tp", "t2m"]) == ["tp", "t2m"]
     @test_throws ErrorException E._preferredcode(ERA, "t3m")
     @test_throws ErrorException E._preferredcode(SyntheticData, "t2m")
-    spec = SourceSpec(ERA, "t2m")
+    # A location is required, since ERA5 files are not fetched for the caller; the file is not
+    # touched at construction.
+    spec = SourceSpec(ERA, "t2m", file = "era5_t2m.nc")
+    @test_throws "file = path" SourceSpec(ERA, "t2m")
     @test spec.unit == K
     @test EcoSISTEM._specaxis(spec) === Temperature
     # The CDS `tp` is a depth per day, and its row says so.
@@ -732,13 +780,13 @@ end
           length(CP.layersbyaxis(NicheAxis)) + length(CP.layersbyaxis(nothing))
     @test all(isnothing(x.axis) for x in CP.layersbyaxis(nothing))
     @test all(!isnothing(x.axis) for x in CP.layersbyaxis(NicheAxis))
-    # No shipped layer is unclassified today - pinned so that shipping one is a deliberate act that
+    # No shipped layer is unclassified - pinned so that shipping one is a deliberate act that
     # shows up here, rather than a quiet gap in every axis-based sweep.
     @test isempty(CP.layersbyaxis(nothing))
-    @test length(every) == 145          # 139 RasterDataSources layers, and ERA5 and CERA-20C's three each
+    @test length(every) == 152          # 139 RasterDataSources layers, ERA5's and CERA-20C's four each, 20CRv3's five
     # A copy, not the cached vector: sorting the result in place must not corrupt later lookups.
     sort!(every, by = x -> first(x.aliases))
-    @test length(CP.layersbyaxis()) == 145
+    @test length(CP.layersbyaxis()) == 152
 
     # layeraxes: nested tree of NicheAxis subtypes down to the concrete leaves, each leaf
     # carrying the names of the shipped layers that use it

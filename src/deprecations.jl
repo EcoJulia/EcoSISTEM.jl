@@ -48,6 +48,73 @@
 #
 # Deprecated in v0.8.0.
 # ---------------------------------------------------------------------------
+"""
+    retrieve_era5(param, from_year, to_year, filename = "era5"; area = nothing)
+
+Deprecated: fetch ERA5 monthly means through a [`EcoSISTEM.CDSRequest`](@ref) instead - one per
+decade file, resolved by [`assetpath`](@ref) or on reading a `SourceSpec(ERA, code, files = ...)`
+that names it. This forwards to exactly that, one request per decade of `from_year` to `to_year`,
+each written to `<filename>_<decade>.nc`, and returns the paths. `param` is the variable's CDS name
+(`"2m_temperature"`); the old MARS parameter codes no longer resolve.
+
+# Arguments
+
+  - `param`, `from_year`, `to_year`, `filename`: as above.
+  - `area`: `[north, west, south, east]` in degrees, or `nothing` for the globe.
+"""
+function retrieve_era5(param::AbstractString, from_year::Integer,
+                       to_year::Integer, filename::AbstractString = "era5";
+                       area = nothing, kws...)
+    Base.depwarn("`retrieve_era5` is deprecated; name the download as a `CDSRequest` entry in " *
+                 "`SourceSpec(ERA, code, files = ...)`, or resolve one with `assetpath`.",
+                 :retrieve_era5)
+    isempty(kws) ||
+        @warn "`retrieve_era5` ignores $(join(keys(kws), ", ")): the Climate Data Store's monthly " *
+              "means take no such options."
+    paths = String[]
+    for decade in unique(fld.(from_year:to_year, 10) .* 10)
+        years = filter(y -> fld(y, 10) * 10 == decade, from_year:to_year)
+        request = CDSRequest(_ERA5_MONTHLY,
+                             _era5request(param, years, area = area),
+                             "$(filename)_$(decade).nc")
+        push!(paths, assetpath(request))
+    end
+    return paths
+end
+
+public retrieve_era5
+
+"""
+    readfile(file::String; source = SyntheticData, unit = NoUnits, cut = nothing)
+
+Deprecated: read a [`RasterFileSpec`](@ref) instead - `read(RasterFileSpec(file, axis =
+NicheAxis, unit = unit, source = source, cut = cut))` - which is also what a layer built from the
+file does. This forwards to it.
+
+# Arguments
+
+  - `file`: path to the raster, in any format GDAL reads.
+  - `source`, `unit`, `cut`: as the spec's keywords of those names.
+  - `xmin`, `xmax`, `ymin`, `ymax`: an older spelling of `cut`; all four together, or none.
+"""
+function readfile(file::String; source::Type = SyntheticData, unit = NoUnits,
+                  cut = nothing, xmin = nothing, xmax = nothing, ymin = nothing,
+                  ymax = nothing)
+    Base.depwarn("`readfile(file; ...)` is deprecated; read " *
+                 "`RasterFileSpec(file, axis = NicheAxis, unit = unit, source = source, " *
+                 "cut = cut)` instead.", :readfile)
+    n = count(!isnothing, (xmin, xmax, ymin, ymax))
+    if n == 4
+        isnothing(cut) ||
+            error("`readfile`: pass either `cut` or the `xmin`/`xmax`/`ymin`/`ymax` extent, not both.")
+        cut = Extents.Extent(Y = (ymin, ymax), X = (xmin, xmax))
+    elseif n != 0
+        error("`readfile` needs all four of `xmin`/`xmax`/`ymin`/`ymax` or none of them; got $n.")
+    end
+    return read(RasterFileSpec(file, axis = NicheAxis, unit = unit,
+                               source = source, cut = cut))
+end
+
 # Warn that a `boost` was given and say what it would have done. `nothing` is the keyword's default
 # and warns nothing.
 _deprecatedboost(::Nothing, name::Symbol) = nothing

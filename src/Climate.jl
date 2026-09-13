@@ -89,7 +89,7 @@ struct ClimateRasterStyle <: Broadcast.BroadcastStyle end
 #
 # **Included very early**, so what it declares constrains what it may use: `NicheAxis`
 # (`Ecology.jl`), `SimpleTraits` and `DimensionalData` are all it has. Everything that *reads* a
-# raster - `SourceSpec` (`LazySpec.jl`), the readers (`datasetread.jl`, `erareaders.jl`), the shipped
+# raster - `SourceSpec` (`LazySpec.jl`), the reader (`datasetread.jl`, `rasters.jl`), the shipped
 # tables (`LayerCatalogue.jl`) - comes later and constructs the types declared here.
 #
 # **Nothing here names `RasterDataSources`**, which is a weak dependency, and widening
@@ -142,8 +142,11 @@ end
 """
     ERA <: EcoSISTEMSource
 
-The ERA5 reanalysis archive, as a data source. Read one with
-`read(ERA, file, param)`, which returns a [`ClimateRaster`](@ref)`{ERA}`.
+The ERA5 reanalysis archive, as a data source: monthly means on single levels, one netCDF file
+per variable per decade as the Climate Data Store serves them. Name a layer with
+`SourceSpec(ERA, "t2m", file = path)` - or `files = decades` in time order, or a
+[`EcoSISTEM.CDSRequest`](@ref) entry fetched on first use - and `read` it, or build on it, like any
+other; the `ERA` layer table supplies the unit, axis and accumulation period.
 
 Fieldless: a source names *where data came from*, and the data itself lives in the
 [`ClimateRaster`](@ref) that carries it.
@@ -153,9 +156,8 @@ struct ERA <: EcoSISTEMSource end
 """
     CERA <: EcoSISTEMSource
 
-The CERA-20C reanalysis archive, as a data source. Read one with
-`read(CERA, dir, file, param)`, which returns a [`ClimateRaster`](@ref)`{CERA}` - the archive is one
-file per decade, and the reader concatenates them along time.
+The CERA-20C reanalysis archive, as a data source: one netCDF file per decade, named as for
+[`ERA`](@ref) - `SourceSpec(CERA, "t2m", files = decades)`, joined along time on read.
 
 Fieldless, as [`ERA`](@ref) is.
 """
@@ -164,8 +166,8 @@ struct CERA <: EcoSISTEMSource end
 """
     CRUTS <: EcoSISTEMSource
 
-The CRU TS archive, as a data source. Read one with `read(CRUTS, dir, var_name)`, which returns a
-[`ClimateRaster`](@ref)`{CRUTS}`.
+The CRU TS archive, as a data source: a directory of monthly GeoTIFFs, named with
+`SourceSpec(CRUTS, "tavg", directory = dir)` and read as one series in file-name order.
 
 CRU TS has no layer table of its own, so its variable codes and units are taken from
 `WorldClim{Climate}`'s.
@@ -200,7 +202,7 @@ struct CRUTS <: EcoSISTEMSource end
 # == Functions ==================================================================================
 
 """
-    in_memory_raster(raster::ClimateRaster; axis)
+    in_memory_raster(raster::ClimateRaster; axis, atend = RepeatAtEnd(), calendar = nothing)
 
 Wrap a raster you already hold as a layer spec, declaring what its values mean.
 
@@ -225,10 +227,15 @@ exactly what a raster cannot do - so this is the pathway, and `axis` is the whol
   - `axis`: the [`NicheAxis`](@ref) the values are on - what makes them matchable against a species'
     tolerances. Required: pass `NicheAxis` itself for data whose meaning is not being claimed, but a
     layer meant to pair with a tolerance needs a real one.
+  - `atend`, `calendar`: for a raster with a time axis, what the series it becomes does past its
+    last slice and what its coordinates mean, as on [`SourceSpec`](@ref).
 """
 function in_memory_raster(raster::ClimateRaster;
-                          axis::Type{<:NicheAxis})
-    return ConstructedRasterSpec(() -> raster, axis = axis)
+                          axis::Type{<:NicheAxis},
+                          atend::AbstractSeriesEnd = RepeatAtEnd(),
+                          calendar::Union{Nothing, AbstractSeriesCalendar} = nothing)
+    return ConstructedRasterSpec(() -> raster, axis = axis, atend = atend,
+                                 calendar = calendar)
 end
 
 """
@@ -420,10 +427,16 @@ function _codetype(::Type{S}) where {S <: EcoSISTEMSource}
     return _ownlayertable(S) ? String : Nothing
 end
 
-# Whether one of the package's own sources ships a layer table under its own name.
-function _ownlayertable(::Type{S}) where {S}
-    return isfile(joinpath(_cataloguedir(), "$(nameof(S)).csv"))
-end
+# The table one of the package's own sources reads: its own name, so that `DerivedData{ERA}` does
+# not inherit ERA's table. `CRUTS` is the exception, below.
+_tablename(::Type{S}) where {S <: EcoSISTEMSource} = nameof(S)
+
+# CRU TS has no table of its own: its variables are read under WorldClim's monthly-climate codes and
+# units, which is what its reader has always attached.
+_tablename(::Type{CRUTS}) = :Climate
+
+# Whether one of the package's own sources reads a layer table.
+_ownlayertable(::Type{S}) where {S} = isfile(_layerpath(S))
 
 # _alllayercodes(source)
 #
@@ -444,7 +457,7 @@ end
 # cannot answer, as above.
 function _alllayercodes(::Type{S}) where {S <: EcoSISTEMSource}
     _ownlayertable(S) || return _nolayercodes(S)
-    ds = nameof(S)
+    ds = _tablename(S)
     return collect(CODE_TYPE,
                    (first(r.aliases) for r in _catalogue() if r.dataset === ds))
 end
@@ -725,8 +738,9 @@ iscategorical(raster::ClimateRaster, ::Type{NicheAxis}) = iscategorical(raster)
 # ---------------------------------------------------------------------------
 # The concrete data-source types
 # ---------------------------------------------------------------------------
-# `ERA`, `CERA` and `CRUTS` are siblings of `ClimateRaster` under `AbstractClimate`, so they live
-# beside it; their readers are in `erareaders.jl`. The plot recipes travel with the types they plot,
+# `ERA`, `CERA`, `TwentyCR` and `CRUTS` are siblings of `ClimateRaster` under `AbstractClimate`, so
+# they live beside it; a `SourceSpec` naming one reads through `read(::RasterSpec)`, the netCDF backend and
+# the layer table chosen by the source's catalogue row. The plot recipes travel with the types they plot,
 # as they do for `Ecosystem` and `Layer`.
 
 # Whether a `Ti` axis eltype represents time: either a real calendar coordinate (an anchored source's

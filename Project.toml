@@ -45,15 +45,15 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 p7zip_jll = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 
 [weakdeps]
+CDSAPI = "8a7b9de3-9c00-473e-88b4-7eccd7ef2fea"
 DataPipeline = "9ced6f0a-eb77-43a8-bbd1-bbf3031b0d12"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 Phylo = "aea672f4-3940-5932-aa44-993d1c3ff149"
-PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 RasterDataSources = "3cb90ccd-e1b6-4867-9617-4276c8b2ca36"
 
 [extensions]
 EcoSISTEMDataPipelineExt = "DataPipeline"
-EcoSISTEMERAExt = "PyCall"
+EcoSISTEMERAExt = "CDSAPI"
 EcoSISTEMMPIExt = "MPI"
 EcoSISTEMPhyloExt = "Phylo"
 EcoSISTEMRasterDataSourcesExt = "RasterDataSources"
@@ -61,6 +61,7 @@ EcoSISTEMRasterDataSourcesExt = "RasterDataSources"
 [compat]
 ArchGDAL = "0.6, 0.7, 0.8, 0.9, 0.10"
 BlockArrays = "1"
+CDSAPI = "2.2, 2.3"
 CSV = "0.10"
 Calculus = "0.4.1, 0.5"
 DataFrames = "0.21.8, 0.22, 1.0"
@@ -93,7 +94,6 @@ ParallelTestRunner = "2.7.0"
 Phylo = "0.4.18, 0.5"
 Pkg = "1.9"
 Printf = "1.9"
-PyCall = "1"
 Random = "1.9"
 RasterDataSources = "0.5.6, 0.6, 0.7"
 Rasters = "0.15.0"
@@ -110,6 +110,8 @@ julia = "1.11"
 p7zip_jll = "17"
 
 [extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+CDSAPI = "8a7b9de3-9c00-473e-88b4-7eccd7ef2fea"
 CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"
 Git = "d7ba0133-e1db-5d97-8f8c-041e4b3a1eb2"
 JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
@@ -148,4 +150,4 @@ publications = ["10.48550/arXiv.1911.12257"]
         ror = "00vtgdb53"
 
 [targets]
-test = ["CoordinateTransformations", "Git", "JuliaFormatter", "Logging", "MPI", "OnlineStats", "ParallelTestRunner", "Phylo", "Pkg", "Plots", "RasterDataSources", "ResearchSoftwareMetadata", "TOML", "Test"]
+test = ["Aqua", "CDSAPI", "CoordinateTransformations", "Git", "JuliaFormatter", "Logging", "MPI", "OnlineStats", "ParallelTestRunner", "Phylo", "Pkg", "Plots", "RasterDataSources", "ResearchSoftwareMetadata", "TOML", "Test"]

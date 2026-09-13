@@ -724,11 +724,15 @@ _firstslice(stack) = stack[:, :, 1]
 # to begin with - and the series writes whichever slice is current from then on, so a stored series
 # is a layer change like any other rather than a second, parallel mechanism.
 #
-# `RepeatAtEnd`, because a stored stack cycles: a twelve-month climatology is meant to repeat. The
-# cycle is a true modulus, so the overshoot is kept rather than discarded.
-function _setseries!(layer::AbstractLayer, stack)
+# `atend` and `calendar` are the spec's, as `SeriesChange` takes them. The default `RepeatAtEnd`
+# is what a stored stack usually means - a twelve-month climatology cycles, by a true modulus -
+# and a dated series of real months, which cannot cycle evenly, says `HoldAtEnd` or `ErrorAtEnd`.
+function _setseries!(layer::AbstractLayer, stack;
+                     atend::AbstractSeriesEnd = RepeatAtEnd(),
+                     calendar::Union{Nothing, AbstractSeriesCalendar} = nothing)
     setchange!(layer,
-               ReplaceWith(SeriesChange(stack, atend = RepeatAtEnd())))
+               ReplaceWith(SeriesChange(stack, atend = atend,
+                                        calendar = calendar)))
     return layer
 end
 

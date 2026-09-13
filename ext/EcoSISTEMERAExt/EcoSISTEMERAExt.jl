@@ -3,55 +3,22 @@
 module EcoSISTEMERAExt
 
 using EcoSISTEM
-using PyCall
+using CDSAPI
 
-# Install python api for Climate Data Store
-run(`$(PyCall.python) -m pip install cdsapi`)
-
-@info "Creating ECMWF interface for EcoSISTEM..."
-
-function EcoSISTEM.retrieve_era5(param::String,
-                                 from_year::Int64,
-                                 to_year::Int64,
-                                 filename::String = "era5";
-                                 kws...)
-    py"""
-    from math import floor
-    import cdsapi
-    server = cdsapi.Client()
-    def retrieve_era5(param, from_year, to_year, filename, **kwargs):
-        months = range(1, 13)
-        years = range(from_year, to_year + 1)
-        decades = sorted({floor(y / 10) * 10 for y in years})
-        # Loop through decades and create a request list for all months/years
-        for d in decades:
-            # Filter for years within the decade
-            years_in_decade = list(filter(lambda y: floor(y / 10) * 10 == d, years))
-            # Set up all request months per decade in correct format
-            request_dates = "/".join([f'{y}{m:02}01' for y in years_in_decade for m in months])
-            # Create target file
-            target = f'{filename}_{d}'
-            print(f'Years: {years_in_decade}\nOutput file: {target}')
-            era5_request(param, request_dates, target, **kwargs)
-    def era5_request(
-            param, request_dates, target,
-            stream='moda', modeltype='an', levtype='sfc',
-            grid='0.75/0.75', format='netcdf'):
-
-        server.retrieve('reanalysis-era5-complete', {
-            "class": "ea",
-            "dataset": "era5",
-            "expver": "1",
-            'stream':  stream,
-            'type':    modeltype,
-            'levtype': levtype,
-            'param':   param,
-            'grid':    grid,
-            'format':  format,
-            'date':    request_dates,
-        }, target)
-    """
-    py"retrieve_era5"(param, from_year, to_year, filename; kws...)
+# Fetch a request's file from the Climate Data Store, through CDSAPI's client, which submits the
+# job, polls it and downloads the result. The reply lands under a temporary name beside the target
+# and is renamed in, so an interrupted transfer never looks complete; `assetpath` is what decides a
+# file is present, and it checks nothing but presence.
+function EcoSISTEM._fetchcds(request::EcoSISTEM.CDSRequest)
+    mkpath(dirname(abspath(request.path)))
+    part = request.path * ".part"
+    try
+        CDSAPI.retrieve(request.dataset, request.request, part, wait = 20.0)
+        mv(part, request.path, force = true)
+    finally
+        rm(part, force = true)
+    end
+    return request.path
 end
 
 end
