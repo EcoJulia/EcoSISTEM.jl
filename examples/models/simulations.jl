@@ -87,8 +87,8 @@ function diversity_through_time(eco; times = 10year,
                                 intervention = nothing)
     points = length((0 * interval):interval:times)
     recorded = map(_ -> Float64[], MEASURES)
-    simulate_action!(eco, times, interval, timestep,
-                     intervention = intervention) do _
+    simulate!(eco, times, timestep, every = EveryInterval(interval),
+              intervention = intervention) do _
         for (name, measure) in pairs(MEASURES)
             push!(recorded[name], _summarise(measure(eco)))
         end

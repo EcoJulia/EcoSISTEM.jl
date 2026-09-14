@@ -24,6 +24,28 @@ include("TestCases.jl")
 # matches the current API it forwards to.
 
 @testset "Deprecations" begin
+    @testset "simulate_action! keeps its own timing" begin
+        # One step after each multiple of the interval, over the steps `simulate!` takes, handed a
+        # bare count; with `offset` the grid starts at the timestep and the run is a step shorter.
+        step = 1.0month_mean_duration
+        fired(offset) = begin
+            eco = Test1Ecosystem()
+            calls = Tuple{Int, typeof(1.0s)}[]
+            @test_deprecated simulate_action!(eco, 3step, step, step,
+                                              offset = offset) do counting
+                return push!(calls,
+                             (counting, EcoSISTEM.simulationtime(eco)))
+            end
+            calls
+        end
+        plain = fired(false)
+        @test first.(plain) == 1:4
+        @test last.(plain) ≈ [uconvert(s, k * step) for k in 1:4]
+        shifted = fired(true)
+        @test first.(shifted) == 1:3
+        @test last.(shifted) ≈ [uconvert(s, k * step) for k in 1:3]
+    end
+
     @testset "trait line: GaussTrait -> NicheTolerance" begin
         opts = fill(5.0K, 4)
         vars = fill(2.0K, 4)

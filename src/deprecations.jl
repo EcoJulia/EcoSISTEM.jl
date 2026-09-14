@@ -38,6 +38,39 @@
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
+# `simulate_action!`: a callback on `simulate!`
+#
+# `simulate!(f, eco, duration, timestep; every)` hands its callback the occurrence's count, elapsed
+# time and date, and each occurrence observes the state at the time its schedule names.
+# `simulate_action!` handed a bare count, one step after each multiple of the interval; the shim
+# keeps that timing exactly.
+#
+# Deprecated in v0.8.0.
+# ---------------------------------------------------------------------------
+"""
+    simulate_action!(action!::Function, eco::AbstractEcosystem, times::Unitful.Time,
+                     interval::Unitful.Time, timestep::Unitful.Time;
+                     intervention = nothing, offset = false)
+
+Deprecated: give [`simulate!`](@ref) the callback instead, `simulate!(f, eco, duration, timestep;
+every)`, whose callback is handed the occurrence's `count`, `elapsed` time and `date` and sees the
+state at each time `every` names. This calls `action!(counting)` on the step after the clock stood
+on a multiple of `interval`, which must be a whole multiple of `timestep`; `offset` starts that grid
+at `timestep`, the run a step shorter. `intervention` is applied as for `simulate!`.
+"""
+function simulate_action!(action!::F, eco::AbstractEcosystem,
+                          times::Unitful.Time, interval::Unitful.Time,
+                          timestep::Unitful.Time; intervention = nothing,
+                          offset = false) where {F <: Function}
+    Base.depwarn("`simulate_action!` is deprecated: give `simulate!` the callback instead, as " *
+                 "`simulate!(eco, duration, timestep, every = EveryInterval(interval)) do " *
+                 "occurrence ... end`, whose callback is handed `(count, elapsed, date)`.",
+                 :simulate_action!)
+    return _simulateaction!(action!, eco, times, interval, timestep,
+                            intervention = intervention, offset = offset)
+end
+
+# ---------------------------------------------------------------------------
 # Demographic parameters: the `boost` field is gone
 #
 # The birth multiplier is `min(K/E, 1)`, as the model is written up: however plentiful the resource,

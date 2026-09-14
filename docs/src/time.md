@@ -50,22 +50,28 @@ what a year means. Choose the timestep for numerical reasons - how finely you wa
 resolved, and how much detail your environmental data can actually support - not because the
 model expects a particular one.
 
-To do something periodically while a simulation runs, use [`simulate_action!`](@ref), which
-calls a function of yours at a regular `interval`:
+To do something periodically while a simulation runs, give [`simulate!`](@ref) a function of
+yours - usually as a `do` block - and say how often with `every`:
 
 ```@example clock
-totals = zeros(Int, length((0year):(1year):(10year)))
-simulate_action!(eco, 10year, 1year, 1month_mean_duration) do counting
-    totals[counting] = sum(eco.abundances.matrix)
+totals = Int[]
+simulate!(eco, 10year, 1month_mean_duration, every = EveryInterval(1year)) do occurrence
+    push!(totals, sum(eco.abundances.matrix))
 end
 totals
 ```
 
-The `interval` must be a whole multiple of the `timestep`, so that the action always lands on
-a step boundary - and this is the first place the next section's distinction bites. A year is
-**not** a whole number of days: `year` is Unitful's Julian year of 365.25 days, so an interval
-of `1year` with a timestep of `1day` is rejected. It divides exactly by
-`month_mean_duration`, which is a twelfth of that same year, so monthly steps are used above.
+Each call is handed the occurrence's `count`, its `elapsed` time and, when the run has an
+epoch, its `date`, and sees the state at exactly that time: the first is the starting state,
+and each later one comes after that step's births, deaths and interventions. `every` takes
+any schedule an intervention does, and a bare duration means `EveryInterval` of it.
+
+A multiple of the interval that no step ends on is acted on at the step that reaches it - and
+this is the first place the next section's distinction bites. A year is **not** a whole
+number of days: `year` is Unitful's Julian year of 365.25 days, so with a timestep of `1day`
+a yearly call would come a fraction of a day late in three years out of four. It divides
+exactly by `month_mean_duration`, which is a twelfth of that same year, so monthly steps are
+used above.
 
 [`simulate_record!`](@ref) is this same engine with recording already written for you, and is
 what most runs want.

@@ -294,6 +294,36 @@ iv_abuns = gatherabundance(iveco)
 
 rank == 0 && checkblessed(iv_abuns, "mpi/intervention")
 
+# **A callback on `simulate!` under MPI.** Every rank runs the loop and the callback, so the
+# occurrences must be the same on every rank, and a callback reaching a collective - a gather - must
+# complete, since every rank reaches it. The totals it records must equal a serial run of the same
+# fixture at any rank count: the distributed loop is a duplicate of the serial one, and a duplicate is
+# only ever checked against the original.
+cbsppl, _ = mpifixture_species()
+cbeco = MPIEcosystem(cbsppl, varying_environment(), nichefit, seed = 0)
+cbeco.abundances.rows_matrix .= MPIFIXTURE_FILL
+cbcounts = Int[]
+cbtotals = Int[]
+MPI.Barrier(comm)
+simulate!(cbeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+          every = EveryInterval(3 * MPIFIXTURE_TIMESTEP)) do occurrence
+    push!(cbcounts, occurrence.count)
+    rank == 0 || return nothing
+    return push!(cbtotals, sum(gatherabundance(cbeco)))
+end
+cbeverywhere = MPI.Allgather(Int32(length(cbcounts)), comm)
+@test all(==(first(cbeverywhere)), cbeverywhere)
+if rank == 0
+    cbserial = mpifixture_ecosystem()
+    serialtotals = Int[]
+    simulate!(cbserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+              every = EveryInterval(3 * MPIFIXTURE_TIMESTEP)) do _
+        return push!(serialtotals, sum(cbserial.abundances.matrix))
+    end
+    @test cbcounts == eachindex(serialtotals)
+    @test cbtotals == serialtotals
+end
+
 # **Ordinariness is computed in the COLUMN partition**, where a rank owns every species for its own
 # cells, so a cell's value is complete on the rank that owns it and the full species-by-species
 # similarity matrix applies with no slice. Gathering the column blocks must therefore rebuild the

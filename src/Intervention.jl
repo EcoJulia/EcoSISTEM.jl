@@ -159,8 +159,8 @@ the two guarantees the declarative form provides, and `step` is where both bite:
     once and identically everywhere. `update!` guarantees that; a hand call does not.
 
 For a *conditional* intervention - one whose firing depends on the state of the run, which no
-schedule can express - prefer [`simulate_action!`](@ref): its callback closes over the ecosystem and
-runs at a known step, so it can decide and then apply without you tracking `step` by hand.
+schedule can express - give [`simulate!`](@ref) a callback: it closes over the ecosystem and is
+handed the elapsed time it fires at, so it can decide and then act.
 """
 function applyinterventions!(eco::AbstractEcosystem, intervention,
                              elapsed::Unitful.Time, timestep::Unitful.Time,

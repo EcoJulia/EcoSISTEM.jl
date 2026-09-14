@@ -14,7 +14,7 @@
 #     simulate!                run it
 #     simulate_record!         run it and record abundances, into `generate_storage`'s array
 #     simulate_record_diversity!   the same, recording a diversity measure instead
-#     simulate_action!         run it and call back at intervals, for anything else
+#     simulate!(f, ...)        run it and call back on a schedule, for anything else
 #     generate_storage         allocate the array the two recorders write into
 #
 # WHAT IS NOT HERE, and the test that decides it: these are the verbs a USER calls. Everything the
@@ -450,6 +450,66 @@ function simulate!(eco::AbstractEcosystem, duration::Unitful.Time,
 end
 
 """
+    simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time, timestep::Unitful.Time;
+              every = timestep, intervention = nothing)
+
+Run `eco` for `duration` in steps of `timestep`, as the three-argument `simulate!` does, calling `f`
+whenever the schedule `every` fires - usually written as a `do` block:
+
+```julia
+totals = Int[]
+simulate!(eco, 10year, 1month_mean_duration, every = EveryInterval(1year)) do occurrence
+    push!(totals, sum(eco.abundances.matrix))
+end
+```
+
+`f` is handed one named tuple per occurrence: `count`, which occurrence of this call it is, from 1;
+`elapsed`, the simulation time it fires at; and `date`, that time as a date under the run's epoch and
+calendar, or `nothing` for a run with no epoch. The ecosystem is reached by closure. Each occurrence
+sees the state at exactly its time: on a run starting from elapsed zero the first is the starting
+state, after any intervention due at the start, and each later one comes after its step's dynamics,
+interventions and layer update.
+
+**The callback is for observing the run** - recording and logging. It must not draw from the global
+random number generator or write a layer's values, either of which would make the result depend on
+how the work was divided. Under MPI every rank runs the loop and the callback, so a collective the
+callback calls, such as [`gatherabundance`](@ref) or [`gatherdiversity`](@ref), must be reached on
+every rank - a callback returning before it on the ranks other than the root leaves every rank waiting
+for ever - and a callback writing abundances writes only its own rank's species. To change the
+ecosystem, declare an [`Intervention`](@ref), which is applied once and identically everywhere.
+
+# Arguments
+
+  - `f`: called at each occurrence with the named tuple above.
+  - `eco`: the ecosystem to run.
+  - `duration`, `timestep`: the length of the run and of each step; the run takes
+    `length((0s):timestep:duration)` steps.
+  - `every`: when `f` is called - an [`AbstractSchedule`](@ref), or a duration meaning
+    [`EveryInterval`](@ref) of it. Every timestep by default, the starting state included.
+  - `intervention`: an [`Intervention`](@ref) or [`InterventionSet`](@ref) applied as the run
+    proceeds.
+"""
+function simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time,
+                   timestep::Unitful.Time; every = timestep,
+                   intervention = nothing)
+    schedule = _everyschedule(every)
+    checkcoverage(eco, duration, timestep)
+    check_bounds(eco, duration, timestep)
+    _checkschedules(intervention, eco, duration, timestep)
+    _checkschedule(schedule, eco, duration, timestep)
+    count = 0
+    if iszero(simulationtime(eco))
+        _startrun!(eco, intervention, timestep)
+        count = _occur(f, schedule, eco, timestep, count)
+    end
+    for _ in 1:length((0s):timestep:duration)
+        _step!(eco, timestep, intervention)
+        count = _occur(f, schedule, eco, timestep, count)
+    end
+    return nothing
+end
+
+"""
     simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.Time)
 
 Run a cached ecosystem, `cache` at a specified timepoint, `srt`, for a
@@ -552,66 +612,6 @@ function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
 end
 
 """
-    simulate_action!(action!::Function, eco::AbstractEcosystem, times::Unitful.Time,
-                     interval::Unitful.Time, timestep::Unitful.Time;
-                     intervention = nothing, offset = false)
-
-Run an ecosystem `eco` up to time `times` in steps of `timestep`, calling the
-user-supplied `action!` at regular intervals so that any periodic task can be
-performed as the simulation proceeds - recording a quantity, logging progress,
-applying a management intervention, checking a stopping condition, and so on.
-This is the general engine behind the [`simulate_record!`](@ref) and
-[`simulate_record_diversity!`](@ref) recorders; use it directly when you want to
-do something they do not.
-
-At each step the ecosystem is advanced with [`update!`](@ref), which applies any
-[`Intervention`](@ref) passed as `intervention`. Whenever the elapsed time falls on a multiple of `interval`, `action!(counting)`
-is called, where `counting` is the 1-based index of that occurrence (handy as a
-storage slot when the action is recording); `interval` must be a whole multiple of
-`timestep`. Anything the action needs to read or update - the ecosystem, an output
-array, an external counter - is captured by the closure, typically written as a
-`do` block:
-
-```julia
-totals = zeros(Int, length((0s):interval:times))
-simulate_action!(eco, times, interval, timestep) do counting
-    totals[counting] = sum(eco.abundances.matrix)
-end
-```
-
-`offset` shifts the action grid to start at `timestep` rather than `0`, which drops
-the first occurrence (one fewer action in total). Use it to make the number of
-actions match a pre-allocated array (such as one from [`generate_storage`](@ref));
-the built-in diversity recorders pass `offset = iseven(size(storage, 3))`.
-
-Returns the ecosystem `eco`, now advanced to `times`.
-"""
-function simulate_action!(action!::F,
-                          eco::AbstractEcosystem,
-                          times::Unitful.Time,
-                          interval::Unitful.Time,
-                          timestep::Unitful.Time;
-                          intervention = nothing,
-                          offset = false) where {F <: Function}
-    iszero(mod(interval, timestep)) ||
-        error("Interval must be a multiple of timestep")
-    checkcoverage(eco, times, timestep)
-    check_bounds(eco, times, timestep)
-    _checkschedules(intervention, eco, times, timestep)
-    action_seq = offset ? (timestep:interval:times) : ((0s):interval:times)
-    time_seq = offset ? (timestep:timestep:times) : ((0s):timestep:times)
-    counting = 0
-    for i in eachindex(time_seq)
-        update!(eco, timestep, intervention)
-        if time_seq[i] in action_seq
-            counting += 1
-            action!(counting)
-        end
-    end
-    return eco
-end
-
-"""
     simulate_record!(storage::AbstractArray, eco::Ecosystem, times::Unitful.Time,
          interval::Unitful.Time, timestep::Unitful.Time)
 
@@ -629,8 +629,8 @@ can add species ([`AddSpecies`](@ref)), size `storage` for them with
 before the run and cannot grow.
 
 To record diversity rather than raw abundances, see
-[`simulate_record_diversity!`](@ref); to perform an arbitrary action at regular
-intervals via a callback, see [`simulate_action!`](@ref).
+[`simulate_record_diversity!`](@ref); to perform an arbitrary action on a schedule
+via a callback, see [`simulate!`](@ref).
 """
 function simulate_record!(storage::AbstractArray,
                           eco::Ecosystem,
@@ -667,9 +667,8 @@ end
 
 Run an ecosystem `eco` up to `times` in steps of `timestep`, recording diversity
 into `storage` (and, for the alpha/beta/gamma form, `substorage`/`metastorage`) every `interval`,
-which must be a whole multiple of `timestep`. These are all thin wrappers over
-[`simulate_action!`](@ref) - see it for the recording mechanics - and differ only
-in what diversity they record:
+which must be a whole multiple of `timestep`. These share one recording loop and
+differ only in what diversity they record:
 
   - `divfun, qs` - a single diversity function `divfun` (which returns a
     `DataFrame` with a `:diversity` column) evaluated over the diversity orders
@@ -694,7 +693,7 @@ function simulate_record_diversity!(storage::AbstractArray,
                                     timestep::Unitful.Time,
                                     divfun::F,
                                     qs::Vector{Float64}) where {F <: Function}
-    simulate_action!(eco, times, interval, timestep,
+    _simulateaction!(eco, times, interval, timestep,
                      offset = iseven(size(storage, 3))) do counting
         diversity = divfun(eco, qs)[!, :diversity]
         return storage[:, :, counting] = reshape(diversity,
@@ -712,7 +711,7 @@ function simulate_record_diversity!(substorage::AbstractArray,
                                     interval::Unitful.Time,
                                     timestep::Unitful.Time,
                                     qs::Vector{Float64})
-    simulate_action!(eco, times, interval, timestep,
+    _simulateaction!(eco, times, interval, timestep,
                      offset = iseven(size(substorage, 3))) do counting
         measures = [NormalisedAlpha, NormalisedBeta, Gamma]
         for (i, msr) in enumerate(measures)
@@ -736,7 +735,7 @@ function simulate_record_diversity!(storage::AbstractArray,
                                     timestep::Unitful.Time,
                                     divfuns::Array{Function},
                                     q::Float64)
-    simulate_action!(eco, times, interval, timestep) do counting
+    _simulateaction!(eco, times, interval, timestep) do counting
         # `j` is a position: it addresses `storage`, allocated by `generate_storage`, as well as
         # picking the measure.
         for (j, divfun) in enumerate(divfuns)
@@ -744,4 +743,38 @@ function simulate_record_diversity!(storage::AbstractArray,
         end
     end
     return storage
+end
+
+# The schedule a callback's `every` names: a duration means every whole multiple of it.
+_everyschedule(every::Unitful.Time) = EveryInterval(every)
+
+_everyschedule(every::AbstractSchedule) = every
+
+# Call `f` for an occurrence if `schedule` fires at the clock as it now stands, and return how many
+# occurrences there have been.
+function _occur(f, schedule::AbstractSchedule, eco::AbstractEcosystem,
+                timestep::Unitful.Time, count::Integer)
+    _fires(schedule, eco, simulationtime(eco), timestep) || return count
+    count += 1
+    f((count = count, elapsed = simulationtime(eco),
+       date = simulationdate(eco)))
+    return count
+end
+
+# `simulate_action!`'s own timing, kept exactly for the names still built on it: `action!` is handed
+# the occurrence's count on the step after the clock stood on a multiple of `interval` - or, with
+# `offset`, on a step ending on one, the run a step shorter.
+function _simulateaction!(action!, eco::AbstractEcosystem, times::Unitful.Time,
+                          interval::Unitful.Time, timestep::Unitful.Time;
+                          intervention = nothing, offset = false)
+    iszero(mod(interval, timestep)) ||
+        error("Interval must be a multiple of timestep")
+    grid = offset ? collect(timestep:interval:times) :
+           collect((0s):interval:times) .+ timestep
+    duration = offset ? times - timestep : times
+    simulate!(eco, duration, timestep, every = AtTimes(grid),
+              intervention = intervention) do occurrence
+        return action!(occurrence.count)
+    end
+    return eco
 end
