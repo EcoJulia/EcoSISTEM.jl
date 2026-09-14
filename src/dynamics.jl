@@ -216,9 +216,16 @@ Update an ecosystem for one timestep, applying any scheduled [`Intervention`](@r
 
 **The ordering is the point.** Interventions run *after* the population dynamics and *before* the
 layer update, with the clock advanced between - so a [`SetChange`](@ref) installed this step takes
-effect **this** step rather than one step late.
+effect **this** step rather than one step late. On the first step, with the clock at zero, those
+due at the start run once more *before* the dynamics, so they act on the starting state.
 """
 function update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
+    # The start of a run: what is due at elapsed zero acts before the first step's dynamics, which
+    # then read the abundances it wrote.
+    if iszero(simulationtime(eco))
+        applyinterventions!(eco, intervention, simulationtime(eco), timestep, 0)
+        invalidatecaches!(eco)
+    end
 
     # Calculate dimenions of regime and number of species
     numsc = countsubcommunities(eco.habitat.regime)

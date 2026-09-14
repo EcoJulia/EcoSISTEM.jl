@@ -49,6 +49,16 @@ write is rank-local.
 function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
                            intervention)
     _checkmpiinterventions(intervention)
+    # The start of a run, as in the serial loop: what is due at elapsed zero acts before the first
+    # step's dynamics. It writes `rows_matrix`, and `update_resource_usage!` below reads the column
+    # layout, so the columns are synchronised here too - once a run.
+    if iszero(EcoSISTEM.simulationtime(eco))
+        EcoSISTEM.applyinterventions!(eco, intervention,
+                                      EcoSISTEM.simulationtime(eco), timestep,
+                                      0)
+        invalidatecaches!(eco)
+        EcoSISTEM.synchronise_from_rows!(eco.abundances)
+    end
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
 

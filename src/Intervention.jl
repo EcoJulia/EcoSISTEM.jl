@@ -130,7 +130,9 @@ using Distributions: Binomial, Poisson
 
 Apply every scheduled [`Intervention`](@ref) for the step that has just reached `elapsed`. Called by
 [`update!`](@ref) - after the population dynamics and **before** the layer update, so that a
-[`SetChange`](@ref) takes effect in the same step rather than one step late.
+[`SetChange`](@ref) takes effect in the same step rather than one step late - and, at elapsed zero,
+once before the first step's dynamics, so an intervention due at the start acts on the starting
+state.
 
 **This is also the supported imperative route**: it is the way to act on a running ecosystem
 without having declared anything in advance, and it takes any operation, not just some privileged
@@ -164,7 +166,7 @@ function applyinterventions!(eco::AbstractEcosystem, intervention,
                              elapsed::Unitful.Time, timestep::Unitful.Time,
                              step::Integer)
     for (k, iv) in enumerate(_interventions(intervention))
-        _fires(iv.schedule, elapsed, timestep) || continue
+        _fires(iv.schedule, eco, elapsed, timestep) || continue
         rng = _interventionrng(eco, k, step)
         # Resolved **once**, then every operation acts on the same cells - see `Intervention`.
         cells = _regioncells(iv.region, eco, rng, timestep)
@@ -192,7 +194,11 @@ end
 # `timestep`. The step *covers* `(elapsed - timestep, elapsed]`, and a one-off schedule fires when
 # its instant falls in that half-open window - so it fires exactly once however the steps are sized,
 # and never falls between two steps.
-_fires(::EveryStep, _, _) = true
+#
+# At elapsed zero no step has been taken, so the start is not one: a schedule naming an instant at or
+# before the start fires there, on the starting state, while one that acts over a step - every step,
+# or every step within a span - waits for the first.
+_fires(::EveryStep, elapsed, _) = !iszero(elapsed)
 
 _fires(::NeverScheduled, _, _) = false
 
@@ -205,20 +211,131 @@ function _fires(s::AtTimes, elapsed::Unitful.Time, timestep::Unitful.Time)
 end
 
 function _fires(s::BetweenTimes, elapsed::Unitful.Time, ::Unitful.Time)
-    return s.from <= elapsed <= s.to
+    return !iszero(elapsed) && s.from <= elapsed <= s.to
+end
+
+# Only the multiples that could lie in this step's window are tried, each through `_reached` exactly
+# as `AtTimes` tries its list, so the two agree step for step.
+function _fires(s::EveryInterval, elapsed::Unitful.Time,
+                timestep::Unitful.Time)
+    lower = max(0,
+                floor(Int, ustrip(NoUnits, (elapsed - timestep) / s.interval)))
+    upper = ceil(Int, ustrip(NoUnits, elapsed / s.interval))
+    return any(k -> _reached(k * s.interval, elapsed, timestep), lower:upper)
+end
+
+# A schedule asked with the ecosystem to hand. One reading elapsed time alone needs nothing from it;
+# a date schedule reads the epoch and calendar that turn its dates into elapsed time.
+function _fires(schedule::AbstractSchedule, ::AbstractEcosystem, elapsed,
+                timestep)
+    return _fires(schedule, elapsed, timestep)
+end
+
+function _fires(s::AtDates, eco::AbstractEcosystem, elapsed::Unitful.Time,
+                timestep::Unitful.Time)
+    epoch = _scheduleepoch(s, eco)
+    return any(s.dates) do date
+        return _reached(_elapsedat(epoch, date, eco.calendar), elapsed,
+                        timestep)
+    end
+end
+
+# Only the anniversaries in the years this step's window spans are tried, and none before the epoch.
+function _fires(s::EveryYear, eco::AbstractEcosystem, elapsed::Unitful.Time,
+                timestep::Unitful.Time)
+    epoch = _scheduleepoch(s, eco)
+    window = max(elapsed - timestep, zero(elapsed))
+    fromyear = Dates.year(_shiftdate(epoch, window, eco.calendar))
+    toyear = Dates.year(_shiftdate(epoch, elapsed, eco.calendar))
+    return any(fromyear:toyear) do year
+        t = _elapsedat(epoch, Dates.DateTime(year, s.month, s.day),
+                       eco.calendar)
+        return t >= zero(t) && _reached(t, elapsed, timestep)
+    end
+end
+
+# The epoch a date schedule is placed from, refused where the run has none.
+function _scheduleepoch(schedule::AbstractSchedule, eco::AbstractEcosystem)
+    isnothing(eco.epoch) || return eco.epoch
+    return error("`$(sprint(show, schedule))` names real dates, but this run has no epoch to " *
+                 "place them from. Pass `epoch = ` to `build_ecosystem` to say which date the " *
+                 "run starts on.")
+end
+
+# Refuse, before a run's first step, a date schedule the run cannot honour: one on a run with no
+# epoch, and one naming a date that falls inside a step longer than a day rather than at the end of
+# one, which would be acted on late - and, as the steps drift against the calendar, by a different
+# amount each time.
+function _checkschedules(intervention, eco::AbstractEcosystem,
+                         duration::Unitful.Time, timestep::Unitful.Time)
+    foreach(iv -> _checkschedule(iv.schedule, eco, duration, timestep),
+            _interventions(intervention))
+    return nothing
+end
+
+_checkschedule(::AbstractSchedule, ::AbstractEcosystem, _, _) = nothing
+
+# A step of a day or less shows every date on its own day; a longer one must end on each date the run
+# reaches, to the same tolerance a series' slice is found to.
+function _checkschedule(schedule::Union{AtDates, EveryYear},
+                        eco::AbstractEcosystem, duration::Unitful.Time,
+                        timestep::Unitful.Time)
+    epoch = _scheduleepoch(schedule, eco)
+    timestep <= 1.0u"d" && return nothing
+    start = simulationtime(eco)
+    final = _finalelapsed(eco, duration, timestep)
+    step = uconvert(s, float(timestep))
+    for (date, t) in _scheduleddates(schedule, epoch, eco.calendar, start,
+                                     final)
+        start < t <= final || continue
+        k = ustrip(NoUnits, (t - start) / step)
+        abs(k - round(k)) <= _DRIFT && continue
+        acted = _shiftdate(epoch, start + ceil(Int, k) * step, eco.calendar)
+        error("`$(sprint(show, schedule))` names $(Dates.Date(date)), which falls inside a " *
+              "step of $timestep rather than at the end of one, so it would be acted on " *
+              "$(Dates.Date(acted)). " * _scheduleremedy(eco.calendar))
+    end
+    return nothing
+end
+
+# The dates a date schedule names that a run from `start` to `final` could reach, each with its
+# elapsed time under the run calendar.
+function _scheduleddates(schedule::AtDates, epoch, calendar, _, _)
+    return [(date = d, elapsed = _elapsedat(epoch, d, calendar))
+            for d in schedule.dates]
+end
+
+function _scheduleddates(schedule::EveryYear, epoch, calendar, start, final)
+    fromyear = Dates.year(_shiftdate(epoch, start, calendar))
+    toyear = Dates.year(_shiftdate(epoch, final, calendar))
+    dates = [Dates.DateTime(y, schedule.month, schedule.day)
+             for y in fromyear:toyear]
+    return [(date = d, elapsed = _elapsedat(epoch, d, calendar)) for d in dates]
+end
+
+# What to do about a date that falls inside a step, under each run calendar.
+function _scheduleremedy(::ExactDates)
+    return "Step by no more than a day, or - for dates on the first of a month - build the " *
+           "ecosystem with `calendar = MeanMonths()` and step by a whole number of " *
+           "`month_mean_duration`s, which then end on the first of every month."
+end
+
+function _scheduleremedy(::MeanMonths)
+    return "Step by no more than a day, or schedule dates on the first of a month and step by a " *
+           "whole number of `month_mean_duration`s."
 end
 
 # `(elapsed - timestep, elapsed]` - half-open below so consecutive steps cannot both claim the same
 # instant, closed above so an instant landing exactly on a step boundary fires on that step.
 #
-# **The first step is closed at both ends**, or `AtTime(0)` would never fire: the run's first
-# window is `(0, timestep]`, which excludes zero, and a schedule that silently never fires is the
-# worst outcome available - the same failure this whole function exists to avoid at the other end.
-# A time at or before the start therefore fires on step one, and only on step one.
+# **At elapsed zero the window is everything up to zero**, which `update!` asks before the first
+# step's dynamics: an instant at or before the start acts on the starting state, and the first step's
+# window, `(0, timestep]`, then excludes it, so it fires once. Without that start an `AtTime(0)` would
+# never fire, which is the failure this function exists to avoid.
 function _reached(t::Unitful.Time, elapsed::Unitful.Time,
                   timestep::Unitful.Time)
     t <= elapsed || return false
-    return t > (elapsed - timestep) || elapsed <= timestep
+    return iszero(elapsed) || t > (elapsed - timestep)
 end
 
 # One intervention answers as a set of one, so the apply path needs no separate leaf case - the same

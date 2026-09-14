@@ -281,6 +281,7 @@ classDiagram
     class AbstractChangeSpec
     class AbstractSeriesEnd
     class AbstractSeriesCalendar
+    class AbstractRunCalendar
     AbstractLayerChange <|-- NoLayerChange
     AbstractLayerChange <|-- SteadyLayerChange
     AbstractLayerChange <|-- PatternedLayerChange
@@ -301,6 +302,9 @@ classDiagram
     AbstractSeriesCalendar <|-- DatedSeries
     AbstractSeriesCalendar <|-- MonthOfYearSeries
     AbstractSeriesCalendar <|-- UndatedSeries
+    AbstractSeriesCalendar <|-- DatedSeriesInMeanMonths
+    AbstractRunCalendar <|-- ExactDates
+    AbstractRunCalendar <|-- MeanMonths
     SeriesLayerChange "1" *-- "1" AbstractSeriesEnd : atend
     SeriesLayerChange "1" *-- "1" AbstractSeriesCalendar : calendar
 ```
@@ -323,7 +327,11 @@ Three hierarchies meet here, and they answer different questions:
 - **`AbstractSeriesEnd` / `AbstractSeriesCalendar`** - what a stored series does past its last slice
   (`atend`), and what its time coordinates *mean* (`calendar`). A `DatedSeries` carries real dates, a
   `MonthOfYearSeries` a repeating climatology keyed by calendar month number, an `UndatedSeries` bare
-  offsets from an origin.
+  offsets from an origin. Separately, a run's `AbstractRunCalendar` - `ExactDates` or `MeanMonths`,
+  the `calendar` of `build_ecosystem` - says how dates become elapsed time for the whole run. Under
+  `MeanMonths` a dated series is placed as a `DatedSeriesInMeanMonths`, an internal calendar that
+  keeps the real slice times beside the month-counted ones, so placing it again under either run
+  calendar starts from its dates.
 
 **A stored series is indexed by elapsed time, never by a step counter.** That is what makes the
 model timestep-independent: twelve one-month steps and one twelve-month step land on the same slice.
@@ -362,6 +370,9 @@ classDiagram
     AbstractSchedule <|-- AtTime
     AbstractSchedule <|-- AtTimes
     AbstractSchedule <|-- BetweenTimes
+    AbstractSchedule <|-- EveryInterval
+    AbstractSchedule <|-- AtDates
+    AbstractSchedule <|-- EveryYear
     AbstractSchedule <|-- NeverScheduled
     AbstractRegion <|-- AllCells
     AbstractRegion <|-- ActiveCells
@@ -386,8 +397,8 @@ be applied redundantly on every MPI rank and still agree. An *intervention* muta
 the active mask, abundances, the species list - so it must be applied once and identically
 everywhere. That is also why the operation set is **closed**: a user callback could draw from the
 global RNG or write a layer's matrix directly, both of which desynchronise ranks. Selections come
-from a counter-based stream, `hash((seed, :intervention, k, step))`, generalising the per-species
-scheme.
+from a counter-based stream seeded from `(seed, :intervention, k, step)`, generalising the
+per-species scheme.
 
 **`Deactivate` kills what lives in the cell**, and must: a deactivated cell is skipped by the hot
 loop, so anything left in it would neither breed nor die. `Reactivate` deliberately does *not*

@@ -49,6 +49,16 @@
     - A `provenance` keyword on `build_species`, `Intervention` and `build_ecosystem` attaches
       records of data the package never fetched, such as an occurrence download; an intervention's
       records join the ecosystem's once it acts. `provenance` also answers for shape specs.
+    - `EveryInterval(interval)`, a schedule firing at every whole multiple of an interval counted
+      from the start of the run, on the step that reaches each.
+    - `AtDates(dates)` and `EveryYear(month = 7, day = 1)`, schedules at real dates, placed through
+      the run's epoch and `calendar`. A run refuses them before its first step if it has no epoch,
+      or if a date falls inside a step longer than a day rather than at the end of one, where it
+      would be acted on late by a different amount each time.
+    - `build_ecosystem` takes a `calendar`: `ExactDates()`, the default, places dated slices by the
+      real time between them, and `MeanMonths()` counts every calendar month as
+      `month_mean_duration`, so a dated monthly series stepped by a mean month shows every month
+      once. `simulationdate` and the provenance run record follow the calendar.
     - `SoilVolume` and `SoilWaterVolume` axes. ERA5's `swvl1` reads on the second: a volumetric
       fraction over a layer whose catalogue row gives its thickness is a depth of water, and times
       the cell area a volume, so a stock is a supply as `SurfaceArea` already is.
@@ -62,6 +72,14 @@
       as PDFs from the package's own examples, at the published scale when run directly and from
       a small run under the test suite.
   - Changed
+    - `simulate!` refuses, before its first step, a run whose timestep would leave a slice of a
+      dated series never current - a dated monthly series stepped by `month_mean_duration` from
+      1 January never shows February. Build the ecosystem with `calendar = MeanMonths()`, or step
+      by no more than the gap between slices.
+    - An intervention due at the start of a run - `AtTime(0)`, an `EveryInterval`'s first multiple,
+      a date on the epoch - acts on the starting state before the first step's births and deaths,
+      rather than after them. `EveryStep` and `BetweenTimes` act after each step and not at the
+      start, so calling `applyinterventions!` with them at elapsed zero does nothing.
     - Random streams are seeded through the generator's own seeding rather than `Base.hash`, whose
       values change between Julia versions, so a run reproduces from its seed on every Julia. A
       seed's results differ from earlier releases, once; the canonical references are re-blessed.

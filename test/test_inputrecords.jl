@@ -72,6 +72,7 @@ end
     @test isempty(p.inputs) && isnothing(p.grid.crs)
     @test p.run.seed == eco.seed && p.run.epoch === eco.epoch &&
           p.run.elapsed == eco.elapsed
+    @test p.run.calendar == ExactDates()
     @test p.grid == provenance(eco.habitat).grid
 end
 

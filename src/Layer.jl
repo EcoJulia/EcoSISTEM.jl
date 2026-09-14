@@ -316,9 +316,12 @@ Called by [`simulate!`](@ref) before the first timestep.
 function checkcoverage(eco::AbstractEcosystem, duration::Unitful.Time,
                        timestep::Unitful.Time)
     final = _finalelapsed(eco, duration, timestep)
-    foreach(l -> _checkcoverage(l, final),
-            vcat(_coveredlayers(eco.habitat.regime),
-                 _coveredlayers(eco.habitat.supply)))
+    layers = vcat(_coveredlayers(eco.habitat.regime),
+                  _coveredlayers(eco.habitat.supply))
+    foreach(l -> _checkcoverage(l, final), layers)
+    steps = length((zero(duration)):timestep:duration)
+    foreach(l -> _checkskipped(l, simulationtime(eco), timestep, steps,
+                               eco.calendar), layers)
     return nothing
 end
 
@@ -832,6 +835,86 @@ function _seriesspare(change::SeriesLayerChange, duration)
            (change.origin + duration)
 end
 
+# Whether stepping from `start` by `timestep` would leave a slice of a dated series never current.
+# The slice is read at the start and after every step, as the layer update reads it, and a step that
+# moves on by more than one slice has passed over the ones between. Only a dated series is checked:
+# its slices are dates the run was asked to see, where an undated series' spacing is the caller's.
+function _checkskipped(layer::AbstractLayer, start, timestep, steps,
+                       calendar::AbstractRunCalendar)
+    return _checkskipped(layer.change, layer, start, timestep, steps, calendar)
+end
+
+_checkskipped(::AbstractLayerChange, _, _, _, _, _) = nothing
+
+function _checkskipped(change::SumOfLayerChanges, layer, start, timestep, steps,
+                       calendar::AbstractRunCalendar)
+    foreach(p -> _checkskipped(p, layer, start, timestep, steps, calendar),
+            change.parts)
+    return nothing
+end
+
+function _checkskipped(change::SeriesLayerChange, layer, start, timestep, steps,
+                       calendar::AbstractRunCalendar)
+    return _checkskipped(change.calendar, change, layer, start, timestep, steps,
+                         calendar)
+end
+
+_checkskipped(::AbstractSeriesCalendar, _, _, _, _, _, _) = nothing
+
+function _checkskipped(dated::Union{DatedSeries, DatedSeriesInMeanMonths},
+                       change::SeriesLayerChange, layer, start, timestep,
+                       steps, calendar::AbstractRunCalendar)
+    step = uconvert(s, float(timestep))
+    previous = nothing
+    for k in 0:steps
+        elapsed = start + k * step
+        if !_inspan(change, change.origin + elapsed)
+            previous = nothing
+            continue
+        end
+        current = _seriesindex(change, elapsed)
+        isnothing(previous) ||
+            _slicejump(change.atend, change, previous, current) <= 1 ||
+            error("stepping by $timestep never shows the slice of the $(_axisnames(layer)) " *
+                  "layer's dated series for " *
+                  "$(Dates.Date(_slicedate(dated, change, previous + 1))): one step shows the " *
+                  "slice before it and the next a later one. " *
+                  _skippedremedy(calendar))
+        previous = current
+    end
+    return nothing
+end
+
+# How many slices one step moves on by: forward only, except round the end of a cycling series.
+_slicejump(::AbstractSeriesEnd, _, previous, current) = current - previous
+
+function _slicejump(::RepeatAtEnd, change::SeriesLayerChange, previous, current)
+    return mod(current - previous, length(change.times))
+end
+
+# The date a dated series' slice was given.
+function _slicedate(dated::DatedSeries, change::SeriesLayerChange, index)
+    return _datefromelapsed(dated.start, change.times[index])
+end
+
+function _slicedate(dated::DatedSeriesInMeanMonths, ::SeriesLayerChange, index)
+    return _datefromelapsed(dated.start, dated.realtimes[index])
+end
+
+# What to do about a skipped slice, under each run calendar.
+function _skippedremedy(::ExactDates)
+    return "Real months and years vary in length, so a step of a mean duration - " *
+           "`month_mean_duration` or `year` - drifts against dated slices and passes some by. " *
+           "Build the ecosystem with `calendar = MeanMonths()` to count every calendar month as " *
+           "one `month_mean_duration`, or step by a duration no longer than the shortest gap " *
+           "between slices."
+end
+
+function _skippedremedy(::MeanMonths)
+    return "Under `calendar = MeanMonths()` every calendar month is one `month_mean_duration`, " *
+           "so step by no more than that."
+end
+
 # ---------------------------------------------------------------------------
 # Priming: the values a run actually starts with
 # ---------------------------------------------------------------------------
@@ -1179,6 +1262,8 @@ _startdate(::AbstractSeriesCalendar) = nothing
 
 _startdate(calendar::DatedSeries) = calendar.start
 
+_startdate(calendar::DatedSeriesInMeanMonths) = calendar.start
+
 # Every series calendar reachable from a layer, walking collections and summed changes alike.
 function _layercalendars(layer::AbstractLayer)
     return _changecalendars(layer.change)
@@ -1217,40 +1302,131 @@ function _resolveepoch(habitat, ::Nothing)
                  "from; every series is then placed relative to it.")
 end
 
-# Re-point every series in a habitat against the resolved epoch. Rebuilds each change and reinstalls
-# it: `SeriesLayerChange` is immutable but a layer is not, which is the same shape `_cleanstored`
-# uses to rewrite a change in place.
-function _repointseries!(layer::AbstractLayer, epoch)
-    layer.change = _repointchange(layer.change, epoch)
+# Re-point every series in a habitat against the resolved epoch, under the run's calendar. Rebuilds
+# each change and reinstalls it: `SeriesLayerChange` is immutable but a layer is not, which is the
+# same shape `_cleanstored` uses to rewrite a change in place.
+function _repointseries!(layer::AbstractLayer, epoch,
+                         calendar::AbstractRunCalendar = ExactDates())
+    layer.change = _repointchange(layer.change, epoch, calendar)
     return layer
 end
 
-function _repointseries!(layer::LayerCollection, epoch)
-    foreach(l -> _repointseries!(l, epoch), values(layer))
+function _repointseries!(layer::LayerCollection, epoch,
+                         calendar::AbstractRunCalendar = ExactDates())
+    foreach(l -> _repointseries!(l, epoch, calendar), values(layer))
     return layer
 end
 
-# Re-express a change against the run's epoch. Only a series moves - its origin is computed from its
-# calendar and the epoch - so everything else is returned untouched, which is what makes re-pointing
-# idempotent and safe to apply to a whole environment.
-_repointchange(change::AbstractLayerChange, epoch) = change
+# Re-express a change against the run's epoch and calendar. Only a series moves - its coordinates
+# and origin are computed from its dates, the epoch and the run calendar - so everything else is
+# returned untouched, which is what makes re-pointing idempotent and safe to apply to a whole
+# environment.
+function _repointchange(change::AbstractLayerChange, epoch,
+                        ::AbstractRunCalendar)
+    return change
+end
 
-function _repointchange(change::SeriesLayerChange{M, E, C},
-                        epoch) where {M, E, C}
-    origin = _calendarorigin(change.calendar, change, epoch)
-    origin == change.origin && return change
-    return SeriesLayerChange{M, E, C, typeof(change.slices),
+function _repointchange(change::SeriesLayerChange{M, E}, epoch,
+                        calendar::AbstractRunCalendar) where {M, E}
+    placed = _placeseries(change.calendar, calendar, change, epoch)
+    (placed.origin == change.origin && placed.times == change.times &&
+     typeof(placed.calendar) == typeof(change.calendar)) && return change
+    return SeriesLayerChange{M, E, typeof(placed.calendar),
+                             typeof(change.slices),
                              typeof(change.baseline)}(change.slices,
-                                                      change.times, origin,
+                                                      placed.times,
+                                                      placed.origin,
                                                       change.atend,
-                                                      change.calendar,
+                                                      placed.calendar,
                                                       change.baseline)
 end
 
-function _repointchange(change::SumOfLayerChanges{M}, epoch) where {M}
-    parts = map(p -> _repointchange(p, epoch), change.parts)
+function _repointchange(change::SumOfLayerChanges{M}, epoch,
+                        calendar::AbstractRunCalendar) where {M}
+    parts = map(p -> _repointchange(p, epoch, calendar), change.parts)
     return SumOfLayerChanges{M, typeof(parts), typeof(change.baseline)}(parts,
                                                                         change.baseline)
+end
+
+# A series' coordinates, origin and calendar under a run calendar. Only a dated series depends on
+# the run calendar; every other keeps its coordinates and takes its origin from its own calendar.
+function _placeseries(calendar::AbstractSeriesCalendar, ::AbstractRunCalendar,
+                      change::SeriesLayerChange, epoch)
+    return (times = change.times,
+            origin = _calendarorigin(calendar, change, epoch),
+            calendar = calendar)
+end
+
+function _placeseries(calendar::DatedSeries, ::MeanMonths,
+                      change::SeriesLayerChange, epoch)
+    return _meanmonthseries(calendar.start, change.times, epoch)
+end
+
+function _placeseries(calendar::DatedSeriesInMeanMonths, ::MeanMonths,
+                      ::SeriesLayerChange, epoch)
+    return _meanmonthseries(calendar.start, calendar.realtimes, epoch)
+end
+
+function _placeseries(calendar::DatedSeriesInMeanMonths, ::ExactDates,
+                      change::SeriesLayerChange, epoch)
+    dated = DatedSeries(calendar.start)
+    origin = isnothing(epoch) ? first(calendar.realtimes) :
+             _calendarorigin(dated, change, epoch)
+    return (times = calendar.realtimes, origin = origin, calendar = dated)
+end
+
+# A dated series' coordinates counted in mean months: each slice at its whole calendar months since
+# the first slice's month, and the epoch at its own position, both times `month_mean_duration`. The
+# real times are kept on the calendar it returns. Two slices in one calendar month are refused.
+function _meanmonthseries(start::Dates.TimeType, realtimes, epoch)
+    dates = [_datefromelapsed(start, t) for t in realtimes]
+    months = [_monthcount(d) - _monthcount(start) for d in dates]
+    repeated = findfirst(i -> months[i] == months[i - 1], 2:length(months))
+    isnothing(repeated) ||
+        error("two slices of a dated series fall in " *
+              "$(Dates.monthname(dates[repeated + 1])) $(Dates.year(dates[repeated + 1])), but " *
+              "`calendar = MeanMonths()` counts each calendar month as one mean month, which says " *
+              "nothing about slices finer than a month. Build the ecosystem with " *
+              "`calendar = ExactDates()`, or give the series one slice a month.")
+    times = [uconvert(s, m * month_mean_duration) for m in months]
+    origin = isnothing(epoch) ? first(times) :
+             uconvert(s,
+                      (_meanmonthposition(epoch) - _monthcount(start)) *
+                      month_mean_duration)
+    return (times = times, origin = origin,
+            calendar = DatedSeriesInMeanMonths(start, collect(realtimes)))
+end
+
+# The date an elapsed time from `start` names, to the millisecond, as a dated series' coordinates
+# were built from dates.
+function _datefromelapsed(start::Dates.TimeType, elapsed::Unitful.Time)
+    return start +
+           Dates.Millisecond(round(Int, ustrip(uconvert(Unitful.ms, elapsed))))
+end
+
+# A date's calendar month as a count of months since the start of year zero.
+function _monthcount(date::Dates.TimeType)
+    return 12 * Dates.year(date) + Dates.month(date) - 1
+end
+
+# A date's position in mean months since the start of year zero: its month, plus the fraction of
+# that month it has reached.
+function _meanmonthposition(date::Dates.TimeType)
+    moment = Dates.DateTime(date)
+    into = moment - Dates.DateTime(Dates.firstdayofmonth(moment))
+    monthlength = Dates.daysinmonth(moment) * 86_400_000
+    return _monthcount(moment) +
+           Dates.value(Dates.Millisecond(into)) / monthlength
+end
+
+# The moment a position in mean months since the start of year zero names: its whole months as a
+# calendar month, and the fraction left as the same fraction of that month's real length.
+function _datefrommeanmonths(position::Real)
+    whole = floor(Int, position)
+    monthstart = Dates.DateTime(fld(whole, 12), mod(whole, 12) + 1, 1)
+    monthlength = Dates.daysinmonth(monthstart) * 86_400_000
+    return monthstart +
+           Dates.Millisecond(round(Int, (position - whole) * monthlength))
 end
 
 # Where elapsed time zero falls in a series' own coordinate, given the run's epoch - the entirety of

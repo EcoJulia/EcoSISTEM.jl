@@ -106,8 +106,15 @@ end
 # What a run adds: the seed its streams are drawn from, the date its elapsed time counts from, and
 # how far it has run.
 function _runrecord(eco::AbstractEcosystem)
-    return (seed = eco.seed, epoch = eco.epoch, elapsed = eco.elapsed)
+    return (seed = eco.seed, epoch = eco.epoch, calendar = eco.calendar,
+            elapsed = eco.elapsed)
 end
+
+# What a provenance listing adds about the run calendar: nothing for exact dates, and that months
+# were counted as mean months otherwise.
+_calendarnote(::ExactDates) = ""
+
+_calendarnote(::MeanMonths) = ", months of 30.44 d"
 
 # The files a `within` constraint names, which are read to cut the grid rather than through the
 # cache of layer reads, each recorded as an outline: by its provenance record, or by its name.

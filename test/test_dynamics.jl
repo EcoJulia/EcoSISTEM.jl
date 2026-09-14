@@ -431,6 +431,11 @@ const _ABSTRACT_BY_DESIGN = Dict((:Ecosystem,
                                   :epoch) =>
                                      "a `Union{Nothing, TimeType}`, because a " *
                                      "run may have no epoch. Not read in the loop.",
+                                 (:Ecosystem,
+                                  :calendar) =>
+                                     "an `AbstractRunCalendar`, a marker set " *
+                                     "by `build_ecosystem` and read only when " *
+                                     "dates become elapsed time. Not read in the loop.",
                                  (:GridHabitat,
                                   :active) =>
                                      "abstract, and measured to cost nothing: " *

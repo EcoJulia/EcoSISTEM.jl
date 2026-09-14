@@ -180,6 +180,7 @@ export ErrorAtEnd, HoldAtEnd, RepeatAtEnd, RevertToLayer
 # what a series' time coordinates mean, and so what a run's epoch can do with them (the `calendar`
 # keyword); see `build_ecosystem`'s `epoch`
 export DatedSeries, MonthOfYearSeries, UndatedSeries
+export ExactDates, MeanMonths
 
 include("Climate.jl")
 
@@ -210,7 +211,7 @@ public AbstractLazySpec
 
 # How a layer changes in time: how a change value is interpreted, and the recipes a caller writes.
 
-public AbstractSeriesEnd, AbstractSeriesCalendar
+public AbstractSeriesEnd, AbstractSeriesCalendar, AbstractRunCalendar
 
 include("ChangeMode.jl")
 
@@ -473,7 +474,8 @@ export DiversitySet, updatesimulation!, gettimes
 include("Schedule.jl")
 
 # when - the schedule
-export EveryStep, AtTime, AtTimes, BetweenTimes, NeverScheduled
+export EveryStep, AtTime, AtTimes, BetweenTimes, EveryInterval, AtDates,
+       EveryYear, NeverScheduled
 
 public AbstractSchedule
 

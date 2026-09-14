@@ -42,12 +42,24 @@ count(parent(eco.habitat.active))          # 20 cells destroyed
 
 ## When - the schedule
 
-[`EveryStep`](@ref), [`AtTime`](@ref), [`AtTimes`](@ref), [`BetweenTimes`](@ref) and
-[`NeverScheduled`](@ref) (for disabling one without removing it).
+[`EveryStep`](@ref), [`AtTime`](@ref), [`AtTimes`](@ref), [`BetweenTimes`](@ref),
+[`EveryInterval`](@ref) (every whole multiple of an interval, counted from the start of the run),
+[`AtDates`](@ref) and [`EveryYear`](@ref) (real dates, placed through the run's epoch and
+`calendar`, so a run needs an epoch to use them) and [`NeverScheduled`](@ref) (for disabling one
+without removing it).
 
 A one-off schedule fires on the step that **reaches** its instant, not on one that equals it:
 elapsed time accumulates as a float and a run's steps need not land on the instant exactly, so an
-equality test would silently never fire.
+equality test would silently never fire. An instant at or before the start of the run acts on the
+starting state, before the first step's births and deaths. `EveryStep` and `BetweenTimes` act over
+the steps taken, so they first act after the first step.
+
+A date schedule is held to the steps more strictly, because a date is meant to be a date. Each date
+the run reaches must fall at the end of a step, or the step must be no longer than a day; otherwise
+`simulate!` refuses before the first step, naming the date and the one it would have acted on. So
+`EveryYear()` at steps of `month_mean_duration` needs `calendar = MeanMonths()` - under exact dates
+1 January drifts against the steps and would be acted on in late January in three years out of four
+- and `AtDates([Date(2000, 3, 15)])` needs daily steps, since no monthly step ends on the fifteenth.
 
 ## Where - the region
 

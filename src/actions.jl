@@ -328,7 +328,7 @@ end
 """
     build_ecosystem(species::SpeciesList, environment::GridHabitat;
         nichefit = nothing, seed = nothing, distributed = :auto, epoch = nothing,
-        provenance = InputRecord[])
+        calendar = ExactDates(), provenance = InputRecord[])
 
 Assemble an ecosystem from a `species` list and an `environment`. When
 `nichefit` is not given it is inferred from the trait type (`NicheTolerance` ->
@@ -357,6 +357,13 @@ real start date is found it is used and everything else is phased to it. Series 
 error naming the candidates, and an environment with no dated series has no epoch at all, which is
 the behaviour of a run that never mentions dates.
 
+`calendar` is how dates become elapsed time: [`ExactDates`](@ref), the default, places every dated
+slice and the epoch by the real time between them, and [`MeanMonths`](@ref) counts each calendar
+month as `month_mean_duration`, so a dated monthly series stepped by `month_mean_duration` makes
+every month current once. Under `ExactDates` such a run is refused by [`simulate!`](@ref), since
+real months are 28 to 31 days long and the step skips some. The calendar also decides the date
+[`simulationdate`](@ref) reports.
+
 `provenance` is an [`InputRecord`](@ref), or a vector of them, for published data that belongs to
 the run as a whole rather than to its species or its environment - the records a starting
 population was seeded from, say, or the study's own DOI. [`provenance`](@ref) of the ecosystem lists
@@ -366,6 +373,7 @@ function build_ecosystem(species::SpeciesList, environment::GridHabitat;
                          nichefit = nothing, seed = nothing,
                          distributed = :auto,
                          epoch::Union{Nothing, Dates.TimeType} = nothing,
+                         calendar::AbstractRunCalendar = ExactDates(),
                          provenance = InputRecord[])
     records = _recordvector(provenance)
     _checksimulatable(environment)
@@ -387,8 +395,8 @@ function build_ecosystem(species::SpeciesList, environment::GridHabitat;
     # it - and re-pointing is idempotent, since an origin is computed from the calendar and the epoch
     # rather than accumulated.
     resolved = _resolveepoch(environment, epoch)
-    _repointseries!(environment.regime, resolved)
-    _repointseries!(environment.supply, resolved)
+    _repointseries!(environment.regime, resolved, calendar)
+    _repointseries!(environment.supply, resolved, calendar)
     # Then write those values in, so the run *starts* in the state its series and epoch describe
     # rather than reaching it one timestep late. Ordered after re-pointing for the obvious reason,
     # and safe against data gaps because `GridHabitat` has already cleaned both a supply's matrix
@@ -403,6 +411,7 @@ function build_ecosystem(species::SpeciesList, environment::GridHabitat;
         Ecosystem(species, environment, nichefit, seed = seed)
     end
     eco.epoch = resolved
+    eco.calendar = calendar
     eco.inputs = _uniqueinputs(records)
     return eco
 end
@@ -412,12 +421,13 @@ end
 function build_ecosystem(::DefaultEcosystem; seed = nothing,
                          distributed = :auto,
                          epoch::Union{Nothing, Dates.TimeType} = nothing,
+                         calendar::AbstractRunCalendar = ExactDates(),
                          provenance = InputRecord[])
     environment = build_habitat()
     species = build_species(DefaultEcosystem())
     return build_ecosystem(species, environment, seed = seed,
                            distributed = distributed, epoch = epoch,
-                           provenance = provenance)
+                           calendar = calendar, provenance = provenance)
 end
 
 # == Running it =================================================================================
@@ -432,6 +442,7 @@ function simulate!(eco::AbstractEcosystem, duration::Unitful.Time,
                    timestep::Unitful.Time; intervention = nothing)
     checkcoverage(eco, duration, timestep)
     check_bounds(eco, duration, timestep)
+    _checkschedules(intervention, eco, duration, timestep)
     times = length((0s):timestep:duration)
     for i in 1:times
         update!(eco, timestep, intervention)
@@ -459,6 +470,7 @@ function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
                                             uconvert(s, float(srt)),
                                             cache.seed,
                                             cache.epoch)
+    eco.calendar = cache.calendar
     update!(eco, timestep)
     return cache.abundances.matrix[Ti(At(srt + timestep))] = eco.abundances
 end
@@ -585,6 +597,7 @@ function simulate_action!(action!::F,
         error("Interval must be a multiple of timestep")
     checkcoverage(eco, times, timestep)
     check_bounds(eco, times, timestep)
+    _checkschedules(intervention, eco, times, timestep)
     action_seq = offset ? (timestep:interval:times) : ((0s):interval:times)
     time_seq = offset ? (timestep:timestep:times) : ((0s):timestep:times)
     counting = 0
@@ -629,6 +642,7 @@ function simulate_record!(storage::AbstractArray,
         error("Interval must be a multiple of timestep")
     checkcoverage(eco, times, timestep)
     check_bounds(eco, times, timestep)
+    _checkschedules(intervention, eco, times, timestep)
     record_seq = (0s):interval:times
     time_seq = (0s):timestep:times
     _record!(storage, eco, 1)

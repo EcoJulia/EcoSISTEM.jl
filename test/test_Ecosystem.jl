@@ -55,7 +55,8 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                                Intervention(EveryStep(),
                                                             AllCells(),
                                                             AddSpecies(abundance = 10)),
-                                               0.0s, 1month_mean_duration, 1)
+                                               1month_mean_duration,
+                                               1month_mean_duration, 1)
     @test length(eco.spplist.names) == before + 1
 
     @testset "get functions" begin

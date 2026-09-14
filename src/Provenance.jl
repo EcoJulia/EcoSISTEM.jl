@@ -110,8 +110,9 @@ What a study area, a habitat or an ecosystem can say about how it came to be, re
   - `inputs`: an [`InputRecord`](@ref) per input, one per file, in a fixed order.
   - `grid`: a named tuple of the grid's `crs` (`nothing` for a synthetic grid), its `cellsize`, the
     `extent` its cells cover, and how many `cells` it has and how many of them are `active`.
-  - `run`: for an ecosystem, a named tuple of its `seed`, its `epoch` (`nothing` without one) and
-    the time `elapsed`; `nothing` for a study area or a habitat.
+  - `run`: for an ecosystem, a named tuple of its `seed`, its `epoch` (`nothing` without one), the
+    run `calendar` its dates were placed by and the time `elapsed`; `nothing` for a study area or a
+    habitat.
 """
 struct Provenance
     software::NamedTuple
@@ -142,7 +143,8 @@ function Base.show(io::IO, ::MIME"text/plain", p::Provenance)
     isnothing(p.run) ||
         println(io, "  run       seed $(p.run.seed), ",
                 _elapsedname(p.run.elapsed), " elapsed",
-                isnothing(p.run.epoch) ? "" : " from $(p.run.epoch)")
+                isnothing(p.run.epoch) ? "" : " from $(p.run.epoch)",
+                _calendarnote(p.run.calendar))
     if isempty(p.inputs)
         print(io, "  inputs    none")
         return nothing

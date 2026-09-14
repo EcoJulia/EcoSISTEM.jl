@@ -93,3 +93,47 @@ There is nothing for an epoch to bind to, so elapsed zero is the first slice unl
 for any source that does not carry real dates.
 """
 struct UndatedSeries <: AbstractSeriesCalendar end
+
+# A dated series placed under `MeanMonths`: its slices at whole calendar months, with the first
+# slice's date and the real elapsed times it was built with kept, so placing it again under either
+# run calendar starts from the dates rather than from coordinates already approximated.
+struct DatedSeriesInMeanMonths <: AbstractSeriesCalendar
+    start::Dates.TimeType
+    realtimes::Vector{typeof(1.0 * Unitful.s)}
+end
+
+function Base.show(io::IO, c::DatedSeriesInMeanMonths)
+    return print(io, "DatedSeries(", c.start, ") in mean months")
+end
+
+"""
+    AbstractRunCalendar
+
+How a run relates real dates to elapsed time - [`ExactDates`](@ref) or [`MeanMonths`](@ref). Given
+as the `calendar` keyword of [`build_ecosystem`](@ref), and used by everything in the run that turns
+a date into elapsed time or back: where each [`DatedSeries`](@ref) slice and the epoch fall, and
+the date [`simulationdate`](@ref) reports.
+"""
+abstract type AbstractRunCalendar end
+
+"""
+    ExactDates()
+
+Dates are placed by the real time between them, so a slice dated 1 March 2000 falls 60 days after one
+dated 1 January 2000. The default. Real months are 28 to 31 days long, so a timestep of
+`month_mean_duration` against a dated monthly series leaves some months never current, and
+[`simulate!`](@ref) refuses such a run before its first step.
+"""
+struct ExactDates <: AbstractRunCalendar end
+
+"""
+    MeanMonths()
+
+Every calendar month counts as `month_mean_duration` (30.44 days). A dated slice falls at the number
+of whole calendar months since its series' first slice times that duration, whatever day of the
+month it is dated, and the epoch falls at its own month plus the fraction of that month it has
+reached - as a [`MonthOfYearSeries`](@ref) climatology is already placed. A monthly series stepped by
+`month_mean_duration` then makes every month current exactly once. A dated series with two slices in
+one calendar month is refused, since counting months says nothing about days.
+"""
+struct MeanMonths <: AbstractRunCalendar end

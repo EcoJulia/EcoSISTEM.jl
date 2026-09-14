@@ -423,14 +423,14 @@ if rank == 0
     extraspecies = 8 * VARYING_SPECIES - VARYING_SPECIES
     @test manyalloc - fewalloc < 8 * extraspecies
 
-    # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch` and `active` are
-    # abstract by design and are explained there; anything else must be looked at.
+    # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch`, `calendar` and
+    # `active` are abstract by design and are explained there; anything else must be looked at.
     mpiabstract = Tuple{Symbol, Symbol}[]
     for obj in (eco, eco.abundances, eco.habitat, eco.cache)
         S = typeof(obj)
         for f in fieldnames(S)
             isconcretetype(fieldtype(S, f)) && continue
-            (f === :epoch || f === :active) && continue
+            (f === :epoch || f === :calendar || f === :active) && continue
             push!(mpiabstract, (nameof(S), f))
         end
     end
