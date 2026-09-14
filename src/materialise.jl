@@ -660,7 +660,7 @@ function _analyse(layers::NamedTuple; within = nothing, crs = nothing,
                            isnothing(chosen) ? nothing : chosen.name,
                            _activegrid(covered.grid, covered.active), safely,
                            plans, fp, problems, layers, cons, cache,
-                           AsInvestigated())
+                           InputRecord[], AsInvestigated())
 end
 
 # A data-driven spec is read (through the area's cache) and sampled onto the grid; a synthetic one is

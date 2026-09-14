@@ -752,6 +752,7 @@ classDiagram
     class AbstractLayerFate
     class AbstractProblemSeverity
     class AbstractReportStage
+    class InputRecord
     AbstractReportStage <|-- AsInvestigated
     AbstractReportStage <|-- AsBuilt
     AbstractDecisionSource <|-- GivenByUser
@@ -773,6 +774,7 @@ classDiagram
     LayerPlan "1" *-- "1" AbstractLayerFate : fate
     Problem "1" *-- "1" AbstractProblemSeverity : severity
     StudyAreaReport "1" *-- "1" AbstractReportStage : stage
+    StudyAreaReport "1" *-- "*" InputRecord : inputs
 ```
 
 **`AbstractReportStage` is what tells an investigated area from a built one**, and it is

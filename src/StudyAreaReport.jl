@@ -128,6 +128,8 @@ analysis, so a report can never describe a grid other than the one that would be
     decided from, and the constraints **as given** rather than as resolved.
   - `cache`: the [`LayerCache`](@ref) of reads, or `nothing` on an as-built report, where it has been
     discarded.
+  - `inputs`: the [`InputRecord`](@ref)s of the files read, kept when the cache that held them is
+    discarded; a report still holding its cache has the rest there.
   - `stage`: which of the two kinds of report this is - see [`AbstractReportStage`](@ref).
 """
 struct StudyAreaReport
@@ -163,6 +165,9 @@ struct StudyAreaReport
     # every raster a build touched for the life of the run, on every MPI rank, and nothing ever clears
     # the cache.
     cache::Union{LayerCache, Nothing}
+    # The records of what the discarded reads were read from: small, and what `provenance` needs of
+    # an area long after the rasters themselves have gone.
+    inputs::Vector{InputRecord}
     # Set internally at the two construction sites and by `_refinedreport`, and deliberately not a
     # constructor keyword: nothing outside the package should be able to claim a report is as-built.
     stage::AbstractReportStage
@@ -229,3 +234,22 @@ _severitytag(::ProblemWarning) = "warn"
 _report(::ProblemNotice, message) = @info message
 
 _report(::ProblemWarning, message) = @warn message
+
+# Every record a report answers for: those carried past a discarded cache, and those its live cache
+# holds, one per file.
+function _reportinputs(r::StudyAreaReport)
+    isnothing(r.cache) && return r.inputs
+    return _uniqueinputs(vcat(r.inputs,
+                              InputRecord[record
+                                          for records in values(r.cache.inputs)
+                                          for record in records]))
+end
+
+# Records with repeats dropped - one file of one dataset, however many reads it served - in a fixed
+# order, since the cache is a `Dict` whose iteration order follows `Base.hash` and so varies between
+# Julia versions.
+function _uniqueinputs(records::AbstractVector{InputRecord})
+    key(r) = (string(r.role), r.dataset, something(r.code, ""),
+              something(r.path, ""), something(r.url, ""))
+    return sort!(unique(key, records), by = key)
+end

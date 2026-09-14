@@ -398,6 +398,18 @@ end
                                          axis = SolarRadiation),
                     area = area, topology = Torus())
     @test h.regime.matrix == lazy.matrix
+    # Building drops the reads but keeps what they were read from, and a copy of the built area
+    # keeps them too.
+    @test isnothing(h.area.report.cache)
+    built = [r.path for r in h.area.report.inputs]
+    @test "field.tif" in built
+    @test [r.path for r in StudyArea(h, verbosity = :silent).report.inputs] ==
+          built
+    # A file read under several windows is one input, and the records come in a fixed order.
+    b = EcoSISTEM.InputRecord(role = :habitat, dataset = "file", path = "b.tif")
+    a = EcoSISTEM.InputRecord(role = :habitat, dataset = "file", path = "a.tif")
+    @test [r.path for r in EcoSISTEM._uniqueinputs([b, a, b])] ==
+          ["a.tif", "b.tif"]
 end
 
 end
