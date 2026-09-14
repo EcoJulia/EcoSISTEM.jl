@@ -90,12 +90,21 @@ function _rasterurl(T, layer; kw...)
     return nothing
 end
 
-# A dataset's files for `code` that are already on disk, fetching nothing.
+# A dataset's files for `code` that are already on disk, fetching nothing. `rasterpath` takes only
+# the dataset's own code, where `getraster` also takes a layer's name, so each code is resolved as a
+# read resolves it; and it has no default resolution, so `getraster`'s is supplied.
 function EcoSISTEM._localfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
-    paths = try
-        RDS.rasterpath(T, something(code, RDS.layers(T)); kw...)
-    catch
-        return String[]
-    end
-    return filter(isfile, EcoSISTEM._filelist(paths))
+    codes = EcoSISTEM._preferredcode(T, something(code, collect(RDS.layers(T))))
+    pathkw = _rasterpathkw(T; kw...)
+    paths = [path
+             for c in vcat(codes)
+             for path in EcoSISTEM._filelist(RDS.rasterpath(T, c; pathkw...))]
+    return filter(isfile, paths)
+end
+
+# Read options with `getraster`'s default resolution added, for a dataset that has one and where
+# none is given.
+function _rasterpathkw(T::Type{<:RDS.RasterDataSource}; kw...)
+    (haskey(kw, :res) || !hasmethod(RDS.defres, Tuple{Type{T}})) && return kw
+    return (; res = RDS.defres(T), kw...)
 end

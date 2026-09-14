@@ -196,6 +196,9 @@ function _tomlvalue(v::Extents.Extent)
                              for (k, b) in pairs(Extents.bounds(v)))
 end
 
-# Everything else - a quantity, a coordinate reference system, a symbol, another calendar's date - as
-# its printed text. Deliberately untyped, as the fallback for all of them.
+# An EPSG code as it is written, `EPSG:27700`, rather than the type's own display.
+_tomlvalue(v::Rasters.EPSG) = _crsname(v)
+
+# Everything else - a quantity, another form of coordinate reference system, a symbol, another
+# calendar's date - as its printed text. Deliberately untyped, as the fallback for all of them.
 _tomlvalue(v) = string(v)

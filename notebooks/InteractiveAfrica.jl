@@ -255,6 +255,15 @@ begin
     heatmap(mean_abuns)
 end
 
+# ╔═╡ 5b7c2e9a-3d41-4f6e-9a8b-2c1d0e7f6a53
+begin
+    # What that ecosystem was built from: the WorldClim temperature layer it read, with the
+    # dataset's DOI, licence and citation, the grid it sits on and the run's seed. A paper would
+    # commit this file beside its figures; here it goes to a temporary directory.
+    write_provenance(joinpath(mktempdir(), "provenance.toml"), eco_new)
+    provenance(eco_new)
+end
+
 # ╔═╡ Cell order:
 # ╟─39b75180-f384-11eb-3449-4f7c2ad25d99
 # ╠═108951ec-3ecf-4f0c-b5e4-e79d00b1bfac
@@ -263,3 +272,4 @@ end
 # ╠═7e16f197-874b-482d-80b6-13a62ddda1f7
 # ╠═f9d43c58-4888-402e-873a-81f3c4ffd367
 # ╠═ee925e21-b0b6-478e-a3a0-573e8497b9f6
+# ╠═5b7c2e9a-3d41-4f6e-9a8b-2c1d0e7f6a53

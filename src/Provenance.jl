@@ -2,6 +2,8 @@
 #
 # The record of where a published input came from, and the reader of the records the fetches write.
 
+using Unitful
+
 """
     InputRecord(; role, dataset, code = nothing, path = nothing, url = nothing, request = nothing,
                 job = nothing, fetched = nothing, bytes = nothing, sha256 = nothing, doi = "",
@@ -125,8 +127,8 @@ function Base.show(io::IO, p::Provenance)
                  isnothing(p.run) ? "" : ", seed $(p.run.seed)", ")")
 end
 
-# The software, grid and run on a line each, then every input, then each dataset's citation once -
-# the list a paper's references are written from.
+# The software, grid and run on a line each, then the inputs grouped by dataset: each dataset's DOI
+# and citation once, above the files it supplied.
 function Base.show(io::IO, ::MIME"text/plain", p::Provenance)
     s = p.software
     println(io, "Provenance")
@@ -135,20 +137,29 @@ function Base.show(io::IO, ::MIME"text/plain", p::Provenance)
     println(io,
             "  grid      $(p.grid.active) of $(p.grid.cells) cells active, ",
             "cells of $(p.grid.cellsize)",
-            isnothing(p.grid.crs) ? ", synthetic" : ", crs $(p.grid.crs)")
+            isnothing(p.grid.crs) ? ", synthetic" :
+            ", crs $(_crsname(p.grid.crs))")
     isnothing(p.run) ||
-        println(io, "  run       seed $(p.run.seed), $(p.run.elapsed) elapsed",
+        println(io, "  run       seed $(p.run.seed), ",
+                _elapsedname(p.run.elapsed), " elapsed",
                 isnothing(p.run.epoch) ? "" : " from $(p.run.epoch)")
     if isempty(p.inputs)
         print(io, "  inputs    none")
         return nothing
     end
     println(io, "  inputs")
-    foreach(r -> println(io, "    ", r), p.inputs)
-    citations = unique(r.citation for r in p.inputs if !isempty(r.citation))
-    isempty(citations) && return nothing
-    println(io, "  cite")
-    foreach(c -> println(io, "    ", c), citations)
+    for dataset in unique(r.dataset for r in p.inputs)
+        group = filter(r -> r.dataset == dataset, p.inputs)
+        dois = unique(r.doi for r in group if !isempty(r.doi))
+        println(io, "    ", dataset,
+                isempty(dois) ? "" : " (doi $(join(dois, ", ")))")
+        for citation in unique(r.citation
+                               for r in group
+                               if !isempty(r.citation))
+            println(io, "      cite  ", citation)
+        end
+        foreach(r -> println(io, "      ", _recordline(r)), group)
+    end
     return nothing
 end
 
@@ -260,4 +271,20 @@ function _recordfromtoml(t::AbstractDict)
                        licence = something(field("licence"), ""),
                        version = something(field("version"), ""),
                        citation = something(field("citation"), ""))
+end
+
+# One input's line under its dataset in a provenance listing: its role, its layer where it has one,
+# and its file, or where it was fetched from where it has no file.
+function _recordline(r::InputRecord)
+    parts = (string(r.role), something(r.code, ""),
+             something(r.path, r.url, ""))
+    return join(filter(!isempty, parts), "  ")
+end
+
+# A run's elapsed time in the unit it is most easily read in: seconds under a day, days under a
+# year, and years beyond.
+function _elapsedname(t::Unitful.Time)
+    t < 1.0u"d" && return string(round(typeof(1.0u"s"), t, digits = 1))
+    t < 1.0u"yr" && return string(round(typeof(1.0u"d"), t, digits = 1))
+    return string(round(typeof(1.0u"yr"), t, digits = 2))
 end

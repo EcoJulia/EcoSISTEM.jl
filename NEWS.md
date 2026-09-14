@@ -43,6 +43,12 @@
     - `CachedAsset` takes a `path`, so a download can land in a project's own directory.
     - `datasets.csv` gains `Citation`, the text a paper prints for each dataset, resolved from its
       DOI, and `ERA.csv` gains `Request`, the Climate Data Store's name for each layer.
+    - `provenance` on a study area, a habitat or an ecosystem returns a `Provenance`: the package
+      version and its DOI, the grid, the run, and a record of every input it was built from.
+      `write_provenance` writes that as TOML, to commit beside a paper's figures.
+    - A `provenance` keyword on `build_species`, `Intervention` and `build_ecosystem` attaches
+      records of data the package never fetched, such as an occurrence download; an intervention's
+      records join the ecosystem's once it acts. `provenance` also answers for shape specs.
     - `SoilVolume` and `SoilWaterVolume` axes. ERA5's `swvl1` reads on the second: a volumetric
       fraction over a layer whose catalogue row gives its thickness is a depth of water, and times
       the cell area a volume, so a stock is a supply as `SurfaceArea` already is.

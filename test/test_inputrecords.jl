@@ -146,6 +146,36 @@ end
     @test run["run"]["seed"] == 7
     @test only(run["inputs"])["fetched"] ==
           Dates.DateTime(2026, 9, 13, 7, 21, 7)
+    # A CRS is written as its name, not as the type's own display.
+    @test EcoSISTEM._tomlvalue(EcoSISTEM.Rasters.EPSG(27700)) == "EPSG:27700"
+end
+
+@testset "a provenance lists its inputs under their datasets, each citation once" begin
+    E = EcoSISTEM
+    cite = "Smith, A. (2020). A trait table. Journal of Traits, 1, 1-2."
+    traits = [E.InputRecord(role = :species, dataset = "trait table",
+                            path = file, citation = cite)
+              for file in ("traits.csv", "more.csv")]
+    seeding = E.InputRecord(role = :abundance,
+                            dataset = "GBIF occurrence download",
+                            doi = "10.15468/dl.abc123")
+    species = build_species(DefaultEcosystem(), numspecies = 3,
+                            verbosity = :silent, provenance = traits)
+    habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)
+    eco = build_ecosystem(species, habitat, seed = 1, provenance = seeding)
+    shown() = sprint(show, MIME("text/plain"), provenance(eco))
+    before = shown()
+    @test length(findall(cite, before)) == 1
+    # The dataset heads its group, its citation next, then its files.
+    at(text) = first(findfirst(text, before))
+    @test at("    trait table") < at("cite  " * cite) < at("more.csv")
+    @test at("cite  " * cite) < at("traits.csv")
+    @test occursin("    GBIF occurrence download (doi 10.15468/dl.abc123)",
+                   before)
+    @test occursin("0.0 s elapsed", before)
+    # Elapsed time reads in days once the run has gone on for some.
+    simulate!(eco, 1month_mean_duration, 1month_mean_duration)
+    @test occursin(r"seed 1, [0-9.]+ d elapsed", shown())
 end
 
 end

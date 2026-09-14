@@ -32,7 +32,8 @@ makedocs(modules = [EcoSISTEM],
                  "Named regions" => "regions.md"
              ],
              "How the model works" => "model.md",
-             "Analysing results" => ["Diversity" => "diversity.md"],
+             "Analysing results" => ["Diversity" => "diversity.md",
+                 "Provenance" => "provenance.md"],
              "Going further" => [
                  "Running at scale" => "scale.md",
                  "Africa" => "africa.md",
