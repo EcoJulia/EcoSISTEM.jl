@@ -443,8 +443,7 @@ function simulate!(eco::AbstractEcosystem, duration::Unitful.Time,
     checkcoverage(eco, duration, timestep)
     check_bounds(eco, duration, timestep)
     _checkschedules(intervention, eco, duration, timestep)
-    times = length((0s):timestep:duration)
-    for i in 1:times
+    for _ in 1:_stepcount(duration, timestep)
         update!(eco, timestep, intervention)
     end
 end
@@ -487,7 +486,7 @@ ecosystem, declare an [`Intervention`](@ref), which is applied once and identica
   - `f`: called at each occurrence with the named tuple above.
   - `eco`: the ecosystem to run.
   - `duration`, `timestep`: the length of the run and of each step; the run takes
-    `length((0s):timestep:duration)` steps.
+    `duration / timestep` steps, which must be a whole number.
   - `every`: when `f` is called - an [`AbstractSchedule`](@ref), or a duration meaning
     [`EveryInterval`](@ref) of it. Every timestep by default, the starting state included.
   - `intervention`: an [`Intervention`](@ref) or [`InterventionSet`](@ref) applied as the run
@@ -506,7 +505,7 @@ function simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time,
         _startrun!(eco, intervention, timestep)
         count = _occur(f, schedule, eco, timestep, count)
     end
-    for _ in 1:length((0s):timestep:duration)
+    for _ in 1:_stepcount(duration, timestep)
         _step!(eco, timestep, intervention)
         count = _occur(f, schedule, eco, timestep, count)
     end
@@ -620,7 +619,11 @@ function _simulateaction!(action!, eco::AbstractEcosystem, times::Unitful.Time,
         error("Interval must be a multiple of timestep")
     grid = offset ? collect(timestep:interval:times) :
            collect((0s):interval:times) .+ timestep
-    duration = offset ? times - timestep : times
+    # The steps it always took, for any `times`: one more than `times / timestep` rounded down, or
+    # with `offset` exactly that many.
+    steps = offset ? length((0s):timestep:(times - timestep)) :
+            length((0s):timestep:times)
+    duration = steps * timestep
     simulate!(eco, duration, timestep, every = AtTimes(grid),
               intervention = intervention) do occurrence
         return action!(occurrence.count)

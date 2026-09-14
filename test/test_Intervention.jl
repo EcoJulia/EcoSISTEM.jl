@@ -350,12 +350,12 @@ end
     arrival(time) = Intervention(AtTime(time), AllCells(),
                                  AddSpecies(abundance = 500))
     atstart = _eco()
-    simulate!(atstart, 0.0month_mean_duration, 1.0month_mean_duration,
+    simulate!(atstart, 1.0month_mean_duration, 1.0month_mean_duration,
               intervention = arrival(0.0s))
     @test size(atstart.abundances.matrix, 1) == 4
     @test sum(atstart.abundances.matrix[4, :]) != 500
     onstep = _eco()
-    simulate!(onstep, 0.0month_mean_duration, 1.0month_mean_duration,
+    simulate!(onstep, 1.0month_mean_duration, 1.0month_mean_duration,
               intervention = arrival(1.0month_mean_duration))
     @test size(onstep.abundances.matrix, 1) == 4
     @test sum(onstep.abundances.matrix[4, :]) == 500

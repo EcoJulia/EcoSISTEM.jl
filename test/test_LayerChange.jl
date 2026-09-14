@@ -939,7 +939,7 @@ end
         seen = [shown(eco)]
         reported = [EcoSISTEM.simulationdate(eco)]
         for _ in 1:23
-            simulate!(eco, 0month, month)
+            simulate!(eco, month, month)
             push!(seen, shown(eco))
             push!(reported, EcoSISTEM.simulationdate(eco))
         end
@@ -1272,23 +1272,31 @@ end
 end
 
 @testset "Coverage is checked against where the run really ends" begin
-    # `simulate!` takes `length(0s:timestep:duration)` steps - a range including both ends - so a
-    # twelve-month run in one-month steps advances the clock *thirteen* times. Checking against
-    # `duration` would have passed runs that then failed mid-flight, which is precisely what this
-    # check exists to pre-empt, so it is checked against the elapsed time the run actually reaches.
+    # A run takes `duration / timestep` steps, so a twelve-month run in one-month steps ends at twelve
+    # months - and at the same time as one twelve-month step, which is what timestep independence
+    # asks of the run's length.
     eco = Test1Ecosystem()
     @test EcoSISTEM._finalelapsed(eco, 12.0month_mean_duration,
                                   1.0month_mean_duration) ≈
-          uconvert(s, 13.0month_mean_duration)
+          uconvert(s, 12.0month_mean_duration)
+    @test EcoSISTEM._finalelapsed(eco, 12.0month_mean_duration,
+                                  1.0month_mean_duration) ≈
+          EcoSISTEM._finalelapsed(eco, 12.0month_mean_duration,
+                                  12.0month_mean_duration)
+
+    # A duration that is not a whole number of timesteps is refused rather than run short or long.
+    @test_throws "whole number of timesteps" EcoSISTEM._finalelapsed(eco,
+                                                                     12.5month_mean_duration,
+                                                                     1.0month_mean_duration)
 
     # ...and it counts from where the clock already is, since `simulate!` does not reset it.
     EcoSISTEM._advanceclock!(eco, 5.0month_mean_duration)
     @test EcoSISTEM._finalelapsed(eco, 12.0month_mean_duration,
                                   1.0month_mean_duration) ≈
-          uconvert(s, 18.0month_mean_duration)
+          uconvert(s, 17.0month_mean_duration)
 
-    # That whole-step difference is enough to change the verdict on its own: a twelve-slice
-    # climatology covers twelve months but not the thirteenth step such a run really takes.
+    # Coverage is judged at that end: a twelve-slice climatology covers a run ending at twelve months,
+    # and not one ending a step later.
     layer = _climatologylayer(atend = ErrorAtEnd())
     @test_nowarn EcoSISTEM._checkcoverage(layer, 12.0month_mean_duration)
     @test_throws ErrorException EcoSISTEM._checkcoverage(layer,

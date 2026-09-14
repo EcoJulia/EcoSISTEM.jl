@@ -385,9 +385,8 @@ control, a **steady drift** (`Varying(spec, IncrementBy(rate))`) and a **seasona
 (`Varying(spec, OffsetBy(PatternedChange(...)))`).
 
 It also asserts what separates them, and the assertion is not the obvious one. A cycle is **not**
-distinguished by "ending where it started" - that holds only at whole periods, and
-[`simulate!`](@ref) takes `length((0s):timestep:duration)` steps, an *inclusive* range from zero, so
-a four-year run at monthly steps advances **49** months rather than 48. What actually separates them
+distinguished by "ending where it started" - that holds only at whole periods, and a run need not
+end on one. What actually separates them
 is that a cycle stays bounded by its amplitude however long it runs, while `IncrementBy` grows
 without limit.
 

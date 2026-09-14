@@ -319,7 +319,7 @@ function checkcoverage(eco::AbstractEcosystem, duration::Unitful.Time,
     layers = vcat(_coveredlayers(eco.habitat.regime),
                   _coveredlayers(eco.habitat.supply))
     foreach(l -> _checkcoverage(l, final), layers)
-    steps = length((zero(duration)):timestep:duration)
+    steps = _stepcount(duration, timestep)
     foreach(l -> _checkskipped(l, simulationtime(eco), timestep, steps,
                                eco.calendar), layers)
     return nothing
@@ -760,15 +760,24 @@ function supplyupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
     return _layerupdate!(eco.habitat.supply, simulationtime(eco), timestep)
 end
 
-# The elapsed time the run actually finishes at - which is *not* `duration`, and the difference is a
-# whole timestep. `simulate!` takes `length(0s:timestep:duration)` steps, a range that includes both
-# ends, so a twelve-month run in one-month steps advances the clock thirteen times. It also starts
-# from wherever the clock already is rather than from zero, since `simulate!` does not reset it.
-# Checking against `duration` instead would pass runs that then failed mid-flight, which is the
-# exact failure this check exists to pre-empt.
+# The number of steps a run of `duration` takes: `duration / timestep`, so the run ends at `duration`
+# and twelve one-month steps reach the same time as one twelve-month step. A duration that is not a
+# whole number of timesteps, to the tolerance a series' slice is found to, is refused rather than run
+# short or long.
+function _stepcount(duration::Unitful.Time, timestep::Unitful.Time)
+    ratio = ustrip(NoUnits, duration / timestep)
+    steps = round(Int, ratio)
+    abs(ratio - steps) <= _DRIFT ||
+        error("a run of $duration in steps of $timestep does not end on a step: `duration` must " *
+              "be a whole number of timesteps, and here it is $ratio of them.")
+    return steps
+end
+
+# The elapsed time the run finishes at, counted from wherever the clock already is, since `simulate!`
+# does not reset it.
 function _finalelapsed(eco::AbstractEcosystem, duration::Unitful.Time,
                        timestep::Unitful.Time)
-    steps = length((zero(duration)):timestep:duration)
+    steps = _stepcount(duration, timestep)
     return simulationtime(eco) + steps * uconvert(s, float(timestep))
 end
 

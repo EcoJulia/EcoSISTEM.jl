@@ -99,8 +99,8 @@ size(recording.storage)             # species × cells × recordings × replicat
 ```
 
 The first recording is the starting state and each later one the state at exactly that multiple of
-the interval. A run of `times` in steps of `timestep` takes one step more than `times / timestep` -
-see [Time in EcoSISTEM](@ref) - so recording at every timestep needs a slot more than that.
+the interval. A run of `times` in steps of `timestep` takes `times / timestep` steps and ends at
+`times`, so it needs a slot for each multiple of the interval from zero to `times`.
 [`RecordDiversity`](@ref) records a diversity measure the same way, and [`SaveAbundance`](@ref)
 writes each recording to a file; each keeps the run's [`provenance`](@ref) as of its last write.
 

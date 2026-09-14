@@ -131,8 +131,8 @@ begin
     timestep = 1month_mean_duration
     record_interval = 1month_mean_duration
     # One slice per interval of the recorded run: the burn-in has already moved the clock, so the
-    # starting state is not an occurrence, and the run takes one step more than `times / timestep`.
-    lensim = length((0year):record_interval:times)
+    # starting state is not an occurrence.
+    lensim = length(record_interval:record_interval:times)
     abuns = zeros(numSpecies, prod(grd), lensim)
 
     # Run simulation for burnin and then add invasive species
@@ -243,7 +243,8 @@ begin
     times_new = 10year
     timestep_new = 1year
     record_interval_new = 1year
-    lensim_new = length((0year):record_interval_new:times_new)
+    # The burn-in has already moved the clock: one slice for each interval of the recorded run.
+    lensim_new = length(record_interval_new:record_interval_new:times_new)
     abuns_new = zeros(numSpecies, prod(grd_new), lensim_new)
 
     # Run simulation for burnin and then add invasive species

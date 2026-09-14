@@ -63,8 +63,8 @@ eco = build_ecosystem(species, env, seed = 1)
 
 # --- run, recording monthly -------------------------------------------------------
 const INTERVAL = 1month_mean_duration
-# The starting state and every month, over a run one step longer than `YEARS`.
-lensim = length((0year):INTERVAL:(YEARS + INTERVAL))
+# The starting state and every month to the end of the run.
+lensim = length((0year):INTERVAL:YEARS)
 abuns = zeros(Int64, 1, length(env.active), lensim)
 @time simulate!(RecordAbundance(abuns), eco, YEARS, INTERVAL,
                 every = EveryInterval(INTERVAL))

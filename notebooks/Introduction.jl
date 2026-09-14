@@ -118,8 +118,8 @@ begin
     times = 10year
     timestep = 1month_mean_duration
     interval = 1month_mean_duration
-    # The starting state and every interval, over a run one step longer than `times`.
-    lensim = length((0month_mean_duration):interval:(times + timestep))
+    # The starting state and every interval to the end of the run.
+    lensim = length((0month_mean_duration):interval:times)
     abuns = zeros(Int64, numSpecies, prod(grd), lensim)
     simulate!(RecordAbundance(abuns), eco, times, timestep,
               every = EveryInterval(interval))
@@ -415,10 +415,10 @@ begin
     simulationtime = 10year
     time_step = 1month_mean_duration
     record_interval = 1month_mean_duration
-    len_sim = length((0month_mean_duration):time_step:simulationtime)
+    # `example_eco` has already run, so its starting state is not an occurrence: one slice for each
+    # interval of this run.
+    len_sim = length(record_interval:record_interval:simulationtime)
     record_abuns = zeros(Int64, numSpp, prod(grid), len_sim)
-    # `example_eco` has already run, so its starting state is not an occurrence; this run takes one
-    # step more than `simulationtime / time_step`, one slice each.
     simulate!(RecordAbundance(record_abuns), example_eco, simulationtime,
               time_step, every = EveryInterval(record_interval))
 end

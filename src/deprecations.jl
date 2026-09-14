@@ -99,7 +99,9 @@ function simulate_record!(storage::AbstractArray, eco::Ecosystem,
                  "provenance too.", :simulate_record!)
     iszero(mod(interval, timestep)) ||
         error("Interval must be a multiple of timestep")
-    simulate!(RecordAbundance(storage), eco, times - timestep, timestep,
+    # The steps it always took, `times / timestep` rounded down, for any `times`.
+    steps = length((0s):timestep:(times - timestep))
+    simulate!(RecordAbundance(storage), eco, steps * timestep, timestep,
               every = EveryInterval(interval), intervention = intervention)
     return storage
 end

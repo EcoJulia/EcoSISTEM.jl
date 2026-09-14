@@ -165,10 +165,9 @@ provenance(recorder::AbstractRecorder) = recorder.record[]
 function _checkslot(storage::AbstractArray, count::Integer)
     count <= size(storage, 3) && return nothing
     return error("this run has reached occurrence $count, but the recording has room for " *
-                 "$(size(storage, 3)). A run of `duration` in steps of `timestep` takes one step " *
-                 "more than `duration / timestep`, and its first occurrence is the starting state, " *
-                 "so size the storage for every multiple of `every` from zero to " *
-                 "`duration + timestep`.")
+                 "$(size(storage, 3)). A run starting from zero has the starting state as its " *
+                 "first occurrence, so size the storage for every multiple of `every` from zero " *
+                 "to `duration`; a run continuing an earlier one has one fewer.")
 end
 
 # Refuse a diversity result that is not one value per subcommunity at each order - a metacommunity or

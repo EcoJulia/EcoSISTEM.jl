@@ -50,7 +50,7 @@ include("buildfixtures.jl")
     end
     @testset "simulate! with a callback" begin
         # The starting state first, then the state at exactly each multiple of the interval, over
-        # the steps `simulate!` itself takes - four here, so five occurrences at every step.
+        # the steps `simulate!` itself takes - three here, so four occurrences at every step.
         step = 1.0month_mean_duration
         eco2 = Test1Ecosystem()
         start = sum(eco2.abundances.matrix)
@@ -60,20 +60,20 @@ include("buildfixtures.jl")
                                          (occurrence,
                                           sum(eco2.abundances.matrix)))
                         end)
-        @test [o.count for (o, _) in seen] == 1:5
+        @test [o.count for (o, _) in seen] == 1:4
         @test [o.elapsed for (o, _) in seen] ≈
-              [uconvert(s, k * step) for k in 0:4]
+              [uconvert(s, k * step) for k in 0:3]
         @test last(first(seen)) == start
         @test all(isnothing(o.date) for (o, _) in seen)
 
         # A continued run does not observe its starting state again: that was the last occurrence of
         # the run before, and the count starts afresh.
         more = []
-        simulate!(eco2, step, step) do occurrence
+        simulate!(eco2, 2step, step) do occurrence
             return push!(more, occurrence)
         end
         @test [o.count for o in more] == 1:2
-        @test [o.elapsed for o in more] ≈ [uconvert(s, k * step) for k in 5:6]
+        @test [o.elapsed for o in more] ≈ [uconvert(s, k * step) for k in 4:5]
 
         # `every` takes a schedule, and a bare duration means `EveryInterval` of it; a time between
         # steps is acted on at the step that reaches it.
@@ -86,7 +86,7 @@ include("buildfixtures.jl")
             firings
         end
         @test elapsedof(EveryInterval(2step)) ≈
-              [uconvert(s, k * step) for k in (0, 2, 4)]
+              [uconvert(s, k * step) for k in (0, 2)]
         @test elapsedof(2step) == elapsedof(EveryInterval(2step))
         @test elapsedof(AtTimes([1.5step])) ≈ [uconvert(s, 2step)]
 
