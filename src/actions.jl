@@ -12,10 +12,10 @@
 #     build_species            the species: what they tolerate, what they need, how they move
 #     build_ecosystem          put the species in the environment and check the two agree
 #     simulate!                run it
-#     simulate_record!         run it and record abundances, into `generate_storage`'s array
-#     simulate_record_diversity!   the same, recording a diversity measure instead
+#     simulate!(recorder, ...) run it and keep abundances or a diversity measure on a schedule, with
+#                              a recorder from `Recorder.jl`
 #     simulate!(f, ...)        run it and call back on a schedule, for anything else
-#     generate_storage         allocate the array the two recorders write into
+#     generate_storage         allocate the array a recorder writes into
 #
 # WHAT IS NOT HERE, and the test that decides it: these are the verbs a USER calls. Everything the
 # package calls on their behalf stays with its machinery. So `update!` is absent - `simulate!` calls

@@ -2,10 +2,10 @@
 #
 # Running the experiments and recording diversity through time.
 #
-# **This is now a single do-block over the package's own `simulate_action!`.** The original had
+# **This is now a single do-block over the package's own `simulate!`.** The original had
 # its own `runsim!`/`dispersalrun!`/`simulate_record_diversity!` loop that called `update!` and then
-# `runscenario!` by hand, plus a JLD2 cache of every abundance matrix. `simulate_action!` already is
-# that loop - "run, and call this every `interval`" - and it takes an `intervention`, so nothing
+# `runscenario!` by hand, plus a JLD2 cache of every abundance matrix. `simulate!` already is
+# that loop - "run, and call this `every` interval" - and it takes an `intervention`, so nothing
 # here needs to know how the environment changes.
 #
 # It also drops three `runscenario!` methods the original defined. Those were **method piracy**:

@@ -44,8 +44,9 @@ serves both. 5 km is multi-node only.
 
 !!! note "Recording is the expensive part"
     At these sizes a *single* recorded timestep can be tens of GiB - more than the run itself holds
-    per rank. The script therefore defaults to keeping nothing, with periodic JLD2 or specific dates
-    as opt-ins. See [`simulate!`](@ref) and [`simulate_action!`](@ref).
+    per rank. The script therefore defaults to keeping nothing, with a JLD2 file at a regular
+    interval or on specific dates as opt-ins. See [`simulate!`](@ref), [`SaveAbundance`](@ref) and
+    [`AtDates`](@ref).
 
 ![](Invasion.svg)
 

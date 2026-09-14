@@ -118,9 +118,11 @@ begin
     times = 10year
     timestep = 1month_mean_duration
     interval = 1month_mean_duration
-    lensim = length((0month_mean_duration):timestep:times)
+    # The starting state and every interval, over a run one step longer than `times`.
+    lensim = length((0month_mean_duration):interval:(times + timestep))
     abuns = zeros(Int64, numSpecies, prod(grd), lensim)
-    simulate_record!(abuns, eco, times, interval, timestep)
+    simulate!(RecordAbundance(abuns), eco, times, timestep,
+              every = EveryInterval(interval))
 
     # Plot abundances
     sumabun = sum(abuns, dims = 2)[:, 1, :]
@@ -415,8 +417,10 @@ begin
     record_interval = 1month_mean_duration
     len_sim = length((0month_mean_duration):time_step:simulationtime)
     record_abuns = zeros(Int64, numSpp, prod(grid), len_sim)
-    simulate_record!(record_abuns, example_eco, simulationtime,
-                     record_interval, time_step)
+    # `example_eco` has already run, so its starting state is not an occurrence; this run takes one
+    # step more than `simulationtime / time_step`, one slice each.
+    simulate!(RecordAbundance(record_abuns), example_eco, simulationtime,
+              time_step, every = EveryInterval(record_interval))
 end
 
 # ╔═╡ 0d0e0197-d826-4f62-943c-79783e5fa701

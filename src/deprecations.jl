@@ -70,6 +70,8 @@ function simulate_action!(action!::F, eco::AbstractEcosystem,
                             intervention = intervention, offset = offset)
 end
 
+export simulate_action!
+
 # ---------------------------------------------------------------------------
 # The recording functions: recorders passed to `simulate!`
 #
@@ -218,6 +220,8 @@ function simulate!(eco::Ecosystem,
         end
     end
 end
+
+export simulate_record!, simulate_record_diversity!
 
 # ---------------------------------------------------------------------------
 # Demographic parameters: the `boost` field is gone

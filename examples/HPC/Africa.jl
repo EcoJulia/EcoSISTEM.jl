@@ -189,8 +189,12 @@ const SPECIES = build_species(NUMSPECIES,
 
 # `distributed = :auto` is the whole point of one file for both: an `MPIEcosystem` when the
 # process is a live multi-rank MPI session, a serial `Ecosystem` otherwise.
+#
+# `MeanMonths()` counts every month as `month_mean_duration`, so each 1 January in `SAVE_DATES` is a
+# whole number of monthly steps from the epoch. Under exact dates it falls inside a step, and a run
+# recording on those dates is refused before it starts.
 const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = 1, epoch = EPOCH,
-                            distributed = :auto)
+                            calendar = MeanMonths(), distributed = :auto)
 
 if ISROOT
     ny, nx = size(ENVIRONMENT.active)
@@ -231,30 +235,26 @@ function _runsilently(eco)
     return nothing
 end
 
-# Run recording at a regular elapsed interval. `simulate_action!` takes its callback first, so
-# this reads as a do-block, and it accepts an `MPIEcosystem` where `simulate_record!` does not.
+# Run saving at every multiple of `interval` on the clock, as `Africa_stepNN.jld2` with the run's
+# provenance beside each. `SaveAbundance` gathers on every rank and writes from the root, so it
+# serves a serial `Ecosystem` and an `MPIEcosystem` alike.
 function _runatintervals(eco, interval)
     ISROOT && println("Running $(YEARS), recording every $(interval).")
-    simulate_action!(eco, YEARS, interval, TIMESTEP) do count
-        return _save(eco, "step$(count)")
-    end
+    simulate!(SaveAbundance(SAVEDIR, "Africa_step"), eco, YEARS, TIMESTEP,
+              every = EveryInterval(interval))
     return nothing
 end
 
-# Run recording on specific real dates. The callback fires every timestep and saves when the clock
-# has reached the next target date, which is how an irregular calendar schedule is expressed with
-# only a regular one available. `simulationdate` returns `nothing` without an epoch, so this mode
-# needs one - `EPOCH` above.
+# Run recording on specific real dates, each file named for its date. `AtDates` places the dates on
+# the clock through the ecosystem's epoch and calendar, and only those still ahead of the clock can
+# be reached - the burn-in has already passed the rest.
 function _runatdates(eco, dates)
-    isnothing(simulationdate(eco)) &&
-        error("RECORD = :dates needs an epoch; build the ecosystem with `epoch = ...`.")
     pending = sort(filter(>(simulationdate(eco)), dates))
+    isempty(pending) && return _runsilently(eco)
     ISROOT &&
         println("Running $(YEARS), recording at ", join(pending, ", "), ".")
-    simulate_action!(eco, YEARS, TIMESTEP, TIMESTEP) do _
-        (isempty(pending) || simulationdate(eco) < first(pending)) &&
-            return nothing
-        return _save(eco, Dates.format(popfirst!(pending), "yyyy-mm-dd"))
+    simulate!(eco, YEARS, TIMESTEP, every = AtDates(pending)) do occurrence
+        return _save(eco, Dates.format(occurrence.date, "yyyy-mm-dd"))
     end
     return nothing
 end

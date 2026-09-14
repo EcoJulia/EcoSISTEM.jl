@@ -19,7 +19,7 @@
 #
 #   - `models/ecosystems.jl`  - `uniform_environment`/`community`, on `GridHabitat`/
 #     `build_species`/`build_ecosystem`
-#   - `models/simulations.jl` - `diversity_through_time`, a do-block over `simulate_action!`, with
+#   - `models/simulations.jl` - `diversity_through_time`, a do-block over `simulate!`, with
 #     the measures taken from **Diversity.jl** rather than EcoSISTEM's own
 #   - `models/experiments.jl` - the nine investigations, and the figures
 #

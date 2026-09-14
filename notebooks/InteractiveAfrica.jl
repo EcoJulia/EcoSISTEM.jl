@@ -130,14 +130,16 @@ begin
     times = 10year
     timestep = 1month_mean_duration
     record_interval = 1month_mean_duration
+    # One slice per interval of the recorded run: the burn-in has already moved the clock, so the
+    # starting state is not an occurrence, and the run takes one step more than `times / timestep`.
     lensim = length((0year):record_interval:times)
     abuns = zeros(numSpecies, prod(grd), lensim)
 
     # Run simulation for burnin and then add invasive species
     @time simulate!(eco, burnin, timestep)
     eco.abundances.grid[end, 50, 50] = 100
-    @time simulate_record!(abuns, eco, times, record_interval,
-                           timestep)
+    @time simulate!(RecordAbundance(abuns), eco, times, timestep,
+                    every = EveryInterval(record_interval))
 
     # **Not `plot(eco)`.** That recipe throws a `BoundsError` on any grid that is not square -
     # reproduced on a 4×6 grid, where it reaches for `[5, 1]` - so it worked here only while this
@@ -246,8 +248,9 @@ begin
 
     # Run simulation for burnin and then add invasive species
     @time simulate!(eco_new, burnin_new, timestep_new)
-    @time simulate_record!(abuns_new, eco_new, times_new, timestep_new,
-                           record_interval_new)
+    # The burn-in has already moved the clock, so the starting state is not an occurrence.
+    @time simulate!(RecordAbundance(abuns_new), eco_new, times_new,
+                    timestep_new, every = EveryInterval(record_interval_new))
 
     mean_abuns = reshape(mean(eco_new.abundances.matrix, dims = 1)[1, :],
                          grd_new)

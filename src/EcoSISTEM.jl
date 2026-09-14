@@ -657,9 +657,7 @@ export build_habitat, build_species, build_ecosystem
 
 export investigate_study_area
 
-export simulate!, simulate_action!, simulate_record!,
-       simulate_record_diversity!,
-       generate_storage
+export simulate!, generate_storage
 
 # ---------------------------------------------------------------------------
 # Deprecations, PENULTIMATE
