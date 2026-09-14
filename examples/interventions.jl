@@ -71,12 +71,11 @@ end
 let outcomes = map((:generalist, :specialist)) do kind
         eco = invasion_ecosystem()
         # Room for the arrival, since the recording is sized before the run.
-        storage = generate_storage(eco, 6, 1,
-                                   maxspecies = configuration().numspecies)
-        simulate_record!(storage, eco, 5.0year, 1.0year,
-                         1.0month_mean_duration,
-                         intervention = invasion(kind,
-                                                 at = 1.0month_mean_duration))
+        recording = RecordAbundance(eco, 6,
+                                    maxspecies = configuration().numspecies)
+        simulate!(recording, eco, 5.0year, 1.0month_mean_duration,
+                  every = EveryInterval(1.0year),
+                  intervention = invasion(kind, at = 1.0month_mean_duration))
         @assert length(eco.spplist.names) == configuration().numspecies
         @assert last(eco.spplist.names) == string(kind)
         @assert !last(eco.spplist.native)

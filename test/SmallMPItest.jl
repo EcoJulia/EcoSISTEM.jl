@@ -323,6 +323,53 @@ if rank == 0
     @test cbtotals == serialtotals
 end
 
+# **The recorders under MPI**, against the serial twin at any rank count. The abundance recorder
+# gathers to the root, the diversity recorder to every rank, so both must reproduce the serial
+# recording, and each keeps the same record of the run on every rank.
+recsppl, _ = mpifixture_species()
+receco = MPIEcosystem(recsppl, varying_environment(), nichefit, seed = 0)
+receco.abundances.rows_matrix .= MPIFIXTURE_FILL
+recevery = EveryInterval(3 * MPIFIXTURE_TIMESTEP)
+nrec = length((0year):(3 * MPIFIXTURE_TIMESTEP):MPIFIXTURE_BURNIN)
+ncells = VARYING_NY * VARYING_NX
+recab = RecordAbundance(zeros(Int, numSpecies, ncells, nrec))
+recdiv = RecordDiversity(zeros(ncells, 2, nrec), norm_sub_alpha, [0.0, 1.0])
+MPI.Barrier(comm)
+simulate!(receco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+          every = recevery) do occurrence
+    recab(receco, occurrence)
+    return recdiv(receco, occurrence)
+end
+# Each holds the run as it stood at its last write: the last multiple of the interval, a step before
+# the run ends.
+@test provenance(recdiv).run == provenance(recab).run
+@test provenance(recdiv).run.elapsed ≈ uconvert(u"s", MPIFIXTURE_BURNIN)
+if rank == 0
+    recserial = mpifixture_ecosystem()
+    serialab = RecordAbundance(zeros(Int, numSpecies, ncells, nrec))
+    serialdiv = RecordDiversity(zeros(ncells, 2, nrec), norm_sub_alpha,
+                                [0.0, 1.0])
+    simulate!(recserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+              every = recevery) do occurrence
+        serialab(recserial, occurrence)
+        return serialdiv(recserial, occurrence)
+    end
+    @test recab.storage == serialab.storage
+    @test recdiv.storage ≈ serialdiv.storage
+end
+# A metacommunity measure has no value per cell to assemble. Every rank refuses it alike before the
+# gather, so none is left waiting in the collective and the run carries on past it.
+@test_throws "subcommunity diversity measure" gatherdiversity(receco,
+                                                              meta_gamma,
+                                                              [0.0, 1.0])
+@test_throws "subcommunity diversity measure" RecordDiversity(zeros(1, 2, nrec),
+                                                              meta_gamma,
+                                                              [0.0, 1.0])(receco,
+                                                                          (count = 1,
+                                                                           elapsed = 0.0u"s",
+                                                                           date = nothing))
+MPI.Barrier(comm)
+
 # **Ordinariness is computed in the COLUMN partition**, where a rank owns every species for its own
 # cells, so a cell's value is complete on the rank that owns it and the full species-by-species
 # similarity matrix applies with no slice. Gathering the column blocks must therefore rebuild the

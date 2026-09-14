@@ -40,12 +40,13 @@ include("buildfixtures.jl")
               (size(eco.abundances.matrix, 1), size(eco.abundances.matrix, 2),
                lensim, 1)
         @test_nowarn simulate!(eco, burnin, timestep)
-        @test_nowarn simulate_record!(abun, eco, times, interval, timestep)
+        @test_nowarn simulate!(RecordAbundance(abun), eco, times, timestep,
+                               every = EveryInterval(interval))
         # Write the run's output into a temp dir the OS cleans up, so it never
         # touches the repo (and no manual `rm` is needed for the hygiene tests).
         outputdir = mktempdir()
-        @test_nowarn simulate!(eco, times, interval, timestep, outputdir,
-                               "testrun")
+        @test_nowarn simulate!(SaveAbundance(outputdir, "testrun"), eco, times,
+                               timestep, every = EveryInterval(interval))
     end
     @testset "simulate! with a callback" begin
         # The starting state first, then the state at exactly each multiple of the interval, over
@@ -122,32 +123,8 @@ include("buildfixtures.jl")
         @test size(abun) ==
               (size(eco.abundances.matrix, 2), length(qs), lensim, 1)
         @test_nowarn simulate!(eco, burnin, timestep)
-        @test_nowarn simulate_record_diversity!(abun, eco, times, interval,
-                                                timestep, norm_sub_alpha, qs)
-
-        divfuns = [norm_sub_alpha, norm_sub_beta]
-        abun = generate_storage(eco, length(divfuns), lensim, 1)
-        @test_nowarn simulate_record_diversity!(abun, eco, times, interval,
-                                                timestep, divfuns, 1.0)
-
-        qs = collect(1.0:3)
-        # Derived from the ecosystem, not hardcoded. This said `100` - the cell count of the
-        # fixture's old 10 × 10 grid - so shrinking `Test1Ecosystem` silently broke it. The same
-        # count is what line 56 already asserts `generate_storage` uses.
-        abun1 = zeros(Float64, size(eco.abundances.matrix, 2), 3, 3, 4)
-        abun2 = zeros(Float64, 3, 3, 4)
-        @test_nowarn simulate_record_diversity!(abun1, abun2, eco, times,
-                                                interval, timestep, qs)
-        # Both storages come back, named - the two hold genuinely different things (per-subcommunity
-        # vs metacommunity diversity) and a bare pair said nothing about which was which.
-        result = simulate_record_diversity!(abun1, abun2, eco, times, interval,
-                                            timestep, qs)
-        @test result.subcommunity === abun1
-        @test result.metacommunity === abun2
-        # ...and it still destructures and indexes positionally, so callers doing either are unaffected.
-        sub, meta = result
-        @test (sub, meta) === (abun1, abun2)
-        @test result[1] === abun1
+        @test_nowarn simulate!(RecordDiversity(abun, norm_sub_alpha, qs), eco,
+                               times, timestep, every = EveryInterval(interval))
     end
 end
 

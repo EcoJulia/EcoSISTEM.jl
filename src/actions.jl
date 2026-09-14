@@ -470,6 +470,10 @@ sees the state at exactly its time: on a run starting from elapsed zero the firs
 state, after any intervention due at the start, and each later one comes after its step's dynamics,
 interventions and layer update.
 
+`f` may also be a recorder - an [`AbstractRecorder`](@ref) such as [`RecordAbundance`](@ref) -
+which is called with the ecosystem and the occurrence; to keep several things from one run, call
+each from a callback of your own.
+
 **The callback is for observing the run** - recording and logging. It must not draw from the global
 random number generator or write a layer's values, either of which would make the result depend on
 how the work was divided. Under MPI every rank runs the loop and the callback, so a collective the
@@ -509,6 +513,16 @@ function simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time,
     return nothing
 end
 
+function simulate!(recorder::AbstractRecorder, eco::AbstractEcosystem,
+                   duration::Unitful.Time, timestep::Unitful.Time;
+                   every = timestep, intervention = nothing)
+    simulate!(eco, duration, timestep, every = every,
+              intervention = intervention) do occurrence
+        return recorder(eco, occurrence)
+    end
+    return nothing
+end
+
 """
     simulate!(cache::CachedEcosystem, srt::Unitful.Time, timestep::Unitful.Time)
 
@@ -533,37 +547,6 @@ function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
     eco.calendar = cache.calendar
     update!(eco, timestep)
     return cache.abundances.matrix[Ti(At(srt + timestep))] = eco.abundances
-end
-
-"""
-    simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time,
-              cacheInterval::Unitful.Time, cacheFolder::String,
-              scenario_name::String)
-
-Run an ecosystem, `eco` for specified length of times, `duration`, for a
-particular timestep, 'timestep'. A cache interval and folder/file name are
-specified for saving output.
-"""
-function simulate!(eco::Ecosystem,
-                   times::Unitful.Time,
-                   timestep::Unitful.Time,
-                   cacheInterval::Unitful.Time,
-                   cacheFolder::String,
-                   scenario_name::String)
-    checkcoverage(eco, times, timestep)
-    check_bounds(eco, times, timestep)
-    time_seq = zero(times):timestep:times
-    for i in eachindex(time_seq)
-        update!(eco, timestep)
-        # Save cache of abundances
-        if mod(time_seq[i], cacheInterval) == zero(time_seq[i])
-            @save joinpath(cacheFolder,
-                           scenario_name *
-                           (@sprintf "%02d.jld2" uconvert(NoUnits,
-                                                          time_seq[i] /
-                                                          cacheInterval))) abun=eco.abundances.matrix
-        end
-    end
 end
 
 """
@@ -609,140 +592,6 @@ multiple timesteps and replicate runs.
 function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
     gridSize = countsubcommunities(eco.habitat.regime)
     return abun = Array{Float64, 4}(undef, gridSize, qs, times, reps)
-end
-
-"""
-    simulate_record!(storage::AbstractArray, eco::Ecosystem, times::Unitful.Time,
-         interval::Unitful.Time, timestep::Unitful.Time)
-
-Run an ecosystem, `eco` for a specified length of time, `times`, for a
-particular timestep, `timestep`, recording abundances into `storage` at each
-time interval `interval`.
-
-Pre-allocate `storage` with [`generate_storage`](@ref)`(eco, ntimes, reps)`,
-where `ntimes = length((0s):interval:times)` is the number of recordings.
-
-An `intervention` keyword takes an [`Intervention`](@ref) or
-[`InterventionSet`](@ref). If it
-can add species ([`AddSpecies`](@ref)), size `storage` for them with
-`generate_storage(eco, ntimes, reps, maxspecies = ...)`: the array is allocated
-before the run and cannot grow.
-
-To record diversity rather than raw abundances, see
-[`simulate_record_diversity!`](@ref); to perform an arbitrary action on a schedule
-via a callback, see [`simulate!`](@ref).
-"""
-function simulate_record!(storage::AbstractArray,
-                          eco::Ecosystem,
-                          times::Unitful.Time,
-                          interval::Unitful.Time,
-                          timestep::Unitful.Time;
-                          intervention = nothing)
-    iszero(mod(interval, timestep)) ||
-        error("Interval must be a multiple of timestep")
-    checkcoverage(eco, times, timestep)
-    check_bounds(eco, times, timestep)
-    _checkschedules(intervention, eco, times, timestep)
-    record_seq = (0s):interval:times
-    time_seq = (0s):timestep:times
-    _record!(storage, eco, 1)
-    counting = 1
-    for i in 2:length(time_seq)
-        update!(eco, timestep, intervention)
-        if time_seq[i] in record_seq
-            counting = counting + 1
-            _record!(storage, eco, counting)
-        end
-    end
-    return storage
-end
-
-"""
-    simulate_record_diversity!(storage, eco, times, interval, timestep,
-                               divfun, qs::Vector{Float64})
-    simulate_record_diversity!(substorage, metastorage, eco, times, interval, timestep,
-                               qs::Vector{Float64})
-    simulate_record_diversity!(storage, eco, times, interval, timestep,
-                               divfuns::Array{Function}, q::Float64)
-
-Run an ecosystem `eco` up to `times` in steps of `timestep`, recording diversity
-into `storage` (and, for the alpha/beta/gamma form, `substorage`/`metastorage`) every `interval`,
-which must be a whole multiple of `timestep`. These share one recording loop and
-differ only in what diversity they record:
-
-  - `divfun, qs` - a single diversity function `divfun` (which returns a
-    `DataFrame` with a `:diversity` column) evaluated over the diversity orders
-    `qs`, reshaped into `storage`;
-  - `substorage, metastorage, ..., qs` - normalised alpha, normalised beta and gamma
-    diversity over `qs`; subcommunity-level values are written to `substorage`
-    (gridSize × 3 × timepoints × qs) and metacommunity-level values to `metastorage`
-    (3 × timepoints × qs). This form returns **both**, as the named tuple
-    `(subcommunity = substorage, metacommunity = metastorage)`, so a caller need not
-    remember which of the two came first;
-  - `divfuns, q` - several diversity functions at a single diversity order `q`,
-    one per column of `storage`.
-
-For the `divfun`/`divfuns` forms, pre-allocate `storage` with
-[`generate_storage`](@ref)`(eco, ncols, ntimes, reps)`, where `ncols` is
-`length(qs)` (or `length(divfuns)`) and `ntimes = length((0s):interval:times)`.
-"""
-function simulate_record_diversity!(storage::AbstractArray,
-                                    eco::Ecosystem,
-                                    times::Unitful.Time,
-                                    interval::Unitful.Time,
-                                    timestep::Unitful.Time,
-                                    divfun::F,
-                                    qs::Vector{Float64}) where {F <: Function}
-    _simulateaction!(eco, times, interval, timestep,
-                     offset = iseven(size(storage, 3))) do counting
-        diversity = divfun(eco, qs)[!, :diversity]
-        return storage[:, :, counting] = reshape(diversity,
-                                                 Int(length(diversity) /
-                                                     length(qs)),
-                                                 length(qs))
-    end
-    return storage
-end
-
-function simulate_record_diversity!(substorage::AbstractArray,
-                                    metastorage::AbstractArray,
-                                    eco::Ecosystem,
-                                    times::Unitful.Time,
-                                    interval::Unitful.Time,
-                                    timestep::Unitful.Time,
-                                    qs::Vector{Float64})
-    _simulateaction!(eco, times, interval, timestep,
-                     offset = iseven(size(substorage, 3))) do counting
-        measures = [NormalisedAlpha, NormalisedBeta, Gamma]
-        for (i, msr) in enumerate(measures)
-            dm = msr(eco)
-            diversity = subdiv(dm, qs)[!, :diversity]
-            diversity2 = metadiv(dm, qs)[!, :diversity]
-            substorage[:, :, i, counting] = reshape(diversity,
-                                                    Int(length(diversity) /
-                                                        length(qs)),
-                                                    length(qs))
-            metastorage[:, i, counting] = diversity2
-        end
-    end
-    return (subcommunity = substorage, metacommunity = metastorage)
-end
-
-function simulate_record_diversity!(storage::AbstractArray,
-                                    eco::Ecosystem,
-                                    times::Unitful.Time,
-                                    interval::Unitful.Time,
-                                    timestep::Unitful.Time,
-                                    divfuns::Array{Function},
-                                    q::Float64)
-    _simulateaction!(eco, times, interval, timestep) do counting
-        # `j` is a position: it addresses `storage`, allocated by `generate_storage`, as well as
-        # picking the measure.
-        for (j, divfun) in enumerate(divfuns)
-            storage[:, j, counting] .= divfun(eco, q)[!, :diversity][1]
-        end
-    end
-    return storage
 end
 
 # The schedule a callback's `every` names: a duration means every whole multiple of it.

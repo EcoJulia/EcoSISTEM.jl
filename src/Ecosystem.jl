@@ -1178,6 +1178,10 @@ function loadfile(cache::CachedEcosystem, file::String, idx::Int,
     @load joinpath(file, string(idx, ".jld2")) abuns
     # Restore the per-species RNG streams for a reproducible resumed run
     cache.rngs .= copy.(abuns.rngs)
+    # The saved state the run resumes from is among what it was built from.
+    state = InputRecord(role = :state, dataset = "saved state",
+                        path = string(idx, ".jld2"))
+    state in cache.inputs || push!(cache.inputs, state)
     return GridLandscape(abuns, names, grid)
 end
 

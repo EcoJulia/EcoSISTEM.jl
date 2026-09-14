@@ -348,6 +348,9 @@ end
 
     # Resuming from the cache reproduces the uncached run exactly
     @test resumed.matrix == expected
+    # ...and the saved state it resumed from is among what the run says it was built from.
+    @test any(r -> r.role === :state && r.path == "3.jld2",
+              provenance(cache2).inputs)
 
     # clearcache! removes the saved files - the `!` is owed, it deletes them
     @test_nowarn EcoSISTEM.clearcache!(cache2)

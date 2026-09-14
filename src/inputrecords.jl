@@ -62,7 +62,7 @@ and the grid's extent are written as text, and fetch times and an epoch as TOML 
   - `path`: the file to write; its directory is created if it does not exist.
   - `p`: the [`Provenance`](@ref) to write.
   - `obj`: a study area report, a `StudyArea`, a `GridHabitat` or an ecosystem, whose
-    [`provenance`](@ref) is written.
+    [`provenance`](@ref) is written, or a recorder, whose run's provenance as of its last write is.
 """
 function write_provenance(path::AbstractString, p::Provenance)
     mkpath(dirname(abspath(path)))
@@ -76,6 +76,14 @@ function write_provenance(path::AbstractString,
                           obj::Union{StudyAreaReport, StudyArea, GridHabitat,
                                      AbstractEcosystem})
     return write_provenance(path, provenance(obj))
+end
+
+function write_provenance(path::AbstractString, recorder::AbstractRecorder)
+    record = provenance(recorder)
+    isnothing(record) &&
+        error("this `$(nameof(typeof(recorder)))` has not recorded anything yet, so there is no " *
+              "run to write the provenance of.")
+    return write_provenance(path, record)
 end
 
 # This package as the software a result came from: its version, the DOI every version is cited by,

@@ -71,6 +71,155 @@ function simulate_action!(action!::F, eco::AbstractEcosystem,
 end
 
 # ---------------------------------------------------------------------------
+# The recording functions: recorders passed to `simulate!`
+#
+# `RecordAbundance`, `RecordDiversity` and `SaveAbundance` are values handed to `simulate!` in place
+# of a callback, each keeping the run's provenance. `simulate_record!` records into the same slots
+# over the same steps through `RecordAbundance`; the diversity recorders and the caching `simulate!`
+# keep their own loops and timing unchanged.
+#
+# Deprecated in v0.8.0.
+# ---------------------------------------------------------------------------
+"""
+    simulate_record!(storage::AbstractArray, eco::Ecosystem, times::Unitful.Time,
+                     interval::Unitful.Time, timestep::Unitful.Time; intervention = nothing)
+
+Deprecated: use `simulate!(RecordAbundance(storage), eco, duration, timestep, every =
+EveryInterval(interval))` with a [`RecordAbundance`](@ref). This records the starting state and each
+multiple of `interval`, a whole multiple of `timestep`, into `storage[:, :, k]` over `times /
+timestep` steps, applying `intervention` as `simulate!` does, and returns `storage`.
+"""
+function simulate_record!(storage::AbstractArray, eco::Ecosystem,
+                          times::Unitful.Time, interval::Unitful.Time,
+                          timestep::Unitful.Time; intervention = nothing)
+    Base.depwarn("`simulate_record!` is deprecated: use `simulate!(RecordAbundance(storage), eco, " *
+                 "duration, timestep, every = EveryInterval(interval))`, which keeps the run's " *
+                 "provenance too.", :simulate_record!)
+    iszero(mod(interval, timestep)) ||
+        error("Interval must be a multiple of timestep")
+    simulate!(RecordAbundance(storage), eco, times - timestep, timestep,
+              every = EveryInterval(interval), intervention = intervention)
+    return storage
+end
+
+"""
+    simulate_record_diversity!(storage, eco, times, interval, timestep, divfun, qs::Vector{Float64})
+    simulate_record_diversity!(substorage, metastorage, eco, times, interval, timestep,
+                               qs::Vector{Float64})
+    simulate_record_diversity!(storage, eco, times, interval, timestep,
+                               divfuns::Array{Function}, q::Float64)
+
+Deprecated: use `simulate!(RecordDiversity(storage, divfun, qs), eco, duration, timestep, every =
+EveryInterval(interval))` with a [`RecordDiversity`](@ref) for the first form, and a callback on
+[`simulate!`](@ref) computing the measures you want for the other two. These record on
+[`simulate_action!`](@ref)'s timing, `interval` a whole multiple of `timestep`: `divfun` at the orders
+`qs` into `storage`; normalised alpha, normalised beta and gamma at `qs` into `substorage` by cell and
+`metastorage`, returned as `(subcommunity = substorage, metacommunity = metastorage)`; or each of
+`divfuns` at the order `q` into a column of `storage`.
+"""
+function simulate_record_diversity!(storage::AbstractArray,
+                                    eco::Ecosystem,
+                                    times::Unitful.Time,
+                                    interval::Unitful.Time,
+                                    timestep::Unitful.Time,
+                                    divfun::F,
+                                    qs::Vector{Float64}) where {F <: Function}
+    Base.depwarn("`simulate_record_diversity!` is deprecated: use " *
+                 "`simulate!(RecordDiversity(storage, divfun, qs), eco, duration, timestep, " *
+                 "every = EveryInterval(interval))`.",
+                 :simulate_record_diversity!)
+    _simulateaction!(eco, times, interval, timestep,
+                     offset = iseven(size(storage, 3))) do counting
+        diversity = divfun(eco, qs)[!, :diversity]
+        return storage[:, :, counting] = reshape(diversity,
+                                                 Int(length(diversity) /
+                                                     length(qs)),
+                                                 length(qs))
+    end
+    return storage
+end
+
+function simulate_record_diversity!(substorage::AbstractArray,
+                                    metastorage::AbstractArray,
+                                    eco::Ecosystem,
+                                    times::Unitful.Time,
+                                    interval::Unitful.Time,
+                                    timestep::Unitful.Time,
+                                    qs::Vector{Float64})
+    Base.depwarn("`simulate_record_diversity!` is deprecated: compute the measures you want in a " *
+                 "callback on `simulate!`.", :simulate_record_diversity!)
+    _simulateaction!(eco, times, interval, timestep,
+                     offset = iseven(size(substorage, 3))) do counting
+        measures = [NormalisedAlpha, NormalisedBeta, Gamma]
+        for (i, msr) in enumerate(measures)
+            dm = msr(eco)
+            diversity = subdiv(dm, qs)[!, :diversity]
+            diversity2 = metadiv(dm, qs)[!, :diversity]
+            substorage[:, :, i, counting] = reshape(diversity,
+                                                    Int(length(diversity) /
+                                                        length(qs)),
+                                                    length(qs))
+            metastorage[:, i, counting] = diversity2
+        end
+    end
+    return (subcommunity = substorage, metacommunity = metastorage)
+end
+
+function simulate_record_diversity!(storage::AbstractArray,
+                                    eco::Ecosystem,
+                                    times::Unitful.Time,
+                                    interval::Unitful.Time,
+                                    timestep::Unitful.Time,
+                                    divfuns::Array{Function},
+                                    q::Float64)
+    Base.depwarn("`simulate_record_diversity!` is deprecated: compute the measures you want in a " *
+                 "callback on `simulate!`.", :simulate_record_diversity!)
+    _simulateaction!(eco, times, interval, timestep) do counting
+        # `j` is a position: it addresses `storage`, allocated by `generate_storage`, as well as
+        # picking the measure.
+        for (j, divfun) in enumerate(divfuns)
+            storage[:, j, counting] .= divfun(eco, q)[!, :diversity][1]
+        end
+    end
+    return storage
+end
+
+"""
+    simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time,
+              cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
+
+Deprecated: use `simulate!(SaveAbundance(cacheFolder, scenario_name), eco, duration, timestep, every
+= EveryInterval(cacheInterval))` with a [`SaveAbundance`](@ref), which writes the run's provenance
+beside each file. This runs `eco` for `times` in steps of `timestep` and saves its abundances to
+`<scenario_name>NN.jld2` in `cacheFolder` on the step after the clock stood on each multiple of
+`cacheInterval`.
+"""
+function simulate!(eco::Ecosystem,
+                   times::Unitful.Time,
+                   timestep::Unitful.Time,
+                   cacheInterval::Unitful.Time,
+                   cacheFolder::String,
+                   scenario_name::String)
+    Base.depwarn("this six-argument `simulate!` is deprecated: use " *
+                 "`simulate!(SaveAbundance(cacheFolder, scenario_name), eco, duration, timestep, " *
+                 "every = EveryInterval(cacheInterval))`.", :simulate!)
+    checkcoverage(eco, times, timestep)
+    check_bounds(eco, times, timestep)
+    time_seq = zero(times):timestep:times
+    for i in eachindex(time_seq)
+        update!(eco, timestep)
+        # Save cache of abundances
+        if mod(time_seq[i], cacheInterval) == zero(time_seq[i])
+            @save joinpath(cacheFolder,
+                           scenario_name *
+                           (@sprintf "%02d.jld2" uconvert(NoUnits,
+                                                          time_seq[i] /
+                                                          cacheInterval))) abun=eco.abundances.matrix
+        end
+    end
+end
+
+# ---------------------------------------------------------------------------
 # Demographic parameters: the `boost` field is gone
 #
 # The birth multiplier is `min(K/E, 1)`, as the model is written up: however plentiful the resource,

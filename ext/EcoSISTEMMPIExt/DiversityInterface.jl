@@ -288,6 +288,8 @@ function EcoSISTEM.gatherdiversity(eco::MPIEcosystem, divmeasure::F,
                                    q) where {F <: Function}
     comm = MPI.COMM_WORLD
     mine = divmeasure(eco, q)
+    # Before the gather, and alike on every rank, so no rank is left waiting in the collective.
+    EcoSISTEM._checksubcommunitylevel(mine, divmeasure, "`gatherdiversity`")
     counts = Int32.(eco.sccounts)
     total = Int64(sum(counts))
     names = Diversity.getsubcommunitynames(eco)

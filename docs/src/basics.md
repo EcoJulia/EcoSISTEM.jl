@@ -85,21 +85,24 @@ are computed on demand, and no data is copied.
 
 ## Recording a run
 
-[`simulate!`](@ref) leaves only the final state. To keep the whole time series, allocate
-storage and use [`simulate_record!`](@ref), which records at an interval you choose:
+[`simulate!`](@ref) leaves only the final state. To keep the whole time series, hand it a
+[`RecordAbundance`](@ref) and say how often to record with `every`:
 
 ```@example basics
 times = 10year
 interval = 1year
 timestep = 1month_mean_duration
 
-storage = generate_storage(eco, length((0year):interval:times), 1)
-simulate_record!(storage, eco, times, interval, timestep)
-size(storage)                       # species × cells × recordings × replicates
+recording = RecordAbundance(eco, length((0year):interval:times))
+simulate!(recording, eco, times, timestep, every = EveryInterval(interval))
+size(recording.storage)             # species × cells × recordings × replicates
 ```
 
-The `interval` must be a whole multiple of the `timestep` - see
-[Time in EcoSISTEM](@ref) for why a year and a day do not qualify.
+The first recording is the starting state and each later one the state at exactly that multiple of
+the interval. A run of `times` in steps of `timestep` takes one step more than `times / timestep` -
+see [Time in EcoSISTEM](@ref) - so recording at every timestep needs a slot more than that.
+[`RecordDiversity`](@ref) records a diversity measure the same way, and [`SaveAbundance`](@ref)
+writes each recording to a file; each keeps the run's [`provenance`](@ref) as of its last write.
 
 ## Varying the model
 

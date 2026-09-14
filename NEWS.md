@@ -55,6 +55,9 @@
       whenever the schedule `every` fires, handing it the occurrence's `count`, `elapsed` time and
       `date`. The first occurrence is the starting state; `every` takes any schedule an intervention
       takes, or a duration meaning `EveryInterval` of it.
+    - `RecordAbundance`, `RecordDiversity` and `SaveAbundance`, recorders passed to `simulate!` in
+      place of a callback. Each keeps the run's provenance as of its last write, and
+      `SaveAbundance` writes it beside every file; under MPI each gathers what it needs.
     - `AtDates(dates)` and `EveryYear(month = 7, day = 1)`, schedules at real dates, placed through
       the run's epoch and `calendar`. A run refuses them before its first step if it has no epoch,
       or if a date falls inside a step longer than a day rather than at the end of one, where it
@@ -132,6 +135,8 @@
     - An angular `cellsize` such as `30arcminute` is accepted on a geographic grid; a length there,
       and an angle on a projected grid, are refused.
     - `ShapeSpec` documents that a URL must name a self-contained file.
+    - `gatherdiversity` refuses a metacommunity or individual measure, which it assembled into
+      values that meant nothing; it takes subcommunity measures, as documented.
   - Deprecated
     - `read(WorldClim{BioClim}, layers; ...)` and `read(CHELSA{Climate}, dir, var)`, which extended
       `Base.read` on types this package does not own. `read(SourceSpec(...))` replaces both and
@@ -142,6 +147,8 @@
     - `retrieve_era5`: name the download as a `CDSRequest` instead, one per decade file.
     - `simulate_action!`: give `simulate!` the callback instead. Its callback is handed a bare count
       one step after each multiple of the interval, and the shim keeps that timing.
+    - `simulate_record!`, `simulate_record_diversity!` and the six-argument caching `simulate!`: pass
+      a `RecordAbundance`, `RecordDiversity` or `SaveAbundance` to `simulate!` instead.
 - v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name

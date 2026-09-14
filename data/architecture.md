@@ -928,6 +928,23 @@ ratio**, making a species slow-and-long-lived or fast-and-short-lived without ch
 persist. Suitability carries opposite exponents, so it does move the ratio - that is what makes it
 the niche.
 
+## Recording a run
+
+```mermaid
+classDiagram
+    class AbstractRecorder
+    class RecordAbundance~S~
+    class RecordDiversity~S, F, Q~
+    AbstractRecorder <|-- RecordAbundance
+    AbstractRecorder <|-- RecordDiversity
+    AbstractRecorder <|-- SaveAbundance
+```
+
+A recorder is a value `simulate!` calls with the ecosystem each time its schedule fires, in place of a
+callback: `RecordAbundance` and `RecordDiversity` write into storage sized before the run, and
+`SaveAbundance` writes files. Each holds the run's `Provenance` as it stood at its last write. Under
+MPI every rank calls it, so each takes part in the gather it needs.
+
 ## Distribution parameters (`src/Dist.jl`)
 
 Building a tolerance from a named distribution means knowing which of its parameters is a location, a

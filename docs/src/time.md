@@ -73,8 +73,9 @@ a yearly call would come a fraction of a day late in three years out of four. It
 exactly by `month_mean_duration`, which is a twelfth of that same year, so monthly steps are
 used above.
 
-[`simulate_record!`](@ref) is this same engine with recording already written for you, and is
-what most runs want.
+The recorders - [`RecordAbundance`](@ref), [`RecordDiversity`](@ref) and
+[`SaveAbundance`](@ref) - are values made for this, passed to `simulate!` in place of a
+function, and are what most runs want.
 
 ## Naming time
 

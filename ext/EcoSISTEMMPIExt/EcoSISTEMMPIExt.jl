@@ -32,4 +32,6 @@ include("DiversityInterface.jl")
 
 include("dynamics.jl")
 
+include("Recorder.jl")
+
 end

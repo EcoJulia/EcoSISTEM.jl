@@ -507,6 +507,13 @@ include("DefaultEcosystem.jl")
 
 export DefaultEcosystem
 
+# What a run keeps as it goes, handed to `simulate!` in place of a callback.
+include("Recorder.jl")
+
+export RecordAbundance, RecordDiversity, SaveAbundance
+
+public AbstractRecorder
+
 # What an assembled model was built from: `provenance` asked of anything holding a study area,
 # after every type such a question can be asked of.
 include("inputrecords.jl")
