@@ -149,7 +149,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         @test getordinariness!(eco) == getordinariness!(eco)
     end
     @testset "collection-trait incompatibility message" begin
-        # `iscontinuous` of a collection is a `Vector{Bool}`; the constructor's incompatibility errors must
+        # `_iscontinuous` of a collection is a `Vector{Bool}`; the constructor's incompatibility errors must
         # format that rather than crash on a `Vector{Bool}` in a `?:` (the old bug threw a `TypeError`).
         @test EcoSISTEM._kindlabel(true) == "continuous"
         @test EcoSISTEM._kindlabel(false) == "categorical"

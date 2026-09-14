@@ -28,7 +28,7 @@ using Plots
 # The regime: EarthEnv land cover class 7 (`cultivated_and_managed`, see
 # `data/catalogue/LandCover.csv`) read as a lazy `SourceSpec` - its own per-cell % cover,
 # not the full multi-class winning-code collapse `landcoverhabitat` uses elsewhere (EarthEnv's own
-# per-class bands are continuous % cover, not categorical - `iscategorical` treats them as such).
+# per-class bands are continuous % cover, not categorical - `_iscategorical` treats them as such).
 cultivated = SourceSpec(EarthEnv{LandCover}, :cultivated_and_managed)
 
 # NatureScot's "Landscape Map of Scotland" (79 landscape character features, British National

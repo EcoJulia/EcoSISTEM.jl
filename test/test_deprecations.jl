@@ -78,7 +78,7 @@ include("TestCases.jl")
                                                                              2),
                                                                      1.0mm)
         @test eltype(Gauss{EcoSISTEM.NicheAxis, NF}()) == NF
-        @test EcoSISTEM.iscontinuous(Unif{EcoSISTEM.NicheAxis, typeof(1.0mm)}()) ==
+        @test EcoSISTEM._iscontinuous(Unif{EcoSISTEM.NicheAxis, typeof(1.0mm)}()) ==
               true
 
         # restored legacy 3-argument Gaussian functor `Gauss{EcoSISTEM.NicheAxis, NF}()(current, opt, sd)`

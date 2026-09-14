@@ -80,7 +80,10 @@ available resources,`habitat`. Finally, there is a slot for the nichefit
 between the environment and the characteristics of the species, `nichefit`.
 `elapsed` is the simulation clock (see [`simulationtime`](@ref)) and `seed` the
 seed the per-species RNG streams were derived from. `epoch` is the real date elapsed time zero
-corresponds to, or `nothing` for a run with no calendar - see [`simulationdate`](@ref).
+corresponds to, or `nothing` for a run with no calendar - see [`simulationdate`](@ref). `inputs`
+holds the [`InputRecord`](@ref)s of published data belonging to the run as a whole - those given to
+[`build_ecosystem`](@ref), and those of every intervention that has acted - which
+[`provenance`](@ref) lists.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
@@ -99,6 +102,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
     # noleap calendar be substituted later without changing a signature. Abstract, but never read in
     # the hot path - the epoch is resolved once at build and thereafter only reported.
     epoch::Union{Nothing, Dates.TimeType}
+    inputs::Vector{InputRecord}
 
     function Ecosystem{Part, SL, NF}(abundances::GridLandscape,
                                      spplist::SL,
@@ -141,7 +145,8 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                  rngs,
                                  elapsed,
                                  seed,
-                                 epoch)
+                                 epoch,
+                                 InputRecord[])
     end
 end
 
@@ -235,6 +240,7 @@ mutable struct CachedEcosystem{Part <: AbstractHabitat,
     elapsed::typeof(1.0s)
     seed::UInt64
     epoch::Union{Nothing, Dates.TimeType}
+    inputs::Vector{InputRecord}
 end
 
 """
@@ -268,7 +274,8 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String,
                                                  eco.rngs,
                                                  eco.elapsed,
                                                  eco.seed,
-                                                 eco.epoch)
+                                                 eco.epoch,
+                                                 eco.inputs)
 end
 
 # ---------------------------------------------------------------------------
@@ -657,19 +664,22 @@ function makeunique(eco::Ecosystem)
                                                _uniquetypes(sppl.names),
                                                sppl.movement,
                                                sppl.params,
-                                               sppl.native)
+                                               sppl.native,
+                                               provenance = sppl.inputs)
     newsppl.susceptible = sppl.susceptible
-    return Ecosystem{typeof(eco.habitat), typeof(newsppl),
-                     typeof(eco.nichefit)}(eco.abundances,
-                                           newsppl,
-                                           eco.habitat,
-                                           eco.nichefit,
-                                           eco.lookup,
-                                           eco.cache,
-                                           eco.rngs,
-                                           eco.elapsed,
-                                           eco.seed,
-                                           eco.epoch)
+    stripped = Ecosystem{typeof(eco.habitat), typeof(newsppl),
+                         typeof(eco.nichefit)}(eco.abundances,
+                                               newsppl,
+                                               eco.habitat,
+                                               eco.nichefit,
+                                               eco.lookup,
+                                               eco.cache,
+                                               eco.rngs,
+                                               eco.elapsed,
+                                               eco.seed,
+                                               eco.epoch)
+    stripped.inputs = eco.inputs
+    return stripped
 end
 
 # The axes a layer or collection is on, as a `+`-joined string - `Temperature + Precipitation`.

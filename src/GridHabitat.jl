@@ -222,6 +222,8 @@ function Base.show(io::IO, ::MIME"text/plain", h::GridHabitat)
     return nothing
 end
 
+# == Functions ==================================================================================
+
 """
     totalsupply(habitat::GridHabitat)
 
@@ -252,8 +254,6 @@ function totalsupply(habitat::GridHabitat)
     end
 end
 
-# == Functions ==================================================================================
-
 # Turn a per-area *rate* (an areal flux - energy/water/carbon per unit area per unit time) into
 # an absolute Resource quantity (per cell, not per area) by multiplying by that cell's `area`, and
 # state the result in the **axis's** canonical resource unit. This is the last step of the supply
@@ -263,7 +263,7 @@ end
 # `a::Number` rather than `a::Quantity`: an areal **space** value is a fraction, `m^2/m^2` and so
 # `NoDims`, which Julia represents as a bare `Float64`. Every other areal rate carries a unit, which
 # is why the wider annotation is needed.
-function cancel(a::Number, b::Quantity{<:Real, 𝐋^2}, axis::Type{<:NicheAxis})
+function _cancel(a::Number, b::Quantity{<:Real, 𝐋^2}, axis::Type{<:NicheAxis})
     return _canonicalresource(a * b, axis)
 end
 
@@ -341,7 +341,7 @@ end
 # falls towards the poles.
 #
 # This is what an areal rate is multiplied by to give a per-cell supply, so it is
-# the quantity `cancel` needs; [`_cellsize`](@ref) remains the scalar cell *side*
+# the quantity `_cancel` needs; [`_cellsize`](@ref) remains the scalar cell *side*
 # that dispersal is expressed against.
 #
 # It reads the array's own dims rather than taking coordinate vectors, so it asks each axis for the

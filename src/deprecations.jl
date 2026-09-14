@@ -308,7 +308,7 @@ for Old in (:Gauss, :Trapeze, :Unif)
                                 current::V) where {A, V}
             return pdf(dist, ustrip(current))
         end
-        iscontinuous(::$Old) = true
+        _iscontinuous(::$Old) = true
         Base.eltype(::$Old{A, V}) where {A, V} = V
     end
 end
@@ -869,15 +869,15 @@ end
 #
 # `NoUnits => SimpleBudget` has **no replacement**: the free supply family was removed, so that
 # case now errors instead of silently building something else.
-# The element type each `cancel` method converts into, derived from `canonicalunit` rather than
+# The element type each `_cancel` method converts into, derived from `canonicalunit` rather than
 # spelling the literal unit here - so a change to what a resource is measured in cannot leave these
-# converting to the old one. Moved here from `Layer.jl` (2026-08-20): the three `cancel` methods
+# converting to the old one. Moved here from `Layer.jl` (2026-08-20): the three `_cancel` methods
 # below are their only callers, and a v0.4.0 conversion belongs with the rest of the shims.
 const _SolarRate = typeof(1.0 * canonicalunit(Resource, SolarRadiation))
 const _WaterRate = typeof(1.0 * canonicalunit(Resource, Precipitation))
 const _CarbonRate = typeof(1.0 * canonicalunit(Resource, CarbonFlux))
 
-# The two-argument, dimension-dispatched `cancel` - v0.4.0's areal-rate × cell-area conversion,
+# The two-argument, dimension-dispatched `_cancel` - v0.4.0's areal-rate × cell-area conversion,
 # kept here for the same reason as `_v040supplytype` below and moved beside it (2026-08-09): its
 # only caller is `_maxsupply_env`, and choosing a unit from a unit is exactly what the live path
 # stopped doing. The three-argument axis form in `GridHabitat.jl` is what everything else uses.
@@ -886,13 +886,13 @@ const _CarbonRate = typeof(1.0 * canonicalunit(Resource, CarbonFlux))
 # `VolumeFlow`); carbon's `g/m^2/day` (𝐌𝐋^-2𝐓^-1) × m^2 -> `g/day` (𝐌𝐓^-1, `Unitful.MassFlow`).
 # `test_rasters.jl`'s wind-speed regression test also asks these directly - deliberately, as
 # proof of what the deleted unit table would have said - so they are not callable only from here.
-function cancel(a::Quantity{<:Real, 𝐌 * 𝐓^-3}, b::Quantity{<:Real, 𝐋^2})
+function _cancel(a::Quantity{<:Real, 𝐌 * 𝐓^-3}, b::Quantity{<:Real, 𝐋^2})
     return uconvert(unit(_SolarRate), a * b)
 end
-function cancel(a::Quantity{<:Real, 𝐋 * 𝐓^-1}, b::Quantity{<:Real, 𝐋^2})
+function _cancel(a::Quantity{<:Real, 𝐋 * 𝐓^-1}, b::Quantity{<:Real, 𝐋^2})
     return uconvert(unit(_WaterRate), a * b)
 end
-function cancel(a::Quantity{<:Real, 𝐌 * 𝐋^-2 * 𝐓^-1}, b::Quantity{<:Real, 𝐋^2})
+function _cancel(a::Quantity{<:Real, 𝐌 * 𝐋^-2 * 𝐓^-1}, b::Quantity{<:Real, 𝐋^2})
     return uconvert(unit(_CarbonRate), a * b)
 end
 
@@ -936,8 +936,8 @@ function _v040env(spec, dimension::Tuple{Int64, Int64}, active,
                   maxsupply::Unitful.Quantity{Float64},
                   area::Unitful.Area)
     # The supply is stated per unit area and multiplied by the cell area, which is precisely what
-    # v0.4.0 did by hand as `cancel(maxsupply, area) / countsubcommunities`.
-    axis = _v040supplyaxis(cancel(maxsupply, area))
+    # v0.4.0 did by hand as `_cancel(maxsupply, area) / countsubcommunities`.
+    axis = _v040supplyaxis(_cancel(maxsupply, area))
     return GridHabitat(regime = spec,
                        supply = UniformSpec(maxsupply, axis = axis),
                        area = _v040area(dimension, area, active))
@@ -1189,7 +1189,7 @@ end
 # do it because both sides were bare `mm`; the v0.5.0 unit change moved the regime to `mm/day` and
 # the supply to an absolute `L/day`, and this line was not moved with them. No test reaches it,
 # which is why it survived - `raingrad`'s coverage all goes through the `maxsupply` form.
-# The fix is what `cancel` exists for and what the other supply paths already do: the areal rate
+# The fix is what `_cancel` exists for and what the other supply paths already do: the areal rate
 # against this grid's own cell area. That is the faithful reading of "the rainfall itself is the
 # water budget" in units where a supply is per cell.
 function _raingradhabitat(minR::Unitful.Quantity{Float64},
@@ -1201,7 +1201,7 @@ function _raingradhabitat(minR::Unitful.Quantity{Float64},
                           axis::Type{<:NicheAxis} = Precipitation)
     # The regime spec is used **twice**: once as the Condition and once as the Resource. That is
     # exactly what "the rainfall itself is the water budget" means, and it is what the hand-built
-    # `cancel.(regime.matrix, cellarea, Precipitation)` computed - a supply spec is stated per unit
+    # `_cancel.(regime.matrix, cellarea, Precipitation)` computed - a supply spec is stated per unit
     # area and multiplied by the cell area, which is the same arithmetic in one step.
     # Only the regime carries the rate: a declared change belongs to one layer, and it is the
     # *condition* that v0.4.0 drifted.

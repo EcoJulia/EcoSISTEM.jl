@@ -440,9 +440,9 @@ end
 # [`StudyGrid`](@ref) answers those from the grid's own dimensions instead, and a habitat reaches it
 # through its [`StudyArea`](@ref).
 
-iscontinuous(::ContinuousRegime) = true
+_iscontinuous(::ContinuousRegime) = true
 
-iscontinuous(regime::CategoricalRegime) = false
+_iscontinuous(regime::CategoricalRegime) = false
 
 # A plot title for a regime, keyed on its **axis** - the mirror of `_resourcetitle` for the other
 # role, and the same rule as everything else on this path. The fallback names any axis from its own
@@ -1544,7 +1544,7 @@ end
 _absolutise(x::Real) = x
 
 # The `Resource`-role mirror of `_canonical` above: a supply *value* - already a per-cell rate, so
-# `cancel` has done the × area - converted to its axis's canonical resource unit,
+# `_cancel` has done the × area - converted to its axis's canonical resource unit,
 # `canonicalunit(Resource, A)`. Lives here beside the Condition-role conversion because the two are
 # one idea in two roles, and keeping them together is what stops either drifting.
 #

@@ -29,7 +29,7 @@ public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
 include("Asset.jl")
 include("Provenance.jl")
 
-public CachedAsset, CDSRequest, InputRecord
+public CachedAsset, CDSRequest, InputRecord, Provenance
 
 public assetdir
 
@@ -504,6 +504,10 @@ public applyinterventions!
 include("DefaultEcosystem.jl")
 
 export DefaultEcosystem
+
+# What an assembled model was built from: `provenance` asked of anything holding a study area,
+# after every type such a question can be asked of.
+include("inputrecords.jl")
 
 # `NicheAxis` and the `XxxAxis` grouping supertypes are **not** here: every abstract type in this
 # package is `public` rather than exported, declared together at the end of this file. It is the

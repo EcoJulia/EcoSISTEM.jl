@@ -41,21 +41,29 @@ is its index in the set), so two `RandomCells(20)` would pick different cells. A
 acted on twice has to be resolved once.
 
 Pass one, or an [`InterventionSet`](@ref), as `simulate!`'s `intervention` keyword.
+
+An intervention built from published data - a land-use scenario, the occurrence records a
+population is seeded from - says so with `provenance`, an [`InputRecord`](@ref) or a vector of them.
+The records join the ecosystem's own the first time the intervention acts, so [`provenance`](@ref)
+of the ecosystem lists an intervention that has acted and not one that never fired.
 """
 struct Intervention{S <: AbstractSchedule, RG <: AbstractRegion, O <: Tuple}
     schedule::S
     region::RG
     operations::O
+    inputs::Vector{InputRecord}
 
     # The sole constructor. Varargs, so the one-operation form is unchanged and needs no second
     # spelling; at least one is required, since an intervention that does nothing is not one.
     function Intervention(schedule::AbstractSchedule, region::AbstractRegion,
-                          operations::AbstractOperation...)
+                          operations::AbstractOperation...;
+                          provenance = InputRecord[])
         isempty(operations) &&
             error("an `Intervention` needs at least one operation: a schedule and a region with " *
                   "nothing to do are not an intervention. Use `NeverScheduled()` to disable one.")
         return new{typeof(schedule), typeof(region),
-                   typeof(operations)}(schedule, region, operations)
+                   typeof(operations)}(schedule, region, operations,
+                                       _recordvector(provenance))
     end
 end
 
@@ -162,6 +170,7 @@ function applyinterventions!(eco::AbstractEcosystem, intervention,
         cells = _regioncells(iv.region, eco, rng, timestep)
         foreach(op -> _applyoperation!(op, eco, cells, rng, timestep),
                 iv.operations)
+        _recordintervention!(eco, iv)
     end
     return eco
 end
@@ -219,6 +228,15 @@ _interventions(set::InterventionSet) = set.interventions
 _interventions(intervention::Intervention) = (intervention,)
 
 _interventions(::Nothing) = ()
+
+# Add the records of an intervention that has just acted to the ecosystem's own, so what a run says
+# it was built from names the interventions that changed it. Every rank fires the same interventions
+# on the same step, so every rank's records agree.
+function _recordintervention!(eco::AbstractEcosystem, iv::Intervention)
+    isempty(iv.inputs) && return eco
+    eco.inputs = _uniqueinputs(vcat(eco.inputs, iv.inputs))
+    return eco
+end
 
 # ---------------------------------------------------------------------------
 # Applying an intervention

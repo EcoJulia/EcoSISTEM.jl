@@ -987,6 +987,24 @@ Which axis a multi-file source stacks on decides whether it is a **time series**
 unrelated bands: `_stackaxis` returns `Ti` for `WorldClim{Climate}` and `CHELSA{Climate}` (one file
 per month) and `Dim{:layer}` for everything else.
 
+### Where an input came from - the records
+
+A source type says which archive a raster belongs to; an `InputRecord` says which **file** an
+object was built from, where it was fetched, and what the dataset's DOI, licence, version and
+citation are. Every fetch writes one beside its file, and every read made while deciding a study
+area records its files in the area's report, which keeps them after the reads themselves are
+discarded. `provenance` asked of a report, a study area, a habitat or an ecosystem gathers them
+into a `Provenance`, beside the software, the grid and, for an ecosystem, the run. Published data
+the package never fetched - occurrence records, a trait table, a scenario - enters as records the
+caller attaches to a species list, an intervention or `build_ecosystem`, in the same shape.
+
+```mermaid
+classDiagram
+    class Provenance
+    class InputRecord
+    Provenance "1" *-- "*" InputRecord : inputs
+```
+
 ## Notes
 
 - **External supertypes:** `AbstractHabitat <: Diversity.AbstractPartition`,

@@ -151,7 +151,8 @@ end
     build_species(numspecies::Integer; tolerance, toleranceaxis, demand, demandaxis, dispersal = 10.0km,
         pthresh = 1.0e-9, movement = BirthOnlyMovement, disperse_safely = true, birth = 0.6/year,
         death = 0.6/year, longevity = 1.0, survival = 0.2,
-        abundance = 1000 * numspecies, native = true, names = nothing, seed = nothing)
+        abundance = 1000 * numspecies, native = true, names = nothing, seed = nothing,
+        provenance = InputRecord[])
 
 Build a `SpeciesList` of `numspecies` species. `tolerance` (the environmental **Condition** a
 species is matched to) and `demand` (the **Resource** it consumes) are **required**, and so is the
@@ -199,7 +200,9 @@ mismatch):
 species (seedable via `seed`) or an explicit per-species vector. `native` marks
 species as native (default all `true`). `names` gives the species their names, one unique string
 each - binomials, say - which also label their Diversity types; left unset they are `"1"` to
-`"numspecies"`.
+`"numspecies"`. `provenance` is an [`InputRecord`](@ref), or a vector of them, for the published
+data the species were built from - an occurrence download, a trait table - which
+[`provenance`](@ref) of the ecosystem then lists.
 """
 function build_species(numspecies::Integer;
                        tolerance = _require(:tolerance),
@@ -221,7 +224,8 @@ function build_species(numspecies::Integer;
                        abundance = 1000 * numspecies,
                        native = true,
                        names = nothing,
-                       seed = nothing)
+                       seed = nothing,
+                       provenance = InputRecord[])
     n = Int64(numspecies)
     _prebuilt = tolerance isa AbstractTolerance ||
                 (tolerance isa Union{Tuple, NamedTuple} &&
@@ -282,7 +286,7 @@ function build_species(numspecies::Integer;
     abun = _abundances(abundance, n, seed)
 
     return SpeciesList(n, traits, abun, demands, move, param, nat,
-                       names = names)
+                       names = names, provenance = provenance)
 end
 
 # As above for `build_species`: default `numspecies`, `tolerance` and `demand` if omitted, announce,
@@ -323,7 +327,8 @@ end
 
 """
     build_ecosystem(species::SpeciesList, environment::GridHabitat;
-        nichefit = nothing, seed = nothing, distributed = :auto, epoch = nothing)
+        nichefit = nothing, seed = nothing, distributed = :auto, epoch = nothing,
+        provenance = InputRecord[])
 
 Assemble an ecosystem from a `species` list and an `environment`. When
 `nichefit` is not given it is inferred from the trait type (`NicheTolerance` ->
@@ -351,11 +356,18 @@ explicit `epoch` always wins; otherwise the environment's own series supply it, 
 real start date is found it is used and everything else is phased to it. Series that disagree are an
 error naming the candidates, and an environment with no dated series has no epoch at all, which is
 the behaviour of a run that never mentions dates.
+
+`provenance` is an [`InputRecord`](@ref), or a vector of them, for published data that belongs to
+the run as a whole rather than to its species or its environment - the records a starting
+population was seeded from, say, or the study's own DOI. [`provenance`](@ref) of the ecosystem lists
+them beside everything else it was built from.
 """
 function build_ecosystem(species::SpeciesList, environment::GridHabitat;
                          nichefit = nothing, seed = nothing,
                          distributed = :auto,
-                         epoch::Union{Nothing, Dates.TimeType} = nothing)
+                         epoch::Union{Nothing, Dates.TimeType} = nothing,
+                         provenance = InputRecord[])
+    records = _recordvector(provenance)
     _checksimulatable(environment)
     # Checked here as well as in the `Ecosystem` constructor, and *before* the nichefit is inferred:
     # `_defaultsuitability` pairs tolerances with regimes member by member, so a mismatch reaches
@@ -391,6 +403,7 @@ function build_ecosystem(species::SpeciesList, environment::GridHabitat;
         Ecosystem(species, environment, nichefit, seed = seed)
     end
     eco.epoch = resolved
+    eco.inputs = _uniqueinputs(records)
     return eco
 end
 
@@ -398,11 +411,13 @@ end
 # defaults) and assemble them into a runnable `Ecosystem`. `seed`/`distributed` pass to the assembly.
 function build_ecosystem(::DefaultEcosystem; seed = nothing,
                          distributed = :auto,
-                         epoch::Union{Nothing, Dates.TimeType} = nothing)
+                         epoch::Union{Nothing, Dates.TimeType} = nothing,
+                         provenance = InputRecord[])
     environment = build_habitat()
     species = build_species(DefaultEcosystem())
     return build_ecosystem(species, environment, seed = seed,
-                           distributed = distributed, epoch = epoch)
+                           distributed = distributed, epoch = epoch,
+                           provenance = provenance)
 end
 
 # == Running it =================================================================================

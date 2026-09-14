@@ -160,7 +160,7 @@ compete over. So:
 
 > **Resource unit = areal flux density × cell area.**
 
-That conversion is `cancel`: `kJ/m^2/day × m^2 -> kJ/day`, `L/m^2/day × m^2 -> L/day`,
+That conversion multiplies by the cell's area: `kJ/m^2/day × m^2 -> kJ/day`, `L/m^2/day × m^2 -> L/day`,
 `g/m^2/day × m^2 -> g/day`. Draw bigger cells and the condition is unchanged while the supply
 rises - which is why a coarser grid gives each cell more of everything, as it should.
 
@@ -215,7 +215,7 @@ about the areal reading, which is not always the canonical Condition one.
 
 This is also why a **supply's rate of change** is written in the layer's per-cell unit
 (`kJ/day/s`) rather than the per-area unit its spec was written in (`kJ/km^2/day/s`): the spec
-is intensive, the built layer is extensive, and `cancel` is the boundary between them.
+is intensive, the built layer is extensive, and multiplying by the cell's area is the boundary between them.
 
 ## Stage 4: is it a condition, a resource, both, or neither?
 
@@ -345,8 +345,12 @@ To declare an axis that measures something new, give it a unit - and say which r
 reaches a grid by the most frequent class among the cells covering each grid cell, never by their
 mean - averaging two land-cover codes gives a third code that means something else entirely.
 
+The shipped catalogue shows the difference: CHELSA's Koppen-Geiger climate classes (`kg0`) sit on
+`ClimateTypology` and are categorical, while mean annual temperature (`bio1`, in both tables that
+carry it) sits on `Temperature` and is continuous.
+
 ```@example units
-(EcoSISTEM.iscategorical(LandCoverTypology), EcoSISTEM.iscategorical(Temperature))
+(EcoSISTEM._iscategorical(LandCoverTypology), EcoSISTEM._iscategorical(Temperature))
 ```
 
 Declaring it on a group covers the whole branch, which is why this package declares it **once**, on

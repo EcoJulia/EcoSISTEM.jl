@@ -40,7 +40,7 @@ lets a [`ConstructedRasterSpec`](@ref) combine avoid naming an array type at all
 
 `code` is the layer this holds, when it is one identifiable layer of its source - or `nothing` for a
 whole-dataset read or a raster derived by arbitrary arithmetic. It is what lets a *materialised*
-layer still be looked up in the shipped table, which `iscategorical` needs to know whether
+layer still be looked up in the shipped table, which `_iscategorical` needs to know whether
 resampling it may interpolate: the answer lives in the `ValueType` column, per layer, and a source
 type alone cannot supply it (BioClimPlus holds all three value types at once).
 
@@ -50,7 +50,7 @@ compare equal, and a code naming no layer is refused here rather than surfacing 
 
 **There is deliberately no `valuetype` field.** Whether the values are class codes or measurements
 is a property of the layer's **niche axis**, and the axis lives on the spec that declares what the
-layer means - see `iscategorical`. A copy stored here could contradict it, which is the one thing a
+layer means - see `_iscategorical`. A copy stored here could contradict it, which is the one thing a
 declaration must not be able to do.
 """
 struct ClimateRaster{S, C, A <: DimensionalData.AbstractDimArray} <:
@@ -181,41 +181,6 @@ function EcoSISTEM.CDSRequest(::Type{ERA}, code; years, path::AbstractString,
 end
 
 """
-    era5requests(code, years; dir, per = 10, months = 1:12, area = nothing)
-
-Build the [`EcoSISTEM.CDSRequest`](@ref)s that fetch one ERA5 monthly-means layer over `years`
-as one file per `per` years - a decade each by default, which is the size the Climate Data Store
-serves comfortably - each written to `dir` as `era5_<code>_<decade>s.nc`, in time order, so
-the result is a spec's `files`: `SourceSpec(ERA, "t2m", files = era5requests("t2m", 1940:2025,
-dir = "data/era5"))`. A block that does not fill its decade - the current one, or the first of a
-span - is named by the years it holds instead, `era5_<code>_2020-2025.nc`, so that asking for a
-later year names a new file rather than finding the old one present and stopping there.
-
-# Arguments
-
-  - `code`: the layer, as the `ERA` table spells it.
-  - `years`: every year wanted.
-  - `dir`: the directory the files go in.
-  - `per`: how many years each request covers.
-  - `months`, `area`: as for [`EcoSISTEM.CDSRequest`](@ref).
-"""
-function era5requests(code, years; dir::AbstractString, per::Integer = 10,
-                      months = 1:12, area = nothing)
-    ys = sort(unique(collect(years)))
-    requests = CDSRequest[]
-    for b in unique(fld.(ys, per))
-        block = filter(y -> fld(y, per) == b, ys)
-        whole = length(block) == per
-        name = whole ? "era5_$(code)_$(b * per)s.nc" :
-               "era5_$(code)_$(first(block))-$(last(block)).nc"
-        push!(requests,
-              CDSRequest(ERA, code, years = block, months = months,
-                         area = area, path = joinpath(dir, name)))
-    end
-    return requests
-end
-
-"""
     CERA <: EcoSISTEMSource
 
 The CERA-20C reanalysis archive, as a data source: one netCDF file per decade, named as for
@@ -276,6 +241,41 @@ struct CRUTS <: EcoSISTEMSource end
 @traitimpl RasterDataAcceptableCode{S, C} < - _acceptablecode(S, C)
 
 # == Functions ==================================================================================
+
+"""
+    era5requests(code, years; dir, per = 10, months = 1:12, area = nothing)
+
+Build the [`EcoSISTEM.CDSRequest`](@ref)s that fetch one ERA5 monthly-means layer over `years`
+as one file per `per` years - a decade each by default, which is the size the Climate Data Store
+serves comfortably - each written to `dir` as `era5_<code>_<decade>s.nc`, in time order, so
+the result is a spec's `files`: `SourceSpec(ERA, "t2m", files = era5requests("t2m", 1940:2025,
+dir = "data/era5"))`. A block that does not fill its decade - the current one, or the first of a
+span - is named by the years it holds instead, `era5_<code>_2020-2025.nc`, so that asking for a
+later year names a new file rather than finding the old one present and stopping there.
+
+# Arguments
+
+  - `code`: the layer, as the `ERA` table spells it.
+  - `years`: every year wanted.
+  - `dir`: the directory the files go in.
+  - `per`: how many years each request covers.
+  - `months`, `area`: as for [`EcoSISTEM.CDSRequest`](@ref).
+"""
+function era5requests(code, years; dir::AbstractString, per::Integer = 10,
+                      months = 1:12, area = nothing)
+    ys = sort(unique(collect(years)))
+    requests = CDSRequest[]
+    for b in unique(fld.(ys, per))
+        block = filter(y -> fld(y, per) == b, ys)
+        whole = length(block) == per
+        name = whole ? "era5_$(code)_$(b * per)s.nc" :
+               "era5_$(code)_$(first(block))-$(last(block)).nc"
+        push!(requests,
+              CDSRequest(ERA, code, years = block, months = months,
+                         area = area, path = joinpath(dir, name)))
+    end
+    return requests
+end
 
 """
     in_memory_raster(raster::ClimateRaster; axis, atend = RepeatAtEnd(), calendar = nothing)
@@ -483,7 +483,7 @@ end
 # `Nothing` for every source with no layers of its own to name - which is **both** a synthetic field
 # and anything derived. A derived raster is not the layer it came from: the combine is free to change
 # what the values *are*, so inheriting the parent's code would attach that layer's whole catalogue row
-# - its unit, axis and accumulation period - to a quantity none of them describe. `iscategorical` says
+# - its unit, axis and accumulation period - to a quantity none of them describe. `_iscategorical` says
 # the same thing: *"a raster with no code at all is different and legitimate - every synthetic or
 # derived layer is one"*.
 #
@@ -724,8 +724,8 @@ function _sampledeclared(combined::ClimateRaster{S}, target,
                          axis::Type{<:NicheAxis}) where {S}
     return ClimateRaster(S,
                          _sampledata(combined, target, name = "layer",
-                                     categorical = iscategorical(combined,
-                                                                 axis)),
+                                     categorical = _iscategorical(combined,
+                                                                  axis)),
                          combined.code)
 end
 
@@ -752,7 +752,7 @@ end
 
 # --- What a raster or a layer stack IS ----------------------------------------
 # One question, asked of whatever the caller happens to be holding: an axis, a dataset and a layer
-# code, a stack of codes, or a raster - answered by `iscategorical` throughout. Only the stack method
+# code, a stack of codes, or a raster - answered by `_iscategorical` throughout. Only the stack method
 # can throw, and only because layers that disagree have no answer rather than a `false` one.
 
 # Degrees north (latitude) and east (longitude) of a raster's cell centres.
@@ -779,7 +779,7 @@ end
 # per-class continuous % cover, categorical only after a reducer such as `compress_landcover`
 # collapses them to one winning class.
 #
-# **Whether a layer holds class codes is a property of its AXIS**, so this asks `iscategorical`
+# **Whether a layer holds class codes is a property of its AXIS**, so this asks `_iscategorical`
 # and nothing declares it separately. Measured across the shipped catalogue: none of its 33 axes
 # carries more than one value type, so a per-layer `valuetype` was always a copy of what the axis
 # already said - and a copy that could contradict it.
@@ -791,7 +791,7 @@ end
 # there is no magic value left to test for.
 #
 # **`NicheAxis` gets its own method**, which is not the same thing as the sentinel above. It is the
-# *absence* of a named axis rather than a claim that the values are continuous - `iscategorical`'s
+# *absence* of a named axis rather than a claim that the values are continuous - `_iscategorical`'s
 # root fallback is a majority answer, not a declaration - so where real information exists it wins.
 # It has to: a `SourceSpec` derives its axis from its codes and falls back to `NicheAxis` when
 # they disagree, so an ordinary multi-layer stack such as `SourceSpec(WorldClim{BioClim})` arrives
@@ -801,14 +801,16 @@ end
 # A raster with no code at all cannot answer from the catalogue, and `false` is right rather than an
 # error: nothing about it claims to be class-coded, and a caller who does mean class codes says so -
 # `in_memory_raster(raster, axis = LandCoverTypology)`.
-function iscategorical(raster::ClimateRaster{S}) where {S}
+function _iscategorical(raster::ClimateRaster{S}) where {S}
     isnothing(raster.code) && return false
-    return iscategorical(S, raster.code)
+    return _iscategorical(S, raster.code)
 end
 
-iscategorical(::ClimateRaster, axis::Type{<:NicheAxis}) = iscategorical(axis)
+_iscategorical(::ClimateRaster, axis::Type{<:NicheAxis}) = _iscategorical(axis)
 
-iscategorical(raster::ClimateRaster, ::Type{NicheAxis}) = iscategorical(raster)
+function _iscategorical(raster::ClimateRaster, ::Type{NicheAxis})
+    return _iscategorical(raster)
+end
 
 # ---------------------------------------------------------------------------
 # The concrete data-source types

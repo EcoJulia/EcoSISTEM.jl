@@ -27,7 +27,7 @@ gets in category `c`*. [`SimpleCategoricalTolerance`](@ref) answers that sparsel
 acceptable categories per species; a graded type could answer it densely, with a different weight for
 every species in every category.
 
-Categorical, so `iscontinuous` is `false`: these are class labels, and nothing between two of them is
+Categorical: these are class labels, and nothing between two of them is
 meaningful. A species' response to *how much* of a class covers a cell is a continuous
 [`NicheTolerance`](@ref) on [`SurfaceArea`](@ref) instead.
 """
@@ -214,6 +214,30 @@ struct SimpleCategoricalTolerance{A <: NicheAxis, V} <:
     end
 end
 
+# ---------------------------------------------------------------------------
+# Display
+# ---------------------------------------------------------------------------
+# The mirror of the layer displays in `Layer.jl`, member for member: same three slots, with
+# **species where a layer has cells**. That symmetry is the point - a tolerance and the regime it is
+# matched against should read alike, or the pairing the model rests on is invisible at the REPL.
+#
+# Without them the type parameter swamps the content: a 12-species two-axis tolerance collection
+# prints over 2 000 characters, nearly all of it `Distributions.Normal{Float64}` repeated.
+function Base.show(io::IO, t::NicheTolerance)
+    return print(io,
+                 "NicheTolerance($(nameof(axisof(t))), $(length(t.dists)) species, $(unit(eltype(t))))")
+end
+
+# `penalty` is shown because it is the whole of the soft/hard distinction, and it is a value rather
+# than a type - so nothing else on the line reveals it.
+function Base.show(io::IO, t::SimpleCategoricalTolerance)
+    return print(io,
+                 "SimpleCategoricalTolerance($(nameof(axisof(t))), $(length(t.vals)) species, ",
+                 "penalty $(t.penalty))")
+end
+
+# == Functions ==================================================================================
+
 # --- Reading a tolerance ----------------------------------------------------
 
 """
@@ -246,33 +270,9 @@ function getdist(tolerance::NicheTolerance, sp::Int64)
     return tolerance.dists[sp]
 end
 
-# ---------------------------------------------------------------------------
-# Display
-# ---------------------------------------------------------------------------
-# The mirror of the layer displays in `Layer.jl`, member for member: same three slots, with
-# **species where a layer has cells**. That symmetry is the point - a tolerance and the regime it is
-# matched against should read alike, or the pairing the model rests on is invisible at the REPL.
-#
-# Without them the type parameter swamps the content: a 12-species two-axis tolerance collection
-# prints over 2 000 characters, nearly all of it `Distributions.Normal{Float64}` repeated.
-function Base.show(io::IO, t::NicheTolerance)
-    return print(io,
-                 "NicheTolerance($(nameof(axisof(t))), $(length(t.dists)) species, $(unit(eltype(t))))")
-end
+_iscontinuous(trait::AbstractCategoricalTolerance) = false
 
-# `penalty` is shown because it is the whole of the soft/hard distinction, and it is a value rather
-# than a type - so nothing else on the line reveals it.
-function Base.show(io::IO, t::SimpleCategoricalTolerance)
-    return print(io,
-                 "SimpleCategoricalTolerance($(nameof(axisof(t))), $(length(t.vals)) species, ",
-                 "penalty $(t.penalty))")
-end
-
-# == Functions ==================================================================================
-
-iscontinuous(trait::AbstractCategoricalTolerance) = false
-
-iscontinuous(::NicheTolerance) = true
+_iscontinuous(::NicheTolerance) = true
 
 # One species' acceptable categories, from either spelling a caller may write: a bare class - the
 # common single-preference case - or a collection of them. Dispatch rather than an `isa` branch,

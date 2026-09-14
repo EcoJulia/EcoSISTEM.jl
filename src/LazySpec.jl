@@ -248,92 +248,6 @@ const SourceSpec = RasterSpec
                                     calendar, NamedTuple(readkw))
 end
 
-# The `files` field from whichever of the three location keywords was given: `files` as they are,
-# `file` as a one-entry list, `directory` as its raster files in name order. A path with a URL
-# scheme becomes a `CachedAsset`, as on `ShapeSpec`. Given none, a source whose row says `https`
-# names the layer's own download, owned by the source so its cache directory is its own.
-function _specfiles(S, code, files, file, directory)
-    given = count(!isnothing, (files, file, directory))
-    given <= 1 ||
-        error("give one of `files`, `file` or `directory`, not $given of them.")
-    isnothing(files) || return _fileentry.(collect(files))
-    isnothing(file) || return [_fileentry(file)]
-    isnothing(directory) || return _directoryfiles(S, code, directory)
-    return _httpsfile(S, code)
-end
-
-# The layer's download as a one-entry `files` list, for a source whose row says `https` and a
-# layer whose row names a `File`; `nothing` for any other source, or a layer naming none.
-function _httpsfile(S, code)
-    rec = EcoSISTEM._datasetrecord(S)
-    (isnothing(rec) || rec.fetch !== :https || !(code isa CODE_TYPE)) &&
-        return nothing
-    url = layerinfo(S, code).file
-    isnothing(url) && return nothing
-    return [EcoSISTEM.CachedAsset(S, url)]
-end
-
-_fileentry(x::Union{EcoSISTEM.CachedAsset, EcoSISTEM.CDSRequest}) = x
-
-function _fileentry(path::AbstractString)
-    return occursin(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path) ?
-           EcoSISTEM.CachedAsset(RasterSpec, path) : String(path)
-end
-
-# The raster files in `dir`, in name order, which is the time order every archive read this way
-# names them in. Filtered by the extension the source's catalogue row implies - a netCDF file may
-# also carry none, as a Climate Data Store download does - so a directory holding the files and
-# their provenance sidecars reads cleanly; a source with no row takes every regular file. A netCDF
-# directory is filtered further to the files whose header holds the code's variable, since one
-# directory commonly holds every variable of an archive.
-function _directoryfiles(S, code, dir::AbstractString)
-    isdir(dir) || error("`directory = $(repr(dir))` is not a directory.")
-    rec = EcoSISTEM._datasetrecord(S)
-    exts = isnothing(rec) ? nothing :
-           rec.format === :netCDF ? (".nc", "") : (".tif", ".tiff")
-    names = filter(sort(readdir(dir))) do f
-        startswith(f, ".") && return false
-        isfile(joinpath(dir, f)) || return false
-        return isnothing(exts) || lowercase(last(splitext(f))) in exts
-    end
-    if !isnothing(rec) && rec.format === :netCDF && code isa CODE_TYPE
-        names = filter(f -> _holdsvariable(joinpath(dir, f), Symbol(code)),
-                       names)
-    end
-    isempty(names) &&
-        error("`directory = $(repr(dir))` holds no " *
-              (isnothing(exts) ? "files" : join(exts, "/") * " files") *
-              (code isa CODE_TYPE ? " holding `$code`" : "") * " for `$S`.")
-    return _fileentry.(joinpath.(dir, names))
-end
-
-# Whether a netCDF file holds a variable of that name: a header open, no pixels, and a file that
-# cannot be opened as one does not.
-function _holdsvariable(path::AbstractString, name::Symbol)
-    return try
-        EcoSISTEM._lazyopen(path, source = Rasters.NCDsource(), name = name)
-        true
-    catch
-        false
-    end
-end
-
-# A source that does not fetch its own files must be told where they are, and is refused here,
-# where the keyword was omitted, rather than at read time.
-_checkfetchable(S, ::AbstractVector) = nothing
-
-function _checkfetchable(S, ::Nothing)
-    rec = EcoSISTEM._datasetrecord(S)
-    (isnothing(rec) || rec.fetch === :getraster) && return nothing
-    how = rec.fetch === :cds ?
-          " - or a `CDSRequest` entry in `files`, fetched on first use" :
-          rec.fetch === :https ?
-          " - its layer table names no `File` to download for this layer" :
-          ""
-    return error("`$S` does not fetch its own files (its catalogue row says `$(rec.fetch)`), so " *
-                 "say where they are: `file = path`, `files = [...]` or `directory = dir`$how.")
-end
-
 # Worth the extra method, exactly as on `ClimateRaster`: without it an unmarked source fails with a
 # bare `MethodError` naming `SimpleTraits.Not{IsRasterData{...}}`, which leaks the trait machinery and
 # names no remedy. It also covers the case this file now cares most about - a user who has not
@@ -344,6 +258,11 @@ end
                  "(`using RasterDataSources` for the shipped ones), or mark your own raster " *
                  "type with `@traitimpl EcoSISTEM.IsRasterData{$S}`.")
 end
+
+# One-liner is the spelling that rebuilds the spec, which the files decide: `SourceSpec(...)` for a
+# spec whose source resolves them, `RasterFileSpec(...)` for one that names them. Dispatched on the
+# `files` field rather than branched, so each spelling is its own method.
+Base.show(io::IO, spec::RasterSpec) = _showspec(io, spec, spec.files)
 
 """
     AbstractShapeSpec
@@ -401,6 +320,15 @@ struct ShapeSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
             EcoSISTEM.CachedAsset(ShapeSpec, path) : String(path)
         return new{typeof(coverage)}(p, Int(layer), coverage, outline)
     end
+end
+
+function Base.show(io::IO, spec::ShapeSpec)
+    print(io, "ShapeSpec(", repr(spec.path))
+    iszero(spec.layer) || print(io, ", layer = ", spec.layer)
+    EcoSISTEM._isdefaultcoverage(spec.coverage) ||
+        print(io, ", coverage = ", spec.coverage)
+    spec.outline || print(io, ", outline = false")
+    return print(io, ")")
 end
 
 """
@@ -655,6 +583,22 @@ struct ConstructedRasterSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
     end
 end
 
+# `ConstructedRasterSpec` is the one that cannot follow the rule, and says so: its `combine` is an
+# arbitrary function with no readable spelling, so the line reports what it is built *from* instead.
+function Base.show(io::IO, spec::ConstructedRasterSpec{A}) where {A}
+    n = length(spec.layers)
+    return print(io,
+                 "ConstructedRasterSpec($(n) layer$(n == 1 ? "" : "s"), axis = $(nameof(A)))")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", spec::ConstructedRasterSpec)
+    println(io, sprint(show, spec))
+    for l in spec.layers
+        println(io, "  ", sprint(show, l))
+    end
+    return nothing
+end
+
 """
     RasterFileSpec(path::AbstractString; axis, unit = NoUnits, source = SyntheticData,
                    cut = nothing, scale = nothing, fn = nothing, times = nothing,
@@ -727,6 +671,11 @@ function provenance(spec::ConstructedShapeSpec)
                   init = Union{Nothing, InputRecord}[])
 end
 
+function provenance(spec::ConstructedRasterSpec)
+    return reduce(vcat, (_layerprovenance(l) for l in spec.layers),
+                  init = Union{Nothing, InputRecord}[])
+end
+
 """
     verifyassets(spec::RasterSpec)
 
@@ -758,22 +707,31 @@ end
 # The record of every file a read of `spec` came from, once the read has made them present: the
 # record beside each where one of ours is, else the file's name, all with the catalogue row's
 # facts where the spec names a layer of a catalogued dataset. Nothing is hashed.
-function _readinputs(spec::RasterSpec)
+function _readinputs(spec::RasterSpec; role::Symbol = :habitat)
     entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
-    return InputRecord[_inputrecord(spec, path)
+    return InputRecord[_inputrecord(spec, path, role)
                        for path in _localpath.(entries) if isfile(path)]
 end
 
-# One file's record for a read of `spec`: its sidecar's, or its name, with the row's facts.
-function _inputrecord(spec::RasterSpec, path::AbstractString)
+# One file's record for a read of `spec`: its sidecar's, or its name under `role`, with the row's
+# facts.
+function _inputrecord(spec::RasterSpec, path::AbstractString, role::Symbol)
     rec = _specrecord(spec)
     record = something(_ourrecordat(path),
-                       InputRecord(role = :habitat,
+                       InputRecord(role = role,
                                    dataset = isnothing(rec) ? "file" :
                                              rec.dataset,
                                    code = spec.code, path = basename(path)))
     return isnothing(rec) ? record : _withcatalogue(record, rec, path)
 end
+
+# A combination member's entries: a data layer's own, and none for a synthetic one, which reads no
+# file. Deliberately untyped, as the fallback for every member a combination accepts.
+function _layerprovenance(layer::Union{RasterSpec, ConstructedRasterSpec})
+    return provenance(layer)
+end
+
+_layerprovenance(::Any) = Union{Nothing, InputRecord}[]
 
 # A Natural Earth zip's record, or `nothing` where it has none, with the source's row filled in.
 function _regionrecord(path::AbstractString)
@@ -800,6 +758,92 @@ function _withcatalogue(record::InputRecord, rec::DatasetRecord,
                        licence = orrow(record.licence, rec.licence),
                        version = version,
                        citation = orrow(record.citation, rec.citation))
+end
+
+# The `files` field from whichever of the three location keywords was given: `files` as they are,
+# `file` as a one-entry list, `directory` as its raster files in name order. A path with a URL
+# scheme becomes a `CachedAsset`, as on `ShapeSpec`. Given none, a source whose row says `https`
+# names the layer's own download, owned by the source so its cache directory is its own.
+function _specfiles(S, code, files, file, directory)
+    given = count(!isnothing, (files, file, directory))
+    given <= 1 ||
+        error("give one of `files`, `file` or `directory`, not $given of them.")
+    isnothing(files) || return _fileentry.(collect(files))
+    isnothing(file) || return [_fileentry(file)]
+    isnothing(directory) || return _directoryfiles(S, code, directory)
+    return _httpsfile(S, code)
+end
+
+# The layer's download as a one-entry `files` list, for a source whose row says `https` and a
+# layer whose row names a `File`; `nothing` for any other source, or a layer naming none.
+function _httpsfile(S, code)
+    rec = EcoSISTEM._datasetrecord(S)
+    (isnothing(rec) || rec.fetch !== :https || !(code isa CODE_TYPE)) &&
+        return nothing
+    url = layerinfo(S, code).file
+    isnothing(url) && return nothing
+    return [EcoSISTEM.CachedAsset(S, url)]
+end
+
+_fileentry(x::Union{EcoSISTEM.CachedAsset, EcoSISTEM.CDSRequest}) = x
+
+function _fileentry(path::AbstractString)
+    return occursin(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path) ?
+           EcoSISTEM.CachedAsset(RasterSpec, path) : String(path)
+end
+
+# The raster files in `dir`, in name order, which is the time order every archive read this way
+# names them in. Filtered by the extension the source's catalogue row implies - a netCDF file may
+# also carry none, as a Climate Data Store download does - so a directory holding the files and
+# their provenance sidecars reads cleanly; a source with no row takes every regular file. A netCDF
+# directory is filtered further to the files whose header holds the code's variable, since one
+# directory commonly holds every variable of an archive.
+function _directoryfiles(S, code, dir::AbstractString)
+    isdir(dir) || error("`directory = $(repr(dir))` is not a directory.")
+    rec = EcoSISTEM._datasetrecord(S)
+    exts = isnothing(rec) ? nothing :
+           rec.format === :netCDF ? (".nc", "") : (".tif", ".tiff")
+    names = filter(sort(readdir(dir))) do f
+        startswith(f, ".") && return false
+        isfile(joinpath(dir, f)) || return false
+        return isnothing(exts) || lowercase(last(splitext(f))) in exts
+    end
+    if !isnothing(rec) && rec.format === :netCDF && code isa CODE_TYPE
+        names = filter(f -> _holdsvariable(joinpath(dir, f), Symbol(code)),
+                       names)
+    end
+    isempty(names) &&
+        error("`directory = $(repr(dir))` holds no " *
+              (isnothing(exts) ? "files" : join(exts, "/") * " files") *
+              (code isa CODE_TYPE ? " holding `$code`" : "") * " for `$S`.")
+    return _fileentry.(joinpath.(dir, names))
+end
+
+# Whether a netCDF file holds a variable of that name: a header open, no pixels, and a file that
+# cannot be opened as one does not.
+function _holdsvariable(path::AbstractString, name::Symbol)
+    return try
+        EcoSISTEM._lazyopen(path, source = Rasters.NCDsource(), name = name)
+        true
+    catch
+        false
+    end
+end
+
+# A source that does not fetch its own files must be told where they are, and is refused here,
+# where the keyword was omitted, rather than at read time.
+_checkfetchable(S, ::AbstractVector) = nothing
+
+function _checkfetchable(S, ::Nothing)
+    rec = EcoSISTEM._datasetrecord(S)
+    (isnothing(rec) || rec.fetch === :getraster) && return nothing
+    how = rec.fetch === :cds ?
+          " - or a `CDSRequest` entry in `files`, fetched on first use" :
+          rec.fetch === :https ?
+          " - its layer table names no `File` to download for this layer" :
+          ""
+    return error("`$S` does not fetch its own files (its catalogue row says `$(rec.fetch)`), so " *
+                 "say where they are: `file = path`, `files = [...]` or `directory = dir`$how.")
 end
 
 # A spec's path as text, for a label or a cache key: the string itself, or a download's URL.
@@ -857,13 +901,6 @@ end
 # As in `Spec.jl`: the one-liner is the expression that builds it, with optional arguments shown
 # only where they are not at their default.
 #
-# `ConstructedRasterSpec` is the one that cannot follow the rule, and says so: its `combine` is an
-# arbitrary function with no readable spelling, so the line reports what it is built *from* instead.
-# One-liner is the spelling that rebuilds the spec, which the files decide: `SourceSpec(...)` for a
-# spec whose source resolves them, `RasterFileSpec(...)` for one that names them. Dispatched on the
-# `files` field rather than branched, so each spelling is its own method.
-Base.show(io::IO, spec::RasterSpec) = _showspec(io, spec, spec.files)
-
 # The read and series options a spec states, as `name = value` for either spelling.
 function _readoptions(spec::RasterSpec)
     opts = String[]
@@ -902,29 +939,6 @@ function _showspec(io::IO, spec::RasterSpec{A},
     return print(io, "SourceSpec($(spec.source), $(repr(spec.code)), ", where_,
                  join(", " .* vcat(kw, _readoptions(spec))),
                  ", axis = $(nameof(A)))")
-end
-
-function Base.show(io::IO, spec::ShapeSpec)
-    print(io, "ShapeSpec(", repr(spec.path))
-    iszero(spec.layer) || print(io, ", layer = ", spec.layer)
-    EcoSISTEM._isdefaultcoverage(spec.coverage) ||
-        print(io, ", coverage = ", spec.coverage)
-    spec.outline || print(io, ", outline = false")
-    return print(io, ")")
-end
-
-function Base.show(io::IO, spec::ConstructedRasterSpec{A}) where {A}
-    n = length(spec.layers)
-    return print(io,
-                 "ConstructedRasterSpec($(n) layer$(n == 1 ? "" : "s"), axis = $(nameof(A)))")
-end
-
-function Base.show(io::IO, ::MIME"text/plain", spec::ConstructedRasterSpec)
-    println(io, sprint(show, spec))
-    for l in spec.layers
-        println(io, "  ", sprint(show, l))
-    end
-    return nothing
 end
 
 # --- Desugaring and labelling a spec -----------------------------------------

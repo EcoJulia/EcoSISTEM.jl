@@ -237,13 +237,13 @@ _toframe(::Type{V}, current) where {V <: Quantity} = ustrip(unit(V), current)
 
 _toframe(::Type{V}, current) where {V} = ustrip(current)
 
-iscontinuous(nichefit::NicheSuitability) = true
+_iscontinuous(nichefit::NicheSuitability) = true
 
-iscontinuous(nichefit::CategoricalSuitability) = false
+_iscontinuous(nichefit::CategoricalSuitability) = false
 
-iscontinuous(nichefit::NoFitContinuous) = true
+_iscontinuous(nichefit::NoFitContinuous) = true
 
-iscontinuous(nichefit::NoFitCategorical) = false
+_iscontinuous(nichefit::NoFitCategorical) = false
 
 # Named access to the members, as for `LayerCollection`. Everything - `:combine` included - is
 # forwarded to the backing, so no member name is reserved; `nichefitcombine` reaches the combining

@@ -397,7 +397,7 @@ end
     # A **resource-only** axis has no `Condition` unit to consult, so its `Resource`-role one
     # stands in: `CarbonFlux` declares `g/day`, so `npp`'s annual total is read as a daily rate
     # like any other rate layer. Without the fallback it would stay `g*m^-2` and no carbon supply
-    # could be built from it at all (`cancel` would be handed a mass per area, not a mass flux).
+    # could be built from it at all (`_cancel` would be handed a mass per area, not a mass flux).
     @test layerunit(CHELSA{BioClimPlus}, :npp) == g * m^-2
     @test SourceSpec(CHELSA{BioClimPlus}, :npp).unit == g * m^-2 * day^-1
 

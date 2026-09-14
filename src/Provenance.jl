@@ -72,26 +72,6 @@ struct InputRecord
     end
 end
 
-# The parts of the system a published input can enter by.
-const _INPUT_ROLES = (:habitat, :region, :species, :phylogeny, :dispersal,
-                      :demography, :intervention, :abundance, :state,
-                      :software)
-
-# An optional text field, `nothing` kept, anything else as a `String`.
-_optstring(x) = isnothing(x) ? nothing : string(x)
-
-# An optional time field: a `DateTime` as it is, ISO 8601 text with or without its `Z` parsed.
-_optdate(::Nothing) = nothing
-
-_optdate(t::Dates.DateTime) = t
-
-_optdate(s::AbstractString) = Dates.DateTime(chopsuffix(String(s), "Z"))
-
-# Whether a parsed sidecar is one this package wrote: its `writer` says so.
-function _ourrecord(t::AbstractDict)
-    return startswith(string(get(t, "writer", "")), "EcoSISTEM")
-end
-
 function Base.show(io::IO, r::InputRecord)
     print(io, "InputRecord(", r.role, ", ", repr(r.dataset))
     isnothing(r.code) || print(io, ", ", repr(r.code))
@@ -115,11 +95,69 @@ function Base.show(io::IO, ::MIME"text/plain", r::InputRecord)
     return nothing
 end
 
+"""
+    Provenance
+
+What a study area, a habitat or an ecosystem can say about how it came to be, returned by
+[`provenance`](@ref): the software, the published inputs, the grid and, for an ecosystem, the run.
+
+# Fields
+
+  - `software`: a named tuple of the `package`, its `version`, the `doi` every version of it is
+    cited by, and the `julia` version.
+  - `inputs`: an [`InputRecord`](@ref) per input, one per file, in a fixed order.
+  - `grid`: a named tuple of the grid's `crs` (`nothing` for a synthetic grid), its `cellsize`, the
+    `extent` its cells cover, and how many `cells` it has and how many of them are `active`.
+  - `run`: for an ecosystem, a named tuple of its `seed`, its `epoch` (`nothing` without one) and
+    the time `elapsed`; `nothing` for a study area or a habitat.
+"""
+struct Provenance
+    software::NamedTuple
+    inputs::Vector{InputRecord}
+    grid::NamedTuple
+    run::Union{Nothing, NamedTuple}
+end
+
+function Base.show(io::IO, p::Provenance)
+    n = length(p.inputs)
+    return print(io, "Provenance(", p.software.package, " ", p.software.version,
+                 ", $(n) input$(n == 1 ? "" : "s"), $(p.grid.active) of $(p.grid.cells) cells",
+                 isnothing(p.run) ? "" : ", seed $(p.run.seed)", ")")
+end
+
+# The software, grid and run on a line each, then every input, then each dataset's citation once -
+# the list a paper's references are written from.
+function Base.show(io::IO, ::MIME"text/plain", p::Provenance)
+    s = p.software
+    println(io, "Provenance")
+    println(io, "  software  ", s.package, " ", s.version,
+            isempty(s.doi) ? "" : " (doi $(s.doi))", ", Julia ", s.julia)
+    println(io,
+            "  grid      $(p.grid.active) of $(p.grid.cells) cells active, ",
+            "cells of $(p.grid.cellsize)",
+            isnothing(p.grid.crs) ? ", synthetic" : ", crs $(p.grid.crs)")
+    isnothing(p.run) ||
+        println(io, "  run       seed $(p.run.seed), $(p.run.elapsed) elapsed",
+                isnothing(p.run.epoch) ? "" : " from $(p.run.epoch)")
+    if isempty(p.inputs)
+        print(io, "  inputs    none")
+        return nothing
+    end
+    println(io, "  inputs")
+    foreach(r -> println(io, "    ", r), p.inputs)
+    citations = unique(r.citation for r in p.inputs if !isempty(r.citation))
+    isempty(citations) && return nothing
+    println(io, "  cite")
+    foreach(c -> println(io, "    ", c), citations)
+    return nothing
+end
+
 # == Functions ======================================================================================
 
 """
     provenance(path::AbstractString)
     provenance(spec::RasterSpec)
+    provenance(spec::ConstructedRasterSpec)
     provenance(spec::AbstractShapeSpec)
 
 Return what is known about where an input came from.
@@ -131,7 +169,8 @@ a warning saying so, since its fields mean whatever its writer meant.
 
 For a raster spec, one entry per file the spec reads, in order: the file's record, or `nothing`
 where the file is absent or has no record. Nothing is fetched to answer; use
-[`fetchfiles`](@ref EcoSISTEM.fetchfiles) first for a spec whose files are not there yet.
+[`fetchfiles`](@ref EcoSISTEM.fetchfiles) first for a spec whose files are not there yet. A
+combination of layers lists its data members' entries in order, a synthetic member having none.
 
 For a shape spec, the same for the files it outlines: a vector file's record, or a named region's
 Natural Earth zip, with the source's licence and citation and the version the zip states filled in
@@ -145,6 +184,38 @@ where the record lacks them. A combination of shapes lists its members' in order
 function provenance(path::AbstractString)
     isfile(_sidecarpath(path)) || return nothing
     return _readsidecar(_sidecarpath(path))
+end
+
+# The parts of the system a published input can enter by.
+const _INPUT_ROLES = (:habitat, :region, :species, :phylogeny, :dispersal,
+                      :demography, :intervention, :abundance, :state,
+                      :software)
+
+# A `provenance` keyword's value as a vector of records: one record, or a vector of them. Anything
+# else is refused by name - the untyped fallback exists to give a better message than a
+# `MethodError` naming this function.
+_recordvector(record::InputRecord) = [record]
+
+_recordvector(records::AbstractVector{InputRecord}) = collect(records)
+
+function _recordvector(x)
+    return throw(ArgumentError("`provenance` takes an `InputRecord` or a vector of them; got a " *
+                               "$(typeof(x))."))
+end
+
+# An optional text field, `nothing` kept, anything else as a `String`.
+_optstring(x) = isnothing(x) ? nothing : string(x)
+
+# An optional time field: a `DateTime` as it is, ISO 8601 text with or without its `Z` parsed.
+_optdate(::Nothing) = nothing
+
+_optdate(t::Dates.DateTime) = t
+
+_optdate(s::AbstractString) = Dates.DateTime(chopsuffix(String(s), "Z"))
+
+# Whether a parsed sidecar is one this package wrote: its `writer` says so.
+function _ourrecord(t::AbstractDict)
+    return startswith(string(get(t, "writer", "")), "EcoSISTEM")
 end
 
 # A sidecar's TOML as an `InputRecord`. A sidecar another program wrote under the same name is not

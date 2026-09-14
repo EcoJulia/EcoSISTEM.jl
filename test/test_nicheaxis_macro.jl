@@ -228,16 +228,17 @@ end
     # the rate-dimension identity the Demand guard in `test_Demand.jl` checks
     @test EcoSISTEM._basedimension(typeof(1.0g / day)) == dimension(g)
 
-    # `cancel` - a per-area carbon flux against a cell area - is what a carbon supply is built
+    # `_cancel` - a per-area carbon flux against a cell area - is what a carbon supply is built
     # through: 𝐌𝐋^-2𝐓^-1 × 𝐋^2 -> 𝐌𝐓^-1, stated in the axis's own canonical resource unit.
     # **Asks the three-argument axis form, which is the one on the live path.** Asking the
     # two-argument dimension-dispatched form instead would test a method the build path never
     # reaches: that form serves v0.4.0 compatibility only and lives in
     # `deprecations.jl`; it keeps one assertion below so the move does not leave it uncovered.
-    @test EcoSISTEM.cancel(2.0g / (m^2 * day), 3.0m^2, CarbonFlux) == 6.0g / day
-    @test EcoSISTEM.cancel(1.0g / (km^2 * day), 1.0km^2, CarbonFlux) ==
+    @test EcoSISTEM._cancel(2.0g / (m^2 * day), 3.0m^2, CarbonFlux) ==
+          6.0g / day
+    @test EcoSISTEM._cancel(1.0g / (km^2 * day), 1.0km^2, CarbonFlux) ==
           1.0g / day
-    @test EcoSISTEM.cancel(2.0g / (m^2 * day), 3.0m^2) == 6.0g / day
+    @test EcoSISTEM._cancel(2.0g / (m^2 * day), 3.0m^2) == 6.0g / day
 end
 
 @testset "CircleMaskSpec" begin
@@ -281,8 +282,8 @@ end
     @test E.bounds(SoilVolume) == (0.0m, nothing)
     @test E.bounds(SoilWaterVolume) == (0.0mm, nothing)
     # A depth over a cell times the cell's area is the stock, in the axis's resource unit.
-    @test E.cancel(21.0mm, 4.0km^2, SoilWaterVolume) ≈ 84000.0m^3
-    @test E.cancel(0.5m, 4.0km^2, SoilVolume) ≈ 2.0e6m^3
+    @test E._cancel(21.0mm, 4.0km^2, SoilWaterVolume) ≈ 84000.0m^3
+    @test E._cancel(0.5m, 4.0km^2, SoilVolume) ≈ 2.0e6m^3
 end
 
 @testset "bounds" begin
