@@ -308,7 +308,6 @@ MPI.Barrier(comm)
 simulate!(cbeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
           every = EveryInterval(3 * MPIFIXTURE_TIMESTEP)) do occurrence
     push!(cbcounts, occurrence.count)
-    rank == 0 || return nothing
     return push!(cbtotals, sum(gatherabundance(cbeco)))
 end
 cbeverywhere = MPI.Allgather(Int32(length(cbcounts)), comm)
