@@ -13,6 +13,8 @@ using EcoSISTEM: Provenance
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 using ArchGDAL
+using Dates: Dates
+using TOML
 
 # A 5 x 7 WGS84 GeoTIFF of one degree cells whose top-left corner is at 10 degrees east, 55 north.
 function _geotiff(path)
@@ -108,6 +110,42 @@ end
     # Anything but a record, or a vector of them, is refused naming the keyword.
     @test_throws "`provenance` takes" build_ecosystem(species, habitat,
                                                       provenance = "GBIF")
+end
+
+@testset "write_provenance writes what an area and an ecosystem were built from, as TOML" begin
+    dir = mktempdir()
+    spec = RasterFileSpec(_geotiff(joinpath(dir, "field.tif")),
+                          axis = Temperature, unit = K)
+    area = StudyArea(regime = spec, verbosity = :silent)
+    path = write_provenance(joinpath(dir, "out", "provenance.toml"), area)
+    @test isfile(path)
+    toml = TOML.parsefile(path)
+    @test toml["software"]["package"] == "EcoSISTEM"
+    @test startswith(toml["software"]["doi"], "10.5281/zenodo.")
+    @test toml["grid"]["cells"] == 35 && toml["grid"]["active"] == 35
+    @test toml["grid"]["cellsize"] == string(1.0°)
+    @test toml["grid"]["extent"]["Y"] == [string(50.0°), string(55.0°)]
+    @test !haskey(toml, "run")
+    input = only(toml["inputs"])
+    @test input["path"] == "field.tif" && input["role"] == "habitat"
+    @test !haskey(input, "url") && !haskey(input, "doi")
+    # Nothing in the file belongs to the machine that wrote it.
+    text = read(path, String)
+    @test !occursin(homedir(), text) && !occursin(gethostname(), text) &&
+          !occursin(dir, text)
+    # An ecosystem adds its run, and writing it gives the same file as writing its provenance.
+    seeding = EcoSISTEM.InputRecord(role = :abundance,
+                                    dataset = "GBIF occurrence download",
+                                    doi = "10.15468/dl.abc123",
+                                    fetched = "2026-09-13T07:21:07Z")
+    eco = build_ecosystem(DefaultEcosystem(), seed = 7, provenance = seeding)
+    whole = write_provenance(joinpath(dir, "eco.toml"), eco)
+    parts = write_provenance(joinpath(dir, "parts.toml"), provenance(eco))
+    @test read(whole, String) == read(parts, String)
+    run = TOML.parsefile(whole)
+    @test run["run"]["seed"] == 7
+    @test only(run["inputs"])["fetched"] ==
+          Dates.DateTime(2026, 9, 13, 7, 21, 7)
 end
 
 end

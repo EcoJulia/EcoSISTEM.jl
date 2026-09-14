@@ -35,7 +35,7 @@ public assetdir
 
 public assetpath, fetchfiles, verifyassets
 
-export provenance
+export provenance, write_provenance
 
 # The units submodule: the arcminute/arcsecond subdivisions of a degree, and the calendar-month
 # durations. First, because other files depend on it.
