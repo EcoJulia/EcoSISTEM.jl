@@ -5,7 +5,18 @@ module TestProvenance
 using EcoSISTEM
 using EcoSISTEM: InputRecord
 using Dates: Dates
+using ArchGDAL
 using Test
+
+# Write a zip holding the version file Natural Earth ships inside each of its own, through GDAL's
+# zip filesystem.
+function _versionedzip(path, entry, text)
+    handle = ArchGDAL.GDAL.vsifopenl("/vsizip/" * path * "/" * entry, "wb")
+    bytes = Vector{UInt8}(text)
+    ArchGDAL.GDAL.vsifwritel(bytes, 1, length(bytes), handle)
+    ArchGDAL.GDAL.vsifclosel(handle)
+    return path
+end
 
 @testset "an input record holds where a published input came from, and nothing personal" begin
     r = InputRecord(role = :species, dataset = "GBIF occurrence download",
@@ -107,6 +118,75 @@ end
                                                     "https://example.org/air.nc",
                                                     path = foreign)) == foreign
     @test read(EcoSISTEM._sidecarpath(foreign), String) == text
+end
+
+@testset "a Natural Earth zip records its source's facts and the version it states" begin
+    E = EcoSISTEM
+    dir = mktempdir()
+    zip = _versionedzip(joinpath(dir, "ne_10m_fixture.zip"),
+                        "ne_10m_fixture.VERSION.txt", "5.1.1\r\n")
+    @test E._zipversion(zip) == "5.1.1"
+    # A zip without the entry, and no zip at all, state nothing.
+    other = _versionedzip(joinpath(dir, "other.zip"), "readme.txt", "x")
+    @test isnothing(E._zipversion(other))
+    @test isnothing(E._zipversion(joinpath(dir, "absent.zip")))
+    url = "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_fixture.zip"
+    rec = E._assetrecord(E.CachedAsset(E.NaturalEarthLevel, url, path = zip),
+                         zip,
+                         nothing)
+    @test rec["role"] == "region" && rec["source"] == "NaturalEarth"
+    @test rec["version"] == "5.1.1" &&
+          occursin("Natural Earth", rec["citation"])
+    # The role follows what owns the download: a raster file fetched from a URL is a layer, a
+    # vector file an outline.
+    tif = joinpath(dir, "a.tif")
+    write(tif, "x")
+    @test E._assetrecord(E.CachedAsset(E.RasterSpec,
+                                       "https://example.org/a.tif",
+                                       path = tif), tif, nothing)["role"] ==
+          "habitat"
+    @test E._assetrecord(E.CachedAsset(E.ShapeSpec, "https://example.org/a.zip",
+                                       path = tif), tif, nothing)["role"] ==
+          "region"
+    # A record holding only the file and its URL reads back with the row's facts and the zip's
+    # own version filled in.
+    write(E._sidecarpath(zip),
+          """
+          writer = "EcoSISTEM 0.8.0"
+          role = "region"
+          file = "ne_10m_fixture.zip"
+          url = "$url"
+          """)
+    r = E._regionrecord(zip)
+    @test r.dataset == "NaturalEarth" && r.version == "5.1.1" && r.url == url
+    @test r.licence == E.datasetinfo(E.NaturalEarthLevel).licence
+    @test isnothing(E._regionrecord(other))
+end
+
+@testset "a shape spec reports the records of the files it outlines" begin
+    E = EcoSISTEM
+    dir = mktempdir()
+    a, b = joinpath(dir, "a.zip"), joinpath(dir, "b.gpkg")
+    write(a, "a")
+    write(b, "b")
+    write(E._sidecarpath(a),
+          """
+          writer = "EcoSISTEM 0.8.0"
+          role = "region"
+          file = "a.zip"
+          url = "https://example.org/a.zip"
+          """)
+    sa, sb = E.ShapeSpec(a), E.ShapeSpec(b)
+    @test only(provenance(sa)).url == "https://example.org/a.zip"
+    @test provenance(sb) == [nothing]
+    # A combination lists its members' records in order, and reads nothing to do it.
+    both = provenance(E.ConstructedShapeSpec(E.ShapeUnion(), sa, sb))
+    @test length(both) == 2 && both[1].path == "a.zip" && isnothing(both[2])
+    # A named region answers with its level's zip: its record where it has been fetched, `nothing`
+    # where not, and never a download.
+    named = provenance(E.NaturalEarthSpec("Scotland"))
+    @test length(named) == 1 &&
+          (isnothing(only(named)) || only(named).dataset == "NaturalEarth")
 end
 
 end

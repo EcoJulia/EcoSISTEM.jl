@@ -120,6 +120,7 @@ end
 """
     provenance(path::AbstractString)
     provenance(spec::RasterSpec)
+    provenance(spec::AbstractShapeSpec)
 
 Return what is known about where an input came from.
 
@@ -132,6 +133,10 @@ For a raster spec, one entry per file the spec reads, in order: the file's recor
 where the file is absent or has no record. Nothing is fetched to answer; use
 [`fetchfiles`](@ref EcoSISTEM.fetchfiles) first for a spec whose files are not there yet.
 
+For a shape spec, the same for the files it outlines: a vector file's record, or a named region's
+Natural Earth zip, with the source's licence and citation and the version the zip states filled in
+where the record lacks them. A combination of shapes lists its members' in order.
+
 # Arguments
 
   - `path`: the file, not its sidecar.
@@ -142,18 +147,35 @@ function provenance(path::AbstractString)
     return _readsidecar(_sidecarpath(path))
 end
 
-# A sidecar's TOML as an `InputRecord`: the keys the writers use, any it does not know left behind.
-# A sidecar another program wrote under the same name is not read: its `role` may be prose and its
-# `source` a sentence, so a record built from it would be wrong in ways no reader could see.
+# A sidecar's TOML as an `InputRecord`. A sidecar another program wrote under the same name is not
+# read: its `role` may be prose and its `source` a sentence, so a record built from it would be
+# wrong in ways no reader could see.
 function _readsidecar(sidecar::AbstractString)
     t = TOML.parsefile(sidecar)
-    field(k) = get(t, k, nothing)
     _ourrecord(t) || begin
         @warn "`$(basename(sidecar))` was not written by EcoSISTEM (writer: "*
-              "$(repr(field("writer")))), so it is left alone and reports nothing; delete or "*
-              "rename it to have the file recorded on its next use." maxlog=1 _id=Symbol(sidecar)
+              "$(repr(get(t, "writer", nothing)))), so it is left alone and reports nothing; "*
+              "delete or rename it to have the file recorded on its next use." maxlog=1 _id=Symbol(sidecar)
         return nothing
     end
+    return _recordfromtoml(t)
+end
+
+# The record of ours beside `path`, or `nothing` - silently - where there is no sidecar, or one
+# another program wrote, or one that does not parse. For a read recording its inputs, where a
+# warning on every build would be noise and a malformed file of someone else's must not stop it.
+function _ourrecordat(path::AbstractString)
+    sidecar = _sidecarpath(path)
+    isfile(sidecar) || return nothing
+    t = TOML.tryparsefile(sidecar)
+    (t isa AbstractDict && _ourrecord(t)) || return nothing
+    return _recordfromtoml(t)
+end
+
+# A parsed sidecar of ours as an `InputRecord`: the keys the writers use, any it does not know left
+# behind.
+function _recordfromtoml(t::AbstractDict)
+    field(k) = get(t, k, nothing)
     return InputRecord(role = Symbol(something(field("role"), "habitat")),
                        dataset = something(field("source"), field("dataset"),
                                            "file"),

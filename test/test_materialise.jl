@@ -109,6 +109,31 @@ end
     area = StudyArea(regime = spec, verbosity = :silent)
     @test size(area.report.active) == (5, 7)
     @test area.report.cellsize == 1.0°
+    # Each read records the file it came from beside itself: a file with no record of its own by
+    # its name alone, never hashed, and as the user's own file rather than a dataset's.
+    @test !isempty(area.report.cache.inputs)
+    for inputs in values(area.report.cache.inputs)
+        @test only(inputs).role === :habitat && only(inputs).dataset == "file"
+        @test only(inputs).path == "field.tif" && isnothing(only(inputs).sha256)
+    end
+    # A file with a record of ours beside it is recorded by that record.
+    recorded = joinpath(dir, "recorded.tif")
+    cp(path, recorded)
+    write(EcoSISTEM._sidecarpath(recorded),
+          """
+          writer = "EcoSISTEM 0.8.0"
+          role = "habitat"
+          file = "recorded.tif"
+          url = "https://example.org/recorded.tif"
+          sha256 = "ab"
+          """)
+    rarea = StudyArea(regime = RasterFileSpec(recorded, axis = Temperature,
+                                              unit = K), verbosity = :silent)
+    @test !isempty(rarea.report.cache.inputs)
+    for inputs in values(rarea.report.cache.inputs)
+        @test only(inputs).url == "https://example.org/recorded.tif" &&
+              only(inputs).sha256 == "ab"
+    end
     lazy = materialise(spec, area)
     eager = materialise(EcoSISTEM.in_memory_raster(read(RasterFileSpec(path,
                                                                        axis = EcoSISTEM.NicheAxis,

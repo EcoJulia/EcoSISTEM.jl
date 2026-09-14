@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # The data-backed layer recipes: name a catalogued source, a vector file, or a function combining
-# other specs. None holds any data - each is resolved against the target grid at build time.
+# other specs. None holds any data - each is resolved against the target grid at build time. Also
+# what can be said about a recipe's files without reading them: their provenance records and
+# checksums.
 
 using DimensionalData
 
@@ -701,6 +703,103 @@ function RasterFileSpec(path::AbstractString; axis::Type{A}, unit = NoUnits,
     return RasterSpec{A, typeof(unit)}(source, nothing, [_fileentry(path)],
                                        unit, cut, scale, fn, times, atend,
                                        calendar, NamedTuple())
+end
+
+# == Functions ======================================================================================
+
+function provenance(spec::RasterSpec)
+    entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
+    return Union{Nothing, InputRecord}[provenance(_localpath(e))
+                                       for e in entries]
+end
+
+function provenance(spec::ShapeSpec)
+    return Union{Nothing, InputRecord}[provenance(_localpath(spec.path))]
+end
+
+function provenance(spec::NaturalEarthSpec)
+    path = _localpath(_nesource(_checklevel(spec.level)))
+    return Union{Nothing, InputRecord}[_regionrecord(path)]
+end
+
+function provenance(spec::ConstructedShapeSpec)
+    return reduce(vcat, (provenance(m) for m in spec.members),
+                  init = Union{Nothing, InputRecord}[])
+end
+
+"""
+    verifyassets(spec::RasterSpec)
+
+Check every file a spec reads that is present against the checksum its provenance record holds,
+erroring on the first that differs - a truncated or replaced copy - and return how many were
+checked. A file with no record, or whose record carries no checksum, has nothing to check
+against and is not counted; nothing is fetched.
+
+# Arguments
+
+  - `spec`: the spec whose files to check.
+"""
+function verifyassets(spec::RasterSpec)
+    entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
+    checked = 0
+    for path in _localpath.(entries)
+        isfile(path) || continue
+        checked += _verifyfile(path)
+    end
+    return checked
+end
+
+# The files a source has on disk for a spec that resolves its own, fetching nothing.
+function _presentfiles(spec::RasterSpec)
+    readkw = (; _getrasterkw(spec.source)..., spec.readkw...)
+    return _localfiles(spec.source, spec.code; readkw...)
+end
+
+# The record of every file a read of `spec` came from, once the read has made them present: the
+# record beside each where one of ours is, else the file's name, all with the catalogue row's
+# facts where the spec names a layer of a catalogued dataset. Nothing is hashed.
+function _readinputs(spec::RasterSpec)
+    entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
+    return InputRecord[_inputrecord(spec, path)
+                       for path in _localpath.(entries) if isfile(path)]
+end
+
+# One file's record for a read of `spec`: its sidecar's, or its name, with the row's facts.
+function _inputrecord(spec::RasterSpec, path::AbstractString)
+    rec = _specrecord(spec)
+    record = something(_ourrecordat(path),
+                       InputRecord(role = :habitat,
+                                   dataset = isnothing(rec) ? "file" :
+                                             rec.dataset,
+                                   code = spec.code, path = basename(path)))
+    return isnothing(rec) ? record : _withcatalogue(record, rec, path)
+end
+
+# A Natural Earth zip's record, or `nothing` where it has none, with the source's row filled in.
+function _regionrecord(path::AbstractString)
+    record = provenance(path)
+    isnothing(record) && return nothing
+    return _withcatalogue(record, datasetinfo(NaturalEarthLevel), path)
+end
+
+# `record` with what the catalogue row knows filled in where it has nothing: the dataset's name,
+# its DOI, licence and citation, and the version the file states, or else the row's.
+function _withcatalogue(record::InputRecord, rec::DatasetRecord,
+                        path::AbstractString)
+    orrow(have, row) = isempty(have) ? row : have
+    version = isempty(record.version) ?
+              something(_fileversion(rec, path), rec.version) : record.version
+    return InputRecord(role = record.role,
+                       dataset = record.dataset == "file" ? rec.dataset :
+                                 record.dataset,
+                       code = record.code, path = record.path, url = record.url,
+                       request = record.request, job = record.job,
+                       fetched = record.fetched, bytes = record.bytes,
+                       sha256 = record.sha256,
+                       doi = orrow(record.doi, rec.doi),
+                       licence = orrow(record.licence, rec.licence),
+                       version = version,
+                       citation = orrow(record.citation, rec.citation))
 end
 
 # A spec's path as text, for a label or a cache key: the string itself, or a download's URL.

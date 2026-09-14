@@ -46,11 +46,17 @@ than fetching.
 # Fields
 
   - `reads`: the reads so far, keyed by what determines their content.
+  - `inputs`: the files each read came from, an [`InputRecord`](@ref) per file under the read's
+    own key - a file's provenance record where it has one, and otherwise its name and the
+    catalogue's facts about its dataset.
 """
 struct LayerCache
     reads::Dict{ReadKey, Any}
+    inputs::Dict{ReadKey, Vector{InputRecord}}
 
-    LayerCache() = new(Dict{ReadKey, Any}())
+    function LayerCache()
+        return new(Dict{ReadKey, Any}(), Dict{ReadKey, Vector{InputRecord}}())
+    end
 end
 
 """

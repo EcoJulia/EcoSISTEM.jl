@@ -552,11 +552,14 @@ end
 @testset "guard: datasets.csv reconciles to the layer tables" begin
     E = EcoSISTEM
     rows = E._datasets()
-    @test length(rows) == 12
+    @test length(rows) == 13
     for r in rows
-        # every row names a loaded source type, spelled as the loader spells it back
-        T = _datasetnamed(r.dataset)
-        @test T <: RasterDataSources.RasterDataSource || T <: EcoSISTEMSource
+        # every row names a loaded source type, spelled as the loader spells it back - Natural
+        # Earth's being the level type its downloads are owned by
+        T = r.dataset == "NaturalEarth" ? E.NaturalEarthLevel :
+            _datasetnamed(r.dataset)
+        @test T <: RasterDataSources.RasterDataSource || T <: EcoSISTEMSource ||
+              T === E.NaturalEarthLevel
         @test E._datasetkey(T) == r.dataset
         # a fetchable row is a RasterDataSources type; the package's own sources are not
         @test (r.fetch === :getraster) ==
@@ -603,6 +606,13 @@ end
           Extents.Extent(Y = (-90.0°, 90.0°), X = (-180.0°, 180.0°))
     @test !isempty(tcr.licence) && tcr.doi == "10.1002/qj.3598"
     @test tcr.version == "3" && wc.version == "2.1"     # text, never a number
+    # Natural Earth is a source of outlines with no DOI, versioning each zip on its own, so its row
+    # leaves the version to the file.
+    ne = E.datasetinfo(E.NaturalEarthLevel)
+    @test ne.dataset == "NaturalEarth" && ne.format === :Shapefile &&
+          ne.fetch === :https
+    @test isempty(ne.doi) && isempty(ne.version) &&
+          occursin("Natural Earth", ne.citation)
     # Every row carries the citation a paper prints, resolved from its DOI.
     for r in E._datasets()
         @test !isempty(r.citation) && occursin(r.doi, r.citation)

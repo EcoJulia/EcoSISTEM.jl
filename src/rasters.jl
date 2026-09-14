@@ -1926,40 +1926,6 @@ end
 
 _remotesize(::Any) = nothing
 
-function provenance(spec::RasterSpec)
-    entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
-    return Union{Nothing, InputRecord}[provenance(_localpath(e))
-                                       for e in entries]
-end
-
-"""
-    verifyassets(spec::RasterSpec)
-
-Check every file a spec reads that is present against the checksum its provenance record holds,
-erroring on the first that differs - a truncated or replaced copy - and return how many were
-checked. A file with no record, or whose record carries no checksum, has nothing to check
-against and is not counted; nothing is fetched.
-
-# Arguments
-
-  - `spec`: the spec whose files to check.
-"""
-function verifyassets(spec::RasterSpec)
-    entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
-    checked = 0
-    for path in _localpath.(entries)
-        isfile(path) || continue
-        checked += _verifyfile(path)
-    end
-    return checked
-end
-
-# The files a source has on disk for a spec that resolves its own, fetching nothing.
-function _presentfiles(spec::RasterSpec)
-    readkw = (; _getrasterkw(spec.source)..., spec.readkw...)
-    return _localfiles(spec.source, spec.code; readkw...)
-end
-
 # A spec naming its files reads them itself: each through `_cachedlayer` - the same step a dataset
 # layer takes, so a coarsened read of a whole file is memoised on disk exactly as a dataset's is -
 # with the backend and the variable name the source's row and code decide, its magnitudes expressed

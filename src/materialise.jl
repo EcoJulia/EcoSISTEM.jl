@@ -174,11 +174,20 @@ function _asraster(spec::RasterSpec, cache::LayerCache; cut = nothing,
     cut = isnothing(spec.cut) ? cut : spec.cut
     scale = isnothing(spec.scale) ? scale : spec.scale
     spec.code isa AbstractVector && return _stackcached(spec, cache, cut, scale)
-    key = ReadKey(spec, cut = cut, scale = scale)
+    return _cachedread!(cache, ReadKey(spec, cut = cut, scale = scale), spec,
+                        cut, scale)
+end
+
+# Read `spec` into `cache` under `key`, or take a cached read that serves it; a fresh read records
+# the files it came from beside it.
+function _cachedread!(cache::LayerCache, key::ReadKey, spec::RasterSpec, cut,
+                      scale)
     served = _servedread(cache, key)
     isnothing(served) || return served
     return get!(cache.reads, key) do
-        return read(spec, cut = cut, scale = scale)
+        raster = read(spec, cut = cut, scale = scale)
+        cache.inputs[key] = _readinputs(spec)
+        return raster
     end
 end
 
@@ -305,12 +314,8 @@ function _stackcached(spec::RasterSpec, cache::LayerCache, cut, scale)
                          scale = spec.scale, fn = spec.fn, times = spec.times,
                          atend = spec.atend, calendar = spec.calendar,
                          spec.readkw...)
-        key = ReadKey(one, cut = cut, scale = scale)
-        served = _servedread(cache, key)
-        isnothing(served) || return served
-        return get!(cache.reads, key) do
-            return read(one, cut = cut, scale = scale)
-        end
+        return _cachedread!(cache, ReadKey(one, cut = cut, scale = scale), one,
+                            cut, scale)
     end
     length(layers) == 1 && return only(layers)
     stacked = _stacklayers([l.array for l in layers],

@@ -130,7 +130,7 @@ layer row carries, returned by [`datasetinfo`](@ref).
 
   - `dataset`: the source type as it is written - `WorldClim{BioClim}`, `CHELSA{Climate}`, `ERA`.
   - `format`: how the files are encoded, `:GeoTIFF` or `:netCDF`, which chooses the backend that
-    opens them.
+    opens them, or `:Shapefile` for a source of zipped vector outlines.
   - `longituderange`: the longitude convention the files use, `(-180°, 180°)` or `(0°, 360°)`, or
     `nothing` to read it off each file.
   - `crs`: the coordinate reference system, an `EPSG` code or a `WellKnownText`, or `nothing`.
@@ -232,8 +232,9 @@ const _DATASETS_FILE = "datasets.csv"
 const _DATASETS = DatasetRecord[]
 
 # The closed vocabularies of the two `datasets.csv` columns that choose behaviour: `Format` picks
-# the backend a file is opened with, `Fetch` the hook that resolves files.
-const _FORMATS = (:GeoTIFF, :netCDF)
+# the backend a file is opened with, `Fetch` the hook that resolves files. `Shapefile` is a source
+# of vector outlines rather than rasters, whose files are zipped shapefiles.
+const _FORMATS = (:GeoTIFF, :netCDF, :Shapefile)
 
 const _FETCHES = (:getraster, :cds, :https, :none)
 
@@ -517,6 +518,13 @@ function _datasetrecord(T::Type)
         r.dataset == key && return r
     end
     return nothing
+end
+
+# The version a file of `rec`'s dataset states about itself, or `nothing` where it states none: a
+# Natural Earth zip names its own, which is why that row's `Version` is blank.
+function _fileversion(rec::DatasetRecord, path::AbstractString)
+    return rec.format === :Shapefile && endswith(path, ".zip") &&
+           isfile(path) ? _zipversion(path) : nothing
 end
 
 # How a source type is spelled in `datasets.csv`: its own name with its parameters' names,
