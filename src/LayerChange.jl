@@ -169,6 +169,13 @@ GridHabitat(regime = Varying(SourceSpec(WorldClim{BioClim}, :bio1),
 
 Each layer names its own change, so a multi-variable regime wraps its *elements*, never the tuple:
 `(Varying(temp, ...), rain)`, not `Varying((temp, rain), ...)`.
+
+**A change's values are in the built layer's unit, which for a supply is per cell.** A supply spec
+is stated per unit area and multiplied by each cell's area when the layer is built, so
+`UniformSpec(40.0kJ / km^2 / day, axis = SolarRadiation)` on 0.25 km^2 cells holds 10 kJ/day; a
+series varying it holds per-cell slices in kJ/day, and a rate is in kJ/day per unit time. Values
+given per unit area are refused before the run, naming the unit expected - [`changeunit`](@ref)
+returns it for a layer.
 """
 struct Varying{S, C} <: AbstractSpec
     spec::S
