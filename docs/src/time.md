@@ -35,8 +35,12 @@ eco = build_ecosystem(species, env)
 
 ```@example clock
 simulate!(eco, 1year, 1day)           # run for a year in daily steps
-EcoSISTEM.simulationtime(eco)        # a year, as seconds
+EcoSISTEM.simulationtime(eco)        # 365 whole days, as seconds
 ```
+
+A year is 365.25 days, so a step of a day or less takes the nearest whole number of steps; a
+longer step must divide the run's duration exactly, or [`simulate!`](@ref) refuses the run before it
+starts.
 
 ```@example clock
 resettime!(eco)                       # back to the start

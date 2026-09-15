@@ -486,7 +486,8 @@ ecosystem, declare an [`Intervention`](@ref), which is applied once and identica
   - `f`: called at each occurrence with the named tuple above.
   - `eco`: the ecosystem to run.
   - `duration`, `timestep`: the length of the run and of each step; the run takes
-    `duration / timestep` steps, which must be a whole number.
+    `duration / timestep` steps - the nearest whole number for a step of a day or less, and
+    otherwise exactly a whole number.
   - `every`: when `f` is called - an [`AbstractSchedule`](@ref), or a duration meaning
     [`EveryInterval`](@ref) of it. Every timestep by default, the starting state included.
   - `intervention`: an [`Intervention`](@ref) or [`InterventionSet`](@ref) applied as the run

@@ -80,9 +80,9 @@
       a small run under the test suite.
   - Changed
     - A run of `duration` in steps of `timestep` takes `duration / timestep` steps and ends at
-      `duration`, where it took one step more; a duration that is not a whole number of timesteps
-      is refused. Twelve monthly steps now end where one yearly step does. Every run ends a step
-      earlier than before, and the canonical references are re-blessed.
+      `duration`, where it took one step more: the nearest whole number of steps of a day or less,
+      and a longer step must divide `duration`. Twelve monthly steps now end where one yearly step
+      does. Every run ends a step earlier than before, and the canonical references are re-blessed.
     - `simulate!` refuses, before its first step, a run whose timestep would leave a slice of a
       dated series never current - a dated monthly series stepped by `month_mean_duration` from
       1 January never shows February. Build the ecosystem with `calendar = MeanMonths()`, or step

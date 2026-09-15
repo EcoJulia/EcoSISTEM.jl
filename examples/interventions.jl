@@ -34,7 +34,9 @@ let eco = climate_ecosystem()
     before = eco.habitat.regime.temperature.matrix[1, 1]
     simulate!(eco, 5.0year, 1.0month_mean_duration,
               intervention = changing_climate())
-    @assert eco.habitat.regime.temperature.matrix[1, 1] > before
+    # Five years at 1 K a year outweighs the 2 K seasonal swing at any phase, so this holds only if
+    # the warming and the cycle both acted.
+    @assert eco.habitat.regime.temperature.matrix[1, 1] > before + 2.0K
     @assert all(>=(0.0mm / day), eco.habitat.regime.rainfall.matrix)
 end
 

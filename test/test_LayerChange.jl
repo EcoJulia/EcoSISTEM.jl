@@ -1284,7 +1284,9 @@ end
           EcoSISTEM._finalelapsed(eco, 12.0month_mean_duration,
                                   12.0month_mean_duration)
 
-    # A duration that is not a whole number of timesteps is refused rather than run short or long.
+    # A step of a day or less takes the nearest whole number of steps - a year is 365.25 days - and a
+    # longer step that does not divide the duration is refused rather than run short or long.
+    @test EcoSISTEM._finalelapsed(eco, 1.0year, 1.0day) ≈ uconvert(s, 365.0day)
     @test_throws "whole number of timesteps" EcoSISTEM._finalelapsed(eco,
                                                                      12.5month_mean_duration,
                                                                      1.0month_mean_duration)

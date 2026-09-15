@@ -761,15 +761,16 @@ function supplyupdate!(eco::AbstractEcosystem, timestep::Unitful.Time)
 end
 
 # The number of steps a run of `duration` takes: `duration / timestep`, so the run ends at `duration`
-# and twelve one-month steps reach the same time as one twelve-month step. A duration that is not a
-# whole number of timesteps, to the tolerance a series' slice is found to, is refused rather than run
-# short or long.
+# and twelve one-month steps reach the same time as one twelve-month step. A step of a day or less
+# takes the nearest whole number of steps, since a year is not a whole number of days; a longer step
+# that does not divide `duration`, to the tolerance a series' slice is found to, is refused rather
+# than run short or long - the same line a date schedule draws.
 function _stepcount(duration::Unitful.Time, timestep::Unitful.Time)
     ratio = ustrip(NoUnits, duration / timestep)
     steps = round(Int, ratio)
-    abs(ratio - steps) <= _DRIFT ||
+    timestep <= 1.0u"d" || abs(ratio - steps) <= _DRIFT ||
         error("a run of $duration in steps of $timestep does not end on a step: `duration` must " *
-              "be a whole number of timesteps, and here it is $ratio of them.")
+              "be a whole number of timesteps longer than a day, and here it is $ratio of them.")
     return steps
 end
 
