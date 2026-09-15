@@ -76,8 +76,8 @@ the 0.15 that both should give.
 Two parameters weight those rates, and this is the part most worth knowing:
 
 ```julia
-birth ∝ demand^-longevity  *  suitability^-survival  *  min(K/E, 1)
-death ∝ demand^-longevity  *  suitability^+survival  *  (E/K)
+birth ∝ demand^-longevity  *  suitability^+survival  *  min(K/E, 1)
+death ∝ demand^-longevity  *  suitability^-survival  *  (E/K)
 ```
 
 Look at the signs.
