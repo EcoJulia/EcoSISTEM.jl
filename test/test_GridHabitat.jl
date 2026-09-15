@@ -867,9 +867,13 @@ end
             @test eltype(built.regime.matrix) <: Integer
             @test issubset(unique(built.regime.matrix), 1:3)
         end
-        # **Not** asserted: that the two show the *same* niches. `_randomniches` is stochastic
-        # and unseeded, so each call draws its own pattern - a known limit of inspecting a
-        # `NicheSpec`, recorded in the plan rather than fixed here.
+        # An unseeded `NicheSpec` draws a fresh pattern on each call, so the loop above cannot ask
+        # for the same niches on both paths; a seeded one must show exactly the niches it builds.
+        seeded = NicheSpec(3, axis = EcoSISTEM.TypologyAxis, seed = 11)
+        area = _area(extent = (40km, 70km), cellsize = 10km)
+        @test parent(materialise(seeded, area).matrix) ==
+              parent(GridHabitat(regime = seeded, supply = SUP,
+                                 area = area).regime.matrix)
     end
 
     @testset "geographic grids build (with a warning) but cannot be simulated" begin

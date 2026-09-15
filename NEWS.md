@@ -58,6 +58,8 @@
     - `RecordAbundance`, `RecordDiversity` and `SaveAbundance`, recorders passed to `simulate!` in
       place of a callback. Each keeps the run's provenance as of its last write, and
       `SaveAbundance` writes it beside every file; under MPI each gathers what it needs.
+    - `NicheSpec` takes a `seed`, drawing its niche layout from a stream of its own, so the same seed
+      gives the same map in any process; without one it draws from the global generator as before.
     - `AtDates(dates)` and `EveryYear(month = 7, day = 1)`, schedules at real dates, placed through
       the run's epoch and `calendar`. A run refuses them before its first step if it has no epoch,
       or if a date falls inside a step longer than a day rather than at the end of one, where it

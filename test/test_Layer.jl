@@ -286,4 +286,36 @@ end
     end
 end
 
+# **A seeded `NicheSpec` draws its layout from a stream of its own**, so the same seed gives the same
+# map whatever the global generator has done in between, and whether the map is inspected or built.
+# An unseeded one still draws from the global generator, so it follows `Random.seed!` as before.
+@testset "a seeded NicheSpec lays out the same niches on its own" begin
+    area = StudyArea(extent = (7.0km, 11.0km), cellsize = 1.0km,
+                     verbosity = :silent)
+    niches(spec) = parent(materialise(spec, area).matrix)
+    seeded = NicheSpec(4, axis = EcoSISTEM.TypologyAxis, seed = 7)
+
+    Random.seed!(1)
+    firstmap = niches(seeded)
+    Random.seed!(2)
+    rand(1000)
+    @test niches(seeded) == firstmap
+    @test niches(NicheSpec(4, axis = EcoSISTEM.TypologyAxis, seed = 8)) !=
+          firstmap
+    built = GridHabitat(regime = seeded,
+                        supply = UniformSpec(10000.0kJ / km^2 / day,
+                                             axis = SolarRadiation),
+                        area = area)
+    @test parent(built.regime.matrix) == firstmap
+
+    unseeded = NicheSpec(4, axis = EcoSISTEM.TypologyAxis)
+    Random.seed!(3)
+    once = niches(unseeded)
+    Random.seed!(3)
+    @test niches(unseeded) == once
+
+    @test sprint(show, seeded) == "NicheSpec(4, axis = TypologyAxis, seed = 7)"
+    @test sprint(show, unseeded) == "NicheSpec(4, axis = TypologyAxis)"
+end
+
 end

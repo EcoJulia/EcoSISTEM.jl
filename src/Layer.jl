@@ -14,6 +14,7 @@ using Unitful.DefaultSymbols
 using DimensionalData.Lookups: NoLookup
 
 using StatsBase
+using Random: AbstractRNG
 
 using Diversity
 
@@ -511,9 +512,9 @@ end
 
 # Function to create a regime from a categorical set of types according to the
 # Saura-Martinez-Millan algorithm (2000)
-function _percolate!(M::AbstractMatrix, clumpiness::Real)
+function _percolate!(rng::AbstractRNG, M::AbstractMatrix, clumpiness::Real)
     for i in eachindex(M)
-        if rand(Uniform(0, 1)) < clumpiness
+        if rand(rng, Uniform(0, 1)) < clumpiness
             M[i] = 1
         end
     end
@@ -580,7 +581,8 @@ end
 # It *looks* like a load problem, since it grows commoner when other test sets run beside it
 # - but a single controlled run reproduced it with no load on one thread. The correlation was real
 # and the causation was not.
-function _fillin!(T, M, types, wv, assigned::AbstractMatrix{Bool})
+function _fillin!(rng::AbstractRNG, T, M, types, wv,
+                  assigned::AbstractMatrix{Bool})
     # Loop through grid of clusters
     for y in Base.axes(M, 1)
         for x in Base.axes(M, 2)
@@ -605,10 +607,10 @@ function _fillin!(T, M, types, wv, assigned::AbstractMatrix{Bool})
                     # If none are assigned in entire grid already,
                     # sample randomly from types
                 elseif all(M .<= 1)
-                    T[y, x] = sample(types, wv)
+                    T[y, x] = sample(rng, types, wv)
                     # If some are assigned in grid, sample from these
                 else
-                    T[y, x] = sample(T[M .> 1])
+                    T[y, x] = sample(rng, T[M .> 1])
                 end
                 # Whichever branch wrote it, the cell is now assigned - this is what the old
                 # `isassigned` was trying and failing to say.
@@ -625,7 +627,7 @@ end
 # `_specfield` then discarded via `.matrix`; that vestigial argument was annotated
 # `::Unitful.Length` and so refused a geographic grid's angular cell size once `[GEO-SIZE]` made it
 # honest. Splitting the field out is what lets both materialise paths reach it.
-function _nichefield(dimension::Tuple,
+function _nichefield(rng::AbstractRNG, dimension::Tuple,
                      types::Vector{Int64},
                      clumpiness::Float64,
                      weights::Vector)
@@ -642,22 +644,29 @@ function _nichefield(dimension::Tuple,
 
     # If the dimensions are too small for the algorithm, just use a weighted sample
     if dimension[1] <= 2 || dimension[2] <= 2
-        return sample(types, Weights(weights), dimension)
+        return sample(rng, types, Weights(weights), dimension)
     end
     # Percolation step
-    _percolate!(M, clumpiness)
+    _percolate!(rng, M, clumpiness)
     # Select clusters and assign types
     _identifyclusters!(M)
     # Create a string grid of the same dimensions
     T = Array{Int64}(undef, dimension)
     # Fill in T with clusters already created
-    map(x -> T[M .== x] .= sample(types, wv), 1:maximum(M))
+    map(x -> T[M .== x] .= sample(rng, types, wv), 1:maximum(M))
     # The loop above wrote exactly the cells the clustering labelled, i.e. `M >= 1`; everything
     # else is still uninitialised. Saying so explicitly is what `isassigned` could not.
     assigned = M .>= 1
     # Fill in undefined squares with most frequent neighbour
-    _fillin!(T, M, types, wv, assigned)
+    _fillin!(rng, T, M, types, wv, assigned)
     return T
+end
+
+# The same drawn from the global generator, which is what the deprecated builders use.
+function _nichefield(dimension::Tuple, types::Vector{Int64},
+                     clumpiness::Float64, weights::Vector)
+    return _nichefield(Random.default_rng(), dimension, types, clumpiness,
+                       weights)
 end
 
 # A `CategoricalRegime` of dimension `dimension`, made up of integer niche `types` with relative

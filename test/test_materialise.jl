@@ -31,8 +31,9 @@ include("buildfixtures.jl")
 #
 # Both roles, both kinds of spec (data-backed and synthetic), on both kinds of positioned area -
 # because the two paths differed *per kind*, so a single case would prove almost nothing.
-# **`NicheSpec` is deliberately absent**: it is stochastic and unseeded (A19), so two
-# materialisations of one spec disagree with each other, never mind with the builder.
+# **An unseeded `NicheSpec` is deliberately absent**: it draws a fresh pattern each time, so two
+# materialisations of one spec disagree with each other, never mind with the builder. A seeded one
+# agrees, which `test_GridHabitat.jl` checks on a positioned area.
 @testset "what `materialise` shows is what `GridHabitat` builds" begin
     data = _reg(_bngraster(WorldClim{BioClim}, fill(291.0K, 9, 9)),
                 axis = Temperature)
