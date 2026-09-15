@@ -194,7 +194,7 @@ const _SPAREWATER = UniformSpec(1.0e12Unitful.L / (m^2 * day),
                        (_SOLAR, _SPAREWATER),
                        (SolarRadiation, Precipitation))
     for sp in 1:3
-        @test all(adj(inert, sp) .≈ adj(one, sp))
+        @test adj(inert, sp) == adj(one, sp)
     end
 
     # ...but two *genuine* demands compound, which is required: a species needing 2× solar and 2×
@@ -213,6 +213,40 @@ const _SPAREWATER = UniformSpec(1.0e12Unitful.L / (m^2 * day),
     # The average species is the fixed point of that compounding and is *not* a witness to it -
     # ϵ̄ = 1 there, so it alone would pass whatever the combining rule.
     @test adj(twice, 2) == adj(one, 2)
+end
+
+# A supply that never runs short leaves a whole run unchanged, and a stock does so as a flow does. A
+# soil-water volume every species demands equally has a demand term of exactly 1 and is never the
+# scarcest resource, so neither `min(K/E)` nor `max(E/K)` picks it and every rate is bit-identical;
+# the abundances after two years are compared exactly, since a last-bit difference in any rate would
+# change a draw. The scarce control shows the comparison can see a difference.
+@testset "a supply that never runs short changes nothing in a run" begin
+    solar = [1.0e9, 2.0e9, 3.0e9] .* kJ / day
+    water = fill(1.0m^3, 3)
+    spare = UniformSpec(1.0e12mm, axis = SoilWaterVolume)
+    scarce = UniformSpec(0.01mm, axis = SoilWaterVolume)
+    function finalabundances(demand, supply, demandaxis)
+        built = _demandeco(demand, supply, demandaxis)
+        simulate!(built, 2year, 1month_mean_duration)
+        return copy(built.abundances.matrix)
+    end
+    # The rates themselves, exactly: a resource that was not the scarcest but still moved a rate
+    # would do so by about one part in 10^13 here, too little to change a draw in two years, so the
+    # run comparison below cannot see it on its own.
+    one = _demandeco(solar, _SOLAR, SolarRadiation)
+    withspare = _demandeco((solar, water), (_SOLAR, spare),
+                           (SolarRadiation, SoilWaterVolume))
+    rates(eco, sc, sp) = EcoSISTEM._resourceadjustment(eco, eco.habitat.supply,
+                                                       sc, sp)
+    @test all(rates(withspare, sc, sp) == rates(one, sc, sp)
+              for sc in axes(one.abundances.matrix, 2), sp in 1:3)
+
+    alone = finalabundances(solar, _SOLAR, SolarRadiation)
+    @test sum(alone) > 0
+    @test finalabundances((solar, water), (_SOLAR, spare),
+                          (SolarRadiation, SoilWaterVolume)) == alone
+    @test finalabundances((solar, water), (_SOLAR, scarce),
+                          (SolarRadiation, SoilWaterVolume)) != alone
 end
 
 @testset "non-square grid: y/x dimension order regression" begin
