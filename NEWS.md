@@ -64,6 +64,10 @@
       the run's epoch and `calendar`. A run refuses them before its first step if it has no epoch,
       or if a date falls inside a step longer than a day rather than at the end of one, where it
       would be acted on late by a different amount each time.
+    - `AddAbundanceTable(table)`, an operation adding individuals as a table lists them - species,
+      cell, count and time - from any Tables.jl source, including one streamed row by row from disk.
+      It goes in an intervention of its own with `EveryStep()`, whose region filters the rows.
+      `build_abundance_table` makes one from species names and `(y, x)` grid indices.
     - `build_ecosystem` takes a `calendar`: `ExactDates()`, the default, places dated slices by the
       real time between them, and `MeanMonths()` counts every calendar month as
       `month_mean_duration`, so a dated monthly series stepped by a mean month shows every month
@@ -106,7 +110,7 @@
       processes asking for one file - the ranks of an MPI run - fetch it once, the others waiting
       on the first's lock. A directory read of a netCDF archive keeps only the files holding the
       layer's variable, so one directory may hold every variable.
-    - `TOML` and `FileWatching` are dependencies.
+    - `TOML`, `FileWatching` and `Tables` are dependencies.
     - Tested on Julia 1.13; the continuous integration matrix runs 1.11, 1.12 and the latest release,
       and the type-order audit reads 1.13's parser as well as 1.12's.
     - Every layer reaches the study grid by aggregation of the source cells covering each grid
@@ -143,6 +147,8 @@
     - `ShapeSpec` documents that a URL must name a self-contained file.
     - `gatherdiversity` refuses a metacommunity or individual measure, which it assembled into
       values that meant nothing; it takes subcommunity measures, as documented.
+    - `AddAbundance` and `RemoveAbundance` accept a species named by a `Symbol`, as the
+      `Intervention` docstring's example does.
   - Deprecated
     - `read(WorldClim{BioClim}, layers; ...)` and `read(CHELSA{Climate}, dir, var)`, which extended
       `Base.read` on types this package does not own. `read(SourceSpec(...))` replaces both and

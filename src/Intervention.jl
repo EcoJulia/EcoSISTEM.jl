@@ -61,6 +61,7 @@ struct Intervention{S <: AbstractSchedule, RG <: AbstractRegion, O <: Tuple}
         isempty(operations) &&
             error("an `Intervention` needs at least one operation: a schedule and a region with " *
                   "nothing to do are not an intervention. Use `NeverScheduled()` to disable one.")
+        _checktableintervention(schedule, operations)
         return new{typeof(schedule), typeof(region),
                    typeof(operations)}(schedule, region, operations,
                                        _recordvector(provenance))
@@ -126,6 +127,39 @@ using Distributions: Binomial, Poisson
 # == Functions ==================================================================================
 
 """
+    build_abundance_table(eco::AbstractEcosystem, table)
+
+Return the table an [`AddAbundanceTable`](@ref) reads best, built from one naming species and grid
+positions: each species name becomes its index, each `(y, x)` its cell's linear index, the rows of one
+species, cell and time are summed, and the rows are sorted by time.
+
+The result is a `NamedTuple` of the vectors `species`, `cell`, `count` and `time`, itself a table
+offering whole columns, so it can be given to `AddAbundanceTable` as it is, or written to disk - as
+an Arrow file, say - and memory-mapped back for a run. The counts stay whole numbers where every row
+gave one, and an elapsed time is kept in seconds.
+
+# Arguments
+
+  - `eco`: the ecosystem the table is for. A species it does not have, or a position off its grid,
+    is an error naming the row.
+  - `table`: any Tables.jl source, read row by row, with the columns `species` (a name or an index),
+    `y` and `x` (integer indices into the grid), `time` (an elapsed time from the start of the run,
+    or a date) and, optionally, `count` (one per row without it).
+"""
+function build_abundance_table(eco::AbstractEcosystem, table)
+    names = _speciesnames(eco)
+    shape = Base.size(parent(eco.habitat.active))
+    rows = Tables.rows(table)
+    first = iterate(rows)
+    isnothing(first) &&
+        error("the table has no rows to build an abundance table from.")
+    row, state = first
+    return _collectabundances(rows, state,
+                              _positionedrow(row, 1, names, shape), names,
+                              shape)
+end
+
+"""
     applyinterventions!(eco::AbstractEcosystem, intervention, elapsed, timestep, step)
 
 Apply every scheduled [`Intervention`](@ref) for the step that has just reached `elapsed`. Called by
@@ -166,12 +200,11 @@ function applyinterventions!(eco::AbstractEcosystem, intervention,
                              elapsed::Unitful.Time, timestep::Unitful.Time,
                              step::Integer)
     for (k, iv) in enumerate(_interventions(intervention))
-        _fires(iv.schedule, eco, elapsed, timestep) || continue
+        _fires(iv, eco, elapsed, timestep) || continue
         rng = _interventionrng(eco, k, step)
         # Resolved **once**, then every operation acts on the same cells - see `Intervention`.
         cells = _regioncells(iv.region, eco, rng, timestep)
-        foreach(op -> _applyoperation!(op, eco, cells, rng, timestep),
-                iv.operations)
+        _applyoperations!(iv, eco, cells, rng, elapsed, timestep)
         _recordintervention!(eco, iv)
     end
     return eco
@@ -586,4 +619,363 @@ function _speciesindex(spplist::SpeciesList, sp::AbstractString)
     return idx
 end
 
+function _speciesindex(spplist::SpeciesList, sp::Symbol)
+    return _speciesindex(spplist, String(sp))
+end
+
 _speciesindex(eco::AbstractEcosystem, sp) = _speciesindex(eco.spplist, sp)
+
+# ---------------------------------------------------------------------------
+# Adding abundances from a table
+# ---------------------------------------------------------------------------
+# An `AddAbundanceTable` carries its own times: its intervention fires every step and at the start,
+# and it is handed the elapsed time each step reaches, which says which of its rows are due.
+
+# An intervention holding a table, which is always alone and scheduled every step.
+const _TableIntervention = Intervention{EveryStep, <:AbstractRegion,
+                                        <:Tuple{AddAbundanceTable}}
+
+# A table stands alone in an intervention scheduled every step: a schedule firing less often would
+# skip rows, and an operation sharing it would act at the start as well.
+function _checktableintervention(schedule::AbstractSchedule, operations::Tuple)
+    any(op -> op isa AddAbundanceTable, operations) || return nothing
+    schedule isa EveryStep && length(operations) == 1 && return nothing
+    return error("an `AddAbundanceTable` carries its own times, so it goes in an `Intervention` of " *
+                 "its own with `EveryStep()`, whose region filters its rows; this one has " *
+                 "`$(sprint(show, schedule))` and $(length(operations)) operations.")
+end
+
+# Whether an intervention fires on the step reaching `elapsed`: when its schedule does, except that
+# a table's fires at the start too, to add the rows due at or before it.
+function _fires(iv::Intervention, eco::AbstractEcosystem, elapsed, timestep)
+    return _fires(iv.schedule, eco, elapsed, timestep)
+end
+
+_fires(::_TableIntervention, ::AbstractEcosystem, _, _) = true
+
+# Apply an intervention's operations in order to its resolved cells.
+function _applyoperations!(iv::Intervention, eco::AbstractEcosystem, cells,
+                           rng, _, timestep)
+    foreach(op -> _applyoperation!(op, eco, cells, rng, timestep),
+            iv.operations)
+    return eco
+end
+
+function _applyoperations!(iv::_TableIntervention, eco::AbstractEcosystem,
+                           cells, _, elapsed, timestep)
+    return _addtablerows!(only(iv.operations), eco, cells, elapsed, timestep)
+end
+
+# Add a table's rows due on the step reaching `elapsed`, keeping those in the region and of this
+# process's species, each species and cell summed before rounding. Every row is checked before it is
+# filtered, so a bad row is refused on every MPI rank alike.
+function _addtablerows!(op::AddAbundanceTable, eco::AbstractEcosystem, cells,
+                        elapsed::Unitful.Time, timestep::Unitful.Time)
+    owned = _ownedabundances(eco)
+    shape = Base.size(parent(eco.habitat.active))
+    inregion = falses(prod(shape))
+    inregion[cells] .= true
+    names = _speciesnames(eco)
+    totals = Dict{Tuple{Int, Int}, Float64}()
+    _foreachduerow(op.source, eco, elapsed, timestep) do row
+        species = _tablespecies(row.species, names, row.row)
+        cell = _tablecell(row.cell, shape, row.row)
+        count = _tablecount(row.count, row.row)
+        local_ = species - owned.firstspecies + 1
+        (inregion[cell] && 1 <= local_ <= Base.size(owned.rows, 1)) ||
+            return nothing
+        totals[(local_, cell)] = get(totals, (local_, cell), 0.0) + count
+        return nothing
+    end
+    for ((row, cell), total) in totals
+        owned.rows[row, cell] += round(Int, total)
+    end
+    return eco
+end
+
+# Call `f` with each row of a table due on the step reaching `elapsed`: at the start every row at or
+# before it, and otherwise every row in `(elapsed - timestep, elapsed]`, the window a one-off
+# schedule fires in.
+function _foreachduerow(f, source::_AbundanceColumns, eco::AbstractEcosystem,
+                        elapsed::Unitful.Time, timestep::Unitful.Time)
+    from = iszero(elapsed) ? 1 :
+           _rowsatorbefore(source, eco, elapsed - timestep) + 1
+    to = _rowsatorbefore(source, eco, elapsed)
+    for k in from:to
+        i = _sortedrow(source.order, k)
+        time = source.time[i]
+        _checktabledate(eco, time, _tableelapsed(eco, time, i), elapsed,
+                        timestep, i)
+        f((species = source.species[i], cell = source.cell[i],
+           count = _rowcount(source.count, i), row = i))
+    end
+    return nothing
+end
+
+# A streamed table is read forwards: rows before the step are passed over, rows in it are added, and
+# the first row after it is kept for a later step.
+function _foreachduerow(f, source::_AbundanceStream, eco::AbstractEcosystem,
+                        elapsed::Unitful.Time, timestep::Unitful.Time)
+    isnothing(source.reached) || elapsed >= source.reached ||
+        error("this `AddAbundanceTable` reads its rows as the run proceeds and has added those " *
+              "up to $(source.reached), so it cannot act at $elapsed. A table read row by row " *
+              "serves one run: build a new one, or give it a table offering whole columns.")
+    while true
+        row = _peekrow!(source)
+        isnothing(row) && break
+        t = _tableelapsed(eco, row.time, row.row)
+        t <= elapsed || break
+        source.pending = nothing
+        iszero(elapsed) || t > elapsed - timestep || continue
+        _checktabledate(eco, row.time, t, elapsed, timestep, row.row)
+        f(row)
+    end
+    source.reached = elapsed
+    return nothing
+end
+
+# How many of a column table's rows, taken in time order, fall at or before `t`. A binary search,
+# since rows in time order have their elapsed times in order too.
+function _rowsatorbefore(source::_AbundanceColumns, eco::AbstractEcosystem,
+                         t::Unitful.Time)
+    lo, hi = 0, length(source.time)
+    while lo < hi
+        mid = (lo + hi + 1) >>> 1
+        i = _sortedrow(source.order, mid)
+        if _tableelapsed(eco, source.time[i], i) <= t
+            lo = mid
+        else
+            hi = mid - 1
+        end
+    end
+    return lo
+end
+
+# The table row at position `k` in time order.
+_sortedrow(::Nothing, k::Int) = k
+
+_sortedrow(order::AbstractVector{Int}, k::Int) = order[k]
+
+# A row's count from a count column, or one where the table has none.
+_rowcount(::Nothing, _) = 1
+
+_rowcount(count::AbstractVector, i::Int) = count[i]
+
+# The columns an `AddAbundanceTable` reads from a table offering them, checked for their names and
+# put in time order by a permutation where they are not in it already.
+function _abundancecolumns(columns)
+    names = Tables.columnnames(columns)
+    absent = [n for n in (:species, :cell, :time) if !(n in names)]
+    isempty(absent) ||
+        error("an abundance table needs the columns `species`, `cell` and `time`, and optionally " *
+              "`count`, but this one has no $(join(("`$n`" for n in absent), ", ", " or ")).")
+    species = Tables.getcolumn(columns, :species)
+    cell = Tables.getcolumn(columns, :cell)
+    time = Tables.getcolumn(columns, :time)
+    count = :count in names ? Tables.getcolumn(columns, :count) : nothing
+    Base.require_one_based_indexing(species, cell, time)
+    isnothing(count) || Base.require_one_based_indexing(count)
+    order = issorted(time) ? nothing : sortperm(time)
+    return _AbundanceColumns(species, cell, count, time, order)
+end
+
+# The next row of a streamed table, kept as pending until it is due, or `nothing` once the rows run
+# out. A row earlier than the one before it is refused.
+function _peekrow!(source::_AbundanceStream)
+    isnothing(source.pending) || return source.pending
+    source.finished && return nothing
+    next = source.started ? iterate(source.rows, source.state) :
+           iterate(source.rows)
+    source.started = true
+    if isnothing(next)
+        source.finished = true
+        return nothing
+    end
+    row, source.state = next
+    source.row += 1
+    pending = _streamedrow(row, source.row)
+    isnothing(source.last) || !(pending.time < source.last) ||
+        error("row $(source.row) of the abundance table is at $(pending.time), before the row " *
+              "ahead of it at $(source.last): a table read row by row must be in time order. " *
+              "Sort it, or give a table offering whole columns, which need not be sorted.")
+    source.last = pending.time
+    return source.pending = pending
+end
+
+# A streamed row copied out as a named tuple, since a row may be a view the next read overwrites.
+function _streamedrow(row, n::Int)
+    names = Tables.columnnames(row)
+    for name in (:species, :cell, :time)
+        name in names ||
+            error("row $n of the abundance table has no `$name` column; it needs `species`, " *
+                  "`cell` and `time`, and optionally `count`.")
+    end
+    count = :count in names ? Tables.getcolumn(row, :count) : 1
+    return (species = _ownvalue(Tables.getcolumn(row, :species)),
+            cell = Tables.getcolumn(row, :cell), count = count,
+            time = Tables.getcolumn(row, :time), row = n)
+end
+
+# A value kept past the read that produced it: a string is copied, since it may point into a buffer.
+_ownvalue(value::AbstractString) = String(value)
+
+_ownvalue(value) = value
+
+# Each species' name and its index in the species list.
+function _speciesnames(eco::AbstractEcosystem)
+    return Dict(name => i for (i, name) in enumerate(eco.spplist.names))
+end
+
+# A table row's species as its index in the species list, refused where there is no such species.
+function _tablespecies(species::Integer, names::Dict{String, Int}, row::Int)
+    1 <= species <= length(names) ||
+        error("row $row of the abundance table names species $species, but the species list " *
+              "has $(length(names)).")
+    return Int(species)
+end
+
+function _tablespecies(species::Union{AbstractString, Symbol},
+                       names::Dict{String, Int}, row::Int)
+    index = get(names, String(species), nothing)
+    isnothing(index) &&
+        error("row $row of the abundance table names species `$species`, which is not in the " *
+              "species list.")
+    return index
+end
+
+function _tablespecies(species, ::Dict{String, Int}, row::Int)
+    return error("row $row of the abundance table gives its species as `$(repr(species))`: give " *
+                 "a name or an index.")
+end
+
+# A table row's cell as a linear index into a grid of `shape`, refused off the grid.
+function _tablecell(cell::Integer, shape::Tuple{Int, Int}, row::Int)
+    1 <= cell <= prod(shape) ||
+        error("row $row of the abundance table names cell $cell, but the grid has " *
+              "$(prod(shape)) cells.")
+    return Int(cell)
+end
+
+function _tablecell(cell::CartesianIndex{2}, shape::Tuple{Int, Int}, row::Int)
+    checkbounds(Bool, CartesianIndices(shape), cell) ||
+        error("row $row of the abundance table names the cell at $(Tuple(cell)), which is off " *
+              "the $(shape[1]) by $(shape[2]) grid.")
+    return LinearIndices(shape)[cell]
+end
+
+function _tablecell(cell, ::Tuple{Int, Int}, row::Int)
+    return error("row $row of the abundance table gives its cell as `$(repr(cell))`: give a " *
+                 "linear index or a `CartesianIndex` `(y, x)`.")
+end
+
+# A table row's count, refused unless it is a finite number, zero or more.
+function _tablecount(count::Real, row::Int)
+    isfinite(count) && count >= 0 ||
+        error("row $row of the abundance table adds $count individuals: a count must be a finite " *
+              "number, zero or more.")
+    return Float64(count)
+end
+
+function _tablecount(count, row::Int)
+    return error("row $row of the abundance table gives its count as `$(repr(count))`: give a " *
+                 "number.")
+end
+
+# The elapsed time a table row's time names: itself, or a date placed through the run's epoch and
+# calendar.
+_tableelapsed(::AbstractEcosystem, time::Unitful.Time, ::Int) = time
+
+function _tableelapsed(eco::AbstractEcosystem, date::Dates.TimeType, ::Int)
+    isnothing(eco.epoch) &&
+        error("the abundance table dates its rows, but this run has no epoch to place them " *
+              "from. Pass `epoch = ` to `build_ecosystem` to say which date the run starts on, " *
+              "or give the rows elapsed times.")
+    return _elapsedat(eco.epoch, date, eco.calendar)
+end
+
+function _tableelapsed(::AbstractEcosystem, time, row::Int)
+    return error("row $row of the abundance table gives its time as `$(repr(time))`: give an " *
+                 "elapsed time or a date.")
+end
+
+# A dated row must fall at the end of the step adding it unless steps are a day or shorter, as a date
+# schedule must. The start is exempt, since every row at or before it is added there.
+_checktabledate(::AbstractEcosystem, ::Unitful.Time, _, _, _, _) = nothing
+
+function _checktabledate(eco::AbstractEcosystem, date::Dates.TimeType,
+                         t::Unitful.Time, elapsed::Unitful.Time,
+                         timestep::Unitful.Time, row::Int)
+    (iszero(elapsed) || timestep <= 1.0u"d") && return nothing
+    abs(ustrip(NoUnits, (elapsed - t) / timestep)) <= _DRIFT && return nothing
+    acted = _shiftdate(eco.epoch, elapsed, eco.calendar)
+    return error("row $row of the abundance table is dated $(Dates.Date(date)), which falls " *
+                 "inside a step of $timestep rather than at the end of one, so it would be added " *
+                 "on $(Dates.Date(acted)). " * _scheduleremedy(eco.calendar))
+end
+
+# One row of a table given to `build_abundance_table`: its species as an index, its `(y, x)` as a
+# linear cell index, its count as given and its time, an elapsed one in seconds.
+function _positionedrow(row, n::Int, names::Dict{String, Int},
+                        shape::Tuple{Int, Int})
+    columns = Tables.columnnames(row)
+    for name in (:species, :y, :x, :time)
+        name in columns ||
+            error("row $n of the table has no `$name` column; `build_abundance_table` needs " *
+                  "`species`, `y`, `x` and `time`, and optionally `count`.")
+    end
+    y = Tables.getcolumn(row, :y)
+    x = Tables.getcolumn(row, :x)
+    y isa Integer && x isa Integer ||
+        error("row $n of the table gives its position as ($(repr(y)), $(repr(x))): `y` and `x` " *
+              "are integer indices into the grid.")
+    count = :count in columns ? Tables.getcolumn(row, :count) : 1
+    _tablecount(count, n)
+    time = Tables.getcolumn(row, :time)
+    _tableelapsedtype(time, n)
+    return (species = _tablespecies(Tables.getcolumn(row, :species), names, n),
+            cell = _tablecell(CartesianIndex(y, x), shape, n), count = count,
+            time = _normaltime(time))
+end
+
+# A row's time as `build_abundance_table` keeps it: a date as it is, an elapsed time in seconds so
+# that the same instant in two units is one key.
+_normaltime(time::Unitful.Time) = uconvert(s, float(time))
+
+_normaltime(date::Dates.TimeType) = date
+
+# Refuse a time that is neither an elapsed time nor a date.
+_tableelapsedtype(::Union{Unitful.Time, Dates.TimeType}, ::Int) = nothing
+
+function _tableelapsedtype(time, row::Int)
+    return error("row $row of the table gives its time as `$(repr(time))`: give an elapsed time " *
+                 "or a date.")
+end
+
+# Sum the rows of a table, the first already read, by time, species and cell, and return them in that
+# order as the columns of an abundance table.
+function _collectabundances(rows, state, record::NamedTuple,
+                            names::Dict{String, Int}, shape::Tuple{Int, Int})
+    T = typeof(record.time)
+    totals = Dict{Tuple{T, Int, Int}, Float64}()
+    whole = true
+    n = 1
+    while true
+        key = (record.time, record.species, record.cell)
+        totals[key] = get(totals, key, 0.0) + record.count
+        whole &= record.count isa Integer
+        next = iterate(rows, state)
+        isnothing(next) && break
+        row, state = next
+        n += 1
+        record = _positionedrow(row, n, names, shape)
+        record.time isa T ||
+            error("row $n of the table gives its time as a $(typeof(record.time)), where the " *
+                  "rows before it gave a $T.")
+    end
+    ordered = sort!(collect(keys(totals)))
+    counts = [totals[key] for key in ordered]
+    return (species = [key[2] for key in ordered],
+            cell = [key[3] for key in ordered],
+            count = whole ? round.(Int, counts) : counts,
+            time = T[key[1] for key in ordered])
+end

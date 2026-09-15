@@ -488,9 +488,9 @@ public AbstractRegion
 
 include("Operation.jl")
 
-# what - the closed set of six operations
+# what - the closed set of operations
 export Deactivate, Reactivate, SetLandCover, SetChange, AddAbundance,
-       RemoveAbundance,
+       RemoveAbundance, AddAbundanceTable,
        AddSpecies
 
 public AbstractOperation
@@ -499,7 +499,7 @@ include("Intervention.jl")
 
 # Ecosystem-level intervention: the declarative replacement for the scenario callbacks above, which
 # stay as deprecated shims. Included before `deprecations.jl`, because those shims forward onto it.
-export Intervention, InterventionSet
+export Intervention, InterventionSet, build_abundance_table
 
 public applyinterventions!
 

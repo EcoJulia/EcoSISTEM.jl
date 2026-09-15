@@ -323,6 +323,45 @@ if rank == 0
     @test cbtotals == serialtotals
 end
 
+# **A table of abundances under MPI**, against the serial twin at any rank count. Each rank adds only
+# its own species' rows, and a table read row by row is read whole on every rank, so a table offering
+# columns and the same rows streamed must both reproduce the serial run. Rows cover every species,
+# several cells and fractional counts, so a rank adding another's rows or rounding before summing
+# would show.
+tablerows = [(species = sp, cell = cell, count = 0.25 * k + sp,
+              time = k * MPIFIXTURE_TIMESTEP)
+             for k in 0:23
+             for sp in 1:numSpecies
+             for cell in (1, 20 + k, VARYING_NY * VARYING_NX - sp)]
+# Reversed, so the columns are out of time order and searched through their permutation.
+tablecolumns = (species = reverse([r.species for r in tablerows]),
+                cell = reverse([r.cell for r in tablerows]),
+                count = reverse([r.count for r in tablerows]),
+                time = reverse([r.time for r in tablerows]))
+function tableiv(source)
+    return Intervention(EveryStep(), ActiveCells(),
+                        AddAbundanceTable(source))
+end
+function tablerun(source)
+    sppl, _ = mpifixture_species()
+    built = MPIEcosystem(sppl, varying_environment(), nichefit, seed = 0)
+    built.abundances.rows_matrix .= MPIFIXTURE_FILL
+    MPI.Barrier(comm)
+    simulate!(built, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+              intervention = tableiv(source))
+    return gatherabundance(built)
+end
+table_abuns = tablerun(tablecolumns)
+stream_abuns = tablerun(r for r in tablerows)
+if rank == 0
+    tableserial = mpifixture_ecosystem()
+    simulate!(tableserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+              intervention = tableiv(tablecolumns))
+    @test tableserial.abundances.matrix != true_abuns
+    @test table_abuns == tableserial.abundances.matrix
+    @test stream_abuns == tableserial.abundances.matrix
+end
+
 # **The recorders under MPI**, against the serial twin at any rank count. The abundance recorder
 # gathers to the root, the diversity recorder to every rank, so both must reproduce the serial
 # recording, and each keeps the same record of the run on every rank.

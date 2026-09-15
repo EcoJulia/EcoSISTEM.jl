@@ -385,6 +385,7 @@ classDiagram
     AbstractOperation <|-- SetChange
     AbstractOperation <|-- AddAbundance
     AbstractOperation <|-- RemoveAbundance
+    AbstractOperation <|-- AddAbundanceTable
     AbstractOperation <|-- AddSpecies
     Intervention "1" *-- "1" AbstractSchedule : schedule
     Intervention "1" *-- "1" AbstractRegion : region
@@ -407,6 +408,11 @@ restock - recolonisation is by dispersal.
 **Counts may be exact or rates** - `RandomCells(20)` or `RandomCells(0.05/year)`, drawn
 binomially - and **operations after the first share one resolved region**, which is the only way to
 act twice on the same random cells (clear ground, then plant it).
+
+**`AddAbundanceTable` carries its own times**, one per row, so it stands alone in an intervention
+scheduled `EveryStep()`, which also fires at the start for the rows due there; the region filters its
+rows rather than choosing cells to act on. It is still rank-local: each rank adds only its own
+species' rows.
 
 ## Tolerances
 

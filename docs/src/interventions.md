@@ -79,9 +79,10 @@ simulate!(eco, 10year, 1month_mean_duration,
 ## What - the operations
 
 A **closed set**: [`Deactivate`](@ref), [`Reactivate`](@ref), [`SetLandCover`](@ref),
-[`SetChange`](@ref), [`AddAbundance`](@ref) and [`RemoveAbundance`](@ref). Closed on purpose - a
-callback could do anything, including the things that break reproducibility and MPI, whereas six
-named operations can each be checked once and then trusted.
+[`SetChange`](@ref), [`AddAbundance`](@ref), [`RemoveAbundance`](@ref), [`AddAbundanceTable`](@ref)
+and [`AddSpecies`](@ref). Closed on purpose - a callback could do anything, including the things
+that break reproducibility and MPI, whereas named operations can each be checked once and then
+trusted.
 
 **`Deactivate` kills what lives there.** Destroying a cell is not a pause: a deactivated cell is
 skipped by the simulation entirely, so anything left in it would neither breed nor die - a frozen
@@ -105,6 +106,31 @@ all(eco.abundances.matrix[5, converted] .>= 500)
 
 Two interventions could **not** do this: each resolves its own region, and a random one draws its
 own cells, so the crop would be planted somewhere other than the cleared ground.
+
+### Adding individuals from a table
+
+[`AddAbundanceTable`](@ref) adds individuals as a table lists them - which species, which cell, how
+many and when - so a population can be seeded from dated records by one operation rather than by an
+intervention per species and month. Its rows say when, so it goes in an intervention of its own with
+`EveryStep()`, and the region filters the rows: `ActiveCells()` leaves out any in an inactive cell.
+[`build_abundance_table`](@ref) turns species names and `(y, x)` grid indices into the indexed,
+time-sorted table it reads best:
+
+```@example iv
+eco = makeeco()
+records = (species = fill(eco.spplist.names[1], 3), y = [1, 1, 2], x = [1, 1, 3],
+           time = [1.0, 1.0, 6.0] .* month_mean_duration)
+table = build_abundance_table(eco, records)
+```
+
+```@example iv
+simulate!(eco, 1year, 1month_mean_duration,
+          intervention = Intervention(EveryStep(), ActiveCells(), AddAbundanceTable(table)))
+```
+
+A table offering whole columns - a named tuple of vectors, a `DataFrame`, a memory-mapped Arrow file -
+is searched for the rows each step needs, and can serve any number of runs. One read row by row, such
+as a `CSV.Rows` or a generator, is read once as the run proceeds, so its rows must be in time order.
 
 ## Several interventions
 

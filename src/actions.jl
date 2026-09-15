@@ -478,8 +478,9 @@ random number generator or write a layer's values, either of which would make th
 how the work was divided. Under MPI every rank runs the loop and the callback, so a collective the
 callback calls, such as [`gatherabundance`](@ref) or [`gatherdiversity`](@ref), must be reached on
 every rank - a callback returning before it on the ranks other than the root leaves every rank waiting
-for ever - and a callback writing abundances writes only its own rank's species. To change the
-ecosystem, declare an [`Intervention`](@ref), which is applied once and identically everywhere.
+for ever. A callback writing abundances reaches only its own rank's species there, and the demand the
+next step computes does not include what it wrote. To change the ecosystem, declare an
+[`Intervention`](@ref), which is applied once and identically everywhere.
 
 # Arguments
 
