@@ -117,11 +117,11 @@ worst kind of canonical failure, because re-blessing makes it go away until next
    `test_simulated.jl`'s own reproducibility check already does. Passing a *built layer* to a fresh
    `GridHabitat` is fine, because it is copied in.
 2. 🔴 **Bless the fixture's INPUT, not only its outputs**, whenever the input is generated rather than
-   written down. `NicheSpec` draws its layout from the global stream, and a canonical file is
-   `include`d into a shared process when re-blessing but runs in its own when checking - so a
-   self-consistency check ("each run got the same map") cannot see the map itself moving between the
-   two. Blessing `categorical/regime_map` is what makes every number conditional on a *recorded*
-   input. ✅ The gate for this is cheap and worth running on any new file: three consecutive checking
+   written down. A self-consistency check ("each run got the same map") cannot see the map itself
+   moving - from a change to the niche generator, or, before `NicheSpec` took a `seed`, from
+   whatever had drawn from the global stream first, which differs between a shared blessing process
+   and a checking run in its own. The categorical fixture now seeds its `NicheSpec`, and blessing
+   `categorical/regime_map` is still what makes every number conditional on a *recorded* input. ✅ The gate for this is cheap and worth running on any new file: three consecutive checking
    runs, plus a re-bless that leaves `reference.toml` byte-identical.
 
 🔴 **`test_varying.jl` and `test_intervention.jl` exist because of the same class of hole
