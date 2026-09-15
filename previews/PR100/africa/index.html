@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Africa · EcoSISTEM.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="EcoSISTEM.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">EcoSISTEM.jl</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">Biodiversity</span><ul><li><a class="tocitem" href="../basics/">Basics</a></li><li><a class="tocitem" href="../diversity/">Diversity</a></li><li><a class="tocitem" href="../examples/">Examples</a></li><li class="is-active"><a class="tocitem" href>Africa</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Biodiversity</a></li><li class="is-active"><a href>Africa</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Africa</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/EcoJulia/EcoSISTEM.jl/blob/master/docs/src/africa.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Virtual-plant-simulations-of-Africa"><a class="docs-heading-anchor" href="#Virtual-plant-simulations-of-Africa">Virtual plant simulations of Africa</a><a id="Virtual-plant-simulations-of-Africa-1"></a><a class="docs-heading-anchor-permalink" href="#Virtual-plant-simulations-of-Africa" title="Permalink"></a></h1><p>EcoSISTEM was designed to scale to much larger areas, supporting many more species. As an illustrative example, here we simulate up to 50,000 plant species over Africa at an 80km grid scale, with a constant background environment of 25°C. When all species are given an equal fitness in the habitat, all 50,000 can co-exist over long time scales of over 100 years (Figure 2A). This can be run on a workstation with 24 threads in just under 5 hours.</p><p>We can also explore the behaviour of selective advantage of specialist species over generalists at these scales. When we introduce a specialist species into an African-sized landscape with an existing generalist, the specialist out-competes the generalist and spreads throughout the continent. The larger the selective advantage of the specialist, the faster it is able to invade and colonise across the landscape (Figure 1). These same dynamics can be seen when we introduce a specialist to the full complement of 50,000 species (Figure 1B-D).</p><h4 id="SINGLE-SPECIES"><a class="docs-heading-anchor" href="#SINGLE-SPECIES">SINGLE SPECIES</a><a id="SINGLE-SPECIES-1"></a><a class="docs-heading-anchor-permalink" href="#SINGLE-SPECIES" title="Permalink"></a></h4><pre><code class="language-julia">using EcoSISTEM
+using EcoSISTEM.ClimatePref
+using EcoSISTEM.Units
+using Unitful
+using Unitful.DefaultSymbols
+using Distances
+using StatsBase
+using Plots
+file = &quot;Africa.tif&quot;
+africa = readfile(file, -25°, 50°, -35°, 40°)
+active =  Array{Bool, 2}(.!isnan.(africa&#39;))
+
+heatmap(active)
+
+# Set up initial parameters for ecosystem
+numSpecies = 1; grid = size(africa); req= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
+
+# Set up how much energy each species consumes
+energy_vec = SolarRequirement(fill(req, numSpecies))
+
+
+# Set rates for birth and death
+birth = 0.6/year
+death = 0.6/year
+longevity = 1.0
+survival = 0.0
+boost = 1.0
+# Collect model parameters together
+param = EqualPop(birth, death, longevity, survival, boost)
+
+# Create kernel for movement
+kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
+movement = AlwaysMovement(kernel, Torus())
+
+
+# Create species list, including their temperature preferences, seed abundance and native status
+opts = fill(274.0K, numSpecies)
+vars = fill(0.5K, numSpecies)
+traits = GaussTrait(opts, vars)
+native = fill(true, numSpecies)
+# abun = rand(Multinomial(individuals, numSpecies))
+abun = fill(div(individuals, numSpecies), numSpecies)
+sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    movement, param, native)
+sppl.params.birth
+
+# Create abiotic environment - even grid of one temperature
+abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+
+
+# Set relationship between species and environment (gaussian)
+rel = Gauss{typeof(1.0K)}()
+
+#Create ecosystem
+eco = Ecosystem(sppl, abenv, rel)
+rand_start = rand(findall(active), 1)[1]
+eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
+
+# EcoSISTEM Parameters
+times = 100years; timestep = 1month; record_interval = 1month; repeats = 1
+lensim = length(0years:record_interval:times)
+abuns = zeros(Int64, numSpecies, prod(grid), lensim)
+@time simulate_record!(abuns, eco, times, record_interval, timestep);
+
+abuns = reshape(abuns[1, :, :, 1], grid[1], grid[2], lensim)
+
+anim = @animate for i in 1:lensim
+    africa_abun = Float64.(abuns[:, :, i])
+    africa_abun[.!(active)] .= NaN
+    heatmap(africa_abun, clim = (0, 700_000), background_color = :lightblue, background_color_outside=:white, grid = false, color = cgrad(:algae, scale = :exp), aspect_ratio = 1)
+end
+gif(anim, &quot;examples/Biodiversity/Africa.gif&quot;, fps = 30)
+
+#### SPECIALIST VERSUS GENERALIST ####
+
+specialist_vars = [0.5K, 1.0K, 5.0K, 10.0K, 25.0K, 50.0K]
+velocity = zeros(typeof(1.0km/month), length(specialist_vars))
+rand_start = rand(findall(active), 1)[1]
+for i in eachindex(specialist_vars)
+    # Set up initial parameters for ecosystem
+    numSpecies = 2; grid = size(africa); req= 10.0kJ; individuals=0; area = 64e6km^2; totalK = 1000.0kJ/km^2
+
+    # Set up how much energy each species consumes
+    energy_vec = SolarRequirement(fill(req, numSpecies))
+
+
+    # Set rates for birth and death
+    birth = 0.6/year
+    death = 0.6/year
+    longevity = 1.0
+    survival = 0.1
+    boost = 1.0
+    # Collect model parameters together
+    param = EqualPop(birth, death, longevity, survival, boost)
+
+    # Create kernel for movement
+    kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
+    movement = AlwaysMovement(kernel, Torus())
+
+
+    # Create species list, including their temperature preferences, seed abundance and native status
+    opts = fill(274.0K, numSpecies)
+    vars = [50.0K, specialist_vars[i]]
+    traits = GaussTrait(opts, vars)
+    native = fill(true, numSpecies)
+    # abun = rand(Multinomial(individuals, numSpecies))
+    abun = fill(div(individuals, numSpecies), numSpecies)
+    sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+        movement, param, native)
+    sppl.params.birth
+
+    # Create abiotic environment - even grid of one temperature
+    abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+
+    # Set relationship between species and environment (gaussian)
+    rel = Gauss{typeof(1.0K)}()
+
+    #Create ecosystem
+    eco = Ecosystem(sppl, abenv, rel)
+    eco.abundances.grid[1, rand_start[1], rand_start[2]] = 100
+
+    # EcoSISTEM Parameters
+    burnin = 100years; times = 100years; timestep = 1month; record_interval = 1month; repeats = 1
+    lensim = length(0years:record_interval:times)
+    simulate!(eco, burnin,timestep)
+    eco.abundances.grid[2, rand_start[1], rand_start[2]] = 100
+    abuns = zeros(Int64, numSpecies, prod(grid), lensim)
+    @time simulate_record!(abuns, eco, times, record_interval, timestep);
+
+    abuns = reshape(abuns[:, :, :, 1], numSpecies, grid[1], grid[2], lensim)
+    origin = [rand_start[1], rand_start[2]]
+    dest = findall(abuns[2, :, :, 1] .&gt; 0)
+    inst_velocity = map(1:lensim) do t
+        dest = findall(abuns[2, :, :, t] .&gt; 0)
+        dists = [euclidean(origin, [dest[i][1], dest[i][2]]) for i in length(dest)] .* getgridsize(eco)
+        return maximum(dists)/month
+    end
+    velocity[i] = mean(inst_velocity)
+end
+
+plot(ustrip.(abs.(specialist_vars .- 50.0K)), ustrip.(velocity),
+    xlab = &quot;Selective advantage&quot;, ylab = &quot;Invasion speed (km/month)&quot;,
+    label = &quot;&quot;, grid = false)</code></pre><p><img src="../Invasion.svg" alt/> <em>Figure 1: Invasive capacity of a specialist plant species versus a generalist. Selective advantage is the difference in niche width between the specialist and generalist, and invasion speed is calculated as the average distance travelled per month by the specialist.</em></p><h4 id="ONE-SPECIALIST-VERSUS-MANY-GENERALISTS"><a class="docs-heading-anchor" href="#ONE-SPECIALIST-VERSUS-MANY-GENERALISTS">ONE SPECIALIST VERSUS MANY GENERALISTS</a><a id="ONE-SPECIALIST-VERSUS-MANY-GENERALISTS-1"></a><a class="docs-heading-anchor-permalink" href="#ONE-SPECIALIST-VERSUS-MANY-GENERALISTS" title="Permalink"></a></h4><pre><code class="language-julia">using EcoSISTEM
+using EcoSISTEM.ClimatePref
+using EcoSISTEM.Units
+using Unitful
+using Unitful.DefaultSymbols
+using JLD2
+using Printf
+file = &quot;Africa.tif&quot;
+africa = readfile(file, -25°, 50°, -35°, 40°)
+active =  Array{Bool, 2}(.!isnan.(africa&#39;))
+# Set up initial parameters for ecosystem
+numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
+
+# Set up how much energy each species consumes
+energy_vec = SolarRequirement(fill(req, numSpecies))
+
+
+# Set rates for birth and death
+birth = 0.6/year
+death = 0.6/year
+longevity = 1.0
+survival = 0.1
+boost = 1.0
+# Collect model parameters together
+param = EqualPop(birth, death, longevity, survival, boost)
+
+# Create kernel for movement
+kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
+movement = AlwaysMovement(kernel, Torus())
+
+
+# Create species list, including their temperature preferences, seed abundance and native status
+opts = fill(274.0K, numSpecies)
+vars = fill(50.0K, numSpecies)
+vars[50_000] = 0.5K
+traits = GaussTrait(opts, vars)
+native = fill(true, numSpecies)
+# abun = rand(Multinomial(individuals, numSpecies))
+abun = fill(div(individuals, numSpecies), numSpecies)
+sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    movement, param, native)
+sppl.params.birth
+
+# Create abiotic environment - even grid of one temperature
+abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+
+
+# Set relationship between species and environment (gaussian)
+rel = Gauss{typeof(1.0K)}()
+
+#Create ecosystem
+eco = Ecosystem(sppl, abenv, rel)
+eco.abundances.matrix[50_000, :] .= 0
+
+import EcoSISTEM.simulate!
+function simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time, cacheInterval::Unitful.Time, cacheFolder::String, scenario_name::String)
+  time_seq = 0s:timestep:times
+  counting = 0
+  for i in 1:length(time_seq)
+      update!(eco, timestep);
+      # Save cache of abundances
+      if mod(time_seq[i], cacheInterval) == 0year
+          @save (joinpath(cacheFolder, scenario_name * (@sprintf &quot;%02d.jld2&quot; uconvert(NoUnits,time_seq[i]/cacheInterval))) abun = eco.abundances.matrix
+      end
+  end
+end
+
+# EcoSISTEM Parameters
+burnin = 100years; times = 100years; timestep = 1month; record_interval = 12months;
+lensim = length(0years:record_interval:times)
+@time simulate!(eco, burnin, timestep)
+rand_start = rand(findall(active), 1)[1]
+eco.abundances.grid[50_000, rand_start[1], rand_start[2]] = 100
+@time simulate!(eco, times, timestep, record_interval, &quot;examples/Biodiversity&quot;, &quot;Africa_run&quot;);</code></pre><h4 id=",000-SPECIES-COEXISTING"><a class="docs-heading-anchor" href="#,000-SPECIES-COEXISTING">50,000 SPECIES COEXISTING</a><a id=",000-SPECIES-COEXISTING-1"></a><a class="docs-heading-anchor-permalink" href="#,000-SPECIES-COEXISTING" title="Permalink"></a></h4><pre><code class="language-julia">using EcoSISTEM
+using EcoSISTEM.ClimatePref
+using EcoSISTEM.Units
+using Unitful
+using Unitful.DefaultSymbols
+using JLD2
+using Printf
+
+file = &quot;Africa.tif&quot;
+africa = readfile(file, -25°, 50°, -35°, 40°)
+active =  Array{Bool, 2}(.!isnan.(africa&#39;))
+# Set up initial parameters for ecosystem
+numSpecies = 50_000; grid = size(africa); req= 10.0kJ; individuals=3*10^8; area = 64e6km^2; totalK = 1000.0kJ/km^2
+
+# Set up how much energy each species consumes
+energy_vec = SolarRequirement(fill(req, numSpecies))
+
+
+# Set rates for birth and death
+birth = 0.6/year
+death = 0.6/year
+longevity = 1.0
+survival = 0.1
+boost = 1.0
+# Collect model parameters together
+param = EqualPop(birth, death, longevity, survival, boost)
+
+# Create kernel for movement
+kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
+movement = AlwaysMovement(kernel, Torus())
+
+
+# Create species list, including their temperature preferences, seed abundance and native status
+opts = fill(274.0K, numSpecies)
+vars = fill(50.0K, numSpecies)
+traits = GaussTrait(opts, vars)
+native = fill(true, numSpecies)
+# abun = rand(Multinomial(individuals, numSpecies))
+abun = fill(div(individuals, numSpecies), numSpecies)
+sppl = SpeciesList(numSpecies, traits, abun, energy_vec,
+    movement, param, native)
+sppl.params.birth
+
+# Create abiotic environment - even grid of one temperature
+abenv = simplehabitatAE(274.0K, grid, totalK, area, active)
+
+
+# Set relationship between species and environment (gaussian)
+rel = Gauss{typeof(1.0K)}()
+
+#Create ecosystem
+eco = Ecosystem(sppl, abenv, rel)
+
+# EcoSISTEM Parameters
+burnin = 10years; times = 100years; timestep = 1month; record_interval = 12months;
+lensim = length(0years:record_interval:times)
+@time simulate!(eco, burnin, timestep)
+@time simulate!(eco, times, timestep, record_interval, &quot;examples/Biodiversity&quot;, &quot;Africa_run_coexist&quot;);
+
+using JLD2
+using Plots
+using Diversity
+abuns = @load &quot;examples/Biodiversity/Africa_run_coexist100.jld2&quot; abun
+meta = Metacommunity(abuns)
+div = norm_sub_alpha(meta, 0)
+sumabuns = reshape(div[!, :diversity], 100, 100)
+heatmap(sumabuns,
+    background_color = :lightblue,
+    background_color_outside=:white,
+    grid = false, color = :algae,
+    aspect_ratio = 1, layout = (@layout [a b; c d]),
+    clim = (0, 50_000), margin = 0.5 * Plots.mm,
+    title = &quot;A&quot;, titleloc = :left)
+
+abuns = @load &quot;examples/Biodiversity/Africa_run50.jld2&quot; abun
+meta = Metacommunity(abuns)
+div = norm_sub_alpha(meta, 0)
+sumabuns = reshape(div[!, :diversity], 100, 100)
+heatmap!(sumabuns,
+    background_color = :lightblue,
+    background_color_outside=:white,
+    grid = false, color = :algae,
+    aspect_ratio = 1, subplot = 2,
+    clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
+    title = &quot;B&quot;, titleloc = :left)
+
+abuns = @load &quot;examples/Biodiversity/Africa_run100.jld2&quot; abun
+meta = Metacommunity(abuns)
+div = norm_sub_alpha(meta, 0)
+sumabuns = reshape(div[!, :diversity], 100, 100)
+heatmap!(sumabuns,
+    background_color = :lightblue,
+    background_color_outside=:white,
+    grid = false, color = :algae,
+    aspect_ratio = 1, subplot = 3,
+    clim = (0, 50_000), right_margin = 2.0 * Plots.mm,
+    title = &quot;C&quot;, titleloc = :left)
+
+
+abuns = @load &quot;examples/Biodiversity/Africa_run50.jld2&quot; abun
+meta = Metacommunity(abuns)
+div = norm_sub_rho(meta, 1.0)
+sumabuns = reshape(div[!, :diversity], 100, 100)
+heatmap!(sumabuns,
+    background_color = :lightblue,
+    background_color_outside=:white,
+    grid = false, color = :algae,
+    aspect_ratio = 1, subplot = 4,
+     right_margin = 2.0 * Plots.mm,
+    title = &quot;D&quot;, titleloc = :left, clim = (0, 1))</code></pre><p><img src="../Africa.svg" alt/> <em>Figure 2: 100 year simulations of Africa with 50,000 species. (A) Species richness after 100 years of simulation with all species equal. (B) Species richness after 50 years, with one specialist introduced. (C) Species richness after 100 years, with one specialist introduced. (D) Representativeness after 50 years with one specialist introduced (0 is completely unrepresentative of the ecosystem as a whole, 1 is completely representative).</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 15 December 2022 13:21">Thursday 15 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
