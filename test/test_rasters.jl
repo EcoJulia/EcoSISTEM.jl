@@ -472,6 +472,77 @@ end
     # it ascended leaves 0 active cells against the 58 expected.
 end
 
+@testset "a shape covers each cell by the share of its area inside" begin
+    polygon(points) = ArchGDAL.createpolygon([[points..., first(points)]])
+    part(g) = (prepared = ArchGDAL.preparegeom(g),
+               envelope = ArchGDAL.envelope(g), geometry = g)
+    # Three rows from y = 0 and four columns from x = 0, as `(lo, hi)`. Cells are 2 tall and 1.5
+    # wide, so a cell's area is 3: with cells of area one, dividing by the wrong side - or by
+    # nothing at all - gives the same shares and the tests pass anyway.
+    rows = [(y, y + 2.0) for y in 0.0:2.0:4.0]
+    cols = [(x, x + 1.5) for x in 0.0:1.5:4.5]
+
+    # A rectangle over x 0.75 to 3.375 and y 0 to 3, so each cell's share is the product of the
+    # shares of its row and its column, written out by hand.
+    rectangle = part(polygon([
+                                 (0.75, 0.0),
+                                 (3.375, 0.0),
+                                 (3.375, 3.0),
+                                 (0.75, 3.0)
+                             ]))
+    covered = EcoSISTEM._coveredfraction((rectangle,), rows, cols)
+    @test covered ≈ [0.5 1.0 0.25 0.0
+                     0.25 0.5 0.125 0.0
+                     0.0 0.0 0.0 0.0]
+    # A cell wholly inside counts exactly one, not an intersection's area divided back out.
+    @test covered[1, 2] == 1.0
+
+    # An L covering three whole cells touches the fourth, at x 1.5 to 3 and y 2 to 4, only along two
+    # of its edges: it intersects that cell, so the zero-area case is reached, and shares no area.
+    corners = [
+        (0.0, 0.0),
+        (3.0, 0.0),
+        (3.0, 2.0),
+        (1.5, 2.0),
+        (1.5, 4.0),
+        (0.0, 4.0)
+    ]
+    l = part(polygon(corners))
+    touching = polygon([(1.5, 2.0), (3.0, 2.0), (3.0, 4.0), (1.5, 4.0)])
+    @test ArchGDAL.intersects(l.prepared, touching)
+    lshares = [1.0 1.0 0.0 0.0
+               1.0 0.0 0.0 0.0
+               0.0 0.0 0.0 0.0]
+    @test EcoSISTEM._coveredfraction((l,), rows, cols) == lshares
+
+    # Disjoint pieces add cell by cell, and a piece off the grid adds nothing.
+    far = part(polygon([(4.5, 4.0), (6.0, 4.0), (6.0, 6.0), (4.5, 6.0)]))
+    away = part(polygon([
+                            (20.0, 20.0),
+                            (21.0, 20.0),
+                            (21.0, 21.0),
+                            (20.0, 21.0)
+                        ]))
+    both = EcoSISTEM._coveredfraction((rectangle, far, away), rows, cols)
+    @test both[3, 4] == 1.0
+    both[3, 4] = 0.0
+    @test both ≈ covered
+
+    # A descending axis gives the same shares in reversed rows, and units are stripped whatever
+    # they are.
+    @test EcoSISTEM._coveredfraction((rectangle,), reverse(rows), cols) ≈
+          reverse(covered, dims = 1)
+    @test EcoSISTEM._coveredfraction((rectangle,),
+                                     [(lo * °, hi * °) for (lo, hi) in rows],
+                                     [(lo * °, hi * °) for (lo, hi) in cols]) ≈
+          covered
+
+    # What this does not catch, and cannot: windowing each piece to its envelope only saves visits,
+    # since a cell outside it shares no area either way, so widening or dropping the window leaves
+    # every share as it is. Nor does it reach the cap at one, which needs pieces that overlap, where
+    # a shape's own pieces are disjoint.
+end
+
 @testset "_axiswindow reads the axis direction rather than assuming it" begin
     up = collect(0.0:1.0:10.0)
     @test EcoSISTEM._axiswindow(up, 2.5, 5.5) == 4:6          # 3.0, 4.0, 5.0

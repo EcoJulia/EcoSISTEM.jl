@@ -1529,12 +1529,13 @@ function _coverageof(parts::AbstractVector{_ShapeComponent}, c::LandmassesAbove)
     return filter(p -> p.area >= threshold, parts)
 end
 
-# One feature of a vector file as `_shape` uses it: the prepared geometry to test cells against, and
-# the envelope that says which cells those are. The element type is written out because a layer mixes
-# `wkbPolygon` and `wkbMultiPolygon` features, so an inferred one keeps only the field names and
-# every access through it becomes a dynamic lookup.
+# One piece of a shape on the target grid: the prepared geometry to test cells against, the envelope
+# that says which cells those are, and the geometry itself, which a covered area is cut from. The
+# element type is written out because a layer mixes `wkbPolygon` and `wkbMultiPolygon` features, so
+# an inferred one keeps only the field names and every access through it becomes a dynamic lookup.
 const _ShapePart = @NamedTuple{prepared::ArchGDAL.IPreparedGeometry,
-                               envelope::ArchGDAL.GDAL.OGREnvelope}
+                               envelope::ArchGDAL.GDAL.OGREnvelope,
+                               geometry::ArchGDAL.IGeometry}
 
 # Reproject `geoms` from `src` into the target grid's own CRS and prepare each for the per-cell
 # containment test, with the extent they jointly cover.
@@ -1562,7 +1563,7 @@ function _preparegeoms(geoms, src, tcrs)
         env = ArchGDAL.envelope(g)
         ylo, yhi = min(ylo, env.MinY), max(yhi, env.MaxY)
         xlo, xhi = min(xlo, env.MinX), max(xhi, env.MaxX)
-        return _ShapePart((ArchGDAL.preparegeom(g), env))
+        return _ShapePart((ArchGDAL.preparegeom(g), env, g))
     end
     extent = isempty(parts) ? nothing :
              _extentof(ylo * u, yhi * u, xlo * u, xhi * u)
@@ -1715,6 +1716,44 @@ function _shape(geoms, tlat, tlong)
         end
     end
     return Matrix{Bool}(mask)
+end
+
+# The share of each cell that `geoms` cover, from 0 to 1: the area of the cell's rectangle inside a
+# geometry over the rectangle's own area, both in the grid's coordinates, so on a geographic grid it
+# is the share of the cell's latitude-longitude rectangle. `tlat` and `tlong` hold each cell's
+# `(lo, hi)` along the axis.
+#
+# A cell a geometry only touches along an edge shares no area with it, and so gets nothing. A cell
+# wholly inside a geometry counts one without an intersection being cut, which leaves the cells its
+# outline crosses as the only ones that pay for one. The pieces a shape resolves to are disjoint, so
+# their shares add, capped at one against rounding.
+function _coveredfraction(geoms, tlat, tlong)
+    lats = [ustrip.(interval) for interval in tlat]
+    longs = [ustrip.(interval) for interval in tlong]
+    covered = zeros(length(lats), length(longs))
+    for g in geoms
+        env = g.envelope
+        for i in _intervalwindow(lats, env.MinY, env.MaxY),
+            j in _intervalwindow(longs, env.MinX, env.MaxX)
+            (ylo, yhi), (xlo, xhi) = lats[i], longs[j]
+            cell = ArchGDAL.createpolygon([[(xlo, ylo), (xhi, ylo), (xhi, yhi),
+                                              (xlo, yhi), (xlo, ylo)]])
+            if ArchGDAL.contains(g.prepared, cell)
+                covered[i, j] += 1.0
+            elseif ArchGDAL.intersects(g.prepared, cell)
+                inside = ArchGDAL.geomarea(ArchGDAL.intersection(g.geometry,
+                                                                 cell))
+                covered[i, j] += inside / ((yhi - ylo) * (xhi - xlo))
+            end
+        end
+    end
+    return min.(covered, 1.0)
+end
+
+# The cells whose `(lo, hi)` interval overlaps `lo...hi` with some length, whichever way the axis
+# runs: those an envelope can share area with.
+function _intervalwindow(intervals, lo, hi)
+    return [k for (k, (a, b)) in pairs(intervals) if a < hi && b > lo]
 end
 
 # Put a bare Bool `DimArray` (a `ConstructedRasterSpec` mask, say) onto `target` through the same
