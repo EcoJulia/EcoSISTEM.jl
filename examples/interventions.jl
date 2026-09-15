@@ -34,7 +34,9 @@ let eco = climate_ecosystem()
     before = eco.habitat.regime.temperature.matrix[1, 1]
     simulate!(eco, 5.0year, 1.0month_mean_duration,
               intervention = changing_climate())
-    @assert eco.habitat.regime.temperature.matrix[1, 1] > before
+    # Five years at 1 K a year outweighs the 2 K seasonal swing at any phase, so this holds only if
+    # the warming and the cycle both acted.
+    @assert eco.habitat.regime.temperature.matrix[1, 1] > before + 2.0K
     @assert all(>=(0.0mm / day), eco.habitat.regime.rainfall.matrix)
 end
 
@@ -71,12 +73,11 @@ end
 let outcomes = map((:generalist, :specialist)) do kind
         eco = invasion_ecosystem()
         # Room for the arrival, since the recording is sized before the run.
-        storage = generate_storage(eco, 6, 1,
-                                   maxspecies = configuration().numspecies)
-        simulate_record!(storage, eco, 5.0year, 1.0year,
-                         1.0month_mean_duration,
-                         intervention = invasion(kind,
-                                                 at = 1.0month_mean_duration))
+        recording = RecordAbundance(eco, 6,
+                                    maxspecies = configuration().numspecies)
+        simulate!(recording, eco, 5.0year, 1.0month_mean_duration,
+                  every = EveryInterval(1.0year),
+                  intervention = invasion(kind, at = 1.0month_mean_duration))
         @assert length(eco.spplist.names) == configuration().numspecies
         @assert last(eco.spplist.names) == string(kind)
         @assert !last(eco.spplist.native)

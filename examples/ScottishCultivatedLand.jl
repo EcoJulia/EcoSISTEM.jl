@@ -28,7 +28,7 @@ using Plots
 # The regime: EarthEnv land cover class 7 (`cultivated_and_managed`, see
 # `data/catalogue/LandCover.csv`) read as a lazy `SourceSpec` - its own per-cell % cover,
 # not the full multi-class winning-code collapse `landcoverhabitat` uses elsewhere (EarthEnv's own
-# per-class bands are continuous % cover, not categorical - `iscategorical` treats them as such).
+# per-class bands are continuous % cover, not categorical - `_iscategorical` treats them as such).
 cultivated = SourceSpec(EarthEnv{LandCover}, :cultivated_and_managed)
 
 # NatureScot's "Landscape Map of Scotland" (79 landscape character features, British National
@@ -131,6 +131,11 @@ species = build_species(numspecies, tolerance = (niche_means, niche_widths),
 # --- assemble and simulate ----------------------------------------------------
 eco = build_ecosystem(species, habitat, seed = seed)
 
+# What this ecosystem was built from: the EarthEnv land-cover file and the NatureScot outline it
+# read, each under its dataset with the DOI and citation where the catalogue knows them, the grid
+# and the run's seed. Nothing has run yet, so no time has elapsed.
+display(provenance(eco))
+
 times = 6month_mean_duration
 timestep = 1month_mean_duration
 
@@ -140,6 +145,12 @@ println("Per-species initial abundance: ",
 
 simulate!(eco, times, timestep)
 endabun = sum(eco.abundances.matrix)
+
+# The same record now carries how long the run went on for. `write_provenance` writes it as the
+# TOML file a paper's repository commits beside its figures; it goes to a temporary directory here,
+# so the example leaves nothing behind.
+display(provenance(eco))
+write_provenance(joinpath(mktempdir(), "provenance.toml"), eco)
 
 println("Simulated $numspecies species over a $(size(eco.abundances.grid, 2)) × " *
         "$(size(eco.abundances.grid, 3)) grid ($(count(habitat.active)) active cells " *

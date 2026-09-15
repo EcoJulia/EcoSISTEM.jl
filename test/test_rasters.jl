@@ -123,7 +123,7 @@ end
 
 # The payoff of carrying layer codes through a read: whether a layer may be *interpolated* is a
 # per-layer fact in the shipped `ValueType` column, and a source type alone cannot supply it -
-# BioClimPlus holds all three value types at once. Before this, `iscategorical` was a stub
+# BioClimPlus holds all three value types at once. Before this, `_iscategorical` was a stub
 # returning `false`, so a Köppen-Geiger layer was bilinearly interpolated *between class codes*.
 # Note `:discrete` is **not** categorical: those are day-of-year and day-count layers, ordinary
 # numbers that average perfectly well. Only `:categorical` forbids it.
@@ -138,20 +138,20 @@ end
     cont = ClimateRaster(WorldClim{BioClim}, arr, :bio1)
     bare = ClimateRaster(WorldClim{BioClim}, arr)         # derived: no code to look up
     # With no axis given, a **coded** raster is classified from the catalogue - which asks
-    # `iscategorical` of the layer's own axis, so both routes end in the same place.
-    @test EcoSISTEM.iscategorical(cat)
+    # `_iscategorical` of the layer's own axis, so both routes end in the same place.
+    @test EcoSISTEM._iscategorical(cat)
     for r in (disc, cont)
-        @test !EcoSISTEM.iscategorical(r)
+        @test !EcoSISTEM._iscategorical(r)
     end
     # ...and a declared axis is authoritative, needing no code at all: this is what a derived
     # layer uses, and `LandCoverTypology` is a `TypologyAxis`, so class codes.
-    @test EcoSISTEM.iscategorical(bare, LandCoverTypology)
-    @test !EcoSISTEM.iscategorical(bare, Temperature)
+    @test EcoSISTEM._iscategorical(bare, LandCoverTypology)
+    @test !EcoSISTEM._iscategorical(bare, Temperature)
     # The axis wins over the catalogue where both could answer - it *is* the declaration.
-    @test !EcoSISTEM.iscategorical(cat, Temperature)
+    @test !EcoSISTEM._iscategorical(cat, Temperature)
     # ...and the catalogue can also be asked directly, without a raster at all.
-    @test EcoSISTEM.iscategorical(CHELSA{BioClimPlus}, :kg0)
-    @test !EcoSISTEM.iscategorical(CHELSA{BioClimPlus}, :gsl)
+    @test EcoSISTEM._iscategorical(CHELSA{BioClimPlus}, :kg0)
+    @test !EcoSISTEM._iscategorical(CHELSA{BioClimPlus}, :gsl)
 
     # Whether a layer holds class codes is a property of its axis, which the raster does not carry;
     # the reducer that follows from it is `_reducer`'s to choose, and nothing is interpolated.
@@ -161,27 +161,27 @@ end
 
     # A uniformly categorical stack is categorical.
     codes(cs...) = collect(EcoSISTEM.CODE_TYPE, cs)
-    @test EcoSISTEM.iscategorical(ClimateRaster(CHELSA{BioClimPlus}, arr,
-                                                codes(:kg0, :kg1)))
+    @test EcoSISTEM._iscategorical(ClimateRaster(CHELSA{BioClimPlus}, arr,
+                                                 codes(:kg0, :kg1)))
     # A *mixed* stack has no correct answer - every caller picks one behaviour for the whole
     # array - so it errors rather than returning either. `read` calls the same method before
     # downloading anything (below), so reaching it here means the raster was assembled some other
-    # way. This is the one method of `iscategorical` that can throw.
+    # way. This is the one method of `_iscategorical` that can throw.
     mixed = ClimateRaster(CHELSA{BioClimPlus}, arr, codes(:kg0, :bio3))
-    @test_throws ErrorException EcoSISTEM.iscategorical(mixed)
+    @test_throws ErrorException EcoSISTEM._iscategorical(mixed)
     # No named axis and no code answers `false`: there is nothing to look up and nothing
     # claiming the values are class labels. A caller who means class codes says so with the axis.
-    @test !EcoSISTEM.iscategorical(bare)
+    @test !EcoSISTEM._iscategorical(bare)
     # `NicheAxis` has its own method, and it defers to the raster's own codes rather than
     # answering `false`: it is the *absence* of a named axis, not a claim that the values are
     # continuous. This is what keeps a legitimate multi-axis stack - `SourceSpec(WorldClim{BioClim})`
     # derives `NicheAxis` from codes that disagree - from having its class codes interpolated.
-    @test EcoSISTEM.iscategorical(cat, EcoSISTEM.NicheAxis)
-    @test !EcoSISTEM.iscategorical(cont, EcoSISTEM.NicheAxis)
-    @test !EcoSISTEM.iscategorical(bare, EcoSISTEM.NicheAxis)
+    @test EcoSISTEM._iscategorical(cat, EcoSISTEM.NicheAxis)
+    @test !EcoSISTEM._iscategorical(cont, EcoSISTEM.NicheAxis)
+    @test !EcoSISTEM._iscategorical(bare, EcoSISTEM.NicheAxis)
     # ...while a *named* axis stays authoritative, including one that contradicts the catalogue.
-    @test !EcoSISTEM.iscategorical(cat, Temperature)
-    @test EcoSISTEM.iscategorical(bare, LandCoverTypology)
+    @test !EcoSISTEM._iscategorical(cat, Temperature)
+    @test EcoSISTEM._iscategorical(bare, LandCoverTypology)
 end
 
 # An array has one eltype and gets one resample method, so its layers must agree on both unit and
@@ -212,12 +212,12 @@ end
 # are two wordings that drift apart.
 @testset "the shared-stack rule is stated once" begin
     S = CHELSA{BioClimPlus}
-    @test EcoSISTEM.iscategorical(S, [:kg0, :kg1])     # uniformly categorical
-    @test !EcoSISTEM.iscategorical(S, [:bio1, :bio5])  # uniformly numeric
-    @test !EcoSISTEM.iscategorical(S, [])              # nothing to disagree about
+    @test EcoSISTEM._iscategorical(S, [:kg0, :kg1])     # uniformly categorical
+    @test !EcoSISTEM._iscategorical(S, [:bio1, :bio5])  # uniformly numeric
+    @test !EcoSISTEM._iscategorical(S, [])              # nothing to disagree about
     # ...and the scalar method answers the same question of one layer, without throwing.
-    @test EcoSISTEM.iscategorical(S, :kg0)
-    @test !EcoSISTEM.iscategorical(S, :fcf)
+    @test EcoSISTEM._iscategorical(S, :kg0)
+    @test !EcoSISTEM._iscategorical(S, :fcf)
 
     # The two entry points reach the same method, so they cannot disagree - assert it by
     # comparing the messages themselves, not merely that both threw.
@@ -228,7 +228,7 @@ end
     arr = DimArray(fill(1.0, 5, 5), d)
     bad = collect(EcoSISTEM.CODE_TYPE, [:kg0, :fcf])
     msgs = map([() -> read(SourceSpec(S, bad)),
-                   () -> EcoSISTEM.iscategorical(ClimateRaster(S, arr, bad))]) do f
+                   () -> EcoSISTEM._iscategorical(ClimateRaster(S, arr, bad))]) do f
         try
             f()
             ""
@@ -299,7 +299,7 @@ end
     # **The axis is what does that, so prove it is not vacuous**: put the identical raster on the
     # grid as though it held continuous values and its class codes are *averaged*, which yields
     # values that are no class at all.
-    @test EcoSISTEM.iscategorical(src, LandCoverTypology)
+    @test EcoSISTEM._iscategorical(src, LandCoverTypology)
     naive = EcoSISTEM._sampledata(src, target, name = "raw",
                                   categorical = false)
     @test any(v -> !isinteger(v), filter(!isnan, ustrip.(vec(parent(naive)))))
@@ -316,18 +316,18 @@ end
                              crs = Rasters.EPSG(4326))))
     arr = DimArray(fill(1.0, 5, 5), d)
     bare = ClimateRaster(WorldClim{BioClim}, arr)
-    @test EcoSISTEM.iscategorical(bare, LandCoverTypology)
-    @test !EcoSISTEM.iscategorical(bare, Temperature)
+    @test EcoSISTEM._iscategorical(bare, LandCoverTypology)
+    @test !EcoSISTEM._iscategorical(bare, Temperature)
     # A layer derived *from* a categorical source can say it is not one - a per-class fraction,
     # say - simply by declaring the axis it is actually on.
-    @test !EcoSISTEM.iscategorical(ClimateRaster(CHELSA{BioClimPlus}, arr,
-                                                 :kg0), Precipitation)
+    @test !EcoSISTEM._iscategorical(ClimateRaster(CHELSA{BioClimPlus}, arr,
+                                                  :kg0), Precipitation)
     # ...and the spec is where that declaration lives.
     spec = ConstructedRasterSpec(() -> ClimateRaster(WorldClim{BioClim}, arr),
                                  axis = LandCoverTypology)
     @test spec.axis === LandCoverTypology
-    @test EcoSISTEM.iscategorical(spec.axis)
-    @test !EcoSISTEM.iscategorical(Temperature)
+    @test EcoSISTEM._iscategorical(spec.axis)
+    @test !EcoSISTEM._iscategorical(Temperature)
 end
 
 # The step this whole subproject exists for: a monthly total becomes a rate by being divided by

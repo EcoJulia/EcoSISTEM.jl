@@ -294,6 +294,82 @@ iv_abuns = gatherabundance(iveco)
 
 rank == 0 && checkblessed(iv_abuns, "mpi/intervention")
 
+# **A callback on `simulate!` under MPI.** Every rank runs the loop and the callback, so the
+# occurrences must be the same on every rank, and a callback reaching a collective - a gather - must
+# complete, since every rank reaches it. The totals it records must equal a serial run of the same
+# fixture at any rank count: the distributed loop is a duplicate of the serial one, and a duplicate is
+# only ever checked against the original.
+cbsppl, _ = mpifixture_species()
+cbeco = MPIEcosystem(cbsppl, varying_environment(), nichefit, seed = 0)
+cbeco.abundances.rows_matrix .= MPIFIXTURE_FILL
+cbcounts = Int[]
+cbtotals = Int[]
+MPI.Barrier(comm)
+simulate!(cbeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+          every = EveryInterval(3 * MPIFIXTURE_TIMESTEP)) do occurrence
+    push!(cbcounts, occurrence.count)
+    return push!(cbtotals, sum(gatherabundance(cbeco)))
+end
+cbeverywhere = MPI.Allgather(Int32(length(cbcounts)), comm)
+@test all(==(first(cbeverywhere)), cbeverywhere)
+if rank == 0
+    cbserial = mpifixture_ecosystem()
+    serialtotals = Int[]
+    simulate!(cbserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+              every = EveryInterval(3 * MPIFIXTURE_TIMESTEP)) do _
+        return push!(serialtotals, sum(cbserial.abundances.matrix))
+    end
+    @test cbcounts == eachindex(serialtotals)
+    @test cbtotals == serialtotals
+end
+
+# **The recorders under MPI**, against the serial twin at any rank count. The abundance recorder
+# gathers to the root, the diversity recorder to every rank, so both must reproduce the serial
+# recording, and each keeps the same record of the run on every rank.
+recsppl, _ = mpifixture_species()
+receco = MPIEcosystem(recsppl, varying_environment(), nichefit, seed = 0)
+receco.abundances.rows_matrix .= MPIFIXTURE_FILL
+recevery = EveryInterval(3 * MPIFIXTURE_TIMESTEP)
+nrec = length((0year):(3 * MPIFIXTURE_TIMESTEP):MPIFIXTURE_BURNIN)
+ncells = VARYING_NY * VARYING_NX
+recab = RecordAbundance(zeros(Int, numSpecies, ncells, nrec))
+recdiv = RecordDiversity(zeros(ncells, 2, nrec), norm_sub_alpha, [0.0, 1.0])
+MPI.Barrier(comm)
+simulate!(receco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+          every = recevery) do occurrence
+    recab(receco, occurrence)
+    return recdiv(receco, occurrence)
+end
+# Each holds the run as it stood at its last write: the last multiple of the interval, a step before
+# the run ends.
+@test provenance(recdiv).run == provenance(recab).run
+@test provenance(recdiv).run.elapsed ≈ uconvert(u"s", MPIFIXTURE_BURNIN)
+if rank == 0
+    recserial = mpifixture_ecosystem()
+    serialab = RecordAbundance(zeros(Int, numSpecies, ncells, nrec))
+    serialdiv = RecordDiversity(zeros(ncells, 2, nrec), norm_sub_alpha,
+                                [0.0, 1.0])
+    simulate!(recserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
+              every = recevery) do occurrence
+        serialab(recserial, occurrence)
+        return serialdiv(recserial, occurrence)
+    end
+    @test recab.storage == serialab.storage
+    @test recdiv.storage ≈ serialdiv.storage
+end
+# A metacommunity measure has no value per cell to assemble. Every rank refuses it alike before the
+# gather, so none is left waiting in the collective and the run carries on past it.
+@test_throws "subcommunity diversity measure" gatherdiversity(receco,
+                                                              meta_gamma,
+                                                              [0.0, 1.0])
+@test_throws "subcommunity diversity measure" RecordDiversity(zeros(1, 2, nrec),
+                                                              meta_gamma,
+                                                              [0.0, 1.0])(receco,
+                                                                          (count = 1,
+                                                                           elapsed = 0.0u"s",
+                                                                           date = nothing))
+MPI.Barrier(comm)
+
 # **Ordinariness is computed in the COLUMN partition**, where a rank owns every species for its own
 # cells, so a cell's value is complete on the rank that owns it and the full species-by-species
 # similarity matrix applies with no slice. Gathering the column blocks must therefore rebuild the
@@ -423,14 +499,14 @@ if rank == 0
     extraspecies = 8 * VARYING_SPECIES - VARYING_SPECIES
     @test manyalloc - fewalloc < 8 * extraspecies
 
-    # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch` and `active` are
-    # abstract by design and are explained there; anything else must be looked at.
+    # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch`, `calendar` and
+    # `active` are abstract by design and are explained there; anything else must be looked at.
     mpiabstract = Tuple{Symbol, Symbol}[]
     for obj in (eco, eco.abundances, eco.habitat, eco.cache)
         S = typeof(obj)
         for f in fieldnames(S)
             isconcretetype(fieldtype(S, f)) && continue
-            (f === :epoch || f === :active) && continue
+            (f === :epoch || f === :calendar || f === :active) && continue
             push!(mpiabstract, (nameof(S), f))
         end
     end

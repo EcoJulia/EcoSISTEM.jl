@@ -227,7 +227,7 @@ using Unitful.DefaultSymbols
 # through an abstract pool; space *is* the rivalry - two plants cannot occupy the same square metre.
 #
 # **Areal, not per-cell**, exactly like solar and water: a layer holds a **fraction** (m^2/m^2, so
-# dimensionless), and `cancel` multiplies by the cell's own area to give the per-cell supply in m^2.
+# dimensionless), and `_cancel` multiplies by the cell's own area to give the per-cell supply in m^2.
 # That is what makes "all ground" (1.0) and "available ground" (0.4) the *same kind of layer*,
 # differing only in values - and it is why the twelve land-cover bands belong here.
 #
@@ -250,8 +250,8 @@ using Unitful.DefaultSymbols
            supply=Supply{SurfaceArea}, demand=Demand{SurfaceArea},
            bounds=(0.0, 1.0), densitywidth=1.0NoUnits)
 # **The soil itself, not the water in it** - that is `SoilWaterVolume`, under the water family. A
-# cell's rooting space is its soil depth times its area, so the layer holds a depth and `cancel`
-# makes the volume, exactly as a surface layer holds a fraction and `cancel` makes the area. A stock,
+# cell's rooting space is its soil depth times its area, so the layer holds a depth and `_cancel`
+# makes the volume, exactly as a surface layer holds a fraction and `_cancel` makes the area. A stock,
 # like the surface: nothing about it is per unit time.
 """    SoilVolume <: SpaceAxis - the soil available for rooting, as a depth of soil over a cell (m); a supply of m^3 per cell. """
 @nicheaxis(SoilVolume<:SpaceAxis, condition=m, resource=m^3,

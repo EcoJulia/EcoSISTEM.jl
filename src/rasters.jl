@@ -80,6 +80,82 @@ function hasdata(layer::ClimateRaster{S}) where {S}
                                   (dims(layer.array, Y), dims(layer.array, X))))
 end
 
+"""
+    read(spec::AbstractShapeSpec)
+
+Read the ground a shape spec names - a vector file's polygons, a named region's, or what a
+combination of shapes builds - as the connected pieces it is, in WGS84 and before any grid
+exists: the eager step the spec defers. Each piece is a named tuple of its `geometry` (an
+`ArchGDAL` geometry), its `envelope` (the bounding box GDAL reports for it) and its `area` in
+square kilometres, ordered largest first, after the spec's `coverage` has said which to keep.
+
+Building a study area resolves a shape through this, so calling it directly is for inspection -
+to see how many pieces a name is, or how large the one a `coverage` would drop is.
+
+# Arguments
+
+  - `spec`: what to read.
+"""
+Base.read(spec::AbstractShapeSpec) = _shapecomponents(spec)
+
+"""
+    read(spec::RasterSpec; cut = spec.cut, scale = spec.scale, fn = spec.fn)
+
+Read the data a [`RasterSpec`](@ref) names into a [`ClimateRaster`](@ref) on the source's own grid,
+values in the spec's unit and the layer's `code` attached - the eager step the spec defers. A
+source that fetches its own files does so here (a catalogued dataset's download), and a spec
+naming its files reads them: each opened by the backend its source's catalogue row names, stacked
+along time with the coordinates the files carry, or `times` where given, or monthly ordinals where
+they have none; a file in the 0 to 360 longitude convention is rolled onto -180 to 180. What the
+files say about themselves is checked against the row on the way.
+
+Building a layer reads a spec through this, windowed and coarsened to suit the study grid, so
+calling it directly is for inspection - a whole global layer at its own resolution can be large.
+
+# Arguments
+
+  - `spec`: what to read.
+  - `cut`: an `Extents.Extent` of `°` intervals to window the read to; the spec's own by default.
+  - `scale`: an integer factor to coarsen by on read, each block of `scale × scale` cells becoming
+    one; the spec's own by default, and `1` where it states none.
+  - `fn`: how a block is reduced to one cell; the spec's own by default, and the axis's choice
+    where it states none.
+"""
+function Base.read(spec::RasterSpec; cut = spec.cut, scale = spec.scale,
+                   fn = spec.fn)
+    return _readspec(spec, spec.files, cut = cut, scale = something(scale, 1),
+                     fn = fn)
+end
+
+"""
+    fetchfiles(spec::RasterSpec; dryrun = false)
+    fetchfiles(specs; dryrun = false)
+
+Fetch every file a spec reads that is not there yet, reading nothing, and return their local paths
+in the spec's order - the step to run on a node with a network before a run on nodes without one.
+A vector of specs is fetched spec by spec.
+
+# Arguments
+
+  - `spec`, `specs`: what to fetch for.
+  - `dryrun`: `true` fetches nothing and instead returns, per file, a named tuple of the `entry`,
+    whether it is `present`, and its `bytes` where the server states them (a plain download's
+    `Content-Length`; a Climate Data Store request cannot say), so a user on a slow link can decide.
+    A source that resolves its own files through RasterDataSources is reported as one entry with
+    no size.
+"""
+function fetchfiles(spec::RasterSpec; dryrun::Bool = false)
+    dryrun || return _fetchedpaths(spec, spec.files)
+    isnothing(spec.files) &&
+        return [(entry = spec.source, present = nothing, bytes = nothing)]
+    return [_dryrunentry(entry) for entry in spec.files]
+end
+
+function fetchfiles(specs::AbstractVector; dryrun::Bool = false)
+    return reduce(vcat, (fetchfiles(s, dryrun = dryrun) for s in specs),
+                  init = dryrun ? Any[] : String[])
+end
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -233,7 +309,7 @@ _targetyx(target) = dims(target, (Y, X))
 _reducer(fn, ::Type{<:NicheAxis}) = fn
 
 function _reducer(::Nothing, axis::Type{<:NicheAxis})
-    return iscategorical(axis) ? _majorityclass : _meanpresent
+    return _iscategorical(axis) ? _majorityclass : _meanpresent
 end
 
 # **One rule for a block with missing cells, shared by every reducer**: it reduces over the cells
@@ -1201,7 +1277,7 @@ end
 # A `ConstructedRasterSpec` carries the niche axis declared at construction (`NicheAxis` by default).
 _specaxis(spec::ConstructedRasterSpec) = spec.axis
 
-# Wrap a sampled supply layer as a supply: `cancel` converts the raw per-area rate (at any native
+# Wrap a sampled supply layer as a supply: `_cancel` converts the raw per-area rate (at any native
 # time unit) to an absolute per-cell one against `cellarea`, stated in the axis's canonical unit, and
 # the **axis** picks the supply type - never the value's dimension, on either count. A
 # monthly (3-D) stack becomes a supply holding one slice at a time, carrying the stack as its
@@ -1212,7 +1288,7 @@ _specaxis(spec::ConstructedRasterSpec) = spec.axis
 # varies in time is the same type as one that does not, so every resource can have one.
 function _wrapsupply(out, cellareas, axis, series::NamedTuple)
     T = _supplytype(axis)
-    abs = cancel.(out, cellareas, axis)
+    abs = _cancel.(out, cellareas, axis)
     ndims(abs) == 2 && return T(abs)
     return _setseries!(T(_firstslice(abs)), abs; series...)
 end
@@ -1477,24 +1553,6 @@ function _readshapefile(spec::ShapeSpec)
     src = sr.ptr != C_NULL ? sr : _gdalcrs(Rasters.EPSG(4326))
     return [ArchGDAL.clone(ArchGDAL.getgeom(f)) for f in lyr], src
 end
-
-"""
-    read(spec::AbstractShapeSpec)
-
-Read the ground a shape spec names - a vector file's polygons, a named region's, or what a
-combination of shapes builds - as the connected pieces it is, in WGS84 and before any grid
-exists: the eager step the spec defers. Each piece is a named tuple of its `geometry` (an
-`ArchGDAL` geometry), its `envelope` (the bounding box GDAL reports for it) and its `area` in
-square kilometres, ordered largest first, after the spec's `coverage` has said which to keep.
-
-Building a study area resolves a shape through this, so calling it directly is for inspection -
-to see how many pieces a name is, or how large the one a `coverage` would drop is.
-
-# Arguments
-
-  - `spec`: what to read.
-"""
-Base.read(spec::AbstractShapeSpec) = _shapecomponents(spec)
 
 # The components a shape spec resolves to, in WGS84 and before any grid exists: one method per
 # leaf, and what `read` returns.
@@ -1808,69 +1866,11 @@ function _noactivemessage(simulate_safely::Bool)
 end
 
 # Re-wrap a raster's data with a unit, preserving the axes and the source type (so
-# `iscategorical` still dispatches correctly). `NoUnits` is a genuine no-op that leaves
+# `_iscategorical` still dispatches correctly). `NoUnits` is a genuine no-op that leaves
 # the data as bare numbers, which is what a categorical (class-code) regime wants.
 function _attachunit(raster::ClimateRaster{S}, u) where {S}
     A = raster.array
     return ClimateRaster(S, DimArray(A.data .* u, dims(A)), raster.code)
-end
-
-"""
-    read(spec::RasterSpec; cut = spec.cut, scale = spec.scale, fn = spec.fn)
-
-Read the data a [`RasterSpec`](@ref) names into a [`ClimateRaster`](@ref) on the source's own grid,
-values in the spec's unit and the layer's `code` attached - the eager step the spec defers. A
-source that fetches its own files does so here (a catalogued dataset's download), and a spec
-naming its files reads them: each opened by the backend its source's catalogue row names, stacked
-along time with the coordinates the files carry, or `times` where given, or monthly ordinals where
-they have none; a file in the 0 to 360 longitude convention is rolled onto -180 to 180. What the
-files say about themselves is checked against the row on the way.
-
-Building a layer reads a spec through this, windowed and coarsened to suit the study grid, so
-calling it directly is for inspection - a whole global layer at its own resolution can be large.
-
-# Arguments
-
-  - `spec`: what to read.
-  - `cut`: an `Extents.Extent` of `°` intervals to window the read to; the spec's own by default.
-  - `scale`: an integer factor to coarsen by on read, each block of `scale × scale` cells becoming
-    one; the spec's own by default, and `1` where it states none.
-  - `fn`: how a block is reduced to one cell; the spec's own by default, and the axis's choice
-    where it states none.
-"""
-function Base.read(spec::RasterSpec; cut = spec.cut, scale = spec.scale,
-                   fn = spec.fn)
-    return _readspec(spec, spec.files, cut = cut, scale = something(scale, 1),
-                     fn = fn)
-end
-
-"""
-    fetchfiles(spec::RasterSpec; dryrun = false)
-    fetchfiles(specs; dryrun = false)
-
-Fetch every file a spec reads that is not there yet, reading nothing, and return their local paths
-in the spec's order - the step to run on a node with a network before a run on nodes without one.
-A vector of specs is fetched spec by spec.
-
-# Arguments
-
-  - `spec`, `specs`: what to fetch for.
-  - `dryrun`: `true` fetches nothing and instead returns, per file, a named tuple of the `entry`,
-    whether it is `present`, and its `bytes` where the server states them (a plain download's
-    `Content-Length`; a Climate Data Store request cannot say), so a user on a slow link can decide.
-    A source that resolves its own files through RasterDataSources is reported as one entry with
-    no size.
-"""
-function fetchfiles(spec::RasterSpec; dryrun::Bool = false)
-    dryrun || return _fetchedpaths(spec, spec.files)
-    isnothing(spec.files) &&
-        return [(entry = spec.source, present = nothing, bytes = nothing)]
-    return [_dryrunentry(entry) for entry in spec.files]
-end
-
-function fetchfiles(specs::AbstractVector; dryrun::Bool = false)
-    return reduce(vcat, (fetchfiles(s, dryrun = dryrun) for s in specs),
-                  init = dryrun ? Any[] : String[])
 end
 
 # The local paths of a spec's files, fetched where missing: named entries through `assetpath`, a
@@ -1925,40 +1925,6 @@ function _remotesize(asset::CachedAsset)
 end
 
 _remotesize(::Any) = nothing
-
-function provenance(spec::RasterSpec)
-    entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
-    return Union{Nothing, InputRecord}[provenance(_localpath(e))
-                                       for e in entries]
-end
-
-"""
-    verifyassets(spec::RasterSpec)
-
-Check every file a spec reads that is present against the checksum its provenance record holds,
-erroring on the first that differs - a truncated or replaced copy - and return how many were
-checked. A file with no record, or whose record carries no checksum, has nothing to check
-against and is not counted; nothing is fetched.
-
-# Arguments
-
-  - `spec`: the spec whose files to check.
-"""
-function verifyassets(spec::RasterSpec)
-    entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
-    checked = 0
-    for path in _localpath.(entries)
-        isfile(path) || continue
-        checked += _verifyfile(path)
-    end
-    return checked
-end
-
-# The files a source has on disk for a spec that resolves its own, fetching nothing.
-function _presentfiles(spec::RasterSpec)
-    readkw = (; _getrasterkw(spec.source)..., spec.readkw...)
-    return _localfiles(spec.source, spec.code; readkw...)
-end
 
 # A spec naming its files reads them itself: each through `_cachedlayer` - the same step a dataset
 # layer takes, so a coarsened read of a whole file is memoised on disk exactly as a dataset's is -
@@ -2063,7 +2029,7 @@ function _readspec(spec::RasterSpec{A}, ::Nothing; cut, scale, fn) where {A}
                   "into one array without losing them. " * onelayer)
         # Called for its refusal: the vector method throws on a stack that mixes class codes with
         # measurements, which is the rule stated once rather than restated here.
-        iscategorical(spec.source, spec.code)
+        _iscategorical(spec.source, spec.code)
     end
     raw = _readraw(S, _fetchfiles(S, spec.code; readkw...), cut = cut,
                    scale = scale, fn = fn,
@@ -2072,7 +2038,7 @@ function _readspec(spec::RasterSpec{A}, ::Nothing; cut, scale, fn) where {A}
     # Tag the materialised raster with the layer it came from. This is the single point at which a
     # spec becomes data, and the only place that still knows the code - after this the raster is
     # passed around on its own and the shipped table can no longer be consulted for it, which is
-    # exactly why `iscategorical` answers `false` for a raster carrying no code.
+    # exactly why `_iscategorical` answers `false` for a raster carrying no code.
     data = _applyfold(_applyperiod(corrected.array, spec, readkw), spec)
     return _attachunit(ClimateRaster(S, data, spec.code), spec.unit)
 end

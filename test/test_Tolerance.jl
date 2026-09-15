@@ -24,7 +24,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
         # are read per role and built in the default (canonical K) frame.
         bin = NicheTolerance(Temperature, Normal, opts, vars)
         @test bin isa NicheTolerance{Temperature}
-        @test EcoSISTEM.iscontinuous(bin) == true
+        @test EcoSISTEM._iscontinuous(bin) == true
         @test eltype(bin) == typeof(1.0K)
         # Params are stored bare in the canonical (K) frame. `σ` is a standard deviation (a temperature
         # *interval*): 9°F, 5°C and 5K all give the same 5 K width; `μ` keeps the affine offset
@@ -71,8 +71,8 @@ import EcoSISTEM: SimpleCategoricalTolerance
         # Categorical trait
         @test_nowarn SimpleCategoricalTolerance(fill(1, 10),
                                                 axis = EcoSISTEM.TypologyAxis)
-        @test EcoSISTEM.iscontinuous(SimpleCategoricalTolerance(fill(1, 10),
-                                                                axis = EcoSISTEM.TypologyAxis)) ==
+        @test EcoSISTEM._iscontinuous(SimpleCategoricalTolerance(fill(1, 10),
+                                                                 axis = EcoSISTEM.TypologyAxis)) ==
               false
         @test eltype(SimpleCategoricalTolerance(fill(1, 10),
                                                 axis = EcoSISTEM.TypologyAxis)) <:
@@ -136,7 +136,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
     @testset "temperature bin" begin
         # Temperature bin
         @test_nowarn TempTolerance(repeat([1 2 3 4], 10))
-        @test EcoSISTEM.iscontinuous(TempTolerance(repeat([1 2 3 4], 10))) ==
+        @test EcoSISTEM._iscontinuous(TempTolerance(repeat([1 2 3 4], 10))) ==
               true
         @test eltype(TempTolerance(repeat([1 2 3 4], 10))) <:
               Unitful.Temperature
@@ -144,7 +144,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
     @testset "rainfall bin" begin
         # Rainfall bin
         @test_nowarn RainTolerance(repeat([1 2], 10))
-        @test EcoSISTEM.iscontinuous(RainTolerance(repeat([1 2], 10))) == true
+        @test EcoSISTEM._iscontinuous(RainTolerance(repeat([1 2], 10))) == true
         @test eltype(RainTolerance(repeat([1 2], 10))) == typeof(1.0mm / day)
         @test_nowarn SpeciesRequirementCollection((TempTolerance(repeat([1 2 3 4
                                                                          ], 10)),
@@ -206,7 +206,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
         warmth = TempTolerance(repeat([1 2 3 4], 10))
         wet = RainTolerance(repeat([1 2], 10))
         tr2 = SpeciesRequirementCollection((; warmth, wet))
-        @test map(EcoSISTEM.iscontinuous, values(tr2)) == (true, true)
+        @test map(EcoSISTEM._iscontinuous, values(tr2)) == (true, true)
         @test map(eltype, values(tr2)) == (typeof(1.0K), typeof(1.0mm / day))
         gbin = NicheTolerance(Temperature, Normal, opts, vars)
         # **Named** throughout: `gbin` and the deprecated `TempTolerance` are both on a
@@ -215,7 +215,7 @@ import EcoSISTEM: SimpleCategoricalTolerance
         niche = gbin
         @test_nowarn SpeciesRequirementCollection((; niche, warmth, wet))
         tr3 = SpeciesRequirementCollection((; niche, warmth, wet))
-        @test map(EcoSISTEM.iscontinuous, values(tr3)) == (true, true, true)
+        @test map(EcoSISTEM._iscontinuous, values(tr3)) == (true, true, true)
         @test map(eltype, values(tr3)) ==
               (typeof(1.0K), typeof(1.0K), typeof(1.0mm / day))
     end

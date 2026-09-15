@@ -183,7 +183,7 @@ end
         four = LayerCollection((a = temp, b = rain, c = temp, d = rain))
         @test length(values(four)) == 4
         @test four.d === rain
-        @test map(EcoSISTEM.iscontinuous, values(four)) == ntuple(_ -> true, 4)
+        @test map(EcoSISTEM._iscontinuous, values(four)) == ntuple(_ -> true, 4)
         @test length(values(LayerCollection((a = solar, b = water,
                                              c = solar)))) == 3
     end

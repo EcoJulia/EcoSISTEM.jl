@@ -115,7 +115,7 @@ end
     # There is deliberately no `valuetype` field to assert on: whether a layer holds class codes is
     # the axis's to say.
     @test early.axis === EcoSISTEM.NicheAxis
-    @test !EcoSISTEM.iscategorical(early.axis)
+    @test !EcoSISTEM._iscategorical(early.axis)
 end
 
 @testset "ShapeSpec: URL vs local path" begin

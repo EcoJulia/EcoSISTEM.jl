@@ -87,10 +87,16 @@ function temperature_fluctuation(amplitude = 2.0K, period = 1.0year)
                                                            period))))
 end
 
-# All three at once - an `InterventionSet` applies them in the order written. The old `MultiScenario`
-# held exactly two, and hard-coded their types.
+# All three at once. A layer holds one change rule and `SetChange` replaces it, so warming and the
+# seasonal cycle on the same temperature layer go in as one combined change; the drying is a
+# different layer, and an `InterventionSet` applies its members in the order written. The old
+# `MultiScenario` held exactly two, and hard-coded their types.
 function changing_climate(; warming = 1.0K / year, drying = -0.1mm / day / year,
-                          amplitude = 2.0K)
-    return InterventionSet(temperature_increase(warming), rain_decrease(drying),
-                           temperature_fluctuation(amplitude))
+                          amplitude = 2.0K, period = 1.0year)
+    warmingandseasons = Intervention(AtTime(0.0s), AllCells(),
+                                     SetChange(:temperature,
+                                               IncrementBy(warming) +
+                                               OffsetBy(PatternedChange(amplitude,
+                                                                        period))))
+    return InterventionSet(warmingandseasons, rain_decrease(drying))
 end

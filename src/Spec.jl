@@ -144,12 +144,17 @@ cover map.
 
   - `n`: how many distinct classes to draw from.
   - `axis`: the niche axis this layer is on. Required.
+  - `seed`: an integer fixing the layout. It is drawn from a stream of its own, so the same seed gives
+    the same map in any process whatever else has used the global random generator; `nothing`, the
+    default, draws from the global generator.
 """
 struct NicheSpec{A <: NicheAxis} <: AbstractSyntheticLayerSpec
     numniches::Int64
-    function NicheSpec(n::Integer;
-                       axis::Type{A}) where {A <: NicheAxis}
-        return new{A}(Int64(n))
+    seed::Union{Nothing, UInt64}
+    function NicheSpec(n::Integer; axis::Type{A},
+                       seed::Union{Nothing, Integer} = nothing) where {A <:
+                                                                       NicheAxis}
+        return new{A}(Int64(n), isnothing(seed) ? nothing : seed % UInt64)
     end
 end
 
@@ -208,7 +213,9 @@ function Base.show(io::IO, spec::PeakedSpec{A}) where {A}
 end
 
 function Base.show(io::IO, spec::NicheSpec{A}) where {A}
-    return print(io, "NicheSpec($(spec.numniches), axis = $(nameof(A)))")
+    seed = isnothing(spec.seed) ? "" : ", seed = $(spec.seed)"
+    return print(io, "NicheSpec($(spec.numniches), axis = $(nameof(A))", seed,
+                 ")")
 end
 
 function Base.show(io::IO, spec::CircleMaskSpec)
@@ -281,8 +288,20 @@ _specaxis(::NicheSpec{A}) where {A} = A
 # the whole synthetic family, and the builder reaches every one of them the same way.
 function _specfield(spec::NicheSpec, dim, rowsnorth)
     n = spec.numniches
-    return _nichefield(dim, collect(1:n), 0.5, fill(1.0 / n, n))
+    return _nichefield(_nicherng(spec.seed), dim, collect(1:n), 0.5,
+                       fill(1.0 / n, n))
 end
+
+# The word standing for a niche layout in a seeded `NicheSpec`'s stream - "niche" in ASCII - so that
+# its seed can never coincide with a species' `(seed, j)`. A literal rather than `hash(:niche)`,
+# because `Base.hash` changes between Julia versions and the layout must not.
+const _NICHE_STREAM = 0x6e69636865
+
+# The generator a `NicheSpec` draws its layout from: its own stream when it has a seed, and the
+# global one when it does not.
+_nicherng(::Nothing) = Random.default_rng()
+
+_nicherng(seed::UInt64) = Random.Xoshiro(UInt64[seed, _NICHE_STREAM])
 
 function _specfield(spec::AbstractSyntheticLayerSpec, dim, rowsnorth)
     return _syntheticsupplyfield(spec, dim, rowsnorth)

@@ -77,10 +77,8 @@ function _run(name, regime)
     # Read the temperature off the **built habitat** after the run, not off the spec - the layer
     # holds the values current now, which is the whole point.
     #
-    # And read the clock rather than assuming it says `YEARS`. `simulate!` takes
-    # `length((0s):timestep:duration)` steps - an **inclusive** range from zero - so a 4-year run at
-    # monthly steps advances **49** months, not 48. A layer change is a function of elapsed time, so
-    # that one extra step is visible in the values: worth knowing before comparing against a period.
+    # And read the clock rather than assuming it: a layer change is a function of elapsed time, and
+    # the assertions below are stated in it.
     return (name = name, abundance = sum(eco.abundances.matrix),
             temperature = first(environment.regime.matrix),
             elapsed = EcoSISTEM.simulationtime(eco))
@@ -114,7 +112,7 @@ isapprox(WARM.temperature, EXPECTED, atol = 0.01K) ||
     error("warming reached $(WARM.temperature), expected about $(EXPECTED)")
 
 # **The property that distinguishes a cycle from a drift, and it is not "ends where it started"**
-# - that is only true at whole periods, and this run stops one step past one. The real distinction is
+# - that is only true at whole periods, and a run need not end on one. The real distinction is
 # that a cycle stays **bounded** by its amplitude however long it runs, while `IncrementBy` grows
 # without limit. Run it for a century and this still holds; the warming assertion above does not.
 abs(SEASON.temperature - 285.0K) <= 8.0K ||

@@ -49,7 +49,7 @@ if !Sys.iswindows()
         area = StudyArea(regime = spec, verbosity = :silent)
         senv = GridHabitat(regime = spec, supply = supply, area = area)
         @test senv isa GridHabitat
-        @test EcoSISTEM.iscontinuous(senv.regime)
+        @test EcoSISTEM._iscontinuous(senv.regime)
         @test eltype(senv.regime.matrix) <: Unitful.Temperature
 
         # **The `(source, layer)` pair form is refused**, at every entry point and with the same
@@ -221,18 +221,18 @@ end
         # a uniform temperature spec -> flat continuous temperature regime
         u = GridHabitat(regime = flat, supply = SUP, area = square)
         @test u isa GridHabitat
-        @test EcoSISTEM.iscontinuous(u.regime)
+        @test EcoSISTEM._iscontinuous(u.regime)
         @test u.supply isa Supply{SolarRadiation}
 
         # a temperature gradient/peaked spec -> continuous regime
         g = GridHabitat(regime = GradientSpec(274.0K, 303.0K,
                                               axis = Temperature),
                         supply = SUP, area = square)
-        @test EcoSISTEM.iscontinuous(g.regime)
+        @test EcoSISTEM._iscontinuous(g.regime)
         gp = GridHabitat(regime = PeakedSpec(274.0K, 303.0K,
                                              axis = Temperature),
                          supply = SUP, area = square)
-        @test EcoSISTEM.iscontinuous(gp.regime)
+        @test EcoSISTEM._iscontinuous(gp.regime)
 
         # a NicheSpec -> categorical niches. On a **non-square** grid deliberately: the niche
         # field's cluster finder indexed its neighbours the other way round, which only a grid whose
@@ -242,7 +242,7 @@ end
                             supply = SUP,
                             area = _area(extent = (4km, 12km),
                                          cellsize = cellsize))
-        @test !EcoSISTEM.iscontinuous(niche.regime)
+        @test !EcoSISTEM._iscontinuous(niche.regime)
         @test size(niche.regime.matrix) == (4, 12)
 
         # a precipitation supply spec -> a `Supply{Precipitation}` (no rainfall->water magic; the
@@ -397,7 +397,7 @@ end
     @testset "continuous regime + supply from spec/raster" begin
         env = _env(_reg(temp), SUP)
         @test env isa GridHabitat
-        @test EcoSISTEM.iscontinuous(env.regime)
+        @test EcoSISTEM._iscontinuous(env.regime)
         @test size(env.regime.matrix) == (5, 5)
         @test env.supply isa Supply{SolarRadiation}
 
@@ -419,7 +419,7 @@ end
         landcover = _testraster(EarthEnv{LandCover},
                                 Float64.(repeat(1:5, 1, 5)))
         env = _env(_reg(landcover), SUP)
-        @test EcoSISTEM.iscontinuous(env.regime)
+        @test EcoSISTEM._iscontinuous(env.regime)
     end
 
     @testset "grid: native by default, an explicit cell size re-grids and is classified" begin
@@ -694,7 +694,7 @@ end
         pair = (regime1 = _reg(scotgeo), regime2 = _reg(bng))
         mixed = GridHabitat(regime = pair, supply = SUP,
                             area = _area(regime = pair))
-        @test map(EcoSISTEM.iscontinuous, values(mixed.regime)) == (true, true)
+        @test map(EcoSISTEM._iscontinuous, values(mixed.regime)) == (true, true)
         # The adopted grid is the projected one: its cell side is a real length, not a degree step.
         @test EcoSISTEM._crsunit(EcoSISTEM._targetcrs((scotgeo, bng), nothing,
                                                       nothing)) == u"m"
@@ -849,13 +849,13 @@ end
             # ...and the fixture really is non-square, so this cannot rot back into a square one.
             @test size(area.report.active, 1) != size(area.report.active, 2)
             # Both paths give a *categorical* layer - the thing most at risk here, because the
-            # builder's raster route asks `iscategorical`, which answers `false` for a code-less
+            # builder's raster route asks `_iscategorical`, which answers `false` for a code-less
             # synthetic raster and would silently have built a continuous regime.
             shown = materialise(spec, area)
             @test shown isa CategoricalLayer
             built = GridHabitat(regime = spec, supply = SUP, area = area)
             @test built.regime isa CategoricalLayer
-            @test !EcoSISTEM.iscontinuous(built.regime)
+            @test !EcoSISTEM._iscontinuous(built.regime)
             # Same grid and the same cell size on both -  an **angle** on the geographic area,
             # which is the second bug this fixes: the cell size was threaded into `_randomniches`
             # only to be discarded, and its `::Unitful.Length` annotation refused a degree grid.
@@ -867,9 +867,13 @@ end
             @test eltype(built.regime.matrix) <: Integer
             @test issubset(unique(built.regime.matrix), 1:3)
         end
-        # **Not** asserted: that the two show the *same* niches. `_randomniches` is stochastic
-        # and unseeded, so each call draws its own pattern - a known limit of inspecting a
-        # `NicheSpec`, recorded in the plan rather than fixed here.
+        # An unseeded `NicheSpec` draws a fresh pattern on each call, so the loop above cannot ask
+        # for the same niches on both paths; a seeded one must show exactly the niches it builds.
+        seeded = NicheSpec(3, axis = EcoSISTEM.TypologyAxis, seed = 11)
+        area = _area(extent = (40km, 70km), cellsize = 10km)
+        @test parent(materialise(seeded, area).matrix) ==
+              parent(GridHabitat(regime = seeded, supply = SUP,
+                                 area = area).regime.matrix)
     end
 
     @testset "geographic grids build (with a warning) but cannot be simulated" begin
@@ -1226,7 +1230,7 @@ end
 
     @testset "temperature + land cover, and a 3-tuple (both continuous)" begin
         env = _env((warmth = _reg(temp), cover = _reg(landcover)), SUP)
-        @test map(EcoSISTEM.iscontinuous, values(env.regime)) == (true, true)
+        @test map(EcoSISTEM._iscontinuous, values(env.regime)) == (true, true)
         @test length(values(_env((warmth = _reg(temp), wet = _reg(rain),
                                   cover = _reg(landcover)),
                                  SUP).regime)) == 3
@@ -1455,8 +1459,8 @@ end
     # appears one step later, because the supply path multiplies by the **cell area** first: a
     # 3 m/s wind over a 1 km^2 cell becomes 2.592e14 L/day, which is **dimensionally identical** to
     # rainfall over the same cell. Any lookup keyed on dimension must confuse the two.
-    windflow = EcoSISTEM.cancel(3.0m / s, 1.0km^2)
-    rainflow = EcoSISTEM.cancel(2.0mm / day, 1.0km^2)
+    windflow = EcoSISTEM._cancel(3.0m / s, 1.0km^2)
+    rainflow = EcoSISTEM._cancel(2.0mm / day, 1.0km^2)
     @test dimension(windflow) == dimension(rainflow)
     @test dimension(windflow) == dimension(1.0Unitful.L / day)
     # ...and it really is a wind speed that got there, not a quantity that was water all along.

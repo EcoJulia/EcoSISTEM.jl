@@ -309,7 +309,7 @@ end
 # when already present, which then carries the URL alone.
 function _assetrecord(asset::CachedAsset, path::AbstractString, response)
     rec = _datasetrecord(asset.owner)
-    record = _baserecord(path, isnothing(rec) ? :region : :habitat)
+    record = _baserecord(path, _assetrole(asset.owner))
     record["url"] = asset.url
     if !isnothing(response)
         response.url == asset.url || (record["final_url"] = response.url)
@@ -318,11 +318,37 @@ function _assetrecord(asset::CachedAsset, path::AbstractString, response)
             isnothing(i) || (record[key] = String(last(response.headers[i])))
         end
     end
-    isnothing(rec) ||
-        merge!(record,
-               _cataloguerecord(asset.owner,
-                                _layerbyfile(asset.owner, asset.url)))
+    isnothing(rec) && return record
+    layer = rec.format === :Shapefile ? nothing :
+            _layerbyfile(asset.owner, asset.url)
+    merge!(record, _cataloguerecord(asset.owner, layer))
+    version = _fileversion(rec, path)
+    isnothing(version) || (record["version"] = version)
     return record
+end
+
+# The part of the system a download owned by `owner` enters by: an outline for a shape spec or a
+# named region, and a layer for everything else.
+function _assetrole(owner::Type)
+    return owner <: AbstractShapeSpec || owner === NaturalEarthLevel ? :region :
+           :habitat
+end
+
+# The version Natural Earth writes inside each of its zips as `<name>.VERSION.txt`, or `nothing`
+# for a zip holding none - read through GDAL's zip filesystem, which opens that one entry.
+function _zipversion(path::AbstractString)
+    entry = "/vsizip/" * abspath(path) * "/" *
+            chopsuffix(basename(path), ".zip") * ".VERSION.txt"
+    handle = ArchGDAL.GDAL.vsifopenl(entry, "rb")
+    handle == C_NULL && return nothing
+    buffer = Vector{UInt8}(undef, 256)
+    n = try
+        ArchGDAL.GDAL.vsifreadl(buffer, 1, length(buffer), handle)
+    finally
+        ArchGDAL.GDAL.vsifclosel(handle)
+    end
+    version = strip(String(buffer[1:n]))
+    return isempty(version) ? nothing : String(version)
 end
 
 # The provenance record of a file fetched from the Climate Data Store: the dataset asked, the

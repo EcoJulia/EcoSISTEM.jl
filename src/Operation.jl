@@ -161,9 +161,9 @@ exactly what `dispersal` takes:
 AddSpecies(dispersal = EcoSISTEM.speciesdispersal(eco, 3), abundance = 500)
 ```
 
-**The recording has to have room.** `simulate_record!` writes into an array sized before the run
-starts, so a run that gains species needs `generate_storage(eco, times, reps, maxspecies = ...)`; see
-[`generate_storage`](@ref). **Not supported under MPI**: species are partitioned across ranks, so
+**The recording has to have room.** A [`RecordAbundance`](@ref) writes into an array sized before the
+run starts, so a run that gains species needs `RecordAbundance(eco, ntimes, maxspecies = ...)`, or
+storage from `generate_storage(eco, times, reps, maxspecies = ...)`; see [`generate_storage`](@ref). **Not supported under MPI**: species are partitioned across ranks, so
 adding one changes the partition itself, and unlike the abundance operations this is not rank-local.
 
 # Arguments

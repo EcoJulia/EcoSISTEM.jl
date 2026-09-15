@@ -50,24 +50,24 @@ include("buildfixtures.jl")
                                                          typeof(1.0mm)}()(Uniform(1,
                                                                                   2),
                                                                           1.0K)
-    @test EcoSISTEM.iscontinuous(NicheSuitability{EcoSISTEM.NicheAxis,
-                                                  Unitful.Temperature}()) ==
+    @test EcoSISTEM._iscontinuous(NicheSuitability{EcoSISTEM.NicheAxis,
+                                                   Unitful.Temperature}()) ==
           true
     @test eltype(NicheSuitability{EcoSISTEM.NicheAxis, Unitful.Temperature}()) ==
           Unitful.Temperature
 
     @test CategoricalSuitability{EcoSISTEM.NicheAxis, Int64}()(1, 1) == 1.0
-    @test EcoSISTEM.iscontinuous(CategoricalSuitability{EcoSISTEM.NicheAxis,
-                                                        Int64}()) == false
+    @test EcoSISTEM._iscontinuous(CategoricalSuitability{EcoSISTEM.NicheAxis,
+                                                         Int64}()) == false
     @test eltype(CategoricalSuitability{EcoSISTEM.NicheAxis, Int64}()) == Int64
 
     @test NoFitContinuous{EcoSISTEM.NicheAxis, Int64}()(1, 1, 1) == 1.0
-    @test EcoSISTEM.iscontinuous(NoFitContinuous{EcoSISTEM.NicheAxis, Int64}()) ==
+    @test EcoSISTEM._iscontinuous(NoFitContinuous{EcoSISTEM.NicheAxis, Int64}()) ==
           true
     @test eltype(NoFitContinuous{EcoSISTEM.NicheAxis, Int64}()) == Int64
 
     @test NoFitCategorical{EcoSISTEM.NicheAxis, Int64}()(1, 1) == 1.0
-    @test EcoSISTEM.iscontinuous(NoFitCategorical{EcoSISTEM.NicheAxis, Int64}()) ==
+    @test EcoSISTEM._iscontinuous(NoFitCategorical{EcoSISTEM.NicheAxis, Int64}()) ==
           false
     @test eltype(NoFitCategorical{EcoSISTEM.NicheAxis, Int64}()) == Int64
 
@@ -75,13 +75,13 @@ include("buildfixtures.jl")
     # what is under test is the *combining*, not the naming.
     tr2 = MultiplicativeFit((a = NoFitContinuous{EcoSISTEM.NicheAxis, Int64}(),
                              b = NoFitCategorical{EcoSISTEM.NicheAxis, Int64}()))
-    @test map(EcoSISTEM.iscontinuous, values(tr2)) == (true, false)
+    @test map(EcoSISTEM._iscontinuous, values(tr2)) == (true, false)
     @test map(eltype, values(tr2)) == (Int64, Int64)
     tr3 = MultiplicativeFit((a = NoFitContinuous{EcoSISTEM.NicheAxis, Int64}(),
                              b = NoFitCategorical{EcoSISTEM.NicheAxis, Int64}(),
                              c = NicheSuitability{EcoSISTEM.NicheAxis,
                                                   Unitful.Temperature}()))
-    @test map(EcoSISTEM.iscontinuous, values(tr3)) == (true, false, true)
+    @test map(EcoSISTEM._iscontinuous, values(tr3)) == (true, false, true)
     @test map(eltype, values(tr3)) == (Int64, Int64, Unitful.Temperature)
 
     # `nichefitcombine` is now a whole-tuple function of the per-layer results, not a binary operator
@@ -91,13 +91,13 @@ include("buildfixtures.jl")
 
     tr2 = AdditiveFit((a = NoFitContinuous{EcoSISTEM.NicheAxis, Int64}(),
                        b = NoFitCategorical{EcoSISTEM.NicheAxis, Int64}()))
-    @test map(EcoSISTEM.iscontinuous, values(tr2)) == (true, false)
+    @test map(EcoSISTEM._iscontinuous, values(tr2)) == (true, false)
     @test map(eltype, values(tr2)) == (Int64, Int64)
     tr3 = AdditiveFit((a = NoFitContinuous{EcoSISTEM.NicheAxis, Int64}(),
                        b = NoFitCategorical{EcoSISTEM.NicheAxis, Int64}(),
                        c = NicheSuitability{EcoSISTEM.NicheAxis,
                                             Unitful.Temperature}()))
-    @test map(EcoSISTEM.iscontinuous, values(tr3)) == (true, false, true)
+    @test map(EcoSISTEM._iscontinuous, values(tr3)) == (true, false, true)
     @test map(eltype, values(tr3)) == (Int64, Int64, Unitful.Temperature)
 
     @test EcoSISTEM.nichefitcombine(tr2) == sum

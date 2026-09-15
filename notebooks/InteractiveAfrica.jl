@@ -130,14 +130,16 @@ begin
     times = 10year
     timestep = 1month_mean_duration
     record_interval = 1month_mean_duration
-    lensim = length((0year):record_interval:times)
+    # One slice per interval of the recorded run: the burn-in has already moved the clock, so the
+    # starting state is not an occurrence.
+    lensim = length(record_interval:record_interval:times)
     abuns = zeros(numSpecies, prod(grd), lensim)
 
     # Run simulation for burnin and then add invasive species
     @time simulate!(eco, burnin, timestep)
     eco.abundances.grid[end, 50, 50] = 100
-    @time simulate_record!(abuns, eco, times, record_interval,
-                           timestep)
+    @time simulate!(RecordAbundance(abuns), eco, times, timestep,
+                    every = EveryInterval(record_interval))
 
     # **Not `plot(eco)`.** That recipe throws a `BoundsError` on any grid that is not square -
     # reproduced on a 4×6 grid, where it reaches for `[5, 1]` - so it worked here only while this
@@ -241,18 +243,29 @@ begin
     times_new = 10year
     timestep_new = 1year
     record_interval_new = 1year
-    lensim_new = length((0year):record_interval_new:times_new)
+    # The burn-in has already moved the clock: one slice for each interval of the recorded run.
+    lensim_new = length(record_interval_new:record_interval_new:times_new)
     abuns_new = zeros(numSpecies, prod(grd_new), lensim_new)
 
     # Run simulation for burnin and then add invasive species
     @time simulate!(eco_new, burnin_new, timestep_new)
-    @time simulate_record!(abuns_new, eco_new, times_new, timestep_new,
-                           record_interval_new)
+    # The burn-in has already moved the clock, so the starting state is not an occurrence.
+    @time simulate!(RecordAbundance(abuns_new), eco_new, times_new,
+                    timestep_new, every = EveryInterval(record_interval_new))
 
     mean_abuns = reshape(mean(eco_new.abundances.matrix, dims = 1)[1, :],
                          grd_new)
     mean_abuns[.!eco_new.habitat.active] .= NaN
     heatmap(mean_abuns)
+end
+
+# ╔═╡ 5b7c2e9a-3d41-4f6e-9a8b-2c1d0e7f6a53
+begin
+    # What that ecosystem was built from: the WorldClim temperature layer it read, with the
+    # dataset's DOI, licence and citation, the grid it sits on and the run's seed. A paper would
+    # commit this file beside its figures; here it goes to a temporary directory.
+    write_provenance(joinpath(mktempdir(), "provenance.toml"), eco_new)
+    provenance(eco_new)
 end
 
 # ╔═╡ Cell order:
@@ -263,3 +276,4 @@ end
 # ╠═7e16f197-874b-482d-80b6-13a62ddda1f7
 # ╠═f9d43c58-4888-402e-873a-81f3c4ffd367
 # ╠═ee925e21-b0b6-478e-a3a0-573e8497b9f6
+# ╠═5b7c2e9a-3d41-4f6e-9a8b-2c1d0e7f6a53

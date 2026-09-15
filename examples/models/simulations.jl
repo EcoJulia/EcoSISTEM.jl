@@ -2,10 +2,10 @@
 #
 # Running the experiments and recording diversity through time.
 #
-# **This is now a single do-block over the package's own `simulate_action!`.** The original had
+# **This is now a single do-block over the package's own `simulate!`.** The original had
 # its own `runsim!`/`dispersalrun!`/`simulate_record_diversity!` loop that called `update!` and then
-# `runscenario!` by hand, plus a JLD2 cache of every abundance matrix. `simulate_action!` already is
-# that loop - "run, and call this every `interval`" - and it takes an `intervention`, so nothing
+# `runscenario!` by hand, plus a JLD2 cache of every abundance matrix. `simulate!` already is
+# that loop - "run, and call this `every` interval" - and it takes an `intervention`, so nothing
 # here needs to know how the environment changes.
 #
 # It also drops three `runscenario!` methods the original defined. Those were **method piracy**:
@@ -87,8 +87,8 @@ function diversity_through_time(eco; times = 10year,
                                 intervention = nothing)
     points = length((0 * interval):interval:times)
     recorded = map(_ -> Float64[], MEASURES)
-    simulate_action!(eco, times, interval, timestep,
-                     intervention = intervention) do _
+    simulate!(eco, times, timestep, every = EveryInterval(interval),
+              intervention = intervention) do _
         for (name, measure) in pairs(MEASURES)
             push!(recorded[name], _summarise(measure(eco)))
         end

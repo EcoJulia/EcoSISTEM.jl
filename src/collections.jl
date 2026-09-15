@@ -132,7 +132,7 @@ end
 # ---------------------------------------------------------------------------
 # Recursive rather than `map` plus `reduce`: measured, `map` stops being unrolled at around seven
 # members and starts allocating, while the recursion stays allocation-free and fully inferred at every
-# arity. `map` is still fine for construction-time work - `eltype`, `iscontinuous`, coverage.
+# arity. `map` is still fine for construction-time work - `eltype`, `_iscontinuous`, coverage.
 
 # Combine `f` applied to each member with the binary `op`, right to left. The two-argument form
 # folds the members themselves, which is what most callers want - and it is what lets `op` be
@@ -150,7 +150,7 @@ _fold(op, t::Tuple) = _fold(op, identity, t)
 # reports **which** member disagrees rather than only that something did.
 #
 # Each family builds its own side, beside its own accessors: a label for the error, the member names,
-# each member's `eltype`, each member's niche axis, and each member's `iscontinuous` where that means
+# each member's `eltype`, each member's niche axis, and each member's `_iscontinuous` where that means
 # anything - `nothing` for the resource side, which has no continuous or categorical distinction.
 
 # One side of a pairing check, for any member family. One function rather than one per family,
@@ -163,7 +163,7 @@ function _side(x, label::AbstractString, kinds::Bool)
     members = values(x)
     return (label = label, names = keys(x),
             types = map(eltype, members), axes = map(axisof, members),
-            kinds = kinds ? map(iscontinuous, members) : nothing)
+            kinds = kinds ? map(_iscontinuous, members) : nothing)
 end
 
 # Check that structures which must line up member for member do. Nothing is ever silently
@@ -269,7 +269,7 @@ function _categoricalpair(refkinds, otherkinds, i::Integer)
     return !refkinds[i] && !otherkinds[i]
 end
 
-# "continuous"/"categorical" for an `iscontinuous` answer.
+# "continuous"/"categorical" for an `_iscontinuous` answer.
 _kindlabel(b::Bool) = b ? "continuous" : "categorical"
 _kindlabel(bs::AbstractVector{Bool}) = "[" * join(_kindlabel.(bs), ", ") * "]"
 

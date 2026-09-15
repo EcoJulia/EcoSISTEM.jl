@@ -43,6 +43,31 @@
     - `CachedAsset` takes a `path`, so a download can land in a project's own directory.
     - `datasets.csv` gains `Citation`, the text a paper prints for each dataset, resolved from its
       DOI, and `ERA.csv` gains `Request`, the Climate Data Store's name for each layer.
+    - `provenance` on a study area, a habitat or an ecosystem returns a `Provenance`: the package
+      version and its DOI, the grid, the run, and a record of every input it was built from.
+      `write_provenance` writes that as TOML, to commit beside a paper's figures.
+    - A `provenance` keyword on `build_species`, `Intervention` and `build_ecosystem` attaches
+      records of data the package never fetched, such as an occurrence download; an intervention's
+      records join the ecosystem's once it acts. `provenance` also answers for shape specs.
+    - `EveryInterval(interval)`, a schedule firing at every whole multiple of an interval counted
+      from the start of the run, on the step that reaches each.
+    - `simulate!(f, eco, duration, timestep; every, intervention)` calls `f` - usually a `do` block -
+      whenever the schedule `every` fires, handing it the occurrence's `count`, `elapsed` time and
+      `date`. The first occurrence is the starting state; `every` takes any schedule an intervention
+      takes, or a duration meaning `EveryInterval` of it.
+    - `RecordAbundance`, `RecordDiversity` and `SaveAbundance`, recorders passed to `simulate!` in
+      place of a callback. Each keeps the run's provenance as of its last write, and
+      `SaveAbundance` writes it beside every file; under MPI each gathers what it needs.
+    - `NicheSpec` takes a `seed`, drawing its niche layout from a stream of its own, so the same seed
+      gives the same map in any process; without one it draws from the global generator as before.
+    - `AtDates(dates)` and `EveryYear(month = 7, day = 1)`, schedules at real dates, placed through
+      the run's epoch and `calendar`. A run refuses them before its first step if it has no epoch,
+      or if a date falls inside a step longer than a day rather than at the end of one, where it
+      would be acted on late by a different amount each time.
+    - `build_ecosystem` takes a `calendar`: `ExactDates()`, the default, places dated slices by the
+      real time between them, and `MeanMonths()` counts every calendar month as
+      `month_mean_duration`, so a dated monthly series stepped by a mean month shows every month
+      once. `simulationdate` and the provenance run record follow the calendar.
     - `SoilVolume` and `SoilWaterVolume` axes. ERA5's `swvl1` reads on the second: a volumetric
       fraction over a layer whose catalogue row gives its thickness is a depth of water, and times
       the cell area a volume, so a stock is a supply as `SurfaceArea` already is.
@@ -56,6 +81,18 @@
       as PDFs from the package's own examples, at the published scale when run directly and from
       a small run under the test suite.
   - Changed
+    - A run of `duration` in steps of `timestep` takes `duration / timestep` steps and ends at
+      `duration`, where it took one step more: the nearest whole number of steps of a day or less,
+      and a longer step must divide `duration`. Twelve monthly steps now end where one yearly step
+      does. Every run ends a step earlier than before, and the canonical references are re-blessed.
+    - `simulate!` refuses, before its first step, a run whose timestep would leave a slice of a
+      dated series never current - a dated monthly series stepped by `month_mean_duration` from
+      1 January never shows February. Build the ecosystem with `calendar = MeanMonths()`, or step
+      by no more than the gap between slices.
+    - An intervention due at the start of a run - `AtTime(0)`, an `EveryInterval`'s first multiple,
+      a date on the epoch - acts on the starting state before the first step's births and deaths,
+      rather than after them. `EveryStep` and `BetweenTimes` act after each step and not at the
+      start, so calling `applyinterventions!` with them at elapsed zero does nothing.
     - Random streams are seeded through the generator's own seeding rather than `Base.hash`, whose
       values change between Julia versions, so a run reproduces from its seed on every Julia. A
       seed's results differ from earlier releases, once; the canonical references are re-blessed.
@@ -104,6 +141,8 @@
     - An angular `cellsize` such as `30arcminute` is accepted on a geographic grid; a length there,
       and an angle on a projected grid, are refused.
     - `ShapeSpec` documents that a URL must name a self-contained file.
+    - `gatherdiversity` refuses a metacommunity or individual measure, which it assembled into
+      values that meant nothing; it takes subcommunity measures, as documented.
   - Deprecated
     - `read(WorldClim{BioClim}, layers; ...)` and `read(CHELSA{Climate}, dir, var)`, which extended
       `Base.read` on types this package does not own. `read(SourceSpec(...))` replaces both and
@@ -112,6 +151,10 @@
       write `SourceSpec(source, code, file = path)` or `directory = dir` for the first three and
       `RasterFileSpec(path; axis)` for the last, and `read` the spec.
     - `retrieve_era5`: name the download as a `CDSRequest` instead, one per decade file.
+    - `simulate_action!`: give `simulate!` the callback instead. Its callback is handed a bare count
+      one step after each multiple of the interval, and the shim keeps that timing.
+    - `simulate_record!`, `simulate_record_diversity!` and the six-argument caching `simulate!`: pass
+      a `RecordAbundance`, `RecordDiversity` or `SaveAbundance` to `simulate!` instead.
 - v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name

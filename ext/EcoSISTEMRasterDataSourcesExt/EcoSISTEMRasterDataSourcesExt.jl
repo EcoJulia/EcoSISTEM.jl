@@ -30,7 +30,7 @@ using Dates: Dates
 # Named explicitly because they are `public` or private rather than exported - `using` brings in
 # only the exported names, and a moved body calls its neighbours by bare name.
 using EcoSISTEM: AbstractSupply, ClimateRaster, CODE_TYPE, NicheAxis, Supply,
-                 _cellareas, _derivedfrom, cancel, landcoverclass
+                 _cellareas, _derivedfrom, _cancel, landcoverclass
 using EcoSISTEM: SourceSpec
 using EcoSISTEM: compress_landcover, layerinfo, layerunit, sourcecrs
 # The ONLY remaining reference to the submodule, and it is confined to `deprecations.jl`: five

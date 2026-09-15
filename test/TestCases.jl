@@ -51,8 +51,8 @@ function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15)
     # which is what forced the old builder's `sqrt(area / prod(dimension))`.
     studyarea = StudyArea(extent = (grid[1] * cellsize, grid[2] * cellsize),
                           cellsize = cellsize, verbosity = :silent)
-    # `NicheSpec` draws its pattern from the **global** RNG and takes no seed of its own (see the
-    # deferred `NicheSpec` seed question). That is unchanged here: the old builder did the same, and
+    # This `NicheSpec` is unseeded, so it draws its pattern from the **global** RNG. That is
+    # unchanged here: the old builder did the same, and
     # `Random.seed!` below still runs *after* the environment is built, so the niche layout was
     # never part of what `seed` pins. It does not need to be - a run is reproducible because the
     # habitat is built once and then shared.

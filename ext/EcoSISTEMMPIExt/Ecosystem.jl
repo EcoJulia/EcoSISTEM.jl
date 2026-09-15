@@ -59,6 +59,13 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
     # deterministically from the layers, which are the same everywhere, rather than from anything
     # rank-local.
     epoch::Union{Nothing, Dates.TimeType}
+    # How dates map to elapsed time, set by `build_ecosystem` and identical on every rank for the
+    # same reason as the epoch.
+    calendar::EcoSISTEM.AbstractRunCalendar
+    # The records of published data belonging to the run as a whole, as on the serial `Ecosystem`:
+    # set by `build_ecosystem`, and added to by every intervention that acts, which every rank does
+    # on the same step.
+    inputs::Vector{EcoSISTEM.InputRecord}
 
     function MPIEcosystem(abundances::MPIGL,
                           spplist::SL,
@@ -97,7 +104,9 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                                         rngs,
                                         elapsed,
                                         seed,
-                                        epoch)
+                                        epoch,
+                                        EcoSISTEM.ExactDates(),
+                                        EcoSISTEM.InputRecord[])
     end
 end
 

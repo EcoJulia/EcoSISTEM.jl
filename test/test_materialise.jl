@@ -31,8 +31,9 @@ include("buildfixtures.jl")
 #
 # Both roles, both kinds of spec (data-backed and synthetic), on both kinds of positioned area -
 # because the two paths differed *per kind*, so a single case would prove almost nothing.
-# **`NicheSpec` is deliberately absent**: it is stochastic and unseeded (A19), so two
-# materialisations of one spec disagree with each other, never mind with the builder.
+# **An unseeded `NicheSpec` is deliberately absent**: it draws a fresh pattern each time, so two
+# materialisations of one spec disagree with each other, never mind with the builder. A seeded one
+# agrees, which `test_GridHabitat.jl` checks on a positioned area.
 @testset "what `materialise` shows is what `GridHabitat` builds" begin
     data = _reg(_bngraster(WorldClim{BioClim}, fill(291.0K, 9, 9)),
                 axis = Temperature)
@@ -109,6 +110,31 @@ end
     area = StudyArea(regime = spec, verbosity = :silent)
     @test size(area.report.active) == (5, 7)
     @test area.report.cellsize == 1.0°
+    # Each read records the file it came from beside itself: a file with no record of its own by
+    # its name alone, never hashed, and as the user's own file rather than a dataset's.
+    @test !isempty(area.report.cache.inputs)
+    for inputs in values(area.report.cache.inputs)
+        @test only(inputs).role === :habitat && only(inputs).dataset == "file"
+        @test only(inputs).path == "field.tif" && isnothing(only(inputs).sha256)
+    end
+    # A file with a record of ours beside it is recorded by that record.
+    recorded = joinpath(dir, "recorded.tif")
+    cp(path, recorded)
+    write(EcoSISTEM._sidecarpath(recorded),
+          """
+          writer = "EcoSISTEM 0.8.0"
+          role = "habitat"
+          file = "recorded.tif"
+          url = "https://example.org/recorded.tif"
+          sha256 = "ab"
+          """)
+    rarea = StudyArea(regime = RasterFileSpec(recorded, axis = Temperature,
+                                              unit = K), verbosity = :silent)
+    @test !isempty(rarea.report.cache.inputs)
+    for inputs in values(rarea.report.cache.inputs)
+        @test only(inputs).url == "https://example.org/recorded.tif" &&
+              only(inputs).sha256 == "ab"
+    end
     lazy = materialise(spec, area)
     eager = materialise(EcoSISTEM.in_memory_raster(read(RasterFileSpec(path,
                                                                        axis = EcoSISTEM.NicheAxis,
@@ -373,6 +399,18 @@ end
                                          axis = SolarRadiation),
                     area = area, topology = Torus())
     @test h.regime.matrix == lazy.matrix
+    # Building drops the reads but keeps what they were read from, and a copy of the built area
+    # keeps them too.
+    @test isnothing(h.area.report.cache)
+    built = [r.path for r in h.area.report.inputs]
+    @test "field.tif" in built
+    @test [r.path for r in StudyArea(h, verbosity = :silent).report.inputs] ==
+          built
+    # A file read under several windows is one input, and the records come in a fixed order.
+    b = EcoSISTEM.InputRecord(role = :habitat, dataset = "file", path = "b.tif")
+    a = EcoSISTEM.InputRecord(role = :habitat, dataset = "file", path = "a.tif")
+    @test [r.path for r in EcoSISTEM._uniqueinputs([b, a, b])] ==
+          ["a.tif", "b.tif"]
 end
 
 end

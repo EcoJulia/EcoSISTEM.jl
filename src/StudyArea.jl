@@ -754,7 +754,7 @@ function _refinedreport(r::StudyAreaReport, active, problems)
                            r.align, _activegrid(r.active, active),
                            r.simulate_safely, r.layers, r.footprint,
                            vcat(r.problems, problems), r.specs, r.constraints,
-                           nothing, AsBuilt())
+                           nothing, _reportinputs(r), AsBuilt())
 end
 
 # Gather what the grid decision needs to know about one materialised layer: its extent both in the
@@ -1187,7 +1187,8 @@ function _syntheticplan(extent, cellsize, within, problems, layers, cons,
                            _activegrid(_syntheticyx(geometry), active),
                            simulate_safely,
                            LayerPlan[], fp,
-                           problems, layers, cons, cache, AsInvestigated())
+                           problems, layers, cons, cache, InputRecord[],
+                           AsInvestigated())
 end
 
 # --- Reporting -------------------------------------------------------------
@@ -1315,7 +1316,7 @@ function _copyablereport(r::StudyAreaReport)
     return StudyAreaReport(r.crs, r.crssource, r.cellsize, r.cellsizesource,
                            r.align, r.active, r.simulate_safely, r.layers,
                            r.footprint, r.problems, r.specs, r.constraints,
-                           LayerCache(), r.stage)
+                           LayerCache(), r.inputs, r.stage)
 end
 
 # Fold a `base` area and the caller's keywords into one set of inputs, with `missing` meaning

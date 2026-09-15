@@ -36,7 +36,7 @@ using DimensionalData: DimArray, X, Y, Ti
     habitat = GridHabitat(regime = UniformSpec(fillval,
                                                axis = EcoSISTEM.NicheAxis),
                           supply = supply, area = studyarea)
-    @test EcoSISTEM.iscontinuous(habitat.regime) == true
+    @test EcoSISTEM._iscontinuous(habitat.regime) == true
     @test eltype(habitat.regime) == typeof(habitat.regime.matrix[1])
     @test size(habitat.regime, 1) == grid[1]
     # **These moved off the layer and onto the grid**, and three of them changed answer in the
@@ -69,7 +69,7 @@ using DimensionalData: DimArray, X, Y, Ti
                                            IncrementBy(0.01K /
                                                        month_mean_duration)),
                           supply = supply, area = studyarea)
-    @test EcoSISTEM.iscontinuous(habitat.regime) == true
+    @test EcoSISTEM._iscontinuous(habitat.regime) == true
     @test eltype(habitat.regime) == typeof(habitat.regime.matrix[1])
     @test size(habitat.regime, 1) == grid[1]
 
@@ -77,7 +77,7 @@ using DimensionalData: DimArray, X, Y, Ti
     habitat = GridHabitat(regime = NicheSpec(numNiches,
                                              axis = EcoSISTEM.TypologyAxis),
                           supply = supply, area = studyarea)
-    @test EcoSISTEM.iscontinuous(habitat.regime) == false
+    @test EcoSISTEM._iscontinuous(habitat.regime) == false
     @test eltype(habitat.regime) == typeof(habitat.regime.matrix[1])
     @test size(habitat.regime, 1) == grid[1]
 
@@ -98,10 +98,10 @@ using DimensionalData: DimArray, X, Y, Ti
 
     # Test multi regimes
     regime = LayerCollection((temperature.regime, rainfall.regime))
-    # **A collection has no `iscontinuous` and no `eltype` of its own** - its members may differ,
+    # **A collection has no `_iscontinuous` and no `eltype` of its own** - its members may differ,
     # so both are asked of each member. That is what keeps a leaf and a collection-of-one from
     # answering differently, and it returns a `Tuple` rather than an allocating `Vector`.
-    @test map(EcoSISTEM.iscontinuous, values(regime)) == (true, true)
+    @test map(EcoSISTEM._iscontinuous, values(regime)) == (true, true)
     # **Built from a plain `Tuple`, yet named by AXIS** - the two members are on distinguishable
     # axes, so the collection derives `(:Temperature, :Precipitation)` rather than the old
     # `(:one, :two)`. A repeated axis, or a member with none, falls back to the positional names.
@@ -124,7 +124,7 @@ using DimensionalData: DimArray, X, Y, Ti
 
     regime = LayerCollection((habitat.regime, temperature.regime,
                               rainfall.regime))
-    @test map(EcoSISTEM.iscontinuous, values(regime)) == (false, true, true)
+    @test map(EcoSISTEM._iscontinuous, values(regime)) == (false, true, true)
     # Named by axis here too, and the **categorical** member is what makes this worth asserting
     # separately: it is on `TypologyAxis`, so all three are distinguishable. It read
     # `(:one, :two, :three)` until `NicheSpec` was required to declare an axis - the positional
@@ -241,7 +241,7 @@ end
                                            cellsize = 1.0km,
                                            verbosity = :silent))
     @test size(habitat.regime.matrix) == (7, 11)
-    @test EcoSISTEM.iscontinuous(habitat.regime) == false
+    @test EcoSISTEM._iscontinuous(habitat.regime) == false
     @test EcoBase.ycells(EcoBase.getcoords(habitat)) == 7
     @test EcoBase.xcells(EcoBase.getcoords(habitat)) == 11
 end
@@ -284,6 +284,38 @@ end
         Random.seed!(seed)
         @test EcoSISTEM._nichefield((ny, nx), types, 0.5, weights) == first_pass
     end
+end
+
+# **A seeded `NicheSpec` draws its layout from a stream of its own**, so the same seed gives the same
+# map whatever the global generator has done in between, and whether the map is inspected or built.
+# An unseeded one still draws from the global generator, so it follows `Random.seed!` as before.
+@testset "a seeded NicheSpec lays out the same niches on its own" begin
+    area = StudyArea(extent = (7.0km, 11.0km), cellsize = 1.0km,
+                     verbosity = :silent)
+    niches(spec) = parent(materialise(spec, area).matrix)
+    seeded = NicheSpec(4, axis = EcoSISTEM.TypologyAxis, seed = 7)
+
+    Random.seed!(1)
+    firstmap = niches(seeded)
+    Random.seed!(2)
+    rand(1000)
+    @test niches(seeded) == firstmap
+    @test niches(NicheSpec(4, axis = EcoSISTEM.TypologyAxis, seed = 8)) !=
+          firstmap
+    built = GridHabitat(regime = seeded,
+                        supply = UniformSpec(10000.0kJ / km^2 / day,
+                                             axis = SolarRadiation),
+                        area = area)
+    @test parent(built.regime.matrix) == firstmap
+
+    unseeded = NicheSpec(4, axis = EcoSISTEM.TypologyAxis)
+    Random.seed!(3)
+    once = niches(unseeded)
+    Random.seed!(3)
+    @test niches(unseeded) == once
+
+    @test sprint(show, seeded) == "NicheSpec(4, axis = TypologyAxis, seed = 7)"
+    @test sprint(show, unseeded) == "NicheSpec(4, axis = TypologyAxis)"
 end
 
 end

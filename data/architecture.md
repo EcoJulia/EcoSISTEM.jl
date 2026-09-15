@@ -281,6 +281,7 @@ classDiagram
     class AbstractChangeSpec
     class AbstractSeriesEnd
     class AbstractSeriesCalendar
+    class AbstractRunCalendar
     AbstractLayerChange <|-- NoLayerChange
     AbstractLayerChange <|-- SteadyLayerChange
     AbstractLayerChange <|-- PatternedLayerChange
@@ -301,6 +302,9 @@ classDiagram
     AbstractSeriesCalendar <|-- DatedSeries
     AbstractSeriesCalendar <|-- MonthOfYearSeries
     AbstractSeriesCalendar <|-- UndatedSeries
+    AbstractSeriesCalendar <|-- DatedSeriesInMeanMonths
+    AbstractRunCalendar <|-- ExactDates
+    AbstractRunCalendar <|-- MeanMonths
     SeriesLayerChange "1" *-- "1" AbstractSeriesEnd : atend
     SeriesLayerChange "1" *-- "1" AbstractSeriesCalendar : calendar
 ```
@@ -323,7 +327,11 @@ Three hierarchies meet here, and they answer different questions:
 - **`AbstractSeriesEnd` / `AbstractSeriesCalendar`** - what a stored series does past its last slice
   (`atend`), and what its time coordinates *mean* (`calendar`). A `DatedSeries` carries real dates, a
   `MonthOfYearSeries` a repeating climatology keyed by calendar month number, an `UndatedSeries` bare
-  offsets from an origin.
+  offsets from an origin. Separately, a run's `AbstractRunCalendar` - `ExactDates` or `MeanMonths`,
+  the `calendar` of `build_ecosystem` - says how dates become elapsed time for the whole run. Under
+  `MeanMonths` a dated series is placed as a `DatedSeriesInMeanMonths`, an internal calendar that
+  keeps the real slice times beside the month-counted ones, so placing it again under either run
+  calendar starts from its dates.
 
 **A stored series is indexed by elapsed time, never by a step counter.** That is what makes the
 model timestep-independent: twelve one-month steps and one twelve-month step land on the same slice.
@@ -362,6 +370,9 @@ classDiagram
     AbstractSchedule <|-- AtTime
     AbstractSchedule <|-- AtTimes
     AbstractSchedule <|-- BetweenTimes
+    AbstractSchedule <|-- EveryInterval
+    AbstractSchedule <|-- AtDates
+    AbstractSchedule <|-- EveryYear
     AbstractSchedule <|-- NeverScheduled
     AbstractRegion <|-- AllCells
     AbstractRegion <|-- ActiveCells
@@ -386,8 +397,8 @@ be applied redundantly on every MPI rank and still agree. An *intervention* muta
 the active mask, abundances, the species list - so it must be applied once and identically
 everywhere. That is also why the operation set is **closed**: a user callback could draw from the
 global RNG or write a layer's matrix directly, both of which desynchronise ranks. Selections come
-from a counter-based stream, `hash((seed, :intervention, k, step))`, generalising the per-species
-scheme.
+from a counter-based stream seeded from `(seed, :intervention, k, step)`, generalising the
+per-species scheme.
 
 **`Deactivate` kills what lives in the cell**, and must: a deactivated cell is skipped by the hot
 loop, so anything left in it would neither breed nor die. `Reactivate` deliberately does *not*
@@ -752,6 +763,7 @@ classDiagram
     class AbstractLayerFate
     class AbstractProblemSeverity
     class AbstractReportStage
+    class InputRecord
     AbstractReportStage <|-- AsInvestigated
     AbstractReportStage <|-- AsBuilt
     AbstractDecisionSource <|-- GivenByUser
@@ -773,6 +785,7 @@ classDiagram
     LayerPlan "1" *-- "1" AbstractLayerFate : fate
     Problem "1" *-- "1" AbstractProblemSeverity : severity
     StudyAreaReport "1" *-- "1" AbstractReportStage : stage
+    StudyAreaReport "1" *-- "*" InputRecord : inputs
 ```
 
 **`AbstractReportStage` is what tells an investigated area from a built one**, and it is
@@ -915,6 +928,23 @@ ratio**, making a species slow-and-long-lived or fast-and-short-lived without ch
 persist. Suitability carries opposite exponents, so it does move the ratio - that is what makes it
 the niche.
 
+## Recording a run
+
+```mermaid
+classDiagram
+    class AbstractRecorder
+    class RecordAbundance~S~
+    class RecordDiversity~S, F, Q~
+    AbstractRecorder <|-- RecordAbundance
+    AbstractRecorder <|-- RecordDiversity
+    AbstractRecorder <|-- SaveAbundance
+```
+
+A recorder is a value `simulate!` calls with the ecosystem each time its schedule fires, in place of a
+callback: `RecordAbundance` and `RecordDiversity` write into storage sized before the run, and
+`SaveAbundance` writes files. Each holds the run's `Provenance` as it stood at its last write. Under
+MPI every rank calls it, so each takes part in the gather it needs.
+
 ## Distribution parameters (`src/Dist.jl`)
 
 Building a tolerance from a named distribution means knowing which of its parameters is a location, a
@@ -984,6 +1014,24 @@ per-slice where each month has its own length, and per-cell where the period var
 Which axis a multi-file source stacks on decides whether it is a **time series** or a stack of
 unrelated bands: `_stackaxis` returns `Ti` for `WorldClim{Climate}` and `CHELSA{Climate}` (one file
 per month) and `Dim{:layer}` for everything else.
+
+### Where an input came from - the records
+
+A source type says which archive a raster belongs to; an `InputRecord` says which **file** an
+object was built from, where it was fetched, and what the dataset's DOI, licence, version and
+citation are. Every fetch writes one beside its file, and every read made while deciding a study
+area records its files in the area's report, which keeps them after the reads themselves are
+discarded. `provenance` asked of a report, a study area, a habitat or an ecosystem gathers them
+into a `Provenance`, beside the software, the grid and, for an ecosystem, the run. Published data
+the package never fetched - occurrence records, a trait table, a scenario - enters as records the
+caller attaches to a species list, an intervention or `build_ecosystem`, in the same shape.
+
+```mermaid
+classDiagram
+    class Provenance
+    class InputRecord
+    Provenance "1" *-- "*" InputRecord : inputs
+```
 
 ## Notes
 

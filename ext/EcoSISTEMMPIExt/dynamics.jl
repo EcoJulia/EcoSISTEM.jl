@@ -29,25 +29,32 @@ using EcoSISTEM:
                  regimeupdate!,
                  supplyupdate!
 
-"""
-    update!(eco::MPIEcosystem, timestep::Unitful.Time, intervention)
+# The start of a distributed run, as in the serial loop: what is due at elapsed zero acts before the
+# first step's dynamics. It writes `rows_matrix`, and the first step's `update_resource_usage!` reads
+# the column layout, so the columns are synchronised here too - once a run, and on every rank.
+function EcoSISTEM._startrun!(eco::MPIEcosystem, intervention,
+                              timestep::Unitful.Time)
+    _checkmpiinterventions(intervention)
+    EcoSISTEM.applyinterventions!(eco, intervention,
+                                  EcoSISTEM.simulationtime(eco), timestep, 0)
+    invalidatecaches!(eco)
+    EcoSISTEM.synchronise_from_rows!(eco.abundances)
+    return eco
+end
 
-Update a distributed ecosystem for one timestep, computing births, deaths and dispersal in parallel
-across threads and MPI ranks, and applying any scheduled [`Intervention`](@ref).
-
-The two-argument form is the generic `update!(::AbstractEcosystem, ::Unitful.Time)` in
-`src/dynamics.jl`, which forwards here with no intervention.
-
- **The schedule/region machinery is already rank-safe**: selections come from the counter-based
-stream seeded from `(seed, :intervention, k, step)` and the `active` mask and layers are replicated on
-every rank, so every rank computes the same cells and makes the same edit without communicating.
-
- **All six operations work**, including the abundance ones: by the time interventions run the
-landscape is row-partitioned, so a rank holds its own species across *all* cells and every abundance
-write is rank-local.
-"""
-function EcoSISTEM.update!(eco::MPIEcosystem, timestep::Unitful.Time,
-                           intervention)
+# One timestep of a distributed ecosystem: births, deaths and dispersal in parallel across threads and
+# MPI ranks, then the clock, the interventions due and the layers. The generic `update!` in
+# `src/dynamics.jl` runs `_startrun!` before the first.
+#
+# **The schedule/region machinery is already rank-safe**: selections come from the counter-based
+# stream seeded from `(seed, :intervention, k, step)` and the `active` mask and layers are replicated
+# on every rank, so every rank computes the same cells and makes the same edit without communicating.
+#
+# **All six operations work**, including the abundance ones: by the time interventions run the
+# landscape is row-partitioned, so a rank holds its own species across *all* cells and every abundance
+# write is rank-local.
+function EcoSISTEM._step!(eco::MPIEcosystem, timestep::Unitful.Time,
+                          intervention)
     _checkmpiinterventions(intervention)
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)

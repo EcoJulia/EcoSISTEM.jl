@@ -149,13 +149,13 @@ end
                           status = 200))
     @test rec["code"] == "air" && rec["source"] == "TwentyCR"
     @test rec["licence"] == E.datasetinfo(TwentyCR).licence
-    # A region's zip records a region, and no dataset row.
+    # A region's zip records a region, with Natural Earth's row.
     nerec = E._assetrecord(CachedAsset(E.NaturalEarthLevel,
                                        "https://example.org/ne.zip",
                                        path = dest), dest,
                            (url = "https://example.org/ne.zip",
                             headers = Pair{String, String}[], status = 200))
-    @test nerec["role"] == "region" && !haskey(nerec, "source")
+    @test nerec["role"] == "region" && nerec["source"] == "NaturalEarth"
     # So does a shape file's, whose owner is a parametric type rather than a source.
     shrec = E._assetrecord(CachedAsset(ShapeSpec,
                                        "https://example.org/site.zip",

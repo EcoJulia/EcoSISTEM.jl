@@ -880,6 +880,10 @@ function _nesource(level::NaturalEarthLevel)
     return CachedAsset(NaturalEarthLevel, url)
 end
 
+# Natural Earth's `datasets.csv` row is named for the source, not for the level type its downloads
+# are owned by - which also names their cache directory, and so cannot be renamed for free.
+_datasetkey(::Type{NaturalEarthLevel}) = "NaturalEarth"
+
 _regionspath() = pkgdir(@__MODULE__, "data", "NaturalEarth", "regions.csv")
 
 function _regionindex()

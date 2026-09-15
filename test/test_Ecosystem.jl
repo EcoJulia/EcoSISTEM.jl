@@ -55,7 +55,8 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                                Intervention(EveryStep(),
                                                             AllCells(),
                                                             AddSpecies(abundance = 10)),
-                                               0.0s, 1month_mean_duration, 1)
+                                               1month_mean_duration,
+                                               1month_mean_duration, 1)
     @test length(eco.spplist.names) == before + 1
 
     @testset "get functions" begin
@@ -149,7 +150,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         @test getordinariness!(eco) == getordinariness!(eco)
     end
     @testset "collection-trait incompatibility message" begin
-        # `iscontinuous` of a collection is a `Vector{Bool}`; the constructor's incompatibility errors must
+        # `_iscontinuous` of a collection is a `Vector{Bool}`; the constructor's incompatibility errors must
         # format that rather than crash on a `Vector{Bool}` in a `?:` (the old bug threw a `TypeError`).
         @test EcoSISTEM._kindlabel(true) == "continuous"
         @test EcoSISTEM._kindlabel(false) == "categorical"
@@ -347,6 +348,9 @@ end
 
     # Resuming from the cache reproduces the uncached run exactly
     @test resumed.matrix == expected
+    # ...and the saved state it resumed from is among what the run says it was built from.
+    @test any(r -> r.role === :state && r.path == "3.jld2",
+              provenance(cache2).inputs)
 
     # clearcache! removes the saved files - the `!` is owed, it deletes them
     @test_nowarn EcoSISTEM.clearcache!(cache2)

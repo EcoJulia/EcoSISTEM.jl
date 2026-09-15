@@ -174,11 +174,20 @@ function _asraster(spec::RasterSpec, cache::LayerCache; cut = nothing,
     cut = isnothing(spec.cut) ? cut : spec.cut
     scale = isnothing(spec.scale) ? scale : spec.scale
     spec.code isa AbstractVector && return _stackcached(spec, cache, cut, scale)
-    key = ReadKey(spec, cut = cut, scale = scale)
+    return _cachedread!(cache, ReadKey(spec, cut = cut, scale = scale), spec,
+                        cut, scale)
+end
+
+# Read `spec` into `cache` under `key`, or take a cached read that serves it; a fresh read records
+# the files it came from beside it.
+function _cachedread!(cache::LayerCache, key::ReadKey, spec::RasterSpec, cut,
+                      scale)
     served = _servedread(cache, key)
     isnothing(served) || return served
     return get!(cache.reads, key) do
-        return read(spec, cut = cut, scale = scale)
+        raster = read(spec, cut = cut, scale = scale)
+        cache.inputs[key] = _readinputs(spec)
+        return raster
     end
 end
 
@@ -212,7 +221,7 @@ _sanscut(nt::NamedTuple) = Base.structdiff(nt, NamedTuple{(:cut,)})
 # declared - for a spec that sets its own `scale`, for class codes (a two-stage majority is not
 # the majority; see `_majorityclass`), and wherever the ratio is below two or cannot be measured.
 function _autoscale(spec::RasterSpec, tcrs, cellsize)
-    (_ownscale(spec) || iscategorical(_specaxis(spec)) || isnothing(tcrs) ||
+    (_ownscale(spec) || _iscategorical(_specaxis(spec)) || isnothing(tcrs) ||
      isnothing(cellsize)) && return 1
     grid = _lazygrid(spec)
     isnothing(grid) && return 1
@@ -305,12 +314,8 @@ function _stackcached(spec::RasterSpec, cache::LayerCache, cut, scale)
                          scale = spec.scale, fn = spec.fn, times = spec.times,
                          atend = spec.atend, calendar = spec.calendar,
                          spec.readkw...)
-        key = ReadKey(one, cut = cut, scale = scale)
-        served = _servedread(cache, key)
-        isnothing(served) || return served
-        return get!(cache.reads, key) do
-            return read(one, cut = cut, scale = scale)
-        end
+        return _cachedread!(cache, ReadKey(one, cut = cut, scale = scale), one,
+                            cut, scale)
     end
     length(layers) == 1 && return only(layers)
     stacked = _stacklayers([l.array for l in layers],
@@ -362,8 +367,8 @@ function _materialiseon(spec::RasterSpec, target, cache::LayerCache;
     read = _asraster(spec, cache, cut = cut, scale = _autoscale(spec, target))
     return ClimateRaster(spec.source,
                          _sampledata(read, target, name = "layer",
-                                     categorical = iscategorical(read,
-                                                                 _specaxis(spec)),
+                                     categorical = _iscategorical(read,
+                                                                  _specaxis(spec)),
                                      fn = _specfn(spec)),
                          spec.code)
 end
@@ -418,8 +423,8 @@ function _materialiseon(spec::ConstructedRasterSpec, target, cache::LayerCache;
     out = _combineon(spec.combinestage, spec, target, cache, cut = cut)
     return ClimateRaster(_sourceof(out),
                          _sampledata(out, target, name = "layer",
-                                     categorical = iscategorical(out,
-                                                                 _specaxis(spec))),
+                                     categorical = _iscategorical(out,
+                                                                  _specaxis(spec))),
                          out.code)
 end
 
@@ -465,7 +470,7 @@ _unitedyx(yx, tcrs) = yx
 function _combineon(::CombineOnTargetGrid, spec::ConstructedRasterSpec, target,
                     cache::LayerCache; cut = nothing)
     # Nothing to stamp on the result: what it *is* comes from `spec.axis`, and the callers that
-    # need to know ask `iscategorical(raster, axis)`. On this path the layers were sampled before
+    # need to know ask `_iscategorical(raster, axis)`. On this path the layers were sampled before
     # the combine ran, so no resampling decision is left to make here at all.
     return _combined(spec.combine(map(l -> _materialiseon(l, target, cache,
                                                           cut = cut),
@@ -655,7 +660,7 @@ function _analyse(layers::NamedTuple; within = nothing, crs = nothing,
                            isnothing(chosen) ? nothing : chosen.name,
                            _activegrid(covered.grid, covered.active), safely,
                            plans, fp, problems, layers, cons, cache,
-                           AsInvestigated())
+                           InputRecord[], AsInvestigated())
 end
 
 # A data-driven spec is read (through the area's cache) and sampled onto the grid; a synthetic one is
@@ -676,7 +681,7 @@ end
 function _materialisefield(spec, area::StudyArea)
     raster = _asraster(spec, area.report.cache, cut = _buildwindow(area),
                        scale = _autoscale(spec, area.report.active))
-    categorical = iscategorical(raster, _specaxis(spec))
+    categorical = _iscategorical(raster, _specaxis(spec))
     values = _sampledata(raster, area.report.active, name = "layer",
                          categorical = categorical, fn = _specfn(spec))
     return (values = _restricttocovered(values, raster, area, categorical),
@@ -701,7 +706,7 @@ end
 function _materialisefield(spec::ConstructedRasterSpec, area::StudyArea)
     out = _combineon(spec.combinestage, spec, area.report.active,
                      area.report.cache, cut = _buildwindow(area))
-    categorical = iscategorical(out, _specaxis(spec))
+    categorical = _iscategorical(out, _specaxis(spec))
     values = _sampledata(out, area.report.active, name = "layer",
                          categorical = categorical)
     return (values = _restricttocovered(values, out, area, categorical),
@@ -748,7 +753,7 @@ function _applyrole(f::NamedTuple, ::Type{Resource}, axis, area::StudyArea)
     return _wrapsupply(f.values, _inspectioncellareas(area), axis, f.series)
 end
 
-# The area of each of `area`'s cells, as `cancel` needs it to turn a per-area rate into a per-cell
+# The area of each of `area`'s cells, as `_cancel` needs it to turn a per-area rate into a per-cell
 # one: the nominal `cellsize^2`, scaled by the latitude factor where there is a latitude.
 #
 # The nominal area stays the **report's** own `cellsize^2`, rather than being recomputed from the
@@ -766,7 +771,7 @@ end
 # would be a second rule that has to be remembered and kept in step.
 # **This one stays metric, and that is not the same question as the layer's `size`.** A layer's
 # `size` is the grid's own cell size - an angle on a geographic grid, and reported as such. A cell's
-# **area** here is a real *physical* area, because that is what `cancel` needs to turn a per-area rate
+# **area** here is a real *physical* area, because that is what `_cancel` needs to turn a per-area rate
 # into a per-cell one.
 # **Squaring the report's `cellsize` on a geographic grid would give `degree^2`, and the reason that
 # is wrong is NOT that a `degree^2` is meaningless** - square degrees are a perfectly good unit of

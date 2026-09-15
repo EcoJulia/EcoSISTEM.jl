@@ -80,7 +80,11 @@ available resources,`habitat`. Finally, there is a slot for the nichefit
 between the environment and the characteristics of the species, `nichefit`.
 `elapsed` is the simulation clock (see [`simulationtime`](@ref)) and `seed` the
 seed the per-species RNG streams were derived from. `epoch` is the real date elapsed time zero
-corresponds to, or `nothing` for a run with no calendar - see [`simulationdate`](@ref).
+corresponds to, or `nothing` for a run with no calendar - see [`simulationdate`](@ref) - and
+`calendar` the [`AbstractRunCalendar`](@ref) its dates are placed by. `inputs`
+holds the [`InputRecord`](@ref)s of published data belonging to the run as a whole - those given to
+[`build_ecosystem`](@ref), and those of every intervention that has acted - which
+[`provenance`](@ref) lists.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
@@ -99,6 +103,10 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
     # noleap calendar be substituted later without changing a signature. Abstract, but never read in
     # the hot path - the epoch is resolved once at build and thereafter only reported.
     epoch::Union{Nothing, Dates.TimeType}
+    # How dates map to elapsed time - set by `build_ecosystem`, and like the epoch never read in the
+    # hot path.
+    calendar::AbstractRunCalendar
+    inputs::Vector{InputRecord}
 
     function Ecosystem{Part, SL, NF}(abundances::GridLandscape,
                                      spplist::SL,
@@ -141,7 +149,9 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                  rngs,
                                  elapsed,
                                  seed,
-                                 epoch)
+                                 epoch,
+                                 ExactDates(),
+                                 InputRecord[])
     end
 end
 
@@ -235,6 +245,8 @@ mutable struct CachedEcosystem{Part <: AbstractHabitat,
     elapsed::typeof(1.0s)
     seed::UInt64
     epoch::Union{Nothing, Dates.TimeType}
+    calendar::AbstractRunCalendar
+    inputs::Vector{InputRecord}
 end
 
 """
@@ -268,7 +280,9 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String,
                                                  eco.rngs,
                                                  eco.elapsed,
                                                  eco.seed,
-                                                 eco.epoch)
+                                                 eco.epoch,
+                                                 eco.calendar,
+                                                 eco.inputs)
 end
 
 # ---------------------------------------------------------------------------
@@ -630,10 +644,12 @@ epoch.
 The epoch is the date [`simulationtime`](@ref) counts from - resolved at
 [`build_ecosystem`](@ref) from the environment's dated series, or given there
 explicitly. A run whose environment mentions no dates has no epoch, and so no
-date: elapsed time is all there is to say about when it is.
+date: elapsed time is all there is to say about when it is. The date is reached
+through the run's calendar, so under [`MeanMonths`](@ref) every month is one
+`month_mean_duration` long.
 """
 function simulationdate(eco::AbstractEcosystem)
-    return _shiftdate(eco.epoch, simulationtime(eco))
+    return _shiftdate(eco.epoch, simulationtime(eco), eco.calendar)
 end
 
 """
@@ -657,19 +673,23 @@ function makeunique(eco::Ecosystem)
                                                _uniquetypes(sppl.names),
                                                sppl.movement,
                                                sppl.params,
-                                               sppl.native)
+                                               sppl.native,
+                                               provenance = sppl.inputs)
     newsppl.susceptible = sppl.susceptible
-    return Ecosystem{typeof(eco.habitat), typeof(newsppl),
-                     typeof(eco.nichefit)}(eco.abundances,
-                                           newsppl,
-                                           eco.habitat,
-                                           eco.nichefit,
-                                           eco.lookup,
-                                           eco.cache,
-                                           eco.rngs,
-                                           eco.elapsed,
-                                           eco.seed,
-                                           eco.epoch)
+    stripped = Ecosystem{typeof(eco.habitat), typeof(newsppl),
+                         typeof(eco.nichefit)}(eco.abundances,
+                                               newsppl,
+                                               eco.habitat,
+                                               eco.nichefit,
+                                               eco.lookup,
+                                               eco.cache,
+                                               eco.rngs,
+                                               eco.elapsed,
+                                               eco.seed,
+                                               eco.epoch)
+    stripped.calendar = eco.calendar
+    stripped.inputs = eco.inputs
+    return stripped
 end
 
 # The axes a layer or collection is on, as a `+`-joined string - `Temperature + Precipitation`.
@@ -1093,6 +1113,29 @@ function _shiftdate(epoch::Dates.Date, elapsed::Unitful.Time)
     return _shiftdate(Dates.DateTime(epoch), elapsed)
 end
 
+# The same under a run calendar: real elapsed time under `ExactDates`, and under `MeanMonths` the
+# epoch's position in mean months moved on by elapsed time counted in them.
+_shiftdate(epoch, elapsed, ::ExactDates) = _shiftdate(epoch, elapsed)
+
+_shiftdate(::Nothing, _, ::MeanMonths) = nothing
+
+function _shiftdate(epoch::Dates.TimeType, elapsed::Unitful.Time, ::MeanMonths)
+    return _datefrommeanmonths(_meanmonthposition(epoch) +
+                               ustrip(NoUnits, elapsed / month_mean_duration))
+end
+
+# The elapsed time a date names in a run from `epoch`, under the run calendar - the inverse of
+# `_shiftdate`.
+function _elapsedat(epoch::Dates.TimeType, date::Dates.TimeType, ::ExactDates)
+    gap = Dates.DateTime(date) - Dates.DateTime(epoch)
+    return uconvert(s, float(Dates.value(Dates.Millisecond(gap)) * Unitful.ms))
+end
+
+function _elapsedat(epoch::Dates.TimeType, date::Dates.TimeType, ::MeanMonths)
+    months = _meanmonthposition(date) - _meanmonthposition(epoch)
+    return uconvert(s, months * month_mean_duration)
+end
+
 # Advance the simulation clock by one timestep. Called at the end of `update!` (after the
 # population dynamics, before the layer update), so a layer change sees the time it is changing
 # *to*. Any `Unitful.Time` step is converted to the stored seconds.
@@ -1135,6 +1178,10 @@ function loadfile(cache::CachedEcosystem, file::String, idx::Int,
     @load joinpath(file, string(idx, ".jld2")) abuns
     # Restore the per-species RNG streams for a reproducible resumed run
     cache.rngs .= copy.(abuns.rngs)
+    # The saved state the run resumes from is among what it was built from.
+    state = InputRecord(role = :state, dataset = "saved state",
+                        path = string(idx, ".jld2"))
+    state in cache.inputs || push!(cache.inputs, state)
     return GridLandscape(abuns, names, grid)
 end
 

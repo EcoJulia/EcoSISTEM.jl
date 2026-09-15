@@ -29,13 +29,13 @@ public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
 include("Asset.jl")
 include("Provenance.jl")
 
-public CachedAsset, CDSRequest, InputRecord
+public CachedAsset, CDSRequest, InputRecord, Provenance
 
 public assetdir
 
 public assetpath, fetchfiles, verifyassets
 
-export provenance
+export provenance, write_provenance
 
 # The units submodule: the arcminute/arcsecond subdivisions of a degree, and the calendar-month
 # durations. First, because other files depend on it.
@@ -180,6 +180,7 @@ export ErrorAtEnd, HoldAtEnd, RepeatAtEnd, RevertToLayer
 # what a series' time coordinates mean, and so what a run's epoch can do with them (the `calendar`
 # keyword); see `build_ecosystem`'s `epoch`
 export DatedSeries, MonthOfYearSeries, UndatedSeries
+export ExactDates, MeanMonths
 
 include("Climate.jl")
 
@@ -210,7 +211,7 @@ public AbstractLazySpec
 
 # How a layer changes in time: how a change value is interpreted, and the recipes a caller writes.
 
-public AbstractSeriesEnd, AbstractSeriesCalendar
+public AbstractSeriesEnd, AbstractSeriesCalendar, AbstractRunCalendar
 
 include("ChangeMode.jl")
 
@@ -473,7 +474,8 @@ export DiversitySet, updatesimulation!, gettimes
 include("Schedule.jl")
 
 # when - the schedule
-export EveryStep, AtTime, AtTimes, BetweenTimes, NeverScheduled
+export EveryStep, AtTime, AtTimes, BetweenTimes, EveryInterval, AtDates,
+       EveryYear, NeverScheduled
 
 public AbstractSchedule
 
@@ -504,6 +506,17 @@ public applyinterventions!
 include("DefaultEcosystem.jl")
 
 export DefaultEcosystem
+
+# What a run keeps as it goes, handed to `simulate!` in place of a callback.
+include("Recorder.jl")
+
+export RecordAbundance, RecordDiversity, SaveAbundance
+
+public AbstractRecorder
+
+# What an assembled model was built from: `provenance` asked of anything holding a study area,
+# after every type such a question can be asked of.
+include("inputrecords.jl")
 
 # `NicheAxis` and the `XxxAxis` grouping supertypes are **not** here: every abstract type in this
 # package is `public` rather than exported, declared together at the end of this file. It is the
@@ -644,9 +657,7 @@ export build_habitat, build_species, build_ecosystem
 
 export investigate_study_area
 
-export simulate!, simulate_action!, simulate_record!,
-       simulate_record_diversity!,
-       generate_storage
+export simulate!, generate_storage
 
 # ---------------------------------------------------------------------------
 # Deprecations, PENULTIMATE

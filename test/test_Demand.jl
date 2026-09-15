@@ -259,7 +259,7 @@ end
 
 @testset "Worldclim/Bioclim supplies" begin
     # The hand constructors take a raw ClimateRaster whose element type is the areal rate
-    # (e.g. `mm/day`) at its own native resolution - `cancel` (against the axis's canonical
+    # (e.g. `mm/day`) at its own native resolution - `_cancel` (against the axis's canonical
     # resource unit) converts it to the absolute `L/day`/`kJ/day` supply value against the cell area,
     # so the resulting `supply.matrix` values are scaled by that area, not equal to the raw
     # input; the assertions below compare the built supply against itself, not a hardcoded

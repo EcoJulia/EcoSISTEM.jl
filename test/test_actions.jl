@@ -5,6 +5,7 @@ module TestActions
 using EcoSISTEM
 using Test
 using Distributions
+import Dates
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 using Diversity
@@ -39,24 +40,80 @@ include("buildfixtures.jl")
               (size(eco.abundances.matrix, 1), size(eco.abundances.matrix, 2),
                lensim, 1)
         @test_nowarn simulate!(eco, burnin, timestep)
-        @test_nowarn simulate_record!(abun, eco, times, interval, timestep)
+        @test_nowarn simulate!(RecordAbundance(abun), eco, times, timestep,
+                               every = EveryInterval(interval))
         # Write the run's output into a temp dir the OS cleans up, so it never
         # touches the repo (and no manual `rm` is needed for the hygiene tests).
         outputdir = mktempdir()
-        @test_nowarn simulate!(eco, times, interval, timestep, outputdir,
-                               "testrun")
+        @test_nowarn simulate!(SaveAbundance(outputdir, "testrun"), eco, times,
+                               timestep, every = EveryInterval(interval))
     end
-    @testset "simulate_action" begin
-        # The generic action engine fires the callback once per interval, passing
-        # the 1-based occurrence index, and returns the advanced ecosystem.
+    @testset "simulate! with a callback" begin
+        # The starting state first, then the state at exactly each multiple of the interval, over
+        # the steps `simulate!` itself takes - three here, so four occurrences at every step.
+        step = 1.0month_mean_duration
         eco2 = Test1Ecosystem()
-        counts = Int[]
-        result = simulate_action!(eco2, times, interval, timestep) do counting
-            return push!(counts, counting)
+        start = sum(eco2.abundances.matrix)
+        seen = []
+        @test isnothing(simulate!(eco2, 3step, step) do occurrence
+                            return push!(seen,
+                                         (occurrence,
+                                          sum(eco2.abundances.matrix)))
+                        end)
+        @test [o.count for (o, _) in seen] == 1:4
+        @test [o.elapsed for (o, _) in seen] ≈
+              [uconvert(s, k * step) for k in 0:3]
+        @test last(first(seen)) == start
+        @test all(isnothing(o.date) for (o, _) in seen)
+
+        # A continued run does not observe its starting state again: that was the last occurrence of
+        # the run before, and the count starts afresh.
+        more = []
+        simulate!(eco2, 2step, step) do occurrence
+            return push!(more, occurrence)
         end
-        @test counts ==
-              collect(1:length((0.0month_mean_duration):interval:times))
-        @test result === eco2
+        @test [o.count for o in more] == 1:2
+        @test [o.elapsed for o in more] ≈ [uconvert(s, k * step) for k in 4:5]
+
+        # `every` takes a schedule, and a bare duration means `EveryInterval` of it; a time between
+        # steps is acted on at the step that reaches it.
+        elapsedof(every) = begin
+            e = Test1Ecosystem()
+            firings = typeof(1.0s)[]
+            simulate!(e, 3step, step, every = every) do occurrence
+                return push!(firings, occurrence.elapsed)
+            end
+            firings
+        end
+        @test elapsedof(EveryInterval(2step)) ≈
+              [uconvert(s, k * step) for k in (0, 2)]
+        @test elapsedof(2step) == elapsedof(EveryInterval(2step))
+        @test elapsedof(AtTimes([1.5step])) ≈ [uconvert(s, 2step)]
+
+        # What is due at the start acts before the first occurrence sees the state.
+        eco3 = Test1Ecosystem()
+        seeded = sum(eco3.abundances.matrix) +
+                 5 * size(eco3.abundances.matrix, 2)
+        atstart = Ref(0)
+        simulate!(eco3, 0step, step,
+                  intervention = Intervention(AtTime(0.0s), AllCells(),
+                                              AddAbundance(1, 5))) do occurrence
+            occurrence.count == 1 && (atstart[] = sum(eco3.abundances.matrix))
+            return nothing
+        end
+        @test atstart[] == seeded
+
+        # With an epoch each occurrence carries its date; without one a date schedule is refused.
+        eco4 = Test1Ecosystem()
+        eco4.epoch = Dates.DateTime(2000, 1, 1)
+        dates = []
+        simulate!(eco4, step, step) do occurrence
+            return push!(dates, occurrence.date)
+        end
+        @test first(dates) == Dates.DateTime(2000, 1, 1)
+        @test_throws "epoch" simulate!(_ -> nothing, Test1Ecosystem(), step,
+                                       step,
+                                       every = EveryYear())
     end
     @testset "diversity simulate" begin
         # Run diversity simulations 10 times
@@ -66,32 +123,8 @@ include("buildfixtures.jl")
         @test size(abun) ==
               (size(eco.abundances.matrix, 2), length(qs), lensim, 1)
         @test_nowarn simulate!(eco, burnin, timestep)
-        @test_nowarn simulate_record_diversity!(abun, eco, times, interval,
-                                                timestep, norm_sub_alpha, qs)
-
-        divfuns = [norm_sub_alpha, norm_sub_beta]
-        abun = generate_storage(eco, length(divfuns), lensim, 1)
-        @test_nowarn simulate_record_diversity!(abun, eco, times, interval,
-                                                timestep, divfuns, 1.0)
-
-        qs = collect(1.0:3)
-        # Derived from the ecosystem, not hardcoded. This said `100` - the cell count of the
-        # fixture's old 10 × 10 grid - so shrinking `Test1Ecosystem` silently broke it. The same
-        # count is what line 56 already asserts `generate_storage` uses.
-        abun1 = zeros(Float64, size(eco.abundances.matrix, 2), 3, 3, 4)
-        abun2 = zeros(Float64, 3, 3, 4)
-        @test_nowarn simulate_record_diversity!(abun1, abun2, eco, times,
-                                                interval, timestep, qs)
-        # Both storages come back, named - the two hold genuinely different things (per-subcommunity
-        # vs metacommunity diversity) and a bare pair said nothing about which was which.
-        result = simulate_record_diversity!(abun1, abun2, eco, times, interval,
-                                            timestep, qs)
-        @test result.subcommunity === abun1
-        @test result.metacommunity === abun2
-        # ...and it still destructures and indexes positionally, so callers doing either are unaffected.
-        sub, meta = result
-        @test (sub, meta) === (abun1, abun2)
-        @test result[1] === abun1
+        @test_nowarn simulate!(RecordDiversity(abun, norm_sub_alpha, qs), eco,
+                               times, timestep, every = EveryInterval(interval))
     end
 end
 

@@ -16,6 +16,7 @@ using EcoSISTEM.Units
 using EcoSISTEM.ClimatePref
 using RasterDataSources
 using DimensionalData: DimensionalData, DimArray, Y, X, Ti, Dim
+using Diversity: norm_sub_alpha, norm_sub_beta
 
 include("TestCases.jl")
 
@@ -24,6 +25,70 @@ include("TestCases.jl")
 # matches the current API it forwards to.
 
 @testset "Deprecations" begin
+    @testset "simulate_action! keeps its own timing" begin
+        # One step after each multiple of the interval, over the steps `simulate!` takes, handed a
+        # bare count; with `offset` the grid starts at the timestep and the run is a step shorter.
+        step = 1.0month_mean_duration
+        fired(offset) = begin
+            eco = Test1Ecosystem()
+            calls = Tuple{Int, typeof(1.0s)}[]
+            @test_deprecated simulate_action!(eco, 3step, step, step,
+                                              offset = offset) do counting
+                return push!(calls,
+                             (counting, EcoSISTEM.simulationtime(eco)))
+            end
+            calls
+        end
+        plain = fired(false)
+        @test first.(plain) == 1:4
+        @test last.(plain) ≈ [uconvert(s, k * step) for k in 1:4]
+        shifted = fired(true)
+        @test first.(shifted) == 1:3
+        @test last.(shifted) ≈ [uconvert(s, k * step) for k in 1:3]
+    end
+
+    @testset "the recording functions keep their own timing" begin
+        step = 1.0month_mean_duration
+        # The starting state, then each multiple up to `times`, over `times / timestep` steps.
+        eco = Test1Ecosystem()
+        start = copy(eco.abundances.matrix)
+        storage = generate_storage(eco, 4, 1)
+        @test_deprecated simulate_record!(storage, eco, 3step, step, step)
+        @test storage[:, :, 1] == start
+        @test storage[:, :, 4] == eco.abundances.matrix
+        @test EcoSISTEM.simulationtime(eco) ≈ uconvert(s, 3step)
+
+        # The caching `simulate!` saves on the step after each multiple, numbered from `00`.
+        dir = mktempdir()
+        @test_deprecated simulate!(Test1Ecosystem(), 3step, step, step, dir,
+                                   "testrun")
+        @test isfile(joinpath(dir, "testrun00.jld2")) &&
+              isfile(joinpath(dir, "testrun03.jld2"))
+
+        # The three diversity forms, on `simulate_action!`'s timing.
+        qs = collect(1.0:3)
+        eco = Test1Ecosystem()
+        ncells = size(eco.abundances.matrix, 2)
+        @test_deprecated simulate_record_diversity!(generate_storage(eco,
+                                                                     length(qs),
+                                                                     4, 1),
+                                                    eco, 3step, step, step,
+                                                    norm_sub_alpha, qs)
+        divfuns = Function[norm_sub_alpha, norm_sub_beta]
+        @test_deprecated simulate_record_diversity!(generate_storage(Test1Ecosystem(),
+                                                                     length(divfuns),
+                                                                     4, 1),
+                                                    Test1Ecosystem(), 3step,
+                                                    step, step, divfuns, 1.0)
+        sub = zeros(Float64, ncells, 3, 3, 4)
+        meta = zeros(Float64, 3, 3, 4)
+        result = @test_deprecated simulate_record_diversity!(sub, meta,
+                                                             Test1Ecosystem(),
+                                                             3step, step, step,
+                                                             qs)
+        @test result.subcommunity === sub && result.metacommunity === meta
+    end
+
     @testset "trait line: GaussTrait -> NicheTolerance" begin
         opts = fill(5.0K, 4)
         vars = fill(2.0K, 4)
@@ -78,7 +143,7 @@ include("TestCases.jl")
                                                                              2),
                                                                      1.0mm)
         @test eltype(Gauss{EcoSISTEM.NicheAxis, NF}()) == NF
-        @test EcoSISTEM.iscontinuous(Unif{EcoSISTEM.NicheAxis, typeof(1.0mm)}()) ==
+        @test EcoSISTEM._iscontinuous(Unif{EcoSISTEM.NicheAxis, typeof(1.0mm)}()) ==
               true
 
         # restored legacy 3-argument Gaussian functor `Gauss{EcoSISTEM.NicheAxis, NF}()(current, opt, sd)`

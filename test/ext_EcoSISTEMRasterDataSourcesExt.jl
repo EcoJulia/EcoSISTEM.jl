@@ -84,6 +84,33 @@ include("rasterfixtures.jl")
         @test_throws ErrorException SourceSpec(Int, 1)
     end
 
+    # Empty files under a temporary download directory, so nothing is fetched: what is asserted is
+    # that a file already present is found whichever spelling names its layer, and recorded.
+    @testset "files on disk are found by a layer's name or code, and recorded" begin
+        E = EcoSISTEM
+        mktempdir() do dir
+            withenv("RASTERDATASOURCES_PATH" => dir) do
+                for (T, name, code, kw) in ((EarthEnv{LandCover}, :cultivated_and_managed, 7, (;)),
+                    (CHELSA{BioClim}, :bio1, 1, (;)),
+                    (WorldClim{BioClim}, :bio1, 1, (; res = "10m")))
+                    path = RasterDataSources.rasterpath(T, code; kw...)
+                    mkpath(dirname(path))
+                    touch(path)
+                    @test E._localfiles(T, name) == [path]
+                    @test E._localfiles(T, code) == [path]
+                    record = only(E._readinputs(SourceSpec(T, name)))
+                    @test record.path == basename(path) &&
+                          record.role === :habitat
+                end
+                # Several codes give the files present among them, and a layer with no file yet
+                # gives nothing rather than an error.
+                @test E._localfiles(CHELSA{BioClim}, [:bio1, :bio3]) ==
+                      [RasterDataSources.rasterpath(CHELSA{BioClim}, 1)]
+                @test isempty(E._localfiles(CHELSA{BioClim}, :bio3))
+            end
+        end
+    end
+
     @testset "dataset-typed methods are supplied here" begin
         @test hasmethod(read, Tuple{Type{WorldClim{BioClim}}})
         @test !isempty(methods(EcoSISTEM.sourcecrs))

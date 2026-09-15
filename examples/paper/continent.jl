@@ -124,8 +124,8 @@ function continent_run(continent, env)
     started = time()
     total = ustrip(year, last(targets))
     reported = 0
-    simulate_action!(eco, last(targets), PAPER_TIMESTEP, PAPER_TIMESTEP,
-                     intervention = invasion) do _
+    simulate!(eco, last(targets), PAPER_TIMESTEP, every = EveryStep(),
+              intervention = invasion) do _
         now = EcoSISTEM.simulationtime(eco)
         # A line every `PAPER_REPORT_YEARS`: the year, the projected finish, and how many
         # individuals the generalists and the specialist hold (Diversity's per-species
@@ -189,8 +189,7 @@ function invasion_speed(continent, env, width)
                                             CellMask(mask),
                                             AddAbundance(2, 100)))
     total = continent.burnin + continent.after
-    simulate_action!(_ -> nothing, eco, total, total, PAPER_TIMESTEP,
-                     intervention = arrivals)
+    simulate!(eco, total, PAPER_TIMESTEP, intervention = arrivals)
     final = Array(eco.abundances.matrix)
     origin = Tuple(findfirst(mask))
     occupied = findall(>(0), reshape(final[2, :], size(env.active)))

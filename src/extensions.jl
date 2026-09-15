@@ -226,7 +226,8 @@ run whatever the rank count.
 # Arguments
 
   - `eco`: the distributed ecosystem.
-  - `divmeasure`: a subcommunity diversity function from Diversity, such as `norm_sub_alpha`.
+  - `divmeasure`: a subcommunity diversity function from Diversity, such as `norm_sub_alpha`. A
+    metacommunity or individual measure is refused.
   - `q`: a single order or a vector of orders.
 
 # Returns

@@ -122,6 +122,58 @@ function Base.show(io::IO, d::SpatialSize)
     return print(io, "SpatialSize(Δy = ", d.y, ", Δx = ", d.x, ")")
 end
 
+# --- The affine algebra ------------------------------------------------------------------------
+#
+# Two positions give a separation; a position plus a separation is a position; separations add,
+# subtract and scale among themselves. Adding two positions is deliberately absent: there is no
+# meaningful answer, and a `MethodError` at the call site says so better than a wrong number would.
+function Base.:-(a::SpatialLocation, b::SpatialLocation)
+    return SpatialSize(a.y - b.y, a.x - b.x)
+end
+
+function Base.:-(a::SpatialLocation, d::SpatialSize)
+    return SpatialLocation(a.y - d.y, a.x - d.x)
+end
+
+Base.:-(a::SpatialSize, b::SpatialSize) = SpatialSize(a.y - b.y, a.x - b.x)
+
+Base.:-(d::SpatialSize) = SpatialSize(-d.y, -d.x)
+
+function Base.:+(a::SpatialLocation, d::SpatialSize)
+    return SpatialLocation(a.y + d.y, a.x + d.x)
+end
+
+Base.:+(d::SpatialSize, a::SpatialLocation) = a + d
+
+Base.:+(a::SpatialSize, b::SpatialSize) = SpatialSize(a.y + b.y, a.x + b.x)
+
+Base.:*(d::SpatialSize, k::Number) = SpatialSize(d.y * k, d.x * k)
+
+Base.:*(k::Number, d::SpatialSize) = d * k
+
+Base.:/(d::SpatialSize, k::Number) = SpatialSize(d.y / k, d.x / k)
+
+# --- GeoInterface: a point is a PointTrait geometry. GeoInterface fixes the coordinate order as
+# (X, Y); by convention X = longitude, Y = latitude, so coord 1 = long and coord 2 = lat - the
+# only place the lat/long-vs-X/Y reversal lives. Coordinates are stripped to plain degrees. ---
+GeoInterface.isgeometry(::Type{LatLong}) = true
+
+function GeoInterface.geomtrait(::LatLong)
+    return GeoInterface.PointTrait()
+end
+
+function GeoInterface.ncoord(::GeoInterface.PointTrait,
+                             ::LatLong)
+    return 2
+end
+
+function GeoInterface.getcoord(::GeoInterface.PointTrait,
+                               p::LatLong, i::Integer)
+    return i == 1 ? ustrip(°, getlong(p)) : ustrip(°, getlat(p))
+end
+
+# == Functions ==================================================================================
+
 """
     getlat(p)
     getlong(p)
@@ -205,56 +257,6 @@ function boundingbox(region::AbstractString; level = nothing,
     return Extents.Extent(Y = (south, north), X = (west, east))
 end
 
-# --- The affine algebra ------------------------------------------------------------------------
-#
-# Two positions give a separation; a position plus a separation is a position; separations add,
-# subtract and scale among themselves. Adding two positions is deliberately absent: there is no
-# meaningful answer, and a `MethodError` at the call site says so better than a wrong number would.
-function Base.:-(a::SpatialLocation, b::SpatialLocation)
-    return SpatialSize(a.y - b.y, a.x - b.x)
-end
-
-function Base.:-(a::SpatialLocation, d::SpatialSize)
-    return SpatialLocation(a.y - d.y, a.x - d.x)
-end
-
-Base.:-(a::SpatialSize, b::SpatialSize) = SpatialSize(a.y - b.y, a.x - b.x)
-
-Base.:-(d::SpatialSize) = SpatialSize(-d.y, -d.x)
-
-function Base.:+(a::SpatialLocation, d::SpatialSize)
-    return SpatialLocation(a.y + d.y, a.x + d.x)
-end
-
-Base.:+(d::SpatialSize, a::SpatialLocation) = a + d
-
-Base.:+(a::SpatialSize, b::SpatialSize) = SpatialSize(a.y + b.y, a.x + b.x)
-
-Base.:*(d::SpatialSize, k::Number) = SpatialSize(d.y * k, d.x * k)
-
-Base.:*(k::Number, d::SpatialSize) = d * k
-
-Base.:/(d::SpatialSize, k::Number) = SpatialSize(d.y / k, d.x / k)
-
-# --- GeoInterface: a point is a PointTrait geometry. GeoInterface fixes the coordinate order as
-# (X, Y); by convention X = longitude, Y = latitude, so coord 1 = long and coord 2 = lat - the
-# only place the lat/long-vs-X/Y reversal lives. Coordinates are stripped to plain degrees. ---
-GeoInterface.isgeometry(::Type{LatLong}) = true
-
-function GeoInterface.geomtrait(::LatLong)
-    return GeoInterface.PointTrait()
-end
-
-function GeoInterface.ncoord(::GeoInterface.PointTrait,
-                             ::LatLong)
-    return 2
-end
-
-function GeoInterface.getcoord(::GeoInterface.PointTrait,
-                               p::LatLong, i::Integer)
-    return i == 1 ? ustrip(°, getlong(p)) : ustrip(°, getlat(p))
-end
-
 # The construction guard, dispatched on the tag and the component type together. A geographic
 # *position* is the one case with a range that can be stated without knowing the CRS; everything
 # else -- projected positions, and every separation -- is left alone.
@@ -264,8 +266,6 @@ function _checkspatial(::Type{AbsolutePosition}, lat::typeof(1.0°),
                        long::typeof(1.0°))
     return _checkcoords(lat, long)
 end
-
-# == Functions ==================================================================================
 
 # --- Display -----------------------------------------------------------------------------------
 #

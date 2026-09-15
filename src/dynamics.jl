@@ -201,24 +201,41 @@ end
 Update an ecosystem's abundances and environment for one timestep, with no intervention scheduled.
 
 `eco` is the ecosystem to advance and `timestep` how far to advance it. Equivalent to
-`update!(eco, timestep, nothing)`: the three-argument method is where the work happens, and each
-concrete ecosystem supplies its own, so this one covers every kind - serial, distributed, and any
-later addition.
+`update!(eco, timestep, nothing)`.
 """
 function update!(eco::AbstractEcosystem, timestep::Unitful.Time)
     return update!(eco, timestep, nothing)
 end
 
 """
-    update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
+    update!(eco::AbstractEcosystem, timestep::Unitful.Time, intervention)
 
 Update an ecosystem for one timestep, applying any scheduled [`Intervention`](@ref).
 
 **The ordering is the point.** Interventions run *after* the population dynamics and *before* the
 layer update, with the clock advanced between - so a [`SetChange`](@ref) installed this step takes
-effect **this** step rather than one step late.
+effect **this** step rather than one step late. On the first step, with the clock at zero, those
+due at the start run once more *before* the dynamics, so they act on the starting state.
+
+`eco` is the ecosystem to advance, serial or distributed, `timestep` how far to advance it, and
+`intervention` an [`Intervention`](@ref), an [`InterventionSet`](@ref) or `nothing`.
 """
-function update!(eco::Ecosystem, timestep::Unitful.Time, intervention)
+function update!(eco::AbstractEcosystem, timestep::Unitful.Time, intervention)
+    iszero(simulationtime(eco)) && _startrun!(eco, intervention, timestep)
+    return _step!(eco, timestep, intervention)
+end
+
+# The start of a run: what is due at elapsed zero acts on the starting state, before the first
+# step's dynamics, which then read the abundances it wrote. A driver that observes the starting state
+# calls this itself and then `_step!`, so the start is applied once.
+function _startrun!(eco::Ecosystem, intervention, timestep::Unitful.Time)
+    applyinterventions!(eco, intervention, simulationtime(eco), timestep, 0)
+    invalidatecaches!(eco)
+    return eco
+end
+
+# One timestep of an ecosystem: the dynamics, then the clock, the interventions due and the layers.
+function _step!(eco::Ecosystem, timestep::Unitful.Time, intervention)
 
     # Calculate dimenions of regime and number of species
     numsc = countsubcommunities(eco.habitat.regime)

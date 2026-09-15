@@ -12,10 +12,10 @@
 #     build_species            the species: what they tolerate, what they need, how they move
 #     build_ecosystem          put the species in the environment and check the two agree
 #     simulate!                run it
-#     simulate_record!         run it and record abundances, into `generate_storage`'s array
-#     simulate_record_diversity!   the same, recording a diversity measure instead
-#     simulate_action!         run it and call back at intervals, for anything else
-#     generate_storage         allocate the array the two recorders write into
+#     simulate!(recorder, ...) run it and keep abundances or a diversity measure on a schedule, with
+#                              a recorder from `Recorder.jl`
+#     simulate!(f, ...)        run it and call back on a schedule, for anything else
+#     generate_storage         allocate the array a recorder writes into
 #
 # WHAT IS NOT HERE, and the test that decides it: these are the verbs a USER calls. Everything the
 # package calls on their behalf stays with its machinery. So `update!` is absent - `simulate!` calls
@@ -151,7 +151,8 @@ end
     build_species(numspecies::Integer; tolerance, toleranceaxis, demand, demandaxis, dispersal = 10.0km,
         pthresh = 1.0e-9, movement = BirthOnlyMovement, disperse_safely = true, birth = 0.6/year,
         death = 0.6/year, longevity = 1.0, survival = 0.2,
-        abundance = 1000 * numspecies, native = true, names = nothing, seed = nothing)
+        abundance = 1000 * numspecies, native = true, names = nothing, seed = nothing,
+        provenance = InputRecord[])
 
 Build a `SpeciesList` of `numspecies` species. `tolerance` (the environmental **Condition** a
 species is matched to) and `demand` (the **Resource** it consumes) are **required**, and so is the
@@ -199,7 +200,9 @@ mismatch):
 species (seedable via `seed`) or an explicit per-species vector. `native` marks
 species as native (default all `true`). `names` gives the species their names, one unique string
 each - binomials, say - which also label their Diversity types; left unset they are `"1"` to
-`"numspecies"`.
+`"numspecies"`. `provenance` is an [`InputRecord`](@ref), or a vector of them, for the published
+data the species were built from - an occurrence download, a trait table - which
+[`provenance`](@ref) of the ecosystem then lists.
 """
 function build_species(numspecies::Integer;
                        tolerance = _require(:tolerance),
@@ -221,7 +224,8 @@ function build_species(numspecies::Integer;
                        abundance = 1000 * numspecies,
                        native = true,
                        names = nothing,
-                       seed = nothing)
+                       seed = nothing,
+                       provenance = InputRecord[])
     n = Int64(numspecies)
     _prebuilt = tolerance isa AbstractTolerance ||
                 (tolerance isa Union{Tuple, NamedTuple} &&
@@ -282,7 +286,7 @@ function build_species(numspecies::Integer;
     abun = _abundances(abundance, n, seed)
 
     return SpeciesList(n, traits, abun, demands, move, param, nat,
-                       names = names)
+                       names = names, provenance = provenance)
 end
 
 # As above for `build_species`: default `numspecies`, `tolerance` and `demand` if omitted, announce,
@@ -323,7 +327,8 @@ end
 
 """
     build_ecosystem(species::SpeciesList, environment::GridHabitat;
-        nichefit = nothing, seed = nothing, distributed = :auto, epoch = nothing)
+        nichefit = nothing, seed = nothing, distributed = :auto, epoch = nothing,
+        calendar = ExactDates(), provenance = InputRecord[])
 
 Assemble an ecosystem from a `species` list and an `environment`. When
 `nichefit` is not given it is inferred from the trait type (`NicheTolerance` ->
@@ -351,11 +356,26 @@ explicit `epoch` always wins; otherwise the environment's own series supply it, 
 real start date is found it is used and everything else is phased to it. Series that disagree are an
 error naming the candidates, and an environment with no dated series has no epoch at all, which is
 the behaviour of a run that never mentions dates.
+
+`calendar` is how dates become elapsed time: [`ExactDates`](@ref), the default, places every dated
+slice and the epoch by the real time between them, and [`MeanMonths`](@ref) counts each calendar
+month as `month_mean_duration`, so a dated monthly series stepped by `month_mean_duration` makes
+every month current once. Under `ExactDates` such a run is refused by [`simulate!`](@ref), since
+real months are 28 to 31 days long and the step skips some. The calendar also decides the date
+[`simulationdate`](@ref) reports.
+
+`provenance` is an [`InputRecord`](@ref), or a vector of them, for published data that belongs to
+the run as a whole rather than to its species or its environment - the records a starting
+population was seeded from, say, or the study's own DOI. [`provenance`](@ref) of the ecosystem lists
+them beside everything else it was built from.
 """
 function build_ecosystem(species::SpeciesList, environment::GridHabitat;
                          nichefit = nothing, seed = nothing,
                          distributed = :auto,
-                         epoch::Union{Nothing, Dates.TimeType} = nothing)
+                         epoch::Union{Nothing, Dates.TimeType} = nothing,
+                         calendar::AbstractRunCalendar = ExactDates(),
+                         provenance = InputRecord[])
+    records = _recordvector(provenance)
     _checksimulatable(environment)
     # Checked here as well as in the `Ecosystem` constructor, and *before* the nichefit is inferred:
     # `_defaultsuitability` pairs tolerances with regimes member by member, so a mismatch reaches
@@ -375,8 +395,8 @@ function build_ecosystem(species::SpeciesList, environment::GridHabitat;
     # it - and re-pointing is idempotent, since an origin is computed from the calendar and the epoch
     # rather than accumulated.
     resolved = _resolveepoch(environment, epoch)
-    _repointseries!(environment.regime, resolved)
-    _repointseries!(environment.supply, resolved)
+    _repointseries!(environment.regime, resolved, calendar)
+    _repointseries!(environment.supply, resolved, calendar)
     # Then write those values in, so the run *starts* in the state its series and epoch describe
     # rather than reaching it one timestep late. Ordered after re-pointing for the obvious reason,
     # and safe against data gaps because `GridHabitat` has already cleaned both a supply's matrix
@@ -391,6 +411,8 @@ function build_ecosystem(species::SpeciesList, environment::GridHabitat;
         Ecosystem(species, environment, nichefit, seed = seed)
     end
     eco.epoch = resolved
+    eco.calendar = calendar
+    eco.inputs = _uniqueinputs(records)
     return eco
 end
 
@@ -398,11 +420,14 @@ end
 # defaults) and assemble them into a runnable `Ecosystem`. `seed`/`distributed` pass to the assembly.
 function build_ecosystem(::DefaultEcosystem; seed = nothing,
                          distributed = :auto,
-                         epoch::Union{Nothing, Dates.TimeType} = nothing)
+                         epoch::Union{Nothing, Dates.TimeType} = nothing,
+                         calendar::AbstractRunCalendar = ExactDates(),
+                         provenance = InputRecord[])
     environment = build_habitat()
     species = build_species(DefaultEcosystem())
     return build_ecosystem(species, environment, seed = seed,
-                           distributed = distributed, epoch = epoch)
+                           distributed = distributed, epoch = epoch,
+                           calendar = calendar, provenance = provenance)
 end
 
 # == Running it =================================================================================
@@ -417,10 +442,85 @@ function simulate!(eco::AbstractEcosystem, duration::Unitful.Time,
                    timestep::Unitful.Time; intervention = nothing)
     checkcoverage(eco, duration, timestep)
     check_bounds(eco, duration, timestep)
-    times = length((0s):timestep:duration)
-    for i in 1:times
+    _checkschedules(intervention, eco, duration, timestep)
+    for _ in 1:_stepcount(duration, timestep)
         update!(eco, timestep, intervention)
     end
+end
+
+"""
+    simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time, timestep::Unitful.Time;
+              every = timestep, intervention = nothing)
+
+Run `eco` for `duration` in steps of `timestep`, as the three-argument `simulate!` does, calling `f`
+whenever the schedule `every` fires - usually written as a `do` block:
+
+```julia
+totals = Int[]
+simulate!(eco, 10year, 1month_mean_duration, every = EveryInterval(1year)) do occurrence
+    push!(totals, sum(eco.abundances.matrix))
+end
+```
+
+`f` is handed one named tuple per occurrence: `count`, which occurrence of this call it is, from 1;
+`elapsed`, the simulation time it fires at; and `date`, that time as a date under the run's epoch and
+calendar, or `nothing` for a run with no epoch. The ecosystem is reached by closure. Each occurrence
+sees the state at exactly its time: on a run starting from elapsed zero the first is the starting
+state, after any intervention due at the start, and each later one comes after its step's dynamics,
+interventions and layer update.
+
+`f` may also be a recorder - an [`AbstractRecorder`](@ref) such as [`RecordAbundance`](@ref) -
+which is called with the ecosystem and the occurrence; to keep several things from one run, call
+each from a callback of your own.
+
+**The callback is for observing the run** - recording and logging. It must not draw from the global
+random number generator or write a layer's values, either of which would make the result depend on
+how the work was divided. Under MPI every rank runs the loop and the callback, so a collective the
+callback calls, such as [`gatherabundance`](@ref) or [`gatherdiversity`](@ref), must be reached on
+every rank - a callback returning before it on the ranks other than the root leaves every rank waiting
+for ever - and a callback writing abundances writes only its own rank's species. To change the
+ecosystem, declare an [`Intervention`](@ref), which is applied once and identically everywhere.
+
+# Arguments
+
+  - `f`: called at each occurrence with the named tuple above.
+  - `eco`: the ecosystem to run.
+  - `duration`, `timestep`: the length of the run and of each step; the run takes
+    `duration / timestep` steps - the nearest whole number for a step of a day or less, and
+    otherwise exactly a whole number.
+  - `every`: when `f` is called - an [`AbstractSchedule`](@ref), or a duration meaning
+    [`EveryInterval`](@ref) of it. Every timestep by default, the starting state included.
+  - `intervention`: an [`Intervention`](@ref) or [`InterventionSet`](@ref) applied as the run
+    proceeds.
+"""
+function simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time,
+                   timestep::Unitful.Time; every = timestep,
+                   intervention = nothing)
+    schedule = _everyschedule(every)
+    checkcoverage(eco, duration, timestep)
+    check_bounds(eco, duration, timestep)
+    _checkschedules(intervention, eco, duration, timestep)
+    _checkschedule(schedule, eco, duration, timestep)
+    count = 0
+    if iszero(simulationtime(eco))
+        _startrun!(eco, intervention, timestep)
+        count = _occur(f, schedule, eco, timestep, count)
+    end
+    for _ in 1:_stepcount(duration, timestep)
+        _step!(eco, timestep, intervention)
+        count = _occur(f, schedule, eco, timestep, count)
+    end
+    return nothing
+end
+
+function simulate!(recorder::AbstractRecorder, eco::AbstractEcosystem,
+                   duration::Unitful.Time, timestep::Unitful.Time;
+                   every = timestep, intervention = nothing)
+    simulate!(eco, duration, timestep, every = every,
+              intervention = intervention) do occurrence
+        return recorder(eco, occurrence)
+    end
+    return nothing
 end
 
 """
@@ -444,39 +544,9 @@ function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
                                             uconvert(s, float(srt)),
                                             cache.seed,
                                             cache.epoch)
+    eco.calendar = cache.calendar
     update!(eco, timestep)
     return cache.abundances.matrix[Ti(At(srt + timestep))] = eco.abundances
-end
-
-"""
-    simulate!(eco::Ecosystem, times::Unitful.Time, timestep::Unitful.Time,
-              cacheInterval::Unitful.Time, cacheFolder::String,
-              scenario_name::String)
-
-Run an ecosystem, `eco` for specified length of times, `duration`, for a
-particular timestep, 'timestep'. A cache interval and folder/file name are
-specified for saving output.
-"""
-function simulate!(eco::Ecosystem,
-                   times::Unitful.Time,
-                   timestep::Unitful.Time,
-                   cacheInterval::Unitful.Time,
-                   cacheFolder::String,
-                   scenario_name::String)
-    checkcoverage(eco, times, timestep)
-    check_bounds(eco, times, timestep)
-    time_seq = zero(times):timestep:times
-    for i in eachindex(time_seq)
-        update!(eco, timestep)
-        # Save cache of abundances
-        if mod(time_seq[i], cacheInterval) == zero(time_seq[i])
-            @save joinpath(cacheFolder,
-                           scenario_name *
-                           (@sprintf "%02d.jld2" uconvert(NoUnits,
-                                                          time_seq[i] /
-                                                          cacheInterval))) abun=eco.abundances.matrix
-        end
-    end
 end
 
 """
@@ -524,195 +594,40 @@ function generate_storage(eco::Ecosystem, qs::Int64, times::Int64, reps::Int64)
     return abun = Array{Float64, 4}(undef, gridSize, qs, times, reps)
 end
 
-"""
-    simulate_action!(action!::Function, eco::AbstractEcosystem, times::Unitful.Time,
-                     interval::Unitful.Time, timestep::Unitful.Time;
-                     intervention = nothing, offset = false)
+# The schedule a callback's `every` names: a duration means every whole multiple of it.
+_everyschedule(every::Unitful.Time) = EveryInterval(every)
 
-Run an ecosystem `eco` up to time `times` in steps of `timestep`, calling the
-user-supplied `action!` at regular intervals so that any periodic task can be
-performed as the simulation proceeds - recording a quantity, logging progress,
-applying a management intervention, checking a stopping condition, and so on.
-This is the general engine behind the [`simulate_record!`](@ref) and
-[`simulate_record_diversity!`](@ref) recorders; use it directly when you want to
-do something they do not.
+_everyschedule(every::AbstractSchedule) = every
 
-At each step the ecosystem is advanced with [`update!`](@ref), which applies any
-[`Intervention`](@ref) passed as `intervention`. Whenever the elapsed time falls on a multiple of `interval`, `action!(counting)`
-is called, where `counting` is the 1-based index of that occurrence (handy as a
-storage slot when the action is recording); `interval` must be a whole multiple of
-`timestep`. Anything the action needs to read or update - the ecosystem, an output
-array, an external counter - is captured by the closure, typically written as a
-`do` block:
-
-```julia
-totals = zeros(Int, length((0s):interval:times))
-simulate_action!(eco, times, interval, timestep) do counting
-    totals[counting] = sum(eco.abundances.matrix)
+# Call `f` for an occurrence if `schedule` fires at the clock as it now stands, and return how many
+# occurrences there have been.
+function _occur(f, schedule::AbstractSchedule, eco::AbstractEcosystem,
+                timestep::Unitful.Time, count::Integer)
+    _fires(schedule, eco, simulationtime(eco), timestep) || return count
+    count += 1
+    f((count = count, elapsed = simulationtime(eco),
+       date = simulationdate(eco)))
+    return count
 end
-```
 
-`offset` shifts the action grid to start at `timestep` rather than `0`, which drops
-the first occurrence (one fewer action in total). Use it to make the number of
-actions match a pre-allocated array (such as one from [`generate_storage`](@ref));
-the built-in diversity recorders pass `offset = iseven(size(storage, 3))`.
-
-Returns the ecosystem `eco`, now advanced to `times`.
-"""
-function simulate_action!(action!::F,
-                          eco::AbstractEcosystem,
-                          times::Unitful.Time,
-                          interval::Unitful.Time,
-                          timestep::Unitful.Time;
-                          intervention = nothing,
-                          offset = false) where {F <: Function}
+# `simulate_action!`'s own timing, kept exactly for the names still built on it: `action!` is handed
+# the occurrence's count on the step after the clock stood on a multiple of `interval` - or, with
+# `offset`, on a step ending on one, the run a step shorter.
+function _simulateaction!(action!, eco::AbstractEcosystem, times::Unitful.Time,
+                          interval::Unitful.Time, timestep::Unitful.Time;
+                          intervention = nothing, offset = false)
     iszero(mod(interval, timestep)) ||
         error("Interval must be a multiple of timestep")
-    checkcoverage(eco, times, timestep)
-    check_bounds(eco, times, timestep)
-    action_seq = offset ? (timestep:interval:times) : ((0s):interval:times)
-    time_seq = offset ? (timestep:timestep:times) : ((0s):timestep:times)
-    counting = 0
-    for i in eachindex(time_seq)
-        update!(eco, timestep, intervention)
-        if time_seq[i] in action_seq
-            counting += 1
-            action!(counting)
-        end
+    grid = offset ? collect(timestep:interval:times) :
+           collect((0s):interval:times) .+ timestep
+    # The steps it always took, for any `times`: one more than `times / timestep` rounded down, or
+    # with `offset` exactly that many.
+    steps = offset ? length((0s):timestep:(times - timestep)) :
+            length((0s):timestep:times)
+    duration = steps * timestep
+    simulate!(eco, duration, timestep, every = AtTimes(grid),
+              intervention = intervention) do occurrence
+        return action!(occurrence.count)
     end
     return eco
-end
-
-"""
-    simulate_record!(storage::AbstractArray, eco::Ecosystem, times::Unitful.Time,
-         interval::Unitful.Time, timestep::Unitful.Time)
-
-Run an ecosystem, `eco` for a specified length of time, `times`, for a
-particular timestep, `timestep`, recording abundances into `storage` at each
-time interval `interval`.
-
-Pre-allocate `storage` with [`generate_storage`](@ref)`(eco, ntimes, reps)`,
-where `ntimes = length((0s):interval:times)` is the number of recordings.
-
-An `intervention` keyword takes an [`Intervention`](@ref) or
-[`InterventionSet`](@ref). If it
-can add species ([`AddSpecies`](@ref)), size `storage` for them with
-`generate_storage(eco, ntimes, reps, maxspecies = ...)`: the array is allocated
-before the run and cannot grow.
-
-To record diversity rather than raw abundances, see
-[`simulate_record_diversity!`](@ref); to perform an arbitrary action at regular
-intervals via a callback, see [`simulate_action!`](@ref).
-"""
-function simulate_record!(storage::AbstractArray,
-                          eco::Ecosystem,
-                          times::Unitful.Time,
-                          interval::Unitful.Time,
-                          timestep::Unitful.Time;
-                          intervention = nothing)
-    iszero(mod(interval, timestep)) ||
-        error("Interval must be a multiple of timestep")
-    checkcoverage(eco, times, timestep)
-    check_bounds(eco, times, timestep)
-    record_seq = (0s):interval:times
-    time_seq = (0s):timestep:times
-    _record!(storage, eco, 1)
-    counting = 1
-    for i in 2:length(time_seq)
-        update!(eco, timestep, intervention)
-        if time_seq[i] in record_seq
-            counting = counting + 1
-            _record!(storage, eco, counting)
-        end
-    end
-    return storage
-end
-
-"""
-    simulate_record_diversity!(storage, eco, times, interval, timestep,
-                               divfun, qs::Vector{Float64})
-    simulate_record_diversity!(substorage, metastorage, eco, times, interval, timestep,
-                               qs::Vector{Float64})
-    simulate_record_diversity!(storage, eco, times, interval, timestep,
-                               divfuns::Array{Function}, q::Float64)
-
-Run an ecosystem `eco` up to `times` in steps of `timestep`, recording diversity
-into `storage` (and, for the alpha/beta/gamma form, `substorage`/`metastorage`) every `interval`,
-which must be a whole multiple of `timestep`. These are all thin wrappers over
-[`simulate_action!`](@ref) - see it for the recording mechanics - and differ only
-in what diversity they record:
-
-  - `divfun, qs` - a single diversity function `divfun` (which returns a
-    `DataFrame` with a `:diversity` column) evaluated over the diversity orders
-    `qs`, reshaped into `storage`;
-  - `substorage, metastorage, ..., qs` - normalised alpha, normalised beta and gamma
-    diversity over `qs`; subcommunity-level values are written to `substorage`
-    (gridSize × 3 × timepoints × qs) and metacommunity-level values to `metastorage`
-    (3 × timepoints × qs). This form returns **both**, as the named tuple
-    `(subcommunity = substorage, metacommunity = metastorage)`, so a caller need not
-    remember which of the two came first;
-  - `divfuns, q` - several diversity functions at a single diversity order `q`,
-    one per column of `storage`.
-
-For the `divfun`/`divfuns` forms, pre-allocate `storage` with
-[`generate_storage`](@ref)`(eco, ncols, ntimes, reps)`, where `ncols` is
-`length(qs)` (or `length(divfuns)`) and `ntimes = length((0s):interval:times)`.
-"""
-function simulate_record_diversity!(storage::AbstractArray,
-                                    eco::Ecosystem,
-                                    times::Unitful.Time,
-                                    interval::Unitful.Time,
-                                    timestep::Unitful.Time,
-                                    divfun::F,
-                                    qs::Vector{Float64}) where {F <: Function}
-    simulate_action!(eco, times, interval, timestep,
-                     offset = iseven(size(storage, 3))) do counting
-        diversity = divfun(eco, qs)[!, :diversity]
-        return storage[:, :, counting] = reshape(diversity,
-                                                 Int(length(diversity) /
-                                                     length(qs)),
-                                                 length(qs))
-    end
-    return storage
-end
-
-function simulate_record_diversity!(substorage::AbstractArray,
-                                    metastorage::AbstractArray,
-                                    eco::Ecosystem,
-                                    times::Unitful.Time,
-                                    interval::Unitful.Time,
-                                    timestep::Unitful.Time,
-                                    qs::Vector{Float64})
-    simulate_action!(eco, times, interval, timestep,
-                     offset = iseven(size(substorage, 3))) do counting
-        measures = [NormalisedAlpha, NormalisedBeta, Gamma]
-        for (i, msr) in enumerate(measures)
-            dm = msr(eco)
-            diversity = subdiv(dm, qs)[!, :diversity]
-            diversity2 = metadiv(dm, qs)[!, :diversity]
-            substorage[:, :, i, counting] = reshape(diversity,
-                                                    Int(length(diversity) /
-                                                        length(qs)),
-                                                    length(qs))
-            metastorage[:, i, counting] = diversity2
-        end
-    end
-    return (subcommunity = substorage, metacommunity = metastorage)
-end
-
-function simulate_record_diversity!(storage::AbstractArray,
-                                    eco::Ecosystem,
-                                    times::Unitful.Time,
-                                    interval::Unitful.Time,
-                                    timestep::Unitful.Time,
-                                    divfuns::Array{Function},
-                                    q::Float64)
-    simulate_action!(eco, times, interval, timestep) do counting
-        # `j` is a position: it addresses `storage`, allocated by `generate_storage`, as well as
-        # picking the measure.
-        for (j, divfun) in enumerate(divfuns)
-            storage[:, j, counting] .= divfun(eco, q)[!, :diversity][1]
-        end
-    end
-    return storage
 end

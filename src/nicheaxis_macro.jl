@@ -143,42 +143,22 @@ species**: a narrower niche still peaks higher. That is what separates it from p
 densitywidth(::Type{NicheAxis}) = nothing
 densitywidth(::Type{<:NicheAxis}) = nothing
 
-"""
-    iscategorical(axis::Type{<:NicheAxis})
-
-Return whether `axis`' values are **class labels** rather than measurements.
-
-This is a property of the axis, and nothing else needs to declare it. An axis holding Koppen
-climate classes or land-cover classes holds codes whose arithmetic mean is meaningless, so anything
-resampling such a layer must take the nearest class rather than interpolate. Every other axis holds
-numbers that may be averaged.
-
-A day-count is deliberately not modelled as a third case. The catalogue distinguishes one from a
-continuous measurement, but nothing in the package acts on the distinction: every consumer asks only
-whether a layer is categorical, because that is the only answer that changes what resampling may do.
-A count is an ordinary number that may be averaged, exactly as a temperature is.
-
-An axis whose values are class labels says so in its [`@nicheaxis`](@ref) declaration, with
-`categorical = true`; every other axis declares nothing and inherits from its parent, ending at
-`NicheAxis` itself, which is not categorical. This is the same declared-or-delegated shape as
-[`canonicalunit`](@ref) and `densitywidth`, and the macro is the only route - writing a method by
-hand covers the exact type named and not its subtypes, so a hand-declared group would silently fail
-to pass the property to its own leaves.
-
-The fallback is `false` rather than an error, which is where this differs from
-[`canonicalunit`](@ref). Very few axes are categorical, so `false` is a real majority answer that an
-axis can be assumed into; nearly every axis has a *different* canonical unit, so there is no answer
-to fall back on and not declaring one has to be refused. The same question decides how any future
-axis property should behave when undeclared: ask whether a majority answer exists.
-"""
-iscategorical(::Type{<:NicheAxis}) = false
+# Whether an axis's values are class labels rather than measurements - codes whose mean is
+# meaningless, so resampling must take a class and never interpolate. A property of the axis alone.
+# An axis declares it with `categorical = true` in `@nicheaxis`, and every other axis inherits it
+# from its parent, ending here at `false`. The macro is the only route: a hand-written method
+# covers the exact type named and not its subtypes, so a group declared by hand would not pass the
+# property to its leaves. The fallback is `false` rather than an error, unlike `canonicalunit`,
+# because few axes are categorical and so `false` is a real majority answer. A day-count is not a
+# third case: nothing acts on the distinction, and a count may be averaged like any number.
+_iscategorical(::Type{<:NicheAxis}) = false
 
 """
     @nicheaxis Name <: Parent  [condition = U] [resource = U supply = S demand = D] [reference]
                                [bounds = (lo, hi)] [densitywidth = W] [categorical = true]
 
 Declare a niche axis: its type, and what it means. This is the supported way to add one - the
-underlying `canonicalunit`/`supplytype`/`demandtype`/`bounds`/`densitywidth`/`iscategorical` methods
+underlying `canonicalunit`/`supplytype`/`demandtype`/`bounds`/`densitywidth`/`_iscategorical` methods
 are internal, and are emitted here so that they cannot disagree.
 
 **Every axis is an `abstract type`** - an axis is only dispatched on, never constructed - so there
@@ -320,10 +300,10 @@ macro nicheaxis(args...)
     end
     # Whether the axis' values are class labels rather than measurements, following the same
     # declared-or-delegated shape as `densitywidth`. Only `TypologyAxis` declares `true`; everything
-    # else reaches `iscategorical(::Type{<:NicheAxis}) = false` up the chain of parents.
+    # else reaches `_iscategorical(::Type{<:NicheAxis}) = false` up the chain of parents.
     #
     # The delegation is what makes a single declaration cover a whole branch: `LandCoverTypology`
-    # declares nothing and emits `iscategorical(::Type{<:LandCoverTypology}) = iscategorical(TypologyAxis)`,
+    # declares nothing and emits `_iscategorical(::Type{<:LandCoverTypology}) = _iscategorical(TypologyAxis)`,
     # which is `true`. Emitting nothing instead would leave the branch to the method table, which
     # works here but stops working the moment a default other than the parent's is wanted.
     #
@@ -335,10 +315,10 @@ macro nicheaxis(args...)
     # shed - there is nothing here for `reference` to take away.
     if haskey(opts, :categorical)
         push!(out.args,
-              :($M.iscategorical(::Type{<:$name}) = $(opts[:categorical])))
+              :($M._iscategorical(::Type{<:$name}) = $(opts[:categorical])))
     else
         push!(out.args,
-              :($M.iscategorical(::Type{<:$name}) = $M.iscategorical($parent)))
+              :($M._iscategorical(::Type{<:$name}) = $M._iscategorical($parent)))
     end
     if isresource
         push!(out.args,

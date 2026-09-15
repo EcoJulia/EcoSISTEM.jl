@@ -115,7 +115,7 @@ for axis in (:SolarRadiation, :Precipitation)
     @eval function Supply{$axis}(worldclim::ClimateRaster{WorldClim{Climate}},
                                  time::Integer)
         cellareas = _cellareas(worldclim.array)
-        return Supply{$axis}(cancel.(worldclim.array, cellareas, $axis),
+        return Supply{$axis}(_cancel.(worldclim.array, cellareas, $axis),
                              time)
     end
 end

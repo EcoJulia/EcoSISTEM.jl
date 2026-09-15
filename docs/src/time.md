@@ -35,8 +35,12 @@ eco = build_ecosystem(species, env)
 
 ```@example clock
 simulate!(eco, 1year, 1day)           # run for a year in daily steps
-EcoSISTEM.simulationtime(eco)        # a year, as seconds
+EcoSISTEM.simulationtime(eco)        # 365 whole days, as seconds
 ```
+
+A year is 365.25 days, so a step of a day or less takes the nearest whole number of steps; a
+longer step must divide the run's duration exactly, or [`simulate!`](@ref) refuses the run before it
+starts.
 
 ```@example clock
 resettime!(eco)                       # back to the start
@@ -50,25 +54,32 @@ what a year means. Choose the timestep for numerical reasons - how finely you wa
 resolved, and how much detail your environmental data can actually support - not because the
 model expects a particular one.
 
-To do something periodically while a simulation runs, use [`simulate_action!`](@ref), which
-calls a function of yours at a regular `interval`:
+To do something periodically while a simulation runs, give [`simulate!`](@ref) a function of
+yours - usually as a `do` block - and say how often with `every`:
 
 ```@example clock
-totals = zeros(Int, length((0year):(1year):(10year)))
-simulate_action!(eco, 10year, 1year, 1month_mean_duration) do counting
-    totals[counting] = sum(eco.abundances.matrix)
+totals = Int[]
+simulate!(eco, 10year, 1month_mean_duration, every = EveryInterval(1year)) do occurrence
+    push!(totals, sum(eco.abundances.matrix))
 end
 totals
 ```
 
-The `interval` must be a whole multiple of the `timestep`, so that the action always lands on
-a step boundary - and this is the first place the next section's distinction bites. A year is
-**not** a whole number of days: `year` is Unitful's Julian year of 365.25 days, so an interval
-of `1year` with a timestep of `1day` is rejected. It divides exactly by
-`month_mean_duration`, which is a twelfth of that same year, so monthly steps are used above.
+Each call is handed the occurrence's `count`, its `elapsed` time and, when the run has an
+epoch, its `date`, and sees the state at exactly that time: the first is the starting state,
+and each later one comes after that step's births, deaths and interventions. `every` takes
+any schedule an intervention does, and a bare duration means `EveryInterval` of it.
 
-[`simulate_record!`](@ref) is this same engine with recording already written for you, and is
-what most runs want.
+A multiple of the interval that no step ends on is acted on at the step that reaches it - and
+this is the first place the next section's distinction bites. A year is **not** a whole
+number of days: `year` is Unitful's Julian year of 365.25 days, so with a timestep of `1day`
+a yearly call would come a fraction of a day late in three years out of four. It divides
+exactly by `month_mean_duration`, which is a twelfth of that same year, so monthly steps are
+used above.
+
+The recorders - [`RecordAbundance`](@ref), [`RecordDiversity`](@ref) and
+[`SaveAbundance`](@ref) - are values made for this, passed to `simulate!` in place of a
+function, and are what most runs want.
 
 ## Naming time
 
@@ -167,13 +178,13 @@ twelve-month step and twelve one-month steps land on the same slice, and a daily
 through a monthly series holds each slice for the whole of its own month. A cursor advanced
 once per call could not do this.
 
-!!! warning "A dated monthly series stepped by the mean month skips months"
-    The timestep does not yet know the calendar. Real months are 28 to 31 days long, so a run
-    stepping by `month_mean_duration` from a 1 January epoch never puts a step boundary in
-    February: it sees January twice and skips February, every year. This is a known defect,
-    not a design; until a calendar-aware step exists, step by a duration whose boundaries fall
-    in every month - a week, a day - or give the spec a uniform `times` axis if what you want
-    is one slice per step.
+A dated monthly series and a step of `month_mean_duration` do not line up on their own. Real
+months are 28 to 31 days long, so from a 1 January epoch no step ever shows February: the
+run sees January twice and skips February, every year. [`simulate!`](@ref) refuses such a
+run before its first step, naming the slice it would skip. Build the ecosystem with
+`calendar = MeanMonths()` to count every calendar month as one `month_mean_duration`, so
+each month is current for exactly one step - see *Counting months* under the epoch below -
+or step by a duration no longer than the shortest gap between slices.
 
 `atend` decides what happens once elapsed time runs past the last slice:
 [`ErrorAtEnd`](@ref) (the default) says so plainly, [`HoldAtEnd`](@ref) keeps the last slice
@@ -293,9 +304,21 @@ is not:
 - **none at all** -> no epoch. `simulationdate` is `nothing`, and the run behaves exactly as
   one that never mentions dates.
 
-An epoch *before* a dated series begins is an error rather than a clamp: `atend` says what
-to do past a series' end, but there are no values before its beginning to hold or cycle. A
-`MonthOfYearSeries` has no beginning to precede, so any date phases it.
+An epoch *before* a dated series begins is not an error: until its first slice the layer
+keeps its own values, so a run can start on the spec's own values and take up the record
+when it begins. A `MonthOfYearSeries` has no beginning to precede, so any date phases it.
+
+### Counting months
+
+`build_ecosystem` also takes a `calendar`, saying how dates become elapsed time.
+[`ExactDates`](@ref), the default, uses the real time between them, so a slice dated
+1 March 2000 falls 60 days after one dated 1 January 2000. [`MeanMonths`](@ref) counts
+every calendar month as `month_mean_duration`, as a `MonthOfYearSeries` climatology already
+is: a slice falls at its whole calendar months since the series' first slice, whatever day
+of the month it is dated, and a monthly series stepped by `month_mean_duration` makes every
+month current exactly once. `simulationdate` counts months the same way, so the date it
+reports is the month whose slice is current. A dated series with two slices in one calendar
+month is refused under `MeanMonths`, since counting months says nothing about days.
 
 ## When the data accumulated
 
@@ -366,9 +389,8 @@ control, a **steady drift** (`Varying(spec, IncrementBy(rate))`) and a **seasona
 (`Varying(spec, OffsetBy(PatternedChange(...)))`).
 
 It also asserts what separates them, and the assertion is not the obvious one. A cycle is **not**
-distinguished by "ending where it started" - that holds only at whole periods, and
-[`simulate!`](@ref) takes `length((0s):timestep:duration)` steps, an *inclusive* range from zero, so
-a four-year run at monthly steps advances **49** months rather than 48. What actually separates them
+distinguished by "ending where it started" - that holds only at whole periods, and a run need not
+end on one. What actually separates them
 is that a cycle stays bounded by its amplitude however long it runs, while `IncrementBy` grows
 without limit.
 

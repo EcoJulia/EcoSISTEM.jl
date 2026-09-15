@@ -42,13 +42,13 @@ const NNICHES = 3
 const AREA = StudyArea(extent = (NY * 1.0km, NX * 1.0km), cellsize = 1.0km,
                        verbosity = :silent)
 
-# **The niche map is drawn ONCE and then re-used by VALUE, and both halves of that matter.**
+# **The niche map is seeded, built once and then re-used by VALUE.**
 #
-# `NicheSpec` lays its niches out by percolation and weighted sampling from the **global** stream,
-# which `Ecosystem`'s own per-species seeding does not cover. Drawing it once, immediately after a
-# `Random.seed!`, is what makes it a fixed input rather than a function of whatever else has run in
-# the process first - and a canonical file is `include`d into a shared process when re-blessing but
-# runs in its own when checking, so "whatever else has run first" genuinely differs between the two.
+# `NicheSpec` lays its niches out by percolation and weighted sampling, and with a `seed` it draws
+# them from a stream of its own, which `Ecosystem`'s per-species seeding does not otherwise cover.
+# That makes the map a fixed input rather than a function of whatever else has run in the process
+# first - and a canonical file is `include`d into a shared process when re-blessing but runs in its
+# own when checking, so "whatever else has run first" genuinely differs between the two.
 #
 # **But each run still gets its OWN habitat, built from this same map.** An `Ecosystem` *shares* its
 # habitat with the caller rather than copying it, so two ecosystems built on one habitat object are
@@ -59,14 +59,12 @@ const AREA = StudyArea(extent = (NY * 1.0km, NX * 1.0km), cellsize = 1.0km,
 #
 # With both in place the fixture is reproducible at 1, 2, 4 and 8 threads and across processes,
 # which is the package's own stated requirement - a result must not depend on how work was divided.
-const REGIME = begin
-    Random.seed!(SEED)
-    GridHabitat(regime = NicheSpec(NNICHES, axis = LandCoverTypology),
-                supply = UniformSpec(4.5e11kJ / km^2 / day,
-                                     axis = SolarRadiation),
-                area = AREA,
-                topology = Torus()).regime
-end
+const REGIME = GridHabitat(regime = NicheSpec(NNICHES, axis = LandCoverTypology,
+                                              seed = SEED),
+                           supply = UniformSpec(4.5e11kJ / km^2 / day,
+                                                axis = SolarRadiation),
+                           area = AREA,
+                           topology = Torus()).regime
 
 # A categorical ecosystem on a fresh habitat carrying the fixed niche map, with each species
 # tolerating one niche. `penalty` is the whole point of the fixture - the weight a species gets in a

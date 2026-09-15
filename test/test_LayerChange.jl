@@ -899,6 +899,78 @@ end
           Dates.DateTime(2003, 1, 1)
 end
 
+@testset "A run calendar decides where dated months fall" begin
+    area() = StudyArea(extent = (50km, 50km), cellsize = 10km,
+                       verbosity = :silent)
+    # A dated series whose slice k holds 279 + k K, so a value names its slice.
+    function datedspec(dates)
+        stack = DimArray(cat((fill((279.0 + i) * K, 5, 5)
+                              for i in eachindex(dates))...; dims = 3),
+                         (Y(NoLookup()), X(NoLookup()), Ti(collect(dates))))
+        return Varying(UniformSpec(280.0K, axis = Temperature),
+                       ReplaceWith(SeriesChange(stack, atend = HoldAtEnd())))
+    end
+    function datedeco(dates; kw...)
+        env = GridHabitat(regime = datedspec(dates),
+                          supply = UniformSpec(1.0e5kJ / (m^2 * day),
+                                               axis = SolarRadiation),
+                          area = area())
+        spp = build_species(3, tolerance = (285.0K, 30.0K),
+                            toleranceaxis = Temperature,
+                            demand = 1.0e5kJ / day, demandaxis = SolarRadiation,
+                            abundance = 100, seed = 1)
+        return build_ecosystem(spp, env; seed = 1, kw...)
+    end
+    shown(eco) = round(Int, ustrip(K, eco.habitat.regime.matrix[1, 1])) - 279
+    month = 1.0month_mean_duration
+    monthly = Dates.DateTime(2000, 1, 1):Dates.Month(1):Dates.DateTime(2001, 12,
+                                                                       1)
+
+    # Real months are 28 to 31 days, so from 1 January no mean-month step shows February, and the
+    # run is refused before its first step, naming the slice it would skip.
+    @test_throws "2000-02-01" simulate!(datedeco(monthly), 22month, month)
+
+    # Counting months shows every one exactly once across two years, 2000 being a leap year, and
+    # the date the run reports is the month whose slice is current - for a series dated on the
+    # first of each month and one dated mid-month.
+    for dates in (monthly, monthly .+ Dates.Day(14))
+        eco = datedeco(dates, calendar = MeanMonths())
+        @test_nowarn EcoSISTEM.checkcoverage(eco, 22month, month)
+        seen = [shown(eco)]
+        reported = [EcoSISTEM.simulationdate(eco)]
+        for _ in 1:23
+            simulate!(eco, month, month)
+            push!(seen, shown(eco))
+            push!(reported, EcoSISTEM.simulationdate(eco))
+        end
+        @test seen == 1:24
+        @test Dates.month.(reported) == [mod(k - 1, 12) + 1 for k in seen]
+    end
+
+    # An epoch part-way through a month sits that far into its mean month, and is reported back.
+    eco = datedeco(monthly, calendar = MeanMonths(),
+                   epoch = Dates.DateTime(2000, 1, 16))
+    @test Dates.Date(EcoSISTEM.simulationdate(eco)) == Dates.Date(2000, 1, 16)
+    @test shown(eco) == 1
+
+    # Placing a series again under the same calendar changes nothing, placing it under exact dates
+    # restores its real gaps, and its start date still answers for the epoch either way.
+    layer = datedeco(monthly, calendar = MeanMonths()).habitat.regime
+    placed = layer.change
+    EcoSISTEM._repointseries!(layer, Dates.DateTime(2000, 1, 1), MeanMonths())
+    @test layer.change.times == placed.times &&
+          layer.change.origin == placed.origin
+    @test EcoSISTEM._startdate(layer.change.calendar) ==
+          Dates.DateTime(2000, 1, 1)
+    EcoSISTEM._repointseries!(layer, Dates.DateTime(2000, 1, 1), ExactDates())
+    @test layer.change.calendar == DatedSeries(Dates.DateTime(2000, 1, 1))
+    @test layer.change.times[3] ≈ uconvert(s, 60.0 * u"d")
+
+    # A series finer than a month has no meaning in counted months, and is refused naming the month.
+    daily = Dates.DateTime(2000, 1, 1):Dates.Day(1):Dates.DateTime(2000, 3, 1)
+    @test_throws "January 2000" datedeco(daily, calendar = MeanMonths())
+end
+
 @testset "A run is checked against the series driving it up front" begin
     # `ErrorAtEnd` would fail anyway, but at the step it happens - so it is reported before the
     # first one instead.
@@ -1200,23 +1272,33 @@ end
 end
 
 @testset "Coverage is checked against where the run really ends" begin
-    # `simulate!` takes `length(0s:timestep:duration)` steps - a range including both ends - so a
-    # twelve-month run in one-month steps advances the clock *thirteen* times. Checking against
-    # `duration` would have passed runs that then failed mid-flight, which is precisely what this
-    # check exists to pre-empt, so it is checked against the elapsed time the run actually reaches.
+    # A run takes `duration / timestep` steps, so a twelve-month run in one-month steps ends at twelve
+    # months - and at the same time as one twelve-month step, which is what timestep independence
+    # asks of the run's length.
     eco = Test1Ecosystem()
     @test EcoSISTEM._finalelapsed(eco, 12.0month_mean_duration,
                                   1.0month_mean_duration) ≈
-          uconvert(s, 13.0month_mean_duration)
+          uconvert(s, 12.0month_mean_duration)
+    @test EcoSISTEM._finalelapsed(eco, 12.0month_mean_duration,
+                                  1.0month_mean_duration) ≈
+          EcoSISTEM._finalelapsed(eco, 12.0month_mean_duration,
+                                  12.0month_mean_duration)
+
+    # A step of a day or less takes the nearest whole number of steps - a year is 365.25 days - and a
+    # longer step that does not divide the duration is refused rather than run short or long.
+    @test EcoSISTEM._finalelapsed(eco, 1.0year, 1.0day) ≈ uconvert(s, 365.0day)
+    @test_throws "whole number of timesteps" EcoSISTEM._finalelapsed(eco,
+                                                                     12.5month_mean_duration,
+                                                                     1.0month_mean_duration)
 
     # ...and it counts from where the clock already is, since `simulate!` does not reset it.
     EcoSISTEM._advanceclock!(eco, 5.0month_mean_duration)
     @test EcoSISTEM._finalelapsed(eco, 12.0month_mean_duration,
                                   1.0month_mean_duration) ≈
-          uconvert(s, 18.0month_mean_duration)
+          uconvert(s, 17.0month_mean_duration)
 
-    # That whole-step difference is enough to change the verdict on its own: a twelve-slice
-    # climatology covers twelve months but not the thirteenth step such a run really takes.
+    # Coverage is judged at that end: a twelve-slice climatology covers a run ending at twelve months,
+    # and not one ending a step later.
     layer = _climatologylayer(atend = ErrorAtEnd())
     @test_nowarn EcoSISTEM._checkcoverage(layer, 12.0month_mean_duration)
     @test_throws ErrorException EcoSISTEM._checkcoverage(layer,

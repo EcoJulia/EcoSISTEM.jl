@@ -67,12 +67,13 @@ include(joinpath(@__DIR__, "..", "varyingcase.jl"))
     # merely reproducible** - the strongest form a canonical entry can take. The spatial mean of a
     # 288-302 K gradient is 295 K, and `IncrementBy(0.5K/year)` adds 0.5 K per elapsed year.
     #
-    # It is **25** months of warming after 24 steps, and that is the documented behaviour, not an
-    # off-by-one: the clock advances *before* the layers change, so the last change sees the time it
-    # is changing *to* (see CLAUDE.md). Pinning it here means that ordering cannot be altered silently.
+    # It is **24** months of warming after the 24 steps a two-year run takes, not 23: the clock
+    # advances *before* the layers change, so the last change sees the time it is changing *to* (see
+    # CLAUDE.md). Pinning it here means neither that ordering nor the run's length can be altered
+    # silently.
     mean_regime = sum(eco.habitat.regime.matrix) /
                   length(eco.habitat.regime.matrix)
-    @test mean_regime ≈ 295.0K + 0.5K / year * (25 * month_mean_duration) rtol=1e-6
+    @test mean_regime ≈ 295.0K + 0.5K / year * (24 * month_mean_duration) rtol=1e-6
 
     # Species sort along the regime's gradient: with optima spread across it, the warm end must
     # not hold the same assemblage as the cold end. This is the ecological content of the fixture,

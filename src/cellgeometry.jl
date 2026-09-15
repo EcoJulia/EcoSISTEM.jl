@@ -182,6 +182,10 @@ indexing, which is why no other accessor takes a location as a keyword.
 Selection is by the lookup's own `Contains`, so it respects where in each cell the coordinate sits
 rather than re-deriving it. A place outside the grid throws: it is a caller mistake rather than a
 missing value.
+
+`getcellat` is `public` but not exported, so call it as `EcoSISTEM.getcellat` or import it by name.
+Called bare without the import it raises an `UndefVarError`, which a `try` written to catch a place
+outside the grid would silently take for one.
 """
 function getcellat(x, place)
     yx = _gridyx(x)

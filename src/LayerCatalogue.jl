@@ -3,6 +3,18 @@
 # One row of the shipped layer catalogue, one row of its datasets table, and a node of the axis
 # tree the discovery helpers print.
 
+# **This file names no dataset package, deliberately, and takes `::Type` rather than a
+# `RasterDataSources` bound.** The shipped tables are the *package's* knowledge about the data - half
+# of what is here (`_leafaxes`, `_resolveaxis`, the accumulation-period family) is about EcoSISTEM's
+# own niche axes and not about any source at all - so the catalogue stays in the parent while the
+# readers become an extension.
+#
+# **Why `::Type` and not the `IsRasterData` trait**, which is what `SourceSpec` and `ClimateRaster`
+# use: those are **doors**, where an unmarked type would otherwise be stored and surface later; these
+# are **lookups**, and `_layerfile` already refuses an unknown type with a message naming the table it
+# looked for. Guard the door, not every read - the trait buys nothing here and would cost every public
+# name in this file a `@traitfn` rewrite.
+
 using Unitful
 
 using Unitful.DefaultSymbols
@@ -122,6 +134,44 @@ struct LayerRecord
     request::Union{Nothing, String}
 end
 
+# compact one-liner - used when a `LayerRecord` is an element of a printed `Vector` (e.g. `layersbyaxis`)
+function Base.show(io::IO, r::LayerRecord)
+    return print(io, join(r.aliases, ";"), " - ", r.name, " [",
+                 _unitstr(r.unit),
+                 ", ", r.dataset, "]")
+end
+
+# detailed block - used at the REPL for a single `LayerRecord` (e.g. `layerinfo(T, code)`)
+function Base.show(io::IO, ::MIME"text/plain", r::LayerRecord)
+    println(io, r.name)
+    println(io, "  dataset    : ", r.dataset)
+    println(io, "  code(s)    : ", join(r.aliases, ", "))
+    println(io, "  sources    : ",
+            isempty(r.sources) ? "-" : join(r.sources, ", "))
+    println(io, "  unit       : ", _unitstr(r.unit))
+    if isnothing(r.axis)
+        println(io, "  axis       : unclassified")
+    else
+        chain = _axischain(r.axis)
+        print(io, "  axis       : ", nameof(r.axis))
+        isempty(chain) || print(io, " (⊂ ", join(nameof.(chain), " ⊂ "), ")")
+        cu = canonicalunit(r.axis)
+        isnothing(cu) || print(io, "  [canonical unit ", _unitstr(cu), "]")
+        println(io)
+    end
+    # Sampling and accumulation are shown on separate lines because they are separate questions:
+    # `srad` is *sampled* monthly but *accumulates* per day.
+    if !isnothing(r.temporal) || r.numslices > 1
+        print(io, "  sampled    : ", string(something(r.temporal, "-")))
+        r.numslices > 1 &&
+            print(io, " (", r.numslices, " slices) - select with `month=`")
+        println(io)
+    end
+    isnothing(r.period) ||
+        println(io, "  accumulated: ", _periodphrase(r.period))
+    return print(io, "  definition : ", r.definition)
+end
+
 """
     DatasetRecord
 
@@ -130,7 +180,7 @@ layer row carries, returned by [`datasetinfo`](@ref).
 
   - `dataset`: the source type as it is written - `WorldClim{BioClim}`, `CHELSA{Climate}`, `ERA`.
   - `format`: how the files are encoded, `:GeoTIFF` or `:netCDF`, which chooses the backend that
-    opens them.
+    opens them, or `:Shapefile` for a source of zipped vector outlines.
   - `longituderange`: the longitude convention the files use, `(-180°, 180°)` or `(0°, 360°)`, or
     `nothing` to read it off each file.
   - `crs`: the coordinate reference system, an `EPSG` code or a `WellKnownText`, or `nothing`.
@@ -177,6 +227,14 @@ struct AxisNode
     names::Vector{String}
     children::Vector{AxisNode}
 end
+
+function Base.show(io::IO, node::AxisNode)
+    return print(io, nameof(node.axis), " (", length(node.children),
+                 " children, ",
+                 length(node.names), " layers)")
+end
+
+Base.show(io::IO, ::MIME"text/plain", node::AxisNode) = _showtree(io, node, 0)
 
 # Cache of parsed `Code` -> (units, axis) strings, keyed by file path. Blank cells are stored
 # as `""` and interpreted lazily - a blank `Units` => dimensionless, a blank/absent `Axis` =>
@@ -232,8 +290,9 @@ const _DATASETS_FILE = "datasets.csv"
 const _DATASETS = DatasetRecord[]
 
 # The closed vocabularies of the two `datasets.csv` columns that choose behaviour: `Format` picks
-# the backend a file is opened with, `Fetch` the hook that resolves files.
-const _FORMATS = (:GeoTIFF, :netCDF)
+# the backend a file is opened with, `Fetch` the hook that resolves files. `Shapefile` is a source
+# of vector outlines rather than rasters, whose files are zipped shapefiles.
+const _FORMATS = (:GeoTIFF, :netCDF, :Shapefile)
 
 const _FETCHES = (:getraster, :cds, :https, :none)
 
@@ -298,52 +357,7 @@ const _OPTIONAL_COLUMNS = Dict(:BioClimPlus => (:Group,),
                                 :PublishedScaleFactor),
                                :BioClim => (:PublishedScaleFactor,))
 
-# == The shipped layer catalogue ====================================================================
-# compact one-liner - used when a `LayerRecord` is an element of a printed `Vector` (e.g. `layersbyaxis`)
-function Base.show(io::IO, r::LayerRecord)
-    return print(io, join(r.aliases, ";"), " - ", r.name, " [",
-                 _unitstr(r.unit),
-                 ", ", r.dataset, "]")
-end
-
-# detailed block - used at the REPL for a single `LayerRecord` (e.g. `layerinfo(T, code)`)
-function Base.show(io::IO, ::MIME"text/plain", r::LayerRecord)
-    println(io, r.name)
-    println(io, "  dataset    : ", r.dataset)
-    println(io, "  code(s)    : ", join(r.aliases, ", "))
-    println(io, "  sources    : ",
-            isempty(r.sources) ? "-" : join(r.sources, ", "))
-    println(io, "  unit       : ", _unitstr(r.unit))
-    if isnothing(r.axis)
-        println(io, "  axis       : unclassified")
-    else
-        chain = _axischain(r.axis)
-        print(io, "  axis       : ", nameof(r.axis))
-        isempty(chain) || print(io, " (⊂ ", join(nameof.(chain), " ⊂ "), ")")
-        cu = canonicalunit(r.axis)
-        isnothing(cu) || print(io, "  [canonical unit ", _unitstr(cu), "]")
-        println(io)
-    end
-    # Sampling and accumulation are shown on separate lines because they are separate questions:
-    # `srad` is *sampled* monthly but *accumulates* per day.
-    if !isnothing(r.temporal) || r.numslices > 1
-        print(io, "  sampled    : ", string(something(r.temporal, "-")))
-        r.numslices > 1 &&
-            print(io, " (", r.numslices, " slices) - select with `month=`")
-        println(io)
-    end
-    isnothing(r.period) ||
-        println(io, "  accumulated: ", _periodphrase(r.period))
-    return print(io, "  definition : ", r.definition)
-end
-
-function Base.show(io::IO, node::AxisNode)
-    return print(io, nameof(node.axis), " (", length(node.children),
-                 " children, ",
-                 length(node.names), " layers)")
-end
-
-Base.show(io::IO, ::MIME"text/plain", node::AxisNode) = _showtree(io, node, 0)
+# == Functions ==================================================================================
 
 """
     layerunit(T::Type, code)
@@ -491,6 +505,58 @@ function datasetinfo(T::Type)
     return r
 end
 
+"""
+    layersbyaxis(A::Type{<:NicheAxis})
+    layersbyaxis(::Nothing)
+    layersbyaxis()
+
+Return a `Vector` of [`LayerRecord`](@ref)s for every layer (across all shipped tables) whose axis is `A` or a
+concrete leaf beneath it. Passing an abstract group spans all its axes - `layersbyaxis(TemperatureAxis)`
+returns every temperature layer, `layersbyaxis(Temperature)` just that one axis. Printed as a compact list
+of codes with short summaries.
+
+`layersbyaxis(nothing)` returns the **unclassified** layers instead - those whose `Axis` cell is blank, which
+[`layeraxis`](@ref) also reports as `nothing`. They are documented and unit-bearing but not modelled as a
+niche axis, so no axis type can reach them.
+
+`layersbyaxis()` returns **every** layer, classified or not: the whole catalogue.
+
+`layersbyaxis()` exists because `layersbyaxis(NicheAxis)` looks complete and is not - it spans every axis,
+but an unclassified layer has none, so it would be silently omitted. No shipped layer is unclassified today,
+which is exactly what makes that trap easy to fall into. Iterate the catalogue with the no-argument form.
+
+# Arguments
+
+  - `A`: the axis to search under - a concrete leaf for that axis alone, or an abstract `⋯Axis`
+    group to span every axis beneath it. Pass `nothing` for the unclassified layers, or omit it
+    entirely for the whole catalogue.
+"""
+function layersbyaxis(A::Type{<:NicheAxis})
+    return filter(r -> !isnothing(r.axis) && r.axis <: A, _catalogue())
+end
+
+layersbyaxis(::Nothing) = filter(r -> isnothing(r.axis), _catalogue())
+
+# `copy`, not the cached vector itself: `_catalogue()` hands back the module-level cache, and a caller
+# that sorted or filtered it in place would corrupt every later lookup.
+layersbyaxis() = copy(_catalogue())
+
+"""
+    layeraxes(A::Type{<:NicheAxis} = NicheAxis)
+
+Return the niche-axis hierarchy at and below `A` (the whole tree by default) as a nested [`AxisNode`](@ref):
+each node carries the shipped layer names that use its axis directly (only a concrete leaf ever has any -
+an abstract grouping node's own `names` is always empty) plus its child axis nodes, recursively down to the
+concrete leaves. Use it to discover which axes exist and what shipped layers use them, then drill into a
+group with [`layersbyaxis`](@ref).
+
+# Arguments
+
+  - `A`: the axis to root the tree at. Defaults to `NicheAxis`, the whole hierarchy; pass a group
+    such as `TemperatureAxis` to see only that branch.
+"""
+layeraxes(A::Type{<:NicheAxis} = NicheAxis) = _axisnode(A)
+
 # The layer of source `T` whose `File` is `url`, or whose `Request` name is `name`, or `nothing`:
 # how a fetched file is matched back to the layer it is, for its provenance record.
 function _layerbyfile(T::Type, url::AbstractString)
@@ -517,6 +583,13 @@ function _datasetrecord(T::Type)
         r.dataset == key && return r
     end
     return nothing
+end
+
+# The version a file of `rec`'s dataset states about itself, or `nothing` where it states none: a
+# Natural Earth zip names its own, which is why that row's `Version` is blank.
+function _fileversion(rec::DatasetRecord, path::AbstractString)
+    return rec.format === :Shapefile && endswith(path, ".zip") &&
+           isfile(path) ? _zipversion(path) : nothing
 end
 
 # How a source type is spelled in `datasets.csv`: its own name with its parameters' names,
@@ -652,56 +725,6 @@ function _hastimeaxis(T::Type)
     return any(r -> r.dataset === ds && !isnothing(r.temporal), _catalogue())
 end
 
-"""
-    layersbyaxis(A::Type{<:NicheAxis})
-    layersbyaxis(::Nothing)
-    layersbyaxis()
-
-Return a `Vector` of [`LayerRecord`](@ref)s for every layer (across all shipped tables) whose axis is `A` or a
-concrete leaf beneath it. Passing an abstract group spans all its axes - `layersbyaxis(TemperatureAxis)`
-returns every temperature layer, `layersbyaxis(Temperature)` just that one axis. Printed as a compact list
-of codes with short summaries.
-
-`layersbyaxis(nothing)` returns the **unclassified** layers instead - those whose `Axis` cell is blank, which
-[`layeraxis`](@ref) also reports as `nothing`. They are documented and unit-bearing but not modelled as a
-niche axis, so no axis type can reach them.
-
-`layersbyaxis()` returns **every** layer, classified or not: the whole catalogue.
-
-`layersbyaxis()` exists because `layersbyaxis(NicheAxis)` looks complete and is not - it spans every axis,
-but an unclassified layer has none, so it would be silently omitted. No shipped layer is unclassified today,
-which is exactly what makes that trap easy to fall into. Iterate the catalogue with the no-argument form.
-
-# Arguments
-
-  - `A`: the axis to search under - a concrete leaf for that axis alone, or an abstract `⋯Axis`
-    group to span every axis beneath it. Pass `nothing` for the unclassified layers, or omit it
-    entirely for the whole catalogue.
-"""
-function layersbyaxis(A::Type{<:NicheAxis})
-    return filter(r -> !isnothing(r.axis) && r.axis <: A, _catalogue())
-end
-
-layersbyaxis(::Nothing) = filter(r -> isnothing(r.axis), _catalogue())
-
-# `copy`, not the cached vector itself: `_catalogue()` hands back the module-level cache, and a caller
-# that sorted or filtered it in place would corrupt every later lookup.
-layersbyaxis() = copy(_catalogue())
-
-# == Functions ==================================================================================
-
-# **This file names no dataset package, deliberately, and takes `::Type` rather than a
-# `RasterDataSources` bound.** The shipped tables are the *package's* knowledge about the data - half
-# of what is here (`_leafaxes`, `_resolveaxis`, the accumulation-period family) is about EcoSISTEM's
-# own niche axes and not about any source at all - so the catalogue stays in the parent while the
-# readers become an extension.
-#
-# **Why `::Type` and not the `IsRasterData` trait**, which is what `SourceSpec` and `ClimateRaster`
-# use: those are **doors**, where an unmarked type would otherwise be stored and surface later; these
-# are **lookups**, and `_layerfile` already refuses an unknown type with a message naming the table it
-# looked for. Guard the door, not every read - the trait buys nothing here and would cost every public
-# name in this file a `@traitfn` rewrite.
-
 # The dataset subtype wrapped by a `RasterDataSource`, e.g. `WorldClim{BioClim}` ->
 # `BioClim` and `EarthEnv{LandCover}` -> `LandCover`. Sources without a dataset
 # parameter (such as `AWAP`) are returned unchanged.
@@ -814,15 +837,15 @@ function _layerrow(T::Type, code)
 end
 
 # Whether layer `code` of dataset `S` holds class labels, by asking the axis the catalogue declares
-# for it. `iscategorical` is one function throughout - an axis declares it, a dataset and a code look
+# for it. `_iscategorical` is one function throughout - an axis declares it, a dataset and a code look
 # it up here, a stack of codes agrees on it or is refused, and a raster asks about its own - and
 # every method ends at the axis declaration emitted by `@nicheaxis`, the only place it is stated.
 #
 # It joins `layerunit`/`layeraxis`/`layerinfo` in taking a bare `::Type` rather than an
-# `IsRasterData` bound, for the reason given at the head of this group: these are lookups, not doors,
+# `IsRasterData` bound, for the reason given at the head of this file: these are lookups, not doors,
 # and `_layerfile` already refuses an unknown type by naming the table it looked for. Passing an axis
 # type as `S` reaches that same refusal, exactly as it does for the rest of the family.
-iscategorical(S::Type, code) = iscategorical(layerinfo(S, code).axis)
+_iscategorical(S::Type, code) = _iscategorical(layerinfo(S, code).axis)
 
 # The categorical-ness `codes` agree on, or an error naming the ones that disagree. A mixed stack
 # has no answer rather than a `false` one: every caller chooses a single behaviour for the whole
@@ -831,16 +854,16 @@ iscategorical(S::Type, code) = iscategorical(layerinfo(S, code).axis)
 # is meaningless and reducing measurements to a nearest class discards them, so such a stack is
 # refused rather than resolved.
 #
-# This is the one method of `iscategorical` that can throw, and it is the reason the whole family
+# This is the one method of `_iscategorical` that can throw, and it is the reason the whole family
 # is one function rather than a predicate plus a separately named check: the rule and its message
 # then exist once, where two copies had already drifted apart in wording. Reading a multi-layer
 # `SourceSpec` calls it for that refusal before downloading anything (`_read`), and asking a raster
-# built some other way reaches it through `iscategorical(::ClimateRaster)`.
-function iscategorical(S::Type, codes::AbstractVector)
+# built some other way reaches it through `_iscategorical(::ClimateRaster)`.
+function _iscategorical(S::Type, codes::AbstractVector)
     isempty(codes) && return false
-    allequal(iscategorical(S, c) for c in codes) &&
-        return iscategorical(S, first(codes))
-    cats = filter(c -> iscategorical(S, c), codes)   # built only to name the offenders
+    allequal(_iscategorical(S, c) for c in codes) &&
+        return _iscategorical(S, first(codes))
+    cats = filter(c -> _iscategorical(S, c), codes)   # built only to name the offenders
     return error("layers $(join(cats, ", ")) hold class codes but " *
                  "$(join(setdiff(codes, cats), ", ")) hold measurements, so they have no one " *
                  "resampling method and no one kind of regime: class codes must not be " *
@@ -981,7 +1004,7 @@ end
 function _parseperiod(cell)
     isempty(cell) && return nothing
     if occursin('=', cell)
-        kind, _, rhs = partition_eq(cell)
+        kind, _, rhs = _partitioneq(cell)
         kind == "perslice" && return _persliceperiod(rhs, cell)
         kind == "percell" && return PerCellAccumulationPeriod(_periodcode(rhs))
         return error("unrecognised AccumulationPeriod `$cell`: the part before `=` must be " *
@@ -995,7 +1018,7 @@ function _parseperiod(cell)
 end
 
 # `cell` split at its first `=`, so a right-hand side may itself contain one without ambiguity.
-function partition_eq(cell)
+function _partitioneq(cell)
     i = findfirst('=', cell)
     return cell[1:(i - 1)], '=', cell[(i + 1):end]
 end
@@ -1453,19 +1476,3 @@ function _showtree(io::IO, node::AxisNode, depth::Int)
         _showtree(io, child, depth + 1)
     end
 end
-
-"""
-    layeraxes(A::Type{<:NicheAxis} = NicheAxis)
-
-Return the niche-axis hierarchy at and below `A` (the whole tree by default) as a nested [`AxisNode`](@ref):
-each node carries the shipped layer names that use its axis directly (only a concrete leaf ever has any -
-an abstract grouping node's own `names` is always empty) plus its child axis nodes, recursively down to the
-concrete leaves. Use it to discover which axes exist and what shipped layers use them, then drill into a
-group with [`layersbyaxis`](@ref).
-
-# Arguments
-
-  - `A`: the axis to root the tree at. Defaults to `NicheAxis`, the whole hierarchy; pass a group
-    such as `TemperatureAxis` to see only that branch.
-"""
-layeraxes(A::Type{<:NicheAxis} = NicheAxis) = _axisnode(A)
