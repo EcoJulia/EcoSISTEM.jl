@@ -169,19 +169,24 @@ getcellsizes(x; kw...) = getcellsizes(missing, x; kw...)
 
 """
     getcellat(x, place)
+    getcellat(x, places::AbstractVector)
 
 Return the `CartesianIndex` of the cell of `x`'s grid that contains `place`, or `nothing` where `x`
 has no grid.
 
   - `x` - anything that knows the grid, as [`getcellareas`](@ref).
-  - `place` - a [`SpatialLocation`](@ref) (or a [`LatLong`](@ref)) in the grid's own frame.
+  - `place` - a [`SpatialLocation`](@ref) in the grid's own frame, or a [`LatLong`](@ref), which is
+    projected into the grid's CRS where the grid is projected.
+  - `places` - a vector of places, answered with a vector of cells. The grid is resolved and any
+    projection set up once for all of them, and a place outside the grid gives `nothing` in its
+    slot, since a set of records routinely includes some beyond a study area.
 
 This is the one function that turns a position into a grid position; everything else is then
 indexing, which is why no other accessor takes a location as a keyword.
 
 Selection is by the lookup's own `Contains`, so it respects where in each cell the coordinate sits
-rather than re-deriving it. A place outside the grid throws: it is a caller mistake rather than a
-missing value.
+rather than re-deriving it. A single place outside the grid throws: it is a caller mistake rather
+than a missing value.
 
 `getcellat` is `public` but not exported, so call it as `EcoSISTEM.getcellat` or import it by name.
 Called bare without the import it raises an `UndefVarError`, which a `try` written to catch a place
@@ -190,9 +195,22 @@ outside the grid would silently take for one.
 function getcellat(x, place)
     yx = _gridyx(x)
     isnothing(yx) && return nothing
-    _checkplaceframe(yx, place)
-    return CartesianIndex(_axisindexat(yx[1], _placey(place)),
-                          _axisindexat(yx[2], _placex(place)))
+    framed = _placeingrid(_gridcrs(x), place)
+    _checkplaceframe(yx, framed)
+    return CartesianIndex(_axisindexat(yx[1], _placey(framed)),
+                          _axisindexat(yx[2], _placex(framed)))
+end
+
+function getcellat(x, places::AbstractVector)
+    yx = _gridyx(x)
+    isnothing(yx) && return nothing
+    framed = _placesingrid(_gridcrs(x), places)
+    cells = Vector{Union{Nothing, CartesianIndex{2}}}(undef, length(framed))
+    for (i, place) in enumerate(framed)
+        _checkplaceframe(yx, place)
+        cells[i] = _cellornothing(yx, place)
+    end
+    return cells
 end
 
 """
@@ -490,6 +508,21 @@ function _axisindexat(d, v)
                                                  DimensionalData.Lookups.Contains(v))
 end
 _axisindexat(d, vs::AbstractVector) = [_axisindexat(d, v) for v in vs]
+
+# The cell containing a place, or `nothing` for one off the grid. Each axis's bounds are checked
+# first, since `Contains` throws off the grid and a throw per place is slow over many.
+function _cellornothing(yx, place)
+    y, x = _placey(place), _placex(place)
+    _onaxis(yx[1], y) && _onaxis(yx[2], x) || return nothing
+    return CartesianIndex(_axisindexat(yx[1], y), _axisindexat(yx[2], x))
+end
+
+# Whether a coordinate lies within an axis's cells: lower edge included and upper excluded, as
+# `Contains` reads them, whichever way the axis runs.
+function _onaxis(d, v)
+    lo, hi = DimensionalData.Lookups.bounds(d)
+    return lo <= v < hi
+end
 
 # Refuse a place stated in a frame the grid is not in, rather than letting `Contains` fail on a unit
 # mismatch with a message about lookups. A degree place on a projected grid is the common slip.

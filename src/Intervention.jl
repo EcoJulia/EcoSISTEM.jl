@@ -147,7 +147,7 @@ gave one, and an elapsed time is kept in seconds.
     or a date) and, optionally, `count` (one per row without it).
 """
 function build_abundance_table(eco::AbstractEcosystem, table)
-    names = _speciesnames(eco)
+    lookup = _emptynamelookup()
     shape = Base.size(parent(eco.habitat.active))
     rows = Tables.rows(table)
     first = iterate(rows)
@@ -155,8 +155,8 @@ function build_abundance_table(eco::AbstractEcosystem, table)
         error("the table has no rows to build an abundance table from.")
     row, state = first
     return _collectabundances(rows, state,
-                              _positionedrow(row, 1, names, shape), names,
-                              shape)
+                              _positionedrow(row, 1, eco, lookup, shape), eco,
+                              lookup, shape)
 end
 
 """
@@ -675,10 +675,10 @@ function _addtablerows!(op::AddAbundanceTable, eco::AbstractEcosystem, cells,
     shape = Base.size(parent(eco.habitat.active))
     inregion = falses(prod(shape))
     inregion[cells] .= true
-    names = _speciesnames(eco)
+    lookup = _emptynamelookup()
     totals = Dict{Tuple{Int, Int}, Float64}()
     _foreachduerow(op.source, eco, elapsed, timestep) do row
-        species = _tablespecies(row.species, names, row.row)
+        species = _tablespecies(row.species, eco, lookup, row.row)
         cell = _tablecell(row.cell, shape, row.row)
         count = _tablecount(row.count, row.row)
         local_ = species - owned.firstspecies + 1
@@ -821,29 +821,39 @@ _ownvalue(value::AbstractString) = String(value)
 
 _ownvalue(value) = value
 
-# Each species' name and its index in the species list.
-function _speciesnames(eco::AbstractEcosystem)
-    return Dict(name => i for (i, name) in enumerate(eco.spplist.names))
+# An empty lookup from species names to their indices, for `_speciesnamelookup!` to fill.
+_emptynamelookup() = Ref{Union{Nothing, Dict{String, Int}}}(nothing)
+
+# Each species' name and its index in the species list, built the first time a row names a species
+# and kept in `lookup` for the rest of the table, so a table of indices never builds it.
+function _speciesnamelookup!(lookup::Base.RefValue{Union{Nothing,
+                                                         Dict{String, Int}}},
+                             eco::AbstractEcosystem)
+    if isnothing(lookup[])
+        lookup[] = Dict(name => i for (i, name) in enumerate(eco.spplist.names))
+    end
+    return lookup[]
 end
 
 # A table row's species as its index in the species list, refused where there is no such species.
-function _tablespecies(species::Integer, names::Dict{String, Int}, row::Int)
-    1 <= species <= length(names) ||
+function _tablespecies(species::Integer, eco::AbstractEcosystem, _, row::Int)
+    count = length(eco.spplist.names)
+    1 <= species <= count ||
         error("row $row of the abundance table names species $species, but the species list " *
-              "has $(length(names)).")
+              "has $count.")
     return Int(species)
 end
 
 function _tablespecies(species::Union{AbstractString, Symbol},
-                       names::Dict{String, Int}, row::Int)
-    index = get(names, String(species), nothing)
+                       eco::AbstractEcosystem, lookup, row::Int)
+    index = get(_speciesnamelookup!(lookup, eco), String(species), nothing)
     isnothing(index) &&
         error("row $row of the abundance table names species `$species`, which is not in the " *
               "species list.")
     return index
 end
 
-function _tablespecies(species, ::Dict{String, Int}, row::Int)
+function _tablespecies(species, ::AbstractEcosystem, _, row::Int)
     return error("row $row of the abundance table gives its species as `$(repr(species))`: give " *
                  "a name or an index.")
 end
@@ -915,7 +925,7 @@ end
 
 # One row of a table given to `build_abundance_table`: its species as an index, its `(y, x)` as a
 # linear cell index, its count as given and its time, an elapsed one in seconds.
-function _positionedrow(row, n::Int, names::Dict{String, Int},
+function _positionedrow(row, n::Int, eco::AbstractEcosystem, lookup,
                         shape::Tuple{Int, Int})
     columns = Tables.columnnames(row)
     for name in (:species, :y, :x, :time)
@@ -932,7 +942,8 @@ function _positionedrow(row, n::Int, names::Dict{String, Int},
     _tablecount(count, n)
     time = Tables.getcolumn(row, :time)
     _tableelapsedtype(time, n)
-    return (species = _tablespecies(Tables.getcolumn(row, :species), names, n),
+    return (species = _tablespecies(Tables.getcolumn(row, :species), eco,
+                                    lookup, n),
             cell = _tablecell(CartesianIndex(y, x), shape, n), count = count,
             time = _normaltime(time))
 end
@@ -954,7 +965,8 @@ end
 # Sum the rows of a table, the first already read, by time, species and cell, and return them in that
 # order as the columns of an abundance table.
 function _collectabundances(rows, state, record::NamedTuple,
-                            names::Dict{String, Int}, shape::Tuple{Int, Int})
+                            eco::AbstractEcosystem, lookup,
+                            shape::Tuple{Int, Int})
     T = typeof(record.time)
     totals = Dict{Tuple{T, Int, Int}, Float64}()
     whole = true
@@ -967,7 +979,7 @@ function _collectabundances(rows, state, record::NamedTuple,
         isnothing(next) && break
         row, state = next
         n += 1
-        record = _positionedrow(row, n, names, shape)
+        record = _positionedrow(row, n, eco, lookup, shape)
         record.time isa T ||
             error("row $n of the table gives its time as a $(typeof(record.time)), where the " *
                   "rows before it gave a $T.")

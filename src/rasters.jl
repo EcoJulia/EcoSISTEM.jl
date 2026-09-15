@@ -662,12 +662,40 @@ _extentof(ylo, yhi, xlo, xhi) = Extents.Extent(Y = (ylo, yhi), X = (xlo, xhi))
 # back unchanged and still typed as a `LatLong`.
 function _pointin(crs, place::LatLong)
     _isprojectedcrs(crs) || return place
+    return ArchGDAL.createcoordtrans(_gdalcrs(Rasters.EPSG(4326)),
+                                     _gdalcrs(crs)) do ct
+        return _projectplace(place, ct, _crsunit(crs))
+    end
+end
+
+# Places in the frame of a grid in `crs`: the `LatLong`s among them projected through one transform
+# shared by all of them where `crs` is projected, and every other place taken as already in the
+# grid's frame. One transform, because setting one up per place is most of the cost over many.
+function _placesingrid(crs, places::AbstractVector)
+    (isnothing(crs) || !_isprojectedcrs(crs) ||
+     !any(place -> place isa LatLong, places)) && return places
+    return ArchGDAL.createcoordtrans(_gdalcrs(Rasters.EPSG(4326)),
+                                     _gdalcrs(crs)) do ct
+        u = _crsunit(crs)
+        return map(place -> _projectplace(place, ct, u), places)
+    end
+end
+
+# One place, as `_placesingrid` takes many.
+_placeingrid(_, place) = place
+
+function _placeingrid(crs, place::LatLong)
+    return isnothing(crs) ? place : _pointin(crs, place)
+end
+
+# A place through an open transform: a `LatLong` becomes a `SpatialLocation` in the target CRS's
+# units `u`, and any other place passes through unchanged.
+_projectplace(place, _, _) = place
+
+function _projectplace(place::LatLong, ct, u)
     point = ArchGDAL.createpoint(ustrip(°, getlong(place)),
                                  ustrip(°, getlat(place)))
-    ArchGDAL.createcoordtrans(_gdalcrs(Rasters.EPSG(4326)), _gdalcrs(crs)) do ct
-        return ArchGDAL.transform!(point, ct)
-    end
-    u = _crsunit(crs)
+    ArchGDAL.transform!(point, ct)
     return SpatialLocation(ArchGDAL.gety(point, 0) * u,
                            ArchGDAL.getx(point, 0) * u)
 end

@@ -41,6 +41,9 @@
     - `CDSRequest(ERA, code; years, path)` and `era5requests(code, years; dir)` build Climate Data
       Store requests from catalogue codes, one file per decade; `CDSRequest` is public.
     - `CachedAsset` takes a `path`, so a download can land in a project's own directory.
+    - `getcellat` takes a vector of places, setting up the grid and any projection once for all of
+      them and giving `nothing` for a place outside the grid, and projects a `LatLong` onto a
+      projected grid rather than refusing it.
     - `datasets.csv` gains `Citation`, the text a paper prints for each dataset, resolved from its
       DOI, and `ERA.csv` gains `Request`, the Climate Data Store's name for each layer.
     - `provenance` on a study area, a habitat or an ecosystem returns a `Provenance`: the package

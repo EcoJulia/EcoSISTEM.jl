@@ -186,6 +186,46 @@ end
                                                                    0.0km))
     end
 
+    @testset "a latitude and longitude on a projected grid, one place or many" begin
+        # 100 km cells on the British National Grid, five rows by four columns. Plymouth is at
+        # northing 54 km and easting 248 km, so in row 1 and column 3; Edinburgh, at northing 674 km,
+        # is beyond the grid's northern edge. Both figures are the places' own grid references,
+        # written out rather than recomputed through the transform under test.
+        bng = _proj((0.0:1.0e5:4.0e5)m, (0.0:1.0e5:3.0e5)m)
+        plymouth = LatLong(50.37°, -4.14°)
+        edinburgh = LatLong(55.95°, -3.19°)
+        @test EcoSISTEM.getcellat(bng, plymouth) == CartesianIndex(1, 3)
+        @test EcoSISTEM.getcellat(bng, plymouth) ==
+              EcoSISTEM.getcellat(bng, SpatialLocation(54423.0m, 247911.0m))
+        @test_throws Exception EcoSISTEM.getcellat(bng, edinburgh)
+
+        # Many at once: the off-grid place is `nothing` in its slot rather than an error, and a
+        # place already in the grid's frame sits beside the projected ones.
+        cells = EcoSISTEM.getcellat(bng,
+                                    [plymouth, edinburgh,
+                                        SpatialLocation(150.0km, 50.0km)])
+        @test cells == [CartesianIndex(1, 3), nothing, CartesianIndex(2, 1)]
+        @test eltype(cells) == Union{Nothing, CartesianIndex{2}}
+        @test EcoSISTEM.getcellat(bng, [plymouth]) ==
+              [EcoSISTEM.getcellat(bng, plymouth)]
+
+        # On a geographic grid a latitude and longitude is already in the grid's frame. The edges
+        # are those `Contains` reads: the lower one in, the upper one out.
+        @test EcoSISTEM.getcellat(geo,
+                                  [SpatialLocation(2.5°, 2.5°),
+                                      SpatialLocation(0.0°, 0.0°),
+                                      SpatialLocation(85.0°, 2.5°),
+                                      SpatialLocation(84.9°, 24.9°),
+                                      SpatialLocation(2.5°, 25.0°)]) ==
+              [CartesianIndex(1, 1), CartesianIndex(1, 1), nothing,
+            CartesianIndex(17, 5), nothing]
+        # A place in the wrong frame is still refused, one or many.
+        @test_throws ErrorException EcoSISTEM.getcellat(geo,
+                                                        [SpatialLocation(1.0km,
+                                                                         1.0km)])
+        @test_throws ErrorException EcoSISTEM.getcellat(syn, [plymouth])
+    end
+
     # The point of this accessor is that a run can be *sized before it is built* - so the report
     # from `investigate_study_area` must give the same figure as the habitat eventually does.
     @testset "per-species storage, asked before and after building" begin
