@@ -15,6 +15,7 @@ using DimensionalData: DimensionalData, DimArray, X, Y
 using Rasters
 using RasterDataSources
 using Unitful, Unitful.DefaultSymbols
+using Plots
 using Test
 
 include("rasterfixtures.jl")
@@ -336,6 +337,27 @@ end
     @test !(hab.regime isa EcoBase.AbstractGridded)
     @test !(EcoSISTEM.AbstractLayer <: EcoBase.AbstractGridded)
     @test_throws Exception EcoBase.xcellsize(hab.regime)
+end
+
+# **`plot(eco)` end to end on a non-square grid.** EcoBase's recipe takes each cell's richness and
+# lays it onto a `(y, x)` image through the grid's own coordinate order, so the plotted surface must
+# be the richness matrix, cell for cell. Richness is made uneven first, since a uniform surface
+# cannot show a flip; on this grid a transposition fails the shape and a reversal the values. It is
+# EcoBase's own `richness`, which counts this fixture's phylogenetic branches rather than its
+# species, so the expected surface is built from the same call the recipe makes.
+@testset "an ecosystem on a non-square grid plots the right way round" begin
+    eco = Test1Ecosystem()
+    ny, nx = size(eco.habitat.active)
+    @test ny != nx
+    nspp, ncells = size(eco.abundances.matrix)
+    eco.abundances.matrix .= [c % s == 0 ? 10 : 0
+                              for s in 1:nspp, c in 1:ncells]
+    richness = reshape(Float64.(EcoBase.richness(eco)), ny, nx)
+    @test length(unique(richness)) > 2
+    richness[richness .== 0] .= NaN
+    surface = plot(eco).series_list[1][:z].surf
+    @test size(surface) == (ny, nx)
+    @test isequal(surface, richness)
 end
 
 end
