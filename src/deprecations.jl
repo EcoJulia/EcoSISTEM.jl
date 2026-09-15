@@ -1828,11 +1828,11 @@ end
 """
     getdispersalvar(eco, sp)
 
-Deprecated. Use [`EcoSISTEM.speciesdispersal`](@ref).
+Deprecated. Use [`EcoSISTEM.speciesdispersal`](@ref), which returns the species' dispersal kernel so
+that whatever it holds can be read directly.
 
-Its formula did not match the kernel it claimed to describe - see the deferred item on dispersal
-parameterisation in the master plan - which is part of why the replacement returns the kernel and
-lets the caller read whatever it actually holds.
+This returns `dist^2 * pi / 4` for the kernel's `dist`, which is not a statistic of the kernel's
+displacement, so it should not be read as a variance.
 """
 function getdispersalvar(eco::AbstractEcosystem, sp)
     Base.depwarn("`getdispersalvar` is deprecated; use `EcoSISTEM.speciesdispersal(eco, sp)`, " *
