@@ -17,11 +17,21 @@ using CDSAPI
 using MPI
 using Phylo
 
-# Aqua's other checks are not run yet, and are named so that the gap is a decision rather than an
-# omission: `test_ambiguities` (overlaps `clean_Ambiguities.jl`), `test_unbound_args`,
-# `test_undefined_exports`, `test_project_extras`, `test_stale_deps`, `test_deps_compat`,
-# `test_persistent_tasks`. Each is to be run once, compared with the gate it duplicates, and
-# either adopted or recorded as covered elsewhere.
+# Aqua's checks, each decided once. Two duplicate gates the suite already has and are not run:
+# `test_ambiguities` (`clean_Ambiguities.jl`, which names the two known cases and has a control) and
+# `test_undocumented_names` (`test_EcoSISTEM.jl`, whose named list exempts the deprecation shims and
+# the generated unit constants that Aqua reports). `test_persistent_tasks` is not run yet.
+
+@testset "Project and module hygiene" begin
+    Aqua.test_unbound_args(EcoSISTEM)
+    Aqua.test_undefined_exports(EcoSISTEM)
+    Aqua.test_project_extras(EcoSISTEM)
+    # The parent never loads these three: `BlockArrays` serves the MPI extension and `Calculus` and
+    # `Optim` the Phylo one, and an extension can load only its trigger packages and the parent's
+    # dependencies, so they stay dependencies of the parent.
+    Aqua.test_stale_deps(EcoSISTEM, ignore = [:BlockArrays, :Calculus, :Optim])
+    Aqua.test_deps_compat(EcoSISTEM)
+end
 
 @testset "Type piracy" begin
     # The parent pirates nothing.
