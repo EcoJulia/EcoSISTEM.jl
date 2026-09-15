@@ -20,7 +20,9 @@ using Phylo
 # Aqua's checks, each decided once. Two duplicate gates the suite already has and are not run:
 # `test_ambiguities` (`clean_Ambiguities.jl`, which names the two known cases and has a control) and
 # `test_undocumented_names` (`test_EcoSISTEM.jl`, whose named list exempts the deprecation shims and
-# the generated unit constants that Aqua reports). `test_persistent_tasks` is not run yet.
+# the generated unit constants that Aqua reports). `test_persistent_tasks` passes but is deferred:
+# it precompiles a package depending on this one, about 26 s, to catch a `Task` left running on
+# load.
 
 @testset "Project and module hygiene" begin
     Aqua.test_unbound_args(EcoSISTEM)
