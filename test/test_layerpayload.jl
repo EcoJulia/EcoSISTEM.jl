@@ -10,7 +10,7 @@ using Test
 using EcoSISTEM
 using EcoSISTEM: materialise, in_memory_raster
 using EcoSISTEM: _layerpayload, _rebuildlayer, _allocatepayload,
-                 _checkdescriptor
+                 _checkdescriptor, _reportpayload, _rebuildreport
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 using Dates: Date
@@ -112,6 +112,38 @@ end
     @test only(descriptors).bits
     rebuilt = EcoSISTEM._unpackdimarray(skeleton, Array[copy(only(arrays))])
     @test samedimarray(active, rebuilt)
+end
+
+@testset "a study area's report survives the round trip" begin
+    reports = ["a data area" => projected().report,
+        "a synthetic area" => StudyArea(extent = (70.0km, 80.0km),
+                  cellsize = 10.0km,
+                  verbosity = :silent).report,
+        "an investigation" => investigate_study_area(regime = _reg(flat(),
+                                             axis = Temperature))]
+    for (label, report) in reports
+        @testset "$label" begin
+            payload = _reportpayload(report)
+            received = map(_allocatepayload, payload.descriptors)
+            foreach(copyto!, received, payload.arrays)
+            rebuilt = _rebuildreport(payload.skeleton, received, report.specs,
+                                     report.constraints, report.cache)
+            @test samereport(report, rebuilt)
+            # The three a receiver supplies are its own, never copies.
+            @test rebuilt.specs === report.specs
+            @test rebuilt.constraints === report.constraints
+            @test rebuilt.cache === report.cache
+            @test length(payload.arrays) == 1
+        end
+    end
+    # A mismatched array is refused, so a report cannot be rebuilt from a layer's arrays.
+    report = projected().report
+    payload = _reportpayload(report)
+    @test_throws "where its skeleton describes" _rebuildreport(payload.skeleton,
+                                                               [zeros(2, 2)],
+                                                               report.specs,
+                                                               report.constraints,
+                                                               report.cache)
 end
 
 @testset "what cannot be sent is refused by name" begin

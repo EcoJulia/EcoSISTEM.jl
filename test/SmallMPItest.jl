@@ -55,14 +55,15 @@ rank = MPI.Comm_rank(comm)
     @test !isfile(dest * ".part") && !isfile(dest * ".lock")
 end
 
-# **A layer is built once, on the root, and every other rank receives it.** The data is a three-band
+# **A study area and its layers are built once, on the root, and every other rank receives them.**
+# The data is a three-band
 # WGS84 GeoTIFF, written by the root into a directory every rank can see and read as a dated series
 # with a gap in its second slice, so a series, its units, its `NaN`, its CRS and its dates all cross
 # between ranks.
 #
-# The ranks other than the root are given a path that does not exist. Their builds can only succeed
-# if they read nothing - by the cache or around it - and take the root's layer instead.
-@testset "a layer is built on the root and received by every rank" begin
+# The ranks other than the root are given paths that do not exist. Their builds can only succeed
+# if they read nothing - by the cache or around it - and take the root's result instead.
+@testset "a study area and its layers are built on the root and received by every rank" begin
     shared = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
     real = joinpath(shared, "rain.tif")
     if rank == 0
@@ -84,19 +85,55 @@ end
                                 times = dates, atend = HoldAtEnd())
     mine = rain(rank == 0 ? real : joinpath(shared, "absent.tif"))
 
-    # Every rank decides the area from the real file, then forgets what it read and where from, so
-    # that the build below is what is tested.
-    area = StudyArea(supply = rain(real), verbosity = :silent)
-    empty!(area.report.cache.reads)
-    empty!(area.report.cache.inputs)
-
     # Gathered by serialisation - a route independent of the one under test - and compared on the
-    # root against a build the root makes on its own.
-    function agreeswithroot(layer, reference)
-        everyone = MPI.gather(layer, comm)
+    # root against what the root built.
+    function agreeswithroot(same, value, reference)
+        everyone = MPI.gather(value, comm)
         rank == 0 || return true
-        return all(samelayer(reference, other) for other in everyone)
+        return all(same(reference, other) for other in everyone)
     end
+    agreeswithroot(layer, reference) = agreeswithroot(samelayer, layer,
+                                                      reference)
+
+    # A shape file only the root can see, as the area's mask: a triangle, so the grid cropped to it
+    # still has inactive cells.
+    outline = joinpath(shared, "outline.geojson")
+    if rank == 0
+        triangle = ArchGDAL.createpolygon([[(10.5, 51.8), (13.6, 51.8),
+                                              (10.5, 54.6), (10.5, 51.8)]])
+        ArchGDAL.create(outline, driver = ArchGDAL.getdriver("GeoJSON")) do ds
+            makelayer = layer -> begin
+                ArchGDAL.addfeature(layer) do feature
+                    return ArchGDAL.setgeom!(feature, triangle)
+                end
+                ArchGDAL.copy(layer, dataset = ds)
+            end
+            return ArchGDAL.createlayer(makelayer, name = "outline",
+                                        geom = ArchGDAL.wkbPolygon)
+        end
+    end
+    MPI.Barrier(comm)
+    within = ShapeSpec(rank == 0 ? outline : joinpath(shared, "absent.geojson"))
+
+    area = StudyArea(supply = mine, verbosity = :silent)
+    @test agreeswithroot(samereport, area.report,
+                         rank == 0 ? area.report : nothing)
+    @test count(area.report.active) == 56
+    # The area's own records arrive with it, before any layer is built.
+    @test agreeswithroot(==, provenance(area).inputs,
+                         rank == 0 ? provenance(area).inputs : nothing)
+    @test length(provenance(area).inputs) == 1
+    investigated = investigate_study_area(supply = mine)
+    @test agreeswithroot(samereport, investigated,
+                         rank == 0 ? investigated : nothing)
+    masked = StudyArea(supply = mine, within = within, verbosity = :silent)
+    @test agreeswithroot(samereport, masked.report,
+                         rank == 0 ? masked.report : nothing)
+    @test 0 < count(masked.report.active) < length(masked.report.active)
+    synthetic = StudyArea(extent = (70.0km, 80.0km), cellsize = 10.0km,
+                          verbosity = :silent)
+    @test agreeswithroot(samereport, synthetic.report,
+                         rank == 0 ? synthetic.report : nothing)
 
     direct = materialise(mine, area, role = EcoSISTEM.Resource)
     @test direct.change isa EcoSISTEM.SeriesLayerChange

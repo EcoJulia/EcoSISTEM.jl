@@ -1,17 +1,19 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
-# Taking a built layer apart into plain data and putting it back together.
+# Taking a built layer, or a study area's report, apart into plain data and putting it back together.
 #
-# A layer is split into a **skeleton** - its concrete type, its dims, its cell size and its change,
-# with every array replaced by a descriptor - and the **arrays** themselves, in the order the rebuild
-# consumes them. The skeleton holds no function and no array values, so it is small and can be
-# serialised; the arrays can be sent in place by anything that moves plain `Array`s. This is how the
-# MPI extension hands one rank's build to the others.
+# Each is split into a **skeleton** - a layer's concrete type, its dims, its cell size and its
+# change, or a report's decisions, with every array replaced by a descriptor - and the **arrays**
+# themselves, in the order the rebuild consumes them. The skeleton holds no function and no array
+# values, so it is small and can be serialised; the arrays can be sent in place by anything that
+# moves plain `Array`s. This is how the MPI extension hands one rank's build to the others.
 #
 # Only what `materialise` builds from a spec is handled: `ContinuousLayer` and `CategoricalLayer`
 # over a `DimArray`, with no change or an absolute `SeriesLayerChange`, and a `LayerCollection` of
 # those; and a `Raster`, which is what a study area's `active` is. Anything else is refused by name,
-# so a new layer or change type fails here until it is taught.
+# so a new layer or change type fails here until it is taught. A report's `specs` and `constraints`
+# may hold functions and its `cache` holds whole rasters, so none of the three is in its skeleton:
+# the rebuild takes them from the receiver.
 
 # The largest array a descriptor may describe: MPI counts elements in a C `int`.
 const _PAYLOADLIMIT = Int(typemax(Int32))
@@ -30,9 +32,39 @@ end
 function _rebuildlayer(skeleton::NamedTuple, arrays::AbstractVector)
     queue = collect(Array, arrays)
     layer = _unpacklayer(skeleton.type, skeleton, queue)
-    isempty(queue) ||
-        error("a layer payload carried $(length(queue)) more array(s) than its skeleton describes.")
+    _checkconsumed(queue)
     return layer
+end
+
+# Take a study area's report apart, as `_layerpayload` does a layer.
+function _reportpayload(report::StudyAreaReport)
+    arrays = Array[]
+    descriptors = NamedTuple[]
+    active = _packdimarray!(arrays, descriptors, report.active,
+                            "the study area's `active`")
+    skeleton = (crs = report.crs, crssource = report.crssource,
+                cellsize = report.cellsize,
+                cellsizesource = report.cellsizesource, align = report.align,
+                active = active, simulate_safely = report.simulate_safely,
+                layers = report.layers, footprint = report.footprint,
+                problems = report.problems, inputs = report.inputs,
+                stage = report.stage)
+    return (skeleton = skeleton, arrays = arrays, descriptors = descriptors)
+end
+
+# Put a report back together from `_reportpayload`'s skeleton and arrays, around the `specs`,
+# `constraints` and `cache` the receiver holds for itself.
+function _rebuildreport(skeleton::NamedTuple, arrays::AbstractVector,
+                        specs::NamedTuple, constraints::NamedTuple,
+                        cache::Union{LayerCache, Nothing})
+    queue = collect(Array, arrays)
+    active = _unpackdimarray(skeleton.active, queue)
+    _checkconsumed(queue)
+    return StudyAreaReport(skeleton.crs, skeleton.crssource, skeleton.cellsize,
+                           skeleton.cellsizesource, skeleton.align, active,
+                           skeleton.simulate_safely, skeleton.layers,
+                           skeleton.footprint, skeleton.problems, specs,
+                           constraints, cache, skeleton.inputs, skeleton.stage)
 end
 
 # Uninitialised storage for one described array, for a receiver to fill.
@@ -182,14 +214,21 @@ function _unpackdimarray(skeleton, queue)
     return x
 end
 
+# Every array a payload carried must have been used.
+function _checkconsumed(queue)
+    isempty(queue) ||
+        error("a payload carried $(length(queue)) more array(s) than its skeleton describes.")
+    return nothing
+end
+
 # The next array in the queue, checked against its descriptor and restored to bits if it was sent
 # as `Bool`s.
 function _unpackdata(descriptor, queue)
     isempty(queue) &&
-        error("a layer payload ran out of arrays before its skeleton was complete.")
+        error("a payload ran out of arrays before its skeleton was complete.")
     data = popfirst!(queue)
     (eltype(data) === descriptor.eltype && size(data) == descriptor.size) ||
-        error("a layer payload's array is $(eltype(data)) of size $(size(data)), where its " *
+        error("a payload's array is $(eltype(data)) of size $(size(data)), where its " *
               "skeleton describes $(descriptor.eltype) of size $(descriptor.size).")
     return descriptor.bits ? BitArray(data) : data
 end

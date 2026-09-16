@@ -14,11 +14,31 @@ const _BUILDROOT = 0
 # alone and leave every other rank waiting, so it is refused.
 const _INSHAREDBUILD = ScopedValue(false)
 
+# One layer, built on `area`, whose cache records what the root read.
 function EcoSISTEM._sharedlayer(build, area::EcoSISTEM.StudyArea)
+    return _sharedbuild(build, EcoSISTEM._layerpayload,
+                        area.report.cache) do skeleton, arrays
+        return EcoSISTEM._rebuildlayer(skeleton, arrays)
+    end
+end
+
+# One study area's report, rebuilt on each rank around that rank's own specs, constraints and cache.
+function EcoSISTEM._sharedreport(build, layers::NamedTuple, cons::NamedTuple,
+                                 cache::EcoSISTEM.LayerCache)
+    return _sharedbuild(build, EcoSISTEM._reportpayload,
+                        cache) do skeleton, arrays
+        return EcoSISTEM._rebuildreport(skeleton, arrays, layers, cons, cache)
+    end
+end
+
+# The root runs `build` and takes its result apart with `pack`; every other rank receives the parts
+# and puts them together with `rebuild`. Then the root's input records replace everyone else's in
+# `cache`.
+function _sharedbuild(rebuild, build, pack, cache)
     _refusenesting()
     comm = MPI.COMM_WORLD
     isroot = MPI.Comm_rank(comm) == _BUILDROOT
-    outcome = isroot ? _rootbuild(build) : nothing
+    outcome = isroot ? _rootbuild(build, pack) : nothing
     header = MPI.bcast(isroot ? outcome.header : nothing, _BUILDROOT, comm)
     header.ok || _buildfailed(header, outcome)
     arrays = isroot ? outcome.payload.arrays :
@@ -26,9 +46,8 @@ function EcoSISTEM._sharedlayer(build, area::EcoSISTEM.StudyArea)
     for array in arrays
         MPI.Bcast!(array, _BUILDROOT, comm)
     end
-    _shareinputs!(area.report.cache, comm)
-    return isroot ? outcome.value :
-           EcoSISTEM._rebuildlayer(header.skeleton, arrays)
+    _shareinputs!(cache, comm)
+    return isroot ? outcome.value : rebuild(header.skeleton, arrays)
 end
 
 # Raised before anything is broadcast, so that on the root it reaches the enclosing build, which
@@ -41,10 +60,10 @@ end
 
 # The root's build and its payload, or the exception that stopped either, caught so that it can be
 # broadcast before it is raised.
-function _rootbuild(build)
+function _rootbuild(build, pack)
     try
         value = with(build, _INSHAREDBUILD => true)
-        payload = EcoSISTEM._layerpayload(value)
+        payload = pack(value)
         return (value = value, payload = payload,
                 header = (ok = true, skeleton = payload.skeleton,
                           descriptors = payload.descriptors))

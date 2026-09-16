@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
-# Field-by-field equality of built layers, shared by `test_layerpayload.jl` and `SmallMPItest.jl`.
+# Field-by-field equality of built layers and study-area reports, shared by `test_layerpayload.jl` and `SmallMPItest.jl`.
 # `include`d into each test module; not named `test_*.jl`, so `runtests.jl` neither runs it directly
 # nor expects a matching `src/` file. The including module must have `DimensionalData` and `Rasters`
 # loaded.
@@ -35,4 +35,15 @@ end
 function samelayer(a, b)
     return typeof(a) === typeof(b) && samedimarray(a.matrix, b.matrix) &&
            a.size == b.size && samechange(a.change, b.change)
+end
+
+# A report's decisions, which is everything but the `specs`, `constraints` and `cache` each rank
+# holds for itself.
+function samereport(a::EcoSISTEM.StudyAreaReport, b::EcoSISTEM.StudyAreaReport)
+    return a.crs == b.crs && a.crssource == b.crssource &&
+           a.cellsize == b.cellsize && a.cellsizesource == b.cellsizesource &&
+           a.align == b.align && samedimarray(a.active, b.active) &&
+           a.simulate_safely == b.simulate_safely && a.layers == b.layers &&
+           a.footprint == b.footprint && a.problems == b.problems &&
+           a.inputs == b.inputs && a.stage == b.stage
 end

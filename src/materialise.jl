@@ -615,9 +615,21 @@ function _analyse(layers::NamedTuple; within = nothing, crs = nothing,
                   cellsize = nothing, extent = nothing, align = nothing,
                   simulate_safely = nothing,
                   cache::LayerCache = LayerCache())
-    problems = Problem[]
     cons = (within = within, crs = crs, cellsize = cellsize, extent = extent,
             align = align, simulate_safely = simulate_safely)
+    _usempi() || return _analyselocal(layers, cons, cache)
+    # Under MPI the root decides the grid and every other rank receives its report, so the data is
+    # read once.
+    return _sharedreport(layers, cons, cache) do
+        return _analyselocal(layers, cons, cache)
+    end
+end
+
+# The grid decision itself, by this process alone. `cons` is the constraints as given, and is what
+# the report records.
+function _analyselocal(layers::NamedTuple, cons::NamedTuple, cache::LayerCache)
+    (; within, crs, cellsize, extent, align, simulate_safely) = cons
+    problems = Problem[]
     # `nothing` here is "not specified" (`_constraint` maps both `missing` and a cleared value onto
     # it), and the default this resolves to is `true` - never simulate ground the data does not
     # describe unless asked to. `cons` keeps it *as given*, like every other constraint.
