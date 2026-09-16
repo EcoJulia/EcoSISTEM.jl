@@ -31,6 +31,8 @@
       holding any of it, `FractionWithin(f)` for a share of one, `FullyWithin()` for whole cells
       only, and `WholeBoundingBox()` for the box around it with no coastline rasterised. The share
       is the exact area of each cell lying inside the shape.
+    - `ShapeCoverage(shape; axis)`, the share of each cell a shape covers as a layer: as a supply on
+      `SurfaceArea` it is each cell's land area, with the water left out.
     - Every file the package fetches gets a provenance record beside it, `<file>.provenance.toml`:
       the URL or the Climate Data Store request and job, when it was fetched, its size and SHA-256
       checksum, and the dataset's DOI, licence, version and citation from the catalogue.
