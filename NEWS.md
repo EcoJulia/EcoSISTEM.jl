@@ -91,6 +91,10 @@
       as PDFs from the package's own examples, at the published scale when run directly and from
       a small run under the test suite.
   - Changed
+    - Under MPI with more than one rank, `StudyArea`, `investigate_study_area`, `materialise`,
+      `GridHabitat` and `build_habitat` read and build on the first rank, and the other ranks receive
+      the result, so the data is read once and every rank holds the same values. Every rank must
+      make these calls, in the same order.
     - A shape used as a `within` mask activates every cell at least **half** covered by it, where it
       activated the cells whose centres fell inside. Coastal cells move and the area is roughly
       kept; `ShapeMaskSpec(shape, rule)` states any other rule.

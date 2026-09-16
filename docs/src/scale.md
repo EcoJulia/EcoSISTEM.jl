@@ -55,6 +55,25 @@ demographics run per species and dispersal runs per cell. Bringing a result back
 recording is explicit - `gatherabundance` for the abundances, `gatherdiversity` for a diversity
 measure.
 
+### Building is collective
+
+With more than one rank, [`StudyArea`](@ref), [`investigate_study_area`](@ref),
+[`materialise`](@ref), [`GridHabitat`](@ref) and [`build_habitat`](@ref) are **collective calls**.
+The first rank reads the data and builds the result, and every other rank receives a copy of it, so
+the data is read once however many ranks there are, and every rank holds the same values. A failure
+while the first rank builds is raised on every rank.
+
+So every rank must make each of these calls, in the same order. A rank that builds or inspects
+something the others do not is left waiting for them, with no error. Build a reference or diagnostic
+habitat on every rank, even when only the first rank uses it:
+
+```julia
+reference = GridHabitat(regime = regime, supply = supply, area = area)   # on every rank
+MPI.Comm_rank(MPI.COMM_WORLD) == 0 && plot(reference)                   # on the first rank only
+```
+
+A callback passed to [`simulate!`](@ref) is under the same rule when it gathers from the ranks.
+
 ### The same seed gives the same answer
 
 Reproducibility across ranks is a design requirement, not a convenience. Each species has its own

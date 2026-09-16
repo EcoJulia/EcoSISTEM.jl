@@ -68,6 +68,9 @@ tuple may be **mixed**. The result is an [`AbstractLayer`](@ref) whose `matrix` 
 carrying the area's real coordinates; several specs give a [`LayerCollection`](@ref) keeping the
 caller's names, exactly as the builder produces.
 
+**Under MPI with more than one rank this is a collective call**, made on every rank in the same
+order; see [Building is collective](@ref).
+
 This runs the same code the builder does, so what you see is what the simulation gets. It is also the
 way to check a *synthetic* layer's layout, which is otherwise invisible: a gradient's direction
 follows real-world north (not array row order), and its endpoints span the grid's bounding rectangle,

@@ -14,7 +14,10 @@ makedocs(modules = [EcoSISTEM],
          sitename = "EcoSISTEM.jl",
          format = Documenter.HTML(canonical = "https://docs.ecojulia.org/EcoSISTEM.jl/stable",
                                   edit_link = "main",
-                                  size_threshold_ignore = ["api.md"]),
+                                  size_threshold_ignore = ["api.md"],
+                                  # The search index covers the whole API reference, so it grows
+                                  # with every docstring.
+                                  search_size_threshold_warn = 2^20),
          pages = [
              "Home" => "index.md",
              # Grouped by what a reader is trying to do. The single "Biodiversity" heading this

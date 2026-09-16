@@ -135,6 +135,9 @@ Keywords are tri-state: `missing` (the default) means "not specified - derive it
 `base`", `nothing` means "explicitly cleared, ignore any inherited value", and any other value is used
 as given.
 
+**Under MPI with more than one rank this is a collective call**, made on every rank in the same
+order; see [Building is collective](@ref).
+
 # Arguments
 
   - `regime`, `supply`: the layers the simulation will use. Naming one here lets it **shape the

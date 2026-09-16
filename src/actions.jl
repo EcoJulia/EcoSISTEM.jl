@@ -81,6 +81,9 @@ resolution, `align` names the layer kept exactly, `extent` sizes a *synthetic* a
 Returns a [`StudyAreaReport`](@ref), which displays as a readable summary and can equally be
 inspected programmatically (`report.problems`, `report.layers`, `report.footprint`).
 
+**Under MPI with more than one rank this is a collective call**, made on every rank in the same
+order; see [Building is collective](@ref).
+
 The report can itself be handed back as the `base` of a `StudyArea`, which reuses its cache, so
 committing to an investigated grid re-reads nothing:
 
@@ -125,6 +128,8 @@ announces every value it chose.
     *actually built on*, narrowing included - not the one originally investigated.
   - `topology`: how the grid's edges join - see [`EdgeTopology`](@ref).
   - `verbosity`: `:silent` announces nothing; anything else announces each filled-in value.
+
+Under MPI it is a collective call, as [`GridHabitat`](@ref) is.
 
 ```julia
 toy   = build_habitat()                         # every input defaulted, and said so
