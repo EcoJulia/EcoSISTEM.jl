@@ -400,6 +400,9 @@ include("materialise.jl")
 
 public materialise
 
+# A built layer as plain data and back, for handing one rank's build to the others under MPI.
+include("layerpayload.jl")
+
 include("GridHabitat.jl")
 
 # Supported, but not exported: a short name on a package's own concept, of the kind a user is likely
