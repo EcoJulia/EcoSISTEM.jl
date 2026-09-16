@@ -93,8 +93,11 @@ function materialise(spec::AbstractSpec, area::StudyArea; role = missing)
     # change is a separate declaration that `GridHabitat` hangs on the layer afterwards - the
     # same reason `StudyArea` ignores it.
     spec = _unwrapspec(spec)
-    return _applyrole(_materialisefield(spec, area), role, _specaxis(spec),
-                      area)
+    _usempi() || return _materialisespec(spec, area, role)
+    # Under MPI the root builds the layer and every other rank receives it, so it is read once.
+    return _sharedlayer(area) do
+        return _materialisespec(spec, area, role)
+    end
 end
 
 # **A multi-layer regime, materialised member by member.** Without this a tuple fell through to the
@@ -707,6 +710,12 @@ function _analyse(layers::NamedTuple; within = nothing, crs = nothing,
                            _activegrid(covered.grid, covered.active), safely,
                            plans, fp, problems, layers, cons, cache,
                            InputRecord[], AsInvestigated())
+end
+
+# One spec put on the area's grid, by this process alone: the whole of `materialise`'s work on a spec.
+function _materialisespec(spec::AbstractSpec, area::StudyArea, role)
+    return _applyrole(_materialisefield(spec, area), role, _specaxis(spec),
+                      area)
 end
 
 # A data-driven spec is read (through the area's cache) and sampled onto the grid; a synthetic one is

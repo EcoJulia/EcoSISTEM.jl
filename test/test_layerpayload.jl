@@ -18,42 +18,11 @@ using DimensionalData: DimensionalData, DimArray, Y, dims, refdims
 using Rasters
 using ArchGDAL
 include("rasterfixtures.jl")
+include("layercompare.jl")
 
 const SD = EcoSISTEM.SyntheticData
 const COND = EcoSISTEM.Condition
 const RES = EcoSISTEM.Resource
-
-# Nothing defines `==` for a layer, and DimensionalData's `==` ignores reference dims, names,
-# metadata, the CRS and the lookup kind, so equality is written out. `typeof` catches the lookup
-# kinds and every type parameter; the CRS is compared on its own because two CRSs of one type
-# differ only in value.
-function samedimarray(a, b)
-    return typeof(a) === typeof(b) && isequal(parent(a), parent(b)) &&
-           dims(a) == dims(b) &&
-           map(Rasters.crs, dims(a)) == map(Rasters.crs, dims(b)) &&
-           refdims(a) == refdims(b) &&
-           DimensionalData.name(a) == DimensionalData.name(b) &&
-           DimensionalData.metadata(a) == DimensionalData.metadata(b) &&
-           isequal(Rasters.missingval(a), Rasters.missingval(b))
-end
-
-samechange(a::EcoSISTEM.NoLayerChange, b) = b isa EcoSISTEM.NoLayerChange
-
-function samechange(a::EcoSISTEM.SeriesLayerChange, b)
-    return typeof(a) === typeof(b) && isequal(a.slices, b.slices) &&
-           a.times == b.times && a.origin == b.origin && a.atend == b.atend &&
-           a.calendar == b.calendar && samedimarray(a.baseline, b.baseline)
-end
-
-function samelayer(a::EcoSISTEM.LayerCollection, b)
-    return typeof(a) === typeof(b) && keys(a) == keys(b) &&
-           all(samelayer(x, y) for (x, y) in zip(values(a), values(b)))
-end
-
-function samelayer(a, b)
-    return typeof(a) === typeof(b) && samedimarray(a.matrix, b.matrix) &&
-           a.size == b.size && samechange(a.change, b.change)
-end
 
 # What a receiver does: allocate from the descriptors, fill, rebuild.
 function roundtrip(layer)

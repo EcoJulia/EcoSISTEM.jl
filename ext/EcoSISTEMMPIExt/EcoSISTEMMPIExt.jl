@@ -34,4 +34,7 @@ include("dynamics.jl")
 
 include("Recorder.jl")
 
+# Named for `src/layerpayload.jl`, whose payload it sends between ranks.
+include("layerpayload.jl")
+
 end

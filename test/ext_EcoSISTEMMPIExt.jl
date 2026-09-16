@@ -124,6 +124,19 @@ end
     @test abuns == eco.abundances.rows_matrix
 end
 
+# Run one `mpiexec` launch, and fail rather than hang if its ranks never finish: a rank left waiting
+# in a collective waits forever. A launch takes a few minutes, far inside the limit. Killing
+# `mpiexec` stops its ranks too.
+function runmpi(cmd; limit = 1800)
+    process = run(cmd, wait = false)
+    timedwait(() -> process_exited(process), limit, pollint = 1.0) === :ok &&
+        return success(process)
+    kill(process)
+    wait(process)
+    @error "`mpiexec` was stopped after $limit s without finishing: $cmd"
+    return false
+end
+
 @testset "mpirun" begin
     # Keep the MPI outputs in a temp dir the OS cleans up (no manual `rm` needed for hygiene).
     # The child `mpiexec` processes read its path as their first command-line argument.
@@ -134,21 +147,21 @@ end
         function cmd(n = nprocs)
             return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
         end
-        @test success(run(cmd()))
+        @test runmpi(cmd())
     end
     withenv("JULIA_NUM_THREADS" => "2") do
         nprocs = 2
         function cmd(n = nprocs)
             return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
         end
-        @test success(run(cmd()))
+        @test runmpi(cmd())
     end
     withenv("JULIA_NUM_THREADS" => "1") do
         nprocs = 4
         function cmd(n = nprocs)
             return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
         end
-        @test success(run(cmd()))
+        @test runmpi(cmd())
     end
 
     ## All answers should be the same across process/thread splits. Load the
@@ -167,7 +180,7 @@ end
     withenv("JULIA_NUM_THREADS" => "2") do
         nprocs = 2
         cmd = `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
-        @test success(run(cmd))
+        @test runmpi(cmd)
     end
     abuns2thread_rerun = load(joinpath(datadir, "Test_abuns2.jld2"), "abuns")
     @test abuns2thread == abuns2thread_rerun

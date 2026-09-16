@@ -2,6 +2,7 @@
 
 ## Small scale test for MPI Ecosystems
 using EcoSISTEM
+using EcoSISTEM: materialise
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 using Distributions
@@ -10,6 +11,10 @@ using Random
 using Diversity
 using JLD2
 using Test
+using ArchGDAL
+using Dates: Date
+using DimensionalData: DimensionalData, dims, refdims
+using Rasters
 
 # The shared non-uniform, non-square, time-varying environment (see `test/varyingcase.jl`).
 # This test compares results across 1/2/4 rank+thread splits - the strongest reproducibility
@@ -17,6 +22,7 @@ using Test
 # decomposition looks alike and a partitioning bug cannot show. The field it decomposes varies down
 # `Y` (regime) and across `X` (supply), on a 7 × 12 grid that no rank count divides evenly.
 include(joinpath(@__DIR__, "varyingcase.jl"))
+include(joinpath(@__DIR__, "layercompare.jl"))
 # For `canonical_reference` only -- the blessed values are READ here, never written.
 include(joinpath(@__DIR__, "canonical", "canonical.jl"))
 using .Canonical
@@ -47,6 +53,93 @@ rank = MPI.Comm_rank(comm)
     @test p == dest && read(dest) == read(source)
     @test isfile(dest * ".provenance.toml")
     @test !isfile(dest * ".part") && !isfile(dest * ".lock")
+end
+
+# **A layer is built once, on the root, and every other rank receives it.** The data is a three-band
+# WGS84 GeoTIFF, written by the root into a directory every rank can see and read as a dated series
+# with a gap in its second slice, so a series, its units, its `NaN`, its CRS and its dates all cross
+# between ranks.
+#
+# The ranks other than the root are given a path that does not exist. Their builds can only succeed
+# if they read nothing - by the cache or around it - and take the root's layer instead.
+@testset "a layer is built on the root and received by every rank" begin
+    shared = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
+    real = joinpath(shared, "rain.tif")
+    if rank == 0
+        ArchGDAL.create(real, driver = ArchGDAL.getdriver("GTiff"), width = 8,
+                        height = 7, nbands = 3, dtype = Float64) do ds
+            for band in 1:3
+                values = [2.0 + i + 10j + 100band for i in 1:8, j in 1:7]
+                band == 2 && (values[3, 2] = NaN)
+                ArchGDAL.write!(ds, values, band)
+            end
+            ArchGDAL.setgeotransform!(ds, [10.0, 0.5, 0.0, 55.0, 0.0, -0.5])
+            return ArchGDAL.setproj!(ds,
+                                     ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
+        end
+    end
+    MPI.Barrier(comm)
+    dates = [Date(2000, 1, 15), Date(2000, 2, 15), Date(2000, 3, 15)]
+    rain(path) = RasterFileSpec(path, axis = Precipitation, unit = mm / day,
+                                times = dates, atend = HoldAtEnd())
+    mine = rain(rank == 0 ? real : joinpath(shared, "absent.tif"))
+
+    # Every rank decides the area from the real file, then forgets what it read and where from, so
+    # that the build below is what is tested.
+    area = StudyArea(supply = rain(real), verbosity = :silent)
+    empty!(area.report.cache.reads)
+    empty!(area.report.cache.inputs)
+
+    # Gathered by serialisation - a route independent of the one under test - and compared on the
+    # root against a build the root makes on its own.
+    function agreeswithroot(layer, reference)
+        everyone = MPI.gather(layer, comm)
+        rank == 0 || return true
+        return all(samelayer(reference, other) for other in everyone)
+    end
+
+    direct = materialise(mine, area, role = EcoSISTEM.Resource)
+    @test direct.change isa EcoSISTEM.SeriesLayerChange
+    @test any(isnan, direct.change.slices)
+    reference = rank == 0 ?
+                EcoSISTEM._materialisespec(rain(real), area,
+                                           EcoSISTEM.Resource) : nothing
+    @test agreeswithroot(direct, reference)
+
+    niche = NicheSpec(4, axis = EcoSISTEM.NicheAxis)
+    habitat = GridHabitat(regime = (temperature = UniformSpec(290.0K,
+                                                              axis = Temperature),
+                                    niche = niche),
+                          supply = mine, area = area)
+    # The habitat's own supply has had its gaps zeroed, so it is compared with the root's.
+    @test agreeswithroot(habitat.supply, rank == 0 ? habitat.supply : nothing)
+    # Unseeded, so each rank would draw its own layout if it built its own.
+    @test agreeswithroot(habitat.regime[:niche],
+                         rank == 0 ? habitat.regime[:niche] : nothing)
+    everyactive = MPI.gather(habitat.active, comm)
+    rank == 0 && @test all(==(first(everyactive)), everyactive)
+
+    # Only the root read, and every rank records what it read.
+    @test isempty(area.report.cache.reads) == (rank != 0)
+    everyinput = MPI.gather(provenance(habitat).inputs, comm)
+    rank == 0 && @test !isempty(provenance(habitat).inputs)
+    rank == 0 && @test all(==(first(everyinput)), everyinput)
+
+    # A layer already built is copied on every rank, with nothing sent.
+    rebuilt = GridHabitat(regime = habitat.regime[:temperature],
+                          supply = habitat.supply, area = area)
+    @test samelayer(rebuilt.supply, habitat.supply)
+
+    # A failure on the root stops every rank, rather than leaving the others waiting.
+    broken = rain(rank == 0 ? joinpath(shared, "absent.tif") : real)
+    @test_throws Exception materialise(broken, area)
+    MPI.Barrier(comm)
+
+    # So does a shared build started inside another.
+    @test_throws "started inside another one" EcoSISTEM._sharedlayer(area) do
+        return EcoSISTEM._sharedlayer(() -> nothing, area)
+    end
+    MPI.Barrier(comm)
 end
 
 # **The fixture is built by `mpifixture_species` in `varyingcase.jl`, not spelled out here.**
@@ -312,8 +405,10 @@ simulate!(cbeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
 end
 cbeverywhere = MPI.Allgather(Int32(length(cbcounts)), comm)
 @test all(==(first(cbeverywhere)), cbeverywhere)
+# Building a habitat is collective under MPI, so every rank builds each serial reference and only
+# the root runs it.
+cbserial = mpifixture_ecosystem()
 if rank == 0
-    cbserial = mpifixture_ecosystem()
     serialtotals = Int[]
     simulate!(cbserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
               every = EveryInterval(3 * MPIFIXTURE_TIMESTEP)) do _
@@ -353,8 +448,8 @@ function tablerun(source)
 end
 table_abuns = tablerun(tablecolumns)
 stream_abuns = tablerun(r for r in tablerows)
+tableserial = mpifixture_ecosystem()
 if rank == 0
-    tableserial = mpifixture_ecosystem()
     simulate!(tableserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
               intervention = tableiv(tablecolumns))
     @test tableserial.abundances.matrix != true_abuns
@@ -383,8 +478,8 @@ end
 # the run ends.
 @test provenance(recdiv).run == provenance(recab).run
 @test provenance(recdiv).run.elapsed ≈ uconvert(u"s", MPIFIXTURE_BURNIN)
+recserial = mpifixture_ecosystem()
 if rank == 0
-    recserial = mpifixture_ecosystem()
     serialab = RecordAbundance(zeros(Int, numSpecies, ncells, nrec))
     serialdiv = RecordDiversity(zeros(ncells, 2, nrec), norm_sub_alpha,
                                 [0.0, 1.0])
@@ -433,11 +528,12 @@ ordgathered = reshape(ordfull, numSpecies, VARYING_NY * VARYING_NX)
 @test sum(ordgathered) ≈ 1.0
 
 # Compared against serial at **every** rank count, not just at one. The serial run is built with
-# `Ecosystem` directly and makes no MPI calls, so any rank can do it; rank 0 does. At a single rank
-# the comparison is weak - a rank owning every species cannot notice a calculation restricted to its
-# own species - so the multi-rank runs are the ones that carry the check.
+# `Ecosystem` directly; every rank builds it, since building a habitat is collective, and rank 0 runs
+# it. At a single rank the comparison is weak - a rank owning every species cannot notice a
+# calculation restricted to its own species - so the multi-rank runs are the ones that carry the
+# check.
+ordserial = mpifixture_ecosystem()
 if rank == 0
-    ordserial = mpifixture_ecosystem()
     simulate!(ordserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
     @test ordgathered == getordinariness!(ordserial)
 end
@@ -457,12 +553,12 @@ end
 # `sub_gamma` is included alongside a normalised measure because it divides by the metacommunity
 # ordinariness, a sum over *every* cell: without the `Allreduce` in `_getmetaordinariness!` it would
 # silently use this rank's share of the metacommunity as though it were all of it.
+divserial = mpifixture_ecosystem()
+rank == 0 && simulate!(divserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
 for divmeasure in (norm_sub_alpha, sub_gamma)
     for order in (1.0, [0.0, 1.0, 2.0])
         assembled = gatherdiversity(eco, divmeasure, order)
         if rank == 0
-            divserial = mpifixture_ecosystem()
-            simulate!(divserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
             wanted = divmeasure(divserial, order)
             @test assembled[!, :diversity] ≈ wanted[!, :diversity]
             @test assembled[!, :partition_name] == wanted[!, :partition_name]
@@ -483,8 +579,8 @@ genfull = similar(vec(genord), Int64(sum(gencounts)))
 MPI.Allgatherv!(vec(genord), MPI.VBuffer(genfull, gencounts), comm)
 gengathered = reshape(genfull, numSpecies, VARYING_NY * VARYING_NX)
 
+genserial = mpifixture_generalecosystem()
 if rank == 0
-    genserial = mpifixture_generalecosystem()
     simulate!(genserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
     @test gengathered ≈ getordinariness!(genserial)
 end
