@@ -9,6 +9,7 @@ using Distributions
 using MPI
 using Random
 using Diversity
+using Phylo: getbranches, getlength
 using JLD2
 using Test
 using ArchGDAL
@@ -691,6 +692,67 @@ if rank == 0
     @test isconcretetype(Base.return_types(e -> e.cache.totaldemand, (E,))[1])
     @test isconcretetype(Base.return_types(e -> e.cache.netmigration, (E,))[1])
     @test isconcretetype(Base.return_types(e -> e.habitat.topology, (E,))[1])
+end
+
+# **Every rank takes the first rank's seed and species list.** Anything drawn at random on each rank
+# - a seed nobody gave, abundances split without a seed, a random phylogeny - would otherwise give
+# each rank a different ecosystem, and a random intervention would select different cells on each.
+@testset "every rank takes the first rank's seed and species list" begin
+    everyone(x) = MPI.Allgather(x, comm)
+    agree(x) = all(==(first(x)), x)
+    gathered(x) = MPI.gather(x, comm)
+    agreeing(x) = (all = gathered(x); rank == 0 ? agree(all) : true)
+
+    # No seed: the first rank draws one, and a random selection is the same everywhere.
+    sppl, _ = mpifixture_species()
+    unseeded = MPIEcosystem(sppl, varying_environment(), nichefit)
+    @test agree(everyone(unseeded.seed))
+    unseeded.abundances.rows_matrix .= MPIFIXTURE_FILL
+    MPI.Barrier(comm)
+    simulate!(unseeded, 3 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+              intervention = Intervention(AtTime(1.0month_mean_duration),
+                                          RandomCells(20), Deactivate()))
+    @test agreeing(unseeded.habitat.active)
+    @test count(.!unseeded.habitat.active) == 20
+
+    # Abundances drawn differently on each rank: every rank simulates the first rank's.
+    mine, _ = mpifixture_species()
+    mine.abun .= rand(Xoshiro(rank), 1:100, length(mine.abun))
+    shared = MPIEcosystem(mine, varying_environment(), nichefit, seed = 0)
+    @test agreeing(shared.spplist.abun)
+    @test agree(everyone(sum(shared.spplist.abun)))
+    @test MPI.Allreduce(sum(shared.abundances.rows_matrix), +, comm) ==
+          sum(shared.spplist.abun)
+
+    # A random phylogeny, and the tolerances evolved on it, travel whole.
+    kernels = GaussianKernel.(fill(1.0km, numSpecies), 1e-4)
+    treed = SpeciesList(numSpecies, 2, fill(10, numSpecies),
+                        Demand{SolarRadiation}(fill(1.0kJ / day, numSpecies)),
+                        BirthOnlyMovement(kernels),
+                        EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2),
+                        fill(true, numSpecies))
+    ext = Base.get_extension(EcoSISTEM, :EcoSISTEMMPIExt)
+    received = ext._rootspecies(treed, comm)
+    @test typeof(received) === typeof(treed)
+    tree = received.types.tree
+    @test agreeing(sort([getlength(tree, b) for b in getbranches(tree)]))
+    @test agreeing(received.tolerance.vals)
+
+    # A seed must be the same on every rank, or given on none.
+    if MPI.Comm_size(comm) > 1
+        @test_throws "the same `seed` on every rank" MPIEcosystem(mpifixture_species()[1],
+                                                                  varying_environment(),
+                                                                  nichefit,
+                                                                  seed = rank)
+        @test_throws "rank 1: none" MPIEcosystem(mpifixture_species()[1],
+                                                 varying_environment(),
+                                                 nichefit,
+                                                 seed = rank == 0 ? 1 :
+                                                        nothing)
+    end
+    @test MPIEcosystem(mpifixture_species()[1], varying_environment(), nichefit,
+                       seed = 7).seed == 7
+    MPI.Barrier(comm)
 end
 
 if !MPI.Finalized()

@@ -80,6 +80,12 @@ Reproducibility across ranks is a design requirement, not a convenience. Each sp
 deterministic random stream addressed by its **global** index, so a result does not depend on how
 the work was divided: one rank or sixteen, one thread or many, the same seed gives the same numbers.
 
+Every rank takes the first rank's species list and seed when the ecosystem is built. With no
+`seed`, the first rank draws one; a `seed` that differs between ranks, or is given on only some of
+them, is an error. So species built at random on each rank still make one ecosystem, and a random
+intervention selects the same cells everywhere. The other ranks hold a copy of the first rank's
+species list, not the one they built.
+
 That requirement is also why a layer's change over time must be a pure function of elapsed time.
 Layers are updated redundantly on every rank, so anything drawn from a shared random stream, or
 depending on the ecosystem's own state, would let the ranks drift apart silently. Change that

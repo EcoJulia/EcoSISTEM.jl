@@ -95,6 +95,9 @@
       `GridHabitat` and `build_habitat` read and build on the first rank, and the other ranks receive
       the result, so the data is read once and every rank holds the same values. Every rank must
       make these calls, in the same order.
+    - A distributed ecosystem takes the first rank's species list and seed on every rank. With no
+      `seed` the ranks drew different ones, so random interventions selected different cells on
+      each; a `seed` that differs between ranks is now an error.
     - A shape used as a `within` mask activates every cell at least **half** covered by it, where it
       activated the cells whose centres fell inside. Coastal cells move and the area is roughly
       kept; `ShapeMaskSpec(shape, rule)` states any other rule.

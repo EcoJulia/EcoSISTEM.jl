@@ -124,13 +124,19 @@ using EcoSISTEM: getkernels, genlookups, numdemands, _checksimulatable
 
 Create an `MPIEcosystem` given a species list, an abiotic environment and trait
 nichefit.
+
+Every rank takes the first rank's species list and seed, so each simulates the same species from the
+same streams: with no `seed`, the first rank draws one; a `seed` given on some ranks and not others,
+or differently on different ranks, is an error on every rank. Every rank must make the call. The
+other ranks hold a copy of the first rank's list rather than the one they were given.
 """
 function MPIEcosystem(popfun::F,
                       spplist::EcoSISTEM.SpeciesList{T, DM},
                       habitat::EcoSISTEM.GridHabitat,
                       nichefit;
-                      seed::Integer = rand(UInt64)) where {F <: Function, T,
-                                                           DM}
+                      seed::Union{Integer, Nothing} = nothing) where {F <:
+                                                                      Function,
+                                                                      T, DM}
     # **First, exactly as in the serial `Ecosystem` constructor and for the same reason.**
     # `genlookups` below divides the regime's cell size by a dispersal distance, so on a geographic
     # grid (`size` in `°`) it raises `DimensionError: ° km^-1` before any tailored message is reached.
@@ -141,6 +147,8 @@ function MPIEcosystem(popfun::F,
     _checksimulatable(habitat)
 
     comm = MPI.COMM_WORLD
+    seed = _agreedseed(seed, comm)
+    spplist = _rootspecies(spplist, comm)
     rank = MPI.Comm_rank(comm)
     totalsize = MPI.Comm_size(comm)
     numspp = length(spplist.names)
@@ -191,10 +199,33 @@ end
 
 function MPIEcosystem(spplist::EcoSISTEM.SpeciesList,
                       habitat::EcoSISTEM.GridHabitat, nichefit;
-                      seed::Integer = rand(UInt64))
+                      seed::Union{Integer, Nothing} = nothing)
     return MPIEcosystem(EcoSISTEM.populate!, spplist, habitat, nichefit;
                         seed = seed)
 end
 @doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
                                       ::EcoSISTEM.GridHabitat,
                                       ::Any)
+
+# The seed every rank uses: the one each rank was given, which must be the same everywhere, or
+# with none given anywhere, one the first rank draws. Collective. Every rank checks the same gathered
+# values, so a disagreement is raised on every rank alike.
+function _agreedseed(seed::Union{Integer, Nothing}, comm::MPI.Comm)
+    given = MPI.Allgather(!isnothing(seed), comm)
+    seeds = MPI.Allgather(isnothing(seed) ? zero(UInt64) :
+                          EcoSISTEM._storedseed(seed), comm)
+    if !any(given)
+        drawn = MPI.Comm_rank(comm) == 0 ? rand(UInt64) : zero(UInt64)
+        return MPI.bcast(drawn, 0, comm)
+    end
+    (all(given) && all(==(first(seeds)), seeds)) && return first(seeds)
+    ranks = join(("rank $(r - 1): " * (g ? string(v) : "none")
+                  for (r, (g, v)) in enumerate(zip(given, seeds))), ", ")
+    return error("a distributed ecosystem needs the same `seed` on every rank, or none on any, " *
+                 "so that every rank draws the same random numbers; got $ranks.")
+end
+
+# The first rank's species list, on every rank. Collective.
+function _rootspecies(spplist::EcoSISTEM.SpeciesList, comm::MPI.Comm)
+    return MPI.bcast(spplist, 0, comm)::typeof(spplist)
+end
