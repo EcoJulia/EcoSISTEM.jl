@@ -43,6 +43,15 @@ function ReadKey(spec::RasterSpec; cut = spec.cut, scale = spec.scale)
                     fn = spec.fn, times = spec.times, spec.readkw...))
 end
 
+# The key a shape's **inputs** are filed under. A shape is not cached as a read - its geometry is
+# resolved afresh on each build - but what it was read from belongs beside every other layer's
+# records, and those are keyed this way. The spec's own spelling identifies it: two specs naming one
+# file and one coverage agree, and a different file, layer or coverage does not.
+function ReadKey(spec::AbstractShapeSpec)
+    return ReadKey(typeof(spec), nothing, nothing,
+                   (shape = sprint(show, spec),))
+end
+
 # `::AbstractSpec` rather than the full [`LayerInput`](@ref): the tuple/named-tuple forms are the
 # *separate* method below, so admitting them here would make the two ambiguous.
 """
@@ -58,6 +67,9 @@ specs are *sampled onto* the grid and synthetic ones *generated at* its shape, a
 tuple may be **mixed**. The result is an [`AbstractLayer`](@ref) whose `matrix` is a `(Y, X)` array
 carrying the area's real coordinates; several specs give a [`LayerCollection`](@ref) keeping the
 caller's names, exactly as the builder produces.
+
+**Under MPI with more than one rank this is a collective call**, made on every rank in the same
+order; see [Building is collective](@ref).
 
 This runs the same code the builder does, so what you see is what the simulation gets. It is also the
 way to check a *synthetic* layer's layout, which is otherwise invisible: a gradient's direction
@@ -84,8 +96,11 @@ function materialise(spec::AbstractSpec, area::StudyArea; role = missing)
     # change is a separate declaration that `GridHabitat` hangs on the layer afterwards - the
     # same reason `StudyArea` ignores it.
     spec = _unwrapspec(spec)
-    return _applyrole(_materialisefield(spec, area), role, _specaxis(spec),
-                      area)
+    _usempi() || return _materialisespec(spec, area, role)
+    # Under MPI the root builds the layer and every other rank receives it, so it is read once.
+    return _sharedlayer(area) do
+        return _materialisespec(spec, area, role)
+    end
 end
 
 # **A multi-layer regime, materialised member by member.** Without this a tuple fell through to the
@@ -418,6 +433,43 @@ end
 # - measured, a `_reg(raster)` layer at 4×4 against a synthetic one generated at the target's 2×2
 # is a `DimensionMismatch`. Where the layers were already put on the target, this is a no-op:
 # `_regrid` recognises a raster on the target grid and selects its cells instead of resampling.
+# A shape's covered fraction on `target`'s cells, and the two refusals both build paths share.
+# Geometry needs a frame to be placed in, and a shape selecting no ground is a mistake rather than an
+# empty layer - the same reading `_preparemask` takes of a mask that selects none.
+function _shapecovered(spec::ShapeCoverage, target, crs)
+    isnothing(crs) &&
+        error("`$(sprint(show, spec))` measures ground, so it needs a positioned study area: this " *
+              "one is synthetic and has no CRS to place geometry in. Name a data layer when the " *
+              "area is decided, or position it with `within`.")
+    parts, _ = _shapegeoms(spec.shape, crs)
+    isempty(parts) &&
+        error("`$(sprint(show, spec.shape))` selects no ground, so it covers no cell. A " *
+              "`LandmassesAbove` threshold may have excluded every component, a file may hold no " *
+              "polygon, or the members of a combination may not overlap.")
+    return _coveredfraction(parts, _cellintervals(target, Y),
+                            _cellintervals(target, X))
+end
+
+# File a shape-backed layer's inputs beside the cached reads', so a habitat's provenance names the
+# ground it was built from. The geometry itself is not cached - it is resolved once per build - but
+# its records belong where every other layer's are.
+function _recordshape!(cache::LayerCache, spec::ShapeCoverage)
+    cache.inputs[ReadKey(spec.shape)] = _specinputs(spec)
+    return nothing
+end
+
+# The shape measured on the grid it is handed, as a synthetic layer is generated at one. The source
+# is `VectorData`: the values were read from geometry, neither generated nor taken from a raster.
+function _materialiseon(spec::ShapeCoverage, target, cache::LayerCache;
+                        cut = nothing)
+    crs = Rasters.crs(target)
+    covered = _shapecovered(spec, target, crs)
+    _recordshape!(cache, spec)
+    return ClimateRaster(VectorData,
+                         DimArray(covered,
+                                  _unitedyx(dims(target, (Y, X)), crs)))
+end
+
 function _materialiseon(spec::ConstructedRasterSpec, target, cache::LayerCache;
                         cut = nothing)
     out = _combineon(spec.combinestage, spec, target, cache, cut = cut)
@@ -566,9 +618,21 @@ function _analyse(layers::NamedTuple; within = nothing, crs = nothing,
                   cellsize = nothing, extent = nothing, align = nothing,
                   simulate_safely = nothing,
                   cache::LayerCache = LayerCache())
-    problems = Problem[]
     cons = (within = within, crs = crs, cellsize = cellsize, extent = extent,
             align = align, simulate_safely = simulate_safely)
+    _usempi() || return _analyselocal(layers, cons, cache)
+    # Under MPI the root decides the grid and every other rank receives its report, so the data is
+    # read once.
+    return _sharedreport(layers, cons, cache) do
+        return _analyselocal(layers, cons, cache)
+    end
+end
+
+# The grid decision itself, by this process alone. `cons` is the constraints as given, and is what
+# the report records.
+function _analyselocal(layers::NamedTuple, cons::NamedTuple, cache::LayerCache)
+    (; within, crs, cellsize, extent, align, simulate_safely) = cons
+    problems = Problem[]
     # `nothing` here is "not specified" (`_constraint` maps both `missing` and a cleared value onto
     # it), and the default this resolves to is `true` - never simulate ground the data does not
     # describe unless asked to. `cons` keeps it *as given*, like every other constraint.
@@ -663,6 +727,12 @@ function _analyse(layers::NamedTuple; within = nothing, crs = nothing,
                            InputRecord[], AsInvestigated())
 end
 
+# One spec put on the area's grid, by this process alone: the whole of `materialise`'s work on a spec.
+function _materialisespec(spec::AbstractSpec, area::StudyArea, role)
+    return _applyrole(_materialisefield(spec, area), role, _specaxis(spec),
+                      area)
+end
+
 # A data-driven spec is read (through the area's cache) and sampled onto the grid; a synthetic one is
 # generated at the grid's shape. Both end up on the area's own dims.
 #
@@ -677,6 +747,21 @@ function _materialisefield(spec::AbstractSyntheticLayerSpec, area::StudyArea)
     return (values = DimArray(field, _unitedyx(yx, area.report.crs)),
             categorical = spec isa NicheSpec, series = _seriespolicy(spec))
 end
+
+# A shape measured on the area's own grid, which is the same computation `_materialiseon` does - the
+# pair this file's header warns has drifted three times, so they share `_shapecovered`.
+function _materialisefield(spec::ShapeCoverage, area::StudyArea)
+    grid = area.report.active
+    crs = area.report.crs
+    covered = _shapecovered(spec, grid, crs)
+    _recordshape!(area.report.cache, spec)
+    return (values = DimArray(covered, _unitedyx(dims(grid, (Y, X)), crs)),
+            categorical = false, series = _seriespolicy(spec))
+end
+
+# A `within` mask inspected as a layer. The generic method below would read and sample first and die
+# on a private function; refusing here names the remedy instead.
+_materialisefield(spec::ShapeMaskSpec, ::StudyArea) = _asraster(spec)
 
 function _materialisefield(spec, area::StudyArea)
     raster = _asraster(spec, area.report.cache, cut = _buildwindow(area),

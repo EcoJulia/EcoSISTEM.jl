@@ -276,11 +276,15 @@ grid exists. That is what lets them be combined exactly and at no resolution - a
 own, unioned with a country you named - where combining rasterised masks would have to fix a
 resolution before the study grid had been decided. It is the vector mirror of
 [`ConstructedRasterSpec`](@ref), which composes rasters and so does need a grid.
+
+*Which* cells a shape activates is a question about rasterising rather than about geometry, so it is
+[`ShapeMaskSpec`](@ref)'s: a shape used as a `within` mask on its own covers every cell at least half
+inside it, and `ShapeMaskSpec(shape, rule)` states any other rule.
 """
 abstract type AbstractShapeSpec <: EcoSISTEM.AbstractLazySpec end
 
 """
-    ShapeSpec(path::AbstractString; layer = 0, coverage = AllTerritories(), outline = true)
+    ShapeSpec(path::AbstractString; layer = 0, coverage = AllTerritories())
 
 Name an active-area mask taken from the polygons of a vector file, without reading it. It holds
 **no** geometry: the read, any download, the dissolve of its features into connected pieces of
@@ -302,23 +306,18 @@ pieces themselves.
     into connected pieces - [`AllTerritories`](@ref), the default and everything the file holds,
     [`LargestLandmass`](@ref) for the principal piece, or [`LandmassesAbove`](@ref) for every
     piece clearing a threshold.
-  - `outline`: `true`, the default, activates only the cells whose centres fall inside the
-    file's polygons. `false` activates every cell in their bounding box instead, as for
-    [`NaturalEarthSpec`](@ref).
 """
 struct ShapeSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
     path::Union{String, EcoSISTEM.CachedAsset}
     layer::Int
     coverage::C
-    outline::Bool
     # A leading URL scheme (`scheme://...`) marks `path` as a download, deferred to a `CachedAsset`;
     # anything else is taken to be an already-local path, used as-is.
     function ShapeSpec(path::AbstractString; layer::Integer = 0,
-                       coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
-                       outline::Bool = true)
+                       coverage::EcoSISTEM.AbstractCoverage = AllTerritories())
         p = occursin(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path) ?
             EcoSISTEM.CachedAsset(ShapeSpec, path) : String(path)
-        return new{typeof(coverage)}(p, Int(layer), coverage, outline)
+        return new{typeof(coverage)}(p, Int(layer), coverage)
     end
 end
 
@@ -327,13 +326,11 @@ function Base.show(io::IO, spec::ShapeSpec)
     iszero(spec.layer) || print(io, ", layer = ", spec.layer)
     EcoSISTEM._isdefaultcoverage(spec.coverage) ||
         print(io, ", coverage = ", spec.coverage)
-    spec.outline || print(io, ", outline = false")
     return print(io, ")")
 end
 
 """
-    NaturalEarthSpec(name::AbstractString; level = nothing, coverage = AllTerritories(),
-                     outline = true)
+    NaturalEarthSpec(name::AbstractString; level = nothing, coverage = AllTerritories())
 
 Name an active-area mask as a **named region** - a country, a continent, an island - without
 reading anything. The polygons are fetched and cut to the grid when the spec is materialised, as for
@@ -353,19 +350,14 @@ spec's shape actually has.
   - `coverage`: how much of what the name covers to take - [`AllTerritories`](@ref), the default and
     what the source itself means by the name, or [`LargestLandmass`](@ref) for the principal landmass
     alone.
-  - `outline`: `true`, the default, activates only the cells whose centres fall inside the region.
-    `false` activates every cell in the region's bounding box instead, which is the cheaper thing to
-    want when the region is only being used to say *where* to work rather than to mask a coastline.
 """
 struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
     level::String
     name::String
     coverage::C
-    outline::Bool
 
     function NaturalEarthSpec(name::AbstractString; level = nothing,
-                              coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
-                              outline::Bool = true)
+                              coverage::EcoSISTEM.AbstractCoverage = AllTerritories())
         lvl = isnothing(level) ? EcoSISTEM._resolvelevel(name, coverage) :
               EcoSISTEM._checklevel(level).name
         row = EcoSISTEM._regionrow(lvl, name)
@@ -374,12 +366,12 @@ struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
                   "`EcoSISTEM.naturalearth_levels()` lists the levels.")
         # The source's own spelling is stored, not the caller's: the lookup is case-insensitive, and
         # what is kept should be what the data says so that `show` and any later report agree with it.
-        return new{typeof(coverage)}(lvl, row.Name, coverage, outline)
+        return new{typeof(coverage)}(lvl, row.Name, coverage)
     end
 end
 
 """
-    NaturalEarthSpec(match::EcoSISTEM.RegionMatch; coverage = AllTerritories(), outline = true)
+    NaturalEarthSpec(match::EcoSISTEM.RegionMatch; coverage = AllTerritories())
 
 Turn one match from [`investigate_regions`](@ref) into a spec, without naming it again.
 
@@ -391,10 +383,9 @@ asserts there was exactly one, `first(report)` takes the best by the report's ow
 `report[i]` takes a chosen one.
 """
 function NaturalEarthSpec(match::EcoSISTEM.RegionMatch;
-                          coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
-                          outline::Bool = true)
+                          coverage::EcoSISTEM.AbstractCoverage = AllTerritories())
     return NaturalEarthSpec(match.name, level = match.level.name,
-                            coverage = coverage, outline = outline)
+                            coverage = coverage)
 end
 
 # A report is ambiguous by construction, so converting one would have to pick silently. `first` is
@@ -413,12 +404,11 @@ function Base.show(io::IO, s::NaturalEarthSpec)
     print(io, "NaturalEarthSpec(\"", s.name, "\", level = \"", s.level, "\"")
     EcoSISTEM._isdefaultcoverage(s.coverage) ||
         print(io, ", coverage = ", s.coverage)
-    s.outline || print(io, ", outline = false")
     return print(io, ")")
 end
 
 """
-    ConstructedShapeSpec(operation, members...; coverage = AllTerritories(), outline = true)
+    ConstructedShapeSpec(operation, members...; coverage = AllTerritories())
 
 Combine several shapes into one mask - the union of the United Kingdom, Ireland and the Isle of
 Man, a country with an island group cut out of it, or a study area of your own buffered by a
@@ -448,8 +438,6 @@ ConstructedShapeSpec(ShapeUnion(),
     or a nested `ConstructedShapeSpec` - as many as the operation wants.
   - `coverage`: which components of the *result* to keep, applied after the operation -
     [`AllTerritories`](@ref) by default, since a combination usually means all of what it built.
-  - `outline`: as [`NaturalEarthSpec`](@ref) - `false` activates the result's bounding box instead of
-    its outline.
 """
 struct ConstructedShapeSpec{O, M <: Tuple,
                             C <: EcoSISTEM.AbstractCoverage} <:
@@ -457,13 +445,11 @@ struct ConstructedShapeSpec{O, M <: Tuple,
     operation::O
     members::M
     coverage::C
-    outline::Bool
 
     function ConstructedShapeSpec(operation::Union{EcoSISTEM.AbstractShapeOperation,
                                                    Function},
                                   members::AbstractShapeSpec...;
-                                  coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
-                                  outline::Bool = true)
+                                  coverage::EcoSISTEM.AbstractCoverage = AllTerritories())
         least = EcoSISTEM._minmembers(operation)
         length(members) >= least ||
             throw(ArgumentError("`$operation` needs at least $least shape" *
@@ -471,8 +457,7 @@ struct ConstructedShapeSpec{O, M <: Tuple,
                                 "; it was given $(length(members))."))
         return new{typeof(operation), typeof(members), typeof(coverage)}(operation,
                                                                          members,
-                                                                         coverage,
-                                                                         outline)
+                                                                         coverage)
     end
 end
 
@@ -481,7 +466,6 @@ function Base.show(io::IO, s::ConstructedShapeSpec)
     join(io, s.members, ", ")
     EcoSISTEM._isdefaultcoverage(s.coverage) ||
         print(io, ", coverage = ", s.coverage)
-    s.outline || print(io, ", outline = false")
     return print(io, ")")
 end
 
@@ -600,6 +584,171 @@ function Base.show(io::IO, ::MIME"text/plain", spec::ConstructedRasterSpec)
 end
 
 """
+    ShapeCoverage(shape; axis)
+
+The share of each cell that a shape covers, as a layer: a coastline becomes the land area of every
+cell, with the water left out.
+
+```julia
+land = ShapeCoverage(NaturalEarthSpec("Scotland", coverage = LargestLandmass()),
+                     axis = SurfaceArea)
+GridHabitat(regime = ..., supply = land, area = area)
+```
+
+The value is a **fraction**, from 0 where the shape misses a cell to 1 where it covers one, measured
+as the area of the cell's own rectangle lying inside the shape. A cell the shape touches only along
+an edge shares no area with it, and gets nothing. As a supply on [`SurfaceArea`](@ref) that fraction
+becomes an area per cell, using each cell's true area, so it is land rather than ground; as a regime
+it stays the fraction itself.
+
+Every other value is built from the fraction with a [`ConstructedRasterSpec`](@ref) - `f -> f .> 0`
+for the cells with any land, `(land, cover) -> land .* cover` to take a land-cover share of it.
+
+**It adopts the grid it is built on**, as a generated layer does, so it never decides a study area's
+extent, resolution or CRS; and it needs a **positioned** area, since geometry can only be placed
+where there is a coordinate system to place it in.
+
+# Arguments
+
+  - `shape`: any [`AbstractShapeSpec`](@ref) - a [`ShapeSpec`](@ref) of your own file, a
+    [`NaturalEarthSpec`](@ref), or a [`ConstructedShapeSpec`](@ref) combining them.
+  - `axis`: what the fraction means, as for every other layer spec. A categorical axis is refused: a
+    covered share is a continuous quantity.
+"""
+struct ShapeCoverage{A <: NicheAxis, S <: AbstractShapeSpec} <:
+       EcoSISTEM.AbstractLazySpec
+    shape::S
+
+    function ShapeCoverage(shape::AbstractShapeSpec; axis::Type{A}) where {A}
+        EcoSISTEM._iscategorical(axis) &&
+            error("`ShapeCoverage` measures the share of a cell a shape covers, which is a " *
+                  "continuous quantity, so it cannot declare the categorical axis " *
+                  "`$(nameof(axis))`. Name a continuous axis - `SurfaceArea` for ground.")
+        return new{A, typeof(shape)}(shape)
+    end
+end
+
+function Base.show(io::IO, spec::ShapeCoverage{A}) where {A}
+    return print(io, "ShapeCoverage(", sprint(show, spec.shape), ", axis = ",
+                 nameof(A), ")")
+end
+
+"""
+    AbstractShapeRule
+
+Abstract supertype of the rules that decide which cells a shape activates: [`AnyOverlap`](@ref),
+[`FractionWithin`](@ref), [`FullyWithin`](@ref) and [`WholeBoundingBox`](@ref).
+
+All but the last read one number - the share of the cell's own rectangle lying inside the shape -
+and admit a tolerance of one part in 100 000 of a cell, so a cell the shape meets only along an edge
+stays out while a cell covered to within rounding counts as covered.
+"""
+abstract type AbstractShapeRule end
+
+"""
+    AnyOverlap()
+
+Activate every cell the shape covers any part of.
+
+The most inclusive rule: a coastal cell is simulated whatever share of it is land, so no ground the
+shape names is left out of the grid.
+"""
+struct AnyOverlap <: AbstractShapeRule end
+
+"""
+    FullyWithin()
+
+Activate only the cells the shape covers completely.
+
+The conservative rule, for a run that must put nothing on ground the shape does not name: a coastal
+cell with any water in it is dropped. It is the same test as `FractionWithin(1.0)`.
+"""
+struct FullyWithin <: AbstractShapeRule end
+
+"""
+    FractionWithin(fraction)
+
+Activate every cell the shape covers at least `fraction` of.
+
+`FractionWithin(0.5)` is what a shape passed as `within` means on its own, and roughly keeps the
+region's area: the ground lost from the cells that are less than half covered is about the ground
+gained from the cells that are more.
+
+# Arguments
+
+  - `fraction`: the share of a cell that must be covered - greater than 0, and at most 1. Write
+    [`AnyOverlap`](@ref) for any cover at all, which no positive threshold expresses.
+"""
+struct FractionWithin{F <: Real} <: AbstractShapeRule
+    fraction::F
+
+    function FractionWithin(fraction::Real)
+        0 < fraction <= 1 ||
+            throw(ArgumentError("`FractionWithin` takes the share of a cell that must be covered, " *
+                                "greater than 0 and at most 1; it was given $fraction. " *
+                                "`AnyOverlap()` activates every cell with any cover at all."))
+        return new{typeof(fraction)}(fraction)
+    end
+end
+
+function Base.show(io::IO, rule::FractionWithin)
+    return print(io, "FractionWithin(",
+                 rule.fraction, ")")
+end
+
+"""
+    WholeBoundingBox()
+
+Activate every cell in the box around the shape, rather than the cells the shape itself covers.
+
+What to reach for when a region is only saying *where* to work: the grid is cut to the shape's
+extent and every cell in it is simulated, so no geometry is rasterised at all.
+"""
+struct WholeBoundingBox <: AbstractShapeRule end
+
+"""
+    ShapeMaskSpec(shape, rule = FractionWithin(0.5))
+
+Mask a study area by a shape under a stated rule - how much of a cell the shape must cover for that
+cell to be simulated.
+
+```julia
+StudyArea(regime = temperature, cellsize = 1km, crs = EPSG(27700),
+          within = ShapeMaskSpec(NaturalEarthSpec("Scotland"), AnyOverlap()))
+```
+
+A shape passed as `within` on its own means `FractionWithin(0.5)`, so this is what to write when a
+different rule is wanted: [`AnyOverlap`](@ref) to keep every cell with any land in it,
+[`FullyWithin`](@ref) to keep only whole cells, [`WholeBoundingBox`](@ref) to take the box and
+rasterise nothing.
+
+The rule belongs here rather than on the shape because it is a question about **rasterising** - it
+has an answer only once there is a grid - while a shape is geometry, and composes with other
+geometry exactly and at no resolution.
+
+# Arguments
+
+  - `shape`: the ground, as any [`AbstractShapeSpec`](@ref) - a [`ShapeSpec`](@ref) of your own
+    file, a [`NaturalEarthSpec`](@ref), or a [`ConstructedShapeSpec`](@ref) combining them.
+  - `rule`: which cells that ground activates, as an [`AbstractShapeRule`](@ref).
+"""
+struct ShapeMaskSpec{S <: AbstractShapeSpec, R <: AbstractShapeRule} <:
+       EcoSISTEM.AbstractLazySpec
+    shape::S
+    rule::R
+
+    function ShapeMaskSpec(shape::AbstractShapeSpec,
+                           rule::AbstractShapeRule = FractionWithin(0.5))
+        return new{typeof(shape), typeof(rule)}(shape, rule)
+    end
+end
+
+function Base.show(io::IO, spec::ShapeMaskSpec)
+    return print(io, "ShapeMaskSpec(", sprint(show, spec.shape), ", ",
+                 sprint(show, spec.rule), ")")
+end
+
+"""
     RasterFileSpec(path::AbstractString; axis, unit = NoUnits, source = SyntheticData,
                    cut = nothing, scale = nothing, fn = nothing, times = nothing,
                    atend = RepeatAtEnd(), calendar = nothing)
@@ -671,6 +820,14 @@ function provenance(spec::ConstructedShapeSpec)
                   init = Union{Nothing, InputRecord}[])
 end
 
+function provenance(spec::ShapeCoverage)
+    return provenance(spec.shape)
+end
+
+function provenance(spec::ShapeMaskSpec)
+    return provenance(spec.shape)
+end
+
 function provenance(spec::ConstructedRasterSpec)
     return reduce(vcat, (_layerprovenance(l) for l in spec.layers),
                   init = Union{Nothing, InputRecord}[])
@@ -727,7 +884,8 @@ end
 
 # A combination member's entries: a data layer's own, and none for a synthetic one, which reads no
 # file. Deliberately untyped, as the fallback for every member a combination accepts.
-function _layerprovenance(layer::Union{RasterSpec, ConstructedRasterSpec})
+function _layerprovenance(layer::Union{RasterSpec, ConstructedRasterSpec,
+                                       ShapeCoverage})
     return provenance(layer)
 end
 
@@ -860,6 +1018,11 @@ function _seriespolicy(spec::ConstructedRasterSpec)
 end
 
 _seriespolicy(::Any) = (atend = RepeatAtEnd(), calendar = nothing)
+
+# A shape's coverage is measured on whatever grid it is given, so it answers the "adopts a grid"
+# question the same way a generated layer does, and a combination defers it to the grid its data
+# members agree on. It reads a file all the same, which is what `provenance` and `_specinputs` say.
+EcoSISTEM._issyntheticspec(::ShapeCoverage) = true
 
 # _sharedunit(source, code) / _sharedaxis(source, code)
 #

@@ -37,7 +37,7 @@ before asking a per-cell question.
 ```@example diversity
 using Diversity
 
-norm_sub_alpha(eco, 1.0)      # subcommunity measures - one row per grid cell
+first(norm_sub_alpha(eco, 1.0), 5)   # subcommunity measures - one row per grid cell, 25 here
 ```
 
 ```@example diversity
@@ -48,5 +48,6 @@ Any measure takes several values of the viewpoint parameter `q` at once - `0` co
 common species alike, and larger values weight towards the commonest:
 
 ```@example diversity
-norm_sub_beta(eco, 0.0:3.0)
+beta = norm_sub_beta(eco, 0.0:3.0)   # one row per cell per q - 100 of them here
+beta[beta.partition_name .== first(beta.partition_name), :]   # one cell, all four q
 ```

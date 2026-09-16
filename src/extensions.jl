@@ -269,6 +269,16 @@ public empty_landscape, synchronise_from_rows!, synchronise_from_cols!
 # no method at all, which is why `_usempi` below checks for it before asking.
 function _should_mpi end
 
+# Build a layer once for every rank: the MPI extension's sole method calls `build` on the root and
+# hands the result to the other ranks, which return it in place of building their own. `area` is the
+# study area being built on, whose cache records what the root read. Every rank must call it.
+function _sharedlayer end
+
+# Decide a study area's grid once for every rank, as `_sharedlayer` builds a layer: `build` runs on
+# the root, and every other rank rebuilds its report around its own `layers`, constraints `cons` and
+# `cache`, the last holding the root's input records afterwards. Every rank must call it.
+function _sharedreport end
+
 # --- Detecting it, on the parent's side ------------------------------------
 # Everything below is implemented here rather than declared. It lives with the hooks because it is
 # what asks whether they have arrived: both `Base.get_extension` calls in the package are here, and

@@ -203,9 +203,10 @@ include("LazySpec.jl")
 # Exported here, and **re-exported by `ClimatePref`**, so that `using EcoSISTEM.ClimatePref` reaches
 # them too.
 export RasterSpec, SourceSpec, RasterFileSpec, ConstructedRasterSpec, ShapeSpec,
-       NaturalEarthSpec, ConstructedShapeSpec
+       NaturalEarthSpec, ConstructedShapeSpec, ShapeCoverage, ShapeMaskSpec,
+       AnyOverlap, FullyWithin, FractionWithin, WholeBoundingBox
 
-public AbstractShapeSpec
+public AbstractShapeSpec, AbstractShapeRule
 
 public AbstractLazySpec
 
@@ -398,6 +399,9 @@ export StudyArea
 include("materialise.jl")
 
 public materialise
+
+# A built layer as plain data and back, for handing one rank's build to the others under MPI.
+include("layerpayload.jl")
 
 include("GridHabitat.jl")
 

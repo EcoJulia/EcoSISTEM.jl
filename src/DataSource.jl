@@ -9,7 +9,7 @@ using SimpleTraits
     EcoSISTEMSource
 
 Abstract supertype of the sources this package defines itself, for rasters that come from no
-dataset - see [`SyntheticData`](@ref) and [`DerivedData`](@ref).
+dataset - see [`SyntheticData`](@ref), [`VectorData`](@ref) and [`DerivedData`](@ref).
 """
 abstract type EcoSISTEMSource end
 
@@ -21,6 +21,15 @@ spec. It has no dataset, no layer codes and no catalogue row, and says so rather
 real dataset's name.
 """
 struct SyntheticData <: EcoSISTEMSource end
+
+"""
+    VectorData
+
+Source of a raster computed from **geometry** rather than read from a raster file or generated: the
+covered fraction a [`ShapeCoverage`](@ref) puts on a grid. It has no dataset, no layer codes and no
+catalogue row; what the shape was read from is recorded as the layer's provenance instead.
+"""
+struct VectorData <: EcoSISTEMSource end
 
 """
     DerivedData{S}

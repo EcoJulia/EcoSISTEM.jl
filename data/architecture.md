@@ -495,8 +495,22 @@ study area: a synthetic one has no CRS, extent or resolution of its own.
 
 `AbstractShapeSpec` is the branch of the lazy specs that is **ground** rather than data - a shape
 file, a named country, a continent, an island - and resolves to geometry before any grid exists.
-Every shape spec carries a `coverage`, which of the connected pieces of that ground to take, and an
-`outline`, whether to mask by the pieces or by the box around them; `read(spec)` gives the pieces.
+Every shape spec carries a `coverage`, which of the connected pieces of that ground to take;
+`read(spec)` gives the pieces.
+
+**Which cells that ground activates is a separate question, and so a separate type.** `ShapeMaskSpec`
+pairs a shape with an `AbstractShapeRule` - `AnyOverlap`, `FractionWithin`, `FullyWithin` or
+`WholeBoundingBox` - because how much of a cell must be covered can only be answered once there is a
+grid, where a shape is geometry and composes with none. A shape passed as `within` on its own means
+`FractionWithin(0.5)`. The first three read one number, the share of a cell lying inside the shape,
+each admitting the same tolerance, so no two can disagree about a cell on their shared boundary;
+`WholeBoundingBox` rasterises no geometry at all and answers from the extent.
+
+`ShapeCoverage` is the one spec that **reads inputs and yet adopts a grid**: it wraps a shape spec
+and declares an axis, and its value is the share of each cell the shape covers, measured on whatever
+grid it is built on. So it answers the grid questions as a generated layer does - it cannot decide a
+study area's extent, resolution or CRS - while carrying a real file's provenance as a data spec does.
+It needs a positioned area, since geometry can only be placed where there is a CRS to place it in.
 
 `RasterSpec` names raster data to be read, and has two spellings: `SourceSpec(source, code)` for a
 layer of a catalogued dataset, whose unit and axis the catalogue supplies and whose files the source
@@ -513,7 +527,7 @@ become one" node for its medium. Three of their differences are forced by that m
 not, which is worth stating so the asymmetry is not read as an oversight. A raster combination can
 produce a *layer*, so it carries an `axis`; it can run before or after resampling, so it carries a
 `combinestage`. A shape combination can do neither, having no values and no grid - but it gains
-`coverage` and `outline`, which are component-shaped questions a raster cannot ask. **Both take an
+`coverage`, a component-shaped question a raster cannot ask. **Both take an
 arbitrary function**, so neither is the more capable; the named shape operations exist because
 geometry has a small closed algebra with standard names, where raster combines are arbitrary
 arithmetic.
@@ -531,6 +545,13 @@ classDiagram
     class NaturalEarthSpec~C~
     class ConstructedShapeSpec~O, M, C~
     class ConstructedRasterSpec~A, F~
+    class ShapeCoverage~A, S~
+    class ShapeMaskSpec~S, R~
+    class AbstractShapeRule
+    class AnyOverlap
+    class FractionWithin~F~
+    class FullyWithin
+    class WholeBoundingBox
     class UniformSpec~A, V~
     class GradientSpec~A, V~
     class PeakedSpec~A, V~
@@ -541,6 +562,7 @@ classDiagram
     AbstractSpec              <|-- AbstractSyntheticSpec
     AbstractLazySpec          <|-- RasterSpec
     AbstractLazySpec          <|-- ConstructedRasterSpec
+    AbstractLazySpec          <|-- ShapeCoverage
     AbstractSyntheticSpec     <|-- AbstractSyntheticLayerSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticMaskSpec
     AbstractSyntheticLayerSpec <|-- UniformSpec
@@ -555,6 +577,13 @@ classDiagram
     AbstractShapeSpec <|-- ConstructedShapeSpec
     AbstractShapeSpec <|-- NaturalEarthSpec
     AbstractShapeSpec <|-- ShapeSpec
+    AbstractLazySpec <|-- ShapeMaskSpec
+    AbstractShapeRule <|-- AnyOverlap
+    AbstractShapeRule <|-- FractionWithin
+    AbstractShapeRule <|-- FullyWithin
+    AbstractShapeRule <|-- WholeBoundingBox
+    ShapeMaskSpec "1" *-- "1" AbstractShapeSpec : shape
+    ShapeMaskSpec "1" *-- "1" AbstractShapeRule : rule
 ```
 
 Every spec is constructed exactly one way - via its own inner constructor, e.g. `GradientSpec(low,

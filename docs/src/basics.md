@@ -153,7 +153,7 @@ instead of being invented:
 
 ```julia
 area = StudyArea(regime = SourceSpec(WorldClim{BioClim}, :bio1),
-                 within = LatLong(-10.0°, 3.0°, 50.0°, 60.0°),
+                 within = EcoSISTEM.boundingbox("Scotland"),
                  cellsize = 10km, crs = EPSG(27700))
 env = GridHabitat(regime = SourceSpec(WorldClim{BioClim}, :bio1),
                         supply = SourceSpec(WorldClim{Climate}, :srad),

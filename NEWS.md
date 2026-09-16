@@ -26,8 +26,13 @@
       stated as a mass of water per area read as a depth by the density of water.
     - `read(spec)` on any shape spec, giving the connected pieces of ground it names - geometry,
       envelope and area, largest first - before any grid exists. `ShapeSpec` takes the same
-      `coverage` and `outline` as a named region, so a file's smaller pieces can be dropped or its
-      box taken.
+      `coverage` as a named region, so a file's smaller pieces can be dropped.
+    - `ShapeMaskSpec(shape, rule)` says which cells a shape activates: `AnyOverlap()` for every cell
+      holding any of it, `FractionWithin(f)` for a share of one, `FullyWithin()` for whole cells
+      only, and `WholeBoundingBox()` for the box around it with no coastline rasterised. The share
+      is the exact area of each cell lying inside the shape.
+    - `ShapeCoverage(shape; axis)`, the share of each cell a shape covers as a layer: as a supply on
+      `SurfaceArea` it is each cell's land area, with the water left out.
     - Every file the package fetches gets a provenance record beside it, `<file>.provenance.toml`:
       the URL or the Climate Data Store request and job, when it was fetched, its size and SHA-256
       checksum, and the dataset's DOI, licence, version and citation from the catalogue.
@@ -88,6 +93,18 @@
       as PDFs from the package's own examples, at the published scale when run directly and from
       a small run under the test suite.
   - Changed
+    - Under MPI with more than one rank, `StudyArea`, `investigate_study_area`, `materialise`,
+      `GridHabitat` and `build_habitat` read and build on the first rank, and the other ranks receive
+      the result, so the data is read once and every rank holds the same values. Every rank must
+      make these calls, in the same order.
+    - A distributed ecosystem takes the first rank's species list and seed on every rank. With no
+      `seed` the ranks drew different ones, so random interventions selected different cells on
+      each; a `seed` that differs between ranks is now an error.
+    - A shape used as a `within` mask activates every cell at least **half** covered by it, where it
+      activated the cells whose centres fell inside. Coastal cells move and the area is roughly
+      kept; `ShapeMaskSpec(shape, rule)` states any other rule.
+    - The `outline` keyword is gone from `ShapeSpec`, `NaturalEarthSpec` and `ConstructedShapeSpec`.
+      Write `ShapeMaskSpec(shape, WholeBoundingBox())` for what `outline = false` did.
     - A run of `duration` in steps of `timestep` takes `duration / timestep` steps and ends at
       `duration`, where it took one step more: the nearest whole number of steps of a day or less,
       and a longer step must divide `duration`. Twelve monthly steps now end where one yearly step

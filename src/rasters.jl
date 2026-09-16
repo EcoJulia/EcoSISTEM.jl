@@ -48,9 +48,9 @@ const _CRS_CANDIDATES = Ref{Union{Nothing, Vector{NamedTuple}}}(nothing)
 
 # --- Active-area masks -----------------------------------------------------
 # Data-driven active-area masks are composed with `ConstructedRasterSpec` from a data source plus a
-# combine rule; `CircleMaskSpec`/`ShapeSpec` are the synthetic/vector mask specs. The two public
+# combine rule; `CircleMaskSpec`/`ShapeMaskSpec` are the synthetic/vector mask specs. The two public
 # rules below are reusable building blocks for writing your own combine (`_circle`/`_shapegeoms`+
-# `_shape` remain the private geometry helpers for the synthetic/vector masks).
+# `_coveredfraction` remain the private geometry helpers for the synthetic/vector masks).
 
 """
     hasdata(layer)
@@ -90,13 +90,19 @@ exists: the eager step the spec defers. Each piece is a named tuple of its `geom
 square kilometres, ordered largest first, after the spec's `coverage` has said which to keep.
 
 Building a study area resolves a shape through this, so calling it directly is for inspection -
-to see how many pieces a name is, or how large the one a `coverage` would drop is.
+to see how many pieces a name is, or how large the one a `coverage` would drop is. A
+[`ShapeMaskSpec`](@ref) reads as the shape it masks by, its rule deciding which cells those pieces
+activate rather than which pieces there are.
 
 # Arguments
 
   - `spec`: what to read.
 """
 Base.read(spec::AbstractShapeSpec) = _shapecomponents(spec)
+
+# A mask spec reads as the shape it masks by, which the docstring above says: its rule decides which
+# cells the pieces activate, not which pieces there are.
+Base.read(spec::ShapeMaskSpec) = read(spec.shape)
 
 """
     read(spec::RasterSpec; cut = spec.cut, scale = spec.scale, fn = spec.fn)
@@ -948,25 +954,35 @@ function _preparemask(active::CircleMaskSpec, tcrs)
     return (payload = active, extent = _circleextent(active, tcrs))
 end
 
-# A shape - a vector file, a named region, a combination - either as its outline or as the box
-# around it.
-#
-# `outline = false` returns the extent with **no** payload, which is how `_preparemask` already says
-# "restrict the grid to this box, but leave every cell in it active" - the same answer an
-# `Extents.Extent` gives. The geometries are still prepared to get there, which is a little wasted
-# work once per build against a read or download that dominates it.
-function _preparemask(active::AbstractShapeSpec, tcrs)
-    geoms, extent = _shapegeoms(active, tcrs)
+# A shape under the rule that says which cells it activates. The geometry is resolved here, before
+# any grid exists, and the rule travels with it to be applied once there is one.
+function _preparemask(active::ShapeMaskSpec, tcrs)
+    geoms, extent = _shapegeoms(active.shape, tcrs)
     # No geometry means no ground, which is never a usable mask and is usually a coverage that
     # filtered everything out, a combination whose members do not meet, or a file with no polygon
     # in it. Saying so beats handing back a grid with no active cells, or an extent at the origin.
     isempty(geoms) &&
-        error("`$active` selects no ground. A `LandmassesAbove` threshold may have excluded every " *
-              "component, a file may hold no polygon, or the members of a combination may not " *
-              "overlap - Natural Earth's physical outlines are drawn per landmass, so a " *
-              "continent's polygon does not contain its offshore islands.")
-    return (payload = active.outline ? geoms : nothing, extent = extent)
+        error("`$(active.shape)` selects no ground. A `LandmassesAbove` threshold may have " *
+              "excluded every component, a file may hold no polygon, or the members of a " *
+              "combination may not overlap - Natural Earth's physical outlines are drawn per " *
+              "landmass, so a continent's polygon does not contain its offshore islands.")
+    return (payload = _maskpayload(active.rule, geoms), extent = extent)
 end
+
+# A shape on its own is the same mask under the default rule.
+function _preparemask(active::AbstractShapeSpec, tcrs)
+    return _preparemask(ShapeMaskSpec(active),
+                        tcrs)
+end
+
+# What a rule needs once there is a grid: the prepared pieces to measure each cell against, or
+# nothing at all where the box is the whole answer. No payload is how `_preparemask` says "restrict
+# the grid to this box, but leave every cell in it active" - the same answer an `Extents.Extent`
+# gives. The geometries are still prepared to reach the extent, which is a little wasted work once
+# per build against a read or download that dominates it.
+_maskpayload(rule::AbstractShapeRule, geoms) = (parts = geoms, rule = rule)
+
+_maskpayload(::WholeBoundingBox, _) = nothing
 
 # A geographic `Extents.Extent` is *pure* extent: it says where the grid goes and nothing else, so once the grid has
 # been cut to it every cell is inside and there is no payload left to rasterise. Always given in WGS84
@@ -991,7 +1007,10 @@ end
 
 function _preparemask(active, tcrs)
     return error("unrecognised `within` argument of type $(typeof(active)); use nothing, a " *
-                 "Matrix{Bool}, a LatLong box, or a mask spec (CircleMaskSpec/ShapeSpec/ConstructedRasterSpec).")
+                 "Matrix{Bool}, an `Extents.Extent` in degrees - `EcoSISTEM.boundingbox(\"Scotland\")` " *
+                 "gives one - or a mask spec: a shape (`ShapeSpec`/`NaturalEarthSpec`/" *
+                 "`ConstructedShapeSpec`, on its own or in a `ShapeMaskSpec` stating the rule), " *
+                 "`CircleMaskSpec`, or `ConstructedRasterSpec`.")
 end
 
 # A synthetic unitless target `Rasters.Raster` in `crs`, covering the unitful bounds
@@ -1305,6 +1324,8 @@ end
 # A `ConstructedRasterSpec` carries the niche axis declared at construction (`NicheAxis` by default).
 _specaxis(spec::ConstructedRasterSpec) = spec.axis
 
+_specaxis(::ShapeCoverage{A}) where {A} = A
+
 # Wrap a sampled supply layer as a supply: `_cancel` converts the raw per-area rate (at any native
 # time unit) to an absolute per-cell one against `cellarea`, stated in the axis's canonical unit, and
 # the **axis** picks the supply type - never the value's dimension, on either count. A
@@ -1529,12 +1550,13 @@ function _coverageof(parts::AbstractVector{_ShapeComponent}, c::LandmassesAbove)
     return filter(p -> p.area >= threshold, parts)
 end
 
-# One feature of a vector file as `_shape` uses it: the prepared geometry to test cells against, and
-# the envelope that says which cells those are. The element type is written out because a layer mixes
-# `wkbPolygon` and `wkbMultiPolygon` features, so an inferred one keeps only the field names and
-# every access through it becomes a dynamic lookup.
+# One piece of a shape on the target grid: the prepared geometry to test cells against, the envelope
+# that says which cells those are, and the geometry itself, which a covered area is cut from. The
+# element type is written out because a layer mixes `wkbPolygon` and `wkbMultiPolygon` features, so
+# an inferred one keeps only the field names and every access through it becomes a dynamic lookup.
 const _ShapePart = @NamedTuple{prepared::ArchGDAL.IPreparedGeometry,
-                               envelope::ArchGDAL.GDAL.OGREnvelope}
+                               envelope::ArchGDAL.GDAL.OGREnvelope,
+                               geometry::ArchGDAL.IGeometry}
 
 # Reproject `geoms` from `src` into the target grid's own CRS and prepare each for the per-cell
 # containment test, with the extent they jointly cover.
@@ -1562,7 +1584,7 @@ function _preparegeoms(geoms, src, tcrs)
         env = ArchGDAL.envelope(g)
         ylo, yhi = min(ylo, env.MinY), max(yhi, env.MaxY)
         xlo, xhi = min(xlo, env.MinX), max(xhi, env.MaxX)
-        return _ShapePart((ArchGDAL.preparegeom(g), env))
+        return _ShapePart((ArchGDAL.preparegeom(g), env, g))
     end
     extent = isempty(parts) ? nothing :
              _extentof(ylo * u, yhi * u, xlo * u, xhi * u)
@@ -1692,29 +1714,65 @@ function _axiswindow(axis, lo, hi)
     return firstindex(axis):lastindex(axis)
 end
 
-# Mirrors `_circle`: a cell is active if its centre falls inside any of the shapefile's features.
+# The share of each cell that `geoms` cover, from 0 to 1: the area of the cell's rectangle inside a
+# geometry over the rectangle's own area, both in the grid's coordinates, so on a geographic grid it
+# is the share of the cell's latitude-longitude rectangle. `tlat` and `tlong` hold each cell's
+# `(lo, hi)` along the axis.
 #
-# Each geometry is walked over the cells inside its own envelope. A per-cell envelope test on top of
-# that costs more than it saves, a prepared geometry already doing one in C; the win is in not
-# visiting the cell at all.
-function _shape(geoms, tlat, tlong)
-    mask = falses(length(tlat), length(tlong))
-    # `geoms` are already in the target's own CRS (`_shapegeoms`), so the coordinates just need
-    # their unit stripped - whatever it is (° for a geographic grid, m for a projected one) -
-    # rather than being forced to degrees.
-    lats, longs = ustrip.(tlat), ustrip.(tlong)
+# A cell a geometry only touches along an edge shares no area with it, and so gets nothing. A cell
+# wholly inside a geometry counts one without an intersection being cut, which leaves the cells its
+# outline crosses as the only ones that pay for one. The pieces a shape resolves to are disjoint, so
+# their shares add, capped at one against rounding.
+function _coveredfraction(geoms, tlat, tlong)
+    lats = [ustrip.(interval) for interval in tlat]
+    longs = [ustrip.(interval) for interval in tlong]
+    covered = zeros(length(lats), length(longs))
     for g in geoms
-        prepared, env = g.prepared, g.envelope
-        is = _axiswindow(lats, env.MinY, env.MaxY)
-        js = _axiswindow(longs, env.MinX, env.MaxX)
-        for i in is, j in js
-            mask[i, j] && continue
-            mask[i, j] = ArchGDAL.contains(prepared,
-                                           ArchGDAL.createpoint(longs[j],
-                                                                lats[i]))
+        env = g.envelope
+        for i in _intervalwindow(lats, env.MinY, env.MaxY),
+            j in _intervalwindow(longs, env.MinX, env.MaxX)
+            (ylo, yhi), (xlo, xhi) = lats[i], longs[j]
+            cell = ArchGDAL.createpolygon([[(xlo, ylo), (xhi, ylo), (xhi, yhi),
+                                              (xlo, yhi), (xlo, ylo)]])
+            if ArchGDAL.contains(g.prepared, cell)
+                covered[i, j] += 1.0
+            elseif ArchGDAL.intersects(g.prepared, cell)
+                inside = ArchGDAL.geomarea(ArchGDAL.intersection(g.geometry,
+                                                                 cell))
+                covered[i, j] += inside / ((yhi - ylo) * (xhi - xlo))
+            end
         end
     end
-    return Matrix{Bool}(mask)
+    return min.(covered, 1.0)
+end
+
+# The cells whose `(lo, hi)` interval overlaps `lo...hi` with some length, whichever way the axis
+# runs: those an envelope can share area with.
+function _intervalwindow(intervals, lo, hi)
+    return [k for (k, (a, b)) in pairs(intervals) if a < hi && b > lo]
+end
+
+# How far a covered share may miss a threshold and still meet it, as a share of one cell. Two things
+# have to fit inside it. Reprojecting into the target CRS moves a vertex, which costs about 5e-7 of
+# a cell: without a tolerance a cell that is genuinely whole computes as a shade under 1 and fails
+# `FullyWithin`, and two shapes meeting along an edge overlap by a sliver that would pass
+# `AnyOverlap`. Twenty times that error, and still a hundred-thousandth of a cell - 10 m^2 on a 1 km
+# cell - so no hole a person draws is absorbed by it.
+const _COVERTOL = 1e-5
+
+# The share of a cell a rule demands. `FullyWithin` asks for the whole of it, which is what makes it
+# and `FractionWithin(1.0)` one test rather than two that could drift apart.
+_threshold(::FullyWithin) = 1.0
+
+_threshold(rule::FractionWithin) = rule.fraction
+
+# Whether a cell the shape covers `fraction` of is active under `rule`. Every rule is one comparison
+# against that one number, each admitting `_COVERTOL`, so no two can disagree about a cell that sits
+# on their shared boundary.
+_rulepasses(::AnyOverlap, fraction) = fraction > _COVERTOL
+
+function _rulepasses(rule::Union{FullyWithin, FractionWithin}, fraction)
+    return fraction >= _threshold(rule) - _COVERTOL
 end
 
 # Put a bare Bool `DimArray` (a `ConstructedRasterSpec` mask, say) onto `target` through the same
@@ -1809,11 +1867,13 @@ function _rastermask(payload::CircleMaskSpec, regime, target)
     return _circle(payload, yx.lat, yx.long, Rasters.crs(target))
 end
 
-# `_preparemask(::AbstractShapeSpec, ...)` already read and reprojected the geometries, so the
-# payload is the vector of prepared geometries and their envelopes - nothing is re-read here.
-function _rastermask(payload::AbstractVector, regime, target)
-    yx = _cellcentres(target)
-    return _shape(payload, yx.lat, yx.long)
+# `_preparemask(::ShapeMaskSpec, ...)` already read and reprojected the geometries, so the payload
+# is the prepared pieces and the rule - nothing is re-read here. The covered share is computed once
+# per cell and the rule is one comparison against it, so every rule costs the same.
+function _rastermask(payload::NamedTuple{(:parts, :rule)}, regime, target)
+    yx = _cellintervals(target)
+    covered = _coveredfraction(payload.parts, yx.lat, yx.long)
+    return Matrix{Bool}(map(f -> _rulepasses(payload.rule, f), covered))
 end
 
 function _rastermask(payload::AbstractMatrix{Bool}, regime, target)
@@ -2173,6 +2233,15 @@ function _asraster(spec::AbstractShapeSpec)
                  "To combine it with other geometry use `ConstructedShapeSpec`, which composes " *
                  "shapes exactly and at no resolution; to use it as a mask on a grid pass it as " *
                  "`within` to `StudyArea`.")
+end
+
+# A mask recipe as a layer. It is already the thing `within` takes, so the refusal above would give
+# circular advice; what this one names is the spec that turns the same shape into values.
+function _asraster(spec::ShapeMaskSpec)
+    return error("`ShapeMaskSpec` says which cells a shape activates, so it is a `within` mask " *
+                 "rather than a layer: it carries no values to put in a cell. Pass it as `within` " *
+                 "to `StudyArea`, or, for the share of each cell the shape covers as a layer, " *
+                 "name `ShapeCoverage(shape, axis = ...)`.")
 end
 
 # --- Raster-geometry primitives ----------------------------------------------

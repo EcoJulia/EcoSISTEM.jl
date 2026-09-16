@@ -48,7 +48,9 @@ An [`Ecosystem`](@ref) whose abundances are distributed across MPI ranks; `EcoSI
 the concrete `MPIEcosystem`.
 
 Only the abundances are split. The habitat, species list and nichefit are held whole on every rank,
-and four extra fields record which slice of the work this rank owns.
+and four extra fields record which slice of the work this rank owns. Every rank takes the first
+rank's species list and seed when the ecosystem is built, so a species list or seed drawn at random
+on each rank still gives one ecosystem.
 
 # Fields
 

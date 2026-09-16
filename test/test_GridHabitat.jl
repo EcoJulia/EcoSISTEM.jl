@@ -580,21 +580,27 @@ end
 
     @testset "shapemask" begin
         # No CRS metadata (no .prj) - treated as already WGS84 lat/long. Polygon covers lat/long
-        # [-0.5,2.5] x [-0.5,2.5]. **A cell is tested at its representative *midpoint***, and under
-        # the `Intervals(Start)` locus a reader produces, `temp`'s cells labelled 0...4 have midpoints
-        # 0.5, 1.5, 2.5, 3.5, 4.5. So cells 0 and 1 are inside and cell 2's midpoint falls **exactly
-        # on the polygon edge**, which GDAL's `contains` excludes - the same rule the projected
-        # shapefile case below already documents.
+        # [-0.5,2.5] x [-0.5,2.5]. A shape used on its own activates every cell at least half
+        # covered, and under the `Intervals(Start)` locus a reader produces, `temp`'s cells labelled
+        # 0...4 span [0,1), [1,2), [2,3) and so on. So cells 0 and 1 are covered whole and cell 2 is
+        # covered to its midpoint - exactly half of it, along each axis. A cell half covered on one
+        # axis and whole on the other keeps half its area and counts; the corner, half covered on
+        # both, keeps a quarter and does not. That one cell is what makes this fixture worth having:
+        # it separates an area rule from a rule that asks only whether a cell is touched.
         path = _testshapefile(-0.5, -0.5, 2.5, 2.5)
         env = _env(_reg(temp), SUP, within = ShapeSpec(path))
         @test env.active isa DimensionalData.AbstractDimArray{Bool}
         # The mask sets the extent, so the grid *is* those cells rather than the data's full 5 × 5
         # with an active corner - and because a native-resolution mask crops the data's own grid
         # instead of re-gridding, the survivors keep the source's own labels exactly.
-        @test size(env.active) == (2, 2)
-        @test all(env.active)
-        @test parent(DimensionalData.lookup(env.active, Y)) == [0.0, 1.0] .* °
-        @test parent(DimensionalData.lookup(env.active, X)) == [0.0, 1.0] .* °
+        @test size(env.active) == (3, 3)
+        @test parent(env.active) == [true true true
+               true true true
+               true true false]
+        @test parent(DimensionalData.lookup(env.active, Y)) ==
+              [0.0, 1.0, 2.0] .* °
+        @test parent(DimensionalData.lookup(env.active, X)) ==
+              [0.0, 1.0, 2.0] .* °
 
         # British National Grid (EPSG:27700) - reprojects to ~lat 55.72-55.81, long -4.39 to -4.23.
         bng = ArchGDAL.importEPSG(27700)
@@ -610,7 +616,11 @@ end
         scotland = _testraster(WorldClim{BioClim}, fill(290.0K, 2, 2),
                                lat = [55.375, 56.125] .* °,
                                long = [-4.75, -4.45] .* °)
-        scotenv = _env(_reg(scotland), SUP, within = ShapeSpec(bngpath))
+        # The rule is stated rather than left to the default, because this fixture is about *where*
+        # the reprojected polygon lands: a 10 km shape covers about a seventieth of an 83 km cell,
+        # so nothing here is half covered and the default would leave no active cell at all.
+        scotenv = _env(_reg(scotland), SUP,
+                       within = ShapeMaskSpec(ShapeSpec(bngpath), AnyOverlap()))
         @test scotenv.active == [false true; false false]
 
         # `ShapeSpec` also accepts a URL, downloaded (via `EcoSISTEM.CachedAsset`)
@@ -639,9 +649,10 @@ end
         urlspec = ShapeSpec("file://" * geojsonpath)
         @test urlspec.path isa EcoSISTEM.CachedAsset
         urlenv = _env(_reg(temp), SUP, within = urlspec)
-        # same polygon, same mask-set extent as the plain-path case above
-        @test size(urlenv.active) == (2, 2)
-        @test all(urlenv.active)
+        # same polygon, so the same mask-set extent and the same dropped corner as the plain-path
+        # case above
+        @test size(urlenv.active) == (3, 3)
+        @test count(urlenv.active) == 8
         # Tidy up the shared cache: this test's fixture has no business persisting there. Windows
         # may refuse, and that is not a test failure -- GDAL keeps the dataset's file handle open
         # past the read, so `unlink` raises EBUSY where the POSIX platforms allow the unlink and

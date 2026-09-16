@@ -135,31 +135,45 @@ function _specinputs(spec::ConstructedRasterSpec)
                   init = InputRecord[])
 end
 
-function _specinputs(spec::ShapeSpec)
+function _specinputs(spec::ShapeSpec; role::Symbol = :region)
     path = _localpath(spec.path)
     isfile(path) || return InputRecord[]
     return [something(_ourrecordat(path),
-                      InputRecord(role = :region, dataset = "file",
+                      InputRecord(role = role, dataset = "file",
                                   path = basename(path)))]
 end
 
-function _specinputs(spec::NaturalEarthSpec)
+function _specinputs(spec::NaturalEarthSpec; role::Symbol = :region)
     path = _localpath(_nesource(_checklevel(spec.level)))
     isfile(path) || return InputRecord[]
     record = something(_ourrecordat(path),
-                       InputRecord(role = :region, dataset = "file",
+                       InputRecord(role = role, dataset = "file",
                                    path = basename(path)))
     return [_withcatalogue(record, datasetinfo(NaturalEarthLevel), path)]
 end
 
-function _specinputs(spec::ConstructedShapeSpec)
-    return reduce(vcat, (_specinputs(m) for m in spec.members),
+function _specinputs(spec::ConstructedShapeSpec; role::Symbol = :region)
+    return reduce(vcat, (_specinputs(m, role = role) for m in spec.members),
                   init = InputRecord[])
 end
 
 # Anything else a `within` or a combination member may be - `nothing`, a matrix, a box, a circle, a
 # synthetic layer - names no file. Deliberately untyped, as the fallback for all of them.
-_specinputs(::Any) = InputRecord[]
+_specinputs(::Any; role::Symbol = :region) = InputRecord[]
+
+# A shape read as a **layer** rather than as a region: the same files, recorded under the layer's own
+# role, so a habitat built from one says what ground it came from.
+function _specinputs(spec::ShapeCoverage; role::Symbol = :habitat)
+    return _specinputs(spec.shape, role = role)
+end
+
+# A shape wrapped in the rule deciding which cells it activates: the same files under the same role,
+# since how much of a cell must be covered does not change where the ground came from. Without this
+# the untyped fallback above answers "names no file", and the region vanishes from the provenance
+# with nothing reporting it.
+function _specinputs(spec::ShapeMaskSpec; role::Symbol = :region)
+    return _specinputs(spec.shape, role = role)
+end
 
 # A `Provenance` as the tables its TOML file holds: the software, the grid, the run where there is
 # one, and a table per input.

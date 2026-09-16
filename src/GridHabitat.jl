@@ -54,6 +54,9 @@ inactive. A layer that was not named when the area was decided can therefore rem
 move or resize the grid - so the area you inspected is the area you get - and doing so warns. Name a
 layer in `StudyArea(...)` if you want it to shape the grid; omit it and it can only subtract.
 
+**Under MPI with more than one rank this is a collective call**, made on every rank in the same
+order; see [Building is collective](@ref).
+
 **This is the type's only constructor.** A habitat is described by the layers it should have and
 the grid they sit on; there is no form taking already-assembled parts, so `new` is reachable from
 exactly one place.

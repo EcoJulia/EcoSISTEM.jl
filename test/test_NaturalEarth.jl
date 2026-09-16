@@ -337,8 +337,6 @@ end
                     sprint(show,
                            NaturalEarthSpec("Scotland",
                                             coverage = AllTerritories())))
-    @test occursin("outline = false",
-                   sprint(show, NaturalEarthSpec("Scotland", outline = false)))
 end
 
 @testset "LandmassesAbove keeps the components that clear a threshold" begin
@@ -417,9 +415,9 @@ end
           EcoSISTEM.AbstractShapeSpec
 end
 
-@testset "a file takes the same coverage and outline as a named region" begin
+@testset "a file takes the same coverage as a named region" begin
     # Two squares of very different size in one file: the coverage decides how many pieces the
-    # file is, exactly as it does for a name, and `outline = false` gives the box with no
+    # file is, exactly as it does for a name, and `WholeBoundingBox` gives the box with no
     # polygons left to test cells against.
     path = joinpath(mktempdir(), "two.geojson")
     write(path,
@@ -430,7 +428,7 @@ end
               "coordinates":[[[0,50],[0.1,50],[0.1,50.1],[0,50.1],[0,50]]]}}]}""")
     whole = ShapeSpec(path)
     @test length(read(whole)) == 2
-    @test whole.coverage isa AllTerritories && whole.outline
+    @test whole.coverage isa AllTerritories
     main = ShapeSpec(path, coverage = LargestLandmass())
     @test length(read(main)) == 1
     @test only(read(main)).envelope.MinX ≈ -5.0
@@ -442,20 +440,53 @@ end
                                                                                        km^2)),
                                                   Rasters.EPSG(4326))
     # The whole file's box covers both squares; a box alone has no payload.
-    box = _preparemask(ShapeSpec(path, outline = false), Rasters.EPSG(4326))
+    box = _preparemask(ShapeMaskSpec(ShapeSpec(path), WholeBoundingBox()),
+                       Rasters.EPSG(4326))
     @test isnothing(box.payload)
     @test box.extent.X[1] ≈ -5.0° && box.extent.X[2] ≈ 0.1°
     @test box.extent.Y[1] ≈ 50.0° && box.extent.Y[2] ≈ 57.0°
     outlined = _preparemask(main, Rasters.EPSG(4326))
-    @test length(outlined.payload) == 1
+    # The payload carries the prepared pieces and the rule to apply to them, so the pieces are
+    # counted through `parts` rather than by the payload's own length.
+    @test length(outlined.payload.parts) == 1
+    @test outlined.payload.rule == FractionWithin(0.5)
     @test outlined.extent.X[2] ≈ -3.0°
     # A combination of two files reads to what it builds.
     both = ConstructedShapeSpec(ShapeUnion(), main, ShapeSpec(path))
     @test length(read(both)) == 2
     @test string(main) ==
           "ShapeSpec($(repr(path)), coverage = $(LargestLandmass()))"
-    @test string(ShapeSpec(path, outline = false)) ==
-          "ShapeSpec($(repr(path)), outline = false)"
+    # The rule lives on the mask spec, so a shape prints none of its own. The rule is interpolated
+    # rather than written out, as the coverage above is: a singleton's own `show` qualifies it with
+    # its module unless the module is in scope where the printing happens, so a literal here would
+    # assert one spelling under `Pkg.test` and the other when this file is run directly.
+    @test string(ShapeMaskSpec(whole, WholeBoundingBox())) ==
+          "ShapeMaskSpec(ShapeSpec($(repr(path))), $(WholeBoundingBox()))"
+end
+
+@testset "which cells a shape activates is the mask spec's question" begin
+    spec = NaturalEarthSpec("Scotland")
+    # A shape carries no rule of its own: it is geometry, and how much of a cell must be covered
+    # has an answer only once there is a grid.
+    @test_throws MethodError NaturalEarthSpec("Scotland", outline = false)
+    @test_throws MethodError ShapeSpec("nowhere.geojson", outline = true)
+    @test_throws MethodError ConstructedShapeSpec(ShapeUnion(), spec, spec,
+                                                  outline = false)
+
+    # A shape used on its own keeps roughly the area it names.
+    @test ShapeMaskSpec(spec).rule == FractionWithin(0.5)
+    @test ShapeMaskSpec(spec, AnyOverlap()).rule isa AnyOverlap
+
+    # A mask recipe is not geometry, so it is refused where geometry is wanted - as a member of a
+    # combination, and as the shape a coverage layer measures.
+    mask = ShapeMaskSpec(spec, AnyOverlap())
+    @test_throws MethodError ConstructedShapeSpec(ShapeUnion(), mask, spec)
+    @test_throws MethodError ShapeCoverage(mask, axis = SurfaceArea)
+    # ...and as a layer, where the message names what to write instead.
+    @test_throws "ShapeCoverage" EcoSISTEM._asraster(mask)
+
+    # It reads and reports provenance as the shape it masks by, rather than as nothing at all.
+    @test EcoSISTEM._specinputs(mask) == EcoSISTEM._specinputs(spec)
 end
 
 @testset "an operation may be a function, mirroring the raster side" begin
@@ -708,8 +739,8 @@ if geometrytests()
         @test issorted([m.overlap for m in few], rev = true)
     end
 
-    @testset "outline = false gives the box, with every cell in it active" begin
-        spec = NaturalEarthSpec("Scotland", outline = false)
+    @testset "WholeBoundingBox gives the box, with every cell in it active" begin
+        spec = ShapeMaskSpec(NaturalEarthSpec("Scotland"), WholeBoundingBox())
         prep = _preparemask(spec, Rasters.EPSG(4326))
         # No payload is how `_preparemask` already says "restrict the extent, mask nothing".
         @test isnothing(prep.payload)
