@@ -1305,6 +1305,8 @@ end
 # A `ConstructedRasterSpec` carries the niche axis declared at construction (`NicheAxis` by default).
 _specaxis(spec::ConstructedRasterSpec) = spec.axis
 
+_specaxis(::ShapeCoverage{A}) where {A} = A
+
 # Wrap a sampled supply layer as a supply: `_cancel` converts the raw per-area rate (at any native
 # time unit) to an absolute per-cell one against `cellarea`, stated in the axis's canonical unit, and
 # the **axis** picks the supply type - never the value's dimension, on either count. A

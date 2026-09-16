@@ -498,6 +498,12 @@ file, a named country, a continent, an island - and resolves to geometry before 
 Every shape spec carries a `coverage`, which of the connected pieces of that ground to take, and an
 `outline`, whether to mask by the pieces or by the box around them; `read(spec)` gives the pieces.
 
+`ShapeCoverage` is the one spec that **reads inputs and yet adopts a grid**: it wraps a shape spec
+and declares an axis, and its value is the share of each cell the shape covers, measured on whatever
+grid it is built on. So it answers the grid questions as a generated layer does - it cannot decide a
+study area's extent, resolution or CRS - while carrying a real file's provenance as a data spec does.
+It needs a positioned area, since geometry can only be placed where there is a CRS to place it in.
+
 `RasterSpec` names raster data to be read, and has two spellings: `SourceSpec(source, code)` for a
 layer of a catalogued dataset, whose unit and axis the catalogue supplies and whose files the source
 resolves - or, with `file`, `files` or `directory`, files the caller names, which the catalogue
@@ -531,6 +537,7 @@ classDiagram
     class NaturalEarthSpec~C~
     class ConstructedShapeSpec~O, M, C~
     class ConstructedRasterSpec~A, F~
+    class ShapeCoverage~A, S~
     class UniformSpec~A, V~
     class GradientSpec~A, V~
     class PeakedSpec~A, V~
@@ -541,6 +548,7 @@ classDiagram
     AbstractSpec              <|-- AbstractSyntheticSpec
     AbstractLazySpec          <|-- RasterSpec
     AbstractLazySpec          <|-- ConstructedRasterSpec
+    AbstractLazySpec          <|-- ShapeCoverage
     AbstractSyntheticSpec     <|-- AbstractSyntheticLayerSpec
     AbstractSyntheticSpec     <|-- AbstractSyntheticMaskSpec
     AbstractSyntheticLayerSpec <|-- UniformSpec

@@ -413,4 +413,61 @@ end
           ["a.tif", "b.tif"]
 end
 
+# A shape as a **layer**: the share of each cell it covers, measured on the grid it is built on. The
+# fixture's cells are 2500 m from 245000 m east and 640000 m north, and the rectangle runs from the
+# middle of the first cell to the middle of the third in both directions, so each cell's share is the
+# product of its row's and its column's - written out rather than recomputed here.
+@testset "a shape becomes a coverage layer on the grid it is built on" begin
+    data = _reg(_bngraster(WorldClim{BioClim}, fill(291.0K, 9, 9)),
+                axis = Temperature)
+    area = _area(regime = data)
+    path = _testshapefile(246250.0, 641250.0, 251250.0, 646250.0,
+                          sr = ArchGDAL.importEPSG(27700))
+    land = ShapeCoverage(ShapeSpec(path), axis = SurfaceArea)
+    @test sprint(show, land) ==
+          "ShapeCoverage(ShapeSpec($(repr(path))), axis = SurfaceArea)"
+
+    shares = [0.5, 1.0, 0.5]
+    expected = zeros(9, 9)
+    expected[1:3, 1:3] = shares * shares'
+    # A tolerance, and it is not floating-point noise: a shape is read into WGS84 and transformed
+    # back into the grid's CRS, so even a file drawn in that CRS arrives about a millimetre out -
+    # measured here as 0.24999987 against 0.25, a relative error of 5e-7 on 2500 m cells.
+    @test isapprox(parent(materialise(land, area).matrix), expected,
+                   atol = 1e-5)
+    # ...and it is a continuous layer: a covered share is a number, not a class code. The values
+    # alone cannot say so - a layer wrongly built as categorical holds exactly the same ones.
+    @test materialise(land, area) isa EcoSISTEM.ContinuousLayer
+
+    # As a supply the fraction becomes ground per cell, using the cell's own area - 2500 m squared.
+    supply = materialise(land, area, role = EcoSISTEM.Resource)
+    @test isapprox(ustrip.(u"m^2", parent(supply.matrix)), expected .* 6.25e6,
+                   rtol = 1e-5)
+
+    # ...and what the builder puts in the habitat is what inspection showed.
+    habitat = GridHabitat(regime = data, supply = land, area = area)
+    @test habitat.supply.matrix == supply.matrix
+    # The shapefile is recorded as an input of the habitat, under the layer's role rather than a
+    # region's: a shape read as a layer is not a constraint on the grid.
+    @test any(r -> r.path == basename(path) && r.role == :habitat,
+              habitat.area.report.inputs)
+
+    # Every other value is built from the fraction, on the default combine stage.
+    doubled = ConstructedRasterSpec(f -> f .* 2, land, axis = SurfaceArea)
+    @test isapprox(parent(materialise(doubled, area).matrix), 2 .* expected,
+                   atol = 1e-5)
+
+    # A built layer says where its values came from: read from geometry, neither generated nor
+    # taken from a raster dataset.
+    built = EcoSISTEM._materialiseon(land, area.report.active,
+                                     EcoSISTEM.LayerCache())
+    @test EcoSISTEM._sourceof(built) === EcoSISTEM.VectorData
+
+    # Geometry needs somewhere to be placed, and a categorical axis is not a share of a cell.
+    synthetic = _area(extent = (10.0km, 10.0km), cellsize = 1.0km)
+    @test_throws "positioned study area" materialise(land, synthetic)
+    @test_throws "categorical axis" ShapeCoverage(ShapeSpec(path),
+                                                  axis = LandCoverTypology)
+end
+
 end

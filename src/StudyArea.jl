@@ -779,6 +779,12 @@ end
 # `extent`/`cellsize` it genuinely needs.
 _shapesgrid(::AbstractSyntheticSpec) = false
 
+# A shape's coverage is measured on whatever grid it is given, so like a synthetic layer it cannot
+# decide one - it has no resolution of its own, only an outline. What it does need is a **positioned**
+# area, and its own build refuses one without a CRS: this answer would otherwise admit it to the
+# synthetic path, where there is nowhere to put geometry.
+_shapesgrid(::ShapeCoverage) = false
+
 _shapesgrid(::Any) = true
 
 # **A zero period must give `NaN`, and plain division does not.** `x/0` is `Inf` in floating

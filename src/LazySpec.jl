@@ -600,6 +600,56 @@ function Base.show(io::IO, ::MIME"text/plain", spec::ConstructedRasterSpec)
 end
 
 """
+    ShapeCoverage(shape; axis)
+
+The share of each cell that a shape covers, as a layer: a coastline becomes the land area of every
+cell, with the water left out.
+
+```julia
+land = ShapeCoverage(NaturalEarthSpec("Scotland", coverage = LargestLandmass()),
+                     axis = SurfaceArea)
+GridHabitat(regime = ..., supply = land, area = area)
+```
+
+The value is a **fraction**, from 0 where the shape misses a cell to 1 where it covers one, measured
+as the area of the cell's own rectangle lying inside the shape. A cell the shape touches only along
+an edge shares no area with it, and gets nothing. As a supply on [`SurfaceArea`](@ref) that fraction
+becomes an area per cell, using each cell's true area, so it is land rather than ground; as a regime
+it stays the fraction itself.
+
+Every other value is built from the fraction with a [`ConstructedRasterSpec`](@ref) - `f -> f .> 0`
+for the cells with any land, `(land, cover) -> land .* cover` to take a land-cover share of it.
+
+**It adopts the grid it is built on**, as a generated layer does, so it never decides a study area's
+extent, resolution or CRS; and it needs a **positioned** area, since geometry can only be placed
+where there is a coordinate system to place it in.
+
+# Arguments
+
+  - `shape`: any [`AbstractShapeSpec`](@ref) - a [`ShapeSpec`](@ref) of your own file, a
+    [`NaturalEarthSpec`](@ref), or a [`ConstructedShapeSpec`](@ref) combining them.
+  - `axis`: what the fraction means, as for every other layer spec. A categorical axis is refused: a
+    covered share is a continuous quantity.
+"""
+struct ShapeCoverage{A <: NicheAxis, S <: AbstractShapeSpec} <:
+       EcoSISTEM.AbstractLazySpec
+    shape::S
+
+    function ShapeCoverage(shape::AbstractShapeSpec; axis::Type{A}) where {A}
+        EcoSISTEM._iscategorical(axis) &&
+            error("`ShapeCoverage` measures the share of a cell a shape covers, which is a " *
+                  "continuous quantity, so it cannot declare the categorical axis " *
+                  "`$(nameof(axis))`. Name a continuous axis - `SurfaceArea` for ground.")
+        return new{A, typeof(shape)}(shape)
+    end
+end
+
+function Base.show(io::IO, spec::ShapeCoverage{A}) where {A}
+    return print(io, "ShapeCoverage(", sprint(show, spec.shape), ", axis = ",
+                 nameof(A), ")")
+end
+
+"""
     RasterFileSpec(path::AbstractString; axis, unit = NoUnits, source = SyntheticData,
                    cut = nothing, scale = nothing, fn = nothing, times = nothing,
                    atend = RepeatAtEnd(), calendar = nothing)
@@ -671,6 +721,10 @@ function provenance(spec::ConstructedShapeSpec)
                   init = Union{Nothing, InputRecord}[])
 end
 
+function provenance(spec::ShapeCoverage)
+    return provenance(spec.shape)
+end
+
 function provenance(spec::ConstructedRasterSpec)
     return reduce(vcat, (_layerprovenance(l) for l in spec.layers),
                   init = Union{Nothing, InputRecord}[])
@@ -727,7 +781,8 @@ end
 
 # A combination member's entries: a data layer's own, and none for a synthetic one, which reads no
 # file. Deliberately untyped, as the fallback for every member a combination accepts.
-function _layerprovenance(layer::Union{RasterSpec, ConstructedRasterSpec})
+function _layerprovenance(layer::Union{RasterSpec, ConstructedRasterSpec,
+                                       ShapeCoverage})
     return provenance(layer)
 end
 
@@ -860,6 +915,11 @@ function _seriespolicy(spec::ConstructedRasterSpec)
 end
 
 _seriespolicy(::Any) = (atend = RepeatAtEnd(), calendar = nothing)
+
+# A shape's coverage is measured on whatever grid it is given, so it answers the "adopts a grid"
+# question the same way a generated layer does, and a combination defers it to the grid its data
+# members agree on. It reads a file all the same, which is what `provenance` and `_specinputs` say.
+EcoSISTEM._issyntheticspec(::ShapeCoverage) = true
 
 # _sharedunit(source, code) / _sharedaxis(source, code)
 #

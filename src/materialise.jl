@@ -43,6 +43,15 @@ function ReadKey(spec::RasterSpec; cut = spec.cut, scale = spec.scale)
                     fn = spec.fn, times = spec.times, spec.readkw...))
 end
 
+# The key a shape's **inputs** are filed under. A shape is not cached as a read - its geometry is
+# resolved afresh on each build - but what it was read from belongs beside every other layer's
+# records, and those are keyed this way. The spec's own spelling identifies it: two specs naming one
+# file and one coverage agree, and a different file, layer or coverage does not.
+function ReadKey(spec::AbstractShapeSpec)
+    return ReadKey(typeof(spec), nothing, nothing,
+                   (shape = sprint(show, spec),))
+end
+
 # `::AbstractSpec` rather than the full [`LayerInput`](@ref): the tuple/named-tuple forms are the
 # *separate* method below, so admitting them here would make the two ambiguous.
 """
@@ -418,6 +427,43 @@ end
 # - measured, a `_reg(raster)` layer at 4×4 against a synthetic one generated at the target's 2×2
 # is a `DimensionMismatch`. Where the layers were already put on the target, this is a no-op:
 # `_regrid` recognises a raster on the target grid and selects its cells instead of resampling.
+# A shape's covered fraction on `target`'s cells, and the two refusals both build paths share.
+# Geometry needs a frame to be placed in, and a shape selecting no ground is a mistake rather than an
+# empty layer - the same reading `_preparemask` takes of a mask that selects none.
+function _shapecovered(spec::ShapeCoverage, target, crs)
+    isnothing(crs) &&
+        error("`$(sprint(show, spec))` measures ground, so it needs a positioned study area: this " *
+              "one is synthetic and has no CRS to place geometry in. Name a data layer when the " *
+              "area is decided, or position it with `within`.")
+    parts, _ = _shapegeoms(spec.shape, crs)
+    isempty(parts) &&
+        error("`$(sprint(show, spec.shape))` selects no ground, so it covers no cell. A " *
+              "`LandmassesAbove` threshold may have excluded every component, a file may hold no " *
+              "polygon, or the members of a combination may not overlap.")
+    return _coveredfraction(parts, _cellintervals(target, Y),
+                            _cellintervals(target, X))
+end
+
+# File a shape-backed layer's inputs beside the cached reads', so a habitat's provenance names the
+# ground it was built from. The geometry itself is not cached - it is resolved once per build - but
+# its records belong where every other layer's are.
+function _recordshape!(cache::LayerCache, spec::ShapeCoverage)
+    cache.inputs[ReadKey(spec.shape)] = _specinputs(spec)
+    return nothing
+end
+
+# The shape measured on the grid it is handed, as a synthetic layer is generated at one. The source
+# is `VectorData`: the values were read from geometry, neither generated nor taken from a raster.
+function _materialiseon(spec::ShapeCoverage, target, cache::LayerCache;
+                        cut = nothing)
+    crs = Rasters.crs(target)
+    covered = _shapecovered(spec, target, crs)
+    _recordshape!(cache, spec)
+    return ClimateRaster(VectorData,
+                         DimArray(covered,
+                                  _unitedyx(dims(target, (Y, X)), crs)))
+end
+
 function _materialiseon(spec::ConstructedRasterSpec, target, cache::LayerCache;
                         cut = nothing)
     out = _combineon(spec.combinestage, spec, target, cache, cut = cut)
@@ -676,6 +722,17 @@ function _materialisefield(spec::AbstractSyntheticLayerSpec, area::StudyArea)
     # **United dims, so a synthetic layer and a data layer on one area agree** - see `_unitedyx`.
     return (values = DimArray(field, _unitedyx(yx, area.report.crs)),
             categorical = spec isa NicheSpec, series = _seriespolicy(spec))
+end
+
+# A shape measured on the area's own grid, which is the same computation `_materialiseon` does - the
+# pair this file's header warns has drifted three times, so they share `_shapecovered`.
+function _materialisefield(spec::ShapeCoverage, area::StudyArea)
+    grid = area.report.active
+    crs = area.report.crs
+    covered = _shapecovered(spec, grid, crs)
+    _recordshape!(area.report.cache, spec)
+    return (values = DimArray(covered, _unitedyx(dims(grid, (Y, X)), crs)),
+            categorical = false, series = _seriespolicy(spec))
 end
 
 function _materialisefield(spec, area::StudyArea)
