@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # Three runs over one landscape, each taking one more thing into account than the last, so the
-# cost of ignoring land cover can be read straight off the comparison.
+# cost of ignoring land cover can be read straight off the comparison - and then a coda that
+# measures the same ground a second, independent way, from Scotland's coastline rather than from
+# the land-cover bands.
 #
 # **1. Land cover ignored.** Every square metre of every cell counted as growable - what a model
 #    that never looked at land cover is implicitly assuming.
@@ -121,13 +123,19 @@ end
 # it covers, which for Scotland reaches Rockall and Shetland, so the principal landmass is asked for
 # explicitly.
 # A `NaturalEarthSpec` rather than a box, because this example is about how much ground is
-# *available*: a box over Scotland is largely sea, and every cell of it would be counted. The spec
-# activates only the cells whose centres fall inside the coastline, and sets the extent as a box
-# would. It downloads the polygons once, into `EcoSISTEM.assetdir`.
-area = StudyArea(supply = available,
-                 within = NaturalEarthSpec("Scotland", level = "SUBUNIT",
-                                           coverage = LargestLandmass()),
-                 crs = EPSG(27700), cellsize = CELLSIZE, verbosity = :silent)
+# *available*: a box over Scotland is largely sea, and every cell of it would be counted. A shape
+# used on its own activates every cell **at least half** covered by it, which roughly keeps the
+# region's area, and sets the extent as a box would; `ShapeMaskSpec(shape, rule)` states any other
+# rule - `AnyOverlap()` to keep every cell holding any land at all. It downloads the polygons once,
+# into `EcoSISTEM.assetdir`.
+#
+# **Named once and used twice**: the same coastline masks the study area here and supplies the land
+# area measured against the land-cover route at the foot of this file.
+const SCOTLAND = NaturalEarthSpec("Scotland", level = "SUBUNIT",
+                                  coverage = LargestLandmass())
+
+area = StudyArea(supply = available, within = SCOTLAND, crs = EPSG(27700),
+                 cellsize = CELLSIZE, verbosity = :silent)
 
 # The regime and the tolerances are deliberately dull - this example is about the supplies, so
 # everything else is a uniform temperature and a niche centred on it.
@@ -237,3 +245,69 @@ display(heatmap(easting, northing, Array(percell(plain) .- percell(both)),
                 title = "Individuals lost by accounting for land cover",
                 xlabel = "Easting (BNG)", ylabel = "Northing (BNG)",
                 colorbar_title = "Difference", aspect_ratio = 1))
+
+# --- coda: the same ground, measured from the coastline instead --------------------
+#
+# **Two routes to "how much ground is in this cell", and they answer different questions.** The
+# land-cover sum above is the share that is *growable*, dropping built-up, bare rock, snow and open
+# water alike. A coastline knows none of that: it says only what is **land at all**.
+#
+# **The obvious expectation - growable ground is a subset of land, so it must be the smaller number
+# - does not survive contact with two data sources, and the reasons are worth more than the
+# expectation was.** It comes out slightly *larger* here. Natural Earth's outline is
+# **cartographic**, generalised for drawing at 1:10m, where EarthEnv's land cover is a 1 km raster
+# following the real coast; and the land-cover fraction is measured over the whole of each cell
+# rather than clipped to the polygon, so a coastal cell can hold growable ground the polygon never
+# enclosed. These are two different coastlines, not one coastline measured twice.
+#
+# `ShapeCoverage` is the layer form of the very geometry that masks the area - the share of each
+# cell inside the polygon, which on `SurfaceArea` as a supply becomes an area per cell, each scaled
+# by that cell's own true size. **No raster is read for it at all**: the number comes from the
+# geometry, measured against the grid the habitat is built on.
+land = ShapeCoverage(SCOTLAND, axis = SurfaceArea)
+
+# Built from `env_plain`, as runs 2 and 3 are, so it inherits that grid and regime exactly: the
+# supplies are then the same cells measured three ways with nothing else moved.
+env_coast = build_habitat(env_plain, verbosity = :silent,
+                          supply = (space = land,
+                                    light = UniformSpec(INCIDENT,
+                                                        axis = SolarRadiation)))
+
+ground(env) = uconvert(km^2, sum(env.supply.space.matrix))
+showarea(a) = round(typeof(1.0km^2), a, digits = 0)
+# The polygon's own area, taken from the geometry before any grid existed, is the honest check on
+# the rasterised total: `read` gives the pieces a shape names, each carrying its area.
+polygonarea = sum(piece.area for piece in read(SCOTLAND))
+
+println()
+println("Land area of mainland Scotland, three ways")
+println("  the coastline polygon itself     : ", showarea(polygonarea))
+println("  that polygon as a layer on the grid: ", showarea(ground(env_coast)))
+println("  growable ground, from land cover  : ", showarea(ground(env_space)))
+println("  every cell counted whole          : ", showarea(ground(env_plain)))
+println("Growable ground as a share of the polygon's land: ",
+        round(100 * ground(env_space) / ground(env_coast), digits = 1), "%")
+
+# **The first two lines are the same ground either side of the rasterisation, and the gap between
+# them belongs to the mask rather than to the measurement.** A cell less than half covered is not
+# simulated and its land goes with it, so the grid carries less ground than the polygon encloses -
+# around 8% less at the 50 km the test suite uses, and steadily less as the cells shrink. The band
+# below is wide for that reason, and because a polygon's own area and an area measured on the
+# British National Grid are not computed on the same figure of the Earth.
+@assert 0.75 < ground(env_coast) / polygonarea < 1.05
+# Land, however it is measured, is less than every cell counted whole. What is *not* assertable is
+# that one route is smaller than the other: they are drawn from different coastlines.
+@assert ground(env_coast) < ground(env_plain)
+@assert ground(env_space) < ground(env_plain)
+
+# **Where the two routes disagree is the point, and they disagree with both signs.** Positive where
+# the polygon encloses ground the land cover does not call growable - cities, rock, ice, inland
+# water - and negative along the coast, where the 1 km raster finds land the generalised outline
+# cut off. A single ratio hides both; the map does not.
+display(heatmap(easting, northing,
+                Array(ustrip.(km^2,
+                              env_coast.supply.space.matrix .-
+                              env_space.supply.space.matrix)),
+                title = "Land that cannot grow (coastline minus land cover)",
+                xlabel = "Easting (BNG)", ylabel = "Northing (BNG)",
+                colorbar_title = "km^2", aspect_ratio = 1))

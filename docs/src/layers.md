@@ -343,6 +343,34 @@ a spec's files without reading them, which is how to get data onto a machine who
 have no network, and [`verifyassets`](@ref EcoSISTEM.verifyassets) checks present files against
 their recorded checksums.
 
+## A layer from a shape
+
+Not every layer comes from a raster. A shape - a coastline, a reserve boundary, a catchment - is
+**geometry**, and [`ShapeCoverage`](@ref) makes a layer of it by measuring how much of each cell
+falls inside:
+
+```@example sources
+ShapeCoverage(NaturalEarthSpec("Scotland", coverage = LargestLandmass()),
+              axis = SurfaceArea)
+```
+
+The value is a fraction, 0 where the shape misses a cell and 1 where it covers one, taken as the
+exact area of the cell's own rectangle lying inside the polygon. As a supply on `SurfaceArea` that
+fraction becomes an area per cell - the cell's land, with the water left out - scaled by that
+cell's true size; as a regime it stays the fraction itself. A cell the shape touches only along an
+edge shares no area with it, and gets nothing.
+
+It is the one spec that reads a real file and yet **adopts** the grid it is built on, so it never
+decides a study area's extent, resolution or CRS, and it needs an area that is already positioned:
+geometry can only be placed where there is a coordinate system to place it in.
+
+Any other value is built from the fraction with a [`ConstructedRasterSpec`](@ref) - `f -> f .> 0`
+for the cells holding any of the shape at all, or `(land, cover) -> land .* cover` to take a
+land-cover share of that land.
+
+*Which cells a shape activates* is a different question from what a layer holds: it belongs to
+`within`, and its rules are on the [Regions](regions.md) page.
+
 ## Data you already hold
 
 Everything above names a *source* and lets EcoSISTEM read it. A file that belongs to no
