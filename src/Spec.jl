@@ -162,7 +162,8 @@ end
     CircleMaskSpec(; radius, centre = nothing)
 
 A circular active-area mask: the cells within a given distance of a point are simulated and the rest
-are not. Resolved onto the grid when the habitat is built.
+are not. Resolved onto the grid when the study area is decided, so it narrows the grid the habitat
+is then built on.
 
 # Arguments
 
@@ -388,8 +389,10 @@ function _resolvesyntheticactive(active::CircleMaskSpec, dim, cellsize)
 end
 
 function _resolvesyntheticactive(active, dim, cellsize)
-    return error("unrecognised `active` argument of type $(typeof(active)) for a synthetic " *
-                 "environment; use nothing, a Matrix{Bool}, or CircleMaskSpec(...).")
+    return error("unrecognised `within` argument of type $(typeof(active)) for a synthetic " *
+                 "environment; use nothing, a Matrix{Bool}, or CircleMaskSpec(...). A synthetic " *
+                 "grid has no coordinate reference system, so geometry - a shape spec, or a " *
+                 "`ShapeMaskSpec` over one - cannot be placed on it.")
 end
 
 # A per-cell field of per-area supply-rate values over `dim` - one method per recognised

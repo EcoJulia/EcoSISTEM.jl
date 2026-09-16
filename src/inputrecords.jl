@@ -167,6 +167,14 @@ function _specinputs(spec::ShapeCoverage; role::Symbol = :habitat)
     return _specinputs(spec.shape, role = role)
 end
 
+# A shape wrapped in the rule deciding which cells it activates: the same files under the same role,
+# since how much of a cell must be covered does not change where the ground came from. Without this
+# the untyped fallback above answers "names no file", and the region vanishes from the provenance
+# with nothing reporting it.
+function _specinputs(spec::ShapeMaskSpec; role::Symbol = :region)
+    return _specinputs(spec.shape, role = role)
+end
+
 # A `Provenance` as the tables its TOML file holds: the software, the grid, the run where there is
 # one, and a table per input.
 function _provenancetoml(p::Provenance)

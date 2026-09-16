@@ -140,10 +140,13 @@ as given.
   - `regime`, `supply`: the layers the simulation will use. Naming one here lets it **shape the
     grid** - its extent, its CRS and its resolution all become candidates. A layer not named here can
     still be used later, but can only mark cells inactive, never move or resize the grid.
-  - `within`: **what positions the area** - a [`ShapeSpec`](@ref), a [`CircleMaskSpec`](@ref), a
-    [`LatLong`](@ref) box, or `EcoSISTEM.boundingbox("Scotland")`. It both restricts which cells are
-    active and, where it can state an extent, sets the grid's. This is the argument to reach for
-    when a global dataset would otherwise give you the globe.
+  - `within`: **what positions the area** - a shape ([`ShapeSpec`](@ref) for a file of your own,
+    [`NaturalEarthSpec`](@ref) for a named region, [`ConstructedShapeSpec`](@ref) for a combination),
+    a [`ShapeMaskSpec`](@ref) saying which cells such a shape activates, a [`CircleMaskSpec`](@ref),
+    a `Matrix{Bool}`, or a box in degrees as an `Extents.Extent` - `EcoSISTEM.boundingbox("Scotland")`
+    gives one. It both restricts which cells are active and, where it can state an extent, sets the
+    grid's. This is the argument to reach for when a global dataset would otherwise give you the
+    globe.
   - `crs`: the coordinate reference system to work in. **A projected CRS is required to simulate**:
     dispersal is expressed against one cell size, which only a projected grid has. Omitted, it is
     adopted from the layers, and a geographic result is warned about.
@@ -941,8 +944,24 @@ function _coveredgrid(rasters, payload, grid; simulate_safely::Bool)
      length(cols) == Base.size(active, 2)) &&
         return (grid = grid, active = active, mask = Matrix{Bool}(mask),
                 full = full)
-    return _coveredgrid(rasters, payload, grid[Y(rows), X(cols)],
+    return _coveredgrid(rasters, _croppayload(payload, rows, cols),
+                        grid[Y(rows), X(cols)],
                         simulate_safely = simulate_safely)
+end
+
+# A payload carried into the recursion must describe the grid it will be rasterised onto, not the one
+# it was prepared for. A bare Bool matrix is the only payload tied to the grid's *shape* - geometry,
+# a circle and a labelled array are all placed by coordinates and travel unchanged - and without this
+# it meets `_rastermask`'s size check on the cropped grid and errors.
+#
+# What this does not cover: an `AbstractMatrix{Bool}` that is neither of these two concrete types (a
+# `SubArray`, an `Adjoint`) still travels uncropped. Naming the abstract type instead would be
+# ambiguous with the labelled arrays, which are `AbstractMatrix` too and must *not* be cropped by
+# index.
+_croppayload(payload, rows, cols) = payload
+
+function _croppayload(payload::Union{Matrix{Bool}, BitMatrix}, rows, cols)
+    return payload[rows, cols]
 end
 
 # Say how many cells `simulate_safely = false` let through - cells the simulation will run on although

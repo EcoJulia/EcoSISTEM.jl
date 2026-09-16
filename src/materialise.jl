@@ -735,6 +735,10 @@ function _materialisefield(spec::ShapeCoverage, area::StudyArea)
             categorical = false, series = _seriespolicy(spec))
 end
 
+# A `within` mask inspected as a layer. The generic method below would read and sample first and die
+# on a private function; refusing here names the remedy instead.
+_materialisefield(spec::ShapeMaskSpec, ::StudyArea) = _asraster(spec)
+
 function _materialisefield(spec, area::StudyArea)
     raster = _asraster(spec, area.report.cache, cut = _buildwindow(area),
                        scale = _autoscale(spec, area.report.active))

@@ -141,8 +141,17 @@ area = StudyArea(regime = temperature, supply = rainfall,
                  crs = EPSG(27700), cellsize = 1.0km)
 ```
 
-`outline = false` takes the region's bounding box instead of its coastline, which is the cheaper
-thing to want when the region is only saying *where* to work.
+A region used on its own activates every cell at least half inside it, which roughly keeps the
+region's area. `ShapeMaskSpec` states any other rule:
+
+| write | and you get |
+|---|---|
+| `ShapeMaskSpec(region, AnyOverlap())` | every cell with any land in it - nothing the region names is left out |
+| `ShapeMaskSpec(region, FractionWithin(0.5))` | the default: a cell counts when at least half of it is covered |
+| `ShapeMaskSpec(region, FullyWithin())` | only whole cells, dropping every coastal one |
+| `ShapeMaskSpec(region, WholeBoundingBox())` | the box around the region, with no coastline rasterised at all |
+
+The box is the cheaper thing to want when the region is only saying *where* to work.
 
 ## Combining regions
 
@@ -158,7 +167,7 @@ ConstructedShapeSpec(ShapeUnion(), uk, ireland, man)
 ```
 
 Members may be any shape spec, including a `ShapeSpec` of your own study area and another
-`ConstructedShapeSpec`; a `ShapeSpec` takes the same `coverage` and `outline` as a named region, and
+`ConstructedShapeSpec`; a `ShapeSpec` takes the same `coverage` as a named region, and
 `read(spec)` of any shape spec gives the pieces of ground it is, largest first. Operations are `ShapeUnion`, `ShapeIntersection` and `ShapeDifference` for
 combining two or more, and `ShapeBuffer`, `ShapeSimplify` and `ShapeConvexHull` for transforming
 exactly one:
@@ -194,7 +203,8 @@ anything the geometry library offers is reachable without a new operation.
 | within 50 km of a coastline | `ConstructedShapeSpec(ShapeBuffer(50km), coast)` |
 | a coarser outline for a coarse grid | `ConstructedShapeSpec(ShapeSimplify(0.1°), scotland)` |
 | the area an archipelago occupies | `ConstructedShapeSpec(ShapeConvexHull(), islands)` |
-| just the box, no coastline | any of the above with `outline = false` |
+| just the box, no coastline | `ShapeMaskSpec(any of the above, WholeBoundingBox())` |
+| every cell with any land in it | `ShapeMaskSpec(any of the above, AnyOverlap())` |
 
 ## These are cartographic outlines
 

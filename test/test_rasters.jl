@@ -428,50 +428,6 @@ end
     @test 0 < count(env.active) <= length(env.active)
 end
 
-# `_shape` windows each geometry onto the axes, so the answer depends on `searchsorted` being given
-# the direction the axis actually has. A raster's Y commonly descends, and the wrong direction gives
-# an empty range rather than raising, so only a descending grid shows the mistake.
-@testset "a shape mask does not depend on which way an axis runs" begin
-    # Two disjoint squares, so a window reaching the wrong cells shows as a filled gap rather than
-    # only as a missing block.
-    square(xlo, ylo, xhi,
-           yhi) = ArchGDAL.createpolygon([[(xlo, ylo),
-                                             (xhi, ylo),
-                                             (xhi, yhi),
-                                             (xlo, yhi),
-                                             (xlo, ylo)]])
-    geoms = map((square(-4.0, 51.0, -2.0, 53.0), square(0.0, 55.0, 1.0, 56.0))) do g
-        return (prepared = ArchGDAL.preparegeom(g),
-                envelope = ArchGDAL.envelope(g))
-    end
-
-    up = collect(50.0:0.25:57.0)
-    long = collect(-6.0:0.25:2.0)
-    ascending = EcoSISTEM._shape(geoms, up, long)
-    descending = EcoSISTEM._shape(geoms, reverse(up), long)
-
-    # The count first, or the equality below would be satisfied by two empty masks.
-    @test count(ascending) > 0
-    @test descending == reverse(ascending, dims = 1)
-    @test count(descending) == count(ascending)
-
-    # Units are stripped whatever they are, so a degrees axis answers identically to a bare one.
-    @test EcoSISTEM._shape(geoms, up .* °, long .* °) == ascending
-
-    # An off-grid geometry contributes nothing, rather than its empty window widening to the axis.
-    away = ArchGDAL.createpolygon([[(20.0, 20.0), (21.0, 20.0), (21.0, 21.0),
-                                      (20.0, 21.0),
-                                      (20.0, 20.0)]])
-    offgrid = (prepared = ArchGDAL.preparegeom(away),
-               envelope = ArchGDAL.envelope(away))
-    @test EcoSISTEM._shape((geoms..., offgrid), up, long) == ascending
-    @test !any(EcoSISTEM._shape((offgrid,), up, long))
-
-    # What this does not catch: removing the windowing entirely and testing every cell is correct,
-    # only slow, so it passes. What it does catch, measured: windowing a descending axis as though
-    # it ascended leaves 0 active cells against the 58 expected.
-end
-
 @testset "a shape covers each cell by the share of its area inside" begin
     polygon(points) = ArchGDAL.createpolygon([[points..., first(points)]])
     part(g) = (prepared = ArchGDAL.preparegeom(g),
@@ -541,6 +497,86 @@ end
     # since a cell outside it shares no area either way, so widening or dropping the window leaves
     # every share as it is. Nor does it reach the cap at one, which needs pieces that overlap, where
     # a shape's own pieces are disjoint.
+end
+
+@testset "each mask rule is one comparison against the covered share" begin
+    tol = EcoSISTEM._COVERTOL
+    @test EcoSISTEM._rulepasses(AnyOverlap(), 1.0)
+    @test EcoSISTEM._rulepasses(AnyOverlap(), 10 * tol)
+    # A cell touched only along an edge shares no area; nor may the reprojection's own error, which
+    # can turn a shared edge into a sliver of real overlap, read as ground.
+    @test !EcoSISTEM._rulepasses(AnyOverlap(), 0.0)
+    @test !EcoSISTEM._rulepasses(AnyOverlap(), tol / 2)
+
+    @test EcoSISTEM._rulepasses(FractionWithin(0.5), 0.5)
+    @test EcoSISTEM._rulepasses(FractionWithin(0.5), 0.5 - tol / 2)
+    @test !EcoSISTEM._rulepasses(FractionWithin(0.5), 0.5 - 10 * tol)
+
+    # `FullyWithin` is `FractionWithin(1.0)` rather than a second test that could drift from it.
+    for f in (0.0, 0.25, 1 - 10 * tol, 1 - tol / 2, 1.0)
+        @test EcoSISTEM._rulepasses(FullyWithin(), f) ==
+              EcoSISTEM._rulepasses(FractionWithin(1.0), f)
+    end
+    # A cell that is whole but for the reprojection's 5e-7 still counts as whole.
+    @test EcoSISTEM._rulepasses(FullyWithin(), 1 - 5e-7)
+    @test !EcoSISTEM._rulepasses(FullyWithin(), 0.999)
+
+    # A threshold outside (0, 1] is refused where it was written, not where it is read.
+    @test_throws ArgumentError FractionWithin(0.0)
+    @test_throws ArgumentError FractionWithin(1.5)
+
+    # What this does not catch: whether the shares themselves are right, which the covered-fraction
+    # testset above pins, and whether `_rastermask` hands the rule the share rather than something
+    # else, which the mask-pipeline tests in `test_NaturalEarth.jl` cover on real geometry.
+end
+
+@testset "a shape mask applies its own rule to each cell's covered share" begin
+    # Four rows and five columns of 1 degree cells labelled by their lower corner, deliberately not
+    # square. A rectangle covers x 0.5 to 2.1 and y 0 to 2, so the bottom two rows are covered by
+    # 0.5, 1.0 and 0.1 of their width and nothing else is covered at all - shares that tell the
+    # three area rules apart, where a fixture of whole cells would let any of them pass as another.
+    grid = _testraster(WorldClim{BioClim}, zeros(4, 5),
+                       lat = (0.0:1.0:3.0) .* °, long = (0.0:1.0:4.0) .* °).array
+    rectangle = ArchGDAL.createpolygon([[(0.5, 0.0), (2.1, 0.0), (2.1, 2.0),
+                                           (0.5, 2.0), (0.5, 0.0)]])
+    piece = (prepared = ArchGDAL.preparegeom(rectangle),
+             envelope = ArchGDAL.envelope(rectangle), geometry = rectangle)
+    masked(rule) = EcoSISTEM._rastermask((parts = (piece,), rule = rule),
+                                         nothing, grid)
+
+    @test masked(AnyOverlap()) == [true true true false false
+           true true true false false
+           false false false false false
+           false false false false false]
+    @test masked(FractionWithin(0.5)) == [true true false false false
+           true true false false false
+           false false false false false
+           false false false false false]
+    @test masked(FullyWithin()) == [false true false false false
+           false true false false false
+           false false false false false
+           false false false false false]
+    @test masked(FullyWithin()) == masked(FractionWithin(1.0))
+
+    # The three disagree on this fixture, so a rule discarded on the way through - which is what a
+    # payload carrying the geometry alone would do - cannot pass as one of the others.
+    @test count(masked(AnyOverlap())) == 6
+    @test count(masked(FractionWithin(0.5))) == 4
+    @test count(masked(FullyWithin())) == 2
+end
+
+@testset "a mask payload is cropped with the grid only when it is tied to its shape" begin
+    # A recut re-rasterises the mask on the cropped grid, so a payload indexed by cell position has
+    # to be cropped alongside it or it meets `_rastermask`'s size check. Geometry is placed by
+    # coordinates, so it must travel unchanged.
+    bits = trues(5, 7)
+    bits[1, 1] = false
+    @test size(EcoSISTEM._croppayload(bits, 2:4, 3:6)) == (3, 4)
+    @test size(EcoSISTEM._croppayload(Matrix(bits), 2:4, 3:6)) == (3, 4)
+    @test EcoSISTEM._croppayload(Matrix(bits), 2:4, 3:6) == bits[2:4, 3:6]
+    geometry = (parts = (), rule = AnyOverlap())
+    @test EcoSISTEM._croppayload(geometry, 2:4, 3:6) === geometry
+    @test isnothing(EcoSISTEM._croppayload(nothing, 2:4, 3:6))
 end
 
 @testset "_axiswindow reads the axis direction rather than assuming it" begin

@@ -203,9 +203,10 @@ include("LazySpec.jl")
 # Exported here, and **re-exported by `ClimatePref`**, so that `using EcoSISTEM.ClimatePref` reaches
 # them too.
 export RasterSpec, SourceSpec, RasterFileSpec, ConstructedRasterSpec, ShapeSpec,
-       NaturalEarthSpec, ConstructedShapeSpec, ShapeCoverage
+       NaturalEarthSpec, ConstructedShapeSpec, ShapeCoverage, ShapeMaskSpec,
+       AnyOverlap, FullyWithin, FractionWithin, WholeBoundingBox
 
-public AbstractShapeSpec
+public AbstractShapeSpec, AbstractShapeRule
 
 public AbstractLazySpec
 
