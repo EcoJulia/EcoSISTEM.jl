@@ -137,6 +137,16 @@ function runmpi(cmd; limit = 1800)
     return false
 end
 
+# The Julia command a launch runs, with coverage instrumentation only where it is wanted. It roughly
+# doubles a launch - measured on a runner, this file took 861 s on the instrumented job against 402 s
+# uninstrumented - and each launch runs the same package code, so one carrying it covers the same
+# lines as three would. The parent process, which runs this file, keeps whatever it was given.
+function launchcmd(; coverage::Bool)
+    cmd = Base.julia_cmd()
+    coverage && return cmd
+    return Cmd(filter(a -> !startswith(a, "--code-coverage"), cmd.exec))
+end
+
 @testset "mpirun" begin
     # Keep the MPI outputs in a temp dir the OS cleans up (no manual `rm` needed for hygiene).
     # The child `mpiexec` processes read its path as their first command-line argument.
@@ -145,21 +155,21 @@ end
     withenv("JULIA_NUM_THREADS" => "4") do
         nprocs = 1
         function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
+            return `$(mpiexec()) -n $nprocs $(launchcmd(coverage = false)) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
         end
         @test runmpi(cmd())
     end
     withenv("JULIA_NUM_THREADS" => "2") do
         nprocs = 2
         function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
+            return `$(mpiexec()) -n $nprocs $(launchcmd(coverage = true)) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
         end
         @test runmpi(cmd())
     end
     withenv("JULIA_NUM_THREADS" => "1") do
         nprocs = 4
         function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
+            return `$(mpiexec()) -n $nprocs $(launchcmd(coverage = false)) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
         end
         @test runmpi(cmd())
     end

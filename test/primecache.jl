@@ -43,6 +43,12 @@ const WANTED = [
         () -> getraster(WorldClim{Climate},
                         :wind,
                         month = 1:12),
+    # `test/canonical/test_realdata.jl` reads this one whole, so without it that test downloads on
+    # every run - which is what a primed cache exists to prevent.
+    "WorldClim Climate :prec (12 months)" =>
+        () -> getraster(WorldClim{Climate},
+                        :prec,
+                        month = 1:12),
     "WorldClim Elevation" => () -> getraster(WorldClim{Elevation}),
     "EarthEnv LandCover (all classes)" => () -> getraster(EarthEnv{LandCover}),
     "EarthEnv HabitatHeterogeneity" =>
@@ -89,15 +95,36 @@ const WANTED = [
         () -> EcoSISTEM.assetpath(ShapeSpec("https://gis-downloads.nature.scot/LSCMAP_SCOTLAND_SHP_27700.zip").path)
 ]
 
+# Each entry is tried three times, a minute apart. The hosts these come from are occasionally
+# unreachable and occasionally truncate a transfer part way (measured 2026-09-18: a morning of
+# connection timeouts from `geodata.ucdavis.edu`, then `EOFError: read end of file` mid-download an
+# hour later), and one flaky minute here costs every raster test job its own download attempt.
+# `getraster` and the readers test each file's own existence before fetching, so a retry resumes
+# rather than repeating what already arrived.
+const ATTEMPTS = 3
+const PAUSE = 60
+
+function prime(name, fetch)
+    for attempt in 1:ATTEMPTS
+        try
+            fetch()
+            return true
+        catch e
+            @error "Could not prime $name (attempt $attempt of $ATTEMPTS)" exception = (e,
+                                                                                        catch_backtrace())
+            attempt == ATTEMPTS || sleep(PAUSE)
+        end
+    end
+    return false
+end
+
 failed = String[]
 for (name, fetch) in WANTED
     print("    * ", name, " ... ")
-    try
-        fetch()
+    if prime(name, fetch)
         println("ok")
-    catch e
+    else
         println("FAILED")
-        @error "Could not prime $name" exception = (e, catch_backtrace())
         push!(failed, name)
     end
 end
@@ -108,6 +135,13 @@ else
     # Reported rather than thrown. A partly primed cache is still worth saving, and the test job
     # fetches whatever is missing exactly as it did before this job existed.
     @warn "Raster cache primed with gaps; the test job will fetch these itself." failed
+    # **Said to the workflow as well, because a gap must not be saved under the full key.** That key
+    # is what the next run probes to decide whether to prime at all, so an entry with gaps claiming
+    # it makes the gaps permanent: every later job skips priming and fetches the missing files
+    # itself, for as long as the key stands. Measured 2026-09-18: one morning of connection timeouts
+    # to the WorldClim host left a 656 MB entry that every raster job then failed against.
+    out = get(ENV, "GITHUB_OUTPUT", "")
+    isempty(out) || open(f -> println(f, "gaps=true"), out, "a")
 end
 
 end

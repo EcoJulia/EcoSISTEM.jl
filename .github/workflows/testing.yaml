@@ -29,7 +29,9 @@ jobs:
   # stays in a few hundred MB whatever it fetches - it survives precisely what the test job could not.
   prime-raster-cache:
     name: Prime the raster cache - ${{ matrix.os }}
-    timeout-minutes: 45
+    # Long enough for every entry to be retried twice a minute apart on a flaky host; the job is
+    # skipped altogether once the cache exists, so the allowance costs nothing.
+    timeout-minutes: 75
     runs-on: ${{ matrix.os }}
     permissions:
       actions: write
@@ -54,7 +56,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
         lookup-only: true
     # A miss is usually the aggregation code having changed, which stales the cached aggregates
     # but not the ~850 MB of downloads. An older entry supplies the downloads, so only the
@@ -64,7 +66,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Set up julia
@@ -81,6 +83,12 @@ jobs:
     - name: Download the rasters
       # Goes through `Pkg.test` for the same reason every other invocation does: `RasterDataSources`
       # is a weak dependency and only the test environment provides it.
+      #
+      # `primecache.jl` sets the `gaps` output when a source could not be reached, which decides the
+      # key below: an entry with gaps must not claim the full key, or the next run probes it, skips
+      # priming, and every raster job fetches the missing files itself. Saved under a run-specific
+      # key instead, it still serves as a base through `restore-keys`, and the next run primes again.
+      id: prime
       if: steps.probe.outputs.cache-hit != 'true'
       shell: bash
       run: julia --project -e 'using Pkg; Pkg.test(test_args = ["primecache.jl"])'
@@ -97,7 +105,7 @@ jobs:
       uses: actions/cache/save@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
+        key: ${{ steps.prime.outputs.gaps == 'true' && format('rasterdata-{0}-v4-partial-{1}', runner.os, github.run_id) || format('rasterdata-{0}-v4-{1}', runner.os, hashFiles('src/datasetread.jl')) }}
 
   EcoSISTEM-tests:
     name: ${{ matrix.suite }} - Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -165,7 +173,15 @@ jobs:
         version: ${{ matrix.julia-version }}
         arch: ${{ matrix.arch }}
     - name: Cache
+      # **The depot cache must NOT be keyed on the test set.** By default this action appends every
+      # matrix value to its key, which after the split gave each of the thirty jobs its own ~1.2 GB
+      # entry - about 36 GB competing for the repository's 10 GB cache limit, so entries are evicted,
+      # jobs precompile from cold, and the raster caches can go the same way. One depot serves all
+      # four sets on a given OS, Julia and architecture, which is what this key says.
       uses: julia-actions/cache@v3
+      with:
+        cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ matrix.julia-version }};arch=${{ matrix.arch }}
+        include-matrix: false
     - name: Restore the raster data cache
       id: rasters
       # julia-actions/cache caches the package depot but not scratchspaces, where the raster
@@ -203,12 +219,12 @@ jobs:
       # A restored cache can never be wrong, only incomplete: `getraster`/`download` each test the
       # target file's own existence before fetching, so a partial restore costs a few per-file
       # downloads rather than giving incorrect data. That is what makes the static part safe - and
-      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v3` SUFFIX to mint
+      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v4` SUFFIX to mint
       # a new entry; there is no need to work out which file changed.
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Build package
