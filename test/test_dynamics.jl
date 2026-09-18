@@ -342,24 +342,29 @@ end
     # A seeded run must give identical results regardless of the number of
     # threads. Run the same seeded simulation in child processes forced to use
     # 1, 2 and 4 threads (so the parallel `update!` path is genuinely exercised)
-    # and check that all three final abundance matrices are identical. Running
-    # the 2-thread case twice also confirms same-thread-count repeatability, so a
-    # failure distinguishes "not reproducible at all" from "not reproducible
+    # and check that all three final abundance matrices are identical. Each child
+    # runs the simulation twice, which confirms same-thread-count repeatability,
+    # so a failure distinguishes "not reproducible at all" from "not reproducible
     # across thread counts".
+    #
+    # **The repeat is inside the children rather than a fourth child**, because a
+    # child spends about 14 of its 15 seconds starting Julia and compiling the
+    # fixture build, and 0.3 s simulating: a fourth process bought the same
+    # assurance at a whole process's price.
     script = pkgdir(EcoSISTEM, "test", "threading_reproducibility.jl")
     dir = mktempdir()
     function run_with(nthreads, tag)
         out = joinpath(dir, "repro_$tag.jld2")
         cmd = `$(Base.julia_cmd()) --project=$(Base.active_project()) -t $nthreads $script $out`
         @test success(pipeline(cmd, stdout = stdout, stderr = stderr))
-        return load(out, "matrix")
+        result = load(out)
+        @test result["matrix"] == result["again"]
+        return result["matrix"]
     end
     m1 = run_with(1, "t1")
     m2 = run_with(2, "t2")
     m4 = run_with(4, "t4")
-    m2b = run_with(2, "t2b")
     @test m1 == m2 == m4
-    @test m2 == m2b
 end
 
 # **`_getneighbours` takes `(y, x)` - row first**, as everything else in the package does, and
