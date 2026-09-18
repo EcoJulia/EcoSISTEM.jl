@@ -6,7 +6,8 @@
 #
 # MPI is a weak dependency but *is* installed in the test environment, so `EcoSISTEMMPIExt` loads
 # and `ext_EcoSISTEMMPIExt.jl` launches `SmallMPItest.jl` under `mpiexec` at 1, 2 and 4 ranks - the
-# slowest thing in this set by some way.
+# slowest thing in this set by some way. On a CI runner it runs after the others and alone, so its
+# ranks do not share a few cores with other test files.
 
 using Random
 using Test
@@ -14,7 +15,8 @@ using EcoSISTEM
 # `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
 using EcoSISTEM: empty_landscape, synchronise_from_cols!,
                  synchronise_from_rows!
-using ParallelTestRunner: find_tests, parse_args, runtests
+using ParallelTestRunner: find_tests, runtests
+include(joinpath(@__DIR__, "testsets.jl"))
 
 # **Where an extension's docstrings are allowed to live.**
 #
@@ -113,11 +115,10 @@ let filebase = String[]
         end
         println()
 
-        # `parse_args(String[])`, **not** `parse_args(ARGS)`: `ARGS` is the `test_args` that
-        # selected *this file*, and `filter_tests!` keeps a test only if its name starts with one of
-        # them - so forwarding them filters the suite to empty and reports success over zero tests.
-        runtests(EcoSISTEM, parse_args(String[]),
-                 testsuite = filter(kv -> startswith(kv.first, "ext_"),
-                                    find_tests(@__DIR__)))
+        suite = filter(kv -> startswith(kv.first, "ext_"), find_tests(@__DIR__))
+        @test haskey(suite, "ext_EcoSISTEMMPIExt")
+        runtests(EcoSISTEM, setargs(), testsuite = suite,
+                 serial = serialonrunner(["ext_EcoSISTEMMPIExt"]),
+                 serial_position = :after)
     end
 end

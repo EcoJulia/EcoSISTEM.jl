@@ -53,7 +53,7 @@ include(joinpath(@__DIR__, "checkmem.jl"))
     else
         # `find_tests` on the **canonical subdirectory**, so the keys are bare file names; the
         # `test_` filter then excludes `canonical.jl` itself, which is a helper rather than a test.
-        # `parse_args(String[])` - see `core_test.jl` for why forwarding `ARGS` runs nothing.
+        # `parse_args(String[])` - see `setargs` in `testsets.jl` for why forwarding `ARGS` runs nothing.
         runtests(EcoSISTEM, parse_args(String[]),
                  testsuite = filter(kv -> startswith(kv.first, "test_"),
                                     find_tests(dir)),

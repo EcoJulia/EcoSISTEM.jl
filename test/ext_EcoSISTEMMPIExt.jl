@@ -171,19 +171,9 @@ end
     abuns2thread = load(joinpath(datadir, "Test_abuns2.jld2"), "abuns")
     abuns4thread = load(joinpath(datadir, "Test_abuns4.jld2"), "abuns")
 
+    # Each launch also checks its own run against the blessed values, so a launch that does not
+    # reproduce itself fails there, apart from any disagreement between the three here.
     @test abuns1thread == abuns2thread == abuns4thread
-
-    ## Same-config repeatability: rerun the 2-thread/2-process config and confirm
-    ## it reproduces its own earlier result. Together with the cross-config test
-    ## above, a failure here distinguishes "not reproducible at all" from "not
-    ## reproducible across configurations".
-    withenv("JULIA_NUM_THREADS" => "2") do
-        nprocs = 2
-        cmd = `$(mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
-        @test runmpi(cmd)
-    end
-    abuns2thread_rerun = load(joinpath(datadir, "Test_abuns2.jld2"), "abuns")
-    @test abuns2thread == abuns2thread_rerun
 end
 
 if !MPI.Finalized()

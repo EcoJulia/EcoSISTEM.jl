@@ -16,7 +16,7 @@
 #
 # What is given up: a read that genuinely does not fit is now killed by the operating system rather
 # than refused with a clear message. That trade is only sound because the suite bounds its own
-# footprint by other means -- `core_test.jl` runs the raster-heavy files one at a time, and
+# footprint by other means -- `core_rasters.jl` runs the raster-heavy files one at a time, and
 # `test/canonical/canonical.jl`'s `heavydata()` keeps the largest CHELSA layers off runners
 # entirely. Weakening either of those without revisiting this is what would make it dangerous.
 #

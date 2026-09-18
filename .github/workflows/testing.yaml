@@ -100,7 +100,7 @@ jobs:
         key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
 
   EcoSISTEM-tests:
-    name: Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    name: ${{ matrix.suite }} - Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     needs: prime-raster-cache
     # Priming is an OPTIMISATION, NEVER A GATE. A plain `needs:` would skip the whole test matrix
     # when a prime job failed, which would turn a slow download into no tests at all; `!cancelled()`
@@ -114,6 +114,15 @@ jobs:
       contents: read
     strategy:
       matrix:
+        # ONE JOB PER TEST SET, so each has the whole timeout to itself. Run in sequence in one job,
+        # the sets took over an hour on the macOS and Ubuntu runners. `core_rasters` is the five
+        # unit test files that read real rasters, which run one at a time on a runner to keep within
+        # memory; `extras` is every extra set, as a full local run runs them.
+        suite:
+          - core_test
+          - core_rasters
+          - core_ext
+          - extras
         julia-version:
           - '1.11'
           - '1.12'
@@ -130,6 +139,16 @@ jobs:
         experimental:
           - false
         exclude:
+          # The extras check the package against things outside it, and run on the current release
+          # (Ubuntu and macOS, where the coverage job is) and on the oldest supported version
+          # (Ubuntu). `runtests.jl` skips them on a Windows runner anyway.
+          - suite: extras
+            os: windows-latest
+          - suite: extras
+            julia-version: '1.12'
+          - suite: extras
+            julia-version: '1.11'
+            os: macOS-latest
           - os: macOS-latest
             arch: x64
           - os: ubuntu-latest
@@ -195,9 +214,13 @@ jobs:
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
     - name: Running
-      # Coverage instrumentation is a large slowdown and only one job's output is ever used, so it
-      # runs on exactly one matrix entry - macOS, which is the fastest runner here, on the release
-      # Julia. Every other entry runs the same tests uninstrumented.
+      # Coverage instrumentation is a large slowdown, so it runs on one Julia and OS - macOS, on the
+      # release Julia - for every test set; Codecov merges the uploads. Every other entry runs the
+      # same tests uninstrumented.
+      #
+      # `ECOSISTEM_TEST_JOBS` asks for two workers on macOS: the runner reports too little free memory
+      # for ParallelTestRunner to choose a second, which runs every file in sequence. The raster
+      # files still run one at a time. Elsewhere the runner's own choice stands.
       #
       # `prefix` CARRIES THE RESOURCE SAMPLER, and where it runs is the whole point. The Linux
       # runner is shut down about two minutes into the suite with nothing but `signal 15` and
@@ -211,7 +234,10 @@ jobs:
       # already in the log before the machine is gone. Grep the log for `RES`.
       # Not on Windows: `free` is GNU-only, and Windows now runs the suite to completion anyway.
       uses: julia-actions/julia-runtest@v1
+      env:
+        ECOSISTEM_TEST_JOBS: ${{ matrix.os == 'macOS-latest' && '2' || '' }}
       with:
+        test_args: ${{ matrix.suite }}
         coverage: ${{ matrix.os == 'macOS-latest' && matrix.julia-version == '1' }}
         prefix: ${{ runner.os != 'Windows' && format('{0}/.github/sample-resources.sh', github.workspace) || '' }}
     - name: Process coverage
