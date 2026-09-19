@@ -4,12 +4,13 @@ using Random
 using Test
 using EcoSISTEM
 using Pkg
-using ParallelTestRunner: find_tests, parse_args, runtests
+using ParallelTestRunner: find_tests, runtests
 
 # Rasters' pre-read memory guard misreports on a CI runner; see the file for the measurement and for
 # what relaxing it gives up. Included here so the main process is covered, and re-run inside each
 # ParallelTestRunner worker through `init_worker_code` at every `runtests` call in the suite.
 include("checkmem.jl")
+include("testsets.jl")
 
 # A test argument names one test file to run *instead of* the whole suite:
 #
@@ -23,20 +24,21 @@ include("checkmem.jl")
 # `Pkg.test` gets both right by construction; anything else reconstructs it and drifts.
 #
 # The `.jl` is optional, so `test_args = ["extras_clean"]` works too. Any test file may be named -
-# `test_Layer.jl` as readily as a whole set.
+# `test_Layer.jl` as readily as a whole set - and `extras` on its own names every extra set, run as a
+# full run runs them.
 #
-# **The suite is eight nameable sets**, which is what lets a full run go in parallel rather than in
-# sequence:
+# **The suite is nine nameable sets**, which is what lets a full run go in parallel rather than in
+# sequence, and what the CI workflow gives a job each:
 #
-#     core_test  core_ext
+#     core_test  core_rasters  core_ext
 #     extras_canonical  extras_clean  extras_docs  extras_examples  extras_notebooks  extras_pkg
 #
 # The split is semantic: the **core** sets test this package against itself, the **extras** check it
 # against something outside - the examples, the notebooks, the repo's own hygiene, the blessed
 # results, another package.
 #
-# `core_test` is by far the longest (32 files, ~10 min) and most others ~1-2 min each, so running them
-# concurrently takes about as long as `core_test` alone rather than the sum. `extras_pkg` is the
+# `core_test` and `core_rasters` are the longest and most others ~1-2 min each, so running them
+# concurrently takes about as long as the longest alone rather than the sum. `extras_pkg` is the
 # exception waiting to happen: cross-validation against another package tends to mean extensive
 # randomised dataset comparison and can be *very* slow, which is exactly why it is separately
 # nameable.
@@ -87,29 +89,21 @@ get!(ENV, "GKSwstype", "100")
 # decides.
 ENV["UNITFUL_FANCY_EXPONENTS"] = "true"
 
-requested = map(a -> endswith(a, ".jl") ? a : a * ".jl", ARGS)
+# `extras` is a group, not a file: every extra set, as a full run runs them.
+const EXTRAS_GROUP = ARGS == ["extras"]
+
+requested = EXTRAS_GROUP ? String[] :
+            map(a -> endswith(a, ".jl") ? a : a * ".jl", ARGS)
 for fn in requested
     isfile(joinpath(@__DIR__, fn)) ||
         error("`$fn` was asked for with `test_args`, but there is no such file in `test/`.")
 end
 
-if !isempty(requested)
-    @info "Running only the requested test file(s): " * join(requested, ", ")
-    @testset for fn in requested
-        println("    * Running $fn ...")
-        include(fn)
-    end
-else
-    # Two loops, and nothing else. Each `core_*.jl` and `extras_*.jl` is a standalone set that can be
-    # run on its own by name (see above); this file only decides the order they go in.
-    #
-    # The extras run **after** the core sets deliberately: a failing `@testset` throws at its end,
-    # so the extras are reached only once the unit and extension tests pass. There is no point
-    # running the examples, the notebooks or the hygiene checks against a broken package.
+# The core sets, in order. Each `core_*.jl` is a standalone set that can be run on its own by name
+# (see above); this only decides the order they go in.
+function runcore()
     corebase = sort(filter(str -> occursin(r"^core_.*\.jl$", str), readdir()),
                     order = Base.Order.Reverse)
-    extrabase = sort(filter(str -> occursin(r"^extras_.*\.jl$", str),
-                            readdir()))
 
     println()
     @info "Running the core test sets:"
@@ -122,6 +116,12 @@ else
             include(fn)
         end
     end
+end
+
+# The extra sets.
+function runextras()
+    extrabase = sort(filter(str -> occursin(r"^extras_.*\.jl$", str),
+                            readdir()))
 
     # **The extras do not run on a Windows CI runner.** They check this package against things
     # outside it - the examples, the notebooks, the repo's hygiene, the blessed results - and none of
@@ -132,51 +132,68 @@ else
     # Deliberately keyed on `RUNNER_OS`, not on `Sys.iswindows()`: a developer running the suite
     # on Windows locally still gets the extras, because the reason to skip is the CI budget rather
     # than anything being broken.
-    skipextras = get(ENV, "RUNNER_OS", "") == "Windows"
-    if skipextras
+    if get(ENV, "RUNNER_OS", "") == "Windows"
         println()
         @info "Skipping the extra test suites on a Windows runner."
-    elseif !isempty(extrabase)
-        println()
-        @info "Running the extra test suites:"
-        foreach(f -> println("    = $f"), extrabase)
-        println()
-
-        # **Three of the extras run CONCURRENTLY; the tests inside each stay serial.**
-        #
-        # **Why these three and not all of them.** `core_test`, `core_ext` and `extras_canonical`
-        # are already parallel *internally*, so putting them in here too would nest parallelism and
-        # oversubscribe the machine. These three are the ones still serial inside, which is exactly
-        # what makes them the ones worth running side by side.
-        #
-        # **Why set-level rather than per-example.** Each of these activates a *different*
-        # environment (`examples/`, `notebooks/`), and one process per set isolates that for free -
-        # no `Pkg.activate` restore dance, and no two examples racing to fetch the same raster into
-        # one cache. The one thing each worker is told is `checkmem.jl`, which is a property of the
-        # runner rather than of the set.
-        #
-        # **The download race is handled by the ORDER, not by luck**: `core_test` runs first and
-        # `test_GridHabitat.jl`/`test_datasetread.jl` already fetch the big EarthEnv layer the examples
-        # use, so the cache is warm before any of this starts. Moving the extras ahead of the core
-        # sets would reintroduce the race.
-        parallelextras = ["extras_docs", "extras_examples", "extras_notebooks"]
-        serialextras = filter(fn -> chop(fn, tail = 3) ∉ parallelextras,
-                              extrabase)
-
-        # The rest first, in order, exactly as before.
-        @testset for fn in serialextras
-            println("    * Running $fn ...")
-            include(fn)
-        end
-
-        suite = filter(kv -> kv.first in parallelextras, find_tests(@__DIR__))
-        if !isempty(suite)
-            println()
-            @info "Running these concurrently: " *
-                  join(sort(collect(keys(suite))), ", ")
-            println()
-            runtests(EcoSISTEM, parse_args(String[]), testsuite = suite,
-                     init_worker_code = RELAXRASTERMEMCHECK)
-        end
+        return nothing
     end
+    isempty(extrabase) && return nothing
+
+    println()
+    @info "Running the extra test suites:"
+    foreach(f -> println("    = $f"), extrabase)
+    println()
+
+    # **Three of the extras run CONCURRENTLY; the tests inside each stay serial.**
+    #
+    # **Why these three and not all of them.** `extras_canonical` is already parallel
+    # *internally*, so putting it in here too would nest parallelism and oversubscribe the machine.
+    # These three are the ones still serial inside, which is exactly what makes them the ones worth
+    # running side by side.
+    #
+    # **Why set-level rather than per-example.** Each of these activates a *different*
+    # environment (`examples/`, `notebooks/`), and one process per set isolates that for free -
+    # no `Pkg.activate` restore dance, and no two examples racing to fetch the same raster into
+    # one cache. The one thing each worker is told is `checkmem.jl`, which is a property of the
+    # runner rather than of the set.
+    #
+    # **Downloads**: in a full run the core sets come first, and `core_rasters` fetches the big
+    # EarthEnv layer the examples use, so the cache is warm before any of this starts. Run on its
+    # own - as the CI extras job does - this set relies on the workflow's primed raster cache
+    # instead.
+    parallelextras = ["extras_docs", "extras_examples", "extras_notebooks"]
+    serialextras = filter(fn -> chop(fn, tail = 3) ∉ parallelextras,
+                          extrabase)
+
+    @testset for fn in serialextras
+        println("    * Running $fn ...")
+        include(fn)
+    end
+
+    suite = filter(kv -> kv.first in parallelextras, find_tests(@__DIR__))
+    if !isempty(suite)
+        println()
+        @info "Running these concurrently: " *
+              join(sort(collect(keys(suite))), ", ")
+        println()
+        runtests(EcoSISTEM, setargs(), testsuite = suite,
+                 init_worker_code = RELAXRASTERMEMCHECK)
+    end
+    return nothing
+end
+
+if EXTRAS_GROUP
+    runextras()
+elseif !isempty(requested)
+    @info "Running only the requested test file(s): " * join(requested, ", ")
+    @testset for fn in requested
+        println("    * Running $fn ...")
+        include(fn)
+    end
+else
+    # The extras run **after** the core sets deliberately: a failing `@testset` throws at its end,
+    # so the extras are reached only once the unit and extension tests pass. There is no point
+    # running the examples, the notebooks or the hygiene checks against a broken package.
+    runcore()
+    runextras()
 end

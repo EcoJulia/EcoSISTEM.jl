@@ -29,7 +29,9 @@ jobs:
   # stays in a few hundred MB whatever it fetches - it survives precisely what the test job could not.
   prime-raster-cache:
     name: Prime the raster cache - ${{ matrix.os }}
-    timeout-minutes: 45
+    # Long enough for every entry to be retried twice a minute apart on a flaky host; the job is
+    # skipped altogether once the cache exists, so the allowance costs nothing.
+    timeout-minutes: 75
     runs-on: ${{ matrix.os }}
     permissions:
       actions: write
@@ -54,7 +56,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
         lookup-only: true
     # A miss is usually the aggregation code having changed, which stales the cached aggregates
     # but not the ~850 MB of downloads. An older entry supplies the downloads, so only the
@@ -64,7 +66,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Set up julia
@@ -81,6 +83,12 @@ jobs:
     - name: Download the rasters
       # Goes through `Pkg.test` for the same reason every other invocation does: `RasterDataSources`
       # is a weak dependency and only the test environment provides it.
+      #
+      # `primecache.jl` sets the `gaps` output when a source could not be reached, which decides the
+      # key below: an entry with gaps must not claim the full key, or the next run probes it, skips
+      # priming, and every raster job fetches the missing files itself. Saved under a run-specific
+      # key instead, it still serves as a base through `restore-keys`, and the next run primes again.
+      id: prime
       if: steps.probe.outputs.cache-hit != 'true'
       shell: bash
       run: julia --project -e 'using Pkg; Pkg.test(test_args = ["primecache.jl"])'
@@ -97,10 +105,10 @@ jobs:
       uses: actions/cache/save@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
+        key: ${{ steps.prime.outputs.gaps == 'true' && format('rasterdata-{0}-v4-partial-{1}', runner.os, github.run_id) || format('rasterdata-{0}-v4-{1}', runner.os, hashFiles('src/datasetread.jl')) }}
 
   EcoSISTEM-tests:
-    name: Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    name: ${{ matrix.suite }} - Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     needs: prime-raster-cache
     # Priming is an OPTIMISATION, NEVER A GATE. A plain `needs:` would skip the whole test matrix
     # when a prime job failed, which would turn a slow download into no tests at all; `!cancelled()`
@@ -114,6 +122,15 @@ jobs:
       contents: read
     strategy:
       matrix:
+        # ONE JOB PER TEST SET, so each has the whole timeout to itself. Run in sequence in one job,
+        # the sets took over an hour on the macOS and Ubuntu runners. `core_rasters` is the five
+        # unit test files that read real rasters, which run one at a time on a runner to keep within
+        # memory; `extras` is every extra set, as a full local run runs them.
+        suite:
+          - core_test
+          - core_rasters
+          - core_ext
+          - extras
         julia-version:
           - '1.11'
           - '1.12'
@@ -130,6 +147,16 @@ jobs:
         experimental:
           - false
         exclude:
+          # The extras check the package against things outside it, and run on the current release
+          # (Ubuntu and macOS, where the coverage job is) and on the oldest supported version
+          # (Ubuntu). `runtests.jl` skips them on a Windows runner anyway.
+          - suite: extras
+            os: windows-latest
+          - suite: extras
+            julia-version: '1.12'
+          - suite: extras
+            julia-version: '1.11'
+            os: macOS-latest
           - os: macOS-latest
             arch: x64
           - os: ubuntu-latest
@@ -146,7 +173,15 @@ jobs:
         version: ${{ matrix.julia-version }}
         arch: ${{ matrix.arch }}
     - name: Cache
+      # **The depot cache must NOT be keyed on the test set.** By default this action appends every
+      # matrix value to its key, which after the split gave each of the thirty jobs its own ~1.2 GB
+      # entry - about 36 GB competing for the repository's 10 GB cache limit, so entries are evicted,
+      # jobs precompile from cold, and the raster caches can go the same way. One depot serves all
+      # four sets on a given OS, Julia and architecture, which is what this key says.
       uses: julia-actions/cache@v3
+      with:
+        cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ matrix.julia-version }};arch=${{ matrix.arch }}
+        include-matrix: false
     - name: Restore the raster data cache
       id: rasters
       # julia-actions/cache caches the package depot but not scratchspaces, where the raster
@@ -184,20 +219,24 @@ jobs:
       # A restored cache can never be wrong, only incomplete: `getraster`/`download` each test the
       # target file's own existence before fetching, so a partial restore costs a few per-file
       # downloads rather than giving incorrect data. That is what makes the static part safe - and
-      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v3` SUFFIX to mint
+      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v4` SUFFIX to mint
       # a new entry; there is no need to work out which file changed.
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v3-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
     - name: Running
-      # Coverage instrumentation is a large slowdown and only one job's output is ever used, so it
-      # runs on exactly one matrix entry - macOS, which is the fastest runner here, on the release
-      # Julia. Every other entry runs the same tests uninstrumented.
+      # Coverage instrumentation is a large slowdown, so it runs on one Julia and OS - macOS, on the
+      # release Julia - for every test set; Codecov merges the uploads. Every other entry runs the
+      # same tests uninstrumented.
+      #
+      # `ECOSISTEM_TEST_JOBS` asks for two workers on macOS: the runner reports too little free memory
+      # for ParallelTestRunner to choose a second, which runs every file in sequence. The raster
+      # files still run one at a time. Elsewhere the runner's own choice stands.
       #
       # `prefix` CARRIES THE RESOURCE SAMPLER, and where it runs is the whole point. The Linux
       # runner is shut down about two minutes into the suite with nothing but `signal 15` and
@@ -211,7 +250,10 @@ jobs:
       # already in the log before the machine is gone. Grep the log for `RES`.
       # Not on Windows: `free` is GNU-only, and Windows now runs the suite to completion anyway.
       uses: julia-actions/julia-runtest@v1
+      env:
+        ECOSISTEM_TEST_JOBS: ${{ matrix.os == 'macOS-latest' && '2' || '' }}
       with:
+        test_args: ${{ matrix.suite }}
         coverage: ${{ matrix.os == 'macOS-latest' && matrix.julia-version == '1' }}
         prefix: ${{ runner.os != 'Windows' && format('{0}/.github/sample-resources.sh', github.workspace) || '' }}
     - name: Process coverage
@@ -223,3 +265,10 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         verbose: true
+        # **One flag per test set, because coverage is now four partial uploads rather than one
+        # whole one.** Unlabelled, they are indistinguishable, so a late or missing upload reads as
+        # "those lines are uncovered" and the project status falls by whatever that set covers -
+        # measured on the first split run at 11.5 points, which is the raster set's share. With a
+        # flag each, `.codecov.yml` carries a missing one forward from the last commit that had it
+        # instead, and the report says which set covered what.
+        flags: ${{ matrix.suite }}
