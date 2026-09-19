@@ -265,3 +265,10 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         verbose: true
+        # **One flag per test set, because coverage is now four partial uploads rather than one
+        # whole one.** Unlabelled, they are indistinguishable, so a late or missing upload reads as
+        # "those lines are uncovered" and the project status falls by whatever that set covers -
+        # measured on the first split run at 11.5 points, which is the raster set's share. With a
+        # flag each, `.codecov.yml` carries a missing one forward from the last commit that had it
+        # instead, and the report says which set covered what.
+        flags: ${{ matrix.suite }}
