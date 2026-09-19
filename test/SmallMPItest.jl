@@ -9,6 +9,7 @@ using Distributions
 using MPI
 using Random
 using Diversity
+using DataFrames: nrow
 using Phylo: getbranches, getlength
 using JLD2
 using Test
@@ -554,15 +555,31 @@ if rank == 0
 end
 # A metacommunity measure has no value per cell to assemble. Every rank refuses it alike before the
 # gather, so none is left waiting in the collective and the run carries on past it.
-@test_throws "subcommunity diversity measure" gatherdiversity(receco,
-                                                              meta_gamma,
-                                                              [0.0, 1.0])
-@test_throws "subcommunity diversity measure" RecordDiversity(zeros(1, 2, nrec),
-                                                              meta_gamma,
-                                                              [0.0, 1.0])(receco,
-                                                                          (count = 1,
-                                                                           elapsed = 0.0u"s",
-                                                                           date = nothing))
+#
+# **The refusal met here is the measure's own**, not `gatherdiversity`'s level check: both compute
+# the measure first, and a metacommunity value is refused for a distributed ecosystem however it is
+# asked for (below). The level check still guards the serial recorder - `test_Recorder.jl` holds
+# that one - and still fires here for an individual-level measure.
+@test_throws "differ between ranks" gatherdiversity(receco, meta_gamma,
+                                                    [0.0, 1.0])
+@test_throws "differ between ranks" RecordDiversity(zeros(1, 2, nrec),
+                                                    meta_gamma,
+                                                    [0.0, 1.0])(receco,
+                                                                (count = 1,
+                                                                 elapsed = 0.0u"s",
+                                                                 date = nothing))
+
+# **And asking for one directly is refused too, at every rank count.** A measure built on a
+# distributed ecosystem covers this rank's cells, so a metacommunity value taken from it answers for
+# that rank alone: measured at two ranks, `meta_gamma` gave 6.2237 against the serial 6.2512, the
+# ranks disagreed, and nothing was said. Every `meta_*` shorthand reaches `metadiv`, so one of them
+# stands for all.
+@test_throws "differ between ranks" meta_gamma(receco, 1.0)
+@test_throws "differ between ranks" norm_meta_alpha(receco, [0.0, 1.0])
+# The subcommunity form still answers, for this rank's cells, which is what `gatherdiversity`
+# assembles.
+@test nrow(norm_sub_alpha(receco, 1.0)) ==
+      receco.abundances.cols_tuple.last - receco.abundances.cols_tuple.first + 1
 MPI.Barrier(comm)
 
 # **Ordinariness is computed in the COLUMN partition**, where a rank owns every species for its own

@@ -235,6 +235,49 @@ function Diversity.Gamma(eco::MPIEcosystem)
                        (o, m, w) -> fill!(similar(w), 1)' ./ m)
 end
 
+# **A metacommunity value is REFUSED for a distributed ecosystem, not returned.** Each rank's
+# measure covers its own cells, so a power mean over them answers for that rank alone: measured at
+# two ranks, `meta_gamma` gave 6.2237 where the serial answer is 6.2512, the two ranks disagreed
+# with each other, and nothing was said. A uniform landscape hides it completely, because then every
+# cell is alike and any subset gives the same number.
+#
+# **Refused at both names, for any argument list, because the funnel moves between Diversity
+# releases** - and `[compat]` allows the lot. Measured across two that are both allowed today:
+# 0.6.3 builds the table in `metadiv(measure, q::Real)` and maps its vector form over that, while
+# 0.6.5 goes through `metadiv_raw(measure, q, subraw)` - three arguments, not two. A method written
+# for one is silently never called by the other, which is exactly what happened twice while this was
+# being written: first `norm_meta_alpha(eco, [0.0, 1.0])` slipped through, then everything did. So
+# these take `args...` and name only the first argument, which is the one that is ours.
+#
+# It refuses at **one** rank too, where the answer would in fact be right, for the reason
+# `getabundance` does: a script that works at one rank and silently changes meaning at four is worse
+# than one that refuses everywhere.
+function Diversity.metadiv_raw(measure::Diversity.DiversityMeasure{FP, A, D,
+                                                                   <:MPIEcosystem},
+                               args...) where {FP <: AbstractFloat,
+                                               A <: AbstractMatrix,
+                                               D <: AbstractArray}
+    return _refusemetacommunity()
+end
+
+function Diversity.metadiv(measure::Diversity.DiversityMeasure{FP, A, D,
+                                                               <:MPIEcosystem},
+                           args...) where {FP <: AbstractFloat,
+                                           A <: AbstractMatrix,
+                                           D <: AbstractArray}
+    return _refusemetacommunity()
+end
+
+# The message both refusals raise.
+function _refusemetacommunity()
+    return error("a metacommunity diversity measure asks for one value over every cell, and a " *
+                 "measure built on a distributed ecosystem covers only this rank's cells - so the " *
+                 "answer would differ between ranks and match none of them. Assembling it is not " *
+                 "implemented. Use `gatherdiversity(eco, measure, q)` for a subcommunity measure, " *
+                 "which gives every rank the whole metacommunity's per-cell values, or run " *
+                 "serially with `build_ecosystem(...; distributed = false)`.")
+end
+
 # == Bringing a distributed answer back ============================================================
 # `gatherabundance` and `gatherdiversity` are **ours**, not hooks on a Diversity generic, so strictly
 # they are not conformance. They live here anyway because that is what they are *for*: both exist to
