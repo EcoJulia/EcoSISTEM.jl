@@ -241,34 +241,41 @@ end
 # with each other, and nothing was said. A uniform landscape hides it completely, because then every
 # cell is alike and any subset gives the same number.
 #
-# **Refused at both names, for any argument list, because the funnel moves between Diversity
-# releases** - and `[compat]` allows the lot. Measured across two that are both allowed today:
-# 0.6.3 builds the table in `metadiv(measure, q::Real)` and maps its vector form over that, while
-# 0.6.5 goes through `metadiv_raw(measure, q, subraw)` - three arguments, not two. A method written
-# for one is silently never called by the other, which is exactly what happened twice while this was
-# being written: first `norm_meta_alpha(eco, [0.0, 1.0])` slipped through, then everything did. So
-# these take `args...` and name only the first argument, which is the one that is ours.
+# **Refused at both names, because the funnel moves between Diversity releases** - and `[compat]`
+# allows the lot. Across releases allowed today, `metadiv_raw` is `(measure, q::Real)` in one and
+# `(measure, q::Real, subraw::AbstractVector)` in the next, and `metadiv` takes an optional sink
+# first. Each of Diversity's signatures gets a method here naming the same later arguments, because
+# one that only narrows the first argument and leaves the rest free is **ambiguous** with
+# Diversity's own rather than more specific than it, and the call dies with a `MethodError` that
+# says nothing about ranks. The `args...` method behind them is for a signature Diversity has not
+# written yet, which would otherwise be answered silently for one rank.
 #
 # It refuses at **one** rank too, where the answer would in fact be right, for the reason
 # `getabundance` does: a script that works at one rank and silently changes meaning at four is worse
 # than one that refuses everywhere.
-function Diversity.metadiv_raw(measure::Diversity.DiversityMeasure{FP, A, D,
-                                                                   <:MPIEcosystem},
-                               args...) where {FP <: AbstractFloat,
-                                               A <: AbstractMatrix,
-                                               D <: AbstractArray}
+#
+# The alias restates `DiversityMeasure`'s own parameter bounds. Left as `<:Any` it is not a subtype
+# of Diversity's `measure::DiversityMeasure`, so none of these is the more specific method and
+# Diversity's answers instead.
+const _MPIMeasure = Diversity.DiversityMeasure{FP, A, D,
+                                               <:MPIEcosystem} where {FP <:
+                                                                      AbstractFloat,
+                                                                      A <:
+                                                                      AbstractMatrix,
+                                                                      D <:
+                                                                      AbstractArray}
+
+Diversity.metadiv(measure::_MPIMeasure, qs) = _refusemetacommunity()
+Diversity.metadiv(sink, measure::_MPIMeasure, qs) = _refusemetacommunity()
+
+Diversity.metadiv_raw(measure::_MPIMeasure, q::Real) = _refusemetacommunity()
+function Diversity.metadiv_raw(measure::_MPIMeasure, q::Real,
+                               subraw::AbstractVector)
     return _refusemetacommunity()
 end
+Diversity.metadiv_raw(measure::_MPIMeasure, args...) = _refusemetacommunity()
 
-function Diversity.metadiv(measure::Diversity.DiversityMeasure{FP, A, D,
-                                                               <:MPIEcosystem},
-                           args...) where {FP <: AbstractFloat,
-                                           A <: AbstractMatrix,
-                                           D <: AbstractArray}
-    return _refusemetacommunity()
-end
-
-# The message both refusals raise.
+# The message every one of those refusals raises.
 function _refusemetacommunity()
     return error("a metacommunity diversity measure asks for one value over every cell, and a " *
                  "measure built on a distributed ecosystem covers only this rank's cells - so the " *

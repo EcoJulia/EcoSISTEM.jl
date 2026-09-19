@@ -9,7 +9,7 @@ using Distributions
 using MPI
 using Random
 using Diversity
-using DataFrames: nrow
+using DataFrames: DataFrame, nrow
 using Phylo: getbranches, getlength
 using JLD2
 using Test
@@ -576,13 +576,20 @@ end
 # stands for all.
 @test_throws "differ between ranks" meta_gamma(receco, 1.0)
 @test_throws "differ between ranks" norm_meta_alpha(receco, [0.0, 1.0])
-# Both refusing methods are called by name as well: a shorthand meets `metadiv` first, so the
-# `metadiv_raw` one is otherwise reached only under a Diversity release that routes past `metadiv`.
-# Building the measure is collective, so it is built on every rank.
-recgamma = Gamma(receco)
+# Every refusing method is called by name as well. A shorthand meets `metadiv` first, so the
+# `metadiv_raw` ones are otherwise reached only under a Diversity release that routes past it - and
+# a refusal that merely narrows the first argument is ambiguous with Diversity's own method, which
+# nothing shows until it is called. Building the measure is collective, so every rank builds it.
+recgamma = Diversity.Gamma(receco)
 @test_throws "differ between ranks" Diversity.metadiv(recgamma, 1.0)
+@test_throws "differ between ranks" Diversity.metadiv(recgamma, [0.0, 1.0])
+@test_throws "differ between ranks" Diversity.metadiv(DataFrame, recgamma,
+                                                      1.0)
 @test_throws "differ between ranks" Diversity.metadiv_raw(recgamma, 1.0)
-@test_throws "differ between ranks" Diversity.metadiv_raw(recgamma, 1.0, [1.0])
+@test_throws "differ between ranks" Diversity.metadiv_raw(recgamma, 1.0,
+                                                          [1.0])
+@test_throws "differ between ranks" Diversity.metadiv_raw(recgamma, 1.0,
+                                                          [1.0], nothing)
 # The subcommunity form still answers, for this rank's cells, which is what `gatherdiversity`
 # assembles.
 @test nrow(norm_sub_alpha(receco, 1.0)) ==
