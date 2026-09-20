@@ -23,7 +23,7 @@ using .ArchitectureAudit
 
     # **A name in a diagram that resolves nowhere is always wrong** - the type has been deleted or
     # renamed and the doc was not followed through. There is no legitimate case, so no exception list.
-    # This is not hypothetical: it caught `Reference`, a `ClimatePref` type deleted while both the
+    # This is not hypothetical: it caught `Reference`, a type deleted while both the
     # diagram *and* the sentence "`ERA`/`CERA`/`CRUTS`/`Reference` remain for their data sources"
     # stayed behind.
     @test report.stale == Symbol[]

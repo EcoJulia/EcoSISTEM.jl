@@ -16,7 +16,6 @@ using Test
 using EcoSISTEM
 using EcoSISTEM: layerinfo, SourceSpec
 # Only for the deprecated per-source wrappers below, which stay in the submodule.
-using EcoSISTEM: ClimatePref
 # `public`, not exported, so `using` does not bring them in - they have to be named.
 using RasterDataSources
 import Rasters
@@ -61,7 +60,7 @@ include("rasterfixtures.jl")
     end
 
     @testset "the catalogue stays in the parent, keyed on any Type" begin
-        # These are `EcoSISTEM.ClimatePref`'s own, not the extension's - they use their argument
+        # These are the parent's own, not the extension's - they use their argument
         # only to find a shipped CSV, the per-dataset corrections included.
         @test layerunit(WorldClim{BioClim}, 1) == u"°C"
         @test layerinfo(WorldClim{Climate}, :srad).unit == u"kJ*m^-2"
@@ -118,14 +117,6 @@ include("rasterfixtures.jl")
         @test !isempty(methods(EcoSISTEM.landcoverclass))
         # Looked up by name in the shipped table, never hardcoded.
         @test EcoSISTEM.landcoverclass(:open_water) isa Int
-        # The deprecated wrapper constructors keep their names in the parent and gain methods here.
-        @test !isempty(methods(ClimatePref.Worldclim_bioclim))
-        # **There is no `_bioclimhabitat`, and no dataset-typed method here for any of the four
-        # data-backed `*habitat` builders** - nor a method-less stub in the parent for them, since
-        # those builders sampled no grid, which is not how a layer is built. The released *names*
-        # live in `src/deprecations.jl` as errors that explain themselves, and are asserted in
-        # `test_deprecations.jl` rather than here, because they need nothing from this extension.
-        @test !isdefined(EcoSISTEM, :_bioclimhabitat)
     end
 
     # **`read(::Type{CRUTS}, ...)` is this extension's own reader, and had no test at all.** It is

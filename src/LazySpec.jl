@@ -531,10 +531,8 @@ axis or contradict it.
 struct ConstructedRasterSpec{A <: NicheAxis, F} <: EcoSISTEM.AbstractLazySpec
     axis::Type{A}  # the niche axis of the produced layer (matched to species tolerances); mask => ignored
     combine::F
-    # **`AbstractSpec`, not `Vector{SourceSpec}`** - two things at once. It is what lets this type
-    # live outside `ClimatePref` (a `SourceSpec` is defined *after* this file, so naming it here would
-    # be a cycle), and it is what lets a combine take a **synthetic** layer, which the argument parser
-    # used to refuse outright. Abstractly typed, which costs nothing here: layers are walked once
+    # **`AbstractSpec`, not `Vector{SourceSpec}`**, which is what lets a combine take a
+    # **synthetic** layer as well as a read one. Abstractly typed, which costs nothing here: layers are walked once
     # per materialisation, never in a hot loop.
     layers::Vector{AbstractSpec}
     # A runtime field rather than a type parameter, for the same reason `ClimateRaster`'s `code`

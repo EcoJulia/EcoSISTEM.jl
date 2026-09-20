@@ -355,9 +355,7 @@ function _cellareas(A)
 end
 
 # --- The cell side from its coordinates ---------------------------------------------------
-# The implicit equal-area projection, and `src/deprecations.jl` depends on this BEHAVIOUR
-# surviving: a v0.4.0 budget was a bare `Matrix` with no coordinates, so `_legacysupply` is the one
-# place that may STATE a cell size rather than derive one. Everything else reads the grid.
+# The implicit equal-area projection.
 
 # Area-preserving physical side of a grid cell whose cell-centre latitudes and
 # longitudes are `lats` and `longs`. The behaviour depends on the units of the

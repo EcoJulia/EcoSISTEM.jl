@@ -1,5 +1,17 @@
+# Coverage arrives as one upload per test set (see `flags` in `.github/workflows/testing.yaml`),
+# so a set whose upload is missing or late must not be read as uncovered code: carry its last known
+# coverage forward instead. Unflagged, the four partial uploads were indistinguishable, and the
+# first split run reported a fall of 11.5 points - the raster set's share - with every job green.
+#
+# `after_n_builds` would be the other half of this, making Codecov wait for all four before judging
+# a commit. It is deliberately not set: an upload arrives only from a job that succeeded, so a
+# single failing job would leave the status pending rather than failing, which is worse than a
+# number that can be read and argued with.
 coverage:
   status:
      project:
        default:
          threshold: 0.2%
+flag_management:
+  default_rules:
+    carryforward: true

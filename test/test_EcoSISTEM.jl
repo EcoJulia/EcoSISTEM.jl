@@ -119,11 +119,11 @@ end
     # their own two-sided rule below instead.
     isaxis(m, n) = getfield(m, n) <: EcoSISTEM.NicheAxis
 
-    for m in (EcoSISTEM, EcoSISTEM.ClimatePref)
+    for m in (EcoSISTEM,)
         abstracts = ownabstracts(m)
         # A guard on the guard: if this ever finds nothing, the filter has broken rather than the
         # package having no hierarchies.
-        @test length(abstracts) > 20 || m === EcoSISTEM.ClimatePref
+        @test length(abstracts) > 20
         for n in abstracts
             (n in exceptions || isaxis(m, n)) && continue
             @test Base.ispublic(m, n)
@@ -220,7 +220,7 @@ _documented_control_() = nothing
     # so handing it a variable documents the variable and reports every name as undocumented. That
     # mistake made this very test claim the whole package was undocumented.
     hasdoc(m, n) = haskey(Base.Docs.meta(m), Base.Docs.Binding(m, n))
-    mods = (EcoSISTEM, EcoSISTEM.ClimatePref, EcoSISTEM.Units)
+    mods = (EcoSISTEM, EcoSISTEM.Units)
 
     undocumented = Symbol[]
     for m in mods, n in names(m, all = false)
@@ -233,30 +233,9 @@ _documented_control_() = nothing
         any(mm -> hasdoc(mm, n), mods) || push!(undocumented, n)
     end
 
-    # A *named* list, not a count: a new gap has to be looked at, and an old one disappearing
-    # should shrink this rather than pass silently. These are `@deprecate`d shims, whose redirect is
-    # their documentation.
+    # A *named* list, not a count: a new gap has to be looked at. A `@deprecate`d shim belongs here,
+    # its redirect being its documentation.
     known = [
-        # `@deprecate`d names - the redirect the macro generates is their documentation.
-        :CHELSA_bioclim, :CHELSA_monthly, :Landcover, :Worldclim_bioclim,
-        :Worldclim_monthly, :compressLC, :fitBrownian,
-        :bioclimAE, :eraAE, :eraChange, :lcAE, :peakedgradAE, :raingradAE,
-        :simplehabitatAE, :simplenicheAE, :tempgradAE, :worldclimAE,
-        :worldclimChange, :getbudget, :gethabitat, :gettraitrel, :getsize,
-        :getgridsize,
-        :resetrate!, :traitpopulate!, :traitrepopulate!,
-        # The flatcase conformance pass, 2026-08-25: four names that were exported in v0.4.0 and so
-        # kept a redirect. The other twenty renamed names owed no shim, being unexported or new on
-        # this branch, so they do not appear here.
-        :assign_traits!, :gather_abundance, :gather_diversity, :get_traits,
-        # `[C7-VIS]` C, 2026-08-26: `clearcache` gained its `!` (it deletes files) and `searchdir`
-        # became private. Both were exported in v0.4.0, so both keep a redirect.
-        :clearcache, :searchdir,
-        # These two were `@deprecate_binding`s until the two categorical tolerances merged, and
-        # a binding inherits its target's docstring. They are now `@deprecate` *functions*, because
-        # each has to pin its own `penalty` - which a binding cannot supply - so they land here with
-        # the rest of the redirects.
-        :DiscreteTrait, :LCtrait,
         # `EcoSISTEM.Units` constants - `Unitful.@unit` and the `Dates` month-number re-exports
         # generate the binding, so there is nowhere to hang a docstring of our own.
         :January, :February, :March, :April, :May, :June, :July, :August,
@@ -268,17 +247,16 @@ _documented_control_() = nothing
         :october_duration, :november_duration, :december_duration,
         :month_mean_duration, :quarter_mean_duration,
         :arcminute, :arcsecond, :day, :week, :year, :percent,
-        # Three more `@deprecate`d shims. `ContinuousEvolve`/`DiscreteEvolve` are the
-        # naming-standardisation redirects; `emptyMPIgridlandscape` is a shim that errors with a
-        # migration message, because its old signature cannot reach what the replacement needs.
+        # A shim that errors with a migration message, because its old signature cannot reach what
+        # the replacement needs.
         #
         # Every `@deprecate`d FUNCTION has to be named here, and that is not laziness:
         # `Base.isdeprecated` is **false** for all of them, because `@deprecate` creates an ordinary
         # function carrying a redirect method where only `@deprecate_binding` marks the binding. So
         # the check cannot find them and the list cannot be replaced by a filter.
-        :ContinuousEvolve, :DiscreteEvolve, :emptyMPIgridlandscape]
-    # There are no entries below this point, and that is the finding: every name on the list is a
-    # deprecation shim, and the package currently has **no undocumented public name at all**. A
+        :emptyMPIgridlandscape]
+    # Every name on the list is a generated constant or a deprecation shim, so the package has
+    # **no undocumented public name at all**. A
     # genuine gap appearing here would have to be added deliberately, which is the point.
     @test isempty(setdiff(undocumented, known))
 
@@ -331,11 +309,11 @@ end
 # this is where the asymmetry bites, and where the check is worth its exception list.
 @testset "every public function documents its keywords" begin
     hasdoc(m, n) = haskey(Base.Docs.meta(m), Base.Docs.Binding(m, n))
-    mods = (EcoSISTEM, EcoSISTEM.ClimatePref, EcoSISTEM.Units)
+    mods = (EcoSISTEM, EcoSISTEM.Units)
 
     # Every keyword any of `f`'s **own** methods declares. Methods from elsewhere are skipped: a
     # `@deprecate` shim is generated into `Base`, and its redirect is its documentation.
-    ours = ("EcoSISTEM", "ClimatePref", "Units")
+    ours = ("EcoSISTEM", "Units")
     function keywords(f)
         ks = Symbol[]
         for m in methods(f)
@@ -377,11 +355,7 @@ end
         # `src/actions.jl` is held back from the documentation pass, so its two gaps are recorded
         # here rather than fixed. Both are real.
         (:build_species, :verbosity),
-        (:simulate!, :intervention),
-        # `@deprecate`d readers, whose `cut` forwards to the replacement's. A name being removed is
-        # documented by the redirect the macro generates, and describing its arguments is work with
-        # a negative lifespan - the same exemption the docstring check above makes.
-        (:readCERA, :cut), (:readCRUTS, :cut), (:readERA, :cut)]
+        (:simulate!, :intervention)]
     @test isempty(setdiff(unique(undocumented), known))
 
     # And the detector is not vacuous: it has to find a keyword that genuinely is not written down,

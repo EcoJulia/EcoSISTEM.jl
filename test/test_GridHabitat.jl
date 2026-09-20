@@ -1470,8 +1470,8 @@ end
     # appears one step later, because the supply path multiplies by the **cell area** first: a
     # 3 m/s wind over a 1 km^2 cell becomes 2.592e14 L/day, which is **dimensionally identical** to
     # rainfall over the same cell. Any lookup keyed on dimension must confuse the two.
-    windflow = EcoSISTEM._cancel(3.0m / s, 1.0km^2)
-    rainflow = EcoSISTEM._cancel(2.0mm / day, 1.0km^2)
+    windflow = 3.0m / s * 1.0km^2
+    rainflow = 2.0mm / day * 1.0km^2
     @test dimension(windflow) == dimension(rainflow)
     @test dimension(windflow) == dimension(1.0Unitful.L / day)
     # ...and it really is a wind speed that got there, not a quantity that was water all along.

@@ -229,6 +229,11 @@ Three rules follow, and they are the whole of it:
   - **It can be a regime, never a supply.** `EcoSISTEM.NicheAxis` declares no resource, so offering
     one as a supply is refused by name. "Regime or reference, never a supply" is the shape to
     remember.
+  - **As a regime it takes a categorical tolerance, not a continuous one.** A continuous
+    suitability is a density, measured against the `densitywidth` its axis declares
+    ([`@nicheaxis`](@ref)), and the root declares none - so the fit is refused when the
+    ecosystem is built. Species that respond to the values need an axis that says what
+    they are (below).
   - **It is not a wildcard.** The root pairs with the root and with nothing else - matching is
     *identity*, so a species on `Temperature` is refused against a root-axis regime, and told so.
     That is deliberate: a layer that declines to say what it measures must not be silently read as
@@ -240,18 +245,21 @@ Three rules follow, and they are the whole of it:
     Quantity{...} in the environment regime"* - which names neither `EcoSISTEM.NicheAxis` nor the unit
     as the cause, so it is worth recognising.
 
-!!! note "Matching a united axis-less layer"
-    `build_species` reads bare tolerance parameters in the axis's own frame, which for
-    `EcoSISTEM.NicheAxis` is bare numbers - so a regime carrying a real unit needs a tolerance built
-    in that unit. Construct it directly and pass it in:
+!!! note "When species respond to it, give it an axis"
+    An axis is one line, and says what the values are, the unit they are read in and the width
+    a continuous suitability is measured against:
 
     ```julia
-    tol = NicheTolerance(EcoSISTEM.NicheAxis, Normal, params, support = u"kJ^2")
-    species = build_species(n, tolerance = tol, demand = ..., demandaxis = ...)
+    @nicheaxis(SurveyedEnergy <: EcoSISTEM.NicheAxis, condition = u"kJ^2",
+               densitywidth = 1.0u"kJ^2")
+    odd = UniformSpec(2.0u"kJ^2", axis = SurveyedEnergy)
+    species = build_species(n, tolerance = (2.0u"kJ^2", 0.5u"kJ^2"),
+                            toleranceaxis = SurveyedEnergy, demand = ..., demandaxis = ...)
     ```
 
-    A **pre-built tolerance is used as given**, carrying its own axis and frame, so
-    `toleranceaxis` is not needed alongside it. It must already cover every species.
+    The same line declares one variable beneath a shipped axis -
+    `@nicheaxis(MinimumTemperature <: Temperature, densitywidth = 10.0K)` - which inherits its
+    unit and bounds, and is put on a catalogued layer with `SourceSpec(...; axis = MinimumTemperature)`.
 
 **The useful case is composition.** A layer with no axis is an *ingredient*: a soil-type
 map has no tolerance and no supply of its own, yet it legitimately changes how much of the

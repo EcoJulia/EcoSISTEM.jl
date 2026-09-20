@@ -29,9 +29,6 @@ using Rasters
 
 import Rasters: Projected
 
-# **Nothing here is imported from `EcoSISTEM.ClimatePref`, and that is the point.** `_crsunit`,
-# `_isangle` and `_stacklayers` are raster geometry rather than climate data, so they live in the
-# parent module. The dependency runs one way, and the submodule is the dependent.
 # Load-bearing with no referenced symbol: it registers the GDAL backend that `Rasters` needs for
 # reprojection. Do not remove in a dead-code pass.
 import ArchGDAL

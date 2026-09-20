@@ -9,6 +9,7 @@ using Distributions
 using MPI
 using Random
 using Diversity
+using DataFrames: DataFrame, nrow
 using Phylo: getbranches, getlength
 using JLD2
 using Test
@@ -39,21 +40,36 @@ end
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 
+# **Two testsets below run at some rank counts only, and this file is launched at 1, 2 and 4.**
+# Each is about what ranks do *to each other*, so at one rank there is nothing to see - and they are
+# the two most expensive things here, measured at 22 s and 9 s of a 53 s two-rank run, paid again in
+# every launch. What every launch still runs is everything a rank count can change: the partition,
+# the hot loop, the interventions, the recorders and the blessed comparisons.
+const MANYRANKS = MPI.Comm_size(comm) > 1
+# The shared build is the stricter case: a third and fourth rank receive exactly what the second
+# does, so two ranks prove it and more only pay for it again.
+const TWORANKS = MPI.Comm_size(comm) == 2
+
 # Every rank asks for the same download at once: one fetches it, the others wait on its lock and
 # then find the file, so the bytes travel once and nothing is corrupted. A `file://` source, so no
 # network; the shared directory is made on rank 0 and its name sent round.
-@testset "one rank fetches an asset the others wait for" begin
-    shared = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
-    source = joinpath(shared, "source.bin")
-    rank == 0 && write(source, rand(UInt8, 4096))
-    MPI.Barrier(comm)
-    dest = joinpath(shared, "fetched.bin")
-    p = EcoSISTEM.assetpath(EcoSISTEM.CachedAsset(TwentyCR, "file://" * source,
-                                                  path = dest))
-    MPI.Barrier(comm)
-    @test p == dest && read(dest) == read(source)
-    @test isfile(dest * ".provenance.toml")
-    @test !isfile(dest * ".part") && !isfile(dest * ".lock")
+if !MANYRANKS
+    @info "Skipping the shared-asset testset: it needs more than one rank."
+else
+    @testset "one rank fetches an asset the others wait for" begin
+        shared = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
+        source = joinpath(shared, "source.bin")
+        rank == 0 && write(source, rand(UInt8, 4096))
+        MPI.Barrier(comm)
+        dest = joinpath(shared, "fetched.bin")
+        p = EcoSISTEM.assetpath(EcoSISTEM.CachedAsset(TwentyCR,
+                                                      "file://" * source,
+                                                      path = dest))
+        MPI.Barrier(comm)
+        @test p == dest && read(dest) == read(source)
+        @test isfile(dest * ".provenance.toml")
+        @test !isfile(dest * ".part") && !isfile(dest * ".lock")
+    end
 end
 
 # **A study area and its layers are built once, on the root, and every other rank receives them.**
@@ -64,120 +80,128 @@ end
 #
 # The ranks other than the root are given paths that do not exist. Their builds can only succeed
 # if they read nothing - by the cache or around it - and take the root's result instead.
-@testset "a study area and its layers are built on the root and received by every rank" begin
-    shared = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
-    real = joinpath(shared, "rain.tif")
-    if rank == 0
-        ArchGDAL.create(real, driver = ArchGDAL.getdriver("GTiff"), width = 8,
-                        height = 7, nbands = 3, dtype = Float64) do ds
-            for band in 1:3
-                values = [2.0 + i + 10j + 100band for i in 1:8, j in 1:7]
-                band == 2 && (values[3, 2] = NaN)
-                ArchGDAL.write!(ds, values, band)
-            end
-            ArchGDAL.setgeotransform!(ds, [10.0, 0.5, 0.0, 55.0, 0.0, -0.5])
-            return ArchGDAL.setproj!(ds,
-                                     ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
-        end
-    end
-    MPI.Barrier(comm)
-    dates = [Date(2000, 1, 15), Date(2000, 2, 15), Date(2000, 3, 15)]
-    rain(path) = RasterFileSpec(path, axis = Precipitation, unit = mm / day,
-                                times = dates, atend = HoldAtEnd())
-    mine = rain(rank == 0 ? real : joinpath(shared, "absent.tif"))
-
-    # Gathered by serialisation - a route independent of the one under test - and compared on the
-    # root against what the root built.
-    function agreeswithroot(same, value, reference)
-        everyone = MPI.gather(value, comm)
-        rank == 0 || return true
-        return all(same(reference, other) for other in everyone)
-    end
-    agreeswithroot(layer, reference) = agreeswithroot(samelayer, layer,
-                                                      reference)
-
-    # A shape file only the root can see, as the area's mask: a triangle, so the grid cropped to it
-    # still has inactive cells.
-    outline = joinpath(shared, "outline.geojson")
-    if rank == 0
-        triangle = ArchGDAL.createpolygon([[(10.5, 51.8), (13.6, 51.8),
-                                              (10.5, 54.6), (10.5, 51.8)]])
-        ArchGDAL.create(outline, driver = ArchGDAL.getdriver("GeoJSON")) do ds
-            makelayer = layer -> begin
-                ArchGDAL.addfeature(layer) do feature
-                    return ArchGDAL.setgeom!(feature, triangle)
+if !TWORANKS
+    @info "Skipping the shared study area and layers testset: it runs at two ranks."
+else
+    @testset "a study area and its layers are built on the root and received by every rank" begin
+        shared = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
+        real = joinpath(shared, "rain.tif")
+        if rank == 0
+            ArchGDAL.create(real, driver = ArchGDAL.getdriver("GTiff"),
+                            width = 8,
+                            height = 7, nbands = 3, dtype = Float64) do ds
+                for band in 1:3
+                    values = [2.0 + i + 10j + 100band for i in 1:8, j in 1:7]
+                    band == 2 && (values[3, 2] = NaN)
+                    ArchGDAL.write!(ds, values, band)
                 end
-                ArchGDAL.copy(layer, dataset = ds)
+                ArchGDAL.setgeotransform!(ds, [10.0, 0.5, 0.0, 55.0, 0.0, -0.5])
+                return ArchGDAL.setproj!(ds,
+                                         ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
             end
-            return ArchGDAL.createlayer(makelayer, name = "outline",
-                                        geom = ArchGDAL.wkbPolygon)
         end
+        MPI.Barrier(comm)
+        dates = [Date(2000, 1, 15), Date(2000, 2, 15), Date(2000, 3, 15)]
+        rain(path) = RasterFileSpec(path, axis = Precipitation, unit = mm / day,
+                                    times = dates, atend = HoldAtEnd())
+        mine = rain(rank == 0 ? real : joinpath(shared, "absent.tif"))
+
+        # Gathered by serialisation - a route independent of the one under test - and compared on the
+        # root against what the root built.
+        function agreeswithroot(same, value, reference)
+            everyone = MPI.gather(value, comm)
+            rank == 0 || return true
+            return all(same(reference, other) for other in everyone)
+        end
+        agreeswithroot(layer, reference) = agreeswithroot(samelayer, layer,
+                                                          reference)
+
+        # A shape file only the root can see, as the area's mask: a triangle, so the grid cropped to it
+        # still has inactive cells.
+        outline = joinpath(shared, "outline.geojson")
+        if rank == 0
+            triangle = ArchGDAL.createpolygon([[(10.5, 51.8), (13.6, 51.8),
+                                                  (10.5, 54.6), (10.5, 51.8)]])
+            ArchGDAL.create(outline, driver = ArchGDAL.getdriver("GeoJSON")
+                            ) do ds
+                makelayer = layer -> begin
+                    ArchGDAL.addfeature(layer) do feature
+                        return ArchGDAL.setgeom!(feature, triangle)
+                    end
+                    ArchGDAL.copy(layer, dataset = ds)
+                end
+                return ArchGDAL.createlayer(makelayer, name = "outline",
+                                            geom = ArchGDAL.wkbPolygon)
+            end
+        end
+        MPI.Barrier(comm)
+        within = ShapeSpec(rank == 0 ? outline :
+                           joinpath(shared, "absent.geojson"))
+
+        area = StudyArea(supply = mine, verbosity = :silent)
+        @test agreeswithroot(samereport, area.report,
+                             rank == 0 ? area.report : nothing)
+        @test count(area.report.active) == 56
+        # The area's own records arrive with it, before any layer is built.
+        @test agreeswithroot(==, provenance(area).inputs,
+                             rank == 0 ? provenance(area).inputs : nothing)
+        @test length(provenance(area).inputs) == 1
+        investigated = investigate_study_area(supply = mine)
+        @test agreeswithroot(samereport, investigated,
+                             rank == 0 ? investigated : nothing)
+        masked = StudyArea(supply = mine, within = within, verbosity = :silent)
+        @test agreeswithroot(samereport, masked.report,
+                             rank == 0 ? masked.report : nothing)
+        @test 0 < count(masked.report.active) < length(masked.report.active)
+        synthetic = StudyArea(extent = (70.0km, 80.0km), cellsize = 10.0km,
+                              verbosity = :silent)
+        @test agreeswithroot(samereport, synthetic.report,
+                             rank == 0 ? synthetic.report : nothing)
+
+        direct = materialise(mine, area, role = EcoSISTEM.Resource)
+        @test direct.change isa EcoSISTEM.SeriesLayerChange
+        @test any(isnan, direct.change.slices)
+        reference = rank == 0 ?
+                    EcoSISTEM._materialisespec(rain(real), area,
+                                               EcoSISTEM.Resource) : nothing
+        @test agreeswithroot(direct, reference)
+
+        niche = NicheSpec(4, axis = EcoSISTEM.NicheAxis)
+        habitat = GridHabitat(regime = (temperature = UniformSpec(290.0K,
+                                                                  axis = Temperature),
+                                        niche = niche),
+                              supply = mine, area = area)
+        # The habitat's own supply has had its gaps zeroed, so it is compared with the root's.
+        @test agreeswithroot(habitat.supply,
+                             rank == 0 ? habitat.supply : nothing)
+        # Unseeded, so each rank would draw its own layout if it built its own.
+        @test agreeswithroot(habitat.regime[:niche],
+                             rank == 0 ? habitat.regime[:niche] : nothing)
+        everyactive = MPI.gather(habitat.active, comm)
+        rank == 0 && @test all(==(first(everyactive)), everyactive)
+
+        # Only the root read, and every rank records what it read.
+        @test isempty(area.report.cache.reads) == (rank != 0)
+        everyinput = MPI.gather(provenance(habitat).inputs, comm)
+        rank == 0 && @test !isempty(provenance(habitat).inputs)
+        rank == 0 && @test all(==(first(everyinput)), everyinput)
+
+        # A layer already built is copied on every rank, with nothing sent.
+        rebuilt = GridHabitat(regime = habitat.regime[:temperature],
+                              supply = habitat.supply, area = area)
+        @test samelayer(rebuilt.supply, habitat.supply)
+
+        # A failure on the root stops every rank, rather than leaving the others waiting.
+        broken = rain(rank == 0 ? joinpath(shared, "absent.tif") : real)
+        @test_throws Exception materialise(broken, area)
+        MPI.Barrier(comm)
+
+        # So does a shared build started inside another.
+        @test_throws "started inside another one" EcoSISTEM._sharedlayer(area) do
+            return EcoSISTEM._sharedlayer(() -> nothing, area)
+        end
+        MPI.Barrier(comm)
     end
-    MPI.Barrier(comm)
-    within = ShapeSpec(rank == 0 ? outline : joinpath(shared, "absent.geojson"))
-
-    area = StudyArea(supply = mine, verbosity = :silent)
-    @test agreeswithroot(samereport, area.report,
-                         rank == 0 ? area.report : nothing)
-    @test count(area.report.active) == 56
-    # The area's own records arrive with it, before any layer is built.
-    @test agreeswithroot(==, provenance(area).inputs,
-                         rank == 0 ? provenance(area).inputs : nothing)
-    @test length(provenance(area).inputs) == 1
-    investigated = investigate_study_area(supply = mine)
-    @test agreeswithroot(samereport, investigated,
-                         rank == 0 ? investigated : nothing)
-    masked = StudyArea(supply = mine, within = within, verbosity = :silent)
-    @test agreeswithroot(samereport, masked.report,
-                         rank == 0 ? masked.report : nothing)
-    @test 0 < count(masked.report.active) < length(masked.report.active)
-    synthetic = StudyArea(extent = (70.0km, 80.0km), cellsize = 10.0km,
-                          verbosity = :silent)
-    @test agreeswithroot(samereport, synthetic.report,
-                         rank == 0 ? synthetic.report : nothing)
-
-    direct = materialise(mine, area, role = EcoSISTEM.Resource)
-    @test direct.change isa EcoSISTEM.SeriesLayerChange
-    @test any(isnan, direct.change.slices)
-    reference = rank == 0 ?
-                EcoSISTEM._materialisespec(rain(real), area,
-                                           EcoSISTEM.Resource) : nothing
-    @test agreeswithroot(direct, reference)
-
-    niche = NicheSpec(4, axis = EcoSISTEM.NicheAxis)
-    habitat = GridHabitat(regime = (temperature = UniformSpec(290.0K,
-                                                              axis = Temperature),
-                                    niche = niche),
-                          supply = mine, area = area)
-    # The habitat's own supply has had its gaps zeroed, so it is compared with the root's.
-    @test agreeswithroot(habitat.supply, rank == 0 ? habitat.supply : nothing)
-    # Unseeded, so each rank would draw its own layout if it built its own.
-    @test agreeswithroot(habitat.regime[:niche],
-                         rank == 0 ? habitat.regime[:niche] : nothing)
-    everyactive = MPI.gather(habitat.active, comm)
-    rank == 0 && @test all(==(first(everyactive)), everyactive)
-
-    # Only the root read, and every rank records what it read.
-    @test isempty(area.report.cache.reads) == (rank != 0)
-    everyinput = MPI.gather(provenance(habitat).inputs, comm)
-    rank == 0 && @test !isempty(provenance(habitat).inputs)
-    rank == 0 && @test all(==(first(everyinput)), everyinput)
-
-    # A layer already built is copied on every rank, with nothing sent.
-    rebuilt = GridHabitat(regime = habitat.regime[:temperature],
-                          supply = habitat.supply, area = area)
-    @test samelayer(rebuilt.supply, habitat.supply)
-
-    # A failure on the root stops every rank, rather than leaving the others waiting.
-    broken = rain(rank == 0 ? joinpath(shared, "absent.tif") : real)
-    @test_throws Exception materialise(broken, area)
-    MPI.Barrier(comm)
-
-    # So does a shared build started inside another.
-    @test_throws "started inside another one" EcoSISTEM._sharedlayer(area) do
-        return EcoSISTEM._sharedlayer(() -> nothing, area)
-    end
-    MPI.Barrier(comm)
 end
 
 # **The fixture is built by `mpifixture_species` in `varyingcase.jl`, not spelled out here.**
@@ -531,15 +555,45 @@ if rank == 0
 end
 # A metacommunity measure has no value per cell to assemble. Every rank refuses it alike before the
 # gather, so none is left waiting in the collective and the run carries on past it.
-@test_throws "subcommunity diversity measure" gatherdiversity(receco,
-                                                              meta_gamma,
-                                                              [0.0, 1.0])
-@test_throws "subcommunity diversity measure" RecordDiversity(zeros(1, 2, nrec),
-                                                              meta_gamma,
-                                                              [0.0, 1.0])(receco,
-                                                                          (count = 1,
-                                                                           elapsed = 0.0u"s",
-                                                                           date = nothing))
+#
+# **The refusal met here is the measure's own**, not `gatherdiversity`'s level check: both compute
+# the measure first, and a metacommunity value is refused for a distributed ecosystem however it is
+# asked for (below). The level check still guards the serial recorder - `test_Recorder.jl` holds
+# that one - and still fires here for an individual-level measure.
+@test_throws "differ between ranks" gatherdiversity(receco, meta_gamma,
+                                                    [0.0, 1.0])
+@test_throws "differ between ranks" RecordDiversity(zeros(1, 2, nrec),
+                                                    meta_gamma,
+                                                    [0.0, 1.0])(receco,
+                                                                (count = 1,
+                                                                 elapsed = 0.0u"s",
+                                                                 date = nothing))
+
+# **And asking for one directly is refused too, at every rank count.** A measure built on a
+# distributed ecosystem covers this rank's cells, so a metacommunity value taken from it answers for
+# that rank alone: measured at two ranks, `meta_gamma` gave 6.2237 against the serial 6.2512, the
+# ranks disagreed, and nothing was said. Every `meta_*` shorthand reaches `metadiv`, so one of them
+# stands for all.
+@test_throws "differ between ranks" meta_gamma(receco, 1.0)
+@test_throws "differ between ranks" norm_meta_alpha(receco, [0.0, 1.0])
+# Every refusing method is called by name as well. A shorthand meets `metadiv` first, so the
+# `metadiv_raw` ones are otherwise reached only under a Diversity release that routes past it - and
+# a refusal that merely narrows the first argument is ambiguous with Diversity's own method, which
+# nothing shows until it is called. Building the measure is collective, so every rank builds it.
+recgamma = Diversity.Gamma(receco)
+@test_throws "differ between ranks" Diversity.metadiv(recgamma, 1.0)
+@test_throws "differ between ranks" Diversity.metadiv(recgamma, [0.0, 1.0])
+@test_throws "differ between ranks" Diversity.metadiv(DataFrame, recgamma,
+                                                      1.0)
+@test_throws "differ between ranks" Diversity.metadiv_raw(recgamma, 1.0)
+@test_throws "differ between ranks" Diversity.metadiv_raw(recgamma, 1.0,
+                                                          [1.0])
+@test_throws "differ between ranks" Diversity.metadiv_raw(recgamma, 1.0,
+                                                          [1.0], nothing)
+# The subcommunity form still answers, for this rank's cells, which is what `gatherdiversity`
+# assembles.
+@test nrow(norm_sub_alpha(receco, 1.0)) ==
+      receco.abundances.cols_tuple.last - receco.abundances.cols_tuple.first + 1
 MPI.Barrier(comm)
 
 # **Ordinariness is computed in the COLUMN partition**, where a rank owns every species for its own

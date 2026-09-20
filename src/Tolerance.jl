@@ -321,29 +321,39 @@ _defaultsupport(::Type{NicheAxis}) = NoUnits
 # support check off for *every* axis, which no test with a declared axis would notice.
 _checksupport(::Type{NicheAxis}, support) = nothing
 
-# Refuse a tolerance on an axis that has no canonical unit, naming the axis and which of the two
-# reasons applies. Without it the failure is a bare `MethodError: no method matching
-# dimension(::Nothing)`, which names neither the axis nor the tolerance and arrives from `Unitful`
-# rather than from here.
-#
-# The two reasons need different remedies, and are told apart by **which method answers**: a
-# deliberate `condition = nothing` - a supply-only axis such as `CarbonFlux` - has its own method,
-# while an axis nobody has declared falls through to the root fallback. The first is a modelling
-# mistake, matching species against something they consume; the second is a missing declaration.
+# Refuse a tolerance on an axis that has no canonical unit, naming the axis and the reason. Without
+# it the failure is a bare `MethodError: no method matching dimension(::Nothing)`, which names
+# neither the axis nor the tolerance and arrives from `Unitful` rather than from here.
 function _checksupport(axis, support)
     cu = canonicalunit(axis)
-    if isnothing(cu)
-        stated = which(canonicalunit, Tuple{Type{axis}}) !==
-                 which(canonicalunit, Tuple{Type{NicheAxis}})
-        return error("cannot build a NicheTolerance on axis $axis: " *
-                     (stated ?
-                      "it declares `condition = nothing`, so it is not a condition at all - it is a resource species consume, not one they are matched against. Give the species a demand on it instead." :
-                      "no canonical unit is declared for it, so there is no unit to build the tolerance in. Declare one with `@nicheaxis($axis <: ..., condition = ...)`."))
-    end
+    isnothing(cu) &&
+        return error("cannot build a NicheTolerance on axis $(nameof(axis)): " *
+                     _whynocondition(axis))
     dimension(support) == dimension(cu) ||
         return error("NicheTolerance support unit $support and axis $axis's canonical unit " *
                      "$cu have different dimensions.")
     return nothing
+end
+
+# The reason an axis has no condition unit, and what to do about it - the three need different
+# remedies. A stated `condition = nothing` is a modelling mistake, matching species against
+# something they consume; a reference axis is never matched to species at all; and an axis that
+# says nothing is either a group, where one of its members is meant, or a missing declaration.
+function _whynocondition(axis)
+    absence = _conditionabsence(axis)
+    absence === :refused &&
+        return "it declares `condition = nothing`, so it is not a condition at all - it is a " *
+               "resource species consume, not one they are matched against. Give the species " *
+               "a demand on it instead."
+    absence === :reference &&
+        return "it is a `reference` axis, neither a condition nor a resource - its layers are " *
+               "carried on the grid and composed, and never matched to species."
+    members = subtypes(axis)
+    isempty(members) ||
+        return "it groups other axes and declares no unit of its own. Name the one you mean: " *
+               join(("`$(nameof(m))`" for m in members), ", ") * "."
+    return "no canonical unit is declared for it, so there is no unit to build the tolerance " *
+           "in. Declare one with `@nicheaxis($(nameof(axis)) <: ..., condition = ...)`."
 end
 
 # Impute the **input** unit of a set of parameter vectors - the unit their bare magnitudes are read

@@ -93,6 +93,10 @@
       as PDFs from the package's own examples, at the published scale when run directly and from
       a small run under the test suite.
   - Changed
+    - A continuous tolerance on a niche axis with no `densitywidth` is refused when its fit is
+      built, where it was used unscaled and so depended on the unit it was written in. Declare the
+      variable beneath the axis with its own width; this includes the root `NicheAxis`, which
+      still takes a categorical tolerance.
     - Under MPI with more than one rank, `StudyArea`, `investigate_study_area`, `materialise`,
       `GridHabitat` and `build_habitat` read and build on the first rank, and the other ranks receive
       the result, so the data is read once and every rank holds the same values. Every rank must
@@ -160,6 +164,8 @@
       `indices` and `coordinates` now report `(y, x)` columns, the package's own order; ask
       `XThenY()` for the other.
   - Fixed
+    - A niche axis declared beneath a shipped one - `@nicheaxis(MinimumTemperature <: Temperature,
+      densitywidth = 10.0K)` - no longer stops the catalogue resolving the shipped axis by name.
     - A `StudyGrid` declares that it labels cells by their lower corner. EcoBase assumed a centre,
       so every edge it derived - and every heatmap drawn from those edges - sat half a cell low.
     - An angular `cellsize` such as `30arcminute` is accepted on a geographic grid; a length there,
@@ -181,6 +187,17 @@
       one step after each multiple of the interval, and the shim keeps that timing.
     - `simulate_record!`, `simulate_record_diversity!` and the six-argument caching `simulate!`: pass
       a `RecordAbundance`, `RecordDiversity` or `SaveAbundance` to `simulate!` instead.
+  - Removed
+    - Everything deprecated in v0.5.0: the v0.4.0 vocabulary (`GridAbioticEnv`, `SolarBudget`,
+      `GaussTrait`, `Gauss`, `simplehabitat`, `tempgrad`, `TempChange` and the rest), the
+      `ClimatePref` readers and wrappers (`readERA`, `Worldclim_bioclim`, `upresolution`, ...), and
+      the `ERA(array)` container constructors. v0.5.0's notes give each replacement.
+    - The `EcoSISTEM.ClimatePref` submodule, which had come to define nothing: write
+      `using EcoSISTEM`. Everything it re-exported is the parent's, exported or `public` there
+      (`layeraxes` and `sourcecrs` now among them); `Brownian`, `fitbrownian` and `varcovar` are
+      `public` rather than exported, so name them - `using EcoSISTEM: fitbrownian`.
+    - `Supply{A}(::Matrix)`, which built a supply with no coordinates and gave no warning. Pass a
+      `DimArray` whose `Y` and `X` say where its cells are.
 - v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name

@@ -339,6 +339,25 @@ To declare an axis that measures something new, give it a unit - and say which r
 
 `bounds = (lo, hi)` is optional on any of them and is stated in that axis's own canonical unit.
 
+### The width a continuous suitability is measured against
+
+A continuous suitability is a probability *density*, which carries one over the axis's unit, so it
+is multiplied by a fixed physical width to make it a plain number - `densitywidth = 1.0K` on
+`Temperature`. Without one the same niche would score ten times higher written in `cm` than in
+`mm`. An axis with no width, declared or inherited, can still be declared, carry a supply or take
+a categorical tolerance, but a continuous tolerance on it is refused when the ecosystem is built.
+It stands for a family of variables, and the one you mean is declared beneath it:
+
+```@example units
+@nicheaxis(MinimumTemperature <: Temperature, densitywidth = 10.0u"K")
+EcoSISTEM.densitywidth(MinimumTemperature)
+```
+
+Everything else is inherited, a method written for `Temperature` still reaches it, and it pairs
+only with itself - so the tolerance and the regime both name it, a catalogued layer with
+`SourceSpec(WorldClim{BioClim}, :bio6, axis = MinimumTemperature)`, since the axis a catalogue
+gives a layer is a default.
+
 ### Axes whose values are class labels
 
 `categorical = true` says an axis holds **class codes** rather than measurements, so a layer on it

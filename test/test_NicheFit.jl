@@ -25,35 +25,40 @@ using Extents: Extent
 include("rasterfixtures.jl")
 include("buildfixtures.jl")
 
+# An axis for exercising the continuous fit on frames of any kind. Its width is dimensionless, so
+# the density is unscaled whatever the frame; the root axis declares no width and is refused.
+@nicheaxis(TestFitAxis<:EcoSISTEM.NicheAxis, condition=NoUnits,
+           densitywidth=1.0NoUnits)
+
 @testset "Trait relationships" begin
-    @test_nowarn NicheSuitability{EcoSISTEM.NicheAxis, Unitful.Temperature}()
+    @test_nowarn NicheSuitability{TestFitAxis, Unitful.Temperature}()
     @test_nowarn CategoricalSuitability{EcoSISTEM.NicheAxis, Int64}()
     @test_nowarn NoFitContinuous{EcoSISTEM.NicheAxis, Int64}()
     @test_nowarn NoFitCategorical{EcoSISTEM.NicheAxis, Int64}()
 
     # `NicheSuitability` evaluates a distribution's density at the (unit-stripped) regime value.
-    @test NicheSuitability{EcoSISTEM.NicheAxis, Unitful.Temperature}()(Normal(1.0,
-                                                                              0.01),
-                                                                       1.0K) >
+    @test NicheSuitability{TestFitAxis, Unitful.Temperature}()(Normal(1.0,
+                                                                      0.01),
+                                                               1.0K) >
           0.0
-    @test NicheSuitability{EcoSISTEM.NicheAxis, typeof(1.0mm)}()(Uniform(1, 2),
-                                                                 1.0mm) == 1.0
-    @test NicheSuitability{EcoSISTEM.NicheAxis, Int64}()(Trapezoid(1, 2, 3, 4),
-                                                         1) == 0.0
+    @test NicheSuitability{TestFitAxis, typeof(1.0mm)}()(Uniform(1, 2),
+                                                         1.0mm) == 1.0
+    @test NicheSuitability{TestFitAxis, Int64}()(Trapezoid(1, 2, 3, 4),
+                                                 1) == 0.0
 
     # A concrete `NF` forces a real `uconvert`, not a bare strip: a dimensionally-compatible but
     # differently-scaled `current` is corrected rather than silently misread (1000.0μm ≡ 1.0mm).
-    @test NicheSuitability{EcoSISTEM.NicheAxis, typeof(1.0mm)}()(Uniform(1, 2),
-                                                                 1000.0Unitful.μm) ==
+    @test NicheSuitability{TestFitAxis, typeof(1.0mm)}()(Uniform(1, 2),
+                                                         1000.0Unitful.μm) ==
           1.0
-    @test_throws Unitful.DimensionError NicheSuitability{EcoSISTEM.NicheAxis,
+    @test_throws Unitful.DimensionError NicheSuitability{TestFitAxis,
                                                          typeof(1.0mm)}()(Uniform(1,
                                                                                   2),
                                                                           1.0K)
-    @test EcoSISTEM._iscontinuous(NicheSuitability{EcoSISTEM.NicheAxis,
+    @test EcoSISTEM._iscontinuous(NicheSuitability{TestFitAxis,
                                                    Unitful.Temperature}()) ==
           true
-    @test eltype(NicheSuitability{EcoSISTEM.NicheAxis, Unitful.Temperature}()) ==
+    @test eltype(NicheSuitability{TestFitAxis, Unitful.Temperature}()) ==
           Unitful.Temperature
 
     @test CategoricalSuitability{EcoSISTEM.NicheAxis, Int64}()(1, 1) == 1.0
@@ -79,7 +84,7 @@ include("buildfixtures.jl")
     @test map(eltype, values(tr2)) == (Int64, Int64)
     tr3 = MultiplicativeFit((a = NoFitContinuous{EcoSISTEM.NicheAxis, Int64}(),
                              b = NoFitCategorical{EcoSISTEM.NicheAxis, Int64}(),
-                             c = NicheSuitability{EcoSISTEM.NicheAxis,
+                             c = NicheSuitability{TestFitAxis,
                                                   Unitful.Temperature}()))
     @test map(EcoSISTEM._iscontinuous, values(tr3)) == (true, false, true)
     @test map(eltype, values(tr3)) == (Int64, Int64, Unitful.Temperature)
@@ -95,7 +100,7 @@ include("buildfixtures.jl")
     @test map(eltype, values(tr2)) == (Int64, Int64)
     tr3 = AdditiveFit((a = NoFitContinuous{EcoSISTEM.NicheAxis, Int64}(),
                        b = NoFitCategorical{EcoSISTEM.NicheAxis, Int64}(),
-                       c = NicheSuitability{EcoSISTEM.NicheAxis,
+                       c = NicheSuitability{TestFitAxis,
                                             Unitful.Temperature}()))
     @test map(EcoSISTEM._iscontinuous, values(tr3)) == (true, false, true)
     @test map(eltype, values(tr3)) == (Int64, Int64, Unitful.Temperature)
@@ -121,14 +126,14 @@ supply = UniformSpec(totalK, axis = SolarRadiation)
     # that reads a cell out of a regime and pairs it with a species' tolerance row - and all it
     # needs is known values on a known axis, so the simplest spec that gives them is the right one.
     habitat1 = GridHabitat(regime = UniformSpec(1.0,
-                                                axis = EcoSISTEM.NicheAxis),
+                                                axis = TestFitAxis),
                            supply = supply, area = studyarea)
     habitat2 = GridHabitat(regime = GradientSpec(-10.0K, 10.0K,
                                                  axis = Temperature),
                            supply = supply, area = studyarea)
 
     regime = LayerCollection((habitat1.regime, habitat2.regime))
-    tolerance = SpeciesRequirementCollection((NicheTolerance(EcoSISTEM.NicheAxis,
+    tolerance = SpeciesRequirementCollection((NicheTolerance(TestFitAxis,
                                                              Normal,
                                                              fill(1.0, 10),
                                                              fill(0.1, 10)),
@@ -136,24 +141,20 @@ supply = UniformSpec(totalK, axis = SolarRadiation)
                                                              Normal,
                                                              fill(1.0K, 10),
                                                              fill(0.1K, 10))))
-    nichefit = MultiplicativeFit((NicheSuitability{EcoSISTEM.NicheAxis,
+    nichefit = MultiplicativeFit((NicheSuitability{TestFitAxis,
                                                    Float64}(),
                                   NicheSuitability{Temperature,
                                                    Unitful.Temperature}()))
     @test_nowarn EcoSISTEM._suitability(regime, tolerance, nichefit, 1, 1)
     # Members by name - **the axis names**, since neither side was named by hand and the two
-    # axes here (the root and `Temperature`) are distinguishable. It read `.one`/`.two` until
+    # axes here (the test axis and `Temperature`) are distinguishable. It read `.one`/`.two` until
     # 2026-08-18; those were the positional fallback, which now fires for nothing at all.
-    @test tolerance.NicheAxis === values(tolerance)[1]
+    @test tolerance.TestFitAxis === values(tolerance)[1]
     @test tolerance.Temperature === values(tolerance)[2]
-    @test nichefit.NicheAxis === values(nichefit)[1]
+    @test nichefit.TestFitAxis === values(nichefit)[1]
     @test NamedTuple(nichefit) ==
-          (NicheAxis = nichefit.NicheAxis, Temperature = nichefit.Temperature)
-    # the deprecated symbol-keyed accessors still reach the same members
-    @test (@test_deprecated getpref(tolerance, :NicheAxis)) ===
-          tolerance.NicheAxis
-    @test (@test_deprecated getregime(regime, :Temperature)) ===
-          regime.Temperature
+          (TestFitAxis = nichefit.TestFitAxis,
+           Temperature = nichefit.Temperature)
 
     regime = GridHabitat(regime = UniformSpec(1.0K, axis = Temperature),
                          supply = supply, area = studyarea).regime

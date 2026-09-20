@@ -86,36 +86,47 @@ function _sandboxes(path::AbstractString)
     return [name => join(code[name], "\n") for name in order]
 end
 
-@testset "Documentation code" begin
-    docsdir = pkgdir(EcoSISTEM, "docs", "src")
-    pages = sort(filter(f -> endswith(f, ".md"), readdir(docsdir)))
-    println()
-    @info "Running the executable code in docs/src ..."
-    total = 0
-    for page in pages
-        sandboxes = _sandboxes(joinpath(docsdir, page))
-        isempty(sandboxes) && continue
-        total += length(sandboxes)
-        println("    * $page - $(length(sandboxes)) executable block group(s) ...")
-        @testset "$page" begin
-            for (name, source) in sandboxes
-                # A fresh, bare module per sandbox: the page must bring its own `using` statements,
-                # which is the point - a page whose imports only work because the test suite had
-                # already loaded something is a page a reader cannot follow.
-                sandbox = Module(Symbol("Docs_", replace(page, r"\W" => "_"),
-                                        "_",
-                                        replace(name, r"\W" => "_")))
-                @testset "$name" begin
-                    @test_nowarn include_string(sandbox, source,
-                                                "$page [$name]")
+# Run when this file was asked for by name, and when running locally. Skip on a CI runner that
+# reached it as part of the extras: the documentation workflow builds the site, which runs these same
+# blocks, so running them in every test job as well costs time and checks nothing more.
+const ASKED_FOR = any(a -> occursin("extras_docs", a), ARGS)
+
+if !(ASKED_FOR || !haskey(ENV, "RUNNER_OS"))
+    @info "Skipping the documentation code: this is a CI runner and it was not asked for " *
+          "directly, and the documentation build runs the same blocks."
+else
+    @testset "Documentation code" begin
+        docsdir = pkgdir(EcoSISTEM, "docs", "src")
+        pages = sort(filter(f -> endswith(f, ".md"), readdir(docsdir)))
+        println()
+        @info "Running the executable code in docs/src ..."
+        total = 0
+        for page in pages
+            sandboxes = _sandboxes(joinpath(docsdir, page))
+            isempty(sandboxes) && continue
+            total += length(sandboxes)
+            println("    * $page - $(length(sandboxes)) executable block group(s) ...")
+            @testset "$page" begin
+                for (name, source) in sandboxes
+                    # A fresh, bare module per sandbox: the page must bring its own `using` statements,
+                    # which is the point - a page whose imports only work because the test suite had
+                    # already loaded something is a page a reader cannot follow.
+                    sandbox = Module(Symbol("Docs_",
+                                            replace(page, r"\W" => "_"),
+                                            "_",
+                                            replace(name, r"\W" => "_")))
+                    @testset "$name" begin
+                        @test_nowarn include_string(sandbox, source,
+                                                    "$page [$name]")
+                    end
                 end
             end
         end
+        # The check that this file is doing anything at all. A regex that quietly matches nothing
+        # reports success just as loudly as one that works, and this suite exists precisely because
+        # unexecuted documentation rots invisibly - so a run that executed no code is a failure.
+        @test total > 0
     end
-    # The check that this file is doing anything at all. A regex that quietly matches nothing
-    # reports success just as loudly as one that works, and this suite exists precisely because
-    # unexecuted documentation rots invisibly - so a run that executed no code is a failure.
-    @test total > 0
 end
 
 end

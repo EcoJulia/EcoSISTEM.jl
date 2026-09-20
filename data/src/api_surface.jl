@@ -21,7 +21,7 @@
 using EcoSISTEM, MPI, Phylo, RasterDataSources
 
 const ROOT = pkgdir(EcoSISTEM)
-const SUBMODULES = [EcoSISTEM.Units, EcoSISTEM.ClimatePref]
+const SUBMODULES = [EcoSISTEM.Units]
 
 # The modules whose names are ours to inventory. An extension that is not loaded simply contributes
 # nothing, so the report covers less rather than reporting wrongly.
@@ -417,9 +417,8 @@ confirmation.
 generator with `MPI`, `Phylo` and `RasterDataSources` present, or the counts come out short.
 """)
 
-# Which of our modules a name really belongs to. A submodule re-exports a great deal of the parent
-# so that `using EcoSISTEM.ClimatePref` keeps working -- 37 of `ClimatePref`'s 54 public names are
-# the parent's -- and listing those twice would inflate the surface being audited and invite the same
+# Which of our modules a name really belongs to. A submodule may re-export the parent's names, and
+# listing those twice would inflate the surface being audited and invite the same
 # name to be decided twice, differently.
 function owner(n::Symbol, mods, declared)
     # 🔴 Only modules that DECLARE the name are candidates, never merely those it is visible in.

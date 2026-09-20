@@ -29,7 +29,7 @@ const ROOT = pkgdir(EcoSISTEM)
 # The modules whose types are ours to order. The extensions are included when loaded; when they are
 # not, their types simply do not appear and the audit covers less rather than reporting wrongly.
 function ourmodules()
-    mods = Any[EcoSISTEM, EcoSISTEM.ClimatePref, EcoSISTEM.Units]
+    mods = Any[EcoSISTEM, EcoSISTEM.Units]
     for e in (:EcoSISTEMMPIExt, :EcoSISTEMPhyloExt, :EcoSISTEMRasterDataSourcesExt,
         :EcoSISTEMERAExt, :EcoSISTEMDataPipelineExt)
         m = Base.get_extension(EcoSISTEM, e)

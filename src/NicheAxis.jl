@@ -204,8 +204,7 @@ using Unitful.DefaultSymbols
 # Condition one, which is what makes `npp` read as `g*m^-2*day^-1` rather than its annual total.
 """    CarbonFlux <: CarbonAxis - net primary productivity, a carbon flux (BioClimPlus npp; g*m^-2*day^-1). """
 @nicheaxis(CarbonFlux<:CarbonAxis, condition=nothing, resource=g/Unitful.d,
-           supply=Supply{CarbonFlux}, demand=Demand{CarbonFlux},
-           densitywidth=1.0nothing)
+           supply=Supply{CarbonFlux}, demand=Demand{CarbonFlux})
 # The one categorical group the package ships: its values are class codes, so a resampler must take
 # the nearest class rather than interpolate. `categorical = true` is inherited by every descendant,
 # so `LandCoverTypology` and `ClimateTypology` below declare nothing and answer `true` too.

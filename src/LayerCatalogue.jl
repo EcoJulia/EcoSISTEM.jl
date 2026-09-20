@@ -5,7 +5,7 @@
 
 # **This file names no dataset package, deliberately, and takes `::Type` rather than a
 # `RasterDataSources` bound.** The shipped tables are the *package's* knowledge about the data - half
-# of what is here (`_leafaxes`, `_resolveaxis`, the accumulation-period family) is about EcoSISTEM's
+# of what is here (`_nameableaxes`, `_resolveaxis`, the accumulation-period family) is about EcoSISTEM's
 # own niche axes and not about any source at all - so the catalogue stays in the parent while the
 # readers become an extension.
 #
@@ -246,7 +246,7 @@ const _LAYER_CACHE = Dict{String,
 # Name -> axis type, memoised.
 #
 # **Without this cache a catalogue build costs 83 seconds.** `_resolveaxis` runs once per row, 139 of
-# them, and each call walks `_leafaxes()`, which is `subtypes()` all the way down. `subtypes` scans
+# them, and each call walks `_nameableaxes()`, which is `subtypes()` all the way down. `subtypes` scans
 # every loaded module, so it is around 0.6 s a call rather than free, and every axis being abstract
 # means the walk recurses through some fifty types rather than stopping at fifteen concrete leaves.
 # Nothing fails without the cache; the gates simply get slower, which is why such a cost can go
@@ -254,7 +254,7 @@ const _LAYER_CACHE = Dict{String,
 const _AXIS_BY_NAME = Dict{String, Type}()
 
 # ---------------------------------------------------------------------------
-# Catalogue + discovery helpers (public, not exported - declared in ClimatePref.jl)
+# Catalogue + discovery helpers (public, not exported)
 # ---------------------------------------------------------------------------
 
 # The closed vocabulary of `perslice=` right-hand sides. Only one today; named rather than assumed so
@@ -784,20 +784,24 @@ function _layertable(path::String)
     end
 end
 
-# The leaf `NicheAxis` types - those with no subtypes of their own. `subtypes` only returns direct
-# children, so recurse through the intermediate groupings (e.g. `TemperatureAxis`) to reach them.
-# The test is "has no children", not `isconcretetype`: *every* axis is an abstract type, so that a
-# leaf can be subdivided later without disturbing the hierarchy or any dispatch written against it.
-function _leafaxes(T = NicheAxis)
+# The axes a table may name: every `NicheAxis` that the module declaring it has not itself divided
+# further. A grouping node such as `TemperatureAxis` has children declared beside it, so a table
+# cannot name it and a row that does is refused as naming nothing. A subtype declared in **another**
+# module does not count - a user's `MinTemp <: Temperature` is that user saying which temperature
+# they mean, and the shipped tables must go on naming `Temperature` whether or not it is loaded.
+# Counting any child would make whether a table's row resolves depend on what else has been
+# declared, and - the names being memoised - on whether that happened before the first lookup.
+function _nameableaxes(T = NicheAxis)
     children = subtypes(T)
-    return isempty(children) ? Type[T] :
-           mapreduce(_leafaxes, vcat, children, init = Type[])
+    below = mapreduce(_nameableaxes, vcat, children, init = Type[])
+    grouping = any(c -> parentmodule(c) === parentmodule(T), children)
+    return grouping ? below : pushfirst!(below, T)
 end
 
 # Resolve an axis name from a table to its `NicheAxis` type by autodiscovery - no registry:
-# any loaded leaf `NicheAxis` with that name works (build-time only).
+# any loaded `NicheAxis` of that name that a table may name works (build-time only).
 #
-# **One walk populates every name, not one walk per name.** Filtering `_leafaxes()` per lookup was
+# **One walk populates every name, not one walk per name.** Filtering `_nameableaxes()` per lookup was
 # still ~0.6 s × 35 distinct names even with the results cached, because the cost is the walk and not
 # the filter. Building the whole map at once makes it one walk per session.
 #
@@ -805,7 +809,7 @@ end
 # than silently resolving to whichever came first - the check survives the caching.
 function _refreshaxisnames!()
     byname = Dict{String, Vector{Type}}()
-    for A in _leafaxes()
+    for A in _nameableaxes()
         push!(get!(() -> Type[], byname, string(nameof(A))), A)
     end
     empty!(_AXIS_BY_NAME)
@@ -822,7 +826,7 @@ function _resolveaxis(name::AbstractString)
     haskey(_AXIS_BY_NAME, key) && return _AXIS_BY_NAME[key]
     _refreshaxisnames!()
     haskey(_AXIS_BY_NAME, key) && return _AXIS_BY_NAME[key]
-    n = count(A -> string(nameof(A)) == key, _leafaxes())
+    n = count(A -> string(nameof(A)) == key, _nameableaxes())
     return error("`$key` does not name exactly one loaded `NicheAxis` (found $n)")
 end
 

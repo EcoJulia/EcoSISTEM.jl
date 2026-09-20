@@ -204,9 +204,8 @@ end
                                                                              abundance = 100,
                                                                              seed = 1)
 
-        # **The case this exists for**: a tolerance in a frame `build_species` cannot express
-        # through keywords - a real unit on `EcoSISTEM.NicheAxis`, where the axis declares none. Before
-        # this, a unit-bearing axis-less regime could be built but never matched.
+        # A pre-built tolerance is used as given, in a frame `build_species` cannot express through
+        # keywords - here a real unit on `EcoSISTEM.NicheAxis`, where the axis declares none.
         united = NicheTolerance(EcoSISTEM.NicheAxis, Normal,
                                 [2.0 0.5; 2.1 0.5], support = u"kJ^2")
         @test build_species(2, tolerance = united, demand = DEM,
@@ -444,12 +443,9 @@ end
                         toleranceaxis = Precipitation, seed = 1)
     @test_throws ErrorException build_ecosystem(spP, env, seed = 1)
     # **The root is an axis like any other, and matching is IDENTITY** - so a `Temperature`
-    # species against a root-axis environment is now **refused**. This asserted the opposite
-    # until 2026-08-18 (*"a default-axis species still matches an axis-less environment"*), and the
-    # reversal is the point of the design: `NicheAxis` means *"I claim nothing"*, and a layer that
-    # declines to say what it measures must not be silently read as saying whatever the species
-    # happens to need. Both sides on the root is still fine - that is identity - and is asserted
-    # just below.
+    # species against a root-axis environment is refused: `NicheAxis` means *"I claim nothing"*,
+    # and a layer that declines to say what it measures must not be silently read as saying
+    # whatever the species happens to need.
     rootenv = GridHabitat(regime = GradientSpec(274.0K, 303.0K,
                                                 axis = EcoSISTEM.NicheAxis),
                           supply = SUP, area = toy)
@@ -461,16 +457,25 @@ end
                                                               demandaxis = SolarRadiation,
                                                               seed = 1),
                                                 rootenv, seed = 1)
-    # The root declares **no canonical unit**, so `toleranceaxis = EcoSISTEM.NicheAxis` with
-    # bare `(288.0K, 5.0K)` parameters is a `DimensionError` - `build_species` reads bare parameters
-    # in the axis's own frame, and the root's frame is bare numbers. The documented route is a
-    # pre-built tolerance carrying its own `support`, which is what makes a root-on-root pairing
-    # expressible at all (see *"Matching a united axis-less layer"* in `docs/src/layers.md`).
+    # Both sides on the root is identity too, and pairs - but the root declares no density width,
+    # so a *continuous* tolerance there is refused where its fit is built, naming the remedy: an
+    # axis of one's own beneath it. The tolerance carries its own `support`, since the root
+    # declares no canonical unit for `build_species` to read bare parameters in.
     roottol = NicheTolerance(EcoSISTEM.NicheAxis, Normal, fill(288.0, 2),
                              fill(5.0, 2), support = K)
-    @test build_ecosystem(build_species(2, tolerance = roottol, demand = DEM,
-                                        demandaxis = SolarRadiation, seed = 1),
-                          rootenv, seed = 1) isa Ecosystem
+    rootspp = build_species(2, tolerance = roottol, demand = DEM,
+                            demandaxis = SolarRadiation, seed = 1)
+    @test_throws "declares no `densitywidth`" build_ecosystem(rootspp, rootenv,
+                                                              seed = 1)
+    @nicheaxis(TestSurveyed<:EcoSISTEM.NicheAxis, condition=K,
+               densitywidth=1.0K)
+    ownenv = GridHabitat(regime = GradientSpec(274.0K, 303.0K,
+                                               axis = TestSurveyed),
+                         supply = SUP, area = toy)
+    ownspp = build_species(2, tolerance = (288.0K, 5.0K),
+                           toleranceaxis = TestSurveyed, demand = DEM,
+                           demandaxis = SolarRadiation, seed = 1)
+    @test build_ecosystem(ownspp, ownenv, seed = 1) isa Ecosystem
 end
 # **The regression test for `[TF-BYPASS]`, and it must use the EXPLICIT-`nichefit` route.**
 # A caller-supplied `nichefit` walks straight past `_defaultsuitability`, so the inferred route -

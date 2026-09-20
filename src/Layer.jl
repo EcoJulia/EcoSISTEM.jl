@@ -127,8 +127,7 @@ const Supply{A} = ContinuousLayer{Resource, A, V, Arr,
 #
 # **A bare `Matrix` is not accepted here.** It carries no dims, so there is nothing for a supply's
 # cell size to be derived *from*, and the alternative is a placeholder every supply reports whatever
-# its grid. A `Matrix` method exists for the released `SolarBudget(matrix)` path and lives in
-# `src/deprecations.jl`; new code passes a `DimArray` that states its own grid.
+# its grid. Pass a `DimArray`, which states its own grid.
 function Supply{A}(mat::DimArray{V, 2,
                                  <:Tuple{<:Y, <:X}}) where {A <:
                                                             NicheAxis,
@@ -429,8 +428,7 @@ end
 end
 
 # The methods below dispatch on the `Condition`-role layer types - `AbstractLayer{Condition}`,
-# `ContinuousLayer`, `CategoricalLayer` and `LayerCollection` - which the `*Regime` aliases name. The
-# released `*Hab` and `HabitatCollection2` spellings are deprecated aliases over the same types.
+# `ContinuousLayer`, `CategoricalLayer` and `LayerCollection` - which the `*Regime` aliases name.
 
 # **One level, not two.** A layer is **not** an `EcoBase.AbstractPlaces`, so Diversity's own
 # `countsubcommunities` could never dispatch here and its `_countsubcommunities` hook would never be

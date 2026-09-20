@@ -19,7 +19,7 @@ pkgmod(name, uuid) = Base.loaded_modules[Base.PkgId(Base.UUID(uuid),
                                                     name)]
 
 function ourmodules()
-    mods = Any[EcoSISTEM, EcoSISTEM.ClimatePref, EcoSISTEM.Units]
+    mods = Any[EcoSISTEM, EcoSISTEM.Units]
     for e in (:EcoSISTEMMPIExt, :EcoSISTEMPhyloExt, :EcoSISTEMRasterDataSourcesExt,
         :EcoSISTEMERAExt, :EcoSISTEMDataPipelineExt)
         m = Base.get_extension(EcoSISTEM, e)

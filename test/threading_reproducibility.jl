@@ -30,12 +30,20 @@ length(ARGS) == 1 && endswith(ARGS[1], ".jld2") ||
 
 # The seed makes both the initial abundances and the per-species simulation RNGs
 # deterministic, so the whole run is reproducible.
-eco = Test1Ecosystem(seed = 1234)
-for _ in 1:50
-    EcoSISTEM.update!(eco, 1month_mean_duration)
+# **Run twice, and save both.** The second run is what tells a result that varies from one run to the
+# next apart from one that varies with the thread count, and doing it here rather than in a fourth
+# child process costs a simulation rather than a whole Julia start: measured, a child spends 6 s
+# loading the package and 8 s compiling the fixture build, while fifty timesteps take 0.3 s.
+function simulate()
+    eco = Test1Ecosystem(seed = 1234)
+    for _ in 1:50
+        EcoSISTEM.update!(eco, 1month_mean_duration)
+    end
+    return copy(eco.abundances.matrix)
 end
 
-matrix = copy(eco.abundances.matrix)
-@save ARGS[1] matrix
+matrix = simulate()
+again = simulate()
+@save ARGS[1] matrix again
 
 println("Saved reproducibility result with $(Threads.nthreads()) threads to $(ARGS[1])")

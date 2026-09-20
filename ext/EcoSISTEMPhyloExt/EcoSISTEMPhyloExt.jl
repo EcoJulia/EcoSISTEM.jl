@@ -16,7 +16,7 @@ module EcoSISTEMPhyloExt
 # **The phylogenetic half of EcoSISTEM, active only when `Phylo` is loaded.**
 #
 # **No docstrings live here, and that is not an oversight.** `docs/src/api.md` is one `@autodocs`
-# block over `Modules = [EcoSISTEM, EcoSISTEM.ClimatePref, EcoSISTEM.Units]`; an extension module is
+# block over `Modules = [EcoSISTEM, EcoSISTEM.Units]`; an extension module is
 # not among them and cannot easily be, so a docstring written here would never reach the manual. Every
 # function below is declared - and documented - method-less in the parent, and this file supplies the
 # sole method. That is the same pattern `retrieve_era5` and `unziptemp` already use.
@@ -27,7 +27,7 @@ module EcoSISTEMPhyloExt
 using EcoSISTEM
 # Named explicitly: every abstract type in this package is `public` rather than exported, so
 # `using EcoSISTEM` does not bring them in - and the constructors moved here name several.
-using EcoSISTEM: ClimatePref, AbstractDemand, AbstractMovement, AbstractParams,
+using EcoSISTEM: AbstractDemand, AbstractMovement, AbstractParams,
                  SimpleCategoricalTolerance, SpeciesList
 # The private helpers too: the moved bodies call each other by bare name, and a method defined as
 # `EcoSISTEM.foo(...)` does not bind `foo` inside this module.

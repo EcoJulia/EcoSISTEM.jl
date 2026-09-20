@@ -16,6 +16,12 @@ using Test
 
 include("rasterfixtures.jl")
 
+# A bare matrix put on a one-kilometre grid: a layer derives its cell size from its coordinates, so
+# it takes none without them.
+function _ongrid(M::AbstractMatrix)
+    return DimArray(M, (Y((1:size(M, 1)) .* km), X((1:size(M, 2)) .* km)))
+end
+
 # Wrap an already-in-memory `ClimateRaster` as a lazy layer spec, and build on the grid the layers
 # themselves decide - the same escape hatch `test_GridHabitat.jl` uses, since a multi-layer regime has
 # to be data-backed (a synthetic area has no CRS, so there is nothing to place the data by).
@@ -104,8 +110,8 @@ end
     temp = EcoSISTEM.simpleregime(298.0K, cellsize, grid, Temperature)
     rain = EcoSISTEM.simpleregime(50.0mm / day, cellsize, grid,
                                   Precipitation)
-    solar = Supply{SolarRadiation}(fill(10.0kJ / day, grid...))
-    water = Supply{Precipitation}(fill(10.0Unitful.L / day, grid...))
+    solar = Supply{SolarRadiation}(_ongrid(fill(10.0kJ / day, grid...)))
+    water = Supply{Precipitation}(_ongrid(fill(10.0Unitful.L / day, grid...)))
 
     # **A collection built from a plain `Tuple` is named by its members' AXES**, where those are
     # distinguishable - so this pair is `(:Temperature, :Precipitation)`, not `(:one, :two)`. Two

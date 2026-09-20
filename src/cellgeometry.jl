@@ -30,8 +30,7 @@ intervention code needs to turn a flat location index into a `(y, x)` position.
 
 `shape` rather than `size` is doing real work in the name. `getcellareas` and [`getgridarea`](@ref)
 are the same quantity at two scales and read as a pair, but a cell's *size* is a length while a
-grid's is a count, so those two should not. `getgridsize` keeps its released meaning - one cell's
-side length - and is deprecated onto it.
+grid's is a count, so those two should not.
 
 Deliberately a plain `Tuple` rather than a [`SpatialSize`](@ref): these are counts, with no units and
 no frame, so nothing about them is spatial in the way a distance is.
