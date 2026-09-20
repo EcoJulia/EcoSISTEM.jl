@@ -21,8 +21,6 @@ include("TestCases.jl")
 struct NotUniqueTypes <: Diversity.AbstractTypes end
 
 @testset "Ecosystem" begin
-    # NB not `@test_nowarn`: the fixture is still built through the deprecated `simplehabitat`,
-    # so under `--depwarn=yes` (what `Pkg.test` runs with) it warns exactly once per session.
     eco = Test1Ecosystem()
     @test eco isa Ecosystem
     @test sum(eco.abundances.matrix, dims = 2)[:, 1] == eco.spplist.abun
@@ -68,23 +66,11 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         @test_nowarn EcoSISTEM.getgridarea(eco)
         @test EcoSISTEM.getgridarea(eco) ≈
               size(eco.abundances.matrix, 2) .* eco.habitat.regime.size^2
-        # `getgridshape` reports the grid's shape in cells. It replaces `getdimension`; the old
-        # `getgridsize` gave one cell's side length and is deprecated onto that meaning, so the
-        # released name keeps answering correctly rather than silently changing type.
+        # `getgridshape` reports the grid's shape in cells.
         @test_nowarn EcoSISTEM.getgridshape(eco)
         @test EcoSISTEM.getgridshape(eco) == size(eco.habitat.regime.matrix)
-        # **No `@test_nowarn` and no log assertion**, deliberately: these are deprecated, so they
-        # warn - but only when `--depwarn=yes`, which `Pkg.test` sets and a direct `include` does
-        # not. Asserting either way makes the test pass in one environment and fail in the other.
-        # What matters is that the shims still *work*, so the values are what is pinned.
-        @test getdispersaldist(eco, 1) == eco.spplist.movement.kernels[1].dist
-        @test getdispersaldist(eco, "1") == eco.spplist.movement.kernels[1].dist
-        @test getdispersalvar(eco, 1) ==
-              (eco.spplist.movement.kernels[1].dist)^2 * pi / 4
-        @test getdispersalvar(eco, "1") == getdispersalvar(eco, 1)
-
-        # ...and what supersedes them: the kernel itself, from either an ecosystem or the species
-        # list `build_species` returned, by index or by name.
+        # A species' dispersal kernel, from either an ecosystem or the species list
+        # `build_species` returned, by index or by name.
         @test_nowarn EcoSISTEM.speciesdispersal(eco, 1)
         @test EcoSISTEM.speciesdispersal(eco, 1) ===
               eco.spplist.movement.kernels[1]

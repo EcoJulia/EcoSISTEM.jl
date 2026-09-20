@@ -155,11 +155,6 @@ supply = UniformSpec(totalK, axis = SolarRadiation)
     @test NamedTuple(nichefit) ==
           (TestFitAxis = nichefit.TestFitAxis,
            Temperature = nichefit.Temperature)
-    # the deprecated symbol-keyed accessors still reach the same members
-    @test (@test_deprecated getpref(tolerance, :TestFitAxis)) ===
-          tolerance.TestFitAxis
-    @test (@test_deprecated getregime(regime, :Temperature)) ===
-          regime.Temperature
 
     regime = GridHabitat(regime = UniformSpec(1.0K, axis = Temperature),
                          supply = supply, area = studyarea).regime

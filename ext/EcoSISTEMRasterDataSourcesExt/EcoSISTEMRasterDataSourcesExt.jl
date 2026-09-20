@@ -29,20 +29,14 @@ using EcoSISTEM.Units: _monthindex
 using Dates: Dates
 # Named explicitly because they are `public` or private rather than exported - `using` brings in
 # only the exported names, and a moved body calls its neighbours by bare name.
-using EcoSISTEM: AbstractSupply, ClimateRaster, CODE_TYPE, NicheAxis, Supply,
-                 _cellareas, _derivedfrom, _cancel, landcoverclass
+using EcoSISTEM: ClimateRaster, CODE_TYPE, NicheAxis, Supply,
+                 _cellareas, _cancel, landcoverclass
 using EcoSISTEM: SourceSpec
 using EcoSISTEM: compress_landcover, layerinfo, layerunit, sourcecrs
-# The ONLY remaining reference to the submodule, and it is confined to `deprecations.jl`: five
-# deprecated per-source wrappers (`Worldclim_bioclim` and friends) plus `readworldclim` and
-# `readCHELSA_monthly` are declared in `ClimatePref/deprecations.jl`, which is where the deprecations
-# stay, so their methods have to be attached there. Everything else this extension touches is the
-# parent's.
-using EcoSISTEM: ClimatePref
 # The dataset-reading pipeline lives in `src/datasetread.jl`, so these are the parent's.
 using EcoSISTEM: _defaultfn, _readaxis,
                  _filelist, _firstfile, _getrasterkw, _isblankcrs,
-                 _readraw, _readmonthlydir, _readsource,
+                 _readraw, _readmonthlydir,
                  _rescalepublished
 
 using DimensionalData

@@ -12,7 +12,7 @@
 #
 # 🔴 **`--fix` repairs the DIAGRAMS ONLY. The prose is the valuable half and it cannot see it.**
 # ✅ Measured the day this was written: `data/architecture.md` declared `class Reference~A~` for a type
-# deleted from `ClimatePref` - *and* said in prose that "`ERA`/`CERA`/`CRUTS`/`Reference` remain for
+# since deleted - *and* said in prose that "`ERA`/`CERA`/`CRUTS`/`Reference` remain for
 # their data sources". `--fix` removes the first and leaves the second silently wrong. Always read the
 # text around any block it changes, and treat its output as a diff to review rather than an answer.
 #
@@ -30,7 +30,7 @@ const DOC = joinpath(pkgdir(EcoSISTEM), "data", "architecture.md")
 # The modules whose own declarations the doc is expected to cover. ⭐ Extensions are included when
 # loaded and skipped when not, so a run without the weak deps under-reports rather than lying.
 function ourmodules()
-    mods = Module[EcoSISTEM, EcoSISTEM.ClimatePref, EcoSISTEM.Units]
+    mods = Module[EcoSISTEM, EcoSISTEM.Units]
     for ext in (:EcoSISTEMMPIExt, :EcoSISTEMPhyloExt, :EcoSISTEMRasterDataSourcesExt,
         :EcoSISTEMDataPipelineExt, :EcoSISTEMERAExt)
         m = Base.get_extension(EcoSISTEM, ext)

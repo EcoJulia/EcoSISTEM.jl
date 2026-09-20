@@ -12,7 +12,7 @@ keeps its docstring on a method-less stub in the parent, so the parent's modules
 everything.
 
 ```@autodocs
-Modules = [EcoSISTEM, EcoSISTEM.ClimatePref, EcoSISTEM.Units]
+Modules = [EcoSISTEM, EcoSISTEM.Units]
 Private = true
 ```
 

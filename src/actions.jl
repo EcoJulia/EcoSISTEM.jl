@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # HOW TO RUN AN EXPERIMENT. This file is the workflow and nothing else: the verbs a user calls, in the
-# order they call them. It is the last of the model's own files - only `deprecations.jl` and the
-# `ClimatePref` shims load after it - and, like `Ecology.jl`, which is the first, it should be
+# order they call them. It is the last of the model's own files - only `deprecations.jl` loads
+# after it - and, like `Ecology.jl`, which is the first, it should be
 # readable on its own by someone who never opens another.
 #
 # `Ecology.jl` says what the model IS. This says what you DO with it:

@@ -101,10 +101,9 @@ end
 # lambda meant `Fminbox`, which needs a gradient, and the objective's `log(abs(det(x[1] * V)))`
 # underflows for a scaled n x n covariance. `fitbrownian` shares the expression and survives only
 # because its optimisation is unbounded, so Nelder-Mead never probes where it blows up.
-@testset "the lambda model is gone, in every namespace it lived in" begin
+@testset "the lambda model is gone" begin
     for n in (:fitlambda, :Lambda, :fitLambda)
         @test !isdefined(EcoSISTEM, n)
-        @test !isdefined(EcoSISTEM.ClimatePref, n)
     end
 end
 

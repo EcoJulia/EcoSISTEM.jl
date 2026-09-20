@@ -23,6 +23,12 @@ import Dates
 
 include("TestCases.jl")
 
+# A bare matrix put on a one-kilometre grid: a layer derives its cell size from its coordinates, so
+# it takes none without them.
+function _ongrid(M::AbstractMatrix)
+    return DimArray(M, (Y((1:size(M, 1)) .* km), X((1:size(M, 2)) .* km)))
+end
+
 # A bare continuous regime on a declared axis, for exercising the unit contract directly.
 function _testregime(value, axis)
     layer = ContinuousRegime(fill(value, 5, 5), 1.0km, NoLayerChange())
@@ -600,7 +606,8 @@ end
     # arithmetic and `populate!`'s supply-weighted placement.
     stack = cat(fill(10.0kJ / day, 3, 3), fill(20.0kJ / day, 3, 3), dims = 3)
     stack[1, 1, :] .= NaN * kJ / day
-    supply = EcoSISTEM._setseries!(Supply{SolarRadiation}(stack[:, :, 1]),
+    supply = EcoSISTEM._setseries!(Supply{SolarRadiation}(_ongrid(stack[:, :,
+                                                                        1])),
                                    stack)
     @test any(isnan, supply.matrix)
     @test EcoSISTEM._hasgaps(supply.change)
@@ -687,24 +694,6 @@ end
     # ...and declaring nothing leaves it alone.
     EcoSISTEM._applydeclared!(flat, nothing)
     @test flat.change isa SteadyLayerChange
-end
-
-@testset "Condition loss" begin
-    eco = Test1Ecosystem()
-    # A regime carrying a HabitatLoss change whose rate destroys every active cell
-    # over one timestep (rate * 1month_mean_duration == 1 -> loss probability 1).
-    change = EcoSISTEM.LegacyLoss(1.0 / month_mean_duration)
-    losshab = EcoSISTEM.ContinuousRegime(fill(1.0K, 10, 10), 1.0km, change)
-    @test (@test_deprecated EcoSISTEM.HabitatLoss(eco, losshab,
-                                                  1month_mean_duration)) === eco
-    @test all(iszero, eco.habitat.supply.matrix)
-    @test all(iszero, eco.abundances.matrix)
-
-    # It is not a layer change: driving it from the update loop would need the ecosystem it
-    # mutates, and would draw at random on every rank independently.
-    @test_throws ErrorException EcoSISTEM._layerupdate!(losshab,
-                                                        1.0month_mean_duration,
-                                                        1month_mean_duration)
 end
 
 # ---------------------------------------------------------------------------
@@ -1034,7 +1023,7 @@ end
     # Not a policy bolted onto `Resource`: it restates what makes something a resource. A resource
     # is rival and consumed against a demand, so a negative amount of it has no meaning - which is
     # why the rule needs no per-axis opt-in and admits no exceptions.
-    negative = Supply{SolarRadiation}(fill(-1.0kJ / day, 3, 3))
+    negative = Supply{SolarRadiation}(_ongrid(fill(-1.0kJ / day, 3, 3)))
     err = try
         EcoSISTEM._checksupplybounds(negative)
         nothing
@@ -1046,26 +1035,28 @@ end
     # ...and the message points at the resolution rather than just refusing: a quantity that
     # genuinely takes both signs is not a supply.
     @test occursin("regime side", err.msg)
-    @test EcoSISTEM._checksupplybounds(Supply{SolarRadiation}(fill(1.0kJ / day,
-                                                                   3, 3))) isa
+    @test EcoSISTEM._checksupplybounds(Supply{SolarRadiation}(_ongrid(fill(1.0kJ /
+                                                                           day,
+                                                                           3,
+                                                                           3)))) isa
           AbstractLayer
 
     # A collection is checked member by member, so one bad supply among several is still caught.
-    @test_throws ErrorException EcoSISTEM._checksupplybounds(LayerCollection((Supply{SolarRadiation}(fill(1.0kJ /
-                                                                                                          day,
-                                                                                                          3,
-                                                                                                          3)),
-                                                                              Supply{SolarRadiation}(fill(-1.0kJ /
-                                                                                                          day,
-                                                                                                          3,
-                                                                                                          3)))))
+    @test_throws ErrorException EcoSISTEM._checksupplybounds(LayerCollection((Supply{SolarRadiation}(_ongrid(fill(1.0kJ /
+                                                                                                                  day,
+                                                                                                                  3,
+                                                                                                                  3))),
+                                                                              Supply{SolarRadiation}(_ongrid(fill(-1.0kJ /
+                                                                                                                  day,
+                                                                                                                  3,
+                                                                                                                  3))))))
 
     # An absolute replacement is refused at *attach*, because its stored slices are exactly the
     # values the layer will take.
     stack(v) = DimArray(cat((fill(v, 3, 3) for _ in 1:4)..., dims = 3),
                         (Y(NoLookup()), X(NoLookup()),
                          Ti((1:4) .* month_mean_duration)))
-    supply() = Supply{SolarRadiation}(fill(10.0kJ / day, 3, 3))
+    supply() = Supply{SolarRadiation}(_ongrid(fill(10.0kJ / day, 3, 3)))
     @test_throws ErrorException EcoSISTEM.setchange!(supply(),
                                                      ReplaceWith(SeriesChange(stack(-5.0kJ /
                                                                                     day))))
@@ -1085,7 +1076,7 @@ end
     # At run time the response is deliberately different: a supply driven below zero by an
     # increment is *emergent*, and aborting a long simulation when "you cannot have less than none of
     # a consumable" is the right reading would be hostile. So it warns and clamps.
-    running = Supply{SolarRadiation}(fill(10.0kJ / day, 3, 3))
+    running = Supply{SolarRadiation}(_ongrid(fill(10.0kJ / day, 3, 3)))
     EcoSISTEM.setchange!(running,
                          IncrementBy(-6.0kJ / day / month_mean_duration))
     EcoSISTEM._layerupdate!(running, 1.0month_mean_duration,

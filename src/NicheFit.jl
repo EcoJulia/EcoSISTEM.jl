@@ -2,9 +2,6 @@
 #
 # How a tolerance is scored against the regime it is paired with, and how several such scores
 # combine into one suitability.
-#
-# `Gauss`, `Trapeze` and `Unif` are also `AbstractNicheFit`s, but they are deprecated shims and
-# stay in `deprecations.jl`, which this reorganisation does not touch.
 
 using Unitful
 
@@ -65,9 +62,6 @@ the tolerance.
 struct CategoricalSuitability{A, V} <: AbstractNicheFit{A, V}
 end
 
-# The deprecated `Gauss`/`Trapeze`/`Unif` nichefit shims (all `NicheSuitability` now) live in
-# `src/deprecations.jl`.
-
 # One argument, and deliberately: for a categorical fit the tolerance has already answered with
 # the weight (`_categoryweight`), so there is nothing left for the fit to score. The continuous fits
 # take two because a distribution genuinely has to be evaluated at the cell's value.
@@ -97,8 +91,8 @@ struct NoFitContinuous{A, V} <: AbstractNicheFit{A, V}
 end
 
 # The two-argument form `_suitability` actually calls (`nichefit(dist, current)`), matching every
-# other continuous fit. The released three-argument form below is kept for callers of the v0.4.0
-# `NoRelContinuous`, which was only ever invoked by hand - `_suitability` has never passed three.
+# other continuous fit. The three-argument form below is for a caller invoking the fit by hand;
+# `_suitability` never passes three.
 (::NoFitContinuous)(_, _) = 1.0
 
 function (::NoFitContinuous{A, V})(::V, ::V, ::V) where {A, V}
@@ -116,8 +110,8 @@ struct NoFitCategorical{A, V} <: AbstractNicheFit{A, V}
 end
 
 # The one-argument form `_suitability` calls, matching `CategoricalSuitability` - it discards the
-# tolerance's weight, which is exactly what "no fit" means. The two-argument form below is the
-# released `NoRelDiscrete` spelling.
+# tolerance's weight, which is exactly what "no fit" means. The two-argument form below is for a
+# caller invoking the fit by hand.
 (::NoFitCategorical)(_) = 1.0
 
 function (::NoFitCategorical{A, V})(niche::V, pref::V) where {A, V}

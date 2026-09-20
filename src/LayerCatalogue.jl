@@ -254,7 +254,7 @@ const _LAYER_CACHE = Dict{String,
 const _AXIS_BY_NAME = Dict{String, Type}()
 
 # ---------------------------------------------------------------------------
-# Catalogue + discovery helpers (public, not exported - declared in ClimatePref.jl)
+# Catalogue + discovery helpers (public, not exported)
 # ---------------------------------------------------------------------------
 
 # The closed vocabulary of `perslice=` right-hand sides. Only one today; named rather than assumed so

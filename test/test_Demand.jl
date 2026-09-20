@@ -16,6 +16,12 @@ using RasterDataSources
 using DimensionalData: DimensionalData, DimArray, X, Y, Ti
 using Rasters   # `rasterfixtures.jl` builds genuine `Projected` lookups
 
+# A bare matrix put on a one-kilometre grid: a layer derives its cell size from its coordinates, so
+# it takes none without them.
+function _ongrid(M::AbstractMatrix)
+    return DimArray(M, (Y((1:size(M, 1)) .* km), X((1:size(M, 2)) .* km)))
+end
+
 @testset "Demand and supply types" begin
     numspecies = 10
     abun = fill(10, numspecies)
@@ -84,32 +90,32 @@ using Rasters   # `rasterfixtures.jl` builds genuine `Projected` lookups
     # per-cell accessors are exercised on a solar supply instead - they are axis-agnostic.
     supply = fill(100.0 * EcoSISTEM.canonicalunit(EcoSISTEM.Resource,
                                           SolarRadiation), 2, 2)
-    @test_nowarn Supply{SolarRadiation}(supply)
-    supply = Supply{SolarRadiation}(supply)
+    @test_nowarn Supply{SolarRadiation}(_ongrid(supply))
+    supply = Supply{SolarRadiation}(_ongrid(supply))
     @test countsubcommunities(supply) == 4
     @test EcoSISTEM._getsupply(supply) == supply.matrix
     @test eltype(supply) == typeof(supply.matrix[1])
 
     # Test Supply{SolarRadiation}
     sol = fill(200.0 * kJ / day, 100, 100)
-    @test_nowarn Supply{SolarRadiation}(sol)
-    supply1 = Supply{SolarRadiation}(sol)
+    @test_nowarn Supply{SolarRadiation}(_ongrid(sol))
+    supply1 = Supply{SolarRadiation}(_ongrid(sol))
     @test countsubcommunities(supply1) == 100 * 100
     @test EcoSISTEM._getsupply(supply1) == supply1.matrix
     @test eltype(supply1) == typeof(supply1.matrix[1])
 
     # Test Supply{Precipitation}
     water = fill(2000.0 * Unitful.L / day, 100, 100)
-    @test_nowarn Supply{Precipitation}(water)
-    supply2 = Supply{Precipitation}(water)
+    @test_nowarn Supply{Precipitation}(_ongrid(water))
+    supply2 = Supply{Precipitation}(_ongrid(water))
     @test countsubcommunities(supply2) == 100 * 100
     @test EcoSISTEM._getsupply(supply2) == supply2.matrix
     @test eltype(supply2) == typeof(supply2.matrix[1])
 
     # Test Supply{CarbonFlux}
     carbon = fill(5.0 * g / day, 100, 100)
-    @test_nowarn Supply{CarbonFlux}(carbon)
-    supply3 = Supply{CarbonFlux}(carbon)
+    @test_nowarn Supply{CarbonFlux}(_ongrid(carbon))
+    supply3 = Supply{CarbonFlux}(_ongrid(carbon))
     @test countsubcommunities(supply3) == 100 * 100
     @test EcoSISTEM._getsupply(supply3) == supply3.matrix
     @test eltype(supply3) == typeof(supply3.matrix[1])
@@ -122,27 +128,34 @@ using Rasters   # `rasterfixtures.jl` builds genuine `Projected` lookups
     #
     # 1. A dimensionally-correct value at another scale is **converted**, not refused - which is
     #    what lets CHELSA's `MJ*m^-2*d^-1` meet WorldClim's `kJ*m^-2*d^-1` on one axis.
-    megajoules = Supply{SolarRadiation}(fill(0.2u"MJ/d", 3, 3))
+    megajoules = Supply{SolarRadiation}(_ongrid(fill(0.2u"MJ/d", 3, 3)))
     @test all(==(200.0kJ / day), megajoules.matrix)
     # ...and it is the *same concrete type* as one built canonically, not a parallel MJ-flavoured one.
     @test typeof(megajoules) ===
-          typeof(Supply{SolarRadiation}(fill(200.0kJ / day,
-                                             3, 3)))
+          typeof(Supply{SolarRadiation}(_ongrid(fill(200.0kJ / day,
+                                                     3, 3))))
 
     # 2. A wrong dimension is refused **here**, naming the axis and the unit it declares. Left to
     #    build, it would surface as a `DimensionError` inside the threaded hot loop instead.
-    @test_throws "measured in `kJ d⁻¹`" Supply{SolarRadiation}(fill(2000.0Unitful.L /
-                                                                    day, 3, 3))
+    @test_throws "measured in `kJ d⁻¹`" Supply{SolarRadiation}(_ongrid(fill(2000.0Unitful.L /
+                                                                            day,
+                                                                            3,
+                                                                            3)))
     # 3. A bare number cannot be checked against anything, so it is refused too.
-    @test_throws "carry no unit at all" Supply{SolarRadiation}(fill(3.0, 3, 3))
+    @test_throws "carry no unit at all" Supply{SolarRadiation}(_ongrid(fill(3.0,
+                                                                            3,
+                                                                            3)))
     # 4. The wind-speed case, at the constructor rather than through `GridHabitat`: an axis
     #    that declares no resource is refused by name, not silently given a supply type.
-    @test_throws "not a consumable resource" Supply{WindSpeed}(fill(3.0m / s, 3,
-                                                                    3))
+    @test_throws "not a consumable resource" Supply{WindSpeed}(_ongrid(fill(3.0m /
+                                                                            s,
+                                                                            3,
+                                                                            3)))
 
     # Test a time-varying solar supply: the same type, carrying a `SeriesLayerChange` over the stack
     sol = fill(200.0 * kJ / day, 100, 100, 10)
-    supply1 = EcoSISTEM._setseries!(Supply{SolarRadiation}(sol[:, :, 1]), sol)
+    supply1 = EcoSISTEM._setseries!(Supply{SolarRadiation}(_ongrid(sol[:, :, 1])),
+                                    sol)
     @test supply1 isa Supply{SolarRadiation}
     @test supply1.change isa SeriesLayerChange
     @test countsubcommunities(supply1) == 100 * 100
@@ -151,7 +164,8 @@ using Rasters   # `rasterfixtures.jl` builds genuine `Projected` lookups
 
     # Test a time-varying water supply
     water = fill(2000.0 * Unitful.L / day, 100, 100, 10)
-    supply2 = EcoSISTEM._setseries!(Supply{Precipitation}(water[:, :, 1]),
+    supply2 = EcoSISTEM._setseries!(Supply{Precipitation}(_ongrid(water[:, :,
+                                                                        1])),
                                     water)
     @test supply2 isa Supply{Precipitation}
     @test countsubcommunities(supply2) == 100 * 100
@@ -264,27 +278,6 @@ end
     # so the resulting `supply.matrix` values are scaled by that area, not equal to the raw
     # input; the assertions below compare the built supply against itself, not a hardcoded
     # number, so they hold regardless of the exact scaling.
-    water = DimArray(fill(1.0mm / day, 10, 10, 12),
-                     (Y(collect(1:10) .* m), X(collect(1:10) .* m),
-                      Ti(collect(1:12) .* month_mean_duration)))
-    worldclim = ClimateRaster(WorldClim{Climate}, water)
-    # The monthly `ClimateRaster` constructors are deprecated (the modern path reads a stack
-    # through `GridHabitat`), so they warn; the shim itself is covered in
-    # `test_deprecations.jl`. What is being checked here is the area scaling they still do.
-    supply = @test_deprecated WaterTimeBudget(worldclim, 1)
-    @test countsubcommunities(supply) == 100
-    @test EcoSISTEM._getsupply(supply) == supply.matrix
-    @test eltype(supply) == typeof(supply.matrix[1])
-
-    solar = DimArray(fill(1.0kJ / m^2 / day, 10, 10, 12),
-                     (Y(collect(1:10) .* m), X(collect(1:10) .* m),
-                      Ti(collect(1:12) .* month_mean_duration)))
-    worldclim = ClimateRaster(WorldClim{Climate}, solar)
-    supply = @test_deprecated SolarTimeBudget(worldclim, 1)
-    @test countsubcommunities(supply) == 100
-    @test EcoSISTEM._getsupply(supply) == supply.matrix
-    @test eltype(supply) == eltype(supply.matrix)
-
     water = DimArray(fill(1.0mm / day, 10, 10),
                      (Y(collect(1:10) .* m), X(collect(1:10) .* m)))
     worldclim = ClimateRaster(WorldClim{BioClim}, water)

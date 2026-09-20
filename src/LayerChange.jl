@@ -130,21 +130,6 @@ struct SumOfLayerChanges{M <: AbstractChangeMode, P <: Tuple, B} <:
     baseline::B
 end
 
-"""
-    LegacyLoss{V} <: AbstractLayerChange{NoChange}
-
-Carries the loss rate of the deprecated `HabitatLoss` change function. Its mode is
-[`NoChange`](@ref): the rate is a plain per-time probability, in no way the layer's own unit.
-
-**Transitional, and not a layer change at all.** Habitat loss mutates the *ecosystem* - supply
-and abundances - from a layer's change slot, and draws randomly while doing it, so it satisfies
-neither invariant the other changes do. It survives only to keep `HabitatLoss` callable, and is
-superseded by an explicit cell-deactivating intervention.
-"""
-struct LegacyLoss{V} <: AbstractLayerChange{NoChange}
-    rate::V
-end
-
 # `<: AbstractSpec` because a `Varying` *is* a build-time layer recipe - a spec plus the
 # declaration of how it changes - and saying so is what lets `regime`/`supply` be typed
 # `Union{AbstractSpec, Tuple, NamedTuple}` in the builders' own signatures rather than left to a
@@ -291,9 +276,7 @@ to zero. Any function of a dimensionless phase may be used instead - a sigmoid, 
 sinusoidal(phase) = sinpi(2 * phase)   # `sinpi`, for accuracy at exact half-turns
 
 # Convert `x` (a scalar or a per-cell matrix) into the unit `mode` demands of `layer`, once, at
-# attach. This is the check that `LayerUpdate` did not do: it validated the rate against a dimension
-# passed in by hand and then discarded it, never consulting the layer or the change function at all.
-# The error names both units and the layer's axis, because the bare `DimensionError` a raw `uconvert`
+# attach. The error names both units and the layer's axis, because the bare `DimensionError` a raw `uconvert`
 # throws says nothing about which of the two is wrong.
 function _tochangeunit(mode::AbstractChangeMode, layer::AbstractLayer, x)
     u = changeunit(mode, layer)
@@ -787,14 +770,4 @@ function _seriesreach(series::SeriesLayerChange)
     times = series.times
     length(times) == 1 && return only(times)
     return last(times) + (last(times) - times[end - 1])
-end
-
-# `LegacyLoss` is `{NoChange}` but is not a no-op, so it needs a method on its own concrete type -
-# more specific than the blanket `{NoChange}` one above, which would otherwise silently swallow it.
-function _applychange!(::LegacyLoss, ::AbstractLayer, _, _)
-    return error("habitat loss cannot be applied as a layer change: it mutates the " *
-                 "ecosystem's supply and abundances and draws at random, so it is neither a " *
-                 "pure function of the layer nor reproducible across MPI ranks. Call the " *
-                 "deprecated `HabitatLoss(eco, layer, timestep)` directly, or wait for the " *
-                 "cell-deactivating intervention that supersedes it.")
 end

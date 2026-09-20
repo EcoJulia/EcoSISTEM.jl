@@ -259,10 +259,9 @@ the stored stack, which decides from elapsed time which slice that is.
 
 ## Layer change - how a layer moves through time
 
-An axis deliberately does **not** decide how a layer changes. It once did, via a
-`dynamics(::NicheAxis)` returning a per-timestep function (temperature -> `TempChange`), but that
-coupled two independent questions: an axis fixes what a layer *means*, and so its unit, while whether
-a particular layer drifts, oscillates or stays put is a property of that layer's declaration.
+An axis deliberately does **not** decide how a layer changes. Those are two independent
+questions: an axis fixes what a layer *means*, and so its unit, while whether a particular layer
+drifts, oscillates or stays put is a property of that layer's declaration.
 
 **A layer change is a pure function of elapsed time.** That is a requirement, not a convenience:
 layers are updated redundantly on every MPI rank, so anything stochastic or ecosystem-dependent here

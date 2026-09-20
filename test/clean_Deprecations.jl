@@ -41,14 +41,14 @@ function sections(path)
 end
 
 @testset "Deprecation sections are labelled by release" begin
-    known = ["Deprecated in v0.5.0", "Deprecated in v0.6.0",
-        "Deprecated in v0.7.0", "Deprecated in v0.8.0"]
+    known = ["Deprecated in v0.6.0", "Deprecated in v0.7.0",
+        "Deprecated in v0.8.0"]
     version(label) = VersionNumber(label[(length("Deprecated in v") + 1):end])
-    for (file, minimum) in [
-            ("deprecations.jl", 20),
-            (joinpath("ClimatePref", "deprecations.jl"), 4)
+    for (path, minimum) in [
+            (pkgdir(EcoSISTEM, "src", "deprecations.jl"), 4),
+            (pkgdir(EcoSISTEM, "ext", "EcoSISTEMRasterDataSourcesExt",
+                    "deprecations.jl"), 0)
         ]
-        path = pkgdir(EcoSISTEM, "src", file)
         @test isfile(path)
         secs = sections(path)
         # Not vacuous: each file has several sections, and a detector finding none would pass
@@ -62,13 +62,13 @@ end
 
         # The labels must name releases that exist, so a typo cannot pass as a new one. Named rather
         # than counted: a release appearing here has to be looked at, and one disappearing shrinks
-        # the list instead of passing silently. The main file carries every release; the submodule's
+        # the list instead of passing silently. The main file carries every release; the extension's
         # may carry a subset.
         labels = [m.match
                   for (_, text) in secs
                   for m in eachmatch(r"Deprecated in v\d+\.\d+\.\d+", text)]
         @test issubset(labels, known)
-        file == "deprecations.jl" && @test Set(labels) == Set(known)
+        minimum > 0 && @test Set(labels) == Set(known)
 
         # Newest release first, so a release's worth of shims is deleted from the foot of the file:
         # the labels must never get newer going down.

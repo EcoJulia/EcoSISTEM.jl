@@ -75,8 +75,8 @@ public NaturalEarthLevel
 public NATURALEARTH_LEVELS
 
 # The coordinate vocabulary - the two-dimensional position/size family and the geographic point type
-# - used across the `ClimatePref` submodule and the main module, and by `CircleMaskSpec`
-# (`Spec.jl`), so it is defined here, before all of them.
+# - used throughout, and by `CircleMaskSpec` (`Spec.jl`), so it is defined here, before all of
+# them.
 include("Coordinates.jl")
 
 export LatLong
@@ -150,7 +150,7 @@ public AbstractSpec, AbstractSyntheticSpec, AbstractSyntheticLayerSpec,
 # unit and axis, so it must precede it.
 include("AccumulationPeriod.jl")
 
-# The catalogue's own vocabulary, moved here with it from `ClimatePref`. `public`, not exported:
+# The catalogue's own vocabulary. `public`, not exported:
 # a record is read off the shipped table, never written by a caller.
 public AbstractAccumulationPeriod, ConstantAccumulationPeriod,
        PerSliceAccumulationPeriod,
@@ -160,11 +160,10 @@ include("LayerCatalogue.jl")
 
 public LayerRecord, AxisNode, DatasetRecord
 
-public layerinfo, layersbyaxis, layerrate, datasetinfo
+public layerinfo, layersbyaxis, layeraxes, layerrate, datasetinfo
 
-# Exported rather than `public`, unlike their three siblings above -- that split is inherited from
-# `ClimatePref`, which exported exactly these two. Kept as it was rather than changed in passing;
-# whether the catalogue family should be uniform is a separate question.
+# Exported rather than `public`, unlike their siblings above: these two have been exported since
+# v0.4.0. Whether the catalogue family should be uniform is a separate question.
 export layeraxis, layerunit
 
 # A raster of climate data, and the specs that lazily read one - including the three unions naming
@@ -184,8 +183,7 @@ export ExactDates, MeanMonths
 
 include("Climate.jl")
 
-# The concrete data-source types, and the readers and sampler that go with them. All were exported by
-# `EcoSISTEM.ClimatePref` before it was dissolved.
+# The concrete data-source types, and the readers and sampler that go with them.
 export ERA, CERA, TwentyCR, CRUTS
 
 public AbstractClimate
@@ -197,11 +195,7 @@ export ClimateRaster
 include("LazySpec.jl")
 
 # **What a layer is, and how one is declared** - the raster type, what may name its source, and the
-# specs. **Before `ClimatePref`, deliberately**: the readers in that submodule construct
-# `ClimateRaster`s, so these must already exist. See the file's own header for the rule that decides
-# what lives here against what stays with the climate data.
-# Exported here, and **re-exported by `ClimatePref`**, so that `using EcoSISTEM.ClimatePref` reaches
-# them too.
+# specs.
 export RasterSpec, SourceSpec, RasterFileSpec, ConstructedRasterSpec, ShapeSpec,
        NaturalEarthSpec, ConstructedShapeSpec, ShapeCoverage, ShapeMaskSpec,
        AnyOverlap, FullyWithin, FractionWithin, WholeBoundingBox
@@ -440,8 +434,8 @@ public simulationtime, simulationdate
 export abundances
 
 # `public`, not exported - a technical operation users reach for occasionally, not
-# part of the everyday vocabulary. Renamed from `clearcache`: it **destroys** the recorded
-# abundances on disk, which the trailing `!` has to say.
+# part of the everyday vocabulary. It **destroys** the recorded abundances on disk, which the
+# trailing `!` has to say.
 public clearcache!
 
 # Unexported. `makeunique` is the plumbing that strips a `SpeciesList`'s similarity so
@@ -666,26 +660,11 @@ export simulate!, generate_storage
 # ---------------------------------------------------------------------------
 # Deprecations, PENULTIMATE
 # ---------------------------------------------------------------------------
-# Moved to the end (v0.5.0) so the export/public statements above read as a map of where
+# At the end so the export/public statements above read as a map of where
 # each live name is defined, uninterrupted by shims. `Base.@deprecate_binding old new`
 # evaluates `new` at include time, so this must follow every file it shims -- being last but
 # one satisfies that by construction rather than by argument.
 include("deprecations.jl")
-
-# ---------------------------------------------------------------------------
-# EcoSISTEM.ClimatePref sub-module, LAST
-# ---------------------------------------------------------------------------
-# **The submodule holds nothing but deprecations, and is scheduled for deletion** once enough time
-# has passed since the release that emptied it. It defines no type and no function of its own: it
-# re-exports names from the main module so that `using EcoSISTEM.ClimatePref` still resolves, and
-# includes its own `deprecations.jl`.
-#
-# Included last because it imports from nearly every file above, and the latest of those -
-# `compress_landcover` and `sourcecrs` - are declared in `extensions.jl`. An earlier include would
-# import bindings that do not exist yet, which Julia treats as a precompile *warning* rather than an
-# error, so it would resolve and warn rather than fail. Nothing in the main module calls into the
-# submodule, so the position is free.
-include("ClimatePref/ClimatePref.jl")
 
 # ---------------------------------------------------------------------------
 # Every abstract type in this package is `public`, not exported

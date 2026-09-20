@@ -17,10 +17,6 @@
 # `EcoSISTEMRasterDataSourcesExt`, which supplies it over these generic helpers.
 # Putting the generic half in an extension would have made an extension that names nothing from its
 # own trigger, which stops precompiling the moment that dependency is weakened.
-#
-# `ClimatePref` keeps what genuinely is about climate data: the `ERA`/`CERA` NetCDF readers,
-# `boundingbox`, and its deprecations. It imports `_applycut`, `_locus` and `_rastertodimarray` back
-# from here, so the dependency runs one way.
 
 using Unitful
 
@@ -150,9 +146,8 @@ end
 
 # `(Ti, n, nothing)` needs its own method, or it is genuinely **ambiguous**: the `Ti` method above
 # is more specific in the first argument and the `::Nothing` one below in the third, so neither wins.
-# A caller reaching `_readsource` without going through `read` - the deprecated `readworldclim`, which
-# is handed its own file list - passes exactly that, and an ambiguity is a call-time error, so it
-# surfaced only in the suite rather than at load.
+# A caller handing `_readsource` its own file list passes exactly that, and an ambiguity is a
+# call-time error, so it would show only in the suite and never at load.
 _stackcoords(::Type{Ti}, n::Integer, ::Nothing) = _mkstackaxis(Ti, n)
 
 _stackcoords(A, n::Integer, ::Nothing) = _mkstackaxis(A, n)
@@ -815,7 +810,7 @@ _firstfile(raw) = first(_filelist(raw))
 
 # Read a resolved set of raster file paths into a `ClimateRaster` of source `T`. Values are returned in
 # their actual physical unit as bare magnitudes (`_layerunit` is `NoUnits` for every source); the stacked
-# axis (bands or a monthly series) comes from `_stackaxis`. Shared by `read` and the deprecated `readworldclim`.
+# axis (bands or a monthly series) comes from `_stackaxis`.
 function _readsource(T::Type, files::Vector{String};
                      cut = nothing, scale = 1,
                      fn = _defaultfn(T), slices = nothing, axis = NicheAxis)

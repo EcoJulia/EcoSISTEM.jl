@@ -187,6 +187,17 @@
       one step after each multiple of the interval, and the shim keeps that timing.
     - `simulate_record!`, `simulate_record_diversity!` and the six-argument caching `simulate!`: pass
       a `RecordAbundance`, `RecordDiversity` or `SaveAbundance` to `simulate!` instead.
+  - Removed
+    - Everything deprecated in v0.5.0: the v0.4.0 vocabulary (`GridAbioticEnv`, `SolarBudget`,
+      `GaussTrait`, `Gauss`, `simplehabitat`, `tempgrad`, `TempChange` and the rest), the
+      `ClimatePref` readers and wrappers (`readERA`, `Worldclim_bioclim`, `upresolution`, ...), and
+      the `ERA(array)` container constructors. v0.5.0's notes give each replacement.
+    - The `EcoSISTEM.ClimatePref` submodule, which had come to define nothing: write
+      `using EcoSISTEM`. Everything it re-exported is the parent's, exported or `public` there
+      (`layeraxes` and `sourcecrs` now among them); `Brownian`, `fitbrownian` and `varcovar` are
+      `public` rather than exported, so name them - `using EcoSISTEM: fitbrownian`.
+    - `Supply{A}(::Matrix)`, which built a supply with no coordinates and gave no warning. Pass a
+      `DimArray` whose `Y` and `X` say where its cells are.
 - v0.7.0
   - Added
     - `AllTerritories` and `LargestLandmass`, which say how much of a named region to take. A name

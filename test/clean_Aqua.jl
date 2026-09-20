@@ -44,8 +44,7 @@ end
     # too, so they are declared its own: an extension exists to add methods to them. What is left is
     # a method on someone else's generic over someone else's types.
     own = Union{Function, Type}[getfield(m, n)
-                                for m in (EcoSISTEM, EcoSISTEM.ClimatePref,
-                                    EcoSISTEM.Units)
+                                for m in (EcoSISTEM, EcoSISTEM.Units)
                                 for n in names(m, all = true)
                                 if isdefined(m, n) &&
         getfield(m, n) isa Union{Function, Type}]

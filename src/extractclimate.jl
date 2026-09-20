@@ -9,8 +9,7 @@
 #   errors    `_requirecoord`, `_refusekeyword` - what makes a wrong keyword say what the dataset
 #             does have, rather than failing inside a lookup
 #
-# It names no data source, working on any `AbstractClimate` whatever produced it, which is why it sits
-# beside the readers rather than inside `ClimatePref`.
+# It names no data source, working on any `AbstractClimate` whatever produced it.
 
 using Unitful
 
