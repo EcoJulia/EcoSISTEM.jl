@@ -19,16 +19,25 @@ using EcoSISTEM.Units
 The nichefit between a [`NicheTolerance`](@ref) continuous trait and its environment: the density of the
 trait's response distribution evaluated at the current regime value, parameterised on any `V`.
 Works for any `Distributions.ContinuousUnivariateDistribution` (e.g. [`Trapezoid`](@ref) or `Uniform`).
+
+The axis `A` must declare a [`densitywidth`](@ref), which the density is measured against. One that
+declares none is refused here, where it is first used as a continuous condition, not where it is
+declared: such an axis stands for a family of variables, and the one meant is declared beneath it
+with its own width - `@nicheaxis(MinimumSalinity <: Salinity, densitywidth = ...)`.
 """
 struct NicheSuitability{A, V} <: AbstractNicheFit{A, V}
+    function NicheSuitability{A, V}() where {A, V}
+        isnothing(densitywidth(A)) && _refusewidthless(A)
+        return new{A, V}()
+    end
 end
 
 # The `pdf` is a **density**, so it carries `1/x` and its stripped value depends on the frame.
 # Multiplying by the axis's fixed physical `densitywidth`, expressed in that same frame, makes the
 # result a dimensionless weight that is invariant to the axis's canonical unit - see
 # `densitywidth`'s docstring. `_densityscale` is `1.0` for every shipped axis today (each width is
-# one of its own current canonical units), so this changes no number and `reference.toml` must not
-# move. An axis declaring no width is unscaled, exactly as before.
+# one of its own current canonical units). An axis declaring no width never reaches here: the
+# constructor refuses it, because its stripped density would depend on the frame.
 function (::NicheSuitability{A, V})(dist::ContinuousUnivariateDistribution,
                                     current) where {A, V}
     return pdf(dist, _toframe(V, current)) * _densityscale(A, V)
@@ -202,16 +211,21 @@ nichefitcombine(nichefit::CombiningFit) = getfield(nichefit, :combine)
 
 nichefitcombine(::AbstractNicheFit) = only
 
-# The axis's density width expressed in the frame `V`, as a bare number - `1.0` when the axis
-# declares none, so the multiplication is a no-op rather than a branch in the hot loop.
+# The axis's density width expressed in the frame `V`, as a bare number. Both arguments are types,
+# so it folds to a literal and costs the hot loop one multiplication.
 function _densityscale(::Type{A}, ::Type{V}) where {A, V}
     return _asscale(densitywidth(A), V)
 end
 
-# The width side is typed `::Unitful.Quantity`, not left free - with a free `w` the `Nothing`
-# method and the `V <: Quantity` one are **ambiguous** for an axis with no width on a unitful
-# frame, which is every legacy root-axis fit. Caught by `test_deprecations`/`test_NicheFit`.
-_asscale(::Nothing, ::Type) = 1.0
+# The error a continuous fit raises for an axis with no density width.
+function _refusewidthless(::Type{A}) where {A}
+    return error("niche axis `$(nameof(A))` declares no `densitywidth`, so a continuous " *
+                 "suitability on it would change with the unit its tolerance is built in. It " *
+                 "stands for a family of variables: declare the one you mean beneath it, with " *
+                 "the width its density is measured against - `@nicheaxis(MyVariable <: " *
+                 "$(nameof(A)), densitywidth = ...)` - and build the tolerance and the regime " *
+                 "on that axis.")
+end
 
 function _asscale(w::Unitful.Quantity, ::Type{V}) where {V <: Quantity}
     return ustrip(unit(V), w)

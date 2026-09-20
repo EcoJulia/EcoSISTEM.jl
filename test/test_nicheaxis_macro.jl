@@ -257,7 +257,7 @@ end
     # a regime built from one source and a tolerance defaulted from another can silently diverge in scale
     # (exactly the bug `SolarRadiation` had). Reuses the catalogue helpers that already back
     # `layerinfo`/`layerunit` - no new registry.
-    for A in EcoSISTEM._leafaxes()
+    for A in EcoSISTEM._nameableaxes()
         recs = EcoSISTEM.layersbyaxis(A)
         isempty(recs) && continue
         units = unique(r.unit for r in recs)
@@ -438,10 +438,6 @@ end
     narrow = NicheTolerance(TestMM, Normal, [50.0mm / day], [1.0mm / day])
     @test NicheSuitability(narrow)(getdist(narrow, 1), 50.0mm / day) > smm
 
-    # An axis declaring no width is unscaled, exactly as before.
-    @test isnothing(EcoSISTEM.densitywidth(EcoSISTEM.NicheAxis))
-    @test EcoSISTEM._densityscale(EcoSISTEM.NicheAxis, Float64) == 1.0
-
     # **A DIMENSIONLESS axis's width is a bare `Float64`, not a `Quantity`.** `1.0NoUnits`
     # collapses to `1.0`, so `_asscale` needs a `Real` method; without one every continuous niche on
     # one of the eight dimensionless axes died with a `MethodError` in the hot loop. The tests
@@ -452,6 +448,90 @@ end
     # ...and it has to survive the route that actually broke: evaluating a niche on such an axis.
     surf = NicheTolerance(EcoSISTEM.SurfaceArea, Normal, [0.5], [0.1])
     @test NicheSuitability(surf)(getdist(surf, 1), 0.5) > 0.0
+end
+
+# Every axis below `NicheAxis`, groups and leaves alike, wherever it was declared.
+allaxes(T = EcoSISTEM.NicheAxis) = vcat(Type[T], map(allaxes, subtypes(T))...)
+
+@testset "every axis answers for its density width" begin
+    # The macro pastes a width into a method body unevaluated, so a declaration that cannot be
+    # evaluated loads cleanly and throws only when asked - and a supply-only axis is never asked.
+    for A in allaxes()
+        @test EcoSISTEM.densitywidth(A) isa
+              Union{Nothing, Real, Unitful.Quantity}
+    end
+    # Every shipped axis that can be a continuous condition states a width, so none of them is
+    # refused below. Named, so that a new one without a width has to be looked at.
+    widthless = [nameof(A)
+                 for A in allaxes()
+                 if parentmodule(A) === EcoSISTEM &&
+                        !isnothing(EcoSISTEM.canonicalunit(A)) &&
+                        isnothing(EcoSISTEM.densitywidth(A))]
+    @test isempty(widthless)
+end
+
+@testset "an axis with no density width takes no continuous fit" begin
+    @nicheaxis(TestSalinity<:EcoSISTEM.NicheAxis, condition=u"g/kg")
+    @nicheaxis(TestSurfaceSalinity<:TestSalinity, densitywidth=1.0u"g/kg")
+    @test isnothing(EcoSISTEM.densitywidth(TestSalinity))
+
+    # Declaring it, and a tolerance on it, are both allowed: the width is asked for where the
+    # density is first used, and the refusal names the remedy.
+    tol = NicheTolerance(TestSalinity, Normal, [35.0u"g/kg"], [2.0u"g/kg"])
+    @test_throws "declares no `densitywidth`" NicheSuitability(tol)
+    @test_throws "@nicheaxis(MyVariable <: TestSalinity" NicheSuitability{TestSalinity,
+                                                                          typeof(1.0u"g/kg")}()
+    @test_throws "declares no `densitywidth`" NicheSuitability{EcoSISTEM.NicheAxis,
+                                                               Float64}()
+
+    # The subtype that states a width is accepted, and inherits everything else.
+    surface = NicheTolerance(TestSurfaceSalinity, Normal, [35.0u"g/kg"],
+                             [2.0u"g/kg"])
+    @test EcoSISTEM.canonicalunit(TestSurfaceSalinity) == u"g/kg"
+    @test NicheSuitability(surface)(getdist(surface, 1), 35.0u"g/kg") ≈
+          pdf(Normal(35.0, 2.0), 35.0)
+end
+
+@testset "a variable declared beneath a shipped axis" begin
+    # The width is the variable's own, everything else is `Temperature`'s, and a method written
+    # for `Temperature` still reaches it.
+    @nicheaxis(TestMinimumTemperature<:Temperature, densitywidth=10.0K)
+    @test TestMinimumTemperature <: Temperature
+    @test EcoSISTEM.canonicalunit(TestMinimumTemperature) === K
+    @test EcoSISTEM._densityscale(TestMinimumTemperature, typeof(1.0K)) ==
+          10 * EcoSISTEM._densityscale(Temperature, typeof(1.0K))
+
+    # **The shipped tables go on naming `Temperature`.** A subtype declared in another module does
+    # not make it a grouping node, whether the names were first looked up before the declaration or
+    # after it - hence the refresh, without which the memoised names would pass this either way.
+    EcoSISTEM._refreshaxisnames!()
+    @test EcoSISTEM._resolveaxis("Temperature") === Temperature
+    @test EcoSISTEM._resolveaxis("TestMinimumTemperature") ===
+          TestMinimumTemperature
+    @test layeraxis(ERA, :t2m) === Temperature
+    # A node divided by its own module is still a group, and still names no layer.
+    @test_throws ErrorException EcoSISTEM._resolveaxis("TemperatureAxis")
+    # A group declared here, with its leaf, behaves the same way.
+    @nicheaxis(TestGroupAxis<:EcoSISTEM.NicheAxis)
+    @nicheaxis(TestGroupLeaf<:TestGroupAxis, condition=K, densitywidth=1.0K)
+    @test EcoSISTEM._resolveaxis("TestGroupLeaf") === TestGroupLeaf
+    @test_throws ErrorException EcoSISTEM._resolveaxis("TestGroupAxis")
+end
+
+@testset "a tolerance on an axis with no condition unit is told why" begin
+    # Three reasons, three remedies. `canonicalunit` answers `nothing` for all of them, and every
+    # macro-declared axis has a method of its own for it, so neither can tell them apart.
+    build(A) = NicheTolerance(A, Normal, [1.0], [0.1])
+    @test_throws "declares `condition = nothing`" build(CarbonFlux)
+    @test_throws "groups other axes" build(EcoSISTEM.TemperatureAxis)
+    @test_throws "`Temperature`" build(EcoSISTEM.TemperatureAxis)
+    @nicheaxis(TestGroundTruth<:EcoSISTEM.NicheAxis, reference)
+    @test_throws "`reference` axis" build(TestGroundTruth)
+    @nicheaxis(TestUnsaid<:EcoSISTEM.NicheAxis)
+    @test_throws "no canonical unit is declared" build(TestUnsaid)
+    # A statement covers what is declared beneath it.
+    @nicheaxis(TestFluxPart<:CarbonFlux)
+    @test_throws "declares `condition = nothing`" build(TestFluxPart)
 end
 
 end

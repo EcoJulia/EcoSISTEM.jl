@@ -130,18 +130,17 @@ include("TestCases.jl")
         @test_deprecated Gauss{EcoSISTEM.NicheAxis, NF}()
         @test_deprecated Trapeze{EcoSISTEM.NicheAxis, Int64}()
         @test_deprecated Unif{EcoSISTEM.NicheAxis, typeof(1.0mm)}()
-        # the shims share `NicheSuitability`'s 2-argument density functor
+        # The shims evaluate the bare density on the root axis, as v0.4.0 did. `NicheSuitability`
+        # refuses the root, which declares no density width, so they are not compared with it.
         @test Gauss{EcoSISTEM.NicheAxis, NF}()(Normal(1.0, 0.01), 1.0K) ==
-              NicheSuitability{EcoSISTEM.NicheAxis, NF}()(Normal(1.0, 0.01),
-                                                          1.0K)
+              pdf(Normal(1.0, 0.01), 1.0)
         @test Trapeze{EcoSISTEM.NicheAxis, Int64}()(Trapezoid(1, 2, 3, 4), 1) ==
-              NicheSuitability{EcoSISTEM.NicheAxis, Int64}()(Trapezoid(1, 2, 3,
-                                                                       4), 1)
+              pdf(Trapezoid(1, 2, 3, 4), 1)
         @test Unif{EcoSISTEM.NicheAxis, typeof(1.0mm)}()(Uniform(1, 2),
                                                          1.0mm) ==
-              NicheSuitability{EcoSISTEM.NicheAxis, typeof(1.0mm)}()(Uniform(1,
-                                                                             2),
-                                                                     1.0mm)
+              pdf(Uniform(1, 2), 1.0)
+        @test_throws "declares no `densitywidth`" NicheSuitability{EcoSISTEM.NicheAxis,
+                                                                   NF}()
         @test eltype(Gauss{EcoSISTEM.NicheAxis, NF}()) == NF
         @test EcoSISTEM._iscontinuous(Unif{EcoSISTEM.NicheAxis, typeof(1.0mm)}()) ==
               true

@@ -121,7 +121,10 @@ canonicalunit(::Type{<:Role}, A::Type{<:NicheAxis}) = canonicalunit(A)
     densitywidth(::Type{<:NicheAxis})
 
 The **fixed physical width** a continuous suitability density is multiplied by to make it a
-dimensionless weight, or `nothing` for an axis that declares none (no scaling is applied).
+dimensionless weight, or `nothing` for an axis that declares none. Such an axis can be declared,
+and can carry a supply or a categorical regime, but a continuous fit on it
+([`NicheSuitability`](@ref)) is refused: it stands for a family of variables, and the one meant is
+declared beneath it with a width of its own.
 
 **This is what stops an axis's `canonicalunit` being a model parameter in disguise.** A
 probability density carries `1/x`, so a *stripped* `pdf` is really "probability mass in a window one
@@ -153,6 +156,14 @@ densitywidth(::Type{<:NicheAxis}) = nothing
 # third case: nothing acts on the distinction, and a count may be averaged like any number.
 _iscategorical(::Type{<:NicheAxis}) = false
 
+# Why an axis has no condition unit, for the refusal a tolerance on it gets: `:refused` where
+# `condition = nothing` is stated, `:reference` for a reference axis, and `:undeclared` where
+# nothing was said - a group, or a type that never ran the macro. It cannot be read off
+# `canonicalunit`, which answers `nothing` for all three and has a method on every macro-declared
+# axis whether or not that axis stated anything. Delegated to the parent as `densitywidth` is, so
+# a statement covers an axis' descendants.
+_conditionabsence(::Type{<:NicheAxis}) = :undeclared
+
 """
     @nicheaxis Name <: Parent  [condition = U] [resource = U supply = S demand = D] [reference]
                                [bounds = (lo, hi)] [densitywidth = W] [categorical = true]
@@ -176,6 +187,7 @@ canonical unit** - so an axis is a condition, a resource, both, or neither, and 
 | `condition = nothing` | *not* a condition - use with `resource` for a supply-only axis, as `CarbonFlux` is |
 | `reference` | **neither** - buildable, materialisable and composable, but never simulated |
 | `categorical = true` | values are **class labels**, so a layer on this axis is resampled by nearest class rather than interpolated |
+| `densitywidth = W` | the fixed physical width a continuous suitability is measured against. An axis with none, declared or inherited, takes no continuous tolerance until a subtype gives it one |
 | nothing at all | inherit the group's declarations |
 
 Omitting `condition` and writing `condition = nothing` are **different**: the first inherits
@@ -278,6 +290,12 @@ macro nicheaxis(args...)
         push!(out.args,
               :($M.canonicalunit(::Type{<:$name}) = $M.canonicalunit($parent)))
     end
+    # Why the condition unit is absent, where it is: stated here, or whatever the parent says.
+    absence = isreference ? QuoteNode(:reference) :
+              get(opts, :condition, :inherit) === :nothing ?
+              QuoteNode(:refused) :
+              :($M._conditionabsence($parent))
+    push!(out.args, :($M._conditionabsence(::Type{<:$name}) = $absence))
     # **An axis may not contradict an ancestor's declared unit.** Where a group and its leaves
     # disagree, they are typically not the same quantity in different units at all - `K` against
     # `K*d`, degree-days, against a dimensionless ratio or count - so there is **no meaningful
