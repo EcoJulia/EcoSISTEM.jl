@@ -14,8 +14,9 @@ using EcoSISTEM
 # Unzip `path` into a fresh directory under EcoSISTEM's DataPipeline scratch area, and return it.
 #
 # The destination is a `mktempdir` under `assetdir(DataPipeline)` rather than the system temporary
-# directory, so an unpacked archive lands with the rest of the pipeline's cached data and is cleaned
-# up on the same terms.
+# directory, so an unpacked archive lands beside the rest of this package's cached data. It is a
+# `mktempdir` all the same, so the directory goes when the process does: what a claimed archive
+# unpacks to lasts for the run that claimed it, and nothing longer.
 function EcoSISTEM.unziptemp(path::String)
     newpath = mktempdir(EcoSISTEM.assetdir(DataPipeline))
     run(`$(p7zip_jll.p7zip()) x -tzip -y -o$(newpath) $(path)`)

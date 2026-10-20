@@ -1,5 +1,14 @@
 # NEWS
 
+- v0.8.1
+  - Fixed
+    - The `EcoSISTEMDataPipelineExt` extension works: `[compat]` now asks for `DataPipeline`
+      v0.56, and the extension and its test hook are exercised by the test suite.
+    - `examples/pipeline/AfricaRun.jl` runs under `fair run` again. It has an environment of its
+      own, it names the claimed files on its layer specs so the run reads the pipeline's copy of
+      WorldClim rather than downloading another, and `AfricaRun.yaml` points at WorldClim's
+      current host.
+
 - v0.8.0
   - Added
     - `RasterSpec`, one lazy spec for raster data, written `SourceSpec(source, code)` for a
@@ -173,6 +182,9 @@
     - `ShapeSpec` documents that a URL must name a self-contained file.
     - `gatherdiversity` refuses a metacommunity or individual measure, which it assembled into
       values that meant nothing; it takes subcommunity measures, as documented.
+    - A metacommunity diversity measure asked directly of a distributed ecosystem
+      (`meta_gamma(eco, q)` and the rest) is refused, where it answered for one rank's cells alone
+      and said nothing; use `gatherdiversity` for a subcommunity measure, or run serially.
     - `AddAbundance` and `RemoveAbundance` accept a species named by a `Symbol`, as the
       `Intervention` docstring's example does.
   - Deprecated

@@ -17,9 +17,11 @@
 #
 # **Not runnable without a configured pipeline.** `DataPipeline.initialise()` needs a
 # `config.yaml` and a local registry, so this cannot be part of any automatic run and is not in
-# `examples/` proper. With one:
+# `examples/` proper. It has an environment of its own for the same reason - `DataPipeline` is
+# a weak dependency of the package and is wanted by nothing else under `examples/`. Launched by
+# `fair run` from `AfricaRun.yaml`, which runs:
 #
-#     julia --project=examples examples/pipeline/AfricaRun.jl
+#     julia --project=examples/pipeline examples/pipeline/AfricaRun.jl
 
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -34,20 +36,23 @@ using DataPipeline
 
 handle = DataPipeline.initialise()
 
-# The claimed directory is handed to `RasterDataSources` as its download path, so the layers named
-# below resolve to the *pipeline's* copy rather than to one fetched independently. That is what makes
-# the run reproducible from the registry rather than merely repeatable.
+# What the pipeline hands over is WorldClim's bioclimatic zip; unpacking it gives the nineteen
+# GeoTIFFs flat in one directory.
 const CLAIMED = EcoSISTEM.unziptemp(link_read!(handle, "AfricaModel/WorldClim"))
-ENV["RASTERDATASOURCES_PATH"] = CLAIMED
+
+# Where the claimed archive holds the layer for bioclimatic variable `n`.
+wcfile(n) = joinpath(CLAIMED, "wc2.1_10m_bio_$(n).tif")
 
 # --- the layers -------------------------------------------------------------------------
 
 # Named, not read: bio1 is annual mean temperature and bio12 annual precipitation, and both the
-# unit and the axis come from the shipped catalogue (`data/catalogue/BioClim.csv`) rather
-# than being asserted here - which is what the old `uconvert.(K, africa_temp .* °C)` was doing by
-# hand, and could get wrong.
-const TEMPERATURE = SourceSpec(WorldClim{BioClim}, :bio1)
-const RAINFALL = SourceSpec(WorldClim{BioClim}, :bio12)
+# unit and the axis come from the shipped catalogue (`data/catalogue/BioClim.csv`) rather than
+# being asserted here, where a hand-written conversion could get either wrong.
+#
+# Naming the claimed file is what ties the layers to the pipeline: a spec left to resolve its own
+# files fetches its own copy from WorldClim instead.
+const TEMPERATURE = SourceSpec(WorldClim{BioClim}, :bio1, file = wcfile(1))
+const RAINFALL = SourceSpec(WorldClim{BioClim}, :bio12, file = wcfile(12))
 
 # --- decide the grid, before anything is built on it ------------------------------------
 

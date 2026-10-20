@@ -132,9 +132,11 @@ species = build_species(numspecies, tolerance = (niche_means, niche_widths),
 eco = build_ecosystem(species, habitat, seed = seed)
 
 # What this ecosystem was built from: the EarthEnv land-cover file and the NatureScot outline it
-# read, each under its dataset with the DOI and citation where the catalogue knows them, the grid
-# and the run's seed. Nothing has run yet, so no time has elapsed.
+# read, with each dataset's DOI, licence and citation where the catalogue knows them, the grid and
+# the run's seed. `write_provenance` writes the TOML file a paper's repository commits beside its
+# figures; it goes to a temporary directory here, so the example leaves nothing behind.
 display(provenance(eco))
+write_provenance(joinpath(mktempdir(), "provenance.toml"), eco)
 
 times = 6month_mean_duration
 timestep = 1month_mean_duration
@@ -145,12 +147,6 @@ println("Per-species initial abundance: ",
 
 simulate!(eco, times, timestep)
 endabun = sum(eco.abundances.matrix)
-
-# The same record now carries how long the run went on for. `write_provenance` writes it as the
-# TOML file a paper's repository commits beside its figures; it goes to a temporary directory here,
-# so the example leaves nothing behind.
-display(provenance(eco))
-write_provenance(joinpath(mktempdir(), "provenance.toml"), eco)
 
 println("Simulated $numspecies species over a $(size(eco.abundances.grid, 2)) × " *
         "$(size(eco.abundances.grid, 3)) grid ($(count(habitat.active)) active cells " *
