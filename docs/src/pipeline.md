@@ -2,7 +2,7 @@
 
 **DataPipeline.jl** is a [Julia](https://github.com/FAIRDataPipeline/DataPipeline.jl) package that provides functionality for the [FAIR Data Pipeline](https://www.fairdatapipeline.org/). The pipeline is intended to enable tracking of provenance of FAIR (findable, accessible, interoperable and reusable) data. We use it in examples under the `pipeline` folder for a run of a single species in Africa.
 
-See [here](https://www.fairdatapipeline.org/docs/) for details on what to install to set up the Data Pipeline. Once installed, the workflow is to initialise the pipeline in the repository, pull in the external data needed for the simulation (as described in the `AfricaRun.yaml`) and run the simulation. The output is also described in the `AfricaRun.yaml`, which is produced from the corresponding run file `AfricaRun.jl`. The output and provenance can then be pushed back to the online [data registry](https://data.fairdatapipeline.org/) to be inspected further.
+See [here](https://www.fairdatapipeline.org/DataPipeline.jl/stable/) for how to install the Data Pipeline; the example needs `fair-cli` 0.10.2 or later, the first release that pushes a run's registered inputs from a local registry. Once installed, the workflow is to initialise the pipeline in the repository, pull in the external data needed for the simulation (as described in the `AfricaRun.yaml`) and run the simulation. The output is also described in the `AfricaRun.yaml`, which is produced from the corresponding run file `AfricaRun.jl`. The output and provenance can then be pushed back to the online [data registry](https://data.fairdatapipeline.org/) to be inspected further.
 
 ```
 ## Initialise the data pipeline in the git repository
@@ -18,7 +18,8 @@ fair push
 ```
 
 `AfricaRun.jl` has an environment of its own, `examples/pipeline/Project.toml`, because
-`DataPipeline` is a weak dependency of EcoSISTEM and nothing else under `examples/` wants it.
+`DataPipeline` is a weak dependency of EcoSISTEM and nothing else under `examples/` wants it; it
+asks for DataPipeline.jl 0.56 or later.
 `fair run` launches the script in that environment; instantiate it once first with
 
 ```
