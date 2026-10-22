@@ -6,13 +6,5 @@ RasterDataSources = "3cb90ccd-e1b6-4867-9617-4276c8b2ca36"
 Rasters = "a3a2b9e3-a471-40c9-b274-f788e487c689"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
-[compat]
-DataPipeline = "0.56"
-Plots = "1.38.7"
-RasterDataSources = "0.5.6, 0.6, 0.7"
-Rasters = "0.15.0"
-Unitful = "1.12.4"
-julia = "1.11"
-
 [sources]
 EcoSISTEM = {path = "../.."}
