@@ -8,6 +8,8 @@ using Downloads: Downloads
 using Hwloc
 using Test
 import ArchGDAL
+# `Base.Docs.doc(::Binding)`, which the docstring checks below call, is a method REPL defines.
+import REPL
 
 struct _CacheTestOwner end
 

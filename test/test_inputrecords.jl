@@ -21,7 +21,11 @@ function _geotiff(path)
     ArchGDAL.create(path, driver = ArchGDAL.getdriver("GTiff"), width = 7,
                     height = 5, nbands = 1, dtype = Float32) do ds
         ArchGDAL.write!(ds, Float32[280 + i + 10j for i in 1:7, j in 1:5], 1)
-        ArchGDAL.setgeotransform!(ds, [10.0, 1.0, 0.0, 55.0, 0.0, -1.0])
+        # ArchGDAL's `setgeotransform!` takes `pointer(transform)` without keeping the array
+        # alive, so a temporary vector can be dropped before GDAL reads it, which Julia 1.13.2
+        # does: the geotransform then stays the identity. Keep it alive across the call.
+        transform = [10.0, 1.0, 0.0, 55.0, 0.0, -1.0]
+        Base.GC.@preserve transform ArchGDAL.setgeotransform!(ds, transform)
         return ArchGDAL.setproj!(ds,
                                  ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
     end

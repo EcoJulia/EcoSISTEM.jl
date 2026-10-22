@@ -8,6 +8,10 @@
       own, it names the claimed files on its layer specs so the run reads the pipeline's copy of
       WorldClim rather than downloading another, and `AfricaRun.yaml` points at WorldClim's
       current host.
+  - Internal
+    - The test suite passes on Julia 1.13.2: the GeoTIFF fixtures keep their geotransform vector
+      alive across ArchGDAL's `setgeotransform!`, which does not, and the docstring checks import
+      REPL rather than relying on another package having loaded it.
 
 - v0.8.0
   - Added

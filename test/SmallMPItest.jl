@@ -95,7 +95,12 @@ else
                     band == 2 && (values[3, 2] = NaN)
                     ArchGDAL.write!(ds, values, band)
                 end
-                ArchGDAL.setgeotransform!(ds, [10.0, 0.5, 0.0, 55.0, 0.0, -0.5])
+                # ArchGDAL's `setgeotransform!` takes `pointer(transform)` without keeping the array
+                # alive, so a temporary vector can be dropped before GDAL reads it, which Julia 1.13.2
+                # does: the geotransform then stays the identity. Keep it alive across the call.
+                transform = [10.0, 0.5, 0.0, 55.0, 0.0, -0.5]
+                Base.GC.@preserve transform ArchGDAL.setgeotransform!(ds,
+                                                                      transform)
                 return ArchGDAL.setproj!(ds,
                                          ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
             end

@@ -18,6 +18,13 @@ using RasterDataSources
 using ArchGDAL
 using Distributions: Normal
 using Extents: Extent
+
+# Set `ds`'s geotransform from a temporary vector. ArchGDAL's `setgeotransform!` takes
+# `pointer(transform)` without keeping the array alive, so a temporary one can be dropped before
+# GDAL reads it, which Julia 1.13.2 does: the geotransform then stays the identity.
+function _setgeotransform!(ds, transform)
+    return Base.GC.@preserve transform ArchGDAL.setgeotransform!(ds, transform)
+end
 include("rasterfixtures.jl")
 include("buildfixtures.jl")
 
@@ -86,7 +93,7 @@ end
                     height = 5, nbands = 1, dtype = Float32) do ds
         # ArchGDAL writes `(x, y)`; the value encodes both so a swapped axis is visible.
         ArchGDAL.write!(ds, Float32[280 + i + 10j for i in 1:7, j in 1:5], 1)
-        ArchGDAL.setgeotransform!(ds, [10.0, 1.0, 0.0, 55.0, 0.0, -1.0])
+        _setgeotransform!(ds, [10.0, 1.0, 0.0, 55.0, 0.0, -1.0])
         return ArchGDAL.setproj!(ds,
                                  ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
     end
@@ -195,7 +202,7 @@ end
                     height = 4, nbands = 1, dtype = Float32) do ds
         codes = Float32[1 1 2 3; 1 2 2 3; 5 5 7 7; 5 7 7 9]
         ArchGDAL.write!(ds, permutedims(codes), 1)      # ArchGDAL writes `(x, y)`
-        ArchGDAL.setgeotransform!(ds, [10.0, 1.0, 0.0, 54.0, 0.0, -1.0])
+        _setgeotransform!(ds, [10.0, 1.0, 0.0, 54.0, 0.0, -1.0])
         return ArchGDAL.setproj!(ds,
                                  ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
     end
@@ -315,7 +322,7 @@ end
                     height = 400, nbands = 1, dtype = Float64) do ds
         field = [(sin(i / 7) + cos(j / 11))^2 for i in 1:400, j in 1:400]
         ArchGDAL.write!(ds, permutedims(field), 1)
-        ArchGDAL.setgeotransform!(ds, [0.0, 1.0, 0.0, 400.0, 0.0, -1.0])
+        _setgeotransform!(ds, [0.0, 1.0, 0.0, 400.0, 0.0, -1.0])
         return ArchGDAL.setproj!(ds,
                                  ArchGDAL.toWKT(ArchGDAL.importEPSG(3857)))
     end
@@ -377,7 +384,7 @@ end
         wide = hcat(ones(Float32, 12, 4), repeat(block, 3, 1),
                     fill(2.0f0, 12, 4))
         ArchGDAL.write!(ds, permutedims(wide), 1)
-        ArchGDAL.setgeotransform!(ds, [10.0, 1.0, 0.0, 62.0, 0.0, -1.0])
+        _setgeotransform!(ds, [10.0, 1.0, 0.0, 62.0, 0.0, -1.0])
         return ArchGDAL.setproj!(ds,
                                  ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
     end

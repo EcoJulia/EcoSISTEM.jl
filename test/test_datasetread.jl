@@ -820,7 +820,12 @@ end
                     height = 4, nbands = 1,
                     dtype = Float32) do ds
         ArchGDAL.write!(ds, fill(1.0f0, 4, 4), 1)
-        return ArchGDAL.setgeotransform!(ds, [0.0, 1.0, 0.0, 4.0, 0.0, -1.0])
+        # ArchGDAL's `setgeotransform!` takes `pointer(transform)` without keeping the array
+        # alive, so a temporary vector can be dropped before GDAL reads it, which Julia 1.13.2
+        # does: the geotransform then stays the identity. Keep it alive across the call.
+        transform = [0.0, 1.0, 0.0, 4.0, 0.0, -1.0]
+        return Base.GC.@preserve transform ArchGDAL.setgeotransform!(ds,
+                                                                     transform)
     end
     @test CP._isblankcrs(Rasters.crs(Rasters.Raster(path)))
     r = read(RasterFileSpec(path, axis = EcoSISTEM.NicheAxis))
