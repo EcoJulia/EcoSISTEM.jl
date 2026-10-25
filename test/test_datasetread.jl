@@ -538,7 +538,7 @@ end
     both = read(E.ERA, dirname(path), "era5_fixture", "t2m",
                 [collect((1:12) .* month_mean_duration)])
     @test size(both.array, 3) == 12
-    # A source that does not fetch its own files must be told where they are.
+    # An ERA5 spec must be told where its files are, or which years to fetch.
     @test_throws "file = path" SourceSpec(E.ERA, "t2m")
     @test_throws "not $(2) of them" SourceSpec(E.ERA, "t2m", file = path,
                                                files = [path])

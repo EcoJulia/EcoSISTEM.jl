@@ -37,6 +37,46 @@ include("rasterfixtures.jl")
         @test haskey(ENV, "RASTERDATASOURCES_PATH")
     end
 
+    @testset "moving the asset cache moves only a download path the extension chose" begin
+        ext = Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)
+        saved = (ext._SETPATH[], get(ENV, "RASTERDATASOURCES_PATH", nothing))
+        # The preference goes into the first environment on the load path that has EcoSISTEM,
+        # so one made here keeps it out of every real environment.
+        env = mktempdir()
+        write(joinpath(env, "Project.toml"),
+              "[deps]\nEcoSISTEM = \"$(Base.PkgId(EcoSISTEM).uuid)\"\n")
+        pushfirst!(LOAD_PATH, env)
+        try
+            # As `__init__` leaves things where it chose the path.
+            ENV["RASTERDATASOURCES_PATH"] = ext._SETPATH[] = EcoSISTEM.assetdir(RasterDataSources)
+            cache = mktempdir()
+            EcoSISTEM.set_assetdir!(cache)
+            @test ENV["RASTERDATASOURCES_PATH"] ==
+                  joinpath(cache, "RasterDataSources")
+            @test isdir(ENV["RASTERDATASOURCES_PATH"])
+            EcoSISTEM.set_assetdir!(nothing)
+            @test ENV["RASTERDATASOURCES_PATH"] ==
+                  EcoSISTEM.assetdir(RasterDataSources)
+            # A path set since, or set before the extension loaded, stays where it was set.
+            mine = mktempdir()
+            ENV["RASTERDATASOURCES_PATH"] = mine
+            EcoSISTEM.set_assetdir!(cache)
+            @test ENV["RASTERDATASOURCES_PATH"] == mine
+            ext._SETPATH[] = nothing
+            EcoSISTEM.set_assetdir!(nothing)
+            @test ENV["RASTERDATASOURCES_PATH"] == mine
+        finally
+            EcoSISTEM.set_assetdir!(nothing)
+            filter!(!=(env), LOAD_PATH)
+            ext._SETPATH[] = saved[1]
+            if isnothing(saved[2])
+                delete!(ENV, "RASTERDATASOURCES_PATH")
+            else
+                ENV["RASTERDATASOURCES_PATH"] = saved[2]
+            end
+        end
+    end
+
     @testset "hooks gain their sole method" begin
         # The trait is what every door - `SourceSpec`, `ClimateRaster` - actually gates on, and
         # marking the abstract type is what covers the whole hierarchy in one line.

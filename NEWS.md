@@ -1,7 +1,20 @@
 # NEWS
 
 - v0.8.1
+  - Added
+    - `SourceSpec(ERA, code; years, months, area)` fetches an ERA5 layer from the Climate Data
+      Store into the asset cache on first use, a file a decade. `area` is a box, or a region by
+      name or as a `NaturalEarthSpec`, its box from the shipped table rounded outwards to whole
+      degrees; `CDSRequest(ERA, ...)` and `era5requests` take the same `area`.
+    - `EcoSISTEM.set_assetdir!(dir)` keeps the asset cache in a directory of your choosing,
+      recorded as a preference, and `nothing` returns it to the scratch space. Preferences.jl is a
+      new dependency.
   - Fixed
+    - `era5requests` puts every field a request varies by in its file's name - a box, and months
+      other than all twelve - so two requests never share a file. A file fetched with a box or
+      some months under the old name is fetched again unless renamed.
+    - A Climate Data Store file already present whose provenance record holds a different request
+      is refused, naming what differs, rather than served as the request asked.
     - The `EcoSISTEMDataPipelineExt` extension works: `[compat]` now asks for `DataPipeline`
       v0.56, and the extension and its test hook are exercised by the test suite.
     - `examples/pipeline/AfricaRun.jl` runs under `fair run` again. It has an environment of its

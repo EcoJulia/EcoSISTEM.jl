@@ -144,9 +144,11 @@ end
 
 The ERA5 reanalysis archive, as a data source: monthly means on single levels, one netCDF file
 per variable per decade as the Climate Data Store serves them. Name a layer with
-`SourceSpec(ERA, "t2m", file = path)` - or `files = decades` in time order, or a
-[`EcoSISTEM.CDSRequest`](@ref) entry fetched on first use - and `read` it, or build on it, like any
-other; the `ERA` layer table supplies the unit, axis and accumulation period.
+`SourceSpec(ERA, "t2m", years = 1990:2019)` to have it fetched from the Climate Data Store into
+the asset cache on first use, a decade a file, optionally cut to an `area` and to some `months`; or
+with `file = path`, `files = decades` in time order, or [`EcoSISTEM.CDSRequest`](@ref) entries, for
+files of your own. `read` it, or build on it, like any other; the `ERA` layer table supplies the
+unit, axis and accumulation period.
 
 Fieldless: a source names *where data came from*, and the data itself lives in the
 [`ClimateRaster`](@ref) that carries it.
@@ -167,7 +169,11 @@ column, so a code with none is refused.
   - `years`: the years to ask for, a range or a vector.
   - `path`: where the file lives once fetched.
   - `months`: the months of each year, `1:12` by default.
-  - `area`: `(north, west, south, east)` in degrees to cut to, or `nothing` for the globe.
+  - `area`: what to cut to, or `nothing` for the globe. A box in degrees: `(north, west, south,
+    east)` as a tuple or vector, a named tuple with those four names, or an `Extents.Extent`. Or a
+    region: its name, or a [`NaturalEarthSpec`](@ref) where the name needs a `level` or a
+    `coverage`, whose box comes from the shipped regions table, with no download, rounded outwards
+    to whole degrees.
 """
 function EcoSISTEM.CDSRequest(::Type{ERA}, code; years, path::AbstractString,
                               months = 1:12, area = nothing)
@@ -177,7 +183,7 @@ function EcoSISTEM.CDSRequest(::Type{ERA}, code; years, path::AbstractString,
               "can be built for it.")
     return CDSRequest(_ERA5_MONTHLY,
                       _era5request(rec.request, years, months = months,
-                                   area = area), path)
+                                   area = _cdsarea(area)), path)
 end
 
 """
@@ -253,6 +259,12 @@ dir = "data/era5"))`. A block that does not fill its decade - the current one, o
 span - is named by the years it holds instead, `era5_<code>_2020-2025.nc`, so that asking for a
 later year names a new file rather than finding the old one present and stopping there.
 
+Every other thing a request varies by is in the name too, so that two requests never share a file:
+a box as its edges in whole or decimal degrees, each with its hemisphere
+(`era5_t2m_1990s_40N25W36S56E.nc`), and months other than all twelve as the runs they make
+(`era5_t2m_1990s_m06-08.nc`, `_m01-02.12` for December to February), the box first. Each name is
+a valid file name on every system and a valid data pipeline name.
+
 # Arguments
 
   - `code`: the layer, as the `ERA` table spells it.
@@ -264,15 +276,18 @@ later year names a new file rather than finding the old one present and stopping
 function era5requests(code, years; dir::AbstractString, per::Integer = 10,
                       months = 1:12, area = nothing)
     ys = sort(unique(collect(years)))
+    box = _cdsarea(area)
+    suffix = _boxname(box) * _monthsname(months)
     requests = CDSRequest[]
     for b in unique(fld.(ys, per))
         block = filter(y -> fld(y, per) == b, ys)
         whole = length(block) == per
-        name = whole ? "era5_$(code)_$(b * per)s.nc" :
-               "era5_$(code)_$(first(block))-$(last(block)).nc"
+        span = whole ? "$(b * per)s" : "$(first(block))-$(last(block))"
         push!(requests,
               CDSRequest(ERA, code, years = block, months = months,
-                         area = area, path = joinpath(dir, name)))
+                         area = box,
+                         path = joinpath(dir,
+                                         "era5_$(code)_$(span)$(suffix).nc")))
     end
     return requests
 end
@@ -397,6 +412,100 @@ function dominant_class(raster::ClimateRaster{S}) where {S}
         end
     end
     return ClimateRaster(_derivedfrom(S), DimArray(out, yx))
+end
+
+# --- An ERA5 request's area, its file's name, and the asset cache -------------------------------
+
+# A Climate Data Store `area` as `[north, west, south, east]` in degrees, or `nothing` for the
+# globe, from each form `CDSRequest(ERA, ...)` takes: a box as it stands, a named tuple by its
+# names, an extent by its edges, and a region's box from the shipped table rounded outwards to whole
+# degrees. A `NaturalEarthSpec`'s method is in `LazySpec.jl`, which defines that type.
+_cdsarea(::Nothing) = nothing
+
+function _cdsarea(box::Union{Tuple, AbstractVector})
+    (length(box) == 4 && all(x -> x isa Real, box)) ||
+        error("a box for `area` is four numbers of degrees, `(north, west, south, east)`; got " *
+              "$(repr(box)).")
+    north, west, south, east = Float64.(collect(box))
+    -90 <= south <= north <= 90 ||
+        error("`area = $(repr(box))` is `(north, west, south, east)`, so its north edge must lie " *
+              "at or above its south edge, both within 90 degrees of the equator.")
+    return [north, west, south, east]
+end
+
+function _cdsarea(box::NamedTuple)
+    sort!(collect(keys(box))) == [:east, :north, :south, :west] ||
+        error("a named tuple for `area` names `north`, `west`, `south` and `east`; got " *
+              "$(keys(box)).")
+    return _cdsarea((box.north, box.west, box.south, box.east))
+end
+
+function _cdsarea(box::Extents.Extent)
+    (:X in keys(box) && :Y in keys(box)) ||
+        error("an extent for `area` needs `X` and `Y`, in degrees; got $(keys(box)).")
+    return _cdsarea((_degrees(box.Y[2]), _degrees(box.X[1]),
+                     _degrees(box.Y[1]), _degrees(box.X[2])))
+end
+
+function _cdsarea(name::AbstractString)
+    box = try
+        boundingbox(name, round = 1°)
+    catch e
+        e isa ErrorException || rethrow()
+        error("`area = $(repr(name))`: $(e.msg)\nA region that needs a level or a coverage is " *
+              "given as `area = NaturalEarthSpec($(repr(name)), level = ...)`.")
+    end
+    return _cdsarea(box)
+end
+
+# An angle in degrees, from a plain number taken as degrees already or from a Unitful angle.
+_degrees(x::Real) = Float64(x)
+
+_degrees(x::Unitful.Quantity) = Float64(ustrip(°, x))
+
+# The part of an ERA5 file's name that its box gives: each edge's distance from the equator or the
+# meridian with its hemisphere's letter, so that no name holds a minus sign; none for the globe.
+_boxname(::Nothing) = ""
+
+function _boxname(box::AbstractVector)
+    north, west, south, east = box
+    return "_" * _edgename(north, 'N', 'S') * _edgename(west, 'E', 'W') *
+           _edgename(south, 'N', 'S') * _edgename(east, 'E', 'W')
+end
+
+# One edge of a box in a file name: a whole number of degrees where it is one, and its side.
+function _edgename(x::Real, positive::Char, negative::Char)
+    degrees = isinteger(x) ? string(Int(abs(x))) : string(abs(x))
+    return degrees * (x < 0 ? negative : positive)
+end
+
+# The part of an ERA5 file's name that its months give: none for the whole year, else each run of
+# consecutive months, `06` or `06-08`, the runs joined by `.`.
+function _monthsname(months)
+    ms = sort!(unique(collect(months)))
+    ms == 1:12 && return ""
+    runs = String[]
+    start = 1
+    while start <= length(ms)
+        stop = start
+        while stop < length(ms) && ms[stop + 1] == ms[stop] + 1
+            stop += 1
+        end
+        run = lpad(ms[start], 2, '0')
+        stop > start && (run *= "-" * lpad(ms[stop], 2, '0'))
+        push!(runs, run)
+        start = stop + 1
+    end
+    return "_m" * join(runs, ".")
+end
+
+# An ERA5 layer's files for a spec given `years` in place of a location: a request a decade, into
+# the asset cache.
+function _cdsfiles(::Type{ERA}, code; years, months, area)
+    code isa CODE_TYPE ||
+        error("`years` fetches one ERA5 layer into the asset cache: name the layer's code.")
+    return era5requests(code, years, dir = assetdir(owner = ERA),
+                        months = months, area = area)
 end
 
 # The source is rendered with its parameters intact and its module qualifier dropped. `nameof` will

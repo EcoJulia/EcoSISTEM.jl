@@ -761,8 +761,8 @@ end
     @test E._preferredcode(ERA, ["tp", "t2m"]) == ["tp", "t2m"]
     @test_throws ErrorException E._preferredcode(ERA, "t3m")
     @test_throws ErrorException E._preferredcode(SyntheticData, "t2m")
-    # A location is required, since ERA5 files are not fetched for the caller; the file is not
-    # touched at construction.
+    # A location, or the `years` to fetch, is required, since ERA5 is fetched only for the years
+    # asked; the file is not touched at construction.
     spec = SourceSpec(ERA, "t2m", file = "era5_t2m.nc")
     @test_throws "file = path" SourceSpec(ERA, "t2m")
     @test spec.unit == K

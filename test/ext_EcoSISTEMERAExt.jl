@@ -10,7 +10,7 @@ using Test
 using EcoSISTEM
 using EcoSISTEM: CDSRequest, assetpath
 using CDSAPI
-using Unitful: ustrip
+using Unitful: ustrip, °
 
 # Whether the one test that talks to the Climate Data Store runs: never on a CI runner, only
 # where a CDS key is present, and not when switched off. The request it sends is one month of one
@@ -81,6 +81,104 @@ end
     # The requests are a spec's files as they stand.
     spec = SourceSpec(EcoSISTEM.ERA, "tp", files = rs)
     @test length(spec.files) == 3
+end
+
+@testset "every field a request varies by is in its file's name" begin
+    E = EcoSISTEM
+    filenames(; kw...) = [basename(q.path)
+                          for q in E.era5requests("t2m", 1985:1999; dir = "d",
+                                                  kw...)]
+    # The globe and the whole year keep the plain name, so files fetched that way are found.
+    @test filenames() == ["era5_t2m_1985-1989.nc", "era5_t2m_1990s.nc"]
+    # A box is its edges with their hemispheres, so no name holds a minus sign; months are their
+    # runs; the box comes first.
+    box = (40, -25, -36, 56)
+    @test filenames(area = box) ==
+          [
+        "era5_t2m_1985-1989_40N25W36S56E.nc",
+        "era5_t2m_1990s_40N25W36S56E.nc"
+    ]
+    @test filenames(months = 6:8) ==
+          ["era5_t2m_1985-1989_m06-08.nc", "era5_t2m_1990s_m06-08.nc"]
+    @test last(filenames(area = box, months = [12, 1, 2])) ==
+          "era5_t2m_1990s_40N25W36S56E_m01-02.12.nc"
+    @test last(filenames(months = [3])) == "era5_t2m_1990s_m03.nc"
+    @test last(filenames(area = (0.5, 0, -10.25, 30))) ==
+          "era5_t2m_1990s_0.5N0E10.25S30E.nc"
+    # Two boxes, or two sets of months, never share a file.
+    @test last(filenames(area = box)) !=
+          last(filenames(area = (40, -25, -35, 56)))
+    @test last(filenames(months = 6:8)) != last(filenames(months = 6:9))
+    # Every name is a valid data product name, and portable.
+    for name in vcat(filenames(area = box, months = [12, 1, 2]),
+                     filenames(area = (0.5, 0, -10.25, 30)))
+        @test occursin(r"^[A-Za-z0-9_.-]+$", name)
+    end
+end
+
+@testset "an area is a box in any of its forms, or a region by name" begin
+    E = EcoSISTEM
+    want = [40.0, -25.0, -36.0, 56.0]
+    request(area) = CDSRequest(E.ERA, "t2m", years = 1990:1990, area = area,
+                               path = "x.nc").request["area"]
+    @test request((40, -25, -36, 56)) == want
+    @test request([40, -25, -36, 56]) == want
+    # A named tuple is read by its names, whatever order they are written in.
+    @test request((west = -25, south = -36, east = 56, north = 40)) == want
+    @test request(E.Extents.Extent(X = (-25.0, 56.0), Y = (-36.0, 40.0))) ==
+          want
+    @test request(E.Extents.Extent(X = (-25.0°, 56.0°), Y = (-36.0°, 40.0°))) ==
+          want
+    @test !haskey(CDSRequest(E.ERA, "t2m", years = 1990:1990, path = "x.nc").request,
+                  "area")
+    # A region's box comes from the shipped table, with no download, rounded outwards to whole
+    # degrees; a name meaning different ground at different levels needs its level.
+    exact = E.boundingbox("Scotland")
+    scotland = request("Scotland")
+    @test all(isinteger, scotland)
+    @test scotland[1] >= ustrip(exact.Y[2]) && scotland[3] <= ustrip(exact.Y[1])
+    @test scotland[2] <= ustrip(exact.X[1]) && scotland[4] >= ustrip(exact.X[2])
+    @test_throws "NaturalEarthSpec(\"Africa\", level = ...)" request("Africa")
+    africa = request(NaturalEarthSpec("Africa", level = "CONTINENT"))
+    @test africa ==
+          request(E.boundingbox("Africa", level = "CONTINENT", round = 1°))
+    # What is not a box is refused, naming the form.
+    @test_throws "four numbers" request((40, -25, -36))
+    @test_throws "north edge" request((-36, -25, 40, 56))
+    @test_throws "names `north`" request((top = 40, left = -25, bottom = -36,
+                                          right = 56))
+    # Months are months of the year, and a request names them in order whatever order they
+    # were asked in, so two requests for the same data compare equal.
+    @test_throws "1 to 12" CDSRequest(E.ERA, "t2m", years = 1990:1990,
+                                      months = 0:2,
+                                      path = "x.nc")
+    @test CDSRequest(E.ERA, "t2m", years = [1991, 1990], months = [8, 6, 7],
+                     path = "x.nc").request ==
+          CDSRequest(E.ERA, "t2m", years = 1990:1991, months = 6:8,
+                     path = "x.nc").request
+end
+
+@testset "an ERA5 spec given years fetches into the asset cache" begin
+    E = EcoSISTEM
+    spec = SourceSpec(E.ERA, "t2m", years = 1990:2009, area = "Scotland",
+                      months = 6:8)
+    @test length(spec.files) == 2 && all(f -> f isa CDSRequest, spec.files)
+    @test all(f -> dirname(f.path) == E.assetdir(owner = E.ERA), spec.files)
+    @test [basename(f.path) for f in spec.files] ==
+          [basename(q.path)
+           for q in E.era5requests("t2m", 1990:2009, dir = "d",
+                                   area = "Scotland", months = 6:8)]
+    # Nothing is fetched at construction.
+    @test !any(f -> isfile(f.path), spec.files)
+    # `years` is required, goes with no location, asks for one layer, and only of a source the
+    # Climate Data Store serves.
+    @test_throws "give `years`" SourceSpec(E.ERA, "t2m")
+    @test_throws "give `years` too" SourceSpec(E.ERA, "t2m", area = "Scotland")
+    @test_throws "with none of" SourceSpec(E.ERA, "t2m", years = 1990:1999,
+                                           file = "x.nc")
+    @test_throws "name the layer's code" SourceSpec(E.ERA, years = 1990:1999)
+    @test_throws "not fetched from it" SourceSpec(E.TwentyCR, "air",
+                                                  years = 1990:1999)
 end
 
 @testset "a live fetch, where a CDS key is present" begin

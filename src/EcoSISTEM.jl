@@ -3,6 +3,7 @@
 module EcoSISTEM
 
 using Scratch: get_scratch!
+using Preferences: Preferences
 using FileWatching: mkpidlock
 using TOML: TOML
 using SHA: SHA
@@ -31,7 +32,7 @@ include("Provenance.jl")
 
 public CachedAsset, CDSRequest, InputRecord, Provenance
 
-public assetdir
+public assetdir, set_assetdir!
 
 public assetpath, fetchfiles, verifyassets
 

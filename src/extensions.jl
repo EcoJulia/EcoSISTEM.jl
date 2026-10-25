@@ -438,6 +438,11 @@ function _localfiles end
 
 _localfiles(::Type, code; kw...) = String[]
 
+# Point `RasterDataSources` at the asset cache again once `set_assetdir!` has moved it, where the
+# extension's `__init__` pointed it there and nothing has changed it since. The extension supplies
+# the sole method, and `_repointextensions` calls it only once the extension has loaded.
+function _repointrasterdatasources end
+
 # ---------------------------------------------------------------------------
 # EcoSISTEMDataPipelineExt - requires DataPipeline
 # ---------------------------------------------------------------------------

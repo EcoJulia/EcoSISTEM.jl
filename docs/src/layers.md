@@ -316,7 +316,7 @@ The sources fall into two kinds:
 | source | data | how its files arrive |
 | --- | --- | --- |
 | `WorldClim{BioClim}`, `WorldClim{Climate}`, `WorldClim{Elevation}`, `CHELSA{BioClim}`, `CHELSA{BioClimPlus}`, `CHELSA{Climate}`, `EarthEnv{LandCover}`, `EarthEnv{HabitatHeterogeneity}` | the RasterDataSources datasets | downloaded by RasterDataSources on first use, so `using RasterDataSources` |
-| [`ERA`](@ref) | ERA5 monthly means | a file you hold, or a [`EcoSISTEM.CDSRequest`](@ref) fetched from the Climate Data Store on first use (`using CDSAPI`, and a key in `~/.cdsapirc`) |
+| [`ERA`](@ref) | ERA5 monthly means | fetched from the Climate Data Store on first use for the `years` asked (`using CDSAPI`, and a key in `~/.cdsapirc`), or a file you hold |
 | [`CERA`](@ref) | CERA-20C monthly means | files you hold |
 | [`TwentyCR`](@ref) | 20CRv3 monthly means, 1806 to 2015 | fetched from NOAA PSL on first use, or a file you hold |
 | [`CRUTS`](@ref) | CRU TS | a directory of monthly GeoTIFFs you hold |
@@ -329,6 +329,17 @@ one, its dates:
 ```@example sources
 SourceSpec(ERA, "t2m", file = "era5_t2m_1990s.nc", atend = HoldAtEnd())
 ```
+
+An ERA5 layer can instead be fetched for you, one file a decade into the asset cache, the first
+time it is read. `years` is required, `months` narrows each year, and `area` is a box in degrees or
+a region's name, whose box comes from the shipped regions table rounded outwards to whole degrees:
+
+```julia
+SourceSpec(ERA, "t2m", years = 1990:2019, area = "Scotland", months = 6:8)
+```
+
+The asset cache is EcoSISTEM's scratch space in the Julia depot; `EcoSISTEM.set_assetdir!(dir)`
+keeps it on a disk of your choosing instead.
 
 What the catalogue records about a whole source - its grid, its longitude convention, how it is
 fetched, its licence - is [`datasetinfo`](@ref EcoSISTEM.datasetinfo), and the first file read of

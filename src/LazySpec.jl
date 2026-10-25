@@ -164,8 +164,9 @@ end
 
 """
     SourceSpec(source, code = nothing, unit = nothing; axis, files = nothing, file = nothing,
-               directory = nothing, cut = nothing, scale = nothing, fn = nothing,
-               times = nothing, atend = RepeatAtEnd(), calendar = nothing, readkw...)
+               directory = nothing, years = nothing, months = nothing, area = nothing,
+               cut = nothing, scale = nothing, fn = nothing, times = nothing,
+               atend = RepeatAtEnd(), calendar = nothing, readkw...)
 
 Name a layer of a catalogued data source, without reading it, as a [`RasterSpec`](@ref) - one whose
 `files` the source resolves for itself, or one reading files you name, which the catalogue still
@@ -188,10 +189,15 @@ land-cover class bands for `compress_landcover`.
   - `files`, `file`, `directory`: where the data is, when the source does not fetch it itself -
     a vector of files in time order, one file, or a directory whose raster files are taken in name
     order; each a local path, a URL, or a [`EcoSISTEM.CDSRequest`](@ref). At most one of the three.
-    Required for a source whose catalogue row says its files are not fetched for it (`ERA`, `CERA`,
+    Required for a source whose catalogue row says its files are not fetched for it (`CERA`,
     `CRUTS`), and refused for none. A source whose row says its files come by plain download
     (`TwentyCR`) fetches the layer's own file into the asset cache on first use unless one of the
     three names a copy already held.
+  - `years`, `months`, `area`: for a source fetched from the Climate Data Store (`ERA`), what to
+    fetch of one layer into the asset cache on first use, in place of the three above: every year
+    wanted, a file a decade as [`EcoSISTEM.era5requests`](@ref) names them; the months of each year,
+    all twelve by default; and the area to cut to, the globe by default, a box or a region as for
+    [`EcoSISTEM.CDSRequest`](@ref). `years` is required, since a decade of the globe is gigabytes.
   - `cut`, `scale`, `fn`: the read options, as the [`RasterSpec`](@ref) fields of those names. Give
     a `scale` a `cut` as well where the whole world is not needed: on its own a `scale` coarsens the
     *whole* source file however small a result is wanted, because the aggregated form is memoised
@@ -231,6 +237,7 @@ const SourceSpec = RasterSpec
                              axis::Union{Type{<:NicheAxis}, Nothing} = nothing,
                              files = nothing, file = nothing,
                              directory = nothing,
+                             years = nothing, months = nothing, area = nothing,
                              cut = nothing,
                              scale::Union{Nothing, Integer} = nothing,
                              fn::Union{Nothing, Function} = nothing,
@@ -242,7 +249,8 @@ const SourceSpec = RasterSpec
         code isa AbstractVector ? collect(CODE_TYPE, code) : code
     u = !isnothing(unit) ? unit : _sharedunit(S, c)
     a = !isnothing(axis) ? axis : _sharedaxis(S, c)
-    fs = _specfiles(S, c, files, file, directory)
+    fs = _specfiles(S, c, files, file, directory, years = years,
+                    months = months, area = area)
     _checkfetchable(S, fs)
     return RasterSpec{a, typeof(u)}(S, c, fs, u, cut, scale, fn, times, atend,
                                     calendar, NamedTuple(readkw))
@@ -918,16 +926,45 @@ end
 
 # The `files` field from whichever of the three location keywords was given: `files` as they are,
 # `file` as a one-entry list, `directory` as its raster files in name order. A path with a URL
-# scheme becomes a `CachedAsset`, as on `ShapeSpec`. Given none, a source whose row says `https`
-# names the layer's own download, owned by the source so its cache directory is its own.
-function _specfiles(S, code, files, file, directory)
+# scheme becomes a `CachedAsset`, as on `ShapeSpec`. Given none, `years` (with `months` and `area`)
+# names a Climate Data Store source's requests into the asset cache, and otherwise a source whose
+# row says `https` names the layer's own download, owned by the source so its cache directory is
+# its own.
+function _specfiles(S, code, files, file, directory; years, months, area)
     given = count(!isnothing, (files, file, directory))
     given <= 1 ||
         error("give one of `files`, `file` or `directory`, not $given of them.")
+    asked = !all(isnothing, (years, months, area))
+    given == 0 || !asked ||
+        error("`years`, `months` and `area` say what to fetch into the asset cache, so they go " *
+              "with none of `files`, `file` or `directory`.")
     isnothing(files) || return _fileentry.(collect(files))
     isnothing(file) || return [_fileentry(file)]
     isnothing(directory) || return _directoryfiles(S, code, directory)
-    return _httpsfile(S, code)
+    asked || return _httpsfile(S, code)
+    isnothing(years) &&
+        error("`months` and `area` say what to fetch of each year, so give `years` too: a decade " *
+              "of the globe is gigabytes, so there is no default.")
+    return _cdsfiles(S, code, years = years,
+                     months = something(months, 1:12), area = area)
+end
+
+# The Climate Data Store requests for one layer of `S` into the asset cache, for a source whose
+# row says `cds`; each such source has a method, and any other is refused here.
+function _cdsfiles(S, code; years, months, area)
+    rec = EcoSISTEM._datasetrecord(S)
+    return error("`years`, `months` and `area` fetch a layer from the Climate Data Store, and " *
+                 "`$S` is not fetched from it" *
+                 (isnothing(rec) ? "." :
+                  " (its catalogue row says `$(rec.fetch)`)."))
+end
+
+# A named region's box as a Climate Data Store `area`, from the shipped regions table at the
+# region's level and coverage, rounded outwards to whole degrees.
+function _cdsarea(region::NaturalEarthSpec)
+    return _cdsarea(EcoSISTEM.boundingbox(region.name, level = region.level,
+                                          coverage = region.coverage,
+                                          round = 1°))
 end
 
 # The layer's download as a one-entry `files` list, for a source whose row says `https` and a
@@ -987,19 +1024,22 @@ function _holdsvariable(path::AbstractString, name::Symbol)
 end
 
 # A source that does not fetch its own files must be told where they are, and is refused here,
-# where the keyword was omitted, rather than at read time.
+# where the keyword was omitted, rather than at read time. A Climate Data Store source fetches only
+# what `years` asks for, so it is told one or the other.
 _checkfetchable(S, ::AbstractVector) = nothing
 
 function _checkfetchable(S, ::Nothing)
     rec = EcoSISTEM._datasetrecord(S)
     (isnothing(rec) || rec.fetch === :getraster) && return nothing
-    how = rec.fetch === :cds ?
-          " - or a `CDSRequest` entry in `files`, fetched on first use" :
-          rec.fetch === :https ?
-          " - its layer table names no `File` to download for this layer" :
-          ""
+    whereto = "`file = path`, `files = [...]` or `directory = dir`"
+    rec.fetch === :cds &&
+        return error("`$S` is fetched from the Climate Data Store for the `years` asked, so give " *
+                     "`years` to fetch the layer into the asset cache on first use, or say " *
+                     "where files of your own are: $whereto.")
+    how = rec.fetch === :https ?
+          " - its layer table names no `File` to download for this layer" : ""
     return error("`$S` does not fetch its own files (its catalogue row says `$(rec.fetch)`), so " *
-                 "say where they are: `file = path`, `files = [...]` or `directory = dir`$how.")
+                 "say where they are: $whereto$how.")
 end
 
 # A spec's path as text, for a label or a cache key: the string itself, or a download's URL.

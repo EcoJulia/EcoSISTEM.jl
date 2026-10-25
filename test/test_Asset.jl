@@ -193,4 +193,81 @@ end
     @test calls[] == 1
 end
 
+@testset "a present file fetched for another request is refused, never served" begin
+    E = EcoSISTEM
+    dir = mktempdir()
+    path = joinpath(dir, "era5_t2m_1990s.nc")
+    write(path, "not a netCDF file, and never opened")
+    asked(; kw...) = E.CDSRequest(E.ERA, "t2m"; years = 1990:1999, path = path,
+                                  kw...)
+    # No record: presence is all there is, so the file is served and recorded as this request.
+    @test assetpath(asked(area = (40, -25, -36, 56))) == path
+    @test provenance(path).request["area"] == [40, -25, -36, 56]
+    # The same request again, and one asking for the same data in another order, are served.
+    @test assetpath(asked(area = [40.0, -25.0, -36.0, 56.0])) == path
+    @test assetpath(E.CDSRequest(E.ERA, "t2m", years = reverse(1990:1999),
+                                 area = (40, -25, -36, 56), path = path)) ==
+          path
+    # Another box, other months, or the globe are refused, naming what differs, and the file and
+    # its record are left as they were.
+    sidecar = read(E._sidecarpath(path), String)
+    @test_throws "area: recorded" assetpath(asked(area = (41, -25, -36, 56)))
+    @test_throws "month: recorded" assetpath(asked(area = (40, -25, -36, 56),
+                                                   months = 6:8))
+    @test_throws "different request" assetpath(asked())
+    @test read(E._sidecarpath(path), String) == sidecar
+    @test read(path, String) == "not a netCDF file, and never opened"
+    # A record of ours written in another order or shape - years out of order, a single value not
+    # in a list, as an older release might write it - asks for the same data, so is served.
+    older = joinpath(dir, "older.nc")
+    write(older, "x")
+    rec = E._requestrecord(E.CDSRequest(E.ERA, "t2m", years = 1990:1991,
+                                        path = older),
+                           older, nothing)
+    rec["request"]["year"] = ["1991", "1990"]
+    rec["request"]["product_type"] = "monthly_averaged_reanalysis"
+    E._writesidecar(older, rec)
+    @test assetpath(E.CDSRequest(E.ERA, "t2m", years = 1990:1991, path = older)) ==
+          older
+    @test_throws "year: recorded" assetpath(E.CDSRequest(E.ERA, "t2m",
+                                                         years = 1990:1992,
+                                                         path = older))
+    # A record another program wrote says nothing about our request, so it is not compared.
+    other = joinpath(dir, "theirs.nc")
+    write(other, "x")
+    write(E._sidecarpath(other),
+          "writer = \"someone else\"\nrequest = {area = [1, 2, 3, 4]}\n")
+    @test assetpath(E.CDSRequest(E.ERA, "t2m", years = 1990:1990, path = other)) ==
+          other
+end
+
+@testset "the asset cache moves to a directory of the user's, and back" begin
+    E = EcoSISTEM
+    # The preference is written into the first environment on the load path that has EcoSISTEM,
+    # so one made here, put first, keeps it out of every real environment.
+    env = mktempdir()
+    write(joinpath(env, "Project.toml"),
+          "[deps]\nEcoSISTEM = \"$(Base.PkgId(EcoSISTEM).uuid)\"\n")
+    scratch = E.assetdir()
+    pushfirst!(LOAD_PATH, env)
+    try
+        cache = joinpath(mktempdir(), "cache")
+        @test E.set_assetdir!(cache) == cache && isdir(cache)
+        @test E.assetdir() == joinpath(cache, "EcoSISTEM")
+        @test E.assetdir(owner = E.ERA) == joinpath(cache, "EcoSISTEM", "ERA")
+        @test occursin(cache,
+                       read(joinpath(env, "LocalPreferences.toml"), String))
+        # A spec built now fetches into it.
+        spec = SourceSpec(E.ERA, "t2m", years = 1990:1999)
+        @test startswith(only(spec.files).path, cache)
+        # `nothing` returns the cache to the scratch space.
+        @test E.set_assetdir!(nothing) == dirname(scratch)
+        @test E.assetdir() == scratch
+    finally
+        E.set_assetdir!(nothing)
+        filter!(!=(env), LOAD_PATH)
+    end
+    @test E.assetdir() == scratch
+end
+
 end

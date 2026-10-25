@@ -65,13 +65,14 @@ end
 """
     EcoSISTEM.assetdir(mod::Module = EcoSISTEM; owner::Union{Type, Nothing} = nothing)
 
-Path to a subdirectory of EcoSISTEM's Scratch.jl space, for storing downloaded data outside the
+Path to a subdirectory of EcoSISTEM's asset cache, for storing downloaded data outside the
 repository. Creating the directory is part of answering.
 
-One EcoSISTEM-owned space with a subdirectory per package, rather than a space each, keeps the whole
-cache under one lifecycle: created on first use, and reclaimed by `Pkg.gc()` when EcoSISTEM is
-removed. `RasterDataSources` is put under it the same way, by the extension's `__init__` setting
-`RASTERDATASOURCES_PATH`.
+The cache is EcoSISTEM's Scratch.jl space, or the directory [`EcoSISTEM.set_assetdir!`](@ref)
+recorded, which is read on every call. One cache with a subdirectory per package, rather than a
+space each, keeps every download under one lifecycle: a scratch space is created on first use, and
+reclaimed by `Pkg.gc()` when EcoSISTEM is removed. `RasterDataSources` is put under it the same way,
+by the extension's `__init__` setting `RASTERDATASOURCES_PATH`.
 
 # Arguments
 
@@ -81,9 +82,48 @@ removed. `RasterDataSources` is put under it the same way, by the extension's `_
 """
 function assetdir(mod::Module = EcoSISTEM;
                   owner::Union{Type, Nothing} = nothing)
-    dir = joinpath(get_scratch!(EcoSISTEM, "assets"), string(nameof(mod)))
+    dir = joinpath(_assetroot(), string(nameof(mod)))
     isnothing(owner) || (dir = joinpath(dir, string(nameof(owner))))
     return mkpath(dir)
+end
+
+"""
+    EcoSISTEM.set_assetdir!(dir::AbstractString)
+    EcoSISTEM.set_assetdir!(nothing)
+
+Keep EcoSISTEM's asset cache - every download, and the memoised aggregates - in `dir` from now on,
+rather than in EcoSISTEM's Scratch.jl space, which lives in the first Julia depot and may be on a
+disk too small for climate data. `nothing` returns the cache to the scratch space. Return the
+directory the cache is now in, made if need be.
+
+The choice is a preference in the `LocalPreferences.toml` of the first environment on the load path
+that has EcoSISTEM, so it holds for every later session taking EcoSISTEM from that environment, and
+[`EcoSISTEM.assetdir`](@ref) reads it on every call. Files already downloaded stay where they are,
+and are fetched again unless moved across. `RasterDataSources`' downloads move with the cache where
+the extension put them in it, and stay where `RASTERDATASOURCES_PATH` was set otherwise. `Pkg.gc()`
+never reclaims a directory chosen here.
+
+# Arguments
+
+  - `dir`: the directory to keep the cache in, `~` and a relative path expanded.
+"""
+function set_assetdir!(dir::AbstractString)
+    path = mkpath(abspath(expanduser(dir)))
+    # Into the environment that has EcoSISTEM rather than the active one, which may not name it and
+    # would then be given it in `[extras]`, its Project.toml rewritten
+    Preferences.set_preferences!(EcoSISTEM, "assetdir" => path,
+                                 active_project_only = false, force = true)
+    _repointextensions()
+    return _assetroot()
+end
+
+function set_assetdir!(::Nothing)
+    Preferences.has_preference(EcoSISTEM, "assetdir") &&
+        Preferences.delete_preferences!(EcoSISTEM, "assetdir",
+                                        active_project_only = false,
+                                        force = true)
+    _repointextensions()
+    return _assetroot()
 end
 
 """
@@ -102,7 +142,9 @@ provenance record beside it when it does - see [`provenance`](@ref).
     the same file waits for the first rather than fetching it again.
   - `request`: a [`CDSRequest`](@ref), fetched from the Climate Data Store into its own `path` if
     that file does not already exist. The fetch needs `CDSAPI` loaded and a CDS key in
-    `~/.cdsapirc`; a file already present needs neither.
+    `~/.cdsapirc`; a file already present needs neither. A present file whose provenance record
+    says it was fetched for a different request - another box, or other months - is refused,
+    naming what differs, and left as it is.
   - `verify`: `true` checks a file that is already present against the checksum its provenance
     record holds, erroring on a mismatch - a truncated or replaced file. Off by default, since
     hashing a large file on every read would cost more than the read.
@@ -139,6 +181,7 @@ end
 
 function assetpath(request::CDSRequest; verify::Bool = false)
     if isfile(request.path)
+        _checkrequest(request)
         _recordpresent(request.path) do
             return _requestrecord(request, request.path, nothing)
         end
@@ -160,6 +203,19 @@ function assetpath(request::CDSRequest; verify::Bool = false)
 end
 
 assetpath(relative_path::AbstractString) = joinpath(assetdir(), relative_path)
+
+# The asset cache's root: the directory `set_assetdir!` recorded, else EcoSISTEM's scratch space.
+function _assetroot()
+    dir = Preferences.load_preference(EcoSISTEM, "assetdir", nothing)
+    return isnothing(dir) ? get_scratch!(EcoSISTEM, "assets") : String(dir)
+end
+
+# Tell each loaded extension that keeps files under the asset cache that the cache has moved.
+function _repointextensions()
+    isnothing(Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)) ||
+        _repointrasterdatasources()
+    return nothing
+end
 
 # Run `fetch` under the lock for `path`, unless the file has appeared by the time the lock is held,
 # which is what a process that waited on another's download finds. The lock is a pid file beside
@@ -369,18 +425,63 @@ function _requestrecord(request::CDSRequest, path::AbstractString, status)
     return record
 end
 
+# Refuse a present file whose record of ours says it was fetched for another request - a box or
+# months changed under one path - rather than serve it as this one. A file with no record, or with
+# another program's, passes, presence being all there is to go on.
+function _checkrequest(request::CDSRequest)
+    sidecar = _sidecarpath(request.path)
+    isfile(sidecar) || return nothing
+    record = TOML.tryparsefile(sidecar)
+    (record isa AbstractDict && _ourrecord(record) &&
+     haskey(record, "request")) || return nothing
+    differ = _requestdifferences(record["request"], request.request)
+    recorded = get(record, "dataset", request.dataset)
+    recorded == request.dataset ||
+        pushfirst!(differ,
+                   "dataset: recorded $(repr(recorded)), asked $(repr(request.dataset))")
+    isempty(differ) && return nothing
+    lines = join(differ, "\n  ")
+    return error("`$(request.path)` was fetched for a different request, so it is not served as " *
+                 "this one:\n  $lines\nGive this request a path of its own, or delete the file " *
+                 "and its `.provenance.toml` to fetch it again.")
+end
+
+# What two Climate Data Store request bodies differ in, a line per key, empty where they ask for
+# the same data: years and months compare as sets, and a single value as a list of one.
+function _requestdifferences(recorded::AbstractDict, asked::AbstractDict)
+    lines = String[]
+    for key in sort!(collect(union(keys(recorded), keys(asked))))
+        r = get(recorded, key, nothing)
+        a = get(asked, key, nothing)
+        _requestvalue(key, r) == _requestvalue(key, a) ||
+            push!(lines, "$key: recorded $(repr(r)), asked $(repr(a))")
+    end
+    return lines
+end
+
+# A request value in the form two requests are compared in.
+_requestvalue(::Any, ::Nothing) = nothing
+
+function _requestvalue(key, value)
+    list = value isa AbstractVector ? collect(value) : [value]
+    return key in ("year", "month") ? sort!(unique!(string.(list))) : list
+end
+
 # The body of a Climate Data Store request for ERA5 monthly means on single levels: one
-# `variable` by its CDS name, the `years` and `months` as two-digit strings, an `area` as
-# `[north, west, south, east]` in degrees where given, netCDF unarchived. The shape the CDS takes
-# and `CDSAPI.retrieve` sends.
+# `variable` by its CDS name, the `years` and `months` in order as strings, each month of two
+# digits, an `area` as `[north, west, south, east]` in degrees where given, netCDF unarchived. The
+# shape the CDS takes and `CDSAPI.retrieve` sends.
 function _era5request(variable::AbstractString, years; months = 1:12,
                       area = nothing)
+    ms = sort!(unique(collect(months)))
+    !isempty(ms) && all(in(1:12), ms) ||
+        error("`months` are months of the year, 1 to 12; got $(repr(months)).")
     request = Dict{String, Any}("product_type" =>
                                     ["monthly_averaged_reanalysis"],
                                 "variable" => [String(variable)],
-                                "year" => string.(collect(years)),
-                                "month" => lpad.(string.(collect(months)), 2,
-                                      '0'),
+                                "year" =>
+                                    string.(sort!(unique(collect(years)))),
+                                "month" => lpad.(string.(ms), 2, '0'),
                                 "time" => ["00:00"],
                                 "data_format" => "netcdf",
                                 "download_format" => "unarchived")

@@ -58,9 +58,21 @@ import Base: read
 # itself, so it is meaningless until that package is loaded, and setting it from the parent would be
 # the one remaining reason for the parent to name that package at all.
 function __init__()
-    get!(ENV, "RASTERDATASOURCES_PATH") do
-        return EcoSISTEM.assetdir(RasterDataSources)
+    if !haskey(ENV, "RASTERDATASOURCES_PATH")
+        ENV["RASTERDATASOURCES_PATH"] = _SETPATH[] = EcoSISTEM.assetdir(RasterDataSources)
     end
+    return nothing
+end
+
+# The value `__init__` gave `RASTERDATASOURCES_PATH`, or `nothing` where it was set already, so
+# that moving the asset cache moves only a path this extension chose.
+const _SETPATH = Ref{Union{Nothing, String}}(nothing)
+
+function EcoSISTEM._repointrasterdatasources()
+    (isnothing(_SETPATH[]) ||
+     get(ENV, "RASTERDATASOURCES_PATH", nothing) != _SETPATH[]) &&
+        return nothing
+    ENV["RASTERDATASOURCES_PATH"] = _SETPATH[] = EcoSISTEM.assetdir(RasterDataSources)
     return nothing
 end
 
