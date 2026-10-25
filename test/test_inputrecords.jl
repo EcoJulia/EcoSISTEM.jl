@@ -16,6 +16,8 @@ using ArchGDAL
 using Dates: Dates
 using TOML
 
+include("tomlstrings.jl")
+
 # A 5 x 7 WGS84 GeoTIFF of one degree cells whose top-left corner is at 10 degrees east, 55 north.
 function _geotiff(path)
     ArchGDAL.create(path, driver = ArchGDAL.getdriver("GTiff"), width = 7,
@@ -135,9 +137,8 @@ end
     @test input["path"] == "field.tif" && input["role"] == "habitat"
     @test !haskey(input, "url") && !haskey(input, "doi")
     # Nothing in the file belongs to the machine that wrote it.
-    text = read(path, String)
-    @test !occursin(homedir(), text) && !occursin(gethostname(), text) &&
-          !occursin(dir, text)
+    @test !any(s -> occursin(homedir(), s) || occursin(gethostname(), s) ||
+                    occursin(dir, s), tomlstrings(path))
     # An ecosystem adds its run, and writing it gives the same file as writing its provenance.
     seeding = EcoSISTEM.InputRecord(role = :abundance,
                                     dataset = "GBIF occurrence download",

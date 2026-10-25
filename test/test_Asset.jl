@@ -7,6 +7,8 @@ using EcoSISTEM: CachedAsset, assetpath, provenance
 using Sockets
 using Test
 
+include("tomlstrings.jl")
+
 # A one-file HTTP/1.1 server on the loopback, serving `data` and honouring byte ranges, with the
 # two faults the resumable download must survive available on demand: cut the first transfer off
 # after `dropafter` bytes, or ignore ranges and answer every request with the whole file. Closes
@@ -111,15 +113,15 @@ end
     # its layers' files, so no code), and nothing that names this machine.
     sidecar = E._sidecarpath(dest)
     @test isfile(sidecar)
-    text = read(sidecar, String)
-    @test !occursin(homedir(), text) && !occursin(dir, text) &&
-          !occursin(gethostname(), text)
+    @test !any(s -> occursin(homedir(), s) || occursin(dir, s) ||
+                    occursin(gethostname(), s), tomlstrings(sidecar))
     r = provenance(dest)
     @test r.role === :habitat && r.dataset == "TwentyCR" && isnothing(r.code)
     @test r.path == "fixture.bin" && r.url == site.url
     @test r.bytes == 10_000 && r.sha256 == E._sha256(dest)
     @test !isnothing(r.fetched) && r.doi == "10.1002/qj.3598" &&
           !isempty(r.citation)
+    text = read(sidecar, String)
     @test occursin("etag = \"\\\"fixture-etag\\\"\"", text) ||
           occursin("fixture-etag", text)
     # Already there: nothing is fetched (the server is gone), and verification passes.
@@ -255,8 +257,9 @@ end
         @test E.set_assetdir!(cache) == cache && isdir(cache)
         @test E.assetdir() == joinpath(cache, "EcoSISTEM")
         @test E.assetdir(owner = E.ERA) == joinpath(cache, "EcoSISTEM", "ERA")
-        @test occursin(cache,
-                       read(joinpath(env, "LocalPreferences.toml"), String))
+        # Parsed, since TOML escapes the backslashes of a Windows path in the file's text.
+        prefs = E.TOML.parsefile(joinpath(env, "LocalPreferences.toml"))
+        @test prefs["EcoSISTEM"]["assetdir"] == cache
         # A spec built now fetches into it.
         spec = SourceSpec(E.ERA, "t2m", years = 1990:1999)
         @test startswith(only(spec.files).path, cache)

@@ -12,6 +12,8 @@ using EcoSISTEM: CDSRequest, assetpath
 using CDSAPI
 using Unitful: ustrip, °
 
+include("tomlstrings.jl")
+
 # Whether the one test that talks to the Climate Data Store runs: never on a CI runner, only
 # where a CDS key is present, and not when switched off. The request it sends is one month of one
 # variable over a two-degree box, so the queue rather than the transfer is the cost.
@@ -198,7 +200,8 @@ end
         @test rec.request["variable"] == ["2m_temperature"] &&
               !isnothing(rec.job)
         @test rec.doi == "10.24381/cds.f17050d7" && !isnothing(rec.sha256)
-        @test !occursin(homedir(), read(EcoSISTEM._sidecarpath(path), String))
+        @test !any(s -> occursin(homedir(), s),
+                   tomlstrings(EcoSISTEM._sidecarpath(path)))
         # The file reads through the same row as any other ERA5 file - no extension on its name.
         cr = read(SourceSpec(EcoSISTEM.ERA, "t2m", file = path))
         @test size(cr.array, 3) == 1
