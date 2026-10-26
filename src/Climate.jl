@@ -183,7 +183,8 @@ function EcoSISTEM.CDSRequest(::Type{ERA}, code; years, path::AbstractString,
               "can be built for it.")
     return CDSRequest(_ERA5_MONTHLY,
                       _era5request(rec.request, years, months = months,
-                                   area = _cdsarea(area)), path)
+                                   area = _cdsarea(area)), path,
+                      region = _cdsregion(area))
 end
 
 """
@@ -285,7 +286,7 @@ function era5requests(code, years; dir::AbstractString, per::Integer = 10,
         span = whole ? "$(b * per)s" : "$(first(block))-$(last(block))"
         push!(requests,
               CDSRequest(ERA, code, years = block, months = months,
-                         area = box,
+                         area = area,
                          path = joinpath(dir,
                                          "era5_$(code)_$(span)$(suffix).nc")))
     end
@@ -457,6 +458,12 @@ function _cdsarea(name::AbstractString)
     end
     return _cdsarea(box)
 end
+
+# The named region an area was given as, as the `NaturalEarthSpec` naming it, for the request's
+# record; `nothing` for a box or the globe. A `NaturalEarthSpec`'s method is in `LazySpec.jl`.
+_cdsregion(::Any) = nothing
+
+_cdsregion(name::AbstractString) = string(NaturalEarthSpec(name))
 
 # An angle in degrees, from a plain number taken as degrees already or from a Unitful angle.
 _degrees(x::Real) = Float64(x)

@@ -37,6 +37,48 @@ include("rasterfixtures.jl")
         @test haskey(ENV, "RASTERDATASOURCES_PATH")
     end
 
+    @testset "every file a dataset can give has a title of its own" begin
+        RDS = RasterDataSources
+        # The keywords that tell one dataset's files apart, as `getraster` takes them.
+        kwsets(T) = T <: WorldClim{Climate} ?
+                    [(res = r, month = m) for r in RDS.resolutions(T)
+                     for m in 1:12] :
+                    T <: Union{WorldClim, EarthEnv{HabitatHeterogeneity}} ?
+                    [(res = r,) for r in RDS.resolutions(T)] :
+                    T <: CHELSA{Climate} ? [(month = m,) for m in 1:12] :
+                    [NamedTuple()]
+        paths = Dict{Type, Set{String}}()
+        for T in (WorldClim{BioClim}, WorldClim{Climate}, WorldClim{Elevation},
+            CHELSA{BioClim}, CHELSA{BioClimPlus}, CHELSA{Climate},
+            EarthEnv{LandCover}, EarthEnv{HabitatHeterogeneity})
+            rec = EcoSISTEM.datasetinfo(T)
+            titles = Dict{String, String}()
+            # The layers both the source package and the catalogue know, which are those a spec
+            # can name; a table may serve several datasets, each with only some of its rows.
+            tabled = Set(a
+                         for r in EcoSISTEM._catalogue()
+                         if r.dataset === EcoSISTEM._tablename(T)
+                         for a in r.aliases)
+            codes = [c for c in RDS.layers(T) if string(c) in tabled]
+            @test !isempty(codes)
+            for code in codes, kw in kwsets(T)
+                path = RDS.rasterpath(T, code; kw...)
+                titles[path] = EcoSISTEM._filetitle(rec, layerinfo(T, code),
+                                                    path)
+            end
+            @test allunique(values(titles))
+            paths[T] = Set(keys(titles))
+        end
+        # One file is a layer of two rows only where CHELSA-BIOCLIM+ lists CHELSA V2.1's own
+        # bioclimatic variables, each then titled by whichever row a spec names.
+        shared = [(A, B)
+                  for A in keys(paths), B in keys(paths)
+                  if A !== B && !isempty(intersect(paths[A], paths[B]))]
+        @test Set(shared) == Set([(CHELSA{BioClim}, CHELSA{BioClimPlus}),
+                      (CHELSA{BioClimPlus}, CHELSA{BioClim})])
+        @test paths[CHELSA{BioClim}] ⊆ paths[CHELSA{BioClimPlus}]
+    end
+
     @testset "moving the asset cache moves only a download path the extension chose" begin
         ext = Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)
         saved = (ext._SETPATH[], get(ENV, "RASTERDATASOURCES_PATH", nothing))

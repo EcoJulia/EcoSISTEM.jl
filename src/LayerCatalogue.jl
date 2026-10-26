@@ -189,8 +189,19 @@ layer row carries, returned by [`datasetinfo`](@ref).
     `nothing`.
   - `fetch`: how files are obtained - `:getraster` (through `RasterDataSources`), `:cds` (a
     Copernicus request), `:https` (a plain download) or `:none` (they must be given).
-  - `url`, `doi`, `licence`, `version`, `citation`, `notes`: provenance, blank where unknown;
-    `citation` is the text a paper prints for the dataset, as the DOI resolves to it.
+  - `url`, `doi`, `licence`, `version`, `notes`: provenance, blank where unknown. `doi` is the
+    dataset's own where its provider mints one, else the describing paper's; `licence` an SPDX
+    identifier or the URL of the provider's terms.
+  - `releasedate`: when the release read was published, as ISO 8601 text to the precision the
+    provider states (`2020-01`), blank where it states none.
+  - `title`: a short name for the release, `WorldClim 2.1`.
+  - `request`: the name of the file under `data/catalogue/requests/` quoting what the provider asks
+    of anyone using the data, which is also the anchor of its section in the documentation.
+  - `references`: the works the provider asks to be cited, each its `doi` and the provider's own
+    `text`, in which `DD-MMM-YYYY` stands for the date a file was fetched and `YYYY` its year.
+  - `notices`: the statements the provider asks to accompany the data, each its `strength` -
+    `:required`, `:requested` or `:optional` - and its `text`, with the same placeholders.
+  - `citation`: the references' texts, one after another.
 
 **A blank cell means ask the file**, so every field but `dataset`, `format` and `fetch` may be
 `nothing`. **A recorded fact the file can contradict is checked on the first read** of that
@@ -210,6 +221,11 @@ struct DatasetRecord
     doi::String
     licence::String
     version::String
+    releasedate::String
+    title::String
+    request::String
+    references::Vector{@NamedTuple{doi::String, text::String}}
+    notices::Vector{@NamedTuple{strength::Symbol, text::String}}
     citation::String
     notes::String
 end
@@ -350,7 +366,19 @@ const _GENERIC_OPTIONAL_COLUMNS = (:VerticalExtent, :DocumentedCeiling, :File,
 # The exact column set of `datasets.csv`, refused on a mismatch as the layer tables are.
 const _DATASET_COLUMNS = (:Dataset, :Format, :LongitudeRange, :CRS, :Resolution,
                           :Extent, :Fetch, :URL, :DOI, :Licence, :Version,
-                          :Citation, :Notes)
+                          :ReleaseDate, :Title, :Request, :Notes)
+
+# How strongly a provider asks for a notice: it, or the data's licence, says the notice must
+# accompany the data; it asks for it; or it offers it for those who wish.
+const _NOTICE_STRENGTHS = (:required, :requested, :optional)
+
+# What a request's text may hold in place of a fact known only once a file is fetched: the date it
+# was fetched, and the year. `DD-MMM-YYYY` comes first, as the longer of the two.
+const _REQUEST_PLACEHOLDERS = ("DD-MMM-YYYY", "YYYY")
+
+# The documentation's page quoting every provider's request, a section each anchored by its request
+# file's name; unversioned, since a registration's description keeps the first address it was given.
+const _REQUESTS_PAGE = "https://docs.ecojulia.org/EcoSISTEM.jl/stable/requests/"
 
 const _OPTIONAL_COLUMNS = Dict(:BioClimPlus => (:Group,),
                                :HabitatHeterogeneity => (:Order,
@@ -585,6 +613,21 @@ function _datasetrecord(T::Type)
     return nothing
 end
 
+# A file's title: its release's, the layer's name where the file is one layer, and the file's own
+# name, which carries whatever else tells it from its siblings - a resolution, a month, a span of
+# years, a box. Unique wherever file names are, which is what a registration needs of it.
+function _filetitle(rec::DatasetRecord, layer, path::AbstractString)
+    stem = first(splitext(basename(path)))
+    parts = filter(!isempty, [rec.title, isnothing(layer) ? "" : layer.name])
+    return join(parts, ", ") * " (" * stem * ")"
+end
+
+# The address of the documentation's section quoting what a dataset's provider asks, or `""` for a
+# row naming no request.
+function _requestpage(rec::DatasetRecord)
+    return isempty(rec.request) ? "" : _REQUESTS_PAGE * "#" * rec.request
+end
+
 # The version a file of `rec`'s dataset states about itself, or `nothing` where it states none: a
 # Natural Earth zip names its own, which is why that row's `Version` is blank.
 function _fileversion(rec::DatasetRecord, path::AbstractString)
@@ -622,6 +665,7 @@ function _datasets()
     for row in table
         name = cell(row, :Dataset)
         isempty(name) && continue
+        request = _readrequest(cell(row, :Request), name)
         push!(_DATASETS,
               DatasetRecord(name, _parseformat(cell(row, :Format), name),
                             _parselongituderange(cell(row, :LongitudeRange),
@@ -632,7 +676,11 @@ function _datasets()
                             _parsefetch(cell(row, :Fetch), name),
                             cell(row, :URL), cell(row, :DOI),
                             cell(row, :Licence), cell(row, :Version),
-                            cell(row, :Citation), cell(row, :Notes)))
+                            _parsereleasedate(cell(row, :ReleaseDate), name),
+                            cell(row, :Title), cell(row, :Request),
+                            request.references, request.notices,
+                            join((r.text for r in request.references), " "),
+                            cell(row, :Notes)))
     end
     allunique(r.dataset for r in _DATASETS) ||
         error("$_DATASETS_FILE names a dataset twice.")
@@ -657,6 +705,46 @@ function _parseformat(s::AbstractString, name)
     v in _FORMATS ||
         return error("dataset `$name` has `Format` = `$s`; expected one of $(join(_FORMATS, ", ")).")
     return v
+end
+
+# A `ReleaseDate` cell as ISO 8601 text, `2020`, `2020-01` or `2020-01-31`, or blank.
+function _parsereleasedate(s::AbstractString, name)
+    (isempty(s) || occursin(r"^\d{4}(-\d{2}(-\d{2})?)?$", s)) ||
+        return error("dataset `$name` has `ReleaseDate` = `$s`; expected a date written " *
+                     "`YYYY`, `YYYY-MM` or `YYYY-MM-DD`, or blank.")
+    return String(s)
+end
+
+# A provider's request, read from `requests/<name>.toml` under the catalogue: the pages it was read
+# from, when, the references it asks for and the notices with their strengths. Every row names
+# one, and a file that does not say what it asks for in the expected shape is refused.
+function _readrequest(name::AbstractString, dataset)
+    isempty(name) &&
+        return error("dataset `$dataset` has no `Request`; name its file under " *
+                     "`data/catalogue/requests/`.")
+    path = joinpath(_cataloguedir(), "requests", name * ".toml")
+    isfile(path) ||
+        return error("dataset `$dataset` names the request `$name`, but `$path` does not exist.")
+    t = TOML.parsefile(path)
+    references = map(get(t, "reference", [])) do r
+        (haskey(r, "doi") && haskey(r, "text")) ||
+            error("each reference in `$path` needs a `doi` and a `text`.")
+        return (doi = String(r["doi"]), text = String(r["text"]))
+    end
+    notices = map(get(t, "notice", [])) do n
+        strength = Symbol(get(n, "strength", ""))
+        strength in _NOTICE_STRENGTHS ||
+            error("a notice in `$path` has strength `$strength`; expected one of " *
+                  "$(join(_NOTICE_STRENGTHS, ", ")).")
+        haskey(n, "text") || error("each notice in `$path` needs a `text`.")
+        return (strength = strength, text = String(n["text"]))
+    end
+    return (pages = String.(get(t, "pages", String[])),
+            read = get(t, "read", nothing),
+            references = collect(@NamedTuple{doi::String, text::String},
+                                 references),
+            notices = collect(@NamedTuple{strength::Symbol, text::String},
+                              notices))
 end
 
 # A `Fetch` cell as one of `_FETCHES`; blank means `:none`, files must be given.
@@ -733,7 +821,8 @@ function _datasettype(::Type{T}) where {T}
     return isempty(params) ? T : first(params)
 end
 
-# The directory of shipped tables: one layer table per dataset type, and `datasets.csv`.
+# The directory of shipped tables: one layer table per dataset type, and `datasets.csv`; beside them
+# the providers' requests (`requests/`), and the citations and authors a registration cites.
 _cataloguedir() = pkgdir(@__MODULE__, "data", "catalogue")
 
 # The layer table a source reads, as the `dataset` a `LayerRecord` carries: the dataset type's

@@ -1,0 +1,18 @@
+# What the Climate Data Store requires of anyone using ERA5 monthly averaged data on single levels,
+# quoted from the dataset page's "Citation and attribution" as it was read. `DD-MMM-YYYY` is the date
+# a file was fetched; `YYYY`, the page's `<YYYY_2>`, its year. The second citation ends without its
+# closing parenthesis on the page too.
+pages = ["https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means"]
+read = 2026-10-25
+
+[[reference]]
+doi = "10.24381/cds.f17050d7"
+text = "Copernicus Climate Change Service (2023): ERA5 monthly averaged data on single levels from 1940 to present. Copernicus Climate Change Service (C3S) Climate Data Store (CDS). DOI: 10.24381/cds.f17050d7 (Accessed on DD-MMM-YYYY)"
+
+[[reference]]
+doi = "10.24381/cds.f17050d7"
+text = "Hersbach, H., Bell, B., Berrisford, P., Biavati, G., Horányi, A., Muñoz Sabater, J., Nicolas, J., Peubey, C., Radu, R., Rozum, I., Schepers, D., Simmons, A., Soci, C., Dee, D., Thépaut, J-N. (2023): ERA5 monthly averaged data on single levels from 1940 to present. Copernicus Climate Change Service (C3S) Climate Data Store (CDS), DOI: 10.24381/cds.f17050d7 (Accessed on DD-MMM-YYYY"
+
+[[notice]]
+strength = "required"
+text = "Generated using or contains modified Copernicus Climate Change Service information YYYY. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains."

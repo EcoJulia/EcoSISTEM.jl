@@ -1,0 +1,7 @@
+# What WorldClim asks of anyone using WorldClim 2.1, quoted from the page as it was read.
+pages = ["https://www.worldclim.org/data/worldclim21.html"]
+read = 2026-10-25
+
+[[reference]]
+doi = "10.1002/joc.5086"
+text = "Fick, S.E. and R.J. Hijmans, 2017. WorldClim 2: new 1km spatial resolution climate surfaces for global land areas. International Journal of Climatology 37 (12): 4302-4315."

@@ -1,0 +1,12 @@
+# What EarthEnv asks of anyone using its consensus land cover, quoted from the page as it was read:
+# the dataset citation, and the attribution its CC BY-NC licence requires.
+pages = ["https://www.earthenv.org/landcover"]
+read = 2026-10-25
+
+[[reference]]
+doi = "10.1111/geb.12182"
+text = "Tuanmu, M.-N. and W. Jetz. 2014. A global 1-km consensus land-cover product for biodiversity and ecosystem modeling. Global Ecology and Biogeography 23(9): 1031-1045. Data available on-line at http://www.earthenv.org/."
+
+[[notice]]
+strength = "required"
+text = "EarthEnv Global 1-km Consensus Land Cover Version 1 by Tuanmu & Jetz is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License. Permissions beyond the scope of this license may be available at http://www.earthenv.org/landcover.html."

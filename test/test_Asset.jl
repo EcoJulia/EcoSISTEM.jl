@@ -195,6 +195,40 @@ end
     @test calls[] == 1
 end
 
+@testset "a record carries its file's catalogue facts and how it was fetched" begin
+    E = EcoSISTEM
+    dir = mktempdir()
+    # A layer downloaded as its provider publishes it: primary, titled by the release, the layer
+    # and its own file's name, with what the provider asks.
+    url = E.layerinfo(TwentyCR, "air").file
+    path = joinpath(dir, basename(url))
+    write(path, "x")
+    rec = E._assetrecord(CachedAsset(TwentyCR, url, path = path), path, nothing)
+    row = E.datasetinfo(TwentyCR)
+    stem = first(splitext(basename(url)))
+    @test rec["primary"] === true && rec["code"] == "air"
+    @test rec["title"] ==
+          "$(row.title), $(E.layerinfo(TwentyCR, "air").name) ($stem)"
+    @test rec["licence"] == "CC0-1.0" &&
+          rec["request_page"] == E._requestpage(row)
+    @test length(rec["notices"]) == length(row.notices) &&
+          !haskey(rec, "release_date")
+    # An extract a service cut to a request is not the provider's file, and keeps the region its
+    # area was named by beside the box.
+    request = only(E.era5requests("t2m", 1990:1999, dir = dir,
+                                  area = "Scotland"))
+    write(request.path, "x")
+    cds = E._requestrecord(request, request.path, nothing)
+    @test cds["primary"] === false
+    @test cds["region"] == string(NaturalEarthSpec("Scotland"))
+    @test cds["release_date"] == E.datasetinfo(E.ERA).releasedate
+    @test occursin("(era5_t2m_1990s_", cds["title"])
+    # A box given as numbers names no region.
+    boxed = only(E.era5requests("t2m", 1990:1999, dir = dir,
+                                area = (60, -8, 54, 0)))
+    @test isnothing(boxed.region)
+end
+
 @testset "a present file fetched for another request is refused, never served" begin
     E = EcoSISTEM
     dir = mktempdir()

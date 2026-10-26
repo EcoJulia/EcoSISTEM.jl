@@ -1,0 +1,13 @@
+# What the Climatic Research Unit asks of anyone using CRU TS, quoted from its page as it was read.
+# The page asks for "one or more of the papers referenced"; the reference is the one describing
+# version 4, the version the catalogue reads.
+pages = ["https://crudata.uea.ac.uk/cru/data/hrg/"]
+read = 2026-10-25
+
+[[reference]]
+doi = "10.1038/s41597-020-0453-3"
+text = "Harris I, Osborn TJ, Jones P and Lister D (2020) Version 4 of the CRU TS Monthly High-Resolution Gridded Multivariate Climate Dataset. Sci Data 7, 109. https://doi.org/10.1038/s41597-020-0453-3"
+
+[[notice]]
+strength = "requested"
+text = "Climatic Research Unit, University of East Anglia"

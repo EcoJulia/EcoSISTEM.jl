@@ -32,7 +32,8 @@ struct CachedAsset
 end
 
 """
-    CDSRequest(dataset::AbstractString, request::AbstractDict, path::AbstractString)
+    CDSRequest(dataset::AbstractString, request::AbstractDict, path::AbstractString;
+               region = nothing)
 
 A file fetched from the Copernicus Climate Data Store on first use and kept at `path`: the CDS
 `dataset` to ask (`"reanalysis-era5-single-levels-monthly-means"`), the `request` as the CDS
@@ -49,16 +50,20 @@ layer instead of the CDS's own names.
   - `request`: the request body, keys as the CDS documents them, values strings or vectors of
     strings.
   - `path`: where the file lives once fetched.
+  - `region`: the named region the request's area was taken from, as the
+    [`NaturalEarthSpec`](@ref) naming it, which the file's provenance record keeps beside the
+    box; `nothing` where the area was given as a box, or there is none.
 """
 struct CDSRequest
     dataset::String
     request::Dict{String, Any}
     path::String
+    region::Union{Nothing, String}
     function CDSRequest(dataset::AbstractString, request::AbstractDict,
-                        path::AbstractString)
+                        path::AbstractString; region = nothing)
         return new(String(dataset),
                    Dict{String, Any}(string(k) => v for (k, v) in request),
-                   String(path))
+                   String(path), isnothing(region) ? nothing : String(region))
     end
 end
 
@@ -345,16 +350,28 @@ end
 # Now, in UTC, written as ISO 8601 with its `Z`.
 _utcnow() = Dates.format(Dates.now(Dates.UTC), "yyyy-mm-ddTHH:MM:SS") * "Z"
 
-# The catalogue's facts about a fetched file, where the file is a layer of a catalogued source:
-# the source, the layer, and the row's DOI, licence, version and citation. Empty where the owner
-# is no source, or the file is no layer of it.
-function _cataloguerecord(owner::Type, layer)
+# The catalogue's facts about a file of a catalogued source, the one place they are computed for
+# every record written and every registration made: the source, the layer where the file is one,
+# the file's title, and the row's DOI, licence, version, release date and citation, with what its
+# provider asks - the references, the notices and the documentation's section quoting them - left
+# out where blank. Empty where the owner is no source.
+function _cataloguerecord(owner::Type, layer, path::AbstractString)
     rec = _datasetrecord(owner)
     isnothing(rec) && return Dict{String, Any}()
-    record = Dict{String, Any}("source" => rec.dataset, "doi" => rec.doi,
-                               "licence" => rec.licence,
-                               "version" => rec.version,
-                               "citation" => rec.citation)
+    record = Dict{String, Any}("source" => rec.dataset,
+                               "title" => _filetitle(rec, layer, path))
+    for (key, value) in (("doi", rec.doi), ("licence", rec.licence),
+        ("version", rec.version), ("release_date", rec.releasedate),
+        ("citation", rec.citation), ("request_page", _requestpage(rec)))
+        isempty(value) || (record[key] = value)
+    end
+    isempty(rec.references) ||
+        (record["references"] = [Dict("doi" => r.doi, "text" => r.text)
+                                 for r in rec.references])
+    isempty(rec.notices) ||
+        (record["notices"] = [Dict("strength" => string(n.strength),
+                                   "text" => n.text)
+                              for n in rec.notices])
     isnothing(layer) || (record["code"] = first(layer.aliases))
     return record
 end
@@ -375,9 +392,10 @@ function _assetrecord(asset::CachedAsset, path::AbstractString, response)
         end
     end
     isnothing(rec) && return record
+    record["primary"] = true
     layer = rec.format === :Shapefile ? nothing :
             _layerbyfile(asset.owner, asset.url)
-    merge!(record, _cataloguerecord(asset.owner, layer))
+    merge!(record, _cataloguerecord(asset.owner, layer, path))
     version = _fileversion(rec, path)
     isnothing(version) || (record["version"] = version)
     return record
@@ -414,13 +432,15 @@ function _requestrecord(request::CDSRequest, path::AbstractString, status)
     record = _baserecord(path, :habitat)
     record["dataset"] = request.dataset
     record["request"] = request.request
+    record["primary"] = false
+    isnothing(request.region) || (record["region"] = request.region)
     job = status isa AbstractDict ? get(status, "jobID", nothing) : nothing
     isnothing(job) || (record["job"] = string(job))
     if request.dataset == _ERA5_MONTHLY
         variables = get(request.request, "variable", String[])
         layer = length(variables) == 1 ?
                 _layerbyrequest(ERA, string(only(variables))) : nothing
-        merge!(record, _cataloguerecord(ERA, layer))
+        merge!(record, _cataloguerecord(ERA, layer, path))
     end
     return record
 end

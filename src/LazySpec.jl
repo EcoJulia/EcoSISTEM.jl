@@ -885,7 +885,10 @@ function _inputrecord(spec::RasterSpec, path::AbstractString, role::Symbol)
                                    dataset = isnothing(rec) ? "file" :
                                              rec.dataset,
                                    code = spec.code, path = basename(path)))
-    return isnothing(rec) ? record : _withcatalogue(record, rec, path)
+    isnothing(rec) && return record
+    layer = spec.code isa CODE_TYPE ? layerinfo(spec.source, spec.code) :
+            nothing
+    return _withcatalogue(record, rec, path, layer = layer)
 end
 
 # A combination member's entries: a data layer's own, and none for a synthetic one, which reads no
@@ -904,10 +907,12 @@ function _regionrecord(path::AbstractString)
     return _withcatalogue(record, datasetinfo(NaturalEarthLevel), path)
 end
 
-# `record` with what the catalogue row knows filled in where it has nothing: the dataset's name,
-# its DOI, licence and citation, and the version the file states, or else the row's.
+# `record` with what the catalogue row knows filled in where it has nothing - the dataset's name,
+# the file's title, its DOI, licence, release date and citation, what its provider asks, and the
+# version the file states, or else the row's - as `_cataloguerecord` would have written them.
+# `layer` is the layer the file is, where it is one.
 function _withcatalogue(record::InputRecord, rec::DatasetRecord,
-                        path::AbstractString)
+                        path::AbstractString; layer = nothing)
     orrow(have, row) = isempty(have) ? row : have
     version = isempty(record.version) ?
               something(_fileversion(rec, path), rec.version) : record.version
@@ -915,13 +920,24 @@ function _withcatalogue(record::InputRecord, rec::DatasetRecord,
                        dataset = record.dataset == "file" ? rec.dataset :
                                  record.dataset,
                        code = record.code, path = record.path, url = record.url,
-                       request = record.request, job = record.job,
-                       fetched = record.fetched, bytes = record.bytes,
-                       sha256 = record.sha256,
+                       request = record.request, region = record.region,
+                       job = record.job, fetched = record.fetched,
+                       bytes = record.bytes, sha256 = record.sha256,
                        doi = orrow(record.doi, rec.doi),
                        licence = orrow(record.licence, rec.licence),
                        version = version,
-                       citation = orrow(record.citation, rec.citation))
+                       citation = orrow(record.citation, rec.citation),
+                       title = orrow(record.title,
+                                     _filetitle(rec, layer, path)),
+                       primary = record.primary,
+                       releasedate = orrow(record.releasedate, rec.releasedate),
+                       references = isempty(record.references) ?
+                                    rec.references :
+                                    record.references,
+                       notices = isempty(record.notices) ? rec.notices :
+                                 record.notices,
+                       requestpage = orrow(record.requestpage,
+                                           _requestpage(rec)))
 end
 
 # The `files` field from whichever of the three location keywords was given: `files` as they are,
@@ -966,6 +982,8 @@ function _cdsarea(region::NaturalEarthSpec)
                                           coverage = region.coverage,
                                           round = 1°))
 end
+
+_cdsregion(region::NaturalEarthSpec) = string(region)
 
 # The layer's download as a one-entry `files` list, for a source whose row says `https` and a
 # layer whose row names a `File`; `nothing` for any other source, or a layer naming none.

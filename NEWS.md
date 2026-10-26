@@ -9,6 +9,20 @@
     - `EcoSISTEM.set_assetdir!(dir)` keeps the asset cache in a directory of your choosing,
       recorded as a preference, and `nothing` returns it to the scratch space. Preferences.jl is a
       new dependency.
+    - The catalogue quotes what each provider asks of anyone using its data, one file per request
+      under `data/catalogue/requests/`: the works to cite and the notices to carry, with how
+      strongly each is asked. `DatasetRecord` gains `releasedate`, `title`, `request`,
+      `references` and `notices`, and `citation` is now the requested references' texts.
+    - `data/catalogue/citations.bib` and `authors.toml` hold every catalogued DOI's citation and
+      its authors' ORCIDs as doi.org gives them, made by `data/src/citations.jl`.
+    - A fetched file's record, and `InputRecord`, gain its title, whether it is the provider's own
+      file (`primary`), the release date, the provider's references and notices, and the address
+      of the documentation's page quoting them. `provenance` and `write_provenance` show them with
+      the access date filled in, and say what was done to the inputs.
+    - A `CDSRequest` whose area was named as a region keeps the region in its record.
+  - Changed
+    - CHELSA's rows name their EnviDat deposits' DOIs, CHELSA-BIOCLIM+ its deposit's own version
+      (1.0), and every licence is an SPDX identifier or the provider's terms URL.
   - Fixed
     - `era5requests` puts every field a request varies by in its file's name - a box, and months
       other than all twelve - so two requests never share a file. A file fetched with a box or

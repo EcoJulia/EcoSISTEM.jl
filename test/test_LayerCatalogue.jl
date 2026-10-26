@@ -611,12 +611,25 @@ end
     ne = E.datasetinfo(E.NaturalEarthLevel)
     @test ne.dataset == "NaturalEarth" && ne.format === :Shapefile &&
           ne.fetch === :https
-    @test isempty(ne.doi) && isempty(ne.version) &&
-          occursin("Natural Earth", ne.citation)
-    # Every row carries the citation a paper prints, resolved from its DOI.
+    @test isempty(ne.doi) && isempty(ne.version) && ne.licence == "CC-PDM-1.0"
+    # It asks for no citation, and offers a line for those who wish to credit it.
+    @test isempty(ne.references) && isempty(ne.citation)
+    @test only(ne.notices).strength === :optional &&
+          occursin("Natural Earth", only(ne.notices).text)
+    # Every row names its provider's request, whose references include the row's DOI, and the
+    # citation is those references' texts.
     for r in E._datasets()
-        @test !isempty(r.citation) && occursin(r.doi, r.citation)
+        @test !isempty(r.request) && !isempty(r.title)
+        @test isempty(r.doi) || any(ref.doi == r.doi for ref in r.references)
+        @test r.citation == join((ref.text for ref in r.references), " ")
     end
+    # A row cites the deposit holding the files where the provider mints one, and the release's
+    # own date where the provider states it.
+    @test E.datasetinfo(CHELSA{BioClim}).doi == "10.16904/envidat.228.v2.1"
+    bcp = E.datasetinfo(CHELSA{BioClimPlus})
+    @test bcp.doi == "10.16904/envidat.332" && bcp.version == "1.0"
+    @test wc.releasedate == "2020-01" && wc.title == "WorldClim 2.1"
+    @test E.datasetinfo(ERA).notices[1].strength === :required
     # ERA5's layers name the variable a Climate Data Store request asks for, and both columns
     # can be looked up backwards, which is how a fetched file is matched to its layer.
     @test E.layerinfo(ERA, "t2m").request == "2m_temperature"
@@ -650,6 +663,13 @@ end
                                                                                             "",
                                                                                             "",
                                                                                             "",
+                                                                                            "",
+                                                                                            "",
+                                                                                            "",
+                                                                                            @NamedTuple{doi::String,
+                                                                                                        text::String}[],
+                                                                                            @NamedTuple{strength::Symbol,
+                                                                                                        text::String}[],
                                                                                             "",
                                                                                             "")
     @test isnothing(E._checkcatalogue(row(), ras))
@@ -994,6 +1014,37 @@ end
                                                                       :evenness,
                                                                       vals)
     end
+end
+
+@testset "every file a source can give has a title of its own" begin
+    E = EcoSISTEM
+    # Keyed by file, since several kinds of region come from one zip, which has one title.
+    titles = Dict{String, String}()
+    # 20CRv3: one file per layer, named in its table.
+    tcr = E.datasetinfo(TwentyCR)
+    for code in E._alllayercodes(TwentyCR)
+        layer = E.layerinfo(TwentyCR, code)
+        title = E._filetitle(tcr, layer, layer.file)
+        @test startswith(title, "$(tcr.title), $(layer.name) (")
+        titles[layer.file] = title
+    end
+    # ERA5: every layer over spans, boxes and months, by the names its requests are given.
+    era = E.datasetinfo(ERA)
+    for code in E._alllayercodes(ERA),
+        area in (nothing, (40, -25, -36, 56), (41, -25, -36, 56)),
+        months in (1:12, 6:8, [12, 1, 2])
+        for q in E.era5requests(code, 1985:2004, dir = "d", area = area,
+                                months = months)
+            titles[q.path] = E._filetitle(era, E.layerinfo(ERA, code), q.path)
+        end
+    end
+    # Natural Earth: one zip per kind of region, none of them a layer.
+    ne = E.datasetinfo(E.NaturalEarthLevel)
+    for level in E.NATURALEARTH_LEVELS
+        url = E._nesource(level).url
+        titles[url] = E._filetitle(ne, nothing, url)
+    end
+    @test allunique(values(titles))
 end
 
 end

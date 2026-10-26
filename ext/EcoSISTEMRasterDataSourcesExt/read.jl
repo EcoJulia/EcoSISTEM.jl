@@ -44,12 +44,13 @@ function EcoSISTEM._fetchfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
         isfile(EcoSISTEM._sidecarpath(path)) && continue
         record = EcoSISTEM._baserecord(path, :habitat)
         delete!(record, "fetched")      # not known for a file already in the cache
+        record["primary"] = true
         url = _rasterurl(T, layer; kw...)
         isnothing(url) || (record["url"] = url)
         merge!(record,
                EcoSISTEM._cataloguerecord(T,
                                           isnothing(layer) ? nothing :
-                                          EcoSISTEM.layerinfo(T, layer)))
+                                          EcoSISTEM.layerinfo(T, layer), path))
         EcoSISTEM._writesidecar(path, record)
     end
     return raw

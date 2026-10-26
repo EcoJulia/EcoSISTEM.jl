@@ -65,13 +65,14 @@ EcoSISTEMRasterDataSourcesExt = "RasterDataSources"
 [compat]
 Aqua = "0.8.16"
 ArchGDAL = "0.6, 0.7, 0.8, 0.9, 0.10"
+BibParser = "0.3"
 BlockArrays = "1"
 CDSAPI = "2.2, 2.3"
 CSV = "0.10, 1"
 Calculus = "0.4.1, 0.5"
 CoordinateTransformations = "0.6.4"
 DataFrames = "0.21.8, 0.22, 1.0"
-DataPipeline = "0.56, 0.57"
+DataPipeline = "0.58.1"
 Dates = "1.9"
 DimensionalData = "0.30.1"
 Distributions = "0.25"
@@ -127,6 +128,7 @@ p7zip_jll = "17"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+BibParser = "13533e5b-e1c2-4e57-8cef-cac5e52f6474"
 CDSAPI = "8a7b9de3-9c00-473e-88b4-7eccd7ef2fea"
 CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"
 DataPipeline = "9ced6f0a-eb77-43a8-bbd1-bbf3031b0d12"
@@ -168,4 +170,4 @@ publications = ["10.48550/arXiv.1911.12257"]
         ror = "00vtgdb53"
 
 [targets]
-test = ["Aqua", "CDSAPI", "CoordinateTransformations", "DataPipeline", "Git", "JuliaFormatter", "Logging", "MPI", "OnlineStats", "ParallelTestRunner", "Phylo", "Pkg", "Plots", "REPL", "RasterDataSources", "ResearchSoftwareMetadata", "Sockets", "Test"]
+test = ["Aqua", "BibParser", "CDSAPI", "CoordinateTransformations", "DataPipeline", "Git", "JuliaFormatter", "Logging", "MPI", "OnlineStats", "ParallelTestRunner", "Phylo", "Pkg", "Plots", "REPL", "RasterDataSources", "ResearchSoftwareMetadata", "Sockets", "Test"]
