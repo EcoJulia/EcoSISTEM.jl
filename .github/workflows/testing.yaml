@@ -148,7 +148,7 @@ jobs:
           - false
         exclude:
           # The extras check the package against things outside it, and run on the current release
-          # (Ubuntu and macOS, where the coverage job is) and on the oldest supported version
+          # (Ubuntu, where the coverage job is, and macOS) and on the oldest supported version
           # (Ubuntu). `runtests.jl` skips them on a Windows runner anyway.
           - suite: extras
             os: windows-latest
@@ -230,9 +230,11 @@ jobs:
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
     - name: Running
-      # Coverage instrumentation is a large slowdown, so it runs on one Julia and OS - macOS, on the
+      # Coverage instrumentation is a large slowdown, so it runs on one Julia and OS - Ubuntu, on the
       # release Julia - for every test set; Codecov merges the uploads. Every other entry runs the
-      # same tests uninstrumented.
+      # same tests uninstrumented. Not macOS, whose runner is the smallest (3 cores and 7 GB, against
+      # Ubuntu's 4 and 16): there the instrumented job's four-rank MPI launch does not finish within
+      # its limit.
       #
       # `ECOSISTEM_TEST_JOBS` asks for two workers on macOS: the runner reports too little free memory
       # for ParallelTestRunner to choose a second, which runs every file in sequence. The raster
@@ -254,13 +256,13 @@ jobs:
         ECOSISTEM_TEST_JOBS: ${{ matrix.os == 'macOS-latest' && '2' || '' }}
       with:
         test_args: ${{ matrix.suite }}
-        coverage: ${{ matrix.os == 'macOS-latest' && matrix.julia-version == '1' }}
+        coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.julia-version == '1' }}
         prefix: ${{ runner.os != 'Windows' && format('{0}/.github/sample-resources.sh', github.workspace) || '' }}
     - name: Process coverage
-      if: matrix.os == 'macOS-latest' && matrix.julia-version == '1'
+      if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
       uses: julia-actions/julia-processcoverage@v1
     - name: Codecov
-      if: matrix.os == 'macOS-latest' && matrix.julia-version == '1'
+      if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
       uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
