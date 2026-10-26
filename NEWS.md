@@ -1,6 +1,6 @@
 # NEWS
 
-- v0.8.1
+- v0.9.0
   - Added
     - `SourceSpec(ERA, code; years, months, area)` fetches an ERA5 layer from the Climate Data
       Store into the asset cache on first use, a file a decade. `area` is a box, or a region by
@@ -28,6 +28,9 @@
   - Changed
     - CHELSA's rows name their EnviDat deposits' DOIs, CHELSA-BIOCLIM+ its deposit's own version
       (1.0), and every licence is an SPDX identifier or the provider's terms URL.
+    - Fetching CHELSA-BIOCLIM+'s `rsds` layers fails naming the file CHELSA's server has, which
+      RasterDataSources does not yet ask for, rather than with a bare 404.
+    - A layer code a dataset's table lacks is refused naming the tables that have it.
   - Fixed
     - `era5requests` puts every field a request varies by in its file's name - a box, and months
       other than all twelve - so two requests never share a file. A file fetched with a box or
@@ -40,10 +43,18 @@
       own, it names the claimed files on its layer specs so the run reads the pipeline's copy of
       WorldClim rather than downloading another, and `AfricaRun.yaml` points at WorldClim's
       current host.
+  - Removed
+    - Everything deprecated in v0.8.0 and earlier: `read` on dataset types and on `ERA`, `CERA`
+      and `CRUTS`, `readfile`, `retrieve_era5`, `simulate_action!`, `simulate_record!`,
+      `simulate_record_diversity!`, the six-argument `simulate!`, the `boost` argument and
+      keyword, `ConstructedSpec` and `emptyMPIgridlandscape`. Earlier notes give each replacement.
+    - `CHELSA{BioClimPlus}`'s `bio1` to `bio19`: RasterDataSources gives them CHELSA V2.1's own
+      files, so read them as `CHELSA{BioClim}`, whose facts they carry.
   - Internal
     - The test suite passes on Julia 1.13.2: the GeoTIFF fixtures keep their geotransform vector
       alive across ArchGDAL's `setgeotransform!`, which does not, and the docstring checks import
       REPL rather than relying on another package having loaded it.
+    - Printf is no longer a dependency.
 
 - v0.8.0
   - Added

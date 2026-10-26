@@ -48,26 +48,18 @@ end
                                 for n in names(m, all = true)
                                 if isdefined(m, n) &&
         getfield(m, n) isa Union{Function, Type}]
-    # The piracies an extension still carries, named: the two `Base.read` methods on
-    # RasterDataSources' types are deprecated shims, kept for one release, and go with the
-    # deprecations. Named rather than counted, so a new one has to be looked at and their removal
-    # shrinks the list rather than passing silently. A method and its keyword wrapper count once.
-    known = Dict(:EcoSISTEMRasterDataSourcesExt =>
-                     Set([Type{<:RasterDataSources.RasterDataSource},
-                             Type{RasterDataSources.CHELSA{RasterDataSources.Climate}}
-                         ]))
+    # No extension pirates anything either.
     for name in (:EcoSISTEMRasterDataSourcesExt, :EcoSISTEMERAExt,
         :EcoSISTEMMPIExt, :EcoSISTEMPhyloExt)
         ext = Base.get_extension(EcoSISTEM, name)
         @test !isnothing(ext)
-        found = Aqua.Piracy.hunt(ext, treat_as_own = own)
-        @test all(m -> m.name === :read, found)
-        # The type the pirated method dispatches on: the first positional argument, after the
-        # function type (and the keyword wrapper's two leading parameters, where it has them).
-        dispatched(m) = Base.unwrap_unionall(m.sig).parameters[Aqua.is_kwcall(m.sig) ?
-                                                               4 : 2]
-        @test Set(dispatched(m) for m in found) == get(known, name, Set())
+        @test isempty(Aqua.Piracy.hunt(ext, treat_as_own = own))
     end
+    # And the hunt is not vacuous: a module defining a method on `Base.read` over `Base`'s own types
+    # has it found.
+    pirate = Module(:Pirate)
+    Core.eval(pirate, :(Base.read(::Type{Int}, ::Float64) = 0))
+    @test length(Aqua.Piracy.hunt(pirate)) == 1
 end
 
 end

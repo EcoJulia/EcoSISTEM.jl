@@ -216,7 +216,6 @@ include("rasterfixtures.jl")
     end
 
     @testset "dataset-typed methods are supplied here" begin
-        @test hasmethod(read, Tuple{Type{WorldClim{BioClim}}})
         @test !isempty(methods(EcoSISTEM.sourcecrs))
         @test !isempty(methods(EcoSISTEM.compress_landcover))
         @test !isempty(methods(EcoSISTEM.landcoverclass))
