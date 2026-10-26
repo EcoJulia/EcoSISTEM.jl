@@ -46,9 +46,6 @@ using DimensionalData: Ti, At
 using Unitful.DefaultSymbols
 using Diversity
 using EcoSISTEM.Units
-using Printf
-using JLD2
-import Diversity.Gamma
 
 # == Deciding the grid ==========================================================================
 
@@ -198,8 +195,7 @@ mismatch):
     not. The **grid's** topology (whether the world wraps) is a different question, answered by
     `GridHabitat(..., topology = ...)`.
   - `birth`, `death`, `longevity`, `survival` - demographic rates
-    (scalar rates give an [`EqualPop`](@ref), vectors a [`PopGrowth`](@ref)). `boost` is
-    deprecated and ignored: the birth multiplier is capped at 1.
+    (scalar rates give an [`EqualPop`](@ref), vectors a [`PopGrowth`](@ref)).
 
 `abundance` is either a total number of individuals split at random across
 species (seedable via `seed`) or an explicit per-species vector. `native` marks
@@ -225,7 +221,6 @@ function build_species(numspecies::Integer;
                        death = 0.6 / year,
                        longevity::Real = 1.0,
                        survival::Real = 0.2,
-                       boost = nothing,
                        abundance = 1000 * numspecies,
                        native = true,
                        names = nothing,
@@ -285,7 +280,6 @@ function build_species(numspecies::Integer;
     else
         _demand(demandaxis, _tofield(demand, n, "demand"))
     end
-    _deprecatedboost(boost, :build_species)
     param = _params(birth, death, longevity, survival, n)
     nat = _tofield(native, n, "native")
     abun = _abundances(abundance, n, seed)
@@ -614,26 +608,4 @@ function _occur(f, schedule::AbstractSchedule, eco::AbstractEcosystem,
     f((count = count, elapsed = simulationtime(eco),
        date = simulationdate(eco)))
     return count
-end
-
-# `simulate_action!`'s own timing, kept exactly for the names still built on it: `action!` is handed
-# the occurrence's count on the step after the clock stood on a multiple of `interval` - or, with
-# `offset`, on a step ending on one, the run a step shorter.
-function _simulateaction!(action!, eco::AbstractEcosystem, times::Unitful.Time,
-                          interval::Unitful.Time, timestep::Unitful.Time;
-                          intervention = nothing, offset = false)
-    iszero(mod(interval, timestep)) ||
-        error("Interval must be a multiple of timestep")
-    grid = offset ? collect(timestep:interval:times) :
-           collect((0s):interval:times) .+ timestep
-    # The steps it always took, for any `times`: one more than `times / timestep` rounded down, or
-    # with `offset` exactly that many.
-    steps = offset ? length((0s):timestep:(times - timestep)) :
-            length((0s):timestep:times)
-    duration = steps * timestep
-    simulate!(eco, duration, timestep, every = AtTimes(grid),
-              intervention = intervention) do occurrence
-        return action!(occurrence.count)
-    end
-    return eco
 end

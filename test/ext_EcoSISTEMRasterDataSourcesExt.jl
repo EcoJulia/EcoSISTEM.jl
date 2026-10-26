@@ -70,14 +70,30 @@ include("rasterfixtures.jl")
             @test allunique(values(titles))
             paths[T] = Set(keys(titles))
         end
-        # One file is a layer of two rows only where CHELSA-BIOCLIM+ lists CHELSA V2.1's own
-        # bioclimatic variables, each then titled by whichever row a spec names.
-        shared = [(A, B)
-                  for A in keys(paths), B in keys(paths)
-                  if A !== B && !isempty(intersect(paths[A], paths[B]))]
-        @test Set(shared) == Set([(CHELSA{BioClim}, CHELSA{BioClimPlus}),
-                      (CHELSA{BioClimPlus}, CHELSA{BioClim})])
-        @test paths[CHELSA{BioClim}] ⊆ paths[CHELSA{BioClimPlus}]
+        # No file is a layer of two rows, so none can carry two datasets' facts.
+        @test all(isempty(intersect(paths[A], paths[B]))
+                  for A in keys(paths), B in keys(paths) if A !== B)
+    end
+
+    # The four `rsds` files RasterDataSources cannot fetch, named as CHELSA's server does not name
+    # them, which `_checkfetchable` refuses before trying. When the names fail here,
+    # RasterDataSources names them as the server does: delete that method, this testset and the
+    # rows' notes in `BioClimPlus.csv`.
+    @testset "CHELSA-BIOCLIM+'s rsds files are refused while their names are wrong" begin
+        RDS = RasterDataSources
+        T = CHELSA{BioClimPlus}
+        for stat in ("max", "min", "mean", "range")
+            code = Symbol("rsds_", stat)
+            @test RDS.rastername(T, code) ==
+                  "CHELSA_rsds_$(stat)_1981-2010_V.2.1.tif"
+            isfile(RDS.rasterpath(T, code)) && continue
+            @test_throws "CHELSA_rsds_1981-2010_$(stat)_V.2.1.tif" EcoSISTEM._fetchfiles(T,
+                                                                                         code)
+        end
+        # A dataset with no such file is passed on to `getraster` as before.
+        ext = Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)
+        @test isnothing(ext._checkfetchable(T, (:gdd0, :swb)))
+        @test isnothing(ext._checkfetchable(CHELSA{BioClim}, (1, 12)))
     end
 
     @testset "moving the asset cache moves only a download path the extension chose" begin
@@ -134,6 +150,12 @@ include("rasterfixtures.jl")
         @test EcoSISTEM._codetype(Int) === Nothing
 
         @test length(EcoSISTEM._alllayercodes(EarthEnv{LandCover})) == 12
+        # A layer the table leaves out is not part of the whole dataset: BIOCLIM+ less V2.1's 19.
+        plus = EcoSISTEM._alllayercodes(CHELSA{BioClimPlus})
+        @test length(plus) ==
+              length(RasterDataSources.layers(CHELSA{BioClimPlus})) - 19
+        @test !any(c -> occursin(r"^bio\d+$", string(c)), plus)
+        @test "gdd0" in string.(plus)
         # An unmarked source cannot answer, and says so rather than returning an empty list.
         @test_throws ErrorException EcoSISTEM._alllayercodes(Int)
 
@@ -211,7 +233,7 @@ include("rasterfixtures.jl")
     # the seam, not CRU TS's own data.
     @testset "a CRU TS directory reads as a ClimateRaster carrying the source" begin
         dir = mktempdir()
-        # Twelve monthly `.tif`s, which is the shape `_readmonthlydir` expects. Built through the
+        # Twelve monthly `.tif`s, which is the shape a directory read expects. Built through the
         # shared `_testraster` fixture rather than by hand, so they carry what a real GeoTIFF does -
         # a CRS, and `Intervals(Start)` sampling. A hand-rolled `Rasters.Raster` gets neither, and
         # the package refuses both by name: no CRS gives `LOCAL_CS[...UNIT["unknown"]]`, and `Points`

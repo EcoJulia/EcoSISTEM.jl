@@ -19,9 +19,9 @@
 # warm does not make another colder - so it is a regime, and the type system enforces that
 # (`supplytype(Temperature)` is `nothing`, so it cannot be built as a supply even by mistake).
 #
-# The first run downloads CHELSA BioClimPlus (`gsp`, `gsl`, `bio1`) and WorldClim solar radiation into
-# `EcoSISTEM.assetdir()`; later runs reuse the cache. Everything is seeded, so re-running reproduces
-# the same result exactly.
+# The first run downloads CHELSA BioClimPlus (`gsp`, `gsl`), CHELSA V2.1 (`bio1`) and WorldClim solar
+# radiation into `EcoSISTEM.assetdir()`; later runs reuse the cache. Everything is seeded, so
+# re-running reproduces the same result exactly.
 
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -39,9 +39,10 @@ using Plots
 # decides whether it stays an amount or becomes a rate; the spec itself says nothing about which.
 gsp = SourceSpec(CHELSA{BioClimPlus}, :gsp)
 
-# Annual mean temperature, from the same CHELSA product so both regime layers share a native grid.
+# Annual mean temperature, from CHELSA V2.1, whose grid BIOCLIM+ shares, so both regime layers have
+# one native grid.
 # CHELSA ships it in °C; a regime is always held in an absolute unit, so it arrives as K.
-temperature = SourceSpec(CHELSA{BioClimPlus}, :bio1)
+temperature = SourceSpec(CHELSA{BioClim}, :bio1)
 
 # January solar radiation only (`month = 1`), so this is a *static* supply rather than a
 # twelve-slice series - it keeps the example about the two roles of `gsp` rather than about

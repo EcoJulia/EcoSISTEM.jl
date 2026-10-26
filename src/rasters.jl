@@ -2269,7 +2269,7 @@ _isangle(x) = dimension(x) === NoDims && unit(x) !== NoUnits
 # CRS's own WKT text: the *last* `UNIT[...]` token, since a projected CRS's `WellKnownText`
 # reports its nested geographic CRS's (usually degree) unit first, and its own actual coordinate
 # unit last, right before `AXIS`/`AUTHORITY`. Confirmed against a default WGS84 read, a real
-# British National Grid (EPSG:27700) file, and a real ERA5-via-`retrieve_era5` netCDF file (whose
+# British National Grid (EPSG:27700) file, and a real ERA5 netCDF file from the CDS (whose
 # CRS comes back as a bare `GeoFormatTypes.EPSG` code, not `WellKnownText`, since CDS-produced
 # netCDF carries no WKT `grid_mapping` - `ArchGDAL.importCRS`/`toWKT` normalises *any* CRS
 # representation Rasters/ArchGDAL might hand back to WKT text first, so the same regex covers

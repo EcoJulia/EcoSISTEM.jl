@@ -25,6 +25,7 @@ function EcoSISTEM._lazysource(T::Type{<:RDS.RasterDataSource},
                                layers = RDS.layers(T);
                                cut = nothing, scale = nothing, fn = nothing,
                                kw...)
+    _checkfetchable(T, something(layers, RDS.layers(T)); kw...)
     raw = getraster(T, something(layers, RDS.layers(T));
                     _getrasterkw(T)..., kw...)
     return Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
@@ -39,6 +40,7 @@ end
 # where its interface can say.
 function EcoSISTEM._fetchfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
     layers = something(code, RDS.layers(T))
+    _checkfetchable(T, layers; kw...)
     raw = getraster(T, layers; kw...)
     for (layer, path) in _layerfiles(T, layers, raw)
         isfile(EcoSISTEM._sidecarpath(path)) && continue
@@ -54,6 +56,32 @@ function EcoSISTEM._fetchfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
         EcoSISTEM._writesidecar(path, record)
     end
     return raw
+end
+
+# A fetch that cannot succeed, refused before it is tried: CHELSA-BIOCLIM+'s four `rsds` files, for
+# which RasterDataSources asks CHELSA's server for `CHELSA_rsds_<stat>_1981-2010_V.2.1.tif` where it
+# has `CHELSA_rsds_1981-2010_<stat>_V.2.1.tif`, so the download is a 404. A file already in place
+# reads as usual. Delete this method once RasterDataSources names them as the server does, which
+# `test/ext_EcoSISTEMRasterDataSourcesExt.jl` reports by failing.
+_checkfetchable(T, layers; kw...) = nothing
+
+function _checkfetchable(T::Type{RDS.CHELSA{RDS.BioClimPlus}}, layers; kw...)
+    versioning = (k => v for (k, v) in kw if k in (:version, :patch))
+    for layer in (layers isa Union{Tuple, AbstractVector} ? layers : (layers,))
+        code = Symbol(string(layer))
+        startswith(string(code), "rsds_") || continue
+        path = RDS.rasterpath(T, code; versioning...)
+        m = match(r"^CHELSA_rsds_([a-z]+)_1981-2010_(V\.2\.\d+)\.tif$",
+                  basename(path))
+        (isfile(path) || isnothing(m)) && continue
+        served = "CHELSA_rsds_1981-2010_$(m[1])_$(m[2]).tif"
+        url = dirname(string(RDS.rasterurl(T, code; versioning...))) * "/" *
+              served
+        error("CHELSA-BIOCLIM+'s `$code` cannot be fetched: RasterDataSources asks CHELSA's " *
+              "server for `$(basename(path))`, which it does not have; its file is `$served`. " *
+              "Download $url to `$path` to read it.")
+    end
+    return nothing
 end
 
 # Each path `getraster` returned with the layer it holds, or `nothing` for a file holding several

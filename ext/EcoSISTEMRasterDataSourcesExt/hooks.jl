@@ -20,9 +20,13 @@ end
 # Every layer this dataset has, in the source package's own order - what `SourceSpec(dataset)` (no
 # code) expands to. Read from `RasterDataSources` rather than from the shipped table for the same
 # reason as `_codetype`: the source package is the authority on what it can fetch, and the catalogue
-# is an index into it.
+# is an index into it. A layer the dataset's table leaves out is left out here too, since nothing
+# could describe it: CHELSA V2.1's bio1-19, which RasterDataSources also lists as BIOCLIM+'s.
 function EcoSISTEM._alllayercodes(::Type{T}) where {T <: RDS.RasterDataSource}
-    return collect(EcoSISTEM.CODE_TYPE, RDS.layers(T))
+    codes = collect(EcoSISTEM.CODE_TYPE, RDS.layers(T))
+    EcoSISTEM._haslayertable(T) || return codes
+    table = EcoSISTEM._layertable(EcoSISTEM._layerfile(T))
+    return filter(c -> haskey(table, string(c)), codes)
 end
 
 # Resolve any spelling a caller may write - `4`, `:bio4`, `"bio4"` - to the one this dataset uses.

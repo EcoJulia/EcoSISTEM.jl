@@ -80,7 +80,7 @@ rather than stored**, because it duplicates `dimension(unit)` and could only dri
 
 Two columns have been **removed from the shipped tables outright**, on the same reasoning: a
 column that cannot disagree with what we already know is not a check, it is a second place to get
-wrong. `IsRate` said exactly `category === :rate` in all 139 rows. LandCover's
+wrong. `IsRate` said exactly `category === :rate` in every row. LandCover's
 `Filename (full version)`/`(reduced version)` held `consensus_full_class_N.tif` /
 `Consensus_reduced_class_N.tif` - precisely what RasterDataSources' own `rastername` computes from
 the class number, down to its odd lower/upper-case asymmetry, so we were duplicating another
@@ -261,8 +261,8 @@ const _LAYER_CACHE = Dict{String,
 
 # Name -> axis type, memoised.
 #
-# **Without this cache a catalogue build costs 83 seconds.** `_resolveaxis` runs once per row, 139 of
-# them, and each call walks `_nameableaxes()`, which is `subtypes()` all the way down. `subtypes` scans
+# **Without this cache a catalogue build costs over a minute.** `_resolveaxis` runs once per row, and
+# each call walks `_nameableaxes()`, which is `subtypes()` all the way down. `subtypes` scans
 # every loaded module, so it is around 0.6 s a call rather than free, and every axis being abstract
 # means the walk recurses through some fifty types rather than stopping at fifteen concrete leaves.
 # Nothing fails without the cache; the gates simply get slower, which is why such a cost can go
@@ -486,8 +486,8 @@ end
 Return the catalogue [`LayerRecord`](@ref) for a layer, with its name, definition, unit, niche axis and
 sources. The two-argument form looks up `code` in dataset `T`'s table (mirrors `layerunit(T, code)`) and
 returns one record. The single-argument form (an `Integer`/`Symbol`/`String` code) searches EVERY shipped
-table and returns a `Vector` of all matches - the same code can appear in several datasets (e.g. `bio1` is in
-both `BioClim` and `BioClimPlus`).
+table and returns a `Vector` of all matches - the same code can appear in several datasets (e.g. `t2m` is in
+both `ERA` and `CERA`).
 
 # Arguments
 
@@ -504,7 +504,12 @@ function layerinfo(T::Type, code)
     for r in _catalogue()
         (r.dataset === ds && key in r.aliases) && return r
     end
-    return error("Layer `$code` is not in the `$ds` table.")
+    elsewhere = unique(r.dataset for r in _catalogue() if key in r.aliases)
+    return error("Layer `$code` is not in the `$ds` table" *
+                 (isempty(elsewhere) ? "." :
+                  "; the " * join(("`$t`" for t in elsewhere), ", ", " and ") *
+                  (length(elsewhere) == 1 ? " table has" : " tables have") *
+                  " it."))
 end
 
 function layerinfo(code::Union{Integer, Symbol, AbstractString})

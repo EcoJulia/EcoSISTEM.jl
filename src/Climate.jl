@@ -782,7 +782,7 @@ end
 #
 # **A hook, because the answer needs a weak dependency.** This file cannot name `RasterDataSources`,
 # so `EcoSISTEMRasterDataSourcesExt` supplies the sole `RasterDataSource` methods for both of these -
-# the same method-less-hook pattern the package uses for `retrieve_era5`.
+# the same method-less-hook pattern the package uses for `_fetchcds`.
 _isdatasettype(_) = false
 
 # Build the spec for one layer of a dataset. Only ever called when `_isdatasettype` said yes, so the

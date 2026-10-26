@@ -543,8 +543,6 @@ public hasdata
 # header for why it is not in an extension.
 include("datasetread.jl")
 
-export readfile
-
 # Sampling a climate raster at places and times - `extract_values`. Works on any `AbstractClimate`,
 # so it names no data source.
 include("extractclimate.jl")
