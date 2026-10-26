@@ -56,7 +56,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v5-${{ hashFiles('src/datasetread.jl') }}
         lookup-only: true
     # A miss is usually the aggregation code having changed, which stales the cached aggregates
     # but not the ~850 MB of downloads. An older entry supplies the downloads, so only the
@@ -66,7 +66,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v5-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Set up julia
@@ -105,7 +105,7 @@ jobs:
       uses: actions/cache/save@v6
       with:
         path: ~/.julia/scratchspaces
-        key: ${{ steps.prime.outputs.gaps == 'true' && format('rasterdata-{0}-v4-partial-{1}', runner.os, github.run_id) || format('rasterdata-{0}-v4-{1}', runner.os, hashFiles('src/datasetread.jl')) }}
+        key: ${{ steps.prime.outputs.gaps == 'true' && format('rasterdata-{0}-v5-partial-{1}', runner.os, github.run_id) || format('rasterdata-{0}-v5-{1}', runner.os, hashFiles('src/datasetread.jl')) }}
 
   EcoSISTEM-tests:
     name: ${{ matrix.suite }} - Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -219,12 +219,12 @@ jobs:
       # A restored cache can never be wrong, only incomplete: `getraster`/`download` each test the
       # target file's own existence before fetching, so a partial restore costs a few per-file
       # downloads rather than giving incorrect data. That is what makes the static part safe - and
-      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v4` SUFFIX to mint
+      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v5` SUFFIX to mint
       # a new entry; there is no need to work out which file changed.
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v5-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Build package

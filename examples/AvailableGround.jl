@@ -53,10 +53,13 @@ const YEARS = SMALL ? 2year : 20year
 
 # --- the green fraction, computed once and used by both examples ----------------
 #
-# **Summed, never `1 - Σ(unavailable)`.** The twelve bands do not reliably total 100%: measured
-# over all 7.5M EarthEnv cells, 89% sum to exactly 100 and the rest run from 55 to 103. In a cell
+# **Summed, never `1 - Σ(unavailable)`.** The twelve bands do not reliably total 100%: of the 757M
+# cells of EarthEnv's full version, 95% sum to exactly 100 and the rest run from 32 to 104. In a cell
 # summing to 55 the missing 45 is *unknown* coverage, and subtracting the four unavailable classes
 # would silently claim all of it as available.
+#
+# The full version, `LandCover{:DISCover}`, is the one EarthEnv recommends for most applications;
+# `EarthEnv{LandCover}` is the reduced version, made without DISCover.
 #
 # Classes are named, never numbered - the numeric codes are an EarthEnv implementation detail and
 # the shipped catalogue (`data/catalogue/LandCover.csv`) is what maps names to them.
@@ -71,7 +74,8 @@ const GROWABLE = (:needleleaf_trees, :evergreen_broadleaf_trees,
 # raster behaves like its values and stays a raster, so `sum` is the whole of it and no array type is
 # named. The result carries no layer code, and does not need one - the codes disagree, so summing
 # drops it, and the `axis =` on the `ConstructedRasterSpec` is what declares what the result means.
-available = ConstructedRasterSpec(EarthEnv{LandCover}, collect(GROWABLE),
+available = ConstructedRasterSpec(EarthEnv{LandCover{:DISCover}},
+                                  collect(GROWABLE),
                                   axis = SurfaceArea) do bands...
     return sum(bands)
 end
@@ -104,7 +108,8 @@ const LIGHTDEMAND = INCIDENT * CELLAREA / LIGHTPERCELL
 # fractions* - dimensionless, on `SurfaceArea`. Multiplying by an incident flux gives a solar flux
 # density, and `axis = SolarRadiation` is what declares that. Nothing in the values could have said
 # it: a fraction times a constant is just a number until an axis gives it a meaning.
-usable_light = ConstructedRasterSpec(EarthEnv{LandCover}, collect(GROWABLE),
+usable_light = ConstructedRasterSpec(EarthEnv{LandCover{:DISCover}},
+                                     collect(GROWABLE),
                                      axis = SolarRadiation) do bands...
     return sum(bands) .* INCIDENT
 end

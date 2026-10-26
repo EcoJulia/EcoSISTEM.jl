@@ -15,6 +15,9 @@
       `references` and `notices`, and `citation` is now the requested references' texts.
     - `data/catalogue/citations.bib` and `authors.toml` hold every catalogued DOI's citation and
       its authors' ORCIDs as doi.org gives them, made by `data/src/citations.jl`.
+    - EarthEnv's full land cover, `EarthEnv{LandCover{:DISCover}}`, has a catalogue row, and the
+      examples read it, as EarthEnv recommends for most applications; each version's title names
+      it. `EarthEnv{LandCover}` is still the reduced version, without DISCover.
     - A fetched file's record, and `InputRecord`, gain its title, whether it is the provider's own
       file (`primary`), the release date, the provider's references and notices, and the address
       of the documentation's page quoting them. `provenance` and `write_provenance` show them with

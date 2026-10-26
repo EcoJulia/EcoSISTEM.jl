@@ -50,7 +50,8 @@ include("rasterfixtures.jl")
         paths = Dict{Type, Set{String}}()
         for T in (WorldClim{BioClim}, WorldClim{Climate}, WorldClim{Elevation},
             CHELSA{BioClim}, CHELSA{BioClimPlus}, CHELSA{Climate},
-            EarthEnv{LandCover}, EarthEnv{HabitatHeterogeneity})
+            EarthEnv{LandCover}, EarthEnv{LandCover{:DISCover}},
+            EarthEnv{HabitatHeterogeneity})
             rec = EcoSISTEM.datasetinfo(T)
             titles = Dict{String, String}()
             # The layers both the source package and the catalogue know, which are those a spec

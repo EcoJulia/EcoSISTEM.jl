@@ -647,7 +647,9 @@ function _datasetkey(T::Type)
     return name * "{" * join((_datasetkey(p) for p in params), ",") * "}"
 end
 
-_datasetkey(x) = string(x)
+# A value parameter as a type writes it, `:DISCover` in `EarthEnv{LandCover{:DISCover}}`, so the key
+# reads back as the type.
+_datasetkey(x) = repr(x)
 
 # Every row of `datasets.csv`, read once and memoised, each cell parsed into its typed field and
 # refused when it cannot be.

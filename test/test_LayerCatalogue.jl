@@ -527,7 +527,8 @@ end
                         "Elevation" => Any[WorldClim{Elevation}],
                         "HabitatHeterogeneity" =>
                             Any[EarthEnv{HabitatHeterogeneity}],
-                        "LandCover" => Any[EarthEnv{LandCover}])
+                        "LandCover" => Any[EarthEnv{LandCover},
+                            EarthEnv{LandCover{:DISCover}}])
     # `ncdf` is listed by `layers(CHELSA{Climate})` but is a spurious RDS entry (no such CHELSA
     # variable / file), so it is deliberately absent from the table - carve it out here.
     known_spurious = Set(["ncdf"])
@@ -552,7 +553,7 @@ end
 @testset "guard: datasets.csv reconciles to the layer tables" begin
     E = EcoSISTEM
     rows = E._datasets()
-    @test length(rows) == 13
+    @test length(rows) == 14
     for r in rows
         # every row names a loaded source type, spelled as the loader spells it back - Natural
         # Earth's being the level type its downloads are owned by
@@ -568,11 +569,21 @@ end
     # every source with a layer table has a row, RasterDataSources' and this package's own alike
     for T in (WorldClim{BioClim}, WorldClim{Climate}, WorldClim{Elevation},
         CHELSA{BioClim}, CHELSA{BioClimPlus}, CHELSA{Climate},
-        EarthEnv{LandCover}, EarthEnv{HabitatHeterogeneity}, ERA, CERA,
-        TwentyCR)
+        EarthEnv{LandCover}, EarthEnv{LandCover{:DISCover}},
+        EarthEnv{HabitatHeterogeneity}, ERA, CERA, TwentyCR)
         @test E._haslayertable(T)
         @test E.datasetinfo(T) isa E.DatasetRecord
     end
+    # EarthEnv's two land-cover versions are one product built with and without one input: one
+    # layer table, request and citation, told apart by their titles and their files.
+    reduced = E.datasetinfo(EarthEnv{LandCover})
+    full = E.datasetinfo(EarthEnv{LandCover{:DISCover}})
+    @test full.dataset == "EarthEnv{LandCover{:DISCover}}"
+    @test E._tablename(EarthEnv{LandCover{:DISCover}}) === :LandCover
+    @test (full.request, full.doi, full.licence) ==
+          (reduced.request, reduced.doi, reduced.licence)
+    @test occursin("with DISCover", full.title) &&
+          occursin("without DISCover", reduced.title)
     # and an unknown source is refused, naming the table
     @test_throws "datasets.csv" E.datasetinfo(Int)
     @test isnothing(E._datasetrecord(Int))
