@@ -13,6 +13,8 @@
       under `data/catalogue/requests/`: the works to cite and the notices to carry, with how
       strongly each is asked. `DatasetRecord` gains `releasedate`, `title`, `request`,
       `references` and `notices`, and `citation` is now the requested references' texts.
+    - The documentation's new page "Providers' requests" quotes every request, a section each,
+      and is where a fetched file's record links to.
     - `data/catalogue/citations.bib` and `authors.toml` hold every catalogued DOI's citation and
       its authors' ORCIDs as doi.org gives them, made by `data/src/citations.jl`.
     - EarthEnv's full land cover, `EarthEnv{LandCover{:DISCover}}`, has a catalogue row, and the
@@ -33,7 +35,7 @@
     - A Climate Data Store file already present whose provenance record holds a different request
       is refused, naming what differs, rather than served as the request asked.
     - The `EcoSISTEMDataPipelineExt` extension works: `[compat]` now asks for `DataPipeline`
-      v0.56, and the extension and its test hook are exercised by the test suite.
+      v0.58.1, and the extension and its test hook are exercised by the test suite.
     - `examples/pipeline/AfricaRun.jl` runs under `fair run` again. It has an environment of its
       own, it names the claimed files on its layer specs so the run reads the pipeline's copy of
       WorldClim rather than downloading another, and `AfricaRun.yaml` points at WorldClim's

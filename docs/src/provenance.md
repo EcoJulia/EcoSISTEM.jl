@@ -17,7 +17,8 @@ Every file the package fetches gets a record written beside it - where it came f
 size and checksum, whether it is the provider's own file or an extract cut to a request, and from
 the catalogue (see [Layers](layers.md)) the file's title, the dataset's DOI, licence, version and
 release date, and what its provider asks of anyone using the data: the works to cite and the
-notices to carry, quoted as the provider wrote them. A date or year a provider leaves to be filled
+notices to carry, quoted as the provider wrote them and gathered on
+[Providers' requests](requests.md). A date or year a provider leaves to be filled
 in is filled from when the file was fetched wherever a record is shown or written. A listing ends by
 saying what was done to the inputs - each was resampled or rasterised onto the study grid - which a
 modified dataset's licence often asks to be said. When a study area reads a layer, it keeps a record of each file it read, and

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Do the catalogue's provider requests, citations and authors agree with one another? Run with the
-# other hygiene checks:
+# Do the catalogue's provider requests, citations and authors agree with one another, and with the
+# documentation's page quoting the requests? Run with the other hygiene checks:
 #
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["extras_clean.jl"])'
 #
@@ -19,6 +19,9 @@ using Test
 using TOML
 
 const CATALOGUE = joinpath(pkgdir(EcoSISTEM), "data", "catalogue")
+
+# `requestspage`, which `docs/make.jl` writes the documentation's page of requests with.
+include(joinpath(pkgdir(EcoSISTEM), "docs", "requests.jl"))
 
 # Every entry of `citations.bib`. A month written as a bare word, as Crossref writes `month=May`,
 # is braced first, as DataPipeline braces it before reading: BibParser takes a bare word for an
@@ -106,6 +109,32 @@ end
             @test occursin(r"^https://(orcid\.org/\d{4}-\d{4}-\d{4}-\d{3}[\dX]|ror\.org/0[a-z0-9]{8})$",
                            id)
         end
+    end
+
+    # The Markdown is checked, so whether Documenter renders each anchor is the docs build's to show.
+    @testset "the documentation quotes each request where a record's link points" begin
+        page = requestspage()
+        for n in names
+            @test count("(@id $n)", page) == 1
+        end
+        for r in rows
+            @test EcoSISTEM._requestpage(r) ==
+                  EcoSISTEM._REQUESTS_PAGE * "#" * r.request
+            for ref in r.references
+                @test occursin(mdescape(ref.text), page)
+            end
+            for notice in r.notices
+                @test occursin("*$(notice.strength)*: " * mdescape(notice.text),
+                               page)
+            end
+        end
+        # The link is the page `docs/make.jl` builds, under the site's canonical address.
+        make = read(joinpath(pkgdir(EcoSISTEM), "docs", "make.jl"), String)
+        @test occursin("\"requests.md\"", make)
+        canonical = match(r"canonical = \"([^\"]+)\"", make)
+        @test !isnothing(canonical) &&
+              EcoSISTEM._REQUESTS_PAGE ==
+              rstrip(canonical[1], '/') * "/requests/"
     end
 end
 
